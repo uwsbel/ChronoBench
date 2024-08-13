@@ -1,0 +1,1 @@
+Error code: 400 - {'type': 'urn:inference-service:problem-details:bad-request', 'title': 'Bad Request', 'status': 400, 'detail': 'Inference error', 'instance': '/v2/nvcf/pexec/functions/b0fcd392-e905-4ab4-8eb9-aeae95c30b37', 'requestId': 'dbf4a3e5-16d7-4ae1-8c37-87b1e9afe7e2'}

@@ -1,0 +1,94 @@
+```python
+import pychrono as chrono
+import pychrono.ros as chroro
+import rospy
+
+# Initialize PyChrono environment
+my_system = chrono.ChSystemNSC()
+my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+
+# Material properties
+material = chrono.ChMaterialSurfaceNSC()
+material.SetFriction(0.5)
+material.SetRestitution(0.2)
+
+# Create a fixed floor
+floor = chrono.ChBodyEasyBox(10, 0.1, 10, 1000, True, True, material)
+floor.SetPos(chrono.ChVectorD(0, -0.1, 0))
+my_system.Add(floor)
+
+# Create a movable box
+box = chrono.ChBodyEasyBox(0.5, 0.5, 0.5, 10, True, True, material)
+box.SetPos(chrono.ChVectorD(0, 1, 0))
+my_system.Add(box)
+
+# Initialize ROS
+rospy.init_node('chrono_ros_node')
+
+# Create ROS manager
+ros_manager = chroro.ChROSManager(my_system)
+
+# Configure ROS handlers
+ros_manager.SetClockHandler(chroro.ChROSClockHandler())
+ros_manager.SetBodyHandler(chroro.ChROSBodyHandler())
+ros_manager.SetTransformHandler(chroro.ChROSTransformHandler())
+
+# Custom ROS handler for publishing integer messages
+class CustomROSHandler(chroro.ChROSHandler):
+    def __init__(self, topic_name):
+        super().__init__()
+        self.topic_name = topic_name
+        self.publisher = rospy.Publisher(self.topic_name, Int32, queue_size=10)
+
+    def OnUpdate(self, data):
+        message = Int32()
+        message.data = int(data)  # Convert data to integer
+        self.publisher.publish(message)
+
+# Register custom handler
+custom_handler = CustomROSHandler('/chrono_data')
+ros_manager.RegisterHandler(custom_handler)
+
+# Simulation loop
+while not rospy.is_shutdown():
+    # Advance the Chrono system
+    my_system.DoStepDynamics(0.01)
+
+    # Update ROS communication
+    ros_manager.Update()
+
+    # Publish custom data (e.g., box position)
+    custom_handler.OnUpdate(box.GetPos().y)
+
+    # Maintain real-time execution
+    rospy.rostime.wallsleep(0.01)
+
+```
+
+**Explanation:**
+
+1. **Initialization:**
+   - Creates a Chrono system with gravity.
+   - Defines a material with friction and restitution.
+   - Adds a fixed floor and a movable box to the system.
+
+2. **ROS Integration:**
+   - Initializes ROS node.
+   - Creates a ROS manager to handle communication.
+   - Configures clock, body, and transform handlers for synchronization.
+
+3. **Custom ROS Handler:**
+   - Defines a custom handler `CustomROSHandler` that publishes integer messages to a specified topic.
+   - In the `OnUpdate` method, it converts data (e.g., box position) to an integer and publishes it.
+
+4. **Simulation Loop:**
+   - Advances the Chrono system using `DoStepDynamics`.
+   - Updates ROS communication using `ros_manager.Update()`.
+   - Calls the custom handler's `OnUpdate` method to publish data.
+   - Uses `rospy.rostime.wallsleep` to maintain real-time execution.
+
+**Notes:**
+
+- Replace `/chrono_data` with your desired ROS topic name.
+- You can modify the custom handler to publish different data types or perform other ROS-related tasks.
+- Ensure that the ROS master is running before executing the script.
