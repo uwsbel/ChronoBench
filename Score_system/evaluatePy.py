@@ -3,24 +3,35 @@ import os
 import json
 from tqdm import tqdm
 import re
+import sys
 import logging
+import io
+import subprocess
+
 
 def run_python_file(python_file_path, log_file='execution.log'):
     logging.basicConfig(filename=log_file, level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
     try:
-        with open(python_file_path, 'r', encoding='utf-8') as py_file:
-            code_string = py_file.read()
+        # Run the Python file in a subprocess
+        result = subprocess.run(
+            ['python', python_file_path],
+            capture_output=True,
+            text=True
+        )
 
-        # Safe execution of code using exec in a controlled environment
-        exec_env = {}
-        try:
-            exec(code_string, exec_env)
-            logging.info(f"Code executed successfully from {python_file_path}!")
-            return f"{python_file_path} success"
-        except Exception as e:
-            logging.error(f"An error occurred while executing the code from {python_file_path}: {e}")
-            return f"{python_file_path} An error occurred: {str(e)}"
+        # Check for errors or warnings in stdout/stderr
+        if result.returncode != 0:
+            logging.error(
+                f"An error occurred while executing the code from {python_file_path}: {result.stderr.strip()}")
+            return f"{python_file_path} An error occurred: {result.stderr.strip()}"
+
+        if "error" in result.stderr.lower() or "warning" in result.stderr.lower():
+            logging.warning(f"Code executed with warnings/errors: {result.stderr.strip()}")
+            return f"{python_file_path} executed with warnings/errors: {result.stderr.strip()}"
+
+        logging.info(f"Code executed successfully from {python_file_path}!")
+        return f"{python_file_path} success"
 
     except FileNotFoundError:
         logging.error(f"Error: The file {python_file_path} was not found.")
@@ -58,11 +69,6 @@ opensource_model_links = {
     "mistral-large": "mistralai/mistral-large",
     "mamba-codestral-7b-v0.1": "mistralai/mamba-codestral-7b-v0.1",
 }
-system_list = ["art", "beam", "buckling", "cable", "car", "camera", "citybus", "curiosity", "feda", "gator", "gear",
-               "gps_imu", "handler", "hmmwv", "kraz", "lidar", "m113", "man", "mass_spring_damper", "particles",
-               "pendulum",
-               "rigid_highway", "rigid_multipatches", "rotor", "scm", "scm_hill", "sedan", "sensros", "slider_crank",
-               "tablecloth", "turtlebot", "uazbus", "veh_app", "vehros", "viper"]
 
 # data set path
 dataset_path = 'D:\SimBench\demo_data'
@@ -76,8 +82,7 @@ test_model_list = ["gemma-2-2b-it", "gemma-2-9b-it", "gemma-2-27b-it", "llama-3.
 
 system_list = ["art", "beam", "buckling", "cable", "car", "camera", "citybus", "curiosity", "feda", "gator", "gear", "gps_imu", "handler", "hmmwv", "kraz", "lidar", "m113", "man", "mass_spring_damper", "particles", "pendulum",
                "rigid_highway", "rigid_multipatches", "rotor", "scm", "scm_hill", "sedan", "sensros", "slider_crank", "tablecloth", "turtlebot", "uazbus", "veh_app","vehros","viper"]
-system_do_list=["feda", "gator", "gear", "gps_imu", "handler", "hmmwv", "kraz", "lidar", "m113", "man", "mass_spring_damper", "particles", "pendulum",
-               "rigid_highway", "rigid_multipatches", "rotor", "scm", "scm_hill", "sedan", "sensros", "slider_crank", "tablecloth", "turtlebot", "uazbus", "veh_app","vehros","viper"]
+system_do_list=["curiosity"]
 # data set path
 dataset_path = 'D:\SimBench\demo_data'
 Output_path = 'D:\SimBench\output'
@@ -85,13 +90,13 @@ Output_statistic_path = 'D:\SimBench\statistic'
 
 # using tqdm to show the progress bar
 for test_model in tqdm(test_model_list):
-    print('entering model:', test_model)
+    #print('entering model:', test_model)
     test_model_link = opensource_model_links[test_model]
     output_model_path = os.path.join(Output_path, test_model)
     os.makedirs(output_model_path, exist_ok=True)
     # for each model, we create a folder to store the test results for each dynamical system
     for system_folder in os.listdir(dataset_path):
-        print('entering folder:', system_folder)
+        #print('entering folder:', system_folder)
         system_folder_path = os.path.join(dataset_path, system_folder)
         # for each dynamical system, we create a folder to store the test results for each model
         output_system_path = os.path.join(output_model_path, system_folder)
