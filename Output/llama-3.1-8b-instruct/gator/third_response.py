@@ -1,4 +1,3 @@
-"""
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
@@ -15,7 +14,7 @@ initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 vis_type = veh.VisualizationType_PRIMITIVES
 
 # Collision type for chassis (PRIMITIVES, MESH, or NONE)
-chassis_collision_type = veh.CollisionType_MESH  # Changed to MESH
+chassis_collision_type = veh.CollisionType_PRIMITIVES
 
 # Type of tire model (RIGID, TMEASY)
 tire_model = veh.TireModelType_TMEASY
@@ -49,11 +48,7 @@ vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 
-# Create primitive shapes for chassis collision
-chassis_collision_shapes = []
-chassis_collision_shapes.append(chrono.ChBoxShape(chrono.ChVector3d(-0.5, -0.5, -0.5), chrono.ChVector3d(0.5, 0.5, 0.5)))
-vehicle.GetVehicle().AddCollisionShape(chassis_collision_shapes[0])
-
+# Corrected the line below
 vehicle.Initialize()
 
 vehicle.SetChassisVisualizationType(vis_type)
@@ -77,7 +72,6 @@ patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
-
 # -------------------------------------
 # Create the vehicle Irrlicht interface
 # Create the driver system
@@ -93,14 +87,13 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
-
 # Create the driver system
 driver = veh.ChInteractiveDriverIRR(vis)
 
 # Set the time response for steering and throttle keyboard inputs.
-steering_time = 5.0  # time to go from 0 to +1 (or from 0 to -1)
-throttle_time = 5.0  # time to go from 0 to +1
-braking_time = 1.0   # time to go from 0 to +1
+steering_time = 2.0  # time to go from 0 to +1 (or from 0 to -1)
+throttle_time = 2.0  # time to go from 0 to +1
+braking_time = 0.6   # time to go from 0 to +1
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)

@@ -16,8 +16,9 @@ vis_type_mesh = veh.VisualizationType_MESH
 # Collision type for chassis (PRIMITIVES, MESH, or NONE)
 chassis_collision_type = veh.CollisionType_NONE
 
-# Type of tire model
-tire_model = veh.TireModelType_PAcejka89
+# Type of tire model (RIGID, TMEASY, or PAcejka)
+tire_model = veh.TireModelType_PAcejka
+tire_model_version = 89
 
 # Rigid terrain
 # terrain_model = veh.RigidTerrain.BOX

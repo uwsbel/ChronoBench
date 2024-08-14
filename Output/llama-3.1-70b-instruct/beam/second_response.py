@@ -115,8 +115,11 @@ sys.SetSolver(msolver)
 
 # Create a builder helper object for Euler-Bernoulli beams.
 builder = fea.ChBuilderBeamEuler()
+builder.SetSpans(5)
 builder.SetSection(msection)
-builder.SetSpine(chrono.ChVector3d(0, 0, -0.1), chrono.ChVector3d(0.2, 0, -0.1), 5, chrono.ChVector3d(0, 1, 0))
+builder.SetYup(chrono.ChVector3d(0, 1, 0))
+builder.SetNode1(chrono.ChVector3d(0, 0, -0.1))
+builder.SetNode2(chrono.ChVector3d(0.2, 0, -0.1))
 builder.BuildBeam(mesh)
 
 # Fix the last node of the created beam.

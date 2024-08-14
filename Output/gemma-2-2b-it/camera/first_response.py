@@ -12,32 +12,37 @@ world = chrono.World()
 
 # Load the triangular mesh
 mesh_path = "your_mesh.obj"  # Replace with your mesh file path
-mesh = chrono.Mesh.load(mesh_path)
+mesh = chrono.Mesh.from_file(mesh_path)
 
-# Create a fixed body
-body = chrono.Body(mesh)
-body.set_mass(1.0)  # Set mass of the body
-body.set_inertia(chrono.Inertia(chrono.Vector3(0, 0, 0), 1.0))  # Set inertia
-body.set_position(chrono.Vector3(0, 0, 0))  # Set initial position
+# Add the mesh as a fixed body
+mesh_body = chrono.Body(mesh)
+mesh_body.set_fixed()
+world.add_body(mesh_body)
 
 # Create a camera sensor
-camera = sensor.CameraSensor(body)
-camera.set_position(chrono.Vector3(0, 0, 10))  # Set initial camera position
-camera.set_focal_length(100)  # Set focal length
-camera.set_noise_filter(noise.GaussianFilter(0.1))  # Apply noise filter
+camera_sensor = sensor.CameraSensor(mesh_body)
+
+# Add noise filters and visualizations
+camera_sensor.add_noise_filter(noise.GaussianNoiseFilter(sigma=0.1))
+camera_sensor.add_visualization(vis.ImageBuffer(width=640, height=480))
+
+# Set camera position and orientation
+camera_sensor.set_position(chrono.Vector3(0, 0, 10))
+camera_sensor.set_orientation(chrono.Quaternion(0, 0, 0, 1))
 
 # Create a sensor manager
-sensor_manager = sensor.SensorManager()
-sensor_manager.add_sensor(camera)
-
-# Add visualization
-vis.add_visualization(vis.Camera(camera))
+sensor_manager = sensor.SensorManager(camera_sensor)
 
 # Simulate the system
-world.add_body(body)
-world.add_sensor_manager(sensor_manager)
-world.run(1000)  # Run simulation for 1000 steps
+world.run(1000)
 
-# Print camera buffer data
-for i in range(1000):
-    print(camera.get_buffer())
+# Print camera buffer data at each step
+for step in range(1000):
+    # Get the camera buffer data
+    buffer_data = camera_sensor.get_buffer_data()
+
+    # Print the buffer data
+    print(f"Step {step}: {buffer_data}")
+
+# Clean up
+world.destroy()

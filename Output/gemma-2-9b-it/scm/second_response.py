@@ -4,61 +4,6 @@ import pychrono.vehicle as veh
 import math
 
 
-class SCMTerrainParameters:
-    def __init__(self):
-        self.Bekker_Kphi = 0  
-        self.Bekker_Kc = 0      
-        self.Bekker_n = 0       
-        self.Mohr_cohesion = 0  
-        self.Mohr_friction = 0  
-        self.Janosi_shear = 0   
-        self.elastic_K = 0      
-        self.damping_R = 0      
-
-    def InitializeAsSoft(self):
-        self.Bekker_Kphi = 0.2e6
-        self.Bekker_Kc = 0
-        self.Bekker_n = 1.1
-        self.Mohr_cohesion = 0
-        self.Mohr_friction = 30
-        self.Janosi_shear = 0.01
-        self.elastic_K = 4e7
-        self.damping_R = 3e4
-
-    def InitializeAsMid(self):
-        self.Bekker_Kphi = 2e6
-        self.Bekker_Kc = 0
-        self.Bekker_n = 1.1
-        self.Mohr_cohesion = 0
-        self.Mohr_friction = 30
-        self.Janosi_shear = 0.01
-        self.elastic_K = 2e8
-        self.damping_R = 3e4
-
-    def InitializeAsHard(self):
-        self.Bekker_Kphi = 5301e3
-        self.Bekker_Kc = 102e3
-        self.Bekker_n = 0.793
-        self.Mohr_cohesion = 1.3e3
-        self.Mohr_friction = 31.1
-        self.Janosi_shear = 1.2e-2
-        self.elastic_K = 4e8
-        self.damping_R = 3e4
-
-    def SetParameters(self, terrain):
-        terrain.SetSoilParameters(
-            self.Bekker_Kphi,
-            self.Bekker_Kc,
-            self.Bekker_n,
-            self.Mohr_cohesion,
-            self.Mohr_friction,
-            self.Janosi_shear,
-            self.elastic_K,
-            self.damping_R
-        )
-
-
-
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
@@ -77,9 +22,9 @@ tire_model = veh.TireModelType_RIGID
 
 # Rigid terrain
 # terrain_model = veh.RigidTerrain.BOX
-terrainHeight = 0
-terrainLength = 100.0
-terrainWidth = 100.0
+terrainHeight = 0      # terrain height
+terrainLength = 100.0  # size in X direction
+terrainWidth = 100.0   # size in Y direction
 
 # Poon chassis tracked by the camera
 trackPoint = chrono.ChVector3d(0.0, 0.0, 1.71)
@@ -97,13 +42,14 @@ render_step_size = 1.0 / 50  # FPS = 50
 
 # Create the HMMWV vehicle, set parameters, and initialize
 
-vehicle = veh.HMMWV_Full()  # veh.HMMWV_Reduced()  could be another choice here
+vehicle = veh.HMMWV_Full() # veh.HMMWV_Reduced()  could be another choice here
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
+
 
 vehicle.Initialize()
 
@@ -115,11 +61,54 @@ vehicle.SetTireVisualizationType(vis_type)
 
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
+
+
+class SCMTerrainParams:
+    def __init__(self, soil_type="soft"):
+        if soil_type == "soft":
+            self.Kphi = 2e6
+            self.Kc = 0
+            self.n = 1.1
+            self.cohesion = 0
+            self.friction = 30
+            self.Janosi = 0.01
+            self.elastic_stiffness = 2e8
+            self.damping = 3e4
+        elif soil_type == "mid":
+            self.Kphi = 5e6
+            self.Kc = 500
+            self.n = 1.2
+            self.cohesion = 10
+            self.friction = 45
+            self.Janosi = 0.02
+            self.elastic_stiffness = 5e8
+            self.damping = 5e4
+        elif soil_type == "hard":
+            self.Kphi = 1e7
+            self.Kc = 1e3
+            self.n = 1.3
+            self.cohesion = 20
+            self.friction = 60
+            self.Janosi = 0.03
+            self.elastic_stiffness = 1e9
+            self.damping = 1e5
+        else:
+            raise ValueError("Invalid soil type. Choose from 'soft', 'mid', or 'hard'.")
+
+# Initialize terrain parameters
+terrain_params = SCMTerrainParams("soft")  # Change to "mid" or "hard" for different soil types
+
 # Create the SCM deformable terrain patch
 terrain = veh.SCMTerrain(vehicle.GetSystem())
-terrain_params = SCMTerrainParameters()
-terrain_params.InitializeAsMid()  # Choose "soft", "mid", or "hard"
-terrain_params.SetParameters(terrain)
+terrain.SetSoilParameters(terrain_params.Kphi,
+                            terrain_params.Kc,
+                            terrain_params.n,
+                            terrain_params.cohesion,
+                            terrain_params.friction,
+                            terrain_params.Janosi,
+                            terrain_params.elastic_stiffness,
+                            terrain_params.damping
+)
 
 # Optionally, enable moving patch feature (single patch around vehicle chassis)
 terrain.AddMovingPatch(vehicle.GetChassisBody(), chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(5, 3, 1))
@@ -172,5 +161,32 @@ step_number = 0
 render_frame = 0
 
 while vis.Run() :
-    time = vehicle.Get
-print("error happened with only start ```python")
+    time = vehicle.GetSystem().GetChTime()
+
+    # Render scene and output POV-Ray data
+    if (step_number % render_steps == 0) :
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+        render_frame += 1
+
+    # Get driver inputs
+    driver_inputs = driver.GetInputs()
+
+    # Update modules (process inputs from other modules)
+    driver.Synchronize(time)
+    terrain.Synchronize(time)
+    vehicle.Synchronize(time, driver_inputs, terrain)
+    vis.Synchronize(time, driver_inputs)
+
+    # Advance simulation for one timestep for all modules
+    driver.Advance(step_size)
+    terrain.Advance(step_size)
+    vehicle.Advance(step_size)
+    vis.Advance(step_size)
+
+    # Increment frame number
+    step_number += 1
+
+    # Spin in place for real time to catch up
+    realtime_timer.Spin(step_size)

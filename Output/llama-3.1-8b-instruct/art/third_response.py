@@ -1,4 +1,3 @@
-"""
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
@@ -8,8 +7,8 @@ chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 # Initial vehicle location and orientation
-initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 initLoc = chrono.ChVector3d(0, 0, 0.5)
+initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 # Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
 vis_type = veh.VisualizationType_MESH
@@ -53,6 +52,7 @@ vehicle.SetTireStepSize(tire_step_size)
 vehicle.SetMaxMotorVoltageRatio(0.26)  # Update MaxMotorVoltageRatio
 vehicle.SetStallTorque(0.4)  # Update StallTorque
 vehicle.SetTireRollingResistance(0.03)  # Update TireRollingResistance
+vehicle.SetMass(1500)  # Update vehicle mass
 vehicle.Initialize()
 
 vehicle.SetChassisVisualizationType(vis_type)

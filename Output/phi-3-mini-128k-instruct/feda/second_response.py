@@ -21,8 +21,8 @@ tire_model = veh.TireModelType_TMEASY
 
 # Rigid terrain
 terrainHeight = 0      # terrain height
-terrainLength = 200.0  # size in X direction
-terrainWidth = 100.0   # size in Y direction
+terrainLength = 200.0   # size in X direction
+terrainWidth = 100.0    # size in Y direction
 
 # Poon chassis tracked by the camera
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
@@ -82,16 +82,25 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
+# Create the path-follower driver system
 
-# Create the path-follower, cruise-control driver system
+path_follower = veh.ChPathFollowerDriverIrrlicht()
+path_follower.SetTargetSpeed(10.0)
+path_follower.SetLookAheadDistance(5.0)
+path_follower.SetSteeringGain(1.0)
+path_follower.SetSteeringBias(0.1)
+path_follower.SetSpeedGain(1.0)
+path_follower.SetSpeedBias(0.1)
 
-path = veh.DoubleLaneChangePath(initLoc, 13.5, 4.0, 11.0, 50.0, True)
-target_speed = 10.0
-driver = veh.ChPathFollowerDriver(vehicle.GetVehicle(), path, "my_path", target_speed)
-driver.GetSteeringController().SetLookAheadDistance(5)
-driver.GetSteeringController().SetGains(0.8, 0, 0)
-driver.GetSpeedController().SetGains(0.4, 0, 0)
-driver.Initialize()
+# Set the time response for steering and throttle keyboard inputs.
+steering_time = 1.0  # time to go from 0 to +1 (or from 0 to -1)
+throttle_time = 1.0  # time to go from 0 to +1
+braking_time = 0.3   # time to go from 0 to +1
+path_follower.SetSteeringDelta(render_step_size / steering_time)
+path_follower.SetThrottleDelta(render_step_size / throttle_time)
+path_follower.SetBrakingDelta(render_step_size / braking_time)
+
+path_follower.Initialize()
 
 # Output vehicle mass
 print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
@@ -115,16 +124,16 @@ while vis.Run() :
         render_frame += 1
 
     # Get driver inputs
-    driver_inputs = driver.GetInputs()
+    driver_inputs = path_follower.GetInputs()
 
     # Update modules (process inputs from other modules)
-    driver.Synchronize(time)
+    path_follower.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
 
     # Advance simulation for one timestep for all modules
-    driver.Advance(step_size)
+    path_follower.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)

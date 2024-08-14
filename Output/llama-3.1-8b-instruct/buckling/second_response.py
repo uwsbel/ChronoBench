@@ -1,6 +1,3 @@
-"""
-Import necessary libraries for the simulation
-"""
 import math as m  # Import the math library for trigonometric functions, constants, etc.
 import pychrono as chrono  # Import the main PyChrono library
 import pychrono.fea as fea  # Import the finite element analysis module from PyChrono

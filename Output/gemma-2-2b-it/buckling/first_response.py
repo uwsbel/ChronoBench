@@ -10,34 +10,34 @@ chrono.init()
 world = chrono.World()
 
 # Define the beam geometry
-beam_geometry = chrono.Geometry()
-beam_geometry.set_type(chrono.Geometry.Type.BEAM)
-beam_geometry.set_name("beam")
-beam_geometry.set_material(chrono.Material.Steel)
-beam_geometry.set_length(1.0)
-beam_geometry.set_width(0.1)
-beam_geometry.set_thickness(0.01)
+beam_length = 1.0  # Length of the beam
+beam_width = 0.1  # Width of the beam
+beam_height = 0.05  # Height of the beam
+beam_material = "Steel"  # Material of the beam
 
 # Create the beam element
-beam_element = chrono.BeamElement()
-beam_element.set_geometry(beam_geometry)
-beam_element.set_material(chrono.Material.Steel)
-beam_element.set_length(1.0)
-beam_element.set_width(0.1)
-beam_element.set_thickness(0.01)
+beam_element = chrono.BeamElement(
+    length=beam_length,
+    width=beam_width,
+    height=beam_height,
+    material=beam_material,
+)
 
 # Create the motor
-motor = chrono.Motor()
-motor.set_name("motor")
-motor.set_position(chrono.Vector3(0.0, 0.0, 0.0))
-motor.set_force(chrono.Vector3(0.0, 0.0, 100.0))
+motor = chrono.Motor(
+    name="Motor",
+    position=(0.0, 0.0, 0.0),
+    force=(0.0, 0.0, 0.0),
+    torque=(0.0, 0.0, 0.0),
+)
 
-# Create the constraint
-constraint = chrono.Constraint()
-constraint.set_name("constraint")
-constraint.set_type(chrono.Constraint.Type.FIXED)
-constraint.set_object1(beam_element)
-constraint.set_object2(motor)
+# Create the beam constraint
+beam_constraint = chrono.Constraint(
+    name="Beam Constraint",
+    type="Fixed",
+    position=(0.0, 0.0, 0.0),
+    axis=(0.0, 0.0, 1.0),
+)
 
 # Add the beam element to the world
 world.add_object(beam_element)
@@ -45,19 +45,31 @@ world.add_object(beam_element)
 # Add the motor to the world
 world.add_object(motor)
 
-# Add the constraint to the world
-world.add_object(constraint)
+# Add the beam constraint to the world
+world.add_object(beam_constraint)
 
-# Set the solver and timestepper
-solver = chrono.Solver(chrono.Solver.Type.RK4)
-timestepper = chrono.Timestepper(chrono.Timestepper.Type.Euler)
+# Define the FEA solver
+solver = chrono.FEA.Solver(
+    name="FEA Solver",
+    type="Newton-Raphson",
+    tolerance=1e-6,
+    iterations=100,
+)
 
-# Set the simulation parameters
-simulation_time = 10.0
-timestep = 0.01
-
-# Run the simulation
-world.run(solver, timestepper, simulation_time, timestep)
+# Define the timestepper
+timestepper = chrono.Timestepper(
+    name="Timestepper",
+    step_size=0.01,
+    solver=solver,
+)
 
 # Visualize the simulation
-visualization.render(world, "beam_buckling.irr")
+visualizer = visualization.IrrlichtVisualizer()
+visualizer.add_object(world)
+visualizer.run()
+
+# Simulate the beam buckling
+timestepper.run()
+
+# Print simulation results
+print("Simulation complete.")

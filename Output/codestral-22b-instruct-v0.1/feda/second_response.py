@@ -25,7 +25,7 @@ terrainLength = 200.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
 
 # Poon chassis tracked by the camera
-trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
+trackPoint = chrono.ChVector3d(-45, 0.0, 1.1)
 
 # Contact method
 contact_method = chrono.ChContactMethod_NSC
@@ -81,14 +81,25 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
-# Create the path-follower, cruise-control driver
-# Use a parameterized ISO double lane change (to left)
-path = veh.DoubleLaneChangePath(initLoc, 13.5, 4.0, 11.0, 50.0, True)
-target_speed = 10.0
-driver = veh.ChPathFollowerDriver(vehicle.GetVehicle(), path, "my_path", target_speed)
+# Create the driver system
+driver = veh.ChPathFollowerDriver(vehicle.GetVehicle(), trackPoint, 10.0)
+
+# Create the path
+path = veh.ChBezierCurve()
+path.AddPoint(chrono.ChVector3d(-50, 0, 0.5))
+path.AddPoint(chrono.ChVector3d(-45, 5, 0.5))
+path.AddPoint(chrono.ChVector3d(-40, 0, 0.5))
+path.AddPoint(chrono.ChVector3d(-35, 5, 0.5))
+path.AddPoint(chrono.ChVector3d(-30, 0, 0.5))
+driver.SetPath(path)
+
+# Configure the steering controller
 driver.GetSteeringController().SetLookAheadDistance(5)
-driver.GetSteeringController().SetGains(0.8, 0, 0)
+driver.GetSteeringController().SetGains(0.5, 0, 0)
+
+# Configure the speed controller
 driver.GetSpeedController().SetGains(0.4, 0, 0)
+
 driver.Initialize()
 
 # output vehicle mass
@@ -97,7 +108,7 @@ print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
 
-# Initialize simulation frame counter
+# Initialize simulation frame counter s
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0

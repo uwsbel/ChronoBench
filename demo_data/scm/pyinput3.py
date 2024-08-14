@@ -1,8 +1,6 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
-import pychrono.sensor as sens
-import numpy as np
 import math
 
 
@@ -63,14 +61,6 @@ vehicle.SetTireVisualizationType(vis_type)
 
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
-for i in range(5):
-    box = chrono.ChBodyEasyBox(2, 2, 2, 1000, True, True,chrono.ChContactMaterialSMC())
-    box.SetPos(chrono.ChVector3d(np.random.uniform(-5,10), np.random.uniform(2,10), 1))
-    box.SetFixed(True)
-    box.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/blue.png"))
-    vehicle.GetSystem().Add(box)
-
-
 # Create the SCM deformable terrain patch
 terrain = veh.SCMTerrain(vehicle.GetSystem())
 terrain.SetSoilParameters(2e6,   # Bekker Kphi
@@ -103,41 +93,6 @@ vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
-
-# -----------------------
-# Create a sensor manager
-# -----------------------
-manager = sens.ChSensorManager(vehicle.GetSystem())
-intensity = 0.1
-manager.scene.AddPointLight(chrono.ChVector3f(2, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
-manager.scene.AddPointLight(chrono.ChVector3f(9, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
-manager.scene.AddPointLight(chrono.ChVector3f(16, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
-manager.scene.AddPointLight(chrono.ChVector3f(23, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
-
-# ------------------------------------------------
-# Create two camera and add it to the sensor manager
-# ------------------------------------------------
-offset_pose = chrono.ChFramed(chrono.ChVector3d(.7, 0, 1.2), chrono.QuatFromAngleAxis(.2, chrono.ChVector3d(0, 1, 0)))
-update_rate = 30
-image_width = 1280
-image_height = 720
-fov = 1.047
-cam = sens.ChCameraSensor(
-    vehicle.GetChassisBody(),
-    update_rate,
-    offset_pose,
-    image_width,
-    image_height,
-    fov
-)
-cam.SetName("First Person POV")
-
-# Renders the image at current point in the filter graph
-if vis:
-    cam.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Before Grayscale Filter"))
-
-
-manager.AddSensor(cam)
 
 
 # Create the driver system
@@ -187,7 +142,6 @@ while vis.Run() :
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
 
-    manager.Update()   
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)
     terrain.Advance(step_size)

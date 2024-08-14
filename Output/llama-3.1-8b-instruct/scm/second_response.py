@@ -1,101 +1,9 @@
-"""
-Import necessary modules
-"""
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
-"""
-Define a class to manage SCM terrain parameters
-"""
-class SCMParameters:
-    def __init__(self):
-        self.Bekker_Kphi = 0    # Kphi, frictional modulus in Bekker model
-        self.Bekker_Kc = 0      # Kc, cohesive modulus in Bekker model
-        self.Bekker_n = 0       # n, exponent of sinkage in Bekker model (usually 0.6...1.8)
-        self.Mohr_cohesion = 0  # Cohesion in, Pa, for shear failure
-        self.Mohr_friction = 0  # Friction angle (in degrees!), for shear failure
-        self.Janosi_shear = 0   # J , shear parameter, in meters, in Janosi-Hanamoto formula (usually few mm or cm)
-        self.elastic_K = 0      # elastic stiffness K (must be > Kphi very high values gives the original SCM model)
-        self.damping_R = 0      # vertical damping R, per unit area (vertical speed proportional, it is zero in original SCM model)
-
-    # Set the parameters of the terrain
-    def SetParameters(self, terrain):
-        terrain.SetSoilParameters(
-            self.Bekker_Kphi,    # Bekker Kphi
-            self.Bekker_Kc,      # Bekker Kc
-            self.Bekker_n,       # Bekker n exponent
-            self.Mohr_cohesion,  # Mohr cohesive limit (Pa)
-            self.Mohr_friction,  # Mohr friction limit (degrees)
-            self.Janosi_shear,   # Janosi shear coefficient (m)
-            self.elastic_K,      # Elastic stiffness (Pa/m), before plastic yield, must be > Kphi
-            self.damping_R)      # Damping (Pa s/m), proportional to negative vertical speed (optional)
-
-
-    # Soft default parameters
-    def InitializeParametersAsSoft(self):
-        self.Bekker_Kphi = 0.2e6
-        self.Bekker_Kc = 0
-        self.Bekker_n = 1.1
-        self.Mohr_cohesion = 0
-        self.Mohr_friction = 30
-        self.Janosi_shear = 0.01
-        self.elastic_K = 4e7
-        self.damping_R = 3e4
-
-
-    # Middle default parameters
-    def InitializeParametersAsMid(self):
-        self.Bekker_Kphi = 2e6
-        self.Bekker_Kc = 0
-        self.Bekker_n = 1.1
-        self.Mohr_cohesion = 0
-        self.Mohr_friction = 30
-        self.Janosi_shear = 0.01
-        self.elastic_K = 2e8
-        self.damping_R = 3e4
-
-
-    # Hard default parameters
-    def InitializeParametersAsHard(self):
-        self.Bekker_Kphi = 5301e3
-        self.Bekker_Kc = 102e3
-        self.Bekker_n = 0.793
-        self.Mohr_cohesion = 1.3e3
-        self.Mohr_friction = 31.1
-        self.Janosi_shear = 1.2e-2
-        self.elastic_K = 4e8
-        self.damping_R = 3e4
-
-"""
-Define a class to manage SCM terrain
-"""
-class SCMterrain:
-    def __init__(self, vehicle):
-        self.vehicle = vehicle
-        self.params = SCMParameters()
-
-    def InitializeParameters(self, config):
-        if config == "soft":
-            self.params.InitializeParametersAsSoft()
-        elif config == "mid":
-            self.params.InitializeParametersAsMid()
-        elif config == "hard":
-            self.params.InitializeParametersAsHard()
-        else:
-            raise ValueError("Invalid configuration")
-
-    def SetParameters(self):
-        self.params.SetParameters(self)
-
-    def Initialize(self, length, width, mesh_resolution):
-        self.params.SetParameters(self)
-        self.vehicle.GetSystem().Add(self)
-
-"""
-Main script
-"""
+# Set chrono data path
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
@@ -113,7 +21,6 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_RIGID
 
 # Rigid terrain
-# terrain_model = veh.RigidTerrain.BOX
 terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
@@ -141,17 +48,29 @@ vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 
-# Initialize SCM terrain
-terrain = SCMterrain(vehicle)
-terrain.InitializeParameters("mid")
-terrain.SetParameters()
-terrain.Initialize(20, 20, 0.02)
+# Initialize terrain parameters
+terrain_params = TerrainParameters()
+terrain_params.set_parameters("soft")
+
+vehicle.Initialize()
+
+vehicle.SetChassisVisualizationType(vis_type)
+vehicle.SetSuspensionVisualizationType(vis_type)
+vehicle.SetSteeringVisualizationType(vis_type)
+vehicle.SetWheelVisualizationType(vis_type)
+vehicle.SetTireVisualizationType(vis_type)
+
+vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+
+# Create the SCM deformable terrain patch
+terrain = veh.SCMTerrain(vehicle.GetSystem())
+terrain.set_parameters(terrain_params)
 
 # Optionally, enable moving patch feature (single patch around vehicle chassis)
 terrain.AddMovingPatch(vehicle.GetChassisBody(), chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(5, 3, 1))
 
-# Set plot type for SCM (false color plotting)
-terrain.SetPlotType(veh.SCMTerrain.PLOT_SINKAGE, 0, 0.1)
+# Initialize the SCM terrain (length, width, mesh resolution), specifying the initial mesh grid
+terrain.Initialize(20, 20, 0.02)
 
 # Create the vehicle Irrlicht interface
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
@@ -191,6 +110,58 @@ render_steps = math.ceil(render_step_size / step_size)
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
+
+class TerrainParameters:
+    def __init__(self):
+        self.bekker_kphi = 2e6
+        self.bekker_kc = 0
+        self.bekker_n_exponent = 1.1
+        self.mohr_cohesive_limit = 0
+        self.mohr_friction_limit = 30
+        self.janosi_shear_coefficient = 0.01
+        self.elastic_stiffness = 2e8
+        self.damping = 3e4
+
+    def set_parameters(self, config):
+        if config == "soft":
+            self.bekker_kphi = 1e6
+            self.bekker_kc = 1e3
+            self.bekker_n_exponent = 1.2
+            self.mohr_cohesive_limit = 1e3
+            self.mohr_friction_limit = 20
+            self.janosi_shear_coefficient = 0.05
+            self.elastic_stiffness = 1e8
+            self.damping = 1e4
+        elif config == "mid":
+            self.bekker_kphi = 2e6
+            self.bekker_kc = 1e3
+            self.bekker_n_exponent = 1.1
+            self.mohr_cohesive_limit = 1e3
+            self.mohr_friction_limit = 25
+            self.janosi_shear_coefficient = 0.01
+            self.elastic_stiffness = 2e8
+            self.damping = 3e4
+        elif config == "hard":
+            self.bekker_kphi = 3e6
+            self.bekker_kc = 1e4
+            self.bekker_n_exponent = 1.0
+            self.mohr_cohesive_limit = 1e4
+            self.mohr_friction_limit = 30
+            self.janosi_shear_coefficient = 0.005
+            self.elastic_stiffness = 3e8
+            self.damping = 5e4
+
+    def get_parameters(self):
+        return {
+            "bekker_kphi": self.bekker_kphi,
+            "bekker_kc": self.bekker_kc,
+            "bekker_n_exponent": self.bekker_n_exponent,
+            "mohr_cohesive_limit": self.mohr_cohesive_limit,
+            "mohr_friction_limit": self.mohr_friction_limit,
+            "janosi_shear_coefficient": self.janosi_shear_coefficient,
+            "elastic_stiffness": self.elastic_stiffness,
+            "damping": self.damping
+        }
 
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()

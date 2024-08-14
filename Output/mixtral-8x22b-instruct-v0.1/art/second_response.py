@@ -16,7 +16,7 @@ vis_type = veh.VisualizationType_PRIMITIVES  # Changed visualization type
 # Collision type for chassis (PRIMITIVES, MESH, or NONE)
 chassis_collision_type = veh.CollisionType_MESH  # Changed collision type
 
-# Type of tire model
+# Type of tire model (RIGID, TMEASY, FIALA)
 tire_model = veh.TireModelType_FIALA  # Changed tire model type
 
 # Rigid terrain

@@ -1,9 +1,8 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
-import pychrono.sensor as sens
-import numpy as np
 import math
+import random
 
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
@@ -61,14 +60,6 @@ vehicle.SetTireVisualizationType(vis_type)
 
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
-# Add Objects to the Scene
-for i in range(5):
-    box = chrono.ChBodyEasyBox(2, 2, 2, 1000, True, True,chrono.ChContactMaterialSMC())
-    box.SetPos(chrono.ChVector3d(np.random.uniform(-5,10), np.random.uniform(2,10), 1))
-    box.SetFixed(True)
-    box.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/blue.png"))
-    vehicle.GetSystem().Add(box)
-
 # Create the SCM deformable terrain patch
 terrain = veh.SCMTerrain(vehicle.GetSystem())
 terrain.SetSoilParameters(2e6,   # Bekker Kphi
@@ -102,40 +93,6 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
-# -----------------------
-# Create a sensor manager
-# -----------------------
-manager = sens.ChSensorManager(vehicle.GetSystem())
-intensity = 0.1
-manager.scene.AddPointLight(chrono.ChVector3f(2, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
-manager.scene.AddPointLight(chrono.ChVector3f(9, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
-manager.scene.AddPointLight(chrono.ChVector3f(16, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
-manager.scene.AddPointLight(chrono.ChVector3f(23, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
-
-# ------------------------------------------------
-# Create two camera and add it to the sensor manager
-# ------------------------------------------------
-offset_pose = chrono.ChFramed(chrono.ChVector3d(.7, 0, 1.2), chrono.QuatFromAngleAxis(.2, chrono.ChVector3d(0, 1, 0)))
-update_rate = 30
-image_width = 1280
-image_height = 720
-fov = 1.047
-cam = sens.ChCameraSensor(
-    vehicle.GetChassisBody(),
-    update_rate,
-    offset_pose,
-    image_width,
-    image_height,
-    fov
-)
-cam.SetName("First Person POV")
-
-# Renders the image at current point in the filter graph
-if vis:
-    cam.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Before Grayscale Filter"))
-
-manager.AddSensor(cam)
-
 # Create the driver system
 driver = veh.ChInteractiveDriverIRR(vis)
 
@@ -148,6 +105,34 @@ driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
 
 driver.Initialize()
+
+# Add Objects to the Scene
+for _ in range(10):
+    box_size = random.uniform(0.1, 1)
+    box_pos = chrono.ChVector3d(random.uniform(-5, 5), random.uniform(-5, 5), box_size / 2)
+    if (box_pos - initLoc).Length() > 2:
+        box = chrono.ChBodyEasyBox(box_size, box_size, box_size, 1000, True, True)
+        box.SetPos(box_pos)
+        vehicle.GetSystem().Add(box)
+
+# Integrate a Sensor System
+sensor_manager = veh.ChSensorManager(vehicle.GetSystem())
+
+# Add point lights at various positions in the scene
+for _ in range(5):
+    light_pos = chrono.ChVector3d(random.uniform(-5, 5), random.uniform(-5, 5), 5)
+    sensor_manager.AddLight(light_pos, 1, 1, 1, 1)
+
+# Create a camera sensor attached to the vehicle chassis
+camera_sensor = veh.ChCameraSensor(vehicle.GetChassisBody(), 640, 480, 60)
+camera_sensor.SetLocalPos(chrono.ChVector3d(0, 0, 1))
+camera_sensor.SetLocalRot(chrono.ChQuaterniond(1, 0, 0, 0))
+
+# Add the camera sensor to the sensor manager
+sensor_manager.AddSensor(camera_sensor)
+
+# Include a filter to visualize the camera feed during the simulation
+camera_filter = veh.ChFilterAccess(camera_sensor)
 
 # ---------------
 # Simulation loop
@@ -182,13 +167,14 @@ while vis.Run() :
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
+    sensor_manager.Synchronize(time)
 
-    manager.Update()
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
+    sensor_manager.Advance(step_size)
 
     # Increment frame number
     step_number += 1

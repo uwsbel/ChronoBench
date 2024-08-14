@@ -78,7 +78,7 @@ Provide the corrected and modified script below:
             ],
             temperature=0.2,
             top_p=0.7,
-            max_tokens=1024*16,
+            max_tokens=4096,
             stream=False
         )
         return completion.choices[0].message.content, prompt
@@ -132,15 +132,14 @@ opensource_model_links = {
 }
 system_list = ["art", "beam", "buckling", "cable", "car", "camera", "citybus", "curiosity", "feda", "gator", "gear", "gps_imu", "handler", "hmmwv", "kraz", "lidar", "m113", "man", "mass_spring_damper", "particles", "pendulum",
                "rigid_highway", "rigid_multipatches", "rotor", "scm", "scm_hill", "sedan", "sensros", "slider_crank", "tablecloth", "turtlebot", "uazbus", "veh_app","vehros","viper"]
-system_do_list=["feda", "gator", "gear", "gps_imu", "handler", "hmmwv", "kraz", "lidar", "m113", "man", "mass_spring_damper", "particles", "pendulum",
-               "rigid_highway", "rigid_multipatches", "rotor", "scm", "scm_hill", "sedan", "sensros", "slider_crank", "tablecloth", "turtlebot", "uazbus", "veh_app","vehros","viper"]
+#system_do_list=['art', 'citybus','feda','gator','hmmwv','scm','rigid_highway','rigid_multipatches']
 # data set path
 dataset_path = 'D:\SimBench\demo_data'
 Output_path = 'D:\SimBench\output'
 Output_conversation_path = 'D:\SimBench\output_conversion'
 # in the dataset_path, there are 34 dynamical system folders, each folder is a dyanmical system which contains 8 files [3 input text files, input1.txt, input2.txt, input3.txt;
 # 2 python input files, pyinput2.py, pyinput3.py; 3 ground truth python files truth1.py, truth2.py, truth3.py]
-test_model_list= ["mistral-large"]
+test_model_list= ["nemotron-4-340b-instruct"]
 # define an output path for the test results for each model with the name of the model
 # using tqdm to show the progress bar
 for test_model in tqdm(test_model_list):
@@ -156,15 +155,14 @@ for test_model in tqdm(test_model_list):
         output_system_path = os.path.join(output_model_path, system_folder)
         os.makedirs(output_system_path, exist_ok=True)
 
-        # read the input1.txt file
-        input1_path = os.path.join(system_folder_path, 'input1.txt')
-        input1_prompt = read_script(input1_path)
-        #print('input1:', input1_prompt)
-        # generate the first response
-        #only test with the first system
-        # if system_folder == 'art':
-        # if system_folder in test_system_list:
-        if True:
+        if  system_folder in system_list:
+            input1_path = os.path.join(system_folder_path, 'input1.txt')
+            input1_prompt = read_script(input1_path)
+            # print('input1:', input1_prompt)
+            # generate the first response
+            # only test with the first system
+            # if system_folder == 'art':
+            # if system_folder in test_system_list:
             print("first round")
             first_response, combined_prompt1 = generate_first_code(input1_prompt, test_model_link)
         #    print(first_response, combined_prompt1)

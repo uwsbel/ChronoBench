@@ -1,4 +1,3 @@
-"""
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
@@ -7,9 +6,8 @@ import math
 """
 !!!! Set this path before running the demo!
 """
-chrono.SetChronoDataPath("/path/to/chrono/data")
-
-veh.SetDataPath(chrono.GetChronoDataPath() + '/vehicle/')
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())
+veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 # Initial vehicle location and orientation
 initLoc = chrono.ChVector3d(6, -70, 0.5)
@@ -54,7 +52,6 @@ vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 
-
 vehicle.Initialize()
 
 vehicle.SetChassisVisualizationType(vis_type)
@@ -79,14 +76,23 @@ tri_mesh_shape = chrono.ChVisualShapeTriangleMesh()
 tri_mesh_shape.SetMesh(vis_mesh)
 tri_mesh_shape.SetMutable(False)
 patch.GetGroundBody().AddVisualShape(tri_mesh_shape)
-
-# Add a new terrain patch
-patch2 = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, -42, 0), chrono.QUNIT),
-                            veh.GetDataFile("terrain/meshes/bump.obj"))
-patch2.SetColor(chrono.ChColor(0.5, 0.5, 0.8))
-patch2.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
-
 terrain.Initialize()
+
+# Create an additional terrain patch
+patch_mat2 = chrono.ChContactMaterialNSC()
+patch_mat2.SetFriction(0.9)
+patch_mat2.SetRestitution(0.01)
+patch2 = terrain.AddPatch(patch_mat2, 
+    chrono.ChCoordsysd(chrono.ChVector3d(0, -42, 0), chrono.QUNIT),
+    chrono.GetChronoDataFile('vehicle/terrain/meshes/bump.obj'),
+    True, 0.01, False)
+vis_mesh2 = chrono.ChTriangleMeshConnected().CreateFromWavefrontFile(veh.GetDataFile("terrain/meshes/bump.obj"), True, True)
+tri_mesh_shape2 = chrono.ChVisualShapeTriangleMesh()
+tri_mesh_shape2.SetMesh(vis_mesh2)
+tri_mesh_shape2.SetColor(chrono.ChColor(0.5, 0.5, 0.8))
+tri_mesh_shape2.SetTexture(chrono.GetChronoDataFile('terrain/textures/dirt.jpg'), True, True, 6.0, 6.0)
+tri_mesh_shape2.SetMutable(False)
+patch2.GetGroundBody().AddVisualShape(tri_mesh_shape2)
 
 # Create the vehicle Irrlicht interface
 

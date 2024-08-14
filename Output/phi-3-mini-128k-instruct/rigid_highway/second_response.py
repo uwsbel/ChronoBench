@@ -70,18 +70,15 @@ patch = terrain.AddPatch(patch_mat,
     chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
     chrono.GetChronoDataFile('vehicle/terrain/meshes/Highway_col.obj'),
     True, 0.01, False)
-vis_mesh = chrono.ChTriangleMeshConnected().CreateFromWavefrontFile(veh.GetDataFile("terrain/meshes/Highway_vis.obj"), True, True)
-tri_mesh_shape = chrono.ChVisualShapeTriangleMesh()
-tri_mesh_shape.SetMesh(vis_mesh)
-tri_mesh_shape.SetMutable(False)
-patch.GetGroundBody().AddVisualShape(tri_mesh_shape)
 
 # Additional Terrain Patch Creation
-patch4 = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, -42, 0), chrono.QUNIT),
-                            veh.GetDataFile("terrain/meshes/bump.obj"))
-patch4.SetColor(chrono.ChColor(0.5, 0.5, 0.8))
-patch4.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
-
+vis_mesh = chrono.ChTriangleMeshConnected().CreateFromWavefrontFile(veh.GetDataFile("terrain/meshes/bump.obj"), True, True)
+tri_mesh_shape = chrono.ChVisualShapeTriangleMesh()
+tri_mesh_shape.SetMesh(vis_mesh)
+tri_mesh_shape.SetColor(chrono.Color(0.5, 0.5, 0.8))
+tri_mesh_shape.SetTexture(chrono.Texture(chrono.GetChronoDataFile('textures/dirt.jpg'), 6.0, 6.0))
+tri_mesh_shape.SetMutable(False)
+patch.GetGroundBody().AddVisualShape(tri_mesh_shape)
 terrain.Initialize()
 
 # Create the vehicle Irrlicht interface
@@ -154,5 +151,3 @@ while vis.Run() :
 
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
-
-“”"

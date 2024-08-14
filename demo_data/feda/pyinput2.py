@@ -7,7 +7,7 @@ chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 # Initial vehicle location and orientation
-initLoc = chrono.ChVector3d(-50, 0, 0.5)
+initLoc = chrono.ChVector3d(0, 0, 0.5)
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 # Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
@@ -22,7 +22,7 @@ tire_model = veh.TireModelType_TMEASY
 # Rigid terrain
 # terrain_model = veh.RigidTerrain.BOX
 terrainHeight = 0      # terrain height
-terrainLength = 200.0  # size in X direction
+terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
 
 # Poon chassis tracked by the camera
@@ -88,14 +88,14 @@ vis.AttachVehicle(vehicle.GetVehicle())
 # Create the driver system
 driver = veh.ChInteractiveDriverIRR(vis)
 
-# Create the path-follower, cruise-control driver
-# Use a parameterized ISO double lane change (to left)
-path = veh.DoubleLaneChangePath(initLoc, 13.5, 4.0, 11.0, 50.0, True)
-target_speed = 10.0
-driver = veh.ChPathFollowerDriver(vehicle.GetVehicle(), path, "my_path", target_speed)
-driver.GetSteeringController().SetLookAheadDistance(5)
-driver.GetSteeringController().SetGains(0.8, 0, 0)
-driver.GetSpeedController().SetGains(0.4, 0, 0)
+# Set the time response for steering and throttle keyboard inputs.
+steering_time = 1.0  # time to go from 0 to +1 (or from 0 to -1)
+throttle_time = 1.0  # time to go from 0 to +1
+braking_time = 0.3   # time to go from 0 to +1
+driver.SetSteeringDelta(render_step_size / steering_time)
+driver.SetThrottleDelta(render_step_size / throttle_time)
+driver.SetBrakingDelta(render_step_size / braking_time)
+
 driver.Initialize()
 
 # output vehicle mass

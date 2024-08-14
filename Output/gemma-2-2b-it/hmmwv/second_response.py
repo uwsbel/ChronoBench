@@ -2,7 +2,6 @@ import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
-import numpy as np
 
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
@@ -22,7 +21,7 @@ tire_model = veh.TireModelType_TMEASY
 
 # Rigid terrain
 # terrain_model = veh.RigidTerrain.BOX
-terrainHeight = 200.0      # terrain height
+terrainHeight = 0      # terrain height
 terrainLength = 200.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
 
@@ -49,7 +48,6 @@ vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
-
 
 vehicle.Initialize()
 
@@ -82,31 +80,22 @@ vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
-# Visualization of controller points (sentinel & target)
-ballS = vis.GetSceneManager().addSphereSceneNode(0.1)
-ballT = vis.GetSceneManager().addSphereSceneNode(0.1)
-ballS.getMaterial(0).EmissiveColor = irr.SColor(0, 255, 0, 0)
-ballT.getMaterial(0).EmissiveColor = irr.SColor(0, 0, 255, 0)
 
-# Path definition
-path = veh.CirclePath(initLoc, 20, 40, True, 10)
-npoints = path.GetNumPoints()
 
-# Create the path visualization
-path_asset = chrono.ChVisualShapeLine()
-path_asset.SetLineGeometry(chrono.ChLineBezier(path))
-path_asset.SetName("test path")
-path_asset.SetNumRenderPoints(max(2 * npoints, 400))
-patch.GetGroundBody().AddVisualShape(path_asset)
+# Create the driver system
+driver = veh.ChInteractiveDriverIRR(vis)
 
-# PID controller
-steeringPID = veh.ChPathSteeringController(path)
-steeringPID.SetLookAheadDistance(5)
-steeringPID.SetGains(0.8, 0, 0)
-steeringPID_output = 0
-throttle_value = 0.3
+# Set the time response for steering and throttle keyboard inputs.
+steering_time = 1.0  # time to go from 0 to +1 (or from 0 to -1)
+throttle_time = 1.0  # time to go from 0 to +1
+braking_time = 0.3   # time to go from 0 to +1
+driver.SetSteeringDelta(render_step_size / steering_time)
+driver.SetThrottleDelta(render_step_size / throttle_time)
+driver.SetBrakingDelta(render_step_size / braking_time)
 
-# Output vehicle mass
+driver.Initialize()
+
+# output vehicle mass
 print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events
@@ -120,17 +109,6 @@ render_frame = 0
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
 
-    # Get driver inputs
-    driver_inputs = veh.DriverInputs()
-    driver_inputs.m_steering = np.clip(steeringPID_output, -1.0, +1.0)
-    driver_inputs.m_throttle = throttle_value
-    driver_inputs.m_braking = 0.0
-
-    pS = steeringPID.GetSentinelLocation()
-    pT = steeringPID.GetTargetLocation()
-    ballS.setPosition(irr.vector3df(pS.x, pS.y, pS.z))
-    ballT.setPosition(irr.vector3df(pT.x, pT.y, pT.z))
-
     # Render scene and output POV-Ray data
     if (step_number % render_steps == 0) :
         vis.BeginScene()
@@ -138,13 +116,17 @@ while vis.Run() :
         vis.EndScene()
         render_frame += 1
 
+    # Get driver inputs
+    driver_inputs = driver.GetInputs()
+
     # Update modules (process inputs from other modules)
+    driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
 
     # Advance simulation for one timestep for all modules
-    steeringPID_output = steeringPID.Advance(vehicle.GetRefFrame(), time, step_size)
+    driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
@@ -154,3 +136,9 @@ while vis.Run() :
 
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
+
+    # Implement path following logic
+    # ... (add code to calculate path and update vehicle position)
+
+    # Add visualization for the sentinel and target points
+    # ... (add code to add spheres for path visualization)

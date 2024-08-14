@@ -38,7 +38,7 @@ sys.AddBody(body_trss)
 
 # Attach a visualization shape to the truss
 boxtruss = chrono.ChVisualShapeBox(0.03, 0.25, 0.15)
-body_trss.AddVisualShape(boxtruss, chrono.ChFrame(chrono.ChVector3d(-0.01, 0, 0), chrono.QUNIT))
+body_trss.AddVisualShape(boxtruss, chrono.ChFramed(chrono.ChVector3d(-0.01, 0, 0), chrono.QUNIT))
 
 # Create a crank body:
 body_crank = chrono.ChBody()
@@ -51,7 +51,7 @@ body_crank.AddVisualShape(boxcrank)
 
 # Create a rotational motor
 motor = chrono.ChLinkMotorRotationSpeed()
-motor.Initialize(body_truss, body_crank, chrono.ChFrame(vG))
+motor.Initialize(body_truss, body_crank, chrono.ChFramed(vG))
 myfun = ChFunctionMyFun()
 motor.SetTorqueFunction(myfun)
 sys.Add(motor)
@@ -125,4 +125,6 @@ builderB.BuildBeam(mesh, section3, 4, vG + vd, vB + vd, chrono.ChVector3d(0, 1, 
 # Define nodes at the ends of the crank beam
 node_crnkG = builderB.GetLastBeamNodes()[0]
 node_crankB = builderB.GetLastBeamNodes()[-1]
+
+# Create a constraint between
 print("error happened with only start ```python")

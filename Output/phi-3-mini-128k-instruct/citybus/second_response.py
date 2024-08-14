@@ -82,18 +82,17 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
-# Create the driver system
-driver_data = veh.vector_Entry([
-    veh.DataDriverEntry(0.0, 0.0, 0.0, 0.0),
-    veh.DataDriverEntry(0.1, 1.0, 0.0, 0.0),
-    veh.DataDriverEntry(0.5, 1.0, 0.7, 0.0),
-])
-driver = veh.ChDataDriver(vehicle.GetVehicle(), driver_data)
+# Create the data-driven driver system
+driver = veh.ChDataDriver()
 
-driver.Initialize()
+# Define a sequence of driver inputs
+driver_inputs = veh.vector_Entry()
+driver_inputs.Add(veh.DataDriverEntry(0.0, 0.0, 0.0))
+driver_inputs.Add(veh.DataDriverEntry(0.1, 1.0, 0.0))
+driver_inputs.Add(veh.DataDriverEntry(0.5, 1.0, 0.7))
 
-# Output vehicle mass
-print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+# Set the driver inputs
+driver.SetInputs(driver_inputs)
 
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)

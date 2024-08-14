@@ -22,7 +22,7 @@ vis.SetWindowSize(800, 600)
 vis.SetWindowTitle("HMMWV Simulation")
 vis.Initialize()
 vis.AddCamera(chrono.ChVectorD(0, 2, -5))
-vis.AddLight(chrono.ChVectorD(5, 5, 5), chrono.ChColor(1, 1, 1))
+vis.AddLight(chrono.ChVectorD(0, 5, 0), chrono.ChColor(1, 1, 1))
 
 # Create a rigid terrain
 ground = chrono.ChRigidBody()
@@ -37,14 +37,12 @@ material.SetFriction(0.8)
 material.SetRestitution(0.2)
 
 # Create a terrain mesh
-terrain = chrono.ChTerrainModel()
-terrain.SetTexture(chrono.GetChronoDataPath() + 'terrain/textures/grass.png')
+terrain = chrono.ChTerrain(ground, material)
 terrain.SetSize(chrono.ChVectorD(100, 100, 1))
-terrain.SetHeightMap(chrono.GetChronoDataPath() + 'terrain/heightmaps/heightmap.png')
-terrain.SetMaterial(material)
+terrain.Initialize()
 
-# Add the terrain to the system
-ground.AddVisualShape(terrain)
+# Set the terrain texture
+terrain.SetTexture(chrono.GetChronoDataPath() + "terrain/textures/grass.png")
 
 # ---------------------------------------------------------------------
 #
@@ -53,18 +51,18 @@ ground.AddVisualShape(terrain)
 # ---------------------------------------------------------------------
 
 vehicle = chronovehicle.ChVehicle("HMMWV")
-vehicle.SetSystem(system)
 
 # Set the vehicle initial position and orientation
-vehicle.SetChassisPosition(chrono.ChVectorD(0, 1, 0))
-vehicle.SetChassisRotation(chrono.Q_from_AngAxis(chrono.CH_C_PI / 4, chrono.ChVectorD(0, 1, 0)))
+vehicle.SetChassisInitialPosition(chrono.ChVectorD(0, 1, 0))
+vehicle.SetChassisInitialRotation(chrono.Q_from_AngAxis(chrono.CH_C_PI / 4, chrono.ChVectorD(0, 1, 0)))
 
-# Set the contact method and tire model
-vehicle.SetChassisBody(chrono.ChBodyEasyBox(2.5, 1.5, 0.8, 1000))
-vehicle.SetSuspension(chronovehicle.ChSuspensionType.DOUBLE_WISHBONE)
-vehicle.SetTireModel(chronovehicle.ChTireModelType.TMEASY)
+# Set the contact method
+vehicle.SetSuspensionContactMethod(chronovehicle.ChSuspension::ContactMethod::NSC)
 
-# Add the vehicle to the system
+# Set the tire model
+vehicle.SetTireModel(chronovehicle.ChTireModelTMeasy())
+
+# Add the vehicle to the simulation system
 system.Add(vehicle)
 
 # ---------------------------------------------------------------------
@@ -74,9 +72,11 @@ system.Add(vehicle)
 # ---------------------------------------------------------------------
 
 driver = chronovehicle.ChDriver(vehicle)
-driver.SetSteering(0)
-driver.SetThrottle(0)
-driver.SetBraking(0)
+
+# Set the steering, throttle, and braking controls
+driver.SetSteeringControl(chronovehicle.ChDriver::SteeringControlType::KEYBOARD)
+driver.SetThrottleControl(chronovehicle.ChDriver::ThrottleControlType::KEYBOARD)
+driver.SetBrakingControl(chronovehicle.ChDriver::BrakingControlType::KEYBOARD)
 
 # ---------------------------------------------------------------------
 #
@@ -85,27 +85,11 @@ driver.SetBraking(0)
 # ---------------------------------------------------------------------
 
 while vis.Run():
-    # Get the input from the keyboard
-    keys = vis.GetKeys()
+    # Update the driver system
+    driver.Synchronize(vis.GetTime())
 
-    # Update the driver inputs
-    if keys[chrono.irrlicht.KEY_LEFT]:
-        driver.SetSteering(-1)
-    elif keys[chrono.irrlicht.KEY_RIGHT]:
-        driver.SetSteering(1)
-    else:
-        driver.SetSteering(0)
-
-    if keys[chrono.irrlicht.KEY_UP]:
-        driver.SetThrottle(1)
-    elif keys[chrono.irrlicht.KEY_DOWN]:
-        driver.SetBraking(1)
-    else:
-        driver.SetThrottle(0)
-        driver.SetBraking(0)
-
-    # Update the simulation
-    system.DoStepDynamics(1.0 / 50.0)
+    # Update the vehicle dynamics
+    system.DoStepDynamics(vis.GetTimeStep())
 
     # Render the scene
     vis.Render()

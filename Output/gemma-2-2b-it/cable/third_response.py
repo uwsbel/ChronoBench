@@ -21,7 +21,7 @@ class Model1:
         
         # Loop to create the specified number of chains
         for i in range(n_chains):
-            # Create a truss body as a fixed reference frame
+            # Create a truss body (a fixed reference frame in the simulation)
             mtruss = chrono.ChBody()
             mtruss.SetFixed(True)  
 
@@ -30,15 +30,20 @@ class Model1:
             constraint_hinge.Initialize(builder.GetLastBeamNodes().back(), mtruss)
             system.Add(constraint_hinge)  
 
-            # Create a new beam with ANCF elements
+            # Create a new chain of beams
+            # Define the starting and ending points of the chain
+            start_point = chrono.ChVector3d(0, 0, -0.1)
+            end_point = chrono.ChVector3d(0.5, 0, -0.1)
+            
+            # Create and add the beam elements to the chain
             builder.BuildBeam(
                 mesh,  # The mesh to which the created nodes and elements will be added
                 msection_cable2,  # The beam section properties to use
                 10,  # Number of ANCF elements to create along the beam
-                chrono.ChVector3d(0, 0, -0.1),  # Starting point ('A' point) of the beam
-                chrono.ChVector3d(0.5, 0, -0.1)  # Ending point ('B' point) of the beam
+                start_point,  # Starting point ('A' point) of the beam
+                end_point  # Ending point ('B' point) of the beam
             )
-
+            
             # Apply boundary conditions and loads:
             # Retrieve the end nodes of the beam and apply load/constraints
             builder.GetLastBeamNodes().front().SetForce(chrono.ChVector3d(0, -0.7, 0))  # Apply forces to the front node
@@ -60,19 +65,20 @@ class Model1:
             visualizebeamB.SetZbufferHide(False)  # Ensure symbols are not hidden by z-buffer
             mesh.AddVisualShapeFEA(visualizebeamB)  
 
-        # Print the positions of the end bodies of each chain at each step of the simulation
-        def PrintBodyPositions():
-            for i in range(n_chains):
-                print(f"Chain {i+1}:")
-                for j in range(len(system.GetBodies())):
-                    print(f"  Body {j+1}: {system.GetBodies()[j].GetPosition()}")
+    # Print the positions of the end bodies of each chain at each step of the simulation
+    def PrintBodyPositions(self):
+        for i in range(n_chains):
+            print(f"Chain {i+1}:")
+            for j in range(len(self.system.GetBodies())):
+                body = self.system.GetBodies()[j]
+                print(f"  Body {j}: {body.GetPosition()}")
 
 # Initialize the physical system and mesh container:
 sys = chrono.ChSystemSMC()
 mesh = fea.ChMesh()
 
 # Create the model and add the mesh to the system
-model = Model1(sys, mesh, n_chains)
+model = Model1(sys, mesh, n_chains=6)
 sys.Add(mesh)  
 
 # Add visualization for the FEM mesh:
@@ -124,4 +130,6 @@ while vis.Run():
     vis.Render()  # Render the scene
     vis.EndScene()  # End scene rendering
     sys.DoStepDynamics(0.01)  # Advance the simulation by one step with a time step of 0.01 seconds
-    PrintBodyPositions()  # Print the positions of the end bodies of each chain at each step of the simulation
+    
+    # Print the positions of the end bodies of each chain at each step of the simulation
+    model.PrintBodyPositions()

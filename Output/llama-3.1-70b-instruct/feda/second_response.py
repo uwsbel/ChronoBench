@@ -1,17 +1,13 @@
-"""
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
-# Set the data path to the Chrono data directory
-chrono.SetChronoDataPath("/path/to/chrono/data")
-
-# Set the data path to the vehicle directory
-veh.SetDataPath(chrono.GetChronoDataFile('vehicle/'))
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())
+veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 # Initial vehicle location and orientation
-initLoc = chrono.ChVector3d(-50, 0, 0.5)
+initLoc = chrono.ChVector3d(-50, 0, 0.5)  # Changed initial location
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 # Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
@@ -24,11 +20,12 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 # Rigid terrain
+# terrain_model = veh.RigidTerrain.BOX
 terrainHeight = 0      # terrain height
-terrainLength = 200.0  # size in X direction
+terrainLength = 200.0  # Increased terrain length
 terrainWidth = 100.0   # size in Y direction
 
-# Point on chassis tracked by the camera
+# Poon chassis tracked by the camera
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
 
 # Contact method
@@ -75,6 +72,7 @@ patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 # Create the vehicle Irrlicht interface
+
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('FEDA vehicle')
 vis.SetWindowSize(1280, 1024)
@@ -85,22 +83,29 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
-# Create a path-follower, cruise-control driver system
-path = veh.DoubleLaneChangePath(initLoc, 13.5, 4.0, 11.0, 50.0, True)
-target_speed = 10.0
-driver = veh.ChPathFollowerDriver(vehicle.GetVehicle(), path, "my_path", target_speed)
-driver.GetSteeringController().SetLookAheadDistance(5)
-driver.GetSteeringController().SetGains(0.8, 0, 0)
-driver.GetSpeedController().SetGains(0.4, 0, 0)
+# Create a path that follows the ISO standard double lane change maneuver
+path = veh.DoubleLaneChangePath()
+path.SetPathWidth(3.5)
+path.SetPathLength(100)
+path.SetEntrySpeed(10)
+
+# Create a path-follower driver system
+driver = veh.ChPathFollowerDriver()
+driver.SetPath(path)
+driver.SetTargetSpeed(10.0)
+driver.SetLookAheadDistance(5)
+driver.SetSteeringGain(0.5)
+driver.SetSpeedGain(0.5)
+
 driver.Initialize()
 
-# Output vehicle mass
-print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
+# output vehicle mass
+print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events
-render_steps = int(render_step_size / step_size)
+render_steps = math.ceil(render_step_size / step_size)
 
-# Initialize simulation frame counter
+# Initialize simulation frame counter s
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0

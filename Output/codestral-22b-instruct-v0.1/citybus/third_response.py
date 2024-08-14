@@ -16,10 +16,11 @@ vis_type_mesh = veh.VisualizationType_MESH
 # Collision type for chassis (PRIMITIVES, MESH, or NONE)
 chassis_collision_type = veh.CollisionType_NONE
 
-# Type of tire model
-tire_model = veh.TireModelType_PAC89
+# Type of tire model (RIGID, PACEJKA_89)
+tire_model = veh.TireModelType_PACEJKA_89
 
 # Rigid terrain
+# terrain_model = veh.RigidTerrain.BOX
 terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
@@ -69,8 +70,8 @@ patch = terrain.AddPatch(patch_mat,
 patch.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
-
 # Create the vehicle Irrlicht interface
+
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('City Bus Demo')
 vis.SetWindowSize(1280, 1024)
@@ -95,21 +96,21 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 # output vehicle mass
-print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
+print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
 
-# Initialize simulation frame counter
+# Initialize simulation frame counter s
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-while vis.Run():
+while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
 
     # Render scene and output POV-Ray data
-    if (step_number % render_steps == 0):
+    if (step_number % render_steps == 0) :
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
@@ -129,9 +130,7 @@ while vis.Run():
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
-
     # Increment frame number
     step_number += 1
-
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)

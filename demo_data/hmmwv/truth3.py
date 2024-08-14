@@ -1,7 +1,29 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
-import math
+import math as m
+
+
+class MyDriver (veh.ChDriver):
+    def __init__(self, vehicle, delay):
+        veh.ChDriver.__init__(self, vehicle)
+        self.delay = delay
+    def Synchronize(self, time):
+        eff_time = time - self.delay
+        if (eff_time < 0):
+            return
+
+        if (eff_time > 0.2):
+            self.SetThrottle(0.7)
+        else:
+            self.SetThrottle(3.5 * eff_time)
+
+        if (eff_time < 2):
+            self.SetSteering(0.0)
+        else:
+            self.SetSteering(0.6 * m.sin(2.0 * m.pi * (eff_time - 2) / 6))
+
+        self.SetBraking(0.0)
 
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
@@ -48,8 +70,6 @@ vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
-
-
 vehicle.Initialize()
 
 vehicle.SetChassisVisualizationType(vis_type)
@@ -83,24 +103,17 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 
-# Create the driver system
-driver = veh.ChInteractiveDriverIRR(vis)
 
-# Set the time response for steering and throttle keyboard inputs.
-steering_time = 1.0  # time to go from 0 to +1 (or from 0 to -1)
-throttle_time = 1.0  # time to go from 0 to +1
-braking_time = 0.3   # time to go from 0 to +1
-driver.SetSteeringDelta(render_step_size / steering_time)
-driver.SetThrottleDelta(render_step_size / throttle_time)
-driver.SetBrakingDelta(render_step_size / braking_time)
 
+# Create the (custom) driver
+driver = MyDriver(vehicle.GetVehicle(), 0.5)
 driver.Initialize()
 
 # output vehicle mass
 print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events
-render_steps = math.ceil(render_step_size / step_size)
+render_steps = m.ceil(render_step_size / step_size)
 
 # Initialize simulation frame counter s
 realtime_timer = chrono.ChRealtimeStepTimer()
@@ -109,6 +122,10 @@ render_frame = 0
 
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
+
+    # End simulation
+    if (time >= 4):
+        break
 
     # Render scene and output POV-Ray data
     if (step_number % render_steps == 0) :

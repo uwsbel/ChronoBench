@@ -79,28 +79,19 @@ vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
-# Visualization of controller points (sentinel & target)
-ballS = vis.GetSceneManager().addSphereSceneNode(0.1)
-ballT = vis.GetSceneManager().addSphereSceneNode(0.1)
-ballS.getMaterial(0).EmissiveColor = irr.SColor(0, 255, 0, 0)
-ballT.getMaterial(0).EmissiveColor = irr.SColor(0, 0, 255, 0)
 
-# Left circle path
-path = veh.CirclePath(initLoc, 20, 40, True, 10)
-npoints = path.GetNumPoints()
+# Create the driver system
+driver = veh.ChPathFollowerDriver(vehicle, 0.3, 1.0, 0.3, 0.1, 0.0, 0.0)
 
-path_asset = chrono.ChVisualShapeLine()
-path_asset.SetLineGeometry(chrono.ChLineBezier(path))
-path_asset.SetName("test path")
-path_asset.SetNumRenderPoints(max(2 * npoints, 400))
-patch.GetGroundBody().AddVisualShape(path_asset)
+# Set the time response for steering and throttle keyboard inputs.
+steering_time = 1.0  # time to go from 0 to +1 (or from 0 to -1)
+throttle_time = 1.0  # time to go from 0 to +1
+braking_time = 0.3   # time to go from 0 to +1
+driver.SetSteeringDelta(render_step_size / steering_time)
+driver.SetThrottleDelta(render_step_size / throttle_time)
+driver.SetBrakingDelta(render_step_size / braking_time)
 
-# Create the PID lateral controller
-steeringPID = veh.ChPathSteeringController(path)
-steeringPID.SetLookAheadDistance(5)
-steeringPID.SetGains(0.8, 0, 0)
-steeringPID_output = 0
-throttle_value = 0.3
+driver.Initialize()
 
 # output vehicle mass
 print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
@@ -113,19 +104,25 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
+# Circular path
+radius = 50
+center = chrono.ChVector3d(0, 0, 0)
+num_points = 100
+theta = np.linspace(0, 2 * np.pi, num_points)
+path_x = center.x + radius * np.cos(theta)
+path_y = center.y + radius * np.sin(theta)
+
+# Visualize the path using two balls
+ball1 = chrono.ChBodyEasySphere(vehicle.GetSystem(), 0.5, 1000, True, True)
+ball1.SetPos(chrono.ChVector3d(path_x[0], path_y[0], 1))
+ball1.SetBodyFixed(True)
+
+ball2 = chrono.ChBodyEasySphere(vehicle.GetSystem(), 0.5, 1000, True, True)
+ball2.SetPos(chrono.ChVector3d(path_x[-1], path_y[-1], 1))
+ball2.SetBodyFixed(True)
+
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
-
-    # Get driver inputs
-    driver_inputs = veh.DriverInputs()
-    driver_inputs.m_steering = np.clip(steeringPID_output, -1.0, +1.0)
-    driver_inputs.m_throttle = throttle_value
-    driver_inputs.m_braking = 0.0
-
-    pS = steeringPID.GetSentinelLocation()
-    pT = steeringPID.GetTargetLocation()
-    ballS.setPosition(irr.vector3df(pS.x, pS.y, pS.z))
-    ballT.setPosition(irr.vector3df(pT.x, pT.y, pT.z))
 
     # Render scene and output POV-Ray data
     if (step_number % render_steps == 0) :
@@ -134,13 +131,17 @@ while vis.Run() :
         vis.EndScene()
         render_frame += 1
 
+    # Get driver inputs
+    driver_inputs = driver.GetInputs()
+
     # Update modules (process inputs from other modules)
+    driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
 
     # Advance simulation for one timestep for all modules
-    steeringPID_output = steeringPID.Advance(vehicle.GetRefFrame(), time, step_size)
+    driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)

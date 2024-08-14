@@ -3,123 +3,44 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
+# Encapsulate SCM Terrain Parameters
+class SCMTerrainParameters:
+    def __init__(self, soil_parameters, soil_parameters_2, soil_parameters_3, soil_parameters_4, soil_parameters_5, soil_parameters_6, soil_parameters_7, soil_parameters_8):
+        self.soil_parameters = soil_parameters
+        self.soil_parameters_2 = soil_parameters_2
+        self.soil_parameters_3 = soil_parameters_3
+        self.soil_parameters_4 = soil_parameters_4
+        self.soil_parameters_5 = soil_parameters_5
+        self.soil_parameters_6 = soil_parameters_6
+        self.soil_parameters_7 = soil_parameters_7
+        self.soil_parameters_8 = soil_parameters_8
 
-class SCMParameters:
-    def __init__(self):
-        self.Bekker_Kphi = 0    # Kphi, frictional modulus in Bekker model
-        self.Bekker_Kc = 0      # Kc, cohesive modulus in Bekker model
-        self.Bekker_n = 0       # n, exponent of sinkage in Bekker model (usually 0.6...1.8)
-        self.Mohr_cohesion = 0  # Cohesion in, Pa, for shear failure
-        self.Mohr_friction = 0  # Friction angle (in degrees!), for shear failure
-        self.Janosi_shear = 0   # J , shear parameter, in meters, in Janosi-Hanamoto formula (usually few mm or cm)
-        self.elastic_K = 0      # elastic stiffness K (must be > Kphi very high values gives the original SCM model)
-        self.damping_R = 0      # vertical damping R, per unit area (vertical speed proportional, it is zero in original SCM model)
-
-    def SetParameters(self, terrain):
-        terrain.SetSoilParameters(
-            self.Bekker_Kphi,    # Bekker Kphi
-            self.Bekker_Kc,      # Bekker Kc
-            self.Bekker_n,       # Bekker n exponent
-            self.Mohr_cohesion,  # Mohr cohesive limit (Pa)
-            self.Mohr_friction,  # Mohr friction limit (degrees)
-            self.Janosi_shear,   # Janosi shear coefficient (m)
-            self.elastic_K,      # Elastic stiffness (Pa/m), before plastic yield, must be > Kphi
-            self.damping_R)      # Damping (Pa s/m), proportional to negative vertical speed (optional)
-
-
-    def InitializeParametersAsSoft(self):
-        self.Bekker_Kphi = 0.2e6
-        self.Bekker_Kc = 0
-        self.Bekker_n = 1.1
-        self.Mohr_cohesion = 0
-        self.Mohr_friction = 30
-        self.Janosi_shear = 0.01
-        self.elastic_K = 4e7
-        self.damping_R = 3e4
-
-
-    def InitializeParametersAsMid(self):
-        self.Bekker_Kphi = 2e6
-        self.Bekker_Kc = 0
-        self.Bekker_n = 1.1
-        self.Mohr_cohesion = 0
-        self.Mohr_friction = 30
-        self.Janosi_shear = 0.01
-        self.elastic_K = 2e8
-        self.damping_R = 3e4
-
-
-    def InitializeParametersAsHard(self):
-        self.Bekker_Kphi = 5301e3
-        self.Bekker_Kc = 102e3
-        self.Bekker_n = 0.793
-        self.Mohr_cohesion = 1.3e3
-        self.Mohr_friction = 31.1
-        self.Janosi_shear = 1.2e-2
-        self.elastic_K = 4e8
-        self.damping_R = 3e4
-
-
-class SCMTerrain:
-    def __init__(self, vehicle):
-        self.vehicle = vehicle
-        self.parameters = SCMParameters()
-        self.terrain_params = self.parameters
-        self.terrain_mesh = None
-        self.terrain_data = None
-
-    def Initialize(self, width, length, mesh_resolution):
-        self.terrain_mesh = veh.SCMTerrain.CreateMesh(width, length, mesh_resolution)
-        self.terrain_data = self.terrain_mesh.GetTerrainData()
-
-    def SetPlotType(self, plot_type, x_min, x_max):
-        self.terrain_data.SetPlotType(plot_type, x_min, x_max)
-
-    def SetSoilParameters(self, Bekker_Kphi, Bekker_Kc, Bekker_n, Mohr_cohesion, Mohr_friction, Janosi_shear, elastic_K, damping_R):
-        self.parameters.SetParameters(self)
-        self.terrain_data.SetSoilParameters(Bekker_Kphi, Bekker_Kc, Bekker_n, Mohr_cohesion, Mohr_friction, Janosi_shear, elastic_K, damping_R)
-
-    def Synchronize(self, time):
-        pass
-
-    def Advance(self, step_size):
-        pass
-
-    def Render(self):
-        pass
+# Initialize Terrain Parameters
+def initialize_terrain_parameters(terrain_type):
+    if terrain_type == "soft":
+        soil_parameters = (2e6, 0, 1.1, 0, 30, 0.01, 2e8, 3e4)
+    elif terrain_type == "mid":
+        soil_parameters = (1e6, 0, 1.5, 0, 45, 0.02, 1e7, 5e4)
+    elif terrain_type == "hard":
+        soil_parameters = (5e6, 0, 2.0, 0, 60, 0.03, 1e8, 1e5)
+    else:
+        raise ValueError("Invalid terrain type.")
+    return soil_parameters
 
 # Create the HMMWV vehicle, set parameters, and initialize
 vehicle = veh.HMMWV_Full()
 vehicle.SetContactMethod(chrono.ChContactMethod_SMC)
 vehicle.SetChassisCollisionType(chrono.ChCollisionType_NONE)
 vehicle.SetChassisFixed(False)
-vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
+vehicle.SetInitPosition(chrono.ChCoordsysd(chrono.ChVector3d(-8, 0, 0.6), chrono.ChQuaterniond(1, 0, 0, 0)))
 vehicle.SetTireType(veh.TireModelType_RIGID)
-vehicle.SetTireStepSize(tire_step_size)
+vehicle.SetTireStepSize(step_size)
 
 vehicle.Initialize()
 
-# Create the SCM deformable terrain patch
-terrain = SCMTerrain(vehicle)
-terrain.InitializeParametersAsMid()
-terrain.SetSoilParameters(
-    vehicle.GetVehicle().GetSoilParameters().Bekker_Kphi,
-    vehicle.GetVehicle().GetSoilParameters().Bekker_Kc,
-    vehicle.GetVehicle().GetSoilParameters().Bekker_n,
-    vehicle.GetVehicle().GetSoilParameters().Mohr_cohesion,
-    vehicle.GetVehicle().GetSoilParameters().Mohr_friction,
-    vehicle.GetVehicle().GetSoilParameters().Janosi_shear,
-    vehicle.GetVehicle().GetSoilParameters().elastic_K,
-    vehicle.GetVehicle().GetSoilParameters().damping_R
-)
-
-# Optionally, enable moving patch feature (single patch around vehicle chassis)
-terrain.AddMovingPatch(vehicle.GetChassisBody(), chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(5, 3, 1))
-
-# Set plot type for SCM (false color plotting)
-terrain.SetPlotType(veh.SCMTerrain.PLOT_SINKAGE, 0, 0.1)
-
-# Initialize the SCM terrain (length, width, mesh resolution), specifying the initial mesh grid
+# Create the SCM terrain patch
+terrain = veh.SCMTerrain(vehicle.GetSystem())
+terrain.SetSoilParameters(initialize_terrain_parameters("soft"))
 terrain.Initialize(20, 20, 0.02)
 
 # Create the vehicle Irrlicht interface
@@ -137,5 +58,57 @@ vis.AttachVehicle(vehicle.GetVehicle())
 driver = veh.ChInteractiveDriverIRR(vis)
 
 # Set the time response for steering and throttle keyboard inputs.
-steering_time = 1.0  # time to go from 0 to +1 (or from 0 to
-print("error happened with only start ```python")
+steering_time = 1.0  # time to go from 0 to +1 (or from 0 to -1)
+throttle_time = 1.0  # time to go from 0 to +1
+braking_time = 0.3   # time to go from 0 to +1
+driver.SetSteeringDelta(render_step_size / steering_time)
+driver.SetThrottleDelta(render_step_size / throttle_time)
+driver.SetBrakingDelta(render_step_size / braking_time)
+
+driver.Initialize()
+
+# ---------------
+# Simulation loop
+# ---------------
+
+# output vehicle mass
+print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+
+# Number of simulation steps between miscellaneous events
+render_steps = math.ceil(render_step_size / step_size)
+
+# Initialize simulation frame counter s
+realtime_timer = chrono.ChRealtimeStepTimer()
+step_number = 0
+render_frame = 0
+
+while vis.Run():
+    time = vehicle.GetSystem().GetChTime()
+
+    # Render scene and output POV-Ray data
+    if (step_number % render_steps == 0):
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+        render_frame += 1
+
+    # Get driver inputs
+    driver_inputs = driver.GetInputs()
+
+    # Update modules (process inputs from other modules)
+    driver.Synchronize(time)
+    terrain.Synchronize(time)
+    vehicle.Synchronize(time, driver_inputs, terrain)
+    vis.Synchronize(time, driver_inputs)
+
+    # Advance simulation for one timestep for all modules
+    driver.Advance(step_size)
+    terrain.Advance(step_size)
+    vehicle.Advance(step_size)
+    vis.Advance(step_size)
+
+    # Increment frame number
+    step_number += 1
+
+    # Spin in place for real time to catch up
+    realtime_timer.Spin(step_size)

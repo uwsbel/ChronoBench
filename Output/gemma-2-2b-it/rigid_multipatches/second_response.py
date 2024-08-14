@@ -3,11 +3,11 @@ import pychrono.vehicle as veh
 import pychrono.irrlicht as irr
 
 def main():
-    #  Create the HMMWV vehicle, set parameters, and initialize
+    # Create the HMMWV vehicle, set parameters, and initialize
     hmmwv = veh.HMMWV_Full()
     hmmwv.SetContactMethod(chrono.ChContactMethod_NSC)
     hmmwv.SetChassisFixed(False)
-    hmmwv.SetInitPosition(chrono.ChCoordsysd(chrono.ChVector3d(6, -70, 0.5), chrono.ChQuaterniond(1, 0, 0, 0)))
+    hmmwv.SetInitPosition(chrono.ChCoordsysd(chrono.ChVector3d(6, -70, 0.5), chrono.ChQuaterniond(1, 0, 0, 0)))  # Update initial position
     hmmwv.SetEngineType(veh.EngineModelType_SIMPLE)
     hmmwv.SetTransmissionType(veh.TransmissionModelType_AUTOMATIC_SIMPLE_MAP)
     hmmwv.SetDriveType(veh.DrivelineTypeWV_AWD)
@@ -23,22 +23,16 @@ def main():
 
     hmmwv.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
-    # Create the terrain with a single patch
-    patch_mat = chrono.ChContactMaterialNSC()
-    patch_mat.SetFriction(0.9)
-    patch_mat.SetRestitution(0.01)
+    # Create the terrain with a single mesh
     terrain = veh.RigidTerrain(hmmwv.GetSystem())
-    terrain.AddPatch(patch_mat, 
-        chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
-        chrono.GetChronoDataFile('vehicle/terrain/meshes/Highway_col.obj'),
-        True, 0.01, False)
-    
-    # Create the visual mesh for the terrain
-    vis_mesh = chrono.ChTriangleMeshConnected().CreateFromWavefrontFile(veh.GetDataFile("terrain/meshes/Highway_vis.obj"), True, True)
-    tri_mesh_shape = chrono.ChVisualShapeTriangleMesh()
-    tri_mesh_shape.SetMesh(vis_mesh)
-    tri_mesh_shape.SetMutable(False)
-    terrain.GetGroundBody().AddVisualShape(tri_mesh_shape)
+    terrain.SetCollisionEnabled(True)
+    terrain.SetCollisionThickness(0.01)
+    terrain.SetCollisionMesh(chrono.GetDataFile("vehicle/terrain/meshes/Highway_col.obj"))
+
+    # Add visual mesh to terrain
+    terrain.AddVisualShape(chrono.ChVisualShapeTriangleMesh(chrono.GetDataFile("terrain/meshes/Highway_vis.obj")))
+
+    # Initialize terrain
     terrain.Initialize()
 
     # Create the vehicle Irrlicht interface

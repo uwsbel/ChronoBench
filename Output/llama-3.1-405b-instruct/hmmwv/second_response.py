@@ -2,7 +2,6 @@ import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
-import numpy as np
 
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
@@ -23,7 +22,7 @@ tire_model = veh.TireModelType_TMEASY
 # Rigid terrain
 terrainHeight = 0      # terrain height
 terrainLength = 200.0  # size in X direction
-terrainWidth = 200.0   # size in Y direction
+terrainWidth = 100.0   # size in Y direction
 
 # Poon chassis tracked by the camera
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
@@ -39,9 +38,8 @@ tire_step_size = step_size
 # Time interval between two render frames
 render_step_size = 1.0 / 50  # FPS = 50
 
-
 # Create the HMMWV vehicle, set parameters, and initialize
-vehicle = veh.HMMWV_Full() # veh.HMMWV_Reduced()  could be another choice here
+vehicle = veh.HMMWV_Full() 
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
@@ -80,24 +78,33 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
-# Left circle path
-path_radius = 20
-path_center = chrono.ChVector3d(0, 0, 0)
-path = veh.CirclePath(path_center, path_radius, 40, True, 10)
-npoints = path.GetNumPoints()
+# Path and Controller Implementation
+path_radius = 50.0
+path_center = chrono.ChVector3d(0, 0, 0.5)
+sentinel_point = chrono.ChVector3d(path_center.x + path_radius, path_center.y, path_center.z)
+target_point = chrono.ChVector3d(path_center.x + path_radius, path_center.y, path_center.z)
 
-path_asset = chrono.ChVisualShapeLine()
-path_asset.SetLineGeometry(chrono.ChLineBezier(path))
-path_asset.SetName("test path")
-path_asset.SetNumRenderPoints(max(2 * npoints, 400))
-patch.GetGroundBody().AddVisualShape(path_asset)
+# PID controller gains
+Kp = 0.1
+Ki = 0.01
+Kd = 0.001
 
-# Create the PID lateral controller
-steeringPID = veh.ChPathSteeringController(path)
-steeringPID.SetLookAheadDistance(5)
-steeringPID.SetGains(0.8, 0, 0)
-steeringPID_output = 0
-throttle_value = 0.3
+# PID controller
+class PIDController:
+    def __init__(self, Kp, Ki, Kd):
+        self.Kp = Kp
+        self.Ki = Ki
+        self.Kd = Kd
+        self.error_prev = 0
+        self.error_integral = 0
+
+    def Update(self, error):
+        self.error_integral += error * step_size
+        error_derivative = (error - self.error_prev) / step_size
+        self.error_prev = error
+        return self.Kp * error + self.Ki * self.error_integral + self.Kd * error_derivative
+
+pid_controller = PIDController(Kp, Ki, Kd)
 
 # output vehicle mass
 print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
@@ -110,25 +117,8 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-# Visualization of controller points (sentinel & target)
-ballS = vis.GetSceneManager().addSphereSceneNode(0.1)
-ballT = vis.GetSceneManager().addSphereSceneNode(0.1)
-ballS.getMaterial(0).EmissiveColor = irr.SColor(0, 255, 0, 0)
-ballT.getMaterial(0).EmissiveColor = irr.SColor(0, 0, 255, 0)
-
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
-
-    # Get driver inputs
-    driver_inputs = veh.DriverInputs()
-    driver_inputs.m_steering = np.clip(steeringPID_output, -1.0, +1.0)
-    driver_inputs.m_throttle = throttle_value
-    driver_inputs.m_braking = 0.0
-
-    pS = steeringPID.GetSentinelLocation()
-    pT = steeringPID.GetTargetLocation()
-    ballS.setPosition(irr.vector3df(pS.x, pS.y, pS.z))
-    ballT.setPosition(irr.vector3df(pT.x, pT.y, pT.z))
 
     # Render scene and output POV-Ray data
     if (step_number % render_steps == 0) :
@@ -137,13 +127,37 @@ while vis.Run() :
         vis.EndScene()
         render_frame += 1
 
+    # Update sentinel and target points
+    sentinel_point.x = path_center.x + path_radius * math.cos(0.1 * time)
+    sentinel_point.y = path_center.y + path_radius * math.sin(0.1 * time)
+    target_point.x = path_center.x + path_radius * math.cos(0.1 * time + 0.1)
+    target_point.y = path_center.y + path_radius * math.sin(0.1 * time + 0.1)
+
+    # Visualize sentinel and target points
+    vis.DrawSphere(sentinel_point, 1.0, chrono.ChColor(1, 0, 0), vis.GetDevice().GetVideoDriver(), vis.GetDevice().GetSceneManager())
+    vis.DrawSphere(target_point, 1.0, chrono.ChColor(0, 1, 0), vis.GetDevice().GetVideoDriver(), vis.GetDevice().GetSceneManager())
+
+    # Calculate error
+    vehicle_position = vehicle.GetVehicle().GetPos()
+    error = math.atan2(target_point.y - vehicle_position.y, target_point.x - vehicle_position.x) - vehicle.GetVehicle().GetRot().GetAngle()
+
+    # PID controller update
+    steering_input = pid_controller.Update(error)
+
+    # Throttle input
+    throttle_input = 0.3
+
+    # Update vehicle inputs
+    driver_inputs = veh.ChDriverInputs()
+    driver_inputs.SetSteering(steering_input)
+    driver_inputs.SetThrottle(throttle_input)
+
     # Update modules (process inputs from other modules)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
 
     # Advance simulation for one timestep for all modules
-    steeringPID_output = steeringPID.Advance(vehicle.GetRefFrame(), time, step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)

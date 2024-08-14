@@ -128,5 +128,5 @@ node_crankB = builderB.GetLastBeamNodes()[-1]
 
 # Create a constraint between the crank beam and the body crank
 constr_cbd = chrno.ChLinkMatePrismatic()
-constr_cbd.Initialize(node_crnkG, body_crank, False,
+constr_cbd.Initialize(node_crnkG, body_crank, False, node_crnkG.
 print("error happened with only start ```python")

@@ -24,21 +24,21 @@ def main():
     hmmwv.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
     # Create the terrain with a single patch
-    patch_mat = chrono.ChContactMaterialNSC()
-    patch_mat.SetFriction(0.9)
-    patch_mat.SetRestitution(0.01)
     terrain = veh.RigidTerrain(hmmwv.GetSystem())
-    patch = terrain.AddPatch(patch_mat, 
-        chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
-        chrono.GetChronoDataFile('vehicle/terrain/meshes/Highway_col.obj'),
-        True, 0.01, False)
+
+    # Contact material for the terrain
+    terrain_mat = chrono.ChContactMaterialNSC()
+    terrain_mat.SetFriction(0.9)
+    terrain_mat.SetRestitution(0.01)
+
+    # Add the terrain patch
+    terrain_patch = terrain.AddPatch(terrain_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
+                                     veh.GetDataFile("vehicle/terrain/meshes/Highway_col.obj"),
+                                     thickness=0.01)
 
     # Add visual mesh to the terrain
-    vis_mesh = chrono.ChTriangleMeshConnected().CreateFromWavefrontFile(veh.GetDataFile("terrain/meshes/Highway_vis.obj"), True, True)
-    tri_mesh_shape = chrono.ChVisualShapeTriangleMesh()
-    tri_mesh_shape.SetMesh(vis_mesh)
-    tri_mesh_shape.SetMutable(False)
-    patch.GetGroundBody().AddVisualShape(tri_mesh_shape)
+    terrain_vis = chrono.ChVisualShapeTriangleMesh(veh.GetDataFile("terrain/meshes/Highway_vis.obj"))
+    terrain_patch.GetBody().AddVisualShape(terrain_vis)
 
     terrain.Initialize()
 

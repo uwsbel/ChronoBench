@@ -28,7 +28,7 @@ terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
 
-# Point tracked by the camera
+# Poon chassis tracked by the camera
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
 
 # Contact method
@@ -63,13 +63,11 @@ vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 # Create the terrain
 patch_mat = chrono.ChContactMaterialNSC()
-patch_mat.SetFriction(0.4)  # Update friction value
-patch_mat.SetRestitution(0.05)  # Update restitution value
+patch_mat.SetFriction(0.4)  # Update patch_mat friction value
+patch_mat.SetRestitution(0.05)  # Update patch_mat restitution value
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-quat = chrono.ChQuaterniond()
-quat.SetFromAxisAngle(chrono.ChVector3d(0, 0, 1), -math.pi/2)  # Update orientation
 patch = terrain.AddPatch(patch_mat,
-    chrono.ChCoordsysd(chrono.ChVector3d(6, -70, 0), quat),  # Update position
+    chrono.ChCoordsysd(chrono.ChVector3d(6, -70, 0), chrono.QuatFromAngleZ(-90)),  # Update patch position and orientation
     chrono.GetChronoDataFile('vehicle/terrain/meshes/Highway_col.obj'),
     True, 0.01, False)
 vis_mesh = chrono.ChTriangleMeshConnected().CreateFromWavefrontFile(veh.GetDataFile("terrain/meshes/Highway_vis.obj"), True, True)

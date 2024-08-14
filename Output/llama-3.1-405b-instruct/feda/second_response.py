@@ -81,13 +81,20 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
-# Create the path-follower, cruise-control driver
-path = veh.DoubleLaneChangePath(initLoc, 13.5, 4.0, 11.0, 50.0, True)
-target_speed = 10.0
-driver = veh.ChPathFollowerDriver(vehicle.GetVehicle(), path, "my_path", target_speed)
+# Create the path-follower, cruise-control driver system
+path = veh.ChPath()
+path.AddPoint(chrono.ChVector3d(-50, 0, 0.5))
+path.AddPoint(chrono.ChVector3d(-25, -10, 0.5))
+path.AddPoint(chrono.ChVector3d(0, -20, 0.5))
+path.AddPoint(chrono.ChVector3d(25, -10, 0.5))
+path.AddPoint(chrono.ChVector3d(50, 0, 0.5))
+path.SetClosed(True)
+
+driver = veh.ChPathFollowerDriver(path, 10.0)
 driver.GetSteeringController().SetLookAheadDistance(5)
-driver.GetSteeringController().SetGains(0.8, 0, 0)
-driver.GetSpeedController().SetGains(0.4, 0, 0)
+driver.GetSteeringController().SetGains(0.5, 0.1)
+driver.GetSpeedController().SetGains(0.5, 0.1)
+
 driver.Initialize()
 
 # output vehicle mass

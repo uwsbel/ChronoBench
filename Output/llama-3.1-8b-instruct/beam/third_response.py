@@ -96,7 +96,7 @@ builder.BuildBeam(mesh,                   # the mesh where to put the created no
                     chrono.ChVector3d(0, 1, 0))      # the 'Y' up direction of the section for the beam
 
 ## After having used BuildBeam(), you can retrieve the nodes used for the beam,
-## For Example say you want to fix the A end and apply a force to the B end:
+## For example say you want to fix the A end and apply a force to the B end:
 builder.GetLastBeamNodes().back().SetFixed(True)
 builder.GetLastBeamNodes().front().SetForce(chrono.ChVector3d(0, -1, 0))
 
@@ -109,10 +109,9 @@ builder.BuildBeam(mesh,                   # the mesh where to put the created no
                     chrono.ChVector3d(0, 1, 0))      # the 'Y' up direction of the section for the beam
 
 ## After having used BuildBeam(), you can retrieve the nodes used for the beam,
-## For Example say you want to fix the A end and apply a force to the B end:
+## For example say you want to fix the A end and apply a force to the B end:
 builder.GetLastBeamNodes().back().SetFixed(True)
 builder.GetLastBeamNodes().front().SetForce(chrono.ChVector3d(0, -1, 0))
-
 
 # We do not want gravity effect on FEA elements in this demo
 mesh.SetAutomaticGravity(False);

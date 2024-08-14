@@ -79,7 +79,7 @@ vis.AddCamera(chrono.ChVector3d(0, 0.6, -1))  # Add a camera with specific posit
 vis.AddTypicalLights()  # Add typical lights for better illumination
 
 # Set solver type and settings
-solver = chrono.ChSolverMINRES()  # Choose MINRES solver
+solver = chrono.ChSolverMINRES()  # Replace SparseQR with MINRES
 if solver.GetType() == chrono.ChSolver.Type_MINRES:
     print("Using MINRES solver")
 sys.SetSolver(solver)

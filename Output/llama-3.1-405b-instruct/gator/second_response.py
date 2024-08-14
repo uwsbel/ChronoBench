@@ -3,10 +3,7 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
-# Set Chrono data path
-chrono.SetChronoDataPath('/path/to/chrono/data/')
-
-# Set vehicle data path
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 # Initial vehicle location and orientation
@@ -61,45 +58,48 @@ vehicle.SetTireVisualizationType(vis_type)
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 # Create the terrain
+patch_mat = chrono.ChContactMaterialNSC()
+patch_mat.SetFriction(0.9)
+patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 
-# Patch 1: Flat terrain with a texture
-patch1_mat = chrono.ChContactMaterialNSC()
-patch1_mat.SetFriction(0.9)
-patch1_mat.SetRestitution(0.01)
-patch1 = terrain.AddPatch(patch1_mat, chrono.ChCoordsysd(chrono.ChVector3d(-16, 0, 0), chrono.QUNIT), 32, 20)
+# Create four patches of terrain with different textures
+patch1 = terrain.AddPatch(patch_mat, 
+    chrono.ChCoordsysd(chrono.ChVector3d(-25, 0, 0), chrono.QUNIT), 
+    50, 50)
+patch1.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch1.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
-patch1.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 20, 20)
+patch1.SetWaveHeight(0.1)  # Add a bump to the patch
 
-# Patch 2: Terrain with a bump and a texture
-patch2_mat = chrono.ChContactMaterialNSC()
-patch2_mat.SetFriction(0.9)
-patch2_mat.SetRestitution(0.01)
-patch2 = terrain.AddPatch(patch2_mat, chrono.ChCoordsysd(chrono.ChVector3d(16, 0, 0.15), chrono.QUNIT), 32, 30)
-patch2.SetColor(chrono.ChColor(1.0, 0.5, 0.5))
-patch2.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 20, 20)
-patch2.AddBump(chrono.ChVector3d(0, 0, 0.5), 5, 5)
+patch2 = terrain.AddPatch(patch_mat, 
+    chrono.ChCoordsysd(chrono.ChVector3d(25, 0, 0), chrono.QUNIT), 
+    50, 50)
+patch2.SetTexture(veh.GetDataFile("terrain/textures/tile5.jpg"), 200, 200)
+patch2.SetColor(chrono.ChColor(0.7, 0.7, 0.4))
+patch2.SetWaveHeight(0.2)  # Add a bump to the patch
 
-# Patch 3: Terrain with a height map and a texture
-patch3_mat = chrono.ChContactMaterialNSC()
-patch3_mat.SetFriction(0.9)
-patch3_mat.SetRestitution(0.01)
-patch3 = terrain.AddPatch(patch3_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, -42, 0), chrono.QUNIT),
-                            veh.GetDataFile("terrain/meshes/bump.obj"))
-patch3.SetColor(chrono.ChColor(0.5, 0.5, 0.8))
-patch3.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
+patch3 = terrain.AddPatch(patch_mat, 
+    chrono.ChCoordsysd(chrono.ChVector3d(0, -25, 0), chrono.QUNIT), 
+    50, 50)
+patch3.SetTexture(veh.GetDataFile("terrain/textures/tile6.jpg"), 200, 200)
+patch3.SetColor(chrono.ChColor(0.6, 0.6, 0.3))
+patch3.SetWaveHeight(0.15)  # Add a bump to the patch
 
-# Patch 4: Terrain with a height map and a texture
-patch4_mat = chrono.ChContactMaterialNSC()
-patch4_mat.SetFriction(0.9)
-patch4_mat.SetRestitution(0.01)
-patch4 = terrain.AddPatch(patch4_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 42, 0), chrono.QUNIT),
-                            veh.GetDataFile("terrain/height_maps/bump64.bmp"), 64.0, 64.0, 0.0, 3.0)
-patch4.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 6.0, 6.0)
+patch4 = terrain.AddPatch(patch_mat, 
+    chrono.ChCoordsysd(chrono.ChVector3d(0, 25, 0), chrono.QUNIT), 
+    50, 50)
+patch4.SetTexture(veh.GetDataFile("terrain/textures/height_map.png"), 200, 200)
+patch4.SetColor(chrono.ChColor(0.5, 0.5, 0.2))
+patch4.SetWaveHeight(0.1)  # Add a bump to the patch
+patch4.SetHeightMap(veh.GetDataFile("terrain/textures/height_map.png"), 0.1, 10)  # Set height map
 
 terrain.Initialize()
 
+# -------------------------------------
 # Create the vehicle Irrlicht interface
+# Create the driver system
+# -------------------------------------
+
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('Gator vehicle')
 vis.SetWindowSize(1280, 1024)
@@ -123,15 +123,30 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 
 driver.Initialize()
 
+# ---------------
 # Simulation loop
+# ---------------
+
+# output vehicle mass
+print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+
+# Number of simulation steps between miscellaneous events
+render_steps = math.ceil(render_step_size / step_size)
+
+# Initialize simulation frame counter s
+realtime_timer = chrono.ChRealtimeStepTimer()
+step_number = 0
+render_frame = 0
+
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
 
     # Render scene and output POV-Ray data
-    if (time % render_step_size < step_size) :
+    if (step_number % render_steps == 0) :
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
+        render_frame += 1
 
     # Get driver inputs
     driver_inputs = driver.GetInputs()
@@ -148,5 +163,8 @@ while vis.Run() :
     vehicle.Advance(step_size)
     vis.Advance(step_size)
 
+    # Increment frame number
+    step_number += 1
+
     # Spin in place for real time to catch up
-    chrono.ChThreading.Sleep(chrono.ChDuration(step_size))
+    realtime_timer.Spin(step_size)

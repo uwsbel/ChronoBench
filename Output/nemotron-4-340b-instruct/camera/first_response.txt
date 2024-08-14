@@ -14,9 +14,9 @@ vis = chronoirr.ChVisualSystemIrrlicht()
 vis.SetWindowSize(1280, 720)
 vis.SetWindowTitle('PyChrono Simulation')
 vis.Initialize()
-vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddLogo(chronoirr.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()
-vis.AddCamera(chrono.ChVectorD(0, 0, -2), chrono.ChVectorD(0, 0, 0))
+vis.AddCamera(chronoirr.vector3df(0, 0, -2))
 vis.AttachSystem(sys)
 ```
 
@@ -31,50 +31,43 @@ mesh.LoadWavefrontMesh(chrono.GetChronoDataFile('path/to/your/mesh.obj'), True, 
 body = chrono.ChBody()
 body.SetBodyFixed(True)
 body.GetCollisionModel().ClearModel()
-body.GetCollisionModel().AddTriangleMesh(mesh, False, chrono.ChVectorD(0), chrono.ChMatrix33D(chrono.Q_from_Euler(chrono.ChVectorD(0, 0, 0))))
+body.GetCollisionModel().AddTriangleMesh(mesh, False, chrono.ChVector<>(0), chrono.ChMatrix33<>(1))
 body.GetCollisionModel().BuildModel()
-body.SetPos(chrono.ChVectorD(0, 0, 0))
+body.SetPos(chrono.ChVector<>(0))
 sys.Add(body)
 
 # Add a camera sensor to the body
-sensor_manager = chrono.ChSensorManager(sys)
-camera_sensor = chrono.ChCameraSensor(body, 1280, 720, 60, chrono.ChVectorD(0, 0, 0.5), chrono.ChVectorD(0, 0, -1), chrono.ChVectorD(0, 1, 0))
+camera_sensor = chrono.ChCameraSensor(body, 1280, 720, 60, chrono.ChFrame<>(chrono.ChVector<>(0), chrono.Q_from_AngAxis(chrono.CH_C_PI / 2, chrono.VECT_X)))
+
+# Create a sensor manager and add the camera sensor
+sensor_manager = chrono.ChSensorManager()
 sensor_manager.AddSensor(camera_sensor)
 
 # Apply noise filters and visualizations to the camera images
-noise_filter = chrono.ChNoiseFilterGaussian(camera_sensor, 0.01)
-visualization_filter = chrono.ChVisualizationFilterGrayscale(camera_sensor)
-sensor_manager.AddFilter(noise_filter)
-sensor_manager.AddFilter(visualization_filter)
+camera_sensor.SetNoiseModel(chrono.ChNoiseModel(chrono.ChNoiseModel::Type::GAUSSIAN, 0.01))
+camera_sensor.SetVisualizationType(chrono.ChCameraSensor::VisualizationType::DEPTH)
 ```
 
 3. Set necessary default parameters such as positions, forces, and interactions:
 
 ```python
 # Set the camera's initial position and orientation
-camera_sensor.SetPosition(chrono.ChVectorD(0, 0, 2))
-camera_sensor.SetOrientation(chrono.ChQuaternionD(chrono.Q_from_Euler(chrono.ChVectorD(0, 0, 0))))
+camera_sensor.SetLocalPos(chrono.ChVector<>(0, 0, 2))
+camera_sensor.SetLocalRot(chrono.Q_from_AngAxis(chrono.CH_C_PI / 2, chrono.VECT_X))
 
-# Set the camera's orbit parameters
+# Set the camera's orbit radius and speed
 orbit_radius = 2
 orbit_speed = 0.01
 
 # Simulate the system, dynamically updating the camera's position
-while vis.Run():
-    time = sys.GetChTime()
-
-    # Update the camera's position in an orbit around the mesh
-    camera_sensor.SetPosition(chrono.ChVectorD(orbit_radius * chrono.ChMath.Cos(time * orbit_speed), orbit_radius * chrono.ChMath.Sin(time * orbit_speed), 0))
-    camera_sensor.SetOrientation(chrono.ChQuaternionD(chrono.Q_from_Euler(chrono.ChVectorD(0, 0, time * orbit_speed))))
+for i in range(1000):
+    time = i * 0.01
+    camera_sensor.SetLocalPos(chrono.ChVector<>(orbit_radius * chrono.ChFunction_Sine(time * orbit_speed), 0, orbit_radius * chrono.ChFunction_Cosine(time * orbit_speed)))
+    sys.DoStepDynamics(0.01)
+    vis.Render()
 
     # Print out camera buffer data at each step
     print(camera_sensor.GetImageBuffer())
-
-    vis.BeginScene()
-    vis.Render()
-    vis.EndScene()
-
-    sys.DoStepDynamics(0.01)
 ```
 
-This script initializes the PyChrono environment, adds a fixed body with a triangular mesh, attaches a camera sensor to the body, applies noise filters and visualizations, and simulates the system while dynamically updating the camera's position in an orbit around the mesh. The camera buffer data is printed at each step.
+This script initializes the PyChrono environment, adds a fixed body with a triangular mesh, attaches a camera sensor to the body, and simulates the system while dynamically updating the camera's position in an orbit around the mesh. The camera buffer data is printed at each step.

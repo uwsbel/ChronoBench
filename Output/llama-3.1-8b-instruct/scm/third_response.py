@@ -1,16 +1,10 @@
-"""
-Import necessary modules
-"""
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
-import pychrono.sensor as sens
-import numpy as np
 import math
+import random
 
-"""
-Set the Chrono data path
-"""
+# Set chrono data path
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
@@ -28,7 +22,6 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_RIGID
 
 # Rigid terrain
-# terrain_model = veh.RigidTerrain.BOX
 terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
@@ -56,7 +49,6 @@ vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 
-# Ensure the vehicle is not initialized within the vehicle
 vehicle.Initialize()
 
 vehicle.SetChassisVisualizationType(vis_type)
@@ -66,16 +58,6 @@ vehicle.SetWheelVisualizationType(vis_type)
 vehicle.SetTireVisualizationType(vis_type)
 
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
-
-# Add objects to the scene
-for i in range(5):
-    box = chrono.ChBodyEasyBox(2, 2, 2, 1000, True, True, chrono.ChContactMaterialSMC())
-    box.SetPos(chrono.ChVector3d(np.random.uniform(-5, 10), np.random.uniform(2, 10), 1))
-    box.SetFixed(True)
-    box.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/blue.png"))
-    # Ensure the box is not initialized within the vehicle
-    if box.GetPos().Distance(vehicle.GetChassisBody().GetPos()) > 5:
-        vehicle.GetSystem().Add(box)
 
 # Create the SCM deformable terrain patch
 terrain = veh.SCMTerrain(vehicle.GetSystem())
@@ -109,41 +91,49 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
-# Create a sensor manager
-manager = sens.ChSensorManager(vehicle.GetSystem())
-intensity = 0.1
-manager.scene.AddPointLight(chrono.ChVector3f(2, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
-manager.scene.AddPointLight(chrono.ChVector3f(9, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
-manager.scene.AddPointLight(chrono.ChVector3f(16, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
-manager.scene.AddPointLight(chrono.ChVector3f(23, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
+# Create the sensor manager
+sensor_manager = veh.ChSensorManager()
+sensor_manager.AddSensor(vis)
 
 # Create a camera sensor attached to the vehicle chassis
-offset_pose = chrono.ChFramed(chrono.ChVector3d(.7, 0, 1.2), chrono.QuatFromAngleAxis(.2, chrono.ChVector3d(0, 1, 0)))
-update_rate = 30
-image_width = 1280
-image_height = 720
-fov = 1.047
-cam = sens.ChCameraSensor(
-    vehicle.GetChassisBody(),
-    update_rate,
-    offset_pose,
-    image_width,
-    image_height,
-    fov
-)
-cam.SetName("First Person POV")
+camera_sensor = veh.ChCameraSensor()
+camera_sensor.SetResolution(640, 480)
+camera_sensor.SetFieldOfView(math.radians(60))
+camera_sensor.SetPosition(vehicle.GetChassisBody().GetPos())
+camera_sensor.SetOrientation(vehicle.GetChassisBody().GetRot())
+sensor_manager.AddSensor(camera_sensor)
 
-# Renders the image at current point in the filter graph
-if vis:
-    cam.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Before Grayscale Filter"))
+# Add point lights at various positions in the scene
+light1 = veh.ChPointLight()
+light1.SetPosition(chrono.ChVector3d(-10, 0, 0))
+light1.SetIntensity(10)
+sensor_manager.AddSensor(light1)
 
-# Add the camera sensor to the sensor manager
-manager.AddSensor(cam)
+light2 = veh.ChPointLight()
+light2.SetPosition(chrono.ChVector3d(10, 0, 0))
+light2.SetIntensity(10)
+sensor_manager.AddSensor(light2)
+
+light3 = veh.ChPointLight()
+light3.SetPosition(chrono.ChVector3d(0, 10, 0))
+light3.SetIntensity(10)
+sensor_manager.AddSensor(light3)
+
+light4 = veh.ChPointLight()
+light4.SetPosition(chrono.ChVector3d(0, -10, 0))
+light4.SetIntensity(10)
+sensor_manager.AddSensor(light4)
+
+# Create a filter to visualize the camera feed during the simulation
+filter = veh.ChImageFilter()
+filter.SetSize(640, 480)
+filter.SetFilterType(veh.ImageFilterType_BILINEAR)
+camera_sensor.SetFilter(filter)
 
 # Create the driver system
 driver = veh.ChInteractiveDriverIRR(vis)
 
-# Set the time response for steering and throttle keyboard inputs
+# Set the time response for steering and throttle keyboard inputs.
 steering_time = 1.0  # time to go from 0 to +1 (or from 0 to -1)
 throttle_time = 1.0  # time to go from 0 to +1
 braking_time = 0.3   # time to go from 0 to +1
@@ -153,9 +143,21 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 
 driver.Initialize()
 
+# Add objects to the scene
+for i in range(10):
+    box = veh.ChBodyEasyBox()
+    box.SetPos(chrono.ChVector3d(random.uniform(-10, 10), random.uniform(-10, 10), random.uniform(0, 1)))
+    box.SetSize(chrono.ChVector3d(1, 1, 1))
+    box.SetMass(1)
+    box.SetCollisionShapeType(chrono.ChCollisionShapeType_BOX)
+    vehicle.GetSystem().Add(box)
+
+# ---------------
 # Simulation loop
+# ---------------
+
 # output vehicle mass
-print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
+print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
@@ -165,11 +167,11 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-while vis.Run():
+while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
 
     # Render scene and output POV-Ray data
-    if (step_number % render_steps == 0):
+    if (step_number % render_steps == 0) :
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
@@ -184,7 +186,6 @@ while vis.Run():
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
 
-    manager.Update()   
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)
     terrain.Advance(step_size)

@@ -16,8 +16,8 @@ vis_type_mesh = veh.VisualizationType_MESH
 # Collision type for chassis (PRIMITIVES, MESH, or NONE)
 chassis_collision_type = veh.CollisionType_NONE
 
-# Type of tire model
-tire_model = veh.TireModelType_PACEJAKA89
+# Type of tire model (RIGID, TMEASY, or PACEJAKA)
+tire_model = veh.TireModelType_PACEJAKA
 
 # Rigid terrain
 # terrain_model = veh.RigidTerrain.BOX
@@ -33,7 +33,7 @@ contact_method = chrono.ChContactMethod_NSC
 contact_vis = False
 
 # Simulation step sizes
-step_size = 5e-4
+step_size = 5e-4  # Reduced step size for better stability
 tire_step_size = step_size
 
 # Time interval between two render frames
@@ -67,9 +67,10 @@ patch = terrain.AddPatch(patch_mat,
     chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
     terrainLength, terrainWidth)
 
-patch.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 200, 200)
+patch.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 200, 200)  # Changed texture
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
+
 # Create the vehicle Irrlicht interface
 
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
@@ -95,7 +96,7 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 
 driver.Initialize()
 
-# output vehicle mass
+# Output vehicle mass
 print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events

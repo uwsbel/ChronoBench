@@ -43,7 +43,8 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  # FPS = 50
 
 # Create the HMMWV vehicle, set parameters, and initialize
-vehicle = veh.HMMWV_Full()  # veh.HMMWV_Reduced()  could be another choice here
+
+vehicle = veh.HMMWV_Full() # veh.HMMWV_Reduced()  could be another choice here
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
@@ -63,13 +64,11 @@ vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 # Create the terrain
 patch_mat = chrono.ChContactMaterialNSC()
-patch_mat.SetFriction(0.4)
-patch_mat.SetRestitution(0.05)
+patch_mat.SetFriction(0.4)  # Updated friction value
+patch_mat.SetRestitution(0.05)  # Updated restitution value
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-quat = chrono.ChQuaterniond()
-quat.SetFromAngleAxis(-math.pi/2, chrono.ChVector3d(0, 0, 1))
 patch = terrain.AddPatch(patch_mat, 
-    chrono.ChCoordsysd(chrono.ChVector3d(6, -70, 0), quat),
+    chrono.ChCoordsysd(chrono.ChVector3d(6, -70, 0), chrono.Q_from_AngZ(-chrono.CH_C_PI / 2)),  # Updated patch position and orientation
     chrono.GetChronoDataFile('vehicle/terrain/meshes/Highway_col.obj'),
     True, 0.01, False)
 vis_mesh = chrono.ChTriangleMeshConnected().CreateFromWavefrontFile(veh.GetDataFile("terrain/meshes/Highway_vis.obj"), True, True)
@@ -80,6 +79,7 @@ patch.GetGroundBody().AddVisualShape(tri_mesh_shape)
 terrain.Initialize()
 
 # Create the vehicle Irrlicht interface
+
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('HMMWV Demo')
 vis.SetWindowSize(1280, 1024)
@@ -108,7 +108,7 @@ driver.Initialize()
 # ---------------
 
 # output vehicle mass
-print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
+print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
@@ -118,11 +118,11 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-while vis.Run():
+while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
 
     # Render scene and output POV-Ray data
-    if (step_number % render_steps == 0):
+    if (step_number % render_steps == 0) :
         vis.BeginScene()
         vis.Render()
         vis.EndScene()

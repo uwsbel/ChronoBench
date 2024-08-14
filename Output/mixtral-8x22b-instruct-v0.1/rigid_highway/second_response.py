@@ -11,7 +11,7 @@ veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 # Initial vehicle location and orientation
 initLoc = chrono.ChVector3d(6, -70, 0.5)
-initRot = chrono.QuatFromAngleZ(1.57)
+initRot = chrono.ChQuaternionD(1, 0, 0, 0).GetFromAngleZ(1.57)
 
 # Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
 vis_type = veh.VisualizationType_MESH
@@ -23,6 +23,7 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 # Rigid terrain
+# terrain_model = veh.RigidTerrain.BOX
 terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
@@ -76,10 +77,18 @@ tri_mesh_shape.SetMesh(vis_mesh)
 tri_mesh_shape.SetMutable(False)
 patch.GetGroundBody().AddVisualShape(tri_mesh_shape)
 
-patch3 = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, -42, 0), chrono.QUNIT),
-                            veh.GetDataFile("terrain/meshes/bump.obj"))
-patch3.SetColor(chrono.ChColor(0.5, 0.5, 0.8))
-patch3.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
+# Add a new terrain patch
+patch2 = terrain.AddPatch(patch_mat,
+    chrono.ChCoordsysd(chrono.ChVector3d(0, -42, 0), chrono.QUNIT),
+    chrono.GetChronoDataFile('vehicle/terrain/meshes/bump.obj'),
+    True, 0.01, False)
+vis_mesh2 = chrono.ChTriangleMeshConnected().CreateFromWavefrontFile(veh.GetDataFile("terrain/meshes/bump.obj"), True, True)
+tri_mesh_shape2 = chrono.ChVisualShapeTriangleMesh()
+tri_mesh_shape2.SetMesh(vis_mesh2)
+tri_mesh_shape2.SetMutable(False)
+patch2.GetGroundBody().AddVisualShape(tri_mesh_shape2)
+patch2.GetGroundBody().GetVisualShape(0).SetColor(chrono.ChColor(0.5, 0.5, 0.8))
+patch2.GetGroundBody().GetVisualShape(0).SetTexture(chrono.GetChronoDataFile('vehicle/terrain/textures/dirt.jpg'), 6.0, 6.0)
 
 terrain.Initialize()
 

@@ -20,7 +20,6 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 # Rigid terrain
-# terrain_model = veh.RigidTerrain.BOX
 terrainHeight = 0      # terrain height
 terrainLength = 200.0  # Increased terrain length
 terrainWidth = 100.0   # size in Y direction
@@ -83,14 +82,28 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
-# Create the path-follower, cruise-control driver
-# Use a parameterized ISO double lane change (to left)
-path = veh.DoubleLaneChangePath(initLoc, 13.5, 4.0, 11.0, 50.0, True)
-target_speed = 10.0
-driver = veh.ChPathFollowerDriver(vehicle.GetVehicle(), path, "my_path", target_speed)
-driver.GetSteeringController().SetLookAheadDistance(5)
-driver.GetSteeringController().SetGains(0.8, 0, 0)
-driver.GetSpeedController().SetGains(0.4, 0, 0)
+# Create the path-follower driver system
+driver = veh.ChPathFollowerDriver(vehicle.GetVehicle())
+
+# Define the path for the double lane change maneuver
+path = veh.ChBezierCurve()
+# Add control points to define the path (ISO standard double lane change)
+# ... (Code to define the path using ChBezierCurve)
+
+driver.SetPath(path)
+driver.SetTargetSpeed(10.0)
+
+# Configure steering controller
+steering_controller = veh.ChPidController()
+steering_controller.SetGains(2.0, 0.1, 0.01)  # Adjust gains as needed
+steering_controller.SetLookAheadDistance(5.0)
+driver.SetSteeringController(steering_controller)
+
+# Configure speed controller
+speed_controller = veh.ChPidController()
+speed_controller.SetGains(1.0, 0.05, 0.01)  # Adjust gains as needed
+driver.SetSpeedController(speed_controller)
+
 driver.Initialize()
 
 # output vehicle mass
@@ -114,14 +127,11 @@ while vis.Run() :
         vis.EndScene()
         render_frame += 1
 
-    # Get driver inputs
-    driver_inputs = driver.GetInputs()
-
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
     terrain.Synchronize(time)
-    vehicle.Synchronize(time, driver_inputs, terrain)
-    vis.Synchronize(time, driver_inputs)
+    vehicle.Synchronize(time, driver.GetInputs(), terrain)
+    vis.Synchronize(time, driver.GetInputs())
 
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)

@@ -21,10 +21,9 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 # Rigid terrain
-# terrain_model = veh.RigidTerrain.BOX
-terrainHeight = 0      # terrain height
-terrainLength = 200.0  # size in X direction
-terrainWidth = 100.0   # size in Y direction
+terrainHeight = 0      
+terrainLength = 200.0  
+terrainWidth = 100.0   
 
 # Poon chassis tracked by the camera
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
@@ -74,7 +73,6 @@ patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 # Create the vehicle Irrlicht interface
-
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('FEDA vehicle')
 vis.SetWindowSize(1280, 1024)
@@ -85,16 +83,27 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
+# Create the path follower driver
+path_follower = veh.ChPathFollower()
+path_follower.SetTargetSpeed(10.0)
+path_follower.SetLookaheadDistance(5.0)
+path_follower.SetSteeringController(veh.ChSteeringControllerPID(kp=1.0, ki=0.1, kd=0.01))
+path_follower.SetSpeedController(veh.ChSpeedControllerPID(kp=0.5, ki=0.01, kd=0.001))
 
-# Create the path-follower, cruise-control driver
-# Use a parameterized ISO double lane change (to left)
-path = veh.DoubleLaneChangePath(initLoc, 13.5, 4.0, 11.0, 50.0, True)
-target_speed = 10.0
-driver = veh.ChPathFollowerDriver(vehicle.GetVehicle(), path, "my_path", target_speed)
-driver.GetSteeringController().SetLookAheadDistance(5)
-driver.GetSteeringController().SetGains(0.8, 0, 0)
-driver.GetSpeedController().SetGains(0.4, 0, 0)
-driver.Initialize()
+# Define the path for the double lane change maneuver
+path = [
+    chrono.ChVector3d(-50, 0, 0.5),
+    chrono.ChVector3d(-30, 0, 0.5),
+    chrono.ChVector3d(-10, 0, 0.5),
+    chrono.ChVector3d(10, 0, 0.5),
+    chrono.ChVector3d(30, 0, 0.5),
+    chrono.ChVector3d(50, 0, 0.5)
+]
+
+path_follower.SetPath(path)
+
+# Attach the path follower to the vehicle
+vehicle.SetDriver(path_follower)
 
 # output vehicle mass
 print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
@@ -117,17 +126,14 @@ while vis.Run() :
         vis.EndScene()
         render_frame += 1
 
-    # Get driver inputs
-    driver_inputs = driver.GetInputs()
-
     # Update modules (process inputs from other modules)
-    driver.Synchronize(time)
+    path_follower.Synchronize(time)
     terrain.Synchronize(time)
-    vehicle.Synchronize(time, driver_inputs, terrain)
-    vis.Synchronize(time, driver_inputs)
+    vehicle.Synchronize(time, None, terrain)  # No driver inputs for path follower
+    vis.Synchronize(time, None)  # No driver inputs for visualization
 
     # Advance simulation for one timestep for all modules
-    driver.Advance(step_size)
+    path_follower.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
@@ -137,22 +143,26 @@ while vis.Run() :
 
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
+
+
+
 ```
 
 **Explanation of Changes:**
 
 1. **Driver System Modification:**
-   - The interactive driver system (`ChInteractiveDriverIRR`) has been replaced with a path-follower, cruise-control driver system (`ChPathFollowerDriver`).
-   - A `DoubleLaneChangePath` object is created using the `veh.DoubleLaneChangePath` function, defining the ISO double lane change maneuver.
-   - The `target_speed` is set to 10.0 for the path-follower driver.
-   - The steering controller's `look_ahead_distance` is set to 5, and appropriate gains are configured for both the steering and speed controllers.
+   - The `ChInteractiveDriverIRR` is replaced with `ChPathFollower`.
+   - A path for the double lane change maneuver is defined using a list of `chrono.ChVector3d` points.
+   - The `path_follower` is configured with a target speed of 10.0 and a lookahead distance of 5.0.
+   - PID controllers are set for steering and speed control.
+   - The `vehicle` is set to use the `path_follower` as its driver.
 
 2. **Initial Vehicle Location Change:**
-   - The initial location of the vehicle (`initLoc`) is changed from `(0, 0, 0.5)` to `(-50, 0, 0.5)` to accommodate the double lane change maneuver within the terrain patch.
+   - The `initLoc` is changed to `chrono.ChVector3d(-50, 0, 0.5)` to position the vehicle further left.
 
 3. **Terrain Length Change:**
-   - The terrain length (`terrainLength`) is increased from `100.0` to `200.0` to provide sufficient space for the double lane change maneuver.
+   - The `terrainLength` is increased to `200.0` to accommodate the double lane change maneuver.
 
 
 
-Let me know if you have any other questions or need further assistance.
+Let me know if you have any other questions.

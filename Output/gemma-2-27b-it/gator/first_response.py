@@ -19,20 +19,15 @@ system.SetStep(1.0 / 50.0)
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
 vis.SetWindowSize(800, 600)
-vis.SetWindowTitle("Gator Vehicle Simulation")
+vis.SetWindowTitle('Gator Vehicle Simulation')
 vis.Initialize()
-vis.AddCamera(chrono.ChVectorD(0, 2, -5))
-vis.AddLight(chrono.ChVectorD(5, 5, 5), chrono.ChColor(1, 1, 1))
 
 # Create a rigid terrain
 terrain = chrono.ChRigidTerrain(system)
-patch_size = chrono.ChVectorD(100, 100)
-heightmap = chrono.ChHeightmap(patch_size, 100, 100)
-heightmap.Initialize("terrain.png")  # Replace with your terrain texture
-terrain.AddHeightmap(heightmap, chrono.ChVectorD(0, 0, 0))
-terrain.SetTexture(chrono.ChTexture(
-    "terrain_texture.jpg"))  # Replace with your texture file
-terrain.SetFriction(0.8)
+patch = chrono.ChRigidTerrain::Patch(terrain)
+patch.SetSize(200, 200)
+patch.SetTexture(chrono.GetChronoDataPath() + 'terrain/textures/grass.png')
+patch.Initialize()
 
 # ---------------------------------------------------------------------
 #
@@ -40,10 +35,9 @@ terrain.SetFriction(0.8)
 #
 # ---------------------------------------------------------------------
 
-vehicle = chronovehicle.ChVehicle("Gator")
-vehicle.SetSystem(system)
+vehicle = chronovehicle.ChVehicle(system)
 
-# Set vehicle initial position and orientation
+# Set vehicle location and orientation
 vehicle.SetChassisPosition(chrono.ChVectorD(0, 1, 0))
 vehicle.SetChassisBodyFixed(False)
 
@@ -51,22 +45,28 @@ vehicle.SetChassisBodyFixed(False)
 chassis = chronovehicle.ChChassis(vehicle)
 chassis.SetMass(1500)
 chassis.SetInertia(chrono.ChVectorD(100, 100, 100))
-chassis.SetVisualizationType(chrono.ChVisualizationType.MESH)
-chassis.SetMeshFilename("gator_chassis.obj")  # Replace with your chassis mesh
+
+# Load chassis mesh
+chassis.SetMesh(chrono.ChBodyEasyMesh(chrono.GetChronoDataPath() + 'vehicle/gator/chassis.obj'))
 
 # Add wheels
 wheel_radius = 0.3
 wheel_width = 0.15
+
 for i in range(4):
     wheel = chronovehicle.ChWheel(vehicle)
-    wheel.SetLocation(chrono.ChVectorD(
-        (-1.5 + i * 1.5, -0.5, 0.5)))  # Adjust wheel positions
     wheel.SetRadius(wheel_radius)
     wheel.SetWidth(wheel_width)
-    wheel.SetVisualizationType(chrono.ChVisualizationType.MESH)
-    wheel.SetMeshFilename("gator_wheel.obj")  # Replace with your wheel mesh
-    wheel.SetContactMethod(chrono.ChContactMethod.NSC)
-    wheel.SetTireModel(chronovehicle.TMEasyTire())
+    wheel.SetFrictionCoefficient(1.0)
+
+    # Set tire model (TMEASY)
+    tire = chronovehicle.ChTMeasyTire(wheel)
+
+    # Set contact method
+    wheel.SetContactMethod(chrono.ChContactMethod.ChContactMethod_NSC)
+
+    # Load wheel mesh
+    wheel.SetMesh(chrono.ChBodyEasyMesh(chrono.GetChronoDataPath() + 'vehicle/gator/wheel.obj'))
 
 # Connect wheels to chassis
 vehicle.AddWheel(wheel)
@@ -89,15 +89,17 @@ while vis.Run():
     # Get input from the user
     steering = vis.GetSteering()
     throttle = vis.GetThrottle()
-    brake = vis.GetBrake()
+    braking = vis.GetBraking()
 
     # Apply driver inputs
     driver.SetSteering(steering)
     driver.SetThrottle(throttle)
-    driver.SetBraking(brake)
+    driver.SetBraking(braking)
 
-    # Update the simulation
+    # Advance the simulation
     system.DoStepDynamics(1.0 / 50.0)
 
     # Render the scene
+    vis.BeginScene()
     vis.Render()
+    vis.EndScene()

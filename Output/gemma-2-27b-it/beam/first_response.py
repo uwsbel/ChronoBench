@@ -7,11 +7,11 @@ import pychrono.irrlicht as chronoirr
 #
 # ---------------------------------------------------------------------
 
-# Create a physical system
-system = chrono.ChSystemNSC()
+# Create a Chrono system
+my_system = chrono.ChSystemNSC()
 
 # Set gravitational acceleration
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
 # Create a material for the beam
 material = chrono.ChMaterialSurfaceNSC()
@@ -19,19 +19,21 @@ material.SetFriction(0.3)
 material.SetRestitution(0.2)
 
 # Create a mesh of beams
-beam_length = 1.0
-beam_width = 0.1
-beam_height = 0.1
+beam_mesh = chrono.ChMesh()
 
-# Define nodes
+# Define nodes (positions)
 nodes = [
-    chrono.ChNodeFEAxyz(chrono.ChVectorD(0, 0, 0)),
-    chrono.ChNodeFEAxyz(chrono.ChVectorD(beam_length, 0, 0)),
-    chrono.ChNodeFEAxyz(chrono.ChVectorD(beam_length, 0, beam_height)),
-    chrono.ChNodeFEAxyz(chrono.ChVectorD(0, 0, beam_height)),
+    chrono.ChNodeFEAxyz(chrono.ChVectorD(-1, 0, 0)),
+    chrono.ChNodeFEAxyz(chrono.ChVectorD(1, 0, 0)),
+    chrono.ChNodeFEAxyz(chrono.ChVectorD(1, 1, 0)),
+    chrono.ChNodeFEAxyz(chrono.ChVectorD(-1, 1, 0)),
 ]
 
-# Define elements
+# Add nodes to the mesh
+for node in nodes:
+    beam_mesh.AddNode(node)
+
+# Define beam elements (connectivity)
 elements = [
     chrono.ChElementBeamEuler(nodes[0], nodes[1], material),
     chrono.ChElementBeamEuler(nodes[1], nodes[2], material),
@@ -39,13 +41,12 @@ elements = [
     chrono.ChElementBeamEuler(nodes[3], nodes[0], material),
 ]
 
-# Create a beam mesh
-beam_mesh = chrono.ChMesh()
-beam_mesh.AddNodes(nodes)
-beam_mesh.AddElements(elements)
+# Add elements to the mesh
+for element in elements:
+    beam_mesh.AddElement(element)
 
 # Add the mesh to the system
-system.Add(beam_mesh)
+my_system.Add(beam_mesh)
 
 # ---------------------------------------------------------------------
 #
@@ -54,16 +55,15 @@ system.Add(beam_mesh)
 # ---------------------------------------------------------------------
 
 # Create the Irrlicht application
-myapplication = chronoirr.ChIrrApp(system, "Beam FEA Simulation", chronoirr.dimension2du(800, 600))
+myapplication = chronoirr.ChIrrApp(my_system, "Beam FEA Simulation", chronoirr.dimension2du(800, 600))
 
 # Set the camera position
-myapplication.SetCameraPosition(chrono.ChVectorD(2, 2, 2))
-myapplication.SetCameraLookAt(chrono.ChVectorD(0, 0, 0))
+myapplication.AddTypicalCamera(chrono.ChVectorD(0, 2, -3), chrono.ChVectorD(0, 0, 0))
 
-# Add the visualization of the mesh
-myapplication.AddTypicalSky()
-myapplication.AddLight(chrono.ChVectorD(1, 1, 1), chrono.ChColor(1, 1, 1))
-myapplication.AddMesh(beam_mesh, chrono.ChColor(1, 0, 0))
+# Set the visualization mode
+myapplication.SetSymbolscale(0.05)
+myapplication.SetShowInfos(True)
+myapplication.SetShowContacts(True)
 
 # ---------------------------------------------------------------------
 #
@@ -71,8 +71,9 @@ myapplication.AddMesh(beam_mesh, chrono.ChColor(1, 0, 0))
 #
 # ---------------------------------------------------------------------
 
-# Set the simulation time step
-myapplication.SetTimestep(0.01)
-
-# Run the simulation loop
-myapplication.Run()
+# Simulation loop
+while myapplication.GetDevice().run():
+    myapplication.BeginScene()
+    myapplication.Draw3D()
+    myapplication.DoStep()
+    myapplication.EndScene()

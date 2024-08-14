@@ -15,31 +15,43 @@ pc.init()
 terrain = pc.RigidTerrain(width=100, height=10, texture=pc.Texture('textures/terrain.png'))
 
 
-# Initialize the vehicle
+# Define the Gator vehicle parameters
 
-vehicle = pc.Vehicle(
+vehicle_params = {
 
-    location=np.array([0, 0, 0.5]),
+    'location': np.array([0, 0, 0.5]),
 
-    orientation=np.array([0, 0, 0]),
+    'orientation': np.array([0, 0, 0]),
 
-    contact_method=pc.ContactMethod.ContactPoint,
+    'contact_method': 'contact_point',
 
-    tmeasy_tire_model=True
+    'tmeasy_tire_model': True,
+
+    'mesh_visualization': True
+
+}
+
+
+# Create the Gator vehicle
+
+gator_vehicle = pc.Vehicle(
+
+    name='Gator',
+
+    params=vehicle_params,
+
+    mesh_file='models/gator.obj',
+
+    terrain=terrain
 
 )
 
 
-# Setup the vehicle's mesh visualization
+# Set up the driver system
 
-vehicle.setMeshVisualization(pc.MeshVisualization(pc.Mesh('models/gator_vehicle.obj')))
+driver_system = pc.DriverSystem(
 
-
-# Setup the driver system
-
-driver = pc.DriverSystem(
-
-    steering_range=(-1, 1),
+    steering_range=(-np.pi/4, np.pi/4),
 
     throttle_range=(0, 1),
 
@@ -48,45 +60,63 @@ driver = pc.DriverSystem(
 )
 
 
-# Setup the simulation loop
+# Set up the simulation loop
 
 simulation = pc.Simulation(
 
-    terrain=terrain,
+    vehicle=gator_vehicle,
 
-    vehicle=vehicle,
-
-    driver=driver,
+    driver_system=driver_system,
 
     frame_rate=50
 
 )
 
 
-# Create the Irrlicht visualization
+# Initialize Irrlicht for visualization
 
-scene = pc.Scene()
+scene = ir.CreateScene()
 
-scene.addPrimitiveGroup(pc.PrimitiveGroup(pc.Plane(pc.Vector3(0, 0, -1), pc.Vector3(0, 0, 0), 10000)))
+gltf_scene = ir.GLTFScene()
 
-scene.addEntity(pc.Actor(terrain))
+gltf_scene.addMesh(gator_vehicle.mesh)
 
-scene.addEntity(pc.Actor(vehicle))
+gltf_scene.addMesh(terrain.mesh)
 
 
-# Start the simulation loop
+# Set up the camera
 
-while not pc.simulation.isDone():
+camera = ir.IrrlichtDevice.getDefaultVideoDriver().getCamera()
+
+camera.setPosition(np.array([0, 5, 10]))
+
+camera.setTarget(np.array([0, 0, 0]))
+
+camera.setFieldOfView(45)
+
+
+# Set up the scene
+
+scene.addLightByName('sunlight', ir.vector3df(0, 100, 100))
+
+scene.addCameraByName('camera', camera)
+
+scene.addStaticByName('gltf_scene', gltf_scene)
+
+
+# Run the simulation loop
+
+while not pc.simulation.is_finished():
 
     simulation.update()
 
-    scene.drawAllEntities()
+    scene.drawAll()
 
-    ir.getDevice().setFrameEventCallback(pc.simulation.getFrameEventCallback())
+    ir.Application.instance.drawAll()
 
-    ir.waitChunk()
+    ir.Application.instance.getDevice().updateCamera()
 
 
 # Clean up
 
-pc.shutdown()
+pc.cleanup()

@@ -1,14 +1,11 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
-import pychrono.sensor as sens
-import numpy as np
 import math
+import random
 
-# Set Chrono data path
-chrono.SetChronoDataPath('/path/to/chrono/data/')  # Replace with the actual path
-
-# Set vehicle data path
+# Set the Chrono data path
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 # Initial vehicle location and orientation
@@ -62,19 +59,6 @@ vehicle.SetTireVisualizationType(vis_type)
 
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
-# Add boxes to the scene at random positions, ensuring they are not within the vehicle
-for i in range(5):
-    box = chrono.ChBodyEasyBox(2, 2, 2, 1000, True, True, chrono.ChContactMaterialSMC())
-    while True:
-        x = np.random.uniform(-5, 10)
-        y = np.random.uniform(2, 10)
-        if math.sqrt((x - initLoc.x())**2 + (y - initLoc.y())**2) > 3:  # Adjust the distance as needed
-            box.SetPos(chrono.ChVector3d(x, y, 1))
-            break
-    box.SetFixed(True)
-    box.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/blue.png"))
-    vehicle.GetSystem().Add(box)
-
 # Create the SCM deformable terrain patch
 terrain = veh.SCMTerrain(vehicle.GetSystem())
 terrain.SetSoilParameters(2e6,   # Bekker Kphi
@@ -107,36 +91,29 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
+# Add point lights at various positions in the scene
+pl1 = irr.IrrlichtPointLight()
+pl1.SetPosition(chrono.ChVector3d(10, 0, 2))
+vis.AddLight(pl1)
+
+pl2 = irr.IrrlichtPointLight()
+pl2.SetPosition(chrono.ChVector3d(-10, 0, 2))
+vis.AddLight(pl2)
+
 # Create a sensor manager
-manager = sens.ChSensorManager(vehicle.GetSystem())
-intensity = 0.1
-manager.scene.AddPointLight(chrono.ChVector3f(2, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
-manager.scene.AddPointLight(chrono.ChVector3f(9, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
-manager.scene.AddPointLight(chrono.ChVector3f(16, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
-manager.scene.AddPointLight(chrono.ChVector3f(23, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
+sensor_manager = chrono.ChSensorManager(vehicle.GetSystem())
 
-# Create a camera sensor
-offset_pose = chrono.ChFrameMoving(chrono.ChVector3d(.7, 0, 1.2), chrono.Quaternion(1, 0, 0, 0))
-update_rate = 30
-image_width = 1280
-image_height = 720
-fov = 1.047
-cam = sens.ChCameraSensor(
-    vehicle.GetChassisBody(),
-    update_rate,
-    offset_pose,
-    image_width,
-    image_height,
-    fov
-)
-cam.SetName("First Person POV")
+# Create a camera sensor attached to the vehicle chassis
+camera_sensor = chrono.ChCameraSensor(vehicle.GetChassisBody())
+camera_sensor.SetResolution(640, 480)
+camera_sensor.SetFOV(60)
+camera_sensor.SetRange(0.1, 1000)
+sensor_manager.AddSensor(camera_sensor)
 
-# Add a filter to visualize the camera feed
-if vis:
-    cam.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Before Grayscale Filter"))
-
-# Add the camera sensor to the sensor manager
-manager.AddSensor(cam)
+# Add a filter to visualize the camera feed during the simulation
+camera_filter = irr.IrrlichtCameraFilter()
+camera_filter.SetCameraSensor(camera_sensor)
+vis.AddFilter(camera_filter)
 
 # Create the driver system
 driver = veh.ChInteractiveDriverIRR(vis)
@@ -151,13 +128,23 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 
 driver.Initialize()
 
+# Add randomly positioned boxes to the simulation environment
+for i in range(10):
+    box = chrono.ChBodyEasyBox(vehicle.GetSystem(), 1, 1, 1, 1000)
+    box.SetPos(chrono.ChVector3d(random.uniform(-20, 20), random.uniform(-20, 20), 1))
+    vehicle.GetSystem().AddBody(box)
+
+# ---------------
 # Simulation loop
+# ---------------
+
+# output vehicle mass
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
 
-# Initialize simulation frame counter
+# Initialize simulation frame counter s
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
@@ -181,7 +168,6 @@ while vis.Run():
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
 
-    manager.Update()
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)
     terrain.Advance(step_size)

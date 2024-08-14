@@ -76,13 +76,15 @@ Output_path = 'D:\SimBench\output'
 Output_conversation_path = 'D:\SimBench\output_conversion'
 # in the dataset_path, there are 34 dynamical system folders, each folder is a dyanmical system which contains 8 files [3 input text files, input1.txt, input2.txt, input3.txt;
 # 2 python input files, pyinput2.py, pyinput3.py; 3 ground truth python files truth1.py, truth2.py, truth3.py]
-test_model_list = ["gemma-2-2b-it", "gemma-2-9b-it", "gemma-2-27b-it", "llama-3.1-405b-instruct", "llama-3.1-70b-instruct", "codellama-70b", "llama-3.1-8b-instruct", "phi-3-mini-128k-instruct", "phi-3-small-8k-instruct", "phi-3-medium-128k-instruct", "nemotron-4-340b-instruct", "mistral-nemo-12b-instruct", "mixtral-8x22b-instruct-v0.1", "codestral-22b-instruct-v0.1", "mixtral-8x7b-instruct-v0.1", "mistral-large", "mamba-codestral-7b-v0.1"]
+#test_model_list = ["gemma-2-2b-it", "gemma-2-9b-it", "gemma-2-27b-it", "llama-3.1-405b-instruct", "llama-3.1-70b-instruct", "codellama-70b", "llama-3.1-8b-instruct", "phi-3-mini-128k-instruct", "phi-3-small-8k-instruct", "phi-3-medium-128k-instruct",
+ #                  "nemotron-4-340b-instruct", "mistral-nemo-12b-instruct", "mixtral-8x22b-instruct-v0.1", "codestral-22b-instruct-v0.1", "mixtral-8x7b-instruct-v0.1", "mistral-large", "mamba-codestral-7b-v0.1", "gpt-4o", "gpt-4o-mini", "claude-3-5-sonnet","Gemini"]
+test_model_list = ["gpt-4o-mini"]
 # define an output path for the test results for each model with the name of the model
 # using tqdm to show the progress bar
 
 system_list = ["art", "beam", "buckling", "cable", "car", "camera", "citybus", "curiosity", "feda", "gator", "gear", "gps_imu", "handler", "hmmwv", "kraz", "lidar", "m113", "man", "mass_spring_damper", "particles", "pendulum",
                "rigid_highway", "rigid_multipatches", "rotor", "scm", "scm_hill", "sedan", "sensros", "slider_crank", "tablecloth", "turtlebot", "uazbus", "veh_app","vehros","viper"]
-system_do_list=["curiosity"]
+system_do_list=system_list
 # data set path
 dataset_path = 'D:\SimBench\demo_data'
 Output_path = 'D:\SimBench\output'
@@ -90,8 +92,6 @@ Output_statistic_path = 'D:\SimBench\statistic'
 
 # using tqdm to show the progress bar
 for test_model in tqdm(test_model_list):
-    #print('entering model:', test_model)
-    test_model_link = opensource_model_links[test_model]
     output_model_path = os.path.join(Output_path, test_model)
     os.makedirs(output_model_path, exist_ok=True)
     # for each model, we create a folder to store the test results for each dynamical system

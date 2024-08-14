@@ -83,20 +83,11 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 # Create the data-driven driver system
-driver_data = veh.vector_Entry([
-    veh.DataDriverEntry(0.0, 0.0, 0.0, 0.0),  
-    veh.DataDriverEntry(0.1, 1.0, 0.0, 0.0),
-    veh.DataDriverEntry(0.5, 1.0, 0.7, 0.0)
-])
+driver_data = veh.vector_Entry()
+driver_data.append(veh.DataDriverEntry(0.0, 0.0, 0.0, 0.0))  # Throttle, Steering, Braking, Gear
+driver_data.append(veh.DataDriverEntry(0.1, 1.0, 0.0, 0.0))
+driver_data.append(veh.DataDriverEntry(0.5, 1.0, 0.7, 0.0))
 driver = veh.ChDataDriver(vehicle.GetVehicle(), driver_data)
-
-driver.Initialize()
-
-# output vehicle mass
-print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
-
-# Number of simulation steps between miscellaneous events
-render_steps = math.ceil(render_step_size / step_size)
 
 # Initialize simulation frame counter s
 realtime_timer = chrono.ChRealtimeStepTimer()
@@ -113,13 +104,11 @@ while vis.Run() :
         vis.EndScene()
         render_frame += 1
 
-    # Get driver inputs (handled by data-driven driver)
-
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
     terrain.Synchronize(time)
-    vehicle.Synchronize(time, None, terrain)  # No driver inputs needed here
-    vis.Synchronize(time, None)  # No driver inputs needed here
+    vehicle.Synchronize(time, driver.GetInputs(), terrain)
+    vis.Synchronize(time, driver.GetInputs())
 
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)

@@ -8,41 +8,64 @@ system = chrono.ChSystemNSC()
 
 # Create Irrlicht visualization
 vis_app = vis.ChIrrApp(system, 'Gator Simulation', 
-                       window_width=800, window_height=600)
-vis_app.AddTypicalSky()
-vis_app.AddTypicalLights()
+                       window_size=(1280, 720), 
+                       use_trackball=True, 
+                       background_color=[0.8, 0.8, 0.8])
 
-# Create RigidTerrain
-terrain_width = 10
-terrain_length = 10
-terrain = chrono.ChBodyEasyBox(terrain_width, terrain_length, 0.1, 1000)
-terrain.SetPos(chrono.ChVectorD(0, 0, -0.05))  # Slightly below ground level
-terrain.SetBodyFixed(True)
-system.Add(terrain)
+# --- Vehicle Setup ---
 
-# Load Gator vehicle mesh
-gator_mesh = chrono.ChMeshReader.Read("path/to/gator_mesh.obj")  # Replace with your mesh path
-gator_body = chrono.ChBodyEasyBox(0.5, 0.5, 0.5, 1000)  # Placeholder, adjust dimensions
-gator_body.SetPos(chrono.ChVectorD(0, 0, 0))
-gator_body.SetBodyFixed(False)
-gator_body.AddAsset(gator_mesh)
+# Load Gator vehicle mesh (replace with your actual file path)
+gator_mesh = chrono.ChMeshLoader.Load("gator_vehicle.obj")
+gator_body = chrono.ChBodyEasy(gator_mesh)
+gator_body.SetPos(chrono.ChVectorD(0, 0, 0))  # Initial position
+gator_body.SetRot(chrono.Q_from_Euler(chrono.CH_C_DEG2RAD(0), chrono.CH_C_DEG2RAD(0), chrono.CH_C_DEG2RAD(0)))  # Initial orientation
 system.Add(gator_body)
 
-# Set up TMEASY tire model
-tire_model = chrono.ChTireEasyTMEASY()
-# ... configure tire model parameters ...
+# Add wheels (adjust parameters as needed)
+wheel_radius = 0.3  # Wheel radius
+wheel_width = 0.1  # Wheel width
+for i in range(4):
+    wheel = chrono.ChWheelEasy(wheel_radius, wheel_width, gator_body)
+    # Set wheel contact method (e.g., TMEASY)
+    wheel.SetContactMethod(chrono.ChWheelEasy.CM_TMEASY)
+    # Adjust wheel position and orientation based on your vehicle design
+    wheel.SetPos(chrono.ChVectorD(0, 0, 0))  # Initial position
+    system.Add(wheel)
 
-# Add wheels to Gator
-# ... create wheel bodies, attach them to gator_body, and configure them with tire_model ...
+# --- Terrain Setup ---
 
-# Interactive driver system
-vis_app.SetCamera(chrono.ChVectorD(5, 5, 2), chrono.ChVectorD(0, 0, 0))
-vis_app.SetCameraVerticalAngle(np.radians(30))
+# Create a rigid terrain
+terrain = chrono.ChBodyEasy()
+terrain.SetPos(chrono.ChVectorD(0, 0, 0))
+terrain.SetRot(chrono.Q_from_Euler(chrono.CH_C_DEG2RAD(0), chrono.CH_C_DEG2RAD(0), chrono.CH_C_DEG2RAD(0)))
+terrain.SetBodyFixed(True)  # Fix terrain in place
 
-# ... implement keyboard/mouse input handling for steering, throttle, and braking ...
+# Set terrain dimensions
+terrain_width = 10
+terrain_length = 10
+terrain_height = 0.1
 
-# Simulation loop
-vis_app.SetTimestep(1.0/50)  # 50 FPS
-while vis_app.Run():
-    system.DoStepDynamics(vis_app.GetTimestep())
-    vis_app.Render()
+# Create a custom texture (replace with your actual texture file)
+terrain_texture = vis.IrrlichtTexture("terrain_texture.png")
+terrain.SetTexture(terrain_texture)
+
+# Add terrain to the system
+system.Add(terrain)
+
+# --- Driver System ---
+
+# Implement interactive controls for steering, throttle, and braking
+# (This part requires more specific code based on your chosen input method)
+
+# --- Simulation Loop ---
+
+dt = 1.0 / 50  # Time step for 50 FPS
+vis_app.SetTargetFPS(50)
+
+while not vis_app.GetDevice().isWindowClosed():
+    vis_app.BeginScene()
+    system.DoStepDynamics(dt)
+    vis_app.DrawAll()
+    vis_app.EndScene()
+
+vis_app.GetDevice().drop()

@@ -1,0 +1,154 @@
+```python
+import pychrono as chrono
+import pychrono.postprocess as postprocess
+import pychrono.irrlicht as chronoirr
+try:
+    import pychrono.ros as ros
+except:
+    print("Could not import pychrono.ros.  Make sure you have it installed.")
+    exit(1)
+
+# ---------------------------------------------------------------------
+#
+#  Create the simulation system and add items
+#
+
+mysystem      = chrono.ChSystemNSC()
+mysystem.Set_G_acc(chrono.ChVectorD(0,-9.81,0))
+
+# Set some contact parameters
+chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.001)
+chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.001)
+
+# Create a contact material (shared among all objects)
+material = chrono.ChMaterialSurfaceNSC()
+material.SetFriction(0.6)
+material.SetDampingF(0.2)
+material.SetCompliance(0.00001)
+material.SetComplianceT(0.00001)
+
+# Create the floor: a simple fixed rigid body with a collision shape
+mfloor = chrono.ChBodyEasyBox(20, 1, 20, 1000, True, True, material)
+mfloor.SetBodyFixed(True)
+mysystem.Add(mfloor)
+
+# Create the falling box: a rigid body with a collision shape
+mbox = chrono.ChBodyEasyBox(0.5, 0.5, 0.5, 1000, True, True, material)
+mbox.SetPos(chrono.ChVectorD(0, 2, 0))
+mysystem.Add(mbox)
+
+# ---------------------------------------------------------------------
+#
+#  Create the ROS node and handlers
+#
+
+# Create the ROS node
+node = ros.ChNodeROS("chrono_sim")
+node.Init()
+
+# Custom ROS handler to publish integer messages
+class MyCustomHandler(ros.ChRosPublisher):
+    def __init__(self, topic_name):
+        super().__init__(topic_name, "std_msgs/Int32")
+        self.counter = 0
+
+    def publish(self):
+        msg = self.getMessage()
+        msg.data = self.counter
+        self.counter += 1
+        super().publish(msg)
+
+# Create the ROS manager
+manager = ros.ChRosManager()
+manager.SetNode(node)
+
+# Clock handler to publish simulation time
+clock_handler = ros.ChRosClockHandler()
+manager.AddHandler(clock_handler)
+
+# Body handler to publish body poses
+body_handler = ros.ChRosBodyHandler()
+body_handler.AddBody(mbox)
+manager.AddHandler(body_handler)
+
+# Transform handler to publish transforms
+transform_handler = ros.ChRosTransformHandler()
+transform_handler.AddTransform(mbox, "box_frame")
+manager.AddHandler(transform_handler)
+
+# Register the custom handler
+custom_handler = MyCustomHandler("custom_topic")
+manager.AddHandler(custom_handler)
+
+# ---------------------------------------------------------------------
+#
+#  Run the simulation loop
+#
+
+# Simulation loop
+application = chronoirr.ChIrrApp(mysystem, 'PyChrono example', chronoirr.dimension2du(1024,768))
+application.AddTypicalSky()
+application.AddTypicalLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+application.AddTypicalCamera(chronoirr.vector3df(2,2,2))
+application.AddTypicalLights()
+
+application.AssetBindAll();
+application.AssetUpdateAll();
+
+# Change the solver form the default SOR to a more precise solver
+mysystem.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
+mysystem.SetSolverMaxIterations(100)
+
+application.SetTimestep(0.01)
+application.SetTryRealtime(True)
+
+while application.GetDevice().run():
+    application.BeginScene()
+    application.DrawAll()
+    application.DoStep()
+    application.EndScene()
+
+    # Update ROS communication
+    manager.Update()
+```
+
+**Explanation:**
+
+1. **Initialization:**
+   - Imports necessary libraries: `pychrono`, `pychrono.postprocess`, `pychrono.irrlicht`, and `pychrono.ros`.
+   - Creates a Chrono system (`mysystem`) and sets gravitational acceleration.
+   - Defines default contact parameters and creates a contact material.
+
+2. **Adding Objects:**
+   - Creates a fixed floor (`mfloor`) using `ChBodyEasyBox` and adds it to the system.
+   - Creates a movable box (`mbox`) using `ChBodyEasyBox` and sets its initial position.
+
+3. **ROS Integration:**
+   - Creates a ROS node (`node`) using `ChNodeROS`.
+   - Defines a custom ROS handler (`MyCustomHandler`) to publish integer messages.
+   - Creates a ROS manager (`manager`) and adds various handlers:
+     - `ChRosClockHandler` for publishing simulation time.
+     - `ChRosBodyHandler` for publishing body poses (of `mbox`).
+     - `ChRosTransformHandler` for publishing transforms (of `mbox`).
+     - The custom handler (`custom_handler`) to publish integers.
+
+4. **Simulation Loop:**
+   - Sets up an Irrlicht application for visualization.
+   - Configures the solver for better accuracy.
+   - Runs the simulation loop:
+     - Advances the simulation using `application.DoStep()`.
+     - Updates ROS communication using `manager.Update()`.
+
+**Key Concepts:**
+
+- **`pychrono.ros`:** Provides the necessary classes for integrating PyChrono with ROS.
+- **ROS Handlers:** Different handlers manage the publication of various data types to ROS topics.
+- **Real-time Execution:** The `application.SetTryRealtime(True)` attempts to maintain real-time execution of the simulation.
+
+**To Run the Simulation:**
+
+1. Make sure you have PyChrono and the `pychrono.ros` module installed.
+2. Have a ROS environment running.
+3. Run the Python script.
+
+This will start the PyChrono simulation and publish data to ROS topics. You can then subscribe to these topics in other ROS nodes to access the simulation data. Remember to adjust the topic names and message types as needed for your specific application.

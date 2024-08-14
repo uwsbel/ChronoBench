@@ -1,6 +1,3 @@
-"""
-Example: PyChrono using beam finite elements
-"""
 import pychrono as chrono # Import the main PyChrono module.
 import pychrono.fea as fea # Import the finite element analysis (FEA) module.
 import pychrono.pardisomkl as mkl # Import the Pardiso MKL linear solver module.
@@ -126,7 +123,7 @@ last_beam_nodes = builder.GetLastBeamNodes()
 # Fix the last node of the created beam.
 last_beam_nodes.back().SetFixed(True)
 
-# Apply a force to the first node of the created beam.
+# Apply a force to the first node of the created beam section.
 last_beam_nodes.front().SetForce(chrono.ChVector3d(0, -1, 0))
 
 # Change the default solver to the MKL Pardiso solver, which is more precise for FEA.

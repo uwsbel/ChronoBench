@@ -1,18 +1,14 @@
-"""
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
-# Set the data path for Chrono
-chrono.SetChronoDataPath("path/to/chrono/data")
-
-# Set the data path for the vehicle
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 # Initial vehicle location and orientation
-initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 initLoc = chrono.ChVector3d(0, 0, 0.5)
+initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 # Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
 vis_type = veh.VisualizationType_MESH
@@ -53,9 +49,9 @@ vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
-vehicle.SetMaxMotorVoltageRatio(0.26)
-vehicle.SetStallTorque(0.4)
-vehicle.SetTireRollingResistance(0.03)
+vehicle.SetMaxMotorVoltageRatio(0.26)  # Updated from 0.16 to 0.26
+vehicle.SetStallTorque(0.4)  # Updated from 0.3 to 0.4
+vehicle.SetTireRollingResistance(0.03)  # Updated from 0.06 to 0.03
 
 vehicle.Initialize()
 
@@ -120,37 +116,33 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-try:
-    while vis.Run() :
-        time = vehicle.GetSystem().GetChTime()
+while vis.Run() :
+    time = vehicle.GetSystem().GetChTime()
 
-        # Render scene and output POV-Ray data
-        if (step_number % render_steps == 0) :
-            vis.BeginScene()
-            vis.Render()
-            vis.EndScene()
-            render_frame += 1
+    # Render scene and output POV-Ray data
+    if (step_number % render_steps == 0) :
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+        render_frame += 1
 
-        # Get driver inputs
-        driver_inputs = driver.GetInputs()
+    # Get driver inputs
+    driver_inputs = driver.GetInputs()
 
-        # Update modules (process inputs from other modules)
-        driver.Synchronize(time)
-        terrain.Synchronize(time)
-        vehicle.Synchronize(time, driver_inputs, terrain)
-        vis.Synchronize(time, driver_inputs)
+    # Update modules (process inputs from other modules)
+    driver.Synchronize(time)
+    terrain.Synchronize(time)
+    vehicle.Synchronize(time, driver_inputs, terrain)
+    vis.Synchronize(time, driver_inputs)
 
-        # Advance simulation for one timestep for all modules
-        driver.Advance(step_size)
-        terrain.Advance(step_size)
-        vehicle.Advance(step_size)
-        vis.Advance(step_size)
+    # Advance simulation for one timestep for all modules
+    driver.Advance(step_size)
+    terrain.Advance(step_size)
+    vehicle.Advance(step_size)
+    vis.Advance(step_size)
 
-        # Increment frame number
-        step_number += 1
+    # Increment frame number
+    step_number += 1
 
-        # Spin in place for real time to catch up
-        realtime_timer.Spin(step_size)
-
-except Exception as e:
-    print("An error occurred: ", str(e))
+    # Spin in place for real time to catch up
+    realtime_timer.Spin(step_size)

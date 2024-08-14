@@ -3,6 +3,9 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())
+veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
+
 # Initial vehicle location and orientation
 initLoc = chrono.ChVector3d(0, 0, 0.5)
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
@@ -13,10 +16,11 @@ vis_type_mesh = veh.VisualizationType_MESH
 # Collision type for chassis (PRIMITIVES, MESH, or NONE)
 chassis_collision_type = veh.CollisionType_NONE
 
-# Type of tire model
+# Type of tire model (RIGID, TMEASY, PACEJKA)
 tire_model = veh.TireModelType_PACEJKA89
 
 # Rigid terrain
+# terrain_model = veh.RigidTerrain.BOX
 terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
@@ -26,6 +30,7 @@ trackPoint = chrono.ChVector3d(-15.0, 10.0, 5.8)
 
 # Contact method
 contact_method = chrono.ChContactMethod_NSC
+contact_vis = False
 
 # Simulation step sizes
 step_size = 5e-4
@@ -65,8 +70,8 @@ patch = terrain.AddPatch(patch_mat,
 patch.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
-
 # Create the vehicle Irrlicht interface
+
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('City Bus Demo')
 vis.SetWindowSize(1280, 1024)

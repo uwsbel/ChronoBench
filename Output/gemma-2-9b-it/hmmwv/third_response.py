@@ -1,31 +1,7 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
-import math as m
-
-
-class MyDriver(veh.ChDriver):
-    def __init__(self, vehicle, delay):
-        veh.ChDriver.__init__(self, vehicle)
-        self.delay = delay
-
-    def Synchronize(self, time):
-        eff_time = time - self.delay
-        if (eff_time < 0):
-            return
-
-        if (eff_time < 0.2):
-            self.SetThrottle(3.5 * eff_time)
-        else:
-            self.SetThrottle(0.7)
-
-        if (eff_time < 2):
-            self.SetSteering(0.0)
-        else:
-            self.SetSteering(0.6 * m.sin(2.0 * m.pi * (eff_time - 2) / 6))
-
-        self.SetBraking(0.0)
-
+import math
 
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
@@ -72,6 +48,8 @@ vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
+
+
 vehicle.Initialize()
 
 vehicle.SetChassisVisualizationType(vis_type)
@@ -105,29 +83,47 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 
+# Create the custom driver
+class MyDriver(veh.ChDriver):
+    def __init__(self, vis, delay):
+        super().__init__(vis)
+        self.delay = delay
+        self.throttle_target = 0.0
+        self.steering_target = 0.0
+        self.time_start = 0.0
 
+    def Synchronize(self, time):
+        if time > self.delay:
+            self.throttle_target = 0.7
+            self.steering_target = math.sin(time * 2 * math.pi)
 
-# Create the (custom) driver
-driver = MyDriver(vehicle.GetVehicle(), 0.5)
+        super().Synchronize(time)
+
+    def GetInputs(self):
+        inputs = super().GetInputs()
+        inputs.throttle = self.throttle_target
+        inputs.steering = self.steering_target
+        return inputs
+
+driver = MyDriver(vis, 0.5)
 driver.Initialize()
 
 # output vehicle mass
 print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events
-render_steps = m.ceil(render_step_size / step_size)
+render_steps = math.ceil(render_step_size / step_size)
 
 # Initialize simulation frame counter s
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-while vis.Run() :
-    time = vehicle.GetSystem().GetChTime()
+# Simulation end condition
+end_time = 4.0
 
-    # End simulation
-    if (time >= 4):
-        break
+while vis.Run() and vehicle.GetSystem().GetChTime() < end_time:
+    time = vehicle.GetSystem().GetChTime()
 
     # Render scene and output POV-Ray data
     if (step_number % render_steps == 0) :

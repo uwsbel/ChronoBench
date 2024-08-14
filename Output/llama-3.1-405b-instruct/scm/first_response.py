@@ -1,68 +1,60 @@
-# Import necessary modules
 import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
-import pychrono.vehicle as chronoveh
-import pychrono.scm as chronoscm
+import pychrono.vehicle as veh
+import pychrono.scm as scm
 
 # Initialize the PyChrono environment
-chrono.SetChronoDataPath("C:/path/to/chrono/data/")
+chrono.SetChronoDataPath('/path/to/chrono/data/')
 
 # Create a Chrono::Engine physical system
 my_system = chrono.ChSystemNSC()
 
 # Create the SCM deformable terrain
-terrain = chronoscm.ChSoilSCM()
-terrain.SetSoilParameters(chronoscm.ChSoilParameters(
-    0.2,  # density
-    0.01,  # friction
-    0.1,  # cohesion
-    30,  # elastic modulus
-    0.3   # poisson ratio
-))
+terrain = scm.SCMDeformableTerrain(my_system)
+terrain.SetSoilParameters(scm.SoilParameters(scm.SoilType.SAND, 0.1, 0.01, 0.001))
 terrain.SetMovingPatchEnabled(True)
-my_system.Add(terrain)
+terrain.SetSinkageVisualization(True)
 
 # Create the HMMWV vehicle
-vehicle = chronoveh.ChPart_HMMWV()
+vehicle = veh.HMMWV(my_system, veh.HMMWV_Chassis(), veh.HMMWV_Suspension(), veh.HMMWV_Steering())
 vehicle.SetChassisPosition(chrono.ChVectorD(0, 0.5, 0))
 vehicle.SetChassisOrientation(chrono.ChQuaternionD(1, 0, 0, 0))
-vehicle.SetTireModel(chronoveh.ChTireModelRigid())
-vehicle.SetTireVisualization(chronoveh.ChTireVisualizationType_MESH)
+vehicle.SetTireModel(veh.RigidTireModel())
+vehicle.SetTireVisualization(veh.MeshVisualization())
+
+# Add the vehicle to the system
 my_system.Add(vehicle)
 
 # Create an interactive driver system
-driver = chronoveh.ChIrrNodeDriver()
-driver.Initialize(vehicle)
-driver.SetSteeringIncrement(0.01)
-driver.SetThrottleIncrement(0.01)
-driver.SetBrakingIncrement(0.01)
+driver = veh.ChIrrNodeDriver(vehicle)
+driver.SetSteeringController(veh.ChIrrNodeDriver.SteeringControllerType.KEYBOARD)
+driver.SetThrottleController(veh.ChIrrNodeDriver.ThrottleControllerType.KEYBOARD)
+driver.SetBrakingController(veh.ChIrrNodeDriver.BrakingControllerType.KEYBOARD)
 
 # Create an Irrlicht application
-app = chronoirr.ChIrrApp(my_system, "HMMWV on SCM Deformable Terrain", chronoirr.dimension2du(800, 600))
+app = chronoirr.ChIrrApp(my_system, 'HMMWV on SCM Deformable Terrain', chronoirr.dimension2du(800, 600))
 app.AddTypicalSky()
 app.AddTypicalLights()
-app.AddCamera(chrono.ChVectorD(0, 1.5, -5))
+app.AddCamera(chronoirr.vector3df(0, 2, -5))
 app.SetSymbolscale(0.02)
 app.SetShowInfos(True)
 
-# Configure the simulation and visualization
-app.AssetBindAll()
-app.AssetUpdateAll()
-app.AddShadowAll()
-app.SetVideoframe(50)
+# Run the simulation in real time
+app.SetTimestep(0.02)
+app.SetTryRealtime(True)
 
-# Run the simulation
+# Run the simulation loop
 while app.GetDevice().run():
     # Update the vehicle dynamics
-    my_system.DoStepDynamics(1e-3)
-    
-    # Update the driver input
+    my_system.DoStepDynamics(app.GetTimestep())
+
+    # Update the driver system
     driver.Synchronize()
-    
+
     # Render the scene
     app.BeginScene()
     app.DrawAll()
     app.EndScene()
-    
-    # Visualize sinkage with false color plotting
-    terrain.VisualizeSinkage(app.GetVideoDriver(), app.GetSceneManager())
+
+    # Limit the frame rate to 50 FPS
+    app.GetDevice().getTimer().setSpeed(50)

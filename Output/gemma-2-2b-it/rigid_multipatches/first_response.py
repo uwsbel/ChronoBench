@@ -13,41 +13,49 @@ scene = engine.createScene()
 
 # Create a terrain
 terrain = chrono.Terrain(
-    "terrain.obj",  # Replace with your terrain file
-    "terrain.png",  # Replace with your terrain texture
-    "terrain.heightmap",  # Replace with your terrain heightmap file
-    "terrain.normalmap",  # Replace with your terrain normal map file
+    "terrain.obj",  # Path to the terrain mesh
+    "terrain_material.png",  # Path to the terrain texture
+    "terrain_heightmap.png",  # Path to the terrain heightmap
+    "terrain_bump.obj",  # Path to the bump mesh
 )
 
-# Create a vehicle
-vehicle = chrono.Vehicle(
-    "hmwv.obj",  # Replace with your HMMWV model file
-    "hmwv.png",  # Replace with your HMMWV texture
-    "hmwv.mesh",  # Replace with your HMMWV mesh file
+# Create the HMMWV
+hmwv = chrono.Vehicle(
+    "hmwv.obj",  # Path to the HMMWV mesh
+    "hmwv_material.png",  # Path to the HMMWV texture
 )
 
-# Set vehicle parameters
-vehicle.engine_type = chrono.EngineType.GAS
-vehicle.drivetrain_type = chrono.DrivetrainType.FOUR_WHEEL
-vehicle.position = chrono.Vector3(0, 0, 0)
-vehicle.velocity = chrono.Vector3(0, 0, 0)
+# Set HMMWV parameters
+hmwv.engine_type = chrono.EngineType.GAS
+hmwv.drivetrain_type = chrono.DrivetrainType.FOUR_WHEEL
+hmwv.position = chrono.Vector3(0, 0, 0)  # Initial position
+hmwv.velocity = chrono.Vector3(0, 0, 0)  # Initial velocity
 
-# Set terrain parameters
-terrain.position = chrono.Vector3(0, 0, 0)
-terrain.size = chrono.Vector3(10, 10, 10)
+# Set up Irrlicht visualization
+hmwv.mesh_visualization = irr_utils.IrrlichtMeshVisualization(scene)
 
-# Add the vehicle and terrain to the scene
-scene.add(vehicle)
+# Add the HMMWV to the scene
+scene.add(hmwv)
+
+# Add the terrain to the scene
 scene.add(terrain)
 
-# Set up the Irrlicht rendering
-irr_utils.setIrrlichtEngine(engine)
-
 # Set up the simulation
-chrono.setSimulationTimeStep(0.01)  # Set the simulation timestep
+simulation = chrono.Simulation()
+simulation.add(scene)
+
+# Set the timestep
+simulation.timestep = 0.01  # Adjust as needed
 
 # Create a driver system
-driver = chrono.Driver(vehicle)
+driver = chrono.Driver(hmwv)
 
-# Start the simulation
-chrono.run()
+# Set up the driver system
+driver.set_throttle(0.5)  # Set initial throttle
+driver.set_brake(0)  # Set initial brake
+
+# Run the simulation
+simulation.run()
+
+# Render the scene
+engine.run()

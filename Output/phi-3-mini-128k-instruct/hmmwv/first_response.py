@@ -1,81 +1,100 @@
-import pychronoid as pc
+# Import necessary PyChrono and Irrlicht libraries
+import pychrono as chrono
+import chrono.ChSystemNSC as ChSystemNSC
+import chrono.ChVisualizer as ChVisualizer
+import chrono.ChViewer as ChViewer
+import chrono.ChSystemNSC_GLE as ChSystemNSC_GLE
+import chrono.ChVehicle as ChVehicle
+import chrono.ChTire as ChTire
+import chrono.ChContactNSC as ChContactNSC
+import chrono.ChContactShapeNSC as ChContactShapeNSC
+import chrono.ChBodyNSC as ChBodyNSC
+import chrono.ChLinkNSC as ChLinkNSC
+import chrono.ChContactAlgorithm as ChContactAlgorithm
+import chrono.ChRigidBodyElastoStatics as ChRigidBodyElastoStatics
+import chrono.ChSystemNSC_GLE as ChSystemNSC_GLE
+import chrono.ChVehicle_Wheeled as ChVehicle_Wheeled
+import chrono.ChTire as ChTire
+import chrono.ChContactAlgorithm_NSC as ChContactAlgorithm_NSC
+import chrono.ChVisualizer_GLE as ChVisualizer_GLE
 
-import irrlicht as ir
+# Initialize the PyChrono environment
+chrono.ChSystemNSC_GLE.Initialize()
 
-import numpy as np
+# Create a ChSystemNSC_GLE object
+system = chrono.ChSystemNSC_GLE()
 
+# Create a RigidTerrain object
+terrain = chrono.ChRigidBodyElastoStatics.ChRigidBodyElastoStatics()
+terrain.SetName("terrain")
+terrain.SetBodyFixed(system)
+terrain.SetBox(0.0, 100.0, 0.0, 100.0, 0.0, 100.0, 0.01)  # Define the terrain as a 100x100x100 meter cube with a 1 cm thickness
+terrain.SetTexture("terrain.jpg")  # Set the texture for the terrain
 
-# Initialize PyChrono environment
+# Create a ChVehicle object representing the HMMWV
+hmmwv = ChVehicle_Wheeled.ChVehicle_Wheeled()
+hmmwv.SetName("HMMWV")
+hmmwv.SetBodyFixed(system)
 
-pc.init()
+# Set the vehicle's initial position and orientation
+hmmwv.SetPos(0.0, 0.0, 0.0)
+hmmwv.SetRot(chrono.ChQuaternion(0.0, 0.0, 0.0, 1.0))
 
+# Define the vehicle's contact method
+hmmwv.SetContactMethod(ChContactAlgorithm_NSC.ChContactMethod_Natural)
 
-# Create a RigidTerrain
+# Create the tire model using the TMEASY tire model
+tire = ChTire.ChTire()
+tire.SetName("tire")
+tire.SetTireModel("TMEASY")
 
-terrain = pc.RigidTerrain(pc.Vector3(0, 0, -10), pc.Vector3(100, 100, 0), pc.Vector3(0, 0, 0), pc.Vector3(0, 0, 0))
+# Add the tire to the vehicle
+front_left_wheel = ChBodyNSC.ChBodyNSC()
+front_left_wheel.SetPos(0.0, 0.0, 0.0)
+front_left_wheel.SetRot(chrono.ChQuaternion(0.0, 0.0, 0.0, 1.0))
+front_left_wheel.SetBodyFixed(hmmwv)
+front_left_wheel.AddShape(ChContactShapeNSC.ChContactShape_Box(0.3, 0.3, 0.05))  # Example dimensions for the tire
 
-terrain.setTexture(pc.TextureIrrlicht(ir.core.StringIO(open("terrain.jpg", "rb").read())))
+rear_left_wheel = ChBodyNSC.ChBodyNSC()
+rear_left_wheel.SetPos(0.0, 0.0, 0.0)
+rear_left_wheel.SetRot(chrono.ChVehicle_Wheeled
 
+# Set the vehicle's contact method
+hmmwv.SetContactMethod(ChContactAlgorithm_NSC.ChContactMethod_Natural)
 
-# Create a vehicle with HMMWV parameters
+# Set the vehicle's tire model
+hmmwv.SetTireModel("TMEASY")
 
-vehicle = pc.Vehicle(
+# Add the tire to the vehicle
+front_left_wheel = ChBodyNSC.ChBodyNSC()
+front_left_wheel.SetPos(0.0, 0.0, 0.0)
+front_left_wheel.SetRot(chrono.ChQuaternion(0.0, 0.0, 0.0, 1.0))
+front_left_wheel.AddShape(ChContactShapeNSC.ChContactShape_Box(0.3, 0.3, 0.05))  # Example dimensions for the tire
 
-    pc.Vector3(0, 0, 0),  # Initial position
+rear_left_wheel = ChBodyNSC.ChBodyNSC()
+rear_left_wheel.SetPos(0.0, 0.0, 0.0)
+rear_left_wheel.SetRot(chrono.ChQuaternion(0.0, 0.0, 0.0, 1.0))
+rear_left_wheel.AddShape(ChContactShapeNSC.ChContactShape_Box(0.3, 0.3, 0.05))  # Example dimensions for the tire
 
-    pc.Quaternion(0, 0, 0, 1),  # Initial orientation
+# Add the vehicle to the system
+system.Add(hmmwv)
 
-    pc.ContactMethod.Penetration,  # Contact method
+# Set up the interactive driver system
+driver = chrono.ChDriver_Interactive()
+driver.SetVehicle(hmmwv)
+driver.SetTerrain(terrain)
+driver.SetFrameRate(50)  # Set the simulation loop to run at 50 frames per second
 
-    pc.TireModel.TMEASY  # Tire model
+# Set up the visualization using Irrlicht
+visualizer = ChVisualizer_GLE()
+visualizer.SetSystem(system)
+visualizer.AddChScene(terrain)
+visualizer.AddChScene(hmmwv)
 
-)
-
-vehicle.setMaxSpeed(10)  # Maximum speed
-
-vehicle.setSteeringAngle(np.pi / 4)  # Steering angle
-
-vehicle.setBrakeDeceleration(5)  # Brake deceleration
-
-vehicle.setThrottleAcceleration(2)  # Throttle acceleration
-
-
-# Create a driver system
-
-driver = pc.Driver(vehicle)
-
-driver.setSteeringSensitivity(0.1)
-
-driver.setThrottleSensitivity(0.1)
-
-driver.setBrakeSensitivity(0.1)
-
-
-# Set up the simulation loop
-
-sim = pc.Simulation(terrain, vehicle, driver)
-
-
-# Set up the Irrlicht visualization
-
-scene = pc.SceneManager()
-
-scene.addLight(pc.DirectionalLight(pc.Vector3(1, 1, 1), pc.Vector3(0.5, 0.5, 0.5)))
-
-scene.addCamera(pc.Vector3(0, 0, 10), pc.Vector3(0, 0, -1), 10, 1000, 1000)
-
-
-# Main simulation loop
-
-while sim.isRunning():
-
-    sim.update()
-
-    scene.drawAll()
-
-    ir.waitKey(50)
-
+# Run the simulation loop
+while not driver.IsQuitRequested():
+    driver.DoStep(1.0/50.0, True)  # Advance the simulation by 1/50th of a second
+    visualizer.DrawAll()  # Render the scene
 
 # Clean up
-
-pc.shutdown()
+chrono.ChSystemNSC_GLE.Shutdown()

@@ -20,10 +20,9 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 # Rigid terrain
-# terrain_model = veh.RigidTerrain.BOX
-terrainHeight = 0      # terrain height
-terrainLength = 200.0  # size in X direction
-terrainWidth = 100.0   # size in Y direction
+terrainHeight = 0      
+terrainLength = 200.0  
+terrainWidth = 100.0   
 
 # Poon chassis tracked by the camera
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
@@ -73,7 +72,6 @@ patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 # Create the vehicle Irrlicht interface
-
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('FEDA vehicle')
 vis.SetWindowSize(1280, 1024)
@@ -84,16 +82,27 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
+# Create the path follower driver
+path_follower = veh.ChPathFollower()
+path_follower.SetTargetSpeed(10.0)
+path_follower.SetLookaheadDistance(5.0)
+path_follower.SetSteeringController(veh.ChSteeringControllerPID(kp=1.0, ki=0.1, kd=0.01))
+path_follower.SetSpeedController(veh.ChSpeedControllerPID(kp=0.5, ki=0.01, kd=0.001))
 
-# Create the path-follower, cruise-control driver
-# Use a parameterized ISO double lane change (to left)
-path = veh.DoubleLaneChangePath(initLoc, 13.5, 4.0, 11.0, 50.0, True)
-target_speed = 10.0
-driver = veh.ChPathFollowerDriver(vehicle.GetVehicle(), path, "my_path", target_speed)
-driver.GetSteeringController().SetLookAheadDistance(5)
-driver.GetSteeringController().SetGains(0.8, 0, 0)
-driver.GetSpeedController().SetGains(0.4, 0, 0)
-driver.Initialize()
+# Define the path for the double lane change maneuver
+path = [
+    chrono.ChVector3d(-50, 0, 0.5),
+    chrono.ChVector3d(-30, 0, 0.5),
+    chrono.ChVector3d(-10, 0, 0.5),
+    chrono.ChVector3d(10, 0, 0.5),
+    chrono.ChVector3d(30, 0, 0.5),
+    chrono.ChVector3d(50, 0, 0.5)
+]
+
+path_follower.SetPath(path)
+
+# Attach the path follower to the vehicle
+vehicle.SetDriver(path_follower)
 
 # output vehicle mass
 print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
@@ -116,17 +125,14 @@ while vis.Run() :
         vis.EndScene()
         render_frame += 1
 
-    # Get driver inputs
-    driver_inputs = driver.GetInputs()
-
     # Update modules (process inputs from other modules)
-    driver.Synchronize(time)
+    path_follower.Synchronize(time)
     terrain.Synchronize(time)
-    vehicle.Synchronize(time, driver_inputs, terrain)
-    vis.Synchronize(time, driver_inputs)
+    vehicle.Synchronize(time, None, terrain)  # No driver inputs for path follower
+    vis.Synchronize(time, None)  # No driver inputs for visualization
 
     # Advance simulation for one timestep for all modules
-    driver.Advance(step_size)
+    path_follower.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)

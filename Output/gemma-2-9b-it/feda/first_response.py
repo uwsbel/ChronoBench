@@ -10,43 +10,40 @@ system = chrono.ChSystemNSC()
 terrain = chrono.ChBodyEasyBox(10, 10, 0.5)
 terrain.SetPos(chrono.ChVectorD(0, 0, 0))
 terrain.SetBodyFixed(True)
-terrain.SetMaterialSurface(chrono.ChMaterialSurface(chrono.ChMaterialSurface.Type.GLOSSY))
+terrain.SetMaterialSurface(chrono.ChMaterialSurface(0.8, 0.2, 0.1))  # Adjust friction and restitution
 terrain.SetTexture("path/to/terrain/texture.png")  # Replace with your texture path
 system.Add(terrain)
 
 # Create FEDA vehicle
-vehicle = chrono.ChBodyEasyBox(1, 1, 0.5)
+vehicle = chrono.ChBodyEasyBox(1, 1, 0.5)  # Replace with vehicle dimensions
 vehicle.SetPos(chrono.ChVectorD(0, 0, 0.5))
 vehicle.SetRot(chrono.Q_from_Euler(0, 0, 0))
 vehicle.SetBodyFixed(False)
 system.Add(vehicle)
 
 # Add wheels to the vehicle
-wheel_radius = 0.1
+wheel_radius = 0.2
 wheel_width = 0.1
 for i in range(4):
     wheel = chrono.ChWheelEasy(wheel_radius, wheel_width)
     wheel.SetPos(chrono.ChVectorD(0, 0, 0))
     wheel.SetBody(vehicle)
+    wheel.SetContactMethod(chrono.ChWheelEasy.CM_CYLINDER)  # Adjust contact method as needed
+    wheel.SetTireModel(chrono.ChTireModel(0.5, 0.1, 0.01))  # Adjust tire model parameters
     system.Add(wheel)
 
-# Set contact method and tire model
-vehicle.SetCollide(True)
-vehicle.SetContactMethod(chrono.ChBody.ContactMethod.CONTACT_METHOD_SPHERICAL)
-vehicle.SetTireModel(chrono.ChTireModel.Type.TIRE_MODEL_PASTERNAK)
+# Set up visualization
+vis_app = vis.ChIrrApp(system, "FEDA Vehicle Simulation")
+vis_app.AddCamera(
+    chrono.ChVectorD(5, 5, 2), chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 1, 0)
+)  # Set camera position and target
+vis_app.SetCamera(0)
+vis_app.SetTimestep(1.0 / 50)  # Set simulation frame rate
 
-# Camera setup
-vis_app = vis.ChIrrApp(system, 'FEDA Vehicle Simulation', windowSize=(800, 600))
-camera = vis_app.GetActiveCamera()
-camera.SetPos(chrono.ChVectorD(5, 5, 2))
-camera.SetTarget(chrono.ChVectorD(0, 0, 0))
-
-# Interactive driver system
-driver = vis.ChIrrControlCamera(vis_app.GetDevice(), camera, True)
-driver.SetTarget(vehicle)
+# Implement interactive driver system
+# (This part requires additional code for handling user input and applying forces to the vehicle)
 
 # Simulation loop
-dt = 1.0 / 50.0
 while vis_app.Run():
-    system.DoStepDynamics(dt)
+    system.DoStepDynamics(vis_app.GetTimestep())
     vis_app.Render()

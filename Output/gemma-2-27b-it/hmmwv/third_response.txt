@@ -2,30 +2,7 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
-import math as m
-
-
-class MyDriver(veh.ChDriver):
-    def __init__(self, vehicle, delay):
-        veh.ChDriver.__init__(self, vehicle)
-        self.delay = delay
-
-    def Synchronize(self, time):
-        eff_time = time - self.delay
-        if eff_time < 0:
-            return
-
-        if eff_time > 0.2:
-            self.SetThrottle(0.7)
-        else:
-            self.SetThrottle(3.5 * eff_time)
-
-        if eff_time < 2:
-            self.SetSteering(0.0)
-        else:
-            self.SetSteering(0.6 * m.sin(2.0 * m.pi * (eff_time - 2) / 6))
-
-        self.SetBraking(0.0)
+import math
 
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
@@ -72,6 +49,7 @@ vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
+
 vehicle.Initialize()
 
 vehicle.SetChassisVisualizationType(vis_type)
@@ -99,25 +77,43 @@ vis.SetWindowTitle('HMMWV Demo')
 vis.SetWindowSize(1280, 1024)
 vis.SetChaseCamera(trackPoint, 6.0, 0.5)
 vis.Initialize()
-vis.AddLogo(chrono.GetChronoDataPath('logo_pychrono_alpha.png'))
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
+# Custom Driver Class
+class MyDriver(veh.ChDriver):
+    def __init__(self, system, delay=0.0):
+        super().__init__(system)
+        self.delay = delay
+        self.start_time = 0
 
+    def Synchronize(self, time):
+        self.start_time = time
+        if time > self.delay:
+            # Throttle control
+            if time > self.delay + 0.2:
+                self.SetThrottle(0.7)
+            else:
+                self.SetThrottle(0.0)
 
+            # Steering control
+            if time > self.delay + 2:
+                self.SetSteering(math.sin((time - self.delay - 2) * 2))
+            else:
+                self.SetSteering(0)
 
-# Create the (custom) driver
-driver = MyDriver(vehicle.GetVehicle(), 0.5)
-driver.Initialize()
+# Create the custom driver
+driver = MyDriver(vehicle.GetSystem(), delay=0.5)
 
 # output vehicle mass
 print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events
-render_steps = m.ceil(render_step_size / step_size)
+render_steps = math.ceil(render_step_size / step_size)
 
-# Initialize simulation frame counter 
+# Initialize simulation frame counter
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
@@ -125,8 +121,8 @@ render_frame = 0
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
 
-    # End simulation
-    if (time >= 4):
+    # End simulation condition
+    if time >= 4:
         break
 
     # Render scene and output POV-Ray data
@@ -136,14 +132,11 @@ while vis.Run() :
         vis.EndScene()
         render_frame += 1
 
-    # Get driver inputs
-    driver_inputs = driver.GetInputs()
-
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
     terrain.Synchronize(time)
-    vehicle.Synchronize(time, driver_inputs, terrain)
-    vis.Synchronize(time, driver_inputs)
+    vehicle.Synchronize(time, driver.GetInputs(), terrain)
+    vis.Synchronize(time, driver.GetInputs())
 
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)
@@ -156,20 +149,18 @@ while vis.Run() :
 
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
-
 ```
 
 **Explanation of Changes:**
 
-1. **Driver System Replacement:**
-   - The original driver system was replaced with the custom `MyDriver` class.
+1. **Custom Driver Class:**
+   - A new class `MyDriver` is created, inheriting from `veh.ChDriver`.
+   - The `Synchronize` method is overridden to implement the custom driver logic:
+     - Throttle gradually increases to 0.7 after a 0.2-second delay.
+     - Steering uses a sinusoidal pattern starting at 2 seconds.
 
-2. **Custom Driver Class Implementation:**
-   - The `MyDriver` class inherits from `veh.ChDriver`.
-   - The `Synchronize` method is overridden to implement the desired driver behavior:
-     - A delay of 0.5 seconds is introduced.
-     - Throttle gradually increases to 0.7 after 0.2 seconds.
-     - Steering follows a sinusoidal pattern starting at 2 seconds.
+2. **Driver Initialization:**
+   - An instance of `MyDriver` is created with a delay of 0.5 seconds.
 
 3. **Simulation End Condition:**
-   - An `if` statement is added to check if the simulation time (`time`) exceeds 4 seconds. If it does, the simulation loop breaks, ending the simulation.
+   - A `while` loop condition is added to stop the simulation when the simulation time (`time`) reaches 4 seconds.

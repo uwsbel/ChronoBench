@@ -1,0 +1,183 @@
+```python
+import pychrono.core as chrono
+import pychrono.irrlicht as irr
+import pychrono.vehicle as veh
+import math
+
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())
+veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
+
+# Initial vehicle location and orientation
+initLoc = chrono.ChVector3d(-50, 0, 0.5)  # Changed initial location
+initRot = chrono.ChQuaterniond(1, 0, 0, 0)
+
+# Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
+vis_type = veh.VisualizationType_MESH
+
+# Collision type for chassis (PRIMITIVES, MESH, or NONE)
+chassis_collision_type = veh.CollisionType_NONE
+
+# Type of tire model (RIGID, TMEASY)
+tire_model = veh.TireModelType_TMEASY
+
+# Rigid terrain
+terrainHeight = 0      # terrain height
+terrainLength = 200.0  # size in X direction (Increased)
+terrainWidth = 100.0   # size in Y direction
+
+# Point tracked by the camera
+trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
+
+# Contact method
+contact_method = chrono.ChContactMethod_NSC
+contact_vis = False
+
+# Simulation step sizes
+step_size = 1e-3
+tire_step_size = step_size
+
+# Time interval between two render frames
+render_step_size = 1.0 / 50  # FPS = 50
+
+# Create the FEDA vehicle, set parameters, and initialize
+vehicle = veh.FEDA()
+vehicle.SetContactMethod(contact_method)
+vehicle.SetChassisCollisionType(chassis_collision_type)
+vehicle.SetChassisFixed(False)
+vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
+vehicle.SetTireType(tire_model)
+vehicle.SetTireStepSize(tire_step_size)
+
+vehicle.Initialize()
+
+vehicle.SetChassisVisualizationType(vis_type)
+vehicle.SetSuspensionVisualizationType(vis_type)
+vehicle.SetSteeringVisualizationType(vis_type)
+vehicle.SetWheelVisualizationType(vis_type)
+vehicle.SetTireVisualizationType(vis_type)
+
+vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+
+# Create the terrain
+patch_mat = chrono.ChContactMaterialNSC()
+patch_mat.SetFriction(0.9)
+patch_mat.SetRestitution(0.01)
+terrain = veh.RigidTerrain(vehicle.GetSystem())
+patch = terrain.AddPatch(patch_mat, 
+    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
+    terrainLength, terrainWidth)
+
+patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
+patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+terrain.Initialize()
+
+# Create the vehicle Irrlicht interface
+vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
+vis.SetWindowTitle('FEDA vehicle')
+vis.SetWindowSize(1280, 1024)
+vis.SetChaseCamera(trackPoint, 6.0, 0.5)
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddLightDirectional()
+vis.AddSkyBox()
+vis.AttachVehicle(vehicle.GetVehicle())
+
+# ---------------------------------------------------------------------
+# Create the path-follower, cruise-control driver system
+# ---------------------------------------------------------------------
+
+# Create the driver system
+driver = veh.ChPathFollowerDriver(vehicle.GetVehicle())
+
+# Create the ISO double lane change path
+path = veh.ChBezierCurve()
+path.AddPoint(chrono.ChVector3d(0,      0,   0.5))
+path.AddPoint(chrono.ChVector3d(15.0,   0,   0.5))
+path.AddPoint(chrono.ChVector3d(30.0,   5,   0.5))
+path.AddPoint(chrono.ChVector3d(45.0,   0,   0.5))
+path.AddPoint(chrono.ChVector3d(60.0,  -5,   0.5))
+path.AddPoint(chrono.ChVector3d(75.0,   0,   0.5))
+path.AddPoint(chrono.ChVector3d(90.0,   0,   0.5))
+path.AddPoint(chrono.ChVector3d(105.0,  0,   0.5))
+
+# Set the path
+driver.SetPath(path)
+
+# Set the target speed
+driver.SetDesiredSpeed(10.0)
+
+# Configure the steering controller
+driver.GetSteeringController().SetLookAheadDistance(5)
+driver.GetSteeringController().SetGains(0.8, 0.0, 0.0)  # Adjust gains as needed
+
+# Configure the speed controller
+driver.GetSpeedController().SetGains(0.4, 0.0, 0.0)  # Adjust gains as needed
+
+driver.Initialize()
+
+# ---------------------------------------------------------------------
+
+# output vehicle mass
+print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+
+# Number of simulation steps between miscellaneous events
+render_steps = math.ceil(render_step_size / step_size)
+
+# Initialize simulation frame counter
+realtime_timer = chrono.ChRealtimeStepTimer()
+step_number = 0
+render_frame = 0
+
+while vis.Run() :
+    time = vehicle.GetSystem().GetChTime()
+
+    # Render scene
+    if (step_number % render_steps == 0) :
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+        render_frame += 1
+
+    # Get driver inputs
+    driver_inputs = driver.GetInputs()
+
+    # Update modules (process inputs from other modules)
+    driver.Synchronize(time)
+    terrain.Synchronize(time)
+    vehicle.Synchronize(time, driver_inputs, terrain)
+    vis.Synchronize(time, driver_inputs)
+
+    # Advance simulation for one timestep for all modules
+    driver.Advance(step_size)
+    terrain.Advance(step_size)
+    vehicle.Advance(step_size)
+    vis.Advance(step_size)
+
+    # Increment frame number
+    step_number += 1
+
+    # Spin in place for real time to catch up
+    realtime_timer.Spin(step_size)
+```
+
+**Explanation of Changes:**
+
+1. **Driver System Modification:**
+   - The `ChInteractiveDriverIRR` was replaced with `ChPathFollowerDriver`.
+   - An ISO double lane change path was created using `ChBezierCurve` and added to the driver.
+   - The target speed was set to `10.0`.
+   - Steering and speed controller gains were set (you might need to adjust these further).
+
+2. **Initial Vehicle Location Change:**
+   - `initLoc` was changed to `chrono.ChVector3d(-50, 0, 0.5)` to accommodate the double lane change maneuver.
+
+3. **Terrain Length Change:**
+   - `terrainLength` was increased to `200.0` to ensure the maneuver fits within the terrain.
+
+**Key Improvements:**
+
+- **Autonomous Driving:** The vehicle now autonomously follows the defined path.
+- **Realistic Scenario:** The ISO double lane change maneuver provides a standard test for vehicle dynamics.
+- **Improved Simulation:** The increased terrain length and adjusted initial position prevent the vehicle from driving off the terrain.
+
+Remember to adjust the controller gains further to optimize the vehicle's performance and stability during the double lane change maneuver. You can experiment with different values to achieve the desired behavior.

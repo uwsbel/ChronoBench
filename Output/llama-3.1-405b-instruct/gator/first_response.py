@@ -6,72 +6,73 @@ import numpy as np
 chrono.SetChronoDataPath('/path/to/chrono/data/')
 
 # Create a Chrono::Engine physical system
-sys = chrono.ChSystemNSC()
+my_system = chrono.ChSystemNSC()
 
-# Create the flat rigid terrain
-terrain = chrono.ChBodyEasyBox(sys,  # parent system
-                               100, 100, 2,  # dimensions (x, y, z)
-                               1000,  # density
-                               True,  # visualization
-                               True,  # collide
-                               chrono.ChMaterialSurfaceNSC()  # contact material
-                               )
-terrain.SetBodyFixed(True)
-terrain.SetPos(chrono.ChVectorD(0, 0, -1))
-
-# Create a custom texture for the terrain
-terrain_texture = chrono.ChTexture()
-terrain_texture.SetTextureFilename('/path/to/terrain/texture.png')
-terrain.GetVisualShape().AddAsset(terrain_texture)
+# Create the ground body
+ground = chrono.ChBodyEasyBox(my_system,  # parent system
+                              100, 100, 2,  # dimensions
+                              1000,  # density
+                              True,  # visualization
+                              True,  # collision
+                              chrono.ChMaterialSurfaceNSC()  # material
+                              )
+ground.SetBodyFixed(True)
+my_system.Add(ground)
 
 # Create the Gator vehicle
-vehicle = chrono.ChPart(sys)
-vehicle.SetMass(1000)
-vehicle.SetInertiaXX(chrono.ChVectorD(100, 100, 100))
-vehicle.SetPos(chrono.ChVectorD(0, 0, 1))
+gator = chrono.ChPart(chrono.ChVectorD(0, 0, 0.5))  # initial position
+gator.SetMass(1000)  # mass
+gator.SetInertiaXX(chrono.ChVectorD(100, 100, 100))  # inertia
 
-# Initialize vehicle components (e.g., chassis, wheels, suspension)
-chassis = chrono.ChPart(vehicle)
-chassis.SetMass(500)
-chassis.SetInertiaXX(chrono.ChVectorD(50, 50, 50))
-chassis.SetPos(chrono.ChVectorD(0, 0, 0.5))
+# Add visualization mesh for vehicle components
+gator.AddAsset(chrono.ChVisualShape(chrono.ChVectorD(0, 0, 0),  # position
+                                    chrono.ChQuaternionD(1, 0, 0, 0),  # rotation
+                                    chrono.ChVectorD(1, 1, 1),  # scale
+                                    chrono.ChColor(1, 0, 0),  # color
+                                    chrono.ChVisualShape.SHAPE_MESH,  # type
+                                    '/path/to/gator/mesh.obj'  # mesh file
+                                    ))
 
-# Create TMEasy tire model for the vehicle
-tire_model = chrono.ChPart(vehicle)
-tire_model.SetMass(20)
-tire_model.SetInertiaXX(chrono.ChVectorD(2, 2, 2))
-tire_model.SetPos(chrono.ChVectorD(0, 0, -0.5))
+# Set vehicle contact method and tire model
+contact_method = chrono.ChMaterialSurfaceNSC()
+contact_method.SetFriction(0.8)
+contact_method.SetRestitution(0.2)
+gator.GetCollisionModel().ClearModel()
+gator.GetCollisionModel().AddBox(contact_method, 1, 1, 1)
+gator.GetCollisionModel().BuildModel()
+gator.SetTireModel(chrono.ChTireModelEasy())
 
-# Set up mesh visualization for vehicle components
-chassis.GetVisualShape().SetMesh('/path/to/chassis/mesh.obj')
-tire_model.GetVisualShape().SetMesh('/path/to/tire/mesh.obj')
+# Add vehicle to system
+my_system.Add(gator)
 
-# Implement interactive driver system
-driver = chrono.ChIrrNodeApp(sys)
-driver.SetTimestep(0.02)  # 50 FPS
-driver.AddTypicalLights()
-driver.AddSkyBox()
-driver.AddCamera(chrono.ChVectorD(0, 0, 2), chrono.ChVectorD(0, 0, 0))
-driver.SetContactsDrawMode(chrono.ChIrrNodeApp.DRAW_CONTACT_FORCES)
+# Create the RigidTerrain
+terrain = chrono.ChRigidTerrain(my_system,  # parent system
+                                100, 100,  # dimensions
+                                '/path/to/terrain/mesh.obj',  # mesh file
+                                '/path/to/terrain/texture.png'  # texture file
+                                )
+my_system.Add(terrain)
 
-# Define interactive controls for steering, throttle, and braking
-def driver_input(event):
-    if event.GetEventType() == chrono.IrrlichtEventType.KEY_KEY_PRESSED_DOWN:
-        if event.GetKey() == chrono.KEY_KEY_A:
-            vehicle.GetChassisBody().ApplyTorque(chrono.ChVectorD(0, 0, 10))
-        elif event.GetKey() == chrono.KEY_KEY_D:
-            vehicle.GetChassisBody().ApplyTorque(chrono.ChVectorD(0, 0, -10))
-        elif event.GetKey() == chrono.KEY_KEY_W:
-            vehicle.GetChassisBody().ApplyForce(chrono.ChVectorD(0, 100, 0))
-        elif event.GetKey() == chrono.KEY_KEY_S:
-            vehicle.GetChassisBody().ApplyForce(chrono.ChVectorD(0, -100, 0))
+# Create an interactive driver system
+driver = chrono.ChIrrNodeApplication(gator)
 
-driver.SetUserEventReceiver(driver_input)
+# Set up simulation loop
+application = chronoirr.ChIrrApp(my_system, 'Gator Vehicle Simulation', chronoirr.dimension2du(800, 600))
+application.AddTypicalSky()
+application.AddTypicalCamera(chronoirr.vector3df(0, 0, 1))
+application.AddTypicalLights()
+application.AssetBindAll()
+application.AssetUpdateAll()
 
 # Simulation loop
-while driver.GetDevice().run():
-    sys.DoStepDynamics(driver.GetTimestep())
-    driver.BeginScene()
-    driver.DrawAll()
-    driver.EndScene()
-    driver.Run IrrlichtDevice()
+while application.GetDevice().run():
+    # Update vehicle dynamics
+    my_system.DoStepDynamics(1 / 50.0)
+
+    # Update rendering
+    application.BeginScene()
+    application.DrawAll()
+    application.EndScene()
+
+    # Update interactive driver system
+    driver.Synchronize()

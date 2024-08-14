@@ -26,7 +26,7 @@ terrain = chrono.SCMTerrain(
 # Create the HMMWV
 vehicle = chrono.Vehicle(
     engine,
-    "vehicle.obj",  # Replace with your HMMWV model
+    "hmwv.obj",  # Replace with your HMMWV model
     position=[0, 0, 0],  # Initial position
     orientation=[0, 0, 0],  # Initial orientation
     rigid_tire_model=chrono.RigidTireModel(
@@ -38,34 +38,43 @@ vehicle = chrono.Vehicle(
 
 # Add mesh visualization to the vehicle components
 vehicle.addMeshVisualization()
-terrain.addMeshVisualization()
 
 # Set up the driver system
 driver = chrono.Driver(
     engine,
     vehicle,
-    steering_sensitivity=1.0,
-    throttle_sensitivity=1.0,
-    braking_sensitivity=1.0,
+    steering_control=chrono.SteeringControl(
+        sensitivity=1.0,
+        max_steering_angle=1.0,
+    ),
+    throttle_control=chrono.ThrottleControl(
+        max_throttle=1.0,
+    ),
+    brake_control=chrono.BrakeControl(
+        max_brake=1.0,
+    ),
 )
 
-# Set up the simulation parameters
+# Configure the simulation parameters
 dt = 0.01  # Time step
 max_frames_per_second = 50
 
 # Start the simulation
 engine.run()
 
-# Update the simulation and render the scene at 50 frames per second
+# Update the scene and render at 50 frames per second
 while engine.isRunning():
-    # Update the vehicle dynamics
+    # Update vehicle dynamics
     vehicle.update(dt)
 
-    # Update the driver system
+    # Update driver system
     driver.update(dt)
 
     # Render the scene
     scene.render()
 
-    # Wait for the next frame
-    engine.update()
+    # Update the frame rate
+    engine.updateFrameRate(max_frames_per_second)
+
+# Clean up
+engine.shutdown()

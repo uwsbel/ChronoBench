@@ -1,9 +1,10 @@
-"""
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
-import pychrono.sensor as sens
 import math
+
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())
+veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 # Initial vehicle location and orientation
 initLoc = chrono.ChVector3d(0, 0, 0.5)
@@ -19,6 +20,7 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 # Rigid terrain
+# terrain_model = veh.RigidTerrain.BOX
 terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
@@ -65,6 +67,7 @@ patch = terrain.AddPatch(patch_mat,
     chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
     terrainLength, terrainWidth)
 
+# Change the terrain texture to a grass texture
 patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
@@ -76,9 +79,32 @@ vis.SetWindowSize(1280, 1024)
 vis.SetChaseCamera(trackPoint, 6.0, 0.5)
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
-vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
+
+# Add point lights to the scene
+vis.AddLightDirectional(chrono.ChVector3d(0, 0, 1), chrono.ChColor(1, 1, 1), 100)
+vis.AddLightPoint(chrono.ChVector3d(0, 0, 5), chrono.ChColor(1, 1, 1), 100)
+
+# Create a sensor manager
+sensor_manager = veh.ChSensorManager()
+
+# Add a camera sensor to the vehicle's chassis body
+camera = veh.ChCameraSensor()
+camera.SetResolution(1024, 768)
+camera.SetFieldOfView(60)
+camera.SetPosition(chrono.ChVector3d(0, 0, 1.5))
+camera.SetLookAt(chrono.ChVector3d(0, 0, 0))
+vehicle.GetChassisBody().AddSensor(camera)
+
+# Add a visualization filter to render the image
+filter = veh.ChFilterCamera()
+filter.SetCamera(camera)
+filter.SetResolution(1024, 768)
+filter.SetZoom(1)
+filter.SetPosition(chrono.ChVector3d(0, 0, 0))
+filter.SetLookAt(chrono.ChVector3d(0, 0, 0))
+sensor_manager.AddFilter(filter)
 
 # Create the driver system
 driver = veh.ChInteractiveDriverIRR(vis)
@@ -93,42 +119,8 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 
 driver.Initialize()
 
-# -----------------------
-# Create a sensor manager
-# -----------------------
-manager = sens.ChSensorManager(vehicle.GetSystem())
-intensity = 0.1
-manager.scene.AddPointLight(chrono.ChVector3f(2, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
-manager.scene.AddPointLight(chrono.ChVector3f(9, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
-manager.scene.AddPointLight(chrono.ChVector3f(16, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
-manager.scene.AddPointLight(chrono.ChVector3f(23, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
-
-# ------------------------------------------------
-# Create two camera and add it to the sensor manager
-# ------------------------------------------------
-offset_pose = chrono.ChFramed(chrono.ChVector3d(.1, 0, 1.45), chrono.QuatFromAngleAxis(.2, chrono.ChVector3d(0, 1, 0)))
-update_rate = 30
-image_width = 1280
-image_height = 720
-fov = 1.047
-cam = sens.ChCameraSensor(
-    vehicle.GetChassisBody(),
-    update_rate,
-    offset_pose,
-    image_width,
-    image_height,
-    fov
-)
-cam.SetName("First Person POV")
-
-# Renders the image at current point in the filter graph
-if vis:
-    cam.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Camera View"))
-
-manager.AddSensor(cam)
-
 # output vehicle mass
-print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
+print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
@@ -138,11 +130,11 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-while vis.Run():
+while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
 
     # Render scene and output POV-Ray data
-    if (step_number % render_steps == 0):
+    if (step_number % render_steps == 0) :
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
@@ -156,14 +148,14 @@ while vis.Run():
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
-
-    manager.Update()
+    sensor_manager.Synchronize(time)
 
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
+    sensor_manager.Advance(step_size)
 
     # Increment frame number
     step_number += 1

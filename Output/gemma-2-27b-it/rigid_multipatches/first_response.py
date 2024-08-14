@@ -17,63 +17,62 @@ vehicle.SetSuspensionVisualizationType(chrono.VisualizationType_MESH)
 vehicle.SetWheelVisualizationType(chrono.VisualizationType_MESH)
 
 # Engine and drivetrain
-engine = chronovehicle.ChEngineSimple(150)  # Example engine power
-drivetrain = chronovehicle.ChDrivelineSimple(engine)
-vehicle.SetDriveline(drivetrain)
+engine = chronovehicle.ChEngineSimple()
+engine.SetMaxTorque(500)
+engine.SetMaxRpm(4000)
+drivetrain = chronovehicle.ChDrivelineSimple()
+drivetrain.SetEngine(engine)
+vehicle.SetDrivetrain(drivetrain)
 
-# 3. Construct the complex terrain
-terrain = chrono.ChTerrain()
-system.Add(terrain)
+# 3. Construct the terrain
+terrain = chrono.ChTerrainModel()
 
 # Flat patches with different textures
 patch1 = chrono.ChPatch()
-patch1.SetTexture(chrono.GetChronoDataPath() + "terrain/textures/grass.jpg")
+patch1.SetTexture(chrono.GetChronoDataPath() + "terrain/textures/grass.png")
 patch1.SetSize(chrono.ChVectorD(10, 10, 0))
-patch1.SetPos(chrono.ChVectorD(-5, 0, 0))
+patch1.SetPos(chrono.ChVectorD(0, 0, 0))
 terrain.AddPatch(patch1)
 
 patch2 = chrono.ChPatch()
-patch2.SetTexture(chrono.GetChronoDataPath() + "terrain/textures/sand.jpg")
+patch2.SetTexture(chrono.GetChronoDataPath() + "terrain/textures/sand.png")
 patch2.SetSize(chrono.ChVectorD(10, 10, 0))
-patch2.SetPos(chrono.ChVectorD(5, 0, 0))
+patch2.SetPos(chrono.ChVectorD(10, 0, 0))
 terrain.AddPatch(patch2)
 
-# Mesh-based bump
+# Mesh-based patch for a bump
 bump_mesh = chrono.ChTriangleMeshConnected()
 bump_mesh.LoadFromFile(chrono.GetChronoDataPath() + "terrain/meshes/bump.obj")
 bump_patch = chrono.ChPatch()
 bump_patch.SetMesh(bump_mesh)
-bump_patch.SetPos(chrono.ChVectorD(0, 0, 1))
+bump_patch.SetPos(chrono.ChVectorD(20, 0, 0))
 terrain.AddPatch(bump_patch)
 
-# Heightmap-based terrain
+# Heightmap-based patch for varying elevations
 heightmap = chrono.ChHeightmap()
-heightmap.LoadHeightmap(chrono.GetChronoDataPath() + "terrain/heightmaps/hills.png")
-heightmap.SetTexture(chrono.GetChronoDataPath() + "terrain/textures/rock.jpg")
-heightmap.SetPos(chrono.ChVectorD(10, 0, 0))
-terrain.AddHeightmap(heightmap)
+heightmap.LoadFromFile(chrono.GetChronoDataPath() + "terrain/heightmaps/terrain.png")
+heightmap_patch = chrono.ChPatch()
+heightmap_patch.SetHeightmap(heightmap)
+heightmap_patch.SetPos(chrono.ChVectorD(30, 0, 0))
+terrain.AddPatch(heightmap_patch)
+
+# Add terrain to the system
+system.Add(terrain)
 
 # 4. Interactive driver system
 driver = chronovehicle.ChDriver(vehicle)
 
 # 5. Visualization with Irrlicht
-vis = chronoirr.ChIrrApp(system, "HMMWV Simulation", chrono.GetChronoDataPath() + "irrlicht_data")
+vis = chronoirr.ChIrrApp(system, "HMMWV Simulation", chronoirr.dimension2du(1280, 720))
 vis.AddTypicalLights()
 vis.AddSkyBox()
-vis.SetCameraPosition(chrono.ChVectorD(0, 5, -10))
+vis.SetCameraPosition(chrono.ChVectorD(0, 5, 10))
 vis.SetCameraLookAt(chrono.ChVectorD(0, 0, 0))
 
-# Simulation loop
-while vis.Run():
-    # Handle driver input (steering, throttle, braking)
-    driver.SetSteering(vis.GetDeviceSteering())
-    driver.SetThrottle(vis.GetDeviceThrottle())
-    driver.SetBraking(vis.GetDeviceBraking())
-
-    # Update simulation
-    system.DoStepDynamics(0.01)  # Fixed timestep
-
-    # Render the scene
+# 6. Simulation loop
+while vis.GetDevice()->run():
     vis.BeginScene()
     vis.Render()
+    driver.Synchronize(vis.GetTimeStep())
+    system.DoStepDynamics(vis.GetTimeStep())
     vis.EndScene()

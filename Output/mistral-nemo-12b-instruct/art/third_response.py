@@ -7,17 +7,17 @@ chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 # Initial vehicle location and orientation
-initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 initLoc = chrono.ChVector3d(0, 0, 0.5)
+initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 # Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
-vis_type = veh.VisualizationType.MESH
+vis_type = veh.VisualizationType_MESH
 
 # Collision type for chassis (PRIMITIVES, MESH, or NONE)
-chassis_collision_type = veh.CollisionType.NONE
+chassis_collision_type = veh.CollisionType_NONE
 
 # Type of tire model (RIGID, TMEASY)
-tire_model = veh.TireModelType.TMEASY
+tire_model = veh.TireModelType_TMEASY
 
 # Rigid terrain
 # terrain_model = veh.RigidTerrain.BOX
@@ -29,7 +29,7 @@ terrainWidth = 100.0   # size in Y direction
 trackPoint = chrono.ChVector3d(0.0, 0.0, 0.2)
 
 # Contact method
-contact_method = chrono.ChContactMethod.NSC
+contact_method = chrono.ChContactMethod_NSC
 contact_vis = False
 
 # Simulation step sizes
@@ -61,7 +61,7 @@ vehicle.SetSteeringVisualizationType(vis_type)
 vehicle.SetWheelVisualizationType(vis_type)
 vehicle.SetTireVisualizationType(vis_type)
 
-vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type.BULLET)
+vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 # Create the terrain
 patch_mat = chrono.ChContactMaterialNSC()

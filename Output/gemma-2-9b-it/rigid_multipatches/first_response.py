@@ -13,8 +13,8 @@ world.Set_G_acc(chrono.Vector(0, 0, -9.81))  # Set gravity
 # Load HMMWV model (replace with your actual model path)
 hmmwv_model = chrono.ChBodyEasy.CreatePrimitive(
     chrono.ChBodyEasy.Shape.BOX,
-    size=chrono.Vector(5, 2, 3),  # Approximate HMMWV dimensions
-    mass=1500,  # Approximate mass
+    size=chrono.Vector(4, 2, 2),  # Approximate HMMWV dimensions
+    mass=1000,  # Approximate mass
 )
 hmmwv_model.SetPos(chrono.Vector(0, 0, 0.5))  # Initial position
 hmmwv_model.SetBodyFixed(False)  # Allow movement
@@ -27,37 +27,37 @@ drivetrain = chrono.ChDrivetrain(hmmwv_model, engine)
 # Create flat patches with different textures
 flat_patch_1 = chrono.ChBodyEasy.CreatePrimitive(
     chrono.ChBodyEasy.Shape.BOX,
-    size=chrono.Vector(10, 10, 0.1),
+    size=chrono.Vector(5, 5, 0.1),
     mass=0,
 )
-flat_patch_1.SetPos(chrono.Vector(-5, 0, 0))
+flat_patch_1.SetPos(chrono.Vector(-3, 0, 0))
 flat_patch_1.SetBodyFixed(True)
-flat_patch_1.SetMaterial(chrono.ChMaterialSurface(0.8, 0.2, 0.1))  # Example texture
+flat_patch_1.SetMaterialSurface(chrono.ChMaterialSurface(0.8, 0.2, 0.1))  # Example texture
 
 flat_patch_2 = chrono.ChBodyEasy.CreatePrimitive(
     chrono.ChBodyEasy.Shape.BOX,
-    size=chrono.Vector(10, 10, 0.1),
+    size=chrono.Vector(5, 5, 0.1),
     mass=0,
 )
-flat_patch_2.SetPos(chrono.Vector(5, 0, 0))
+flat_patch_2.SetPos(chrono.Vector(3, 0, 0))
 flat_patch_2.SetBodyFixed(True)
-flat_patch_2.SetMaterial(chrono.ChMaterialSurface(0.5, 0.5, 0.5))  # Example texture
+flat_patch_2.SetMaterialSurface(chrono.ChMaterialSurface(0.5, 0.5, 0.5))  # Example texture
 
 # Create a mesh-based bump patch
 bump_patch = chrono.ChBodyEasy.CreateFromMesh(
     "path/to/bump_mesh.obj",  # Replace with your bump mesh path
     mass=0,
 )
-bump_patch.SetPos(chrono.Vector(0, 5, 0))
+bump_patch.SetPos(chrono.Vector(0, 3, 0))
 bump_patch.SetBodyFixed(True)
 
 # Create a heightmap-based patch
-heightmap_patch = chrono.ChBodyEasy.CreateHeightmap(
+heightmap_patch = chrono.ChBodyEasy.CreateFromHeightmap(
     "path/to/heightmap.png",  # Replace with your heightmap path
     size=chrono.Vector(10, 10, 1),
     mass=0,
 )
-heightmap_patch.SetPos(chrono.Vector(0, -5, 0))
+heightmap_patch.SetPos(chrono.Vector(0, -3, 0))
 heightmap_patch.SetBodyFixed(True)
 
 # 3. Set default parameters and interactions

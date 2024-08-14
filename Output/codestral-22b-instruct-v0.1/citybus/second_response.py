@@ -20,7 +20,6 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 # Rigid terrain
-# terrain_model = veh.RigidTerrain.BOX
 terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
@@ -83,12 +82,15 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 # Create the driver system
-driver_data = veh.vector_Entry([veh.DataDriverEntry(0.0, 0.0, 0.0, 0.0),
-                                veh.DataDriverEntry(0.1, 1.0, 0.0, 0.0),
-                                veh.DataDriverEntry(0.5, 1.0, 0.7, 0.0)])
-driver = veh.ChDataDriver(vehicle.GetVehicle(), driver_data)
+driver_inputs = veh.ChDataDriver()
+driver_inputs.Initialize(vehicle.GetVehicle())
 
-driver.Initialize()
+# Define a sequence of driver inputs
+driver_inputs.SetSequence(veh.vector_Entry([
+    veh.DataDriverEntry(0.0, 0.0, 0.0),
+    veh.DataDriverEntry(0.1, 1.0, 0.0),
+    veh.DataDriverEntry(0.5, 1.0, 0.7)
+]))
 
 # output vehicle mass
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
@@ -96,7 +98,7 @@ print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
 
-# Initialize simulation frame counter
+# Initialize simulation frame counter s
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
@@ -111,17 +113,14 @@ while vis.Run():
         vis.EndScene()
         render_frame += 1
 
-    # Get driver inputs
-    driver_inputs = driver.GetInputs()
-
     # Update modules (process inputs from other modules)
-    driver.Synchronize(time)
+    driver_inputs.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
 
     # Advance simulation for one timestep for all modules
-    driver.Advance(step_size)
+    driver_inputs.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)

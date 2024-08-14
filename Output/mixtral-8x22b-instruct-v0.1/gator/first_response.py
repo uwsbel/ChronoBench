@@ -59,13 +59,12 @@ my_application.AddTypicalSky()
 my_application.AddTypicalLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))
 my_application.AddTypicalCamera(chrono.ChVectorD(0, 0, 10))
 my_application.AddTypicalLights()
-my_application.AddLightWithShadow(chrono.ChVectorD(10, 10, 10), 0.4, 12, 10, 50, 250, 0.5, 0.5, 0.5)
+my_application.AddLightWithShadow(chrono.ChVectorD(10, 10, 10), 0.5, 1, 20, 20, 50, 512, 2048)
+
+my_application.SetTimestep(0.02)
 
 my_application.AssetBindAll()
 my_application.AssetUpdateAll()
 
-my_application.SetTimestep(0.02)
-
-my_application.SetTryRealtime(True)
-
+# 6. Run the simulation
 my_application.Run()

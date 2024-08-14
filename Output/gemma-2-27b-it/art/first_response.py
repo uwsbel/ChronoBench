@@ -25,9 +25,10 @@ vis.AddCamera(chrono.ChVectorD(0, 2, -5))
 vis.AddLight(chrono.ChVectorD(0, 5, 0), chrono.ChColor(1, 1, 1))
 
 # Create a rigid terrain
-terrain = chrono.ChRigidTerrain(system, 200, 200)
-terrain.SetTexture(chrono.GetChronoDataPath() + 'terrain/textures/grass.png')
-terrain.Initialize()
+terrain = chrono.ChRigidTerrain(system)
+patch = terrain.AddPatch(chrono.ChVectorD(-100, 0, -100), chrono.ChVectorD(100, 0, 100))
+patch.SetTexture(chrono.GetChronoDataPath() + 'terrain/textures/grass.png')
+patch.SetFriction(0.8)
 
 # ---------------------------------------------------------------------
 #
@@ -38,17 +39,17 @@ terrain.Initialize()
 vehicle = chronovehicle.ChVehicle(system)
 
 # Set vehicle initial position and orientation
-vehicle.SetInitPosition(chrono.ChVectorD(0, 0.5, 0))
-vehicle.SetInitRotation(chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0)))
+vehicle.SetInitPosition(chrono.ChVectorD(0, 1, 0))
+vehicle.SetInitOrientation(chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0)))
 
 # Set contact method
-vehicle.SetChassisContactMethod(chronovehicle.ChContactMethod.NSC)
+vehicle.SetChassisContactMethod(chronovehicle.ChVehicle.ContactMethod_NSC)
 
 # Set visualization type
-vehicle.SetChassisVisualizationType(chronovehicle.ChVisualizationType.PRIMITIVES)
+vehicle.SetChassisVisualizationType(chronovehicle.ChVehicle.VisualizationType_MESH)
 
-# Add vehicle components (chassis, wheels, suspension, etc.)
-# ... (Refer to Chrono documentation for detailed vehicle setup)
+# Load vehicle model
+vehicle.SetVehicleModel(chrono.GetChronoDataPath() + 'vehicle/ARTcar/ARTcar.json')
 
 # ---------------------------------------------------------------------
 #
@@ -65,10 +66,10 @@ driver = chronovehicle.ChInteractiveDriver(vehicle)
 # ---------------------------------------------------------------------
 
 while vis.Run():
-    # Update the driver input
+    # Update the driver inputs
     driver.Update(vis.GetDeltaTime())
 
-    # Advance the simulation
+    # Update the vehicle dynamics
     system.DoStepDynamics(vis.GetDeltaTime())
 
     # Update the visualization

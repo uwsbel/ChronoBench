@@ -25,7 +25,7 @@ terrain = chrono.ChBodyEasyMesh(sys,  # parent system
                                 1000,  # density
                                 True,  # contact geometry
                                 True,  # enable contact
-                                0.1)  # friction
+                                0.5)  # friction
 sys.Add(terrain)
 terrain.SetBodyFixed(True)
 
@@ -35,26 +35,31 @@ vehicle = chrono.ChPart(sys,  # parent system
 sys.Add(vehicle)
 
 # Initialize vehicle parameters
-vehicle.SetChassisPosition(chrono.ChVectorD(0, 0, 1.5))  # location
-vehicle.SetChassisOrientation(chrono.ChQuaternionD(1, 0, 0, 0))  # orientation
-vehicle.SetContactMethod(chrono.ChContactMethod_SMC)  # contact method
+vehicle.SetChassisLocation(chrono.ChVectorD(0, 0, 1.5))  # location
+vehicle.SetChassisRotation(chrono.ChQuaternionD(1, 0, 0, 0))  # orientation
+vehicle.SetContactMethod(chrono.ChContactMethod_NSC)  # contact method
 vehicle.SetTireModel(chrono.ChTireModel_TMEASY)  # tire model
 vehicle.SetTireVisualization(chrono.ChTireVisualization_MESH)  # tire visualization
-vehicle.SetChassisVisualization(chrono.ChVisualizationMode_MESH)  # chassis visualization
+vehicle.SetWheelVisualization(chrono.ChWheelVisualization_MESH)  # wheel visualization
+vehicle.SetChassisVisualization(chrono.ChChassisVisualization_MESH)  # chassis visualization
 
 # Create an interactive driver system
-driver = chrono.ChIrrNodeDriver(vehicle)
+driver = chrono.ChIrrNodeDriver(sys,  # parent system
+                                vehicle,  # vehicle
+                                chronoirr.KEY_UP,  # throttle key
+                                chronoirr.KEY_DOWN,  # brake key
+                                chronoirr.KEY_LEFT,  # steering left key
+                                chronoirr.KEY_RIGHT)  # steering right key
 sys.Add(driver)
 
 # Create an Irrlicht application
-app = chronoirr.ChIrrApp(sys,  # physical system
+app = chronoirr.ChIrrApp(sys,  # parent system
                          'HMMWV Simulation',  # window title
                          chronoirr.dimension2du(800, 600))  # window size
 
-# Configure the simulation loop
-app.SetTimestep(0.02)  # time step
-app.SetTryRealtime(True)  # run in real time
-app.SetVideoframe(50)  # frames per second
+# Set the simulation loop to run in real time at 50 frames per second
+app.SetStepManage(chrono.ChStepManage_Realtime)
+app.SetTimestep(1 / 50.0)
 
 # Run the simulation loop
 while app.GetDevice().run():

@@ -1,125 +1,76 @@
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
-import numpy as np
+import pychrono.vehicle as chronovehicle
 
 # ---------------------------------------------------------------------
 #
 #  Simulation setup
 #
 
-# Initialize Chrono system
-my_system = chrono.ChSystemNSC()
-my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+# Create the simulation system
+system = chrono.ChSystemNSC()
 
-# Set simulation parameters
-my_system.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
-my_system.SetSolverMaxIterations(100)
-my_system.SetTimestepperType(chrono.ChTimestepper.Type_EULER_IMPLICIT_LINEARIZED)
+# Set the simulation parameters
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Gravity
+system.SetTimestepperType(chrono.ChTimestepper.Type_EULER_IMPLICIT_LINEARIZED)
+system.SetSolverType(chrono.ChSolver.Type_PSOR)
+system.SetSolverMaxIterations(100)
 
-# Create Irrlicht visualization system
+# Create the Irrlicht visualization system
 vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(my_system)
+vis.AttachSystem(system)
 vis.SetWindowSize(1280, 720)
 vis.SetWindowTitle("CityBus Simulation")
 vis.Initialize()
 
-# Set camera position
-camera = vis.GetCamera()
-camera.SetLocation(chrono.ChVectorD(0, 5, -15))
-camera.SetLookAt(chrono.ChVectorD(0, 1, 0))
+# Create a camera and set its position
+camera = vis.GetSceneManager().addCameraSceneNode()
+camera.setPosition(chrono.ChVectorD(0, 5, -15))
+camera.setTarget(chrono.ChVectorD(0, 0, 0))
 
 # ---------------------------------------------------------------------
 #
-#  Vehicle setup
+#  Vehicle creation
 #
 
-# Load vehicle chassis mesh
-vehicle_mesh = chrono.ChBodyEasyBox(
-    2.5, 1.5, 0.8, 1000, True, True, chrono.ChMaterialSurfaceNSC()
-)
-vehicle_mesh.SetPos(chrono.ChVectorD(0, 1, 0))
+# Create the vehicle chassis
+vehicle = chronovehicle.ChVehicle("CityBus")
+vehicle.SetChassisFixed(False)
+vehicle.SetChassisBody(chrono.ChBodyEasyBox(2.5, 1.0, 5.0, 1000))
+vehicle.GetChassisBody().SetPos(chrono.ChVectorD(0, 1.0, 0))
 
-# Add vehicle chassis to the system
-my_system.Add(vehicle_mesh)
-
-# Create wheel systems
+# Add wheels and suspension
+num_wheels = 4
 wheel_radius = 0.4
 wheel_width = 0.2
-wheel_mass = 20
+for i in range(num_wheels):
+    wheel = chronovehicle.ChWheel(chrono.ChBodyEasyBox(wheel_width, wheel_radius, wheel_width, 100))
+    wheel.SetPos(chrono.ChVectorD(
+        (-1.5 + i * 1.5, -0.5, 1.5) if i < 2 else (-1.5 + (i - 2) * 1.5, -0.5, -1.5)
+    ))
+    vehicle.AddWheel(wheel)
 
-# Front left wheel
-fl_wheel = chrono.ChWheel4(
-    vehicle_mesh,
-    chrono.ChVectorD(-1.2, -0.7, 0),
-    chrono.ChVectorD(0, -1, 0),
-    wheel_radius,
-    wheel_width,
-    wheel_mass,
-    chrono.ChMaterialSurfaceNSC(),
-)
-fl_wheel.SetTireModel(chrono.ChTireModelNSC())
-my_system.Add(fl_wheel)
-
-# Front right wheel
-fr_wheel = chrono.ChWheel4(
-    vehicle_mesh,
-    chrono.ChVectorD(1.2, -0.7, 0),
-    chrono.ChVectorD(0, -1, 0),
-    wheel_radius,
-    wheel_width,
-    wheel_mass,
-    chrono.ChMaterialSurfaceNSC(),
-)
-fr_wheel.SetTireModel(chrono.ChTireModelNSC())
-my_system.Add(fr_wheel)
-
-# Rear left wheel
-rl_wheel = chrono.ChWheel4(
-    vehicle_mesh,
-    chrono.ChVectorD(-1.2, -0.7, 0),
-    chrono.ChVectorD(0, -1, 0),
-    wheel_radius,
-    wheel_width,
-    wheel_mass,
-    chrono.ChMaterialSurfaceNSC(),
-)
-rl_wheel.SetTireModel(chrono.ChTireModelNSC())
-my_system.Add(rl_wheel)
-
-# Rear right wheel
-rr_wheel = chrono.ChWheel4(
-    vehicle_mesh,
-    chrono.ChVectorD(1.2, -0.7, 0),
-    chrono.ChVectorD(0, -1, 0),
-    wheel_radius,
-    wheel_width,
-    wheel_mass,
-    chrono.ChMaterialSurfaceNSC(),
-)
-rr_wheel.SetTireModel(chrono.ChTireModelNSC())
-my_system.Add(rr_wheel)
+# Set tire model
+for wheel in vehicle.GetWheels():
+    wheel.SetTireModel(chronovehicle.ChTireModelNSC())
 
 # ---------------------------------------------------------------------
 #
-#  Terrain setup
+#  Terrain creation
 #
 
 # Create a rigid terrain with a custom texture
-terrain = chrono.ChRigidTerrain(
-    my_system,
-    chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0)),
-    chrono.ChVectorD(50, 50, 0),
-    chrono.ChVectorD(0, 0, 1),
-    chrono.ChMaterialSurfaceNSC(),
-)
-terrain.SetTexture(chrono.GetChronoDataPath() + "terrain/textures/grass.jpg")
-my_system.Add(terrain)
+terrain = chrono.ChRigidTerrain()
+terrain.SetTexture(chrono.GetChronoDataPath() + "terrain/textures/grass.png")
+terrain.Initialize(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(100, 100, 100))
+system.Add(terrain)
 
 # ---------------------------------------------------------------------
 #
 #  Driver system
 #
 
+# Create a simple driver system for controlling the vehicle
 class Driver:
     def __init__(self, vehicle):
         self.vehicle = vehicle
@@ -127,48 +78,52 @@ class Driver:
         self.throttle = 0
         self.brake = 0
 
-    def update(self, dt):
-        # Implement driver logic here (e.g., keyboard input)
+    def Update(self, dt):
+        # Implement your control logic here
         # Example:
-        if chronoirr.GetDevice().IsKeyDown(chrono.irr::KEY_LEFT):
+        if vis.GetDevice().IsKeyDown(chrono.irr::KEY_LEFT):
             self.steering = -1
-        elif chronoirr.GetDevice().IsKeyDown(chrono.irr::KEY_RIGHT):
+        elif vis.GetDevice().IsKeyDown(chrono.irr::KEY_RIGHT):
             self.steering = 1
         else:
             self.steering = 0
 
-        if chronoirr.GetDevice().IsKeyDown(chrono.irr::KEY_UP):
+        if vis.GetDevice().IsKeyDown(chrono.irr::KEY_UP):
             self.throttle = 1
-        elif chronoirr.GetDevice().IsKeyDown(chrono.irr::KEY_DOWN):
+        elif vis.GetDevice().IsKeyDown(chrono.irr::KEY_DOWN):
             self.brake = 1
         else:
             self.throttle = 0
             self.brake = 0
 
-        # Apply driver inputs to vehicle
-        self.vehicle.SetSteeringAngle(self.steering * np.pi / 4)
+        self.vehicle.SetSteering(self.steering)
         self.vehicle.SetThrottle(self.throttle)
         self.vehicle.SetBraking(self.brake)
 
-# Create driver instance
-driver = Driver(vehicle_mesh)
+# Create a driver instance
+driver = Driver(vehicle)
 
 # ---------------------------------------------------------------------
 #
 #  Simulation loop
 #
 
+# Add the vehicle to the simulation system
+system.Add(vehicle)
+
+# Set the simulation time step
+dt = 1.0 / 50.0
+
 while vis.Run():
-    dt = 1 / 50  # Target frame rate
+    # Update the driver system
+    driver.Update(dt)
 
-    # Update driver system
-    driver.update(dt)
+    # Advance the simulation
+    system.DoStepDynamics(dt)
 
-    # Advance simulation
-    my_system.DoStepDynamics(dt)
+    # Update the camera position
+    camera.setPosition(vehicle.GetChassisBody().GetPos() + chrono.ChVectorD(0, 5, -15))
+    camera.setTarget(vehicle.GetChassisBody().GetPos())
 
-    # Update camera position
-    camera.SetLookAt(vehicle_mesh.GetPos())
-
-    # Render scene
+    # Render the scene
     vis.Render()

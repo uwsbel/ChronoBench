@@ -83,13 +83,12 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 # Create the data-driven driver system
-driver_data = veh.vector_Entry([
-    veh.DataDriverEntry(0.0, 0.0, 0.0, 0.0),
-    veh.DataDriverEntry(0.1, 1.0, 0.0, 0.0),
-    veh.DataDriverEntry(0.5, 1.0, 0.7, 0.0),
-])
-driver = veh.ChDataDriver(vehicle.GetVehicle(), driver_data)
-driver.Initialize()
+driver_inputs = [
+    veh.vector_Entry(0.0, 0.0, 0.0, 0.0),  # throttle, steering, braking, handbrake
+    veh.vector_Entry(0.1, 1.0, 0.0, 0.0),
+    veh.vector_Entry(0.5, 1.0, 0.0, 0.0, 0.7),
+]
+driver = veh.ChDataDriver(driver_inputs)
 
 # output vehicle mass
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
@@ -129,6 +128,5 @@ while vis.Run():
 
     # Increment frame number
     step_number += 1
-
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)

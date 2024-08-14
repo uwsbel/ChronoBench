@@ -2,7 +2,6 @@ import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
-import numpy as np
 
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
@@ -21,10 +20,18 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 # Rigid terrain
-# terrain_model = veh.RigidTerrain.BOX
 terrainHeight = 0      # terrain height
 terrainLength = 200.0  # size in X direction, increased from 100.0
 terrainWidth = 100.0   # size in Y direction
+
+# Path implementation
+path_radius = 50.0
+path_center = chrono.ChVector3d(terrainLength / 2, 0, 0)
+path = veh.CircularPath(path_center, path_radius)
+
+# Visualize the path using two balls
+path_vis = veh.ChCircularPathVisualizer(path)
+path_vis.SetColor(chrono.ChColor(1, 0, 0))  # Red color for the path visualization
 
 # Poon chassis tracked by the camera
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
@@ -79,31 +86,14 @@ vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
+vis.AddPathVisualizer(path_vis)
 
-# Visualization of controller points (sentinel & target)
-ballS = vis.GetSceneManager().addSphereSceneNode(0.1)
-ballT = vis.GetSceneManager().addSphereSceneNode(0.1)
-ballS.getMaterial(0).EmissiveColor = irr.SColor(0, 255, 0, 0)
-ballT.getMaterial(0).EmissiveColor = irr.SColor(0, 0, 255, 0)
+# Create the path follower driver system
+driver = veh.ChPathFollowerDriver(vehicle.GetVehicle(), path)
+driver.SetThrottle(0.3)  # Constant throttle value of 0.3
+driver.SetSteeringGains(0.5, 0.1, 0.01)  # PID gains for steering control
 
-# Left circular path with a reasonable radius
-path = veh.CirclePath(initLoc, 20, 40, True, 10)
-npoints = path.GetNumPoints()
-
-path_asset = chrono.ChVisualShapeLine()
-path_asset.SetLineGeometry(chrono.ChLineBezier(path))
-path_asset.SetName("test path")
-path_asset.SetNumRenderPoints(max(2 * npoints, 400))
-patch.GetGroundBody().AddVisualShape(path_asset)
-
-# Create the PID lateral controller with appropriate gains
-steeringPID = veh.ChPathSteeringController(path)
-steeringPID.SetLookAheadDistance(5)
-steeringPID.SetGains(0.8, 0, 0)  # Appropriate gains for steering control
-steeringPID_output = 0
-throttle_value = 0.3  # Constant throttle value
-
-# Output vehicle mass
+# output vehicle mass
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events
@@ -117,17 +107,6 @@ render_frame = 0
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
-    # Get driver inputs with constant throttle and PID steering control
-    driver_inputs = veh.DriverInputs()
-    driver_inputs.m_steering = np.clip(steeringPID_output, -1.0, +1.0)
-    driver_inputs.m_throttle = throttle_value
-    driver_inputs.m_braking = 0.0
-
-    pS = steeringPID.GetSentinelLocation()
-    pT = steeringPID.GetTargetLocation()
-    ballS.setPosition(irr.vector3df(pS.x, pS.y, pS.z))
-    ballT.setPosition(irr.vector3df(pT.x, pT.y, pT.z))
-
     # Render scene and output POV-Ray data
     if (step_number % render_steps == 0):
         vis.BeginScene()
@@ -135,13 +114,17 @@ while vis.Run():
         vis.EndScene()
         render_frame += 1
 
+    # Get driver inputs
+    driver_inputs = driver.GetInputs()
+
     # Update modules (process inputs from other modules)
+    driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
 
     # Advance simulation for one timestep for all modules
-    steeringPID_output = steeringPID.Advance(vehicle.GetRefFrame(), time, step_size)
+    driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)

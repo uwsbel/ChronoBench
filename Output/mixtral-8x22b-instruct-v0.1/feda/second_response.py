@@ -7,7 +7,7 @@ chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 # Initial vehicle location and orientation
-initLoc = chrono.ChVector3d(-50, 0, 0.5)
+initLoc = chrono.ChVector3d(-50, 0, 0.5)  # Changed initial location
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 # Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
@@ -22,7 +22,7 @@ tire_model = veh.TireModelType_TMEASY
 # Rigid terrain
 # terrain_model = veh.RigidTerrain.BOX
 terrainHeight = 0      # terrain height
-terrainLength = 200.0  # size in X direction
+terrainLength = 200.0  # Increased terrain length
 terrainWidth = 100.0   # size in Y direction
 
 # Poon chassis tracked by the camera
@@ -71,6 +71,11 @@ patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
+# Create the path-follower driver system
+driver = veh.ChPathFollowerDriver(vehicle, 10.0, 5)  # Set target speed and look-ahead distance
+driver.SetGains(0.5, 0.02, 0.01)  # Set steering controller gains
+driver.SetSpeedGains(0.5, 0.02, 0.01)  # Set speed controller gains
+
 # Create the vehicle Irrlicht interface
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('FEDA vehicle')
@@ -82,15 +87,17 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
-# Create the path-follower, cruise-control driver
-# Use a parameterized ISO double lane change (to left)
-path = veh.DoubleLaneChangePath(initLoc, 13.5, 4.0, 11.0, 50.0, True)
-target_speed = 10.0
-driver = veh.ChPathFollowerDriver(vehicle.GetVehicle(), path, "my_path", target_speed)
-driver.GetSteeringController().SetLookAheadDistance(5)
-driver.GetSteeringController().SetGains(0.8, 0, 0)
-driver.GetSpeedController().SetGains(0.4, 0, 0)
-driver.Initialize()
+# Create the path for the double lane change maneuver
+path = veh.ChPath()
+path.AddPoint(-50, 0, 0, 0)
+path.AddPoint(-25, 2.5, 0, 0)
+path.AddPoint(0, 5, 0, 0)
+path.AddPoint(25, 2.5, 0, 0)
+path.AddPoint(50, 0, 0, 0)
+path.Initialize()
+
+# Set the path for the driver
+driver.SetPath(path)
 
 # output vehicle mass
 print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())

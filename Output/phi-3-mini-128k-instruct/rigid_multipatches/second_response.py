@@ -24,20 +24,25 @@ def main():
     hmmwv.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
     # Create the terrain with a single patch
-    patch_mat = chrono.ChContactMaterialNSC()
-    patch_mat.SetFriction(0.9)
-    patch_mat.SetRestitution(0.01)
-    patch_mat.SetThickness(0.01)
     terrain = veh.RigidTerrain(hmmwv.GetSystem())
-    patch = terrain.AddPatch(patch_mat, 
-        chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
-        chrono.GetChronoDataFile('vehicle/terrain/meshes/Highway_col.obj'),
-        True, 0.01, False)
-    vis_mesh = chrono.ChTriangleMeshConnected().CreateFromWavefrontFile(veh.GetDataFile("terrain/meshes/Highway_vis.obj"), True, True)
-    tri_mesh_shape = chrono.ChVisualShapeTriangleMesh()
-    tri_mesh_shape.SetMesh(vis_mesh)
-    tri_mesh_shape.SetMutable(False)
-    patch.GetGroundBody().AddVisualShape(tri_mesh_shape)
+
+    # Create a contact material with the same friction and restitution values
+    contact_mat = chrono.ChContactMaterialNSC()
+    contact_mat.SetFriction(0.9)
+    contact_mat.SetRestitution(0.01)
+    contact_mat.SetThickness(0.01)
+
+    # Add a single terrain patch using the contact material
+    terrain_patch = terrain.AddPatch(contact_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, -42, 0), chrono.QUNIT), 32, 20)
+    terrain_patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+    terrain_patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 20, 20)
+
+    # Create a visual mesh for the terrain
+    terrain_mesh = chrono.ChVisualShapeTriangleMesh()
+    terrain_mesh.SetCoords(chrono.ChVector3d(0, -42, 0), chrono.ChVector3d(32, -42, 0), chrono.ChVector3d(32, -20, 0))
+    terrain_mesh.SetTexture(veh.GetDataFile("terrain/meshes/Highway_vis.obj"))
+    terrain.AddVisualShape(terrain_mesh)
+
     terrain.Initialize()
 
     # Create the vehicle Irrlicht interface
@@ -59,6 +64,10 @@ def main():
     driver.Initialize()
 
     hmmwv.GetVehicle().EnableRealtime(True)
+
+    # Simulation step sizes
+    step_size = 2e-3
+    tire_step_size = 1e-3
 
     while vis.Run() :
         time = hmmwv.GetSystem().GetChTime()
@@ -90,5 +99,6 @@ veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 # Simulation step sizes
 step_size = 2e-3
 tire_step_size = 1e-3
+
 
 main()

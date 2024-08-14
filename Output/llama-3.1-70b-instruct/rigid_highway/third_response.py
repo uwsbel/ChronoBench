@@ -1,4 +1,3 @@
-"""
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
@@ -65,13 +64,11 @@ vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 # Create the terrain
 patch_mat = chrono.ChContactMaterialNSC()
-patch_mat.SetFriction(0.4)  # updated friction value
-patch_mat.SetRestitution(0.05)  # updated restitution value
+patch_mat.SetFriction(0.4)  # Update friction value
+patch_mat.SetRestitution(0.05)  # Update restitution value
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-quat = chrono.ChQuaterniond()
-quat.SetFromAngleAxis(-math.pi/2, chrono.ChVector3d(0, 0, 1))  # updated orientation
 patch = terrain.AddPatch(patch_mat, 
-    chrono.ChCoordsysd(chrono.ChVector3d(6, -70, 0), quat),  # updated position
+    chrono.ChCoordsysd(chrono.ChVector3d(6, -70, 0), chrono.Q_from_AngZ(-math.pi/2)),  # Update patch position and orientation
     chrono.GetChronoDataFile('vehicle/terrain/meshes/Highway_col.obj'),
     True, 0.01, False)
 vis_mesh = chrono.ChTriangleMeshConnected().CreateFromWavefrontFile(veh.GetDataFile("terrain/meshes/Highway_vis.obj"), True, True)

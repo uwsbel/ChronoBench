@@ -2,7 +2,6 @@ import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
-import numpy as np
 
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
@@ -79,36 +78,25 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
-# Visualization of controller points (sentinel & target)
-ballS = vis.GetSceneManager().addSphereSceneNode(0.1)
-ballT = vis.GetSceneManager().addSphereSceneNode(0.1)
-ballS.getMaterial(0).EmissiveColor = irr.SColor(0, 255, 0, 0)
-ballT.getMaterial(0).EmissiveColor = irr.SColor(0, 0, 255, 0)
+# Create the path follower
+path_radius = 50.0
+path_center = chrono.ChVector3d(terrainLength/2, terrainWidth/2, 0)
+path = veh.PathFollower(vehicle.GetVehicle(), path_radius, path_center)
+path.SetThrottle(0.3)
 
-# Left circle path
-path = veh.CirclePath(initLoc, 20, 40, True, 10)
-npoints = path.GetNumPoints()
+# Create the PID controller
+pid_steering_gain = 0.1
+pid_steering_integral_gain = 0.01
+pid_steering_derivative_gain = 0.001
+pid_steering = veh.PIDController(pid_steering_gain, pid_steering_integral_gain, pid_steering_derivative_gain)
 
-path_asset = chrono.ChVisualShapeLine()
-path_asset.SetLineGeometry(chrono.ChLineBezier(path))
-path_asset.SetName("test path")
-path_asset.SetNumRenderPoints(max(2 * npoints, 400))
-patch.GetGroundBody().AddVisualShape(path_asset)
+# Create the sentinel and target points
+sentinel_point = chrono.ChVector3d(path_center + chrono.ChVector3d(path_radius, 0, 0))
+target_point = chrono.ChVector3d(path_center + chrono.ChVector3d(path_radius, 0, 0))
+sentinel_sphere = vis.AddSphere(sentinel_point, 0.1)
+target_sphere = vis.AddSphere(target_point, 0.1)
 
-# Create the PID lateral controller
-steeringPID = veh.ChPathSteeringController(path)
-steeringPID.SetLookAheadDistance(5)
-steeringPID.SetGains(0.8, 0, 0)
-steeringPID_output = 0
-throttle_value = 0.3
-
-# output vehicle mass
-print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
-
-# Number of simulation steps between miscellaneous events
-render_steps = math.ceil(render_step_size / step_size)
-
-# Initialize simulation frame counter s
+# Simulation loop
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
@@ -116,31 +104,39 @@ render_frame = 0
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
 
-    # Get driver inputs
-    driver_inputs = veh.DriverInputs()
-    driver_inputs.m_steering = np.clip(steeringPID_output, -1.0, +1.0)
-    driver_inputs.m_throttle = throttle_value
-    driver_inputs.m_braking = 0.0
-
-    pS = steeringPID.GetSentinelLocation()
-    pT = steeringPID.GetTargetLocation()
-    ballS.setPosition(irr.vector3df(pS.x, pS.y, pS.z))
-    ballT.setPosition(irr.vector3df(pT.x, pT.y, pT.z))
-
     # Render scene and output POV-Ray data
-    if (step_number % render_steps == 0) :
+    if (step_number % math.ceil(render_step_size / step_size) == 0) :
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
         render_frame += 1
 
-    # Update modules (process inputs from other modules)
-    terrain.Synchronize(time)
-    vehicle.Synchronize(time, driver_inputs, terrain)
-    vis.Synchronize(time, driver_inputs)
+    # Get current position and orientation of the vehicle
+    vehicle_pos = vehicle.GetVehicle().GetPos()
+    vehicle_rot = vehicle.GetVehicle().GetRot()
+
+    # Calculate steering error
+    steering_error = (vehicle_pos - target_point).Norm()
+
+    # Update PID controller
+    pid_steering.Update(steering_error)
+
+    # Update steering angle
+    steering_angle = pid_steering.GetOutput()
+
+    # Update path follower
+    path.Update(steering_angle)
+
+    # Update vehicle position and orientation
+    vehicle_pos = path.GetPosition()
+    vehicle_rot = path.GetRotation()
+
+    # Update vehicle
+    vehicle.SetPos(vehicle_pos)
+    vehicle.SetRot(vehicle_rot)
 
     # Advance simulation for one timestep for all modules
-    steeringPID_output = steeringPID.Advance(vehicle.GetRefFrame(), time, step_size)
+    driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)

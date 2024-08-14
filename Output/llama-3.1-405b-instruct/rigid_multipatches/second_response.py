@@ -3,7 +3,7 @@ import pychrono.vehicle as veh
 import pychrono.irrlicht as irr
 
 def main():
-    #  Create the HMMWV vehicle, set parameters, and initialize
+    # Create the HMMWV vehicle, set parameters, and initialize
     hmmwv = veh.HMMWV_Full()
     hmmwv.SetContactMethod(chrono.ChContactMethod_NSC)
     hmmwv.SetChassisFixed(False)
@@ -24,19 +24,20 @@ def main():
     hmmwv.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
     # Create the terrain with a single patch
+    terrain = veh.RigidTerrain(hmmwv.GetSystem())
+
     patch_mat = chrono.ChContactMaterialNSC()
     patch_mat.SetFriction(0.9)
     patch_mat.SetRestitution(0.01)
-    terrain = veh.RigidTerrain(hmmwv.GetSystem())
-    patch = terrain.AddPatch(patch_mat, 
-        chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
-        chrono.GetChronoDataFile('vehicle/terrain/meshes/Highway_col.obj'),
-        True, 0.01, False)
-    vis_mesh = chrono.ChTriangleMeshConnected().CreateFromWavefrontFile(veh.GetDataFile("terrain/meshes/Highway_vis.obj"), True, True)
-    tri_mesh_shape = chrono.ChVisualShapeTriangleMesh()
-    tri_mesh_shape.SetMesh(vis_mesh)
-    tri_mesh_shape.SetMutable(False)
-    patch.GetGroundBody().AddVisualShape(tri_mesh_shape)
+    patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3D(0, 0, 0), chrono.QUNIT),
+                             veh.GetDataFile("terrain/meshes/Highway_col.obj"), 0.01)
+    patch.SetCollision(True)
+
+    # Create a visual mesh for the terrain
+    visual_mesh = chrono.ChVisualShapeTriangleMesh()
+    visual_mesh.SetMesh(veh.GetDataFile("terrain/meshes/Highway_vis.obj"))
+    patch.GetGroundBody().AddVisualShape(visual_mesh)
+
     terrain.Initialize()
 
     # Create the vehicle Irrlicht interface
@@ -59,7 +60,7 @@ def main():
 
     hmmwv.GetVehicle().EnableRealtime(True)
 
-    while vis.Run() :
+    while vis.Run():
         time = hmmwv.GetSystem().GetChTime()
 
         # Draw scene

@@ -86,12 +86,12 @@ vis.AttachVehicle(vehicle.GetVehicle())
 driver = veh.ChInteractiveDriverIRR(vis)
 
 # Set the time response for steering and throttle keyboard inputs.
-driver_data = veh.vector_Entry([veh.DataDriverEntry(0.0, 0.0, 0.0, 0.0), 
-                                veh.DataDriverEntry(0.1, 1.0, 0.0, 0.0),
-                                veh.DataDriverEntry(0.5, 1.0, 0.7, 0.0),
-                                 ])
-driver = veh.ChDataDriver(vehicle.GetVehicle(), driver_data)
-
+steering_time = 1.0  # time to go from 0 to +1 (or from 0 to -1)
+throttle_time = 1.0  # time to go from 0 to +1
+braking_time = 0.3   # time to go from 0 to +1
+driver.SetSteeringDelta(render_step_size / steering_time)
+driver.SetThrottleDelta(render_step_size / throttle_time)
+driver.SetBrakingDelta(render_step_size / braking_time)
 
 driver.Initialize()
 
