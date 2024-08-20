@@ -1,79 +1,104 @@
-import pychrono as chrono
+import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
 
-# ---------------------------------------------------------------------
-#
-#  Create the simulation system and add items
-#
+# ----------------------------------------------------------------------
+# Create the PyChrono system and set default parameters
+# ----------------------------------------------------------------------
 
-# Create the Chrono system
+# Create a Chrono::Engine system
 system = chrono.ChSystemNSC()
+system.Set_G_gravity(chrono.ChVectorD(0, -9.81, 0))
 
-# Set gravitational acceleration
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+# Set default simulation timestepper
+system.SetTimestepperType(chrono.ChTimestepper.Type_EULER_IMPLICIT_PROJECTED)
+system.SetSolverType(chrono.ChSolver.Type_PSOR)
+system.SetSolverMaxIterations(50)
+system.SetSolverMaxIterationsBilateral(100)
 
-# Create the Irrlicht visualization system
-vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(system)
-vis.SetWindowSize(1024, 768)
-vis.SetWindowTitle('Epicyclic Gears')
-vis.Initialize()
-vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
-vis.AddSkyBox()
-vis.AddCamera(chrono.ChVectorD(0, 1, 3))
-vis.AddTypicalLights()
+# ----------------------------------------------------------------------
+# Create the truss, bar, and gears
+# ----------------------------------------------------------------------
 
-# Create a fixed truss (e.g., a ground plane)
-ground = chrono.ChBodyEasyBox(1, 0.1, 1, 1000)
-ground.SetBodyFixed(True)
-ground.SetPos(chrono.ChVectorD(0, -0.05, 0))
-system.Add(ground)
+# Truss (fixed to ground)
+truss_material = chrono.ChMaterialSurfaceNSC()
+truss_material.SetFriction(0.5)
+truss_material.SetRestitution(0.2)
 
-# Create a rotating bar
-bar_length = 0.5
-bar = chrono.ChBodyEasyCylinder(bar_length/2, 0.02, 1000)
-bar.SetPos(chrono.ChVectorD(0, 0.2, 0))
+truss = chrono.ChBodyEasyBox(2, 0.1, 0.1, 1000, True, True, truss_material)
+truss.SetBodyFixed(True)
+system.Add(truss)
+
+# Rotating bar
+bar_material = chrono.ChMaterialSurfaceNSC()
+bar_material.SetFriction(0.3)
+
+bar_radius = 0.05
+bar_length = 1.5
+bar = chrono.ChBodyEasyCylinder(bar_radius, bar_length, 1000, True, True, bar_material)
+bar.SetPos(chrono.ChVectorD(0, 0.5, 0))
 system.Add(bar)
 
-# Create the gears
-gear1_radius = 0.1
-gear2_radius = 0.2
-gear1 = chrono.ChBodyEasyCylinder(gear1_radius, 0.03, 1000)
-gear1.SetPos(chrono.ChVectorD(0, 0.2, 0))
-system.Add(gear1)
-gear2 = chrono.ChBodyEasyCylinder(gear2_radius, 0.03, 1000)
-gear2.SetPos(chrono.ChVectorD(gear1_radius + gear2_radius, 0.2, 0))
-system.Add(gear2)
+# Create a revolute joint between the truss and the bar
+revolute_joint = chrono.ChLinkRevolute()
+revolute_joint.Initialize(truss, bar, chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.ChQuaternionD(1, 0, 0, 0)))
+system.AddLink(revolute_joint)
 
-# Create revolute joints between the bar and gears
-revolute_joint1 = chrono.ChLinkRevolute()
-revolute_joint1.Initialize(bar, gear1, chrono.ChCoordsysD(chrono.ChVectorD(0, 0.2, 0), chrono.QUNIT))
-system.Add(revolute_joint1)
+# Sun gear (driven by a motor)
+sun_gear_radius = 0.2
+sun_gear = chrono.ChBodyEasyCylinder(sun_gear_radius, 0.1, 1000, True, True, bar_material)
+sun_gear.SetPos(chrono.ChVectorD(0, 0.5, 0.2))
+system.Add(sun_gear)
 
-revolute_joint2 = chrono.ChLinkRevolute()
-revolute_joint2.Initialize(bar, gear2, chrono.ChCoordsysD(chrono.ChVectorD(gear1_radius + gear2_radius, 0.2, 0), chrono.QUNIT))
-system.Add(revolute_joint2)
+# Planet gear
+planet_gear_radius = 0.1
+planet_gear = chrono.ChBodyEasyCylinder(planet_gear_radius, 0.1, 1000, True, True, bar_material)
+planet_gear.SetPos(chrono.ChVectorD(sun_gear_radius + planet_gear_radius, 0.5, 0.2))
+system.Add(planet_gear)
 
-# Create a gear motor to enforce a constant rotation speed on gear1
+# Create a revolute joint between the bar and the sun gear
+revolute_joint_sun = chrono.ChLinkRevolute()
+revolute_joint_sun.Initialize(
+    bar, sun_gear, chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0.2), chrono.ChQuaternionD(1, 0, 0, 0))
+)
+system.AddLink(revolute_joint_sun)
+
+# Create a gear joint between the sun and planet gears
+gear_joint = chrono.ChLinkGears()
+gear_joint.Initialize(
+    sun_gear, planet_gear, chrono.ChVectorD(0, 0, 1), sun_gear_radius, planet_gear_radius
+)
+system.AddLink(gear_joint)
+
+# ----------------------------------------------------------------------
+# Create a motor to drive the sun gear
+# ----------------------------------------------------------------------
 motor = chrono.ChLinkMotorRotationSpeed()
-motor.Initialize(gear1, ground, chrono.ChFrameD(chrono.ChVectorD(0, 0.2, 0)))
-motor.SetMotorFunction(chrono.ChFunction_Const(2 * chrono.CH_C_PI))  # 1 revolution per second
-system.Add(motor)
+motor.Initialize(
+    sun_gear,  # Body to connect the motor to
+    chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT),  # Motor frame on the body
+)
+motor.SetMotorFunction(chrono.ChFunction_Const(3.14))  # Set a constant speed of pi rad/s
+system.AddLink(motor)
 
-# Set materials and colors for visualization
-ground.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile('textures/concrete.jpg'))
-bar.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile('textures/aluminum.jpg'))
-gear1.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile('textures/steel.jpg'))
-gear2.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile('textures/steel.jpg'))
+# ----------------------------------------------------------------------
+# Create the Irrlicht visualization system
+# ----------------------------------------------------------------------
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetWindowSize(800, 600)
+vis.SetWindowTitle("Epicyclic Gears")
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVectorD(2, 1, 2), chrono.ChVectorD(0, 0, 0))
+vis.AddTypicalLights()
 
-# ---------------------------------------------------------------------
-#
-#  Simulate the system
-#
-
-# Simulation loop
+# ----------------------------------------------------------------------
+# Run the simulation
+# ----------------------------------------------------------------------
 while vis.Run():
+    dt = 0.01
+    system.DoStepDynamics(dt)
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
-    system.DoStepDynamics(0.01)

@@ -8,12 +8,15 @@ sys = chrono.ChSystemNSC()                        # Initializing the Chrono phys
 # Create contact material shared among all bodies
 mat = chrono.ChContactMaterialNSC()               # Creating a contact material for collision handling
 
-# Create all rigid bodies with specific dimensions
-radA = 1.5                                         # Defining radius for first gear (MODIFIED)
-radB = 3.5                                         # Defining radius for second gear (MODIFIED)
+# --- Modified: Change Gear Sizes ---
+# Original: radA = 2, radB = 4
+radA = 1.5                                         # Defining radius for first gear
+radB = 3.5                                         # Defining radius for second gear
 
+# --- Modified: Change Truss Dimensions ---
+# Original: chrono.ChBodyEasyBox(20, 10, 2, 1000, True, False, mat)
 # Create the truss
-mbody_truss = chrono.ChBodyEasyBox(15, 8, 2,     # Creating a box-shaped truss body with dimensions 15x8x2 (MODIFIED)
+mbody_truss = chrono.ChBodyEasyBox(15, 8, 2,      # Creating a box-shaped truss body with dimensions 15x8x2
                                    1000,          # Setting mass (not used for fixed body)
                                    True,          # Enable visualization
                                    False,         # Disable collision
@@ -38,7 +41,7 @@ mbody_train.SetPos(chrono.ChVector3d(3, 0, 0))    # Positioning the rotating bar
 # Create a revolute joint between truss and rotating bar, allowing rotation along the Z-axis
 link_revoluteTT = chrono.ChLinkLockRevolute()                         # Creating a revolute joint
 link_revoluteTT.Initialize(mbody_truss, mbody_train,                  # Initializing the joint with truss and rotating bar
-                           chrono.ChCoordsysD(chrono.ChVector3d(0,0,0),  # Positioning the joint at origin (Corrected)
+                           chrono.ChFramed(chrono.ChVector3d(0,0,0),  # Positioning the joint at origin
                                            chrono.QUNIT))             # No initial rotation
 sys.AddLink(link_revoluteTT)                                          # Adding the joint to the system
 
@@ -48,20 +51,24 @@ mbody_gearA = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y,             # Creating 
                                         1000, True, False, mat)     # Setting mass, visualization, collision, and material
 sys.Add(mbody_gearA)                                                # Adding the gear to the system
 mbody_gearA.SetPos(chrono.ChVector3d(0, 0, -1))                     # Positioning the gear at (0, 0, -1)
-mbody_gearA.SetRot(chrono.Q_from_AngX(m.pi / 2))                 # Rotating the gear by 90 degrees around X-axis (Corrected)
+mbody_gearA.SetRot(chrono.QuatFromAngleX(m.pi / 2))                 # Rotating the gear by 90 degrees around X-axis
 mbody_gearA.GetVisualShape(0).SetMaterial(0, vis_mat)               # Applying the visual material to the gear
 
+# --- Modified: Change Size of Visual Shaft ---
+# Original: chrono.ChVisualShapeCylinder(radA * 0.4, 13)
 # Adding a thin cylinder only for visualization purpose
-mshaft_shape = chrono.ChVisualShapeCylinder(radA * 0.3, 10)                                # Creating a thin cylinder for visualization (MODIFIED)
-mbody_gearA.AddVisualShape(mshaft_shape, chrono.ChCoordsysD(chrono.ChVector3d(0, 3.5, 0),     # Adding the visual shape to the gear body (Corrected)
-                                                          chrono.Q_from_AngX(chrono.CH_C_PI_2)))  # Positioning and rotating the visual cylinder (Corrected)
+mshaft_shape = chrono.ChVisualShapeCylinder(radA * 0.3, 10)                            # Creating a thin cylinder for visualization
+mbody_gearA.AddVisualShape(mshaft_shape, chrono.ChFramed(chrono.ChVector3d(0, 3.5, 0),     # Adding the visual shape to the gear body
+                                                          chrono.QuatFromAngleX(chrono.CH_PI_2)))  # Positioning and rotating the visual cylinder
 
 # Impose rotation speed on the first gear relative to the fixed truss
 link_motor = chrono.ChLinkMotorRotationSpeed()                      # Creating a motor link to impose rotation
 link_motor.Initialize(mbody_gearA, mbody_truss,                     # Initializing the motor with gear and truss
-                      chrono.ChCoordsysD(chrono.ChVector3d(0, 0, 0),   # Positioning the motor at origin (Corrected)
+                      chrono.ChFramed(chrono.ChVector3d(0, 0, 0),   # Positioning the motor at origin
                                       chrono.QUNIT))                # No initial rotation
-link_motor.SetSpeedFunction(chrono.ChFunction_Const(3))              # Setting constant rotation speed to 3 rad/s (MODIFIED)
+# --- Modified: Change Gear Rotation Speeds ---
+# Original: link_motor.SetSpeedFunction(chrono.ChFunctionConst(6))
+link_motor.SetSpeedFunction(chrono.ChFunctionConst(3))              # Setting constant rotation speed to 3 rad/s
 sys.AddLink(link_motor)                                             # Adding the motor link to the system
 
 # Create the second gear
@@ -70,22 +77,24 @@ mbody_gearB = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y,            # Creating s
                                         radB, 0.4,                  # Setting radius and height
                                         1000, True, False, mat)     # Setting mass, visualization, collision, and material
 sys.Add(mbody_gearB)                                                # Adding the second gear to the system
-mbody_gearB.SetPos(chrono.ChVector3d(interaxis12, 0, -2))           # Positioning the second gear based on calculated inter-axis distance (MODIFIED)
-mbody_gearB.SetRot(chrono.Q_from_AngX(m.pi / 2))                 # Rotating the second gear by 90 degrees around X-axis (Corrected)
+# --- Modified: Change Position of Gear B ---
+# Original: mbody_gearB.SetPos(chrono.ChVector3d(interaxis12, 0, -1))
+mbody_gearB.SetPos(chrono.ChVector3d(interaxis12, 0, -2))           # Positioning the second gear based on calculated inter-axis distance
+mbody_gearB.SetRot(chrono.QuatFromAngleX(m.pi / 2))                 # Rotating the second gear by 90 degrees around X-axis
 mbody_gearB.GetVisualShape(0).SetMaterial(0, vis_mat)               # Applying the visual material to the gear
 
 # Fix second gear to the rotating bar with a revolute joint
 link_revolute = chrono.ChLinkLockRevolute()                         # Creating a revolute joint
 link_revolute.Initialize(mbody_gearB, mbody_train,                  # Initializing the joint with second gear and rotating bar
-                         chrono.ChCoordsysD(chrono.ChVector3d(interaxis12, 0, 0), chrono.QUNIT))  # Positioning the joint at the appropriate inter-axis distance (Corrected)
+                         chrono.ChFramed(chrono.ChVector3d(interaxis12, 0, 0), chrono.QUNIT))  # Positioning the joint at the appropriate inter-axis distance
 sys.AddLink(link_revolute)                                          # Adding the joint to the system
 
 # Create the gear constraint between the two gears, A and B
 # For gear ratio the transmission ratio is set as radA/radB.
 link_gearAB = chrono.ChLinkLockGear()                                     # Creating a gear constraint link
-link_gearAB.Initialize(mbody_gearA, mbody_gearB, chrono.ChCoordsysD())       # Initializing the gear link between gear A & B (Corrected)
-link_gearAB.SetFrameShaft1(chrono.ChFrameD(chrono.VNULL, chrono.Q_from_AngX(-m.pi / 2)))    # Setting frame for shaft1 (Corrected)
-link_gearAB.SetFrameShaft2(chrono.ChFrameD(chrono.VNULL, chrono.Q_from_AngX(-m.pi / 2)))    # Setting frame for shaft2 (Corrected)
+link_gearAB.Initialize(mbody_gearA, mbody_gearB, chrono.ChFramed())       # Initializing the gear link between gear A & B
+link_gearAB.SetFrameShaft1(chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleX(-m.pi / 2)))    # Setting frame for shaft1
+link_gearAB.SetFrameShaft2(chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleX(-m.pi / 2)))    # Setting frame for shaft2
 link_gearAB.SetTransmissionRatio(radA / radB)                             # Setting transmission ratio as radA/radB
 link_gearAB.SetEnforcePhase(True)                                         # Enforcing phase matching between gears
 sys.AddLink(link_gearAB)                                                  # Adding the gear constraint to the system
@@ -94,9 +103,9 @@ sys.AddLink(link_gearAB)                                                  # Addi
 # Note: here, the last wheel C is the truss itself
 radC = 2 * radB + radA                                                    # Calculating radius for large wheel C
 link_gearBC = chrono.ChLinkLockGear()                                     # Creating a gear constraint link
-link_gearBC.Initialize(mbody_gearB, mbody_truss, chrono.ChCoordsysD())       # Initializing the gear link between gear B & truss (Corrected)
-link_gearBC.SetFrameShaft1(chrono.ChFrameD(chrono.VNULL, chrono.Q_from_AngX(-m.pi / 2)))    # Setting frame for second gear B shaft (Corrected)
-link_gearBC.SetFrameShaft2(chrono.ChFrameD(chrono.ChVector3d(0, 0, -4), chrono.QUNIT))        # Setting frame for large wheel C shaft (Corrected)
+link_gearBC.Initialize(mbody_gearB, mbody_truss, chrono.ChFramed())       # Initializing the gear link between gear B & truss
+link_gearBC.SetFrameShaft1(chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleX(-m.pi / 2)))    # Setting frame for second gear B shaft
+link_gearBC.SetFrameShaft2(chrono.ChFramed(chrono.ChVector3d(0, 0, -4), chrono.QUNIT))        # Setting frame for large wheel C shaft
 link_gearBC.SetTransmissionRatio(radB / radC)                             # Setting transmission ratio as radB/radC
 link_gearBC.SetEpicyclic(True)                                            # Enabling epicyclic gear set (internal teeth)
 sys.AddLink(link_gearBC)                                                  # Adding the gear constraint to the system

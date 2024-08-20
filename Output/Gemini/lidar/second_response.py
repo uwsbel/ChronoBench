@@ -15,12 +15,16 @@ def main():
     # ----------------------------------
     # Add a box to be sensed by a lidar
     # ----------------------------------
-    side = 4.0
+    side = 4
     box_body = chrono.ChBodyEasyBox(side, side, side, 1000)
     box_body.SetPos(chrono.ChVector3d(0, 0, 0))
     box_body.SetBodyFixed(True)
-    # Add a texture to the box
-    box_body.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/blue.png"))
+
+    # Set box color texture
+    visual_asset = chrono.ChVisualShapeTexture()
+    visual_asset.SetTextureFilename(chrono.GetChronoDataFile("sensor/textures/cubetexture_bluewhite.png"))
+    box_body.AddVisualShape(visual_asset)
+
     mphysicalSystem.Add(box_body)
 
     # -----------------------
@@ -31,7 +35,7 @@ def main():
     # ------------------------------------------------
     # Create a lidar and add it to the sensor manager
     # ------------------------------------------------
-    offset_pose = chrono.ChFrame(
+    offset_pose = chrono.ChFrameD(
         chrono.ChVectorD(-12, 0, 1), chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0))
     )
     lidar = sens.ChLidarSensor(
@@ -83,18 +87,18 @@ def main():
     # Add the lidar to the sensor manager
     manager.AddSensor(lidar)
 
-    #--------------------------------------------------
-    # Create a 2D lidar and add it to the sensor manager
-    #--------------------------------------------------
+    # ------------------------------------------------
+    # Create a 2D lidar and add it to the manager
+    # ------------------------------------------------
     lidar_2d = sens.ChLidarSensor(
         box_body,
         update_rate,
-        offset_pose,
+        chrono.ChFrameD(chrono.ChVectorD(0, 0, 2), chrono.Q_from_AngAxis(chrono.CH_C_PI / 2, chrono.ChVectorD(1, 0, 0))),
         horizontal_samples,
-        1,  # One vertical channel for 2D lidar
+        1,
         horizontal_fov,
-        0,  # No vertical FOV for 2D
-        0,  # No vertical FOV for 2D
+        0,
+        0,
         100.0,
         sens.LidarBeamShape_RECTANGULAR,
         sample_radius,
@@ -102,22 +106,25 @@ def main():
         divergence_angle,
         return_mode
     )
-    lidar_2d.SetName("Lidar 2D Sensor")
+    lidar_2d.SetName("Lidar2D Sensor")
     lidar_2d.SetLag(lag)
     lidar_2d.SetCollectionWindow(collection_time)
 
-    # Add filters for the 2D lidar
+    if noise_model == "CONST_NORMAL_XYZI":
+        lidar_2d.PushFilter(sens.ChFilterLidarNoiseXYZI(0.01, 0.001, 0.001, 0.01))
+    elif noise_model == "NONE":
+        # Don't add any noise models
+        pass
+
     if vis:
-        lidar_2d.PushFilter(sens.ChFilterVisualize(horizontal_samples, 1, "Raw Lidar 2D Depth Data"))
+        lidar_2d.PushFilter(sens.ChFilterVisualize(horizontal_samples, 1, "Raw Lidar2D Depth Data"))
     lidar_2d.PushFilter(sens.ChFilterDIAccess())
     lidar_2d.PushFilter(sens.ChFilterPCfromDepth())
     if vis:
-        lidar_2d.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "Lidar 2D Point Cloud"))
+        lidar_2d.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "Lidar2D Point Cloud"))
     lidar_2d.PushFilter(sens.ChFilterXYZIAccess())
-
-    # Add the 2D lidar to the sensor manager
     manager.AddSensor(lidar_2d)
-
+    
     # ---------------
     # Simulate system
     # ---------------
@@ -129,9 +136,9 @@ def main():
     t1 = time.time()
 
     while ch_time < end_time:
-        # Set lidar to orbit around the box body
+        # Set lidar to orbit around the mesh body
         lidar.SetOffsetPose(
-            chrono.ChFrame(
+            chrono.ChFrameD(
                 chrono.ChVectorD(
                     -orbit_radius * math.cos(ch_time * orbit_rate),
                     -orbit_radius * math.sin(ch_time * orbit_rate),
@@ -140,8 +147,6 @@ def main():
                 chrono.Q_from_AngAxis(ch_time * orbit_rate, chrono.ChVectorD(0, 0, 1))
             )
         )
-        # Make the 2D lidar follow the same orbit
-        lidar_2d.SetOffsetPose(lidar.GetOffsetPose())
 
         # Access the XYZI buffer from lidar
         xyzi_buffer = lidar.GetMostRecentXYZIBuffer()
@@ -149,14 +154,6 @@ def main():
             xyzi_data = xyzi_buffer.GetXYZIData()
             print('XYZI buffer received from lidar. Lidar resolution: {0}x{1}'.format(xyzi_buffer.Width, xyzi_buffer.Height))
             print('Max Value: {0}'.format(np.max(xyzi_data)))
-
-        # Access the XYZI buffer from lidar_2d
-        xyzi_buffer_2d = lidar_2d.GetMostRecentXYZIBuffer()
-        if xyzi_buffer_2d.HasData():
-            xyzi_data_2d = xyzi_buffer_2d.GetXYZIData()
-            print('XYZI buffer received from lidar_2d. Lidar resolution: {0}x{1}'.format(xyzi_buffer_2d.Width, xyzi_buffer_2d.Height))
-            print('Max Value: {0}'.format(np.max(xyzi_data_2d)))
-
 
         # Update sensor manager (will render/save/filter automatically)
         manager.Update()
@@ -193,9 +190,9 @@ horizontal_samples = 800
 vertical_samples = 300
 
 # Horizontal and vertical field of view (radians)
-horizontal_fov = 2 * chrono.CH_PI  # 360 degrees
-max_vert_angle = chrono.CH_PI / 12
-min_vert_angle = -chrono.CH_PI / 6
+horizontal_fov = 2 * chrono.CH_C_PI  # 360 degrees
+max_vert_angle = chrono.CH_C_PI / 12
+min_vert_angle = -chrono.CH_C_PI / 6
 
 # Lag time
 lag = 0

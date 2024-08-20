@@ -8,32 +8,70 @@ print("Example: PyChrono using beam finite elements")  # Print an introductory s
 # Create the physical system that will be simulated.
 sys = chrono.ChSystemSMC()
 
-# Create a mesh, which is a container for elements and their referenced nodes.
+# ----------------------------------------------------------------------------------------------
+# Add a Section on Euler-Bernoulli Beams using ChBuilderBeamEuler
+# ----------------------------------------------------------------------------------------------
+
+# Create a mesh for the beam.
 mesh = fea.ChMesh()
 
-# Create a section object for beam properties. This will define the characteristics of all beams that use this section.
+# Create a section object for beam properties.
 msection = fea.ChBeamSectionEulerAdvanced()
 
 # Set the width and height of the rectangular section of the beam.
 beam_wy = 0.012
 beam_wz = 0.025
-msection.SetAsRectangularSection(beam_wy, beam_wz)  # Set the cross-sectional shape and size of the beam.
+msection.SetAsRectangularSection(beam_wy, beam_wz)  # Set the cross-sectional shape and size.
 
 # Set the material properties of the beam.
-msection.SetYoungModulus(0.01e9)  # Young's modulus, a measure of the stiffness of the material.
-msection.SetShearModulus(0.01e9 * 0.3)  # Shear modulus, also related to the rigidity of the material.
-msection.SetRayleighDamping(0.000)  # Damping coefficient for Rayleigh damping, affecting the dynamic response.
-msection.SetCentroid(0, 0.02)  # Set the position of the centroid.
-msection.SetShearCenter(0, 0.1)  # Set the position of the shear center.
-msection.SetSectionRotation(45 * chrono.CH_C_RAD_TO_DEG)  # Set the rotation angle of the section around its axis (in degrees).
+msection.SetYoungModulus(0.01e9)  # Young's modulus
+msection.SetShearModulus(0.01e9 * 0.3)  # Shear modulus
+msection.SetRayleighDamping(0.000)  # Damping coefficient
+# msection.SetCentroid(0, 0.02) # Not necessary, automatically handled
+# msection.SetShearCenter(0, 0.1) # Not necessary, automatically handled
+# msection.SetSectionRotation(45 * chrono.CH_RAD_TO_DEG)  # No need to set rotation
+
+# Create a ChBuilderBeamEuler object to help create the beam.
+builder = fea.ChBuilderBeamEuler(mesh)
+
+# Define the beam section geometry
+builder.SetBeamSection(msection)  # Set the beam section properties.
+builder.SetIntegrationPoints(2)  # Use 2 integration points per beam element.
+
+# Point A and B for the beam.
+pointA = chrono.ChVectorD(0, 0, -0.1)
+pointB = chrono.ChVectorD(0.2, 0, -0.1)
+
+# Build the beam using the builder object.
+builder.BuildBeam(pointA,  # Starting point of the beam.
+                  pointB,  # Ending point of the beam.
+                  chrono.VECT_Y,  # 'Y' up direction.
+                  5)  # Number of elements in the beam.
+
+# Fix the last node of the created beam.
+builder.GetLastBeamNodes().back().SetFixed(True)
+
+# Apply a force to the first node of the beam.
+builder.GetLastBeamNodes()[0].SetForce(chrono.ChVectorD(0, -1, 0))
+
+# Add the mesh to the system.
+sys.Add(mesh)
+
+# ----------------------------------------------------------------------------------------------
+# Previous code with modifications
+# ----------------------------------------------------------------------------------------------
 
 # Define the length of the beam elements.
 beam_L = 0.1
 
 # Create nodes for the positions that will be used for beams.
 hnode1 = fea.ChNodeFEAxyzrot(chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)))  # Node at origin.
-hnode2 = fea.ChNodeFEAxyzrot(chrono.ChFrameD(chrono.ChVectorD(beam_L, 0, 0)))  # Node at beam length.
-hnode3 = fea.ChNodeFEAxyzrot(chrono.ChFrameD(chrono.ChVectorD(beam_L * 2, 0, 0)))  # Node at twice the beam length.
+hnode2 = fea.ChNodeFEAxyzrot(
+    chrono.ChFrameD(chrono.ChVectorD(beam_L, 0, 0))
+)  # Node at beam length.
+hnode3 = fea.ChNodeFEAxyzrot(
+    chrono.ChFrameD(chrono.ChVectorD(beam_L * 2, 0, 0))
+)  # Node at twice the beam length.
 
 # Add nodes to the mesh.
 mesh.AddNode(hnode1)
@@ -63,84 +101,65 @@ mtruss = chrono.ChBody()
 mtruss.SetBodyFixed(True)  # Fix the truss so it won't move.
 sys.Add(mtruss)  # Add the truss to the physical system.
 
+# Modify Existing Node-Fixing Approach: Use ChLinkMateGeneric
+# ----------------------------------------------------------------------------------------------
+
 # Create and initialize a constraint that connects node 3 to the fixed truss.
 constr_bc = chrono.ChLinkMateGeneric()
 constr_bc.Initialize(hnode3, mtruss, False, hnode3.Frame(), hnode3.Frame())
 sys.Add(constr_bc)  # Add the constraint to the system.
-constr_bc.SetConstrainedCoords(True, True, True,  # Constrain x, y, z translations.
-                               True, True, True)  # Constrain Rx, Ry, Rz rotations.
+constr_bc.SetConstrainedCoords(
+    True, True, True, True, True, True
+)  # Constrain all degrees of freedom
 
 # Create and initialize a constraint that connects node 1 to the fixed truss.
 constr_d = chrono.ChLinkMateGeneric()
 constr_d.Initialize(hnode1, mtruss, False, hnode1.Frame(), hnode1.Frame())
 sys.Add(constr_d)  # Add the constraint to the system.
-constr_d.SetConstrainedCoords(False, True, True,  # Constrain only y, z translations.
-                              False, False, False)  # Do not constrain any rotations.
+constr_d.SetConstrainedCoords(
+    False, True, True, False, False, False
+)  # Constrain only y, z translations
 
-# --------------------------------------------------
-# Add a Section on Euler-Bernoulli Beams
-# --------------------------------------------------
-
-# Use the ChBuilderBeamEuler helper object for beam creation
-builder = fea.ChBuilderBeamEuler()
-
-# Create a beam from point A to point B using BuildBeam
-builder.BuildBeam(mesh,  # the mesh to add the beam to
-                  msection,  # the section of the beam
-                  5,  # number of elements in the beam
-                  chrono.ChVectorD(0, 0, -0.1),  # point A
-                  chrono.ChVectorD(0.2, 0, -0.1),  # point B
-                  chrono.ChVectorD(0, 1, 0))  # 'Y' up direction
-
-# Fix the last node of the created beam.
-builder.GetLastBeamNodes().back().SetFixed(True)
-
-# Apply a force of (0, -1, 0) to the first node of the created beam.
-builder.GetLastBeamNodes().front().SetForce(chrono.ChVectorD(0, -1, 0))
-
-# --------------------------------------------------
+# ----------------------------------------------------------------------------------------------
 
 # Disable the automatic gravity for FEA elements in this demonstration.
 mesh.SetAutomaticGravity(False)
 
-# Add the mesh to the physical system.
-sys.Add(mesh)
-
-# Add visualization for the beams in the mesh.
+# Visualization for the beams in the mesh (unchanged).
 visualizebeamA = chrono.ChVisualShapeFEA(mesh)
-visualizebeamA.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_ELEM_BEAM_MZ)  # Visualize the bending moments.
-visualizebeamA.SetColorscaleMinMax(-0.4, 0.4)  # Set color scale limits.
-visualizebeamA.SetSmoothFaces(True)  # Smooth the faces for visualization.
-visualizebeamA.SetWireframe(False)  # Disable wireframe mode.
+visualizebeamA.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_ELEM_BEAM_MZ)
+visualizebeamA.SetColorscaleMinMax(-0.4, 0.4)
+visualizebeamA.SetSmoothFaces(True)
+visualizebeamA.SetWireframe(False)
 mesh.AddVisualShapeFEA(visualizebeamA)
 
-# Add visualization for the nodes in the mesh.
+# Visualization for the nodes in the mesh (unchanged).
 visualizebeamC = chrono.ChVisualShapeFEA(mesh)
-visualizebeamC.SetFEMglyphType(chrono.ChVisualShapeFEA.GlyphType_NODE_CSYS)  # Visualize coordinate systems at nodes.
-visualizebeamC.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NONE)  # No data type visualization.
-visualizebeamC.SetSymbolsThickness(0.006)  # Set symbol thickness.
-visualizebeamC.SetSymbolsScale(0.01)  # Set symbol scale.
-visualizebeamC.SetZbufferHide(False)  # Do not hide symbols behind objects.
+visualizebeamC.SetFEMglyphType(chrono.ChVisualShapeFEA.GlyphType_NODE_CSYS)
+visualizebeamC.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NONE)
+visualizebeamC.SetSymbolsThickness(0.006)
+visualizebeamC.SetSymbolsScale(0.01)
+visualizebeamC.SetZbufferHide(False)
 mesh.AddVisualShapeFEA(visualizebeamC)
 
 # Create an Irrlicht visualization window.
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(sys)  # Attach the simulation system to the visual system.
 vis.SetWindowSize(1024, 768)  # Set the window size.
-vis.SetWindowTitle('FEA beams')  # Set the window title.
+vis.SetWindowTitle("FEA beams")  # Set the window title.
 vis.Initialize()  # Initialize the visual system.
-vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))  # Add the Chrono logo.
+vis.AddLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))  # Add the Chrono logo.
 vis.AddSkyBox()  # Add a skybox.
 vis.AddCamera(chrono.ChVectorD(0.1, 0.1, 0.2))  # Add a camera.
 vis.AddTypicalLights()  # Add typical lights for the scene.
 
-# Change the default solver to the MKL Pardiso solver, which is more precise for FEA.
+# Set up the MKL Pardiso solver as the system solver (unchanged).
 msolver = mkl.ChSolverPardisoMKL()
-sys.SetSolver(msolver)  # Set the MKL Pardiso solver for the system.
+sys.SetSolver(msolver)
 
 # Simulation loop.
 while vis.Run():
     vis.BeginScene()  # Begin the scene.
     vis.Render()  # Render the scene.
     vis.EndScene()  # End the scene.
-    sys.DoStepDynamics(0.001)  # Perform one step of simulation with a step size of 0.001 seconds.
+    sys.DoStepDynamics(0.001)  # Perform one step of simulation

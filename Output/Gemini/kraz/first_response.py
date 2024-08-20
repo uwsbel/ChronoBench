@@ -1,77 +1,69 @@
-import pychrono as chrono
+import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
 import pychrono.vehicle as veh
 
-# ---------------------------------------------------------------------
-# Create the Chrono system and set default parameters
+# ------------------
+# Parameters
+# ------------------
+timestep = 0.01  # Simulation timestep
+terrain_length = 100  # Terrain length
+terrain_width = 100  # Terrain width
+vehicle_init_pos = chrono.ChVectorD(0, 1.0, 0)  # Initial vehicle position
+vehicle_init_vel = chrono.ChVectorD(0, 0, 0)  # Initial vehicle velocity
 
-system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
+# ------------------
+# Create Chrono system
+# ------------------
+system = chrono.ChSystem_NSC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
-# ---------------------------------------------------------------------
-# Create the terrain
+# ------------------
+# Create terrain
+# ------------------
+terrain = chrono.ChTerrain(system)
+terrain.Initialize(terrain_length, terrain_width, 0.05)
+terrain.SetFriction(0.8)
+terrain.SetRestitution(0.1)
 
-terrain = veh.RigidTerrain(system)
-patch_mat = chrono.ChMaterialSurfaceNSC()
-patch_mat.SetFriction(0.9)
-patch_mat.SetRestitution(0.01)
-patch_mat.SetContactMethod(chrono.ChContactMethod_NSC)
-patch_mat.SetCompliance(0.00001)
-patch = terrain.AddPatch(patch_mat, 
-                         chrono.ChVectorD(-50, -50, 0), chrono.ChVectorD(50, -50, 0), 
-                         chrono.ChVectorD(50, 50, 0), chrono.ChVectorD(-50, 50, 0))
-patch.SetColor(chrono.ChColor(0.8, 0.8, 1.0))
-patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 20, 20)
-terrain.Initialize()
+# ------------------
+# Create Kraz vehicle
+# ------------------
+vehicle = veh.ChWheeledVehicle(system, "Kraz/kraz_vehicle.json")
+vehicle.Initialize(chrono.ChCoordsysD(vehicle_init_pos, chrono.QUNIT))
+vehicle.SetChassisVisualizationType(veh.VisualizationType_PRIMITIVES)
+vehicle.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
+vehicle.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
+vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
 
-# ---------------------------------------------------------------------
-# Create the Kraz vehicle
-
-vehicle = veh.KrazTruck(system)
-vehicle.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 1.6)))
-vehicle.SetInitFwdVel(0.0)
-vehicle.Initialize()
-
-# ---------------------------------------------------------------------
-# Create the driver system
-
-driver = veh.ChDriver(vehicle)
+# ------------------
+# Create driver system
+# ------------------
+driver = veh.ChPathFollowerDriver(vehicle)
 driver.Initialize()
 
-# ---------------------------------------------------------------------
-# Create the Irrlicht application
+# ------------------
+# Create Irrlicht visualization
+# ------------------
+application = chronoirr.ChIrrApp(system)
+application.SetSkyBox()
+application.AddTypicalLights()
+application.AddCamera(chrono.ChVectorD(0, 5, -10), vehicle_init_pos)
 
-app = chronoirr.ChIrrApp(system, "Kraz Vehicle Demo", chronoirr.dimension2du(1024,768))
-app.AddTypicalSky()
-app.AddTypicalLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
-app.AddTypicalCamera(chronoirr.vector3df(10,10,10), chronoirr.vector3df(0,0,1.6))
-app.AddTypicalLights()
-
-app.AssetBindAll()
-app.AssetUpdateAll()
-
-# ---------------------------------------------------------------------
+# ------------------
 # Simulation loop
+# ------------------
+while application.GetDevice().run():
+    # Synchronize vehicle and driver
+    driver.Synchronize(timestep)
 
-app.SetTimestep(0.01)
-app.SetTryRealtime(True)
+    # Advance simulation by one timestep
+    system.DoStepDynamics(timestep)
 
-while app.GetDevice().run():
-    time = system.GetChTime()
+    # Update visualization
+    application.BeginScene(True, True, chronoirr.SColor(255, 140, 161, 192))
+    application.DrawAll()
+    application.EndScene()
 
-    # Driver inputs
-    driver_inputs = driver.GetInputs()
-
-    # Update modules (process inputs from other modules)
-    driver.Synchronize(time)
-    terrain.Synchronize(time)
-    vehicle.Synchronize(time, driver_inputs, terrain)
-
-    # Advance simulation for one timestep for all modules
-    driver.Advance(step=0.01)
-    terrain.Advance(step=0.01)
-    vehicle.Advance(step=0.01)
-
-    app.BeginScene()
-    app.DrawAll()
-    app.EndScene()
+    # Check for exit key (Esc)
+    if application.GetDevice().getKeyState(chronoirr.KEY_ESCAPE):
+        break

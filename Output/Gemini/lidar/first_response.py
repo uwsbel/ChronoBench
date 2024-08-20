@@ -1,98 +1,91 @@
 import pychrono as chrono
 import pychrono.sensor as sens
+import numpy as np
+import math
 
 # ---------------------------------------------------------------------
-#
-#  Create the simulation system and add items
-#
-
-# Create a Chrono system
+#  Create a Chrono system and set simulation parameters
+# ---------------------------------------------------------------------
 system = chrono.ChSystemNSC()
-
-# Set gravitational acceleration
 system.Set_G_acc(chrono.ChVectorD(0, 0, 0))
 
-# Create a mesh from the .obj file
-mesh = chrono.ChTriangleMeshConnected()
-mesh.LoadWavefrontMesh("your_mesh.obj")  # Replace with your .obj file path
-
-# Create a body based on the mesh
-mesh_body = chrono.ChBodyEasyMesh(
-    mesh,  # Mesh to use
-    1000,  # Density
-    True,  # Compute mass and inertia
-    True,  # Create visualization asset
-    True,  # Enable contact
-)
-mesh_body.SetBodyFixed(True)  # Fix the mesh in space
-system.Add(mesh_body)
+# Simulation time step
+time_step = 1e-3
+system.SetStep(time_step)
 
 # ---------------------------------------------------------------------
-#
-#  Create a sensor manager and add a lidar sensor
-#
+#  Create the simulation environment (add ground and asset)
+# ---------------------------------------------------------------------
+chrono.SetChronoDataPath("./data/")
 
+# Create a body using the Wavefront .obj mesh
+mesh_asset = chrono.ChAsset()
+mesh_asset.AppendAsset(chrono.ChObjShapeFile("./sensor_test_assets/house.obj"))
+mesh_body = chrono.ChBodyEasyMesh(
+    mesh_asset,  # Mesh asset
+    1000,        # Density
+    True,        # Compute mass inertia
+    True,        # Use visualization asset
+    False        # Use collision shape
+)
+system.Add(mesh_body)
+mesh_body.SetPos(chrono.ChVectorD(0, 0, 0))
+mesh_body.SetBodyFixed(True)  # Fix the mesh in space
+
+# ---------------------------------------------------------------------
+#  Create a sensor manager and add a lidar sensor
+# ---------------------------------------------------------------------
 manager = sens.ChSensorManager(system)
 
-# Set the update rate of the sensor manager
-manager.SetUpdateRate(50)
-
-# Create a lidar sensor
+# Create a Lidar sensor
 lidar = sens.ChLidarSensor(
-    mesh_body,  # Body to attach the sensor to
-    sens.ChFrameD(chrono.ChVectorD(0, 0, 0)),  # Position relative to the body
-    360,  # Horizontal samples
-    1,  # Vertical samples
-    chrono.CH_C_DEG_TO_RAD * 120,  # Horizontal field of view
-    chrono.CH_C_DEG_TO_RAD * 1,  # Vertical field of view
-    100.0,  # Maximum distance
+    mesh_body,              # Body to attach the sensor to
+    chrono.ChFrameD(chrono.ChVectorD(0, 0, 2)),  # Offset respect to body
+    1.0,                   # Update rate in Hz
+    chrono.ChVectorD(0, 1, 0), # Direction the sensor is pointing
+    50,                   # Number of horizontal rays
+    chrono.CH_C_DEG_TO_RAD * 20.0, # FOV,
+    50.0                 # Maximum distance
 )
-
-# Set noise model for the lidar
-# lidar.SetNoiseModel(sens.ChNoiseNone())
-lidar.SetNoiseModel(sens.ChNoiseNormal(0.01, 0.001))  # Example: Gaussian noise
-
-# Set visualization mode for the lidar
-lidar.SetVisualizationType(sens.VisualizationType_POINT_CLOUD)
-
-# Enable data output
-lidar.EnableDataRecording(True)
-
-# Add the lidar sensor to the sensor manager
+lidar.SetName("Lidar Sensor")
+# Set visualization parameters
+lidar.SetShowRays(True)
+lidar.SetRaysVisualizationLength(20)
+lidar.SetPointSize(0.01)
+# Set data filtering parameters
+lidar.SetNoiseModel(sens.ChLidarSensor.NoiseModel.GAUSSIAN)
+lidar.SetGaussianNoise(0.005)
+# Set data saving parameters
+lidar.SetSaveHorizontalRays(True)
+lidar.SetSaveVerticalRays(False)
+# Add the sensor to the manager
 manager.AddSensor(lidar)
 
 # ---------------------------------------------------------------------
-#
 #  Simulation loop
-#
+# ---------------------------------------------------------------------
+# Time to simulate for
+t_end = 10.0
+time = 0
 
-# Simulation parameters
-time_step = 0.01
-time_end = 10
+while time < t_end:
+    # Update the position of the lidar in orbit
+    orbit_radius = 5.0
+    orbit_speed = 0.5
+    angle = orbit_speed * time
+    lidar.SetOffsetPos(chrono.ChVectorD(orbit_radius * math.cos(angle), 0, orbit_radius * math.sin(angle)))
 
-# Orbit parameters
-orbit_radius = 5
-orbit_speed = 1
-
-# Simulation loop
-time = 0.0
-while time < time_end:
-    # Update lidar position in orbit
-    orbit_angle = orbit_speed * time
-    lidar_x = orbit_radius * chrono.ChCos(orbit_angle)
-    lidar_y = orbit_radius * chrono.ChSin(orbit_angle)
-    lidar.SetOffsetPose(chrono.ChFrameD(chrono.ChVectorD(lidar_x, lidar_y, 0)))
-
-    # Advance the simulation
+    # Advance simulation by one step
     manager.Update()
     system.DoStepDynamics(time_step)
-    time += time_step
 
     # Print lidar buffer data
-    print("Time:", time)
-    points = lidar.GetMostRecentBuffer()
-    for point in points:
-        print(point)
+    print(f"Time: {time:.2f}")
+    print(f"Lidar data buffer size: {lidar.GetPointCloud().size()}")
 
-# Save lidar data to file
-lidar.ExportData("lidar_data.csv")
+    time += time_step
+
+# ---------------------------------------------------------------------
+#  Save sensor data to file
+# ---------------------------------------------------------------------
+manager.ExportData("./sensor_output/test_output")

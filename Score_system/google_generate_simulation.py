@@ -107,7 +107,7 @@ Provide the corrected and modified script below:
 
     return response.text, prompt
   except Exception as e:
-    print('error1:', e)
+    print('error2:', e)
     return str(e), str(e)
 
 
@@ -137,16 +137,14 @@ def save_conversation_json(output_conversation_path, combined_prompt1, first_res
 
 
 opensource_model_links = {
-  "Gemini": "gemini-1.5-pro-exp-0801",
+  "Gemini": "gemini-1.5-pro",
 }
 system_list = ["art", "beam", "buckling", "cable", "car", "camera", "citybus", "curiosity", "feda", "gator", "gear",
                "gps_imu", "handler", "hmmwv", "kraz", "lidar", "m113", "man", "mass_spring_damper", "particles",
                "pendulum",
                "rigid_highway", "rigid_multipatches", "rotor", "scm", "scm_hill", "sedan", "sensros", "slider_crank",
                "tablecloth", "turtlebot", "uazbus", "veh_app", "vehros", "viper"]
-system_do_list = ["m113", "man", "mass_spring_damper", "particles",
-               "pendulum",
-               "rigid_highway", "rigid_multipatches", "rotor", "scm", "scm_hill", "sedan", "sensros", "slider_crank",
+system_do_list = [ "sedan", "sensros", "slider_crank",
                "tablecloth", "turtlebot", "uazbus", "veh_app", "vehros", "viper"]
 # data set path
 dataset_path = 'D:\SimBench\demo_data'

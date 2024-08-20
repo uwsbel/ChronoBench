@@ -1,92 +1,95 @@
-import pychrono as chrono
-import pychrono.irrlicht as chronoirr
+import pychrono.core as chrono
 import pychrono.vehicle as veh
+import pychrono.irrlicht as irr
+import os
 
-# ---------------------------------------------------------------------
-#
-#  Create the simulation system and add items
-#
+# ------------------------------------
+# Parameters
+# ------------------------------------
 
-# Create the Chrono system
+# Vehicle parameters
+vehicle_dir = "path/to/ARTcar/vehicle/directory"  # Update with the actual path to the ARTcar vehicle JSON file
+initLoc = chrono.ChVectorD(0, 1, 0.2)  # Initial vehicle location
+initRot = chrono.ChQuaternionD(1, 0, 0, 0)  # Initial vehicle orientation
+tire_contact_method = veh.contact_method_NSC  # Tire contact method (NSC in this case)
+chassis_vis_type = veh.VisualizationType_MESH  # Chassis visualization type (MESH)
+suspension_vis_type = veh.VisualizationType_PRIMITIVES  # Suspension visualization type (PRIMITIVES)
+steering_vis_type = veh.VisualizationType_PRIMITIVES  # Steering visualization type (PRIMITIVES)
+wheel_vis_type = veh.VisualizationType_MESH  # Wheel visualization type (MESH)
+
+# Terrain parameters
+terrain_length = 100  # Terrain length
+terrain_width = 100   # Terrain width
+terrain_texture = "path/to/terrain/texture.jpg"  # Update with the actual path to the terrain texture
+
+# Simulation parameters
+step_size = 1e-3  # Simulation step size
+target_fps = 50  # Target frames per second
+
+# ------------------------------------
+# Create Chrono system and other assets
+# ------------------------------------
+
+# Create Chrono system
 system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
-# Set the default outward/inward shape margins for collision detection,
-# this is epecially important for very large or very small objects.
-chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.001)
-chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.001)
-
-# Create the ARTcar vehicle, set parameters, and initialize
-vehicle = veh.ARTcar_Simple(system)
+# Create vehicle
+vehicle = veh.ChVehicle(vehicle_dir, system)
 vehicle.SetChassisFixed(False)
-vehicle.SetInitPosition(chrono.ChInitPosition(chrono.ChVectorD(0, 1, 0.5)))
-vehicle.SetInitOrientation(chrono.ChQuaternionD(1, 0, 0, 0))
-vehicle.SetContactMethod(contact_method=veh.ChContactMethod_NSC)
-vehicle.SetChassisVisualizationType(veh.VisualizationType_PRIMITIVES)
-vehicle.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
-vehicle.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
-vehicle.SetWheelVisualizationType(veh.VisualizationType_PRIMITIVES)
-vehicle.SetTireVisualizationType(veh.VisualizationType_PRIMITIVES)
-vehicle.Initialize()
+vehicle.SetInitPosition(chrono.ChCoordsysD(initLoc, initRot))
+vehicle.SetTireContactMethod(tire_contact_method)
+vehicle.SetChassisVisualizationType(chassis_vis_type)
+vehicle.SetSuspensionVisualizationType(suspension_vis_type)
+vehicle.SetSteeringVisualizationType(steering_vis_type)
+vehicle.SetWheelVisualizationType(wheel_vis_type)
 
-# Create the terrain, set its size and texture
+# Create terrain
 terrain = veh.RigidTerrain(system)
-terrain_size = chrono.ChVectorD(80, 12, 3)
-terrain.Initialize(chrono.ChVectorD(0, 0, 0), terrain_size)
-terrain.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 20, 20)
+patch = terrain.AddPatch(chrono.ChMaterialSurfaceNSC(),  # Use NSC material for the terrain
+                         chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(terrain_length / 2, terrain_width / 2, 0),
+                         chrono.ChQuaternionD(1, 0, 0, 0))
+patch.SetTexture(terrain_texture, terrain_length, terrain_width)
+patch.SetContactFrictionCoefficient(0.9)
+terrain.Initialize()
 
-# Create the driver system
-driver = veh.ChDriverSimple(vehicle)
+# Create driver
+driver = veh.ChInteractiveDriverIRR(vehicle)
 driver.Initialize()
 
-# ---------------------------------------------------------------------
-#
-#  Create an Irrlicht application to visualize the system
-#
+# ------------------------------------
+# Create Irrlicht visualization
+# ------------------------------------
+application = irr.ChIrrApp(system)
+application.SetSkyImage(chrono.GetChronoDataFile('skybox/skybox_01_front.jpg'),
+                        chrono.GetChronoDataFile('skybox/skybox_01_back.jpg'),
+                        chrono.GetChronoDataFile('skybox/skybox_01_left.jpg'),
+                        chrono.GetChronoDataFile('skybox/skybox_01_right.jpg'),
+                        chrono.GetChronoDataFile('skybox/skybox_01_top.jpg'),
+                        chrono.GetChronoDataFile('skybox/skybox_01_down.jpg'))
+application.AddTypicalLights()
+application.AddCamera(chrono.ChVectorD(1, 1, 1), chrono.ChVectorD(0, 0, 0))
+application.SetTimestep(step_size)
+application.AssetBindAll()
+application.AssetUpdateAll()
 
-myapplication = chronoirr.ChIrrApp(
-    system, "PyChrono example: ARTcar", chronoirr.dimension2du(1024, 768)
-)
-myapplication.AddTypicalSky()
-myapplication.AddTypicalLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))
-myapplication.AddTypicalCamera(
-    chronoirr.vector3df(0, 1.5, -2), chronoirr.vector3df(0, 0, 0)
-)
-myapplication.AddLightWithShadow(
-    chronoirr.vector3df(10, 20, 10),
-    chronoirr.vector3df(0, 2.6, 0),
-    30,
-    10,
-    40,
-    60,
-    512,
-    chronoirr.SColorf(1, 1, 1),
-)
-myapplication.AssetBindAll()
-myapplication.AssetUpdateAll()
-myapplication.AddShadowAll()
+# ------------------------------------
+# Simulation loop
+# ------------------------------------
+application.SetTryRealtime(True)
+application.SetDesiredFPS(target_fps)
 
-# ---------------------------------------------------------------------
-#
-#  Run the simulation
-#
+while application.GetDevice().run():
+    time = system.GetChTime()
 
-myapplication.SetTimestep(0.01)
+    # Update vehicle and driver
+    driver.Synchronize(time)
+    vehicle.Update(time)
 
-while myapplication.GetDevice().run():
-    # Render scene
-    myapplication.BeginScene()
-    myapplication.DrawAll()
-    myapplication.EndScene()
+    # Advance simulation
+    system.DoStepDynamics(step_size)
 
-    # Get driver inputs
-    driver_inputs = driver.GetInputs()
-
-    # Update the vehicle systems
-    vehicle.Update(system.GetChTime(), driver_inputs)
-
-    # Advance simulation step
-    system.DoStepDynamics(0.01)
-
-    # Display simulation at 50 FPS
-    myapplication.SetTryRealtime(True)
-    myapplication.SetDesiredFPS(50)
+    # Update visualization
+    application.BeginScene()
+    application.DrawAll()
+    application.EndScene()

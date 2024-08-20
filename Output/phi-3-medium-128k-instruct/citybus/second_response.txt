@@ -138,15 +138,3 @@ while vis.Run() :
     step_number += 1
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
-
-# Remove the time response settings for steering, throttle, and braking inputs
-# steering_time = 1.0  # time to go from 0 to +1 (or from 0 to -1)
-# throttle_time = 1.0  # time to go from 0 to +1
-# braking_time = 0.3   # time to go from 0 to +1
-# driver.SetSteeringDelta(render_step_size / steering_time)
-# driver.SetThrottleDelta(render_step_size / throttle_time)
-# driver.SetBrakingDelta(render_step_size / braking_time)
-
-# driver.Initialize()
-
-# The rest of the code remains unchanged.

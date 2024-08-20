@@ -20,11 +20,12 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 # Rigid terrain
+# terrain_model = veh.RigidTerrain.BOX
 terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
 
-# Point tracked by the camera
+# Point on chassis tracked by the camera
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
 
 # Contact method
@@ -38,9 +39,36 @@ tire_step_size = step_size
 # Time interval between two render frames
 render_step_size = 1.0 / 50  # FPS = 50
 
+# *** Custom Driver Class ***
+class MyDriver(veh.ChDriver):
+    def __init__(self, delay):
+        veh.ChDriver.__init__(self)
+        self.delay = delay
+
+    def Synchronize(self, time):
+        # Apply delay to driver inputs
+        if time < self.delay:
+            self.SetThrottle(0)
+            self.SetSteering(0)
+            self.SetBraking(0)
+        else:
+            # Gradually increase throttle to 0.7 after 0.2 seconds
+            if time < self.delay + 0.2:
+                self.SetThrottle((time - self.delay) * 3.5)  # 0.7 / 0.2 = 3.5
+            else:
+                self.SetThrottle(0.7)
+
+            # Apply sinusoidal steering pattern starting at 2 seconds
+            if time > self.delay + 2:
+                self.SetSteering(0.5 * math.sin(time - self.delay - 2))
+            else:
+                self.SetSteering(0)
+
+            # Braking is not used in this example
+            self.SetBraking(0)
 
 # Create the HMMWV vehicle, set parameters, and initialize
-vehicle = veh.HMMWV_Full()
+vehicle = veh.HMMWV_Full()  # veh.HMMWV_Reduced() could be another choice here
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
@@ -62,7 +90,7 @@ patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), terrainLength, terrainWidth)
+patch = terrain.AddPatch(patch_mat,chrono.ChCoordsysd(chrono.ChVector3d(0, 0, terrainHeight), chrono.QUNIT),terrainLength, terrainWidth)
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
@@ -78,38 +106,11 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
-# ---------------------------------------------------------------------
-#  Create the custom driver system
-# ---------------------------------------------------------------------
-
-class MyDriver(veh.ChDriver):
-    def __init__(self, delay):
-        veh.ChDriver.__init__(self)
-        self.delay = delay
-
-    def Synchronize(self, time):
-        if time < self.delay:
-            self.SetThrottle(0)
-            self.SetSteering(0)
-            self.SetBraking(0)
-        else:
-            if time < self.delay + 0.2:
-                self.SetThrottle((time - self.delay) / 0.2 * 0.7)
-            else:
-                self.SetThrottle(0.7)
-            
-            if time > self.delay + 2:
-                self.SetSteering(0.5 * math.sin(time - self.delay - 2))
-            else:
-                self.SetSteering(0)
-            
-            self.SetBraking(0)
-
-# Create the driver system
-driver = MyDriver(0.5)
+# Create and initialize the custom driver
+driver = MyDriver(delay=0.5)
 driver.Initialize()
 
-# output vehicle mass
+# Output vehicle mass
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events
@@ -123,21 +124,21 @@ render_frame = 0
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
-    # End simulation
+    # End simulation at 4 seconds
     if time >= 4:
         break
 
     # Render scene
-    if (step_number % render_steps == 0):
+    if step_number % render_steps == 0:
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
         render_frame += 1
 
-    # Get driver inputs
+    # Get driver inputs (not used because inputs are handled within MyDriver)
     driver_inputs = driver.GetInputs()
 
-    # Update modules (process inputs from other modules)
+    # Update modules
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)

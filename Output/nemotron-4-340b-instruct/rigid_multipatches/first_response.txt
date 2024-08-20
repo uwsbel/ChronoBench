@@ -5,7 +5,6 @@ To create the PyChrono simulation based on the given instructions, follow the st
 ```python
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
-import pychrono.vehicle as veh
 import numpy as np
 
 # Initialize the PyChrono environment
@@ -23,67 +22,66 @@ vis.Initialize()
 
 ```python
 # Create the HMMWV vehicle
-hmmwv = veh.HMMWV_Full()
-hmmwv.SetChassisVisualizationType(veh.VisualizationType_MESH)
-hmmwv.SetSuspensionVisualizationType(veh.VisualizationType_MESH)
-hmmwv.SetWheelVisualizationType(veh.VisualizationType_MESH)
+hmmwv = chrono.ChVehicleHMMWV()
+hmmwv.SetChassisVisualizationType(chrono.ChVehicleVisualizationType.MESH)
+hmmwv.SetSuspensionVisualizationType(chrono.ChVehicleVisualizationType.MESH)
+hmmwv.SetWheelVisualizationType(chrono.ChVehicleVisualizationType.MESH)
 
-# Set vehicle parameters
-hmmwv.SetInitPosition(chrono.ChVectorD(0, 0.5, 0))
-hmmwv.SetEngineType(veh.EngineModelType_SIMPLE)
-hmmwv.SetDriveType(veh.DrivelineType_FOUR_WD)
+# Set specific parameters for the HMMWV
+hmmwv.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0.5), chrono.Q_from_AngAxis(0, chrono.ChVectorD(1, 0, 0))))
+hmmwv.SetEngineType(chrono.ChHMMWV_EngineType.SHAFT)
+hmmwv.SetDriveType(chrono.ChHMMWV_DriveType.FOUR_WD)
 
-# Add the vehicle to the simulation
-chrono.GetSystem().Add(hmmwv.GetVehicle())
-
-# Create the complex terrain
-terrain = chrono.ChBodyEasyBox(100, 0.1, 100, 1000, True, True)
-terrain.SetPos(chrono.ChVectorD(0, -0.5, 0))
+# Create the complex rigid terrain
+terrain = chrono.ChBodyEasyBox(100, 100, 0.1, 1000, True, True)
+terrain.SetPos(chrono.ChVectorD(0, 0, -0.05))
 terrain.SetBodyFixed(True)
-chrono.GetSystem().Add(terrain)
 
 # Add flat patches with different textures
-flat_patch_materials = [chrono.ChMaterialSurfaceNSC(0.5, 0.5), chrono.ChMaterialSurfaceNSC(0.2, 0.8)]
-for i in range(2):
-    flat_patch = chrono.ChBodyEasyBox(10, 0.1, 10, 1000, True, True)
-    flat_patch.SetPos(chrono.ChVectorD(-50 + i * 50, -0.5, 0))
-    flat_patch.SetMaterialSurface(flat_patch_materials[i])
-    chrono.GetSystem().Add(flat_patch)
+flat_patch_1 = chrono.ChBodyEasyBox(50, 50, 0.1, 1000, True, True)
+flat_patch_1.SetPos(chrono.ChVectorD(-25, 0, -0.05))
+flat_patch_1.SetTexture(chrono.GetChronoDataFile('textures/concrete.png'))
+
+flat_patch_2 = chrono.ChBodyEasyBox(50, 50, 0.1, 1000, True, True)
+flat_patch_2.SetPos(chrono.ChVectorD(25, 0, -0.05))
+flat_patch_2.SetTexture(chrono.GetChronoDataFile('textures/grass.png'))
 
 # Add a mesh-based patch for a bump
 bump_mesh = chrono.ChTriangleMeshConnected()
-bump_mesh.LoadWavefrontFile('path/to/bump_mesh.obj')
+bump_mesh.LoadWavefrontMesh(chrono.GetChronoDataFile('models/bump.obj'), True, True)
 bump_body = chrono.ChBodyEasyMesh(bump_mesh, 1000, True, True)
-bump_body.SetPos(chrono.ChVectorD(0, -0.5, 0))
-bump_body.SetBodyFixed(True)
-chrono.GetSystem().Add(bump_body)
+bump_body.SetPos(chrono.ChVectorD(0, 0, 0.1))
 
 # Add a heightmap-based patch for varying elevations
-heightmap_data = np.loadtxt('path/to/heightmap.txt')
+heightmap_data = np.loadtxt(chrono.GetChronoDataFile('heightmaps/heightmap.txt'))
 heightmap_body = chrono.ChBodyEasyHeightfield(heightmap_data, 0.1, 0.1, 0.1, 1000, True, True)
-heightmap_body.SetPos(chrono.ChVectorD(0, -0.5, 0))
-heightmap_body.SetBodyFixed(True)
-chrono.GetSystem().Add(heightmap_body)
+heightmap_body.SetPos(chrono.ChVectorD(0, 0, -0.05))
 ```
 
 3. Set necessary default parameters such as positions, forces, and interactions:
 
 ```python
-# Set the interaction between the vehicle and the terrain
-contact_method = chrono.ChMaterialSurface.SMC
-terrain.GetMaterialSurface().SetFriction(0.9)
-for body in [terrain, *flat_patch_materials, bump_body, heightmap_body]:
-    body.GetMaterialSurface().SetContactMethod(contact_method)
+# Add the terrain and patches to the simulation
+chrono.GetSystem().Add(terrain)
+chrono.GetSystem().Add(flat_patch_1)
+chrono.GetSystem().Add(flat_patch_2)
+chrono.GetSystem().Add(bump_body)
+chrono.GetSystem().Add(heightmap_body)
 
-# Set the driver system
-driver = veh.ChIrrGuiDriver(hmmwv, vis)
-driver.Initialize()
+# Add the HMMWV to the simulation
+chrono.GetSystem().Add(hmmwv.GetVehicle())
+
+# Set up the interactive driver system
+driver = chrono.ChInteractiveDriver(hmmwv.GetVehicle())
+driver.SetSteeringDelta(0.01)
+driver.SetThrottleDelta(0.01)
+driver.SetBrakingDelta(0.01)
 
 # Set the simulation timestep
 timestep = 0.01
 ```
 
-4. Run the simulation:
+4. Run the simulation and render the scene in real time:
 
 ```python
 # Simulation loop
@@ -91,8 +89,8 @@ while vis.Run():
     vis.BeginScene()
     vis.Render()
 
-    # Update the driver system
-    driver.Synchronize(chrono.GetSystem().GetChTime())
+    # Update the interactive driver system
+    driver.Update()
 
     # Advance the simulation
     chrono.GetSystem().DoStepDynamics(timestep)
@@ -100,4 +98,4 @@ while vis.Run():
     vis.EndScene()
 ```
 
-This script creates a PyChrono simulation of an HMMWV on a complex rigid terrain with an interactive driver system and real-time visualization using Irrlicht.
+This script creates a PyChrono simulation of an HMMWV on a complex rigid terrain with diverse surface types and an interactive driver system.

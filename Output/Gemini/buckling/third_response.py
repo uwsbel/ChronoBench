@@ -1,59 +1,54 @@
 import math as m  # Import the math library for trigonometric functions, constants, etc.
-import pychrono as chrono  # Import the main PyChrono library - **Corrected typo: chrno -> chrono**
+import pychrono as chrono  # Import the main PyChrono library
 import pychrono.fea as fea  # Import the finite element analysis module from PyChrono
 import pychrono.pardisomkl as mklsolver  # Import the Pardiso solver module from PyChrono
-import pychrono.irrlicht as chronoirr  # Import the Irrlicht visualization module - **Corrected typo: chronicls -> chronoirr**
+import pychrono.irrlicht as chronicls  # Import the Irrlicht visualization module from PyChrono
 import os  # Import the OS library for file and directory operations
 
 # Custom function class for motor angle:
 class ChFunctionMyFun(chrono.ChFunction):
     def __init__(self):
         chrono.ChFunction.__init__(self)
-    def Get_y(self, x):  # **Corrected method name: GetVal -> Get_y**
+    def Get_y(self, x):  # Use Get_y instead of GetVal
         if x > 0.5:
-            return chrono.CH_C_PI  # **Corrected constant: CH_PI -> CH_C_PI**
+            return chrono.CH_C_PI  # Use chrono.CH_C_PI instead of chrono.CH_PI
         else:
-            return -chrono.CH_C_PI * (1.0 - m.cos(chrono.CH_C_PI * x / 0.3)) / 2.0  # **Corrected constant: CH_PI -> CH_C_PI**
+            return -chrono.CH_C_PI * (1.0 - m.cos(chrono.CH_C_PI * x / 0.3)) / 2.0  # Use chrono.CH_C_PI instead of chrono.CH_PI
 
 # Define the output directory path
-out_dir = chrono.GetChronoDataPath() + "BEAM_FAILED"  # **Corrected method name: GetChronoOutputPath -> GetChronoDataPath**
+out_dir = chrono.GetChronoOutputPath() + "BEAM_FAILED"
 
 # Create a Chrono::Engine physical system
-sys = chrono.ChSystemSMC()
+sys = chrono.ChSystemSMC()  # Use chrono.ChSystemSMC instead of chrono.ChSytemSMC
 
 # Define key geometrical parameters
 L = 1.2
 H = 0.4
 K = 0.07
-vA = chrono.ChVectorD(0, 0, 0)  # **Corrected class name: ChVector3d -> ChVectorD**
-vC = chrono.ChVectorD(L, 0, 0)  # **Corrected class name: ChVector3d -> ChVectorD**
-vB = chrono.ChVectorD(L, -H, 0)  # **Corrected class name: ChVector3d -> ChVectorD**
-vG = chrono.ChVectorD(L - K, -H, 0)  # **Corrected class name: ChVector3d -> ChVectorD**
-vd = chrono.ChVectorD(0, 0, 0.0001)  # **Corrected class name: ChVector3d -> ChVectorD**
+vA = chrono.ChVectorD(0, 0, 0)  # Use chrono.ChVectorD instead of chrono.ChVector3d
+vC = chrono.ChVectorD(L, 0, 0)
+vB = chrono.ChVectorD(L, -H, 0)
+vG = chrono.ChVectorD(L - K, -H, 0)
+vd = chrono.ChVectorD(0, 0, 0.0001)
 
 # Create a truss body, fixed in space:
-body_trss = chrono.ChBodyAuxRef()  # **Use ChBodyAuxRef for easier coordinate handling**
-body_trss.SetBodyFixed(True)  # **Corrected method name: SetFixed -> SetBodyFixed**
-sys.Add(body_trss)  # **Corrected method name: AddBody -> Add**
+body_trss = chrono.ChBodyEasyBox(0.03, 0.25, 0.15, 1000, True, True) # Use chrono.ChBodyEasyBox instead the combination of chrono.ChBody and chrono.ChVisualShapeBox
+body_trss.SetPos(chrono.ChVectorD(-0.01, 0, 0))
+body_trss.SetBodyFixed(True)  # Use SetBodyFixed instead of SetFixed
+sys.Add(body_trss)  # Add body to the system
 
-# Attach a visualization shape to the truss
-boxtruss = chrono.ChVisualShapeBox(0.03, 0.25, 0.15)
-body_trss.AddVisualShape(boxtruss, chrono.ChFrameD(chrono.ChVectorD(-0.01, 0, 0), chrono.QUNIT))  # **Corrected class name: ChVector3d -> ChVectorD, ChFramed -> ChFrameD**
 
 # Create a crank body:
-body_crank = chrono.ChBodyAuxRef()  # **Use ChBodyAuxRef for easier coordinate handling**
+body_crank = chrono.ChBodyEasyBox(K, 0.05, 0.03, 1000, True, True)  # Use chrono.ChBodyEasyBox instead the combination of chrono.ChBody and chrono.ChVisualShapeBox
 body_crank.SetPos((vC + vG) * 0.5)
 sys.Add(body_crank)
 
-# Attach a visualization shape to the crank
-boxcrank = chrono.ChVisualShapeBox(K, 0.05, 0.03)
-body_crank.AddVisualShape(boxcrank)
 
 # Create a rotational motor
 motor = chrono.ChLinkMotorRotationSpeed()
-motor.Initialize(body_truss, body_crank, chrono.ChFrameD(vG))  # **Corrected class name: ChFramed -> ChFrameD**
+motor.Initialize(body_trss, body_crank, chrono.ChFrameD(vG))  # Use chrono.ChFrameD instead of chrono.ChFramed
 myfun = ChFunctionMyFun()
-motor.SetSpeedFunction(myfun)  # **Corrected method name: SetTorqueFunction -> SetSpeedFunction**
+motor.SetAngleFunction(myfun)  # Use SetAngleFunction instead of SetTorqueFunction
 sys.Add(motor)
 
 # Create a FEM mesh container:
@@ -64,24 +59,23 @@ beam_wy = 0.12
 beam_wz = 0.15
 
 # Create section properties for the IGA beam
-minertia = fea.ChInertiaCosseratSimple()
+minertia = fea.ChInertiaCosseratSimple()  # Use fea.ChInertiaCosseratSimple instead of fea.ChIneritaCosseratSimple
 minertia.SetAsRectangularSection(beam_wy, beam_wz, 2700)
 melasticity = fea.ChElasticityCosseratSimple()
 melasticity.SetYoungModulus(72.0e9)
 melasticity.SetShearModulusFromPoisson(0.35)
 melasticity.SetAsRectangularSection(beam_wy, beam_wz)
-msection1 = fea.ChMaterialBeamIGA(minertia, melasticity)  # **Corrected class name: ChMassSectionCosserat -> ChMaterialBeamIGA**
+msection1 = fea.ChMaterialBeamCosserat(minertia, melasticity)  # Use fea.ChMaterialBeamCosserat instead of fea.ChMassSectionCosserat
+msection1.SetDrawThickness(beam_wy * 0.5, beam_wz)
 
 # Build the IGA beam
 builder_iga = fea.ChBuilderBeamIGA()
-
-# Correct the node indexing to match the new beam builder
-builder_iga.BuildBeam(mesh, msection1, 30, vA, vC, chrono.VECT_X, 3) 
+builder_iga.BuildBeam(mesh, msection1, 30, vA, vC, chrono.VECT_X, 3)
 
 # Fix the first node of the horizontal beam
 builder_iga.GetLastBeamNodes().front().SetFixed(True)
-node_tip = builder_iga.GetLastBeamNodes().back() # **Corrected indexing to get the last node**
-node_mid = builder_iga.GetLastBeamNodes()[int(len(builder_iga.GetLastBeamNodes())/2)] # **Corrected indexing to get the middle node**
+node_tip = builder_iga.GetLastBeamNodes()[15]  # Index corrected to match the desired node
+node_mid = builder_iga.GetLastBeamNodes()[7]  # Index corrected to match the desired node
 
 # Define vertical beam parameters using Euler beams
 section2 = fea.ChBeamSectionEulerAdvanced()
@@ -94,10 +88,10 @@ section2.SetAsCircularSection(hbeam_d)
 
 # Build the vertical beam with Euler elements
 builderA = fea.ChBuilderBeamEuler()
-builderA.BuildBeam(mesh, section2, 10, vC + vd, vB + vd, chrono.ChVectorD(1, 0, 0))  # **Corrected class name: ChVector3d -> ChVectorD**
+builderA.BuildBeam(mesh, section2, 10, vC + vd, vB + vd, chrono.ChVectorD(1, 0, 0))  # Use chrono.ChVectorD instead of chrono.ChVector3d
 
 # Define nodes at the top and bottom of the vertical beam
-node_top = builderA.GetLastBeamNodes()[0]  # **Corrected indexing to get the first node**
+node_top = builderA.GetLastBeamNodes()[0]
 node_down = builderA.GetLastBeamNodes()[-1]
 
 # Create a constraint between the horizontal and vertical beams
@@ -120,24 +114,24 @@ section3.SetRayleighDamping(0.000)
 section3.SetAsCircularSection(crankbeam_d)
 
 # Build the crank beam with Euler elements
-builderB = fea.ChBuilderBeamEuler()  # **Corrected typo: fe -> fea**
-builderB.BuildBeam(mesh, section3, 4, vG + vd, vB + vd, chrono.ChVectorD(0, 1, 0))  # **Corrected class name: ChVector3d -> ChVectorD**
+builderB = fea.ChBuilderBeamEuler()  # Use fea.ChBuilderBeamEuler instead of fe.ChBuilderBeamEuler
+builderB.BuildBeam(mesh, section3, 4, vG + vd, vB + vd, chrono.ChVectorD(0, 1, 0))  # Use chrono.ChVectorD instead of chrono.ChVector3d
 
 # Define nodes at the ends of the crank beam
 node_crnkG = builderB.GetLastBeamNodes()[0]
 node_crankB = builderB.GetLastBeamNodes()[-1]
 
 # Create a constraint between the crank beam and the body crank
-constr_cbd = chrono.ChLinkMateGeneric()  # **Changed to a more general constraint type**
+constr_cbd = chrono.ChLinkMatePrismatic()
 constr_cbd.Initialize(node_crnkG, body_crank, False, node_crnkG.Frame(), node_crnkG.Frame())
 sys.Add(constr_cbd)
-constr_cbd.SetConstrainedCoords(True, True, True, True, True, True)  # Lock all degrees of freedom
+constr_cbd.SetConstrainedCoords(True, True, True, True, True, True)
 
 # Create a constraint between the vertical beam and the crank beam
 constr_bc = chrono.ChLinkMateGeneric()
 constr_bc.Initialize(node_down, node_crankB, False, node_crankB.Frame(), node_crankB.Frame())
 sys.Add(constr_bc)
-constr_bc.SetConstrainedCoords(True, True, False, True, True, False)  # Allow rotation around the x-axis
+constr_bc.SetConstrainedCoords(True, True, False, True, True, False)
 
 # Attach a visualization shape for the constraint
 sphereconstr3 = chrono.ChVisualShapeSphere(0.01)
@@ -148,37 +142,37 @@ mesh.SetAutomaticGravity(True)
 sys.Add(mesh)
 
 # Create visualization for the FEM mesh:
-mvisualizebeamA = chrono.ChVisualShapeFEA(mesh)
-mvisualizebeamA.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_ELEM_BEAM_MY)
+mvisualizebeamA = fea.ChVisualizationFEAmesh(mesh)  # Use fea.ChVisualizationFEAmesh instead of chrono.ChVisualShapeFEA
+mvisualizebeamA.SetFEMdataType(fea.ChVisualizationFEAmesh.EDataType.ELEM_BEAM_MY)  # Corrected path and method name
 mvisualizebeamA.SetColorscaleMinMax(-400, 400)
 mvisualizebeamA.SetSmoothFaces(False)
 mvisualizebeamA.SetWireframe(False)
 mesh.AddVisualShapeFEA(mvisualizebeamA)
 
-mvisualizebeamC = chrono.ChVisualShapeFEA(mesh)
-mvisualizebeamC.SetFEMglyphType(chrono.ChVisualShapeFEA.GlyphType_NODE_VECTORS)
-mvisualizebeamC.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_FULL)
+mvisualizebeamC = fea.ChVisualizationFEAmesh(mesh)  # Use fea.ChVisualizationFEAmesh instead of chrono.ChVisualShapeFEA
+mvisualizebeamC.SetFEMglyphType(fea.ChVisualizationFEAmesh.EGlyphType.NODE_VECTORS)  # Corrected path and method name
+mvisualizebeamC.SetFEMdataType(fea.ChVisualizationFEAmesh.EDataType.FULL)
 mvisualizebeamC.SetSymbolsThickness(0.005)
 mvisualizebeamC.SetSymbolsScale(0.01)
 mvisualizebeamC.SetZbufferHide(True)
 mesh.AddVisualShapeFEA(mvisualizebeamC)
 
 # Create the Irrlicht visualization system
-vis = chronoirr.ChVisualSystemIrrlicht()
+vis = chronicls.ChVisualSystemIrrlicht()
 vis.AttachSystem(sys)
-vis.SetWindowSize(800, 600)
+vis.SetWindowSize(1280, 720)  # Use SetWindowSize instead of SetWindowSize
 vis.SetWindowTitle('Failed Beam Simulation')
 vis.Initialize()
-vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))  # Use .png instead of .jpg
 vis.AddSkyBox()
-vis.AddCamera(chrono.ChVectorD(0.0, 1.0, -1.5))  # **Corrected class name: ChVector3d -> ChVectorD**
+vis.AddCamera(chrono.ChVectorD(0.0, 1.0, -1.5))  # Use chrono.ChVectorD instead of chrono.ChVector3d
 vis.AddTypicalLights()
 
 # Use a solver that can handle stiffness matrices
 custom_solver = mklsolver.ChSolverPardisoMKL()
 sys.SetSolver(custom_solver)
 # Use the HHT timestepper for less numerical damping and higher accuracy
-ts = chrono.ChTimestepperHHT(sys)  # **Changed to HHT timestepper**
+ts = chrono.ChTimestepperHHT(sys)  # Use chrono.ChTimestepperHHT instead of chrono.ChTimestepperEulerExplicit
 ts.SetStepControl(True)
 sys.SetTimestepper(ts)
 
@@ -186,6 +180,6 @@ sys.SetTimestepper(ts)
 while vis.Run():
     vis.BeginScene()
     vis.Render()
-    chronoirr.drawGrid(vis, 0.1, 0.01, 10, 10, chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT))  # **Corrected class names: ChCoordsysd -> ChCoordsysD, ChVector3d -> ChVectorD, drawGrid -> chronoirr.drawGrid**
+    chronicls.drawGrid(vis, 0.1, 0.01, 10, 10, chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT))  # Use chrono.ChCoordsysD and chrono.ChVectorD
     vis.EndScene()
     sys.DoStepDynamics(0.002)

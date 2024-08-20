@@ -1,126 +1,96 @@
-import pychrono
+import pychrono as chrono
 
-import pychrono.irrlicht as chrono
+import pychrono.irrlicht as chrono_irrlicht
 
-import pychrono.utils as utils
+import pychrono.svea as svea
 
-import numpy as np
-
-
-# Initialize PyChrono environment and core components
-
-chrono.init()
+import pychrono.svea_terrain as svea_terrain
 
 
-# Create a visualization window using Irrlicht
+# Initialize PyChrono environment
 
-window = chrono.ChIrWindow(1024, 768, "HMMWV on SCM Terrain")
-
-
-# Add a SCM terrain with custom soil parameters
-
-soil_params = {
-
-    "friction": 0.5,
-
-    "cohesion": 0.1,
-
-    "density": 1500,
-
-    "angle_of_repose": 30,
-
-    "sinkage_factor": 0.05
-
-}
-
-terrain = chrono.ChLoadTerrain("SCM", soil_params)
-
-terrain.SetVisualization(chrono.ChTerrainVisualization(chrono.ChTerrainVisualization.FALSE_COLOR))
+chrono.Init()
 
 
-# Create a moving patch feature that follows the vehicle chassis
+# Create the Irrlicht visualization system
 
-moving_patch = chrono.ChMovingPatch(terrain)
-
-moving_patch.SetFollow(True)
-
-moving_patch.SetVehicle(vehicle)
+visualization = chrono_irrlicht.ChIrRr()
 
 
-# Initialize the HMMWV vehicle with specific parameters
+# Define the HMMWV vehicle parameters
 
-vehicle = chrono.ChVehicle("HMMWV", chrono.ChVehicleType.TANK)
+hmmwv = chrono.ChBody()
 
-vehicle.SetChassis(chrono.ChBody())
+hmmwv.SetPos(chrono.ChVectorD(0, 0, 0))
 
-vehicle.SetTireModel(chrono.ChTireModel.RIM_TREAD)
+hmmwv.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
 
-vehicle.SetTireParameters(0.3, 0.01, 0.005)
-
-vehicle.SetMass(3000)
-
-vehicle.SetInertia(chrono.ChBoxInertia(1.0, 1.0, 1.0, chrono.Vec3(1.0, 1.0, 1.0)))
+hmmwv.SetMass(2000)
 
 
-# Add vehicle components and apply mesh visualization
+# Add rigid tire model and mesh visualization
 
-chassis = chrono.ChBody()
-
-chassis.SetPos(chrono.ChVector(0, 0, 0))
-
-chassis.SetMass(1000)
-
-chassis.SetInertia(chrono.ChBoxInertia(0.5, 0.5, 0.5, chrono.Vec3(0.5, 0.5, 0.5)))
-
-vehicle.AddBody(chassis)
+# ... (code to add tire model and mesh visualization)
 
 
-tire = chrono.ChBody()
+# Configure the SCM terrain
 
-tire.SetPos(chrono.ChVector(0, 0, 0))
+terrain = svea_terrain.ChSveaTerrain()
 
-tire.SetMass(10)
+terrain.SetSoilParameters(svea.ChSoilParameters(100, 100, 100, 100, 100, 100))
 
-tire.SetInertia(chrono.ChBoxInertia(0.1, 0.1, 0.1, chrono.Vec3(0.1, 0.1, 0.1)))
+terrain.EnableMovingPatch(True)
 
-vehicle.AddBody(tire)
+terrain.SetPatchFollowing(hmmwv)
+
+
+# Visualize sinkage with false color plotting
+
+terrain.EnableSinkageVisualization(True)
 
 
 # Set up the interactive driver system
 
-driver = chrono.ChDriverUNIKOM()
+driver = chrono.ChDriverUNICO()
 
-driver.SetSteeringGain(0.1)
+driver.SetMax(1)
 
-driver.SetThrottleGain(0.1)
-
-driver.SetBrakingGain(0.1)
-
-vehicle.SetDriver(driver)
+driver.SetStep(0.01)
 
 
-# Set up the simulation
+# Set up the vehicle dynamics
 
-chrono.SetChTerrainVisualization(chrono.ChTerrainVisualization.FALSE_COLOR)
-
-chrono.SetChSolverIterations(10)
-
-chrono.SetChSolverTolerance(1e-6)
-
-chrono.SetChTimeStep(0.01)
+# ... (code to set up vehicle dynamics)
 
 
-# Run the simulation
+# Main simulation loop
 
-while window.GetDevice()->run():
+while chrono.futureTime(0.02) < chrono.ChSystemDynamics().GetTolerance() / 1000:
 
-    chrono.DoStepDynamics(window.GetDevice(), 0.01)
+    visualization.BeginScene()
 
-    window.SetCamera(chrono.ChVector(0, 0, 10), chrono.ChVector(0, 0, 0), chrono.ChVector(0, 1, 0))
+    visualization.DrawModel(hmmwv, chrono.DARK_GREEN)
 
-    window.Display()
+    visualization.DrawModel(terrain, chrono.DARK_GREEN)
+
+    visualization.EndScene()
+
+    chrono.DoStepDynamics(driver)
+
+
+# Run the simulation at 50 frames per second
+
+chrono.Set_AutoDeltaTimestep(False)
+
+chrono.Set_RealTimeSimulation(True)
+
+while chrono.futureTime(1.0 / 50.0) < chrono.ChSystemDynamics().GetTolerance() / 1000:
+
+    # ... (code to update vehicle dynamics and rendering)
+
+    chrono.DoStepDynamics(driver)
 
 
 # Clean up
 
-chrono.reset()
+chrono.uninitialize()

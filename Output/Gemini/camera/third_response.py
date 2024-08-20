@@ -14,18 +14,19 @@ def main():
     # -----------------------------------
     # Add a box to be sensed by a camera
     # -----------------------------------
-    # Create a box with specified dimensions
+    # Define the size of the box
     side = 1.0
+
+    # Create a box body
     box_body = chrono.ChBodyEasyBox(side, side, side, 1000)
-    box_body.SetPos(chrono.ChVector3d(0, 0, 0))  # Set the position of the box
+    box_body.SetPos(chrono.ChVector3d(0, 0, 0))  # Set the position of the body
+    box_body.SetBodyFixed(True)  # Fix the body in space
 
-    # Add a texture to the box (replace with your texture file)
-    texture = chrono.ChTexture()
-    texture.SetTextureFilename(chrono.GetChronoDataFile("textures/cubetexture_bluewhite.png"))
-    box_body.GetVisualShape(0).SetTexture(texture)
+    # Create a visual material for the box
+    vis_mat = chrono.ChVisualMaterial()
+    vis_mat.SetDiffuseColor(chrono.ChColor(0.5, 0.5, 0.5))  # Set the color of the box
+    box_body.GetVisualShape(0).SetMaterial(0, vis_mat)
 
-    # Fix the box in space
-    box_body.SetFixed(True)
     mphysicalSystem.Add(box_body)  # Add the body to the physical system
 
     # -----------------------

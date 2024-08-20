@@ -21,11 +21,12 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 # Rigid terrain
+# terrain_model = veh.RigidTerrain.BOX
 terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
 
-# Point tracked by the camera
+# Point on chassis tracked by the camera
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
 
 # Contact method
@@ -39,9 +40,36 @@ tire_step_size = step_size
 # Time interval between two render frames
 render_step_size = 1.0 / 50  # FPS = 50
 
+# *** Custom Driver Class ***
+class MyDriver(veh.ChDriver):
+    def __init__(self, delay):
+        veh.ChDriver.__init__(self)
+        self.delay = delay
+
+    def Synchronize(self, time):
+        # Apply delay to driver inputs
+        if time < self.delay:
+            self.SetThrottle(0)
+            self.SetSteering(0)
+            self.SetBraking(0)
+        else:
+            # Gradually increase throttle to 0.7 after 0.2 seconds
+            if time < self.delay + 0.2:
+                self.SetThrottle((time - self.delay) * 3.5)  # 0.7 / 0.2 = 3.5
+            else:
+                self.SetThrottle(0.7)
+
+            # Apply sinusoidal steering pattern starting at 2 seconds
+            if time > self.delay + 2:
+                self.SetSteering(0.5 * math.sin(time - self.delay - 2))
+            else:
+                self.SetSteering(0)
+
+            # Braking is not used in this example
+            self.SetBraking(0)
 
 # Create the HMMWV vehicle, set parameters, and initialize
-vehicle = veh.HMMWV_Full()
+vehicle = veh.HMMWV_Full()  # veh.HMMWV_Reduced() could be another choice here
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
@@ -63,7 +91,7 @@ patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), terrainLength, terrainWidth)
+patch = terrain.AddPatch(patch_mat,chrono.ChCoordsysd(chrono.ChVector3d(0, 0, terrainHeight), chrono.QUNIT),terrainLength, terrainWidth)
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
@@ -79,38 +107,11 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
-# ---------------------------------------------------------------------
-#  Create the custom driver system
-# ---------------------------------------------------------------------
-
-class MyDriver(veh.ChDriver):
-    def __init__(self, delay):
-        veh.ChDriver.__init__(self)
-        self.delay = delay
-
-    def Synchronize(self, time):
-        if time < self.delay:
-            self.SetThrottle(0)
-            self.SetSteering(0)
-            self.SetBraking(0)
-        else:
-            if time < self.delay + 0.2:
-                self.SetThrottle((time - self.delay) / 0.2 * 0.7)
-            else:
-                self.SetThrottle(0.7)
-            
-            if time > self.delay + 2:
-                self.SetSteering(0.5 * math.sin(time - self.delay - 2))
-            else:
-                self.SetSteering(0)
-            
-            self.SetBraking(0)
-
-# Create the driver system
-driver = MyDriver(0.5)
+# Create and initialize the custom driver
+driver = MyDriver(delay=0.5)
 driver.Initialize()
 
-# output vehicle mass
+# Output vehicle mass
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events
@@ -124,21 +125,21 @@ render_frame = 0
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
-    # End simulation
+    # End simulation at 4 seconds
     if time >= 4:
         break
 
     # Render scene
-    if (step_number % render_steps == 0):
+    if step_number % render_steps == 0:
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
         render_frame += 1
 
-    # Get driver inputs
+    # Get driver inputs (not used because inputs are handled within MyDriver)
     driver_inputs = driver.GetInputs()
 
-    # Update modules (process inputs from other modules)
+    # Update modules
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
@@ -157,20 +158,25 @@ while vis.Run():
     realtime_timer.Spin(step_size)
 ```
 
-**Changes Made:**
+**Explanation of Changes:**
 
-1. **Custom Driver Class Implementation:**
-   - A custom driver class `MyDriver` is implemented, inheriting from `veh.ChDriver`.
-   - The `Synchronize` method is overridden to control throttle, steering, and braking based on simulation time, incorporating a delay and sinusoidal steering.
+1. **Custom Driver Class:**
+   - A custom driver class `MyDriver` is defined, inheriting from `veh.ChDriver`.
+   - It includes a constructor (`__init__`) to initialize the delay parameter.
+   - The `Synchronize` method is overridden to control throttle, steering, and braking based on time and the defined delay.
 
 2. **Driver System Replacement:**
-   - The original `ChInteractiveDriverIRR` is replaced with an instance of the custom `MyDriver` class, initialized with a delay of 0.5 seconds.
+   - The `ChInteractiveDriverIRR` is replaced with an instance of the custom `MyDriver` class.
+   - The delay is set to 0.5 seconds during initialization: `driver = MyDriver(delay=0.5)`.
 
 3. **Simulation End Condition:**
-   - A condition `if time >= 4:` is added to the main loop to end the simulation when the simulation time reaches 4 seconds.
+   - Inside the main simulation loop, a condition is added to check if the simulation time (`time`) reaches 4 seconds. If it does, the loop breaks, ending the simulation.
 
-**Error Corrections:**
+**Key Improvements:**
 
-- No significant errors were found in the original code. However, some minor improvements were made for clarity and consistency.
+- **Customizable Driver Behavior:** The custom driver class allows for flexible control over vehicle inputs, enabling more complex and realistic simulations.
+- **Time-Based Control:** The `Synchronize` method uses simulation time to determine driver inputs, providing precise control over the vehicle's actions.
+- **Simulation Duration Control:** The added condition to end the simulation at 4 seconds ensures the simulation runs for the desired duration.
+- **Improved Code Structure:** Defining a separate driver class improves code organization and readability.
 
-This modified script should fulfill the provided requirements. It creates a custom driver that introduces a delay in input and then gradually increases throttle, applies sinusoidal steering, and stops the simulation after 4 seconds. Remember to have the necessary PyChrono and Irrlicht libraries installed to run this script.
+These changes make the code more versatile, allowing for a wider range of simulated scenarios and easier modification for specific simulation needs.

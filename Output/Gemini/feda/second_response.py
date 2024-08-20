@@ -7,7 +7,8 @@ chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 # Initial vehicle location and orientation
-initLoc = chrono.ChVector3d(-50, 0, 0.5)  # Changed initial location
+# Modified: Changed initial X location to -50
+initLoc = chrono.ChVector3d(-50, 0, 0.5) 
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 # Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
@@ -20,11 +21,13 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 # Rigid terrain
+# terrain_model = veh.RigidTerrain.BOX
 terrainHeight = 0      # terrain height
-terrainLength = 200.0  # size in X direction (Increased)
+# Modified: Increased terrain length to 200
+terrainLength = 200.0  # size in X direction 
 terrainWidth = 100.0   # size in Y direction
 
-# Point tracked by the camera
+# Poon chassis tracked by the camera
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
 
 # Contact method
@@ -46,6 +49,7 @@ vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
+
 
 vehicle.Initialize()
 
@@ -71,6 +75,7 @@ patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 # Create the vehicle Irrlicht interface
+
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('FEDA vehicle')
 vis.SetWindowSize(1280, 1024)
@@ -81,70 +86,82 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
-# ---------------------------------------------------------------------
-# Create the path-follower, cruise-control driver system
-# ---------------------------------------------------------------------
 
-# Create the driver system
-driver = veh.ChPathFollowerDriver(vehicle.GetVehicle())
+# --- Driver System Modification ---
+# Create the path-follower driver system
+driver = veh.ChPathFollowerDriver(vehicle.GetVehicle(), 
+                                  "my_path.txt",
+                                  "my_path_follower",
+                                  10.0) # target speed
 
-# Create the ISO double lane change path
-path = veh.ChBezierCurve()
-path.AddPoint(chrono.ChVector3d(0,      0,   0.5))
-path.AddPoint(chrono.ChVector3d(15.0,   0,   0.5))
-path.AddPoint(chrono.ChVector3d(30.0,   5,   0.5))
-path.AddPoint(chrono.ChVector3d(45.0,   0,   0.5))
-path.AddPoint(chrono.ChVector3d(60.0,  -5,   0.5))
-path.AddPoint(chrono.ChVector3d(75.0,   0,   0.5))
-path.AddPoint(chrono.ChVector3d(90.0,   0,   0.5))
-path.AddPoint(chrono.ChVector3d(105.0,  0,   0.5))
+# Create the path (Double Lane Change - ISO 3888-2)
+# You might need to adjust these values based on your specific needs
+path_width = 3.5
+path_length = 80.0
+s_start1 = 15.0
+s_start2 = s_start1 + path_length + 2.5 * path_width
+s_end = s_start2 + path_length
 
-# Set the path
-driver.SetPath(path)
+# Function to describe the double lane change path
+def path_function(s):
+    if s < s_start1:
+        return 0.0
+    elif s < s_start2:
+        ds = s - s_start1
+        return path_width * math.sin(math.pi * ds / (2.5 * path_width))
+    elif s <= s_end:
+        ds = s - s_start2
+        return -path_width * math.sin(math.pi * ds / (2.5 * path_width))
+    else:
+        return 0.0
 
-# Set the target speed
-driver.SetDesiredSpeed(10.0)
+# Generate path points
+num_points = 200
+path_points = []
+for i in range(num_points + 1):
+    s = i * (s_end + 10.0) / num_points
+    path_points.append(chrono.ChVectorD(s, path_function(s), 0.1))
 
-# Configure the steering controller
+# Create the path using ChBezierCurve
+path = chrono.ChBezierCurve()
+path.SetupFromPoints(path_points)
+
+# Set the path for the path follower driver
 driver.GetSteeringController().SetLookAheadDistance(5)
-driver.GetSteeringController().SetGains(0.8, 0.0, 0.0)  # Adjust gains as needed
-
-# Configure the speed controller
-driver.GetSpeedController().SetGains(0.4, 0.0, 0.0)  # Adjust gains as needed
+driver.GetSteeringController().SetGains(0.8, 0.0, 0.0)  # Adjust gains if needed
+driver.GetSpeedController().SetGains(0.4, 0.0, 0.0)      # Adjust gains if needed
 
 driver.Initialize()
 
-# ---------------------------------------------------------------------
-
 # output vehicle mass
-print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
 
-# Initialize simulation frame counter
+# Initialize simulation frame counter s
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-while vis.Run() :
+while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
-    # Render scene
-    if (step_number % render_steps == 0) :
+    # Render scene and output POV-Ray data
+    if (step_number % render_steps == 0):
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
         render_frame += 1
 
-    # Get driver inputs
-    driver_inputs = driver.GetInputs()
+    # Get driver inputs (Not needed for path follower)
+    # driver_inputs = driver.GetInputs()
 
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
     terrain.Synchronize(time)
-    vehicle.Synchronize(time, driver_inputs, terrain)
-    vis.Synchronize(time, driver_inputs)
+    vehicle.Synchronize(time, driver.GetInputs(), terrain) # Use driver.GetInputs() here
+    vis.Synchronize(time, driver.GetInputs()) # Use driver.GetInputs() here
 
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)

@@ -1,111 +1,72 @@
 import pychrono as chrono
 import pychrono.postprocess as postprocess
 import pychrono.irrlicht as chronoirr
-try:
-    import pychrono.ros as ros
-except:
-    print("Could not import pychrono.ros.  Make sure you have it installed.")
-    exit(1)
+import pychrono.robot as chronorobot
+import rospy 
 
-# ---------------------------------------------------------------------
-#
-#  Create the simulation system and add items
-#
+# ROS message types
+from std_msgs.msg import Int32
 
-mysystem      = chrono.ChSystemNSC()
-mysystem.Set_G_acc(chrono.ChVectorD(0,-9.81,0))
+class CustomRosHandler(chronorobot.RosChSystem):
+    def __init__(self, step_size):
+        chronorobot.RosChSystem.__init__(self, step_size)
 
-# Set some contact parameters
-chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.001)
-chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.001)
+        # Create a ROS publisher
+        self.pub = rospy.Publisher('my_topic', Int32, queue_size=10)
 
-# Create a contact material (shared among all objects)
+    def update(self):
+        # Publish a message
+        msg = Int32()
+        msg.data = 123  # Example data
+        self.pub.publish(msg)
+
+# Create Chrono system
+system = chrono.ChSystemNSC()
+system.Set_G(chrono.ChVectorD(0, -9.81, 0))
+
+# Set up physical material properties
 material = chrono.ChMaterialSurfaceNSC()
-material.SetFriction(0.6)
-material.SetDampingF(0.2)
-material.SetCompliance(0.00001)
-material.SetComplianceT(0.00001)
+material.SetFriction(0.5)
+material.SetRestitution(0.2)
 
-# Create the floor: a simple fixed rigid body with a collision shape
-mfloor = chrono.ChBodyEasyBox(20, 1, 20, 1000, True, True, material)
-mfloor.SetBodyFixed(True)
-mysystem.Add(mfloor)
+# Create a fixed floor
+floor = chrono.ChBodyEasyBox(10, 1, 10, 1000)
+floor.SetBodyFixed(True)
+floor.SetPos(chrono.ChVectorD(0, -0.5, 0))
+floor.GetCollisionModel().ClearModel()
+floor.GetCollisionModel().AddBox(material, 5, 0.5, 5)
+floor.GetCollisionModel().BuildModel()
+system.Add(floor)
 
-# Create the falling box: a rigid body with a collision shape
-mbox = chrono.ChBodyEasyBox(0.5, 0.5, 0.5, 1000, True, True, material)
-mbox.SetPos(chrono.ChVectorD(0, 2, 0))
-mysystem.Add(mbox)
+# Create a movable box
+box = chrono.ChBodyEasyBox(1, 1, 1, 1000)
+box.SetPos(chrono.ChVectorD(0, 1, 0))
+box.GetCollisionModel().ClearModel()
+box.GetCollisionModel().AddBox(material, 0.5, 0.5, 0.5)
+box.GetCollisionModel().BuildModel()
+system.Add(box)
 
-# ---------------------------------------------------------------------
-#
-#  Create the ROS node and handlers
-#
+# Initialize ROS node
+rospy.init_node('chrono_sim')
 
-# Create the ROS node
-node = ros.ChNodeROS("chrono_sim")
-node.Init()
-
-# Custom ROS handler to publish integer messages
-class MyCustomHandler(ros.ChRosPublisher):
-    def __init__(self, topic_name):
-        super().__init__(topic_name, "std_msgs/Int32")
-        self.counter = 0
-
-    def publish(self):
-        msg = self.getMessage()
-        msg.data = self.counter
-        self.counter += 1
-        super().publish(msg)
-
-# Create the ROS manager
-manager = ros.ChRosManager()
-manager.SetNode(node)
-
-# Clock handler to publish simulation time
-clock_handler = ros.ChRosClockHandler()
-manager.AddHandler(clock_handler)
-
-# Body handler to publish body poses
-body_handler = ros.ChRosBodyHandler()
-body_handler.AddBody(mbox)
-manager.AddHandler(body_handler)
-
-# Transform handler to publish transforms
-transform_handler = ros.ChRosTransformHandler()
-transform_handler.AddTransform(mbox, "box_frame")
-manager.AddHandler(transform_handler)
+# Create ROS manager and handlers
+ros_manager = chronorobot.RosChSystemManager(system)
+ros_manager.AddClockHandler()
+ros_manager.AddBodyHandler(box, "box")
+ros_manager.AddTfHandler(chrono.ChFrameD(), "world")
 
 # Register the custom handler
-custom_handler = MyCustomHandler("custom_topic")
-manager.AddHandler(custom_handler)
-
-# ---------------------------------------------------------------------
-#
-#  Run the simulation loop
-#
+custom_handler = CustomRosHandler(1e-3)  # Step size in seconds
+ros_manager.AddHandler(custom_handler)
 
 # Simulation loop
-application = chronoirr.ChIrrApp(mysystem, 'PyChrono example', chronoirr.dimension2du(1024,768))
-application.AddTypicalSky()
-application.AddTypicalLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
-application.AddTypicalCamera(chronoirr.vector3df(2,2,2))
-application.AddTypicalLights()
-
-application.AssetBindAll();
-application.AssetUpdateAll();
-
-# Change the solver form the default SOR to a more precise solver
-mysystem.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
-mysystem.SetSolverMaxIterations(100)
-
-application.SetTimestep(0.01)
-application.SetTryRealtime(True)
-
-while application.GetDevice().run():
-    application.BeginScene()
-    application.DrawAll()
-    application.DoStep()
-    application.EndScene()
+time_step = 1e-3
+while not rospy.is_shutdown():
+    # Advance the simulation
+    system.DoStepDynamics(time_step)
 
     # Update ROS communication
-    manager.Update()
+    ros_manager.update()
+
+    # Maintain real-time execution (adjust sleep duration as needed)
+    rospy.sleep(time_step)

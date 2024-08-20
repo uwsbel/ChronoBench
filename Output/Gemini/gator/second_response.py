@@ -21,8 +21,8 @@ tire_model = veh.TireModelType_TMEASY
 
 # Terrain parameters
 terrainHeight = 0      # terrain height
-terrainLength = 100.0  # size in X direction
-terrainWidth = 100.0   # size in Y direction
+terrainLength = 50.0  # size in X direction
+terrainWidth = 50.0   # size in Y direction
 
 # Poon chassis tracked by the camera
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
@@ -58,40 +58,56 @@ vehicle.SetTireVisualizationType(vis_type)
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 # Create the terrain
-terrain = veh.RigidTerrain(vehicle.GetSystem())
-
-# Define a function to add a terrain patch with options for bump and height map
-def add_terrain_patch(terrain, material, position, length, width, texture_file=None, bump_position=None, bump_radius=None, bump_height=None, height_map_file=None):
-    patch = terrain.AddPatch(material, 
-        chrono.ChCoordsysd(position, chrono.QUNIT), 
-        length, width)
-    if texture_file:
-        patch.SetTexture(veh.GetDataFile(texture_file), 200, 200)
-    if bump_position:
-        patch.AddBump(chrono.ChCoordsysd(bump_position, chrono.QUNIT), bump_radius, bump_height)
-    if height_map_file:
-        patch.SetHeightMap(veh.GetDataFile(height_map_file), length, width, 0, 0.2)  # Example height range
-    patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
-    return patch
-
-# Shared material properties
 patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
+terrain = veh.RigidTerrain(vehicle.GetSystem())
 
-# Patch 1: Flat with texture
-patch1 = add_terrain_patch(terrain, patch_mat, chrono.ChVector3d(0, 0, terrainHeight), terrainLength/2, terrainWidth/2, texture_file="terrain/textures/tile4.jpg")
+# Patch 1: Tile texture
+patch1 = terrain.AddPatch(patch_mat,
+                         chrono.ChCoordsysd(chrono.ChVector3d(0, 0, terrainHeight), chrono.QUNIT),
+                         terrainLength, terrainWidth)
+patch1.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
+patch1.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 
-# Patch 2: Flat with different texture
-patch2 = add_terrain_patch(terrain, patch_mat, chrono.ChVector3d(terrainLength/2, 0, terrainHeight), terrainLength/2, terrainWidth/2, texture_file="terrain/textures/grass.jpg")
+# Patch 2: Different tile texture
+patch2 = terrain.AddPatch(patch_mat,
+                         chrono.ChCoordsysd(chrono.ChVector3d(terrainLength, 0, terrainHeight), chrono.QUNIT),
+                         terrainLength, terrainWidth)
+patch2.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 100, 100)
+patch2.SetColor(chrono.ChColor(0.5, 0.8, 0.5))
 
-# Patch 3: Flat with another different texture
-patch3 = add_terrain_patch(terrain, patch_mat, chrono.ChVector3d(0, terrainWidth/2, terrainHeight), terrainLength/2, terrainWidth/2, texture_file="terrain/textures/stone.jpg")
+# Patch 3: Height map
+height_map = veh.HeightMap()
+height_map.LoadFromFile(veh.GetDataFile("terrain/height_maps/test64.bmp"))
+patch3 = terrain.AddPatch(patch_mat,
+                         chrono.ChCoordsysd(chrono.ChVector3d(0, terrainWidth, terrainHeight), chrono.QUNIT),
+                         terrainLength, terrainWidth, height_map)
+patch3.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 200, 200)
+patch3.SetColor(chrono.ChColor(0.8, 0.5, 0.5))
 
-# Patch 4: Height map with bump
-patch4 = add_terrain_patch(terrain, patch_mat, chrono.ChVector3d(terrainLength/2, terrainWidth/2, terrainHeight), terrainLength/2, terrainWidth/2, height_map_file="terrain/height_maps/test64.bmp", bump_position=chrono.ChVector3d(terrainLength/4, terrainWidth/4, 0), bump_radius=5, bump_height=0.3)
+# Patch 4: Flat with a bump
+patch4 = terrain.AddPatch(patch_mat,
+                         chrono.ChCoordsysd(chrono.ChVector3d(terrainLength, terrainWidth, terrainHeight), chrono.QUNIT),
+                         terrainLength, terrainWidth)
+patch4.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 50, 50)
+patch4.SetColor(chrono.ChColor(0.5, 0.5, 0.8))
+
+# Add a bump to Patch 4
+bump_center = chrono.ChVector2d(terrainLength / 2, terrainWidth / 2)
+bump_radius = 5.0
+bump_height = 1.0
+for ix in range(int(terrainLength / 0.5)):
+    for iy in range(int(terrainWidth / 0.5)):
+        x = ix * 0.5
+        y = iy * 0.5
+        dist = math.sqrt((x - bump_center.x)**2 + (y - bump_center.y)**2)
+        if dist <= bump_radius:
+            h = bump_height * (1 - dist / bump_radius)
+            patch4.SetHeight(x, y, terrainHeight + h)
 
 terrain.Initialize()
+
 
 # -------------------------------------
 # Create the vehicle Irrlicht interface
@@ -107,6 +123,7 @@ vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
+
 
 # Create the driver system
 driver = veh.ChInteractiveDriverIRR(vis)
@@ -126,7 +143,7 @@ driver.Initialize()
 # ---------------
 
 # output vehicle mass
-print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
@@ -139,7 +156,7 @@ render_frame = 0
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
-    # Render scene
+    # Render scene and output POV-Ray data
     if (step_number % render_steps == 0):
         vis.BeginScene()
         vis.Render()

@@ -2,10 +2,6 @@ from openai import OpenAI
 import os
 import json
 from tqdm import tqdm
-nvidia_api_key = "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"
-key2 = "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"
-key3 = "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"
-
 
 def read_script(file_path):
     with open(file_path, "r", encoding="utf-8") as file:
@@ -26,7 +22,7 @@ def generate_first_code(first_prompt, model_link):
     “”"
     """
     try:
-        client = OpenAI(api_key='sk-proj-qxFCnOo2qpmdMScXzr0LT3BlbkFJoYE9bshe1SVOHkH0g4On')
+        client = OpenAI(api_key='')
         completion = client.chat.completions.create(
             model=model_link,
             messages=[
@@ -67,7 +63,7 @@ Provide the corrected and modified script below:
     """
     try:
         global nvidia_api_key
-        client = OpenAI(api_key='sk-proj-qxFCnOo2qpmdMScXzr0LT3BlbkFJoYE9bshe1SVOHkH0g4On'
+        client = OpenAI(api_key=''
         )
         completion = client.chat.completions.create(
             model=model_link,
@@ -111,8 +107,8 @@ def save_conversation_json(output_conversation_path, combined_prompt1, first_res
 
 
 opensource_model_links = {
-    "gpt-4o": "gpt-4o",
     "gpt-4o-mini": "gpt-4o-mini",
+    "gpt-4o-mini-f1":"ft:gpt-4o-mini-2024-07-18:personal::9xVAdwNY"
 }
 system_list = ["art", "beam", "buckling", "cable", "car", "camera", "citybus", "curiosity", "feda", "gator", "gear",
                "gps_imu", "handler", "hmmwv", "kraz", "lidar", "m113", "man", "mass_spring_damper", "particles",
@@ -129,7 +125,7 @@ Output_path = 'D:\SimBench\output'
 Output_conversation_path = 'D:\SimBench\output_conversion'
 # in the dataset_path, there are 34 dynamical system folders, each folder is a dyanmical system which contains 8 files [3 input text files, input1.txt, input2.txt, input3.txt;
 # 2 python input files, pyinput2.py, pyinput3.py; 3 ground truth python files truth1.py, truth2.py, truth3.py]
-test_model_list = ["gpt-4o", "gpt-4o-mini"]
+test_model_list = ["gpt-4o-mini-f1"]
 # define an output path for the test results for each model with the name of the model
 # using tqdm to show the progress bar
 for test_model in tqdm(test_model_list):

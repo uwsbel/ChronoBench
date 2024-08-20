@@ -2,9 +2,7 @@ from openai import OpenAI
 import os
 import json
 from tqdm import tqdm
-nvidia_api_key="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"
-key2="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"
-key3="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"
+
 def read_script(file_path):
     with open(file_path, "r", encoding="utf-8") as file:
         return file.read()
@@ -25,7 +23,7 @@ def generate_first_code(first_prompt,model_link):
     try:
         global nvidia_api_key
         client = OpenAI(
-            base_url="https://integrate.api.nvidia.com/v1",
+            base_url="https://api.deepinfra.com/v1/openai",
             api_key=nvidia_api_key
         )
         completion = client.chat.completions.create(
@@ -68,7 +66,7 @@ Provide the corrected and modified script below:
     try:
         global nvidia_api_key
         client = OpenAI(
-            base_url="https://integrate.api.nvidia.com/v1",
+            base_url="https://api.deepinfra.com/v1/openai",
             api_key=nvidia_api_key
         )
         completion = client.chat.completions.create(
@@ -116,30 +114,27 @@ opensource_model_links = {
     "gemma-2-2b-it":"google/gemma-2-2b-it",
     "llama-3.1-405b-instruct": "meta/llama-3.1-405b-instruct",
     "llama-3.1-70b-instruct":"meta/llama-3.1-70b-instruct",
-    "codellama-70b":"meta/codellama-70b",
     "llama-3.1-8b-instruct":"meta/llama-3.1-8b-instruct",
     "phi-3-mini-128k-instruct":"microsoft/phi-3-mini-128k-instruct",
-     "phi-3-small-128k-instruct":"microsoft/phi-3-small-128k-instruct",
-    "phi-3-small-8k-instruct":"microsoft/phi-3-small-8k-instruct",
-    "phi-3-medium-128k-instruct":"microsoft/phi-3-medium-128k-instruct",
+    "phi-3-medium-128k-instruct":"microsoft/Phi-3-medium-128k-instruct",
     "nemotron-4-340b-instruct":"nvidia/nemotron-4-340b-instruct",
     "mistral-nemo-12b-instruct":"nv-mistralai/mistral-nemo-12b-instruct",
     "mixtral-8x22b-instruct-v0.1":"mistralai/mixtral-8x22b-instruct-v0.1",
     "codestral-22b-instruct-v0.1":"mistralai/codestral-22b-instruct-v0.1",
     "mixtral-8x7b-instruct-v0.1":"mistralai/mixtral-8x7b-instruct-v0.1",
-    "mistral-large":"mistralai/mistral-large",
+    "mistral-large-latest":"mistralai/mistral-large",
     "mamba-codestral-7b-v0.1":"mistralai/mamba-codestral-7b-v0.1",
 }
 system_list = ["art", "beam", "buckling", "cable", "car", "camera", "citybus", "curiosity", "feda", "gator", "gear", "gps_imu", "handler", "hmmwv", "kraz", "lidar", "m113", "man", "mass_spring_damper", "particles", "pendulum",
                "rigid_highway", "rigid_multipatches", "rotor", "scm", "scm_hill", "sedan", "sensros", "slider_crank", "tablecloth", "turtlebot", "uazbus", "veh_app","vehros","viper"]
-#system_do_list=['art', 'citybus','feda','gator','hmmwv','scm','rigid_highway','rigid_multipatches']
+system_do_list=["rotor", "scm", "scm_hill", "sedan", "sensros", "slider_crank", "tablecloth", "turtlebot", "uazbus", "veh_app","vehros","viper"]
 # data set path
 dataset_path = 'D:\SimBench\demo_data'
 Output_path = 'D:\SimBench\output'
 Output_conversation_path = 'D:\SimBench\output_conversion'
 # in the dataset_path, there are 34 dynamical system folders, each folder is a dyanmical system which contains 8 files [3 input text files, input1.txt, input2.txt, input3.txt;
 # 2 python input files, pyinput2.py, pyinput3.py; 3 ground truth python files truth1.py, truth2.py, truth3.py]
-test_model_list= ["nemotron-4-340b-instruct"]
+test_model_list= ["phi-3-medium-128k-instruct"]
 # define an output path for the test results for each model with the name of the model
 # using tqdm to show the progress bar
 for test_model in tqdm(test_model_list):
@@ -155,7 +150,7 @@ for test_model in tqdm(test_model_list):
         output_system_path = os.path.join(output_model_path, system_folder)
         os.makedirs(output_system_path, exist_ok=True)
 
-        if  system_folder in system_list:
+        if  system_folder in system_do_list:
             input1_path = os.path.join(system_folder_path, 'input1.txt')
             input1_prompt = read_script(input1_path)
             # print('input1:', input1_prompt)

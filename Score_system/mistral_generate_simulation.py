@@ -23,7 +23,7 @@ def generate_first_code(first_prompt, model_link):
     “”"
     """
     try:
-        api_key = "yIf7NVZBfHORx6hamxRPRkwjqNU4bTRU"
+        api_key = ""
         model = "mistral-large-latest"
 
         client = Mistral(api_key=api_key)
@@ -66,7 +66,7 @@ Modify the script based on the provided instructions to ensure it meets the spec
 Provide the corrected and modified script below:
     """
     try:
-        api_key  = "yIf7NVZBfHORx6hamxRPRkwjqNU4bTRU"
+        api_key  = ""
         model = "mistral-large-latest"
 
         client = Mistral(api_key=api_key)

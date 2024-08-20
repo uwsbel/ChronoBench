@@ -7,8 +7,10 @@ chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 # Initial vehicle location and orientation
-initLoc = chrono.ChVector3d(-15, 0, 0.5)  # Changed initial location
-initRot = chrono.ChQuaterniond(1, 0, 0, 0)  # Adjusted initial rotation
+# Changed initial position to (-15, 0, 0.5)
+initLoc = chrono.ChVector3d(-15, 0, 0.5)
+# Adjusted initial rotation for the new starting position
+initRot = chrono.ChQuaterniond(1, 0, 0, 0) 
 
 # Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
 vis_type = veh.VisualizationType_MESH
@@ -20,12 +22,14 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 # Rigid terrain
+# terrain_model = veh.RigidTerrain.BOX
 terrainHeight = 0      # terrain height
-terrainLength = 100.0  # size in X direction
+terrainLength = 200.0  # size in X direction (increased for lane change)
 terrainWidth = 100.0   # size in Y direction
 
 # Poon chassis tracked by the camera
-trackPoint = chrono.ChVector3d(3, 0, 2.1)  # Updated track point
+# Updated track point to (3, 0, 2.1)
+trackPoint = chrono.ChVector3d(3, 0, 2.1) 
 
 # Contact method
 contact_method = chrono.ChContactMethod_NSC
@@ -47,11 +51,11 @@ vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.Initialize()
 
-vehicle.SetChassisVisualizationType(vis_type)
+vehicle.SetChassisVisualizationType(vis_type, vis_type)
 vehicle.SetSteeringVisualizationType(vis_type)
-vehicle.SetSuspensionVisualizationType(vis_type)
-vehicle.SetWheelVisualizationType(vis_type)
-vehicle.SetTireVisualizationType(vis_type)
+vehicle.SetSuspensionVisualizationType(vis_type, vis_type)
+vehicle.SetWheelVisualizationType(vis_type, vis_type)
+vehicle.SetTireVisualizationType(vis_type, vis_type)
 
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
@@ -72,7 +76,8 @@ terrain.Initialize()
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('Kraz Demo')
 vis.SetWindowSize(1280, 1024)
-vis.SetChaseCamera(trackPoint, 25.0, 10.5)  # Updated chase camera distance
+# Adjusted chase camera distance to 25.0, 10.5
+vis.SetChaseCamera(trackPoint, 25.0, 10.5) 
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
@@ -107,6 +112,20 @@ render_frame = 0
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
 
+    # Double Lane Change Maneuver
+    if 5 < time < 6:
+        driver.SetSteering(0.5)  # Steer to the right
+        driver.SetThrottle(0.6)
+    elif 6 < time < 7:
+        driver.SetSteering(-0.5) # Steer to the left
+        driver.SetThrottle(0.6)
+    elif 7 < time < 8:
+        driver.SetSteering(0.5)  # Steer back to the right
+        driver.SetThrottle(0.6) 
+    else:
+        driver.SetSteering(0)
+        driver.SetThrottle(0.4)
+
     # Render scene and output POV-Ray data
     if (step_number % render_steps == 0) :
         vis.BeginScene()
@@ -116,16 +135,6 @@ while vis.Run() :
 
     # Get driver inputs
     driver_inputs = driver.GetInputs()
-
-    # Double Lane Change Maneuver
-    if time > 3.0 and time < 4.0:
-        driver_inputs.m_steering = 1.0
-    elif time > 4.0 and time < 5.0:
-        driver_inputs.m_steering = -1.0
-    elif time > 5.0 and time < 6.0:
-        driver_inputs.m_steering = 1.0
-    elif time > 6.0 and time < 7.0:
-        driver_inputs.m_steering = 0.0
 
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)

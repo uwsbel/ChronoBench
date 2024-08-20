@@ -3,7 +3,7 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import pychrono.sensor as sens
 import math
-import matplotlib.pyplot as plt  # Import matplotlib for plotting
+import matplotlib.pyplot as plt
 
 # Set the Chrono data directory
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
@@ -43,7 +43,7 @@ render_step_size = 1.0 / 50  # FPS = 50
 log_step_size = 1.0 / 20    # Frequency of data logging
 
 # Create the HMMWV vehicle, set parameters, and initialize
-vehicle = veh.HMMWV_Full() # veh.HMMWV_Reduced() could be another choice
+vehicle = veh.HMMWV_Full()  # veh.HMMWV_Reduced() could be another choice
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
@@ -67,8 +67,8 @@ patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-patch = terrain.AddPatch(patch_mat, 
-                         chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
+patch = terrain.AddPatch(patch_mat,
+                         chrono.ChCoordsysd(chrono.ChVector3d(0, 0, terrainHeight), chrono.QUNIT),
                          terrainLength, terrainWidth)
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
@@ -102,7 +102,7 @@ manager = sens.ChSensorManager(vehicle.GetSystem())
 
 # Create an IMU sensor and add it to the manager
 # Changed IMU Sensor Offset Pose to chrono.ChVector3d(0, 0, 1)
-offset_pose = chrono.ChFramed(chrono.ChVector3d(0, 0, 1), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0)))
+offset_pose = chrono.ChFrameD(chrono.ChVectorD(0, 0, 1), chrono.QUNIT)
 imu = sens.ChAccelerometerSensor(vehicle.GetChassisBody(),                     # Body IMU is attached to
                                  10,        # Update rate in Hz
                                  offset_pose,          # Offset pose
@@ -159,13 +159,12 @@ while vis.Run():
         # get most recent GPS data
         gps_coor = gps.GetMostRecentGPSBuffer().GetGPSData()
         gps_data.append([gps_coor[0], gps_coor[1], gps_coor[2]])
-    # Set driver inputs
-    # Modified Driver Inputs to constant steering and throttle
+    # Modified Driver Inputs to maintain a constant steering of 0.6 and throttle of 0.5
     driver.SetThrottle(0.5)
     driver.SetSteering(0.6)
     driver_inputs = driver.GetInputs()
-    
-    
+
+
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
     terrain.Synchronize(time)
@@ -180,16 +179,17 @@ while vis.Run():
 
     # Update sensor manager in each step
     manager.Update()
-    
+
     # Increment frame number
     step_number += 1
 
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
+print("GPS Data: ", gps_data)
 
-# Added Matplotlib Plot
-latitude = [p[0] for p in gps_data]
-longitude = [p[1] for p in gps_data]
+# Added Matplotlib Plot to visualize the GPS data
+latitude = [d[0] for d in gps_data]
+longitude = [d[1] for d in gps_data]
 plt.plot(latitude, longitude)
 plt.xlabel("Latitude")
 plt.ylabel("Longitude")

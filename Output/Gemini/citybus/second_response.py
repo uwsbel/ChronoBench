@@ -25,7 +25,7 @@ terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
 
-# Point tracked by the camera
+# Poon chassis tracked by the camera
 trackPoint = chrono.ChVector3d(-15.0, 10.0, 5.8)
 
 # Contact method
@@ -70,8 +70,8 @@ patch = terrain.AddPatch(patch_mat,
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
-
 # Create the vehicle Irrlicht interface
+
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('City Bus Demo')
 vis.SetWindowSize(1280, 1024)
@@ -82,19 +82,27 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
-# --- Modification: Create the data driver system ---
-driver = veh.ChDataDriver(vehicle)
+# --- Driver System Modification ---
+# Create the driver system
+driver = veh.ChDataDriver(vehicle.GetVehicle())
 
-# Define the driver inputs sequence
-driver_inputs = veh.vector_Entry()
-driver_inputs.push_back(veh.DataDriverEntry(0.0, 0.0, 0.0, 0.0))  # time, throttle, steering, braking
-driver_inputs.push_back(veh.DataDriverEntry(0.1, 1.0, 0.0, 0.0))
-driver_inputs.push_back(veh.DataDriverEntry(0.5, 1.0, 0.7, 0.0))
+# Define the driver inputs
+driver_inputs = veh.DriverInputs()
+driver.SetDriverInputs(driver_inputs)
 
-driver.SetInputData(driver_inputs)
+# Create a sequence of driver inputs
+entry1 = veh.DataDriverEntry(0.0, 0.0, 0.0, 0.0)  # time, throttle, steering, braking
+entry2 = veh.DataDriverEntry(0.1, 1.0, 0.0, 0.0)
+entry3 = veh.DataDriverEntry(0.5, 1.0, 0.7, 0.0)
+
+# Add the entries to the driver system
+driver.GetSequence().Add(entry1)
+driver.GetSequence().Add(entry2)
+driver.GetSequence().Add(entry3)
+
 driver.Initialize()
 
-# --- End of Modification ---
+# --- End of Driver System Modification ---
 
 # output vehicle mass
 print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
@@ -117,17 +125,12 @@ while vis.Run() :
         vis.EndScene()
         render_frame += 1
 
-    # --- Modification: No driver inputs retrieval needed ---
-    # driver_inputs = driver.GetInputs()
-    # --- End of Modification ---
 
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
     terrain.Synchronize(time)
-    # --- Modification: Pass driver inputs to vehicle.Synchronize ---
-    vehicle.Synchronize(time, driver.GetInputs(), terrain)
-    # --- End of Modification ---
-    vis.Synchronize(time, driver.GetInputs())
+    vehicle.Synchronize(time, driver_inputs, terrain)
+    vis.Synchronize(time, driver_inputs)
 
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)

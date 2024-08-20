@@ -1,124 +1,109 @@
 ```python
-import pychrono as chrono
+import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
 import pychrono.vehicle as veh
 
-# ---------------------------------------------------------------------
-# Create the Chrono system and set default parameters
+# ------------------
+# Parameters
+# ------------------
+timestep = 0.01  # Simulation timestep
+terrain_length = 100  # Terrain length
+terrain_width = 100  # Terrain width
+vehicle_init_pos = chrono.ChVectorD(0, 1.0, 0)  # Initial vehicle position
+vehicle_init_vel = chrono.ChVectorD(0, 0, 0)  # Initial vehicle velocity
 
-system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
+# ------------------
+# Create Chrono system
+# ------------------
+system = chrono.ChSystem_NSC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
-# ---------------------------------------------------------------------
-# Create the terrain
+# ------------------
+# Create terrain
+# ------------------
+terrain = chrono.ChTerrain(system)
+terrain.Initialize(terrain_length, terrain_width, 0.05)
+terrain.SetFriction(0.8)
+terrain.SetRestitution(0.1)
 
-terrain = veh.RigidTerrain(system)
-patch_mat = chrono.ChMaterialSurfaceNSC()
-patch_mat.SetFriction(0.9)
-patch_mat.SetRestitution(0.01)
-patch_mat.SetContactMethod(chrono.ChContactMethod_NSC)
-patch_mat.SetCompliance(0.00001)
-patch = terrain.AddPatch(patch_mat, 
-                         chrono.ChVectorD(-50, -50, 0), chrono.ChVectorD(50, -50, 0), 
-                         chrono.ChVectorD(50, 50, 0), chrono.ChVectorD(-50, 50, 0))
-patch.SetColor(chrono.ChColor(0.8, 0.8, 1.0))
-patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 20, 20)
-terrain.Initialize()
+# ------------------
+# Create Kraz vehicle
+# ------------------
+vehicle = veh.ChWheeledVehicle(system, "Kraz/kraz_vehicle.json")
+vehicle.Initialize(chrono.ChCoordsysD(vehicle_init_pos, chrono.QUNIT))
+vehicle.SetChassisVisualizationType(veh.VisualizationType_PRIMITIVES)
+vehicle.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
+vehicle.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
+vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
 
-# ---------------------------------------------------------------------
-# Create the Kraz vehicle
-
-vehicle = veh.KrazTruck(system)
-vehicle.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 1.6)))
-vehicle.SetInitFwdVel(0.0)
-vehicle.Initialize()
-
-# ---------------------------------------------------------------------
-# Create the driver system
-
-driver = veh.ChDriver(vehicle)
+# ------------------
+# Create driver system
+# ------------------
+driver = veh.ChPathFollowerDriver(vehicle)
 driver.Initialize()
 
-# ---------------------------------------------------------------------
-# Create the Irrlicht application
+# ------------------
+# Create Irrlicht visualization
+# ------------------
+application = chronoirr.ChIrrApp(system)
+application.SetSkyBox()
+application.AddTypicalLights()
+application.AddCamera(chrono.ChVectorD(0, 5, -10), vehicle_init_pos)
 
-app = chronoirr.ChIrrApp(system, "Kraz Vehicle Demo", chronoirr.dimension2du(1024,768))
-app.AddTypicalSky()
-app.AddTypicalLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
-app.AddTypicalCamera(chronoirr.vector3df(10,10,10), chronoirr.vector3df(0,0,1.6))
-app.AddTypicalLights()
-
-app.AssetBindAll()
-app.AssetUpdateAll()
-
-# ---------------------------------------------------------------------
+# ------------------
 # Simulation loop
+# ------------------
+while application.GetDevice().run():
+    # Synchronize vehicle and driver
+    driver.Synchronize(timestep)
 
-app.SetTimestep(0.01)
-app.SetTryRealtime(True)
+    # Advance simulation by one timestep
+    system.DoStepDynamics(timestep)
 
-while app.GetDevice().run():
-    time = system.GetChTime()
+    # Update visualization
+    application.BeginScene(True, True, chronoirr.SColor(255, 140, 161, 192))
+    application.DrawAll()
+    application.EndScene()
 
-    # Driver inputs
-    driver_inputs = driver.GetInputs()
-
-    # Update modules (process inputs from other modules)
-    driver.Synchronize(time)
-    terrain.Synchronize(time)
-    vehicle.Synchronize(time, driver_inputs, terrain)
-
-    # Advance simulation for one timestep for all modules
-    driver.Advance(step=0.01)
-    terrain.Advance(step=0.01)
-    vehicle.Advance(step=0.01)
-
-    app.BeginScene()
-    app.DrawAll()
-    app.EndScene()
+    # Check for exit key (Esc)
+    if application.GetDevice().getKeyState(chronoirr.KEY_ESCAPE):
+        break
 ```
 
 **Explanation:**
 
 1. **Initialization:**
-   - Import necessary libraries: `chrono`, `chronoirr`, and `veh`.
-   - Create a Chrono system (`ChSystemNSC`).
-   - Set gravitational acceleration.
+   - Import necessary PyChrono modules.
+   - Define simulation parameters like timestep, terrain size, and initial conditions.
+   - Create a Chrono system (`ChSystem_NSC`) and set the gravity.
 
 2. **Terrain Creation:**
-   - Create a rigid terrain object using `veh.RigidTerrain`.
-   - Define material properties like friction, restitution, and contact method.
-   - Add a terrain patch with specified dimensions and visual properties (color and texture).
-   - Initialize the terrain.
+   - Instantiate a `ChTerrain` object and initialize it with length, width, and resolution.
+   - Set terrain properties like friction and restitution.
 
-3. **Vehicle Creation:**
-   - Create a Kraz truck object using `veh.KrazTruck`.
-   - Set initial position and forward velocity.
-   - Initialize the vehicle.
+3. **Vehicle Setup:**
+   - Load the Kraz vehicle model from a JSON file using `ChWheeledVehicle`.
+   - Initialize the vehicle with position and orientation using `ChCoordsysD`.
+   - Set visualization types for different vehicle components.
 
-4. **Driver System Creation:**
-   - Create a driver object using `veh.ChDriver`.
-   - Initialize the driver.
+4. **Driver System:**
+   - Create a path-following driver (`ChPathFollowerDriver`) and associate it with the vehicle.
+   - Initialize the driver. (Note: You'll need to define a path for the driver to follow.)
 
-5. **Visualization with Irrlicht:**
-   - Create an Irrlicht application (`ChIrrApp`).
-   - Add sky, logo, camera, and lighting for visualization.
-   - Bind and update assets.
+5. **Visualization (Irrlicht):**
+   - Create an Irrlicht application (`ChIrrApp`) and pass the Chrono system to it.
+   - Set up the scene with a skybox, lights, and a camera pointing at the vehicle.
 
 6. **Simulation Loop:**
-   - Set the simulation timestep and enable real-time execution.
-   - Run the loop as long as the Irrlicht device is running.
-   - Get driver inputs using `driver.GetInputs()`.
-   - Synchronize the driver, terrain, and vehicle modules.
-   - Advance the simulation for each module.
-   - Render the scene using Irrlicht functions (`BeginScene`, `DrawAll`, `EndScene`).
+   - Use a `while` loop to continuously run the simulation.
+   - In each iteration:
+     - Synchronize the driver with the current simulation time.
+     - Advance the simulation by one timestep using `DoStepDynamics`.
+     - Update the visualization by clearing the scene, drawing objects, and rendering.
+     - Check for the "Esc" key press to exit the simulation.
 
-**Key Features:**
+**Remember:** This script provides a basic framework. You'll need to expand upon it by:
 
-- **Realistic Vehicle Model:** Uses the `veh.KrazTruck` class for a detailed Kraz vehicle model.
-- **Rigid Terrain:** Implements a rigid terrain with configurable properties.
-- **Driver System:** Includes a driver system for controlling the vehicle.
-- **Real-time Visualization:** Utilizes Irrlicht for real-time visualization with camera controls and lighting.
-- **Synchronized Simulation:** Ensures proper synchronization between vehicle, terrain, driver, and visualization.
-
-This script provides a comprehensive foundation for simulating a Kraz vehicle in a PyChrono environment. You can further customize the script by adding more features, such as obstacles, sensors, and advanced control algorithms.
+- Defining a specific path for the vehicle to follow.
+- Adding more complex interactions or scenarios.
+- Fine-tuning parameters for your specific simulation needs. 

@@ -4,7 +4,8 @@ import numpy as np
 import pychrono as chrono
 import pychrono.robot as robot
 from pychrono import irrlicht as chronoirr
-import pychrono.sensor as sens  # Import the sensor module
+# Import the sensor module
+import pychrono.sensor as sens 
 
 # Create Chrono system
 system = chrono.ChSystemNSC()
@@ -27,6 +28,7 @@ box.SetPos(chrono.ChVector3d(0, 0, 0.0))
 box.SetFixed(True)
 box.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/blue.png"))
 system.Add(box)
+
 # Create Curiosity rover and add it to the system
 rover = robot.Curiosity(system)
 
@@ -38,6 +40,38 @@ rover.SetDriver(driver)
 init_pos = chrono.ChVector3d(-5, 0.0, 0)
 init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
 rover.Initialize(chrono.ChFramed(init_pos, init_rot))
+
+# ------- Sensor setup -------
+# Create a sensor manager
+manager = sens.ChSensorManager(system)
+
+# Define lidar parameters
+update_rate = 30  # Hz
+h_samples = 180
+v_samples = 16
+fov_h = chrono.CH_C_PI  # 180 degrees
+fov_v = chrono.CH_C_PI / 4  # 45 degrees
+max_distance = 5.0
+# Create the lidar sensor
+lidar = sens.ChLidarSensor(
+    rover.GetChassisBody(),  # Attach to rover chassis
+    update_rate,             # Update rate
+    chrono.ChFrameD(chrono.ChVectorD(0, 0, 0.2)),  # Sensor frame relative to body
+    h_samples,               # Horizontal samples
+    v_samples,               # Vertical samples
+    fov_h,                   # Horizontal FOV
+    fov_v,                   # Vertical FOV
+    max_distance,           # Max sensing distance
+)
+lidar.SetIntensityMode(False)  # Disable intensity output
+
+# Set up filters for the lidar data (optional)
+# ...
+
+# Add the lidar sensor to the sensor manager
+manager.AddSensor(lidar)
+
+# ------- End of sensor setup -------
 
 # Create the Irrlicht visualization
 vis = chronoirr.ChVisualSystemIrrlicht()
@@ -58,36 +92,6 @@ vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0
 # Set the simulation time step
 time_step = 1e-3
 
-# Create sensor manager
-manager = sens.ChSensorManager(system)
-
-# Lidar parameters
-update_rate = 30  # Hz
-horizontal_samples = 180
-vertical_samples = 16
-h_fov = chrono.CH_C_PI  # 180 degrees
-v_fov = chrono.CH_C_PI / 4  # 45 degrees
-max_distance = 50  # meters
-
-# Create lidar sensor
-lidar = sens.ChLidarSensor()
-lidar.SetName("LidarSensor")
-lidar.SetUpdateRate(update_rate)
-lidar.SetHorizontalSamples(horizontal_samples)
-lidar.SetVerticalSamples(vertical_samples)
-lidar.SetFieldOfView(h_fov, v_fov)
-lidar.SetMaxDistance(max_distance)
-lidar.AttachTo(rover.GetChassisBody())
-
-# Setup filters for the lidar
-noise_model = sens.ChNoiseNormal(0.01)  # Add Gaussian noise with standard deviation 0.01
-lidar.AddNoiseModel(noise_model)
-# Other filters can be added here, e.g., dropout filter
-
-# Add the lidar to the sensor manager
-manager.AddSensor(lidar)
-
-
 # Simulation loop
 time = 0
 while vis.Run():
@@ -95,6 +99,7 @@ while vis.Run():
 
     # ask rover to move forward
     driver.SetSteering(0.0)
+    driver.SetMotorSpeeds(1.0, 1.0)  # Assuming two motors, set both to move forward
 
     # Update rover dynamics
     rover.Update()

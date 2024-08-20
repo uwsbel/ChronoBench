@@ -50,7 +50,7 @@ vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 
-# *** Updated parameters to make the vehicle faster ***
+# --- Updated Vehicle Parameters ---
 vehicle.SetMaxMotorVoltageRatio(0.26)  # Increased from 0.16
 vehicle.SetStallTorque(0.4)           # Increased from 0.3
 vehicle.SetTireRollingResistance(0.03) # Decreased from 0.06
@@ -79,9 +79,8 @@ patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 # Create the vehicle Irrlicht interface
-
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
-vis.SetWindowTitle('dart')
+vis.SetWindowTitle('ARTcar')
 vis.SetWindowSize(1280, 1024)
 vis.SetChaseCamera(trackPoint, 6.0, 0.5)
 vis.Initialize()
@@ -113,7 +112,7 @@ print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
 
-# Initialize simulation frame counter s
+# Initialize simulation frame counter
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
@@ -121,7 +120,7 @@ render_frame = 0
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
 
-    # Render scene and output POV-Ray data
+    # Render scene
     if (step_number % render_steps == 0) :
         vis.BeginScene()
         vis.Render()

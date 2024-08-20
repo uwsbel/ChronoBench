@@ -146,4 +146,4 @@ while vis.Run() :
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
 
-# No errors were found in the original script, and the modifications have been made according to the instructions.
+# No errors were found in the original script, and the modifications were made according to the instructions.

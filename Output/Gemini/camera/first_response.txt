@@ -1,110 +1,131 @@
 ```python
 import pychrono as chrono
+import pychrono.postprocess as postprocess
 import pychrono.sensor as sens
 
 # ---------------------------------------------------------------------
-#
 #  Create the simulation system and add items
-#
-
-# Create the Chrono system
+# ---------------------------------------------------------------------
 system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, 0, 0))
 
-# Set default outward/inward shape margins for collision detection
-system.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+# Set default contact material
+system.SetSolverMaxIterations(100)
+chrono.SetChronoDataPath("./chrono_data/")
 
-# Create the ground
-ground = chrono.ChBodyEasyBox(10, 1, 10, 1000, True, True)
-ground.SetBodyFixed(True)
-system.Add(ground)
+# Load the mesh from an OBJ file
+mesh = chrono.ChTriangleMeshConnected()
+mesh.LoadWavefrontOBJ("path/to/your/mesh.obj")  # Replace with your OBJ file path
+mesh.Transform(chrono.ChVectorD(0, 0, 0), chrono.ChQuaternionD(1, 0, 0, 0))  # Position/rotate if needed
 
-# Load the mesh from the .obj file
-mesh_body = chrono.ChBodyEasyMesh(chrono.GetChronoDataFile('models/cube.obj'), # Replace with your .obj file
-                                   1000,  # Density
-                                   True,  # Visualization
-                                   True)  # Collision
-mesh_body.SetBodyFixed(True)
+# Create a visual material for the mesh
+vis_mesh = chrono.ChVisualShapeTriangleMesh()
+vis_mesh.SetMesh(mesh)
+vis_mesh.SetCheckFaceNormals(True)
+
+# Create a body based on the mesh and add it to the system
+mesh_body = chrono.ChBodyEasyMesh(
+    mesh,  # Mesh data
+    1000,  # Density (adjust as needed)
+    True,  # Compute mass and inertia
+    True,  # Enable visualization asset
+    False  # Enable collision shape (not needed for static body)
+)
+mesh_body.AddVisualShape(vis_mesh)
+mesh_body.SetBodyFixed(True)  # Fix the mesh in space
 system.Add(mesh_body)
 
-# ---------------------------------------------------------------------
-#
-#  Create a sensor manager and add a camera sensor
-#
-
-# Create a sensor manager
-manager = sens.ChSensorManager(system)
-
 # Create a camera sensor
+manager = sens.ChSensorManager(system)
+manager.scene.AddPointLight(chrono.ChVectorD(5, 5, 5), chrono.ChColor(1, 1, 1), 50)
+
 camera = sens.ChCameraSensor(
-    mesh_body,       # Body to attach the sensor to
-    10,              # Update rate in Hz
-    chrono.ChFrameD(chrono.ChVectorD(0, 1, 2)),  # Position relative to the body
-    512,             # Image width
-    512              # Image height
+    mesh_body,               # Body the sensor is attached to
+    10,                     # Update rate in Hz
+    chrono.ChFrameD(chrono.ChVectorD(0, 0, 2), chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0))),  # Position and direction of the camera
+    1280,                    # Image width
+    720,                     # Image height
+    chrono.CH_C_PI / 4,     # Field of view (FOV) in radians
 )
 camera.SetName("Camera Sensor")
-camera.SetCollectionWindow(0.1)  # Time window for data collection
+camera.AddNoise(sens.GaussianNoiseModel(0.0, 5))  # Add Gaussian noise (adjust parameters)
+camera.PushFilter(sens.MedianFilter(5))  # Apply a median filter (adjust window size)
 
-# Add noise to the sensor data
-# (Example: Gaussian noise)
-noise = sens.ChNoiseNormal(0, 0.01)  # Mean, standard deviation
-camera.AddNoise(noise)
-
-# Add a visualization of the sensor field of view
-camera.ShowSensor(True)
-
-# Add the camera to the sensor manager
+# Create visualisations for the sensor buffers
+camera_vis = sens.ChVisualizationSensor(camera)
+camera_vis.SetTitle("Camera Sensor")
+camera_vis.SetWindowSize(1280, 720)
+camera_vis.SetCameraPos(chrono.ChVectorD(0, 0, -5))
 manager.AddSensor(camera)
+manager.AddVisualization(camera_vis)
 
 # ---------------------------------------------------------------------
-#
 #  Simulation loop
-#
-
-# Simulation parameters
-time_step = 0.01
-time_end = 10
-
-# Orbit parameters
-orbit_radius = 3
-orbit_speed = 0.5
-
-# Simulate the system
+# ---------------------------------------------------------------------
+time_step = 1e-3
 time = 0
-while time < time_end:
-    # Update camera position to orbit the mesh
-    angle = time * orbit_speed
-    camera_pos = chrono.ChVectorD(orbit_radius * chrono.ChCos(angle), 1, orbit_radius * chrono.ChSin(angle))
-    camera.GetFrame().SetPos(camera_pos)
 
-    # Advance the simulation
+while time < 10:
     system.DoStepDynamics(time_step)
-    manager.Update()
-
-    # Get the camera buffer data
-    buffer = camera.GetMostRecentBuffer()
-    if buffer.HasData():
-        print(f"Time: {time}, Buffer Data: {buffer.GetBuffer().shape}")
-
-    # Increment time
     time += time_step
 
+    # Update camera position (orbiting)
+    orbit_radius = 3
+    orbit_speed = 0.5
+    camera_pos = chrono.ChVectorD(
+        orbit_radius * chrono.ChCos(orbit_speed * time),
+        0,
+        orbit_radius * chrono.ChSin(orbit_speed * time)
+    )
+    camera.SetOffsetPos(chrono.ChFrameD(camera_pos, chrono.Q_from_AngAxis(orbit_speed * time, chrono.ChVectorD(0, 1, 0))))
 
+    manager.Update()
+
+    # Print camera buffer data (adjust as needed)
+    # Example: print(camera.GetMostRecentRGBA8Buffer().GetRGBA8Data())
+
+# ---------------------------------------------------------------------
+#  Postprocessing
+# ---------------------------------------------------------------------
+# Optionally save simulation results or generate animations using PyChrono's postprocessing features
 ```
 
-**Explanation:**
+**Explanation and Notes:**
 
-1. **Initialization:** The script starts by importing the necessary PyChrono modules and creating a Chrono system (`ChSystemNSC`). Collision detection is set to use the Bullet engine. A ground plane and a mesh body loaded from an .obj file are added to the scene. The mesh body is set as fixed.
-2. **Sensor Setup:** A sensor manager (`ChSensorManager`) is created to manage the sensors in the simulation. A camera sensor (`ChCameraSensor`) is attached to the mesh body with specified update rate, position, and resolution. Gaussian noise is added to the sensor data using `ChNoiseNormal`. The sensor's field of view is visualized for debugging.
-3. **Simulation Loop:** The simulation loop iterates through time, updating the camera's position to orbit around the mesh using trigonometric functions. The `DoStepDynamics` function advances the simulation by one time step. The sensor manager updates the sensor data, and the camera's buffer data (image data) is retrieved and printed to the console.
+1. **Initialization:**
+   - Import necessary modules (`pychrono`, `pychrono.postprocess`, `pychrono.sensor`).
+   - Create the `ChSystemNSC` object for the simulation.
+   - Set gravity, solver iterations, and data path.
+   - Define a contact material if needed (not shown here).
 
-**Key Features:**
+2. **Loading Mesh and Creating Body:**
+   - Load the triangular mesh from the specified OBJ file using `ChTriangleMeshConnected` and `LoadWavefrontOBJ`.
+   - Create a `ChVisualShapeTriangleMesh` for visualization.
+   - Create a `ChBodyEasyMesh` using the mesh data, set its properties (density, mass, visualization, collision), and fix it in space using `SetBodyFixed(True)`.
+   - Add the mesh body to the simulation system.
 
-* **Mesh Loading:** Loads a triangular mesh from a Wavefront .obj file using `ChBodyEasyMesh`.
-* **Camera Sensor:** Uses `ChCameraSensor` to simulate a camera attached to the mesh body.
-* **Noise Model:** Applies Gaussian noise to the camera data using `ChNoiseNormal`.
-* **Sensor Visualization:** Visualizes the camera's field of view using `ShowSensor(True)`.
-* **Dynamic Camera Positioning:** Updates the camera's position in each simulation step to simulate an orbit around the mesh.
-* **Data Retrieval:** Accesses the camera's buffer data using `GetMostRecentBuffer()` and prints its shape to the console.
+3. **Camera Sensor Setup:**
+   - Create a `ChSensorManager` to manage sensors.
+   - Add a point light to the scene for visualization.
+   - Create a `ChCameraSensor` attached to the mesh body. 
+   - Set camera parameters like update rate, position, resolution, and FOV.
+   - Add noise (e.g., Gaussian) to the camera using `AddNoise`.
+   - Apply image filters using `PushFilter` (e.g., Median filter).
+   - Create a `ChVisualizationSensor` to visualize the camera output.
 
-**Remember to replace `"models/cube.obj"` with the actual path to your .obj file.** You can adjust the orbit parameters, simulation time, and other settings to suit your specific needs. This script provides a basic framework for simulating a camera sensor orbiting a fixed mesh object in PyChrono. You can extend it further by adding more complex interactions, visualizations, and data analysis techniques.
+4. **Simulation Loop:**
+   - Set the simulation time step and duration.
+   - In the `while` loop, perform the following:
+     - Advance the simulation using `DoStepDynamics`.
+     - Update the camera position dynamically to simulate an orbit.
+     - Update the sensor manager using `manager.Update()`.
+     - Access camera buffer data if needed (e.g., `camera.GetMostRecentRGBA8Buffer()`).
+
+5. **Postprocessing:**
+   - After the simulation loop, you can use PyChrono's postprocessing features (e.g., `pychrono.postprocess`) to save simulation data or generate animations.
+
+**Remember to:**
+
+- Replace `"path/to/your/mesh.obj"` with the actual path to your OBJ file.
+- Adjust simulation parameters, camera settings, noise models, and filters as needed for your specific use case.
+- Explore PyChrono's documentation for more advanced features and customization options: [https://api.projectchrono.org/](https://api.projectchrono.org/) 

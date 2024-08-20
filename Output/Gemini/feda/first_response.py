@@ -1,82 +1,86 @@
-import pychrono as chrono
+import pychrono.core as chrono
 import pychrono.vehicle as veh
-import pychrono.irrlicht as chronoirr
+import pychrono.irrlicht as irr
+import os
 
 # ---------------------------------------------------------------------
 # Create the Chrono system and set default parameters
-
+# ---------------------------------------------------------------------
 system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+system.Set_GToLocal(chrono.ChVectorD(0, -9.81, 0))
+
+# Set the simulation step size
+time_step = 1e-3
 
 # ---------------------------------------------------------------------
 # Create the FEDA vehicle
+# ---------------------------------------------------------------------
+vehicle = veh.FEDAVehicle(system)
+vehicle.SetContactMethod(chrono.ChContactMethod_SMC)
+vehicle.SetChassisFixed(False)
+vehicle.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 1, 0)))
+vehicle.SetTireType("TMeasy")
+vehicle.Initialize()
 
-# Set the initial vehicle location and orientation
-initLoc = chrono.ChVectorD(0, 1, 0)
-initRot = chrono.ChQuaternionD(1, 0, 0, 0)
+# Set vehicle specific parameters
+# ... (add parameters like suspension, steering settings, etc.)
 
-# Create the vehicle using the JSON specification file
-vehicle = veh.FEDA(system, "feda/vehicle/FEDA.json")
-vehicle.Initialize(chrono.ChCoordsysD(initLoc, initRot))
+# ---------------------------------------------------------------------
+# Create the terrain
+# ---------------------------------------------------------------------
+terrain = chrono.ChTerrain(system)
+terrain.Initialize(chrono.ChCoordsysD(), chrono.GetChronoDataFile("terrain/height_map.bmp"))
+terrain.SetTexture(chrono.GetChronoDataFile("textures/grass.jpg"))
 
-# Set visualization type for vehicle parts
+# ---------------------------------------------------------------------
+# Create the visualization application
+# ---------------------------------------------------------------------
+application = irr.ChIrrApp(system)
+application.SetWindowSize(1280, 720)
+application.SetCameraPos(chrono.ChVectorD(10, 5, 10))
+application.SetCameraTarget(vehicle.GetVehiclePos())
+application.SetSkyBox()
+application.AddTypicalLights()
+application.AddShadowAll()
+application.AssetBindAll()
+application.AssetUpdateAll()
+
+# Set mesh visualization for all vehicle parts
 vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
 vehicle.SetSuspensionVisualizationType(veh.VisualizationType_MESH)
 vehicle.SetSteeringVisualizationType(veh.VisualizationType_MESH)
 vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
 vehicle.SetTireVisualizationType(veh.VisualizationType_MESH)
 
-# Set the tire model (e.g., PAC89)
-tire_model = veh.Pac89Tire("feda/tire/Pac89.tir")
-for axle in vehicle.GetAxles():
-    for wheel in axle.GetWheels():
-        tire = veh.ChPac89Tire(tire_model)
-        wheel.SetTire(tire)
-
-# Set contact method (e.g., SMC)
-my_hmmwv_contact = veh.ChContactMethod_SMC()
-vehicle.SetContactMethod(my_hmmwv_contact)
-
 # ---------------------------------------------------------------------
-# Create the terrain
-
-# Create the rigid terrain using a mesh
-terrain = veh.RigidTerrain(system)
-patch = terrain.AddPatch(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT),
-                         chrono.ChVectorD(100, 100, 1))
-patch.SetContactFrictionCoefficient(0.9)
-patch.SetContactRestitutionCoefficient(0.01)
-patch.SetContactMaterialProperties(2e7, 0.3)
-patch.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 12, 12)
-terrain.Initialize()
-
+# Initialize the interactive driver system
 # ---------------------------------------------------------------------
-# Create the interactive driver system
-
-driver = veh.ChInteractiveDriverIRR(vehicle)
-driver.Initialize()
-
-# ---------------------------------------------------------------------
-# Create the Irrlicht application
-
-myapplication = chronoirr.ChIrrApp(
-    system, "FEDA Vehicle Demo", chronoirr.dimension2du(1280, 720))
-myapplication.AddTypicalSky()
-myapplication.AddTypicalLights()
-myapplication.AddTypicalCamera(
-    chronoirr.vector3df(10, 10, 10), chronoirr.vector3df(0, 1, 0))
-myapplication.SetChaseCamera(vehicle.GetChassisBody(), 6.0, 0.5)
-myapplication.AssetBindAll()
-myapplication.AssetUpdateAll()
+driver = veh.ChInteractiveDriverIRR(application)
+driver.SetSteeringDelta(0.1)
+driver.SetThrottleDelta(0.1)
+driver.SetBrakingDelta(0.1)
+vehicle.SetDriver(driver)
 
 # ---------------------------------------------------------------------
 # Simulation loop
+# ---------------------------------------------------------------------
+application.SetTimestep(time_step)
+application.SetTryRealtime(True)
 
-myapplication.SetTimestep(0.02)  # 50 frames per second
-myapplication.SetTryRealtime(True)
+while application.GetDevice().run():
+    time = system.GetChTime()
 
-while myapplication.GetDevice().run():
-    myapplication.BeginScene()
-    myapplication.DrawAll()
-    myapplication.DoStep()
-    myapplication.EndScene()
+    # Update the vehicle and driver
+    vehicle.Update(time)
+    driver.Synchronize(time)
+
+    # Update the camera position
+    application.SetCameraTarget(vehicle.GetVehiclePos())
+
+    # Advance simulation by one step
+    application.BeginScene(True, True, irr.SColor(255, 140, 161, 192))
+    application.DrawAll()
+    application.EndScene()
+    application.GetVideoDriver().endScene()
+
+    system.DoStepDynamics(time_step)

@@ -1,0 +1,145 @@
+```python
+import pychrono as ch
+import pychrono.irrlicht as irr
+import math
+
+# Initial vehicle location and orientation
+initLoc = ch.ChVector3d(0, 0, 0.5)
+initRot = ch.ChQuaterniond(1, 0, 0, 0)
+
+# Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
+vis_type = ch.VisualizationType_MESH
+
+# Collision type for chassis (PRIMITIVES, MESH, or NONE)
+chassis_collision_type = ch.CollisionType_NONE
+
+# Type of tire model (RIGID, TMEASY)
+tire_model = ch.TireModelType_TMEASY
+
+# Rigid terrain
+# terrain_model = ch.RigidTerrain.BOX
+terrainHeight = 0      # terrain height
+terrainLength = 100.0  # size in X direction
+terrainWidth = 100.0   # size in Y direction
+
+# Poon chassis tracked by the camera
+trackPoint = ch.ChVector3d(-3.0, 0.0, 1.1)
+
+# Contact method
+contact_method = ch.ChContactMethod_NSC
+contact_vis = False
+
+# Simulation step sizes
+step_size = 1e-3
+tire_step_size = step_size
+
+# Time interval between two render frames
+render_step_size = 1.0 / 50  # FPS = 50
+
+# Create the Kraz vehicle, set parameters, and initialize
+vehicle = ch.kraz.Kraz()
+vehicle.SetContactMethod(contact_method)
+vehicle.SetChassisCollisionType(chassis_collision_type)
+vehicle.SetChassisFixed(False)
+vehicle.SetInitPosition(ch.ChCoordsysd(initLoc, initRot))
+vehicle.SetTireType(tire_model)
+vehicle.SetTireStepSize(tire_step_size)
+
+vehicle.Initialize()
+
+vehicle.SetChassisVisualizationType(vis_type)
+vehicle.SetSuspensionVisualizationType(vis_type)
+vehicle.SetSteeringVisualizationType(vis_type)
+vehicle.SetWheelVisualizationType(vis_type)
+vehicle.SetTireVisualizationType(vis_type)
+
+vehicle.GetSystem().SetCollisionSystemType(ch.ChCollisionSystem.Type_BULLET)
+
+# Create the terrain
+patch_mat = ch.ChContactMaterialNSC()
+patch_mat.SetFriction(0.9)
+patch_mat.SetRestitution(0.01)
+terrain = ch.RigidTerrain(vehicle.GetSystem())
+patch = terrain.AddPatch(patch_mat, 
+    ch.ChCoordsysd(ch.ChVector3d(0, 0, 0), ch.QUNIT), 
+    terrainLength, terrainWidth)
+
+patch.SetTexture("", 200, 20)
+patch.SetColor(ch.ChColor(0.8, 0.8, 0.5))
+terrain.Initialize()
+
+# Create the vehicle Irrlicht interface
+
+vis = vehicle.GetSystem().GetSceneManager()
+vehicle.GetSystem().SetCollisionSystemType(ch.ChCollisionSystem.Type_BULLET)
+
+# Create the driver system
+driver = ch.ChInteractiveDriverIRR(vis)
+
+# Set the time response for steering and throttle keyboard inputs.
+steering_time = 1.0  # time to go from 0 to +1 (or from 0 to -1)
+throttle_time = 1.0  # time to go from 0 to +1
+braking_time = 0.3   # time to go from 0 to +1
+driver.SetSteeringDelta(render_step_size / steering_time)
+driver.SetThrottleDelta(render_step_size / throttle_time)
+driver.SetBrakingDelta(render_step_size / braking_time)
+
+driver.Initialize()
+
+# Create the render window
+window = vis.CreateDevice(irr.EDT_OPENGL)
+window.SetWindowSize(ch.ChVector2di(1280, 720))
+window.SetWindowTitle('Kraz vehicle demo')
+window.SetVerticalSyncEnabled(True)
+window.SetFramerateLimit(60)
+vis.AddLogo(ch.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(trackPoint)
+vis.AddCamera(ch.ChVector3d(0, -10, 5), ch.ChVector3d(0, 0, 1))
+vis.AddLightDirectional(ch.ChVector3d(1, -1, 0), ch.ChVector3d(0, 0, 1))
+
+# Add the vehicle, terrain and point of interest to the scene
+vis.AddVehicle(vehicle.GetVehicle())
+vis.AddRigidBody(terrain.GetPatchRigidBody())
+vis.AddLogo(ch.GetChronoDataFile('logo_pychrono_alpha.png'))
+
+# Set the simulation time step for the tire model
+vehicle.SetTireStepSize(tire_step_size)
+
+# Initialize simulation frame counter
+realtime_timer = ch.ChRealtimeStepTimer()
+step_number = 0
+render_steps = 0
+
+# Simulation loop
+while window.Run() :
+    time = vehicle.GetSystem().GetChTime()
+
+    # Render scene and output POV-Ray data
+    if time >= render_step_size * render_steps :
+        vis.Render()
+        render_steps += 1
+
+    # Get driver inputs
+    driver_inputs = driver.GetInputs()
+
+    # Update modules (process inputs from other modules)
+    driver.Synchronize(time)
+    terrain.Synchronize(time)
+    vehicle.Synchronize(time, driver_inputs, terrain)
+    vis.Synchronize(time, driver_inputs)
+
+    # Advance simulation for one timestep for all modules
+    driver.Advance(step_size)
+    terrain.Advance(step_size)
+    vehicle.Advance(step_size)
+    vis.Advance(step_size)
+
+    # Increment frame number
+    step_number += 1
+
+    # Spin in place for real time to catch up
+    realtime_timer.Spin(step_size)
+
+
+```

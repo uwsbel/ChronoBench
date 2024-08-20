@@ -20,7 +20,6 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 # Rigid terrain
-# terrain_model = veh.RigidTerrain.BOX
 terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
@@ -44,6 +43,7 @@ vehicle = veh.FEDA()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
+vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 
@@ -66,8 +66,9 @@ patch = terrain.AddPatch(patch_mat,
     chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
     terrainLength, terrainWidth)
 
-# Change terrain texture to grass
+# Change terrain texture to grass texture
 patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)
+patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 # Create the vehicle Irrlicht interface
@@ -106,59 +107,70 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-# Create the sensor manager
+# Create sensor manager
 sensor_manager = chrono.ChSensorManager()
 
 # Add point lights to the scene
-light1 = chrono.ChLight(chrono.ChVector3d(0, 0, 10), chrono.ChColor(1, 1, 1), 1000)
-light2 = chrono.ChLight(chrono.ChVector3d(0, 10, 0), chrono.ChColor(1, 1, 1), 1000)
+light1 = chrono.ChLight()
+light1.SetType(chrono.CLightType_POINT)
+light1.SetPosition(chrono.ChVector3d(0, 10, 0))
+light1.SetIntensity(1000)
+
+light2 = chrono.ChLight()
+light2.SetType(chrono.CLightType_POINT)
+light2.SetPosition(chrono.ChVector3d(0, -10, 0))
+light2.SetIntensity(1000)
+
 sensor_manager.AddLight(light1)
 sensor_manager.AddLight(light2)
 
-# Add camera sensor to the vehicle’s chassis body
-camera_sensor = chrono.ChCameraSensor(vehicle.GetSystem(), 1280, 720, 60)
-camera_sensor.SetPosition(chrono.ChVector3d(0, 0, 1.5))
-camera_sensor.SetFieldOfView(90)
-camera_sensor.SetResolution(1920, 1080)
+# Create camera sensor and add to sensor manager
+camera_sensor = chrono.ChCameraSensor(vehicle.GetVehicle(), chrono.ChVector3d(0, 0, 1), chrono.ChQuaterniond(0, 0, 0, 1), 640, 480, 60)
+sensor_manager.AddSensor(camera_sensor)
 
-# Add visualization filter to render the image and include it in the sensor manager
-camera_filter = chrono.ChVisualizationFilter(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
-    terrainLength, terrainWidth)
+# Create visualization filter for camera sensor
+camera_filter = chrono.ChVisualizationFilter()
+camera_filter.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"))
+camera_filter.SetColor(chrono.ChColor(1, 1, 1))
+camera_filter.SetFieldOfView(60)
 
-patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
-terrain.Initialize()
+# Add camera filter to sensor manager
+sensor_manager.AddFilter(camera_filter)
 
-# Create the sensor manager
-sensor_manager = chrono.ChSensorManager()
+# Initialize simulation loop
+while vis.Run() :
+    time = vehicle.GetSystem().GetChTime()
 
-# Add point lights to the scene
-light1 = chrono.ChLight(chrono.ChVector3d(0, 0, 10), chrono.ChColor(1, 1, 1), 1000)
-light2 = chrono.ChLight(chrono.ChVector3d(0, 10, 0), chrono.ChColor(1, 1, 1), 1000)
-sensor_manager.AddLight(light1)
-sensor_manager.AddLight(light2)
+    # Render scene and output POV-Ray data
+    if (step_number % render_steps == 0) :
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+        render_frame += 1
 
-# Add camera sensor to the vehicle’s chassis body
-camera_sensor = chrono.ChCameraSensor(vehicle.GetSystem(), 1280, 720, 60)
-camera_sensor.SetPosition(chrono.ChVector3d(0, 0, 1.5))
-camera_sensor.SetFieldOfView(90)
-camera_sensor.SetResolution(1920, 1080)
+    # Get driver inputs
+    driver_inputs = driver.GetInputs()
 
-# Add visualization filter to render the image and include it in the sensor manager
-camera_filter = chrono.ChVisualizationFilter(camera_sensor)
-camera_filter.SetTexture(veh.GetDataFile("camera/textures/grass.jpg"), 200, 200)
-sensor_manager.AddSensor(camera_filter)
+    # Update modules (process inputs from other modules)
+    driver.Synchronize(time)
+    terrain.Synchronize(time)
+    vehicle.Synchronize(time, driver_inputs, terrain)
+    vis.Synchronize(time, driver_inputs)
 
-# Create the vehicle Irrlicht interface
+    # Update sensor manager
+    sensor_manager.Update(time)
 
-vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
-vis.SetWindowTitle('FEDA vehicle')
-vis.SetWindowSize(1280, 1024)
-vis.SetChaseCamera(trackPoint, 6.0, 0.5)
-vis.Initialize()
-vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
-vis.AddLightDirectional()
-vis.AddSkyBox()
-vis.AttachVehicle(vehicle.GetVehicle())
+    # Advance simulation for one timestep for all modules
+    driver.Advance(step_size)
+    terrain.Advance(step_size)
+    vehicle.Advance(step_size)
+    vis.Advance(step_size)
 
-# Create the driver system
-driver = veh.AddSensorManager.AddSensor.AddLight(veh.AddLight(veh.AddLight(veh.AddLight.AddLight(veh.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight.AddLight
+    # Increment frame number
+    step_number += 1
+
+    # Spin in place for real time to catch up
+    realtime_timer.Spin(step_size)
+
+# Close the visualization window
+vis.Close()
