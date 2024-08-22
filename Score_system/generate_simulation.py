@@ -116,39 +116,3 @@ def generate_code_second_third(prompt_code, input_code):
     except Exception as e:
         return str(e)
 
-# Read input1.txt and generate the first response
-"""
-prompt_code = read_script(input1_path)
-first_response = generate_code_first(prompt_code)
-print(first_response)
-first_response_path = os.path.join(responses_dir, "first_response.txt")
-with open(first_response_path, 'w', encoding="utf-8") as file:
-    file.write(first_response)
-
-# Read input2.txt and generate the second responses for corresponding scripts
-input2_path = os.path.join(new_scripts_dir, 'input2.txt')
-input2_code = read_script(input2_path)
-for script_name in os.listdir(new_scripts_dir):
-    if "_input2" in script_name:
-        script_path = os.path.join(new_scripts_dir, script_name)
-        prompt_code = read_script(script_path)
-        second_response = generate_code_second_third(prompt_code, input2_code)
-        print(second_response)
-        second_response_path = os.path.join(responses_dir, "second_response.txt")
-        with open(second_response_path, 'w', encoding="utf-8") as file:
-            file.write(second_response)
-
-# Read input3.txt and generate the third responses for corresponding scripts
-input3_path = os.path.join(new_scripts_dir, 'input3.txt')
-input3_code = read_script(input3_path)
-for script_name in os.listdir(new_scripts_dir):
-    if "_input3" in script_name:
-        script_path = os.path.join(new_scripts_dir, script_name)
-        prompt_code = read_script(script_path)
-        third_response = generate_code_second_third(prompt_code, input3_code)
-        print(third_response)
-        third_response_path = os.path.join(responses_dir, "third_response.txt")
-        with open(third_response_path, 'w', encoding="utf-8") as file:
-            file.write(third_response)
-print("finished")
-"""
