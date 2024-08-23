@@ -9,7 +9,7 @@ A description of the approach used to produce the J-LLM is available here:
 @article{jingquanSimbench2024,
   title={{SimBench: A Rule-Based Multi-Turn Interaction Benchmark for Evaluating an LLM's Ability to Generate Digital Twins}},
   author={Jingquan Wang and Harry Zhang and Huzaifa Mustafa Unjhawala and Peter Negrut and Shu Wang and Khailanii Slaton and Radu Serban and Jin-Long Wu and Dan Negrut},
-  journal={arXiv preprint arXiv:xxxx.xxxxx},
+  journal={arXiv preprint arXiv:2408.11987},
   year={2024},
   institution={University of Wisconsin-Madison}
 }
