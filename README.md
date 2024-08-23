@@ -15,4 +15,17 @@ A description of the approach used to produce the J-LLM is available here:
 }
 ```
 ## Highlights of the paper
-Stuff to be added.
+![SimBench Pipeline](./visualization/demo_overview.svg)
+The J-LLM associated with the Chrono SimBench handles multi-physics simulations, including but not limited to:
+- **Collision, Contact, and Friction Dynamics (MBD)**: Scenarios involving multi-link arms, gear mechanisms, slider-crank system, and other typical mechanisms.
+- **Vibration, deformation, stress, and strain (FEA)**: Scenarios involving cable, beam, shells, plates that evaluate the S-LLM's proficiency in structural analysis.
+- **Vehicle Dynamics (VEH)**: City buses, off-road vehicles (e.g., HMMWV, M113), trucks (e.g., Kraz, MAN), and sedans are used to test the S-LLM's ability to simulate driving scenarios. Driver, engine, transmission, and tire models, as well as high-level control policies integrated with sensors, are included in the benchmark.
+- **Sensor Integration (SEN)**: Scenarios involving GPS, IMU, LiDAR, and camera sensors are used to exercise the S-LLM's capability to support perception tasks for autonomous vehicles and robotic systems.
+- **Robotics Dynamics (RBT)**: The benchmark touches on robotic systems like Turtlebot, Curiosity, and VIPER, as well as granular dynamics and deformable terrain simulations, e.g., the Soil Contact Model (SCM) that come into play in off-road operations for both robots and vehicles.
+
+
+SimBench draws on 102 demonstration tasks associated with 34 distinct physical systems of the categories MBD through RBT listed above. These tasks involve setting up and progressively modifying digital twins, with each task broken down into three high-quality turns. These turns have been designed by simulation experts to gradually increase in complexity, thus enabling the J-LLM to provide a robust assessment of the S-LLM's capabilities. A list of example simulation scenarios in SimBench is provided in the above figure.
+
+
+![SimBench Pipeline](./visualization/pipeline_pic.svg)
+The SimBench pipeline for evaluating S-LLMs is shown above. The J-LLM is calibrated using a validation set contain pairs of ground truth and generated DTs. The prompts given to the J-LLM are interactively optimized to match the score provided by the expert. Then the J-LLM is used to evaluate the S-LLM based on the generated DTs, ground truth DTs, also the API documentation. 
