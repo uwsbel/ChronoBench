@@ -1,4 +1,4 @@
-This folder contains a well-designed API document `api.txt` used for the metrics `J-LLM_ref_doc` and `J-LLM_doc` mentioned in the paper. The API document was created through a two-level summarization process using an LLM:
+This folder contains an API document `api.txt` used for the metrics `J-LLM_ref_doc` and `J-LLM_doc` mentioned in the [SimBench arxiv paper](https://arxiv.org/abs/2408.11987). The API document was created through a two-level summarization process using an LLM:
 
 1. **First-Level Summaries**: The LLM was used to summarize the API usage for individual demos in each class (e.g., "FEA", "MBS", "VEH"). This provided a clear understanding of how the APIs are applied within each domain.
 
