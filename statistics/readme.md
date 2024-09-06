@@ -1,4 +1,4 @@
-The csv files evaluation_results.csv, filtered_pass_data.csv, pass.csv; LLM.csv contains all the eavluation scores from different metrics.
+The csv files evaluation_results.csv, filtered_pass_data.csv, pass.csv; LLM.csv contains all the evaluation scores from different metrics.
 
 
 
