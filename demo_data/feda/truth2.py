@@ -85,9 +85,6 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 
-# Create the driver system
-driver = veh.ChInteractiveDriverIRR(vis)
-
 # Create the path-follower, cruise-control driver
 # Use a parameterized ISO double lane change (to left)
 path = veh.DoubleLaneChangePath(initLoc, 13.5, 4.0, 11.0, 50.0, True)
