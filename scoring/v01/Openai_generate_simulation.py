@@ -133,9 +133,9 @@ system_list = ["art", "beam", "buckling", "cable", "car", "camera", "citybus", "
                "rigid_highway", "rigid_multipatches", "rotor", "scm", "scm_hill", "sedan", "sensros", "slider_crank", "tablecloth", "turtlebot", "uazbus", "veh_app","vehros","viper"]
 system_do_list=["rotor", "scm", "scm_hill", "sedan", "sensros", "slider_crank", "tablecloth", "turtlebot", "uazbus", "veh_app","vehros","viper"]
 # data set path
-dataset_path = 'C:\\Users\jingquanw\SimBench\demo_data'
-Output_path = 'C:\\Users\jingquanw\SimBench\output_llms'
-Output_conversation_path = 'C:\\Users\jingquanw\SimBench\output_conversion'
+dataset_path = r'C:\Users\jingquanw\SimBench\demo_data'
+Output_path = r'C:\Users\jingquanw\SimBench\output_llms'
+Output_conversation_path = r'C:\Users\jingquanw\SimBench\output_conversion'
 # in the dataset_path, there are 34 dynamical system folders, each folder is a dyanmical system which contains 8 files [3 input text files, input1.txt, input2.txt, input3.txt;
 # 2 python input files, pyinput2.py, pyinput3.py; 3 ground truth python files truth1.py, truth2.py, truth3.py]
 test_model_list= ["llama4_maverick"]
