@@ -2,7 +2,9 @@ from openai import OpenAI
 import os
 import json
 from tqdm import tqdm
-
+nvidia_api_key = os.getenv("NVIDIA_API_KEY")
+if not nvidia_api_key:
+    raise RuntimeError("Please set the NVIDIA_API_KEY environment variable!")
 def read_script(file_path):
     with open(file_path, "r", encoding="utf-8") as file:
         return file.read()
@@ -23,7 +25,7 @@ def generate_first_code(first_prompt,model_link):
     try:
         global nvidia_api_key
         client = OpenAI(
-            base_url="https://api.deepinfra.com/v1/openai",
+            base_url="https://integrate.api.nvidia.com/v1/chat/completions",
             api_key=nvidia_api_key
         )
         completion = client.chat.completions.create(
@@ -66,7 +68,7 @@ Provide the corrected and modified script below:
     try:
         global nvidia_api_key
         client = OpenAI(
-            base_url="https://api.deepinfra.com/v1/openai",
+            base_url="https://integrate.api.nvidia.com/v1/chat/completions",
             api_key=nvidia_api_key
         )
         completion = client.chat.completions.create(
@@ -124,17 +126,19 @@ opensource_model_links = {
     "mixtral-8x7b-instruct-v0.1":"mistralai/mixtral-8x7b-instruct-v0.1",
     "mistral-large-latest":"mistralai/mistral-large",
     "mamba-codestral-7b-v0.1":"mistralai/mamba-codestral-7b-v0.1",
+    "llama4_maverick":"meta/llama-4-maverick-17b-128e-instruct",
+    "llama4_scout":"meta/llama-4-scout-17b-16e-instruct"
 }
 system_list = ["art", "beam", "buckling", "cable", "car", "camera", "citybus", "curiosity", "feda", "gator", "gear", "gps_imu", "handler", "hmmwv", "kraz", "lidar", "m113", "man", "mass_spring_damper", "particles", "pendulum",
                "rigid_highway", "rigid_multipatches", "rotor", "scm", "scm_hill", "sedan", "sensros", "slider_crank", "tablecloth", "turtlebot", "uazbus", "veh_app","vehros","viper"]
 system_do_list=["rotor", "scm", "scm_hill", "sedan", "sensros", "slider_crank", "tablecloth", "turtlebot", "uazbus", "veh_app","vehros","viper"]
 # data set path
-dataset_path = 'D:\SimBench\demo_data'
-Output_path = 'D:\SimBench\output'
-Output_conversation_path = 'D:\SimBench\output_conversion'
+dataset_path = 'C:\\Users\jingquanw\SimBench\demo_data'
+Output_path = 'C:\\Users\jingquanw\SimBench\output_llms'
+Output_conversation_path = 'C:\\Users\jingquanw\SimBench\output_conversion'
 # in the dataset_path, there are 34 dynamical system folders, each folder is a dyanmical system which contains 8 files [3 input text files, input1.txt, input2.txt, input3.txt;
 # 2 python input files, pyinput2.py, pyinput3.py; 3 ground truth python files truth1.py, truth2.py, truth3.py]
-test_model_list= ["phi-3-medium-128k-instruct"]
+test_model_list= ["llama4_maverick"]
 # define an output path for the test results for each model with the name of the model
 # using tqdm to show the progress bar
 for test_model in tqdm(test_model_list):
@@ -193,55 +197,3 @@ for test_model in tqdm(test_model_list):
             output_conversation_path = os.path.join(Output_conversation_path, f"{test_model}_{system_folder}_conversation.json")
             save_conversation_json(output_conversation_path, combined_prompt1, first_response, combined_prompt2, second_response, combined_prompt3, third_response)
 print("finished")
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# Read input1.txt and generate the first response
-"""
-prompt_code = read_script(input1_path)
-first_response = generate_code_first(prompt_code)
-print(first_response)
-first_response_path = os.path.join(responses_dir, "first_response.txt")
-with open(first_response_path, 'w', encoding="utf-8") as file:
-    file.write(first_response)
-
-# Read input2.txt and generate the second responses for corresponding scripts
-input2_path = os.path.join(new_scripts_dir, 'input2.txt')
-input2_code = read_script(input2_path)
-for script_name in os.listdir(new_scripts_dir):
-    if "_input2" in script_name:
-        script_path = os.path.join(new_scripts_dir, script_name)
-        prompt_code = read_script(script_path)
-        second_response = generate_code_second_third(prompt_code, input2_code)
-        print(second_response)
-        second_response_path = os.path.join(responses_dir, "second_response.txt")
-        with open(second_response_path, 'w', encoding="utf-8") as file:
-            file.write(second_response)
-
-# Read input3.txt and generate the third responses for corresponding scripts
-input3_path = os.path.join(new_scripts_dir, 'input3.txt')
-input3_code = read_script(input3_path)
-for script_name in os.listdir(new_scripts_dir):
-    if "_input3" in script_name:
-        script_path = os.path.join(new_scripts_dir, script_name)
-        prompt_code = read_script(script_path)
-        third_response = generate_code_second_third(prompt_code, input3_code)
-        print(third_response)
-        third_response_path = os.path.join(responses_dir, "third_response.txt")
-        with open(third_response_path, 'w', encoding="utf-8") as file:
-            file.write(third_response)
-print("finished")
-"""
