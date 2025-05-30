@@ -1,0 +1,618 @@
+<think>
+Okay, I need to modify the given PyChrono script according to the user's instructions. Let me start by reviewing the original code for any errors.
+
+First, looking at the vehicle initialization part. The user wants to change the initial position from (0,0,0.5) to (-40,0,0.5). That's straightforward. I'll find where initLoc is set and update the ChVector3d values.
+
+Next, the terrain texture. The original code uses "tile4.jpg", but it should be "concrete.jpg". So in the patch.SetTexture call, I need to replace the filename. Wait, but I should check if "concrete.jpg" exists in the Chrono data path. The user probably assumes it's available, so proceed.
+
+Now, the simulation logic for the double lane change. The original code uses an interactive driver (ChInteractiveDriverIRR), which allows keyboard input. But the user wants to replace that with a programmed maneuver. So I need to replace the interactive driver with a path-follower or a driver that applies steering inputs over time.
+
+The instructions mention introducing time intervals with specific steering and throttle adjustments. So perhaps create a custom driver that uses a ChDriver object and set the inputs based on simulation time.
+
+Let me outline the steps for the double lane change. The vehicle starts at t=0, then after some time (say, t_start), applies a steering input to the left, then after some duration, steers right, then right again, then left to straighten. Then eventually apply braking.
+
+But how to implement this in PyChrono? The original code uses ChInteractiveDriverIRR for real-time input. To automate, we need to create a custom driver that overrides the Update function to set steering, throttle, and braking based on time.
+
+Alternatively, use a step function approach. For example, check the current time in the simulation loop and adjust driver inputs accordingly. But the original code uses a driver system which might not be compatible with this approach. So maybe switch to using a ChDriver and set the inputs each time step based on the current time.
+
+Looking at the original code, the driver is initialized as ChInteractiveDriverIRR. So perhaps replace that with a custom driver. Alternatively, use a ChFunction objects to define the steering over time.
+
+Wait, the Vehicle module in Chrono has a ChDriver that can be used for automated inputs. Let me check. The ChDriver class allows setting steering, throttle, braking via functions. But perhaps here, since the maneuver is time-based, we can create a loop where, at each time step, we check the current time and set the driver inputs accordingly.
+
+Alternatively, use a ChFunction_Sequence to define the steering input over time. But maybe a simpler approach is to, in the simulation loop, after getting the driver inputs, override them based on the current time.
+
+Wait, the original code uses driver_inputs = driver.GetInputs(). Then passes those to vehicle.Synchronize. So if we can modify the driver_inputs in the loop, we can control the vehicle. However, the driver in the original code is interactive, which might override these inputs. So perhaps replace the interactive driver with a custom one.
+
+Alternatively, maybe the user's intention is to replace the interactive driver with a scripted one. So instead of using ChInteractiveDriverIRR, use a ChDriver and manually set the controls.
+
+So here's the plan:
+
+1. Replace the ChInteractiveDriverIRR with a ChDriver.
+2. In the simulation loop, based on the current time, adjust the steering, throttle, and braking.
+
+So, first, remove the interactive driver setup:
+
+Original code:
+driver = veh.ChInteractiveDriverIRR(vis)
+...
+driver.SetSteeringDelta(...)
+...
+driver.Initialize()
+
+Instead, create a driver object of type veh.ChDriver, then in the loop, set the inputs based on time.
+
+So:
+
+driver = veh.ChDriver()
+
+Then, in the loop, after getting the time, set driver.SetSteering, SetThrottle, SetBraking based on the time.
+
+But how to handle this? Let's outline the time intervals for the double lane change.
+
+Assume the maneuver is as follows:
+
+- From t=0 to t=2s: accelerate (throttle=1)
+- At t=2s, start steering left for 1 second (steering increases to 0.5)
+- At t=3s, steer right (steering decreases to -0.5 over 1 second)
+- At t=4s, steer right again (steering back to 0 over 1 second)
+- At t=5s, apply brakes (throttle=0, braking=1)
+
+But the exact parameters depend on the user's instruction. Wait, the user's instruction says:
+
+"Time intervals and corresponding steering and throttle adjustments were introduced to simulate lane changes and eventually braking."
+
+But the user hasn't provided specific values, so maybe the example from PyChrono's demo? Or perhaps create a simple double lane change.
+
+Alternatively, the user might have in mind a standard double lane change maneuver, where the vehicle steers left, then right, then left again to return to the original lane.
+
+But without specific times, I need to make assumptions. Let's proceed with a sample logic:
+
+For example:
+
+- 0-2 sec: Throttle at 0.5 to accelerate
+- At 2 sec: Apply steering to the left (steering=0.5) for 1 sec
+- At 3 sec: Apply steering to the right (steering=-0.5) for 1 sec
+- At 4 sec: Steering back to 0 over 1 sec
+- At 5 sec: Throttle to 0, apply braking (braking=1)
+
+But perhaps adjust these values based on vehicle dynamics. However, the exact values may need tuning, but for the code, the logic is to set steering and throttle based on time.
+
+So in the simulation loop, after getting the time, check which phase we are in and set the inputs accordingly.
+
+But since the original code uses driver.GetInputs(), which comes from the interactive driver, we need to replace that driver with one that we can control programmatically.
+
+Therefore, remove the interactive driver and create a driver that we can control.
+
+So:
+
+Original lines for driver:
+
+driver = veh.ChInteractiveDriverIRR(vis)
+...
+driver.SetSteeringDelta(...)
+driver.Initialize()
+
+Replace with:
+
+driver = veh.ChDriver()
+
+Then, in the simulation loop, after time is obtained, set the driver inputs.
+
+So, in the loop:
+
+driver_inputs = driver.GetInputs()
+
+But if we're not using an interactive driver, perhaps we can directly set the driver's controls each step.
+
+Wait, the ChDriver has methods like SetThrottle, SetSteering, SetBraking. So in the loop, we can call these methods based on the current time.
+
+Therefore, in the simulation loop:
+
+time = vehicle.GetSystem().GetChTime()
+
+if time < 2.0:
+    driver.SetThrottle(0.5)
+    driver.SetSteering(0.0)
+    driver.SetBraking(0.0)
+elif time < 3.0:
+    # Steer left
+    driver.SetThrottle(0.5)
+    driver.SetSteering(0.5)
+    driver.SetBraking(0.0)
+elif time <4.0:
+    # Steer right
+    driver.SetThrottle(0.5)
+    driver.SetSteering(-0.5)
+    driver.SetBraking(0.0)
+elif time <5.0:
+    # Steer back to center
+    driver.SetThrottle(0.5)
+    driver.SetSteering(0.0)
+    driver.SetBraking(0.0)
+else:
+    # Brake
+    driver.SetThrottle(0.0)
+    driver.SetBraking(1.0)
+
+But this is a simplified example. The exact steering values and timing would need to be adjusted to perform a proper double lane change. But for the code, the structure is to check the time and set the driver's inputs accordingly.
+
+However, in the original code, after creating the driver, there's a driver.Initialize() call. The ChDriver may not need initialization, but perhaps the code should be adjusted.
+
+Another approach: Since the original code uses a driver that's interactive, but we need to script the inputs, perhaps the correct approach is to use a ChFunction that defines the steering over time. But integrating that might be more complex.
+
+Alternatively, use a custom driver that overrides the Update function. However, in Python, subclassing ChDriver may not be straightforward due to SWIG limitations. So perhaps the simplest way is to modify the driver inputs each time step in the loop.
+
+Therefore, the code changes would be:
+
+1. Change the initial position to (-40,0,0.5).
+
+2. Change the terrain texture to 'concrete.jpg'.
+
+3. Remove the interactive driver setup and replace it with a ChDriver instance.
+
+4. In the simulation loop, set the driver's inputs based on time.
+
+But wait, the original code uses:
+
+driver_inputs = driver.GetInputs()
+
+Which for ChInteractiveDriverIRR would get the inputs from the user. But if we replace the driver with a ChDriver, then driver.GetInputs() would return the current inputs set via SetThrottle, etc.
+
+Wait, no. The ChDriver in PyChrono's vehicle module has methods to get the inputs. Let me check the documentation.
+
+The ChDriver class in Chrono::Vehicle has methods like GetThrottle(), GetSteering(), GetBraking(). So when we create a ChDriver object, and in each step we set the throttle, steering, and braking via Set methods, then GetInputs() would collect those values.
+
+Wait, perhaps the ChDriver is a base class, and the GetInputs() function is supposed to be overridden. Hmm, maybe not. Let me think again.
+
+Alternatively, perhaps the driver inputs are directly accessible via the driver's attributes. So, for the code:
+
+In the loop:
+
+driver.SetThrottle(throttle)
+driver.SetSteering(steering)
+driver.SetBraking(braking)
+
+Then, driver_inputs would have the current throttle, steering, and braking values.
+
+But how does the vehicle.Synchronize() function get the inputs? Let's check the original code:
+
+vehicle.Synchronize(time, driver_inputs, terrain)
+
+The Synchronize method for the vehicle takes the driver inputs. The driver_inputs is a ChDriver::Inputs object, which contains steering, throttle, braking, etc.
+
+But if we're using a ChDriver, then perhaps the driver.GetInputs() returns the current inputs. So in the code:
+
+driver = veh.ChDriver()
+
+Then, during the simulation loop:
+
+# Get driver inputs
+driver_inputs = driver.GetInputs()
+
+But since we are manually setting the driver's controls, the GetInputs() would reflect those values.
+
+Wait, maybe not. The ChDriver in the vehicle module might have a method called GetInputs() that returns a structure with the current inputs. So, if we set the steering, throttle, and braking via the Set methods, then GetInputs() will return those values.
+
+Alternatively, perhaps the ChDriver's GetInputs() function is supposed to be called to get the current state. But I'm not entirely sure. Let me check the PyChrono documentation.
+
+Looking up the ChDriver class in PyChrono's vehicle module, it has methods like SetThrottle, SetSteering, SetBraking, and GetThrottle, GetSteering, GetBraking. The GetInputs() function returns a ChDriver::Inputs object which encapsulates these values.
+
+Wait, in the C++ code, the ChDriver::Inputs struct has members like m_steering, m_throttle, m_braking. So in Python, the GetInputs() would return an object with those attributes.
+
+So in the code, after setting the driver's controls via Set methods, the driver.GetInputs() will return the current inputs.
+
+Therefore, the approach would be:
+
+- Replace the interactive driver with a ChDriver.
+
+- In each simulation step, based on the current time, set the driver's throttle, steering, and braking using Set methods.
+
+- Then, get the inputs from the driver and pass them to vehicle.Synchronize.
+
+So modifying the code accordingly.
+
+Original driver setup:
+
+driver = veh.ChInteractiveDriverIRR(vis)
+...
+driver.Initialize()
+
+Replace with:
+
+driver = veh.ChDriver()
+
+No need for Initialize() as ChDriver doesn't require it.
+
+Then, in the simulation loop:
+
+# Get driver inputs (based on current time)
+time = vehicle.GetSystem().GetChTime()
+
+# Set driver inputs based on time
+if time < 2.0:
+    # Accelerate
+    driver.SetThrottle(0.5)
+    driver.SetSteering(0.0)
+    driver.SetBraking(0.0)
+elif time < 3.0:
+    # Steer left
+    driver.SetThrottle(0.5)
+    driver.SetSteering(0.5)
+    driver.SetBraking(0.0)
+elif time < 4.0:
+    # Steer right
+    driver.SetThrottle(0.5)
+    driver.SetSteering(-0.5)
+    driver.SetBraking(0.0)
+elif time < 5.0:
+    # Steer back to center
+    driver.SetThrottle(0.5)
+    driver.SetSteering(0.0)
+    driver.SetBraking(0.0)
+else:
+    # Brake
+    driver.SetThrottle(0.0)
+    driver.SetBraking(1.0)
+
+Then, driver_inputs = driver.GetInputs()
+
+This should work.
+
+Now, check for any errors in the original code.
+
+Looking at the original code:
+
+When creating the vehicle, it's initialized as:
+
+vehicle = veh.UAZBUS()
+vehicle.SetContactMethod(contact_method)
+...
+vehicle.Initialize()
+
+Wait, the UAZBUS is a WheeledVehicle, and the initialization steps are correct. The Set methods are properly called before Initialize().
+
+Another potential error: The visualization system setup. The code uses:
+
+vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
+
+But in newer versions of Chrono, the vehicle visual system might have been renamed. Wait, checking PyChrono documentation, the correct class is ChWheeledVehicleVisualSystemIrrlicht, which seems to be used here. So that's correct.
+
+Another possible error: The terrain is initialized with terrain.Initialize(). The patch is added with AddPatch. That's correct.
+
+Now, when the vehicle is created with SetChassisCollisionType(chassis_collision_type), which is set to NONE. That's okay if intended.
+
+Another check: The tire model is set to TMEASY, which is correct.
+
+Now, the simulation loop uses vis.Run(), which is correct for Irrlicht.
+
+So the main code seems okay, except for the driver part, which needs to be replaced as per the user's instructions.
+
+Putting it all together:
+
+- Change initLoc to (-40, 0, 0.5).
+
+- Change the terrain texture to 'concrete.jpg'.
+
+- Replace the interactive driver with a ChDriver and set the inputs based on time in the loop.
+
+Now, let's implement these changes.
+
+First, the initial position:
+
+Original line:
+
+initLoc = chrono.ChVector3d(0, 0, 0.5)
+
+Change to:
+
+initLoc = chrono.ChVector3d(-40, 0, 0.5)
+
+Second, the terrain texture:
+
+Original line:
+
+patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
+
+Change to:
+
+patch.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 200, 200)
+
+Third, the driver setup.
+
+Original code:
+
+driver = veh.ChInteractiveDriverIRR(vis)
+driver.SetSteeringDelta(...)
+...
+driver.Initialize()
+
+Replace with:
+
+driver = veh.ChDriver()
+
+Remove the lines setting SteeringDelta, ThrottleDelta, etc., as they are for interactive input.
+
+In the simulation loop, after getting the time, set the driver's inputs.
+
+So inside the while loop:
+
+    time = vehicle.GetSystem().GetChTime()
+
+    # Set driver inputs for double lane change
+    if time < 2.0:
+        # Initial acceleration
+        driver.SetThrottle(0.5)
+        driver.SetSteering(0.0)
+        driver.SetBraking(0.0)
+    elif time < 3.0:
+        # Steer left (first lane change)
+        driver.SetThrottle(0.5)
+        driver.SetSteering(0.5)
+        driver.SetBraking(0.0)
+    elif time < 4.0:
+        # Steer right (second lane change)
+        driver.SetThrottle(0.5)
+        driver.SetSteering(-0.5)
+        driver.SetBraking(0.0)
+    elif time < 5.0:
+        # Steer back to center
+        driver.SetThrottle(0.5)
+        driver.SetSteering(0.0)
+        driver.SetBraking(0.0)
+    else:
+        # Brake to stop
+        driver.SetThrottle(0.0)
+        driver.SetBraking(1.0)
+
+    # Get driver inputs
+    driver_inputs = driver.GetInputs()
+
+This should override the driver inputs based on time.
+
+Another consideration: The original code uses driver.Synchronize(time), which for ChInteractiveDriverIRR would handle input events. But with the new ChDriver, do we need to call Synchronize? The ChDriver may not require it. However, in the code, after setting the driver's inputs, the line driver.Synchronize(time) may not be necessary. Let's check the original code:
+
+Original code in the loop:
+
+driver.Synchronize(time)
+terrain.Synchronize(time)
+vehicle.Synchronize(time, driver_inputs, terrain)
+vis.Synchronize(time, driver_inputs)
+
+The driver.Synchronize(time) is part of the module synchronization. For ChDriver, the Synchronize method may not do anything, but it's safer to leave it in. However, since we're setting the driver's inputs manually, maybe it's redundant, but the code can still call it.
+
+But since the ChDriver doesn't require synchronization (as it's not processing real-time inputs), the Synchronize call can be removed. However, in the original code, the ChInteractiveDriverIRR's Synchronize method processes events. For the new driver, we should remove the driver.Synchronize(time) line.
+
+Wait, in the original code, after getting driver_inputs, the code calls driver.Synchronize(time), then vehicle.Synchronize with driver_inputs.
+
+But if the driver is a ChDriver, then Synchronize may not be necessary. So perhaps the line driver.Synchronize(time) can be commented out or removed.
+
+Alternatively, if the ChDriver's Synchronize method is empty, then it's harmless to call it. But to be safe, perhaps remove that line.
+
+So in the loop:
+
+    # Update modules (process inputs from other modules)
+    # driver.Synchronize(time)  # This line is removed
+    terrain.Synchronize(time)
+    vehicle.Synchronize(time, driver_inputs, terrain)
+    vis.Synchronize(time, driver_inputs)
+
+Thus, the driver.Synchronize(time) is no longer needed.
+
+Now, putting all the changes together.
+
+Potential errors in the original code:
+
+1. The original code uses veh.ChWheeledVehicleVisualSystemIrrlicht. Is this the correct class? In some versions, it might be ChVehicleVisualSystemIrrlicht. But assuming the code is correct as given.
+
+2. The call to vehicle.GetVehicle().GetMass() — but vehicle is a UAZBUS, which is a WheeledVehicle, so GetVehicle() may not be necessary. Wait, looking at the PyChrono API: the UAZBUS class is derived from ChWheeledVehicle, so the vehicle object is the vehicle itself. Therefore, the line:
+
+print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+
+Is incorrect. It should be vehicle.GetMass(), because vehicle is already the WheeledVehicle instance. So vehicle.GetVehicle() is redundant and would cause an error. Let's check:
+
+In the original code:
+
+vehicle = veh.UAZBUS()
+...
+print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+
+But the UAZBUS object is a WheeledVehicle, which has a GetMass() method. Therefore, the correct line is:
+
+print( "VEHICLE MASS: ",  vehicle.GetMass())
+
+So this is an error in the original code that needs correction.
+
+Another potential error: The contact method is set as contact_method = chrono.ChContactMethod_NSC. Then, vehicle.SetContactMethod(contact_method). This is correct.
+
+Another thing: The trackPoint is set to (-3.0, 0.0, 1.1). The camera follows this point. With the initial position at (-40, 0, 0.5), the camera should still track correctly, as trackPoint is relative to the vehicle.
+
+Other parts seem okay.
+
+So the main corrections are:
+
+1. Remove .GetVehicle() in the print statement.
+
+2. Correct the driver setup and inputs.
+
+So in the original code, the line:
+
+print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+
+should be:
+
+print( "VEHICLE MASS: ",  vehicle.GetMass())
+
+That's a logical error.
+
+Now, incorporating all these corrections and changes into the final script.
+</think>
+
+Here is the corrected and modified script based on the provided instructions:
+
+```python
+import pychrono.core as chrono
+import pychrono.irrlicht as irr
+import pychrono.vehicle as veh
+import math
+
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())
+veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
+
+# Initial vehicle location and orientation
+initLoc = chrono.ChVector3d(-40, 0, 0.5)  # Modified initial position
+initRot = chrono.ChQuaterniond(1, 0, 0, 0)
+
+# Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
+vis_type = veh.VisualizationType_MESH
+
+# Collision type for chassis (PRIMITIVES, MESH, or NONE)
+chassis_collision_type = veh.CollisionType_NONE
+
+# Type of tire model (RIGID, TMEASY)
+tire_model = veh.TireModelType_TMEASY
+
+# Rigid terrain parameters
+terrainHeight = 0
+terrainLength = 100.0
+terrainWidth = 100.0
+
+# Camera tracking point
+trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
+
+# Contact method
+contact_method = chrono.ChContactMethod_NSC
+contact_vis = False
+
+# Simulation step sizes
+step_size = 1e-3
+tire_step_size = step_size
+
+# Render frame interval
+render_step_size = 1.0 / 50  # FPS = 50
+
+# Create and initialize UAZBUS vehicle
+vehicle = veh.UAZBUS() 
+vehicle.SetContactMethod(contact_method)
+vehicle.SetChassisCollisionType(chassis_collision_type)
+vehicle.SetChassisFixed(False)
+vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
+vehicle.SetTireType(tire_model)
+vehicle.SetTireStepSize(tire_step_size)
+vehicle.Initialize()
+
+# Set visualization types
+vehicle.SetChassisVisualizationType(vis_type)
+vehicle.SetSuspensionVisualizationType(vis_type)
+vehicle.SetSteeringVisualizationType(vis_type)
+vehicle.SetWheelVisualizationType(vis_type)
+vehicle.SetTireVisualizationType(vis_type)
+
+vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+
+# Create terrain
+patch_mat = chrono.ChContactMaterialNSC()
+patch_mat.SetFriction(0.9)
+patch_mat.SetRestitution(0.01)
+terrain = veh.RigidTerrain(vehicle.GetSystem())
+patch = terrain.AddPatch(patch_mat, 
+    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
+    terrainLength, terrainWidth)
+
+patch.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 200, 200)  # Changed texture
+patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+terrain.Initialize()
+
+# Create Irrlicht visualization
+vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
+vis.SetWindowTitle('UAZBUS Demo')
+vis.SetWindowSize(1280, 1024)
+vis.SetChaseCamera(trackPoint, 6.0, 0.5)
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddLightDirectional()
+vis.AddSkyBox()
+vis.AttachVehicle(vehicle)
+
+# Create and initialize driver system
+driver = veh.ChDriver()  # Changed to scripted driver
+
+# Output vehicle mass
+print("VEHICLE MASS:", vehicle.GetMass())  # Corrected GetMass() call
+
+# Simulation loop parameters
+render_steps = math.ceil(render_step_size / step_size)
+realtime_timer = chrono.ChRealtimeStepTimer()
+step_number = 0
+render_frame = 0
+
+while vis.Run():
+    time = vehicle.GetSystem().GetChTime()
+    
+    # Update driver inputs for automated maneuver
+    if time < 2.0:
+        # Initial acceleration
+        driver.SetThrottle(0.5)
+        driver.SetSteering(0.0)
+        driver.SetBraking(0.0)
+    elif time < 4.0:
+        # First lane change (left)
+        driver.SetThrottle(0.5)
+        driver.SetSteering(0.3)
+        driver.SetBraking(0.0)
+    elif time < 6.0:
+        # Second lane change (right)
+        driver.SetThrottle(0.5)
+        driver.SetSteering(-0.3)
+        driver.SetBraking(0.0)
+    elif time < 8.0:
+        # Third lane change (right)
+        driver.SetThrottle(0.5)
+        driver.SetSteering(-0.3)
+        driver.SetBraking(0.0)
+    elif time < 10.0:
+        # Final lane change (left to center)
+        driver.SetThrottle(0.5)
+        driver.SetSteering(0.3)
+        driver.SetBraking(0.0)
+    else:
+        # Full braking
+        driver.SetThrottle(0.0)
+        driver.SetBraking(1.0)
+
+    # Render scene
+    if step_number % render_steps == 0:
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+        render_frame += 1
+
+    # Collect driver inputs
+    driver_inputs = driver.GetInputs()
+
+    # Update modules
+    terrain.Synchronize(time)
+    vehicle.Synchronize(time, driver_inputs, terrain)
+    vis.Synchronize(time, driver_inputs)
+
+    # Advance simulation
+    driver.Advance(step_size)
+    terrain.Advance(step_size)
+    vehicle.Advance(step_size)
+    vis.Advance(step_size)
+
+    step_number += 1
+    realtime_timer.Spin(step_size)
+```
+
+Key modifications made:
+1. Changed initial position to (-40, 0, 0.5)
+2. Updated terrain texture to concrete.jpg
+3. Replaced interactive driver with scripted driver
+4. Added automated double lane change logic with:
+   - 2 seconds of initial acceleration
+   - Sequential steering inputs for lane changes
+   - Final braking phase
+5. Corrected vehicle mass output call (removed redundant GetVehicle())
+6. Maintained proper synchronization between simulation modules
+
+The script now features an automated double lane change maneuver followed by braking, with the vehicle starting at the specified position on a concrete-textured terrain.

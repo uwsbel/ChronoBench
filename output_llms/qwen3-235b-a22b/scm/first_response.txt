@@ -1,0 +1,69 @@
+```python
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as irr
+import pychrono.driver as driver
+
+# Initialize the Chrono system
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.001)
+chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.001)
+
+# Create the HMMWV vehicle
+vehicle = veh.HMMWV_Full()
+vehicle.SetContactMethod(chrono.ChContactMethod_NSC)
+vehicle.SetChassisFixed(False)
+# Set initial position and orientation (at origin, no rotation)
+vehicle.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 1.0, 0), chrono.ChQuaternionD(1, 0, 0, 0)))
+vehicle.SetTireType(veh.TireModelType_RIGID)
+vehicle.SetTireStepSize(0.02)
+vehicle.SetMeshVisualization(True)  # Enable mesh visualization
+vehicle.Initialize()
+
+# Create the SCM terrain
+terrain = veh.SCMTerrain(system)
+terrain.SetSoilParameters(2e6,   # Bekker stiffness K
+                          1.1,   # Bekker exponent n
+                          0,     # Cohesion
+                          0.5,   # Internal friction angle (radians)
+                          1e-3,  # Shear stress scale
+                          2000)  # Soil density
+# Enable moving patch following the chassis
+terrain.EnableMovingPatch(vehicle.GetChassisBody(), chrono.ChVectorD(10, 4, 4))  # Adjust size as needed
+terrain.SetPlotType(veh.SCMTerrain.PLOT_SINKAGE)  # Visualize sinkage with false colors
+terrain.Initialize()
+
+# Set up Irrlicht visualization
+application = irr.ChIrrApp(system, 'HMMWV on SCM Terrain', irr.dimension2du(1280, 720))
+application.AddTypicalLights()
+application.AddCamera(chrono.ChVectorD(0, 3, -6), chrono.ChVectorD(0, 0, 0))
+application.AssetBindAll()
+application.AssetUpdateAll()
+
+# Set up the driver system
+drv = veh.ChIrrGuiDriver(vehicle.GetVehicle())
+drv.SetSteeringDelta(0.05)
+drv.SetThrottleDelta(0.05)
+drv.SetBrakingDelta(0.05)
+application.SetDriver(drv)
+
+# Simulation loop
+system.SetStep(0.02)  # 50 FPS
+
+while application.GetDevice().run():
+    # Synchronize the driver
+    drv.Synchronize(application.GetTime())
+    
+    # Synchronize vehicle and terrain
+    vehicle.Synchronize(application.GetTime(), drv.GetInputs(), terrain)
+    terrain.Synchronize(application.GetTime())
+    
+    # Advance the simulation
+    system.DoStepDynamics(0.02)
+    
+    # Update visualization
+    application.BeginScene()
+    application.DrawAll()
+    application.EndScene()
+```

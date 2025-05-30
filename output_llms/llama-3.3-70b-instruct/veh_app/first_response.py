@@ -1,0 +1,121 @@
+import pychrono.core as chrono
+import pychrono.irrlicht as chronoirr
+import pychrono.vehicle as veh
+import numpy as np
+
+# Create the simulation system
+sys = chrono.ChSystemNSC()
+
+# Set the default contact material properties
+contact_material = chrono.ChMaterialSurfaceNSC()
+contact_material.SetFriction(0.9)
+contact_material.SetDampingF(0.3)
+contact_material.SetCompliance(1e-6)
+contact_material.SetComplianceT(1e-6)
+sys.SetDefaultContactMaterial(contact_material)
+
+# Create the vehicle system
+vehicle = veh.Gator()
+
+# Initialize the vehicle system
+vehicle.Initialize(sys)
+
+# Set the vehicle's position and orientation
+vehicle.SetChassisPosition(chrono.ChVectorD(0, 1, 0))
+vehicle.SetChassisOrientation(chrono.Q_from_AngX(chrono.CH_C_PI_2))
+
+# Create the terrain
+terrain = veh.RigidTerrain(sys)
+
+# Add the terrain to the simulation system
+sys.Add(terrain.GetGroundBody())
+
+# Add the vehicle to the simulation system
+sys.Add(vehicle.GetChassisBody())
+sys.Add(vehicle.GetBody(0))
+sys.Add(vehicle.GetBody(1))
+sys.Add(vehicle.GetBody(2))
+sys.Add(vehicle.GetBody(3))
+
+# Create the interactive driver system
+driver = veh.ChIrrlichtDriver()
+driver.SetVehicle(vehicle)
+driver.SetSteeringMin(-0.5)
+driver.SetSteeringMax(0.5)
+driver.SetThrottleMin(0)
+driver.SetThrottleMax(1)
+
+# Set the visualization type for the vehicle parts
+vehicle.GetChassisBody().SetCollide(True)
+vehicle.GetChassisBody().SetBodyFixed(False)
+
+# Set the visualization type for the wheels
+for wheel in vehicle.GetWheels():
+    wheel.GetBody().SetCollide(True)
+    wheel.GetBody().SetBodyFixed(False)
+
+# Create the sensor manager
+sensor_manager = veh.SensorManager()
+
+# Create a point light and add it to the sensor manager
+point_light = chronoirr.ChLightDirectional()
+point_light.SetDirection(chrono.ChVectorD(-1, -1, -1))
+sensor_manager.AddSensor(point_light)
+
+# Create a camera and add it to the sensor manager
+camera = chronoirr.ChCamera()
+camera.SetPosition(chrono.ChVectorD(0, 2, -3))
+camera.SetLookAt(chrono.ChVectorD(0, 0, 0))
+sensor_manager.AddSensor(camera)
+
+# Attach the camera to the vehicle's chassis
+camera.SetPosition(vehicle.GetChassisBody().GetPos() + chrono.ChVectorD(0, 2, -3))
+camera.SetLookAt(vehicle.GetChassisBody().GetPos())
+
+# Set the simulation time step
+time_step = 1e-3
+
+# Set the simulation duration
+simulation_duration = 10
+
+# Initialize the simulation time
+time = 0
+
+# Run the simulation loop
+while time < simulation_duration:
+    # Update the driver
+    driver.Synchronize(time)
+
+    # Update the terrain
+    terrain.Synchronize(time)
+
+    # Update the vehicle
+    vehicle.Synchronize(time)
+
+    # Update the sensor manager
+    sensor_manager.Synchronize(time)
+
+    # Advance the simulation modules
+    sys.DoStepDynamics(time_step)
+
+    # Render the camera images
+    camera.Render()
+
+    # Increment the simulation time
+    time += time_step
+
+# Create an Irrlicht application
+app = chronoirr.ChVisualSystemIrrlicht()
+
+# Add the simulation system to the application
+app.AddSkyBox()
+app.AddTypicalLights()
+app.AddCamera(camera)
+app.AddCameraAxes()
+
+# Set the camera's position and orientation
+app.GetCamera().SetPosition(chrono.ChVectorD(0, 2, -3))
+app.GetCamera().SetLookAt(chrono.ChVectorD(0, 0, 0))
+
+# Run the application
+app.Run()

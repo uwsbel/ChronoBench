@@ -1,0 +1,346 @@
+<think>
+Okay, I need to create a simulation of a simple pendulum using PyChrono with Irrlicht visualization. Let me start by recalling the components required for a basic PyChrono simulation.
+
+First, I'll need to import the necessary modules. That includes chrono, irrlicht for visualization, and maybe some math functions for calculations. The main components are the system, bodies, joints, and the visualization setup.
+
+The ground body is straightforward. I'll create a ground body using ChBodyEasyBox with a small thickness. It should be positioned at the origin or maybe just below the pendulum's pivot point.
+
+Next, the pendulum itself. The pendulum is a rod, so I can model it as a ChBodyEasyCylinder. I need to set its mass, length, radius, and compute the correct inertia. The position of the pendulum should be such that it's hanging from the revolute joint. The pivot point is at the top of the pendulum, so the center of mass will be at half the length. Wait, when creating the cylinder, the default position is centered, so I need to adjust its position so that the top is at the pivot. For example, if the cylinder's length is 2 meters, the center is at 1 meter from the top. So to have the pivot at (0,0,0), the pendulum's position should be at (0, -length/2, 0)? Wait, maybe I should set the pendulum's position so that its top end is at the origin. Let me think: if the cylinder is created along the Y-axis, then the center is at (0,0,0), and the length is along Y. So if I want the pivot at (0,0,0) and the pendulum to hang down, the pendulum's position should be at (0, -length/2, 0), so that the center is at the midpoint. That way, when it rotates, the pivot remains at the origin.
+
+Then, the revolute joint connects the ground and the pendulum. The revolute joint's axis should be along the Z-axis to allow rotation in the XY plane. The joint is created between the ground and pendulum, with the pivot point at (0,0,0). The joint's axis is (0,0,1) for Z-axis rotation.
+
+For visualization, I need to add Irrlicht assets to both the ground and pendulum. The ground can have a box visual asset, and the pendulum a cylinder. Also, maybe color them differently for clarity.
+
+The simulation loop needs to handle time steps. Using a step size of 0.01 seconds (100 Hz) is common. During each step, I'll update the system and log the pendulum's position and velocity. The position can be obtained from the pendulum body's position, but since it's rotating, maybe the angle is more useful. Alternatively, track the endpoint's position. The angular velocity can be obtained from the body's angular velocity in the Z component.
+
+Wait, the revolute joint might have a constraint that can provide the angle directly. But perhaps it's easier to get the body's rotation. The pendulum's angle can be calculated using the body's rotation quaternion. For example, converting the rotation to an angle around the Z-axis. Alternatively, since the joint is revolute, maybe the joint's angle is accessible. But for simplicity, maybe just get the body's angular position and velocity.
+
+Alternatively, since the pendulum is a rigid body, its orientation will give the angle. Let's say the initial position is hanging vertically downward. If displaced, the angle theta is the angle from the vertical. To compute theta, we can take the body's rotation matrix, extract the rotation about Z, and that's the angle. But maybe using the body's angular velocity in the Z direction gives the angular speed.
+
+For logging, every 0.1 seconds, I can print the time, angle, and angular velocity. So in the simulation loop, check if the current time modulo 0.1 is less than the time step, then log the data.
+
+Putting it all together:
+
+1. Import necessary modules.
+2. Create the system and set gravity.
+3. Create ground body with a box.
+4. Create pendulum as a cylinder, set mass, position, etc.
+5. Add revolute joint between ground and pendulum.
+6. Add Irrlicht visualization.
+7. Simulation loop with time stepping, logging data periodically.
+
+Wait, also need to set the initial angle. If the pendulum starts at an angle, maybe set the initial rotation. For example, set the pendulum's initial rotation to 30 degrees so it can swing. Otherwise, it will just hang motionless. So, after creating the pendulum body, set its rotation using a quaternion from an angle about the Z-axis.
+
+Testing the code: Ensure that the pendulum swings under gravity, and the logged data shows periodic changes in angle and velocity.
+
+Potential issues: Incorrect inertia calculation, leading to unexpected motion. Make sure the pendulum's inertia is set correctly for a cylinder rotating about its end. Wait, the ChBodyEasyCylinder might compute the inertia assuming rotation about the center. But since the pivot is at the end, the moment of inertia should be (1/3)*m*L². However, when using ChBodyEasyCylinder, the inertia is computed based on the body's local coordinates. Wait, the cylinder's default inertia is around its center. But when the body is positioned such that the pivot is at one end, the actual moment of inertia about the pivot is different. Hmm, this is a crucial point. If the body's center of mass is offset from the pivot, the inertia needs to account for the parallel axis theorem.
+
+Wait, the ChBodyEasy... functions automatically compute the inertia tensor based on the geometry and density. But in this case, the pendulum is a rod pivoted at one end, so the moment of inertia should be (1/3)*m*L². However, if the cylinder is created with length L and radius r, the default inertia is for rotation around the center. So when the pivot is at one end, the actual inertia is the inertia about the center plus m*(L/2)^2. Therefore, perhaps the ChBodyEasyCylinder's computed inertia is not correct for this scenario. To fix this, maybe we need to adjust the inertia manually.
+
+Wait, the ChBodyEasyCylinder creates a cylinder aligned along the Y-axis, with the center at the body's position. So if the body is positioned such that its center is at (0, -L/2, 0), then the pivot is at (0,0,0), and the center of mass is at (0, -L/2, 0). The moment of inertia about the pivot (parallel axis theorem) would be I_center + m*d², where d is the distance from the center to the pivot. The I_center for a cylinder along Y is (1/12)*m*(3r² + L²). Then, the moment of inertia about the pivot is (1/12)*m*(3r² + L²) + m*(L/2)^2 = (1/12)*(3r² + L²) + (L²/4) = (3r² + L² + 3L²)/12 = (3r² +4L²)/12. For a thin rod (r << L), this approximates to (4L²)/12 = L²/3, which is correct. So if the cylinder is created with the correct position, the inertia computed by ChBodyEasyCylinder is the inertia about the center, and when the body is rotating around the pivot (which is at a distance L/2 from the center), the parallel axis is automatically handled by Chrono's dynamics. Wait, no. The inertia tensor in the body's frame is about its own center of mass. When the body is connected via a revolute joint at a point offset from its center, Chrono's dynamics should handle the necessary transformations. So perhaps the automatically computed inertia is sufficient. Because the joint's constraint will apply the correct rotational dynamics considering the body's inertia and the pivot point. So maybe I don't need to adjust the inertia manually. The revolute joint allows rotation around the pivot, and the body's inertia is about its own center. The dynamics engine should compute the effective moment of inertia about the pivot correctly. So perhaps using the ChBodyEasyCylinder with the correct position is sufficient.
+
+Therefore, proceed with creating the pendulum as a cylinder with length L, radius r, positioned so that its center is at (0, -L/2, 0), making the pivot at (0,0,0). The mass and inertia are set automatically by ChBodyEasyCylinder. Then, the revolute joint is at (0,0,0), allowing rotation around Z.
+
+Set the initial angle by rotating the pendulum body. For example, set the body's rotation to a quaternion representing a rotation of, say, 30 degrees around the Z-axis. That way, when the simulation starts, the pendulum will swing under gravity.
+
+In the simulation loop, during each step, update the system and log the data. For logging, every 0.1 seconds, get the pendulum's position (maybe the end position) and angular velocity. The position of the end of the pendulum can be calculated as the body's position (which is the center) plus the rotation matrix applied to the vector (0, -L/2, 0). Wait, the body's position is (0, -L/2, 0), and the length is L. The end of the pendulum is at (0, -L/2 - L/2, 0) = (0, -L, 0) in the body's local frame. But when the body is rotated, the end point in the global frame is body.GetPos() + body.GetRot().Rotate(local_end_point). Wait, the body's position is the center of the cylinder. The local_end_point would be (0, -L/2, 0) from the center to the end. So the global end position is body_pos + rotation * (0, -L/2, 0). So to get the end position, compute that.
+
+Alternatively, since the pivot is at (0,0,0), the end of the pendulum is at (L*sin(theta), -L*cos(theta), 0), where theta is the angle from the vertical. But perhaps using the body's position and rotation is more accurate.
+
+For logging, the angle can be obtained from the body's rotation. The body's rotation quaternion can be converted to an angle around the Z-axis. For example, using the method to decompose the rotation into Euler angles, then taking the Z component.
+
+The angular velocity is the body's angular velocity in the global frame. The Z component of the angular velocity vector gives the rate of rotation around the Z-axis.
+
+Putting this all together, the code steps are:
+
+- Import necessary modules: chrono, irrlicht, math, etc.
+- Create the system and set gravity.
+- Create the ground body as a box.
+- Create the pendulum as a cylinder, set its position and rotation.
+- Add the revolute joint between ground and pendulum at (0,0,0) with Z axis.
+- Add visualization assets to both bodies.
+- Set up the Irrlicht visualization.
+- Simulation loop: while application.GetDevice().run(), update the system, log data every 0.1 seconds.
+
+Testing the code: Ensure that the pendulum swings with the correct period. For small angles, the period should be approximately 2π√(L/g), but with L being the length from pivot to center? Wait, no. The period of a physical pendulum is 2π√(I/(mgh)), where h is the distance from pivot to center of mass. For a rod pivoted at the end, I = (1/3)mL², h = L/2. So period T = 2π√((1/3 mL²)/(m g (L/2))) ) = 2π√( (2L)/(3g) ). For example, if L=2m, g=9.81, T≈2π√(4/(3*9.81)) ≈ 2π*0.369 ≈ 2.32 seconds. So the simulation should show this period. But since the code may start with an initial angle, the motion should be oscillatory.
+
+Potential mistakes: Forgetting to set the initial angle, leading to a stationary pendulum. Forgetting to add the revolute joint. Incorrect axis for the revolute joint. Incorrect visualization setup.
+
+Now, let's draft the code.
+
+First, import the necessary modules:
+
+import pychrono as chrono
+import pychrono.irrlicht as irrlicht
+import math
+
+Then, create the system:
+
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # gravity in -Y direction
+
+Create the ground body:
+
+ground = chrono.ChBodyEasyBox(1, 0.2, 1, 1000, True, False)
+ground.SetPos(chrono.ChVectorD(0, 0, 0))
+ground.SetBodyFixed(True)
+system.Add(ground)
+
+Wait, the ground is a box. Maybe make it a thin plate. The dimensions here are 1x0.2x1, but perhaps better to have a small marker at the pivot. Alternatively, the ground can be a simple box positioned at the origin. But for visualization, maybe a small red box at the pivot.
+
+Then, create the pendulum:
+
+length = 2.0  # length of the pendulum
+radius = 0.05  # radius of the cylinder
+density = 1000  # density for ChBodyEasyCylinder
+
+pendulum = chrono.ChBodyEasyCylinder(radius, length, density, True, False)
+pendulum.SetPos(chrono.ChVectorD(0, -length/2, 0))  # center at (0, -1, 0) if length=2
+pendulum.SetRot(chrono.Q_from_AngZ(math.radians(30)))  # initial angle of 30 degrees
+system.Add(pendulum)
+
+Add the revolute joint:
+
+pivot = chrono.ChVectorD(0, 0, 0)
+axis = chrono.ChVectorD(0, 0, 1)
+revolute = chrono.ChLinkRevolute()
+revolute.Initialize(ground, pendulum, chrono.ChCoordsysD(pivot, chrono.Q_from_AngAxis(0, axis)))
+system.Add(revolute)
+
+Add visualization:
+
+vis = irrlicht.ChIrrApp(system, "Pendulum Simulation", irrlicht.dimension2du(800,600))
+vis.AddTypicalLights()
+vis.AddTypicalCamera(irrlicht.vector3df(0,0,3), irrlicht.vector3df(0,0,0))
+
+vis.AssetBindAll()
+vis.AssetUpdateAll()
+
+Simulation loop:
+
+time_step = 0.01
+log_interval = 0.1
+next_log_time = 0
+
+while vis.GetDevice().run():
+    vis.BeginScene()
+    vis.DrawAll()
+    vis.DoStepDynamics(time_step)
+    vis.EndScene()
+
+    current_time = system.GetChTime()
+    if current_time >= next_log_time:
+        # Log data
+        pos = pendulum.GetPos()
+        rot = pendulum.GetRot()
+        ang_vel = pendulum.GetWvel_par()
+
+        # Calculate angle from vertical (Y-axis)
+        angle = math.degrees(rot.Q_to_AngZ().z)  # Assuming rotation around Z
+
+        # End position: pos is center, so end is pos + rot * (0, -length/2, 0)
+        local_end = chrono.ChVectorD(0, -length/2, 0)
+        global_end = pos + rot.Rotate(local_end)
+
+        print(f"Time: {current_time:.2f}s, Angle: {angle:.2f} deg, Angular Velocity Z: {ang_vel.z:.2f} rad/s, End Position: ({global_end.x:.2f}, {global_end.y:.2f}, {global_end.z:.2f})")
+
+        next_log_time += log_interval
+
+Wait, but in PyChrono, the GetRot() returns a ChQuaternion, and Q_to_AngZ() gives the rotation angle around Z. However, the method might be different. Let me check: the ChQuaternion can be converted to a rotation vector using Q_to_AngAxis(), which returns the angle and axis. For a rotation purely around Z, the axis would be (0,0,1) and the angle is the rotation. So:
+
+angle_axis = rot.Q_to_AngAxis()
+angle = angle_axis.angle  # in radians
+axis = angle_axis.axis
+
+If the rotation is purely around Z, then axis.z should be 1. So the angle in radians can be used directly. Then, convert to degrees.
+
+But if the pendulum is allowed to swing in 3D, but the joint restricts it to Z-axis rotation, then the angle should be around Z. So using Q_to_AngZ() might not be the correct method. Wait, perhaps using the Euler angles. The GetRot() can be converted to Euler angles using Get_Euler_XYZ() or similar. For a rotation around Z, the Euler angles would have the third angle (psi) as the rotation angle. So:
+
+euler_angles = pendulum.GetRot().Get_Euler_XYZ()
+angle_z = math.degrees(euler_angles.z)
+
+But this depends on the order of rotations. Alternatively, using the method to get the angle between the current rotation and the identity rotation. Hmm, perhaps the safest way is to compute the angle between the pendulum's current Y-axis and the global Y-axis. Since the pendulum is initially rotated by 30 degrees around Z, its local Y-axis (along the rod) is at an angle. The angle from the vertical (global -Y) can be calculated by taking the dot product between the pendulum's Y-axis direction and the global Y-axis.
+
+Wait, the pendulum's local Y-axis is along the length. After rotation, the direction of the pendulum's Y-axis in the global frame can be found by rotating the local Y-axis (0,1,0) by the body's rotation. The angle between this direction and the global -Y axis (since the pendulum hangs down) would give the current angle.
+
+Alternatively, since the joint is revolute around Z, the angle is purely the rotation around Z. So using the angle from the ChQuaternion's Z component is correct.
+
+Alternatively, here's a method to get the angle:
+
+# Assuming the initial position is along the Y-axis, rotated by theta around Z.
+# The angle can be obtained as the rotation about Z axis.
+angle = rot.GetAngle()  # if the rotation is about Z, this gives the angle in radians
+# But need to check the axis.
+
+angle_axis = rot.Q_to_AngAxis()
+if angle_axis.axis.z > 0.99:
+    angle = angle_axis.angle
+else:
+    angle = 0  # or handle error
+
+But this might be complicated. Alternatively, since the joint enforces rotation only around Z, the angle can be obtained from the revolute joint's angle.
+
+Wait, the revolute joint has a function GetRelAngle() which returns the relative rotation angle between the two bodies. So revolute.GetRelAngle() gives the angle. That's more accurate.
+
+So in the logging part:
+
+angle = revolute.GetRelAngle()  # in radians
+ang_vel = revolute.GetRelWvel().z  # angular velocity around Z
+
+This would be more reliable, as it directly queries the joint's state.
+
+So modifying the logging part:
+
+if current_time >= next_log_time:
+    angle = revolute.GetRelAngle()
+    ang_vel = revolute.GetRelWvel().z
+    print(f"Time: {current_time:.2f}s, Angle: {math.degrees(angle):.2f} deg, Angular Velocity: {ang_vel:.2f} rad/s")
+
+This is better because it directly uses the joint's information, which is more accurate.
+
+So updating the code to use the revolute joint's GetRelAngle() and GetRelWvel().
+
+Also, the end position can be calculated as the position of the pendulum's end point. Since the pendulum is a cylinder of length L, its center is at (0, -L/2, 0) in its local frame. The end point is at (0, -L, 0) in the local frame. To get the global position:
+
+local_end = chrono.ChVectorD(0, -length/2, 0)
+global_end = pendulum.TransformPointLocalToParent(local_end)
+
+Wait, the TransformPointLocalToParent function transforms a point from the body's local coordinate system to the global system. So if the pendulum's center is at (0, -L/2, 0) in the global frame, and the local_end is (0, -L/2, 0) in the body's local frame (since the cylinder is along Y with length L, the local coordinates go from (0, -L/2, 0) to (0, L/2, 0) as the cylinder's ends. Wait, no. The ChBodyEasyCylinder creates a cylinder along the Y-axis, centered at the body's position. So the local coordinates of the ends are (0, -L/2, 0) and (0, L/2, 0). But the body's position is set to (0, -L/2, 0), so the local origin is at that position. Therefore, the top end (pivot point) is at (0, L/2, 0) in the body's local frame. Wait, no. If the body's position is (0, -L/2, 0), then the local origin is at that point. The cylinder is along the Y-axis with length L, so in the body's local frame, the cylinder extends from (0, -L/2, 0) to (0, L/2, 0). Wait, no. Wait, the ChBodyEasyCylinder's constructor creates a cylinder with the given height (length) along the Y-axis, centered at the body's position. So if the body is at (0, -L/2, 0), then the cylinder extends from (0, -L/2 - L/2, 0) to (0, -L/2 + L/2, 0) = (0, -L, 0) to (0, 0, 0). So the pivot point (origin) is at (0,0,0), which is the top of the cylinder. Therefore, the local_end in the body's frame for the end of the pendulum (the bottom) is (0, -L, 0) in the global frame? Wait, no. The body's position is (0, -L/2, 0), and the cylinder extends from (0, -L/2 - L/2, 0) to (0, -L/2 + L/2, 0) = (0, -L, 0) to (0, 0, 0). So the pivot is at (0,0,0), which is the top of the cylinder. The bottom end is at (0, -L, 0) in the global frame. But when the body rotates, the bottom end will move.
+
+To get the global position of the pendulum's end (the bottom), we can transform the local point (0, -L/2, 0) in the body's local frame. Because the body's position is (0, -L/2, 0), and the cylinder is along Y with length L, the local coordinates of the bottom end are (0, -L/2, 0) relative to the body's position. Wait, no. The body's local frame has its origin at (0, -L/2, 0) in the global frame. The cylinder is along the Y-axis, so in the body's local frame, the cylinder extends from (0, -L/2, 0) to (0, L/2, 0). But since the body's position is (0, -L/2, 0), the global coordinates of the cylinder's ends are:
+
+- Top end: body.TransformPointLocalToParent(chrono.ChVectorD(0, L/2, 0)) → which is (0, -L/2 + L/2, 0) = (0,0,0) → the pivot point.
+
+- Bottom end: body.TransformPointLocalToParent(chrono.ChVectorD(0, -L/2, 0)) → which is (0, -L/2 - L/2, 0) = (0, -L, 0) in global frame when the body is not rotated.
+
+But when the body is rotated by theta around Z, the bottom end's position will be:
+
+The body's rotation is theta around Z. The local position of the bottom end is (0, -L/2, 0). Rotating this point by theta around Z gives:
+
+x = 0*cos(theta) - (-L/2)*sin(theta) = (L/2) sin(theta)
+y = 0*sin(theta) + (-L/2)*cos(theta) = (-L/2) cos(theta)
+z = 0
+
+Then, adding the body's position (0, -L/2, 0), the global position becomes:
+
+x = (L/2) sin(theta)
+y = -L/2 + (-L/2) cos(theta) = -L/2 (1 + cos(theta))
+z = 0
+
+But this is when the body's position is (0, -L/2, 0) and the rotation is theta. Alternatively, using the TransformPointLocalToParent function correctly applies the rotation and translation.
+
+So in code:
+
+local_end = chrono.ChVectorD(0, -length/2, 0)  # bottom end in body's local frame
+global_end = pendulum.TransformPointLocalToParent(local_end)
+
+This should give the correct global position of the pendulum's end.
+
+Putting it all together, the code should look like this.
+</think>
+
+Here's a complete PyChrono script implementing the simple pendulum simulation with visualization and data logging:
+
+```python
+import pychrono as chrono
+import pychrono.irrlicht as irrlicht
+import math
+
+# System setup
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Gravity in -Y direction
+
+# Create ground body
+ground = chrono.ChBodyEasyBox(0.2, 0.2, 0.2, 1000, True, False)
+ground.SetPos(chrono.ChVectorD(0, 0, 0))
+ground.SetBodyFixed(True)
+ground.GetVisualShape(0).SetColor(chrono.ChColor(0.8, 0.2, 0.2))
+system.Add(ground)
+
+# Pendulum parameters
+length = 2.0    # Full length of pendulum
+radius = 0.05   # Radius of cylindrical pendulum
+density = 1000  # kg/m³
+
+# Create pendulum body (cylinder oriented along Y axis)
+pendulum = chrono.ChBodyEasyCylinder(radius, length, density, True, False)
+pendulum.SetPos(chrono.ChVectorD(0, -length/2, 0))  # Position center at half-length
+pendulum.SetRot(chrono.Q_from_AngZ(math.radians(30)))  # Initial 30° displacement
+pendulum.GetVisualShape(0).SetColor(chrono.ChColor(0.2, 0.8, 0.2))
+system.Add(pendulum)
+
+# Create revolute joint between ground and pendulum
+revolute = chrono.ChLinkRevolute()
+revolute.Initialize(ground, pendulum, 
+                    chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0),  # Joint position
+                                     chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 0, 1))))  # Z axis
+system.Add(revolute)
+
+# Create Irrlicht visualization
+vis = irrlicht.ChIrrApp(system, "Simple Pendulum", irrlicht.dimension2du(800, 600))
+vis.AddTypicalLights()
+vis.AddTypicalCamera(irrlicht.vector3df(0, -1, 3), irrlicht.vector3df(0, 0, 0))
+vis.AssetBindAll()
+vis.AssetUpdateAll()
+
+# Simulation loop setup
+time_step = 0.01
+log_interval = 0.1
+next_log_time = 0
+
+while vis.GetDevice().run():
+    vis.BeginScene()
+    vis.DrawAll()
+    vis.DoStepDynamics(time_step)
+    vis.EndScene()
+    
+    current_time = system.GetChTime()
+    
+    # Log data at specified intervals
+    if current_time >= next_log_time:
+        # Get joint state
+        angle = math.degrees(revolute.GetRelAngle())
+        ang_vel = revolute.GetRelWvel().z
+        
+        # Calculate pendulum end position
+        local_end = chrono.ChVectorD(0, -length/2, 0)  # Bottom end in local coordinates
+        global_end = pendulum.TransformPointLocalToParent(local_end)
+        
+        print(f"Time: {current_time:.2f}s | "
+              f"Angle: {angle:.2f}° | "
+              f"Angular Velocity: {ang_vel:.2f} rad/s | "
+              f"End Position: ({global_end.x:.2f}, {global_end.y:.2f}, {global_end.z:.2f})")
+        
+        next_log_time += log_interval
+```
+
+Key features of this implementation:
+
+1. **System Setup**: Creates a physical system with gravity in the downward (-Y) direction.
+
+2. **Bodies**:
+   - Ground: A small cube fixed at the origin
+   - Pendulum: A green cylinder with specified dimensions and density
+
+3. **Joint**: A revolute joint connecting ground and pendulum at the origin, allowing rotation about the Z-axis
+
+4. **Visualization**:
+   - Uses Irrlicht for 3D rendering
+   - Includes camera setup and lighting
+   - Color-coded bodies for better visual distinction
+
+5. **Simulation Loop**:
+   - Runs at 100 Hz (0.01s time step)
+   - Logs pendulum state every 0.1 seconds
+   - Outputs time, angle, angular velocity, and end position
+
+6. **Initial Conditions**:
+   - Pendulum starts at 30° displacement
+   - Gravity causes natural swinging motion
+
+To run this simulation:
+1. Ensure PyChrono and Irrlicht are installed
+2. Save the script as `pendulum_demo.py`
+3. Run with `python pendulum_demo.py`
+
+The simulation will show a real-time 3D visualization of the pendulum's motion while printing its state to the console. The pendulum will swing under gravity with physically accurate dynamics, demonstrating the conservation of energy (with some numerical damping inherent to the NSC solver).

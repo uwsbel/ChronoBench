@@ -1,0 +1,251 @@
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as irr
+import pychrono.terrain as terrain
+import numpy as np
+import math
+
+def main():
+    
+    chrono.SetChronoDataPath("data/")
+    veh.SetDataPath("data/vehicle/")
+    
+    
+    system = chrono.ChSystemNSC()
+    system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
+    
+    
+    system.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
+    system.SetSolverMaxIterations(150)
+    system.SetMaxPenetrationRecoverySpeed(4.0)
+    
+    
+    vehicle_pos = chrono.ChVectorD(0, 0, 0.5)
+    vehicle_rot = chrono.ChQuaternionD(1, 0, 0, 0)
+    
+    
+    hmmwv = veh.HMMWV_Full()
+    hmmwv.SetContactMethod(chrono.ChContactMethod_NSC)
+    hmmwv.SetChassisCollisionType(veh.CollisionType_NONE)
+    hmmwv.SetChassisFixed(False)
+    hmmwv.SetInitPosition(chrono.ChCoordsysD(vehicle_pos, vehicle_rot))
+    hmmwv.SetEngineType(veh.EngineModelType_SHAFTS)
+    hmmwv.SetTransmissionType(veh.TransmissionModelType_AUTOMATIC_SHAFTS)
+    hmmwv.SetDriveType(veh.DrivelineTypeWV_AWD)
+    hmmwv.SetSteeringType(veh.SteeringTypeWV_PITMAN_ARM)
+    hmmwv.SetTireType(veh.TireModelType_TMEASY)
+    hmmwv.SetTireStepSize(1e-3)
+    
+    
+    hmmwv.Initialize()
+    
+    
+    hmmwv.SetChassisVisualizationType(veh.VisualizationType_MESH)
+    hmmwv.SetSuspensionVisualizationType(veh.VisualizationType_MESH)
+    hmmwv.SetSteeringVisualizationType(veh.VisualizationType_MESH)
+    hmmwv.SetWheelVisualizationType(veh.VisualizationType_MESH)
+    hmmwv.SetTireVisualizationType(veh.VisualizationType_MESH)
+    
+    
+    patch_mat = chrono.ChMaterialSurfaceNSC()
+    patch_mat.SetFriction(0.9)
+    patch_mat.SetRestitution(0.01)
+    
+    
+    terrain_patches = terrain.ChTerrain(system)
+    
+    
+    patch1 = terrain.ChRigidTerrain(system)
+    patch1_def = patch1.AddPatch(patch_mat, 
+                                chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT),
+                                100.0, 100.0)
+    patch1_def.SetTexture("textures/concrete.jpg", 50, 50)
+    patch1_def.SetColor(chrono.ChColor(0.8, 0.8, 0.9))
+    patch1.Initialize()
+    
+    
+    patch2 = terrain.ChRigidTerrain(system)
+    gravel_mat = chrono.ChMaterialSurfaceNSC()
+    gravel_mat.SetFriction(0.7)
+    gravel_mat.SetRestitution(0.1)
+    patch2_def = patch2.AddPatch(gravel_mat,
+                                chrono.ChCoordsysD(chrono.ChVectorD(20, 20, 0.1), chrono.QUNIT),
+                                15.0, 15.0)
+    patch2_def.SetTexture("textures/grass.jpg", 10, 10)
+    patch2_def.SetColor(chrono.ChColor(0.7, 0.6, 0.5))
+    patch2.Initialize()
+    
+    
+    patch3 = terrain.ChRigidTerrain(system)
+    bump_mat = chrono.ChMaterialSurfaceNSC()
+    bump_mat.SetFriction(0.8)
+    bump_mat.SetRestitution(0.2)
+    
+    
+    bump_mesh = chrono.ChTriangleMeshConnected()
+    bump_vertices = []
+    bump_faces = []
+    
+    
+    size = 8.0
+    height = 1.5
+    resolution = 20
+    
+    for i in range(resolution + 1):
+        for j in range(resolution + 1):
+            x = (i / resolution - 0.5) * size
+            y = (j / resolution - 0.5) * size
+            
+            r = math.sqrt(x*x + y*y)
+            if r <= size/2:
+                z = height * math.cos(r * math.pi / size) * 0.5 + height * 0.5
+            else:
+                z = 0
+            bump_vertices.append(chrono.ChVectorD(x, y, z))
+    
+    
+    for i in range(resolution):
+        for j in range(resolution):
+            idx = i * (resolution + 1) + j
+            
+            bump_faces.extend([idx, idx + 1, idx + resolution + 1])
+            bump_faces.extend([idx + 1, idx + resolution + 2, idx + resolution + 1])
+    
+    
+    for vertex in bump_vertices:
+        bump_mesh.addVertex(vertex)
+    
+    for i in range(0, len(bump_faces), 3):
+        bump_mesh.addTriangle(chrono.ChVectorI(bump_faces[i], bump_faces[i+1], bump_faces[i+2]))
+    
+    patch3_def = patch3.AddPatch(bump_mat,
+                                chrono.ChCoordsysD(chrono.ChVectorD(-20, 0, 0), chrono.QUNIT),
+                                bump_mesh, "bump_patch")
+    patch3_def.SetTexture("textures/rock.jpg", 5, 5)
+    patch3_def.SetColor(chrono.ChColor(0.6, 0.5, 0.4))
+    patch3.Initialize()
+    
+    
+    patch4 = terrain.ChRigidTerrain(system)
+    
+    
+    heightmap_size = 32
+    heightmap_data = []
+    for i in range(heightmap_size):
+        row = []
+        for j in range(heightmap_size):
+            x = (i - heightmap_size/2) * 0.5
+            y = (j - heightmap_size/2) * 0.5
+            height = 0.8 * math.sin(x * 0.3) * math.cos(y * 0.3) + 0.3 * math.sin(x * 0.8) * math.sin(y * 0.8)
+            row.append(height)
+        heightmap_data.append(row)
+    
+    
+    heightmap = chrono.ChFunction_Recorder()
+    for i in range(heightmap_size):
+        for j in range(heightmap_size):
+            heightmap.AddPoint(j + i * heightmap_size, heightmap_data[i][j])
+    
+    
+    heightmap_mesh = chrono.ChTriangleMeshConnected()
+    patch_size = 20.0
+    
+    
+    for i in range(heightmap_size):
+        for j in range(heightmap_size):
+            x = (i / (heightmap_size - 1) - 0.5) * patch_size
+            y = (j / (heightmap_size - 1) - 0.5) * patch_size
+            z = heightmap_data[i][j]
+            heightmap_mesh.addVertex(chrono.ChVectorD(x, y, z))
+    
+    
+    for i in range(heightmap_size - 1):
+        for j in range(heightmap_size - 1):
+            idx = i * heightmap_size + j
+            
+            heightmap_mesh.addTriangle(chrono.ChVectorI(idx, idx + 1, idx + heightmap_size))
+            heightmap_mesh.addTriangle(chrono.ChVectorI(idx + 1, idx + heightmap_size + 1, idx + heightmap_size))
+    
+    patch4_def = patch4.AddPatch(patch_mat,
+                                chrono.ChCoordsysD(chrono.ChVectorD(0, -30, 0), chrono.QUNIT),
+                                heightmap_mesh, "heightmap_patch")
+    patch4_def.SetTexture("textures/dirt.jpg", 8, 8)
+    patch4_def.SetColor(chrono.ChColor(0.8, 0.7, 0.5))
+    patch4.Initialize()
+    
+    
+    vis = irr.ChVisualSystemIrrlicht()
+    vis.AttachSystem(system)
+    vis.SetWindowSize(1280, 720)
+    vis.SetWindowTitle("HMMWV on Complex Rigid Terrain")
+    vis.Initialize()
+    vis.AddLogo()
+    vis.AddSkyBox()
+    vis.AddTypicalLights()
+    vis.AddCamera(chrono.ChVectorD(-15, -15, 5), chrono.ChVectorD(0, 0, 0))
+    
+    
+    driver = veh.ChInteractiveDriverIRR(vis)
+    
+    
+    driver.SetSteeringDelta(0.02)
+    driver.SetThrottleDelta(0.02)
+    driver.SetBrakingDelta(0.02)
+    
+    
+    driver.Initialize()
+    
+    
+    step_size = 1e-3
+    render_step_size = 1.0 / 60  
+    
+    
+    time = 0
+    render_time = 0
+    
+    while vis.Run():
+        
+        driver_inputs = driver.GetInputs()
+        
+        
+        hmmwv.Synchronize(time, driver_inputs, [patch1, patch2, patch3, patch4])
+        
+        
+        hmmwv.Advance(step_size)
+        
+        
+        chassis_pos = hmmwv.GetChassis().GetPos()
+        cam_pos = chassis_pos + chrono.ChVectorD(-15, -15, 5)
+        vis.GetActiveCamera().setPosition(irr.vector3df(cam_pos.x, cam_pos.y, cam_pos.z))
+        vis.GetActiveCamera().setTarget(irr.vector3df(chassis_pos.x, chassis_pos.y, chassis_pos.z))
+        
+        
+        if time >= render_time:
+            vis.BeginScene()
+            vis.Render()
+            
+            
+            speed = hmmwv.GetSpeed()
+            engine_rpm = hmmwv.GetEngine().GetMotorSpeed() * 30 / math.pi
+            gear = hmmwv.GetTransmission().GetCurrentGear()
+            
+            
+            vis.GetGUIEnvironment().getBuiltInFont().draw(
+                f"Speed: {speed:.1f} m/s | RPM: {engine_rpm:.0f} | Gear: {gear}",
+                irr.recti(10, 10, 400, 30),
+                irr.SColor(255, 255, 255, 255))
+            
+            vis.GetGUIEnvironment().getBuiltInFont().draw(
+                "Controls: W/S - Throttle/Brake, A/D - Steering",
+                irr.recti(10, 40, 400, 60),
+                irr.SColor(255, 200, 200, 200))
+            
+            vis.EndScene()
+            render_time += render_step_size
+        
+        
+        system.DoStepDynamics(step_size)
+        time += step_size
+
+if __name__ == "__main__":
+    main()

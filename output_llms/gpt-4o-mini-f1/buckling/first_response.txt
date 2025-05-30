@@ -4,94 +4,113 @@ import pychrono.fea as fea
 import pychrono.irrlicht as chronoirr
 import math
 
-# Create the Chrono::Engine system
-sys = chrono.ChSystemSMC()
+# Create the Chrono physical system
+system = chrono.ChSystemSMC()
+system.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+system.SetGravitationalAcceleration(chrono.ChVector3d(0, -9.81, 0))  # Set gravity in the negative Y direction
 
-# Create a mesh for the beam and add it to the system
-mesh = chrono.ChMesh()
-sys.Add(mesh)
+# Create the mesh for the beam
+mesh = fea.ChMesh()
 
-# Define the material properties for the beam
-E = 2e11  # Young's modulus in Pa
-nu = 0.3  # Poisson's ratio
-rho = 7800  # Density in kg/m^3
-beam_mat = chrono.ChContinuumElastic()
-beam_mat.Set_E(E)
-beam_mat.Set_nu(nu)
-beam_mat.SetDensity(rho)
+# Create the beam section properties
+section = fea.ChBeamSectionEulerAdvanced()
+section.SetDensity(7800)  # Set density of the beam material
+section.SetYoungModulus(2.1e11)  # Set Young's modulus
+section.SetGshear(0.4 * 2.1e11)  # Set shear modulus
+section.SetSectionAsRectangular(0.02, 0.02)  # Set rectangular cross-section with width and height of 0.02 m
+section.SetIyy(0.0001)  # Set moment of inertia about the Y-axis
+section.SetIzz(0.0001)  # Set moment of inertia about the Z-axis
+section.SetAsCircular(0.01, 0.01)  # Set circular cross-section with diameter of 0.01 m
 
-# Create a section for the beam
-section = chrono.ChBeamSectionEulerAdvanced()
-section.SetAsRectangularSection(0.02, 0.02)  # Width and height in meters
-section.SetEIA(E, E * 0.02 * 0.02 / 12)  # Set E and I_A
-section.SetGJ(E, E * 0.02 * 0.02 / 12)  # Set G and J
-section.SetReferenceRadius(0.02)  # Set reference radius
+# Create nodes for the beam elements
+nodeA = fea.ChNodeFEAxyzrot(chrono.ChVector3d(0, 0, 0), chrono.ChQuaterniond(1, 0, 0, 0))
+nodeB = fea.ChNodeFEAxyzrot(chrono.ChVector3d(0, 0, 1, 0), chrono.ChQuaterniond(1, 0, 0, 0))
+nodeC = fea.ChNodeFEAxyzrot(chrono.ChVector3d(0, 0, 2, 0), chrono.ChQuaterniond(1, 0, 0, 0))
+nodeD = fea.ChNodeFEAxyzrot(chrono.ChVector3d(0, 0, 3, 0), chrono.ChQuaterniond(1, 0, 0, 0))
 
-# Create a beam element and add it to the mesh
-elem = chrono.ChElementBeamEulerAdvanced()
-elem.SetSection(section)
-elem.SetNodes(n1, n2)  # Set the nodes of the beam element
-elem.AddLayer(0.005, 0, chrono.ChBeamSectionEulerAdvanced.LAYER_ORIENTATION_XZY, chrono.ChVector3d(0, 0, 0))  # Add a layer
-elem.SetMaterial(beam_mat)  # Set the material of the element
-mesh.AddElement(elem)  # Add the element to the mesh
+# Create and add beam elements to the mesh
+elementAB = fea.ChElementBeamEulerAdvanced()
+elementAB.SetNodes(nodeA, nodeB)
+elementAB.SetSection(section)
+elementAB.SetCoordinates(chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(0, 0, 1))
+elementAB.SetId(1)
+mesh.AddElement(elementAB)
 
-# Create nodes for the beam element
-n1 = chrono.ChNodeFEAxyzrot()
-n2 = chrono.ChNodeFEAxyzrot()
-mesh.AddNode(n1)
-mesh.AddNode(n2)
+elementBC = fea.ChElementBeamEulerAdvanced()
+elementBC.SetNodes(nodeB, nodeC)
+elementBC.SetSection(section)
+elementBC.SetCoordinates(chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(0, 0, 1))
+elementBC.SetId(2)
+mesh.AddElement(elementBC)
 
-# Set the coordinates of the nodes
-n1.SetPos(chrono.ChVector3d(0, 0, 0))
-n2.SetPos(chrono.ChVector3d(5, 0, 0))
+elementCD = fea.ChElementBeamEulerAdvanced()
+elementCD.SetNodes(nodeC, nodeD)
+elementCD.SetSection(section)
+elementCD.SetCoordinates(chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(0, 0, 1))
+elementCD.SetId(3)
+mesh.AddElement(elementCD)
 
-# Create a fixed constraint for the first node
-fixed = chrono.ChLinkMateGeneric()
-fixed.Initialize(n1, None, True, n1.GetPos(), n1.GetRot())
-sys.Add(fixed)
+# Add nodes to the mesh
+mesh.AddNode(nodeA)
+mesh.AddNode(nodeB)
+mesh.AddNode(nodeC)
+mesh.AddNode(nodeD)
 
-# Create a motor to apply a force to the second node
-motor = chrono.ChLinkMotorRotationTorque()
-motor.Initialize(n2, None, True, n2.GetPos(), n2.GetRot())
-sys.Add(motor)
+# Create and add constraints to the mesh
+constraintA = fea.ChLinkBeamNodeNode()
+constraintA.Initialize(nodeA, nodeB)
+constraintA.SetConstrainedDirection(fea.ChLinkBeamNodeNode.ConstrainedDirection_X)
+mesh.AddConstraint(constraintA)
 
-# Define the motor function to apply a torque
-funct = chrono.ChFunctionConst(0)
-motor.SetMotorFunction(funct)
+constraintB = fea.ChLinkBeamNodeNode()
+constraintB.Initialize(nodeB, nodeC)
+constraintB.SetConstrainedDirection(fea.ChLinkBeamNodeNode.ConstrainedDirection_X)
+mesh.AddConstraint(constraintB)
 
-# Create a constraint to fix the rotation of the second node
-constr = chrono.ChLinkMateGeneric()
-constr.Initialize(n2, None, True, n2.GetPos(), n2.GetRot())
-sys.Add(constr)
+constraintC = fea.ChLinkBeamNodeNode()
+constraintC.Initialize(nodeC, nodeD)
+constraintC.SetConstrainedDirection(fea.ChLinkBeamNodeNode.ConstrainedDirection_X)
+mesh.AddConstraint(constraintC)
 
-# Create a visualization for the mesh
-vis_mesh = chrono.ChVisualShapeFEA(mesh)
-vis_mesh.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_SURFACE)
-vis_mesh.SetSmoothFaces(True)
-vis_mesh.SetWireframe(False)
-mesh.AddVisualShapeFEA(vis_mesh)
+# Create and add the mesh to the system
+system.Add(mesh)
 
-# Create the Irrlicht visualization
+# Create and initialize the Irrlicht visualization
 vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(sys)
+vis.AttachSystem(system)
 vis.SetWindowSize(chrono.ChVector2i(1024, 768))
 vis.SetWindowTitle('Beam buckling')
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()
-vis.AddCamera(chrono.ChVector3d(0, 1.5, -6), chrono.ChVector3d(0, 1, 0))
+vis.AddCamera(chrono.ChVector3d(0, 0.5, 3), chrono.ChVector3d(0, 0.5, 0))
 vis.AddTypicalLights()
 
 # Set the solver and timestepper for the system
-sys.SetSolverType(chrono.ChSolver.Type_SOR)
-sys.GetSolver().SetMaxIterations(50)
-sys.SetTimestepperType(chrono.ChTimestepper.Type_EULER_IMPLICIT_PROJECTED)
-sys.SetMaxIrrIterationsPerStep(20)
+system.SetSolverType(chrono.ChSolver.Type_SOR)
+system.GetSolver().SetMaxIterations(25)
+system.SetTimestepperType(chrono.ChTimestepper.Type_EULER_IMPLICIT_LINEARIZED)
 
-# Simulation loop
+# Initialize the simulation parameters
+time = 0
+time_end = 10
+time_step = 0.01
+
+# Create a custom motor function for the simulation
+def mymotorfunction(myt):
+    return 0.5 * (1 - math.cos(myt * 2 * math.pi / 2))
+
+# Create and initialize the motor for the simulation
+motor = fea.ChLinkMotorRotationSpeed()
+motor.Initialize(nodeD, nodeC, fea.ChFramed(nodeD.GetPos()))
+motor.SetMotorFunction(chrono.ChFunctionConst(mymotorfunction))
+mesh.AddLink(motor)
+
+# Run the simulation loop
 while vis.Run():
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
-    sys.DoStepDynamics(1e-3)
+    system.DoStepDynamics(time_step)
+    time += time_step
 ```

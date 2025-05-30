@@ -112,16 +112,18 @@ system_list = ["art", "beam", "buckling", "cable", "car", "camera", "citybus", "
                "rigid_highway", "rigid_multipatches", "rotor", "scm", "scm_hill", "sedan", "sensros", "slider_crank",
                "tablecloth", "turtlebot", "uazbus", "veh_app", "vehros", "viper"]
 
-# data set path
-dataset_path = 'D:\SimBench\demo_data'
-Output_path = 'D:\SimBench\output'
-Output_conversation_path = 'D:\SimBench\output_conversion'
+dataset_path = r"C:\Users\jingquanw\SimBench\demo_data"
+Output_path = r"C:\Users\jingquanw\SimBench\output_llms"
+Output_conversation_path =  r"C:\Users\jingquanw\SimBench\output_conversion"
 # in the dataset_path, there are 34 dynamical system folders, each folder is a dyanmical system which contains 8 files [3 input text files, input1.txt, input2.txt, input3.txt;
 # 2 python input files, pyinput2.py, pyinput3.py; 3 ground truth python files truth1.py, truth2.py, truth3.py]
 #test_model_list = ["gemma-2-2b-it", "gemma-2-9b-it", "gemma-2-27b-it", "llama-3.1-405b-instruct", "llama-3.1-70b-instruct", "codellama-70b", "llama-3.1-8b-instruct", "phi-3-mini-128k-instruct", "phi-3-small-8k-instruct", "phi-3-medium-128k-instruct","nemotron-4-340b-instruct", "mistral-nemo-12b-instruct", "mixtral-8x22b-instruct-v0.1", "codestral-22b-instruct-v0.1", "mixtral-8x7b-instruct-v0.1", "mistral-large", "mamba-codestral-7b-v0.1"]
 
-test_model_list = [
-                   "gpt-4o-mini-f2"]
+#test_model_list = ["llama4_maverick","llama4_scout", "llama-3.3-70b-instruct","o3","deepseek-r1-8b", "deepseek-r1-32b",
+                   #"deepseek-r1","gemma-3-1b-it","qwen3-235b-a22b","claude-3-7-sonnet-20250219",
+                   #$"claude-4-sonnet-20250514","Gemini-2.5-pro","Gemini-1.5-pro","gpt-4.1-mini",
+                   #"gpt-4.1-nano","gpt-4.1","o4-mini"]
+test_model_list = ["deepseek-r1"]
 # define an output path for the test results for each model with the name of the model
 # using tqdm to show the progress bar
 for test_model in tqdm(test_model_list):

@@ -35,14 +35,6 @@ def main():
     patch = terrain.AddPatch(patch_mat, ch.CSYSNORM, 100.0, 100.0)  # Add a patch to the terrain.
     patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 100, 100)
     terrain.Initialize()  # Initialize the terrain.
-    
-    # create visualization box
-    box = ch.ChBodyEasyBox(3, 3, 3, 1000, True, True,patch_mat)
-    box.SetPos(ch.ChVector3d(0, 0, 1.5))
-    box.SetFixed(True)
-    box.GetVisualShape(0).SetTexture(ch.GetChronoDataFile("textures/blue.png"))
-    hmmwv.GetSystem().Add(box)
-    
     # Create run-time visualization
     vis = chronoirr.ChVisualSystemIrrlicht()
     vis.AttachSystem(hmmwv.GetSystem())
@@ -67,34 +59,47 @@ def main():
     ros_manager.RegisterHandler(chros.ChROSDriverInputsHandler(25, driver, "~/input/driver_inputs"))
     # Register the vehicle state handler to publish vehicle state to ROS topic '~/output/hmmwv/state'.
     ros_manager.RegisterHandler(chros.ChROSBodyHandler(25, hmmwv.GetChassisBody(), "~/output/hmmwv/state"))
-    # Register the lidar handler to publish lidar data to ROS topic '~/output/lidar/data'.
-    ros_manager.RegisterHandler(chros.ChROSLidarHandler(25, "~/output/lidar/data"))
     ros_manager.Initialize()  # Initialize the ROS manager.
     
-    # Create a sensor manager
+    # Create a visualization box
+    box = ch.ChBodyEasyBox(3, 3, 3, 1000, True, True)
+    box.SetPos(ch.ChVector3d(0, 0, 1.5))
+    box.SetFixed(True)
+    box.GetVisualShape(0).SetTexture(ch.GetChronoDataFile("textures/blue.png"))
+    hmmwv.GetSystem().Add(box)
+    
+    # Create sensor manager
     sens_manager = sens.ChSensorManager(hmmwv.GetSystem())
     
-    # Add a lidar sensor to the rover
-    lidar = sens.ChLidarSensor(hmmwv.GetChassis().GetBody(),  # Body lidar is attached to
-                                ch.ChFrame<double>(ch.ChVector3d(2.0, 0, 1.5), ch.QuatFromAngleAxis(0, ch.ChVector3d(0, 1, 0))),  # Offset pose
-                                0.5,              # Scanning rate in Hz
-                                2,                # Horizontal resolution in pixels
-                                512,              # Vertical resolution in number of channels
-                                2*CH_PI,          # Horizontal field of view
-                                CH_PI/8,          # Maximum vertical field of view
-                                -CH_PI/4,         # Minimum vertical field of view
-                                100.0,            # Maximum lidar range
-                                sens.LidarBeamShape_RECTANGULAR,  # Shape of the lidar beam
-                                0.002,            # Diameter of the lidar beam at the exit
-                                0.002,            # Diameter of the lidar beam at the end
-                                0,                # Divergence angle (not used for rectangular beams)
-                                0,                # Divergence angle (not used for rectangular beams)
-                                sens.LidarReturnMode_STRONGEST_RETURN  # Return mode for the lidar
-                                )
-    # Set the update interval for the lidar sensor
-    lidar.SetUpdateFrequency(10)
-    # Add the lidar to the sensor manager
+    # Create lidar sensor
+    lidar = sens.ChLidarSensor(
+        hmmwv.GetChassisBody(),                # Body lidar is attached to
+        100,                                   # Update rate in Hz
+        ch.ChTransformd(ch.ChVector3d(0, 0, 2), ch.QuatFromAngle(0)),  # Offset pose
+        360,                                   # Number of horizontal samples
+        1,                                     # Number of vertical channels
+        2 * ch.CH_PI,                          # Horizontal field of view
+        ch.CH_PI / 18,                         # Maximum vertical angle
+        -ch.CH_PI / 6,                         # Minimum vertical angle
+        100,                                   # Maximum lidar range
+        sens.LidarBeamShape_RECTANGULAR,       # Shape of the lidar beam
+        0.003,                                 # Diameter of the lidar beam
+        0.003,                                 # Diameter of the lidar beam (again, typically same value)
+        10,                                    # Collection time for each sample
+        10,                                    # Fifo size
+        sens.LidarReturnMode_STRONGEST_RETURN  # Return mode for the lidar
+    )
+    
+    # Set lidar filters
+    lidar.PushFilter(sens.ChFilterDIAccess())
+    lidar.PushFilter(sens.ChFilterPCfromDepth())
+    lidar.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "Lidar PC data"))
+    
+    # Register lidar sensor with the sensor manager
     sens_manager.AddSensor(lidar)
+    
+    # Register lidar data handler for ROS
+    ros_manager.RegisterHandler(chros.ChROSLidarHandler(lidar, "~/output/lidar/data"))
     
     # Start the simulation loop.
     time = 0
@@ -120,8 +125,8 @@ def main():
         driver.Synchronize(time)  # Synchronize the driver system.
         terrain.Synchronize(time)  # Synchronize the terrain.
         hmmwv.Synchronize(time, driver_inputs, terrain)  # Synchronize the vehicle with inputs and terrain.
-        
-        # update sensor manager
+
+        # Update sensor manager
         sens_manager.Update()
         # Advance the simulation for all modules by one timestep.
         driver.Advance(time_step)

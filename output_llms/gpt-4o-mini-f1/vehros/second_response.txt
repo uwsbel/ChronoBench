@@ -18,6 +18,7 @@ def main():
     hmmwv.SetTireType(veh.TireModelType_TMEASY)  # Set tire model.
     hmmwv.SetTireStepSize(1e-3)  # Set the tire simulation step size.
     hmmwv.Initialize()  # Initialize the vehicle.
+    
     hmmwv.SetChassisVisualizationType(veh.VisualizationType_MESH)
     hmmwv.SetSuspensionVisualizationType(veh.VisualizationType_MESH)
     hmmwv.SetSteeringVisualizationType(veh.VisualizationType_MESH)
@@ -31,6 +32,19 @@ def main():
     patch = terrain.AddPatch(patch_mat, ch.CSYSNORM, 100.0, 100.0)  # Add a patch to the terrain.
     patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 100, 100)
     terrain.Initialize()  # Initialize the terrain.
+    
+    # Create the run-time visualization
+    vis = chronoirr.ChVisualSystemIrrlicht()
+    vis.AttachSystem(hmmwv.GetSystem())
+    vis.SetCameraVertical(ch.CameraVerticalDir_Z)
+    vis.SetWindowSize(1280, 720)
+    vis.SetWindowTitle('HMMWV ROS interface')
+    vis.Initialize()
+    vis.AddLogo(ch.GetChronoDataFile('logo_pychrono_alpha.png'))
+    vis.AddSkyBox()
+    vis.AddCamera(ch.ChVector3d(0, 0, 2.5), ch.ChVector3d(0, 0, 0))
+    vis.AddTypicalLights()
+    vis.AddLightWithShadow(ch.ChVector3d(1.5, -2.5, 10.5), ch.ChVector3d(0, 0, 0.5), 3, 4, 10, 40, 512)
 
     # Create and initialize the driver system.
     driver = veh.ChDriver(hmmwv.GetVehicle())
@@ -44,26 +58,23 @@ def main():
     # Register the vehicle state handler to publish vehicle state to ROS topic '~/output/hmmwv/state'.
     ros_manager.RegisterHandler(chros.ChROSBodyHandler(25, hmmwv.GetChassisBody(), "~/output/hmmwv/state"))
     ros_manager.Initialize()  # Initialize the ROS manager.
-    # Create the Irrlicht application to visualize the simulation
-    vis = chronoirr.ChVisualSystemIrrlicht()
-    vis.AttachSystem(hmmwv.GetSystem())
-    vis.SetCameraVertical(ch.CameraVerticalDir_Z)
-    vis.SetWindowSize(1280, 720)
-    vis.SetWindowTitle('HMMWV ROS interface')
-    vis.Initialize()
-    vis.AddLogo(ch.GetChronoDataFile('logo_pychrono_alpha.png'))
-    vis.AddSkyBox()
-    vis.AddCamera(ch.ChVector3d(0, 2.5, 1.5), ch.ChVector3d(0, 0, 1))
-    vis.AddTypicalLights()
-    vis.AddLightDirectional()
-    vis.AddRigidBodyCamera(hmmwv.GetChassisBody(), 0.5, 0)
 
     # Start the simulation loop.
     time = 0
     time_step = 1e-3  # Define the simulation time step.
     time_end = 30  # Set the total duration of the simulation.
-
     hmmwv.GetVehicle().EnableRealtime(True)  # Enable real-time simulation for the vehicle.
+    
+    # setup render loop
+    render_steps = 1
+    vis.BeginScene()
+    hmmwv.GetSystem().DoStepDynamics(time_step)
+    vis.Render()
+    time += time_step
+    for step in range(render_steps):
+        time += time_step / render_steps
+    vis.EndScene()
+    
     while time < time_end:
         time = hmmwv.GetSystem().GetChTime()  # Update simulation time.
 
@@ -81,9 +92,17 @@ def main():
         # Update the ROS manager to handle data publishing.
         if not ros_manager.Update(time, time_step):
             break  # Exit loop if ROS manager update fails.
-        vis.BeginScene()
-        vis.Render()
-        vis.EndScene()
+        if not vis.Run():  # Exit simulation when the user closes the window
+            break
+        # render step
+        if time < time_end:
+            vis.BeginScene()
+            hmmwv.GetSystem().DoStepDynamics(time_step)
+            vis.Render()
+            time += time_step
+            for step in range(render_steps):
+                time += time_step / render_steps
+            vis.EndScene()
 if __name__ == "__main__":
     main()
 

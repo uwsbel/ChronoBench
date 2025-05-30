@@ -1,0 +1,110 @@
+import chrono
+import chrono.vehicle as veh
+import chrono.sensor as sens
+import chrono.irrlicht as irr
+
+# 1. Initialize PyChrono environment and core components
+
+# Create a physical system
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))  # gravity along Z-down
+
+# 2. Add required physical systems and objects
+
+# Create the terrain (rigid terrain)
+terrain = veh.RigidTerrain(system)
+patch = terrain.AddPatch(chrono.ChVectorD(0, 0, 0),  # location
+                         chrono.ChVectorD(0, 0, 1),  # normal (up)
+                         400, 400)                   # size (x,y)
+patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+patch.SetTexture(veh.GetDataFile("terrain/textures/tile4_riverside.png"),
+                 40, 40)
+patch.SetFriction(0.9)
+terrain.Initialize()
+
+# Create the MAN 10t truck vehicle model
+vehicle = veh.Man_10t()  # Instantiate MAN 10t vehicle
+vehicle.SetContactMethod(chrono.ChContactMethod_NSC)
+vehicle.SetChassisCollisionType(veh.ChassisCollisionType_NONE)  # Avoid self-collisions in chassis; optional
+vehicle.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0.6), chrono.ChQuaternionD(1, 0, 0, 0)))
+vehicle.SetTireType(veh.VehicleTire.TMEASY)
+vehicle.SetTireStepSize(2e-3)
+vehicle.Initialize()
+
+# Visualize settings
+vehicle.SetChassisVisualizationType(veh.VisualizationType_PRIMITIVES)
+vehicle.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
+vehicle.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
+vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
+vehicle.SetTireVisualizationType(veh.VisualizationType_MESH)
+
+# Create the tire models
+for i in range(vehicle.GetNumberAxles()):
+    for side in [veh.LEFT, veh.RIGHT]:
+        tire = veh.TMEASYTire(vehicle.GetSystem(), veh.VehicleSide(side))
+        tire.SetStepsize(2e-3)
+        # Initialize tire on the appropriate wheel body
+        wheel = vehicle.GetWheel(i, side)
+        tire.Initialize(wheel, veh.VisualizationType_MESH)
+        vehicle.SetTire(i, side, tire)
+
+# Real-time driver controls initialization
+driver = veh.ChDriver(vehicle, irr.ChIrrGuiDriver())
+driver.SetLookAheadDistance(10)
+driver.SetThrottleDelta(0.05)
+driver.SetBrakeDelta(0.1)
+driver.SetSteeringDelta(0.1)
+driver.Initialize()
+
+# 3. Irrlicht visualization system and settings
+application = veh.ChIrrApp(vehicle.GetSystem(), "MAN 10t Truck on Rigid Terrain", veh.GetDataFile('terrain/meshes/terrain.obj'))
+
+application.AddTypicalLights()
+application.SetChaseCamera(chrono.ChVectorD(0.0, 0.0, 1.5), 6.0, 0.5)  # position, distance, chase center height
+
+# Add directional light to simulate sunlight
+light = application.AddLightDirectional()
+light.Direction = chrono.ChVectorF(-0.5, 0.3, -1)
+light.DiffuseColor = chrono.ChColorF(0.9, 0.9, 0.7)
+light.SpecularColor = chrono.ChColorF(0.9, 0.9, 0.7)
+light.AmbientColor = chrono.ChColorF(0.3, 0.3, 0.3)
+
+application.AddSkyBox()
+application.AddLogo()  # Default chrono logo in corner
+
+# Customize terrain texture and logos if desired
+# (already set above in patch.SetTexture and AddLogo)
+
+application.AssetBindAll()
+application.AssetUpdateAll()
+
+# Simulation loop parameters
+timestep = 1e-3
+application.SetTimestep(timestep)
+
+# Main simulation loop
+application.SetTimestep(timestep)
+application.SetTryRealtime(True)
+
+while application.GetDevice().run():
+    application.BeginScene()
+    application.DrawAll()
+
+    # Get inputs from driver
+    driver_inputs = driver.GetInputs()
+    vehicle.SetDriverInputs(driver_inputs)
+
+    # Synchronize all modules at the current time
+    time = vehicle.GetSystem().GetChTime()
+    driver.Synchronize(time)
+    vehicle.Synchronize(time)
+    terrain.Synchronize(time)
+    application.Synchronize(time)
+
+    # Advance simulation by timestep
+    driver.Advance(timestep)
+    vehicle.Advance(timestep)
+    terrain.Advance(timestep)
+    system.DoStepDynamics(timestep)
+
+    application.EndScene()

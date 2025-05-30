@@ -1,63 +1,66 @@
 ```python
-import pychrono as ch
+import pychrono as chrono
 import pychrono.sensor as sens
 import math
 
-# Create the Chrono physical system
-sys = ch.ChSystemNSC()
+# Create the Chrono simulation system
+sys = chrono.ChSystemNSC()
+sys.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+sys.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, 0))
 
 # Create a mesh body and add it to the system
-mesh = ch.ChBodyEasyMesh()
-mesh.SetMeshFilename(ch.GetChronoDataFile("vehicle/meshes/triangulated_terrain.obj"))
-mesh.SetMaterialSurfaceNSC(ch.ChMaterialSurfaceNSC())
-mesh.SetPos(ch.ChVector3d(0, 0, 0))
-mesh.SetFixed(True)
-sys.Add(mesh)
+mesh_body = chrono.ChBodyEasyMesh()
+mesh_body.SetPos(chrono.ChVector3d(0, 0, 0))
+mesh_body.SetFixed(True)
+mesh_body.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/blue.png"))
+mesh_body.GetVisualShape(0).SetMesh(chrono.GetChronoDataFile("meshes/triangulated.obj"))
+sys.Add(mesh_body)
 
-# Create a sensor manager to manage the camera sensor
+# Create a sensor manager to manage sensors
 manager = sens.ChSensorManager(sys)
 
-# Create a camera sensor and configure its properties
-offset_pose = ch.ChFramed(ch.ChVector3d(0, 0, 2), ch.QuatFromAngleAxis(math.pi, ch.ChVector3d(0, 1, 0)))
+# Create a camera sensor and add it to the manager
 cam = sens.ChCameraSensor(
-    mesh,                # Body the sensor is attached to
-    30,                  # Update rate in Hz
-    offset_pose,         # Offset pose of the sensor
-    1280,                # Image width
-    720,                 # Image height
-    3.14 / 2,            # Horizontal field of view
-    3.14 / 2             # Vertical field of view
+    mesh_body,               # The body the camera is attached to
+    update_rate,             # The rate at which the camera updates (in Hz)
+    render_resolution,       # The resolution of the rendered image (width)
+    render_resolution // 2,  # The resolution of the rendered image (height)
+    chrono.ChFramed(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),  # The camera's frame
+    1.0,                     # The camera's field of view (in radians)
+    1.0                      # The camera's near clipping plane (in meters)
 )
+cam.SetName("Camera Sensor")
+cam.SetLag(0)  # Set the lag time for the camera
+cam.SetCollectionWindow(0)  # Set the collection window for the camera
+cam.SetWriteImage(True, "images/", "cam_%04d.png", update_rate)  # Set the image writing options
+cam.SetVisualize(True)  # Enable visualization of the camera
+cam.PushFilter(sens.ChFilterVisualize(1.0, 1.0))  # Add a visualization filter
+cam.PushFilter(sens.ChFilterRGB8Access())  # Add an RGB8 access filter
+manager.AddSensor(cam)  # Add the camera sensor to the manager
 
-# Add noise filters to the camera sensor
-cam.PushFilter(sens.ChFilterNoise(sens.ChNoiseGeneratorGaussian(0.0, 0.01)))
-cam.PushFilter(sens.ChFilterRGB(sens.ChFilterRGBVisualize(640, 360, "RGB Image")))
+# Set the camera's orbit parameters
+orbit_radius = 3.0  # The radius of the camera's orbit
+orbit_speed = 0.1   # The speed of the camera's orbit (in radians per second)
 
-# Add the camera sensor to the manager
-manager.AddSensor(cam)
-
-# Set the initial position of the camera
-cam.SetPosOffset(ch.ChVector3d(0, -5, 2))
-
-# Define the orbit parameters for the camera
-orbit_radius = 5
-orbit_speed = 0.1
+# Initialize the simulation time
+time = 0
 
 # Simulation loop
-step_number = 0
-while True:
-    # Update the sensor manager
-    manager.Update()
-
-    # Dynamically update the camera's position in an orbit
-    cam.SetPosOffset(ch.ChVector3d(orbit_radius * math.cos(orbit_speed * step_number), 
-                                   orbit_radius * math.sin(orbit_speed * step_number), 
-                                   2))
-
+while time < 10:
+    # Update the camera's position in an orbit around the mesh
+    cam.SetOffsetPose(chrono.ChFramed(
+        chrono.ChVector3d(orbit_radius * math.cos(orbit_speed * time), orbit_radius * math.sin(orbit_speed * time), 0),
+        chrono.QuatFromAngle(0)
+    ))
+    
     # Print out the camera buffer data
-    print(cam.GetBuffer())
-
-    # Perform a step in the simulation
-    sys.DoStepDynamics(1e-3)
-    step_number += 1
+    if cam.HasBuffer():
+        print(cam.GetCurrentBuffer())
+    
+    # Update the sensor manager and the simulation system
+    manager.Update()
+    sys.DoStepDynamics(1 / update_rate)
+    
+    # Increment the simulation time
+    time += 1 / update_rate
 ```

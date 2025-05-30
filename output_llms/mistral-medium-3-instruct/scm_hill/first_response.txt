@@ -1,0 +1,166 @@
+# PyChrono HMMWV Simulation with SCM Deformable Terrain
+
+Below is a comprehensive PyChrono simulation script that implements an HMMWV vehicle on deformable terrain with visualization:
+
+```python
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
+import pychrono.vehicle as veh
+import numpy as np
+import os
+
+# =============================================================================
+# Simulation parameters
+# =============================================================================
+
+# Simulation step size
+step_size = 1e-3
+
+# Simulation end time
+t_end = 10.0
+
+# Point on chassis tracked by the camera
+trackPoint = chrono.ChVectorD(0.0, 0.0, 1.0)
+
+# =============================================================================
+# Create the systems
+# =============================================================================
+
+# Create the vehicle system
+vehicle = veh.ChVehicle()
+vehicle.SetChassisFixed(False)
+vehicle.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0.5), chrono.QUNIT))
+vehicle.SetInitFwdVel(5)  # Initial forward velocity in m/s
+
+# Create the terrain system
+terrain = veh.SCMDeformableTerrain(vehicle.GetSystem())
+terrain.SetPlane(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.Q_from_AngZ(0)))
+terrain.Initialize(10, 10, 0.5)  # Dimensions and initial height
+
+# Set soil parameters
+terrain.SetSoilParameters(1e6,    # Bekker Kphi
+                         0.01,   # Bekker Kc
+                         1.1,    # Bekker n exponent
+                         0,      # Mohr cohesion
+                         30,     # Mohr friction angle
+                         0.01)   # Janosi shear coefficient
+
+# Initialize height map (example: flat terrain with a bump)
+nx, ny = 50, 50
+height_map = np.zeros((nx, ny))
+for i in range(nx):
+    for j in range(ny):
+        x = (i - nx/2) * 0.2
+        y = (j - ny/2) * 0.2
+        height_map[i,j] = 0.1 * np.exp(-(x*x + y*y)/10)
+terrain.SetHeightMap(height_map)
+
+# Create the driver system
+driver = veh.ChDriver()
+driver.SetSteeringFunction(veh.ChFunction_Const(0))  # Constant steering angle
+driver.SetThrottleFunction(veh.ChFunction_Const(0.5))  # Constant throttle
+
+# =============================================================================
+# Initialize the vehicle
+# =============================================================================
+
+# Create and initialize the HMMWV vehicle
+hmmwv = veh.HMMWV()
+hmmwv.Initialize(vehicle.GetSystem(), veh.GetDataFile("hmmwv/vehicle/HMMWV_Vehicle.json"))
+
+# Set initial vehicle position and orientation
+hmmwv.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0.5), chrono.QUNIT))
+
+# =============================================================================
+# Create the visualization system
+# =============================================================================
+
+# Create the Irrlicht visualization system
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.SetWindowSize(1280, 720)
+vis.SetWindowTitle("HMMWV on Deformable Terrain")
+vis.Initialize()
+vis.AddLogo()
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVectorD(5, 5, 3), trackPoint)
+vis.AddTypicalLights()
+vis.SetCameraMovementType(chronoirr.ChCameraMovementType.FOLLOW)
+vis.SetCameraFollowPoint(trackPoint)
+vis.SetCameraFollowDistance(8)
+vis.SetCameraFollowHeight(2)
+
+# =============================================================================
+# Main simulation loop
+# =============================================================================
+
+# Simulation loop parameters
+real_time = True
+time_step = step_size
+current_time = 0
+
+# Main simulation loop
+while current_time < t_end:
+    # Begin scene
+    vis.BeginScene()
+
+    # Render all visualization objects
+    vis.Render()
+
+    # Draw all COG markers and frames
+    vis.SetSymbolScale(0.1)
+    vis.ShowCOGmarkers(True)
+    vis.ShowFrames(True)
+
+    # Update the driver inputs
+    driver.Synchronize(current_time)
+    driver.Advance(step_size)
+
+    # Update the vehicle
+    vehicle.Synchronize(current_time, driver.GetSteering(), driver.GetThrottle(), driver.GetBraking())
+    vehicle.Advance(step_size)
+
+    # Update the terrain
+    terrain.Synchronize(current_time)
+    terrain.Advance(step_size)
+
+    # Update the visualization
+    vis.EndScene()
+
+    # Update simulation time
+    current_time += step_size
+
+    # Try to maintain real-time
+    if real_time:
+        chrono.ChTime.sleep(chrono.ChTime.GetTime() - current_time)
+
+# Clean up
+vis.Close()
+```
+
+## Key Components Explained:
+
+1. **Simulation Setup**:
+   - Initializes the vehicle system with an HMMWV configuration
+   - Sets initial position and velocity
+   - Creates an SCM deformable terrain with specified soil parameters
+
+2. **Terrain Configuration**:
+   - Uses Bekker and Mohr soil parameters for realistic deformable terrain
+   - Implements a height map with a bump feature
+   - The terrain is initialized with 10x10m dimensions and 0.5m initial height
+
+3. **Driver System**:
+   - Implements a simple driver with constant steering and throttle
+   - Can be extended with more complex control functions
+
+4. **Visualization**:
+   - Uses Irrlicht for real-time visualization
+   - Sets up camera to follow the vehicle with specified parameters
+   - Includes typical lighting and skybox for better visual quality
+
+5. **Simulation Loop**:
+   - Synchronizes all systems (vehicle, terrain, driver, visualization)
+   - Advances each system with the specified time step
+   - Maintains real-time execution when possible
+
+To run this simulation, you'll need to have PyChrono properly installed with the vehicle module and visualization dependencies. The script assumes you have the HMMWV vehicle data files available in the standard PyChrono vehicle data directory.

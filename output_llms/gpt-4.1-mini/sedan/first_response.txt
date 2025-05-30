@@ -1,0 +1,150 @@
+```python
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
+import pychrono.vehicle as veh
+
+def main():
+    # 1. Initialize the PyChrono environment and core components
+
+    # Set the Chrono data path (adjust if needed for your system)
+    chrono.SetChronoDataPath(chrono.GetChronoDataPath())
+
+    # Set the simulation step size
+    step_size = 1e-3  # 1 ms timestep
+
+    # Create the physical system
+    system = chrono.ChSystemNSC()
+
+    # 2. Add the required physical systems and objects as specified
+
+    # Create the rigid terrain
+    terrain_height = 0
+    terrain = veh.RigidTerrain(system)
+    # Create the terrain patch (200 x 200 m)
+    patch = terrain.AddPatch(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, terrain_height),
+                                                chrono.QUNIT),
+                             200, 200,                      # length, width
+                             "terrain_texture/grass.jpg",  # texture file (must be in chrono data or local folder)
+                             1500,                         # friction coefficient
+                             True)                        # patch visible
+
+    # Set texture/logo on terrain patch via Irrlicht (we do this later in Irrlicht setup)
+
+    terrain.Initialize()
+
+    # Create the BMW E90 Sedan vehicle system
+    vehicle = veh.Sedan('E90')
+
+    # Initialize vehicle at initial position and orientation
+    initLoc = chrono.ChVectorD(0, 0, terrain_height + 0.25)  # slightly above ground
+    initRot = chrono.QUNIT
+    vehicle.SetInitPosition(chrono.ChCoordsysD(initLoc, initRot))
+
+    # Use NSC contact method consistent with system
+    vehicle.SetChassisCollisionType(veh.ChassisCollisionType_NONE)  # disable chassis collisions for efficiency
+
+    # Initialize the vehicle system
+    vehicle.Initialize()
+
+    # Set tire model to TMEASY for all tires
+    tire_LF = veh.TMeasyTire("TMeasyTire")
+    tire_RF = veh.TMeasyTire("TMeasyTire")
+    tire_LR = veh.TMeasyTire("TMeasyTire")
+    tire_RR = veh.TMeasyTire("TMeasyTire")
+
+    # Initialize tires and attach to wheels
+    tire_LF.Initialize(vehicle.GetWheelBody(0))
+    tire_RF.Initialize(vehicle.GetWheelBody(1))
+    tire_LR.Initialize(vehicle.GetWheelBody(2))
+    tire_RR.Initialize(vehicle.GetWheelBody(3))
+
+    # Add tires to vehicle system
+    vehicle.SetTires([tire_LF, tire_RF, tire_LR, tire_RR])
+
+    # 3. Set necessary default parameters such as positions, forces, and interactions.
+
+    # Create the interactive driver system that allows real-time control
+    driver = veh.ChWheeledVehicleIrrApp(vehicle, "BMW E90 Sedan - Driving Simulation")
+    driver.SetWindowSize(1280, 720)
+    driver.Initialize()
+
+    driver.SetSteeringDelta(0.1)
+    driver.SetThrottleDelta(0.1)
+    driver.SetBrakingDelta(0.1)
+
+    # Create the Irrlicht visualization system
+    vis = chronoirr.ChIrrApp(vehicle.GetSystem(), "BMW E90 Sedan Driving Simulation", chronoirr.dimension2du(1280, 720))
+    vis.AddTypicalSky()  # Adds skybox
+    vis.AddTypicalLights()
+    vis.AddCamera(chronoirr.vector3df(0, -6, 1.5))  # position camera behind and above vehicle
+
+    # Create a chase camera that follows the vehicle
+    vis.SetChaseCamera(trackPoint=chrono.ChVectorD(0, 0, 1.0), chaseDist=6.0, chaseHeight=1.5)
+
+    # Customize directional lighting (already added by AddTypicalLights,
+    # but we can adjust intensity/direction if desired)
+    # Example: Replace directional light with custom settings
+    irr_driver = vis.GetDevice().getSceneManager()
+    light = irr_driver.addLightSceneNode(
+        None,
+        chronoirr.vector3df(0, 0, 5),
+        chronoirr.SColorf(1, 1, 1, 1),
+        250.0)
+    light.getLightData().Type = chronoirr.ELT_DIRECTIONAL
+    light.setRotation(chronoirr.vector3df(-45, -45, 0))
+
+    # Customize the terrain texture and logos on terrain surface with overlay
+    # The terrain patch texture was set when created. Irrlicht texture can be replaced here:
+    terrain_texture_file = chrono.GetChronoDataFile("terrain/textures/grass.jpg")
+    logo_texture_file = chrono.GetChronoDataFile("logo/marker_02.png")
+    # Get the Irrlicht terrain node created by vehicle
+    terrain_node = vis.GetSceneManager().getSceneNodeFromName("RigidTerrainPatch0")
+    if terrain_node:
+        terrain_node.setMaterialTexture(0, vis.GetVideoDriver().getTexture(terrain_texture_file))
+        # Add a semi-transparent logo overlay as billboard or as a texture layer if desired
+        billboard_node = vis.GetSceneManager().addBillboardSceneNode(
+            parent=terrain_node,
+            size=chronoirr.dimension2df(10, 10),
+            pos=chronoirr.vector3df(0, 0, 0.01))  # slight offset on z to avoid z-fighting
+        billboard_node.setMaterialTexture(0, vis.GetVideoDriver().getTexture(logo_texture_file))
+        billboard_node.setMaterialType(chronoirr.EMT_TRANSPARENT_ALPHA_CHANNEL_REF)
+    
+    # Enable shadows for more realism
+    vis.AddShadowLayer()
+
+    # Simulation loop
+    vis.SetTimestep(step_size)
+
+    while vis.Run():
+        vis.BeginScene()
+        vis.DrawAll()
+
+        # Get driver inputs
+        steering_input = driver.GetSteering()
+        throttle_input = driver.GetThrottle()
+        braking_input = driver.GetBraking()
+
+        # Apply driver inputs to vehicle
+        vehicle.GetSteering().SetInput(steering_input)
+        vehicle.GetPowertrain().SetThrottle(throttle_input)
+        vehicle.GetBrake().SetInputs(braking_input, braking_input, braking_input, braking_input)
+
+        # Synchronize modules at current time
+        time = vehicle.GetSystem().GetChTime()
+
+        terrain.Synchronize(time)
+        vehicle.Synchronize(time, driver.GetInputs(), terrain)
+        driver.Synchronize(time)
+        vis.Synchronize(time)
+
+        # Advance simulation step
+        driver.Advance(step_size)
+        terrain.Advance(step_size)
+        vehicle.Advance(step_size)
+        vis.Advance(step_size)
+
+        vis.EndScene()
+
+if __name__ == "__main__":
+    main()
+```
