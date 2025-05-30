@@ -1,0 +1,152 @@
+Below is a self‐contained Python script that builds a simple crank–slider mechanism in PyChrono, drives the crank at constant speed, and visualizes everything in Irrlicht with custom camera, lights, textures, and a 2D logo overlay.
+
+```python
+#!/usr/bin/env python3
+
+import pychrono.core as chrono
+import pychrono.irrlicht as chronoirr
+
+# -----------------------------------------------------------------------------
+# 1) Create Chrono system
+# -----------------------------------------------------------------------------
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())  # make sure textures etc can be found
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+
+# -----------------------------------------------------------------------------
+# 2) Add a fixed floor/truss
+# -----------------------------------------------------------------------------
+floor = chrono.ChBodyEasyBox(2.0, 0.1, 0.5,    # x, y, z dimensions
+                             1000,              # density
+                             True, True)        # visualization, collision
+floor.SetPos(chrono.ChVectorD(0, -0.05, 0))
+floor.SetBodyFixed(True)
+system.Add(floor)
+# apply a concrete texture
+floor.GetVisualShape(0).SetTexture(chrono.GetChronoDataPath() + 'textures/concrete.jpg')
+
+# -----------------------------------------------------------------------------
+# 3) Build the crankshaft
+# -----------------------------------------------------------------------------
+crank_radius    = 0.2
+crank_thickness = 0.02
+crank_density   = 1000
+
+crank = chrono.ChBodyEasyCylinder(crank_radius, crank_thickness,
+                                  crank_density, True, True)
+# default cylinder axis is local Z, which we also use for revolute axis
+crank.SetPos(chrono.ChVectorD(0, 0, 0))
+system.Add(crank)
+
+# Revolute joint ground–crank
+rev_crank = chrono.ChLinkLockRevolute()
+# revolute axis along global Z, at origin
+rev_crank.Initialize(crank,    # body A
+                     system.Get_bodylist()[0],  # body B = ground
+                     chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0),
+                                       chrono.Q_from_AngAxis(0,0,1,0)))
+system.Add(rev_crank)
+
+# Motor to spin crank at constant speed
+motor = chrono.ChLinkMotorRotationSpeed()
+motor_speed = chrono.ChFunction_Const(chrono.CH_C_PI)  # rad/s = 180°/s
+motor.Initialize(crank, system.Get_bodylist()[0],
+                 chrono.ChFrameD(chrono.ChVectorD(0,0,0),
+                                 chrono.Q_from_AngAxis(0,0,1,0)))
+motor.SetSpeedFunction(motor_speed)
+system.Add(motor)
+
+# -----------------------------------------------------------------------------
+# 4) Build connecting rod
+# -----------------------------------------------------------------------------
+rod_length  = 1.0
+rod_radius  = 0.05
+rod_density = 1000
+
+rod = chrono.ChBodyEasyCylinder(rod_radius, rod_length,
+                                rod_density, True, True)
+# align rod axis with x-axis: rotate from local Z to world X
+rod.SetRot(chrono.Q_from_AngAxis(chrono.CH_C_PI/2, chrono.ChVectorD(0,1,0)))
+# center it halfway between crank pin and piston
+initial_crank_pin = chrono.ChVectorD(crank_radius, 0, 0)
+initial_piston_x  = crank_radius + rod_length
+rod_center = chrono.ChVectorD( (crank_radius + initial_piston_x)/2, 0, 0 )
+rod.SetPos(rod_center)
+system.Add(rod)
+
+# Revolute joint crank–rod at crank pin location
+rev_cr_rod = chrono.ChLinkLockRevolute()
+rev_cr_rod.Initialize(crank, rod,
+    chrono.ChCoordsysD(initial_crank_pin,
+                      chrono.Q_from_AngAxis(0,0,1,0)))
+system.Add(rev_cr_rod)
+
+# -----------------------------------------------------------------------------
+# 5) Build piston and prismatic slider
+# -----------------------------------------------------------------------------
+piston = chrono.ChBodyEasyBox(0.2, 0.2, 0.2,  # x, y, z
+                              1000,          # density
+                              True, True)    # visualization, collision
+piston.SetPos(chrono.ChVectorD(initial_piston_x, 0, 0))
+system.Add(piston)
+# a prismatic joint ground–piston to constrain motion to x-axis
+prism = chrono.ChLinkLockPrismatic()
+# joint reference frame at piston initial COM, axis = world X
+prism.Initialize(piston, system.Get_bodylist()[0],
+                 chrono.ChCoordsysD(chrono.ChVectorD(0,0,0),
+                                   chrono.Q_from_AngAxis(0,1,0,0)))
+system.Add(prism)
+
+# Revolute joint rod–piston at rod's far end
+rod_end = chrono.ChVectorD(initial_piston_x, 0, 0)
+rev_rod_piston = chrono.ChLinkLockRevolute()
+rev_rod_piston.Initialize(rod, piston,
+    chrono.ChCoordsysD(rod_end, chrono.Q_from_AngAxis(0,0,1,0)))
+system.Add(rev_rod_piston)
+
+# -----------------------------------------------------------------------------
+# 6) Visualization with Irrlicht
+# -----------------------------------------------------------------------------
+app = chronoirr.ChIrrApp(system, "Crank–Slider Mechanism",
+                         chronoirr.dimension2du(1024, 768))
+app.AddLogo(chrono.GetChronoDataPath() + "logo_pychrono_alpha.png")  # 2D logo
+app.AddSkyBox()
+app.AddTypicalLights()
+# place the camera at (1.5,1.5,1.5), look at origin
+app.AddCamera(chronoirr.vector3df(1.5, 1.5, 1.5),
+              chronoirr.vector3df(0, 0, 0))
+app.AssetBindAll()
+app.AssetUpdateAll()
+
+# -----------------------------------------------------------------------------
+# 7) Run the simulation
+# -----------------------------------------------------------------------------
+timestep = 1e-3
+while app.Run():
+    app.BeginScene()
+    app.DrawAll()
+    system.DoStepDynamics(timestep)
+    app.EndScene()
+```
+
+Explanation of key steps:
+
+1. **System setup**  
+   We create a `ChSystemNSC`, set gravity, and enable data-path so built-in textures and the PyChrono logo can be found.
+
+2. **Floor**  
+   A `ChBodyEasyBox` fixed to the ground serves as the base/truss, with a concrete texture applied.
+
+3. **Crank**  
+   A short cylinder of radius 0.2 m is pinned at the origin with a revolute joint. A `ChLinkMotorRotationSpeed` drives it at a constant π rad/s.
+
+4. **Connecting rod**  
+   A slender cylinder of length 1.0 m is revolute-pinned to the crank pin and to the piston.
+
+5. **Piston + slider**  
+   A small box constrained to slide along the X-axis by a prismatic joint; the rod end is revolute-pinned to the piston.
+
+6. **Visualization**  
+   We use `ChIrrApp` to create an Irrlicht window, add sky, lights, a movable camera, textures, and a PyChrono logo in the corner.
+
+Run this script in an environment where PyChrono is installed (`pip install pychrono`) and you will see the classic crank‐slider drive in action. You can tweak dimensions, motor speed, camera positions or swap textures to suit your needs.

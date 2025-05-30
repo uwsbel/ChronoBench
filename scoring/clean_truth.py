@@ -81,7 +81,7 @@ Output_conversation_path = 'D:\SimBench\output_conversion'
 
 test_model_list = ["gemma-2-2b-it", "gemma-2-9b-it", "gemma-2-27b-it", "llama-3.1-405b-instruct", "llama-3.1-70b-instruct", "codellama-70b", "llama-3.1-8b-instruct", "phi-3-mini-128k-instruct", "phi-3-small-8k-instruct", "phi-3-medium-128k-instruct",
                    "nemotron-4-340b-instruct", "mistral-nemo-12b-instruct", "mixtral-8x22b-instruct-v0.1", "codestral-22b-instruct-v0.1", "mixtral-8x7b-instruct-v0.1", "mistral-large", "mamba-codestral-7b-v0.1",
-                   "gpt-4o", "gpt-4o-mini", "claude-3-5-sonnet","Gemini"]
+                   "gpt-4o", "gpt-4o-mini", "claude-3-5-sonnet","Gemini-1.5-pro"]
 # define an output path for the test results for each model with the name of the model
 # using tqdm to show the progress bar
 

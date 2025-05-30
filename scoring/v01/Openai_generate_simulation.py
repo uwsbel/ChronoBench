@@ -3,6 +3,7 @@ import os
 import json
 from tqdm import tqdm
 nvidia_api_key = os.getenv("NVIDIA_API_KEY")
+#print(nvidia_api_key)
 if not nvidia_api_key:
     raise RuntimeError("Please set the NVIDIA_API_KEY environment variable!")
 def read_script(file_path):
@@ -25,7 +26,7 @@ def generate_first_code(first_prompt,model_link):
     try:
         global nvidia_api_key
         client = OpenAI(
-            base_url="https://integrate.api.nvidia.com/v1/chat/completions",
+            base_url="https://integrate.api.nvidia.com/v1",
             api_key=nvidia_api_key
         )
         completion = client.chat.completions.create(
@@ -33,8 +34,8 @@ def generate_first_code(first_prompt,model_link):
             messages=[
                 {"role": "user", "content": prompt}
             ],
-            temperature=0.2,
-            top_p=0.7,
+            temperature=0.6,
+            top_p=0.9,
             max_tokens=4096,
             stream=False
         )
@@ -68,7 +69,7 @@ Provide the corrected and modified script below:
     try:
         global nvidia_api_key
         client = OpenAI(
-            base_url="https://integrate.api.nvidia.com/v1/chat/completions",
+            base_url="https://integrate.api.nvidia.com/v1",
             api_key=nvidia_api_key
         )
         completion = client.chat.completions.create(
@@ -76,8 +77,8 @@ Provide the corrected and modified script below:
             messages=[
                 {"role": "user", "content": prompt}
             ],
-            temperature=0.2,
-            top_p=0.7,
+            temperature=0.6,
+            top_p=0.9,
             max_tokens=4096,
             stream=False
         )
@@ -126,19 +127,23 @@ opensource_model_links = {
     "mixtral-8x7b-instruct-v0.1":"mistralai/mixtral-8x7b-instruct-v0.1",
     "mistral-large-latest":"mistralai/mistral-large",
     "mamba-codestral-7b-v0.1":"mistralai/mamba-codestral-7b-v0.1",
-    "llama4_maverick":"meta/llama-4-maverick-17b-128e-instruct",
-    "llama4_scout":"meta/llama-4-scout-17b-16e-instruct"
+    "llama4_maverick":"nvdev/meta/llama-4-maverick-17b-128e-instruct",
+    "llama4_scout":"nvdev/meta/llama-4-scout-17b-16e-instruct",
+    "llama-3.3-70b-instruct":"meta/llama-3.3-70b-instruct",
+    "llama-3.1-405b-instruct":"meta/llama-3.1-405b-instruct",
+
 }
 system_list = ["art", "beam", "buckling", "cable", "car", "camera", "citybus", "curiosity", "feda", "gator", "gear", "gps_imu", "handler", "hmmwv", "kraz", "lidar", "m113", "man", "mass_spring_damper", "particles", "pendulum",
                "rigid_highway", "rigid_multipatches", "rotor", "scm", "scm_hill", "sedan", "sensros", "slider_crank", "tablecloth", "turtlebot", "uazbus", "veh_app","vehros","viper"]
-system_do_list=["rotor", "scm", "scm_hill", "sedan", "sensros", "slider_crank", "tablecloth", "turtlebot", "uazbus", "veh_app","vehros","viper"]
+#system_do_list=["rotor", "scm", "scm_hill", "sedan", "sensros", "slider_crank", "tablecloth", "turtlebot", "uazbus", "veh_app","vehros","viper"]
+system_do_list=system_list
 # data set path
 dataset_path = r'C:\Users\jingquanw\SimBench\demo_data'
 Output_path = r'C:\Users\jingquanw\SimBench\output_llms'
 Output_conversation_path = r'C:\Users\jingquanw\SimBench\output_conversion'
 # in the dataset_path, there are 34 dynamical system folders, each folder is a dyanmical system which contains 8 files [3 input text files, input1.txt, input2.txt, input3.txt;
 # 2 python input files, pyinput2.py, pyinput3.py; 3 ground truth python files truth1.py, truth2.py, truth3.py]
-test_model_list= ["llama4_maverick"]
+test_model_list= ["llama-3.3-70b-instruct"]
 # define an output path for the test results for each model with the name of the model
 # using tqdm to show the progress bar
 for test_model in tqdm(test_model_list):

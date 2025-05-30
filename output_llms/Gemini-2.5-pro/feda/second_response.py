@@ -1,0 +1,197 @@
+import pychrono.core as chrono
+import pychrono.irrlicht as irr
+import pychrono.vehicle as veh
+import math
+import os
+
+# Set the path to the Chrono data files.
+# This assumes that CHRONO_DATA_DIR is set as an environment variable.
+chrono_data_root = chrono.GetChronoDataPath()
+if not chrono_data_root: # Check if the path is empty or None
+    raise Exception("CHRONO_DATA_DIR environment variable not set or Chrono data path not found.")
+
+# SetChronoDataPath is primarily for legacy reasons or if you need to switch data roots.
+# If GetChronoDataPath() is correct, this specific call might be redundant but is kept for consistency with original.
+chrono.SetChronoDataPath(chrono_data_root)
+veh.SetDataPath(os.path.join(chrono_data_root, 'vehicle', '')) # Use os.path.join for robustness
+
+# --- MODIFICATION: Initial Vehicle Location Change ---
+initLoc = chrono.ChVector3d(-50, 0, 0.5) # Changed from (0,0,0.5)
+initRot = chrono.ChQuaterniond(1, 0, 0, 0) # Identity quaternion (no rotation)
+
+# Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
+vis_type = veh.VisualizationType_MESH
+
+# Collision type for chassis (PRIMITIVES, MESH, or NONE)
+chassis_collision_type = veh.CollisionType_NONE # No chassis collision for this demo
+
+# Type of tire model (RIGID, TMEASY, FIALA, PACEJKA, LUGRE)
+tire_model = veh.TireModelType_TMEASY
+
+# --- MODIFICATION: Terrain Length Change ---
+terrainLength = 200.0  # size in X direction, increased from 100.0
+terrainWidth = 100.0   # size in Y direction
+
+# Point on chassis tracked by the camera (relative to vehicle CoG)
+trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
+
+# Contact method (NSC or SMC)
+contact_method = chrono.ChContactMethod_NSC
+
+# Simulation step sizes
+step_size = 1e-3
+tire_step_size = step_size # For TMEASY, tire system often has same step as system
+
+# Time interval between two render frames
+render_step_size = 1.0 / 50  # FPS = 50
+
+# Create the FEDA vehicle, set parameters, and initialize
+vehicle = veh.FEDA()
+vehicle.SetContactMethod(contact_method)
+vehicle.SetChassisCollisionType(chassis_collision_type)
+vehicle.SetChassisFixed(False) # Chassis is not fixed to ground
+vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
+vehicle.SetTireType(tire_model)
+vehicle.SetTireStepSize(tire_step_size)
+vehicle.Initialize()
+
+# Set visualization type for vehicle components
+vehicle.SetChassisVisualizationType(vis_type)
+vehicle.SetSuspensionVisualizationType(vis_type)
+vehicle.SetSteeringVisualizationType(vis_type)
+vehicle.SetWheelVisualizationType(vis_type)
+vehicle.SetTireVisualizationType(vis_type)
+
+# Set the collision system type for the entire Chrono system
+vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+
+# Create the terrain
+patch_mat = chrono.ChContactMaterialNSC()
+patch_mat.SetFriction(0.9)
+patch_mat.SetRestitution(0.01)
+terrain = veh.RigidTerrain(vehicle.GetSystem())
+
+# Add a patch of terrain
+# The ChCoordsysd defines the center and orientation of the patch.
+# Default (ChVector3d(0,0,0), chrono.QUNIT) centers it at origin, Z=0 defines ground level.
+patch = terrain.AddPatch(patch_mat,
+    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
+    terrainLength, terrainWidth)
+
+patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
+patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+terrain.Initialize()
+
+# --- MODIFICATION: Driver System ---
+# 1. Create the path for the double lane change maneuver (ISO 3888-1 like)
+# Path parameters
+path_start_pos = chrono.ChVector3d(initLoc.x, initLoc.y, 0.1) # Path starts near vehicle, Z=0.1m above terrain plane
+y_offset = 3.5                # Lateral displacement for the lane change [m]
+lane_width_gate = 3.0         # Width of the gates [m] (e.g., ISO: 1.1 * veh_width + 0.25m)
+straight_begin_len = 20.0     # Length of straight section before maneuver [m]
+straight_end_len = 20.0       # Length of straight section after maneuver [m]
+maneuver_segment_len = 60.0   # Length of the S-shaped maneuver part (total for both turns) [m]
+left_lane_change = False      # Standard DLC usually involves a right turn first from driver's perspective
+
+path = veh.DoubleLaneChangePath(
+    path_start_pos,
+    y_offset,
+    lane_width_gate,        # width of gate 1
+    lane_width_gate,        # width of gate 2
+    lane_width_gate,        # width of gate 3
+    straight_begin_len,
+    straight_end_len,
+    maneuver_segment_len,
+    left_lane_change
+)
+
+# 2. Set target speed
+target_speed = 10.0  # m/s (equivalent to 36 km/h)
+
+# 3. Configure steering controller (Stanley controller)
+#    Look-ahead distance: 5.0m
+#    Gains: Kp (for path error correction)
+steering_controller = veh.ChPathSteeringControllerStanley(path, vehicle.GetVehicle())
+steering_controller.SetLookAheadDistance(5.0)
+steering_controller.SetGain(0.8) # Proportional gain for Stanley controller
+
+# 4. Create the path-follower driver and configure speed controller gains
+driver = veh.ChPathFollowerDriver(
+    vehicle.GetVehicle(),
+    path,
+    "DLC_Path",             # Name of the path (for informational purposes)
+    target_speed,
+    steering_controller     # Pass the configured Stanley controller
+)
+
+# Configure the PID gains for the underlying speed controller
+# Kp: Proportional gain, Ki: Integral gain, Kd: Derivative gain
+driver.GetSpeedController().SetGains(0.5, 0.05, 0.0) # Tuned Kp, added small Ki for steady-state error
+
+driver.Initialize()
+
+# Create the vehicle Irrlicht visualization system
+vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
+vis.SetWindowTitle('FEDA vehicle - Path Follower DLC')
+vis.SetWindowSize(1280, 1024)
+vis.SetChaseCamera(trackPoint, 6.0, 0.5) # Camera distance from trackPoint and height
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddLightDirectional()
+vis.AddSkyBox()
+vis.AttachVehicle(vehicle.GetVehicle())
+
+# Visualize the path:
+# Create a dummy ChBody to hold the path visualization asset
+path_vis_body = chrono.ChBody()
+path_vis_body.SetFixed(True) # The path visualization doesn't move
+vehicle.GetSystem().Add(path_vis_body) # Add dummy body to the system so Irrlicht knows about it
+
+# Create a ChPathShape asset from the ChBezierCurve
+path_asset = veh.ChPathShape(path)
+path_asset.SetColor(chrono.ChColor(0.8, 0.0, 0.0)) # Red color for the path
+path_asset.SetNumRenderPoints(400) # Number of segments to discretize the curve for rendering
+path_vis_body.AddVisualShape(path_asset) # Attach the path shape to the dummy body
+
+# Output vehicle mass
+print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+
+# Calculate number of simulation steps between render frames
+render_steps = math.ceil(render_step_size / step_size)
+
+# Initialize simulation tools
+realtime_timer = chrono.ChRealtimeStepTimer()
+step_number = 0
+
+# Simulation loop
+while vis.Run():
+    time = vehicle.GetSystem().GetChTime()
+
+    # Render scene at specified intervals
+    if (step_number % render_steps == 0):
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+
+    # Get driver inputs (will be from path follower)
+    driver_inputs = driver.GetInputs()
+
+    # Update modules (process inputs from other modules, calculate forces, etc.)
+    driver.Synchronize(time)
+    terrain.Synchronize(time)
+    vehicle.Synchronize(time, driver_inputs, terrain)
+    # Synchronize Irrlicht visual system (e.g., camera, HUD elements)
+    vis.Synchronize(time, driver_inputs)
+
+
+    # Advance simulation for one timestep for all modules
+    driver.Advance(step_size)
+    terrain.Advance(step_size)
+    vehicle.Advance(step_size)
+    vis.Advance(step_size) # Advance Irrlicht animation
+
+    # Increment step number
+    step_number += 1
+
+    # Spin in place to maintain real-time progression (if desired)
+    realtime_timer.Spin(step_size)

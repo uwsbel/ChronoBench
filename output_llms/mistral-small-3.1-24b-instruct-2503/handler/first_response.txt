@@ -1,0 +1,99 @@
+Sure, let's create a PyChrono simulation integrated with ROS. Below is a Python script that accomplishes the specified tasks.
+
+```python
+import chrono
+import chrono.ros
+from chrono.core import ChSystemNSC
+from chrono.physics import ChBodyEasyBox, ChMaterialSurfaceNSC
+from chrono.ros import ChRosHandler, ChRosManager
+import rospy
+import std_msgs.msg
+
+# Initialize ROS node
+rospy.init_node('chrono_ros_simulation')
+
+# Create the Chrono::Engine physical system
+system = ChSystemNSC()
+
+# Set the gravity
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+
+# Create a floor
+floor = system.NewBody(ChBodyEasyBox(10, 0.5, 10, 1000, True, True))
+floor.SetPos(chrono.ChVectorD(0, -0.25, 0))
+floor.SetBodyFixed(True)
+
+# Create a movable box
+box = system.NewBody(ChBodyEasyBox(1, 1, 1, 100, True, True))
+box.SetPos(chrono.ChVectorD(0, 1, 0))
+
+# Create a material for the box
+material_box = ChMaterialSurfaceNSC()
+material_box.SetFriction(0.6)
+box.GetMaterialSurface().SetMaterial(material_box)
+
+# Create a ROS manager
+ros_manager = ChRosManager(system)
+
+# Create custom ROS handler to publish integer messages
+class CustomRosHandler(ChRosHandler):
+    def __init__(self, system):
+        super(CustomRosHandler, self).__init__(system)
+        self.publisher = rospy.Publisher('/chrono_box_position', std_msgs.msg.Int32, queue_size=10)
+        self.message = std_msgs.msg.Int32()
+
+    def Update(self, time):
+        # Publish the integer value of the box's x position
+        x_pos = int(box.GetPos().x)
+        self.message.data = x_pos
+        self.publisher.publish(self.message)
+
+# Register the custom ROS handler
+ros_manager.RegisterHandler(CustomRosHandler(system))
+
+# Create and register the body handler
+body_handler = chrono.ros.ChRosBodyHandler(system)
+ros_manager.RegisterHandler(body_handler)
+
+# Create and register the clock handler
+clock_handler = chrono.ros.ChRosClockHandler(system)
+ros_manager.RegisterHandler(clock_handler)
+
+# Create and register the transform handler
+transform_handler = chrono.ros.ChRosTransformHandler(system)
+ros_manager.RegisterHandler(transform_handler)
+
+# Simulation settings
+time_step = 0.01  # 10 ms
+end_time = 10.0   # 10 seconds
+
+# Run the simulation loop
+current_time = 0.0
+while current_time < end_time:
+    # Step the simulation
+    system.DoStepDynamics(time_step)
+
+    # Update ROS communication
+    ros_manager.Update(time_step)
+
+    # Maintain real-time execution
+    chrono.sleep_ms(int(time_step * 1000))
+
+    # Increment the current time
+    current_time += time_step
+
+# Shutdown ROS node
+rospy.signal_shutdown("Simulation complete")
+```
+
+### Explanation:
+1. **Initialize ROS Node**: The script starts by initializing a ROS node.
+2. **Chrono System Setup**: A Chrono system is created with gravitational acceleration.
+3. **Floor and Box**: A fixed floor and a movable box are added to the system.
+4. **Material Properties**: A material with friction is assigned to the box.
+5. **ROS Manager**: A ROS manager is created to handle ROS communication.
+6. **Custom ROS Handler**: A custom ROS handler is defined to publish the integer value of the box's x position to a specified topic.
+7. **Handlers Registration**: Body, clock, and transform handlers are created and registered with the ROS manager.
+8. **Simulation Loop**: The simulation runs in a loop, advancing the system and updating ROS communication at each timestep, while maintaining real-time execution.
+
+This script should be run in an environment where both PyChrono and ROS are properly set up and configured.

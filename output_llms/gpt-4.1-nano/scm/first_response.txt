@@ -1,0 +1,130 @@
+```python
+import pychrono.core as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as irr
+
+# ---------------------------------------------
+# 1. Initialize PyChrono environment and core components
+# ---------------------------------------------
+
+# Create physical system
+system = chrono.ChSystemSMC()  # or ChSystemNSC(), depending on your preference
+
+# Set default contact material properties (optional, can be customized later)
+# For example:
+# material = chrono.ChMaterialSurfaceSMC()
+# material.SetYoungModulus(2e7)
+# material.SetFriction(0.7)
+# material.SetRestitution(0.1)
+
+# ---------------------------------------------
+# 2. Add vehicle with specific parameters
+# ---------------------------------------------
+
+# Vehicle parameters
+vehicle = veh.RVSisVehicle.ChR RVehicle()  # or appropriate vehicle class, check your model
+vehicle.SetSystem(system)
+
+# Set initial position and orientation
+initial_pos = chrono.ChVectorD(0, 0.5, 0)  # starting at origin with some height above terrain
+initial_euler = chrono.ChQuaternionD(chrono.Q_from_AngX(0))  # no initial rotation
+
+vehicle.GetChassis().SetPos(initial_pos)
+vehicle.GetChassis().SetRot(initial_euler)
+
+# Configure tire model to be rigid
+# Assuming the vehicle has four tires; replace with actual tire object setup
+for tire in vehicle.TireList:
+    tire.SetTireType(veh.RigidTire.TIRE_TYPE)  # set to rigid tire
+
+# Apply mesh visualization to all vehicle components
+for component in vehicle.GetVehicle().GetComponents():
+    component.SetWireframe(False)
+    component.SetDrawMode(chrono.ChAssetType_MESH)
+
+# ---------------------------------------------
+# 3. Configure SCM terrain with custom soil parameters and moving patch
+# ---------------------------------------------
+
+# Soil parameters: (example values, customize as needed)
+soil_params = {
+    'K_phi': 30000,    # flow stress parameter
+    'K_vals': 1000,    # cohesion
+    'K_sat': 100000,   # saturation soil cohesion
+    'n': 1.1,          # pressure-sinkage exponent
+    'rho': 1200,       # soil density
+    'surface_tension': 0.0
+}
+
+# Create SCM terrain
+terrain = veh.SCMDeformableTerrain(system)
+terrain.SetSoilParameters(soil_params['K_phi'], soil_params['K_vals'], soil_params['K_sat'],
+                          soil_params['n'], soil_params['rho'], soil_params['surface_tension'])
+
+# Enable terrain visualization with sinkage false color
+terrain.VisualizeSinkage(True)  # true for false color plot of sinkage
+
+# Enable moving patch that follows vehicle chassis
+# We link the terrain patch to vehicle chassis
+terrain.EnableMovingPatch()
+terrain.SetMovingPatchSize(30, 30)  # size of the patch in meters
+terrain.SetMovingPatchFollowVehicle(vehicle.GetChassis())
+
+# ---------------------------------------------
+# 4. Configure Irrlicht visualization
+# ---------------------------------------------
+
+# Create an Irrlicht application for visualization
+vis = irr.ChIrrApp(system, 'HMMWV on SCM Terrain', irr.dimension2d(1024, 768))
+vis.AddTypicalLogo()
+vis.AddTypicalSky()
+vis.AddTypicalCamera(irr.vector3df(0, 2, -6))
+vis.AddTypicalLights()
+vis.SetTimeStep(1.0/50)  # 50 fps
+
+# Attach the vehicle and terrain to the visualization
+vis.AssetBindAll()
+vis.AssetUpdateAll()
+
+# ---------------------------------------------
+# 5. Set up driver system for interaction
+# ---------------------------------------------
+
+# Initialize user-controlled driver
+driver = veh.ChIrrGuiDriver(vis)
+driver.Initialize(vehicle.GetChassis())
+
+# ---------------------------------------------
+# 6. Run the simulation
+# ---------------------------------------------
+
+# Simulation loop
+while vis.Run():
+    # Begin scene rendering
+    vis.BeginScene()
+    vis.DrawAll()
+
+    # Get driver inputs
+    driver.Interact()
+    steering = driver.GetSteering()  # range [-1, 1]
+    throttle = driver.GetThrottle()  # range [0, 1]
+    braking = driver.GetBraking()    # range [0, 1]
+
+    # Apply driver inputs to vehicle controls
+    vehicle.SetSteering(steering)
+    vehicle.SetThrottle(throttle)
+    vehicle.SetBraking(braking)
+
+    # Synchronize terrain (update moving patch)
+    terrain.Synchronize(system.GetChTime())
+
+    # Update vehicle dynamics
+    vehicle.Update()
+
+    # Advance system by time step
+    system.DoStepDynamics(1.0/50)
+
+    # Update visualization
+    vis.EndScene()
+
+```

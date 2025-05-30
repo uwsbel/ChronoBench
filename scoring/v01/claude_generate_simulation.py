@@ -7,7 +7,8 @@ import anthropic
 client = anthropic.Anthropic(
     api_key=os.environ.get("ANTHROPIC_API_KEY")
 )
-
+key=os.environ.get("ANTHROPIC_API_KEY")
+print(key)
 print(os.environ.get("ANTHROPIC_API_KEY"))
 def read_script(file_path):
     with open(file_path, "r", encoding="utf-8") as file:
@@ -30,7 +31,7 @@ def generate_first_code(first_prompt, model_link):
     try:
         message = client.messages.create(
             model=model_link,
-            max_tokens=4096,
+            max_tokens=4096*2,
             messages=[
                 {"role": "user", "content": prompt}
             ]
@@ -68,7 +69,7 @@ Provide the corrected and modified script below:
     try:
         message = client.messages.create(
             model=model_link,
-            max_tokens=4096,
+            max_tokens=4096*2,
             messages=[
                 {"role": "user", "content": prompt}
             ]
@@ -108,6 +109,8 @@ def save_conversation_json(output_conversation_path, combined_prompt1, first_res
 
 opensource_model_links = {
     "claude-3-5-sonnet": "claude-3-5-sonnet-20240620",
+    "claude-3-7-sonnet-20250219":"claude-3-7-sonnet-20250219",
+    "claude-4-sonnet-20250514":"claude-4-sonnet-20250514"
 }
 system_list = ["art", "beam", "buckling", "cable", "car", "camera", "citybus", "curiosity", "feda", "gator", "gear",
                "gps_imu", "handler", "hmmwv", "kraz", "lidar", "m113", "man", "mass_spring_damper", "particles",
@@ -116,12 +119,12 @@ system_list = ["art", "beam", "buckling", "cable", "car", "camera", "citybus", "
                "tablecloth", "turtlebot", "uazbus", "veh_app", "vehros", "viper"]
 system_do_list = ['art', 'citybus','feda','gator','hmmwv','scm','rigid_highway','rigid_multipatches']
 # data set path
-dataset_path = 'D:\SimBench\demo_data'
-Output_path = 'D:\SimBench\output'
-Output_conversation_path = 'D:\SimBench\output_conversion'
+dataset_path = r"C:\Users\jingquanw\SimBench\demo_data"
+Output_path = r"C:\Users\jingquanw\SimBench\output_llms"
+Output_conversation_path =  r"C:\Users\jingquanw\SimBench\output_conversion"
 # in the dataset_path, there are 34 dynamical system folders, each folder is a dyanmical system which contains 8 files [3 input text files, input1.txt, input2.txt, input3.txt;
 # 2 python input files, pyinput2.py, pyinput3.py; 3 ground truth python files truth1.py, truth2.py, truth3.py]
-test_model_list = ["claude-3-5-sonnet"]
+test_model_list = ["claude-3-7-sonnet-20250219"]
 # define an output path for the test results for each model with the name of the model
 # using tqdm to show the progress bar
 for test_model in tqdm(test_model_list):

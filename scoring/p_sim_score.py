@@ -19,7 +19,7 @@ test_model_list = [
     "mistral-nemo-12b-instruct", "mixtral-8x22b-instruct-v0.1",
     "codestral-22b-instruct-v0.1", "mixtral-8x7b-instruct-v0.1",
     "mistral-large-latest", "mamba-codestral-7b-v0.1",
-    "gpt-4o", "gpt-4o-mini", "claude-3-5-sonnet", "Gemini","phi-3-medium-128k-instruct",
+    "gpt-4o", "gpt-4o-mini", "claude-3-5-sonnet", "Gemini-1.5-pro","phi-3-medium-128k-instruct",
 ]
 
 system_list = [

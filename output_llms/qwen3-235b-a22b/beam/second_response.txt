@@ -1,0 +1,107 @@
+```python
+import pychrono as chrono
+import pychrono.fea as fea
+import pychrono.pardisomkl as mkl
+import pychrono.irrlicht as chronoirr
+
+print("Example: PyChrono using beam finite elements")
+
+# Create the physical system
+sys = chrono.ChSystemSMC()
+
+# Create a mesh for finite elements
+mesh = fea.ChMesh()
+
+# Define beam section properties
+msection = fea.ChBeamSectionEulerAdvanced()
+beam_wy = 0.012
+beam_wz = 0.025
+msection.SetAsRectangularSection(beam_wy, beam_wz)
+msection.SetYoungModulus(0.01e9)
+msection.SetShearModulus(0.01e9 * 0.3)
+msection.SetRayleighDamping(0.000)
+msection.SetCentroid(0, 0.02)
+msection.SetShearCenter(0, 0.1)
+msection.SetSectionRotation(45.0)  # Corrected to degrees
+
+# Create beam using ChBuilderBeamEuler helper
+# Instruction 1: Euler-Bernoulli beam setup
+builder = fea.ChBuilderBeamEuler()
+builder.BuildBeam(mesh, msection, 2, chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(0.2, 0, 0), chrono.ChVector3d(0, 1, 0))
+nodes = builder.GetLastBeamNodes()
+hnode1 = nodes[0]
+hnode2 = nodes[1]
+hnode3 = nodes[2]
+
+# Apply forces to nodes
+hnode2.SetForce(chrono.ChVector3d(4, 2, 0))
+hnode3.SetTorque(chrono.ChVector3d(0, -0.04, 0))
+
+# Create fixed truss body
+mtruss = chrono.ChBody()
+mtruss.SetFixed(True)
+sys.Add(mtruss)
+
+# Constraint for node 3 (fixed)
+constr_bc = chrono.ChLinkMateGeneric()
+constr_bc.Initialize(hnode3, mtruss, False, hnode3.Frame, hnode3.Frame)
+sys.Add(constr_bc)
+constr_bc.SetConstrainedCoords(True, True, True, True, True, True)
+
+# Constraint for node 1 (modified to use constraint instead of direct fix)
+constr_d = chrono.ChLinkMateGeneric()
+constr_d.Initialize(hnode1, mtruss, False, hnode1.Frame, hnode1.Frame)
+sys.Add(constr_d)
+constr_d.SetConstrainedCoords(False, True, True, False, False, False)
+
+# Instruction 3: Additional beam with ChBuilderBeamEuler
+builder_new = fea.ChBuilderBeamEuler()
+builder_new.BuildBeam(mesh, msection, 5, chrono.ChVector3d(0, 0, -0.1), chrono.ChVector3d(0.2, 0, -0.1), chrono.ChVector3d(0, 1, 0))
+new_nodes = builder_new.GetLastBeamNodes()
+first_node_new = new_nodes[0]
+last_node_new = new_nodes[-1]
+last_node_new.SetFixed(True)  # Fixing last node as per instruction
+first_node_new.SetForce(chrono.ChVector3d(0, -1, 0))  # Apply force to first node
+
+# Finalize mesh setup
+mesh.SetAutomaticGravity(False)
+sys.Add(mesh)
+
+# Visualization settings (unchanged)
+visualizebeamA = chrono.ChVisualShapeFEA(mesh)
+visualizebeamA.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_ELEM_BEAM_MZ)
+visualizebeamA.SetColorscaleMinMax(-0.4, 0.4)
+visualizebeamA.SetSmoothFaces(True)
+visualizebeamA.SetWireframe(False)
+mesh.AddVisualShapeFEA(visualizebeamA)
+
+visualizebeamC = chrono.ChVisualShapeFEA(mesh)
+visualizebeamC.SetFEMglyphType(chrono.ChVisualShapeFEA.GlyphType_NODE_CSYS)
+visualizebeamC.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NONE)
+visualizebeamC.SetSymbolsThickness(0.006)
+visualizebeamC.SetSymbolsScale(0.01)
+visualizebeamC.SetZbufferHide(False)
+mesh.AddVisualShapeFEA(visualizebeamC)
+
+# Visualization system setup
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(sys)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle('FEA beams')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVector3d(0.1, 0.1, 0.2))
+vis.AddTypicalLights()
+
+# Set solver
+msolver = mkl.ChSolverPardisoMKL()
+sys.SetSolver(msolver)
+
+# Simulation loop
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    sys.DoStepDynamics(0.001)
+```

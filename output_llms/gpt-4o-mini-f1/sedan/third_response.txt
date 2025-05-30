@@ -10,7 +10,7 @@ chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 # Initial vehicle location and orientation
-initLoc = chrono.ChVector3d(-20, 0, 0.5)
+initLoc = chrono.ChVector3d(0, 0, 0.5)
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 # Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
@@ -73,9 +73,7 @@ patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 patch = terrain.AddPatch(patch_mat, 
     chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
-    chrono.GetChronoDataFile('vehicle/terrain/meshes/Highway.obj'), 0.01, True)
-
-patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
+    chrono.GetChronoDataFile('vehicle/terrain/meshes/Highway_1_lod0.obj'), True)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
@@ -123,12 +121,11 @@ render_frame = 0
 # reference speed
 reference_speed = 15.0
 # PID controller
-pid = veh.ChPIDController(0.2, 0, 0, 0.5, -0.5)
-pid.SetReference(reference_speed)
-pid.SetProcessVar(0)
-pid.SetControlVar(0)
-pid.Initialize()
-
+kp = 0.3
+kd = 0.0
+ki = 0.0
+integral = 0
+last_error = 0
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
 
@@ -141,12 +138,17 @@ while vis.Run() :
 
     # Get driver inputs
     driver_inputs = driver.GetInputs()
-
-    # update speed
+    # get current speed
     speed = vehicle.GetVehicle().GetSpeed()
-    pid.SetProcessVar(speed)
-    throttle = pid.Update()
+    # compute speed error
+    error = reference_speed - speed
+    # compute PID
+    integral += error * step_size
+    derivative = (error - last_error) / step_size
+    last_error = error
+    throttle = max(min(kp * error + ki * integral + kd * derivative, 0.6), 0.0)
     driver.SetThrottle(throttle)
+    driver.SetSteering(0.0)
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
     terrain.Synchronize(time)

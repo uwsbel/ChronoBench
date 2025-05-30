@@ -2,7 +2,8 @@ from openai import OpenAI
 import os
 import json
 from tqdm import tqdm
-
+nvidia_api_key = os.getenv("OPENAI_API_KEY")
+print(nvidia_api_key)
 def read_script(file_path):
     with open(file_path, "r", encoding="utf-8") as file:
         return file.read()
@@ -22,15 +23,16 @@ def generate_first_code(first_prompt, model_link):
     “”"
     """
     try:
-        client = OpenAI(api_key='')
+        global nvidia_api_key
+        client = OpenAI(api_key=nvidia_api_key)
         completion = client.chat.completions.create(
             model=model_link,
             messages=[
                 {"role": "user", "content": prompt}
             ],
-            temperature=0.2,
-            top_p=0.7,
-            max_tokens=4096,
+            #temperature=0.2,
+            #top_p=0.7,
+            max_completion_tokens=4096*4,
             stream=False
         )
         return completion.choices[0].message.content, prompt
@@ -63,16 +65,15 @@ Provide the corrected and modified script below:
     """
     try:
         global nvidia_api_key
-        client = OpenAI(api_key=''
-        )
+        client = OpenAI(api_key=nvidia_api_key)
         completion = client.chat.completions.create(
             model=model_link,
             messages=[
                 {"role": "user", "content": prompt}
             ],
-            temperature=0.2,
-            top_p=0.7,
-            max_tokens=1024 * 4,
+            #temperature=0.6,
+            #top_p=0.7,
+            max_completion_tokens=1024 * 4*4,
             stream=False
         )
         return completion.choices[0].message.content, prompt
@@ -108,7 +109,12 @@ def save_conversation_json(output_conversation_path, combined_prompt1, first_res
 
 opensource_model_links = {
     "gpt-4o-mini": "gpt-4o-mini",
-    "gpt-4o-mini-f1":"ft:gpt-4o-mini-2024-07-18:personal::9xVAdwNY"
+    "gpt-4o-mini-f1":"ft:gpt-4o-mini-2024-07-18:personal::9xVAdwNY",
+    "gpt-4.1":"gpt-4.1",
+    "gpt-4.1-mini":"gpt-4.1-mini",
+    "gpt-4.1-nano":"gpt-4.1-nano",
+    "o4-mini":"o4-mini",
+    "o3":"o3"
 }
 system_list = ["art", "beam", "buckling", "cable", "car", "camera", "citybus", "curiosity", "feda", "gator", "gear",
                "gps_imu", "handler", "hmmwv", "kraz", "lidar", "m113", "man", "mass_spring_damper", "particles",
@@ -120,18 +126,18 @@ system_do_list = ["art", "beam", "buckling", "cable", "car", "camera", "citybus"
                   "rigid_highway", "rigid_multipatches", "rotor", "scm", "scm_hill", "sedan", "sensros", "slider_crank",
                   "tablecloth", "turtlebot", "uazbus", "veh_app", "vehros", "viper"]
 # data set path
-dataset_path = 'D:\SimBench\demo_data'
-Output_path = 'D:\SimBench\output'
-Output_conversation_path = 'D:\SimBench\output_conversion'
+dataset_path = r"C:\Users\jingquanw\SimBench\demo_data"
+output_path  = r"C:\Users\jingquanw\SimBench\output_llms"
+output_conv  = r"C:\Users\jingquanw\SimBench\output_conversion"
 # in the dataset_path, there are 34 dynamical system folders, each folder is a dyanmical system which contains 8 files [3 input text files, input1.txt, input2.txt, input3.txt;
 # 2 python input files, pyinput2.py, pyinput3.py; 3 ground truth python files truth1.py, truth2.py, truth3.py]
-test_model_list = ["gpt-4o-mini-f1"]
+test_model_list = ["gpt-4.1-mini", "gpt-4.1-nano"]
 # define an output path for the test results for each model with the name of the model
 # using tqdm to show the progress bar
 for test_model in tqdm(test_model_list):
     print('entering model:', test_model)
     test_model_link = opensource_model_links[test_model]
-    output_model_path = os.path.join(Output_path, test_model)
+    output_model_path = os.path.join(output_path, test_model)
     os.makedirs(output_model_path, exist_ok=True)
     # for each model, we create a folder to store the test results for each dynamical system
     for system_folder in os.listdir(dataset_path):
@@ -182,7 +188,7 @@ for test_model in tqdm(test_model_list):
             with open(third_response_path, 'w', encoding="utf-8") as file:
                 file.write(third_response)
             # save the combined prompt with the response into a json file
-            output_conversation_path = os.path.join(Output_conversation_path,
+            output_conversation_path = os.path.join(output_conv,
                                                     f"{test_model}_{system_folder}_conversation.json")
             save_conversation_json(output_conversation_path, combined_prompt1, first_response, combined_prompt2,
                                    second_response, combined_prompt3, third_response)

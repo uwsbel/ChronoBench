@@ -1,7 +1,8 @@
 import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from tqdm import tqdm
-
+nvidia_api_key = os.getenv("OPENAI_API_KEY")
+print(nvidia_api_key)
 import evaluate
 from codebleu import calc_codebleu
 
@@ -73,7 +74,7 @@ def evaluate_pychrono_code_against_reference_document(code, reference_code, api_
     """
     try:
         global nvidia_api_key
-        client = OpenAI(api_key=''
+        client = OpenAI(api_key=nvidia_api_key
         )
         completion = client.chat.completions.create(
             model=model_link,
@@ -140,7 +141,7 @@ def evaluate_pychrono_code_against_reference(code, reference_code, model_link):
     """
     try:
         global nvidia_api_key
-        client = OpenAI(api_key=''
+        client = OpenAI(api_key=nvidia_api_key
         )
         completion = client.chat.completions.create(
             model=model_link,
@@ -204,7 +205,7 @@ def evaluate_pychrono_code_against_document(code, api_documentation_link, model_
         """
     try:
         global nvidia_api_key
-        client = OpenAI(api_key=''
+        client = OpenAI(api_key=nvidia_api_key
         )
         completion = client.chat.completions.create(
             model=model_link,
@@ -376,19 +377,23 @@ def save_scores_to_csv_with_metadata(output_system_path, test_model, system_fold
 
     print(f"Scores saved to {csv_output_path}")
 # data set path
-dataset_path = 'D:\SimBench\demo_data'
-Output_path = 'D:\SimBench\output'
-Output_conversation_path = 'D:\SimBench\output_conversion'
-Output_statistic_path = 'D:\SimBench\statistic'
-#merge_csv_files(Output_path)
+dataset_path = r"C:\Users\jingquanw\SimBench\demo_data"
+Output_path = r"C:\Users\jingquanw\SimBench\output_llms"
+Output_conversation_path =  r"C:\Users\jingquanw\SimBench\output_conversion"
+Output_statistic_path = r"C:\Users\jingquanw\SimBench\statistic"
+merge_csv_files(Output_path)
 all_model_list= ["gemma-2-2b-it", "gemma-2-9b-it", "gemma-2-27b-it", "llama-3.1-405b-instruct", "llama-3.1-70b-instruct",
 "llama-3.1-8b-instruct", "phi-3-mini-128k-instruct", "phi-3-medium-128k-instruct",
  "nemotron-4-340b-instruct", "mistral-nemo-12b-instruct", "mixtral-8x22b-instruct-v0.1", "codestral-22b-instruct-v0.1",
  "mixtral-8x7b-instruct-v0.1", "mistral-large-latest", "mamba-codestral-7b-v0.1",
- "gpt-4o", "gpt-4o-mini", "claude-3-5-sonnet", "Gemini"]
+ "gpt-4o", "gpt-4o-mini", "claude-3-5-sonnet", "Gemini-1.5-pro",
+"llama4_maverick","llama4_scout", "llama-3.3-70b-instruct","o3","deepseek-r1-8b",
+"deepseek-r1-32b", "deepseek-r1","gemma-3-1b-it","qwen3-235b-a22b","claude-3-7-sonnet-20250219",
+"claude-4-sonnet-20250514","Gemini-2.5-pro","Gemini-1.5-pro","gpt-4.1-mini", "gpt-4.1-nano",
+"gpt-4.1","o4-mini"]
 
 evaluated_model = "gpt-4o-mini"
-test_model_list = ["gpt-4o-mini-f2"]
+test_model_list = ["deepseek-r1"]
 
 system_list = ["art", "beam", "buckling", "cable",  "camera", "citybus", "curiosity", "feda", "gator", "gear", "gps_imu", "handler", "hmmwv", "kraz", "lidar", "m113", "man", "mass_spring_damper", "particles", "pendulum",
                "rigid_highway", "rigid_multipatches", "rotor", "scm", "scm_hill", "sedan", "sensros", "slider_crank", "tablecloth", "turtlebot", "uazbus", "veh_app","vehros","viper"]
@@ -420,7 +425,7 @@ def process_model_system(test_model, system_folder, dataset_path, Output_path, O
         second_reference = read_script(second_reference_path)
         third_reference = read_script(third_reference_path)
 
-        api_path = read_script(os.path.join('D:/SimBench/api', 'mbs.txt'))
+        api_path = read_script(os.path.join(r'C:\Users\jingquanw\SimBench\api', 'api.txt'))
 
         # Example usage for first, second, and third rounds
         evaluate_and_save_results("first", first_prediction, first_reference, api_path, output_system_path)
@@ -434,7 +439,7 @@ def process_model_system(test_model, system_folder, dataset_path, Output_path, O
 
 
 # Parallel processing for all models and systems
-with ThreadPoolExecutor(max_workers=os.cpu_count()) as executor:
+with ThreadPoolExecutor(max_workers=100) as executor:
     futures = []
     for test_model in test_model_list:
         output_model_path = os.path.join(Output_path, test_model)

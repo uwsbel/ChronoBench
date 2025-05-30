@@ -1,0 +1,86 @@
+```python
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as irr
+import time
+
+# 1. Initialize the PyChrono environment and core components
+
+# Create the Chrono physical system
+chrono.SetChronoDataPath(chrono.GetChronoDataPath() or "")
+
+system = chrono.ChSystemNSC()
+
+# Set solver parameters (optional, but good to ensure stable simulation)
+system.SetSolverType(chrono.ChSolver.Type_PSSOR)
+system.SetSolverMaxIterations(50)
+
+# 2. Add the required physical systems and objects as specified
+
+# -- Create the vehicle --
+vehicle = veh.UAZBUS()
+vehicle.SetContactMethod(chrono.ChContactMethod_NSC)
+vehicle.SetChassisFixed(False)
+vehicle.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 1.0), chrono.QUNIT))
+vehicle.SetTireType(veh.TireModelType.TMEASY)
+vehicle.SetStepSize(2e-3)
+
+vehicle.SetBrakeForce(0)  # No initial braking force is specified
+
+vehicle.Initialize()
+
+# -- Create the terrain --
+terrain = veh.RigidTerrain(vehicle.GetSystem())
+terrain.SetContactFriction(0.9f)       # specified friction coefficient
+terrain.SetContactRestitution(0.01f)   # specified restitution
+terrain.Initialize(0.0)
+
+# Note: Adjust friction and restitution values as needed.
+# PyChrono expects floats in python without the 'f' suffix; Python float == C++ double.
+
+terrain.SetContactFriction(0.9)
+terrain.SetContactRestitution(0.01)
+terrain.Initialize(0.0)
+
+# 3. Initialize a driver system for vehicle control
+
+driver = veh.ChIrrGuiDriver(vehicle)
+driver.Initialize()
+
+# 4. Visualization system using Irrlicht
+
+vis = veh.ChWheeledVehicleIrrApp(vehicle, 'UAZBUS Irrlicht Visualization')
+vis.SetChaseCamera(chrono.ChVectorD(0.0, 0.0, 1.75), 5.0, 0.5)
+vis.AddTypicalLights()
+vis.SetTimestep(1.0 / 50)
+vis.AssetBindAll()
+vis.AssetUpdateAll()
+
+# Simulation parameters
+timestep = 1e-3  # 1 ms timestep (can be adjusted, vehicle step size was set to 2e-3)
+real_time_timer = chrono.ChRealtimeStepTimer()
+
+# 5. Simulation Loop
+while vis.Run() and system.GetChTime() < 20:  # Run for 20 seconds of simulation time
+    # Synchronize modules at current time
+    time = system.GetChTime()
+    driver.Synchronize(time)
+    terrain.Synchronize(time)
+    vehicle.Synchronize(time, driver.GetInputs(), terrain)
+    vis.Synchronize("", driver.GetInputs())
+
+    # Advance simulation by one timestep
+    driver.Advance(timestep)
+    terrain.Advance(timestep)
+    vehicle.Advance(timestep)
+    system.DoStepDynamics(timestep)
+    vis.Advance(timestep)
+
+    # Render scene
+    vis.BeginScene()
+    vis.DrawAll()
+    vis.EndScene()
+
+    # Keep real time
+    real_time_timer.Spin(timestep)
+```

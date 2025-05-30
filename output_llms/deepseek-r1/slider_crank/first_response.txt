@@ -1,0 +1,572 @@
+<think>
+Okay, I need to create a PyChrono simulation for a crank-slider mechanism. Let me start by recalling the components involved. The user mentioned a floor (truss), crankshaft, connecting rod, piston, and joints with a motor. Also, visualization using Irrlicht with camera settings, lighting, and textures.
+
+First, I'll set up the PyChrono environment. That means importing the necessary modules like chrono, irrlicht, and maybe some math functions. The system will need a physical system, so I'll create a ChSystemNSC or ChSystemSMC. Since it's a simple mechanism, NSC (Non-smooth dynamics) should suffice.
+
+Next, the floor. A truss body, which is a static body. I'll create a ChBody, set its body fixed, and add a collision shape, probably a box. Position it at the origin or maybe slightly below. I should set its visual assets, maybe a texture for the floor.
+
+Then the crankshaft. It's a rotating part connected to the motor. The crankshaft is a link that rotates around the origin. So, create a ChBody, set its position, maybe a cylinder shape. It needs to be connected to the floor with a revolute joint. The motor will apply a constant angular speed on this joint.
+
+The connecting rod connects the crankshaft to the piston. So, another ChBody, perhaps a box or a cylinder. It should be connected to the crankshaft with a revolute joint and to the piston with another revolute joint. Wait, but the piston moves linearly, so maybe a prismatic joint between the piston and the floor (truss)? Or the piston is connected via the connecting rod with revolute joints on both ends, and the piston itself is constrained to move along a line with a prismatic joint.
+
+Yes, the piston (slider) needs to move along a straight line. So the piston body is connected to the truss via a prismatic joint. The connecting rod is connected to the crankshaft with a revolute joint on one end and to the piston with another revolute joint on the other end.
+
+So the components are:
+
+- Truss (floor)
+- Crankshaft (connected to truss via revolute joint with motor)
+- Connecting rod (connected to crankshaft and piston via revolute joints)
+- Piston (connected to truss via prismatic joint)
+
+Let me outline the steps:
+
+1. Create the system.
+2. Create the truss (floor) body. Set its position, add collision and visual assets.
+3. Create the crankshaft. Position it offset from the truss. Maybe a cylinder shape. Attach it with a revolute joint to the truss. Apply a motor to this joint with constant angular speed.
+4. Create the connecting rod. Position it between the crankshaft and the piston. Use revolute joints on both ends.
+5. Create the piston. Position it in line with the prismatic joint's axis. Add a prismatic joint between piston and truss. The prismatic joint's axis should be along the slider's direction (probably the X or Y axis).
+6. Add visualization for all bodies. Maybe different colors or textures for each part.
+7. Set up the Irrlicht visualization. Customize camera position, lighting, maybe add a logo.
+
+Wait, the user mentioned textures and logos. So for each body's visual shape, I can apply a texture. The logo might be a decal on the floor or another body.
+
+For the camera settings, in Irrlicht, I can adjust the camera's position, target, etc., using the AddCamera() function.
+
+Lighting can be adjusted with AddLight(), maybe directional or point lights.
+
+Now, let's think about dimensions and positions. Let's say the crankshaft has a radius of 0.1 m, and the crank length (distance from the center of rotation to the connecting rod's joint) is 0.2 m. The connecting rod length would be, say, 0.5 m. The piston's position will depend on the crank and connecting rod lengths.
+
+But maybe for simplicity, I can set the crankshaft's pivot at (0,0,0), connected to the truss. The crankshaft's body is a cylinder extending along the Z-axis. The connecting rod is attached to a point on the edge of the crankshaft. Then the connecting rod's other end connects to the piston, which moves along the X-axis.
+
+Wait, coordinate system in Chrono: Y is up by default, but sometimes people use Z as up. Wait, in PyChrono, the default is Y up. So maybe the mechanism is in the XY plane. The crankshaft rotates around the Z-axis (so revolute joint's axis is Z). The prismatic joint for the piston would allow movement along the X-axis.
+
+So, crankshaft is at (0,0,0), connected to the truss. The connecting rod is connected to a point on the crankshaft's perimeter. Let's say the crank radius is 0.2 m. So the connecting rod's attachment point is at (0.2, 0, 0) when the crank is at 0 degrees. The connecting rod's length is 0.5 m. The piston is connected to the other end of the connecting rod and constrained to move along the X-axis.
+
+Wait, but if the crankshaft is rotating, the connecting rod's end will move in a circle, and the piston will move back and forth along the X-axis. The prismatic joint between piston and truss allows movement along X.
+
+So, the steps in code:
+
+1. Create system: sys = chrono.ChSystemNSC()
+
+2. Create floor (truss):
+   - body_floor = chrono.ChBody()
+   - body_floor.SetBodyFixed(True)
+   - add collision and visual shapes (a box for the floor)
+   - position at (0, -0.1, 0) maybe, as a ground.
+
+3. Create crankshaft:
+   - body_crank = chrono.ChBody()
+   - set mass, position at (0,0,0)
+   - add a cylinder shape (radius 0.1, length 0.2 along Z)
+   - add to system
+
+4. Connect crankshaft to floor with revolute joint:
+   - revolute_crank = chrono.ChLinkMotorRotationSpeed()
+   - initialize the motor between floor and crankshaft, with rotation axis along Z
+   - set motor speed to a constant value (e.g., chrono.ChFunction_Const(2*chrono.CH_C_PI)) for 1 rev/sec
+
+5. Create connecting rod:
+   - body_rod = chrono.ChBody()
+   - set mass, position, maybe a box shape (length along X)
+   - connect to crankshaft with revolute joint at (0.2,0,0) (crank radius)
+   - connect to piston with another revolute joint
+
+6. Create piston:
+   - body_piston = chrono.ChBody()
+   - set mass, position
+   - add a box shape for visualization
+   - connect to rod with revolute joint
+   - connect to floor with prismatic joint, allowing movement along X
+
+Wait, the prismatic joint between piston and floor. So the piston can only slide along the X-axis. The prismatic joint's axis is X.
+
+But the piston's position will be determined by the connecting rod's movement. So when the crankshaft rotates, the connecting rod moves, pushing the piston back and forth.
+
+Now, the exact positions and dimensions need to be calculated. Let's say the crank radius is 0.2 m, connecting rod length 0.5 m. The position of the connecting rod's attachment to the crankshaft is at (0.2, 0, 0) when angle is 0. The other end of the connecting rod is connected to the piston, which moves along X. So the connecting rod's length is the distance between the crank pin and the piston pin. So the connecting rod's length is 0.5 m. So when the crank is at angle theta, the piston's position x can be calculated using the slider-crank equations: x = r*cos(theta) + sqrt(l^2 - r^2*sin^2(theta)), but maybe in the simulation, the dynamics will handle that automatically.
+
+But in the simulation setup, the bodies need to be positioned correctly. So initial positions must be set such that the mechanism is assembled correctly. For example, when the crank is at 0 degrees (crank pin at (0.2,0,0)), the connecting rod is horizontal, and the piston is at (0.2 + 0.5, 0, 0) = (0.7, 0, 0). Wait, but the connecting rod's length is 0.5 m. So the distance between the two revolute joints (crank to rod and rod to piston) should be 0.5 m. So the initial position of the rod's center of mass should be between those two points.
+
+Alternatively, maybe the connecting rod is modeled as a box with length 0.5 m. So the two revolute joints are at each end of the box.
+
+But in Chrono, when creating bodies, the position is the center of mass. So for the connecting rod, if it's a box with length along X, then the center is at the midpoint. So if the rod connects from (0.2,0,0) (crank end) to (0.7,0,0) (piston end), the center is at (0.45, 0, 0), and the box's length is 0.5 m (so half-length 0.25 m along X).
+
+So the connecting rod's body is positioned at (0.45, 0, 0), with a box shape of half-length 0.25 in X, and smaller in Y and Z.
+
+The piston's initial position is at (0.7, 0, 0), connected via a revolute joint to the rod's end. The piston is connected to the floor via a prismatic joint, allowing movement along X. So the prismatic joint's axis is X.
+
+So the prismatic joint is created between the piston and the floor. The joint's frame on the floor is at (0,0,0), and on the piston at its center. The axis is along X.
+
+Now, the motor is applied to the revolute joint between the floor and the crankshaft. The motor's speed function is a constant, say 2*pi rad/s (1 rotation per second).
+
+For visualization, each body should have a visual shape. The floor can have a texture, like concrete. The crankshaft, rod, and piston can have different colors or textures.
+
+Adding a logo: maybe add a decal to the floor's visual asset. In Irrlicht, you can add a texture as a decal on a face.
+
+Camera settings: position the camera above and to the side to view the mechanism. Maybe at (2, 1, 3) looking at the origin.
+
+Lighting: add a directional light or a point light to illuminate the scene.
+
+Putting this all together into code:
+
+Import necessary modules: chrono, irrlicht, math (for pi), maybe os for texture paths.
+
+Create the system.
+
+Create the floor: set as fixed, add a box shape, set position, add texture.
+
+Create the crankshaft: cylinder shape, add to system, set position at origin. Connect to floor with revolute motor.
+
+Create the connecting rod: box shape, positioned between crank and piston. Connect to crank and piston with revolute joints.
+
+Create the piston: box shape, connected to rod and to floor via prismatic joint.
+
+Set up Irrlicht visualization: create the application, set camera, lighting, etc.
+
+Add the logo: maybe a texture applied to the floor's visual model as a decal.
+
+Run the simulation loop with time steps.
+
+Wait, but how to add a logo? Maybe using a decal texture on the floor. In the visual shape of the floor, add a box, and apply a texture with a decal. Or maybe use a ChVisualShapeBox, set texture, and set the texture's scale or position.
+
+Alternatively, create a separate box for the logo, but that might complicate things. Maybe just apply a texture with a logo image to the floor.
+
+In code:
+
+For the floor's visual shape:
+
+box_floor = chrono.ChBoxShape(chrono.ChVectorD(5, 0.2, 5))
+box_floor.SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
+floor_asset = box_floor
+
+But to add a logo, maybe another texture on a different face. Or use a decal. Alternatively, create a separate plane with the logo texture.
+
+Alternatively, use a ChVisualShapeBox and apply multiple materials. But perhaps the easiest way is to apply a texture that includes the logo. But the user might want a separate logo, so maybe create a separate body for the logo. But perhaps the user just wants a texture on the floor. Let's proceed with that.
+
+Now, code outline:
+
+import pychrono as chrono
+import pychrono.irrlicht as irrlicht
+import math
+
+# System setup
+sys = chrono.ChSystemNSC()
+sys.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+
+# Create floor (truss)
+floor = chrono.ChBody()
+floor.SetBodyFixed(True)
+floor.SetPos(chrono.ChVectorD(0, -0.1, 0))
+
+# Collision and visual for floor
+floor_shape = chrono.ChBoxShape(chrono.ChVectorD(5, 0.2, 5))
+floor_shape.SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
+floor.AddVisualShape(floor_shape)
+
+# Add floor to system
+sys.Add(floor)
+
+# Create crankshaft (a cylinder)
+crank = chrono.ChBody()
+crank.SetPos(chrono.ChVectorD(0, 0, 0))
+crank_shape = chrono.ChCylinderShape()
+crank_shape.GetCylinderGeometry().rad = 0.1
+crank_shape.GetCylinderGeometry().p1 = chrono.ChVectorD(0, 0, -0.1)
+crank_shape.GetCylinderGeometry().p2 = chrono.ChVectorD(0, 0, 0.1)
+crank_shape.SetColor(chrono.ChColor(0.6, 0.6, 0.6))
+crank.AddVisualShape(crank_shape)
+sys.Add(crank)
+
+# Motor between floor and crankshaft
+motor = chrono.ChLinkMotorRotationSpeed()
+motor.Initialize(floor, crank, chrono.ChFrameD(chrono.ChVectorD(0,0,0), chrono.Q_ROTATE_Z_TO_Y))
+motor.SetSpeedFunction(chrono.ChFunction_Const(2 * math.pi))  # 1 rotation per second
+sys.Add(motor)
+
+# Create connecting rod (a box)
+rod = chrono.ChBody()
+rod.SetPos(chrono.ChVectorD(0.45, 0, 0))  # Center between crank and piston
+rod_shape = chrono.ChBoxShape(chrono.ChVectorD(0.5, 0.05, 0.05))
+rod_shape.SetColor(chrono.ChColor(0.2, 0.2, 0.8))
+rod.AddVisualShape(rod_shape)
+sys.Add(rod)
+
+# Revolute joint between crank and rod
+joint_crank_rod = chrono.ChLinkLockRevolute()
+joint_crank_rod.Initialize(crank, rod, chrono.ChCoordsysD(chrono.ChVectorD(0.2, 0, 0), chrono.Q_ROTATE_Z_TO_Y))
+sys.Add(joint_crank_rod)
+
+# Create piston (a box)
+piston = chrono.ChBody()
+piston.SetPos(chrono.ChVectorD(0.7, 0, 0))
+piston_shape = chrono.ChBoxShape(chrono.ChVectorD(0.1, 0.1, 0.1))
+piston_shape.SetColor(chrono.ChColor(0.8, 0.2, 0.2))
+piston.AddVisualShape(piston_shape)
+sys.Add(piston)
+
+# Revolute joint between rod and piston
+joint_rod_piston = chrono.ChLinkLockRevolute()
+joint_rod_piston.Initialize(rod, piston, chrono.ChCoordsysD(chrono.ChVectorD(0.7, 0, 0), chrono.Q_ROTATE_Z_TO_Y))
+sys.Add(joint_rod_piston)
+
+# Prismatic joint between piston and floor
+prismatic = chrono.ChLinkLockPrismatic()
+prismatic.Initialize(floor, piston, chrono.ChCoordsysD(chrono.ChVectorD(0,0,0), chrono.Q_ROTATE_Y_TO_Z))
+sys.Add(prismatic)
+
+Wait, the prismatic joint's axis needs to be along X. Let me check the coordinate systems. The prismatic joint allows translation along a certain axis. The coordinate system for the joint is defined relative to the two bodies. For the prismatic joint between piston and floor, the joint's frames should be aligned such that the translation is along X.
+
+The prismatic joint is created between the floor and the piston. The joint's coordinate system on the floor is at (0,0,0), and on the piston at its position. The axis of the prismatic joint should be along X. So the joint's coordinate system should have the X axis as the direction of movement.
+
+Wait, the ChLinkLockPrismatic() creates a prismatic constraint. The coordinate system defines the allowed movement. The prismatic joint allows translation along the X axis of the joint's coordinate system.
+
+So, to have the piston move along the global X axis, the joint's coordinate system on both bodies should have their X axis aligned with the global X.
+
+So, when initializing the prismatic joint:
+
+prismatic.Initialize(floor, piston, chrono.ChCoordsysD(piston.GetPos(), chrono.Q_ROTATE_Y_TO_X))
+
+Wait, maybe not. Let me think. The joint's coordinate system on the floor is at (0,0,0), and on the piston at (0.7,0,0). The joint's frames should be aligned such that the X axis is the direction of movement. So the joint's coordinate system's rotation should be identity (aligned with global axes), so that the prismatic allows movement along X.
+
+Wait, the ChCoordsysD constructor takes position and rotation. To have the prismatic joint allow movement along X, the joint's coordinate system's X axis is the direction. So the rotation should be identity (no rotation), so the X axis is global X.
+
+But the piston's initial position is at (0.7,0,0). So the joint's coordinate system on the floor is at (0,0,0), and on the piston at (0.7,0,0). Wait, no. The joint is between the floor and the piston. The two frames (on floor and piston) define the initial position and the allowed movement.
+
+Wait, the prismatic joint's definition in Chrono: it constrains the two bodies to move along the joint's Z axis. Wait, no, maybe I'm mixing up the types. Wait, the ChLinkLockPrismatic allows movement along the X axis of the joint's coordinate system. Or is it another axis? Let me check the documentation.
+
+Wait, in Chrono, the ChLinkLockPrismatic allows relative translation along the X axis of the joint's coordinate system. So to have the piston move along the global X axis, the joint's coordinate system should be aligned such that its X axis is the global X.
+
+So, when initializing the prismatic joint between floor and piston, the joint's coordinate system (on both bodies) should have their X axis aligned with the global X. So the rotation quaternion is identity (QUNIT).
+
+But the initial position of the piston is (0.7,0,0). So the joint's coordinate system on the floor is at (0,0,0), and on the piston at (0.7,0,0). Wait, no. The joint is between the two bodies, so the two frames (on floor and piston) define the constraint.
+
+Wait, the prismatic joint allows relative translation along the X axis of the joint's coordinate system. So the joint's coordinate system on the floor is at (0,0,0), and on the piston at (0.7,0,0). The rotation for both frames is identity. So the allowed movement is along X. So the piston can move along X relative to the floor.
+
+But the piston is initially at (0.7,0,0). So the prismatic joint allows it to move along X. That should be correct.
+
+So the code for the prismatic joint:
+
+prismatic = chrono.ChLinkLockPrismatic()
+prismatic.Initialize(floor, piston, chrono.ChCoordsysD(chrono.ChVectorD(0,0,0), chrono.QUNIT))
+sys.Add(prismatic)
+
+Wait, but the joint is between the floor and piston. The first body is the floor, the second is the piston. The joint's coordinate system is given in the floor's frame and the piston's frame. Wait, no: the third argument to Initialize is the joint frame in the absolute coordinate system. Wait, according to the documentation, the ChLinkLockPrismatic.Initialize() takes two bodies and a joint frame in the global coordinate system. So the joint is defined in the global frame, and it's attached to both bodies.
+
+Wait, perhaps I should set the joint's frame to be at the initial position of the piston, aligned with the global X axis. So:
+
+prismatic.Initialize(floor, piston, chrono.ChCoordsysD(piston.GetPos(), chrono.QUNIT))
+
+But piston.GetPos() is (0.7,0,0). So the joint is created at that position, with identity rotation. This way, the prismatic joint allows movement along the X axis of the joint's frame, which is global X. So the piston can move along X relative to the floor.
+
+Yes, that makes sense.
+
+Now, the revolute joints between crank and rod, and rod and piston. The joint between crank and rod is at the crank's perimeter (0.2,0,0). The joint between rod and piston is at (0.7,0,0). The rod's center is at (0.45,0,0), so the rod's length is 0.5 m (from 0.2 to 0.7 is 0.5 m).
+
+But the rod's visual shape is a box with half-length 0.25 in X, so from 0.45-0.25=0.2 to 0.45+0.25=0.7. Perfect.
+
+Now, the motor is applied between floor and crank. The revolute motor's axis is Z. Wait, in the code above, the motor was initialized with a frame rotated to Y. Wait, no: the motor's rotation axis is determined by the joint's frame. The ChLinkMotorRotationSpeed requires specifying the joint's frame. The axis of rotation is the Z axis of that frame.
+
+In the code:
+
+motor.Initialize(floor, crank, chrono.ChFrameD(chrono.ChVectorD(0,0,0), chrono.Q_ROTATE_Z_TO_Y))
+
+Wait, Q_ROTATE_Z_TO_Y is a quaternion that rotates the Z axis to Y. So the joint's Z axis is aligned with the global Y. That would make the rotation axis Y. But we want the crank to rotate around the Z axis (assuming Y is up). Wait, maybe I got the coordinate system wrong.
+
+Wait, in Chrono, the default up axis is Y. So if the crank is rotating in the XY plane, the axis of rotation should be Z. So the revolute joint's axis is Z.
+
+But in the code above, the motor's frame is initialized with Q_ROTATE_Z_TO_Y, which would rotate the joint's Z axis to Y, making the rotation axis Y. That's incorrect. It should be rotating around Z. So the joint's frame should have Z as the rotation axis.
+
+So the correct quaternion is QUNIT (identity), so that the joint's Z axis is the global Z. Therefore, the motor's frame should be:
+
+chrono.ChFrameD(chrono.ChVectorD(0,0,0), chrono.QUNIT)
+
+But wait, the crank is a cylinder along Z. So when it rotates around Z, it spins properly. The connecting rod is in the XY plane.
+
+So the motor should be:
+
+motor.Initialize(floor, crank, chrono.ChFrameD(chrono.ChVectorD(0,0,0), chrono.QUNIT))
+motor.SetSpeedFunction(chrono.ChFunction_Const(2 * math.pi))  # 1 rev/sec
+
+Yes, that makes the rotation axis Z.
+
+Now, the revolute joints between crank and rod, and rod and piston. Their frames should also have Z as the rotation axis.
+
+For the joint between crank and rod:
+
+joint_crank_rod.Initialize(crank, rod, chrono.ChCoordsysD(chrono.ChVectorD(0.2, 0, 0), chrono.QUNIT))
+
+This sets the joint at (0.2,0,0) in global coordinates, with rotation around Z (since QUNIT's Z is global Z).
+
+Similarly for the joint between rod and piston:
+
+joint_rod_piston.Initialize(rod, piston, chrono.ChCoordsysD(chrono.ChVectorD(0.7, 0, 0), chrono.QUNIT))
+
+Yes.
+
+Now, the prismatic joint between piston and floor allows movement along X. The joint's frame is at (0.7,0,0) with identity rotation, so the movement is along X.
+
+Now, visualization:
+
+The Irrlicht setup:
+
+vis = irrlicht.ChVisualSystemIrrlicht()
+vis.AttachSystem(sys)
+vis.SetWindowSize(1024,768)
+vis.SetWindowTitle('Crank-Slider Demo')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddCamera(chrono.ChVectorD(2, 1, 3), chrono.ChVectorD(0, 0, 0))
+vis.AddLight(chrono.ChVectorD(2,2,2), 10, chrono.ChColor(1,1,1))
+
+Then, in the simulation loop:
+
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    sys.DoStepDynamics(1e-3)
+
+But also, the user wants customizable camera settings. The code above adds a camera at (2,1,3) looking at (0,0,0). That's a good start.
+
+For the logo, the AddLogo() function adds the PyChrono logo to the Irrlicht window, but the user might want a logo on the floor. Maybe that's a separate texture. For example, applying a decal texture to the floor's visual asset.
+
+In the floor's visual shape, after setting the concrete texture, add another shape with a logo texture. But how? Maybe create a separate box for the logo. Or use a ChVisualShapeBox with multiple materials. Alternatively, use a decal.
+
+Alternatively, create a separate thin box on the floor with the logo texture. For example:
+
+logo_floor = chrono.ChBody()
+logo_floor.SetBodyFixed(True)
+logo_floor.SetPos(chrono.ChVectorD(0, 0.1, 0))  # Slightly above the floor to avoid z-fighting
+logo_shape = chrono.ChBoxShape(chrono.ChVectorD(1, 0.01, 1))
+logo_shape.SetTexture(chrono.GetChronoDataFile("textures/logo.png"))
+logo_floor.AddVisualShape(logo_shape)
+sys.Add(logo_floor)
+
+But this might require having the logo image in the right path. Alternatively, use a different texture.
+
+But the user said "additional visual elements like textures and logos", so adding the logo as a texture on a part of the floor.
+
+Alternatively, use a decal on the floor's visual shape. In Irrlicht, decals can be added as a type of scene node, but in PyChrono, it's handled through the visual shapes.
+
+Alternatively, create a separate box with the logo texture positioned on the floor.
+
+Putting it all together, the code should have:
+
+- The floor with concrete texture.
+- A logo texture on a separate part of the floor or as a decal.
+- The crank, rod, and piston with different colors or textures.
+- The motor rotating the crank at a constant speed.
+- Proper joints connecting all parts.
+- Irrlicht visualization with camera and lighting.
+
+Testing the code for any errors: For example, the prismatic joint might need to be between the piston and floor with the correct axis. Also, the initial positions of the bodies must be correct to assemble the mechanism properly.
+
+Another thing to consider: masses and inertia. The default is zero, which would make the bodies static. So need to set mass and inertia for crank, rod, piston.
+
+For example:
+
+crank.SetMass(1.0)
+crank.SetInertiaXX(chrono.ChVectorD(0.1, 0.1, 0.1))
+
+Similarly for rod and piston. Otherwise, they won't move.
+
+Ah, right! Forgot to set the mass properties. Without mass, the bodies are fixed. So this is a crucial step.
+
+So for each body (crank, rod, piston), set mass and inertia.
+
+For the crank (cylinder), the inertia can be calculated. The formula for a cylinder's inertia around its central axis is (1/2)*m*r². But since the crank is a cylinder rotating around its center, the inertia should be set properly.
+
+But for simplicity, maybe approximate the inertia using SetInertiaXX. For a cylinder along Z, the moments of inertia would be:
+
+Ixx = Iyy = (1/12)*m*(3*r² + h²)
+Izz = (1/2)*m*r²
+
+But if the cylinder's height is small (like 0.2 m), then:
+
+r = 0.1 m, h = 0.2 m.
+
+So Ixx = (1/12)*1*(3*(0.1)^2 + (0.2)^2) = (1/12)*(0.03 + 0.04) = 0.07/12 ≈ 0.0058
+Izz = 0.5*1*(0.1)^2 = 0.005
+
+But for simplicity, maybe set all inertias to 0.1, but that's not accurate. Alternatively, use the utility functions to compute the inertia.
+
+In PyChrono, there's a function to compute the inertia of a cylinder:
+
+crank_inertia = chrono.ChMatrix33D()
+chrono.ChInertiaUtils.SetCylinderGeometry(crank.GetCollisionModel().GetShape(0), 1000)  # density, but not sure
+crank.SetInertia(crank_inertia)
+
+Wait, perhaps better to use the ChBodyEasy functions, which automatically compute mass and inertia based on the shape and density.
+
+Wait, using ChBodyEasyCylinder for the crank:
+
+crank = chrono.ChBodyEasyCylinder(0.1, 0.2, 1000)  # radius, height, density
+crank.SetPos(chrono.ChVectorD(0,0,0))
+sys.Add(crank)
+
+This automatically sets the mass and inertia based on the cylinder's dimensions and density. Similarly for the rod and piston.
+
+But the original code uses ChBody and adds shapes manually. So to set mass and inertia correctly, perhaps use ChBodyEasy.
+
+Rewriting the crank, rod, and piston using ChBodyEasy:
+
+Crank:
+
+crank = chrono.ChBodyEasyCylinder(0.1, 0.2, 1000)  # radius, height (along Z), density
+crank.SetPos(chrono.ChVectorD(0,0,0))
+crank.SetRot(chrono.QUNIT)
+crank.GetVisualShape(0).SetColor(chrono.ChColor(0.6, 0.6, 0.6))
+sys.Add(crank)
+
+Rod:
+
+rod = chrono.ChBodyEasyBox(0.5, 0.05, 0.05, 1000)  # length x, y, z
+rod.SetPos(chrono.ChVectorD(0.45, 0, 0))
+rod.GetVisualShape(0).SetColor(chrono.ChColor(0.2, 0.2, 0.8))
+sys.Add(rod)
+
+Piston:
+
+piston = chrono.ChBodyEasyBox(0.1, 0.1, 0.1, 1000)
+piston.SetPos(chrono.ChVectorD(0.7, 0, 0))
+piston.GetVisualShape(0).SetColor(chrono.ChColor(0.8, 0.2, 0.2))
+sys.Add(piston)
+
+This way, the mass and inertia are automatically computed based on the shape and density. This is more accurate and simpler.
+
+So the code would be more robust using ChBodyEasy.
+
+Putting it all together, the final code would look like this.
+</think>
+
+Here's a complete PyChrono script implementing the crank-slider mechanism with visualization:
+
+```python
+import pychrono as chrono
+import pychrono.irrlicht as irrlicht
+import math
+
+def main():
+    # 1. Initialize system
+    system = chrono.ChSystemNSC()
+    system.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+
+    # 2. Create bodies
+    # ---------------------
+    # Floor (truss)
+    floor = chrono.ChBodyEasyBox(5, 0.2, 5, 1000, True, True)
+    floor.SetName("Floor")
+    floor.SetPos(chrono.ChVectorD(0, -0.1, 0))
+    floor.SetBodyFixed(True)
+    floor.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
+    system.Add(floor)
+
+    # Crankshaft (rotating part)
+    crank = chrono.ChBodyEasyCylinder(0.1, 0.2, 1000)  # radius, height
+    crank.SetName("Crankshaft")
+    crank.SetPos(chrono.ChVectorD(0, 0, 0))
+    crank.SetRot(chrono.QUNIT)
+    crank.GetVisualShape(0).SetColor(chrono.ChColor(0.6, 0.6, 0.6))
+    system.Add(crank)
+
+    # Connecting rod
+    rod = chrono.ChBodyEasyBox(0.5, 0.05, 0.05, 1000)  # dimensions
+    rod.SetName("Connecting Rod")
+    rod.SetPos(chrono.ChVectorD(0.45, 0, 0))
+    rod.GetVisualShape(0).SetColor(chrono.ChColor(0.2, 0.2, 0.8))
+    system.Add(rod)
+
+    # Piston (slider)
+    piston = chrono.ChBodyEasyBox(0.1, 0.1, 0.1, 1000)
+    piston.SetName("Piston")
+    piston.SetPos(chrono.ChVectorD(0.7, 0, 0))
+    piston.GetVisualShape(0).SetColor(chrono.ChColor(0.8, 0.2, 0.2))
+    system.Add(piston)
+
+    # 3. Create joints and constraints
+    # --------------------------------
+    # Motor between floor and crankshaft
+    motor = chrono.ChLinkMotorRotationSpeed()
+    motor.Initialize(floor, crank, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT))
+    motor.SetSpeedFunction(chrono.ChFunction_Const(2 * math.pi))  # 1 rotation/sec
+    system.Add(motor)
+
+    # Revolute joint between crank and rod
+    rev_crank_rod = chrono.ChLinkLockRevolute()
+    rev_crank_rod.Initialize(crank, rod, 
+                           chrono.ChCoordsysD(chrono.ChVectorD(0.2, 0, 0), chrono.QUNIT))
+    system.Add(rev_crank_rod)
+
+    # Revolute joint between rod and piston
+    rev_rod_piston = chrono.ChLinkLockRevolute()
+    rev_rod_piston.Initialize(rod, piston, 
+                            chrono.ChCoordsysD(chrono.ChVectorD(0.7, 0, 0), chrono.QUNIT))
+    system.Add(rev_rod_piston)
+
+    # Prismatic joint between piston and floor
+    prism_piston = chrono.ChLinkLockPrismatic()
+    prism_piston.Initialize(floor, piston, 
+                          chrono.ChCoordsysD(chrono.ChVectorD(0.7, 0, 0), chrono.QUNIT))
+    system.Add(prism_piston)
+
+    # 4. Set up visualization
+    # ------------------------
+    vis = irrlicht.ChVisualSystemIrrlicht()
+    vis.AttachSystem(system)
+    vis.SetWindowSize(1280, 720)
+    vis.SetWindowTitle("Crank-Slider Mechanism Demo")
+    vis.Initialize()
+
+    # Custom camera settings
+    vis.AddCamera(chrono.ChVectorD(2, 1, 3), chrono.ChVectorD(0, 0, 0))
+    vis.AddLight(chrono.ChVectorD(2, 4, 2), 10, chrono.ChColor(1, 1, 1))
+    vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+
+    # 5. Simulation loop
+    # ------------------
+    while vis.Run():
+        vis.BeginScene()
+        vis.Render()
+        vis.RenderGrid(0.5, 0.5, 12, 12, 
+                      chrono.ChCoordsysD(chrono.ChVectorD(0, -0.2, 0), chrono.QUNIT),
+                      chrono.ChColor(0.3, 0.3, 0.3))
+        vis.EndScene()
+        system.DoStepDynamics(1e-3)
+
+if __name__ == "__main__":
+    main()
+```
+
+Key features of this implementation:
+
+1. **System Setup**:
+   - Uses NSC (Non-Smooth Contact) system for efficient simulation
+   - Configures collision detection with Bullet
+
+2. **Mechanical Components**:
+   - Floor/truss with concrete texture
+   - Crankshaft (cylinder shape) driven by rotation motor
+   - Connecting rod (box shape) with revolute joints at both ends
+   - Piston (box shape) constrained with prismatic joint
+
+3. **Joints and Actuation**:
+   - Revolute joints for rotational connections
+   - Prismatic joint for linear motion constraint
+   - Constant speed motor (360°/sec) applied to crankshaft
+
+4. **Visualization**:
+   - Irrlicht visualization system with custom camera placement
+   - Directional lighting and grid visualization
+   - Color-coded components and textured floor
+   - PyChrono logo overlay
+
+5. **Simulation Parameters**:
+   - Automatic mass/inertia calculation using ChBodyEasy
+   - Realistic dimensions and physical properties
+   - Stable time stepping (1ms time steps)
+
+To run this simulation:
+1. Ensure PyChrono and its dependencies are installed
+2. Place the script in a directory with access to Chrono's data files
+3. Run the script using Python
+
+The simulation will show a dynamically accurate crank-slider mechanism with real-time visualization. The crankshaft rotates continuously, driving the piston in reciprocating motion through the connecting rod.

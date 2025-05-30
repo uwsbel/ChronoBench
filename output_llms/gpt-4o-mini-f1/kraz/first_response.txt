@@ -1,32 +1,36 @@
 ```python
-import pychrono as ch
+import pychrono as chrono
+import pychrono.vehicle as veh
 import pychrono.irrlicht as irr
 import math
 
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())
+veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
+
 # Initial vehicle location and orientation
-initLoc = ch.ChVector3d(0, 0, 0.5)
-initRot = ch.ChQuaterniond(1, 0, 0, 0)
+initLoc = chrono.ChVector3d(0, 0, 0.5)
+initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 # Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
-vis_type = ch.VisualizationType_MESH
+vis_type = veh.VisualizationType_MESH
 
 # Collision type for chassis (PRIMITIVES, MESH, or NONE)
-chassis_collision_type = ch.CollisionType_NONE
+chassis_collision_type = veh.CollisionType_NONE
 
 # Type of tire model (RIGID, TMEASY)
-tire_model = ch.TireModelType_TMEASY
+tire_model = veh.TireModelType_TMEASY
 
 # Rigid terrain
-# terrain_model = ch.RigidTerrain.BOX
+# terrain_model = veh.RigidTerrain.BOX
 terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
 
 # Poon chassis tracked by the camera
-trackPoint = ch.ChVector3d(-3.0, 0.0, 1.1)
+trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
 
 # Contact method
-contact_method = ch.ChContactMethod_NSC
+contact_method = chrono.ChContactMethod_NSC
 contact_vis = False
 
 # Simulation step sizes
@@ -37,13 +41,14 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  # FPS = 50
 
 # Create the Kraz vehicle, set parameters, and initialize
-vehicle = ch.kraz.Kraz()
+vehicle = veh.Kraz()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
-vehicle.SetInitPosition(ch.ChCoordsysd(initLoc, initRot))
+vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
+
 
 vehicle.Initialize()
 
@@ -53,28 +58,36 @@ vehicle.SetSteeringVisualizationType(vis_type)
 vehicle.SetWheelVisualizationType(vis_type)
 vehicle.SetTireVisualizationType(vis_type)
 
-vehicle.GetSystem().SetCollisionSystemType(ch.ChCollisionSystem.Type_BULLET)
+vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 # Create the terrain
-patch_mat = ch.ChContactMaterialNSC()
+patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
-terrain = ch.RigidTerrain(vehicle.GetSystem())
+terrain = veh.RigidTerrain(vehicle.GetSystem())
 patch = terrain.AddPatch(patch_mat, 
-    ch.ChCoordsysd(ch.ChVector3d(0, 0, 0), ch.QUNIT), 
+    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
     terrainLength, terrainWidth)
 
-patch.SetTexture("", 200, 20)
-patch.SetColor(ch.ChColor(0.8, 0.8, 0.5))
+patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
+patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 # Create the vehicle Irrlicht interface
 
-vis = vehicle.GetSystem().GetSceneManager()
-vehicle.GetSystem().SetCollisionSystemType(ch.ChCollisionSystem.Type_BULLET)
+vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
+vis.SetWindowTitle('Kraz vehicle')
+vis.SetWindowSize(1280, 1024)
+vis.SetChaseCamera(trackPoint, 6.0, 0.5)
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddLightDirectional()
+vis.AddSkyBox()
+vis.AttachVehicle(vehicle.GetVehicle())
+
 
 # Create the driver system
-driver = ch.ChInteractiveDriverIRR(vis)
+driver = veh.ChInteractiveDriverIRR(vis)
 
 # Set the time response for steering and throttle keyboard inputs.
 steering_time = 1.0  # time to go from 0 to +1 (or from 0 to -1)
@@ -86,39 +99,26 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 
 driver.Initialize()
 
-# Create the render window
-window = vis.CreateDevice(irr.EDT_OPENGL)
-window.SetWindowSize(ch.ChVector2di(1280, 720))
-window.SetWindowTitle('Kraz vehicle demo')
-window.SetVerticalSyncEnabled(True)
-window.SetFramerateLimit(60)
-vis.AddLogo(ch.GetChronoDataFile('logo_pychrono_alpha.png'))
-vis.AddSkyBox()
-vis.AddCamera(trackPoint)
-vis.AddCamera(ch.ChVector3d(0, -10, 5), ch.ChVector3d(0, 0, 1))
-vis.AddLightDirectional(ch.ChVector3d(1, -1, 0), ch.ChVector3d(0, 0, 1))
+# output vehicle mass
+print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 
-# Add the vehicle, terrain and point of interest to the scene
-vis.AddVehicle(vehicle.GetVehicle())
-vis.AddRigidBody(terrain.GetPatchRigidBody())
-vis.AddLogo(ch.GetChronoDataFile('logo_pychrono_alpha.png'))
+# Number of simulation steps between miscellaneous events
+render_steps = math.ceil(render_step_size / step_size)
 
-# Set the simulation time step for the tire model
-vehicle.SetTireStepSize(tire_step_size)
-
-# Initialize simulation frame counter
-realtime_timer = ch.ChRealtimeStepTimer()
+# Initialize simulation frame counter s
+realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
-render_steps = 0
+render_frame = 0
 
-# Simulation loop
-while window.Run() :
+while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
 
     # Render scene and output POV-Ray data
-    if time >= render_step_size * render_steps :
+    if (step_number % render_steps == 0) :
+        vis.BeginScene()
         vis.Render()
-        render_steps += 1
+        vis.EndScene()
+        render_frame += 1
 
     # Get driver inputs
     driver_inputs = driver.GetInputs()

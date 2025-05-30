@@ -1,0 +1,65 @@
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as irr
+
+# 1. Initialize the PyChrono environment and core components
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+
+# 2. Add the Kraz vehicle with specified initial conditions
+# Assuming Kraz vehicle data files are available in the Chrono data directory
+vehicle_file = veh.GetDataFile("vehicle/Kraz/Kraz_Vehicle.json")
+powertrain_file = veh.GetDataFile("vehicle/Kraz/Kraz_Powertrain.json")
+tire_file = veh.GetDataFile("vehicle/Kraz/Kraz_Tire.json")
+
+vehicle = veh.WheeledVehicle(system, vehicle_file)
+vehicle.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 1.0), chrono.QUNIT))
+vehicle.SetPowertrain(veh.SimplePowertrain(powertrain_file))
+vehicle.SetTireModels([veh.RigidTire(tire_file) for _ in range(vehicle.GetNumberAxles())])
+vehicle.GetChassis().SetMass(5000)  # Example mass adjustment
+
+# 3. Set up rigid terrain with defined friction and restitution
+terrain_mat = chrono.ChMaterialSurfaceNSC()
+terrain_mat.SetFriction(0.9)
+terrain_mat.SetRestitution(0.01)
+
+terrain = veh.RigidTerrain(system)
+patch = terrain.AddPatch(terrain_mat, chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(200, 200, 1))
+terrain.Initialize()
+
+# 4. Initialize the driver system for vehicle control
+driver = veh.ChDriver(vehicle)
+driver.Initialize()
+
+# 5. Create real-time visualization using Irrlicht
+app = veh.ChWheeledVehicleIrrApp(vehicle, 'Kraz Vehicle Simulation', irr.dimension2du(1280, 1024))
+app.SetSkyBox()
+app.AddTypicalLights()
+app.SetChaseCamera(chrono.ChVectorD(0, 2, -5), 6.0, 0.5)
+app.GuiScriptInit()
+
+# 6. Simulation loop with synchronization and real-time execution
+step_size = 1e-3
+realtime_timer = chrono.ChRealtimeStepTimer()
+
+while app.GetDevice().run():
+    time = system.GetChTime()
+
+    # Synchronize components
+    driver_inputs = driver.GetInputs()
+    driver.Synchronize(time)
+    vehicle.Synchronize(time, driver_inputs, terrain)
+    terrain.Synchronize(time)
+    app.Synchronize('Kraz Simulation', driver_inputs)
+
+    # Advance components
+    step = realtime_timer.SuggestTimeStep(step_size)
+    driver.Advance(step)
+    vehicle.Advance(step)
+    terrain.Advance(step)
+    app.Advance(step)
+
+    # Render scene
+    app.BeginScene()
+    app.DrawAll()
+    app.EndScene()

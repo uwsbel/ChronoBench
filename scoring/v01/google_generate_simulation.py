@@ -30,8 +30,8 @@ def generate_first_code(first_prompt, model_link):
     generation_config = {
       "temperature": 1,
       "top_p": 0.95,
-      "top_k": 64,
-      "max_output_tokens": 8192,
+      #"top_k": 64,
+      "max_output_tokens": 8192*2,
       "response_mime_type": "text/plain",
     }
 
@@ -84,8 +84,8 @@ Provide the corrected and modified script below:
     generation_config = {
       "temperature": 1,
       "top_p": 0.95,
-      "top_k": 64,
-      "max_output_tokens": 8192,
+      #"top_k": 64,
+      "max_output_tokens": 8192*2,
       "response_mime_type": "text/plain",
     }
 
@@ -137,22 +137,22 @@ def save_conversation_json(output_conversation_path, combined_prompt1, first_res
 
 
 opensource_model_links = {
-  "Gemini": "gemini-1.5-pro",
+  "Gemini-1.5-pro-1.5-pro":"gemini-1.5-pro",
+  "Gemini-1.5-pro-2.5-pro":"gemini-2.5-pro-preview-05-06"
 }
 system_list = ["art", "beam", "buckling", "cable", "car", "camera", "citybus", "curiosity", "feda", "gator", "gear",
                "gps_imu", "handler", "hmmwv", "kraz", "lidar", "m113", "man", "mass_spring_damper", "particles",
                "pendulum",
                "rigid_highway", "rigid_multipatches", "rotor", "scm", "scm_hill", "sedan", "sensros", "slider_crank",
                "tablecloth", "turtlebot", "uazbus", "veh_app", "vehros", "viper"]
-system_do_list = [ "sedan", "sensros", "slider_crank",
-               "tablecloth", "turtlebot", "uazbus", "veh_app", "vehros", "viper"]
+system_do_list = ["gear"]
 # data set path
-dataset_path = 'D:\SimBench\demo_data'
-Output_path = 'D:\SimBench\output'
-Output_conversation_path = 'D:\SimBench\output_conversion'
+dataset_path = r"C:\Users\jingquanw\SimBench\demo_data"
+Output_path = r"C:\Users\jingquanw\SimBench\output_llms"
+Output_conversation_path =  r"C:\Users\jingquanw\SimBench\output_conversion"
 # in the dataset_path, there are 34 dynamical system folders, each folder is a dyanmical system which contains 8 files [3 input text files, input1.txt, input2.txt, input3.txt;
 # 2 python input files, pyinput2.py, pyinput3.py; 3 ground truth python files truth1.py, truth2.py, truth3.py]
-test_model_list = ["Gemini"]
+test_model_list = ["Gemini-1.5-pro-2.5-pro"]
 # define an output path for the test results for each model with the name of the model
 # using tqdm to show the progress bar
 for test_model in tqdm(test_model_list):
