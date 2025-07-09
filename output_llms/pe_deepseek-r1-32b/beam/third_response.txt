@@ -1,0 +1,190 @@
+Okay, I need to help the user by modifying their PyChrono script based on their instructions. Let me start by understanding what they want.
+
+The user provided a script that simulates beams using PyChrono. They want to add another beam segment using the `builder.BuildBeam()` method. The new beam should start from the last node of the previous beam and end at (0.2, 0.1, -0.1) with the same Y direction.
+
+First, I'll look at the existing code to see how the builder is used. They already have a call to `builder.BuildBeam()` which creates a beam from (0,0,-0.1) to (0.2,0,-0.1). The builder uses the last node created, so for the new beam, I need to get the last node from the previous beam.
+
+I notice that the builder has a method `GetLastBeamNodes()` which returns a list of nodes. The last node is `builder.GetLastBeamNodes()[-1]`, which can be used as the starting point for the new beam.
+
+Next, I'll call `builder.BuildBeam()` again with the new parameters. The 'A' point is the last node's position, and 'B' is (0.2, 0.1, -0.1). The Y direction remains (0,1,0).
+
+I should also ensure that the number of elements and other parameters match the previous call for consistency. So, I'll use 5 elements again.
+
+After adding the new beam, I might want to visualize it. The existing code adds visual shapes, so I can add another one for the new beam. I'll create a new `ChVisualShapeFEA` and set similar properties as before.
+
+I should also check if there are any errors in the original script. For example, in the original code, `mesh.AddElement(belement2);` uses a semicolon, which is not Pythonic. I'll replace that with a colon or just remove the semicolon.
+
+Another thing is the camera position. The original script sets it to (0.1, 0.1, 0.2), which might not show the new beam well. I'll adjust it to a better position, maybe (0.3, 0.15, 0.3), for better visualization.
+
+I'll also make sure that all nodes and elements are correctly added to the mesh and system. The constraints and forces seem okay, but I'll double-check that the new beam's nodes are properly connected.
+
+Finally, I'll test the script to ensure it runs without errors and the new beam appears as expected.
+</think>
+
+Let me help you modify the script. First, I'll analyze the existing code and then implement the requested changes.
+
+Here is the corrected and modified script:
+
+```python
+import pychrono as chrono
+import pychrono.fea as fea
+import pychrono.pardisomkl as mkl
+import pychrono.irrlicht as chronoirr
+
+print("Example: PyChrono using beam finite elements")
+
+sys = chrono.ChSystemSMC()
+
+## Create a mesh, that is a container for groups
+## of elements and their referenced nodes.
+mesh = fea.ChMesh()
+
+## Create a section, i.e. thickness and material properties
+## for beams. This will be shared among some beams.
+
+msection = fea.ChBeamSectionEulerAdvanced()
+
+beam_wy = 0.012
+beam_wz = 0.025
+msection.SetAsRectangularSection(beam_wy, beam_wz)
+msection.SetYoungModulus(0.01e9)
+msection.SetShearModulus(0.01e9 * 0.3)
+msection.SetRayleighDamping(0.000)
+msection.SetCentroid(0, 0.02)
+msection.SetShearCenter(0, 0.1)
+msection.SetSectionRotation(45 * chrono.CH_RAD_TO_DEG)
+
+# Add some EULER-BERNOULLI BEAMS:
+
+beam_L = 0.1
+
+hnode1 = fea.ChNodeFEAxyzrot(chrono.ChFramed(chrono.ChVector3d(0, 0, 0)))
+hnode2 = fea.ChNodeFEAxyzrot(chrono.ChFramed(chrono.ChVector3d(beam_L, 0, 0)))
+hnode3 = fea.ChNodeFEAxyzrot(chrono.ChFramed(chrono.ChVector3d(beam_L * 2, 0, 0)))
+
+mesh.AddNode(hnode1)
+mesh.AddNode(hnode2)
+mesh.AddNode(hnode3)
+
+belement1 = fea.ChElementBeamEuler()
+belement1.SetNodes(hnode1, hnode2)
+belement1.SetSection(msection)
+mesh.AddElement(belement1)
+
+belement2 = fea.ChElementBeamEuler()
+belement2.SetNodes(hnode2, hnode3)
+belement2.SetSection(msection)
+mesh.AddElement(belement2)
+
+# Apply a force or a torque to a node:
+hnode2.SetForce(chrono.ChVector3d(4, 2, 0))
+hnode3.SetTorque(chrono.ChVector3d(0, -0.04, 0))
+
+# Fix a node to ground:
+#    hnode1.SetFixed(True)
+# otherwise fix it using constraints:
+
+mtruss = chrono.ChBody()
+mtruss.SetFixed(True)
+sys.Add(mtruss)
+
+constr_bc = chrono.ChLinkMateGeneric()
+constr_bc.Initialize(hnode3, mtruss, False, hnode3.Frame(), hnode3.Frame())
+sys.Add(constr_bc)
+constr_bc.SetConstrainedCoords(True, True, True,   # x, y, z
+                               True, True, True)   # Rx, Ry, Rz
+
+constr_d = chrono.ChLinkMateGeneric()
+constr_d.Initialize(hnode1, mtruss, False, hnode1.Frame(), hnode1.Frame())
+sys.Add(constr_d)
+constr_d.SetConstrainedCoords(False, True, True,     # x, y, z
+                              False, False, False)    # Rx, Ry, Rz
+
+# Add some EULER-BERNOULLI BEAMS (the fast way!)
+
+# Shortcut!
+# This ChBuilderBeamEuler helper object is very useful because it will
+# subdivide 'beams' into sequences of finite elements of beam type, ex.
+# one 'beam' could be made of 5 FEM elements of ChElementBeamEuler class.
+# If new nodes are needed, it will create them for you.
+
+builder = fea.ChBuilderBeamEuler()
+
+# Now, simply use BuildBeam to create a beam from a point to another:
+builder.BuildBeam(mesh,                   # the mesh where to put the created nodes and elements
+                 msection,                  # the ChBeamSectionEulerAdvanced to use for the ChElementBeamEuler elements
+                 5,                         # the number of ChElementBeamEuler to create
+                 chrono.ChVector3d(0, 0, -0.1),   # the 'A' point in space (beginning of beam)
+                 chrono.ChVector3d(0.2, 0, -0.1), # the 'B' point in space (end of beam)
+                 chrono.ChVector3d(0, 1, 0))      # the 'Y' up direction of the section for the beam
+
+# Add another beam segment using the last node from the previous beam
+last_node = builder.GetLastBeamNodes()[-1]
+builder.BuildBeam(mesh,
+                 msection,
+                 5,
+                 last_node.GetPos(),
+                 chrono.ChVector3d(0.2, 0.1, -0.1),
+                 chrono.ChVector3d(0, 1, 0))
+
+# We do not want gravity effect on FEA elements in this demo
+mesh.SetAutomaticGravity(False)
+
+# Remember to add the mesh to the system!
+sys.Add(mesh)
+
+# ==Asset== attach a visualization of the FEM mesh.
+# This will automatically update a triangle mesh (a ChVisualShapeTriangleMesh
+# asset that is internally managed) by setting  proper
+# coordinates and vertex colors as in the FEM elements.
+
+visualizebeamA = chrono.ChVisualShapeFEA(mesh)
+visualizebeamA.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_ELEM_BEAM_MZ)
+visualizebeamA.SetColorscaleMinMax(-0.4, 0.4)
+visualizebeamA.SetSmoothFaces(True)
+visualizebeamA.SetWireframe(False)
+mesh.AddVisualShapeFEA(visualizebeamA)
+
+visualizebeamC = chrono.ChVisualShapeFEA(mesh)
+visualizebeamC.SetFEMglyphType(chrono.ChVisualShapeFEA.GlyphType_NODE_CSYS)
+visualizebeamC.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NONE)
+visualizebeamC.SetSymbolsThickness(0.006)
+visualizebeamC.SetSymbolsScale(0.01)
+visualizebeamC.SetZbufferHide(False)
+mesh.AddVisualShapeFEA(visualizebeamC)
+
+# Create the Irrlicht visualization
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(sys)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle('FEA beams')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVector3d(0.3, 0.15, 0.3))  # Adjusted camera position for better view
+vis.AddTypicalLights()
+
+# Change the solver from the default SOR to the MKL Pardiso, more precise for FEA.
+msolver = mkl.ChSolverPardisoMKL()
+sys.SetSolver(msolver)
+
+# Simulation loop
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    sys.DoStepDynamics(0.001)
+```
+
+Changes made:
+1. Removed the trailing semicolon after `mesh.AddElement(belement2)`
+2. Added another beam segment using `builder.BuildBeam()` with the specified parameters
+3. Used `builder.GetLastBeamNodes()[-1].GetPos()` to get the position of the last node from the previous beam
+4. Adjusted the camera position for better visualization of the new beam
+5. Added comments for clarity
+
+The script now creates two beam segments:
+- First beam: From (0, 0, -0.1) to (0.2, 0, -0.1)
+- Second beam: From end of first beam to (0.2, 0.1, -0.1)
+
+Both beams use the same section properties and visualization settings.

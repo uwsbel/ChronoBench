@@ -1,0 +1,178 @@
+I'll analyze the provided script, identify errors, and then implement the requested modifications. Here's the corrected and enhanced script:
+
+```python
+import pychrono as chrono
+import pychrono.fea as fea
+import pychrono.pardisomkl as mkl
+import pychrono.irrlicht as chronoirr
+
+print("Example: PyChrono using beam finite elements")
+
+# Create the physical system
+sys = chrono.ChSystemSMC()
+
+# Create a mesh container
+mesh = fea.ChMesh()
+
+# Create and configure beam section
+msection = fea.ChBeamSectionEulerAdvanced()
+beam_wy = 0.012
+beam_wz = 0.025
+msection.SetAsRectangularSection(beam_wy, beam_wz)
+msection.SetYoungModulus(0.01e9)
+msection.SetShearModulus(0.01e9 * 0.3)
+msection.SetRayleighDamping(0.000)
+msection.SetDensity(1000)  # Added density for proper mass calculation
+msection.SetCentroid(0, 0.02)
+msection.SetShearCenter(0, 0.1)
+msection.SetSectionRotation(45 * chrono.CH_DEG_TO_RAD)  # Corrected to degrees-to-radians conversion
+
+beam_L = 0.1
+
+# Create nodes using proper ChFrameMoving
+hnode1 = fea.ChNodeFEAxyzrot(chrono.ChFrameMovingD(chrono.ChVector3d(0, 0, 0)))
+hnode2 = fea.ChNodeFEAxyzrot(chrono.ChFrameMovingD(chrono.ChVector3d(beam_L, 0, 0)))
+hnode3 = fea.ChNodeFEAxyzrot(chrono.ChFrameMovingD(chrono.ChVector3d(beam_L * 2, 0, 0)))
+
+mesh.AddNode(hnode1)
+mesh.AddNode(hnode2)
+mesh.AddNode(hnode3)
+
+# Create beam elements
+belement1 = fea.ChElementBeamEuler()
+belement1.SetNodes(hnode1, hnode2)
+belement1.SetSection(msection)
+mesh.AddElement(belement1)
+
+belement2 = fea.ChElementBeamEuler()
+belement2.SetNodes(hnode2, hnode3)
+belement2.SetSection(msection)
+mesh.AddElement(belement2)
+
+# Apply forces
+hnode2.SetForce(chrono.ChVector3d(4, 2, 0))
+hnode3.SetTorque(chrono.ChVector3d(0, -0.04, 0))
+
+# Create fixed truss
+mtruss = chrono.ChBody()
+mtruss.SetFixed(True)
+sys.Add(mtruss)
+
+# =====================================================
+# Correction: Replace constraints with proper node-body constraints
+# =====================================================
+# Create constraint for node3 (fully fixed)
+constr_node3 = fea.ChLinkNodeFEAxyzrot()
+constr_node3.Initialize(hnode3, mtruss)
+constr_node3.SetConstrainedCoords(True, True, True, True, True, True)  # Lock all DOFs
+sys.Add(constr_node3)
+
+# Create constraint for node1 (only Y and Z translations fixed)
+constr_node1 = fea.ChLinkNodeFEAxyzrot()
+constr_node1.Initialize(hnode1, mtruss)
+constr_node1.SetConstrainedCoords(False, True, True,  # X free, Y/Z fixed
+                                  False, False, False)  # All rotations free
+sys.Add(constr_node1)
+
+# Disable automatic gravity for FEA elements
+mesh.SetAutomaticGravity(False)
+sys.Add(mesh)
+
+# =====================================================
+# Add new Euler-Bernoulli beam section using builder
+# =====================================================
+print("\nAdding new Euler-Bernoulli beam using ChBuilderBeamEuler")
+
+# Create beam builder
+builder = fea.ChBuilderBeamEuler()
+
+# Build beam from (0,0,-0.1) to (0.2,0,-0.1) with 5 elements
+builder.BuildBeam(mesh,                  # mesh to add to
+                  msection,              # beam section
+                  5,                     # number of elements
+                  chrono.ChVector3d(0, 0, -0.1),  # start point
+                  chrono.ChVector3d(0.2, 0, -0.1),# end point
+                  chrono.ChVector3d(0, 1, 0)      # 'up' direction (Y axis)
+                  )
+
+# Get nodes from last built beam
+beam_nodes = builder.GetLastBeamNodes()
+
+# Fix last node in the new beam
+beam_nodes.back().SetFixed(True)
+
+# Apply force to first node in the new beam
+beam_nodes.front().SetForce(chrono.ChVector3d(0, -1, 0))
+
+# =====================================================
+# Visualization setup (unchanged)
+# =====================================================
+# Visualization for the original beam
+visualizebeamA = chrono.ChVisualShapeFEA(mesh)
+visualizebeamA.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_ELEM_BEAM_MZ)
+visualizebeamA.SetColorscaleMinMax(-0.4, 0.4)
+visualizebeamA.SetSmoothFaces(True)
+visualizebeamA.SetWireframe(False)
+mesh.AddVisualShapeFEA(visualizebeamA)
+
+# Node visualization
+visualizebeamC = chrono.ChVisualShapeFEA(mesh)
+visualizebeamC.SetFEMglyphType(chrono.ChVisualShapeFEA.GlyphType_NODE_CSYS)
+visualizebeamC.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NONE)
+visualizebeamC.SetSymbolsThickness(0.006)
+visualizebeamC.SetSymbolsScale(0.01)
+visualizebeamC.SetZbufferHide(False)
+mesh.AddVisualShapeFEA(visualizebeamC)
+
+# Irrlicht visualization
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(sys)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle('FEA beams with Euler-Bernoulli Builder')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVector3d(0.1, 0.1, 0.2))
+vis.AddTypicalLights()
+
+# Use MKL Pardiso solver
+msolver = mkl.ChSolverPardisoMKL()
+sys.SetSolver(msolver)
+
+# Simulation loop
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    sys.DoStepDynamics(0.001)
+```
+
+Key corrections and modifications made:
+
+1. **Critical Errors Fixed**:
+   - Corrected constraint initialization using `ChLinkNodeFEAxyzrot` instead of `ChLinkMateGeneric`
+   - Fixed rotation conversion (45 * CH_DEG_TO_RAD instead of CH_RAD_TO_DEG)
+   - Added density setting for proper mass calculation (`msection.SetDensity(1000)`)
+   - Used `ChFrameMovingD` for proper node initialization
+   - Removed redundant constraint creation code
+
+2. **Euler-Bernoulli Beam Section Added**:
+   - Created `ChBuilderBeamEuler` helper object
+   - Built beam from (0,0,-0.1) to (0.2,0,-0.1) with 5 elements
+   - Set Y-axis as up direction
+   - Fixed last node using `SetFixed(True)`
+   - Applied force to first node (0, -1, 0)
+
+3. **Node Fixing Approach Modified**:
+   - Replaced direct node fixing with proper constraints
+   - Created specialized constraints for different DOF configurations:
+     - Node3: Fully fixed (all 6 DOFs)
+     - Node1: Only Y and Z translations fixed
+
+4. **Maintained Original Features**:
+   - Preserved visualization settings for beams and nodes
+   - Kept MKL Pardiso solver configuration
+   - Maintained original force/torque applications
+   - Preserved Irrlicht visualization setup
+
+The script now correctly implements the requested features while fixing critical API usage errors. The new beam section is created using the builder pattern, and constraints are properly implemented using FEA-specific constraint types.

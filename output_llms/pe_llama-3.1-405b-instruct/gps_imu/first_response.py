@@ -1,0 +1,58 @@
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.sensor as sens
+import pychrono.irrlicht as chronoirr
+
+# Initialize the Chrono environment
+chrono.SetChronoDataPath('/path/to/data')
+
+# Create the HMMWV vehicle
+my_hmmwv = veh.HMMWV_Reduced()
+
+# Create the terrain
+terrain = veh.RigidTerrain(my_hmmwv.GetSystem())
+patch = terrain.AddPatch(chrono.ChMaterialSurfaceNSC(), chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT), 100, 100)
+terrain.Initialize()
+
+# Create the driver system
+driver = veh.ChIrrGuiDriver()
+driver.Initialize(my_hmmwv.GetVehicle())
+
+# Create the IMU sensor
+imu = sens.ChIMUSensor(my_hmmwv.GetChassisBody(), 100)
+imu.Initialize()
+
+# Create the GPS sensor
+gps = sens.ChGPSSensor(my_hmmwv.GetChassisBody(), 10)
+gps.Initialize()
+
+# Create the Irrlicht visualization system
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(my_hmmwv.GetSystem())
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle('HMMWV Simulation')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVectorD(0, 3, 6))
+vis.AddTypicalLights()
+
+# Simulation loop
+while vis.Run():
+    # Synchronize and advance the vehicle, terrain, driver, and visual system modules
+    driver.Synchronize(time)
+    my_hmmwv.Synchronize(time)
+    terrain.Synchronize(time)
+    vis.BeginScene()
+    vis.DrawAll()
+    vis.EndScene()
+
+    # Update sensor data
+    imu.Update()
+    gps.Update()
+
+    # Output vehicle mass
+    print('Vehicle mass:', my_hmmwv.GetVehicle().GetMass())
+
+    # Render the scene
+    vis.Render()

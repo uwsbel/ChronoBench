@@ -178,7 +178,7 @@ def main():
         "llama-3.3-70b-instruct": "nvdev/meta/llama-3.3-70b-instruct",
         "deepseek-r1-8b":"deepseek-ai/deepseek-r1-distill-llama-8b",
         "deepseek-r1-32b":"deepseek-ai/deepseek-r1-distill-qwen-32b",
-        "deepseek-r1":"deepseek-ai/deepseek-r1",
+        "deepseek-r1":"deepseek-ai/deepseek-r1-0528",
         "gemma-3-27b-it":"nvdev/google/gemma-3-27b-it",
         "gemma-3-1b-it":"google/gemma-3-1b-it",
         "qwen3-235b-a22b":"qwen/qwen3-235b-a22b",

@@ -1,0 +1,114 @@
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
+
+# Constants
+rest_length = 1.5
+spring_coef = 50
+damping_coef = 1
+
+# Create the system
+sys = chrono.ChSystemNSC()
+sys.Set_G_acc(chrono.ChVector3d(0, 0, 0))  # Corrected method name
+
+# Create the ground body
+ground = chrono.ChBody()
+sys.Add(ground)  # Corrected method name
+ground.SetBodyFixed(True)
+ground.EnableCollision(False)
+
+# Visualization for ground
+sph_1 = chrono.ChVisualShapeSphere(0.1)
+ground.AddVisualShape(sph_1, chrono.ChFrame(chrono.ChVector3d(-1, 0, 0)))  # Corrected class name
+
+# Create body_1
+body_1 = chrono.ChBody()
+sys.Add(body_1)  # Corrected method name
+body_1.SetPos(chrono.ChVector3d(-1, -3, 0))
+body_1.SetBodyFixed(False)
+body_1.EnableCollision(False)
+body_1.SetMass(1)
+body_1.SetInertiaXX(chrono.ChVector3d(1, 1, 1))
+
+# Visualization for body_1
+box_1 = chrono.ChVisualShapeBox(1, 1, 1)  # Corrected class name
+box_1.SetColor(chrono.ChColor(0.6, 0, 0))
+body_1.AddVisualShape(box_1)
+
+# Create spring between body_1 and ground
+spring_1 = chrono.ChLinkTSDA()
+spring_1.Initialize(body_1, ground, True, chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(-1, 0, 0))
+spring_1.SetRestLength(rest_length)
+spring_1.SetSpringCoefficient(spring_coef)
+spring_1.SetDampingCoefficient(damping_coef)
+sys.Add(spring_1)  # Corrected method name
+
+# Visualization for spring_1
+spring_1.AddVisualShape(chrono.ChVisualShapeSpring(0.05, 80, 15))
+
+# Create body_2
+body_2 = chrono.ChBody()
+sys.Add(body_2)  # Corrected method name
+body_2.SetPos(chrono.ChVector3d(-1, -6, 0))
+body_2.SetBodyFixed(False)
+body_2.EnableCollision(False)
+body_2.SetMass(1)
+body_2.SetInertiaXX(chrono.ChVector3d(1, 1, 1))
+
+# Visualization for body_2
+box_2 = chrono.ChVisualShapeBox(1, 1, 1)  # Corrected class name
+box_2.SetColor(chrono.ChColor(0, 0.6, 0))
+body_2.AddVisualShape(box_2)
+
+# Create spring between body_1 and body_2
+spring_2 = chrono.ChLinkTSDA()
+spring_2.Initialize(body_1, body_2, True, chrono.ChVector3d(0, -3, 0), chrono.ChVector3d(0, 0, 0))
+spring_2.SetRestLength(rest_length)
+spring_2.SetSpringCoefficient(spring_coef)
+spring_2.SetDampingCoefficient(damping_coef)
+sys.Add(spring_2)  # Corrected method name
+
+# Visualization for spring_2
+spring_2.AddVisualShape(chrono.ChVisualShapeSpring(0.05, 80, 15))
+
+# Create body_3
+body_3 = chrono.ChBody()
+sys.Add(body_3)  # Corrected method name
+body_3.SetPos(chrono.ChVector3d(-1, -9, 0))
+body_3.SetBodyFixed(False)
+body_3.EnableCollision(False)
+body_3.SetMass(1)
+body_3.SetInertiaXX(chrono.ChVector3d(1, 1, 1))
+
+# Visualization for body_3
+box_3 = chrono.ChVisualShapeBox(1, 1, 1)  # Corrected class name
+box_3.SetColor(chrono.ChColor(0, 0, 0.6))
+body_3.AddVisualShape(box_3)
+
+# Create spring between body_2 and body_3
+spring_3 = chrono.ChLinkTSDA()
+spring_3.Initialize(body_2, body_3, True, chrono.ChVector3d(0, -3, 0), chrono.ChVector3d(0, 0, 0))
+spring_3.SetRestLength(rest_length)
+spring_3.SetSpringCoefficient(spring_coef)
+spring_3.SetDampingCoefficient(damping_coef)
+sys.Add(spring_3)  # Corrected method name
+
+# Visualization for spring_3
+spring_3.AddVisualShape(chrono.ChVisualShapeSpring(0.05, 80, 15))
+
+# Create the Irrlicht visualization system
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(sys)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle('ChLinkTSDA demo')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVector3d(0, 0, 6))
+vis.AddTypicalLights()
+
+# Simulation loop
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    sys.DoStepDynamics(1e-3)
