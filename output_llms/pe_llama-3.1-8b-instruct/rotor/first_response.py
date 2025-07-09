@@ -1,0 +1,178 @@
+import os
+import math
+import numpy as np
+import chrono as chrono
+import chrono.robot as robot
+import chrono.irrlicht as irrlicht
+import chrono.vehicle as vehicle
+
+# Library imports
+os.environ['PATH'] += ';' + os.path.dirname(chrono.__file__)
+import math
+import numpy as np
+import chrono as chrono
+import chrono.robot as robot
+import chrono.irrlicht as irrlicht
+import chrono.vehicle as vehicle
+
+# System initialization
+sys = chrono.ChSystemSMC()
+
+# Contact and collision settings
+material = chrono.ChContactMaterialSMC()
+material.SetFriction(0.5)
+material.SetDampingF(0.1)
+material.SetCompliance(0.01)
+sys.SetDefaultContactMaterial(material)
+
+# Visualization settings
+vis = irrlicht.ChVisualSystemIrrlicht()
+vis.AttachSystem(sys)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle('Simulation Window')
+vis.Initialize()
+
+# Body initialization
+body_beam = chrono.ChBody()
+body_beam.SetPos(chrono.ChVector3d(0, 0, 0))
+body_beam_shape = chrono.ChVisualShapeBox(1, 1, 10)
+body_beam.AddVisualShape(body_beam_shape)
+sys.Add(body_beam)
+
+# Joints and links
+joint_flywheel = chrono.ChLinkLockRevolute()
+joint_flywheel.Initialize(body_beam, chrono.ChCoordsysD(chrono.ChVector3d(0, 0, 5), chrono.QuatFromAngleX(chrono.CH_PI / 2)))
+sys.Add(joint_flywheel)
+
+# Motor
+motor = chrono.ChLinkMotorRotationSpeed()
+motor.Initialize(body_beam, chrono.ChCoordsysD(chrono.ChVector3d(0, 0, 5), chrono.QuatFromAngleX(chrono.CH_PI / 2)))
+motor.SetSpeedFunction(chrono.ChFunctionSine(0.001, 1.5))
+sys.Add(motor)
+
+# Additional utilities
+sys.GetContactContainer().ReportAllContacts(chrono.ReportContactCallback())
+
+# Simulation loop
+while vis.Run():
+    sys.DoStepDynamics(0.01)
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+
+# Pipeline for generating new simulations
+def generate_simulation():
+    # Define the simulation requirements
+    sys = chrono.ChSystemSMC()
+    body_beam = chrono.ChBody()
+    joint_flywheel = chrono.ChLinkLockRevolute()
+    motor = chrono.ChLinkMotorRotationSpeed()
+    
+    # Generate the initial code snippet
+    sys.Add(body_beam)
+    joint_flywheel.Initialize(body_beam, chrono.ChCoordsysD(chrono.ChVector3d(0, 0, 5), chrono.QuatFromAngleX(chrono.CH_PI / 2)))
+    sys.Add(joint_flywheel)
+    motor.Initialize(body_beam, chrono.ChCoordsysD(chrono.ChVector3d(0, 0, 5), chrono.QuatFromAngleX(chrono.CH_PI / 2)))
+    motor.SetSpeedFunction(chrono.ChFunctionSine(0.001, 1.5))
+    sys.Add(motor)
+    
+    # Validate the generated code
+    sys.Validate()
+    
+    # Add detailed comments and documentation
+    # Run the simulation
+    while vis.Run():
+        sys.DoStepDynamics(0.01)
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+
+# Example simulations
+def beam_simulation():
+    # Define the simulation requirements
+    sys = chrono.ChSystemSMC()
+    mesh = chrono.ChMesh()
+    msection = chrono.ChBeamSectionEulerAdvanced()
+    msection.SetAsRectangularSection(1, 1)
+    msection.SetYoungModulus(0.01e9)
+    msection.SetShearModulus(0.01e9 * 0.3)
+    msection.SetRayleighDamping(0.000)
+    hnode1 = chrono.ChNodeFEAxyzrot(chrono.ChFramed(chrono.ChVector3d(0, 0, 0)))
+    hnode2 = chrono.ChNodeFEAxyzrot(chrono.ChFramed(chrono.ChVector3d(10, 0, 0)))
+    mesh.AddNode(hnode1)
+    mesh.AddNode(hnode2)
+    belement1 = chrono.ChElementBeamEuler()
+    belement1.SetNodes(hnode1, hnode2)
+    belement1.SetSection(msection)
+    mesh.AddElement(belement1)
+    
+    # Generate the initial code snippet
+    sys.Add(mesh)
+    
+    # Validate the generated code
+    sys.Validate()
+    
+    # Add detailed comments and documentation
+    # Run the simulation
+    while vis.Run():
+        sys.DoStepDynamics(0.01)
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+
+def mbs_simulation():
+    # Define the simulation requirements
+    sys = chrono.ChSystemNSC()
+    body_table = chrono.ChBody()
+    body_table.SetPos(chrono.ChVector3d(0, -1, 0))
+    body_table_shape = chrono.ChVisualShapeBox(1, 1, 1)
+    body_table.AddVisualShape(body_table_shape)
+    sys.Add(body_table)
+    link_shaker = chrono.ChLinkLockLock()
+    link_shaker.Initialize(body_table, chrono.ChCoordsysD(chrono.ChVector3d(0, 0, 0), chrono.QuatFromAngleX(chrono.CH_PI)))
+    sys.Add(link_shaker)
+    mfunY = chrono.ChFunctionSine(0.001, 1.5)
+    link_shaker.SetMotionY(mfunY)
+    
+    # Generate the initial code snippet
+    sys.Add(link_shaker)
+    
+    # Validate the generated code
+    sys.Validate()
+    
+    # Add detailed comments and documentation
+    # Run the simulation
+    while vis.Run():
+        sys.DoStepDynamics(0.01)
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+
+def vehicle_simulation():
+    # Define the simulation requirements
+    car = chrono.vehicle.ARTcar()
+    car.SetContactMethod(chrono.ChContactMethod_SMC)
+    car.SetChassisCollisionType(chrono.ChCollisionType_BOX)
+    car.SetInitPosition(chrono.ChCoordsysD(chrono.ChVector3d(0, 0, 0), chrono.QuatFromAngleX(chrono.CH_PI)))
+    car.Initialize()
+    terrain = chrono.vehicle.RigidTerrain(car.GetSystem())
+    patch = terrain.AddPatch(chrono.ChMaterialSurface(chrono.ChColor(1, 0, 0), 0.5), chrono.ChCoordsysD(chrono.ChVector3d(0, 0, 0), chrono.QuatFromAngleX(chrono.CH_PI)), 10, 10)
+    terrain.Initialize()
+    
+    # Generate the initial code snippet
+    sys.Add(car)
+    sys.Add(terrain)
+    
+    # Validate the generated code
+    sys.Validate()
+    
+    # Add detailed comments and documentation
+    # Run the simulation
+    while vis.Run():
+        sys.DoStepDynamics(0.01)
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+
+# Run the simulation
+generate_simulation()

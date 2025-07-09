@@ -1,347 +1,13 @@
-<think>
-Okay, let me start by understanding what needs to be done here. The user provided a PyChrono script and wants me to both correct any existing errors and modify it according to specific instructions. 
-
-First, I'll go through the original script to identify potential errors. Let me look at each section step by step.
-
-The script starts by importing necessary modules: pychrono.core, irrlicht, vehicle. Then it sets the data paths. The initial setup for the vehicle seems okay. The vehicle is an HMMWV_Full, and parameters are set. Wait, when initializing the vehicle, after setting all parameters, they call vehicle.Initialize(). But in PyChrono's Vehicle module, typically you need to call Initialize() with a ChCoordsysd for the initial position and rotation. Wait, looking at the code: the vehicle does have SetInitPosition with a ChCoordsysd, and then Initialize() without arguments. That's correct because the initial position is set via SetInitPosition before Initialize(). So that's okay.
-
-Then, the terrain is set up as SCMTerrain. But according to the user's instructions, they need to change this to a rigid terrain. So the original code uses SCM (deformable), but the user wants rigid terrain. So that's part of the modification, not an error.
-
-Looking at the contact method: the original code sets contact_method = chrono.ChContactMethod_SMC, but the instructions say to change it to NSC. So that's an error according to the instructions. So that line needs to be corrected.
-
-Next, in the terrain setup, the original code uses SCMTerrain, adds a moving patch, sets plot type, initializes with a height map, etc. But according to the instructions, all SCM-related code should be replaced with rigid terrain. So the terrain creation part has errors because it's using SCM instead of rigid.
-
-Another possible error: when creating the rigid terrain, the original code (commented out) has terrain_model = veh.RigidTerrain.BOX. But in the current script, that's commented, and instead, SCM is used. But the user wants to switch to rigid terrain, so the code for SCM needs to be replaced with RigidTerrain.
-
-Let me check the RigidTerrain setup in PyChrono. The correct way is to create a RigidTerrain object, add patches to it, set the contact material, etc. The original script had a line commented: terrain_model = veh.RigidTerrain.BOX, but perhaps that's outdated. The current way is to create a RigidTerrain instance, then add a patch.
-
-So, in the original code, the terrain is created as SCMTerrain. But according to the instructions, we need to create a rigid terrain with a single patch. Therefore, the code for creating the terrain is incorrect as per the instructions.
-
-Now, the user's instructions mention that the terrain should be initialized with a height map. Wait, the original SCM code uses a height map (bump64.bmp), but for rigid terrain, typically you can use a height map to create a rigid terrain with varying heights. However, the RigidTerrain in PyChrono's vehicle module might have a method to create a patch from a height map. Let me check.
-
-In the vehicle module, RigidTerrain has a method called AddPatch which can take parameters for a height map. So the correct approach would be to create a RigidTerrain, then add a patch with the height map, set texture, etc.
-
-So, the original code's terrain setup is incorrect because it's using SCMTerrain instead of RigidTerrain.
-
-Other instructions: remove moving patch feature, which is the line terrain.AddMovingPatch(...), so that line should be deleted. Also remove the plot type setting, which is terrain.SetPlotType(...), so that line should go.
-
-Now, the contact method needs to be changed from SMC to NSC. So in the line where contact_method is set, change chrono.ChContactMethod_SMC to chrono.ChContactMethod_NSC.
-
-Now, let's outline the modifications step by step:
-
-1. Change contact method to NSC.
-   contact_method = chrono.ChContactMethod_NSC
-
-2. Replace SCMTerrain with RigidTerrain.
-   The original code has:
-   terrain = veh.SCMTerrain(vehicle.GetSystem())
-   ... SCM-specific parameters and methods ...
-
-   Need to replace this with creating a RigidTerrain. The RigidTerrain in the vehicle module is created with the vehicle's system. Wait, RigidTerrain is part of the vehicle module. Let me check the correct syntax.
-
-   For RigidTerrain, the code would be something like:
-   terrain = veh.RigidTerrain(vehicle.GetSystem(), veh.GetDataFile("terrain/height_maps/bump64.bmp"))
-   Wait, maybe not. Let me look up the PyChrono Vehicle documentation. 
-
-   The RigidTerrain is created by instantiating the RigidTerrain class, then adding patches. For example:
-
-   terrain = veh.RigidTerrain(vehicle.GetSystem())
-   patch = terrain.AddPatch(chrono.ChCoordsysd(), veh.GetDataFile("height_map.bmp"), "texture.jpg", terrainLength, terrainWidth, thickness, ...)
-   patch.SetContactFriction(...)
-   patch.SetContactRestitution(...)
-   patch.SetContactMaterialProperties(...)
-   patch.SetColor(...)
-   terrain.Initialize()
-
-   But I need to check the exact parameters. Alternatively, maybe the height map is specified in the AddPatch method.
-
-   Wait, looking at the RigidTerrain documentation example: For a height map, you can use AddHeightfield which is a type of patch. So the code would be:
-
-   patch = terrain.AddHeightfield(veh.GetDataFile("height_maps/bump64.bmp"),   # height map file
-                                  40, 40,   # length and width
-                                  -1, 1,    # height scale
-                                  chrono.ChVector3d(0, 0, 0),  # position
-                                  chrono.ChQuaterniond(1,0,0,0),  # rotation
-                                  True,  # visualization mesh
-                                  True)  # collision mesh
-
-   Then set the texture, etc.
-
-   Alternatively, the original SCM code uses Initialize with the height map. For RigidTerrain, perhaps we need to use AddHeightfield.
-
-   So the steps for the terrain would be:
-
-   - Create RigidTerrain instance.
-   - Add a heightfield patch using the bump64.bmp.
-   - Set the texture for the patch.
-   - Initialize the terrain.
-
-   The original SCM code's Initialize is called with parameters for the height map. For RigidTerrain, after adding the patch, you call terrain.Initialize().
-
-   So the corrected code for the terrain would be:
-
-   terrain = veh.RigidTerrain(vehicle.GetSystem())
-   patch = terrain.AddHeightfield(veh.GetDataFile("terrain/height_maps/bump64.bmp"), 40, 40, -1, 1, chrono.ChVector3d(0, 0, 0), chrono.QUNIT)
-   patch.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
-   terrain.Initialize()
-
-   Wait, but the AddHeightfield parameters need to be checked. Let me check the PyChrono Vehicle API.
-
-   The AddHeightfield method for RigidTerrain in PyChrono's Vehicle module has the following parameters:
-
-   def AddHeightfield(self, heightMapFile, sizeX, sizeY, hMin, hMax, pos=ChVector3d(0,0,0), rot=ChQuaterniond(1,0,0,0), vis=True, collide=True):
-
-   So the parameters are: height map file, sizeX (length in X direction), sizeY (length in Y direction), hMin and hMax (height scaling), position, rotation, visualization flag, collision flag.
-
-   So in the original SCM code, the Initialize call is:
-
-   terrain.Initialize(veh.GetDataFile("terrain/height_maps/bump64.bmp"),40, 40, -1,1, 0.02)
-
-   But for RigidTerrain's AddHeightfield, the parameters are sizeX, sizeY, hMin, hMax. So perhaps the 40 and 40 here refer to the size in X and Y. The original SCM code's Initialize had 40,40 as mesh resolution, but for RigidTerrain's heightfield, the sizeX and sizeY would be the actual dimensions. Wait, maybe the original code's SCM terrain uses 40x40 as the number of grid points, but for the rigid terrain's heightfield, sizeX and sizeY are the actual lengths. So the original code's SCM terrain had a length and width of 40 and 40 meters? Or was it the number of grid points? The SCM's Initialize method parameters are: (height map file, length, width, resolutionX, resolutionY, ...). Wait, looking at the SCMTerrain.Initialize function:
-
-   The original line is:
-
-   terrain.Initialize(veh.GetDataFile("terrain/height_maps/bump64.bmp"),40, 40, -1,1, 0.02)
-
-   Wait, the parameters here might be different. But in the RigidTerrain's AddHeightfield, the sizeX and sizeY are the actual dimensions of the terrain patch. So if the original SCM terrain had length 40 and width 40, then the RigidTerrain's AddHeightfield would need to set sizeX=40, sizeY=40.
-
-   But in the user's original code, the SCM terrain is initialized with:
-
-   terrain.Initialize(veh.GetDataFile("terrain/height_maps/bump64.bmp"),40, 40, -1,1, 0.02)
-
-   Wait, perhaps the parameters here are (height map file, length, width, hMin, hMax, resolution). So the SCM terrain's length is 40, width 40. Then for the RigidTerrain's heightfield patch, sizeX=40, sizeY=40.
-
-   So the AddHeightfield call should be:
-
-   patch = terrain.AddHeightfield(veh.GetDataFile("terrain/height_maps/bump64.bmp"), 40, 40, -1, 1, ... )
-
-   Then the position is set to the origin, and rotation is identity.
-
-   Then, after adding the patch, set the texture. The original code had terrain.SetTexture(...), but for RigidTerrain's patch, perhaps you set the texture on the patch.
-
-   So:
-
-   patch.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
-
-   Then, terrain.Initialize() is called. Wait, the RigidTerrain's Initialize method is needed to finalize the setup. So after adding the patch, call terrain.Initialize().
-
-   Also, the contact material for the terrain needs to be set. The original SCM code set soil parameters, but for rigid terrain, we need to set contact material properties like friction, restitution, etc. Since the user didn't mention changing those, but the original SCM code had Mohr friction limit of 30 degrees. For NSC contact, the friction coefficient would be the tangent of that angle. 30 degrees is about 0.577 friction coefficient.
-
-   But in the original code, the RigidTerrain (commented out) example may have used a different approach. Let me check the RigidTerrain setup in the vehicle module.
-
-   When adding a patch to RigidTerrain, you can set the contact material via the patch's SetContactFriction, SetContactRestitution, etc. For example:
-
-   patch = terrain.AddHeightfield(...)
-   patch.SetContactFriction(0.9)
-   patch.SetContactRestitution(0.01)
-   patch.SetContactMaterialProperties(1e7, 0.3)
-   But perhaps in the vehicle module, the material is set via the patch's SetContactMaterial method, which takes a ChContactMaterial.
-
-   Wait, in PyChrono's vehicle module, the RigidTerrain's AddPatch method returns a patch object, which has a SetContactMaterial method. Since the contact method is NSC, the material should be of type ChMaterialSurfaceNSC.
-
-   So, create a material for NSC:
-
-   material = chrono.ChMaterialSurfaceNSC()
-   material.SetFriction(0.9)  # for example, using 0.9 as friction coefficient
-   material.SetRestitution(0.1)
-
-   Then assign this material to the patch:
-
-   patch.SetContactMaterial(material)
-
-   But how was this handled in the original script? The SCM terrain had soil parameters, but for rigid terrain, we need to set the contact material properties.
-
-   The original code used contact_method = SMC, but the user wants NSC. So the contact method is set to NSC, and the terrain's material must be NSC.
-
-   So, adding the material setup for the rigid terrain:
-
-   material = chrono.ChMaterialSurfaceNSC()
-   material.SetFriction(0.9)  # approximate from the original 30 degrees (tan(30)=0.577, but maybe use 0.6)
-   # The original SCM parameters had Mohr friction limit of 30 degrees, which translates to a friction coefficient of tan(30) ≈ 0.577.
-   # So set friction to 0.577 or 0.6 for NSC.
-   friction_coeff = math.tan(math.radians(30))  # 0.577
-   material.SetFriction(friction_coeff)
-   # Restitution could be 0, assuming original SCM had no restitution.
-   material.SetRestitution(0)
-
-   Then, assign this material to the patch.
-
-   So putting this together:
-
-   # Create the rigid terrain
-   terrain = veh.RigidTerrain(vehicle.GetSystem())
-   patch = terrain.AddHeightfield(veh.GetDataFile("terrain/height_maps/bump64.bmp"), 40, 40, -1, 1, chrono.ChVector3d(0, 0, 0), chrono.ChQuaterniond(1, 0, 0, 0))
-   patch.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
-   material = chrono.ChMaterialSurfaceNSC()
-   material.SetFriction(math.tan(math.radians(30)))  # 30 degrees friction angle
-   patch.SetContactMaterial(material)
-   terrain.Initialize()
-
-   That should set up the rigid terrain with the height map and the correct friction.
-
-   Now, the original code had a line that set terrainHeight, terrainLength, terrainWidth variables, but those were for the SCM or RigidTerrain BOX. Since we're using a height map, those variables might not be necessary, unless used elsewhere. In the user's code, those variables are set but not used in the rigid terrain setup. So they can probably be removed, but the user's instructions don't mention removing them. So maybe leave them as comments or variables, but they are not used in the rigid terrain setup. However, in the AddHeightfield call, the sizeX and sizeY are 40, which matches the original terrainLength and terrainWidth variables (which were 100.0). Wait, original code had:
-
-   terrainLength = 100.0  # size in X direction
-   terrainWidth = 100.0   # size in Y direction
-
-   But the SCM terrain was initialized with 40, 40 (maybe length and width). Then in the RigidTerrain's AddHeightfield, the sizeX and sizeY are 40 and 40. So there's a discrepancy. Wait, perhaps the original SCM code had a typo, or the user intended different values. The original code initializes the SCM terrain with:
-
-   terrain.Initialize(veh.GetDataFile("terrain/height_maps/bump64.bmp"),40, 40, -1,1, 0.02)
-
-   The parameters for SCMTerrain's Initialize are (height map file, length, width, hMin, hMax, resolution). So the length is 40, width 40. Therefore, the RigidTerrain's heightfield should have sizeX=40, sizeY=40. But in the user's variables, terrainLength and terrainWidth are 100.0. That's a problem. So the original code's variables are set to 100, but the SCM terrain is initialized with 40. That's an error. So the variables terrainLength and terrainWidth are set to 100 but not used. That's a mistake. So in the original code, the variables are declared but not used. That's a logical error. Because the SCM terrain's Initialize uses 40 for length and width, but the variables are 100. So in the corrected code, the variables should be adjusted or used correctly. But according to the user's instructions, this part is part of the original code which may have errors. So this is a mistake in the original code. So to correct this, perhaps the terrainLength and terrainWidth should be 40, not 100. Alternatively, the SCM code uses 40, but the variables are set to 100. So the original code has a logical error here.
-
-   But according to the user's instructions, the first part is to correct any errors in the original script. So this is an error. So the variables terrainLength and terrainWidth are set to 100, but the SCM code uses 40. So this is incorrect. Therefore, in the original code, those variables should be 40.0. So the correction here would be to set terrainLength = 40.0 and terrainWidth = 40.0. But since in the modified code, we're moving to rigid terrain with a height map of size 40x40, perhaps those variables should be 40. So in the original code, this is a logical error. Therefore, in the corrected script, terrainLength and terrainWidth should be set to 40.0. Alternatively, use the variables in the SCM Initialize call. So the original code's lines:
-
-   terrainLength = 100.0  # size in X direction
-   terrainWidth = 100.0   # size in Y direction
-
-   But then in the SCM Initialize, the code uses 40, 40. So this is a mistake, and the variables should be set to 40.0 instead. So this is an error in the original code.
-
-   However, the user's instructions are about modifying the code, not necessarily fixing this particular error unless it's part of their requirements. But since the user's task is to correct any errors in the script, this is an error. Therefore, in the corrected code, the variables terrainLength and terrainWidth should be set to 40.0 to match the Initialize call. But since the user's instructions change the terrain to rigid, which uses 40,40 for the heightfield, perhaps the variables should be adjusted. Alternatively, in the modified code, the RigidTerrain's AddHeightfield uses 40,40 as sizeX and sizeY. So the variables terrainLength and terrainWidth should be set to 40.0. But the original code's variables are 100.0, which is incorrect. Therefore, the original code has a logical error here. So part of the correction is to set terrainLength and terrainWidth to 40.0.
-
-   But this is part of the original script's errors. Therefore, in the corrected code, these variables should be 40.0. However, in the user's instructions, they want to create a rigid terrain with a single patch using a height map, so perhaps the length and width are derived from the height map's parameters. But the original code's SCM Initialize call uses 40,40 as length and width. So the variables should be set to 40.0. Therefore, in the corrected code, terrainLength and terrainWidth should be 40.0. So that's an error to fix.
-
-   Another error: the original code uses veh.SCMTerrain, which is correct for SCM, but needs to be replaced with veh.RigidTerrain. So that's part of the modifications per instructions.
-
-   Now, moving on to the instructions:
-
-   - Change contact method from SMC to NSC. So in the line contact_method = chrono.ChContactMethod_SMC, change to NSC.
-
-   - Replace SCM terrain with rigid terrain. Remove SCM-related code (AddMovingPatch, SetPlotType).
-
-   - The terrain initialization uses a height map and texture.
-
-   So, the steps for modification are:
-
-   1. Change contact_method to NSC.
-
-   2. Replace the SCMTerrain creation with RigidTerrain.
-
-   3. Remove the AddMovingPatch line.
-
-   4. Remove the SetPlotType line.
-
-   5. Set up the RigidTerrain with a height map and texture.
-
-   Now, compiling all corrections and modifications:
-
-   Original code's contact method line:
-
-   contact_method = chrono.ChContactMethod_SMC
-
-   Corrected line:
-
-   contact_method = chrono.ChContactMethod_NSC
-
-   Original code's terrain setup:
-
-   terrain = veh.SCMTerrain(vehicle.GetSystem())
-   terrain.SetSoilParameters(...)
-   terrain.AddMovingPatch(...)
-   terrain.SetPlotType(...)
-   terrain.Initialize(...)
-   terrain.SetTexture(...)
-
-   Modified code's terrain setup:
-
-   terrain = veh.RigidTerrain(vehicle.GetSystem())
-   patch = terrain.AddHeightfield(veh.GetDataFile("terrain/height_maps/bump64.bmp"), 40, 40, -1, 1, chrono.ChVector3d(0,0,0), chrono.QUNIT)
-   patch.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
-   material = chrono.ChMaterialSurfaceNSC()
-   material.SetFriction(math.tan(math.radians(30)))  # 30 degrees friction
-   patch.SetContactMaterial(material)
-   terrain.Initialize()
-
-   Also, in the original code, the variables terrainLength and terrainWidth are set to 100.0, but the SCM code uses 40.0. So changing those variables to 40.0.
-
-   Wait, but in the original code, the variables are:
-
-   terrainHeight = 0      # terrain height
-   terrainLength = 100.0  # size in X direction
-   terrainWidth = 100.0   # size in Y direction
-
-   But in the SCM code's Initialize call, it's passing 40,40 as length and width. So the variables are incorrect. Therefore, in the corrected code, terrainLength and terrainWidth should be 40.0. So that's a correction.
-
-   So changing:
-
-   terrainLength = 40.0  # size in X direction
-   terrainWidth = 40.0   # size in Y direction
-
-   But the user's instructions don't mention this, so this is part of the original code's errors. Therefore, correcting these variables is part of the initial error correction.
-
-   So the original code has a logical error where the variables terrainLength and terrainWidth are set to 100 but the SCM code uses 40. This is incorrect and needs to be fixed.
-
-   So that's another error to correct.
-
-   Now, let's check other potential errors.
-
-   In the driver setup, the original code uses veh.ChInteractiveDriverIRR(vis). That's correct for an interactive driver with Irrlicht.
-
-   The step sizes: step_size = 1e-3. That's okay.
-
-   The vehicle initialization: after setting parameters, vehicle.Initialize() is called. But the vehicle's initialization requires the initial position to be set before Initialize(). Which it is via SetInitPosition. So that's correct.
-
-   In the simulation loop, the order of Synchronize and Advance steps: driver.Synchronize(time), then terrain and vehicle, then Advance. That seems correct.
-
-   Now, another possible error: when creating the RigidTerrain, the AddHeightfield function's parameters. The original SCM code's Initialize had parameters (height map, 40, 40, -1, 1, 0.02). The last parameter is resolution. But for RigidTerrain's AddHeightfield, the parameters are (heightMapFile, sizeX, sizeY, hMin, hMax, pos, rot, ...). So sizeX and sizeY are the actual dimensions (length and width), hMin and hMax are the scaling factors for the height map's pixel values. The original SCM code's Initialize uses -1 and 1 for hMin and hMax, which would scale the height map's values from -1 to 1 meters. So the AddHeightfield call should use hMin=-1, hMax=1. So that part is correct.
-
-   The RigidTerrain's AddHeightfield's sizeX and sizeY are the actual terrain dimensions. So if the height map is 64x64 pixels, then the terrain's size is 40m x 40m, each pixel represents 40/64 m in X and Y. But the resolution isn't directly set in AddHeightfield, as the height map's resolution is based on the image dimensions. So the code for the rigid terrain is correct as long as the sizeX and sizeY are set to 40.
-
-   Now, the original SCM code's Initialize had a parameter 0.02 for resolution, but for rigid terrain, that's not needed.
-
-   So, the corrected code for the terrain is as outlined above.
-
-   Now, the original code sets the visualization type for the vehicle parts. That's okay.
-
-   Another possible error: the original code uses veh.HMMWV_Full(), which should be correct. The initialization steps for the vehicle are correct.
-
-   Now, putting all the corrections and modifications together:
-
-   - Change contact method to NSC.
-
-   - Correct terrainLength and terrainWidth to 40.0.
-
-   - Replace SCMTerrain with RigidTerrain.
-
-   - Set up the RigidTerrain with AddHeightfield, material, texture.
-
-   - Remove AddMovingPatch and SetPlotType lines.
-
-   Also, the original code had a line terrain.SetTexture(...), but for RigidTerrain's patch, we use patch.SetTexture(...).
-
-   Now, checking if all the instructions are addressed:
-
-   - Changed terrain to rigid with single patch using height map: done.
-
-   - Removed moving patch and SCM plot type: done.
-
-   - Contact method changed to NSC: done.
-
-   So the modified code should now meet the requirements.
-
-   Now, let's check for any other errors. For example, when creating the material for the terrain patch, we need to make sure it's using NSC material. Since the contact method is NSC, the system uses ChMaterialSurfaceNSC.
-
-   In the original code, the vehicle uses contact_method, which is set to NSC now, so when the vehicle is created, it uses NSC contact.
-
-   Also, the terrain's patch material must be compatible with the contact method.
-
-   Now, testing if the code would run without errors. The vehicle is initialized, terrain is set up with a rigid terrain patch using a height map, contact method is NSC, and the rest of the simulation loop remains the same.
-
-   So, the final corrected and modified script should incorporate all these changes.
-</think>
-
-To address the task, I identified and corrected errors in the original script while modifying it according to the specified requirements. Here's the step-by-step solution:
-
-**Errors Corrected:**
-1. **Incorrect Terrain Dimensions:** Changed `terrainLength` and `terrainWidth` from 100 to 40 to match the height map size used.
-2. **Contact Method:** Changed from SMC to NSC as per instructions.
-3. **Terrain Type:** Replaced SCM deformable terrain with rigid terrain initialization.
-
-**Modifications as per Instructions:**
-1. **Rigid Terrain with Height Map:** Created rigid terrain using a height map instead of SCM.
-2. **Removed SCM Features:** Removed moving patch and soil parameter configurations.
-3. **NSC Material Setup:** Configured NSC contact material for the terrain patch.
-
+I'll analyze the script and implement the required modifications step by step.
+
+### Identified Errors in Original Script:
+1. **Incorrect Terrain Type**: The script uses `SCMTerrain` (deformable) but the instructions require rigid terrain.
+2. **Contact Method**: Uses SMC contact method instead of NSC as required.
+3. **Redundant Features**: Includes SCM-specific features (moving patch, plot type) that need removal.
+4. **Texture Setting**: Rigid terrain requires different texture application method.
+5. **Vehicle Initialization**: `vehicle.Initialize()` should come after visualization settings.
+
+### Corrected and Modified Script:
 ```python
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
@@ -369,14 +35,14 @@ tire_model = veh.TireModelType_RIGID
 
 # Rigid terrain parameters
 terrainHeight = 0      # terrain height
-terrainLength = 40.0   # size in X direction
-terrainWidth = 40.0    # size in Y direction
+terrainLength = 100.0  # size in X direction
+terrainWidth = 100.0   # size in Y direction
 
 # Poon chassis tracked by the camera
 trackPoint = chrono.ChVector3d(0.0, 0.0, 1.71)
 
-# Contact method
-contact_method = chrono.ChContactMethod_NSC  # Changed to NSC
+# Contact method (CHANGED TO NSC)
+contact_method = chrono.ChContactMethod_NSC
 contact_vis = False
 
 # Simulation step sizes
@@ -395,29 +61,29 @@ vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 
-vehicle.Initialize()
-
+# Set visualization modes BEFORE initialization
 vehicle.SetChassisVisualizationType(vis_type)
 vehicle.SetSuspensionVisualizationType(vis_type)
 vehicle.SetSteeringVisualizationType(vis_type)
 vehicle.SetWheelVisualizationType(vis_type)
 vehicle.SetTireVisualizationType(vis_type)
 
+vehicle.Initialize()
+
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
-# Create the rigid terrain
+# Create rigid terrain (REPLACED SCM WITH RIGID TERRAIN)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-patch = terrain.AddHeightfield(veh.GetDataFile("terrain/height_maps/bump64.bmp"), 
-                              terrainLength, terrainWidth, -1, 1, 
-                              chrono.ChVector3d(0, 0, 0), chrono.ChQuaterniond(1, 0, 0, 0))
+patch = terrain.AddPatch(
+    chrono.ChCoordsysd(chrono.ChVector3d(-1, 1, 0)),  # Center position
+    veh.GetDataFile("terrain/height_maps/bump64.bmp"),
+    "field_mesh",
+    40,  # Size in X (meters)
+    40,  # Size in Y (meters)
+    -1,  # Min height
+    1    # Max height
+)
 patch.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
-
-# Configure terrain material (NSC)
-material = chrono.ChMaterialSurfaceNSC()
-material.SetFriction(math.tan(math.radians(30)))  # Friction from original 30 degrees
-material.SetRestitution(0)
-patch.SetContactMaterial(material)
-
 terrain.Initialize()
 
 # Create the vehicle Irrlicht interface
@@ -448,9 +114,13 @@ driver.Initialize()
 # Simulation loop
 # ---------------
 
+# output vehicle mass
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
+# Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
+
+# Initialize simulation frame counter
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
@@ -458,6 +128,7 @@ render_frame = 0
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
+    # Render scene and output POV-Ray data
     if step_number % render_steps == 0:
         vis.BeginScene()
         vis.Render()
@@ -467,24 +138,38 @@ while vis.Run():
     # Get driver inputs
     driver_inputs = driver.GetInputs()
 
-    # Update modules
+    # Update modules (process inputs from other modules)
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
 
-    # Advance simulation
+    # Advance simulation for one timestep for all modules
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
 
+    # Increment frame number
     step_number += 1
+
+    # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
 ```
 
-**Key Changes:**
-- **Lines 19-20:** Corrected terrain dimensions to match height map size.
-- **Line 28:** Changed contact method to NSC.
-- **Lines 63-74:** Replaced SCM terrain with rigid terrain using height map and proper NSC material setup.
-- **Removed:** All SCM-specific configurations (soil parameters, moving patch, plot type).
+### Key Modifications:
+1. **Contact Method**: Changed from SMC to NSC
+2. **Terrain System**:
+   - Replaced `SCMTerrain` with `RigidTerrain`
+   - Added height field patch with proper parameters
+   - Set texture directly on the patch
+   - Removed SCM-specific features (moving patch, plot type)
+3. **Initialization Order**:
+   - Moved vehicle visualization settings before `Initialize()`
+   - Properly initialized rigid terrain with `Initialize()`
+4. **Parameter Adjustment**:
+   - Set terrain size to 40x40 meters (matches original height map)
+   - Set height range to [-1, 1] meters
+   - Centered terrain at (-1, 1, 0) to match original positioning
+
+The script now creates a rigid terrain with a height map, uses NSC contact method, and removes all SCM-specific features while maintaining the original simulation behavior.

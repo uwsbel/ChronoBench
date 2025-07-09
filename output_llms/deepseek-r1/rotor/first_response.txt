@@ -1,364 +1,133 @@
-<think>
-Okay, I need to create a PyChrono simulation for a Jeffcott rotor using an IGA beam. Let me start by recalling what a Jeffcott rotor is. It's a simple model used to study rotor dynamics, consisting of a flexible shaft with a disk at the midpoint. The key aspects here are the IGA beam, flywheel attachment, rotational motor, and visualization.
-
-First, I'll need to set up the PyChrono environment. That means importing necessary modules: chrono, its FEM, IGA, and Irrlicht modules. Then, create a system and set the gravitational acceleration, though for a horizontal rotor, maybe gravity isn't critical, but I'll include it anyway.
-
-Next, the IGA beam. I remember that in PyChrono, IGA beams are created using ChBuilderBeamIGA. The beam should be modeled with the Euler-Bernoulli type. I need to define the material properties—like Young's modulus, density, and cross-sectional area. Also, the number of elements and the length of the beam. The beam is fixed at one end, so I'll use a fixed constraint on the first node.
-
-Then, the flywheel. The problem says to attach it at the center. The beam has multiple nodes; the center node would be the middle one. So, after creating the beam, I can get the nodes and pick the middle one. The flywheel can be a ChBodyEasyCylinder with appropriate mass and dimensions. Attach it to the center node using a ChLinkMateFix.
-
-The rotational motor is applied to the end of the beam. The end node (last node of the beam) should be connected to a motor. Wait, but the beam is fixed at one end. Wait, the problem says the motor drives one end. Wait, the Jeffcott rotor typically has the shaft rotating, so maybe the fixed end is actually the motor end. Wait, maybe the beam is fixed at one end, and the motor applies rotation to that fixed end. Hmm, perhaps the motor is applied to the fixed end. Wait, the problem says "rotational motor that drives one end of the beam." So maybe the beam is fixed at one end, and the other end is free. But the motor is driving the fixed end? Or is the motor rotating the end that's not fixed? Wait, the Jeffcott rotor usually has the shaft rotating, so perhaps the motor is applied to the fixed end to impose rotation. Let me think: in the Jeffcott model, the shaft is rotating, so the motor would impose a rotational speed. So the beam is fixed at one end (the motor end) and free at the other. Wait, but the problem mentions a flywheel at the center. So the beam is fixed at one end, has a flywheel in the center, and the other end is free? Or is the beam between two supports? Wait, Jeffcott rotor is typically a simply supported shaft with a disk in the middle. But the problem says "attachment of a flywheel at its center"—so the beam's center. So the beam is the shaft, fixed at one end (with a motor) and free at the other? Or maybe the beam is between two supports. Hmm, maybe the setup here is a cantilevered beam with a flywheel at the center and a motor rotating the fixed end. But that's not the usual Jeffcott. Alternatively, maybe the beam is simply supported, but in PyChrono, how to model that. Alternatively, perhaps the beam is fixed at one end (motor applies rotation here) and the other end is free. The flywheel is at the center. So when the motor spins the fixed end, the beam twists and the flywheel experiences centrifugal forces causing vibration.
-
-Wait, but the Jeffcott rotor is a symmetric setup where the shaft is rotating, and the disk is at midspan. The shaft is supported at both ends. But in the problem statement, maybe the beam is fixed at one end (with a motor) and free at the other. But that's a cantilever, which might not be the standard Jeffcott. However, the user's instructions might not require strict adherence to the Jeffcott model but rather the elements mentioned: IGA beam, flywheel at center, motor on one end.
-
-So, proceeding: create the IGA beam, fix the first node (end A), attach a flywheel to the center node, and apply a motor to the fixed end (end A) to rotate it. Wait, but if the first node is fixed, how to apply rotation? Maybe the motor is applied to the fixed node. Wait, in PyChrono, a ChLinkMotorRotationAngle can be used to impose rotation. So even if the node is fixed, the motor can control its rotation. Alternatively, perhaps the beam is not fixed but connected to a body that is rotated by the motor. Hmm, maybe the beam's first node is attached to a body (like a ground) via the motor. So the motor is between the ground and the first node of the beam. That way, the motor can rotate the first node, causing the beam to spin.
-
-So steps:
-
-1. Create the IGA beam with several elements. Let's say 10 elements for smoothness. The beam is straight along the X-axis.
-
-2. The first node (node at X=0) is connected to the ground via a ChLinkMotorRotationAngle. This motor will impose angular speed.
-
-3. The center node (e.g., if 10 elements, there are 11 nodes; center is node 5 or 6) has a flywheel attached via a fixed link.
-
-4. Visualize the FEM beam and the flywheel in Irrlicht.
-
-So, code steps:
-
-- Import necessary modules.
-
-- Create system: ChSystemSMC.
-
-- Create the IGA beam using ChBuilderBeamIGA. Use Euler-Bernoulli. Set material properties (E, rho, area, inertia). Build the beam with a certain number of elements and length.
-
-- The builder automatically creates nodes and elements. The first node is at the origin.
-
-- Create a motor between ground and first node. The motor's rotation will be about the X-axis (assuming the beam is along X). Use ChLinkMotorRotationAngle. Set rotation function as a function of time, e.g., ChFunction_Ramp(0, angular_speed). So angle = 0 + angular_speed * time.
-
-- Create the flywheel as a ChBodyEasyCylinder. Position it at the center node's position. Attach it to the center node with ChLinkMateFix.
-
-- Add all these to the system.
-
-- For visualization: use FEM mesh for the beam, and Irrlicht assets for the flywheel and motor.
-
-Wait, but the IGA beam's visualization can be done via the builder. Maybe use AddVisualizationFEM() on the beam mesh.
-
-Also, enable Irrlicht visualization with the typical steps: create a ChIrrApp, add assets, etc.
-
-Now, code structure:
-
-Import statements:
-
-import pychrono as chrono
-import pychrono.fea as fea
-import pychrono.irrlicht as irr
-import pychrono.vehicle as veh
-from pychrono import ChVectorD, ChQuaternionD, QUNIT
-
-Wait, maybe vehicle isn't needed here. Just the core, fea, irrlicht, and maybe cosimulation.
-
-But let's proceed.
-
-Create system:
-
-system = chrono.ChSystemSMC()
-system.Set_G_acc(ChVectorD(0, 0, 0))  # Maybe zero gravity to avoid sagging, but depends on the problem.
-
-Build the IGA beam:
-
-builder = fea.ChBuilderBeamIGA()
-
-beam_material = fea.ChBeamSectionEulerAdvanced()
-
-# Set material properties
-E = 2e11  # Pa
-nu = 0.3  # Poisson's ratio
-rho = 7800  # kg/m^3
-diameter = 0.1  # m
-area = chrono.CH_C_PI * (diameter/2)**2  # Cross-sectional area
-Iyy = (chrono.CH_C_PI * diameter**4)/64  # Area moment of inertia
-Izz = Iyy
-Ixx = (chrono.CH_C_PI * diameter**4)/32  # Torsional moment
-
-beam_material.SetDensity(rho)
-beam_material.SetYoungModulus(E)
-beam_material.SetGwithPoissonRatio(nu)
-beam_material.SetAsRectangularSection(0.1, 0.1)  # Wait, diameter is 0.1, so maybe a circular section? But ChBeamSectionEulerAdvanced might not have circular. Alternatively, use SetCircularSection.
-
-Wait, maybe there's a method for circular sections. Let me check. Oh, perhaps SetCircularSection(radius). So:
-
-radius = diameter / 2
-beam_material.SetCircularSection(radius)
-beam_material.SetIxx( (chrono.CH_C_PI * radius**4)/2 )  # Torsional constant for circular section
-# Iyy and Izz would be (pi * radius^4)/4, but maybe the method sets them automatically.
-
-Wait, maybe when using SetCircularSection, the Iyy, Izz, etc., are computed automatically. So perhaps I don't need to set them manually. Let me check the PyChrono documentation. Hmm, the ChBeamSectionEulerAdvanced has methods like SetCircularSection which probably compute the area, I, etc., based on the radius. So:
-
-beam_material.SetCircularSection(radius)
-
-Then, builder.BuildBeam(...) needs the system, the material, number of elements, start and end points.
-
-start_point = ChVectorD(0, 0, 0)
-end_point = ChVectorD(2.0, 0, 0)  # Length of 2 meters
-num_elements = 10
-
-builder.BuildBeam(system, beam_material, num_elements, start_point, end_point)
-
-Wait, but the ChBuilderBeamIGA's BuildBeam function may require more parameters. Let me check. The BuildBeam method in the builder probably creates a straight beam with given start and end points, divided into a number of elements. The material defines the cross-section.
-
-Once the beam is built, the nodes are created. The first node is at start_point, the last at end_point.
-
-Then, apply the motor to the first node. The motor connects the first node to the ground (or a body fixed to ground) and imposes rotation.
-
-motor = chrono.ChLinkMotorRotationAngle()
-
-# Create a body to serve as the motor's frame (the fixed part)
-motor_body = chrono.ChBody()
-motor_body.SetBodyFixed(True)
-system.Add(motor_body)
-
-# The motor connects motor_body and the first node of the beam
-# But nodes are of type ChNodeFEAxyzrot. So need to get the first node.
-
-nodes = builder.GetLastBeamNodes()
-first_node = nodes[0]
-
-motor.Initialize(motor_body, first_node, chrono.ChFrameD(first_node.GetPos()))  # The motor's frame is at the first node's position
-
-# Set the rotation function: angle as function of time
-motor.SetAngleFunction(chrono.ChFunction_Ramp(0, 0.5))  # angle = 0 + 0.5*t (in radians)
-system.Add(motor)
-
-Wait, but the motor's rotation axis. By default, the motor's rotation is about the Z axis of the motor's frame. But since the beam is along X, we might want to rotate about X. Hmm, perhaps the initial frame of the motor needs to be oriented such that the rotation axis is X. Alternatively, adjust the motor's frame.
-
-Alternatively, use a different motor setup. Maybe the motor is set to rotate about the X-axis. Let me think: the default rotation axis for ChLinkMotorRotationAngle is the Z-axis of the motor's frame. So if the motor's frame is aligned with the global frame, then the rotation is about Z. But we need rotation about X. So perhaps we need to reorient the motor's frame.
-
-Alternatively, use a different type of motor. Alternatively, adjust the motor's frame so that its Z-axis is along the X direction. Wait, maybe not. Let me think: the motor's rotation is about the motor's frame's Z-axis. So if we want rotation about the global X-axis, we need to rotate the motor's frame so that its Z-axis aligns with the global X.
-
-Alternatively, perhaps the beam is built along the Y-axis, but that complicates. Alternatively, adjust the motor's frame.
-
-Alternatively, use a ChLinkMotorRotationAngle and set the motor's rotation axis to X. To do that, when initializing the motor, the reference frame of the motor should have its Z-axis along X. Wait, maybe not. Let me think: the motor's rotation is about the Z-axis of the motor's own frame. So if we want the rotation to be about the X-axis of the global frame, we need to rotate the motor's frame so that its Z-axis is aligned with the global X.
-
-So, the motor's frame should be rotated 90 degrees about the Y-axis. For example, using a quaternion that represents a rotation of 90 degrees around Y to align Z with X.
-
-So, the initial frame for the motor would be at the first node's position, but with a rotation such that the motor's Z-axis is along the global X. Then, when the motor rotates, it will spin around the Z-axis of this frame, which is the global X.
-
-So, creating the motor's frame:
-
-rot = ChQuaternionD()
-rot.Q_from_AngAxis(chrono.CH_C_PI / 2, ChVectorD(0, 1, 0))  # Rotate 90 degrees around Y-axis to align Z with X
-motor_frame = chrono.ChFrameD(first_node.GetPos(), rot)
-
-motor.Initialize(motor_body, first_node, motor_frame)
-
-Then, the motor's rotation will be about the motor's Z-axis, which is now aligned with the global X-axis. So the beam will rotate around the X-axis.
-
-This is important to get the rotation direction correct.
-
-Now, the flywheel. The flywheel is attached to the center node. The beam has num_elements elements, so the number of nodes is num_elements + 1. For 10 elements, 11 nodes. The center node is at index 5 (0-based). So center_node = nodes[5].
-
-Create a flywheel body:
-
-flywheel = chrono.ChBodyEasyCylinder(radius=0.5, height=0.1, density=rho)
-flywheel.SetPos(center_node.GetPos())
-system.Add(flywheel)
-
-Then, fix the flywheel to the center node:
-
-link = chrono.ChLinkMateFix()
-link.Initialize(flywheel, center_node)
-system.Add(link)
-
-Wait, but the center_node is a ChNodeFEAxyzrot, which is a FEA node. Can we link a ChBody to a FEA node using ChLinkMateFix? I think so. The ChLinkMateFix connects two bodies, but a FEA node is considered a body in this context. So yes.
-
-Alternatively, use a ChLinkNodeBody to attach the node to the flywheel. But ChLinkMateFix is a simpler way to fix the node and the flywheel together.
-
-Now, visualization. For the beam, use AddVisualizationFEM. For the flywheel, add visualization assets.
-
-But the IGA beam may need to have visualization set up. The builder may have already added visualization, but perhaps not. So after building the beam, we can add visualization to the mesh.
-
-For the beam's visualization:
-
-mesh = builder.GetLastBeamMesh()
-mesh.SetFemVisualize(True)
-# Or maybe use AddVisualizationFEM, but I'm not sure. Alternatively, the builder may handle this.
-
-Alternatively, for each element in the beam, add visualization.
-
-But perhaps the builder's BuildBeam function already adds visualization. If not, we can loop through the elements and add visualization.
-
-But maybe the IGA beam uses isogeometric elements which have their own visualization. Alternatively, use the standard FEM visualization.
-
-Alternatively, use the ChIrrMeshTools to add a mesh to the Irrlicht application.
-
-But perhaps the easiest way is to use the Irrlicht visualization setup.
-
-Then, create the Irrlicht application:
-
-application = irr.ChIrrApp(system, "Jeffcott Rotor with IGA Beam", irr.dimension2du(1024,768))
-application.AddTypicalLights()
-application.AddTypicalCamera(irr.vector3df(2,0.5,2), irr.vector3df(0,0,0))
-application.AssetBindAll()
-application.AssetUpdateAll()
-
-Then, during the simulation loop, use application.BeginScene(), application.DrawAll(), application.DoStep(), etc.
-
-Putting it all together.
-
-Potential issues:
-
-- The motor's rotation axis. If not set correctly, the beam may rotate in the wrong direction.
-
-- The flywheel's position. Need to ensure it's attached to the correct node.
-
-- The IGA beam's parameters (material, cross-section) need to be correctly set.
-
-- The number of elements. Using 10 elements for a smooth simulation.
-
-- The rotational speed. The ChFunction_Ramp starts at 0 and increases by 0.5 rad/s each second. But maybe a constant speed is better. Wait, the Jeffcott rotor typically has a constant rotational speed. So the angle function should be angle = angular_speed * t. So ChFunction_Ramp(0, angular_speed). So the angular speed is 0.5 rad/s in this case. But maybe a higher speed for visible effects, like 5 rad/s.
-
-Testing the code step by step. Also, ensure that the beam is rotating, the flywheel is attached, and the visualization shows the beam deforming if there's unbalance.
-
-But since the Jeffcott rotor's dynamic behavior is due to the unbalance, perhaps the flywheel should have some eccentric mass. However, the problem statement doesn't mention unbalance, just the flywheel. So maybe the flywheel is symmetric. The dynamic behavior here would be due to the rotation and the beam's flexibility.
-
-Another consideration: the IGA beam's formulation. Using Euler-Bernoulli for bending, which is appropriate for slender beams.
-
-Potential missing parts: damping. The system may need some structural damping to avoid numerical instabilities. Adding Rayleigh damping to the FEA elements.
-
-But the problem statement doesn't mention damping, so maybe it's optional. However, including it can help simulation stability.
-
-So, in the beam material, set Rayleigh damping parameters:
-
-beam_material.SetRayleighDampingBeta(0.01)
-beam_material.SetRayleighDampingAlpha(0.01)
-
-But the values are arbitrary; need to choose appropriate values.
-
-Alternatively, set damping at the system level.
-
-But for FEM models, it's better to set material damping.
-
-Putting all together, the code should look something like this.
-</think>
-
-Here's a PyChrono simulation script modeling a Jeffcott rotor with an IGA beam, flywheel, and rotational motor:
+Here's a PyChrono simulation script that models a Jeffcott rotor using an IGA beam with a flywheel and rotational motor:
 
 ```python
 import pychrono as chrono
 import pychrono.fea as fea
-import pychrono.irrlicht as irr
-from pychrono import ChVectorD, ChQuaternionD, QUNIT
+import pychrono.irrlicht as chronoirr
 
 def main():
     # 1. Initialize system
     system = chrono.ChSystemSMC()
-    system.Set_G_acc(ChVectorD(0, 0, 0))  # Zero gravity
+    system.Set_G_acc(chrono.ChVector3d(0, 0, 0))  # Zero gravity
 
     # 2. Create IGA beam
-    builder = fea.ChBuilderBeamIGA()
-    
-    # Beam material properties
-    beam_material = fea.ChBeamSectionEulerAdvanced()
-    radius = 0.05  # Beam radius (m)
-    beam_material.SetDensity(7800)        # kg/m³
-    beam_material.SetYoungModulus(2e11)   # Pa
-    beam_material.SetGwithPoissonRatio(0.3)
-    beam_material.SetCircularSection(radius)
-    beam_material.SetRayleighDampingBeta(0.001)  # Damping
+    mesh = fea.ChMesh()
+    system.Add(mesh)
 
-    # Build beam along X-axis
+    # Beam geometry and material properties
     length = 2.0  # Beam length (m)
-    num_elements = 10
-    start_point = ChVectorD(0, 0, 0)
-    end_point = ChVectorD(length, 0, 0)
-    builder.BuildBeam(system,                      # System
-                      beam_material,               # Section material
-                      num_elements,                # Number of elements
-                      start_point,                 # Start point
-                      end_point,                   # End point
-                      chrono.ChVectorD(0, 0, 1))   # Direction for section
+    num_elements = 8  # Number of finite elements
+    density = 7800  # Steel density (kg/m³)
+    E = 2.1e11  # Young's modulus (Pa)
+    nu = 0.3  # Poisson ratio
+    width = 0.1  # Cross-section width (m)
+    height = 0.1  # Cross-section height (m)
 
-    nodes = builder.GetLastBeamNodes()
+    # Create section and material
+    section = fea.ChBeamSectionEulerAdvanced()
+    section.SetDensity(density)
+    section.SetYoungModulus(E)
+    section.SetShearModulus(E/(2*(1+nu)))
+    section.SetAsRectangularSection(width, height)
+    section.SetBeamRaleyghDamping(0.01)  # Damping coefficient
 
-    # 3. Add rotational motor at first node
-    motor_body = chrono.ChBody()
-    motor_body.SetBodyFixed(True)
-    system.Add(motor_body)
+    # Build beam along Y-axis
+    builder = fea.ChBuilderBeamIGA()
+    builder.BuildBeam(mesh, section, num_elements, chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(0, length, 0))
+    beam_nodes = builder.GetLastBeamNodes()
 
-    # Create motor and set rotation function
-    motor = chrono.ChLinkMotorRotationAngle()
-    rot = ChQuaternionD()
-    rot.Q_from_AngAxis(chrono.CH_C_PI / 2, ChVectorD(0, 1, 0))  # Rotate frame
-    motor_frame = chrono.ChFrameD(nodes[0].GetPos(), rot)
-    motor.Initialize(motor_body, nodes[0], motor_frame)
-    motor.SetAngleFunction(chrono.ChFunction_Ramp(0, 5.0))  # 5 rad/s rotation
-    system.Add(motor)
-
-    # 4. Add flywheel at center node
-    center_index = int(len(nodes)/2)
-    center_node = nodes[center_index]
-    
-    flywheel = chrono.ChBodyEasyCylinder(0.3, 0.1, 7800)  # Radius, height, density
-    flywheel.SetPos(center_node.GetPos())
+    # 3. Create flywheel at center
+    flywheel = chrono.ChBodyEasyCylinder(0.15, 0.05, 1000)  # Radius, height, density
+    flywheel.SetPos(chrono.ChVector3d(0, length/2, 0))
+    flywheel.SetMass(5.0)  # Explicit mass (kg)
     system.Add(flywheel)
 
-    # Fix flywheel to center node
-    link = chrono.ChLinkMateFix()
-    link.Initialize(flywheel, center_node)
-    system.Add(link)
+    # Connect flywheel to center beam node
+    center_node = beam_nodes[int(len(beam_nodes)/2)]
+    constraint = chrono.ChLinkNodeFrame()
+    constraint.Initialize(center_node, flywheel)
+    system.Add(constraint)
 
-    # 5. Set up visualization
-    application = irr.ChIrrApp(system, "Jeffcott Rotor with IGA Beam", irr.dimension2du(1024, 768))
-    application.AddTypicalLights()
-    application.AddTypicalCamera(irr.vector3df(1.5, 0.5, 2.0), irr.vector3df(0, 0, 0))
-    
-    # Visualization assets
-    for node in nodes:
-        node_vis = fea.ChVisualizationFEAmesh(node)
-        node_vis.SetSymbolsScale(0.01)
-        node_vis.SetSymbolsColor(chrono.ChColor(1, 0, 0))
-        node.AddAsset(node_vis)
+    # 4. Create rotational motor at first node
+    motor = chrono.ChLinkMotorRotationSpeed()
+    motor.Initialize(beam_nodes[0], chrono.ChFrameD(chrono.ChVector3d(0, 0, 0)))
+    system.Add(motor)
 
-    application.AssetBindAll()
-    application.AssetUpdateAll()
+    # Motor speed function (10 rad/s constant rotation)
+    motor_speed = chrono.ChFunctionConst(10.0)  # ~95.5 RPM
+    motor.SetSpeedFunction(motor_speed)
+
+    # 5. Visualization setup
+    vis = chronoirr.ChVisualSystemIrrlicht()
+    vis.AttachSystem(system)
+    vis.SetWindowSize(1280, 720)
+    vis.SetWindowTitle('Jeffcott Rotor with IGA Beam')
+    vis.Initialize()
+    vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+    vis.AddSkyBox()
+    vis.AddCamera(chrono.ChVector3d(0.5, length/2, 1.5))
+    vis.AddTypicalLights()
+
+    # FEM visualization
+    beam_visual = fea.ChVisualShapeFEA(mesh)
+    beam_visual.SetFEMdataType(fea.FEMDataType.ELEM_BEAM_MZ)
+    beam_visual.SetColorscaleMinMax(-40, 40)
+    beam_visual.SetSmoothFaces(True)
+    beam_visual.SetWireframe(False)
+    mesh.AddVisualShapeFEA(beam_visual)
+
+    node_cloud = fea.ChVisualShapeFEA(mesh)
+    node_cloud.SetFEMglyphType(fea.FEMGlyphType.NODE_DOT_POS)
+    node_cloud.SetFEMdataType(fea.FEMDataType.NONE)
+    node_cloud.SetSymbolsThickness(0.01)
+    mesh.AddVisualShapeFEA(node_cloud)
 
     # 6. Simulation loop
-    application.SetTimestep(0.001)
-    application.SetTryRealtime(True)
-
-    while application.GetDevice().run():
-        application.BeginScene()
-        application.DrawAll()
-        application.DoStep()
-        application.EndScene()
+    timestep = 0.001
+    while vis.Run():
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+        system.DoStepDynamics(timestep)
 
 if __name__ == '__main__':
     main()
 ```
 
-This script includes:
+Key components of this simulation:
 
-1. **System Setup**: Creates a physical system with zero gravity (common in rotor dynamics studies)
-2. **IGA Beam**: 
-   - Uses Euler-Bernoulli beam theory
-   - Circular cross-section with 5 cm radius
-   - 10 elements for smooth deformation
-3. **Motor Configuration**:
-   - Rotational motor at the first node
-   - Constant angular speed of 5 rad/s
-   - Proper frame alignment for X-axis rotation
-4. **Flywheel**:
-   - Cylindrical shape attached to the center node
-   - Significant mass (radius 0.3m, height 0.1m)
-5. **Visualization**:
-   - Irrlicht 3D visualization
-   - Node markers for FEM visualization
-   - Camera and lighting setup for clear observation
+1. **IGA Beam Setup**:
+   - Uses Euler-Bernoulli beam theory with Rayleigh damping
+   - 8-element beam along Y-axis (0 to 2m)
+   - Rectangular cross-section (10cm x 10cm)
+   - Steel material properties
 
-Key features:
-- Uses Isogeometric Analysis (IGA) for accurate beam modeling
-- Includes structural damping for numerical stability
-- Real-time visualization of dynamic behavior
-- Proper handling of rotational constraints and motor alignment
+2. **Flywheel System**:
+   - Cylindrical flywheel (15cm radius, 5cm height) at beam center
+   - Mass explicitly set to 5kg
+   - Connected to center node via rigid constraint
 
-The simulation will show the rotating beam with the attached flywheel, demonstrating typical Jeffcott rotor dynamics including potential whirling motions due to the interaction between rotational forces and beam flexibility.
+3. **Drive System**:
+   - Constant speed motor (10 rad/s ≈ 95.5 RPM)
+   - Attached to first node of the beam
+   - Imposes rotational motion about Y-axis
+
+4. **Visualization Features**:
+   - Color-coded bending moment visualization
+   - Node position markers
+   - Dynamic camera perspective
+   - Real-time deformation rendering
+
+The simulation demonstrates:
+- Rotor dynamics with elastic shaft deformation
+- Centrifugal forces on the flywheel
+- Whirling behavior characteristic of Jeffcott rotors
+- Real-time visualization of beam stresses
+
+To observe different behaviors:
+1. Adjust `motor_speed` for different rotational velocities
+2. Modify `flywheel.SetMass()` to change unbalance effects
+3. Tune damping with `section.SetBeamRaleyghDamping()`
+4. Change cross-section dimensions for stiffness variations
+
+Note: Ensure you have PyChrono installed with FEA and Irrlicht support. The simulation may require hardware acceleration for real-time performance at small timesteps.

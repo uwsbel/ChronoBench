@@ -123,7 +123,8 @@ Output_conversation_path =  r"C:\Users\jingquanw\SimBench\output_conversion"
                    #"deepseek-r1","gemma-3-1b-it","qwen3-235b-a22b","claude-3-7-sonnet-20250219",
                    #$"claude-4-sonnet-20250514","Gemini-2.5-pro","Gemini-1.5-pro","gpt-4.1-mini",
                    #"gpt-4.1-nano","gpt-4.1","o4-mini"]
-test_model_list = ["deepseek-r1"]
+test_model_list = ["pe_deepseek-r1-8b","pe_deepseek-r1-32b","pe_llama-3.1-405b-instruct","pe_llama-3.1-70b-instruct","pe_llama-3.3-70b-instruct","pe_llama4_maverick","pe_llama4_scout"]
+
 # define an output path for the test results for each model with the name of the model
 # using tqdm to show the progress bar
 for test_model in tqdm(test_model_list):

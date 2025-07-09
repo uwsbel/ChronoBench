@@ -1,0 +1,117 @@
+import os
+import math
+import numpy as np
+import chrono as chrono
+from chrono import robot, irrlicht, vehicle
+
+# Library Imports
+os.system('cls' if os.name == 'nt' else 'clear')  # Clear the terminal for better readability
+import math
+import numpy as np
+import chrono as chrono
+from chrono import robot, irrlicht, vehicle
+
+# Contact and Collision Settings
+chrono.SetChronoDataPath('/path/to/data')  # Set the path to Chrono's data directory
+material_nsc = chrono.ChContactMaterialNSC()  # Create a material for non-smooth contact interactions
+material_nsc.SetFriction(0.5)  # Define the coefficient of friction
+material_nsc.SetDampingF(0.1)  # Set the damping factor
+material_nsc.SetCompliance(0.01)  # Set compliance in the normal direction
+
+# Visualization Settings
+vis = irrlicht.ChVisualSystemIrrlicht()  # Create an Irrlicht-based visualization system
+vis.AttachSystem(sys)  # Link the physical system to the visualization
+vis.SetWindowSize(1024, 768)  # Configure the size of the visualization window
+vis.SetWindowTitle('Simulation Window')  # Set the title of the visualization window
+vis.Initialize()  # Prepare the visualization system
+
+# Body Initialization
+body = chrono.ChBody()  # Basic rigid body with default properties
+body.SetPos(chrono.ChVector3d(0, 0, 0))  # Set the initial position of the body
+body.SetMass(100)  # Define the mass of the body
+body.SetInertiaXX(chrono.ChVector3d(10, 10, 10))  # Set the inertia tensor
+body.EnableCollision(True)  # Enable collision detection
+
+# Joints and Links
+joint = chrono.ChLinkTSDA()  # Create a TSDA (Translational Spring Damper with Axial) joint
+joint.Initialize(body, chrono.ChCoordsysD(chrono.ChVector3d(0, 0, 0), chrono.QUNIT))  # Initialize the joint
+joint.SetSpringK(1000)  # Set the spring constant
+joint.SetDampingC(10)  # Set the damping coefficient
+joint.SetSpringD(0.01)  # Set the spring stiffness
+
+# Simulation Loop
+sys.Add(body)  # Add the body to the simulation
+sys.Add(joint)  # Add the joint to the simulation
+while vis.Run():  # Run the simulation until the visualization window is closed
+    sys.DoStepDynamics(0.01)  # Advance the simulation by the specified time step
+    vis.BeginScene()  # Begin rendering a new frame
+    vis.Render()  # Render the current state of the scene
+    vis.EndScene()  # End the frame
+
+# Additional Utilities
+def report_contact(pA, pB, plane_coord, distance, eff_radius, cforce, ctorque, modA, modB):
+    print(f"Contact between body {pA} and body {pB} at position {pA} with plane {plane_coord}, distance {distance}, and effective radius {eff_radius}")
+
+sys.GetContactContainer().RegisterAddContactCallback(report_contact)  # Register the contact callback
+
+# Pipeline for Generating New Simulations
+def generate_simulation():
+    sys = chrono.ChSystemNSC()  # Initialize the simulation system
+    body = chrono.ChBody()  # Create a rigid body
+    joint = chrono.ChLinkTSDA()  # Create a TSDA joint
+    joint.Initialize(body, chrono.ChCoordsysD(chrono.ChVector3d(0, 0, 0), chrono.QUNIT))  # Initialize the joint
+    sys.Add(body)  # Add the body to the simulation
+    sys.Add(joint)  # Add the joint to the simulation
+    return sys, body, joint
+
+# Example Simulations
+def beam_simulation():
+    sys = chrono.ChSystemSMC()  # Initialize the simulation system
+    mesh = chrono.ChMesh()  # Create a mesh
+    msection = chrono.ChBeamSectionEulerAdvanced()  # Create a beam section
+    msection.SetAsRectangularSection(1, 1)  # Set the beam section dimensions
+    msection.SetYoungModulus(0.01e9)  # Set the Young's modulus
+    msection.SetShearModulus(0.01e9 * 0.3)  # Set the shear modulus
+    msection.SetRayleighDamping(0.000)  # Set the Rayleigh damping
+    hnode1 = chrono.ChNodeFEAxyzrot(chrono.ChFramed(chrono.ChVector3d(0, 0, 0)))  # Create a node
+    hnode2 = chrono.ChNodeFEAxyzrot(chrono.ChFramed(chrono.ChVector3d(1, 0, 0)))  # Create a node
+    mesh.AddNode(hnode1)  # Add the node to the mesh
+    mesh.AddNode(hnode2)  # Add the node to the mesh
+    belement1 = chrono.ChElementBeamEuler()  # Create a beam element
+    belement1.SetNodes(hnode1, hnode2)  # Set the nodes of the beam element
+    belement1.SetSection(msection)  # Set the beam section
+    mesh.AddElement(belement1)  # Add the beam element to the mesh
+    return sys, mesh
+
+def shaker_table_simulation():
+    sys = chrono.ChSystemNSC()  # Initialize the simulation system
+    body_table = chrono.ChBody()  # Create a rigid body
+    body_table.SetPos(chrono.ChVector3d(0, -1, 0))  # Set the position of the body
+    body_table_shape = chrono.ChVisualShapeBox(1, 1, 1)  # Create a visual shape
+    body_table.AddVisualShape(body_table_shape)  # Add the visual shape to the body
+    sys.Add(body_table)  # Add the body to the simulation
+    link_shaker = chrono.ChLinkLockLock()  # Create a lock joint
+    link_shaker.Initialize(body_table, body_floor, chrono.ChFramed())  # Initialize the joint
+    sys.Add(link_shaker)  # Add the joint to the simulation
+    mfunY = chrono.ChFunctionSine(0.001, 1.5)  # Create a sine function
+    link_shaker.SetMotionY(mfunY)  # Set the motion of the joint
+    return sys, body_table, link_shaker
+
+def robosimian_simulation():
+    sys = chrono.ChSystemSMC()  # Initialize the simulation system
+    robot = robosimian.RoboSimian(sys, True, True)  # Create a RoboSimian robot
+    robot.Initialize(chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QuatFromAngleX(chrono.CH_PI)))  # Initialize the robot
+    driver = robosimian.RS_Driver(..., ..., ..., True)  # Create a driver
+    robot.SetDriver(driver)  # Set the driver
+    return sys, robot
+
+def artcar_simulation():
+    car = veh.ARTcar()  # Create an ARTcar
+    car.SetContactMethod(contact_method)  # Set the contact method
+    car.SetChassisCollisionType(chassis_collision_type)  # Set the chassis collision type
+    car.SetInitPosition(chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT))  # Set the initial position
+    car.Initialize()  # Initialize the car
+    terrain = veh.RigidTerrain(car.GetSystem())  # Create a terrain
+    patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), terrainLength, terrainWidth)  # Add a patch to the terrain
+    terrain.Initialize()  # Initialize the terrain
+    return car, terrain
