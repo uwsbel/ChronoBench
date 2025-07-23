@@ -6,10 +6,13 @@ from tqdm import tqdm
 import pandas as pd
 from concurrent.futures import ProcessPoolExecutor, as_completed
 
-# Define paths
-dataset_path = 'D:/SimBench/demo_data'
-output_path = 'D:/SimBench/output'
-output_statistic_path = 'D:/SimBench/statistic'
+DATA_ROOT                  = Path("/lustre/fsw/coreai_nvfm_cupilot/jingquanw/SimBench")
+dataset_path               = DATA_ROOT / "demo_data"
+Output_path                = DATA_ROOT / "output_llms"
+Output_conversation_path   = DATA_ROOT / "output_conversion"
+test_model_list            = ["llama3.1-8b-f2"]
+Output_path.mkdir(exist_ok=True, parents=True)
+Output_conversation_path.mkdir(exist_ok=True, parents=True)
 
 # List of models and systems to evaluate
 test_model_list = [
