@@ -1,0 +1,167 @@
+import pychrono as chrono
+import pychrono.irrlicht as irr
+import pychrono.cascade as cascade
+import math as m
+import random as rand
+from OCC.Core import BRepPrimAPI
+from OCC.Core import BRepAlgoAPI
+from OCC.Core import TopoDS
+
+# The path to the Chrono data directory containing various assets (meshes, textures, data files)
+# is automatically set, relative to the default location of this demo.
+# If running from a different directory, you must change the path to the data directory with: 
+#chrono.SetChronoDataPath('path/to/data')
+
+# If true, use provided callback to change particle properties on the fly
+change_particles = False
+
+# =============================================================================
+
+def main() : 
+    #print("Copyright (c) 2017 projectchrono.org\nChrono version: ", CHRONO_VERSION , "\n\n")
+
+    # --------------------------
+    # Create the simulation system
+    # --------------------------
+
+    sys = chrono.ChSystemNSC()
+    sys.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+    sys.SetGravitationalAcceleration(chrono.ChVector3d(0,0,-9.81))
+    sys.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
+    sys.GetSolver().AsIterative().SetMaxIterations(150)
+    sys.SetMaxPenetrationRecoverySpeed(4.0)
+
+    # -------------------------------------
+    # create a large cube as a rigid body
+    # -------------------------------------
+
+    cube = cascade.CastToCascadeShape(TopoDS.TopoDS_Shape())
+    cascade.Primitives_CreateBox(cube, 10, 10, 10)
+    cube.SetMass(0)
+    cube.SetFixed(False)
+    cube.SetPos(chrono.ChVector3d(0,0,5))
+    cube.SetRot(chrono.ChQuaterniond(1,0,0,0))
+
+    mcoll = chrono.ChCollisionModelNSC()
+    mcoll.SetShapeType(chrono.ChCollisionShape.Type_BULLET)
+    mcoll.SetMargin(0.0025)
+    cube_collision = chrono.ChCollisionShapeBullet(cube, mcoll)
+
+    body = chrono.ChBody()
+    body.SetName("large_cube")
+    body.AddCollisionShape(cube_collision)
+    body.AddVisualShape(cascade.ChVisualShapeCascadeShape(cube))
+    sys.Add(body)
+
+    # -----------------------
+    # create a particle emitter
+    # -----------------------
+    offset_pose = chrono.ChFramed(
+        chrono.ChVector3d(0, 0, 1.5), chrono.ChQuaterniond(1, 0, 0, 0))
+    emitter = cascade.ChCascadeParticleEmitterRelative(offset_pose, 0.05)
+
+    # use a mix of shapes (spheres, boxes, meshes) to increase visual diversity
+    shape_prob = [0.5, 0.3, 0.2]
+    shape_list = [cascade.ChCascadeShapeData.BULLET_SPHERE, cascade.ChCascadeShapeData.BULLET_BOX, 
+                  cascade.ChCascadeShapeData.CASCADE_PRIMITIVES_BOX]
+
+    # set the maximum number of particles the emitter can output per second
+    # this is an important parameter as it regulates how dense the particle cloud is
+    # a high value means a dense cloud, while a low value means a scattered cloud
+    max_particles_per_second = 1000
+
+    # create the particle system
+    system = cascade.ChCascadeParticleSystem(sys)
+    system.SetGravitationalForceType(cascade.ChCascadeParticleSystem.GRAVITY_TYPE_SIMULATED)
+    system.SetEmissiveColor(chrono.ChColor(0, 0, 0))
+    system.SetParticleRadius(0.01)
+    system.SetLifespan(0.5)
+    system.SetDragType(cascade.ChCascadeParticleSystem.DRAG_TYPE_NONE)
+    system.Initialize()
+
+    # -----------------------
+    # create the vis system
+    # -----------------------
+    vis = cascade.ChCascadeVisualSystemIrrlicht()
+    vis.SetWindowTitle('Particle Emitter')
+    vis.SetWindowSize(1280, 1024)
+    vis.SetChaseCamera(chrono.ChVector3d(0.0, 0.0, 1.75), 6.0, 0.5)
+    vis.Initialize()
+    vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+    vis.AddLightDirectional()
+    vis.AddSkyBox()
+    vis.AttachSystem(sys)
+
+    # ---------------
+    # callback function
+    # ---------------
+    def change_particle_properties(particle, time):
+        # change particle color based on its y position
+        r = m.fabs(m.sin(particle.GetPos().y) * 0.5 + 0.5)
+        g = m.fabs(m.cos(particle.GetPos().x) * 0.5 + 0.5)
+        b = 0.3
+        particle.SetEmissiveColor(chrono.ChColor(r,g,b))
+        particle.SetPos(emitter.GetOffsetPose() * chrono.ChVector3d(0.1, 0.1, 0.1))
+
+    # -----------------------
+    # run the simulation loop
+    # -----------------------
+    render_time = 0
+
+    sys.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
+    sys.GetSolver().AsIterative().SetMaxIterations(150)
+
+    while vis.Run() :
+        time = sys.GetChTime()
+
+        # render scene
+        if not vis.Run():
+            break
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+
+        # get the emitter's offset pose
+        offset_pose = emitter.GetOffsetPose()
+
+        # add particles
+        num_particles = int(max_particles_per_second / 50)  # 50 ms = 1/20 fps
+        particles = []
+        for i in range(num_particles):
+            shape_id = rand.choices(range(len(shape_list)), weights=shape_prob)[0]
+            shape = cascade.ChCascadeShapeData(shape_list[shape_id]).createShape()
+            cascade.CastToCascadeShape(shape).SetData(cascade.ChCascadeShapeData.BULLET_PRIMITIVES_BOX, 0.02, 0.02, 0.02)
+            particle = cascade.ChCascadeParticle(shape, offset_pose)
+            particle.SetLifespan(1.0 / max_particles_per_second)
+            particle.SetPos(chrono.ChVector3d(0.1, 0.1, 0.1))
+            particle.SetDragType(cascade.ChCascadeParticle.DRAG_TYPE_NONE)
+            particle.SetEmissiveColor(chrono.ChColor(0.5, 0.5, 0.3))
+            system.AddParticle(particle)
+            particles.append(particle)
+
+        # update particles
+        system.Update()
+
+        # advance simulation for one timestep for all bodies in the system
+        sys.DoStepDynamics(0.05)
+
+        # check for null body pointers (should never happen, but need for safety)
+        sys.CheckForNullBodyPointers()
+
+        # advance state of both vis and physics systems
+        vis.Synchronize(time)
+        emitter.Synchronize(time)
+
+        if change_particles:
+            for particle in particles:
+                change_particle_properties(particle, time)
+
+    return 0
+
+
+# The path to the Chrono data directory containing various assets (meshes, textures, data files)
+# is automatically set, relative to the default location of this demo.
+# If running from a different directory, you must change the path to the data directory with: 
+#chrono.SetChronoDataPath('path/to/data')
+
+main()
