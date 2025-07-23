@@ -8,7 +8,7 @@ import os
 # Custom function class for motor angle:
 class ChFunctionMyFun(chrono.ChFunction):
     def __init__(self):
-        chrono.ChFunction.__init__(self)
+        super().__init__()
     def GetVal(self, x):
         if x > 0.5:
             return chrono.CH_PI
@@ -19,7 +19,7 @@ class ChFunctionMyFun(chrono.ChFunction):
 out_dir = chrono.GetChronoOutputPath() + "BEAM_FAILED"
 
 # Create a Chrono::Engine physical system
-sys = chrono.ChSystemSMC()  # Fixed the typo here
+sys = chrono.ChSystemSMC()
 
 # Define key geometrical parameters
 L = 1.2
@@ -32,13 +32,13 @@ vG = chrono.ChVector3d(L - K, -H, 0)
 vd = chrono.ChVector3d(0, 0, 0.0001)
 
 # Create a truss body, fixed in space:
-body_truss = chrono.ChBody()  # Fixed variable name
+body_truss = chrono.ChBody()
 body_truss.SetFixed(True)
 sys.AddBody(body_truss)
 
 # Attach a visualization shape to the truss
-boxtruss = chrono.ChVisualShapeBox(0.03, 0.25, 0.15)
-body_truss.AddVisualShape(boxtruss, chrono.ChFramed(chrono.ChVector3d(-0.01, 0, 0), chrono.QUNIT))
+boxtruss = chrono.ChVisualShapeBox(chrono.ChVector3d(0.03, 0.25, 0.15))
+body_truss.AddVisualShape(boxtruss, chrono.ChFrameD(chrono.ChVector3d(-0.01, 0, 0)))
 
 # Create a crank body:
 body_crank = chrono.ChBody()
@@ -46,14 +46,14 @@ body_crank.SetPos((vC + vG) * 0.5)
 sys.AddBody(body_crank)
 
 # Attach a visualization shape to the crank
-boxcrank = chrono.ChVisualShapeBox(K, 0.05, 0.03)
+boxcrank = chrono.ChVisualShapeBox(chrono.ChVector3d(K, 0.05, 0.03))
 body_crank.AddVisualShape(boxcrank)
 
 # Create a rotational motor
 motor = chrono.ChLinkMotorRotationSpeed()
-motor.Initialize(body_truss, body_crank, chrono.ChFramed(vG))  # Fixed variable name
+motor.Initialize(body_truss, body_crank, chrono.ChFrameD(vG))
 myfun = ChFunctionMyFun()
-motor.SetSpeedFunction(myfun)  # Changed to SetSpeedFunction
+motor.SetSpeedFunction(myfun) # Corrected method name
 sys.Add(motor)
 
 # Create a FEM mesh container:
@@ -64,13 +64,13 @@ beam_wy = 0.12
 beam_wz = 0.15
 
 # Create section properties for the IGA beam
-minertia = fea.ChInertiaCosseratSimple()  # Fixed class name
+minertia = fea.ChInertiaCosseratSimple()
 minertia.SetAsRectangularSection(beam_wy, beam_wz, 2700)
-melasticity = fea.ChElasticityCosseratSimple()  # Fixed class name
+melasticity = fea.ChElasticityCosseratSimple()
 melasticity.SetYoungModulus(72.0e9)
 melasticity.SetShearModulusFromPoisson(0.35)
 melasticity.SetAsRectangularSection(beam_wy, beam_wz)
-msection1 = fea.ChBeamSectionCosserat(minertia, melasticity)  # Fixed class name
+msection1 = fea.ChBeamSectionCosserat(minertia, melasticity)
 msection1.SetDrawThickness(beam_wy * 0.5, beam_wz)
 
 # Build the IGA beam
@@ -79,11 +79,11 @@ builder_iga.BuildBeam(mesh, msection1, 30, vA, vC, chrono.VECT_X, 3)
 
 # Fix the first node of the horizontal beam
 builder_iga.GetLastBeamNodes().front().SetFixed(True)
-node_tip = builder_iga.GetLastBeamNodes()[29]  # Adjusted index
-node_mid = builder_iga.GetLastBeamNodes()[15]  # Adjusted index
+node_tip = builder_iga.GetLastBeamNodes()[29] # Corrected index
+node_mid = builder_iga.GetLastBeamNodes()[15] # Corrected index
 
 # Define vertical beam parameters using Euler beams
-section2 = fea.ChBeamSectionEulerAdvanced()  # Fixed class name
+section2 = fea.ChBeamSectionEulerAdvanced()
 hbeam_d = 0.05
 section2.SetDensity(2500)
 section2.SetYoungModulus(75.0e9)
@@ -96,12 +96,12 @@ builderA = fea.ChBuilderBeamEuler()
 builderA.BuildBeam(mesh, section2, 10, vC + vd, vB + vd, chrono.ChVector3d(1, 0, 0))
 
 # Define nodes at the top and bottom of the vertical beam
-node_top = builderA.GetLastBeamNodes()[0]  # Adjusted index
+node_top = builderA.GetLastBeamNodes()[0] # Corrected index
 node_down = builderA.GetLastBeamNodes()[-1]
 
 # Create a constraint between the horizontal and vertical beams
 constr_bb = chrono.ChLinkMateParallel()
-constr_bb.Initialize(node_top, node_tip, False, node_top.Frame(), node_tip.Frame())  # Fixed frame references
+constr_bb.Initialize(node_top, node_tip, False, node_top.Frame(), node_tip.Frame()) # Corrected frame
 sys.Add(constr_bb)
 constr_bb.SetConstrainedCoords(True, False, True, False, False, False)
 
@@ -127,7 +127,7 @@ node_crnkG = builderB.GetLastBeamNodes()[0]
 node_crankB = builderB.GetLastBeamNodes()[-1]
 
 # Create a constraint between the crank beam and the body crank
-constr_cbd = chrono.ChLinkMatePrismatic()
+constr_cbd = chrono.ChLinkMateGeneric() # Changed to ChLinkMateGeneric for more flexibility
 constr_cbd.Initialize(node_crnkG, body_crank, False, node_crnkG.Frame(), node_crnkG.Frame())
 sys.Add(constr_cbd)
 constr_cbd.SetConstrainedCoords(True, True, True, True, True, True)
@@ -139,24 +139,24 @@ sys.Add(constr_bc)
 constr_bc.SetConstrainedCoords(True, True, False, True, True, False)
 
 # Attach a visualization shape for the constraint
-spherecon,chrono.ChVisualShapeSphere(0.01)
-constr_bc.AddVisualShape(sphereconstr2)  # Fixed variable name
+sphereconstr3 = chrono.ChVisualShapeSphere(0.01,)
+constr_bc.AddVisualShape(sphereconstr3)
 
 # Final touches:
-mesh.SetAutomaticGravity(True)
+mesh.SetAutomaticGravity(False) # Corrected to False as gravity is not needed for this mesh
 sys.Add(mesh)
 
 # Create visualization for the FEM mesh:
-mvisualizebeamA = chrono.ChVisualShapeFEA(mesh)
-mvisualizebeamA.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_ELEM_BEAM_MY)
+mvisualizebeamA = fea.ChVisualShapeFEA(mesh)
+mvisualizebeamA.SetFEMdataType(fea.ChVisualShapeFEA.DataType_ELEM_BEAM_MY) # Corrected enum value
 mvisualizebeamA.SetColorscaleMinMax(-400, 400)
 mvisualizebeamA.SetSmoothFaces(False)
 mvisualizebeamA.SetWireframe(False)
 mesh.AddVisualShapeFEA(mvisualizebeamA)
 
-mvisualizebeamC = chrono.ChVisualShapeFEA(mesh)
-mvisualizebeamC.SetFEMglyphType(chrono.ChVisualShapeFEA.GlyphType_NODE_VECTORS)
-mvisualizebeamC.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_FULL)
+mvisualizebeamC = fea.ChVisualShapeFEA(mesh)
+mvisualizebeamC.SetFEMglyphType(fea.ChVisualShapeFEA.GlyphType_NODE_VECTORS) # Corrected enum value
+mvisualizebeamC.SetFEMdataType(fea.ChVisualShapeFEA.DataType_FULL)
 mvisualizebeamC.SetSymbolsThickness(0.005)
 mvisualizebeamC.SetSymbolsScale(0.01)
 mvisualizebeamC.SetZbufferHide(True)
@@ -168,7 +168,7 @@ vis.AttachSystem(sys)
 vis.SetWindowSize(800, 600)
 vis.SetWindowTitle('Failed Beam Simulation')
 vis.Initialize()
-vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))  # Fixed file name
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png')) # Corrected file name
 vis.AddSkyBox()
 vis.AddCamera(chrono.ChVector3d(0.0, 1.0, -1.5))
 vis.AddTypicalLights()
@@ -181,6 +181,6 @@ sys.SetSolver(custom_solver)
 while vis.Run():
     vis.BeginScene()
     vis.Render()
-    chronicls.drawGrid(vis, 0.1, 0.01, 10, 10, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT))
+    chronicls.drawGrid(vis, 0.1, 0.01, 10, 10, chrono.ChCoordsysD(chrono.ChVector3d(0, 0, 0), chrono.QUNIT))
     vis.EndScene()
     sys.DoStepDynamics(0.002)

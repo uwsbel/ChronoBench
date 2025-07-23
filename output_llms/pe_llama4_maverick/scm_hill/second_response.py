@@ -6,9 +6,7 @@ import numpy as np
 import math
 import random
 
-"""
-!!!! Set this path before running the demo!
-"""
+# Set path to Chrono data
 chrono.SetChronoDataPath('/path/to/chrono/data')  # Update this path
 veh.SetDataPath('/path/to/chrono/data/vehicle/')  # Update this path
 
@@ -75,17 +73,14 @@ terrain.SetSoilParameters(2e6,   # Bekker Kphi
 )
 
 terrain.AddMovingPatch(vehicle.GetChassisBody(), chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(5, 3, 1))
-
 terrain.SetPlotType(veh.SCMTerrain.PLOT_SINKAGE, 0, 0.1)
-
 terrain.Initialize(veh.GetDataFile("terrain/height_maps/bump64.bmp"), 40, 40, -1, 1, 0.02)
-
 terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
 
 # Create obstacles
 for _ in range(5):
-    body = chrono.ChBodyEasyBox(random.uniform(1, 5), random.uniform(1, 5), random.uniform(1, 5), 1000, True, True)
-    body.SetPos(chrono.ChVector3d(random.uniform(-20, 20), random.uniform(-20, 20), 1))
+    body = chrono.ChBodyEasyBox(random.uniform(1, 5), random.uniform(1, 3), random.uniform(1, 2), 1000, True, True)
+    body.SetPos(chrono.ChVector3d(random.uniform(-20, 20), random.uniform(-10, 10), 1))
     vehicle.GetSystem().Add(body)
 
 # Create the vehicle Irrlicht interface
@@ -106,24 +101,22 @@ driver.SetThrottleDelta(render_step_size / 1.0)
 driver.SetBrakingDelta(render_step_size / 0.3)
 driver.Initialize()
 
-# Create a sensor manager
+# Create the sensor manager
 manager = sens.ChSensorManager(vehicle.GetSystem())
 manager.scene.AddPointLight(chrono.ChVector3f(0, 0, 100), chrono.ChColor(1, 1, 1), 5000)
 
 # Add a lidar sensor to the vehicle
-offset_pose = chrono.ChFrameD(chrono.ChVector3d(.1, 0, 1), chrono.Q_from_AngAxis(0, chrono.ChVector3d(0, 1, 0)))
-lidar = sens.ChLidarSensor(vehicle.GetChassisBody(), 10, chrono.ChFrameD(offset_pose), 100, chrono.CH_C_PI / 8., -chrono.CH_C_PI / 8.)
+lidar = sens.ChLidarSensor(vehicle.GetChassisBody(), 10, chrono.ChFrame(chrono.ChVector3d(0, 0, 1), chrono.Q_from_AngAxis(0, chrono.ChVector3d(0, 1, 0))),
+                           100,  # number of horizontal samples
+                           50,   # number of vertical channels
+                           1.0,  # horizontal field of view
+                           chrono.ChVector3d(0.5, 0.01, 0.01))  # vertical field of view
 lidar.SetName("Lidar Sensor")
-lidar.SetLag(0)
-lidar.SetCollectionWindow(0.01)
+lidar.PushFilter(sens.ChFilterDIAccess())
+lidar.PushFilter(sens.ChFilterVisualize(512, 512, 1.0))
 manager.AddSensor(lidar)
 
-# ---------------
 # Simulation loop
-# ---------------
-
-print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
-
 render_steps = math.ceil(render_step_size / step_size)
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0

@@ -5,7 +5,7 @@ import math
 
 
 chrono.SetChronoDataPath('/path/to/chrono/data')  
-veh.SetDataPath('/path/to/chrono/data/vehicle/')  
+veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 
 initLoc = chrono.ChVector3d(0, 0, 0.5)
@@ -40,7 +40,7 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  
 
 
-vehicle = veh.UAZBUS() 
+vehicle = veh.UAZBUS()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
@@ -62,8 +62,8 @@ patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-patch = terrain.AddPatch(patch_mat, 
-                         chrono.ChCoordsysd(chrono.ChVector3d(0, 0, terrainHeight), chrono.QUNIT), 
+patch = terrain.AddPatch(patch_mat,
+                         chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
                          terrainLength, terrainWidth)
 
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
@@ -72,16 +72,20 @@ terrain.Initialize()
 
 
 obstacle_body = chrono.ChBody()
-obstacle_body.SetBodyFixed(True)
 obstacle_body.SetPos(chrono.ChVector3d(5, 0, 0.1))
-box_shape = chrono.ChVisualShapeBox(0.5, 5, 0.2)
-obstacle_body.AddVisualShape(box_shape)
-vehicle.GetSystem().Add(obstacle_body)
+obstacle_body.SetBodyFixed(True)  
 
-box_collision_shape = chrono.ChCollisionShapeBox(0.5, 5, 0.2)
-box_collision_shape.SetContactMaterial(patch_mat)
-obstacle_body.AddCollisionShape(box_collision_shape)
+
+box_shape = chrono.ChVisualShapeBox(chrono.ChVector3d(0.25, 2.5, 0.1))
+obstacle_body.AddVisualShape(box_shape)
+
+
+obstacle_body.GetCollisionModel().ClearModel()
+obstacle_body.GetCollisionModel().AddBox(patch_mat, 0.25, 2.5, 0.1, chrono.ChVector3d(0, 0, 0))
+obstacle_body.GetCollisionModel().BuildModel()
 obstacle_body.EnableCollision(True)
+
+vehicle.GetSystem().Add(obstacle_body)
 
 
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
@@ -108,7 +112,7 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 
-print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 
 render_steps = math.ceil(render_step_size / step_size)
@@ -118,26 +122,29 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-while vis.Run() :
+while vis.Run():
     time = vehicle.GetSystem().GetChTime()
+
     
-    
-    if (step_number % render_steps == 0) :
+    if (step_number % render_steps == 0):
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
         render_frame += 1
 
     
-    driver_inputs = driver.GetInputs()
     
+    
+    driver_inputs = veh.Inputs()
     driver_inputs.m_throttle = 0.5  
+    driver_inputs.m_steering = driver.GetSteering()
+    driver_inputs.m_braking = driver.GetBraking()
 
     
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
-    vis.Synchronize(driver_inputs)
+    vis.Synchronize(time, driver_inputs)
 
     
     driver.Advance(step_size)
@@ -147,6 +154,5 @@ while vis.Run() :
 
     
     step_number += 1
-    
     
     realtime_timer.Spin(step_size)

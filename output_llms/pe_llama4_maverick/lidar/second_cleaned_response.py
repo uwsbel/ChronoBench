@@ -1,5 +1,6 @@
 import pychrono.core as chrono
 import pychrono.sensor as sens
+import pychrono.irrlicht as chronoirr  
 
 import numpy as np
 import time
@@ -96,7 +97,9 @@ def main():
         100.0,                  
         sens.LidarBeamShape_RECTANGULAR,  
         sample_radius,          
-        divergence_angle        
+        divergence_angle,       
+        divergence_angle,       
+        return_mode             
     )
     lidar.SetName("Lidar Sensor")
     lidar.SetLag(lag)
@@ -133,42 +136,41 @@ def main():
 
     
     lidar_2d = sens.ChLidarSensor(
-        box_body,              
-        update_rate,            
-        offset_pose,            
-        horizontal_samples,     
-        1,                      
-        horizontal_fov,         
-        0,                      
-        0,                      
-        100.0,                  
-        sens.LidarBeamShape_RECTANGULAR,  
-        sample_radius,          
-        divergence_angle        
+        box_body,
+        update_rate,
+        offset_pose,
+        horizontal_samples,
+        1,  
+        horizontal_fov,
+        0,  
+        0,  
+        100.0,
+        sens.LidarBeamShape_RECTANGULAR,
+        sample_radius,
+        divergence_angle,
+        divergence_angle,
+        return_mode
     )
     lidar_2d.SetName("2D Lidar Sensor")
     lidar_2d.SetLag(lag)
     lidar_2d.SetCollectionWindow(collection_time)
 
-    
+    if noise_model == "CONST_NORMAL_XYZI":
+        lidar_2d.PushFilter(sens.ChFilterLidarNoiseXYZI(0.01, 0.001, 0.001, 0.01))
+    elif noise_model == "NONE":
+        pass
+
     if vis:
-        
         lidar_2d.PushFilter(sens.ChFilterVisualize(horizontal_samples, 1, "Raw 2D Lidar Depth Data"))
 
-    
     lidar_2d.PushFilter(sens.ChFilterDIAccess())
-
-    
     lidar_2d.PushFilter(sens.ChFilterPCfromDepth())
 
     if vis:
-        
         lidar_2d.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "2D Lidar Point Cloud"))
 
-    
     lidar_2d.PushFilter(sens.ChFilterXYZIAccess())
 
-    
     manager.AddSensor(lidar_2d)
 
     
@@ -180,6 +182,16 @@ def main():
 
     render_time = 0
     t1 = time.time()
+
+    if vis:
+        vis_sys = chronoirr.ChVisualSystemIrrlicht()
+        vis_sys.AttachSystem(mphysicalSystem)
+        vis_sys.SetWindowSize(1024, 768)
+        vis_sys.SetWindowTitle('Lidar Simulation')
+        vis_sys.Initialize()
+        vis_sys.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+        vis_sys.AddSkyBox()
+        vis_sys.AddCamera(chrono.ChVector3d(0, 0, 10))
 
     while ch_time < end_time:
         
@@ -193,20 +205,11 @@ def main():
                 chrono.QuatFromAngleAxis(ch_time * orbit_rate, chrono.ChVector3d(0, 0, 1))
             )
         )
-        lidar_2d.SetOffsetPose(
-            chrono.ChFramed(
-                chrono.ChVector3d(
-                    -orbit_radius * math.cos(ch_time * orbit_rate),
-                    -orbit_radius * math.sin(ch_time * orbit_rate),
-                    1
-                ),
-                chrono.QuatFromAngleAxis(ch_time * orbit_rate, chrono.ChVector3d(0, 0, 1))
-            )
-        )
+        lidar_2d.SetOffsetPose(lidar.GetOffsetPose())
 
         
         xyzi_buffer = lidar.GetMostRecentXYZIBuffer()
-        if xyzi_buffer is not None and xyzi_buffer.HasData():
+        if xyzi_buffer.HasData():
             xyzi_data = xyzi_buffer.GetXYZIData()
             print('XYZI buffer received from lidar. Lidar resolution: {0}x{1}'.format(xyzi_buffer.Width, xyzi_buffer.Height))
             print('Max Value: {0}'.format(np.max(xyzi_data)))
@@ -219,6 +222,12 @@ def main():
 
         
         ch_time = mphysicalSystem.GetChTime()
+
+        if vis:
+            vis_sys.Run()
+            vis_sys.BeginScene()
+            vis_sys.Render()
+            vis_sys.EndScene()
 
     print("Sim time:", end_time, "Wall time:", time.time() - t1)
 

@@ -1,66 +1,85 @@
 import pychrono as chrono
 import pychrono.vehicle as veh
 import pychrono.irrlicht as chronoirr
-import math
 
-def main():
+
+initLoc = chrono.ChVector3d(0, 0, 1.0)
+initRot = chrono.ChQuaterniond(1, 0, 0, 0)
+
+
+step_size = 2e-3
+
+
+render_step_size = 1.0 / 50
+
+
+chassis_collision_type = veh.CollisionType_NONE
+
+
+contact_method = chrono.ChContactMethod_NSC
+
+
+tire_model = veh.TireModelType_TMEASY
+
+
+my_hmmwv = veh.HMMWV_Full()
+my_hmmwv.SetContactMethod(contact_method)
+my_hmmwv.SetChassisCollisionType(chassis_collision_type)
+my_hmmwv.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
+my_hmmwv.SetTireType(tire_model)
+my_hmmwv.SetTireStepSize(step_size)
+my_hmmwv.Initialize()
+
+
+vis_type = veh.VisualizationType_PRIMITIVES
+
+
+my_hmmwv.SetChassisVisualizationType(vis_type)
+my_hmmwv.SetSuspensionVisualizationType(vis_type)
+my_hmmwv.SetSteeringVisualizationType(vis_type)
+my_hmmwv.SetWheelVisualizationType(vis_type)
+my_hmmwv.SetTireVisualizationType(vis_type)
+
+
+terrain = veh.RigidTerrain(my_hmmwv.GetSystem())
+patch_mat = chrono.ChMaterialSurfaceNSC() if contact_method == chrono.ChContactMethod_NSC else chrono.ChMaterialSurfaceSMC()
+patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 100, 100)
+patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
+patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+terrain.Initialize()
+
+
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(my_hmmwv.GetSystem())
+vis.SetWindowSize(800, 600)
+vis.SetWindowTitle('HMMWV Simulation')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVector3d(10, 10, -5))
+vis.AddTypicalLights()
+
+
+driver = veh.ChIrrGuiDriver(vis)
+driver.SetSteeringDelta(0.02)
+driver.SetThrottleDelta(0.02)
+driver.SetBrakingDelta(0.06)
+my_hmmwv.SetDriver(driver)
+
+
+realtime_timer = chrono.ChRealtimeStepTimer()
+while vis.Run():
+    time = my_hmmwv.GetSystem().GetChTime()
+
     
-    chrono.SetChronoDataPath('/path/to/chrono/data')  
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
 
     
-    initLoc = chrono.ChVector3d(0, 0, 1.0)
-    initRot = chrono.ChQuaterniond(1, 0, 0, 0)
-    vehicle = veh.HMMWV_Full()
-    vehicle.SetContactMethod(chrono.ChContactMethod_SMC)
-    vehicle.SetChassisCollisionType(veh.CollisionType_NONE)
-    vehicle.SetChassisFixed(False)
-    vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
-    vehicle.SetPowertrainType(veh.PowertrainModelType_SHAFTS)
-    vehicle.SetDriveType(veh.DrivelineTypeWV_AWD)
-    vehicle.SetTireType(veh.TireModelType_TMEASY)
-    vehicle.SetTireStepSize(1e-3)
-    vehicle.Initialize()
-
-    vehicle.SetChassisVisualizationType(veh.VisualizationType_PRIMITIVES)
-    vehicle.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
-    vehicle.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
-    vehicle.SetWheelVisualizationType(veh.VisualizationType_NONE)
-    vehicle.SetTireVisualizationType(veh.VisualizationType_MESH)
+    driver_inputs = driver.GetInputs()
+    my_hmmwv.Synchronize(time, driver_inputs, terrain)
+    my_hmmwv.Advance(step_size)
 
     
-    terrain = veh.RigidTerrain(vehicle.GetSystem())
-    patch_mat = chrono.ChContactMaterialSMC()
-    patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 100, 100)
-    patch.SetTexture(chrono.GetChronoDataFile('terrain/textures/grass.jpg'), 100, 100)
-    patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
-    terrain.Initialize()
-
-    
-    vis = chronoirr.ChVisualSystemIrrlicht()
-    vis.AttachSystem(vehicle.GetSystem())
-    vis.SetWindowSize(800, 600)
-    vis.SetWindowTitle('HMMWV Simulation')
-    vis.Initialize()
-    vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
-    vis.AddSkyBox()
-    vis.AddCamera(chrono.ChVector3d(10, 10, 10))
-    vis.AddTypicalLights()
-
-    
-    driver = veh.ChDriver(vehicle.GetVehicle())
-    driver.Initialize()
-
-    
-    realtime_timer = chrono.ChRealtimeStepTimer()
-    while vis.Run():
-        time = vehicle.GetSystem().GetChTime()
-        driver_inputs = driver.GetInputs()
-        vehicle.Advance(time)
-        terrain.Advance(time)
-        vis.BeginScene()
-        vis.Render()
-        vis.EndScene()
-        realtime_timer.Spin(1.0 / 50.0)
-
-if __name__ == "__main__":
-    main()
+    realtime_timer.Spin(step_size)

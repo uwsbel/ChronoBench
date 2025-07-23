@@ -5,8 +5,8 @@ import pychrono.sensor as sens
 import math
 
 # Set the Chrono data directory
-chrono.SetChronoDataPath('/path/to/chrono/data')  # Update this path
-veh.SetDataPath('/path/to/chrono/data/vehicle/')  # Update this path
+chrono.SetChronoDataPath('/path/to/chrono/data')  # Specify the actual path
+veh.SetDataPath('/path/to/chrono/data/vehicle/')  # Specify the actual path
 
 # Initial vehicle location and orientation
 initLoc = chrono.ChVector3d(0, 0, 0.5)
@@ -103,7 +103,10 @@ manager = sens.ChSensorManager(vehicle.GetSystem())
 
 # Create an IMU sensor and add it to the manager
 offset_pose = chrono.ChFramed(chrono.ChVector3d(-8, 0, 1), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0)))
-imu = sens.ChAccelerometerSensor(vehicle.GetChassisBody(), 10, offset_pose, sens.ChNoiseNone())
+imu = sens.ChAccelerometerSensor(vehicle.GetChassisBody(), 
+                                 10, 
+                                 offset_pose, 
+                                 sens.ChNoiseNone())
 imu.SetName("IMU Sensor")
 imu.SetLag(0)
 imu.SetCollectionWindow(0)
@@ -111,7 +114,11 @@ imu.PushFilter(sens.ChFilterAccelAccess())
 manager.AddSensor(imu)
 
 # Create a GPS sensor and add it to the manager
-gps = sens.ChGPSSensor(vehicle.GetChassisBody(), 10, offset_pose, chrono.ChVector3d(-89.400, 43.070, 260.0), sens.ChNoiseNone())
+gps = sens.ChGPSSensor(vehicle.GetChassisBody(), 
+                       10, 
+                       offset_pose, 
+                       chrono.ChVector3d(-89.400, 43.070, 260.0), 
+                       sens.ChNoiseNone())
 gps.SetName("GPS Sensor")
 gps.SetLag(0)
 gps.SetCollectionWindow(0)
@@ -121,9 +128,11 @@ manager.AddSensor(gps)
 # Initialize GPS data list
 gps_data = []
 
-# Simulation loop parameters
+# Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
 log_steps = math.ceil(log_step_size / step_size)
+
+# Initialize simulation frame counter
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
@@ -132,39 +141,35 @@ render_frame = 0
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
-    # Render scene
+    # Render scene and output POV-Ray data
     if step_number % render_steps == 0:
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
         render_frame += 1
 
-    # Log GPS data
-    if step_number % log_steps == 0:
-        gps_buffer = gps.GetMostRecentGPSBuffer()
-        if gps_buffer:
-            gps_data.append(gps_buffer.GetGPSData())
-
-    # Modify driver inputs based on time
+    # Get driver inputs
     if time < 3:
-        driver_inputs = veh.DriverInputs()
+        driver_inputs = veh.Inputs()
         driver_inputs.m_throttle = 0.5
-        driver_inputs.m_steering = 0.2
+        driver_inputs.m_steering = 0.0
+        driver_inputs.m_braking = 0.0
     elif time < 6:
-        driver_inputs = veh.DriverInputs()
+        driver_inputs = veh.Inputs()
         driver_inputs.m_throttle = 0.7
-        driver_inputs.m_steering = -0.3
+        driver_inputs.m_steering = 0.2
+        driver_inputs.m_braking = 0.0
     else:
-        driver_inputs = veh.DriverInputs()
-        driver_inputs.m_throttle = 0
+        driver_inputs = veh.Inputs()
+        driver_inputs.m_throttle = 0.0
+        driver_inputs.m_steering = 0.0
         driver_inputs.m_braking = 0.8
-    driver.SetInputs(driver_inputs)
 
-    # Update modules
+    # Update modules (process inputs from other modules)
     driver.Synchronize(time)
     terrain.Synchronize(time)
-    vehicle.Synchronize(time, driver.GetInputs(), terrain)
-    vis.Synchronize(time, driver.GetInputs())
+    vehicle.Synchronize(time, driver_inputs, terrain)
+    vis.Synchronize(time, driver_inputs)
 
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)
@@ -174,12 +179,18 @@ while vis.Run():
 
     # Update sensor manager
     manager.Update()
-    
+
+    # Log GPS data
+    if step_number % log_steps == 0:
+        gps_buffer = gps.GetMostRecentGPSBuffer()
+        if gps_buffer.HasData():
+            gps_data.append(gps_buffer.GetGPSData())
+
     # Increment frame number
     step_number += 1
 
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
 
-# Output GPS data at the end of the simulation
+# Print GPS data at the end of the simulation
 print("GPS Data: ", gps_data)

@@ -2,57 +2,49 @@ import pychrono as chrono
 import pychrono.vehicle as veh
 import pychrono.irrlicht as chronoirr
 
-# Initialize the Chrono system
-chrono.SetChronoDataPath('/path/to/chrono/data')  # Update this path
+def main():
+    # Initialize the Chrono system
+    chrono.SetChronoDataPath('/path/to/chrono/data')
 
-# Create the system
-sys = chrono.ChSystemNSC()
+    # Create a Curiosity rover simulation
+    rover = veh.CuriosityRover()
+    rover.SetContactMethod(chrono.ChContactMethod_NSC)
+    rover.SetChassisCollisionType(veh.CollisionType_NONE)
+    rover.SetInitPosition(chrono.ChCoordsysd(chrono.ChVector3d(0, 0.2, 0), chrono.QUNIT))
+    rover.Initialize()
 
-# Create the terrain
-terrain = veh.RigidTerrain(sys)
-patch_mat = chrono.ChContactMaterialNSC()
-patch_mat.SetFriction(0.9)
-patch_mat.SetRestitution(0.01)
+    # Create the terrain
+    terrain = veh.RigidTerrain(rover.GetSystem())
+    patch_mat = chrono.ChContactMaterialNSC()
+    patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 20, 20)
+    terrain.Initialize()
 
-patch = terrain.AddPatch(patch_mat, 
-                         chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
-                         300, 300)
-patch.SetTexture(chrono.GetChronoDataFile('textures/grass.jpg'), 300, 300)
-patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+    # Create the visualization system
+    vis = chronoirr.ChVisualSystemIrrlicht()
+    vis.AttachSystem(rover.GetSystem())
+    vis.SetWindowSize(1024, 768)
+    vis.SetWindowTitle('Curiosity Rover Simulation')
+    vis.Initialize()
+    vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+    vis.AddSkyBox()
+    vis.AddCamera(chrono.ChVector3d(3, 3, -3))
+    vis.AddTypicalLights()
+    vis.EnableShadows()
 
-terrain.Initialize()
+    # Simulation loop
+    while vis.Run():
+        time = rover.GetSystem().GetChTime()
+        driver_data = veh.DriverInputs()
+        # Add your driver inputs here (e.g., steering, throttle, braking)
+        driver_data.m_steering = 0.0
+        driver_data.m_throttle = 0.5
+        driver_data.m_braking = 0.0
+        rover.GetDriver().SetInputs(driver_data)
 
-# Create and initialize the Curiosity rover
-rover = veh.Curiosity(sys)
-rover.SetContactMethod(chrono.ChContactMethod_NSC)
-rover.SetChassisCollisionType(veh.CollisionType_NONE)
-rover.SetInitPosition(chrono.ChCoordsysd(chrono.ChVector3d(0, 0.5, -5), chrono.QUNIT))
-rover.Initialize()
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+        rover.GetSystem().DoStepDynamics(0.01)
 
-# Create the driver for the rover
-driver = veh.ChDriver(rover.GetVehicle())
-
-# Set up the Irrlicht visualization
-vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(sys)
-vis.SetWindowSize(1280, 720)
-vis.SetWindowTitle('Curiosity Rover Simulation')
-vis.Initialize()
-vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
-vis.AddSkyBox()
-vis.AddCamera(chrono.ChVector3d(5, 5, -5), chrono.ChVector3d(0, 0, 0))
-vis.AddTypicalLights()
-vis.EnableShadows()
-
-# Simulation loop
-while vis.Run():
-    time = sys.GetChTime()
-    driver_inputs = driver.GetInputs()
-    rover.GetVehicle().SetDriver(driver)
-    rover.GetVehicle().Advance(time)
-    terrain.Advance(time)
-    sys.DoStepDynamics(1e-3)
-    
-    vis.BeginScene()
-    vis.Render()
-    vis.EndScene()
+if __name__ == "__main__":
+    main()

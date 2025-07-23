@@ -3,7 +3,7 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
-# Set data paths
+# Set the Chrono data path
 chrono.SetChronoDataPath('/path/to/chrono/data')  # Update this path
 veh.SetDataPath('/path/to/chrono/data/vehicle/')  # Update this path
 
@@ -20,14 +20,6 @@ chassis_collision_type = veh.CollisionType_NONE
 # Type of tire model (RIGID, TMEASY)
 tire_model = veh.TireModelType_TMEASY
 
-# Rigid terrain with height map
-terrainHeight = 0      # terrain height (not used with height map)
-terrainLength = 100.0  # size in X direction
-terrainWidth = 100.0   # size in Y direction
-
-# Poon chassis tracked by the camera
-trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
-
 # Contact method
 contact_method = chrono.ChContactMethod_NSC
 contact_vis = False
@@ -39,8 +31,8 @@ tire_step_size = step_size
 # Time interval between two render frames
 render_step_size = 1.0 / 50  # FPS = 50
 
-# Create the MAN 5t vehicle, set parameters, and initialize
-vehicle = veh.MAN_5t()  # Changed vehicle type
+# Create the MAN vehicle, set parameters, and initialize
+vehicle = veh.MAN_5t()  # Changed vehicle type to MAN_5t
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
@@ -64,9 +56,8 @@ patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 patch = terrain.AddPatch(patch_mat, 
                          chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
-                         terrainLength, terrainWidth)
-patch.SetHeightMap(veh.GetDataFile("terrain/height_maps/test64.bmp"))  # Specify a valid height map
-patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 16 * terrainLength, 16 * terrainWidth)  # Changed texture
+                         veh.GetDataFile("terrain/height_maps/test64.bmp"), 128, 128, 0, 4)
+patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 16, 16)  # Changed texture to grass.jpg
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
@@ -74,7 +65,7 @@ terrain.Initialize()
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('MAN 5t Demo')
 vis.SetWindowSize(1280, 1024)
-vis.SetChaseCamera(trackPoint, 15.0, 0.5)
+vis.SetChaseCamera(chrono.ChVector3d(-3.0, 0.0, 1.1), 15.0, 0.5)
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()

@@ -1,56 +1,59 @@
 import pychrono as chrono
 import pychrono.sensor as sens
 import numpy as np
-import math
 
 
-chrono.SetChronoDataPath('./data/')
+chrono.SetChronoDataPath('/path/to/chrono/data')
 
 
 sys = chrono.ChSystemNSC()
 
 
 mesh = chrono.ChTriangleMeshConnected()
-mesh.LoadWavefrontMesh(chrono.GetChronoDataPath() + 'robot.obj')
+mesh.LoadWavefrontMesh(chrono.GetChronoDataFile('models/tractor.obj'))
 
 
 body_mesh = chrono.ChBody()
 body_mesh.SetBodyFixed(True)  
-body_mesh_shape = chrono.ChVisualShape()
+body_mesh_shape = chrono.ChVisualShapeTriangleMesh()
 body_mesh_shape.SetMesh(mesh)
 body_mesh.AddVisualShape(body_mesh_shape)
 sys.Add(body_mesh)
 
 
+body_camera = chrono.ChBody()
+body_camera.SetPos(chrono.ChVector3d(0, 2, 0))  
+sys.Add(body_camera)
+
+
 camera = sens.ChCameraSensor(
-    body_mesh,  
+    body_camera,  
     10,  
-    chrono.ChFramed(chrono.ChVector3d(-5, 0, 0), chrono.Q_from_AngAxis(chrono.CH_PI / 2, chrono.ChVector3d(0, 1, 0))),  
+    chrono.ChFramed(chrono.ChVector3d(0, 0, 0), chrono.Q_from_AngAxis(chrono.CH_PI, chrono.ChVector3d(0, 1, 0))),  
     640,  
     480,  
-    chrono.CH_PI / 3  
+    chrono.CH_PI / 4  
 )
 camera.SetName("Camera Sensor")
-camera.PushFilter(sens.ChFilterVisualize(640, 480, "Before Grayscale Filter"))
-camera.PushFilter(sens.ChFilterGrayscale())
-camera.PushFilter(sens.ChFilterVisualize(640, 480, "Camera Output"))
-camera.PushFilter(sens.ChFilterSave(chrono.GetChronoDataPath() + "output/"))
+camera.PushFilter(sens.ChFilterRGBA8RGBA8())  
+camera.PushFilter(sens.ChFilterGrayscale())  
+camera.PushFilter(sens.ChFilterNoisePixDep(0.03, 0.001, 123))  
+camera.PushFilter(sens.ChFilterVisualize(640, 480, 1))  
 
 
 manager = sens.ChSensorManager(sys)
 manager.AddSensor(camera)
 
 
-time_step = 1e-3
-time_end = 10
-orbit_radius = 5
-orbit_omega = 0.1  
-for time in np.arange(0, time_end, time_step):
+time_step = 0.02  
+t = 0  
+while t < 10:  
     
-    angle = orbit_omega * time
-    x = orbit_radius * math.cos(angle)
-    z = orbit_radius * math.sin(angle)
-    camera.SetOffsetPose(chrono.ChFramed(chrono.ChVector3d(x, 0, z), chrono.Q_from_AngAxis(chrono.CH_PI / 2 + angle, chrono.ChVector3d(0, 1, 0))))
+    angle = t * 0.1  
+    radius = 2
+    x = radius * np.cos(angle)
+    z = radius * np.sin(angle)
+    body_camera.SetPos(chrono.ChVector3d(x, 2, z))
     
     
     sys.DoStepDynamics(time_step)
@@ -59,22 +62,9 @@ for time in np.arange(0, time_end, time_step):
     
     buffer = camera.GetMostRecentBuffer()
     if buffer.HasData():
-        print("Camera Buffer Data:")
-        print(buffer.GetRGBA8().shape)
-        
+        print(f"Camera Buffer at time {t}: {buffer.GetRGBA8().shape}")
+    
+    
+    t += time_step
 
-
-vis = chrono.ChVisualSystemIrrlicht()
-vis.AttachSystem(sys)
-vis.SetWindowSize(1024, 768)
-vis.SetWindowTitle('PyChrono Simulation')
-vis.Initialize()
-vis.AddLogo(chrono.GetChronoDataPath() + 'logo_pychrono_alpha.png')
-vis.AddSkyBox()
-vis.AddCamera(chrono.ChVector3d(0, 3, 6))
-vis.AddTypicalLights()
-while vis.Run():
-    vis.BeginScene()
-    vis.Render()
-    vis.EndScene()
-    sys.DoStepDynamics(1e-3)
+print("Simulation completed.")

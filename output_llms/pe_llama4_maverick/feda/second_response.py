@@ -3,11 +3,12 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
-chrono.SetChronoDataPath(chrono.GetChronoDataPath())
-veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
+# Set the Chrono data path
+chrono.SetChronoDataPath('/path/to/chrono/data')  # Update this path
+veh.SetDataPath('/path/to/chrono/data/vehicle/')  # Update this path
 
 # Initial vehicle location and orientation
-initLoc = chrono.ChVector3d(-50, 0, 0.5)  # Changed initial location
+initLoc = chrono.ChVector3d(-50, 0, 0.5)
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 # Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
@@ -19,9 +20,9 @@ chassis_collision_type = veh.CollisionType_NONE
 # Type of tire model (RIGID, TMEASY)
 tire_model = veh.TireModelType_TMEASY
 
-# Rigid terrain
+# Rigid terrain parameters
 terrainHeight = 0      # terrain height
-terrainLength = 200.0  # Increased terrain length
+terrainLength = 200.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
 
 # Poon chassis tracked by the camera
@@ -46,7 +47,6 @@ vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
-
 vehicle.Initialize()
 
 vehicle.SetChassisVisualizationType(vis_type)
@@ -63,9 +63,8 @@ patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 patch = terrain.AddPatch(patch_mat, 
-                         chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
+                         chrono.ChCoordsysd(chrono.ChVector3d(0, 0, terrainHeight), chrono.QUNIT), 
                          terrainLength, terrainWidth)
-
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
@@ -82,11 +81,24 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 # Create the path-follower driver system
-path = veh.DoubleLaneChangePath(chrono.ChVector3d(-50, 0, 0.5), 13.4, 4.0, 11.0, 50.0, False)
-target_speed = 10.0
-driver = veh.ChPathFollowerDriver(vehicle.GetVehicle(), path, "my_path", target_speed)
+path = veh.ChBezierCurve()
+path_points = [
+    [-50, 0, 0.5],
+    [-30, 0, 0.5],
+    [-20, 3, 0.5],
+    [-10, 3, 0.5],
+    [0, 0, 0.5],
+    [10, -3, 0.5],
+    [20, -3, 0.5],
+    [30, 0, 0.5],
+    [50, 0, 0.5]
+]
+for point in path_points:
+    path.AddPoint(chrono.ChVector3d(point[0], point[1], point[2]))
+
+driver = veh.ChPathFollowerDriver(vehicle.GetVehicle(), path, "my_path", 10.0)
 driver.GetSteeringController().SetLookaheadDistance(5)
-driver.GetSteeringController().SetGains(0.8, 0, 0)
+driver.GetSteeringController().SetGains(0.5, 0, 0)
 driver.GetSpeedController().SetGains(0.4, 0, 0)
 driver.Initialize()
 

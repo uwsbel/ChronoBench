@@ -53,9 +53,8 @@ body_crank.AddVisualShape(boxcrank)
 
 motor = chrono.ChLinkMotorRotationAngle()
 motor.Initialize(body_truss, body_crank, chrono.ChFramed(vG))
-myfun = ChFunctionMyFun()
+myfun = ChFunctionMyFun)
 motor.SetAngleFunction(myfun)
-sys.Add(chrono.ChLinkMotorRotationAngle())
 sys.Add(motor)
 
 
@@ -144,7 +143,10 @@ constr_bc.SetConstrainedCoords(True, True, True, True, True, False)
 sphereconstr3 = chrono.ChVisualShapeSphere(0.014)
 constr_bc.AddVisualShape(sphereconstr3)
 
+
 mesh.SetAutomaticGravity(False)
+
+
 sys.Add(mesh)
 
 

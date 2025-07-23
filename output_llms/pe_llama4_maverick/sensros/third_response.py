@@ -24,7 +24,7 @@ def main():
     mesh_body.AddVisualShape(trimesh_shape)
     mesh_body.SetFixed(False)  # Make the body movable.
     mesh_body.SetMass(0)  # Set mass to 0 (static object).
-    sys.Add(mesh_body)  # Add mesh_body to the simulation system
+    sys.Add(mesh_body)  # Add the mesh body to the simulation system.
 
     # Create a ground body to attach sensors.
     ground_body = ch.ChBodyEasyBox(1, 1, 1, 1000, False, False)
@@ -110,7 +110,7 @@ def main():
     acc_handler = chros.ChROSAccelerometerHandler(acc, "~/output/accelerometer/data")
     ros_manager.RegisterHandler(acc_handler)
     gyro_handler = chros.ChROSGyroscopeHandler(gyro, "~/output/gyroscope/data")
-    ros_manager._RegisterHandler(gyro_handler)
+    ros_manager.RegisterHandler(gyro_handler)
     mag_handler = chros.ChROSMagnetometerHandler(mag, "~/output/magnetometer/data")
     ros_manager.RegisterHandler(mag_handler)
 
@@ -136,7 +136,9 @@ def main():
 
         # Update sensors and ROS data.
         sens_manager.Update()
-        if not ros_manager.Update():
+        ros_manager.Update()
+
+        if not ros_manager.Update():  # Check ROS manager update status.
             print("ROS manager update failed. Exiting simulation loop.")
             break
 

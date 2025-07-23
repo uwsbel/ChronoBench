@@ -65,17 +65,11 @@ patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 patch = terrain.AddPatch(patch_mat, 
-                         chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
+                         chrono.ChCoordsysd(chrono.ChVector3d(0, 0, terrainHeight), chrono.QUNIT), 
                          terrainLength, terrainWidth)
 patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
-
-
-for _ in range(10):
-    box_body = chrono.ChBodyEasyBox(np.random.uniform(0.5, 2), np.random.uniform(0.5, 2), np.random.uniform(0.5, 2), 1000, True, True, patch_mat)
-    box_body.SetPos(chrono.ChVector3d(np.random.uniform(-20, 20), np.random.uniform(-20, 20), 1))
-    vehicle.GetSystem().Add(box_body)
 
 
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
@@ -96,12 +90,7 @@ driver.SetBrakingDelta(render_step_size / 0.3)
 driver.Initialize()
 
 
-sensor_manager = sens.ChSensorManager(vehicle.GetSystem())
-lidar = sens.ChLidarSensor(vehicle.GetChassisBody(), 10, chrono.ChFrame(chrono.ChVector3d(0, 0, 1), chrono.Q_from_AngAxis(0, chrono.ChVector3d(0, 1, 0))), 100, chrono.ChVector3d(0, 0, 0.5), 2, 0.1, -3.14 / 4, 3.14 / 4, 300, 0.5)
-sensor_manager.AddSensor(lidar)
-
-
-print("VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 
 render_steps = math.ceil(render_step_size / step_size)
@@ -111,16 +100,39 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-while vis.Run() :
+
+manager = sens.ChSensorManager(vehicle.GetSystem())
+manager.scene.AddPointLight(chrono.ChVector3f(0, 0, 100), chrono.ChColor(1, 1, 1), 5000)
+
+
+lidar = sens.ChLidarSensor(
+    vehicle.GetChassisBody(),
+    10,
+    chrono.ChFrame(chrono.ChVector3d(0, 0, 1), chrono.Q_from_AngAxis(0, chrono.ChVector3d(0, 1, 0))),
+    100,
+    360,
+    sens.ChLidarBeam(),
+)
+lidar.SetName("Lidar Sensor")
+lidar.PushFilter(sens.ChFilterDIAccess())
+manager.AddSensor(lidar)
+
+
+for _ in range(10):
+    box_body = chrono.ChBodyEasyBox(1, 1, 1, 1000, True, True)
+    box_body.SetPos(chrono.ChVector3d(np.random.uniform(-10, 10), np.random.uniform(-10, 10), 0.5))
+    vehicle.GetSystem().Add(box_body)
+
+while vis.Run():
     time = vehicle.GetSystem().GetChTime()
+
     
-    
-    if (step_number % render_steps == 0) :
+    if step_number % render_steps == 0:
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
         render_frame += 1
-    
+
     
     driver_inputs = driver.GetInputs()
 
@@ -131,7 +143,7 @@ while vis.Run() :
     vis.Synchronize(time, driver_inputs)
 
     
-    sensor_manager.Update()
+    manager.Update()
 
     
     driver.Advance(step_size)

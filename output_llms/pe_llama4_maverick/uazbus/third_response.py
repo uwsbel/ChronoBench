@@ -3,9 +3,9 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
-# Set data paths
-chrono.SetChronoDataPath('/path/to/chrono/data')  # Update this path
-veh.SetDataPath('/path/to/chrono/data/vehicle/')  # Update this path
+# Set the Chrono data path
+chrono.SetChronoDataPath('/path/to/chrono/data')  # Replace with actual path
+veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 # Initial vehicle location and orientation
 initLoc = chrono.ChVector3d(0, 0, 0.5)
@@ -18,7 +18,7 @@ vis_type = veh.VisualizationType_MESH
 chassis_collision_type = veh.CollisionType_NONE
 
 # Type of tire model (RIGID, TMEASY)
-tire_model = veh.TireModelType_RIGID  # Changed as per instructions
+tire_model = veh.TireModelType_RIGID  # Changed to RIGID
 
 # Rigid terrain
 terrainHeight = 0      # terrain height
@@ -40,7 +40,7 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  # FPS = 50
 
 # Create the UAZBUS vehicle, set parameters, and initialize
-vehicle = veh.UAZBUS() 
+vehicle = veh.UAZBUS()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
@@ -62,8 +62,8 @@ patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-patch = terrain.AddPatch(patch_mat, 
-                         chrono.ChCoordsysd(chrono.ChVector3d(0, 0, terrainHeight), chrono.QUNIT), 
+patch = terrain.AddPatch(patch_mat,
+                         chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
                          terrainLength, terrainWidth)
 
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
@@ -72,16 +72,20 @@ terrain.Initialize()
 
 # Add a box obstacle
 obstacle_body = chrono.ChBody()
-obstacle_body.SetBodyFixed(True)
 obstacle_body.SetPos(chrono.ChVector3d(5, 0, 0.1))
-box_shape = chrono.ChVisualShapeBox(0.5, 5, 0.2)
-obstacle_body.AddVisualShape(box_shape)
-vehicle.GetSystem().Add(obstacle_body)
+obstacle_body.SetBodyFixed(True)  # Fix the obstacle in place
 
-box_collision_shape = chrono.ChCollisionShapeBox(0.5, 5, 0.2)
-box_collision_shape.SetContactMaterial(patch_mat)
-obstacle_body.AddCollisionShape(box_collision_shape)
+# Create a box with dimensions 0.5 x 5 x 0.2
+box_shape = chrono.ChVisualShapeBox(chrono.ChVector3d(0.25, 2.5, 0.1))
+obstacle_body.AddVisualShape(box_shape)
+
+# Add collision shape
+obstacle_body.GetCollisionModel().ClearModel()
+obstacle_body.GetCollisionModel().AddBox(patch_mat, 0.25, 2.5, 0.1, chrono.ChVector3d(0, 0, 0))
+obstacle_body.GetCollisionModel().BuildModel()
 obstacle_body.EnableCollision(True)
+
+vehicle.GetSystem().Add(obstacle_body)
 
 # Create the vehicle Irrlicht interface
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
@@ -108,7 +112,7 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 # output vehicle mass
-print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
@@ -118,26 +122,29 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-while vis.Run() :
+while vis.Run():
     time = vehicle.GetSystem().GetChTime()
-    
+
     # Render scene and output POV-Ray data
-    if (step_number % render_steps == 0) :
+    if (step_number % render_steps == 0):
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
         render_frame += 1
 
     # Get driver inputs
-    driver_inputs = driver.GetInputs()
-    # Override throttle to move forward
-    driver_inputs.m_throttle = 0.5  # Constant throttle value as per instructions
+    # driver_inputs = driver.GetInputs()
+    # Manually set throttle to 0.5 to move the vehicle forward
+    driver_inputs = veh.Inputs()
+    driver_inputs.m_throttle = 0.5  # Constant throttle value
+    driver_inputs.m_steering = driver.GetSteering()
+    driver_inputs.m_braking = driver.GetBraking()
 
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
-    vis.Synchronize(driver_inputs)
+    vis.Synchronize(time, driver_inputs)
 
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)
@@ -147,6 +154,5 @@ while vis.Run() :
 
     # Increment frame number
     step_number += 1
-    
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)

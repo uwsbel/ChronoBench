@@ -12,7 +12,7 @@ def main():
 
     
     hmmwv = veh.HMMWV_Full()
-    hmmwv.SetContactMethod(chrono.ChContactMethod::NSC)  
+    hmmwv.SetContactMethod(chrono.ChContactMethod_NSC)
     hmmwv.SetChassisFixed(False)
     
     hmmwv.SetInitPosition(chrono.ChCoordsysd(chrono.ChVector3d(6, -70, 0.5), chrono.ChQuaterniond(1, 0, 0, 0)))
@@ -33,26 +33,24 @@ def main():
 
     
     terrain = veh.RigidTerrain(hmmwv.GetSystem())
+
     patch_mat = chrono.ChContactMaterialNSC()
     patch_mat.SetFriction(0.9)
     patch_mat.SetRestitution(0.01)
-
     
     patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
                              veh.GetDataFile("terrain/meshes/Highway_col.obj"))
     patch.SetCollision(True)
-    patch.SetContactSurfaceType(chrono.ChContactSurfaceType::TRIANGLE_MESH)
-    patch.SetContactMaterial(patch_mat, True, True, True)
+    patch.SetContactSurfaceType(chrono.ChContactSurfaceType_TRIANGLE_MESH)
+    patch.SetContactMaterial(patch_mat)
+    patch.SetContactMeshCallback(chrono.ChContactSurfaceMeshCallback(patch_mat, 0.01))
 
     
-    mesh = chrono.ChTriangleMeshConnected()
-    mesh.LoadWavefrontMesh(veh.GetDataFile("terrain/meshes/Highway_vis.obj"), False, True)
-    mesh.Transform(chrono.ChVector3d(0, 0, 0), chrono.ChMatrix33d(1))
-    vis_mesh = chrono.ChVisualShapeTriangleMesh()
-    vis_mesh.SetMesh(mesh)
-    vis_mesh.SetColor(chrono.ChColor(0.8, 0.8, 0.8))
-    vis_mesh.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 100, 100)
-    patch.GetGroundBody().AddVisualShape(vis_mesh)
+    vis_mesh = chrono.ChTriangleMeshConnected()
+    vis_mesh.LoadWavefrontMesh(veh.GetDataFile("terrain/meshes/Highway_vis.obj"))
+    vis_shape = chrono.ChVisualShapeTriangleMesh()
+    vis_shape.SetMesh(vis_mesh)
+    patch.GetGroundBody().AddVisualShape(vis_shape)
 
     terrain.Initialize()
 

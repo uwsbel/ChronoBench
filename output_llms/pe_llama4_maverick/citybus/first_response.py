@@ -1,107 +1,107 @@
 import pychrono as chrono
 import pychrono.vehicle as veh
 import pychrono.irrlicht as chronoirr
-import math
 
-# Set the Chrono data path (adjust according to your installation)
-chrono.SetChronoDataPath('/path/to/chrono/data')
+# ==============================================================================
 
-# Initialize the vehicle system
-veh.InitLog()
+# Initial vehicle location and orientation
+initLoc = chrono.ChVector3d(0, 0, 0.5)
+initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
-# Create the CityBus vehicle
-contact_method = chrono.ChContactMethod_SMC
-vehicle = veh.CityBus(veh.GetDataFile("CityBus/vehicle/CityBus.json"), contact_method)
+# Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
+chassis_vis_type = veh.VisualizationType_MESH
+suspension_vis_type = veh.VisualizationType_PRIMITIVES
+steering_vis_type = veh.VisualizationType_PRIMITIVES
+wheel_vis_type = veh.VisualizationType_MESH
 
-# Set the initial position and orientation of the vehicle
-initLoc = chrono.ChVector3d(0, 0, 1.0)
-initRot = chrono.ChQuaterniond(1, 0, 0, 0)  # No rotation
+# Collision type for chassis (PRIMITIVES, MESH, or NONE)
+chassis_collision_type = veh.CollisionType_NONE
 
-# Initialize the vehicle
-vehicle.Initialize(chrono.ChCoordsysd(initLoc, initRot))
+# Type of tire model (RIGID, TMEASY, PAC89, PAC02)
+tire_model = veh.TireModelType_TMEASY
 
-# Set tire model (optional, adjust according to available models)
-tire_model = veh.TireModelType_TMEasy
-vehicle.SetTireType(tire_model)
+# Rigid terrain
+terrain_height = 0
+terrain_length = 100.0  # size in X direction
+terrain_width = 100.0   # size in Y direction
 
-# Get the vehicle system
-sys = vehicle.GetSystem()
+# Simulation step size
+step_size = 2e-3
 
-# Disable rigid body gravity for the terrain (if applicable)
-sys.Set_G_acc(chrono.ChVector3d(0, 0, -9.81))
+# Time interval between two render frames (1/50 FPS)
+render_step_size = 1.0 / 50
 
-# Create the terrain
-terrain = veh.RigidTerrain(sys)
+# ==============================================================================
 
-# Define the terrain patch dimensions and material
-patch_mat = chrono.ChMaterialSurfaceSMC()
-patch_mat.SetFriction(0.9)
-patch_mat.SetRestitution(0.01)
+def main():
+    # Create the CityBus vehicle
+    car = veh.CityBus()
+    car.SetContactMethod(chrono.ChContactMethod_NSC)
+    car.SetChassisCollisionType(chassis_collision_type)
+    car.SetChassisVisualizationType(chassis_vis_type)
+    car.SetSuspensionVisualizationType(suspension_vis_type)
+    car.SetSteeringVisualizationType(steering_vis_type)
+    car.SetWheelVisualizationType(wheel_vis_type)
+    car.SetTireVisualizationType(veh.VisualizationType_MESH)
+    car.SetTireType(tire_model)
+    car.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
+    car.Initialize()
 
-terrainLength = 100.0
-terrainWidth = 100.0
+    # Create the terrain
+    terrain = veh.RigidTerrain(car.GetSystem())
+    patch_mat = chrono.ChMaterialSurfaceNSC()
+    patch_mat.SetFriction(0.9)
+    patch_mat.SetRestitution(0.01)
+    patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, terrain_height), chrono.QUNIT), terrain_length, terrain_width)
+    patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)
+    patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+    terrain.Initialize()
 
-patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), terrainLength, terrainWidth)
+    # Create the vehicle Irrlicht application
+    vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
+    vis.SetWindowTitle('CityBus Demo')
+    vis.SetWindowSize(1280, 720)
+    vis.SetChaseCamera(chrono.ChVector3d(0.0, 0.0, 1.75), 6.0, 0.5)
+    vis.Initialize()
+    vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+    vis.AddLightDirectional()
+    vis.AddSkyBox()
+    vis.AttachVehicle(car.GetVehicle())
 
-# Set visualization type for the terrain (MESH or PRIMITIVES)
-patch.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 200, 200)
-patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+    # Create the interactive driver system
+    driver = veh.ChIrrGuiDriver(vis)
+    driver.SetSteeringDelta(0.02)
+    driver.SetThrottleDelta(0.02)
+    driver.SetBrakingDelta(0.06)
+    driver.Initialize()
 
-# Initialize the terrain
-terrain.Initialize()
+    # Simulation loop
+    realtime_timer = chrono.ChRealtimeStepTimer()
+    while vis.Run():
+        time = car.GetSystem().GetChTime()
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
 
-# Create the Irrlicht visualization system
-vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(sys)
-vis.SetWindowSize(1280, 720)
-vis.SetWindowTitle('CityBus Simulation')
-vis.Initialize()
-vis.AddLogo(chrono.GetChronoDataPath('logo_pychrono_alpha.png'))
-vis.AddSkyBox()
-vis.AddCamera(chrono.ChVector3d(5, 5, 3), vehicle.GetChassis().GetPos())
-vis.AddTypicalLights()
+        # Get driver inputs
+        driver_inputs = driver.GetInputs()
 
-# Set visualization types for vehicle parts
-vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
-vehicle.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
-vehicle.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
-vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
-vehicle.SetTireVisualizationType(veh.VisualizationType_MESH)
+        # Update modules (process inputs, advance state)
+        driver.Synchronize(time)
+        terrain.Synchronize(time)
+        car.Synchronize(time, driver_inputs, terrain.GetHeight(car.GetPos()))
+        vis.Synchronize("", driver_inputs)
 
-# Create the interactive driver system
-driver = veh.ChIrrGuiDriver(vis)
+        # Advance simulation for one timestep for all modules
+        driver.Advance(step_size)
+        terrain.Advance(step_size)
+        car.Advance(step_size)
+        vis.Advance(step_size)
 
-# Set the initial driver inputs
-driver.SetSteeringDelta(0.02)
-driver.SetThrottleDelta(1.0 / 60)
-driver.SetBrakingDelta(1.0 / 60)
+        # Spin in place for real time to catch up
+        realtime_timer.Spin(step_size)
 
-# Initialize the driver inputs
-driver.Initialize()
+    return 0
 
-# Simulation loop parameters
-fps = 50
-time_step = 1 / fps
-time_end = 1000
-
-# Simulation loop
-while vis.Run() and sys.GetChTime() < time_end:
-    time = sys.GetChTime()
-
-    # Update driver inputs
-    driver_inputs = driver.GetInputs()
-    vehicle.SetDriverInputs(driver_inputs)
-
-    # Update the vehicle dynamics
-    vehicle.Update(time_step)
-
-    # Update the terrain
-    terrain.Update(time)
-
-    # Render the scene
-    vis.BeginScene()
-    vis.Render()
-    vis.EndScene()
-
-    # Advance the simulation
-    sys.DoStepDynamics(time_step)
+if __name__ == "__main__":
+    main()

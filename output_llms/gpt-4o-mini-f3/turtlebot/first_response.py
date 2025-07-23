@@ -1,0 +1,70 @@
+import os
+import math
+import numpy as np
+import pychrono as chrono
+import pychrono.robot as turtlebot
+from pychrono import irrlicht as chronoirr
+
+# Create Chrono system
+system = chrono.ChSystemNSC()
+system.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+system.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, -9.81))  # Set gravity in the Z direction
+chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.0025)
+chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
+
+# Create ground body
+ground_mat = chrono.ChContactMaterialNSC()
+ground = chrono.ChBodyEasyBox(20, 20, 1, 1000, True, True, ground_mat)
+ground.SetPos(chrono.ChVector3d(0, 0, -1))  # Position the ground slightly below the origin
+ground.SetFixed(True)  # Fix the ground in place
+# Set ground texture for visualization
+ground.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
+system.Add(ground)
+
+# Create Turtlebot Robot
+robot = turtlebot.TurtleBot(system)  # Instantiate Turtlebot
+robot.Initialize(chrono.ChVector3d(0, 0, 0), chrono.CH_ROT_Q_ID)  # Initialize Turtlebot at the origin with no rotation
+
+# Create run-time visualization
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetCameraVertical(chrono.CameraVerticalDir_Z)
+vis.SetWindowSize(1280, 720)
+vis.SetWindowTitle('Turtlebot Robot - Rigid terrain')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVector3d(0, 1.5, 0.2), chrono.ChVector3d(0, 0, 0.2))
+vis.AddTypicalLights()
+vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0, 0.5), 3, 4, 10, 40, 512)
+
+# Set the simulation time step
+time_step = 2e-3
+
+# Simulation loop
+time = 0
+while vis.Run():
+    # Define WheelID enums for Motor control
+    LEFT_DRIVEN_WHEEL = turtlebot.WheelID.LEFT_DRIVEN
+    RIGHT_DRIVEN_WHEEL = turtlebot.WheelID.RIGHT_DRIVEN
+
+    # At time = 1 s, execute left turn
+    if abs(time - 1.0) < 1e-4:
+        robot.SetMotorSpeed(0, LEFT_DRIVEN_WHEEL)
+        robot.SetMotorSpeed(-math.pi, RIGHT_DRIVEN_WHEEL)
+        
+    # At time = 2 s, execute right turn
+    if abs(time - 2.0) < 1e-4:
+        robot.SetMotorSpeed(-math.pi, LEFT_DRIVEN_WHEEL)
+        robot.SetMotorSpeed(0, RIGHT_DRIVEN_WHEEL)
+
+    # Increment time counter
+    time += time_step
+
+    # Render the scene
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+
+    # Advance the simulation by one time step
+    system.DoStepDynamics(time_step)

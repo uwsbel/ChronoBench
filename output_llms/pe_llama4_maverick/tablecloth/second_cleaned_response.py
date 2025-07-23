@@ -47,16 +47,22 @@ for iz in range(nsections_z + 1):
 
 nodePlotA = mynodes[0]
 nodePlotB = mynodes[nsections_x // 2]
-nodesLoad = [mynodes[i] for i in range(len(mynodes)) if i % 10 == 0]  
+nodesLoad = [mynodes[i] for i in range(nsections_x + 1)]
 
 
-melementmonitor = None
+ref_X = chrono.ChFunctionInterp()
+ref_Y = chrono.ChFunctionInterp()
+
+
+load_force = chrono.ChVector3d(0, -100, 0)
+
+
 for iz in range(nsections_z):
     for ix in range(nsections_x):
         melementA = fea.ChElementShellBST()
-        boundary_1 = mynodes[(iz + 1) * (nsections_x + 1) + ix + 1] if iz < nsections_z else None
-        boundary_2 = mynodes[(iz + 1) * (nsections_x + 1) + ix - 1] if ix > 0 and iz < nsections_z else None
-        boundary_3 = mynodes[(iz - 1) * (nsections_x + 1) + ix + 1] if iz > 0 else None
+        boundary_1 = mynodes[(iz + 1) * (nsections_x + 1) + ix + 1] if (iz < nsections_z) else None
+        boundary_2 = mynodes[(iz + 1) * (nsections_x + 1) + ix - 1] if (ix > 0 and iz < nsections_z) else None
+        boundary_3 = mynodes[(iz - 1) * (nsections_x + 1) + ix + 1] if (iz > 0) else None
 
         melementA.SetNodes(mynodes[iz * (nsections_x + 1) + ix], mynodes[iz * (nsections_x + 1) + ix + 1],
                            mynodes[(iz + 1) * (nsections_x + 1) + ix], boundary_1, boundary_2, boundary_3)
@@ -67,9 +73,9 @@ for iz in range(nsections_z):
             melementmonitor = melementA
 
         melementB = fea.ChElementShellBST()
-        boundary_1 = mynodes[iz * (nsections_x + 1) + ix]
-        boundary_2 = mynodes[iz * (nsections_x + 1) + ix + 2] if ix < nsections_x - 1 else None
-        boundary_3 = mynodes[(iz + 2) * (nsections_x + 1) + ix] if iz < nsections_z - 1 else None
+        boundary_1 = mynodes[iz * (nsections_x + 1) + ix] if (ix >= 0) else None
+        boundary_2 = mynodes[iz * (nsections_x + 1) + ix + 2] if (ix < nsections_x - 1) else None
+        boundary_3 = mynodes[(iz + 2) * (nsections_x + 1) + ix] if (iz < nsections_z - 1) else None
 
         melementB.SetNodes(mynodes[(iz + 1) * (nsections_x + 1) + ix + 1], mynodes[(iz + 1) * (nsections_x + 1) + ix],
                            mynodes[iz * (nsections_x + 1) + ix + 1], boundary_1, boundary_2, boundary_3)
@@ -79,7 +85,7 @@ for iz in range(nsections_z):
 
 for j in range(30):
     for k in range(30):
-        if j * (nsections_x + 1) + k < len(mynodes):
+        if j == 0 or k == 0 or j == 29 or k == 29:  
             mynodes[j * (nsections_x + 1) + k].SetFixed(True)
 
 

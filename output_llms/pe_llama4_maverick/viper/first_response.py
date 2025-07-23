@@ -3,64 +3,78 @@ import pychrono.vehicle as veh
 import pychrono.irrlicht as chronoirr
 import math
 
-def main():
-    # Initialize the Chrono system with gravity
-    chrono.SetChronoDataPath('/path/to/chrono/data')  # Set path to Chrono data files
-    sys = chrono.ChSystemNSC()
-    sys.Set_G_acc(chrono.ChVector3d(0, 0, -9.81))  # Set gravity
+# =============================================================================
+# Set up the Chrono system
+# =============================================================================
 
-    # Create the ground body
-    ground_mat = chrono.ChContactMaterialNSC()
-    ground = chrono.ChBodyEasyBox(100, 100, 1, 1000, True, True, ground_mat)
-    ground.SetPos(chrono.ChVector3d(0, 0, -0.5))
-    ground.SetBodyFixed(True)
-    ground.GetVisualShape(0).SetColor(chrono.ChColor(0.5, 0.5, 0.5))  # Gray color
-    sys.Add(ground)
+# Create a Chrono system with gravity
+sys = chrono.ChSystemNSC()
+sys.Set_G_acc(chrono.ChVector3d(0, 0, -9.81))  # Set gravity
 
-    # Initialize the Viper rover
-    viper = veh.Viper(sys)
-    viper.SetInitPosition(chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0.5), chrono.QUNIT))
-    viper.Initialize()
+# Create the ground body
+ground_mat = chrono.ChContactMaterialNSC()
+ground = chrono.ChBodyEasyBox(100, 100, 1, 1000, True, True, ground_mat)
+ground.SetPos(chrono.ChVector3d(0, 0, -0.5))
+ground.SetBodyFixed(True)
+ground.GetVisualShape(0).SetColor(chrono.ChColor(0.5, 0.5, 0.5))  # Gray color
+sys.Add(ground)
 
-    # Create the driver for the Viper rover
-    driver = veh.ViperDriver()
-    viper.SetDriver(driver)
+# =============================================================================
+# Initialize the Viper rover
+# =============================================================================
 
-    # Create the Irrlicht visualization system
-    vis = chronoirr.ChVisualSystemIrrlicht()
-    vis.AttachSystem(sys)
-    vis.SetWindowSize(1280, 720)
-    vis.SetWindowTitle('Viper Rover Simulation')
-    vis.Initialize()
-    vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
-    vis.AddSkyBox()
-    vis.AddCamera(chrono.ChVector3d(4, 4, 2))
-    vis.AddTypicalLights()
+# Set the path to the Chrono data directory
+chrono.SetChronoDataPath('/path/to/chrono/data')
 
-    # Simulation loop parameters
-    time_step = 2e-3
-    time_end = 20
-    steering_input = 0
+# Create the Viper rover
+rover = veh.Viper(sys)
+rover.SetInitPosition(chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0.5), chrono.QuatFromAngleX(chrono.CH_PI / 2)))
+rover.Initialize()
 
-    # Simulation loop
-    while vis.Run() and sys.GetChTime() < time_end:
-        time = sys.GetChTime()
-        if time > 5:
-            steering_input = 0.4 * (time - 5) / 5  # Gradually change steering over 5 seconds
-            if steering_input > 0.4:
-                steering_input = 0.4
+# Create the Viper driver
+driver = veh.ViperDriver()
 
-        driver.SetSteering(steering_input)
-        driver.SetThrottle(0.4)
-        driver.SetBraking(0.0)
+# =============================================================================
+# Create the Irrlicht visualization
+# =============================================================================
 
-        viper.Update()
-        sys.DoStepDynamics(time_step)
-        vis.BeginScene()
-        vis.Render()
-        vis.EndScene()
+# Create the Irrlicht visualization system
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(sys)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle('Viper Rover Simulation')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVector3d(5, 5, 5))
+vis.AddTypicalLights()
 
-    return 0
+# =============================================================================
+# Simulation loop
+# =============================================================================
 
-if __name__ == "__main__":
-    main()
+# Simulation parameters
+time_step = 1e-3
+end_time = 10
+steering_time = 5
+
+# Simulation loop
+while vis.Run() and sys.GetChTime() < end_time:
+    time = sys.GetChTime()
+    steering = 0.5 * math.sin(chrono.CH_PI * time / steering_time)
+    driver.SetSteering(steering)
+    driver.SetThrottle(0.3)  # Constant throttle
+    
+    # Update the rover
+    rover.Update(driver, time_step)
+    
+    # Advance the simulation
+    sys.DoStepDynamics(time_step)
+    
+    # Render the scene
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+
+# Clean up
+vis.GetDevice().closeDevice()

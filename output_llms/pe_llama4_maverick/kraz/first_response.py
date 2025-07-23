@@ -1,70 +1,52 @@
 import pychrono as chrono
 import pychrono.vehicle as veh
 import pychrono.irrlicht as chronoirr
-import math
 
-def main():
-    # Initialize the Chrono system
-    chrono.SetChronoDataPath('/path/to/chrono/data')
+# Initialize PyChrono environment
+chrono.SetChronoDataPath('/path/to/chrono/data')
 
-    # Create the vehicle system
-    initLoc = chrono.ChVector3d(0, 0, 1.0)
-    initRot = chrono.ChQuaterniond(1, 0, 0, 0)
-    vehicle = veh.Kraz(initLoc, initRot)
+# Create the Kraz vehicle system
+vehicle = veh.Kraz(sys=None, vehicle_file='../../data/vehicle/kraz/vehicle/Kraz.json')
 
-    # Set the contact method (NSC or SMC)
-    contact_method = chrono.ChContactMethod_NSC
-    vehicle.SetContactMethod(contact_method)
+# Set initial conditions for the vehicle
+initLoc = chrono.ChVector3d(0, 0, 1.0)
+initRot = chrono.ChQuaterniond(1, 0, 0, 0)
+vehicle.SetInitPosition(initLoc, initRot)
 
-    # Initialize the vehicle
-    vehicle.Initialize()
+# Initialize the vehicle
+vehicle.Initialize()
 
-    # Create the terrain
-    terrain_mat = chrono.ChMaterialSurfaceNSC()
-    terrain_mat.SetFriction(0.9)
-    terrain_mat.SetRestitution(0.01)
-    terrain = veh.RigidTerrain(vehicle.GetSystem())
-    patch = terrain.AddPatch(terrain_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 100, 100)
-    terrain.Initialize()
+# Create the terrain
+terrain = veh.RigidTerrain(vehicle.GetSystem())
+patch_mat = chrono.ChContactMaterialNSC()
+patch_mat.SetFriction(0.9)
+patch_mat.SetRestitution(0.01)
+patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 100, 100)
+terrain.Initialize()
 
-    # Create the driver system
-    driver = veh.ChDriver(vehicle.GetVehicle())
-    driver.Initialize()
+# Create the driver system
+driver = veh.ChDriver(vehicle.GetVehicle())
+driver.Initialize()
 
-    # Create the visualization system
-    vis = chronoirr.ChVisualSystemIrrlicht()
-    vis.SetWindowSize(800, 600)
-    vis.SetWindowTitle('Kraz Vehicle Simulation')
-    vis.Initialize()
-    vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
-    vis.AddSkyBox()
-    vis.AddCamera(chrono.ChVector3d(0, 4, -6))
-    vis.AddTypicalLights()
-    vis.AttachSystem(vehicle.GetSystem())
+# Create the Irrlicht visualization system
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(vehicle.GetSystem())
+vis.SetWindowSize(800, 600)
+vis.SetWindowTitle('Kraz Vehicle Simulation')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVector3d(10, 10, 10))
+vis.AddTypicalLights()
 
-    # Simulation loop
-    step_size = 2e-3
-    realtime_timer = chrono.ChRealtimeStepTimer()
-    while vis.Run():
-        time = vehicle.GetSystem().GetChTime()
-        driver_inputs = driver.GetInputs()
-
-        # Update the vehicle and terrain
-        vehicle.Synchronize(time, driver_inputs, terrain.GetHeightMap())
-        terrain.Synchronize(time)
-
-        # Advance the simulation
-        vehicle.Advance(step_size)
-        terrain.Advance(step_size)
-        driver.Advance(step_size)
-
-        # Render the scene
-        vis.BeginScene()
-        vis.Render()
-        vis.EndScene()
-
-        # Spin in place for real time to catch up
-        realtime_timer.Spin(step_size)
-
-if __name__ == "__main__":
-    main()
+# Simulation loop
+while vis.Run():
+    time = vehicle.GetSystem().GetChTime()
+    driver_inputs = driver.GetInputs()
+    vehicle.Advance(time, driver_inputs)
+    terrain.Advance(time)
+    driver.Advance(time)
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    vehicle.GetSystem().DoStepDynamics(1e-3)

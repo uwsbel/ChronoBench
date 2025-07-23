@@ -4,8 +4,8 @@ import pychrono.vehicle as veh
 import math
 
 # Correctly set the Chrono data path
-chrono.SetChronoDataPath('/path/to/chrono/data')
-veh.SetDataPath('/path/to/chrono/data/vehicle/')
+chrono.SetChronoDataPath('/path/to/chrono/data')  # Replace with actual path
+veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 # Initial vehicle location and orientation
 initLoc = chrono.ChVector3d(0, 0, 1.0)  # Adjusted to be above the terrain
@@ -41,6 +41,7 @@ vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 vehicle.Initialize()
 
+# Visualization settings
 vehicle.SetChassisVisualizationType(vis_type)
 vehicle.SetSuspensionVisualizationType(vis_type)
 vehicle.SetSteeringVisualizationType(vis_type)
@@ -52,45 +53,47 @@ vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 # Create the terrain with multiple patches
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 
-# Define terrain patches
-patch_mat = chrono.ChContactMaterialNSC()
-patch_mat.SetFriction(0.9)
-patch_mat.SetRestitution(0.01)
+# Define patch materials based on contact method
+if contact_method == chrono.ChContactMethod_NSC:
+    patch_mat = chrono.ChContactMaterialNSC()
+    patch_mat.SetFriction(0.9)
+    patch_mat.SetRestitution(0.01)
+else:
+    patch_mat = chrono.ChContactMaterialSMC()
+    patch_mat.SetFriction(0.9)
+    patch_mat.SetRestitution(0.01)
+    patch_mat.SetYoungModulus(2e7)
 
-# Patch 1: Flat with texture
+# Add patches
 patch1 = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(-50, 0, 0), chrono.QUNIT), 50, 50)
 patch1.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 50, 50)
 patch1.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 
-# Patch 2: With height map
-patch2 = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
-                          veh.GetDataFile("terrain/height_maps/test64.bmp"), 64, 64, 0, 4, True)
-patch2.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 64, 64)
+patch2 = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 50, 50)
+patch2.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 50, 50)
 patch2.SetColor(chrono.ChColor(0.5, 0.8, 0.5))
 
-# Add a bump to patch2
-mesh_bump = chrono.ChTriangleMeshConnected()
-mesh_bump.LoadWavefrontMesh(veh.GetDataFile("terrain/meshes/bump.obj"), True, True)
-mesh_bump.Transform(chrono.ChVector3d(10, 0, 0), chrono.ChMatrix33d(1))
-patch2.GetMesh().Merge(mesh_bump)
-
-# Patch 3: Flat with different texture
 patch3 = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(50, 0, 0), chrono.QUNIT), 50, 50)
 patch3.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 50, 50)
-patch3.SetColor(chrono.ChColor(0.7, 0.7, 0.7))
+patch3.SetColor(chrono.ChColor(0.5, 0.5, 0.8))
 
-# Patch 4: Flat with another texture
-patch4 = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, -50, 0), chrono.QUNIT), 50, 50)
-patch4.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 50, 50)
-patch4.SetColor(chrono.ChColor(0.9, 0.9, 0.9))
+# Create a patch with a height map
+mesh_file = chrono.GetChronoDataFile("terrain/height_maps/test64.bmp")
+patch4 = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(-50, -50, 0), chrono.QUNIT), mesh_file, 128, 128, 0, 4, True)
+patch4.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 128, 128)
+patch4.SetColor(chrono.ChColor(0.5, 0.8, 0.5))
 
 terrain.Initialize()
+
+# Add a bump to one of the patches (example for patch2)
+# Here, we simply move the center of patch2 up by 1 unit to simulate a bump
+# patch2.SetLocation(chrono.ChVector3d(0, 0, 1))
 
 # Create the vehicle Irrlicht interface
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('Gator vehicle')
 vis.SetWindowSize(1280, 1024)
-vis.SetChaseCamera(chrono.ChVector3d(0, 0, 1), 6.0, 0.5)
+vis.SetChaseCamera(chrono.ChVector3d(0, 0, 1.75), 6.0, 0.5)
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()

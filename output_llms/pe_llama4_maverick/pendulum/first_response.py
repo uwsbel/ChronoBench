@@ -1,61 +1,58 @@
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
-import numpy as np
 
-def main():
-    # Create a Chrono system
-    sys = chrono.ChSystemNSC()
+# 1. Initialize the PyChrono environment and core components.
+# Create a Chrono system
+sys = chrono.ChSystemNSC()
 
-    # Create a ground body
-    ground = chrono.ChBody()
-    ground.SetBodyFixed(True)
-    sys.Add(ground)
+# Set the gravitational acceleration
+sys.Set_G_acc(chrono.ChVector3d(0, -9.81, 0))
 
-    # Create a pendulum body
-    pendulum = chrono.ChBody()
-    pendulum.SetMass(1.0)  # Mass in kg
-    pendulum.SetInertiaXX(chrono.ChVector3d(0.1, 0.1, 0.1))  # Inertia tensor
-    pendulum.SetPos(chrono.ChVector3d(0, -1, 0))  # Initial position
-    sys.Add(pendulum)
+# 2. Add the required physical systems and objects.
+# Create the ground body
+ground = chrono.ChBody()
+ground.SetBodyFixed(True)
+ground.SetPos(chrono.ChVector3d(0, 0, 0))
+sys.Add(ground)
 
-    # Create a revolute joint between ground and pendulum
-    rev_joint = chrono.ChLinkLockRevolute()
-    rev_joint.Initialize(ground, pendulum, chrono.ChCoordsysD(chrono.ChVector3d(0, 0, 0)))
-    sys.Add(rev_joint)
+# Create the pendulum body
+pendulum = chrono.ChBody()
+pendulum.SetMass(1.0)  # Mass in kg
+pendulum.SetInertiaXX(chrono.ChVector3d(0.1, 0.1, 0.1))  # Inertia tensor
+pendulum.SetPos(chrono.ChVector3d(0, -1, 0))  # Initial position
+sys.Add(pendulum)
 
-    # Add visual shapes
-    ground_shape = chrono.ChVisualShapeBox(1, 0.1, 1)
-    ground_shape.SetColor(chrono.ChColor(0.5, 0.5, 0.5))
-    ground.AddVisualShape(ground_shape)
+# 3. Set necessary default parameters.
+# Create a revolute joint between the ground and the pendulum
+revolute_joint = chrono.ChLinkLockRevolute()
+revolute_joint.Initialize(ground, pendulum, chrono.ChCoordsysD(chrono.ChVector3d(0, 0, 0)))
+sys.Add(revolute_joint)
 
-    pendulum_shape = chrono.ChVisualShapeBox(0.1, 2, 0.1)
-    pendulum_shape.SetColor(chrono.ChColor(1, 0, 0))
-    pendulum.AddVisualShape(pendulum_shape, chrono.ChFrameD(chrono.ChVector3d(0, -1, 0)))
+# Visualization setup
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(sys)
+vis.SetWindowSize(800, 600)
+vis.SetWindowTitle('Simple Pendulum Simulation')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVector3d(3, 3, -3))
+vis.AddTypicalLights()
 
-    # Create the Irrlicht visualization system
-    vis = chronoirr.ChVisualSystemIrrlicht()
-    vis.AttachSystem(sys)
-    vis.SetWindowSize(800, 600)
-    vis.SetWindowTitle('Simple Pendulum Simulation')
-    vis.Initialize()
-    vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
-    vis.AddSkyBox()
-    vis.AddCamera(chrono.ChVector3d(3, 3, -3))
-    vis.AddTypicalLights()
+# Add visual shapes to the bodies
+ground_shape = chrono.ChVisualShapeBox(10, 1, 10)
+ground.AddVisualShape(ground_shape, chrono.ChFrameD(chrono.ChVector3d(0, -0.5, 0)))
 
-    # Simulation loop
-    time_step = 0.01
-    while vis.Run():
-        vis.BeginScene()
-        vis.Render()
-        sys.DoStepDynamics(time_step)
-        vis.EndScene()
+pendulum_shape = chrono.ChVisualShapeSphere(0.2)
+pendulum.AddVisualShape(pendulum_shape)
 
-        # Log pendulum's position and velocity periodically
-        if sys.GetChTime() % 1 < time_step:
-            pos = pendulum.GetPos()
-            vel = pendulum.GetPos_dt()
-            print(f"Time: {sys.GetChTime():.2f}, Position: {pos.x:.2f}, {pos.y:.2f}, {pos.z:.2f}, Velocity: {vel.x:.2f}, {vel.y:.2f}, {vel.z:.2f}")
-
-if __name__ == "__main__":
-    main()
+# Simulation loop
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    sys.DoStepDynamics(0.01)  # Step the simulation
+    vis.EndScene()
+    
+    # Log the pendulum's position and velocity periodically
+    if sys.GetChTime() % 1.0 < 0.01:
+        print(f"Time: {sys.GetChTime():.2f}, Pendulum Position: {pendulum.GetPos()}, Velocity: {pendulum.GetPos_dt()}")

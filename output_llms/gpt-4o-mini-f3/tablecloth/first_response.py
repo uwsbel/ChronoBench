@@ -1,0 +1,88 @@
+import pychrono as chrono # Import the main PyChrono module.
+import pychrono.fea as fea # Import the finite element analysis (FEA) module.
+import pychrono.pardisomkl as mkl # Import the PardisoMKL solver module.
+import pychrono.irrlicht as chronoirr # Import the Irrlicht visualization module.
+
+print("Example: folding a cloth with shell elements") # Print an example statement.
+
+# Create the physical system that will be simulated.
+sys = chrono.ChSystemSMC()
+
+# Create and add a mesh to the physical system.
+mesh = fea.ChMesh()
+sys.Add(mesh)
+
+# Create material properties for the shell elements.
+mme = fea.ChMaterialShellKirchhoff() # Create a material object.
+mme.SetDensity(100) # Set the density of the material.
+mme.SetYoungModulus(1e5) # Set the Young's modulus (stiffness) of the material.
+mme.SetPoissonRatio(0.3) # Set the Poisson's ratio (ductility) of the material.
+
+# Define the thickness of the shell structure.
+h = 0.01
+
+# Create nodes for the mesh at specified positions.
+n1 = fea.ChNodeFEAxyzrot(chrono.ChFramed(chrono.ChVector3d(0, 0, 0))) # Create node at (0, 0, 0).
+n2 = fea.ChNodeFEAxyzrot(chrono.ChFramed(chrono.ChVector3d(1, 0, 0))) # Create node at (1, 0, 0).
+n3 = fea.ChNodeFEAxyzrot(chrono.ChFramed(chrono.ChVector3d(1, 1, 0))) # Create node at (1, 1, 0).
+n4 = fea.ChNodeFEAxyzrot(chrono.ChFramed(chrono.ChVector3d(0, 1, 0))) # Create node at (0, 1, 0).
+
+# Add nodes to the mesh.
+mesh.AddNode(n1)
+mesh.AddNode(n2)
+mesh.AddNode(n3)
+mesh.AddNode(n4)
+
+# Create the shell element and configure it.
+myelementA = fea.ChElementShellKirchhoff() # Create an element object.
+myelementA.SetNodes(n1, n2, n3, n4) # Set the nodes for the element.
+myelementA.SetMaterial(mme) # Assign the material to the element.
+myelementA.SetThickness(h) # Set the thickness of the element.
+
+# Add the element to the mesh.
+mesh.AddElement(myelementA)
+
+# Create and initialize a force applied to the midpoints of the upper side.
+force_mid = chrono.ChForce()
+fapplication = chrono.ChForce()
+fapplication.Force(chrono.ChVector3d(0, -50, 0), chrono.ChVector3d(0.5, 0, 0), True, force_mid)
+mesh.AddForce(fapplication)
+
+# Create and add a visualization object for the mesh.
+mvisualizeA = chrono.ChVisualShapeFEA(mesh)
+mvisualizeA.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_ELEM_BEAM_MZ) # Set the data type for visualization.
+mvisualizeA.SetColorscaleMinMax(-0.4, 0.4) # Set the color scale limits.
+mvisualizeA.SetSmoothFaces(True) # Enable smooth faces for visualization.
+mvisualizeA.SetWireframe(False) # Set to non-wireframe mode.
+mesh.AddVisualizationShape(mvisualizeA) # Add the visualization object to the mesh.
+
+# Create and add a visualization object for the node positions.
+mvisualizeB = chrono.ChVisualShapeFEA(mesh)
+mvisualizeB.SetFEMglyphType(chrono.ChVisualShapeFEA.GlyphType_NODE_DOT_POS) # Set the glyph type for nodes.
+mvisualizeB.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NONE) # Disable additional data visualization.
+mvisualizeB.SetSymbolsThickness(0.006) # Set the thickness of symbols.
+mvisualizeB.SetSymbolsScale(0.01) # Set the scale of symbols.
+mvisualizeB.SetZbufferHide(False) # Disable Z-buffer hiding for symbols.
+mesh.AddVisualizationShape(mvisualizeB) # Add the visualization object to the mesh.
+
+# Create a Irrlicht visualization system and attach the simulation system.
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(sys)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle('Folding cloth with shell elements')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVector3d(0, 0.6, 0.8), chrono.ChVector3d(0.5, 0, 0.5))
+vis.AddTypicalLights()
+
+# Change the solver to the MKL Pardiso solver, which is more precise for FEA.
+msolver = mkl.ChSolverPardisoMKL()
+sys.SetSolver(msolver) # Set the MKL Pardiso solver for the system.
+
+# Simulation loop.
+while vis.Run():
+    vis.BeginScene() # Begin rendering the scene.
+    vis.Render() # Render the scene.
+    vis.EndScene() # End rendering the scene.
+    sys.DoStepDynamics(0.001) # Perform one step of simulation with a step size of 0.001 seconds.

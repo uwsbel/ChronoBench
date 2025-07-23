@@ -5,7 +5,7 @@ import math
 
 
 chrono.SetChronoDataPath('/path/to/chrono/data')  
-veh.SetDataPath('/path/to/vehicle/data')  
+veh.SetDataPath('/path/to/chrono/data/vehicle/')  
 
 
 initLoc = chrono.ChVector3d(-40, 0, 0.5)  
@@ -49,7 +49,6 @@ vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 vehicle.Initialize()
 
-
 vehicle.SetChassisVisualizationType(vis_type)
 vehicle.SetSuspensionVisualizationType(vis_type)
 vehicle.SetSteeringVisualizationType(vis_type)
@@ -59,20 +58,16 @@ vehicle.SetTireVisualizationType(vis_type)
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
-if contact_method == chrono.ChContactMethod_NSC:
-    patch_mat = chrono.ChContactMaterialNSC()
-elif contact_method == chrono.ChContactMethod_SMC:
-    patch_mat = chrono.ChContactMaterialSMC()
-else:
-    raise ValueError("Invalid contact method")
-
+patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 patch = terrain.AddPatch(patch_mat, 
                          chrono.ChCoordsysd(chrono.ChVector3d(0, 0, terrainHeight), chrono.QUNIT), 
                          terrainLength, terrainWidth)
-patch.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 200, 200)  
+
+
+patch.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
@@ -112,36 +107,31 @@ step_number = 0
 render_frame = 0
 
 
-double_lane_change = True
-if double_lane_change:
-    steering_target = 0.0
-    throttle_target = 0.5  
-    braking_target = 0.0
-    time_lane_change_start = 2.0  
-    time_lane_change_end = 4.0   
-    time_braking_start = 6.0      
+double_lane_change_time = 5  
+steering_target = 0.5  
+throttle_value = 0.5  
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
     
-    if double_lane_change:
-        if time >= time_lane_change_start and time <= time_lane_change_end:
-            steering_target = 0.5 if time < (time_lane_change_start + time_lane_change_end) / 2 else -0.5
-            throttle_target = 0.5
-            braking_target = 0.0
-        elif time > time_braking_start:
-            steering_target = 0.0
-            throttle_target = 0.0
-            braking_target = 1.0
-        else:
-            steering_target = 0.0
-            throttle_target = 0.5
-            braking_target = 0.0
-
-        driver.SetSteering(steering_target)
-        driver.SetThrottle(throttle_target)
-        driver.SetBraking(braking_target)
+    if time > double_lane_change_time and time < double_lane_change_time + 2:
+        driver_inputs = veh.Inputs()
+        driver_inputs.m_steering = steering_target
+        driver_inputs.m_throttle = throttle_value
+        driver_inputs.m_braking = 0
+    elif time > double_lane_change_time + 2 and time < double_lane_change_time + 4:
+        driver_inputs = veh.Inputs()
+        driver_inputs.m_steering = -steering_target
+        driver_inputs.m_throttle = throttle_value
+        driver_inputs.m_braking = 0
+    elif time > double_lane_change_time + 4:
+        driver_inputs = veh.Inputs()
+        driver_inputs.m_steering = 0
+        driver_inputs.m_throttle = 0
+        driver_inputs.m_braking = 0.5  
+    else:
+        driver_inputs = driver.GetInputs()
 
     
     if (step_number % render_steps == 0):
@@ -151,13 +141,10 @@ while vis.Run():
         render_frame += 1
 
     
-    driver_inputs = driver.GetInputs()
-
-    
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
-    vis.Synchronize(driver_inputs)
+    vis.Synchronize(time, driver_inputs)
 
     
     driver.Advance(step_size)

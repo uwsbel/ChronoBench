@@ -3,7 +3,7 @@ import math
 import numpy as np
 import pychrono as chrono
 import pychrono.robot as viper
-import pychrono.sensor as sens
+import pychrono.sensor as sens  # Import statement for pychrono.sensor
 from pychrono import irrlicht as chronoirr
 
 # Create Chrono system

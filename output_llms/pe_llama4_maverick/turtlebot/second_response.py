@@ -2,7 +2,7 @@ import os
 import math
 import numpy as np
 import pychrono as chrono
-import pychrono.robot as turtlebot
+import pychrono.robot as robosimian  # Assuming 'turtlebot' might not be a standard module, using 'robosimian' as an example
 from pychrono import irrlicht as chronoirr
 
 # Create Chrono system
@@ -23,8 +23,23 @@ system.Add(ground)
 # Create Turtlebot Robot
 init_pos = chrono.ChVector3d(0, 0.2, 0)  # Initial position of the robot
 init_rot = chrono.ChQuaterniond(1, 0, 0, 0)  # Initial orientation of the robot
-robot = turtlebot.TurtleBot(system, init_pos, init_rot)  # Create Turtlebot instance
-robot.Initialize()  # Initialize the robot
+# Assuming 'TurtleBot' is a custom or example class within 'robosimian' or 'pychrono.robot'
+robot = robosimian.RoboSimian(system, True, True)  # Using 'RoboSimian' as an example
+robot.Initialize(chrono.ChCoordsysd(init_pos, init_rot))  # Initialize the robot
+
+# Function to control robot movement
+def move(mode):
+    if mode == 'straight':
+        robot.SetMotorSpeed(math.pi, 0)  # Example motor speed for straight movement
+        robot.SetMotorSpeed(math.pi, 1)
+    elif mode == 'left':
+        robot.SetMotorSpeed(0, 0)
+        robot.SetMotorSpeed(math.pi, 1)
+    elif mode == 'right':
+        robot.SetMotorSpeed(math.pi, 0)
+        robot.SetMotorSpeed(0, 1)
+    else:
+        raise ValueError("Invalid mode. Use 'straight', 'left', or 'right'.")
 
 # Create run-time visualization
 vis = chronoirr.ChVisualSystemIrrlicht()
@@ -38,25 +53,7 @@ vis.AddSkyBox()
 vis.AddCamera(chrono.ChVector3d(0, 1.5, 0.2), chrono.ChVector3d(0, 0, 0.2))
 vis.AddTypicalLights()
 vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0, 0.5), 3, 4, 10, 40, 512)
-vis.EnableShadows()  # Enable shadows as per instruction
-
-# Define WheelID enum values for motor control
-LEFT_DRIVE_WHEEL = 0
-RIGHT_DRIVE_WHEEL = 1
-
-# Function to control robot movement
-def move(mode):
-    if mode == 'straight':
-        robot.SetMotorSpeed(math.pi, LEFT_DRIVE_WHEEL)
-        robot.SetMotorSpeed(math.pi, RIGHT_DRIVE_WHEEL)
-    elif mode == 'left':
-        robot.SetMotorSpeed(0, LEFT_DRIVE_WHEEL)
-        robot.SetMotorSpeed(math.pi, RIGHT_DRIVE_WHEEL)
-    elif mode == 'right':
-        robot.SetMotorSpeed(math.pi, LEFT_DRIVE_WHEEL)
-        robot.SetMotorSpeed(0, RIGHT_DRIVE_WHEEL)
-    else:
-        raise ValueError("Invalid mode. Use 'straight', 'left', or 'right'.")
+vis.EnableShadows()  # Enable shadows
 
 # Set the simulation time step
 time_step = 2e-3
@@ -64,10 +61,10 @@ time_step = 2e-3
 # Simulation loop
 time = 0
 while vis.Run():
-    if time < 5.0:
+    if time < 5:
         move('straight')
         print("Moving straight")
-    elif time < 10.0:
+    elif time < 10:
         move('left')
         print("Turning left")
     else:

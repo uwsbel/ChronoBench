@@ -1,0 +1,91 @@
+import math as m
+import pychrono as chrono
+import pychrono.fea as fea
+import pychrono.pardisomkl as pardiso  # MKL solver with Pardiso benefits (more precise, faster)
+import pychrono.irrlicht as chronoirr
+
+# ================================================================================
+# Model1: A beam buckling composed of 10 ANCF cable element, with gravity applied.
+# This model demonstrates how to set up a marketbeam model composed of ANCF elements.
+# ================================================================================
+class Model1:
+    def __init__(self, system, mesh):
+        # Create a section, i.e. a thickness and width for the beam
+        msection = fea.ChBeamSectionEulerAdvanced()
+        msection.SetDensity(1000)  # Set the density of the beam section ("zero" density section thickness/widthe would be scaled accordingly)
+        msection.SetYoungModulus( susp_young_modulus)
+        msection.SetRayleighDamping(0.000)  # Set Rayleigh damping (frequency-dependent damping proportional to mass and stiffness)
+        msection.SetShearCorrectionFactor(1.0)  # Set shear correction factor for Euler beam theory
+        msection.SetSectionWidth(beam_width)  # Set the width of the beam section
+        msection.SetSectionHeight(beam_height)  # Set the height of the beam section
+        msection.SetZeroShearCenter()  # Set the shear center to zero (default is origin)
+
+        # Create the ANCF beam elements:
+        # -------------------------------
+        beam = fea.ChBeamEuler()  # Create a ChBeamEuler object (marketbeam model)
+        beam.SetNodes(  # Set the nodes of the beam
+            msection,  # Beam section to use
+            mesh.LookupNode(0),  # Starting node
+            mesh.LookupNode(5)   # Ending node
+        )
+        beam.SetNumberOfLayers(3)  # Set the number of layers for composite sections
+        beam.SetLayerThickness(0, 0.020)  # Set thickness for layer 0
+        beam.SetLayerThickness(1, 0.020)  # Set thickness for layer 1
+        beam.SetLayerThickness(2, 0.020)  # Set thickness for layer 2
+        beam.SetLayerAngle(1, 45)  # Set angle for layer 1
+        beam.SetLayerAngle(2, -45)  # Set angle for layer 2
+        mesh.AddElement(beam)  # Add the beam element to the mesh
+
+        # Create the truss elements:
+        # -------------------------------
+        truss = fea.ChElementBeamUDD()  # Create a ChElementBeamUDD object (truss model)
+        truss.SetNodes(  # Set the nodes of the truss element
+            mesh.LookupNode(5),  # Node at one end
+            mesh.LookupNode(7)   # Node at the other end
+        )
+        truss.SetSectionDiameter(0.010)  # Set the diameter of the truss section
+        mesh.AddElement(truss)  # Add the truss element to the mesh
+
+        # Apply load to the beam:
+        # -------------------------------
+        force_vec = chrono.ChVector3d(0, 0.0, -0.2)  # Define the force vector
+        beam.LookupNode(5).SetForce(beam.LookupNode(5).GetForce() + force_vec)  # Apply the force to node 5
+
+# Create the Chrono physical system:
+sys = chrono.ChSystemSMC()
+
+# Create a mesh to hold the finite element analysis (FEA) elements:
+mesh = fea.ChMesh()
+
+# Add the mesh to the physical system:
+sys.Add(mesh)
+
+# Disable visualization of the mesh by default:
+mesh.SetVisible(False)
+
+# Create the beam section and related components:
+Model1(sys, mesh)
+
+# Create Irrlicht visualization for active objects in the system:
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(sys)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle('Test')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVector3d(0, 0.6, -1))
+vis.AddTypicalLights()
+
+# Use the PARDISO MKL solver for the system:
+sys.SetSolver(pardiso.ChSolverPardisoMKL())
+
+# Set the time step for simulation:
+timesteps = 0.001
+
+# Main simulation loop:
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    sys.DoStepDynamics(timesteps)  # Perform one step of simulation with the specified time step

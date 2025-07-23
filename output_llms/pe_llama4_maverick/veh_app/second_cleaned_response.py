@@ -1,5 +1,5 @@
 import pychrono.core as chrono
-import pychrono.irrlicht as irr
+import pychrono.irrlicht as chronoirr
 import pychrono.vehicle as veh
 import pychrono.sensor as sens
 import math
@@ -7,6 +7,8 @@ import os
 
 
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
+
+print(chrono.GetChronoDataPath() + 'vehicle/')
 
 
 initLoc = chrono.ChVector3d(0, -5, 0.4)  
@@ -96,13 +98,13 @@ terrain.Initialize()
 
 box_body = chrono.ChBodyEasyBox(1, 1, 1, 1000, True, True, patch_mat)
 box_body.SetPos(chrono.ChVector3d(0, 0, 0.5))
-box_body.GetVisualShape(0).SetColor(chrono.ChColor(0, 0, 1))  
+box_body.SetBodyFixed(False)
 gator.GetSystem().Add(box_body)
 
 
 cylinder_body = chrono.ChBodyEasyCylinder(0.5, 1, 1000, True, True, patch_mat)
 cylinder_body.SetPos(chrono.ChVector3d(0, 0, 1.5))
-cylinder_body.GetVisualShape(0).SetColor(chrono.ChColor(0, 0, 1))  
+cylinder_body.SetBodyFixed(False)
 gator.GetSystem().Add(cylinder_body)
 
 
@@ -148,6 +150,7 @@ lidar = sens.ChLidarSensor(
     sens.LidarReturnMode_STRONGEST_RETURN
 )
 lidar.PushFilter(sens.ChFilterDIAccess())
+lidar.PushFilter(sens.ChFilterXYZIAccess())
 lidar.PushFilter(sens.ChFilterVisualize(800, 300, "Lidar XYZI"))
 manager.AddSensor(lidar)
 
@@ -159,18 +162,23 @@ time = 0
 end_time = 30
 while time < end_time:
     time = gator.GetSystem().GetChTime()
-    driver.SetSteering(0.5)  
-    driver.SetThrottle(0.2)  
+    
+    driver.SetSteering(0.5)
+    driver.SetThrottle(0.2)
+    
     driver_inputs = driver.GetInputs()
 
+    
     driver.Synchronize(time)
     terrain.Synchronize(time)
     gator.Synchronize(time, driver_inputs, terrain)
 
     manager.Update()
 
+    
     driver.Advance(step_size)
     terrain.Advance(step_size)
     gator.Advance(step_size)
 
+    
     realtime_timer.Spin(step_size)

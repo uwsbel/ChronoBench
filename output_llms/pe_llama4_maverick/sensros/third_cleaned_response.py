@@ -110,7 +110,7 @@ def main():
     acc_handler = chros.ChROSAccelerometerHandler(acc, "~/output/accelerometer/data")
     ros_manager.RegisterHandler(acc_handler)
     gyro_handler = chros.ChROSGyroscopeHandler(gyro, "~/output/gyroscope/data")
-    ros_manager._RegisterHandler(gyro_handler)
+    ros_manager.RegisterHandler(gyro_handler)
     mag_handler = chros.ChROSMagnetometerHandler(mag, "~/output/magnetometer/data")
     ros_manager.RegisterHandler(mag_handler)
 
@@ -136,7 +136,9 @@ def main():
 
         
         sens_manager.Update()
-        if not ros_manager.Update():
+        ros_manager.Update()
+
+        if not ros_manager.Update():  
             print("ROS manager update failed. Exiting simulation loop.")
             break
 

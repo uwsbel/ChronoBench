@@ -53,9 +53,8 @@ body_crank.AddVisualShape(boxcrank)
 # Create a rotational motor
 motor = chrono.ChLinkMotorRotationAngle()
 motor.Initialize(body_truss, body_crank, chrono.ChFramed(vG))
-myfun = ChFunctionMyFun()
+myfun = ChFunctionMyFun)
 motor.SetAngleFunction(myfun)
-sys.Add(chrono.ChLinkMotorRotationAngle())
 sys.Add(motor)
 
 # Create a FEM mesh container:
@@ -144,7 +143,10 @@ constr_bc.SetConstrainedCoords(True, True, True, True, True, False)
 sphereconstr3 = chrono.ChVisualShapeSphere(0.014)
 constr_bc.AddVisualShape(sphereconstr3)
 
+# Final touches:
 mesh.SetAutomaticGravity(False)
+
+# Add the mesh to the physical system
 sys.Add(mesh)
 
 # Create visualization for the FEM mesh:

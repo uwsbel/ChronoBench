@@ -1,11 +1,15 @@
+vehicle.SetMaxMotorVoltageRatio(0.26)  
+vehicle.SetStallTorque(0.4)  
+vehicle.SetTireRollingResistance(0.03)  
+
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
 
-chrono.SetChronoDataPath('/path/to/chrono/data')  
-veh.SetDataPath('/path/to/chrono/data/vehicle/')  
+chrono.SetChronoDataPath('/path/to/chrono/data/')
+veh.SetDataPath('/path/to/vehicle/data/')
 
 
 initLoc = chrono.ChVector3d(0, 0, 0.5)
@@ -40,6 +44,8 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  
 
 
+
+
 vehicle = veh.ARTcar()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
@@ -49,12 +55,11 @@ vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 
 
-vehicle.SetMaxMotorVoltageRatio(0.26)  
-vehicle.SetStallTorque(0.4)  
-vehicle.SetTireRollingResistance(0.03)  
+vehicle.SetMaxMotorVoltageRatio(0.26)
+vehicle.SetStallTorque(0.4)
+vehicle.SetTireRollingResistance(0.03)
 
 vehicle.Initialize()
-
 
 vehicle.SetChassisVisualizationType(vis_type)
 vehicle.SetSuspensionVisualizationType(vis_type)
@@ -70,12 +75,13 @@ patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 patch = terrain.AddPatch(patch_mat, 
-                         chrono.ChCoordsysd(chrono.ChVector3d(0, 0, terrainHeight), chrono.QUNIT), 
-                         terrainLength, terrainWidth)
+    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, terrainHeight), chrono.QUNIT), 
+    terrainLength, terrainWidth)
 
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
+
 
 
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
@@ -102,9 +108,19 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 
+
+
+
+
+print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+
+
 render_steps = math.ceil(render_step_size / step_size)
+
+
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
+render_frame = 0
 
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
@@ -114,6 +130,7 @@ while vis.Run() :
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
+        render_frame += 1
 
     
     driver_inputs = driver.GetInputs()

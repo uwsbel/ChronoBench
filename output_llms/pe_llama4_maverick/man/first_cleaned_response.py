@@ -3,63 +3,100 @@ import pychrono.vehicle as veh
 import pychrono.irrlicht as chronoirr
 
 
-chrono.SetChronoDataPath('/path/to/chrono/data')
 
 
-veh.SetDataPath('/path/to/vehicle/data')
 
 
-my_truck = veh.MAN_10t()
-my_truck.SetContactMethod(chrono.ChContactMethod_SMC)
-my_truck.SetChassisCollisionType(veh.CollisionType_NONE)
-my_truck.SetChassisFixed(False)
-my_truck.SetInitPosition(chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 1), chrono.QuatFromAngleAxis(chrono.CH_C_PI / 2, chrono.ChVector3d(0, 0, 1))))
-my_truck.SetPowertrainType(veh.PowertrainModelType_SHAFTS)
-my_truck.SetDriveType(veh.DrivelineTypeWV_AWD)
-my_truck.SetTireType(veh.TireModelType_TMEASY)
-my_truck.SetTireStepSize(1e-3)
-my_truck.Initialize()
 
 
-terrain = veh.RigidTerrain(my_truck.GetSystem())
-patch_mat = chrono.ChContactMaterialSMC()
-patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 300, 100)
-patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 300, 100)
+veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
+
+
+
+
+
+
+initLoc = chrono.ChVector3d(0, 0, 1.0)
+initRot = chrono.ChQuaterniond(1, 0, 0, 0)
+vehicle = veh.MAN_10t(initLoc, initRot)
+
+
+vehicle.SetTireType(veh.TireModelType_TMEASY)
+
+
+vehicle.SetChassisCollisionType(veh.CollisionType_NONE)
+vehicle.SetTireCollisionType(veh.CollisionType_ENVELOPE)
+
+
+vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
+vehicle.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
+vehicle.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
+vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
+vehicle.SetTireVisualizationType(veh.VisualizationType_MESH)
+
+
+terrain = veh.RigidTerrain(vehicle.GetSystem())
+patch_mat = chrono.ChMaterialSurfaceNSC()
+patch_mat.SetFriction(0.9)
+patch_mat.SetRestitution(0.01)
+patch = terrain.AddPatch(patch_mat, 
+                         chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
+                         100.0, 100.0)
+patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 
-vis = chronoirr.ChVisualSystemIrrlicht()
-vis.SetCameraVertical(chrono.CameraVerticalDir_Z)
-vis.SetWindowSize(1280, 720)
-vis.SetWindowTitle('MAN 10t Truck Simulation')
+vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
+vis.SetWindowTitle('MAN 10t')
+vis.SetWindowSize(1280, 1024)
+vis.SetChaseCamera(chrono.ChVector3d(0.0, 0.0, 1.75), 6.0, 0.5)
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddLightDirectional()
 vis.AddSkyBox()
-vis.AddCamera(chrono.ChVector3d(10, 10, 5), my_truck.GetChassis().GetPos())
-vis.AddTypicalLights()
-vis.AttachSystem(my_truck.GetSystem())
+vis.AttachVehicle(vehicle)
 
 
-driver = veh.ChDriver(my_truck.GetVehicle())
-driver.Initialize()
+driver = veh.ChIrrGuiDriver(vis)
 
 
-while vis.Run():
-    time = my_truck.GetSystem().GetChTime()
-    steering_input = driver.GetSteering()
-    throttle_input = driver.GetThrottle()
-    braking_input = driver.GetBraking()
-    
-    
-    my_truck.Update(time, driver.GetInputs())
-    driver_inputs = veh.Inputs(steering_input, throttle_input, braking_input)
-    driver.SetInputs(driver_inputs)
-    
+steering_time = 1.0  
+throttle_time = 1.0  
+braking_time = 0.3   
+driver.SetSteeringDelta(driver.GetSteeringMax() / steering_time * 0.02)
+driver.SetThrottleDelta(driver.GetThrottleMax() / throttle_time * 0.02)
+driver.SetBrakingDelta(driver.GetBrakingMax() / braking_time * 0.02)
+
+
+while vis.Run() :
+    time = vehicle.GetSystem().GetChTime()
+
     
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
+
     
+    driver_inputs = driver.GetInputs()
+
     
-    my_truck.GetSystem().DoStepDynamics(1e-3)
+    driver.Synchronize(time)
+    terrain.Synchronize(time)
+    vehicle.Synchronize(time, driver_inputs, terrain)
+    vis.Synchronize(driver.GetInputModeAsString(), driver_inputs)
+
+    
+    driver.Advance(0.02)
+    terrain.Advance(0.02)
+    vehicle.Advance(0.02)
+    vis.Advance(0.02)
+
+    
+    vehicle.GetSystem().DoStepDynamics(0.02)
+
+
+del vis
+del driver
+del vehicle
+del terrain

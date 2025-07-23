@@ -36,9 +36,9 @@ def main():
     terrain.Initialize()  
 
     
-    box_body = ch.ChBodyEasyBox(2, 2, 2, 1000, True, True, patch_mat)
-    box_body.SetPos(ch.ChVector3d(5, 0, 1))
-    hmmwv.GetSystem().Add(box_body)
+    body_box = ch.ChBodyEasyBox(2, 2, 2, 1000, True, True, patch_mat)
+    body_box.SetPos(ch.ChVector3d(5, 0, 1))
+    hmmwv.GetSystem().Add(body_box)
 
     
     vis = chronoirr.ChVisualSystemIrrlicht()
@@ -62,30 +62,29 @@ def main():
     ros_manager.RegisterHandler(chros.ChROSClockHandler())  
     ros_manager.RegisterHandler(chros.ChROSDriverInputsHandler(25, driver, "~/input/driver_inputs"))
     ros_manager.RegisterHandler(chros.ChROSBodyHandler(25, hmmwv.GetChassisBody(), "~/output/hmmwv/state"))
+    ros_manager.Initialize()  
 
     
     sens_manager = sens.ChSensorManager(hmmwv.GetSystem())
-    lidar = sens.ChLidarSensor(box_body, 10, ch.ChFrame(ch.ChVector3d(0, 0, .5), ch.Q_from_AngAxis(0, ch.VECT_Z)), 100, ch.ChVector3d(0, 0, .5), 10, -45, 45, 0.05)
+    lidar = sens.ChLidarSensor(body_box, 10, ch.ChFrame(ch.ChVector3d(0, 0, 0), ch.Q_from_AngAxis(0, ch.VECT_Z)), 100, ch.ChVector3d(0, 0, .5), 10, -45, 45, 360)
+    lidar.SetName("Lidar Sensor")
     lidar.PushFilter(sens.ChFilterDIAccess())
-    lidar.PushFilter(sens.ChFilterVisualize(256, 256, "Lidar"))
-    lidar.PushFilter(sens.ChFilterLidarReduce(10))
-    lidar.PushFilter(sens.ChFilterLidarNoiseXY(0.03, 0.03))
-    lidar.PushFilter(sens.ChFilterLidarNoiseZ(0.005))
     lidar.PushFilter(sens.ChFilterPCfromDepth())
+    lidar.PushFilter(sens.ChFilterVisualize(256, 256, "Lidar Depth Data"))
+    lidar.PushFilter(sens.ChFilterLidarReduceRangeResolution(1))
+    lidar.PushFilter(sens.ChFilterLidarNoisePixellate(1, 1, .01))
     sens_manager.AddSensor(lidar)
 
     
-    ros_manager.RegisterHandler(chros.ChROSLidarHandler(25, lidar, "~/output/lidar/points"))
-
-    ros_manager.Initialize()  
+    ros_manager.RegisterHandler(chros.ChROSLidarHandler(25, lidar, "~/output/lidar"))
 
     
     time = 0
     time_step = 1e-3  
     time_end = 30  
-    step_number = 0
     render_step_size = 1.0 / 25  
     render_steps = math.ceil(render_step_size / time_step)
+    step_number = 0
     hmmwv.GetVehicle().EnableRealtime(True)  
     while vis.Run():  
         time = hmmwv.GetSystem().GetChTime()  
@@ -102,8 +101,7 @@ def main():
         terrain.Advance(time_step)
         hmmwv.Advance(time_step)
 
-        
-        sens_manager.Update()
+        sens_manager.Update()  
 
         if not ros_manager.Update(time, time_step):
             break  
