@@ -105,6 +105,7 @@ opensource_model_links = {
     "mixtral-8x7b-instruct-v0.1": "mistralai/mixtral-8x7b-instruct-v0.1",
     "mistral-large-latest": "mistralai/mistral-large",
     "mamba-codestral-7b-v0.1": "mistralai/mamba-codestral-7b-v0.1",
+    "llama3.1-8b-f1":"llama3.1-8b-f1"
 }
 system_list = ["art", "beam", "buckling", "cable", "car", "camera", "citybus", "curiosity", "feda", "gator", "gear",
                "gps_imu", "handler", "hmmwv", "kraz", "lidar", "m113", "man", "mass_spring_damper", "particles",
