@@ -16,7 +16,7 @@ client = OpenAI(base_url="http://localhost:30000/v1", api_key="0")
 
 opensource_model_links = {
     "llama3.1-8b-f2": "llama3.1-8b-f2",
-    "llama3.1-70b-f1": "llama3.1-70b-f1",
+    "llama3.3-70b-lora1": "llama3.3-70b-lora1",
     "gpt-4o-mini-f1":  "ft:gpt-4o-mini-2024-07-18:personal::9xVAdwNY",
     "codestral-22b-f1":"codestral-22b-instruct-v0.1",
 }
@@ -25,7 +25,7 @@ DATA_ROOT                  = Path("/lustre/fsw/coreai_nvfm_cupilot/jingquanw/Sim
 dataset_path               = DATA_ROOT / "demo_data"
 Output_path                = DATA_ROOT / "output_llms"
 Output_conversation_path   = DATA_ROOT / "output_conversion"
-test_model_list            = ["llama3.1-8b-f2"]
+test_model_list            = ["llama3.3-70b-lora1"]
 Output_path.mkdir(exist_ok=True, parents=True)
 Output_conversation_path.mkdir(exist_ok=True, parents=True)
 
