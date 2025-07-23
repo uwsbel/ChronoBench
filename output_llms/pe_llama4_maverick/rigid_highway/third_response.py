@@ -3,10 +3,8 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
-# Set the correct path to Chrono data if necessary
-# chrono.SetChronoDataPath('/path/to/chrono/data')
-
-# Ensure the vehicle data path is correctly set relative to the Chrono data path
+# Set the correct path to Chrono data before running the demo
+chrono.SetChronoDataPath('/path/to/chrono/data')  # Update this path
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 # Initial vehicle location and orientation
@@ -51,14 +49,13 @@ vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 vehicle.Initialize()
 
-# Set visualization type for vehicle parts
+# Visualization settings for vehicle components
 vehicle.SetChassisVisualizationType(vis_type)
 vehicle.SetSuspensionVisualizationType(vis_type)
 vehicle.SetSteeringVisualizationType(vis_type)
 vehicle.SetWheelVisualizationType(vis_type)
 vehicle.SetTireVisualizationType(vis_type)
 
-# Set the collision system type
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 # Create the terrain
@@ -69,9 +66,10 @@ patch_mat.SetRestitution(0.05)  # Updated restitution value
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 
 # Update patch position and orientation
-patch_pos = chrono.ChCoordsysd(chrono.ChVector3d(6, -70, 0), chrono.QuatFromAngleZ(-math.pi / 2))  # -90 degrees about Z-axis
+patch_pos = chrono.ChVector3d(6, -70, 0)
+patch_rot = chrono.QuatFromAngleZ(-math.pi / 2)  # -90 degrees about Z-axis
 patch = terrain.AddPatch(patch_mat, 
-                         patch_pos,
+                         chrono.ChCoordsysd(patch_pos, patch_rot),
                          chrono.GetChronoDataFile('vehicle/terrain/meshes/Highway_col.obj'),
                          True, 0.01, False)
 
@@ -108,36 +106,33 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 # Simulation loop
+print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
+
 render_steps = math.ceil(render_step_size / step_size)
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
+render_frame = 0
 
-while vis.Run() :
+while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
-    # Render scene
-    if (step_number % render_steps == 0) :
+    if (step_number % render_steps == 0):
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
+        render_frame += 1
 
-    # Get driver inputs
     driver_inputs = driver.GetInputs()
 
-    # Update modules
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
 
-    # Advance simulation for one timestep for all modules
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
 
-    # Increment frame number
     step_number += 1
-
-    # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)

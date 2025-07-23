@@ -2,7 +2,6 @@ import os
 import math
 import numpy as np
 import pychrono as chrono
-import pychrono.robot as robosimian  
 import pychrono.irrlicht as chronoirr
 import pychrono.sensor as sens
 
@@ -15,7 +14,7 @@ chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
 
 
 ground_mat = chrono.ChContactMaterialNSC()
-ground = chrono.ChBodyEasyBox(20, 20, 1, 1000, True, True, ground_mat)
+ground = chrono.ChBodyEasyBox(20, 20, 1.2, 1000, True, True, ground_mat)
 ground.SetPos(chrono.ChVector3d(0, 0, -0.6))  
 ground.SetFixed(True)  
 ground.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
@@ -24,12 +23,20 @@ system.Add(ground)
 
 init_pos = chrono.ChVector3d(0, 0.2, 0)  
 init_rot = chrono.ChQuaterniond(1, 0, 0, 0)  
+try:
+    import pychrono.robot as turtlebot
+    robot = turtlebot.TurtleBot(system, init_pos, init_rot)  
+    robot.Initialize()  
+except AttributeError:
+    print("TurtleBot class or its methods are not available.")
 
 
-
-
-robot = robosimian.RoboSimian(system, True, True)
-robot.Initialize(chrono.ChCoordsysd(init_pos, init_rot))
+box_mat = chrono.ChContactMaterialNSC()
+for _ in range(5):
+    box_pos = chrono.ChVector3d(np.random.uniform(-5, 5), np.random.uniform(-5, 5), 0.5)
+    box = chrono.ChBodyEasyBox(0.5, 0.5, 1, 1000, True, True, box_mat)
+    box.SetPos(box_pos)
+    system.Add(box)
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
@@ -49,41 +56,34 @@ vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0
 
 
 manager = sens.ChSensorManager(system)
-manager.scene.AddPointLight(chrono.ChVector3f(0, 0, 100), chrono.ChColor(1, 1, 1), 5000)
-
 
 lidar = sens.ChLidarSensor(
-    robot.GetChassisBody(),
-    10,  
-    chrono.ChFrame(chrono.ChVector3d(0, 0, .5), chrono.Q_from_AngAxis(0, chrono.ChVector3d(0, 1, 0))),
-    100,  
-    50,   
-    chrono.CH_PI,  
-    chrono.CH_C_PI / 6.,  
-    0.1, 100  
+    robot.body, 
+    10, 
+    chrono.ChFrame(chrono.ChVector3d(0, 0, 0.5), chrono.Q_from_AngAxis(0, chrono.VECT_Z)), 
+    100, 
+    30, 
+    chrono.ChVector3d(0.5, 0.1, 0.01)
 )
-lidar.PushFilter(sens.ChFilterDIAccess())
-lidar.PushFilter(sens.ChFilterVisualize(960, 540, "Lidar"))
+lidar.SetName("Lidar Sensor")
+lidar.PushFilter(sens.ChFilterDIAreaReconstruction())
+lidar.PushFilter(sens.ChFilterVisualize(512, 512, "Lidar Output"))
 manager.AddSensor(lidar)
 
 
-box_mat = chrono.ChContactMaterialNSC()
-for _ in range(5):
-    box = chrono.ChBodyEasyBox(0.1, 0.1, 0.1, 1000, True, True, box_mat)
-    box.SetPos(chrono.ChVector3d(np.random.uniform(-5, 5), np.random.uniform(-5, 5), 0.5))
-    system.Add(box)
-
-
 def move(mode):
+    LEFT_DRIVE_WHEEL = 0
+    RIGHT_DRIVE_WHEEL = 1
+    speed = math.pi  
     if mode == 'straight':
-        robot.SetMotorSpeed(math.pi, 0)  
-        robot.SetMotorSpeed(math.pi, 1)
+        robot.SetMotorSpeed(speed, LEFT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(speed, RIGHT_DRIVE_WHEEL)
     elif mode == 'left':
-        robot.SetMotorSpeed(0, 0)
-        robot.SetMotorSpeed(math.pi, 1)
+        robot.SetMotorSpeed(0, LEFT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(speed, RIGHT_DRIVE_WHEEL)
     elif mode == 'right':
-        robot.SetMotorSpeed(math.pi, 0)
-        robot.SetMotorSpeed(0, 1)
+        robot.SetMotorSpeed(speed, LEFT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(0, RIGHT_DRIVE_WHEEL)
 
 
 time_step = 2e-3

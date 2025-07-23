@@ -1,0 +1,102 @@
+import pychrono as chrono                         # Importing the Chrono library
+import pychrono.irrlicht as chronoirr             # Importing the Irrlicht visualization library for Chrono
+import math as m                                  # Importing the math library for mathematical operations
+
+# Create a Chrono::Engine physical system
+sys = chrono.ChSystemNSC()                        # Initializing the Chrono physical system with non-smooth contact (NSC) method
+
+# Create contact material shared among all bodies
+mat = chrono.ChContactMaterialNSC()               # Creating a contact material for collision handling
+
+# Create all rigid bodies with specific dimensions
+radA = 2                                          # Defining radius for first gear's outer circle
+radB = 4                                          # Defining radius for second gear's outer circle
+
+# Create the truss
+mbody_truss = chrono.ChBodyEasyBox(20, 10, 2,     # Creating a box-shaped truss body with dimensions 20x10x2
+                                    1000,          # Setting mass (not used for fixed body)
+                                    True,          # Enable visualization
+                                    False,         # Disable collision
+                                    mat)           # Using the defined contact material
+sys.Add(mbody_truss)                              # Adding the truss to the physical system
+mbody_truss.SetFixed(True)                        # Making the truss fixed (immovable)
+mbody_truss.SetPos(chrono.ChVector3d(0, 0, 3))    # Setting the position of the truss to (0, 0, 3)
+
+# Shared visualization material for enhanced aesthetics
+vis_mat = chrono.ChVisualMaterial()                      # Creating a visual material
+vis_mat.SetKdTexture(chrono.GetChronoDataFile('textures/pinkwhite.png'))  # Setting a texture for the visual material
+
+# Create the rotating bar support for the two epicycloidal wheels
+mbody_train = chrono.ChBodyEasyBox(8, 1, 1,  # Creating a box-shaped rotating bar with dimensions 8x1x1
+                                   1000,      # Setting mass
+                                   True,      # Enable visualization
+                                   False,     # Disable collision
+                                   mat)       # Using the defined contact material
+sys.Add(mbody_train)                             # Adding the rotating bar to the system
+mbody_train.SetPos(chrono.ChVector3d(3, 0, 0))   # Positioning the rotating bar at (3, 0, 0)
+
+# Create a revolute constraint between truss and rotating bar, allowing rotation along the Z-axis
+con_revTR = chrono.ChLinkLockRevolute()                      # Creating a revolute constraint
+con_revTR.Initialize(mbody_truss, mbody_train,              # Initializing the constraint with truss and rotating bar
+                     chrono.ChFramed(chrono.ChVector3d(0,0,0),  # Positioning the constraint at origin
+                                     chrono.QUNIT))             # No initial rotation
+sys.Add(con_revTR)                                          # Adding the constraint to the system
+
+# Create the first gear
+mbody_gearA = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y,     # Creating a cylindrical gear with Y axis as the central axis
+                                        radA, 0.5,          # Setting radius and height
+                                        1000, True, False, mat)  # Setting mass, visualization, collision, and material
+sys.Add(mbody_gearA)                                        # Adding the gear to the system
+mbody_gearA.SetPos(chrono.ChVector3d(0, 0, -1))             # Positioning the gear at (0, 0, -1)
+mbody_gearA.SetRot(chrono.QuatFromAngleX(m.pi / 2))         # Rotating the gear by 90 degrees around X-axis
+mbody_gearA.GetVisualShape(0).SetMaterial(0, vis_mat)       # Applying the visual material to the gear
+
+# Adding a thin cylinder only for visualization purpose
+mshaft_shape = chrono.ChVisualShapeCylinder(radA * 0.4, 13)                             # Creating a thin cylinder for visualization
+mbody_gearA.AddVisualShape(mshaft_shape, chrono.ChFramed(chrono.ChVector3d(0, 3.5, 0),     # Adding the visual shape to the gear body
+                                                          chrono.QuatFromAngleX(chrono.CHPI_2)))  # Positioning the visual cylinder
+
+# Create the second gear
+interaxis12 = radA + radB                               # Calculating distance between the centers of two gears
+mbody_gearB = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y,  # Creating a cylindrical gear with Y axis as the central axis
+                                        radB, 0.4,          # Setting radius and height
+                                        1000, True, False, mat)  # Setting mass, visualization, collision, and material
+sys.Add(mbody_gearB)                                        # Adding the second gear to the system
+mbody_gearB.SetPos(chrono.ChVector3d(interaxis12, 0, -1))   # Positioning the second gear based on calculated inter-axis distance
+mbody_gearB.SetRot(chrono.QuatFromAngleX(m.pi / 2))         # Rotating the second gear by 90 degrees around X-axis
+mbody_gearB.GetVisualShape(0).SetMaterial(0, vis_mat)       # Applying the visual material to the gear
+
+# Fix the second gear to the rotating bar via a revolute constraint
+con_rev = chrono.ChLinkLockRevolute()                      # Creating a revolute constraint
+con_rev.Initialize(mbody_gearB, mbody_train,              # Initializing the constraint with second gear and rotating bar
+                   chrono.ChFramed(chrono.ChVector3d(interaxis12, 0, 0), chrono.QUNIT))  # Positioning the constraint at the gear's axis
+sys.Add(con_rev)                                          # Adding the constraint to the system
+
+# Create the gear constraint between the two gears, enforcing a relation between their rotations
+con_gearAB = chrono.ChLinkMotorRotationRadius()                      # Creating a gear constraint between two gears
+con_gearAB.Initialize(mbody_gearA, mbody_gearB, interaxis12)         # Initializing the gear constraint and setting the radius
+sys.Add(con_gearAB)                                                  # Adding the constraint to the system
+
+# Setting the rotation speed of the first gear after relative position/rotation zeroing
+con_gearAB.SetMotorFunction(chrono.ChFunctionConst(6))              # Setting constant rotation speed of 6 rad/s for the first gear
+
+# Initialize the Irrlicht visualization
+vis = chronoirr.ChVisualSystemIrrlicht()                            # Initializing the Irrlicht visualization system
+vis.AttachSystem(sys)                                              # Attaching the Chrono system to visualization
+vis.SetWindowSize(1024, 768)                                       # Setting window size for the visualization
+vis.SetWindowTitle('Gears and pulleys')                             # Setting window title
+vis.Initialize()                                                   # Initializing the visualization window
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))   # Adding a logo to the visualization window
+vis.AddSkyBox()                                                    # Adding a skybox for background
+vis.AddCamera(chrono.ChVector3d(12, 15, -20))                      # Adding a camera at a specific position
+vis.AddTypicalLights()                                             # Adding typical lights
+
+# Set integrator type
+sys.SetTimestepperType(chrono.ChTimestepper.Type_EULER_IMPLICIT_PROJECTED)  # Setting the type of integrator for time-stepping
+
+# Simulation loop
+while vis.Run():                                       # Running the visualization loop while the window is open
+    vis.BeginScene()                                  # Begin rendering a new scene
+    vis.Render()                                      # Render the current scene
+    vis.EndScene()                                    # End rendering the scene
+    sys.DoStepDynamics(1e-3)                          # Perform a simulation step with a time step of 1ms

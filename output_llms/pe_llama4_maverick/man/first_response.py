@@ -2,64 +2,101 @@ import pychrono as chrono
 import pychrono.vehicle as veh
 import pychrono.irrlicht as chronoirr
 
-# Set the Chrono data path
-chrono.SetChronoDataPath('/path/to/chrono/data')
+# ==============================================================================
 
-# Initialize the vehicle system
-veh.SetDataPath('/path/to/vehicle/data')
+# The path to the Chrono data directory containing various assets (meshes, textures, data files)
+# is automatically set, relative to the default location of this demo.
+# If running from a different directory, you must change the path to the data directory with: 
+#chrono.SetChronoDataPath('path/to/data')
 
-# Create the MAN 10t truck
-my_truck = veh.MAN_10t()
-my_truck.SetContactMethod(chrono.ChContactMethod_SMC)
-my_truck.SetChassisCollisionType(veh.CollisionType_NONE)
-my_truck.SetChassisFixed(False)
-my_truck.SetInitPosition(chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 1), chrono.QuatFromAngleAxis(chrono.CH_C_PI / 2, chrono.ChVector3d(0, 0, 1))))
-my_truck.SetPowertrainType(veh.PowertrainModelType_SHAFTS)
-my_truck.SetDriveType(veh.DrivelineTypeWV_AWD)
-my_truck.SetTireType(veh.TireModelType_TMEASY)
-my_truck.SetTireStepSize(1e-3)
-my_truck.Initialize()
+veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
+
+# ---------------
+# Simulation setup
+# ---------------
+
+# Create the MAN 10t truck vehicle with TMeasy tires
+initLoc = chrono.ChVector3d(0, 0, 1.0)
+initRot = chrono.ChQuaterniond(1, 0, 0, 0)
+vehicle = veh.MAN_10t(initLoc, initRot)
+
+# Set the tire model to TMeasy
+vehicle.SetTireType(veh.TireModelType_TMEASY)
+
+# Optionally, enable/disable collision for the vehicle chassis and/or tires
+vehicle.SetChassisCollisionType(veh.CollisionType_NONE)
+vehicle.SetTireCollisionType(veh.CollisionType_ENVELOPE)
+
+# Optionally, enable visualization of the vehicle components
+vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
+vehicle.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
+vehicle.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
+vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
+vehicle.SetTireVisualizationType(veh.VisualizationType_MESH)
 
 # Create the terrain
-terrain = veh.RigidTerrain(my_truck.GetSystem())
-patch_mat = chrono.ChContactMaterialSMC()
-patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 300, 100)
-patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 300, 100)
+terrain = veh.RigidTerrain(vehicle.GetSystem())
+patch_mat = chrono.ChMaterialSurfaceNSC()
+patch_mat.SetFriction(0.9)
+patch_mat.SetRestitution(0.01)
+patch = terrain.AddPatch(patch_mat, 
+                         chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
+                         100.0, 100.0)
+patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
-# Create the Irrlicht visualization system
-vis = chronoirr.ChVisualSystemIrrlicht()
-vis.SetCameraVertical(chrono.CameraVerticalDir_Z)
-vis.SetWindowSize(1280, 720)
-vis.SetWindowTitle('MAN 10t Truck Simulation')
+# Create the vehicle Irrlicht interface
+vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
+vis.SetWindowTitle('MAN 10t')
+vis.SetWindowSize(1280, 1024)
+vis.SetChaseCamera(chrono.ChVector3d(0.0, 0.0, 1.75), 6.0, 0.5)
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddLightDirectional()
 vis.AddSkyBox()
-vis.AddCamera(chrono.ChVector3d(10, 10, 5), my_truck.GetChassis().GetPos())
-vis.AddTypicalLights()
-vis.AttachSystem(my_truck.GetSystem())
+vis.AttachVehicle(vehicle)
 
-# Create the driver
-driver = veh.ChDriver(my_truck.GetVehicle())
-driver.Initialize()
+# Create the interactive driver system
+driver = veh.ChIrrGuiDriver(vis)
+
+# Set the time response for steering and throttle keyboard inputs.
+steering_time = 1.0  # time to go from 0 to +1 (or from 0 to -1)
+throttle_time = 1.0  # time to go from 0 to +1
+braking_time = 0.3   # time to go from 0 to +1
+driver.SetSteeringDelta(driver.GetSteeringMax() / steering_time * 0.02)
+driver.SetThrottleDelta(driver.GetThrottleMax() / throttle_time * 0.02)
+driver.SetBrakingDelta(driver.GetBrakingMax() / braking_time * 0.02)
 
 # Simulation loop
-while vis.Run():
-    time = my_truck.GetSystem().GetChTime()
-    steering_input = driver.GetSteering()
-    throttle_input = driver.GetThrottle()
-    braking_input = driver.GetBraking()
-    
-    # Update the vehicle and driver
-    my_truck.Update(time, driver.GetInputs())
-    driver_inputs = veh.Inputs(steering_input, throttle_input, braking_input)
-    driver.SetInputs(driver_inputs)
-    
-    # Render the scene
+while vis.Run() :
+    time = vehicle.GetSystem().GetChTime()
+
+    # Draw scene
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
-    
-    # Advance the simulation
-    my_truck.GetSystem().DoStepDynamics(1e-3)
+
+    # Get driver inputs
+    driver_inputs = driver.GetInputs()
+
+    # Update modules (process inputs from other modules)
+    driver.Synchronize(time)
+    terrain.Synchronize(time)
+    vehicle.Synchronize(time, driver_inputs, terrain)
+    vis.Synchronize(driver.GetInputModeAsString(), driver_inputs)
+
+    # Advance simulation for one timestep for all modules
+    driver.Advance(0.02)
+    terrain.Advance(0.02)
+    vehicle.Advance(0.02)
+    vis.Advance(0.02)
+
+    # Increment time
+    vehicle.GetSystem().DoStepDynamics(0.02)
+
+# Cleanup
+del vis
+del driver
+del vehicle
+del terrain

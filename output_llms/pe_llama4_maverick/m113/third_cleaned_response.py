@@ -5,7 +5,7 @@ import math
 
 
 chrono.SetChronoDataPath('/path/to/chrono/data')  
-veh.SetDataPath('/path/to/vehicle/data')  
+veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 
 initLoc = chrono.ChVector3d(-5, 0, 0.5)  
@@ -72,7 +72,6 @@ patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 
-sys = vehicle.GetSystem()
 box_body = chrono.ChBody()
 box_body.SetMass(100)
 box_body.SetPos(chrono.ChVector3d(0, 0, 1))
@@ -83,13 +82,7 @@ box_shape = chrono.ChVisualShapeBox(chrono.ChVector3d(5, 0.5, 0.5))
 box_body.AddVisualShape(box_shape)
 
 
-box_mat = chrono.ChContactMaterialSMC()
-box_body.GetCollisionModel().ClearModel()
-box_body.GetCollisionModel().AddBox(box_mat, 5, 0.5, 0.5, chrono.ChVector3d(0, 0, 0))
-box_body.GetCollisionModel().BuildModel()
-box_body.SetCollide(True)
-
-sys.Add(box_body)
+vehicle.GetSystem().Add(box_body)
 
 
 vis = veh.ChTrackedVehicleVisualSystemIrrlicht()
@@ -103,32 +96,58 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 
+driver = veh.ChInteractiveDriverIRR(vis)
+
+
+steering_time = 1.0  
+throttle_time = 1.0  
+braking_time = 0.3   
+driver.SetSteeringDelta(render_step_size / steering_time)
+driver.SetThrottleDelta(render_step_size / throttle_time)
+driver.SetBrakingDelta(render_step_size / braking_time)
+
+driver.Initialize()
+
+
+vehicle.GetSystem().SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
+
+
+print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
+
+
+render_steps = math.ceil(render_step_size / step_size)
+
+
 step_number = 0
 render_frame = 0
+
+
 vehicle.GetVehicle().EnableRealtime(True)
 
-while vis.Run() :
+while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
     
-    if (step_number % math.ceil(render_step_size / step_size) == 0) :
+    if (step_number % render_steps == 0):
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
         render_frame += 1
 
     
-    driver_inputs = veh.Inputs()
+    driver_inputs = veh.DriverInputs()
     driver_inputs.m_throttle = 0.8  
-    driver_inputs.m_steering = 0
-    driver_inputs.m_braking = 0
+    driver_inputs.m_steering = driver.GetSteering()
+    driver_inputs.m_braking = driver.GetBraking()
 
     
+    driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs)
     vis.Synchronize(time, driver_inputs)
 
     
+    driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)

@@ -1,6 +1,7 @@
 import pychrono as chrono
 import pychrono.fea as fea
 import pychrono.irrlicht as chronoirr
+import numpy as np
 
 
 sys = chrono.ChSystemSMC()
@@ -9,62 +10,58 @@ sys = chrono.ChSystemSMC()
 mesh = fea.ChMesh()
 
 
-beam_length = 10.0
 beam_wy = 0.1
 beam_wz = 0.1
-E = 0.01e9  
-nu = 0.3    
-G = E / (2 * (1 + nu))  
-
-
+beam_L = 10.0
 msection = fea.ChBeamSectionEulerAdvanced()
 msection.SetAsRectangularSection(beam_wy, beam_wz)
-msection.SetYoungModulus(E)
-msection.SetShearModulus(G)
+msection.SetYoungModulus(0.01e9)
+msection.SetShearModulus(0.01e9 * 0.3)
 msection.SetRayleighDamping(0.000)
 
 
-num_elements = 10
-node_interval = beam_length / num_elements
-nodes = []
-for i in range(num_elements + 1):
-    node = fea.ChNodeFEAxyzrot(chrono.ChFramed(chrono.ChVector3d(i * node_interval, 0, 0)))
-    mesh.AddNode(node)
-    nodes.append(node)
+hnode1 = fea.ChNodeFEAxyzrot(chrono.ChFramed(chrono.ChVector3d(0, 0, 0)))
+hnode2 = fea.ChNodeFEAxyzrot(chrono.ChFramed(chrono.ChVector3d(beam_L, 0, 0)))
+mesh.AddNode(hnode1)
+mesh.AddNode(hnode2)
 
 
-for i in range(num_elements):
-    element = fea.ChElementBeamEuler()
-    element.SetNodes(nodes[i], nodes[i + 1])
-    element.SetSection(msection)
-    mesh.AddElement(element)
+belement1 = fea.ChElementBeamEuler()
+belement1.SetNodes(hnode1, hnode2)
+belement1.SetSection(msection)
+mesh.AddElement(belement1)
 
 
 sys.Add(mesh)
 
 
-nodes[0].SetFixed(True)
+body_floor = chrono.ChBody()
+body_floor.SetBodyFixed(True)
+sys.Add(body_floor)
 
 
-body_motor = chrono.ChBody()
-sys.Add(body_motor)
-body_motor.SetPos(nodes[-1].GetPos())
+rev_joint = chrono.ChLinkLockRevolute()
+rev_joint.Initialize(hnode1, body_floor, chrono.ChCoordsysD(chrono.ChVector3d(0, 0, 0)))
+sys.Add(rev_joint)
 
 
-link_motor = chrono.ChLinkMateGeneric()
-link_motor.Initialize(nodes[-1].GetBody(), body_motor, False, nodes[-1].GetFrame_COG(), nodes[-1].GetFrame_COG())
-sys.AddLink(link_motor)
+motor = chrono.ChLinkMotorRotationSpeed()
+motor.Initialize(hnode2, body_floor, chrono.ChCoordsysD(chrono.ChVector3d(beam_L, 0, 0)))
+sys.Add(motor)
 
 
-class MotorFunction(chrono.ChFunction):
+class CustomMotorFunction(chrono.ChFunction):
     def __init__(self):
         super().__init__()
-    def Get_y(self, x):
-        return -0.1 * x  
 
-motor_function = MotorFunction()
-body_motor.SetForce(chrono.ChVector3d(1, 0, 0))  
-body_motor.SetPos_dt(chrono.ChVector3d(motor_function.Get_y(0), 0, 0))  
+    def Get_y(self, x):
+        return np.sin(x)
+
+    def Clone(self):
+        return CustomMotorFunction()
+
+motor_fun = CustomMotorFunction()
+motor.SetSpeedFunction(motor_fun)
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
@@ -74,7 +71,7 @@ vis.SetWindowTitle('Beam Buckling Simulation')
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()
-vis.AddCamera(chrono.ChVector3d(5, 3, 4))
+vis.AddCamera(chrono.ChVector3d(5, 5, 5))
 vis.AddTypicalLights()
 
 

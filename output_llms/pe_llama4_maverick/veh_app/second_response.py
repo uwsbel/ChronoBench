@@ -1,5 +1,5 @@
 import pychrono.core as chrono
-import pychrono.irrlicht as irr
+import pychrono.irrlicht as chronoirr
 import pychrono.vehicle as veh
 import pychrono.sensor as sens
 import math
@@ -7,6 +7,8 @@ import os
 
 # Set the data path for Chrono assets
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
+
+print(chrono.GetChronoDataPath() + 'vehicle/')
 
 # Initial vehicle location and orientation
 initLoc = chrono.ChVector3d(0, -5, 0.4)  # Changed initial location
@@ -93,16 +95,16 @@ patch.SetColor(chrono.ChColor(0.8, 0.8, 1.0))
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 50, 50)
 terrain.Initialize()
 
-# Add a box object to the system
+# Add a box object
 box_body = chrono.ChBodyEasyBox(1, 1, 1, 1000, True, True, patch_mat)
 box_body.SetPos(chrono.ChVector3d(0, 0, 0.5))
-box_body.GetVisualShape(0).SetColor(chrono.ChColor(0, 0, 1))  # Blue color
+box_body.SetBodyFixed(False)
 gator.GetSystem().Add(box_body)
 
-# Add a cylinder object to the system
+# Add a cylinder object
 cylinder_body = chrono.ChBodyEasyCylinder(0.5, 1, 1000, True, True, patch_mat)
 cylinder_body.SetPos(chrono.ChVector3d(0, 0, 1.5))
-cylinder_body.GetVisualShape(0).SetColor(chrono.ChColor(0, 0, 1))  # Blue color
+cylinder_body.SetBodyFixed(False)
 gator.GetSystem().Add(cylinder_body)
 
 # Create the interactive driver system
@@ -148,6 +150,7 @@ lidar = sens.ChLidarSensor(
     sens.LidarReturnMode_STRONGEST_RETURN
 )
 lidar.PushFilter(sens.ChFilterDIAccess())
+lidar.PushFilter(sens.ChFilterXYZIAccess())
 lidar.PushFilter(sens.ChFilterVisualize(800, 300, "Lidar XYZI"))
 manager.AddSensor(lidar)
 
@@ -159,18 +162,23 @@ time = 0
 end_time = 30
 while time < end_time:
     time = gator.GetSystem().GetChTime()
-    driver.SetSteering(0.5)  # Changed driver input
-    driver.SetThrottle(0.2)  # Changed driver input
+    # Set driver inputs
+    driver.SetSteering(0.5)
+    driver.SetThrottle(0.2)
+    # Collect output data from modules (for inter-module communication)
     driver_inputs = driver.GetInputs()
 
+    # Update modules (process inputs from other modules)
     driver.Synchronize(time)
     terrain.Synchronize(time)
     gator.Synchronize(time, driver_inputs, terrain)
 
     manager.Update()
 
+    # Advance simulation for one timestep for all modules
     driver.Advance(step_size)
     terrain.Advance(step_size)
     gator.Advance(step_size)
 
+    # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)

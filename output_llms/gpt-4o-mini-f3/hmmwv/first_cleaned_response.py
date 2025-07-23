@@ -1,0 +1,29 @@
+import pychrono.core as chrono
+import pychrono.irrlicht as irr
+import pychrono.vehicle as veh
+import math
+
+chrono.ChSystemNSC()
+swap
+hmmwv.ChHMMWV()
+hmmwv.ChHMMWV_Full()
+hmmwv.ChHMMWV_Pac02()
+veh.ChWheeledVehicle()
+veh.ChTire()
+veh.ChVehicleIrrlicht()
+chronr.ChIrrlichtApplication()
+math.chAcos()
+math.chAtan2()
+math.chCos()
+math.chSin()
+math.chSqrt()
+veh.ChTireModelType::TMEASY
+veh.ChSuspensionType::DOUBLE_AES
+veh.ChSteeringType::PITMAN_ARM
+veh.ChVehicleLinearMapMode::FLOORSPEED_FLOORFORCE
+veh.ChCollisionType::PRIMITIVES
+hmmwv.SetTireType(tireModel)
+hmmwv.SetTireStepSize(stepSize)
+ SetInitialYaw()
+yawy SetWalltime()
+time-m

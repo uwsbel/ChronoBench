@@ -3,72 +3,85 @@ import pychrono.fea as fea
 import pychrono.irrlicht as chronoirr
 import numpy as np
 
+def main():
+    
+    sys = chrono.ChSystemSMC()
 
-sys = chrono.ChSystemSMC()
+    
+    mesh = fea.ChMesh()
 
+    
+    mesh.SetAutomaticGravity(False)
 
-sys.Set_G_acc(chrono.ChVector3d(0, -9.81, 0))
+    
+    mat = fea.ChMaterialShellKirchhoff()
+    mat.SetYoungModulus(1e6)  
+    mat.SetPoissonRatio(0.3)  
+    mat.SetDensity(1000)     
+    mat.SetRayleighDampingK(0.0)
+    mat.SetRayleighDampingM(0.0)
 
+    
+    length = 1.0
+    width = 1.0
+    num_div_x = 20
+    num_div_y = 20
 
-sys.SetSolverType(chrono.ChSolver.Type_PARDISO_MKL)
+    
+    dx = length / num_div_x
+    dy = width / num_div_y
+    for i in range(num_div_x + 1):
+        for j in range(num_div_y + 1):
+            x = i * dx
+            y = j * dy
+            z = 0.0
+            node = fea.ChNodeFEAxyzrot(chrono.ChFramed(chrono.ChVector3d(x, y, z)))
+            node.SetMass(0.0)
+            mesh.AddNode(node)
 
+    for i in range(num_div_x):
+        for j in range(num_div_y):
+            node1 = mesh.GetNode(i * (num_div_y + 1) + j)
+            node2 = mesh.GetNode(i * (num_div_y + 1) + j + 1)
+            node3 = mesh.GetNode((i + 1) * (num_div_y + 1) + j + 1)
+            node4 = mesh.GetNode((i + 1) * (num_div_y + 1) + j)
+            element = fea.ChElementShellANCF_3423()
+            element.SetNodes(node1, node2, node3, node4)
+            element.SetMaterial(mat)
+            element.SetThickness(0.01)
+            mesh.AddElement(element)
 
-mesh = fea.ChMesh()
+    
+    sys.Add(mesh)
 
+    
+    table_body = chrono.ChBody()
+    table_body.SetPos(chrono.ChVector3d(0.5, -0.1, 0))
+    table_body.SetBodyFixed(True)
+    table_body_shape = chrono.ChVisualShapeBox(chrono.ChVector3d(1, 0.1, 1))
+    table_body.AddVisualShape(table_body_shape)
+    sys.Add(table_body)
 
-E = 1e7  
-nu = 0.3  
-rho = 1000  
-mat = fea.ChMaterialShellKirchhoffIsothropic(E, nu, rho)
+    
+    vis = chronoirr.ChVisualSystemIrrlicht()
+    vis.AttachSystem(sys)
+    vis.SetWindowSize(1024, 768)
+    vis.SetWindowTitle('Tablecloth Folding Simulation')
+    vis.Initialize()
+    vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+    vis.AddSkyBox()
+    vis.AddCamera(chrono.ChVector3d(0.5, 0.5, 1.5))
+    vis.AddTypicalLights()
 
+    
+    sys.SetSolverType(chrono.ChSolver.Type_PARDISO_MKL)
 
-L_x = 2.0  
-L_y = 1.0  
-n_x = 40   
-n_y = 20   
+    
+    while vis.Run():
+        vis.BeginScene()
+        vis.Render()
+        sys.DoStepDynamics(0.001)
+        vis.EndScene()
 
-
-dx = L_x / n_x
-dy = L_y / n_y
-
-for i in range(n_x + 1):
-    for j in range(n_y + 1):
-        x = i * dx - L_x / 2
-        y = j * dy
-        z = 0.0
-        node = fea.ChNodeFEAxyz(chrono.ChVector3d(x, y, z))
-        mesh.AddNode(node)
-
-
-for i in range(n_x):
-    for j in range(n_y):
-        node1 = mesh.GetNode(i * (n_y + 1) + j)
-        node2 = mesh.GetNode((i + 1) * (n_y + 1) + j)
-        node3 = mesh.GetNode((i + 1) * (n_y + 1) + (j + 1))
-        node4 = mesh.GetNode(i * (n_y + 1) + (j + 1))
-        
-        element = fea.ChElementShellANCF_3423()
-        element.SetNodes(node1, node2, node3, node4)
-        element.SetMaterial(mat)
-        mesh.AddElement(element)
-
-
-sys.Add(mesh)
-
-
-vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(sys)
-vis.SetWindowSize(800, 600)
-vis.SetWindowTitle('Tablecloth Folding Simulation')
-vis.Initialize()
-vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
-vis.AddSkyBox()
-vis.AddCamera(chrono.ChVector3d(0, 1, 3))
-vis.AddTypicalLights()
-
-
-while vis.Run():
-    vis.BeginScene()
-    vis.Render()
-    sys.DoStepDynamics(0.001)
-    vis.EndScene()
+if __name__ == "__main__":
+    main()

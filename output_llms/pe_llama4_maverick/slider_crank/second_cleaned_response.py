@@ -83,33 +83,32 @@ while vis.Run() and time < 20:
     
     
     array_time.append(time)
-    array_angle.append(mcrank.GetRot().Q_to_Euler123().x)
+    array_angle.append(my_motor.GetMotorRot() % (2 * np.pi))  
     array_pos.append(mpiston.GetPos().x)
     array_speed.append(mpiston.GetPos_dt().x)
 
 
-plt.figure(figsize=(10, 5))
+array_time = np.array(array_time)
+array_angle = np.array(array_angle)
+array_pos = np.array(array_pos)
+array_speed = np.array(array_speed)
+
+
+plt.figure(figsize=(12, 6))
 
 plt.subplot(1, 2, 1)
 plt.plot(array_angle, array_pos)
 plt.xlabel('Crank Angle [rad]')
 plt.ylabel('Piston Position [m]')
 plt.title('Piston Position vs Crank Angle')
-plt.grid(True)
+plt.xticks([0, np.pi/2, np.pi, 3*np.pi/2, 2*np.pi], ['0', r'$\frac{\pi}{2}$', r'$\pi$', r'$\frac{3\pi}{2}$', r'$2\pi$'])
 
 plt.subplot(1, 2, 2)
 plt.plot(array_angle, array_speed)
 plt.xlabel('Crank Angle [rad]')
 plt.ylabel('Piston Speed [m/s]')
 plt.title('Piston Speed vs Crank Angle')
-plt.grid(True)
-
-
-plt.subplot(1, 2, 1)
-plt.xticks([0, np.pi/2, np.pi, 3*np.pi/2, 2*np.pi], ['0', r'$\pi/2$', r'$\pi$', r'$3\pi/2$', r'$2\pi$'])
-
-plt.subplot(1, 2, 2)
-plt.xticks([0, np.pi/2, np.pi, 3*np.pi/2, 2*np.pi], ['0', r'$\pi/2$', r'$\pi$', r'$3\pi/2$', r'$2\pi$'])
+plt.xticks([0, np.pi/2, np.pi, 3*np.pi/2, 2*np.pi], ['0', r'$\frac{\pi}{2}$', r'$\pi$', r'$\frac{3\pi}{2}$', r'$2\pi$'])
 
 plt.tight_layout()
 plt.show()

@@ -1,60 +1,62 @@
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
 
-# 1. Initialize the PyChrono environment
+# Create a Chrono system
 sys = chrono.ChSystemNSC()
 
-# 2. Create a fixed truss (ground body)
+# Create a fixed truss
 truss = chrono.ChBody()
 truss.SetBodyFixed(True)
 sys.Add(truss)
 
-# 3. Create a rotating bar
+# Create a rotating bar
 bar = chrono.ChBody()
 bar.SetMass(1)
 bar.SetInertiaXX(chrono.ChVector3d(1, 1, 0.1))
 bar.SetPos(chrono.ChVector3d(0, 0, 0))
 sys.Add(bar)
 
-# 4. Create the two gears
+# Create the first gear
 gear1 = chrono.ChBody()
-gear1.SetMass(2)
-gear1.SetInertiaXX(chrono.ChVector3d(2, 2, 0.2))
-gear1.SetPos(chrono.ChVector3d(2, 0, 0))
+gear1.SetMass(1)
+gear1.SetInertiaXX(chrono.ChVector3d(0.1, 0.1, 0.1))
+gear1.SetPos(chrono.ChVector3d(-1, 0, 0))
 sys.Add(gear1)
 
+# Create the second gear
 gear2 = chrono.ChBody()
-gear2.SetMass(2)
-gear2.SetInertiaXX(chrono.ChVector3d(2, 2, 0.2))
-gear2.SetPos(chrono.ChVector3d(-2, 0, 0))
+gear2.SetMass(1)
+gear2.SetInertiaXX(chrono.ChVector3d(0.1, 0.1, 0.1))
+gear2.SetPos(chrono.ChVector3d(1, 0, 0))
 sys.Add(gear2)
 
-# 5. Create revolute joints between truss and bar, truss and gears
-rev_bar = chrono.ChLinkLockRevolute()
-rev_bar.Initialize(bar, truss, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0)))
-sys.Add(rev_bar)
+# Create a revolute joint between the truss and the bar
+rev_joint_bar = chrono.ChLinkLockRevolute()
+rev_joint_bar.Initialize(truss, bar, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT))
+sys.Add(rev_joint_bar)
 
-rev_gear1 = chrono.ChLinkLockRevolute()
-rev_gear1.Initialize(gear1, truss, chrono.ChCoordsysd(chrono.ChVector3d(2, 0, 0)))
-sys.Add(rev_gear1)
+# Create a revolute joint between the bar and the first gear
+rev_joint_gear1 = chrono.ChLinkLockRevolute()
+rev_joint_gear1.Initialize(bar, gear1, chrono.ChCoordsysd(chrono.ChVector3d(-1, 0, 0), chrono.QUNIT))
+sys.Add(rev_joint_gear1)
 
-rev_gear2 = chrono.ChLinkLockRevolute()
-rev_gear2.Initialize(gear2, truss, chrono.ChCoordsysd(chrono.ChVector3d(-2, 0, 0)))
-sys.Add(rev_gear2)
+# Create a revolute joint between the truss and the second gear
+rev_joint_gear2 = chrono.ChLinkLockRevolute()
+rev_joint_gear2.Initialize(truss, gear2, chrono.ChCoordsysd(chrono.ChVector3d(1, 0, 0), chrono.QUNIT))
+sys.Add(rev_joint_gear2)
 
-# 6. Create a gear constraint between the two gears
+# Create a gear constraint between the two gears
 gear_constraint = chrono.ChLinkGear()
-gear_constraint.Initialize(gear1, gear2, truss, False, chrono.ChVector3d(0, 0, 1), chrono.ChVector3d(0, 0, 1), -0.5)
+gear_constraint.Initialize(gear1, gear2, False, chrono.ChVector3d(0, 0, 1), chrono.ChVector3d(0, 0, 1), -0.5)
 sys.Add(gear_constraint)
 
-# 7. Create a motor to enforce a constant rotation speed on gear1
+# Create a motor to rotate the bar
 motor = chrono.ChLinkMotorRotationSpeed()
-motor.Initialize(gear1, bar, chrono.ChFrameD(chrono.ChVector3d(2, 0, 0)))
-motor_fun = chrono.ChFunction_Const(chrono.CH_PI)  # 180 degrees per second
-motor.SetSpeedFunction(motor_fun)
+motor.Initialize(bar, truss, chrono.ChFramed(chrono.ChVector3d(0, 0, 0), chrono.QUNIT))
+motor.SetSpeedFunction(chrono.ChFunction_Const(chrono.CH_PI / 2))  # 0.5 rotations per second
 sys.Add(motor)
 
-# 8. Set up the Irrlicht visualization
+# Create the Irrlicht visualization system
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(sys)
 vis.SetWindowSize(800, 600)
@@ -62,23 +64,23 @@ vis.SetWindowTitle('Epicyclic Gear Simulation')
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()
-vis.AddCamera(chrono.ChVector3d(0, 4, 6))
+vis.AddCamera(chrono.ChVector3d(0, 3, 6))
 vis.AddTypicalLights()
 
-# 9. Add visual shapes to the bodies
-bar_shape = chrono.ChVisualShapeCylinder(0.1, 4)
+# Add visualization shapes to the bodies
+bar_shape = chrono.ChVisualShapeBox(0.1, 1, 0.1)
 bar_shape.SetColor(chrono.ChColor(1, 0, 0))
 bar.AddVisualShape(bar_shape)
 
-gear1_shape = chrono.ChVisualShapeCylinder(0.2, 0.5)
+gear1_shape = chrono.ChVisualShapeCylinder(0.2, 0.1)
 gear1_shape.SetColor(chrono.ChColor(0, 1, 0))
 gear1.AddVisualShape(gear1_shape)
 
-gear2_shape = chrono.ChVisualShapeCylinder(0.4, 0.5)
+gear2_shape = chrono.ChVisualShapeCylinder(0.2, 0.1)
 gear2_shape.SetColor(chrono.ChColor(0, 0, 1))
 gear2.AddVisualShape(gear2_shape)
 
-# 10. Simulation loop
+# Simulation loop
 while vis.Run():
     vis.BeginScene()
     vis.Render()

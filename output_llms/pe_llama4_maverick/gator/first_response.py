@@ -1,37 +1,27 @@
 import pychrono as chrono
 import pychrono.vehicle as veh
 import pychrono.irrlicht as chronoirr
-import numpy as np
 
 # =============================================================================
-# Setup
+# Setup vehicle parameters
 # =============================================================================
 
-# Output directory
-out_dir = chrono.GetChronoOutputPath() + "GATOR"
-
-# Contact method (NSC or SMC)
-contact_method = chrono.ChContactMethod_NSC
-
-# Simulation time step
-time_step = 1e-3
-
-# Terrain dimensions
-terrainLength = 100.0  # length (X direction)
-terrainWidth = 100.0  # width (Y direction)
-
-# Vehicle initial location and orientation
+# Initial vehicle location and orientation
 initLoc = chrono.ChVector3d(0, 0, 1.0)
-initRot = chrono.ChQuaterniond(1, 0, 0, 0)  # rotation about Y axis
+initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
-# Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
+# Simulation step size
+step_size = 2e-3
+
+# Contact method (SMC or NSC)
+contact_method = chrono.ChContactMethod_SMC
+
+# Visualization type (MESH or NONE)
 chassis_vis_type = veh.VisualizationType_MESH
 suspension_vis_type = veh.VisualizationType_MESH
 steering_vis_type = veh.VisualizationType_MESH
 wheel_vis_type = veh.VisualizationType_MESH
-
-# Type of tire model (RIGID, TMEASY, PAC89, or PAC02)
-tire_model = veh.TireModelType_TMEASY
+tire_vis_type = veh.VisualizationType_MESH
 
 # =============================================================================
 # Create the vehicle system
@@ -41,44 +31,74 @@ tire_model = veh.TireModelType_TMEASY
 gator = veh.Gator()
 gator.SetContactMethod(contact_method)
 gator.SetChassisCollisionType(veh.CollisionType_NONE)
-gator.SetChassisVisType(chassis_vis_type)
-gator.SetSuspensionVisType(suspension_vis_type)
-gator.SetSteeringVisType(steering_vis_type)
-gator.SetWheelVisType(wheel_vis_type)
-gator.SetTireType(tire_model)
-gator.Initialize(chrono.ChCoordsysd(initLoc, initRot))
-gator.SetTireStepSize(time_step)
+gator.SetChassisVisualizationType(chassis_vis_type)
+gator.SetSuspensionVisualizationType(suspension_vis_type)
+gator.SetSteeringVisualizationType(steering_vis_type)
+gator.SetWheelVisualizationType(wheel_vis_type)
+gator.SetTireVisualizationType(tire_vis_type)
+
+# Initialize the vehicle at the specified position and orientation
+gator.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
+
+# Use a simple powertrain model (simple CVT)
+powertrain_model = veh.SimpleCVTPowertrain("Powertrain")
+gator.SetPowertrain(powertrain_model)
+
+# Use the TMeasy tire model
+tire_model = veh.TMeasyTire("TMeasyTire")
+gator.SetTireModel(tire_model)
+
+# Initialize the vehicle
+gator.Initialize()
+
+# =============================================================================
+# Create the terrain
+# =============================================================================
 
 # Create the terrain
 terrain = veh.RigidTerrain(gator.GetSystem())
-patch_mat = chrono.ChMaterialSurfaceNSC() if contact_method == chrono.ChContactMethod_NSC else chrono.ChMaterialSurfaceSMC()
-patch_mat.SetFriction(0.9)
-patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), terrainLength, terrainWidth)
-patch.SetTexture(chrono.GetChronoDataFile("textures/grass.jpg"), 200, 200)
+
+# Define the terrain patch dimensions and properties
+patch_mat = chrono.ChContactMaterialSMC()
+patch = terrain.AddPatch(patch_mat, 
+                         chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
+                         200, 200)
+
+# Set the terrain visualization
+patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 400, 400)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+
+# Initialize the terrain
 terrain.Initialize()
 
-# Create the Irrlicht visualization system
+# =============================================================================
+# Create the Irrlicht visualization
+# =============================================================================
+
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(gator.GetSystem())
-vis.SetWindowSize(800, 600)
+vis.SetWindowSize(1280, 720)
 vis.SetWindowTitle('Gator Vehicle Simulation')
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()
-vis.AddCamera(chrono.ChVector3d(0, -10, 2))
+vis.AddCamera(chrono.ChVector3d(10, 10, -5))
 vis.AddTypicalLights()
 
-# Create the interactive driver system
+# =============================================================================
+# Simulation loop
+# =============================================================================
+
+# Create the interactive driver
 driver = veh.ChIrrGuiDriver(vis)
 
-# Set the time response for steering and throttle keyboard inputs.
-steering_time = 1.0  # time to go from 0 to +1 (or from 0 to -1)
-throttle_time = 1.0  # time to go from 0 to +1
-braking_time = 0.3  # time to go from 0 to +1
-driver.SetSteeringDelta(driver.GetSteeringMax() / steering_time * time_step)
-driver.SetThrottleDelta(driver.GetThrottleMax() / throttle_time * time_step)
-driver.SetBrakingDelta(driver.GetBrakingMax() / braking_time * time_step)
+# Set the driver inputs (steering, throttle, braking)
+driver.SetSteeringDelta(0.02)
+driver.SetThrottleDelta(1.0 / 60)
+driver.SetBrakingDelta(1.0 / 60)
+
+# Initialize the simulation time
+realtime_timer = chrono.ChRealtimeStepTimer()
 
 # Simulation loop
 while vis.Run():
@@ -88,23 +108,19 @@ while vis.Run():
     driver_inputs = driver.GetInputs()
     gator.SetDriverInputs(driver_inputs)
 
-    # Update modules (process inputs, advance state)
-    driver.Synchronize(time)
-    gator.Synchronize(time, driver_inputs, terrain)
-    terrain.Synchronize(time)
+    # Update the vehicle dynamics
+    gator.Update()
 
-    # Advance simulation for one timestep for all modules
-    driver.Advance(time_step)
-    gator.Advance(time_step)
-    terrain.Advance(time_step)
+    # Update the terrain
+    terrain.Update(time)
 
-    # Update visualization
+    # Render scene
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
 
-    # Cap the frame rate
-    vis.WaitForEndScene(20)
+    # Spin in place for real time
+    realtime_timer.Spin(step_size)
 
 # Cleanup
-vis.GetDevice().closeDevice()
+vis.GetDevice().drop()

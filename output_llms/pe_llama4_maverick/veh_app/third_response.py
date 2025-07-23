@@ -130,14 +130,28 @@ cam.SetName("Third Person POV")
 cam.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Gator Camera"))
 manager.AddSensor(cam)
 
-# Create lidar sensor
-offset_pose = chrono.ChFramed(
-    chrono.ChVector3d(0.0, 0, 2), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
+# Create a depth camera
+offset_pose_depth = chrono.ChFramed(chrono.ChVector3d(-5.0, 0, 2), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0)))
+depth_cam = sens.ChCameraSensor(
+    gator.GetChassisBody(),
+    update_rate,
+    offset_pose_depth,
+    image_width,
+    image_height,
+    fov
 )
+depth_cam.SetName("Depth Camera")
+depth_cam.SetLag(lag)
+depth_cam.SetCollectionWindow(1/update_rate)
+depth_cam.PushFilter(sens.ChFilterDepthVisualize(image_width, image_height, "Depth Map"))
+manager.AddSensor(depth_cam)
+
+# Create lidar sensor
+offset_pose_lidar = chrono.ChFramed(chrono.ChVector3d(0.0, 0, 2), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0)))
 lidar = sens.ChLidarSensor(
     gator.GetChassisBody(), 
     update_rate, 
-    offset_pose, 
+    offset_pose_lidar, 
     800, 
     300, 
     2 * chrono.CH_PI, 
@@ -159,48 +173,28 @@ lidar.PushFilter(sens.ChFilterXYZIAccess())
 lidar.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "Lidar Point Cloud"))
 manager.AddSensor(lidar)
 
-# Create a depth camera
-offset_pose = chrono.ChFramed(chrono.ChVector3d(-5.0, 0, 2), chrono.QUNIT)
-depth_cam = sens.ChCameraSensor(
-    gator.Get(Body),
-    update_rate,
-    offset_pose,
-    image_width,
-    image_height,
-    fov,
-    sens.CameraLensType_DEPTH
-)
-depth_cam.SetName("Depth Camera")
-depth_cam.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Depth Camera"))
-depth_cam.PushFilter(sens.ChFilterDepthT255())
-manager.AddSensor(depth_cam)
-
 # Simulation loop
 realtime_timer = chrono.ChRealtimeStepTimer()
 time = 0
 end_time = 30
 while time < end_time:
-    time = gator.GetSystem().GetChTime()
+    time = gator.GetGSystem().GetChTime()
     # Set driver inputs
     driver.SetSteering(0.5)
     driver.SetThrottle(0.2)
-    # Collect output data from modules (for inter-module communication)
     driver_inputs = driver.GetInputs()
 
-    # Update modules (process inputs from other modules)
+    # Update modules
     driver.Synchronize(time)
     terrain.Synchronize(time)
     gator.Synchronize(time, driver_inputs, terrain)
-
     manager.Update()
 
     # Log vehicle state
-    chassis_pos = gator.GetChassisBody().GetPos()
-    chassis_rot = gator.GetChassisBody().GetRot()
-    heading = chrono.Q2Euler123(chassis_rot).z
-    print(f"Time: {time}, Position: ({chassis_pos.x}, {chassis_pos.y}, {chassis_pos.z}), Heading: {heading}")
+    chassis_pose = gator.GetChassisBody().GetFrame_REF_to_abs()
+    print(f"Time: {time}, Position: {chassis_pose.GetPos()}, Heading: {chassis_pose.GetRot()}")
 
-    # Advance simulation for one timestep for all modules
+    # Advance simulation
     driver.Advance(step_size)
     terrain.Advance(step_size)
     gator.Advance(step_size)

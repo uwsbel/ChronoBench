@@ -114,7 +114,8 @@ opensource_model_links = {
     "gpt-4.1-mini":"gpt-4.1-mini",
     "gpt-4.1-nano":"gpt-4.1-nano",
     "o4-mini":"o4-mini",
-    "o3":"o3"
+    "o3":"o3",
+    "gpt-4o-mini-f3":"ft:gpt-4o-mini-2024-07-18:uw-sbel::A6Rd900h"
 }
 system_list = ["art", "beam", "buckling", "cable", "car", "camera", "citybus", "curiosity", "feda", "gator", "gear",
                "gps_imu", "handler", "hmmwv", "kraz", "lidar", "m113", "man", "mass_spring_damper", "particles",
@@ -131,7 +132,7 @@ output_path  = r"C:\Users\jingquanw\SimBench\output_llms"
 output_conv  = r"C:\Users\jingquanw\SimBench\output_conversion"
 # in the dataset_path, there are 34 dynamical system folders, each folder is a dyanmical system which contains 8 files [3 input text files, input1.txt, input2.txt, input3.txt;
 # 2 python input files, pyinput2.py, pyinput3.py; 3 ground truth python files truth1.py, truth2.py, truth3.py]
-test_model_list = ["gpt-4.1-mini", "gpt-4.1-nano"]
+test_model_list = ["gpt-4o-mini-f3"]
 # define an output path for the test results for each model with the name of the model
 # using tqdm to show the progress bar
 for test_model in tqdm(test_model_list):

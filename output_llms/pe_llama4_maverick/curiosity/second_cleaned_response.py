@@ -23,7 +23,9 @@ system.Add(ground)
 
 obstacle_mat = chrono.ChContactMaterialNSC()
 obstacle = chrono.ChBodyEasyBox(5, 0.5, 0.2, 1000, True, True, obstacle_mat)
-obstacle.SetPos(chrono.ChVector3d(0, 0, 0))  
+obstacle.SetPos(chrono.ChVector3d(0, 0, 0.1))  
+obstacle.SetFixed(True)  
+obstacle.GetVisualShape(0).SetColor(chrono.ChColor(1, 0, 0))  
 system.Add(obstacle)
 
 
@@ -34,9 +36,9 @@ driver = robot.CuriosityDCMotorControl()
 rover.SetDriver(driver)
 
 
-init_pos = chrono.ChVector3d(-5, 0.0, 0)  
+init_pos = chrono.ChVector3d(-5, 0.0, 0)
 init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
-rover.Initialize(chrono.ChFramed(init_pos, init_rot))
+rover.Initialize(chrono.ChCoordsysd(init_pos, init_rot))
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
@@ -64,8 +66,9 @@ while vis.Run():
 
     
     steering = 0  
+    throttle = 0.5  
     driver.SetSteering(steering)
-    driver.SetMotorSpeed(0.5)  
+    driver.SetThrottle(throttle)
 
     
     rover.Update()

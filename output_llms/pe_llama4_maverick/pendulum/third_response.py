@@ -6,56 +6,54 @@ import math
 sys = chrono.ChSystemNSC()
 
 # Set the gravitational acceleration for the system (in m/s^2)
-sys.Set_G_acc(chrono.ChVector3d(0, -9.81, 0))  # g = 9.81 m/s^2
+sys.SetGravitationalAcceleration(chrono.ChVector3d(0, -9.81, 0))  # g = 9.81 m/s^2
 
 # Create the ground body and add it to the simulation
 ground = chrono.ChBody()
-ground.SetBodyFixed(True)  # The ground is fixed and does not move
-ground.EnableCollision(False)  # Disable collision detection for the ground
 sys.Add(ground)
+ground.SetFixed(True)  # The ground is fixed and does not move
+ground.EnableCollision(False)  # Disable collision detection for the ground
 
 # Add a visualization cylinder to the ground
-cyl_1 = chrono.ChVisualShapeCylinder(0.2, 0.4)  # Cylinder with radius 0.2 and height 0.4
-ground.AddVisualShape(cyl_1, chrono.ChFrameD(chrono.ChVector3d(0, 0, 0)))
+cyl_ground = chrono.ChVisualShapeCylinder(0.2, 0.4)  # Cylinder with radius 0.2 and height 0.4
+ground.AddVisualShape(cyl_ground, chrono.ChFramed(chrono.ChVector3d(0, 0, 0)))
 
 # Create the first pendulum body and add it to the simulation
 pend_1 = chrono.ChBody()
+sys.Add(pend_1)
+pend_1.SetFixed(False)  # The pendulum can move
+pend_1.EnableCollision(False)  # Disable collision detection for the pendulum
 pend_1.SetMass(1)  # Set the mass of the pendulum (in kg)
 pend_1.SetInertiaXX(chrono.ChVector3d(0.2, 1, 1))  # Set the inertia tensor (in kg·m^2)
-sys.Add(pend_1)
-pend_1.EnableCollision(False)  # Disable collision detection for the pendulum
+pend_1.SetPos(chrono.ChVector3d(0, -1, 0))  # Initial position
 
 # Add a visualization cylinder to the first pendulum
-cyl_2 = chrono.ChVisualShapeCylinder(0.2, 2)  # Cylinder with radius 0.2 and height 2
-cyl_2.SetColor(chrono.ChColor(0.6, 0, 0))  # Set the color of the cylinder (RGB)
-pend_1.AddVisualShape(cyl_2, chrono.ChFrameD(chrono.ChVector3d(0, 0, 0), chrono.QuatFromAngleY(chrono.CH_PI_2)))
-
-# Set the initial position of the first pendulum
-pend_1.SetPos(chrono.ChVector3d(1, 0, 1))
+cyl_1 = chrono.ChVisualShapeCylinder(0.05, 2)  # Cylinder with radius 0.05 and height 2
+cyl_1.SetColor(chrono.ChColor(0.6, 0, 0))  # Set the color of the cylinder (RGB)
+pend_1.AddVisualShape(cyl_1, chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleY(chrono.CH_PI_2)))
 
 # Create a revolute joint to connect the first pendulum to the ground
 rev_1 = chrono.ChLinkLockRevolute()
-rev_1.Initialize(ground, pend_1, chrono.ChCoordsysD(chrono.ChVector3d(0, 0, 1), chrono.QUNIT))
+rev_1.Initialize(ground, pend_1, chrono.ChFramed(chrono.ChVector3d(0, 0, 0)))
 sys.Add(rev_1)
 
 # Create the second pendulum body and add it to the simulation
 pend_2 = chrono.ChBody()
+sys.Add(pend_2)
+pend_2.SetFixed(False)  # The pendulum can move
+pend_2.EnableCollision(False)  # Disable collision detection for the pendulum
 pend_2.SetMass(1)  # Set the mass of the pendulum (in kg)
 pend_2.SetInertiaXX(chrono.ChVector3d(0.2, 1, 1))  # Set the inertia tensor (in kg·m^2)
-sys.Add(pend_2)
-pend_2.EnableCollision(False)  # Disable collision detection for the pendulum
+pend_2.SetPos(chrono.ChVector3d(0, -3, 0))  # Initial position
 
 # Add a visualization cylinder to the second pendulum
-cyl_3 = chrono.ChVisualShapeCylinder(0.2, 2)  # Cylinder with radius 0.2 and height 2
-cyl_3.SetColor(chrono.ChColor(0, 0, 0.6))  # Set the color of the cylinder (RGB)
-pend_2.AddVisualShape(cyl_3, chrono.ChFrameD(chrono.ChVector3d(0, 0, 0), chrono.QuatFromAngleY(chrono.CH_PI_2)))
-
-# Set the initial position of the second pendulum
-pend_2.SetPos(chrono.ChVector3d(3, 0, 1))
+cyl_2 = chrono.ChVisualShapeCylinder(0.05, 2)  # Cylinder with radius 0.05 and height 2
+cyl_2.SetColor(chrono.ChColor(0, 0, 0.6))  # Set the color of the cylinder (RGB)
+pend_2.AddVisualShape(cyl_2, chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleY(chrono.CH_PI_2)))
 
 # Create a revolute joint to connect the second pendulum to the first pendulum
 rev_2 = chrono.ChLinkLockRevolute()
-rev_2.Initialize(pend_1, pend_2, chrono.ChCoordsysD(chrono.ChVector3d(2, 0, 1), chrono.QUNIT))
+rev_2.Initialize(pend_1, pend_2, chrono.ChFramed(chrono.ChVector3d(0, -2, 0)))
 sys.Add(rev_2)
 
 # Create the Irrlicht visualization system
@@ -66,7 +64,7 @@ vis.SetWindowTitle('Double Pendulum Demo')  # Set the window title
 vis.Initialize()  # Initialize the visualization system
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))  # Add a logo to the visualization
 vis.AddSkyBox()  # Add a skybox for better visual appearance
-vis.AddCamera(chrono.ChVector3d(0, 3, 6))  # Add a camera to the visualization
+vis.AddCamera(chrono.ChVector3d(3, 0, 3))  # Add a camera to the visualization
 vis.AddTypicalLights()  # Add typical lights for better visualization
 
 # Simulation loop

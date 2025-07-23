@@ -4,9 +4,7 @@ import pychrono.vehicle as veh
 import math
 
 
-
-
-
+chrono.SetChronoDataPath('/path/to/chrono/data')  
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 
@@ -58,7 +56,6 @@ vehicle.SetSteeringVisualizationType(vis_type)
 vehicle.SetWheelVisualizationType(vis_type)
 vehicle.SetTireVisualizationType(vis_type)
 
-
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
@@ -69,9 +66,10 @@ patch_mat.SetRestitution(0.05)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 
 
-patch_pos = chrono.ChCoordsysd(chrono.ChVector3d(6, -70, 0), chrono.QuatFromAngleZ(-math.pi / 2))  
+patch_pos = chrono.ChVector3d(6, -70, 0)
+patch_rot = chrono.QuatFromAngleZ(-math.pi / 2)  
 patch = terrain.AddPatch(patch_mat, 
-                         patch_pos,
+                         chrono.ChCoordsysd(patch_pos, patch_rot),
                          chrono.GetChronoDataFile('vehicle/terrain/meshes/Highway_col.obj'),
                          True, 0.01, False)
 
@@ -108,36 +106,33 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 
+print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
+
 render_steps = math.ceil(render_step_size / step_size)
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
+render_frame = 0
 
-while vis.Run() :
+while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
-    
-    if (step_number % render_steps == 0) :
+    if (step_number % render_steps == 0):
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
+        render_frame += 1
 
-    
     driver_inputs = driver.GetInputs()
 
-    
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
 
-    
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
 
-    
     step_number += 1
-
-    
     realtime_timer.Spin(step_size)

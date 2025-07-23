@@ -12,7 +12,7 @@ crank_rad = 0.4
 crank_thick = 0.1
 rod_length = 1.5
 
-# Create the floor (truss) body
+# Create the floor body
 mfloor = chrono.ChBodyEasyBox(3, 1, 3, 1000)
 mfloor.SetPos(chrono.ChVector3d(0, -0.5, 0))
 mfloor.SetFixed(True)
@@ -83,33 +83,32 @@ while vis.Run() and time < 20:
     
     # Collect data
     array_time.append(time)
-    array_angle.append(mcrank.GetRot().Q_to_Euler123().x)
+    array_angle.append(my_motor.GetMotorRot() % (2 * np.pi))  # Ensure angle is within [0, 2π)
     array_pos.append(mpiston.GetPos().x)
     array_speed.append(mpiston.GetPos_dt().x)
 
-# Plotting
-plt.figure(figsize=(10, 5))
+# Convert lists to numpy arrays for plotting
+array_time = np.array(array_time)
+array_angle = np.array(array_angle)
+array_pos = np.array(array_pos)
+array_speed = np.array(array_speed)
+
+# Create Matplotlib plots
+plt.figure(figsize=(12, 6))
 
 plt.subplot(1, 2, 1)
 plt.plot(array_angle, array_pos)
 plt.xlabel('Crank Angle [rad]')
 plt.ylabel('Piston Position [m]')
 plt.title('Piston Position vs Crank Angle')
-plt.grid(True)
+plt.xticks([0, np.pi/2, np.pi, 3*np.pi/2, 2*np.pi], ['0', r'$\frac{\pi}{2}$', r'$\pi$', r'$\frac{3\pi}{2}$', r'$2\pi$'])
 
 plt.subplot(1, 2, 2)
 plt.plot(array_angle, array_speed)
 plt.xlabel('Crank Angle [rad]')
 plt.ylabel('Piston Speed [m/s]')
 plt.title('Piston Speed vs Crank Angle')
-plt.grid(True)
-
-# Adjust x-axis ticks to display π-based intervals
-plt.subplot(1, 2, 1)
-plt.xticks([0, np.pi/2, np.pi, 3*np.pi/2, 2*np.pi], ['0', r'$\pi/2$', r'$\pi$', r'$3\pi/2$', r'$2\pi$'])
-
-plt.subplot(1, 2, 2)
-plt.xticks([0, np.pi/2, np.pi, 3*np.pi/2, 2*np.pi], ['0', r'$\pi/2$', r'$\pi$', r'$3\pi/2$', r'$2\pi$'])
+plt.xticks([0, np.pi/2, np.pi, 3*np.pi/2, 2*np.pi], ['0', r'$\frac{\pi}{2}$', r'$\pi$', r'$\frac{3\pi}{2}$', r'$2\pi$'])
 
 plt.tight_layout()
 plt.show()

@@ -1,6 +1,7 @@
 import pychrono as ch
 import pychrono.ros as chros
-import rclpy
+
+from rclpy.publisher import Publisher
 from std_msgs.msg import String
 
 
@@ -11,7 +12,7 @@ class MyCustomHandler(chros.ChROSHandler):
         super().__init__(1)  
 
         self.topic = topic
-        self.publisher: rclpy.publisher.Publisher = None
+        self.publisher: Publisher = None
         self.ticker = 0  
         self.message = "Hello, world! At time: "  
 
@@ -31,9 +32,6 @@ class MyCustomHandler(chros.ChROSHandler):
         self.ticker += 1  
 
 def main():
-    
-    rclpy.init()
-
     
     sys = ch.ChSystemNSC()
     sys.SetGravitationalAcceleration(ch.ChVector3d(0, 0, -9.81))  
@@ -91,10 +89,6 @@ def main():
             break  
 
         realtime_timer.Spin(time_step)  
-
-    
-    ros_manager.Finalize()
-    rclpy.shutdown()
 
 
 if __name__ == "__main__":

@@ -3,94 +3,80 @@ import pychrono.vehicle as veh
 import pychrono.irrlicht as chronoirr
 import math
 
-# Output directory
-out_dir = "HMMWV_SCM_OUTPUT"
+def main():
+    # Initialize the Chrono engine
+    chrono.SetChronoDataPath('/path/to/chrono/data')
 
-# SCM terrain parameters
-terrain_length = 100.0  # Length of the terrain patch
-terrain_width = 100.0   # Width of the terrain patch
-soil_params = {
-    'cohesion': 10e3,  # Soil cohesion
-    'friction_angle': math.radians(30),  # Soil friction angle
-    'youngs_modulus': 2e7,  # Young's modulus of the soil
-    'poisson_ratio': 0.3,  # Poisson's ratio of the soil
-    'shear_modulus': 1e7  # Shear modulus of the soil
-}
+    # Create the HMMWV vehicle
+    initLoc = chrono.ChVector3d(0, 0, 1.0)
+    initRot = chrono.ChQuaterniond(1, 0, 0, 0)
+    vehicle = veh.HMMWV_Full()
+    vehicle.SetContactMethod(chrono.ChContactMethod_SMC)
+    vehicle.SetChassisCollisionType(veh.CollisionType_NONE)
+    vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
+    vehicle.SetPowertrainType(veh.PowertrainModelType_SHAFTS)
+    vehicle.SetDriveType(veh.DrivelineTypeWV_AWD)
+    vehicle.SetTireType(veh.TireModelType_RIGID)
+    vehicle.SetTireStepSize(1e-3)
+    vehicle.Initialize()
 
-# Vehicle initialization parameters
-init_loc = chrono.ChVector3d(0, 0.5, 0)  # Initial vehicle location
-init_rot = chrono.ChQuaterniond(1, 0, 0, 0)  # Initial vehicle orientation
+    # Set mesh visualization for all vehicle components
+    vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
+    vehicle.SetSuspensionVisualizationType(veh.VisualizationType_MESH)
+    vehicle.SetSteeringVisualizationType(veh.VisualizationType_MESH)
+    vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
+    vehicle.SetTireVisualizationType(veh.VisualizationType_MESH)
 
-# Simulation parameters
-fps = 50  # Frames per second for the simulation
-time_step = 1e-3  # Time step for the simulation
-end_time = 1000  # End time for the simulation
+    # Create the SCM terrain patch
+    terrain = veh.SCMDeformableTerrain(vehicle.GetSystem())
+    terrain.SetSoilParameters(2e7,  # Bekker Kphi
+                              0,    # Bekker Kc
+                              1.1,  # Bekker n exponent
+                              0,    # Mohr cohesive limit (Pa)
+                              30,   # Mohr friction limit (degrees)
+                              0.01, # Janosi shear coefficient (m)
+                              2e8,  # Elastic stiffness (Pa/m), before plastic yield
+                              3e4   # Damping (Pa s/m), proportional to negative vertical speed (optional)
+    )
 
-# Initialize the Chrono system
-my_system = chrono.ChSystemSMC()
+    # Set up the moving patch feature
+    terrain.AddMovingPatch(vehicle.GetChassisBody(), chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(5, 3, 1))
 
-# Create the HMMWV vehicle
-vehicle = veh.HMMWV_Full(my_system)
-vehicle.SetContactMethod(chrono.ChContactMethod_SMC)
-vehicle.SetChassisCollisionType(veh.ChassisCollisionType_NONE)
-vehicle.SetInitPosition(chrono.ChCoordsysd(init_loc, init_rot))
-vehicle.SetTireType(veh.TireModelType_RIGID)
-vehicle.Initialize()
+    # Set the terrain visualization type
+    terrain.SetPlotType(veh.SCMDeformableTerrain.PLOT_SINKAGE, 0, 0.1)
 
-# Enable mesh visualization for all vehicle components
-vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
-vehicle.SetSuspensionVisualizationType(veh.VisualizationType_MESH)
-vehicle.SetSteeringVisualizationType(veh.VisualizationType_MESH)
-vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
-vehicle.SetTireVisualizationType(veh.VisualizationType_MESH)
+    # Initialize the SCM terrain
+    terrain.Initialize(terrain_length, terrain_width, terrain_grid_spacing)
 
-# Create the SCM terrain
-terrain = veh.SCMDeformableTerrain(my_system)
-terrain.SetSoilParameters(
-    soil_params['cohesion'],
-    soil_params['friction_angle'],
-    soil_params['youngs_modulus'],
-    soil_params['poisson_ratio'],
-    soil_params['shear_modulus']
-)
-patch = terrain.AddPatch(chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
-                          terrain_length, terrain_width)
-patch.SetTexture(veh.GetDataFile("soil_textures/grass.jpg"), 200, 200)
-patch.SetPlotType(veh.SCMPlotType_SINKAGE, 0, 0.1)
-terrain.Initialize()
+    # Create the Irrlicht visualization
+    vis = chronoirr.ChVisualSystemIrrlicht()
+    vis.AttachSystem(vehicle.GetSystem())
+    vis.SetWindowSize(1280, 720)
+    vis.SetWindowTitle('HMMWV on SCM Deformable Terrain')
+    vis.Initialize()
+    vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+    vis.AddSkyBox()
+    vis.AddCamera(chrono.ChVector3d(10, 10, 10))
+    vis.AddTypicalLights()
 
-# Enable moving patch feature
-terrain.AddMovingPatch(vehicle.GetChassisBody(), chrono.ChVector3d(0, 0, 0), 10, 10)
+    # Create the interactive driver
+    driver = veh.ChIrrGuiDriver(vis)
+    driver.SetSteeringDelta(0.02)
+    driver.SetThrottleDelta(0.02)
+    driver.SetBrakingDelta(0.06)
+    driver.Initialize()
 
-# Create the Irrlicht visualization system
-vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(my_system)
-vis.SetWindowSize(1024, 768)
-vis.SetWindowTitle('HMMWV on SCM Terrain')
-vis.Initialize()
-vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
-vis.AddSkyBox()
-vis.AddCamera(chrono.ChVector3d(10, 10, 10))
+    # Simulation loop
+    realtime_timer = chrono.ChRealtimeStepTimer()
+    while vis.Run():
+        time = vehicle.GetSystem().GetChTime()
+        driver_inputs = driver.GetInputs()
+        vehicle.Advance(time_step)
+        terrain.Advance(time_step)
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+        realtime_timer.Spin(time_step)
 
-# Create the interactive driver
-driver = veh.ChIrrGuiDriver(vis, vehicle.GetVehicle())
-
-# Simulation loop
-time = 0
-while vis.Run() and time < end_time:
-    time = my_system.GetChTime()
-    driver_inputs = driver.GetInputs()
-    vehicle.SetDriverInputs(driver_inputs)
-    vehicle.Update(time_step)
-    terrain.Update(time_step)
-    my_system.DoStepDynamics(time_step)
-    vis.BeginScene()
-    vis.Render()
-    vis.EndScene()
-    time += time_step
-
-# Cleanup
-del vis
-del vehicle
-del terrain
-del my_system
+if __name__ == "__main__":
+    main()

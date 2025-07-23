@@ -5,7 +5,7 @@ import math
 
 
 chrono.SetChronoDataPath('/path/to/chrono/data')  
-veh.SetDataPath('/path/to/chrono/data/vehicle/')  
+veh.SetDataPath('/path/to/vehicle/data')  
 
 
 initLoc = chrono.ChVector3d(0, 0, 0.5)
@@ -47,8 +47,8 @@ vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
-vehicle.Initialize()
 
+vehicle.Initialize()
 
 vehicle.SetChassisVisualizationType(vis_type)
 vehicle.SetSuspensionVisualizationType(vis_type)
@@ -64,8 +64,9 @@ patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 patch = terrain.AddPatch(patch_mat, 
-                         chrono.ChCoordsysd(chrono.ChVector3d(0, 0, terrainHeight), chrono.QUNIT), 
-                         terrainLength, terrainWidth)
+    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, terrainHeight), chrono.QUNIT), 
+    terrainLength, terrainWidth)
+
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
@@ -89,14 +90,16 @@ vis.AttachVehicle(vehicle.GetVehicle())
 driver = veh.ChInteractiveDriverIRR(vis)
 
 
-steering_time = 3.0  
-throttle_time = 3.0  
-braking_time = 1.0   
+
+steering_time = 2.0  
+throttle_time = 2.0  
+braking_time = 0.6   
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
 
 driver.Initialize()
+
 
 
 

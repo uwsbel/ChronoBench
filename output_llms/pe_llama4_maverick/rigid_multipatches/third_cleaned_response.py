@@ -6,10 +6,10 @@ import pychrono.irrlicht as irr
 step_size = 2e-3
 tire_step_size = 1e-3
 
-
-veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
-
 def main():
+    
+    veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
+
     
     hmmwv = veh.HMMWV_Full()
     hmmwv.SetContactMethod(chrono.ChContactMethod_NSC)

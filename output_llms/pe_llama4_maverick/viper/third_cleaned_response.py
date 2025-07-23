@@ -15,7 +15,7 @@ chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
 
 
 terrain = veh.SCMDeformableTerrain(system)
-terrain.SetPlane(chrono.ChCoordsysd(chrono.ChVector3d(0, 0, -0.5), chrono.QUNIT))  
+terrain.SetPlane(chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT))  
 terrain.SetSoilParameters(2e7,  
                           0,    
                           1.1,  
@@ -24,7 +24,8 @@ terrain.SetSoilParameters(2e7,
                           0.01, 
                           2e8,  
                           3e4   
-                         )
+)
+terrain.SetPlotType(veh.SCMDeformableTerrain.PLOT_PRESSURE, 0, 20000.0)
 terrain.Initialize(20, 20, 0.04)  
 
 
@@ -34,7 +35,7 @@ rover.SetDriver(driver)
 
 
 init_pos = chrono.ChVector3d(0, 0.2, 0)
-init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
+init_rot = chrono.QUNIT  
 rover.Initialize(chrono.ChFramed(init_pos, init_rot))
 
 
@@ -64,7 +65,6 @@ while vis.Run():
     driver.SetSteering(steering)  
 
     rover.Update()  
-    terrain.Synchronize(time)  
 
     
     vis.BeginScene()
