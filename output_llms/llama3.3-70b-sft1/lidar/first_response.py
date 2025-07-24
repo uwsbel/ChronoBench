@@ -1,0 +1,199 @@
+import pychrono as chrono
+import pychrono.sensor as sens
+
+import math
+import time
+
+
+def main():
+    # -----------------
+    # Create the system
+    # -----------------
+    mphysicalSystem = chrono.ChSystemNSC()
+
+    # ----------------------------------
+    # add a mesh to be sensed by a lidar
+    # ----------------------------------
+    mmesh = chrono.ChTriangleMeshConnected()
+    mmesh.LoadWavefrontMesh(chrono.GetChronoDataFile(
+        "vehicle/hmmwv/hmmwv_chassis.obj"), False, True)
+    # scale to a different size
+    mmesh.Transform(chrono.ChVector3d(0, 0, 0), chrono.ChMatrix33d(2))
+
+    trimesh_shape = chrono.ChVisualShapeTriangleMesh()
+    trimesh_shape.SetMesh(mmesh)
+    trimesh_shape.SetName("HMMWV Chassis Mesh")
+    trimesh_shape.SetMutable(False)
+
+    mesh_body = chrono.ChBody()
+    mesh_body.SetPos(chrono.ChVector3d(0, 0, 0))
+    mesh_body.AddVisualShape(trimesh_shape)
+    mesh_body.SetFixed(True)
+    mphysicalSystem.Add(mesh_body)
+
+    # -----------------------
+    # Create a sensor manager
+    # -----------------------
+    manager = sens.ChSensorManager(mphysicalSystem)
+    # ------------------------------------------------
+    # Create a lidar and add it to the sensor manager
+    # ------------------------------------------------
+    offset_pose = chrono.ChFramed(
+        chrono.ChVector3d(-8, 0, 1), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0)))
+    lidar = sens.ChLidarSensor(
+        mesh_body,              # body lidar is attached to
+        update_rate,            # scanning rate in Hz
+        offset_pose,            # offset pose
+        horizontal_samples,     # number of horizontal samples
+        vertical_samples,       # number of vertical channels
+        horizontal_fov,         # horizontal field of view
+        max_vert_angle,         # vertical field of view
+        min_vert_angle,
+        100.0,  # max lidar range
+        sens.LidarBeamShape_RECTANGULAR,
+        sample_radius,          # sample radius
+        divergence_angle,       # divergence angle
+        divergence_angle,       # divergence angle
+        return_mode            # return mode for the lidar
+    )
+    lidar.SetName("Lidar Sensor")
+    lidar.SetLag(lag)
+    lidar.SetCollectionWindow(collection_time)
+
+    # Filter the lidar data
+    if noise_model == "CONST_NORMAL_XYZI":
+        lidar.PushFilter(sens.ChFilterLidarNoiseXYZI(0.01, 0.001, 0.001, 0.01))
+    elif noise_model == "NONE":
+        # Don't add any noise models
+        pass
+
+    # Lidar visualization
+    if vis:
+        lidar.PushFilter(sens.ChFilterVisualize(
+            horizontal_samples, vertical_samples, "Raw Lidar Depth Data"))
+
+    # Save the lidar data to a file
+    if save:
+        lidar.PushFilter(sens.ChFilterSave(out_dir + "lidar"))
+
+    # Filter the Lidar data
+    lidar.PushFilter(sens.ChFilterDIAccess())
+    lidar.PushFilter(sens.ChFilterPCfromDepth())
+
+    # ------------------------
+    # Add the lidar to the manager
+    # ------------------------
+    manager.AddSensor(lidar)
+
+    # ---------------
+    # Simulate system
+    # ---------------
+    orbit_radius = 5
+    orbit_rate = 0.2
+    ch_time = 0.0
+
+    render_time = 0
+
+    t1 = time.time()
+
+    while (ch_time < end_time):
+        lidar.SetOffsetPose(chrono.ChFramed(
+            chrono.ChVector3d(-orbit_radius * math.cos(ch_time * orbit_rate), -
+                             orbit_radius * math.sin(ch_time * orbit_rate), 1),
+            chrono.QuatFromAngleAxis(ch_time * orbit_rate, chrono.ChVector3d(0, 0, 1))))
+
+        # Access the sensor data
+        # You can access the data from any filter in the pipeline
+        # Here we will access the data from the ChFilterDIAccess filter
+        # which provides the depth, intensity data from the lidar
+        # We can also access the point cloud data, by using the ChFilterPCfromDepthAccess
+        lidar_data = lidar.GetMostRecentSample()
+        if (lidar_data.HasData()):
+            dia = lidar_data.GetFilterData(sens.ChFilterType_DIAccess).as_DIAccess()
+            print("Lidar DI Access size: ", dia.GetDepth().GetRows(),
+                  dia.GetDepth().GetCols(), dia.GetIntensity().GetRows(), dia.GetIntensity().GetCols())
+
+            pc = lidar_data.GetFilterData(
+                sens.ChFilterType_PCfromDepthAccess).as_PCfromDepthAccess()
+            print("Point Cloud Access size: ", pc.GetPointCloud().GetPointsCount())
+
+        # Update sensor manager
+        # Will render/save/filter automatically
+        manager.Update()
+
+        # Perform step of dynamics
+        mphysicalSystem.DoStepDynamics(step_size)
+
+        # Get the current time of the simulation
+        ch_time = mphysicalSystem.GetChTime()
+
+    print("Sim time:", end_time, "Wall time:", time.time()-t1)
+
+# -----------------
+# Lidar parameters
+# -----------------
+
+
+# Noise model attached to the sensor
+# TODO: Noise models haven't been implemented in python
+# noise_model="CONST_NORMAL_XYZI"   # Gaussian noise with constant mean and standard deviation
+noise_model = "NONE"                  # No noise model
+
+# Lidar return mode
+return_mode = sens.LidarReturnMode_STRONGEST_RETURN
+# return_mode = sens.MEAN_RETURN
+# return_mode = sens.FIRST_RETURN
+# return_mode = sens.LAST_RETURN
+
+# Update rate in Hz
+update_rate = 5.0
+
+# Number of horizontal and vertical samples
+horizontal_samples = 4500
+vertical_samples = 32
+
+# Horizontal and vertical field of view (radians)
+horizontal_fov = 2 * chrono.CH_PI  # 360 degrees
+max_vert_angle = chrono.CH_PI / 12
+min_vert_angle = -chrono.CH_PI / 6
+
+# Lag time
+lag = 0
+
+# Collection window for the lidar
+collection_time = 1. / update_rate  # typically 1/update rate
+
+# Radius of samples to use, 1->1 sample,2->9 samples, 3->25 samples...
+sample_radius = 2
+
+# 3mm radius (as cited by velodyne)
+divergence_angle = 0.003
+
+# ---------------------
+# Simulation parameters
+# ---------------------
+
+# Simulation step size
+step_size = 1e-3
+
+# Simulation end time
+end_time = 20.0
+
+# Save camera data to file
+save = False
+
+# Directory to save the camera data
+out_dir = "SENSOR_OUTPUT/"
+
+# Render camera images
+vis = True
+
+# Output directory for images
+out_dir = "SENSOR_OUTPUT/"
+
+# The path to the Chrono data directory containing various assets (meshes, textures, data files)
+# is automatically set, relative to the default location of this demo.
+# If running from a different directory, you must change the path to the data directory with:
+# chrono.SetChronoDataPath('path/to/data')
+
+main()
