@@ -8,7 +8,7 @@ from pychrono import irrlicht as chronoirr
 
 system = chrono.ChSystemNSC()
 system.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
-system.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, -9.81))  
+system.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, -9.81))
 chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.0025)
 chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
 
@@ -59,14 +59,16 @@ while vis.Run():
     
     steering = 0
     if time >= 1:
-        steering = (time - 1) * 2  
+        steering = (time - 1) * 2
+    driver.SetSteering(steering)
 
-    driver.SetSteering(steering)  
+    
+    rover.Update()
 
-    rover.Update()  
-
+    
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
 
+    
     system.DoStepDynamics(time_step)

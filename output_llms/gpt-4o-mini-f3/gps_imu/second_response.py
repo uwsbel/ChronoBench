@@ -39,7 +39,7 @@ tire_step_size = step_size
 
 # Time interval between two render frames
 render_step_size = 1.0 / 50  # FPS = 50
-log_step_size = 1.0 / 20   # Frequency of data logging
+log_step_size = 1.0 / 20    # Frequency of data logging
 
 # Create the HMMWV vehicle, set parameters, and initialize
 vehicle = veh.HMMWV_Full() # veh.HMMWV_Reduced() could be another choice
@@ -142,8 +142,9 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-# gps_data = chrono.ChVector3d()
-# 6 seconds mark
+# GPS data list
+gps_data = []
+# Simulation loop
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
@@ -155,23 +156,22 @@ while vis.Run():
         render_frame += 1
     if step_number % log_steps == 0:
         # get most recent GPS data
-        gps_data = gps.GetMostRecentGPSBuffer().GetGPSData()
-        # append GPS data to gps_data list
-        gps_data_list.append(gps_data)
+        gps_coor = gps.GetMostRecentGPSBuffer().GetGPSData()
+        gps_data.append([gps_coor[0], gps_coor[1], gps_coor[2]])
     # Set driver inputs
     if time < 2.0:
         driver.SetSteering(0.0)
-        driver.SetThrottle(0.5)
+        driver.SetThrottle(0.6)
     elif time < 4.0 and time > 2.0:
-        driver.SetSteering(0.2)
-        driver.SetThrottle(0.5)
+        driver.SetSteering(0.0)
+        driver.SetThrottle(0.4)
     elif time < 6.0 and time > 4.0:
         driver.SetSteering(0.0)
-        driver.SetThrottle(0.5)
+        driver.SetThrottle(0.2)
     else:
-        driver.SetBraking(1.0)
+        driver.SetBraking(1.0) 
     driver_inputs = driver.GetInputs()
-
+    
     
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)

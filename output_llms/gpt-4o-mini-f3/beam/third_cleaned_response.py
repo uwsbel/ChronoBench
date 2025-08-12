@@ -13,9 +13,7 @@ mesh = fea.ChMesh();
 
 
 
-
 msection = fea.ChBeamSectionEulerAdvanced()
-
 beam_wy = 0.012
 beam_wz = 0.025
 msection.SetAsRectangularSection(beam_wy, beam_wz)
@@ -27,35 +25,8 @@ msection.SetShearCenter(0,0.1)
 msection.SetSectionRotation(45*chrono.CH_RAD_TO_DEG)
 
 
-
-beam_L = 0.1
-
-hnode1 = fea.ChNodeFEAxyzrot(chrono.ChFramed(chrono.ChVector3d(0, 0, 0)))
-hnode2 = fea.ChNodeFEAxyzrot(chrono.ChFramed(chrono.ChVector3d(beam_L, 0, 0)))
-hnode3 = fea.ChNodeFEAxyzrot(chrono.ChFramed(chrono.ChVector3d(beam_L * 2, 0, 0)))
-
-mesh.AddNode(hnode1)
-mesh.AddNode(hnode2)
-mesh.AddNode(hnode3)
-
-belement1 = fea.ChElementBeamEuler()
-
-belement1.SetNodes(hnode1, hnode2)
-belement1.SetSection(msection)
-
-mesh.AddElement(belement1)
-
-belement2 = fea.ChElementBeamEuler()
-
-belement2.SetNodes(hnode2, hnode3)
-belement2.SetSection(msection)
-
-mesh.AddElement(belement2);
-
-
 hnode2.SetForce(chrono.ChVector3d(4, 2, 0))
 hnode3.SetTorque(chrono.ChVector3d(0, -0.04, 0))
-
 
 
 
@@ -82,9 +53,6 @@ constr_d.SetConstrainedCoords(False, True, True,
 
 
 
-
-
-
 builder = fea.ChBuilderBeamEuler()
 
 
@@ -101,12 +69,10 @@ builder.GetLastBeamNodes().back().SetFixed(True)
 builder.GetLastBeamNodes().front().SetForce(chrono.ChVector3d(0, -1, 0))
 
 
-builder.BuildBeam(mesh,
-                    msection,
-                    5,
-                    builder.GetLastBeamNodes().front(),  
-                    chrono.ChVector3d(0.2, 0.1, -0.1),   
-                    chrono.ChVector3d(0, 1, 0))          
+builder.BuildBeam(mesh, msection, 5,
+                    chrono.ChVector3d(0.2, 0, -0.1),  
+                    chrono.ChVector3d(0.4, 0.1, -0.1),  
+                    chrono.ChVector3d(0, 1, 0));      
 
 
 
@@ -114,7 +80,6 @@ mesh.SetAutomaticGravity(False);
 
 
 sys.Add(mesh)
-
 
 
 

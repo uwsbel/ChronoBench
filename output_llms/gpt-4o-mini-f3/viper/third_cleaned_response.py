@@ -20,24 +20,19 @@ terrain.SetPlane(chrono.ChCoordsysd(chrono.ChVector3d(0, 0, -0.5)))
 length = 14
 width = 4
 mesh_resolution = 0.02
-terrain.ConfigureRegularGrid(chrono.ChVector3d(-length, -width, 0), chrono.ChVector3d(length, width, 0), mesh_resolution)
+terrain.Initialize(length, width, mesh_resolution)
+terrain.SetSoilParameters(0.2e6,  
+                            0,      
+                            1.1,    
+                            0,      
+                            30,     
+                            0.01,   
+                            4e7,    
+                            6e3     
+)
+terrain.SetPlotType(veh.SCMTerrain.PLOT_PRESSURE, 0, 20000)
 
-
-
-
-terrain.SetPlotType(veh.SCMTerrain.PLOT_NONE)
-
-
-terrain.Initialize()
-
-ground_mat = chrono.ChContactMaterialNSC()
-ground = chrono.ChBodyEasyBox(20, 20, 1, 1000, True, True, ground_mat)
-ground.SetPos(chrono.ChVector3d(0, 0, -1))  
-ground.SetFixed(True)  
-
-ground.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
-system.Add(ground)
-
+terrain.SetMeshWireframe(True);
 
 rover = viper.Viper(system)  
 driver = viper.ViperDCMotorControl()  
@@ -71,7 +66,7 @@ time_step = 1e-3
 time = 0
 while vis.Run():
     time += time_step  
-   
+    
     driver.SetSteering(0.0)  
 
     rover.Update()  

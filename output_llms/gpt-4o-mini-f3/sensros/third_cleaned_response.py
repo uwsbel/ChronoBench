@@ -137,8 +137,9 @@ def main():
 
         
         sens_manager.Update()
+
         if not ros_manager.Update(time, time_step):  
-            break
+            break  
 
         sys.DoStepDynamics(time_step)  
 

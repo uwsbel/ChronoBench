@@ -71,8 +71,6 @@ while vis.Run():
     else:
         print('robot turning right')
         move('right')
-    
-    
     # Increment time counter
     time += time_step
 

@@ -81,7 +81,9 @@ tri_mesh_shape.SetMutable(False)
 patch.GetGroundBody().AddVisualShape(tri_mesh_shape)
 terrain.Initialize()
 
-
+# set reference speed
+reference_speed = input("You need to control steering!! Enter the reference speed (m/s): ")
+reference_speed = float(reference_speed)
 
 # Create the vehicle Irrlicht interface
 
@@ -125,22 +127,12 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-# reference speed
-v_ref = 15
-# initialize throttle
-throttle = 0
-# create PID controller for throttle
-speed_err_prev = 0
-int_speed_err = 0
-kp = 0.3
-ki = 0.1
-kd = 0.05
-controller = veh.ChThrottleDelayController()
-controller.SetKp(kp)
-controller.SetKi(ki)
-controller.SetKd(kd)
-controller.SetDelay(0.2)
-controller.Initialize()
+#initialize PID controller
+v_err = 0
+prev_v_err = 0
+int_v_err = 0
+kp,ki,kd = 0.2,0.1,0.3
+
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
 
@@ -151,21 +143,20 @@ while vis.Run() :
         vis.EndScene()
         render_frame += 1
 
+    current_vel = vehicle.GetVehicle().GetSpeed()
+    #use longitudinal error to control throttle--pid controller
+    v_err = reference_speed - current_vel
+    int_v_err += v_err * step_size
+    #calculate throttle using pid formula
+    throttle = kp * v_err + ki * int_v_err + kd * (v_err - prev_v_err) / step_size
+    throttle = max(throttle, 0)  #throttle should be non-negative
+    throttle = min(throttle, 1)  #throttle should be capped at 1
+    driver.SetThrottle(throttle)
+    prev_v_err = v_err
+    
     # Get driver inputs
     driver_inputs = driver.GetInputs()
 
-    # update reference speed
-    v_ref = driver.GetSteering() * 20 + 2
-    # use speed error in throttle controller
-    speed_err = v_ref - vehicle.GetVehicle().GetSpeed()
-    int_speed_err += speed_err
-    if speed_err > 0.2 or speed_err < -0.2:
-        throttle = controller.ComputeTarget(speed_err)
-    else:
-        throttle = 0
-    # update throttle
-    driver.SetThrottle(throttle)
-    
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
     terrain.Synchronize(time)

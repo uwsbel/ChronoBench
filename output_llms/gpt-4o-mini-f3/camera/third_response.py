@@ -14,11 +14,11 @@ def main():
     # -----------------------------------
     # Add a mesh to be sensed by a camera
     # -----------------------------------
-    # Create a box for camera to sense
+    #create box for camera to sense
     side = 4
     box = chrono.ChBodyEasyBox(side, side, side, 1000)
     box.SetPos(chrono.ChVector3d(0, 0, 0))
-    box.SetTexture(chrono.GetChronoDataFile("textures/bluewhite.png"))
+    box.GetVisualModel().GetShape(0).SetTexture(chrono.GetChronoDataFile("textures/blue.png"))
     box.SetFixed(True)
     mphysicalSystem.Add(box)
     # -----------------------
@@ -26,7 +26,6 @@ def main():
     # -----------------------
     # Initialize the sensor manager to manage all sensors in the simulation
     manager = sens.ChSensorManager(mphysicalSystem)
-    
     # Add point lights to the scene for illumination
     intensity = 1.0  # Set the light intensity
     manager.scene.AddPointLight(chrono.ChVector3f(2, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)

@@ -23,9 +23,9 @@ CH_PI = 3.1456
 
 minertia = fea.ChInertiaCosseratSimple()
 minertia.SetDensity(7800);
-minertia.SetArea(CH_PI * (pow(beam_ro, 2) - pow(beam_ri, 2)))
-minertia.SetIyy((CH_PI / 4.0) * (pow(beam_ro, 4) - pow(beam_ri, 4)))
-minertia.SetIzz((CH_PI / 4.0) * (pow(beam_ro, 4) - pow(beam_ri, 4)))
+minertia.SetArea(CH_PI * (pow(beam_ro, 2) - pow(beam_ri, 2)));
+minertia.SetIyy((CH_PI / 4.0) * (pow(beam_ro, 4) - pow(beam_ri, 4)));
+minertia.SetIzz((CH_PI / 4.0) * (pow(beam_ro, 4) - pow(beam_ri, 4)));
 
 melasticity = fea.ChElasticityCosseratSimple()
 melasticity.SetYoungModulus(210e9)
@@ -101,15 +101,15 @@ class ChFunctionMyFun(chrono.ChFunction):
     def GetVal(self, x):
         A1 = 0.8
         A2 = 1.2
-        T1 = 0.4
-        T2 = 0.25
-        T3 = 0.1
+        T1 = 0.5
+        T2 = 1.0
+        T3 = 1.25
         w = 60
         if x < T1:
             return A1 * w * (1. - m.cos(CH_PI * x / T1)) / 2.0
-        elif x < T2:
+        elif (x > T1 and x <= T2):
             return A1 * w
-        elif x < T3:
+        elif (x > T2 and x <= T3):
             return A1 * w + (A2 - A1) * w * (1.0 - m.cos(CH_PI * (x - T2) / (T3 - T2))) / 2.0
         else:
             return A2 * w
@@ -150,8 +150,6 @@ vis.AddTypicalLights()
 
 msolver = mkl.ChSolverPardisoMKL()
 sys.SetSolver(msolver)
-
-
 
 sys.DoStaticLinear()
 

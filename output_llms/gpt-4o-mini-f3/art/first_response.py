@@ -13,7 +13,7 @@ initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 # Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
 vis_type = veh.VisualizationType_MESH
 
-# Collision type for chassis (PRIMITIVES, MESH, or NONE)
+# Collision type for chassis (PRIMITES, MESH, or NONE)
 chassis_collision_type = veh.CollisionType_NONE
 
 # Type of tire model (RIGID, TMEASY)
@@ -50,11 +50,8 @@ vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 vehicle.SetMaxMotorVoltageRatio(0.16)
-vehicle.SetStrWheelRad(0.178)
-vehicle.SetLinkRodLength(0.4)
-vehicle.SetUpperArmRadius(0.088)
-vehicle.SetLowerArmRadius(0.079)
-vehicle.SetAsynchronousControl(True)
+vehicle.SetStallTorque(0.3)
+vehicle.SetTireRollingResistance(0.06)
 
 vehicle.Initialize()
 

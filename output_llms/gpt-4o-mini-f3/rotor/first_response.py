@@ -2,106 +2,77 @@ import math as m
 import pychrono as chrono
 import pychrono.fea as fea
 import pychrono.pardisomkl as mkl
-import pychrono.irrlicht as chronoirr
+from pychrono import irrlicht as chronoirr
 
 sys = chrono.ChSystemSMC()
 
 mesh = fea.ChMesh()
 sys.Add(mesh)
 
-mesh.SetAutomaticGravity(True,
-                         2)  # for max precision in gravity of FE, at least 2 integration points per element when using cubic IGA
-sys.SetGravitationalAcceleration(chrono.ChVector3d(0, -9.81, 0));
+beam = fea.ChElementBeamANCF()
+mesh.Add(beam)
+beam.SetCoordinates([  # Set the node coordinates for the beam element
+    chrono.ChVector3d(0, 0, 0),  # Node 0
+    chrono.ChVector3d(1, 0, 0),  # Node 1
+    chrono.ChVector3d(2, 0, 0)   # Node 2
+])
+beam.SetNode(0, mesh.CreateNode())  # Create and set Node 0
+beam.SetNode(1, mesh.CreateNode())  # Create and set Node 1
+beam.SetNode(2, mesh.CreateNode())  # Create and set Node 2
+beam.SetMaterial(chrono.ChContactMaterialSMC())  # Set the material for the beam
 
-beam_L = 6
-beam_ro = 0.050
-beam_ri = 0.045
-CH_PI = 3.1456
+# Create a section for the beam and set its properties
+section = fea.ChBeamSectionEulerAdvanced()
+section.SetDensity(100)  # Set the density of the beam section
+section.SetYoungModulus(210e9)  # Set the Young's modulus for the beam section
+section.SetShearModulus(80e9)  # Set the shear modulus for the beam section
+section.SetSectionWidth(0.1)  # Set the width of the section
+section.SetSectionHeight(0.1)  # Set the height of the section
+beam.SetSection(section)  # Assign the section to the beam element
 
-# Create a section, i.e. thickness and material properties
-# for beams. This will be shared among some beams.
+# Create a visual representation of the beam
+visualize_beam = chrono.ChVisualShapeFEA(mesh)
+visualize_beam.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_ELEM_BEAM_MZ)  # Visualize the bending moments
+visualize_beam.SetColorscaleMinMax(-400, 400)  # Set the color scale limits
+visualize_beam.SetSmoothFaces(True)  # Enable smooth faces for visualization
+visualize_beam.SetWireframe(False)  # Set to non-wireframe mode
+mesh.AddVisualShapeFEA(visualize_beam)  # Add the visual shape to the mesh
 
-minertia = fea.ChInertiaCosseratSimple()
-minertia.SetDensity(7800);
-minertia.SetArea(CH_PI * (pow(beam_ro, 2) - pow(beam_ri, 2)));
-minertia.SetIyy((CH_PI / 4.0) * (pow(beam_ro, 4) - pow(beam_ri, 4)));
-minertia.SetIzz((CH_PI / 4.0) * (pow(beam_ro, 4) - pow(beam_ri, 4)));
+# Create a visual representation of the node positions
+visualize_nodes = chrono.ChVisualShapeFEA(mesh)
+visualize_nodes.SetFEMglyphType(chrono.ChVisualShapeFEA.GlyphType_NODE_DOT_POS)  # Visualize nodes as dots
+visualize_nodes.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NONE)  # No additional FEM data visualization
+visualize_nodes.SetSymbolsThickness(0.005)  # Set the thickness of symbols
+visualize_nodes.SetSymbolsScale(0.01)  # Set the scale of symbols
+visualize_nodes.SetZbufferHide(False)  # Ensure symbols are not hidden by z-buffer
+mesh.AddVisualShapeFEA(visualize_nodes)  # Add the visual shape to the mesh
 
-melasticity = fea.ChElasticityCosseratSimple()
-melasticity.SetYoungModulus(210e9)
-melasticity.SetShearModulusFromPoisson(0.3)
-melasticity.SetIyy((CH_PI / 4.0) * (pow(beam_ro, 4) - pow(beam_ri, 4)))
-melasticity.SetIzz((CH_PI / 4.0) * (pow(beam_ro, 4) - pow(beam_ri, 4)))
-melasticity.SetJ((CH_PI / 2.0) * (pow(beam_ro, 4) - pow(beam_ri, 4)))
-
-msection = fea.ChBeamSectionCosserat(minertia, melasticity)
-
-msection.SetCircular(True)
-msection.SetDrawCircularRadius(beam_ro)  # SetAsCircularSection(..) would overwrite Ixx Iyy J etc.
-
-# Use the ChBuilderBeamIGA tool for creating a straight rod
-# divided in Nel elements:
-
-builder = fea.ChBuilderBeamIGA()
-builder.BuildBeam(mesh,  # the mesh to put the elements in
-                  msection,  # section of the beam
-                  20,  # number of sections (spans)
-                  chrono.ChVector3d(0, 0, 0),  # start point
-                  chrono.ChVector3d(beam_L, 0, 0),  # end point
-                  chrono.VECT_Y,  # suggested Y direction of section
-                  1)  # order (3 = cubic, etc)
-
-node_mid = fea.CastToChNodeFEACoordinateSystem(builder.GetLastBeamNodes()[1])
-node_end = fea.CastToChNodeFEACoordinateSystem(builder.GetLastBeamNodes()[2])
-
-# Create the flywheel and attach it to the center of the beam
-
-mflywheel = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, 0.24, 0.1, 7800)  # R, h, density
-mflywheel.SetCoordsRelativeToBody(chrono.ChCoordsysd(
-    node_mid.GetPos() + chrono.ChVector3d(0, 0.05, 0),  # flywheel starting position (center of cylinder)
-    chrono.QuatFromAngleLine(CH_PI / 2.0, chrono.VECT_Z)))  # flywheel starting orientation (cylinder axis)
-
-sys.Add(mflywheel)
-
-myjoint = chrono.ChLinkMateGeneric()
-myjoint.Initialize(node_mid,  # body A
-                   mflywheel,  # body B
-                   False,  # fixed?
-                   node_mid.GetPos(),  # match point on A
-                   node_mid.GetPos() + chrono.ChVector3d(0, 0, 1))  # match point on B
-sys.Add(myjoint)
-
-# Create the motor that will spin the beam
-# Create a rotational speed function:
-
-motor_funct = chrono.ChFunctionConst(100.0m)  # motor speed is 100 rad/s
-
-mymotor = chrono.ChLinkMotorRotationSpeed()
-mymotor.Initialize(builder.GetLastBeamNodes()[0],  # body A (min)
-                   builder.GetLastBeamNodes()[1],  # body B (max)
-                   chrono.ChAxis(arr=chrono.ChVector3d(0, 0, 1)))  # axis in abs. coords
-mymotor.SetMotorFunction(motor_funct)
-sys.Add(mymotor)
-
-# Visualization types for beam element:
-for ia in range(0, builder.GetLastBeamNodeIndex()):
-    builder.GetLastBeamNodes()[ia].SetIconMode(fea.ChNodeFEAbase.IconMode_DM_TRIANGULAR_MESH)
-    builder.GetLastBeamNodes()[ia].SetSymbolscale(0.01)
-
-for elem in mesh.GetElements():
-    elem.SetSymbolsThickness(0.006)
-    elem.SetSymbolsThickness(0.006)
-
-# Create the Irrlicht visualization
+# Irrlicht visualization system
 vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(sys)
-vis.SetWindowSize(1024, 768)
-vis.SetWindowTitle('Test FEA: the Jeffcott rotor with IGA beams')
-vis.Initialize()
-vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
-vis.AddSkyBox()
-vis.AddCamera(chrono.ChVector3d(0, 1, 4), chrono.ChVector3d(beam_L / 2, 0, 0))
-vis.AddTypicalLights()
+vis.AttachSystem(sys)  # Attach the Chrono system to the visualization
+vis.SetWindowSize(1024, 768)  # Set the window size
+vis.SetWindowTitle('FEA beams')  # Set the window title
+vis.Initialize()  # Initialize the visualization system
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))  # Add a logo to the window
+vis.AddSkyBox()  # Add a skybox for better visualization
+vis.AddCamera(chrono.ChVector3d(1, 0.5, 1.5))  # Add a camera to the scene
+vis.AddTypicalLights()  # Add typical lights for better illumination
 
-msystem.SetVerbose(False)
-msystem.DoTimeline()
+# Set the solver for the system
+mkl_solver = mkl.ChSolverPardisoMKL()
+mkl_solver.LockSparsityPattern(False)  # Unlock sparsity pattern locking
+sys.SetSolver(mkl_solver)  # Set the solver to the system
+
+# Set the time step for the simulation
+time_step = 0.001
+
+# Finalize the setup of the physical system
+sys.Setup()
+sys.Update()
+
+# Simulation loop
+while vis.Run():
+    vis.BeginScene()  # Begin the scene
+    vis.Render()  # Render the scene
+    vis.EndScene()  # End the scene
+    sys.DoStepDynamics(time_step)  # Perform a simulation step

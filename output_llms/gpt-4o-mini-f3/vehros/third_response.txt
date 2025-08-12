@@ -26,9 +26,9 @@ def main():
     hmmwv.SetSteeringVisualizationType(veh.VisualizationType_MESH)
     hmmwv.SetWheelVisualizationType(veh.VisualizationType_MESH)
     hmmwv.SetTireVisualizationType(veh.VisualizationType_MESH)
-    # Create a box for visualization
-    box = ch.ChBodyEasyBox(3, 3, 3, 1000)
-    box.SetPos(ch.ChVector3d(10.0, 0.0, 1.0))
+    # Create a visualization box
+    box = ch.ChBodyEasyBox(3, 3, 0.5, 1000)
+    box.SetPos(ch.ChVector3d(10.0, 0.0, 0.0))
     box.SetFixed(True)
     box.GetVisualShape(0).SetTexture(ch.GetChronoDataFile("textures/blue.png"))
     hmmwv.GetSystem().Add(box)
@@ -57,17 +57,20 @@ def main():
     driver = veh.ChDriver(hmmwv.GetVehicle())
     driver.Initialize()  # Initialize the driver system.
     
-    # Create a sensor manager
+    # Create Sensor manager
+    # Create the sensor manager.
     sens_manager = sens.ChSensorManager(hmmwv.GetSystem())
-    # Create lidar sensor
-    lidar = sens.ChLidarSensor(hmmwv.GetChassisBody(), 5., 0, 100, 2*ch.CH_PI, ch.PI/12,*[10., .001, .001], 3000)
-    lidar.PushFilter(sens.ChFilterDIAccess())
-    lidar.PushFilter(sens.ChFilterPCfromDepth())
-    lidar.PushFilter(sens.ChFilterXYZAccess())
-    lidar.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "Lidar Point Cloud Data"))
-    sens_manager.AddSensor(lidar)
+    
+    # Create a lidar sensor and add it to the sensor manager.
+    offset_pose = ch.ChFramed(ch.ChVector3d(2.0, 0, 1), ch.QuatFromAngleAxis(.2, ch.ChVector3d(0, 1, 0)))
+    lidar = sens.ChLidarSensor(hmmwv.GetChassisBody(), 5., offset_pose, 80, 300, 2*ch.CH_PI, ch.CH_PI / 12, -ch.CH_PI / 6, 100., 0)
+    lidar.PushFilter(sens.ChFilterDIAccess())  # Access raw lidar data.
+    lidar.PushFilter(sens.ChFilterPCfromDepth())  # Convert depth data to point cloud.
+    lidar.PushFilter(sens.ChFilterXYZIAccess())  # Access point cloud data.
+    lidar.PushFilter(sens.ChFilterVisualizePointCloud(1280, 720, 1,"Lidar PC data"))  # Visualize the point cloud.
     lidar.SetName("lidar")
-
+    sens_manager.AddSensor(lidar)
+    
     # Create the ROS manager and register handlers for communication.
     ros_manager = chros.ChROSPythonManager()
     ros_manager.RegisterHandler(chros.ChROSClockHandler())  # Register the clock handler to synchronize ROS with the simulation.
@@ -103,8 +106,7 @@ def main():
         driver.Synchronize(time)  # Synchronize the driver system.
         terrain.Synchronize(time)  # Synchronize the terrain.
         hmmwv.Synchronize(time, driver_inputs, terrain)  # Synchronize the vehicle with inputs and terrain.
-        sens_manager.Update()  # Update sensor manager.
-
+        sens_manager.Update()  # Update sensors manager.
         # Advance the simulation for all modules by one timestep.
         driver.Advance(time_step)
         terrain.Advance(time_step)

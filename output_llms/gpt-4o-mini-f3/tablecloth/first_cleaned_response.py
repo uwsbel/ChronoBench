@@ -1,9 +1,17 @@
-import pychrono as chrono 
-import pychrono.fea as fea 
-import pychrono.pardisomkl as mkl 
-import pychrono.irrlicht as chronoirr 
+import pychrono.core as chrono
+import pychrono.irrlicht as chronoirr
+import pychrono.fea as fea
+import pychrono.pardisomkl as mkl
+import errno
+import os
 
-print("Example: folding a cloth with shell elements") 
+
+out_dir = chrono.GetChronoOutputPath() + "FEA_SHELLS_BST"
+try:
+    os.mkdir(out_dir)
+except OSError as exc:
+    if exc.errno != errno.EEXIST:
+        print("Error creating output directory")
 
 
 sys = chrono.ChSystemSMC()
@@ -13,76 +21,89 @@ mesh = fea.ChMesh()
 sys.Add(mesh)
 
 
-mme = fea.ChMaterialShellKirchhoff() 
-mme.SetDensity(100) 
-mme.SetYoungModulus(1e5) 
-mme.SetPoissonRatio(0.3) 
+density = 100
+E = 6e4
+nu = 0.0
+thickness = 0.01
 
 
-h = 0.01
+melasticity = fea.ChElasticityKirchhoffIsothropic(E, nu)
+material = fea.ChMaterialShellKirchhoff(melasticity)
+material.SetDensity(density)
 
 
-n1 = fea.ChNodeFEAxyzrot(chrono.ChFramed(chrono.ChVector3d(0, 0, 0))) 
-n2 = fea.ChNodeFEAxyzrot(chrono.ChFramed(chrono.ChVector3d(1, 0, 0))) 
-n3 = fea.ChNodeFEAxyzrot(chrono.ChFramed(chrono.ChVector3d(1, 1, 0))) 
-n4 = fea.ChNodeFEAxyzrot(chrono.ChFramed(chrono.ChVector3d(0, 1, 0))) 
+L_x, L_z = 1, 1
+nsections_x, nsections_z = 40, 40
 
 
-mesh.AddNode(n1)
-mesh.AddNode(n2)
-mesh.AddNode(n3)
-mesh.AddNode(n4)
+mynodes = []
+for iz in range(nsections_z + 1):
+    for ix in range(nsections_x + 1):
+        p = chrono.ChVector3d(ix * (L_x / nsections_x), 0, iz * (L_z / nsections_z))
+        mnode = fea.ChNodeFEAxyz(p)
+        mesh.AddNode(mnode)
+        mynodes.append(mnode)
 
 
-myelementA = fea.ChElementShellKirchhoff() 
-myelementA.SetNodes(n1, n2, n3, n4) 
-myelementA.SetMaterial(mme) 
-myelementA.SetThickness(h) 
+for iz in range(nsections_z):
+    for ix in range(nsections_x):
+        melementA = fea.ChElementShellBST()
+        boundary_1 = mynodes[(iz + 1) * (nsections_x + 1) + ix + 1]
+        boundary_2 = mynodes[(iz + 1) * (nsections_x + 1) + ix - 1] if ix > 0 else None
+        boundary_3 = mynodes[(iz - 1) * (nsections_x + 1) + ix + 1] if iz > 0 else None
+
+        melementA.SetNodes(mynodes[iz * (nsections_x + 1) + ix], mynodes[iz * (nsections_x + 1) + ix + 1],
+                           mynodes[(iz + 1) * (nsections_x + 1) + ix], boundary_1, boundary_2, boundary_3)
+        melementA.AddLayer(thickness, 0, material)
+        mesh.AddElement(melementA)
+
+        melementB = fea.ChElementShellBST()
+        boundary_1 = mynodes[iz * (nsections_x + 1) + ix]
+        boundary_2 = mynodes[iz * (nsections_x + 1) + ix + 2] if ix < nsections_x - 1 else None
+        boundary_3 = mynodes[(iz + 2) * (nsections_x + 1) + ix] if iz < nsections_z - 1 else None
+
+        melementB.SetNodes(mynodes[(iz + 1) * (nsections_x + 1) + ix + 1], mynodes[(iz + 1) * (nsections_x + 1) + ix],
+                           mynodes[iz * (nsections_x + 1) + ix + 1], boundary_1, boundary_2, boundary_3)
+        melementB.AddLayer(thickness, 0, material)
+        mesh.AddElement(melementB)
 
 
-mesh.AddElement(myelementA)
 
+mvisualizeshellA = chrono.ChVisualShapeFEA(mesh)
+mvisualizeshellA.SetShellResolution(2)
+mesh.AddVisualShapeFEA(mvisualizeshellA)
 
-force_mid = chrono.ChForce()
-fapplication = chrono.ChForce()
-fapplication.Force(chrono.ChVector3d(0, -50, 0), chrono.ChVector3d(0.5, 0, 0), True, force_mid)
-mesh.AddForce(fapplication)
-
-
-mvisualizeA = chrono.ChVisualShapeFEA(mesh)
-mvisualizeA.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_ELEM_BEAM_MZ) 
-mvisualizeA.SetColorscaleMinMax(-0.4, 0.4) 
-mvisualizeA.SetSmoothFaces(True) 
-mvisualizeA.SetWireframe(False) 
-mesh.AddVisualizationShape(mvisualizeA) 
-
-
-mvisualizeB = chrono.ChVisualShapeFEA(mesh)
-mvisualizeB.SetFEMglyphType(chrono.ChVisualShapeFEA.GlyphType_NODE_DOT_POS) 
-mvisualizeB.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NONE) 
-mvisualizeB.SetSymbolsThickness(0.006) 
-mvisualizeB.SetSymbolsScale(0.01) 
-mvisualizeB.SetZbufferHide(False) 
-mesh.AddVisualizationShape(mvisualizeB) 
+mvisualizeshellB = chrono.ChVisualShapeFEA(mesh)
+mvisualizeshellB.SetFEMglyphType(chrono.ChVisualShapeFEA.GlyphType_NODE_DOT_POS)
+mvisualizeshellB.SetSymbolsThickness(0.006)
+mesh.AddVisualShapeFEA(mvisualizeshellB)
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(sys)
 vis.SetWindowSize(1024, 768)
-vis.SetWindowTitle('Folding cloth with shell elements')
+vis.SetWindowTitle('Shells FEA test: triangle BST elements')
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()
-vis.AddCamera(chrono.ChVector3d(0, 0.6, 0.8), chrono.ChVector3d(0.5, 0, 0.5))
+vis.AddCamera(chrono.ChVector3d(1, 0.3, 1.3), chrono.ChVector3d(0.5, -0.3, 0.5))
 vis.AddTypicalLights()
 
 
-msolver = mkl.ChSolverPardisoMKL()
-sys.SetSolver(msolver) 
+mkl_solver = mkl.ChSolverPardisoMKL()
+mkl_solver.LockSparsityPattern(False)
+sys.SetSolver(mkl_solver)
+
+
+timestep = 0.001
+
+
+sys.Setup()
+sys.Update()
 
 
 while vis.Run():
-    vis.BeginScene() 
-    vis.Render() 
-    vis.EndScene() 
-    sys.DoStepDynamics(0.001)
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    sys.DoStepDynamics(timestep)

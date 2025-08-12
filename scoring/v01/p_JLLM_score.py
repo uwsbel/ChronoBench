@@ -391,7 +391,7 @@ all_model_list= ["gemma-2-2b-it", "gemma-2-9b-it", "gemma-2-27b-it", "llama-3.1-
 "gpt-4.1","o4-mini","llama3.1-8b-f2","llama3.3-70b-sft1"]
 
 evaluated_model = "gpt-4o-mini"
-test_model_list = ["llama3.3-70b-sft1"]
+test_model_list = ["gpt-4o-mini-f3","pe_gpt-4o-mini"]
 
 system_list = ["art", "beam", "buckling", "cable",  "camera", "citybus", "curiosity", "feda", "gator", "gear", "gps_imu", "handler", "hmmwv", "kraz", "lidar", "m113", "man", "mass_spring_damper", "particles", "pendulum",
                "rigid_highway", "rigid_multipatches", "rotor", "scm", "scm_hill", "sedan", "sensros", "slider_crank", "tablecloth", "turtlebot", "uazbus", "veh_app","vehros","viper"]

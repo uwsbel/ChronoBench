@@ -39,7 +39,7 @@ tire_step_size = step_size
 
 
 render_step_size = 1.0 / 50  
-log_step_size = 1.0 / 20   
+log_step_size = 1.0 / 20    
 
 
 vehicle = veh.HMMWV_Full() 
@@ -143,6 +143,7 @@ step_number = 0
 render_frame = 0
 
 
+gps_data = []
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
@@ -155,23 +156,22 @@ while vis.Run():
         render_frame += 1
     if step_number % log_steps == 0:
         
-        gps_data = gps.GetMostRecentGPSBuffer().GetGPSData()
-        
-        gps_data_list.append(gps_data)
+        gps_coor = gps.GetMostRecentGPSBuffer().GetGPSData()
+        gps_data.append([gps_coor[0], gps_coor[1], gps_coor[2]])
     
     if time < 2.0:
         driver.SetSteering(0.0)
-        driver.SetThrottle(0.5)
+        driver.SetThrottle(0.6)
     elif time < 4.0 and time > 2.0:
-        driver.SetSteering(0.2)
-        driver.SetThrottle(0.5)
+        driver.SetSteering(0.0)
+        driver.SetThrottle(0.4)
     elif time < 6.0 and time > 4.0:
         driver.SetSteering(0.0)
-        driver.SetThrottle(0.5)
+        driver.SetThrottle(0.2)
     else:
-        driver.SetBraking(1.0)
+        driver.SetBraking(1.0) 
     driver_inputs = driver.GetInputs()
-
+    
     
     
     driver.Synchronize(time)

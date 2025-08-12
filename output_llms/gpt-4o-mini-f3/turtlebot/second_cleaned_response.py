@@ -72,8 +72,6 @@ while vis.Run():
         print('robot turning right')
         move('right')
     
-    
-    
     time += time_step
 
     

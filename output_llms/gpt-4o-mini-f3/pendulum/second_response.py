@@ -35,7 +35,7 @@ pend_1.AddVisualShape(cyl_1, chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleY
 pend_1.SetPos(chrono.ChVector3d(1, 0, 1))
 
 # Set the initial angular velocity of the pendulum
-pend_1.SetPosDt(chrono.ChVector3d(0, 0, 0.5))
+pend_1.SetPosDt(chrono.ChVector3d(0, 0, 1))
 
 # Create a spherical joint to connect the pendulum to the ground
 spherical_joint = chrono.ChLinkMateSpherical()
@@ -46,7 +46,7 @@ sys.AddLink(spherical_joint)
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(sys)  # Attach the Chrono system to the visualization
 vis.SetWindowSize(1024, 768)  # Set the window size for the visualization
-vis.SetWindowTitle('Single Pendulum Simulation')  # Set the window title
+vis.SetWindowTitle('Single Pendulum Simulation with Modifications')  # Set the window title
 vis.Initialize()  # Initialize the visualization system
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))  # Add a logo to the visualization
 vis.AddSkyBox()  # Add a skybox for better visual appearance

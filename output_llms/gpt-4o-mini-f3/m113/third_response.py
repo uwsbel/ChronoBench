@@ -59,7 +59,7 @@ vehicle.SetTrackShoeVisualizationType(vis_type)
 
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
-# Create a long box to test vehicle's mobility
+# create a long box to test vehicle's mobility
 box = chrono.ChBodyEasyBox(0.25, 5, 0.5, 1000, True, True,chrono.ChContactMaterialSMC())
 box.SetPos(chrono.ChVector3d(0, 0, 0.0))
 box.SetFixed(True)

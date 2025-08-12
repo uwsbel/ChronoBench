@@ -42,7 +42,7 @@ def main():
     
     
     offset_pose = chrono.ChFramed(
-        chrono.ChVector3d(-12, 0, 2), chrono.QuatFromAngleAxis(2, chrono.ChVector3d(0, 0, 1))
+        chrono.ChVector3d(-12, 0, 1), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
     )
     lidar = sens.ChLidarSensor(
         mesh_body,              
@@ -110,7 +110,7 @@ def main():
                 chrono.ChVector3d(
                     -orbit_radius * math.cos(ch_time * orbit_rate),
                     -orbit_radius * math.sin(ch_time * orbit_rate),
-                    2
+                    1
                 ),
                 chrono.QuatFromAngleAxis(ch_time * orbit_rate, chrono.ChVector3d(0, 0, 1))
             )
@@ -172,7 +172,7 @@ collection_time = 1. / update_rate
 sample_radius = 2
 
 
-divergence_angle = 0.001
+divergence_angle = 0.003
 
 
 

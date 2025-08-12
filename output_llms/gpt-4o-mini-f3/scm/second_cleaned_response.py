@@ -4,6 +4,43 @@ import pychrono.vehicle as veh
 import math
 
 
+class SCMParameters:
+    def __init__(self):
+        self.Bekker_Kphi = 0    
+        self.Bekker_Kc = 0      
+        self.Bekker_n = 0      
+        self.Mohr_cohesion = 0  
+        self.Mohr_friction = 0  
+        self.Janosi_shear = 0   
+
+    
+    def SetSoftParameters(self):
+        self.Bekker_Kphi = 80e3
+        self.Bekker_Kc = 0
+        self.Bekker_n = 1.1
+        self.Mohr_cohesion = 0
+        self.Mohr_friction = 30
+        self.Janosi_shear = 0.01
+
+    
+    def SetMidParameters(self):
+        self.Bekker_Kphi = 2e6
+        self.Bekker_Kc = 0
+        self.Bekker_n = 1.1
+        self.Mohr_cohesion = 0
+        self.Mohr_friction = 30
+        self.Janosi_shear = 0.01
+
+    
+    def SetHardParameters(self):
+        self.Bekker_Kphi = 3.5e6
+        self.Bekker_Kc = 80e3
+        self.Bekker_n = 0.6
+        self.Mohr_cohesion = 30e3
+        self.Mohr_friction = 30
+        self.Janosi_shear = 0.01
+
+
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
@@ -63,16 +100,14 @@ vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
 terrain = veh.SCMTerrain(vehicle.GetSystem())
-terrain_params = SCM_Terrain_Parameters()
-terrain_params.HardKphi = 2e6
-terrain_params.HardKc = 0
-terrain_params.HardN = 1.1
-terrain_params.HardCohesiveLimit = 30
-terrain_params.HardShearCoeff = 0.01
-terrain_params.HardElasticStiffness = 2e8
-terrain_params.HardDamping = 3e4
-terrain.SetSoilParameters(terrain_params)
-
+terrain_params = SCMParameters()
+terrain_params.SetMidParameters()
+terrain.SetSoilParameters(terrain_params.Bekker_Kphi,   
+                            terrain_params.Bekker_Kc,     
+                            terrain_params.Bekker_n,   
+                            terrain_params.Mohr_cohesion,  
+                            terrain_params.Mohr_friction,   
+                            terrain_params.Janosi_shear)  
 
 terrain.AddMovingPatch(vehicle.GetChassisBody(), chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(5, 3, 1))
 

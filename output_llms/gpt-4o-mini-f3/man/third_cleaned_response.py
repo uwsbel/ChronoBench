@@ -65,9 +65,9 @@ vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
 for i in range(5):
-    side = np.random.uniform(1, 2)
+    side = np.random.uniform(1, 3)
     box = chrono.ChBodyEasyBox(side, side, side, 1000, True, True)
-    box.SetPos(chrono.ChVector3d(np.random.uniform(-10, 10), np.random.uniform(-10, 10), side / 2))
+    box.SetPos(chrono.ChVector3d(np.random.uniform(-10, 10), np.random.uniform(-10, 10), side/2))
     box.SetFixed(True)
     box.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/blue.png"))
     vehicle.GetSystem().Add(box)
@@ -109,39 +109,42 @@ offset_pose = chrono.ChFramed(
 
 update_rate = 5.0
 
-lag = 1.0 / update_rate
-
 horizontal_samples = 800
 vertical_samples = 300
 
-horizontal_fov = chrono.CH_PI  
+horizontal_fov = 2 * chrono.CH_PI  
 max_vert_angle = chrono.CH_PI / 12
 min_vert_angle = -chrono.CH_PI / 6
 
+lag = 0
+
+collection_time = 1. / update_rate  
+
 sample_radius = 2
 
-max_sample_distance = 2
+divergence_angle = 0.003
 
 return_mode = sens.LidarReturnMode_STRONGEST_RETURN
 lidar = sens.ChLidarSensor(
-    
-    vehicle.GetVehicle().GetChassis().GetBody(),
-    update_rate,
-    offset_pose,
-    horizontal_samples,
-    vertical_samples,
-    horizontal_fov,
-    max_vert_angle,
-    min_vert_angle,
-    100.0,  
-    sens.LidarBeamShape_RECTANGULAR,
-    sample_radius,
-    max_sample_distance,
-    return_mode
+    vehicle.GetChassis().GetBody(),              
+    update_rate,            
+    offset_pose,            
+    horizontal_samples,     
+    vertical_samples,       
+    horizontal_fov,         
+    max_vert_angle,         
+    min_vert_angle,         
+    100.0,                  
+    sens.LidarBeamShape_RECTANGULAR,  
+    sample_radius,          
+    divergence_angle,       
+    divergence_angle,       
+    return_mode             
 )
 lidar.SetName("Lidar Sensor")
 lidar.SetLag(lag)
-lidar.PushFilter(sens.ChFilterD gotten UAV lidar)
+lidar.SetCollectionWindow(collection_time)
+lidar.PushFilter(sens.ChFilterDIAccess())
 lidar.PushFilter(sens.ChFilterPCfromDepth())
 lidar.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "Lidar Point Cloud"))
 manager.AddSensor(lidar)

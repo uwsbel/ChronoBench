@@ -59,8 +59,7 @@ def main():
 
     # Create and configure the ROS manager.
     ros_manager = chros.ChROSPythonManager()
-    # Define pushlish rate for the custom handler.
-    publish_rate = 10  # Set the publishing rate to 10 Hz.
+    publish_rate = 10  # Define the publishing rate in Hz.
     # Register a clock handler for the simulation time.
     ros_manager.RegisterHandler(chros.ChROSClockHandler())
     
@@ -83,6 +82,7 @@ def main():
     time = 0
     time_step = 1e-3  # Define the simulation time step.
     time_end = 30  # Set the duration for the simulation.
+
     # Add visualization
     # Create run-time visualization
     vis = chronoirr.ChVisualSystemIrrlicht()
@@ -98,7 +98,7 @@ def main():
     vis.AddLightWithShadow(ch.ChVector3d(1.5, -2.5, 5.5), ch.ChVector3d(0, 0, 0.5), 3, 4, 10, 40, 512)
 
     step_number = 0
-    # Time needed to render a scene
+    # Time interval between two render frames
     render_step_size = 1.0 / 25  # FPS = 25
     render_steps = math.ceil(render_step_size / time_step)
 
@@ -115,6 +115,7 @@ def main():
 
         realtime_timer.Spin(time_step)  # Maintain real-time step execution.
         step_number += 1
+
 # Entry point of the script.
 if __name__ == "__main__":
     main()

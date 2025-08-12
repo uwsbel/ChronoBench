@@ -8,165 +8,144 @@ def main():
     # -----------------
     # Create the system
     # -----------------
+    # Initialize the Chrono physical system (non-smooth contact)
     mphysicalSystem = chrono.ChSystemNSC()
 
-    # ----------------------------------
+    # -----------------------------------
     # Add a mesh to be sensed by a camera
-    # ----------------------------------
+    # -----------------------------------
+    # Load a triangular mesh from a Wavefront .obj file
     mmesh = chrono.ChTriangleMeshConnected()
     mmesh.LoadWavefrontMesh(chrono.GetChronoDataFile("vehicle/hmmwv/hmmwv_chassis.obj"), False, True)
-    # Scale the mesh to a different size
+    # Scale the mesh uniformly by a factor of 2
     mmesh.Transform(chrono.ChVector3d(0, 0, 0), chrono.ChMatrix33d(2))
 
     # Create a visual representation of the mesh
     trimesh_shape = chrono.ChVisualShapeTriangleMesh()
     trimesh_shape.SetMesh(mmesh)
     trimesh_shape.SetName("HMMWV Chassis Mesh")
-    trimesh_shape.SetMutable(False)
+    trimesh_shape.SetMutable(False)  # Set the mesh to be immutable
 
-    # Create a body to hold the mesh
+    # Create a body to which the visual shape will be attached
     mesh_body = chrono.ChBody()
-    mesh_body.SetPos(chrono.ChVector3d(0, 0, 0))
-    mesh_body.AddVisualShape(trimesh_shape)
-    mesh_body.SetFixed(True)
-    mphysicalSystem.Add(mesh_body)
+    mesh_body.SetPos(chrono.ChVector3d(0, 0, 0))  # Set the position of the body
+    mesh_body.AddVisualShape(trimesh_shape)  # Attach the visual shape to the body
+    mesh_body.SetFixed(True)  # Fix the body in space
+    mphysicalSystem.Add(mesh_body)  # Add the body to the physical system
 
     # -----------------------
     # Create a sensor manager
     # -----------------------
+    # Initialize the sensor manager to manage all sensors in the simulation
     manager = sens.ChSensorManager(mphysicalSystem)
 
     # ------------------------------------------------
     # Create a camera and add it to the sensor manager
     # ------------------------------------------------
-    offset_pose = chrono.ChFramed(
-        chrono.ChVector3d(-4, 0, 2), chrono.QuatFromAngleAxis(2, chrono.ChVector3d(0, 1, 0))
-    )
+    # Define the camera's position and orientation in the world
+    cam_pos = chrono.ChVector3d(0, 0, 5)
+    cam_frame = chrono.ChFramed(cam_pos, chrono.QuatFromAngleAxis(2, chrono.ChVector3d(0, 1, 0)))
+
+    # Initialize the camera sensor
     cam = sens.ChCameraSensor(
         mesh_body,              # Body the camera is attached to
         update_rate,            # Camera update rate in Hz
-        offset_pose,            # Offset pose of the camera
-        image_width,            # Image width
-        image_height,           # Image height
-        fov                    # Camera's horizontal field of view
+        offset_pose,            # Offset pose of the camera from the attached body
+        image_width,            # Image width in pixels
+        image_height,           # Image height in pixels
+        fov                     # Camera's horizontal field of view in radians
     )
     cam.SetName("Camera Sensor")
-    cam.SetLag(lag)
-    cam.SetCollectionWindow(exposure_time)
+    cam.SetLag(lag)  # Set the lag between sensing and data accessibility
+    cam.SetCollectionWindow(exposure_time)  # Set the exposure time for the camera
 
     # -----------------------------------------------------------------
     # Create a filter graph for post-processing the data from the camera
     # -----------------------------------------------------------------
-    if noise_model == " CONST_NORMAL":
-        cam.PushFilter(sens.ChFilterCameraNoiseConstNormal(0.0, 0.02))
-    elif noise_model == " PIXEL_SPECIAL":
-        cam.PushFilter(sens.ChFilterCameraNoisePixSel(0.02, 0.03))
-    elif noise_model == " BATEMAN":
-        cam.PushFilter(sens.ChFilterCameraNoiseBateman(0.02, 0.03))
+    # Apply noise model to the camera sensor based on the specified type
+    if noise_model == "CONST_NORMAL":
+        cam.PushFilter(sens.ChFilterCameraNoiseConstNormal(0.0, 0.02))  # Add constant normal noise
+    elif noise_model == "PIXEL_DEPENDENT":
+        cam.PushFilter(sens.ChFilterCameraNoisePixDep(0.02, 0.03))  # Add pixel-dependent noise
+    elif noise_model == "NONE":
+        # No noise model applied
+        pass
 
-    if absense_percentage > 0:
-        cam.PushFilter(sens.ChFilterVisualize(absense_percentage, 255, 0, 0))
-
-    if visualize:
-        # Visualize the camera sensor's output
+    # Visualize the image before applying grayscale filter
+    if vis:
         cam.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Before Grayscale Filter"))
 
-    # Save input images if required
-    if save_input:
-        cam.PushFilter(sens.ChFilterSave(out_dir + "input/"))
+    # Provide host access to the RGBA8 buffer from the camera
+    cam.PushFilter(sens.ChFilterRGBA8Access())
 
-    # Convert to grayscale and downsample
+    # Save the current image to a PNG file at the specified path
+    if save:
+        cam.PushFilter(sens.ChFilterSave(out_dir + "rgb/"))
+
+    # Convert the camera image to grayscale
     cam.PushFilter(sens.ChFilterGrayscale())
-    if visualize:
+
+    # Visualize the grayscaled image
+    if vis:
         cam.PushFilter(sens.ChFilterVisualize(int(image_width / 2), int(image_height / 2), "Grayscale Image"))
 
-    # Save grayscale images if required
-    if save_gray:
+    # Save the grayscaled image to a PNG file at the specified path
+    if save:
         cam.PushFilter(sens.ChFilterSave(out_dir + "gray/"))
 
-    # Apply edge detection
-    cam.PushFilter(sens.ChFilterImageFFT())
+    # Resize the image to the specified width and height
+    cam.PushFilter(sens.ChFilterImageResize(int(image_width / 2), int(image_height / 2)))
 
-    # Apply motion detection if required
-    if motion_detect:
-        cam.PushFilter(sens.ChFilterMotionDetect(10, 2, 2, 2))
+    # Access the grayscaled image buffer as R8 pixels
+    cam.PushFilter(sens.ChFilterR8Access())
 
-    # Visualize the output if required
-    if visualize:
-        cam.PushFilter(sens.ChFilterVisualize(int(image_width / 2), int(image_height / 2), "Edge Detection"))
-
-    # -----------------------------------------------------------------
-    # Create a pointcloud from the camera and add it to the sensor manager
-    # -----------------------------------------------------------------
-    pc = sens.ChPointCloudSensor(
-        mesh_body,              # Body the point cloud is attached to
-        update_rate,            # Point cloud update rate in Hz
-        offset_pose,            # Offset pose of the point cloud
-        pc_width,               # Width of the point cloud
-        pc_height,              # Height of the point cloud
-        pc_fov,                 # Horizontal field of view
-        noiseless_sample_radius,  # Sample radius for noiseless PC map
-        sample_radius,          # Sample radius for point cloud
-        sample_theta,           # Azimuth angle step for point cloud
-        (0, 0, 255),            # Color of the point cloud
-        chisetrange,            # Max range of the Lidar (if typically lattice is veloci grid)
-        stingray,               # Horizontally cover angle plot
-        10                      # Divisions in cover angle
-    )
-    pc.SetName("Point Cloud Sensor")
-    pc.SetLag(lag)
-    pc.SetCollectionWindow(exposure_time)
-    if visualize:
-        pc.PushFilter(sens.ChFilterVisualize(int(pc_width), int(pc_height), "Point Cloud"))
-
-    # Save the point cloud if required
-    if save_ptcloud:
-        pc.PushFilter(sens.ChFilterSAP(out_dir + "pc/"))
-
-    # Add the sensors to the manager
+    # Add the camera sensor to the manager
     manager.AddSensor(cam)
-    manager.AddSensor(pc)
 
     # ---------------
     # Simulate system
     # ---------------
-    orbit_radius = 10
-    orbit_rate = 0.5
-    ch_time = 0.0
+    orbit_radius = 5  # Radius of the camera orbit
+    orbit_rate = 0.5  # Rate of the camera orbit in radians per second
+    ch_time = 0.0  # Initialize simulation time
 
-    t1 = time.time()
-    while True:
-        # Define camera's orbit around the mesh body
-        cambody_pos = mesh_body.GetPos()
-        cambody_rot = mesh_body.GetRot()
-        cam.SetOffsetPose(
-            chrono.ChFramed(
-                cambody_pos + chrono.ChVector3d(-orbit_radius * math.cos(ch_time * orbit_rate), -orbit_radius * math.sin(ch_time * orbit_rate), 1),
-                cambody_rot
-            )
+    t1 = time.time()  # Record the start time of the simulation
+
+    while ch_time < end_time:
+        # Dynamically set the camera's position around the orbit
+        cam_pos = chrono.ChVector3d(
+            mesh_body.GetPos().x + orbit_radius * math.cos(ch_time * orbit_rate),
+            mesh_body.GetPos().y + orbit_radius * math.sin(ch_time * orbit_rate),
+            5  # Fixed Z position
         )
+        cam.SetOffsetPose(chrono.ChFramed(cam_pos, chrono.QuatFromAngleAxis(ch_time * orbit_rate, chrono.ChVector3d(0, 0, 1))))
 
-        # Access the sensor manager's update function
+        # Access the grayscaled image buffer from the camera
+        rgba8_buffer = cam.GetMostRecentRGBA8Buffer()
+        if rgba8_buffer:
+            rgba8_data = rgba8_buffer.GetRGBA8Data()
+            print("RGBA8 buffer received from camera. Data size:", rgba8_data.size())
+
+        # Update the sensor manager (render/save/filter data automatically)
         manager.Update()
 
-        # Increase simulation time
-        ch_time += time_step
+        # Perform a step of dynamics simulation
+        mphysicalSystem.DoStepDynamics(step_size)
 
-        # Stop simulation after 10 seconds
-        if ch_time > 10:
-            break
+        # Update the current simulation time
+        ch_time = mphysicalSystem.GetChTime()
 
-    print("Sim time:", time.time() - t1)
+    print("Simuation time:", end_time, "Wall time:", time.time() - t1)
 
 # -----------------
-# Sensor parameters
+# Camera parameters
 # -----------------
 
 # Noise model attached to the sensor
-noise_model = "CONST_NORMAL"  # Const normal, Pixel spec, or Bateman
+noise_model = "CONST_NORMAL"  # Constant normal noise model
 
 # Camera lens model
-lens_model = "RECTILINEAR"  # Rectilinear or FishEye
+lens_model = sens.PINHOLE  # Pinhole lens model
 
 # Update rate in Hz
 update_rate = 30
@@ -176,52 +155,32 @@ image_width = 1280
 image_height = 720
 
 # Camera's horizontal field of view
-fov = 1.408
+fov = 1.408  # Horizontal field of view in radians
 
-# Lag (in seconds) between camera sensing and data accessible
+# Lag (in seconds) between sensing and when data becomes accessible
 lag = 0
 
-# Exposure time (in seconds) of each image
+# Exposure (in seconds) of each image
 exposure_time = 0
 
-# -----------------
-# Lidar parameters
-# -----------------
-
-# Precision grid width and height
-pc_width = 640
-pc_height = 480
-
-# Horizontal field of view
-pc_fov = 1.728
-
-# Noise model attached to the lidar
-noise_model = "GAUSSIAN"
-
-# Sample radius (in pixels) when noise model is gaussian
-sample_radius = 2
-
-# Experience radius (in pixels)
-noiseless_sample_radius = 1
-
 # ---------------------
 # Simulation parameters
 # ---------------------
 
-# Simulation time step
-time_step = 1e-3
+# Simulation step size
+step_size = 1e-3
 
-# Simulation time
-ch_time = 0.0
+# Simulation end time
+end_time = 20.0
 
-# Simulation parameters
-save_camera = False
-save_ptcloud = False
-render = True
-motion_detect = False
+# Save camera images
+save = False
+
+# Render camera images
+vis = True
 
 # Output directory
 out_dir = "SENSOR_OUTPUT/"
 
-# Main function
+# Main function entry point
 main()
