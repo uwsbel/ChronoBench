@@ -4,7 +4,8 @@ from itertools import combinations
 
 class MyCreatorForAll(chrono.ChRandomShapeCreator_AddBodyCallback):
     def __init__(self, vis, coll):
-        super().__init__()
+        super.__init__()
+()
         self.vis = vis
         self.coll = coll
 
@@ -72,7 +73,7 @@ emitter.SetParticleCreator(mcreator_spheres)
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(sys)
 vis.SetWindowSize(1024, 768)
-vis.SetWindowTitle('Three-Body Problem with Particle Emitter')
+vis.SetWindowTitle('Three-body problem with particle emitter')
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()
@@ -91,14 +92,12 @@ stepsize = 1e-2
 
 
 sphere1.SetPosDt(chrono.ChVector3d(10, 10, 0))
-sphere1.SetPosDt(chrono.ChVector3d(0.5, 0, 0.1))
-
 sphere2.SetPosDt(chrono.ChVector3d(-10, -10, 0))
-sphere2.SetPosDt(chrono.ChVector3d(-0.5, 0, -0.1))
-
 sphere3.SetPosDt(chrono.ChVector3d(0, 20, 0))
-sphere3.SetPosDt(chrono.ChVector3d(0, -0.5, 0.2))
 
+sphere1.SetPosDt(chrono.ChVector3d(0.5, 0, 0.1))
+sphere2.SetPosDt(chrono.ChVector3d(-0.5, 0, -0.1))
+sphere3.SetPosDt(chrono.ChVector3d(0, -0.5, 0.2))
 
 while vis.Run():
     vis.BeginScene()

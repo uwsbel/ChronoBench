@@ -17,13 +17,12 @@ ground_mat = chrono.ChContactMaterialNSC()
 ground = chrono.ChBodyEasyBox(20, 20, 1, 1000, True, True, ground_mat)
 ground.SetPos(chrono.ChVector3d(0, 0, -1))  
 ground.SetFixed(True)  
-
 ground.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
 system.Add(ground)
 
 
 robot = turtlebot.TurtleBot(system)  
-robot.Initialize(chrono.ChVector3d(0, 0, 0), chrono.CH_ROT_Q_ID)  
+robot.Initialize()  
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
@@ -45,18 +44,18 @@ time_step = 2e-3
 time = 0
 while vis.Run():
     
-    LEFT_DRIVEN_WHEEL = turtlebot.WheelID.LEFT_DRIVEN
-    RIGHT_DRIVEN_WHEEL = turtlebot.WheelID.RIGHT_DRIVEN
-
+    LEFT_DRIVE_WHEEL = 0
+    RIGHT_DRIVE_WHEEL = 1
+    
     
     if abs(time - 1.0) < 1e-4:
-        robot.SetMotorSpeed(0, LEFT_DRIVEN_WHEEL)
-        robot.SetMotorSpeed(-math.pi, RIGHT_DRIVEN_WHEEL)
+        robot.SetMotorSpeed(0, LEFT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(-math.pi, RIGHT_DRIVE_WHEEL)
         
     
     if abs(time - 2.0) < 1e-4:
-        robot.SetMotorSpeed(-math.pi, LEFT_DRIVEN_WHEEL)
-        robot.SetMotorSpeed(0, RIGHT_DRIVEN_WHEEL)
+        robot.SetMotorSpeed(-math.pi, LEFT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(0, RIGHT_DRIVE_WHEEL)
 
     
     time += time_step

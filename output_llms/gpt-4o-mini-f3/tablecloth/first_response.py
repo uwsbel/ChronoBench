@@ -1,88 +1,109 @@
-import pychrono as chrono # Import the main PyChrono module.
-import pychrono.fea as fea # Import the finite element analysis (FEA) module.
-import pychrono.pardisomkl as mkl # Import the PardisoMKL solver module.
-import pychrono.irrlicht as chronoirr # Import the Irrlicht visualization module.
+import pychrono.core as chrono
+import pychrono.irrlicht as chronoirr
+import pychrono.fea as fea
+import pychrono.pardisomkl as mkl
+import errno
+import os
 
-print("Example: folding a cloth with shell elements") # Print an example statement.
+# Output directory setup
+out_dir = chrono.GetChronoOutputPath() + "FEA_SHELLS_BST"
+try:
+    os.mkdir(out_dir)
+except OSError as exc:
+    if exc.errno != errno.EEXIST:
+        print("Error creating output directory")
 
-# Create the physical system that will be simulated.
+# Create Chrono physical system
 sys = chrono.ChSystemSMC()
 
-# Create and add a mesh to the physical system.
+# Create and add mesh to the system
 mesh = fea.ChMesh()
 sys.Add(mesh)
 
-# Create material properties for the shell elements.
-mme = fea.ChMaterialShellKirchhoff() # Create a material object.
-mme.SetDensity(100) # Set the density of the material.
-mme.SetYoungModulus(1e5) # Set the Young's modulus (stiffness) of the material.
-mme.SetPoissonRatio(0.3) # Set the Poisson's ratio (ductility) of the material.
+# Material properties
+density = 100
+E = 6e4
+nu = 0.0
+thickness = 0.01
 
-# Define the thickness of the shell structure.
-h = 0.01
+# Create material
+melasticity = fea.ChElasticityKirchhoffIsothropic(E, nu)
+material = fea.ChMaterialShellKirchhoff(melasticity)
+material.SetDensity(density)
 
-# Create nodes for the mesh at specified positions.
-n1 = fea.ChNodeFEAxyzrot(chrono.ChFramed(chrono.ChVector3d(0, 0, 0))) # Create node at (0, 0, 0).
-n2 = fea.ChNodeFEAxyzrot(chrono.ChFramed(chrono.ChVector3d(1, 0, 0))) # Create node at (1, 0, 0).
-n3 = fea.ChNodeFEAxyzrot(chrono.ChFramed(chrono.ChVector3d(1, 1, 0))) # Create node at (1, 1, 0).
-n4 = fea.ChNodeFEAxyzrot(chrono.ChFramed(chrono.ChVector3d(0, 1, 0))) # Create node at (0, 1, 0).
+# Mesh dimensions
+L_x, L_z = 1, 1
+nsections_x, nsections_z = 40, 40
 
-# Add nodes to the mesh.
-mesh.AddNode(n1)
-mesh.AddNode(n2)
-mesh.AddNode(n3)
-mesh.AddNode(n4)
+# Create nodes
+mynodes = []
+for iz in range(nsections_z + 1):
+    for ix in range(nsections_x + 1):
+        p = chrono.ChVector3d(ix * (L_x / nsections_x), 0, iz * (L_z / nsections_z))
+        mnode = fea.ChNodeFEAxyz(p)
+        mesh.AddNode(mnode)
+        mynodes.append(mnode)
 
-# Create the shell element and configure it.
-myelementA = fea.ChElementShellKirchhoff() # Create an element object.
-myelementA.SetNodes(n1, n2, n3, n4) # Set the nodes for the element.
-myelementA.SetMaterial(mme) # Assign the material to the element.
-myelementA.SetThickness(h) # Set the thickness of the element.
+# Create elements
+for iz in range(nsections_z):
+    for ix in range(nsections_x):
+        melementA = fea.ChElementShellBST()
+        boundary_1 = mynodes[(iz + 1) * (nsections_x + 1) + ix + 1]
+        boundary_2 = mynodes[(iz + 1) * (nsections_x + 1) + ix - 1] if ix > 0 else None
+        boundary_3 = mynodes[(iz - 1) * (nsections_x + 1) + ix + 1] if iz > 0 else None
 
-# Add the element to the mesh.
-mesh.AddElement(myelementA)
+        melementA.SetNodes(mynodes[iz * (nsections_x + 1) + ix], mynodes[iz * (nsections_x + 1) + ix + 1],
+                           mynodes[(iz + 1) * (nsections_x + 1) + ix], boundary_1, boundary_2, boundary_3)
+        melementA.AddLayer(thickness, 0, material)
+        mesh.AddElement(melementA)
 
-# Create and initialize a force applied to the midpoints of the upper side.
-force_mid = chrono.ChForce()
-fapplication = chrono.ChForce()
-fapplication.Force(chrono.ChVector3d(0, -50, 0), chrono.ChVector3d(0.5, 0, 0), True, force_mid)
-mesh.AddForce(fapplication)
+        melementB = fea.ChElementShellBST()
+        boundary_1 = mynodes[iz * (nsections_x + 1) + ix]
+        boundary_2 = mynodes[iz * (nsections_x + 1) + ix + 2] if ix < nsections_x - 1 else None
+        boundary_3 = mynodes[(iz + 2) * (nsections_x + 1) + ix] if iz < nsections_z - 1 else None
 
-# Create and add a visualization object for the mesh.
-mvisualizeA = chrono.ChVisualShapeFEA(mesh)
-mvisualizeA.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_ELEM_BEAM_MZ) # Set the data type for visualization.
-mvisualizeA.SetColorscaleMinMax(-0.4, 0.4) # Set the color scale limits.
-mvisualizeA.SetSmoothFaces(True) # Enable smooth faces for visualization.
-mvisualizeA.SetWireframe(False) # Set to non-wireframe mode.
-mesh.AddVisualizationShape(mvisualizeA) # Add the visualization object to the mesh.
+        melementB.SetNodes(mynodes[(iz + 1) * (nsections_x + 1) + ix + 1], mynodes[(iz + 1) * (nsections_x + 1) + ix],
+                           mynodes[iz * (nsections_x + 1) + ix + 1], boundary_1, boundary_2, boundary_3)
+        melementB.AddLayer(thickness, 0, material)
+        mesh.AddElement(melementB)
 
-# Create and add a visualization object for the node positions.
-mvisualizeB = chrono.ChVisualShapeFEA(mesh)
-mvisualizeB.SetFEMglyphType(chrono.ChVisualShapeFEA.GlyphType_NODE_DOT_POS) # Set the glyph type for nodes.
-mvisualizeB.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NONE) # Disable additional data visualization.
-mvisualizeB.SetSymbolsThickness(0.006) # Set the thickness of symbols.
-mvisualizeB.SetSymbolsScale(0.01) # Set the scale of symbols.
-mvisualizeB.SetZbufferHide(False) # Disable Z-buffer hiding for symbols.
-mesh.AddVisualizationShape(mvisualizeB) # Add the visualization object to the mesh.
 
-# Create a Irrlicht visualization system and attach the simulation system.
+# Create visualizations for shell elements
+mvisualizeshellA = chrono.ChVisualShapeFEA(mesh)
+mvisualizeshellA.SetShellResolution(2)
+mesh.AddVisualShapeFEA(mvisualizeshellA)
+
+mvisualizeshellB = chrono.ChVisualShapeFEA(mesh)
+mvisualizeshellB.SetFEMglyphType(chrono.ChVisualShapeFEA.GlyphType_NODE_DOT_POS)
+mvisualizeshellB.SetSymbolsThickness(0.006)
+mesh.AddVisualShapeFEA(mvisualizeshellB)
+
+# Irrlicht visualization system setup
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(sys)
 vis.SetWindowSize(1024, 768)
-vis.SetWindowTitle('Folding cloth with shell elements')
+vis.SetWindowTitle('Shells FEA test: triangle BST elements')
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()
-vis.AddCamera(chrono.ChVector3d(0, 0.6, 0.8), chrono.ChVector3d(0.5, 0, 0.5))
+vis.AddCamera(chrono.ChVector3d(1, 0.3, 1.3), chrono.ChVector3d(0.5, -0.3, 0.5))
 vis.AddTypicalLights()
 
-# Change the solver to the MKL Pardiso solver, which is more precise for FEA.
-msolver = mkl.ChSolverPardisoMKL()
-sys.SetSolver(msolver) # Set the MKL Pardiso solver for the system.
+# Change solver to PardisoMKL
+mkl_solver = mkl.ChSolverPardisoMKL()
+mkl_solver.LockSparsityPattern(False)
+sys.SetSolver(mkl_solver)
 
-# Simulation loop.
+# Define time step for simulation
+timestep = 0.001
+
+# Final setup and system updates
+sys.Setup()
+sys.Update()
+
+# Simulation loop
 while vis.Run():
-    vis.BeginScene() # Begin rendering the scene.
-    vis.Render() # Render the scene.
-    vis.EndScene() # End rendering the scene.
-    sys.DoStepDynamics(0.001) # Perform one step of simulation with a step size of 0.001 seconds.
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    sys.DoStepDynamics(timestep)

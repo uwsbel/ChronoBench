@@ -11,8 +11,8 @@ initLoc = chrono.ChVector3d(0, 0, 0.5)
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 
-vis_type = veh.VisualizationType_MESH
-
+vis_type = veh.VisualizationType_PRIMITIVES
+vis_type_mesh = veh.VisualizationType_MESH
 
 chassis_collision_type = veh.CollisionType_NONE
 
@@ -26,7 +26,7 @@ terrainLength = 100.0
 terrainWidth = 100.0   
 
 
-trackPoint = chrono.ChVector3d(-15.0, 10.0, 5.0)
+trackPoint = chrono.ChVector3d(-15.0, 10.0, 5.8)
 
 
 contact_method = chrono.ChContactMethod_NSC
@@ -48,14 +48,13 @@ vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 
-
 vehicle.Initialize()
 
-vehicle.SetChassisVisualizationType(vis_type)
+vehicle.SetChassisVisualizationType(vis_type_mesh)
 vehicle.SetSuspensionVisualizationType(vis_type)
 vehicle.SetSteeringVisualizationType(vis_type)
-vehicle.SetWheelVisualizationType(vis_type)
-vehicle.SetTireVisualizationType(vis_type)
+vehicle.SetWheelVisualizationType(vis_type_mesh)
+vehicle.SetTireVisualizationType(vis_type_mesh)
 
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
@@ -73,11 +72,10 @@ patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 
-
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('City Bus Demo')
 vis.SetWindowSize(1280, 1024)
-vis.SetChaseCamera(trackPoint, 6.0, 0.5)
+vis.SetChaseCamera(trackPoint, 6.0, 3.5)
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
@@ -134,6 +132,5 @@ while vis.Run() :
     vis.Advance(step_size)
     
     step_number += 1
-
     
     realtime_timer.Spin(step_size)

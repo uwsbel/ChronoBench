@@ -15,7 +15,7 @@ def main():
     # ----------------------------------
     # Add a mesh to be sensed by a lidar
     # ----------------------------------
-    # Creating box for camera to sense
+    #create box for camera to sense
     side = 4
     box = chrono.ChBodyEasyBox(side, side, side, 1000)
     box.SetPos(chrono.ChVector3d(0, 0, 0))
@@ -76,19 +76,16 @@ def main():
     # Add the lidar to the sensor manager
     manager.AddSensor(lidar)
     
-    # Create 2D lidar sensor
-    offset_pose_2d = chrono.ChFramed(
-        chrono.ChVector3d(-12, 0, 0), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
-    )
-    lidar_2d = sens.ChLidarSensor(
+    # create 2D lidar sensor
+    lidar_2d =  sens.ChLidarSensor(
         box,              # Body lidar is attached to
         update_rate,            # Scanning rate in Hz
-        offset_pose_2d,            # Offset pose
+        offset_pose,            # Offset pose
         horizontal_samples,     # Number of horizontal samples
         1,                      # only 1 vertical channel for 2D lidar
         horizontal_fov,         # Horizontal field of view
         0.0,                    # Maximum vertical field of view
-        0.0,                    # Minimum vertical field of view
+        -0.0,                   # Minimum vertical field of view
         100.0,                  # Maximum lidar range
         sens.LidarBeamShape_RECTANGULAR,  # Shape of the lidar beam
         sample_radius,          # Sample radius
@@ -214,8 +211,6 @@ save = False
 vis = True
 
 # Output directory
-out_dir = "SENSOR_OUTPUT/"
-
 # The path to the Chrono data directory containing various assets (meshes, textures, data files)
 # is automatically set, relative to the default location of this demo.
 # If running from a different directory, you must change the path to the data directory with:

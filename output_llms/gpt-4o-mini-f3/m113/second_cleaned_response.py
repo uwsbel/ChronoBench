@@ -17,7 +17,6 @@ vis_type = veh.VisualizationType_MESH
 chassis_collision_type = veh.CollisionType_NONE
 
 
-
 terrainHeight = 0      
 terrainLength = 100.0  
 terrainWidth = 100.0   
@@ -67,7 +66,7 @@ terrain.SetSoilParameters(2e6,
                             0,     
                             30,    
                             0.01,  
-                            4e7,   
+                            2e8,   
                             3e4    
 )
 

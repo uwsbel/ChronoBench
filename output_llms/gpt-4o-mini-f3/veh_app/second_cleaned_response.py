@@ -144,17 +144,17 @@ lidar = sens.ChLidarSensor(
     gator.GetChassisBody(),              
     update_rate,            
     offset_pose,            
-    800,        
-    300,        
+    800,     
+    300,       
     2 * chrono.CH_PI,         
     chrono.CH_PI / 12,         
     -chrono.CH_PI / 6,         
-    100.0,               
-    sens.LidarBeamModel_TYPE_RECTANGULAR,  
-    2,            
-    0.003,         
-    0.003,         
-    sens.LidarReturn_MODE_STRONGEST_RETURN             
+    100.0,                  
+    sens.LidarBeamShape_RECTANGULAR,  
+    2,          
+    0.003,       
+    0.003,       
+    sens.LidarReturnMode_STRONGEST_RETURN             
 )
 lidar.SetName("Lidar Sensor")
 lidar.SetLag(lag)

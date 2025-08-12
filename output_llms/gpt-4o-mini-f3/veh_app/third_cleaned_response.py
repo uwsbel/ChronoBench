@@ -178,7 +178,7 @@ depth_cam = sens.ChDepthCameraSensor(
     update_rate,            
     offset_pose,            
     image_width,            
-    image_height,            
+    image_height,           
     fov                    
 )
 depth_cam.SetName("Depth Camera Sensor")
@@ -187,21 +187,11 @@ depth_cam.SetCollectionWindow(exposure_time)
 depth_cam.SetMaxDepth(30)  
 
 
-if vis:
-    depth_cam.PushFilter(sens.ChFilterVisualize(depth_cam.GetSymbolicWidth(), depth_cam.GetSymbolicHeight(), "Depth Map"))
-
-
 depth_cam.PushFilter(sens.ChFilterDIAccess())
 
-
-depth_cam.PushFilter(sens.ChFilterPCfromDepth())
-
-
-depth_cam.PushFilter(sens.ChFilterXYZIAccess())
-
+depth_cam.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Depth Map"))
 
 manager.AddSensor(depth_cam)
-
 
 
 

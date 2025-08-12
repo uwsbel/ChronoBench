@@ -80,6 +80,8 @@ patch.GetGroundBody().AddVisualShape(tri_mesh_shape)
 terrain.Initialize()
 
 
+reference_speed = input("You need to control steering!! Enter the reference speed (m/s): ")
+reference_speed = float(reference_speed)
 
 
 
@@ -124,21 +126,11 @@ step_number = 0
 render_frame = 0
 
 
-v_ref = 15
+v_err = 0
+prev_v_err = 0
+int_v_err = 0
+kp,ki,kd = 0.2,0.1,0.3
 
-throttle = 0
-
-speed_err_prev = 0
-int_speed_err = 0
-kp = 0.3
-ki = 0.1
-kd = 0.05
-controller = veh.ChThrottleDelayController()
-controller.SetKp(kp)
-controller.SetKi(ki)
-controller.SetKd(kd)
-controller.SetDelay(0.2)
-controller.Initialize()
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
 
@@ -149,21 +141,20 @@ while vis.Run() :
         vis.EndScene()
         render_frame += 1
 
+    current_vel = vehicle.GetVehicle().GetSpeed()
+    
+    v_err = reference_speed - current_vel
+    int_v_err += v_err * step_size
+    
+    throttle = kp * v_err + ki * int_v_err + kd * (v_err - prev_v_err) / step_size
+    throttle = max(throttle, 0)  
+    throttle = min(throttle, 1)  
+    driver.SetThrottle(throttle)
+    prev_v_err = v_err
+    
     
     driver_inputs = driver.GetInputs()
 
-    
-    v_ref = driver.GetSteering() * 20 + 2
-    
-    speed_err = v_ref - vehicle.GetVehicle().GetSpeed()
-    int_speed_err += speed_err
-    if speed_err > 0.2 or speed_err < -0.2:
-        throttle = controller.ComputeTarget(speed_err)
-    else:
-        throttle = 0
-    
-    driver.SetThrottle(throttle)
-    
     
     driver.Synchronize(time)
     terrain.Synchronize(time)

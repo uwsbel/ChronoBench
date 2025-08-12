@@ -124,13 +124,13 @@ while vis.Run() :
         driver.SetSteering(0.0)
         driver.SetThrottle(0.6)
     elif time < 4.0 and time > 2.0:
-        driver.SetSteering(0.2)
+        driver.SetSteering(0.3)
         driver.SetThrottle(0.6)
     elif time < 7.0 and time > 4.0:
         driver.SetSteering(0.0)
         driver.SetThrottle(0.6)
     elif time < 8.0 and time > 7.0:
-        driver.SetSteering(-0.2)
+        driver.SetSteering(-0.3)
         driver.SetThrottle(0.6)
     elif time < 10.0 and time > 8.0:
         driver.SetSteering(0.0)

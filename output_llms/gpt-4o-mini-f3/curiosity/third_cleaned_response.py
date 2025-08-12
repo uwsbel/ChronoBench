@@ -29,9 +29,6 @@ box.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/blue.png"))
 system.Add(box)
 
 
-manager = sens.ChSensorManager(system)
-
-
 rover = robot.Curiosity(system)
 
 
@@ -44,8 +41,11 @@ init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
 rover.Initialize(chrono.ChFramed(init_pos, init_rot))
 
 
+manager = sens.ChSensorManager(system)
+
+
 offset_pose = chrono.ChFramed(
-        chrono.ChVector3d(7, 0, 1), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
+        chrono.ChVector3d(3.0, 0, 1), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
     )
 
 

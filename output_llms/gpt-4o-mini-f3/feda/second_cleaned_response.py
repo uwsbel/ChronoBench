@@ -89,21 +89,13 @@ vis.AttachVehicle(vehicle.GetVehicle())
 driver = veh.ChInteractiveDriverIRR(vis)
 
 
-plt = veh.ISO7711eiPathFollowPlot()
-plt.Initialize(vehicle.GetVehicle(), 10.0, 0, True)
-pcd = veh.ISO7711eiPacejkaSteering()
-pcd.SetLookAheadDistance(5)
-pcd.SetKappa(0.2)
-pcd.SetTheta(0.1)
-pcd.SetPhi(0.1)
-plt.SetSteeringController(pcd)
 
-vcd = veh.ISO7711eiSpeedController()
-vcd.SetKappa(0.4)
-vcd.SetTheta(0.1)
-vcd.SetPhi(0.1)
-plt.SetSpeedController(vcd)
-
+path = veh.DoubleLaneChangePath(initLoc, 13.5, 4.0, 11.0, 50.0, True)
+target_speed = 10.0
+driver = veh.ChPathFollowerDriver(vehicle.GetVehicle(), path, "my_path", target_speed)
+driver.GetSteeringController().SetLookAheadDistance(5)
+driver.GetSteeringController().SetGains(0.8, 0, 0)
+driver.GetSpeedController().SetGains(0.4, 0, 0)
 driver.Initialize()
 
 
@@ -129,6 +121,7 @@ while vis.Run() :
 
     
     driver_inputs = driver.GetInputs()
+
     
     driver.Synchronize(time)
     terrain.Synchronize(time)

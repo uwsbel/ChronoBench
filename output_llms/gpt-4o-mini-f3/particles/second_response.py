@@ -49,6 +49,7 @@ mangvelo = chrono.ChRandomParticleVelocityAnyDirection()
 mangvelo.SetModulusDistribution(chrono.ChUniformDistribution(0.0, 0.2))
 emitter.SetParticleAngularVelocity(mangvelo)
 
+# Create the sphere particle creator
 mcreator_spheres = chrono.ChRandomShapeCreatorSpheres()
 mcreator_spheres.SetDiameterDistribution(chrono.ChZhangDistribution(0.6, 0.23))
 mcreator_spheres.SetDensityDistribution(chrono.ChConstantDistribution(1600))
@@ -116,9 +117,6 @@ while vis.Run():
 
     # Print the energy values
     print(
-        "Kinetic Energy: {:.6f}, Potential Energy: {:.6f}, Total Energy: {:.6f}".format(
-            kinetic_energy, potential_energy, total_energy
-        )
-    )
+        f"Kinetic Energy: {kinetic_energy:.6f}, Potential Energy: {potential_energy:.6f}, Total Energy: {total_energy:.6f}")
 
     sys.DoStepDynamics(stepsize)

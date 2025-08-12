@@ -2,7 +2,7 @@ import math as m
 import pychrono as chrono  
 import pychrono.fea as fea  
 import pychrono.pardisomkl as mklsolver  
-import pychrono.irrlicht as chronolib  
+import pychrono.irrlicht as chronoirr  
 import os  
 
 
@@ -167,7 +167,7 @@ mvisualizebeamC.SetZbufferHide(True)
 mesh.AddVisualShapeFEA(mvisualizebeamC)
 
 
-vis = chronolib.ChVisualSystemIrrlicht()
+vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(sys)
 vis.SetWindowSize(800, 600)
 vis.SetWindowTitle('Failed Beam Simulation')
@@ -189,6 +189,6 @@ sys.SetTimestepper(ts)
 while vis.Run():
     vis.BeginScene()
     vis.Render()
-    chronolib.drawGrid(vis, 0.1, 0.01, 10, 10, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT))
+    chronoirr.drawGrid(vis, 0.1, 0.01, 10, 10, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT))
     vis.EndScene()
     sys.DoStepDynamics(0.002)
