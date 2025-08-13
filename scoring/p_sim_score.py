@@ -25,7 +25,7 @@ test_model_list = [
 "llama4_maverick","llama4_scout", "llama-3.3-70b-instruct","o3","deepseek-r1-8b",
 "deepseek-r1-32b", "deepseek-r1","gemma-3-1b-it","qwen3-235b-a22b","claude-3-7-sonnet-20250219",
 "claude-4-sonnet-20250514","Gemini-2.5-pro","Gemini-1.5-pro","gpt-4.1-mini", "gpt-4.1-nano",
-"gpt-4.1","o4-mini","llama3.1-8b-f1","gpt-4o-mini-f1","llama3.3-70b-sft1","gpt-4o-mini-f3","pe_gpt-4o-mini"
+"gpt-4.1","o4-mini","llama3.1-8b-f1","gpt-4o-mini-f1","llama3.3-70b-sft1","gpt-4o-mini-f3","pe_gpt-4o-mini","llama3.1-8b-lora1"
 ]
 
 system_list = [
