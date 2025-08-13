@@ -8,7 +8,7 @@ veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 
 initLoc = chrono.ChVector3d(0, 0, 0.5)
-initLoc2 = chrono.ChVector3d(0, -20, 0.5)
+initLoc_2 = chrono.ChVector3d(0, -10, 0.5)
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 
@@ -65,21 +65,6 @@ vehicle.SetTireVisualizationType(vis_type)
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
-vehicle2 = veh.BMW_E90()
-vehicle2.SetContactMethod(contact_method)
-vehicle2.SetChassisCollisionType(chassis_collision_type)
-vehicle2.SetChassisFixed(False)
-vehicle2.SetInitPosition(chrono.ChCoordsysd(initLoc2, initRot))
-vehicle2.SetTireType(tire_model)
-vehicle2.SetTireStepSize(tire_step_size)
-vehicle2.Initialize()
-vehicle2.SetChassisVisualizationType(vis_type)
-vehicle2.SetSuspensionVisualizationType(vis_type)
-vehicle2.SetSteeringVisualizationType(vis_type)
-vehicle2.SetWheelVisualizationType(vis_type)
-vehicle2.SetTireVisualizationType(vis_type)
-
-
 patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
@@ -106,13 +91,35 @@ vis.AttachVehicle(vehicle.GetVehicle())
 
 
 
-driver1 = veh.ChDriver(vehicle.GetVehicle())
-driver1.Initialize()
+driver = veh.ChInteractiveDriverIRR(vis)
 
 
-driver2 = veh.ChDriver(vehicle2.GetVehicle())
-driver2.Initialize()
+steering_time = 1.0  
+throttle_time = 1.0  
+braking_time = 0.3   
+driver.SetSteeringDelta(render_step_size / steering_time)
+driver.SetThrottleDelta(render_step_size / throttle_time)
+driver.SetBrakingDelta(render_step_size / braking_time)
 
+driver.Initialize()
+
+vehicle_2 = veh.BMW_E90()
+vehicle_2.SetContactMethod(contact_method)
+vehicle_2.SetChassisCollisionType(chassis_collision_type)
+vehicle_2.SetChassisFixed(False)
+vehicle_2.SetInitPosition(chrono.ChCoordsysd(initLoc_2, initRot))
+vehicle_2.SetTireType(tire_model)
+vehicle_2.SetTireStepSize(tire_step_size)
+vehicle_2.Initialize()
+vehicle_2.SetChassisVisualizationType(vis_type)
+vehicle_2.SetSuspensionVisualizationType(vis_type)
+vehicle_2.SetSteeringVisualizationType(vis_type)
+vehicle_2.SetWheelVisualizationType(vis_type)
+vehicle_2.SetTireVisualizationType(vis_type)
+vehicle_2.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+
+driver_2 = veh.ChDriverBMW_E90(vehicle_2.GetVehicle())
+driver_2.Initialize()
 
 
 
@@ -139,33 +146,25 @@ while vis.Run() :
         render_frame += 1
 
     
-    driver1.SetSteering(0.4 * math.sin(time * 0.8))
-    driver2.SetSteering(-0.4 * math.sin(time * 0.8))
-    driver1.SetThrottle(0.3)
-    driver2.SetThrottle(0.3)
+    driver.SetSteering(0.4 * math.sin(time * 0.8))
+    driver_2.SetSteering(-0.4 * math.sin(time * 0.8))
     
+    driver_inputs = driver.GetInputs()
+    driver_inputs_2 = driver_2.GetInputs()
     
-    driver_inputs1 = driver1.GetInputs()
-    driver_inputs2 = driver2.GetInputs()
-    driver1.SetBrake(0.0)
-    driver2.SetBrake(0.0)
-    
-    driver_inputs1 = driver1.GetInputs()
-    driver_inputs2 = driver2.GetInputs()
-    
-    driver1.Synchronize(time)
-    driver2.Synchronize(time)
+    driver.Synchronize(time)
+    driver_2.Synchronize(time)
     terrain.Synchronize(time)
-    vehicle.Synchronize(time, driver_inputs1, terrain)
-    vehicle2.Synchronize(time, driver_inputs2, terrain)
-    vis.Synchronize(time, driver_inputs1)
+    vehicle.Synchronize(time, driver_inputs, terrain)
+    vehicle_2.Synchronize(time, driver_inputs_2, terrain)
+    vis.Synchronize(time, driver_inputs)
 
     
-    driver1.Advance(step_size)
-    driver2.Advance(step_size)
+    driver.Advance(step_size)
+    driver_2.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
-    vehicle2.Advance(step_size)
+    vehicle_2.Advance(step_size)
     vis.Advance(step_size)
     
     step_number += 1

@@ -45,7 +45,7 @@ render_step_size = 1.0 / 50  # FPS = 50
 
 # Create the HMMWV vehicle, set parameters, and initialize
 
-vehicle = veh.HMMWV_Full() # veh.HMMWV_Reduced()  could be another choice
+vehicle = veh.HMMWV_Full() # veh.HMMWV_Reduced()  could be another choice here
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
@@ -64,9 +64,12 @@ vehicle.SetTireVisualizationType(vis_type)
 
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
+# initialize some boxes in the scene
+num_boxes = 5
 for i in range(5):
-    box = chrono.ChBodyEasyBox(2, 2, 2, 1000, True, True)
-    box.SetPos(chrono.ChVector3d(np.random.uniform(-5, 20), np.random.uniform(2, 10), 1))
+    side = np.random.uniform(0.5, 1.5)
+    box = chrono.ChBodyEasyBox(side, side, side, 1000, True, True,chrono.ChContactMaterialSMC())
+    box.SetPos(chrono.ChVector3d(np.random.uniform(-5, 10), np.random.uniform(2, 10), side/2))
     box.SetFixed(True)
     box.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/blue.png"))
     vehicle.GetSystem().Add(box)
@@ -109,27 +112,35 @@ vis.AttachVehicle(vehicle.GetVehicle())
 # -----------------------
 manager = sens.ChSensorManager(vehicle.GetSystem())
 intensity = 0.1
-# Create a point light source
-pointLight = sens.ChPointLight()
-pointLight.SetLocation(chrono.ChVector3d(2.0, 2.0, 100))
-pointLight.SetColor(intensity, intensity, intensity)
-pointLight.SetAttenuation(0.1, 0.1, 0.01)
+# Create a point light sensor and add it to the sensor manager
+pointLight = sens.ChPointLightSensor(vehicle.GetChassisBody(),                    # body the light is attached to
+                                     10,        # light source radius
+                                     chrono.ChVector3d(2, 2.5, 2),  # position of the light source in the body frame
+                                     chrono.ChVector3d(0, 0, 0),    # direction of the light source in the body frame
+                                     intensity,  # light source intensity
+                                     2,      # falloff rate
+                                     2)      # spot angle
+pointLight.SetLag(0)
+pointLight.SetCollectionWindow(0)
+pointLight.PushFilter(sens.ChFilterVisualize(256, 256, "Point Light"))
 manager.AddSensor(pointLight)
 
-# Create two camera sensors
-offset_pose = chrono.ChFramed(chrono.ChVector3d(-8.0, 0, 1.75), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0)))
-cam = sens.ChCameraSensor(
-    vehicle.GetChassisBody(),
-    30,            # Update rate in Hz
-    offset_pose,   # Offset pose
-    1280,          # Image width
-    720,           # Image height
-    1.408          # FOV
-)
-cam.SetName("Third Person POV")
-# Renders the image at current point in the filter graph
-cam.PushFilter(sens.ChFilterVisualize(1280, 720, "HMMWV Camera Post Process"))
+# Create a camera sensor and add it to the sensor manager
+offset_pose = chrono.ChFramed(chrono.ChVector3d(.5, 0, 1.2), chrono.QuatFromAngleAxis(.2, chrono.ChVector3d(0, 1, 0)))
+cam = sens.ChCameraSensor(vehicle.GetChassisBody(),                    # body the camera is attached to
+                          30,        # update rate in Hz
+                          offset_pose,  # offset pose
+                          256,  # image width
+                          144,  # image height
+                          1.48,  # focal length
+                          0.3,   # znear
+                          100,   # zfar
+                          90)    # field of view
+cam.SetLag(0)
+cam.SetCollectionWindow(0)
+cam.PushFilter(sens.ChFilterVisualize(256, 144, "Camera Sensor"))
 manager.AddSensor(cam)
+
 
 # Create the driver system
 driver = veh.ChInteractiveDriverIRR(vis)
@@ -177,8 +188,10 @@ while vis.Run() :
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
-    manager.Update()  # update all sensors
 
+    # update sensor manager in each step
+    manager.Update()
+    
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)
     terrain.Advance(step_size)

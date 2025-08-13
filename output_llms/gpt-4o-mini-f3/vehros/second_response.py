@@ -32,11 +32,10 @@ def main():
     patch = terrain.AddPatch(patch_mat, ch.CSYSNORM, 100.0, 100.0)  # Add a patch to the terrain.
     patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 100, 100)
     terrain.Initialize()  # Initialize the terrain.
-
     # Create run-time visualization
     vis = chronoirr.ChVisualSystemIrrlicht()
     vis.AttachSystem(hmmwv.GetSystem())
-    vis.SetCameraVertical(ch.VerticalDir_Z)
+    vis.SetCameraVertical(ch.CameraVerticalDir_Z)
     vis.SetWindowSize(1280, 720)
     vis.SetWindowTitle('Viper rover - Rigid terrain')
     vis.Initialize()
@@ -63,31 +62,36 @@ def main():
     time = 0
     time_step = 1e-3  # Define the simulation time step.
     time_end = 30  # Set the total duration of the simulation.
-    wave_time = 0
+    # setup render related variables
+    # Set the simulation time step
+    time_step = 1e-3
+    step_number = 0
+    # Time interval between two render frames
+    render_step_size = 1.0 / 25  # FPS = 25
+    render_steps = math.ceil(render_step_size / time_step)
     hmmwv.GetVehicle().EnableRealtime(True)  # Enable real-time simulation for the vehicle.
     while vis.Run():  # Run the simulation loop.
         time = hmmwv.GetSystem().GetChTime()  # Update simulation time.
-        # Set the sine wave steering input after 1 second
-        steering_input = 0
-        if time > 1:
-            steering_input = -0.3 * math.sin(time - 1)
+        # Render the scene
+        if (step_number % render_steps == 0):
+            vis.BeginScene()
+            vis.Render()
+            vis.EndScene()
         # Get driver inputs and synchronize the vehicle, terrain, and driver systems.
-        driver.SetSteering(steering_input)
         driver_inputs = driver.GetInputs()
         driver.Synchronize(time)  # Synchronize the driver system.
         terrain.Synchronize(time)  # Synchronize the terrain.
         hmmwv.Synchronize(time, driver_inputs, terrain)  # Synchronize the vehicle with inputs and terrain.
+
         # Advance the simulation for all modules by one timestep.
         driver.Advance(time_step)
         terrain.Advance(time_step)
         hmmwv.Advance(time_step)
-        # Render the scene
-        vis.BeginScene()
-        vis.Render()
-        vis.EndScene()
+
         # Update the ROS manager to handle data publishing.
         if not ros_manager.Update(time, time_step):
             break  # Exit loop if ROS manager update fails.
+        step_number += 1
 
 if __name__ == "__main__":
     main()

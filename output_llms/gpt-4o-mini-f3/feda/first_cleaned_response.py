@@ -21,9 +21,9 @@ tire_model = veh.TireModelType_TMEASY
 
 
 
-terrainHeight = 0      
-terrainLength = 100.0  
-terrainWidth = 100.0   
+terrainHeight = 0
+terrainLength = 100.0
+terrainWidth = 100.0
 
 
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
@@ -38,7 +38,6 @@ tire_step_size = step_size
 
 
 render_step_size = 1.0 / 50  
-
 
 
 vehicle = veh.FEDA()

@@ -1,78 +1,85 @@
-import pychrono as chrono
-import pychrono.ros as crosevo
+import pychrono as ch
+import pychrono.ros as chros
+
 import rclpy.publisher
 from std_msgs.msg import Int64
 
 
-class MyCustomHandler(crosevo.ChROSHandler):
+class MyCustomHandler(chros.ChROSHandler):
     
 
     def __init__(self, topic):
         super().__init__(1)  
 
         self.topic = topic
-        self.topic_daytime = topic + "/daytime"
         self.publisher: rclpy.publisher.Publisher = None
-        self.int64_msg = Int64()
+        self.ticker = 0  
 
-    def Initialize(self, interface: crosevo.ChROSPythonInterface) -> bool:
+    def Initialize(self, interface: chros.ChROSPythonInterface) -> bool:
         
-        print("Creating publisher for topic:", self.topic)
+        print(f"Creating publisher for topic {self.topic} ...")
+        
         self.publisher = interface.GetNode().create_publisher(Int64, self.topic, 1)
         return True  
 
-    def Update(self, time: float):
+    def Tick(self, time: float):
         
-        self.int64_msg.data = int(time)
-        print("Publishing:", self.int64_msg.data, "from topic:", self.topic)
-        self.publisher.publish(self.int64_msg)  
+        print(f"Publishing {self.ticker} ...")
+        msg = Int64()  
+        msg.data = self.ticker  
+        self.publisher.publish(msg)  
+        self.ticker += 1  
 
 def main():
     
-    sys = chrono.ChSystemNSC()
-    sys.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
-    chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.0025)
-    chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
+    sys = ch.ChSystemNSC()
+    sys.SetGravitationalAcceleration(ch.ChVector3d(0, 0, -9.81))  
 
     
-    floor_mat = chrono.ChContactMaterialNSC()
-    floor = chrono.ChBodyEasyBox(20, 20, 1, 1000, True, True, floor_mat)
-    floor.SetPos(chrono.ChVector3d(0, 0, -1))  
+    phys_mat = ch.ChContactMaterialNSC()
+    phys_mat.SetFriction(0.5)  
+
+    
+    floor = ch.ChBodyEasyBox(10, 10, 1, 1000, True, True, phys_mat)
+    floor.SetPos(ch.ChVector3d(0, 0, -1))  
     floor.SetFixed(True)  
-    floor.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
-    sys.Add(floor)
+    floor.SetName("base_link")  
+    sys.Add(floor)  
 
     
-    box_mat = chrono.ChContactMaterialNSC()
-    box = chrono.ChBodyEasyBox(1, 1, 1, 1000, True, True, box_mat)
-    box.SetPos(chrono.ChVector3d(0, 0, 5))  
-    box.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/blue.png"))
-    sys.Add(box)
+    box = ch.ChBodyEasyBox(1, 1, 1, 1000, True, True, phys_mat)
+    box.SetPos(ch.ChVector3d(0, 0, 5))  
+    box.SetRot(ch.QuatFromAngleAxis(.2, ch.ChVector3d(1, 0, 0)))  
+    box.SetName("box")  
+    sys.Add(box)  
 
     
-    ros_manager = crosevo.ChROSPythonManager()
-    ros_manager.RegisterHandler(MyCustomHandler("/pychrono/box/topic"))
-
+    ros_manager = chros.ChROSPythonManager()
     
-    ros_manager.RegisterHandler(crosevo.ChROSClockHandler())
-
     
-    body_handler = crosevo.ChROSBodyHandler(ros_manager, box, "/pychrono/box")
-    body_handler.RegisterFantasyLabel("/fancy/label/here")
-
+    ros_manager.RegisterHandler(chros.ChROSClockHandler())
     
-    tf_handler = crosevo.ChROSTFHandler(ros_manager)
-    tf_handler.RegisterTransformBetweenFrames(box, "", box.GetName(), "")
+    
+    ros_manager.RegisterHandler(chros.ChROSBodyHandler(25, box, "~/box"))
+    
+    
+    tf_handler = chros.ChROSTFHandler(30)
+    tf_handler.AddTransform(floor, floor.GetName(), box, box.GetName())
+    ros_manager.RegisterHandler(tf_handler)
+    
+    
+    custom_handler = MyCustomHandler("~/my_topic")
+    ros_manager.RegisterPythonHandler(custom_handler)
 
     
     ros_manager.Initialize()
 
     
     time = 0
-    time_step = 1e-3
-    time_end = 30
+    time_step = 1e-3  
+    time_end = 30  
 
-    realtime_timer = chrono.ChRealtimeStepTimer()  
+    realtime_timer = ch.ChRealtimeStepTimer()  
     while time < time_end:
         sys.DoStepDynamics(time_step)  
         time = sys.GetChTime()  

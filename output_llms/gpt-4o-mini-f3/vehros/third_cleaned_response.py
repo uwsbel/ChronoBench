@@ -26,8 +26,8 @@ def main():
     hmmwv.SetWheelVisualizationType(veh.VisualizationType_MESH)
     hmmwv.SetTireVisualizationType(veh.VisualizationType_MESH)
     
-    box = ch.ChBodyEasyBox(3, 3, 3, 1000)
-    box.SetPos(ch.ChVector3d(10.0, 0.0, 1.0))
+    box = ch.ChBodyEasyBox(3, 3, 0.5, 1000)
+    box.SetPos(ch.ChVector3d(10.0, 0.0, 0.0))
     box.SetFixed(True)
     box.GetVisualShape(0).SetTexture(ch.GetChronoDataFile("textures/blue.png"))
     hmmwv.GetSystem().Add(box)
@@ -57,16 +57,19 @@ def main():
     driver.Initialize()  
     
     
+    
     sens_manager = sens.ChSensorManager(hmmwv.GetSystem())
     
-    lidar = sens.ChLidarSensor(hmmwv.GetChassisBody(), 5., 0, 100, 2*ch.CH_PI, ch.PI/12,*[10., .001, .001], 3000)
-    lidar.PushFilter(sens.ChFilterDIAccess())
-    lidar.PushFilter(sens.ChFilterPCfromDepth())
-    lidar.PushFilter(sens.ChFilterXYZAccess())
-    lidar.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "Lidar Point Cloud Data"))
-    sens_manager.AddSensor(lidar)
+    
+    offset_pose = ch.ChFramed(ch.ChVector3d(2.0, 0, 1), ch.QuatFromAngleAxis(.2, ch.ChVector3d(0, 1, 0)))
+    lidar = sens.ChLidarSensor(hmmwv.GetChassisBody(), 5., offset_pose, 80, 300, 2*ch.CH_PI, ch.CH_PI / 12, -ch.CH_PI / 6, 100., 0)
+    lidar.PushFilter(sens.ChFilterDIAccess())  
+    lidar.PushFilter(sens.ChFilterPCfromDepth())  
+    lidar.PushFilter(sens.ChFilterXYZIAccess())  
+    lidar.PushFilter(sens.ChFilterVisualizePointCloud(1280, 720, 1,"Lidar PC data"))  
     lidar.SetName("lidar")
-
+    sens_manager.AddSensor(lidar)
+    
     
     ros_manager = chros.ChROSPythonManager()
     ros_manager.RegisterHandler(chros.ChROSClockHandler())  
@@ -103,7 +106,6 @@ def main():
         terrain.Synchronize(time)  
         hmmwv.Synchronize(time, driver_inputs, terrain)  
         sens_manager.Update()  
-
         
         driver.Advance(time_step)
         terrain.Advance(time_step)

@@ -62,7 +62,7 @@ vehicle.SetTireVisualizationType(vis_type)
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
-box = chrono.ChBodyEasyBox(0.5, 5, 0.2, 1000, True, True)
+box = chrono.ChBodyEasyBox(0.5, 5, 0.2, 1000, True, True,chrono.ChContactMaterialNSC())
 box.SetPos(chrono.ChVector3d(5, 0, 0.1))
 box.SetFixed(True)
 box.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/blue.png"))
@@ -129,7 +129,6 @@ while vis.Run() :
 
     
     driver.SetThrottle(0.5)
-    
     
     driver_inputs = driver.GetInputs()
 

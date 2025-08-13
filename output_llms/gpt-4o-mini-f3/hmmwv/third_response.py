@@ -1,23 +1,23 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
-import math
+import math as m
 
 
-class MyDriver(veh.ChDriver):
-    def __init__(self, vehicle, delay):
+class MyDriver (veh.ChDriver):
+    def __init__(self, vehicle):
         veh.ChDriver.__init__(self, vehicle)
-        self.delay = delay
+        self.delay = 0
     def Synchronize(self, time):
-        abstime = time - self.delay
-        if (abstime > 0.2):
+        eff_time = time - self.delay
+        if (eff_time > 0.2):
             self.SetThrottle(0.7)
         else:
-            self.SetThrottle(3.5 * abstime)
-        if (abstime < 2.0):
+            self.SetThrottle(3.5 * eff_time)
+        if (eff_time < 2.0):
             self.SetSteering(0.0)
         else:
-            self.SetSteering(2.0 * math.sin(5.0 * (abstime - 2.0)))
+            self.SetSteering(0.6 * m.sin(2.0 * m.pi * (eff_time - 2.0) / 6.0))
         self.SetBraking(0.0)
 
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
@@ -100,17 +100,15 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 
-
-
 # Create the (custom) driver
-driver = MyDriver(vehicle.GetVehicle(), 0.5)
+driver = MyDriver(vehicle.GetVehicle())
 driver.Initialize()
 
 # output vehicle mass
 print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events
-render_steps = math.ceil(render_step_size / step_size)
+render_steps = m.ceil(render_step_size / step_size)
 
 # Initialize simulation frame counter s
 realtime_timer = chrono.ChRealtimeStepTimer()

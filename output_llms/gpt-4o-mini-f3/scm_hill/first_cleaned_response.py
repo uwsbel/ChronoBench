@@ -41,7 +41,8 @@ tire_step_size = step_size
 render_step_size = 1.0 / 20  
 
 
-vehicle = veh.HMMWV_Full()
+
+vehicle = veh.HMMWV_Full() 
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
@@ -73,13 +74,14 @@ terrain.SetSoilParameters(2e6,
 )
 
 
-terrain.SetMthreadMRF(True)
+terrain.AddMovingPatch(vehicle.GetChassisBody(), chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(5, 3, 1))
 
 
-terrain.SetPlotType(veh.SCMTerrain.PLOT_TYPE_NONE)
-
-
-terrain.Initialize(20, 20, 1.0)
+terrain.SetPlotType(veh.SCMTerrain.PLOT_SINKAGE, "SINKAGE", "false color plot of sinkage level")
+terrain.SetContactColor(chrono.ChColor(0.8, 0.8, 0.0))
+terrain.SetDebugContactColor(chrono.ChColor(0.8, 0.8, 0.0))
+terrain.SetDebugFrictionColor(chrono.ChColor(0.0, 0.8, 0.0))
+terrain.SetDebugStiffnessColor(chrono.ChColor(0.8, 0.0, 0.0))
 
 
 

@@ -4,88 +4,99 @@ import pychrono.fea as fea
 import pychrono.irrlicht as chronoirr
 
 # ----------------------------------------------------------------------------
-# Sample
-# This demo shows the use of  beam ANCF 3 element class.
-# A single beam is modeled and its dinamics are simulated.
-# This system is solved with the NSC (non smooth contact) formulation.
+# Model1: A beam composed of 10 ANCF cable element, with one end hinged to
+# ground, moving under gravity alone.
+# This model demonstrates the use of the utility class ChBuilderCableANCF.
 # ----------------------------------------------------------------------------
 
-# Uncomment this line if you want to measure the performance of this script
-# chrono.SetCommandLineArguments('-ls')
+class Model1:
+    def __init__(self, system, mesh):
+        # Create a section, i.e. define thickness and material properties for the cable beam
+        msection_cable2 = fea.ChBeamSectionCable()
+        msection_cable2.SetDiameter(0.015)  # Set the diameter of the cable section to 15 mm
+        msection_cable2.SetYoungModulus(0.01e9)  # Set the Young's modulus of the cable section to 0.01 GPa
+        msection_cable2.SetRayleighDamping(0.000)  # Set Rayleigh damping to zero for this section
 
-# Create the main Chrono component system
-sys = chrono.ChSystemNSC()
+        # Create a ChBuilderCableANCF helper object to facilitate the creation of ANCF beams
+        builder = fea.ChBuilderCableANCF()
 
-# Create a mesh containing finite elements
+        # Use BuildBeam to create a beam structure consisting of ANCF elements:
+        builder.BuildBeam(
+            mesh,  # The mesh to which the created nodes and elements will be added
+            msection_cable2,  # The beam section properties to use
+            10,  # Number of ANCF elements to create along the beam
+            chrono.ChVector3d(0, 0, -0.1),  # Starting point ('A' point) of the beam
+            chrono.ChVector3d(0.5, 0, -0.1)  # Ending point ('B' point) of the beam
+        )
+
+        # Apply boundary conditions and loads:
+        # Retrieve the end nodes of the beam and apply load/constraints
+        builder.GetLastBeamNodes().front().SetForce(chrono.ChVector3d(0, -0.2, 0))  # Apply forces to the front node
+
+        # Create a truss body (a fixed reference frame in the simulation)
+        mtruss = chrono.ChBody()
+        mtruss.SetFixed(True)  # Fix the truss body
+
+        # Create and initialize a hinge constraint to fix beam's end point to the truss
+        constraint_hinge = fea.ChLinkNodeFrame()
+        constraint_hinge.Initialize(builder.GetLastBeamNodes().back(), mtruss)
+        system.Add(constraint_hinge)  # Add the constraint to the system
+
+# Initialize the physical system and mesh container:
+sys = chrono.ChSystemSMC()
 mesh = fea.ChMesh()
 
-# Create a section object, which will hold properties for all beams that
-# will use this section.
-msection = fea.ChBeamSectionEulerAdvanced()
+# Create the model and add the mesh to the system
+model = Model1(sys, mesh)
+sys.Add(mesh)  # Remember to add the mesh to the physical system
 
-# Set the width and height of the beam section.
-msection.SetAsRectangularSection(0.12, 0.24)
+# Add visualization for the FEM mesh:
+mesh.AddVisualModel(fea.ChVisualShapeFEA(mesh))  # Add a visual shape for the mesh
 
-# Set the material properties of the beam section.
-msection.SetYoungModulus(0.01e9)
-msection.SetShearModulus(0.01e9 * 0.3)  # Shear modulus is typically less than Young's modulus
-msection.SetRayleighDamping(0.000)      # Damping coefficient for dynamic analysis
+# Set rendering properties for the visualizations:
+visualizebeam = mesh.GetVisualShapeFEA(0)
+visualizebeam.SetFEMdataType(fea.ChVisualShapeFEA.DataType_ELEM_BEAM_MZ)  # Visualize the bending moments
+visualizebeam.SetColorscaleMinMax(-0.4, 0.4)  # Set color scale for moments
+visualizebeam.SetSmoothFaces(True)  # Enable smooth faces for better visualization
+visualizebeam.SetWireframe(False)  # Set to non-wireframe mode
 
-# Set the section properties,, which affect the bending behavior of the beam.
-msection.SetQuadraticCurve(False)  # Use linear curvature instead of quadratic
-msection.SetQ1(0.04)                # Bend stiffness parameter
-msection.SetMass(0.0)                # Set mass of the section (usually zero for beam elements)
+# Add visualization for node positions:
+visualizenode = chrono.ChVisualShapeFEA(mesh)
+visualizenode.SetFEMglyphType(chrono.ChVisualShapeFEA.GlyphType_NODE_DOT_POS)  # Visualize nodes as dots
+visualizenode.SetFEMdataType(fea.ChVisualShapeFEA.DataType_NONE)  # No additional FEM data visualization
+visualizenode.SetSymbolsThickness(0.006)  # Set thickness of symbols
+visualizenode.SetSymbolsScale(0.01)  # Set scale of symbols
+visualizenode.SetZbufferHide(False)  # Ensure symbols are not hidden by z-buffer
+mesh.AddVisualShapeFEA(visualizenode)  # Add the node visualization to the mesh
 
-# Create a fixed point part which will act as the root of the beam
-# Set displacement and orientation of the fixed point part
-ch_p1 = chrono.ChVector3d(-0.2, 0, 0)
-ch_fixed_point = fea.ChNodeFEAxyz(ch_p1)
-ch_fixed_point.SetMarkup(False)  # Disable markup (visualization) for this node
-mesh.AddNode(ch_fixed_point)      # Add the fixed point node to the mesh
-
-# Create a beam element and set its properties
-beam1 = fea.ChElementBeamANCF()
-beam1.SetNodes(ch_fixed_point,  # One end of the beam
-               fea.ChNodeFEAxyzrot(chrono.ChVector3d(0.8, 0, 0)))  # Other end of the beam
-beam1.SetSection(msection)  # Assign the section properties to the beam element
-mesh.AddElement(beam1)      # Add the beam element to the mesh
-
-# Create a visual representation of the beam element
-visualbeamA = chrono.ChVisualShapeFEA(beam1)
-visualbeamA.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_ELEM_BEAM_MZ)  # Visualize the bending moments
-visualbeamA.SetColorscaleMinMax(-0.4, 0.4)  # Set color scale for moments
-visualbeamA.SetSmoothFaces(True)            # Enable smooth faces for visualization
-visualbeamA.SetWireframe(False)              # Disable wireframe mode
-beam1.AddVisualShapeFEA(visualbeamA)        # Add the visual shape to the beam element
-
-# ----------------------------------------------------------------------------
-# Create the Irrlicht visualization system
-# Note: this will be automatically attached to the simulation system
-# ----------------------------------------------------------------------------
-
+# Create the Irrlicht visualization for rendering
 vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(sys)  # Attach the simulation system to the visualization
-vis.SetWindowSize(1024, 768)  # Set the window size for the visualization
-vis.SetWindowTitle('FEA beams')  # Set the window title
-vis.Initialize()  # Initialize the visualization system
+vis.AttachSystem(sys)  # Attach Irrlicht to the Chrono system
+vis.SetWindowSize(1024, 768)  # Set the size of the rendering window
+vis.SetWindowTitle('FEA cables')  # Set the title of the rendering window
+vis.Initialize()  # Initialize the visualization
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))  # Add a logo to the window
-vis.AddSkyBox()  # Add a skybox for better visualization
-vis.AddCamera(chrono.ChVector3d(0, 0.6, 0.8))  # Add a camera to the scene
+vis.AddSkyBox()  # Add a skybox for better aesthetics
+vis.AddCamera(chrono.ChVector3d(0, 0.6, -1))  # Add a camera with specific position
 vis.AddTypicalLights()  # Add typical lights for better illumination
 
-# ----------------------------------------------------------------------------
-# Initialize the system
-# ----------------------------------------------------------------------------
+# Set solver type and settings
+solver = chrono.ChSolverSparseQR()  # Choose SparseQR solver
+if solver.GetType() == chrono.ChSolver.Type_SPARSE_QR:
+    print("Using SparseQR solver")
+sys.SetSolver(solver)
+solver.UseSparsityPatternLearner(True)  # Enable sparsity pattern learner
+solver.LockSparsityPattern(True)  # Lock sparsity pattern
+solver.SetVerbose(False)  # Disable verbose output
 
-sys.Add(mesh)  # Add the mesh to the simulation system
+# Set the timestepper for the simulation
+ts = chrono.ChTimestepperEulerImplicitLinearized(sys)
+sys.SetTimestepper(ts)
 
-# ----------------------------------------------------------------------------
 # Simulation loop
-# ----------------------------------------------------------------------------
-
 while vis.Run():
-    vis.BeginScene()  # Begin the scene for rendering
+    vis.BeginScene()  # Begin scene rendering
     vis.Render()  # Render the scene
-    vis.EndScene()  # End the scene
-    sys.DoStepDynamics(0.01)  # Perform one step of simulation with a step size of 0.01 seconds
+    vis.EndScene()  # End scene rendering
+    sys.DoStepDynamics(0.01)  # Advance the simulation by one step with a time step of 0.01 seconds
 ```

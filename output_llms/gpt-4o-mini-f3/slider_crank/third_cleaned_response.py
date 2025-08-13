@@ -62,14 +62,13 @@ mjointB.Initialize(mpiston,
 sys.Add(mjointB)
 
 
-plane = chrono.ChContactForceModelSpringsDamperMaterialsOKHD() 
-mjointC = chrono.ChLinkLockPlanar()
-mjointC.Initialize(mpiston,
-                   mfloor,
-                   chrono.ChFramed(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0),
-                                   chrono.Q_ROTATE_Z_TO_X)
-                   )
-sys.Add(mjointC)
+plane_plane = chrono.ChLinkLockPlanar()
+plane_plane.Initialize(mpiston,
+                       mfloor,
+                       chrono.ChFramed(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0),
+                                       chrono.Q_ROTATE_Z_TO_X)
+                       )
+sys.Add(plane_plane)
 
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(sys)

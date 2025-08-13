@@ -63,9 +63,12 @@ vehicle.SetTireVisualizationType(vis_type)
 
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
+
+num_boxes = 5
 for i in range(5):
-    box = chrono.ChBodyEasyBox(2, 2, 2, 1000, True, True)
-    box.SetPos(chrono.ChVector3d(np.random.uniform(-5, 20), np.random.uniform(2, 10), 1))
+    side = np.random.uniform(0.5, 1.5)
+    box = chrono.ChBodyEasyBox(side, side, side, 1000, True, True,chrono.ChContactMaterialSMC())
+    box.SetPos(chrono.ChVector3d(np.random.uniform(-5, 10), np.random.uniform(2, 10), side/2))
     box.SetFixed(True)
     box.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/blue.png"))
     vehicle.GetSystem().Add(box)
@@ -109,26 +112,34 @@ vis.AttachVehicle(vehicle.GetVehicle())
 manager = sens.ChSensorManager(vehicle.GetSystem())
 intensity = 0.1
 
-pointLight = sens.ChPointLight()
-pointLight.SetLocation(chrono.ChVector3d(2.0, 2.0, 100))
-pointLight.SetColor(intensity, intensity, intensity)
-pointLight.SetAttenuation(0.1, 0.1, 0.01)
+pointLight = sens.ChPointLightSensor(vehicle.GetChassisBody(),                    
+                                     10,        
+                                     chrono.ChVector3d(2, 2.5, 2),  
+                                     chrono.ChVector3d(0, 0, 0),    
+                                     intensity,  
+                                     2,      
+                                     2)      
+pointLight.SetLag(0)
+pointLight.SetCollectionWindow(0)
+pointLight.PushFilter(sens.ChFilterVisualize(256, 256, "Point Light"))
 manager.AddSensor(pointLight)
 
 
-offset_pose = chrono.ChFramed(chrono.ChVector3d(-8.0, 0, 1.75), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0)))
-cam = sens.ChCameraSensor(
-    vehicle.GetChassisBody(),
-    30,            
-    offset_pose,   
-    1280,          
-    720,           
-    1.408          
-)
-cam.SetName("Third Person POV")
-
-cam.PushFilter(sens.ChFilterVisualize(1280, 720, "HMMWV Camera Post Process"))
+offset_pose = chrono.ChFramed(chrono.ChVector3d(.5, 0, 1.2), chrono.QuatFromAngleAxis(.2, chrono.ChVector3d(0, 1, 0)))
+cam = sens.ChCameraSensor(vehicle.GetChassisBody(),                    
+                          30,        
+                          offset_pose,  
+                          256,  
+                          144,  
+                          1.48,  
+                          0.3,   
+                          100,   
+                          90)    
+cam.SetLag(0)
+cam.SetCollectionWindow(0)
+cam.PushFilter(sens.ChFilterVisualize(256, 144, "Camera Sensor"))
 manager.AddSensor(cam)
+
 
 
 driver = veh.ChInteractiveDriverIRR(vis)
@@ -176,8 +187,10 @@ while vis.Run() :
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
-    manager.Update()  
 
+    
+    manager.Update()
+    
     
     driver.Advance(step_size)
     terrain.Advance(step_size)

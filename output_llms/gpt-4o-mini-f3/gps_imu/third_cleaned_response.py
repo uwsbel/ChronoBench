@@ -3,7 +3,6 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import pychrono.sensor as sens
 import math
-import matplotlib.pyplot as plt
 
 
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
@@ -161,8 +160,9 @@ while vis.Run():
     
     driver.SetBraking(0.3) 
     driver.SetSteering(0.6)
-    driver.SetThrottle(0.5) 
+    
     driver_inputs = driver.GetInputs()
+    
     
     
     driver.Synchronize(time)
@@ -184,11 +184,12 @@ while vis.Run():
 
     
     realtime_timer.Spin(step_size)
-
 print("GPS Data: ", gps_data)
-
-gps_data = chrono.ChVector2d(0, 0)
-plt.scatter(gps_data[0], gps_data[1])
+import matplotlib.pyplot as plt
+import numpy as np
+gps_data = np.array(gps_data)
+plt.figure()
+plt.plot(gps_data[1:, 0], gps_data[1:, 1], 'r', label='Vehicle Trajectory')
 plt.xlabel("Latitude")
 plt.ylabel("Longitude")
 plt.title("GPS Data")

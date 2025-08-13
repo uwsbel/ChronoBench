@@ -29,9 +29,6 @@ terrainWidth = 100.0
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
 
 
-look_ahead = 4.0
-
-
 contact_method = chrono.ChContactMethod_NSC
 contact_vis = False
 
@@ -81,7 +78,7 @@ terrain.Initialize()
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('MAN 10t Demo')
 vis.SetWindowSize(1280, 1024)
-vis.SetChaseCamera(trackPoint, look_ahead, 0.5)
+vis.SetChaseCamera(trackPoint, 15.0, 0.5)
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
@@ -121,6 +118,7 @@ while vis.Run() :
         vis.Render()
         vis.EndScene()
         render_frame += 1
+
     
     driver_inputs = driver.GetInputs()
 

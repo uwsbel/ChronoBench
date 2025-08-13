@@ -33,11 +33,11 @@ def main():
     car.SetTireVisualizationType(veh.VisualizationType_MESH)
     car.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
     
+    mphysicalSystem = car.GetSystem()
     
-    # initialize the vehicle driver
+    #initialize the driver
     driver = veh.ChDriver(car.GetVehicle())
     driver.Initialize()
-    
     # Create the terrain
     patch_mat = chrono.ChContactMaterialNSC()
     patch_mat.SetFriction(0.9)
@@ -49,7 +49,6 @@ def main():
     patch.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 200, 200)
     patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
     terrain.Initialize()
-    
     # ----------------------------------
     # Add a mesh to be sensed by a lidar
     # ----------------------------------
@@ -64,7 +63,7 @@ def main():
     # -----------------------
     # Create a sensor manager
     # -----------------------
-    manager = sens.ChSensorManager(car.GetSystem())
+    manager = sens.ChSensorManager(mphysicalSystem)
 
     # ------------------------------------------------
     # Create a lidar and add it to the sensor manager
@@ -153,29 +152,22 @@ def main():
     manager.AddSensor(lidar_2d)
     
     # Add third person view camera
-    cam_offset_pose = chrono.ChFramed(
-        chrono.ChVector3d(-3.0, 0, 1), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
+    cam_pose_offset = chrono.ChFramed(
+        chrono.ChVector3d(-2.0, 0, 1), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
     )
     camera = sens.ChCameraSensor(
         car.GetChassisBody(),              # Body camera is attached to
-        update_rate,            # Image rate in Hz
-        cam_offset_pose,        # Offset pose
-        image_width,            # Image width
-        image_height,           # Image height
-        fov                     # Camera's horizontal field of view
+        update_rate,            # Frame rate
+        cam_pose_offset,        # Offset pose
+        horizontal_samples,     # Image width
+        vertical_samples,       # Image height
+        1.48,         # FOV
     )
-    camera.SetName("Third Person View")
+    camera.SetName("Camera Sensor")
     camera.SetLag(lag)
     camera.SetCollectionWindow(collection_time)
-    if vis:
-        # Visualize the camera sensor
-        camera.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Camera Sensor"))
-    # Provides the host access to the RGB data
-    camera.PushFilter(sens.ChFilterRGBAccess())
-    # Convert RGB data to gray scale
-    camera.PushFilter(sens.ChFilterGPUImageFromRGB())
-    # Provides the host access to the gray scale data
-    camera.PushFilter(sens.ChFilterGPUImageYAAccess())
+    # Provides the host access to the RGB, Depth data
+    camera.PushFilter(sens.ChFilterVisualize(horizontal_samples, horizontal_samples, "third person view"))
     # Add the camera to the sensor manager
     manager.AddSensor(camera)
     
@@ -189,26 +181,22 @@ def main():
     render_time = 0
     t1 = time.time()
 
-    while ch_time < end_time:
-        # Change steering input after 1 second
-        time_var = ch_time - 1.0
-        if time_var > 0:
-            steering = 0.5 * (1.0 - np.exp(-0.5 * time_var))
-            driver.SetSteering(steering)
-        
-        driver.SetThrottle(0.3)
-        # Sync module states (next line also updates internal timer)
-        car.Sync(ch_time)
-        # Update sensor manager (will render/save/filter automatically)
+    while True:
+        # Change throttle, steering, and braking based on driver inputs
+        driver.SetSteering(0.0)
+        driver.SetThrottle(0.0)
+        driver.SetBraking(0.0)
+        driver_inputs = driver.GetInputs()
+        car.SetInputs(driver_inputs)
+        # Update modules (process inputs from other modules)
+        driver.Synchronize(ch_time)
+        terrain.Synchronize(ch_time)
+        car.Synchronize(ch_time, driver_inputs, terrain)
         manager.Update()
-        
-        # Access the XYZI buffer from lidar
-        xyzi_buffer = lidar.GetMostRecentXYZIBuffer()
-        if xyzi_buffer.HasData():
-            xyzi_data = xyzi_buffer.GetXYZIData()
-            print('XYZI buffer received from lidar. Lidar resolution: {0}x{1}'.format(xyzi_buffer.Width, xyzi_buffer.Height))
-            print('Max Value: {0}'.format(np.max(xyzi_data)))
-
+        # Advance simulation for one timestep for all modules
+        driver.Advance(step_size)
+        terrain.Advance(step_size)
+        car.Advance(step_size)
         # Perform step of dynamics
         mphysicalSystem.DoStepDynamics(step_size)
 
@@ -276,28 +264,17 @@ vis = True
 # Output directory
 out_dir = "SENSOR_OUTPUT/"
 
-# The path to the Chrono data directory containing various assets (meshes, textures, data files)
-# is automatically set, relative to the default location of this demo.
-# If running from a different directory, you must change the path to the data directory with:
-# chrono.SetChronoDataPath('path/to/data')
+# for vehicle
+# Initial vehicle location and orientation
+initLoc = chrono.ChVector3d(0, -5.0, 0.5)
+# initRot = chrono.ChQuaterniond(1, 0, 0, 0)
+initRot = chrono.QuatFromAngleZ(1.57)
+veh.SetDataPath(out_dir + "vehicle/")
 
-# Car initialization parameters
-initLoc = chrono.ChVector3d(-15, 0, 0.5)
-initRot = chrono.ChQuaterniond(1, 0, 0, 0)
-
-# Render the car tires as textured MESHes
-veh.VisualizationType tyre_vis_type = veh.VisualizationType_MESH
-
-# Which type of model to use for the suspension components (RAVEN, WASP, or MOOSE)
-veh.SuspensionType suspension_type = veh.SuspensionType_RAVEN
-
-# What type of steering mechanism to use (RACK_AND_PINION, PETE_RACK_AND_PINION, or NONE)
-veh.SteeringType steering_type = veh.SteeringType_RACK_AND_PINION
-
-# Create the ARTcar vehicle, set parameters, and initialize
-car.SetTireType(veh.TireModelType_TMEASY)
-car.SetTireStepSize(step_size)
-car.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
-
+veh.SetTireData(veh.GetDataFile("TireTest.json"), "Tire Test Data")
+veh.SetSuspensionData(veh.GetDataFile("DoubleWishboneSuspension.json"))
+veh.SetSteeringData(veh.GetDataFile("RackAndPinionSteering.json"))
+veh.SetChassisData(veh.GetDataFile("M113Chassis.json"), "M113 Collision Mesh")
+veh.SetWheelData(veh.GetDataFile("Wheel.json"), "M113 Wheel")
 
 main()

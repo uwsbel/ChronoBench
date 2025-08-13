@@ -40,6 +40,7 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  
 
 
+
 vehicle = veh.UAZBUS() 
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
@@ -49,24 +50,21 @@ vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 
 
+vehicle.Initialize()
+
 vehicle.SetChassisVisualizationType(vis_type)
 vehicle.SetSuspensionVisualizationType(vis_type)
 vehicle.SetSteeringVisualizationType(vis_type)
 vehicle.SetWheelVisualizationType(vis_type)
 vehicle.SetTireVisualizationType(vis_type)
 
-vehicle.SetForceTimeline(True)
-vehicle.SetTimeLineStart(0)
-vehicle.SetTimeLineEnd(20)
-
-
-vehicle.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
 patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
-terrain = veh.RigidTerrain(chrono.ChContactMaterialNSC())
+terrain = veh.RigidTerrain(vehicle.GetSystem())
 patch = terrain.AddPatch(patch_mat, 
     chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
     terrainLength, terrainWidth)
@@ -76,10 +74,8 @@ patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 
-vehicle_system = vehicle.GetVehicle()
 
-
-vis = veh.ChUAZBUSVisualizer()
+vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('UAZBUS Demo')
 vis.SetWindowSize(1280, 1024)
 vis.SetChaseCamera(trackPoint, 6.0, 0.5)
@@ -90,8 +86,7 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 
-driver = veh.ChDriverSystem()
-driver.Initialize()
+driver = veh.ChInteractiveDriverIRR(vis)
 
 
 steering_time = 1.0  
@@ -101,11 +96,7 @@ driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
 
-driver.SetTimeline(vehicle.GetTimeLine())
-
-
-
-
+driver.Initialize()
 
 
 print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
@@ -119,15 +110,13 @@ step_number = 0
 render_frame = 0
 
 while vis.Run() :
-    time = vehicle.GetTime()
-
+    time = vehicle.GetSystem().GetChTime()
     
     if (step_number % render_steps == 0) :
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
         render_frame += 1
-
     
     driver_inputs = driver.GetInputs()
 
@@ -142,9 +131,7 @@ while vis.Run() :
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
-
     
     step_number += 1
-
     
     realtime_timer.Spin(step_size)

@@ -77,18 +77,15 @@ def main():
     manager.AddSensor(lidar)
     
     
-    offset_pose_2d = chrono.ChFramed(
-        chrono.ChVector3d(-12, 0, 0), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
-    )
-    lidar_2d = sens.ChLidarSensor(
+    lidar_2d =  sens.ChLidarSensor(
         box,              
         update_rate,            
-        offset_pose_2d,            
+        offset_pose,            
         horizontal_samples,     
         1,                      
         horizontal_fov,         
         0.0,                    
-        0.0,                    
+        -0.0,                   
         100.0,                  
         sens.LidarBeamShape_RECTANGULAR,  
         sample_radius,          
@@ -213,8 +210,6 @@ save = False
 
 vis = True
 
-
-out_dir = "SENSOR_OUTPUT/"
 
 
 
