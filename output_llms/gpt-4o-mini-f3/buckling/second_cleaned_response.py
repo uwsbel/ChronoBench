@@ -8,11 +8,9 @@ import os
 
 class ChFunctionMyFun(chrono.ChFunction):
     def __init__(self):
-        
         chrono.ChFunction.__init__(self)
 
     def GetVal(self, x):
-        
         if x > 0.4:
             return chrono.CH_PI
         else:

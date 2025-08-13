@@ -43,7 +43,8 @@ tire_step_size = step_size
 render_step_size = 1.0 / 20  # FPS = 50
 
 # Create the HMMWV vehicle, set parameters, and initialize
-vehicle = veh.HMMWV_Full()
+
+vehicle = veh.HMMWV_Full() # veh.HMMWV_Reduced()  could be another choice here
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
@@ -74,14 +75,15 @@ terrain.SetSoilParameters(2e6,   # Bekker Kphi
                             3e4    # Damping (Pa s/m), proportional to negative vertical speed (optional)
 )
 
-# Optionally, enable moving reference frame (MRF) support in SCM
-terrain.SetMthreadMRF(True)
+# Optionally, enable moving patch feature (single patch around vehicle chassis)
+terrain.AddMovingPatch(vehicle.GetChassisBody(), chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(5, 3, 1))
 
-# Set plot type for terrain (CURVILINEAR, CARTESIAN, or NONE)
-terrain.SetPlotType(veh.SCMTerrain.PLOT_TYPE_NONE)
-
-# Initialize the SCM terrain (length, width, mesh scale), specifying the initial mesh grid
-terrain.Initialize(20, 20, 1.0)
+# Set plot type for SCM (false color plotting)
+terrain.SetPlotType(veh.SCMTerrain.PLOT_SINKAGE, "SINKAGE", "false color plot of sinkage level")
+terrain.SetContactColor(chrono.ChColor(0.8, 0.8, 0.0))
+terrain.SetDebugContactColor(chrono.ChColor(0.8, 0.8, 0.0))
+terrain.SetDebugFrictionColor(chrono.ChColor(0.0, 0.8, 0.0))
+terrain.SetDebugStiffnessColor(chrono.ChColor(0.8, 0.0, 0.0))
 
 # Create the vehicle Irrlicht interface
 

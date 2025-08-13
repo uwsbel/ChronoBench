@@ -3,7 +3,7 @@ import pychrono.fea as fea
 import pychrono.pardisomkl as mkl 
 import pychrono.irrlicht as chronoirr 
 
-print("Example: PyChrono using triangular beam finite elements") 
+print("Example: PyChrono using beam finite elements") 
 
 
 sys = chrono.ChSystemSMC()
@@ -15,24 +15,25 @@ mesh = fea.ChMesh()
 msection = fea.ChBeamSectionEulerAdvanced()
 
 
-beam_diameter = 0.012
-msection.SetAsRectangularSection(beam_diameter, beam_diameter) 
+beam_wy = 0.012
+beam_wz = 0.025
+msection.SetAsRectangularSection(beam_wy, beam_wz) 
 
 
-msection.SetYoungModulus(0.01e9) 
-msection.SetShearModulus(0.01e9 * 0.3) 
+msection.SetYoungModulus(2e11) 
+msection.SetShearModulus(8e10) 
 msection.SetRayleighDamping(0.000) 
-msection.SetCentroid(0, 0) 
-msection.SetShearCentre(0, 0) 
+msection.SetCentroid(0, 0.02) 
+msection.SetShearCenter(0, 0.1) 
 msection.SetSectionRotation(45 * chrono.CH_RAD_TO_DEG) 
 
 
-beam_length = 0.05
+beam_L = 0.1
 
 
-hnode1 = fea.ChNodeFEAxyzrot(chrono.ChVector3d(0, 0, 0)) 
-hnode2 = fea.ChNodeFEAxyzrot(chrono.ChVector3d(beam_length, 0, 0)) 
-hnode3 = fea.ChNodeFEAxyzrot(chrono.ChVector3d(beam_length * 2, 0, 0)) 
+hnode1 = fea.ChNodeFEAxyzrot(chrono.ChFramed(chrono.ChVector3d(0, 0, 0))) 
+hnode2 = fea.ChNodeFEAxyzrot(chrono.ChFramed(chrono.ChVector3d(beam_L, 0, 0))) 
+hnode3 = fea.ChNodeFEAxyzrot(chrono.ChFramed(chrono.ChVector3d(beam_L * 2, 0, 0))) 
 
 
 mesh.AddNode(hnode1)

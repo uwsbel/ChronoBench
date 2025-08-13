@@ -26,7 +26,7 @@ def main():
     trimesh_shape.SetName("HMMWV Chassis Mesh")
     trimesh_shape.SetMutable(False)
 
-    # Create a body for the mesh and add it to the system
+    # Create a body to hold the mesh
     mesh_body = chrono.ChBody()
     mesh_body.SetPos(chrono.ChVector3d(0, 0, 0))
     mesh_body.AddVisualShape(trimesh_shape)
@@ -42,7 +42,7 @@ def main():
     # Create a lidar and add it to the sensor manager
     # ------------------------------------------------
     offset_pose = chrono.ChFramed(
-        chrono.ChVector3d(-12, 0, 2), chrono.QuatFromAngleAxis(2, chrono.ChVector3d(0, 0, 1))
+        chrono.ChVector3d(-12, 0, 1), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
     )
     lidar = sens.ChLidarSensor(
         mesh_body,              # Body lidar is attached to
@@ -110,7 +110,7 @@ def main():
                 chrono.ChVector3d(
                     -orbit_radius * math.cos(ch_time * orbit_rate),
                     -orbit_radius * math.sin(ch_time * orbit_rate),
-                    2
+                    1
                 ),
                 chrono.QuatFromAngleAxis(ch_time * orbit_rate, chrono.ChVector3d(0, 0, 1))
             )
@@ -129,7 +129,7 @@ def main():
         # Perform step of dynamics
         mphysicalSystem.DoStepDynamics(step_size)
 
-        # Get current time of the simulation
+        # Get the current time of the simulation
         ch_time = mphysicalSystem.GetChTime()
 
     print("Sim time:", end_time, "Wall time:", time.time() - t1)
@@ -139,7 +139,7 @@ def main():
 # Lidar parameters
 # -----------------
 
-# Noise model attached to the lidar
+# Noise model attached to the sensor
 # TODO: Noise models haven't been implemented in python
 # noise_model = "CONST_NORMAL_XYZI"  # Gaussian noise with constant mean and standard deviation
 noise_model = "NONE"  # No noise model
@@ -166,13 +166,13 @@ min_vert_angle = -chrono.CH_PI / 6
 lag = 0
 
 # Collection window for the lidar
-collection_time = 1. / update_rate  # 1/update rate
+collection_time = 1. / update_rate  # typically 1/update rate
 
 # Radius of samples to use, 1->1 sample, 2->9 samples, 3->25 samples...
 sample_radius = 2
 
-# 1mm radius (as cited by velodyne)
-divergence_angle = 0.001
+# 3mm radius (as cited by velodyne)
+divergence_angle = 0.003
 
 # ---------------------
 # Simulation parameters
@@ -195,7 +195,7 @@ out_dir = "SENSOR_OUTPUT/"
 
 # The path to the Chrono data directory containing various assets (meshes, textures, data files)
 # is automatically set, relative to the default location of this demo.
-# If running from a different directory, you must change the path to the data directory with:
-# chrono.SetChronoDataPath('path/to/data')
+# If running from a different directory, you must change the path to the data directory in your code,
+# or use the 'change_directory.py' script before running this demo.
 
 main()

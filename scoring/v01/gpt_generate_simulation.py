@@ -30,8 +30,8 @@ def generate_first_code(first_prompt, model_link):
             messages=[
                 {"role": "user", "content": prompt}
             ],
-            #temperature=0.2,
-            #top_p=0.7,
+            temperature=0.1,
+            top_p=0.95,
             max_completion_tokens=4096*4,
             stream=False
         )
@@ -71,9 +71,9 @@ Provide the corrected and modified script below:
             messages=[
                 {"role": "user", "content": prompt}
             ],
-            #temperature=0.6,
-            #top_p=0.7,
-            max_completion_tokens=1024 * 4*4,
+            temperature=0.1,
+            top_p=0.95,
+            max_completion_tokens=1024 * 4 * 4,
             stream=False
         )
         return completion.choices[0].message.content, prompt

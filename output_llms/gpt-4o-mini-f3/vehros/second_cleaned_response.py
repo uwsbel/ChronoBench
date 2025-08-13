@@ -32,11 +32,10 @@ def main():
     patch = terrain.AddPatch(patch_mat, ch.CSYSNORM, 100.0, 100.0)  
     patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 100, 100)
     terrain.Initialize()  
-
     
     vis = chronoirr.ChVisualSystemIrrlicht()
     vis.AttachSystem(hmmwv.GetSystem())
-    vis.SetCameraVertical(ch.VerticalDir_Z)
+    vis.SetCameraVertical(ch.CameraVerticalDir_Z)
     vis.SetWindowSize(1280, 720)
     vis.SetWindowTitle('Viper rover - Rigid terrain')
     vis.Initialize()
@@ -63,31 +62,36 @@ def main():
     time = 0
     time_step = 1e-3  
     time_end = 30  
-    wave_time = 0
+    
+    
+    time_step = 1e-3
+    step_number = 0
+    
+    render_step_size = 1.0 / 25  
+    render_steps = math.ceil(render_step_size / time_step)
     hmmwv.GetVehicle().EnableRealtime(True)  
     while vis.Run():  
         time = hmmwv.GetSystem().GetChTime()  
         
-        steering_input = 0
-        if time > 1:
-            steering_input = -0.3 * math.sin(time - 1)
+        if (step_number % render_steps == 0):
+            vis.BeginScene()
+            vis.Render()
+            vis.EndScene()
         
-        driver.SetSteering(steering_input)
         driver_inputs = driver.GetInputs()
         driver.Synchronize(time)  
         terrain.Synchronize(time)  
         hmmwv.Synchronize(time, driver_inputs, terrain)  
+
         
         driver.Advance(time_step)
         terrain.Advance(time_step)
         hmmwv.Advance(time_step)
-        
-        vis.BeginScene()
-        vis.Render()
-        vis.EndScene()
+
         
         if not ros_manager.Update(time, time_step):
             break  
+        step_number += 1
 
 if __name__ == "__main__":
     main()

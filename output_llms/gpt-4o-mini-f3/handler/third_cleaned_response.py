@@ -59,7 +59,6 @@ def main():
 
     
     ros_manager = chros.ChROSPythonManager()
-    
     publish_rate = 10  
     
     ros_manager.RegisterHandler(chros.ChROSClockHandler())
@@ -83,6 +82,7 @@ def main():
     time = 0
     time_step = 1e-3  
     time_end = 30  
+
     
     
     vis = chronoirr.ChVisualSystemIrrlicht()
@@ -115,6 +115,7 @@ def main():
 
         realtime_timer.Spin(time_step)  
         step_number += 1
+
 
 if __name__ == "__main__":
     main()

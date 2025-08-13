@@ -8,78 +8,89 @@ import pychrono.irrlicht as chronoirr
 
 
 
+class Model1:
+    def __init__(self, system, mesh):
+        
+        msection_cable2 = fea.ChBeamSectionCable()
+        msection_cable2.SetDiameter(0.015)  
+        msection_cable2.SetYoungModulus(0.01e9)  
+        msection_cable2.SetRayleighDamping(0.000)  
+
+        
+        builder = fea.ChBuilderCableANCF()
+
+        
+        builder.BuildBeam(
+            mesh,  
+            msection_cable2,  
+            10,  
+            chrono.ChVector3d(0, 0, -0.1),  
+            chrono.ChVector3d(0.5, 0, -0.1)  
+        )
+
+        
+        
+        builder.GetLastBeamNodes().front().SetForce(chrono.ChVector3d(0, -0.2, 0))  
+
+        
+        mtruss = chrono.ChBody()
+        mtruss.SetFixed(True)  
+
+        
+        constraint_hinge = fea.ChLinkNodeFrame()
+        constraint_hinge.Initialize(builder.GetLastBeamNodes().back(), mtruss)
+        system.Add(constraint_hinge)  
 
 
-
-
-
-sys = chrono.ChSystemNSC()
-
-
+sys = chrono.ChSystemSMC()
 mesh = fea.ChMesh()
 
 
-
-msection = fea.ChBeamSectionEulerAdvanced()
-
-
-msection.SetAsRectangularSection(0.12, 0.24)
+model = Model1(sys, mesh)
+sys.Add(mesh)  
 
 
-msection.SetYoungModulus(0.01e9)
-msection.SetShearModulus(0.01e9 * 0.3)  
-msection.SetRayleighDamping(0.000)      
+mesh.AddVisualModel(fea.ChVisualShapeFEA(mesh))  
 
 
-msection.SetQuadraticCurve(False)  
-msection.SetQ1(0.04)                
-msection.SetMass(0.0)                
+visualizebeam = mesh.GetVisualShapeFEA(0)
+visualizebeam.SetFEMdataType(fea.ChVisualShapeFEA.DataType_ELEM_BEAM_MZ)  
+visualizebeam.SetColorscaleMinMax(-0.4, 0.4)  
+visualizebeam.SetSmoothFaces(True)  
+visualizebeam.SetWireframe(False)  
 
 
-
-ch_p1 = chrono.ChVector3d(-0.2, 0, 0)
-ch_fixed_point = fea.ChNodeFEAxyz(ch_p1)
-ch_fixed_point.SetMarkup(False)  
-mesh.AddNode(ch_fixed_point)      
-
-
-beam1 = fea.ChElementBeamANCF()
-beam1.SetNodes(ch_fixed_point,  
-               fea.ChNodeFEAxyzrot(chrono.ChVector3d(0.8, 0, 0)))  
-beam1.SetSection(msection)  
-mesh.AddElement(beam1)      
-
-
-visualbeamA = chrono.ChVisualShapeFEA(beam1)
-visualbeamA.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_ELEM_BEAM_MZ)  
-visualbeamA.SetColorscaleMinMax(-0.4, 0.4)  
-visualbeamA.SetSmoothFaces(True)            
-visualbeamA.SetWireframe(False)              
-beam1.AddVisualShapeFEA(visualbeamA)        
-
-
-
-
+visualizenode = chrono.ChVisualShapeFEA(mesh)
+visualizenode.SetFEMglyphType(chrono.ChVisualShapeFEA.GlyphType_NODE_DOT_POS)  
+visualizenode.SetFEMdataType(fea.ChVisualShapeFEA.DataType_NONE)  
+visualizenode.SetSymbolsThickness(0.006)  
+visualizenode.SetSymbolsScale(0.01)  
+visualizenode.SetZbufferHide(False)  
+mesh.AddVisualShapeFEA(visualizenode)  
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(sys)  
 vis.SetWindowSize(1024, 768)  
-vis.SetWindowTitle('FEA beams')  
+vis.SetWindowTitle('FEA cables')  
 vis.Initialize()  
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))  
 vis.AddSkyBox()  
-vis.AddCamera(chrono.ChVector3d(0, 0.6, 0.8))  
+vis.AddCamera(chrono.ChVector3d(0, 0.6, -1))  
 vis.AddTypicalLights()  
 
 
+solver = chrono.ChSolverSparseQR()  
+if solver.GetType() == chrono.ChSolver.Type_SPARSE_QR:
+    print("Using SparseQR solver")
+sys.SetSolver(solver)
+solver.UseSparsityPatternLearner(True)  
+solver.LockSparsityPattern(True)  
+solver.SetVerbose(False)  
 
 
-
-sys.Add(mesh)  
-
-
-
+ts = chrono.ChTimestepperEulerImplicitLinearized(sys)
+sys.SetTimestepper(ts)
 
 
 while vis.Run():

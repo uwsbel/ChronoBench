@@ -15,69 +15,49 @@ class Model1:
 		msection_cable2.SetYoungModulus(0.01e9)
 		msection_cable2.SetRayleighDamping(0.0001)
 
-		
-		for i in range(n_chains):
-			
+		for j in range(n_chains):
 			mtruss = chrono.ChBody()
-			mtruss.SetPos(chrono.ChVector3d(0, 0, -0.1*i))
 			mtruss.SetFixed(True)
 			system.Add(mtruss)
 
-			
 			builder = fea.ChBuilderCableANCF()
+			builder.BuildBeam(mesh,  
+							  msection_cable2,  
+							  1 + j,  
+							  chrono.ChVector3d(0, 0, -0.1 * j),  
+							  chrono.ChVector3d(0.1 + 0.1 * j, 0, -0.1 * j)  
+							  )
 
-			
-			builder.BuildBeam(
-				mesh,  
-				msection_cable2,  
-				i + 1,  
-				chrono.ChVector3d(0, 0, -0.1*(i+1)),  
-				chrono.ChVector3d(0.1*(i + 1), 0, -0.1*(i+1))  
-			)
+			builder.GetLastBeamNodes().back().SetForce(chrono.ChVector3d(0, -0.7, 0))
 
-			
-			
-			builder.GetLastBeamNodes().front().SetForce(chrono.ChVector3d(0, -0.7, 0))
-
-			
-			self.bodies.append(chrono.ChBodyEasyBox(0.2, 0.04, 0.04))
-			
-			self.bodies[i].SetPos(builder.GetLastBeamNodes().back().GetPos() +
-								  chrono.ChVector3d(0.1, 0, 0))
-			system.Add(self.bodies[i])
-
-			
 			constraint_hinge = fea.ChLinkNodeFrame()
-			constraint_hinge.Initialize(builder.GetLastBeamNodes().back(), self.bodies[i])
+			constraint_hinge.Initialize(builder.GetLastBeamNodes().front(), mtruss)
 			system.Add(constraint_hinge)
 
-			
-			constraint_truss = chrono.ChLinkMateGeneric()
-			constraint_truss.Initialize(self.bodies[i], mtruss, False,
-										chrono.ChFrameD(builder.GetLastBeamNodes().back().GetPos()))
-			system.Add(constraint_truss)
+			msphere = chrono.ChVisualShapeSphere(0.02)
+			constraint_hinge.AddVisualShape(msphere)
 
-			constraint_truss.SetConstrainedCoords(True, True, True, False, False, False)
-
-			
-			self.bodies.append(chrono.ChBodyEasyBox(0.2, 0.04, 0.04))
-			
-			self.bodies[i + 1].SetPos(builder.GetLastBeamNodes().back().GetPos() +
-									  chrono.ChVector3d(0.1, 0, 0))
-			system.Add(self.bodies[i + 1])
+			mbox = chrono.ChVisualShapeBox(0.2, 0.04, 0.04)
+			mbox.SetColor(chrono.ChColor(0.6, 0, 0))
+			mbox.SetTexture(chrono.GetChronoDataFile("textures/blue.png"))
+			mtruss.AddVisualShape(mbox)
 
 			
-			constraint_hinge = fea.ChLinkNodeFrame()
-			constraint_hinge.Initialize(builder.GetLastBeamNodes().back(), self.bodies[i + 1])
-			system.Add(constraint_hinge)
+			mbody = chrono.ChBodyEasyBox(0.2, 0.04, 0.04)
+			mbody.SetPos(builder.GetLastBeamNodes().back().GetPos() + chrono.ChVector3d(0.1, 0, 0))
+			system.Add(mbody)
 
-			
-			constraint_truss = chrono.ChLinkMateGeneric()
-			constraint_truss.Initialize(self.bodies[i + 1], mtruss, False,
-										chrono.ChFrameD(builder.GetLastBeamNodes().back().GetPos()))
-			system.Add(constraint_truss)
+			constraint_pos = fea.ChLinkNodeFrame()
+			constraint_pos.Initialize(builder.GetLastBeamNodes().back(), mbody)
+			system.Add(constraint_pos)
 
-			constraint_truss.SetConstrainedCoords(True, True, True, False, False, False)
+			constraint_rot = fea.ChLinkNodeFrame()
+			constraint_rot.Initialize(builder.GetLastBeamNodes().back(), mbody)
+			constraint_rot.SetRelativeCoords(chrono.ChFramed(
+				chrono.ChVector3d(0.1, 0, 0), chrono.QuatFromAngleAxis(chrono.CH_PI / 24, chrono.ChVector3d(0, 1, 0))))
+			system.Add(constraint_rot)
+
+			self.bodies.append(mbody)
 
 
 sys = chrono.ChSystemSMC()
@@ -132,14 +112,8 @@ sys.SetTimestepper(ts)
 
 
 
-def  PrintBodyPositions():
-	for i in range(len(model.bodies)//2):
-		print( "[" , i+1 ,  "]  " , model.bodies[i].GetPos() , "  " , model.bodies[i+1].GetPos() )
-
-
 while vis.Run():
     vis.BeginScene()  
     vis.Render()  
     vis.EndScene()  
-    sys.DoStepDynamics(0.01)  
-    PrintBodyPositions()
+    sys.DoStepDynamics(0.01)

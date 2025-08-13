@@ -11,8 +11,8 @@ initLoc = chrono.ChVector3d(0, 0, 1.1)
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 
-vis_type = veh.VisualizationType_PRIMITIVES
-vis_type_mesh = veh.VisualizationType_MESH
+vis_type = veh.VisualizationType_MESH
+
 
 chassis_collision_type = veh.CollisionType_NONE
 
@@ -23,7 +23,7 @@ terrainLength = 100.0
 terrainWidth = 100.0   
 
 
-trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
+trackPoint = chrono.ChVector3d(0.0, 0.0, 0.1)
 
 
 contact_method = chrono.ChContactMethod_SMC
@@ -41,21 +41,21 @@ render_step_size = 1.0 / 50
 vehicle = veh.M113()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetTrackShoeType(veh.TrackShoeType_SINGLE_PIN)
-vehicle.SetDrivelineType(veh.DrivelineTypeTW_BDS)
-vehicle.SetTransmissionType(veh.TransmissionTypeAUTOMATIC_SHAFTS)
+vehicle.SetDrivelineType(veh.DrivelineTypeTV_BDS)
+vehicle.SetEngineType(veh.EngineModelType_SHAFTS)
+vehicle.SetTransmissionType(veh.TransmissionModelType_AUTOMATIC_SHAFTS)
 vehicle.SetBrakeType(veh.BrakeType_SIMPLE)
 
-vehicle.SetTrackShoeVisualizationType(vis_type_mesh)
-vehicle.SetRoadWheelVisualizationType(vis_type)
+vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
+vehicle.Initialize()
+
+vehicle.SetChassisVisualizationType(vis_type)
+vehicle.SetSprocketVisualizationType(vis_type)
 vehicle.SetIdlerVisualizationType(vis_type)
-vehicle.SetSprocketVisualizationType(vis_type_mesh)
-
-vehicle.Initialize(chrono.ChCoordsysd(initLoc, initRot))
-
-vehicle.SetChassisCollisionType(chassis_collision_type)
-vehicle.SetSprocketCollisionType(chassis_collision_type)
-vehicle.SetIdlerCollisionType(chassis_collision_type)
-vehicle.SetRoadWheelCollisionType(chassis_collision_type)
+vehicle.SetIdlerWheelVisualizationType(vis_type)
+vehicle.SetSuspensionVisualizationType(vis_type)
+vehicle.SetRoadWheelVisualizationType(vis_type)
+vehicle.SetTrackShoeVisualizationType(vis_type)
 
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
@@ -100,7 +100,7 @@ driver.Initialize()
 
 
 
-vehicle.GetSystem().SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
+vehicle.GetSystem.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
 
 
 print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())

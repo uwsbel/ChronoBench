@@ -68,7 +68,7 @@ manager.AddSensor(cam)
 # Set the simulation time step
 time_step = 1e-3
 step_number = 0
-# Time interval between two frames
+# Time interval between two render frames
 render_step_size = 1.0 / 25  # FPS = 25
 render_steps = math.ceil(render_step_size / time_step)
 # Simulation loop

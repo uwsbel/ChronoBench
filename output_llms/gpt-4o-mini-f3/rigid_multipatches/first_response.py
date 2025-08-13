@@ -102,7 +102,8 @@ def main():
 
     return 0
 
-veh.SetVerbose(True)
+veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
+
 # Simulation step sizes
 step_size = 2e-3
 tire_step_size = 1e-3
