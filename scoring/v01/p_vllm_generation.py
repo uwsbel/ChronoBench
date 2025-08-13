@@ -12,11 +12,14 @@ MAX_WORKERS = 8           # change to 10/20/etc
 RETRIES     = 3
 RETRY_SLEEP = 0             # seconds
 
-client = OpenAI(base_url="http://localhost:30000/v1", api_key="0")
+client = OpenAI(base_url="http://localhost:8000/v1", api_key="0")
 
 opensource_model_links = {
+    "llama4-109b-lora1": "llama4-109b-lora1",
+    "llama3.1-8b-lora1": "llama3.1-8b-lora1",
     "llama3.1-8b-f2": "llama3.1-8b-f2",
     "llama3.3-70b-lora1": "llama3.3-70b-lora1",
+    "llama4-109b-lora1": "llama4-109b-lora1",
     "gpt-4o-mini-f1":  "ft:gpt-4o-mini-2024-07-18:personal::9xVAdwNY",
     "codestral-22b-f1":"codestral-22b-instruct-v0.1",
 }
@@ -25,7 +28,7 @@ DATA_ROOT                  = Path("/lustre/fsw/coreai_nvfm_cupilot/jingquanw/Sim
 dataset_path               = DATA_ROOT / "demo_data"
 Output_path                = DATA_ROOT / "output_llms"
 Output_conversation_path   = DATA_ROOT / "output_conversion"
-test_model_list            = ["llama3.3-70b-lora1"]
+test_model_list            = ["llama4-109b-lora1"]
 Output_path.mkdir(exist_ok=True, parents=True)
 Output_conversation_path.mkdir(exist_ok=True, parents=True)
 
