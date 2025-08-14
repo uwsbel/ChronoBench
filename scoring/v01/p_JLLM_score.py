@@ -388,10 +388,10 @@ all_model_list= ["gemma-2-2b-it", "gemma-2-9b-it", "gemma-2-27b-it", "llama-3.1-
 "llama4_maverick","llama4_scout", "llama-3.3-70b-instruct","o3","deepseek-r1-8b",
 "deepseek-r1-32b", "deepseek-r1","gemma-3-1b-it","qwen3-235b-a22b","claude-3-7-sonnet-20250219",
 "claude-4-sonnet-20250514","Gemini-2.5-pro","Gemini-1.5-pro","gpt-4.1-mini", "gpt-4.1-nano",
-"gpt-4.1","o4-mini","llama3.1-8b-f2","llama3.3-70b-sft1"]
+"gpt-4.1","o4-mini","llama3.1-8b-f2","llama3.3-70b-sft1","llama3.1-8b-lora1"]
 
 evaluated_model = "gpt-4o-mini"
-test_model_list = ["gpt-4o-mini-f3","pe_gpt-4o-mini"]
+test_model_list = ["llama3.1-8b-lora1"]
 
 system_list = ["art", "beam", "buckling", "cable",  "camera", "citybus", "curiosity", "feda", "gator", "gear", "gps_imu", "handler", "hmmwv", "kraz", "lidar", "m113", "man", "mass_spring_damper", "particles", "pendulum",
                "rigid_highway", "rigid_multipatches", "rotor", "scm", "scm_hill", "sedan", "sensros", "slider_crank", "tablecloth", "turtlebot", "uazbus", "veh_app","vehros","viper"]
