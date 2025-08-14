@@ -157,7 +157,8 @@ def main():
 
         rank_df = rank_one_file(df, model_col, primary_metric, use_mean, score_like)
         out_csv = OUT_DIR / f"{Path(name).stem}_rankings.csv"
-        rank_df.to_csv(out_csv, index=False)
+        # --- 2 decimal places on save ---
+        rank_df.to_csv(out_csv, index=False, float_format="%.2f")
         per_file_info[name] = {"primary_metric": primary_metric, "mean_based": use_mean, "csv": out_csv}
 
         z = zscore(rank_df["RankMetric"])
@@ -173,13 +174,15 @@ def main():
         cons = cons.merge(part, on="model", how="outer")
     zcols = [c for c in cons.columns if c.startswith("z_")]
     cons["ConsensusZ"] = cons[zcols].mean(axis=1, skipna=True)
-    cons["ConsensusScore"] = (minmax01(cons["ConsensusZ"]) * 100.0).round(4)
+    # --- round to 2 decimals ---
+    cons["ConsensusScore"] = (minmax01(cons["ConsensusZ"]) * 100.0).round(2)
     cons = cons.sort_values("ConsensusZ", ascending=False).reset_index(drop=True)
     cons["Rank"] = np.arange(1, len(cons) + 1)
     cons = cons[["Rank", "model", "ConsensusScore"] + zcols]
 
     cons_path = OUT_DIR / "consensus_llm_rankings.csv"
-    cons.to_csv(cons_path, index=False)
+    # --- 2 decimal places on save ---
+    cons.to_csv(cons_path, index=False, float_format="%.2f")
 
     # Diff vs previous (if any)
     prev_path = OUT_DIR / "consensus_llm_rankings_prev.csv"
@@ -188,12 +191,15 @@ def main():
         chg = cons.merge(prev[["model", "Rank", "ConsensusScore"]], on="model", how="left", suffixes=("", "_prev"))
         chg["RankChange"] = chg["Rank_prev"] - chg["Rank"]
         chg["ScoreChange"] = cons["ConsensusScore"] - chg["ConsensusScore_prev"]
-        (OUT_DIR / "consensus_changes.csv").write_text(chg.to_csv(index=False))
+        change_path = OUT_DIR / "consensus_changes.csv"
+        # --- 2 decimal places on save ---
+        chg.to_csv(change_path, index=False, float_format="%.2f")
 
     # Wide CSV with all metrics + consensus rank
     all_metrics = union_all_metrics_with_rank(list(frames.values()), cons)
     all_metrics_path = OUT_DIR / "llm_all_metrics_with_rank.csv"
-    all_metrics.to_csv(all_metrics_path, index=False)
+    # --- 2 decimal places on save ---
+    all_metrics.to_csv(all_metrics_path, index=False, float_format="%.2f")
 
     # Optional Top-10 plot
     if MAKE_PLOT and MATPLOTLIB_OK:
