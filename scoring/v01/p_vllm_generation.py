@@ -28,7 +28,7 @@ DATA_ROOT                  = Path("/lustre/fsw/coreai_nvfm_cupilot/jingquanw/Sim
 dataset_path               = DATA_ROOT / "demo_data"
 Output_path                = DATA_ROOT / "output_llms"
 Output_conversation_path   = DATA_ROOT / "output_conversion"
-test_model_list            = ["llama4-109b-lora1"]
+test_model_list            = ["llama3.3-70b-lora1"]
 Output_path.mkdir(exist_ok=True, parents=True)
 Output_conversation_path.mkdir(exist_ok=True, parents=True)
 
