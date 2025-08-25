@@ -105,7 +105,7 @@ render_frame = 0
 # Maneuver parameters
 lane_change_duration = 5.0  # seconds for the lane change
 lane_change_start_time = 2.0  # seconds when the lane change starts
-lane_change_amplitude = 3.0  # lateral distance for lane change
+lane_change_end_time = lane_change_start_time + lane_change_duration
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
@@ -121,10 +121,14 @@ while vis.Run():
     driver_inputs = driver.GetInputs()
 
     # Introduce double lane change maneuver
-    if time >= lane_change_start_time and time <= lane_change_start_time + lane_change_duration:
-        # Calculate lateral position based on time
-        lateral_position = lane_change_amplitude * math.sin(math.pi * (time - lane_change_start_time) / lane_change_duration)
-        driver_inputs.m_steering = lateral_position / lane_change_amplitude  # Normalize steering input
+    if lane_change_start_time <= time <= lane_change_end_time:
+        # Calculate the steering input for lane change
+        if time < lane_change_start_time + lane_change_duration / 2:
+            driver_inputs.m_steering = 0.5 * (time - lane_change_start_time) / (lane_change_duration / 2)  # steer right
+        else:
+            driver_inputs.m_steering = 0.5 * (lane_change_end_time - time) / (lane_change_duration / 2)  # steer left
+    else:
+        driver_inputs.m_steering = 0.0  # no steering outside the maneuver
 
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)

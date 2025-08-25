@@ -101,7 +101,7 @@ node_down = builderA.GetLastBeamNodes()[-1]
 
 
 constr_bb = chrono.ChLinkMateParallel()
-constr_bb.Initialize(node_top, node_tip, False, node_top.Frame(), node_tip.Frame())  
+constr_bb.Initialize(node_top, node_tip, False, node_top.Frame(), node_top.Frame())
 sys.Add(constr_bb)
 constr_bb.SetConstrainedCoords(True, False, True, False, False, False)
 
@@ -128,7 +128,7 @@ node_crankB = builderB.GetLastBeamNodes()[-1]
 
 
 constr_cbd = chrono.ChLinkMatePrismatic()
-constr_cbd.Initialize(node_crnkG, body_crank, False, node_crnkG.Frame(), body_crank.Frame())  
+constr_cbd.Initialize(node_crnkG, body_crank, False, node_crnkG.Frame(), node_crnkG.Frame())
 sys.Add(constr_cbd)
 constr_cbd.SetConstrainedCoords(True, True, True, True, True, True)
 
@@ -178,7 +178,7 @@ custom_solver = mklsolver.ChSolverPardisoMKL()
 sys.SetSolver(custom_solver)
 
 
-ts = chrono.ChTimestepperHHT(sys)  
+ts = chrono.ChTimestepperHHT()  
 ts.SetStepControl(True)
 sys.SetTimestepper(ts)
 

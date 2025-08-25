@@ -1,9 +1,9 @@
-import pychrono as chrono
-import pychrono.sensor as sensor
+import pychrono.core as chrono
+import pychrono.irrlicht as chronoirr
 import numpy as np
 
 # Initialize the PyChrono environment
-chrono.SetChronoDataPath('path/to/chrono/data/')  # Set the path to Chrono data if needed
+chrono.ChSystemNSC()
 system = chrono.ChSystemNSC()
 
 # Load the triangular mesh from a Wavefront .obj file
@@ -13,50 +13,52 @@ mesh.LoadWavefrontMesh(mesh_file, True, True)
 
 # Create a fixed body for the mesh
 fixed_body = chrono.ChBodyAuxRef()
-fixed_body.SetBodyFixed(True)
+fixed_body.SetMass(0)  # Fixed body has infinite mass
 fixed_body.SetCollide(True)
 fixed_body.GetCollisionModel().ClearModel()
-fixed_body.GetCollisionModel().AddTriangleMesh(mesh, chrono.ChVectorD(0, 0, 0), chrono.ChMatrix33(1), True, True)
+fixed_body.GetCollisionModel().AddTriangleMesh(mesh, chrono.ChVectorD(0, 0, 0), chrono.ChMatrix33(chrono.CH_C_PI / 2), True, True)
 fixed_body.GetCollisionModel().BuildModel()
+fixed_body.SetBodyFixed(True)
 system.Add(fixed_body)
 
-# Create a camera sensor
-camera = sensor.ChCameraSensor(fixed_body,  # Attach to the fixed body
-                                chrono.ChFrameD(chrono.ChVectorD(0, 0, 5), chrono.Q_from_AngZ(0)),  # Initial position and orientation
-                                640, 480,  # Image width and height
-                                0.1, 100.0,  # Near and far clipping planes
-                                0.5,  # Field of view
-                                sensor.ChCameraSensor.CAMERA_TYPE.PERSPECTIVE)  # Camera type
+# Set up the camera sensor
+camera_sensor = chrono.ChCameraSensor()
+camera_sensor.SetPosition(chrono.ChVectorD(0, 5, 10))  # Initial position of the camera
+camera_sensor.SetTarget(chrono.ChVectorD(0, 0, 0))  # Targeting the center of the mesh
+camera_sensor.SetFOV(45)  # Field of view
+camera_sensor.SetResolution(640, 480)  # Resolution of the camera images
 
-# Add noise filters to the camera
-camera.SetNoiseModel(sensor.ChCameraSensor.NOISE_MODEL.GAUSSIAN, 0.01, 0.01)  # Gaussian noise
-camera.SetVisualizationMode(sensor.ChCameraSensor.VISUALIZATION_MODE.COLOR)  # Visualization mode
+# Add noise filters and visualizations (example)
+camera_sensor.SetNoise(0.01)  # Add some noise to the camera
+camera_sensor.SetVisualization(True)  # Enable visualization
 
-# Add the camera to the sensor manager
-sensor_manager = sensor.ChSensorManager(system)
-sensor_manager.AddSensor(camera)
+# Add the camera sensor to the fixed body
+fixed_body.AddSensor(camera_sensor)
+
+# Set up the sensor manager
+sensor_manager = chrono.ChSensorManager()
+sensor_manager.AddSensor(camera_sensor)
 
 # Simulation parameters
-time_step = 0.01
-total_time = 10.0
+time_step = 0.01  # Time step for the simulation
+total_time = 10.0  # Total simulation time
 num_steps = int(total_time / time_step)
-
-# Orbit parameters
-orbit_radius = 5.0
-orbit_speed = 0.1
 
 # Simulation loop
 for step in range(num_steps):
     # Update camera position in an orbit around the mesh
-    angle = step * orbit_speed
-    camera.SetFrame(chrono.ChFrameD(chrono.ChVectorD(orbit_radius * np.cos(angle), orbit_radius * np.sin(angle), 5), chrono.Q_from_AngZ(angle)))
+    angle = step * (2 * np.pi / num_steps)  # Full orbit over total_time
+    camera_x = 10 * np.cos(angle)
+    camera_z = 10 * np.sin(angle)
+    camera_sensor.SetPosition(chrono.ChVectorD(camera_x, 5, camera_z))
+    camera_sensor.SetTarget(chrono.ChVectorD(0, 0, 0))  # Keep targeting the center
 
     # Perform the simulation step
     system.DoStepDynamics(time_step)
 
     # Print out camera buffer data
-    camera_data = camera.GetImageBuffer()
-    print(f"Step {step}: Camera Buffer Data - {camera_data}")
+    camera_image = camera_sensor.GetImageBuffer()
+    print(f"Step {step}: Camera Image Buffer Size: {len(camera_image)}")
 
-# End of simulation
-print("Simulation completed.")
+# Finalize the simulation
+print("Simulation complete.")

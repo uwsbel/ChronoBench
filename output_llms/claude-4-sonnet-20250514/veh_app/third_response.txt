@@ -1,14 +1,10 @@
-Looking at the provided PyChrono script, I'll identify and correct errors, then implement the requested modifications.
+Looking at the provided PyChrono script, I'll identify errors and then implement the requested modifications.
 
 ## Identified Errors:
 
-1. **Quaternion constructor**: `chrono.ChQuaterniond(1, 0, 0, 0)` should be `chrono.ChQuaterniond(1, 0, 0, 0)` - this is actually correct, but typically we use `chrono.Q_from_AngAxis()` or similar for clarity.
-
-2. **Cylinder creation**: `chrono.ChBodyEasyCylinder(chrono.ChAxis_Y ,0.5, 1, 1000)` has incorrect parameter order and spacing.
-
-3. **Missing Irrlicht visualization system**: The script creates sensors but doesn't set up the main visualization system.
-
-4. **Driver initialization**: The driver system is not properly configured for interactive control.
+1. **ChBodyEasyCylinder constructor error**: The `chrono.ChAxis_Y` parameter is incorrect
+2. **Missing Irrlicht visualization system**: The script creates sensors but doesn't set up the Irrlicht visualization system
+3. **Inconsistent time management**: The script has `tend = 1000` but uses `end_time = 30` in the loop
 
 ## Corrected and Modified Script:
 
@@ -44,7 +40,7 @@ step_size = 1e-3
 tire_step_size = step_size
 
 # Simulation end time
-tend = 1000
+end_time = 30
 
 # Time interval between two render frames
 render_step_size = 1.0 / 50  # FPS = 50
@@ -117,8 +113,8 @@ box.SetFixed(True)
 box.GetVisualModel().GetShape(0).SetTexture(chrono.GetChronoDataFile("textures/blue.png"))
 gator.GetSystem().AddBody(box)
 
-# create cylinder (corrected parameters)
-cylinder = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, 0.5, 1, 1000)
+# create cylinder (Fixed: removed incorrect chrono.ChAxis_Y parameter)
+cylinder = chrono.ChBodyEasyCylinder(0.5, 1, 1000)
 cylinder.SetPos(chrono.ChVector3d(0, 0, 1.5))
 cylinder.SetFixed(True)
 cylinder.GetVisualModel().GetShape(0).SetTexture(chrono.GetChronoDataFile("textures/blue.png"))
@@ -128,6 +124,17 @@ gator.GetSystem().AddBody(cylinder)
 driver = veh.ChDriver(gator.GetVehicle())
 driver.Initialize()
 
+# Create the Irrlicht visualization application
+vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
+vis.SetWindowTitle('Gator Vehicle Simulation')
+vis.SetWindowSize(1280, 1024)
+vis.SetChaseCamera(trackPoint, 8.0, 1.5)
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddLighting()
+vis.AttachVehicle(gator.GetVehicle())
+
 # -----------------------
 # Create a sensor manager
 # -----------------------
@@ -135,8 +142,8 @@ manager = sens.ChSensorManager(gator.GetSystem())
 intensity = 1.0
 manager.scene.AddPointLight(chrono.ChVector3f(2, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
 
-# Create camera and add it to the sensor manager
-offset_pose = chrono.ChFramed(chrono.ChVector3d(-8.0, 0, 1.45), chrono.ChQuaterniond().SetFromAngleAxis(.2, chrono.ChVector3d(0, 1, 0)))
+# Create third person camera and add it to the sensor manager
+offset_pose = chrono.ChFramed(chrono.ChVector3d(-8.0, 0, 1.45), chrono.QuatFromAngleAxis(.2, chrono.ChVector3d(0, 1, 0)))
 cam = sens.ChCameraSensor(
     gator.GetChassisBody(),
     update_rate,
@@ -150,8 +157,8 @@ cam.SetName("Third Person POV")
 cam.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Gator Camera"))
 manager.AddSensor(cam)
 
-# *** ADDED: Create Depth Camera ***
-depth_offset_pose = chrono.ChFramed(chrono.ChVector3d(-5.0, 0, 2), chrono.ChQuaterniond(1, 0, 0, 0))
+# Create Depth Camera (NEW - as requested)
+depth_offset_pose = chrono.ChFramed(chrono.ChVector3d(-5.0, 0, 2), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0)))
 depth_cam = sens.ChCameraSensor(
     gator.GetChassisBody(),
     update_rate,
@@ -161,19 +168,20 @@ depth_cam = sens.ChCameraSensor(
     fov
 )
 depth_cam.SetName("Depth Camera")
-# Add depth filter and visualization
+# Add depth filter with maximum depth of 30
 depth_cam.PushFilter(sens.ChFilterDepth())
-depth_cam.PushFilter(sens.ChFilterVisualizeDepth(image_width, image_height, 0, 30, "Depth Map"))
+# Add visualization filter for depth map
+depth_cam.PushFilter(sens.ChFilterVisualizeDepth(image_width, image_height, 1.0, 30.0, "Depth Map"))
 manager.AddSensor(depth_cam)
 
 # create lidar sensor
-lidar_offset_pose = chrono.ChFramed(
-        chrono.ChVector3d(0.0, 0, 2), chrono.ChQuaterniond().SetFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
+offset_pose = chrono.ChFramed(
+        chrono.ChVector3d(0.0, 0, 2), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
     )
 lidar = sens.ChLidarSensor(
     gator.GetChassisBody(),              # Body lidar is attached to
     update_rate,            # Scanning rate in Hz
-    lidar_offset_pose,            # Offset pose
+    offset_pose,            # Offset pose
     800,     # Number of horizontal samples
     300,       # Number of vertical channels
     2 * chrono.CH_PI,         # Horizontal field of view
@@ -199,21 +207,28 @@ lidar.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "Lidar Point Cl
 # Add the lidar to the sensor manager
 manager.AddSensor(lidar)
 
-# *** ADDED: Vehicle state logging setup ***
-log_file = open("vehicle_state_log.txt", "w")
-log_file.write("Time,X,Y,Z,Heading\n")
-
 # ---------------
 # Simulation loop
 # ---------------
 
+# Create log file for vehicle state (NEW - as requested)
+log_file = open("vehicle_state_log.txt", "w")
+log_file.write("Time,X,Y,Z,Heading\n")
+
 realtime_timer = chrono.ChRealtimeStepTimer()
 time = 0
-end_time = 30
-step_number = 0
 
-while time < end_time:
+while vis.Run() and time < end_time:
     time = gator.GetSystem().GetChTime()
+    
+    # Log vehicle state (NEW - as requested)
+    vehicle_pos = gator.GetVehicle().GetPos()
+    vehicle_rot = gator.GetVehicle().GetRot()
+    # Calculate heading (yaw angle) from quaternion
+    heading = math.atan2(2 * (vehicle_rot.e0 * vehicle_rot.e3 + vehicle_rot.e1 * vehicle_rot.e2),
+                        1 - 2 * (vehicle_rot.e2 * vehicle_rot.e2 + vehicle_rot.e3 * vehicle_rot.e3))
+    
+    log_file.write(f"{time:.6f},{vehicle_pos.x:.6f},{vehicle_pos.y:.6f},{vehicle_pos.z:.6f},{heading:.6f}\n")
     
     # set driver inputs
     driver.SetSteering(0.5)
@@ -227,25 +242,13 @@ while time < end_time:
     terrain.Synchronize(time)
     gator.Synchronize(time, driver_inputs, terrain)
 
+    # Update sensors
     manager.Update()
 
-    # *** ADDED: Log vehicle state ***
-    # Get vehicle position
-    vehicle_pos = gator.GetVehicle().GetPos()
-    # Get vehicle orientation and calculate heading
-    vehicle_rot = gator.GetVehicle().GetRot()
-    # Convert quaternion to Euler angles to get heading (yaw)
-    euler = vehicle_rot.GetCardanAnglesXYZ()
-    heading = euler.z  # Z-axis rotation represents heading/yaw
-    
-    # Log every 10 steps to avoid excessive file size
-    if step_number % 10 == 0:
-        log_file.write(f"{time:.3f},{vehicle_pos.x:.3f},{vehicle_pos.y:.3f},{vehicle_pos.z:.3f},{heading:.3f}\n")
-        log_file.flush()
-    
-    # Print vehicle state to console every 100 steps
-    if step_number % 100 == 0:
-        print(f"Time: {time:.2f}s, Position: ({vehicle_pos.x:.2f}, {vehicle_pos.y:.2f}, {vehicle_pos.z:.2f}), Heading: {heading:.2f} rad")
+    # Update visualization
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
 
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)
@@ -254,34 +257,24 @@ while time < end_time:
 
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
-    
-    step_number += 1
 
-# Close the log file
+# Close log file
 log_file.close()
-print("Simulation completed. Vehicle state logged to 'vehicle_state_log.txt'")
+print("Vehicle state logged to vehicle_state_log.txt")
 ```
 
 ## Key Changes Made:
 
-### Error Corrections:
-1. **Fixed cylinder creation**: Corrected parameter spacing and order
-2. **Fixed quaternion creation**: Used proper method calls for quaternion initialization
-3. **Added proper variable naming**: Used descriptive names for offset poses
+1. **Fixed ChBodyEasyCylinder constructor**: Removed the incorrect `chrono.ChAxis_Y` parameter
+2. **Added Irrlicht visualization system**: Created proper visualization system for the simulation
+3. **Added Depth Camera**: Created a depth camera with the specified parameters:
+   - Offset pose at `chrono.ChVector3d(-5.0, 0, 2)`
+   - Image dimensions 1280x720
+   - FOV of 1.408
+   - Maximum depth of 30
+   - Applied depth and visualization filters
+4. **Added Vehicle State Logging**: Implemented logging of vehicle position (X, Y, Z) and heading at every simulation step
+5. **Fixed simulation loop**: Integrated proper visualization rendering and consistent time management
+6. **Added proper cleanup**: Close the log file at the end of simulation
 
-### Added Features:
-
-1. **Depth Camera**:
-   - Created with offset pose at (-5.0, 0, 2)
-   - Image dimensions: 1280x720
-   - FOV: 1.408
-   - Maximum depth: 30 meters
-   - Added depth filter and visualization
-
-2. **Vehicle State Logging**:
-   - Logs position (X, Y, Z) and heading at every 10th simulation step
-   - Creates a CSV file "vehicle_state_log.txt"
-   - Prints vehicle state to console every 100 steps
-   - Properly closes the log file at the end
-
-The script now correctly implements the depth camera with the specified parameters and logs the vehicle state throughout the simulation as requested.
+The script now correctly implements all requested features while fixing the identified errors.

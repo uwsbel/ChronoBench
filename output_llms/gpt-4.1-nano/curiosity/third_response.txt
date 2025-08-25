@@ -5,8 +5,7 @@ import numpy as np
 import pychrono as chrono
 import pychrono.robot as robot
 from pychrono import irrlicht as chronoirr
-# 1. Import the sensor module
-from pychrono.sensor import *
+import pychrono.sensor as sens  # Added sensor module import
 
 # Create Chrono system
 system = chrono.ChSystemNSC()
@@ -19,7 +18,7 @@ chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
 ground_mat = chrono.ChContactMaterialNSC()
 ground = chrono.ChBodyEasyBox(20, 20, 1, 1000, True, True, ground_mat)
 ground.SetPos(chrono.ChVector3d(0, 0, -0.5))  # Position the ground slightly below the origin
-ground.SetFixed(True)
+ground.SetFixed(True)  # Fix the ground in place
 ground.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
 system.Add(ground)
 
@@ -42,51 +41,6 @@ init_pos = chrono.ChVector3d(-5, 0.0, 0)
 init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
 rover.Initialize(chrono.ChFramed(init_pos, init_rot))
 
-# 2. Create a sensor manager
-sensor_manager = sens.ChSensorManager(system)
-
-# 3. Add a LiDAR sensor to the rover
-
-# Define LiDAR parameters
-lidar_update_rate = 30  # Hz
-horizontal_samples = 360
-vertical_samples = 1
-horizontal_fov = math.radians(360)  # Total azimuth coverage
-vertical_fov = math.radians(30)     # Vertical field of view (assuming a vertical FOV)
-lidar_range = 20  # meters
-
-# Create lidar sensor attached to rover's chassis
-# Assuming rover has a method or attribute to get its chassis body
-# In pychrono.robot, the chassis is typically accessible via rover.GetChassisBody()
-chassis = rover.GetChassisBody()
-
-# Place the LiDAR at the top of the chassis
-lidar_position = chrono.ChVectorD(0, 0, 1.5)  # 1.5 meters above the chassis origin
-
-# Create the LiDAR sensor
-lidar = sens.ChLidarSensor(
-    chassis,  # parent body
-    lidar_position,
-    chrono.QUNIT,  # orientation, pointing forward
-    lidar_range,
-    horizontal_samples,
-    vertical_samples,
-    horizontal_fov,
-    vertical_fov,
-    lidar_update_rate
-)
-
-# Set filter options for the lidar sensor if needed (e.g., filters)
-# For example, set a filter to ignore ground reflections or specific object types
-# Since specific filters depend on intances, here's a placeholder:
-# lidar.AddFilter(sens.ChFilterRGBA8())  # example of adding a filter (if needed)
-
-# Add the lidar sensor to the sensor manager
-sensor_manager.AddSensor(lidar)
-
-# 4. During the simulation loop, update the sensor manager
-# (This will be added inside the loop below)
-
 # Create the Irrlicht visualization
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
@@ -100,8 +54,44 @@ vis.AddCamera(chrono.ChVector3d(0, 3, 3), chrono.ChVector3d(0, 0, 0))
 vis.AddTypicalLights()
 vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0, 0), 3, 4, 10, 40, 512)
 
-# Enable shadows (optional, performance concern)
+# Enable shadows (commented out to improve performance)
 # vis.EnableShadows()
+
+# Create sensor manager
+manager = sens.ChSensorManager(system)
+
+# --- Create and attach a lidar sensor to the rover ---
+
+# Define lidar parameters
+lidar_update_rate = 10  # Hz
+horizontal_samples = 360
+vertical_samples = 30
+horizontal_fov = math.radians(360)  # 360 degrees in radians
+vertical_fov = math.radians(30)     # 30 degrees vertical FOV
+lidar_range = 20.0  # meters
+
+# Create the lidar sensor
+lidar = sens.ChLidarSensor(
+    rover.GetChassisBody(),  # Attach to rover chassis
+    lidar_range,
+    horizontal_samples,
+    vertical_samples,
+    horizontal_fov,
+    vertical_fov,
+    lidar_update_rate
+)
+
+# Set position and orientation of the lidar relative to the chassis
+lidar.SetOffset(chrono.ChFrameD(chrono.ChVectorD(0, 0, 0.2), chrono.ChQuaternionD(1, 0, 0, 0)))
+
+# Optional: set filters for the lidar data (e.g., to ignore certain objects)
+# For example, to ignore the ground, you could set a filter mask if supported
+# (assuming such functionality exists; otherwise, skip or implement custom filtering)
+
+# Add the lidar sensor to the sensor manager
+manager.AddSensor(lidar)
+
+# --- End of lidar setup ---
 
 # Set the simulation time step
 time_step = 1e-3
@@ -117,8 +107,8 @@ while vis.Run():
     # Update rover dynamics
     rover.Update()
 
-    # 4. Update sensor manager
-    sensor_manager.Update()
+    # Update sensors
+    manager.Update()
 
     # Render the scene
     vis.BeginScene()

@@ -16,9 +16,9 @@ vis_type_mesh = veh.VisualizationType_MESH
 # Collision type for chassis (PRIMITIVES, MESH, or NONE)
 chassis_collision_type = veh.CollisionType_NONE
 
-# Type of tire model (RIGID, TMEASY, PACEJKA)
+# Type of tire model (RIGID, TMEASY)
 tire_model = veh.TireModelType_PACEJKA  # Changed to Pacejka
-tire_version = 89  # Specify the version for Pacejka
+tire_model_version = 89  # Specify the version for Pacejka
 
 # Rigid terrain
 terrainHeight = 0      # terrain height
@@ -48,6 +48,9 @@ vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 
+# Set the tire model version
+vehicle.SetTireModelVersion(tire_model_version)  # Set the version for Pacejka
+
 vehicle.Initialize()
 
 vehicle.SetChassisVisualizationType(vis_type_mesh)
@@ -67,7 +70,7 @@ patch = terrain.AddPatch(patch_mat,
     chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
     terrainLength, terrainWidth)
 
-# Change terrain texture to "dirt.jpg"
+# Change the terrain texture to "dirt.jpg"
 patch.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 200, 200)  # Changed texture
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()

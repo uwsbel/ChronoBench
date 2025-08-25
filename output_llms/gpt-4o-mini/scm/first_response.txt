@@ -1,55 +1,66 @@
-Below is a Python script that sets up a PyChrono simulation for a full HMMWV on SCM deformable terrain, as per your instructions. This script initializes the environment, adds the vehicle and terrain, configures the parameters, and sets up the visualization and control systems.
+Below is a Python script that sets up a PyChrono simulation for a full HMMWV on SCM deformable terrain, following the provided instructions. This script initializes the environment, adds the vehicle and terrain, configures parameters, and sets up visualization and interaction.
 
 ```python
 import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
-import pychrono.vehicle as veh
-import pychrono.vehicle.terrain as terrain
+import pychrono.vehicle as chrono_vehicle
 
 # Initialize the PyChrono environment
-chrono.ChSystem.SetNumThreads(1)
-system = chrono.ChSystem()
+chrono.SetChronoDataPath('/path/to/chrono/data/')  # Set your Chrono data path
+chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.001)
+chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.001)
 
-# Create Irrlicht visualization
-application = chronoirr.ChIrrApp(system, "HMMWV on SCM Terrain", chronoirr.dimension2d_u32(800, 600))
+# Create the simulation system
+system = chrono.ChSystemNSC()
+
+# Create the Irrlicht visualization
+application = chronoirr.ChIrrApp(system, "HMMWV on SCM Terrain", chronoirr.dimension2du(800, 600))
 application.SetSkyBox()
-application.AddLogo()
-application.SetFPS(50)
+application.AddTypicalLights()
+application.SetCamera(chrono.ChVectorD(0, 5, -15), chrono.ChVectorD(0, 0, 0))
 
 # Create the HMMWV vehicle
-hmmwv = veh.HMMWV("HMMWV")
-hmmwv.SetChassisVisualizationType(veh.VisualizationType.MESH)
-hmmwv.SetWheelVisualizationType(veh.VisualizationType.MESH)
-hmmwv.SetTireVisualizationType(veh.VisualizationType.MESH)
+hmmwv = chrono_vehicle.HMMWV("HMMWV")
+hmmwv.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0.5, 0), chrono.ChQuaternionD(chrono.CH_C_PI / 2, 0, 0, 0)))
 
-# Initialize vehicle parameters
-initial_position = chrono.ChVectorD(0, 0.5, 0)  # Starting position
-initial_orientation = chrono.ChQuaternionD(1, 0, 0, 0)  # No rotation
-hmmwv.Initialize(initial_position, initial_orientation)
+# Add mesh visualization for the vehicle
+hmmwv.SetChassisVisualizationType(chrono_vehicle.VisualizationType.MESH)
+hmmwv.SetWheelVisualizationType(chrono_vehicle.VisualizationType.MESH)
+hmmwv.SetTireVisualizationType(chrono_vehicle.VisualizationType.MESH)
 
-# Create SCM terrain
-soil_params = terrain.SCMTerrainParams()
-soil_params.SetSoilParameters(20000, 0.3, 0.1)  # Example parameters: stiffness, friction, cohesion
-scm_terrain = terrain.SCMTerrain(system, soil_params)
-scm_terrain.SetMeshVisualization(True)
-scm_terrain.SetMovingPatch(True, hmmwv.GetVehicleBody())
+# Create the SCM terrain
+terrain = chrono_vehicle.SCMDeformableTerrain(system)
+terrain.SetGround(chrono.ChVectorD(0, 0, 0))
+terrain.SetCustomSoilParameters(soil_params={"friction": 0.5, "cohesion": 10.0, "dilation_angle": 30.0})
+terrain.SetMovingPatchEnabled(True)
+terrain.SetPatchSize(10.0)  # Size of the moving patch
+terrain.SetPatchFollowVehicle(hmmwv)
 
-# Set up false color visualization for sinkage
-scm_terrain.SetSinkageVisualization(True)
+# Add the terrain to the system
+system.Add(terrain)
 
-# Create an interactive driver system
-driver = veh.HMMWVDriver(hmmwv)
+# Set up the interactive driver system
+driver = chrono_vehicle.DriverInputs()
 driver.SetThrottle(0.0)
 driver.SetSteering(0.0)
 driver.SetBraking(0.0)
 
+# Set up the vehicle driver
+hmmwv.SetDriver(driver)
+
+# Simulation parameters
+application.SetTimestep(1 / 50.0)  # 50 FPS
+application.SetTryRealtime(True)
+
 # Main simulation loop
 while application.GetDevice().run():
-    # Update driver inputs (for example, using keyboard or joystick)
-    driver.UpdateInputs()
+    # Update driver inputs based on user interaction
+    driver.SetThrottle(0.5)  # Example throttle input
+    driver.SetSteering(0.1)  # Example steering input
+    driver.SetBraking(0.0)   # Example braking input
 
     # Update vehicle dynamics
-    system.DoStepDynamics(chrono.ChTime(1.0 / 50.0))  # 50 FPS
+    system.DoStepDynamics(application.GetTimestep())
 
     # Render the scene
     application.BeginScene()
@@ -61,14 +72,14 @@ application.Close()
 ```
 
 ### Explanation of the Script:
-1. **Initialization**: The script initializes the PyChrono environment and sets the number of threads for the simulation.
-2. **Irrlicht Visualization**: It creates an Irrlicht application for visualization, sets the window title, and configures the frame rate.
-3. **Vehicle Setup**: An HMMWV vehicle is created and initialized with a specified position and orientation. The vehicle's components are set to use mesh visualization.
-4. **Terrain Configuration**: The SCM terrain is created with custom soil parameters, and it is configured to visualize sinkage and follow the vehicle dynamically.
-5. **Driver System**: An interactive driver system is set up to control the vehicle's throttle, steering, and braking.
-6. **Simulation Loop**: The main loop updates the driver inputs, performs the simulation step, and renders the scene at the specified frame rate.
+1. **Initialization**: The script initializes the PyChrono environment and sets the data path.
+2. **System Creation**: A simulation system is created using `ChSystemNSC`.
+3. **Visualization Setup**: An Irrlicht application is set up for visualization, including lighting and camera settings.
+4. **Vehicle Creation**: An HMMWV vehicle is created and initialized with specific parameters, including mesh visualization for all components.
+5. **Terrain Setup**: An SCM deformable terrain is created with custom soil parameters and a moving patch feature that follows the vehicle.
+6. **Driver System**: An interactive driver system is set up to control vehicle inputs.
+7. **Simulation Loop**: The main loop runs the simulation, updating vehicle dynamics and rendering the scene at 50 frames per second.
 
 ### Note:
-- You may need to adjust the soil parameters and vehicle initialization values based on your specific requirements.
-- The driver input handling is simplified; you would typically implement actual input handling (e.g., keyboard or joystick) to control the vehicle.
-- Ensure that you have the necessary PyChrono and Irrlicht libraries installed and properly configured in your Python environment.
+- Ensure that the paths and parameters are adjusted according to your specific setup and requirements.
+- The soil parameters and vehicle inputs can be modified to suit the simulation needs.

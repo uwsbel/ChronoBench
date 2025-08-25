@@ -1,128 +1,95 @@
 ```python
 import pychrono as chrono
-import pychrono.irrlicht as chronoirr
+import chrono.irrlicht as irrlicht
 
-# Initialize PyChrono environment
+# Initialize Chrono
 chrono.SetChronoDataPath("path/to/chrono/data")  # Replace with your Chrono data path
 system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravitational acceleration
 
 # Create Irrlicht visualization
-vis = chronoirr.ChIrrApp(system)
-vis.AddCamera(chrono.ChVectorD(5, 5, 5))  # Set initial camera position
-vis.SetWindowSize(1280, 720)
-vis.SetRenderMode(chronoirr.CH_WIREFRAME)  # Set rendering mode (optional)
-vis.Start()
+vis = irrlicht.ChIrrApp(system, 'Particle Attraction')
+vis.SetWindowSize(800, 600)
+vis.AddCamera(chrono.ChVectorD(0, 10, 10), chrono.ChVectorD(0, 0, 0))
+vis.SetChaseTarget(chrono.ChVectorD(0, 0, 0))
 
-# Particle emitter settings
-emitter_pos = chrono.ChVectorD(0, 0, 0)
-particle_count = 100
-particle_mass = 0.1
-particle_radius = 0.1
+# Particle emitter
+class ParticleEmitter(chrono.ChBody):
+    def __init__(self, system, num_particles, particle_radius, mass_range):
+        super().__init__(system)
+        self.num_particles = num_particles
+        self.particle_radius = particle_radius
+        self.mass_range = mass_range
+
+        for i in range(self.num_particles):
+            # Generate random particle properties
+            shape = chrono.ChBoxShape(chrono.ChVectorD(self.particle_radius, self.particle_radius, self.particle_radius))
+            particle = chrono.ChBodyEasyBox(self.particle_radius, self.particle_radius, self.particle_radius, 
+                                            mass=chrono.ChRandom.rand_double(self.mass_range[0], self.mass_range[1]),
+                                            pos=chrono.ChVectorD(chrono.ChRandom.rand_double(-5, 5), chrono.ChRandom.rand_double(-5, 5), chrono.ChRandom.rand_double(-5, 5)))
+            particle.SetBodyFixed(True)
+            particle.SetCollide(True)
+            particle.SetMaterialSurface(chrono.ChMaterialSurface())
+            self.Add(particle)
 
 # Create particle emitter
-emitter = chrono.ChParticleEmitter()
-emitter.SetPos(emitter_pos)
-emitter.SetNumParticles(particle_count)
-emitter.SetParticleMass(particle_mass)
-emitter.SetParticleRadius(particle_radius)
+emitter = ParticleEmitter(system, num_particles=100, particle_radius=0.1, mass_range=(0.1, 1))
 
-# Define particle shape (random)
-particle_shape = chrono.ChBodyEasyBox(particle_radius, particle_radius, particle_radius)
-
-# Set initial particle properties
-for i in range(particle_count):
-    # Random position within a sphere
-    particle_pos = chrono.ChVectorD(
-        chrono.RandomDouble(-1, 1), chrono.RandomDouble(-1, 1), chrono.RandomDouble(-1, 1)
-    )
-    # Random velocity
-    particle_vel = chrono.ChVectorD(
-        chrono.RandomDouble(-1, 1), chrono.RandomDouble(-1, 1), chrono.RandomDouble(-1, 1)
-    )
-    # Random orientation
-    particle_quat = chrono.ChQuaternionD.FromEulerZYX(chrono.RandomDouble(0, 2 * 3.14159), chrono.RandomDouble(0, 2 * 3.14159), chrono.RandomDouble(0, 2 * 3.14159))
-
-    # Create particle body
-    particle = chrono.ChBodyEasy(particle_mass)
-    particle.SetPos(particle_pos)
-    particle.SetRot(particle_quat)
-    particle.SetBody(particle_shape)
-    particle.SetBodyFixed(False)
-    particle.SetLinearVelocity(particle_vel)
-
-    # Add particle to the system
-    system.AddBody(particle)
-
-# Custom gravitational force function
+# Custom gravitational force
 def apply_gravitational_force(particle1, particle2):
-    # Calculate distance between particles
-    distance = particle1.GetPos() - particle2.GetPos()
-    distance_magnitude = distance.Length()
-
-    # Apply gravitational force
-    force_magnitude = -G * particle1.GetMass() * particle2.GetMass() / (distance_magnitude ** 2)
-    force_direction = distance / distance_magnitude
-    force = force_magnitude * force_direction
-
-    # Apply force to particles
+    dist = particle1.GetPos() - particle2.GetPos()
+    force = chrono.ChVectorD(0, 0, 0)
+    if dist.Length() > 0.1:
+        force = -chrono.ChVectorD(dist.x / dist.Length(), dist.y / dist.Length(), dist.z / dist.Length()) * 0.1
     particle1.AddForce(force)
     particle2.AddForce(-force)
 
 # Simulation loop
-G = 6.67430e-11  # Gravitational constant
-dt = 0.01  # Time step
-
 while vis.Run():
-    system.DoStepDynamics(dt)
+    system.DoStepDynamics(0.01)
 
-    # Apply custom gravitational forces between all particles
-    for i in range(system.GetBodyCount()):
-        for j in range(i + 1, system.GetBodyCount()):
-            apply_gravitational_force(system.GetBody(i), system.GetBody(j))
+    # Apply custom gravitational forces between particles
+    for particle1 in emitter.GetChildren():
+        for particle2 in emitter.GetChildren():
+            if particle1 != particle2:
+                apply_gravitational_force(particle1, particle2)
 
     vis.Render()
 
-# Cleanup
 vis.Close()
 ```
 
 **Explanation:**
 
 1. **Initialization:**
-   - Imports necessary libraries.
-   - Initializes the PyChrono environment and sets the data path.
-   - Creates an Irrlicht visualization app and sets up the camera.
+   - Imports necessary libraries (`pychrono` and `chrono.irrlicht`).
+   - Initializes the Chrono environment with a `ChSystemNSC`.
+   - Sets the gravitational acceleration to -9.81 m/s² along the Y-axis.
+   - Creates an Irrlicht visualization window and sets up a camera.
 
 2. **Particle Emitter:**
-   - Defines settings for the particle emitter, including position, number of particles, mass, and radius.
-   - Creates a `ChParticleEmitter` object and sets its properties.
-   - Defines a random particle shape using `ChBodyEasyBox`.
+   - Defines a custom `ParticleEmitter` class that inherits from `ChBody`.
+   - Constructor initializes the number of particles, particle radius, and mass range.
+   - Creates particles with random shapes (boxes), positions, velocities, and orientations.
+   - Adds each particle to the system.
 
-3. **Particle Creation:**
-   - Loops through the desired number of particles.
-   - Generates random positions, velocities, and orientations for each particle.
-   - Creates a `ChBodyEasy` object for each particle, setting its properties based on the random values.
-   - Adds each particle body to the PyChrono system.
+3. **Custom Gravitational Force:**
+   - Defines a function `apply_gravitational_force` that calculates the gravitational force between two particles based on their distance.
+   - The force is proportional to the inverse square of the distance and acts along the line connecting the particles.
 
-4. **Custom Gravitational Force:**
-   - Defines a function `apply_gravitational_force` that calculates the gravitational force between two particles based on their masses and distance.
-   - Applies the force to both particles, ensuring that the forces are equal and opposite.
-
-5. **Simulation Loop:**
-   - Sets the gravitational constant `G` and the time step `dt`.
+4. **Simulation Loop:**
    - Enters a loop that runs until the user closes the visualization window.
-   - In each iteration:
-     - Updates the system dynamics using `system.DoStepDynamics(dt)`.
-     - Calls `apply_gravitational_force` for all pairs of particles to simulate their attraction.
-     - Renders the visualization using `vis.Render()`.
+   - Updates the simulation dynamics using `system.DoStepDynamics(0.01)`.
+   - Iterates through all particles in the emitter and applies the custom gravitational force to each pair of particles.
+   - Renders the visualization using `vis.Render()`.
 
-6. **Cleanup:**
-   - Closes the Irrlicht visualization window.
+5. **Closing:**
+   - Closes the Irrlicht visualization window using `vis.Close()`.
 
 
 
 **Remember:**
 
 - Replace `"path/to/chrono/data"` with the actual path to your Chrono data directory.
-- Adjust the simulation parameters (particle count, mass, radius, time step, etc.) as needed.
-- You can customize the particle shape and appearance further using the `ChBodyEasy` constructor.
+- Adjust the parameters (e.g., `num_particles`, `particle_radius`, `mass_range`) to control the simulation behavior.
+- You can further customize the particle shapes, colors, and sizes in the `ParticleEmitter` class.

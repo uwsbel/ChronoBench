@@ -1,7 +1,7 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
-import pychrono.sensor as sensor  # Added import for sensor
+import pychrono.sensor as sensor  # Added import for sensor module
 import numpy as np  # Added import for numpy
 import math
 
@@ -91,9 +91,11 @@ obstacle_size = chrono.ChVector3d(1, 1, 1)  # Size of the obstacles
 for _ in range(num_obstacles):
     pos = chrono.ChVector3d(np.random.uniform(-terrainLength/2, terrainLength/2),
                             np.random.uniform(-terrainWidth/2, terrainWidth/2),
-                            obstacle_size.z / 2)  # Positioning at ground level
-    obstacle = chrono.ChBoxShape(obstacle_size)
+                            obstacle_size.z / 2)  # Positioning the obstacle on the terrain
+    obstacle = chrono.ChBoxShape()
+    obstacle.GetBoxGeometry().SetLengths(obstacle_size.x, obstacle_size.y, obstacle_size.z)
     obstacle.SetPos(pos)
+    obstacle.SetColor(chrono.ChColor(1, 0, 0))  # Red color for obstacles
     vehicle.GetSystem().Add(obstacle)
 
 # Create the vehicle Irrlicht interface
@@ -107,15 +109,6 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
-# Create the sensor manager and add a Lidar sensor
-sensor_manager = sensor.ChSensorManager(vehicle.GetSystem())
-lidar = sensor.ChLidarSensor(vehicle.GetChassisBody(),  # Attach to the vehicle chassis
-                              chrono.ChFrameD(chrono.ChVectorD(0, 0, 1.5), chrono.Q_from_AngZ(0)),  # Position and orientation
-                              30.0,  # Range
-                              0.1,   # Resolution
-                              0.5)   # Field of view
-sensor_manager.AddSensor(lidar)
-
 # Create the driver system
 driver = veh.ChInteractiveDriverIRR(vis)
 
@@ -128,6 +121,18 @@ driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
 
 driver.Initialize()
+
+# Initialize sensor manager and add Lidar sensor
+sensor_manager = sensor.ChSensorManager(vehicle.GetSystem())
+lidar = sensor.ChLidarSensor(vehicle.GetChassisBody())
+lidar.SetPosition(chrono.ChVector3d(0, 0, 1.5))  # Position of the Lidar sensor
+lidar.SetDirection(chrono.ChVector3d(0, 1, 0))  # Direction of the Lidar sensor
+lidar.SetHorizontalFOV(90)  # Field of view
+lidar.SetVerticalFOV(30)    # Field of view
+lidar.SetRange(10)          # Range of the Lidar sensor
+lidar.SetResolution(640, 480)  # Resolution of the Lidar sensor
+lidar.SetVisualizationMode(sensor.ChSensor.VisualizationMode.LASER)  # Visualization mode
+sensor_manager.AddSensor(lidar)
 
 # ---------------
 # Simulation loop
@@ -164,7 +169,7 @@ while vis.Run():
     vis.Synchronize(time, driver_inputs)
 
     # Update sensor manager
-    sensor_manager.Update()
+    sensor_manager.Update(time)
 
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)

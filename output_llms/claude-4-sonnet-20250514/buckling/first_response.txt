@@ -1,91 +1,93 @@
-I'll create a comprehensive PyChrono simulation for beam buckling with FEA. Here's the complete script:
+I'll create a comprehensive PyChrono simulation script for a beam buckling scenario with FEA elements. Here's the complete implementation:
 
 ```python
 import pychrono as chrono
 import pychrono.fea as fea
 import pychrono.irrlicht as chronoirr
-import pychrono.pardisomkl as mkl
 import math
-import numpy as np
 
 # Initialize the PyChrono environment
-chrono.SetChronoDataPath('/path/to/chrono/data/')  # Update this path as needed
+chrono.SetChronoDataPath('/path/to/chrono/data/')  # Set appropriate path
+system = chrono.ChSystemNSC()
 
-# Create the physical system
-system = chrono.ChSystemSMC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
+# Set gravitational acceleration
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
 # Create mesh container for FEA elements
 mesh = fea.ChMesh()
-system.Add(mesh)
+
+# Beam parameters
+beam_length = 2.0  # Total beam length [m]
+beam_width = 0.05  # Beam width [m]
+beam_height = 0.02  # Beam height [m]
+num_elements = 20  # Number of elements along the beam
 
 # Material properties for the beam
-beam_material = fea.ChMaterialShellReissner()
-beam_material.SetYoungModulus(2.1e11)  # Steel Young's modulus (Pa)
-beam_material.SetPoissonRatio(0.3)
-beam_material.SetDensity(7850)  # Steel density (kg/m³)
+material = fea.ChMaterialShellKirchhoff()
+material.SetYoungModulus(210e9)  # Steel Young's modulus [Pa]
+material.SetPoissonRatio(0.3)    # Poisson's ratio
+material.SetDensity(7850)        # Density [kg/m³]
 
-# Beam dimensions
-beam_length = 2.0  # meters
-beam_width = 0.05  # meters
-beam_thickness = 0.01  # meters
-num_elements = 20
-
-# Create nodes for the beam
+# Create beam nodes
 nodes = []
+element_length = beam_length / num_elements
+
 for i in range(num_elements + 1):
-    x = (i / num_elements) * beam_length
+    x_pos = i * element_length
     node = fea.ChNodeFEAxyzrot()
-    node.SetPos(chrono.ChVectorD(x, 0, 0))
+    node.SetPos(chrono.ChVectorD(x_pos, 0, 0))
     node.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
     mesh.AddNode(node)
     nodes.append(node)
 
-# Create beam elements
+# Create beam elements using Euler-Bernoulli beam theory
+beam_section = fea.ChBeamSectionEulerAdvanced()
+beam_section.SetArea(beam_width * beam_height)
+beam_section.SetIyy((beam_width * beam_height**3) / 12)  # Second moment of area
+beam_section.SetIzz((beam_height * beam_width**3) / 12)
+beam_section.SetJ(0.14 * beam_width * beam_height**3)    # Torsional moment
+beam_section.SetYoungModulus(material.GetYoungModulus())
+beam_section.SetShearModulusFromPoisson(material.GetPoissonRatio())
+beam_section.SetDensity(material.GetDensity())
+
 elements = []
 for i in range(num_elements):
     element = fea.ChElementBeamEuler()
     element.SetNodes(nodes[i], nodes[i + 1])
-    
-    # Cross-section properties
-    section = fea.ChBeamSectionEulerAdvanced()
-    section.SetAsRectangularSection(beam_width, beam_thickness)
-    section.SetYoungModulus(beam_material.GetYoungModulus())
-    section.SetGshearModulus(beam_material.GetYoungModulus() / (2 * (1 + beam_material.GetPoissonRatio())))
-    section.SetDensity(beam_material.GetDensity())
-    
-    element.SetSection(section)
+    element.SetSection(beam_section)
     mesh.AddElement(element)
     elements.append(element)
 
-# Fix the left end of the beam (clamped boundary condition)
-constraint_fixed = fea.ChNodeFEAxyzrot()
-constraint_fixed.SetFixed(True)
-nodes[0].SetFixed(True)
+# Add the mesh to the system
+system.Add(mesh)
 
-# Create a body to apply compression force
-compression_body = chrono.ChBodyEasySphere(0.1, 1000, True, True)
-compression_body.SetPos(chrono.ChVectorD(beam_length + 0.1, 0, 0))
-compression_body.SetBodyFixed(False)
-system.Add(compression_body)
+# Create fixed constraint at the left end (cantilever beam)
+constraint_fixed = fea.ChLinkMateGeneric()
+constraint_fixed.Initialize(nodes[0], chrono.ChBodyEasyBox(0.01, 0.01, 0.01, 1000, False, True))
+constraint_fixed.SetConstrainedCoords(True, True, True, True, True, True)  # Fix all DOFs
+system.Add(constraint_fixed)
 
-# Create constraint between compression body and beam end
-constraint_compression = chrono.ChLinkMateGeneric()
-constraint_compression.Initialize(nodes[-1], compression_body, False, 
-                                 chrono.ChFrameD(chrono.ChVectorD(beam_length, 0, 0)),
-                                 chrono.ChFrameD(chrono.ChVectorD(-0.1, 0, 0)))
-system.Add(constraint_compression)
+# Create a truss node at the fixed end
+truss = chrono.ChBody()
+truss.SetBodyFixed(True)
+system.Add(truss)
 
-# Custom motor function for applying compression force
-class CompressionMotorFunction(chrono.ChFunction):
-    def __init__(self, max_force, ramp_time):
+# Connect first node to the truss
+constraint_base = fea.ChLinkPointFrame()
+constraint_base.Initialize(nodes[0], truss)
+system.Add(constraint_base)
+
+# Custom motor function for applying buckling force
+class BucklingMotorFunction(chrono.ChFunction):
+    def __init__(self, max_force=1000, ramp_time=2.0):
         super().__init__()
         self.max_force = max_force
         self.ramp_time = ramp_time
     
     def Get_y(self, x):
+        # Gradually increase force to induce buckling
         if x < self.ramp_time:
-            return (x / self.ramp_time) * self.max_force
+            return self.max_force * (x / self.ramp_time)
         else:
             return self.max_force
     
@@ -95,177 +97,166 @@ class CompressionMotorFunction(chrono.ChFunction):
         else:
             return 0
 
-# Create motor for compression
-motor = chrono.ChLinkMotorLinearForce()
-motor.Initialize(compression_body, chrono.ChBodyEasyBox(0.1, 0.1, 0.1, 1000, True, True))
-motor_function = CompressionMotorFunction(50000, 2.0)  # 50kN force over 2 seconds
-motor.SetForceFunction(motor_function)
-system.Add(motor)
+# Create actuator/motor system to apply compressive force
+motor_body = chrono.ChBodyEasyBox(0.1, 0.1, 0.1, 1000, True, True)
+motor_body.SetPos(chrono.ChVectorD(beam_length + 0.2, 0, 0))
+motor_body.SetBodyFixed(False)
+system.Add(motor_body)
 
-# Add small perturbation to trigger buckling
-perturbation_force = chrono.ChForce()
-perturbation_force.SetF_x(chrono.ChFunction_Const(0))
-perturbation_force.SetF_y(chrono.ChFunction_Sine(0, 1.0, 100))  # Small sine wave force
-perturbation_force.SetF_z(chrono.ChFunction_Const(0))
-nodes[num_elements // 2].AddForce(perturbation_force)
+# Create linear actuator
+actuator = chrono.ChLinkMotorLinearForce()
+actuator.Initialize(nodes[-1], motor_body, chrono.ChFrameD(nodes[-1].GetPos()))
+buckling_function = BucklingMotorFunction(max_force=5000, ramp_time=1.5)
+actuator.SetForceFunction(buckling_function)
+system.Add(actuator)
 
-# Mesh visualization
-visualization = fea.ChVisualizationFEAmesh(mesh)
-visualization.SetFEMdataType(fea.ChVisualizationFEAmesh.E_PLOT_NODE_DISP_NORM)
-visualization.SetColorscaleMinMax(0.0, 0.1)
-visualization.SetSmoothFaces(True)
-mesh.AddAsset(visualization)
+# Add some initial imperfection to trigger buckling
+for i, node in enumerate(nodes[1:-1], 1):
+    # Apply small lateral displacement as imperfection
+    imperfection = 0.001 * math.sin(math.pi * i / len(nodes))
+    current_pos = node.GetPos()
+    node.SetPos(chrono.ChVectorD(current_pos.x, current_pos.y + imperfection, current_pos.z))
 
-# Create Irrlicht visualization
+# Configure solver settings
+system.SetSolverType(chrono.ChSolver.Type_MINRES)
+solver = system.GetSolver()
+if isinstance(solver, chrono.ChSolverMINRES):
+    solver.SetMaxIterations(200)
+    solver.SetTolerance(1e-10)
+    solver.EnableDiagonalPreconditioner(True)
+
+# Set up timestepper for dynamics
+system.SetTimestepperType(chrono.ChTimestepper.Type_EULER_IMPLICIT_LINEARIZED)
+
+# Visualization setup using Irrlicht
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
 vis.SetWindowSize(1024, 768)
-vis.SetWindowTitle('Beam Buckling FEA Simulation')
+vis.SetWindowTitle('Beam Buckling Simulation with FEA')
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()
-vis.AddCamera(chrono.ChVectorD(1.0, 1.0, 2.0))
+vis.AddCamera(chrono.ChVectorD(1, 1, 2), chrono.ChVectorD(beam_length/2, 0, 0))
 vis.AddTypicalLights()
 
-# Set up solver
-solver = chrono.ChSolverMINRES()
-solver.SetMaxIterations(200)
-solver.SetTolerance(1e-10)
-solver.EnableDiagonalPreconditioner(True)
-solver.EnableWarmStart(True)
-solver.SetVerbose(False)
-system.SetSolver(solver)
+# Visualization of FEA mesh
+vis_beam_A = chrono.ChVisualShapeFEA(mesh)
+vis_beam_A.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_ELEM_BEAM_MX)
+vis_beam_A.SetColorscaleMinMax(-500, 500)
+vis_beam_A.SetSmoothFaces(True)
+vis_beam_A.SetWireframe(False)
+mesh.AddVisualShapeFEA(vis_beam_A)
 
-# Set up integrator
-ts = chrono.ChTimestepperEulerImplicitLinearized(system)
-ts.SetMaxiters(5)
-ts.SetAbsTolerances(1e-05)
-system.SetTimestepper(ts)
-
-# Alternative: Use HHT timestepper for better stability
-hht_stepper = chrono.ChTimestepperHHT(system)
-hht_stepper.SetAlpha(-0.2)
-hht_stepper.SetMaxiters(10)
-hht_stepper.SetAbsTolerances(1e-05, 1e-03)
-hht_stepper.SetMode(chrono.ChTimestepperHHT.POSITION)
-hht_stepper.SetScaling(True)
-hht_stepper.SetVerbose(False)
-system.SetTimestepper(hht_stepper)
+# Additional visualization for beam deformation
+vis_beam_B = chrono.ChVisualShapeFEA(mesh)
+vis_beam_B.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_SURFACE)
+vis_beam_B.SetWireframe(True)
+vis_beam_B.SetDefaultMeshColor(chrono.ChColor(0.2, 0.2, 0.8))
+mesh.AddVisualShapeFEA(vis_beam_B)
 
 # Simulation parameters
-step_size = 0.001
-sim_time = 0
-end_time = 5.0
+timestep = 0.001
+simulation_time = 0
+max_simulation_time = 5.0
 
 # Data collection for analysis
+time_data = []
 displacement_data = []
 force_data = []
-time_data = []
 
 print("Starting beam buckling simulation...")
 print(f"Beam length: {beam_length} m")
-print(f"Beam dimensions: {beam_width} x {beam_thickness} m")
 print(f"Number of elements: {num_elements}")
-print(f"Material: Steel (E = {beam_material.GetYoungModulus()/1e9:.1f} GPa)")
+print(f"Material: Steel (E = {material.GetYoungModulus()/1e9:.0f} GPa)")
 
-# Simulation loop
-while vis.Run() and sim_time < end_time:
+# Main simulation loop
+while vis.Run() and simulation_time < max_simulation_time:
     vis.BeginScene()
     vis.Render()
-    
-    # Display simulation info
-    vis.GetGUIEnvironment().getBuiltInFont().draw(
-        f"Time: {sim_time:.3f} s",
-        chronoirr.recti(10, 10, 200, 30),
-        chronoirr.SColor(255, 255, 255, 255)
-    )
-    
-    # Calculate mid-point displacement for buckling analysis
-    mid_node = nodes[num_elements // 2]
-    mid_displacement = mid_node.GetPos().y
-    
-    vis.GetGUIEnvironment().getBuiltInFont().draw(
-        f"Mid-point Y displacement: {mid_displacement:.6f} m",
-        chronoirr.recti(10, 40, 300, 60),
-        chronoirr.SColor(255, 255, 255, 255)
-    )
-    
-    # Store data for analysis
-    time_data.append(sim_time)
-    displacement_data.append(mid_displacement)
-    force_data.append(motor_function.Get_y(sim_time))
-    
     vis.EndScene()
     
     # Advance simulation
-    system.DoStepDynamics(step_size)
-    sim_time += step_size
+    system.DoStepDynamics(timestep)
+    simulation_time += timestep
     
-    # Check for buckling (significant lateral displacement)
-    if abs(mid_displacement) > 0.01 and sim_time > 1.0:
-        print(f"Buckling detected at time: {sim_time:.3f} s")
-        print(f"Critical force approximately: {motor_function.Get_y(sim_time):.0f} N")
-        break
+    # Collect data for analysis
+    if int(simulation_time / timestep) % 10 == 0:  # Collect data every 10 steps
+        time_data.append(simulation_time)
+        
+        # Get displacement of free end
+        free_end_pos = nodes[-1].GetPos()
+        displacement_data.append(free_end_pos.y)
+        
+        # Get applied force
+        current_force = buckling_function.Get_y(simulation_time)
+        force_data.append(current_force)
+        
+        # Print progress
+        if int(simulation_time / timestep) % 100 == 0:
+            print(f"Time: {simulation_time:.2f}s, Force: {current_force:.1f}N, "
+                  f"Free end Y-displacement: {free_end_pos.y*1000:.2f}mm")
 
-print("Simulation completed!")
+# Post-processing and results
+print("\nSimulation completed!")
+print(f"Maximum lateral displacement: {max(displacement_data)*1000:.2f} mm")
+print(f"Final applied force: {force_data[-1]:.1f} N")
 
-# Optional: Save results to file
+# Find critical buckling load (approximate)
+max_displacement = max(abs(d) for d in displacement_data)
+critical_index = next(i for i, d in enumerate(displacement_data) if abs(d) > 0.001)  # 1mm threshold
+if critical_index:
+    critical_load = force_data[critical_index]
+    print(f"Approximate critical buckling load: {critical_load:.1f} N")
+    
+    # Theoretical Euler buckling load for cantilever beam
+    E = material.GetYoungModulus()
+    I = (beam_width * beam_height**3) / 12
+    L = beam_length
+    theoretical_load = (math.pi**2 * E * I) / (4 * L**2)  # For cantilever beam
+    print(f"Theoretical Euler buckling load: {theoretical_load:.1f} N")
+    print(f"Simulation vs Theory ratio: {critical_load/theoretical_load:.2f}")
+
+# Save results to file (optional)
 try:
-    import matplotlib.pyplot as plt
-    
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8))
-    
-    # Plot displacement vs time
-    ax1.plot(time_data, displacement_data)
-    ax1.set_xlabel('Time (s)')
-    ax1.set_ylabel('Mid-point Y Displacement (m)')
-    ax1.set_title('Beam Mid-point Displacement vs Time')
-    ax1.grid(True)
-    
-    # Plot force vs displacement
-    ax2.plot(displacement_data, force_data)
-    ax2.set_xlabel('Mid-point Y Displacement (m)')
-    ax2.set_ylabel('Applied Force (N)')
-    ax2.set_title('Force vs Displacement (Buckling Curve)')
-    ax2.grid(True)
-    
-    plt.tight_layout()
-    plt.savefig('beam_buckling_results.png', dpi=300, bbox_inches='tight')
-    print("Results saved to 'beam_buckling_results.png'")
-    
-except ImportError:
-    print("Matplotlib not available. Results not plotted.")
-    # Save data to text file instead
-    with open('beam_buckling_data.txt', 'w') as f:
-        f.write('Time(s)\tDisplacement(m)\tForce(N)\n')
-        for t, d, force in zip(time_data, displacement_data, force_data):
-            f.write(f'{t:.6f}\t{d:.6f}\t{force:.2f}\n')
-    print("Data saved to 'beam_buckling_data.txt'")
+    with open("buckling_results.txt", "w") as f:
+        f.write("Time[s]\tForce[N]\tDisplacement[mm]\n")
+        for i in range(len(time_data)):
+            f.write(f"{time_data[i]:.3f}\t{force_data[i]:.1f}\t{displacement_data[i]*1000:.3f}\n")
+    print("Results saved to buckling_results.txt")
+except:
+    print("Could not save results to file")
+
+print("Visualization will close when you exit the window.")
 ```
 
-This comprehensive beam buckling simulation includes:
+This comprehensive PyChrono simulation script includes:
 
 ## Key Features:
 
-1. **FEA Implementation**: Uses Euler beam elements with proper material properties and cross-sectional definitions
-2. **Custom Motor Function**: Gradually applies compression force to trigger buckling
-3. **Boundary Conditions**: Fixed support at one end, compression at the other
-4. **Perturbation Force**: Small lateral force to initiate buckling instability
-5. **Advanced Solver**: Uses HHT timestepper for numerical stability
-6. **Real-time Visualization**: Shows deformation and displacement values
-7. **Data Collection**: Monitors displacement and force for analysis
+1. **FEA Implementation**: Uses Euler-Bernoulli beam elements with proper material properties and cross-sectional properties.
 
-## Physical Setup:
+2. **Custom Motor Function**: Implements a `BucklingMotorFunction` class that gradually applies compressive force to induce buckling.
 
-- **Beam**: 2m steel beam with rectangular cross-section
-- **Loading**: Axial compression up to 50kN
-- **Boundary**: Cantilever (fixed-free) configuration
-- **Elements**: 20 finite elements for adequate resolution
+3. **Constraints**: 
+   - Fixed constraint at one end (cantilever configuration)
+   - Linear motor constraint for force application
 
-## Solver Configuration:
+4. **Advanced Solver Setup**: Uses MINRES solver with appropriate tolerances for FEA problems.
 
-- **Timestepper**: HHT (Hilber-Hughes-Taylor) for stability
-- **Solver**: MINRES with preconditioning
-- **Time step**: 1ms for accuracy
+5. **Comprehensive Visualization**: 
+   - Shows beam deformation in real-time
+   - Color-coded stress visualization
+   - Wireframe overlay for better understanding
 
-The simulation will show the characteristic buckling behavior where the beam suddenly deflects laterally when the critical load is reached. The visualization displays real-time displacement and the results can be saved for further analysis.
+6. **Physical Accuracy**:
+   - Proper material properties for steel
+   - Realistic beam dimensions and element discretization
+   - Initial imperfections to trigger buckling instability
+
+7. **Data Analysis**:
+   - Tracks displacement and force over time
+   - Estimates critical buckling load
+   - Compares with theoretical Euler buckling formula
+   - Exports results for further analysis
+
+The simulation demonstrates the classic beam buckling phenomenon where a gradually increasing compressive force eventually causes lateral instability, which is fundamental in structural engineering analysis.

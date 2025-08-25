@@ -15,20 +15,20 @@ ground.SetFixed(True)
 ground.EnableCollision(False)  
 
 
-cyl_1 = chrono.ChVisualShapeCylinder(0.2, 0.4)  
-ground.AddVisualShape(cyl_1, chrono.ChFrame(chrono.ChVector3d(0, 0, +0.2)))  
+cyl_ground = chrono.ChVisualShapeCylinder(0.2, 0.4)  
+ground.AddVisualShape(cyl_ground, chrono.ChFrame(chrono.ChVector3d(0, 0, +0.2)))  
 
 
 pend_1 = chrono.ChBody()
-sys.AddBody(pend_1)
+sys.Add(pend_1)
 pend_1.SetMass(1)  
 pend_1.SetInertiaXX(chrono.ChVector3d(0.2, 1, 1))  
 pend_1.SetPos(chrono.ChVector3d(1, 0, 1))  
 
 
-cyl_1 = chrono.ChVisualShapeCylinder(0.2, 2)  
-cyl_1.SetColor(chrono.ChColor(0.6, 0, 0))  
-pend_1.AddVisualShape(cyl_1, chrono.ChFrame(chrono.VNULL, chrono.QuatFromAngleY(chrono.CH_PI_2)))
+cyl_pend_1 = chrono.ChVisualShapeCylinder(0.2, 2)  
+cyl_pend_1.SetColor(chrono.ChColor(0.6, 0, 0))  
+pend_1.AddVisualShape(cyl_pend_1, chrono.ChFrame(chrono.VNULL, chrono.QuatFromAngleY(chrono.CH_PI_2)))
 
 
 rev_1 = chrono.ChLinkLockRevolute()
@@ -37,15 +37,15 @@ sys.AddLink(rev_1)
 
 
 pend_2 = chrono.ChBody()
-sys.AddBody(pend_2)
+sys.Add(pend_2)
 pend_2.SetMass(1)  
 pend_2.SetInertiaXX(chrono.ChVector3d(0.2, 1, 1))  
 pend_2.SetPos(chrono.ChVector3d(1, 0, -1))  
 
 
-cyl_2 = chrono.ChVisualShapeCylinder(0.2, 2)  
-cyl_2.SetColor(chrono.ChColor(0, 0, 0.6))  
-pend_2.AddVisualShape(cyl_2, chrono.ChFrame(chrono.VNULL, chrono.QuatFromAngleY(chrono.CH_PI_2)))
+cyl_pend_2 = chrono.ChVisualShapeCylinder(0.2, 2)  
+cyl_pend_2.SetColor(chrono.ChColor(0, 0.6, 0))  
+pend_2.AddVisualShape(cyl_pend_2, chrono.ChFrame(chrono.VNULL, chrono.QuatFromAngleY(chrono.CH_PI_2)))
 
 
 rev_2 = chrono.ChLinkLockRevolute()
@@ -74,14 +74,12 @@ while vis.Run():
     
     if log_info and sys.GetChTime() > 1:
         pos_1 = pend_1.GetPos()  
+        pos_2 = pend_2.GetPos()  
         print("t = ", sys.GetChTime())
         print("Pendulum 1 Position: ", pos_1.x, "  ", pos_1.y)
-        lin_vel_1 = pend_1.GetPosDt()  
-        print("Pendulum 1 Velocity: ", lin_vel_1.x, "  ", lin_vel_1.y)
-
-        pos_2 = pend_2.GetPos()  
         print("Pendulum 2 Position: ", pos_2.x, "  ", pos_2.y)
+        lin_vel_1 = pend_1.GetPosDt()  
         lin_vel_2 = pend_2.GetPosDt()  
+        print("Pendulum 1 Velocity: ", lin_vel_1.x, "  ", lin_vel_1.y)
         print("Pendulum 2 Velocity: ", lin_vel_2.x, "  ", lin_vel_2.y)
-
         log_info = False

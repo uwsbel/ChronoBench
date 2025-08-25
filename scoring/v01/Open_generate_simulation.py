@@ -4,7 +4,7 @@ import json
 from tqdm import tqdm
 
 # Define API key at global scope
-nvidia_api_key = os.getenv("NVIDIA_API_KEY", "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")
+nvidia_api_key = os.getenv("NVIDIA_API_KEY", "")
 
 # Log API key status
 if os.getenv("NVIDIA_API_KEY"):

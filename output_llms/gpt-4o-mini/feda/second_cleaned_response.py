@@ -82,25 +82,22 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 
-path_follower = veh.ChPathFollowerDriver(vehicle, veh.PathFollowerDriverType_PATH_FOLLOWER)
-path_follower.SetTargetSpeed(10.0)  
-path_follower.SetLookAheadDistance(5.0)  
-
+path_follower = veh.ChPathFollowerDriver(vehicle, 10.0)  
+path_follower.SetLookaheadDistance(5.0)  
+path_follower.SetSteeringGain(0.5)  
+path_follower.SetSpeedGain(0.5)  
 
 
 path = veh.ChBezierCurve()
-path.AddPoint(chrono.ChVector2d(0, 0))
-path.AddPoint(chrono.ChVector2d(10, 5))
-path.AddPoint(chrono.ChVector2d(20, -5))
-path.AddPoint(chrono.ChVector2d(30, 0))
-path.AddPoint(chrono.ChVector2d(40, 5))
-path.AddPoint(chrono.ChVector2d(50, 0))
-
+path.AddPoint(chrono.ChVector3d(-50, 0, 0.5))
+path.AddPoint(chrono.ChVector3d(-40, 10, 0.5))
+path.AddPoint(chrono.ChVector3d(-30, -10, 0.5))
+path.AddPoint(chrono.ChVector3d(-20, 10, 0.5))
+path.AddPoint(chrono.ChVector3d(-10, 0, 0.5))
 path_follower.SetPath(path)
 
 
-path_follower.SetSteeringGain(0.5)
-path_follower.SetSpeedGain(0.1)
+path_follower.Initialize()
 
 
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
@@ -124,7 +121,7 @@ while vis.Run():
         render_frame += 1
 
     
-    path_follower.Synchronize(time)
+    path_follower.Synchronize(time)  
     terrain.Synchronize(time)
     vehicle.Synchronize(time, path_follower.GetInputs(), terrain)
     vis.Synchronize(time, path_follower.GetInputs())

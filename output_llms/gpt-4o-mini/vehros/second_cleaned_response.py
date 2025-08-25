@@ -19,8 +19,7 @@ def main():
     hmmwv.SetSteeringType(veh.SteeringTypeWV_PITMAN_ARM)  
     hmmwv.SetTireType(veh.TireModelType_TMEASY)  
     hmmwv.SetTireStepSize(1e-3)  
-    hmmwv.Initialize()  
-
+    
     
     hmmwv.SetChassisVisualizationType(veh.VisualizationType_PRIMITIVES)
     hmmwv.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
@@ -28,13 +27,18 @@ def main():
     hmmwv.SetWheelVisualizationType(veh.VisualizationType_PRIMITIVES)
     hmmwv.SetTireVisualizationType(veh.VisualizationType_PRIMITIVES)
 
+    hmmwv.Initialize()  
+
     
     terrain = veh.RigidTerrain(hmmwv.GetSystem())
     patch_mat = ch.ChContactMaterialNSC()  
     patch_mat.SetFriction(0.9)  
     patch_mat.SetRestitution(0.01)  
+    
+    
     patch = terrain.AddPatch(patch_mat, ch.CSYSNORM, 100.0, 100.0)  
     patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 100, 100)  
+    
     terrain.Initialize()  
 
     
@@ -51,12 +55,10 @@ def main():
     ros_manager.Initialize()  
 
     
-    vis = chronoirr.ChVisualSystemIrrlicht()
-    vis.SetWindowSize(800, 600)
-    vis.SetTitle("HMMWV Simulation")
-    vis.Initialize()
-    vis.AddCamera(ch.ChVector3d(0, 0, 5), ch.ChVector3d(0, 0, 0))  
-    vis.AddSkyBox()  
+    vis = chronoirr.ChVisualSystemIrrlicht()  
+    vis.SetWindowSize(800, 600)  
+    vis.Initialize()  
+    vis.AddCamera(ch.ChVector3d(0, -10, 5), ch.ChVector3d(0, 0, 0))  
 
     
     time = 0
@@ -83,9 +85,9 @@ def main():
             break  
 
         
-        vis.BeginScene()
-        vis.DrawAll()
-        vis.EndScene()
+        vis.BeginScene()  
+        vis.DrawAll()  
+        vis.EndScene()  
 
 if __name__ == "__main__":
     main()

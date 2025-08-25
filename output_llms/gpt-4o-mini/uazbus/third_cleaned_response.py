@@ -72,21 +72,16 @@ terrain.Initialize()
 
 
 box_size = chrono.ChVector3d(0.5, 5, 0.2)
-box_position = chrono.ChVector3d(5, 0, 0.1)
-box_material = chrono.ChMaterialSurfaceNSC()
-box_material.SetFriction(0.9)
-box_material.SetRestitution(0.01)
-
-box_obstacle = chrono.ChBody()
-box_obstacle.SetMaterialSurface(box_material)
-box_obstacle.SetPos(box_position)
-box_obstacle.SetBodyFixed(True)  
-box_obstacle.GetCollisionModel().ClearModel()
-box_obstacle.GetCollisionModel().AddBox(box_size.x, box_size.y, box_size.z)
-box_obstacle.GetCollisionModel().BuildModel()
-box_obstacle.SetCollide(True)
-
-vehicle.GetSystem().Add(box_obstacle)  
+box_pos = chrono.ChVector3d(5, 0, 0.1)
+box = chrono.ChBody()
+box.SetPos(box_pos)
+box.SetMass(1000)  
+box.SetCollide(True)
+box.GetCollisionModel().ClearModel()
+box.GetCollisionModel().AddBox(box_size.x, box_size.y, box_size.z)
+box.GetCollisionModel().BuildModel()
+box.SetBodyFixed(True)  
+vehicle.GetSystem().Add(box)
 
 
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
@@ -123,9 +118,6 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-
-constant_throttle = 0.5
-
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
     
@@ -137,7 +129,9 @@ while vis.Run():
 
     
     driver_inputs = driver.GetInputs()
-    driver_inputs.m_throttle = constant_throttle  
+
+    
+    driver_inputs.m_throttle = 0.5  
 
     
     driver.Synchronize(time)

@@ -1,4 +1,6 @@
-After reviewing the code, I'll address both any errors in the original script and implement the requested modifications for the vehicle initialization, terrain texture, and simulation logic for a double lane change maneuver.
+I'll review the script for errors and implement the required modifications.
+
+# Corrected and Modified PyChrono Script
 
 ```python
 import pychrono.core as chrono
@@ -9,8 +11,7 @@ import math
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
-# Initial vehicle location and orientation
-# Modified initial position from (0, 0, 0.5) to (-40, 0, 0.5) as instructed
+# Initial vehicle location and orientation changed from (0, 0, 0.5) to (-40, 0, 0.5)
 initLoc = chrono.ChVector3d(-40, 0, 0.5)
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
@@ -24,12 +25,12 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 # Rigid terrain
+# terrain_model = veh.RigidTerrain.BOX
 terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
 
-# Point on chassis tracked by the camera
-# Corrected variable name from "Poon" to "Point"
+# Point on chassis tracked by the camera (corrected variable name from "Poon" to "Point")
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
 
 # Contact method
@@ -42,6 +43,7 @@ tire_step_size = step_size
 
 # Time interval between two render frames
 render_step_size = 1.0 / 50  # FPS = 50
+
 
 # Create the UAZBUS vehicle, set parameters, and initialize
 vehicle = veh.UAZBUS() 
@@ -71,7 +73,7 @@ patch = terrain.AddPatch(patch_mat,
     chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
     terrainLength, terrainWidth)
 
-# Changed terrain texture from tile4.jpg to concrete.jpg as instructed
+# Changed terrain texture from tile4.jpg to concrete.jpg
 patch.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
@@ -106,73 +108,25 @@ print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
 
-# Initialize simulation frame counter and timer
+# Initialize simulation frame counter s
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-# Define time intervals for the double lane change maneuver
-t_start_driving = 0.0        # Start driving forward
-t_first_lane_change = 2.0    # Start first lane change (right)
-t_second_lane_change = 4.0   # Start second lane change (left)
-t_straight_driving = 6.0     # Drive straight
-t_braking = 8.0              # Start braking
-t_end = 12.0                 # End of simulation
+# Variables for double lane change maneuver
+lane_change_start_time = 2.0  # Start lane change after 2 seconds
+first_lane_change_duration = 3.0  # Duration of first lane change
+straight_duration = 2.0  # Duration of straight driving between lane changes
+second_lane_change_duration = 3.0  # Duration of second lane change
+braking_start_time = lane_change_start_time + first_lane_change_duration + straight_duration + second_lane_change_duration + 2.0
 
-# Automated driving inputs for the lane change maneuver
-steering_input = 0.0
-throttle_input = 0.0
-braking_input = 0.0
+# Automated maneuver inputs
+automated_steering = 0.0
+automated_throttle = 0.0
+automated_braking = 0.0
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
-    
-    # Implement double lane change maneuver
-    if time < t_start_driving:
-        steering_input = 0.0
-        throttle_input = 0.0
-        braking_input = 0.0
-    elif time < t_first_lane_change:
-        # Accelerate straight
-        steering_input = 0.0
-        throttle_input = 0.5
-        braking_input = 0.0
-    elif time < t_second_lane_change:
-        # First lane change (right)
-        steering_input = 0.4  # Turn right
-        throttle_input = 0.4
-        braking_input = 0.0
-    elif time < t_straight_driving:
-        # Second lane change (left)
-        steering_input = -0.4  # Turn left
-        throttle_input = 0.4
-        braking_input = 0.0
-    elif time < t_braking:
-        # Drive straight
-        steering_input = 0.0
-        throttle_input = 0.3
-        braking_input = 0.0
-    elif time < t_end:
-        # Brake
-        steering_input = 0.0
-        throttle_input = 0.0
-        braking_input = 0.8
-    else:
-        # End simulation
-        steering_input = 0.0
-        throttle_input = 0.0
-        braking_input = 0.0
-    
-    # Override driver inputs for automated maneuver
-    # (only if not using interactive inputs)
-    if not driver.GetInputMode():
-        driver_inputs = driver.GetInputs()
-        driver_inputs.m_steering = steering_input
-        driver_inputs.m_throttle = throttle_input
-        driver_inputs.m_braking = braking_input
-    else:
-        # Get driver inputs from interactive driver
-        driver_inputs = driver.GetInputs()
     
     # Render scene and output POV-Ray data
     if (step_number % render_steps == 0):
@@ -180,6 +134,54 @@ while vis.Run():
         vis.Render()
         vis.EndScene()
         render_frame += 1
+
+    # Get driver inputs
+    driver_inputs = driver.GetInputs()
+    
+    # Double lane change maneuver logic
+    if time < lane_change_start_time:
+        # Initial acceleration phase
+        automated_throttle = 0.4
+        automated_steering = 0.0
+        automated_braking = 0.0
+    elif time < lane_change_start_time + first_lane_change_duration:
+        # First lane change (move right)
+        automated_throttle = 0.3
+        progress = (time - lane_change_start_time) / first_lane_change_duration
+        if progress < 0.5:
+            automated_steering = 0.5 * math.sin(progress * math.pi)  # Start turning right
+        else:
+            automated_steering = -0.5 * math.sin(progress * math.pi)  # Straighten and turn left to align
+        automated_braking = 0.0
+    elif time < lane_change_start_time + first_lane_change_duration + straight_duration:
+        # Drive straight in the new lane
+        automated_throttle = 0.3
+        automated_steering = 0.0
+        automated_braking = 0.0
+    elif time < lane_change_start_time + first_lane_change_duration + straight_duration + second_lane_change_duration:
+        # Second lane change (move left back to original lane)
+        automated_throttle = 0.3
+        progress = (time - (lane_change_start_time + first_lane_change_duration + straight_duration)) / second_lane_change_duration
+        if progress < 0.5:
+            automated_steering = -0.5 * math.sin(progress * math.pi)  # Start turning left
+        else:
+            automated_steering = 0.5 * math.sin(progress * math.pi)  # Straighten and turn right to align
+        automated_braking = 0.0
+    elif time < braking_start_time:
+        # Continue straight after returning to original lane
+        automated_throttle = 0.2
+        automated_steering = 0.0
+        automated_braking = 0.0
+    else:
+        # Braking phase
+        automated_throttle = 0.0
+        automated_steering = 0.0
+        automated_braking = 0.8
+    
+    # Override manual inputs with automated maneuver
+    driver_inputs.m_steering = automated_steering
+    driver_inputs.m_throttle = automated_throttle
+    driver_inputs.m_braking = automated_braking
 
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
@@ -195,25 +197,24 @@ while vis.Run():
 
     # Increment frame number
     step_number += 1
+    
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
 ```
 
-The changes I made include:
-
-1. Fixed errors in the original script:
-   - Corrected the comment about "Poon" chassis to "Point" on chassis
-
-2. Made the required modifications:
-   - Changed the initial vehicle position from (0, 0, 0.5) to (-40, 0, 0.5)
-   - Changed the terrain texture from tile4.jpg to concrete.jpg
-   - Added logic for a double lane change maneuver with defined time intervals for:
+Changes made:
+1. Changed the initial vehicle position from (0, 0, 0.5) to (-40, 0, 0.5)
+2. Changed terrain texture from "tile4.jpg" to "concrete.jpg"
+3. Added logic for a double lane change maneuver:
+   - Defined time variables for different phases of the maneuver
+   - Added automated steering, throttle, and braking controls
+   - Implemented a time-based sequence for:
      - Initial acceleration
-     - First lane change (right)
-     - Second lane change (left)
-     - Straight driving
-     - Braking
-   - Implemented automatic control inputs for steering, throttle, and braking at different time intervals
-   - Added logic to either use these automated inputs or allow interactive control
+     - First lane change to the right
+     - Straight driving in the new lane
+     - Second lane change back to the original lane
+     - Final braking phase
+4. Used sine functions to create smooth steering transitions during lane changes
+5. Overrode manual driver inputs with the automated maneuver inputs
 
-The automated maneuver will execute when the driver is not in interactive mode, or the user can take control if desired.
+The script should now correctly implement all the requested modifications while maintaining the original functionality.

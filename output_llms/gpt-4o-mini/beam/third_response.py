@@ -70,11 +70,11 @@ builder = fea.ChBuilderBeamEuler()
 builder.BuildBeam(mesh,                   # the mesh where to put the created nodes and elements
                   msection,              # the ChBeamSectionEulerAdvanced to use for the ChElementBeamEuler elements
                   5,                     # the number of ChElementBeamEuler to create
-                  hnode3.GetPos(),      # the 'A' point in space (beginning of new beam)
-                  chrono.ChVector3d(0.2, 0.1, -0.1), # the 'B' point in space (end of new beam)
-                  chrono.ChVector3d(0, 1, 0))      # the 'Y' up direction of the section for the beam
+                  chrono.ChVector3d(beam_L * 2, 0, 0),  # the 'A' point in space (beginning of new beam)
+                  chrono.ChVector3d(0.2, 0.1, -0.1),     # the 'B' point in space (end of new beam)
+                  chrono.ChVector3d(0, 1, 0))            # the 'Y' up direction of the section for the beam
 
-# Fix the A end and apply a force to the B end of the new beam
+# Fix the A end and apply a force to the B end:
 builder.GetLastBeamNodes().back().SetFixed(True)
 builder.GetLastBeamNodes().front().SetForce(chrono.ChVector3d(0, -1, 0))
 

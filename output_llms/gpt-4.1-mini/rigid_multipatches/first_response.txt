@@ -1,39 +1,40 @@
 ```python
 import pychrono as chrono
 import pychrono.vehicle as veh
-import pychrono.irrlicht as irr
+import pychrono.irrlicht as chronoirr
+import os
 
 # -----------------------------------------------------------------------------
 # 1. Initialize the PyChrono environment and core components
 # -----------------------------------------------------------------------------
 
-chrono.SetChronoDataPath(chrono.GetChronoDataPath())  # ensure the data path is set
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())  # Ensure data path is set
 
 # Create the physical system
 system = chrono.ChSystemNSC()
 
-# Enable contact visualization for debugging (optional)
-# system.SetContactVisualization(True)
-# system.SetContactForceVisualization(True)
+# Set gravity
+system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
 
 # -----------------------------------------------------------------------------
-# 2. Create the vehicle
+# 2. Add the required physical systems and objects as specified
 # -----------------------------------------------------------------------------
 
-# Vehicle initial position and orientation
-init_loc = chrono.ChVectorD(0, 0, 1.0)  # start 1m above ground
-init_rot = chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 0, 1))
+# Vehicle parameters
+initial_loc = chrono.ChVectorD(0, 0, 1.0)  # Starting position (x,y,z)
+initial_rot = chrono.ChQuaternionD(1, 0, 0, 0)  # No initial rotation
 
-# Create HMMWV vehicle system
+# Create the HMMWV vehicle
 vehicle = veh.HMMWV_Full()
 vehicle.SetContactMethod(chrono.ChContactMethod_NSC)
-vehicle.SetChassisCollisionType(veh.ChassisCollisionType_NONE)  # no chassis collision for now
-vehicle.Initialize(system, init_loc, init_rot)
-vehicle.SetVisualizationType(veh.VisualizationType_MESH)
-vehicle.GetVehicle().SetDriveType(veh.DrivelineTypeWV::AWD)  # all wheel drive
-vehicle.GetVehicle().SetEngineType(veh.EngineModelType_SHAFTS)
+vehicle.SetChassisFixed(False)
+vehicle.SetInitPosition(chrono.ChCoordsysD(initial_loc, initial_rot))
+vehicle.SetEngineType(veh.HMMWV_EngineSimpleMap)  # Simple map engine
+vehicle.SetDriveType(veh.DrivelineTypeWV::AWD)  # All wheel drive
+vehicle.SetTireType(veh.TireModelType::TMEASY)  # Use TMeasy tires
+vehicle.Initialize(system)
 
-# Enable mesh visualization on all vehicle parts
+# Apply mesh visualization to all vehicle components
 vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
 vehicle.SetSuspensionVisualizationType(veh.VisualizationType_MESH)
 vehicle.SetSteeringVisualizationType(veh.VisualizationType_MESH)
@@ -41,100 +42,105 @@ vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
 vehicle.SetTireVisualizationType(veh.VisualizationType_MESH)
 
 # -----------------------------------------------------------------------------
-# 3. Construct the terrain composed of multiple patches with diverse surfaces
+# Terrain construction: multiple patches with different surface types
 # -----------------------------------------------------------------------------
 
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 
-# Patch 1: Flat patch with dirt texture
-patch1 = terrain.AddPatch(chrono.ChCoordsysD(chrono.ChVectorD(7.5, 0, 0), chrono.QUNIT),
-                          chrono.ChVectorD(15, 30, 0.1))
-patch1.SetColor(chrono.ChColor(0.8, 0.7, 0.5))  # light brown / dirt color
-patch1.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 16, 16)
-patch1.SetFriction(0.9f)
+# Patch 1: Flat patch with mud texture
+patch1 = terrain.AddPatch(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT),
+                          20, 20)
+patch1.SetTexture(veh.GetDataFile("terrain/textures/mud4.jpg"), 16, 16)
+patch1.SetColor(chrono.ChColor(0.8, 0.7, 0.5))
+patch1.SetFriction(0.9)
+patch1.SetRestitution(0.01)
+patch1.SetMaterialSurface(veh.MaterialSurfaceType::TERRAIN)
 
-# Patch 2: Flat patch with asphalt texture, adjacent to patch1
-patch2 = terrain.AddPatch(chrono.ChCoordsysD(chrono.ChVectorD(-7.5, 0, 0), chrono.QUNIT),
-                          chrono.ChVectorD(15, 30, 0.1))
-patch2.SetColor(chrono.ChColor(0.2, 0.2, 0.2))  # dark asphalt
+# Patch 2: Flat patch with asphalt texture, offset in Y
+patch2 = terrain.AddPatch(chrono.ChCoordsysD(chrono.ChVectorD(20, 0, 0), chrono.QUNIT),
+                          20, 20)
 patch2.SetTexture(veh.GetDataFile("terrain/textures/asphalt.jpg"), 16, 16)
+patch2.SetColor(chrono.ChColor(0.5, 0.5, 0.5))
 patch2.SetFriction(0.9)
+patch2.SetRestitution(0.01)
+patch2.SetMaterialSurface(veh.MaterialSurfaceType::TERRAIN)
 
-# Patch 3: Mesh patch for bump - create from mesh
+# Patch 3: Mesh-based patch for a bump
 mesh_file = veh.GetDataFile("terrain/mesh/bump.obj")
-patch3_center = chrono.ChVectorD(0, 15, 0)
-patch3_size = chrono.ChVectorD(15, 15, 1.0)
-patch3 = terrain.AddPatch(mesh_file, chrono.ChCoordsysD(patch3_center, chrono.QUNIT),
-                          patch3_size)
-patch3.SetColor(chrono.ChColor(0.5, 0.5, 0.5))
+patch3 = terrain.AddPatchMesh(chrono.ChCoordsysD(chrono.ChVectorD(40, 0, 0), chrono.QUNIT),
+                             mesh_file)
 patch3.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 16, 16)
+patch3.SetColor(chrono.ChColor(0.4, 0.8, 0.4))
 patch3.SetFriction(0.9)
+patch3.SetRestitution(0.01)
+patch3.SetMaterialSurface(veh.MaterialSurfaceType::TERRAIN)
 
-# Patch 4: Heightmap-based patch for terrain elevation variation
-# Use sample heightmap and scale appropriately
-hm_filename = veh.GetDataFile("terrain/height_maps/hmap16.png")
-hm_center = chrono.ChVectorD(0, -15, 0)
-hm_size = chrono.ChVectorD(30, 30, 2.0)  # width, length, height
-patch4 = terrain.AddPatchHeightMap(hm_filename, chrono.ChVector2D(0, 0), hm_size, 0.07, 200, 200,
-                                  chrono.ChCoordsysD(hm_center, chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 0, 1))))
-patch4.SetColor(chrono.ChColor(0.4, 0.6, 0.3))
-patch4.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 64, 64)
-patch4.SetFriction(0.8)
+# Patch 4: Heightmap-based patch for varying elevations
+heightmap_file = veh.GetDataFile("terrain/height_maps/hmap_simple.png")
+patch4 = terrain.AddPatchHeightmap(chrono.ChCoordsysD(chrono.ChVectorD(60, 0, 0), chrono.QUNIT),
+                                  heightmap_file,
+                                  0.1,  # height scale
+                                  20, 20)  # size in meters
+patch4.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 16, 16)
+patch4.SetColor(chrono.ChColor(0.6, 0.5, 0.4))
+patch4.SetFriction(0.9)
+patch4.SetRestitution(0.01)
+patch4.SetMaterialSurface(veh.MaterialSurfaceType::TERRAIN)
 
 terrain.Initialize()
 
 # -----------------------------------------------------------------------------
-# 4. Create the interactive driver system
+# 3. Interactive driver system
 # -----------------------------------------------------------------------------
 
-driver = veh.ChIrrGuiDriver(vehicle)
-
-# Set steering, throttle, brake bias and time response (filtering)
-driver.SetSteeringDelta(0.1)  # radians per timestep increment
+# Create the interactive Irrlicht driver
+driver = veh.ChIrrGuiDriver(vehicle.GetVehicle())
+driver.SetSteeringDelta(0.04)
 driver.SetThrottleDelta(0.1)
-driver.SetBrakingDelta(0.2)
+driver.SetBrakingDelta(0.1)
 driver.Initialize()
 
 # -----------------------------------------------------------------------------
-# 5. Create Irrlicht visualization and attach to the physical system
+# Visualization system
 # -----------------------------------------------------------------------------
 
-application = veh.ChWheeledVehicleVisualSystemIrrlicht()
-application.SetWindowTitle("HMMWV on Complex Rigid Terrain")
-application.SetChaseCamera(chrono.ChVectorD(0.0, 0.0, 1.75), 6.0, 0.5)
-application.Initialize()
+application = chronoirr.ChIrrApp(vehicle.GetVehicle(), "HMMWV on Complex Terrain",
+                                 chronoirr.dimension2du(1280, 720))
+
 application.AddTypicalLights()
-application.AddSkyBox()
-application.AttachSystem(system)
+application.AddTypicalCamera(chronoirr.vector3df(0, -40, 10), chronoirr.vector3df(0, 0, 1))
+application.AssetBindAll()
+application.AssetUpdateAll()
 
 # -----------------------------------------------------------------------------
-# 6. Simulation loop parameters
+# Simulation loop parameters
 # -----------------------------------------------------------------------------
 
-timestep = 1.0 / 60  # 60 FPS simulation step
+timestep = 1.0 / 60  # 60 Hz update rate
 
 # -----------------------------------------------------------------------------
-# 7. Simulation loop
+# Simulation loop
 # -----------------------------------------------------------------------------
 
-while application.Run():
-    # Synchronize modules
+while application.GetDevice().run():
+    application.BeginScene()
+    application.DrawAll()
+
+    # Get driver inputs
     driver_inputs = driver.GetInputs()
-    time = system.GetChTime()
+    vehicle.GetVehicle().GetSteeringController().SetInput(driver_inputs.m_steering)
+    vehicle.GetVehicle().GetEngineController().SetThrottle(driver_inputs.m_throttle)
+    vehicle.GetVehicle().GetBrakeController().SetBraking(driver_inputs.m_braking)
 
+    # Synchronize modules
+    time = vehicle.GetSystem().GetChTime()
     driver.Synchronize(time)
-    vehicle.Synchronize(time, driver_inputs, terrain)
+    vehicle.Synchronize(time, driver.GetInputs(), terrain)
     terrain.Synchronize(time)
-    application.Synchronize(driver_inputs)
+    application.DoStep()
 
-    # Advance simulation by a timestep
-    driver.Advance(timestep)
-    vehicle.Advance(timestep)
-    terrain.Advance(timestep)
-    system.DoStepDynamics(timestep)
-    application.Advance(timestep)
+    # Advance simulation by timestep
+    vehicle.GetSystem().DoStepDynamics(timestep)
 
-    # Render scene
-    application.Render()
-
+    application.EndScene()
 ```

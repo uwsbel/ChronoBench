@@ -1,13 +1,4 @@
-Certainly! Below is a **PyChrono** simulation script for a **beam buckling scenario** using **finite element analysis (FEA)**. The script includes:
-
-- PyChrono initialization
-- Creation of a beam using FEA elements
-- Application of boundary conditions and constraints
-- A custom motor function (e.g., to apply displacement or load)
-- Visualization with Irrlicht
-- Suitable solver and timestepper settings
-
-**Note:** This script assumes you have installed PyChrono with FEA and Irrlicht support.
+Certainly! Below is a **PyChrono** simulation script for a **beam buckling scenario** using FEA beam elements, a custom motor function, constraints, and visualization with Irrlicht. The script also sets up a suitable solver and timestepper for accurate dynamics.
 
 ```python
 import pychrono as chrono
@@ -15,114 +6,115 @@ import pychrono.fea as fea
 import pychrono.irrlicht as chronoirr
 import math
 
-# 1. Initialize the PyChrono environment and core components
+# 1. Initialize PyChrono environment and core components
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
-system = chrono.ChSystemSMC()  # Use SMC for general contact
+system = chrono.ChSystemSMC()  # Use SMC contact for generality
 
-# 2. Add required physical systems and objects
-
-# Parameters for the beam
-beam_length = 1.0
-beam_height = 0.02
-beam_width = 0.02
-beam_thickness = 0.02
-num_elements = 20
-
-# Material for the beam
-rho = 7800      # density kg/m^3
-E = 2.1e11      # Young's modulus Pa
-nu = 0.3        # Poisson ratio
-
-beam_material = fea.ChMaterialBeamANCF(E, nu, rho)
-
-# Mesh container
-mesh = fea.ChMesh()
-
-# Create nodes and elements for the beam
-nodes = []
-for i in range(num_elements + 1):
-    x = beam_length * i / num_elements
-    node = fea.ChNodeFEAxyzD(chrono.ChVectorD(x, 0, 0), chrono.ChVectorD(0, 1, 0))
-    node.SetMass(0.1)
-    mesh.AddNode(node)
-    nodes.append(node)
-
-for i in range(num_elements):
-    element = fea.ChElementBeamANCF()
-    element.SetNodes(nodes[i], nodes[i+1])
-    element.SetDimensions(beam_length / num_elements, beam_width, beam_height)
-    element.SetMaterial(beam_material)
-    mesh.AddElement(element)
-
-system.Add(mesh)
-
-# 3. Set necessary default parameters such as positions, forces, and interactions
-
-# Fix the left end of the beam (clamped)
-fix_constraint = chrono.ChLinkMateGeneric(True, True, True, True, True, True)
-fix_constraint.Initialize(nodes[0], chrono.ChBody(), False, nodes[0].GetPos(), chrono.ChVectorD(0,0,0))
-system.Add(fix_constraint)
-
-# Add a custom motor function to the right end (to apply displacement or force)
-# Here, we use a prismatic constraint with a custom function to move the right end in Y (simulate buckling load)
+# 2. Add ground body
 ground = chrono.ChBody()
 ground.SetBodyFixed(True)
 system.Add(ground)
 
-# Prismatic constraint (allows only Y translation)
+# 3. Create a beam using FEA elements
+beam_length = 1.0
+beam_height = 0.02
+beam_width = 0.02
+num_elements = 20
+
+# Create a mesh
+mesh = fea.ChMesh()
+
+# Material for the beam
+beam_material = fea.ChBeamSectionAdvanced()
+beam_material.SetYoungModulus(2.1e7)  # Pa
+beam_material.SetGwithPoissonRatio(0.3)
+beam_material.SetDensity(7800)        # kg/m^3
+beam_material.SetAsRectangularSection(beam_width, beam_height)
+beam_material.SetBeamRaleyghDamping(0.0002)
+
+# Nodes
+nodes = []
+for i in range(num_elements + 1):
+    x = beam_length * i / num_elements
+    node = fea.ChNodeFEAxyzrot(chrono.ChFrameD(chrono.ChVectorD(x, 0, 0)))
+    node.SetMass(0.1)
+    mesh.AddNode(node)
+    nodes.append(node)
+
+# Elements
+for i in range(num_elements):
+    element = fea.ChElementBeamEuler()
+    element.SetNodes(nodes[i], nodes[i+1])
+    element.SetSection(beam_material)
+    mesh.AddElement(element)
+
+system.Add(mesh)
+
+# 4. Constraints: Fix left end, add a custom motor at the right end
+# Fix left end (node 0) to ground
+constraint_left = chrono.ChLinkMateFix()
+constraint_left.Initialize(nodes[0], ground)
+system.Add(constraint_left)
+
+# Custom motor function: slowly compress the beam to induce buckling
+class CustomMotorFunction(chrono.ChFunction):
+    def __init__(self, total_disp, duration):
+        chrono.ChFunction.__init__(self)
+        self.total_disp = total_disp
+        self.duration = duration
+    def Get_y(self, t):
+        # Linear compression over duration, then hold
+        if t < self.duration:
+            return -self.total_disp * (t / self.duration)
+        else:
+            return -self.total_disp
+
+compression_disp = 0.02  # 2 cm compression
+compression_time = 1.0   # 1 second
+
+# Add a prismatic constraint at the right end (node N) to ground, allowing only X translation
 prismatic = chrono.ChLinkLockPrismatic()
-prismatic.Initialize(nodes[-1], ground, chrono.ChCoordsysD(nodes[-1].GetPos(), chrono.Q_from_AngZ(0)))
+prismatic.Initialize(nodes[-1], ground, chrono.ChCoordsysD(nodes[-1].GetPos(), chrono.Q_from_AngY(math.pi/2)))
 system.Add(prismatic)
 
-# Custom motor function: Apply a time-dependent displacement in Y
-class CustomDisplacement(chrono.ChFunction):
-    def Get_y(self, t):
-        # Linear ramp up to 0.01 m over 1 second, then hold
-        return min(0.01 * t, 0.01)
-
-motor = chrono.ChLinkLinActuator()
-motor.Initialize(nodes[-1], ground, chrono.ChFrameD(nodes[-1].GetPos(), chrono.QUNIT))
-motor.SetDistanceOffset(0)
-motor.SetActuatorFunction(CustomDisplacement())
+# Add a linear actuator (motor) to compress the beam
+motor = chrono.ChLinkMotorLinearPosition()
+motor.Initialize(nodes[-1], ground, chrono.ChFrameD(nodes[-1].GetPos(), chrono.Q_from_AngY(math.pi/2)))
+motor.SetMotionFunction(CustomMotorFunction(compression_disp, compression_time))
 system.Add(motor)
 
-# 4. Visualization using Irrlicht
+# 5. Visualization with Irrlicht
 application = chronoirr.ChVisualSystemIrrlicht()
 application.AttachSystem(system)
-application.SetWindowSize(1024,768)
-application.SetWindowTitle('PyChrono FEA Beam Buckling')
+application.SetWindowSize(1024, 768)
+application.SetWindowTitle('PyChrono Beam Buckling FEA')
 application.Initialize()
-application.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+application.AddLogo()
 application.AddSkyBox()
-application.AddCamera(chrono.ChVectorD(0.5, 0.1, 0.5), chrono.ChVectorD(0.5,0,0))
+application.AddCamera(chrono.ChVectorD(0.5, 0.2, 0.5), chrono.ChVectorD(0.5, 0, 0))
 application.AddTypicalLights()
 
-# Add visualization of the mesh
-beam_vis = fea.ChVisualizationFEAmesh(mesh)
-beam_vis.SetFEMglyphType(fea.ChVisualizationFEAmesh.E_GLYPH_NODE_DOT_POS)
-beam_vis.SetFEMdataType(fea.ChVisualizationFEAmesh.E_PLOT_NONE)
-beam_vis.SetSymbolsThickness(0.006)
-beam_vis.SetSymbolsScale(0.01)
-mesh.AddAsset(beam_vis)
+# Add visualization to the mesh
+beam_visual = fea.ChVisualizationFEAmesh(mesh)
+beam_visual.SetFEMglyphType(fea.ChVisualizationFEAmesh.E_GLYPH_NODE_DOT_POS)
+beam_visual.SetFEMdataType(fea.ChVisualizationFEAmesh.E_PLOT_ELEM_BEAM_MZ)
+beam_visual.SetColorscaleMinMax(-0.4, 0.4)
+beam_visual.SetSmoothFaces(True)
+beam_visual.SetWireframe(False)
+mesh.AddAsset(beam_visual)
 
-beam_colormap = fea.ChVisualizationFEAmesh(mesh)
-beam_colormap.SetFEMdataType(fea.ChVisualizationFEAmesh.E_PLOT_ELEM_BEAM_MZ)
-beam_colormap.SetColorscaleMinMax(-500, 500)
-beam_colormap.SetSmoothFaces(True)
-beam_colormap.SetWireframe(True)
-mesh.AddAsset(beam_colormap)
-
-# 5. Solver and timestepper
+# 6. Solver and timestepper
 solver = chrono.ChSolverMINRES()
 solver.SetMaxIterations(200)
 solver.SetTolerance(1e-10)
 solver.EnableDiagonalPreconditioner(True)
+solver.SetVerbose(False)
 system.SetSolver(solver)
-
+system.SetSolverForceTolerance(1e-10)
 system.SetTimestepperType(chrono.ChTimestepper.Type_EULER_IMPLICIT_LINEARIZED)
 
-# 6. Simulation loop
-timestep = 1e-4
+# 7. Simulation loop
+timestep = 0.001
 while application.Run():
     application.BeginScene()
     application.DrawAll()
@@ -133,13 +125,14 @@ while application.Run():
 ---
 
 **Key Features:**
-- **FEA Beam:** Uses ANCF beam elements for accurate buckling simulation.
-- **Custom Motor:** Applies a controlled displacement at the free end to induce buckling.
-- **Constraints:** Left end clamped, right end constrained to move only in Y.
-- **Visualization:** Irrlicht shows the beam and color-maps the bending moment.
-- **Solver:** MINRES with preconditioning for FEA systems.
-- **Timestepper:** Implicit Euler for stability.
+- **FEA Beam:** Uses `ChElementBeamEuler` for finite element beam modeling.
+- **Custom Motor:** Implements a custom compression function to induce buckling.
+- **Constraints:** Left end fixed, right end prismatic + motor for controlled compression.
+- **Visualization:** Uses Irrlicht with FEA mesh visualization.
+- **Solver:** MINRES with tight tolerances for FEA accuracy.
+- **Timestepper:** Implicit Euler Linearized for stiff dynamics.
 
-**Tip:** Adjust the displacement function or beam parameters to explore different buckling behaviors.
+**Requirements:**  
+- PyChrono with FEA and Irrlicht modules installed.
 
-Let me know if you need further customization!
+Let me know if you need further customization or explanations!

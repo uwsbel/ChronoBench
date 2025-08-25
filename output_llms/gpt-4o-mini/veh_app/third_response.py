@@ -103,7 +103,7 @@ box.GetVisualModel().GetShape(0).SetTexture(chrono.GetChronoDataFile("textures/b
 gator.GetSystem().AddBody(box)
 
 # create cylinder
-cylinder = chrono.ChBodyEasyCylinder(0.5, 1, 1000)  # Corrected the constructor
+cylinder = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, 0.5, 1, 1000)
 cylinder.SetPos(chrono.ChVector3d(0, 0, 1.5))
 cylinder.SetFixed(True)
 cylinder.GetVisualModel().GetShape(0).SetTexture(chrono.GetChronoDataFile("textures/blue.png"))
@@ -137,8 +137,8 @@ manager.AddSensor(cam)
 
 # Create lidar sensor
 offset_pose = chrono.ChFramed(
-        chrono.ChVector3d(0.0, 0, 2), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
-    )
+    chrono.ChVector3d(0.0, 0, 2), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
+)
 lidar = sens.ChLidarSensor(
     gator.GetChassisBody(),              # Body lidar is attached to
     update_rate,            # Scanning rate in Hz
@@ -170,17 +170,17 @@ manager.AddSensor(lidar)
 
 # Added Depth Camera
 depth_offset_pose = chrono.ChFramed(chrono.ChVector3d(-5.0, 0, 2), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0)))
-depth_camera = sens.ChDepthCameraSensor(
+depth_camera = sens.ChCameraSensor(
     gator.GetChassisBody(),
     update_rate,
     depth_offset_pose,
     image_width,
     image_height,
-    fov,
-    30.0  # Maximum depth
+    fov
 )
 depth_camera.SetName("Depth Camera")
-depth_camera.PushFilter(sens.ChFilterVisualizeDepthMap(image_width, image_height, "Depth Map"))
+depth_camera.SetMaxDepth(30)  # Set maximum depth
+depth_camera.PushFilter(sens.ChFilterVisualizeDepth(image_width, image_height, "Depth Map"))
 manager.AddSensor(depth_camera)
 
 # ---------------

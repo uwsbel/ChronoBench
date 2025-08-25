@@ -1,9 +1,9 @@
 ```python
 import pychrono as chrono
-import pychrono.irrlicht as chronoirr
+import pychrono.irrlicht as irrlicht
 
-# Initialize Chrono environment
-chrono.SetChronoDataPath("path/to/chrono/data")  # Replace with your Chrono data path
+# Initialize Chrono
+chrono.SetChronoDataPath("..")  # Set path to Chrono data if needed
 system = chrono.ChSystemNSC()
 
 # Create ground
@@ -11,96 +11,86 @@ ground = chrono.ChBodyEasyBox(10, 10, 1, 1000)
 ground.SetPos(chrono.ChVectorD(0, 0, 0))
 system.Add(ground)
 
-# Define beam parameters
-beam_length = 5
-beam_width = 0.1
-beam_nodes = 5  # Number of nodes along the beam
+# Create beam using ANCF cable elements
+beam_nodes = [
+    chrono.ChBodyEasySphere(0.1, 100),
+    chrono.ChBodyEasySphere(0.1, 100),
+    chrono.ChBodyEasySphere(0.1, 100),
+]
 
-# Create ANCF cable elements
-cable_elements = []
-for i in range(beam_nodes - 1):
-    node1 = chrono.ChBodyEasySphere(0.05, 1)
-    node1.SetPos(chrono.ChVectorD(i * beam_length / (beam_nodes - 1), 0, 0))
-    system.Add(node1)
+# Define ANCF cable properties
+cable_material = chrono.ChMaterialSurfaceNSC()
+cable_material.SetFriction(0.2, 0.2)
+cable_material.SetDampingFric(0.1)
+cable_material.SetYoungModulus(1e6)  # Adjust for desired stiffness
 
-    node2 = chrono.ChBodyEasySphere(0.05, 1)
-    node2.SetPos(chrono.ChVectorD((i + 1) * beam_length / (beam_nodes - 1), 0, 0))
-    system.Add(node2)
+# Connect nodes with ANCF cables
+for i in range(len(beam_nodes) - 1):
+    cable = chrono.ChLinkCable(beam_nodes[i], beam_nodes[i + 1])
+    cable.SetMaterial(cable_material)
+    cable.SetRestLength(1)  # Adjust for desired beam length
+    system.Add(cable)
 
-    cable = chrono.ChLinkCable(node1, node2, beam_width)
-    cable.SetMaterial(chrono.ChMaterialSurfaceNSC())
-    cable.SetRestLength(beam_length / (beam_nodes - 1))
-    cable_elements.append(cable)
-
-# Hinge the first node to the ground
-hinge = chrono.ChLinkLockUniversal(ground, cable_elements[0].GetNode1())
-hinge.SetPos(chrono.ChVectorD(0, 0, 0))
-system.Add(hinge)
+# Set initial positions
+beam_nodes[0].SetPos(chrono.ChVectorD(0, 0, 0))
+beam_nodes[1].SetPos(chrono.ChVectorD(1, 0, 0))
+beam_nodes[2].SetPos(chrono.ChVectorD(2, 0, 0))
 
 # Apply gravity
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
 
 # Create Irrlicht visualization
-vis = chronoirr.ChIrrApp(system, 'Beam Simulation')
-vis.AddCamera(chrono.ChVectorD(5, 5, 5))
-vis.AddLight(chrono.ChVectorD(5, 5, 5))
+vis = irrlicht.ChIrrApp(system, 'Beam Simulation')
+vis.AddCamera(
+    chrono.ChVectorD(5, 5, 5), chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 1, 0)
+)
 
 # Simulation loop
+vis.SetTimestep(1e-3)
 while vis.Run():
-    system.DoStepDynamics(0.01)
-    vis.Render()
+    vis.BeginScene()
+    vis.DrawAll()
+    vis.EndScene()
+
+    system.DoStepDynamics(vis.GetTimestep())
 
 # Cleanup
-vis.GetDevice().drop()
+vis.Close()
 ```
 
 **Explanation:**
 
 1. **Initialization:**
-   - Imports necessary libraries.
-   - Sets the Chrono data path.
-   - Creates a Chrono system.
+   - Import necessary libraries: `pychrono` for physics and `pychrono.irrlicht` for visualization.
+   - Initialize the Chrono system using `chrono.ChSystemNSC()`.
+   - Set the Chrono data path if needed.
 
-2. **Ground:**
-   - Creates a ground body as a box.
-   - Sets its position to the origin.
-   - Adds it to the system.
+2. **Ground Creation:**
+   - Create a ground body using `chrono.ChBodyEasyBox()` with dimensions 10x10x1 and a mass of 1000.
+   - Set its position to the origin (0, 0, 0).
+   - Add the ground body to the system.
 
-3. **Beam Definition:**
-   - Defines parameters for the beam: length, width, and number of nodes.
+3. **Beam Creation:**
+   - Create a list of `beam_nodes` using `chrono.ChBodyEasySphere()` to represent the beam's nodes.
+   - Define `cable_material` properties for the ANCF cables.
+   - Connect the nodes using `chrono.ChLinkCable()` and set the material, rest length, and add it to the system.
 
-4. **Cable Elements:**
-   - Creates a loop to generate ANCF cable elements between nodes.
-   - Creates spherical nodes for each end of the cable.
-   - Sets their positions along the beam.
-   - Creates a `ChLinkCable` object for each pair of nodes.
-   - Sets the cable material and rest length.
-   - Adds the cable elements to the system.
+4. **Initial Positions:**
+   - Set the initial positions of the beam nodes.
 
-5. **Hinge:**
-   - Creates a `ChLinkLockUniversal` hinge to connect the first node to the ground.
-   - Sets its position to the origin.
-   - Adds the hinge to the system.
+5. **Gravity Application:**
+   - Apply gravity to the system using `system.Set_G_acc()`.
 
-6. **Gravity:**
-   - Sets the gravitational acceleration.
+6. **Visualization Setup:**
+   - Create an Irrlicht visualization using `chrono.ChIrrApp()`.
+   - Add a camera to view the simulation.
 
-7. **Visualization:**
-   - Creates an Irrlicht visualization app.
-   - Adds a camera and light source.
+7. **Simulation Loop:**
+   - Run the simulation loop using `vis.Run()`.
+   - In each iteration:
+     - Begin and end the scene rendering.
+     - Draw all objects using `vis.DrawAll()`.
+     - Update the physics simulation using `system.DoStepDynamics()`.
 
-8. **Simulation Loop:**
-   - Runs the simulation until the user closes the window.
-   - Performs a time step using `DoStepDynamics`.
-   - Renders the scene using `Render`.
-
-9. **Cleanup:**
-   - Releases the Irrlicht device.
-
-
-
-**Remember:**
-
-- Replace `"path/to/chrono/data"` with the actual path to your Chrono data directory.
-- Adjust the beam parameters (length, width, nodes) as needed.
-- You can further customize the simulation by adding more objects, forces, or constraints.
+8. **Cleanup:**
+   - Close the Irrlicht visualization.

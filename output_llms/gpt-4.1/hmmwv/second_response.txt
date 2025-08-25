@@ -1,5 +1,7 @@
-Here is the **corrected and modified PyChrono script** according to your instructions.  
-**Key changes and explanations are commented inline.**
+Below is the **corrected and modified PyChrono script** according to your instructions.  
+**Key changes and explanations are annotated in comments.**
+
+---
 
 ```python
 import pychrono.core as chrono
@@ -82,50 +84,60 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
-# --- PATH AND CONTROLLER IMPLEMENTATION ---
+# -------------------------------
+# PATH AND CONTROLLER IMPLEMENTATION
+# -------------------------------
 
 # Define a circular path
 circle_center = chrono.ChVector3d(0, 0, 0.5)
-circle_radius = 40.0  # Reasonable radius to fit in terrain
-circle_normal = chrono.ChVector3d(0, 0, 1)
-path = chrono.ChPath()
-# Create a circle using ChLineArc
-arc = chrono.ChLineArc(circle_center, circle_radius, 0, 2 * math.pi, circle_normal)
-path.Initialize()
-path.AddSubLine(arc)
-path.Set_closed(True)
+circle_radius = 30.0  # Reasonable radius to fit in terrain
 
-# Visualize the path using two balls (start and halfway point)
-start_point = arc.GetPoint(0)
-halfway_point = arc.GetPoint(0.5)
+# Create the path as a ChBezierCurve
+path_points = chrono.vector_ChVector3d()
+num_points = 36
+for i in range(num_points + 1):
+    angle = 2 * math.pi * i / num_points
+    x = circle_center.x + circle_radius * math.cos(angle)
+    y = circle_center.y + circle_radius * math.sin(angle)
+    z = circle_center.z
+    path_points.push_back(chrono.ChVector3d(x, y, z))
+path = chrono.ChBezierCurve(path_points, True)  # closed curve
 
-# Add spheres to the Irrlicht scene for visualization
-sphere_shape_start = chrono.ChSphereShape()
-sphere_shape_start.GetSphereGeometry().rad = 1.0
-sphere_start = chrono.ChBodyEasySphere(1.0, 1000, True, True)
-sphere_start.SetPos(start_point)
-sphere_start.SetBodyFixed(True)
-sphere_start.AddVisualShape(sphere_shape_start)
-vehicle.GetSystem().Add(sphere_start)
+# Visualize the path using two balls (start and opposite point)
+ball_radius = 1.0
+ball1 = chrono.ChBodyEasySphere(ball_radius, 1000, True, True)
+ball1.SetPos(path_points[0])
+ball1.SetBodyFixed(True)
+ball1.GetVisualShape(0).SetColor(chrono.ChColor(1, 0, 0))  # Red
+vehicle.GetSystem().Add(ball1)
 
-sphere_shape_half = chrono.ChSphereShape()
-sphere_shape_half.GetSphereGeometry().rad = 1.0
-sphere_half = chrono.ChBodyEasySphere(1.0, 1000, True, True)
-sphere_half.SetPos(halfway_point)
-sphere_half.SetBodyFixed(True)
-sphere_half.AddVisualShape(sphere_shape_half)
-vehicle.GetSystem().Add(sphere_half)
+ball2 = chrono.ChBodyEasySphere(ball_radius, 1000, True, True)
+ball2.SetPos(path_points[num_points // 2])
+ball2.SetBodyFixed(True)
+ball2.GetVisualShape(0).SetColor(chrono.ChColor(0, 0, 1))  # Blue
+vehicle.GetSystem().Add(ball2)
 
 # Create the path-follower driver
-sentinel_dist = 6.0
-target_dist = 20.0
-controller = veh.ChPathFollowerDriver(
-    vehicle, path, "my_path", 0.3,  # constant throttle
-    sentinel_dist, target_dist
-)
 # PID gains for steering (tune as needed)
-controller.GetSteeringController().SetGains(0.8, 0.0, 0.3)
-controller.Initialize()
+Kp = 0.8
+Ki = 0.0
+Kd = 0.3
+
+look_ahead_distance = 5.0  # meters
+path_name = "circular_path"
+
+driver = veh.ChPathFollowerDriver(
+    vehicle, path, path_name, look_ahead_distance, Kp, Ki, Kd
+)
+driver.GetSteeringController().SetLookAheadDistance(look_ahead_distance)
+driver.GetSteeringController().SetGains(Kp, Ki, Kd)
+driver.GetSpeedController().SetGains(0.4, 0, 0)  # Not used, but set anyway
+
+# Set constant desired speed (throttle)
+desired_speed = 5.0  # m/s (not throttle, but speed)
+driver.SetDesiredSpeed(desired_speed)
+
+driver.Initialize()
 
 # Output vehicle mass
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
@@ -138,47 +150,49 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-# --- Visualization of Controller Points (sentinel and target) ---
-# We'll use two spheres and update their positions each step
-
+# Visualization spheres for sentinel and target points
 sentinel_sphere = chrono.ChBodyEasySphere(0.5, 1000, True, True)
 sentinel_sphere.SetBodyFixed(True)
-sentinel_sphere.AddVisualShape(chrono.ChSphereShape())
+sentinel_sphere.GetVisualShape(0).SetColor(chrono.ChColor(0, 1, 0))  # Green
 vehicle.GetSystem().Add(sentinel_sphere)
 
 target_sphere = chrono.ChBodyEasySphere(0.5, 1000, True, True)
 target_sphere.SetBodyFixed(True)
-target_sphere.AddVisualShape(chrono.ChSphereShape())
+target_sphere.GetVisualShape(0).SetColor(chrono.ChColor(1, 1, 0))  # Yellow
 vehicle.GetSystem().Add(target_sphere)
 
-# Main simulation loop
+# -------------------------------
+# MAIN SIMULATION LOOP
+# -------------------------------
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
-    # Render scene and output POV-Ray data
-    if (step_number % render_steps == 0):
+    # Render scene
+    if step_number % render_steps == 0:
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
         render_frame += 1
 
-    # Get driver inputs from path-follower controller
-    driver_inputs = controller.GetInputs()
+    # Get driver inputs from path follower
+    driver_inputs = driver.GetInputs()
+    # Override throttle to constant value (as per instructions)
+    driver_inputs.m_throttle = 0.3
 
-    # Update modules (process inputs from other modules)
-    controller.Synchronize(time)
+    # Update modules
+    driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
 
-    # Update visualization of sentinel and target points
-    sentinel = controller.GetSentinelLocation()
-    target = controller.GetTargetLocation()
+    # Update visualization spheres for sentinel and target points
+    sentinel = driver.GetSteeringController().GetSentinelLocation()
+    target = driver.GetSteeringController().GetTargetLocation()
     sentinel_sphere.SetPos(sentinel)
     target_sphere.SetPos(target)
 
     # Advance simulation for one timestep for all modules
-    controller.Advance(step_size)
+    driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
@@ -192,22 +206,22 @@ while vis.Run():
 
 ---
 
-### **Summary of Changes and Fixes**
+### **Summary of Corrections and Modifications**
 
 1. **Terrain Length**: Increased from 100.0 to 200.0.
 2. **Path and Controller**:
-    - Created a circular path using `ChLineArc` and `ChPath`.
-    - Visualized the path with two spheres at the start and halfway points.
-    - Replaced the interactive driver with `ChPathFollowerDriver` and set a constant throttle of 0.3.
-    - Set PID gains for steering.
-3. **Simulation Loop**:
-    - Replaced all references to the interactive driver with the path follower.
-    - Updated the visualization of the sentinel and target points using spheres whose positions are updated each step.
-4. **Error Corrections**:
-    - Removed the unused and now-irrelevant interactive driver code.
+    - Implemented a circular path using `ChBezierCurve`.
+    - Visualized the path with two spheres (balls) at start and opposite points.
+    - Used `ChPathFollowerDriver` with PID steering controller.
+    - Set constant throttle value (`driver_inputs.m_throttle = 0.3`).
+3. **Visualization of Controller Points**:
+    - Added two spheres for sentinel and target points, updated their positions each step.
+4. **Simulation Loop**:
+    - Replaced interactive driver with path follower.
+    - Overrode throttle to constant value.
+    - Updated visualization spheres for controller points.
+5. **Error Corrections**:
+    - Fixed any missing or incorrect method calls.
     - Ensured correct use of PyChrono API for path following and visualization.
 
----
-
-**This script should run as expected and fulfill all requirements.**  
-If you need further tuning of the PID gains or path radius, adjust the parameters accordingly.
+**This script should run as expected in a PyChrono environment with the vehicle module installed.**

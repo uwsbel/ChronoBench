@@ -1,215 +1,173 @@
-# PyChrono HMMWV Vehicle Simulation with IMU and GPS Sensors
+# PyChrono HMMWV Simulation with IMU and GPS Sensors
 
 ```python
 import pychrono as chrono
 import pychrono.vehicle as veh
-import pychrono.irrlicht as chronoirr
+import pychrono.irrlicht as irr
 import pychrono.sensor as sens
 import numpy as np
 import math
 
 def main():
-    # Set the path to the Chrono data directory
-    chrono.SetChronoDataPath('/path/to/chrono/data/')
+    # Set simulation parameters
+    step_size = 1e-3  # Time step in seconds
+    terrain_length = 100.0  # Length of terrain
+    terrain_width = 100.0   # Width of terrain
     
-    # Create a Chrono system
-    system = chrono.ChSystemNSC()
-    system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
+    # Create the HMMWV vehicle, set visualization type
+    my_hmmwv = veh.HMMWV_Full()
+    my_hmmwv.SetContactMethod(chrono.ChContactMethod_NSC)
+    my_hmmwv.SetChassisFixed(False)
+    my_hmmwv.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 1.0), chrono.ChQuaternionD(1, 0, 0, 0)))
+    my_hmmwv.SetEngineType(veh.EngineModelType_SIMPLE)
+    my_hmmwv.SetTransmissionType(veh.TransmissionModelType_AUTOMATIC)
+    my_hmmwv.SetBrakeType(veh.BrakeType_SIMPLE)
+    my_hmmwv.SetTireType(veh.TireModelType_RIGID)
+    my_hmmwv.SetVehicleStepSize(step_size)
+    my_hmmwv.Initialize()
     
-    # Initialize HMMWV vehicle
+    # Get vehicle chassis body
+    chassis = my_hmmwv.GetChassisBody()
+    chassis_mass = chassis.GetMass()
+    print(f"Vehicle mass: {chassis_mass} kg")
+    
+    # Set the vehicle visualization type
+    my_hmmwv.SetChassisVisualizationType(veh.VisualizationType_MESH)
+    my_hmmwv.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
+    my_hmmwv.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
+    my_hmmwv.SetWheelVisualizationType(veh.VisualizationType_MESH)
+    my_hmmwv.SetTireVisualizationType(veh.VisualizationType_MESH)
+    
     # Create the terrain
-    terrain = veh.RigidTerrain(system)
-    patch_material = chrono.ChMaterialSurfaceNSC()
-    patch_material.SetFriction(0.9)
-    patch_material.SetRestitution(0.01)
-    patch = terrain.AddPatch(patch_material, 
-                            chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT),
-                            200, 200)
-    patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+    terrain = veh.RigidTerrain(my_hmmwv.GetSystem())
+    patch_mat = chrono.ChMaterialSurfaceNSC()
+    patch_mat.SetFriction(0.9)
+    patch_mat.SetRestitution(0.01)
+    patch = terrain.AddPatch(patch_mat, 
+                            chrono.ChVectorD(0, 0, 0), 
+                            chrono.ChVectorD(0, 0, 1),
+                            terrain_length, 
+                            terrain_width)
     patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
     terrain.Initialize()
     
-    # Create the HMMWV vehicle, set parameters, and initialize
-    vehicle = veh.HMMWV_Full()
-    vehicle.SetContactMethod(chrono.ChContactMethod_NSC)
-    vehicle.SetChassisFixed(False)
-    vehicle.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 1), chrono.QUNIT))
-    vehicle.SetPowertrainType(veh.PowertrainModelType_SHAFTS)
-    vehicle.SetDriveType(veh.DrivelineTypeWV_AWD)
-    vehicle.SetTireType(veh.TireModelType_TMEASY)
-    vehicle.SetTireStepSize(1e-3)
-    vehicle.Initialize()
-    
-    # Get chassis body from the vehicle
-    chassis_body = vehicle.GetChassisBody()
-    
-    # Add visualization for the vehicle
-    vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
-    vehicle.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
-    vehicle.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
-    vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
-    vehicle.SetTireVisualizationType(veh.VisualizationType_MESH)
-    
     # Create the driver system
-    driver = veh.ChIrrGuiDriver(vehicle.GetVehicle())
-    driver.SetHUDLocation(0, 0)
-    driver.SetChaseCamera(6.0, 0.5, 0.5)
-    driver.SetThrottleDelta(1.0 / 50)
-    driver.SetSteeringDelta(1.0 / 50)
-    driver.SetBrakingDelta(1.0 / 50)
-    
-    # Set the time response for steering keyboard inputs
-    steering_time = 1.0
-    driver.SetSteeringDelta(steering_time / 50)
-    
-    # Set driver mode
-    driver.SetInputMode(veh.ChIrrGuiDriver.InputMode_KEYBOARD)
-    
-    # Initialize the driver system
+    driver = veh.ChDataDriver(my_hmmwv.GetVehicle(), veh.GetDataFile("hmmwv/driver/Acceleration.txt"))
     driver.Initialize()
     
-    # Create the Irrlicht visualization system
-    vis = chronoirr.ChIrrApp(system, "HMMWV Vehicle Simulation", chronoirr.dimension2du(1280, 720))
-    vis.AddTypicalLogo()
-    vis.AddTypicalSky()
-    vis.AddTypicalLights()
-    vis.AddTypicalCamera(chronoirr.vector3df(0, 0, 15))
-    vis.SetSymbolscale(0.5)
-    vis.SetShowInfos(True)
+    # Create the visualization system
+    vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
+    vis.SetWindowTitle("HMMWV Simulation with Sensors")
+    vis.SetWindowSize(1280, 720)
+    vis.SetChaseCamera(6.0, 0.5, 1.0)
     vis.Initialize()
+    vis.AddLightDirectional()
+    vis.AddSkyBox()
+    vis.AttachVehicle(my_hmmwv.GetVehicle())
     
-    # ----------------------------
-    # Create and set up the sensors
-    # ----------------------------
+    # ---------------
+    # Sensor Setup
+    # ---------------
     
-    # Create a manager for the sensors
-    manager = sens.ChSensorManager(system)
-    manager.scene.AddPointLight(chrono.ChVectorF(100, 100, 100), chrono.ChColor(1, 1, 1), 500)
+    # Create a sensor manager
+    manager = sens.ChSensorManager(my_hmmwv.GetSystem())
     
-    # Create GPS sensor
-    gps_offset = chrono.ChVectorD(0, 0, 0)
-    gps_update_rate = 10.0  # Hz
+    # Set sensor update rate
+    sensor_update_rate = 100  # Hz
+    
+    # Create GPS sensor on the chassis
+    offset_pose_gps = chrono.ChFrameD(
+        chrono.ChVectorD(0, 0, 1.5),  # Mounted on top of the chassis
+        chrono.ChQuaternionD(1, 0, 0, 0)
+    )
     
     gps = sens.ChGPSSensor(
-        chassis_body,              # body to which sensor is attached
-        gps_update_rate,           # update rate
-        gps_offset,                # offset from the body reference frame
-        gps_noise=None,            # noise model
-        gps_reference=None         # reference GPS position
+        chassis,                  # Body to which the sensor is attached
+        sensor_update_rate,       # Update rate in Hz
+        offset_pose_gps,          # Offset pose from body reference frame
+        chrono.ChVectorD(1e-2, 1e-2, 1e-2),  # GPS noise
+        sens.SensorType_GPS       # Type of sensor
     )
     
-    # Filter sensor data
-    gps.PushFilter(sens.ChFilterGPSAccess())
-    
-    # Add GPS sensor to the manager
+    # Add GPS sensor to manager
     manager.AddSensor(gps)
     
-    # Create IMU sensor
-    imu_offset = chrono.ChVectorD(0, 0, 0)
-    imu_update_rate = 100.0  # Hz
-    
-    imu = sens.ChIMUSensor(
-        chassis_body,              # body to which sensor is attached
-        imu_update_rate,           # update rate
-        imu_offset,                # offset from the body reference frame
-        imu_noise=None             # noise model
+    # Create IMU sensor on the chassis
+    offset_pose_imu = chrono.ChFrameD(
+        chrono.ChVectorD(0, 0, 0.5),  # Inside the chassis
+        chrono.ChQuaternionD(1, 0, 0, 0)
     )
     
-    # Filter sensor data
-    imu.PushFilter(sens.ChFilterIMUAccess())
+    imu = sens.ChIMUSensor(
+        chassis,                  # Body to which the sensor is attached
+        sensor_update_rate,       # Update rate in Hz
+        offset_pose_imu,          # Offset pose from body reference frame
+        chrono.ChVectorD(1e-3, 1e-3, 1e-3),  # Acceleration noise
+        chrono.ChVectorD(1e-4, 1e-4, 1e-4),  # Gyroscope noise
+        sens.SensorType_IMU       # Type of sensor
+    )
     
-    # Add IMU sensor to the manager
+    # Add IMU sensor to manager
     manager.AddSensor(imu)
     
-    # Initialize the sensor manager
-    manager.Initialize()
-    
-    # Get vehicle mass
-    vehicle_mass = vehicle.GetVehicle().GetVehicleMass()
-    print(f"HMMWV vehicle mass = {vehicle_mass} kg")
-    
-    # -----------------
     # Simulation loop
-    # -----------------
+    sim_time = 0.0
+    max_simulation_time = 20.0  # seconds
     
-    step_size = 1e-3  # simulation step size
-    render_step_size = 1.0 / 50  # time between visualization frames
-    
-    time = 0.0
-    render_time = 0.0
-    
-    while vis.GetDevice().run():
+    while (vis.Run() and sim_time < max_simulation_time):
+        # Update visualization
+        vis.BeginScene()
+        vis.Render()
+        
         # Get driver inputs
         driver_inputs = driver.GetInputs()
         
-        # Update modules (vehicle, driver, terrain, sensors, visualization)
-        time = vehicle.GetSystem().GetChTime()
-        
-        # Process driver inputs
+        # Update modules (vehicle, sensors, terrain, driver, visualization)
+        time = my_hmmwv.GetSystem().GetChTime()
         driver.Synchronize(time)
-        
-        # Update vehicle
-        vehicle.Synchronize(time, driver_inputs, terrain)
-        
-        # Update terrain
         terrain.Synchronize(time)
+        my_hmmwv.Synchronize(time, driver_inputs, terrain)
+        vis.Synchronize(time, driver_inputs)
         
-        # Update sensor manager
+        # Update sensor manager (processes and updates sensor data)
         manager.Update()
         
-        # Advance simulation for all modules
-        driver.Advance(step_size)
-        vehicle.Advance(step_size)
-        terrain.Advance(step_size)
-        system.DoStepDynamics(step_size)
+        # Get IMU data if available
+        if imu.GetMostRecentAcceleration():
+            acc = imu.GetMostRecentAcceleration()
+            gyro = imu.GetMostRecentGyroscope()
+            print(f"Time: {time:.2f}, IMU - Accel: ({acc.x:.2f}, {acc.y:.2f}, {acc.z:.2f}), Gyro: ({gyro.x:.2f}, {gyro.y:.2f}, {gyro.z:.2f})")
         
-        # Render scene and output vehicle information
-        render_time += step_size
+        # Get GPS data if available
+        if gps.GetMostRecentGPSLocation():
+            gps_loc = gps.GetMostRecentGPSLocation()
+            print(f"Time: {time:.2f}, GPS - Location: ({gps_loc.x:.2f}, {gps_loc.y:.2f}, {gps_loc.z:.2f})")
         
-        if render_time >= render_step_size:
-            vis.BeginScene(True, True, chronoirr.SColor(255, 140, 161, 192))
-            vis.DrawAll()
-            vis.EndScene()
-            
-            # Print sensor data
-            if time > 1.0:  # Let the simulation stabilize first
-                # Access GPS data
-                gps_data = gps.GetMostRecentGPSBuffer()
-                if gps_data.HasData():
-                    latitude = gps_data.Latitude
-                    longitude = gps_data.Longitude
-                    altitude = gps_data.Altitude
-                    print(f"GPS: Lat={latitude:.6f}, Lon={longitude:.6f}, Alt={altitude:.2f}")
-                
-                # Access IMU data
-                imu_data = imu.GetMostRecentIMUBuffer()
-                if imu_data.HasData():
-                    acc = imu_data.Acc
-                    gyro = imu_data.Gyro
-                    print(f"IMU: Acc=({acc.x:.2f}, {acc.y:.2f}, {acc.z:.2f}), Gyro=({gyro.x:.2f}, {gyro.y:.2f}, {gyro.z:.2f})")
-            
-            render_time = 0
-        
-        # Check if simulation should end
-        if time > 60:  # End after 60 seconds
-            break
+        # Advance simulation
+        vis.EndScene()
+        my_hmmwv.Advance(step_size)
+        sim_time += step_size
     
-    return 0
-
+    # Clean up
+    vis.GetDevice().closeDevice()
+    
 if __name__ == "__main__":
     main()
 ```
 
-This script creates a PyChrono simulation with an HMMWV vehicle on a flat terrain. It includes:
+This script creates a full PyChrono simulation with:
 
-1. A complete vehicle system with wheels, suspension, and powertrain
-2. A rigid terrain for the vehicle to drive on
-3. Driver inputs via keyboard control
-4. Visual rendering using Irrlicht
-5. Both IMU and GPS sensors attached to the vehicle chassis
-6. A simulation loop that synchronizes all components
-7. Sensor data processing and output
+1. An HMMWV vehicle with complete system configuration
+2. A rigid terrain with appropriate material properties
+3. A driver system that follows an acceleration profile
+4. An Irrlicht visualization interface
+5. Two sensors:
+   - GPS sensor mounted on top of the chassis
+   - IMU sensor inside the chassis
+6. A simulation loop that:
+   - Updates all modules (vehicle, terrain, driver, visualization)
+   - Processes sensor data at each step
+   - Renders the scene
+   - Outputs vehicle mass and sensor readings
 
-The script initializes all necessary systems, sets up the physics environment, and runs the simulation while collecting and displaying sensor data. The user can control the vehicle using keyboard inputs through the Irrlicht interface.
-
-Note: You'll need to update the Chrono data path to match your installation location.
+The sensors are properly initialized with the ChSensorManager and attached to the vehicle's chassis with appropriate update rates and noise models. The sensor data is processed and displayed during the simulation.

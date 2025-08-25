@@ -1,43 +1,47 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
-import pychrono.vehicle as chrono_vehicle
 
 # Initialize the PyChrono environment
-chrono.ChSystem.SetNumThreads(4)  # Set the number of threads for parallel processing
-system = chrono.ChSystem()
+chrono.SetChronoDataPath('/path/to/chrono/data/')  # Set your Chrono data path
+system = chrono.ChSystemNSC()
 
 # Create the Irrlicht visualization
 application = chronoirr.ChIrrApp(system, "HMMWV Simulation", chronoirr.dimension2d(800, 600))
 application.AddSkyBox()
 application.AddCamera(chrono.ChVectorD(0, 5, -15))
-application.AddLight(chrono.ChVectorD(0, 10, -10), chrono.ChColor(1, 1, 1))
+application.AddTypicalLights()
+application.SetShowLogo(False)
+application.SetShowInfos(True)
 
-# Create the terrain
-terrain = chrono_vehicle.ChTerrain()
-terrain.SetGround(chrono.ChVectorD(0, 0, 0), 1000, 1000)  # Flat terrain
+# Create terrain
+terrain = chrono.ChTerrain()
+terrain.SetGround(chrono.ChVectorD(0, 0, 0), 100, 100)  # Flat terrain
+system.Add(terrain)
 
-# Create the HMMWV vehicle
-hmmwv = chrono_vehicle.HMMWV()
+# Create HMMWV vehicle
+hmmwv = chrono.ChVehicleHMMWV()
 hmmwv.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0.5, 0), chrono.ChQuaternionD(1, 0, 0, 0)))
-
-# Add the vehicle to the system
 system.Add(hmmwv)
 
-# Create IMU and GPS sensors
-imu_sensor = chrono_vehicle.ChIMU()
-gps_sensor = chrono_vehicle.ChGPS()
+# Create driver inputs
+driver = chrono.ChDriverHMMWV(hmmwv)
+driver.SetThrottle(0.5)  # Set throttle input
+driver.SetSteering(0.1)  # Set steering input
+system.Add(driver)
 
-# Attach sensors to the vehicle's chassis
-hmmwv.GetChassis().AddSensor(imu_sensor)
-hmmwv.GetChassis().AddSensor(gps_sensor)
+# Add IMU sensor
+imu_sensor = chrono.ChIMU()
+imu_sensor.AttachTo(hmmwv.GetChassis())
+system.Add(imu_sensor)
 
-# Set default parameters for the simulation
-hmmwv.SetPos(chrono.ChVectorD(0, 0.5, 0))  # Initial position
-hmmwv.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))  # Initial orientation
+# Add GPS sensor
+gps_sensor = chrono.ChGPS()
+gps_sensor.AttachTo(hmmwv.GetChassis())
+system.Add(gps_sensor)
 
 # Simulation parameters
-time_step = 0.01  # Time step for the simulation
-end_time = 10.0   # End time for the simulation
+time_step = 0.01
+end_time = 10.0
 
 # Simulation loop
 while system.GetChTime() < end_time:
@@ -48,14 +52,14 @@ while system.GetChTime() < end_time:
     imu_data = imu_sensor.GetSensorData()
     gps_data = gps_sensor.GetSensorData()
 
-    # Output vehicle mass and sensor data
+    # Output vehicle mass
     vehicle_mass = hmmwv.GetVehicleMass()
     print(f"Time: {system.GetChTime():.2f} s, Vehicle Mass: {vehicle_mass:.2f} kg")
-    print(f"IMU Data: {imu_data}, GPS Data: {gps_data}")
 
     # Render the scene
+    application.BeginScene()
     application.DrawAll()
-    application.DoStep()
+    application.EndScene()
 
 # Clean up
 application.Close()

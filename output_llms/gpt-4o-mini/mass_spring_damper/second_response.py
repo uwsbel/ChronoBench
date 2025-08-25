@@ -1,18 +1,17 @@
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
 
-# Custom force functor for the spring
+# Custom force functor for spring force
 class MySpringForce(chrono.ChForceFunctor):
     def __init__(self, spring_coef, damping_coef):
         super().__init__()
         self.spring_coef = spring_coef
         self.damping_coef = damping_coef
 
-    def Evaluate(self, time, pos, vel):
-        # Calculate the spring force
-        spring_force = -self.spring_coef * pos
-        damping_force = -self.damping_coef * vel
-        return spring_force + damping_force
+    def Evaluate(self, body, time, pos, vel):
+        # Calculate the spring force based on the position and velocity
+        force = -self.spring_coef * pos - self.damping_coef * vel
+        return force
 
 rest_length = 1.5
 spring_coef = 50
@@ -49,17 +48,6 @@ box_1 = chrono.ChVisualShapeBox(1, 1, 1)
 box_1.SetColor(chrono.ChColor(0.6, 0, 0))
 body_1.AddVisualShape(box_1)
 
-# Create the spring between body_1 and ground
-spring_1 = chrono.ChLinkTSDA()
-spring_1.Initialize(body_1, ground, True, chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(-1, 0, 0))
-spring_1.SetRestLength(rest_length)
-spring_1.SetSpringCoefficient(spring_coef)
-spring_1.SetDampingCoefficient(damping_coef)
-sys.AddLink(spring_1)
-
-# Attach a visualization asset for spring_1
-spring_1.AddVisualShape(chrono.ChVisualShapeSpring(0.05, 80, 15))
-
 # Second body
 body_2 = chrono.ChBody()
 sys.AddBody(body_2)
@@ -74,16 +62,25 @@ box_2 = chrono.ChVisualShapeBox(1, 1, 1)
 box_2.SetColor(chrono.ChColor(0, 0.6, 0))
 body_2.AddVisualShape(box_2)
 
-# Create the second spring using the custom force functor
+# Create the spring between body_1 and ground
+spring_1 = chrono.ChLinkTSDA()
+spring_1.Initialize(body_1, ground, True, chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(-1, 0, 0))
+spring_1.SetRestLength(rest_length)
+spring_1.SetSpringCoefficient(spring_coef)
+spring_1.SetDampingCoefficient(damping_coef)
+sys.AddLink(spring_1)
+
+# Create the second spring between body_2 and ground using custom force functor
 spring_2 = chrono.ChLinkTSDA()
 spring_2.Initialize(body_2, ground, True, chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(1, 0, 0))
 spring_2.SetRestLength(rest_length)
-spring_2.SetSpringCoefficient(spring_coef)
-spring_2.SetDampingCoefficient(damping_coef)
-spring_2.SetForceFunctor(MySpringForce(spring_coef, damping_coef))  # Attach custom force functor
+spring_2.SetForceFunctor(MySpringForce(spring_coef, damping_coef))
 sys.AddLink(spring_2)
 
-# Visualization setup
+# Attach a visualization asset for spring_1
+spring_1.AddVisualShape(chrono.ChVisualShapeSpring(0.05, 80, 15))
+
+# Visualization system
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(sys)
 vis.SetWindowSize(1024, 768)

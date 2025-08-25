@@ -3,53 +3,59 @@ import pychrono.irrlicht as chronoirr
 import pychrono.vehicle as chrono_vehicle
 
 # Initialize the PyChrono environment
-chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.001)
-chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.001)
+chrono.SetChronoDataPath('/path/to/chrono/data/')  # Set your Chrono data path
+chrono.ChSystemNSC()  # Create a physical system
 
-# Create the system
-system = chrono.ChSystemNSC()
-
-# Create the HMMWV vehicle
-hmmwv = chrono_vehicle.HMMWV()
-hmmwv.Initialize(chrono.ChCoordsys(chrono.ChVectorD(0, 0, 0), chrono.ChQuaternionD(1, 0, 0, 0)))
+# Create a vehicle (HMMWV)
+vehicle = chrono_vehicle.HMMWV('HMMWV')
+vehicle.Initialize(chrono.ChCoordsys(chrono.ChVectorD(0, 0, 0), chrono.ChQuaternionD(1, 0, 0, 0)))
 
 # Set initial conditions for the vehicle
-hmmwv.SetPos(chrono.ChVectorD(0, 0, 0))
-hmmwv.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
+vehicle.SetChassisPos(chrono.ChVectorD(0, 0, 0))
+vehicle.SetChassisRot(chrono.ChQuaternionD(1, 0, 0, 0))
 
-# Create the SCM deformable terrain
-terrain = chrono_vehicle.SCMDeformableTerrain(system)
-terrain.SetContactMaterial(chrono.ChMaterialSurfaceNSC())
-terrain.SetSoilParameters(20000, 0.3, 0.5)  # Example parameters: stiffness, friction, cohesion
-terrain.Initialize(chrono.ChVectorD(0, 0, 0), "height_map.png")  # Load height map
+# Create a deformable terrain (SCM)
+terrain = chrono_vehicle.SCMDeformableTerrain()
+terrain.Initialize(chrono.ChCoordsys(chrono.ChVectorD(0, 0, 0), chrono.ChQuaternionD(1, 0, 0, 0)))
 
-# Initialize driver system for vehicle control
-driver = chrono_vehicle.HMMWV_Driver(hmmwv)
-driver.Initialize()
+# Define soil parameters for the terrain
+soil_params = chrono_vehicle.SoilParameters()
+soil_params.SetYoungModulus(20000)  # Example value
+soil_params.SetPoissonRatio(0.3)     # Example value
+soil_params.SetCohesion(10)          # Example value
+soil_params.SetFriction(0.5)         # Example value
+terrain.SetSoilParameters(soil_params)
 
-# Create Irrlicht visualization
-application = chronoirr.ChIrrApp(system, "HMMWV Simulation", chronoirr.dimension2d(800, 600))
-application.AddSkyBox()
-application.AddCamera(chronoirr.vector3df(0, 5, -10), chronoirr.vector3df(0, 0, 0))
-application.AddLight(chronoirr.vector3df(0, 10, -10), chronoirr.SColorf(1, 1, 1))
+# Initialize height map for the terrain
+terrain.InitializeHeightMap('/path/to/height/map.png')  # Set your height map path
 
-# Set the simulation step size
-step_size = 0.01
+# Create a driver system for vehicle control
+driver = chrono_vehicle.Driver()
+driver.Initialize(vehicle)
+
+# Set up real-time visualization using Irrlicht
+app = chronoirr.ChIrrApp(chrono.ChSystemNSC(), "HMMWV Simulation", chronoirr.dimension2d(800, 600))
+app.AddSkyBox()
+app.AddCamera(chrono.ChVectorD(0, 5, -10), chrono.ChVectorD(0, 0, 0))
+app.AddLight(chrono.ChVectorD(10, 10, 10), chrono.ChColor(1, 1, 1))
 
 # Simulation loop
-while application.GetDevice().run():
-    # Synchronize the driver and vehicle
-    driver.Synchronize(application.GetSystemTime())
-    hmmwv.Synchronize(application.GetSystemTime())
-    terrain.Synchronize(application.GetSystemTime())
+time_step = 0.01  # Set the time step for the simulation
+app.SetTimestep(time_step)
+
+while app.GetDevice().run():
+    # Synchronize and advance the vehicle, terrain, driver, and visual system
+    vehicle.Update(time_step)
+    terrain.Update(time_step)
+    driver.Update(time_step)
     
     # Advance the simulation
-    system.DoStepDynamics(step_size)
+    chrono.ChSystemNSC().DoStepDynamics(time_step)
     
-    # Update visualization
-    application.BeginScene()
-    application.DrawAll()
-    application.EndScene()
+    # Render the scene
+    app.BeginScene()
+    app.DrawAll()
+    app.EndScene()
 
-# Cleanup
-application.GetDevice().drop()
+# Clean up
+app.GetDevice().drop()

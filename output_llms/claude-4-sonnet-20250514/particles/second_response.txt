@@ -1,4 +1,12 @@
-Looking at the provided PyChrono script, I can identify several issues and will implement the requested modifications. Here's the corrected and modified script:
+Looking at the provided PyChrono script, I'll first identify potential errors and then implement the requested modifications.
+
+## Identified Issues:
+1. The script uses `chrono.ChFramed()` which should be `chrono.ChFrameD()`
+2. Some method calls might need verification for correct parameter usage
+
+## Corrections and Modifications:
+
+Here's the corrected and modified script:
 
 ```python
 import pychrono as chrono
@@ -40,7 +48,7 @@ emitter.SetParticleReservoirAmount(200)
 
 # Randomizers for particle properties
 emitter_positions = chrono.ChRandomParticlePositionOnGeometry()
-emitter_positions.SetGeometry(chrono.ChBox(50, 50, 50), chrono.ChFramed())
+emitter_positions.SetGeometry(chrono.ChBox(50, 50, 50), chrono.ChFrameD())  # Fixed: ChFramed() -> ChFrameD()
 emitter.SetParticlePositioner(emitter_positions)
 
 emitter_rotations = chrono.ChRandomParticleAlignmentUniform()
@@ -54,7 +62,7 @@ mangvelo = chrono.ChRandomParticleVelocityAnyDirection()
 mangvelo.SetModulusDistribution(chrono.ChUniformDistribution(0.0, 0.2))
 emitter.SetParticleAngularVelocity(mangvelo)
 
-# Modified: Replace ConvexHulls with Spheres particle creator
+# Modified: Replace ChRandomShapeCreatorConvexHulls with ChRandomShapeCreatorSpheres
 mcreator_spheres = chrono.ChRandomShapeCreatorSpheres()
 mcreator_spheres.SetDiameterDistribution(chrono.ChZhangDistribution(0.6, 0.23))
 mcreator_spheres.SetDensityDistribution(chrono.ChConstantDistribution(1600))
@@ -93,58 +101,61 @@ while vis.Run():
     for body in sys.GetBodies():
         body.EmptyAccumulators()
 
-    # Modified: Move G_constant definition inside the loop
+    # Modified: Move G_constant definition inside the simulation loop
     G_constant = 6.674e-3  # Modified gravitational constant
 
-    # Apply gravitational forces and calculate potential energy
-    potential_energy = 0.0
+    # Apply gravitational forces
     mlist = list(combinations(sys.GetBodies(), 2))
     for abodyA, abodyB in mlist:
         D_attract = abodyB.GetPos() - abodyA.GetPos()
         r_attract = D_attract.Length()
-        
-        # Avoid division by zero
-        if r_attract > 0:
+        if r_attract > 1e-6:  # Avoid division by zero
             f_attract = G_constant * (abodyA.GetMass() * abodyB.GetMass()) / (r_attract ** 2)
             F_attract = (D_attract / r_attract) * f_attract
             abodyA.AccumulateForce(F_attract, abodyA.GetPos(), False)
             abodyB.AccumulateForce(-F_attract, abodyB.GetPos(), False)
-            
-            # Calculate potential energy for this pair
-            potential_energy += -G_constant * (abodyA.GetMass() * abodyB.GetMass()) / r_attract
 
-    # Added: Calculate kinetic energy
+    sys.DoStepDynamics(stepsize)
+
+    # Added: Energy calculations
     kinetic_energy = 0.0
+    potential_energy = 0.0
+    
+    # Calculate kinetic energy
     for body in sys.GetBodies():
         velocity = body.GetPosDt()
         kinetic_energy += 0.5 * body.GetMass() * velocity.Length2()
-
-    # Added: Calculate total energy and print results
+    
+    # Calculate gravitational potential energy
+    mlist = list(combinations(sys.GetBodies(), 2))
+    for abodyA, abodyB in mlist:
+        D_attract = abodyB.GetPos() - abodyA.GetPos()
+        r_attract = D_attract.Length()
+        if r_attract > 1e-6:  # Avoid division by zero
+            potential_energy += -G_constant * (abodyA.GetMass() * abodyB.GetMass()) / r_attract
+    
     total_energy = kinetic_energy + potential_energy
+    
+    # Print energy values
     print(f"Kinetic Energy: {kinetic_energy:.6f}, Potential Energy: {potential_energy:.6f}, Total Energy: {total_energy:.6f}")
-
-    sys.DoStepDynamics(stepsize)
 ```
 
 ## Key Changes Made:
 
-### Error Corrections:
-1. **Fixed potential division by zero**: Added a check `if r_attract > 0` before calculating gravitational forces to prevent division by zero errors.
+1. **Fixed Error**: Changed `chrono.ChFramed()` to `chrono.ChFrameD()`
 
-### Modifications Based on Instructions:
+2. **Replaced Particle Creator**: 
+   - Replaced `chrono.ChRandomShapeCreatorConvexHulls` with `chrono.ChRandomShapeCreatorSpheres`
+   - Configured diameter distribution with `chrono.ChZhangDistribution(0.6, 0.23)`
+   - Set density distribution with `chrono.ChConstantDistribution(1600)`
 
-1. **Replaced Particle Creator**:
-   - Changed from `chrono.ChRandomShapeCreatorConvexHulls` to `chrono.ChRandomShapeCreatorSpheres`
-   - Configured `mcreator_spheres` with:
-     - Diameter distribution using `chrono.ChZhangDistribution(0.6, 0.23)`
-     - Density distribution using `chrono.ChConstantDistribution(1600)`
+3. **Added Energy Calculations**:
+   - Added kinetic energy calculation by summing `0.5 * mass * velocity.Length2()` for all bodies
+   - Added gravitational potential energy calculation between all pairs of bodies
+   - Added total energy calculation and printing of all energy values
 
-2. **Added Energy Calculations**:
-   - Added kinetic energy calculation by iterating over all bodies and summing `0.5 * mass * velocity.Length2()`
-   - Added potential energy calculation during the gravitational force computation loop
-   - Added total energy calculation and print statement showing all three energy values
+4. **Moved G_constant**: Moved the `G_constant` definition inside the simulation loop before energy calculations
 
-3. **Adjusted Position of G_constant**:
-   - Moved `G_constant` definition inside the simulation loop just before the energy calculations
+5. **Added Safety Check**: Added a check for `r_attract > 1e-6` to avoid division by zero in both force and energy calculations
 
-The script now correctly implements sphere particle creation, calculates and displays energy values at each simulation step, and has better organization with the gravitational constant defined closer to where it's used.
+The script now correctly implements sphere particle creation, comprehensive energy tracking, and proper organization as requested.

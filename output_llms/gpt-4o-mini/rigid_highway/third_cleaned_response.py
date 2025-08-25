@@ -65,8 +65,13 @@ patch_mat.SetRestitution(0.05)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 
 
+patch_orientation = chrono.Q_from_AngZ(-math.radians(90))
+
+
+patch_position = chrono.ChCoordsysd(chrono.ChVector3d(6, -70, 0), patch_orientation)
+
 patch = terrain.AddPatch(patch_mat, 
-    chrono.ChCoordsysd(chrono.ChVector3d(6, -70, 0), chrono.QuatFromAngleZ(-math.pi / 2)),  
+    patch_position,
     chrono.GetChronoDataFile('vehicle/terrain/meshes/Highway_col.obj'),
     True, 0.01, False)
 

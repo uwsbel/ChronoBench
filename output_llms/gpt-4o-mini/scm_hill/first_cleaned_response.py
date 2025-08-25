@@ -3,53 +3,59 @@ import pychrono.irrlicht as chronoirr
 import pychrono.vehicle as chrono_vehicle
 
 
-chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.001)
-chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.001)
+chrono.SetChronoDataPath('/path/to/chrono/data/')  
+chrono.ChSystemNSC()  
 
 
-system = chrono.ChSystemNSC()
+vehicle = chrono_vehicle.HMMWV('HMMWV')
+vehicle.Initialize(chrono.ChCoordsys(chrono.ChVectorD(0, 0, 0), chrono.ChQuaternionD(1, 0, 0, 0)))
 
 
-hmmwv = chrono_vehicle.HMMWV()
-hmmwv.Initialize(chrono.ChCoordsys(chrono.ChVectorD(0, 0, 0), chrono.ChQuaternionD(1, 0, 0, 0)))
+vehicle.SetChassisPos(chrono.ChVectorD(0, 0, 0))
+vehicle.SetChassisRot(chrono.ChQuaternionD(1, 0, 0, 0))
 
 
-hmmwv.SetPos(chrono.ChVectorD(0, 0, 0))
-hmmwv.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
+terrain = chrono_vehicle.SCMDeformableTerrain()
+terrain.Initialize(chrono.ChCoordsys(chrono.ChVectorD(0, 0, 0), chrono.ChQuaternionD(1, 0, 0, 0)))
 
 
-terrain = chrono_vehicle.SCMDeformableTerrain(system)
-terrain.SetContactMaterial(chrono.ChMaterialSurfaceNSC())
-terrain.SetSoilParameters(20000, 0.3, 0.5)  
-terrain.Initialize(chrono.ChVectorD(0, 0, 0), "height_map.png")  
+soil_params = chrono_vehicle.SoilParameters()
+soil_params.SetYoungModulus(20000)  
+soil_params.SetPoissonRatio(0.3)     
+soil_params.SetCohesion(10)          
+soil_params.SetFriction(0.5)         
+terrain.SetSoilParameters(soil_params)
 
 
-driver = chrono_vehicle.HMMWV_Driver(hmmwv)
-driver.Initialize()
+terrain.InitializeHeightMap('/path/to/height/map.png')  
 
 
-application = chronoirr.ChIrrApp(system, "HMMWV Simulation", chronoirr.dimension2d(800, 600))
-application.AddSkyBox()
-application.AddCamera(chronoirr.vector3df(0, 5, -10), chronoirr.vector3df(0, 0, 0))
-application.AddLight(chronoirr.vector3df(0, 10, -10), chronoirr.SColorf(1, 1, 1))
+driver = chrono_vehicle.Driver()
+driver.Initialize(vehicle)
 
 
-step_size = 0.01
+app = chronoirr.ChIrrApp(chrono.ChSystemNSC(), "HMMWV Simulation", chronoirr.dimension2d(800, 600))
+app.AddSkyBox()
+app.AddCamera(chrono.ChVectorD(0, 5, -10), chrono.ChVectorD(0, 0, 0))
+app.AddLight(chrono.ChVectorD(10, 10, 10), chrono.ChColor(1, 1, 1))
 
 
-while application.GetDevice().run():
+time_step = 0.01  
+app.SetTimestep(time_step)
+
+while app.GetDevice().run():
     
-    driver.Synchronize(application.GetSystemTime())
-    hmmwv.Synchronize(application.GetSystemTime())
-    terrain.Synchronize(application.GetSystemTime())
+    vehicle.Update(time_step)
+    terrain.Update(time_step)
+    driver.Update(time_step)
     
     
-    system.DoStepDynamics(step_size)
+    chrono.ChSystemNSC().DoStepDynamics(time_step)
     
     
-    application.BeginScene()
-    application.DrawAll()
-    application.EndScene()
+    app.BeginScene()
+    app.DrawAll()
+    app.EndScene()
 
 
-application.GetDevice().drop()
+app.GetDevice().drop()

@@ -18,7 +18,7 @@ chassis_collision_type = veh.CollisionType_NONE
 
 
 tire_model = veh.TireModelType_PACEJKA  
-tire_version = 89  
+tire_model_version = 89  
 
 
 terrainHeight = 0      
@@ -47,6 +47,9 @@ vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
+
+
+vehicle.SetTireModelVersion(tire_model_version)  
 
 vehicle.Initialize()
 

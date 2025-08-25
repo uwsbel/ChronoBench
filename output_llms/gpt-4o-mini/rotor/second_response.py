@@ -4,21 +4,21 @@ import pychrono.fea as fea
 import pychrono.pardisomkl as mkl
 import pychrono.irrlicht as chronoirr
 
-# Create the Chrono system
+# Create the system
 sys = chrono.ChSystemSMC()
 
-# Create the mesh for FEA
+# Create the mesh
 mesh = fea.ChMesh()
 sys.Add(mesh)
 
-# Set automatic gravity for FEA
+# Set automatic gravity
 mesh.SetAutomaticGravity(True, 2)  # for max precision in gravity of FE, at least 2 integration points per element when using cubic IGA
-sys.SetGravitationalAcceleration(chrono.ChVector3d(0, -3.71, 0))  # Changed gravitational acceleration
+sys.SetGravitationalAcceleration(chrono.ChVector3d(0, -3.71, 0))  # Changed gravity to -3.71
 
-# Beam properties
-beam_L = 10  # Changed beam length from 6 to 10
-beam_ro = 0.060  # Changed outer radius from 0.050 to 0.060
-beam_ri = 0.055  # Changed inner radius from 0.045 to 0.055
+# Beam parameters
+beam_L = 10  # Changed beam length to 10
+beam_ro = 0.060  # Changed outer radius to 0.060
+beam_ri = 0.055  # Changed inner radius to 0.055
 CH_PI = 3.141592653589793  # Corrected value of PI
 
 # Create a section, i.e. thickness and material properties for beams
@@ -53,10 +53,11 @@ builder.BuildBeam(mesh,  # the mesh to put the elements in
 node_mid = builder.GetLastBeamNodes()[m.floor(builder.GetLastBeamNodes().size() / 2.0)]
 
 # Create the flywheel and attach it to the center of the beam
-mbodyflywheel = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, 0.30, 0.1, 7800)  # Changed flywheel radius from 0.24 to 0.30
+mbodyflywheel = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, 0.30, 0.1, 7800)  # Changed flywheel radius to 0.30
 mbodyflywheel.SetCoordsys(
     chrono.ChCoordsysd(node_mid.GetPos() + chrono.ChVector3d(0, 0.05, 0),  # flywheel initial center (plus Y offset)
-                       chrono.QuatFromAngleAxis(CH_PI / 2.0, chrono.VECT_Z))  # flywheel initial alignment (rotate 90° so cylinder axis is on X)
+                       chrono.QuatFromAngleAxis(CH_PI / 2.0, chrono.VECT_Z))
+    # flywheel initial alignment (rotate 90° so cylinder axis is on X)
 )
 sys.Add(mbodyflywheel)
 
@@ -84,11 +85,13 @@ rotmotor1 = chrono.ChLinkMotorRotationSpeed()
 rotmotor1.Initialize(builder.GetLastBeamNodes().front(),  # body A (slave)
                      truss,  # body B (master)
                      chrono.ChFramed(builder.GetLastBeamNodes().front().GetPos(),
-                                     chrono.QuatFromAngleAxis(CH_PI / 2.0, chrono.VECT_Y))  # motor frame, in abs. coords
+                                     chrono.QuatFromAngleAxis(CH_PI / 2.0, chrono.VECT_Y))
+                     # motor frame, in abs. coords
                      )
 sys.Add(rotmotor1)
 
-f_ramp = chrono.ChFunctionSine(60, 0.1)  # Changed motor function from Sine(40, 0.2) to Sine(60, 0.1)
+# Change motor function
+f_ramp = chrono.ChFunctionSine(60, 0.1)  # Changed motor function to Sine(60, 0.1)
 rotmotor1.SetMotorFunction(f_ramp)
 
 # Attach a visualization of the FEM mesh
@@ -113,7 +116,7 @@ vis.SetWindowTitle('Test FEA: the Jeffcott rotor with IGA beams')
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()
-vis.AddCamera(chrono.ChVector3d(0, 2, 8), chrono.ChVector3d(beam_L / 2, 0, 0))  # Changed camera position from (0, 1, 4) to (0, 2, 8)
+vis.AddCamera(chrono.ChVector3d(0, 2, 8), chrono.ChVector3d(beam_L / 2, 0, 0))  # Changed camera position
 vis.AddTypicalLights()
 
 msolver = mkl.ChSolverPardisoMKL()

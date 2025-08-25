@@ -106,10 +106,10 @@ step_number = 0
 render_frame = 0
 
 # Maneuver parameters
-lane_change_duration = 2.0  # seconds for the lane change
+lane_change_duration = 2.0  # seconds for lane change
 braking_duration = 1.0       # seconds for braking
 total_time = 10.0            # total simulation time
-lane_change_start_time = 2.0  # time to start lane change
+lane_change_start_time = 2.0  # when to start lane change
 lane_change_end_time = lane_change_start_time + lane_change_duration
 braking_start_time = lane_change_end_time + 1.0  # start braking after lane change
 
@@ -135,9 +135,10 @@ while vis.Run() and (vehicle.GetSystem().GetChTime() < total_time):
         # Gradually apply brakes
         driver_inputs.m_braking = (time - braking_start_time) / braking_duration
         driver_inputs.m_throttle = 0.0  # No throttle during braking
+        driver_inputs.m_steering = 0.0   # Straighten the steering
     else:
-        driver_inputs.m_steering = 0.0  # No steering after lane change
-        driver_inputs.m_throttle = 0.0  # No throttle after lane change
+        driver_inputs.m_throttle = 1.0  # Full throttle otherwise
+        driver_inputs.m_steering = 0.0   # Straight steering
 
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)

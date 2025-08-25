@@ -17,6 +17,7 @@ def main():
     side = 2.0  
     box_body = chrono.ChBodyEasyBox(side, side, side, 1000, True, True)  
     box_body.SetPos(chrono.ChVector3d(0, 0, 0))  
+    box_body.SetFixed(True)  
     mphysicalSystem.Add(box_body)  
 
     

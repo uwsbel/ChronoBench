@@ -68,7 +68,7 @@ patch = terrain.AddPatch(patch_mat,
     chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
     terrainLength, terrainWidth)
 
-# Changed texture from "tile4.jpg" to "grass.jpg"
+# Changed terrain texture from "tile4.jpg" to "grass.jpg"
 patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
@@ -108,10 +108,12 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-# Initialize sensor manager
+# Create sensor manager and lidar sensor
 sensor_manager = sensor.ChSensorManager(vehicle.GetSystem())
-lidar = sensor.ChLidarSensor(vehicle.GetVehicle().GetChassis(), 10.0, 0.1, 0.5, 180, 360)
-sensor_manager.AddSensor(lidar)
+lidar_sensor = sensor.ChLidarSensor()
+lidar_sensor.SetPosition(chrono.ChVectorD(0, 0, 2))  # Set position of the lidar sensor
+lidar_sensor.SetOrientation(chrono.ChQuaternionD(1, 0, 0, 0))  # Set orientation
+sensor_manager.AddSensor(lidar_sensor)
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()

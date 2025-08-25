@@ -64,9 +64,9 @@ vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
-
-# Create the main terrain patch
 terrain = veh.RigidTerrain(vehicle.GetSystem())
+
+# Add the first terrain patch
 patch = terrain.AddPatch(patch_mat, 
     chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
     chrono.GetChronoDataFile('vehicle/terrain/meshes/Highway_col.obj'),
@@ -78,13 +78,13 @@ tri_mesh_shape.SetMesh(vis_mesh)
 tri_mesh_shape.SetMutable(False)
 patch.GetGroundBody().AddVisualShape(tri_mesh_shape)
 
-# Create the additional terrain patch
+# Add the new terrain patch using bump.obj
 bump_patch = terrain.AddPatch(patch_mat, 
     chrono.ChCoordsysd(chrono.ChVector3d(0, -42, 0), chrono.QUNIT),
     chrono.GetChronoDataFile('vehicle/terrain/meshes/bump.obj'),
     True, 0.01, False)
 
-# Set color and texture for the bump patch
+# Set color and texture for the new patch
 bump_patch.GetGroundBody().SetColor(chrono.ChColor(0.5, 0.5, 0.8))
 bump_patch.GetGroundBody().SetTexture(chrono.GetChronoDataFile('vehicle/terrain/textures/dirt.jpg'), 6.0, 6.0)
 

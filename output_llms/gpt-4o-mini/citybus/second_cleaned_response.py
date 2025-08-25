@@ -118,10 +118,13 @@ while vis.Run():
         render_frame += 1
 
     
+    driver_inputs = driver.GetInputs(time)
+
+    
     driver.Synchronize(time)
     terrain.Synchronize(time)
-    vehicle.Synchronize(time, driver.GetInputs(), terrain)
-    vis.Synchronize(time, driver.GetInputs())
+    vehicle.Synchronize(time, driver_inputs, terrain)
+    vis.Synchronize(time, driver_inputs)
 
     
     driver.Advance(step_size)

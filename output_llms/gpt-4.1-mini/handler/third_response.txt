@@ -11,7 +11,7 @@ class MyCustomHandler(chros.ChROSHandler):
     """This custom handler will publish integer messages to a specified ROS topic."""
 
     def __init__(self, topic):
-        super().__init__(publish_rate=1)  # Initialize the handler with a 1 Hz publishing rate.
+        super().__init__(1)  # Initialize the handler with a 1 Hz publishing rate.
 
         self.topic = topic
         self.publisher: rclpy.publisher.Publisher = None
@@ -36,7 +36,7 @@ class MyCustomHandler(chros.ChROSHandler):
 def main():
     # Create the Chrono simulation system.
     sys = ch.ChSystemNSC()
-    sys.Set_G_acc(ch.ChVectorD(0, 0, -9.81))  # Corrected SetGravitationalAcceleration method.
+    sys.Set_G_acc(ch.ChVectorD(0, 0, -9.81))  # Set gravitational acceleration.
 
     # Define physical material properties for contact.
     phys_mat = ch.ChMaterialSurfaceNSC()
@@ -45,10 +45,9 @@ def main():
     # Create a floor object.
     floor = ch.ChBodyEasyBox(10, 10, 1, 1000, True, True, phys_mat)
     floor.SetPos(ch.ChVectorD(0, 0, -1))  # Position the floor.
-    floor.SetBodyFixed(True)  # Fixed the floor in place.
+    floor.SetBodyFixed(True)  # Fix the floor in place.
     floor.SetName("base_link")  # Set the name for ROS communication.
-    floor.SetTexture("textures/concrete.jpg")  # Set floor texture.
-
+    floor.SetTexture("textures/concrete.jpg")  # Set texture for the floor.
     sys.Add(floor)  # Add the floor to the simulation system.
 
     # Create a box object.
@@ -56,18 +55,17 @@ def main():
     box.SetPos(ch.ChVectorD(0, 0, 5))  # Position the box above the floor.
     box.SetRot(ch.Q_from_AngAxis(0.2, ch.ChVectorD(1, 0, 0)))  # Rotate the box slightly.
     box.SetName("box")  # Set the name for ROS communication.
-    box.SetTexture("textures/wood.jpg")  # Set box texture.
-
+    box.SetTexture("textures/blue.png")  # Set texture for the box.
     sys.Add(box)  # Add the box to the simulation system.
 
     # Create and configure the ROS manager.
     ros_manager = chros.ChROSPythonManager()
 
-    # Set publish rate variable 10Hz for ROS handlers
+    # Set publish rate to 10 Hz for ROS handlers.
     publish_rate = 10
 
     # Register a clock handler for the simulation time.
-    ros_manager.RegisterHandler(chros.ChROSClockHandler(publish_rate))
+    ros_manager.RegisterHandler(chros.ChROSClockHandler())
 
     # Register a body handler to communicate the box's state.
     ros_manager.RegisterHandler(chros.ChROSBodyHandler(publish_rate, box, "~/box"))
@@ -77,51 +75,57 @@ def main():
     tf_handler.AddTransform(floor, floor.GetName(), box, box.GetName())
     ros_manager.RegisterHandler(tf_handler)
 
-    # Register the custom handler to publish messages with the publish_rate
+    # Register the custom handler to publish messages.
     custom_handler = MyCustomHandler("~/my_topic")
-    custom_handler.SetPublishRate(publish_rate)
     ros_manager.RegisterPythonHandler(custom_handler)
 
     # Initialize the ROS manager.
     ros_manager.Initialize()
 
-    # Setup Irrlicht visualization
+    # Setup Irrlicht visualization.
     vis = ch_irr.ChVisualSystemIrrlicht()
     vis.AttachSystem(sys)
-    vis.SetWindowSize(1280, 720)
+    vis.SetWindowSize(1024, 768)
     vis.SetWindowTitle("PyChrono Simulation with ROS")
     vis.Initialize()
     vis.AddLogo()
     vis.AddSkyBox()
-    vis.AddCamera(ch.ChVectorD(0, -15, 6), ch.ChVectorD(0, 0, 0))
+    vis.AddCamera(ch.ChVectorD(0, -15, 5))
     vis.AddTypicalLights()
-    vis.EnableShadowMap(True)
+    vis.SetLightFollowCamera(True)
 
-    # Variables for controlling rendering frame rate
+    # Variables for controlling rendering frame rate.
+    step_number = 0
+    render_step_size = 1.0 / 60.0  # Render at 60 Hz
+    render_steps = int(render_step_size / 1e-3)  # Number of simulation steps per render
+
+    # Run the simulation loop.
+    time = 0
     time_step = 1e-3  # Define the simulation time step.
-    time_end = 30     # Set the duration for the simulation.
-
-    render_steps = 5            # Number of simulation steps between visual scene updates
-    step_number = 0             # Simulation step counter
+    time_end = 30  # Set the duration for the simulation.
 
     realtime_timer = ch.ChRealtimeStepTimer()  # Create a real-time step timer.
 
-    # Run the simulation loop with visualization and ROS updates.
-    while vis.Run() and sys.GetChTime() < time_end:
-        sys.DoStepDynamics(time_step)
-        step_number += 1
+    while time < time_end:
+        sys.DoStepDynamics(time_step)  # Advance the simulation by one time step.
+        time = sys.GetChTime()  # Update the simulation time.
 
-        # Only update ROS and render visualization every render_steps
+        if not ros_manager.Update(time, time_step):  # Update ROS communication.
+            break  # Exit the loop if the ROS manager indicates a problem.
+
+        # Render conditionally every render_steps simulation steps.
         if step_number % render_steps == 0:
-            current_time = sys.GetChTime()
-            if not ros_manager.Update(current_time, time_step * render_steps):
-                break  # Exit the loop if the ROS manager indicates a problem.
+            if vis.Run():
+                vis.BeginScene()
+                vis.DrawAll()
+                vis.EndScene()
+            else:
+                # Visualization window was closed
+                break
 
-            vis.BeginScene()
-            vis.Render()
-            vis.EndScene()
+        step_number += 1
+        realtime_timer.Spin(time_step)  # Maintain real-time step execution.
 
-        realtime_timer.Spin(time_step)
 
 # Entry point of the script.
 if __name__ == "__main__":
@@ -129,34 +133,42 @@ if __name__ == "__main__":
 ```
 ---
 
-### Summary of corrections and modifications:
+### Explanation of corrections and modifications:
 
-1. **Corrections of method and class names:**
-   - `sys.SetGravitationalAcceleration` → `sys.Set_G_acc`
-   - `ChContactMaterialNSC` → `ChMaterialSurfaceNSC` (correct PyChrono class for friction material)
-   - `floor.SetFixed(True)` → `floor.SetBodyFixed(True)`
-   - `ch.QuatFromAngleAxis` → `ch.Q_from_AngAxis`
-   - `ch.ChVector3d` replaced with `ch.ChVectorD` (double precision vector)
-   - Import `pychrono.irrlicht` as `ch_irr` for visualization
+1. **Imports:**
+   - Added `import pychrono.irrlicht as ch_irr` for visualization.
+   - Kept `import pychrono.ros as chros` and other imports as is.
 
-2. **ROS Handlers publishing rate:**
-   - Introduced `publish_rate = 10`
-   - All ROS handlers instantiated with the `publish_rate` parameter for 10 Hz publishing.
-   - For the custom handler, called `SetPublishRate(publish_rate)`
+2. **Material and Gravity:**
+   - Changed `SetGravitationalAcceleration` to `Set_G_acc` (correct PyChrono Python API).
+   - Changed `ChContactMaterialNSC` to `ChMaterialSurfaceNSC` (correct class for NSC contact material).
+   - Used `ch.ChVectorD` instead of `ch.ChVector3d` (PyChrono Python API uses `ChVectorD`).
+   - Used `SetBodyFixed(True)` instead of `SetFixed(True)` (correct method name).
 
-3. **Visualization setup:**
-   - Created an Irrlicht visualization system attached to `sys`
-   - Set window size, title, added logo, skybox, typical lights, camera, and shadow map
-   - Added `SetTexture` method for floor and box (using `"textures/concrete.jpg"` and `"textures/wood.jpg"` respectively)
+3. **Rotation:**
+   - Changed `ch.QuatFromAngleAxis` to `ch.Q_from_AngAxis` (correct PyChrono Python API).
 
-4. **Rendering and simulation loop control:**
-   - Introduced `render_steps = 5`
-   - Increment and track `step_number`
-   - Only call visualization rendering and ROS manager update every `render_steps` simulation steps
-   - Used `vis.Run()` to keep the Irrlicht window alive as the loop condition
+4. **Textures:**
+   - Added `SetTexture` calls for floor and box with example texture paths `"textures/concrete.jpg"` and `"textures/blue.png"`.
+   - These paths assume textures exist in a `textures` folder relative to the script.
 
-5. **Timing and spinning:**
-   - Passed correct simulated time and time step multiplied by `render_steps` to `ros_manager.Update()`
-   - Used `realtime_timer.Spin(time_step)` to attempt real-time step execution
+5. **ROS Handlers:**
+   - Added `publish_rate = 10` Hz.
+   - Used `publish_rate` in `ChROSBodyHandler` and `ChROSTFHandler` constructors.
 
-This complete script complies with PyChrono conventions, fixes identified errors, and applies the instructed modifications.
+6. **Visualization Setup:**
+   - Created an Irrlicht visualization system `vis`.
+   - Set window size, title, added logo, skybox, camera, lights.
+   - Set lights to follow the camera.
+
+7. **Rendering Control:**
+   - Added variables `step_number`, `render_step_size` (1/60 s), and `render_steps` (number of simulation steps per render).
+   - Modified simulation loop to render only every `render_steps` steps.
+   - Added check for `vis.Run()` to detect window closure.
+
+8. **General:**
+   - Used consistent vector and quaternion constructors.
+   - Added comments for clarity.
+   - Ensured the simulation loop respects real-time stepping and ROS updates.
+
+This script should now run correctly with visualization, ROS communication at 10 Hz, and controlled rendering frame rate.

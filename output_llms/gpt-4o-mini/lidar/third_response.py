@@ -13,21 +13,36 @@ def main():
     # -----------------
     mphysicalSystem = chrono.ChSystemNSC()
 
-    # ----------------------------------
-    # Create and initialize an ARTcar vehicle
-    # ----------------------------------
-    artcar = vehicle.ChVehicle("ARTcar")
-    artcar.Initialize(chrono.ChVectorD(0, 0, 0), chrono.ChQuaternionD(1, 0, 0, 0))
-    mphysicalSystem.Add(artcar)
+    # -----------------------
+    # Create an ARTcar vehicle
+    # -----------------------
+    my_vehicle = vehicle.ChVehicle("ARTcar")
+    my_vehicle.Initialize(chrono.ChVectorD(0, 0, 0), chrono.ChQuaternionD(1, 0, 0, 0))
+    mphysicalSystem.Add(my_vehicle)
+
+    # -----------------------
+    # Create a driver for the vehicle
+    # -----------------------
+    driver = vehicle.ChDriver(my_vehicle)
+    driver.Initialize()
+
+    # -----------------------
+    # Create a rigid terrain
+    # -----------------------
+    terrain = vehicle.ChTerrain()
+    terrain.SetMaterial(chrono.ChMaterialSurfaceNSC())
+    terrain.SetTexture(chrono.GetChronoDataFile("textures/terrain_texture.png"))
+    mphysicalSystem.Add(terrain)
 
     # ----------------------------------
-    # Add terrain
+    # Add a mesh to be sensed by a lidar
     # ----------------------------------
-    terrain = chrono.ChBodyEasyBox(100, 1, 100, 1000, True, True)
-    terrain.SetPos(chrono.ChVectorD(0, -0.5, 0))
-    terrain.SetMaterialSurface(chrono.ChMaterialSurfaceNSC())
-    terrain.GetVisualModel().GetShape(0).SetTexture(chrono.GetChronoDataFile("textures/ground_texture.png"))
-    mphysicalSystem.Add(terrain)
+    # Create box for camera to sense (not needed anymore, but kept for reference)
+    side = 4
+    box = chrono.ChBodyEasyBox(side, side, side, 1000)
+    box.SetPos(chrono.ChVector3d(0, 0, 0))
+    box.SetFixed(True)
+    mphysicalSystem.Add(box)
 
     # -----------------------
     # Create a sensor manager
@@ -41,20 +56,20 @@ def main():
         chrono.ChVector3d(1.0, 0, 1), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
     )
     lidar = sens.ChLidarSensor(
-        artcar.GetChassis(),  # Body lidar is attached to the vehicle chassis
-        update_rate,          # Scanning rate in Hz
-        offset_pose,          # Offset pose
-        horizontal_samples,   # Number of horizontal samples
-        vertical_samples,     # Number of vertical channels
-        horizontal_fov,       # Horizontal field of view
-        max_vert_angle,       # Maximum vertical field of view
-        min_vert_angle,       # Minimum vertical field of view
-        100.0,                # Maximum lidar range
+        my_vehicle.GetChassisBody(),  # Body lidar is attached to
+        update_rate,                   # Scanning rate in Hz
+        offset_pose,                   # Offset pose
+        horizontal_samples,            # Number of horizontal samples
+        vertical_samples,              # Number of vertical channels
+        horizontal_fov,                # Horizontal field of view
+        max_vert_angle,                # Maximum vertical field of view
+        min_vert_angle,                # Minimum vertical field of view
+        100.0,                         # Maximum lidar range
         sens.LidarBeamShape_RECTANGULAR,  # Shape of the lidar beam
-        sample_radius,        # Sample radius
-        divergence_angle,     # Divergence angle
-        divergence_angle,     # Divergence angle (again, typically same value)
-        return_mode           # Return mode for the lidar
+        sample_radius,                 # Sample radius
+        divergence_angle,              # Divergence angle
+        divergence_angle,              # Divergence angle (again, typically same value)
+        return_mode                    # Return mode for the lidar
     )
     lidar.SetName("Lidar Sensor")
     lidar.SetLag(lag)
@@ -85,20 +100,20 @@ def main():
     
     # Create 2D lidar sensor
     lidar_2d = sens.ChLidarSensor(
-        artcar.GetChassis(),  # Body lidar is attached to the vehicle chassis
-        update_rate,          # Scanning rate in Hz
-        offset_pose,          # Offset pose
-        horizontal_samples,   # Number of horizontal samples
-        1,                    # only 1 vertical channel for 2D lidar
-        horizontal_fov,       # Horizontal field of view
-        0.0,                  # Maximum vertical field of view
-        0.0,                  # Minimum vertical field of view
-        100.0,                # Maximum lidar range
+        my_vehicle.GetChassisBody(),  # Body lidar is attached to
+        update_rate,                   # Scanning rate in Hz
+        offset_pose,                   # Offset pose
+        horizontal_samples,            # Number of horizontal samples
+        1,                             # only 1 vertical channel for 2D lidar
+        horizontal_fov,                # Horizontal field of view
+        0.0,                           # Maximum vertical field of view
+        0.0,                           # Minimum vertical field of view
+        100.0,                         # Maximum lidar range
         sens.LidarBeamShape_RECTANGULAR,  # Shape of the lidar beam
-        sample_radius,        # Sample radius
-        divergence_angle,     # Divergence angle
-        divergence_angle,     # Divergence angle (again, typically same value)
-        return_mode           # Return mode for the lidar
+        sample_radius,                 # Sample radius
+        divergence_angle,              # Divergence angle
+        divergence_angle,              # Divergence angle (again, typically same value)
+        return_mode                    # Return mode for the lidar
     )
     lidar_2d.SetName("2D Lidar Sensor")
     lidar_2d.SetLag(lag)
@@ -120,20 +135,6 @@ def main():
     # Add the lidar to the sensor manager
     manager.AddSensor(lidar_2d)
 
-    # Add a third-person camera sensor
-    camera_offset = chrono.ChVectorD(5, 2, 1)
-    camera = sens.ChCameraSensor(
-        artcar.GetChassis(),
-        update_rate,
-        camera_offset,
-        640,  # Width
-        480,  # Height
-        0.1,  # Near plane
-        100.0 # Far plane
-    )
-    camera.SetName("Third Person Camera")
-    manager.AddSensor(camera)
-
     # ---------------
     # Simulate system
     # ---------------
@@ -145,9 +146,22 @@ def main():
     t1 = time.time()
 
     while ch_time < end_time:
-        # Synchronize vehicle and driver
-        artcar.Update(ch_time)
-        
+        # Update vehicle dynamics
+        driver.Update(ch_time)
+        my_vehicle.Advance(ch_time)
+
+        # Set lidar to orbit around the vehicle chassis
+        lidar.SetOffsetPose(
+            chrono.ChFramed(
+                chrono.ChVector3d(
+                    orbit_radius * math.cos(ch_time * orbit_rate),
+                    orbit_radius * math.sin(ch_time * orbit_rate),
+                    1
+                ),
+                chrono.QuatFromAngleAxis(ch_time * orbit_rate, chrono.ChVector3d(0, 0, 1))
+            )
+        )
+
         # Access the XYZI buffer from lidar
         xyzi_buffer = lidar.GetMostRecentXYZIBuffer()
         if xyzi_buffer.HasData():

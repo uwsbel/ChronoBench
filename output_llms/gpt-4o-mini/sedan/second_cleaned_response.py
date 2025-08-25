@@ -12,7 +12,7 @@ initLoc1 = chrono.ChVector3d(0, 0, 0.5)
 initRot1 = chrono.ChQuaterniond(1, 0, 0, 0)
 
 
-initLoc2 = chrono.ChVector3d(2, 0, 0.5)  
+initLoc2 = chrono.ChVector3d(5, 0, 0.5)  
 initRot2 = chrono.ChQuaterniond(1, 0, 0, 0)
 
 
@@ -30,8 +30,7 @@ terrainLength = 100.0
 terrainWidth = 100.0   
 
 
-trackPoint1 = chrono.ChVector3d(-5.0, 0.0, 1.8)
-trackPoint2 = chrono.ChVector3d(-5.0, 2.0, 1.8)  
+trackPoint = chrono.ChVector3d(-5.0, 0.0, 1.8)
 
 
 contact_method = chrono.ChContactMethod_NSC
@@ -58,12 +57,6 @@ vehicle1.SetTireType(tire_model)
 vehicle1.SetTireStepSize(tire_step_size)
 vehicle1.Initialize()
 
-vehicle1.SetChassisVisualizationType(vis_type)
-vehicle1.SetSuspensionVisualizationType(vis_type)
-vehicle1.SetSteeringVisualizationType(vis_type)
-vehicle1.SetWheelVisualizationType(vis_type)
-vehicle1.SetTireVisualizationType(vis_type)
-
 
 vehicle2 = veh.BMW_E90()
 vehicle2.SetContactMethod(contact_method)
@@ -74,11 +67,17 @@ vehicle2.SetTireType(tire_model)
 vehicle2.SetTireStepSize(tire_step_size)
 vehicle2.Initialize()
 
-vehicle2.SetChassisVisualizationType(vis_type)
-vehicle2.SetSuspensionVisualizationType(vis_type)
-vehicle2.SetSteeringVisualizationType(vis_type)
-vehicle2.SetWheelVisualizationType(vis_type)
-vehicle2.SetTireVisualizationType(vis_type)
+
+for vehicle in [vehicle1, vehicle2]:
+    vehicle.SetChassisVisualizationType(vis_type)
+    vehicle.SetSuspensionVisualizationType(vis_type)
+    vehicle.SetSteeringVisualizationType(vis_type)
+    vehicle.SetWheelVisualizationType(vis_type)
+    vehicle.SetTireVisualizationType(vis_type)
+
+
+vehicle1.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+vehicle2.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
 patch_mat = chrono.ChContactMaterialNSC()
@@ -98,7 +97,7 @@ terrain.Initialize()
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('Sedan')
 vis.SetWindowSize(1280, 1024)
-vis.SetChaseCamera(trackPoint1, 6.0, 0.5)
+vis.SetChaseCamera(trackPoint, 6.0, 0.5)
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
@@ -156,16 +155,18 @@ while vis.Run():
     driver_inputs2 = driver2.GetInputs()
 
     
-    driver_inputs1.m_steering = math.sin(time)  
-    driver_inputs2.m_steering = math.sin(time + math.pi / 4)  
-
-    
     driver1.Synchronize(time)
     driver2.Synchronize(time)
     terrain.Synchronize(time)
     vehicle1.Synchronize(time, driver_inputs1, terrain)
     vehicle2.Synchronize(time, driver_inputs2, terrain)
     vis.Synchronize(time, driver_inputs1)
+
+    
+    steering_input1 = math.sin(time) * 0.5  
+    steering_input2 = math.sin(time + math.pi / 2) * 0.5  
+    driver1.SetSteering(steering_input1)
+    driver2.SetSteering(steering_input2)
 
     
     driver1.Advance(step_size)

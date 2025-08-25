@@ -1,50 +1,54 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
-import pychrono.sensor as sensor
 import numpy as np
 
 # Initialize the PyChrono environment
-chrono.ChSystemNSC()
+chrono.SetChronoDataPath('/path/to/chrono/data/')  # Set the path to your Chrono data
 system = chrono.ChSystemNSC()
 
-# Create a visualization window
-application = chronoirr.ChIrrApp(system, "Lidar Simulation", chronoirr.dimension2du(800, 600))
-application.SetSkyBox()
-application.AddLogo()
-application.SetFPS(60)
-
 # Load the triangular mesh from a Wavefront .obj file
+mesh_file = 'path/to/your/mesh.obj'  # Replace with your .obj file path
 mesh = chrono.ChTriangleMeshConnected()
-mesh.LoadWavefrontMesh("path/to/your/mesh.obj", True, True)
+mesh.LoadWavefrontMesh(mesh_file, True, True)
 
 # Create a fixed body for the mesh
 fixed_body = chrono.ChBodyAuxRef()
 fixed_body.SetBodyFixed(True)
-fixed_body.SetCollide(False)
+fixed_body.SetCollide(True)
 fixed_body.GetCollisionModel().ClearModel()
-fixed_body.GetCollisionModel().AddTriangleMesh(mesh, chrono.ChVectorD(0, 0, 0), chrono.ChMatrix33(chrono.CH_C_PI / 2), True, True)
+fixed_body.GetCollisionModel().AddTriangleMesh(mesh, chrono.ChVectorD(0, 0, 0), chrono.ChMatrix33(1), True, True)
 fixed_body.GetCollisionModel().BuildModel()
-fixed_body.SetMass(0)  # Fixed body has no mass
 system.Add(fixed_body)
 
-# Create a lidar sensor
-lidar_sensor = sensor.ChSensorLidar()
-lidar_sensor.SetName("Lidar Sensor")
+# Create a sensor manager and add a LiDAR sensor
+sensor_manager = chrono.ChSensorManager(system)
+lidar_sensor = chrono.ChSensorLiDAR()
+lidar_sensor.SetName("LiDAR Sensor")
 lidar_sensor.SetParent(fixed_body)
-lidar_sensor.SetOffset(chrono.ChVectorD(0, 2, 0))  # Position above the mesh
-lidar_sensor.SetFOV(90)  # Field of view
-lidar_sensor.SetRange(10)  # Range of the lidar
-lidar_sensor.SetResolution(512)  # Resolution of the lidar data
 
-# Add noise filters to the lidar sensor
-lidar_sensor.SetNoise(0.05)  # Add noise with a standard deviation of 0.05
+# Set LiDAR parameters
+lidar_sensor.SetPosition(chrono.ChVectorD(0, 2, 0))  # Initial position above the mesh
+lidar_sensor.SetDirection(chrono.ChVectorD(0, -1, 0))  # Pointing downwards
+lidar_sensor.SetRange(10.0)  # Range of the LiDAR
+lidar_sensor.SetResolution(0.1)  # Resolution of the LiDAR
+lidar_sensor.SetNoise(0.01)  # Noise level
 
-# Set visualization options for the lidar
-lidar_sensor.SetVisualizationMode(sensor.ChSensorLidar.VisualizationMode.LASER)
-lidar_sensor.SetSaveData(True)  # Save lidar data
+# Add noise filters and visualization options
+lidar_sensor.SetNoiseFilter(chrono.ChSensorLiDAR.NoiseFilterType.GAUSSIAN)
+lidar_sensor.SetVisualizationMode(chrono.ChSensorLiDAR.VisualizationMode.POINT_CLOUD)
+lidar_sensor.SetSaveData(True)  # Enable saving data
 
-# Add the lidar sensor to the system
-system.Add(lidar_sensor)
+# Add the sensor to the sensor manager
+sensor_manager.AddSensor(lidar_sensor)
+
+# Set up the visualization
+application = chronoirr.ChIrrApp(system, "LiDAR Simulation", chronoirr.dimension2d(800, 600))
+application.AddLogo()
+application.SetSkyBox()
+application.SetShowInfos(True)
+application.SetFPS(60)
+application.AssetBindAll()
+application.AssetUpdateAll()
 
 # Simulation parameters
 time_step = 0.01
@@ -53,25 +57,23 @@ num_steps = int(total_time / time_step)
 
 # Simulation loop
 for step in range(num_steps):
-    # Update lidar position in an orbit around the mesh
+    # Update LiDAR position in an orbit around the mesh
     angle = step * (2 * np.pi / num_steps)  # Full orbit in total_time
     radius = 5.0  # Orbit radius
     lidar_x = radius * np.cos(angle)
     lidar_z = radius * np.sin(angle)
-    lidar_sensor.SetOffset(chrono.ChVectorD(lidar_x, 2, lidar_z))  # Update lidar position
+    lidar_sensor.SetPosition(chrono.ChVectorD(lidar_x, 2, lidar_z))
 
     # Perform the simulation step
     system.DoStepDynamics(time_step)
 
-    # Print lidar buffer data at each simulation step
+    # Print LiDAR buffer data
     lidar_data = lidar_sensor.GetData()
-    print(f"Step {step}: Lidar Data: {lidar_data}")
+    print(f"Step {step}: LiDAR Data: {lidar_data}")
 
-    # Render the scene
+    # Update the visualization
     application.DrawAll()
+    application.DoEvents()
 
 # Finalize the application
-application.AssetBindAll()
-application.AssetUpdateAll()
-application.SetTimestep(time_step)
-application.Run()
+application.End()

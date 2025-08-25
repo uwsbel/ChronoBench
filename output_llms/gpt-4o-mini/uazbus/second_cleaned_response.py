@@ -135,9 +135,10 @@ while vis.Run() and (vehicle.GetSystem().GetChTime() < total_time):
         
         driver_inputs.m_braking = (time - braking_start_time) / braking_duration
         driver_inputs.m_throttle = 0.0  
+        driver_inputs.m_steering = 0.0   
     else:
-        driver_inputs.m_steering = 0.0  
-        driver_inputs.m_throttle = 0.0  
+        driver_inputs.m_throttle = 1.0  
+        driver_inputs.m_steering = 0.0   
 
     
     driver.Synchronize(time)

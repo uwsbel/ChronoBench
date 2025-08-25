@@ -24,7 +24,9 @@ def main():
     mesh_body.AddVisualShape(trimesh_shape)
     mesh_body.SetFixed(False)  # Make the body movable.
     mesh_body.SetMass(0)  # Set mass to 0 (static object).
-    sys.Add(mesh_body)  # Add the mesh body to the simulation system.
+    
+    # Add the mesh body to the simulation system.
+    sys.Add(mesh_body)
 
     # Create a ground body to attach sensors.
     ground_body = ch.ChBodyEasyBox(1, 1, 1, 1000, False, False)
@@ -52,11 +54,11 @@ def main():
     sens_manager.AddSensor(cam)
 
     # Create and configure a lidar sensor.
-    lidar = sens.ChLidarSensor(ground_body, 5., offset_pose, 90, 300, 2*ch.CH_PI, ch.CH_PI / 12, -ch.CH_PI / 6, 100., 0)
+    lidar = sens.ChLidarSensor(ground_body, 5., offset_pose, 90, 300, 2 * ch.CH_PI, ch.CH_PI / 12, -ch.CH_PI / 6, 100., 0)
     lidar.PushFilter(sens.ChFilterDIAccess())  # Access raw lidar data.
     lidar.PushFilter(sens.ChFilterPCfromDepth())  # Convert depth data to point cloud.
     lidar.PushFilter(sens.ChFilterXYZIAccess())  # Access point cloud data.
-    lidar.PushFilter(sens.ChFilterVisualizePointCloud(1280, 720, 1,"Lidar PC data"))  # Visualize the point cloud.
+    lidar.PushFilter(sens.ChFilterVisualizePointCloud(1280, 720, 1, "Lidar PC data"))  # Visualize the point cloud.
     lidar.SetName("lidar")
     sens_manager.AddSensor(lidar)
 
@@ -66,7 +68,7 @@ def main():
     lidar2d.PushFilter(sens.ChFilterDIAccess())  # Access raw lidar data for 2D lidar.
     lidar2d.PushFilter(sens.ChFilterPCfromDepth())  # Convert depth data to point cloud for 2D lidar.
     lidar2d.PushFilter(sens.ChFilterXYZIAccess())  # Access point cloud data for 2D lidar.
-    lidar2d.PushFilter(sens.ChFilterVisualizePointCloud(1280, 720, 1,"2D Lidar Scan Data"))
+    lidar2d.PushFilter(sens.ChFilterVisualizePointCloud(1280, 720, 1, "2D Lidar Scan Data"))
     sens_manager.AddSensor(lidar2d)
 
     # Create and configure a GPS sensor.
@@ -137,7 +139,7 @@ def main():
         # Update sensors and ROS data.
         sens_manager.Update()
 
-        # Check if the ROS manager update was successful.
+        # Check if the ROS manager update is successful.
         if not ros_manager.Update():
             print("ROS manager update failed. Exiting simulation loop.")
             break

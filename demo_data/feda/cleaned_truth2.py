@@ -86,9 +86,6 @@ vis.AttachVehicle(vehicle.GetVehicle())
 
 
 
-driver = veh.ChInteractiveDriverIRR(vis)
-
-
 
 path = veh.DoubleLaneChangePath(initLoc, 13.5, 4.0, 11.0, 50.0, True)
 target_speed = 10.0

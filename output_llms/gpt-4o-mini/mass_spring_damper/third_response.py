@@ -16,7 +16,7 @@ sys.AddBody(ground)
 ground.SetFixed(True)
 ground.EnableCollision(False)
 
-# Add a visual shape for the ground
+# Visual shape for the ground
 sph_1 = chrono.ChVisualShapeSphere(0.1)
 ground.AddVisualShape(sph_1, chrono.ChFrame(chrono.ChVector3d(-1, 0, 0)))
 
@@ -91,7 +91,7 @@ spring_1.AddVisualShape(chrono.ChVisualShapeSpring(0.05, 80, 15))
 spring_2.AddVisualShape(chrono.ChVisualShapeSpring(0.05, 80, 15))
 spring_3.AddVisualShape(chrono.ChVisualShapeSpring(0.05, 80, 15))
 
-# Initialize the visual system
+# Initialize the visualization system
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(sys)
 vis.SetWindowSize(1024, 768)
@@ -102,7 +102,7 @@ vis.AddSkyBox()
 vis.AddCamera(chrono.ChVector3d(0, 0, 6))
 vis.AddTypicalLights()
 
-# Main simulation loop
+# Simulation loop
 while vis.Run():
     vis.BeginScene()
     vis.Render()

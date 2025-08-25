@@ -1,15 +1,11 @@
-Certainly! Below is a **PyChrono** simulation script that fulfills your requirements. This script:
+Certainly! Below is a **PyChrono** simulation script that sets up a Curiosity rover navigating on a rigid terrain, with a fixed ground (including collision), a rover model, motor control for steering, and visualization using Irrlicht. The script includes camera, lighting, shadows, textures, and a logo.
 
-- Initializes the PyChrono environment.
-- Sets up a rigid terrain with collision.
-- Loads a Curiosity rover model (using Chrono::Vehicle).
-- Attaches a motor control driver for real-time steering/throttle.
-- Uses the Irrlicht visualization system with camera, lighting, shadows, textures, and a logo.
+**Requirements:**  
+- PyChrono (with vehicle and Irrlicht modules)
+- A Curiosity rover model (provided by PyChrono)
+- Textures and logo images (from PyChrono data)
 
-**Note:**  
-- This script assumes you have the [Project Chrono](https://projectchrono.org/) Python bindings installed, including the `chrono`, `chrono.vehicle`, and `chrono.irrlicht` modules.
-- The Curiosity rover model is available in Chrono::Vehicle as `Curiosity`.
-- For real-time input, the `ChIrrGuiDriver` is used.
+---
 
 ```python
 import pychrono as chrono
@@ -18,101 +14,120 @@ import pychrono.irrlicht as chronoirr
 import os
 
 # -----------------------------------------------------------------------------
-# 1. Initialize the PyChrono environment and core components
+# 1. Initialize PyChrono and set data paths
 # -----------------------------------------------------------------------------
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(veh.GetDataPath())
 
 # -----------------------------------------------------------------------------
-# 2. Create the physical system and terrain
+# 2. Create the Chrono physical system
 # -----------------------------------------------------------------------------
-system = chrono.ChSystemSMC()
+system = chrono.ChSystemNSC()
 
-# Create a rigid terrain with collision
+# -----------------------------------------------------------------------------
+# 3. Create the rigid terrain (fixed ground with collision)
+# -----------------------------------------------------------------------------
 terrain = veh.RigidTerrain(system)
 patch = terrain.AddPatch(
     chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT),
-    chrono.GetChronoDataFile("vehicle/terrain/textures/grass.jpg"),
-    200, 200, 1.0  # sizeX, sizeY, thickness
+    chrono.ChVectorD(0, 0, 0),
+    100, 100
 )
 patch.SetContactFrictionCoefficient(0.9)
 patch.SetContactRestitutionCoefficient(0.01)
 patch.SetContactMaterialProperties(2e7, 0.3)
-patch.SetTexture(chrono.GetChronoDataFile("vehicle/terrain/textures/grass.jpg"), 200, 200)
+patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
-patch.SetPosition(chrono.ChVectorD(0, 0, 0))
+patch.SetLayerThickness(0.02)
 patch.SetCollisionEnabled(True)
 terrain.Initialize()
 
 # -----------------------------------------------------------------------------
-# 3. Add the Curiosity rover model
+# 4. Create the Curiosity rover model
 # -----------------------------------------------------------------------------
-initLoc = chrono.ChVectorD(0, 0, 0.5)
-initRot = chrono.Q_from_AngZ(chrono.CH_C_DEG_TO_RAD * 0)
-curiosity = veh.Curiosity(system)
-curiosity.Initialize(chrono.ChCoordsysD(initLoc, initRot))
+init_pos = chrono.ChVectorD(0, 0, 0.5)
+init_rot = chrono.Q_from_AngZ(chrono.CH_C_DEG_TO_RAD * 0)
+rover = veh.Curiosity(system)
+rover.Initialize(chrono.ChCoordsysD(init_pos, init_rot))
 
 # -----------------------------------------------------------------------------
-# 4. Motor control driver for real-time steering/throttle
+# 5. Create a motor control driver for real-time steering
 # -----------------------------------------------------------------------------
-# Use Irrlicht GUI driver for real-time keyboard input
-driver = veh.ChIrrGuiDriver(
-    veh.GetDataPath() + "UI/curiosity_ui.xml"
-)
-driver.Initialize()
+driver = veh.ChDriverInputs()
+driver.steering = 0
+driver.throttle = 0.5
+driver.braking = 0
 
-# Optionally, set response curves for throttle/steering
-driver.SetSteeringDelta(0.04)
-driver.SetThrottleDelta(0.02)
-driver.SetBrakingDelta(0.1)
+# Optionally, use a custom driver for real-time keyboard input
+class MyDriver(veh.ChDriver):
+    def __init__(self):
+        super().__init__()
+        self.steering = 0
+        self.throttle = 0.5
+        self.braking = 0
 
-# -----------------------------------------------------------------------------
-# 5. Visualization with Irrlicht
-# -----------------------------------------------------------------------------
-app = veh.ChWheeledVehicleIrrApp(curiosity.GetVehicle(), 'Curiosity Rover Simulation', irrlicht_device=chronoirr.EIDT_OPENGL)
-app.SetSkyBox()
-app.AddTypicalLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
-app.AddTypicalLights(chrono.ChVectorD(30, 30, 100), chrono.ChVectorD(-30, -30, 100), 250, 130)
-app.AddTypicalCamera(chrono.ChVectorD(1.5, 1.5, 1.2), chrono.ChVectorD(0, 0, 0))
-app.SetChaseCamera(curiosity.GetVehicle(), 6.0, 2.0)
-app.SetTimestep(0.01)
-app.SetShadows(True)
+    def Synchronize(self, time):
+        # Simple keyboard control (requires Irrlicht event receiver)
+        pass
 
-# Add custom texture to the rover body
-body = curiosity.GetVehicle().GetChassisBody()
-body.AddAsset(chrono.ChTexture(chrono.GetChronoDataFile("vehicle/curiosity/textures/curiosity_chassis.jpg")))
+    def GetInputs(self):
+        return veh.ChDriverInputs(self.steering, self.throttle, self.braking)
+
+my_driver = MyDriver()
 
 # -----------------------------------------------------------------------------
-# 6. Simulation loop
+# 6. Set up Irrlicht visualization
 # -----------------------------------------------------------------------------
-app.AssetBindAll()
-app.AssetUpdateAll()
+vis = veh.ChWheeledVehicleIrrApp(rover.GetVehicle(), 'Curiosity Rover on Rigid Terrain', chronoirr.dimension2du(1280, 720))
+vis.SetSkyBox()
+vis.AddTypicalLights(chrono.ChVectorD(30, 100, 100), chrono.ChVectorD(-30, -80, 100), 250, 130)
+vis.AddTypicalLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.SetChaseCamera(chrono.ChVectorD(0.0, 0.0, 1.2), 6.0, 0.5)
+vis.SetChaseCameraPosition(chrono.ChVectorD(-8, 0, 2))
+vis.SetChaseCameraMultipliers(0.5, 2.0)
+vis.EnableShadows(True)
+vis.SetSymbolscale(1.0)
+vis.SetContactsDrawMode(veh.IrrContactsDrawMode.CONTACT_DISTANCES)
+vis.SetPOV(chrono.ChVectorD(0, 0, 2), chrono.ChVectorD(0, 0, 0))
 
-while app.GetDevice().run():
-    time = system.GetChTime()
-    driver.Synchronize(time)
-    curiosity.Synchronize(time, driver.GetInputs(), terrain)
-    terrain.Synchronize(time)
-    app.BeginScene()
-    app.DrawAll()
-    app.EndScene()
-    system.DoStepDynamics(0.01)
+# Add terrain and rover to visualization
+vis.AssetBindAll()
+vis.AssetUpdateAll()
+
+# -----------------------------------------------------------------------------
+# 7. Simulation loop
+# -----------------------------------------------------------------------------
+step_size = 1e-3
+render_step_size = 1.0 / 50  # 50 FPS
+realtime_timer = chrono.ChRealtimeStepTimer()
+
+while vis.Run():
+    vis.BeginScene()
+    vis.DrawAll()
+    vis.EndScene()
+
+    # Get driver inputs (could be replaced with real-time keyboard input)
+    rover.Synchronize(system.GetChTime(), my_driver.GetInputs(), terrain)
+    terrain.Synchronize(system.GetChTime())
+    vis.Synchronize('Curiosity Rover on Rigid Terrain', my_driver.GetInputs())
+
+    # Advance simulation
+    system.DoStepDynamics(step_size)
+    realtime_timer.Spin(step_size)
+
+# -----------------------------------------------------------------------------
+# End of script
+# -----------------------------------------------------------------------------
 ```
 
 ---
 
-### **Key Features:**
-- **Rigid Terrain:** With collision, friction, restitution, and texture.
-- **Curiosity Rover:** Loaded and initialized at a default position.
-- **Motor Control Driver:** Real-time keyboard input for throttle, steering, and braking.
-- **Irrlicht Visualization:** Skybox, camera, lights, shadows, textures, and a logo.
-- **Customizable Camera:** Set via `SetChaseCamera` or `AddTypicalCamera`.
-- **Textures and Logo:** Applied to terrain and rover, and a PyChrono logo is displayed.
+**Notes:**
+- The script uses the built-in Curiosity rover model from PyChrono.
+- The terrain is a rigid patch with collision and a grass texture.
+- The visualization uses Irrlicht with skybox, lights, shadows, and a logo.
+- The driver is a placeholder for real-time control; you can extend `MyDriver` to handle keyboard events for steering/throttle.
+- Make sure the PyChrono data files are accessible (textures, logos, etc.).
+- For more advanced real-time input, integrate with Irrlicht's event receiver.
 
----
-
-**To run:**  
-Save as `curiosity_sim.py` and run with your Python interpreter (ensure PyChrono and its vehicle/irrlicht modules are installed).
-
-**Tip:**  
-You can further customize camera, lighting, and textures by modifying the relevant lines in the script. For more advanced input, consider extending the driver or using a joystick/gamepad.
+Let me know if you need keyboard control or further customization!

@@ -1,184 +1,192 @@
-Here's a complete PyChrono simulation script based on your requirements:
+I'll create a PyChrono simulation script for an ARTcar vehicle on rigid terrain with Irrlicht visualization. Here's the complete implementation:
 
 ```python
 import pychrono.core as chrono
-import pychrono.irrlicht as chronoirr
+import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
+# Set the Chrono data path for accessing vehicle and terrain data
+chrono.SetChronoDataPath('./data/')
+
 # Initialize the PyChrono environment
-chrono.SetChronoDataPath(chrono.GetChronoDataPath())
-veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
+print("Copyright (c) 2017 projectchrono.org")
+print("Chrono version: ", chrono.CHRONO_VERSION)
 
-# Create the Chrono::Engine physical system
-system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+# ------------
+# Parameters
+# ------------
 
-# Set the collision system
-system.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+# Initial vehicle location and orientation
+initLoc = chrono.ChVectorD(0, 0, 0.5)
+initRot = chrono.ChQuaternionD(1, 0, 0, 0)
 
-# Create the vehicle: ARTcar
+# Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
+vis_type = veh.VisualizationType_MESH
+
+# Collision type for chassis (PRIMITIVES, HULLS, or NONE)
+chassis_collision_type = veh.CollisionType_NONE
+
+# Type of tire model (RIGID, TMEASY)
+tire_model = veh.TireModelType_TMEASY
+
+# Rigid terrain
+terrainHeight = 0      # terrain height
+terrainLength = 200.0  # size in X direction
+terrainWidth = 200.0   # size in Y direction
+
+# Simulation step sizes
+step_size = 1e-3
+tire_step_size = step_size
+
+# Time interval between two render frames
+render_step_size = 1.0 / 50  # FPS = 50
+
+# ------------
+# Create systems
+# ------------
+
+# Create the ARTcar vehicle, set parameters, and initialize
 vehicle = veh.ARTcar()
-
-# Set vehicle parameters
-init_pos = chrono.ChVectorD(0, 0.5, 0)
-init_rot = chrono.ChQuaternionD(1, 0, 0, 0)
-
-# Initialize the vehicle at the specified position and orientation
 vehicle.SetContactMethod(chrono.ChContactMethod_NSC)
+vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
-vehicle.SetInitPosition(chrono.ChCoordsysD(init_pos, init_rot))
-vehicle.SetTireType(veh.TireModelType_TMEASY)
-vehicle.SetTireStepSize(1e-3)
+vehicle.SetInitPosition(chrono.ChCoordsysD(initLoc, initRot))
+vehicle.SetTireType(tire_model)
+vehicle.SetTireStepSize(tire_step_size)
 
-# Set visualization type for vehicle components
-vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
-vehicle.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
-vehicle.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
-vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
-vehicle.SetTireVisualizationType(veh.VisualizationType_MESH)
-
-# Initialize the vehicle
 vehicle.Initialize()
 
-# Associate a collision system
+vehicle.SetChassisVisualizationType(vis_type)
+vehicle.SetSuspensionVisualizationType(vis_type)
+vehicle.SetSteeringVisualizationType(vis_type)
+vehicle.SetWheelVisualizationType(vis_type)
+vehicle.SetTireVisualizationType(vis_type)
+
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
-# Add the vehicle to the system
-system = vehicle.GetSystem()
-
 # Create the terrain
-terrain = veh.RigidTerrain(system)
-
-# Define terrain parameters
-terrain_length = 100.0
-terrain_width = 100.0
-terrain_height = 0.0
-
-# Create a patch with specified dimensions
 patch_mat = chrono.ChMaterialSurfaceNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 
+terrain = veh.RigidTerrain(vehicle.GetSystem())
 patch = terrain.AddPatch(patch_mat, 
-                        chrono.ChCoordsysD(chrono.ChVectorD(0, 0, terrain_height), 
-                                         chrono.QUNIT),
-                        terrain_length, terrain_width)
+                        chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT), 
+                        terrainLength, terrainWidth)
 
-# Set terrain texture
 patch.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
-
-# Initialize the terrain
 terrain.Initialize()
 
-# Create the interactive driver system
-driver = veh.ChInteractiveDriverIRR()
+# Create the vehicle Irrlicht interface
+vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
+vis.SetWindowTitle('ARTcar Demo')
+vis.SetWindowSize(1280, 1024)
+vis.SetChaseCamera(chrono.ChVectorD(0.0, 0.0, 1.75), 6.0, 0.5)
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddLightDirectional()
+vis.AddSkyBox()
+vis.AttachVehicle(vehicle.GetVehicle())
 
-# Set the time response for steering and throttle inputs
+# Create the interactive driver system
+driver = veh.ChInteractiveDriverIRR(vis)
+
+# Set the time response for steering and throttle keyboard inputs.
 steering_time = 1.0  # time to go from 0 to +1 (or from 0 to -1)
 throttle_time = 1.0  # time to go from 0 to +1
 braking_time = 0.3   # time to go from 0 to +1
 
-driver.SetSteeringDelta(0.04)
-driver.SetThrottleDelta(0.02)
-driver.SetBrakingDelta(0.06)
+driver.SetSteeringDelta(render_step_size / steering_time)
+driver.SetThrottleDelta(render_step_size / throttle_time)
+driver.SetBrakingDelta(render_step_size / braking_time)
 
-# Create the Irrlicht visualization application
-vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(system)
-vis.SetWindowSize(1280, 720)
-vis.SetWindowTitle('ARTcar Vehicle Simulation')
-vis.Initialize()
-vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
-vis.AddSkyBox()
-vis.AddCamera(chrono.ChVectorD(0, 3, -8))
-vis.AddTypicalLights()
-
-# Initialize the driver system (this must be done after the visualization system is initialized)
 driver.Initialize()
 
-# Set up simulation parameters
-step_size = 1e-3
-render_step_size = 1.0/50  # 50 FPS
-render_steps = int(render_step_size / step_size)
-
+# ---------------
 # Simulation loop
-time = 0
+# ---------------
+
+# output vehicle mass
+print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
+
+# Number of simulation steps between miscellaneous events
+render_steps = math.ceil(render_step_size / step_size)
+
+# Initialize simulation frame counter s
+realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-print("Starting simulation...")
-print("Use WASD keys to control the vehicle:")
-print("W - Throttle")
-print("S - Brake") 
-print("A - Steer Left")
-print("D - Steer Right")
+while vis.Run() :
+    time = vehicle.GetSystem().GetChTime()
 
-while vis.Run():
-    time = system.GetChTime()
-    
-    # Render scene every render_steps
-    if step_number % render_steps == 0:
+    # Render scene and output POV-Ray data
+    if (step_number % render_steps == 0) :
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
         render_frame += 1
-    
+
     # Get driver inputs
     driver_inputs = driver.GetInputs()
-    
-    # Synchronize the vehicle systems
-    # (synchronize the vehicle subsystems with the current driver inputs)
+
+    # Update modules (process inputs from other modules)
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
-    
-    # Advance the dynamics of the vehicle
+    vis.Synchronize(time, driver_inputs)
+
+    # Advance simulation for one timestep for all modules
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
-    
-    # Advance the simulation by one step
-    system.DoStepDynamics(step_size)
-    
-    step_number += 1
-    
-    # Optional: Print some vehicle information every second
-    if step_number % 1000 == 0:
-        vehicle_pos = vehicle.GetPos()
-        vehicle_speed = vehicle.GetSpeed()
-        print(f"Time: {time:.2f}s, Position: ({vehicle_pos.x:.2f}, {vehicle_pos.y:.2f}, {vehicle_pos.z:.2f}), Speed: {vehicle_speed:.2f} m/s")
+    vis.Advance(step_size)
 
-print("Simulation completed.")
+    # Increment frame number
+    step_number += 1
+
+    # Spin in place for real time to catch up
+    realtime_timer.Spin(step_size)
+
+print("Simulation ended")
 ```
 
 This script creates a comprehensive PyChrono simulation with the following key features:
 
-1. **Environment Initialization**: Sets up the PyChrono environment with NSC contact method and Bullet collision system.
+## Key Components:
 
-2. **ARTcar Vehicle Setup**: 
-   - Initializes an ARTcar vehicle with specified position and orientation
-   - Sets up tire model (TMEASY) and visualization options
-   - Configures chassis, suspension, steering, wheels, and tires with appropriate visualization types
+1. **Vehicle Setup**: 
+   - ARTcar vehicle with NSC contact method
+   - Mesh visualization for all components
+   - TMEASY tire model for realistic tire dynamics
 
-3. **Rigid Terrain Creation**:
-   - Creates a 100x100 meter rigid terrain patch
-   - Applies material properties (friction, restitution)
-   - Adds a concrete texture for visual realism
+2. **Terrain Creation**:
+   - Rigid terrain with 200x200 meter dimensions
+   - Concrete texture with appropriate friction and restitution properties
+   - Positioned at ground level (height = 0)
+
+3. **Visualization System**:
+   - Irrlicht-based visualization with 1280x1024 window
+   - Chase camera following the vehicle
+   - Professional lighting and skybox
+   - PyChrono logo overlay
 
 4. **Interactive Driver System**:
-   - Implements keyboard controls (WASD) for steering, throttle, and braking
-   - Sets response times for realistic vehicle control
+   - Real-time keyboard input for steering, throttle, and braking
+   - Configurable response times for realistic vehicle control
+   - Smooth input transitions
 
-5. **Irrlicht Visualization**:
-   - Creates a 1280x720 window with camera, lighting, and skybox
-   - Positions camera for optimal vehicle viewing
+5. **Simulation Loop**:
+   - 50 FPS rendering (1/50 second render steps)
+   - 1ms simulation time steps for accurate physics
+   - Real-time synchronization between all modules
+   - Proper frame timing and rendering
 
-6. **Simulation Loop**:
-   - Runs at 50 FPS as requested
-   - Synchronizes all vehicle systems
-   - Updates dynamics and visualization in real-time
-   - Provides status output showing vehicle position and speed
+## Controls:
+- **Arrow Keys/WASD**: Steering and throttle/brake control
+- **Space**: Emergency brake
+- **Mouse**: Camera control
 
-The simulation allows for interactive control of the ARTcar vehicle on the terrain using keyboard inputs, with real-time physics simulation and high-quality 3D visualization.
+The simulation will display the vehicle mass at startup and run in real-time, allowing you to drive the ARTcar around the textured terrain with realistic physics and smooth 50 FPS visualization.

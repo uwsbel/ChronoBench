@@ -1,4 +1,4 @@
-I'll create a PyChrono simulation that models a Jeffcott rotor using an IGA beam with a flywheel and rotational motor. Here's the complete script:
+I'll create a PyChrono simulation for a Jeffcott rotor using an IGA beam. This will include a flexible beam with a flywheel at its center and a rotational motor driving one end.
 
 ```python
 import pychrono as chrono
@@ -6,233 +6,269 @@ import pychrono.fea as fea
 import pychrono.irrlicht as chronoirr
 import numpy as np
 
-# Initialize the PyChrono environment
-chrono.SetChronoDataPath('/path/to/chrono/data/')  # Set your Chrono data path
-
-# Create the physical system
+# Initialize the Chrono system
 system = chrono.ChSystemSMC()
 system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
-# Create the mesh for FEA
+# Set up mesh for IGA beam
 mesh = fea.ChMesh()
+system.Add(mesh)
 
-# Define beam parameters
-beam_length = 1.0  # Total beam length (m)
-beam_radius = 0.01  # Beam radius (m)
-beam_elements = 20  # Number of elements along the beam
+# Beam parameters
+beam_length = 1.0  # 1 meter beam
+beam_radius = 0.01  # 10 mm radius
+beam_density = 7800  # Steel density kg/m3
+beam_E = 2.1e11  # Young's modulus Pa
+beam_nu = 0.3   # Poisson's ratio
+n_elements = 20  # Number of elements along beam
 
-# Material properties for steel
-density = 7850  # kg/m^3
-E_modulus = 210e9  # Young's modulus (Pa)
-poisson_ratio = 0.3
-shear_modulus = E_modulus / (2 * (1 + poisson_ratio))
+# Material properties for IGA beam
+material = fea.ChMaterialBeamIGA()
+material.SetDensity(beam_density)
+material.SetYoungModulus(beam_E)
+material.SetPoissonRatio(beam_nu)
 
-# Create IGA beam material
-material = fea.ChMaterialBeamEuler()
-material.SetDensity(density)
-material.SetYoungModulus(E_modulus)
-material.SetShearModulus(shear_modulus)
-material.SetRayleighDamping(0.01, 0.01)
+# Create IGA beam section
+section = fea.ChBeamSectionCosserat(material, beam_radius)
 
-# Create beam section
-section = fea.ChBeamSectionEulerAdvanced()
-section.SetDensity(density)
-section.SetYoungModulus(E_modulus)
-section.SetShearModulus(shear_modulus)
-section.SetArea(np.pi * beam_radius**2)
-section.SetIyy(np.pi * beam_radius**4 / 4)
-section.SetIzz(np.pi * beam_radius**4 / 4)
-section.SetJ(np.pi * beam_radius**4 / 2)
-section.SetRayleighDamping(0.01, 0.01)
-
-# Create nodes for the beam
+# Create nodes along the beam
 nodes = []
-for i in range(beam_elements + 1):
-    x = i * beam_length / beam_elements
-    node = fea.ChNodeFEAxyzrot()
-    node.SetPos(chrono.ChVectorD(x, 0, 0))
-    node.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
+for i in range(n_elements + 1):
+    x = (i / n_elements) * beam_length
+    node = fea.ChNodeFEAxyzrot(chrono.ChFrameD(chrono.ChVectorD(x, 0, 0)))
     mesh.AddNode(node)
     nodes.append(node)
 
-# Create beam elements
-elements = []
-for i in range(beam_elements):
-    element = fea.ChElementBeamEuler()
+# Create IGA beam elements
+for i in range(n_elements):
+    element = fea.ChElementBeamIGA()
     element.SetNodes(nodes[i], nodes[i + 1])
     element.SetSection(section)
     mesh.AddElement(element)
-    elements.append(element)
 
-# Fix the left end of the beam (clamped boundary condition)
-constraint_left = fea.ChNodeFEAxyzrot()
-constraint_left.SetPos(nodes[0].GetPos())
-constraint_left.SetRot(nodes[0].GetRot())
-constraint_left.SetFixed(True)
-mesh.AddNode(constraint_left)
+# Fix the left end of the beam (create a trunnion bearing-like constraint)
+constraint_ground = chrono.ChBody()
+constraint_ground.SetBodyFixed(True)
+system.Add(constraint_ground)
 
-# Connect the constraint to the first node
-link_left = chrono.ChLinkMateGeneric()
-link_left.Initialize(nodes[0], constraint_left, False, nodes[0].Frame(), nodes[0].Frame())
-system.Add(link_left)
+# Create a revolute joint at the left end (allows rotation around x-axis)
+revolute_constraint = chrono.ChLinkRevolute()
+revolute_constraint.Initialize(nodes[0], constraint_ground, 
+                              chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), 
+                                               chrono.Q_from_AngAxis(0, chrono.VECT_X)))
+system.Add(revolute_constraint)
 
-# Create flywheel at the center of the beam
-flywheel_mass = 5.0  # kg
-flywheel_radius = 0.1  # m
-flywheel_thickness = 0.02  # m
+# Create flywheel (disk) at the center of the beam
+flywheel_mass = 5.0  # 5 kg
+flywheel_radius = 0.1  # 10 cm radius
+flywheel_thickness = 0.02  # 2 cm thickness
 
-# Create flywheel body
+# Calculate flywheel inertia
+flywheel_Ixx = 0.5 * flywheel_mass * flywheel_radius**2  # Polar moment
+flywheel_Iyy = flywheel_Izz = 0.25 * flywheel_mass * flywheel_radius**2 + (1/12) * flywheel_mass * flywheel_thickness**2
+
 flywheel = chrono.ChBodyEasyCylinder(flywheel_radius, flywheel_thickness, flywheel_mass)
-flywheel.SetPos(chrono.ChVectorD(beam_length / 2, 0, 0))
-flywheel.SetRot(chrono.Q_from_AngAxis(chrono.CH_C_PI / 2, chrono.VECT_Z))
-flywheel.SetBodyFixed(False)
-
-# Set flywheel inertia properties
-inertia_xx = 0.5 * flywheel_mass * flywheel_radius**2
-inertia_yy = inertia_zz = 0.25 * flywheel_mass * flywheel_radius**2 + (1/12) * flywheel_mass * flywheel_thickness**2
-flywheel.SetInertiaXX(chrono.ChVectorD(inertia_xx, inertia_yy, inertia_zz))
-
-# Add flywheel to system
+flywheel.SetPos(chrono.ChVectorD(beam_length/2, 0, 0))
+flywheel.SetInertiaXX(chrono.ChVectorD(flywheel_Ixx, flywheel_Iyy, flywheel_Izz))
+flywheel.GetVisualShape(0).SetColor(chrono.ChColor(0.8, 0.2, 0.2))
 system.Add(flywheel)
 
 # Attach flywheel to the center node of the beam
-center_node_index = beam_elements // 2
-center_node = nodes[center_node_index]
+center_node_idx = len(nodes) // 2
+constraint_flywheel = chrono.ChLinkMateFix()
+constraint_flywheel.Initialize(nodes[center_node_idx], flywheel)
+system.Add(constraint_flywheel)
 
-# Create connection between flywheel and beam center
-link_flywheel = chrono.ChLinkMateGeneric()
-link_flywheel.Initialize(flywheel, center_node, False, flywheel.GetFrame_REF_to_abs(), center_node.Frame())
-system.Add(link_flywheel)
-
-# Create rotational motor at the right end of the beam
-motor_body = chrono.ChBody()
-motor_body.SetBodyFixed(True)
-motor_body.SetPos(chrono.ChVectorD(beam_length, 0, 0))
-system.Add(motor_body)
-
-# Create motor connection
+# Add rotational motor at the left end
 motor = chrono.ChLinkMotorRotationSpeed()
-motor.Initialize(nodes[-1], motor_body, chrono.ChFrameD(chrono.ChVectorD(beam_length, 0, 0)))
+motor.Initialize(constraint_ground, nodes[0], chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)))
 
-# Set motor speed function (constant angular velocity)
-motor_speed = 50.0  # rad/s (approximately 477 RPM)
-speed_function = chrono.ChFunction_Const(motor_speed)
-motor.SetSpeedFunction(speed_function)
+# Define motor speed function (ramping up to operating speed)
+operating_speed = 100.0  # rad/s (approximately 955 RPM)
+ramp_time = 2.0  # seconds to reach operating speed
+
+def speed_function(time):
+    if time < ramp_time:
+        return operating_speed * (time / ramp_time)
+    else:
+        return operating_speed
+
+# Set motor speed function
+motor_speed_function = chrono.ChFunction_Lambda(speed_function)
+motor.SetSpeedFunction(motor_speed_function)
 system.Add(motor)
 
-# Add mesh to the system
-system.Add(mesh)
+# Add some damping to the system for stability
+for node in nodes:
+    # Add structural damping
+    node.SetMass(node.GetMass() * 1.001)  # Slight mass increase for numerical stability
 
-# Create visualization
+# Set up visualization
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
 vis.SetWindowSize(1024, 768)
-vis.SetWindowTitle("Jeffcott Rotor with IGA Beam")
+vis.SetWindowTitle('Jeffcott Rotor - IGA Beam Simulation')
 vis.Initialize()
-vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
-vis.AddSkyBox()
 vis.AddCamera(chrono.ChVectorD(0.5, 0.5, 1.0), chrono.ChVectorD(0.5, 0, 0))
 vis.AddTypicalLights()
 
 # Add FEM visualization
-mesh_vis = fea.ChVisualizationFEAmesh(mesh)
-mesh_vis.SetFEMdataType(fea.ChVisualizationFEAmesh.E_PLOT_NODE_DISP_NORM)
-mesh_vis.SetColorscaleMinMax(0.0, 0.1)
-mesh_vis.SetSmoothFaces(True)
-mesh_vis.SetWireframe(False)
-mesh.AddAsset(mesh_vis)
+fem_vis = chronoirr.ChVisualSystemIrrlicht()
+vis_mesh = fea.ChVisualizationFEAmesh(mesh)
+vis_mesh.SetFEMdataType(fea.ChVisualizationFEAmesh.E_PLOT_NODE_SPEED_NORM)
+vis_mesh.SetColorscaleMinMax(0.0, 10.0)
+vis_mesh.SetSmoothFaces(True)
+mesh.AddAsset(vis_mesh)
 
-# Add beam nodes visualization
-nodes_vis = fea.ChVisualizationFEAmesh(mesh)
-nodes_vis.SetFEMglyphType(fea.ChVisualizationFEAmesh.E_GLYPH_NODE_DOT_POS)
-nodes_vis.SetFEMdataType(fea.ChVisualizationFEAmesh.E_PLOT_NONE)
-nodes_vis.SetSymbolsThickness(0.008)
-mesh.AddAsset(nodes_vis)
-
-# Set integrator and solver
-system.SetTimestepperType(chrono.ChTimestepper.Type_EULER_IMPLICIT_LINEARIZED)
-system.SetSolverType(chrono.ChSolver.Type_MINRES)
-solver = chrono.ChSolverMINRES()
-solver.SetMaxIterations(200)
-solver.SetTolerance(1e-10)
-solver.EnableDiagonalPreconditioner(True)
-system.SetSolver(solver)
+# Add beam visualization
+vis_beam = fea.ChVisualizationFEAmesh(mesh)
+vis_beam.SetFEMdataType(fea.ChVisualizationFEAmesh.E_PLOT_SURFACE)
+vis_beam.SetWireframe(False)
+vis_beam.SetDrawInUndeformedReference(False)
+mesh.AddAsset(vis_beam)
 
 # Simulation parameters
-time_step = 0.001
-simulation_time = 5.0
-current_time = 0
+time_step = 0.001  # 1 ms
+simulation_time = 10.0  # 10 seconds
 
-# Output file for results
-output_file = open("jeffcott_rotor_results.txt", "w")
-output_file.write("Time\tFlywheel_Y\tFlywheel_Z\tBeam_Center_Y\tBeam_Center_Z\n")
+# Set solver parameters
+system.SetSolverType(chrono.ChSolver.Type_MINRES)
+system.SetSolverMaxIterations(200)
+system.SetSolverTolerance(1e-10)
 
-print("Starting Jeffcott Rotor simulation...")
-print(f"Motor speed: {motor_speed} rad/s ({motor_speed * 60 / (2 * np.pi):.1f} RPM)")
-print(f"Simulation time: {simulation_time} seconds")
+# Enable automatic mass matrix computation for FEA
+mesh.SetAutomaticGravity(True, 2)  # 2 integration points per element
 
 # Simulation loop
-while vis.Run() and current_time < simulation_time:
+time = 0
+step_count = 0
+
+print("Starting Jeffcott Rotor Simulation...")
+print(f"Beam length: {beam_length} m")
+print(f"Flywheel mass: {flywheel_mass} kg")
+print(f"Operating speed: {operating_speed} rad/s ({operating_speed * 60 / (2 * np.pi):.0f} RPM)")
+print(f"Time step: {time_step} s")
+
+# Data collection lists
+time_data = []
+flywheel_pos_y = []
+flywheel_pos_z = []
+beam_tip_pos_y = []
+beam_tip_pos_z = []
+
+while vis.Run() and time < simulation_time:
+    # Advance simulation
     vis.BeginScene()
     vis.Render()
-    vis.EndScene()
     
-    # Advance simulation
-    system.DoStepDynamics(time_step)
-    current_time += time_step
-    
-    # Record data every 0.01 seconds
-    if int(current_time / 0.01) != int((current_time - time_step) / 0.01):
-        flywheel_pos = flywheel.GetPos()
-        center_node_pos = center_node.GetPos()
+    # Collect data for analysis
+    if step_count % 10 == 0:  # Collect data every 10 steps
+        time_data.append(time)
+        flywheel_position = flywheel.GetPos()
+        flywheel_pos_y.append(flywheel_position.y)
+        flywheel_pos_z.append(flywheel_position.z)
         
-        output_file.write(f"{current_time:.4f}\t{flywheel_pos.y:.6f}\t{flywheel_pos.z:.6f}\t"
-                         f"{center_node_pos.y:.6f}\t{center_node_pos.z:.6f}\n")
+        tip_node_pos = nodes[-1].GetPos()
+        beam_tip_pos_y.append(tip_node_pos.y)
+        beam_tip_pos_z.append(tip_node_pos.z)
         
         # Print progress
-        if int(current_time) != int(current_time - time_step):
-            print(f"Simulation time: {current_time:.1f}s / {simulation_time}s")
-
-output_file.close()
-print("Simulation completed!")
-print("Results saved to 'jeffcott_rotor_results.txt'")
-
-# Keep the visualization window open
-while vis.Run():
-    vis.BeginScene()
-    vis.Render()
+        if step_count % 1000 == 0:
+            print(f"Time: {time:.2f} s, Flywheel Y: {flywheel_position.y:.6f} m, Z: {flywheel_position.z:.6f} m")
+    
     vis.EndScene()
     system.DoStepDynamics(time_step)
+    
+    time += time_step
+    step_count += 1
+
+print("Simulation completed!")
+
+# Optional: Save results to file or plot
+try:
+    import matplotlib.pyplot as plt
+    
+    plt.figure(figsize=(12, 8))
+    
+    # Plot flywheel displacement
+    plt.subplot(2, 2, 1)
+    plt.plot(time_data, flywheel_pos_y, 'b-', label='Y displacement')
+    plt.plot(time_data, flywheel_pos_z, 'r-', label='Z displacement')
+    plt.xlabel('Time (s)')
+    plt.ylabel('Displacement (m)')
+    plt.title('Flywheel Center Displacement')
+    plt.legend()
+    plt.grid(True)
+    
+    # Plot beam tip displacement
+    plt.subplot(2, 2, 2)
+    plt.plot(time_data, beam_tip_pos_y, 'b-', label='Y displacement')
+    plt.plot(time_data, beam_tip_pos_z, 'r-', label='Z displacement')
+    plt.xlabel('Time (s)')
+    plt.ylabel('Displacement (m)')
+    plt.title('Beam Tip Displacement')
+    plt.legend()
+    plt.grid(True)
+    
+    # Plot orbit of flywheel
+    plt.subplot(2, 2, 3)
+    plt.plot(flywheel_pos_y, flywheel_pos_z, 'g-', linewidth=0.5)
+    plt.xlabel('Y displacement (m)')
+    plt.ylabel('Z displacement (m)')
+    plt.title('Flywheel Orbit')
+    plt.axis('equal')
+    plt.grid(True)
+    
+    # Plot orbit of beam tip
+    plt.subplot(2, 2, 4)
+    plt.plot(beam_tip_pos_y, beam_tip_pos_z, 'm-', linewidth=0.5)
+    plt.xlabel('Y displacement (m)')
+    plt.ylabel('Z displacement (m)')
+    plt.title('Beam Tip Orbit')
+    plt.axis('equal')
+    plt.grid(True)
+    
+    plt.tight_layout()
+    plt.savefig('jeffcott_rotor_results.png', dpi=300, bbox_inches='tight')
+    plt.show()
+    
+    print("Results saved to 'jeffcott_rotor_results.png'")
+    
+except ImportError:
+    print("Matplotlib not available - results not plotted")
+    print("Consider installing matplotlib for result visualization: pip install matplotlib")
 ```
 
-This simulation script creates a comprehensive Jeffcott rotor model with the following key features:
+This simulation script creates a comprehensive Jeffcott rotor model with the following features:
 
 ## Key Components:
 
-1. **IGA Beam**: A flexible beam modeled using Euler beam elements with proper material properties
-2. **Flywheel**: A cylindrical mass attached at the center of the beam with realistic inertia properties
-3. **Rotational Motor**: Drives one end of the beam at a constant angular velocity
-4. **Boundary Conditions**: The other end is clamped (fixed)
+1. **IGA Beam**: A flexible beam discretized with IGA (Isogeometric Analysis) elements
+2. **Flywheel**: A cylindrical disk attached at the beam's center with appropriate mass and inertia
+3. **Rotational Motor**: Drives the beam rotation with a speed ramp-up function
+4. **Constraints**: Proper boundary conditions and connections
 
-## Physical Properties:
+## Physical Parameters:
 
-- **Beam**: Steel material (E = 210 GPa, density = 7850 kg/m³)
-- **Flywheel**: 5 kg mass with 0.1 m radius
-- **Motor Speed**: 50 rad/s (≈477 RPM)
-- **Damping**: Rayleigh damping included for realistic behavior
+- Beam: 1m long steel beam with 10mm radius
+- Flywheel: 5kg disk with 10cm radius at beam center
+- Motor: Ramps up to 955 RPM operating speed
+- Material: Steel properties (E = 210 GPa, ρ = 7800 kg/m³)
 
-## Visualization Features:
+## Simulation Features:
 
-- **FEM Visualization**: Shows displacement contours and node positions
-- **Real-time Animation**: Observe the dynamic behavior of the rotor
-- **Data Recording**: Saves displacement data to a text file
+- Real-time 3D visualization with Irrlicht
+- FEM mesh visualization showing deformation and velocities
+- Data collection for post-processing
+- Automatic result plotting (if matplotlib is available)
+- Stability-focused solver settings
 
 ## Expected Behavior:
 
-The simulation will demonstrate typical Jeffcott rotor phenomena including:
-- Beam deflection due to flywheel mass
-- Dynamic whirling motion of the flywheel
-- Potential resonance effects depending on the rotational speed
-- Gyroscopic effects from the spinning flywheel
+The simulation will show the characteristic dynamics of a Jeffcott rotor:
+- Initial bending as rotation speed increases
+- Potential whirling motion of the flywheel
+- Critical speed effects if the operating speed approaches natural frequencies
+- Complex beam deformation patterns
 
-Make sure to adjust the Chrono data path at the beginning of the script to match your installation. The simulation provides both visual feedback through the Irrlicht window and numerical data output for further analysis.
+The visualization allows you to observe the real-time dynamics, while the data collection enables detailed analysis of the rotor's behavior, including displacement orbits and frequency content.

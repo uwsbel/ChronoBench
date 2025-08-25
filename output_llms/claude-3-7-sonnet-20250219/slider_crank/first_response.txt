@@ -3,151 +3,184 @@
 ```python
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
-import numpy as np
+import math
 
-# ---------------------------------------------------------------------
-# Initialize the ChronoEngine system
+# Set the path to the Chrono data directory
+chrono.SetChronoDataPath("../../../data/")
 
+# Create a ChronoEngine physical system
 system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
-# ---------------------------------------------------------------------
-# Create ground / truss
+# Set the default settings for contacts and visualization
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
 
-ground = chrono.ChBodyEasyBox(0.6, 0.05, 1.0, 1000, True, True)
-ground.SetBodyFixed(True)
-ground.SetPos(chrono.ChVectorD(0, 0, 0))
-system.Add(ground)
+# Create a floor (truss) as a fixed body
+floor = chrono.ChBodyEasyBox(8, 0.2, 8, 1000, True, True)
+floor.SetBodyFixed(True)
+floor.SetPos(chrono.ChVectorD(0, -0.1, 0))
+system.Add(floor)
 
-# Add texture to the ground
-ground_texture = chrono.ChTexture()
-ground_texture.SetTextureFilename(chrono.GetChronoDataFile("textures/concrete.jpg"))
-ground.AddAsset(ground_texture)
+# Apply a texture to the floor
+floor_texture = chrono.ChTexture()
+floor_texture.SetTextureFilename(chrono.GetChronoDataFile("textures/concrete.jpg"))
+floor.AddAsset(floor_texture)
 
-# ---------------------------------------------------------------------
-# Create the crank-slider mechanism
+# Create the crankshaft
+crankshaft = chrono.ChBody()
+crankshaft.SetPos(chrono.ChVectorD(0, 0.5, 0))
+crankshaft.SetMass(1.0)
+crankshaft.SetInertiaXX(chrono.ChVectorD(0.1, 0.1, 0.1))
 
-# Dimensions
-crank_radius = 0.08
-rod_length = 0.25
-piston_width = 0.05
-piston_height = 0.03
-piston_depth = 0.06
+# Add visualization geometry to the crankshaft
+crank_shaft = chrono.ChCylinderShape()
+crank_shaft.GetCylinderGeometry().p1 = chrono.ChVectorD(0, 0, -0.1)
+crank_shaft.GetCylinderGeometry().p2 = chrono.ChVectorD(0, 0, 0.1)
+crank_shaft.GetCylinderGeometry().rad = 0.05
+crankshaft.AddAsset(crank_shaft)
 
-# 1. Create the crankshaft
-crankshaft = chrono.ChBodyEasyCylinder(0.02, 0.05, 2000, True, True)
-crankshaft.SetPos(chrono.ChVectorD(0, 0.1, 0))
-crankshaft.SetRot(chrono.Q_from_AngZ(chrono.CH_C_PI_2))
+crank_arm = chrono.ChCylinderShape()
+crank_arm.GetCylinderGeometry().p1 = chrono.ChVectorD(0, 0, 0)
+crank_arm.GetCylinderGeometry().p2 = chrono.ChVectorD(0.25, 0, 0)
+crank_arm.GetCylinderGeometry().rad = 0.03
+crankshaft.AddAsset(crank_arm)
+
+crank_pin = chrono.ChCylinderShape()
+crank_pin.GetCylinderGeometry().p1 = chrono.ChVectorD(0.25, 0, -0.05)
+crank_pin.GetCylinderGeometry().p2 = chrono.ChVectorD(0.25, 0, 0.05)
+crank_pin.GetCylinderGeometry().rad = 0.02
+crankshaft.AddAsset(crank_pin)
+
+# Add color to crankshaft
+col_crank = chrono.ChColorAsset()
+col_crank.SetColor(chrono.ChColor(0.6, 0.2, 0.2))
+crankshaft.AddAsset(col_crank)
+
 system.Add(crankshaft)
 
-# Add crank pin
-crank_pin = chrono.ChBodyEasyCylinder(0.015, 0.03, 2000, True, True)
-crank_pin.SetPos(chrono.ChVectorD(crank_radius, 0.1, 0))
-system.Add(crank_pin)
+# Create the connecting rod
+connecting_rod = chrono.ChBody()
+connecting_rod.SetPos(chrono.ChVectorD(0.25, 0.5, 0))
+connecting_rod.SetMass(0.5)
+connecting_rod.SetInertiaXX(chrono.ChVectorD(0.05, 0.05, 0.05))
 
-# Rigidly connect crank pin to crankshaft
-crank_pin_joint = chrono.ChLinkMateFix()
-crank_pin_joint.Initialize(crankshaft, crank_pin)
-system.Add(crank_pin_joint)
+# Add visualization geometry to the connecting rod
+rod_shape = chrono.ChBoxShape()
+rod_shape.GetBoxGeometry().SetLengths(chrono.ChVectorD(0.7, 0.05, 0.05))
+rod_shape.GetBoxGeometry().Pos = chrono.ChVectorD(0.35, 0, 0)
+connecting_rod.AddAsset(rod_shape)
 
-# 2. Create the connecting rod
-rod = chrono.ChBodyEasyBox(rod_length, 0.02, 0.02, 1000, True, True)
-rod.SetPos(chrono.ChVectorD(crank_radius + rod_length/2, 0.1, 0))
-system.Add(rod)
-
-# 3. Create the piston (slider)
-piston = chrono.ChBodyEasyBox(piston_width, piston_height, piston_depth, 1000, True, True)
-piston.SetPos(chrono.ChVectorD(crank_radius + rod_length, 0.1, 0))
-system.Add(piston)
-
-# Add color to elements
-col_crank = chrono.ChColorAsset()
-col_crank.SetColor(chrono.ChColor(0.2, 0.2, 0.8))
-crankshaft.AddAsset(col_crank)
-crank_pin.AddAsset(col_crank)
-
+# Add color to connecting rod
 col_rod = chrono.ChColorAsset()
-col_rod.SetColor(chrono.ChColor(0.7, 0.2, 0.2))
-rod.AddAsset(col_rod)
+col_rod.SetColor(chrono.ChColor(0.2, 0.6, 0.2))
+connecting_rod.AddAsset(col_rod)
 
+system.Add(connecting_rod)
+
+# Create the piston (slider)
+piston = chrono.ChBodyEasyBox(0.1, 0.15, 0.15, 1000, True, True)
+piston.SetPos(chrono.ChVectorD(1.0, 0.5, 0))
+piston.SetMass(0.3)
+piston.SetInertiaXX(chrono.ChVectorD(0.02, 0.02, 0.02))
+
+# Add color to piston
 col_piston = chrono.ChColorAsset()
-col_piston.SetColor(chrono.ChColor(0.3, 0.6, 0.3))
+col_piston.SetColor(chrono.ChColor(0.2, 0.2, 0.6))
 piston.AddAsset(col_piston)
 
-# ---------------------------------------------------------------------
-# Create the joints
+system.Add(piston)
 
-# Revolute joint between ground and crankshaft
-joint_crankshaft = chrono.ChLinkLockRevolute()
-joint_crankshaft.Initialize(ground, crankshaft, chrono.ChCoordsysD(chrono.ChVectorD(0, 0.1, 0), 
-                                                                  chrono.Q_from_AngX(chrono.CH_C_PI_2)))
-system.Add(joint_crankshaft)
+# Create the truss anchor for the crank
+truss_anchor = chrono.ChBodyEasyBox(0.1, 0.1, 0.1, 10000, True, True)
+truss_anchor.SetPos(chrono.ChVectorD(0, 0.5, 0))
+truss_anchor.SetBodyFixed(True)
 
-# Revolute joint between connecting rod and crank pin
-joint_rod_crank = chrono.ChLinkLockRevolute()
-joint_rod_crank.Initialize(rod, crank_pin, chrono.ChCoordsysD(chrono.ChVectorD(crank_radius, 0.1, 0),
-                                                             chrono.Q_from_AngX(chrono.CH_C_PI_2)))
-system.Add(joint_rod_crank)
+# Add color to truss anchor
+col_truss = chrono.ChColorAsset()
+col_truss.SetColor(chrono.ChColor(0.4, 0.4, 0.4))
+truss_anchor.AddAsset(col_truss)
 
-# Revolute joint between connecting rod and piston
-joint_rod_piston = chrono.ChLinkLockRevolute()
-joint_rod_piston.Initialize(rod, piston, chrono.ChCoordsysD(chrono.ChVectorD(crank_radius + rod_length, 0.1, 0),
-                                                           chrono.Q_from_AngX(chrono.CH_C_PI_2)))
-system.Add(joint_rod_piston)
+system.Add(truss_anchor)
 
-# Prismatic joint between piston and ground (allows only horizontal motion)
-joint_piston_ground = chrono.ChLinkLockPrismatic()
-joint_piston_ground.Initialize(piston, ground, chrono.ChCoordsysD(chrono.ChVectorD(crank_radius + rod_length, 0.1, 0),
-                                                                 chrono.Q_from_AngY(0)))
-system.Add(joint_piston_ground)
+# Create the truss for the piston guide
+truss_guide = chrono.ChBodyEasyBox(2.0, 0.1, 0.1, 10000, True, True)
+truss_guide.SetPos(chrono.ChVectorD(1.0, 0.5, 0))
+truss_guide.SetBodyFixed(True)
 
-# ---------------------------------------------------------------------
-# Add motor to crankshaft
+# Add color to truss guide
+col_guide = chrono.ChColorAsset()
+col_guide.SetColor(chrono.ChColor(0.4, 0.4, 0.4))
+truss_guide.AddAsset(col_guide)
 
+system.Add(truss_guide)
+
+# Create a revolute joint between truss and crankshaft
+rev_crankshaft = chrono.ChLinkLockRevolute()
+rev_crankshaft.Initialize(crankshaft, truss_anchor, chrono.ChCoordsysD(chrono.ChVectorD(0, 0.5, 0), chrono.Q_from_AngZ(math.pi/2)))
+system.Add(rev_crankshaft)
+
+# Create a revolute joint between crankshaft and connecting rod
+rev_crank_rod = chrono.ChLinkLockRevolute()
+rev_crank_rod.Initialize(connecting_rod, crankshaft, chrono.ChCoordsysD(chrono.ChVectorD(0.25, 0.5, 0), chrono.Q_from_AngZ(math.pi/2)))
+system.Add(rev_crank_rod)
+
+# Create a revolute joint between connecting rod and piston
+rev_rod_piston = chrono.ChLinkLockRevolute()
+rev_rod_piston.Initialize(connecting_rod, piston, chrono.ChCoordsysD(chrono.ChVectorD(0.7, 0.5, 0), chrono.Q_from_AngZ(math.pi/2)))
+system.Add(rev_rod_piston)
+
+# Create a prismatic joint to guide the piston
+prismatic_piston = chrono.ChLinkLockPrismatic()
+prismatic_piston.Initialize(piston, truss_guide, chrono.ChCoordsysD(chrono.ChVectorD(1.0, 0.5, 0), chrono.Q_from_AngX(math.pi/2)))
+system.Add(prismatic_piston)
+
+# Create a motor to spin the crankshaft
 motor = chrono.ChLinkMotorRotationSpeed()
-motor.Initialize(crankshaft, ground, chrono.ChFrameD(chrono.ChVectorD(0, 0.1, 0), chrono.Q_from_AngX(chrono.CH_C_PI_2)))
-
-# Set angular speed (rad/s)
-angular_speed = chrono.ChFunction_Const(2.0)
+motor.Initialize(crankshaft, truss_anchor, chrono.ChFrameD(chrono.ChVectorD(0, 0.5, 0)))
+motor.SetSpindleConstraint(chrono.ChLinkMotorRotation.SpindleConstraint_OLDHAM)
+motor.SetAngleOffset(0)
+angular_speed = chrono.ChFunction_Const(math.pi)  # [rad/s]
 motor.SetSpeedFunction(angular_speed)
-
 system.Add(motor)
 
-# ---------------------------------------------------------------------
-# Set up the Irrlicht visualization
-
+# Create the visualization system
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
 vis.SetWindowSize(1024, 768)
-vis.SetWindowTitle("Crank-Slider Mechanism")
+vis.SetWindowTitle("Crank-Slider Mechanism Demo")
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))
 vis.AddSkyBox()
-vis.AddCamera(chrono.ChVectorD(0.2, 0.3, 0.6), chrono.ChVectorD(0.1, 0.1, 0))
+vis.AddCamera(chrono.ChVectorD(2, 1.5, 2), chrono.ChVectorD(0, 0.5, 0))
 vis.AddTypicalLights()
 
-# ---------------------------------------------------------------------
-# Simulation loop
+# Set simulation parameters
+time_step = 0.001
+realtime_timer = chrono.ChRealtimeStepTimer()
 
-time_step = 0.01
+# Simulation loop
 while vis.Run():
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
+    
     system.DoStepDynamics(time_step)
+    realtime_timer.Spin(time_step)
 ```
 
-This script creates a crank-slider mechanism simulation with the following components:
+This script creates a complete crank-slider mechanism simulation with the following components:
 
-1. A ground/truss that serves as the fixed reference for the mechanism
+1. A floor (truss) as the base of the system
 2. A crankshaft that rotates around a fixed axis
-3. A connecting rod that connects the crankshaft to the piston
-4. A piston that moves horizontally
+3. A connecting rod that links the crankshaft to the piston
+4. A piston that moves back and forth in a linear guide
+5. Appropriate joints (revolute and prismatic) to constrain the motion
+6. A motor that drives the crankshaft at a constant angular velocity
 
-The mechanism is driven by a motor that applies a constant angular velocity to the crankshaft. The joints are configured to create the proper kinematic constraints:
-- Revolute joint between ground and crankshaft
-- Revolute joint between connecting rod and crank pin
-- Revolute joint between connecting rod and piston
-- Prismatic joint between piston and ground (constrains motion to horizontal only)
+The visualization is handled by the Irrlicht engine with:
+- Custom camera positioning
+- Lighting
+- Textures for the floor
+- A PyChrono logo
+- Color-coded components for easy identification
 
-Visual properties like colors and textures are applied to enhance the visualization, and the Irrlicht rendering system provides real-time 3D visualization with appropriate camera settings and lighting.
+The simulation runs with a small time step for accuracy and includes a realtime timer to maintain a consistent speed relative to real time.

@@ -72,21 +72,16 @@ terrain.Initialize()
 
 # Create a box obstacle
 box_size = chrono.ChVector3d(0.5, 5, 0.2)
-box_position = chrono.ChVector3d(5, 0, 0.1)
-box_material = chrono.ChMaterialSurfaceNSC()
-box_material.SetFriction(0.9)
-box_material.SetRestitution(0.01)
-
-box_obstacle = chrono.ChBody()
-box_obstacle.SetMaterialSurface(box_material)
-box_obstacle.SetPos(box_position)
-box_obstacle.SetBodyFixed(True)  # Fix the box in place
-box_obstacle.GetCollisionModel().ClearModel()
-box_obstacle.GetCollisionModel().AddBox(box_size.x, box_size.y, box_size.z)
-box_obstacle.GetCollisionModel().BuildModel()
-box_obstacle.SetCollide(True)
-
-vehicle.GetSystem().Add(box_obstacle)  # Add the box to the system
+box_pos = chrono.ChVector3d(5, 0, 0.1)
+box = chrono.ChBody()
+box.SetPos(box_pos)
+box.SetMass(1000)  # Set mass for the box
+box.SetCollide(True)
+box.GetCollisionModel().ClearModel()
+box.GetCollisionModel().AddBox(box_size.x, box_size.y, box_size.z)
+box.GetCollisionModel().BuildModel()
+box.SetBodyFixed(True)  # Fix the box in place
+vehicle.GetSystem().Add(box)
 
 # Create the vehicle Irrlicht interface
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
@@ -112,19 +107,16 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 
 driver.Initialize()
 
-# output vehicle mass
+# Output vehicle mass
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
 
-# Initialize simulation frame counter s
+# Initialize simulation frame counter
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
-
-# Set a constant throttle value to move the vehicle forward
-constant_throttle = 0.5
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
@@ -137,7 +129,9 @@ while vis.Run():
 
     # Get driver inputs
     driver_inputs = driver.GetInputs()
-    driver_inputs.m_throttle = constant_throttle  # Set constant throttle
+
+    # Set constant throttle value to move the vehicle forward
+    driver_inputs.m_throttle = 0.5  # Set throttle to 0.5
 
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)

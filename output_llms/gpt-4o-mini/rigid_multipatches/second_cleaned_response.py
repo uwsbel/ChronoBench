@@ -33,14 +33,16 @@ def main():
 
     
     terrain_patch = terrain.AddPatch(terrain_material, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
-                                      veh.GetDataFile("vehicle/terrain/meshes/Highway_col.obj"), 64.0, 64.0, 0.01)
+                                     veh.GetDataFile("vehicle/terrain/meshes/Highway_col.obj"), 64.0, 64.0, 0.01)
     
+    
+    terrain.Initialize()
+
     
     visual_mesh = chrono.ChVisualShapeTriangleMesh()
-    visual_mesh.SetMesh(veh.GetDataFile("vehicle/terrain/meshes/Highway_vis.obj"))
+    visual_mesh.SetMeshFile(veh.GetDataFile("vehicle/terrain/meshes/Highway_vis.obj"))
+    visual_mesh.SetColor(chrono.ChColor(0.5, 0.5, 0.5))  
     terrain_patch.GetGroundBody().AddVisualShape(visual_mesh)
-
-    terrain.Initialize()
 
     
     vis = veh.ChWheeledVehicleVisualSystemIrrlicht()

@@ -2,64 +2,57 @@ import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
 
 # Initialize the PyChrono environment
-chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.001)
-chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.001)
+chrono.SetChronoDataPath('path/to/chrono/data/')  # Set the path to your Chrono data
+chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.005)
+chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.005)
 
 # Create the simulation system
 system = chrono.ChSystemNSC()
 
 # Create a Rigid Terrain
 terrain = chrono.ChTerrain()
-terrain.SetGround(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(10, 0, 10))
-terrain.SetTexture(chrono.GetChronoDataPath() + "terrain_texture.jpg")  # Set your texture path here
+terrain.SetGround(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(100, 0, 100))
+terrain.SetTexture("path/to/texture.jpg")  # Set the texture for the terrain
 system.Add(terrain)
 
 # Create the HMMWV vehicle
 hmmwv = chrono.ChVehicleHMMWV()
-hmmwv.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0.5, 0), chrono.ChQuaternionD(1, 0, 0, 0)))
-
-# Set the tire model to TMEASY
-for tire in hmmwv.GetTires():
-    tire.SetTireType(chrono.ChTire.TMEASY)
-
-# Add the vehicle to the system
+hmmwv.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0.5, 0), chrono.Q_from_AngZ(0)))  # Initial position and orientation
 system.Add(hmmwv)
 
-# Set up the Irrlicht visualization
-application = chronoirr.ChIrrApp(system, "HMMWV Simulation", chronoirr.dimension2d(800, 600))
-application.AddLogo(chrono.GetChronoDataPath() + "chrono_logo.png")  # Set your logo path here
-application.AddSkyBox()
-application.AddCamera(chrono.ChVectorD(0, 5, -10), chrono.ChVectorD(0, 0, 0))
-application.AddTypicalLights()
-application.SetShowInfos(True)
+# Set up the TMEASY tire model
+for wheel in hmmwv.GetWheelList():
+    tire = chrono.ChTireTMEASY()
+    tire.Initialize(wheel)
+    system.Add(tire)
 
-# Create an interactive driver system
+# Set up the driver system for steering, throttle, and braking
 driver = chrono.ChDriverHMMWV()
 driver.Initialize(hmmwv)
-driver.SetThrottle(0.5)  # Set initial throttle
-driver.SetSteering(0.0)  # Set initial steering
-driver.SetBraking(0.0)   # Set initial braking
-system.Add(driver)
+driver.SetThrottle(0.5)  # Set throttle value (0 to 1)
+driver.SetSteering(0.1)  # Set steering angle
+driver.SetBraking(0.0)   # Set braking force
 
-# Set the simulation step size and frame rate
-step_size = 1 / 50.0  # 50 frames per second
+# Create the Irrlicht visualization
+application = chronoirr.ChIrrApp(system, "HMMWV Simulation", chronoirr.dimension2d(800, 600))
+application.AddTypicalSky()
+application.AddTypicalLights()
+application.AddTypicalCamera(chronoirr.vector3df(0, 2, -10), chronoirr.vector3df(0, 0, 0))
 
-# Simulation loop
+# Set the simulation loop parameters
+application.SetTimestep(1 / 50.0)  # Set the timestep for 50 FPS
+
+# Main simulation loop
 while application.GetDevice().run():
     application.BeginScene()
     application.DrawAll()
     application.EndScene()
 
     # Update the system
-    system.DoStepDynamics(step_size)
+    system.DoStepDynamics(application.GetTimestep())
 
-    # Update driver inputs (you can modify this to take user input)
-    driver.SetThrottle(0.5)  # Example: constant throttle
-    driver.SetSteering(0.0)  # Example: no steering
-    driver.SetBraking(0.0)   # Example: no braking
-
-    # Render the scene
-    application.DrawAll()
+    # Update the driver inputs
+    driver.UpdateInputs()
 
 # Clean up and exit
-application.Close()
+application.GetDevice().drop()

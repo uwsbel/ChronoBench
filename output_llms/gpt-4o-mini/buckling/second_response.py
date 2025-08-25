@@ -27,9 +27,9 @@ out_dir = chrono.GetChronoOutputPath() + "BEAM_BUCKLING"
 sys = chrono.ChSystemSMC()
 
 # Define key geometrical parameters
-L = 1.2  # Length updated from 1 to 1.2
-H = 0.3  # Height updated from 0.25 to 0.3
-K = 0.07  # Crank length updated from 0.05 to 0.07
+L = 1.2  # Length
+H = 0.3  # Height
+K = 0.07  # Crank length
 vA = chrono.ChVector3d(0, 0, 0)  # Point A
 vC = chrono.ChVector3d(L, 0, 0)  # Point C
 vB = chrono.ChVector3d(L, -H, 0)  # Point B
@@ -43,7 +43,7 @@ sys.AddBody(body_truss)  # Add the truss to the physical system
 
 # Attach a visualization shape to the truss
 boxtruss = chrono.ChVisualShapeBox(0.03, 0.25, 0.12)  # Updated dimensions
-body_truss.AddVisualShape(boxtruss, chrono.ChFramed(chrono.ChVector3d(-0.01, 0, 0), chrono.QUNIT))
+body_truss.AddVisualShape(boxtruss, chrono.ChFrame(chrono.ChVector3d(-0.01, 0, 0), chrono.QUNIT))
 
 # Create a crank body:
 body_crank = chrono.ChBody()
@@ -56,7 +56,7 @@ body_crank.AddVisualShape(boxcrank)
 
 # Create a rotational motor
 motor = chrono.ChLinkMotorRotationAngle()
-motor.Initialize(body_truss, body_crank, chrono.ChFramed(vG))  # Initialize motor between truss and crank
+motor.Initialize(body_truss, body_crank, chrono.ChFrame(vG))  # Initialize motor between truss and crank
 myfun = ChFunctionMyFun()  # Create an instance of the custom function
 motor.SetAngleFunction(myfun)  # Set the angle function for the motor
 sys.Add(motor)  # Add the motor to the system
@@ -65,8 +65,8 @@ sys.Add(motor)  # Add the motor to the system
 mesh = fea.ChMesh()
 
 # Define horizontal beam parameters
-beam_wy = 0.12  # Width in Y direction updated from 0.10 to 0.12
-beam_wz = 0.012  # Width in Z direction updated from 0.01 to 0.012
+beam_wy = 0.12  # Width in Y direction (updated)
+beam_wz = 0.012  # Width in Z direction (updated)
 
 # Create section properties for the IGA beam
 minertia = fea.ChInertiaCosseratSimple()
@@ -91,7 +91,7 @@ node_mid = builder_iga.GetLastBeamNodes()[17]  # Get a node in the middle
 
 # Define vertical beam parameters using Euler beams
 section2 = fea.ChBeamSectionEulerAdvanced()
-hbeam_d = 0.03  # Diameter of circular section updated from 0.024 to 0.03
+hbeam_d = 0.03  # Diameter of circular section (updated)
 section2.SetDensity(2700)  # Set density
 section2.SetYoungModulus(73.0e9)  # Set Young's modulus
 section2.SetShearModulusFromPoisson(0.3)  # Set shear modulus
@@ -100,7 +100,7 @@ section2.SetAsCircularSection(hbeam_d)  # Define the circular section
 
 # Build the vertical beam with Euler elements
 builderA = fea.ChBuilderBeamEuler()
-builderA.BuildBeam(mesh, section2, 6, vC + vd, vB + vd, chrono.ChVector3d(1, 0, 0))  # Updated number of elements from 3 to 6
+builderA.BuildBeam(mesh, section2, 6, vC + vd, vB + vd, chrono.ChVector3d(1, 0, 0))  # Updated number of elements
 
 # Define nodes at the top and bottom of the vertical beam
 node_top = builderA.GetLastBeamNodes()[0]
@@ -113,12 +113,12 @@ sys.Add(constr_bb)
 constr_bb.SetConstrainedCoords(True, True, True, False, False, False)  # Constrain x, y, z
 
 # Attach a visualization shape for the constraint
-sphereconstr2 = chrono.ChVisualShapeSphere(0.012)  # Updated size from 0.01 to 0.012
+sphereconstr2 = chrono.ChVisualShapeSphere(0.012)  # Updated size
 constr_bb.AddVisualShape(sphereconstr2)
 
 # Create a crank beam
 section3 = fea.ChBeamSectionEulerAdvanced()
-crankbeam_d = 0.054  # Diameter of circular section updated from 0.048 to 0.054
+crankbeam_d = 0.054  # Diameter of circular section (updated)
 section3.SetDensity(2700)  # Set density
 section3.SetYoungModulus(73.0e9)  # Set Young’s modulus
 section3.SetShearModulusFromPoisson(0.3)  # Set shear modulus
@@ -127,7 +127,7 @@ section3.SetAsCircularSection(crankbeam_d)  # Define the circular section
 
 # Build the crank beam with Euler elements
 builderB = fea.ChBuilderBeamEuler()
-builderB.BuildBeam(mesh, section3, 5, vG + vd, vB + vd, chrono.ChVector3d(0, 1, 0))  # Updated number of elements from 3 to 5
+builderB.BuildBeam(mesh, section3, 5, vG + vd, vB + vd, chrono.ChVector3d(0, 1, 0))  # Updated number of elements
 
 # Define nodes at the ends of the crank beam
 node_crankG = builderB.GetLastBeamNodes()[0]
@@ -146,7 +146,7 @@ sys.Add(constr_bc)
 constr_bc.SetConstrainedCoords(True, True, True, True, True, False)
 
 # Attach a visualization shape for the constraint
-sphereconstr3 = chrono.ChVisualShapeSphere(0.014)  # Updated size from 0.01 to 0.014
+sphereconstr3 = chrono.ChVisualShapeSphere(0.014)  # Updated size
 constr_bc.AddVisualShape(sphereconstr3)
 
 # Final touches:
@@ -169,7 +169,7 @@ mvisualizebeamC.SetFEMglyphType(
     chrono.ChVisualShapeFEA.GlyphType_NODE_CSYS)  # Set glyph type for node coordinate systems
 mvisualizebeamC.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NONE)  # Disable additional data visualization
 mvisualizebeamC.SetSymbolsThickness(0.006)  # Set thickness for glyphs
-mvisualizebeamC.SetSymbolsScale(0.015)  # Updated scale from 0.01 to 0.015
+mvisualizebeamC.SetSymbolsScale(0.015)  # Updated scale for glyphs
 mvisualizebeamC.SetZbufferHide(False)  # Disable Z-buffer hiding for glyphs
 mesh.AddVisualShapeFEA(mvisualizebeamC)  # Add visualization shape to mesh
 

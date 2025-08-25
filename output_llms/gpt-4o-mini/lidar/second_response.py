@@ -15,16 +15,15 @@ def main():
     # ----------------------------------
     # Create a box to be sensed by a lidar
     # ----------------------------------
-    side = 2.0  # Define the size of the box
-    box_body = chrono.ChBodyEasyBox(side, side, side, 1000, True, True)  # Create a box with density 1000
-    box_body.SetPos(chrono.ChVector3d(0, 0, 0))  # Set position of the box
-    mphysicalSystem.Add(box_body)  # Add the box to the physical system
-
-    # Create a visual representation of the box
-    box_shape = chrono.ChVisualShapeBox()
-    box_shape.SetBoxDimensions(side, side, side)
-    box_shape.SetColor(chrono.ChColor(0.5, 0.5, 0.5))  # Set color of the box
-    box_body.AddVisualShape(box_shape)  # Add visual shape to the box
+    side = 2.0  # Define the side length of the box
+    box_body = chrono.ChBodyEasyBox(side, side, side, 1000, True, True)
+    box_body.SetPos(chrono.ChVector3d(0, 0, 0))
+    box_body.SetName("Box")
+    
+    # Optionally set a texture or color for the box
+    # box_body.SetMaterialSurface(chrono.ChMaterialSurfaceNSC())
+    
+    mphysicalSystem.Add(box_body)
 
     # -----------------------
     # Create a sensor manager
@@ -38,7 +37,7 @@ def main():
         chrono.ChVector3d(-12, 0, 1), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
     )
     lidar = sens.ChLidarSensor(
-        box_body,              # Body lidar is attached to (changed to box_body)
+        box_body,              # Body lidar is attached to the box
         update_rate,           # Scanning rate in Hz
         offset_pose,           # Offset pose
         horizontal_samples,    # Number of horizontal samples
@@ -87,20 +86,20 @@ def main():
     manager.AddSensor(lidar)
 
     # ------------------------------------------------
-    # Create a 2D lidar and add it to the sensor manager
+    # Create a 2D lidar sensor and add it to the sensor manager
     # ------------------------------------------------
     offset_pose_2d = chrono.ChFramed(
         chrono.ChVector3d(-12, 0, 1), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
     )
     lidar_2d = sens.ChLidarSensor(
-        box_body,              # Body lidar is attached to
+        box_body,              # Body lidar is attached to the box
         update_rate,           # Scanning rate in Hz
         offset_pose_2d,       # Offset pose
         horizontal_samples,    # Number of horizontal samples
-        1,                     # Number of vertical channels (1 for 2D lidar)
+        1,                     # One vertical channel for 2D lidar
         horizontal_fov,        # Horizontal field of view
-        0,                     # Maximum vertical field of view (0 for 2D lidar)
-        0,                     # Minimum vertical field of view (0 for 2D lidar)
+        max_vert_angle,        # Maximum vertical field of view
+        min_vert_angle,        # Minimum vertical field of view
         100.0,                 # Maximum lidar range
         sens.LidarBeamShape_RECTANGULAR,  # Shape of the lidar beam
         sample_radius,         # Sample radius

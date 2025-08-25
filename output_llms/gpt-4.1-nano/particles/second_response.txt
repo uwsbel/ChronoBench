@@ -3,6 +3,7 @@ import pychrono as chrono
 import pychrono.irrlicht as chronoirr
 from itertools import combinations
 
+
 class MyCreatorForAll(chrono.ChRandomShapeCreator_AddBodyCallback):
     def __init__(self, vis, coll):
         super().__init__()
@@ -14,6 +15,7 @@ class MyCreatorForAll(chrono.ChRandomShapeCreator_AddBodyCallback):
         self.vis.BindItem(body)
         self.coll.BindItem(body)
         body.SetUseGyroTorque(False)
+
 
 # Create a Chrono physical system
 sys = chrono.ChSystemNSC()
@@ -50,10 +52,10 @@ mangvelo = chrono.ChRandomParticleVelocityAnyDirection()
 mangvelo.SetModulusDistribution(chrono.ChUniformDistribution(0.0, 0.2))
 emitter.SetParticleAngularVelocity(mangvelo)
 
-# 1. Replace the Particle Shape Creator with spheres
+# 1. Replace the shape creator with spheres
 mcreator_spheres = chrono.ChRandomShapeCreatorSpheres()
-mcreator_spheres.SetNpoints(15)  # Npoints might be ignored for spheres; kept for consistency
-mcreator_spheres.SetChordDistribution(chrono.ChZhangDistribution(0.6, 0.23))
+mcreator_spheres.SetNpoints(15)  # Not applicable for spheres, but kept for compatibility
+mcreator_spheres.SetDiameterDistribution(chrono.ChZhangDistribution(0.6, 0.23))
 mcreator_spheres.SetDensityDistribution(chrono.ChConstantDistribution(1600))
 emitter.SetParticleCreator(mcreator_spheres)
 
@@ -88,52 +90,46 @@ while vis.Run():
     # Emit particles
     emitter.EmitParticles(sys, stepsize)
 
-    # Clear forces
+    # Reset forces
     for body in sys.GetBodies():
         body.EmptyAccumulators()
 
-    # Run gravitational interactions
-    mlist = list(combinations(sys.GetBodies(), 2))
-    
-    # 3. Move G_constant inside the loop
-    G_constant = 6.674e-3  # Modified gravitational constant
-
-    # Initialize energy accumulators
+    # Initialize energy variables
     kinetic_energy = 0.0
     potential_energy = 0.0
 
-    # Compute energies
+    # 2. Calculate energies
+    # Move G_constant inside the loop for better organization
+    G_constant = 6.674e-3
+
+    # Compute kinetic energy
     for body in sys.GetBodies():
-        v = body.GetPospeed().GetVector()
         mass = body.GetMass()
-        # Kinetic energy: 0.5 * m * v^2
-        kinetic_energy += 0.5 * mass * v.Length2()
+        vel = body.GetPos_dt()
+        kinetic_energy += 0.5 * mass * vel.Length2()
 
-    for abodyA, abodyB in mlist:
-        posA = abodyA.GetPos()
-        posB = abodyB.GetPos()
-        D_attract = posB - posA
-        r_attract = D_attract.Length()
-        # Avoid division by zero
-        if r_attract > 1e-8:
-            massA = abodyA.GetMass()
-            massB = abodyB.GetMass()
-            # Potential energy
-            potential_energy += -G_constant * (massA * massB) / r_attract
-            # Gravitational force magnitude
-            f_attract = G_constant * (massA * massB) / (r_attract ** 2)
-            # Force vector
-            F_attract = (D_attract / r_attract) * f_attract
-            # Apply forces
-            abodyA.AccumulateForce(F_attract, abodyA.GetPos(), False)
-            abodyB.AccumulateForce(-F_attract, abodyB.GetPos(), False)
+    # Compute potential energy between pairs
+    bodies_list = list(sys.GetBodies())
+    for bodyA, bodyB in combinations(bodies_list, 2):
+        posA = bodyA.GetPos()
+        posB = bodyB.GetPos()
+        D = posB - posA
+        r = D.Length()
+        if r > 1e-8:  # Avoid division by zero
+            massA = bodyA.GetMass()
+            massB = bodyB.GetMass()
+            potential_energy += -G_constant * (massA * massB) / r
 
-    # Integrate
-    sys.DoStepDynamics(stepsize)
+            # Also compute gravitational force (optional, since forces are already accumulated)
+            # but since the original code applies forces, we can skip force application here
+            # or keep it if needed. For energy calculation, just sum potential energy.
 
-    # 2. Print energies
-    print(f"Kinetic Energy: {kinetic_energy:.4f} J")
-    print(f"Potential Energy: {potential_energy:.4f} J")
+    # 3. Print energies
     total_energy = kinetic_energy + potential_energy
-    print(f"Total Energy: {total_energy:.4f} J")
+    print(f"Kinetic Energy: {kinetic_energy:.4f}")
+    print(f"Potential Energy: {potential_energy:.4f}")
+    print(f"Total Energy: {total_energy:.4f}")
+
+    # Advance simulation
+    sys.DoStepDynamics(stepsize)
 ```

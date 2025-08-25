@@ -20,12 +20,12 @@ chassis_collision_type = veh.CollisionType_NONE
 # Type of tire model (RIGID, TMEASY)
 tire_model = veh.TireModelType_TMEASY
 
-# Rigid terrain
+# Rigid terrain parameters
 terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
 
-# Poon chassis tracked by the camera
+# Point tracked by the camera
 trackPoint = chrono.ChVector3d(0.0, 0.0, 0.2)
 
 # Contact method

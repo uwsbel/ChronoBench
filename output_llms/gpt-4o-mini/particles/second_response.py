@@ -51,7 +51,7 @@ mangvelo = chrono.ChRandomParticleVelocityAnyDirection()
 mangvelo.SetModulusDistribution(chrono.ChUniformDistribution(0.0, 0.2))
 emitter.SetParticleAngularVelocity(mangvelo)
 
-# Replace the Particle Creator with Spheres
+# Replace the Particle Creator with spheres
 mcreator_spheres = chrono.ChRandomShapeCreatorSpheres()
 mcreator_spheres.SetDiameterDistribution(chrono.ChZhangDistribution(0.6, 0.23))
 mcreator_spheres.SetDensityDistribution(chrono.ChConstantDistribution(1600))
@@ -93,30 +93,10 @@ while vis.Run():
     for body in sys.GetBodies():
         body.EmptyAccumulators()
 
-    # Energy calculations
-    kinetic_energy = 0.0
-    potential_energy = 0.0
-
-    # Calculate kinetic energy
-    for body in sys.GetBodies():
-        velocity = body.GetPos_dt()
-        kinetic_energy += 0.5 * body.GetMass() * velocity.Length2()
-
-    # Calculate potential energy
     mlist = list(combinations(sys.GetBodies(), 2))
-    for abodyA, abodyB in mlist:
-        D_attract = abodyB.GetPos() - abodyA.GetPos()
-        r_attract = D_attract.Length()
-        if r_attract > 0:  # Avoid division by zero
-            potential_energy += -G_constant * (abodyA.GetMass() * abodyB.GetMass()) / r_attract
+    total_potential_energy = 0.0
+    total_kinetic_energy = 0.0
 
-    total_energy = kinetic_energy + potential_energy
-
-    # Print energy values
-    print(f"Kinetic Energy: {kinetic_energy:.4f}, Potential Energy: {potential_energy:.4f}, Total Energy: {total_energy:.4f}")
-
-    # Apply gravitational attraction
-    mlist = list(combinations(sys.GetBodies(), 2))
     for abodyA, abodyB in mlist:
         D_attract = abodyB.GetPos() - abodyA.GetPos()
         r_attract = D_attract.Length()
@@ -125,5 +105,16 @@ while vis.Run():
             F_attract = (D_attract / r_attract) * f_attract
             abodyA.AccumulateForce(F_attract, abodyA.GetPos(), False)
             abodyB.AccumulateForce(-F_attract, abodyB.GetPos(), False)
+            total_potential_energy += -G_constant * (abodyA.GetMass() * abodyB.GetMass()) / r_attract
+
+    # Calculate kinetic energy
+    for body in sys.GetBodies():
+        velocity = body.GetPos_dt()
+        total_kinetic_energy += 0.5 * body.GetMass() * velocity.Length2()
+
+    total_energy = total_kinetic_energy + total_potential_energy
+
+    # Print energy values
+    print(f"Kinetic Energy: {total_kinetic_energy:.2f}, Potential Energy: {total_potential_energy:.2f}, Total Energy: {total_energy:.2f}")
 
     sys.DoStepDynamics(stepsize)

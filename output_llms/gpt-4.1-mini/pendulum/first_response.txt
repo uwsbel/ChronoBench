@@ -3,73 +3,66 @@ import pychrono as chrono
 import pychrono.irrlicht as chronoirr
 
 # 1. Initialize the PyChrono environment and core components
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())  # Ensure data path is set (optional if environment variable is set)
 
-# Create a Chrono physical system
+# Create the physical system
 system = chrono.ChSystemNSC()
 
-# 2. Add the required physical systems and objects as specified
+# 2. Add the required physical systems and objects
 
-# Create the ground body - fixed in space
+# Create the ground body (fixed)
 ground = chrono.ChBody()
 ground.SetBodyFixed(True)
-ground.SetName("Ground")
 system.Add(ground)
 
 # Create the pendulum body
-pendulum = chrono.ChBodyEasyBox(0.2, 1.0, 0.05,  # Size: thickness, length, width (m)
-                                1000,           # Density (kg/m³)
-                                True,           # Visualization on
-                                True)           # Collision enabled (not critical here but good practice)
-pendulum.SetName("Pendulum")
+pendulum = chrono.ChBody()
+pendulum.SetMass(1.0)  # 1 kg mass
+pendulum.SetInertiaXX(chrono.ChVectorD(0.01, 0.01, 0.01))  # Small inertia for a simple rod-like pendulum
 
-# Position the pendulum initially hanging downward from the pivot at origin
-# We'll set the pendulum's center roughly at (0, -0.5, 0)
-pendulum.SetPos(chrono.ChVectorD(0, -0.5, 0))
+# Set initial position of pendulum (pivot at origin, pendulum hanging down along -Y)
+pendulum_length = 1.0  # 1 meter length pendulum
+pendulum_pos = chrono.ChVectorD(0, -pendulum_length, 0)
+pendulum.SetPos(pendulum_pos)
 
-# Set some reasonable mass and inertia explicitly (optional, as SetBodyEasyBox handles it)
-# pendulum.SetMass(1.0)
-# pendulum.SetInertiaXX(chrono.ChVectorD(0.01, 0.01, 0.01))
+# Add a visualization shape (a simple cylinder to represent the pendulum rod)
+cyl = chrono.ChCylinderShape()
+cyl.GetCylinderGeometry().p1 = chrono.ChVectorD(0, 0, 0)
+cyl.GetCylinderGeometry().p2 = chrono.ChVectorD(0, -pendulum_length, 0)
+cyl.GetCylinderGeometry().rad = 0.05
+pendulum.AddVisualShape(cyl)
 
 system.Add(pendulum)
 
-# Create a revolute joint (a hinge) connecting pendulum to ground at origin, allowing rotation around Z axis
+# 3. Connect pendulum to ground with a revolute joint at origin
 joint = chrono.ChLinkLockRevolute()
-joint.Initialize(pendulum, ground, chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 0, 1))))
+joint.Initialize(pendulum, ground, chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.Q_from_AngAxis(chrono.CH_C_PI_2, chrono.VECT_X)))
 system.AddLink(joint)
 
-# 3. Setup the Irrlicht visualization system
-vis = chronoirr.ChIrrApp(system, "Simple Pendulum", chronoirr.dimension2du(800, 600))
+# 4. Setup Irrlicht visualization
+application = chronoirr.ChIrrApp(system, "Simple Pendulum Simulation", chronoirr.dimension2du(800, 600))
 
-# Add typical elements to the Irrlicht scene
-vis.AddLogo()
-vis.AddSkyBox()
-vis.AddCamera(chrono.ChVectorD(1.0, 0.0, 1.5))
-vis.AddLightWithShadow(chrono.ChVectorD(2, 4, 2), chrono.ChVectorD(0, 0, 0), 9, 1, 9, 30)
-vis.AddShadowAll()
+application.AddTypicalSky()
+application.AddTypicalLights()
+application.AddTypicalCamera(chronoirr.vector3df(2, 1, 2))
 
-vis.AssetBindAll()
-vis.AssetUpdateAll()
+application.AssetBindAll()
+application.AssetUpdateAll()
 
-# Run simulation with logging pendulum position and velocity
-time_step = 1e-3
-next_log_time = 0
-log_interval = 0.1
+# 5. Simulation loop with periodic logging
+time_step = 0.01
+application.SetTimestep(time_step)
 
-vis.SetTimestep(time_step)
+print("Time\tPosX\tPosY\tPosZ\tVelX\tVelY\tVelZ")
+while application.GetDevice().run():
+    application.BeginScene()
+    application.DrawAll()
 
-while vis.Run():
-    vis.BeginScene()
-    vis.Render()
-    vis.EndScene()
+    # Log pendulum position and velocity
+    pos = pendulum.GetPos()
+    vel = pendulum.GetPos_dt()
+    print(f"{system.GetChTime():.3f}\t{pos.x:.4f}\t{pos.y:.4f}\t{pos.z:.4f}\t{vel.x:.4f}\t{vel.y:.4f}\t{vel.z:.4f}")
 
-    system.DoStepDynamics(time_step)
-
-    # Periodically log pendulum position and velocity
-    current_time = system.GetChTime()
-    if current_time >= next_log_time:
-        pos = pendulum.GetPos()
-        vel = pendulum.GetPos_dt()
-        print(f"Time: {current_time:.2f} s, Position: ({pos.x:.3f}, {pos.y:.3f}, {pos.z:.3f}), "
-              f"Velocity: ({vel.x:.3f}, {vel.y:.3f}, {vel.z:.3f})")
-        next_log_time += log_interval
+    application.DoStep()
+    application.EndScene()
 ```

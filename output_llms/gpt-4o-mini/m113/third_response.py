@@ -70,19 +70,6 @@ patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
-# Create a long box to test vehicle mobility
-box_length = 10.0
-box_width = 2.0
-box_height = 0.5
-box_material = chrono.ChMaterialSurfaceSMC()
-box_material.SetFriction(0.9)
-box_material.SetRestitution(0.01)
-
-box = chrono.ChBodyEasyBox(box_length, box_width, box_height, 1000, True, True)
-box.SetPos(chrono.ChVector3d(0, 0, box_height / 2))  # Position the box above the terrain
-box.SetMaterialSurface(box_material)
-vehicle.GetSystem().Add(box)
-
 # Create the vehicle Irrlicht interface
 vis = veh.ChTrackedVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('M113 Demo')
@@ -108,19 +95,35 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 # Solver and integrator settings
-# ------------------------------
 vehicle.GetSystem().SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
 
-# output vehicle mass
+# Output vehicle mass
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
 
-# Initialize simulation frame counter s
+# Initialize simulation frame counter
 step_number = 0
 render_frame = 0
 vehicle.GetVehicle().EnableRealtime(True)
+
+# Add a long box to the system to test vehicle mobility
+box_length = 10.0
+box_width = 2.0
+box_height = 0.5
+box_material = chrono.ChMaterialSurfaceSMC()
+box_material.SetFriction(0.9)
+box_material.SetRestitution(0.01)
+
+# Create the box
+box = chrono.ChBodyEasyBox(box_length, box_width, box_height, 1000, True, True)
+box.SetPos(chrono.ChVectorD(0, 0, box_height / 2))  # Position the box above the terrain
+box.SetMaterialSurface(box_material)
+box.GetCollisionModel().BuildModel()
+box.SetCollide(True)
+vehicle.GetSystem().Add(box)
+
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
     # Render scene and output POV-Ray data
@@ -132,9 +135,7 @@ while vis.Run():
 
     # Get driver inputs
     driver_inputs = driver.GetInputs()
-    # Hard-code the throttle value to 0.8
-    driver_inputs.m_throttle = 0.8  # Set throttle to 0.8 during the simulation loop
-
+    driver_inputs.m_throttle = 0.8  # Hard-coded throttle value to 0.8
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
     terrain.Synchronize(time)

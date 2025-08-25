@@ -1,8 +1,14 @@
-Certainly! Below is a **PyChrono** simulation script that creates a Viper rover on rigid terrain, sets up gravity, initializes the rover and driver, and uses Irrlicht for real-time visualization. The rover's steering is smoothly changed over a specified time period in the simulation loop.
+Certainly! Below is a **PyChrono** simulation script that follows your instructions. This script:
+
+- Initializes the Chrono system with gravity.
+- Adds a rigid ground body.
+- Creates a Viper rover and its driver.
+- Sets up Irrlicht visualization with camera and lighting.
+- Implements a simulation loop where the rover's steering is gradually changed over a specified period.
 
 **Note:**  
 - Make sure you have the `pychrono` and `pychrono.vehicle` modules installed.
-- Adjust the `steering_time` and `max_steering` as needed.
+- Adjust the `viper_data_dir` path if needed.
 
 ```python
 import pychrono as chrono
@@ -10,14 +16,16 @@ import pychrono.vehicle as veh
 import pychrono.irrlicht as irr
 import math
 
-# 1. Initialize PyChrono system
+# -----------------------------------------------------------------------------
+# 1. Initialize PyChrono system and set gravity
+# -----------------------------------------------------------------------------
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
-veh.SetDataPath(veh.GetDataPath())
-
-system = chrono.ChSystemNSC()
+system = chrono.ChSystemSMC()
 system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
 
-# 2. Create rigid terrain (ground)
+# -----------------------------------------------------------------------------
+# 2. Add rigid terrain (ground body)
+# -----------------------------------------------------------------------------
 terrain = veh.RigidTerrain(system)
 patch = terrain.AddPatch(
     chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT),
@@ -25,79 +33,73 @@ patch = terrain.AddPatch(
 )
 patch.SetContactFrictionCoefficient(0.9)
 patch.SetRestitutionCoefficient(0.01)
-patch.SetMaterialSurface(veh.CreateMaterial(veh.ContactMethod_NSC))
-patch.SetColor(chrono.ChColor(0.4, 0.6, 0.4))
-patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 10, 10)
+patch.SetMaterialSurface(veh.CreateMaterial(veh.ChContactMethod_SMC))
+patch.SetColor(chrono.ChColor(0.4, 0.5, 0.4))
+patch.SetTexture(chrono.GetChronoDataFile("terrain/textures/grass.jpg"), 10, 10)
 terrain.Initialize()
 
-# 3. Create the Viper rover
-init_pos = chrono.ChVectorD(0, 0, 0.5)
-init_rot = chrono.Q_from_AngZ(0)
-viper = veh.Viper(system)
-viper.SetChassisFixed(False)
-viper.SetInitPosition(chrono.ChCoordsysD(init_pos, init_rot))
-viper.Initialize()
+# -----------------------------------------------------------------------------
+# 3. Initialize Viper rover and driver
+# -----------------------------------------------------------------------------
+viper_data_dir = chrono.GetChronoDataFile("viper/")
+rover = veh.Viper(system, viper_data_dir)
+rover.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0.1), chrono.QUNIT))
 
-# 4. Create a driver for the Viper
-driver = veh.ViperSpeedDriver()
-driver.SetThrottle(0.5)  # 50% throttle
-driver.SetSteering(0.0)  # Start with zero steering
-viper.SetDriver(driver)
+# Create a simple driver that allows us to set steering and throttle
+driver = veh.ViperSimpleDriver()
+driver.SetThrottle(0.5)  # Constant throttle
 
-# 5. Visualization with Irrlicht
-vis = veh.ChWheeledVehicleIrrApp(viper.GetVehicle(), 'PyChrono Viper Rover', irr.dimension2du(1024,768))
+# -----------------------------------------------------------------------------
+# 4. Set up Irrlicht visualization
+# -----------------------------------------------------------------------------
+vis = veh.ChWheeledVehicleIrrApp(rover.GetSystem(), "Viper Rover Simulation", irr.dimension2du(1024, 768))
+vis.SetChaseCamera(chrono.ChVectorD(0, 0, 0.5), 2.0, 0.5)
 vis.AddTypicalLights()
-vis.AddTypicalSky()
-vis.AddTypicalLogo()
-vis.AddTypicalCamera(chrono.ChVectorD(2, 2, 1.5), chrono.ChVectorD(0, 0, 0.5))
-vis.SetChaseCamera(chrono.ChVectorD(0, 0, 1.0), 2.0, 0.5)
+vis.AddSkyBox()
+vis.SetSymbolscale(1.0)
 vis.SetHUDLocation(500, 20)
 vis.AssetBindAll()
 vis.AssetUpdateAll()
 
-# 6. Simulation loop parameters
-step_size = 1e-3
+# -----------------------------------------------------------------------------
+# 5. Simulation loop with gradual steering change
+# -----------------------------------------------------------------------------
+timestep = 1e-3
 end_time = 10.0
-steering_time = 3.0     # seconds over which to ramp steering
-max_steering = 0.5      # maximum steering input ([-1,1])
+steer_time = 5.0  # Time over which steering changes from 0 to max
+max_steering = 0.5  # Maximum steering input
 
-# 7. Simulation loop
 time = 0.0
 while vis.Run() and time < end_time:
-    # Gradually increase steering input over steering_time seconds
-    if time < steering_time:
-        steering = max_steering * (time / steering_time)
+    # Calculate steering input: ramp from 0 to max_steering over steer_time seconds
+    if time < steer_time:
+        steering = max_steering * (time / steer_time)
     else:
         steering = max_steering
+
     driver.SetSteering(steering)
-    
-    # Update modules
-    driver.Synchronize(time)
+    rover.Update(driver.GetInputs(), terrain)
     terrain.Synchronize(time)
-    viper.Synchronize(time, driver.GetInputs(), terrain)
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
-    
-    # Advance simulation
-    driver.Advance(step_size)
-    terrain.Advance(step_size)
-    viper.Advance(step_size)
-    system.DoStepDynamics(step_size)
-    time += step_size
+
+    system.DoStepDynamics(timestep)
+    time += timestep
 
 vis.GetDevice().closeDevice()
 ```
 
 ---
 
-**Key Points:**
-- **Gravity** is set in the Chrono system.
-- **Rigid terrain** is created and initialized.
-- **Viper rover** is initialized at a specified position.
-- **Driver** is used to control throttle and steering.
-- **Irrlicht visualization** is set up with camera and lighting.
-- **Simulation loop** updates steering input gradually over `steering_time` seconds, then holds it constant.
-- **Rendering and advancing** are performed at each timestep.
+### **Key Points:**
+- **Gravity:** Set to -9.81 m/s² in Z.
+- **Ground:** Rigid terrain patch, friction and restitution set.
+- **Viper Rover:** Initialized at (0, 0, 0.1).
+- **Driver:** Constant throttle, steering ramps up over 5 seconds.
+- **Visualization:** Irrlicht app with camera, lights, and skybox.
+- **Simulation Loop:** Updates steering, rover, terrain, and renders each timestep.
 
-Let me know if you need further customization!
+---
+
+**Let me know if you need further customization or explanation!**

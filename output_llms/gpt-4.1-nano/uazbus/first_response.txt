@@ -3,90 +3,89 @@ import pychrono.core as chrono
 import pychrono.vehicle as veh
 import pychrono.irrlicht as irr
 
-# Initialize Chrono engine
-chrono.SetChronoDataPath("/path/to/data")  # Adjust this path to your Chrono data directory
-
-# Create the physical system
+# 1. Initialize the Chrono engine and create the physical system
 system = chrono.ChSystemNSC()
 
-# --- Create and add terrain ---
-terrain = veh.RigidTerrain(system)
-ground_mat = terrain.GetGroundMaterial()
-ground_mat.SetFriction(0.8)
-ground_mat.SetRestitution(0.2)
+# Set gravity
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
-# Define terrain shape (e.g., flat ground)
-terrain_shape = chrono.ChLineShape()
-terrain_shape.GetGeometry().AddPoint(chrono.ChVector(0, 0, 0))
-terrain_shape.GetGeometry().AddPoint(chrono.ChVector(100, 0, 0))
-terrain_shape.GetGeometry().AddPoint(chrono.ChVector(100, 0, 100))
-terrain_shape.GetGeometry().AddPoint(chrono.ChVector(0, 0, 100))
-terrain_shape.GetGeometry().Close()
-terrain.AddGraphicalShape(terrain_shape)
+# 2. Create the terrain (rigid ground) with specified friction and restitution
+ground = chrono.ChBodyEasyBox(50, 1, 50, 1000, True, True)
+ground.SetPos(chrono.ChVectorD(0, -0.5, 0))
+ground.SetBodyFixed(True)
+# Set material properties
+material = chrono.ChMaterialSurfaceNSC()
+material.SetFriction(0.8)  # example friction coefficient
+material.SetRestitution(0.1)  # example restitution coefficient
+ground.GetCollisionModel().ClearModel()
+ground.GetCollisionModel().AddBox(material, 25, 0.5, 25)
+ground.GetCollisionModel().BuildModel()
+ground.SetMaterialSurface(material)
+system.Add(ground)
 
-# --- Create UAZBUS vehicle ---
-# Assign initial position and orientation
-initial_pos = chrono.ChVector(0, 1, 0)  # Slightly above ground to avoid initial penetration
-initial_rot = chrono.ChQuaternion(1, 0, 0, 0)
+# 3. Create the UAZBUS vehicle
+# Initialize the vehicle with default parameters
+my_vehicle = veh.UAZBUS(vehicle_step_size=1e-3)
 
-# Instantiate the vehicle
-uaz = veh.UAZBUS(system, vehicle_config=veh.UAZBUS.ROADWAY)  # or veh.UAZBUS for default
-uaz.Initialize(initial_pos, initial_rot)
+# Set initial position and orientation
+initial_pos = chrono.ChVectorD(0, 0.5, 0)
+initial_rot = chrono.Q_from_AngleAxis(0, chrono.ChVectorD(0, 1, 0))
+my_vehicle.GetChassisBody().SetPos(initial_pos)
+my_vehicle.GetChassisBody().SetRot(initial_rot)
 
-# Set vehicle initial speeds if needed
-# For example, set initial forward velocity
-initial_speed = 0
-uaz.GetChassis().SetPos(initial_pos)
-uaz.GetChassis().SetRot(initial_rot)
-uaz.SetChassisCollisionType(veh.ChassisCollisionType::NONE)
+# Add the vehicle to the system
+system.Add(my_vehicle.GetChassisBody())
 
-# --- Setup driver system ---
-driver = veh.ChIrrAppDriver(uaz.GetVehicle(), system)
-driver.SetKeyboardProportionalSteering(true)
-driver.SetInputDataSource(veh.ChIrrAppDriver.MotorInputType::VELOCITY)
-# Optional: set initial driver inputs
-driver.Initialize()
+# 4. Initialize the driver system for vehicle control
+driver = veh.ChIrrGuiDriver()
+driver.Initialize(system, my_vehicle.GetVehicle())
 
-# --- Visualization setup with Irrlicht ---
-application = irr.ChIrrApp(system, 'UAZBUS Simulation', irr.dimension2du(1024, 768))
-application.AddSkyBox()
+# 5. Set up the Irrlicht visualization
+# Create the Irrlicht application
+application = irr.ChIrrApp(system, 'UAZBUS Simulation', irr.dimension2du(800, 600))
 application.AddTypicalLights()
+application.AddTypicalCamera(irr.vector3df(0, 3, -10))
+application.SetCameraMoveScale(0.1)
+application.SetChaseCamera(my_vehicle.GetChassisBody(), 3.0, 0.5)
+
+# Enable shadows and skybox for better visualization
+application.SetShadows(true)
+application.SetSkyBox()
+
+# Bind the user interface
 application.AssetBindAll()
 application.AssetUpdateAll()
 
-# Camera positioning
-application.SetCamera(chrono.ChVector(0, 3, -10), chrono.ChVector(0, 1, 0))
-application.SetFogEnable(True)
-application.GetDevice().getVideoDriver().setFog(irr.SColor(255, 255, 255, 255), 50.0, 300.0, 3.0, True)
+# 6. Simulation loop parameters
+time_step = 1e-3
+total_time = 20  # seconds
+current_time = 0
 
-# --- Simulation parameters ---
-time_step = 0.005
-application.SetTimestep(time_step)
-application.SetTryRealtime(True)
-
-# --- Main simulation loop ---
+# 7. Main simulation loop
 while application.GetDevice().run():
-    # Begin scene
-    application.BeginScene()
-    application.DrawAll()
-
-    # Synchronize driver input
-    driver.Synchronize()
-
-    # Advance vehicle
+    # Synchronize driver inputs
+    driver.Synchronize(current_time)
     driver.Advance(time_step)
-    uaz.Synchronize(time_step)
-    uaz.Advance(time_step)
 
-    # Synchronize terrain
-    terrain.Synchronize(system.GetChTime())
+    # Synchronize vehicle with driver inputs
+    my_vehicle.GetVehicle().GetChassis()->SetAppliedForce(chrono.ChVectorD(0, 0, 0))  # optional: reset forces
+    my_vehicle.GetVehicle().GetChassis()->SetAppliedTorque(chrono.ChVectorD(0, 0, 0))
+    my_vehicle.GetVehicle().GetChassis()->SetInput(driver.GetSteering(), driver.GetThrottle(), driver.GetBraking())
 
-    # Advance terrain
-    terrain.Advance(time_step)
+    # Advance the system
+    system.DoStepDynamics(time_step)
 
     # Update visualization
     application.AssetUpdateAll()
 
-    # End scene
-    application.EndScene()
+    # Advance simulation time
+    current_time += time_step
+
+    # Maintain real-time
+    application.GetDevice().run()
+    application.Synchronize('')  # optional: pass a string for window title updates
+    application.Advance(time_step)
+
+# End of simulation
+application.GetDevice().close()
 ```

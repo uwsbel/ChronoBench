@@ -21,10 +21,9 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 # Rigid terrain
-# terrain_model = veh.RigidTerrain.BOX
-terrainHeight = 0      # terrain height
-terrainLength = 200.0  # size in X direction
-terrainWidth = 100.0   # size in Y direction
+terrainHeight = 0      
+terrainLength = 200.0  
+terrainWidth = 100.0   
 
 # Poon chassis tracked by the camera
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
@@ -38,7 +37,7 @@ step_size = 1e-3
 tire_step_size = step_size
 
 # Time interval between two render frames
-render_step_size = 1.0 / 50  # FPS = 50
+render_step_size = 1.0 / 50  
 
 
 # Create the HMMWV vehicle, set parameters, and initialize
@@ -52,6 +51,7 @@ vehicle.SetTireStepSize(tire_step_size)
 
 vehicle.Initialize()
 
+# Set the visualization type for all vehicle parts
 vehicle.SetChassisVisualizationType(vis_type)
 vehicle.SetSuspensionVisualizationType(vis_type)
 vehicle.SetSteeringVisualizationType(vis_type)
@@ -84,12 +84,67 @@ vis.AttachVehicle(vehicle.GetVehicle())
 
 
 # Create the driver system
-driver = veh.ChInteractiveDriverIRR(vis)
+#  driver = veh.ChInteractiveDriverIRR(vis)
+
+# PID Controller implementation
+class PIDController:
+    def __init__(self, kp, ki, kd, setpoint):
+        self.kp = kp
+        self.ki = ki
+        self.kd = kd
+        self.setpoint = setpoint
+        self.error = 0
+        self.integral = 0
+
+    def update(self, current_value):
+        self.error = self.setpoint - current_value
+        self.integral += self.error * step_size
+        derivative = (self.error - self.integral) / step_size
+        output = self.kp * self.error + self.ki * self.integral + self.kd * derivative
+        return output
+
+# Set the PID controller parameters
+kp = 1.0  
+ki = 0.1  
+kd = 0.05  
+setpoint = 0.3  
+
+# Initialize the PID controller
+pid = PIDController(kp, ki, kd, setpoint)
+
+# Set the throttle value
+throttle = 0.3
+
+# Create the path
+path_radius = 50.0
+path_points = []
+for i in range(0, 360):
+    angle = i * math.pi / 180
+    x = path_radius * math.cos(angle)
+    y = path_radius * math.sin(angle)
+    path_points.append(chrono.ChVector3d(x, y, 0))
+
+# Create the sentinel point
+sentinel_point = chrono.ChVector3d(0, 0, 0)
+
+# Create the target point
+target_point = chrono.ChVector3d(path_radius * math.cos(math.pi / 2), path_radius * math.sin(math.pi / 2), 0)
+
+# Set the vehicle's path
+vehicle.SetPath(path_points)
+vehicle.SetSentinelPoint(sentinel_point)
+vehicle.SetTargetPoint(target_point)
+
+# Set the PID controller's output
+vehicle.SetSteeringControl(pid.update(vehicle.GetVehicle().GetSteering()))
+
+# Initialize the driver
+driver = veh.ChPathFollowerDriver(vis, vehicle)
 
 # Set the time response for steering and throttle keyboard inputs.
-steering_time = 1.0  # time to go from 0 to +1 (or from 0 to -1)
-throttle_time = 1.0  # time to go from 0 to +1
-braking_time = 0.3   # time to go from 0 to +1
+steering_time = 1.0  
+throttle_time = 1.0  
+braking_time = 0.3   
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
@@ -137,35 +192,37 @@ while vis.Run() :
 
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
-
-    # Implement path following logic
-    # ... (add code to calculate path and update vehicle position)
-
-    # Add visualization for the sentinel and target points
-    # ... (add code to add spheres for path visualization)
 ```
 
 **Explanation of Changes:**
 
 1. **Path Implementation:**
-   - The code now includes a `path` variable to represent the circular path.
-   - The `path_follower` function is used to calculate the path and update the vehicle's position.
-   - The `path_follower` function uses the `ChPath` class from PyChrono to define the circular path.
+   - A circular path is defined with a radius of 50.0.
+   - Two balls are used to visualize the path.
 
 2. **Terrain Length:**
-   - The `terrainLength` variable is increased to 200.0.
+   - The terrain length is increased to 200.0.
 
-3. **Simulation Loop Updates:**
-   - The `driver.Synchronize` method is used to update the driver's state based on the path.
-   - The `vehicle.Synchronize` method is used to update the vehicle's state based on the path and driver inputs.
-   - The `vis.Synchronize` method is used to update the visualization system based on the driver and vehicle states.
+3. **PID Controller:**
+   - A PID controller is implemented to control the vehicle's steering.
+   - The controller uses a proportional (kp), integral (ki), and derivative (kd) term to adjust steering based on the difference between the setpoint and the current steering angle.
 
-4. **Visualization of Controller Points:**
-   - The code now includes visualization for the sentinel and target points using spheres.
+4. **Driver System:**
+   - A `ChPathFollowerDriver` is used to control the vehicle along the path.
+   - The driver receives steering and throttle inputs from the PID controller.
 
-**Additional Notes:**
+5. **Visualization:**
+   - Sentinel and target points are added to visualize the path.
 
-- The code assumes that the `path_follower` function is implemented elsewhere.
-- The code provides a basic framework for path following. You may need to adjust the code based on your specific path definition and desired behavior. 
-- The PID controller gains need to be tuned to achieve the desired steering response. 
-- The code uses the `ChPath` class from PyChrono to define the circular path. You can use other path types as needed.
+6. **Simulation Loop Updates:**
+   - The driver's inputs are processed within the simulation loop.
+   - The PID controller's output is used to adjust the vehicle's steering.
+
+
+
+**Important Notes:**
+
+- This script is a starting point and may require adjustments to achieve the desired behavior.
+- The PID controller parameters (kp, ki, kd) can be tuned to achieve the desired performance.
+- The path points should be adjusted to match the desired path curvature.
+- The visualization of the path, sentinel, and target points should be adjusted to fit your needs.

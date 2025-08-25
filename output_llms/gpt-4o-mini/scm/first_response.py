@@ -1,52 +1,63 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
-import pychrono.vehicle as veh
-import pychrono.vehicle.terrain as terrain
+import pychrono.vehicle as chrono_vehicle
 
 # Initialize the PyChrono environment
-chrono.ChSystem.SetNumThreads(1)
-system = chrono.ChSystem()
+chrono.SetChronoDataPath('/path/to/chrono/data/')  # Set your Chrono data path
+chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.001)
+chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.001)
 
-# Create Irrlicht visualization
-application = chronoirr.ChIrrApp(system, "HMMWV on SCM Terrain", chronoirr.dimension2d_u32(800, 600))
+# Create the simulation system
+system = chrono.ChSystemNSC()
+
+# Create the Irrlicht visualization
+application = chronoirr.ChIrrApp(system, "HMMWV on SCM Terrain", chronoirr.dimension2du(800, 600))
 application.SetSkyBox()
-application.AddLogo()
-application.SetFPS(50)
+application.AddTypicalLights()
+application.SetCamera(chrono.ChVectorD(0, 5, -15), chrono.ChVectorD(0, 0, 0))
 
 # Create the HMMWV vehicle
-hmmwv = veh.HMMWV("HMMWV")
-hmmwv.SetChassisVisualizationType(veh.VisualizationType.MESH)
-hmmwv.SetWheelVisualizationType(veh.VisualizationType.MESH)
-hmmwv.SetTireVisualizationType(veh.VisualizationType.MESH)
+hmmwv = chrono_vehicle.HMMWV("HMMWV")
+hmmwv.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0.5, 0), chrono.ChQuaternionD(chrono.CH_C_PI / 2, 0, 0, 0)))
 
-# Initialize vehicle parameters
-initial_position = chrono.ChVectorD(0, 0.5, 0)  # Starting position
-initial_orientation = chrono.ChQuaternionD(1, 0, 0, 0)  # No rotation
-hmmwv.Initialize(initial_position, initial_orientation)
+# Add mesh visualization for the vehicle
+hmmwv.SetChassisVisualizationType(chrono_vehicle.VisualizationType.MESH)
+hmmwv.SetWheelVisualizationType(chrono_vehicle.VisualizationType.MESH)
+hmmwv.SetTireVisualizationType(chrono_vehicle.VisualizationType.MESH)
 
-# Create SCM terrain
-soil_params = terrain.SCMTerrainParams()
-soil_params.SetSoilParameters(20000, 0.3, 0.1)  # Example parameters: stiffness, friction, cohesion
-scm_terrain = terrain.SCMTerrain(system, soil_params)
-scm_terrain.SetMeshVisualization(True)
-scm_terrain.SetMovingPatch(True, hmmwv.GetVehicleBody())
+# Create the SCM terrain
+terrain = chrono_vehicle.SCMDeformableTerrain(system)
+terrain.SetGround(chrono.ChVectorD(0, 0, 0))
+terrain.SetCustomSoilParameters(soil_params={"friction": 0.5, "cohesion": 10.0, "dilation_angle": 30.0})
+terrain.SetMovingPatchEnabled(True)
+terrain.SetPatchSize(10.0)  # Size of the moving patch
+terrain.SetPatchFollowVehicle(hmmwv)
 
-# Set up false color visualization for sinkage
-scm_terrain.SetSinkageVisualization(True)
+# Add the terrain to the system
+system.Add(terrain)
 
-# Create an interactive driver system
-driver = veh.HMMWVDriver(hmmwv)
+# Set up the interactive driver system
+driver = chrono_vehicle.DriverInputs()
 driver.SetThrottle(0.0)
 driver.SetSteering(0.0)
 driver.SetBraking(0.0)
 
+# Set up the vehicle driver
+hmmwv.SetDriver(driver)
+
+# Simulation parameters
+application.SetTimestep(1 / 50.0)  # 50 FPS
+application.SetTryRealtime(True)
+
 # Main simulation loop
 while application.GetDevice().run():
-    # Update driver inputs (for example, using keyboard or joystick)
-    driver.UpdateInputs()
+    # Update driver inputs based on user interaction
+    driver.SetThrottle(0.5)  # Example throttle input
+    driver.SetSteering(0.1)  # Example steering input
+    driver.SetBraking(0.0)   # Example braking input
 
     # Update vehicle dynamics
-    system.DoStepDynamics(chrono.ChTime(1.0 / 50.0))  # 50 FPS
+    system.DoStepDynamics(application.GetTimestep())
 
     # Render the scene
     application.BeginScene()

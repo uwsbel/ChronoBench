@@ -1,117 +1,110 @@
-# PyChrono Simulation with ROS Integration
+# PyChrono with ROS Integration Simulation
 
 ```python
 import pychrono as chrono
-import pychrono.ros as chronoros
-import math
+import pychrono.ros as chros
 import time
 import rospy
 from std_msgs.msg import Int32
 
-# Initialize the Chrono physical system
+# Initialize the Chrono system
 system = chrono.ChSystemNSC()
 
-# Set gravitational acceleration
+# Set gravity (in m/s^2)
 system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
-# Create a physical material for contact
+# Set default material properties
 material = chrono.ChMaterialSurfaceNSC()
-material.SetFriction(0.5)
-material.SetRestitution(0.2)
+material.SetFriction(0.7)
+material.SetRestitution(0.3)
 
-# Create the floor (fixed body)
-floor = chrono.ChBodyEasyBox(10, 0.2, 10, 1000, True, True, material)
-floor.SetPos(chrono.ChVectorD(0, -0.1, 0))  # Position slightly below origin
-floor.SetBodyFixed(True)  # Make it fixed
+# Create a floor
+floor = chrono.ChBodyEasyBox(20, 0.2, 20, 1000, material, True)
+floor.SetPos(chrono.ChVectorD(0, -0.1, 0))  # Place floor slightly below origin
+floor.SetBodyFixed(True)  # Make floor immovable
 system.Add(floor)
 
 # Create a movable box
-box = chrono.ChBodyEasyBox(0.5, 0.5, 0.5, 1000, True, True, material)
-box.SetPos(chrono.ChVectorD(0, 1, 0))  # Position above the floor
-box.SetName("movable_box")  # Set a name for ROS
+box = chrono.ChBodyEasyBox(1, 1, 1, 1000, material, True)
+box.SetPos(chrono.ChVectorD(0, 3, 0))  # Place box above the floor
+box.SetName("movable_box")
 system.Add(box)
 
-# Initialize ROS if it hasn't been initialized yet
-if not rospy.is_initialized():
-    rospy.init_node("pychrono_simulation")
-
-# Create a custom ROS handler for integer messages
-class ChROSCustomIntHandler(chronoros.ChROSHandler):
-    def __init__(self, publisher):
-        chronoros.ChROSHandler.__init__(self)
+# Create a custom ROS handler to publish integer messages
+class MyCustomHandler(chros.ChROSHandler):
+    def __init__(self, node_name, topic_name):
+        super().__init__()
         self.counter = 0
-        self.publisher = publisher
+        self.pub = rospy.Publisher(topic_name, Int32, queue_size=10)
         
-    def UpdateHandler(self):
+    def ExecutePreDynamics(self, system, time):
+        pass
+        
+    def ExecutePostDynamics(self, system, time):
+        # Publish a message after each timestep
+        self.counter += 1
         msg = Int32()
         msg.data = self.counter
-        self.publisher.publish(msg)
-        self.counter += 1
-        return True
+        self.pub.publish(msg)
+        
+    def ExecutePostUpdate(self, system, time):
+        pass
 
-# Create ROS publisher
-int_publisher = rospy.Publisher("chrono_counter", Int32, queue_size=10)
+# Initialize ROS manager
+ros_manager = chros.ChROSManager("chrono_simulation")
 
-# Create ROS handler objects
-clock_handler = chronoros.ChROSClockHandler()
-body_handler = chronoros.ChROSBodyHandler(box)
-tf_handler = chronoros.ChROSTransformHandler()
-
-# Create the custom handler
-custom_handler = ChROSCustomIntHandler(int_publisher)
-
-# Create the ROS manager
-ros_manager = chronoros.ChROSManager(system)
-
-# Register the handlers
+# Add standard handlers
+clock_handler = chros.ChROSClockHandler()
 ros_manager.AddHandler(clock_handler)
-ros_manager.AddHandler(body_handler)
-ros_manager.AddHandler(tf_handler)
-ros_manager.AddHandler(custom_handler)
 
-# Simulation parameters
-step_size = 0.005  # 5ms
-realtime_factor = 1.0  # Run at real-time speed
+# Add a body state handler for the box
+body_handler = chros.ChROSBodyStateHandler(box, "box_state")
+ros_manager.AddHandler(body_handler)
+
+# Add a transform handler for the box
+transform_handler = chros.ChROSTFHandler(box, "box_tf", "world")
+ros_manager.AddHandler(transform_handler)
+
+# Add our custom handler
+custom_handler = MyCustomHandler("chrono_node", "chrono_counter")
+ros_manager.AddHandler(custom_handler)
 
 # Initialize the ROS manager
 ros_manager.Initialize()
 
-# Main simulation loop
-try:
-    next_time = time.time()
-    while not rospy.is_shutdown():
-        # Calculate time for real-time synchronization
-        current_time = time.time()
-        if current_time < next_time:
-            time.sleep(next_time - current_time)
-        next_time = current_time + step_size * realtime_factor
-        
-        # Advance the simulation
-        system.DoStepDynamics(step_size)
-        
-        # Update all ROS communications
-        ros_manager.UpdateHandlers()
-        
-except KeyboardInterrupt:
-    pass
+# Set simulation parameters
+step_size = 0.005
+simulation_duration = 10.0  # seconds
 
-# Clean up and shutdown
+# Simulation loop
+start_time = time.time()
+current_time = 0
+
+while current_time < simulation_duration:
+    # Get the real elapsed time
+    real_time = time.time() - start_time
+    
+    # If simulation is running faster than real-time, add a small delay
+    if current_time < real_time:
+        system.DoStepDynamics(step_size)
+        ros_manager.Synchronize(current_time)
+        current_time += step_size
+    else:
+        time.sleep(0.001)  # Small sleep to avoid CPU overuse
+
+# Shutdown ROS manager
 ros_manager.Shutdown()
+
 print("Simulation completed")
 ```
 
-This script:
+This script creates a PyChrono simulation with ROS integration. It:
 
-1. Initializes a PyChrono physical system with gravity and material properties
+1. Sets up a physical simulation with gravity and proper material properties
 2. Creates a fixed floor and a movable box
-3. Sets up ROS integration with:
-   - A clock handler to publish simulation time
-   - A body handler to publish the box's state
-   - A transform handler to publish transforms
-   - A custom handler that publishes incrementing integers
-4. Runs the simulation in a loop that:
-   - Advances the physics by a fixed time step
-   - Updates all ROS communications
-   - Maintains real-time execution through sleep timing
+3. Implements a custom ROS handler that publishes integer messages
+4. Configures the ROS manager with clock, body state, and transform handlers
+5. Runs a simulation loop that advances the system and updates ROS communication
+6. Maintains real-time execution by adding delays when needed
 
-The simulation will run until a keyboard interrupt (Ctrl+C) is received or ROS is shut down.
+To run this simulation, you'll need to have both PyChrono and ROS installed and configured properly on your system. Make sure ROS core is running before executing this script.

@@ -66,7 +66,7 @@ patch = terrain.AddPatch(patch_mat,
     chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
     terrainLength, terrainWidth)
 
-# Change terrain texture to a grass texture
+# Change terrain texture to grass texture
 patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
@@ -83,13 +83,18 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 # Add point lights to the scene
-light1 = irr.ILightSceneNode(vis.GetSceneManager(), None, irr.vector3df(10, 10, 10), irr.SLightType.POINT)
-light1.setLightColor(irr.SColorf(1.0, 1.0, 1.0, 1.0))  # White light
-light1.setRadius(50.0)  # Set radius for illumination
+light1 = irr.SLight()
+light1.Position = irr.vector3df(10, 10, 10)
+light1.DiffuseColor = irr.SColor(255, 255, 255, 255)  # White light
+light1.AmbientColor = irr.SColor(255, 100, 100, 100)  # Soft ambient light
+vis.AddLight(light1)
 
 # Create a sensor manager
 sensor_manager = veh.ChSensorManager(vehicle.GetSystem())
-camera_sensor = veh.ChCameraSensor(vehicle.GetChassis(), 1280, 720, 60)  # High resolution and FOV
+camera_sensor = veh.ChCameraSensor(vehicle.GetChassisBody(),  # Attach to chassis
+                                    chrono.ChFrameD(chrono.ChVectorD(0, 0, 1.5), chrono.Q_from_AngZ(0)),  # Position and orientation
+                                    1280, 720,  # Resolution
+                                    90)  # Field of view
 sensor_manager.AddSensor(camera_sensor)
 
 # Create the driver system
@@ -136,7 +141,7 @@ while vis.Run():
     vis.Synchronize(time, driver_inputs)
 
     # Update the sensor manager
-    sensor_manager.Update();
+    sensor_manager.Update()
 
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)

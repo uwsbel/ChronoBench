@@ -16,71 +16,84 @@ def main():
     # Add a box to be sensed by a camera
     # -----------------------------------
     # Create a box object
-    box = chrono.ChBodyEasyBox(side=1000, side=1000, side=1000, 1000)
+    box = chrono.ChBodyEasyBox(1000, 1000, 1000, 1000)  # Side length of the box
     box.SetPos(chrono.ChVector3d(0, 0, 0))  # Set the position of the box
     box.SetFixed(True)  # Fix the box in space
 
     # Create a visual representation of the box
     box_shape = chrono.ChVisualShapeBox()
-    box_shape.SetMesh(box)
+    box_shape.SetBox(box)
     box_shape.SetName("Box")
     box_shape.SetMutable(False)  # Set the box to be immutable
 
-    # Create a camera and attach it to the box
-    camera = sens.ChCameraSensor(
+    # Attach the visual shape to the box
+    box.AddVisualShape(box_shape)
+
+    # -----------------------
+    # Create a sensor manager
+    # -----------------------
+    # Initialize the sensor manager to manage all sensors in the simulation
+    manager = sens.ChSensorManager(mphysicalSystem)
+
+    # Create a camera and add it to the sensor manager
+    # Define the camera offset pose relative to the box it is attached to
+    offset_pose = chrono.ChFramed(chrono.ChVector3d(-7, 0, 3), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0)))
+
+    # Initialize the camera sensor
+    cam = sens.ChCameraSensor(
         box,              # Body the camera is attached to
         update_rate,      # Camera update rate in Hz
         offset_pose,      # Offset pose of the camera
         image_width,      # Image width in pixels
         image_height,     # Image height in pixels
-        fov                 # Camera's horizontal field of view in radians
+        fov               # Camera's horizontal field of view in radians
     )
-    camera.SetName("Camera Sensor")
-    camera.SetLag(lag)  # Set the lag between sensing and data accessibility
-    camera.SetCollectionWindow(exposure_time)  # Set the exposure time for the camera
+    cam.SetName("Camera Sensor")
+    cam.SetLag(lag)  # Set the lag between sensing and data accessibility
+    cam.SetCollectionWindow(exposure_time)  # Set the exposure time for the camera
 
     # ------------------------------------------------------------------
     # Create a filter graph for post-processing the data from the camera
     # ------------------------------------------------------------------
     # Apply noise model to the camera sensor based on the specified type
     if noise_model == "CONST_NORMAL":
-        camera.PushFilter(sens.ChFilterCameraNoiseConstNormal(0.0, 0.02))  # Add constant normal noise
+        cam.PushFilter(sens.ChFilterCameraNoiseConstNormal(0.0, 0.02))  # Add constant normal noise
     elif noise_model == "PIXEL_DEPENDENT":
-        camera.PushFilter(sens.ChFilterCameraNoisePixDep(0.02, 0.03))  # Add pixel-dependent noise
+        cam.PushFilter(sens.ChFilterCameraNoisePixDep(0.02, 0.03))  # Add pixel-dependent noise
     elif noise_model == "NONE":
         # No noise model applied
         pass
 
     # Visualize the image before applying grayscale filter
     if vis:
-        camera.PushFilter(sens.ChFilterVisualize(int(image_width / 2), int(image_height / 2), "Before Grayscale Filter"))
+        cam.PushFilter(sens.ChFilterVisualize(int(image_width / 2), int(image_height / 2), "Before Grayscale Filter"))
 
     # Provide host access to the RGBA8 buffer from the camera
-    camera.PushFilter(sens.ChFilterRGBA8Access())
+    cam.PushFilter(sens.ChFilterRGBA8Access())
 
     # Save the current image to a PNG file at the specified path
     if save:
-        camera.PushFilter(sens.ChFilterSave(out_dir + "rgb/"))
+        cam.PushFilter(sens.ChFilterSave(out_dir + "rgb/"))
 
     # Convert the camera image to grayscale
-    camera.PushFilter(sens.ChFilterGrayscale())
+    cam.PushFilter(sens.ChFilterGrayscale())
 
     # Visualize the grayscaled image
     if vis:
-        camera.PushFilter(sens.ChFilterVisualize(int(image_width / 2), int(image_height / 2), "Grayscale Image"))
+        cam.PushFilter(sens.ChFilterVisualize(int(image_width / 2), int(image_height / 2), "Grayscale Image"))
 
     # Save the grayscaled image to a PNG file at the specified path
     if save:
-        camera.PushFilter(sens.ChFilterSave(out_dir + "gray/"))
+        cam.PushFilter(sens.ChFilterSave(out_dir + "gray/"))
 
     # Resize the image to the specified width and height
-    camera.PushFilter(sens.ChFilterImageResize(int(image_width / 2), int(image_height / 2)))
+    cam.PushFilter(sens.ChFilterImageResize(int(image_width / 2), int(image_height / 2)))
 
     # Access the grayscaled image buffer as R8 pixels
-    camera.PushFilter(sens.ChFilterR8Access())
+    cam.PushFilter(sens.ChFilterR8Access())
 
     # Add the camera sensor to the manager
-    manager.AddSensor(camera)
+    manager.AddSensor(cam)
 
     # ---------------
     # Simulate system
@@ -93,12 +106,12 @@ def main():
 
     while ch_time < end_time:
         # Dynamically set the camera's position around the orbit
-        camera.SetOffsetPose(chrono.ChFramed(
+        cam.SetOffsetPose(chrono.ChFramed(
             chrono.ChVector3d(-orbit_radius * math.cos(ch_time * orbit_rate), -orbit_radius * math.sin(ch_time * orbit_rate), 1),
             chrono.QuatFromAngleAxis(ch_time * orbit_rate, chrono.ChVector3d(0, 0, 1))))
 
         # Access the RGBA8 buffer from the camera
-        rgba8_buffer = camera.GetMostRecentRGBA8Buffer()
+        rgba8_buffer = cam.GetMostRecentRGBA8Buffer()
         if rgba8_buffer.HasData():
             rgba8_data = rgba8_buffer.GetRGBA8Data()
             print('RGBA8 buffer received from cam. Camera resolution: {0}x{1}'.format(rgba8_buffer.Width, rgba8_buffer.Height))
@@ -150,23 +163,3 @@ step_size = 1e-3
 
 # Simulation end time
 end_time = 20.0
-
-# Save camera images
-save = False
-
-# Render camera images
-vis = True
-
-# Output directory
-out_dir = "SENSOR_OUTPUT/"
-
-# Main function entry point
-main()
-```
-
-**Explanation of Changes:**
-
-1. **Mesh Replacement:** The triangular mesh object was replaced with a box object.
-2. **Box Object:** A box object was created with dimensions specified by `side` and set its position and texture.
-3. **Camera Attachment:** The camera was attached to the box object instead of the mesh body.
-4. **Camera Offset Pose:** The camera offset pose was modified to `chrono.ChVector3d(-7, 0,

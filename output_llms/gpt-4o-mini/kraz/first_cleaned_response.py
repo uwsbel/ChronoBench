@@ -2,55 +2,42 @@ import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
 
 
-chrono.SetChronoDataPath('/path/to/chrono/data/')  
-system = chrono.ChSystemNSC()
+chrono.SetChronoDataPath('path/to/chrono/data/')  
+chrono.ChSystemNSC()  
 
 
-vehicle = chrono.ChVehicle()
-vehicle.SetChassisMass(5000)  
-vehicle.SetWheelMass(100)      
-vehicle.SetWheelRadius(0.5)    
-vehicle.SetWheelWidth(0.2)     
-vehicle.SetInitialPosition(chrono.ChVectorD(0, 0, 0))  
+vehicle = chrono.ChVehicle()  
+vehicle.SetPos(chrono.ChVectorD(0, 0, 0))  
+vehicle.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))  
 
 
-system.Add(vehicle)
-
-
-terrain = chrono.ChBody()
-terrain.SetBodyFixed(True)
-terrain.SetMaterialSurface(chrono.ChMaterialSurfaceNSC())
+terrain = chrono.ChBodyEasyBox(100, 1, 100, 1000, True, True)  
+terrain.SetPos(chrono.ChVectorD(0, -0.5, 0))  
+terrain.SetMaterialSurface(chrono.ChMaterialSurfaceNSC())  
 terrain.GetMaterialSurface().SetFriction(0.5)  
 terrain.GetMaterialSurface().SetRestitution(0.1)  
-terrain.SetPos(chrono.ChVectorD(0, -0.1, 0))  
-system.Add(terrain)
+chrono.ChSystem.Add(terrain)  
 
 
-driver = chrono.ChDriver()
-driver.SetVehicle(vehicle)
-driver.SetThrottle(0.5)  
-driver.SetSteering(0.1)  
+driver = chrono.ChDriver()  
+driver.SetVehicle(vehicle)  
 
 
-app = chronoirr.ChIrrApp(system, "Kraz Vehicle Simulation", chronoirr.dimension2d(800, 600))
-app.AddSkyBox()
+app = chronoirr.ChIrrApp(chrono.ChSystem, "Kraz Vehicle Simulation", chronoirr.dimension2d(800, 600))
+app.AddSkyBox()  
+app.AddTypicalLights()  
 app.AddCamera(chrono.ChVectorD(0, 5, -10), chrono.ChVectorD(0, 0, 0))  
-app.AddLight(chrono.ChVectorD(10, 10, 10), chrono.ChVectorD(1, 1, 1))  
 
 
 time_step = 0.01  
-while app.GetDevice().run():
-    
-    system.DoStepDynamics(time_step)
-    
-    
-    driver.UpdateInputs()
-    
-    
-    app.DrawAll()
+app.SetTimestep(time_step)  
 
-    
-    chrono.ChSleep(time_step)
+
+while app.GetDevice().run():
+    chrono.ChSystem.DoStepDynamics(time_step)  
+    app.BeginScene()  
+    app.DrawAll()  
+    app.EndScene()  
 
 
 app.GetDevice().drop()

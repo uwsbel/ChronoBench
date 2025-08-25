@@ -1,11 +1,4 @@
-I'll review the script for any errors and then modify it according to the requirements to create a three-body simulation.
-
-### Review of Errors:
-1. There appears to be an issue with the gravitational force calculations - they are being accumulated after `EmptyAccumulators()` is called, which is correct, but the force calculations might be more efficient if placed in a single loop.
-2. The line `mlist = list(combinations(sys.GetBodies(), 2))` recreates this list in every iteration, which is inefficient.
-3. There's no initial velocity set for the existing sphere.
-
-### Modified Script:
+I've analyzed the given PyChrono script and found a few issues that need correction. I'll also implement the requested modifications to create a three-body simulation. Here's the corrected and modified script:
 
 ```python
 import pychrono as chrono
@@ -29,26 +22,26 @@ sys = chrono.ChSystemNSC()
 sys.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 coll = sys.GetCollisionSystem()
 
-# Create sphere 1
+# Create the first sphere body
 sphere_mat = chrono.ChContactMaterialNSC()
 sphere_mat.SetFriction(0.2)
 msphereBody1 = chrono.ChBodyEasySphere(2.1, 1800, True, True, sphere_mat)
-msphereBody1.SetPos(chrono.ChVector3d(1, 1, 0))
-msphereBody1.SetPos_dt(chrono.ChVector3d(0.5, 0, 0.1))  # Initial velocity
+msphereBody1.SetPos(chrono.ChVectorD(1, 1, 0))  # Changed from ChVector3d to ChVectorD
+msphereBody1.SetPos_dt(chrono.ChVectorD(0.5, 0, 0.1))  # Initial velocity for Sphere 1
 msphereBody1.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
 sys.Add(msphereBody1)
 
-# Create sphere 2
+# Create the second sphere body
 msphereBody2 = chrono.ChBodyEasySphere(2.1, 1800, True, True, sphere_mat)
-msphereBody2.SetPos(chrono.ChVector3d(-10, -10, 0))
-msphereBody2.SetPos_dt(chrono.ChVector3d(-0.5, 0, -0.1))  # Initial velocity
+msphereBody2.SetPos(chrono.ChVectorD(-10, -10, 0))
+msphereBody2.SetPos_dt(chrono.ChVectorD(-0.5, 0, -0.1))  # Initial velocity for Sphere 2
 msphereBody2.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
 sys.Add(msphereBody2)
 
-# Create sphere 3
+# Create the third sphere body
 msphereBody3 = chrono.ChBodyEasySphere(2.1, 1800, True, True, sphere_mat)
-msphereBody3.SetPos(chrono.ChVector3d(0, 20, 0))
-msphereBody3.SetPos_dt(chrono.ChVector3d(0, -0.5, 0.2))  # Initial velocity
+msphereBody3.SetPos(chrono.ChVectorD(0, 20, 0))
+msphereBody3.SetPos_dt(chrono.ChVectorD(0, -0.5, 0.2))  # Initial velocity for Sphere 3
 msphereBody3.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
 sys.Add(msphereBody3)
 
@@ -60,7 +53,7 @@ emitter.SetParticleReservoirAmount(200)
 
 # Randomizers for particle properties
 emitter_positions = chrono.ChRandomParticlePositionOnGeometry()
-emitter_positions.SetGeometry(chrono.ChBox(50, 50, 50), chrono.ChFramed())
+emitter_positions.SetGeometry(chrono.ChBox(50, 50, 50), chrono.ChFrameD())  # Changed from ChFramed to ChFrameD
 emitter.SetParticlePositioner(emitter_positions)
 
 emitter_rotations = chrono.ChRandomParticleAlignmentUniform()
@@ -83,11 +76,11 @@ emitter.SetParticleCreator(mcreator_spheres)
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(sys)
 vis.SetWindowSize(1024, 768)
-vis.SetWindowTitle('Particle emitter demo')
+vis.SetWindowTitle('Three-Body Simulation')
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()
-vis.AddCamera(chrono.ChVector3d(0, 14, -20))
+vis.AddCamera(chrono.ChVectorD(0, 14, -20))  # Changed from ChVector3d to ChVectorD
 vis.AddTypicalLights()
 
 mcreation_callback = MyCreatorForAll(vis, coll)
@@ -95,7 +88,7 @@ emitter.RegisterAddBodyCallback(mcreation_callback)
 
 sys.SetSolverType(chrono.ChSolver.Type_PSOR)
 sys.GetSolver().AsIterative().SetMaxIterations(40)
-sys.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, 0))
+sys.SetGravitationalAcceleration(chrono.ChVectorD(0, 0, 0))  # Changed from ChVector3d to ChVectorD
 
 # Simulation loop
 stepsize = 1e-2
@@ -116,26 +109,30 @@ while vis.Run():
     kinetic_energy = 0
     for body in sys.GetBodies():
         mass = body.GetMass()
-        velocity = body.GetPosDt()
+        velocity = body.GetPos_dt()  # Changed from GetPosDt to GetPos_dt
         kinetic_energy += 0.5 * mass * velocity.Length2()
 
-    # Calculate the total potential energy of the system and apply gravitational forces
+    # Calculate the total potential energy of the system (using gravitational potential)
     potential_energy = 0
     for abodyA, abodyB in combinations(sys.GetBodies(), 2):
         D_attract = abodyB.GetPos() - abodyA.GetPos()
         r_attract = D_attract.Length()
-        
-        # Calculate potential energy
-        potential_energy += -G_constant * (abodyA.GetMass() * abodyB.GetMass()) / r_attract
-        
-        # Calculate and apply gravitational forces
-        f_attract = G_constant * (abodyA.GetMass() * abodyB.GetMass()) / (r_attract ** 2)
-        F_attract = (D_attract / r_attract) * f_attract
-        abodyA.AccumulateForce(F_attract, abodyA.GetPos(), False)
-        abodyB.AccumulateForce(-F_attract, abodyB.GetPos(), False)
+        if r_attract > 0:  # Added check to avoid division by zero
+            potential_energy += -G_constant * (abodyA.GetMass() * abodyB.GetMass()) / r_attract
 
     # Total energy of the system
     total_energy = kinetic_energy + potential_energy
+    
+    # Apply gravitational forces between bodies
+    mlist = list(combinations(sys.GetBodies(), 2))
+    for abodyA, abodyB in mlist:
+        D_attract = abodyB.GetPos() - abodyA.GetPos()
+        r_attract = D_attract.Length()
+        if r_attract > 0:  # Added check to avoid division by zero
+            f_attract = G_constant * (abodyA.GetMass() * abodyB.GetMass()) / (r_attract ** 2)
+            F_attract = (D_attract / r_attract) * f_attract
+            abodyA.AccumulateForce(F_attract, abodyA.GetPos(), False)
+            abodyB.AccumulateForce(-F_attract, abodyB.GetPos(), False)
 
     # Print the energy values
     print(
@@ -144,17 +141,12 @@ while vis.Run():
     sys.DoStepDynamics(stepsize)
 ```
 
-### Changes Made:
-1. Added two additional spheres with the specified positions:
-   - Sphere 2 at (-10, -10, 0)
-   - Sphere 3 at (0, 20, 0)
-2. Set initial velocities for all three spheres:
-   - Sphere 1: (0.5, 0, 0.1)
-   - Sphere 2: (-0.5, 0, -0.1)
-   - Sphere 3: (0, -0.5, 0.2)
-3. Improved the code efficiency by:
-   - Combining the potential energy calculation and gravitational force application in one loop
-   - Removing the redundant creation of the combination list in each iteration
-4. Organized the code for better readability while maintaining the original functionality
+Changes made:
+1. Corrected vector class names from `ChVector3d` to `ChVectorD` and `ChFramed` to `ChFrameD` as these are the correct class names in newer PyChrono versions.
+2. Changed `GetPosDt()` to `GetPos_dt()` to match the correct method name for getting body velocity.
+3. Added two more sphere bodies at the requested positions with the specified initial velocities.
+4. Added checks to avoid division by zero when calculating forces and potential energy.
+5. Changed the window title to reflect the three-body simulation.
+6. Each sphere is now initialized with its own initial velocity using `SetPos_dt()` as requested.
 
-This modified script now simulates a three-body problem with the specified initial conditions.
+These modifications create a three-body gravitational simulation with the specified initial conditions, allowing the bodies to interact through gravitational forces.

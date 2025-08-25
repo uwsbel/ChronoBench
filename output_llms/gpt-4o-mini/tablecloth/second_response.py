@@ -48,10 +48,9 @@ for iz in range(nsections_z + 1):
 nodePlotA = mynodes[1]  # Example node for plotting
 nodePlotB = mynodes[2]  # Example node for plotting
 nodesLoad = []  # List for applying loads
-load_force = chrono.ChVector3d(0, -10, 0)  # Example load force
+load_force = chrono.ChVector3d(0, -10, 0)  # Define load force
 
 # Create elements
-melementmonitor = None  # Initialize element monitor
 for iz in range(nsections_z):
     for ix in range(nsections_x):
         melementA = fea.ChElementShellBST()
@@ -66,7 +65,7 @@ for iz in range(nsections_z):
 
         # Element Monitoring
         if iz == 0 and ix == 1:
-            melementmonitor = melementA  # Assign specific element for monitoring
+            ementmonitor = melementA  # Assign specific element for monitoring
 
         melementB = fea.ChElementShellBST()
         boundary_1 = mynodes[iz * (nsections_x + 1) + ix]
@@ -86,8 +85,10 @@ for j in range(30):
 # Create visualizations for shell elements
 mvisualizeshellA = chrono.ChVisualShapeFEA(mesh)
 mvisualizeshellA.SetShellResolution(2)
-# mvisualizeshellA.SetWireframe(True)  # Optional: Uncomment for wireframe mode
-# mvisualizeshellA.SetBackfaceCulling(True)  # Optional: Uncomment for backface culling
+# Optional visualization adjustments (commented out)
+# mvisualizeshellA.SetSmoothFaces(True)
+# mvisualizeshellA.SetWireframe(True)
+# mvisualizeshellA.SetBackfaceCulling(True)
 mesh.AddVisualShapeFEA(mvisualizeshellA)
 
 mvisualizeshellB = chrono.ChVisualShapeFEA(mesh)

@@ -37,7 +37,7 @@ step_size = 1e-4  # Decreased simulation step size
 tire_step_size = step_size
 
 # Time interval between two render frames (decreased for finer control)
-render_step_size = 1.0 / 60  # Increased FPS to 60
+render_step_size = 1.0 / 100  # FPS = 100
 
 # --------------
 # Create systems
@@ -71,7 +71,7 @@ patch = terrain.AddPatch(patch_mat,
     chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
     terrainLength, terrainWidth)
 
-# Set a highway texture
+# Use a highway texture for the terrain
 patch.SetTexture(veh.GetDataFile("terrain/textures/highway.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
@@ -93,20 +93,12 @@ driver = veh.ChInteractiveDriverIRR(vis)
 # Set the time response for steering and throttle keyboard inputs.
 steering_time = 5.0  # Increased steering response time to 5 seconds
 throttle_time = 1.0  # time to go from 0 to +1
-braking_time = 0.3   # time to go from 0 to +1
+braking_time = 0.3    # time to go from 0 to +1
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
 
 driver.Initialize()
-
-# Reference speed input for controlling the vehicle's speed
-reference_speed = 10.0  # Desired speed in m/s
-Kp = 1.0  # Proportional gain for PID controller
-Ki = 0.1  # Integral gain for PID controller
-Kd = 0.5  # Derivative gain for PID controller
-integral = 0.0
-previous_error = 0.0
 
 # ---------------
 # Simulation loop
@@ -123,6 +115,14 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
+# Reference speed input for controlling the vehicle's speed
+reference_speed = 10.0  # Desired speed in m/s
+pid_kp = 0.5  # Proportional gain
+pid_ki = 0.1  # Integral gain
+pid_kd = 0.05  # Derivative gain
+integral = 0.0
+previous_error = 0.0
+
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
@@ -136,22 +136,23 @@ while vis.Run():
     # Get driver inputs
     driver_inputs = driver.GetInputs()
 
+    # Calculate speed error
+    current_speed = vehicle.GetVehicle().GetSpeed().Length()
+    error = reference_speed - current_speed
+
+    # PID control for throttle
+    integral += error * step_size
+    derivative = (error - previous_error) / step_size
+    throttle = pid_kp * error + pid_ki * integral + pid_kd * derivative
+    throttle = max(0, min(throttle, 1))  # Clamp throttle between 0 and 1
+    driver_inputs.m_throttle = throttle
+    previous_error = error
+
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
-
-    # PID controller for throttle control based on speed error
-    current_speed = vehicle.GetVehicle().GetSpeed()
-    error = reference_speed - current_speed
-    integral += error * step_size
-    derivative = (error - previous_error) / step_size
-    throttle = Kp * error + Ki * integral + Kd * derivative
-    throttle = max(0, min(throttle, 1))  # Clamp throttle between 0 and 1
-    driver.SetThrottle(throttle)
-
-    previous_error = error
 
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)

@@ -64,11 +64,9 @@ patch_mat.SetRestitution(0.01)
 
 # Initialize SCM terrain using a height map
 terrain = veh.SCMDeformableTerrain(vehicle.GetSystem())
-terrain.Initialize(terrainLength, terrainWidth, terrainHeight, "path/to/height_map.png")  # Specify the correct path to the height map
-
-# Set the SCM terrain texture to dirt
-terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 200, 200)  # Use dirt texture
-terrain.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+terrain.Initialize(terrainLength, terrainWidth, patch_mat, "path/to/height_map.png")  # Replace with actual height map path
+terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 200, 200)  # Set texture to dirt
+terrain.Initialize()
 
 # Create the vehicle Irrlicht interface
 vis = veh.ChTrackedVehicleVisualSystemIrrlicht()
@@ -109,9 +107,6 @@ step_number = 0
 render_frame = 0
 vehicle.GetVehicle().EnableRealtime(True)
 
-# Hard-coded throttle value during the simulation loop
-throttle_value = 0.8
-
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
     # Render scene and output POV-Ray data
@@ -123,19 +118,21 @@ while vis.Run():
 
     # Get driver inputs
     driver_inputs = driver.GetInputs()
-    driver_inputs.throttle = throttle_value  # Set hard-coded throttle value
+    
+    # Hard-code the throttle value to 0.8
+    driver_inputs.m_throttle = 0.8
 
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs)
     vis.Synchronize(time, driver_inputs)
-
+    
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
-
+    
     # Increment frame number
     step_number += 1

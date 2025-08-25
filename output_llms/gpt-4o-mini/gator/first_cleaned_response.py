@@ -3,58 +3,59 @@ import pychrono.irrlicht as chronoirr
 import pychrono.vehicle as chrono_vehicle
 
 
-chrono.ChSystem.SetNumThreads(1)
-system = chrono.ChSystem()
+chrono.SetChronoDataPath('path/to/chrono/data/')  
+chrono.SetChronoDataPath('path/to/chrono/data/')  
 
 
-application = chronoirr.ChIrrApp(system, "Gator Vehicle Simulation", chronoirr.dimension2du(800, 600))
-application.SetSkyBox()
+application = chronoirr.ChIrrApp(chrono.ChSystem(), "Gator Vehicle Simulation", chronoirr.dimension2du(800, 600))
+
+
+application.AddTypicalCamera(chrono.ChVectorD(0, 2, -10), chrono.ChVectorD(0, 0, 0))
 application.AddTypicalLights()
-application.AddTypicalCamera(chrono.ChVectorD(0, 5, -10), chrono.ChVectorD(0, 0, 0))
 
 
-terrain = chrono_vehicle.ChRigidTerrain(system)
-terrain.SetContactMethod(chrono.ChContactMethod.NSC)
-terrain.SetGround(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 0), 100, 100)
-terrain.SetTexture("path/to/your/texture.jpg", 100, 100)  
+terrain = chrono_vehicle.ChRigidTerrain(application.GetSystem())
+terrain.SetContactMethod(chrono.ChContactMethod.SMART)
+terrain.SetGround(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 1), 100, 100)
+terrain.SetTexture("path/to/your/texture.jpg", 100, 100)
 
 
 gator = chrono_vehicle.ChGator()
-gator.SetContactMethod(chrono.ChContactMethod.NSC)
-gator.SetChassisVisualizationType(chrono_vehicle.ChassisVisualizationType.MESH)
-gator.SetWheelVisualizationType(chrono_vehicle.WheelVisualizationType.MESH)
-gator.SetTireVisualizationType(chrono_vehicle.TireVisualizationType.MESH)
+gator.SetContactMethod(chrono.ChContactMethod.SMART)
+gator.SetChassisVisualizationType(chrono_vehicle.VisualizationType.MESH)
+gator.SetWheelVisualizationType(chrono_vehicle.VisualizationType.MESH)
+gator.SetTireVisualizationType(chrono_vehicle.VisualizationType.MESH)
 
 
-gator.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0.5, 0), chrono.ChQuaternionD(1, 0, 0, 0)))
+gator.SetPos(chrono.ChVectorD(0, 0.5, 0))
+gator.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
 
 
-system.Add(gator)
+gator.Initialize()
 
 
-driver = chrono_vehicle.ChDriver()
+driver = chrono_vehicle.ChDriverGator(gator)
 driver.SetThrottle(0.0)
 driver.SetSteering(0.0)
 driver.SetBraking(0.0)
 
 
 step_size = 1 / 50.0  
-application.SetTimestep(step_size)
 
 
 while application.GetDevice().run():
+    application.BeginScene()
+    application.DrawAll()
+    
     
     driver.SetThrottle(0.5)  
     driver.SetSteering(0.1)  
     driver.SetBraking(0.0)   
 
     
-    system.DoStepDynamics(step_size)
+    application.GetSystem().DoStepDynamics(step_size)
 
-    
-    application.BeginScene()
-    application.DrawAll()
     application.EndScene()
 
 
-application.Close()
+application.GetDevice().drop()

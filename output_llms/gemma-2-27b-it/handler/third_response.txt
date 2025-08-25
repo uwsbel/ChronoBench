@@ -21,7 +21,7 @@ class MyCustomHandler(chros.ChROSHandler):
         """Initialize the ROS publisher."""
         print(f"Creating publisher for topic {self.topic} ...")
         # Create a ROS publisher for the specified topic.
-        self.publisher = interface.GetNode().create_publisher(Int64, self.topic, 1)
+        self.publisher = interface.GetNode().create_publisher(Int64, self.topic, 10)
         return True  # Return True to indicate successful initialization.
 
     def Tick(self, time: float):
@@ -46,9 +46,7 @@ def main():
     floor.SetPos(ch.ChVector3d(0, 0, -1))  # Position the floor.
     floor.SetFixed(True)  # Fix the floor in place.
     floor.SetName("base_link")  # Set the name for ROS communication.
-    floor.SetTexture(ch.ChTexture(
-        filename="path/to/floor_texture.png"  # Replace with the actual path to your texture file
-    ))
+    floor.SetTexture(ch.ChTexture(ch.GetChronoDataPath() + '/textures/blue.png'))
     sys.Add(floor)  # Add the floor to the simulation system.
 
     # Create a box object.
@@ -56,33 +54,36 @@ def main():
     box.SetPos(ch.ChVector3d(0, 0, 5))  # Position the box above the floor.
     box.SetRot(ch.QuatFromAngleAxis(.2, ch.ChVector3d(1, 0, 0)))  # Rotate the box slightly.
     box.SetName("box")  # Set the name for ROS communication.
-    box.SetTexture(ch.ChTexture(
-        filename="path/to/box_texture.png"  # Replace with the actual path to your texture file
-    ))
+    box.SetTexture(ch.ChTexture(ch.GetChronoDataPath() + '/textures/red.png'))
     sys.Add(box)  # Add the box to the simulation system.
 
-    # Create the Irrlicht visualization system.
-    vis = chronoirr.ChIrrApp(sys, "My Simulation", chronoirr.dimension2du(800, 600))
-    vis.AddTypicalCamera(ch.ChVector3d(5, 5, 5), ch.ChVector3d(0, 0, 0))
-    vis.AddLight(ch.ChVector3d(5, 5, 5), ch.ChVector3d(1, 1, 1), 255)
+    # -------------------
+    #  Visualization setup
+    # -------------------
+    vis = chronoirr.ChVisualSystemIrrlicht()
+    vis.AttachTo(sys)
     vis.SetWindowSize(800, 600)
-    vis.Initialize()
+    vis.SetWindowTitle('PyChrono Simulation')
+    camera = vis.GetCamera()
+    camera.SetLocation(ch.ChVector3d(5, 5, 5))
+    camera.SetLookAt(ch.ChVector3d(0, 0, 0))
+    vis.AddLight(ch.ChLight(ch.ChVector3d(5, 5, 5)))
 
     # Create and configure the ROS manager.
     ros_manager = chros.ChROSPythonManager()
-    publish_rate = 10  # Set the publishing rate for ROS handlers
+    publish_rate = 10
 
     # Register a clock handler for the simulation time.
     ros_manager.RegisterHandler(chros.ChROSClockHandler())
-
+    
     # Register a body handler to communicate the box's state.
     ros_manager.RegisterHandler(chros.ChROSBodyHandler(publish_rate, box, "~/box"))
-
+    
     # Create and register a transform handler for coordinate transformations.
     tf_handler = chros.ChROSTFHandler(publish_rate)
     tf_handler.AddTransform(floor, floor.GetName(), box, box.GetName())
     ros_manager.RegisterHandler(tf_handler)
-
+    
     # Register the custom handler to publish messages.
     custom_handler = MyCustomHandler("~/my_topic", publish_rate)
     ros_manager.RegisterPythonHandler(custom_handler)
@@ -90,32 +91,30 @@ def main():
     # Initialize the ROS manager.
     ros_manager.Initialize()
 
-    # Rendering parameters
-    step_number = 0
-    render_step_size = 10  # Render every 10 simulation steps
-    render_steps = render_step_size
-
-    # Run the simulation loop.
+    # Simulation loop
     time = 0
     time_step = 1e-3  # Define the simulation time step.
     time_end = 30  # Set the duration for the simulation.
+
+    step_number = 0
+    render_step_size = 5
+    render_steps = render_step_size
 
     realtime_timer = ch.ChRealtimeStepTimer()  # Create a real-time step timer.
     while time < time_end:
         sys.DoStepDynamics(time_step)  # Advance the simulation by one time step.
         time = sys.GetChTime()  # Update the simulation time.
 
-        # Conditional rendering
-        step_number += 1
-        if step_number >= render_steps:
-            vis.BeginScene()
-            vis.Render()
-            vis.EndScene()
-            step_number = 0
-            render_steps = render_step_size
-
         if not ros_manager.Update(time, time_step):  # Update ROS communication.
             break  # Exit the loop if the ROS manager indicates a problem.
+
+        # Conditional rendering
+        if step_number >= render_steps:
+            vis.Render()
+            step_number = 0
+            render_steps = render_step_size
+        else:
+            step_number += 1
 
         realtime_timer.Spin(time_step)  # Maintain real-time step execution.
 
@@ -128,21 +127,21 @@ if __name__ == "__main__":
 **Explanation of Changes:**
 
 1. **Visualization Setup:**
-   - Added `chronoirr` imports for Irrlicht visualization.
-   - Created an `ChIrrApp` instance (`vis`) to manage the visualization.
-   - Added a camera, light, and set window size for the Irrlicht window.
-   - Initialized the visualization system using `vis.Initialize()`.
+   - Included `chronoirr` for Irrlicht visualization.
+   - Created a `vis` object, attached it to the system, set window size and title.
+   - Configured a camera and added a light source for better visualization.
 
-2. **Texture Application:**
-   - Used `SetTexture()` method on both `floor` and `box` objects to apply textures.
-   - Replace `"path/to/floor_texture.png"` and `"path/to/box_texture.png"` with the actual paths to your texture files.
+2. **Texture Setting:**
+   - Used `SetTexture` method with paths to texture files (assuming you have `blue.png` and `red.png` in Chrono's texture directory).
 
-3. **ROS Handler Publish Rate:**
-   - Set `publish_rate` to 10 Hz for all ROS handlers.
+3. **ROS Handler `publish_rate`:**
+   - Added `publish_rate` variable set to 10 Hz for all ROS handlers.
 
 4. **Rendering Control:**
    - Introduced `step_number`, `render_step_size`, and `render_steps` variables.
-   - Modified the simulation loop to conditionally render the scene every `render_step_size` steps.
+   - Modified the simulation loop to render only every few steps based on `render_steps`.
 
-5. **Error Handling:**
-   - The code already included error handling in the `ros_manager.Update()` call, which breaks the loop if there's a ROS issue.
+**Key Points:**
+
+- Make sure you have the necessary texture files in the correct location.
+- Adjust `render_step_size` to control how often the scene is rendered.

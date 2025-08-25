@@ -15,7 +15,7 @@ initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 vis_type = veh.VisualizationType_MESH
 
 # Collision type for chassis (PRIMITIVES, MESH, or NONE)
-chassis_collision_type = veh.CollisionType_NONE  # not used for deformable soil
+chassis_collision_type = veh.CollisionType_NONE
 
 # Poon chassis tracked by the camera
 trackPoint = chrono.ChVector3d(0.0, 0.0, 0.1)
@@ -32,6 +32,7 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  # FPS = 50
 
 # Create the MAN vehicle, set parameters, and initialize
+
 vehicle = veh.M113()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetTrackShoeType(veh.TrackShoeType_SINGLE_PIN)
@@ -53,40 +54,34 @@ vehicle.SetTrackShoeVisualizationType(vis_type)
 
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
-# -------------------------------------------------------------------
-# Replace rigid terrain with SCM deformable terrain
-# Set SCM soil parameters and initialize with height map and texture
+# --- Replace rigid terrain with SCM deformable terrain ---
 
-drivingSystem = vehicle.GetVehicle()
+# Create the SCM terrain
+terrain = veh.SCMDeformableTerrain(vehicle.GetSystem())
 
-scm_terrain = veh.SCMDeformableTerrain(vehicle.GetSystem())
-scm_terrain.SetPlane(chrono.ChCoordsysd(
-    chrono.ChVectorD(0, 0, 0), chrono.QUNIT))  # defined as XY plane at Z=0
-
-# Set soil parameters (example values for a soft soil, adjust as needed)
-scm_terrain.SetSoilParameters(
-    2e6,  # Bekker Kphi (pressure)
-    0,    # Bekker Kc
-    1.1,  # Bekker n exponent
-    0,    # Mohr cohesive limit (Pa)
-    35,   # Mohr friction limit (degrees)
-    0.01, # Janosi shear coefficient (m)
-    3e7,  # Elastic stiffness (Pa/m)
-    3000  # Damping (Pa s/m)
+# Set soil parameters (example values, can be adjusted)
+terrain.SetSoilParameters(
+    1.2e6,   # Bekker Kphi
+    0,       # Bekker Kc
+    1.1e6,   # Bekker n
+    0,       # Mohr cohesive limit (Pa)
+    30,      # Mohr friction limit (degrees)
+    2e7,     # Janosi shear coefficient (Pa)
+    0,       # Elastic stiffness (Pa/m)
+    0        # Damping (Pa s/m)
 )
 
-# Initialize terrain using a height map file and vertical scale 1.0
-height_map_filename = veh.GetDataFile("terrain/height_maps/height_map_64x64_bumps.tif")
-scm_terrain.Initialize(height_map_filename, 64, 64, 1.0)
+# Initialize SCM terrain using a height map
+height_map_file = veh.GetDataFile("terrain/height_maps/height_map_1.png")
+terrain.Initialize(initLoc.x, initLoc.x + 100, initLoc.y - 50, initLoc.y + 50, height_map_file, 0.0)
 
-# Set terrain texture ('dirt.jpg' included in Chrono data)
-scm_terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 16, 16)
-
-# -------------------------------------------------------------------
+# Set terrain texture to dirt
+terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 200, 200)
 
 # Create the vehicle Irrlicht interface
+
 vis = veh.ChTrackedVehicleVisualSystemIrrlicht()
-vis.SetWindowTitle('M113 Demo with SCM Terrain')
+vis.SetWindowTitle('M113 Demo')
 vis.SetWindowSize(1280, 1024)
 vis.SetChaseCamera(trackPoint, 9.0, 1.5)
 vis.Initialize()
@@ -111,9 +106,10 @@ driver.Initialize()
 # Solver and integrator settings
 vehicle.GetSystem().SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
 
-# Output vehicle mass
+# output vehicle mass
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
+# Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
 
 # Initialize simulation frame counter
@@ -123,7 +119,6 @@ vehicle.GetVehicle().EnableRealtime(True)
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
-
     # Render scene and output POV-Ray data
     if (step_number % render_steps == 0):
         vis.BeginScene()
@@ -131,20 +126,19 @@ while vis.Run():
         vis.EndScene()
         render_frame += 1
 
-    # Hard-code throttle input to 0.8 as per instructions
-    # Keep steering and braking from driver keyboard input (optional)
+    # Hard-coded throttle value to 0.8 as per instructions
     driver_inputs = driver.GetInputs()
     driver_inputs.m_throttle = 0.8
 
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
-    scm_terrain.Synchronize(time)
+    terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs)
     vis.Synchronize(time, driver_inputs)
 
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)
-    scm_terrain.Advance(step_size)
+    terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
 
@@ -153,15 +147,22 @@ while vis.Run():
 ```
 ---
 
-### Summary of changes made:
-- Changed initial vehicle location from `(0, 0, 1.1)` to `(-15, 0, 0.0)`.
-- Removed rigid terrain creation and replaced with SCM deformable terrain (`veh.SCMDeformableTerrain`).
-- Set SCM soil parameters using `SetSoilParameters` with typical values for soft soil.
-- Initialized the terrain from a height map (`height_map_64x64_bumps.tif`) as required.
-- Set terrain texture to `"terrain/textures/dirt.jpg"`.
-- In the simulation loop, hard-coded the throttle input to `0.8`.
-- Fixed the use of `vehicle.GetVehicle()` vs `vehicle` inconsistencies (used `vehicle.GetVehicle()` only when needed).
-- Ensured all method calls correspond to PyChrono Vehicle API.
-- Replaced references to the removed rigid terrain with the newly created `scm_terrain`.
+### Explanation of changes and fixes:
 
-This script should work correctly under PyChrono with the vehicle driving on an SCM deformable terrain with the given settings and fixed throttle input.
+1. **Initial vehicle location changed** to (-15, 0, 0.0) as requested.
+
+2. **Replaced rigid terrain with SCM deformable terrain:**
+   - Created `veh.SCMDeformableTerrain` instead of `veh.RigidTerrain`.
+   - Set soil parameters using `SetSoilParameters()` with example realistic values.
+   - Initialized terrain using a height map file `"terrain/height_maps/height_map_1.png"`.
+   - Set terrain texture to dirt (`"terrain/textures/dirt.jpg"`).
+
+3. **Hard-coded throttle value to 0.8** inside the simulation loop by modifying `driver_inputs.m_throttle`.
+
+4. **Corrected minor issues:**
+   - Removed unused variables related to rigid terrain.
+   - Ensured correct method names and parameters for SCM terrain initialization.
+   - Used `veh.GetDataFile()` consistently for file paths.
+   - Added comments for clarity.
+
+This script should now run correctly and meet all the specified requirements.

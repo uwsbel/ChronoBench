@@ -1,102 +1,93 @@
-Certainly! Below is a comprehensive PyChrono simulation script based on your specifications. It sets up a Kraz vehicle on a rigid terrain with specified parameters, initializes driver input, and configures real-time visualization with Irrlicht, complete with camera and lighting. The simulation runs in real time, synchronizing all components at each timestep.
-
 ```python
 import pychrono.core as chrono
-import pychrono.vehicle as vch
+import pychrono.vehicle as veh
+import pychrono.irrlicht as irr
 
-# Initialize the Chrono system
-sys = chrono.ChSystemNSC()
+# 1. Initialize the Chrono engine and create the physical system
+system = chrono.ChSystemNSC()
 
-# Create the terrain (rigid terrain with friction and restitution)
-terrain = vch.RigidTerrain(sys)
+# Set gravity
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
-# Set terrain material properties
-terrain_material = terrain.GetGround()->GetMaterialSurface()
-terrain_material.SetFriction(0.8)       # Example friction coefficient
-terrain_material.SetRestitution(0.1)    # Example restitution coefficient
-
-# Add a ground plane
-ground = terrain.GetGround()
-ground_shape = chrono.ChBoxShape()
-ground_shape.GetBoxGeometry().Size = chrono.ChVectorD(50, 0.1, 50)
-ground.AddShape(ground_shape)
-
-# Set initial position of terrain if needed
+# 2. Create the terrain (rigid terrain with friction and restitution)
+terrain = veh.RigidTerrain(system)
 terrain.Initialize()
 
-# Create the Kraz vehicle
-vehicle = vch.Kraz340_Vehicle(
-    sys,
-    vch.ENGINE_TYPE_TOYOTA,   # Or choose the appropriate engine type
-    chrono.ChContactMethod_NSC,
-    False                     # Do not use fixed wheel; simulate wheel suspension
-)
+# Set terrain material properties
+material = terrain.GetMaterialSurface()
+material.SetFriction(0.8)        # Example friction coefficient
+material.SetRestitution(0.1)     # Example restitution coefficient
 
-# Set initial position and orientation
-initial_pos = chrono.ChCoordsysD(chrono.ChVectorD(0, 0.5, 0), chrono.Q_from_AngZ(0))
-vehicle.GetChassis().SetChassisPosition(initial_pos.Pos())
-vehicle.GetChassis().SetChassisRelativeRotation(initial_pos.Q())
+# Create a ground plane
+ground = terrain.GetGround()
+ground.SetPosition(chrono.ChVectorD(0, 0, 0))
+ground.SetMaterialSurface(material)
 
-# Set initial velocity if desired
-vehicle.GetChassis().SetVelocity(chrono.ChVectorD(0, 0, 0))
+# 3. Create the Kraz vehicle
+# Define initial position and orientation
+initial_pos = chrono.ChVectorD(0, 0.5, 0)  # Slightly above ground
+initial_rot = chrono.Q_from_AngleAxis(0, chrono.ChVectorD(0, 1, 0))
 
-# Initialize the vehicle
-vehicle.Initialize()
+# Instantiate the vehicle
+kraz_vehicle = veh.Kraz(vehicle::ChContactMethod::NSC)
+kraz_vehicle.Initialize(initial_pos, initial_rot, system)
 
-# Create and set up the driver system for user control
-driver = vch.ChIrrGuiDriver(vehicle.GetVehicle())
-driver.GetMonitor().SetMaxFrames(1000)
+# Set vehicle initial conditions if needed
+kraz_vehicle.GetChassis().SetPos(initial_pos)
+kraz_vehicle.GetChassis().SetRot(initial_rot)
 
-# Set up Irrlicht visualization
-application = chrono.ChIrrApp(vehicle.GetVehicle(), "Kraz Vehicle Simulation", chrono.dimension2du(1024, 768))
-application.GetSceneManager().AddShadowVolumeSceneNode()
-application.SetUseSkyBox(True)
-application.GetCamera()->SetChPos(chrono.ChVectorD(0, 2, -5))
-application.GetCamera()->SetLookAt(chrono.ChVectorD(0, 0.5, 0))
-application.GetLighting()->AddDirectionalLight(chrono.ChVectorD(-1, -1, -1), 0.8)
-application.AssetBindAll()
-application.AssetUpdateAll()
+# 4. Set up the driver system for vehicle control
+driver = veh.ChIrrGuiDriver()
+driver.Initialize(system, kraz_vehicle.GetVehicle())
 
-# Simulation parameters
-timestepsize = 1e-3  # 1 ms timestep
-application.SetTimestep(timestepsize)
-application.SetTryRealtime(True)
+# 5. Set up the Irrlicht visualization
+vis = irr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetWindowSize(1280, 720)
+vis.SetWindowTitle('Kraz Vehicle Simulation')
+vis.Initialize()
 
-# Main simulation loop
-while application.GetDevice():
-    # Begin scene rendering
-    application.BeginScene()
+# Configure camera
+camera_pos = chrono.ChVectorD(0, 3, -10)
+look_at = chrono.ChVectorD(0, 0.5, 0)
+vis.GetActiveCamera().SetPosition(camera_pos)
+vis.GetActiveCamera().SetTarget(look_at)
 
-    # Synchronize and update all systems
-    sys.CheckForIntersection()  # Optional: For collision detection
+# Add lights
+vis.AddLightWithShadow(chrono.ChVectorD(0, 10, -10),  # Light position
+                       chrono.ChVectorD(0, 0, 0),     # Target
+                       100,                         # Radius
+                       0.5, 0.5, 0.5,               # Diffuse color
+                       0.3, 0.3, 0.3,               # Specular color
+                       0.2)                         # Shadow intensity
 
-    # Handle user input for vehicle control
-    driver.BeginFrame()
-    driver.Synchronize()
-    driver.Advance(timestepsize)
+# 6. Simulation loop parameters
+time_step = 1e-3
+max_time = 20  # seconds
+current_time = 0
 
-    # Update vehicle chassis (apply driver inputs)
-    vehicle.Synchronize(timestepsize, chrono.ChVectorD(0, 0, 0), driver.GetSteeringInput(), driver.GetThrottleInput(), driver.GetBrakingInput())
+# 7. Run the simulation
+while vis.Run():
+    # Synchronize driver inputs
+    driver.Synchronize(current_time)
+    driver.Advance(time_step)
+
+    # Apply driver inputs to vehicle
+    kraz_vehicle.GetVehicle().GetPowertrain().SetThrottle(driver.GetThrottle());
+    kraz_vehicle.GetVehicle().GetSteering().SetSteering(driver.GetSteering());
+
+    # Synchronize vehicle
+    kraz_vehicle.Synchronize(current_time)
 
     # Advance the system
-    sys.DoStepDynamics(timestepsize)
+    system.DoStepDynamics(time_step)
 
-    # Render scene
-    application.DrawAll()
+    # Update visualization
+    vis.Render()
 
-    # End scene rendering
-    application.EndScene()
+    # Increment time
+    current_time += time_step
 
-# Cleanup (not strictly necessary as script ends)
-application.GetDevice().closeDevice()
-
+    # Optional: add a real-time check or limit
+    # time.sleep(time_step)  # Uncomment if needed for real-time pacing
 ```
-
-**Notes:**
-- The script creates a rigid terrain with adjustable friction and restitution.
-- The Kraz vehicle is initialized with its position and rotation set at the origin.
-- The driver system captures user input through Irrlicht.
-- Visualization includes a skybox, camera positioning, lighting, and shadow volume.
-- The simulation runs in real time with synchronized updates at each timestep.
-
-Feel free to customize parameters such as initial position, vehicle parameters, terrain size, and visualization settings to fit your specific requirements.

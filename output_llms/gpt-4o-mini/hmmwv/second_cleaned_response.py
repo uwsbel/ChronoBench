@@ -79,22 +79,35 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 
-path_radius = 10.0  
-target_angle = 0.0
-target_position = chrono.ChVector3d(path_radius * math.cos(target_angle), path_radius * math.sin(target_angle), 0.5)
+class PathFollower:
+    def __init__(self, vehicle, radius):
+        self.vehicle = vehicle
+        self.radius = radius
+        self.angle = 0.0
+        self.throttle = 0.3  
+        self.kp = 1.0  
+        self.kd = 0.1  
+        self.last_error = 0.0
+
+    def update(self, time):
+        
+        target_x = self.radius * math.cos(self.angle)
+        target_y = self.radius * math.sin(self.angle)
+        target_pos = chrono.ChVector3d(target_x, target_y, 0.5)
+
+        
+        vehicle_pos = self.vehicle.GetVehicle().GetPos()
+        error = math.atan2(target_y - vehicle_pos.y, target_x - vehicle_pos.x) - self.vehicle.GetVehicle().GetYaw()
+
+        
+        steering = self.kp * error + self.kd * (error - self.last_error) / step_size
+        self.last_error = error
+
+        
+        return self.throttle, steering
 
 
-Kp = 1.0
-Kd = 0.1
-Ki = 0.0
-integral = 0.0
-previous_error = 0.0
-
-
-throttle_value = 0.3
-
-
-driver = veh.ChPathFollowerDriver(vehicle, target_position)
+path_follower = PathFollower(vehicle, radius=10.0)  
 
 
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
@@ -118,33 +131,19 @@ while vis.Run():
         render_frame += 1
 
     
-    target_angle += (2 * math.pi) / (200.0 / step_size)  
-    target_position = chrono.ChVector3d(path_radius * math.cos(target_angle), path_radius * math.sin(target_angle), 0.5)
+    throttle, steering = path_follower.update(time)
 
     
-    vehicle_pos = vehicle.GetVehicle().GetPos()
-    error = math.atan2(target_position.y - vehicle_pos.y, target_position.x - vehicle_pos.x) - vehicle.GetVehicle().GetYaw()
-    
-    
-    integral += error * step_size
-    derivative = (error - previous_error) / step_size
-    steering_value = Kp * error + Ki * integral + Kd * derivative
-    previous_error = error
+    driver_inputs = veh.DriverInputs()
+    driver_inputs.m_throttle = throttle
+    driver_inputs.m_steering = steering
 
     
-    driver_inputs = driver.GetInputs()
-    driver_inputs.m_steering = steering_value
-    driver_inputs.m_throttle = throttle_value
-    driver_inputs.m_braking = 0.0  
-
-    
-    driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
 
     
-    driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
@@ -156,5 +155,4 @@ while vis.Run():
     realtime_timer.Spin(step_size)
 
     
-    vis.AddSphere(target_position, 0.2, chrono.ChColor(1, 0, 0))  
-    vis.AddSphere(vehicle_pos, 0.2, chrono.ChColor(0, 0, 1))
+    path_follower.angle += step_size * (throttle / 10.0)

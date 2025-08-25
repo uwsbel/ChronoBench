@@ -1,6 +1,5 @@
 import pychrono as ch
 import pychrono.ros as chros
-
 import rclpy.publisher
 from std_msgs.msg import Int64
 
@@ -8,7 +7,7 @@ from std_msgs.msg import Int64
 class MyCustomHandler(chros.ChROSHandler):
     
 
-    def __init__(self, topic, publish_rate):
+    def __init__(self, topic, publish_rate=10):
         super().__init__(publish_rate)  
 
         self.topic = topic
@@ -70,44 +69,43 @@ def main():
     ros_manager.RegisterHandler(tf_handler)
     
     
-    custom_handler = MyCustomHandler("~/my_topic", 10)
+    custom_handler = MyCustomHandler("~/my_topic", publish_rate=10)
     ros_manager.RegisterPythonHandler(custom_handler)
 
     
     ros_manager.Initialize()
 
     
-    vis = ch.ChVisualSystemIrrlicht()
-    vis.SetWindowSize(800, 600)
-    vis.SetWindowTitle("PyChrono Simulation")
-    vis.Initialize()
-    vis.AddCamera(ch.ChVector3d(0, -10, 5), ch.ChVector3d(0, 0, 0))  
-    vis.AddLight(ch.ChVector3d(0, 0, 10), ch.ChVector3d(1, 1, 1))  
+    vis = ch.ChIrrApp(sys, "Chrono Simulation", ch.vector2di(800, 600), ch.VerticalDir.Z)
+    vis.AddSkyBox()
+    vis.AddCamera(ch.ChVector3d(0, -10, 5), ch.ChVector3d(0, 0, 0))
+    vis.AddLight(ch.ChVector3d(0, 0, 10), ch.ChVector3d(1, 1, 1))
+
+    
+    step_number = 0
+    render_step_size = 1  
+    render_steps = 10  
 
     
     time = 0
     time_step = 1e-3  
     time_end = 30  
 
-    
-    step_number = 0
-    render_step_size = 0.1  
-    render_steps = int(render_step_size / time_step)  
-
     realtime_timer = ch.ChRealtimeStepTimer()  
     while time < time_end:
         sys.DoStepDynamics(time_step)  
         time = sys.GetChTime()  
 
+        if step_number % render_steps == 0:  
+            vis.BeginScene()
+            vis.DrawAll()
+            vis.EndScene()
+
         if not ros_manager.Update(time, time_step):  
             break  
 
-        
-        if step_number % render_steps == 0:
-            vis.Render()  
-
-        step_number += 1  
         realtime_timer.Spin(time_step)  
+        step_number += 1  
 
 
 if __name__ == "__main__":

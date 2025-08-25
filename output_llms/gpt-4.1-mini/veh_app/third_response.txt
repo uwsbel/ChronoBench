@@ -104,7 +104,8 @@ box.GetVisualModel().GetShape(0).SetTexture(chrono.GetChronoDataFile("textures/b
 gator.GetSystem().AddBody(box)
 
 # create cylinder
-# Correct constructor parameters to use radius=0.5, height=1 and density=1000
+# Corrected: ChBodyEasyCylinder constructor parameters: radius, height, density
+# Also, axis parameter is not needed here; the cylinder is aligned along Z by default.
 cylinder = chrono.ChBodyEasyCylinder(0.5, 1, 1000)
 cylinder.SetPos(chrono.ChVector3d(0, 0, 1.5))
 cylinder.SetFixed(True)
@@ -113,6 +114,7 @@ gator.GetSystem().AddBody(cylinder)
 
 # Create the interactive driver system
 driver = veh.ChDriver(gator.GetVehicle())
+
 driver.Initialize()
 
 # -----------------------
@@ -123,8 +125,6 @@ intensity = 1.0
 manager.scene.AddPointLight(chrono.ChVector3f(2, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
 
 # Create two cameras and add them to the sensor manager
-
-# Camera 1: Third Person POV
 offset_pose = chrono.ChFrameD(chrono.ChVector3d(-8.0, 0, 1.45), chrono.Q_from_AngAxis(0.2, chrono.ChVectorD(0, 1, 0)))
 cam = sens.ChCameraSensor(
     gator.GetChassisBody(),
@@ -139,29 +139,14 @@ cam.SetName("Third Person POV")
 cam.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Gator Camera"))
 manager.AddSensor(cam)
 
-# Camera 2: Depth Camera as per instructions
-depth_cam_offset_pose = chrono.ChFrameD(chrono.ChVector3d(-5.0, 0, 2), chrono.QUNIT)
-depth_cam = sens.ChCameraSensor(
-    gator.GetChassisBody(),
-    update_rate,
-    depth_cam_offset_pose,
-    image_width,
-    image_height,
-    fov
-)
-depth_cam.SetName("Depth Camera")
-depth_cam.SetMaxFarPlane(30)
-depth_cam.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Depth Map"))
-manager.AddSensor(depth_cam)
-
 # create lidar sensor
-lidar_offset_pose = chrono.ChFrameD(
-        chrono.ChVector3d(0.0, 0, 2), chrono.QUNIT
+offset_pose = chrono.ChFrameD(
+        chrono.ChVector3d(0.0, 0, 2), chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0))
     )
 lidar = sens.ChLidarSensor(
     gator.GetChassisBody(),              # Body lidar is attached to
     update_rate,            # Scanning rate in Hz
-    lidar_offset_pose,            # Offset pose
+    offset_pose,            # Offset pose
     800,     # Number of horizontal samples
     300,       # Number of vertical channels
     2 * chrono.CH_C_PI,         # Horizontal field of view
@@ -187,6 +172,23 @@ lidar.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "Lidar Point Cl
 # Add the lidar to the sensor manager
 manager.AddSensor(lidar)
 
+# ------------------------
+# Added Depth Camera sensor
+# ------------------------
+depth_cam_offset_pose = chrono.ChFrameD(chrono.ChVector3d(-5.0, 0, 2), chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0)))
+depth_cam = sens.ChDepthCameraSensor(
+    gator.GetChassisBody(),
+    update_rate,
+    depth_cam_offset_pose,
+    image_width,
+    image_height,
+    fov,
+    30.0  # max depth
+)
+depth_cam.SetName("Depth Camera")
+depth_cam.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Depth Camera Depth Map"))
+manager.AddSensor(depth_cam)
+
 # ---------------
 # Simulation loop
 # ---------------
@@ -195,6 +197,7 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 time = 0
 end_time = 30
 
+print("Time\tPosX\tPosY\tPosZ\tHeading (deg)")
 while time < end_time:
     time = gator.GetSystem().GetChTime()
     # set driver inputs
@@ -210,25 +213,27 @@ while time < end_time:
 
     manager.Update()
 
+    # Log vehicle state: position and heading
+    pos = gator.GetVehicle().GetPos()
+    rot = gator.GetVehicle().GetRot()
+    # Extract heading (yaw) angle from quaternion
+    # Chrono quaternion is (w, x, y, z)
+    # Convert to yaw angle (heading) in degrees
+    # Formula for yaw from quaternion:
+    # yaw = atan2(2*(w*z + x*y), 1 - 2*(y*y + z*z))
+    w = rot.e0
+    x = rot.e1
+    y = rot.e2
+    z = rot.e3
+    yaw = math.atan2(2*(w*z + x*y), 1 - 2*(y*y + z*z))
+    yaw_deg = math.degrees(yaw)
+
+    print(f"{time:.3f}\t{pos.x:.3f}\t{pos.y:.3f}\t{pos.z:.3f}\t{yaw_deg:.2f}")
+
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)
     terrain.Advance(step_size)
     gator.Advance(step_size)
-
-    # Log vehicle state (position X,Y,Z and heading)
-    pos = gator.GetVehicle().GetPos()
-    rot = gator.GetVehicle().GetRot()
-    # Compute heading (yaw) from quaternion
-    # Get the heading angle (rotation about vertical axis, z-up)
-    # Chrono uses z-up coordinate system; yaw angle can be extracted from quaternion.
-    # Formula to extract yaw (heading) from quaternion q = (w, x, y, z):
-    # yaw = atan2(2(w*z + x*y), 1 - 2(y^2 + z^2))
-    qw = rot.e0
-    qx = rot.e1
-    qy = rot.e2
-    qz = rot.e3
-    heading = math.atan2(2 * (qw * qz + qx * qy), 1 - 2 * (qy * qy + qz * qz))
-    print(f"Time: {time:.3f} s, Position: ({pos.x:.3f}, {pos.y:.3f}, {pos.z:.3f}), Heading: {math.degrees(heading):.2f} deg")
 
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
@@ -236,32 +241,44 @@ while time < end_time:
 
 ---
 
-### Explanation of Fixes and Modifications:
+### Explanation of corrections and modifications:
 
 1. **Errors fixed:**
 
-   - `chrono.ChBodyEasyCylinder` originally used with parameters `(chrono.ChAxis_Y, 0.5, 1, 1000)`. This is **incorrect** because the constructor is generally `(radius, height, density)`. Fixed it to `chrono.ChBodyEasyCylinder(0.5, 1, 1000)`. The axis can't be set here; the cylinder is oriented along Z by default.
+   - The `chrono.ChBodyEasyCylinder` constructor was incorrectly called with `chrono.ChAxis_Y` as the first argument. The correct signature is `(radius, height, density)`. The axis is not specified here; the cylinder is aligned along Z by default.
    
-   - Use `chrono.ChFrameD` and `chrono.Q_from_AngAxis` / `chrono.QUNIT` instead of deprecated `chrono.ChFramed` and `chrono.QuatFromAngleAxis`.
-
-   - The lidar's field of view constants were `chrono.CH_PI` but in PyChrono's recent versions the constant is `chrono.CH_C_PI`.
-
-   - For creating offset frames, use the correct classes: `ChFrameD` for pose and `Q_from_AngAxis` or `QUNIT` for quaternions.
-
+   - The `chrono.ChFramed` class does not exist; the correct class is `chrono.ChFrameD` for a frame with double precision.
+   
+   - The quaternion creation function `chrono.QuatFromAngleAxis` does not exist; the correct function is `chrono.Q_from_AngAxis(angle, axis)`.
+   
+   - The `chrono.ChVector3d` and `chrono.ChVectorD` are interchangeable, but to be consistent with `ChFrameD` and `Q_from_AngAxis`, I used `ChVector3d` and `ChVectorD` appropriately.
+   
+   - The constants `chrono.CH_PI` and `chrono.CH_C_PI` are both used in PyChrono; `CH_C_PI` is the correct constant for pi in double precision. I replaced `chrono.CH_PI` with `chrono.CH_C_PI` for consistency.
+   
+   - The `ChLidarSensor` constructor parameters were correct, but I replaced `chrono.CH_PI` with `chrono.CH_C_PI`.
+   
+   - The `ChSensorManager.scene` is accessed as `manager.scene` (lowercase), which is correct.
+   
 2. **Added Depth Camera:**
 
-   - Added a depth camera sensor with offset at (-5.0, 0, 2), width=1280, height=720, fov=1.408, max depth=30, and pushed `ChFilterVisualize` filter with the label "Depth Map".
-
+   - Created a `ChDepthCameraSensor` with the specified offset pose, image size, FOV, and max depth.
+   
+   - Added a visualization filter for the depth map.
+   
+   - Added the sensor to the sensor manager.
+   
 3. **Logged Vehicle State:**
 
-   - In each simulation step, printed the vehicle position `(X,Y,Z)` and heading (yaw angle in degrees).
+   - At every simulation step, printed the simulation time, vehicle position (X, Y, Z), and heading (yaw) in degrees.
+   
+   - Extracted yaw from the vehicle's quaternion rotation using the standard formula.
+   
+4. **General:**
 
-4. **General improvements:**
-
-   - Used `ChFrameD` (double precision) rather than `ChFramed`.
-
-   - Used `chrono.Q_from_AngAxis()` for rotation quaternions.
+   - Kept the rest of the code intact and consistent.
+   
+   - Added a header line for the vehicle state printout for clarity.
 
 ---
 
-**Note:** You may want to tweak the vehicle state logging frequency if printing at every millisecond is too verbose. For this example, the user requested "at every simulation step," so it's in the loop as is.
+This script should now run correctly, create the requested depth camera sensor, and log the vehicle's position and heading at each simulation step.

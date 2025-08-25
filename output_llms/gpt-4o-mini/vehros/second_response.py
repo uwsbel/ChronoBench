@@ -19,8 +19,7 @@ def main():
     hmmwv.SetSteeringType(veh.SteeringTypeWV_PITMAN_ARM)  # Use pitman arm steering.
     hmmwv.SetTireType(veh.TireModelType_TMEASY)  # Set tire model.
     hmmwv.SetTireStepSize(1e-3)  # Set the tire simulation step size.
-    hmmwv.Initialize()  # Initialize the vehicle.
-
+    
     # Set visualization types for the HMMWV vehicle
     hmmwv.SetChassisVisualizationType(veh.VisualizationType_PRIMITIVES)
     hmmwv.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
@@ -28,13 +27,18 @@ def main():
     hmmwv.SetWheelVisualizationType(veh.VisualizationType_PRIMITIVES)
     hmmwv.SetTireVisualizationType(veh.VisualizationType_PRIMITIVES)
 
+    hmmwv.Initialize()  # Initialize the vehicle.
+
     # Create the terrain for the vehicle to interact with.
     terrain = veh.RigidTerrain(hmmwv.GetSystem())
     patch_mat = ch.ChContactMaterialNSC()  # Create a contact material for the terrain.
     patch_mat.SetFriction(0.9)  # Set friction for the terrain.
     patch_mat.SetRestitution(0.01)  # Set restitution (bounciness) for the terrain.
+    
+    # Add a patch to the terrain and set its texture
     patch = terrain.AddPatch(patch_mat, ch.CSYSNORM, 100.0, 100.0)  # Add a patch to the terrain.
-    patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 100, 100)  # Set the texture for the terrain patch.
+    patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 100, 100)  # Set texture for the terrain patch.
+    
     terrain.Initialize()  # Initialize the terrain.
 
     # Create and initialize the driver system.
@@ -50,13 +54,11 @@ def main():
     ros_manager.RegisterHandler(chros.ChROSBodyHandler(25, hmmwv.GetChassisBody(), "~/output/hmmwv/state"))
     ros_manager.Initialize()  # Initialize the ROS manager.
 
-    # Setup runtime visualization
-    vis = chronoirr.ChVisualSystemIrrlicht()
-    vis.SetWindowSize(800, 600)
-    vis.SetTitle("HMMWV Simulation")
-    vis.Initialize()
-    vis.AddCamera(ch.ChVector3d(0, 0, 5), ch.ChVector3d(0, 0, 0))  # Set camera position and target
-    vis.AddSkyBox()  # Optional: Add a skybox for better visualization
+    # Setup visualization
+    vis = chronoirr.ChVisualSystemIrrlicht()  # Create the visualization system
+    vis.SetWindowSize(800, 600)  # Set the window size
+    vis.Initialize()  # Initialize the visualization system
+    vis.AddCamera(ch.ChVector3d(0, -10, 5), ch.ChVector3d(0, 0, 0))  # Add a camera
 
     # Start the simulation loop.
     time = 0
@@ -83,9 +85,9 @@ def main():
             break  # Exit loop if ROS manager update fails.
 
         # Render the visualization
-        vis.BeginScene()
-        vis.DrawAll()
-        vis.EndScene()
+        vis.BeginScene()  # Begin the scene
+        vis.DrawAll()  # Draw all objects
+        vis.EndScene()  # End the scene
 
 if __name__ == "__main__":
     main()

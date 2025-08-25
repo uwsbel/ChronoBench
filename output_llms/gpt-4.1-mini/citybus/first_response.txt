@@ -1,108 +1,105 @@
 ```python
 import pychrono as chrono
-import pychrono_vehicle as veh
-import pychrono.vehicle.citybus as citybus
-import pychrono_irrlicht as chronoirr
+import pychrono.vehicle as veh
+import pychrono.irrlicht as irr
+import os
 
-# 1. Initialize the PyChrono environment and core components
-chrono.SetChronoDataPath(chrono.GetChronoDataPath())  # Ensure data path is set for textures, meshes, etc.
-chrono.SetChronoVerbose(False)
+# -----------------------------------------------------------------------------
+# Initialize the PyChrono environment and core components
+# -----------------------------------------------------------------------------
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())  # Ensure data path is set
 
-time_step = 1.0 / 50  # 50 FPS simulation
+# Create the physical system
+system = chrono.ChSystemNSC()
 
-# 2. Create the vehicle system: CityBus
-# Parameters from instructions: location, orientation, tire model
-init_loc = chrono.ChVectorD(0, 0, 0.5)                         # Initial vehicle position (x,y,z)
-init_rot = chrono.ChQuaternionD(1, 0, 0, 0)                    # Initial vehicle orientation (unit quaternion)
+# -----------------------------------------------------------------------------
+# Create the CityBus vehicle
+# -----------------------------------------------------------------------------
+# Vehicle parameters
+init_loc = chrono.ChVectorD(0, 0, 0.5)  # Initial position (x,y,z)
+init_rot = chrono.ChQuaternionD(1, 0, 0, 0)  # No initial rotation (w,x,y,z)
+tire_model = veh.TireModelType.TMEASY  # Tire model type
 
-# Create the CityBus vehicle system
-vehicle = citybus.CityBus()
+# Create the vehicle
+vehicle = veh.CityBus()
 vehicle.SetContactMethod(chrono.ChContactMethod_NSC)
-vehicle.SetChassisCollisionType(veh.ChassisCollisionType_NONE)  # No collision for chassis for simplicity
+vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysD(init_loc, init_rot))
-# Tire model: use TMEASY (semi-analytic tire model)
-vehicle.SetTireType(veh.TireModelType_TMEASY)
+vehicle.SetTireType(tire_model)
+vehicle.SetTireStepSize(1e-3)
 vehicle.Initialize()
 
-# Visualization type: mesh for wheels, primitives for chassis
-vehicle.SetChassisVisualizationType(veh.VisualizationType_PRIMITIVES)
+# Set visualization types:
+# Use mesh visualization for chassis and primitive for suspension and wheels
+vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
 vehicle.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
 vehicle.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
-vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
+vehicle.SetWheelVisualizationType(veh.VisualizationType_PRIMITIVES)
 vehicle.SetTireVisualizationType(veh.VisualizationType_MESH)
 
-# 3. Create the terrain: RigidTerrain on x-y plane with custom texture
+# -----------------------------------------------------------------------------
+# Create the rigid terrain with custom texture
+# -----------------------------------------------------------------------------
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 patch = terrain.AddPatch(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT),
-                         sizeX=100, sizeY=100)
-patch.SetTexture(veh.GetDataFile("terrain/textures/grass_green_detail.png"), 200, 200)
-patch.SetColor(chrono.ChColor(0.4, 0.6, 0.4))
+                         100, 100)  # 100m x 100m patch
+patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)  # Custom texture with scaling
+patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 patch.SetFriction(0.9f)
-patch.SetMaterialProperties(2e7, 0.3, 1e7)  # Young modulus, Poisson ratio, adhesion
+patch.SetRestitution(0.01f)
 terrain.Initialize()
 
-# 4. Create Interactive Driver system: steering, throttle, braking
-# Use a GUI driver from Irrlicht
+# -----------------------------------------------------------------------------
+# Create the interactive driver system
+# -----------------------------------------------------------------------------
 driver = veh.ChIrrGuiDriver(vehicle)
-driver.Initialize()
-driver.SetInputDelay(0.15)
-driver.SetSteeringDelta(render_step=0.015)
-driver.SetThrottleDelta(render_step=0.1)
-driver.SetBrakingDelta(render_step=0.1)
+driver.SetSteeringDelta(0.04)  # Steering increment per frame
+driver.SetThrottleDelta(0.1)   # Throttle increment per frame
+driver.SetBrakingDelta(0.1)    # Braking increment per frame
 
-# 5. Create the Irrlicht visualization system
-application = chronoirr.ChIrrApp(vehicle.GetSystem(), "CityBus on RigidTerrain Demo",
-                                chronoirr.dimension2du(1280, 720))
+# -----------------------------------------------------------------------------
+# Create the Irrlicht application for visualization
+# -----------------------------------------------------------------------------
+app = veh.ChIrrApp(vehicle.GetSystem(), "CityBus Simulation", irr.dimension2du(1280, 720))
+app.AddTypicalLights()
+app.AddTypicalSky()
+app.AddTypicalCamera(irr.vector3df(0, -8, 3))  # Initial camera position behind vehicle
+app.SetTimestep(1.0 / 50)  # 50 FPS timestep
 
-application.AddTypicalLogo()
-application.AddTypicalSky()
-application.AddTypicalLights()
-application.AddTypicalCamera(chronoirr.vector3df(0, -12, 3))  # Initial camera pos behind bus
+# Attach vehicle and terrain assets to Irrlicht
+app.AssetBindAll()
+app.AssetUpdateAll()
 
-# To follow the vehicle, attach the camera to chassis with offset
-application.SetTimestep(time_step)
-application.SetTryRealtime(True)  # Try running in real time
+# -----------------------------------------------------------------------------
+# Simulation loop parameters
+# -----------------------------------------------------------------------------
+timestep = 1.0 / 50  # 50 Hz update rate
 
-# Attach camera to chassis coordinate system with offset behind and above vehicle
-app_camera_offset = chrono.ChVectorD(-8, 0, 2.5)
-application.GetDevice().getSceneManager().getActiveCamera().setPosition(
-    chronoirr.vector3df(float(init_loc.x - 8), float(init_loc.y), float(init_loc.z + 2.5)))
-application.GetDevice().getSceneManager().getActiveCamera().setTarget(
-    chronoirr.vector3df(float(init_loc.x), float(init_loc.y), float(init_loc.z + 1)))
+# -----------------------------------------------------------------------------
+# Main simulation loop
+# -----------------------------------------------------------------------------
+while app.GetDevice().run():
+    app.BeginScene()
+    app.DrawAll()
 
-# Start the application
-application.AssetBindAll()
-application.AssetUpdateAll()
-application.AddShadowAll()
-
-# 6. Simulation loop running at 50 FPS
-while application.GetDevice().run():
-    application.BeginScene()
-    application.DrawAll()
-
-    # Obtain driver inputs
+    # Get driver inputs
     driver_inputs = driver.GetInputs()
-    steering = driver_inputs.m_steering
-    throttle = driver_inputs.m_throttle
-    braking = driver_inputs.m_braking
+    vehicle.SteeringInput = driver_inputs.m_steering
+    vehicle.ThrottleInput = driver_inputs.m_throttle
+    vehicle.BrakingInput = driver_inputs.m_braking
 
-    # Apply driver inputs to vehicle
-    vehicle.GetSteeringController().SetInput(steering)
-    vehicle.GetPowertrain().SetThrottle(throttle)
-    vehicle.ApplyBrake(braking)
-
-    # Synchronize all modules
+    # Synchronize modules
     time = vehicle.GetSystem().GetChTime()
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
-    application.Synchronize("", steering, throttle, braking)
+    app.Synchronize("", driver_inputs)
 
-    # Advance simulation by time step
-    driver.Advance(time_step)
-    terrain.Advance(time_step)
-    vehicle.Advance(time_step)
-    application.Advance(time_step)
+    # Advance simulation by one timestep
+    driver.Advance(timestep)
+    vehicle.Advance(timestep)
+    terrain.Advance(timestep)
+    app.Advance(timestep)
 
-    application.EndScene()
+    app.EndScene()
 ```

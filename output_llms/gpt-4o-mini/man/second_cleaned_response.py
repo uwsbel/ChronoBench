@@ -20,7 +20,6 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 
-
 terrainHeight = 0      
 terrainLength = 100.0  
 terrainWidth = 100.0   
@@ -66,11 +65,9 @@ terrain = veh.RigidTerrain(vehicle.GetSystem())
 
 
 height_map_file = chrono.GetChronoDataFile("terrain/heightmaps/hills.png")  
-terrain.AddHeightMap(patch_mat, 
+patch = terrain.AddPatch(patch_mat, 
     chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
-    height_map_file, 
-    terrainLength, terrainWidth)
-
+    terrainLength, terrainWidth, height_map_file)
 
 patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)  
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))

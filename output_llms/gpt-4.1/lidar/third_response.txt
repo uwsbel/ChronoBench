@@ -1,20 +1,10 @@
-Below is the **corrected and modified PyChrono script** according to your instructions.  
-**Key changes and corrections are explained in comments.**  
-**Major modifications:**
-- Use an ARTcar vehicle system instead of a plain ChSystemNSC.
-- Add a driver and rigid terrain.
-- Attach sensors to the vehicle chassis.
-- Change lidar offset pose.
-- Add a third-person camera sensor.
-- Update the simulation loop to synchronize/advance all modules.
-- Fixes for method names, parameter usage, and missing imports.
-
----
+Here is the **corrected and modified PyChrono script** according to your instructions.  
+**Key changes and corrections are commented inline.**
 
 ```python
 import pychrono.core as chrono
-import pychrono.vehicle as veh
 import pychrono.sensor as sens
+import pychrono.vehicle as veh
 
 import numpy as np
 import time
@@ -22,39 +12,28 @@ import math
 
 def main():
     # -----------------
-    # Create the vehicle system (ARTcar)
+    # Create the ARTcar vehicle system
     # -----------------
-    chrono.SetChronoDataPath(chrono.GetChronoDataPath())
-    veh.SetDataPath(chrono.GetChronoDataFile("vehicle/"))
+    chrono.SetChronoDataPath(chrono.GetChronoDataPath())  # Ensure data path is set
+
+    # Vehicle parameters
+    fixed = False
+    contact_method = chrono.ChContactMethod_NSC
+    chassis_collision_type = veh.ChassisCollisionType_NONE
+    initLoc = chrono.ChVector3d(0, 0, 1.0)
+    initRot = chrono.ChQuaternionD(1, 0, 0, 0)
+    step_size = 1e-3
 
     # Create the vehicle
-    init_pos = chrono.ChCoordsysd(chrono.ChVectorD(0, 0, 0.5), chrono.QUNIT)
     vehicle = veh.Artcar()
-    vehicle.SetContactMethod(chrono.ChContactMethod_NSC)
-    vehicle.SetChassisFixed(False)
-    vehicle.SetInitPosition(init_pos)
-    vehicle.SetInitFwdVel(0.0)
+    vehicle.SetContactMethod(contact_method)
+    vehicle.SetChassisCollisionType(chassis_collision_type)
+    vehicle.SetInitPosition(chrono.ChCoordsysD(initLoc, initRot))
+    vehicle.SetFixed(fixed)
     vehicle.Initialize()
 
-    # Get the physical system from the vehicle
+    # Get the system from the vehicle
     mphysicalSystem = vehicle.GetSystem()
-
-    # -----------------------
-    # Create the terrain
-    # -----------------------
-    terrain = veh.RigidTerrain(mphysicalSystem)
-    patch_mat = chrono.ChMaterialSurfaceNSC()
-    patch_mat.SetFriction(0.9)
-    patch_mat.SetRestitution(0.01)
-    patch = terrain.AddPatch(
-        patch_mat,
-        chrono.ChVectorD(0, 0, 0),
-        chrono.ChVectorD(0, 0, 1),
-        200, 200
-    )
-    patch.SetTexture(chrono.GetChronoDataFile("terrain/textures/grass.jpg"), 200, 200)
-    patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
-    terrain.Initialize()
 
     # -----------------------
     # Create a driver
@@ -63,28 +42,48 @@ def main():
     driver.Initialize()
 
     # -----------------------
+    # Create a rigid terrain
+    # -----------------------
+    terrain = veh.RigidTerrain(mphysicalSystem)
+    patch_mat = chrono.ChMaterialSurfaceNSC()
+    patch_mat.SetFriction(0.9)
+    patch_mat.SetRestitution(0.01)
+    patch = terrain.AddPatch(
+        patch_mat,
+        chrono.ChCoordsysD(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
+        200, 200
+    )
+    patch.SetTexture(chrono.GetChronoDataFile("terrain/textures/grass.jpg"), 200, 200)
+    patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+    terrain.Initialize()
+
+    # ----------------------------------
+    # Add a mesh to be sensed by a lidar
+    # ----------------------------------
+    # Create box for lidar to sense (placed in front of vehicle)
+    side = 4
+    box = chrono.ChBodyEasyBox(side, side, side, 1000)
+    box.SetPos(chrono.ChVector3d(10, 0, 2))  # Place box ahead of vehicle
+    box.GetVisualModel().GetShape(0).SetTexture(chrono.GetChronoDataFile("textures/blue.png"))
+    box.SetFixed(True)
+    mphysicalSystem.Add(box)
+
+    # -----------------------
     # Create a sensor manager
     # -----------------------
     manager = sens.ChSensorManager(mphysicalSystem)
 
-    # Set up the scene lighting and background
-    manager.scene.AddPointLight(chrono.ChVectorF(100, 100, 100), chrono.ChColor(1, 1, 1), 1000)
-    manager.scene.AddPointLight(chrono.ChVectorF(-100, -100, 100), chrono.ChColor(1, 1, 1), 1000)
-    manager.scene.SetAmbientLight(chrono.ChColor(0.2, 0.2, 0.2))
-    manager.scene.SetBackground(chrono.ChColor(0.8, 0.8, 1.0))
-
-    # ----------------------------------
-    # Attach sensors to the vehicle chassis
-    # ----------------------------------
+    # ------------------------------------------------
+    # Create a lidar and add it to the sensor manager
+    # ------------------------------------------------
+    # Attach lidar to vehicle chassis, not the box
     chassis = vehicle.GetChassisBody()
 
-    # Lidar offset pose (changed as per instruction)
-    offset_pose = chrono.ChFrameD(
-        chrono.ChVectorD(1.0, 0, 1),
-        chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0))
+    # Lidar offset pose (relative to chassis)
+    offset_pose = chrono.ChFramed(
+        chrono.ChVector3d(1.0, 0, 1), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
     )
 
-    # 3D Lidar sensor
     lidar = sens.ChLidarSensor(
         chassis,              # Body lidar is attached to
         update_rate,          # Scanning rate in Hz
@@ -105,9 +104,13 @@ def main():
     lidar.SetLag(lag)
     lidar.SetCollectionWindow(collection_time)
 
-    # Lidar filters
+    # -----------------------------------------------------------------
+    # Create a filter graph for post-processing the data from the lidar
+    # -----------------------------------------------------------------
     if noise_model == "CONST_NORMAL_XYZI":
         lidar.PushFilter(sens.ChFilterLidarNoiseXYZI(0.01, 0.001, 0.001, 0.01))
+    elif noise_model == "NONE":
+        pass
     if vis:
         lidar.PushFilter(sens.ChFilterVisualize(horizontal_samples, vertical_samples, "Raw Lidar Depth Data"))
     lidar.PushFilter(sens.ChFilterDIAccess())
@@ -117,28 +120,30 @@ def main():
     lidar.PushFilter(sens.ChFilterXYZIAccess())
     manager.AddSensor(lidar)
 
-    # 2D Lidar sensor
+    # Create 2D lidar sensor (attached to chassis)
     lidar_2d = sens.ChLidarSensor(
-        chassis,
-        update_rate,
-        offset_pose,
-        horizontal_samples,
+        chassis,              # Body lidar is attached to
+        update_rate,          # Scanning rate in Hz
+        offset_pose,          # Offset pose
+        horizontal_samples,   # Number of horizontal samples
         1,                    # only 1 vertical channel for 2D lidar
-        horizontal_fov,
+        horizontal_fov,       # Horizontal field of view
         0.0,                  # Maximum vertical field of view
         0.0,                  # Minimum vertical field of view
-        100.0,
-        sens.LidarBeamShape_RECTANGULAR,
-        sample_radius,
-        divergence_angle,
-        divergence_angle,
-        return_mode
+        100.0,                # Maximum lidar range
+        sens.LidarBeamShape_RECTANGULAR,  # Shape of the lidar beam
+        sample_radius,        # Sample radius
+        divergence_angle,     # Divergence angle
+        divergence_angle,     # Divergence angle (again, typically same value)
+        return_mode           # Return mode for the lidar
     )
     lidar_2d.SetName("2D Lidar Sensor")
     lidar_2d.SetLag(lag)
     lidar_2d.SetCollectionWindow(collection_time)
     if noise_model == "CONST_NORMAL_XYZI":
         lidar_2d.PushFilter(sens.ChFilterLidarNoiseXYZI(0.01, 0.001, 0.001, 0.01))
+    elif noise_model == "NONE":
+        pass
     if vis:
         lidar_2d.PushFilter(sens.ChFilterVisualize(horizontal_samples, 1, "Raw 2D Lidar Depth Data"))
     lidar_2d.PushFilter(sens.ChFilterDIAccess())
@@ -146,24 +151,25 @@ def main():
     lidar_2d.PushFilter(sens.ChFilterXYZIAccess())
     manager.AddSensor(lidar_2d)
 
-    # Third person camera sensor
-    cam_offset_pose = chrono.ChFrameD(
-        chrono.ChVectorD(-8, 0, 3),
-        chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0))
+    # -----------------------
+    # Add a third person camera
+    # -----------------------
+    cam_offset_pose = chrono.ChFramed(
+        chrono.ChVector3d(-10, 0, 5), chrono.QUNIT
     )
     camera = sens.ChCameraSensor(
-        chassis,                 # body to which the camera is attached
-        update_rate,             # update rate in Hz
-        cam_offset_pose,         # offset pose
-        1280,                    # image width
-        720,                     # image height
-        chrono.CH_C_PI / 3       # FOV
+        chassis,                # body to which the camera is attached
+        update_rate,            # update rate in Hz
+        cam_offset_pose,        # offset pose
+        1280,                   # image width
+        720,                    # image height
+        chrono.CH_C_PI / 3      # FOV
     )
     camera.SetName("Third Person Camera")
     camera.SetLag(lag)
     camera.SetCollectionWindow(collection_time)
     if vis:
-        camera.PushFilter(sens.ChFilterVisualize(1280, 720, "Camera View"))
+        camera.PushFilter(sens.ChFilterVisualize(1280, 720, "Camera"))
     camera.PushFilter(sens.ChFilterRGBA8Access())
     manager.AddSensor(camera)
 
@@ -174,15 +180,12 @@ def main():
     t1 = time.time()
 
     while ch_time < end_time:
-        # Driver inputs (could be replaced with more advanced driver logic)
-        driver_inputs = driver.GetInputs()
-
-        # Synchronize all modules
+        # Synchronize modules
         driver.Synchronize(ch_time)
-        vehicle.Synchronize(ch_time, driver_inputs, terrain)
+        vehicle.Synchronize(ch_time, driver.GetInputs(), terrain)
         terrain.Synchronize(ch_time)
 
-        # Advance all modules
+        # Advance modules
         driver.Advance(step_size)
         vehicle.Advance(step_size)
         terrain.Advance(step_size)
@@ -205,12 +208,12 @@ def main():
 
     print("Sim time:", end_time, "Wall time:", time.time() - t1)
 
-
 # -----------------
 # Lidar parameters
 # -----------------
 
 # Noise model attached to the sensor
+# noise_model = "CONST_NORMAL_XYZI"  # Gaussian noise with constant mean and standard deviation
 noise_model = "NONE"  # No noise model
 
 # Lidar return mode
@@ -224,9 +227,9 @@ horizontal_samples = 800
 vertical_samples = 300
 
 # Horizontal and vertical field of view (radians)
-horizontal_fov = 2 * chrono.CH_C_PI  # 360 degrees
-max_vert_angle = chrono.CH_C_PI / 12
-min_vert_angle = -chrono.CH_C_PI / 6
+horizontal_fov = 2 * chrono.CH_PI  # 360 degrees
+max_vert_angle = chrono.CH_PI / 12
+min_vert_angle = -chrono.CH_PI / 6
 
 # Lag time
 lag = 0
@@ -264,18 +267,34 @@ main()
 
 ---
 
-**Key corrections and notes:**
-- Replaced `ChSystemNSC` with ARTcar vehicle system.
-- Added terrain and driver modules.
-- Sensors are attached to the vehicle chassis, not a box.
-- Lidar offset pose is now `(1.0, 0, 1)`.
-- Added a third-person camera sensor.
-- Updated simulation loop to synchronize and advance all modules.
-- Used correct Chrono method names and types (`ChVectorD`, `ChFrameD`, `Q_from_AngAxis`, etc.).
-- Fixed filter visualization for 2D lidar (vertical_samples=1).
-- Used `CH_C_PI` instead of `CH_PI` (Chrono Python API).
-- Added scene lighting/background for sensor manager.
-- Checked for `xyzi_buffer` being not None before accessing data.
-- Removed the box mesh, as the vehicle and terrain are now the scene.
+### **Summary of Corrections and Modifications:**
 
-**This script should run with a standard PyChrono installation with vehicle and sensor modules.**
+- **System Initialization:**  
+  - Replaced direct Chrono system with ARTcar vehicle system.
+  - Vehicle, driver, and terrain are initialized and used.
+
+- **Lidar Attachment:**  
+  - Lidar sensors are attached to the vehicle chassis, not the box.
+
+- **Lidar Offset Pose:**  
+  - Changed to `chrono.ChVector3d(1.0, 0, 1)`.
+
+- **Third Person Camera:**  
+  - Added a camera sensor attached to the chassis.
+
+- **Simulation Loop:**  
+  - Synchronizes and advances driver, vehicle, and terrain.
+  - Sensor manager and system dynamics updated each step.
+
+- **Box Placement:**  
+  - The box is placed ahead of the vehicle for the lidar to sense.
+
+- **Error Corrections:**  
+  - Fixed method names and parameter usage.
+  - Ensured correct use of ChFramed, ChVector3d, ChQuaternionD, etc.
+  - Corrected filter visualization for 2D lidar.
+  - Added checks for buffer existence before accessing data.
+
+---
+
+**This script should now run as intended, with all requested modifications and corrections.**

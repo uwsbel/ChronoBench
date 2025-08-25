@@ -1,7 +1,5 @@
 Here is the **corrected and modified PyChrono script** according to your instructions.  
-**Key changes and error corrections are explained in comments.**
-
----
+**Key changes and error corrections are annotated in comments.**
 
 ```python
 import pychrono.core as chrono
@@ -17,17 +15,21 @@ def main():
     # -----------------
     mphysicalSystem = chrono.ChSystemNSC()
 
-    # --------------------------
-    # Add a box to be sensed by a lidar
-    # --------------------------
+    # -------------------------------
+    # Add a box to be sensed by lidar
+    # -------------------------------
     side = 4.0  # Box side length
 
     # Create a box body (replaces mesh)
     box_body = chrono.ChBodyEasyBox(side, side, side, 1000, True, True)
     box_body.SetPos(chrono.ChVector3d(0, 0, 0))
     box_body.SetFixed(True)
-    # Set a texture for visualization
-    box_body.AddVisualShape(chrono.ChVisualShapeTexture(chrono.GetChronoDataFile("textures/bluewhite.png")))
+
+    # Optionally, set a texture for visualization
+    box_texture = chrono.ChVisualMaterial()
+    box_texture.SetKdTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
+    box_body.GetVisualShape(0).SetMaterial(0, box_texture)
+
     mphysicalSystem.Add(box_body)
 
     # -----------------------
@@ -39,10 +41,10 @@ def main():
     # Create a 3D lidar and add it to the sensor manager
     # ------------------------------------------------
     offset_pose = chrono.ChFramed(
-        chrono.ChVector3d(-12, 0, 1), chrono.Q_from_AngAxis(0, chrono.ChVector3d(0, 1, 0))
+        chrono.ChVector3d(-12, 0, 1), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
     )
     lidar = sens.ChLidarSensor(
-        box_body,              # Body lidar is attached to (changed from mesh_body)
+        box_body,              # Attach to box_body now
         update_rate,           # Scanning rate in Hz
         offset_pose,           # Offset pose
         horizontal_samples,    # Number of horizontal samples
@@ -70,42 +72,41 @@ def main():
         pass
 
     if vis:
-        # Visualize the raw lidar data
         lidar.PushFilter(sens.ChFilterVisualize(horizontal_samples, vertical_samples, "Raw Lidar Depth Data"))
 
-    # Provides the host access to the Depth, Intensity data
     lidar.PushFilter(sens.ChFilterDIAccess())
-
-    # Convert Depth, Intensity data to XYZI point cloud data
     lidar.PushFilter(sens.ChFilterPCfromDepth())
 
     if vis:
-        # Visualize the point cloud
         lidar.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "Lidar Point Cloud"))
 
-    # Provides the host access to the XYZI data
     lidar.PushFilter(sens.ChFilterXYZIAccess())
 
-    # Add the lidar to the sensor manager
     manager.AddSensor(lidar)
 
     # ------------------------------------------------
     # Create an additional 2D lidar sensor
     # ------------------------------------------------
     # 2D lidar: 1 vertical channel, e.g. horizontal scan only
-    lidar_2d_offset_pose = chrono.ChFramed(
-        chrono.ChVector3d(-12, 0, 2), chrono.Q_from_AngAxis(0, chrono.ChVector3d(0, 1, 0))
+    lidar_2d_offset = chrono.ChFramed(
+        chrono.ChVector3d(-12, 0, 2), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
     )
+    horizontal_samples_2d = 1024
+    vertical_samples_2d = 1
+    horizontal_fov_2d = 2 * chrono.CH_PI
+    max_vert_angle_2d = 0.0
+    min_vert_angle_2d = 0.0
+
     lidar_2d = sens.ChLidarSensor(
-        box_body,              # Attach to the same box
-        update_rate,           # Scanning rate in Hz
-        lidar_2d_offset_pose,  # Offset pose (slightly above the 3D lidar)
-        horizontal_samples,    # Number of horizontal samples (same as 3D)
-        1,                     # Only 1 vertical channel
-        horizontal_fov,        # Horizontal field of view
-        0,                     # Max vertical angle (0 for 2D)
-        0,                     # Min vertical angle (0 for 2D)
-        100.0,                 # Maximum lidar range
+        box_body,
+        update_rate,
+        lidar_2d_offset,
+        horizontal_samples_2d,
+        vertical_samples_2d,
+        horizontal_fov_2d,
+        max_vert_angle_2d,
+        min_vert_angle_2d,
+        100.0,
         sens.LidarBeamShape_RECTANGULAR,
         sample_radius,
         divergence_angle,
@@ -116,19 +117,20 @@ def main():
     lidar_2d.SetLag(lag)
     lidar_2d.SetCollectionWindow(collection_time)
 
-    # Filters for 2D lidar
     if noise_model == "CONST_NORMAL_XYZI":
         lidar_2d.PushFilter(sens.ChFilterLidarNoiseXYZI(0.01, 0.001, 0.001, 0.01))
     elif noise_model == "NONE":
         pass
 
     if vis:
-        lidar_2d.PushFilter(sens.ChFilterVisualize(horizontal_samples, 1, "2D Lidar Depth Data"))
+        lidar_2d.PushFilter(sens.ChFilterVisualize(horizontal_samples_2d, vertical_samples_2d, "2D Lidar Depth Data"))
 
     lidar_2d.PushFilter(sens.ChFilterDIAccess())
     lidar_2d.PushFilter(sens.ChFilterPCfromDepth())
+
     if vis:
         lidar_2d.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "2D Lidar Point Cloud"))
+
     lidar_2d.PushFilter(sens.ChFilterXYZIAccess())
 
     manager.AddSensor(lidar_2d)
@@ -140,11 +142,10 @@ def main():
     orbit_rate = 0.1
     ch_time = 0.0
 
-    render_time = 0
     t1 = time.time()
 
     while ch_time < end_time:
-        # Set lidar to orbit around the box
+        # Set lidar to orbit around the box body
         lidar.SetOffsetPose(
             chrono.ChFramed(
                 chrono.ChVector3d(
@@ -152,10 +153,10 @@ def main():
                     -orbit_radius * math.sin(ch_time * orbit_rate),
                     1
                 ),
-                chrono.Q_from_AngAxis(ch_time * orbit_rate, chrono.ChVector3d(0, 0, 1))
+                chrono.QuatFromAngleAxis(ch_time * orbit_rate, chrono.ChVector3d(0, 0, 1))
             )
         )
-        # Also move the 2D lidar in the same orbit, but slightly higher
+        # For 2D lidar, keep it at a fixed offset or make it orbit as well if desired
         lidar_2d.SetOffsetPose(
             chrono.ChFramed(
                 chrono.ChVector3d(
@@ -163,7 +164,7 @@ def main():
                     -orbit_radius * math.sin(ch_time * orbit_rate),
                     2
                 ),
-                chrono.Q_from_AngAxis(ch_time * orbit_rate, chrono.ChVector3d(0, 0, 1))
+                chrono.QuatFromAngleAxis(ch_time * orbit_rate, chrono.ChVector3d(0, 0, 1))
             )
         )
 
@@ -172,14 +173,14 @@ def main():
         if xyzi_buffer and xyzi_buffer.HasData():
             xyzi_data = xyzi_buffer.GetXYZIData()
             print('3D Lidar XYZI buffer received. Resolution: {0}x{1}'.format(xyzi_buffer.Width, xyzi_buffer.Height))
-            print('Max Value: {0}'.format(np.max(xyzi_data)))
+            print('3D Lidar Max Value: {0}'.format(np.max(xyzi_data)))
 
         # Access the XYZI buffer from 2D lidar
         xyzi_buffer_2d = lidar_2d.GetMostRecentXYZIBuffer()
         if xyzi_buffer_2d and xyzi_buffer_2d.HasData():
             xyzi_data_2d = xyzi_buffer_2d.GetXYZIData()
             print('2D Lidar XYZI buffer received. Resolution: {0}x{1}'.format(xyzi_buffer_2d.Width, xyzi_buffer_2d.Height))
-            print('Max Value (2D): {0}'.format(np.max(xyzi_data_2d)))
+            print('2D Lidar Max Value: {0}'.format(np.max(xyzi_data_2d)))
 
         # Update sensor manager (will render/save/filter automatically)
         manager.Update()
@@ -246,51 +247,21 @@ vis = True
 # Output directory
 out_dir = "SENSOR_OUTPUT/"
 
-# The path to the Chrono data directory containing various assets (meshes, textures, data files)
-# is automatically set, relative to the default location of this demo.
-# If running from a different directory, you must change the path to the data directory with:
-# chrono.SetChronoDataPath('path/to/data')
-
-# -----------------
-# Utility: Quaternion from angle/axis
-# -----------------
-def Q_from_AngAxis(angle, axis):
-    # PyChrono 7.0+ uses Q_from_AngAxis, older: QuatFromAngleAxis
-    try:
-        return chrono.Q_from_AngAxis(angle, axis)
-    except AttributeError:
-        return chrono.QuatFromAngleAxis(angle, axis)
-
-# Patch for backward compatibility
-chrono.Q_from_AngAxis = Q_from_AngAxis
-
 main()
 ```
 
 ---
 
-### **Key Corrections and Modifications:**
+### **Summary of Corrections and Modifications:**
 
-1. **Mesh replaced with box:**  
-   - Removed all mesh loading/scaling code.
-   - Used `ChBodyEasyBox` for the box, added a texture for visualization.
+- **Replaced mesh with box:** Used `ChBodyEasyBox` and removed mesh loading/scaling.
+- **Set box position and texture.**
+- **Attached both lidars to the box.**
+- **Added a 2D lidar sensor** with one vertical channel and appropriate parameters.
+- **Added filters and visualizations** for both lidars.
+- **Corrected method calls and parameter usage** (e.g., `ChVector3d`, `ChFramed`, `SetMaterial`, etc.).
+- **Checked for buffer existence before accessing data** to avoid errors.
+- **Removed unused mesh-related code.**
+- **Ensured all variables are defined before use.**
 
-2. **Lidar attached to box:**  
-   - All lidar sensors are attached to `box_body`.
-
-3. **Added 2D lidar:**  
-   - Created a second lidar sensor with `vertical_samples=1`, different offset (z=2), and added filters/visualization.
-
-4. **Error corrections:**  
-   - Used `chrono.Q_from_AngAxis` for quaternion creation (with fallback for older PyChrono).
-   - Checked for `None` before calling `HasData()` on XYZI buffers.
-   - Removed references to mesh-related objects.
-   - Ensured all parameters are defined and used correctly.
-
-5. **General improvements:**  
-   - Added comments for clarity.
-   - Ensured both lidars are updated in the simulation loop.
-
----
-
-**This script should now run as intended, with both a 3D and a 2D lidar orbiting a box, and all errors corrected.**
+This script should now run as intended and meet all your requirements.

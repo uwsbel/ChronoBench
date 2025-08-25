@@ -26,7 +26,7 @@ coll = sys.GetCollisionSystem()
 sphere_mat = chrono.ChContactMaterialNSC()
 sphere_mat.SetFriction(0.2)
 msphereBody = chrono.ChBodyEasySphere(2.1, 1800, True, True, sphere_mat)
-msphereBody.SetPos(chrono.ChVectorD(1, 1, 0))
+msphereBody.SetPos(chrono.ChVectorD(1, 1, 0))  # Corrected: ChVector3d -> ChVectorD
 msphereBody.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
 sys.Add(msphereBody)
 
@@ -38,8 +38,7 @@ emitter.SetParticleReservoirAmount(200)
 
 # Randomizers for particle properties
 emitter_positions = chrono.ChRandomParticlePositionOnGeometry()
-emitter_box = chrono.ChBox(50, 50, 50)
-emitter_positions.SetGeometry(emitter_box, chrono.ChFrameD())
+emitter_positions.SetGeometry(chrono.ChBox(50, 50, 50), chrono.ChFrameD())  # Corrected: ChFramed -> ChFrameD
 emitter.SetParticlePositioner(emitter_positions)
 
 emitter_rotations = chrono.ChRandomParticleAlignmentUniform()
@@ -53,12 +52,11 @@ mangvelo = chrono.ChRandomParticleVelocityAnyDirection()
 mangvelo.SetModulusDistribution(chrono.ChUniformDistribution(0.0, 0.2))
 emitter.SetParticleAngularVelocity(mangvelo)
 
-# -- Modified section: Replace particle shape creator with spheres --
+# 1. Replace the Particle Creator with ChRandomShapeCreatorSpheres
 mcreator_spheres = chrono.ChRandomShapeCreatorSpheres()
 mcreator_spheres.SetDiameterDistribution(chrono.ChZhangDistribution(0.6, 0.23))
 mcreator_spheres.SetDensityDistribution(chrono.ChConstantDistribution(1600))
 emitter.SetParticleCreator(mcreator_spheres)
-# ---------------------------------------------------------------
 
 # Create the Irrlicht visualization
 vis = chronoirr.ChVisualSystemIrrlicht()
@@ -68,7 +66,7 @@ vis.SetWindowTitle('Particle emitter demo')
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()
-vis.AddCamera(chrono.ChVectorD(0, 14, -20))
+vis.AddCamera(chrono.ChVectorD(0, 14, -20))  # Corrected: ChVector3d -> ChVectorD
 vis.AddTypicalLights()
 
 # Attach callback to the emitter
@@ -78,11 +76,10 @@ emitter.RegisterAddBodyCallback(mcreation_callback)
 # Simulation settings
 sys.SetSolverType(chrono.ChSolver.Type_PSOR)
 sys.GetSolver().AsIterative().SetMaxIterations(40)
-sys.SetGravitationalAcceleration(chrono.ChVectorD(0, 0, 0))
+sys.Set_G_acc(chrono.ChVectorD(0, 0, 0))  # Corrected: SetGravitationalAcceleration -> Set_G_acc
 
 # Simulation loop
 stepsize = 1e-2
-
 
 while vis.Run():
     vis.BeginScene()
@@ -91,54 +88,67 @@ while vis.Run():
 
     emitter.EmitParticles(sys, stepsize)
 
-    for body in sys.Get_bodylist():  # GetBodies() is a generator-like in pychrono Python, use Get_bodylist() for list
-        body.EmptyAccumulators()
+    for body in sys.Get_bodylist():  # Corrected: GetBodies() -> Get_bodylist()
+        body.Empty_accumulators()    # Corrected: EmptyAccumulators() -> Empty_accumulators()
 
-    # -- Move G_constant inside the loop as per instruction --
+    # 3. Move G_constant inside the loop before energy calculations
     G_constant = 6.674e-3  # Modified gravitational constant
 
-    # Compute energies
+    # 2. Add energy calculations
     kinetic_energy = 0.0
-    for body in sys.Get_bodylist():
+    potential_energy = 0.0
+
+    bodies = list(sys.Get_bodylist())
+    for body in bodies:
         mass = body.GetMass()
-        vel = body.GetPos_dt()  # velocity vector
+        vel = body.GetPos_dt()
         kinetic_energy += 0.5 * mass * vel.Length2()
 
-    potential_energy = 0.0
-    mlist = list(combinations(sys.Get_bodylist(), 2))
-    for abodyA, abodyB in mlist:
-        D_attract = abodyB.GetPos() - abodyA.GetPos()
+    pairs = list(combinations(bodies, 2))
+    for bodyA, bodyB in pairs:
+        posA = bodyA.GetPos()
+        posB = bodyB.GetPos()
+        D_attract = posB - posA
         r_attract = D_attract.Length()
-        if r_attract > 1e-5:  # avoid division by zero or too close
-            potential_energy += -G_constant * (abodyA.GetMass() * abodyB.GetMass()) / r_attract
-
-    # Apply gravitational forces
-    for abodyA, abodyB in mlist:
-        D_attract = abodyB.GetPos() - abodyA.GetPos()
-        r_attract = D_attract.Length()
-        if r_attract > 1e-5:
-            f_attract = G_constant * (abodyA.GetMass() * abodyB.GetMass()) / (r_attract ** 2)
-            F_attract = (D_attract / r_attract) * f_attract
-            abodyA.AccumulateForce(F_attract, abodyA.GetPos(), False)
-            abodyB.AccumulateForce(-F_attract, abodyB.GetPos(), False)
+        if r_attract > 1e-6:  # Avoid division by zero
+            massA = bodyA.GetMass()
+            massB = bodyB.GetMass()
+            potential_energy += -G_constant * (massA * massB) / r_attract
 
     total_energy = kinetic_energy + potential_energy
+
     print(f"Kinetic Energy: {kinetic_energy:.6f}, Potential Energy: {potential_energy:.6f}, Total Energy: {total_energy:.6f}")
+
+    # Apply gravitational forces
+    for bodyA, bodyB in pairs:
+        posA = bodyA.GetPos()
+        posB = bodyB.GetPos()
+        D_attract = posB - posA
+        r_attract = D_attract.Length()
+        if r_attract > 1e-6:  # Avoid division by zero
+            massA = bodyA.GetMass()
+            massB = bodyB.GetMass()
+            f_attract = G_constant * (massA * massB) / (r_attract ** 2)
+            F_attract = (D_attract / r_attract) * f_attract
+            bodyA.AccumulateForce(F_attract, posA, False)
+            bodyB.AccumulateForce(-F_attract, posB, False)
 
     sys.DoStepDynamics(stepsize)
 ```
 ---
 
-### Explanation of key changes and fixes:
-- **Particle Creator change**: Replaced `ChRandomShapeCreatorConvexHulls` with `ChRandomShapeCreatorSpheres` (`mcreator_spheres`), setting diameter and density distributions accordingly.
-- **G_constant moved**: The gravitational constant moved inside the simulation loop.
-- **Energy calculations**:
-  - Kinetic energy is computed as `0.5 * mass * velocity squared` for all bodies.
-  - Potential energy is calculated pairwise with gravitational potential formula, skipping pairs too close to avoid division by zero.
-- **Used `Get_bodylist()`** instead of `GetBodies()`:
-  - In PyChrono Python API, `GetBodies()` returns `ChBodyIterator` which sometimes doesn't behave as a simple list, so `Get_bodylist()` method is used to get a standard list for iteration and combinations.
-- **Used `chrono.ChVectorD` and `chrono.ChFrameD`** for double precision vectors and frames (recommended).
-- **Added consideration to avoid division by zero or near-zero distances on forces and potential energy calculations**.
-- Fixed small details such as correct calls to vector constructors and frame objects.
+### Explanation of corrections and modifications:
 
-This script now meets your requirements and should run correctly with the requested modifications.
+- **Vector types**: Changed `ChVector3d` and `ChFramed` to `ChVectorD` and `ChFrameD` respectively, which are the correct PyChrono Python API classes.
+- **Method names**: 
+  - `GetBodies()` → `Get_bodylist()`
+  - `EmptyAccumulators()` → `Empty_accumulators()`
+  - `SetGravitationalAcceleration()` → `Set_G_acc()`
+- **Particle creator**: Replaced `ChRandomShapeCreatorConvexHulls` with `ChRandomShapeCreatorSpheres` and set diameter and density distributions as requested.
+- **Energy calculations**: Added kinetic and potential energy computations inside the simulation loop, printing their values each step.
+- **Moved `G_constant`** inside the loop before energy calculations.
+- **Avoid division by zero**: Added checks `if r_attract > 1e-6` before dividing by distance.
+- **Consistent naming**: Used `body` and `bodies` consistently.
+- **Formatting**: Added formatted print for energies with 6 decimal places.
+
+This script should now run correctly and meet all the instructions.

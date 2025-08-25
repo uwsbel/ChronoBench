@@ -22,19 +22,20 @@ coll = sys.GetCollisionSystem()
 # Create the first sphere body
 sphere_mat = chrono.ChContactMaterialNSC()
 sphere_mat.SetFriction(0.2)
+
+# Sphere 1
 msphereBody1 = chrono.ChBodyEasySphere(2.1, 1800, True, True, sphere_mat)
 msphereBody1.SetPos(chrono.ChVector3d(1, 1, 0))
 msphereBody1.SetPos_dt(chrono.ChVector3d(0.5, 0, 0.1))  # Initial velocity
-msphereBody1.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
 sys.Add(msphereBody1)
 
-# Create the second sphere body
+# Sphere 2
 msphereBody2 = chrono.ChBodyEasySphere(2.1, 1800, True, True, sphere_mat)
 msphereBody2.SetPos(chrono.ChVector3d(-10, -10, 0))
 msphereBody2.SetPos_dt(chrono.ChVector3d(-0.5, 0, -0.1))  # Initial velocity
 sys.Add(msphereBody2)
 
-# Create the third sphere body
+# Sphere 3
 msphereBody3 = chrono.ChBodyEasySphere(2.1, 1800, True, True, sphere_mat)
 msphereBody3.SetPos(chrono.ChVector3d(0, 20, 0))
 msphereBody3.SetPos_dt(chrono.ChVector3d(0, -0.5, 0.2))  # Initial velocity

@@ -6,7 +6,11 @@ import pychrono.vehicle as veh
 import pychrono.irrlicht as irr
 import math
 
-# Initialize the ChSystem
+# Initialize the ChronoEngine and vehicle components
+chrono.SetChronoDataPath("path/to/chrono/data/")
+veh.SetDataPath("path/to/vehicle/data/")
+
+# Create the simulation system
 system = chrono.ChSystemNSC()
 system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
@@ -21,78 +25,82 @@ terrain_patch = terrain.AddPatch(patch_mat,
 terrain.Initialize()
 
 # Create the vehicle
-vehicle_file = veh.GetDataPath() + 'vehicle/Kraz_64431/vehicle/Kraz_64431_Vehicle.json'
-powertrain_file = veh.GetDataPath() + 'vehicle/Kraz_64431/powertrain/Kraz_64431_SimplePowertrain.json'
-tire_file = veh.GetDataPath() + 'vehicle/Kraz_64431/tire/Kraz_64431_TMeasy.json'
-
-vehicle = veh.WheeledVehicle(system, vehicle_file)
+vehicle = veh.Kraz(system, veh.ChContactMethod_NSC)
 vehicle.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0.5, 0), chrono.QUNIT))
+vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
+vehicle.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
+vehicle.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
+vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
 
-powertrain = veh.ReadPowertrainJSON(powertrain_file)
+# Create and initialize the powertrain
+powertrain = veh.SimplePowertrain()
 vehicle.InitializePowertrain(powertrain)
-
-for axle in vehicle.GetAxles():
-    for wheel in axle.GetWheels():
-        tire = veh.ReadTireJSON(tire_file)
-        vehicle.InitializeTire(tire, wheel, veh.VisualizationType_MESH)
 
 # Create the driver system
 driver = veh.ChIrrGuiDriver(vehicle.GetVehicle())
 driver.Initialize()
 
-# Create the visualization system
-vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
-vis.SetWindowTitle("Kraz Vehicle Simulation")
-vis.SetWindowSize(1280, 720)
-vis.SetChaseCamera(chrono.ChVectorD(0, 0, -10), 6.0, 0.5)
-vis.Initialize()
-vis.AddLightDirectional()
-vis.AddSkyBox()
+# Create the vehicle Irrlicht interface
+vis = veh.ChWheeledVehicleIrrApp(vehicle.GetVehicle())
+
+vis.SetHUDLocation(500, 20)
+vis.SetSkyBox()
+vis.AddTypicalLogo()
+vis.AddTypicalLights(irr.vector3df(30, 100, 30), irr.vector3df(30, 100, 50), 250, 130)
+vis.AddTypicalLights(irr.vector3df(-30, 100, 30), irr.vector3df(-30, 100, 50), 250, 130)
+vis.AddTypicalCamera(irr.vector3df(0, 3, -6), irr.vector3df(0, 0, 0))
+
 vis.AttachVehicle(vehicle.GetVehicle())
 
-# Simulation loop
+# Simulation parameters
 step_size = 1e-3
-realtime_timer = chrono.ChRealtimeStepTimer()
+render_step_size = 1.0 / 50
+sim_time = 0
 
-while vis.Run():
+# Simulation loop
+while vis.GetDevice().run():
+    # Synchronize vehicle, terrain, and other systems
     time = vehicle.GetSystem().GetChTime()
-
-    # Get driver inputs
-    driver_inputs = driver.GetInputs()
-
-    # Update modules (process inputs from other modules)
     driver.Synchronize(time)
+    vehicle.Synchronize(time, driver.GetInputs(), terrain)
     terrain.Synchronize(time)
-    vehicle.Synchronize(time, driver_inputs, terrain)
-    vis.Synchronize(time, driver_inputs)
+    vis.Synchronize(driver.GetInputs(), time)
 
-    # Advance simulation for one timestep for all modules
-    driver.Advance(step_size)
-    terrain.Advance(step_size)
+    # Advance simulation for one timestep
     vehicle.Advance(step_size)
+    terrain.Advance(step_size)
     vis.Advance(step_size)
 
-    # Ensure real-time simulation
-    realtime_timer.Spin(step_size)
+    # Increment simulation time
+    sim_time += step_size
 
-    # Check for simulation end
-    if time > 1000:  # End simulation after 1000 seconds
-        break
+    # Render scene
+    if sim_time >= render_step_size:
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+        sim_time = 0
+
+    # Allow real-time execution
+    vis.Sync(step_size)
 
 # Clean up
-vis.GetDevice().closeDevice()
+vis.GetDevice().drop()
 ```
 
 This script does the following:
 
 1. Initializes the PyChrono environment and core components.
-2. Creates a rigid terrain with specified friction and restitution.
-3. Sets up a Kraz vehicle with initial conditions and tire configurations.
+2. Sets up a rigid terrain with specified friction and restitution.
+3. Creates a Kraz vehicle with initial conditions and visualization settings.
 4. Initializes a driver system for vehicle control.
-5. Creates a real-time visualization using Irrlicht with camera settings and lighting.
+5. Sets up real-time visualization using Irrlicht with camera settings and lighting.
 6. Implements a simulation loop that:
-   - Synchronizes the vehicle, terrain, driver, and visual system at each timestep.
-   - Advances the simulation for all modules.
-   - Maintains real-time execution using a realtime timer.
+   - Synchronizes the vehicle, terrain, driver, and visual system.
+   - Advances the simulation by one timestep.
+   - Renders the scene at specified intervals.
+   - Maintains real-time execution.
 
-The simulation runs for 1000 seconds or until the visualization window is closed. You can adjust parameters like initial position, terrain size, simulation duration, and visualization settings as needed.
+Note that you'll need to replace "path/to/chrono/data/" and "path/to/vehicle/data/" with the actual paths to your Chrono data directories.
+
+This script provides a basic framework for the simulation. You may need to adjust parameters, add more detailed vehicle configurations, or include additional features depending on your specific requirements.

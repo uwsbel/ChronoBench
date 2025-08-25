@@ -5,9 +5,7 @@ import pychrono.irrlicht as chronoirr
 
 # ----------------------------------------------------------------------------
 # Model1: Multiple chains of beams composed of ANCF cable elements,
-# each chain with its own fixed truss and connected box body at the free end.
-# This model demonstrates multiple chains with increasing number of elements,
-# proper constraints, loads, visualization, and printing of end body positions.
+# each chain connected to a fixed truss and a box body at the end.
 # ----------------------------------------------------------------------------
 
 class Model1:
@@ -15,186 +13,178 @@ class Model1:
         self.system = system
         self.mesh = mesh
         self.n_chains = n_chains
-        # Store end bodies of chains (the boxes) for position printing
+
+        # Store references to end bodies (boxes) of each chain for printing positions
         self.end_bodies = []
 
-        # Parameters for positioning chains to avoid overlap
-        # We'll space chains along Y axis
-        y_spacing = 0.15
+        # Parameters for beam geometry and positioning
+        base_start_x = 0.0
+        base_start_y = 0.0
+        base_start_z = -0.1
+        beam_length = 0.5
+        beam_spacing_y = 0.1  # vertical spacing between chains to avoid overlap
 
         for i in range(self.n_chains):
-            # Create beam section properties
-            msection_cable2 = fea.ChBeamSectionCable()
-            msection_cable2.SetDiameter(0.015)      # 15 mm diameter
-            msection_cable2.SetYoungModulus(0.01e9) # 0.01 GPa
-            msection_cable2.SetRayleighDamping(0.0001)
+            # Create a section for the cable beam
+            msection_cable = fea.ChBeamSectionCable()
+            msection_cable.SetDiameter(0.015)  # 15 mm diameter
+            msection_cable.SetYoungModulus(0.01e9)  # 0.01 GPa
+            msection_cable.SetRayleighDamping(0.0001)
 
-            # Builder for this chain
+            # Create a builder for ANCF cable beams
             builder = fea.ChBuilderCableANCF()
 
-            # Number of elements increases with chain index (start from 3 to avoid zero elements)
-            n_elements = 3 + i
+            # Number of elements increases with each chain (starting from 10)
+            n_elements = 10 + i
 
-            # Define start point 'A' and end point 'B' for the beam in 3D space
-            # Stagger chains in Y axis to avoid overlap
-            start_point = chrono.ChVector3d(0, i * y_spacing, -0.1)
-            end_point = chrono.ChVector3d(0.5, i * y_spacing, -0.1)
+            # Calculate start and end points for this chain to avoid overlap
+            start_point = chrono.ChVector3d(base_start_x,
+                                           base_start_y + i * beam_spacing_y,
+                                           base_start_z)
+            end_point = chrono.ChVector3d(base_start_x + beam_length,
+                                         base_start_y + i * beam_spacing_y,
+                                         base_start_z)
 
-            # Build beam and add nodes/elements to mesh
+            # Build the beam mesh for this chain
             builder.BuildBeam(
                 self.mesh,
-                msection_cable2,
+                msection_cable,
                 n_elements,
                 start_point,
                 end_point
             )
 
-            # Add mesh to system (only once, outside loop, but safe here as mesh is same)
-            # (Will be done once outside after model creation)
-            
-            # Apply force at the front node (start node)
+            # Apply force to the front node (start node)
             front_node = builder.GetLastBeamNodes().front()
-            force_vector = chrono.ChVector3d(0, -0.7, 0)
-            front_node.SetForce(force_vector)
+            front_node.SetForce(chrono.ChVector3d(0, -0.7, 0))
 
-            # Create fixed truss body for this chain
+            # Create a fixed truss body as reference frame for this chain
             mtruss = chrono.ChBody()
             mtruss.SetBodyFixed(True)
             self.system.Add(mtruss)
 
-            # Hinge constraint between the last node (back node) and the truss body at beam start point
+            # Hinge constraint to fix beam's start node to the truss
             constraint_hinge = fea.ChLinkNodeFrame()
-            back_node = builder.GetLastBeamNodes().back()
-            # Initialize hinge at the position coincident with back node
-            constraint_hinge.Initialize(back_node, mtruss)
+            constraint_hinge.Initialize(front_node, mtruss)
             self.system.Add(constraint_hinge)
 
-            # Create a box body connected to beam endpoint (back node)
-            box = chrono.ChBodyEasyBox(0.02, 0.04, 0.02, 1000, True, True)  # size and density, visualization and collision
-            # Position box at end point, slightly translated in Z to avoid clash
-            box.SetPos(end_point + chrono.ChVector3d(0, 0, 0.02))
-            box.SetMass(0.1)  # Set some mass to box
-            box.SetInertiaXX(chrono.ChVectorD(1e-4, 1e-4, 1e-4))  # Small inertia
-            self.system.Add(box)
+            # Create a box body at the beam's end point
+            mbox = chrono.ChBodyEasyBox(0.05, 0.05, 0.05, 1000, True, True)
+            # Position the box at the beam's end point
+            end_node = builder.GetLastBeamNodes().back()
+            # The node's position is in absolute coordinates
+            mbox.SetPos(end_node.GetPos())
+            mbox.SetBodyFixed(False)
+            self.system.Add(mbox)
 
-            # Link box to the beam endpoint via Marker and a constraint to allow motion
-            # Use a ChLinkPointFrame to link node and box at node position:
-            link_node_box = chrono.ChLinkPointFrame()
-            link_node_box.Initialize(back_node, box)
-            self.system.Add(link_node_box)
+            # Connect the beam's end node to the box with a constraint
+            constraint_end = fea.ChLinkNodeXYZ()
+            constraint_end.Initialize(end_node, mbox)
+            self.system.Add(constraint_end)
 
-            # Save box for printing positions later
-            self.end_bodies.append(box)
+            # Store the box body for position printing
+            self.end_bodies.append(mbox)
 
     def PrintBodyPositions(self):
-        print("Positions of end bodies (box bodies) of each chain:")
-        for idx, body in enumerate(self.end_bodies):
+        print("Positions of end bodies:")
+        for i, body in enumerate(self.end_bodies):
             pos = body.GetPos()
-            print(f"Chain {idx} end body position: x={pos.x:.4f}, y={pos.y:.4f}, z={pos.z:.4f}")
+            print(f" Chain {i}: Position = ({pos.x:.4f}, {pos.y:.4f}, {pos.z:.4f})")
 
-
-# =====================================================================
-# Main simulation setup
-# =====================================================================
 
 # Initialize the physical system and mesh container:
 sys = chrono.ChSystemSMC()
 mesh = fea.ChMesh()
 
-# Create the model and add the mesh to the system
+# Create the model with multiple chains and add the mesh to the system
 model = Model1(sys, mesh, n_chains=6)
-sys.Add(mesh)  # Add mesh to the system once after all chains are added
+sys.Add(mesh)  # Add the mesh to the physical system
 
 # Add visualization for the FEM mesh:
 visualizebeamA = chrono.ChVisualShapeFEA(mesh)
-visualizebeamA.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_ELEM_BEAM_MZ)
-visualizebeamA.SetColorscaleMinMax(-0.4, 0.4)
-visualizebeamA.SetSmoothFaces(True)
-visualizebeamA.SetWireframe(False)
-mesh.AddVisualShapeFEA(visualizebeamA)
+visualizebeamA.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_ELEM_BEAM_MZ)  # Display moments along the beam
+visualizebeamA.SetColorscaleMinMax(-0.4, 0.4)  # Set color scale for moment visualization
+visualizebeamA.SetSmoothFaces(True)  # Enable smooth faces for better visualization
+visualizebeamA.SetWireframe(False)  # Set to non-wireframe mode
+mesh.AddVisualShapeFEA(visualizebeamA)  # Add the visualization shape to the mesh
 
 # Add visualization for node positions:
 visualizebeamB = chrono.ChVisualShapeFEA(mesh)
-visualizebeamB.SetFEMglyphType(chrono.ChVisualShapeFEA.GlyphType_NODE_DOT_POS)
-visualizebeamB.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NONE)
-visualizebeamB.SetSymbolsThickness(0.006)
-visualizebeamB.SetSymbolsScale(0.01)
-visualizebeamB.SetZbufferHide(False)
-mesh.AddVisualShapeFEA(visualizebeamB)
+visualizebeamB.SetFEMglyphType(chrono.ChVisualShapeFEA.GlyphType_NODE_DOT_POS)  # Display nodes as dots
+visualizebeamB.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NONE)  # No additional FEM data visualization
+visualizebeamB.SetSymbolsThickness(0.006)  # Set thickness of symbols
+visualizebeamB.SetSymbolsScale(0.01)  # Set scale of symbols
+visualizebeamB.SetZbufferHide(False)  # Ensure symbols are not hidden by z-buffer
+mesh.AddVisualShapeFEA(visualizebeamB)  # Add the node visualization to the mesh
 
 # Create the Irrlicht visualization for rendering
 vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(sys)
-vis.SetWindowSize(1024, 768)
-vis.SetWindowTitle('FEA cables - Multiple Chains')
-vis.Initialize()
-vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
-vis.AddSkyBox()
-vis.AddCamera(chrono.ChVector3d(0, 0.9, -1))  # Adjust camera for higher overview
-vis.AddTypicalLights()
+vis.AttachSystem(sys)  # Attach Irrlicht to the Chrono system
+vis.SetWindowSize(1024, 768)  # Set the size of the rendering window
+vis.SetWindowTitle('FEA cables - Multiple Chains')  # Set the title of the rendering window
+vis.Initialize()  # Initialize the visualization
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))  # Add a logo to the window
+vis.AddSkyBox()  # Add a skybox for better aesthetics
+vis.AddCamera(chrono.ChVector3d(0, 0.6, -1))  # Add a camera with specific position
+vis.AddTypicalLights()  # Add typical lights for better illumination
 
 # Set solver type and settings
-solver = chrono.ChSolverMINRES()
+solver = chrono.ChSolverMINRES()  # MINRES solver
 if solver.GetType() == chrono.ChSolver.Type_MINRES:
     print("Using MINRES solver")
     sys.SetSolver(solver)
     solver.SetMaxIterations(200)
     solver.SetTolerance(1e-10)
     solver.EnableDiagonalPreconditioner(True)
-    solver.EnableWarmStart(True)
+    solver.EnableWarmStart(True)  # IMPORTANT for convergence when using EULER_IMPLICIT_LINEARIZED
     solver.SetVerbose(False)
 
 # Set the timestepper for the simulation
 ts = chrono.ChTimestepperEulerImplicitLinearized(sys)
 sys.SetTimestepper(ts)
 
-# Simulation loop with printing positions
+# Simulation loop
 time_step = 0.01
-step_count = 0
 while vis.Run():
-    vis.BeginScene()
-    vis.Render()
-    vis.EndScene()
+    vis.BeginScene()  # Begin scene rendering
+    vis.Render()  # Render the scene
+    vis.EndScene()  # End scene rendering
 
-    sys.DoStepDynamics(time_step)
+    sys.DoStepDynamics(time_step)  # Advance the simulation by one step
 
-    # Print positions every 50 steps (~0.5 s)
-    step_count += 1
-    if step_count % 50 == 0:
-        print(f"Step: {step_count}, time: {sys.GetChTime():.2f} s")
-        model.PrintBodyPositions()
+    # Print positions of end bodies at each step
+    model.PrintBodyPositions()
 ```
 ---
 
-### Explanation of Modifications and Fixes:
+### Explanation of modifications and fixes:
 
-- **Multiple Chains**:
-  - Added `n_chains` parameter to `Model1` class controlling number of chains.
-  - For each chain:
-    - Created a fixed truss body.
-    - Created a beam with `3 + i` ANCF elements (increasing elements per chain).
-    - Spaced chains along Y axis to avoid overlap, both beam and box positions.
-    - Applied force to front node of each beam.
-    - Wrapped beam endpoint with a hinge constraint to truss.
-    - Added a box body connected via a link constraint to the beam endpoint.
-    - Stored box references to print their position later.
+- **Multiple chains generation**: Added a loop over `n_chains` in `Model1.__init__` to create multiple beams with increasing number of elements and vertical spacing to avoid overlap.
 
-- **Visualization**:
-  - Visualization objects remain unchanged but mesh is common for all beams.
-  - Adjusted camera position for better visualization of multiple chains.
+- **Truss bodies**: For each chain, a fixed truss body (`mtruss`) is created and added to the system.
 
-- **Solver and timestepper**:
-  - Ensured MINRES solver setting logic and timestepper are retained.
+- **Beam creation**: Each chain's beam is created with `builder.BuildBeam` with increasing number of elements.
 
-- **Additional Function**:
-  - Added `PrintBodyPositions` method within `Model1` to print the position of the connected box bodies for all chains.
-  - Called the printing function every 50 simulation steps (every 0.5 seconds approx.) inside the simulation loop.
+- **Boundary conditions**: The start node of each beam is fixed to the truss via a hinge constraint (`ChLinkNodeFrame`).
 
-- **Minor corrections**:
-  - Used `SetBodyFixed(True)` instead of `SetFixed(True)` for fixing bodies (correct API).
-  - Added masses and inertia to box bodies to allow physical interaction.
-  - `Add` is called on system for all added bodies and constraints.
-  - Used `ChLinkPointFrame` to link box and node (correct link type).
-  - Added comments and code formatting for clarity.
+- **Force application**: The force is applied to the front node of each beam.
 
-This final script will simulate multiple chains of cables with boxes at the ends, visualize them, and print the boxes' positions during the simulation as per instructions.
+- **End box bodies**: A box body is created at the beam's end node position and added to the system.
+
+- **Constraint between beam end node and box**: Added a `ChLinkNodeXYZ` constraint to connect the beam's end node to the box body, allowing the box to move with the beam end.
+
+- **Visualization**: Visualization objects are added once for the entire mesh (which now contains all chains).
+
+- **PrintBodyPositions**: Added a method to print the positions of the end box bodies for each chain at each simulation step.
+
+- **Fixed minor errors**:
+  - Changed `mtruss.SetFixed(True)` to `mtruss.SetBodyFixed(True)` (correct method name).
+  - Added `self.system.Add(mtruss)` to add the truss body to the system.
+  - Added `self.system.Add(mbox)` to add the box bodies to the system.
+  - Added `self.system.Add(constraint_hinge)` and `self.system.Add(constraint_end)` to add constraints to the system.
+  - Used `ChLinkNodeXYZ` for the constraint between beam end node and box (appropriate for connecting a node to a body with 3 DOF constraint).
+  - Added comments and clarified variable names for readability.
+
+- **Simulation loop**: Calls `model.PrintBodyPositions()` every step to print the positions of the end bodies.
+
+This code should run correctly and simulate multiple chains of ANCF cable beams connected to fixed trusses and boxes at their ends, with visualization and position printing as requested.

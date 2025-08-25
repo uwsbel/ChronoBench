@@ -64,11 +64,9 @@ patch_mat.SetRestitution(0.01)
 
 
 terrain = veh.SCMDeformableTerrain(vehicle.GetSystem())
-terrain.Initialize(terrainLength, terrainWidth, terrainHeight, "path/to/height_map.png")  
-
-
+terrain.Initialize(terrainLength, terrainWidth, patch_mat, "path/to/height_map.png")  
 terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 200, 200)  
-terrain.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+terrain.Initialize()
 
 
 vis = veh.ChTrackedVehicleVisualSystemIrrlicht()
@@ -109,9 +107,6 @@ step_number = 0
 render_frame = 0
 vehicle.GetVehicle().EnableRealtime(True)
 
-
-throttle_value = 0.8
-
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
     
@@ -123,19 +118,21 @@ while vis.Run():
 
     
     driver_inputs = driver.GetInputs()
-    driver_inputs.throttle = throttle_value  
+    
+    
+    driver_inputs.m_throttle = 0.8
 
     
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs)
     vis.Synchronize(time, driver_inputs)
-
+    
     
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
-
+    
     
     step_number += 1

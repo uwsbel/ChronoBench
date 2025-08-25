@@ -30,21 +30,33 @@ robot.Initialize()  # Initialize the robot
 # Create sensor manager and configure lidar sensor
 sensor_manager = sens.ChSensorManager(system)  # Create sensor manager
 lidar = sens.ChLidar()  # Create lidar sensor
-lidar.SetName("Lidar")
-lidar.SetPos(chrono.ChVector3d(0, 0, 0.5))  # Position the lidar sensor
-lidar.SetDirection(chrono.ChVector3d(1, 0, 0))  # Set the direction of the lidar
-lidar.SetRange(10)  # Set the range of the lidar
-lidar.SetHorizontalResolution(0.1)  # Set horizontal resolution
-lidar.SetVerticalResolution(0.1)  # Set vertical resolution
-lidar.SetScanFrequency(10)  # Set scan frequency
+lidar.SetPos(chrono.ChVector3d(0, 0, 0.2))  # Position of the lidar sensor
+lidar.SetFOV(180)  # Field of view
+lidar.SetRange(10)  # Range of the lidar
+lidar.SetResolution(0.5)  # Resolution
+lidar.SetNoise(0.01)  # Noise level
 sensor_manager.AddSensor(lidar)  # Add lidar sensor to the manager
 
 # Create randomly placed boxes for interaction
 for _ in range(5):
-    box_pos = chrono.ChVector3d(np.random.uniform(-5, 5), np.random.uniform(-5, 5), 0.5)  # Random position
-    box = chrono.ChBodyEasyBox(0.5, 0.5, 0.5, 1000, True, True)
+    box_pos = chrono.ChVector3d(np.random.uniform(-5, 5), np.random.uniform(-5, 5), 0)  # Random position
+    box = chrono.ChBodyEasyBox(0.5, 0.5, 0.5, 1000, True, True, ground_mat)
     box.SetPos(box_pos)
     system.Add(box)
+
+# Define motion control function for Turtlebot
+def move(mode):
+    LEFT_DRIVE_WHEEL = 0
+    RIGHT_DRIVE_WHEEL = 1
+    if mode == 'straight':
+        robot.SetMotorSpeed(math.pi, LEFT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(math.pi, RIGHT_DRIVE_WHEEL)
+    elif mode == 'left':
+        robot.SetMotorSpeed(0, LEFT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(math.pi, RIGHT_DRIVE_WHEEL)
+    elif mode == 'right':
+        robot.SetMotorSpeed(math.pi, LEFT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(0, RIGHT_DRIVE_WHEEL)
 
 # Create run-time visualization
 vis = chronoirr.ChVisualSystemIrrlicht()
@@ -65,28 +77,14 @@ vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0
 # Set the simulation time step
 time_step = 2e-3
 
-# Define motion control function for Turtlebot
-def move(mode):
-    LEFT_DRIVE_WHEEL = 0
-    RIGHT_DRIVE_WHEEL = 1
-    if mode == 'straight':
-        robot.SetMotorSpeed(math.pi, LEFT_DRIVE_WHEEL)
-        robot.SetMotorSpeed(math.pi, RIGHT_DRIVE_WHEEL)
-    elif mode == 'left':
-        robot.SetMotorSpeed(0, LEFT_DRIVE_WHEEL)
-        robot.SetMotorSpeed(-math.pi, RIGHT_DRIVE_WHEEL)
-    elif mode == 'right':
-        robot.SetMotorSpeed(-math.pi, LEFT_DRIVE_WHEEL)
-        robot.SetMotorSpeed(0, RIGHT_DRIVE_WHEEL)
-
 # Simulation loop
 time = 0
 while vis.Run():
     # Update sensor manager
     sensor_manager.Update()
 
-    # Control Turtlebot's movement
-    move('straight')  # Use the move function for Turtlebot's movement
+    # Use move function for Turtlebot's movement
+    move('straight')
 
     # Increment time counter
     time += time_step

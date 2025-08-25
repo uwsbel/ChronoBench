@@ -17,14 +17,12 @@ chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
 terrain_length = 20.0
 terrain_width = 20.0
 mesh_resolution = 0.1  # Example resolution
-soil_parameters = veh.ChTerrain.SoilParameters()  # Create soil parameters
-soil_parameters.SetYoungModulus(1e6)  # Example Young's modulus
-soil_parameters.SetPoissonRatio(0.3)  # Example Poisson's ratio
-soil_parameters.SetDamping(0.1)  # Example damping
+soil_parameters = veh.ChTerrain.SoilParameters(1000, 0.5, 0.1)  # Example soil parameters
 
-# Create the terrain
-terrain = veh.ChTerrainSCM(system, terrain_length, terrain_width, mesh_resolution, soil_parameters)
+# Create the SCM deformable terrain
+terrain = veh.ChTerrain(system, terrain_length, terrain_width, mesh_resolution, soil_parameters)
 terrain.Initialize()  # Initialize the terrain
+system.Add(terrain)  # Add the terrain to the system
 
 # Create Viper rover
 rover = viper.Viper(system)  # Instantiate the Viper rover

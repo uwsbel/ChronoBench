@@ -4,8 +4,16 @@ import rospy
 from std_msgs.msg import Int32
 
 
-rospy.init_node('chrono_ros_simulation', anonymous=True)
-pub = rospy.Publisher('chrono_integer_topic', Int32, queue_size=10)
+class CustomROSHandler:
+    def __init__(self):
+        
+        rospy.init_node('chrono_ros_node', anonymous=True)
+        self.publisher = rospy.Publisher('chrono_topic', Int32, queue_size=10)
+        self.rate = rospy.Rate(10)  
+
+    def publish_message(self, message):
+        self.publisher.publish(message)
+        self.rate.sleep()
 
 
 chrono.SetChronoDataPath('/path/to/chrono/data/')  
@@ -16,54 +24,36 @@ gravity = chrono.ChVectorD(0, -9.81, 0)
 system.Set_G_acc(gravity)
 
 
-floor = chrono.ChBody()
+floor = chrono.ChBodyEasyBox(10, 0.1, 10, 1000, True, True)
+floor.SetPos(chrono.ChVectorD(0, -0.05, 0))
 floor.SetBodyFixed(True)
-floor.SetPos(chrono.ChVectorD(0, -0.5, 0))
-floor.GetMaterialSurface().SetFriction(0.5)
-floor.GetMaterialSurface().SetRestitution(0.1)
 system.Add(floor)
 
 
-box_size = 0.5
-box = chrono.ChBody()
+box = chrono.ChBodyEasyBox(0.5, 0.5, 0.5, 1000, True, True)
 box.SetPos(chrono.ChVectorD(0, 0.5, 0))
-box.SetMass(1.0)
-box.SetInertiaXX(chrono.ChVectorD(0.1, 0.1, 0.1))
-box.GetMaterialSurface().SetFriction(0.5)
-box.GetMaterialSurface().SetRestitution(0.1)
-box.SetCollide(True)
-
-
-box_shape = chrono.ChBoxShape()
-box_shape.GetBoxGeometry().Size = chrono.ChVectorD(box_size, box_size, box_size)
-box_shape.SetColor(chrono.ChColor(0.0, 0.0, 1.0))
-box_shape.SetBody(box)
-box.AddAsset(box_shape)
-
-
 system.Add(box)
 
 
-time_step = 0.01
-simulation_time = 10.0
-num_steps = int(simulation_time / time_step)
+material = chrono.ChMaterialSurfaceNSC()
+material.SetFriction(0.4)
+box.SetMaterialSurface(material)
 
 
-def ros_handler():
-    for step in range(num_steps):
-        
-        system.DoStepDynamics(time_step)
+ros_handler = CustomROSHandler()
 
-        
-        msg = Int32()
-        msg.data = step
-        pub.publish(msg)
 
-        
-        rospy.sleep(time_step)
+while not rospy.is_shutdown():
+    
+    time_step = 0.01  
+    system.DoStepDynamics(time_step)
 
-if __name__ == "__main__":
-    try:
-        ros_handler()
-    except rospy.ROSInterruptException:
-        pass
+    
+    box_position = box.GetPos()
+    ros_handler.publish_message(int(box_position.y))
+
+    
+    print(f"Simulation Time: {system.GetChTime():.2f} s")
+
+
+rospy.signal_shutdown("Simulation ended.")

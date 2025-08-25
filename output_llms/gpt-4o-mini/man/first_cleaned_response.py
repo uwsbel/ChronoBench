@@ -1,51 +1,53 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
+import pychrono.vehicle as chrono_vehicle
 
 
 chrono.SetChronoDataPath('/path/to/chrono/data/')  
-system = chrono.ChSystemNSC()  
+chrono.ChSystemNSC()  
 
 
-ground = chrono.ChBodyEasyBox(10, 0.1, 10, 1000, True, True)
-ground.SetPos(chrono.ChVectorD(0, -0.05, 0))  
-ground.SetMaterialSurface(chrono.ChMaterialSurfaceNSC())
-system.Add(ground)
+vehicle = chrono_vehicle.ChVehicle()
+vehicle.SetChassis(chrono_vehicle.ChVehicleGeometry('MAN_10t', 'MAN_10t_chassis'))
+vehicle.SetTires(chrono_vehicle.ChTireModel('TMEASY'))
+vehicle.SetSteering(chrono_vehicle.ChSteering())
+vehicle.SetThrottle(chrono_vehicle.ChThrottle())
+vehicle.SetBraking(chrono_vehicle.ChBraking())
 
 
-radius = 0.5
-density = 1000  
-sphere = chrono.ChBodyEasySphere(radius, density, True, True)
-sphere.SetPos(chrono.ChVectorD(0, 5, 0))  
-sphere.SetMaterialSurface(chrono.ChMaterialSurfaceNSC())
-system.Add(sphere)
+vehicle.SetPos(chrono.ChVectorD(0, 0, 0))  
+vehicle.SetOrientation(chrono.ChQuaternionD(1, 0, 0, 0))  
 
 
-
-gravity = chrono.ChVectorD(0, -9.81, 0)  
-system.Set_G_acc(gravity)
-
-
-time_step = 0.01  
-end_time = 2.0  
+terrain = chrono_vehicle.ChTerrain()
+terrain.SetRigidTerrain()  
+terrain.SetTexture('path/to/terrain_texture.jpg')  
 
 
-application = chronoirr.ChIrrApp(system, "Falling Sphere Simulation", chronoirr.dimension2d_u(800, 600))
-application.AddSkyBox()
-application.AddCamera(chrono.ChVectorD(0, 2, -5), chrono.ChVectorD(0, 0, 0))
-application.AddLight(chrono.ChVectorD(0, 10, -10), chrono.ChVectorD(1, 1, 1))
+app = chronoirr.ChIrrApp(vehicle.GetSystem(), 'MAN 10t Truck Simulation', chronoirr.dimension2d(800, 600))
+app.AddLogo(chrono.GetChronoDataPath() + 'logo.png')  
+app.AddSkyBox()  
+app.AddCamera(chrono.ChVectorD(0, 0, 5), chrono.ChVectorD(0, 0, 0))  
+app.AddLight(chrono.ChVectorD(10, 10, 10), chrono.ChVectorD(1, 1, 1))  
 
 
-while application.GetDevice().run():
-    application.BeginScene()
-    application.DrawAll()
-    application.EndScene()
+driver = chrono_vehicle.ChDriver()
+driver.SetSteeringControl(0.0)  
+driver.SetThrottleControl(0.0)  
+driver.SetBrakingControl(0.0)  
 
+
+while app.GetDevice().run():
+    app.BeginScene()
+    app.DrawAll()
     
-    system.DoStepDynamics(time_step)
-
     
-    if system.GetChTime() >= end_time:
-        break
+    vehicle.Update()
+    
+    
+    driver.Update()
+    
+    app.EndScene()
 
 
-application.GetDevice().drop()
+app.Close()

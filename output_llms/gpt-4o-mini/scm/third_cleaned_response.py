@@ -106,25 +106,23 @@ driver.Initialize()
 
 
 
-
-
-num_boxes = 10
+num_boxes = 10  
 box_size = 0.5  
+
 for _ in range(num_boxes):
     
-    pos_x = random.uniform(-terrainLength / 2, terrainLength / 2)
-    pos_y = random.uniform(-terrainWidth / 2, terrainWidth / 2)
-    pos_z = box_size / 2  
+    while True:
+        box_pos = chrono.ChVector3d(random.uniform(-terrainLength/2, terrainLength/2),
+                                     random.uniform(-terrainWidth/2, terrainWidth/2),
+                                     box_size / 2)  
+        if (box_pos - initLoc).Length() > 2:  
+            break
 
-    
-    if not (initLoc.x - 2 < pos_x < initLoc.x + 2 and initLoc.y - 2 < pos_y < initLoc.y + 2):
-        box = chrono.ChBodyEasyBox(box_size, box_size, box_size, 1000, True, True)
-        box.SetPos(chrono.ChVectorD(pos_x, pos_y, pos_z))
-        box.SetCollide(True)
-        box.SetBodyFixed(False)
-        vehicle.GetSystem().Add(box)
-
-
+    box = chrono.ChBodyEasyBox(box_size, box_size, box_size, 1000, True, True)
+    box.SetPos(box_pos)
+    box.SetCollide(True)
+    box.SetBodyFixed(False)
+    vehicle.GetSystem().Add(box)
 
 
 
@@ -132,26 +130,24 @@ for _ in range(num_boxes):
 sensor_manager = chrono.ChSensorManager(vehicle.GetSystem())
 
 
-for _ in range(5):
-    light_pos = chrono.ChVectorD(random.uniform(-terrainLength / 2, terrainLength / 2),
-                                  random.uniform(-terrainWidth / 2, terrainWidth / 2),
-                                  random.uniform(1, 5))
-    light = chrono.ChLight()
-    light.SetPos(light_pos)
-    light.SetIntensity(1.0)
+light_positions = [chrono.ChVector3d(5, 5, 2), chrono.ChVector3d(-5, -5, 2), chrono.ChVector3d(5, -5, 2)]
+for pos in light_positions:
+    light = chrono.ChPointLight()
+    light.SetPos(pos)
+    light.SetIntensity(1000)  
     sensor_manager.AddSensor(light)
 
 
 camera_sensor = chrono.ChCameraSensor()
-camera_sensor.SetPos(vehicle.GetChassisBody().GetPos())
+camera_sensor.SetResolution(640, 480)  
 camera_sensor.SetFOV(60)  
-camera_sensor.SetResolution(1280, 720)  
+camera_sensor.AttachToBody(vehicle.GetChassisBody())
 sensor_manager.AddSensor(camera_sensor)
 
 
 camera_filter = chrono.ChCameraFilter()
-camera_filter.SetCameraSensor(camera_sensor)
-sensor_manager.AddFilter(camera_filter)
+camera_filter.SetSensor(camera_sensor)
+vis.AddCameraFilter(camera_filter)
 
 
 

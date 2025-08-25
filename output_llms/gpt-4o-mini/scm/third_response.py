@@ -106,64 +106,60 @@ driver.Initialize()
 # ---------------
 # Add Objects to the Scene
 # ---------------
+num_boxes = 10  # Number of boxes to add
+box_size = 0.5  # Size of the boxes
 
-# Create random boxes in the scene
-num_boxes = 10
-box_size = 0.5  # size of the boxes
 for _ in range(num_boxes):
-    # Generate random position for the box
-    pos_x = random.uniform(-terrainLength / 2, terrainLength / 2)
-    pos_y = random.uniform(-terrainWidth / 2, terrainWidth / 2)
-    pos_z = box_size / 2  # Position the box above the terrain
+    # Randomly position boxes ensuring they are not initialized within the vehicle
+    while True:
+        box_pos = chrono.ChVector3d(random.uniform(-terrainLength/2, terrainLength/2),
+                                     random.uniform(-terrainWidth/2, terrainWidth/2),
+                                     box_size / 2)  # Position above the ground
+        if (box_pos - initLoc).Length() > 2:  # Ensure box is not too close to the vehicle
+            break
 
-    # Ensure the box is not initialized within the vehicle
-    if not (initLoc.x - 2 < pos_x < initLoc.x + 2 and initLoc.y - 2 < pos_y < initLoc.y + 2):
-        box = chrono.ChBodyEasyBox(box_size, box_size, box_size, 1000, True, True)
-        box.SetPos(chrono.ChVectorD(pos_x, pos_y, pos_z))
-        box.SetCollide(True)
-        box.SetBodyFixed(False)
-        vehicle.GetSystem().Add(box)
+    box = chrono.ChBodyEasyBox(box_size, box_size, box_size, 1000, True, True)
+    box.SetPos(box_pos)
+    box.SetCollide(True)
+    box.SetBodyFixed(False)
+    vehicle.GetSystem().Add(box)
 
 # ---------------
 # Integrate a Sensor System
 # ---------------
-
-# Create a sensor manager
 sensor_manager = chrono.ChSensorManager(vehicle.GetSystem())
 
 # Add point lights at various positions
-for _ in range(5):
-    light_pos = chrono.ChVectorD(random.uniform(-terrainLength / 2, terrainLength / 2),
-                                  random.uniform(-terrainWidth / 2, terrainWidth / 2),
-                                  random.uniform(1, 5))
-    light = chrono.ChLight()
-    light.SetPos(light_pos)
-    light.SetIntensity(1.0)
+light_positions = [chrono.ChVector3d(5, 5, 2), chrono.ChVector3d(-5, -5, 2), chrono.ChVector3d(5, -5, 2)]
+for pos in light_positions:
+    light = chrono.ChPointLight()
+    light.SetPos(pos)
+    light.SetIntensity(1000)  # Set light intensity
     sensor_manager.AddSensor(light)
 
 # Create a camera sensor attached to the vehicle chassis
 camera_sensor = chrono.ChCameraSensor()
-camera_sensor.SetPos(vehicle.GetChassisBody().GetPos())
-camera_sensor.SetFOV(60)  # Field of view
-camera_sensor.SetResolution(1280, 720)  # Resolution
+camera_sensor.SetResolution(640, 480)  # Set resolution
+camera_sensor.SetFOV(60)  # Set field of view
+camera_sensor.AttachToBody(vehicle.GetChassisBody())
 sensor_manager.AddSensor(camera_sensor)
 
 # Include a filter to visualize the camera feed during the simulation
 camera_filter = chrono.ChCameraFilter()
-camera_filter.SetCameraSensor(camera_sensor)
-sensor_manager.AddFilter(camera_filter)
+camera_filter.SetSensor(camera_sensor)
+vis.AddCameraFilter(camera_filter)
 
 # ---------------
 # Simulation loop
 # ---------------
 
-# output vehicle mass
+# Output vehicle mass
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
 
-# Initialize simulation frame counter s
+# Initialize simulation frame counter
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0

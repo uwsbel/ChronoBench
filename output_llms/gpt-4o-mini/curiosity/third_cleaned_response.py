@@ -38,7 +38,7 @@ rover.SetDriver(driver)
 
 init_pos = chrono.ChVector3d(-5, 0.0, 0)
 init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
-rover.Initialize(chrono.ChFrameD(init_pos, init_rot))  
+rover.Initialize(chrono.ChFramed(init_pos, init_rot))
 
 
 sensor_manager = sens.ChSensorManager(system)  
@@ -49,11 +49,15 @@ lidar.SetUpdateRate(10)
 lidar.SetHorizontalSamples(360)  
 lidar.SetVerticalSamples(1)  
 lidar.SetFieldOfView(chrono.CH_C_PI / 4)  
-lidar.SetRange(10)  
+lidar.SetRange(10.0)  
 lidar.SetPos(chrono.ChVector3d(0, 0, 0.5))  
 lidar.SetParent(rover.GetChassis())  
-lidar.SetFilter(sens.ChLidarSensor.FilterType.MEAN)  
-sensor_manager.AddSensor(lidar)  
+
+
+
+
+
+sensor_manager.AddSensor(lidar)
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()

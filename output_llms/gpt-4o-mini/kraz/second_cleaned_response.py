@@ -105,7 +105,7 @@ render_frame = 0
 
 lane_change_duration = 5.0  
 lane_change_start_time = 2.0  
-lane_change_amplitude = 3.0  
+lane_change_end_time = lane_change_start_time + lane_change_duration
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
@@ -121,10 +121,14 @@ while vis.Run():
     driver_inputs = driver.GetInputs()
 
     
-    if time >= lane_change_start_time and time <= lane_change_start_time + lane_change_duration:
+    if lane_change_start_time <= time <= lane_change_end_time:
         
-        lateral_position = lane_change_amplitude * math.sin(math.pi * (time - lane_change_start_time) / lane_change_duration)
-        driver_inputs.m_steering = lateral_position / lane_change_amplitude  
+        if time < lane_change_start_time + lane_change_duration / 2:
+            driver_inputs.m_steering = 0.5 * (time - lane_change_start_time) / (lane_change_duration / 2)  
+        else:
+            driver_inputs.m_steering = 0.5 * (lane_change_end_time - time) / (lane_change_duration / 2)  
+    else:
+        driver_inputs.m_steering = 0.0  
 
     
     driver.Synchronize(time)

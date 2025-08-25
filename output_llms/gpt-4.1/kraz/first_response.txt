@@ -1,21 +1,16 @@
-Certainly! Below is a **PyChrono** simulation script that fulfills your requirements. This script:
+Certainly! Below is a **PyChrono** simulation script that sets up a Kraz vehicle on a rigid terrain, configures friction and restitution, initializes a driver, and uses Irrlicht for real-time visualization with camera and lighting. The simulation loop synchronizes and advances all systems, maintaining real-time execution.
 
-- Initializes the PyChrono environment.
-- Sets up a **Kraz vehicle** with initial conditions.
-- Adds a **rigid terrain** with specified friction and restitution.
-- Initializes a **driver system** for vehicle control.
-- Configures **Irrlicht visualization** with camera and lighting.
-- Implements a simulation loop that synchronizes and advances all systems, maintaining real-time execution.
-
-**Note:** This script assumes you have the `PyChrono` and `PyChronoVehicle` modules installed and accessible.
+**Requirements:**  
+- PyChrono (with vehicle and Irrlicht modules)
+- Python 3.x
 
 ```python
 import pychrono as chrono
 import pychrono.vehicle as veh
-import pychrono.irrlicht as chronoirr
+import pychrono.irrlicht as irr
 import time
 
-# 1. Initialize PyChrono
+# 1. Initialize PyChrono and core components
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(veh.GetDataPath())
 
@@ -24,98 +19,88 @@ system = chrono.ChSystemNSC()
 
 # 3. Create the Kraz vehicle
 initLoc = chrono.ChVectorD(0, 0, 1.0)  # Initial position (x, y, z)
-initRot = chrono.QUNIT  # No rotation
-kraz = veh.Kraz()
-kraz.SetContactMethod(chrono.ChContactMethod_NSC)
-kraz.SetChassisFixed(False)
-kraz.SetInitPosition(chrono.ChCoordsysD(initLoc, initRot))
-kraz.SetInitFwdVel(0.0)
-kraz.Initialize()
+initYaw = chrono.ChQuaternionD(1, 0, 0, 0)  # No initial rotation
+vehicle = veh.Kraz()
+vehicle.SetContactMethod(chrono.ChContactMethod_NSC)
+vehicle.SetChassisFixed(False)
+vehicle.SetInitPosition(chrono.ChCoordsysD(initLoc, initYaw))
+vehicle.SetInitFwdVel(0.0)
+vehicle.Initialize()
 
-# 4. Create the terrain
+# 4. Create the rigid terrain
 terrain = veh.RigidTerrain(system)
-terrain_mat = chrono.ChMaterialSurfaceNSC()
-terrain_mat.SetFriction(0.9)      # Friction coefficient
-terrain_mat.SetRestitution(0.01)  # Restitution coefficient
-
 patch = terrain.AddPatch(
-    terrain_mat,
-    chrono.ChVectorD(0, 0, 0),  # Center position
-    chrono.ChVectorD(0, 0, 1),  # Normal vector
-    200, 200                    # Size X, Y (meters)
+    chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT),
+    length=200.0, width=100.0
 )
-patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)
+patch.SetContactFrictionCoefficient(0.9)
+patch.SetContactRestitutionCoefficient(0.01)
+patch.SetMaterialSurface(chrono.ChMaterialSurfaceNSC())
+patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 100)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
-# 5. Create the driver system (keyboard driver)
+# 5. Create the driver system (simple interactive driver)
 driver = veh.ChDriverInputs()
-driver_system = veh.ChIrrGuiDriver(kraz.GetVehicle())
+driver_system = veh.ChIrrGuiDriver(vehicle.GetChassis())
 driver_system.SetSteeringDelta(0.04)
 driver_system.SetThrottleDelta(0.02)
 driver_system.SetBrakingDelta(0.1)
 driver_system.Initialize()
 
-# 6. Visualization with Irrlicht
-vis = veh.ChWheeledVehicleIrrApp(
-    kraz.GetVehicle(),
-    "Kraz Vehicle Demo",
-    chronoirr.dimension2du(1024, 768)
-)
+# 6. Create the Irrlicht visualization system
+vis = veh.ChWheeledVehicleIrrApp(vehicle, 'Kraz Vehicle Demo', irr.dimension2du(1024,768))
 vis.SetSkyBox()
-vis.AddTypicalLights(chrono.ChVectorD(30, 30, 100), chrono.ChVectorD(-30, -30, 100), 250, 130)
+vis.AddTypicalLights(chrono.ChVectorD(30, 100, 40), chrono.ChVectorD(-30, 100, 40), 250, 130)
 vis.AddTypicalLogo()
+vis.AddLightWithShadow(chrono.ChVectorD(60, 100, 120), chrono.ChVectorD(0,0,0), 350, 1, 10, 40, 512)
 vis.SetChaseCamera(chrono.ChVectorD(0.0, 0.0, 1.75), 6.0, 0.5)
 vis.SetTimestep(0.01)
 vis.AssetBindAll()
 vis.AssetUpdateAll()
+vis.Initialize()
 
-# 7. Simulation loop
+# 7. Simulation loop parameters
 step_size = 0.01
+end_time = 10.0
 realtime_timer = chrono.ChRealtimeStepTimer()
+time_sim = 0.0
 
-while vis.Run():
-    vis.BeginScene()
-    vis.DrawAll()
-
-    # Get driver inputs
+# 8. Simulation loop
+while vis.Run() and time_sim < end_time:
+    # Collect driver inputs
     driver_inputs = driver_system.GetInputs()
-
     # Synchronize all modules
-    time = kraz.GetVehicle().GetChTime()
-    driver_system.Synchronize(time)
-    kraz.Synchronize(time, driver_inputs, terrain)
-    terrain.Synchronize(time)
+    driver_system.Synchronize(time_sim)
+    terrain.Synchronize(time_sim)
+    vehicle.Synchronize(time_sim, driver_inputs, terrain)
     vis.Synchronize("Kraz Vehicle Demo", driver_inputs)
-
     # Advance simulation for one timestep
     driver_system.Advance(step_size)
-    kraz.Advance(step_size)
     terrain.Advance(step_size)
+    vehicle.Advance(step_size)
     vis.Advance(step_size)
-
+    # Render scene
+    vis.BeginScene()
+    vis.DrawAll()
     vis.EndScene()
+    # Maintain real-time execution
+    time_sim += step_size
     realtime_timer.Spin(step_size)
 
-    # Optional: End after a certain time
-    # if time > 20:
-    #     break
-
-# Clean up
+# Cleanup
 vis.GetDevice().closeDevice()
 ```
 
 ---
 
 **Key Points:**
+- **Kraz vehicle** is initialized at (0,0,1) with no initial velocity.
+- **Rigid terrain** patch is 200x100 units, with friction 0.9 and restitution 0.01.
+- **Driver** uses Irrlicht GUI for interactive control.
+- **Visualization** uses Irrlicht with skybox, lights, chase camera, and real-time rendering.
+- **Simulation loop** synchronizes and advances all systems, maintaining real-time pace.
 
-- **Kraz vehicle** is initialized at (0, 0, 1.0) with zero initial velocity.
-- **Terrain** patch is 200x200 meters, with friction 0.9 and restitution 0.01.
-- **Driver** uses keyboard input for steering, throttle, and braking.
-- **Visualization** uses Irrlicht with a chase camera and typical lighting.
-- **Simulation loop** synchronizes and advances all modules, maintaining real-time execution.
-
-**Dependencies:**  
-Make sure you have installed `pychrono`, `pychrono.vehicle`, and `pychrono.irrlicht` Python modules.
-
-Let me know if you need further customization!
+**Tip:**  
+You can adjust `end_time` for longer/shorter simulations, and tweak camera/lighting as needed.  
+Make sure you have the PyChrono vehicle and Irrlicht modules installed.

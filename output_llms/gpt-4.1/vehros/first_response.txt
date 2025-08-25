@@ -1,111 +1,102 @@
-Certainly! Below is a **PyChrono** simulation script that sets up an HMMWV vehicle, terrain, driver, and integrates ROS for communication and synchronization. The script uses the Chrono::Vehicle and Chrono::ROS modules. Please ensure you have the necessary PyChrono modules installed (`pychrono`, `pychrono_vehicle`, and `pychrono_ros`).
+Certainly! Below is a **PyChrono** simulation script that creates an HMMWV vehicle with specified parameters, sets up terrain, initializes a driver, and integrates ROS for communication. The script includes initialization, system setup, ROS handlers, and a simulation loop as requested.
+
+**Note:**  
+- This script assumes you have installed `pychrono`, `pychrono_vehicle`, and `pychrono_ros` (Chrono::ROS bindings).
+- Adjust paths and parameters as needed for your environment.
 
 ```python
 import pychrono as chrono
 import pychrono.vehicle as veh
 import pychrono.ros as chros
 
-# -------------------------
-# 1. Initialize PyChrono
-# -------------------------
+# 1. Initialize PyChrono environment
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
-# -------------------------
-# 2. Simulation Parameters
-# -------------------------
-contact_method = chrono.ChContactMethod_SMC  # SMC or NSC
-engine_type = veh.PowertrainModelType_SHAFTS  # SHAFTS, SIMPLE, SIMPLE_MAP
-tire_model = veh.TireModelType_TMEASY  # RIGID, TMEASY, PAC89, etc.
-
-step_size = 2e-3
+# 2. Set simulation parameters
+contact_method = chrono.ChContactMethod_SMC
+engine_type = veh.PowertrainModelType_SHAFTS
+tire_model = veh.TireModelType_TMEASY
+step_size = 1e-3
 end_time = 10.0
 
-# -------------------------
-# 3. Create the Vehicle System
-# -------------------------
-initLoc = chrono.ChVectorD(0, 0, 1.0)
-initYaw = chrono.ChQuaternionD(1, 0, 0, 0)
+# 3. Create the Chrono physical system
+system = chrono.ChSystemSMC()
 
-vehicle = veh.HMMWV_Full()
+# 4. Create the HMMWV vehicle
+init_pos = chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 1.0), chrono.QUNIT)
+vehicle = veh.HMMWV_Vehicle(system, False, veh.ChassisCollisionType_NONE)
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisFixed(False)
-vehicle.SetInitPosition(chrono.ChCoordsysD(initLoc, chrono.Q_from_AngZ(initYaw.e0)))
+vehicle.Initialize(init_pos)
 vehicle.SetPowertrainType(engine_type)
 vehicle.SetTireType(tire_model)
-vehicle.SetTireStepSize(step_size)
-vehicle.Initialize()
+vehicle.InitializeTires(veh.TireModelType_TMEASY)
 
-# -------------------------
-# 4. Create the Terrain
-# -------------------------
-terrain = veh.RigidTerrain(vehicle.GetSystem())
+# 5. Create the terrain
+terrain = veh.RigidTerrain(system)
 patch = terrain.AddPatch(
     chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT),
-    200, 200
+    length=200.0, width=100.0
 )
 patch.SetContactFrictionCoefficient(0.9)
 patch.SetContactRestitutionCoefficient(0.01)
-patch.SetMaterialSurface(contact_method)
-patch.SetTexture(chrono.GetChronoDataFile("terrain/textures/grass.jpg"), 200, 200)
+patch.SetMaterialSurface(chrono.ChMaterialSurfaceSMC())
 terrain.Initialize()
 
-# -------------------------
-# 5. Create the Driver System
-# -------------------------
-driver = veh.ChDriver(vehicle.GetVehicle())
+# 6. Create the driver system (simple driver for demonstration)
+driver = veh.ChDriver(vehicle)
 driver.Initialize()
 
-# -------------------------
-# 6. Initialize ROS Manager
-# -------------------------
-ros_manager = chros.ChROSManager(vehicle.GetSystem())
-ros_manager.SetClockTopic("/clock")
+# 7. Initialize ROS manager and register handlers
+ros_manager = chros.ChROSManager(system)
 
 # Handler: Clock synchronization
-def clock_handler():
-    ros_manager.PublishClock()
+def ros_clock_handler():
+    ros_manager.PublishClock(system.GetChTime())
 
-ros_manager.RegisterClockHandler(clock_handler)
+ros_manager.RegisterClockHandler(ros_clock_handler)
 
-# Handler: Driver input (subscribe to /driver_input)
-def driver_input_handler(msg):
+# Handler: Driver input (subscribe to ROS topic and update driver)
+def ros_driver_input_handler(msg):
     # Assume msg contains throttle, steering, braking
-    throttle = msg.throttle
-    steering = msg.steering
-    braking = msg.braking
-    driver.SetThrottle(throttle)
-    driver.SetSteering(steering)
-    driver.SetBraking(braking)
+    driver.SetThrottle(msg.throttle)
+    driver.SetSteering(msg.steering)
+    driver.SetBraking(msg.braking)
 
-ros_manager.RegisterDriverInputHandler("/driver_input", driver_input_handler)
+ros_manager.RegisterDriverInputHandler(ros_driver_input_handler)
 
 # Handler: Vehicle state publishing
-def vehicle_state_publisher():
-    state = vehicle.GetVehicle().GetVehicleState()
-    ros_manager.PublishVehicleState("/vehicle_state", state)
+def ros_vehicle_state_handler():
+    state = {
+        'pos': vehicle.GetChassis().GetPos(),
+        'rot': vehicle.GetChassis().GetRot(),
+        'speed': vehicle.GetSpeed(),
+        'throttle': driver.GetThrottle(),
+        'steering': driver.GetSteering(),
+        'braking': driver.GetBraking()
+    }
+    ros_manager.PublishVehicleState(state)
 
-ros_manager.RegisterVehicleStatePublisher(vehicle_state_publisher)
+ros_manager.RegisterVehicleStateHandler(ros_vehicle_state_handler)
 
-# -------------------------
-# 7. Simulation Loop
-# -------------------------
+# 8. Simulation loop
 time = 0.0
 while time < end_time:
-    # 1. Synchronize driver, terrain, vehicle
+    # Synchronize systems
     driver.Synchronize(time)
+    vehicle.Synchronize(time, driver)
     terrain.Synchronize(time)
-    vehicle.Synchronize(time, driver.GetInputs(), terrain)
-
-    # 2. Advance systems
+    
+    # Advance simulation
     driver.Advance(step_size)
-    terrain.Advance(step_size)
     vehicle.Advance(step_size)
-
-    # 3. ROS communication
-    ros_manager.SpinOnce()  # Process incoming/outgoing ROS messages
-
-    # 4. Advance time
+    terrain.Advance(step_size)
+    
+    # Update ROS manager (publish data, handle callbacks)
+    ros_manager.Update(time)
+    
+    # Advance time
     time += step_size
 
 print("Simulation complete.")
@@ -113,10 +104,16 @@ print("Simulation complete.")
 
 ---
 
-**Notes:**
-- The script assumes the existence of appropriate ROS message types and topics. You may need to adapt the handler functions to your ROS message definitions.
-- The `vehicle.GetVehicle().GetVehicleState()` is a placeholder; you may need to extract and format the vehicle state as per your ROS message schema.
-- The driver system here is a basic `ChDriver`. For more advanced input, consider using `ChDriverInputs` or a custom driver class.
-- Make sure to run a ROS core and set up the necessary topics for communication.
+**Key Points:**
+- **Vehicle:** HMMWV with SMC contact, SHAFTS engine, TMeasy tires.
+- **Terrain:** Rigid patch with specified friction and restitution.
+- **Driver:** Simple driver system (extend as needed).
+- **ROS Integration:** Handlers for clock, driver input, and vehicle state.
+- **Simulation Loop:** Synchronizes and advances all systems, updates ROS.
+
+**Note:**  
+- For a real application, you may want to use a more advanced driver (e.g., `ChDriverInputs` or `ChPathFollowerDriver`).
+- The ROS message handling assumes a certain message structure; adapt as needed for your ROS setup.
+- You may need to run a ROS core and set up appropriate topics for full integration.
 
 Let me know if you need further customization or explanation!

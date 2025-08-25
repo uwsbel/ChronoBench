@@ -110,8 +110,10 @@ render_frame = 0
 
 
 sensor_manager = sensor.ChSensorManager(vehicle.GetSystem())
-lidar = sensor.ChLidarSensor(vehicle.GetVehicle().GetChassis(), 10.0, 0.1, 0.5, 180, 360)
-sensor_manager.AddSensor(lidar)
+lidar_sensor = sensor.ChLidarSensor()
+lidar_sensor.SetPosition(chrono.ChVectorD(0, 0, 2))  
+lidar_sensor.SetOrientation(chrono.ChQuaternionD(1, 0, 0, 0))  
+sensor_manager.AddSensor(lidar_sensor)
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()

@@ -1,112 +1,95 @@
 ```python
-import chrono
-import chrono.vehicle as veh
-import chrono.sensor as sens
-import chrono.irrlicht as irr
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as chronoirr
 
-# 1. Initialize PyChrono environment and core components
+# 1. Initialize the PyChrono environment and core components
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())  # Ensure data path is set
 
-# Create a physical system
+# Create the physical system (ChSystem)
 system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))  # gravity along Z-down
 
-# 2. Add required physical systems and objects
+# 2. Add the required physical systems and objects as specified
 
-# Create the terrain (rigid terrain)
+# Create the rigid terrain
 terrain = veh.RigidTerrain(system)
-patch = terrain.AddPatch(chrono.ChVectorD(0, 0, 0),  # location
-                         chrono.ChVectorD(0, 0, 1),  # normal (up)
-                         400, 400)                   # size (x,y)
-patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
-patch.SetTexture(veh.GetDataFile("terrain/textures/tile4_riverside.png"),
-                 40, 40)
-patch.SetFriction(0.9)
-terrain.Initialize()
+# Set terrain texture and logo
+terrain_texture = chrono.GetChronoDataFile("vehicle/terrain/textures/grass.jpg")
+terrain_logo = chrono.GetChronoDataFile("vehicle/terrain/textures/chrono_logo_alpha.png")
+terrain.SetTexture(terrain_texture, 200, 200)
+terrain.SetLogo(terrain_logo, 200, 100, chrono.ChVectorD(0, 0, 0))
+terrain.Initialize(0, 0, chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT))
 
 # Create the MAN 10t truck vehicle model
-vehicle = veh.Man_10t()  # Instantiate MAN 10t vehicle
+vehicle = veh.MAN_10t()
 vehicle.SetContactMethod(chrono.ChContactMethod_NSC)
-vehicle.SetChassisCollisionType(veh.ChassisCollisionType_NONE)  # Avoid self-collisions in chassis; optional
-vehicle.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0.6), chrono.ChQuaternionD(1, 0, 0, 0)))
-vehicle.SetTireType(veh.VehicleTire.TMEASY)
-vehicle.SetTireStepSize(2e-3)
+vehicle.SetChassisCollisionType(veh.ChassisCollisionType_NONE)  # No chassis collision for simplicity
+vehicle.SetTireType(veh.TireModelType_TMEASY)
+vehicle.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0.5), chrono.QUNIT))
+vehicle.SetTireStepSize(1e-3)
 vehicle.Initialize()
 
-# Visualize settings
+# Set visualization types
 vehicle.SetChassisVisualizationType(veh.VisualizationType_PRIMITIVES)
 vehicle.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
 vehicle.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
 vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
 vehicle.SetTireVisualizationType(veh.VisualizationType_MESH)
 
-# Create the tire models
+# Initialize tires (TMEASY model)
 for i in range(vehicle.GetNumberAxles()):
-    for side in [veh.LEFT, veh.RIGHT]:
-        tire = veh.TMEASYTire(vehicle.GetSystem(), veh.VehicleSide(side))
-        tire.SetStepsize(2e-3)
-        # Initialize tire on the appropriate wheel body
-        wheel = vehicle.GetWheel(i, side)
+    axle = vehicle.GetAxle(i)
+    for wheel in [axle.m_wheels[0], axle.m_wheels[1]]:
+        tire = veh.TMeasyTire()
+        tire.SetStepsize(1e-3)
+        tire.SetVisualizationType(veh.VisualizationType_MESH)
         tire.Initialize(wheel, veh.VisualizationType_MESH)
-        vehicle.SetTire(i, side, tire)
+        vehicle.SetTire(i * 2 + (0 if wheel == axle.m_wheels[0] else 1), tire)
 
-# Real-time driver controls initialization
-driver = veh.ChDriver(vehicle, irr.ChIrrGuiDriver())
-driver.SetLookAheadDistance(10)
-driver.SetThrottleDelta(0.05)
-driver.SetBrakeDelta(0.1)
-driver.SetSteeringDelta(0.1)
+# Create the driver system with real-time inputs
+driver = veh.ChRealtimeDriver(vehicle)
+driver.SetSteeringDelta(0.05)
+driver.SetThrottleDelta(0.1)
+driver.SetBrakingDelta(0.1)
 driver.Initialize()
 
-# 3. Irrlicht visualization system and settings
-application = veh.ChIrrApp(vehicle.GetSystem(), "MAN 10t Truck on Rigid Terrain", veh.GetDataFile('terrain/meshes/terrain.obj'))
+# 3. Set necessary default parameters such as positions, forces, and interactions
+
+# Set timestep size
+step_size = 1e-3
+
+# Initialize Irrlicht visualization system
+application = chronoirr.ChIrrApp(vehicle.GetSystem(), "MAN 10t Truck on Rigid Terrain",
+                                 chronoirr.dimension2du(1280, 720))
 
 application.AddTypicalLights()
-application.SetChaseCamera(chrono.ChVectorD(0.0, 0.0, 1.5), 6.0, 0.5)  # position, distance, chase center height
-
-# Add directional light to simulate sunlight
-light = application.AddLightDirectional()
-light.Direction = chrono.ChVectorF(-0.5, 0.3, -1)
-light.DiffuseColor = chrono.ChColorF(0.9, 0.9, 0.7)
-light.SpecularColor = chrono.ChColorF(0.9, 0.9, 0.7)
-light.AmbientColor = chrono.ChColorF(0.3, 0.3, 0.3)
-
 application.AddSkyBox()
-application.AddLogo()  # Default chrono logo in corner
-
-# Customize terrain texture and logos if desired
-# (already set above in patch.SetTexture and AddLogo)
-
+application.AddLogo()
+application.SetChaseCamera(chrono.ChVectorD(0.0, -6.0, 1.5), 6.0, 0.5)
 application.AssetBindAll()
 application.AssetUpdateAll()
 
-# Simulation loop parameters
-timestep = 1e-3
-application.SetTimestep(timestep)
-
-# Main simulation loop
-application.SetTimestep(timestep)
-application.SetTryRealtime(True)
-
+# Simulation loop
+application.SetTimestep(step_size)
 while application.GetDevice().run():
     application.BeginScene()
     application.DrawAll()
 
-    # Get inputs from driver
-    driver_inputs = driver.GetInputs()
-    vehicle.SetDriverInputs(driver_inputs)
+    # Get driver inputs
+    steering = driver.GetSteering()
+    throttle = driver.GetThrottle()
+    braking = driver.GetBraking()
 
-    # Synchronize all modules at the current time
-    time = vehicle.GetSystem().GetChTime()
-    driver.Synchronize(time)
-    vehicle.Synchronize(time)
-    terrain.Synchronize(time)
-    application.Synchronize(time)
+    # Apply inputs to vehicle
+    vehicle.SteeringSystem().SetInput(steering)
+    vehicle.GetPowertrain().SetThrottle(throttle)
+    vehicle.GetBrake().SetBrake(braking)
 
-    # Advance simulation by timestep
-    driver.Advance(timestep)
-    vehicle.Advance(timestep)
-    terrain.Advance(timestep)
-    system.DoStepDynamics(timestep)
+    # Advance simulation by step size
+    driver.Synchronize(step_size)
+    vehicle.Synchronize(driver.GetInputs(), terrain)
+    terrain.Synchronize(step_size)
+    application.DoStep()
 
     application.EndScene()
 ```

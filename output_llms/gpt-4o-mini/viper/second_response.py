@@ -32,6 +32,22 @@ init_pos = chrono.ChVector3d(0, 0.2, 0)
 init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
 rover.Initialize(chrono.ChFramed(init_pos, init_rot))
 
+# Create run-time visualization
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetCameraVertical(chrono.CameraVerticalDir_Z)
+vis.SetWindowSize(1280, 720)
+vis.SetWindowTitle('Viper rover - Rigid terrain')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVector3d(0, 2.5, 1.5), chrono.ChVector3d(0, 0, 1))
+vis.AddTypicalLights()
+vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0, 0.5), 3, 4, 10, 40, 512)
+
+# Enable shadows (commented out to improve performance)
+# vis.EnableShadows()
+
 # Create sensor manager and add a point light
 manager = sens.ChSensorManager(system)
 intensity = 1.0
@@ -51,27 +67,9 @@ cam.SetName("Third Person POV")
 cam.PushFilter(sens.ChFilterVisualize(720, 480, "Viper Front Camera"))
 manager.AddSensor(cam)
 
-# Create run-time visualization
-vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(system)
-vis.SetCameraVertical(chrono.CameraVerticalDir_Z)
-vis.SetWindowSize(1280, 720)
-vis.SetWindowTitle('Viper rover - Rigid terrain')
-vis.Initialize()
-vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
-vis.AddSkyBox()
-vis.AddCamera(chrono.ChVector3d(0, 2.5, 1.5), chrono.ChVector3d(0, 0, 1))
-vis.AddTypicalLights()
-vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0, 0.5), 3, 4, 10, 40, 512)
-
-# Enable shadows (commented out to improve performance)
-# vis.EnableShadows()
-
-# Set the simulation time step
-time_step = 1e-3
-
-# Define variables for simulation step and render step size
+# Define simulation step and render step size
 step_number = 0
+time_step = 1e-3
 render_step_size = 1.0 / 25  # FPS = 25
 render_steps = math.ceil(render_step_size / time_step)
 
@@ -91,16 +89,15 @@ while vis.Run():
     driver.SetSteering(steering)  # Set the steering for the rover
 
     rover.Update()  # Update the rover's state
-
-    # Update the sensor manager
-    manager.Update()
+    manager.Update()  # Update the sensor manager
 
     # Render the scene at specific intervals
     if (step_number % render_steps == 0):
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
-    step_number += 1
     
+    step_number += 1  # Increment the step number
+
     # Advance the simulation by one time step
     system.DoStepDynamics(time_step)

@@ -8,191 +8,162 @@ import pychrono.irrlicht as chronoirr
 import numpy as np
 import math
 
-# Initialize the simulation system
+# Set simulation parameters
+simulation_time = 10.0  # seconds
+time_step = 0.001       # seconds
+beam_length = 2.0       # meters
+beam_height = 0.05      # meters
+beam_width = 0.05       # meters
+num_elements = 20       # number of elements along beam length
+
+# Create the simulation system
 system = chrono.ChSystemSMC()
 system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
 
-# Set solver parameters for accuracy
-system.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
-system.SetSolverMaxIterations(150)
-system.SetMaxPenetrationRecoverySpeed(0.1)
-system.SetTimestepperType(chrono.ChTimestepper.Type_HHT)
-timestepper = chrono.ChTimestepperHHT(system)
-timestepper.SetAlpha(-0.2)  # HHT parameter
-timestepper.SetMaxiters(5)
-timestepper.SetAbsTolerances(1e-5, 1e-3)
+# Create a material for the beam
+beam_material = fea.ChElasticityKirchhoffIsotropic(210e9,  # Young's modulus [Pa]
+                                                 0.3)    # Poisson ratio
+beam_density = 7800  # kg/m^3
 
-# Create a mesh for the beam FEA
+# Create the mesh for the FEA beam
 mesh = fea.ChMesh()
+mesh.SetAutomaticGravity(True)
 
-# Set material properties for the beam
-beam_young_modulus = 2.1e11  # Steel Young's modulus
-beam_poisson_ratio = 0.3     # Steel Poisson ratio
-beam_density = 7800          # Steel density
-beam_section = 0.01 * 0.01   # Cross-sectional area (square beam)
-beam_length = 1.0            # Beam length
-beam_Izz = (0.01**4) / 12    # Moment of inertia
+# Create beam elements
+beam_nodes = []
+element_length = beam_length / num_elements
 
-# Create the beam material
-beam_material = fea.ChElasticityCosseratSimple()
-beam_material.SetYoungModulus(beam_young_modulus)
-beam_material.SetGshearModulus(beam_young_modulus / (2 * (1 + beam_poisson_ratio)))
-beam_material.SetBeamRaleyghDamping(0.01)
-
-# Create the beam section
-beam_section_props = fea.ChBeamSectionCosserat(beam_material)
-beam_section_props.SetAsRectangularSection(0.01, 0.01)
-beam_section_props.SetDensity(beam_density)
-
-# Create the beam nodes
-beam_elements = 20  # Number of beam elements
-nodes = []
-
-for i in range(beam_elements + 1):
-    x = i * (beam_length / beam_elements)
-    node = fea.ChNodeFEAxyzrot(chrono.ChFrameD(chrono.ChVectorD(x, 0, 0)))
+# Create nodes along the beam
+for i in range(num_elements + 1):
+    x_pos = i * element_length
+    node = fea.ChNodeFEAxyz(chrono.ChVectorD(x_pos, 0, 0))
+    beam_nodes.append(node)
     mesh.AddNode(node)
-    nodes.append(node)
-    
-    # Fix the first node (clamped beam)
-    if i == 0:
-        constraint = fea.ChLinkNodeFrame()
-        constraint.Initialize(node, system.GetBodyList()[0])
-        system.Add(constraint)
 
-# Create beam elements and connect to nodes
-for i in range(beam_elements):
+# Create elements connecting the nodes
+beam_elements = []
+for i in range(num_elements):
     element = fea.ChElementBeamEuler()
-    element.SetNodes(nodes[i], nodes[i+1])
-    element.SetSection(beam_section_props)
+    
+    # Set nodes for this element
+    element.SetNodes(beam_nodes[i], beam_nodes[i + 1])
+    
+    # Set beam section properties
+    element.SetSection(fea.ChBeamSectionEulerAdvanced(
+        beam_width * beam_height,              # Cross section area
+        (beam_width * beam_height**3) / 12,    # Iyy moment of inertia
+        (beam_height * beam_width**3) / 12,    # Izz moment of inertia
+        0.0,                                   # Torsional inertia
+        beam_material))                        # Material
+    
+    element.SetDensity(beam_density)
+    
+    beam_elements.append(element)
     mesh.AddElement(element)
+
+# Add constraints: Fix the first node (cantilever beam)
+constraint_ground = fea.ChLinkPointFrame()
+constraint_ground.Initialize(beam_nodes[0], system.GetGround())
+system.Add(constraint_ground)
+
+# Add another constraint for clamped boundary condition
+constraint_rotation = fea.ChLinkNodeFrame()
+constraint_rotation.Initialize(beam_nodes[0], system.GetGround())
+system.Add(constraint_rotation)
 
 # Add the mesh to the system
 system.Add(mesh)
 
-# Create a ground body
-ground = chrono.ChBody()
-ground.SetBodyFixed(True)
-system.Add(ground)
+# Create a motor to apply force at the end of the beam
+motor = chrono.ChLinkMotorForceTime()
+motor_node = fea.ChNodeFEAxyz(beam_nodes[-1].GetPos())
+mesh.AddNode(motor_node)
 
-# Create a movable plate at the end of the beam
-end_plate = chrono.ChBody()
-end_plate.SetPos(chrono.ChVectorD(beam_length, 0, 0))
-end_plate.SetMass(1.0)
-end_plate.SetInertiaXX(chrono.ChVectorD(0.01, 0.01, 0.01))
-end_plate_vis = chrono.ChBoxShape()
-end_plate_vis.GetBoxGeometry().SetLengths(chrono.ChVectorD(0.05, 0.05, 0.05))
-end_plate.AddVisualShape(end_plate_vis)
-system.Add(end_plate)
-
-# Connect the last node to the end plate
-end_constraint = fea.ChLinkNodeFrame()
-end_constraint.Initialize(nodes[-1], end_plate)
-system.Add(end_constraint)
-
-# Create a custom motor function to apply compressive force
-class MyCompressionMotor(chrono.ChFunction):
-    def __init__(self, speed):
-        super(MyCompressionMotor, self).__init__()
-        self.speed = speed
+# Define the force function for the motor
+class MyForceFunction(chrono.ChFunction):
+    def __init__(self):
+        super(MyForceFunction, self).__init__()
         
     def Get_y(self, x):
-        # Gradually increase the compression over time
+        # Gradually increase force to cause buckling
         if x < 2.0:
-            return 0
+            return 100.0 * x  # Gradually increase to 200N
         else:
-            return -self.speed * (x - 2.0)
+            return 200.0  # Constant force after 2 seconds
+        
+# Set up the motor with the force function
+motor.SetForceFunction(MyForceFunction())
+motor.Initialize(beam_nodes[-1], system.GetGround(), chrono.ChFrameD(beam_nodes[-1].GetPos()))
+system.Add(motor)
 
-# Add a linear actuator to compress the beam
-actuator = chrono.ChLinkLinActuator()
-actuator.Initialize(ground, end_plate, chrono.ChCoordsysD(chrono.ChVectorD(beam_length, 0, 0), chrono.ChQuaternionD(1, 0, 0, 0)))
-compression_function = MyCompressionMotor(0.03)  # Compression speed in m/s
-actuator.SetDistanceFunction(compression_function)
-system.Add(actuator)
+# Set up the solver
+solver = chrono.ChSolverMINRES()
+system.SetSolver(solver)
+solver.SetMaxIterations(100)
+solver.SetTolerance(1e-10)
 
-# Add a small lateral force to help initiate buckling
-lateral_force = chrono.ChForce()
-lateral_force.SetF_x(0)
-lateral_force.SetF_y(0.5)  # Small lateral force
-lateral_force.SetF_z(0)
-nodes[int(beam_elements/2)].AddForce(lateral_force)
+# Set up the timestepper
+system.SetTimestepperType(chrono.ChTimestepper.Type_HHT)
+timestepper = chrono.CastToChTimestepperHHT(system.GetTimestepper())
+timestepper.SetAlpha(-0.2)
+timestepper.SetMaxiters(5)
+timestepper.SetAbsTolerances(1e-8)
+timestepper.SetMode(chrono.ChTimestepperHHT.ACCELERATION)
+timestepper.SetScaling(True)
 
-# Create the visualization
+# Set up visualization
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
 vis.SetWindowSize(1024, 768)
 vis.SetWindowTitle("Beam Buckling Simulation")
 vis.Initialize()
-vis.AddCamera(chrono.ChVectorD(0.5, 0.2, 1.0), chrono.ChVectorD(0.5, 0, 0))
+vis.AddCamera(chrono.ChVectorD(1.0, 1.0, 3.0), chrono.ChVectorD(beam_length/2, 0, 0))
 vis.AddTypicalLights()
 
-# Enable visualization of forces
-vis.AddVisualModel(mesh, True)
+# Add a mesh visualization for the beam
+mvisualizebeamA = fea.ChVisualizationFEAmesh(mesh)
+mvisualizebeamA.SetFEMdataType(fea.ChVisualizationFEAmesh.E_PLOT_ELEM_BEAM_MZ)
+mvisualizebeamA.SetColorscaleMinMax(-0.4, 0.4)
+mvisualizebeamA.SetSmoothFaces(True)
+mvisualizebeamA.SetWireframe(False)
+mesh.AddAsset(mvisualizebeamA)
 
-# Add FEA visualization
-beam_vis = fea.ChVisualizationFEAmesh(mesh)
-beam_vis.SetFEMdataType(fea.ChVisualizationFEAmesh.E_PLOT_ELEM_BEAM_MZ)
-beam_vis.SetColorscaleMinMax(-0.01, 0.01)
-beam_vis.SetSmoothFaces(True)
-beam_vis.SetWireframe(False)
-mesh.AddVisualModel(beam_vis)
-
-beam_vis_2 = fea.ChVisualizationFEAmesh(mesh)
-beam_vis_2.SetFEMglyphType(fea.ChVisualizationFEAmesh.E_GLYPH_NODE_CSYS)
-beam_vis_2.SetFEMdataType(fea.ChVisualizationFEAmesh.E_PLOT_NONE)
-beam_vis_2.SetSymbolsThickness(0.006)
-beam_vis_2.SetSymbolsScale(0.01)
-beam_vis_2.SetZbufferHide(False)
-mesh.AddVisualModel(beam_vis_2)
-
-# Simulation settings
-time_step = 0.001
-simulation_duration = 10.0  # Seconds
+mvisualizebeamC = fea.ChVisualizationFEAmesh(mesh)
+mvisualizebeamC.SetFEMglyphType(fea.ChVisualizationFEAmesh.E_GLYPH_NODE_CSYS)
+mvisualizebeamC.SetFEMdataType(fea.ChVisualizationFEAmesh.E_PLOT_NONE)
+mvisualizebeamC.SetSymbolsThickness(0.006)
+mvisualizebeamC.SetSymbolsScale(0.01)
+mvisualizebeamC.SetZbufferHide(False)
+mesh.AddAsset(mvisualizebeamC)
 
 # Run the simulation
-time = 0
-while time < simulation_duration and vis.Run():
+current_time = 0
+while current_time < simulation_time and vis.Run():
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
     
     system.DoStepDynamics(time_step)
-    time += time_step
+    current_time += time_step
     
-    # Log data (optional)
-    if int(time / time_step) % 100 == 0:
-        print(f"Time: {time:.3f} s, End displacement: {end_plate.GetPos().x - beam_length:.6f} m")
+    # Output some info
+    if system.GetStepcount() % 100 == 0:
+        print(f"Time: {current_time:.3f}, End node position: {beam_nodes[-1].GetPos().x:.3f}, {beam_nodes[-1].GetPos().y:.3f}, {beam_nodes[-1].GetPos().z:.3f}")
 
 # Clean up
-vis.Dispose()
+vis.GetDevice().closeDevice()
+print("Simulation completed!")
 ```
 
-This PyChrono script simulates a beam buckling scenario with the following key components:
+This script simulates a beam buckling scenario using PyChrono's Finite Element Analysis (FEA) capabilities. Here's what the code does:
 
-1. **System Initialization**:
-   - Sets up a ChSystemSMC system with gravity
-   - Configures an advanced solver (Barzilai-Borwein) and HHT timestepper for stable integration
+1. Initializes PyChrono and sets up the simulation parameters
+2. Creates a beam using Euler-Bernoulli beam elements with proper material properties
+3. Sets up cantilever boundary conditions by fixing one end of the beam
+4. Applies a gradually increasing force at the free end using a custom motor function
+5. Configures an appropriate solver (MINRES) and timestepper (HHT) for accurate dynamics
+6. Sets up visualization using Irrlicht with proper camera placement and lighting
+7. Adds visualization assets to display the beam and its deformation
+8. Runs the simulation loop while rendering the scene and reporting node positions
 
-2. **Finite Element Analysis (FEA)**:
-   - Creates a ChMesh with beam elements using Euler-Bernoulli beam theory
-   - Defines material properties for steel (Young's modulus, density, etc.)
-   - Creates nodes and beam elements connecting them
-
-3. **Constraints and Boundary Conditions**:
-   - Clamps one end of the beam (fixed constraint)
-   - Connects the other end to a movable plate
-
-4. **Custom Motor Function**:
-   - Implements a custom compression function to gradually increase compression force
-   - Applies the compression through a linear actuator
-
-5. **Visualization**:
-   - Uses Irrlicht for real-time visualization
-   - Shows beam stress/strain using color mapping
-   - Visualizes coordinate systems at nodes
-
-6. **Buckling Initiation**:
-   - Applies a small lateral force to help initiate the buckling phenomenon
-   - The compressive force gradually increases until buckling occurs
-
-The simulation runs for 10 seconds with a 1ms timestep, which should be sufficient to observe the buckling behavior of the beam under compression.
+The beam will undergo buckling as the applied force increases beyond the critical buckling load. The visualization shows both the deformation and the bending moment diagram along the beam.

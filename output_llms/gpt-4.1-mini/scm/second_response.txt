@@ -4,6 +4,7 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
+
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
@@ -20,13 +21,13 @@ chassis_collision_type = veh.CollisionType_NONE
 # Type of tire model (RIGID, TMEASY)
 tire_model = veh.TireModelType_RIGID
 
-# Rigid terrain parameters (not used, terrain is SCM)
+# Rigid terrain
 # terrain_model = veh.RigidTerrain.BOX
 terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
 
-# Point tracked by the camera (pun intended typo "poon" -> "point")
+# Poon chassis tracked by the camera
 trackPoint = chrono.ChVector3d(0.0, 0.0, 1.71)
 
 # Contact method
@@ -41,70 +42,68 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  # FPS = 50
 
 
-# --------- Encapsulate SCM Terrain Parameters ------------
+# --- Encapsulate SCM Terrain Parameters in a class ---
+class SCMTerrainParameters:
+    """
+    Class to encapsulate SCM terrain parameters and provide predefined configurations.
+    """
 
-class SCMTerrainParams:
-    """Class that holds a set of SCM terrain parameters."""
+    def __init__(self, Kphi, Kc, n, cohesion, friction, shear, elastic, damping):
+        self.Kphi = Kphi          # Bekker Kphi
+        self.Kc = Kc              # Bekker Kc
+        self.n = n                # Bekker n exponent
+        self.cohesion = cohesion  # Mohr cohesive limit (Pa)
+        self.friction = friction  # Mohr friction limit (degrees)
+        self.shear = shear        # Janosi shear coefficient (m)
+        self.elastic = elastic    # Elastic stiffness (Pa/m)
+        self.damping = damping    # Damping (Pa s/m)
 
-    def __init__(self, bekker_Kphi, bekker_Kc, bekker_n, mohr_cohesion, mohr_friction_deg,
-                 janosi_shear, elastic_k, damping):
-        self.bekker_Kphi = bekker_Kphi
-        self.bekker_Kc = bekker_Kc
-        self.bekker_n = bekker_n
-        self.mohr_cohesion = mohr_cohesion
-        self.mohr_friction_deg = mohr_friction_deg
-        self.janosi_shear = janosi_shear
-        self.elastic_k = elastic_k
-        self.damping = damping
+    @classmethod
+    def soft(cls):
+        # Example soft soil parameters
+        return cls(
+            Kphi=1e6,
+            Kc=0,
+            n=1.1,
+            cohesion=0,
+            friction=30,
+            shear=0.01,
+            elastic=1e8,
+            damping=3e4
+        )
 
-    @staticmethod
-    def get_params(config_name):
-        """Return preset terrain parameters for named configuration.
-        Presets:
-            - 'soft'
-            - 'mid'
-            - 'hard'
-        """
-        config_name = config_name.lower()
-        if config_name == "soft":
-            return SCMTerrainParams(
-                bekker_Kphi=1.1e6,
-                bekker_Kc=0,
-                bekker_n=1.0,
-                mohr_cohesion=0,
-                mohr_friction_deg=30,
-                janosi_shear=0.01,
-                elastic_k=5e7,
-                damping=3e4
-            )
-        elif config_name == "mid":
-            return SCMTerrainParams(
-                bekker_Kphi=2e6,
-                bekker_Kc=0,
-                bekker_n=1.1,
-                mohr_cohesion=0,
-                mohr_friction_deg=30,
-                janosi_shear=0.01,
-                elastic_k=2e8,
-                damping=3e4
-            )
-        elif config_name == "hard":
-            return SCMTerrainParams(
-                bekker_Kphi=8e6,
-                bekker_Kc=0,
-                bekker_n=1.4,
-                mohr_cohesion=0,
-                mohr_friction_deg=40,
-                janosi_shear=0.02,
-                elastic_k=5e8,
-                damping=8e4
-            )
-        else:
-            raise ValueError(f"Unknown terrain configuration '{config_name}'")
+    @classmethod
+    def mid(cls):
+        # Example medium soil parameters (similar to original)
+        return cls(
+            Kphi=2e6,
+            Kc=0,
+            n=1.1,
+            cohesion=0,
+            friction=30,
+            shear=0.01,
+            elastic=2e8,
+            damping=3e4
+        )
 
-# ---------- Create the HMMWV vehicle, set parameters, and initialize -----------
+    @classmethod
+    def hard(cls):
+        # Example hard soil parameters
+        return cls(
+            Kphi=5e6,
+            Kc=0,
+            n=1.1,
+            cohesion=0,
+            friction=30,
+            shear=0.01,
+            elastic=5e8,
+            damping=3e4
+        )
 
-vehicle = veh.HMMWV_Full()  # veh.HMMWV_Reduced()  could be another choice here
+
+# Create the HMMWV vehicle, set parameters, and initialize
+
+vehicle = veh.HMMWV_Full()  # veh.HMMWV_Reduced() could be another choice here
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
@@ -122,22 +121,21 @@ vehicle.SetTireVisualizationType(vis_type)
 
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
-# ----------- Use SCMTerrainParams class to set terrain parameters -----------
+# Select terrain parameters configuration here:
+terrain_params = SCMTerrainParameters.mid()
 
-# Choose terrain configuration here: 'soft', 'mid', 'hard'
-terrain_config = "mid"
-terrain_params = SCMTerrainParams.get_params(terrain_config)
-
-# Create the SCM deformable terrain patch with parameters from class
+# Create the SCM deformable terrain patch
 terrain = veh.SCMTerrain(vehicle.GetSystem())
-terrain.SetSoilParameters(terrain_params.bekker_Kphi,
-                          terrain_params.bekker_Kc,
-                          terrain_params.bekker_n,
-                          terrain_params.mohr_cohesion,
-                          terrain_params.mohr_friction_deg,
-                          terrain_params.janosi_shear,
-                          terrain_params.elastic_k,
-                          terrain_params.damping)
+terrain.SetSoilParameters(
+    terrain_params.Kphi,
+    terrain_params.Kc,
+    terrain_params.n,
+    terrain_params.cohesion,
+    terrain_params.friction,
+    terrain_params.shear,
+    terrain_params.elastic,
+    terrain_params.damping
+)
 
 # Optionally, enable moving patch feature (single patch around vehicle chassis)
 terrain.AddMovingPatch(vehicle.GetChassisBody(), chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(5, 3, 1))
@@ -183,7 +181,7 @@ print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
 
-# Initialize simulation frame counter
+# Initialize simulation frame counter s
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
@@ -221,10 +219,21 @@ while vis.Run():
 ```
 ---
 
-### Summary of corrections and modifications:
-- Fixed a small typo in the comment ("Poon" -> "Point").
-- Wrapped the SCM terrain soil parameters inside a new class `SCMTerrainParams` with static presets ("soft", "mid", "hard").
-- Removed the direct call with hard-coded parameters to `SetSoilParameters`, replacing it with use of the new class instance.
-- Fixed comment formatting, spacing, and ensured readability.
-- Verified all method calls and attribute usage are correct and consistent with PyChrono Vehicle API.
-- Kept original logic and structure intact except for requested modifications.
+### Explanation of corrections and modifications:
+
+- **Encapsulation of SCM Terrain Parameters:**  
+  Created a new class `SCMTerrainParameters` with an `__init__` method to hold all SCM terrain parameters. Added three class methods (`soft`, `mid`, `hard`) to provide predefined parameter sets.
+
+- **Usage of the new class:**  
+  Replaced the direct call to `terrain.SetSoilParameters(...)` with parameters from an instance of `SCMTerrainParameters`. The example uses the `mid()` preset, which matches the original parameters.
+
+- **No syntax or method errors found:**  
+  The original script was mostly correct. The only minor issue was the comment typo "Poon chassis" → left as is since it is a comment and does not affect execution.
+
+- **Formatting and style:**  
+  Added docstring to the new class for clarity.
+
+- **No changes to logic or simulation loop:**  
+  The simulation loop and other parts remain unchanged.
+
+This script should run correctly and now meets the requirement to encapsulate SCM terrain parameters in a class with predefined configurations.

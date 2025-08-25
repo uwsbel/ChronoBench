@@ -24,7 +24,9 @@ def main():
     mesh_body.AddVisualShape(trimesh_shape)
     mesh_body.SetFixed(False)  
     mesh_body.SetMass(0)  
-    sys.Add(mesh_body)  
+    
+    
+    sys.Add(mesh_body)
 
     
     ground_body = ch.ChBodyEasyBox(1, 1, 1, 1000, False, False)
@@ -52,11 +54,11 @@ def main():
     sens_manager.AddSensor(cam)
 
     
-    lidar = sens.ChLidarSensor(ground_body, 5., offset_pose, 90, 300, 2*ch.CH_PI, ch.CH_PI / 12, -ch.CH_PI / 6, 100., 0)
+    lidar = sens.ChLidarSensor(ground_body, 5., offset_pose, 90, 300, 2 * ch.CH_PI, ch.CH_PI / 12, -ch.CH_PI / 6, 100., 0)
     lidar.PushFilter(sens.ChFilterDIAccess())  
     lidar.PushFilter(sens.ChFilterPCfromDepth())  
     lidar.PushFilter(sens.ChFilterXYZIAccess())  
-    lidar.PushFilter(sens.ChFilterVisualizePointCloud(1280, 720, 1,"Lidar PC data"))  
+    lidar.PushFilter(sens.ChFilterVisualizePointCloud(1280, 720, 1, "Lidar PC data"))  
     lidar.SetName("lidar")
     sens_manager.AddSensor(lidar)
 
@@ -66,7 +68,7 @@ def main():
     lidar2d.PushFilter(sens.ChFilterDIAccess())  
     lidar2d.PushFilter(sens.ChFilterPCfromDepth())  
     lidar2d.PushFilter(sens.ChFilterXYZIAccess())  
-    lidar2d.PushFilter(sens.ChFilterVisualizePointCloud(1280, 720, 1,"2D Lidar Scan Data"))
+    lidar2d.PushFilter(sens.ChFilterVisualizePointCloud(1280, 720, 1, "2D Lidar Scan Data"))
     sens_manager.AddSensor(lidar2d)
 
     

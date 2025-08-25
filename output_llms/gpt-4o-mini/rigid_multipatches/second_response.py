@@ -3,7 +3,7 @@ import pychrono.vehicle as veh
 import pychrono.irrlicht as irr
 
 def main():
-    #  Create the HMMWV vehicle, set parameters, and initialize
+    # Create the HMMWV vehicle, set parameters, and initialize
     hmmwv = veh.HMMWV_Full()
     hmmwv.SetContactMethod(chrono.ChContactMethod_NSC)
     hmmwv.SetChassisFixed(False)
@@ -26,21 +26,23 @@ def main():
     # Create the terrain with a single patch
     terrain = veh.RigidTerrain(hmmwv.GetSystem())
 
-    # Define contact material for the terrain
+    # Define a single contact material for the terrain
     terrain_material = chrono.ChContactMaterialNSC()
     terrain_material.SetFriction(0.9)
     terrain_material.SetRestitution(0.01)
 
     # Add a single terrain patch using a mesh
     terrain_patch = terrain.AddPatch(terrain_material, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
-                                      veh.GetDataFile("vehicle/terrain/meshes/Highway_col.obj"), 64.0, 64.0, 0.01)
+                                     veh.GetDataFile("vehicle/terrain/meshes/Highway_col.obj"), 64.0, 64.0, 0.01)
     
-    # Add visual mesh to the terrain
-    visual_mesh = chrono.ChVisualShapeTriangleMesh()
-    visual_mesh.SetMesh(veh.GetDataFile("vehicle/terrain/meshes/Highway_vis.obj"))
-    terrain_patch.GetGroundBody().AddVisualShape(visual_mesh)
-
+    # Initialize the terrain
     terrain.Initialize()
+
+    # Create the visual mesh for the terrain
+    visual_mesh = chrono.ChVisualShapeTriangleMesh()
+    visual_mesh.SetMeshFile(veh.GetDataFile("vehicle/terrain/meshes/Highway_vis.obj"))
+    visual_mesh.SetColor(chrono.ChColor(0.5, 0.5, 0.5))  # Set a default color for the visual mesh
+    terrain_patch.GetGroundBody().AddVisualShape(visual_mesh)
 
     # Create the vehicle Irrlicht interface
     vis = veh.ChWheeledVehicleVisualSystemIrrlicht()

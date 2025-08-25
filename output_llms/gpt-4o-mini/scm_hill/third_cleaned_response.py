@@ -59,7 +59,7 @@ vehicle.SetTireVisualizationType(vis_type)
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
-terrain = veh.RigidTerrain(vehicle.GetSystem())  
+terrain = veh.RigidTerrain(vehicle.GetSystem())
 terrain.Initialize(chrono.ChCoordsysd(chrono.ChVector3d(0, 0, terrainHeight), chrono.ChQuaterniond(1, 0, 0, 0)),
                    terrainLength, terrainWidth)
 

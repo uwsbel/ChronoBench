@@ -1,72 +1,73 @@
-import pychrono as chrono
+import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
 
 # Initialize the PyChrono environment
 chrono.SetChronoDataPath('path/to/chrono/data/')  # Set the path to your Chrono data
+chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.001)
+chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.001)
+
+# Create the simulation system
 system = chrono.ChSystemNSC()
 
-# Create Irrlicht visualization
-application = chronoirr.ChIrrApp(system, "CityBus Simulation", chronoirr.dimension2du(800, 600))
-application.SetSkyBox()
-application.AddLogo()
-application.AddCamera(chrono.ChVectorD(0, 5, -10), chrono.ChVectorD(0, 0, 0))
-application.AddTypicalLights()
-application.SetFPS(50)
-
-# Create a Rigid Terrain
+# Create a RigidTerrain
 terrain = chrono.ChTerrain()
-terrain.SetTexture("path/to/your/texture.png")  # Set the path to your custom texture
-terrain.Initialize(system)
+terrain.SetGround(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(100, 0, 100))
+terrain.SetTexture("path/to/your/texture.jpg")  # Set your custom texture
+system.Add(terrain)
 
 # Create the CityBus vehicle
 bus = chrono.ChVehicle()
 bus.SetChassis(chrono.ChVectorD(0, 0.5, 0), chrono.ChQuaternionD(1, 0, 0, 0))  # Set initial position and orientation
-bus.SetTireModel(chrono.ChVehicleTireModel("path/to/tire/model"))  # Set the tire model
 
-# Add the bus to the system
-system.Add(bus)
+# Set up the bus parameters (mass, inertia, etc.)
+bus.SetMass(5000)  # Example mass
+bus.SetInertiaXX(chrono.ChVectorD(1000, 1000, 1000))  # Example inertia
 
-# Set up vehicle parameters
-bus.SetSteering(0.0)  # Initial steering angle
-bus.SetThrottle(0.0)  # Initial throttle
-bus.SetBraking(0.0)   # Initial braking
+# Add wheels and tires to the bus
+for i in range(4):
+    tire = chrono.ChTire()  # Create a tire model
+    bus.AddTire(tire, i)  # Add tire to the bus
 
-# Create a driver system for interactive control
-class Driver:
-    def __init__(self, vehicle):
-        self.vehicle = vehicle
+# Set up visualization
+bus.SetVisualizationType(chrono.ChVehicle.VisualizationType.MESH)  # Use mesh for the bus
+bus.SetMeshFile("path/to/bus_mesh.obj")  # Set the mesh file for the bus
 
-    def Update(self):
-        # Here you can implement keyboard controls for steering, throttle, and braking
-        # For example, using keyboard input to control the vehicle
-        key = application.GetDevice().getKeyPressed()
-        if key == 'W':  # Accelerate
-            self.vehicle.SetThrottle(1.0)
-        elif key == 'S':  # Brake
-            self.vehicle.SetBraking(1.0)
-        elif key == 'A':  # Turn left
-            self.vehicle.SetSteering(-0.1)
-        elif key == 'D':  # Turn right
-            self.vehicle.SetSteering(0.1)
-        else:
-            self.vehicle.SetThrottle(0.0)
-            self.vehicle.SetBraking(0.0)
-            self.vehicle.SetSteering(0.0)
+# Create the Irrlicht visualization
+application = chronoirr.ChIrrApp(system, "CityBus Simulation", chronoirr.dimension2d(800, 600))
+application.AddLogo()
+application.AddSkyBox()
+application.AddCamera(chrono.ChVectorD(0, 5, -10), chrono.ChVectorD(0, 0, 0))  # Set camera position
+application.AddLight(chrono.ChVectorD(0, 10, -10), chrono.ChVectorD(1, 1, 1))  # Add light source
 
-driver = Driver(bus)
+# Set the simulation parameters
+application.SetTimestep(0.02)  # 50 FPS
+application.SetTryToUpdate(1)
+
+# Interactive driver system
+steering = 0.0
+throttle = 0.0
+braking = 0.0
+
+def driver_input():
+    global steering, throttle, braking
+    # Implement input handling for steering, throttle, and braking
+    # This is a placeholder for actual input handling code
+    # You can use libraries like pygame or keyboard to capture input
 
 # Simulation loop
 while application.GetDevice().run():
-    application.BeginScene()
+    driver_input()  # Update driver input
+
+    # Update vehicle dynamics
+    bus.SetSteering(steering)
+    bus.SetThrottle(throttle)
+    bus.SetBraking(braking)
+
+    # Update the system
+    system.DoStepDynamics(application.GetTimestep())
+
+    # Render the scene
     application.DrawAll()
 
-    # Update the driver controls
-    driver.Update()
-
-    # Step the simulation
-    system.DoStepDynamics(1.0 / 50.0)  # Step at 50 FPS
-
-    application.EndScene()
-
 # Clean up
-application.Close()
+application.GetDevice().drop()

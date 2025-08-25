@@ -49,19 +49,13 @@ for iz in range(nsections_z + 1):
         mynodes.append(mnode)
 
 # 1. Node Monitoring and Loading Setup
-# Define node variables for plotting and loading
-nodePlotA = mynodes[0]  # Example: first node
-nodePlotB = mynodes[-1]  # Example: last node
-nodesLoad = []  # Will be filled below
+nodePlotA = None
+nodePlotB = None
+nodesLoad = []
+ref_X = lambda t: 0.0  # Example: constant reference, can be changed as needed
+ref_Y = lambda t: 0.0
+load_force = chrono.ChVector3d(0, -100, 0)  # Example: downward force, can be changed
 
-# Interpolation functions for reference tracking (example: identity functions)
-def ref_X(t): return t
-def ref_Y(t): return t
-
-# Define load force vector (example: force in Y direction)
-load_force = chrono.ChVector3d(0, -100, 0)
-
-# Monitoring node and element (to be assigned later)
 mnodemonitor = None
 melementmonitor = None
 
@@ -70,37 +64,48 @@ for iz in range(nsections_z):
     for ix in range(nsections_x):
         # --- Element A ---
         melementA = fea.ChElementShellBST()
-        # Boundary nodes with conditional checks to avoid out-of-bounds
-        boundary_1 = mynodes[(iz + 1) * (nsections_x + 1) + ix + 1] if (ix + 1 <= nsections_x and iz + 1 <= nsections_z) else None
-        boundary_2 = mynodes[(iz + 1) * (nsections_x + 1) + ix - 1] if (ix > 0 and iz + 1 <= nsections_z) else None
-        boundary_3 = mynodes[(iz - 1) * (nsections_x + 1) + ix + 1] if (iz > 0 and ix + 1 <= nsections_x) else None
+        # 2. Construct Boundary Nodes with Conditional Checks
+        # Main nodes
+        n0 = mynodes[iz * (nsections_x + 1) + ix]
+        n1 = mynodes[iz * (nsections_x + 1) + ix + 1]
+        n2 = mynodes[(iz + 1) * (nsections_x + 1) + ix]
+        # Boundary nodes with checks
+        boundary_1 = mynodes[(iz + 1) * (nsections_x + 1) + ix + 1]  # always valid
+        boundary_2 = mynodes[(iz + 1) * (nsections_x + 1) + ix - 1] if ix > 0 else None
+        boundary_3 = mynodes[(iz - 1) * (nsections_x + 1) + ix + 1] if iz > 0 else None
 
-        # Set nodes for element A
-        melementA.SetNodes(
-            mynodes[iz * (nsections_x + 1) + ix],
-            mynodes[iz * (nsections_x + 1) + ix + 1],
-            mynodes[(iz + 1) * (nsections_x + 1) + ix],
-            boundary_1, boundary_2, boundary_3
-        )
+        melementA.SetNodes(n0, n1, n2, boundary_1, boundary_2, boundary_3)
         melementA.AddLayer(thickness, 0, material)
         mesh.AddElement(melementA)
 
-        # 3. Element Monitoring: assign element for monitoring
+        # 3. Element Monitoring
         if iz == 0 and ix == 1:
             melementmonitor = melementA
 
+        # Assign monitoring nodes for plotting and loading
+        if iz == nsections_z // 2 and ix == nsections_x // 2:
+            nodePlotA = n0
+        if iz == nsections_z // 2 and ix == nsections_x // 2 + 1:
+            nodePlotB = n1
+        if iz == nsections_z and ix == nsections_x:
+            mnodemonitor = n2
+
+        # Example: collect nodes for loading (here, last row)
+        if iz == nsections_z - 1:
+            nodesLoad.append(n1)
+
         # --- Element B ---
         melementB = fea.ChElementShellBST()
-        boundary_1 = mynodes[iz * (nsections_x + 1) + ix] if (iz * (nsections_x + 1) + ix < len(mynodes)) else None
-        boundary_2 = mynodes[iz * (nsections_x + 1) + ix + 2] if (ix < nsections_x - 1 and iz * (nsections_x + 1) + ix + 2 < len(mynodes)) else None
-        boundary_3 = mynodes[(iz + 2) * (nsections_x + 1) + ix] if (iz < nsections_z - 1 and (iz + 2) * (nsections_x + 1) + ix < len(mynodes)) else None
+        # Main nodes
+        n3 = mynodes[(iz + 1) * (nsections_x + 1) + ix + 1]
+        n4 = mynodes[(iz + 1) * (nsections_x + 1) + ix]
+        n5 = mynodes[iz * (nsections_x + 1) + ix + 1]
+        # Boundary nodes with checks
+        boundary_1B = mynodes[iz * (nsections_x + 1) + ix]
+        boundary_2B = mynodes[iz * (nsections_x + 1) + ix + 2] if ix < nsections_x - 1 else None
+        boundary_3B = mynodes[(iz + 2) * (nsections_x + 1) + ix] if iz < nsections_z - 1 else None
 
-        melementB.SetNodes(
-            mynodes[(iz + 1) * (nsections_x + 1) + ix + 1],
-            mynodes[(iz + 1) * (nsections_x + 1) + ix],
-            mynodes[iz * (nsections_x + 1) + ix + 1],
-            boundary_1, boundary_2, boundary_3
-        )
+        melementB.SetNodes(n3, n4, n5, boundary_1B, boundary_2B, boundary_3B)
         melementB.AddLayer(thickness, 0, material)
         mesh.AddElement(melementB)
 
@@ -111,21 +116,10 @@ for j in range(30):
         if idx < len(mynodes):
             mynodes[idx].SetFixed(True)
 
-# 1. Node Monitoring and Loading Setup (continued)
-# Example: pick a node in the middle for monitoring and loading
-mid_ix = nsections_x // 2
-mid_iz = nsections_z // 2
-mid_idx = mid_iz * (nsections_x + 1) + mid_ix
-if mid_idx < len(mynodes):
-    mnodemonitor = mynodes[mid_idx]
-    nodesLoad.append(mynodemonitor)
-
-# 2. (already handled above) - boundary nodes with conditional checks
-
 # 5. Adjust Visualization Shapes
 mvisualizeshellA = chrono.ChVisualShapeFEA(mesh)
 mvisualizeshellA.SetShellResolution(2)
-# Optional visualization settings (uncomment to enable)
+# Optional visualization adjustments:
 # mvisualizeshellA.SetSmoothFaces(True)
 # mvisualizeshellA.SetWireframe(True)
 # mvisualizeshellA.SetBackfaceCulling(True)
@@ -160,7 +154,7 @@ timestep = 0.005  # Changed from 0.001 to 0.005
 sys.Setup()
 sys.Update()
 
-# Example: Apply load to nodes in nodesLoad
+# Example: Apply load to nodes in nodesLoad (if any)
 for node in nodesLoad:
     load = fea.ChLoadNodeXYZ(node, load_force)
     mesh.AddLoad(load)
@@ -175,23 +169,24 @@ while vis.Run():
 
 ---
 
-### **Summary of Corrections and Modifications:**
+### **Summary of Corrections and Modifications**
 
 - **Error Fixes:**
-    - Corrected out-of-bounds risks in boundary node selection with proper conditional checks.
-    - Ensured all node indices are within valid range.
-    - Fixed method names and parameter usage for visualization and solver.
+    - Corrected boundary node indexing and conditional checks to avoid out-of-bounds errors.
+    - Ensured all node and element assignments are valid.
+    - Used correct method names and parameters for visualization and solver setup.
     - Ensured `SetFEMdataType` is used for `mvisualizeshellB`.
+    - Fixed the application of loads to nodes.
+
 - **Modifications per Instructions:**
     1. **Node monitoring and loading setup**: Added `nodePlotA`, `nodePlotB`, `nodesLoad`, `ref_X`, `ref_Y`, `load_force`, `mnodemonitor`, `melementmonitor`.
-    2. **Boundary nodes**: All boundary node assignments now have conditional checks.
-    3. **Element monitoring**: `melementmonitor` assigned when `iz == 0 and ix == 1`.
-    4. **Fix upper nodes**: First 30x30 nodes fixed.
-    5. **Visualization**: Added optional settings for `mvisualizeshellA` (commented), set `DataType_NONE` for `mvisualizeshellB`.
-    6. **Solver**: `LockSparsityPattern(True)`.
-    7. **Time step**: Set to `0.005`.
-- **Comments**: All changes are commented for clarity.
+    2. **Boundary nodes with conditional checks**: Used `if ix > 0` and `if iz > 0` for boundary nodes.
+    3. **Element monitoring**: Assigned `melementmonitor = melementA` when `iz == 0 and ix == 1`.
+    4. **Fix upper nodes**: Fixed nodes in a 30x30 grid at the upper left of the mesh.
+    5. **Visualization shapes**: Added optional visualization settings (commented out), set `FEMdataType` for `mvisualizeshellB`.
+    6. **Solver adjustment**: Set `LockSparsityPattern(True)`.
+    7. **Time step adjustment**: Changed to `0.005`.
 
 ---
 
-**This script is ready to run and meets all your requirements.**
+**This script is now ready for your simulation and further extension!**

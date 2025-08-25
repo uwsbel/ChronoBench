@@ -2,72 +2,66 @@ import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
 
 # Initialize the PyChrono environment
-chrono.ChSystemNSC.SetNumThreads(1)
+chrono.SetChronoDataPath('path/to/chrono/data/')  # Set the path to Chrono data files
 system = chrono.ChSystemNSC()
 
-# Create a ground body
-ground = chrono.ChBody()
-ground.SetBodyFixed(True)
-system.Add(ground)
-
-# Define beam parameters
+# Create a beam composed of ANCF cable elements
 beam_length = 5.0  # Length of the beam
-num_elements = 10   # Number of ANCF elements
+num_elements = 10   # Number of cable elements
 element_length = beam_length / num_elements
-beam_radius = 0.1   # Radius of the beam
 
-# Create ANCF cable elements
-ancf_cable = chrono.ChCable()
-ancf_cable.SetDensity(1000)  # Density of the cable material
+# Create a list to hold the cable elements
+cable_elements = []
 
-# Add nodes to the ANCF cable
-for i in range(num_elements + 1):
-    node = chrono.ChNodeFEAxyz(chrono.ChVectorD(i * element_length, 0, 0))
-    node.SetMass(0.1)  # Mass of each node
-    ancf_cable.AddNode(node)
+# Create the first node (hinged to the ground)
+node0 = chrono.ChNodeFEAxyz(chrono.ChVectorD(0, 0, 0))
+node0.SetFixed(True)  # Fixed at the ground
+system.AddNode(node0)
 
-# Connect nodes with elements
+# Create the cable elements
 for i in range(num_elements):
-    element = chrono.ChElementCableANCF()
-    element.SetNodes(ancf_cable.GetNode(i), ancf_cable.GetNode(i + 1))
-    element.SetDiameter(beam_radius)
-    element.SetYoungModulus(2e11)  # Young's modulus of the material
-    element.SetDensity(1000)  # Density of the material
-    system.Add(element)
+    # Create a new node for the current element
+    node = chrono.ChNodeFEAxyz(chrono.ChVectorD(i * element_length, 0, 0))
+    system.AddNode(node)
 
-# Add gravity
+    # Create the cable element connecting the previous node to the current node
+    if i > 0:
+        cable_element = chrono.ChElementCableANCF()
+        cable_element.SetNodes(node0, node)
+        cable_element.SetDiameter(0.05)  # Set diameter of the cable
+        cable_element.SetDensity(1000)    # Set density of the cable material
+        cable_elements.append(cable_element)
+        system.AddElement(cable_element)
+
+# Apply gravity
 gravity = chrono.ChForce()
 gravity.SetMode(chrono.ChForce.FORCE)
-gravity.SetV(chrono.ChVectorD(0, -9.81, 0))
-system.Add(gravity)
+gravity.SetF(chrono.ChVectorD(0, -9.81 * 1000 * element_length, 0))  # Gravity force
+system.AddForce(gravity)
 
-# Create Irrlicht visualization
+# Set up the Irrlicht visualization
 application = chronoirr.ChIrrApp(system, "ANCF Beam Simulation", chronoirr.dimension2d(800, 600))
-application.AddLogo(chrono.GetChronoDataPath() + "logo_pychrono.png")
 application.AddSkyBox()
-application.AddCamera(chrono.ChVectorD(0, 5, 10), chrono.ChVectorD(0, 0, 0))
-application.AddLight(chrono.ChVectorD(10, 10, 10), chrono.ChVectorD(1, 1, 1))
+application.AddCamera(chrono.ChVectorD(0, 2, -10), chrono.ChVectorD(0, 0, 0))
+application.AddLight(chrono.ChVectorD(0, 10, -10), chrono.ChVectorD(1, 1, 1))
 
-# Main simulation loop
+# Simulation loop
 while application.GetDevice().run():
-    system.DoStepDynamics(0.01)  # Step the simulation
-
-    # Clear the previous visualization
     application.BeginScene()
     application.DrawAll()
 
-    # Draw the ANCF cable elements
-    for i in range(num_elements):
-        node1 = ancf_cable.GetNode(i)
-        node2 = ancf_cable.GetNode(i + 1)
-        application.DrawLine(node1.GetPos(), node2.GetPos(), chrono.ChColor(0, 0, 1))
+    # Update the system
+    system.DoStepDynamics(0.01)  # Step the simulation
 
-    # Draw the nodes
-    for i in range(num_elements + 1):
-        node = ancf_cable.GetNode(i)
-        application.DrawPoint(node.GetPos(), chrono.ChColor(1, 0, 0), 0.1)
+    # Visualize the deformation and nodal positions
+    for element in cable_elements:
+        # Get the positions of the nodes
+        node_a = element.GetNodeA().GetPos()
+        node_b = element.GetNodeB().GetPos()
+        # Draw the cable element as a line
+        application.DrawLine(node_a, node_b, chrono.ChColor(1, 0, 0))  # Red color for the cable
 
     application.EndScene()
 
-# Cleanup
-application.Close()
+# Clean up
+application.GetDevice().drop()

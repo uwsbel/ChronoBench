@@ -38,22 +38,26 @@ rover.SetDriver(driver)
 # Initialize rover position and orientation
 init_pos = chrono.ChVector3d(-5, 0.0, 0)
 init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
-rover.Initialize(chrono.ChFrameD(init_pos, init_rot))  # Corrected to ChFrameD
+rover.Initialize(chrono.ChFramed(init_pos, init_rot))
 
 # Create sensor manager
 sensor_manager = sens.ChSensorManager(system)  # Created sensor manager
 
-# Add a lidar sensor to the rover
-lidar = sens.ChLidarSensor()  # Create lidar sensor
+# Add Lidar sensor to the rover
+lidar = sens.ChLidarSensor()  # Create the lidar sensor
 lidar.SetUpdateRate(10)  # Set update rate (Hz)
-lidar.SetHorizontalSamples(360)  # Set number of horizontal samples
-lidar.SetVerticalSamples(1)  # Set number of vertical samples
-lidar.SetFieldOfView(chrono.CH_C_PI / 4)  # Set field of view (45 degrees)
-lidar.SetRange(10)  # Set range (10 meters)
+lidar.SetHorizontalSamples(360)  # Number of horizontal samples
+lidar.SetVerticalSamples(1)  # Number of vertical samples
+lidar.SetFieldOfView(chrono.CH_C_PI / 4)  # Field of view (radians)
+lidar.SetRange(10.0)  # Maximum range of the lidar sensor
 lidar.SetPos(chrono.ChVector3d(0, 0, 0.5))  # Position the lidar sensor on the rover
-lidar.SetParent(rover.GetChassis())  # Attach lidar to the rover's chassis
-lidar.SetFilter(sens.ChLidarSensor.FilterType.MEAN)  # Set filter for lidar data
-sensor_manager.AddSensor(lidar)  # Add lidar sensor to the sensor manager
+lidar.SetParent(rover.GetChassis())  # Attach to rover's chassis
+
+# Set up filters for lidar data (if needed)
+# lidar.SetFilter(...)  # Example of setting up a filter (not specified in instructions)
+
+# Add the lidar sensor to the sensor manager
+sensor_manager.AddSensor(lidar)
 
 # Create the Irrlicht visualization
 vis = chronoirr.ChVisualSystemIrrlicht()
@@ -85,7 +89,7 @@ while vis.Run():
     # Update rover dynamics
     rover.Update()
 
-    # Update the sensor manager
+    # Update sensor manager
     sensor_manager.Update()  # Include updating the sensor manager
 
     # Render the scene

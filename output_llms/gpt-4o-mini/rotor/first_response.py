@@ -4,80 +4,75 @@ import pychrono.fea as fea
 
 # Initialize the PyChrono environment
 chrono.SetChronoDataPath('/path/to/chrono/data/')  # Set your Chrono data path
-chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.001)
-chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.001)
+chrono.ChSystemNSC()  # Create a Chrono system
 
-# Create the system
-system = chrono.ChSystemNSC()
+# Create a visualization window
+application = chronoirr.ChIrrApp(chrono.ChSystemNSC(), "Jeffcott Rotor Simulation", chronoirr.dimension2du(800, 600))
+application.AddLogo(chrono.GetChronoDataPath() + "logo_pychrono_alpha.png")
+application.SetSkyBox()
+application.SetCamera(chrono.ChVectorD(0, 0, 5), chrono.ChVectorD(0, 0, 0))
+application.SetLight(chrono.ChVectorD(0, 10, 10), chrono.ChVectorD(1, 1, 1))
 
-# Create a beam using Isogeometric Analysis (IGA)
-beam_length = 1.0  # Length of the beam
-beam_height = 0.1  # Height of the beam
-beam_width = 0.1   # Width of the beam
+# Create the beam using Isogeometric Analysis (IGA)
+beam_length = 2.0  # Length of the beam
+beam_height = 0.1   # Height of the beam
+beam_width = 0.1    # Width of the beam
 beam_density = 7800  # Density of the beam material (kg/m^3)
 
-# Create the IGA beam
-beam = fea.ChBeamSectionCable()
-beam.SetDiameter(beam_width)
+# Create a beam object
+beam = fea.ChBeamSectionCable()  # Create a beam section
 beam.SetDensity(beam_density)
+beam.SetYoungModulus(2.1e11)  # Young's modulus (Pa)
+beam.SetPoissonRatio(0.3)      # Poisson's ratio
 
-# Create a beam element
-beam_element = fea.ChBeamElementCable()
+# Create the beam mesh
+beam_mesh = fea.ChMesh()
+beam_mesh.SetAutomaticGravity(False)
+
+# Create nodes for the beam
+node1 = fea.ChNodeFEAxyz(chrono.ChVectorD(0, 0, 0))
+node2 = fea.ChNodeFEAxyz(chrono.ChVectorD(beam_length, 0, 0))
+beam_mesh.AddNode(node1)
+beam_mesh.AddNode(node2)
+
+# Create the beam element
+beam_element = fea.ChElementBeamEuler()
+beam_element.SetNodes(node1, node2)
 beam_element.SetSection(beam)
-beam_element.SetLength(beam_length)
+beam_mesh.AddElement(beam_element)
 
-# Create a beam node at the start and end
-node_start = fea.ChBeamNodeFEA()
-node_end = fea.ChBeamNodeFEA()
-node_start.SetPos(chrono.ChVectorD(0, 0, 0))
-node_end.SetPos(chrono.ChVectorD(beam_length, 0, 0))
-
-# Add nodes to the beam element
-beam_element.AddNode(node_start)
-beam_element.AddNode(node_end)
-
-# Create a beam material
-material = chrono.ChMaterialSurfaceNSC()
-material.SetFriction(0.4)
-
-# Create a FEA beam and add it to the system
-fea_beam = fea.ChBeam()
-fea_beam.AddElement(beam_element)
-fea_beam.SetMaterial(material)
-system.Add(fea_beam)
+# Add the beam mesh to the system
+chrono.ChSystemNSC().Add(beam_mesh)
 
 # Create a flywheel at the center of the beam
-flywheel_radius = 0.1
+flywheel_radius = 0.2
 flywheel_mass = 5.0  # Mass of the flywheel (kg)
-flywheel = chrono.ChBody()
-flywheel.SetMass(flywheel_mass)
+
+flywheel = chrono.ChBodyEasySphere(flywheel_radius, flywheel_mass, True, True)
 flywheel.SetPos(chrono.ChVectorD(beam_length / 2, 0, 0))
 flywheel.SetInertiaXX(chrono.ChVectorD(0.1, 0.1, 0.1))  # Set inertia
-flywheel.SetMaterialSurface(material)
-system.Add(flywheel)
+chrono.ChSystemNSC().Add(flywheel)
 
-# Create a rotational motor at one end of the beam
+# Create a rotational motor to drive one end of the beam
 motor = chrono.ChLinkMotorRotation()
-motor.Initialize(node_start, flywheel, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)))
-motor.SetMotorFunction(chrono.ChFunction_Const(100))  # Set constant speed
-system.Add(motor)
+motor.Initialize(node1, flywheel, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)))
+motor.SetMotorFunction(chrono.ChFunction_Const(10))  # Set constant speed (rad/s)
+chrono.ChSystemNSC().Add(motor)
 
-# Set up the Irrlicht visualization
-application = chronoirr.ChIrrApp(system, "Jeffcott Rotor Simulation", chronoirr.dimension2d(800, 600))
-application.AddSkyBox()
-application.AddCamera(chrono.ChVectorD(2, 2, 2), chrono.ChVectorD(0, 0, 0))
-application.AddLight(chrono.ChVectorD(2, 2, 2), chrono.ChVectorD(1, 1, 1))
+# Set the simulation parameters
+chrono.ChSystemNSC().SetSolverType(chrono.ChSolver.Type_SOR)
+chrono.ChSystemNSC().SetMaxItersSolverSpeed(100)
+chrono.ChSystemNSC().SetMaxItersSolverStab(100)
 
-# Add FEM visualization
-application.AssetBindAll()
-application.AssetUpdateAll()
+# Set the time step and simulation duration
+time_step = 0.01
+simulation_duration = 10.0
 
-# Simulation loop
+# Run the simulation
 while application.GetDevice().run():
-    application.BeginScene()
+    chrono.ChSystemNSC().DoStepDynamics(time_step)
     application.DrawAll()
-    application.EndScene()
-    system.DoStepDynamics(0.01)  # Step the simulation
+    application.DoStep()
 
 # Clean up
-application.GetDevice().drop()
+application.AssetManager().ClearAllAssets()

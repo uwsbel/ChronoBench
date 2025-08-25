@@ -1,4 +1,4 @@
-# PyChrono BMW E90 Sedan Simulation
+# PyChrono BMW E90 Sedan Driving Simulation
 
 ```python
 import pychrono as chrono
@@ -7,213 +7,148 @@ import pychrono.irrlicht as irr
 import os
 import math
 
-# ---------------------------------------------------------------------
-# Global parameters
-# ---------------------------------------------------------------------
+# Global simulation parameters
+step_size = 1e-3  # Simulation step size
+terrain_length = 100.0  # Length of the terrain
+terrain_width = 100.0  # Width of the terrain
 
-# Simulation step size
-step_size = 1e-3
+# Initialize the ChronoEngine system
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+system.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
+system.SetSolverMaxIterations(150)
+system.SetMaxPenetrationRecoverySpeed(4.0)
 
-# Simulation length (in seconds)
-simulation_time = 1000
+# Create the ground body
+ground = chrono.ChBodyEasyBox(terrain_length, 0.2, terrain_width, 2000, True, True)
+ground.SetPos(chrono.ChVectorD(0, -0.1, 0))
+ground.SetBodyFixed(True)
+system.Add(ground)
 
-# BMW E90 Sedan JSON specification files
-vehicle_file = "vehicle/BMW_E90.json"
-powertrain_file = "powertrain/BMW_E90_SimplePowertrain.json"
-tire_file = "tire/BMW_E90_TMeasy.json"
+# Apply texture to the ground
+ground_asset = ground.GetAssets()[0]
+ground_visual = chrono.CastToChVisualization(ground_asset)
+ground_texture = chrono.ChTexture()
+ground_texture.SetTextureFilename(chrono.GetChronoDataFile("textures/concrete.jpg"))
+ground_visual.AddTexture(ground_texture)
 
-# Initial vehicle position and orientation
-init_pos = chrono.ChVectorD(0, 0, 0.5)
-init_rot = chrono.ChQuaternionD(1, 0, 0, 0)
+# Create BMW E90 vehicle
+# Initialize the vehicle system
+vehicle_sys = veh.ChVehicle(system)
+vehicle_sys.SetChassisFixed(False)
+vehicle_sys.SetChassisVis(veh.VisualizationType_PRIMITIVES)
+vehicle_sys.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0.5, 0), chrono.ChQuaternionD(1, 0, 0, 0)))
 
-# Path to Chrono data directory
-chrono_data_dir = "/path/to/chrono/data/"  # Change this to your Chrono data directory
+# Create and initialize the BMW E90 Sedan
+e90 = veh.BMW_E90()
+e90.SetContactMethod(chrono.ChContactMethod_NSC)
+e90.SetChassisCollisionType(veh.ChassisCollisionType_NONE)
+e90.SetChassisFixed(False)
+e90.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0.5, 0), chrono.ChQuaternionD(1, 0, 0, 0)))
+e90.SetTireType(veh.TireModelType_TMEASY)
+e90.SetTireStepSize(step_size)
+e90.Initialize()
 
-# ---------------------------------------------------------------------
-# Initialize the Chrono system
-# ---------------------------------------------------------------------
-
-# Create the Chrono system
-sys = chrono.ChSystemNSC()
-sys.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
-
-# Set solver and integrator parameters
-sys.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
-sys.SetSolverMaxIterations(150)
-sys.SetMaxPenetrationRecoverySpeed(4.0)
-sys.SetMinBounceSpeed(2.0)
-sys.SetSolverForceTolerance(0)
-
-# ---------------------------------------------------------------------
 # Create the terrain
-# ---------------------------------------------------------------------
-
-terrain = veh.RigidTerrain(sys)
-
-# Create terrain patch
+terrain = veh.RigidTerrain(system)
 patch_mat = chrono.ChMaterialSurfaceNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
-
-# Define the terrain dimensions
-terrain_length = 200.0  # Length (X direction)
-terrain_width = 200.0   # Width (Y direction)
-
 patch = terrain.AddPatch(patch_mat, 
-                         chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT),
-                         terrain_length, terrain_width)
-
-# Set terrain visualization properties
-patch.SetTexture(chrono_data_dir + "terrain/textures/tile4.jpg", 200, 200)
-patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
-
-# Add BMW logo on the terrain
-logo = patch.AddPlot(chrono_data_dir + "vehicle/logo/bmw_logo.png", 
-                    chrono.ChVectorD(0, 0, 0.02), 
-                    10, 10)
-
-# Initialize the terrain
+                        chrono.ChVectorD(0, 0, 0), 
+                        chrono.ChVectorD(0, 0, 1),
+                        terrain_length, terrain_width)
+                        
+# Add some textures and markings to the terrain
+patch.SetTexture(chrono.GetChronoDataFile("textures/asphalt.jpg"), 20, 20)
+patch.SetColor(chrono.ChColor(0.8, 0.8, 0.8))
 terrain.Initialize()
 
-# ---------------------------------------------------------------------
-# Create the vehicle
-# ---------------------------------------------------------------------
-
-# Create the BMW E90 vehicle
-vehicle = veh.WheeledVehicle(sys, vehicle_file)
-vehicle.Initialize(chrono.ChCoordsysD(init_pos, init_rot))
-vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
-vehicle.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
-vehicle.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
-vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
-
-# Create and initialize the powertrain system
-powertrain = veh.SimplePowertrain(powertrain_file)
-vehicle.InitializePowertrain(powertrain)
-
-# Create and initialize the tires
-for axle in vehicle.GetAxles():
-    tireL = veh.TMeasyTire(tire_file)
-    tireR = veh.TMeasyTire(tire_file)
-    
-    vehicle.InitializeTire(tireL, axle.m_wheels[0], veh.VisualizationType_MESH)
-    vehicle.InitializeTire(tireR, axle.m_wheels[1], veh.VisualizationType_MESH)
-
-# Set collision detection mode for the vehicle
-vehicle.SetCollide(veh.CollisionType_ALL)
-
-# ---------------------------------------------------------------------
-# Create the interactive driver
-# ---------------------------------------------------------------------
-
-driver = veh.ChIrrGuiDriver(vehicle.GetVehicle())
+# Create the driver system
+driver = veh.ChIrrGuiDriver(e90.GetVehicle())
 driver.SetSteeringDelta(0.05)
 driver.SetThrottleDelta(0.05)
-driver.SetBrakingDelta(0.1)
+driver.SetBrakingDelta(0.05)
 driver.Initialize()
 
-# ---------------------------------------------------------------------
-# Create the visualization system
-# ---------------------------------------------------------------------
+# Create the vehicle Irrlicht interface
+app = veh.ChWheeledVehicleIrrApp(e90.GetVehicle(), "BMW E90 Sedan Demo", 
+                               irr.dimension2du(1280, 720))
+app.SetSkyBox()
+app.AddTypicalLights(irr.vector3df(30, 100, 30), irr.vector3df(-30, 100, 30), 250, 130)
+app.AddTypicalLogo(chrono.GetChronoDataFile("logo/logo_pychrono_alpha.png"))
+app.SetChaseCamera(chrono.ChVectorD(0, 0, -6), 5, 0.5)
+app.SetTimestep(step_size)
+app.AssetBindAll()
+app.AssetUpdateAll()
 
-vis = irr.ChIrrApp(sys, "BMW E90 Sedan Simulation", irr.dimension2du(1280, 720))
-vis.AddTypicalLights()
-vis.AddSkyBox()
-vis.AddLogo(chrono_data_dir + "logo/chronoengine_logo.png")
+# BMW logo on the terrain
+logo = chrono.ChTexture()
+logo.SetTextureFilename(chrono.GetChronoDataFile("logo/logo_pychrono_alpha.png"))
+visual_asset = patch.GetGroundBody().GetAssets()[0]
+visual = chrono.CastToChVisualization(visual_asset)
+visual.AddTexture(logo)
 
-# Set camera parameters
-vis.SetChaseCamera(chrono.ChVectorD(0.0, 0.0, 1.75), 6.0, 0.5)
-
-# Set visualization attributes
-vis.SetSymbolscale(0.5)
-vis.SetShowInfos(True)
-
-# Initialize visualization
-vis.Initialize()
-vis.AddShadowAll()
-vis.SetTimestep(step_size)
-
-# ---------------------------------------------------------------------
 # Simulation loop
-# ---------------------------------------------------------------------
-
-# Number of steps
 time = 0
-render_steps = int(0.01/step_size)
-
-while vis.GetDevice().run():
-    # Render scene
-    if sys.GetChTime() >= time:
-        vis.BeginScene(True, True, irr.SColor(255, 140, 161, 192))
-        vis.DrawAll()
-        
-        # Output vehicle information
-        driver_inputs = driver.GetInputs()
-        vehicle_speed = vehicle.GetVehicle().GetVehicleSpeed()
-        
-        info = "Speed: {:.1f} km/h    Throttle: {:.2f}    Steering: {:.2f}    Braking: {:.2f}".format(
-            vehicle_speed * 3.6, driver_inputs.m_throttle, driver_inputs.m_steering, driver_inputs.m_braking)
-        vis.GetDevice().getGUIEnvironment().addStaticText(irr.core.stringw(info),
-                                                         irr.core.recti(10, 10, 500, 30),
-                                                         False)
-        
-        vis.EndScene()
-        time += 0.01
+while app.GetDevice().run():
+    # Get driver inputs
+    driver_inputs = driver.GetInputs()
     
-    # Get driver inputs based on keyboard
+    # Update modules (process inputs, exhaust forces, suspension, steering, etc.)
     driver.Synchronize(time)
-    
-    # Update vehicle
-    vehicle.Synchronize(time, driver_inputs, terrain)
-    
-    # Advance simulation
     terrain.Synchronize(time)
-    sys.DoStepDynamics(step_size)
+    e90.Synchronize(time, driver_inputs, terrain)
+    app.Synchronize("", driver_inputs)
     
-    # Update visualization app
-    vis.Synchronize("", driver_inputs)
+    # Advance simulation for one timestep
+    app.BeginScene(True, True, irr.SColor(255, 140, 161, 192))
+    app.DrawAll()
+    app.EndScene()
     
-    # Check if simulation should end
-    if time > simulation_time:
-        break
+    # Advance system state
+    system.DoStepDynamics(step_size)
+    
+    # Increment simulation time
+    time += step_size
 
-vis.GetDevice().closeDevice()
+# Clean up
+del app
 ```
 
-## Explanation
+This PyChrono script creates a simulation of a BMW E90 Sedan driving on a rigid terrain with the following features:
 
-This script creates a PyChrono simulation of a BMW E90 Sedan driving on a rigid terrain with the following components:
+1. **Physical System Setup**:
+   - Creates a ChronoEngine system with appropriate solver settings
+   - Sets up gravity and solver parameters for realistic physics
+   - Creates a ground plane with concrete texture
 
-1. **System Initialization**:
-   - Sets up the Chrono physics system with NSC (non-smooth contact) dynamics
-   - Configures solver parameters for stable simulation
+2. **Vehicle Configuration**:
+   - Initializes a BMW E90 Sedan model
+   - Configures the chassis visualization and collision settings
+   - Uses the TMEASY tire model for realistic tire behavior
+   - Properly positions the vehicle above the terrain
 
-2. **Terrain**:
-   - Creates a rigid terrain with friction and restitution properties
-   - Applies textures and colors to the terrain
-   - Adds a BMW logo as a decorative element
+3. **Terrain and Environment**:
+   - Creates a rigid terrain with appropriate friction and restitution properties
+   - Applies asphalt texture to the terrain
+   - Adds terrain markings and PyChronoLogo
 
-3. **Vehicle**:
-   - Creates a BMW E90 Sedan using JSON specification files
-   - Initializes the vehicle at a specific position and orientation
-   - Configures visualization types for chassis, suspension, steering, and wheels
+4. **Driver Controls**:
+   - Implements an interactive driver system (ChIrrGuiDriver)
+   - Configures control sensitivity for steering, throttle, and braking
+   - Allows real-time user input during simulation
 
-4. **Powertrain and Tires**:
-   - Sets up a simple powertrain system
-   - Initializes TMeasy tires on all wheels
-   - Enables collision detection for the vehicle
+5. **Visualization**:
+   - Sets up the Irrlicht visualization system
+   - Creates a chase camera that follows the vehicle
+   - Adds directional lighting and skybox for realism
+   - Applies textures and logos to enhance visual appeal
 
-5. **Interactive Driver**:
-   - Creates a ChIrrGuiDriver for real-time control
-   - Sets input sensitivity for steering, throttle, and braking
+6. **Simulation Loop**:
+   - Synchronizes all components at each time step
+   - Updates driver inputs, vehicle state, and terrain interactions
+   - Renders the scene and advances the physical simulation
+   - Maintains timing consistency
 
-6. **Visualization**:
-   - Sets up Irrlicht visualization with lights, skybox, and logos
-   - Configures a chase camera to follow the vehicle
-   - Displays vehicle information (speed, throttle, steering, braking)
-
-7. **Simulation Loop**:
-   - Runs the simulation until completion or user termination
-   - Updates driver inputs, vehicle state, and visualization
-
-Note: You'll need to replace the path to the Chrono data directory and ensure you have the correct vehicle JSON files for the BMW E90 Sedan model.
+The simulation allows for interactive driving of the BMW E90 Sedan on the terrain, with realistic physics and visualization.

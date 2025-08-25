@@ -1,89 +1,89 @@
-Certainly! Below is a **PyChrono** simulation script that demonstrates the use of beam finite elements. The script:
+Certainly! Below is a complete PyChrono simulation script that demonstrates the use of beam finite elements. The script:
 
 - Initializes the PyChrono environment.
-- Creates a physical system and a mesh with beam elements and nodes.
-- Assigns material and section properties to the beams.
-- Adds visualization assets for the mesh and beams.
-- Sets up the Irrlicht visualization engine for real-time rendering.
-- Runs the simulation loop.
+- Creates a physical system and a mesh.
+- Adds beam nodes and beam elements with specified properties.
+- Sets up visualization using the Irrlicht engine.
+- Runs a simulation loop with real-time rendering.
 
 ```python
 import pychrono as chrono
 import pychrono.fea as fea
 import pychrono.irrlicht as chronoirr
 
-# 1. Initialize the Chrono system
+# 1. Initialize the PyChrono environment and core components
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 system = chrono.ChSystemSMC()
 
-# 2. Create a mesh and add it to the system
+# 2. Create a mesh to hold the beam elements
 mesh = fea.ChMesh()
 system.Add(mesh)
 
-# 3. Define beam section properties
+# 3. Define beam section properties (e.g., steel, rectangular cross-section)
 beam_section = fea.ChBeamSectionAdvanced()
-beam_section.SetYoungModulus(2.1e7)      # [Pa]
+beam_section.SetYoungModulus(2.1e7)      # [N/cm^2]
 beam_section.SetGwithPoissonRatio(0.3)   # Poisson ratio
-beam_section.SetDensity(7800)            # [kg/m^3]
-beam_section.SetAsRectangularSection(0.02, 0.01)  # width, height [m]
+beam_section.SetDensity(7.85e-6)         # [kg/cm^3]
+beam_section.SetAsRectangularSection(0.1, 0.2)  # width, height [m]
 
-# 4. Create nodes and beams
+# 4. Create nodes and beam elements
 n_nodes = 5
-beam_length = 1.0
-node_spacing = beam_length / (n_nodes - 1)
+beam_length = 1.0  # [m]
 nodes = []
 
 # Create nodes along the X axis
 for i in range(n_nodes):
-    node = fea.ChNodeFEAxyzrot(chrono.ChFrameD(chrono.ChVectorD(i * node_spacing, 0, 0)))
+    node = fea.ChNodeFEAxyzrot(chrono.ChFrameD(chrono.ChVectorD(i * beam_length, 0, 0)))
     node.SetMass(0.1)
     mesh.AddNode(node)
     nodes.append(node)
 
-# Fix the first node to ground
-nodes[0].SetFixed(True)
-
-# Create beam elements between consecutive nodes
+# Create beam elements between nodes
 for i in range(n_nodes - 1):
-    beam = fea.ChElementBeamEuler()
-    beam.SetNodes(nodes[i], nodes[i+1])
-    beam.SetSection(beam_section)
-    mesh.AddElement(beam)
+    element = fea.ChElementBeamEuler()
+    element.SetNodes(nodes[i], nodes[i+1])
+    element.SetSection(beam_section)
+    mesh.AddElement(element)
 
-# 5. Add a load at the tip node (last node)
-load_container = chrono.ChLoadContainer()
-system.Add(load_container)
+# 5. Fix the first node to ground
+fixed_constraint = fea.ChLinkPointFrame()
+fixed_constraint.Initialize(nodes[0], chrono.ChFrameD(nodes[0].GetPos()))
+system.Add(fixed_constraint)
 
-# Apply a downward force at the last node
-tip_force = chrono.ChVectorD(0, -100, 0)  # [N]
-tip_load = fea.ChLoadNodeForce(nodes[-1], tip_force)
-load_container.Add(tip_load)
+# 6. Apply a downward force at the last node
+force = chrono.ChLoadContainer()
+system.Add(force)
+class MyLoad(chrono.ChLoadCustomMultiple):
+    def __init__(self, node):
+        super().__init__([node])
+    def ComputeQ(self, state_x, state_w):
+        F = chrono.ChVectorDynamicD(6)
+        F.PasteVector(chrono.ChVectorD(0, -100, 0), 0)  # 100 N downward
+        return F
+myload = MyLoad(nodes[-1])
+force.Add(myload)
 
-# 6. Visualization assets for the mesh
-# Beam visualization
+# 7. Visualization assets for the mesh and beams
 beam_visual = fea.ChVisualizationFEAmesh(mesh)
 beam_visual.SetFEMglyphType(fea.ChVisualizationFEAmesh.E_GLYPH_NODE_DOT_POS)
-beam_visual.SetFEMdataType(fea.ChVisualizationFEAmesh.E_PLOT_NONE)
-beam_visual.SetSymbolsThickness(0.006)
-beam_visual.SetSymbolsScale(1)
+beam_visual.SetFEMdataType(fea.ChVisualizationFEAmesh.E_PLOT_ELEM_BEAM_MZ)
+beam_visual.SetColorscaleMinMax(-0.4, 0.4)
+beam_visual.SetSmoothFaces(True)
+beam_visual.SetWireframe(False)
 mesh.AddAsset(beam_visual)
 
-# Deformation visualization
-beam_deform = fea.ChVisualizationFEAmesh(mesh)
-beam_deform.SetFEMdataType(fea.ChVisualizationFEAmesh.E_PLOT_ELEM_BEAM_MZ)
-beam_deform.SetColorscaleMinMax(-0.4, 0.4)
-beam_deform.SetSmoothFaces(True)
-mesh.AddAsset(beam_deform)
-
-# 7. Set up the Irrlicht visualization
-application = chronoirr.ChIrrApp(system, "PyChrono Beam Finite Element Demo", chronoirr.dimension2du(1024,768))
+# 8. Set up the Irrlicht visualization
+application = chronoirr.ChIrrApp(system, "PyChrono Beam Finite Elements Demo", chronoirr.dimension2du(1024,768))
 application.AddTypicalSky()
-application.AddTypicalCamera(chrono.ChVectorD(0.5, 0.2, 1.0), chrono.ChVectorD(0.5, 0, 0))
+application.AddTypicalLogo()
+application.AddTypicalCamera(chronoirr.vector3df(2,1,3))
 application.AddTypicalLights()
 application.AssetBindAll()
 application.AssetUpdateAll()
+application.AddShadowAll()
 
-# 8. Simulation loop
-application.SetTimestep(0.001)
+# 9. Simulation loop
+application.SetTimestep(0.01)
 while(application.GetDevice().run()):
     application.BeginScene()
     application.DrawAll()
@@ -91,14 +91,11 @@ while(application.GetDevice().run()):
     application.EndScene()
 ```
 
-**How it works:**
-- A beam is modeled as a series of nodes connected by Euler beam elements.
-- The first node is fixed; a downward force is applied to the tip.
-- Visualization shows both the mesh and the bending moment (Mz) along the beam.
-- The simulation runs in real time with Irrlicht rendering.
+**Notes:**
+- The beam is fixed at one end and loaded at the other.
+- The mesh and beam elements are visualized with color mapping for bending moment.
+- The simulation uses the Irrlicht engine for real-time rendering.
+- You can adjust the number of nodes, beam length, and force as needed.
 
-**Requirements:**
-- Install PyChrono with FEA and Irrlicht support.
-- Run this script in an environment where PyChrono and its Python bindings are available.
-
-Let me know if you need further customization!
+**Requirements:**  
+Make sure you have installed PyChrono with FEA and Irrlicht modules enabled.

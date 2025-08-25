@@ -90,8 +90,10 @@ for _ in range(num_obstacles):
     pos = chrono.ChVector3d(np.random.uniform(-terrainLength/2, terrainLength/2),
                             np.random.uniform(-terrainWidth/2, terrainWidth/2),
                             obstacle_size.z / 2)  
-    obstacle = chrono.ChBoxShape(obstacle_size)
+    obstacle = chrono.ChBoxShape()
+    obstacle.GetBoxGeometry().SetLengths(obstacle_size.x, obstacle_size.y, obstacle_size.z)
     obstacle.SetPos(pos)
+    obstacle.SetColor(chrono.ChColor(1, 0, 0))  
     vehicle.GetSystem().Add(obstacle)
 
 
@@ -106,15 +108,6 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 
-sensor_manager = sensor.ChSensorManager(vehicle.GetSystem())
-lidar = sensor.ChLidarSensor(vehicle.GetChassisBody(),  
-                              chrono.ChFrameD(chrono.ChVectorD(0, 0, 1.5), chrono.Q_from_AngZ(0)),  
-                              30.0,  
-                              0.1,   
-                              0.5)   
-sensor_manager.AddSensor(lidar)
-
-
 driver = veh.ChInteractiveDriverIRR(vis)
 
 
@@ -126,6 +119,18 @@ driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
 
 driver.Initialize()
+
+
+sensor_manager = sensor.ChSensorManager(vehicle.GetSystem())
+lidar = sensor.ChLidarSensor(vehicle.GetChassisBody())
+lidar.SetPosition(chrono.ChVector3d(0, 0, 1.5))  
+lidar.SetDirection(chrono.ChVector3d(0, 1, 0))  
+lidar.SetHorizontalFOV(90)  
+lidar.SetVerticalFOV(30)    
+lidar.SetRange(10)          
+lidar.SetResolution(640, 480)  
+lidar.SetVisualizationMode(sensor.ChSensor.VisualizationMode.LASER)  
+sensor_manager.AddSensor(lidar)
 
 
 
@@ -162,7 +167,7 @@ while vis.Run():
     vis.Synchronize(time, driver_inputs)
 
     
-    sensor_manager.Update()
+    sensor_manager.Update(time)
 
     
     driver.Advance(step_size)

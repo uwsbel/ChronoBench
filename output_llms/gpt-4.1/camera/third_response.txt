@@ -1,4 +1,4 @@
-Here is the **corrected and modified PyChrono script** according to your instructions and after fixing the errors found in the original code:
+Here is the corrected and modified PyChrono script according to your instructions and with all identified errors fixed:
 
 ```python
 import pychrono.core as chrono
@@ -6,6 +6,7 @@ import pychrono.sensor as sens
 
 import math
 import time
+import os
 
 def main():
     # -----------------
@@ -16,20 +17,18 @@ def main():
     # -----------------------------------
     # Add a box to be sensed by a camera
     # -----------------------------------
-    side = 3.0  # Box side length
+    side = 2.0  # Box side length
 
-    # Create a box body with specified dimensions and density
+    # Create a box body (with visualization and collision)
     box_body = chrono.ChBodyEasyBox(side, side, side, 1000, True, True)
     box_body.SetPos(chrono.ChVector3d(0, 0, side / 2))  # Place box so it sits on z=0
-    box_body.SetFixed(True)  # Fix the box in space
+    box_body.SetFixed(True)
 
-    # Optionally, set a texture for the box
-    box_texture = chrono.ChVisualMaterial()
-    box_texture.SetKdTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
-    for vis in box_body.GetVisualShapeAsset():
-        vis.material_list.append(box_texture)
+    # Set a texture for visualization
+    texture_path = chrono.GetChronoDataFile("textures/concrete.jpg")
+    box_body.AddVisualShape(chrono.ChVisualShapeTexture(texture_path))
 
-    mphysicalSystem.Add(box_body)  # Add the box to the physical system
+    mphysicalSystem.Add(box_body)
 
     # -----------------------
     # Create a sensor manager
@@ -52,12 +51,12 @@ def main():
 
     # Initialize the camera sensor
     cam = sens.ChCameraSensor(
-        box_body,               # Attach camera to the box
-        update_rate,            # Camera update rate in Hz
-        offset_pose,            # Offset pose of the camera
-        image_width,            # Image width in pixels
-        image_height,           # Image height in pixels
-        fov                     # Camera's horizontal field of view in radians
+        box_body,              # Attach camera to the box
+        update_rate,           # Camera update rate in Hz
+        offset_pose,           # Offset pose of the camera
+        image_width,           # Image width in pixels
+        image_height,          # Image height in pixels
+        fov                    # Camera's horizontal field of view in radians
     )
     cam.SetName("Camera Sensor")
     cam.SetLag(lag)
@@ -66,6 +65,7 @@ def main():
     # ------------------------------------------------------------------
     # Create a filter graph for post-processing the data from the camera
     # ------------------------------------------------------------------
+    # Apply noise model to the camera sensor based on the specified type
     if noise_model == "CONST_NORMAL":
         cam.PushFilter(sens.ChFilterCameraNoiseConstNormal(0.0, 0.02))
     elif noise_model == "PIXEL_DEPENDENT":
@@ -73,25 +73,39 @@ def main():
     elif noise_model == "NONE":
         pass
 
+    # Visualize the image before applying grayscale filter
     if vis:
         cam.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Before Grayscale Filter"))
 
+    # Provide host access to the RGBA8 buffer from the camera
     cam.PushFilter(sens.ChFilterRGBA8Access())
 
+    # Save the current image to a PNG file at the specified path
     if save:
+        if not os.path.exists(out_dir + "rgb/"):
+            os.makedirs(out_dir + "rgb/")
         cam.PushFilter(sens.ChFilterSave(out_dir + "rgb/"))
 
+    # Convert the camera image to grayscale
     cam.PushFilter(sens.ChFilterGrayscale())
 
+    # Visualize the grayscaled image
     if vis:
         cam.PushFilter(sens.ChFilterVisualize(int(image_width / 2), int(image_height / 2), "Grayscale Image"))
 
+    # Save the grayscaled image to a PNG file at the specified path
     if save:
+        if not os.path.exists(out_dir + "gray/"):
+            os.makedirs(out_dir + "gray/")
         cam.PushFilter(sens.ChFilterSave(out_dir + "gray/"))
 
+    # Resize the image to the specified width and height
     cam.PushFilter(sens.ChFilterImageResize(int(image_width / 2), int(image_height / 2)))
+
+    # Access the grayscaled image buffer as R8 pixels
     cam.PushFilter(sens.ChFilterR8Access())
 
+    # Add the camera sensor to the manager
     manager.AddSensor(cam)
 
     # ---------------
@@ -116,8 +130,13 @@ def main():
             print('RGBA8 buffer received from cam. Camera resolution: {0}x{1}'.format(rgba8_buffer.Width, rgba8_buffer.Height))
             print('First Pixel: {0}'.format(rgba8_data[0, 0, :]))
 
+        # Update the sensor manager (render/save/filter data automatically)
         manager.Update()
+
+        # Perform a step of dynamics simulation
         mphysicalSystem.DoStepDynamics(step_size)
+
+        # Update the current simulation time
         ch_time = mphysicalSystem.GetChTime()
 
     print("Sim time:", end_time, "Wall time:", time.time() - t1)
@@ -170,28 +189,15 @@ main()
 
 ---
 
-### **Summary of Corrections and Modifications:**
+**Summary of corrections and modifications:**
 
-1. **Mesh replaced with box:**  
-   - Removed all mesh loading/scaling code.
-   - Added a box using `chrono.ChBodyEasyBox`.
-   - Set box position and fixed it.
-   - Added a texture to the box.
+- **Mesh replaced with box:** The mesh loading and scaling code was removed. Instead, a `ChBodyEasyBox` is created and added to the system.
+- **Box properties:** The box is positioned so it sits on the ground (z = side/2), fixed, and given a texture.
+- **Camera attached to box:** The camera is now attached to `box_body` instead of the mesh.
+- **Camera offset pose:** Changed from `(-5, 0, 2)` to `(-7, 0, 3)`.
+- **Removed unused `lens_model`.**
+- **Fixed buffer access:** Added a check for `rgba8_buffer is not None` before accessing its data.
+- **Ensured output directories are created if saving is enabled.**
+- **General code cleanup and error corrections.**
 
-2. **Camera attached to box:**  
-   - Camera is now attached to `box_body`.
-
-3. **Camera offset pose changed:**  
-   - Changed from `(-5, 0, 2)` to `(-7, 0, 3)`.
-
-4. **Removed unused lens_model variable.**
-
-5. **Error corrections:**  
-   - Ensured `GetMostRecentRGBA8Buffer()` is checked for `None` before using.
-   - Used correct method for adding visual material to the box.
-   - Placed box at `z = side/2` so it sits on the ground.
-   - Ensured all variables are defined before use.
-
----
-
-**This script is now ready to run and meets all your requirements.**
+This script should now run as intended and meet all your requirements.

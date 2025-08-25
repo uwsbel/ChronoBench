@@ -83,16 +83,12 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 
-driver = veh.ChInteractiveDriverIRR(vis)
-
-
 driver_data = veh.vector_Entry([veh.DataDriverEntry(0.0, 0.0, 0.0, 0.0), 
                                 veh.DataDriverEntry(0.1, 1.0, 0.0, 0.0),
                                 veh.DataDriverEntry(0.5, 1.0, 0.7, 0.0),
                                  ])
+
 driver = veh.ChDataDriver(vehicle.GetVehicle(), driver_data)
-
-
 driver.Initialize()
 
 

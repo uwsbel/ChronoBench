@@ -22,19 +22,16 @@ beam_wz = 0.025
 msection.SetAsRectangularSection(beam_wy, beam_wz)
 msection.SetYoungModulus(0.01e9)
 msection.SetShearModulus(0.01e9 * 0.3)
-msection.SetRayleighDamping(0.0)
+msection.SetRayleighDamping(0.000)
 msection.SetCentroid(0, 0.02)
 msection.SetShearCenter(0, 0.1)
-# Correction here: SetSectionRotation expects radians, original code uses degrees conversion factor incorrectly.
-# The argument 45*chrono.CH_RAD_TO_DEG is wrong as it converts radians to degrees but 45 is degrees. 
-# It should be in radians: 45 degrees = chrono.CH_C_DEG_TO_RAD * 45 or simply chrono.CH_DEG_TO_RAD * 45
-msection.SetSectionRotation(45 * chrono.CH_DEG_TO_RAD)
+msection.SetSectionRotation(45 * chrono.CH_DEG_TO_RAD)  # Corrected: angle in radians
 
 # Add some EULER-BERNOULLI BEAMS:
 
 beam_L = 0.1
 
-hnode1 = fea.ChNodeFEAxyzrot(chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)))
+hnode1 = fea.ChNodeFEAxyzrot(chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)))  # Corrected: ChFrameD and ChVectorD
 hnode2 = fea.ChNodeFEAxyzrot(chrono.ChFrameD(chrono.ChVectorD(beam_L, 0, 0)))
 hnode3 = fea.ChNodeFEAxyzrot(chrono.ChFrameD(chrono.ChVectorD(beam_L * 2, 0, 0)))
 
@@ -43,17 +40,21 @@ mesh.AddNode(hnode2)
 mesh.AddNode(hnode3)
 
 belement1 = fea.ChElementBeamEuler()
+
 belement1.SetNodes(hnode1, hnode2)
 belement1.SetSection(msection)
+
 mesh.AddElement(belement1)
 
 belement2 = fea.ChElementBeamEuler()
+
 belement2.SetNodes(hnode2, hnode3)
 belement2.SetSection(msection)
+
 mesh.AddElement(belement2)
 
 # Apply a force or a torque to a node:
-hnode2.SetForce(chrono.ChVectorD(4, 2, 0))
+hnode2.SetForce(chrono.ChVectorD(4, 2, 0))  # Corrected: ChVectorD
 hnode3.SetTorque(chrono.ChVectorD(0, -0.04, 0))
 
 # Fix a node to ground:
@@ -61,7 +62,7 @@ hnode3.SetTorque(chrono.ChVectorD(0, -0.04, 0))
 # otherwise fix it using constraints:
 
 mtruss = chrono.ChBody()
-mtruss.SetBodyFixed(True)  # Correction: Use SetBodyFixed(True) instead of SetFixed(True)
+mtruss.SetBodyFixed(True)  # Corrected: SetFixed() -> SetBodyFixed()
 sys.Add(mtruss)
 
 constr_bc = chrono.ChLinkMateGeneric()
@@ -100,24 +101,16 @@ builder.BuildBeam(mesh,                   # the mesh where to put the created no
 builder.GetLastBeamNodes().back().SetFixed(True)
 builder.GetLastBeamNodes().front().SetForce(chrono.ChVectorD(0, -1, 0))
 
-
-# --- Modification per instructions ---
-# Add another beam segment using builder.BuildBeam()
-# The start 'A' point is the last node created by the previous beam,
-# that is builder.GetLastBeamNodes().back() as a ChNodeFEA object.
-# So to get its position use .GetPos()
-#
-# The end 'B' point is (0.2, 0.1, -0.1)
-# The 'Y' up direction remains (0, 1, 0)
-
-start_node = builder.GetLastBeamNodes().back()
-start_pos = start_node.GetPos()
-end_pos = chrono.ChVectorD(0.2, 0.1, -0.1)
+# --- Added beam segment as per instructions ---
+# Use the last node of the previous beam as 'A' point
+last_nodes = builder.GetLastBeamNodes()
+A_point = last_nodes[-1].GetPos()
+B_point = chrono.ChVectorD(0.2, 0.1, -0.1)
 builder.BuildBeam(mesh,
                   msection,
-                  5,                    # number of elements in new beam
-                  start_pos,
-                  end_pos,
+                  5,
+                  A_point,
+                  B_point,
                   chrono.ChVectorD(0, 1, 0))
 
 # We do not want gravity effect on FEA elements in this demo
@@ -128,7 +121,7 @@ sys.Add(mesh)
 
 # ==Asset== attach a visualization of the FEM mesh.
 # This will automatically update a triangle mesh (a ChVisualShapeTriangleMesh
-# asset that is internally managed) by setting proper
+# asset that is internally managed) by setting  proper
 # coordinates and vertex colors as in the FEM elements.
 
 visualizebeamA = chrono.ChVisualShapeFEA(mesh)
@@ -168,18 +161,16 @@ while vis.Run():
     vis.EndScene()
     sys.DoStepDynamics(0.001)
 ```
-
 ---
 
-### Explanation of fixes and modifications:
+### Summary of corrections and modifications:
 
-- Fixed the import of node frames: replaced `chrono.ChFramed` with `chrono.ChFrameD` (correct class name in PyChrono for frame).
-- Replaced `SetFixed(True)` on body with `SetBodyFixed(True)` which is the correct method in PyChrono Chrono engine for bodies.
-- For `SetSectionRotation()`: fixed argument to be in radians (used `chrono.CH_DEG_TO_RAD`) not degrees converted incorrectly.
-- Used `chrono.ChVectorD` and `chrono.ChFrameD` consistently for doubles precision (recommended in PyChrono Python API).
-- Added the requested additional beam segment with `builder.BuildBeam()` using the last node from the previous beam (`start_pos = builder.GetLastBeamNodes().back().GetPos()`) as the start point and `(0.2, 0.1, -0.1)` as the endpoint, with 'Y' up direction `(0,1,0)`.
-- Removed trailing semicolons (`;`) which are unnecessary in Python.
-- Minor PEP8 style improvements (spaces after commas).
-- Ensured all vector and frame calls match typical PyChrono Python API usage.
+- **Angle conversion:** Changed `msection.SetSectionRotation(45*chrono.CH_RAD_TO_DEG)` to `45 * chrono.CH_DEG_TO_RAD` because the method expects radians, not degrees.
+- **Node creation:** Changed `ChNodeFEAxyzrot(chrono.ChFramed(...))` to `ChNodeFEAxyzrot(chrono.ChFrameD(...))` and used `ChVectorD` instead of `ChVector3d` for consistency with Chrono Python API (both are accepted but `ChVectorD` is more common).
+- **Force and torque vectors:** Changed `ChVector3d` to `ChVectorD`.
+- **Fixed body:** Changed `mtruss.SetFixed(True)` to `mtruss.SetBodyFixed(True)` which is the correct method to fix a body in Chrono.
+- **Removed trailing semicolon** after `mesh.AddElement(belement2)`.
+- **Added the new beam segment** as per instructions, using the last node of the previous beam as start point and `(0.2, 0.1, -0.1)` as endpoint.
+- **Consistent formatting** and minor style fixes for clarity.
 
-This corrected and enhanced script should function as intended and meet the given instructions.
+This script should now run correctly and includes the requested additional beam segment.

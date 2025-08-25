@@ -8,150 +8,131 @@ import pychrono.irrlicht as chronoirr
 import numpy as np
 
 # Global simulation parameters
-simulation_time = 10.0  # Simulation duration in seconds
-time_step = 0.001      # Time step for the solver
-beam_length = 1.0      # Length of the beam in meters
-beam_radius = 0.01     # Radius of the beam in meters
-flywheel_mass = 2.0    # Mass of the flywheel in kg
-flywheel_radius = 0.1  # Radius of the flywheel in meters
-motor_speed = 30       # Motor speed in rad/s
+time_step = 1e-3      # Time step size
+total_time = 10       # Total simulation time
+beam_length = 2.0     # Length of the beam (m)
+beam_radius = 0.01    # Radius of the beam cross-section (m)
+flywheel_mass = 5.0   # Mass of the flywheel (kg)
+flywheel_radius = 0.1 # Radius of the flywheel (m)
+rotation_speed = 5.0  # Angular velocity (rad/s)
 
-# Create the Chrono system
-system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+# Initialize the Chrono system
+system = chrono.ChSystemSMC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
 
-# Create a mesh for the IGA beam
+# Create a material for the beam
+beam_material = fea.ChMaterialBeamIGA()
+beam_material.SetYoungModulus(2.1e11)  # Young's modulus for steel (Pa)
+beam_material.SetDensity(7800)         # Density of steel (kg/m^3)
+beam_material.SetPoissonsRatio(0.3)    # Poisson ratio
+
+# Create the mesh for the beam
 mesh = fea.ChMesh()
-mesh.SetAutomaticGravity(True)
 
-# Create section for the IGA beam (circular cross-section)
-beam_section = fea.ChBeamSectionCosserat(
-    beam_area=np.pi * beam_radius**2,
-    beam_Iyy=(np.pi/4) * beam_radius**4,
-    beam_Izz=(np.pi/4) * beam_radius**4,
-    beam_Jxx=(np.pi/2) * beam_radius**4,
-    beam_E=210e9,  # Young's modulus for steel
-    beam_G=80e9,   # Shear modulus for steel
-)
-
-# Create builder for IGA beam
+# Create the IGA beam builder
 builder = fea.ChBuilderBeamIGA()
 
-# Define start and end points of the beam
-start_point = chrono.ChVectorD(0, 0, 0)
-end_point = chrono.ChVectorD(beam_length, 0, 0)
+# Define control points for the beam
+beam_points = []
+num_points = 10
+for i in range(num_points):
+    x = beam_length * i / (num_points - 1) - beam_length/2
+    beam_points.append(chrono.ChVectorD(x, 0, 0))
 
-# Create the beam with a given section and number of control points
-n_control_points = 10
-beam_nodes = builder.BuildBeam(
-    mesh=mesh,
-    section=beam_section,
-    n_control_points=n_control_points,
-    start_point=start_point,
-    end_point=end_point,
-    fixed_A=True,   # Fixed at end A
-    fixed_B=False   # Free at end B
-)
+# Create the beam using the builder
+beam_section = fea.ChBeamSectionCircular(beam_radius)
+beam = builder.BuildBeam(mesh, beam_material, num_points, beam_points, chrono.VECT_Y, beam_section)
 
-# Attach the mesh to the system
+# Fix one end of the beam
+builder.GetLastBeamNodes()[-1].SetFixed(True)
+
+# Add the mesh to the system
 system.Add(mesh)
 
-# Create a visualization asset for the beam
-for beam_element in builder.GetLastBeamElements():
-    beam_element.AddVisualShape(chrono.ChColorAsset(0.0, 0.6, 0.2))
-
-# Get the middle node for attaching the flywheel
-middle_node_idx = n_control_points // 2
-middle_node = beam_nodes[middle_node_idx]
-
-# Create a flywheel (disk) as a rigid body
+# Create flywheel
 flywheel = chrono.ChBodyEasyCylinder(
     flywheel_radius,  # radius
     0.05,             # height
-    7800,             # density (kg/m^3)
-    True,             # visualization
-    True              # collision
+    7800,             # density
+    True,             # collide
+    True              # visualize
 )
-flywheel.SetPos(chrono.ChVectorD(beam_length/2, 0, 0))
-flywheel.SetRot(chrono.Q_from_AngAxis(chrono.CH_C_PI_2, chrono.ChVectorD(0, 0, 1)))
-flywheel.SetMass(flywheel_mass)
-flywheel.SetInertiaXX(chrono.ChVectorD(
-    (1/4)*flywheel_mass*flywheel_radius**2 + (1/12)*flywheel_mass*0.05**2,
-    (1/4)*flywheel_mass*flywheel_radius**2 + (1/12)*flywheel_mass*0.05**2,
-    (1/2)*flywheel_mass*flywheel_radius**2
-))
-flywheel.AddAsset(chrono.ChColorAsset(0.6, 0.2, 0.2))
+flywheel.SetPos(chrono.ChVectorD(0, 0, 0))  # Position at the center of the beam
+flywheel.SetRot(chrono.ChQuaternionD(chrono.CH_C_PI_2, 0, 0, 0))  # Rotate to align with beam
 system.Add(flywheel)
 
-# Create a constraint between the flywheel and the middle node of the beam
+# Get the node at the center of the beam for attaching the flywheel
+center_node_index = num_points // 2
+center_node = builder.GetLastBeamNodes()[center_node_index]
+
+# Create a constraint between the center node and the flywheel
 constraint = chrono.ChLinkMateFix()
-constraint.Initialize(middle_node, flywheel)
+constraint.Initialize(center_node, flywheel)
 system.Add(constraint)
 
-# Create a rotational motor at the first node
+# Create a motor at one end of the beam
 motor = chrono.ChLinkMotorRotationSpeed()
 motor.Initialize(
-    beam_nodes[0],                    # First beam node
-    chrono.ChFrameD(start_point),     # Ground frame
-    chrono.ChAxisD(chrono.ChVectorD(1, 0, 0))  # Rotation axis along X
+    builder.GetLastBeamNodes()[0],  # Node at one end
+    chrono.ChFrameD(chrono.ChVectorD(-beam_length/2, 0, 0), chrono.ChQuaternionD(1, 0, 0, 0))  # Frame on ground
 )
-motor_fun = chrono.ChFunction_Ramp(0, motor_speed)  # Ramp up to target speed
-motor.SetSpeedFunction(motor_fun)
+motor_speed = chrono.ChFunction_Const(rotation_speed)
+motor.SetSpeedFunction(motor_speed)
 system.Add(motor)
 
-# Create the Irrlicht visualization
+# Create the visualization window
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
 vis.SetWindowSize(1024, 768)
-vis.SetWindowTitle("Jeffcott Rotor IGA Beam Simulation")
+vis.SetWindowTitle("Jeffcott Rotor with IGA Beam")
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))
 vis.AddSkyBox()
-vis.AddCamera(chrono.ChVectorD(0.5, 0.5, 1.0), chrono.ChVectorD(0.5, 0, 0))
+vis.AddCamera(chrono.ChVectorD(0, 0.5, -2))
 vis.AddTypicalLights()
 
-# Set solver parameters
-system.SetSolverType(chrono.ChSolver.Type_MINRES)
-system.SetSolverMaxIterations(100)
-system.SetSolverTolerance(1e-5)
-system.SetTimestepperType(chrono.ChTimestepper.Type_HHT)
-integrator = system.GetTimestepper()
-integrator.SetAlpha(-0.2)
-integrator.SetMaxiters(5)
-integrator.SetAbsTolerances(1e-5)
-integrator.SetMode(chrono.ChTimestepperHHT.POSITION)
-integrator.SetScaling(True)
+# Add beam visualization
+beam_vis = fea.ChVisualizationFEAmesh(mesh)
+beam_vis.SetFEMdataType(fea.ChVisualizationFEAmesh.E_PLOT_ELEM_BEAM_MZ)
+beam_vis.SetColorscaleMinMax(-0.4, 0.4)
+beam_vis.SetSmoothFaces(True)
+beam_vis.SetWireframe(False)
+mesh.AddAsset(beam_vis)
 
-# Run the simulation
+beam_vis_surf = fea.ChVisualizationFEAmesh(mesh)
+beam_vis_surf.SetFEMdataType(fea.ChVisualizationFEAmesh.E_PLOT_SURFACE)
+beam_vis_surf.SetWireframe(True)
+beam_vis_surf.SetDrawInUndeformedReference(True)
+mesh.AddAsset(beam_vis_surf)
+
+# Simulation loop
 time = 0
-while time < simulation_time and vis.Run():
+while time < total_time and vis.Run():
     vis.BeginScene()
     vis.Render()
-    
-    # Display simulation info
-    info = "Time: {:.2f} s".format(time)
-    vis.DrawAll()
-    chronoirr.drawAllContactPoints(vis, 4, chrono.ChColor(0, 1, 0))
-    chronoirr.drawAllLinks(vis, 0.2)
-    chronoirr.drawAllCOGs(vis, 0.1)
     vis.EndScene()
     
-    # Advance simulation
     system.DoStepDynamics(time_step)
     time += time_step
+    
+    # Output some information
+    if int(time/time_step) % 100 == 0:
+        print(f"Time: {time:.2f}s, Flywheel position: {flywheel.GetPos()}")
 
+# Clean up
+vis.GetDevice().closeDevice()
 print("Simulation completed!")
 ```
 
-This script simulates a Jeffcott rotor using a PyChrono Isogeometric Analysis (IGA) beam. The key components are:
+This script creates a simulation of a Jeffcott rotor using an Isogeometric Analysis (IGA) beam in PyChrono. Here's a breakdown of what the code does:
 
-1. An IGA beam with fixed-free boundary conditions
-2. A flywheel (cylindrical disk) attached at the middle of the beam
-3. A rotational motor at one end driving the system
+1. Initializes the PyChrono system with SMC (Smooth Contact Method) for handling contacts
+2. Creates an IGA beam with circular cross-section
+3. Adds a flywheel (cylinder) at the center of the beam
+4. Fixes one end of the beam
+5. Adds a rotational motor at the other end to drive the system
+6. Sets up visualization using Irrlicht
+7. Includes beam visualization to see deformations
+8. Runs the simulation for the specified time
 
-The simulation models the dynamic behavior of this rotor system, including:
-- The flexibility of the shaft (beam)
-- The inertial effects of the flywheel
-- The dynamics of rotation and any resulting vibrations
-
-The visualization is done using Irrlicht, showing the beam deformation and flywheel rotation during operation. You can modify parameters like motor speed, flywheel mass, and beam properties to observe different dynamic behaviors characteristic of rotor systems.
+The Jeffcott rotor model demonstrates the dynamic behavior of a flexible shaft with a concentrated mass (flywheel) at its center, which is a fundamental model for studying rotor dynamics. As the motor drives the system, you'll be able to observe the whirling motion and deflections of the beam-flywheel system.

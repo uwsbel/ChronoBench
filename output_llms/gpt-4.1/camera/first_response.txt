@@ -3,12 +3,12 @@ Certainly! Below is a **PyChrono** simulation script that fulfills your requirem
 - Loads a triangular mesh from a `.obj` file as a fixed body.
 - Attaches a camera sensor to the mesh, managed by a sensor manager.
 - Adds noise and visualization filters to the camera.
-- Orbits the camera around the mesh by updating its position each step.
-- Prints the camera buffer data at each simulation step.
+- Orbits the camera around the mesh during the simulation.
+- Prints out the camera buffer data at each step.
 
-**Note:**  
-- Replace `"my_mesh.obj"` with the path to your actual `.obj` file.
-- This script assumes you have `pychrono` and `pychrono.sensor` installed.
+**Assumptions:**
+- You have a mesh file named `"mesh.obj"` in your working directory.
+- You have `pychrono` and `pychrono.sensor` installed.
 
 ```python
 import pychrono as chrono
@@ -21,114 +21,120 @@ import time
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 system = chrono.ChSystemSMC()
 
-# 2. Add the required physical systems and objects
+# 2. Add the required physical systems and objects as specified
 
 # Load a triangular mesh from a Wavefront .obj file
-mesh_body = chrono.ChBody()
-mesh_body.SetBodyFixed(True)
-mesh_body.SetPos(chrono.ChVectorD(0, 0, 0))
+mesh = chrono.ChTriangleMeshConnected()
+mesh.LoadWavefrontMesh("mesh.obj", False, True)
+mesh.RepairDuplicateVertexes(1e-9)
 
-# Create the mesh shape and load the .obj file
-mesh_shape = chrono.ChTriangleMeshConnected()
-mesh_shape.LoadWavefrontMesh("my_mesh.obj")  # <-- Replace with your mesh file
-mesh_shape.RepairDuplicateVertexes(1e-9)
+# Create a fixed body and attach the mesh
+body_mesh = chrono.ChBody()
+body_mesh.SetBodyFixed(True)
+body_mesh.SetPos(chrono.ChVectorD(0, 0, 0))
 
-visual_shape = chrono.ChTriangleMeshShape()
-visual_shape.SetMesh(mesh_shape)
-visual_shape.SetName("mesh")
-visual_shape.SetColor(chrono.ChColor(0.4, 0.4, 0.8))
+# Add mesh as a visualization asset
+mesh_shape = chrono.ChTriangleMeshShape()
+mesh_shape.SetMesh(mesh)
+mesh_shape.SetName("tri_mesh")
+mesh_shape.SetColor(chrono.ChColor(0.4, 0.4, 0.8))
+body_mesh.AddAsset(mesh_shape)
 
-mesh_body.AddAsset(visual_shape)
-system.Add(mesh_body)
+system.Add(body_mesh)
 
-# 3. Set up the sensor manager
+# 3. Set necessary default parameters such as positions, forces, and interactions
+
+# Sensor manager
 manager = sens.ChSensorManager(system)
 
-# Set the update rate and lag
-update_rate = 30.0  # Hz
-exposure_time = 1.0 / update_rate
-
 # Camera parameters
-cam_width = 640
-cam_height = 480
-fov = 1.4  # radians
+cam_update_rate = 30.0  # Hz
+cam_resolution = (640, 480)
+cam_fov = 1.6  # radians (~90 deg)
+cam_lag = 0
+cam_exposure_time = 0
 
-# Initial camera position (orbit radius)
-orbit_radius = 2.0
-orbit_height = 0.5
-orbit_speed = 0.5  # radians/sec
+# Initial camera position (will be updated dynamically)
+radius = 2.0
+angle = 0.0
+height = 0.5
 
-# Function to compute camera pose on orbit
-def get_camera_pose(theta):
-    x = orbit_radius * math.cos(theta)
-    y = orbit_height
-    z = orbit_radius * math.sin(theta)
+def get_camera_pose(angle):
+    # Orbit in XZ plane around the mesh
+    x = radius * math.cos(angle)
+    y = height
+    z = radius * math.sin(angle)
     pos = chrono.ChVectorD(x, y, z)
-    # Look at the origin
+    # Look at the origin (mesh center)
     target = chrono.ChVectorD(0, 0, 0)
     up = chrono.ChVectorD(0, 1, 0)
-    # Build the rotation matrix to look at the target
+    # Build the camera frame
     dir = (target - pos).GetNormalized()
     right = up.Cross(dir).GetNormalized()
-    up2 = dir.Cross(right)
+    up_corrected = dir.Cross(right)
     rot = chrono.ChMatrix33D()
-    rot.Set_A_axis(right, up2, dir)
-    return chrono.ChFrameD(pos, rot)
+    rot.Set_A_axis(right, up_corrected, dir)
+    frame = chrono.ChFrameD(pos, rot)
+    return frame
 
-# Initial camera pose
-theta = 0.0
-cam_pose = get_camera_pose(theta)
-
-# Create the camera sensor and attach to the mesh body
-camera = sens.ChCameraSensor(
-    mesh_body,                # body to which the sensor is attached
-    update_rate,              # update rate in Hz
-    cam_pose,                 # initial offset pose
-    cam_width, cam_height,    # image width, height
-    fov                       # field of view
+# Create the camera sensor attached to the mesh body
+cam = sens.ChCameraSensor(
+    body_mesh,                 # body to which the sensor is attached
+    cam_update_rate,           # update rate in Hz
+    chrono.ChFrameD(           # initial offset pose
+        chrono.ChVectorD(radius, height, 0),
+        chrono.Q_from_AngY(0)
+    ),
+    cam_resolution[0],         # width
+    cam_resolution[1],         # height
+    cam_fov                    # FOV
 )
+cam.SetName("OrbitCamera")
+cam.SetLag(cam_lag)
+cam.SetCollectionWindow(cam_exposure_time)
 
 # Add noise filter
-camera.PushFilter(sens.ChFilterCameraNoise(sens.CameraNoiseModel_TYPE_GAUSSIAN, 0.0, 0.03))
+cam.PushFilter(sens.ChFilterCameraNoise(sens.CameraNoiseModel_TYPE_GAUSSIAN, 0.0, 0.03))
 
 # Add visualization filter (to display in a window)
-camera.PushFilter(sens.ChFilterVisualize(cam_width, cam_height, "Camera View"))
+cam.PushFilter(sens.ChFilterVisualize(cam_resolution[0], cam_resolution[1], "Camera View"))
 
 # Add access filter to retrieve the RGBA buffer
-camera.PushFilter(sens.ChFilterRGBA8Access())
+rgba_access = sens.ChFilterRGBA8Access()
+cam.PushFilter(rgba_access)
 
 # Add the camera to the sensor manager
-manager.AddSensor(camera)
+manager.AddSensor(cam)
 
-# 4. Simulate the system, update camera position, print buffer data
+# 4. Simulate the system, dynamically updating the camera's position in an orbit
 
+sim_time = 2.0  # seconds
 step_size = 1.0 / 240.0  # simulation step size
-end_time = 5.0           # seconds
-steps = int(end_time / step_size)
+orbit_speed = 2 * math.pi / sim_time  # one full orbit in sim_time seconds
 
 print("Starting simulation...")
 
-for i in range(steps):
-    time_curr = i * step_size
+t = 0.0
+while t < sim_time:
+    # Update camera's pose to orbit around the mesh
+    angle = orbit_speed * t
+    cam.SetOffsetPose(get_camera_pose(angle))
 
-    # Update camera orbit angle
-    theta = orbit_speed * time_curr
-    cam_pose = get_camera_pose(theta)
-    camera.SetOffsetPose(cam_pose)
-
-    # Advance simulation and sensors
+    # Advance simulation
     system.DoStepDynamics(step_size)
     manager.Update()
 
-    # Access the latest camera buffer
-    img = camera.GetMostRecentRGBA8Buffer()
+    # Access and print camera buffer data
+    img = rgba_access.GetBuffer()
     if img is not None:
         # img is a numpy array of shape (height, width, 4)
-        print(f"Step {i}, Time {time_curr:.3f}s, Camera buffer shape: {img.shape}, Mean pixel value: {img.mean():.2f}")
+        print(f"Time {t:.3f}s: Camera buffer mean RGBA = {np.mean(img, axis=(0,1))}")
     else:
-        print(f"Step {i}, Time {time_curr:.3f}s, No camera data yet.")
+        print(f"Time {t:.3f}s: Camera buffer not ready.")
 
-    # Optional: slow down for visualization
+    t += step_size
+
+    # Optional: slow down to real time for visualization
     # time.sleep(step_size)
 
 print("Simulation complete.")
@@ -136,11 +142,11 @@ print("Simulation complete.")
 
 ---
 
-**Notes:**
-- The camera orbits the mesh at a fixed radius and height, always looking at the mesh's center.
-- The script prints the shape and mean pixel value of the camera buffer at each step.
-- Visualization will pop up a window showing the camera's view if you have an OpenGL context.
-- Adjust `orbit_radius`, `orbit_height`, and `orbit_speed` as needed for your scene.
-- Make sure your `.obj` file is in the working directory or provide the full path.
+**NOTES:**
+- Replace `"mesh.obj"` with your actual mesh file path if needed.
+- The camera orbits the mesh in the XZ plane at a fixed height.
+- The script prints the mean RGBA value of the camera image at each step.
+- Visualization window will pop up if you have OpenGL support.
+- Adjust `sim_time`, `step_size`, and `orbit_speed` as needed for your use case.
 
 Let me know if you need further customization!

@@ -1,98 +1,105 @@
 ```python
-import pychrono as chrono
+import pychrono.core as chrono
 import pychrono.vehicle as veh
+import pychrono.irrlicht as irr
 import pychrono.ros as ros
 
-# 1. Initialize the Chrono engine
-chrono.SetChronoDataPath("/path/to/chrono/data")  # Set to your Chrono data directory if needed
-
-# Create the physical system
+# Initialize Chrono system
 system = chrono.ChSystemNSC()
-system.SetIntegrationType(chrono.ChSystemNSC.IntegrationType.NONCONSTRAINT)
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
-# 2. Add terrain with specified properties
+# Set default parameters
+terrain_friction = 0.8
+terrain_restitution = 0.1
+contact_method = chrono.ChContactMethod_NSC  # or ChContactMethod_SMC as needed
+
+# Create terrain
 terrain = veh.RigidTerrain(system)
-terrain.SetContactMethod(chrono.ChContactMethod.SATURN)
-terrain.Initialize(chrono.ChVectorD(0, 0, 0))
-terrain.GetGround().SetFriction(0.8)
-terrain.GetGround().SetRestitution(0.1)
+terrain.SetFriction(terrain_friction)
+terrain.SetRestitution(terrain_restitution)
+terrain.Initialize()
 
-# 3. Create the HMMWV vehicle
-# Vehicle parameters
-hmmwv = veh.HMMWV(system, veh.FULL, veh.HMMWV_LIGHT, veh.AIR_FILLED_TIRES)
+# Create the HMMWV vehicle
+# Define vehicle parameters
+vehicle_params = veh.HMMWV_VehicleInfo()
+vehicle_params.chassis_mass = 3000  # example mass in kg
+vehicle_params.chassis_width = 2.0
+vehicle_params.chassis_height = 1.0
+vehicle_params.engine_type = veh.EngineType_ThrustVectoring  # specify engine type
+vehicle_params.tire_model = veh.TireModelType_TMeasy  # specify tire model
+vehicle_params.contact_method = contact_method
 
-# Set contact method (already set globally, but ensure vehicle uses same)
-hmmwv.GetChassisBody().SetContactMethod(chrono.ChContactMethod.SATURN)
+# Instantiate the vehicle
+vehicle = veh.HMMWV_Vehicle(system, vehicle_params)
+vehicle.Initialize()
 
-# Set engine type and tire model
-hmmwv.SetEnginePower(86.0)  # Example power in HP
-# Tire model, for example, RIGID tire
-for tire in hmmwv.GetTireTerrainConnectors():
-    tire.SetTireModel(veh.TireModel.RIGID)
+# Set initial position and orientation if needed
+initial_pos = chrono.ChVectorD(0, 0, 0.5)  # example starting position
+vehicle.SetChassisPosition(initial_pos)
 
-# Initialize the vehicle
-hmmwv.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0.5, 0), chrono.QUNIT))
-hmmwv.GetPowertrain().SetDriveMode(veh.PowertrainModel.AD)
-hmmwv.SetChassisVisualizationType(veh.VisualizationType.SHADOWS)
+# Create driver system
+driver = veh.ChDriver(vehicle.GetVehicle())
+driver.SetInputMode(veh.ChDriver.InputMode_Pedal)
+driver.SetThrottle(0.0)
+driver.SetSteering(0.0)
+driver.SetBraking(0.0)
 
-# 4. Set up the driver system
-driver = veh.ChIrrGuiDriver(hmmwv.GetSystem())
-driver.SetSteeringUncertainty(0.01)
-driver.SetThrottleUncertainty(0.01)
-driver.SetBrakingUncertainty(0.01)
+# Initialize ROS node and manager
+ros_manager = ros.ChROSManager()
+ros_manager.Initialize()
 
-# 5. ROS Communication Setup
-ros_manager = ros.ChROSmanager()
+# Register ROS handlers
+# Clock synchronization handler
+def clock_callback(msg):
+    # Implement clock sync if needed
+    pass
 
-# Register clock handler
-clock_handler = ros.ChROSClockHandler()
-ros_manager.Register(clock_handler)
+ros_manager.RegisterHandler("/clock", "sensor_msgs/Clock", clock_callback)
 
-# Register driver input handler
-driver_handler = ros.ChROSdriver(hmmwv)
-ros_manager.Register(driver_handler)
+# Driver input handler
+def driver_input_callback(msg):
+    # Map incoming messages to driver controls
+    # For example, assume msg contains throttle, steering, brake
+    driver.SetThrottle(msg.throttle)
+    driver.SetSteering(msg.steering)
+    driver.SetBraking(msg.brake)
 
-# Register vehicle state publisher
-vehicle_state_publisher = ros.ChROSvehicle(hmmwv)
-ros_manager.Register(vehicle_state_publisher)
+ros_manager.RegisterHandler("/driver_input", "custom_msgs/DriverInput", driver_input_callback)
 
-# 6. Simulation parameters
+# Vehicle state publisher
+def publish_vehicle_state():
+    # Collect vehicle state data
+    state_msg = ...  # construct message with position, speed, etc.
+    ros_manager.Publish("/vehicle/state", state_msg)
+
+# Simulation parameters
 time_step = 1e-3  # 1 ms timestep
-end_time = 10.0  # Run for 10 seconds
+max_time = 10.0  # total simulation time in seconds
+current_time = 0.0
 
 # Main simulation loop
-current_time = 0.0
-while current_time < end_time:
-    # Synchronize ROS managers with current time
+while current_time < max_time:
+    # Synchronize ROS
     ros_manager.Synchronize(current_time)
-    
-    # Advance the driver inputs
-    driver.Synchronize(current_time)
-    
-    # Get driver inputs
-    driver_inputs = driver.GetInputs()
-    
-    # Apply driver inputs to vehicle
-    hmmwv.GetPowertrain().Synchronize(current_time)
-    hmmwv.GetPowertrain().SetThrottle(driver_inputs.m_throttle);
-    hmmwv.GetPowertrain().SetBrake(driver_inputs.m_brake);
-    hmmwv.GetSteering().SetSteeringAngle(driver_inputs.m_steering);
-    hmmwv.GetSteering().Synchronize(current_time);
-    
-    # Advance the vehicle
-    hmmwv.Synchronize(current_time)
-    
-    # Advance terrain
-    terrain.Synchronize(current_time)
+
+    # Update driver inputs from ROS
+    ros_manager.CallHandlers()
+
+    # Advance driver
+    driver.Advance(time_step)
+
+    # Advance vehicle
+    vehicle.Advance(time_step)
+
+    # Advance terrain if needed
+    terrain.Synchronize(time_step)
     terrain.Advance(time_step)
-    
-    # Advance the system physics
-    system.DoStepDynamics(time_step)
-    
-    # Update ROS with new state data
-    ros_manager.Update(current_time)
-    
+
+    # Publish vehicle state
+    publish_vehicle_state()
+
     # Increment time
     current_time += time_step
+
+# Finalize ROS
+ros_manager.Shutdown()
 ```

@@ -4,7 +4,7 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import numpy as np
 
-# Import sensor modules (assuming such exists; if not, would need to install/validate)
+# Import sensor modules
 import pychrono.sensor as sensor
 
 # Set data paths
@@ -40,8 +40,8 @@ contact_vis = False
 step_size = 1e-3
 tire_step_size = step_size
 
-# Time interval between render frames
-render_step_size = 1.0 / 50  # 50 FPS
+# Time interval between two render frames
+render_step_size = 1.0 / 50  # FPS = 50
 
 # Create the MAN vehicle, set parameters, and initialize
 vehicle = veh.MAN_10t()
@@ -62,7 +62,7 @@ vehicle.SetTireVisualizationType(vis_type)
 
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
-# Create the terrain with new texture
+# Create the terrain
 patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
@@ -71,7 +71,7 @@ patch = terrain.AddPatch(patch_mat,
     chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
     terrainLength, terrainWidth)
 
-# Changed texture from "tile4.jpg" to "grass.jpg"
+# Change terrain texture to grass.jpg
 patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
@@ -87,50 +87,13 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
-# Initialize sensor manager
-sensor_manager = sensor.ChSensorManager(vehicle.GetSystem())
-
-# Create and add a lidar sensor
-# Define sensor position relative to vehicle
-lidar_position = chrono.ChVector(0, 0, 2)  # Adjust as needed
-lidar_orientation = chrono.QUNIT  # No rotation
-
-# Create lidar sensor with parameters
-lidar = sensor.ChLidarSensor(
-    vehicle.GetVehicle(), 
-    25.0,  # max range in meters
-    0.25,  # angular resolution in radians
-    360.0, # horizontal scan angles in degrees
-    lidar_position, 
-    lidar_orientation)
-
-sensor_manager.AddSensor(lidar)
-
-# Create some random boxes in the environment
-# Number of boxes
-num_boxes = 10
-box_size = 1.0  # size of each box
-
-for i in range(num_boxes):
-    box = chrono.ChBodyEasyBox(box_size, box_size, box_size, 
-                               density=10, 
-                               isDynamic=True)
-    # Random position within terrain bounds
-    x = np.random.uniform(-terrainLength/2 + box_size, terrainLength/2 - box_size)
-    y = np.random.uniform(-terrainWidth/2 + box_size, terrainWidth/2 - box_size)
-    z = terrainHeight + box_size / 2  # On top of terrain
-    box.SetPos(chrono.ChVectorD(x, y, z))
-    # Random color for visualization (optional)
-    color = chrono.ChColor(np.random.random(), np.random.random(), np.random.random())
-    box.SetColor(color)
-
-# Initialize driver system
+# Create the driver system
 driver = veh.ChInteractiveDriverIRR(vis)
-# Set control response times
-steering_time = 1.0
-throttle_time = 1.0
-braking_time = 0.3
 
+# Set the time response for steering and throttle keyboard inputs.
+steering_time = 1.0  # time to go from 0 to +1 (or from 0 to -1)
+throttle_time = 1.0  # time to go from 0 to +1
+braking_time = 0.3   # time to go from 0 to +1
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
@@ -138,32 +101,63 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 # Output vehicle mass
-print("VEHICLE MASS:", vehicle.GetVehicle().GetMass())
+print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
-# Calculate the number of steps between renders
+# Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
 
-# Initialize real-time timer
+# Initialize simulation frame counter
 realtime_timer = chrono.ChRealtimeStepTimer()
-
 step_number = 0
 render_frame = 0
+
+# Create sensor manager
+sensor_manager = sensor.ChSensorManager(vehicle.GetSystem())
+
+# Create and add a lidar sensor
+# Position the lidar at a certain point relative to the vehicle
+lidar_position = chrono.ChVectorD(0, 0, 1.5)  # Adjust as needed
+lidar = sensor.ChLidarSensor(
+    vehicle.GetVehicle().GetChassisBody(),
+    100.0,  # max range
+    0.2,    # horizontal resolution
+    0.2,    # vertical resolution
+    0.0,    # offset in yaw
+    lidar_position
+)
+sensor_manager.AddSensor(lidar)
+
+# Create random boxes and add to the simulation
+num_boxes = 10
+boxes = []
+for i in range(num_boxes):
+    size = np.random.uniform(0.2, 1.0)
+    mass = size * 10  # arbitrary mass proportional to size
+    box_body = chrono.ChBodyEasyBox(size, size, size, mass, True, True)
+    # Random position within terrain bounds
+    x = np.random.uniform(-terrainLength/2 + size, terrainLength/2 - size)
+    y = np.random.uniform(-terrainWidth/2 + size, terrainWidth/2 - size)
+    z = terrainHeight + size/2
+    box_body.SetPos(chrono.ChVector3d(x, y, z))
+    box_body.SetBodyFixed(False)
+    # Optional: set color or visualization
+    box_body.GetVisualShape().SetColor(chrono.ChColor(0.2, 0.8, 0.2))
+    vehicle.GetSystem().Add(box_body)
+    boxes.append(box_body)
 
 # Simulation loop
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
-    # Render at specified frames
+    # Update sensor manager (new addition)
+    sensor_manager.Update()
+
+    # Render scene and output POV-Ray data
     if (step_number % render_steps == 0):
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
         render_frame += 1
-
-    # Update sensor manager and get latest sensor data
-    sensor_manager.Update()
-    # Optionally, retrieve point cloud data or lidar data here
-    # lidar_points = lidar.GetPointCloud() # if such method exists
 
     # Get driver inputs
     driver_inputs = driver.GetInputs()
@@ -174,15 +168,15 @@ while vis.Run():
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
 
-    # Advance simulation
+    # Advance simulation for one timestep
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
 
-    # Increment step counter
+    # Increment frame number
     step_number += 1
 
-    # Ensure real-time keeping
+    # Spin in place for real time
     realtime_timer.Spin(step_size)
 ```

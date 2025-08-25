@@ -1,12 +1,16 @@
-Looking at the provided PyChrono script, I'll first identify and correct any errors, then implement the requested modifications.
+Looking at the provided PyChrono script, I'll identify errors and implement the requested modifications.
 
-## Identified Errors and Issues:
+## Identified Errors:
+1. Comment typo: "Poon chassis tracked by the camera" should be "Point chassis tracked by the camera"
+2. Comment typo: "Initialize simulation frame counter s" should be "Initialize simulation frame counter"
 
-1. **Quaternion initialization error**: `chrono.ChQuaterniond(1, 0, 0, 0)` should be `chrono.ChQuaterniond(1, 0, 0, 0)` - this is actually correct as written.
-2. **Comment typo**: "Poon chassis" should be "Point chassis"
-3. **Collision system type**: The collision system type setting might need adjustment for better compatibility.
+## Required Modifications:
+1. Replace interactive driver with path-follower driver
+2. Create ISO double lane change maneuver path
+3. Change initial vehicle location to (-50, 0, 0.5)
+4. Increase terrain length to 200.0
 
-## Here's the corrected and modified script:
+Here's the corrected and modified script:
 
 ```python
 import pychrono.core as chrono
@@ -17,7 +21,7 @@ import math
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
-# Initial vehicle location and orientation (Modified: changed from (0,0,0.5) to (-50,0,0.5))
+# Initial vehicle location and orientation (modified as requested)
 initLoc = chrono.ChVector3d(-50, 0, 0.5)
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
@@ -32,10 +36,10 @@ tire_model = veh.TireModelType_TMEASY
 
 # Rigid terrain
 terrainHeight = 0      # terrain height
-terrainLength = 200.0  # size in X direction (Modified: increased from 100.0 to 200.0)
+terrainLength = 200.0  # size in X direction (increased as requested)
 terrainWidth = 100.0   # size in Y direction
 
-# Point chassis tracked by the camera (Fixed typo)
+# Point chassis tracked by the camera (corrected comment)
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
 
 # Contact method
@@ -92,18 +96,50 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
-# Create ISO double lane change path
-path = veh.DoubleLaneChangePath(chrono.ChVector3d(-50, 0, 0.1), 50.0, 3.5, 25.0, 21.95, True)
+# Create path for ISO double lane change maneuver
+path = veh.StraightLinePath(chrono.ChVector3d(-50, 0, 0.1), chrono.ChVector3d(150, 0, 0.1))
 
-# Create the path-follower driver system (Modified: replaced interactive driver)
-driver = veh.ChPathFollowerDriver(vehicle.GetVehicle(), path, "my_path", 10.0)
+# Alternative: Create a more detailed double lane change path
+# This creates the characteristic double lane change pattern
+path_points = []
+# Starting straight section
+for i in range(0, 20):
+    x = -50 + i * 2.5
+    y = 0
+    path_points.append(chrono.ChVector3d(x, y, 0.1))
 
-# Configure steering controller with look-ahead distance and gains
-driver.GetSteeringController().SetLookAheadDistance(5.0)
-driver.GetSteeringController().SetGains(0.5, 0, 0)
+# First lane change (left)
+for i in range(20, 40):
+    x = -50 + i * 2.5
+    progress = (i - 20) / 20.0
+    y = 3.5 * math.sin(math.pi * progress)
+    path_points.append(chrono.ChVector3d(x, y, 0.1))
 
-# Configure speed controller with appropriate gains
-driver.GetSpeedController().SetGains(0.4, 0, 0)
+# Second lane change (back to center)
+for i in range(40, 60):
+    x = -50 + i * 2.5
+    progress = (i - 40) / 20.0
+    y = 3.5 * (1 - math.sin(math.pi * progress))
+    path_points.append(chrono.ChVector3d(x, y, 0.1))
+
+# Final straight section
+for i in range(60, 80):
+    x = -50 + i * 2.5
+    y = 0
+    path_points.append(chrono.ChVector3d(x, y, 0.1))
+
+# Create the path using the points
+path = veh.BezierCurve(path_points)
+
+# Create the path-follower driver system
+driver = veh.ChPathFollowerDriver(vehicle.GetVehicle(), path, "my_path", 10.0)  # target speed = 10.0
+
+# Configure the steering controller (PID gains and look-ahead distance)
+driver.GetSteeringController().SetLookAheadDistance(5.0)  # look-ahead distance = 5
+driver.GetSteeringController().SetGains(0.8, 0.0, 0.0)   # Kp, Ki, Kd for steering
+
+# Configure the speed controller (PID gains)
+driver.GetSpeedController().SetGains(0.4, 0.0, 0.0)      # Kp, Ki, Kd for speed
 
 # Initialize the driver
 driver.Initialize()
@@ -114,7 +150,7 @@ print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
 
-# Initialize simulation frame counter
+# Initialize simulation frame counter (corrected comment)
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
@@ -153,19 +189,17 @@ while vis.Run():
 
 ## Key Changes Made:
 
-1. **Driver System Modification**:
-   - Replaced `veh.ChInteractiveDriverIRR(vis)` with `veh.ChPathFollowerDriver`
-   - Created an ISO double lane change path using `veh.DoubleLaneChangePath`
-   - Set target speed to 10.0 m/s
-   - Configured steering controller with look-ahead distance of 5.0 and gains (0.5, 0, 0)
-   - Configured speed controller with gains (0.4, 0, 0)
+1. **Driver System**: Replaced `ChInteractiveDriverIRR` with `ChPathFollowerDriver` configured with:
+   - Target speed of 10.0 m/s
+   - Look-ahead distance of 5.0 meters
+   - Appropriate PID gains for steering (0.8, 0.0, 0.0) and speed (0.4, 0.0, 0.0) controllers
 
-2. **Initial Vehicle Location**: Changed from `(0, 0, 0.5)` to `(-50, 0, 0.5)`
+2. **Path Creation**: Created an ISO double lane change maneuver path using a series of points that create the characteristic S-curve pattern
 
-3. **Terrain Length**: Increased from `100.0` to `200.0`
+3. **Initial Vehicle Location**: Changed from `(0, 0, 0.5)` to `(-50, 0, 0.5)`
 
-4. **Minor Fixes**:
-   - Fixed the comment typo from "Poon chassis" to "Point chassis"
-   - Removed the steering/throttle/braking time configurations that were specific to the interactive driver
+4. **Terrain Length**: Increased from `100.0` to `200.0` to accommodate the full maneuver
 
-The script now implements a path-following driver that will execute an ISO standard double lane change maneuver with the vehicle starting at the modified position on the extended terrain.
+5. **Minor Corrections**: Fixed comment typos
+
+The script now implements a path-following driver that will execute a double lane change maneuver at the specified target speed with proper steering and speed control.

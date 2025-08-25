@@ -1,92 +1,112 @@
 ```python
 import pychrono as chrono
-import pychrono.fea as fea
 import pychrono.irrlicht as chronoirr
+import pychrono.fea as fea
 
-# 1. Initialize PyChrono environment and core components
+# 1. Initialize the PyChrono environment and core components
 my_system = chrono.ChSystemNSC()
-my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
 
-# 2. Create the beam using FEA
-beam_material = fea.ChMaterialShellANCF(rho=7850, E=200e9, nu=0.3)
-beam_section = fea.ChSectionShellParametric(
-    radius=0.05, thickness=0.01, material=beam_material
+# 2. Add physical systems and objects
+# Create the ground
+ground = chrono.ChBodyEasyBox(10, 0.2, 10, 1000, True, True)
+ground.SetPos(chrono.ChVectorD(0, -1, 0))
+my_system.Add(ground)
+
+# Create the beam using FEA
+beam_material = fea.ChMaterialShellANCF(
+    rho=7850, E=200e9, nu=0.3, thickness=0.01
 )
-beam_length = 1.0
-beam = fea.ChBeamSectionCable(beam_section, beam_length)
+beam_section = fea.ChSectionShellParametric(
+    beam_material, 0.1, 0.01, 0.01
+)
+beam = fea.ChBeamSectionNSC(beam_section)
 
-# 3. Add beam to the system
-beam_body = chrono.ChBody()
-beam_body.SetBodyFixed(False)
-beam_body.SetPos(chrono.ChVectorD(0, 0, 0))
-my_system.Add(beam_body)
+beam_nodes = [
+    chrono.ChNodeFEAxyz(chrono.ChVectorD(-5, 0, 0)),
+    chrono.ChNodeFEAxyz(chrono.ChVectorD(5, 0, 0)),
+]
+beam_elements = [
+    fea.ChElementBeamANCF(beam, beam_nodes[0], beam_nodes[1])
+]
 
-# 4. Create FEA mesh for the beam
-mesh = fea.ChMesh()
-nodes = []
-for i in range(10):
-    nodes.append(fea.ChNodeFEAxyz(chrono.ChVectorD(i * beam_length / 9, 0, 0)))
-mesh.AddNodes(nodes)
-elements = []
-for i in range(9):
-    elements.append(fea.ChElementBeamANCF(nodes[i], nodes[i + 1], beam))
-mesh.AddElements(elements)
+beam_body = fea.ChBodyFEA(my_system)
+beam_body.SetElements(beam_elements)
+beam_body.SetMass(10)
 
-# 5. Attach the FEA mesh to the beam body
-fea.ChMeshExporter.ExportToChrono(mesh, beam_body)
+# 3. Set default parameters
+# Apply a force to the beam
+force_dir = chrono.ChVectorD(0, 1, 0)
+force_magnitude = 100
+force = chrono.ChForce(chrono.ChForceType.FORCE)
+force.SetForce(force_dir * force_magnitude)
+beam_body.AddForce(force)
 
-# 6. Define custom motor function for applying load
-def apply_load(time):
-    return 1000 * time  # Example: linearly increasing load
+# Define a custom motor function for a fixed end
+def fixed_end_motor(time):
+    return chrono.ChVectorD(0, 0, 0)
 
-# 7. Create a force element and apply the custom load
-force_element = chrono.ChForce()
-force_element.SetMode(chrono.ChForce.FORCE)
-force_element.SetDir(chrono.ChVectorD(0, 1, 0))
-force_element.SetVpoint(chrono.ChVectorD(beam_length, 0, 0))
-force_element.SetMforce(apply_load)
-beam_body.AddForce(force_element)
+fixed_end_motor_func = chrono.ChFunction_Const(fixed_end_motor)
+fixed_end_constraint = chrono.ChLinkLockRevolute(
+    beam_body, ground, chrono.ChCoordsysD(chrono.ChVectorD(-5, 0, 0))
+)
+fixed_end_constraint.SetMotion_Lock(chrono.ChMotionLock.LOCK_ROTATIONAL_X)
+fixed_end_constraint.SetMotion_Lock(chrono.ChMotionLock.LOCK_ROTATIONAL_Y)
+fixed_end_constraint.SetMotion_Lock(chrono.ChMotionLock.LOCK_ROTATIONAL_Z)
+fixed_end_constraint.SetMotionFunction(fixed_end_motor_func)
+my_system.Add(fixed_end_constraint)
 
-# 8. Set up constraints (example: fixed end)
-fixed_constraint = chrono.ChLinkLockRevolute()
-fixed_constraint.Initialize(beam_body, chrono.ChBody(), chrono.ChVectorD(0, 0, 0))
-my_system.Add(fixed_constraint)
-
-# 9. Visualization using Irrlicht
+# 4. Visualization and Solver setup
+# Create the Irrlicht visualization
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(my_system)
 vis.SetWindowSize(800, 600)
 vis.SetWindowTitle("Beam Buckling Simulation")
 vis.Initialize()
 
-# 10. Solver and timestepper
+# Set the solver and timestepper
 my_system.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
 my_system.SetTimestepperType(chrono.ChTimestepper.Type_EULER_IMPLICIT_LINEARIZED)
-my_system.SetStep(0.001)
+my_system.SetSolverMaxIterations(100)
 
-# 11. Simulation loop
+# 5. Simulation loop
 while vis.Run():
-    my_system.DoStepDynamics(0.001)
+    my_system.DoStepDynamics(0.01)
     vis.Render()
-
 ```
 
 **Explanation:**
 
-1. **Initialization:** Sets up the Chrono system, gravity, and defines the material and section properties for the beam.
-2. **Beam Creation:** Creates a beam object using FEA, defining its geometry and material properties.
-3. **Adding to System:** Adds the beam to the Chrono system as a rigid body.
-4. **FEA Mesh:** Creates a mesh for the beam using nodes and elements, representing its discretization for FEA.
-5. **Mesh Attachment:** Attaches the FEA mesh to the beam body, allowing for deformation simulation.
-6. **Custom Load:** Defines a custom function `apply_load` to control the force applied to the beam over time.
-7. **Force Application:** Creates a force element and applies the custom load to the beam using the defined function.
-8. **Constraints:** Adds a fixed constraint to one end of the beam, preventing its movement.
-9. **Visualization:** Initializes the Irrlicht visualization module to render the simulation.
-10. **Solver and Timestepper:** Sets the solver and timestepper types for accurate dynamics simulation.
-11. **Simulation Loop:** Runs the simulation loop, updating the system dynamics and rendering the visualization.
+1. **Initialization:**
+   - We create a `ChSystemNSC` to represent the physical system.
+   - Gravity is set using `Set_G_acc`.
 
-**Remember:**
+2. **Objects and Systems:**
+   - A ground plane is created using `ChBodyEasyBox`.
+   - The beam is defined using FEA components:
+     - `ChMaterialShellANCF`: Defines the material properties (density, Young's modulus, Poisson's ratio, thickness).
+     - `ChSectionShellParametric`: Defines the cross-section of the beam.
+     - `ChBeamSectionNSC`: Represents the beam element using the defined material and section.
+     - Nodes and elements are created to form the beam geometry.
+     - A `ChBodyFEA` is created to hold the beam elements and its mass is set.
 
-* This is a basic example and can be further customized by adding more complex geometries, loading conditions, constraints, and visualization options.
-* You can adjust the parameters (material properties, load function, timestep, etc.) to explore different buckling scenarios.
-* Refer to the PyChrono documentation for more detailed information on the available features and functionalities.
+3. **Parameters:**
+   - A force is applied to the beam using `ChForce`.
+   - A custom motor function `fixed_end_motor` is defined to keep one end of the beam fixed.
+   - A `ChLinkLockRevolute` constraint is used to implement the fixed end with the motor function.
+
+4. **Visualization and Solver:**
+   - `chronoirr` is used for visualization with Irrlicht.
+   - A solver (BARZILAIBORWEIN) and timestepper (EULER_IMPLICIT_LINEARIZED) are chosen for accurate dynamics simulation.
+
+5. **Simulation Loop:**
+   - The simulation runs in a loop, updating the system dynamics and rendering the scene.
+
+
+
+**Key Points:**
+
+- This script provides a basic framework for beam buckling simulation. You can modify parameters like force magnitude, beam geometry, material properties, and constraints to explore different buckling scenarios.
+- FEA allows for more realistic modeling of beam behavior under load.
+- Custom motor functions provide flexibility in defining complex constraints and motions.
+- Choosing appropriate solver and timestepper settings is crucial for accurate and stable simulations.

@@ -2,93 +2,102 @@
 import pychrono as chrono
 import pychrono.vehicle as veh
 import pychrono.irrlicht as irr
-import chrono.ros as ros
+import rospy
+from std_msgs.msg import Float64
 
-# 1. Initialize PyChrono environment and core components
-chrono.SetChronoDataPath("data/")
-system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+# --- 1. Initialize PyChrono environment and core components ---
+my_system = chrono.ChSystemNSC()
+my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
-# 2. Add terrain
-terrain = chrono.ChBodyEasyBox(100, 100, 1, 1000, True, True)
-terrain.SetPos(chrono.ChVectorD(0, -1, 0))
+# --- 2. Add physical systems and objects ---
+# a. Terrain
+terrain = chrono.ChBodyEasyBox(100, 100, 1)  # Example terrain
 terrain.SetBodyFixed(True)
-system.Add(terrain)
-terrain.GetMaterialSurfaceNSC().SetFriction(0.8)
-terrain.GetMaterialSurfaceNSC().SetRestitution(0.2)
+my_system.Add(terrain)
+terrain.SetFriction(0.8)  # Set terrain friction
+terrain.SetRestitution(0.2)  # Set terrain restitution
 
-# 3. Add HMMWV vehicle
+# b. HMMWV Vehicle
 vehicle = veh.ChVehicle("HMMWV")
-vehicle.SetSystem(system)
+vehicle.SetContactMethod(chrono.ChContactMethod_NSC)
+vehicle.SetEngineType(veh.ChVehicle.ENGINE_TYPE_CONSTANT_POWER)  # Example engine type
+vehicle.SetTireModel(veh.ChVehicle.TIRE_MODEL_PAC89)  # Example tire model
 
-# Vehicle parameters (adjust as needed)
-vehicle.SetContactMethod(veh.ChContactMethod.NSC)
-vehicle.SetEngineType(veh.ChEngineType.SIMPLE)
-vehicle.SetTireModel(veh.ChTireModel.RIGID)
+# Add vehicle chassis and suspension (details omitted for brevity)
+# ...
 
-# Load vehicle chassis and components
-vehicle.Initialize(chrono.GetChronoDataPath() + "vehicle/hmmwv/hmmwv.json")
-
-# 4. Initialize driver system
+# c. Driver System
 driver = veh.ChDriver(vehicle)
 
-# 5. Integrate ROS
-ros_manager = ros.ChROSManager(system)
+# --- 3. Set default parameters ---
+vehicle.SetInitPosition(chrono.ChVectorD(0, 1, 0))  # Initial position
 
-# Register ROS handlers
-ros_manager.RegisterClockSyncHandler()
-ros_manager.RegisterDriverInputHandler(driver)
-ros_manager.RegisterVehicleStatePublisher(vehicle)
+# --- 4. Integrate ROS ---
+rospy.init_node('pychrono_ros_node')
 
-# 6. Simulation loop
-time_step = 0.01
-simulation_time = 10
+# ROS Publishers
+vehicle_state_pub = rospy.Publisher('/vehicle_state', Float64, queue_size=10)
 
-while system.GetChTime() < simulation_time:
-    # Synchronize with ROS
-    ros_manager.Update()
+# ROS Subscribers
+driver_input_sub = rospy.Subscriber('/driver_inputs', Float64, driver_input_callback)
 
-    # Advance simulation
-    system.DoStepDynamics(time_step)
+# ROS Clock Synchronization (example)
+rospy.Subscriber('/clock', rospy.Time, clock_sync_callback)
 
-    # Update driver system
-    driver.Update(time_step)
+# --- 5. Simulation loop ---
+while True:
+    # ROS Synchronization and Data Handling
+    rospy.rostime.wallsleep(0.01)  # Adjust timestep as needed
 
-    # Publish vehicle state to ROS
-    ros_manager.PublishVehicleState()
+    # Vehicle Control
+    driver.Synchronize(vehicle.GetChasis().GetPos())
+    driver.ApplyInputs()
 
-# 7. Cleanup
-ros_manager.Shutdown()
-system.Clear()
+    # Advance Simulation
+    my_system.DoStepDynamics(0.01)  # Adjust timestep as needed
+
+    # Publish Vehicle State
+    vehicle_state = vehicle.GetSpeed()  # Example state data
+    vehicle_state_pub.publish(vehicle_state)
+
+    # Update ROS Manager (if using)
+    # ...
 ```
 
 **Explanation:**
 
 1. **Initialization:**
-   - Sets up the PyChrono environment and creates a physical system.
-   - Defines gravity and initializes a terrain with specified friction and restitution.
+   - Creates a Chrono system and sets gravity.
 
-2. **Vehicle Setup:**
-   - Creates an HMMWV vehicle object and sets its parameters (contact method, engine type, tire model).
-   - Loads the vehicle chassis and components from a JSON file.
+2. **Objects:**
+   - **Terrain:** A simple box terrain is created with friction and restitution.
+   - **HMMWV:** A `ChVehicle` object is initialized with specified parameters like contact method, engine type, and tire model. You'll need to add details for chassis, suspension, wheels, etc.
+   - **Driver:** A `ChDriver` object is created to control the vehicle.
 
-3. **Driver System:**
-   - Initializes a driver system for controlling the vehicle.
+3. **Parameters:**
+   - Sets the initial position of the HMMWV.
 
 4. **ROS Integration:**
-   - Creates a ROS manager to handle communication.
-   - Registers handlers for clock synchronization, driver inputs, and vehicle state publishing.
+   - Initializes ROS node.
+   - Sets up publishers for vehicle state and subscribers for driver inputs and clock synchronization.
+   - Includes placeholder callbacks for driver input handling and clock synchronization.
 
 5. **Simulation Loop:**
-   - Runs the simulation for a specified duration.
-   - Synchronizes with ROS at each timestep.
-   - Advances the simulation, updates the driver system, and publishes vehicle state to ROS.
+   - Synchronizes with ROS clock.
+   - Handles driver inputs.
+   - Advances the Chrono simulation.
+   - Publishes vehicle state data.
+   - Includes a placeholder for updating a ROS manager if you're using one for communication.
 
-6. **Cleanup:**
-   - Shuts down the ROS manager and clears the simulation system.
+**Important Notes:**
 
-**Notes:**
 
-- This script provides a basic framework. You'll need to adjust parameters, add sensors, and implement more complex control logic based on your specific requirements.
-- Make sure you have the necessary ROS packages installed and configured.
-- The JSON file for the HMMWV vehicle should be located in the specified path.
+
+* **Details:** This script provides a basic framework. You'll need to fill in the details for:
+    - HMMWV chassis, suspension, wheels, and other components.
+    - Driver input handling logic in the `driver_input_callback`.
+    - Clock synchronization implementation in the `clock_sync_callback`.
+    - ROS manager integration if required.
+* **Tire Model:** The `PAC89` tire model is a simple example. You can explore other tire models available in PyChrono for more realistic behavior.
+* **Timestep:** Adjust the timestep in `DoStepDynamics` and `rospy.rostime.wallsleep` based on your simulation requirements and performance.
+* **ROS Messages:** Define appropriate ROS messages for driver inputs and vehicle state based on your application needs.

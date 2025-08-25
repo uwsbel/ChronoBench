@@ -1,107 +1,95 @@
-Certainly! Below is a **PyChrono** simulation script that sets up a UAZBUS vehicle on rigid terrain, configures driver input, and visualizes the simulation in real-time using Irrlicht. The script follows your requirements: initialization, object creation, parameter setting, and a synchronized simulation loop.
+Certainly! Below is a **PyChrono** simulation script that creates a UAZBUS vehicle on a rigid terrain, sets up a driver, and visualizes the simulation in real time using Irrlicht. The script includes initialization, parameter settings, and a simulation loop as per your instructions.
 
 ```python
 import pychrono as chrono
 import pychrono.vehicle as veh
-import pychrono.irrlicht as chronoirr
+import pychrono.irrlicht as irr
 import time
 
-# 1. Initialize PyChrono environment
+# 1. Initialize PyChrono
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
-veh.SetDataPath(veh.GetDataPath())
+veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 # 2. Create the physical system
 system = chrono.ChSystemNSC()
 
-# 3. Set up the vehicle (UAZBUS)
+# 3. Create the vehicle (UAZBUS)
 initLoc = chrono.ChVectorD(0, 0, 1.0)  # Initial position (x, y, z)
 initRot = chrono.QUNIT  # No initial rotation
-vehicle = veh.UAZBUS_Vehicle(system, False, veh.ChContactMethod_NSC)
-vehicle.SetChassisFixed(False)
+vehicle = veh.UAZBUS_Vehicle(system, False, veh.ChassisCollisionType.NONE)
 vehicle.SetInitPosition(chrono.ChCoordsysD(initLoc, initRot))
 vehicle.SetInitFwdVel(0.0)
 vehicle.Initialize()
 
-# 4. Set up the terrain
+# 4. Create the terrain
 terrain = veh.RigidTerrain(system)
 patch = terrain.AddPatch(
     chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT),
-    length=200.0, width=100.0
+    length=200.0, width=200.0
 )
 patch.SetContactFrictionCoefficient(0.9)
 patch.SetContactRestitutionCoefficient(0.01)
-patch.SetMaterialSurface(veh.ChContactMethod_NSC)
-patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 100)
+patch.SetMaterialSurface(chrono.ChContactMaterialNSC())
+patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)
 terrain.Initialize()
 
-# 5. Set up the driver system (simple path-following driver)
-driver = veh.ChDriver(system)
-# For a more realistic driver, use ChIrrGuiDriver or ChPathFollowerDriver
-# Here, we use a simple driver with constant throttle
-class SimpleDriver(veh.ChDriver):
-    def __init__(self, vehicle):
-        super().__init__(vehicle)
-        self.throttle = 0.5
-        self.steering = 0.0
-        self.braking = 0.0
-    def Synchronize(self, time):
-        self.m_inputs.m_throttle = self.throttle
-        self.m_inputs.m_steering = self.steering
-        self.m_inputs.m_braking = self.braking
+# 5. Create the driver system (simple driver)
+driver = veh.ChDriver(vehicle)
+# Optionally, use a more advanced driver:
+# driver = veh.ChIrrGuiDriver(vehicle, irr.device)
+# For now, set constant throttle, steering, and braking
+driver_inputs = veh.DriverInputs()
+driver_inputs.m_throttle = 0.5
+driver_inputs.m_steering = 0.0
+driver_inputs.m_braking = 0.0
 
-driver = SimpleDriver(vehicle)
-
-# 6. Set up Irrlicht visualization
-vis = veh.ChWheeledVehicleIrrApp(vehicle, 'UAZBUS Demo', irrlicht_step_size=0.01)
+# 6. Visualization with Irrlicht
+vis = veh.ChWheeledVehicleIrrApp(vehicle, 'UAZBUS Demo', irr.dimension2du(1024,768))
 vis.SetSkyBox()
 vis.AddTypicalLights(chrono.ChVectorD(30, 100, 120), chrono.ChVectorD(-30, -80, 100), 250, 130)
 vis.AddTypicalLogo()
 vis.SetChaseCamera(chrono.ChVectorD(0.0, 0.0, 1.75), 6.0, 0.5)
-vis.SetHUDLocation(500, 20)
-vis.Initialize()
+vis.SetTimestep(0.01)
+vis.AssetBindAll()
+vis.AssetUpdateAll()
 
-# 7. Simulation parameters
+# 7. Simulation loop
 step_size = 0.01
-render_step_size = 1.0 / 50  # Render at 50 FPS
 realtime_timer = chrono.ChRealtimeStepTimer()
 
-# 8. Simulation loop
 while vis.Run():
-    time = system.GetChTime()
-
-    # Input from driver (could be updated here)
-    driver.Synchronize(time)
-
-    # Synchronize all modules
     vis.BeginScene()
     vis.DrawAll()
-    vis.EndScene()
 
-    vehicle.Synchronize(time, driver.GetInputs(), terrain)
-    terrain.Synchronize(time)
+    # Synchronize systems
+    time = system.GetChTime()
     driver.Synchronize(time)
+    terrain.Synchronize(time)
+    vehicle.Synchronize(time, driver_inputs, terrain)
+    vis.Synchronize('UAZBUS Demo', driver_inputs)
 
-    # Advance simulation for one timestep
-    vis.Advance(step_size)
-    vehicle.Advance(step_size)
-    terrain.Advance(step_size)
+    # Advance simulation
     driver.Advance(step_size)
+    terrain.Advance(step_size)
+    vehicle.Advance(step_size)
+    vis.Advance(step_size)
+    system.DoStepDynamics(step_size)
 
-    # Maintain real-time execution
+    vis.EndScene()
     realtime_timer.Spin(step_size)
+
+# Clean up
+vis.GetDevice().closeDevice()
 ```
 
----
-
-**Key Features:**
-- **UAZBUS vehicle**: Instantiated and initialized at a specified position.
-- **Rigid terrain**: Friction and restitution set, with a grass texture.
-- **Driver system**: Simple constant throttle driver (can be extended).
-- **Irrlicht visualization**: Camera, lighting, and HUD configured.
-- **Simulation loop**: Synchronizes and advances all components, maintaining real-time.
+**Key Points:**
+- **Vehicle:** UAZBUS, initialized at (0,0,1.0), no initial rotation, zero forward velocity.
+- **Terrain:** Rigid, 200x200 meters, friction 0.9, restitution 0.01, grass texture.
+- **Driver:** Simple constant input (throttle 0.5, steering 0, braking 0).
+- **Visualization:** Irrlicht, chase camera, skybox, lighting, real-time step.
+- **Simulation Loop:** Synchronizes and advances all components, maintains real-time execution.
 
 **Note:**  
-- You can replace the `SimpleDriver` with more advanced drivers (e.g., `ChIrrGuiDriver`) for interactive control.
-- Make sure you have the PyChrono vehicle and Irrlicht modules installed and the Chrono data path set correctly.
-
-Let me know if you need further customization!
+- Make sure you have the PyChrono Python bindings installed and the Chrono data path set correctly.
+- You can adjust driver inputs or use a more interactive driver if desired.
+- This script is ready to run as-is for a basic UAZBUS simulation.

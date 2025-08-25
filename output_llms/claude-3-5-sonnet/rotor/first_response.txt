@@ -1,80 +1,81 @@
-Certainly! I'll create a PyChrono simulation script that models a Jeffcott rotor using an Isogeometric Analysis (IGA) beam, as per your instructions. Here's the script with explanations:
+Certainly! I'll create a PyChrono simulation script that models a Jeffcott rotor using an Isogeometric Analysis (IGA) beam as per your instructions. Here's the script that accomplishes this:
 
 ```python
 import pychrono as chrono
 import pychrono.fea as fea
 import pychrono.irrlicht as chronoirr
+import numpy as np
 
 # Initialize the ChSystem
 system = chrono.ChSystemNSC()
 
-# Create a mesh for the IGA beam
+# Set gravity
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+
+# Create a mesh
 mesh = fea.ChMesh()
 
-# Create the IGA beam
-beam_length = 2.0
+# Create IGA beam
+beam_length = 1.0
 beam_radius = 0.01
 beam_density = 7800  # kg/m^3
+beam_Young = 210e9  # Pa
+beam_Poisson = 0.3
+beam_damping = 0.01
 
-beam = fea.ChElementBeamIGA()
-beam.SetNodes(fea.ChNodeFEAxyzrot(chrono.ChFrameD(chrono.ChVectorD(0, 0, 0))),
-              fea.ChNodeFEAxyzrot(chrono.ChFrameD(chrono.ChVectorD(beam_length, 0, 0))))
-beam.SetSection(chrono.ChBeamSectionAdvanced())
-beam.SetDensity(beam_density)
-beam.SetInertiaVx(chrono.ChVectorD(0, 1, 0))
-beam.SetInertiaVy(chrono.ChVectorD(0, 0, 1))
-beam.SetCircularSection(beam_radius)
+# Create the beam section
+beam_section = fea.ChBeamSectionIGA()
+beam_section.SetAsCircularSection(beam_radius)
+beam_section.SetYoungModulus(beam_Young)
+beam_section.SetGshearModulus(beam_Young / (2 * (1 + beam_Poisson)))
+beam_section.SetBeamRaleyghDamping(beam_damping)
+beam_section.SetDensity(beam_density)
 
-mesh.AddElement(beam)
-
-# Create a flywheel and attach it to the center of the beam
-flywheel_mass = 1.0  # kg
-flywheel_radius = 0.2  # m
-flywheel = chrono.ChBodyEasyCylinder(flywheel_radius, 0.05, flywheel_mass)
-flywheel.SetPos(chrono.ChVectorD(beam_length / 2, 0, 0))
-system.Add(flywheel)
-
-# Create a joint between the flywheel and the beam's center
-joint = chrono.ChLinkMateFix()
-joint.Initialize(flywheel, beam.GetNodeN(1))
-system.AddLink(joint)
-
-# Add a motor to drive one end of the beam
-motor = chrono.ChLinkMotorRotationSpeed()
-motor.Initialize(beam.GetNodeN(0), system.GetGround(), chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)))
-motor_speed = chrono.ChFunction_Const(5.0)  # 5 rad/s
-motor.SetSpeedFunction(motor_speed)
-system.AddLink(motor)
+# Create the beam
+builder = fea.ChBuilderBeamIGA()
+builder.BuildBeam(mesh, beam_section, 10, chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(beam_length, 0, 0))
 
 # Add the mesh to the system
 system.Add(mesh)
+
+# Create a flywheel
+flywheel_mass = 1.0
+flywheel_radius = 0.1
+flywheel = chrono.ChBodyEasyCylinder(flywheel_radius, 0.05, flywheel_mass)
+flywheel.SetPos(chrono.ChVectorD(beam_length/2, 0, 0))
+system.Add(flywheel)
+
+# Connect flywheel to the beam
+beam_center_node = mesh.GetNode(5)  # Assuming 10 nodes, the center is at index 5
+constraint = fea.ChLinkPointFrame()
+constraint.Initialize(beam_center_node, flywheel)
+system.Add(constraint)
+
+# Create a motor at one end of the beam
+motor = chrono.ChLinkMotorRotationSpeed()
+motor.Initialize(mesh.GetNode(0), system.GetGround(), chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)))
+motor_speed = chrono.ChFunction_Const(5.0)  # 5 rad/s
+motor.SetSpeedFunction(motor_speed)
+system.Add(motor)
 
 # Create the Irrlicht visualization
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
 vis.SetWindowSize(1024, 768)
-vis.SetWindowTitle("Jeffcott Rotor Simulation")
+vis.SetWindowTitle("Jeffcott Rotor IGA Beam Simulation")
 vis.Initialize()
-vis.AddCamera(chrono.ChVectorD(1, 1, 1), chrono.ChVectorD(beam_length / 2, 0, 0))
+vis.AddCamera(chrono.ChVectorD(0, 0.5, -1))
 vis.AddTypicalLights()
 
-# Create the FEM visualization
-beam_asset = fea.ChVisualizationFEAmesh(mesh)
-beam_asset.SetFEMdataType(fea.ChVisualizationFEAmesh.E_PLOT_ELEM_BEAM_MZ)
-beam_asset.SetColorscaleMinMax(-0.4, 0.4)
-beam_asset.SetSmoothFaces(True)
-beam_asset.SetWireframe(False)
-mesh.AddAsset(beam_asset)
+# Create a FEM visualization
+beam_vis = fea.ChVisualizationFEAmesh(mesh)
+beam_vis.SetFEMdataType(fea.ChVisualizationFEAmesh.E_PLOT_ELEM_BEAM_MZ)
+beam_vis.SetColorscaleMinMax(-0.4, 0.4)
+beam_vis.SetSmoothFaces(True)
+beam_vis.SetWireframe(False)
+mesh.AddAsset(beam_vis)
 
-beam_asset_sec = fea.ChVisualizationFEAmesh(mesh)
-beam_asset_sec.SetFEMglyphType(fea.ChVisualizationFEAmesh.E_GLYPH_NODE_CSYS)
-beam_asset_sec.SetFEMdataType(fea.ChVisualizationFEAmesh.E_PLOT_NONE)
-beam_asset_sec.SetSymbolsThickness(0.006)
-beam_asset_sec.SetSymbolsScale(0.01)
-beam_asset_sec.SetZbufferHide(False)
-mesh.AddAsset(beam_asset_sec)
-
-# Simulation loop
+# Main simulation loop
 time_step = 0.001
 while vis.Run():
     vis.BeginScene()
@@ -87,16 +88,16 @@ vis.GetDevice().closeDevice()
 
 This script does the following:
 
-1. Initializes the PyChrono environment and core components.
-2. Creates an IGA beam using `ChElementBeamIGA`.
-3. Adds a flywheel at the center of the beam.
-4. Attaches a rotational motor to one end of the beam.
-5. Sets up the Irrlicht visualization.
-6. Adds FEM visualization for the beam.
-7. Runs the simulation loop.
+1. Initializes the PyChrono environment and creates a `ChSystem`.
+2. Sets up gravity in the system.
+3. Creates an IGA beam using `ChMesh` and `ChBuilderBeamIGA`.
+4. Adds a flywheel at the center of the beam.
+5. Connects the flywheel to the beam using a constraint.
+6. Adds a rotational motor at one end of the beam.
+7. Sets up Irrlicht visualization for the simulation.
+8. Adds FEM visualization for the beam.
+9. Runs the main simulation loop.
 
-The script models a Jeffcott rotor by creating an IGA beam and attaching a flywheel at its center. The beam is driven by a rotational motor at one end, which will cause the system to rotate and potentially demonstrate the dynamic behavior of a Jeffcott rotor.
+This script creates a Jeffcott rotor model with an IGA beam, a flywheel at its center, and a motor driving one end. The Irrlicht window allows you to observe the dynamics of the system, and the FEM visualization helps in understanding the beam's behavior under rotation.
 
-The visualization includes both the Irrlicht window for 3D rendering and FEM visualization to show the stress distribution along the beam. The simulation runs with a time step of 0.001 seconds until the Irrlicht window is closed.
-
-You can adjust parameters such as beam length, radius, flywheel mass, motor speed, etc., to observe different behaviors of the Jeffcott rotor system.
+You can adjust parameters like beam dimensions, material properties, flywheel mass, motor speed, etc., to experiment with different configurations of the Jeffcott rotor system.

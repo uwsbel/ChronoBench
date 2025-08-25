@@ -33,6 +33,22 @@ init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
 rover.Initialize(chrono.ChFramed(init_pos, init_rot))
 
 
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetCameraVertical(chrono.CameraVerticalDir_Z)
+vis.SetWindowSize(1280, 720)
+vis.SetWindowTitle('Viper rover - Rigid terrain')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVector3d(0, 2.5, 1.5), chrono.ChVector3d(0, 0, 1))
+vis.AddTypicalLights()
+vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0, 0.5), 3, 4, 10, 40, 512)
+
+
+
+
+
 manager = sens.ChSensorManager(system)
 intensity = 1.0
 manager.scene.AddPointLight(chrono.ChVector3f(2, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
@@ -52,26 +68,8 @@ cam.PushFilter(sens.ChFilterVisualize(720, 480, "Viper Front Camera"))
 manager.AddSensor(cam)
 
 
-vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(system)
-vis.SetCameraVertical(chrono.CameraVerticalDir_Z)
-vis.SetWindowSize(1280, 720)
-vis.SetWindowTitle('Viper rover - Rigid terrain')
-vis.Initialize()
-vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
-vis.AddSkyBox()
-vis.AddCamera(chrono.ChVector3d(0, 2.5, 1.5), chrono.ChVector3d(0, 0, 1))
-vis.AddTypicalLights()
-vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0, 0.5), 3, 4, 10, 40, 512)
-
-
-
-
-
-time_step = 1e-3
-
-
 step_number = 0
+time_step = 1e-3
 render_step_size = 1.0 / 25  
 render_steps = math.ceil(render_step_size / time_step)
 
@@ -91,16 +89,15 @@ while vis.Run():
     driver.SetSteering(steering)  
 
     rover.Update()  
-
-    
-    manager.Update()
+    manager.Update()  
 
     
     if (step_number % render_steps == 0):
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
-    step_number += 1
     
+    step_number += 1  
+
     
     system.DoStepDynamics(time_step)

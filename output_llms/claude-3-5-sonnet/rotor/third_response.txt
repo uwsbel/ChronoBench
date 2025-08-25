@@ -1,4 +1,4 @@
-I've reviewed the script, corrected some minor issues, and implemented the requested modifications. Here's the updated script:
+Thank you for providing the PyChrono script and instructions. I've reviewed the code, made necessary corrections, and implemented the requested modifications. Here's the updated script:
 
 ```python
 import math as m
@@ -22,11 +22,11 @@ class ChFunctionMyFun(chrono.ChFunction):
         if x <= self.T1:
             return self.A1 * (1 - m.cos(self.w * x))
         elif x <= self.T2:
-            return 2 * self.A1
+            return self.A1 * (1 + m.cos(self.w * (x - self.T1)))
         elif x <= self.T3:
-            return 2 * self.A1 + self.A2 * (1 - m.cos(self.w * (x - self.T2)))
+            return self.A2 * (1 - m.cos(self.w * (x - self.T2)))
         else:
-            return 2 * (self.A1 + self.A2)
+            return self.A2 * (1 + m.cos(self.w * (x - self.T3)))
 
 sys = chrono.ChSystemSMC()
 
@@ -34,12 +34,12 @@ mesh = fea.ChMesh()
 sys.Add(mesh)
 
 mesh.SetAutomaticGravity(True, 2)
-sys.SetGravitationalAcceleration(chrono.ChVector3d(0, -9.81, 0))
+sys.SetGravitationalAcceleration(chrono.ChVectorD(0, -9.81, 0))
 
 beam_L = 6
 beam_ro = 0.050
 beam_ri = 0.045
-CH_PI = m.pi  # Use math.pi instead of a custom value
+CH_PI = m.pi
 
 minertia = fea.ChInertiaCosseratSimple()
 minertia.SetDensity(7800)
@@ -49,7 +49,7 @@ minertia.SetIzz((CH_PI / 4.0) * (pow(beam_ro, 4) - pow(beam_ri, 4)))
 
 melasticity = fea.ChElasticityCosseratSimple()
 melasticity.SetYoungModulus(210e9)
-melasticity.SetGshearModulus(210e9 / (2 * (1 + 0.3)))  # Corrected Shear Modulus calculation
+melasticity.SetGshearModulus(210e9 / (2 * (1 + 0.3)))
 melasticity.SetIyy((CH_PI / 4.0) * (pow(beam_ro, 4) - pow(beam_ri, 4)))
 melasticity.SetIzz((CH_PI / 4.0) * (pow(beam_ro, 4) - pow(beam_ri, 4)))
 melasticity.SetJ((CH_PI / 2.0) * (pow(beam_ro, 4) - pow(beam_ri, 4)))
@@ -60,13 +60,19 @@ msection.SetCircular(True)
 msection.SetDrawCircularRadius(beam_ro)
 
 builder = fea.ChBuilderBeamIGA()
-builder.BuildBeam(mesh, msection, 20, chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(beam_L, 0, 0), chrono.VECT_Y, 1)
+builder.BuildBeam(mesh,
+                  msection,
+                  20,
+                  chrono.ChVectorD(0, 0, 0),
+                  chrono.ChVectorD(beam_L, 0, 0),
+                  chrono.VECT_Y,
+                  1)
 
 node_mid = builder.GetLastBeamNodes()[m.floor(len(builder.GetLastBeamNodes()) / 2.0)]
 
-mbodyflywheel = chrono.ChBodyEasyCylinder(0.24, 0.1, 7800, chrono.ChAxis_Y)
-mbodyflywheel.SetPos(node_mid.GetPos() + chrono.ChVector3d(0, 0.05, 0))
-mbodyflywheel.SetRot(chrono.QuatFromAngleAxis(CH_PI / 2.0, chrono.VECT_Z))
+mbodyflywheel = chrono.ChBodyEasyCylinder(0.24, 0.1, 7800, True)
+mbodyflywheel.SetPos(node_mid.GetPos() + chrono.ChVectorD(0, 0.05, 0))
+mbodyflywheel.SetRot(chrono.Q_from_AngAxis(CH_PI / 2.0, chrono.VECT_Z))
 sys.Add(mbodyflywheel)
 
 myjoint = chrono.ChLinkMateFix()
@@ -74,22 +80,25 @@ myjoint.Initialize(node_mid, mbodyflywheel)
 sys.Add(myjoint)
 
 truss = chrono.ChBody()
-truss.SetFixed(True)
+truss.SetBodyFixed(True)
 sys.Add(truss)
 
 bearing = chrono.ChLinkMateGeneric(False, True, True, False, True, True)
-bearing.Initialize(builder.GetLastBeamNodes()[-1], truss, chrono.ChFramed(builder.GetLastBeamNodes()[-1].GetPos()))
+bearing.Initialize(builder.GetLastBeamNodes()[-1],
+                   truss,
+                   chrono.ChFrameD(builder.GetLastBeamNodes()[-1].GetPos()))
 sys.Add(bearing)
 
 rotmotor1 = chrono.ChLinkMotorRotationSpeed()
-rotmotor1.Initialize(builder.GetLastBeamNodes()[0], truss,
-                     chrono.ChFramed(builder.GetLastBeamNodes()[0].GetPos(),
-                                     chrono.QuatFromAngleAxis(CH_PI / 2.0, chrono.VECT_Y)))
+rotmotor1.Initialize(builder.GetLastBeamNodes()[0],
+                     truss,
+                     chrono.ChFrameD(builder.GetLastBeamNodes()[0].GetPos(),
+                                     chrono.Q_from_AngAxis(CH_PI / 2.0, chrono.VECT_Y)))
 sys.Add(rotmotor1)
 
 # Custom motor function
-motor_fun = ChFunctionMyFun(A1=10, A2=20, T1=0.5, T2=1, T3=1.5, w=2*CH_PI)
-rotmotor1.SetMotorFunction(motor_fun)
+motor_fun = ChFunctionMyFun(40, 20, 2, 4, 6, m.pi)
+rotmotor1.SetSpeedFunction(motor_fun)
 
 mvisualizebeamA = chrono.ChVisualShapeFEA(mesh)
 mvisualizebeamA.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_SURFACE)
@@ -111,7 +120,7 @@ vis.SetWindowTitle('Test FEA: the Jeffcott rotor with IGA beams')
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()
-vis.AddCamera(chrono.ChVector3d(0, 1, 4), chrono.ChVector3d(beam_L / 2, 0, 0))
+vis.AddCamera(chrono.ChVectorD(0, 1, 4), chrono.ChVectorD(beam_L / 2, 0, 0))
 vis.AddTypicalLights()
 
 msolver = mkl.ChSolverPardisoMKL()
@@ -132,12 +141,14 @@ while vis.Run():
 Key changes and corrections:
 
 1. Implemented the `ChFunctionMyFun` class for the custom motor function.
-2. Replaced the sine motor function with the new custom function.
-3. Corrected the calculation of the shear modulus in the `melasticity` setup.
-4. Used `math.pi` instead of a custom `CH_PI` value.
-5. Fixed some indexing issues (e.g., `builder.GetLastBeamNodes()[-1]` instead of `.back()`).
-6. Corrected the `ChBodyEasyCylinder` constructor call.
-7. Added an optional line to set up the HHT timestepper (commented out).
-8. Retained the visualization settings as requested.
+2. Corrected `ChVector3d` to `ChVectorD` and `ChFramed` to `ChFrameD`.
+3. Changed `QuatFromAngleAxis` to `Q_from_AngAxis`.
+4. Updated `SetShearModulusFromPoisson` to `SetGshearModulus` with the correct calculation.
+5. Corrected the initialization of `ChBodyEasyCylinder`.
+6. Updated `SetFixed` to `SetBodyFixed` for the truss.
+7. Changed `builder.GetLastBeamNodes().back()` to `builder.GetLastBeamNodes()[-1]`.
+8. Updated the motor function setting to use the new custom function.
+9. Retained the visualization settings as requested.
+10. Added a commented line for the HHT timestepper option.
 
-This script should now run correctly and implement the requested modifications while maintaining the original functionality.
+This script should now run correctly and implement the requested modifications.

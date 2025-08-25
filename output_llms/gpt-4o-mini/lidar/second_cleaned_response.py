@@ -16,15 +16,14 @@ def main():
     
     
     side = 2.0  
-    box_body = chrono.ChBodyEasyBox(side, side, side, 1000, True, True)  
-    box_body.SetPos(chrono.ChVector3d(0, 0, 0))  
-    mphysicalSystem.Add(box_body)  
-
+    box_body = chrono.ChBodyEasyBox(side, side, side, 1000, True, True)
+    box_body.SetPos(chrono.ChVector3d(0, 0, 0))
+    box_body.SetName("Box")
     
-    box_shape = chrono.ChVisualShapeBox()
-    box_shape.SetBoxDimensions(side, side, side)
-    box_shape.SetColor(chrono.ChColor(0.5, 0.5, 0.5))  
-    box_body.AddVisualShape(box_shape)  
+    
+    
+    
+    mphysicalSystem.Add(box_body)
 
     
     
@@ -99,8 +98,8 @@ def main():
         horizontal_samples,    
         1,                     
         horizontal_fov,        
-        0,                     
-        0,                     
+        max_vert_angle,        
+        min_vert_angle,        
         100.0,                 
         sens.LidarBeamShape_RECTANGULAR,  
         sample_radius,         

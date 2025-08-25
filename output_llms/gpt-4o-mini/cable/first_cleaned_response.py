@@ -2,72 +2,66 @@ import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
 
 
-chrono.ChSystemNSC.SetNumThreads(1)
+chrono.SetChronoDataPath('path/to/chrono/data/')  
 system = chrono.ChSystemNSC()
-
-
-ground = chrono.ChBody()
-ground.SetBodyFixed(True)
-system.Add(ground)
 
 
 beam_length = 5.0  
 num_elements = 10   
 element_length = beam_length / num_elements
-beam_radius = 0.1   
 
 
-ancf_cable = chrono.ChCable()
-ancf_cable.SetDensity(1000)  
+cable_elements = []
 
 
-for i in range(num_elements + 1):
-    node = chrono.ChNodeFEAxyz(chrono.ChVectorD(i * element_length, 0, 0))
-    node.SetMass(0.1)  
-    ancf_cable.AddNode(node)
+node0 = chrono.ChNodeFEAxyz(chrono.ChVectorD(0, 0, 0))
+node0.SetFixed(True)  
+system.AddNode(node0)
 
 
 for i in range(num_elements):
-    element = chrono.ChElementCableANCF()
-    element.SetNodes(ancf_cable.GetNode(i), ancf_cable.GetNode(i + 1))
-    element.SetDiameter(beam_radius)
-    element.SetYoungModulus(2e11)  
-    element.SetDensity(1000)  
-    system.Add(element)
+    
+    node = chrono.ChNodeFEAxyz(chrono.ChVectorD(i * element_length, 0, 0))
+    system.AddNode(node)
+
+    
+    if i > 0:
+        cable_element = chrono.ChElementCableANCF()
+        cable_element.SetNodes(node0, node)
+        cable_element.SetDiameter(0.05)  
+        cable_element.SetDensity(1000)    
+        cable_elements.append(cable_element)
+        system.AddElement(cable_element)
 
 
 gravity = chrono.ChForce()
 gravity.SetMode(chrono.ChForce.FORCE)
-gravity.SetV(chrono.ChVectorD(0, -9.81, 0))
-system.Add(gravity)
+gravity.SetF(chrono.ChVectorD(0, -9.81 * 1000 * element_length, 0))  
+system.AddForce(gravity)
 
 
 application = chronoirr.ChIrrApp(system, "ANCF Beam Simulation", chronoirr.dimension2d(800, 600))
-application.AddLogo(chrono.GetChronoDataPath() + "logo_pychrono.png")
 application.AddSkyBox()
-application.AddCamera(chrono.ChVectorD(0, 5, 10), chrono.ChVectorD(0, 0, 0))
-application.AddLight(chrono.ChVectorD(10, 10, 10), chrono.ChVectorD(1, 1, 1))
+application.AddCamera(chrono.ChVectorD(0, 2, -10), chrono.ChVectorD(0, 0, 0))
+application.AddLight(chrono.ChVectorD(0, 10, -10), chrono.ChVectorD(1, 1, 1))
 
 
 while application.GetDevice().run():
-    system.DoStepDynamics(0.01)  
-
-    
     application.BeginScene()
     application.DrawAll()
 
     
-    for i in range(num_elements):
-        node1 = ancf_cable.GetNode(i)
-        node2 = ancf_cable.GetNode(i + 1)
-        application.DrawLine(node1.GetPos(), node2.GetPos(), chrono.ChColor(0, 0, 1))
+    system.DoStepDynamics(0.01)  
 
     
-    for i in range(num_elements + 1):
-        node = ancf_cable.GetNode(i)
-        application.DrawPoint(node.GetPos(), chrono.ChColor(1, 0, 0), 0.1)
+    for element in cable_elements:
+        
+        node_a = element.GetNodeA().GetPos()
+        node_b = element.GetNodeB().GetPos()
+        
+        application.DrawLine(node_a, node_b, chrono.ChColor(1, 0, 0))  
 
     application.EndScene()
 
 
-application.Close()
+application.GetDevice().drop()

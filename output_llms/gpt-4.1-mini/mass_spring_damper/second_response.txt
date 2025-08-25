@@ -8,117 +8,108 @@ spring_coef = 50
 damping_coef = 1
 
 
-# 1. Define the custom force functor for spring force/damping
+# 1. Define the custom force functor class
 class MySpringForce(chrono.ForceFunctor):
-    def __init__(self, k, r, c, l0):
+    def __init__(self, spring_coef, damping_coef):
         super().__init__()
-        self.k = k      # spring constant
-        self.r = r      # not used here but kept for signature compatibility
-        self.c = c      # damping coefficient
-        self.l0 = l0    # rest length
+        self.spring_coef = spring_coef
+        self.damping_coef = damping_coef
 
-    def __call__(self, time, rest_length, length, vel, functor_data=None):
-        # time: current time, rest_length: the rest length of the spring,
-        # length: current length, vel: velocity of length change
-        # functor_data is an optional parameter
-        # Hooke's law + damping: F = -k*(length - rest_length) - c*vel
-        force = -self.k * (length - self.l0) - self.c * vel
-        return force
+    def evaluate(self, time, rest_length, dist, vel, force):
+        # dist: current length of the spring
+        # vel: relative velocity along the spring direction
+        # force: current force magnitude (usually zero)
+        # Return the force magnitude (positive means pulling)
+        # Hooke's law + damping: F = -k * (dist - rest_length) - c * vel
+        return -self.spring_coef * (dist - rest_length) - self.damping_coef * vel
 
 
 sys = chrono.ChSystemNSC()
-# Set gravity to zero vector as originally done
 sys.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, 0))
 
-# Ground body setup
+# Ground body
 ground = chrono.ChBody()
 sys.AddBody(ground)
 ground.SetFixed(True)
 ground.EnableCollision(False)
 
-# Add first sphere visual shape to ground at (-1, 0, 0)
+# Visual sphere on ground at (-1, 0, 0)
 sph_1 = chrono.ChVisualShapeSphere(0.1)
-ground.AddVisualShape(sph_1, chrono.ChFrameD(chrono.ChVectorD(-1, 0, 0)))  # corrected: ChFrameD (not ChFramed)
+ground.AddVisualShape(sph_1, chrono.ChFrame(chrono.ChVector3d(-1, 0, 0)))
 
-# 3. Add second sphere visual shape to ground at (1, 0, 0)
+# 3. Add second visual sphere on ground at (1, 0, 0)
 sph_2 = chrono.ChVisualShapeSphere(0.1)
-ground.AddVisualShape(sph_2, chrono.ChFrameD(chrono.ChVectorD(1, 0, 0)))
+ground.AddVisualShape(sph_2, chrono.ChFrame(chrono.ChVector3d(1, 0, 0)))
 
-# Create body_1
+# Body 1
 body_1 = chrono.ChBody()
 sys.AddBody(body_1)
-body_1.SetPos(chrono.ChVectorD(-1, -3, 0))
+body_1.SetPos(chrono.ChVector3d(-1, -3, 0))
 body_1.SetFixed(False)
 body_1.EnableCollision(False)
 body_1.SetMass(1)
-body_1.SetInertiaXX(chrono.ChVectorD(1, 1, 1))
+body_1.SetInertiaXX(chrono.ChVector3d(1, 1, 1))
 
-# Attach a box visual shape to body_1
+# Visual box for body_1
 box_1 = chrono.ChVisualShapeBox(1, 1, 1)
 box_1.SetColor(chrono.ChColor(0.6, 0, 0))
 body_1.AddVisualShape(box_1)
 
-# 2. Create body_2 similar to body_1
+# 2. Create body_2 mirroring body_1
 body_2 = chrono.ChBody()
 sys.AddBody(body_2)
-
-# Place body_2 symmetrically at (1, -3, 0)
-body_2.SetPos(chrono.ChVectorD(1, -3, 0))
+body_2.SetPos(chrono.ChVector3d(1, -3, 0))  # mirrored position on x=1 side
 body_2.SetFixed(False)
 body_2.EnableCollision(False)
 body_2.SetMass(1)
-body_2.SetInertiaXX(chrono.ChVectorD(1, 1, 1))
+body_2.SetInertiaXX(chrono.ChVector3d(1, 1, 1))
 
-# Attach a box visual shape to body_2 (color different to distinguish)
+# Visual box for body_2 (different color for clarity)
 box_2 = chrono.ChVisualShapeBox(1, 1, 1)
-box_2.SetColor(chrono.ChColor(0, 0, 0.6))  # blue color for distinction
+box_2.SetColor(chrono.ChColor(0, 0, 0.6))
 body_2.AddVisualShape(box_2)
 
-# 4. Create spring_1 between body_1 and ground with direct spring and damping coefficients
+# 4. Existing spring_1 between body_1 and ground using direct coefficients
 spring_1 = chrono.ChLinkTSDA()
-# The two points are in local coordinates of body_1 and ground respectively
+# Initialize with body_1 and ground, points in body relative frames:
+# body_1 point: (0,0,0), ground point: (-1,0,0)
 spring_1.Initialize(body_1, ground, True,
-                    chrono.ChVectorD(0, 0, 0),    # attachment point on body_1 (local)
-                    chrono.ChVectorD(-1, 0, 0))   # attachment point on ground (local)
+                    chrono.ChVector3d(0, 0, 0),
+                    chrono.ChVector3d(-1, 0, 0))
 spring_1.SetRestLength(rest_length)
 spring_1.SetSpringCoefficient(spring_coef)
 spring_1.SetDampingCoefficient(damping_coef)
 sys.AddLink(spring_1)
 
-# Attach visualization asset to spring_1
+# Visual for spring_1
 spring_1.AddVisualShape(chrono.ChVisualShapeSpring(0.05, 80, 15))
 
-# 4. Create spring_2 between body_2 and ground using the custom force functor MySpringForce
+# 4. Create spring_2 between body_2 and ground using custom force functor
 spring_2 = chrono.ChLinkTSDA()
-
-# For spring_2, define attachment points:
-# On body_2 local coords: (0,0,0)
-# On ground local coords: (1,0,0)
 spring_2.Initialize(body_2, ground, True,
-                    chrono.ChVectorD(0, 0, 0),
-                    chrono.ChVectorD(1, 0, 0))
-
+                    chrono.ChVector3d(0, 0, 0),
+                    chrono.ChVector3d(1, 0, 0))
 spring_2.SetRestLength(rest_length)
 
-# Create an instance of the custom force functor
-my_spring_force = MySpringForce(k=spring_coef, r=rest_length, c=damping_coef, l0=rest_length)
-
-spring_2.SetForceFunctor(my_spring_force)
+# Create and set the custom force functor
+my_force_functor = MySpringForce(spring_coef, damping_coef)
+spring_2.SetForceFunctor(my_force_functor)
 
 sys.AddLink(spring_2)
 
-# Attach visualization asset to spring_2 as well
+# Visual for spring_2
 spring_2.AddVisualShape(chrono.ChVisualShapeSpring(0.05, 80, 15))
+
 
 # Visualization system
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(sys)
 vis.SetWindowSize(1024, 768)
-vis.SetWindowTitle('ChLinkTSDA with Custom Force Functor Demo')
+vis.SetWindowTitle('ChLinkTSDA demo with Custom Force Functor')
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()
-vis.AddCamera(chrono.ChVectorD(0, 0, 6))
+vis.AddCamera(chrono.ChVector3d(0, 0, 6))
 vis.AddTypicalLights()
 
 # Simulation loop
@@ -134,16 +125,17 @@ while vis.Run():
 ### Explanation of corrections and modifications:
 
 - **Errors fixed:**
-  - `chrono.ChFramed` → `chrono.ChFrameD`: PyChrono uses `ChFrameD` to represent a coordinate frame. The original used `ChFramed` which is not available/supported.
-  - Corrected usage of `ChVector3d` → `ChVectorD`: consistency but not strictly required (both variants exist), both are fine, but often `ChVectorD` is preferred.
-  - Added a missing `super().__init__()` call inside `MySpringForce` constructor to properly initialize base class.
-  - Added parameter `functor_data=None` in `__call__` method signature in `MySpringForce` to match PyChrono's ForceFunctor call signature.
-- **Additions per instructions:**
-  1. Created `MySpringForce` class implementing the custom force computation for the spring force. It computes a Hooke's spring force with damping.
-  2. Added `body_2` configured similarly to `body_1`, placed symmetrically on the positive x side.
-  3. Added visual sphere `sph_2` at `(1,0,0)` on the ground.
-  4. Kept `spring_1` with direct spring/damping parameters, created `spring_2` attached between `body_2` and ground using the custom force functor.
-- Added different colors for bodies to distinguish them visually.
-- Visualization system attached and initialized accordingly with titles updated.
+  - `chrono.ChFramed` does not exist; replaced with `chrono.ChFrame` for visual shape placement.
+  - `AddVisualShape` requires a `ChFrame` (pose) as second argument, not a `ChVector3d`.
+  - The `ForceFunctor` subclass must override `evaluate(self, time, rest_length, dist, vel, force)` and return the force magnitude.
+  - Added `super().__init__()` call in `MySpringForce.__init__()` for proper initialization.
+  - Added a timestep variable for clarity.
+  - Added different colors for `body_1` and `body_2` for visual distinction.
+  - Added the second visual sphere on ground at `(1,0,0)` as requested.
+  - Added `spring_2` using the custom force functor.
+  - Used `SetForceFunctor()` method on `spring_2` to assign the custom force functor.
+  - Set the spring rest length for `spring_2`.
+  - Used correct relative points for springs: for `spring_1` ground point at (-1,0,0), for `spring_2` ground point at (1,0,0).
+  - Added comments for clarity.
 
-This script is now syntactically correct, logically consistent, and fulfilling the requirements.
+This script now meets all the instructions and should run correctly in PyChrono.

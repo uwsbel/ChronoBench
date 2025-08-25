@@ -1,7 +1,6 @@
 import pychrono as ch
 import pychrono.ros as chros
 
-import rclpy
 from rclpy.node import Node
 from std_msgs.msg import String  # Changed from Int64 to String
 
@@ -93,6 +92,4 @@ def main():
 
 # Entry point of the script.
 if __name__ == "__main__":
-    rclpy.init()  # Initialize the ROS client library.
     main()
-    rclpy.shutdown()  # Shutdown the ROS client library.

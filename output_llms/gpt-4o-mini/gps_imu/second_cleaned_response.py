@@ -42,7 +42,6 @@ render_step_size = 1.0 / 50
 
 
 log_step_size = 1.0  
-log_steps = math.ceil(log_step_size / step_size)
 
 
 gps_data = []
@@ -142,6 +141,7 @@ print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 
 render_steps = math.ceil(render_step_size / step_size)
+log_steps = math.ceil(log_step_size / step_size)  
 
 
 realtime_timer = chrono.ChRealtimeStepTimer()
@@ -151,10 +151,6 @@ render_frame = 0
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
-
-    
-    if step_number % log_steps == 0:
-        gps_data.append(gps.GetMostRecentGPSBuffer().GetGPSData())
 
     
     if step_number % render_steps == 0:
@@ -167,12 +163,12 @@ while vis.Run():
     driver_inputs = driver.GetInputs()
 
     
-    if time < 6.0:
+    if time < 6:
         driver_inputs.m_throttle = 1.0  
         driver_inputs.m_steering = 0.0   
     else:
         driver_inputs.m_throttle = 0.0   
-        driver_inputs.m_braking = 1.0     
+        driver_inputs.m_braking = 1.0    
 
     
     driver.Synchronize(time)
@@ -188,7 +184,11 @@ while vis.Run():
 
     
     manager.Update()
+
     
+    if step_number % log_steps == 0:
+        gps_data.append(gps.GetMostRecentGPSBuffer().GetGPSData())
+
     
     step_number += 1
 

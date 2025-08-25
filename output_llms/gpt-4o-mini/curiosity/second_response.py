@@ -22,7 +22,7 @@ system.Add(ground)
 
 # Create a long box obstacle for the rover to cross
 obstacle = chrono.ChBodyEasyBox(2, 0.5, 0.5, 1000, True, True, ground_mat)
-obstacle.SetPos(chrono.ChVector3d(0, 0, 0))  # Position the obstacle at the origin
+obstacle.SetPos(chrono.ChVector3d(0, 0, 0))  # Position the obstacle in the center
 system.Add(obstacle)
 
 # Create Curiosity rover and add it to the system
@@ -33,7 +33,7 @@ driver = robot.CuriosityDCMotorControl()
 rover.SetDriver(driver)
 
 # Initialize rover position and orientation
-init_pos = chrono.ChVector3d(-5, 0.0, 0)  # Changed initial position of the rover
+init_pos = chrono.ChVector3d(-5, 0.0, 0)  # Changed initial position
 init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
 rover.Initialize(chrono.ChFrameD(init_pos, init_rot))
 
@@ -42,7 +42,7 @@ vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
 vis.SetCameraVertical(chrono.CameraVerticalDir_Z)
 vis.SetWindowSize(1280, 720)
-vis.SetWindowTitle('Curiosity rover - Rigid terrain')
+vis.SetWindowTitle('Curiosity rover - Rigid terrain with obstacle')
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()
@@ -61,7 +61,7 @@ time = 0
 while vis.Run():
     time += time_step
 
-    # Set steering input for the rover to zero for forward movement
+    # Set constant steering input for the rover (zero steering input)
     steering = 0
     driver.SetSteering(steering)
 

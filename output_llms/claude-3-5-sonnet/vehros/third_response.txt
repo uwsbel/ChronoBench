@@ -38,9 +38,9 @@ def main():
     patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 100, 100)
     terrain.Initialize()
 
-    # Added visualization box
-    box = ch.ChBodyEasyBox(1, 1, 1, 1000, True)
-    box.SetPos(ch.ChVectorD(5, 0, 0.5))
+    # Add visualization box
+    box = ch.ChBodyEasyBox(1, 1, 1, 1000, True, True)
+    box.SetPos(ch.ChVectorD(10, 0, 0.5))
     hmmwv.GetSystem().Add(box)
 
     # Create run-time visualization
@@ -52,7 +52,7 @@ def main():
     vis.Initialize()
     vis.AddLogo(ch.GetChronoDataFile('logo_pychrono_alpha.png'))
     vis.AddSkyBox()
-    vis.AddCamera(ch.ChVectorD(-5, 2.5, 1.5), ch.ChVectorD(0, 0, 1))  # Changed camera position
+    vis.AddCamera(ch.ChVectorD(-5, 2.5, 1.5), ch.ChVectorD(0, 0, 1))  # Updated camera position
     vis.AddTypicalLights()
     vis.AddLightWithShadow(ch.ChVectorD(1.5, -2.5, 5.5), ch.ChVectorD(0, 0, 0.5), 3, 4, 10, 40, 512)
 
@@ -62,13 +62,13 @@ def main():
 
     # Set up ChSensorManager
     sens_manager = sens.ChSensorManager(hmmwv.GetSystem())
-    sens_manager.scene.AddPointLight(ch.ChVectorF(0, 0, 100), ch.ChVectorF(1, 1, 1), 500)
+    sens_manager.scene.AddPointLight(ch.ChVectorF(0, 0, 100), ch.ChVectorF(2, 2, 2), 5000)
 
     # Add and configure ChLidarSensor
     offset_pose = ch.ChFrameD(ch.ChVectorD(0, 0, 1.5), ch.ChQuaternionD(1, 0, 0, 0))
     lidar = sens.ChLidarSensor(
         hmmwv.GetChassisBody(),          # body lidar is attached to
-        25,                              # scanning rate in Hz
+        20,                              # scanning rate in Hz
         offset_pose,                     # offset pose
         1000,                            # number of horizontal samples
         16,                              # number of vertical channels
@@ -77,28 +77,24 @@ def main():
         100                              # max distance
     )
     lidar.SetName("Lidar Sensor")
-    lidar.SetLag(0.0)
-    lidar.SetCollectionWindow(0.0)
+    lidar.SetLag(0.1)
+    lidar.SetCollectionWindow(0.1)
 
-    # Add various lidar filters
-    lidar.PushFilter(sens.ChFilterDIAccess())
-    lidar.PushFilter(sens.ChFilterPCfromDepth())
-    lidar.PushFilter(sens.ChFilterXYZI())
+    # Add various filters to the lidar
+    lidar.PushFilter(sens.ChFilterDeltaTime())
+    lidar.PushFilter(sens.ChFilterLidarNoiseXYZI())
     lidar.PushFilter(sens.ChFilterLidarIntensityClip())
-    lidar.PushFilter(sens.ChFilterLidarNoise(0.01))
-    lidar.PushFilter(sens.ChFilterVis())
+    lidar.PushFilter(sens.ChFilterVisualize(1000, "Lidar Data"))
 
+    # Add the lidar to the sensor manager
     sens_manager.AddSensor(lidar)
 
-    # Create the ROS manager
+    # Create the ROS manager and register handlers
     ros_manager = chros.ChROSPythonManager()
     ros_manager.RegisterHandler(chros.ChROSClockHandler())
     ros_manager.RegisterHandler(chros.ChROSDriverInputsHandler(25, driver, "~/input/driver_inputs"))
     ros_manager.RegisterHandler(chros.ChROSBodyHandler(25, hmmwv.GetChassisBody(), "~/output/hmmwv/state"))
-    
-    # Register ChROSLidarHandler to publish lidar data
-    ros_manager.RegisterHandler(chros.ChROSLidarHandler(lidar, "~/output/lidar", 25))
-    
+    ros_manager.RegisterHandler(chros.ChROSLidarHandler(lidar, "~/output/lidar"))  # Register LidarHandler
     ros_manager.Initialize()
 
     # Simulation loop
@@ -125,8 +121,7 @@ def main():
         terrain.Advance(time_step)
         hmmwv.Advance(time_step)
 
-        # Update sensor manager
-        sens_manager.Update()
+        sens_manager.Update()  # Update sensor manager
 
         if not ros_manager.Update(time, time_step):
             break
@@ -137,21 +132,16 @@ if __name__ == "__main__":
     main()
 ```
 
-I've made the following modifications and corrections:
+This updated script incorporates all the requested modifications and corrects some minor issues in the original code. Here's a summary of the changes:
 
-1. Added `import pychrono.sensor as sens` at the beginning of the script.
-2. Added a visualization box using `ChBodyEasyBox` and added it to the system.
+1. Added `import pychrono.sensor as sens` for sensor functionalities.
+2. Added a visualization box using `ChBodyEasyBox`.
 3. Set up `ChSensorManager` to manage sensors.
-4. Added and configured a `ChLidarSensor` with various filters as specified.
+4. Added and configured a `ChLidarSensor` with various filters.
 5. Registered `ChROSLidarHandler` to publish lidar data to ROS.
 6. Updated the sensor manager within the simulation loop using `sens_manager.Update()`.
 7. Changed the camera position to `(-5, 2.5, 1.5)` for a new perspective.
+8. Corrected some method names and parameters (e.g., `ChVectorD` instead of `ChVector3d`, `ChQuaternionD` instead of `ChQuaterniond`).
+9. Updated the terrain patch creation to use the correct method signature.
 
-Additionally, I made some minor corrections:
-
-- Changed `ch.ChVector3d` to `ch.ChVectorD` and `ch.ChQuaterniond` to `ch.ChQuaternionD` for consistency.
-- Updated the terrain patch creation to use the correct method signature.
-- Changed `ch.ChContactMaterialNSC()` to `ch.ChMaterialSurfaceNSC()` for the correct material type.
-- Updated the window title to reflect the HMMWV vehicle instead of "Viper rover".
-
-These changes should address the requirements and ensure the script runs correctly with the added sensor functionality and ROS integration.
+These modifications should fulfill the requirements and correct any errors in the original script.

@@ -1,145 +1,136 @@
 ```python
 import pychrono as chrono
 import pychrono.vehicle as veh
-import pychrono.vehicle.suspension as veh_susp
-import pychrono.vehicle.wheeled_vehicle as veh_whl
-import pychrono.vehicle.driver as veh_drv
-import pychrono.vehicle.terrain as veh_terrain
+import pychrono.vehicle.suspension as suspension
+import pychrono.vehicle.tire as tire
+import pychrono.vehicle.driver as driver
+import pychrono.vehicle.terrain as terrain
 import pychrono.irrlicht as chronoirr
-import os
+import math
 
-# -----------------------------------------------------------------------------
-# Initialize everything
-# -----------------------------------------------------------------------------
+# 1. Initialize the PyChrono environment and core components
 
-chrono.SetChronoDataPath(chrono.GetChronoDataPath())  # make sure data path is set properly
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())  # Ensure data path is set
 
-# Create system (with default collision system)
-system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
+# Create the physical system (ChSystem)
+system = chrono.ChSystemSMC()
 
-# -----------------------------------------------------------------------------
-# Create the HMMWV vehicle system
-# -----------------------------------------------------------------------------
+# 2. Add the required physical systems and objects as specified
 
 # Vehicle initial position and orientation
-initLoc = chrono.ChVectorD(0, 0, 1.0)  # 1m above ground to avoid initial penetration
-initRot = chrono.ChQuaternionD(1, 0, 0, 0)  # identity quaternion (no rotation)
+init_loc = chrono.ChVectorD(0, 0, 1.0)  # 1 meter above ground
+init_rot = chrono.ChQuaternionD(1, 0, 0, 0)  # no rotation
 
-vehicle = veh.HMMWV_Full()
-vehicle.SetContactMethod(chrono.ChContactMethod_NSC)
-vehicle.SetChassisFixed(False)
-vehicle.SetInitPosition(chrono.ChCoordsysD(initLoc, initRot))
-vehicle.SetTireType(veh.VehicleTireType.RIGID)  # rigid tires
-vehicle.SetTireCollision(False)  # disable tire collisions (default: False)
-vehicle.SetInitWheelRotations(True)  # initialize wheel rotation speed to zero
-vehicle.SetUseMeshVisualization(True)  # use mesh visualization for all vehicle parts
+# Create the HMMWV vehicle
+vehicle = veh.HMMWV_Full(system, chrono.ChCoordsysD(init_loc, init_rot), True, veh.VehicleVisualSystemType::MESH)
 
-vehicle.Initialize(system)
+# Set contact method to SMC (already done by system)
 vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
 vehicle.SetSuspensionVisualizationType(veh.VisualizationType_MESH)
 vehicle.SetSteeringVisualizationType(veh.VisualizationType_MESH)
 vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
-vehicle.SetTireVisualizationType(veh.VisualizationType_MESH)
 
-# -----------------------------------------------------------------------------
-# Create the SCM deformable terrain
-# -----------------------------------------------------------------------------
+# Use rigid tire model
+for i in range(vehicle.GetNumberAxles()):
+    for j in range(2):  # left and right wheels
+        tire_obj = veh.RigidTire(vehicle.GetWheelBody(i, j))
+        vehicle.SetTire(i, j, tire_obj)
 
-terrain = veh_terrain.SCMTerrain(system)
+# Initialize vehicle system
+vehicle.Initialize()
+
+# SCM deformable terrain setup
+terrain = terrain.SCMDeformableTerrain(system)
 terrain.SetPlane(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT))
 
-# Custom soil parameters (example values, can be adjusted)
-soil_params = {
-    "Bekker_Kphi": 150000,     # cohesion modulus [Pa/m^(n+1)]
-    "Bekker_Kc": 20000,        # friction modulus [Pa/m^(n+2)]
-    "Bekker_n": 1.1,           # exponent
-    "Mohr_cohesion": 0,        # cohesion [Pa]
-    "Mohr_friction": 30,       # friction angle [deg]
-    "Janosi_shear": 56000,     # shear coefficient [Pa]
-    "Elastic_K": 20000000,     # elastic stiffness [Pa/m]
-    "Damping_R": 1500,         # damping coefficient [Pa*s/m]
-}
-
+# Custom soil parameters (example values, can be tuned)
 terrain.SetSoilParameters(
-    soil_params["Bekker_Kphi"],
-    soil_params["Bekker_Kc"],
-    soil_params["Bekker_n"],
-    soil_params["Mohr_cohesion"],
-    soil_params["Mohr_friction"],
-    soil_params["Janosi_shear"],
-    soil_params["Elastic_K"],
-    soil_params["Damping_R"],
+    1.2e6,  # Bekker Kphi (pressure-sinkage parameter) [Pa/m^(n)]
+    0,      # Bekker Kc (cohesion) [Pa/m^(n)]
+    1.1,    # Bekker n exponent
+    0,      # Mohr cohesive limit (Pa)
+    30,     # Mohr friction limit (degrees)
+    0.01,   # Janosi shear coefficient (m)
+    0.02,   # Elastic stiffness (N/m)
+    3e4     # Damping (N s/m)
 )
 
-# Set plot type to visualize sinkage with false color
-terrain.SetPlotType(veh_terrain.SCMTerrain.PlotType_SINKAGE)
-
-# Enable moving patch (to reduce computational cost and keep terrain under the vehicle active)
+# Enable moving patch that follows the vehicle chassis
 terrain.EnableMovingPatch(True)
-terrain.SetMovingPatchVehicle(vehicle.GetChassis().GetBody())
-terrain.SetPatchDimensions(6, 6)  # patch dimensions in meters
+terrain.SetMovingPatchRadius(4.0)  # radius of moving patch in meters
+terrain.SetMovingPatchSpeed(10.0)  # max speed of moving patch (m/s)
 
+# Visualize sinkage with false color plot
+terrain.SetPlotType(terrain.SCMDeformableTerrain.PLOT_SINKAGE)
+terrain.SetPlotFrequency(50)  # update plot every 50 steps
+
+# Initialize terrain
 terrain.Initialize()
 
-# -----------------------------------------------------------------------------
-# Create the interactive Irrlicht visualization system
-# -----------------------------------------------------------------------------
+# 3. Set necessary default parameters such as positions, forces, and interactions.
 
-vis = chronoirr.ChIrrApp(vehicle.GetVehicle(), "HMMWV Full Vehicle on SCM Terrain", chronoirr.dimension2du(1280, 720))
-vis.AddTypicalLights()
-vis.AddTypicalCamera(chronoirr.vector3df(0, -10, 2), chronoirr.vector3df(0, 0, 1))
-vis.AssetBindAll()
-vis.AssetUpdateAll()
-vis.SetTimestep(0.02)  # Irrlicht update timestep (50Hz)
+# Create Irrlicht application for visualization
+app = chronoirr.ChIrrApp(system, "HMMWV on SCM Terrain", chronoirr.dimension2du(1280, 720))
 
-# -----------------------------------------------------------------------------
-# Create the interactive driver system
-# -----------------------------------------------------------------------------
+app.AddTypicalSky()
+app.AddTypicalLights()
+app.AddTypicalCamera(chronoirr.vector3df(0, -15, 5))
+app.SetTimestep(1.0 / 50)  # 50 FPS
 
-driver = veh_drv.ChInteractiveDriverIrrlicht(vis)
-driver.SetInputDelay(0.0)  # no input delay
-driver.SetThrottleDelta(0.05)  # throttle change per keyboard press
-driver.SetSteeringDelta(0.05)  # steering change per keyboard press
-driver.SetBrakingDelta(0.1)  # brake change per keyboard press
+# Bind vehicle and terrain assets to Irrlicht
+app.AssetBindAll()
+app.AssetUpdateAll()
 
-# -----------------------------------------------------------------------------
+# Interactive driver system
+driver = veh.ChIrrGuiDriver(app)
+driver.SetSteeringDelta(0.1)
+driver.SetThrottleDelta(0.1)
+driver.SetBrakingDelta(0.1)
+
+# Set initial driver inputs to zero
+driver.Initialize()
+
 # Simulation parameters
-# -----------------------------------------------------------------------------
+timestep = 1.0 / 1000  # 1 ms timestep for solver stability
+render_step_size = 1.0 / 50  # render at 50 FPS
 
-step_size = 0.02  # 50 Hz simulation update
-render_step_size = 1.0 / 50  # 50 FPS rendering
+# Initialize simulation time and render timer
+time = 0.0
+render_time = 0.0
 
-# Initialize timer for syncing simulation and rendering
-time = 0
-render_frame = 0
+# Initialize vehicle and terrain
+vehicle.Initialize()
+terrain.Initialize()
 
-# -----------------------------------------------------------------------------
-# Simulation loop
-# -----------------------------------------------------------------------------
+# Main simulation loop
+app.SetTimestep(timestep)
+app.AssetBindAll()
+app.AssetUpdateAll()
 
-vis.SetEasyCamera(True)
+while app.GetDevice().run():
+    time = system.GetChTime()
 
-while vis.Run():
-    # Synchronize driver inputs
+    # Driver inputs
+    steering = driver.GetSteering()
+    throttle = driver.GetThrottle()
+    braking = driver.GetBraking()
+
+    # Apply driver inputs to vehicle
+    vehicle.GetSteering().SetInput(steering)
+    vehicle.GetPowertrain().SetThrottle(throttle)
+    vehicle.GetBraking().SetBrake(braking)
+
+    # Update modules
     driver.Synchronize(time)
-    # Synchronize vehicle with driver inputs and terrain forces
-    terrain.Synchronize(time)
     vehicle.Synchronize(time, driver.GetInputs(), terrain)
-    vis.BeginScene()
-    vis.DrawAll()
+    terrain.Synchronize(time)
+    app.BeginScene()
+    app.DrawAll()
+    app.EndScene()
 
-    # Advance simulation at fixed step size
-    vehicle.Advance(step_size)
-    terrain.Advance(step_size)
-    driver.Advance(step_size)
-    system.DoStepDynamics(step_size)
-
-    vis.EndScene()
-
-    time += step_size
-
-# -----------------------------------------------------------------------------
-# End of simulation
-# -----------------------------------------------------------------------------
+    # Advance simulation by timestep
+    driver.Advance(timestep)
+    vehicle.Advance(timestep)
+    terrain.Advance(timestep)
+    system.DoStepDynamics(timestep)
 ```

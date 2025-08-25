@@ -3,77 +3,86 @@ import pychrono.core as chrono
 import pychrono.vehicle as veh
 import pychrono.irrlicht as irr
 
-# 1. Initialize the Chrono engine and system
-chrono.SetChronoDataPath('/path/to/chrono/data')  # Set this path accordingly
+# 1. Initialize the Chrono engine and create the physical system
 system = chrono.ChSystemNSC()
 
-# 2. Set up the physical components
+# Set gravity
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
-# Create terrain
-terrain = veh.ChRigidTerrain(system)
-terrain.GetGroundBody().SetFriction(0.8)        # Set terrain friction
-terrain.GetGroundBody().SetRestitution(0.1)     # Set terrain restitution
-terrain.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0)))
+# 2. Create and configure the terrain
+terrain = veh.RigidTerrain(system)
+terrain.SetContactFriction(0.8)  # example friction coefficient
+terrain.SetContactRestitution(0.1)  # example restitution coefficient
+terrain.Initialize()
 
-# Create the M113 vehicle
-vehicle = veh.ChVehicleAssembly()
-# Load the vehicle model or create from scratch
-# For example, load a predefined M113, assuming available
-m113 = veh.M113_Transport()
-m113.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0.5, 0)))  # Initial position
-vehicle.AddBody(m113)
+# Add a flat terrain mesh (optional, for visualization)
+terrain.GetGroundBody().GetCollisionModel().ClearModel()
+terrain.GetGroundBody().GetCollisionModel().AddBox(10, 0.1, 10, chrono.ChVectorD(0, -0.1, 0))
+terrain.GetGroundBody().GetCollisionModel().BuildModel()
+terrain.GetGroundBody().SetPos(chrono.ChVectorD(0, 0, 0))
+terrain.GetGroundBody().SetBodyFixed(True)
 
-# Set initial velocity for the vehicle (if needed)
-initial_speed = 0  # e.g., start stationary
-m113.SetVelocity(chrono.ChVectorD(initial_speed, 0, 0))
+# 3. Create the M113 vehicle
+# Load the vehicle from the provided model or define parameters
+m113 = veh.M113_Vehicle(system)
 
-# Create driver system
-driver = veh.ChIrrWizard()
-driver.SetVehicle(m113)
-driver.SetStepSize(0.01)
-driver.Initialize()
+# Set initial position and orientation
+initial_pos = chrono.ChVectorD(0, 0.5, 0)  # starting slightly above ground
+initial_rot = chrono.Q_from_AngleAxis(0, chrono.ChVectorD(0, 1, 0))
+m113.GetChassisBody().SetPos(initial_pos)
+m113.GetChassisBody().SetRot(initial_rot)
 
-# 3. Visualization setup with Irrlicht
+# Initialize the vehicle
+m113.Initialize()
+
+# 4. Set up the driver system
+driver = veh.ChIrrGuiDriver()
+driver.Initialize(system, m113.GetChassisBody())
+
+# 5. Set up Irrlicht visualization
 vis = irr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
-vis.SetWindowSize(1280, 720)
-vis.SetWindowTitle('M113 Vehicle Simulation')
+vis.SetWindowSize(800, 600)
+vis.SetWindowTitle('PyChrono M113 Vehicle Simulation')
 vis.Initialize()
 
-# Camera settings
-cam_pos = chrono.ChVectorD(0, 5, -10)
+# Configure camera
+cam_pos = chrono.ChVectorD(0, 2, -5)
 cam_target = chrono.ChVectorD(0, 0, 0)
-vis.GetActiveCamera().setPos(cam_pos)
-vis.GetActiveCamera().setTarget(cam_target)
+vis.GetActiveCamera().SetPos(cam_pos)
+vis.GetActiveCamera().SetTarget(cam_target)
+vis.AddLightWithShadow(chrono.ChVectorD(10, 10, 10), chrono.ChVectorD(0, 0, 0), 10, 2, 20, 40)
 
-# Add lights
-vis.AddLightWithShadow(chrono.ChVectorD(0, 20, -10),  # Light position
-                       chrono.ChVectorD(0, -1, 0),   # Light direction
-                       100,                       # Max distance
-                       ilight_type=irr.Light_SUN, # Light type
-                       casts_shadows=True)
-
-# 4. Simulation loop parameters
-time_step = 0.01
-max_time = 20  # seconds
+# 6. Simulation parameters
+time_step = 1e-3  # 1 ms timestep
+max_time = 20  # total simulation time in seconds
 current_time = 0
 
-# Main simulation loop
-while vis.IsActive() and current_time < max_time:
-    # Synchronize systems
-    driver.Run();
-
-    # Advance the vehicle and terrain
-    system.DoStepDynamics(time_step)
-
-    # Update driver controls
+# 7. Simulation loop
+while vis.Run():
+    # Synchronize driver inputs
     driver.Synchronize(current_time)
     driver.Advance(time_step)
 
-    # Render the scene
+    # Synchronize vehicle with driver inputs
+    m113.Synchronize(driver)
+    m113.Advance(time_step)
+
+    # Synchronize terrain
+    terrain.Synchronize(current_time)
+
+    # Advance the physical system
+    system.DoStepDynamics(time_step)
+
+    # Update visualization
     vis.Render()
 
-    # Keep simulation in real-time
-    time.sleep(time_step)
+    # Increment time
     current_time += time_step
+
+    # Optional: add a real-time sleep to match simulation speed
+    # import time
+    # time.sleep(time_step)
+
+# End of simulation
 ```

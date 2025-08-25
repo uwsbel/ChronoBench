@@ -1,97 +1,125 @@
-Here's a PyChrono script that implements the simulation as per your instructions:
+Certainly! I'll create a PyChrono script that simulates a beam composed of ANCF (Absolute Nodal Coordinate Formulation) cable elements, with one end hinged to the ground and subjected to gravity. We'll use the Irrlicht engine for visualization and display the beam's deformation and nodal positions. Here's the script:
 
 ```python
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
 import numpy as np
 
-# Initialize the ChSystem
+# Initialize the ChSystemNSC
 system = chrono.ChSystemNSC()
 
 # Set gravity
 system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
-# Create the ground
-ground = chrono.ChBodyEasyBox(1, 0.1, 1, 1000, True)
-ground.SetBodyFixed(True)
-system.Add(ground)
+# Create a mesh, that is a container for groups of elements and their referenced nodes.
+mesh = chrono.ChMesh()
 
-# Parameters for the beam
-beam_length = 1.0
-beam_diameter = 0.01
-num_elements = 10
-density = 1000
+# Create a section, i.e. thickness and material properties
+# for beams. This will be shared among some beams.
+beam_section = chrono.ChBeamSectionCable()
+beam_section.SetDiameter(0.01)
+beam_section.SetYoungModulus(0.01e9)
+beam_section.SetBeamRaleyghDamping(0.000)
 
-# Create the beam using ANCF cable elements
+# Create the nodes
 beam_nodes = []
-beam_elements = []
+n_elements = 10
+element_length = 0.1
 
-for i in range(num_elements + 1):
-    node = chrono.ChNodeFEAxyzD(chrono.ChVectorD(i * beam_length / num_elements, 0, 0))
+for i in range(n_elements + 1):
+    # Initial position of node
+    position = chrono.ChVectorD(i * element_length, 0, 0)
+    
+    # Create the node
+    node = chrono.ChNodeFEAxyzD(position)
+    
+    # Set no point mass because mass is already in the beam element:
+    node.SetMass(0)
+    
+    # Add node to mesh
+    mesh.AddNode(node)
+    
+    # Add node to our beam_nodes list
     beam_nodes.append(node)
-    system.Add(node)
 
-    if i > 0:
-        element = chrono.ChElementCableANCF()
-        element.SetNodes(beam_nodes[i-1], beam_nodes[i])
-        element.SetDensity(density)
-        element.SetSection(np.pi * beam_diameter**2 / 4)
-        element.SetYoungModulus(1e7)
-        beam_elements.append(element)
-        system.Add(element)
+# Create the elements
+for i in range(n_elements):
+    element = chrono.ChElementCableANCF()
+    element.SetNodes(beam_nodes[i], beam_nodes[i+1])
+    element.SetSection(beam_section)
+    
+    # Add element to mesh
+    mesh.AddElement(element)
 
-# Fix the first node (hinge)
-beam_nodes[0].SetFixed(True)
+# Add the mesh to the system
+system.Add(mesh)
 
-# Create the visualization system
-vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(system)
-vis.SetWindowSize(1024, 768)
-vis.SetWindowTitle("ANCF Beam Simulation")
-vis.Initialize()
-vis.AddCamera(chrono.ChVectorD(0.5, 0.5, 2))
-vis.AddTypicalLights()
+# Create constraint - hinged at one end
+constraint = chrono.ChLinkPointFrame()
+constraint.Initialize(beam_nodes[0], system.GetBodyList()[0])
+system.AddLink(constraint)
+
+# Create the Irrlicht visualization
+application = chronoirr.ChIrrApp(system, "ANCF Cable", chronoirr.dimension2du(1024, 768))
+application.AddTypicalSky()
+application.AddTypicalLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))
+application.AddTypicalCamera(chronoirr.vector3df(0, 0.6, -1))
+application.AddTypicalLights()
+application.AssetBindAll()
+application.AssetUpdateAll()
 
 # Simulation loop
-time_step = 0.001
-while vis.Run():
-    system.DoStepDynamics(time_step)
+time_step = 1e-3
+while application.GetDevice().run():
+    application.BeginScene()
+    application.DrawAll()
     
-    # Visualize beam nodes
+    # Draw the nodes
     for node in beam_nodes:
-        vis.GetDevice().drawSphere(node.GetPos(), 0.01, chronoirr.SColor(255, 0, 0, 255))
+        pos = node.GetPos()
+        application.GetVideoDriver().draw3DBox(
+            chronoirr.aabbox3df(
+                pos.x - 0.005, pos.y - 0.005, pos.z - 0.005,
+                pos.x + 0.005, pos.y + 0.005, pos.z + 0.005
+            ),
+            chronoirr.SColor(255, 200, 200, 0)
+        )
     
-    # Visualize beam elements
-    for element in beam_elements:
-        start = element.GetNodeA().GetPos()
-        end = element.GetNodeB().GetPos()
-        vis.GetDevice().drawLine(start, end, chronoirr.SColor(255, 255, 0, 0))
+    # Draw lines between nodes
+    for i in range(len(beam_nodes) - 1):
+        pos1 = beam_nodes[i].GetPos()
+        pos2 = beam_nodes[i+1].GetPos()
+        application.GetVideoDriver().draw3DLine(
+            chronoirr.vector3df(pos1.x, pos1.y, pos1.z),
+            chronoirr.vector3df(pos2.x, pos2.y, pos2.z),
+            chronoirr.SColor(255, 0, 200, 0)
+        )
     
-    vis.BeginScene()
-    vis.Render()
-    vis.EndScene()
+    application.DoStep()
+    application.EndScene()
 
-vis.GetDevice().closeDevice()
+    system.DoStepDynamics(time_step)
+
+# Clean up
+application.GetDevice().drop()
 ```
 
 This script does the following:
 
-1. Initializes the PyChrono environment and core components, including the ChSystem and gravity.
+1. Initializes the PyChrono environment and core components, including the `ChSystemNSC` and Irrlicht application.
 
-2. Creates a ground body using an easy-to-create box shape.
+2. Sets up the physical system:
+   - Creates a `ChMesh` to contain the beam elements and nodes.
+   - Defines a `ChBeamSectionCable` for the beam properties.
+   - Creates nodes and ANCF cable elements to form the beam.
+   - Adds a constraint to hinge one end of the beam to the ground.
 
-3. Sets up parameters for the beam, including length, diameter, number of elements, and material properties.
+3. Sets up the visualization using the Irrlicht engine.
 
-4. Creates the beam using ANCF (Absolute Nodal Coordinate Formulation) cable elements. It creates nodes and elements, connecting them to form the beam.
+4. Implements a simulation loop that:
+   - Renders the scene.
+   - Draws the nodes as small boxes.
+   - Draws lines between nodes to represent the beam.
+   - Advances the simulation by one time step.
 
-5. Fixes the first node to act as a hinge, anchoring the beam to the ground.
-
-6. Sets up the Irrlicht visualization system for rendering the simulation.
-
-7. Implements a simulation loop that:
-   - Advances the physical simulation
-   - Visualizes the beam nodes as small spheres
-   - Visualizes the beam elements as lines connecting the nodes
-   - Renders the scene
-
-This simulation will show a beam composed of ANCF cable elements, hinged at one end and deforming under gravity. The beam's nodes are visualized as blue spheres, and the elements connecting them are shown as red lines. You can observe the beam's deformation and nodal positions as the simulation progresses.
+This script will create a visualization of the beam deforming under gravity, with one end hinged to the ground. The beam's nodes are represented by small yellow boxes, and the beam itself is shown as green lines connecting these nodes. You can observe the beam's deformation in real-time as the simulation progresses.

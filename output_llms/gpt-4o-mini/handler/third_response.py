@@ -1,6 +1,5 @@
 import pychrono as ch
 import pychrono.ros as chros
-
 import rclpy.publisher
 from std_msgs.msg import Int64
 
@@ -8,8 +7,8 @@ from std_msgs.msg import Int64
 class MyCustomHandler(chros.ChROSHandler):
     """This custom handler will publish integer messages to a specified ROS topic."""
 
-    def __init__(self, topic, publish_rate):
-        super().__init__(publish_rate)  # Initialize the handler with the specified publishing rate.
+    def __init__(self, topic, publish_rate=10):
+        super().__init__(publish_rate)  # Initialize the handler with a specified publishing rate.
 
         self.topic = topic
         self.publisher: rclpy.publisher.Publisher = None
@@ -69,45 +68,44 @@ def main():
     tf_handler.AddTransform(floor, floor.GetName(), box, box.GetName())
     ros_manager.RegisterHandler(tf_handler)
     
-    # Register the custom handler to publish messages at 10 Hz.
-    custom_handler = MyCustomHandler("~/my_topic", 10)
+    # Register the custom handler to publish messages.
+    custom_handler = MyCustomHandler("~/my_topic", publish_rate=10)
     ros_manager.RegisterPythonHandler(custom_handler)
 
     # Initialize the ROS manager.
     ros_manager.Initialize()
 
     # Visualization setup with Irrlicht
-    vis = ch.ChVisualSystemIrrlicht()
-    vis.SetWindowSize(800, 600)
-    vis.SetWindowTitle("PyChrono Simulation")
-    vis.Initialize()
-    vis.AddCamera(ch.ChVector3d(0, -10, 5), ch.ChVector3d(0, 0, 0))  # Set camera position and target
-    vis.AddLight(ch.ChVector3d(0, 0, 10), ch.ChVector3d(1, 1, 1))  # Add a light source
+    vis = ch.ChIrrApp(sys, "Chrono Simulation", ch.vector2di(800, 600), ch.VerticalDir.Z)
+    vis.AddSkyBox()
+    vis.AddCamera(ch.ChVector3d(0, -10, 5), ch.ChVector3d(0, 0, 0))
+    vis.AddLight(ch.ChVector3d(0, 0, 10), ch.ChVector3d(1, 1, 1))
+
+    # Variables for controlling rendering frame rate
+    step_number = 0
+    render_step_size = 1  # Render every 1 step
+    render_steps = 10  # Render every 10 simulation steps
 
     # Run the simulation loop.
     time = 0
     time_step = 1e-3  # Define the simulation time step.
     time_end = 30  # Set the duration for the simulation.
 
-    # Variables for controlling rendering frame rate
-    step_number = 0
-    render_step_size = 0.1  # Render every 0.1 seconds
-    render_steps = int(render_step_size / time_step)  # Calculate how many steps to skip for rendering
-
     realtime_timer = ch.ChRealtimeStepTimer()  # Create a real-time step timer.
     while time < time_end:
         sys.DoStepDynamics(time_step)  # Advance the simulation by one time step.
         time = sys.GetChTime()  # Update the simulation time.
 
+        if step_number % render_steps == 0:  # Conditional rendering
+            vis.BeginScene()
+            vis.DrawAll()
+            vis.EndScene()
+
         if not ros_manager.Update(time, time_step):  # Update ROS communication.
             break  # Exit the loop if the ROS manager indicates a problem.
 
-        # Conditional rendering
-        if step_number % render_steps == 0:
-            vis.Render()  # Render the scene
-
-        step_number += 1  # Increment the step number
         realtime_timer.Spin(time_step)  # Maintain real-time step execution.
+        step_number += 1  # Increment the step number.
 
 # Entry point of the script.
 if __name__ == "__main__":

@@ -3,115 +3,73 @@ import pychrono as chrono
 import pychrono.vehicle as veh
 import pychrono.irrlicht as chronoirr
 
-# -----------------------------------------------------------------------------
-# 1. Initialize PyChrono environment and core components
-# -----------------------------------------------------------------------------
+# 1. Initialize the PyChrono environment and core components
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())  # Ensure data path is set
 
-chrono.SetChronoDataPath(chrono.GetChronoDataPath())  # ensure data path is set
+# Create the physical system (ChSystem)
+system = chrono.ChSystemNSC()
 
-time_step = 1.0 / 1000  # simulation timestep
-
-# Create the physical system
-system = chrono.ChSystemSMC()
-
-# -----------------------------------------------------------------------------
-# 2. Add the required physical systems and objects
-# -----------------------------------------------------------------------------
-
-# Create terrain (rigid terrain)
-terrain = veh.RigidTerrain(system)
-
-# Define a rigid patch for ground with specific friction and restitution
-patch = terrain.AddPatch(
-    chrono.ChVectorD(0, 0, 0),                 # center location
-    chrono.ChVectorD(0, 0, 1),                 # normal direction (z-up)
-    100, 100                                   # size X, Y (100 m x 100 m)
-)
-# friction and restitution
-patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
-patch.SetMaterialSurface(
-    chrono.ChMaterialSurfaceSMC()
-)
-patch.GetMaterialSurface().SetFriction(0.9)
-patch.GetMaterialSurface().SetRestitution(0.01)
-
-terrain.Initialize()
+# 2. Add the required physical systems and objects as specified
 
 # Create the M113 vehicle system
-m113 = veh.M113Vehicle(system)
-m113.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0.5), chrono.QUNIT))
-m113.SetChassisVisualizationType(veh.VisualizationType_MESH)
-m113.SetTrackShoeVisualizationType(veh.VisualizationType_MESH)
-m113.Initialize()
+m113 = veh.M113_Vehicle()
+m113.SetContactMethod(chrono.ChContactMethod_NSC)
+m113.SetChassisFixed(False)
+m113.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 1.0), chrono.QUNIT))  # Initial position (x=0,y=0,z=1m)
+m113.SetTireType(veh.M113_Tire.TireType_RIGID)
+m113.Initialize(system)
 
-# -----------------------------------------------------------------------------
-# Initialize a driver system for vehicle control
-# -----------------------------------------------------------------------------
+# Create the terrain (rigid terrain)
+terrain = veh.RigidTerrain(system)
+patch = terrain.AddPatch(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 1), 100, 100)
+patch.SetFriction(0.9)
+patch.SetRestitution(0.01)
+patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+terrain.Initialize()
 
-# Create a driver to generate inputs for the vehicle.
-# Using a simple interactive driver with Irrlicht GUI
+# 3. Initialize a driver system for vehicle control
 driver = veh.ChIrrGuiDriver(m113.GetVehicle())
-
-# Set driver time response (for speed, steering, braking inputs).
-driver.SetInputTimeResponse(1.0, 1.0, 0.5)
-
-# Set initial driver inputs: neutral steering and throttle
 driver.Initialize()
 
-# -----------------------------------------------------------------------------
-# 3. Setup Irrlicht visualization system
-# -----------------------------------------------------------------------------
+# Set driver input defaults (e.g., no throttle, no steering, no braking)
+driver.SetThrottle(0)
+driver.SetSteering(0)
+driver.SetBraking(0)
 
-vis = veh.ChWheeledVehicleIrrApp(m113.GetVehicle(), "M113 Vehicle Simulation")
+# 4. Create a real-time visualization using Irrlicht with camera settings and lighting
+application = veh.ChIrrApp(m113.GetVehicle(), "M113 Vehicle Simulation", chronoirr.dimension2du(1280, 720))
+application.AddTypicalLights()
+application.AddTypicalSky()
+application.AddTypicalCamera(chronoirr.vector3df(0, -10, 3))
+application.SetTimestep(0.01)
+application.AssetBindAll()
+application.AssetUpdateAll()
 
-# Configure the irrlicht application window and camera
-vis.AddTypicalLights()
-vis.AddSkyBox()
-vis.AddLogo()
-vis.AddHelp()
+# Simulation parameters
+timestep = 0.01
+application.SetTimestep(timestep)
 
-# Customize camera position and target (focus on vehicle)
-vis.SetChaseCamera(trackPoint=chrono.ChVectorD(0, 0, 1.75),
-                   chaseDist=7.0,
-                   chaseHeight=1.75,
-                   chasePitch=0.3)
+# 5. Implement a simulation loop that synchronizes and advances the vehicle, terrain, driver, and visual system at each timestep, maintaining real-time execution.
 
-vis.GetDevice().GetVideoDriver().getMaterialRenderer(chrono.material.E_MATERIAL_FLAG::EMF_WIREFRAME)
+while application.GetDevice().run():
+    application.BeginScene()
+    application.DrawAll()
 
-# Initialize the visualization system
-vis.AssetBindAll()
-vis.AssetUpdateAll()
-vis.SetTimestep(time_step)
-vis.Initialize()
+    # Get driver inputs
+    driver_inputs = driver.GetInputs()
 
-# -----------------------------------------------------------------------------
-# Simulation loop
-# -----------------------------------------------------------------------------
-
-while vis.GetDevice().run():
-    vis.BeginScene()
-    vis.DrawAll()
-
-    # Get driver inputs (steering, throttle, braking)
-    steering = driver.GetSteering()
-    throttle = driver.GetThrottle()
-    braking = driver.GetBraking()
-
-    # Synchronize modules at current time
+    # Synchronize modules
     time = system.GetChTime()
     driver.Synchronize(time)
-    m113.Synchronize(time, steering, throttle, braking, terrain)
     terrain.Synchronize(time)
-    vis.Synchronize(time, steering, throttle, braking)
+    m113.Synchronize(time, driver_inputs, terrain)
+    application.Synchronize(time, driver_inputs)
 
-    # Advance all modules by the simulation timestep
-    driver.Advance(time_step)
-    m113.Advance(time_step)
-    terrain.Advance(time_step)
-    vis.Advance(time_step)
+    # Advance simulation by timestep
+    driver.Advance(timestep)
+    terrain.Advance(timestep)
+    m113.Advance(timestep)
+    application.Advance(timestep)
 
-    # Advance the physical system
-    system.DoStepDynamics(time_step)
-
-    vis.EndScene()
+    application.EndScene()
 ```

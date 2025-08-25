@@ -1,11 +1,18 @@
-Looking at the provided PyChrono script, I'll first identify potential errors and then implement the requested modifications.
+Looking at the provided PyChrono script, I'll identify errors and make the requested modifications.
 
-## Identified Issues:
-1. The script uses `chrono.ChQuaterniond` which should be `chrono.ChQuaterniond` or more commonly `chrono.ChQuaternionD`
-2. Missing tire model initialization for the vehicle
-3. The comment mentions "Poon chassis" which should be "Point chassis"
+## Identified Errors:
+1. **Quaternion constructor error**: `chrono.ChQuaterniond(1, 0, 0, 0)` should be `chrono.ChQuaterniond(1, 0, 0, 0)` - this is actually correct, but the initial rotation should be identity quaternion.
+2. **Tire model setup missing**: The tire model is defined but never applied to the vehicle.
+3. **Comment typo**: "Poon chassis" should be "Point chassis"
+4. **Comment typo**: "Initialize simulation frame counter s" has an extra 's'
 
-## Corrected and Modified Script:
+## Requested Modifications:
+1. Change initial location from (0, 0, 0.5) to (-15, 0, 0.5)
+2. Update track point from (0,0, 2.1) to (3,0, 2.1)
+3. Adjust chase camera distance from 25.0, 1.5 to 25.0, 10.5
+4. Introduce a double lane change maneuver sequence
+
+Here's the corrected and modified script:
 
 ```python
 import pychrono.core as chrono
@@ -16,9 +23,9 @@ import math
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
-# Initial vehicle location and orientation - MODIFIED: changed from (0, 0, 0.5) to (-15, 0, 0.5)
-initLoc = chrono.ChVector3d(-15, 0, 0.5)
-initRot = chrono.ChQuaternionD(1, 0, 0, 0)  # CORRECTED: ChQuaterniond -> ChQuaternionD
+# Initial vehicle location and orientation
+initLoc = chrono.ChVector3d(-15, 0, 0.5)  # Changed from (0, 0, 0.5)
+initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 # Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
 vis_type = veh.VisualizationType_MESH
@@ -34,8 +41,8 @@ terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
 
-# Point chassis tracked by the camera - MODIFIED: changed from (0,0, 2.1) to (3,0, 2.1)
-trackPoint = chrono.ChVector3d(3, 0, 2.1)
+# Point chassis tracked by the camera
+trackPoint = chrono.ChVector3d(3, 0, 2.1)  # Changed from (0,0, 2.1)
 
 # Contact method
 contact_method = chrono.ChContactMethod_NSC
@@ -54,7 +61,6 @@ vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
-vehicle.SetTireType(tire_model)  # ADDED: Initialize tire model
 vehicle.Initialize()
 
 vehicle.SetChassisVisualizationType(vis_type, vis_type)
@@ -62,6 +68,9 @@ vehicle.SetSteeringVisualizationType(vis_type)
 vehicle.SetSuspensionVisualizationType(vis_type, vis_type)
 vehicle.SetWheelVisualizationType(vis_type, vis_type)
 vehicle.SetTireVisualizationType(vis_type, vis_type)
+
+# Set tire model for all wheels
+vehicle.GetTractor().SetTireType(tire_model)
 
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
@@ -82,8 +91,7 @@ terrain.Initialize()
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('Kraz Demo')
 vis.SetWindowSize(1280, 1024)
-# MODIFIED: changed chase camera distance from 25.0, 1.5 to 25.0, 10.5
-vis.SetChaseCamera(trackPoint, 25.0, 10.5)
+vis.SetChaseCamera(trackPoint, 25.0, 10.5)  # Changed from 25.0, 1.5
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
@@ -114,34 +122,36 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-# ADDED: Double lane change maneuver parameters
-def double_lane_change_steering(time):
+# Double lane change maneuver parameters
+def get_double_lane_change_steering(time):
     """
-    Implements a double lane change maneuver based on simulation time
-    Returns steering input value between -1 and 1
+    Double lane change maneuver based on simulation time
+    Returns steering input [-1, 1]
     """
-    # Define maneuver timing
-    start_time = 2.0    # Start maneuver after 2 seconds
-    phase1_end = start_time + 2.0   # First turn (left)
-    phase2_end = phase1_end + 4.0   # Return to center and turn right
-    phase3_end = phase2_end + 2.0   # Return to center
-    
-    if time < start_time:
-        return 0.0  # Go straight initially
-    elif time < phase1_end:
-        # First lane change (turn left)
-        progress = (time - start_time) / (phase1_end - start_time)
-        return -0.3 * math.sin(progress * math.pi)
-    elif time < phase2_end:
-        # Second lane change (turn right)
-        progress = (time - phase1_end) / (phase2_end - phase1_end)
-        return 0.6 * math.sin(progress * math.pi)
-    elif time < phase3_end:
-        # Return to straight
-        progress = (time - phase2_end) / (phase3_end - phase2_end)
-        return -0.3 * math.sin(progress * math.pi)
+    if time < 2.0:
+        # Initial straight driving
+        return 0.0
+    elif time < 4.0:
+        # First lane change (left)
+        return 0.5 * math.sin(math.pi * (time - 2.0) / 2.0)
+    elif time < 6.0:
+        # Maintain lane
+        return 0.0
+    elif time < 8.0:
+        # Second lane change (right, back to original)
+        return -0.5 * math.sin(math.pi * (time - 6.0) / 2.0)
+    elif time < 10.0:
+        # Third lane change (right, opposite direction)
+        return -0.5 * math.sin(math.pi * (time - 8.0) / 2.0)
+    elif time < 12.0:
+        # Maintain lane
+        return 0.0
+    elif time < 14.0:
+        # Final lane change (left, back to center)
+        return 0.5 * math.sin(math.pi * (time - 12.0) / 2.0)
     else:
-        return 0.0  # Go straight after maneuver
+        # Final straight driving
+        return 0.0
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
@@ -156,12 +166,17 @@ while vis.Run():
     # Get driver inputs
     driver_inputs = driver.GetInputs()
     
-    # ADDED: Override steering input with double lane change maneuver
-    maneuver_steering = double_lane_change_steering(time)
+    # Apply double lane change maneuver
+    maneuver_steering = get_double_lane_change_steering(time)
+    
+    # Override steering input for autonomous maneuver
+    # Keep manual throttle and braking control
     driver_inputs.m_steering = maneuver_steering
-    driver_inputs.m_throttle = 0.3  # Constant throttle for forward motion
-    driver_inputs.m_braking = 0.0   # No braking during maneuver
-
+    
+    # Maintain constant throttle for the maneuver
+    if time > 2.0:
+        driver_inputs.m_throttle = 0.3  # Constant moderate throttle
+    
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
     terrain.Synchronize(time)
@@ -183,21 +198,20 @@ while vis.Run():
 
 ## Key Changes Made:
 
-1. **Error Corrections:**
-   - Fixed `chrono.ChQuaterniond` to `chrono.ChQuaternionD`
-   - Added missing tire model initialization with `vehicle.SetTireType(tire_model)`
-   - Fixed comment typo "Poon chassis" to "Point chassis"
+1. **Fixed initial location**: Changed from `(0, 0, 0.5)` to `(-15, 0, 0.5)`
+2. **Updated track point**: Changed from `(0, 0, 2.1)` to `(3, 0, 2.1)`
+3. **Adjusted chase camera**: Changed distance from `25.0, 1.5` to `25.0, 10.5`
+4. **Added tire model**: Applied the tire model to the vehicle with `vehicle.GetTractor().SetTireType(tire_model)`
+5. **Implemented double lane change**: Added `get_double_lane_change_steering()` function that creates a time-based steering sequence for a double lane change maneuver
+6. **Fixed minor typos**: Corrected comments
+7. **Enhanced driver control**: Modified the simulation loop to apply the autonomous maneuver while maintaining manual control capabilities
 
-2. **Instruction-based Modifications:**
-   - Changed initial vehicle location from `(0, 0, 0.5)` to `(-15, 0, 0.5)`
-   - Updated track point from `(0, 0, 2.1)` to `(3, 0, 2.1)`
-   - Modified chase camera distance from `25.0, 1.5` to `25.0, 10.5`
-   - Added a double lane change maneuver function that controls steering based on simulation time
-   - Implemented the maneuver in the simulation loop by overriding driver inputs
-
-The double lane change maneuver creates a realistic driving scenario where the vehicle:
-1. Goes straight for 2 seconds
-2. Performs a left lane change over 2 seconds
-3. Returns to center and performs a right lane change over 4 seconds
-4. Returns to straight driving over 2 seconds
-5. Continues straight thereafter
+The double lane change maneuver follows this sequence:
+- 0-2s: Straight driving
+- 2-4s: Left lane change
+- 4-6s: Maintain lane
+- 6-8s: Return to center
+- 8-10s: Right lane change
+- 10-12s: Maintain lane
+- 12-14s: Return to center
+- 14s+: Straight driving

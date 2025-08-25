@@ -9,7 +9,7 @@ veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 # Initial vehicle location and orientation
 initLoc = chrono.ChVector3d(-15, 0, 0.5)
-# Adjusted initial rotation: keep no rotation (facing along x-axis)
+# Adjusted initial rotation accordingly (assuming facing along +X axis, no rotation needed)
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 # Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
@@ -26,7 +26,7 @@ terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
 
-# Poon chassis tracked by the camera (updated as per instructions)
+# Poon chassis tracked by the camera
 trackPoint = chrono.ChVector3d(3, 0, 2.1)
 
 # Contact method
@@ -41,7 +41,6 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  # FPS = 50
 
 # Create the kraz vehicle, set parameters, and initialize
-
 vehicle = veh.Kraz()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
@@ -55,39 +54,15 @@ vehicle.SetSuspensionVisualizationType(vis_type, vis_type)
 vehicle.SetWheelVisualizationType(vis_type, vis_type)
 vehicle.SetTireVisualizationType(vis_type, vis_type)
 
-# NOTE: The collision system type must be set before Initialize(), so the code likely sets this too late.
-# Correction: set CollisionSystemType before vehicle.Initialize()
-
-# So we move this line before Initialize()
-# Correct approach: 
-# vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET) must precede Initialize()
-
-# Correct order:
-# -> Set collision system BEFORE Initialize()
-
-# So rework above to:
-
-vehicle = veh.Kraz()
-vehicle.SetContactMethod(contact_method)
-vehicle.SetChassisCollisionType(chassis_collision_type)
-vehicle.SetChassisFixed(False)
-vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)  # Move here
-vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
-vehicle.Initialize()
-
-vehicle.SetChassisVisualizationType(vis_type, vis_type)
-vehicle.SetSteeringVisualizationType(vis_type)
-vehicle.SetSuspensionVisualizationType(vis_type, vis_type)
-vehicle.SetWheelVisualizationType(vis_type, vis_type)
-vehicle.SetTireVisualizationType(vis_type, vis_type)
+vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 # Create the terrain
-patch_mat = chrono.ChContactMaterialNSC()
+patch_mat = chrono.ChMaterialSurfaceNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 patch = terrain.AddPatch(patch_mat,
-                        chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
+                        chrono.ChCoordsysd(chrono.ChVector3d(0, 0, terrainHeight), chrono.QUNIT),
                         terrainLength, terrainWidth)
 
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
@@ -98,16 +73,12 @@ terrain.Initialize()
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('Kraz Demo')
 vis.SetWindowSize(1280, 1024)
-vis.SetChaseCamera(trackPoint, 25.0, 10.5)  # Changed chase camera distance per instructions
+vis.SetChaseCamera(trackPoint, 25.0, 10.5)
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
 vis.AddSkyBox()
-vis.AttachVehicle(vehicle.GetVehicle())  # Changed from vehicle.GetTractor() to vehicle.GetVehicle()
-
-# NOTE: The original code uses vehicle.GetTractor(), but veh.Kraz() derives from wheeled vehicles.
-# Checking PyChrono vehicle definitions, Kraz inherits from ChWheeledVehicle, which has GetVehicle() method, not GetTractor().
-# So replace calls to GetTractor() with GetVehicle()
+vis.AttachVehicle(vehicle.GetVehicle())  # Corrected from GetTractor() to GetVehicle()
 
 # Create the driver system
 driver = veh.ChInteractiveDriverIRR(vis)
@@ -133,65 +104,64 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-# ----------------------------------------------------------------
-# Added: Double lane change maneuver sequence controlled by the driver
-# We define a simple state machine based on time to steer:
-#   0   - 2s: drive straight
-#   2   - 6s: steer left (simulate lane change)
-#   6   - 10s: steer right (cross back)
-#   10  - 14s: steer left (second lane change)
-#   14  - 18s: steer right (back to center)
-#   >18s: drive straight
-# We manually set steering input for driver system.
-# ----------------------------------------------------------------
+# Double lane change maneuver parameters
+# Define time intervals for the maneuver (seconds)
+# For example:
+# 0-2s: straight
+# 2-4s: steer left
+# 4-6s: steer right
+# 6-8s: steer left
+# 8-10s: straighten steering
+# Throttle full during maneuver, no braking
+
+def lane_change_steering(time):
+    # Steering values for double lane change maneuver
+    # Max steering angle normalized [-1,1]
+    max_steering = 0.6
+    if 2.0 <= time < 4.0:
+        return max_steering  # steer left
+    elif 4.0 <= time < 6.0:
+        return -max_steering  # steer right
+    elif 6.0 <= time < 8.0:
+        return max_steering  # steer left
+    elif 8.0 <= time < 10.0:
+        return 0.0  # straighten
+    else:
+        return 0.0  # straight
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
     # Render scene and output POV-Ray data
-    if (step_number % render_steps) == 0:
+    if (step_number % render_steps == 0):
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
         render_frame += 1
 
-    # Update driver inputs manually for double lane change maneuver
-    # Get current inputs
-    inputs = driver.GetInputs()
-    steering_input = 0.0
+    # Get driver inputs from interactive driver
+    driver_inputs = driver.GetInputs()
 
-    # Define maneuver timing and steering amplitude
-    # Max steering input ~0.5 (moderate turn)
-    max_steering = 0.5
+    # Override steering, throttle, and braking inputs for double lane change maneuver
+    # Steering: controlled by lane_change_steering function
+    # Throttle: full throttle (1.0)
+    # Braking: no braking (0.0)
+    steering_input = lane_change_steering(time)
+    throttle_input = 1.0
+    braking_input = 0.0
 
-    # Lane change sequence:
-    if 2.0 <= time < 6.0:
-        steering_input = max_steering
-    elif 6.0 <= time < 10.0:
-        steering_input = -max_steering
-    elif 10.0 <= time < 14.0:
-        steering_input = max_steering
-    elif 14.0 <= time < 18.0:
-        steering_input = -max_steering
-    else:
-        steering_input = 0.0
-
-    # Feed manual steering to driver
-    # Override steering input in the driver system for the maneuver:
-    # The driver returns a struct; override steering directly.
-    # We keep throttle at 0.5 for moving forward, no braking.
-    inputs.m_steering = steering_input
-    inputs.m_throttle = 0.5
-    inputs.m_braking = 0.0
-
-    # Apply modified inputs to driver
-    driver.SetInputs(inputs)
+    # Create a new inputs object with overridden values
+    # The driver inputs object is of type ChDriver::Inputs, which has fields:
+    # .m_steering, .m_throttle, .m_braking
+    driver_inputs.m_steering = steering_input
+    driver_inputs.m_throttle = throttle_input
+    driver_inputs.m_braking = braking_input
 
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
     terrain.Synchronize(time)
-    vehicle.Synchronize(time, inputs, terrain)
-    vis.Synchronize(time, inputs)
+    vehicle.Synchronize(time, driver_inputs, terrain)
+    vis.Synchronize(time, driver_inputs)
 
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)
@@ -205,3 +175,30 @@ while vis.Run():
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
 ```
+---
+
+### Explanation of corrections and modifications:
+
+1. **Initial vehicle location changed** from `(0, 0, 0.5)` to `(-15, 0, 0.5)` as requested.
+
+2. **Initial rotation** kept as identity quaternion `(1, 0, 0, 0)` since no rotation was specified; assuming vehicle faces +X by default.
+
+3. **Track point for camera changed** from `(0, 0, 2.1)` to `(3, 0, 2.1)`.
+
+4. **Chase camera distance parameters changed** from `(25.0, 1.5)` to `(25.0, 10.5)`.
+
+5. **Corrected `AttachVehicle` call**: The original script used `vehicle.GetTractor()`, which is not a method of `veh.Kraz()`. The correct method is `vehicle.GetVehicle()`.
+
+6. **Corrected material creation for terrain patch**: The original script used `chrono.ChContactMaterialNSC()`, which does not exist. The correct class is `chrono.ChMaterialSurfaceNSC()`.
+
+7. **Set terrain patch height correctly**: The patch coordinate system uses `terrainHeight` for Z.
+
+8. **Implemented double lane change maneuver**:
+   - Defined a function `lane_change_steering(time)` that returns steering input based on simulation time.
+   - Overrode the driver's steering, throttle, and braking inputs inside the simulation loop accordingly.
+   - Throttle is set to full (1.0), braking to zero (0.0).
+   - Steering input follows the double lane change pattern.
+
+9. **Kept the rest of the simulation loop intact**, including synchronization and advancing all modules.
+
+This script should now run correctly and perform the requested modifications.

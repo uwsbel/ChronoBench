@@ -2,117 +2,84 @@
 import pychrono as chrono
 import pychrono.vehicle as veh
 import pychrono.vehicle.scm as veh_scm
-import pychrono.vehicle.utils as veh_utils
 import pychrono.irrlicht as chronoirr
 
 # 1. Initialize the PyChrono environment and core components
-chrono.SetChronoDataPath(chrono.GetChronoDataPath())  # ensure data path is set, or adjust if needed
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())  # Ensure data path is set
 
-# Simulation step size
-step_size = 1e-3  # 1 ms timestep
+# Simulation parameters
+step_size = 1e-3  # simulation step size
+t_end = 10        # simulation end time
 
-# Simulation length
-sim_time = 20.0  # seconds
+# 2. Add the required physical systems and objects as specified
 
-# ----------------------
-# 2. Create the vehicle
-# ----------------------
-# Create HMMWV vehicle, fix chassis to ground = False
-hmmwv = veh.HMMWV_Full()
-hmmwv.SetContactMethod(chrono.ChContactMethod_SMC)
-hmmwv.SetChassisFixed(False)
-hmmwv.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 1.0), chrono.QUNIT))  # start 1m above ground
-hmmwv.SetTimestep(step_size)
-hmmwv.Initialize()
+# Create the HMMWV vehicle system
+vehicle = veh.HMMWV_Full()
+vehicle.SetContactMethod(chrono.ChContactMethod_SMC)
+vehicle.SetChassisFixed(False)
+vehicle.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 1.0), chrono.QUNIT))  # initial position (x,y,z)
+vehicle.SetTireType(veh.TireModelType_TMEASY)
+vehicle.SetInitFwdVel(0.0)  # initial forward velocity
+vehicle.Initialize()
 
-# ----------------------
-# 3. Create SCM terrain
-# ----------------------
+# Create the SCM deformable terrain
+terrain = veh_scm.SCMDeformableTerrain(vehicle.GetSystem())
+terrain.SetSoilParameters(
+    1.2e6,   # Bekker Kphi
+    0,       # Bekker Kc
+    1.1e6,   # Bekker n exponent
+    0,       # Mohr cohesive limit (Pa)
+    30,      # Mohr friction limit (degrees)
+    2e7,     # Janosi shear coefficient (Pa/m)
+    0.01,    # Elastic stiffness (N/m^3)
+    3e4      # Damping (N s/m^3)
+)
+terrain.Initialize(0.6, 4.0, 8.0)  # length, width, max height
 
-terrain = veh_scm.SCMDeformableTerrain(hmmwv.GetSystem())
+# Load a height map for terrain initialization
+# For demonstration, we create a flat height map with zero height
+# In practice, you would load a height map file or generate one
+import numpy as np
+hm_rows = 100
+hm_cols = 100
+height_map = np.zeros((hm_rows, hm_cols))
+terrain.SetHeightMap(height_map.tolist(), 0.6, 4.0)
 
-# Soil parameters (typical values for SCM soil model)
-soil_params = veh_scm.SCMDeformableTerrain.SoilParameters()
-soil_params.Kphi = 1.5e6      # Bekker pressure-sinkage modulus [Pa/m^(n)]
-soil_params.n = 0.6           # Bekker exponent
-soil_params.Kc = 1.2e5        # Cohesive modulus [Pa/m^(n)]
-soil_params.phi = 30.0        # Friction angle [degrees]
-soil_params.cohesion = 2000  # Cohesion [Pa]
-soil_params.E_elastic = 4e7   # Elastic modulus [Pa]
-soil_params.nu = 0.3          # Poisson ratio
-soil_params.constant_penetration_depth = 0.02  # m, constant penetration depth for construction of pressure distribution
-
-terrain.SetSoilParameters(soil_params)
-
-# Terrain size and resolution
-terrain.SetPlotType(veh_scm.SCMDeformableTerrain.PLOT_PRESSURE)
-terrain.Initialize(10.0, 10.0, 0.05)  # 10m x 10m terrain, grid spacing 5cm
-
-# Load height map and apply to terrain - here we use a flat height map (modify to real file if available)
-# If you want to use a height map file replace below with actual file path
-height_map_data = veh_utils.LoadHeightMap(terrain, terrain.GetLengthX(), terrain.GetLengthY(), 0.0)
-# For demonstration, we'll just keep terrain flat at 0 height since no real file is given
-# terrain.SetHeight(positions x,y) can be used if needed
-
-# ----------------------
-# 4. Initialize the driver system
-# ----------------------
-# Use a simple path-following driver or interactive keyboard driver
-# For demonstration, we use a Follower driver on straight-line path at constant speed
-target_speed = 10  # meters/sec
-driver = veh.ChDriver(hmmwv)  # default keyboard driver; for autopilot, consider Follower driver
-
-driver.SetInputDelay(0.01)
+# 3. Initialize a driver system for vehicle control
+driver = veh.ChIrrGuiDriver(vehicle)
 driver.Initialize()
 
-# ----------------------
-# 5. Initialize Irrlicht visualization
-# ----------------------
-application = chronoirr.ChIrrApp(hmmwv.GetVehicle(), "HMMWV SCM Terrain Demo", chronoirr.dimension2du(1280, 720))
+# 4. Create a real-time visualization using Irrlicht with camera settings and lighting
+application = veh.ChWheeledVehicleIrrApp(vehicle, "HMMWV SCM Terrain Simulation")
+application.SetTimestep(step_size)
+application.SetChaseCamera(chrono.ChVectorD(0.0, 0.0, 1.75), 6.0, 0.5)
 application.AddTypicalLights()
-application.AddTypicalSky()
-application.AddTypicalLogo()
-application.SetChaseCamera(chrono.ChVectorD(0.0, -6.0, 1.5), chrono.ChVectorD(0, 0, 0.8))
 application.AssetBindAll()
 application.AssetUpdateAll()
 
-# ----------------------
-# 6. Simulation loop
-# ----------------------
+# 5. Implement the simulation loop that synchronizes and advances all systems
 
-time = 0
-application.SetTimestep(step_size)
-
-while application.GetDevice().run() and (time < sim_time):
+time = 0.0
+while application.GetDevice().run() and time < t_end:
+    # Begin scene
     application.BeginScene()
     application.DrawAll()
 
-    # Get driver inputs
-    driver_inputs = driver.GetInputs()
-
     # Synchronize modules
-    time = hmmwv.GetSystem().GetChTime()
-
-    # Synchronize driver (send inputs to vehicle)
     driver.Synchronize(time)
-
-    # Synchronize vehicle (pass throttle, steering, braking from driver)
-    hmmwv.Synchronize(time, driver_inputs, terrain)
-
-    # Synchronize terrain (update soil deformation due to wheels)
     terrain.Synchronize(time)
+    vehicle.Synchronize(time, driver.GetInputs(), terrain)
+    application.Synchronize(time)
 
     # Advance simulation by step size
     driver.Advance(step_size)
-    hmmwv.Advance(step_size)
     terrain.Advance(step_size)
+    vehicle.Advance(step_size)
+    application.Advance(step_size)
 
-    application.DoStep()
-
+    # End scene
     application.EndScene()
 
-# Optional: output final vehicle position or any debug info here
-print(f"Simulation complete at time {time:6.3f} seconds")
-print(f"Final vehicle pos : {hmmwv.GetVehicle().GetPos()}")
-
+    # Increment time
+    time += step_size
 ```

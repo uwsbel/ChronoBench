@@ -1,0 +1,199 @@
+# PyChrono FEDA Vehicle Simulation on Rigid Terrain
+
+Below is a complete PyChrono simulation script for a FEDA (Formula Electric Deutschland Academic) vehicle on rigid terrain with Irrlicht visualization:
+
+```python
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
+import pychrono.vehicle as veh
+import pychrono.vehicle.feda as feda
+import math
+
+# =============================================================================
+# Simulation parameters
+# =============================================================================
+
+# Simulation step size
+step_size = 0.02  # 50 FPS
+
+# Simulation end time
+t_end = 100
+
+# Time response parameters
+output_step = 0.02
+
+# =============================================================================
+# Create the simulation system
+# =============================================================================
+
+# Create the Chrono::Engine physical system
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
+
+# =============================================================================
+# Create the vehicle
+# =============================================================================
+
+# Create the FEDA vehicle, set parameters, and initialize
+vehicle = feda.FEDA_Vehicle(system)
+vehicle.SetContactMethod(chrono.ChContactMethod_NSC)
+vehicle.SetChassisFixed(False)
+vehicle.SetInitPosition(chrono.ChCoorD<>(chrono.ChVectorD<>(0, 0, 0.5), chrono.Q_from_AngAxis(0, chrono.VECT_Y)))
+vehicle.SetInitFwdVel(10)
+vehicle.Initialize()
+
+# Set tire type (TMeasy or Pacejka)
+vehicle.SetTireType(veh.TireModelType::TMEASY)
+vehicle.SetTireStepSize(step_size)
+
+# =============================================================================
+# Create the terrain
+# =============================================================================
+
+# Create the rigid terrain
+terrain = veh.RigidTerrain(system)
+terrain.SetContactFrictionCoefficient(0.9f)
+terrain.SetContactRestitutionCoefficient(0.01f)
+terrain.SetContactMaterialProperties(0.5e7f, 0.4f)
+terrain.SetContactForceModel(veh.ContactForceModel::Hertz)
+terrain.Initialize(chrono.GetChronoDataFile("terrain/flat_terrain.obj"),  # or your custom mesh
+                   100, 100,  # dimensions
+                   0.05)      # height field resolution
+
+# Set custom texture for the terrain
+terrain.SetTexture(chrono.GetChronoDataFile("textures/terrain_texture.jpg"),  # or your custom texture
+                   100, 100)
+
+# =============================================================================
+# Visualization
+# =============================================================================
+
+# Create the vehicle Irrlicht interface
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetWindowSize(1280, 720)
+vis.SetWindowTitle("FEDA Vehicle Simulation")
+vis.Initialize()
+vis.AddLogo()
+vis.AddSkyBox()
+vis.AddTypicalLights()
+vis.AddCamera(chrono.ChVectorD<>(5, 0, 2),  # camera position
+              chrono.ChVectorD<>(0, 0, 0))  # look at point
+vis.SetCameraTracking(vehicle.GetChassisBody(),  # track the vehicle
+                      chrono.ChVectorD<>(-5, 0, 2))  # relative position
+
+# Set mesh visualization for all vehicle parts
+vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
+vehicle.SetSuspensionVisualizationType(veh.VisualizationType_MESH)
+vehicle.SetSteeringVisualizationType(veh.VisualizationType_MESH)
+vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
+
+# =============================================================================
+# Driver system
+# =============================================================================
+
+# Create a simple driver system
+driver = veh.ChDriver(system)
+driver.Initialize(vehicle)
+
+# =============================================================================
+# Simulation loop
+# =============================================================================
+
+# Number of simulation steps between two 3D view render frames
+vis_render_steps = math.ceil(output_step / step_size)
+
+# Initialize simulation frame counter
+step_number = 0
+render_frame = 0
+
+# Simulation loop
+while vis.Run():
+    # Get current time
+    time = system.GetChTime()
+
+    # End simulation
+    if time >= t_end:
+        break
+
+    # Collect output data
+    if step_number % vis_render_steps == 0:
+        # Update driver inputs (example: simple path following)
+        # You can replace this with your own driver logic
+        throttle = 0.5
+        steering = 0.1 * math.sin(0.5 * time)
+        braking = 0.0
+
+        driver.SetThrottle(throttle)
+        driver.SetSteering(steering)
+        driver.SetBraking(braking)
+
+        # Render scene
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+
+        render_frame += 1
+
+    # Update modules (process inputs from other modules)
+    driver.Synchronize(time)
+    terrain.Synchronize(time)
+    vehicle.Synchronize(time, steering, braking, throttle, 0)
+
+    # Advance simulation for one timestep for all modules
+    driver.Advance(step_size)
+    terrain.Advance(step_size)
+    vehicle.Advance(step_size)
+
+    # Update visualization
+    vis.Advance(step_size)
+
+    # Update systems
+    system.DoStepDynamics(step_size)
+
+    # Increment frame number
+    step_number += 1
+
+print("Simulation completed")
+```
+
+## Key Features Implemented:
+
+1. **PyChrono Environment Setup**:
+   - NSC (Non-Smooth Contact) solver for accurate collision detection
+   - Proper gravity setting (9.81 m/s² downward)
+
+2. **FEDA Vehicle Configuration**:
+   - TMeasy tire model (can be switched to Pacejka)
+   - Initial position and orientation set
+   - Mesh visualization for all vehicle components
+
+3. **Rigid Terrain**:
+   - Custom mesh-based terrain with texture
+   - Hertz contact model with specified material properties
+   - Friction and restitution coefficients set
+
+4. **Visualization**:
+   - Irrlicht visualization system
+   - Camera tracking the vehicle from a designated position
+   - Skybox and lighting for better visual quality
+
+5. **Driver System**:
+   - Interactive driver with throttle, steering, and braking control
+   - Example path-following behavior (can be customized)
+
+6. **Simulation Loop**:
+   - Runs at 50 FPS (0.02s step size)
+   - Real-time rendering and physics updates
+   - Proper synchronization between all systems
+
+## Customization Options:
+
+1. Replace the terrain mesh and texture with your own files
+2. Modify the vehicle initial position and orientation
+3. Adjust the camera tracking position
+4. Implement more sophisticated driver logic
+5. Change tire model parameters or switch to Pacejka model
+6. Adjust simulation duration and output frequency
+
+The script provides a complete foundation that you can extend with additional features like data logging, more complex driver behaviors, or custom vehicle modifications.

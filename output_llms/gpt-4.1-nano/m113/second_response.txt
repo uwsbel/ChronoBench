@@ -4,47 +4,42 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
-# Set data path
+# Set data paths
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
-# 1. Changed initial vehicle location to (-15, 0, 0.0)
+# Initial vehicle location and orientation (modified as per instructions)
 initLoc = chrono.ChVector3d(-15, 0, 0.0)
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
-# Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
+# Visualization type for vehicle parts
 vis_type = veh.VisualizationType_MESH
 
-# Collision type for chassis (PRIMITIVES, MESH, or NONE)
+# Collision type for chassis
 chassis_collision_type = veh.CollisionType_NONE
 
-# --- Rigid terrain replaced with SCM deformable terrain ---
+# Terrain parameters
+terrainHeight = 0
+terrainLength = 100.0
+terrainWidth = 100.0
 
-# Remove the rigid terrain creation code
-# terrain_model = veh.RigidTerrain.BOX  # Not used anymore
+# Poon chassis tracked by the camera
+trackPoint = chrono.ChVector3d(0.0, 0.0, 0.1)
 
-# Set SCM soil parameters
-soil_friction = 0.9
-soil_restitution = 0.01
-soil_young_modulus = 2e7  # Example value for soil stiffness
-soil_poisson_ratio = 0.3
+# Contact method
+contact_method = chrono.ChContactMethod_SMC
+contact_vis = False
 
-# SCM terrain height map filename
-height_map_filename = "scm_heightmap.png"  # Ensure this file exists in data path
+# Simulation step sizes
+step_size = 5e-4
+tire_step_size = step_size
 
-# Initialize SCM deformable terrain
-terrain = veh.SCMDeformableTerrain(vehicle.GetSystem())
-terrain.SetSoilParameters(soil_young_modulus, soil_poisson_ratio, soil_friction, soil_restitution)
-terrain.Initialize()
-terrain.EnableHydrodynamicFlow()  # Optional: if flow model is needed
-terrain.UseElevationMap(chrono.GetChronoDataFile(height_map_filename))
-terrain.SetTextureModel(veh.SCMDeformableTerrain.TextureType_DIRT)
-terrain.SetTextureScale(20, 20)
-terrain.Initialize()
+# Render step size
+render_step_size = 1.0 / 50  # FPS = 50
 
 # Create the vehicle
 vehicle = veh.M113()
-vehicle.SetContactMethod(chrono.ChContactMethod_SMC)
+vehicle.SetContactMethod(contact_method)
 vehicle.SetTrackShoeType(veh.TrackShoeType_SINGLE_PIN)
 vehicle.SetDrivelineType(veh.DrivelineTypeTV_BDS)
 vehicle.SetEngineType(veh.EngineModelType_SHAFTS)
@@ -64,10 +59,29 @@ vehicle.SetTrackShoeVisualizationType(vis_type)
 
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
-# No rigid terrain to initialize
-# terrain.Initialize()  # Already called after SCM setup
+# Create SCM deformable terrain
+# Initialize SCM terrain with height map
+terrain = veh.RigidTerrain(vehicle.GetSystem())
 
-# Create the vehicle Irrlicht interface
+# Set SCM soil parameters
+soil_params = veh.SCMDeformableTerrain.SCMDeformableTerrainInfo()
+soil_params.m_friction = 0.9
+soil_params.m_restitution = 0.01
+soil_params.m_young_modulus = 2e7  # Example value, adjust as needed
+soil_params.m_poisson_ratio = 0.3
+soil_params.m_damping = 0.1
+soil_params.m_gravity = 9.81
+
+# Initialize SCM terrain with height map
+height_map_filename = chrono.GetChronoDataFile("terrain/heights/heightmap.png")
+terrain.InitializeSCM(soil_params, height_map_filename, terrainLength, terrainWidth, terrainHeight)
+
+# Set terrain texture to dirt
+terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 200, 200)
+terrain.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+terrain.Initialize()
+
+# Create the Irrlicht visualization
 vis = veh.ChTrackedVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('M113 Demo')
 vis.SetWindowSize(1280, 1024)
@@ -78,41 +92,37 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
-# Create the driver system
+# Create driver system
 driver = veh.ChInteractiveDriverIRR(vis)
 
-# Set the time response for steering and throttle keyboard inputs
-steering_time = 1.0  # seconds
+# Set driver input response times
+steering_time = 1.0
 throttle_time = 1.0
 braking_time = 0.3
-
-# Set driver input deltas
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
 
 driver.Initialize()
 
-# Solver settings
+# Set solver type
 vehicle.GetSystem().SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
 
 # Output vehicle mass
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
-# Simulation parameters
-step_size = 5e-4
-render_step_size = 1.0 / 50
+# Calculate number of steps between renders
 render_steps = math.ceil(render_step_size / step_size)
 
-# Initialize simulation step counter
+# Initialize simulation counters
 step_number = 0
 render_frame = 0
+vehicle.GetVehicle().EnableRealtime(True)
 
-vehicle.GetSystem().SetRealtimeEnable(True)
-
-# Main simulation loop
+# Simulation loop
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
+
     # Render scene at specified intervals
     if (step_number % render_steps == 0):
         vis.BeginScene()
@@ -122,21 +132,21 @@ while vis.Run():
 
     # Get driver inputs
     driver_inputs = driver.GetInputs()
+
     # Synchronize modules
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs)
     vis.Synchronize(time, driver_inputs)
 
-    # Fixed throttle value during simulation: 0.8
-    # Overwrite throttle input to be constant 0.8
-    driver_inputs.throttle = 0.8
-
-    # Advance modules
+    # Advance simulation
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
+
+    # During simulation, set throttle to 0.8 (hard-coded)
+    driver_inputs.m_throttle = 0.8
 
     # Increment step counter
     step_number += 1

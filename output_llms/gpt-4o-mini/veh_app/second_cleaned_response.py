@@ -99,7 +99,7 @@ terrain.Initialize()
 box = chrono.ChBoxShape()
 box.GetBoxGeometry().SetLengths(chrono.ChVector3d(1, 1, 1))
 box.SetPos(chrono.ChVector3d(0, 0, 0.5))
-box.SetTexture(veh.GetDataFile("terrain/textures/blue_texture.jpg"))  
+box.SetColor(chrono.ChColor(0, 0, 1))  
 gator.GetSystem().Add(box)
 
 
@@ -107,7 +107,7 @@ cylinder = chrono.ChCylinderShape()
 cylinder.GetCylinderGeometry().SetRadius(0.5)
 cylinder.GetCylinderGeometry().SetHeight(1)
 cylinder.SetPos(chrono.ChVector3d(0, 0, 1.5))
-cylinder.SetTexture(veh.GetDataFile("terrain/textures/blue_texture.jpg"))  
+cylinder.SetColor(chrono.ChColor(0, 0, 1))  
 gator.GetSystem().Add(cylinder)
 
 
@@ -132,6 +132,7 @@ cam = sens.ChCameraSensor(
     fov
 )
 cam.SetName("Third Person POV")
+
 cam.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Gator Camera"))
 manager.AddSensor(cam)
 
@@ -147,7 +148,7 @@ lidar = sens.ChLidarSensor(
     chrono.CH_PI / 12,  
     -chrono.CH_PI / 6,  
     100.0,  
-    sens.LidarBeamShape.RECTANGULAR,  
+    sens.LidarShape.RECTANGULAR,  
     2,  
     0.003,  
     sens.LidarReturnMode.STRONGEST  

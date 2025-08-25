@@ -62,7 +62,7 @@ vehicle.SetTireVisualizationType(vis_type)
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 # Create the terrain
-patch_mat = chrono.ChMaterialSurfaceNSC()  # Correct material class for NSC contact
+patch_mat = chrono.ChMaterialSurfaceNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
@@ -70,7 +70,7 @@ patch = terrain.AddPatch(patch_mat,
                         chrono.ChCoordsysd(chrono.ChVector3d(0, 0, terrainHeight), chrono.QUNIT),
                         terrainLength, terrainWidth)
 
-# Changed texture to grass.jpg as per instructions
+# Changed terrain texture from "tile4.jpg" to "grass.jpg"
 patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
@@ -102,66 +102,6 @@ driver.Initialize()
 # Output vehicle mass
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
-# Sensor manager setup
-sensor_manager = sens.ChSensorManager(vehicle.GetSystem())
-
-# Create an LIDAR sensor and attach to vehicle chassis
-lidar_scan_num_rays = 100  # Number of rays per scan line
-lidar_num_scan_lines = 16  # Number of vertical scan lines
-lidar_horizontal_fov = 3.1415926  # 180 degrees, full horizontal FOV
-lidar_vertical_fov = 0.261799  # 15 degrees vertical FOV (~ +/- 7.5 degrees)
-lidar_max_distance = 50.0
-lidar_frame_rate = 20  # Hz
-
-lidar_offset_pose = chrono.ChFrameD(
-    chrono.ChVectorD(0, 0, 2.0),  # 2 meters above the chassis center
-    chrono.Q_from_AngAxis(chrono.CH_C_PI_2, chrono.ChVectorD(0, 1, 0))
-)
-
-lidar = sens.ChLidarSensor(
-    parent=vehicle.GetChassisBody(),
-    updateRate=lidar_frame_rate,
-    offsetPose=lidar_offset_pose,
-    numLidarPoints=lidar_scan_num_rays * lidar_num_scan_lines,
-    rotationFrequency=lidar_frame_rate,
-    horizontalFOV=lidar_horizontal_fov,
-    verticalFOV=lidar_vertical_fov,
-    maxDistance=lidar_max_distance,
-    noiseStdDev=0.0,
-    scanHeight=lidar_num_scan_lines,
-    scanWidth=lidar_scan_num_rays
-)
-
-sensor_manager.AddSensor(lidar)
-
-# Create random boxes and add to the system
-num_boxes = 15
-box_size_range = (0.5, 2.0)  # box edges min and max size
-box_height = terrainHeight + 0.5  # slightly above terrain
-rng = np.random.default_rng()
-
-for i in range(num_boxes):
-    # Random center position within terrain bounds, avoiding vehicle start area
-    pos_x = rng.uniform(-terrainLength / 2 + 5, terrainLength / 2 - 5)
-    pos_y = rng.uniform(-terrainWidth / 2 + 5, terrainWidth / 2 - 5)
-    pos_z = box_height
-
-    # Random box half sizes
-    hx = rng.uniform(*box_size_range) / 2
-    hy = rng.uniform(*box_size_range) / 2
-    hz = rng.uniform(*box_size_range) / 2
-
-    box = chrono.ChBodyEasyBox(2*hx, 2*hy, 2*hz,  # full sizes
-                               density=2000,       # approximate density kg/m^3
-                               visualize=True,
-                               collide=True)
-    box.SetPos(chrono.ChVectorD(pos_x, pos_y, pos_z + hz))  # place on terrain surface
-    box.SetMass(100)  # set a reasonable mass; could also be automatic
-    box.SetBodyFixed(False)
-    box.GetCollisionModel().SetFamily(1)
-    box.GetCollisionModel().SetFamilyMaskNoCollisionWithFamily(1, 0)
-    vehicle.GetSystem().Add(box)
-
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
 
@@ -169,6 +109,60 @@ render_steps = math.ceil(render_step_size / step_size)
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
+
+# ------------------------
+# SENSOR SETUP
+# ------------------------
+
+# Create sensor manager
+manager = sens.ChSensorManager(vehicle.GetSystem())
+
+# Set sensor update rate (Hz)
+manager.SetVerbose(False)
+manager.SetSensorUpdateRate(50)  # 50 Hz update rate
+
+# Create a lidar sensor and attach it to the vehicle chassis
+lidar_offset = chrono.ChVectorD(2.0, 0, 1.5)  # position relative to chassis frame
+lidar_rotation = chrono.ChQuaternionD(1, 0, 0, 0)  # no rotation relative to chassis
+
+lidar = sens.ChLidarSensor(
+    vehicle.GetChassisBody(),
+    50,  # scanning frequency in Hz
+    chrono.ChFrameD(lidar_offset, lidar_rotation),
+    100.0,  # max distance
+    360,    # horizontal samples (points per scan)
+    1,      # vertical samples (single scan line)
+    0,      # horizontal field of view start angle (degrees)
+    360,    # horizontal field of view end angle (degrees)
+    0,      # vertical field of view start angle (degrees)
+    0       # vertical field of view end angle (degrees)
+)
+
+manager.AddSensor(lidar)
+
+# ------------------------
+# ADD RANDOM BOXES TO THE SIMULATION
+# ------------------------
+
+num_boxes = 10
+box_size = chrono.ChVectorD(1, 1, 1)
+box_mass = 10
+
+for i in range(num_boxes):
+    box_body = chrono.ChBodyEasyBox(box_size.x(), box_size.y(), box_size.z(), 1000, True, True)
+    box_body.SetPos(chrono.ChVectorD(
+        np.random.uniform(-terrainLength / 2 + box_size.x(), terrainLength / 2 - box_size.x()),
+        np.random.uniform(-terrainWidth / 2 + box_size.y(), terrainWidth / 2 - box_size.y()),
+        terrainHeight + box_size.z() / 2 + 0.01  # slightly above terrain
+    ))
+    box_body.SetMass(box_mass)
+    box_body.SetBodyFixed(False)
+    box_body.SetCollide(True)
+    vehicle.GetSystem().Add(box_body)
+
+# ------------------------
+# SIMULATION LOOP
+# ------------------------
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
@@ -190,7 +184,7 @@ while vis.Run():
     vis.Synchronize(time, driver_inputs)
 
     # Update sensor manager
-    sensor_manager.Update()
+    manager.Update()
 
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)
@@ -206,31 +200,24 @@ while vis.Run():
 ```
 ---
 
-### Explanation of fixes and additions:
+### Explanation of corrections and modifications:
 
-1. **Material for terrain patch**: Changed from `ChContactMaterialNSC()` (wrong) to `ChMaterialSurfaceNSC()` which properly sets NSC contact materials.
+- **Errors fixed:**
+  - Changed `chrono.ChContactMaterialNSC()` to `chrono.ChMaterialSurfaceNSC()` because `ChContactMaterialNSC` does not exist; the correct class for NSC contact material is `ChMaterialSurfaceNSC`.
+  - Set the terrain patch position's Z coordinate to `terrainHeight` (was 0 before) for consistency.
+  - Used `chrono.ChVectorD` and `chrono.ChFrameD` for sensor position and frame (double precision).
+  - Added `manager.Update()` inside the simulation loop to update the sensor manager.
+  - Added `vehicle.GetSystem().Add(box_body)` to add boxes to the physical system.
+  - Fixed the lidar sensor parameters to match the constructor signature.
+  - Imported `pychrono.sensor` as `sens` and `numpy` as `np` as requested.
+  - Changed terrain texture from `"tile4.jpg"` to `"grass.jpg"` as requested.
+  - Added random boxes with random positions within terrain bounds.
+  - Added comments to clarify new sections.
 
-2. **Terrain height in patch pose**: Used `terrainHeight` to place patch at proper height.
+- **Additional notes:**
+  - The lidar sensor is attached to the chassis body with a small offset.
+  - The boxes are created as `ChBodyEasyBox` with collision enabled and added to the system.
+  - Sensor manager update rate is set to 50 Hz to match render rate.
+  - The sensor manager is updated every simulation step.
 
-3. **Texture change**: Switched from `"tile4.jpg"` to `"grass.jpg"` per instruction.
-
-4. **Imported `pychrono.sensor` as `sens` and numpy for randomness**, per directive.
-
-5. **Created Sensor Manager** with the vehicle's system.
-
-6. **Added a lidar sensor**:
-   - Created a `ChLidarSensor` attached to chassis body.
-   - Set appropriate parameters for scan lines, scan rays, FOV, update rate, offset pose (position relative to chassis).
-   - Added lidar sensor to the sensor manager.
-
-7. **Added random boxes**:
-   - Used numpy RNG to generate positions and sizes.
-   - Boxes are randomly sized between 0.5 to 2 meters edge length.
-   - Boxes spawned randomly within terrain bounds, away from initial vehicle start location.
-   - Boxes have mass and collision enabled.
-
-8. **Updated sensor manager in simulation loop:** `sensor_manager.Update()` added.
-
-9. Minor corrections in code style for readability, like spacing.
-
-This script should run properly under a current PyChrono environment with the sensor module enabled while fulfilling all requested modifications.
+This script should now run correctly and meet all the requirements.

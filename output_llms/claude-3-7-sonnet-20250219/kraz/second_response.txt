@@ -1,4 +1,4 @@
-After analyzing the provided PyChrono script, I've identified a few issues and implemented the requested modifications. Here's the corrected and modified script:
+After reviewing the provided PyChrono script, I've identified and corrected issues and implemented the requested modifications. Here's the revised script:
 
 ```python
 import pychrono.core as chrono
@@ -9,9 +9,8 @@ import math
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
-# Initial vehicle location and orientation - modified as requested
-initLoc = chrono.ChVector3d(-15, 0, 0.5)
-# Adjusted the initial rotation to still face forward (no change needed as it was already unit quaternion)
+# Modified: Initial vehicle location and orientation
+initLoc = chrono.ChVector3d(-15, 0, 0.5)  # Changed from (0, 0, 0.5)
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 # Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
@@ -28,8 +27,8 @@ terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
 
-# Point on chassis tracked by the camera - modified as requested
-trackPoint = chrono.ChVector3d(3, 0, 2.1)
+# Modified: Point on chassis tracked by the camera
+trackPoint = chrono.ChVector3d(3, 0, 2.1)  # Changed from (0, 0, 2.1)
 
 # Contact method
 contact_method = chrono.ChContactMethod_NSC
@@ -75,8 +74,8 @@ terrain.Initialize()
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('Kraz Demo')
 vis.SetWindowSize(1280, 1024)
-# Modified chase camera parameters as requested
-vis.SetChaseCamera(trackPoint, 25.0, 10.5)
+# Modified: Adjusted chase camera distance
+vis.SetChaseCamera(trackPoint, 25.0, 10.5)  # Changed from 25.0, 1.5
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
@@ -102,23 +101,23 @@ print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())  # Corrected: Use GetVeh
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
 
-# Initialize simulation frame counter and timer
+# Initialize simulation frame counter s
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-# Parameters for the double lane change maneuver
-lane_change_start_time = 3.0  # When to start the first lane change
-first_lane_change_duration = 2.0  # Duration of first lane change (move right)
-straight_duration = 3.0  # Duration of straight driving between lane changes
-second_lane_change_duration = 2.0  # Duration of second lane change (move left)
-steering_amplitude = 0.5  # Maximum steering angle during lane change
+# Define double lane change maneuver parameters
+lane_change_start_time = 2.0  # Time to start the first lane change
+lane_change_duration = 3.0    # Duration of each lane change
+return_duration = 3.0         # Duration of the return to original lane
+straight_duration = 2.0       # Duration of straight driving between maneuvers
+max_steering = 0.5            # Maximum steering input for lane changes
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
     # Render scene
-    if step_number % render_steps == 0:
+    if (step_number % render_steps == 0):
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
@@ -126,38 +125,36 @@ while vis.Run():
 
     # Get driver inputs
     driver_inputs = driver.GetInputs()
+
+    # Added: Double lane change maneuver sequence
+    # Initial acceleration phase
+    if time < lane_change_start_time:
+        driver_inputs.m_throttle = 0.3
+        driver_inputs.m_steering = 0.0
     
-    # Implement double lane change maneuver
-    # Override driver inputs based on the simulation time
-    if time >= lane_change_start_time:
-        # Set a constant throttle throughout the maneuver
-        driver_inputs.m_throttle = 0.4
-        
-        # First lane change (move right)
-        if time < lane_change_start_time + first_lane_change_duration:
-            phase = (time - lane_change_start_time) / first_lane_change_duration
-            # Sine wave for smooth steering
-            if phase < 0.5:
-                driver_inputs.m_steering = steering_amplitude * math.sin(phase * math.pi)
-            else:
-                driver_inputs.m_steering = -steering_amplitude * math.sin((phase - 0.5) * math.pi)
-        
-        # Straight driving between lane changes
-        elif time < lane_change_start_time + first_lane_change_duration + straight_duration:
-            driver_inputs.m_steering = 0.0
-        
-        # Second lane change (move left)
-        elif time < lane_change_start_time + first_lane_change_duration + straight_duration + second_lane_change_duration:
-            phase = (time - (lane_change_start_time + first_lane_change_duration + straight_duration)) / second_lane_change_duration
-            # Sine wave for smooth steering in opposite direction
-            if phase < 0.5:
-                driver_inputs.m_steering = -steering_amplitude * math.sin(phase * math.pi)
-            else:
-                driver_inputs.m_steering = steering_amplitude * math.sin((phase - 0.5) * math.pi)
-        
-        # Return to straight driving after completing the maneuver
-        else:
-            driver_inputs.m_steering = 0.0
+    # First lane change (move right)
+    elif time < lane_change_start_time + lane_change_duration:
+        progress = (time - lane_change_start_time) / lane_change_duration
+        # Sinusoidal steering pattern for smooth lane change
+        driver_inputs.m_steering = max_steering * math.sin(progress * math.pi)
+        driver_inputs.m_throttle = 0.3
+    
+    # Straight driving after first lane change
+    elif time < lane_change_start_time + lane_change_duration + straight_duration:
+        driver_inputs.m_steering = 0.0
+        driver_inputs.m_throttle = 0.3
+    
+    # Second lane change (move left)
+    elif time < lane_change_start_time + lane_change_duration + straight_duration + return_duration:
+        progress = (time - (lane_change_start_time + lane_change_duration + straight_duration)) / return_duration
+        # Opposite steering for returning to original lane
+        driver_inputs.m_steering = -max_steering * math.sin(progress * math.pi)
+        driver_inputs.m_throttle = 0.3
+    
+    # Continue straight after completing the double lane change
+    else:
+        driver_inputs.m_steering = 0.0
+        driver_inputs.m_throttle = 0.3
 
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
@@ -178,19 +175,17 @@ while vis.Run():
     realtime_timer.Spin(step_size)
 ```
 
-Corrections and modifications made:
+Changes made:
 1. Changed the initial vehicle location from (0, 0, 0.5) to (-15, 0, 0.5)
 2. Updated the track point for the camera from (0, 0, 2.1) to (3, 0, 2.1)
-3. Adjusted the chase camera parameters from (25.0, 1.5) to (25.0, 10.5)
-4. Fixed method calls: Changed `vehicle.GetTractor()` to `vehicle.GetVehicle()`
-5. Removed redundant visualization type parameters in visualization method calls
-6. Added a double lane change maneuver sequence that:
-   - Starts at 3 seconds into the simulation
-   - Performs a right lane change over 2 seconds
-   - Drives straight for 3 seconds
-   - Performs a left lane change over 2 seconds
-   - Returns to straight driving
-   - Uses sinusoidal steering inputs for smooth transitions
-   - Maintains a constant throttle during the maneuver
+3. Adjusted the chase camera height from 1.5 to 10.5
+4. Corrected method calls from `GetTractor()` to `GetVehicle()`
+5. Removed duplicate parameters in visualization type setting methods
+6. Implemented a double lane change maneuver sequence in the simulation loop based on time:
+   - Initial acceleration phase
+   - First lane change (moving right)
+   - Straight driving interval
+   - Second lane change (moving left back to original lane)
+   - Continued straight driving
 
-These modifications should create a realistic double lane change maneuver while maintaining the core functionality of the original simulation.
+The maneuver uses sinusoidal steering patterns for smooth transitions between lanes while maintaining a constant throttle.

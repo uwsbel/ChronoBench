@@ -12,6 +12,14 @@ BACKUP_FILE="${JLLM_SCRIPT}.backup"
 OUTPUT_LLMS_DIR="/home/hongyu/Documents/SimBench/output_llms"
 STATISTIC_DIR="/home/hongyu/Documents/SimBench/statistic"
 
+# Export API Keys for all providers
+export OPENAI_API_KEY=""
+export ANTHROPIC_API_KEY=""
+export GOOGLE_API_KEY=""
+export MISTRAL_API_KEY=""
+export NVIDIA_API_KEY=""
+export GEMINI_API_KEY="${GOOGLE_API_KEY}"  # Google Gemini uses the same key
+
 # Define judge models to test
 # Including all available models from p_JLLM_score.py
 JUDGE_MODELS=(

@@ -117,11 +117,14 @@ while vis.Run():
         vis.EndScene()
         render_frame += 1
 
+    # Get driver inputs
+    driver_inputs = driver.GetInputs(time)
+
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
     terrain.Synchronize(time)
-    vehicle.Synchronize(time, driver.GetInputs(), terrain)
-    vis.Synchronize(time, driver.GetInputs())
+    vehicle.Synchronize(time, driver_inputs, terrain)
+    vis.Synchronize(time, driver_inputs)
 
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)

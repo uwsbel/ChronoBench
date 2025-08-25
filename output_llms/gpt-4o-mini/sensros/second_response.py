@@ -51,8 +51,8 @@ def main():
     cam.SetName("camera")
     sens_manager.AddSensor(cam)
 
-    # Create and configure a lidar sensor.
-    lidar = sens.ChLidarSensor(ground_body, 5., offset_pose, 90, 300, 2*ch.CH_PI, ch.CH_PI / 12, -ch.CH_PI / 6, 100., 0)
+    # Create and configure a 3D lidar sensor.
+    lidar = sens.ChLidarSensor(ground_body, 5., offset_pose, 90, 300, 2 * ch.CH_PI, ch.CH_PI / 12, -ch.CH_PI / 6, 100., 0)
     lidar.PushFilter(sens.ChFilterDIAccess())  # Access raw lidar data.
     lidar.PushFilter(sens.ChFilterPCfromDepth())  # Convert depth data to point cloud.
     lidar.PushFilter(sens.ChFilterXYZIAccess())  # Access point cloud data.
@@ -60,8 +60,8 @@ def main():
     lidar.SetName("lidar")
     sens_manager.AddSensor(lidar)
 
-    # Create and configure a 2D Lidar sensor.
-    lidar2d = sens.ChLidarSensor(ground_body, 5., offset_pose, 360, 100, 2 * ch.CH_PI, ch.CH_PI / 180, -ch.CH_PI / 2, 100., 0)
+    # Create and configure a 2D lidar sensor.
+    lidar2d = sens.ChLidarSensor(ground_body, 5., offset_pose, 360, 300, 2 * ch.CH_PI, ch.CH_PI / 12, -ch.CH_PI / 6, 100., 0)
     lidar2d.PushFilter(sens.ChFilterDIAccess())  # Access raw lidar data.
     lidar2d.PushFilter(sens.ChFilterVisualize(1280, 720))  # Visualize the 2D lidar output.
     lidar2d.SetName("lidar2d")

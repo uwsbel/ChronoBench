@@ -1,81 +1,99 @@
 ```python
 import pychrono as chrono
-import pychrono.postprocess as postprocess
 import pychrono.irrlicht as chronoirr
+import pychrono.vehicle as chronovehicle
 
 # 1. Initialize the PyChrono environment and core components
-my_system = chrono.ChSystemNSC()
-my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
+chrono.SetChronoDataPath("data/")
 
-# Create a material for the objects
-material = chrono.ChMaterialSurfaceNSC()
-material.SetFriction(0.3)
-material.SetRestitution(0.2)
+# Create the simulation system
+system = chrono.ChSystemNSC()
+
+# Set gravitational acceleration
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
 # 2. Add the required physical systems and objects
-# Example: Create a ground body
-ground = chrono.ChBodyEasyBox(10, 1, 10, 1000, True, True, material)
-ground.SetPos(chrono.ChVectorD(0, -1, 0))
-my_system.Add(ground)
 
-# Example: Create a sphere
-sphere = chrono.ChBodyEasySphere(1, 100, True, True, material)
-sphere.SetPos(chrono.ChVectorD(0, 2, 0))
-my_system.Add(sphere)
+# Create the terrain
+terrain = chrono.ChBodyEasyBox(
+    200, 200, 1, 1000, True, True, chrono.ChMaterialSurfaceNSC()
+)
+terrain.SetPos(chrono.ChVectorD(0, -1, 0))
+terrain.SetBodyFixed(True)
+system.Add(terrain)
+
+# Create the vehicle model
+vehicle = chronovehicle.ChVehicle("MAN 10t Truck", system)
+vehicle.SetChassisVisualizationType(chronovehicle.VisualizationType_MESH)
+vehicle.SetChassisCollisionType(chronovehicle.CollisionType_NONE)
+
+# Load vehicle model
+vehicle.SetVehiclePath("MAN_10t")
+vehicle.Initialize()
+
+# Set tire model
+for wheel in vehicle.GetWheels():
+    wheel.SetTireModel(chronovehicle.TMEasy())
 
 # 3. Set necessary default parameters
-# Example: Apply a force to the sphere
-force = chrono.ChForce(chrono.ChForceType_FORCE)
-force.SetDir(chrono.ChVectorD(0, -1, 0))
-force.SetMforce(10)
-sphere.AddForce(force)
 
-# Example: Set a contact method for collisions
-my_system.SetContactMethod(chrono.ChContactMethod.ChContactMethodNSC)
+# Initial position and orientation
+vehicle.SetChassisPos(chrono.ChVectorD(0, 1, 0))
+vehicle.SetChassisRot(chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0)))
 
-# 4. Visualization (optional)
-# Create an Irrlicht visualization system
+# Driver controls
+driver = chronovehicle.ChDriver(vehicle)
+driver.SetSteeringGain(0.5)
+driver.SetThrottleGain(0.5)
+driver.SetBrakingGain(0.5)
+
+# 4. Visualize the simulation
+
+# Create the Irrlicht visualization system
 vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(my_system)
-vis.SetWindowSize(800, 600)
-vis.SetWindowTitle('PyChrono Simulation')
-vis.Initialize()
-vis.Run()
+vis.AttachSystem(system)
+vis.SetWindowSize(1280, 720)
+vis.SetWindowTitle("MAN 10t Truck Simulation")
 
-# 5. Simulation loop
+# Set camera
+camera = vis.GetCamera()
+camera.SetTarget(vehicle.GetChassis().GetPos())
+camera.SetDistance(15)
+camera.SetFollow(vehicle.GetChassis())
+
+# Add directional lighting
+vis.AddLight(chrono.ChLightPoint(chrono.ChVectorD(5, 5, 5), chrono.ChColor(1, 1, 1)))
+
+# Add skybox
+vis.AddSkyBox("data/skybox/blue")
+
+# Set terrain texture and logo
+terrain.GetVisualShape(0).SetTexture(chrono.ChTexture())
+terrain.GetVisualShape(0).GetTexture().SetTextureFilename("data/terrain/grass.jpg")
+
+# Simulation loop
 while vis.Run():
-    my_system.DoStepDynamics(0.01)
-    vis.Render()
+    # Update driver controls
+    driver.Update(vis.GetDeltaTime())
 
+    # Advance the simulation
+    system.DoStepDynamics(vis.GetDeltaTime())
+
+    # Render the scene
+    vis.Render()
 ```
 
 **Explanation:**
 
-1. **Initialization:**
-   - We import necessary PyChrono modules.
-   - A `ChSystemNSC` object is created to represent the physical system.
-   - Gravity is set using `Set_G_acc`.
+1. **Initialization:** Sets up the PyChrono environment, creates the simulation system, and defines gravity.
+2. **Terrain and Vehicle:** Creates a rigid terrain and a MAN 10t truck model using the `chronovehicle` module. Configures visualization and collision settings for the vehicle.
+3. **Tire Model and Driver:** Assigns the TMEasy tire model to each wheel and creates a driver object to control steering, throttle, and braking.
+4. **Visualization:** Uses Irrlicht for visualization, sets up a chase camera, adds lighting and a skybox, and applies textures to the terrain.
+5. **Simulation Loop:** Continuously updates driver controls, advances the simulation, and renders the scene.
 
-2. **Adding Objects:**
-   - A ground body is created using `ChBodyEasyBox` and added to the system.
-   - A sphere is created using `ChBodyEasySphere` and added to the system.
+**Customization:**
 
-3. **Setting Parameters:**
-   - A force is applied to the sphere using `ChForce`.
-   - The contact method for collisions is set to `ChContactMethodNSC`.
-
-4. **Visualization (Optional):**
-   - An Irrlicht visualization system is created using `ChVisualSystemIrrlicht`.
-   - It's attached to the system, window size and title are set, and it's initialized.
-
-5. **Simulation Loop:**
-   - The simulation runs in a loop until the Irrlicht window is closed.
-   - In each iteration:
-     - The system is advanced by a time step using `DoStepDynamics`.
-     - The scene is rendered using `vis.Render()`.
-
-**Remember:**
-
-- This is a basic template. You need to modify it according to your specific simulation requirements.
-- Add more objects, forces, constraints, and other elements as needed.
-- Explore PyChrono's documentation for a complete list of available features and options: [https://pychrono.org/](https://pychrono.org/)
+* **Vehicle Model:** Replace "MAN_10t" with the path to your desired vehicle model.
+* **Terrain:** Modify terrain dimensions, texture, and logo.
+* **Driver Controls:** Adjust steering, throttle, and braking gains.
+* **Visualization:** Customize camera settings, lighting, and skybox.

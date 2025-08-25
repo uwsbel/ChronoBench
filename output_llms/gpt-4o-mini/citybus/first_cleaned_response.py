@@ -1,72 +1,73 @@
-import pychrono as chrono
+import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
 
 
 chrono.SetChronoDataPath('path/to/chrono/data/')  
+chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.001)
+chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.001)
+
+
 system = chrono.ChSystemNSC()
 
 
-application = chronoirr.ChIrrApp(system, "CityBus Simulation", chronoirr.dimension2du(800, 600))
-application.SetSkyBox()
-application.AddLogo()
-application.AddCamera(chrono.ChVectorD(0, 5, -10), chrono.ChVectorD(0, 0, 0))
-application.AddTypicalLights()
-application.SetFPS(50)
-
-
 terrain = chrono.ChTerrain()
-terrain.SetTexture("path/to/your/texture.png")  
-terrain.Initialize(system)
+terrain.SetGround(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(100, 0, 100))
+terrain.SetTexture("path/to/your/texture.jpg")  
+system.Add(terrain)
 
 
 bus = chrono.ChVehicle()
 bus.SetChassis(chrono.ChVectorD(0, 0.5, 0), chrono.ChQuaternionD(1, 0, 0, 0))  
-bus.SetTireModel(chrono.ChVehicleTireModel("path/to/tire/model"))  
 
 
-system.Add(bus)
+bus.SetMass(5000)  
+bus.SetInertiaXX(chrono.ChVectorD(1000, 1000, 1000))  
 
 
-bus.SetSteering(0.0)  
-bus.SetThrottle(0.0)  
-bus.SetBraking(0.0)   
+for i in range(4):
+    tire = chrono.ChTire()  
+    bus.AddTire(tire, i)  
 
 
-class Driver:
-    def __init__(self, vehicle):
-        self.vehicle = vehicle
+bus.SetVisualizationType(chrono.ChVehicle.VisualizationType.MESH)  
+bus.SetMeshFile("path/to/bus_mesh.obj")  
 
-    def Update(self):
-        
-        
-        key = application.GetDevice().getKeyPressed()
-        if key == 'W':  
-            self.vehicle.SetThrottle(1.0)
-        elif key == 'S':  
-            self.vehicle.SetBraking(1.0)
-        elif key == 'A':  
-            self.vehicle.SetSteering(-0.1)
-        elif key == 'D':  
-            self.vehicle.SetSteering(0.1)
-        else:
-            self.vehicle.SetThrottle(0.0)
-            self.vehicle.SetBraking(0.0)
-            self.vehicle.SetSteering(0.0)
 
-driver = Driver(bus)
+application = chronoirr.ChIrrApp(system, "CityBus Simulation", chronoirr.dimension2d(800, 600))
+application.AddLogo()
+application.AddSkyBox()
+application.AddCamera(chrono.ChVectorD(0, 5, -10), chrono.ChVectorD(0, 0, 0))  
+application.AddLight(chrono.ChVectorD(0, 10, -10), chrono.ChVectorD(1, 1, 1))  
+
+
+application.SetTimestep(0.02)  
+application.SetTryToUpdate(1)
+
+
+steering = 0.0
+throttle = 0.0
+braking = 0.0
+
+def driver_input():
+    global steering, throttle, braking
+    
+    
+    
 
 
 while application.GetDevice().run():
-    application.BeginScene()
+    driver_input()  
+
+    
+    bus.SetSteering(steering)
+    bus.SetThrottle(throttle)
+    bus.SetBraking(braking)
+
+    
+    system.DoStepDynamics(application.GetTimestep())
+
+    
     application.DrawAll()
 
-    
-    driver.Update()
 
-    
-    system.DoStepDynamics(1.0 / 50.0)  
-
-    application.EndScene()
-
-
-application.Close()
+application.GetDevice().drop()

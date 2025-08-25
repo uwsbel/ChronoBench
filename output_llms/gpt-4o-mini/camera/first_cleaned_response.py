@@ -1,9 +1,9 @@
-import pychrono as chrono
-import pychrono.sensor as sensor
+import pychrono.core as chrono
+import pychrono.irrlicht as chronoirr
 import numpy as np
 
 
-chrono.SetChronoDataPath('path/to/chrono/data/')  
+chrono.ChSystemNSC()
 system = chrono.ChSystemNSC()
 
 
@@ -13,50 +13,52 @@ mesh.LoadWavefrontMesh(mesh_file, True, True)
 
 
 fixed_body = chrono.ChBodyAuxRef()
-fixed_body.SetBodyFixed(True)
+fixed_body.SetMass(0)  
 fixed_body.SetCollide(True)
 fixed_body.GetCollisionModel().ClearModel()
-fixed_body.GetCollisionModel().AddTriangleMesh(mesh, chrono.ChVectorD(0, 0, 0), chrono.ChMatrix33(1), True, True)
+fixed_body.GetCollisionModel().AddTriangleMesh(mesh, chrono.ChVectorD(0, 0, 0), chrono.ChMatrix33(chrono.CH_C_PI / 2), True, True)
 fixed_body.GetCollisionModel().BuildModel()
+fixed_body.SetBodyFixed(True)
 system.Add(fixed_body)
 
 
-camera = sensor.ChCameraSensor(fixed_body,  
-                                chrono.ChFrameD(chrono.ChVectorD(0, 0, 5), chrono.Q_from_AngZ(0)),  
-                                640, 480,  
-                                0.1, 100.0,  
-                                0.5,  
-                                sensor.ChCameraSensor.CAMERA_TYPE.PERSPECTIVE)  
+camera_sensor = chrono.ChCameraSensor()
+camera_sensor.SetPosition(chrono.ChVectorD(0, 5, 10))  
+camera_sensor.SetTarget(chrono.ChVectorD(0, 0, 0))  
+camera_sensor.SetFOV(45)  
+camera_sensor.SetResolution(640, 480)  
 
 
-camera.SetNoiseModel(sensor.ChCameraSensor.NOISE_MODEL.GAUSSIAN, 0.01, 0.01)  
-camera.SetVisualizationMode(sensor.ChCameraSensor.VISUALIZATION_MODE.COLOR)  
+camera_sensor.SetNoise(0.01)  
+camera_sensor.SetVisualization(True)  
 
 
-sensor_manager = sensor.ChSensorManager(system)
-sensor_manager.AddSensor(camera)
+fixed_body.AddSensor(camera_sensor)
 
 
-time_step = 0.01
-total_time = 10.0
+sensor_manager = chrono.ChSensorManager()
+sensor_manager.AddSensor(camera_sensor)
+
+
+time_step = 0.01  
+total_time = 10.0  
 num_steps = int(total_time / time_step)
-
-
-orbit_radius = 5.0
-orbit_speed = 0.1
 
 
 for step in range(num_steps):
     
-    angle = step * orbit_speed
-    camera.SetFrame(chrono.ChFrameD(chrono.ChVectorD(orbit_radius * np.cos(angle), orbit_radius * np.sin(angle), 5), chrono.Q_from_AngZ(angle)))
+    angle = step * (2 * np.pi / num_steps)  
+    camera_x = 10 * np.cos(angle)
+    camera_z = 10 * np.sin(angle)
+    camera_sensor.SetPosition(chrono.ChVectorD(camera_x, 5, camera_z))
+    camera_sensor.SetTarget(chrono.ChVectorD(0, 0, 0))  
 
     
     system.DoStepDynamics(time_step)
 
     
-    camera_data = camera.GetImageBuffer()
-    print(f"Step {step}: Camera Buffer Data - {camera_data}")
+    camera_image = camera_sensor.GetImageBuffer()
+    print(f"Step {step}: Camera Image Buffer Size: {len(camera_image)}")
 
 
-print("Simulation completed.")
+print("Simulation complete.")

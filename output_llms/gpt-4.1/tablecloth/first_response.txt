@@ -1,4 +1,4 @@
-Certainly! Below is a **PyChrono** simulation script that models the folding of a tablecloth using shell elements, with an isotropic Kirchhoff material, a generated mesh grid, and the requested solver and visualization. This script assumes you have **PyChrono** and its dependencies (including PardisoMKL and Irrlicht) properly installed.
+Certainly! Below is a **PyChrono** simulation script that models the folding of a tablecloth using shell elements, with an isotropic Kirchhoff material, a mesh grid, and the required solver and visualization. This script assumes you have **PyChrono** and its dependencies (including PardisoMKL and Irrlicht) installed.
 
 ```python
 import pychrono as chrono
@@ -14,58 +14,53 @@ system = chrono.ChSystemSMC()
 # Tablecloth parameters
 cloth_length = 1.0   # meters
 cloth_width = 1.0    # meters
-n_x = 20             # nodes in x direction
-n_y = 20             # nodes in y direction
-dx = cloth_length / (n_x - 1)
-dy = cloth_width / (n_y - 1)
-cloth_thickness = 0.002  # meters
+num_x = 20           # nodes in X direction
+num_y = 20           # nodes in Y direction
+thickness = 0.002    # meters
+
+# Material properties (Isotropic Kirchhoff)
+rho = 500            # density kg/m^3
+E = 1e7              # Young's modulus Pa
+nu = 0.3             # Poisson's ratio
 
 # Create the mesh
 mesh = fea.ChMesh()
 
-# Material: Isotropic Kirchhoff
-rho = 500           # density kg/m^3
-E = 2e7             # Young's modulus Pa
-nu = 0.3            # Poisson ratio
-material = fea.ChMaterialShellKirchhoffIsothropic(E, nu, rho, cloth_thickness)
+# Create the Kirchhoff material
+material = fea.ChMaterialShellKirchhoffIsothropic(E, nu, rho, thickness)
 
 # Generate nodes
 nodes = []
-for iy in range(n_y):
-    row = []
-    for ix in range(n_x):
-        xpos = ix * dx - cloth_length/2
-        ypos = iy * dy - cloth_width/2
-        zpos = 0.1  # start slightly above the table
-        node = fea.ChNodeFEAxyzD(chrono.ChVectorD(xpos, ypos, zpos), chrono.ChVectorD(0, 0, 1))
-        node.SetMass(0.25 * rho * dx * dy * cloth_thickness)
-        mesh.AddNode(node)
-        row.append(node)
-    nodes.append(row)
+dx = cloth_length / (num_x - 1)
+dy = cloth_width / (num_y - 1)
+z0 = 0.5  # initial height above table
 
-# Generate shell elements
-for iy in range(n_y - 1):
-    for ix in range(n_x - 1):
-        node00 = nodes[iy][ix]
-        node01 = nodes[iy][ix+1]
-        node11 = nodes[iy+1][ix+1]
-        node10 = nodes[iy+1][ix]
-        element = fea.ChElementShellKirchhoff_4()
-        element.SetNodes(node00, node01, node11, node10)
+for ix in range(num_x):
+    for iy in range(num_y):
+        x = ix * dx - cloth_length / 2
+        y = iy * dy - cloth_width / 2
+        node = fea.ChNodeFEAxyzD(chrono.ChVectorD(x, y, z0),
+                                 chrono.ChVectorD(0, 0, 1))
+        node.SetMass(0.25 * rho * dx * dy * thickness)
+        mesh.AddNode(node)
+        nodes.append(node)
+
+# Generate shell elements (Kirchhoff)
+for ix in range(num_x - 1):
+    for iy in range(num_y - 1):
+        n0 = nodes[ix * num_y + iy]
+        n1 = nodes[(ix + 1) * num_y + iy]
+        n2 = nodes[(ix + 1) * num_y + (iy + 1)]
+        n3 = nodes[ix * num_y + (iy + 1)]
+        element = fea.ChElementShellKirchhoff()
+        element.SetNodes(n0, n1, n2, n3)
         element.SetMaterial(material)
-        element.SetThickness(cloth_thickness)
+        element.SetThickness(thickness)
         mesh.AddElement(element)
 
-# Fix one edge to simulate folding
-for ix in range(n_x):
-    node = nodes[0][ix]
-    node.SetFixed(True)
-
-# Optionally, apply a downward force to the opposite edge to fold
-fold_force = chrono.ChVectorD(0, 0, -10)  # Newtons
-for ix in range(n_x):
-    node = nodes[-1][ix]
-    node.SetForce(fold_force)
+# Optionally: Fix one edge to simulate folding
+for iy in range(num_y):
+    nodes[iy].SetFixed(True)  # Fix one edge (e.g., x = -cloth_length/2)
 
 system.Add(mesh)
 
@@ -77,42 +72,53 @@ application.SetWindowTitle('PyChrono Tablecloth Folding Simulation')
 application.Initialize()
 application.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 application.AddSkyBox()
-application.AddCamera(chrono.ChVectorD(0, -1.5, 0.7), chrono.ChVectorD(0, 0, 0))
+application.AddCamera(chrono.ChVectorD(0, -2, 1), chrono.ChVectorD(0, 0, 0))
 application.AddTypicalLights()
 
 # Add mesh visualization
-vis_mesh = fea.ChVisualizationFEAmesh(mesh)
-vis_mesh.SetFEMglyphType(fea.ChVisualizationFEAmesh.GLYPH_NODE_DOT_POS)
-vis_mesh.SetFEMdataType(fea.ChVisualizationFEAmesh.DATA_NONE)
-vis_mesh.SetColorscaleMinMax(-0.01, 0.01)
-vis_mesh.SetSmoothFaces(True)
-vis_mesh.SetWireframe(True)
-mesh.AddAsset(vis_mesh)
+visualize = fea.ChVisualizationFEAmesh(mesh)
+visualize.SetFEMglyphType(fea.ChVisualizationFEAmesh.E_GLYPH_NODE_DOT_POS)
+visualize.SetFEMdataType(fea.ChVisualizationFEAmesh.E_PLOT_NONE)
+visualize.SetSymbolsThickness(0.006)
+visualize.SetSymbolsScale(0.01)
+mesh.AddAsset(visualize)
+
+visualize_surf = fea.ChVisualizationFEAmesh(mesh)
+visualize_surf.SetFEMdataType(fea.ChVisualizationFEAmesh.E_PLOT_SURFACE)
+visualize_surf.SetWireframe(False)
+visualize_surf.SetSmoothFaces(True)
+mesh.AddAsset(visualize_surf)
 
 # 4. Use PardisoMKL solver
 solver = chrono.ChSolverPardisoMKL()
 system.SetSolver(solver)
 
-# 5. Simulation loop
-application.AssetBindAll()
-application.AssetUpdateAll()
-application.AddShadowAll()
+# 5. Apply a folding force (e.g., downward force on the opposite edge)
+fold_force = chrono.ChVectorD(0, 0, -10)  # Newtons
+for iy in range(num_y):
+    node = nodes[(num_x - 1) * num_y + iy]
+    force = chrono.ChLoadBodyForce(node, fold_force, False)
+    # For FEA nodes, use ChLoadCustomMultiple or similar if needed
+    # Here, we simply set an initial velocity for demonstration
+    node.SetPos_dt(chrono.ChVectorD(0, 0, -0.2))
 
+# 6. Simulation loop
 timestep = 0.002
 while application.Run():
     application.BeginScene()
     application.DrawAll()
-    system.DoStepDynamics(timestep)
     application.EndScene()
+    system.DoStepDynamics(timestep)
 ```
 
 ---
 
-**Key Points:**
-- **Mesh grid**: The tablecloth is modeled as a grid of nodes and Kirchhoff shell elements.
-- **Material**: Isotropic Kirchhoff material is used for realistic thin shell behavior.
-- **Boundary conditions**: One edge is fixed; the opposite edge receives a downward force to induce folding.
-- **Solver**: PardisoMKL is set for efficient sparse linear algebra.
-- **Visualization**: Irrlicht is used for real-time rendering.
+**Notes:**
+- This script creates a square tablecloth mesh using Kirchhoff shell elements and applies a downward velocity to one edge to simulate folding.
+- The edge at `x = -cloth_length/2` is fixed; the opposite edge is "pulled" down.
+- For more realistic folding, you may want to implement a custom force or use `ChLoadCustomMultiple` to apply distributed forces.
+- The PardisoMKL solver is used for efficient sparse linear algebra.
+- Visualization is handled by Irrlicht.
+- Adjust mesh density, material properties, and force as needed for your scenario.
 
-**Tip:** You can adjust the mesh density, material properties, or force to explore different folding behaviors.
+Let me know if you need further customization or explanation!

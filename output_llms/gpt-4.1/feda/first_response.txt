@@ -1,16 +1,10 @@
-Certainly! Below is a **PyChrono** simulation script that fulfills your requirements. This script:
+Certainly! Below is a **PyChrono** simulation script that creates a FEDA vehicle on a rigid terrain, uses Irrlicht for visualization, sets up the vehicle and terrain as specified, and implements an interactive driver. The camera follows the vehicle, and all vehicle parts use mesh visualization. The simulation runs at 50 FPS.
 
-- Initializes the PyChrono environment and Irrlicht visualization.
-- Creates a FEDA vehicle with specified parameters (location, orientation, contact method, tire model).
-- Sets up a rigid terrain with a custom texture.
-- Uses mesh visualization for all vehicle parts.
-- Implements an interactive driver for steering, throttle, and braking.
-- Sets the camera to follow the vehicle from a specified offset.
-- Runs a real-time simulation loop at 50 FPS.
+**Requirements:**  
+- PyChrono (with vehicle and Irrlicht modules)
+- FEDA vehicle data (usually included in PyChrono's data paths)
 
-**Note:**  
-- Make sure you have the [Project Chrono](https://projectchrono.org/) Python bindings installed, and the `chrono::vehicle` and `chrono::irrlicht` modules available.
-- Replace `"path/to/your/texture.jpg"` with the path to your desired terrain texture.
+---
 
 ```python
 import pychrono as chrono
@@ -19,62 +13,64 @@ import pychrono.irrlicht as irr
 import os
 
 # -----------------------------------------------------------------------------
-# INITIALIZATION
+# 1. Initialize PyChrono and set data paths
 # -----------------------------------------------------------------------------
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
-# Simulation parameters
-step_size = 2e-3
+# -----------------------------------------------------------------------------
+# 2. Simulation parameters
+# -----------------------------------------------------------------------------
+step_size = 0.01
 render_step_size = 1.0 / 50  # 50 FPS
+time = 0
 
-# Vehicle initial parameters
-initLoc = chrono.ChVectorD(0, 0, 1.0)
-initYaw = chrono.CH_C_PI / 12  # 15 degrees
+# -----------------------------------------------------------------------------
+# 3. Create the vehicle system
+# -----------------------------------------------------------------------------
 contact_method = chrono.ChContactMethod_NSC
-tire_type = veh.TireModelType.TMEASY
+vehicle = veh.FEDA(False,  # fixed chassis?
+                   veh.ChMaterialSurface.NSC,  # contact method
+                   veh.PowertrainModelType_SHAFTS,
+                   veh.TireModelType_TMEASY,
+                   veh.VisualizationType_MESH)
 
-# -----------------------------------------------------------------------------
-# CREATE THE VEHICLE
-# -----------------------------------------------------------------------------
-vehicle = veh.FEDA(False, veh.ChContactMethod(contact_method))
-vehicle.SetInitPosition(chrono.ChCoordsysD(initLoc, chrono.Q_from_AngZ(initYaw)))
-vehicle.SetTireType(tire_type)
-vehicle.SetTireStepSize(step_size)
-vehicle.SetChassisVisualizationType(veh.VisualizationType.MESH)
-vehicle.SetSuspensionVisualizationType(veh.VisualizationType.MESH)
-vehicle.SetSteeringVisualizationType(veh.VisualizationType.MESH)
-vehicle.SetWheelVisualizationType(veh.VisualizationType.MESH)
-vehicle.SetTireVisualizationType(veh.VisualizationType.MESH)
+# Set initial position and orientation
+initLoc = chrono.ChVectorD(0, 0, 0.5)
+initRot = chrono.Q_from_AngY(chrono.CH_C_DEG_TO_RAD * 15)  # 15 deg yaw
+vehicle.SetInitPosition(chrono.ChCoordsysD(initLoc, initRot))
+vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
+vehicle.SetSuspensionVisualizationType(veh.VisualizationType_MESH)
+vehicle.SetSteeringVisualizationType(veh.VisualizationType_MESH)
+vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
+vehicle.SetTireVisualizationType(veh.VisualizationType_MESH)
 vehicle.Initialize()
 
 # -----------------------------------------------------------------------------
-# CREATE THE TERRAIN
+# 4. Create the terrain
 # -----------------------------------------------------------------------------
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 patch = terrain.AddPatch(
     chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT),
-    chrono.ChVectorD(200, 200, 2),  # size
-    0.0,  # height
-)
+    200, 200)  # size in meters
+
 # Set custom texture
-patch.SetTexture(chrono.GetChronoDataFile("path/to/your/texture.jpg"), 200, 200)
+texture_path = chrono.GetChronoDataFile('vehicle/terrain/textures/tile4.jpg')
+patch.SetTexture(texture_path, 10, 10)
 terrain.Initialize()
 
 # -----------------------------------------------------------------------------
-# IRRLICHT VISUALIZATION
+# 5. Create the Irrlicht application
 # -----------------------------------------------------------------------------
-app = veh.ChWheeledVehicleIrrApp(vehicle, 'FEDA Demo', irr.dimension2du(1024, 768))
+app = veh.ChWheeledVehicleIrrApp(vehicle, 'FEDA on Rigid Terrain', irr.dimension2du(1024, 768))
 app.SetSkyBox()
 app.AddTypicalLights()
-app.AddLightWithShadow(chrono.ChVectorF(30, 100, 100), chrono.ChVectorF(0, 0, 0), 250, 1, 10, 60)
+app.AddLightWithShadow(chrono.ChVectorD(30, 100, 60), chrono.ChVectorD(0, 0, 0), 350, 1, 10, 60)
 app.SetChaseCamera(chrono.ChVectorD(0.0, 0.0, 1.75), 6.0, 0.5)  # (track point, distance, height)
 app.SetTimestep(step_size)
-app.AssetBindAll()
-app.AssetUpdateAll()
 
 # -----------------------------------------------------------------------------
-# DRIVER SYSTEM (interactive)
+# 6. Interactive driver system
 # -----------------------------------------------------------------------------
 driver = veh.ChIrrGuiDriver(app)
 driver.SetSteeringDelta(0.04)
@@ -83,13 +79,18 @@ driver.SetBrakingDelta(0.1)
 driver.Initialize()
 
 # -----------------------------------------------------------------------------
-# SIMULATION LOOP
+# 7. Simulation loop
 # -----------------------------------------------------------------------------
-realtime_timer = chrono.ChRealtimeStepTimer()
 render_steps = int(render_step_size / step_size)
 step_number = 0
 
 while app.GetDevice().run():
+    time = vehicle.GetSystem().GetChTime()
+
+    # End simulation with ESC
+    if app.IsKeyDown(irr.KEY_KEY_ESCAPE):
+        break
+
     # Render scene
     if step_number % render_steps == 0:
         app.BeginScene()
@@ -100,10 +101,10 @@ while app.GetDevice().run():
     driver_inputs = driver.GetInputs()
 
     # Update modules
-    driver.Synchronize(app.GetSimulationTime())
-    terrain.Synchronize(app.GetSimulationTime())
-    vehicle.Synchronize(app.GetSimulationTime(), driver_inputs, terrain)
-    app.Synchronize("FEDA Demo", driver_inputs)
+    driver.Synchronize(time)
+    terrain.Synchronize(time)
+    vehicle.Synchronize(time, driver_inputs, terrain)
+    app.Synchronize('FEDA on Rigid Terrain', driver_inputs)
 
     # Advance simulation
     driver.Advance(step_size)
@@ -111,16 +112,23 @@ while app.GetDevice().run():
     vehicle.Advance(step_size)
     app.Advance(step_size)
 
-    # Maintain real-time pace
-    realtime_timer.Spin(step_size)
     step_number += 1
+
+# -----------------------------------------------------------------------------
+# End of script
+# -----------------------------------------------------------------------------
 ```
 
-**NOTES:**
-- Replace `"path/to/your/texture.jpg"` with the actual path to your texture file.
-- The camera follows the vehicle from behind and above.
-- The interactive driver uses keyboard controls (arrows/WASD for steering/throttle/brake).
-- All vehicle parts use mesh visualization.
-- The simulation runs at 50 FPS.
+---
 
-Let me know if you need further customization!
+**Key Features:**
+- **FEDA vehicle** with mesh visualization for all parts.
+- **RigidTerrain** with a custom texture.
+- **Irrlicht visualization** with a chase camera.
+- **Interactive driver** for steering, throttle, and braking.
+- **Real-time simulation** at 50 FPS.
+
+**Note:**  
+- Make sure you have the FEDA vehicle data and the referenced texture in your Chrono data path.
+- You can adjust the initial position, orientation, and camera settings as needed.
+- Use the keyboard to control the vehicle (arrow keys for steering/throttle/brake, ESC to exit).

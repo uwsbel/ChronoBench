@@ -1,173 +1,152 @@
-# PyChrono Tablecloth Folding Simulation with Shell Elements
+# PyChrono Tablecloth Folding Simulation
 
 ```python
 import pychrono as chrono
 import pychrono.fea as fea
-import pychrono.pardisomkl as mkl
 import pychrono.irrlicht as chronoirr
 import numpy as np
 
 # Global simulation parameters
-cloth_size_x = 1.0  # m
-cloth_size_y = 1.0  # m
-thickness = 0.01  # m
-density = 200.0  # kg/m^3
-E = 0.5e6  # Young's modulus (Pa)
-nu = 0.3  # Poisson ratio
-mesh_resolution = 20  # Number of elements in each direction
+timestep = 0.001
+max_simulation_time = 5.0
 
-# Initialize the simulation system
+# Initialize the ChronoENGINE system
 system = chrono.ChSystemSMC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
 
-# Create a material for the tablecloth (Kirchhoff-Love shell element)
-material = fea.ChMaterialShellKirchhoff()
-material.SetDensity(density)
-material.SetYoungModulus(E)
-material.SetPoissonRatio(nu)
+# Create a mesh for the tablecloth
+# Dimensions
+tablecloth_width = 1.0  # meters
+tablecloth_length = 1.0  # meters
+thickness = 0.002  # meters
+
+# Mesh resolution
+nx = 20  # number of elements in x direction
+ny = 20  # number of elements in y direction
+
+# Material properties for fabric (approximate values for cloth)
+density = 300      # kg/m^3
+E = 5e5            # Young's modulus (Pa)
+nu = 0.3           # Poisson ratio
+yield_stress = 1e8 # Yield stress (very high to prevent plasticity)
+
+# Create the material (isotropic Kirchhoff-Love)
+material = fea.ChElasticityKirchhoffIsotropic(E, nu)
+material_plasticity = fea.ChElasticityKirchhoffIsotropic(E, nu)
+material_internal = fea.ChContinuumDrilling(material)
 
 # Create the mesh
 mesh = fea.ChMesh()
+mesh.SetAutomaticGravity(True)
 
-# Helper function to create the shell element mesh
-def create_tablecloth_mesh(size_x, size_y, resolution, thickness, material):
-    # Create nodes and elements
-    nodes = []
-    elements = []
-    
-    dx = size_x / resolution
-    dy = size_y / resolution
-    
-    # Create nodes
-    for iy in range(resolution + 1):
-        for ix in range(resolution + 1):
-            x = ix * dx - size_x/2
-            y = 0.5  # Initial height
-            z = iy * dy - size_y/2
-            
-            node = fea.ChNodeFEAxyz(chrono.ChVectorD(x, y, z))
-            mesh.AddNode(node)
-            nodes.append(node)
-    
-    # Create elements
-    for iy in range(resolution):
-        for ix in range(resolution):
-            # Get the four nodes for this element
-            idx1 = ix + iy * (resolution + 1)
-            idx2 = ix + 1 + iy * (resolution + 1)
-            idx3 = ix + 1 + (iy + 1) * (resolution + 1)
-            idx4 = ix + (iy + 1) * (resolution + 1)
-            
-            # Create the shell element
-            element = fea.ChElementShellKirchhoff4()
-            element.SetNodes(nodes[idx1], nodes[idx2], nodes[idx3], nodes[idx4])
-            element.SetDimensions(dx, dy)
-            element.AddLayer(thickness, 0, material)
-            
-            # Add element to mesh
-            mesh.AddElement(element)
-            elements.append(element)
-    
-    return nodes, elements
+# Create the nodes
+nodes = []
+dx = tablecloth_width / nx
+dy = tablecloth_length / ny
 
-# Create the tablecloth mesh
-nodes, elements = create_tablecloth_mesh(cloth_size_x, cloth_size_y, mesh_resolution, thickness, material)
+# Create and add nodes
+for iy in range(ny + 1):
+    for ix in range(nx + 1):
+        x = ix * dx - tablecloth_width/2
+        y = 0
+        z = iy * dy - tablecloth_length/2
+        
+        # Create the node
+        node = fea.ChNodeFEAxyz(chrono.ChVectorD(x, y, z))
+        mesh.AddNode(node)
+        nodes.append(node)
+        
+        # Fix the corners to simulate hanging
+        if (ix == 0 and iy == 0) or (ix == nx and iy == 0):
+            node.SetFixed(True)
 
-# Fix some nodes to simulate holding the tablecloth at corners
-# Corner nodes (top left and top right)
-corner_nodes = [nodes[0], nodes[mesh_resolution]]
-for node in corner_nodes:
-    constraint = fea.ChLinkPointFrame()
-    constraint.Initialize(node, system.GetChFrame())
-    system.Add(constraint)
+# Elements
+elements = []
+for iy in range(ny):
+    for ix in range(nx):
+        # Get the four nodes needed for this element
+        idx1 = iy * (nx+1) + ix
+        idx2 = iy * (nx+1) + ix + 1
+        idx3 = (iy+1) * (nx+1) + ix + 1
+        idx4 = (iy+1) * (nx+1) + ix
+        
+        # Create the element
+        element = fea.ChElementShellANCF()
+        
+        # Set nodes
+        element.SetNodes(nodes[idx1], nodes[idx2], nodes[idx3], nodes[idx4])
+        
+        # Set properties
+        element.SetDensity(density)
+        element.SetThickness(thickness)
+        
+        # Set materials
+        element.AddLayer(thickness, 0, material_internal)
+        
+        # Add element to mesh
+        mesh.AddElement(element)
+        elements.append(element)
 
 # Add the mesh to the system
 system.Add(mesh)
 
-# Add a ground plane
-ground_mat = chrono.ChMaterialSurfaceSMC()
-ground_body = chrono.ChBodyEasyBox(2.0, 0.1, 2.0, 1000, True, True, ground_mat)
-ground_body.SetPos(chrono.ChVectorD(0, -0.05, 0))
-ground_body.SetBodyFixed(True)
-system.Add(ground_body)
+# Set up the PardisoMKL solver (requires appropriate modules)
+try:
+    # Try to use the Pardiso solver
+    mkl_solver = chrono.ChSolverPardisoMKL()
+    mkl_solver.LockSparsityPattern(True)
+    mkl_solver.SetVerbose(False)
+    system.SetSolver(mkl_solver)
+except:
+    # Fallback to the default solver if Pardiso is not available
+    print("PardisoMKL solver not available, using default solver")
+    solver = chrono.ChSolverMINRES()
+    solver.SetMaxIterations(100)
+    solver.SetTolerance(1e-10)
+    solver.EnableDiagonalPreconditioner(True)
+    solver.SetVerbose(False)
+    system.SetSolver(solver)
 
-# Set up the solver
-solver = mkl.ChSolverPardisoMKL()
-system.SetSolver(solver)
+# Set up the timestepper
+system.SetTimestepperType(chrono.ChTimestepper.Type_HHT)
+timestep_integrator = chrono.ChTimestepperHHT(system)
+timestep_integrator.SetAlpha(-0.2)
+timestep_integrator.SetMaxiters(5)
+timestep_integrator.SetAbsTolerances(1e-5)
+timestep_integrator.SetMode(chrono.ChTimestepperHHT.POSITION)
+timestep_integrator.SetScaling(True)
+system.SetTimestepper(timestep_integrator)
 
-# Set up time integration
-integrator = chrono.ChTimestepperHHT(system)
-integrator.SetAlpha(-0.2)
-integrator.SetMaxiters(8)
-integrator.SetAbsTolerances(1e-5)
-integrator.SetMode(chrono.ChTimestepperHHT.POSITION)
-integrator.SetScaling(True)
-integrator.SetVerbose(true)
-system.SetTimestepper(integrator)
-
-# Set up visualization
+# Set up visualization using Irrlicht
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
 vis.SetWindowSize(1024, 768)
 vis.SetWindowTitle("Tablecloth Folding Simulation")
 vis.Initialize()
-vis.AddCamera(chrono.ChVectorD(1.5, 1.5, 1.5), chrono.ChVectorD(0, 0, 0))
+vis.AddCamera(chrono.ChVectorD(0, 0.5, -1), chrono.ChVectorD(0, 0, 0))
 vis.AddTypicalLights()
 
-# Run the simulation
-time_step = 0.001
-simulation_time = 5.0  # seconds
-
-# Time integration loop
-while vis.Run() and system.GetChTime() < simulation_time:
+# Simulation loop
+time = 0.0
+while time < max_simulation_time:
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
     
-    # In a real scenario, here you would apply forces to specific nodes to fold the tablecloth
-    # For example, apply downward force to the free corners to simulate folding
-    if system.GetChTime() > 1.0:  # Start folding after 1 second
-        # Get a corner node and apply force to fold it
-        fold_node = nodes[mesh_resolution * (mesh_resolution + 1)]
-        fold_force = chrono.ChVectorD(0.3, -0.2, 0.3)  # Diagonal folding force
-        fold_node.SetForce(fold_force)
-    
-    system.DoStepDynamics(time_step)
-    
-    # Print time
-    print(f"Time: {system.GetChTime():.3f}")
+    system.DoStepDynamics(timestep)
+    time += timestep
 
-print("Simulation complete!")
+print("Simulation completed")
 ```
 
-This script creates a tablecloth simulation using PyChrono's shell elements with the following features:
+This script creates a simulation of a tablecloth using shell elements in PyChrono with the following features:
 
-1. **Initialization**:
-   - Sets up a ChSystem with SMC (Smooth Contact Method)
-   - Configures gravity and other simulation parameters
+1. Sets up a PyChrono system with gravity
+2. Creates a square tablecloth mesh using ANCF shell elements with an isotropic Kirchhoff material
+3. Fixes the top two corners to simulate hanging
+4. Uses the PardisoMKL solver for efficient computation (with a fallback option)
+5. Sets up proper time-stepping with the HHT integrator
+6. Configures Irrlicht visualization to display the simulation
+7. Runs the simulation for a specified duration
 
-2. **Material Model**:
-   - Uses Kirchhoff-Love shell elements with isotropic material properties
-   - Defines Young's modulus, Poisson ratio, and density for the cloth
-
-3. **Mesh Generation**:
-   - Creates a rectangular mesh grid for the tablecloth
-   - Defines nodes at regular intervals and connects them with shell elements
-
-4. **Boundary Conditions**:
-   - Fixes two corners of the tablecloth to simulate holding it
-   - Adds a ground plane for the tablecloth to interact with
-
-5. **Solver Configuration**:
-   - Uses the PardisoMKL solver for efficient handling of the system
-   - Configures an HHT timestepper for stable time integration
-
-6. **Visualization**:
-   - Sets up an Irrlicht visualization system
-   - Configures camera and lighting for better viewing
-
-7. **Simulation Loop**:
-   - Applies forces to specific nodes to simulate folding after 1 second
-   - Updates the system state and renders the scene at each timestep
-
-The simulation demonstrates how a tablecloth folds under gravity and applied forces, with realistic material deformation using shell elements.
+The tablecloth will naturally fold under gravity while being fixed at two corners. You can adjust parameters like material properties, mesh resolution, and dimensions to achieve different folding behaviors.

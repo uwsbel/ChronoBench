@@ -42,7 +42,7 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  # FPS = 50
 
 # Create the HMMWV vehicle, set parameters, and initialize
-vehicle = veh.HMMWV_Full()  # veh.HMMWV_Reduced() could be another choice
+vehicle = veh.HMMWV_Full() # veh.HMMWV_Reduced() could be another choice
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
@@ -137,17 +137,17 @@ print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
 
-# Define logging step size for data logging frequency
-log_step_size = 0.1  # Log every 0.1 seconds; adjust as needed
-log_steps = math.ceil(log_step_size / step_size)
-
-# Initialize GPS data list
-gps_data = []
-
 # Initialize simulation frame counter
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
+
+# Define log step size for data logging
+log_step_size = 0.1  # seconds, for example
+log_steps = math.ceil(log_step_size / step_size)
+
+# Initialize GPS data list
+gps_data = []
 
 # Simulation loop
 while vis.Run():
@@ -163,48 +163,47 @@ while vis.Run():
     # Get driver inputs
     driver_inputs = driver.GetInputs()
 
-    # --- Implement driver commands based on simulation time ---
-    # Example commands: accelerate forward and steering oscillation
-    # or custom commands based on specific time criteria.
-    # For this example, move with varying throttle and steering:
-    t = time
-    # Example: simple sinusoidal steering and throttle commands
-    steering_cmd = math.sin(t)
-    throttle_cmd = max(0, math.sin(t / 2))  # Throttle only positive (forward)
-    # Apply commands
-    driver.SetSteering(steering_cmd)
-    driver.SetThrottle(throttle_cmd)
-    # Apply braking after 6 seconds
-    if t > 6:
-        driver.SetBraking(1.0)
+    # Modify driver inputs based on simulation time
+    # For example: accelerate with throttle=1 after 2 seconds, steer right, and brake after 6 seconds
+    if time < 2:
+        driver_inputs.m_throttle = 0.0
+        driver_inputs.m_steering = 0.0
+    elif time < 6:
+        driver_inputs.m_throttle = 1.0
+        driver_inputs.m_steering = 0.2  # slight right turn
+        driver_inputs.m_braking = 0.0
     else:
-        driver.SetBraking(0.0)
+        driver_inputs.m_throttle = 0.5
+        driver_inputs.m_steering = -0.2  # slight left turn
+        driver_inputs.m_braking = 0.2  # apply braking
 
-    # Synchronize modules
+    # Apply braking after 6 seconds
+    if time >= 6:
+        driver_inputs.m_braking = 1.0
+
+    # Update modules (process inputs from other modules)
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
 
-    # Advance simulation for one timestep
+    # Advance simulation for one timestep for all modules
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
 
-    # Update sensor manager
-    manager.Update()
-
     # Log GPS data at specified intervals
     if step_number % log_steps == 0:
-        # Retrieve the most recent GPS buffer data
+        # Retrieve the most recent GPS data buffer
         gps_buffer = gps.GetMostRecentGPSBuffer()
-        if gps_buffer:
-            gps_data_point = gps_buffer.GetGPSData()
-            # Store GPS coordinates (assuming GPSData provides lat, lon, alt)
-            # Or the appropriate fields; for simplicity, store as is.
-            if gps_data_point:
-                gps_data.append(gps_data_point)
+        if gps_buffer and gps_buffer.GetSize() > 0:
+            gps_point = gps_buffer.GetGPSData()
+            # Append GPS coordinates (x, y, z) to gps_data list
+            gps_data.append((gps_point.x, gps_point.y, gps_point.z))
+
+    # Update sensor manager in each step
+    manager.Update()
 
     # Increment frame number
     step_number += 1
@@ -212,6 +211,6 @@ while vis.Run():
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
 
-# After simulation ends, output GPS data
+# After simulation ends, output the logged GPS data
 print("GPS Data: ", gps_data)
 ```

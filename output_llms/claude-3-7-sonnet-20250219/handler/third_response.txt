@@ -1,11 +1,11 @@
-After analyzing the provided script, I didn't find any significant errors in the original code. Now I'll implement the requested modifications to add visualization, textures, adjust publishing rates, and control the rendering frame rate.
+After reviewing the script, I've identified no critical errors in the original code. Now I'll implement the requested modifications.
 
 Here's the corrected and modified script:
 
 ```python
 import pychrono as ch
 import pychrono.ros as chros
-import pychrono.irrlicht as chrirr
+import pychrono.irrlicht as chronoirr
 
 import rclpy.publisher
 from std_msgs.msg import Int64
@@ -63,25 +63,31 @@ def main():
     box.SetTexture("textures/wood.jpg")
     sys.Add(box)  # Add the box to the simulation system.
 
-    # Set up Irrlicht visualization
-    vis = chrirr.ChVisualSystemIrrlicht()
+    # Setting up visualization with Irrlicht
+    # -----------------------------------------
+    
+    # Create an Irrlicht application to visualize the system
+    vis = chronoirr.ChVisualSystemIrrlicht()
     vis.AttachSystem(sys)
     vis.SetWindowSize(1024, 768)
-    vis.SetWindowTitle("PyChrono Simulation with ROS")
+    vis.SetWindowTitle("PyChrono ROS Example with Irrlicht Visualization")
     vis.Initialize()
-    vis.AddLogo(chrirr.GetChronoDataFile("logo_pychrono_alpha.png"))
-    vis.AddSkyBox()
-    vis.AddCamera(ch.ChVector3d(0, -10, 0), ch.ChVector3d(0, 0, 0))
-    vis.AddTypicalLights()
-
-    # Set publish rate for ROS handlers
-    publish_rate = 10  # Hz
+    
+    # Set the camera position and target
+    vis.AddCamera(ch.ChVector3d(3, 3, 3), ch.ChVector3d(0, 0, 0))
+    
+    # Add lights
+    vis.AddLightDirectional(color=ch.ChColor(1, 1, 1), direction=ch.ChVector3d(-1, -1, -1))
+    vis.AddLightDirectional(color=ch.ChColor(0.6, 0.6, 0.6), direction=ch.ChVector3d(1, 1, 1))
 
     # Create and configure the ROS manager.
     ros_manager = chros.ChROSPythonManager()
     
+    # Set publish rate for ROS handlers
+    publish_rate = 10  # Hz
+    
     # Register a clock handler for the simulation time.
-    ros_manager.RegisterHandler(chros.ChROSClockHandler())
+    ros_manager.RegisterHandler(chros.ChROSClockHandler(publish_rate))
     
     # Register a body handler to communicate the box's state.
     ros_manager.RegisterHandler(chros.ChROSBodyHandler(publish_rate, box, "~/box"))
@@ -100,8 +106,8 @@ def main():
 
     # Variables for controlling rendering frame rate
     step_number = 0
-    render_step_size = 1e-3  # same as time_step
-    render_steps = 5  # render every 5 steps
+    render_step_size = 0.001  # Time step size for visualization (seconds)
+    render_steps = 5  # Render every 5 simulation steps
 
     # Run the simulation loop.
     time = 0
@@ -110,42 +116,52 @@ def main():
 
     realtime_timer = ch.ChRealtimeStepTimer()  # Create a real-time step timer.
     while time < time_end and vis.Run():
-        # Process Irrlicht GUI events
-        vis.BeginScene()
-        
         # Advance the simulation by one time step
         sys.DoStepDynamics(time_step)
         time = sys.GetChTime()  # Update the simulation time.
         step_number += 1
 
-        # Conditional rendering based on render_steps
-        if step_number % render_steps == 0:
-            vis.Render()
-        
-        vis.EndScene()
-
-        if not ros_manager.Update(time, time_step):  # Update ROS communication.
+        # Update ROS communication
+        if not ros_manager.Update(time, time_step):
             break  # Exit the loop if the ROS manager indicates a problem.
 
+        # Render the scene every few steps to control frame rate
+        if step_number % render_steps == 0:
+            vis.BeginScene()
+            vis.Render()
+            vis.EndScene()
+
         realtime_timer.Spin(time_step)  # Maintain real-time step execution.
+
+    # Properly close visualization
+    vis.GetDevice().closeDevice()
 
 # Entry point of the script.
 if __name__ == "__main__":
     main()
 ```
 
-The key modifications I made are:
+Key modifications I've made:
 
-1. Added Irrlicht visualization by importing the chrirr module and setting up a visual system with camera, lights, and window properties.
+1. Added Irrlicht visualization setup with:
+   - Window configuration (size, title)
+   - Camera positioning at (3, 3, 3) looking at (0, 0, 0)
+   - Two directional lights for better scene illumination
 
-2. Set textures for the floor and box using the `SetTexture` method, pointing to texture files.
+2. Added texture setup for both the floor and box objects using the `SetTexture()` method
 
-3. Introduced a `publish_rate` variable set to 10 Hz and modified the ROS handlers to use this rate.
+3. Implemented a configurable `publish_rate` variable (set to 10 Hz) for all ROS handlers
 
-4. Added variables for controlling rendering frame rate: `step_number`, `render_step_size`, and `render_steps`.
+4. Added rendering control variables:
+   - `step_number` to track simulation steps
+   - `render_step_size` for visualization time step
+   - `render_steps` to control how often the scene is rendered
 
-5. Modified the simulation loop to include conditional rendering based on the `render_steps` variable, only updating the visual scene every few simulation steps.
+5. Modified the simulation loop to:
+   - Conditionally render the scene based on the `render_steps` parameter
+   - Properly begin and end Irrlicht scene rendering
+   - Check if the visualization window is still running
 
-6. Structured the visualization code with BeginScene() and EndScene() as required by the Irrlicht framework.
+6. Added proper cleanup for the visualization system at the end of the simulation
 
-7. Updated the simulation loop to continue running while both the time condition is met and the visualization window is open.
+These changes satisfy all the requirements while maintaining the original simulation functionality.

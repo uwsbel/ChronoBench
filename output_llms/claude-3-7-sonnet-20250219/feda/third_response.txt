@@ -1,12 +1,6 @@
-# Analysis of the provided PyChrono script
+# PyChrono Script Analysis and Modification
 
-After reviewing the provided script, I identified a few potential issues and now I'll implement the requested modifications. The main issues include:
-
-1. The `FEDA` vehicle might not exist in PyChrono's standard vehicle library
-2. The terrain initialization doesn't match the comment about using BOX terrain
-3. The visualization system needs updates for sensor integration
-
-Here's the corrected and modified script implementing all requested features:
+After reviewing the provided PyChrono script, I've identified potential issues and made the required modifications based on your instructions. Here's the corrected and enhanced script:
 
 ```python
 import pychrono.core as chrono
@@ -15,6 +9,7 @@ import pychrono.vehicle as veh
 import pychrono.sensor as sens
 import math
 
+# Set the path to the Chrono data directory
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
@@ -50,9 +45,8 @@ tire_step_size = step_size
 # Time interval between two render frames
 render_step_size = 1.0 / 50  # FPS = 50
 
-# Create the HMMWV vehicle, set parameters, and initialize
-# Using HMMWV instead of FEDA as it's a standard vehicle in PyChrono
-vehicle = veh.HMMWV_Full()
+# Create the FEDA vehicle, set parameters, and initialize
+vehicle = veh.FEDA()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
@@ -68,10 +62,10 @@ vehicle.SetSteeringVisualizationType(vis_type)
 vehicle.SetWheelVisualizationType(vis_type)
 vehicle.SetTireVisualizationType(vis_type)
 
-vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystemType_BULLET)
 
 # Create the terrain
-patch_mat = chrono.ChContactMaterialNSC()
+patch_mat = chrono.ChMaterialSurfaceNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
@@ -79,14 +73,14 @@ patch = terrain.AddPatch(patch_mat,
     chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
     terrainLength, terrainWidth)
 
-# 1. Change the terrain texture to a grass texture
+# Change terrain texture to grass texture
 patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 # Create the vehicle Irrlicht interface
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
-vis.SetWindowTitle('Vehicle Demo with Camera')
+vis.SetWindowTitle('FEDA vehicle')
 vis.SetWindowSize(1280, 1024)
 vis.SetChaseCamera(trackPoint, 6.0, 0.5)
 vis.Initialize()
@@ -95,48 +89,10 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
-# 2. Create a sensor manager
-sens_manager = sens.ChSensorManager(vehicle.GetSystem())
-sens_manager.scene.AddPointLight(chrono.ChVector3d(0, 0, 100), 
-                                chrono.ChVector3d(1, 1, 1), 
-                                1000)
-sens_manager.scene.AddPointLight(chrono.ChVector3d(0, 0, 100), 
-                                chrono.ChVector3d(1, 1, 1), 
-                                1000)
-# Add additional point lights at different positions to ensure good illumination
-sens_manager.scene.AddPointLight(chrono.ChVector3d(10, 10, 20), 
-                                chrono.ChVector3d(1, 1, 1), 
-                                500)
-sens_manager.scene.AddPointLight(chrono.ChVector3d(-10, 10, 20), 
-                                chrono.ChVector3d(1, 1, 1), 
-                                500)
-sens_manager.scene.AddPointLight(chrono.ChVector3d(10, -10, 20), 
-                                chrono.ChVector3d(1, 1, 1), 
-                                500)
-
-# 3. Add a camera sensor
-camera_offset = chrono.ChVector3d(0, 0, 1.75)  # Position on top of vehicle chassis
-camera_direction = chrono.ChVector3d(1, 0, 0)  # Forward-facing
-camera_up = chrono.ChVector3d(0, 0, 1)         # Up direction
-
-# Create the camera with high resolution (1280x720) and appropriate FOV (90 degrees)
-camera = sens.ChCameraSensor(
-    vehicle.GetChassisBody(),                  # body camera is attached to
-    30.0,                                      # update rate in Hz
-    chrono.ChFrameD(camera_offset),            # offset pose
-    1280,                                      # image width
-    720,                                       # image height
-    math.radians(90.0)                         # FOV
-)
-
-# Set camera orientation
-camera.SetOrientationFromXUP(camera_direction, camera_up)
-
-# Add a visualization filter to display the camera feed
-camera.PushFilter(sens.ChFilterVisualize(1280, 720, "First Person Camera View"))
-
-# Add the camera to the sensor manager
-sens_manager.AddSensor(camera)
+# Add point lights to the scene with appropriate intensity
+vis.AddPointLight(chrono.ChVector3d(0, 5, 5), 100, chrono.ChColor(1, 1, 1))
+vis.AddPointLight(chrono.ChVector3d(10, 5, 5), 100, chrono.ChColor(1, 1, 1))
+vis.AddPointLight(chrono.ChVector3d(-10, 5, 5), 100, chrono.ChColor(1, 1, 1))
 
 # Create the driver system
 driver = veh.ChInteractiveDriverIRR(vis)
@@ -151,13 +107,44 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 
 driver.Initialize()
 
-# output vehicle mass
-print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
+# Create a sensor manager
+manager = sens.ChSensorManager(vehicle.GetSystem())
+manager.scene.AddPointLight(chrono.ChVector3d(0, 10, 0), 200, chrono.ChColor(1, 1, 1))
+
+# Add a camera sensor to the vehicle's chassis for first-person view
+offset_pose = chrono.ChFramed(
+    chrono.ChVector3d(0.5, 0, 1.5),  # Position on the chassis
+    chrono.Q_from_AngAxis(0, chrono.ChVector3d(0, 1, 0))  # Forward-facing orientation
+)
+
+# Add a camera with high resolution and appropriate FOV
+camera = sens.ChCameraSensor(
+    vehicle.GetChassisBody(),       # Body camera is attached to
+    30,                            # Update rate in Hz
+    offset_pose,                   # Offset pose
+    1280,                          # Image width
+    720,                           # Image height
+    80                             # Field of view
+)
+
+# Set camera properties
+camera.SetName("First Person Camera")
+camera.SetLag(0.0)
+camera.SetCollectionWindow(0.0)
+
+# Add a visualization filter to display the camera feed
+camera.PushFilter(sens.ChFilterVisualize(1280, 720, "First Person View"))
+
+# Add the camera to the sensor manager
+manager.AddSensor(camera)
+
+# Output vehicle mass
+print("VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
 
-# Initialize simulation frame counter
+# Initialize simulation frame counter s
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
@@ -181,8 +168,8 @@ while vis.Run():
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
     
-    # 4. Update the sensor manager
-    sens_manager.Update()
+    # Update sensor manager to refresh camera
+    manager.Update()
 
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)
@@ -197,23 +184,26 @@ while vis.Run():
     realtime_timer.Spin(step_size)
 ```
 
-## Key Changes Made:
+## Key Corrections and Modifications:
 
-1. **Fixed Vehicle Type**: Changed `FEDA` to `HMMWV_Full`, which is a standard vehicle available in PyChrono's library.
+1. **Fixed errors in the original script**:
+   - Changed `ChContactMaterialNSC` to `ChMaterialSurfaceNSC` (correct class name)
+   - Fixed the collision system type from `chrono.ChCollisionSystem.Type_BULLET` to `chrono.ChCollisionSystemType_BULLET`
 
-2. **Terrain Texture Change**: Changed the terrain texture from "tile4.jpg" to "grass.jpg" to meet requirement #1.
+2. **Terrain Texture Change**:
+   - Changed the terrain texture from "tile4.jpg" to "grass.jpg"
 
-3. **Added Sensor Manager and Lighting**:
-   - Created a `ChSensorManager` attached to the vehicle system
-   - Added multiple point lights with appropriate positions and intensities for better scene illumination
+3. **Sensor Manager and Light Additions**:
+   - Added the sensor module import: `import pychrono.sensor as sens`
+   - Created a sensor manager
+   - Added point lights to the scene with appropriate intensity to ensure good illumination
 
-4. **Added Camera Sensor**:
-   - Created a high-resolution (1280x720) camera sensor attached to the vehicle's chassis
-   - Set a 90-degree field of view for a good first-person perspective
-   - Positioned the camera at an appropriate height (1.75 units above the chassis)
-   - Added a visualization filter to display the camera feed in a separate window
+4. **Camera Sensor Addition**:
+   - Added a camera sensor to the vehicle's chassis with a first-person view
+   - Set high resolution (1280x720) and a 80-degree field of view
+   - Added a visualization filter to render the camera image
 
-5. **Updated Simulation Loop**:
-   - Added `sens_manager.Update()` to ensure the camera view is updated as the vehicle moves
+5. **Sensor Manager Update in Simulation Loop**:
+   - Added `manager.Update()` in the simulation loop to ensure the camera view is updated as the vehicle moves
 
-These modifications fulfill all the requirements while ensuring the script remains functional and free of errors.
+These modifications ensure a correctly functioning simulation with a first-person camera view from the vehicle and an improved terrain appearance.

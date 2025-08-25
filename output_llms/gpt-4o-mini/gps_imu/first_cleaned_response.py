@@ -1,43 +1,47 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
-import pychrono.vehicle as chrono_vehicle
 
 
-chrono.ChSystem.SetNumThreads(4)  
-system = chrono.ChSystem()
+chrono.SetChronoDataPath('/path/to/chrono/data/')  
+system = chrono.ChSystemNSC()
 
 
 application = chronoirr.ChIrrApp(system, "HMMWV Simulation", chronoirr.dimension2d(800, 600))
 application.AddSkyBox()
 application.AddCamera(chrono.ChVectorD(0, 5, -15))
-application.AddLight(chrono.ChVectorD(0, 10, -10), chrono.ChColor(1, 1, 1))
+application.AddTypicalLights()
+application.SetShowLogo(False)
+application.SetShowInfos(True)
 
 
-terrain = chrono_vehicle.ChTerrain()
-terrain.SetGround(chrono.ChVectorD(0, 0, 0), 1000, 1000)  
+terrain = chrono.ChTerrain()
+terrain.SetGround(chrono.ChVectorD(0, 0, 0), 100, 100)  
+system.Add(terrain)
 
 
-hmmwv = chrono_vehicle.HMMWV()
+hmmwv = chrono.ChVehicleHMMWV()
 hmmwv.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0.5, 0), chrono.ChQuaternionD(1, 0, 0, 0)))
-
-
 system.Add(hmmwv)
 
 
-imu_sensor = chrono_vehicle.ChIMU()
-gps_sensor = chrono_vehicle.ChGPS()
+driver = chrono.ChDriverHMMWV(hmmwv)
+driver.SetThrottle(0.5)  
+driver.SetSteering(0.1)  
+system.Add(driver)
 
 
-hmmwv.GetChassis().AddSensor(imu_sensor)
-hmmwv.GetChassis().AddSensor(gps_sensor)
+imu_sensor = chrono.ChIMU()
+imu_sensor.AttachTo(hmmwv.GetChassis())
+system.Add(imu_sensor)
 
 
-hmmwv.SetPos(chrono.ChVectorD(0, 0.5, 0))  
-hmmwv.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))  
+gps_sensor = chrono.ChGPS()
+gps_sensor.AttachTo(hmmwv.GetChassis())
+system.Add(gps_sensor)
 
 
-time_step = 0.01  
-end_time = 10.0   
+time_step = 0.01
+end_time = 10.0
 
 
 while system.GetChTime() < end_time:
@@ -51,11 +55,11 @@ while system.GetChTime() < end_time:
     
     vehicle_mass = hmmwv.GetVehicleMass()
     print(f"Time: {system.GetChTime():.2f} s, Vehicle Mass: {vehicle_mass:.2f} kg")
-    print(f"IMU Data: {imu_data}, GPS Data: {gps_data}")
 
     
+    application.BeginScene()
     application.DrawAll()
-    application.DoStep()
+    application.EndScene()
 
 
 application.Close()

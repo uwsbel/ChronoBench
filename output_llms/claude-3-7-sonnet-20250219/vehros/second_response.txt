@@ -1,44 +1,44 @@
-After analyzing the provided code, I found a few issues that need to be fixed and incorporated the requested modifications for visualization. Here's the corrected and enhanced version of the script:
+After reviewing the code, I've identified a few errors and implemented the requested modifications. Here's the corrected and enhanced PyChrono script:
 
 ```python
 import pychrono as ch
 import pychrono.vehicle as veh
 import pychrono.ros as chros
-from pychrono import irrlicht as chronoirr  # Added import for Irrlicht visualization
+from pychrono import irrlicht as chronoirr
 
 def main():
-    # Set the vehicle data path
-    veh.SetDataPath(ch.GetChronoDataPath() + 'vehicle/')  # Set the Chrono data path for vehicle data
+    # Set the data directory for vehicle models
+    veh.SetDataPath(ch.GetChronoDataPath() + 'vehicle/')
     
     # Create the HMMWV vehicle and set its parameters.
     hmmwv = veh.HMMWV_Full()
     hmmwv.SetContactMethod(ch.ChContactMethod_NSC)  # Set the contact method for physics.
-    hmmwv.SetChassisCollisionType(veh.ChassisCollisionType_NONE)  # Corrected enum name
+    hmmwv.SetChassisCollisionType(veh.CollisionType_NONE)  # Disable collision for the chassis.
     hmmwv.SetChassisFixed(False)  # Make the chassis movable.
-    hmmwv.SetInitPosition(ch.ChCoordsysd(ch.ChVectorD(0, 0, 1.6), ch.ChQuaternionD(1, 0, 0, 0)))  # Corrected vector and quaternion types
+    hmmwv.SetInitPosition(ch.ChCoordsysd(ch.ChVectord(0, 0, 1.6), ch.ChQuaterniond(1, 0, 0, 0)))  # Initialize vehicle position and orientation.
+    
+    # Enhanced visualization settings for HMMWV
+    hmmwv.SetChassisVisualizationType(veh.VisualizationType_MESH)
+    hmmwv.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
+    hmmwv.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
+    hmmwv.SetWheelVisualizationType(veh.VisualizationType_MESH)
+    hmmwv.SetTireVisualizationType(veh.VisualizationType_MESH)
+    
     hmmwv.SetEngineType(veh.EngineModelType_SHAFTS)  # Use shaft-based engine model.
     hmmwv.SetTransmissionType(veh.TransmissionModelType_AUTOMATIC_SHAFTS)  # Use automatic transmission with shafts.
     hmmwv.SetDriveType(veh.DrivelineTypeWV_AWD)  # Set all-wheel drive.
     hmmwv.SetSteeringType(veh.SteeringTypeWV_PITMAN_ARM)  # Use pitman arm steering.
     hmmwv.SetTireType(veh.TireModelType_TMEASY)  # Set tire model.
     hmmwv.SetTireStepSize(1e-3)  # Set the tire simulation step size.
-    
-    # Enhanced visualization settings for the vehicle
-    hmmwv.SetChassisVisualizationType(veh.VisualizationType_MESH)
-    hmmwv.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
-    hmmwv.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
-    hmmwv.SetWheelVisualizationType(veh.VisualizationType_MESH)
-    hmmwv.SetTireVisualizationType(veh.TireVisualizationType_MESH)
-    
     hmmwv.Initialize()  # Initialize the vehicle.
 
     # Create the terrain for the vehicle to interact with.
     terrain = veh.RigidTerrain(hmmwv.GetSystem())
-    patch_mat = ch.ChMaterialSurfaceNSC()  # Corrected material class
+    patch_mat = ch.ChMaterialSurfaceNSC()  # Create a contact material for the terrain.
     patch_mat.SetFriction(0.9)  # Set friction for the terrain.
     patch_mat.SetRestitution(0.01)  # Set restitution (bounciness) for the terrain.
-    patch = terrain.AddPatch(patch_mat, ch.ChCoordsysD(), 100.0, 100.0)  # Corrected coordinate system and store patch
-    patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 100, 100)  # Set texture for terrain
+    patch = terrain.AddPatch(patch_mat, ch.ChVectord(0, 0, 0), ch.ChVectord(0, 0, 1), 100.0, 100.0)  # Add a patch to the terrain.
+    patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 100, 100)  # Set texture for the terrain
     terrain.Initialize()  # Initialize the terrain.
 
     # Create and initialize the driver system.
@@ -53,18 +53,16 @@ def main():
     # Register the vehicle state handler to publish vehicle state to ROS topic '~/output/hmmwv/state'.
     ros_manager.RegisterHandler(chros.ChROSBodyHandler(25, hmmwv.GetChassisBody(), "~/output/hmmwv/state"))
     ros_manager.Initialize()  # Initialize the ROS manager.
-    
-    # Setup visualization with Irrlicht
+
+    # Set up the Irrlicht visualization system
     vis = chronoirr.ChVisualSystemIrrlicht()
     vis.AttachSystem(hmmwv.GetSystem())
     vis.SetWindowSize(1280, 720)
-    vis.SetWindowTitle("HMMWV ROS Demo")
+    vis.SetWindowTitle("HMMWV Simulation with ROS")
     vis.Initialize()
-    vis.AddLogo(ch.GetChronoDataFile("logo_pychrono_alpha.png"))
     vis.AddSkyBox()
-    vis.AddCamera(ch.ChVectorD(0, 4, 1), ch.ChVectorD(0, 0, 1))
+    vis.AddCamera(ch.ChVectord(0, -10, 3), ch.ChVectord(0, 0, 1))
     vis.AddTypicalLights()
-    vis.AddLightWithShadow(ch.ChVectorD(10, 20, 30), ch.ChVectorD(0, 0, 0), 50, 5, 50, 512)
 
     # Start the simulation loop.
     time = 0
@@ -72,7 +70,7 @@ def main():
     time_end = 30  # Set the total duration of the simulation.
 
     hmmwv.GetVehicle().EnableRealtime(True)  # Enable real-time simulation for the vehicle.
-    while time < time_end:
+    while time < time_end and vis.Run():
         time = hmmwv.GetSystem().GetChTime()  # Update simulation time.
 
         # Get driver inputs and synchronize the vehicle, terrain, and driver systems.
@@ -81,54 +79,34 @@ def main():
         terrain.Synchronize(time)  # Synchronize the terrain.
         hmmwv.Synchronize(time, driver_inputs, terrain)  # Synchronize the vehicle with inputs and terrain.
 
-        # Advance the simulation for all modules by one timestep.
-        driver.Advance(time_step)
-        terrain.Advance(time_step)
-        hmmwv.Advance(time_step)
-        
-        # Render scene
+        # Render visualization frame
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
 
+        # Advance the simulation for all modules by one timestep.
+        driver.Advance(time_step)
+        terrain.Advance(time_step)
+        hmmwv.Advance(time_step)
+
         # Update the ROS manager to handle data publishing.
         if not ros_manager.Update(time, time_step):
             break  # Exit loop if ROS manager update fails.
-            
-        # Check if the visualization window is still open
-        if not vis.Run():
-            break
-
-    # Clean up the visualization
-    vis.GetDevice().closeDevice()
 
 if __name__ == "__main__":
     main()
 ```
 
-### Changes Made:
+Corrections and modifications made:
 
-1. **Fixed Type Errors**:
-   - Changed `ch.ChVector3d` to `ch.ChVectorD`
-   - Changed `ch.ChQuaterniond` to `ch.ChQuaternionD`
-   - Changed `ch.ChContactMaterialNSC()` to `ch.ChMaterialSurfaceNSC()`
-   - Changed `veh.CollisionType_NONE` to `veh.ChassisCollisionType_NONE`
-   - Changed `ch.CSYSNORM` to `ch.ChCoordsysD()`
+1. Added `from pychrono import irrlicht as chronoirr` for visualization.
+2. Added `veh.SetDataPath(ch.GetChronoDataPath() + 'vehicle/')` to set the Chrono data path.
+3. Corrected `ChVector3d` to `ChVectord` and `ch.CSYSNORM` to proper terrain patch creation syntax.
+4. Corrected `ch.ChContactMaterialNSC()` to `ch.ChMaterialSurfaceNSC()`.
+5. Enhanced visualization settings for the HMMWV with appropriate visualization types.
+6. Added texture to the terrain patch.
+7. Set up the Irrlicht visualization system with camera and lighting.
+8. Modified the simulation loop to include visualization rendering.
+9. Added visualization conditions to the while loop to exit when the window is closed.
 
-2. **Added Visualization**:
-   - Added import for Irrlicht module
-   - Added data path setup for vehicle models
-   - Added vehicle visualization settings for chassis, suspension, steering, wheels, and tires
-   - Added terrain texture
-   - Setup Irrlicht visualization system with camera, lights, and skybox
-   - Added rendering steps in the simulation loop
-   - Added cleanup code for the visualization system
-
-3. **Improved Terrain Setup**:
-   - Stored the terrain patch in a variable to allow setting texture
-   - Added texture to the terrain patch
-
-4. **Added Window Management**:
-   - Added check to exit when the visualization window is closed
-
-These changes ensure the code runs correctly with visualization features as requested.
+These changes ensure the simulation runs correctly with proper visualization while maintaining the ROS integration.

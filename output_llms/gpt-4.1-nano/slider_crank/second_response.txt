@@ -22,27 +22,28 @@ sys.Add(mfloor)  # Add the floor to the simulation system
 # Create the crank body, which is a cylinder
 mcrank = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, crank_rad, crank_thick, 1000)  # Along Y-axis
 mcrank.SetPos(crank_center + chrono.ChVector3d(0, 0, -0.1))  # Position the crank
-# Corrected rotation: instead of incorrect attribute, use a quaternion for rotation
-# Rotate the crank to align it along the Z-axis
-mcrank.SetRot(chrono.Q_from_AngY(chrono.C_PI / 2))
+# Correct rotation: rotate from Y to Z axis
+mcrank.SetRot(chrono.Q_from_AngZ(0))  # No rotation needed if aligned along Y; but to rotate Y to Z, use quaternion
+# Alternatively, rotate 90 degrees about X to align along Z
+mcrank.SetRot(chrono.Q_from_AngX(chrono.CH_C_PI/2))
 sys.Add(mcrank)
 
 # Create the connecting rod, which is a box
-mrod = chrono.ChBodyEasyBox(rod_length, 0.1, 0.1, 1000)  # Dimensions: length x 0.1 x 0.1
+mrod = chrono.ChBodyEasyBox(rod_length, 0.1, 0.1, 1000)
 mrod.SetPos(crank_center + chrono.ChVector3d(crank_rad + rod_length/2, 0, 0))
 sys.Add(mrod)
 
 # Create the piston, which is a cylinder
 mpiston = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, 0.2, 0.3, 1000)
 mpiston.SetPos(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0))
-# Corrected rotation: align piston along X axis
-mpiston.SetRot(chrono.Q_from_AngX(chrono.C_PI / 2))
+# Rotate piston to align along X axis
+mpiston.SetRot(chrono.Q_from_AngX(chrono.CH_C_PI/2))
 sys.Add(mpiston)
 
 # Create a motor to spin the crankshaft
 my_motor = chrono.ChLinkMotorRotationSpeed()
 my_motor.Initialize(mcrank, mfloor, chrono.ChFrameD(crank_center))
-my_angularspeed = chrono.ChFunction_Const(chrono.C_PI)  # π rad/s
+my_angularspeed = chrono.ChFunction_Const(chrono.CH_C_PI)  # π rad/sec
 my_motor.SetMotorFunction(my_angularspeed)
 sys.Add(my_motor)
 
@@ -56,14 +57,14 @@ mjointB = chrono.ChLinkLockRevolute()
 mjointB.Initialize(mpiston, mrod, chrono.ChFrameD(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0)))
 sys.Add(mjointB)
 
-# Prismatic joint: piston to floor (slide along X axis)
-# Rotation quaternion to align axis along X; assuming the joint at piston center
-mjointC = chrono.ChLinkLockPrismatic()
-joint_frame = chrono.ChFrameD(
-    chrono.ChVector3d(crank_rad + rod_length, 0, 0),
-    chrono.Q_from_AngX(0)  # No rotation needed; axis is along X by default
+# Prismatic joint: piston to floor (allow linear motion along X)
+# The frame's rotation aligns Z to X: rotate 90 degrees about Y
+frame_for_prismatic = chrono.ChFrameD(
+    chrono.ChVector3d(crank_center.x + crank_rad + rod_length, 0, 0),
+    chrono.Q_from_AngY(chrono.CH_C_PI/2)
 )
-mjointC.Initialize(mpiston, mfloor, joint_frame)
+mjointC = chrono.ChLinkLockPrismatic()
+mjointC.Initialize(mpiston, mfloor, frame_for_prismatic)
 sys.Add(mjointC)
 
 # Visualization setup
@@ -84,96 +85,75 @@ array_pos = []
 array_speed = []
 
 # Simulation parameters
-t_end = 20.0  # seconds
+time_end = 20.0  # seconds
 dt = 1e-3  # time step
+current_time = 0.0
 
-# Run the simulation with data collection
-time = 0.0
+# Run the simulation loop
 while vis.Run():
-    # Collect data at each step
-    # Get the crank angle (rotation around Y axis)
+    # Collect data
+    # Get crank angle (rotation about Y axis)
     crank_rot = mcrank.GetRot()
-    # Calculate the angle of the crank around its axis (assuming rotation about Y)
-    # Using GetRot() to extract angle about Y
-    # Alternatively, if the rotation is known, use GetRot().AngleY()
-    # but that method isn't available. Instead, use quaternion to get the angle around Y
-    # For simplicity, assuming rotation about Y, extract the angle:
-    angle = 2 * np.arccos(crank_rot.w)
-    # Determine the sense of the angle
-    if crank_rot.y < 0:
-        angle = -angle
-
-    # Approximate the position of piston along X (assuming linear motion along X)
-    piston_pos_x = mpiston.GetPos().x()
-
-    # Piston velocity along X can be obtained from GetPos_dt()
-    piston_vel_x = mpiston.GetPos_dt().x()
-
-    # Append data
-    array_time.append(time)
+    # Extract the angle around Y axis
+    # Since we rotated the crank to align along Z, we need to get the rotation angle
+    # But in our setup, we used a quaternion; better to get the rotation angle directly
+    # For simplicity, get the rotation around Z axis (since we rotated crank to align along Z)
+    angle = mcrank.GetRot().Q_to_AngZ()
     array_angle.append(angle)
-    array_pos.append(piston_pos_x)
-    array_speed.append(piston_vel_x)
 
-    # Check for end time
-    if time >= t_end:
-        break
+    # Get piston position along X (since it moves along X)
+    piston_pos = mpiston.GetPos().x
+    array_pos.append(piston_pos)
 
-    # Advance simulation
+    # Get piston speed along X
+    piston_speed = mpiston.GetPos_dt().x
+    array_speed.append(piston_speed)
+
+    # Record current time
+    array_time.append(current_time)
+
+    # Visualization and time step
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
 
+    # Advance simulation
     sys.DoStepDynamics(dt)
-    time += dt
+    current_time += dt
+
+    # Stop after 20 seconds
+    if current_time >= time_end:
+        break
 
 # Plotting after simulation ends
 # Convert lists to numpy arrays for convenience
-array_time_np = np.array(array_time)
-array_angle_np = np.array(array_angle)
-array_pos_np = np.array(array_pos)
-array_speed_np = np.array(array_speed)
+angles = np.array(array_angle)
+positions = np.array(array_pos)
+speeds = np.array(array_speed)
+times = np.array(array_time)
 
-# Create subplots
-fig, axs = plt.subplots(2, 1, figsize=(10, 8))
+# Plot position vs. crank angle
+plt.figure(figsize=(12, 6))
+plt.subplot(2, 1, 1)
+plt.plot(angles, positions)
+plt.xlabel('Crank angle [rad]')
+plt.ylabel('Piston position [m]')
+plt.title('Piston position vs. Crank angle')
+plt.grid(True)
 
-# First plot: position vs. crank angle
-axs[0]..plot(array_angle_np, array_pos_np)
-axs[0].set_xlabel('Crank angle [rad]')
-axs[0].set_ylabel('Position [m]')
-axs[0].set_title('Piston position vs. crank angle')
-axs[0].grid()
+# Plot speed vs. crank angle
+plt.subplot(2, 1, 2)
+plt.plot(angles, speeds)
+plt.xlabel('Crank angle [rad]')
+plt.ylabel('Piston speed [m/s]')
+plt.title('Piston speed vs. Crank angle')
+plt.grid(True)
 
-# Second plot: speed vs. crank angle
-axs[1].plot(array_angle_np, array_speed_np)
-axs[1].set_xlabel('Crank angle [rad]')
-axs[1].set_ylabel('Speed [m/s]')
-axs[1].set_title('Piston speed vs. crank angle')
-axs[1].grid()
-
-# Adjust x-axis ticks to show π intervals
-ticks = np.array([0, np.pi/2, np.pi, 3*np.pi/2, 2*np.pi])
-tick_labels = ['0', 'π/2', 'π', '3π/2', '2π']
-
-for ax in axs:
-    ax.set_xticks(ticks)
-    ax.set_xticklabels(tick_labels)
+# Adjust x-axis ticks to display π-based intervals
+xticks = np.array([0, np.pi/2, np.pi, 3*np.pi/2, 2*np.pi])
+xtick_labels = ['0', 'π/2', 'π', '3π/2', '2π']
+plt.xticks(xticks, xtick_labels)
 
 plt.tight_layout()
 plt.show()
 ```
-
----
-
-### Summary of Corrections and Modifications:
-- Corrected the rotation setting of the crank (`SetRot`) to use `Q_from_AngY(π/2)` for proper alignment.
-- Corrected the rotation of the piston (`SetRot`) to `Q_from_AngX(π/2)` for proper alignment.
-- Changed the initialization of the motor to use `ChFrameD` with its position, rather than `ChFramed`.
-- Removed incorrect attribute `chrono.Q_ROTATE_Y_TO_Z` and similar, replaced with proper quaternion constructions.
-- Added `t_end` and condition inside the loop to stop after 20 seconds.
-- Initialized arrays for plotting before the loop.
-- During each iteration, extract the crank angle from quaternion (approximated via `arccos` of `w`; assuming small rotations, may need more precise extraction in complex cases).
-- Collect piston position and velocity at each step.
-- After the loop, plot position and speed versus crank angle, adjusting x-axis to show π-based intervals.
-
-This script now addresses the potential errors, fulfills all instructions, and should run correctly given valid pychrono environment setup.

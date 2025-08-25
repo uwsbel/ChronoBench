@@ -8,7 +8,6 @@ import math
 def main():
     veh.SetDataPath(ch.GetChronoDataPath() + 'vehicle/')
     
-    
     hmmwv = veh.HMMWV_Full()
     hmmwv.SetContactMethod(ch.ChContactMethod_NSC)  
     hmmwv.SetChassisCollisionType(veh.CollisionType_NONE)  
@@ -21,14 +20,12 @@ def main():
     hmmwv.SetTireType(veh.TireModelType_TMEASY)  
     hmmwv.SetTireStepSize(1e-3)  
     hmmwv.Initialize()  
-    
-    
     hmmwv.SetChassisVisualizationType(veh.VisualizationType_MESH)
     hmmwv.SetSuspensionVisualizationType(veh.VisualizationType_MESH)
     hmmwv.SetSteeringVisualizationType(veh.VisualizationType_MESH)
     hmmwv.SetWheelVisualizationType(veh.VisualizationType_MESH)
     hmmwv.SetTireVisualizationType(veh.VisualizationType_MESH)
-    
+
     
     terrain = veh.RigidTerrain(hmmwv.GetSystem())
     patch_mat = ch.ChContactMaterialNSC()  
@@ -37,12 +34,11 @@ def main():
     patch = terrain.AddPatch(patch_mat, ch.CSYSNORM, 100.0, 100.0)  
     patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 100, 100)
     terrain.Initialize()  
+
     
-    
-    box = ch.ChBodyEasyBox(1, 1, 1,  
-                            True,  
-                            True)  
+    box = ch.ChBodyEasyBox(1, 1, 1, 1000, True, True)  
     box.SetPos(ch.ChVector3d(0, 0, 0))  
+    box.SetMaterialSurface(patch_mat)  
     hmmwv.GetSystem().Add(box)  
 
     
@@ -65,31 +61,31 @@ def main():
     
     ros_manager = chros.ChROSPythonManager()
     ros_manager.RegisterHandler(chros.ChROSClockHandler())  
-    ros_manager.RegisterHandler(chros.ChROSDriverInputsHandler(25, driver, "~/input/driver_inputs"))  
-    ros_manager.RegisterHandler(chros.ChROSBodyHandler(25, hmmwv.GetChassisBody(), "~/output/hmmwv/state"))  
-    ros_manager.Initialize()  
+    
+    ros_manager.RegisterHandler(chros.ChROSDriverInputsHandler(25, driver, "~/input/driver_inputs"))
+    
+    ros_manager.RegisterHandler(chros.ChROSBodyHandler(25, hmmwv.GetChassisBody(), "~/output/hmmwv/state"))
 
     
     sens_manager = sens.ChSensorManager(hmmwv.GetSystem())  
-    lidar_sensor = sens.ChLidarSensor(hmmwv.GetChassisBody(),  
-                                       10,  
-                                       0.1,  
-                                       0.1,  
-                                       256,  
-                                       256)  
-    lidar_sensor.SetName("LidarSensor")
-    lidar_sensor.SetPos(ch.ChVector3d(0, 0, 2))  
-    lidar_sensor.SetSamplingTime(0.1)  
-    lidar_sensor.SetFilter(sens.ChLidarSensor.FilterType_Mean)  
+    lidar_sensor = sens.ChLidarSensor(hmmwv.GetChassisBody())  
+    lidar_sensor.SetName("Lidar")
+    lidar_sensor.SetFOV(3.14 / 4)  
+    lidar_sensor.SetRange(10)  
+    lidar_sensor.SetResolution(512)  
+    lidar_sensor.SetSamplingFrequency(10)  
+    lidar_sensor.SetPose(ch.ChCoordsysd(ch.ChVector3d(0, 0, 1.5), ch.ChQuaterniond(1, 0, 0, 0)))  
+    lidar_sensor.SetFilter(sens.LidarFilterType_Mean)  
     sens_manager.AddSensor(lidar_sensor)  
+
     ros_manager.RegisterHandler(chros.ChROSLidarHandler(25, lidar_sensor, "~/output/lidar/data"))  
+
+    ros_manager.Initialize()  
 
     
     time = 0
     time_step = 1e-3  
     time_end = 30  
-    
-    
     step_number = 0
     render_step_size = 1.0 / 25  
     render_steps = math.ceil(render_step_size / time_step)
@@ -97,7 +93,6 @@ def main():
     
     while vis.Run():  
         time = hmmwv.GetSystem().GetChTime()  
-        
         
         if (step_number % render_steps == 0):
             vis.BeginScene()

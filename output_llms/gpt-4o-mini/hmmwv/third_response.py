@@ -80,31 +80,31 @@ vis.AttachVehicle(vehicle.GetVehicle())
 
 # Custom Driver Class Implementation
 class MyDriver(veh.ChDriver):
-    def __init__(self, vehicle, delay):
-        super().__init__(vehicle)
+    def __init__(self, delay):
+        super().__init__()
         self.delay = delay
-        self.start_time = -1  # To track when the driver starts
+        self.start_time = -1  # To track when the simulation starts
 
     def Synchronize(self, time):
         if self.start_time < 0:
-            self.start_time = time  # Initialize start time
+            self.start_time = time  # Set the start time on the first call
 
         elapsed_time = time - self.start_time
 
-        # Control throttle, steering, and braking
+        # Control throttle
         if elapsed_time > self.delay:
-            # Gradually increase throttle to 0.7 after 0.2 seconds
-            if elapsed_time < 0.2:
-                self.SetThrottle(elapsed_time / 0.2 * 0.7)
+            throttle_time = elapsed_time - self.delay
+            if throttle_time < 0.2:
+                self.SetThrottle(throttle_time / 0.2 * 0.7)  # Gradually increase to 0.7
             else:
                 self.SetThrottle(0.7)
 
-            # Sinusoidal steering starting at 2 seconds
-            if elapsed_time > 2:
-                self.SetSteering(math.sin((elapsed_time - 2) * math.pi))  # Sinusoidal pattern
+        # Control steering using a sinusoidal pattern starting at 2 seconds
+        if elapsed_time > 2.0:
+            self.SetSteering(0.5 * math.sin(2 * math.pi * (elapsed_time - 2.0)))
 
 # Create the custom driver
-driver = MyDriver(vehicle, 0.5)
+driver = MyDriver(delay=0.5)
 
 # Initialize the driver
 driver.Initialize()
@@ -124,7 +124,7 @@ render_frame = 0
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
-    # End simulation after 4 seconds
+    # End simulation condition
     if time >= 4.0:
         break
 

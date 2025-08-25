@@ -52,7 +52,7 @@ def main():
     sens_manager.AddSensor(cam)
 
     
-    lidar = sens.ChLidarSensor(ground_body, 5., offset_pose, 90, 300, 2*ch.CH_PI, ch.CH_PI / 12, -ch.CH_PI / 6, 100., 0)
+    lidar = sens.ChLidarSensor(ground_body, 5., offset_pose, 90, 300, 2 * ch.CH_PI, ch.CH_PI / 12, -ch.CH_PI / 6, 100., 0)
     lidar.PushFilter(sens.ChFilterDIAccess())  
     lidar.PushFilter(sens.ChFilterPCfromDepth())  
     lidar.PushFilter(sens.ChFilterXYZIAccess())  
@@ -61,7 +61,7 @@ def main():
     sens_manager.AddSensor(lidar)
 
     
-    lidar2d = sens.ChLidarSensor(ground_body, 5., offset_pose, 360, 100, 2 * ch.CH_PI, ch.CH_PI / 180, -ch.CH_PI / 2, 100., 0)
+    lidar2d = sens.ChLidarSensor(ground_body, 5., offset_pose, 360, 300, 2 * ch.CH_PI, ch.CH_PI / 12, -ch.CH_PI / 6, 100., 0)
     lidar2d.PushFilter(sens.ChFilterDIAccess())  
     lidar2d.PushFilter(sens.ChFilterVisualize(1280, 720))  
     lidar2d.SetName("lidar2d")

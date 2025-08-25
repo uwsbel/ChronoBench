@@ -37,7 +37,7 @@ step_size = 1e-4
 tire_step_size = step_size
 
 
-render_step_size = 1.0 / 60  
+render_step_size = 1.0 / 100  
 
 
 
@@ -93,20 +93,12 @@ driver = veh.ChInteractiveDriverIRR(vis)
 
 steering_time = 5.0  
 throttle_time = 1.0  
-braking_time = 0.3   
+braking_time = 0.3    
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
 
 driver.Initialize()
-
-
-reference_speed = 10.0  
-Kp = 1.0  
-Ki = 0.1  
-Kd = 0.5  
-integral = 0.0
-previous_error = 0.0
 
 
 
@@ -123,6 +115,14 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
+
+reference_speed = 10.0  
+pid_kp = 0.5  
+pid_ki = 0.1  
+pid_kd = 0.05  
+integral = 0.0
+previous_error = 0.0
+
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
@@ -137,21 +137,22 @@ while vis.Run():
     driver_inputs = driver.GetInputs()
 
     
+    current_speed = vehicle.GetVehicle().GetSpeed().Length()
+    error = reference_speed - current_speed
+
+    
+    integral += error * step_size
+    derivative = (error - previous_error) / step_size
+    throttle = pid_kp * error + pid_ki * integral + pid_kd * derivative
+    throttle = max(0, min(throttle, 1))  
+    driver_inputs.m_throttle = throttle
+    previous_error = error
+
+    
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
-
-    
-    current_speed = vehicle.GetVehicle().GetSpeed()
-    error = reference_speed - current_speed
-    integral += error * step_size
-    derivative = (error - previous_error) / step_size
-    throttle = Kp * error + Ki * integral + Kd * derivative
-    throttle = max(0, min(throttle, 1))  
-    driver.SetThrottle(throttle)
-
-    previous_error = error
 
     
     driver.Advance(step_size)

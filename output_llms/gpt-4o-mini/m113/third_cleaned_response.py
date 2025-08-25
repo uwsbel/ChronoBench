@@ -71,19 +71,6 @@ patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 
-box_length = 10.0
-box_width = 2.0
-box_height = 0.5
-box_material = chrono.ChMaterialSurfaceSMC()
-box_material.SetFriction(0.9)
-box_material.SetRestitution(0.01)
-
-box = chrono.ChBodyEasyBox(box_length, box_width, box_height, 1000, True, True)
-box.SetPos(chrono.ChVector3d(0, 0, box_height / 2))  
-box.SetMaterialSurface(box_material)
-vehicle.GetSystem().Add(box)
-
-
 vis = veh.ChTrackedVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('M113 Demo')
 vis.SetWindowSize(1280, 1024)
@@ -108,7 +95,6 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 
-
 vehicle.GetSystem().SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
 
 
@@ -121,6 +107,23 @@ render_steps = math.ceil(render_step_size / step_size)
 step_number = 0
 render_frame = 0
 vehicle.GetVehicle().EnableRealtime(True)
+
+
+box_length = 10.0
+box_width = 2.0
+box_height = 0.5
+box_material = chrono.ChMaterialSurfaceSMC()
+box_material.SetFriction(0.9)
+box_material.SetRestitution(0.01)
+
+
+box = chrono.ChBodyEasyBox(box_length, box_width, box_height, 1000, True, True)
+box.SetPos(chrono.ChVectorD(0, 0, box_height / 2))  
+box.SetMaterialSurface(box_material)
+box.GetCollisionModel().BuildModel()
+box.SetCollide(True)
+vehicle.GetSystem().Add(box)
+
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
     
@@ -132,9 +135,7 @@ while vis.Run():
 
     
     driver_inputs = driver.GetInputs()
-    
     driver_inputs.m_throttle = 0.8  
-
     
     driver.Synchronize(time)
     terrain.Synchronize(time)

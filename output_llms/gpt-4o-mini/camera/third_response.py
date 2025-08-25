@@ -17,6 +17,7 @@ def main():
     side = 2.0  # Define the side length of the box
     box_body = chrono.ChBodyEasyBox(side, side, side, 1000, True, True)  # Create a box with density 1000
     box_body.SetPos(chrono.ChVector3d(0, 0, 0))  # Set the position of the box
+    box_body.SetFixed(True)  # Fix the box in space
     mphysicalSystem.Add(box_body)  # Add the box to the physical system
 
     # -----------------------
@@ -36,7 +37,7 @@ def main():
     # ------------------------------------------------
     # Create a camera and add it to the sensor manager
     # ------------------------------------------------
-    # Define the camera offset pose relative to the body it is attached to
+    # Define the camera offset pose relative to the box it is attached to
     offset_pose = chrono.ChFramed(chrono.ChVector3d(-7, 0, 3), chrono.QuatFromAngleAxis(2, chrono.ChVector3d(0, 1, 0)))
 
     # Initialize the camera sensor

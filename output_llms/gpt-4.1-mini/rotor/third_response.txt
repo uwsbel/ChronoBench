@@ -5,73 +5,32 @@ import pychrono.fea as fea
 import pychrono.pardisomkl as mkl
 import pychrono.irrlicht as chronoirr
 
-
-# 1. Define the custom motor function class as requested
-class ChFunctionMyFun(chrono.ChFunction):
-    def __init__(self, A1=40, A2=10, T1=0.03, T2=0.07, T3=0.15, w=20):
-        super().__init__()
-        self.A1 = A1
-        self.A2 = A2
-        self.T1 = T1
-        self.T2 = T2
-        self.T3 = T3
-        self.w = w
-
-    def Get_y_dx(self, x):
-        # This is a combined method returning (val, deriv), but PyChrono Python API expects only Get_y(x).
-        # We'll only implement Get_y (GetVal)
-        # Leave as a stub if needed, no override necessary in Python.
-
-        # If implementation needed, could be added. For now, we skip.
-
-        return self.GetVal(x)
-
-    def GetVal(self, x):
-        # piecewise function for time x
-        if x < 0:
-            return 0.0
-        if 0 <= x < self.T1:
-            return self.A1 * x / self.T1
-        elif self.T1 <= x < self.T2:
-            return self.A1
-        elif self.T2 <= x < self.T3:
-            # linear decrease from A1 to A2 between T2 and T3
-            return self.A1 - (self.A1 - self.A2) * (x - self.T2) / (self.T3 - self.T2)
-        else:
-            return self.A2 * m.sin(self.w * (x - self.T3))
-
-
 sys = chrono.ChSystemSMC()
 
 mesh = fea.ChMesh()
 sys.Add(mesh)
 
-# The SetAutomaticGravity API has been changed in some Chrono versions,
-# typically doesn't require second argument; assuming PyChrono 7.x or later:
-# The second argument "2" might be invalid.
-mesh.SetAutomaticGravity(True)  # Removed '2' argument.
-
-sys.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Updated method name to Set_G_acc which is standard in PyChrono
+mesh.SetAutomaticGravity(True,
+                         2)  # for max precision in gravity of FE, at least 2 integration points per element when using cubic IGA
+sys.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Corrected method name for setting gravity
 
 beam_L = 6
 beam_ro = 0.050
 beam_ri = 0.045
-CH_PI = m.pi  # more precise PI value from math.pi
+CH_PI = 3.141592653589793  # Use a more accurate pi value
 
-
-# Create a section, i.e. thickness and material properties for beams. This will be shared among some beams.
+# Create a section, i.e. thickness and material properties
+# for beams. This will be shared among some beams.
 
 minertia = fea.ChInertiaCosseratSimple()
 minertia.SetDensity(7800)
 minertia.SetArea(CH_PI * (pow(beam_ro, 2) - pow(beam_ri, 2)))
 minertia.SetIyy((CH_PI / 4.0) * (pow(beam_ro, 4) - pow(beam_ri, 4)))
 minertia.SetIzz((CH_PI / 4.0) * (pow(beam_ro, 4) - pow(beam_ri, 4)))
-# SetIxx is missing, but may not be required.
 
 melasticity = fea.ChElasticityCosseratSimple()
 melasticity.SetYoungModulus(210e9)
 melasticity.SetShearModulusFromPoisson(0.3)
-# Note: For IGA beams, Iyy, Izz are usually moments of inertia
 melasticity.SetIyy((CH_PI / 4.0) * (pow(beam_ro, 4) - pow(beam_ri, 4)))
 melasticity.SetIzz((CH_PI / 4.0) * (pow(beam_ro, 4) - pow(beam_ri, 4)))
 melasticity.SetJ((CH_PI / 2.0) * (pow(beam_ro, 4) - pow(beam_ri, 4)))
@@ -81,31 +40,26 @@ msection = fea.ChBeamSectionCosserat(minertia, melasticity)
 msection.SetCircular(True)
 msection.SetDrawCircularRadius(beam_ro)  # SetAsCircularSection(..) would overwrite Ixx Iyy J etc.
 
-# Use the ChBuilderBeamIGA tool for creating a straight rod divided in Nel elements:
+# Use the ChBuilderBeamIGA tool for creating a straight rod
+# divided in Nel elements:
 
 builder = fea.ChBuilderBeamIGA()
 builder.BuildBeam(mesh,  # the mesh to put the elements in
                   msection,  # section of the beam
                   20,  # number of sections (spans)
-                  chrono.ChVectorD(0, 0, 0),  # start point (use ChVectorD for doubles)
+                  chrono.ChVectorD(0, 0, 0),  # start point
                   chrono.ChVectorD(beam_L, 0, 0),  # end point
                   chrono.VECT_Y,  # suggested Y direction of section
                   1)  # order (3 = cubic, etc)
 
-# For indexing of Python lists, GetLastBeamNodes() returns a list
-last_nodes = builder.GetLastBeamNodes()
-node_mid = last_nodes[int(len(last_nodes)/2)]
+# Corrected access to nodes: use len() and integer division
+node_mid = builder.GetLastBeamNodes()[len(builder.GetLastBeamNodes()) // 2]
 
 # Create the flywheel and attach it to the center of the beam
 
-mbodyflywheel = chrono.ChBodyEasyCylinder(0.24, 0.1, 7800)  # (radius, height, density)
-# ChBodyEasyCylinder signature is (radius, height, density) in PyChrono
-
-mbodyflywheel.SetPos(node_mid.GetPos() + chrono.ChVectorD(0, 0.05, 0))  # flywheel initial center plus Y offset
-
-# Set orientation (rotated 90° so cylinder axis is on X)
-mbodyflywheel.SetRot(chrono.ChQuaternionD().Set_AngAxis(CH_PI / 2.0, chrono.VECT_Z))
-
+mbodyflywheel = chrono.ChBodyEasyCylinder(0.24, 0.1, 7800)  # R, h, density
+mbodyflywheel.SetPos(node_mid.GetPos() + chrono.ChVectorD(0, 0.05, 0))  # Set position separately
+mbodyflywheel.SetRot(chrono.Q_from_AngAxis(CH_PI / 2.0, chrono.VECT_Z))  # Set rotation separately
 sys.Add(mbodyflywheel)
 
 myjoint = chrono.ChLinkMateFix()
@@ -114,15 +68,14 @@ sys.Add(myjoint)
 
 # Create the truss
 truss = chrono.ChBody()
-truss.SetBodyFixed(True)  # Use SetBodyFixed(True) for fixed body
+truss.SetBodyFixed(True)
 sys.Add(truss)
 
-# Create the end bearing (generic mate)
+# Create the end bearing
 bearing = chrono.ChLinkMateGeneric(False, True, True, False, True, True)
-bearing.SetName("bearing_end")
-bearing.Initialize(last_nodes[-1],  # last node of beam
+bearing.Initialize(builder.GetLastBeamNodes()[-1],
                    truss,
-                   chrono.ChFrameD(last_nodes[-1].GetPos())  # Initialize with ChFrameD, not ChFramed
+                   chrono.ChFrameD(builder.GetLastBeamNodes()[-1].GetPos())
                    )
 sys.Add(bearing)
 
@@ -130,17 +83,43 @@ sys.Add(bearing)
 rotmotor1 = chrono.ChLinkMotorRotationSpeed()
 
 # Connect the rotor and the stator and add the motor to the system:
-rotmotor1.Initialize(last_nodes[0],  # body A (slave)
+rotmotor1.Initialize(builder.GetLastBeamNodes()[0],  # body A (slave)
                      truss,  # body B (master)
-                     chrono.ChFrameD(last_nodes[0].GetPos(),
-                                     chrono.ChQuaternionD().Set_AngAxis(CH_PI / 2.0, chrono.VECT_Y))
+                     chrono.ChFrameD(builder.GetLastBeamNodes()[0].GetPos(),
+                                     chrono.Q_from_AngAxis(CH_PI / 2.0, chrono.VECT_Y))
                      # motor frame, in abs. coords
                      )
 sys.Add(rotmotor1)
 
-# Use the custom motor function instead of the simple sine
-f_myfun = ChFunctionMyFun()
-rotmotor1.SetMotorFunction(f_myfun)
+# Define the custom motor function class as per instructions
+class ChFunctionMyFun(chrono.ChFunction):
+    def __init__(self, A1=40, A2=20, T1=0.1, T2=0.3, T3=0.5, w=20):
+        super().__init__()
+        self.A1 = A1
+        self.A2 = A2
+        self.T1 = T1
+        self.T2 = T2
+        self.T3 = T3
+        self.w = w
+
+    def Get_y(self, x):
+        # This method is required by Chrono's ChFunction interface
+        return self.GetVal(x)
+
+    def GetVal(self, x):
+        # Piecewise function based on time x
+        if x < self.T1:
+            return self.A1 * x / self.T1
+        elif x < self.T2:
+            return self.A1
+        elif x < self.T3:
+            return self.A1 - (self.A1 - self.A2) * (x - self.T2) / (self.T3 - self.T2)
+        else:
+            return self.A2 * m.sin(self.w * (x - self.T3))
+
+# Instantiate and set the custom motor function
+custom_motor_function = ChFunctionMyFun()
+rotmotor1.SetMotorFunction(custom_motor_function)
 
 # Attach a visualization of the FEM mesh.
 
@@ -168,14 +147,16 @@ vis.AddSkyBox()
 vis.AddCamera(chrono.ChVectorD(0, 1, 4), chrono.ChVectorD(beam_L / 2, 0, 0))
 vis.AddTypicalLights()
 
-# Use Pardiso MKL solver
 msolver = mkl.ChSolverPardisoMKL()
 sys.SetSolver(msolver)
 
-# Uncomment the next line to use a more precise HHT timestepper
-# tstepper = chrono.ChTimestepperHHT()
-# tstepper.SetAlpha(-0.2)
-# sys.SetTimestepper(tstepper)
+# Uncomment the following lines to use a more precise HHT timestepper
+# hht = chrono.ChTimestepperHHT()
+# hht.SetAlpha(-0.2)
+# hht.SetMaxiters(50)
+# hht.SetAbsTolerances(1e-5, 1e-3)
+# hht.SetMode(chrono.ChTimestepperHHT.POSITION)
+# sys.SetTimestepper(hht)
 
 sys.DoStaticLinear()
 
@@ -187,16 +168,17 @@ while vis.Run():
 ```
 ---
 
-### Summary of Fixes and Modifications:
-- **Custom Motor Function**: Added the `ChFunctionMyFun` class inheriting from `chrono.ChFunction` implementing `GetVal`.
-- **Gravity Setting**: Updated gravity setting methods (`Set_G_acc`) and removed invalid second parameter from `SetAutomaticGravity`.
-- **Constants**: Used `math.pi` for better precision.
-- **Vectors**: Used `ChVectorD` and `ChFrameD` as per standard PyChrono Python API conventions.
-- **Quaternion and Frames**: Used `ChQuaternionD().Set_AngAxis(...)` and `ChFrameD` instead of `chrono.QuatFromAngleAxis` or `chrono.ChFramed` for orientation/frame initialization, which is more standard in PyChrono Python.
-- **BodyFixed Setting**: Used `SetBodyFixed(True)` to fix the truss body.
-- **Indexer fix**: Used Python indexing properly for node arrays.
-- **Motor Function**: Replaced sine motor function with the custom one.
-- **Comments added** where appropriate.
-- **Optionally included** commented-out lines for HHT timestepper setup.
+### Summary of corrections and modifications:
 
-This updated code should run correctly under PyChrono with the new custom motor function and adhere to best practices for Python API usage.
+- **Gravity setting**: Changed `sys.SetGravitationalAcceleration` to `sys.Set_G_acc` with `ChVectorD` (double precision vector). The original method name was incorrect.
+- **Pi value**: Replaced `CH_PI = 3.1456` with a more accurate `3.141592653589793`.
+- **Node indexing**: Replaced `.size()` with `len()` and used integer division `//` for indexing.
+- **Flywheel creation**: Corrected `ChBodyEasyCylinder` constructor parameters (removed axis argument, which does not exist), and set position and rotation separately using `SetPos` and `SetRot` with `ChVectorD` and `Q_from_AngAxis`.
+- **Truss fixed flag**: Changed `SetFixed(True)` to `SetBodyFixed(True)` which is the correct method.
+- **ChFrame and Quat constructors**: Replaced `ChFramed` with `ChFrameD` and `QuatFromAngleAxis` with `Q_from_AngAxis` (correct PyChrono Python API names).
+- **Motor function**: Implemented the custom `ChFunctionMyFun` class inheriting from `chrono.ChFunction` with the required `GetVal` method and piecewise function as per instructions.
+- **Set motor function**: Replaced the sine function with an instance of `ChFunctionMyFun`.
+- **Visualization**: Retained all visualization settings as requested.
+- **HHT timestepper**: Added commented-out code for a more precise HHT timestepper setup as requested.
+
+This script should now run correctly and meet the requirements.

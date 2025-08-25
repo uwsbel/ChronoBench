@@ -3,177 +3,151 @@ import pychrono as chrono
 import pychrono.fea as fea
 import pychrono.irrlicht as chronoirr
 
-# -----------------------------------------------------------------------------
 # 1. Initialize the PyChrono environment and core components
-# -----------------------------------------------------------------------------
-chrono.SetChronoDataPath(chrono.GetChronoDataPath())  # Use default data path
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())  # Ensure data path is set for assets
 
-sys = chrono.ChSystemSMC()
+# Create the physical system
+system = chrono.ChSystemSMC()
 
-# Use a suitable timestepper and solver for nonlinear dynamic analysis
+# Set solver and timestepper for accurate dynamics simulation
 solver = chrono.ChSolverMINRES()
 solver.SetMaxIterations(100)
 solver.SetTolerance(1e-10)
 solver.EnableDiagonalPreconditioner(True)
-sys.SetSolver(solver)
+system.SetSolver(solver)
 
-sys.SetTimestepperType(chrono.ChTimestepper.Type.ALMANSS)
-timestepper = sys.GetTimestepper()
-timestepper.SetStepControl(True)
-timestepper.SetMinStep(1e-5)
-timestepper.SetMaxStep(1e-3)
-timestepper.SetTolerance(1e-5)
+# Use HHT timestepper for better stability in dynamics
+timestepper = chrono.ChTimestepperHHT()
+timestepper.SetAlpha(-0.2)
+timestepper.SetMaxiters(50)
+timestepper.SetAbsTolerances(1e-6, 1e-6)
+timestepper.SetMode(chrono.ChTimestepperHHT.Position)
+system.SetTimestepper(timestepper)
 
-sys.SetTimeStep(1e-4)
+# 2. Add the required physical systems and objects as specified
 
-# -----------------------------------------------------------------------------
-# 2. Create the finite element mesh and beam for buckling scenario
-# -----------------------------------------------------------------------------
+# Create a mesh for FEA
 mesh = fea.ChMesh()
 
-# Beam geometry parameters
-length = 1.0     # 1 meter long
-num_elements = 20
-element_length = length / num_elements
+# Beam parameters
+beam_length = 1.0  # meters
+beam_section_height = 0.02
+beam_section_width = 0.02
+beam_density = 7800  # steel density kg/m^3
+beam_E = 2.1e11  # Young's modulus in Pa
+beam_G = 8.1e10  # Shear modulus in Pa
+beam_nseg = 20  # number of beam elements
 
-# Material properties (steel-like)
-E = 2.1e11        # Young's modulus (Pa)
-nu = 0.3          # Poisson ratio
-rho = 7800        # Density (kg/m^3)
-g = 9.81          # gravity (m/s^2)
+# Create beam section (rectangular)
+section = fea.ChBeamSectionEulerAdvanced()
+section.SetDensity(beam_density)
+section.SetYoungModulus(beam_E)
+section.SetGshear(beam_G)
+section.SetAsRectangularSection(beam_section_width, beam_section_height)
 
-# Section properties - assume rectangular cross section
-beam_width = 0.02  # 2 cm
-beam_height = 0.02 # 2 cm
-A = beam_width * beam_height
-Iyy = (beam_width * beam_height ** 3) / 12.0
-
-# Create the beam section and material
-beam_section = fea.ChBeamSectionAdvanced()
-beam_section.SetYoungModulus(E)
-beam_section.SetGwithPoissonRatio(E, nu)  # approximate shear modulus G given nu
-beam_section.SetDensity(rho)
-beam_section.SetAsRectangularSection(beam_width, beam_height)
-beam_section.SetBeamRalstonShear(True)
-
-# Create the nodes for the beam (line of nodes)
+# Create nodes for the beam
 nodes = []
-for i in range(num_elements + 1):
-    x = i * element_length
-    node = fea.ChNodeFEAxyzrot(chrono.ChVectorD(x, 0, 0))
+for i in range(beam_nseg + 1):
+    x = beam_length * i / beam_nseg
+    node = fea.ChNodeFEAxyzrot(chrono.ChVectorD(x, 0, 0), chrono.QUNIT)
+    node.SetMass(0)  # mass is from beam elements
     mesh.AddNode(node)
     nodes.append(node)
 
-# Create the beam elements connecting the nodes
-for i in range(num_elements):
+# Create beam elements connecting nodes
+for i in range(beam_nseg):
     beam_element = fea.ChElementBeamEuler()
     beam_element.SetNodes(nodes[i], nodes[i + 1])
-    beam_element.SetSection(beam_section)
-    beam_element.SetPitchNeutralAxis(True)
+    beam_element.SetSection(section)
+    beam_element.SetAlphaDamp(0.01)  # some damping
     mesh.AddElement(beam_element)
 
-# Add gravity to the system
-sys.Set_G_acc(chrono.ChVectorD(0, -g, 0))
-
 # Add the mesh to the system
-sys.Add(mesh)
+system.Add(mesh)
 
-# -----------------------------------------------------------------------------
-# 3. Fix the left end of the beam (fully fixed constraint)
-# -----------------------------------------------------------------------------
-left_node = nodes[0]
+# Fix the first node (clamped boundary condition)
+fix_node = nodes[0]
+fix_node.SetFixed(True)
 
-# Fix position (XYZ) and rotation (ROT)
-left_node.SetFixed(True)
+# 3. Define custom motor functions and constraints
 
-# -----------------------------------------------------------------------------
-# 4. Add a custom motor at the right end applying axial compression load
-# -----------------------------------------------------------------------------
-# We'll constrain the last node to a motor moving in X direction pushing inward
+# Create a motor at the free end to apply axial compression (simulate buckling load)
+motor_body = chrono.ChBody()
+motor_body.SetBodyFixed(True)
+system.Add(motor_body)
 
-right_node = nodes[-1]
+# Create a dummy body at the free end to attach motor
+free_end_body = chrono.ChBody()
+free_end_body.SetMass(1)
+free_end_body.SetInertiaXX(chrono.ChVectorD(0.1, 0.1, 0.1))
+free_end_body.SetPos(nodes[-1].GetPos())
+system.Add(free_end_body)
 
-# Create a link motor between right_node and ground
-motor_frame = chrono.ChFrameD()
+# Attach last node to free_end_body with a constraint (rigid)
+link_node_body = chrono.ChLinkPointFrame()
+link_node_body.Initialize(nodes[-1], free_end_body)
+system.AddLink(link_node_body)
 
-# Initialize motor frame at right node position, aligned with X direction
-motor_frame.SetPos(right_node.GetPos())
-
-motor = chrono.ChLinkMotorRotationAngle()
-motor.SetMotorFunction(chrono.ChFunction_Ramp(-0.01, 0))  
-# Here -0.01 rad/s starting at t=0 (we will override this by a custom function below)
-# Actually since it is beam axial compression, a rotational motor is not ideal.
-# Instead, use a linear motor (translation) along X axis.
-
-# Actually use ChLinkMotorLinearPosition for translation control
-
-motor_lin = chrono.ChLinkMotorLinearPosition()
-motor_lin.SetName("AxialCompressionMotor")
-
-motor_lin.Initialize(right_node, sys.GetGroundBody(), chrono.ChFrameD(right_node.GetPos()))
-
-# Define a custom motor function applying a slow displacement inward along X:
-
-class AxialCompressionFunction(chrono.ChFunction):
+# Define a custom motor function to apply a slowly increasing axial displacement
+class AxialCompressionMotor(chrono.ChFunction):
     def __init__(self):
         super().__init__()
-    def Get_y(self, x):
-        # x: time
-        # Returns the position command along X (displacement)
-        # Ramp from 0 to -0.01 m over 1 second, then hold
-        if x < 1.0:
-            return -0.01 * x
-        else:
-            return -0.01
-    def Clone(self):
-        return AxialCompressionFunction()
+        self.speed = 0.001  # m/s compression speed
 
-motor_lin.SetMotorFunction(AxialCompressionFunction())
+    def Get_y(self, t):
+        # Displacement increases linearly with time
+        return -self.speed * t
 
-sys.Add(motor_lin)
+motor_function = AxialCompressionMotor()
 
-# To ensure beam element connectivity and constraints are respected, add nodes constraints:
+# Create a linear motor between motor_body (fixed) and free_end_body
+motor = chrono.ChLinkLinActuator()
+motor.Initialize(motor_body, free_end_body, chrono.ChFrameD(nodes[-1].GetPos()), True)
+motor.Set_dist_funct(motor_function)
+system.AddLink(motor)
 
-# Optionally, to keep the right node rotationally free but constrained in other directions,
-# fix Y and Z translations:
-right_node.SetFixed(False)  # Let motor move it in X
-# But limit Y,Z translations by constraints - PyChrono does not offer per-axis fixed easily on nodes,
-# So alternatively constrain via links:
+# Visualization setup with Irrlicht
+application = chronoirr.ChIrrApp(system, "Beam Buckling FEA Simulation", chronoirr.dimension2du(1024, 768))
 
-# Create a prismatic joint to block Y and Z movement, allow X translation:
-prismatic = chrono.ChLinkLockPrismaticX()
-prismatic.Initialize(right_node, sys.GetGroundBody(), chrono.ChFrameD(right_node.GetPos()))
-sys.Add(prismatic)
-
-# -----------------------------------------------------------------------------
-# 5. Set solver parameters for better accuracy and robustness (already done above)
-# -----------------------------------------------------------------------------
-
-# -----------------------------------------------------------------------------
-# 6. Visualization: Use Irrlicht application to visualize beam and simulation
-# -----------------------------------------------------------------------------
-application = chronoirr.ChIrrApp(sys, "Beam Buckling Simulation with FEA and Custom Motor", chronoirr.dimension2du(1024, 768))
 application.AddTypicalSky()
 application.AddTypicalLights()
-application.AddTypicalCamera(chronoirr.vector3df(0.5, 0.3, 1.5))
-application.SetTimestep(1e-4)
+application.AddTypicalCamera(chronoirr.vector3df(beam_length * 0.5, 0.5, 1.5))
 
-# Visualize mesh (elements wireframe)
-fea_vis = fea.ChVisualizationFEAmesh(mesh)
-fea_vis.SetFEMdataType(fea.ChVisualizationFEAmesh.E_PLOT_NONE)  # no scalar data plot
-fea_vis.SetWireframe(True)
-fea_vis.SetDrawNodes(False)
-mesh.AddVisualization(fea_vis)
+# Visualize the beam mesh
+fea_visual = fea.ChVisualizationFEAmesh(mesh)
+fea_visual.SetFEMdataType(fea.ChVisualizationFEAmesh.E_PLOT_ELEM_BEAM_MX)  # bending moment x
+fea_visual.SetColorscaleMinMax(-1e3, 1e3)
+fea_visual.SetShrinkElements(True, 0.85)
+mesh.AddVisualization(fea_visual)
 
 application.AssetBindAll()
 application.AssetUpdateAll()
 
-# -----------------------------------------------------------------------------
-# 7. Simulation loop
-# -----------------------------------------------------------------------------
+# Simulation loop parameters
+timestep = 1e-4
+time_end = 2.0
+
+application.SetTimestep(timestep)
+
+print("Starting simulation...")
+
 while application.GetDevice().run():
     application.BeginScene()
     application.DrawAll()
+
+    # Step simulation
     application.DoStep()
+
+    # Optional: print some info every 0.1s
+    if abs(system.GetChTime() % 0.1) < timestep:
+        pos = free_end_body.GetPos()
+        print(f"Time: {system.GetChTime():.3f} s, Free end position: {pos}")
+
+    # Stop simulation after time_end
+    if system.GetChTime() > time_end:
+        break
+
     application.EndScene()
+
+print("Simulation finished.")
 ```

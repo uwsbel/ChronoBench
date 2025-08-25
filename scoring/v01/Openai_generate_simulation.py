@@ -2,7 +2,7 @@ from openai import OpenAI
 import os
 import json
 from tqdm import tqdm
-nvidia_api_key = os.getenv("NVIDIA_API_KEY", "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")
+nvidia_api_key = os.getenv("NVIDIA_API_KEY", "")
 print(nvidia_api_key)
 if not nvidia_api_key:
     raise RuntimeError("Please set the NVIDIA_API_KEY environment variable!")

@@ -1,56 +1,59 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
-import pychrono.vehicle as chrono_vehicle
 
-# Initialize the PyChrono environment
-chrono.ChSystem.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
+# Initialize the PyChrono system
+chrono.ChSystemNSC()
 
-# Create the simulation system
-system = chrono.ChSystem()
+# Create the Irrlicht visualization
+application = chronoirr.ChIrrApp(chrono.ChSystemNSC(), "FEDA Vehicle Simulation", chronoirr.dimension2d(800, 600))
+application.SetSkyBox("path/to/skybox.jpg")  # Optional: Set a skybox
+application.SetCamera(chrono.ChVectorD(0, 5, -10))  # Set camera position
+application.AddTypicalLights()  # Add typical lights
 
-# Create a RigidTerrain
-terrain = chrono_vehicle.ChRigidTerrain(system)
-terrain.SetContactFrictionCoefficient(0.8)
-terrain.SetContactRestitutionCoefficient(0.1)
-
-# Load a custom texture for the terrain
-terrain.SetTexture(chrono.GetChronoDataPath() + "terrain_texture.jpg")
+# Create the rigid terrain
+terrain = chrono.ChTerrain()
+terrain.SetContactMethod(chrono.ChContactMethod.NSC)
+terrain.SetTexture("path/to/terrain_texture.jpg")  # Set custom texture
+terrain.SetHeight(0.0)  # Set height of the terrain
+chrono.ChSystemNSC().Add(terrain)
 
 # Create the FEDA vehicle
-vehicle = chrono_vehicle.FEDA_Vehicle("FEDA_Vehicle")
-vehicle.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0.5, 0), chrono.ChQuaternionD(1, 0, 0, 0)))
+vehicle = chrono.ChVehicle()  # Replace with actual vehicle creation code
+vehicle.SetPos(chrono.ChVectorD(0, 0.5, 0))  # Set initial position
+vehicle.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))  # Set initial orientation
+vehicle.SetContactMethod(chrono.ChContactMethod.NSC)
+vehicle.SetTireModel(chrono.ChTireModel())  # Replace with actual tire model
 
-# Set the vehicle's parameters
-vehicle.SetContactMethod(chrono.ChMaterialSurface.SMC)  # Set contact method
-vehicle.SetTireModel(chrono_vehicle.ChTireModelType.SIMPLE)  # Set tire model
+# Add vehicle to the system
+chrono.ChSystemNSC().Add(vehicle)
 
-# Add the vehicle to the system
-system.Add(vehicle)
+# Set up the driver system for vehicle control
+driver = chrono.ChDriver()
+driver.SetSteering(0.0)  # Initial steering
+driver.SetThrottle(0.0)  # Initial throttle
+driver.SetBraking(0.0)  # Initial braking
 
-# Set up the Irrlicht visualization
-application = chronoirr.ChIrrApp(system, "FEDA Vehicle Simulation", chronoirr.dimension2d(800, 600))
-application.AddTypicalSky()
-application.AddTypicalLights()
-application.AddTypicalCamera(chronoirr.vector3df(0, 2, -5), chronoirr.vector3df(0, 0, 0))
+# Add driver to the vehicle
+vehicle.SetDriver(driver)
 
-# Set the camera to follow the vehicle
-camera = application.GetCamera()
-camera.setTarget(chronoirr.vector3df(0, 0, 0))
-camera.setPosition(chronoirr.vector3df(0, 2, -5))
+# Set simulation parameters
+chrono.ChSystemNSC().SetSolverType(chrono.ChSolver.Type_SOR)
+chrono.ChSystemNSC().SetMaxItersSolverSpeed(100)
+chrono.ChSystemNSC().SetMaxItersSolverStab(100)
+chrono.ChSystemNSC().SetTimestep(0.02)  # 50 FPS
 
-# Set the simulation loop parameters
-application.SetTimestep(1 / 50.0)  # 50 frames per second
-
-# Main simulation loop
+# Simulation loop
 while application.GetDevice().run():
     application.BeginScene()
     application.DrawAll()
     
     # Update vehicle dynamics
-    vehicle.Update()
+    chrono.ChSystemNSC().DoStepDynamics(0.02)
     
-    # Render the scene
+    # Update driver inputs (this is where you would implement input handling)
+    # Example: driver.SetThrottle(1.0) for full throttle
+    
     application.EndScene()
 
-# Clean up and exit
+# Clean up
 application.GetDevice().drop()

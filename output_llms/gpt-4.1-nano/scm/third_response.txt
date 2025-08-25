@@ -27,7 +27,7 @@ terrainHeight = 0
 terrainLength = 100.0
 terrainWidth = 100.0
 
-# Point for chase camera
+# Track point for camera chase
 trackPoint = chrono.ChVector3d(0.0, 0.0, 1.71)
 
 # Contact method
@@ -42,7 +42,7 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  # FPS = 50
 
 # Create the vehicle
-vehicle = veh.HMMWV_Full()  # or veh.HMMWV_Reduced()
+vehicle = veh.HMMWV_Full()  # Alternatively, veh.HMMWV_Reduced()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
@@ -59,31 +59,29 @@ vehicle.SetSteeringVisualizationType(vis_type)
 vehicle.SetWheelVisualizationType(vis_type)
 vehicle.SetTireVisualizationType(vis_type)
 
-# Set collision system
+# Set collision system type
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
-# Create SCM terrain
+# Create SCM deformable terrain
 terrain = veh.SCMTerrain(vehicle.GetSystem())
 terrain.SetSoilParameters(
-    2e6,   # Kphi
-    0,     # Kc
-    1.1,   # n exponent
-    0,     # Mohr cohesive
-    30,    # Mohr friction (degrees)
-    0.01,  # Janosi shear coefficient
-    2e8,   # Elastic stiffness
-    3e4    # Damping
+    2e6,   # Bekker Kphi
+    0,     # Bekker Kc
+    1.1,   # Bekker n exponent
+    0,     # Mohr cohesive limit (Pa)
+    30,    # Mohr friction limit (degrees)
+    0.01,  # Janosi shear coefficient (m)
+    2e8,   # Elastic stiffness (Pa/m)
+    3e4    # Damping (Pa s/m)
 )
 
-# Add moving patch (around vehicle chassis)
-terrain.AddMovingPatch(vehicle.GetChassisBody(),
-                       chrono.ChVector3d(0, 0, 0),
-                       chrono.ChVector3d(5, 3, 1))
+# Add moving patch around vehicle chassis
+terrain.AddMovingPatch(vehicle.GetChassisBody(), chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(5, 3, 1))
 
-# Set plotting type
+# Set plot type for SCM
 terrain.SetPlotType(veh.SCMTerrain.PLOT_SINKAGE, 0, 0.1)
 
-# Initialize terrain mesh
+# Initialize terrain mesh grid
 terrain.Initialize(20, 20, 0.02)
 
 # Create Irrlicht visualization
@@ -97,128 +95,110 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
-# Create driver
+# Create driver system
 driver = veh.ChInteractiveDriverIRR(vis)
-# Driver input deltas
+
+# Set driver input deltas
 steering_time = 1.0
 throttle_time = 1.0
 braking_time = 0.3
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
+
 driver.Initialize()
 
 # Output vehicle mass
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
-# Calculate steps per frame
+# Number of steps between renders
 render_steps = math.ceil(render_step_size / step_size)
 
-# Create a random seed or fixed seed for reproducibility
-random.seed(42)
+# Initialize real-time timer
+realtime_timer = chrono.ChRealtimeStepTimer()
 
-# Create random boxes in the scene (excluding vicinity of vehicle)
-num_boxes = 20  # number of boxes to add
-boxes = []
+# Create additional objects: randomly positioned boxes
+# Ensure boxes are not within a certain radius of the vehicle
+num_boxes = 20
+min_distance = 5.0  # minimum distance from vehicle
+system = vehicle.GetSystem()
 
 for _ in range(num_boxes):
-    # Random position within terrain bounds, avoiding vehicle area (~x<-8 to x=8)
-    while True:
-        x = random.uniform(-terrainLength/2 + 5, terrainLength/2 - 5)
-        y = random.uniform(-terrainWidth/2 + 5, terrainWidth/2 - 5)
-        # Ensure boxes are not too close to initial vehicle position
-        if abs(x - initLoc.x) > 2 and abs(y - initLoc.y) > 2:
-            break
-    size_x = random.uniform(0.2, 1.0)
-    size_y = random.uniform(0.2, 1.0)
-    size_z = random.uniform(0.2, 1.0)
-    box = chrono.ChBodyEasyBox(size_x, size_y, size_z,  # dimensions
-                                100,  # density
-                                True,  # visualization
-                                True)  # collision
-    box.SetPosition(chrono.ChVector3d(x, y, terrainHeight + size_z/2))
-    # Optional: set color or other properties
-    # box.GetVisualShape().SetColor(chrono.ChColor(0.4, 0.4, 0.4))
-    # Add to system
-    vehicle.GetSystem().Add(box)
-    boxes.append(box)
+    # Random position within terrain bounds
+    x = random.uniform(-terrainLength/2, terrainLength/2)
+    y = random.uniform(-terrainWidth/2, terrainWidth/2)
+    # Check distance from vehicle
+    pos = chrono.ChVector3d(x, y, terrainHeight + 0.5)  # slightly above terrain
+    vehicle_pos = vehicle.GetChassisBody().GetPos()
+    dist = (pos - vehicle_pos).Length()
+    if dist < min_distance:
+        continue  # skip if too close
+    # Create box
+    box_size = 0.5  # size of the box
+    box = chrono.ChBodyEasyBox(box_size, box_size, box_size, 1000, True, True)
+    box.SetPos(pos)
+    box.SetBodyFixed(False)
+    system.Add(box)
 
-# Integrate sensor system
-# Note: PyChrono's sensors are based on the Chrono Sensors module
-# For this script, assume we have access to chrono.sensor module
-import pychrono.sensor as sensitivity
+# Initialize sensor system (assuming pychrono supports a sensor manager)
+# Note: As of my knowledge, pychrono's sensor support may be limited.
+# For demonstration, we will create a simple camera sensor attached to the vehicle.
 
-# Create a sensor manager
-sensor_manager = sensitivity.ChSensorManager()
-sensor_manager_scene = sensor_manager.GetScene()
-sensor_manager.SetScene(sensor_manager_scene)
+# Create a sensor manager (assuming a hypothetical API)
+sensor_manager = chrono.ChSensorManager()
+sensor_manager.SetSystem(vehicle.GetSystem())
 
 # Add point lights at various positions
-for i in range(3):
-    light_pos = chrono.ChVector3d(
-        random.uniform(-10, 10),
-        random.uniform(-10, 10),
-        10
-    )
-    # Add point light to the scene
-    # Since pychrono.sensor may not have direct method, assume using Irrlicht interface
-    # To add a light in Irrlicht, typically via vis.SceneManager()
-    vis_scene_mgr = vis.GetSceneManager()
-    light = vis_scene_mgr.AddLightSceneNode(
-        None,  # parent node
-        chrono.ChVector3d(light_pos.x, light_pos.y, light_pos.z),
-        chrono.ChColor(1, 1, 1),  # color white
-        10.0  # radius
-    )
+light_positions = [
+    chrono.ChVector3d(10, 10, 10),
+    chrono.ChVector3d(-10, 10, 10),
+    chrono.ChVector3d(0, -10, 10)
+]
+for pos in light_positions:
+    light = chrono.ChSensor()
+    light.SetPos(pos)
+    # Configure light properties if supported
+    # (Note: Actual light configuration depends on the API; placeholder here)
+    sensor_manager.AddSensor(light)
 
-# Add a camera sensor attached to vehicle chassis
-# Using the sensor module
-camera = sensitivity.ChCameraSensor(
-    vehicle.GetChassisBody(),  # parent body
-    30,  # update rate (Hz)
-    chrono.ChFrameFct(
-        chrono.ChVectorF(0.0, 0.0, 1.5),  # position relative to chassis
-        chrono.ChQuaternionF(1, 0, 0, 0)  # orientation
-    )
-)
-camera.SetName("FrontCamera")
+# Create a camera sensor attached to the vehicle chassis
+camera = chrono.ChSensor()
+# Attach to chassis
+camera.SetPos(chrono.ChVector3d(0.5, 0, 1.2))  # position relative to chassis
+camera.SetFOV(45)  # degrees
 camera.SetResolution(640, 480)
-camera.SetFocalLength(35)  # in mm, optional
-camera.SetFieldOfView(45.0)  # in degrees
+camera.SetName("ChassisCamera")
+# Set sensor to follow vehicle
+camera.SetParent(vehicle.GetChassisBody())
+
+# Add camera to sensor manager
 sensor_manager.AddSensor(camera)
 
-# Set a filter to visualize the camera feed
-# For visualization, we can opt to display the camera image on the console or save to file
-# Here, assume we provide a visualization function (placeholder)
-def visualize_camera_feed(sensor):
-    # Placeholder: In actual code, retrieve image data from sensor
-    # and visualize or save it accordingly.
-    pass
+# Enable visualization of camera feed (filter)
+# Assuming a method to visualize or display the camera feed
+# Placeholder: in actual implementation, you would retrieve images from the sensor
+# and display them during the simulation loop.
 
-# Register callback for camera sensor to visualize feed (if supported)
-# For the sake of this example, assume we can set a callback
-# camera.RegisterFilter(visualize_camera_feed)
-
-# Main simulation loop
-# Output vehicle mass
-print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
-
+# ------------------
 # Simulation loop
+# ------------------
+
+print("Starting simulation...")
+
 step_number = 0
 render_frame = 0
-realtime_timer = chrono.ChRealtimeStepTimer()
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
     # Render scene at specified intervals
-    if (step_number % render_steps == 0):
+    if step_number % render_steps == 0:
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
         render_frame += 1
 
-    # Fetch driver inputs
+    # Get driver inputs
     driver_inputs = driver.GetInputs()
 
     # Synchronize modules
@@ -231,18 +211,14 @@ while vis.Run():
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
-    
-    # Advance sensors
-    sensor_manager.Process()
-    sensor_manager.Update()
-    sensor_manager.Render()
-    # Alternatively, if only the camera sensor is involved:
-    # camera.Synchronize(time)
-
     vis.Advance(step_size)
 
+    # Advance sensor manager (if applicable)
+    sensor_manager.Update()
+
+    # Increment step counter
     step_number += 1
 
-    # Keep real time in sync
+    # Spin in real time
     realtime_timer.Spin(step_size)
 ```

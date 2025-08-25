@@ -82,33 +82,30 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 # Create the path-follower driver system
-path_follower = veh.ChPathFollowerDriver(vehicle, veh.PathFollowerDriverType_PATH_FOLLOWER)
-path_follower.SetTargetSpeed(10.0)  # Set target speed
-path_follower.SetLookAheadDistance(5.0)  # Set look-ahead distance
+path_follower = veh.ChPathFollowerDriver(vehicle, 10.0)  # Set target speed to 10.0
+path_follower.SetLookaheadDistance(5.0)  # Set look-ahead distance
+path_follower.SetSteeringGain(0.5)  # Set appropriate steering gain
+path_follower.SetSpeedGain(0.5)  # Set appropriate speed gain
 
-# Define the path for the ISO double lane change maneuver
-# This is a simple representation; you may want to define a more complex path
+# Define the path for the double lane change maneuver
 path = veh.ChBezierCurve()
-path.AddPoint(chrono.ChVector2d(0, 0))
-path.AddPoint(chrono.ChVector2d(10, 5))
-path.AddPoint(chrono.ChVector2d(20, -5))
-path.AddPoint(chrono.ChVector2d(30, 0))
-path.AddPoint(chrono.ChVector2d(40, 5))
-path.AddPoint(chrono.ChVector2d(50, 0))
-
+path.AddPoint(chrono.ChVector3d(-50, 0, 0.5))
+path.AddPoint(chrono.ChVector3d(-40, 10, 0.5))
+path.AddPoint(chrono.ChVector3d(-30, -10, 0.5))
+path.AddPoint(chrono.ChVector3d(-20, 10, 0.5))
+path.AddPoint(chrono.ChVector3d(-10, 0, 0.5))
 path_follower.SetPath(path)
 
-# Set controller gains (these values may need tuning)
-path_follower.SetSteeringGain(0.5)
-path_follower.SetSpeedGain(0.1)
+# Initialize the driver
+path_follower.Initialize()
 
-# output vehicle mass
+# Output vehicle mass
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
 
-# Initialize simulation frame counter s
+# Initialize simulation frame counter
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
@@ -124,7 +121,7 @@ while vis.Run():
         render_frame += 1
 
     # Update modules (process inputs from other modules)
-    path_follower.Synchronize(time)
+    path_follower.Synchronize(time)  # Synchronize path follower
     terrain.Synchronize(time)
     vehicle.Synchronize(time, path_follower.GetInputs(), terrain)
     vis.Synchronize(time, path_follower.GetInputs())

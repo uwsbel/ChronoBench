@@ -1,55 +1,60 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
+import pychrono.vehicle as chrono_vehicle
 
 
 chrono.SetChronoDataPath('/path/to/chrono/data/')  
-system = chrono.ChSystemNSC()  
+chrono.SetChronoLogLevel(chrono.CH_CLOG_INFO)
 
 
-
-ground = chrono.ChBody()
-ground.SetBodyFixed(True)  
-ground.SetPos(chrono.ChVectorD(0, 0, 0))  
-ground.SetMaterialSurface(chrono.ChMaterialSurfaceNSC())  
-system.Add(ground)
+system = chrono.ChSystemNSC()
 
 
-sphere_radius = 0.5
-sphere = chrono.ChBody()
-sphere.SetPos(chrono.ChVectorD(0, sphere_radius, 0))  
-sphere.SetMass(1.0)  
-sphere.SetInertiaXX(chrono.ChVectorD(0.1, 0.1, 0.1))  
-sphere.SetMaterialSurface(chrono.ChMaterialSurfaceNSC())  
-system.Add(sphere)
+terrain = chrono.ChBodyEasyBox(100.0, 0.1, 100.0, 3000, True, True)
+terrain.SetPos(chrono.ChVectorD(0, -0.05, 0))
+terrain.SetMaterialSurface(chrono.ChMaterialSurfaceNSC())
+system.Add(terrain)
 
 
-
-gravity = chrono.ChVectorD(0, -9.81, 0)  
-system.Set_G_acc(gravity)  
-
-
-initial_velocity = chrono.ChVectorD(0, 0, 0)  
-sphere.SetPos_dt(initial_velocity)  
+vehicle = chrono_vehicle.ChVehicle("BMW_E90")
+vehicle.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0.1, 0), chrono.ChQuaternionD(1, 0, 0, 0)))
 
 
-time_step = 0.01  
-end_time = 5.0  
-
-while system.GetChTime() < end_time:
-    system.DoStepDynamics(time_step)  
-    print(f"Time: {system.GetChTime():.2f}, Sphere Position: {sphere.GetPos()}")  
+tire_model = chrono_vehicle.ChTMeasyTire("Tire")
+vehicle.SetTireModel(tire_model)
 
 
-app = chronoirr.ChIrrApp(system, "PyChrono Simulation", chronoirr.dimension2d(800, 600))
-app.AddTypicalSky()
-app.AddTypicalCamera(chronoirr.vector3df(0, 5, -10))
-app.AddTypicalLights()
-app.AssetBindAll()
-app.AssetUpdateAll()
+driver = chrono_vehicle.ChDriver()
+driver.SetThrottle(0.5)  
+driver.SetSteering(0.0)  
+driver.SetBraking(0.0)   
+vehicle.SetDriver(driver)
 
 
-while app.GetDevice().run():
-    app.BeginScene()
-    app.DrawAll()
-    app.EndScene()
-    system.DoStepDynamics(time_step)
+system.Add(vehicle)
+
+
+application = chronoirr.ChIrrApp(system, "BMW E90 Simulation", chronoirr.dimension2d(800, 600))
+application.AddLogo(chrono.GetChronoDataPath() + "logo.png")
+application.AddSkyBox()
+application.AddCamera(chrono.ChVectorD(0, 2, -5), chrono.ChVectorD(0, 0, 0))
+application.AddLight(chrono.ChVectorD(10, 10, 10), chrono.ChVectorD(1, 1, 1))
+
+
+terrain_texture = chronoirr.ChTexture()
+terrain_texture.SetTexture(chrono.GetChronoDataPath() + "textures/terrain_texture.png")
+terrain.SetTexture(terrain_texture)
+
+
+application.SetTimestep(0.01)
+while application.GetDevice().run():
+    application.BeginScene()
+    application.DrawAll()
+    application.EndScene()
+    
+    
+    vehicle.Update()
+    system.DoStepDynamics(application.GetTimestep())
+
+
+application.Close()

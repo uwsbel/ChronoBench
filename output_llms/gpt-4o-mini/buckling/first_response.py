@@ -3,44 +3,43 @@ import pychrono.irrlicht as chronoirr
 import pychrono.fea as fea
 
 # Initialize the PyChrono environment
-chrono.SetChronoDataPath('path/to/chrono/data/')  # Set your Chrono data path
-system = chrono.ChSystemNSC()
+chrono.ChSystem.SetNumThreads(4)  # Set the number of threads for parallel computation
 
-# Create a visualization window
-application = chronoirr.ChIrrApp(system, "Beam Buckling Simulation", chronoirr.dimension2du(800, 600))
-application.AddLogo(chrono.GetChronoDataPath() + "logo.png")
-application.SetSkyBox(chrono.GetChronoDataPath() + "skybox.jpg")
-application.SetCamera(chrono.ChVectorD(0, 5, 10), chrono.ChVectorD(0, 0, 0))
-application.AddTypicalLights()
+# Create the physical system
+system = chrono.ChSystem()
 
-# Create a beam using finite element analysis
-beam_length = 5.0
+# Create a beam using finite element analysis (FEA)
+beam_length = 2.0
 beam_height = 0.1
 beam_width = 0.1
-num_elements = 10  # Number of finite elements along the length
+num_elements = 10
 
-# Create a beam material
-beam_material = chrono.ChMaterialSurfaceNSC()
-beam_material.SetFriction(0.4)
-beam_material.SetRestitution(0.1)
-
-# Create the beam body
-beam = fea.ChBeamSectionAdvanced()
-beam.SetDensity(7800)  # Density of steel in kg/m^3
-beam.SetYoungModulus(210e9)  # Young's modulus in Pa
-beam.SetPoissonRatio(0.3)  # Poisson's ratio
-
-# Create the beam mesh
+# Create a beam mesh
 beam_mesh = fea.ChMesh()
-for i in range(num_elements + 1):
-    node = fea.ChNodeFEAxyz(chrono.ChVectorD(i * beam_length / num_elements, 0, 0))
-    node.SetMass(beam.GetDensity() * beam_length / num_elements * beam_height * beam_width)
-    beam_mesh.AddNode(node)
 
+# Define the material properties
+material = fea.ChContinuumElastic()
+material.Set_E(200e9)  # Young's modulus in Pascals
+material.Set_v(0.3)    # Poisson's ratio
+
+# Create beam elements
 for i in range(num_elements):
+    # Define the position of the nodes
+    x = i * (beam_length / num_elements)
+    node1 = fea.ChNodeFEAxyz(x, 0, 0)
+    node2 = fea.ChNodeFEAxyz(x + (beam_length / num_elements), 0, 0)
+    
+    # Add nodes to the mesh
+    beam_mesh.AddNode(node1)
+    beam_mesh.AddNode(node2)
+    
+    # Create a beam element
     beam_element = fea.ChElementBeamEuler()
-    beam_element.SetNodes(beam_mesh.GetNode(i), beam_mesh.GetNode(i + 1))
-    beam_element.SetSection(beam)
+    beam_element.SetNodes(node1, node2)
+    beam_element.SetSection(beam_width, beam_height)
+    beam_element.SetMaterial(material)
+    
+    # Add the element to the mesh
     beam_mesh.AddElement(beam_element)
 
 # Add the mesh to the system
@@ -48,35 +47,36 @@ system.Add(beam_mesh)
 
 # Define constraints (fixed at one end)
 fixed_node = beam_mesh.GetNode(0)
-fixed_constraint = chrono.ChLinkLock()
-fixed_constraint.Initialize(fixed_node, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)))
-system.Add(fixed_constraint)
+fixed_body = chrono.ChBody()
+fixed_body.SetPos(fixed_node.GetPos())
+fixed_body.SetMass(0)  # Fixed body has infinite mass
+system.Add(fixed_body)
 
-# Define a motor function to apply a load
-motor = chrono.ChLinkMotorLinear()
-motor.Initialize(beam_mesh.GetNode(num_elements), chrono.ChFrameD(chrono.ChVectorD(beam_length, 0, 0)))
-motor.SetSpeedFunction(chrono.ChFunction_Const(0.0))  # No speed initially
-system.Add(motor)
+# Create a motor function to apply a force at the free end
+def apply_force():
+    force = chrono.ChForce()
+    force.SetMode(chrono.ChForce.FORCE)
+    force.SetDir(chrono.ChVectorD(0, -1000, 0))  # Apply downward force
+    force.SetVpoint(beam_mesh.GetNode(num_elements - 1).GetPos())
+    system.Add(force)
 
 # Set up the solver and timestepper
 solver = chrono.ChSolverPSOR()
 system.SetSolver(solver)
 system.SetTimestepperType(chrono.ChTimestepper.Type.EULER)
-system.SetMaxItersSolverSpeed(100)
-system.SetMaxItersSolverStab(100)
 
-# Simulation parameters
-time_step = 0.01
-end_time = 5.0
+# Create the Irrlicht visualization
+application = chronoirr.ChIrrApp(system, "Beam Buckling Simulation", chronoirr.dimension2d(800, 600))
+application.AddSkyBox()
+application.AddCamera(chrono.ChVectorD(1, 1, 5), chrono.ChVectorD(1, 0, 0))
+application.AddLight(chrono.ChVectorD(1, 1, 1), chrono.ChVectorD(1, 1, 1))
 
-# Main simulation loop
-while system.GetChTime() < end_time:
-    application.BeginScene()
+# Simulation loop
+application.SetTimestep(0.01)  # Set the timestep for the simulation
+while application.GetDevice().run():
+    apply_force()  # Apply force at each timestep
+    system.DoStepDynamics(application.GetTimestep())
     application.DrawAll()
-    application.EndScene()
-
-    # Perform the simulation step
-    system.DoStepDynamics(time_step)
 
 # Clean up
-application.Close()
+application.GetDevice().drop()

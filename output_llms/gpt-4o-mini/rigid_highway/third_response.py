@@ -67,8 +67,13 @@ patch_mat.SetRestitution(0.05)  # Updated restitution value
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 
 # Set the orientation of the terrain patch to -90 degrees about the Z-axis
+patch_orientation = chrono.Q_from_AngZ(-math.radians(90))
+
+# Adjust the position of the terrain patch to be at (6, -70, 0)
+patch_position = chrono.ChCoordsysd(chrono.ChVector3d(6, -70, 0), patch_orientation)
+
 patch = terrain.AddPatch(patch_mat, 
-    chrono.ChCoordsysd(chrono.ChVector3d(6, -70, 0), chrono.QuatFromAngleZ(-math.pi / 2)),  # Updated position and orientation
+    patch_position,
     chrono.GetChronoDataFile('vehicle/terrain/meshes/Highway_col.obj'),
     True, 0.01, False)
 

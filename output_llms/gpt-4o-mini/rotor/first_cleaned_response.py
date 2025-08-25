@@ -4,80 +4,75 @@ import pychrono.fea as fea
 
 
 chrono.SetChronoDataPath('/path/to/chrono/data/')  
-chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.001)
-chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.001)
+chrono.ChSystemNSC()  
 
 
-system = chrono.ChSystemNSC()
+application = chronoirr.ChIrrApp(chrono.ChSystemNSC(), "Jeffcott Rotor Simulation", chronoirr.dimension2du(800, 600))
+application.AddLogo(chrono.GetChronoDataPath() + "logo_pychrono_alpha.png")
+application.SetSkyBox()
+application.SetCamera(chrono.ChVectorD(0, 0, 5), chrono.ChVectorD(0, 0, 0))
+application.SetLight(chrono.ChVectorD(0, 10, 10), chrono.ChVectorD(1, 1, 1))
 
 
-beam_length = 1.0  
-beam_height = 0.1  
-beam_width = 0.1   
+beam_length = 2.0  
+beam_height = 0.1   
+beam_width = 0.1    
 beam_density = 7800  
 
 
-beam = fea.ChBeamSectionCable()
-beam.SetDiameter(beam_width)
+beam = fea.ChBeamSectionCable()  
 beam.SetDensity(beam_density)
+beam.SetYoungModulus(2.1e11)  
+beam.SetPoissonRatio(0.3)      
 
 
-beam_element = fea.ChBeamElementCable()
+beam_mesh = fea.ChMesh()
+beam_mesh.SetAutomaticGravity(False)
+
+
+node1 = fea.ChNodeFEAxyz(chrono.ChVectorD(0, 0, 0))
+node2 = fea.ChNodeFEAxyz(chrono.ChVectorD(beam_length, 0, 0))
+beam_mesh.AddNode(node1)
+beam_mesh.AddNode(node2)
+
+
+beam_element = fea.ChElementBeamEuler()
+beam_element.SetNodes(node1, node2)
 beam_element.SetSection(beam)
-beam_element.SetLength(beam_length)
+beam_mesh.AddElement(beam_element)
 
 
-node_start = fea.ChBeamNodeFEA()
-node_end = fea.ChBeamNodeFEA()
-node_start.SetPos(chrono.ChVectorD(0, 0, 0))
-node_end.SetPos(chrono.ChVectorD(beam_length, 0, 0))
+chrono.ChSystemNSC().Add(beam_mesh)
 
 
-beam_element.AddNode(node_start)
-beam_element.AddNode(node_end)
-
-
-material = chrono.ChMaterialSurfaceNSC()
-material.SetFriction(0.4)
-
-
-fea_beam = fea.ChBeam()
-fea_beam.AddElement(beam_element)
-fea_beam.SetMaterial(material)
-system.Add(fea_beam)
-
-
-flywheel_radius = 0.1
+flywheel_radius = 0.2
 flywheel_mass = 5.0  
-flywheel = chrono.ChBody()
-flywheel.SetMass(flywheel_mass)
+
+flywheel = chrono.ChBodyEasySphere(flywheel_radius, flywheel_mass, True, True)
 flywheel.SetPos(chrono.ChVectorD(beam_length / 2, 0, 0))
 flywheel.SetInertiaXX(chrono.ChVectorD(0.1, 0.1, 0.1))  
-flywheel.SetMaterialSurface(material)
-system.Add(flywheel)
+chrono.ChSystemNSC().Add(flywheel)
 
 
 motor = chrono.ChLinkMotorRotation()
-motor.Initialize(node_start, flywheel, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)))
-motor.SetMotorFunction(chrono.ChFunction_Const(100))  
-system.Add(motor)
+motor.Initialize(node1, flywheel, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)))
+motor.SetMotorFunction(chrono.ChFunction_Const(10))  
+chrono.ChSystemNSC().Add(motor)
 
 
-application = chronoirr.ChIrrApp(system, "Jeffcott Rotor Simulation", chronoirr.dimension2d(800, 600))
-application.AddSkyBox()
-application.AddCamera(chrono.ChVectorD(2, 2, 2), chrono.ChVectorD(0, 0, 0))
-application.AddLight(chrono.ChVectorD(2, 2, 2), chrono.ChVectorD(1, 1, 1))
+chrono.ChSystemNSC().SetSolverType(chrono.ChSolver.Type_SOR)
+chrono.ChSystemNSC().SetMaxItersSolverSpeed(100)
+chrono.ChSystemNSC().SetMaxItersSolverStab(100)
 
 
-application.AssetBindAll()
-application.AssetUpdateAll()
+time_step = 0.01
+simulation_duration = 10.0
 
 
 while application.GetDevice().run():
-    application.BeginScene()
+    chrono.ChSystemNSC().DoStepDynamics(time_step)
     application.DrawAll()
-    application.EndScene()
-    system.DoStepDynamics(0.01)  
+    application.DoStep()
 
 
-application.GetDevice().drop()
+application.AssetManager().ClearAllAssets()

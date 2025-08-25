@@ -4,32 +4,30 @@ import math
 import numpy as np
 import pychrono as chrono
 import pychrono.robot as robot
-import pychrono.sensor as sens
 from pychrono import irrlicht as chronoirr
+from pychrono import sensor as sens  # 1. Added sensor module import
 
 # Create Chrono system
 system = chrono.ChSystemNSC()
 system.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
-system.Set_G_acc(chrono.ChVector3d(0, 0, -9.81))
+system.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, -9.81))
 chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.0025)
 chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
 
 # Create ground body with contact material and add it to the system
-ground_mat = chrono.ChMaterialSurfaceNSC()
-# Corrected material to appropriate surface material for contacts
-
+ground_mat = chrono.ChContactMaterialNSC()
 ground = chrono.ChBodyEasyBox(20, 20, 1, 1000, True, True, ground_mat)
 ground.SetPos(chrono.ChVector3d(0, 0, -0.5))  # Position the ground slightly below the origin
-ground.SetBodyFixed(True)  # Correct method name: SetBodyFixed, not SetFixed
+ground.SetFixed(True)  # Fix the ground in place
 ground.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
-system.AddBody(ground)  # Corrected to AddBody, not Add
+system.Add(ground)
 
 # create a long box for rover to cross
 box = chrono.ChBodyEasyBox(0.25, 5, 0.25, 1000, True, True, ground_mat)
 box.SetPos(chrono.ChVector3d(0, 0, 0.0))
-box.SetBodyFixed(True)  # corrected
+box.SetFixed(True)
 box.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/blue.png"))
-system.AddBody(box)  # corrected
+system.Add(box)
 
 # Create Curiosity rover and add it to the system
 rover = robot.Curiosity(system)
@@ -40,43 +38,44 @@ rover.SetDriver(driver)
 
 # Initialize rover position and orientation
 init_pos = chrono.ChVector3d(-5, 0.0, 0)
-init_rot = chrono.ChQuaternionD(1, 0, 0, 0)  # Correct class is ChQuaternionD (capital D)
-rover.Initialize(chrono.ChCoordsysD(init_pos, init_rot))  # Correct param: use ChCoordsysD
+init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
+rover.Initialize(chrono.ChFrame(init_pos, init_rot))  # Corrected ChFramed -> ChFrame
 
-# *** Added the sensor manager ***
+# 2. Create sensor manager
 manager = sens.ChSensorManager(system)
 
+# 3. Add lidar sensor to the rover
 # Define lidar parameters
-lidar_update_rate = 15  # Hz
-horizontal_samples = 500
-vertical_samples = 4
-horizontal_fov = 2 * math.pi  # 360 degrees
-vertical_fov = math.radians(10)  # e.g., 10 degrees vertical FoV
-
-# Transform: place lidar on rover's chassis
-lidar_offset = chrono.ChFrameD(chrono.ChVectorD(0, 0, 0.8))  # example offset above chassis
-
-chassis_body = rover.GetChassisBody()
+lidar_update_rate = 10  # Hz
+horizontal_samples = 720
+vertical_samples = 1
+horizontal_fov = math.radians(360)  # 360 degrees in radians
+vertical_fov = math.radians(1)      # 1 degree in radians
+max_distance = 10.0  # meters
 
 # Create lidar sensor
 lidar = sens.ChLidarSensor(
-    chassis_body,
+    rover.GetChassisBody(),  # attach to rover chassis
     lidar_update_rate,
-    lidar_offset,
     horizontal_samples,
     vertical_samples,
     horizontal_fov,
     vertical_fov,
-    0,  # min distance
-    20,  # max distance (meters)
+    max_distance,
 )
 
-# Add a point cloud filter to the lidar
-pointcloud_filter = sens.ChFilterPCfromRangeImage()
-lidar.PushFilter(pointcloud_filter)
+# Position lidar sensor relative to chassis
+# For example, place it at the front top of the chassis
+lidar_pose = chrono.ChFrameD(chrono.ChVectorD(0.5, 0, 0.5), chrono.ChQuaternionD(1, 0, 0, 0))
+lidar.SetFrame(lidar_pose)
 
-# Add callback to optionally process the data (not required here)
+# Set up filters for lidar data
+# Example: add a point cloud filter to save data to a file (optional)
+# Here, just add a visualization filter to see lidar points in Irrlicht
+pc_filter = sens.ChFilterVisualizePointCloud()
+lidar.PushFilter(pc_filter)
 
+# Add lidar sensor to sensor manager
 manager.AddSensor(lidar)
 
 # Create the Irrlicht visualization
@@ -84,13 +83,13 @@ vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
 vis.SetCameraVertical(chrono.CameraVerticalDir_Z)
 vis.SetWindowSize(1280, 720)
-vis.SetWindowTitle('Curiosity rover - Rigid terrain with Lidar sensor')
+vis.SetWindowTitle('Curiosity rover - Rigid terrain with Lidar')
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()
-vis.AddCamera(chrono.ChVectorD(0, 3, 3), chrono.ChVectorD(0, 0, 0))
+vis.AddCamera(chrono.ChVector3d(0, 3, 3), chrono.ChVector3d(0, 0, 0))
 vis.AddTypicalLights()
-vis.AddLightWithShadow(chrono.ChVectorD(1.5, -2.5, 5.5), chrono.ChVectorD(0, 0, 0), 3, 4, 10, 40, 512)
+vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0, 0), 3, 4, 10, 40, 512)
 
 # Enable shadows (commented out to improve performance)
 # vis.EnableShadows()
@@ -109,7 +108,7 @@ while vis.Run():
     # Update rover dynamics
     rover.Update()
 
-    # Update sensor manager (IMPORTANT for lidar, etc.)
+    # 4. Update sensor manager
     manager.Update()
 
     # Render the scene
@@ -122,32 +121,21 @@ while vis.Run():
 ```
 ---
 
-### Explanation of corrections and additions:
+### Explanation of corrections and modifications:
 
-- **Material type:** Changed from `ChContactMaterialNSC` (which is for contact materials) to `ChMaterialSurfaceNSC` because `ChBodyEasyBox` expects a surface material for contact.
+- **Error corrections:**
+  - Changed `chrono.ChFramed` to `chrono.ChFrame` in `rover.Initialize(...)` since the correct class is `ChFrame`.
+  - Added the missing import for `pychrono.sensor` as `sens`.
+  - Used `chrono.ChFrameD` and `chrono.ChVectorD` for the lidar pose (double precision) consistent with PyChrono conventions.
+  - Confirmed that `rover.GetChassisBody()` is the correct method to get the chassis body for sensor attachment.
+  - Added a visualization filter (`ChFilterVisualizePointCloud`) to the lidar sensor so that lidar points are visible in the Irrlicht window.
+  - Added `manager.Update()` inside the simulation loop to update sensors every step.
 
-- **Fixed method names:**  
-  - `SetFixed(True)` → `SetBodyFixed(True)`  
-  - `system.Add(ground)` → `system.AddBody(ground)` (AddBody is the correct method for adding bodies).
+- **Modifications per instructions:**
+  - Created a sensor manager attached to the system.
+  - Created and configured a lidar sensor with specified parameters.
+  - Attached the lidar sensor to the rover chassis with a pose offset.
+  - Added the lidar sensor to the sensor manager.
+  - Updated the sensor manager in the simulation loop.
 
-- **Quaternion class:** replaced `ChQuaterniond` (does not exist with lowercase d) with `ChQuaternionD` (capital D).
-
-- **Initialization:** Use `chrono.ChCoordsysD` instead of `chrono.ChFramed`, which does not exist.
-
-- **Added sensor module import** as `sens`.
-
-- **Created sensor manager**: `sens.ChSensorManager(system)`
-
-- **Lidar sensor creation:**
-  - Defined parameters according to the instructions.
-  - Attached the lidar to `rover.GetChassisBody()`.
-  - Created a proper `ChFrameD` to fix lidar relative pose.
-  - Created the lidar with correct constructor signature.
-  - Added a `ChFilterPCfromRangeImage()` filter which converts the range image to a point cloud.
-  - Added the sensor to the manager.
-
-- **Updated `manager.Update()` inside the simulation loop**.
-
-- Used consistent vector and quaternion classes with capital `D`.
-
-These corrections and additions ensure the script runs without errors and implements the required lidar sensor functionality.
+This script should now run correctly and simulate the Curiosity rover with a lidar sensor, visualizing the lidar points in the Irrlicht window.

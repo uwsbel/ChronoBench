@@ -1,24 +1,23 @@
 import pychrono.core as chrono
-import pychrono.kinematics as chrono_kin
+import pychrono.irrlicht as chronoirr
 import pychrono.vehicle as chrono_vehicle
-import pychrono.ros as chrono_ros
+import rospy
+from std_msgs.msg import String
 
 
-chrono.ChSystem.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  
+chrono.ChSystemNSC()
+chrono.SetChronoDataPath('/path/to/chrono/data/')  
 
 
-system = chrono.ChSystemNSC()
+vehicle = chrono_vehicle.HMMWV('HMMWV')
 
 
-hmmwv = chrono_vehicle.HMMWV('HMMWV')
+vehicle.SetContactMethod(chrono.ChMaterialSurface.SMC)  
+vehicle.SetEngineType(chrono_vehicle.EngineType.SIMPLE)  
+vehicle.SetTireModel(chrono_vehicle.TireModelType.RIGID)  
 
 
-hmmwv.SetContactMethod(chrono.ChContactMethod.NSC)  
-hmmwv.SetEngineType(chrono_vehicle.EngineType.SIMPLE)  
-hmmwv.SetTireModel(chrono_vehicle.TireModelType.RIGID)  
-
-
-hmmwv.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.ChQuaternionD(1, 0, 0, 0)))
+vehicle.Initialize(chrono.ChCoordsys(chrono.ChVectorD(0, 0, 0), chrono.ChQuaternionD(1, 0, 0, 0)))
 
 
 terrain = chrono_vehicle.ChTerrain()
@@ -26,37 +25,29 @@ terrain.SetFriction(0.8)
 terrain.SetRestitution(0.1)  
 
 
-terrain.Initialize(system)
-
-
 driver = chrono_vehicle.ChDriver()
-driver.SetVehicle(hmmwv)
-driver.Initialize()
+driver.SetSteering(0.0)  
+driver.SetThrottle(0.0)  
+driver.SetBraking(0.0)  
 
 
-ros_manager = chrono_ros.ChROSManager()
-ros_manager.Initialize()
+rospy.init_node('chrono_simulation', anonymous=True)
+pub = rospy.Publisher('vehicle_state', String, queue_size=10)
 
 
-ros_manager.RegisterClockHandler()
-ros_manager.RegisterDriverInputHandler(driver)
-ros_manager.RegisterVehicleStateHandler(hmmwv)
-
-
-time_step = 0.01  
-end_time = 10.0   
-current_time = 0.0
-
-
-while current_time < end_time:
+rate = rospy.Rate(10)  
+while not rospy.is_shutdown():
     
-    system.DoStepDynamics(time_step)
+    vehicle.Update()
+    terrain.Update()
+    driver.Update()
+
     
+    vehicle_state = f"Position: {vehicle.GetPos()}, Speed: {vehicle.GetSpeed()}"
+    pub.publish(vehicle_state)
+
     
-    ros_manager.Update(current_time)
-    
-    
-    current_time += time_step
+    rate.sleep()
 
 
-ros_manager.Shutdown()
+rospy.signal_shutdown("Simulation ended.")

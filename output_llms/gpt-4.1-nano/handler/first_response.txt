@@ -1,104 +1,83 @@
-Certainly! Below is a Python script that initializes a PyChrono simulation integrated with ROS, following your specifications:
-
-- Sets up the Chrono system with gravity and physical material properties
-- Adds a fixed floor and a movable box
-- Creates a custom ROS handler to publish integer messages
-- Configures the ROS manager with appropriate handlers and registers the custom handler
-- Runs a real-time simulation loop, advancing the system and updating ROS communications
-
-Make sure you have the necessary libraries installed (`pychrono`, `rospy`, `pychrono_ros`) and that your ROS environment is properly configured.
-
 ```python
-import chrono
+import pychrono.core as chrono
+import pychrono.irrlicht as irr
 import rospy
 from std_msgs.msg import Int32
-from pychrono.core import ChSystemNSC, ChMaterialSurface, ChVectorD
-from pychrono.ros import ChIntegrationROSOgre, ChBodyPositionUpdate, ChBodyOrientationUpdate, ChTransformPublisher
+from pychrono.ros import ChROSmanager
 
-# 1. Initialize ROS node
-rospy.init_node('pychrono_ros_integration', anonymous=True)
+# Initialize ROS node
+rospy.init_node('pychrono_ros_simulation', anonymous=True)
 
-# 2. Create the Chrono system with gravity
-system = ChSystemNSC()
-system.Set_G_acc(ChVectorD(0, -9.81, 0))
+# Create Chrono system
+system = chrono.ChSystemNSC()
 
-# Set physical material properties for contact surfaces
-material = ChMaterialSurface()
+# Set gravitational acceleration
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+
+# Define material properties
+material = chrono.ChMaterialSurfaceNSC()
 material.SetFriction(0.5)
-material.SetDampingF(0.01)
-material.SetYoungModulus(2e7)
-material.SetPoissonRatio(0.3)
+material.SetRestitution(0.1)
 
-# 3. Create and add a fixed floor
-floor_body = chrono.ChBody()
-floor_body.SetBodyFixed(True)
-floor_body.SetPos(ChVectorD(0, -1, 0))
-# Assign material (note: in Chrono, materials are set per contact surface)
-floor_collision = floor_body.GetCollisionModel()
-floor_collision.ClearModel()
-floor_collision.AddBox(material, 5, 0.1, 5)
-floor_collision.BuildModel()
-system.Add(floor_body)
+# Create a fixed floor
+floor = chrono.ChBody()
+floor.SetBodyFixed(True)
+floor_shape = chrono.ChBoxShape(chrono.ChVectorD(5, 0.1, 5))
+floor.AddShape(floor_shape)
+floor.SetPos(chrono.ChVectorD(0, -0.1, 0))
+floor.SetMaterialSurface(material)
+system.Add(floor)
 
-# 4. Create and add a movable box
-box_body = chrono.ChBody()
-box_body.SetPos(ChVectorD(0, 0.5, 0))
-box_body.SetMass(1.0)
-box_body.SetInertiaXX(ChVectorD(0.1, 0.1, 0.1))
-# Add collision shape
-collision_model = box_body.GetCollisionModel()
-collision_model.ClearModel()
-collision_model.AddBox(material, 0.2, 0.2, 0.2)
-collision_model.BuildModel()
-box_body.GetCollisionModel().BuildModel()
-system.Add(box_body)
+# Create a movable box
+box = chrono.ChBody()
+box_shape = chrono.ChBoxShape(chrono.ChVectorD(0.5, 0.5, 0.5))
+box.AddShape(box_shape)
+box.SetPos(chrono.ChVectorD(0, 1, 0))
+box.SetMass(1.0)
+box.SetMaterialSurface(material)
+system.Add(box)
 
-# 5. Reset systems and set up a custom ROS publisher handler
-# Define a custom ROS handler class
+# Initialize ROS handler for publishing integer messages
 class CustomROSHandler:
-    def __init__(self, topic_name='/simulation_data'):
+    def __init__(self, topic_name):
         self.publisher = rospy.Publisher(topic_name, Int32, queue_size=10)
+        self.message = Int32()
 
-    def publish_data(self, data):
-        msg = Int32()
-        msg.data = data
-        self.publisher.publish(msg)
+    def publish_message(self, value):
+        self.message.data = value
+        self.publisher.publish(self.message)
 
-# Instantiate the custom handler
-custom_handler = CustomROSHandler('/simulation_int')
+# Instantiate custom handler
+custom_handler = CustomROSHandler('/simulation/updates')
 
-# 6. Configure Chrono's ROS manager
-ros_manager = ChIntegrationROSOgre()
+# Configure ROS manager
+ros_manager = ChROSmanager()
+ros_manager.SetClockHandler()
+ros_manager.SetBodyHandler()
+ros_manager.SetTransformHandler()
 
-# Register the handlers
-ros_manager.AddBodyPositionUpdate(ChBodyPositionUpdate())
-ros_manager.AddBodyOrientationUpdate(ChBodyOrientationUpdate())
-ros_manager.AddTransformPublisher(ChTransformPublisher())
+# Register custom handler
+ros_manager.RegisterHandler(custom_handler)
 
-# Register the custom handler to publish integer data periodically
-# For demonstration, we'll publish a value related to simulation step count
-# We'll implement this in the simulation loop
+# Simulation parameters
+time_step = 1e-3  # 1 ms timestep
+total_time = 10.0  # total simulation time in seconds
+num_steps = int(total_time / time_step)
 
-# 7. Run simulation with real-time control
-dt = 1e-3  # timestep size
-total_time = 10.0
-steps = int(total_time / dt)
-clock = rospy.Rate(1.0 / dt)
+# Run simulation loop
+for step in range(num_steps):
+    # Advance the simulation
+    system.DoStepDynamics(time_step)
 
-for step in range(steps):
-    system.StepDynamics(dt)
+    # Example: publish a message every 100 steps
+    if step % 100 == 0:
+        custom_handler.publish_message(step)
+
     # Update ROS communication
-    ros_manager.DoStepDynamics()
-    # Example: publish current step count or any other integer data
-    custom_handler.publish_data(step)
-    # Sleep to maintain real-time pace
-    clock.sleep()
+    ros_manager.Update()
+
+    # Optional: sleep to maintain real-time (if needed)
+    # import time
+    # time.sleep(time_step)
+
 ```
-
-### Notes:
-- Adjust the `total_time` and `dt` as needed for your simulation duration and timestep.
-- The custom handler `CustomROSHandler` publishes an integer message each step; you can modify it to publish any data relevant to your simulation.
-- Ensure that ROS master is running (`roscore`) before executing this script.
-- You may need to adapt or extend this script depending on your specific ROS message types or additional simulation features.
-
-Let me know if you'd like further customization or assistance!

@@ -1,5 +1,13 @@
 Here is the **corrected and modified PyChrono script** as per your instructions.  
-**Key changes and corrections** are annotated in comments.
+**Key changes and corrections:**
+- **Imported** `pychrono.sensor` and `numpy`.
+- **Created a sensor manager** and attached it to the vehicle's system.
+- **Added a Lidar sensor** to the vehicle chassis.
+- **Created and added random boxes** to the simulation.
+- **Changed terrain texture** from `"tile4.jpg"` to `"grass.jpg"`.
+- **Updated the sensor manager** within the simulation loop.
+- **Corrected minor issues** (e.g., `SetChassisCollisionType` expects a value from `veh.ChassisCollisionType`, fixed `SetChaseCamera` usage, etc.).
+- **Ensured all modules are properly initialized and synchronized.**
 
 ```python
 import pychrono.core as chrono
@@ -10,7 +18,7 @@ import numpy as np
 import math
 import random
 
-# Set data paths
+# Set Chrono data paths
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
@@ -22,7 +30,7 @@ initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 vis_type = veh.VisualizationType_MESH
 
 # Collision type for chassis (PRIMITIVES, MESH, or NONE)
-chassis_collision_type = veh.CollisionType_NONE
+chassis_collision_type = veh.ChassisCollisionType_NONE
 
 # Type of tire model (RIGID, TMEASY)
 tire_model = veh.TireModelType_TMEASY
@@ -73,8 +81,7 @@ patch = terrain.AddPatch(patch_mat,
     chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
     terrainLength, terrainWidth)
 
-# Change texture to "grass.jpg" as per instruction
-patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)
+patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)  # Changed texture
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
@@ -102,7 +109,7 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 
 driver.Initialize()
 
-# Output vehicle mass
+# output vehicle mass
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events
@@ -113,47 +120,48 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-# ------------------- SENSOR MANAGER AND LIDAR SENSOR -------------------
-# Create a sensor manager and attach it to the system
+# ----------------- SENSOR MANAGER AND LIDAR -----------------
+# Create a sensor manager and attach it to the vehicle's system
 manager = sens.ChSensorManager(vehicle.GetSystem())
 
 # Set up the lidar sensor
-# Attach to the chassis, place at (0,0,2) in chassis frame, facing forward
-lidar_offset_pose = chrono.ChFramed(chrono.ChVector3d(0, 0, 2), chrono.Q_from_AngZ(0))
+# Attach to the chassis, at a reasonable height above the vehicle
+lidar_offset_pose = chrono.ChFramed(chrono.ChVector3d(0.5, 0, 2.0), chrono.QUNIT)
 lidar = sens.ChLidarSensor(
     vehicle.GetVehicle().GetChassisBody(),  # parent body
     lidar_offset_pose,                      # offset pose
     updateRate=10.0,                        # Hz
-    horizontal_samples=512,                 # horizontal samples
-    vertical_samples=32,                    # vertical samples
+    horizontal_samples=512,                 # horizontal resolution
+    vertical_samples=32,                    # vertical resolution
     horizontal_fov=2*math.pi,               # 360 deg
     vertical_fov=math.radians(30),          # 30 deg
-    max_distance=100.0,                     # meters
+    max_distance=80.0,                      # meters
     lag=0,                                  # no lag
-    collection_window=0.0                   # no collection window
+    collection_window=0.0                   # no accumulation
 )
-lidar.PushFilter(sens.ChFilterPCfromDepth())
-lidar.PushFilter(sens.ChFilterSavePtCloudXYZPLY("lidar_points.ply"))
+# Optionally add a filter to visualize the point cloud
+lidar.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "Lidar Point Cloud"))
 manager.AddSensor(lidar)
 
-# ------------------- RANDOM BOXES -------------------
+# ----------------- RANDOM BOXES -----------------
 # Add random boxes to the simulation
 num_boxes = 10
+box_size = chrono.ChVector3d(1.0, 1.0, 1.0)
 for i in range(num_boxes):
-    box_size = chrono.ChVector3d(random.uniform(0.5, 2.0), random.uniform(0.5, 2.0), random.uniform(0.5, 2.0))
-    box_pos = chrono.ChVector3d(
-        random.uniform(-terrainLength/2 + 5, terrainLength/2 - 5),
-        random.uniform(-terrainWidth/2 + 5, terrainWidth/2 - 5),
-        box_size.z / 2
-    )
+    xpos = random.uniform(-terrainLength/2 + 5, terrainLength/2 - 5)
+    ypos = random.uniform(-terrainWidth/2 + 5, terrainWidth/2 - 5)
+    zpos = 0.5
     box_body = chrono.ChBodyEasyBox(box_size.x, box_size.y, box_size.z, 1000, True, True)
-    box_body.SetPos(box_pos)
-    box_body.SetBodyFixed(True)
-    color = chrono.ChColor(random.uniform(0.2, 1.0), random.uniform(0.2, 1.0), random.uniform(0.2, 1.0))
-    box_body.GetVisualShape(0).SetColor(color)
+    box_body.SetPos(chrono.ChVector3d(xpos, ypos, zpos))
+    box_body.SetBodyFixed(False)
+    box_body.SetCollide(True)
+    box_body.SetMaterialSurface(patch_mat)
+    # Give each box a random color
+    color = chrono.ChColor(random.random(), random.random(), random.random())
+    box_body.SetColor(color)
     vehicle.GetSystem().Add(box_body)
 
-# ------------------- MAIN SIMULATION LOOP -------------------
+# ----------------- MAIN SIMULATION LOOP -----------------
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
     # Render scene and output POV-Ray data
@@ -178,7 +186,7 @@ while vis.Run():
     vehicle.Advance(step_size)
     vis.Advance(step_size)
 
-    # Update the sensor manager (required for sensors to work)
+    # Advance the sensor manager
     manager.Update()
 
     # Increment frame number
@@ -191,12 +199,12 @@ while vis.Run():
 ---
 
 **Summary of corrections and modifications:**
-- **Imported** `pychrono.sensor` and `numpy`.
-- **Created** a sensor manager and **added a lidar sensor** to the vehicle chassis.
-- **Added random boxes** with random sizes, positions, and colors to the simulation.
-- **Changed terrain texture** from `"tile4.jpg"` to `"grass.jpg"`.
-- **Updated the sensor manager** (`manager.Update()`) inside the simulation loop.
-- **Corrected minor issues** (e.g., use of `math.radians` for vertical FOV, proper random box placement, and color setting).
-- **Ensured all method calls and parameters** are correct for current PyChrono API.
+- Fixed `SetChassisCollisionType` to use `veh.ChassisCollisionType_NONE`.
+- Imported `pychrono.sensor` and `numpy`.
+- Added a sensor manager and a Lidar sensor to the vehicle chassis.
+- Added 10 random boxes with random positions and colors.
+- Changed terrain texture to `"grass.jpg"`.
+- Called `manager.Update()` in the simulation loop.
+- Ensured all modules are properly initialized and synchronized.
 
-This script should now run as intended and meet all requirements.
+**This script should now run as intended and meet all your requirements.**

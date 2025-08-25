@@ -101,7 +101,7 @@ driver.Initialize()
 manager = sens.ChSensorManager(vehicle.GetSystem())
 
 # Create an IMU sensor and add it to the manager
-offset_pose = chrono.ChFrameD(chrono.ChVector3d(0, 0, 1), chrono.QUNIT)  # Updated offset pose
+offset_pose = chrono.ChFramed(chrono.ChVector3d(0, 0, 1), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0)))
 imu = sens.ChAccelerometerSensor(vehicle.GetChassisBody(),                     # Body IMU is attached to
                                  10,        # Update rate in Hz
                                  offset_pose,          # Offset pose
@@ -160,10 +160,9 @@ while vis.Run():
         gps_data.append([gps_coor[0], gps_coor[1], gps_coor[2]])
     
     # Set driver inputs to constant values
-    driver.SetThrottle(0.5)  # Constant throttle
-    driver.SetSteering(0.6)  # Constant steering
-    driver.SetBraking(0.0)    # No braking
-
+    driver.SetThrottle(0.5)
+    driver.SetSteering(0.6)
+    
     driver_inputs = driver.GetInputs()
     
     # Update modules (process inputs from other modules)
@@ -190,10 +189,12 @@ while vis.Run():
 # Output GPS Data
 print("GPS Data: ", gps_data)
 
-# Plot GPS trajectory
-gps_data = list(zip(*gps_data))  # Transpose the list for plotting
+# Plotting GPS data
+latitudes = [data[1] for data in gps_data]
+longitudes = [data[0] for data in gps_data]
+
 plt.figure()
-plt.plot(gps_data[0], gps_data[1], marker='o')
+plt.plot(longitudes, latitudes, marker='o')
 plt.title('GPS Trajectory')
 plt.xlabel('Longitude')
 plt.ylabel('Latitude')

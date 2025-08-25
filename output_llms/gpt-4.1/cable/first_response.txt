@@ -1,113 +1,106 @@
-Certainly! Below is a **PyChrono** script that creates a beam using ANCF cable elements, hinges one end to the ground, applies gravity, and visualizes the deformation and nodal positions using the Irrlicht engine.
+Certainly! Below is a **PyChrono** simulation script that creates a beam using ANCF cable elements, hinges one end to the ground, applies gravity, and visualizes the deformation and nodal positions using the Irrlicht engine.
 
 ```python
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
-import math
+import pychrono.fea as fea
 
 # 1. Initialize the PyChrono environment and core components
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 
-# 2. Create the physical system
-system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+# Create the physical system
+system = chrono.ChSystemSMC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Gravity
 
-# 3. Define beam (ANCF cable) parameters
+# 2. Add the required physical systems and objects
+
+# Beam parameters
 beam_length = 2.0
 beam_height = 0.02
 beam_width = 0.02
 num_elements = 10
-element_length = beam_length / num_elements
-beam_density = 1000  # kg/m^3
-beam_E = 2e7         # Young's modulus
-beam_G = 1e7         # Shear modulus
+node_spacing = beam_length / num_elements
 
-# 4. Create the ground body
-ground = chrono.ChBody()
-ground.SetBodyFixed(True)
-system.Add(ground)
+# Material for the beam
+beam_material = fea.ChMaterialBeamANCF(
+    rho=1000,      # density [kg/m^3]
+    E=2e7,         # Young's modulus [Pa]
+    nu=0.3,        # Poisson ratio
+    damping=0.01   # Rayleigh damping
+)
 
-# 5. Create the ANCF cable nodes and elements
+# Create the mesh
+mesh = fea.ChMesh()
+
+# Create nodes and elements
 nodes = []
-elements = []
-
-# Create nodes
 for i in range(num_elements + 1):
-    x = i * element_length
-    node = chrono.ChNodeFEAxyzD(chrono.ChVectorD(x, 0, 0), chrono.ChVectorD(1, 0, 0))
-    node.SetMass(beam_density * beam_width * beam_height * element_length / 2)
-    system.Add(node)
+    x = i * node_spacing
+    node = fea.ChNodeCableANCF(chrono.ChVectorD(x, 0, 0), chrono.ChVectorD(0, 1, 0))
+    node.SetMass(0.1)
+    mesh.AddNode(node)
     nodes.append(node)
 
-# Create elements
 for i in range(num_elements):
-    element = chrono.ChElementCableANCF()
+    element = fea.ChElementCableANCF()
     element.SetNodes(nodes[i], nodes[i+1])
-    element.SetSection(chrono.ChBeamSectionCable())
-    element.GetSection().SetDiameter(beam_width)
-    element.GetSection().SetYoungModulus(beam_E)
-    element.GetSection().SetDensity(beam_density)
-    system.Add(element)
-    elements.append(element)
+    element.SetMaterial(beam_material)
+    element.SetSection(beam_width, beam_height)
+    mesh.AddElement(element)
 
-# 6. Hinge (fix) the first node to the ground
-constraint = chrono.ChLinkPointFrame()
-constraint.Initialize(nodes[0], ground)
-system.Add(constraint)
+# 3. Set necessary default parameters such as positions, forces, and interactions
 
-# 7. Visualization setup
-application = chronoirr.ChVisualSystemIrrlicht()
-application.AttachSystem(system)
-application.SetWindowSize(1024, 768)
-application.SetWindowTitle('ANCF Cable Beam Deformation')
-application.Initialize()
-application.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
-application.AddSkyBox()
-application.AddCamera(chrono.ChVectorD(0.5 * beam_length, 0.2, 0.6), chrono.ChVectorD(0.5 * beam_length, 0, 0))
+# Fix the first node (hinge to ground)
+nodes[0].SetFixed(True)
+
+# Add the mesh to the system
+system.Add(mesh)
+
+# Visualization assets for the beam
+cable_asset = fea.ChVisualizationFEAmesh(mesh)
+cable_asset.SetFEMglyphType(fea.ChVisualizationFEAmesh.E_GLYPH_NODE_DOT_POS)
+cable_asset.SetFEMdataType(fea.ChVisualizationFEAmesh.E_PLOT_NODE_SPEED_NORM)
+cable_asset.SetColorscaleMinMax(0.0, 5.0)
+cable_asset.SetSmoothFaces(True)
+cable_asset.SetWireframe(False)
+mesh.AddAsset(cable_asset)
+
+cable_section_asset = fea.ChVisualizationFEAmesh(mesh)
+cable_section_asset.SetFEMglyphType(fea.ChVisualizationFEAmesh.E_GLYPH_NONE)
+cable_section_asset.SetFEMdataType(fea.ChVisualizationFEAmesh.E_PLOT_NONE)
+cable_section_asset.SetSmoothFaces(True)
+mesh.AddAsset(cable_section_asset)
+
+# 4. Visualization using Irrlicht
+
+# Create the Irrlicht application
+application = chronoirr.ChIrrApp(system, "ANCF Cable Beam Simulation", chronoirr.dimension2du(1024, 768))
+application.AddTypicalSky()
+application.AddTypicalLogo()
+application.AddTypicalCamera(chronoirr.vector3df(0.5 * beam_length, 0.2, 0.5))
 application.AddTypicalLights()
 
-# Add visualization assets to the beam elements
-for element in elements:
-    cable_shape = chrono.ChVisualizationFEAmesh(element)
-    cable_shape.SetFEMdataType(chrono.ChVisualizationFEAmesh.E_PLOT_NODE_SPEED_NORM)
-    cable_shape.SetColorscaleMinMax(0.0, 5.0)
-    cable_shape.SetSmoothFaces(True)
-    cable_shape.SetWireframe(False)
-    element.AddAsset(cable_shape)
-
-# Visualize the nodes as spheres
-for node in nodes:
-    sphere = chrono.ChSphereShape()
-    sphere.GetSphereGeometry().rad = 0.01
-    node.AddAsset(sphere)
-
-# 8. Simulation loop
 application.AssetBindAll()
 application.AssetUpdateAll()
 
-timestep = 0.002
-
-while application.Run():
+# Simulation loop
+application.SetTimestep(0.002)
+while application.GetDevice().run():
     application.BeginScene()
     application.DrawAll()
+    application.DoStep()
     application.EndScene()
-    system.DoStepDynamics(timestep)
 ```
 
 ---
 
-**Key Points:**
-- The beam is modeled using `ChElementCableANCF` elements and `ChNodeFEAxyzD` nodes.
-- The first node is fixed to the ground using `ChLinkPointFrame`, creating a hinge.
-- Gravity is applied to the system.
-- Visualization uses Irrlicht, showing the beam and nodal positions.
-- The simulation loop updates the scene and steps the dynamics.
+**Key points:**
+- The beam is constructed from ANCF cable elements.
+- The first node is fixed, acting as a hinge to the ground.
+- Gravity is applied.
+- Visualization shows beam deformation and nodal positions.
+- Uses Irrlicht for real-time rendering.
 
-**Dependencies:**  
-Make sure you have PyChrono installed with Irrlicht bindings (`pychrono.irrlicht`).  
-You can install it via pip:  
-```bash
-pip install pychrono
-```
-
-Let me know if you need further customization!
+**Requirements:**  
+Make sure you have installed PyChrono with FEA and Irrlicht support.  
+You can adjust beam parameters, material properties, and visualization settings as needed.

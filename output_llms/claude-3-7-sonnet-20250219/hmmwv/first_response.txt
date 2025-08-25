@@ -1,4 +1,4 @@
-# PyChrono HMMWV Simulation with TMEASY Tires and Interactive Driver
+# PyChrono HMMWV Simulation with Irrlicht Visualization
 
 ```python
 import pychrono as chrono
@@ -6,144 +6,128 @@ import pychrono.vehicle as veh
 import pychrono.irrlicht as irr
 import math
 
-# ---------------------------------------------------------------------
-# Initialize the simulation
+# Global simulation parameters
+step_size = 1e-3  # simulation step size in seconds
+output_fps = 50    # visualization output frames per second
 
-# Set the path to Chrono data directory
-chrono.SetChronoDataPath('C:/path/to/chrono/data/directory')  # Update with your path
+# Initialize the Chrono system
+chrono_system = chrono.ChSystemNSC()
+chrono_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
 
-# Create the chrono system
-system = chrono.ChSystemSMC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+# Set contact method
+contact_method = chrono.ChContactMethod_NSC
+chrono_system.SetContactMethod(contact_method)
 
-# ---------------------------------------------------------------------
-# Create the terrain
+# Set solver parameters
+chrono_system.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
+chrono_system.SetSolverMaxIterations(150)
+chrono_system.SetMaxPenetrationRecoverySpeed(4.0)
 
-terrain = veh.RigidTerrain(system)
-patch_mat = chrono.ChMaterialSurfaceSMC()
-patch_mat.SetFriction(0.9)
-patch_mat.SetRestitution(0.01)
+# Create the terrain (flat, rigid ground)
+terrain = veh.RigidTerrain(chrono_system)
+terrain_params = veh.RigidTerrainParams()
+terrain_params.SetDefaultMaterial(0.8, 0.01, 4e6, 0.3)  # Friction, restitution, contact stiffness, contact damping
+terrain_params.SetDimensions(200, 200, 2)  # Length, width, thickness
+terrain_params.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
+terrain_params.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+terrain.Initialize(terrain_params)
 
-# Dimensions for the terrain
-terrain_length = 100.0
-terrain_width = 100.0
+# Create and initialize the HMMWV vehicle
+# Vehicle location and orientation
+initLoc = chrono.ChVectorD(0, 0.5, 0)
+initRot = chrono.ChQuaternionD(1, 0, 0, 0)
 
-# Define patch
-patch = terrain.AddPatch(patch_mat, 
-                         chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.Q_from_AngX(0)),
-                         terrain_length, terrain_width)
-
-# Set visualization properties for the terrain
-patch.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), terrain_width, terrain_length)
-terrain.Initialize()
-
-# ---------------------------------------------------------------------
-# Create the vehicle
-
-# Set the vehicle collision family
-collision_family = 1
-
-# Create the vehicle from JSON specification file
-hmmwv = veh.HMMWV_Full(system)
-hmmwv.SetContactMethod(chrono.ChContactMethod_SMC)
-hmmwv.SetChassisCollisionType(veh.CollisionType_PRIMITIVES)
+# Create the HMMWV vehicle
+hmmwv = veh.HMMWV_Full()
+hmmwv.SetContactMethod(contact_method)
+hmmwv.SetChassisCollisionType(veh.ChassisCollisionType_NONE)
+hmmwv.SetChassisVehicleCollisionType(veh.ChassisVehicleCollisionType_PRIMITIVES)
 hmmwv.SetChassisFixed(False)
-hmmwv.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0.5, 0), chrono.Q_from_AngZ(0)))
-hmmwv.SetPowertrainType(veh.PowertrainModelType_SHAFTS)
-hmmwv.SetDriveType(veh.DrivelineTypeWV_AWD)
+hmmwv.SetInitPosition(chrono.ChCoordsysD(initLoc, initRot))
 hmmwv.SetTireType(veh.TireModelType_TMEASY)
-hmmwv.SetTireCollisionType(veh.CollisionType_PRIMITIVES)
-hmmwv.SetVehicleStepSize(1e-3)
-
-# Initialize the vehicle
+hmmwv.SetTireStepSize(step_size)
 hmmwv.Initialize()
 
-# Set visualization type for vehicle parts
-hmmwv.SetChassisVisualizationType(veh.VisualizationType_PRIMITIVES)
-hmmwv.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
-hmmwv.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
-hmmwv.SetWheelVisualizationType(veh.VisualizationType_PRIMITIVES)
-hmmwv.SetTireVisualizationType(veh.VisualizationType_PRIMITIVES)
+# Set up visualization
+vis_scene = None
+if irr:
+    vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
+    vis.SetWindowTitle("HMMWV Simulation")
+    vis.SetWindowSize(1280, 720)
+    vis.SetChaseCamera(6.0, 0.5, 0.0, 0.3)
+    vis.Initialize()
+    vis.AddLightDirectional()
+    vis.AddSkyBox()
+    vis.AttachVehicle(hmmwv.GetVehicle())
+    vis_scene = vis
 
-# ---------------------------------------------------------------------
-# Create the driver system
-
-driver = veh.ChIrrGuiDriver(app)
+# Create the interactive driver system
+driver = veh.ChIrrGuiDriver(vis)
 driver.SetSteeringDelta(0.02)
 driver.SetThrottleDelta(0.02)
 driver.SetBrakingDelta(0.06)
 driver.Initialize()
 
-# Create and initialize the powertrain
-powertrain = veh.HMMWV_Powertrain("Powertrain")
-powertrain.Initialize(hmmwv.GetChassisBody(), hmmwv.GetDriveshaft())
+# Create the powertrain system
+powertrain = veh.HMMWV_AutomaticPowertrain("Powertrain")
+hmmwv.GetVehicle().InitializePowertrain(powertrain)
 
-# ---------------------------------------------------------------------
-# Create the Irrlicht visualization
-
-app = irr.ChIrrApp(
-    system,                            # pointer to the ChSystem
-    "HMMWV Simulation",                # window title
-    irr.dimension2du(1280, 720),       # window dimensions
-    False,                             # use full screen?
-    True,                              # enable shadows?
-    irr.video.EDT_OPENGL               # graphics driver
-)
-
-app.AddTypicalLogo()
-app.AddTypicalSky()
-app.AddTypicalLights()
-app.AddTypicalCamera(chrono.ChVectorD(0, 3, -6))
-app.AssetBindAll()
-app.AssetUpdateAll()
-
-# ---------------------------------------------------------------------
+# -----------------------------------------------------
 # Simulation loop
+# -----------------------------------------------------
 
-# Number of simulation steps between two 3D view render frames
-render_step_size = 1.0 / 50.0  # 50 FPS
-realtime_timer = chrono.ChRealtimeStepTimer()
+# Number of simulation steps between two visualization steps
+render_steps = math.ceil(1.0 / (output_fps * step_size))
 
-while app.GetDevice().run():
-    # Render scene
-    app.BeginScene(True, True, irr.SColor(255, 140, 161, 192))
-    app.DrawAll()
-    
+# Initialize simulation frame counter and timer
+step_number = 0
+real_time = 0
+
+while vis.Run() and real_time < 1000:
     # Get driver inputs
     driver_inputs = driver.GetInputs()
     
-    # Update modules (process inputs from driver)
-    time = system.GetChTime()
+    # Update modules (process inputs from other modules)
+    time = chrono_system.GetChTime()
+    driver.Synchronize(time)
     hmmwv.Synchronize(time, driver_inputs, terrain)
     terrain.Synchronize(time)
-    app.Synchronize("", driver_inputs)
+    vis.Synchronize(time, driver_inputs)
     
-    # Advance simulation for one timestep
-    system.DoStepDynamics(render_step_size)
+    # Advance simulation for one timestep for all modules
+    driver.Advance(step_size)
+    hmmwv.Advance(step_size)
+    terrain.Advance(step_size)
+    vis.Advance(step_size)
+    chrono_system.DoStepDynamics(step_size)
     
-    # Finalize rendering
-    app.EndScene()
+    # Increment frame number
+    step_number += 1
+    real_time += step_size
     
-    # Slow down simulation to real-time
-    realtime_timer.Spin(render_step_size)
+    # Render scene only after a certain number of steps
+    if step_number % render_steps == 0:
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+
+# Clean up and exit
+if vis_scene:
+    vis_scene.GetDevice().closeDevice()
+print("Simulation ended")
 ```
 
-This script creates a complete HMMWV simulation with the following key features:
+This script sets up a full HMMWV simulation with the following features:
 
-1. Sets up a PyChrono environment with SMC contact method for accurate collision detection
-2. Creates a flat rigid terrain with appropriate dimensions and texture
-3. Initializes a full HMMWV vehicle model with:
-   - TMEASY tire model for realistic tire behavior
-   - Primitive visualization for all vehicle components
-   - Appropriate contact and collision settings
-4. Implements an interactive driver system with Irrlicht for user control of:
-   - Steering
-   - Throttle
-   - Braking
-5. Configures Irrlicht visualization with camera, lighting, and sky
-6. Runs the simulation in real-time at 50 FPS, synchronizing all components
+1. Initializes a PyChrono environment with the NSC contact method
+2. Creates a flat rigid terrain with texture and appropriate dimensions
+3. Sets up a HMMWV vehicle with:
+   - TMEASY tire model
+   - Primitive visualization for vehicle components
+   - Proper initial position and orientation
+4. Configures an Irrlicht visualization system with camera settings
+5. Creates an interactive driver system for controlling the vehicle
+6. Sets up a simulation loop running at 50 FPS
+7. Updates vehicle dynamics, terrain interactions, and visualization in real-time
 
-To use this script, you'll need to:
-1. Install PyChrono with the vehicle and Irrlicht modules
-2. Update the Chrono data directory path
-3. Run the script to interact with the HMMWV using keyboard controls
+The simulation allows interactive control of the vehicle using keyboard inputs through the Irrlicht interface.

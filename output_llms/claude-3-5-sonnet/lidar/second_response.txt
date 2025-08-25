@@ -1,4 +1,4 @@
-Here's the corrected and modified script based on your instructions:
+Thank you for providing the instructions. I'll modify the script according to the requirements and correct any errors I find. Here's the updated script:
 
 ```python
 import pychrono.core as chrono
@@ -9,13 +9,17 @@ import time
 import math
 
 def main():
+    # -----------------
     # Create the system
+    # -----------------
     mphysicalSystem = chrono.ChSystemNSC()
 
-    # Add a box to be sensed by the lidars
+    # ----------------------------------
+    # Add a box to be sensed by lidars
+    # ----------------------------------
     side = 2.0  # Size of the box
     box = chrono.ChBodyEasyBox(side, side, side, 1000)
-    box.SetPos(chrono.ChVectorD(0, 0, 0))
+    box.SetPos(chrono.ChVectorD(0, 0, side/2))
     box.SetBodyFixed(True)
     
     # Add texture to the box
@@ -25,10 +29,14 @@ def main():
     
     mphysicalSystem.Add(box)
 
+    # -----------------------
     # Create a sensor manager
+    # -----------------------
     manager = sens.ChSensorManager(mphysicalSystem)
 
+    # ------------------------------------------------
     # Create a 3D lidar and add it to the sensor manager
+    # ------------------------------------------------
     offset_pose = chrono.ChFrameD(
         chrono.ChVectorD(-12, 0, 1), chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0))
     )
@@ -52,19 +60,9 @@ def main():
     lidar.SetLag(lag)
     lidar.SetCollectionWindow(collection_time)
 
-    # Create filters for the 3D lidar
-    if vis:
-        lidar.PushFilter(sens.ChFilterVisualize(horizontal_samples, vertical_samples, "3D Lidar Depth Data"))
-    lidar.PushFilter(sens.ChFilterDIAccess())
-    lidar.PushFilter(sens.ChFilterPCfromDepth())
-    if vis:
-        lidar.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "3D Lidar Point Cloud"))
-    lidar.PushFilter(sens.ChFilterXYZIAccess())
-
-    # Add the 3D lidar to the sensor manager
-    manager.AddSensor(lidar)
-
+    # ------------------------------------------------
     # Create a 2D lidar and add it to the sensor manager
+    # ------------------------------------------------
     offset_pose_2d = chrono.ChFrameD(
         chrono.ChVectorD(-12, 0, 1), chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0))
     )
@@ -88,23 +86,50 @@ def main():
     lidar_2d.SetLag(lag)
     lidar_2d.SetCollectionWindow(collection_time)
 
-    # Create filters for the 2D lidar
+    # -----------------------------------------------------------------
+    # Create filter graphs for post-processing the data from the lidars
+    # -----------------------------------------------------------------
+    if noise_model == "CONST_NORMAL_XYZI":
+        lidar.PushFilter(sens.ChFilterLidarNoiseXYZI(0.01, 0.001, 0.001, 0.01))
+        lidar_2d.PushFilter(sens.ChFilterLidarNoiseXYZI(0.01, 0.001, 0.001, 0.01))
+    elif noise_model == "NONE":
+        # Don't add any noise models
+        pass
+
     if vis:
+        # Visualize the raw lidar data
+        lidar.PushFilter(sens.ChFilterVisualize(horizontal_samples, vertical_samples, "3D Lidar Depth Data"))
         lidar_2d.PushFilter(sens.ChFilterVisualize(horizontal_samples, 1, "2D Lidar Depth Data"))
+
+    # Provides the host access to the Depth, Intensity data
+    lidar.PushFilter(sens.ChFilterDIAccess())
     lidar_2d.PushFilter(sens.ChFilterDIAccess())
+
+    # Convert Depth, Intensity data to XYZI point cloud data
+    lidar.PushFilter(sens.ChFilterPCfromDepth())
     lidar_2d.PushFilter(sens.ChFilterPCfromDepth())
+
     if vis:
+        # Visualize the point cloud
+        lidar.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "3D Lidar Point Cloud"))
         lidar_2d.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "2D Lidar Point Cloud"))
+
+    # Provides the host access to the XYZI data
+    lidar.PushFilter(sens.ChFilterXYZIAccess())
     lidar_2d.PushFilter(sens.ChFilterXYZIAccess())
 
-    # Add the 2D lidar to the sensor manager
+    # Add the lidars to the sensor manager
+    manager.AddSensor(lidar)
     manager.AddSensor(lidar_2d)
 
+    # ---------------
     # Simulate system
+    # ---------------
     orbit_radius = 10
     orbit_rate = 0.1
     ch_time = 0.0
 
+    render_time = 0
     t1 = time.time()
 
     while ch_time < end_time:
@@ -124,17 +149,17 @@ def main():
         xyzi_buffer = lidar.GetMostRecentXYZIBuffer()
         if xyzi_buffer.HasData():
             xyzi_data = xyzi_buffer.GetXYZIData()
-            print('3D XYZI buffer received. Resolution: {0}x{1}'.format(xyzi_buffer.Width, xyzi_buffer.Height))
+            print('3D XYZI buffer received. Lidar resolution: {0}x{1}'.format(xyzi_buffer.Width, xyzi_buffer.Height))
             print('3D Max Value: {0}'.format(np.max(xyzi_data)))
 
         # Access the XYZI buffer from 2D lidar
         xyzi_buffer_2d = lidar_2d.GetMostRecentXYZIBuffer()
         if xyzi_buffer_2d.HasData():
             xyzi_data_2d = xyzi_buffer_2d.GetXYZIData()
-            print('2D XYZI buffer received. Resolution: {0}x{1}'.format(xyzi_buffer_2d.Width, xyzi_buffer_2d.Height))
+            print('2D XYZI buffer received. Lidar resolution: {0}x{1}'.format(xyzi_buffer_2d.Width, xyzi_buffer_2d.Height))
             print('2D Max Value: {0}'.format(np.max(xyzi_data_2d)))
 
-        # Update sensor manager
+        # Update sensor manager (will render/save/filter automatically)
         manager.Update()
 
         # Perform step of dynamics
@@ -145,44 +170,75 @@ def main():
 
     print("Sim time:", end_time, "Wall time:", time.time() - t1)
 
+# -----------------
 # Lidar parameters
-noise_model = "NONE"
+# -----------------
+
+noise_model = "NONE"  # No noise model
+
+# Lidar return mode
 return_mode = sens.LidarReturnMode_STRONGEST_RETURN
+
+# Update rate in Hz
 update_rate = 5.0
+
+# Number of horizontal and vertical samples
 horizontal_samples = 800
 vertical_samples = 300
-horizontal_fov = 2 * chrono.CH_C_PI
+
+# Horizontal and vertical field of view (radians)
+horizontal_fov = 2 * chrono.CH_C_PI  # 360 degrees
 max_vert_angle = chrono.CH_C_PI / 12
 min_vert_angle = -chrono.CH_C_PI / 6
+
+# Lag time
 lag = 0
-collection_time = 1. / update_rate
+
+# Collection window for the lidar
+collection_time = 1. / update_rate  # typically 1/update rate
+
+# Radius of samples to use, 1->1 sample, 2->9 samples, 3->25 samples...
 sample_radius = 2
+
+# 3mm radius (as cited by velodyne)
 divergence_angle = 0.003
 
+# ---------------------
 # Simulation parameters
+# ---------------------
+
+# Simulation step size
 step_size = 1e-3
+
+# Simulation end time
 end_time = 40.0
+
+# Save camera images
 save = False
+
+# Render camera images
 vis = True
+
+# Output directory
 out_dir = "SENSOR_OUTPUT/"
+
+# The path to the Chrono data directory containing various assets (meshes, textures, data files)
+# is automatically set, relative to the default location of this demo.
+# If running from a different directory, you must change the path to the data directory with:
+# chrono.SetChronoDataPath('path/to/data')
 
 main()
 ```
 
-This script incorporates the changes you requested:
+This modified script addresses the following changes and corrections:
 
-1. The mesh object has been replaced with a box using `chrono.ChBodyEasyBox()`.
-2. Mesh loading and scaling have been removed.
-3. A box object has been added with dimensions specified by `side`, and its position and texture have been set.
-4. The lidars are now attached to the box instead of the mesh body.
-5. An additional 2D lidar sensor has been created with one vertical channel and appropriate parameters.
-6. The 2D lidar has been added to the sensor manager with appropriate filters and visualizations.
+1. Replaced the triangular mesh with a box using `chrono.ChBodyEasyBox()`.
+2. Removed mesh loading and scaling.
+3. Added a box object with specified dimensions, position, and texture.
+4. Changed the lidar attachment to the box instead of the mesh body.
+5. Created an additional 2D lidar sensor with one vertical channel.
+6. Added the 2D lidar to the sensor manager with appropriate filters and visualizations.
+7. Corrected some method names and parameters (e.g., `ChVector3d` to `ChVectorD`, `QuatFromAngleAxis` to `Q_from_AngAxis`).
+8. Updated the orbit calculation to work with both lidars.
 
-The script has also been corrected for any potential errors, including:
-
-- Using `chrono.ChVectorD` instead of `chrono.ChVector3d`.
-- Using `chrono.Q_from_AngAxis` instead of `chrono.QuatFromAngleAxis`.
-- Using `chrono.CH_C_PI` instead of `chrono.CH_PI`.
-- Correcting the method name `SetBodyFixed` for the box object.
-
-These changes should result in a working script that meets your requirements.
+The script now includes both a 3D and 2D lidar sensor, both attached to the box object, and orbiting around it during the simulation. The visualization and data access for both lidars are included in the main loop.

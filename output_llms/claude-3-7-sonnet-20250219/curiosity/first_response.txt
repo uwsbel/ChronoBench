@@ -3,225 +3,252 @@
 ```python
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
-import numpy as np
+import pychrono.vehicle as veh
 import os
+import math
+import numpy as np
 
+# ---------------------------------------------------------------------
 # Initialize the Chrono system
+
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
+print("Chrono data directory: " + chrono.GetChronoDataPath())
 
-# Create a physical system
+# Create the simulation system
 system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
 
-# Set solver settings
-system.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
-system.SetSolverMaxIterations(150)
-system.SetMaxPenetrationRecoverySpeed(4.0)
-
+# ---------------------------------------------------------------------
 # Create the ground
-ground = chrono.ChBodyEasyBox(100, 2, 100, 2000, True, True)
-ground.SetPos(chrono.ChVectorD(0, -1, 0))
+
+ground_material = chrono.ChMaterialSurfaceNSC()
+ground_material.SetFriction(0.9)
+ground_material.SetRestitution(0.1)
+
+ground = chrono.ChBodyEasyBox(100, 1, 100, 2000, True, True, ground_material)
+ground.SetPos(chrono.ChVectorD(0, -0.5, 0))
 ground.SetBodyFixed(True)
-ground.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/mars_surface.jpg"))
-
-# Set ground material properties for collision
-ground_mat = chrono.ChMaterialSurfaceNSC()
-ground_mat.SetFriction(0.8)
-ground_mat.SetRestitution(0.2)
-ground_mat.SetRollingFriction(0.01)
-ground_mat.SetSpinningFriction(0.01)
-ground.GetCollisionModel().ClearModel()
-ground.GetCollisionModel().AddBox(ground_mat, 50, 1, 50, chrono.ChVectorD(0, 0, 0))
-ground.GetCollisionModel().BuildModel()
-
 system.Add(ground)
 
-# Create the Curiosity rover
-# Main body
-rover_body = chrono.ChBodyEasyBox(1.5, 0.5, 2.0, 300, True, True)
-rover_body.SetPos(chrono.ChVectorD(0, 0.5, 0))
-rover_body.SetMass(300)
-rover_body.SetInertiaXX(chrono.ChVectorD(50, 50, 50))
-rover_body.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/nasa_logo.png"))
-system.Add(rover_body)
+# Add texture to the ground
+ground_texture = chrono.ChTexture()
+ground_texture.SetTextureFilename(chrono.GetChronoDataPath() + "textures/mars_surface.jpg")
+ground.AddAsset(ground_texture)
 
-# Rover material for wheels
-rover_mat = chrono.ChMaterialSurfaceNSC()
-rover_mat.SetFriction(0.9)
-rover_mat.SetRestitution(0.1)
-rover_mat.SetRollingFriction(0.05)
-rover_mat.SetSpinningFriction(0.05)
+# ---------------------------------------------------------------------
+# Create the Curiosity rover model
+# Note: This is a simplified model. For a more accurate model, you would need 
+# to import a real rover mesh or create a more detailed assembly.
 
-# Create wheels (6 wheels in total, 3 on each side)
-wheels = []
+# Create the main chassis body
+chassis = chrono.ChBodyEasyBox(1.0, 0.2, 1.5, 200, True, True)
+chassis.SetPos(chrono.ChVectorD(0, 0.5, 0))
+chassis.SetMass(300)
+chassis.SetInertiaXX(chrono.ChVectorD(50, 50, 50))
+system.Add(chassis)
+
+# Add visual shape for the chassis
+chassis_shape = chrono.ChBoxShape()
+chassis_shape.GetBoxGeometry().SetLengths(chrono.ChVectorD(1.0, 0.2, 1.5))
+chassis.AddAsset(chassis_shape)
+chassis_texture = chrono.ChTexture()
+chassis_texture.SetTextureFilename(chrono.GetChronoDataPath() + "textures/nasa.jpg")
+chassis.AddAsset(chassis_texture)
+chassis.AddAsset(chrono.ChColorAsset(0.8, 0.8, 0.8))
+
+# Create the 6 wheels
 wheel_radius = 0.3
 wheel_width = 0.2
-wheel_mass = 30
+wheel_mass = 15
+wheel_material = chrono.ChMaterialSurfaceNSC()
+wheel_material.SetFriction(0.9)
 
-# Wheel positions relative to the rover body
+wheels = []
+wheel_joints = []
+
+# Wheel positions relative to chassis (left and right side, 3 wheels on each side)
 wheel_positions = [
-    chrono.ChVectorD(0.7, -0.1, 0.8),  # Front right
-    chrono.ChVectorD(0.7, -0.1, -0.8),  # Front left
-    chrono.ChVectorD(0.0, -0.1, 0.8),   # Middle right
-    chrono.ChVectorD(0.0, -0.1, -0.8),  # Middle left
-    chrono.ChVectorD(-0.7, -0.1, 0.8),  # Rear right
-    chrono.ChVectorD(-0.7, -0.1, -0.8), # Rear left
+    chrono.ChVectorD(-0.5, -0.1, 0.6),   # Front left
+    chrono.ChVectorD(0.5, -0.1, 0.6),    # Front right
+    chrono.ChVectorD(-0.5, -0.1, 0),     # Middle left
+    chrono.ChVectorD(0.5, -0.1, 0),      # Middle right
+    chrono.ChVectorD(-0.5, -0.1, -0.6),  # Rear left
+    chrono.ChVectorD(0.5, -0.1, -0.6),   # Rear right
 ]
-
-motors = []
 
 for i, pos in enumerate(wheel_positions):
     # Create wheel
     wheel = chrono.ChBodyEasyCylinder(
-        wheel_radius, wheel_width, 1000, 
-        True, True, rover_mat
+        wheel_radius, wheel_width, wheel_mass, wheel_material, True, True
     )
     
-    # Set wheel position relative to rover body
-    wheel.SetPos(rover_body.GetPos() + pos)
+    # Position the wheel relative to the chassis
+    wheel.SetPos(chassis.GetPos() + pos)
     
-    # Rotate wheels properly (cylinders are created with axis along Y)
-    if i % 2 == 0:  # right side
-        wheel.SetRot(chrono.Q_from_AngAxis(chrono.CH_C_PI_2, chrono.ChVectorD(0, 0, 1)))
-    else:  # left side
-        wheel.SetRot(chrono.Q_from_AngAxis(chrono.CH_C_PI_2, chrono.ChVectorD(0, 0, 1)))
+    # Rotate wheels to be in the correct orientation (axle along Y)
+    wheel.SetRot(chrono.Q_from_AngAxis(chrono.CH_C_PI / 2, chrono.ChVectorD(0, 0, 1)))
     
-    wheel.SetMass(wheel_mass)
-    wheel.SetInertiaXX(chrono.ChVectorD(2, 2, 2))
-    wheel.GetVisualShape(0).SetColor(chrono.ChColor(0.2, 0.2, 0.2))
-    
-    # Add wheel to system
+    # Add wheel to the system
     system.Add(wheel)
     wheels.append(wheel)
     
-    # Create revolute joint to connect wheel to body
-    joint = chrono.ChLinkLockRevolute()
-    joint.Initialize(wheel, rover_body, 
-                    chrono.ChCoordsysD(rover_body.GetPos() + pos, 
-                                      chrono.Q_from_AngAxis(chrono.CH_C_PI_2, chrono.ChVectorD(0, 0, 1))))
-    system.Add(joint)
-    
     # Add motor to wheel
     motor = chrono.ChLinkMotorRotationSpeed()
-    motor.Initialize(wheel, rover_body, 
-                    chrono.ChFrameD(rover_body.GetPos() + pos, 
-                                   chrono.Q_from_AngAxis(chrono.CH_C_PI_2, chrono.ChVectorD(0, 0, 1))))
-    motor.SetSpindleConstraint(chrono.ChLinkMotorRotation.SpindleConstraint_OLDHAM)
-    motor.SetMotorFunction(chrono.ChFunction_Const(0.0))  # Initially zero speed
+    motor.Initialize(chassis, wheel, chrono.ChFrameD(wheel.GetPos(), wheel.GetRot()))
+    motor.SetSpeedFunction(chrono.ChFunction_Const(0))  # Initially stopped
     system.Add(motor)
-    motors.append(motor)
+    wheel_joints.append(motor)
+    
+    # Add visual properties to wheel
+    wheel_shape = chrono.ChCylinderShape()
+    wheel_shape.GetCylinderGeometry().rad = wheel_radius
+    wheel_shape.GetCylinderGeometry().p1 = chrono.ChVectorD(0, -wheel_width/2, 0)
+    wheel_shape.GetCylinderGeometry().p2 = chrono.ChVectorD(0, wheel_width/2, 0)
+    wheel.AddAsset(wheel_shape)
+    wheel.AddAsset(chrono.ChColorAsset(0.3, 0.3, 0.3))
 
-# Add the rover camera/sensors at the front
-camera_mount = chrono.ChBodyEasyBox(0.2, 0.2, 0.2, 5, True, False)
-camera_mount.SetPos(rover_body.GetPos() + chrono.ChVectorD(0.8, 0.5, 0))
-camera_mount.SetCollide(False)
-system.Add(camera_mount)
+# Create a manipulator arm (simplified as a thin box)
+arm_base = chrono.ChBodyEasyBox(0.2, 0.2, 0.2, 10, True, True)
+arm_base.SetPos(chassis.GetPos() + chrono.ChVectorD(0, 0.2, 0.6))
+system.Add(arm_base)
 
-# Link camera to rover body
-camera_joint = chrono.ChLinkLockLockLock()
-camera_joint.Initialize(camera_mount, rover_body, chrono.ChCoordsysD(camera_mount.GetPos()))
-system.Add(camera_joint)
+arm = chrono.ChBodyEasyBox(0.1, 0.6, 0.1, 5, True, True)
+arm.SetPos(arm_base.GetPos() + chrono.ChVectorD(0, 0.4, 0))
+system.Add(arm)
 
-# Create the Irrlicht visualization
+# Create a joint between chassis and arm_base
+arm_base_joint = chrono.ChLinkLockRevolute()
+arm_base_joint.Initialize(chassis, arm_base, 
+                       chrono.ChCoordsysD(arm_base.GetPos(), 
+                                      chrono.Q_from_AngAxis(chrono.CH_C_PI/2, chrono.ChVectorD(1,0,0))))
+system.Add(arm_base_joint)
+
+# Create a joint between arm_base and arm
+arm_joint = chrono.ChLinkLockRevolute()
+arm_joint.Initialize(arm_base, arm,
+                  chrono.ChCoordsysD(arm_base.GetPos() + chrono.ChVectorD(0, 0.1, 0),
+                                 chrono.Q_from_AngAxis(chrono.CH_C_PI/2, chrono.ChVectorD(0,0,1))))
+system.Add(arm_joint)
+
+# ---------------------------------------------------------------------
+# Set up the Irrlicht visualization
+
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
 vis.SetWindowSize(1024, 768)
 vis.SetWindowTitle("Curiosity Rover Simulation")
 vis.Initialize()
-vis.AddLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))
+vis.AddLogo(chrono.GetChronoDataPath() + "logo_pychrono_alpha.png")
 vis.AddSkyBox()
-vis.AddCamera(chrono.ChVectorD(3, 2, -6), chrono.ChVectorD(0, 0, 0))
+vis.AddCamera(chrono.ChVectorD(2, 2, 2), chrono.ChVectorD(0, 0, 0))
 vis.AddTypicalLights()
-vis.AddLightWithShadow(chrono.ChVectorD(10, 20, 10), chrono.ChVectorD(0, 0, 0), 50, 5, 50, 5)
+vis.AddLightWithShadow(chrono.ChVectorD(10, 20, 10), 
+                      chrono.ChVectorD(0, 0, 0), 
+                      50, 5, 50, 5)
 
-# Enable shadows
-vis.AddShadowAll()
+# ---------------------------------------------------------------------
+# Define motor control functions for the rover
 
-# Simulation parameters
-step_size = 0.005
-realtime_timer = chrono.ChRealtimeStepTimer()
+def set_wheel_speed(wheel_idx, speed):
+    wheel_joints[wheel_idx].SetSpeedFunction(chrono.ChFunction_Const(speed))
 
-# Motor control variables
-motor_speed = 0  # rad/s
-steering_angle = 0  # rad
+def move_forward(speed=5):
+    for i in range(6):
+        if i < 3:  # Left side wheels
+            set_wheel_speed(i, -speed)
+        else:      # Right side wheels
+            set_wheel_speed(i, -speed)
 
-print("Simulation started. Use keys: WASD to control rover.")
-print("  W/S - accelerate/decelerate")
-print("  A/D - steer left/right")
+def turn_left(speed=2):
+    for i in range(6):
+        if i < 3:  # Left side wheels
+            set_wheel_speed(i, 0)
+        else:      # Right side wheels
+            set_wheel_speed(i, -speed)
 
+def turn_right(speed=2):
+    for i in range(6):
+        if i < 3:  # Left side wheels
+            set_wheel_speed(i, -speed)
+        else:      # Right side wheels
+            set_wheel_speed(i, 0)
+
+def stop():
+    for i in range(6):
+        set_wheel_speed(i, 0)
+
+# ---------------------------------------------------------------------
 # Simulation loop
-while vis.Run():
-    # Process keyboard inputs for controls
-    if vis.GetKeyManager().IsKeyPressed(chronoirr.KEY_KEY_W):
-        motor_speed += 0.5  # Increase speed
-    if vis.GetKeyManager().IsKeyPressed(chronoirr.KEY_KEY_S):
-        motor_speed -= 0.5  # Decrease speed
-    if vis.GetKeyManager().IsKeyPressed(chronoirr.KEY_KEY_A):
-        steering_angle += 0.02  # Steer left
-    if vis.GetKeyManager().IsKeyPressed(chronoirr.KEY_KEY_D):
-        steering_angle -= 0.02  # Steer right
-    
-    # Apply speed with steering differential
-    if abs(steering_angle) > 0.01:
-        # Left side wheels (1, 3, 5)
-        for i in [1, 3, 5]:
-            if steering_angle > 0:  # Turning left
-                motors[i].SetMotorFunction(chrono.ChFunction_Const(motor_speed * (1 - 0.5*abs(steering_angle))))
-            else:  # Turning right
-                motors[i].SetMotorFunction(chrono.ChFunction_Const(motor_speed * (1 + 0.5*abs(steering_angle))))
-                
-        # Right side wheels (0, 2, 4)
-        for i in [0, 2, 4]:
-            if steering_angle > 0:  # Turning left
-                motors[i].SetMotorFunction(chrono.ChFunction_Const(motor_speed * (1 + 0.5*abs(steering_angle))))
-            else:  # Turning right
-                motors[i].SetMotorFunction(chrono.ChFunction_Const(motor_speed * (1 - 0.5*abs(steering_angle))))
-    else:
-        # Set all wheels to same speed if not steering
-        for motor in motors:
-            motor.SetMotorFunction(chrono.ChFunction_Const(motor_speed))
-    
-    # Automatically follow rover with camera
-    rover_pos = rover_body.GetPos()
-    vis.GetActiveCamera().setPosition(chronoirr.vector3df(
-        rover_pos.x - 5, rover_pos.y + 3, rover_pos.z
-    ))
-    vis.GetActiveCamera().setTarget(chronoirr.vector3df(
-        rover_pos.x, rover_pos.y, rover_pos.z
-    ))
 
-    # Step the simulation
+time_step = 0.01
+counter = 0
+direction_change_interval = 200  # Change direction every X steps
+
+# Initialize with forward motion
+move_forward()
+
+while vis.Run():
     vis.BeginScene()
     vis.Render()
+    
+    # Handle input
+    if vis.GetKeyManager().IsKeyPressed(chronoirr.KEY_KEY_W):
+        move_forward()
+    elif vis.GetKeyManager().IsKeyPressed(chronoirr.KEY_KEY_S):
+        move_forward(-3)  # Move backward at slower speed
+    elif vis.GetKeyManager().IsKeyPressed(chronoirr.KEY_KEY_A):
+        turn_left()
+    elif vis.GetKeyManager().IsKeyPressed(chronoirr.KEY_KEY_D):
+        turn_right()
+    elif vis.GetKeyManager().IsKeyPressed(chronoirr.KEY_SPACE):
+        stop()
+    
+    # Automatic movement pattern
+    counter += 1
+    if counter % direction_change_interval == 0:
+        # Choose a random action
+        action = np.random.randint(0, 4)
+        if action == 0:
+            move_forward()
+        elif action == 1:
+            turn_left()
+        elif action == 2:
+            turn_right()
+        else:
+            stop()
+    
+    # Update the system
+    system.DoStepDynamics(time_step)
     vis.EndScene()
-    system.DoStepDynamics(step_size)
-    realtime_timer.Spin(step_size)
 
-print("Simulation ended.")
+# Close the visualization
+vis.StopApplication()
 ```
 
-This script creates a simulation of a Curiosity-like rover on a Martian terrain with the following features:
+## Description
 
-1. A rigid, textured ground with proper collision properties
-2. A 6-wheeled rover with realistic physics properties:
-   - Independently driven wheels
-   - Differential steering mechanism
-   - Proper mass and inertia values
-   - NASA logo texture on the rover body
+This script simulates a simplified model of the Curiosity Mars rover on a rigid terrain. The simulation includes:
 
-3. Interactive control via keyboard:
-   - W/S keys for acceleration/deceleration
-   - A/D keys for steering left/right
+1. **System Initialization**: Sets up the PyChrono physical system with gravity.
 
-4. Advanced visualization with Irrlicht:
-   - Proper lighting and shadows
-   - Camera that follows the rover
-   - Textured skybox and Mars surface
-   - NASA logo on the rover body
+2. **Ground Creation**: Creates a flat terrain with Mars-like textures and appropriate collision properties.
 
-5. A physically accurate simulation with:
-   - Proper contact materials and friction coefficients
-   - Realistic motor control for the wheels
-   - Differential steering for smooth turning
+3. **Rover Model**:
+   - Chassis with NASA texture
+   - Six wheels (three on each side) with appropriate suspension
+   - Simple robotic arm mechanism
+   - Wheel motors with speed control
 
-Note: For this to run correctly, you'll need the textures in the ChronoData directory. If you don't have specific Mars textures, you can replace them with alternative textures from the Chrono data directory or use a solid color instead.
+4. **Visualization Setup**:
+   - Irrlicht rendering system
+   - Camera positioning
+   - Lighting with shadows
+   - Sky box and NASA logo
+
+5. **Control System**:
+   - Functions for moving forward/backward
+   - Functions for turning left/right
+   - Manual keyboard control (W, A, S, D, Space)
+   - Automatic random movement patterns
+
+The rover can be controlled manually using keyboard inputs or it will execute a random movement pattern every few seconds. The simulation uses realistic physics parameters for friction, mass, and inertia to simulate the rover's movement on Mars-like terrain.

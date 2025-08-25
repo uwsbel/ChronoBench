@@ -4,60 +4,56 @@ import pychrono.irrlicht as vis
 
 # 1. Initialize PyChrono environment and core components
 chrono.SetChronoDataPath("path/to/chrono/data")  # Replace with your Chrono data path
-system = chrono.ChSystemNSC()  # Create a new system
+system = chrono.ChSystemNSC()
 
 # 2. Add physical systems and objects
-# Define beam material properties
+# Beam definition
 beam_material = chrono.ChMaterialSurfaceNSC()
-beam_material.SetFriction(0.5, 0.5)  # Adjust friction as needed
-beam_material.SetRestitution(0.0)  # Set restitution to 0 for no bouncing
+beam_material.SetFriction(0.5, 0.5)
+beam_material.SetRestitution(0.0)
 
-# Create beam elements using FEA
-beam_element = chrono.ChBeamFEA()
-beam_element.SetMaterial(beam_material)
-beam_element.SetCrossSection(chrono.ChBeamCrossSection.Tube(0.05, 0.1))  # Adjust dimensions as needed
-beam_element.SetLength(1.0)  # Adjust beam length as needed
-
-# Create beam body
-beam_body = chrono.ChBodyEasyBox(0.05, 0.1, 1.0, 1000.0)  # Adjust mass and density as needed
+beam_geometry = chrono.ChBoxShape(0.1, 0.01, 0.01)  # Replace with beam dimensions
+beam_body = chrono.ChBodyEasyBox(beam_material, beam_geometry)
 beam_body.SetPos(chrono.ChVectorD(0, 0, 0))
-beam_body.SetBodyFixed(True)  # Fix the beam body
+beam_body.SetBodyFixed(True)  # Fix beam base for simulation
 
-# Add beam element to the body
-beam_body.AddChild(beam_element)
+# Motor definition (Custom)
+motor_body = chrono.ChBodyEasySphere(chrono.ChMaterialSurfaceNSC(), 0.05)
+motor_body.SetPos(chrono.ChVectorD(0.5, 0, 0))  # Position motor relative to beam
 
-# Add motor function for applying force
-motor_function = lambda t: 100 * chrono.ChVectorD(0, 0, 1)  # Example motor function
+def motor_torque(time, speed):
+    # Implement your custom motor torque function here
+    # Based on speed, time, and other parameters
+    return 10 * speed
 
-# Create motor and apply it to the beam
-motor = chrono.ChMotorRotation(beam_body, beam_element, chrono.ChVectorD(0, 0, 1), motor_function)
+motor_body.AddTorque(chrono.ChVectorD(0, 0, motor_torque(chrono.GetChTime(), 0)))
 
-# 3. Set default parameters
-system.AddBody(beam_body)
-system.AddMotor(motor)
+# Constraint definition
+constraint = chrono.ChLinkLockUniversal(beam_body, motor_body)
+constraint.Initialize(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 0))
 
-# Define constraints
-# Example: Pin constraint between beam and ground
-pin_constraint = chrono.ChLinkLock()
-pin_constraint.Initialize(beam_body, chrono.ChBodyEasyBox(0.1, 0.1, 0.1, 1000.0), chrono.ChVectorD(0, 0, 0))
-system.AddLink(pin_constraint)
+# 3. Set default parameters and interactions
+system.Add(beam_body)
+system.Add(motor_body)
+system.Add(constraint)
 
-# 4. Visualize the simulation
-vis_app = vis.ChIrrApp(system, 'Beam Buckling Simulation')
-vis_app.AddTypicalLights()
-vis_app.AddCamera(beam_body.GetPos() + chrono.ChVectorD(1, 1, 1))
-vis_app.SetTimestep(0.01)  # Adjust timestep as needed
-vis_app.Start()
+# Visualization setup
+vis.InitVisualization()
+vis.Add(beam_body)
+vis.Add(motor_body)
+vis.SetCamera(chrono.ChVectorD(2, 2, 2), chrono.ChVectorD(0, 0, 0))
+vis.Run()
 
-# 5. Implement solver and timestepper
-system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))  # Set gravity
-system.SetSolverType(chrono.ChSolver.Type.BARZILAIBURGER)  # Choose a suitable solver
-system.SetTimestepperType(chrono.ChTimestepper.Type.RK4)  # Choose a suitable timestepper
+# Solver and timestepper
+system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
+system.SetSolverType(chrono.ChSolver.Type.BARZILAIBARZILAIBAR)
+system.SetTimestepperType(chrono.ChTimestepper.Type.RK4)
+system.SetMaxSubsteps(10)
 
-# Run the simulation
-while vis_app.GetDevice().run():
-    system.DoStepDynamics(vis_app.GetTimestep())
-    vis_app.Render()
+# Simulation loop
+while True:
+    system.DoStepDynamics(0.01)
+    vis.Render()
 
 
 
@@ -66,38 +62,46 @@ while vis_app.GetDevice().run():
 **Explanation:**
 
 1. **Initialization:**
-   - Import necessary modules.
-   - Set the Chrono data path.
-   - Create a new Chrono system.
+   - Imports necessary modules (`pychrono` and `pychrono.irrlicht`).
+   - Sets the Chrono data path (replace with your actual path).
+   - Creates a `ChSystemNSC` object, which represents the simulation environment.
 
 2. **Physical Systems and Objects:**
-   - Define material properties for the beam.
-   - Create a beam element using FEA.
-   - Create a beam body and add the beam element as a child.
-   - Define a custom motor function to apply a force to the beam.
-   - Create a motor and attach it to the beam.
+   - **Beam:**
+     - Defines a material (`ChMaterialSurfaceNSC`) with friction and restitution properties.
+     - Creates a box shape (`ChBoxShape`) representing the beam's geometry.
+     - Initializes a `ChBodyEasyBox` object for the beam, specifying the material, shape, position, and fixing its base.
+   - **Motor:**
+     - Creates a sphere body (`ChBodyEasySphere`) to represent the motor.
+     - Defines a custom `motor_torque` function that calculates the torque based on time and speed (you'll need to implement your specific motor behavior here).
+     - Applies the calculated torque to the motor body.
+   - **Constraint:**
+     - Creates a `ChLinkLockUniversal` constraint to connect the beam and motor, allowing for rotation but not translation.
 
-3. **Default Parameters:**
-   - Add the beam body and motor to the system.
-   - Define constraints between the beam and other objects (e.g., a pin constraint).
+3. **Default Parameters and Interactions:**
+   - Adds the beam, motor, and constraint to the simulation system.
+   - Sets the gravitational acceleration (`Set_G_acc`).
 
 4. **Visualization:**
-   - Create an Irrlicht visualization application.
-   - Add lights and a camera to the scene.
-   - Set the timestep for rendering.
+   - Initializes Irrlicht visualization (`vis.InitVisualization()`).
+   - Adds the beam and motor to the visualization.
+   - Sets the camera position and starts the rendering loop (`vis.Run()`).
 
 5. **Solver and Timestepper:**
-   - Set gravity for the system.
-   - Choose a suitable solver (e.g., Barzilay-Burrage) and timestepper (e.g., RK4).
+   - Sets the solver type to Barzilay-Barzilay (`ChSolver.Type.BARZILAIBARZILAIBAR`).
+   - Sets the timestepper type to Runge-Kutta 4 (`ChTimestepper.Type.RK4`).
+   - Configures the maximum number of substeps per timestep (`SetMaxSubsteps`).
 
 6. **Simulation Loop:**
-   - Run the simulation loop until the Irrlicht application is closed.
-   - Update the system dynamics and render the scene in each iteration.
+   - Enters a loop that continuously:
+     - Advances the simulation by one timestep (`DoStepDynamics(0.01)`).
+     - Renders the visualization (`vis.Render()`).
 
 
 
-**Remember to:**
+**Remember:**
 
-- Replace `"path/to/chrono/data"` with the actual path to your Chrono data directory.
-- Adjust the beam dimensions, material properties, motor function, and other parameters according to your specific simulation requirements.
-- Experiment with different solvers and timesteppers to achieve the desired accuracy and stability.
+- Replace `"path/to/chrono/data"` with the actual path to your Chrono data files.
+- Implement your custom `motor_torque` function according to your motor's characteristics.
+- You can adjust the beam dimensions, motor position, and other parameters as needed.
+- Explore the PyChrono and Irrlicht documentation for more advanced features and customization options.

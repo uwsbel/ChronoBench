@@ -99,7 +99,7 @@ terrain.Initialize()
 box = chrono.ChBoxShape()
 box.GetBoxGeometry().SetLengths(chrono.ChVector3d(1, 1, 1))
 box.SetPos(chrono.ChVector3d(0, 0, 0.5))
-box.SetTexture(veh.GetDataFile("terrain/textures/blue_texture.jpg"))  # Assuming a blue texture file
+box.SetColor(chrono.ChColor(0, 0, 1))  # Blue color
 gator.GetSystem().Add(box)
 
 # Create a cylinder object
@@ -107,7 +107,7 @@ cylinder = chrono.ChCylinderShape()
 cylinder.GetCylinderGeometry().SetRadius(0.5)
 cylinder.GetCylinderGeometry().SetHeight(1)
 cylinder.SetPos(chrono.ChVector3d(0, 0, 1.5))
-cylinder.SetTexture(veh.GetDataFile("terrain/textures/blue_texture.jpg"))  # Assuming a blue texture file
+cylinder.SetColor(chrono.ChColor(0, 0, 1))  # Blue color
 gator.GetSystem().Add(cylinder)
 
 # Create the interactive driver system
@@ -132,10 +132,11 @@ cam = sens.ChCameraSensor(
     fov
 )
 cam.SetName("Third Person POV")
+# Renders the image at current point in the filter graph
 cam.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Gator Camera"))
 manager.AddSensor(cam)
 
-# Create and add a Lidar sensor
+# Create a Lidar sensor
 lidar_offset_pose = chrono.ChVector3d(0.0, 0, 2)
 lidar = sens.ChLidarSensor(
     gator.GetChassisBody(),
@@ -147,10 +148,10 @@ lidar = sens.ChLidarSensor(
     chrono.CH_PI / 12,  # max vertical field of view
     -chrono.CH_PI / 6,  # min vertical field of view
     100.0,  # max range
-    sens.LidarBeamShape.RECTANGULAR,  # beam shape
+    sens.LidarShape.RECTANGULAR,  # beam shape
     2,  # sample radius
     0.003,  # divergence angle
-    sens.LidarReturnMode.STRONGEST  # return mode
+    sens.LidarReturnMode.STRONGEST  # strongest return mode
 )
 lidar.PushFilter(sens.ChFilterDepth())
 lidar.PushFilter(sens.ChFilterIntensity())
@@ -168,8 +169,8 @@ end_time = 30
 while time < end_time:
     time = gator.GetSystem().GetChTime()
     # set driver inputs
-    driver.SetSteering(0.5)  # Modified driver inputs
-    driver.SetThrottle(0.2)   # Modified driver inputs
+    driver.SetSteering(0.5)  # Modified driver input
+    driver.SetThrottle(0.2)   # Modified driver input
     # Collect output data from modules (for inter-module communication)
     driver_inputs = driver.GetInputs()
 

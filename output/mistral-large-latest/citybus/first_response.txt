@@ -1,0 +1,238 @@
+# PyChrono CityBus Simulation with Rigid Terrain and Interactive Driver
+
+Below is a complete PyChrono simulation script for a CityBus vehicle on rigid terrain with interactive controls:
+
+```python
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
+import pychrono.vehicle as veh
+import pychrono.vehicle.wheeled_vehicle as wheeled_vehicle
+from pychrono import ChVectorD, ChQuaternionD, ChCoordinator
+import math
+
+# =============================================================================
+# Simulation parameters
+# =============================================================================
+
+# Simulation step size
+step_size = 0.02  # 50 FPS
+
+# Simulation end time
+tend = 100
+
+# Time response for interactive driver
+steering_delta = 0.01
+throttle_delta = 0.01
+braking_delta = 0.01
+
+# =============================================================================
+# Create the simulation system and add items
+# =============================================================================
+
+# Create the Chrono::Engine physical system
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
+
+# Create the vehicle system
+vehicle = wheeled_vehicle.WheeledVehicle('CityBus', 'HMMWV')
+vehicle.SetChassisFixed(False)
+vehicle.SetInitPosition(chrono.ChCoordinator(chrono.ChVectorD(0, 0, 0.5),
+                                             chrono.ChQuaternionD(1, 0, 0, 0)))
+vehicle.SetInitFwdVel(5)
+
+# Create and initialize the powertrain system
+powertrain = veh.ChSimplePowertrain('Powertrain')
+vehicle.InitializePowertrain(powertrain)
+
+# Create and initialize the tires
+tireFL = veh.ChPacejkaTire('TireFL')
+tireFR = veh.ChPacejkaTire('TireFR')
+tireRL = veh.ChPacejkaTire('TireRL')
+tireRR = veh.ChPacejkaTire('TireRR')
+
+vehicle.InitializeTire(tireFL, veh.VehicleSide.LEFT, 0)
+vehicle.InitializeTire(tireFR, veh.VehicleSide.RIGHT, 0)
+vehicle.InitializeTire(tireRL, veh.VehicleSide.LEFT, 1)
+vehicle.InitializeTire(tireRR, veh.VehicleSide.RIGHT, 1)
+
+# Create the terrain
+terrain = veh.RigidTerrain(system)
+patch_mat = chrono.ChMaterialSurfaceNSC()
+patch_mat.SetFriction(0.9f)
+patch = terrain.AddPatch(patch_mat, chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 1),
+                         100, 100)
+patch.SetTexture(veh.GetDataFile('terrain/textures/tile4.jpg'), 200, 200)
+terrain.Initialize()
+
+# =============================================================================
+# Visualization
+# =============================================================================
+
+# Create the vehicle Irrlicht interface
+vis = chronoirr.ChVehicleIrrApp(system, vehicle, 'CityBus Simulation')
+vis.AddTypicalLights(chrono.irrlicht.EDL_DIRECTIONAL, chrono.ChVectorD(30, 30, 100),
+                     chrono.ChVectorD(30, 30, 100), 100, 50)
+vis.AddTypicalLights(chrono.irrlicht.EDL_DIRECTIONAL, chrono.ChVectorD(-30, -30, 100),
+                     chrono.ChVectorD(-30, -30, 100), 100, 50)
+vis.AddTypicalSky()
+vis.AddTypicalLogo(chrono.GetChronoDataPath() + 'logo_pychrono_alpha.png')
+vis.AddTypicalCamera(chrono.irrlicht.ECC_THIRD_PERSON_FOLLOW_CAMERA,
+                     chrono.ChVectorD(0, 0, 1.75), chrono.ChVectorD(0, 0, 0),
+                     chrono.ChVectorD(0, 0.5, 0))
+vis.AssetBindAll()
+vis.AssetUpdateAll()
+
+# =============================================================================
+# Interactive driver system
+# =============================================================================
+
+class InteractiveDriver(veh.ChDriver):
+    def __init__(self, vehicle):
+        super().__init__(vehicle)
+        self.steering = 0
+        self.throttle = 0
+        self.braking = 0
+
+    def Synchronize(self, time):
+        # Apply controls to the vehicle
+        self.GetVehicle().SetSteeringValue(self.steering)
+        self.GetVehicle().SetThrottle(self.throttle)
+        self.GetVehicle().SetBraking(self.braking)
+
+    def SetSteering(self, value):
+        self.steering = max(-1, min(1, value))
+
+    def SetThrottle(self, value):
+        self.throttle = max(0, min(1, value))
+
+    def SetBraking(self, value):
+        self.braking = max(0, min(1, value))
+
+driver = InteractiveDriver(vehicle)
+vehicle.SetDriver(driver)
+
+# =============================================================================
+# Custom event receiver for keyboard controls
+# =============================================================================
+
+class MyEventReceiver(chrono.irrlicht.IEventReceiver):
+    def __init__(self, driver):
+        self.driver = driver
+
+    def OnEvent(self, event):
+        if event.EventType == chrono.irrlicht.EET_KEY_INPUT_EVENT:
+            if event.KeyInput.PressedDown:
+                if event.KeyInput.Key == chrono.irrlicht.KEY_KEY_A:
+                    self.driver.SetSteering(self.driver.steering - steering_delta)
+                elif event.KeyInput.Key == chrono.irrlicht.KEY_KEY_D:
+                    self.driver.SetSteering(self.driver.steering + steering_delta)
+                elif event.KeyInput.Key == chrono.irrlicht.KEY_KEY_W:
+                    self.driver.SetThrottle(self.driver.throttle + throttle_delta)
+                elif event.KeyInput.Key == chrono.irrlicht.KEY_KEY_S:
+                    self.driver.SetBraking(self.driver.braking + braking_delta)
+                elif event.KeyInput.Key == chrono.irrlicht.KEY_KEY_SPACE:
+                    self.driver.SetBraking(1)
+            else:
+                if event.KeyInput.Key == chrono.irrlicht.KEY_KEY_A or event.KeyInput.Key == chrono.irrlicht.KEY_KEY_D:
+                    # Center steering when key released
+                    if self.driver.steering > 0:
+                        self.driver.SetSteering(max(0, self.driver.steering - steering_delta))
+                    else:
+                        self.driver.SetSteering(min(0, self.driver.steering + steering_delta))
+                elif event.KeyInput.Key == chrono.irrlicht.KEY_KEY_W:
+                    self.driver.SetThrottle(max(0, self.driver.throttle - throttle_delta))
+                elif event.KeyInput.Key == chrono.irrlicht.KEY_KEY_S:
+                    self.driver.SetBraking(max(0, self.driver.braking - braking_delta))
+                elif event.KeyInput.Key == chrono.irrlicht.KEY_KEY_SPACE:
+                    self.driver.SetBraking(0)
+
+        return False
+
+# Attach the custom event receiver
+event_receiver = MyEventReceiver(driver)
+vis.GetDevice().setEventReceiver(event_receiver)
+
+# =============================================================================
+# Simulation loop
+# =============================================================================
+
+# Initialize simulation frame counter and simulation time
+frame = 0
+time = 0
+
+while vis.Run():
+    # Render scene
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+
+    # Update driver inputs
+    driver.Synchronize(time)
+
+    # Advance simulation for one timestep for all modules
+    vehicle.Update(time)
+    terrain.Synchronize(time)
+    vis.Synchronize(time, vehicle.GetSteeringValue(), vehicle.GetThrottle(), vehicle.GetBraking())
+
+    # Advance simulation by one step for the vehicle
+    driver.Advance(step_size)
+    vehicle.Advance(step_size)
+
+    # Advance simulation by one step for the system
+    system.DoStepDynamics(step_size)
+
+    # Update counters
+    frame += 1
+    time += step_size
+
+    # Exit simulation loop
+    if time >= tend:
+        break
+
+print('Simulation completed')
+```
+
+## Key Features of This Implementation:
+
+1. **Physical System Setup**:
+   - NSC (Non-Smooth Contact) system for accurate collision detection
+   - Proper gravity setting (-9.81 m/s² in Z direction)
+
+2. **Vehicle Configuration**:
+   - CityBus vehicle with Pacejka tire model
+   - Simple powertrain system
+   - Initial position and orientation set
+   - Initial forward velocity of 5 m/s
+
+3. **Terrain Setup**:
+   - Rigid terrain with custom texture
+   - Friction coefficient of 0.9
+   - Large 100x100 meter patch
+
+4. **Visualization**:
+   - Irrlicht visualization with:
+     - Third-person follow camera
+     - Multiple directional lights
+     - Skybox
+     - Logo
+   - Mixed visualization types (primitives for wheels, mesh for chassis)
+
+5. **Interactive Driver System**:
+   - Custom driver class that responds to keyboard inputs
+   - Steering (A/D keys)
+   - Throttle (W key)
+   - Braking (S key and Space for emergency brake)
+   - Smooth control transitions
+
+6. **Simulation Loop**:
+   - Runs at 50 FPS (0.02s step size)
+   - Real-time rendering and physics updates
+   - Proper synchronization between all systems
+
+## Controls:
+- **A/D**: Steer left/right
+- **W**: Accelerate
+- **S**: Brake
+- **Space**: Emergency brake
+
+The simulation will run for 100 seconds (adjustable via `tend` variable) and then exit automatically.

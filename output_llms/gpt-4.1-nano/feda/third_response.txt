@@ -1,48 +1,3 @@
-Below is a detailed review of the original script, identification of potential errors, followed by the corrected and modified version per your instructions.
-
----
-
-### Part 1: Errors and Fixes in the Original Script
-
-**Potential issues identified:**
-
-1. **`SetDataPath` syntax:**
-   - Incorrect: `veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')`
-   - Should include a `/` after the path or ensure correct path formation.
-   - Correct: `veh.SetDataPath(chrono.GetChronoDataPath() + "/vehicle/")`
-
-2. **`ChVector3d` and `ChQuaterniond`:**
-   - These are correct, but consistency with class names could be checked.
-   
-3. **Collision system type setting:**
-   - `SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)` is valid if `Type_BULLET` exists.
-   - Make sure the enum property `Type_BULLET` is accessible via `chrono.ChCollisionSystem.Type_BULLET`.
-   
-4. **Rendering steps calculation:**
-   - `render_steps = math.ceil(render_step_size / step_size)` — check if this makes sense.
-   - Since `render_step_size` is the time interval (1/50), and `step_size` is the timestep, the number of steps per render is `ceil(render_step_size / step_size)`.
-
-5. **`Spin()` method:**
-   - Correct `realtime_timer.Spin(step_size)`.
-
-6. **Syntax:**
-   - Looks correct overall.
-
----
-
-### Part 2: Corrected and Modified Script
-
-**Modifications per instructions:**
-
-1. Change terrain texture to a grass texture.
-2. Create a sensor manager and add point lights.
-3. Add a first-person camera sensor with high resolution and appropriate FOV.
-4. Update sensor system during each simulation step.
-
----
-
-### Final Script:
-
 ```python
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
@@ -51,11 +6,11 @@ import math
 
 # Set data paths
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
-veh.SetDataPath(chrono.GetChronoDataPath() + "/vehicle/")
+veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 # Initial vehicle location and orientation
 initLoc = chrono.ChVector3d(0, 0, 0.5)
-initRot = chrono.ChQuaternionD(1, 0, 0, 0)
+initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 # Visualization type for vehicle parts
 vis_type = veh.VisualizationType_MESH
@@ -67,12 +22,12 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 # Terrain parameters
-terrainHeight = 0      # terrain height
-terrainLength = 100.0  # size in X direction
-terrainWidth = 100.0   # size in Y direction
+terrainHeight = 0
+terrainLength = 100.0
+terrainWidth = 100.0
 
-# Track Point for chase camera
-trackPoint = chrono.ChVector3D(-3.0, 0.0, 1.1)
+# Track point for camera chase
+trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
 
 # Contact method
 contact_method = chrono.ChContactMethod_NSC
@@ -82,176 +37,148 @@ contact_vis = False
 step_size = 1e-3
 tire_step_size = step_size
 
-# Render step size (FPS 50)
-render_step_size = 1.0 / 50
+# Render step size
+render_step_size = 1.0 / 50  # 50 FPS
 
 # Create the vehicle
 vehicle = veh.FEDA()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
-vehicle.SetInitPosition(chrono.ChCoordsysD(initLoc, initRot))
+vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 
 vehicle.Initialize()
 
-# Set visualization options
+# Set visualization types
 vehicle.SetChassisVisualizationType(vis_type)
 vehicle.SetSuspensionVisualizationType(vis_type)
 vehicle.SetSteeringVisualizationType(vis_type)
 vehicle.SetWheelVisualizationType(vis_type)
 vehicle.SetTireVisualizationType(vis_type)
 
-# Set collision system
+# Set collision system type
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 # Create terrain with grass texture
 patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
-
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 patch = terrain.AddPatch(patch_mat, 
-    chrono.ChCoordsysD(chrono.ChVector3d(0,0,0), chrono.QUNIT),
+    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
     terrainLength, terrainWidth)
 
 # Change terrain texture to grass
-texture_path = "terrain/textures/grass.jpg"  # Assume this file exists in data folder
-patch.SetTexture(veh.GetDataFile(texture_path), 200, 200)
-
-# Set terrain color
-patch.SetColor(chrono.ChColor(0.2, 0.8, 0.2))  # Greenish to resemble grass
-
+patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)
+patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
-# -------- Sensor System Setup --------
-# Initialize the Irrlicht driver to create a sensor manager
-# We will create a sensor manager to attach sensors later
-sensor_manager = irr.ChSensorManager()
-
-# Add point lights for scene illumination
-light1 = irr.ChLightingPoint()
-light1.SetPosition(0, 20, 0)
-light1.SetIntensity(8.0)  # High intensity
-sensor_manager.Add(light1)
-
-light2 = irr.ChLightingPoint()
-light2.SetPosition(20, 20, 20)
-light2.SetIntensity(6.0)
-sensor_manager.Add(light2)
-
-# -------- Vehicle Irrlicht and Camera Sensor --------
+# Create Irrlicht visualization
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('FEDA vehicle')
 vis.SetWindowSize(1280, 1024)
 vis.SetChaseCamera(trackPoint, 6.0, 0.5)
 vis.Initialize()
-
-# Attach the sensor manager to the visualization
-vis.AttachSensorManager(sensor_manager)
-
-# Add scene elements
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
 vis.AddSkyBox()
-
-# Attach vehicle to rendering
 vis.AttachVehicle(vehicle.GetVehicle())
 
-# -------- Camera Sensor (First-Person) --------
-# Create camera sensor attached to the vehicle's chassis body
-chassis_body = vehicle.GetVehicle().GetChassis()
-camera_position = chrono.ChVectorD(0.3, 0, 1.0)  # Slightly in front of the chassis, at driver viewpoint
-
-# Add camera sensor to sensor manager
-camera_sensor = sensor_manager.AddSensor(chrono.ChSensor(
-    chassis_body,  # attached to chassis body
-    chrono.ChFrameD(chrono.ChVectorD(0.3, 0, 1.0)),  # relative position
-    30.0,  # Field of View in degrees
-    1920,  # resolution X
-    1080   # resolution Y
-))
-# Set camera type to perspective
-camera_sensor.SetTypes(chrono.ChSensorType_CAMERA)
-
-# -------- Visualization filter - for example, rendering the camera view
-visual_filter = camera_sensor.GetDisplayCamera()
-
-# -------- Driver Input Setup --------
+# Create driver system
 driver = veh.ChInteractiveDriverIRR(vis)
-# Set input deltas
+
+# Set driver input response times
 steering_time = 1.0
 throttle_time = 1.0
 braking_time = 0.3
-
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
+
 driver.Initialize()
 
 # Output vehicle mass
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
-# Calculate how many steps per render frame
+# Number of steps between renders
 render_steps = math.ceil(render_step_size / step_size)
 
-# Timer for real-time synchronization
+# Initialize timer
 realtime_timer = chrono.ChRealtimeStepTimer()
-
-# Simulation Loop
 step_number = 0
 render_frame = 0
+
+# --- Part 1 & 2: Sensor Manager and Light Addition ---
+
+# Create a sensor manager for the vehicle
+sensor_manager = irr.ChSensorManager()
+sensor_manager.Initialize()
+
+# Add point lights to scene for illumination
+light1 = irr.ChLightScene()
+light1.SetPosition(chrono.ChVector3d(10, 10, 20))
+light1.SetIntensity(chrono.ChColor(1.0, 1.0, 1.0))
+sensor_manager.AddLight(light1)
+
+light2 = irr.ChLightScene()
+light2.SetPosition(chrono.ChVector3d(-10, -10, 20))
+light2.SetIntensity(chrono.ChColor(0.8, 0.8, 0.8))
+sensor_manager.AddLight(light2)
+
+# --- Part 3: Camera Sensor Addition ---
+
+# Add a camera sensor to the vehicle's chassis body
+# Get the vehicle's chassis body
+chassis_body = vehicle.GetVehicle().GetChassisBody()
+
+# Create a camera sensor attached to the chassis
+camera = irr.ChCameraSensor()
+camera.SetName("FirstPersonCamera")
+camera.SetPosition(chrono.ChVector3d(0, 0, 1.5))  # position relative to chassis
+camera.SetFOV(PI / 4)  # 45 degrees Field of View
+camera.SetResolution(1920, 1080)  # High resolution
+camera.SetLookAt(chrono.ChVector3d(0, 0, 0))
+camera.SetTargetBody(chassis_body)
+
+# Add the camera sensor to the sensor manager
+sensor_manager.AddSensor(camera)
+
+# --- Part 4: Update sensor manager in simulation loop ---
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
-    # Render scene at specified FPS
+    # Render scene and update sensor data
     if (step_number % render_steps == 0):
         vis.BeginScene()
         vis.Render()
-        # Optional: visualize camera image if needed
+        # Render sensor outputs (e.g., camera images)
+        sensor_manager.Render()
         vis.EndScene()
         render_frame += 1
+
+    # Get driver inputs
+    driver_inputs = driver.GetInputs()
 
     # Synchronize modules
     driver.Synchronize(time)
     terrain.Synchronize(time)
-    vehicle.Synchronize(time, driver.GetInputs(), terrain)
-    vis.Synchronize(time, driver.GetInputs())
+    vehicle.Synchronize(time, driver_inputs, terrain)
+    sensor_manager.Synchronize(time)  # Ensure sensors are updated with current scene
+    vis.Synchronize(time, driver_inputs)
 
     # Advance simulation
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
+    sensor_manager.Advance(step_size)
     vis.Advance(step_size)
 
-    # Update camera sensor (to get latest image frame)
-    camera_sensor.Update()
-
-    # Optionally, retrieve the image or display it here
-    # image = camera_sensor.GetImage()
-    # (Processing can be added here if needed)
-
-    # Increment step
+    # Increment step counter
     step_number += 1
 
-    # Spin to catch up for real-time display
+    # Spin in place for real-time synchronization
     realtime_timer.Spin(step_size)
 ```
-
----
-
-### Summary of modifications:
-
-- Updated terrain texture to `"terrain/textures/grass.jpg"`; ensure this file exists in your data folder.
-- Created `sensor_manager`, added point lights with high intensity.
-- Attached a high-resolution perspective camera sensor in first-person view, with a 30° FOV and 1920x1080 resolution.
-- During simulation, called `camera_sensor.Update()` each step to refresh the image.
-- Set the visualization to include the sensor manager and to visualize the camera's images if needed.
-
----
-
-Make sure the file `"terrain/textures/grass.jpg"` exists or replace it with a correct path to a grass texture image.
-
-Let me know if you need further adjustments!

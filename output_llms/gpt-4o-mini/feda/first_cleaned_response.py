@@ -1,45 +1,46 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
-import pychrono.vehicle as chrono_vehicle
 
 
-chrono.ChSystem.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  
+chrono.ChSystemNSC()
 
 
-system = chrono.ChSystem()
+application = chronoirr.ChIrrApp(chrono.ChSystemNSC(), "FEDA Vehicle Simulation", chronoirr.dimension2d(800, 600))
+application.SetSkyBox("path/to/skybox.jpg")  
+application.SetCamera(chrono.ChVectorD(0, 5, -10))  
+application.AddTypicalLights()  
 
 
-terrain = chrono_vehicle.ChRigidTerrain(system)
-terrain.SetContactFrictionCoefficient(0.8)
-terrain.SetContactRestitutionCoefficient(0.1)
+terrain = chrono.ChTerrain()
+terrain.SetContactMethod(chrono.ChContactMethod.NSC)
+terrain.SetTexture("path/to/terrain_texture.jpg")  
+terrain.SetHeight(0.0)  
+chrono.ChSystemNSC().Add(terrain)
 
 
-terrain.SetTexture(chrono.GetChronoDataPath() + "terrain_texture.jpg")
+vehicle = chrono.ChVehicle()  
+vehicle.SetPos(chrono.ChVectorD(0, 0.5, 0))  
+vehicle.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))  
+vehicle.SetContactMethod(chrono.ChContactMethod.NSC)
+vehicle.SetTireModel(chrono.ChTireModel())  
 
 
-vehicle = chrono_vehicle.FEDA_Vehicle("FEDA_Vehicle")
-vehicle.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0.5, 0), chrono.ChQuaternionD(1, 0, 0, 0)))
+chrono.ChSystemNSC().Add(vehicle)
 
 
-vehicle.SetContactMethod(chrono.ChMaterialSurface.SMC)  
-vehicle.SetTireModel(chrono_vehicle.ChTireModelType.SIMPLE)  
+driver = chrono.ChDriver()
+driver.SetSteering(0.0)  
+driver.SetThrottle(0.0)  
+driver.SetBraking(0.0)  
 
 
-system.Add(vehicle)
+vehicle.SetDriver(driver)
 
 
-application = chronoirr.ChIrrApp(system, "FEDA Vehicle Simulation", chronoirr.dimension2d(800, 600))
-application.AddTypicalSky()
-application.AddTypicalLights()
-application.AddTypicalCamera(chronoirr.vector3df(0, 2, -5), chronoirr.vector3df(0, 0, 0))
-
-
-camera = application.GetCamera()
-camera.setTarget(chronoirr.vector3df(0, 0, 0))
-camera.setPosition(chronoirr.vector3df(0, 2, -5))
-
-
-application.SetTimestep(1 / 50.0)  
+chrono.ChSystemNSC().SetSolverType(chrono.ChSolver.Type_SOR)
+chrono.ChSystemNSC().SetMaxItersSolverSpeed(100)
+chrono.ChSystemNSC().SetMaxItersSolverStab(100)
+chrono.ChSystemNSC().SetTimestep(0.02)  
 
 
 while application.GetDevice().run():
@@ -47,7 +48,9 @@ while application.GetDevice().run():
     application.DrawAll()
     
     
-    vehicle.Update()
+    chrono.ChSystemNSC().DoStepDynamics(0.02)
+    
+    
     
     
     application.EndScene()

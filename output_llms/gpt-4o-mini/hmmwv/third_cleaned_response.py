@@ -80,8 +80,8 @@ vis.AttachVehicle(vehicle.GetVehicle())
 
 
 class MyDriver(veh.ChDriver):
-    def __init__(self, vehicle, delay):
-        super().__init__(vehicle)
+    def __init__(self, delay):
+        super().__init__()
         self.delay = delay
         self.start_time = -1  
 
@@ -93,18 +93,18 @@ class MyDriver(veh.ChDriver):
 
         
         if elapsed_time > self.delay:
-            
-            if elapsed_time < 0.2:
-                self.SetThrottle(elapsed_time / 0.2 * 0.7)
+            throttle_time = elapsed_time - self.delay
+            if throttle_time < 0.2:
+                self.SetThrottle(throttle_time / 0.2 * 0.7)  
             else:
                 self.SetThrottle(0.7)
 
-            
-            if elapsed_time > 2:
-                self.SetSteering(math.sin((elapsed_time - 2) * math.pi))  
+        
+        if elapsed_time > 2.0:
+            self.SetSteering(0.5 * math.sin(2 * math.pi * (elapsed_time - 2.0)))
 
 
-driver = MyDriver(vehicle, 0.5)
+driver = MyDriver(delay=0.5)
 
 
 driver.Initialize()

@@ -5,7 +5,7 @@ import math
 # Initialize the Chrono simulation system
 sys = chrono.ChSystemNSC()
 
-# Set the gravitational acceleration for the system (in m/s^2) to simulate the moon
+# Set the gravitational acceleration for the system (in m/s^2) - Moon gravity
 sys.SetGravitationalAcceleration(chrono.ChVector3d(0, -1.62, 0))  # g = 1.62 m/s^2
 
 # Create the ground body and add it to the simulation
@@ -26,7 +26,7 @@ pend_1.EnableCollision(False)  # Disable collision detection for the pendulum
 pend_1.SetMass(2)  # Set the mass of the pendulum (in kg)
 pend_1.SetInertiaXX(chrono.ChVector3d(0.4, 1.5, 1.5))  # Set the inertia tensor (in kg·m^2)
 
-# Add a visualization cylinder to the pendulum with updated dimensions
+# Add a visualization cylinder to the pendulum with modified dimensions
 cyl_2 = chrono.ChVisualShapeCylinder(0.1, 1.5)  # Cylinder with radius 0.1 and height 1.5
 cyl_2.SetColor(chrono.ChColor(0.6, 0, 0))  # Set the color of the cylinder (RGB)
 pend_1.AddVisualShape(cyl_2, chrono.ChFrame(chrono.VNULL, chrono.QuatFromAngleY(chrono.CH_PI_2)))
@@ -47,7 +47,7 @@ sys.AddLink(spherical_joint)
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(sys)  # Attach the Chrono system to the visualization
 vis.SetWindowSize(1024, 768)  # Set the window size for the visualization
-vis.SetWindowTitle('Pendulum Simulation on the Moon')  # Set the window title
+vis.SetWindowTitle('Pendulum Simulation on Moon')  # Set the window title
 vis.Initialize()  # Initialize the visualization system
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))  # Add a logo to the visualization
 vis.AddSkyBox()  # Add a skybox for better visual appearance

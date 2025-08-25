@@ -51,7 +51,6 @@ nodesLoad = []
 load_force = chrono.ChVector3d(0, -10, 0)  
 
 
-melementmonitor = None  
 for iz in range(nsections_z):
     for ix in range(nsections_x):
         melementA = fea.ChElementShellBST()
@@ -66,7 +65,7 @@ for iz in range(nsections_z):
 
         
         if iz == 0 and ix == 1:
-            melementmonitor = melementA  
+            ementmonitor = melementA  
 
         melementB = fea.ChElementShellBST()
         boundary_1 = mynodes[iz * (nsections_x + 1) + ix]
@@ -86,6 +85,8 @@ for j in range(30):
 
 mvisualizeshellA = chrono.ChVisualShapeFEA(mesh)
 mvisualizeshellA.SetShellResolution(2)
+
+
 
 
 mesh.AddVisualShapeFEA(mvisualizeshellA)

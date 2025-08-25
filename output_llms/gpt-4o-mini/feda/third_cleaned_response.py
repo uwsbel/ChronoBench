@@ -83,13 +83,18 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 
-light1 = irr.ILightSceneNode(vis.GetSceneManager(), None, irr.vector3df(10, 10, 10), irr.SLightType.POINT)
-light1.setLightColor(irr.SColorf(1.0, 1.0, 1.0, 1.0))  
-light1.setRadius(50.0)  
+light1 = irr.SLight()
+light1.Position = irr.vector3df(10, 10, 10)
+light1.DiffuseColor = irr.SColor(255, 255, 255, 255)  
+light1.AmbientColor = irr.SColor(255, 100, 100, 100)  
+vis.AddLight(light1)
 
 
 sensor_manager = veh.ChSensorManager(vehicle.GetSystem())
-camera_sensor = veh.ChCameraSensor(vehicle.GetChassis(), 1280, 720, 60)  
+camera_sensor = veh.ChCameraSensor(vehicle.GetChassisBody(),  
+                                    chrono.ChFrameD(chrono.ChVectorD(0, 0, 1.5), chrono.Q_from_AngZ(0)),  
+                                    1280, 720,  
+                                    90)  
 sensor_manager.AddSensor(camera_sensor)
 
 
@@ -136,7 +141,7 @@ while vis.Run():
     vis.Synchronize(time, driver_inputs)
 
     
-    sensor_manager.Update();
+    sensor_manager.Update()
 
     
     driver.Advance(step_size)

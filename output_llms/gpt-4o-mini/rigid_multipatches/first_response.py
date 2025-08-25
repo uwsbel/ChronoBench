@@ -1,55 +1,79 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
+import pychrono.vehicle as chrono_vehicle
 
 # Initialize the PyChrono environment
-chrono.ChSystem.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
+chrono.SetChronoDataPath('path/to/chrono/data/')  # Set the path to your Chrono data
+chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.001)
+chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.001)
+
+# Create the simulation system
+system = chrono.ChSystemNSC()
 
 # Create the Irrlicht visualization
-application = chronoirr.ChIrrApp(chrono.ChSystem(), "HMMWV Simulation", chronoirr.dimension2d(800, 600))
-application.SetSymbolicStepSize(0.01)
-application.SetTimestep(0.01)
-application.SetUseSkyBox(True)
+application = chronoirr.ChIrrApp(system, "HMMWV Simulation", chronoirr.dimension2d(800, 600))
+application.SetSkyBox()
+application.AddTypicalLights()
+application.SetCamera(chrono.ChVectorD(0, 5, -15), chrono.ChVectorD(0, 0, 0))
 
 # Create the HMMWV vehicle
-vehicle = chrono.ChVehicle()
-vehicle.SetPos(chrono.ChVectorD(0, 0.5, 0))  # Initial position
-vehicle.SetEngineType(chrono.ChVehicleEngineType.ENGINE_TYPE_V8)  # Set engine type
-vehicle.SetDrivetrainType(chrono.ChVehicleDrivetrainType.DRIVETRAIN_TYPE_4WD)  # Set drivetrain type
+hmmwv = chrono_vehicle.HMMWV("HMMWV")
+hmmwv.SetChassisVisualizationType(chrono_vehicle.VisualizationType.MESH)
+hmmwv.SetWheelVisualizationType(chrono_vehicle.VisualizationType.MESH)
+hmmwv.SetPowertrainType(chrono_vehicle.PowertrainModelType.SHAFTS)
+hmmwv.SetDrivetrainType(chrono_vehicle.DrivetrainType.FULL)
 
-# Add mesh visualization to the vehicle components
-vehicle.SetChassisMesh("path/to/chassis_mesh.obj")
-vehicle.SetWheelMesh("path/to/wheel_mesh.obj")
-vehicle.SetSuspensionMesh("path/to/suspension_mesh.obj")
+# Initialize the vehicle at a specific position
+hmmwv.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0.5, 0), chrono.ChQuaternionD(1, 0, 0, 0)))
 
-# Create the terrain
+# Add the vehicle to the system
+system.Add(hmmwv)
+
+# Create terrain patches
 terrain = chrono.ChTerrain()
-terrain.AddFlatPatch(chrono.ChVectorD(-10, 0, -10), chrono.ChVectorD(10, 0, 10), "path/to/flat_texture.png")
-terrain.AddBumpPatch(chrono.ChVectorD(0, 0, 0), 1.0, "path/to/bump_mesh.obj")
-terrain.AddHeightmapPatch("path/to/heightmap.png", 10, 10, 0.5)
+terrain.SetContactMaterial(chrono.ChMaterialSurfaceNSC())
+terrain.SetFriction(0.8)
 
-# Add the terrain to the system
-chrono.ChSystem.Add(terrain)
+# Create flat patches with different textures
+flat_patch1 = chrono.ChTerrainPatch(chrono.ChVectorD(-10, 0, -10), chrono.ChVectorD(10, 0, -10), chrono.ChVectorD(10, 0, 10), chrono.ChVectorD(-10, 0, 10))
+flat_patch1.SetTexture("path/to/texture1.jpg")
+terrain.AddPatch(flat_patch1)
 
-# Set up the interactive driver system
-driver = chrono.ChDriver()
-driver.SetVehicle(vehicle)
-driver.SetSteeringSensitivity(1.0)
-driver.SetThrottleSensitivity(1.0)
-driver.SetBrakingSensitivity(1.0)
+flat_patch2 = chrono.ChTerrainPatch(chrono.ChVectorD(-10, 0, 10), chrono.ChVectorD(10, 0, 10), chrono.ChVectorD(10, 0, 30), chrono.ChVectorD(-10, 0, 30))
+flat_patch2.SetTexture("path/to/texture2.jpg")
+terrain.AddPatch(flat_patch2)
 
-# Main simulation loop
+# Create a mesh-based bump patch
+bump_patch = chrono.ChTerrainMeshPatch("path/to/bump_mesh.obj")
+terrain.AddPatch(bump_patch)
+
+# Create a heightmap-based patch for varying elevations
+heightmap_patch = chrono.ChTerrainHeightmapPatch("path/to/heightmap.png", 0.1)
+terrain.AddPatch(heightmap_patch)
+
+# Add terrain to the system
+system.Add(terrain)
+
+# Create an interactive driver system
+driver = chrono_vehicle.ChDriverHMMWV(hmmwv)
+driver.SetThrottle(0.5)  # Set initial throttle
+driver.SetSteering(0.0)  # Set initial steering
+driver.SetBraking(0.0)   # Set initial braking
+
+# Simulation loop
+application.AssetBindAll()
+application.AssetUpdateAll()
+
 while application.GetDevice().run():
     application.BeginScene()
     application.DrawAll()
-    
-    # Update vehicle and driver controls
-    driver.Update()
-    vehicle.Update()
-    
-    # Step the simulation
-    chrono.ChSystem.DoStepDynamics(0.01)
-    
     application.EndScene()
+
+    # Update the driver inputs based on user interaction
+    driver.UpdateInputs()
+
+    # Step the simulation
+    system.DoStepDynamics(0.01)  # Set the timestep for the simulation
 
 # Clean up
 application.Close()

@@ -34,29 +34,18 @@ def main():
     patch = terrain.AddPatch(patch_mat, ch.CSYSNORM, 100.0, 100.0)
     patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 100, 100)
     terrain.Initialize()
-
-    # Create visualization box
-    box = ch.ChBodyEasyBox(1, 1, 1, 1000, True, True)
-    box.SetPos(ch.ChVector3d(5, 0, 1.6))
-    hmmwv.GetSystem().Add(box)
-
-    # Create sensor manager
-    sens_manager = sens.ChSensorManager(hmmwv.GetSystem())
-
-    # Create lidar sensor
-    lidar = sens.ChLidarSensor()
-    lidar.SetName("lidar")
-    lidar.SetCollisionEnvelope(0.5)
-    lidar.SetMaxDistance(50)
-    lidar.SetVerticalAngle(ch.ChAngleD(0))
-    lidar.SetHorizontalAngle(ch.ChAngleD(0))
-    lidar.SetAngularResolution(ch.ChAngleD(1))
-    lidar.SetSensorPosition(ch.ChVector3d(0, 0, 2))
-    lidar.SetSensorDirection(ch.ChVector3d(0, 0, -1))
-    lidar.AddFilter(sens.ChFilterLidarGroundPlane())
-    lidar.AddFilter(sens.ChFilterLidarDistance())
-    lidar.AddFilter(sens.ChFilterLidarIntensity())
-    sens_manager.AddSensor(lidar)
+    # Create run-time visualization
+    vis = chronoirr.ChVisualSystemIrrlicht()
+    vis.AttachSystem(hmmwv.GetSystem())
+    vis.SetCameraVertical(ch.CameraVerticalDir_Z)
+    vis.SetWindowSize(1280, 720)
+    vis.SetWindowTitle('Viper rover - Rigid terrain')
+    vis.Initialize()
+    vis.AddLogo(ch.GetChronoDataFile('logo_pychrono_alpha.png'))
+    vis.AddSkyBox()
+    vis.AddCamera(ch.ChVector3d(-5, 2.5, 1.5), ch.ChVector3d(0, 0, 1)) # Changed camera position
+    vis.AddTypicalLights()
+    vis.AddLightWithShadow(ch.ChVector3d(1.5, -2.5, 5.5), ch.ChVector3d(0, 0, 0.5), 3, 4, 10, 40, 512)
 
     # Create and initialize the driver system.
     driver = veh.ChDriver(hmmwv.GetVehicle())
@@ -67,21 +56,30 @@ def main():
     ros_manager.RegisterHandler(chros.ChROSClockHandler())
     ros_manager.RegisterHandler(chros.ChROSDriverInputsHandler(25, driver, "~/input/driver_inputs"))
     ros_manager.RegisterHandler(chros.ChROSBodyHandler(25, hmmwv.GetChassisBody(), "~/output/hmmwv/state"))
-    ros_manager.RegisterHandler(chros.ChROSLidarHandler(lidar, "~/output/lidar"))
     ros_manager.Initialize()
 
-    # Create run-time visualization
-    vis = chronoirr.ChVisualSystemIrrlicht()
-    vis.AttachSystem(hmmwv.GetSystem())
-    vis.SetCameraVertical(ch.CameraVerticalDir_Z)
-    vis.SetWindowSize(1280, 720)
-    vis.SetWindowTitle('Viper rover - Rigid terrain')
-    vis.Initialize()
-    vis.AddLogo(ch.GetChronoDataFile('logo_pychrono_alpha.png'))
-    vis.AddSkyBox()
-    vis.AddCamera(ch.ChVector3d(-5, 2.5, 1.5), ch.ChVector3d(0, 0, 1))
-    vis.AddTypicalLights()
-    vis.AddLightWithShadow(ch.ChVector3d(1.5, -2.5, 5.5), ch.ChVector3d(0, 0, 0.5), 3, 4, 10, 40, 512)
+    # Create sensor manager
+    sens_manager = sens.ChSensorManager(hmmwv.GetSystem())
+
+    # Add a visualization box
+    box = ch.ChBodyEasyBox(1, 1, 1, 1000, True, True)
+    box.SetPos(ch.ChVector3d(5, 0, 1.5))
+    hmmwv.GetSystem().Add(box)
+
+    # Add lidar sensor
+    lidar = sens.ChLidarSensor(sens_manager)
+    lidar.SetCollisionEnforce(True)
+    lidar.SetScanAngle(ch.ChVector2d(-math.pi / 2, math.pi / 2))
+    lidar.SetAngularSpeed(10)
+    lidar.SetRaysPerSweep(360)
+    lidar.SetMaxDistance(50)
+    lidar.SetFilter(sens.ChLidarFilter_Distance, 0.1)
+    lidar.SetFilter(sens.ChLidarFilter_Intensity, 0.5)
+    lidar.SetFilter(sens.ChLidarFilter_Angle, math.pi / 6)
+    lidar.Attach(box)
+
+    # Register lidar handler
+    ros_manager.RegisterHandler(chros.ChROSLidarHandler(25, lidar, "~/output/lidar"))
 
     # Start the simulation loop.
     time = 0
@@ -101,31 +99,35 @@ def main():
         driver.Synchronize(time)
         terrain.Synchronize(time)
         hmmwv.Synchronize(time, driver_inputs, terrain)
-
         driver.Advance(time_step)
         terrain.Advance(time_step)
         hmmwv.Advance(time_step)
-
-        sens_manager.Update()  # Update sensor manager
-
+        # Update sensor manager
+        sens_manager.Update()
         if not ros_manager.Update(time, time_step):
             break
         step_number += 1
 
 if __name__ == "__main__":
     main()
+
 ```
 
-**Explanation of Changes:**
+**Changes Made:**
 
-1. **Import `pychrono.sensor as sens`:** This line imports the necessary module for using sensor functionalities.
-2. **Visualization Box:** A simple box is created using `ChBodyEasyBox` and added to the simulation system for visualization purposes.
-3. **Sensor Manager:** A `ChSensorManager` is created to manage the lidar sensor.
-4. **Lidar Sensor:** A `ChLidarSensor` is instantiated, configured with various parameters (collision envelope, maximum distance, angles, resolution), and added to the sensor manager.
-5. **Filters:** Several filters are added to the lidar sensor to process the data:
-   - `ChFilterLidarGroundPlane`: Removes points that are likely part of the ground plane.
-   - `ChFilterLidarDistance`: Filters points based on their distance from the sensor.
-   - `ChFilterLidarIntensity`: Processes the intensity values of the lidar returns.
-6. **ROS Lidar Handler:** A `ChROSLidarHandler` is registered with the ROS manager to publish lidar data to the ROS topic "~/output/lidar".
-7. **Sensor Manager Update:** Inside the simulation loop, `sens_manager.Update()` is called to update the sensor data.
-8. **Camera Position:** The camera position is changed to `(-5, 2.5, 1.5)` for a different perspective.
+1. **Import `pychrono.sensor as sens`:** Added this line to use sensor functionalities.
+2. **Visualization Box:**
+   - Created a `ChBodyEasyBox` named `box` and added it to the system.
+3. **Sensor Manager:**
+   - Created a `ChSensorManager` instance (`sens_manager`) to manage sensors.
+4. **Lidar Sensor:**
+   - Created a `ChLidarSensor` instance (`lidar`) and configured its parameters:
+     - Collision enforcement, scan angle, angular speed, rays per sweep, maximum distance.
+     - Added various filters: distance, intensity, and angle.
+   - Attached the lidar sensor to the visualization box (`box`).
+5. **ROS Lidar Handler:**
+   - Registered a `ChROSLidarHandler` to publish lidar data to the ROS topic "~/output/lidar".
+6. **Sensor Manager Update:**
+   - Added `sens_manager.Update()` within the simulation loop to update sensor data.
+7. **Camera Position:**
+   - Changed the camera position to `(-5, 2.5, 1.5)` for a different perspective.

@@ -42,9 +42,8 @@ render_step_size = 1.0 / 50  # FPS = 50
 
 # Added Logging Step Size
 log_step_size = 1.0  # Log data every second
-log_steps = math.ceil(log_step_size / step_size)
 
-# Initialized GPS Data List
+# Initialize GPS Data List
 gps_data = []
 
 # Create the HMMWV vehicle, set parameters, and initialize
@@ -142,6 +141,7 @@ print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
+log_steps = math.ceil(log_step_size / step_size)  # Steps for logging GPS data
 
 # Initialize simulation frame counter
 realtime_timer = chrono.ChRealtimeStepTimer()
@@ -151,10 +151,6 @@ render_frame = 0
 # Simulation loop
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
-
-    # Log GPS data at defined intervals
-    if step_number % log_steps == 0:
-        gps_data.append(gps.GetMostRecentGPSBuffer().GetGPSData())
 
     # Render scene and output POV-Ray data
     if step_number % render_steps == 0:
@@ -166,13 +162,13 @@ while vis.Run():
     # Get driver inputs
     driver_inputs = driver.GetInputs()
 
-    # Modify driver inputs based on simulation time
-    if time < 6.0:
+    # Modify Driver Inputs: Set throttle and steering based on time
+    if time < 6:
         driver_inputs.m_throttle = 1.0  # Full throttle for the first 6 seconds
         driver_inputs.m_steering = 0.0   # No steering
     else:
         driver_inputs.m_throttle = 0.0   # No throttle after 6 seconds
-        driver_inputs.m_braking = 1.0     # Start braking after 6 seconds
+        driver_inputs.m_braking = 1.0    # Start braking
 
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
@@ -188,12 +184,16 @@ while vis.Run():
 
     # Update sensor manager in each step
     manager.Update()
-    
+
+    # Log GPS data at defined intervals
+    if step_number % log_steps == 0:
+        gps_data.append(gps.GetMostRecentGPSBuffer().GetGPSData())
+
     # Increment frame number
     step_number += 1
 
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
 
-# Output logged GPS data at the end of the simulation
+# Output logged GPS data
 print("GPS Data: ", gps_data)

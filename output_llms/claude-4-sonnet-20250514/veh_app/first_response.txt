@@ -1,54 +1,54 @@
-I'll create a comprehensive PyChrono simulation script featuring a Gator vehicle with sensors, terrain, and an interactive driver system. Here's the complete implementation:
+I'll create a comprehensive PyChrono simulation script featuring a Gator vehicle with terrain, driver system, and sensor manager as requested. Here's the complete implementation:
 
 ```python
 import pychrono as chrono
 import pychrono.vehicle as veh
 import pychrono.sensor as sens
-import pychrono.irrlicht as irr
-import math
+import pychrono.irrlicht as chronoirr
 import numpy as np
+import math
 
 def main():
     # Initialize the PyChrono environment
-    chrono.SetChronoDataPath('/path/to/chrono/data/')  # Set appropriate path
+    chrono.SetChronoDataPath("data/")
+    veh.SetDataPath("data/vehicle/")
     
     # Create the Chrono system
     system = chrono.ChSystemNSC()
     system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
     
-    # Set solver parameters
-    system.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
-    system.SetSolverMaxIterations(150)
-    system.SetMaxPenetrationRecoverySpeed(4.0)
+    # Set collision system type
+    system.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
     
     # Create the terrain
     terrain = veh.RigidTerrain(system)
-    
-    # Create terrain patch
     patch_mat = chrono.ChMaterialSurfaceNSC()
     patch_mat.SetFriction(0.9)
     patch_mat.SetRestitution(0.01)
     
-    patch = terrain.AddPatch(patch_mat,
-                           chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT),
-                           200.0, 200.0)
-    patch.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 200, 200)
+    # Create a large flat terrain patch
+    patch = terrain.AddPatch(patch_mat, 
+                           chrono.ChVectorD(0, 0, 0),  # center position
+                           chrono.ChVectorD(0, 0, 1),  # normal direction
+                           200, 200)  # dimensions
+    
+    patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 20, 20)
     patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
     terrain.Initialize()
     
     # Create the Gator vehicle
     gator = veh.Gator()
-    gator.SetContactMethod(chrono.ChContactMethod_NSC)
-    gator.SetChassisCollisionType(veh.CollisionType_NONE)
-    gator.SetChassisFixed(False)
-    gator.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 1.0), chrono.QUNIT))
-    gator.SetEngineType(veh.EngineModelType_SHAFTS)
-    gator.SetTransmissionType(veh.TransmissionModelType_AUTOMATIC_SHAFTS)
-    gator.SetDriveType(veh.DrivelineTypeWV_AWD)
-    gator.SetTireType(veh.TireModelType_TMEASY)
-    gator.SetTireStepSize(1e-3)
+    
+    # Set vehicle initialization parameters
+    init_pos = chrono.ChVectorD(0, 0, 0.5)
+    init_rot = chrono.ChQuaternionD(1, 0, 0, 0)
     
     # Initialize the vehicle
+    gator.SetContactMethod(chrono.ChContactMethod_NSC)
+    gator.SetChassisFixed(False)
+    gator.SetInitPosition(chrono.ChCoordsysD(init_pos, init_rot))
+    gator.SetTireType(veh.TireModelType_TMEASY)
+    gator.SetTireStepSize(1e-3)
     gator.Initialize()
     
     # Set visualization types for different vehicle parts
@@ -66,132 +66,177 @@ def main():
     throttle_time = 1.0  # time to go from 0 to +1
     braking_time = 0.3   # time to go from 0 to +1
     
-    driver.SetSteeringDelta(1.0 / steering_time)
-    driver.SetThrottleDelta(1.0 / throttle_time)
-    driver.SetBrakingDelta(1.0 / braking_time)
+    driver.SetSteeringDelta(1.0 / 50.0)  # steering input per frame
+    driver.SetThrottleDelta(1.0 / 50.0)  # throttle input per frame
+    driver.SetBrakingDelta(1.0 / 50.0)   # braking input per frame
     
+    # Initialize the driver system
     driver.Initialize()
     
     # Create the sensor manager
-    manager = sens.ChSensorManager(system)
+    sensor_manager = sens.ChSensorManager(system)
     
-    # Set sensor manager parameters
-    manager.scene.AddPointLight(chrono.ChVectorF(0, 0, 100), chrono.ChVectorF(1, 1, 1), 500.0)
-    manager.scene.AddPointLight(chrono.ChVectorF(0, -100, 0), chrono.ChVectorF(1, 1, 1), 500.0)
-    manager.scene.SetAmbientLight(chrono.ChVectorF(0.1, 0.1, 0.1))
+    # Add point lights to the scene
+    intensity = 1.0
     
-    # Create and configure camera sensor
-    camera_offset_pose = chrono.ChFrameD(chrono.ChVectorD(-5, 0, 2), chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0)))
+    # Add multiple point lights for better illumination
+    light_positions = [
+        chrono.ChVectorD(10, 10, 20),
+        chrono.ChVectorD(-10, 10, 20),
+        chrono.ChVectorD(10, -10, 20),
+        chrono.ChVectorD(-10, -10, 20)
+    ]
+    
+    for pos in light_positions:
+        point_light = sens.ChPointLight()
+        point_light.SetPosition(pos)
+        point_light.SetColor(chrono.ChVectorF(intensity, intensity, intensity))
+        point_light.SetRange(100)
+        sensor_manager.AddLight(point_light)
+    
+    # Create and configure the camera sensor
+    camera_offset_pos = chrono.ChVectorD(0, 0, 1.5)  # Position relative to chassis
+    camera_offset_rot = chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0))
+    
+    # Camera parameters
+    image_width = 1280
+    image_height = 720
+    camera_fov = 1.408  # Field of view in radians (about 80.7 degrees)
+    
+    # Create the camera
     camera = sens.ChCameraSensor(
-        gator.GetChassisBody(),  # body to which the sensor is attached
-        30.0,                   # update rate in Hz
-        camera_offset_pose,     # offset pose
-        1280,                   # image width
-        720,                    # image height
-        chrono.CH_C_PI / 3      # horizontal field of view
+        gator.GetChassisBody(),  # Attach to chassis
+        30,  # Update rate in Hz
+        chrono.ChFrameD(camera_offset_pos, camera_offset_rot),  # Offset pose
+        image_width,
+        image_height,
+        camera_fov
     )
     
-    # Add camera filters
-    camera.PushFilter(sens.ChFilterVisualize(1280, 720, "Gator Camera View"))
-    camera.PushFilter(sens.ChFilterSave("output/"))
+    # Set camera name and lag
+    camera.SetName("Camera Sensor")
+    camera.SetLag(0.0)
+    camera.SetCollectionWindow(0.0)
+    
+    # Add noise filter (optional)
+    if sens.ChNoiseModel:
+        camera.PushFilter(sens.ChFilterNoiseNone())
+    
+    # Add visualization filter to render the images
+    camera.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Gator Camera"))
+    
+    # Add RGBA8 buffer filter to access image data
     camera.PushFilter(sens.ChFilterRGBA8Access())
     
-    # Add camera to sensor manager
-    manager.AddSensor(camera)
+    # Add the camera to the sensor manager
+    sensor_manager.AddSensor(camera)
     
-    # Create the Irrlicht visualization
-    vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
-    vis.SetWindowTitle("Gator Vehicle Simulation")
-    vis.SetChaseCamera(chrono.ChVectorD(0.0, 0.0, 1.75), 6.0, 0.5)
+    # Create the Irrlicht visualization system
+    vis = chronoirr.ChVisualSystemIrrlicht()
+    vis.AttachSystem(system)
+    vis.SetWindowSize(1024, 768)
+    vis.SetWindowTitle('Gator Vehicle Simulation')
     vis.Initialize()
-    vis.AddLightDirectional()
-    vis.AddSkyBox()
     vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
-    vis.AttachVehicle(gator.GetVehicle())
+    vis.AddSkyBox()
+    vis.AddCamera(chrono.ChVectorD(0, -10, 5), chrono.ChVectorD(0, 0, 0))
+    vis.AddTypicalLights()
     
     # Simulation parameters
-    step_size = 1e-3
-    render_step_size = 1.0 / 50  # FPS = 50
-    
-    realtime_timer = chrono.ChRealtimeStepTimer()
-    time = 0
-    render_time = 0
+    time_step = 1e-3
+    simulation_time = 0.0
+    simulation_end_time = 30.0
     
     # Simulation loop
-    while vis.Run():
-        time = system.GetChTime()
-        
-        # Render scene and output POV-Ray data
-        if time >= render_time:
-            vis.BeginScene()
-            vis.Render()
-            vis.EndScene()
-            render_time += render_step_size
-        
+    print("Starting simulation...")
+    print("Use WASD keys to control the vehicle")
+    print("ESC to exit")
+    
+    while vis.Run() and simulation_time < simulation_end_time:
         # Get driver inputs
         driver_inputs = driver.GetInputs()
         
-        # Update modules (process inputs from other modules)
+        # Synchronize systems
+        time = system.GetChTime()
+        
+        # Update driver system
         driver.Synchronize(time)
+        
+        # Update terrain
         terrain.Synchronize(time)
+        
+        # Update vehicle
         gator.Synchronize(time, driver_inputs, terrain)
-        vis.Synchronize(time, driver_inputs)
         
         # Update sensor manager
-        manager.Update()
+        sensor_manager.Update()
         
-        # Advance simulation for one timestep for all modules
-        driver.Advance(step_size)
-        terrain.Advance(step_size)
-        gator.Advance(step_size)
-        vis.Advance(step_size)
-        system.DoStepDynamics(step_size)
+        # Advance simulation
+        driver.Advance(time_step)
+        terrain.Advance(time_step)
+        gator.Advance(time_step)
+        system.DoStepDynamics(time_step)
         
-        # Spin in place for real time to catch up
-        realtime_timer.Spin(step_size)
+        # Update visualization
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
         
-        # Stop simulation after a certain time or if window is closed
-        if time > 100:  # Run for 100 seconds
-            break
+        # Update simulation time
+        simulation_time += time_step
+        
+        # Print vehicle status every 2 seconds
+        if int(simulation_time * 10) % 20 == 0:
+            vehicle_pos = gator.GetVehiclePos()
+            vehicle_speed = gator.GetVehicleSpeed()
+            print(f"Time: {simulation_time:.1f}s, Position: ({vehicle_pos.x:.2f}, {vehicle_pos.y:.2f}, {vehicle_pos.z:.2f}), Speed: {vehicle_speed:.2f} m/s")
     
-    print("Simulation completed successfully!")
+    print("Simulation completed")
+    return 0
 
 if __name__ == "__main__":
     main()
 ```
 
-This script creates a comprehensive PyChrono simulation with the following key features:
+This comprehensive PyChrono simulation script includes:
 
-## Key Components:
+## Key Features:
 
-1. **System Initialization**: Sets up the PyChrono environment with proper solver settings and gravity.
+1. **PyChrono Environment Initialization**: 
+   - Sets up the core Chrono system with proper data paths
+   - Configures collision system and gravity
 
-2. **Rigid Terrain**: Creates a textured terrain patch with appropriate friction and restitution properties.
+2. **Gator Vehicle Setup**:
+   - Initializes a Gator vehicle with proper contact method
+   - Sets different visualization types for various vehicle components:
+     - Chassis: MESH visualization
+     - Suspension: PRIMITIVES visualization
+     - Steering: PRIMITIVES visualization  
+     - Wheels: MESH visualization
+     - Tires: MESH visualization
 
-3. **Gator Vehicle**: 
-   - Initializes with AWD drivetrain
-   - Sets different visualization types for various parts (mesh for chassis/wheels/tires, primitives for suspension/steering)
-   - Configures engine, transmission, and tire models
+3. **Rigid Terrain**:
+   - Creates a large flat terrain patch with grass texture
+   - Sets appropriate friction and restitution properties
 
-4. **Interactive Driver System**: Allows real-time control of the vehicle with configurable response times for steering, throttle, and braking.
+4. **Interactive Driver System**:
+   - Implements responsive WASD keyboard controls
+   - Configurable steering, throttle, and braking response times
 
-5. **Sensor Manager**: 
-   - Adds multiple point lights for scene illumination
-   - Attaches a camera to the vehicle chassis with filters for visualization and data saving
+5. **Sensor Manager with Lighting**:
+   - Creates multiple point lights for scene illumination
+   - Implements a camera sensor attached to the vehicle chassis
+   - Provides real-time camera image rendering and data access
 
-6. **Visualization**: Uses Irrlicht for real-time 3D rendering with chase camera, lighting, and skybox.
+6. **Simulation Loop**:
+   - Synchronizes all systems (driver, terrain, vehicle, sensors)
+   - Advances simulation with proper time stepping
+   - Updates visualization and provides status feedback
 
-7. **Simulation Loop**: 
-   - Updates all components synchronously
-   - Maintains real-time execution
-   - Handles sensor data collection and rendering
+## Usage Instructions:
+- Use WASD keys to control the vehicle (W=throttle, S=brake, A/D=steering)
+- The camera view shows the vehicle's perspective
+- Vehicle status is printed every 2 seconds
+- Simulation runs for 30 seconds or until manually closed
 
-## Usage Notes:
-
-- Make sure to set the correct path to your Chrono data directory
-- The simulation runs for 100 seconds by default
-- Camera images are saved to an "output/" directory
-- Vehicle controls are available through keyboard/mouse input via the interactive driver
-- The simulation maintains real-time execution with 50 FPS rendering
-
-This script provides a complete foundation for vehicle dynamics simulation with sensor integration and can be extended with additional sensors, different terrains, or modified vehicle parameters as needed.
+The script demonstrates a complete vehicle simulation with advanced sensor capabilities and realistic physics interactions.

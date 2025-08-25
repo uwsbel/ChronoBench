@@ -11,10 +11,10 @@ initLoc = chrono.ChVector3d(0, 0, 0.5)
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 # Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
-vis_type = veh.VisualizationType_PRIMITIVES  # Changed to PRIMITIVES
+vis_type = veh.VisualizationType_PRIMITIVES  # Changed from MESH to PRIMITIVES
 
 # Collision type for chassis (PRIMITIVES, MESH, or NONE)
-chassis_collision_type = veh.CollisionType_PRIMITIVES  # Changed to PRIMITIVES
+chassis_collision_type = veh.CollisionType_PRIMITIVES  # Changed from NONE to PRIMITIVES
 
 # Type of tire model (RIGID, TMEASY)
 tire_model = veh.TireModelType_TMEASY

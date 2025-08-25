@@ -70,9 +70,9 @@ builder = fea.ChBuilderBeamEuler()
 builder.BuildBeam(mesh,                   
                   msection,              
                   5,                     
-                  hnode3.GetPos(),      
-                  chrono.ChVector3d(0.2, 0.1, -0.1), 
-                  chrono.ChVector3d(0, 1, 0))      
+                  chrono.ChVector3d(beam_L * 2, 0, 0),  
+                  chrono.ChVector3d(0.2, 0.1, -0.1),     
+                  chrono.ChVector3d(0, 1, 0))            
 
 
 builder.GetLastBeamNodes().back().SetFixed(True)
