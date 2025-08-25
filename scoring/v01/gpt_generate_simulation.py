@@ -2,7 +2,8 @@ from openai import OpenAI
 import os
 import json
 from tqdm import tqdm
-nvidia_api_key = os.getenv("OPENAI_API_KEY")
+#nvidia_api_key = os.getenv("OPENAI_API_KEY")
+nvidia_api_key = "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"
 print(nvidia_api_key)
 def read_script(file_path):
     with open(file_path, "r", encoding="utf-8") as file:
@@ -127,12 +128,12 @@ system_do_list = ["art", "beam", "buckling", "cable", "car", "camera", "citybus"
                   "rigid_highway", "rigid_multipatches", "rotor", "scm", "scm_hill", "sedan", "sensros", "slider_crank",
                   "tablecloth", "turtlebot", "uazbus", "veh_app", "vehros", "viper"]
 # data set path
-dataset_path = r"C:\Users\jingquanw\SimBench\demo_data"
-output_path  = r"C:\Users\jingquanw\SimBench\output_llms"
-output_conv  = r"C:\Users\jingquanw\SimBench\output_conversion"
+dataset_path = r"/home/hongyu/Documents/SimBench/demo_data"
+output_path  = r"/home/hongyu/Documents/SimBench/output_llms"
+output_conv  = r"/home/hongyu/Documents/SimBench/output_conversion"
 # in the dataset_path, there are 34 dynamical system folders, each folder is a dyanmical system which contains 8 files [3 input text files, input1.txt, input2.txt, input3.txt;
 # 2 python input files, pyinput2.py, pyinput3.py; 3 ground truth python files truth1.py, truth2.py, truth3.py]
-test_model_list = ["gpt-4o-mini-f3"]
+test_model_list = ["gpt-4o-mini-f1", "gpt-4o-mini-f3"]
 # define an output path for the test results for each model with the name of the model
 # using tqdm to show the progress bar
 for test_model in tqdm(test_model_list):
@@ -142,8 +143,11 @@ for test_model in tqdm(test_model_list):
     os.makedirs(output_model_path, exist_ok=True)
     # for each model, we create a folder to store the test results for each dynamical system
     for system_folder in os.listdir(dataset_path):
-        print('entering folder:', system_folder)
         system_folder_path = os.path.join(dataset_path, system_folder)
+        # Skip if it's not a directory
+        if not os.path.isdir(system_folder_path):
+            continue
+        print('entering folder:', system_folder)
         # for each dynamical system, we create a folder to store the test results for each model
         output_system_path = os.path.join(output_model_path, system_folder)
         os.makedirs(output_system_path, exist_ok=True)

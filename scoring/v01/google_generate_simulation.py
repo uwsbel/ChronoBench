@@ -147,12 +147,12 @@ system_list = ["art", "beam", "buckling", "cable", "car", "camera", "citybus", "
                "tablecloth", "turtlebot", "uazbus", "veh_app", "vehros", "viper"]
 system_do_list = ["gear"]
 # data set path
-dataset_path = r"C:\Users\jingquanw\SimBench\demo_data"
-Output_path = r"C:\Users\jingquanw\SimBench\output_llms"
-Output_conversation_path =  r"C:\Users\jingquanw\SimBench\output_conversion"
+dataset_path = r"/home/hongyu/Documents/SimBench/demo_data"
+Output_path = r"/home/hongyu/Documents/SimBench/output_llms"
+Output_conversation_path =  r"/home/hongyu/Documents/SimBench/output_conversion"
 # in the dataset_path, there are 34 dynamical system folders, each folder is a dyanmical system which contains 8 files [3 input text files, input1.txt, input2.txt, input3.txt;
 # 2 python input files, pyinput2.py, pyinput3.py; 3 ground truth python files truth1.py, truth2.py, truth3.py]
-test_model_list = ["Gemini-1.5-pro-2.5-pro"]
+test_model_list = ["Gemini-1.5-pro-1.5-pro", "Gemini-1.5-pro-2.5-pro"]
 # define an output path for the test results for each model with the name of the model
 # using tqdm to show the progress bar
 for test_model in tqdm(test_model_list):

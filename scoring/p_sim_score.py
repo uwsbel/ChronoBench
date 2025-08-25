@@ -11,7 +11,7 @@ logging.getLogger("evaluate").setLevel(logging.ERROR)
 os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = "1"
 
 # Define paths
-DATA_ROOT                  = Path("C:/Users/jingquanw/SimBench/")
+DATA_ROOT                  = Path("/home/hongyu/Documents/SimBench/")
 dataset_path               = DATA_ROOT / "demo_data"
 output_path                = DATA_ROOT / "output_llms"
 output_statistic_path      = DATA_ROOT / "statistic"

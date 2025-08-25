@@ -68,9 +68,9 @@ opensource_model_links = {
 }
 
 # data set path
-dataset_path = 'D:\SimBench\demo_data'
-Output_path = 'D:\SimBench\output'
-Output_conversation_path = 'D:\SimBench\output_conversion'
+dataset_path = '/home/hongyu/Documents/SimBench/demo_data'
+Output_path = '/home/hongyu/Documents/SimBench/output'
+Output_conversation_path = '/home/hongyu/Documents/SimBench/output_conversion'
 # in the dataset_path, there are 34 dynamical system folders, each folder is a dyanmical system which contains 8 files [3 input text files, input1.txt, input2.txt, input3.txt;
 # 2 python input files, pyinput2.py, pyinput3.py; 3 ground truth python files truth1.py, truth2.py, truth3.py]
 #test_model_list = ["gemma-2-2b-it", "gemma-2-9b-it", "gemma-2-27b-it", "llama-3.1-405b-instruct", "llama-3.1-70b-instruct", "codellama-70b", "llama-3.1-8b-instruct", "phi-3-mini-128k-instruct", "phi-3-small-8k-instruct", "phi-3-medium-128k-instruct",
@@ -80,7 +80,7 @@ All_model_list= ["gemma-2-2b-it", "gemma-2-9b-it", "gemma-2-27b-it", "llama-3.1-
  "mixtral-8x7b-instruct-v0.1", "mistral-large-latest", "mamba-codestral-7b-v0.1",
  "gpt-4o", "gpt-4o-mini", "claude-3-5-sonnet", "Gemini-1.5-pro","gpt-4o-mini-f1"]
 #                  "nemotron-4-340b-instruct", "mistral-nemo-12b-instruct", "mixtral-8x22b-instruct-v0.1", "codestral-22b-instruct-v0.1", "mixtral-8x7b-instruct-v0.1", "mistral-large", "mamba-codestral-7b-v0.1", "gpt-4o", "gpt-4o-mini", "claude-3-5-sonnet","Gemini-1.5-pro"]
-test_model_list = ["gpt-4o-mini-f2"]
+test_model_list = ["gpt-4o"]
 # define an output path for the test results for each model with the name of the model
 # using tqdm to show the progress bar
 
@@ -106,9 +106,9 @@ difference = system_list - MBS_list - FEA_list - SEN_list - RBT_list - VEH_list
 
 print(difference)
 # data set path
-dataset_path = 'D:\SimBench\demo_data'
-Output_path = 'D:\SimBench\output'
-Output_statistic_path = 'D:\SimBench\statistic'
+dataset_path = '/home/hongyu/Documents/SimBench/demo_data'
+Output_path = '/home/hongyu/Documents/SimBench/output_llms'
+Output_statistic_path = '/home/hongyu/Documents/SimBench/statistic'
 
 # using tqdm to show the progress bar
 for test_model in tqdm(test_model_list):
@@ -117,8 +117,11 @@ for test_model in tqdm(test_model_list):
     os.makedirs(output_model_path, exist_ok=True)
     # for each model, we create a folder to store the test results for each dynamical system
     for system_folder in os.listdir(dataset_path):
-        print('entering folder:', system_folder)
         system_folder_path = os.path.join(dataset_path, system_folder)
+        # Skip if it's not a directory
+        if not os.path.isdir(system_folder_path):
+            continue
+        print('entering folder:', system_folder)
         # for each dynamical system, we create a folder to store the test results for each model
         output_system_path = os.path.join(output_model_path, system_folder)
         os.makedirs(output_system_path, exist_ok=True)

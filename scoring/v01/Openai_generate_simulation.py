@@ -2,8 +2,8 @@ from openai import OpenAI
 import os
 import json
 from tqdm import tqdm
-nvidia_api_key = os.getenv("NVIDIA_API_KEY")
-#print(nvidia_api_key)
+nvidia_api_key = os.getenv("NVIDIA_API_KEY", "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")
+print(nvidia_api_key)
 if not nvidia_api_key:
     raise RuntimeError("Please set the NVIDIA_API_KEY environment variable!")
 def read_script(file_path):
@@ -138,12 +138,16 @@ system_list = ["art", "beam", "buckling", "cable", "car", "camera", "citybus", "
 #system_do_list=["rotor", "scm", "scm_hill", "sedan", "sensros", "slider_crank", "tablecloth", "turtlebot", "uazbus", "veh_app","vehros","viper"]
 system_do_list=system_list
 # data set path
-dataset_path = r'C:\Users\jingquanw\SimBench\demo_data'
-Output_path = r'C:\Users\jingquanw\SimBench\output_llms'
-Output_conversation_path = r'C:\Users\jingquanw\SimBench\output_conversion'
+dataset_path = r'/home/hongyu/Documents/SimBench/demo_data'
+Output_path = r'/home/hongyu/Documents/SimBench/output_llms'
+Output_conversation_path = r'/home/hongyu/Documents/SimBench/output_conversion'
 # in the dataset_path, there are 34 dynamical system folders, each folder is a dyanmical system which contains 8 files [3 input text files, input1.txt, input2.txt, input3.txt;
 # 2 python input files, pyinput2.py, pyinput3.py; 3 ground truth python files truth1.py, truth2.py, truth3.py]
-test_model_list= ["llama-3.3-70b-instruct"]
+test_model_list= ["gemma-2-9b-it", "gemma-2-27b-it", "gemma-2-2b-it", "llama-3.1-405b-instruct", "llama-3.1-70b-instruct", "llama-3.1-8b-instruct",
+                  "phi-3-mini-128k-instruct","phi-3-medium-128k-instruct", "nemotron-4-340b-instruct", "mistral-nemo-12b-instruct",
+                  "mixtral-8x22b-instruct-v0.1", "codestral-22b-instruct-v0.1", "mixtral-8x7b-instruct-v0.1",
+                  "mistral-large-latest", "mamba-codestral-7b-v0.1", "llama4_maverick", "llama4_scout",
+                  "llama-3.3-70b-instruct", "llama-3.3-405b-instruct"]
 # define an output path for the test results for each model with the name of the model
 # using tqdm to show the progress bar
 for test_model in tqdm(test_model_list):

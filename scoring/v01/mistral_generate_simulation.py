@@ -23,7 +23,7 @@ def generate_first_code(first_prompt, model_link):
     “”"
     """
     try:
-        api_key = ""
+        api_key = "0iN2RyjuZpSBIFO8GHgmA5aIkZQVhh2X"
         model = "mistral-large-latest"
 
         client = Mistral(api_key=api_key)
@@ -66,7 +66,7 @@ Modify the script based on the provided instructions to ensure it meets the spec
 Provide the corrected and modified script below:
     """
     try:
-        api_key  = ""
+        api_key  = "0iN2RyjuZpSBIFO8GHgmA5aIkZQVhh2X"
         model = "mistral-large-latest"
 
         client = Mistral(api_key=api_key)
@@ -121,9 +121,9 @@ system_list = ["art", "beam", "buckling", "cable", "car", "camera", "citybus", "
                "tablecloth", "turtlebot", "uazbus", "veh_app", "vehros", "viper"]
 system_do_list = ['art', 'citybus','feda','gator','hmmwv','scm','rigid_highway','rigid_multipatches']
 # data set path
-dataset_path = 'D:\SimBench\demo_data'
-Output_path = 'D:\SimBench\output'
-Output_conversation_path = 'D:\SimBench\output_conversion'
+dataset_path = '/home/hongyu/Documents/SimBench/demo_data'
+Output_path = '/home/hongyu/Documents/SimBench/output'
+Output_conversation_path = '/home/hongyu/Documents/SimBench/output_conversion'
 # in the dataset_path, there are 34 dynamical system folders, each folder is a dyanmical system which contains 8 files [3 input text files, input1.txt, input2.txt, input3.txt;
 # 2 python input files, pyinput2.py, pyinput3.py; 3 ground truth python files truth1.py, truth2.py, truth3.py]
 test_model_list = ["mistral-large-latest"]

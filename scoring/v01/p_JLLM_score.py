@@ -375,10 +375,10 @@ def save_scores_to_csv_with_metadata(output_system_path, test_model, system_fold
 
     print(f"Scores saved to {csv_output_path}")
 # data set path
-dataset_path = r"C:\Users\jingquanw\SimBench\demo_data"
-Output_path = r"C:\Users\jingquanw\SimBench\output_llms"
-Output_conversation_path =  r"C:\Users\jingquanw\SimBench\output_conversion"
-Output_statistic_path = r"C:\Users\jingquanw\SimBench\statistic"
+dataset_path = r"/home/hongyu/Documents/SimBench/demo_data"
+Output_path = r"/home/hongyu/Documents/SimBench/output_llms"
+Output_conversation_path =  r"/home/hongyu/Documents/SimBench/output_conversion"
+Output_statistic_path = r"/home/hongyu/Documents/SimBench/statistic"
 merge_csv_files(Output_path)
 all_model_list= ["gemma-2-2b-it", "gemma-2-9b-it", "gemma-2-27b-it", "llama-3.1-405b-instruct", "llama-3.1-70b-instruct",
 "llama-3.1-8b-instruct", "phi-3-mini-128k-instruct", "phi-3-medium-128k-instruct",
@@ -390,7 +390,7 @@ all_model_list= ["gemma-2-2b-it", "gemma-2-9b-it", "gemma-2-27b-it", "llama-3.1-
 "claude-4-sonnet-20250514","Gemini-2.5-pro","Gemini-1.5-pro","gpt-4.1-mini", "gpt-4.1-nano",
 "gpt-4.1","o4-mini","llama3.1-8b-f2","llama3.3-70b-sft1","llama3.1-8b-lora1","llama4-109b-lora1","llama3.3-70b-lora1"]
 
-evaluated_model = "gpt-4o-mini"
+evaluated_model = "gpt-4o"
 test_model_list = ["llama3.3-70b-lora1"]
 
 system_list = ["art", "beam", "buckling", "cable",  "camera", "citybus", "curiosity", "feda", "gator", "gear", "gps_imu", "handler", "hmmwv", "kraz", "lidar", "m113", "man", "mass_spring_damper", "particles", "pendulum",
@@ -423,7 +423,7 @@ def process_model_system(test_model, system_folder, dataset_path, Output_path, O
         second_reference = read_script(second_reference_path)
         third_reference = read_script(third_reference_path)
 
-        api_path = read_script(os.path.join(r'C:\Users\jingquanw\SimBench\api', 'api.txt'))
+        api_path = read_script(os.path.join(r'/home/hongyu/Documents/SimBench/api', 'api.txt'))
 
         # Example usage for first, second, and third rounds
         evaluate_and_save_results("first", first_prediction, first_reference, api_path, output_system_path)

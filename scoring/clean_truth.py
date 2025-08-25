@@ -1,4 +1,3 @@
-from openai import OpenAI
 import os
 import json
 from tqdm import tqdm
@@ -72,9 +71,9 @@ system_list = ["art", "beam", "buckling", "cable", "car", "camera", "citybus", "
                "tablecloth", "turtlebot", "uazbus", "veh_app", "vehros", "viper"]
 
 # data set path
-dataset_path = 'D:\SimBench\demo_data'
-Output_path = 'D:\SimBench\output'
-Output_conversation_path = 'D:\SimBench\output_conversion'
+dataset_path = '/home/hongyu/Documents/SimBench/demo_data'
+Output_path = '/home/hongyu/Documents/SimBench/output'
+Output_conversation_path = '/home/hongyu/Documents/SimBench/output_conversion'
 # in the dataset_path, there are 34 dynamical system folders, each folder is a dyanmical system which contains 8 files [3 input text files, input1.txt, input2.txt, input3.txt;
 # 2 python input files, pyinput2.py, pyinput3.py; 3 ground truth python files truth1.py, truth2.py, truth3.py]
 #test_model_list = ["gemma-2-2b-it", "gemma-2-9b-it", "gemma-2-27b-it", "llama-3.1-405b-instruct", "llama-3.1-70b-instruct", "codellama-70b", "llama-3.1-8b-instruct", "phi-3-mini-128k-instruct", "phi-3-small-8k-instruct", "phi-3-medium-128k-instruct","nemotron-4-340b-instruct", "mistral-nemo-12b-instruct", "mixtral-8x22b-instruct-v0.1", "codestral-22b-instruct-v0.1", "mixtral-8x7b-instruct-v0.1", "mistral-large", "mamba-codestral-7b-v0.1"]
@@ -86,8 +85,11 @@ test_model_list = ["gemma-2-2b-it", "gemma-2-9b-it", "gemma-2-27b-it", "llama-3.
 # using tqdm to show the progress bar
 
 for system_folder in os.listdir(dataset_path):
-    print('entering folder:', system_folder)
     system_folder_path = os.path.join(dataset_path, system_folder)
+    # Skip if it's not a directory
+    if not os.path.isdir(system_folder_path):
+        continue
+    print('entering folder:', system_folder)
     # for each dynamical system, we create a folder to store the test results for each model
 
     if True:
@@ -111,7 +113,7 @@ for system_folder in os.listdir(dataset_path):
         print(message_3_cleaned)
 
         # save the three messages to a txt file
-        message_path = os.path.join(dataset_path, "extraction_message.txt")
+        message_path = os.path.join(system_folder_path, "extraction_message.txt")
         with open(message_path, "w", encoding="utf-8") as file:
             file.write(message_1_cleaned + '\n')
             file.write(message_2_cleaned + '\n')

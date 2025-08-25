@@ -19,10 +19,10 @@ import pandas as pd
 
 # ---------- FIXED PATHS (edit these if your files move) ----------
 INPUTS = [
-    Path("C:/Users/jingquanw/SimBench/output_llms/combined_evaluation_scores.csv"),
-    Path("C:/Users/jingquanw/SimBench/statistic/evaluation_results.csv"),
+    Path("/home/hongyu/Documents/SimBench/output_llms/combined_evaluation_scores.csv"),
+    Path("/home/hongyu/Documents/SimBench/statistic/evaluation_results.csv"),
 ]
-OUT_DIR = Path("./out")   # change if you want a different output folder
+OUT_DIR = Path("/home/hongyu/Documents/SimBench/scoring/out")   # change if you want a different output folder
 MAKE_PLOT = True          # set False to skip the plot
 # -----------------------------------------------------------------
 
