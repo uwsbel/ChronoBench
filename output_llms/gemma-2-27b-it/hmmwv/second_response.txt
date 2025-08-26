@@ -41,7 +41,7 @@ render_step_size = 1.0 / 50  # FPS = 50
 
 
 # Create the HMMWV vehicle, set parameters, and initialize
-vehicle = veh.HMMWV_Full() 
+vehicle = veh.HMMWV_Full()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
@@ -81,10 +81,11 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
-# Path following setup
-radius = 20.0  # Radius of the circular path
-path_center = chrono.ChVector3d(0, 0, 0)  # Center of the circle
-target_point = chrono.ChVector3d(radius, 0, 0)  # Initial target point
+# --- Path Following Implementation ---
+
+# Circular path parameters
+path_radius = 20.0  
+path_center = chrono.ChVector3d(0, path_radius, 0) 
 
 # PID controller gains
 Kp = 1.0
@@ -95,19 +96,21 @@ Kd = 0.01
 previous_error = 0.0
 integral_error = 0.0
 
-# Visualization of path points
+# Constant throttle
+throttle = 0.3
+
+# Visualization spheres for path points
 sentinel_sphere = irr.ChSphereShape()
-sentinel_sphere.GetMaterial().SetDiffuseColor(chrono.ChColor(1, 0, 0))  # Red
-sentinel_sphere.GetMaterial().SetSpecularColor(chrono.ChColor(1, 1, 1))
-sentinel_sphere.SetRadius(0.5)
+sentinel_sphere.GetSphereGeometry().rad = 0.5
+sentinel_vis = vis.AddVisualShape(sentinel_sphere, chrono.ChCoordsysd(path_center, chrono.QUNIT))
+sentinel_vis.SetMaterialColor(chrono.ChColor(1, 0, 0))
 
 target_sphere = irr.ChSphereShape()
-target_sphere.GetMaterial().SetDiffuseColor(chrono.ChColor(0, 1, 0))  # Green
-target_sphere.GetMaterial().SetSpecularColor(chrono.ChColor(1, 1, 1))
-target_sphere.SetRadius(0.5)
+target_sphere.GetSphereGeometry().rad = 0.5
+target_vis = vis.AddVisualShape(target_sphere, chrono.ChCoordsysd(path_center + chrono.ChVector3d(path_radius, 0, 0), chrono.QUNIT))
+target_vis.SetMaterialColor(chrono.ChColor(0, 1, 0))
 
-vis.AddVisualShape(sentinel_sphere, chrono.ChCoordsysd(path_center, chrono.QUNIT))
-vis.AddVisualShape(target_sphere, chrono.ChCoordsysd(target_point, chrono.QUNIT))
+# --- Simulation Loop Updates ---
 
 # output vehicle mass
 print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
@@ -115,7 +118,7 @@ print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
 
-# Initialize simulation frame counter
+# Initialize simulation frame counter 
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
@@ -130,30 +133,36 @@ while vis.Run() :
         vis.EndScene()
         render_frame += 1
 
-    # Calculate steering angle using PID controller
-    current_position = vehicle.GetVehicle().GetPos()
-    error = (target_point - current_position).Length()
+    # --- Path Following Logic ---
+    
+    # Calculate target point on the circular path
+    angle = vehicle.GetVehicle().GetPos().x() / path_radius
+    target_point = path_center + chrono.ChVector3d(path_radius * math.cos(angle), path_radius * math.sin(angle), 0)
+
+    # Update target sphere position
+    target_vis.SetPos(target_point)
+
+    # Calculate error (difference between vehicle heading and target heading)
+    vehicle_heading = vehicle.GetVehicle().GetRot().GetZaxis()
+    target_heading = (target_point - vehicle.GetVehicle().GetPos()).GetNormalized()
+    error = chrono.AngleBetweenVectors(vehicle_heading, target_heading)
+
+    # PID control
     integral_error += error * step_size
     derivative_error = (error - previous_error) / step_size
-    steering_angle = Kp * error + Ki * integral_error + Kd * derivative_error
+    steering = Kp * error + Ki * integral_error + Kd * derivative_error
     previous_error = error
 
-    # Apply throttle and steering
-    vehicle.GetVehicle().SetThrottle(0.3)
-    vehicle.GetVehicle().SetSteeringAngle(steering_angle)
+    # Apply steering and throttle
+    vehicle.GetVehicle().SetSteeringAngle(steering)
+    vehicle.GetVehicle().SetThrottle(throttle)
 
-    # Update target point for path following
-    angle = time * 0.5  # Adjust speed of movement along the circle
-    target_point.x = path_center.x + radius * math.cos(angle)
-    target_point.y = path_center.y + radius * math.sin(angle)
-    vis.UpdateVisualShape(target_sphere, chrono.ChCoordsysd(target_point, chrono.QUNIT))
-
-    # Update modules (process inputs from other modules)
+    # Update modules
     terrain.Synchronize(time)
     vehicle.Synchronize(time)
     vis.Synchronize(time)
 
-    # Advance simulation for one timestep for all modules
+    # Advance simulation
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
@@ -163,35 +172,22 @@ while vis.Run() :
 
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
-
 ```
 
 **Explanation of Changes:**
 
-1. **Path Implementation:**
-   - A circular path is defined using a radius and a path center.
-   - The `target_point` variable is used to track the point on the circle that the vehicle should aim for.
+1. **Path and Controller Implementation:**
+   - A circular path is defined using `path_radius` and `path_center`.
+   - A PID controller is implemented with gains `Kp`, `Ki`, and `Kd` to control steering based on the error between the vehicle's heading and the target heading on the path.
+   - Two spheres are added for visualization: one at the `path_center` (sentinel) and one at the `target_point` on the path.
 
-2. **Visualization of Path Points:**
-   - Two spheres are created using `irr.ChSphereShape` to visualize the path center (sentinel) and the `target_point`.
-   - These spheres are added to the Irrlicht visualization system using `vis.AddVisualShape`.
+2. **Terrain Length Change:**
+   - `terrainLength` is increased to 200.0 to accommodate the circular path.
 
-3. **PID Controller:**
-   - A PID controller is implemented to steer the vehicle towards the `target_point`.
-   - The controller gains (`Kp`, `Ki`, `Kd`) can be adjusted to tune the steering behavior.
+3. **Simulation Loop Updates:**
+   - The interactive driver is removed, and the path following logic is integrated into the main loop.
+   - The `steering` value is calculated using the PID controller, and the `throttle` is set to a constant value of 0.3.
+   - The target sphere's position is updated in each iteration to reflect the current target point on the path.
 
-4. **Path Following Logic:**
-   - In each simulation step:
-     - The distance between the vehicle and the `target_point` is calculated as the error.
-     - The PID controller calculates the required steering angle based on the error, integral of the error, and derivative of the error.
-     - The steering angle is applied to the vehicle using `vehicle.GetVehicle().SetSteeringAngle()`.
-     - The `target_point` is updated to move along the circular path.
-
-5. **Constant Throttle:**
-   - The throttle is set to a constant value of 0.3 using `vehicle.GetVehicle().SetThrottle(0.3)`.
-
-6. **Terrain Length Change:**
-   - The `terrainLength` variable is increased to 200.0 to accommodate the circular path.
-
-7. **Simulation Loop Updates:**
-   - The interactive driver (`driver`) is removed, and the path following logic is integrated into the simulation loop.
+4. **Visualization of Controller Points:**
+   - Two spheres are added using `irr.ChSphereShape` and `vis.AddVisualShape` to visualize the sentinel point (path center) and the target point on the circular path.

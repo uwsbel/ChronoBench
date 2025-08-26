@@ -4,104 +4,119 @@ import pychrono.irrlicht as chronoirr
 import pychrono.vehicle as chronovehicle
 
 # 1. Initialize PyChrono environment and core components
-chrono.SetChronoDataPath("data/")  # Set path to Chrono data files
+chrono.SetChronoDataPath("data/")
 
 # Create the simulation system
 system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
+
+# Set gravitational acceleration
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
 # 2. Add physical systems and objects
-# a) Vehicle
-vehicle = chronovehicle.ChVehicle("BMW E90 Sedan")
-
-# Load vehicle model (replace with your actual vehicle model file)
-vehicle.SetChassisFile("vehicle/BMW_E90/chassis.obj")
-
-# Configure visualization
-vehicle.SetChassisVisualizationType(chronovehicle.VisualizationType_MESH)
-vehicle.SetSuspensionVisualizationType(chronovehicle.VisualizationType_PRIMITIVES)
-vehicle.SetWheelVisualizationType(chronovehicle.VisualizationType_MESH)
-
-# Set collision settings
-vehicle.SetCollisionType(chrono.CollisionType_BOX)
-
-# b) Tire model
-tire_model = chronovehicle.TMeasyTire()  # Use TMEASY tire model
-vehicle.SetTireModel(tire_model)
-
-# c) Driver system
-driver = chronovehicle.ChDriverSystem(vehicle)
-driver.SetSteeringControl(chrono.ChFunction_Const(0.0))  # Initial steering
-driver.SetThrottleControl(chrono.ChFunction_Const(0.0))  # Initial throttle
-driver.SetBrakingControl(chrono.ChFunction_Const(0.0))  # Initial braking
-
-# d) Terrain
-terrain = chrono.ChBodyEasyBox(200, 10, 200, 1000, True, True)  # Create a rigid terrain
-terrain.SetPos(chrono.ChVectorD(0, -5, 0))
+# Create the terrain
+terrain = chrono.ChBodyEasyBox(
+    200, 200, 1, 1000, True, True, chrono.ChMaterialSurfaceNSC()
+)
+terrain.SetPos(chrono.ChVectorD(0, -1, 0))
 terrain.SetBodyFixed(True)
 system.Add(terrain)
 
-# 3. Set default parameters
-# a) Vehicle position and orientation
-vehicle.SetPos(chrono.ChVectorD(0, 1, 0))
+# Create the vehicle
+vehicle = chronovehicle.ChVehicle("BMW E90", system)
 
-# b) Terrain surface properties
-terrain.SetMaterialSurface(chrono.ChMaterialSurfaceNSC())
-terrain.GetMaterialSurface().SetFriction(0.8)  # Set friction coefficient
+# Load vehicle chassis and suspension
+vehicle.SetChassis(chronovehicle.ChChassis(
+    "data/vehicle/e90/chassis.obj",
+    chrono.ChVectorD(0, 0, 0),
+    chrono.ChQuaternionD(1, 0, 0, 0),
+    chrono.ChMaterialSurfaceNSC()
+))
 
-# 4. Visualization with Irrlicht
-vis = chronoirr.ChIrrApp(system, "BMW E90 Simulation", chronoirr.dimension2du(1280, 720))
-vis.AddTypicalSky()
-vis.AddTypicalLights()
+# Add wheels with TMEASY tire model
+vehicle.AddWheel(chronovehicle.ChWheelInfo("data/vehicle/e90/wheel.obj",
+                                       chrono.ChVectorD(1.5, -0.8, 0.5),
+                                       chrono.ChVectorD(0, -1, 0),
+                                       chrono.ChMaterialSurfaceNSC(),
+                                       chrono.ChTMeasyTire(
+                                           chrono.ChVectorD(0.3, 0.6, 0.1),
+                                           chrono.ChVectorD(0.1, 0.1, 0.1),
+                                           chrono.ChVectorD(10000, 10000, 10000)
+                                       )
+                                      ))
 
-# a) Chase camera
-camera = vis.GetCamera()
-camera.SetFollow(vehicle.GetChassis())
-camera.SetDistance(10)
+# Add remaining wheels (adjust positions as needed)
+# ...
 
-# b) Customize terrain textures and logos (replace with your actual files)
-terrain_texture = chronoirr.irr::io::path("terrain_texture.jpg")
-terrain.GetVisualModel().SetTexture(0, terrain_texture)
+# 3. Set default parameters and configure visualization
 
-# c) Add vehicle logo (replace with your actual logo file)
-vehicle_logo = chronoirr.irr::io::path("vehicle_logo.png")
-vehicle.GetChassis().GetVisualModel().SetTexture(1, vehicle_logo)
+# Interactive driver system
+driver = chronovehicle.ChDriver(vehicle)
 
-# 5. Simulation loop
-while vis.GetDevice().run():
-    vis.BeginScene()
+# Irrlicht visualization
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetWindowSize(800, 600)
+vis.SetWindowTitle("BMW E90 Simulation")
+
+# Chase camera
+camera = vis.GetSceneManager().addCameraSceneNode()
+camera.setPosition(chrono.ChVectorD(0, 5, -10))
+camera.setTarget(vehicle.GetChassis().GetPos())
+
+# Directional lighting and skybox
+vis.AddLight(chrono.ChLightPoint(chrono.ChVectorD(0, 10, 0)))
+vis.SetSkyBox("data/skybox/blue.jpg")
+
+# Customize terrain textures and logos
+terrain_texture = vis.AddTexture("data/terrain/grass.jpg")
+terrain.AddAsset(chronoirr.ChIrrNodeAsset(terrain_texture))
+
+# Start the simulation
+while vis.Run():
+    # Update driver input (steering, throttle, braking)
+    driver.Update(vis.GetDeltaTime())
+
+    # Update the simulation
+    system.DoStepDynamics(vis.GetDeltaTime())
+
+    # Render the scene
     vis.Render()
-    system.DoStepDynamics(0.01)
-    vis.EndScene()
+
 ```
 
 **Explanation:**
 
 1. **Initialization:**
-   - Sets up the Chrono environment and creates a simulation system with gravity.
+   - Imports necessary modules.
+   - Sets the Chrono data path for loading assets.
+   - Creates a `ChSystemNSC` object for the simulation.
+   - Sets gravitational acceleration.
 
-2. **Adding Objects:**
-   - Creates a `ChVehicle` object representing the BMW E90 Sedan.
-   - Loads the vehicle model from a file (replace with your actual file).
-   - Configures visualization (mesh, primitives), collision settings (box), and tire model (TMEASY).
-   - Creates a `ChDriverSystem` for real-time control of steering, throttle, and braking.
-   - Adds a rigid terrain using `ChBodyEasyBox`.
+2. **Physical Systems and Objects:**
+   - Creates a rigid terrain using `ChBodyEasyBox`.
+   - Creates a `ChVehicle` object representing the BMW E90.
+   - Loads chassis and suspension data from OBJ files.
+   - Adds wheels with the TMEASY tire model, specifying tire parameters.
+   - You'll need to add the remaining wheels and adjust their positions accordingly.
 
-3. **Default Parameters:**
-   - Sets the initial position and orientation of the vehicle.
-   - Defines the friction coefficient for the terrain surface.
+3. **Visualization and Configuration:**
+   - Creates an `ChVisualSystemIrrlicht` object for Irrlicht visualization.
+   - Sets window size and title.
+   - Adds a chase camera following the vehicle.
+   - Adds directional lighting and a skybox.
+   - Customizes terrain texture using Irrlicht nodes.
 
-4. **Visualization:**
-   - Initializes Irrlicht visualization with a window, skybox, and lights.
-   - Sets up a chase camera that follows the vehicle.
-   - Adds textures and logos to the terrain and vehicle (replace placeholders with your actual files).
+4. **Simulation Loop:**
+   - The `while vis.Run():` loop handles the simulation and rendering.
+   - Inside the loop:
+     - The `driver.Update()` function simulates user input (steering, throttle, braking).
+     - `system.DoStepDynamics()` performs the physics simulation step.
+     - `vis.Render()` renders the scene.
 
-5. **Simulation Loop:**
-   - Runs the simulation loop, rendering the scene and updating the physics at each step.
+**Important Notes:**
 
-**Remember:**
-
-
-
-* Replace the placeholder file names with your actual vehicle model, textures, and logos.
-* This script provides a basic framework. You can further customize it by adding more complex terrain, obstacles, sensors, and control systems.
+- This script provides a basic framework. You'll need to:
+    - Complete the wheel configuration for all four wheels.
+    - Adjust tire parameters in the `ChTMeasyTire` constructor based on your desired tire behavior.
+    - Customize the driver input logic in the `driver.Update()` function.
+- Remember to replace placeholder file paths with the actual paths to your data files.

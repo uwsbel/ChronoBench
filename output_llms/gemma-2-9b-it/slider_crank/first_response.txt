@@ -1,95 +1,118 @@
 ```python
 import pychrono as chrono
-import pychrono.irrlicht as chronoirr
+import pychrono.irrlicht as vis
 
-# Initialize Chrono
-chrono.SetChronoDataPath("path/to/your/chrono/data")  # Replace with your Chrono data path
-system = chrono.ChSystemNSC()
+# Initialize Chrono and Irrlicht
+chrono.SetChronoDataPath("path/to/chrono/data")  # Replace with your Chrono data path
+app = vis.Application(
+    vis.Application.Windowed,
+    "Crank-Slider Mechanism",
+    width=800,
+    height=600,
+    vsync=True,
+)
+vis.EnableShadows()
+vis.EnableAmbientLight()
 
-# Set visualization options
-vis = chronoirr.ChIrrApp(system)
-vis.SetWindowSize(1280, 720)
-vis.SetFullscreen(True)
-vis.AddCamera(chrono.ChVectorD(5, 5, 5), chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 1, 0))
-
-# Create floor
-floor = chrono.ChBodyEasyBox(10, 10, 0.1, 1000)
-floor.SetPos(chrono.ChVectorD(0, 0, 0))
+# Create the environment
+floor = chrono.ChBodyEasy.CreateFromShape(chrono.ChBoxShape(10, 1, 10), 1000)
+floor.SetPos(chrono.ChVectorD(0, -0.5, 0))
 floor.SetBodyFixed(True)
-system.Add(floor)
+app.Add(floor)
 
-# Create crankshaft
-crankshaft = chrono.ChBodyEasyCylinder(0.1, 0.5, 100)
-crankshaft.SetPos(chrono.ChVectorD(0, 0, 0.5))
-crankshaft.SetBodyFixed(False)
-system.Add(crankshaft)
+# Create the crankshaft
+crankshaft = chrono.ChBodyEasy.CreateFromShape(chrono.ChCylinderShape(0.2, 1), 10)
+crankshaft.SetPos(chrono.ChVectorD(0, 0, 0))
+crankshaft.SetRot(chrono.Q_from_Euler(chrono.deg2rad(90), 0, 0))
+app.Add(crankshaft)
 
-# Create connecting rod
-connecting_rod = chrono.ChBodyEasyCylinder(0.05, 0.5, 100)
+# Create the connecting rod
+connecting_rod = chrono.ChBodyEasy.CreateFromShape(chrono.ChBoxShape(0.1, 0.1, 1), 1)
 connecting_rod.SetPos(chrono.ChVectorD(0.5, 0, 0))
-connecting_rod.SetBodyFixed(False)
-system.Add(connecting_rod)
+app.Add(connecting_rod)
 
-# Create piston
-piston = chrono.ChBodyEasyBox(0.2, 0.2, 0.1, 100)
+# Create the piston
+piston = chrono.ChBodyEasy.CreateFromShape(chrono.ChCylinderShape(0.1, 0.2), 1)
 piston.SetPos(chrono.ChVectorD(1, 0, 0))
-piston.SetBodyFixed(False)
-system.Add(piston)
+app.Add(piston)
 
-# Create joints
-crankshaft_joint = chrono.ChLinkLockPrismatic(crankshaft, connecting_rod, chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 1, 0))
-connecting_rod_joint = chrono.ChLinkLockPrismatic(connecting_rod, piston, chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 1, 0))
-system.Add(crankshaft_joint)
-system.Add(connecting_rod_joint)
+# Add joints
+crankshaft_piston_joint = chrono.ChLinkTS()
+crankshaft_piston_joint.Initialize(crankshaft, piston, chrono.ChVectorD(0.5, 0, 0))
+crankshaft_piston_joint.SetPos(chrono.ChVectorD(0.5, 0, 0))
+crankshaft_piston_joint.SetRot(chrono.Q_from_Euler(chrono.deg2rad(0), 0, 0))
+crankshaft_piston_joint.SetMotionType(chrono.ChLinkTS.MOTION_ROT_X)
 
-# Create motor
-motor = chrono.ChMotorRotation(crankshaft, chrono.ChVectorD(0, 0, 1), chrono.ChVectorD(0, 0, 1), 100)
-motor.SetMode(chrono.ChMotorMode.MODE_TORQUE_CONTROL)
-motor.SetTorque(10)  # Set desired torque
-system.Add(motor)
+connecting_rod_piston_joint = chrono.ChLinkTS()
+connecting_rod_piston_joint.Initialize(connecting_rod, piston, chrono.ChVectorD(0, 0, 0.2))
+connecting_rod_piston_joint.SetPos(chrono.ChVectorD(0.5, 0, 0.2))
+connecting_rod_piston_joint.SetRot(chrono.Q_from_Euler(chrono.deg2rad(0), 0, 0))
+connecting_rod_piston_joint.SetMotionType(chrono.ChLinkTS.MOTION_ROT_X)
 
-# Set visualization properties
-vis.AddLight(chrono.ChVectorD(5, 5, 5), chrono.ChVectorD(1, 1, 1))
-vis.AddLight(chrono.ChVectorD(-5, -5, 5), chrono.ChVectorD(1, 1, 1))
+# Add motor to crankshaft
+motor = chrono.ChMotorRotation(
+    chrono.ChVectorD(0, 0, 1),
+    crankshaft,
+    chrono.ChVectorD(0, 0, 0),
+    chrono.ChVectorD(0, 0, 1),
+    100,  # Angular velocity
+    chrono.ChVectorD(0, 0, 0),  # Torque
+)
+crankshaft.AddAsset(motor)
 
-# Load textures and logos
-# ... (add your texture and logo loading code here)
+# Customize visualization
+app.SetCamera(
+    chrono.ChVectorD(3, 3, 3),
+    chrono.ChVectorD(0, 0, 0),
+    chrono.ChVectorD(0, 1, 0),
+)
 
-# Run simulation
-vis.Start()
-system.DoStepDynamics(0.01)
+# Run the simulation
+app.SetTimestep(0.01)
+while app.Run():
+    app.Render()
+    chrono.Step(app.GetTimestep())
+
+
+
 ```
 
 **Explanation:**
 
 1. **Initialization:**
-   - Imports necessary libraries (`pychrono` and `pychrono.irrlicht`).
-   - Initializes the Chrono environment with `chrono.ChSystemNSC()`.
-   - Sets up the Irrlicht visualization system (`chronoirr.ChIrrApp`) with window size, fullscreen mode, and a default camera position.
+   - Import necessary libraries.
+   - Set the Chrono data path.
+   - Initialize the Irrlicht application with specified window dimensions and settings.
+   - Enable shadows and ambient light for better visualization.
 
-2. **Physical Systems:**
-   - Creates a floor using `chrono.ChBodyEasyBox`.
-   - Creates a crankshaft, connecting rod, and piston using `chrono.ChBodyEasyCylinder` and `chrono.ChBodyEasyBox`.
-   - Sets initial positions and properties for each body.
+2. **Environment Setup:**
+   - Create a floor using a box shape and set it as fixed.
 
-3. **Joints:**
-   - Defines prismatic joints using `chrono.ChLinkLockPrismatic` to connect the crankshaft, connecting rod, and piston.
+3. **Mechanical Components:**
+   - Create the crankshaft, connecting rod, and piston using appropriate shapes (cylinder and box).
+   - Set their initial positions and rotations.
 
-4. **Motor:**
-   - Creates a rotational motor using `chrono.ChMotorRotation` to drive the crankshaft.
-   - Sets the motor mode to torque control and applies a desired torque.
+4. **Joints:**
+   - Define two joints:
+     - `crankshaft_piston_joint`: Connects the crankshaft and piston, allowing rotation around the x-axis.
+     - `connecting_rod_piston_joint`: Connects the connecting rod and piston, also allowing rotation around the x-axis.
 
-5. **Visualization:**
-   - Adds lights to the scene using `vis.AddLight`.
-   - You can add your own textures and logos here using the Irrlicht API.
+5. **Motor:**
+   - Add a motor to the crankshaft to drive its rotation at a constant angular velocity.
 
-6. **Simulation:**
-   - Starts the Irrlicht visualization loop with `vis.Start()`.
-   - Performs a single time step using `system.DoStepDynamics(0.01)`.
+6. **Visualization Customization:**
+   - Set the camera position, target, and up vector for a specific view.
 
-**Remember:**
+7. **Simulation Loop:**
+   - Set the simulation timestep.
+   - Run the simulation loop:
+     - Render the scene using Irrlicht.
+     - Advance the simulation by one timestep.
 
-- Replace `"path/to/your/chrono/data"` with the actual path to your Chrono data directory.
-- Customize the parameters (sizes, positions, forces, etc.) to match your desired crank-slider mechanism.
-- Add your own code for loading textures, logos, and other visual elements.
-- Adjust the time step (`0.01`) for the simulation based on the desired speed and accuracy.
+
+
+**Remember to:**
+
+- Replace `"path/to/chrono/data"` with the actual path to your Chrono data directory.
+- Adjust the shape parameters, positions, and motor properties to customize the mechanism.
+- Explore Irrlicht's capabilities for adding textures, logos, and other visual enhancements.

@@ -2,7 +2,6 @@ import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from tqdm import tqdm
 nvidia_api_key = os.getenv("OPENAI_API_KEY")
-print(nvidia_api_key)
 import evaluate
 from openai import OpenAI
 import os

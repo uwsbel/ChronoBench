@@ -34,12 +34,6 @@ def main():
     patch = terrain.AddPatch(patch_mat, ch.CSYSNORM, 100.0, 100.0)  # Add a patch to the terrain.
     patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 100, 100)
     terrain.Initialize()  # Initialize the terrain.
-
-    # Create visualization box
-    box = ch.ChBodyEasyBox(1.0, 1.0, 1.0)
-    box.SetPos(ch.ChVector3d(0, 0, 2))
-    hmmwv.GetSystem().Add(box)
-
     # Create run-time visualization
     vis = chronoirr.ChVisualSystemIrrlicht()
     vis.AttachSystem(hmmwv.GetSystem())
@@ -49,7 +43,8 @@ def main():
     vis.Initialize()
     vis.AddLogo(ch.GetChronoDataFile('logo_pychrono_alpha.png'))
     vis.AddSkyBox()
-    vis.AddCamera(ch.ChVector3d(-5, 2.5, 1.5), ch.ChVector3d(0, 0, 1))  # Updated camera position
+    # Change camera position
+    vis.AddCamera(ch.ChVector3d(-5, 2.5, 1.5), ch.ChVector3d(0, 0, 1))
     vis.AddTypicalLights()
     vis.AddLightWithShadow(ch.ChVector3d(1.5, -2.5, 5.5), ch.ChVector3d(0, 0, 0.5), 3, 4, 10, 40, 512)
 
@@ -66,23 +61,27 @@ def main():
     ros_manager.RegisterHandler(chros.ChROSBodyHandler(25, hmmwv.GetChassisBody(), "~/output/hmmwv/state"))
     ros_manager.Initialize()  # Initialize the ROS manager.
 
-    # Create sensor manager
+    # Create a visualization box
+    box = ch.ChBodyEasyBox(1, 1, 1, 1)
+    box.SetPos(ch.ChVector3d(0, 0, 2))
+    hmmwv.GetSystem().Add(box)
+
+    # Create a sensor manager
     sens_manager = ch.ChSensorManager()
-    hmmwv.GetSystem().AddSensorManager(sens_manager)
 
-    # Create and configure lidar sensor
-    lidar = sens.ChLidarSensor(hmmwv.GetChassisBody(),
-                              beam_count=360,
-                              beam_angle_step=1.0,
-                              max_range=50.0,
-                              fov_horizontal=120.0,
-                              fov_vertical=45.0)
-    lidar.SetMaxRange(50.0)
-    lidar.SetMinRange(0.1)
-    lidar.SetNoiseLevel(0.1)
-    lidar.SetScanFrequency(10.0)  # Hz
+    # Create a lidar sensor
+    lidar = sens.ChLidarSensor(hmmwv.GetSystem(), 
+                              ch.ChVector3d(0, 0, 2),  # Sensor position
+                              ch.ChQuaterniond(1, 0, 0, 0), # Sensor orientation
+                              10,  # Number of laser beams
+                              0.1,  # Beam angle
+                              10.0  # Maximum range
+                              )
+    lidar.SetFilterType(sens.ChLidarFilterType_GAUSSIAN)  # Apply a Gaussian filter
+    lidar.SetFilterSigma(0.5)  # Set filter sigma
+    sens_manager.AddSensor(lidar)
 
-    # Register lidar handler
+    # Register ROS handler for lidar data
     ros_manager.RegisterHandler(chros.ChROSLidarHandler(25, lidar, "~/output/lidar"))
 
     # Start the simulation loop.
@@ -116,7 +115,7 @@ def main():
         hmmwv.Advance(time_step)
 
         # Update the sensor manager
-        sens_manager.Update(time_step)
+        sens_manager.Update()
 
         # Update the ROS manager to handle data publishing.
         if not ros_manager.Update(time, time_step):
@@ -131,18 +130,22 @@ if __name__ == "__main__":
 
 1. **Import `pychrono.sensor as sens`:** Added the necessary import statement to use sensor functionalities.
 2. **Create Visualization Box:**
-   - `box = ch.ChBodyEasyBox(1.0, 1.0, 1.0)`: Created a simple box body with dimensions 1x1x1.
-   - `box.SetPos(ch.ChVector3d(0, 0, 2))`: Set the box's position to (0, 0, 2).
-   - `hmmwv.GetSystem().Add(box)`: Added the box to the vehicle's system for visualization.
+   - `box = ch.ChBodyEasyBox(1, 1, 1, 1)`: Created a simple box-shaped visualization object.
+   - `box.SetPos(ch.ChVector3d(0, 0, 2))`: Set the position of the box.
+   - `hmmwv.GetSystem().Add(box)`: Added the box to the simulation system.
+
 3. **Create Sensor Manager:**
-   - `sens_manager = ch.ChSensorManager()`: Created a `ChSensorManager` object.
-   - `hmmwv.GetSystem().AddSensorManager(sens_manager)`: Added the sensor manager to the vehicle's system to manage sensors.
-4. **Configure and Add Lidar Sensor:**
+   - `sens_manager = ch.ChSensorManager()`: Initialized a `ChSensorManager` object to manage sensors.
+
+4. **Create Lidar Sensor:**
    - `lidar = sens.ChLidarSensor(...)`: Created a `ChLidarSensor` object with specified parameters:
-     - `beam_count`: Number of laser beams (360 for full circle).
-     - `beam_angle_step`: Angle between each beam (1.0 degrees).
-     - `max_range`: Maximum detection range (50 meters).
-     - `fov_horizontal`: Horizontal field of view (120 degrees).
-     - `fov_vertical`: Vertical field of view (45 degrees).
-   - `lidar.SetMaxRange(50.0)`: Set the maximum range for detection.
-   - `lidar.SetMinRange(0.1)`: Set the minimum range for detection.
+     - Position, orientation, number of laser beams, beam angle, maximum range.
+   - `lidar.SetFilterType(sens.ChLidarFilterType_GAUSSIAN)`: Applied a Gaussian filter to the lidar data.
+     - `lidar.SetFilterSigma(0.5)`: Set the sigma value for the Gaussian filter.
+   - `sens_manager.AddSensor(lidar)`: Added the lidar sensor to the sensor manager.
+
+5. **Register ROS Handler for Lidar:**
+   - `ros_manager.RegisterHandler(chros.ChROSLidarHandler(25, lidar, "~/output/lidar"))`: Registered a `ChROSLidarHandler` to publish lidar data to the ROS topic `/output/lidar`.
+
+6. **Update Sensor Manager in Simulation Loop:**
+   - `sens_manager.Update()

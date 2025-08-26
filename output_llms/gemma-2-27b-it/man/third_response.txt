@@ -23,6 +23,7 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 # Rigid terrain
+# terrain_model = veh.RigidTerrain.BOX
 terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
@@ -42,13 +43,15 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  # FPS = 50
 
 # Create the MAN vehicle, set parameters, and initialize
-vehicle = veh.MAN_10t()
+
+vehicle = veh.MAN_10t() 
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
+
 
 vehicle.Initialize()
 
@@ -65,24 +68,49 @@ patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-patch = terrain.AddPatch(patch_mat,
-    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
+patch = terrain.AddPatch(patch_mat, 
+    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
     terrainLength, terrainWidth)
 
-patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)  # Changed texture
+patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 # Create the vehicle Irrlicht interface
+
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('MAN 10t Demo')
 vis.SetWindowSize(1280, 1024)
 vis.SetChaseCamera(trackPoint, 15.0, 0.5)
 vis.Initialize()
-vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddLogo(chrono.GetChronoDataPath() + 'logo_pychrono_alpha.png')
 vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
+
+# Create the sensor manager
+sensor_manager = sens.ChSensorManager(vehicle.GetSystem())
+
+# Create a lidar sensor
+lidar = sens.ChLidarSensor()
+lidar.SetCollisionEnvelope(0.2)
+lidar.SetRange(50)
+lidar.SetVerticalAngle(chrono.ChRadians(15))
+lidar.SetHorizontalAngle(chrono.ChRadians(30))
+lidar.SetScanRate(10)
+lidar.AttachToVehicle(vehicle.GetVehicle())
+
+sensor_manager.AddSensor(lidar)
+
+# Create random boxes
+num_boxes = 10
+box_size = 1
+for i in range(num_boxes):
+    box = chrono.ChBodyEasyBox(box_size, box_size, box_size, 1000)
+    box.SetPos(chrono.ChVector3d(np.random.uniform(-terrainLength/2, terrainLength/2),
+                               np.random.uniform(-terrainWidth/2, terrainWidth/2),
+                               1))
+    vehicle.GetSystem().Add(box)
 
 # Create the driver system
 driver = veh.ChInteractiveDriverIRR(vis)
@@ -98,7 +126,7 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 # output vehicle mass
-print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
+print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
@@ -108,39 +136,17 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-# Create sensor manager and lidar sensor
-sensor_manager = sens.ChSensorManager(vehicle.GetSystem())
-lidar = sens.ChLidarSensor()
-lidar.SetName("my_lidar")
-lidar.SetCollisionEnvelope(0.5)
-lidar.SetMaxDistance(50)
-lidar.SetVerticalAngle(-math.pi / 4, math.pi / 4)
-lidar.SetHorizontalAngle(-math.pi, math.pi)
-lidar.Attach(vehicle.GetChassis())
-sensor_manager.AddSensor(lidar)
-
-# Create random boxes
-num_boxes = 10
-box_size = chrono.ChVector3d(0.5, 0.5, 0.5)
-for i in range(num_boxes):
-    box = chrono.ChBody()
-    box.SetBodyFixed(False)
-    box.SetMass(10)
-    box.SetPos(chrono.ChVector3d(np.random.uniform(-terrainLength / 2, terrainLength / 2),
-                               np.random.uniform(-terrainWidth / 2, terrainWidth / 2),
-                               np.random.uniform(0, 2)))
-    box.SetCollide(True)
-    box.AddAsset(chrono.ChBoxShape(box_size))
-    vehicle.GetSystem().Add(box)
-
-while vis.Run():
+while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
     # Render scene and output POV-Ray data
-    if (step_number % render_steps == 0):
+    if (step_number % render_steps == 0) :
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
         render_frame += 1
+
+    # Update sensor manager
+    sensor_manager.Update()
 
     # Get driver inputs
     driver_inputs = driver.GetInputs()
@@ -150,9 +156,6 @@ while vis.Run():
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
-
-    # Update sensor manager
-    sensor_manager.Update()
 
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)
@@ -165,24 +168,25 @@ while vis.Run():
 
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
+
 ```
 
-**Changes Made:**
+**Explanation of Changes:**
 
-1. **Imported Necessary Modules:**
-   - Added `import pychrono.sensor as sens` and `import numpy as np`.
+1. **Import Statements:** Added `import pychrono.sensor as sens` and `import numpy as np`.
+2. **Sensor Manager and Lidar:**
+   - Created a `sens.ChSensorManager` instance and added it to the vehicle system.
+   - Created a `sens.ChLidarSensor` instance, configured its parameters (collision envelope, range, angles, scan rate), attached it to the vehicle, and added it to the sensor manager.
+3. **Random Boxes:**
+   - Added a loop to create `num_boxes` (10) random boxes with a specified size.
+   - Each box is positioned randomly within the terrain boundaries and added to the vehicle's system.
+4. **Terrain Texture:** Changed the terrain texture to `"grass.jpg"`.
+5. **Sensor Manager Update:** Added `sensor_manager.Update()` within the simulation loop to update the sensor data.
 
-2. **Created Sensor Manager and Lidar:**
-   - Created a `ChSensorManager` object.
-   - Created a `ChLidarSensor` object, configured its parameters (collision envelope, max distance, vertical and horizontal angles), attached it to the vehicle chassis, and added it to the sensor manager.
+Now the script will:
 
-3. **Added Random Boxes:**
-   - Created a loop to generate `num_boxes` random boxes.
-   - Each box was given random position within the terrain boundaries, a mass, and a collision shape.
-   - The boxes were added to the vehicle's system.
-
-4. **Updated Terrain Texture:**
-   - Changed the terrain texture from `"tile4.jpg"` to `"grass.jpg"`.
-
-5. **Updated Sensor Manager in Simulation Loop:**
-   - Added `sensor_manager.Update()` within the main simulation loop to update the sensor data.
+- Create a MAN 10t vehicle in a PyChrono simulation.
+- Add a lidar sensor to the vehicle to collect point cloud data.
+- Place random boxes in the environment.
+- Use a "grass.jpg" texture for the terrain.
+- Update the sensor data every simulation step.

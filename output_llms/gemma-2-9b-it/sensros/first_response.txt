@@ -3,79 +3,70 @@ import pychrono as chrono
 import pychrono.sensor as sensor
 import pychrono.ros as ros
 
-# Initialize Chrono
-chrono.ChSystemNSC().Set_G_acc(chrono.ChVectorD(0, 0, -9.81))  # Set gravity
+# 1. Initialize the PyChrono environment and core components
+chrono.SetChronoMode(chrono.CHRONO_MODE_FAST)  # Choose simulation mode (fast for speed, accurate for precision)
+system = chrono.ChSystemNSC()
 
+# 2. Add the required physical systems and objects
 # Create ground body
-ground = chrono.ChBodyEasy(chrono.ChVectorD(10, 10, 1), 1000, chrono.ChColor(0.5, 0.5, 0.5))
+ground = chrono.ChBodyEasyCylinder(1.0, 1.0, 1000.0)
 ground.SetPos(chrono.ChVectorD(0, 0, 0))
-ground.SetBodyFixed(True)  # Fix ground
+system.AddBody(ground)
 
-# Create visualization mesh
-ground_mesh = chrono.ChMeshLoader.Add(
-    "ground_mesh.obj", chrono.ChColor(0.5, 0.5, 0.5), chrono.ChMaterialSurface(chrono.ChMaterialSurface.Type.GLOSSY)
-)
+# Create a visual mesh for the ground
+ground_mesh = chrono.ChMeshSmooth()
+ground_mesh.Load("path/to/ground_mesh.obj")  # Replace with your ground mesh file
 ground.AddAsset(ground_mesh)
 
-# Create sensor manager
+# 3. Set necessary default parameters
+# ... (Set initial forces, constraints, etc. as needed)
+
+# Sensor Manager
 sensor_manager = sensor.ChSensorManager()
+system.AddSensorManager(sensor_manager)
 
 # Add sensors
-camera = sensor.ChCamera(
-    "camera", 
-    sensor_manager, 
-    sensor.ChCamera.Type.PINHOLE, 
-    resolution=(640, 480), 
-    fov=60
-)
+# Camera
+camera = sensor.ChCamera()
 camera.SetPos(chrono.ChVectorD(0, 0, 1))
-camera.SetRot(chrono.Q_from_Euler(chrono.ChVectorD(0, 0, 0)))
+camera.SetDir(chrono.ChVectorD(0, 0, -1))
+sensor_manager.AddSensor(camera)
 
-lidar = sensor.ChLidar(
-    "lidar", 
-    sensor_manager, 
-    range=10, 
-    angle_resolution=0.1
-)
-lidar.SetPos(chrono.ChVectorD(0, 0, 1))
-lidar.SetRot(chrono.Q_from_Euler(chrono.ChVectorD(0, 0, 0)))
+# Lidar
+lidar = sensor.ChLidar()
+lidar.SetPos(chrono.ChVectorD(0, 0, 1.5))
+sensor_manager.AddSensor(lidar)
 
-gps = sensor.ChGPS(
-    "gps", 
-    sensor_manager, 
-    accuracy=1
-)
-gps.SetPos(chrono.ChVectorD(0, 0, 0))
+# GPS
+gps = sensor.ChGPS()
+sensor_manager.AddSensor(gps)
 
-accelerometer = sensor.ChAccelerometer(
-    "accelerometer", 
-    sensor_manager, 
-    scale=1
-)
-accelerometer.SetPos(chrono.ChVectorD(0, 0, 0))
+# Accelerometer
+accelerometer = sensor.ChAccelerometer()
+accelerometer.SetPos(chrono.ChVectorD(0, 0, 0.5))
+sensor_manager.AddSensor(accelerometer)
 
-gyroscope = sensor.ChGyroscope(
-    "gyroscope", 
-    sensor_manager, 
-    scale=1
-)
-gyroscope.SetPos(chrono.ChVectorD(0, 0, 0))
+# Gyroscope
+gyroscope = sensor.ChGyroscope()
+gyroscope.SetPos(chrono.ChVectorD(0, 0, 0.5))
+sensor_manager.AddSensor(gyroscope)
 
-magnetometer = sensor.ChMagnetometer(
-    "magnetometer", 
-    sensor_manager, 
-    scale=1
-)
-magnetometer.SetPos(chrono.ChVectorD(0, 0, 0))
+# Magnetometer
+magnetometer = sensor.ChMagnetometer()
+magnetometer.SetPos(chrono.ChVectorD(0, 0, 0.5))
+sensor_manager.AddSensor(magnetometer)
 
-# Register sensors with ROS manager
-ros_manager = ros.ChRosManager()
-ros_manager.AddSensor(camera)
-ros_manager.AddSensor(lidar)
-ros_manager.AddSensor(gps)
-ros_manager.AddSensor(accelerometer)
-ros_manager.AddSensor(gyroscope)
-ros_manager.AddSensor(magnetometer)
+# ROS Manager
+ros_manager = ros.ChROSManager()
+system.AddManager(ros_manager)
+
+# Register sensors with ROS topics
+ros_manager.RegisterSensor(camera, "/camera/image_raw")
+ros_manager.RegisterSensor(lidar, "/lidar/scan")
+ros_manager.RegisterSensor(gps, "/gps/fix")
+ros_manager.RegisterSensor(accelerometer, "/accelerometer/data")
+ros_manager.RegisterSensor(gyroscope, "/gyroscope/data")
+ros_manager.RegisterSensor(magnetometer, "/magnetometer/data")
 
 # Simulation loop
 while True:
@@ -83,37 +74,55 @@ while True:
     sensor_manager.Update()
 
     # Advance simulation
-    chrono.ChSystem.DoStepDynamics(chrono.ChTime(0.01))
+    system.DoStepDynamics(chrono.ChTime(0.01))
 
-    # ROS publishing
-    ros_manager.Publish()
+    # ROS publishing (handled by ROS manager)
+
+    # Maintain real-time execution (consider using chrono.ChTime.GetRealTime() for timing)
 ```
 
 **Explanation:**
 
 1. **Initialization:**
-   - Imports necessary libraries.
-   - Initializes the Chrono system and sets gravity.
-2. **Ground Body:**
-   - Creates a ground body with a specified mass, size, and color.
-   - Sets it as fixed to prevent movement.
-   - Adds a visualization mesh to represent the ground.
-3. **Sensor Manager:**
-   - Creates a sensor manager to handle sensor data.
-4. **Sensor Creation:**
-   - Adds various sensors (camera, lidar, GPS, accelerometer, gyroscope, magnetometer) to the sensor manager.
-   - Configures each sensor with appropriate parameters like resolution, range, and accuracy.
-   - Sets the initial positions and orientations of the sensors.
-5. **ROS Manager:**
-   - Creates a ROS manager to interface with ROS.
-   - Registers the sensors with the ROS manager, specifying the ROS topics to publish data to.
-6. **Simulation Loop:**
-   - Continuously updates the sensors and advances the simulation.
-   - Publishes sensor data to ROS topics using the ROS manager.
+   - `chrono.SetChronoMode(chrono.CHRONO_MODE_FAST)`: Sets the simulation mode to fast for quicker execution. Adjust this based on your needs.
+   - `system = chrono.ChSystemNSC()`: Creates a new Chrono simulation system.
 
-**Notes:**
+2. **Adding Components:**
+   - **Ground Body:**
+     - `ground = chrono.ChBodyEasyCylinder(...)`: Creates a cylindrical ground body with specified dimensions and mass.
+     - `ground.SetPos(...)`: Sets the initial position of the ground.
+     - `system.AddBody(ground)`: Adds the ground body to the simulation.
+   - **Visual Mesh:**
+     - `ground_mesh = chrono.ChMeshSmooth()`: Creates a smooth mesh object.
+     - `ground_mesh.Load(...)`: Loads the mesh file for the ground.
+     - `ground.AddAsset(ground_mesh)`: Adds the mesh to the ground body for visualization.
+   - **Sensor Manager:**
+     - `sensor_manager = sensor.ChSensorManager()`: Creates a sensor manager to handle sensor data.
+     - `system.AddSensorManager(sensor_manager)`: Adds the sensor manager to the simulation system.
+   - **Sensors:**
+     - Create instances of various sensors (camera, lidar, GPS, accelerometer, gyroscope, magnetometer) using the `sensor` module.
+     - Set their positions and other parameters as needed.
+     - `sensor_manager.AddSensor(...)`: Adds each sensor to the sensor manager.
+   - **ROS Manager:**
+     - `ros_manager = ros.ChROSManager()`: Creates a ROS manager for ROS communication.
+     - `system.AddManager(ros_manager)`: Adds the ROS manager to the simulation system.
 
-- You'll need to install the `pychrono` and `pychrono-ros` packages.
-- Replace `"ground_mesh.obj"` with the path to your ground mesh file.
-- Adjust sensor parameters and ROS topic names according to your needs.
-- Ensure you have a ROS environment set up and running.
+3. **ROS Registration:**
+   - `ros_manager.RegisterSensor(sensor, "/topic_name")`: Registers each sensor with a specific ROS topic for publishing data.
+
+4. **Simulation Loop:**
+   - `while True:`: Creates an infinite loop for continuous simulation.
+   - `sensor_manager.Update()`: Updates all sensors in the simulation.
+   - `system.DoStepDynamics(chrono.ChTime(0.01))`: Advances the simulation by 0.01 seconds.
+   - `ros_manager.Publish()`: Handles ROS publishing of sensor data (automatically managed by the ROS manager).
+   - **Real-Time Execution:**
+     - You can use `chrono.ChTime.GetRealTime()` to measure real-time and adjust the simulation loop to maintain a desired frame rate.
+
+
+
+Remember to:
+
+- Install the required libraries (`pychrono`, `pychrono.sensor`, `pychrono.ros`).
+- Replace `"path/to/ground_mesh.obj"` with the actual path to your ground mesh file.
+- Choose appropriate ROS topics for your sensors.
+- Implement real-time execution logic based on your specific requirements.

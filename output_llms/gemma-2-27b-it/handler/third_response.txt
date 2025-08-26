@@ -21,7 +21,7 @@ class MyCustomHandler(chros.ChROSHandler):
         """Initialize the ROS publisher."""
         print(f"Creating publisher for topic {self.topic} ...")
         # Create a ROS publisher for the specified topic.
-        self.publisher = interface.GetNode().create_publisher(Int64, self.topic, 1)
+        self.publisher = interface.GetNode().create_publisher(Int64, self.topic, 10)
         return True  # Return True to indicate successful initialization.
 
     def Tick(self, time: float):
@@ -46,7 +46,7 @@ def main():
     floor.SetPos(ch.ChVector3d(0, 0, -1))  # Position the floor.
     floor.SetFixed(True)  # Fix the floor in place.
     floor.SetName("base_link")  # Set the name for ROS communication.
-    floor.SetTexture(ch.ChTexture(r"path/to/floor_texture.jpg")) # Set texture for the floor
+    floor.SetTexture(ch.ChTexture(ch.GetChronoDataPath() + "textures/concrete.jpg")) # Set texture for the floor
     sys.Add(floor)  # Add the floor to the simulation system.
 
     # Create a box object.
@@ -54,95 +54,93 @@ def main():
     box.SetPos(ch.ChVector3d(0, 0, 5))  # Position the box above the floor.
     box.SetRot(ch.QuatFromAngleAxis(.2, ch.ChVector3d(1, 0, 0)))  # Rotate the box slightly.
     box.SetName("box")  # Set the name for ROS communication.
-    box.SetTexture(ch.ChTexture(r"path/to/box_texture.jpg")) # Set texture for the box
+    box.SetTexture(ch.ChTexture(ch.GetChronoDataPath() + "textures/metal.jpg")) # Set texture for the box
     sys.Add(box)  # Add the box to the simulation system.
 
-    # Create the Irrlicht visualization system.
-    vis = chronoirr.ChIrrApp(sys)
-    vis.SetWindowSize(1280, 720)
-    vis.SetStep(1e-3)
-    vis.AddTypicalCamera(ch.ChVector3d(5, 5, 5), ch.ChVector3d(0, 0, 0))
-    vis.AddLight(ch.ChVector3d(5, 5, 5), ch.ChVector3d(1, 1, 1), 255)
+    # ----------------------------------------------------------------------
+    # Visualization setup with Irrlicht
+    # ----------------------------------------------------------------------
+    vis = chronoirr.ChVisualSystemIrrlicht()
+    vis.AttachSystem(sys)
+    vis.SetWindowSize(800, 600)
+    vis.SetWindowTitle("PyChrono Simulation")
+    vis.AddCamera(ch.ChCamera(vis.GetSceneManager()))
+    vis.GetCamera().SetLocation(ch.ChVector3d(5, 5, 5))
+    vis.GetCamera().SetTarget(ch.ChVector3d(0, 0, 0))
+    vis.AddLight(ch.ChLight(ch.ChVector3d(5, 5, 5)))
     vis.Initialize()
 
-    # Create and configure the ROS manager.
+    # ----------------------------------------------------------------------
+    # ROS setup
+    # ----------------------------------------------------------------------
     ros_manager = chros.ChROSPythonManager()
-    publish_rate = 10
-    
-    # Register a clock handler for the simulation time.
+    publish_rate = 10  # Set the publishing rate for ROS handlers
+
+    # Register handlers
     ros_manager.RegisterHandler(chros.ChROSClockHandler())
-    
-    # Register a body handler to communicate the box's state.
     ros_manager.RegisterHandler(chros.ChROSBodyHandler(publish_rate, box, "~/box"))
-    
-    # Create and register a transform handler for coordinate transformations.
     tf_handler = chros.ChROSTFHandler(publish_rate)
     tf_handler.AddTransform(floor, floor.GetName(), box, box.GetName())
     ros_manager.RegisterHandler(tf_handler)
-    
-    # Register the custom handler to publish messages.
     custom_handler = MyCustomHandler("~/my_topic", publish_rate)
     ros_manager.RegisterPythonHandler(custom_handler)
 
-    # Initialize the ROS manager.
     ros_manager.Initialize()
 
-    # Rendering control variables
-    step_number = 0
-    render_step_size = 10
-    render_steps = 1
-
-    # Run the simulation loop.
+    # ----------------------------------------------------------------------
+    # Simulation loop
+    # ----------------------------------------------------------------------
     time = 0
     time_step = 1e-3  # Define the simulation time step.
     time_end = 30  # Set the duration for the simulation.
+
+    step_number = 0
+    render_step_size = 10  # Render every 10 steps
+    render_steps = render_step_size
 
     realtime_timer = ch.ChRealtimeStepTimer()  # Create a real-time step timer.
     while time < time_end:
         sys.DoStepDynamics(time_step)  # Advance the simulation by one time step.
         time = sys.GetChTime()  # Update the simulation time.
 
-        # Conditional rendering
-        step_number += 1
-        if step_number % render_step_size == 0:
-            for i in range(render_steps):
-                vis.Render()
-        
         if not ros_manager.Update(time, time_step):  # Update ROS communication.
             break  # Exit the loop if the ROS manager indicates a problem.
+
+        # Conditional rendering
+        if step_number >= render_steps:
+            vis.Render()
+            render_steps += render_step_size
+        step_number += 1
 
         realtime_timer.Spin(time_step)  # Maintain real-time step execution.
 
 # Entry point of the script.
 if __name__ == "__main__":
     main()
+
 ```
 
 **Explanation of Changes:**
 
+1. **Visualization Setup:**
 
+   - The code now includes the necessary imports from `pychrono.irrlicht` for Irrlicht visualization.
+   - A `chronoirr.ChVisualSystemIrrlicht` object (`vis`) is created and attached to the simulation system.
+   - The window size, title, camera position, target, and a light source are configured.
+   - `vis.Initialize()` is called to initialize the Irrlicht visualization.
 
-* **Error Correction:**
-    * No significant errors were found in the original script.
+2. **Texture Application:**
 
-* **Visualization Setup:**
-    * An `chronoirr.ChIrrApp` instance (`vis`) is created to handle Irrlicht visualization.
-    * Window size, camera, and light are set up using `vis` methods.
-    * `vis.Initialize()` is called to start the Irrlicht system.
+   - `SetTexture()` method is used to apply textures to both the floor and the box.
 
-* **Texture Setting:**
-    * `SetTexture` method is used to apply textures to the floor and box objects. Replace `"path/to/floor_texture.jpg"` and `"path/to/box_texture.jpg"` with the actual paths to your texture files.
+3. **ROS Handler Publish Rate:**
 
-* **ROS Handler Publish Rate:**
-    * A `publish_rate` variable is set to 10 Hz, which is used when creating ROS handlers.
+   - The `publish_rate` variable is set to 10 Hz, controlling the frequency of messages published by the ROS handlers.
 
-* **Rendering Control:**
-    * Variables `step_number`, `render_step_size`, and `render_steps` are introduced to control rendering frequency.
-    * The simulation loop now includes conditional rendering:
-        * `step_number` is incremented each step.
-        * Every `render_step_size` steps, the scene is rendered `render_steps` times.
+4. **Rendering Control:**
 
-**Important Notes:**
+   - Variables `step_number`, `render_step_size`, and `render_steps` are introduced to manage rendering frequency.
+   - The simulation loop now includes conditional rendering:
 
-* Make sure you have the necessary Irrlicht libraries installed for visualization.
-* Replace the placeholder texture file paths with the actual paths to your texture images.
+     - The `vis.Render()` function is called only when `step_number` reaches `render_steps`.
+     - `render_steps` is incremented by `render_step_size` after each rendering, controlling how often the scene is updated.

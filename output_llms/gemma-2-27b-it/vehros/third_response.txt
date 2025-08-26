@@ -37,36 +37,34 @@ def main():
 
     # Create visualization box
     box = ch.ChBodyEasyBox(1, 1, 1, 1000, True, True)
-    box.SetPos(ch.ChVector3d(5, 0, 1))
+    box.SetPos(ch.ChVector3d(5, 0, 1.6))
     hmmwv.GetSystem().Add(box)
 
-    # Create and initialize sensor manager
+    # Create sensor manager
     sens_manager = sens.ChSensorManager(hmmwv.GetSystem())
 
     # Create lidar sensor
     lidar = sens.ChLidarSensor()
-    lidar.SetCollisionEnvelope(ch.ChCollisionModelParallel())
-    lidar.SetRays(100)
-    lidar.SetAngle(ch.ChRadToDeg(math.pi / 2))
+    lidar.SetName("lidar")
+    lidar.SetCollisionEnvelope(0.5)
+    lidar.SetVerticalAngle(ch.ChAngleD(0))
+    lidar.SetHorizontalAngle(ch.ChAngleD(360))
+    lidar.SetMaxDistance(50)
+    lidar.SetAngularResolution(ch.ChAngleD(1))
     lidar.SetFrequency(10)
-    lidar.SetFilter(sens.ChLidarFilterDistance(0.1, 100))
-    lidar.SetFilter(sens.ChLidarFilterAngle(ch.ChRadToDeg(math.pi / 4)))
-    lidar.SetPosition(ch.ChVector3d(0, 0, 2))
-    lidar.SetDirection(ch.ChVector3d(0, 0, -1))
+
+    # Add filters to lidar
+    lidar.AddFilter(sens.ChFilterRange(0.5, 50))
+
+    # Attach lidar to vehicle
     lidar.AttachToVehicle(hmmwv.GetVehicle())
+    lidar.SetPos(ch.ChVector3d(0, 0, 2))
+
+    # Register lidar sensor with sensor manager
     sens_manager.AddSensor(lidar)
 
-    # Create and initialize the driver system.
-    driver = veh.ChDriver(hmmwv.GetVehicle())
-    driver.Initialize() 
-
-    # Create the ROS manager and register handlers for communication.
-    ros_manager = chros.ChROSPythonManager()
-    ros_manager.RegisterHandler(chros.ChROSClockHandler())  
-    ros_manager.RegisterHandler(chros.ChROSDriverInputsHandler(25, driver, "~/input/driver_inputs")) 
-    ros_manager.RegisterHandler(chros.ChROSBodyHandler(25, hmmwv.GetChassisBody(), "~/output/hmmwv/state"))
-    ros_manager.RegisterHandler(chros.ChROSLidarHandler(lidar, "~/output/lidar/points"))
-    ros_manager.Initialize()  
+    # Register ROS lidar handler
+    ros_manager.RegisterHandler(chros.ChROSLidarHandler(lidar, "~/output/lidar/data"))
 
     # Create run-time visualization
     vis = chronoirr.ChVisualSystemIrrlicht()
@@ -77,9 +75,20 @@ def main():
     vis.Initialize()
     vis.AddLogo(ch.GetChronoDataFile('logo_pychrono_alpha.png'))
     vis.AddSkyBox()
-    vis.AddCamera(ch.ChVector3d(-5, 2.5, 1.5), ch.ChVector3d(0, 0, 1))
+    vis.AddCamera(ch.ChVector3d(-5, 2.5, 1.5), ch.ChVector3d(0, 0, 1))  # Changed camera position
     vis.AddTypicalLights()
     vis.AddLightWithShadow(ch.ChVector3d(1.5, -2.5, 5.5), ch.ChVector3d(0, 0, 0.5), 3, 4, 10, 40, 512)
+
+    # Create and initialize the driver system.
+    driver = veh.ChDriver(hmmwv.GetVehicle())
+    driver.Initialize()  
+
+    # Create the ROS manager and register handlers for communication.
+    ros_manager = chros.ChROSPythonManager()
+    ros_manager.RegisterHandler(chros.ChROSClockHandler()) 
+    ros_manager.RegisterHandler(chros.ChROSDriverInputsHandler(25, driver, "~/input/driver_inputs"))
+    ros_manager.RegisterHandler(chros.ChROSBodyHandler(25, hmmwv.GetChassisBody(), "~/output/hmmwv/state"))
+    ros_manager.Initialize()  
 
     # Start the simulation loop.
     time = 0
@@ -88,23 +97,24 @@ def main():
     step_number = 0
     render_step_size = 1.0 / 25  
     render_steps = math.ceil(render_step_size / time_step)
-    hmmwv.GetVehicle().EnableRealtime(True)  
+    hmmwv.GetVehicle().EnableRealtime(True) 
     while vis.Run():  
         time = hmmwv.GetSystem().GetChTime()  
-
         if (step_number % render_steps == 0):
             vis.BeginScene()
             vis.Render()
             vis.EndScene()
-        
+
         driver_inputs = driver.GetInputs()
-        driver.Synchronize(time)  
+        driver.Synchronize(time) 
         terrain.Synchronize(time)  
         hmmwv.Synchronize(time, driver_inputs, terrain)  
 
         driver.Advance(time_step)
         terrain.Advance(time_step)
         hmmwv.Advance(time_step)
+
+        # Update sensor manager
         sens_manager.Update()
 
         if not ros_manager.Update(time, time_step):
@@ -113,23 +123,17 @@ def main():
 
 if __name__ == "__main__":
     main()
-
 ```
 
-**Explanation of Changes:**
+**Changes Made:**
 
-1. **Import `pychrono.sensor`:** Added this line to use sensor functionalities.
-2. **Visualization Box:** Created a simple box using `ChBodyEasyBox` and added it to the simulation system.
-3. **Sensor Manager:**
-   - Created a `ChSensorManager` instance to manage sensors.
-   - Added the lidar sensor to the sensor manager.
+1. **Import `pychrono.sensor as sens`:** Added for sensor functionalities.
+2. **Visualization Box:** Created a `ChBodyEasyBox` named `box` and added it to the system.
+3. **Sensor Manager:** Created a `ChSensorManager` named `sens_manager` to manage sensors.
 4. **Lidar Sensor:**
-   - Created a `ChLidarSensor` object.
-   - Configured the lidar with parameters like rays, angle, frequency, and filters.
-   - Attached the lidar to the HMMWV vehicle.
-5. **ROS Lidar Handler:**
-   - Registered a `ChROSLidarHandler` to publish lidar data to the ROS topic `~/output/lidar/points`.
-6. **Sensor Manager Update:**
-   - Added `sens_manager.Update()` within the simulation loop to update sensor readings.
-7. **Camera Position:**
-   - Changed the camera position in `vis.AddCamera` to `(-5, 2.5, 1.5)` for a different viewpoint.
+   - Created a `ChLidarSensor` named `lidar` and configured its properties (collision envelope, angles, distance, resolution, frequency).
+   - Added a `ChFilterRange` to filter lidar data based on distance.
+   - Attached `lidar` to the vehicle and set its position.
+5. **ROS Lidar Handler:** Registered a `ChROSLidarHandler` to publish lidar data to the ROS topic "~/output/lidar/data".
+6. **Sensor Manager Update:** Added `sens_manager.Update()` within the simulation loop to update sensor readings.
+7. **Camera Position:** Changed the camera position to `(-5, 2.5, 1.5)` for a different perspective.

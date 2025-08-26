@@ -1,154 +1,89 @@
 ```python
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
-import numpy as np
+import pychrono.vehicle as chronovehicle
 
-# ----------------------------------------
 # 1. Initialize PyChrono environment and core components
-# ----------------------------------------
-chrono.SetChronoDataPath("data/")  # Set path to Chrono data files
+my_system = chrono.ChSystemNSC()
+my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+my_system.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
 
-# Create the physical system
-system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+# 2. Create the HMMWV vehicle
+vehicle = chronovehicle.ChVehicle("HMMWV")
 
-# Create the Irrlicht visualization system
-vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(system)
-vis.SetWindowSize(800, 600)
-vis.SetWindowTitle("HMMWV Simulation")
-vis.Initialize()
-vis.AddTypicalSky()
-vis.AddCamera(chrono.ChVectorD(0, 2, -5))
-
-# ----------------------------------------
-# 2. Add physical systems and objects
-# ----------------------------------------
-
-# Load HMMWV vehicle model
-vehicle = chrono.ChVehicleModel()
-vehicle.SetSystem(system)
-
-# Vehicle parameters
+# Set vehicle parameters (replace with actual HMMWV specifications)
 vehicle.SetChassisFixed(False)
-vehicle.SetInitPosition(chrono.ChVectorD(0, 0, 0))
-vehicle.SetInitRot(chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0)))
+vehicle.SetInitPosition(chrono.ChVectorD(0, 1, 0))
+vehicle.SetEngineType(chronovehicle.ChVehicle.EngineType_DEFAULT)
+vehicle.SetDrivetrainType(chronovehicle.ChVehicle.DrivetrainType_RWD)
 
-# Engine and drivetrain
-vehicle.SetEngineType(chrono.ChVehicleModel.ENGINE_TYPE_CONSTANT_POWER)
-vehicle.SetDrivetrainType(chrono.ChVehicleModel.DRIVETRAIN_TYPE_RWD)
-vehicle.SetPower(150000)  # Example power in Watts
-
-# Load vehicle chassis and components
-vehicle.AddChassis(chrono.ChBodyEasyBox(2.5, 1.5, 0.8, 1500))
-vehicle.AddWheel(chrono.ChWheelInfo(
-    radius=0.4,
-    position=chrono.ChVectorD(1.2, 0.7, 0.4),
-    direction=chrono.ChVectorD(0, 0, 1),
-    suspension_spring=20000,
-    suspension_damping=1000,
-    mass=50
+# Add vehicle components with mesh visualization
+vehicle.AddWheel(chronovehicle.ChWheelInfo(
+    radius=0.5,
+    position=chrono.ChVectorD(1, 0, 1),
+    suspension_spring=10000,
+    suspension_damper=1000,
+    friction=0.8,
+    mesh_filename="wheel.obj"
 ))
-# Add remaining wheels (adjust positions and parameters as needed)
+# Add remaining wheels and other components similarly
 
-# Apply mesh visualization to vehicle components
-vehicle.SetVisualizationType(chrono.ChVehicleModel.VISUALIZATION_TYPE_MESH)
-vehicle.SetMeshFile("path/to/hmmwv_mesh.obj")
+# 3. Construct the terrain
+terrain = chrono.ChTerrain()
+my_system.Add(terrain)
 
-# ----------------------------------------
-# 3. Create complex terrain
-# ----------------------------------------
+# Add flat patches with different textures
+terrain.AddPatch(chrono.ChPatch(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(10, 10, 0), "grass.jpg"))
+terrain.AddPatch(chrono.ChPatch(chrono.ChVectorD(10, 0, 0), chrono.ChVectorD(10, 10, 0), "dirt.jpg"))
 
-# Flat patches with different textures
-ground_patch1 = chrono.ChBodyEasyBox(10, 10, 0.1, 1000)
-ground_patch1.SetPos(chrono.ChVectorD(0, -1, 0))
-ground_patch1.SetBodyFixed(True)
-ground_patch1.SetMaterialSurface(chrono.ChMaterialSurfaceNSC())
-ground_patch1.GetMaterialSurface().SetFriction(0.8)
-ground_patch1.GetMaterialSurface().SetRestitution(0.2)
-vis.AddVisualShape(ground_patch1, chrono.ChColor(0.5, 0.5, 0.5))
+# Add a mesh-based patch for a bump
+bump_mesh = chrono.ChTriangleMeshSoup()
+bump_mesh.LoadFromFile("bump.obj")
+terrain.AddPatch(chrono.ChPatch(bump_mesh, chrono.ChVectorD(20, 0, 0)))
 
-# Mesh-based bump
-bump_mesh = chrono.ChTriangleMeshConnected()
-bump_mesh.LoadFromFile("path/to/bump_mesh.obj")
-bump_body = chrono.ChBody()
-bump_body.SetMesh(bump_mesh)
-bump_body.SetPos(chrono.ChVectorD(3, -0.5, 0))
-bump_body.SetBodyFixed(True)
-system.AddBody(bump_body)
-vis.AddVisualShape(bump_body, chrono.ChColor(0.8, 0.6, 0.4))
+# Add a heightmap-based patch for varying elevations
+heightmap = chrono.ChHeightmap(chrono.ChVectorD(30, 0, 0), chrono.ChVectorD(10, 10, 0), "heightmap.png")
+terrain.AddPatch(heightmap)
 
-# Heightmap-based terrain
-heightmap = chrono.ChHeightmap()
-heightmap.SetFilename("path/to/heightmap.png")
-heightmap.SetScaling(0.1)  # Adjust scaling as needed
-heightmap_body = chrono.ChBody()
-heightmap_body.SetHeightmap(heightmap)
-heightmap_body.SetPos(chrono.ChVectorD(-5, -2, 0))
-heightmap_body.SetBodyFixed(True)
-system.AddBody(heightmap_body)
-vis.AddVisualShape(heightmap_body, chrono.ChColor(0.2, 0.8, 0.2))
-
-# ----------------------------------------
 # 4. Interactive driver system
-# ----------------------------------------
+driver = chronovehicle.ChDriver()
+driver.SetSteering(0)
+driver.SetThrottle(0)
+driver.SetBraking(0)
 
-# Define steering, throttle, and braking controls
-steering_angle = 0
-throttle = 0
-brake = 0
+# 5. Visualization with Irrlicht
+vis = chronoirr.ChIrrApp(my_system, "HMMWV Simulation", chrono.ChVectorD(0, 5, 10))
+vis.AddTypicalLights()
+vis.AddSkyBox()
 
-# Update vehicle controls based on user input
-def update_controls():
-    global steering_angle, throttle, brake
-    # Implement logic for keyboard/joystick input
-    # ...
+# Add vehicle visualization
+vis.SetCameraPosition(chrono.ChVectorD(0, 5, 10))
+vis.SetCameraLookAt(chrono.ChVectorD(0, 1, 0))
+vis.AddVisualModel(vehicle)
 
-# ----------------------------------------
-# 5. Simulation loop
-# ----------------------------------------
-timestep = 0.01
-while vis.Run():
-    update_controls()
+# 6. Simulation loop
+while vis.GetDevice().run():
+    vis.BeginScene()
+    vis.Render()
+    
+    # Update driver inputs (replace with actual input handling)
+    driver.SetSteering(vis.GetDevice().GetCursorPos().x / 100)
+    driver.SetThrottle(vis.GetDevice().GetKeyCodeState(chrono.ChIrrApp.KEY_W))
+    driver.SetBraking(vis.GetDevice().GetKeyCodeState(chrono.ChIrrApp.KEY_S))
 
-    # Apply driver controls to vehicle
-    vehicle.SetSteeringAngle(steering_angle)
-    vehicle.SetThrottle(throttle)
-    vehicle.SetBraking(brake)
+    # Apply driver inputs to vehicle
+    vehicle.Synchronize(driver.GetSteering(), driver.GetThrottle(), driver.GetBraking())
 
     # Advance simulation
-    system.DoStepDynamics(timestep)
+    my_system.DoStepDynamics(0.01)
 
-    # Render the scene
-    vis.Render()
+    vis.EndScene()
+
 ```
 
-**Explanation:**
+**Notes:**
 
-1. **Initialization:**
-   - Sets up the Chrono environment, system, and Irrlicht visualization.
-2. **Vehicle Creation:**
-   - Loads the HMMWV model, sets parameters like engine type, drivetrain, and initial position.
-   - Adds wheels with appropriate suspension and tire properties.
-   - Applies mesh visualization for a realistic look.
-3. **Terrain Construction:**
-   - Creates flat patches with different textures using `ChBodyEasyBox`.
-   - Adds a mesh-based bump using `ChTriangleMeshConnected` for a localized obstacle.
-   - Incorporates a heightmap-based terrain for varied elevations using `ChHeightmap`.
-4. **Interactive Driver System:**
-   - Placeholder for code to handle steering, throttle, and braking input.
-   - You'll need to implement logic to map user input (keyboard, joystick) to these controls.
-5. **Simulation Loop:**
-   - Runs the simulation in a loop.
-   - Updates driver controls based on user input.
-   - Applies controls to the vehicle.
-   - Advances the simulation using `system.DoStepDynamics(timestep)`.
-   - Renders the scene using Irrlicht.
-
-**Remember:**
-
-
-
-* Replace placeholders like `"path/to/hmmwv_mesh.obj"` with actual file paths.
-* Implement the `update_controls()` function to handle user input and map it to vehicle controls.
-* Adjust parameters like vehicle properties, terrain dimensions, and timestep to suit your simulation needs.
+* This script provides a basic framework. You need to replace placeholder values with actual HMMWV specifications and file paths for meshes and textures.
+* The driver system is a simple example. You can implement more sophisticated driver models based on your needs.
+* Consider adding collision detection and response between the vehicle and the terrain for a more realistic simulation.
+* You can adjust the timestep and rendering parameters for optimal performance.

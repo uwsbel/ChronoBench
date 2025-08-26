@@ -1,88 +1,96 @@
 ```python
 import pychrono as chrono
-import pychrono.sensor as sensor
 import pychrono.postprocess as postprocess
-import numpy as np
+import pychrono.irrlicht as chronoirr
 
-# 1. Initialize the PyChrono environment and core components.
+# 1. Initialize PyChrono environment and core components
+
+# Create the physical system
 my_system = chrono.ChSystemNSC()
+
+# Set gravitational acceleration
 my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
-my_system.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
 
-# 2. Add the triangular mesh as a fixed body.
-mesh_file = "your_mesh.obj"  # Replace with your .obj file path
+# Create the Irrlicht visualization system
+viz = chronoirr.ChVisualSystemIrrlicht()
+viz.AttachSystem(my_system)
+viz.SetWindowSize(800, 600)
+viz.SetWindowTitle('Triangular Mesh Visualization')
+viz.Initialize()
+viz.AddCamera(chronoirr.ChCamera(chrono.ChVectorD(1, 1, 1)))
+
+# 2. Add the triangular mesh as a fixed body
+
+# Load the mesh from the .obj file
 mesh = chrono.ChTriangleMeshConnected()
-mesh.LoadWavefrontMesh(mesh_file)
+mesh.LoadWavefrontMesh("your_mesh.obj")
+
+# Create a body and attach the mesh
 body = chrono.ChBody()
-body.SetMesh(mesh)
 body.SetBodyFixed(True)
-my_system.Add(body)
+body.SetMesh(mesh)
+my_system.AddBody(body)
 
-# 3. Add a camera sensor to the body.
-camera = sensor.ChCameraSensor()
-camera.SetCameraPosition(chrono.ChVectorD(2, 2, 2))
-camera.SetCameraLookAt(chrono.ChVectorD(0, 0, 0))
-camera.SetLens(sensor.ChLens.Type_PERSPECTIVE)
-camera.SetVerticalFOV(60)
-camera.SetAspect(16.0 / 9.0)
+# 3. Add camera sensor and sensor manager
 
-# Add noise filters and visualizations.
-camera.AddFilter(sensor.ChFilterGaussianNoise(stddev=0.01))
-camera.SetVisualizationType(sensor.ChVisualizationType.Type_COLOR)
+# Create a sensor manager
+sensor_manager = chrono.ChSensorManager()
+my_system.AddSensorManager(sensor_manager)
 
-# Create a sensor manager and add the camera.
-sensor_manager = sensor.ChSensorManager(my_system)
+# Create a camera sensor and attach it to the body
+camera = chrono.ChCameraSensor()
+camera.SetBody(body)
+camera.SetSensorPosition(chrono.ChVectorD(0, 0, 1))
+camera.SetSensorDirection(chrono.ChVectorD(0, 0, -1))
+camera.SetWidth(640)
+camera.SetHeight(480)
 sensor_manager.AddSensor(camera)
 
+# Add noise filters and visualizations
+camera.AddNoiseFilter(chrono.ChNoiseFilterGaussian(0.01))
+camera.AddVisualization(chrono.ChVisualizationRGB())
+
 # Simulation loop
-time_step = 0.01
-simulation_time = 10
 
-for i in range(int(simulation_time / time_step)):
-    # Update camera position in an orbit around the mesh.
-    angle = i * 0.1
-    camera.SetCameraPosition(chrono.ChVectorD(2 * np.cos(angle), 2, 2 * np.sin(angle)))
-    camera.SetCameraLookAt(chrono.ChVectorD(0, 0, 0))
+while viz.Run():
+    # Update camera position in an orbit around the mesh
+    angle = chrono.ChTime.GetTime() * 0.5
+    camera.SetSensorPosition(chrono.ChVectorD(2 * chrono.ChCos(angle), 0, 2 * chrono.ChSin(angle)))
 
-    # Simulate the system.
-    my_system.DoStepDynamics(time_step)
+    # Simulate one time step
+    my_system.DoStepDynamics(0.01)
 
-    # Print camera buffer data.
-    buffer = camera.GetImageBuffer()
-    print(buffer)
+    # Print camera buffer data
+    print(camera.GetBuffer())
 
-    # Optional: Save camera images to a file.
-    # postprocess.ChPostProcessCamera(camera).SaveImage("image_" + str(i) + ".png")
-
+    # Render the scene
+    viz.Render()
 ```
 
 **Explanation:**
 
 1. **Initialization:**
-   - We create a `ChSystemNSC` object, which represents the physics simulation world.
-   - We set the gravity and solver type for the simulation.
+   - The code initializes the PyChrono system, sets gravity, and creates an Irrlicht visualization system.
 
-2. **Mesh Loading:**
-   - We load a triangular mesh from a Wavefront .obj file using `ChTriangleMeshConnected.LoadWavefrontMesh()`.
-   - We create a `ChBody` object and assign the mesh to it.
-   - We set the body as fixed so it doesn't move during the simulation.
+2. **Mesh Loading and Body Creation:**
+   - A triangular mesh is loaded from a Wavefront .obj file using `chrono.ChTriangleMeshConnected.LoadWavefrontMesh()`.
+   - A fixed body is created, the mesh is attached to it, and the body is added to the system.
 
-3. **Camera Setup:**
-   - We create a `ChCameraSensor` object and configure its position, look-at point, lens type, field of view, and aspect ratio.
-   - We add a Gaussian noise filter to the camera to simulate real-world noise.
-   - We set the visualization type to color for displaying the camera images.
+3. **Camera Sensor and Sensor Manager:**
+   - A `chrono.ChSensorManager` is created and added to the system.
+   - A `chrono.ChCameraSensor` is created, attached to the body, and configured with position, direction, width, and height.
+   - Noise filters and visualizations are added to the camera sensor.
 
-4. **Sensor Manager:**
-   - We create a `ChSensorManager` object to manage the camera sensor.
-   - We add the camera to the sensor manager.
+4. **Simulation Loop:**
+   - The loop runs until the Irrlicht window is closed.
+   - The camera's position is updated in an orbit around the mesh using trigonometric functions.
+   - The system is simulated for one time step.
+   - The camera buffer data is printed.
+   - The scene is rendered using Irrlicht.
 
-5. **Simulation Loop:**
-   - We iterate through the simulation time, updating the camera position in an orbit around the mesh.
-   - We call `my_system.DoStepDynamics()` to advance the simulation by one time step.
-   - We print the camera buffer data, which contains the pixel values of the captured image.
-   - You can optionally save the camera images to files using `ChPostProcessCamera`.
-
-**Remember to:**
+**Remember:**
 
 - Replace `"your_mesh.obj"` with the actual path to your .obj file.
-- Adjust the simulation parameters (time step, simulation time, camera settings) as needed.
+- You can adjust parameters like camera position, noise filter strength, and simulation time step as needed.
+
+This script provides a basic framework for visualizing a triangular mesh with a camera sensor in PyChrono. You can expand upon it by adding more complex interactions, physics, and sensor types.

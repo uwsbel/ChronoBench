@@ -1,171 +1,186 @@
 ```python
 import pychrono as chrono
 import pychrono.postprocess as postprocess
-import pychrono.irrlicht as irr
-import math
+import pychrono.irrlicht as chronoirr
 
 # ---------------------------------------------------------------------
 #
-#  Create the simulation system and add items
+#  Create the simulation system
 #
 # ---------------------------------------------------------------------
 
-# Create a physical system
-my_system = chrono.ChSystemNSC()
+mysystem = chrono.ChSystemNSC()
+mysystem.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
-# Set gravitational acceleration
-my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+# Set simulation parameters
+mysystem.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
+mysystem.SetSolverMaxIterations(100)
+mysystem.SetTimestepperType(chrono.ChTimestepper.Type_EULER_IMPLICIT_LINEARIZED)
 
+# ---------------------------------------------------------------------
+#
 # Create the terrain
-terrain = chrono.ChBodyEasyBox(20, 1, 20, 1000, True, True)
-terrain.SetPos(chrono.ChVectorD(0, -0.5, 0))
+#
+# ---------------------------------------------------------------------
+
+terrain = chrono.ChBodyEasyBox(
+    200, 200, 1, 1000, True, True, chrono.ChMaterialSurface.NSC
+)
+terrain.SetPos(chrono.ChVectorD(0, -1, 0))
 terrain.SetBodyFixed(True)
-my_system.Add(terrain)
+mysystem.Add(terrain)
 
+# ---------------------------------------------------------------------
+#
 # Create the Gator vehicle
-gator = chrono.ChVehicle()
-gator.SetSystem(my_system)
+#
+# ---------------------------------------------------------------------
 
-# Add chassis to the vehicle
-chassis = chrono.ChBodyEasyBox(2, 1, 4, 1000, True, True)
+gator = chrono.ChVehicle(mysystem)
+
+# Chassis
+chassis = chrono.ChBodyEasyBox(
+    2.5, 1.2, 0.8, 1000, True, True, chrono.ChMaterialSurface.NSC
+)
 chassis.SetPos(chrono.ChVectorD(0, 1, 0))
-gator.AddChassis(chassis)
+gator.SetChassisBody(chassis)
 
-# Add wheels to the vehicle
-wheel_radius = 0.4
+# Wheels
+wheel_radius = 0.3
 wheel_width = 0.2
+for i in range(4):
+    wheel = chrono.ChWheel(
+        chrono.ChBodyEasyCylinder(wheel_radius, wheel_width, 1000),
+        chrono.ChContactMethod.NSC,
+    )
+    wheel.SetPos(
+        chrono.ChVectorD(
+            (-1.2 + i * 0.8, -0.6, 0),
+        )
+    )
+    gator.AddWheel(wheel)
 
-# Set different visualization types for vehicle parts
-chassis.AddAsset(chrono.ChAssetShape(chrono.ChBoxShape(chrono.ChVectorD(1, 0.5, 2))))
-chassis.AddAsset(chrono.ChAssetMaterial(chrono.ChColorAsset(0.8, 0.2, 0.2)))
+# Visualization
+chassis.AddAsset(chrono.ChAssetLevel(chrono.ChTexture(chrono.GetChronoDataPath() + "blue.png")))
+chassis.SetCollide(True)
+chassis.SetBodyFixed(False)
 
-wheel_left1 = chrono.ChWheel(chrono.ChBodyAuxRef(chassis))
-wheel_left1.SetPos(chrono.ChVectorD(-1, -0.5, 1.5))
-wheel_left1.SetRadius(wheel_radius)
-wheel_left1.SetWidth(wheel_width)
-wheel_left1.SetVisualizationType(chrono.ChWheelVisualizationType_MESH)
-gator.AddWheel(wheel_left1)
+for wheel in gator.GetWheels():
+    wheel.GetBody().AddAsset(chrono.ChAssetLevel(chrono.ChTexture(chrono.GetChronoDataPath() + "black.png")))
+    wheel.GetBody().SetCollide(True)
+    wheel.GetBody().SetBodyFixed(False)
 
-wheel_right1 = chrono.ChWheel(chrono.ChBodyAuxRef(chassis))
-wheel_right1.SetPos(chrono.ChVectorD(1, -0.5, 1.5))
-wheel_right1.SetRadius(wheel_radius)
-wheel_right1.SetWidth(wheel_width)
-wheel_right1.SetVisualizationType(chrono.ChWheelVisualizationType_PRIMITIVES)
-gator.AddWheel(wheel_right1)
+mysystem.Add(gator)
 
-wheel_left2 = chrono.ChWheel(chrono.ChBodyAuxRef(chassis))
-wheel_left2.SetPos(chrono.ChVectorD(-1, -0.5, -1.5))
-wheel_left2.SetRadius(wheel_radius)
-wheel_left2.SetWidth(wheel_width)
-wheel_left2.SetVisualizationType(chrono.ChWheelVisualizationType_NONE)
-gator.AddWheel(wheel_left2)
+# ---------------------------------------------------------------------
+#
+# Create the driver system
+#
+# ---------------------------------------------------------------------
 
-wheel_right2 = chrono.ChWheel(chrono.ChBodyAuxRef(chassis))
-wheel_right2.SetPos(chrono.ChVectorD(1, -0.5, -1.5))
-wheel_right2.SetRadius(wheel_radius)
-wheel_right2.SetWidth(wheel_width)
-wheel_right2.SetVisualizationType(chrono.ChWheelVisualizationType_MESH)
-gator.AddWheel(wheel_right2)
+driver = chrono.ChDriverSteering(gator)
+driver.SetSteeringAngle(0)
+driver.SetTargetSpeed(5)
 
-# Set initial vehicle position and orientation
-gator.SetChassisPosition(chrono.ChVectorD(0, 1, 0))
-gator.SetChassisOrientation(chrono.Q_from_AngAxis(math.pi / 4, chrono.ChVectorD(0, 1, 0)))
+# ---------------------------------------------------------------------
+#
+# Create the sensor manager
+#
+# ---------------------------------------------------------------------
 
-# Create an interactive driver system
-driver = chrono.ChDriver(gator)
+sensor_manager = postprocess.ChSensorManager(mysystem)
 
-# Create a sensor manager
-sensor_manager = chrono.ChSensorManager(my_system)
+# Point light
+light = postprocess.ChLightPoint(chrono.ChVectorD(5, 5, 5))
+sensor_manager.AddSensor(light)
 
-# Add point lights to the sensor manager
-light1 = chrono.ChPointLight(chrono.ChVectorD(5, 5, 5))
-light1.SetDiffuseColor(chrono.ChColor(1, 1, 1))
-sensor_manager.AddLight(light1)
+# Camera
+camera = postprocess.ChCamera(chrono.ChVectorD(0, 2, 0))
+camera.SetLookAt(chrono.ChVectorD(0, 0, 0))
+camera.SetFOV(60)
+sensor_manager.AddSensor(camera)
 
-# Add a camera to the sensor manager attached to the vehicle chassis
-camera = chrono.ChCamera(chrono.ChVectorD(0, 2, 0))
-camera.SetLookAt(chrono.ChVectorD(0, 1, 0))
+# Attach camera to chassis
 camera.AttachToBody(chassis)
-sensor_manager.AddCamera(camera)
 
 # ---------------------------------------------------------------------
 #
-#  Visualization setup
+# Create the Irrlicht visualization
 #
 # ---------------------------------------------------------------------
 
-# Create the Irrlicht visualization system
-vis = irr.ChIrrApp(my_system, &driver, sensor_manager)
-vis.SetWindowSize(800, 600)
-vis.SetDisplayMode(irr.ChIrrApp.WIREFRAME)
-vis.Initialize()
+vis = chronoirr.ChIrrApp(mysystem, sensor_manager)
+vis.SetWindowSize(1280, 720)
+vis.SetStep(0.01)
+vis.SetShowProfiler(True)
 vis.AddTypicalLights()
-vis.AddCamera(camera)
+vis.AddSkyBox()
 
 # ---------------------------------------------------------------------
 #
-#  Simulation loop
+# Simulation loop
 #
 # ---------------------------------------------------------------------
 
-while vis.Run():
-    # Update driver input
-    driver.Update(vis.GetTimeStep())
+while vis.GetDevice().run():
+    vis.BeginScene()
+    vis.Render()
 
-    # Update the simulation
-    my_system.DoStepDynamics(vis.GetTimeStep())
+    # Update driver
+    driver.Update(vis.GetTime())
 
-    # Synchronize and advance modules
-    vis.Synchronize(1, 1)
-    vis.Advance(1)
+    # Update sensor manager
+    sensor_manager.Update()
 
-    # Render camera images
-    sensor_manager.RenderCameras()
+    # Advance the simulation
+    mysystem.DoStepDynamics(vis.GetTimeStep())
 
-    # Post-process the simulation data
-    postprocess.ChPostProcessChrono(my_system).ExportData(vis.GetTimeStep())
+    vis.EndScene()
 
-# Clean up the simulation environment
-vis.GetDevice()->drop()
 ```
 
 **Explanation:**
 
 1. **Initialization:**
-   - Creates a Chrono system (`my_system`) and sets gravitational acceleration.
-   - Creates a terrain using `ChBodyEasyBox`.
-   - Creates a Gator vehicle (`gator`) and its chassis (`chassis`).
+   - Creates a Chrono system (`mysystem`) with gravity.
+   - Sets solver type, max iterations, and timestepper type.
 
-2. **Vehicle Setup:**
-   - Adds wheels to the vehicle with different visualization types:
-     - `MESH`: renders the wheel using a mesh.
-     - `PRIMITIVES`: renders the wheel using basic geometric primitives.
-     - `NONE`: does not render the wheel.
-   - Sets initial position and orientation of the vehicle.
+2. **Terrain:**
+   - Creates a box-shaped terrain (`terrain`) with specified dimensions and material.
+   - Sets its position and makes it fixed.
+   - Adds it to the system.
 
-3. **Driver and Sensors:**
-   - Creates an interactive driver system (`driver`).
-   - Creates a sensor manager (`sensor_manager`) and adds:
-     - Point lights for illumination.
-     - A camera attached to the vehicle chassis for rendering images.
+3. **Gator Vehicle:**
+   - Creates a `ChVehicle` object (`gator`).
+   - Defines the chassis as a box (`chassis`).
+   - Adds four wheels (`wheel`) with specified radius, width, and contact method.
+   - Sets visualization properties for chassis and wheels, including textures and collision flags.
+   - Adds the vehicle to the system.
 
-4. **Visualization:**
-   - Creates an Irrlicht visualization system (`vis`).
-   - Sets window size, display mode, and initializes the system.
-   - Adds typical lights and the camera to the visualization.
+4. **Driver System:**
+   - Creates a `ChDriverSteering` object (`driver`) to control the vehicle.
+   - Sets initial steering angle and target speed.
 
-5. **Simulation Loop:**
-   - Runs the simulation loop until the Irrlicht window is closed.
-   - Updates the driver input based on user interaction.
-   - Updates the simulation using `DoStepDynamics`.
-   - Synchronizes and advances the visualization modules.
-   - Renders camera images using the sensor manager.
-   - Exports simulation data for post-processing.
+5. **Sensor Manager:**
+   - Creates a `ChSensorManager` (`sensor_manager`) to handle sensors.
+   - Adds a point light (`light`) and a camera (`camera`) to the manager.
+   - Attaches the camera to the vehicle's chassis.
 
-6. **Cleanup:**
-   - Cleans up the Irrlicht device.
+6. **Visualization:**
+   - Creates an Irrlicht visualization (`vis`) linked to the system and sensor manager.
+   - Sets window size, time step, profiler visibility, and adds lights and skybox.
 
-**Remember:**
+7. **Simulation Loop:**
+   - Runs the Irrlicht application loop.
+   - In each iteration:
+     - Renders the scene.
+     - Updates the driver.
+     - Updates the sensor manager.
+     - Advances the simulation using `DoStepDynamics`.
 
-- This script provides a basic framework. You can further customize it by adding more vehicle parts, sensors, control systems, and post-processing options.
-- Make sure to install the necessary Chrono and Irrlicht libraries before running the script.
+
+
+**Notes:**
+
+- This script provides a basic framework. You can customize vehicle parameters, sensor configurations, driver behavior, and visualization settings as needed.
+- Make sure you have PyChrono installed and the necessary dependencies (Irrlicht, etc.) set up.

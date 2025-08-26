@@ -14,12 +14,13 @@ def main():
     mphysicalSystem = chrono.ChSystemNSC()
 
     # ----------------------------------
-    # Add a box to be sensed by a lidar
+    # Create a box object
     # ----------------------------------
-    side = 1  # Set the side length of the box
-    box_body = chrono.ChBodyEasyBox(side, side, side, 1000)  # Create a box body
-    box_body.SetPos(chrono.ChVector3d(0, 0, 0))  # Set the position of the box
-    mphysicalSystem.Add(box_body)  # Add the box to the system
+    side = 1.0  # Define the side length of the box
+    box_body = chrono.ChBodyEasyBox(side, side, side, 1000)  
+    box_body.SetPos(chrono.ChVector3d(0, 0, 0))
+    box_body.SetBodyFixed(True)
+    mphysicalSystem.Add(box_body)
 
     # -----------------------
     # Create a sensor manager
@@ -82,25 +83,29 @@ def main():
     manager.AddSensor(lidar)
 
     # ------------------------------------------------
-    # Create a 2D lidar sensor and add it to the manager
+    # Create a 2D lidar sensor
     # ------------------------------------------------
     lidar_2d = sens.ChLidarSensor2D(
-        box_body,
-        update_rate,
-        offset_pose,
-        horizontal_samples,
-        1,  # Vertical samples (one channel)
-        horizontal_fov,
-        100.0,  # Maximum lidar range
-        sens.LidarBeamShape_RECTANGULAR,
-        sample_radius,
-        divergence_angle
+        box_body,              # Body lidar is attached to
+        update_rate,            # Scanning rate in Hz
+        offset_pose,            # Offset pose
+        horizontal_samples,     # Number of horizontal samples
+        vertical_samples=1,     # Number of vertical channels (1 for 2D)
+        horizontal_fov,         # Horizontal field of view
+        max_vert_angle,         # Maximum vertical field of view
+        min_vert_angle,         # Minimum vertical field of view
+        100.0,                  # Maximum lidar range
+        sens.LidarBeamShape_RECTANGULAR,  # Shape of the lidar beam
+        sample_radius,          # Sample radius
+        divergence_angle,       # Divergence angle
+        divergence_angle,       # Divergence angle (again, typically same value)
+        return_mode             # Return mode for the lidar
     )
     lidar_2d.SetName("2D Lidar Sensor")
     lidar_2d.SetLag(lag)
     lidar_2d.SetCollectionWindow(collection_time)
 
-    # Apply filters and visualization for the 2D lidar
+    # Add filters and visualization for the 2D lidar
     if noise_model == "CONST_NORMAL_XYZI":
         lidar_2d.PushFilter(sens.ChFilterLidarNoiseXYZI(0.01, 0.001, 0.001, 0.01))
     elif noise_model == "NONE":
@@ -108,12 +113,16 @@ def main():
 
     if vis:
         lidar_2d.PushFilter(sens.ChFilterVisualize(horizontal_samples, 1, "Raw 2D Lidar Depth Data"))
+
     lidar_2d.PushFilter(sens.ChFilterDIAccess())
     lidar_2d.PushFilter(sens.ChFilterPCfromDepth())
+
     if vis:
         lidar_2d.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "2D Lidar Point Cloud"))
+
     lidar_2d.PushFilter(sens.ChFilterXYZIAccess())
 
+    # Add the 2D lidar to the sensor manager
     manager.AddSensor(lidar_2d)
 
     # ---------------
@@ -127,7 +136,7 @@ def main():
     t1 = time.time()
 
     while ch_time < end_time:
-        # Set lidar to orbit around the box
+        # Set lidar to orbit around the box body
         lidar.SetOffsetPose(
             chrono.ChFramed(
                 chrono.ChVector3d(
@@ -145,13 +154,6 @@ def main():
             xyzi_data = xyzi_buffer.GetXYZIData()
             print('XYZI buffer received from lidar. Lidar resolution: {0}x{1}'.format(xyzi_buffer.Width, xyzi_buffer.Height))
             print('Max Value: {0}'.format(np.max(xyzi_data)))
-
-        # Access the XYZI buffer from lidar_2d
-        xyzi_buffer_2d = lidar_2d.GetMostRecentXYZIBuffer()
-        if xyzi_buffer_2d.HasData():
-            xyzi_data_2d = xyzi_buffer_2d.GetXYZIData()
-            print('XYZI buffer received from 2D lidar. Lidar resolution: {0}x{1}'.format(xyzi_buffer_2d.Width, xyzi_buffer_2d.Height))
-            print('Max Value: {0}'.format(np.max(xyzi_data_2d)))
 
         # Update sensor manager (will render/save/filter automatically)
         manager.Update()
@@ -177,4 +179,8 @@ noise_model = "NONE"  # No noise model
 # Lidar return mode
 return_mode = sens.LidarReturnMode_STRONGEST_RETURN
 # return_mode = sens.MEAN_RETURN
-# return
+# return_mode = sens.FIRST_RETURN
+# return_mode = sens.LAST_RETURN
+
+# Update rate in Hz
+update_rate =

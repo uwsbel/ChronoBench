@@ -5,16 +5,65 @@ import pychrono.vehicle as chronovehicle
 
 # ---------------------------------------------------------------------
 #
-#  Create the simulation system and add the terrain
+#  Simulation setup
 #
-# ---------------------------------------------------------------------
 
+# Create the system and set gravity
 my_system = chrono.ChSystemNSC()
-
-# Set the simulation parameters
 my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+
+# Set simulation parameters
 my_system.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
+my_system.SetSolverMaxIterations(100)
 my_system.SetTimestepperType(chrono.ChTimestepper.Type_EULER_IMPLICIT_LINEARIZED)
+my_system.SetStep(0.01)
+
+# ---------------------------------------------------------------------
+#
+#  Terrain
+#
+
+# Load collision and visualization meshes for the terrain
+terrain_col = chrono.ChTriangleMeshShape()
+terrain_col.LoadWavefrontMesh("Highway_col.obj", False, True)
+terrain_vis = chrono.ChVisualShape()
+terrain_vis.LoadWavefrontMesh("Highway_vis.obj")
+
+# Create the terrain body and attach shapes
+terrain_body = chrono.ChBody()
+terrain_body.SetPos(chrono.ChVectorD(0, 0, 0))
+terrain_body.SetBodyFixed(True)
+terrain_body.AddShape(terrain_col)
+terrain_body.AddShape(terrain_vis)
+
+my_system.Add(terrain_body)
+
+# ---------------------------------------------------------------------
+#
+#  HMMWV Vehicle
+#
+
+# Create the HMMWV vehicle using Chrono's vehicle module
+vehicle = chronovehicle.ChVehicle("HMMWV")
+
+# Set initial position and orientation
+vehicle.SetPos(chrono.ChVectorD(0, 1, 0))
+vehicle.SetRot(chrono.Q_from_AngAxis(chrono.CH_C_PI / 4, chrono.ChVectorD(0, 1, 0)))
+
+# Set contact method and tire model
+vehicle.SetChassisCollisionType(chrono.CollisionSystemType_NSC)
+vehicle.SetTireModelType(chronovehicle.TireModelType_TMEASY)
+
+# Load vehicle components (chassis, wheels, suspension, etc.)
+vehicle.Initialize()
+
+# Add the vehicle to the system
+my_system.Add(vehicle)
+
+# ---------------------------------------------------------------------
+#
+#  Visualization
+#
 
 # Create the Irrlicht visualization system
 vis = chronoirr.ChVisualSystemIrrlicht()
@@ -23,111 +72,69 @@ vis.SetWindowSize(1280, 720)
 vis.SetWindowTitle("HMMWV Simulation")
 vis.Initialize()
 
-# Create the terrain using custom meshes
-terrain_col = chrono.ChCollisionModel()
-terrain_col.LoadCollisionMesh("Highway_col.obj")
-terrain_col.SetStatic(True)
+# Set camera position and target
+vis.GetCamera().SetLocation(chrono.ChVectorD(20, 10, 0))
+vis.GetCamera().SetTarget(chrono.ChVectorD(0, 1, 0))
 
-terrain_vis = chrono.ChVisualModel()
-terrain_vis.LoadVisualMesh("Highway_vis.obj")
-terrain_vis.SetMaterialTransparency(0.5)
-
-terrain_body = chrono.ChBody()
-terrain_body.SetCollisionModel(terrain_col)
-terrain_body.SetVisualModel(terrain_vis)
-terrain_body.SetPos(chrono.ChVectorD(0, 0, 0))
-terrain_body.SetBodyFixed(True)
-
-my_system.Add(terrain_body)
+# Enable mesh visualization for all vehicle components
+vehicle.SetChassisVisualizationType(chrono.VisualizationType_MESH)
+for wheel in vehicle.GetWheels():
+    wheel.SetVisualizationType(chrono.VisualizationType_MESH)
 
 # ---------------------------------------------------------------------
 #
-#  Create the HMMWV vehicle
+#  Driver System
 #
-# ---------------------------------------------------------------------
 
-# Define vehicle parameters
-vehicle_init_loc = chrono.ChVectorD(0, 1, 0)
-vehicle_init_rot = chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0))
+# Implement a custom driver system for steering, throttle, and braking control
+class MyDriver:
+    def __init__(self, vehicle):
+        self.vehicle = vehicle
 
-# Create the vehicle
-vehicle = chronovehicle.ChVehicle("HMMWV")
+    def Update(self, time_step):
+        # Implement your driver logic here based on user input or other controls
+        steering = 0  # Example: Steering angle
+        throttle = 0.5  # Example: Throttle input
+        brake = 0  # Example: Brake input
 
-# Set vehicle initial position and orientation
-vehicle.SetInitPosition(vehicle_init_loc)
-vehicle.SetInitRotation(vehicle_init_rot)
+        self.vehicle.SetSteeringAngle(steering)
+        self.vehicle.SetThrottle(throttle)
+        self.vehicle.SetBraking(brake)
 
-# Add chassis
-vehicle.AddChassisRear(chrono.ChVectorD(0, 0, 0))
-
-# Add suspension and wheels
-# (You'll need to define suspension and wheel parameters here)
-
-# Set tire model to TMEASY
-vehicle.SetTireModelType(chronovehicle.ChVehicleModelData.TIREMODEL_TMEASY)
-
-# Set contact method (e.g., ChContactMethodNSC)
-
-# Add vehicle to the system
-my_system.Add(vehicle)
-
-# ---------------------------------------------------------------------
-#
-#  Create the interactive driver system
-#
-# ---------------------------------------------------------------------
-
-# (Implement driver system for steering, throttle, and braking control)
+# Create and attach the driver system to the vehicle
+driver = MyDriver(vehicle)
 
 # ---------------------------------------------------------------------
 #
 #  Simulation loop
 #
-# ---------------------------------------------------------------------
 
 while vis.Run():
-    # Get simulation time
-    time = my_system.GetChTime()
+    # Update the driver system
+    driver.Update(my_system.GetChTimeStep())
 
-    # Update driver inputs (steering, throttle, braking)
-
-    # Step the simulation
-    my_system.DoStepDynamics(1.0 / 50.0)
+    # Advance the simulation
+    my_system.DoStepDynamics(0.02)
 
     # Render the scene
     vis.Render()
+
+    # Limit frame rate to 50 FPS
+    chrono.ChSleep(1.0 / 50.0)
 
 ```
 
 **Explanation:**
 
-1. **Initialization:**
-   - Creates a `ChSystemNSC` for the simulation.
-   - Sets gravity and solver parameters.
-   - Initializes Irrlicht visualization with `ChVisualSystemIrrlicht`.
+1. **Initialization:** The script initializes the Chrono system, sets gravity, and defines simulation parameters.
+2. **Terrain:** It loads collision and visualization meshes for the custom terrain and creates a fixed body to represent it.
+3. **HMMWV Vehicle:** The script uses Chrono's vehicle module to create an HMMWV vehicle, sets its initial position and orientation, defines contact method and tire model, loads vehicle components, and adds it to the system.
+4. **Visualization:** It creates an Irrlicht visualization system, attaches it to the Chrono system, sets camera parameters, and enables mesh visualization for the vehicle components.
+5. **Driver System:** A custom `MyDriver` class is defined to handle steering, throttle, and braking control. You'll need to implement the actual driver logic within this class based on your desired behavior.
+6. **Simulation Loop:** The main loop runs the simulation, updates the driver system, advances the simulation dynamics, renders the scene, and controls the frame rate.
 
-2. **Terrain:**
-   - Loads collision and visual meshes for the custom terrain.
-   - Creates a `ChBody` for the terrain, sets it as static, and adds it to the system.
+**Remember:**
 
-3. **HMMWV Vehicle:**
-   - Defines initial position and rotation for the vehicle.
-   - Creates a `ChVehicle` object.
-   - Adds chassis, suspension, wheels, and tires (you'll need to specify these components' parameters).
-   - Sets the tire model to TMEASY and the contact method.
-   - Adds the vehicle to the simulation system.
-
-4. **Driver System:**
-   - This section is left as a placeholder for you to implement your interactive driver system using keyboard or other input methods.
-
-5. **Simulation Loop:**
-   - Runs the Irrlicht visualization loop.
-   - Updates driver inputs in each frame.
-   - Performs a simulation step with a fixed timestep of 1/50 seconds for real-time simulation.
-   - Renders the scene using Irrlicht.
-
-**Important Notes:**
-
-- You need to replace the placeholders for suspension, wheel, and driver system implementations with your own code.
-- Make sure you have the required mesh files ("Highway_col.obj" and "Highway_vis.obj") in your project directory.
-- Adjust simulation parameters (gravity, timestep, solver settings) as needed for your specific application.
+* Replace `"Highway_col.obj"` and `"Highway_vis.obj"` with the actual file paths to your custom terrain meshes.
+* Implement the driver logic within the `MyDriver.Update()` method to control the vehicle's behavior.
+* This script provides a basic framework. You can extend it by adding more features, sensors, controllers, and other functionalities as needed.

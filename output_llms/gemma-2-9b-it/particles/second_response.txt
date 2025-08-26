@@ -52,7 +52,7 @@ mangvelo = chrono.ChRandomParticleVelocityAnyDirection()
 mangvelo.SetModulusDistribution(chrono.ChUniformDistribution(0.0, 0.2))
 emitter.SetParticleAngularVelocity(mangvelo)
 
-# Replace ConvexHulls with Spheres
+# Replace the particle shape creator
 mcreator_spheres = chrono.ChRandomShapeCreatorSpheres()
 mcreator_spheres.SetDiameterDistribution(chrono.ChZhangDistribution(0.6, 0.23))
 mcreator_spheres.SetDensityDistribution(chrono.ChConstantDistribution(1600))
@@ -80,60 +80,59 @@ sys.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, 0))
 
 # Simulation loop
 stepsize = 1e-2
-
 while vis.Run():
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
 
-    # Emit particles
     emitter.EmitParticles(sys, stepsize)
 
-    # Clear accumulators
     for body in sys.GetBodies():
         body.EmptyAccumulators()
 
-    # Calculate energy
-    kinetic_energy = 0
-    potential_energy = 0
-    G_constant = 6.674e-3  
-    for bodyA in sys.GetBodies():
-        for bodyB in sys.GetBodies():
-            if bodyA != bodyB:
-                D_attract = bodyB.GetPos() - bodyA.GetPos()
-                r_attract = D_attract.Length()
-                f_attract = G_constant * (bodyA.GetMass() * bodyB.GetMass()) / (r_attract ** 2)
-                F_attract = (D_attract / r_attract) * f_attract
-                bodyA.AccumulateForce(F_attract, bodyA.GetPos(), False)
-                bodyB.AccumulateForce(-F_attract, bodyB.GetPos(), False)
+    mlist = list(combinations(sys.GetBodies(), 2))
+    for abodyA, abodyB in mlist:
+        D_attract = abodyB.GetPos() - abodyA.GetPos()
+        r_attract = D_attract.Length()
+        G_constant = 6.674e-3  # Modified gravitational constant
+        f_attract = G_constant * (abodyA.GetMass() * abodyB.GetMass()) / (r_attract ** 2)
+        F_attract = (D_attract / r_attract) * f_attract
+        abodyA.AccumulateForce(F_attract, abodyA.GetPos(), False)
+        abodyB.AccumulateForce(-F_attract, abodyB.GetPos(), False)
 
-                potential_energy -= G_constant * (bodyA.GetMass() * bodyB.GetMass()) / r_attract
-                kinetic_energy += 0.5 * bodyA.GetMass() * bodyA.GetPos().Length2()
-                kinetic_energy += 0.5 * bodyB.GetMass() * bodyB.GetPos().Length2()
+    sys.DoStepDynamics(stepsize)
+
+    # Calculate kinetic and potential energy
+    kinetic_energy = 0.0
+    potential_energy = 0.0
+    for body in sys.GetBodies():
+        kinetic_energy += 0.5 * body.GetMass() * body.GetPos().Length2()
+    for abodyA, abodyB in mlist:
+        D_attract = abodyB.GetPos() - abodyA.GetPos()
+        r_attract = D_attract.Length()
+        potential_energy -= G_constant * (abodyA.GetMass() * abodyB.GetMass()) / r_attract
 
     total_energy = kinetic_energy + potential_energy
 
-    print(f"Kinetic Energy: {kinetic_energy:.2f}, Potential Energy: {potential_energy:.2f}, Total Energy: {total_energy:.2f}")
+    print(f"Kinetic Energy: {kinetic_energy}, Potential Energy: {potential_energy}, Total Energy: {total_energy}")
 
-    sys.DoStepDynamics(stepsize)
+
+
 ```
 
-**Explanation of Changes:**
+
+**Changes Made:**
 
 1. **Particle Creator Replacement:**
    - The `chrono.ChRandomShapeCreatorConvexHulls` was replaced with `chrono.ChRandomShapeCreatorSpheres`.
    - The `mcreator_spheres` object was configured with the specified diameter distribution (`chrono.ChZhangDistribution(0.6, 0.23)`) and density distribution (`chrono.ChConstantDistribution(1600)`).
 
 2. **Energy Calculations:**
-   - Variables `kinetic_energy`, `potential_energy`, and `total_energy` were added to store the respective energies.
-   - The code iterates through all body pairs and calculates the gravitational potential energy using the formula `-G_constant * (mass_A * mass_B) / r_attract`.
-   - The kinetic energy is calculated by summing up `0.5 * mass * velocity.Length2()` for each body.
-   - The total energy is the sum of kinetic and potential energies.
-   - The calculated energies are printed in each simulation step.
+   - Variables `kinetic_energy`, `potential_energy`, and `total_energy` were added to store the calculated energy values.
+   - The code iterates through all bodies to calculate the kinetic energy.
+   - The code iterates through all body pairs to calculate the gravitational potential energy.
+   - The total energy is calculated by summing the kinetic and potential energies.
+   - The calculated energy values are printed in each simulation step.
 
-3. **`G_constant` Position Adjustment:**
-   - The definition of `G_constant` was moved inside the simulation loop before the energy calculations, making the code more organized.
-
-
-
-Let me know if you have any other questions or require further modifications.
+3. **`G_constant` Position:**
+   - The definition of `G_constant` was moved inside the simulation loop before the energy calculations for better organization.

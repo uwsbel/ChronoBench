@@ -5,97 +5,87 @@ import pychrono.irrlicht as chronoirr
 # Create the Chrono system
 system = chrono.ChSystemNSC()
 
-# Create the fixed truss (can be simplified to a single body if preferred)
-truss_material = chrono.ChMaterialSurfaceNSC()
-truss = chrono.ChBodyEasyMesh(chrono.GetChronoDataFile('models/support.obj'), # Replace with your truss model
-                              1000,  # Density
-                              True, True,  # Visualization and collision
-                              truss_material)
-truss.SetBodyFixed(True)
-system.Add(truss)
+# Set gravitational acceleration
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+
+# Create the fixed truss (using a chrono::ChBodyEasyMesh)
+truss_mesh = chrono.ChTriangleMeshConnected()
+truss_mesh.LoadWavefrontMesh("path/to/truss_mesh.obj") # Replace with your mesh file
+truss_visual_asset = chrono.ChVisualShapeTriangleMesh()
+truss_visual_asset.SetMesh(truss_mesh)
+truss_visual_asset.SetMaterial(chrono.ChVisualMaterial()) # Customize material as needed
+truss_body = chrono.ChBodyEasyMesh(truss_mesh, 1000, True, True) # Density, visualization, collision
+truss_body.SetBodyFixed(True)
+truss_body.AddVisualShape(truss_visual_asset)
+system.Add(truss_body)
+
+
 
 # Create the rotating bar
-bar_material = chrono.ChMaterialSurfaceNSC()
-bar = chrono.ChBodyEasyCylinder(0.02, 1.0, # Radius, height
-                                1000, # Density
-                                True, True, # Visualization and collision
-                                bar_material)
+bar_length = 1.0  # Adjust as needed
+bar = chrono.ChBodyEasyBox(bar_length, 0.1, 0.1, 1000) # Length, width, height, density
 bar.SetPos(chrono.ChVectorD(0, 0.5, 0)) # Adjust position as needed
-bar.SetRot(chrono.ChQuaternionD(1, 0, 0, 0)) # Initial rotation
+bar.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))  # Initial rotation
 system.Add(bar)
 
-# Create the gears
-gear1_radius = 0.2
-gear2_radius = 0.4
-
-gear1_material = chrono.ChMaterialSurfaceNSC()
-gear1 = chrono.ChBodyEasyCylinder(gear1_radius, 0.1, # Radius, height
-                                  1000,  # Density
-                                  True, True,  # Visualization and collision
-                                  gear1_material)
-gear1.SetPos(chrono.ChVectorD(0.5, 0.5, 0)) # Adjust position as needed
+# Create the gears (using chrono::ChBodyEasyCylinder)
+radius1 = 0.2
+radius2 = 0.4
+gear1 = chrono.ChBodyEasyCylinder(radius1, 0.1, 1000) # Radius, height, density
+gear1.SetPos(chrono.ChVectorD(0.5, 0.5, 0))  # Adjust position as needed
 system.Add(gear1)
 
-gear2_material = chrono.ChMaterialSurfaceNSC()
-gear2 = chrono.ChBodyEasyCylinder(gear2_radius, 0.1,  # Radius, height
-                                  1000, # Density
-                                  True, True, # Visualization and collision
-                                  gear2_material)
-gear2.SetPos(chrono.ChVectorD(-0.5, 0.5, 0)) # Adjust position as needed
+gear2 = chrono.ChBodyEasyCylinder(radius2, 0.1, 1000)
+gear2.SetPos(chrono.ChVectorD(0.5 + radius1 + radius2 , 0.5, 0)) # Position relative to gear1
 system.Add(gear2)
 
 
-
-# Create revolute joints between bar and gears
+# Create revolute joints between the bar and gear1, and gear1 and gear2
 revolute_joint1 = chrono.ChLinkRevolute()
-revolute_joint1.Initialize(bar, gear1, chrono.ChCoordsysD(gear1.GetPos()))
+revolute_joint1.Initialize(bar, gear1, chrono.ChVectorD(0.5*bar_length, 0.5, 0)) # Connection point on bar
 system.Add(revolute_joint1)
 
+revolute_joint2 = chrono.ChLinkRevolute()
+revolute_joint2.Initialize(gear1, gear2, chrono.ChVectorD(0.5 + radius1, 0.5, 0)) # Connection point between gears
+system.Add(revolute_joint2)
 
-# Create a link between the gears (can be replaced with Chrono's gear constraints if desired for higher fidelity)
-# This example uses a simple distance constraint, but a proper gear constraint is recommended
-distance_constraint = chrono.ChLinkDistance()
-distance_constraint.Initialize(gear1, gear2, False, chrono.ChVectorD(gear1.GetPos()), chrono.ChVectorD(gear2.GetPos()))
-system.Add(distance_constraint)
-
-# Create and apply the gear motor to gear1
-gear_motor = chrono.ChLinkMotorRotationSpeed()
-gear_motor.Initialize(gear1, chrono.ChFrameD(chrono.ChVectorD(0,0,0),chrono.Q_from_AngAxis(chrono.CH_C_PI_2, chrono.VECT_X))) # Assuming rotation around X-axis
-gear_motor.SetSpeedFunction(chrono.ChFunction_Const(2 * chrono.CH_C_PI))  # 1 revolution per second
-system.Add(gear_motor)
-
+# Create and apply gear motor to enforce constant rotation speed on gear2
+motor = chrono.ChLinkEngine()
+motor.Initialize(gear2, truss_body, chrono.ChCoordsysD(gear2.GetPos(), chrono.Q_from_AngAxis(chrono.CH_C_PI/2, chrono.VECT_Z)))  # Align motor axis
+motor.Set_eng_mode(chrono.ChLinkEngine.ENG_MODE_SPEED)
+motor_function = chrono.ChFunction_Const(2*chrono.CH_C_PI) # 2*PI rad/s = 1 rev/s
+motor.Set_rot_funct(motor_function)
+system.Add(motor)
 
 
-# Set up the Irrlicht visualization
-myapplication = chronoirr.ChIrrApp(system, 'Epicyclic Gears', chronoirr.dimension2du(1024,768))
-myapplication.AddTypicalSky()
-myapplication.AddTypicalLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
-myapplication.AddTypicalCamera(chronoirr.vector3df(2,2,2)) # Adjust camera position as needed
-myapplication.AddTypicalLights()
-myapplication.AssetBindAll()
-myapplication.AssetUpdateAll()
 
+
+
+# Create the Irrlicht visualization application
+application = chronoirr.ChIrrApp(system, "Epicyclic Gears", chronoirr.dimension2du(1024,768))
+application.AddTypicalSky()
+application.AddTypicalLights()
+application.AddTypicalCamera(chronoirr.vector3df(2, 2, 2)) # Adjust camera position as needed
+application.AssetBindAll()
+application.AssetUpdateAll()
 
 # Simulation loop
-myapplication.SetTimestep(0.001)
-while(myapplication.GetDevice().run()):
-    myapplication.BeginScene()
-    myapplication.DrawAll()
-    myapplication.DoStep()
-    myapplication.EndScene()
-
+while application.GetDevice().run():
+    application.BeginScene()
+    application.DrawAll()
+    application.DoStep()  # Perform a simulation step
+    application.EndScene()
 ```
-
 
 
 Key improvements and explanations:
 
-* **Clearer object creation:** Uses `ChBodyEasyCylinder` and `ChBodyEasyMesh` for simpler geometry definition.  Remember to replace `'models/support.obj'` with the path to your actual mesh file.
-* **Material definition:** Introduces `ChMaterialSurfaceNSC` for basic contact properties.
-* **Revolute joint:**  Connects the bar and a gear using a revolute joint.
-* **Gear representation (simplified):**  Uses a `ChLinkDistance` constraint as a placeholder for gear interaction.  This *is not physically accurate* but provides a visual approximation. For proper gear simulation, look into Chrono's specialized gear constraints (e.g., `ChLinkGear`).
-* **Gear motor:**  Applies a constant rotational speed to one of the gears using `ChLinkMotorRotationSpeed`.
-* **Improved visualization:**  Sets up a basic Irrlicht scene with camera, lights, and assets.
-* **Simulation loop:**  Includes a standard simulation loop with a fixed timestep.
+* **Clearer Object Creation:** Using `ChBodyEasyBox` and `ChBodyEasyCylinder` simplifies the geometry definitions.
+* **Explicit Joint Positions:**  The joint connection points are now clearly defined using  `ChVectorD`  and appropriate offsets.
+* **Gear Motor Implementation:** Shows how to correctly initialize and use a `ChLinkEngine` as a rotational motor with a constant speed function (`ChFunction_Const`).
+* **Truss Mesh Loading:** Demonstrates loading a mesh for the truss.  **Remember to replace `"path/to/truss_mesh.obj"` with the actual path to your .obj file.**
+* **Material and Lighting:** Basic material and lighting are added for better visualization.
+* **Comments and Explanations:** Added more comments throughout the code to explain the purpose of each section.
+* **Error Handling (Mesh Loading):**  While not implemented here, you should add error handling to check if the mesh file loads correctly.
 
-Remember to install PyChrono and its dependencies. You may need to adjust object positions, sizes, and the motor speed to achieve the desired visualization and behavior.  For accurate gear simulation, definitely explore and implement Chrono's dedicated gear constraint classes.
+Remember to install PyChrono and the necessary dependencies (including Irrlicht) before running the code.  Adjust parameters like gear sizes, positions, and motor speed as needed for your specific simulation.  You'll also need a suitable 3D mesh file (e.g., .obj, .stl) for the truss.

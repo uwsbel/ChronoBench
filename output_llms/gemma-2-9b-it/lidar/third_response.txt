@@ -7,45 +7,42 @@ import numpy as np
 import time
 import math
 
+
 def main():
-    # ------------------------------------------------------
+    # -----------------
     # Create the ARTcar vehicle
-    # ------------------------------------------------------
+    # -----------------
     mphysicalSystem = chrono.ChSystemNSC()
-    vehicle_chassis = vehicle.ChVehicleModelSimple(mphysicalSystem)
-    vehicle_chassis.SetPos(chrono.ChVector3d(0, 0, 0))
-    vehicle_chassis.SetBodyFixed(True)
-    mphysicalSystem.Add(vehicle_chassis)
+    art_car = vehicle.ChVehicleModelSimple(mphysicalSystem)
+    art_car.SetPos(chrono.ChVector3d(0, 0, 0))
+    art_car.SetChassis(vehicle.ChVehicleBody(art_car, 1000))
+    art_car.SetWheels(vehicle.ChVehicleWheels(art_car, 4))
+    art_car.SetWheelSize(0.2)
+    art_car.SetWheelDistance(0.4)
 
-    # ------------------------------------------------------
-    # Initialize the vehicle driver
-    # ------------------------------------------------------
-    driver = vehicle.ChVehicleDriver(vehicle_chassis)
-    driver.SetAutoDrive(True)
+    # -----------------------
+    # Create a driver for the vehicle
+    # -----------------------
+    driver = vehicle.ChVehicleDriver(art_car)
+    driver.SetDesiredSpeed(5)  # Set desired speed in m/s
 
-    # ------------------------------------------------------
-    # Create the terrain
-    # ------------------------------------------------------
+    # -----------------------
+    # Create a terrain
+    # -----------------------
     terrain = chrono.ChBodyEasyBox(10, 10, 1, 1000)
-    terrain.SetPos(chrono.ChVector3d(0, 0, -1))
+    terrain.SetPos(chrono.ChVector3d(0, 0, -0.5))
     terrain.GetVisualModel().GetShape(0).SetTexture(chrono.GetChronoDataFile("textures/grass.png"))
-    terrain.GetMaterial().SetFriction(0.5)
-    terrain.GetMaterial().SetRestitution(0.1)
+    terrain.GetVisualModel().GetShape(0).SetColor(chrono.ChColor(0.2, 0.8, 0.2))  # Green color
     mphysicalSystem.Add(terrain)
 
-    # -----------------------
-    # Create a sensor manager
-    # -----------------------
-    manager = sens.ChSensorManager(mphysicalSystem)
-
     # ------------------------------------------------
-    # Create a 3D lidar and add it to the sensor manager
+    # Create a 3D lidar and add it to the vehicle chassis
     # ------------------------------------------------
     offset_pose = chrono.ChFramed(
         chrono.ChVector3d(1.0, 0, 1), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
     )
-    lidar = sens.ChLidarSensor(
-        vehicle_chassis,              # Body lidar is attached to
+    lidar_3d = sens.ChLidarSensor(
+        art_car.GetChassis(),  # Body lidar is attached to
         update_rate,            # Scanning rate in Hz
         offset_pose,            # Offset pose
         horizontal_samples,     # Number of horizontal samples
@@ -60,33 +57,32 @@ def main():
         divergence_angle,       # Divergence angle (again, typically same value)
         return_mode             # Return mode for the lidar
     )
-    lidar.SetName("3D Lidar Sensor")
-    lidar.SetLag(lag)
-    lidar.SetCollectionWindow(collection_time)
+    lidar_3d.SetName("3D Lidar Sensor")
+    lidar_3d.SetLag(lag)
+    lidar_3d.SetCollectionWindow(collection_time)
     if noise_model == "CONST_NORMAL_XYZI":
-        lidar.PushFilter(sens.ChFilterLidarNoiseXYZI(0.01, 0.001, 0.001, 0.01))
+        lidar_3d.PushFilter(sens.ChFilterLidarNoiseXYZI(0.01, 0.001, 0.001, 0.01))
     elif noise_model == "NONE":
         # Don't add any noise models
         pass
     if vis:
         # Visualize the raw lidar data
-        lidar.PushFilter(sens.ChFilterVisualize(horizontal_samples, vertical_samples, "Raw 3D Lidar Depth Data"))
+        lidar_3d.PushFilter(sens.ChFilterVisualize(horizontal_samples, vertical_samples, "Raw 3D Lidar Depth Data"))
     # Provides the host access to the Depth, Intensity data
-    lidar.PushFilter(sens.ChFilterDIAccess())
+    lidar_3d.PushFilter(sens.ChFilterDIAccess())
     # Convert Depth, Intensity data to XYZI point cloud data
-    lidar.PushFilter(sens.ChFilterPCfromDepth())
+    lidar_3d.PushFilter(sens.ChFilterPCfromDepth())
     if vis:
         # Visualize the point cloud
-        lidar.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "3D Lidar Point Cloud"))
+        lidar_3d.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "3D Lidar Point Cloud"))
     # Provides the host access to the XYZI data
-    lidar.PushFilter(sens.ChFilterXYZIAccess())
-    manager.AddSensor(lidar)
-
+    lidar_3d.PushFilter(sens.ChFilterXYZIAccess())
+    
     # ------------------------------------------------
-    # Create a 2D lidar and add it to the sensor manager
+    # Create a 2D lidar and add it to the vehicle chassis
     # ------------------------------------------------
-    lidar_2d =  sens.ChLidarSensor(
-        vehicle_chassis,              # Body lidar is attached to
+    lidar_2d = sens.ChLidarSensor(
+        art_car.GetChassis(),              # Body lidar is attached to
         update_rate,            # Scanning rate in Hz
         offset_pose,            # Offset pose
         horizontal_samples,     # Number of horizontal samples
@@ -114,7 +110,4 @@ def main():
         lidar_2d.PushFilter(sens.ChFilterVisualize(horizontal_samples, vertical_samples, "Raw 2D Lidar Depth Data"))
     # Provides the host access to the Depth, Intensity data
     lidar_2d.PushFilter(sens.ChFilterDIAccess())
-    # Convert Depth, Intensity data to XYZI point cloud data
-    lidar_2d.PushFilter(sens.ChFilterPCfromDepth())
-    # Provides the host access to the XYZI data
-    lidar_2d.PushFilter(sens.ChFilter
+    # Convert Depth, Intensity data to

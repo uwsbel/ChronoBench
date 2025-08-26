@@ -2,143 +2,99 @@
 import pychrono as chrono
 import pychrono.vehicle as chrono_vehicle
 import pychrono.irrlicht as chrono_irr
-import rospy
-from std_msgs.msg import Float64
+import chrono.ros as chrono_ros
 
-# --- PyChrono Initialization ---
-chrono.SetChronoDataPath("data/")
+# 1. Initialize PyChrono environment and core components
+chrono.SetChronoDataPath("data/")  # Set path to Chrono data files
 
 # Create the simulation system
 system = chrono.ChSystemNSC()
 system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
-# --- Terrain Setup ---
-terrain = chrono.ChBodyEasyBox(
-    100, 100, 0.1, 1000, True, True, chrono.ChMaterialSurface.NSC
-)
-terrain.SetPos(chrono.ChVectorD(0, -0.1, 0))
-terrain.SetBodyFixed(True)
+# 2. Add physical systems and objects
+
+# a. Terrain
+terrain = chrono_vehicle.ChTerrainPlane()
+terrain.SetTexture(chrono.GetChronoDataPath() + 'texture/terrain.jpg')
+terrain.SetFriction(0.8)  # Set friction coefficient
+terrain.SetRestitution(0.1)  # Set restitution coefficient
 system.Add(terrain)
-# Set terrain friction and restitution
-terrain.GetMaterialSurfaceNSC().SetFriction(0.8)
-terrain.GetMaterialSurfaceNSC().SetRestitution(0.1)
 
-# --- Vehicle Setup ---
-vehicle = chrono_vehicle.ChVehicle("HMMWV", system)
+# b. HMMWV Vehicle
+vehicle = chrono_vehicle.ChVehicle("HMMWV")
+vehicle.SetSystem(system)
 
-# Define vehicle parameters
-vehicle.SetContactMethod(chrono_vehicle.ChContactMethod.NSC)
-vehicle.SetEngineType(chrono_vehicle.ChEngineType.SIMPLE)
-vehicle.SetTireModel(chrono_vehicle.ChTireModel.RIGID)
+# Vehicle parameters (adjust as needed)
+vehicle.SetContactMethod(chrono_vehicle.ChContactMethod_NSC)
+vehicle.SetEngineType(chrono_vehicle.ChEngineType_Simple)
+vehicle.SetTireModel(chrono_vehicle.ChTireModel_TMEASY)
 
-# Load vehicle model (replace with your HMMWV model path)
-vehicle.SetChassis(chrono_vehicle.ChChassis(
-    "HMMWV_Chassis",
-    chrono.GetChronoDataPath() + "vehicle/HMMWV/HMMWV_Chassis.obj",
-    chrono.ChVectorD(0, 0, 0),
-    chrono.ChQuaternionD(1, 0, 0, 0)
-))
+# Load vehicle chassis and components (replace with your HMMWV model)
+vehicle.SetChassis(chrono_vehicle.ChChassis.LoadFromFile("hmmwv_chassis.obj"))
+vehicle.AddWheel(chrono_vehicle.ChWheel.LoadFromFile("hmmwv_wheel.obj"))
+# ... add other wheels and components
 
-# Add wheels (replace with your HMMWV wheel model paths)
-vehicle.AddWheel(
-    "FrontLeft",
-    chrono.GetChronoDataPath() + "vehicle/HMMWV/HMMWV_Wheel.obj",
-    chrono.ChVectorD(1.5, 0.8, 0.3),
-    chrono.ChQuaternionD(1, 0, 0, 0),
-    chrono_vehicle.ChWheelBody.FRONT_LEFT
-)
-# Repeat for other wheels (FrontRight, RearLeft, RearRight)
-
-# --- Driver System ---
+# c. Driver System
 driver = chrono_vehicle.ChDriver(vehicle)
 
-# --- ROS Integration ---
-rospy.init_node("pychrono_hmmwv_sim")
+# 3. Set default parameters
 
-# Clock synchronization handler
-def clock_callback(msg):
-    system.SetChTime(msg.data)
+# Vehicle initial position
+vehicle.GetChassis().SetPos(chrono.ChVectorD(0, 1, 0))
 
-rospy.Subscriber("/clock", Float64, clock_callback)
+# 4. Integrate ROS
 
-# Driver input handlers
-def steering_callback(msg):
-    driver.SetSteeringAngle(msg.data)
+# Initialize ROS manager
+ros_manager = chrono_ros.ChRosManager(system)
 
-rospy.Subscriber("/steering", Float64, steering_callback)
+# Register ROS handlers
+ros_manager.RegisterClockSyncHandler(lambda: system.GetChTime())
+ros_manager.RegisterDriverInputHandler(lambda data: driver.SetInputs(data))
+ros_manager.RegisterVehicleStatePublisher(vehicle)
 
-def throttle_callback(msg):
-    driver.SetThrottle(msg.data)
-
-rospy.Subscriber("/throttle", Float64, throttle_callback)
-
-# Vehicle state publisher
-vehicle_state_pub = rospy.Publisher("/vehicle_state", Float64, queue_size=10)
-
-# --- Simulation Loop ---
-visualization = chrono_irr.ChIrrApp(
-    system,
-    "PyChrono HMMWV Simulation",
-    chrono_irr.dimension2du(1280, 720)
-)
-visualization.AddTypicalLights()
-visualization.AddSkyBox()
-visualization.SetCameraLocation(chrono.ChVectorD(0, 5, -10))
+# 5. Simulation Loop
+visualization = chrono_irr.ChIrrApp(system, chrono_irr.ChIrrApp.RENDER_OPENGL)
+visualization.SetCameraPosition(chrono.ChVectorD(5, 5, 5))
+visualization.SetCameraLookAt(chrono.ChVectorD(0, 1, 0))
 
 while visualization.GetDevice().run():
-    # Update ROS clock
-    rospy.Rate(100).sleep()
+    # Synchronize with ROS
+    ros_manager.Update()
 
-    # Synchronize and advance simulation
-    system.DoStepDynamics(0.01)
+    # Advance the simulation
+    system.DoStepDynamics(chrono.ChTimeStep(0.01))
 
-    # Publish vehicle state
-    vehicle_state_pub.publish(vehicle.GetChassis().GetPos().x)
-
-    # Render visualization
-    visualization.BeginScene()
-    visualization.Render()
+    # Update visualization
     visualization.DoStep()
-    visualization.EndScene()
 
 ```
 
 **Explanation:**
 
-1. **Initialization:**
 
-   - Imports necessary PyChrono modules and ROS libraries.
-   - Initializes the PyChrono system and sets gravity.
-   - Creates a simple terrain using `ChBodyEasyBox`.
+* **Initialization:** The code initializes the PyChrono environment, creates a simulation system, and sets up gravity.
+* **Terrain:** A terrain plane is added with specified friction and restitution. You can replace this with more complex terrains.
+* **HMMWV Vehicle:**
 
-2. **Vehicle Setup:**
+    * An HMMWV vehicle is created using `chrono_vehicle.ChVehicle`.
+    * You need to replace placeholders like `"hmmwv_chassis.obj"` and `"hmmwv_wheel.obj"` with your actual vehicle model files.
+    * Contact method, engine type, and tire model are set according to your requirements.
+* **Driver System:** A `chrono_vehicle.ChDriver` is created to control the vehicle.
+* **ROS Integration:**
 
-   - Creates an `HMMWV` vehicle object using `chrono_vehicle.ChVehicle`.
-   - Sets vehicle parameters like contact method, engine type, and tire model.
-   - Loads the HMMWV chassis and wheel models from files (replace with your actual paths).
+    * A `chrono_ros.ChRosManager` handles ROS communication.
+    * Handlers are registered for clock synchronization, driver input, and vehicle state publishing.
 
-3. **Driver System:**
+* **Simulation Loop:**
 
-   - Creates a `ChDriver` object to control the vehicle.
-
-4. **ROS Integration:**
-
-   - Initializes a ROS node.
-   - Sets up ROS subscribers for clock synchronization, steering input, and throttle input.
-   - Creates a ROS publisher to send vehicle state information.
-
-5. **Simulation Loop:**
-
-   - Creates a visualization window using `chrono_irr.ChIrrApp`.
-   - Enters the main simulation loop.
-   - Updates the ROS clock.
-   - Advances the simulation using `system.DoStepDynamics`.
-   - Publishes the vehicle's x-position as state information.
-   - Renders the visualization using Irrlicht.
+    * The loop uses `chrono_irr.ChIrrApp` for visualization.
+    * In each iteration:
+        * ROS is updated.
+        * The simulation is advanced using `system.DoStepDynamics`.
+        * The visualization is updated.
 
 **Important Notes:**
 
-- Replace the placeholder paths for vehicle models with your actual file locations.
-- This script provides a basic framework. You'll need to adapt it based on your specific HMMWV model, desired control logic, and ROS communication requirements.
-- Ensure that the ROS packages for `std_msgs` are installed.
-- Consider adding error handling and more robust ROS communication mechanisms for a production-ready system.
+* You need to have PyChrono, Irrlicht, and ROS installed.
+* Replace placeholder filenames with your actual vehicle model files.
+* Adjust vehicle parameters and ROS communication details according to your specific needs.
