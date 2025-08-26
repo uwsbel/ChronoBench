@@ -12,12 +12,23 @@ BACKUP_FILE="${JLLM_SCRIPT}.backup"
 OUTPUT_LLMS_DIR="/home/hongyu/Documents/SimBench/output_llms"
 STATISTIC_DIR="/home/hongyu/Documents/SimBench/statistic"
 
-# Export API Keys for all providers
-export OPENAI_API_KEY=""
-export ANTHROPIC_API_KEY=""
-export GOOGLE_API_KEY=""
-export MISTRAL_API_KEY=""
-export NVIDIA_API_KEY=""
+# Load API keys from .env file if it exists
+ENV_FILE="${SCORING_DIR}/../.env"
+if [ -f "$ENV_FILE" ]; then
+    set -a  # automatically export all variables
+    source "$ENV_FILE"
+    set +a
+    echo "✓ API keys loaded from .env file"
+else
+    echo "⚠ Warning: .env file not found at $ENV_FILE"
+fi
+
+# Export API Keys (will use .env values if loaded, empty otherwise)
+export OPENAI_API_KEY="${OPENAI_API_KEY:-}"
+export ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY:-}"
+export GOOGLE_API_KEY="${GOOGLE_API_KEY:-}"
+export MISTRAL_API_KEY="${MISTRAL_API_KEY:-}"
+export NVIDIA_API_KEY="${NVIDIA_API_KEY:-}"
 export GEMINI_API_KEY="${GOOGLE_API_KEY}"  # Google Gemini uses the same key
 
 # Define judge models to test
@@ -82,6 +93,39 @@ JUDGE_MODELS=(
     "qwen3-235b-a22b"
 )
 
+# Map models to their API providers
+declare -A MODEL_PROVIDER
+# OpenAI models
+for model in "gpt-4o" "gpt-4o-mini" "gpt-4.1" "gpt-4.1-mini" "gpt-4.1-nano" "o3" "o4-mini"; do
+    MODEL_PROVIDER[$model]="openai"
+done
+# Anthropic models
+for model in "claude-3-5-sonnet" "claude-3-7-sonnet-20250219" "claude-4-sonnet-20250514"; do
+    MODEL_PROVIDER[$model]="anthropic"
+done
+# Google models
+for model in "Gemini-1.5-pro" "Gemini-2.5-pro" "gemma-2-2b-it" "gemma-2-9b-it" "gemma-2-27b-it" "gemma-3-1b-it"; do
+    MODEL_PROVIDER[$model]="google"
+done
+# Mistral models
+for model in "mistral-nemo-12b-instruct" "mixtral-8x22b-instruct-v0.1" "mixtral-8x7b-instruct-v0.1" "mistral-large-latest" "codestral-22b-instruct-v0.1" "mamba-codestral-7b-v0.1"; do
+    MODEL_PROVIDER[$model]="mistral"
+done
+# NVIDIA/Meta models (often use NVIDIA endpoints)
+for model in "llama-3.1-405b-instruct" "llama-3.1-70b-instruct" "llama-3.1-8b-instruct" "llama-3.3-70b-instruct" "llama4_maverick" "llama4_scout" "llama3.1-8b-f2" "llama3.3-70b-sft1" "llama3.1-8b-lora1" "llama4-109b-lora1" "llama3.3-70b-lora1" "nemotron-4-340b-instruct" "phi-3-mini-128k-instruct" "phi-3-medium-128k-instruct"; do
+    MODEL_PROVIDER[$model]="nvidia"
+done
+# DeepSeek models
+for model in "deepseek-r1" "deepseek-r1-8b" "deepseek-r1-32b"; do
+    MODEL_PROVIDER[$model]="deepseek"
+done
+# Qwen model
+MODEL_PROVIDER["qwen3-235b-a22b"]="qwen"
+
+# Track failed API providers
+declare -A FAILED_PROVIDERS
+declare -A PROVIDER_FAILURES
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -93,6 +137,23 @@ print_message() {
     local color=$1
     local message=$2
     echo -e "${color}${message}${NC}"
+}
+
+# Spinner function for API wait with custom message
+spinner() {
+    local pid=$1
+    local msg="${2:-Waiting for API response...}"
+    local delay=0.1
+    local spinstr='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
+    echo -n " "
+    while [ "$(ps a | awk '{print $1}' | grep $pid)" ]; do
+        local temp=${spinstr#?}
+        printf " [%c] %s" "$spinstr" "$msg"
+        local spinstr=$temp${spinstr%"$temp"}
+        sleep $delay
+        printf "\r"
+    done
+    printf "    \r"
 }
 
 # Function to check if required files exist
@@ -148,6 +209,13 @@ cp "$JLLM_SCRIPT" "$BACKUP_FILE"
 # Create output base directory if it doesn't exist
 mkdir -p "$OUTPUT_BASE_DIR"
 
+# Error tracking variables
+ERROR_LOG="${OUTPUT_BASE_DIR}/error_report_$(date +%Y%m%d_%H%M%S).txt"
+API_ERRORS=()
+MISSING_DATA=()
+FAILED_MODELS=()
+SUCCESSFUL_MODELS=()
+
 # Check prerequisites before starting
 check_prerequisites
 
@@ -160,8 +228,18 @@ fi
 
 # Main loop through judge models
 for judge_model in "${JUDGE_MODELS[@]}"; do
+    # Check if this model's provider has failed
+    provider="${MODEL_PROVIDER[$judge_model]:-unknown}"
+    
+    if [[ "${FAILED_PROVIDERS[$provider]}" == "true" ]]; then
+        print_message "$YELLOW" "\n⏭️ Skipping $judge_model - Provider '$provider' has exceeded failure limit"
+        FAILED_MODELS+=("$judge_model: Skipped due to $provider API failures")
+        continue
+    fi
+    
     print_message "$GREEN" "\n=========================================="
     print_message "$GREEN" "Processing with judge model: $judge_model"
+    print_message "$GREEN" "Provider: $provider"
     print_message "$GREEN" "=========================================="
     
     # Create output directory for this judge model
@@ -185,23 +263,150 @@ for judge_model in "${JUDGE_MODELS[@]}"; do
     
     # Step 1: Run p_JLLM_score.py to generate scores with this judge
     print_message "$YELLOW" "Step 1: Running LLM-as-Judge scoring (p_JLLM_score.py)..."
-    print_message "$YELLOW" "This will evaluate all test models and systems using $judge_model as judge"
+    print_message "$YELLOW" "  Judge model: $judge_model"
+    print_message "$YELLOW" "  Evaluating: Multiple S-LLM models across 34 simulation systems"
     
     cd "$SCORING_DIR/v01"
-    python p_JLLM_score.py 2>&1 | tee "${model_output_dir}/jllm_score_log.txt"
     
-    # Check if scoring completed successfully
-    if [ ${PIPESTATUS[0]} -eq 0 ]; then
-        print_message "$GREEN" "LLM-as-Judge scoring completed successfully"
-    else
-        print_message "$RED" "LLM-as-Judge scoring failed for $judge_model"
-        print_message "$YELLOW" "Check log at ${model_output_dir}/jllm_score_log.txt"
+    # Run with error suppression and retry logic
+    max_retries=3
+    retry_count=0
+    scoring_success=false
+    timeout_duration=60  # 60 seconds timeout per attempt
+    
+    while [ $retry_count -lt $max_retries ]; do
+        retry_count=$((retry_count+1))
+        print_message "$YELLOW" "  Attempt $retry_count/$max_retries for $provider API (timeout: ${timeout_duration}s)..."
+        
+        # Run in background with timeout to enable spinner and prevent hanging
+        timeout $timeout_duration python p_JLLM_score.py > "${model_output_dir}/jllm_score_log.txt" 2>&1 &
+        pid=$!
+        
+        # Monitor the process with spinner
+        start_time=$(date +%s)
+        while kill -0 $pid 2>/dev/null; do
+            current_time=$(date +%s)
+            elapsed=$((current_time - start_time))
+            remaining=$((timeout_duration - elapsed))
+            
+            # Update spinner with time remaining
+            printf " [⠋] Evaluating with $judge_model (${elapsed}s elapsed, ${remaining}s remaining)...\r"
+            sleep 0.5
+            printf " [⠙] Evaluating with $judge_model (${elapsed}s elapsed, ${remaining}s remaining)...\r"
+            sleep 0.5
+            printf " [⠹] Evaluating with $judge_model (${elapsed}s elapsed, ${remaining}s remaining)...\r"
+            sleep 0.5
+            printf " [⠸] Evaluating with $judge_model (${elapsed}s elapsed, ${remaining}s remaining)...\r"
+            sleep 0.5
+            printf " [⠼] Evaluating with $judge_model (${elapsed}s elapsed, ${remaining}s remaining)...\r"
+            sleep 0.5
+            printf " [⠴] Evaluating with $judge_model (${elapsed}s elapsed, ${remaining}s remaining)...\r"
+            sleep 0.5
+            printf " [⠦] Evaluating with $judge_model (${elapsed}s elapsed, ${remaining}s remaining)...\r"
+            sleep 0.5
+            printf " [⠧] Evaluating with $judge_model (${elapsed}s elapsed, ${remaining}s remaining)...\r"
+            sleep 0.5
+            printf " [⠇] Evaluating with $judge_model (${elapsed}s elapsed, ${remaining}s remaining)...\r"
+            sleep 0.5
+            printf " [⠏] Evaluating with $judge_model (${elapsed}s elapsed, ${remaining}s remaining)...\r"
+            sleep 0.5
+        done
+        
+        wait $pid
+        exit_code=$?
+        printf "                                                                                \r"
+        
+        if [ $exit_code -eq 0 ]; then
+            print_message "$GREEN" "✓ LLM-as-Judge scoring completed successfully"
+            scoring_success=true
+            SUCCESSFUL_MODELS+=("$judge_model")
+            break
+        elif [ $exit_code -eq 124 ]; then
+            # Exit code 124 means timeout was reached
+            print_message "$YELLOW" "  ⏱️ Timeout reached (${timeout_duration}s) for $judge_model"
+            PROVIDER_FAILURES[$provider]=$((${PROVIDER_FAILURES[$provider]:-0} + 1))
+            
+            if [ $retry_count -lt $max_retries ]; then
+                wait_time=$((20 * retry_count))  # 20s, 40s, 60s
+                print_message "$YELLOW" "  Waiting ${wait_time}s before retry..."
+                
+                # Show countdown
+                for ((i=wait_time; i>0; i--)); do
+                    printf "  ⏳ Countdown: ${i}s remaining...\r"
+                    sleep 1
+                done
+                printf "                                        \r"
+            else
+                print_message "$YELLOW" "⚠ Max attempts reached for $judge_model"
+                FAILED_MODELS+=("$judge_model: Timeout after $max_retries attempts")
+            fi
+        else
+            # Extract and display the actual error
+            error_msg=$(tail -n 20 "${model_output_dir}/jllm_score_log.txt" | grep -i "error\|exception\|failed\|rate limit\|quota\|429\|insufficient" | head -1)
+            if [ -z "$error_msg" ]; then
+                error_msg=$(tail -n 5 "${model_output_dir}/jllm_score_log.txt" | tr '\n' ' ')
+            fi
+            
+            if grep -qi "rate limit\|quota exceeded\|429\|insufficient_quota" "${model_output_dir}/jllm_score_log.txt"; then
+                API_ERRORS+=("$judge_model: API rate limit/quota issue at attempt $retry_count")
+                print_message "$YELLOW" "  ⚠️ API rate limit detected: ${error_msg:0:80}..."
+                PROVIDER_FAILURES[$provider]=$((${PROVIDER_FAILURES[$provider]:-0} + 1))
+                
+                if [ $retry_count -lt $max_retries ]; then
+                    wait_time=$((20 * retry_count))  # 20s, 40s, 60s
+                    print_message "$YELLOW" "  Waiting ${wait_time}s before retry..."
+                    
+                    # Show countdown
+                    for ((i=wait_time; i>0; i--)); do
+                        printf "  ⏳ Countdown: ${i}s remaining...\r"
+                        sleep 1
+                    done
+                    printf "                                        \r"
+                else
+                    print_message "$YELLOW" "⚠ Max retries reached for $judge_model"
+                    FAILED_MODELS+=("$judge_model: API rate limit after $max_retries attempts")
+                fi
+            else
+                # Check for other known errors and display them
+                if grep -qi "connection\|timeout\|network" "${model_output_dir}/jllm_score_log.txt"; then
+                    API_ERRORS+=("$judge_model: Network/connection issue")
+                    print_message "$YELLOW" "  ⚠ Network issue: ${error_msg:0:80}..."
+                elif grep -qi "file not found\|no such file" "${model_output_dir}/jllm_score_log.txt"; then
+                    MISSING_DATA+=("$judge_model: Required input files missing")
+                    missing_file=$(grep -i "file not found\|no such file" "${model_output_dir}/jllm_score_log.txt" | head -1)
+                    print_message "$YELLOW" "  ⚠ Missing file: ${missing_file:0:80}..."
+                else
+                    FAILED_MODELS+=("$judge_model: Unknown error during scoring")
+                    print_message "$YELLOW" "  ⚠ Error occurred: ${error_msg:0:80}..."
+                fi
+                print_message "$YELLOW" "  Check full log at: ${model_output_dir}/jllm_score_log.txt"
+                print_message "$YELLOW" "⚠ Skipping $judge_model due to errors"
+                break
+            fi
+        fi
+    done
+    
+    # Check if provider has too many failures (3 or more)
+    if [ "${PROVIDER_FAILURES[$provider]:-0}" -ge 3 ]; then
+        FAILED_PROVIDERS[$provider]="true"
+        print_message "$RED" "\n⛔ Provider '$provider' has failed 3+ times. Skipping all remaining $provider models."
+        
+        # Add all remaining models from this provider to failed list
+        for remaining_model in "${JUDGE_MODELS[@]}"; do
+            if [[ "${MODEL_PROVIDER[$remaining_model]}" == "$provider" ]] && [[ ! " ${SUCCESSFUL_MODELS[@]} " =~ " ${remaining_model} " ]] && [[ "$remaining_model" != "$judge_model" ]]; then
+                FAILED_MODELS+=("$remaining_model: Auto-skipped due to $provider API failures")
+            fi
+        done
+    fi
+    
+    if [ "$scoring_success" = false ]; then
         continue
     fi
     
     # Check if combined_evaluation_scores.csv was created
     if [ ! -f "${OUTPUT_LLMS_DIR}/combined_evaluation_scores.csv" ]; then
-        print_message "$RED" "Error: combined_evaluation_scores.csv was not generated"
+        MISSING_DATA+=("$judge_model: combined_evaluation_scores.csv not generated")
+        print_message "$YELLOW" "⚠ Skipping $judge_model due to missing output data"
         continue
     fi
     
@@ -369,3 +574,105 @@ fi
 
 print_message "$YELLOW" "\nTop 10 Comparison across judges:"
 cat "$COMPARISON_CSV" | column -t -s ','
+
+# Generate error report function
+generate_error_report() {
+    echo "========================================" > "$ERROR_LOG"
+    echo "LLM Judge Evaluation Error Report" >> "$ERROR_LOG"
+    echo "Generated: $(date)" >> "$ERROR_LOG"
+    echo "========================================" >> "$ERROR_LOG"
+    
+    echo -e "\n## Summary Statistics:" >> "$ERROR_LOG"
+    echo "  Total models attempted: ${#JUDGE_MODELS[@]}" >> "$ERROR_LOG"
+    echo "  Successful: ${#SUCCESSFUL_MODELS[@]}" >> "$ERROR_LOG"
+    echo "  Failed: ${#FAILED_MODELS[@]}" >> "$ERROR_LOG"
+    echo "" >> "$ERROR_LOG"
+    
+    echo "## Successful Models:" >> "$ERROR_LOG"
+    if [ ${#SUCCESSFUL_MODELS[@]} -eq 0 ]; then
+        echo "  None" >> "$ERROR_LOG"
+    else
+        for model in "${SUCCESSFUL_MODELS[@]}"; do
+            echo "  ✓ $model" >> "$ERROR_LOG"
+        done
+    fi
+    echo "" >> "$ERROR_LOG"
+    
+    echo "## Failed API Providers:" >> "$ERROR_LOG"
+    if [ ${#FAILED_PROVIDERS[@]} -eq 0 ]; then
+        echo "  None" >> "$ERROR_LOG"
+    else
+        for provider in "${!FAILED_PROVIDERS[@]}"; do
+            failures="${PROVIDER_FAILURES[$provider]}"
+            echo "  ⛔ $provider (${failures} failures) - All models skipped" >> "$ERROR_LOG"
+        done
+    fi
+    echo "" >> "$ERROR_LOG"
+    
+    echo "## API Issues Encountered:" >> "$ERROR_LOG"
+    if [ ${#API_ERRORS[@]} -eq 0 ]; then
+        echo "  None" >> "$ERROR_LOG"
+    else
+        for error in "${API_ERRORS[@]}"; do
+            echo "  ⚠ $error" >> "$ERROR_LOG"
+        done
+    fi
+    echo "" >> "$ERROR_LOG"
+    
+    echo "## Missing Data Issues:" >> "$ERROR_LOG"
+    if [ ${#MISSING_DATA[@]} -eq 0 ]; then
+        echo "  None" >> "$ERROR_LOG"
+    else
+        for error in "${MISSING_DATA[@]}"; do
+            echo "  📁 $error" >> "$ERROR_LOG"
+        done
+    fi
+    echo "" >> "$ERROR_LOG"
+    
+    echo "## Failed Models (Other Errors):" >> "$ERROR_LOG"
+    if [ ${#FAILED_MODELS[@]} -eq 0 ]; then
+        echo "  None" >> "$ERROR_LOG"
+    else
+        for error in "${FAILED_MODELS[@]}"; do
+            echo "  ✗ $error" >> "$ERROR_LOG"
+        done
+    fi
+    echo "" >> "$ERROR_LOG"
+    
+    echo "## Recommendations:" >> "$ERROR_LOG"
+    if [ ${#API_ERRORS[@]} -gt 0 ]; then
+        echo "  • API Issues: Check API keys and rate limits" >> "$ERROR_LOG"
+        echo "    - Verify API keys are correctly set in .env file" >> "$ERROR_LOG"
+        echo "    - Check account quotas and billing status" >> "$ERROR_LOG"
+        echo "    - Consider adding delays between API calls" >> "$ERROR_LOG"
+    fi
+    if [ ${#MISSING_DATA[@]} -gt 0 ]; then
+        echo "  • Missing Data: Ensure all required input files exist" >> "$ERROR_LOG"
+        echo "    - Run p_sim_score.py to generate evaluation_results.csv" >> "$ERROR_LOG"
+        echo "    - Verify output_llms/ directory contains model outputs" >> "$ERROR_LOG"
+        echo "    - Check demo_data/ for ground truth files" >> "$ERROR_LOG"
+    fi
+    if [ ${#FAILED_MODELS[@]} -gt 0 ]; then
+        echo "  • Failed Models: Review individual log files in out_diff_models/" >> "$ERROR_LOG"
+        echo "    - Check jllm_score_log.txt for detailed error messages" >> "$ERROR_LOG"
+    fi
+    
+    # Print summary to console
+    print_message "$YELLOW" "\n📋 Error Report Summary:"
+    print_message "$GREEN" "  Successful: ${#SUCCESSFUL_MODELS[@]}/${#JUDGE_MODELS[@]} models"
+    
+    if [ ${#API_ERRORS[@]} -gt 0 ]; then
+        print_message "$YELLOW" "  API Issues: ${#API_ERRORS[@]} occurrences"
+    fi
+    if [ ${#MISSING_DATA[@]} -gt 0 ]; then
+        print_message "$YELLOW" "  Missing Data: ${#MISSING_DATA[@]} models affected"
+    fi
+    if [ ${#FAILED_MODELS[@]} -gt 0 ]; then
+        print_message "$RED" "  Failed: ${#FAILED_MODELS[@]} models"
+    fi
+    
+    print_message "$YELLOW" "\n📄 Detailed error report saved to: $ERROR_LOG"
+}
+
+# Generate the error report
+generate_error_report

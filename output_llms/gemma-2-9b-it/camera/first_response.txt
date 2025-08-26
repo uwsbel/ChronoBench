@@ -3,92 +3,80 @@ import pychrono as chrono
 import pychrono.postprocess as postprocess
 
 # 1. Initialize the PyChrono environment
-chrono.SetChronoDataPath("path/to/chrono/data")  # Replace with your Chrono data path
-system = chrono.ChSystemNSC()
+chrono.SetChronoDataPath("..")  # Set the path to your Chrono data
+app = chrono.ChApp()
 
-# 2. Add the triangular mesh as a fixed body
-mesh_filename = "path/to/your/mesh.obj"  # Replace with your .obj file path
+# 2. Create the scene and add the triangular mesh
+scene = chrono.ChSystemNSC()
+mesh_file = "your_mesh.obj"  # Replace with your .obj file path
 mesh = chrono.ChTriangleMeshConnected()
-mesh.LoadWavefront(mesh_filename)
-body = chrono.ChBodyEasyBox(1, 1, 1)  # Placeholder box, replace with appropriate dimensions
-body.SetBodyFixed(True)
-body.AddAsset(chrono.ChTriangleMeshShape(mesh))
-system.AddBody(body)
+mesh.LoadWavefront(mesh_file)
+body = chrono.ChBodyEasyBox(1, 1, 1)  # Create a box body for visualization
+body.SetBodyFixed(True)  # Fix the body in place
+body.GetAssets().push_back(chrono.ChTriangleMeshShape(mesh))
+scene.Add(body)
 
-# 3. Add a camera sensor and sensor manager
+# 3. Add the camera sensor
 sensor_manager = chrono.ChSensorManager()
 camera = chrono.ChCamera()
-camera.SetSensorType(chrono.ChCamera::SENSOR_TYPE_COLOR)
-camera.SetSensorSize(1280, 720)
-camera.SetFieldOfView(60)
-camera.SetNearPlane(0.1)
-camera.SetFarPlane(100)
-sensor_manager.AddSensor(camera)
+camera.SetSensorType(chrono.ChCamera::SENSOR_TYPE_RGB)
+camera.SetSensorWidth(640)
+camera.SetSensorHeight(480)
+camera.SetFov(chrono.deg2rad(60))
+sensor_manager.AddCamera(camera, body)
 
-# Configure noise filters and visualizations
-camera.SetNoiseFilter(chrono.ChCamera::FILTER_TYPE_GAUSSIAN, 0.1)  # Gaussian filter with sigma 0.1
-camera.SetVisualization(chrono.ChCamera::VISUALIZATION_TYPE_COLOR_BUFFER)
+# Apply noise filters and visualizations
+camera.SetNoiseFilter(chrono.ChCamera::FILTER_GAUSSIAN, 0.1)
+camera.SetVisualizationMode(chrono.ChCamera::VISUALIZATION_MODE_DEPTH)
 
-# Attach the camera to the body
-body.AddSensor(camera)
+# 4. Set up camera orbit
+camera_pos = chrono.ChVectorD(2, 2, 2)
+camera_target = chrono.ChVectorD(0, 0, 0)
+camera.SetPos(camera_pos)
+camera.SetTarget(camera_target)
 
-# Dynamically update camera position in orbit
-orbit_radius = 2
-orbit_period = 2
+# 5. Simulation loop
+for i in range(100):
+    # Update camera position in orbit
+    camera_pos.x = 2 * chrono.cos(i * 0.1)
+    camera_pos.y = 2 * chrono.sin(i * 0.1)
+    camera.SetPos(camera_pos)
 
-# Simulation loop
-dt = 0.01
-for i in range(1000):
-    system.DoStepDynamics(dt)
+    # Simulate the system
+    scene.DoStepDynamics(0.01)
 
-    # Update camera position
-    angle = 2 * chrono.ChTime.Get() * chrono.ChTime.Get_M_PI_2 / orbit_period
-    camera.SetPos(chrono.ChVectorD(orbit_radius * chrono.cos(angle), orbit_radius * chrono.sin(angle), 0))
-
-    # Print camera buffer data
-    camera_buffer = camera.GetImageData()
+    # Get camera buffer data
+    camera_buffer = sensor_manager.GetCameraData(camera)
     print(f"Camera buffer data at step {i}: {camera_buffer}")
 
-# Post-process and visualize the simulation (optional)
-postprocess.PostProcess(system, "output.mp4")
+# 6. Render the scene
+app.SetSystem(scene)
+app.SetCamera(camera)
+app.Render()
+
+# 7. Post-process and save results
+postprocess.SaveCameraImages(sensor_manager, "camera_images")
+
+# 8. Run the simulation
+app.Run()
 ```
 
 **Explanation:**
 
-1. **Initialization:**
-   - Sets the Chrono data path.
-   - Creates a `ChSystemNSC` object, which represents the simulation environment.
+1. **Initialization:** Sets up the PyChrono environment, creates a new system, and defines the path to your Chrono data.
+2. **Mesh Loading:** Loads a triangular mesh from a Wavefront `.obj` file and creates a fixed body to represent it.
+3. **Camera Setup:** Creates a camera sensor, sets its properties (resolution, field of view), and adds it to the sensor manager. Noise filters and visualization modes are applied.
+4. **Camera Orbit:** Defines a simple orbital motion for the camera around the mesh.
+5. **Simulation Loop:** Iterates through time steps, updating the camera position, simulating the system dynamics, and retrieving the camera buffer data.
+6. **Rendering:** Sets the scene and camera for rendering and starts the visualization.
+7. **Post-processing:** Saves the captured camera images for further analysis.
+8. **Execution:** Runs the simulation.
 
-2. **Adding the Mesh:**
-   - Loads the triangular mesh from the specified `.obj` file.
-   - Creates a placeholder `ChBodyEasyBox` (replace with actual dimensions).
-   - Sets the body as fixed using `SetBodyFixed(True)`.
-   - Adds the mesh as an asset to the body using `AddAsset`.
-   - Adds the body to the simulation system.
+**Remember to:**
 
-3. **Camera Setup:**
-   - Creates a `ChSensorManager` to manage sensors.
-   - Creates a `ChCamera` object with desired properties (type, size, FOV, near/far planes).
-   - Configures noise filters (Gaussian with sigma 0.1) and visualization type (color buffer).
-   - Adds the camera to the sensor manager.
-   - Attaches the camera to the mesh body.
-
-4. **Dynamic Orbit:**
-   - Defines `orbit_radius` and `orbit_period` for the camera's orbital motion.
-   - In the simulation loop, calculates the camera's position based on the current time and orbital parameters.
-
-5. **Simulation Loop:**
-   - Performs a time step using `system.DoStepDynamics(dt)`.
-   - Updates the camera's position in orbit.
-   - Retrieves the camera buffer data using `camera.GetImageData()`.
-   - Prints the camera buffer data at each step.
-
-6. **Post-processing (Optional):**
-   - Uses `postprocess.PostProcess` to save the simulation as an MP4 video.
+* Replace `"your_mesh.obj"` with the actual path to your `.obj` file.
+* Adjust the camera parameters, orbit parameters, and simulation time as needed.
 
 
 
-**Remember:**
-
-- Replace `"path/to/your/mesh.obj"` with the actual path to your Wavefront `.obj` file.
-- Adjust the `orbit_radius`, `orbit_period`, camera parameters, and noise filters according to your needs.
+Let me know if you have any other questions.

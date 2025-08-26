@@ -20,13 +20,18 @@ echo -e "${BLUE}========================================${NC}\n"
 # Get the directory of this script
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-# Source API keys from run_pipeline.sh
-if [ -f "${SCRIPT_DIR}/run_pipeline.sh" ]; then
-    # Extract just the API key exports without running the whole script
+# Source API keys from .env file first
+if [ -f "${SCRIPT_DIR}/.env" ]; then
+    set -a  # automatically export all variables
+    source "${SCRIPT_DIR}/.env"
+    set +a
+    echo -e "${GREEN}✓ API keys loaded from .env file${NC}\n"
+elif [ -f "${SCRIPT_DIR}/run_pipeline.sh" ]; then
+    # Fallback: Extract from run_pipeline.sh if .env doesn't exist
     eval $(grep "^export.*API_KEY=" "${SCRIPT_DIR}/run_pipeline.sh")
-    echo -e "${GREEN}✓ API keys loaded from run_pipeline.sh${NC}\n"
+    echo -e "${YELLOW}⚠ API keys loaded from run_pipeline.sh (consider using .env file)${NC}\n"
 else
-    echo -e "${RED}✗ run_pipeline.sh not found${NC}"
+    echo -e "${RED}✗ No .env file or run_pipeline.sh found${NC}"
     exit 1
 fi
 

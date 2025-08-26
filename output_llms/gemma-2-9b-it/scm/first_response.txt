@@ -1,107 +1,102 @@
 ```python
 import pychrono as chrono
-import pychrono.irrlicht as vis
-import pychrono.postprocess as postprocess
+import chrono.irrlicht as irrlicht
 
 # 1. Initialize PyChrono environment and core components
 chrono.SetChronoDataPath("path/to/chrono/data")  # Replace with your Chrono data path
-system = chrono.ChSystemNSC()
+app = irrlicht.IrrlichtApp(chrono.GetDefaultEngine())
+world = chrono.World()
 
 # 2. Add physical systems and objects
-# 2.1 HMMWV
-# Load HMMWV model (replace with your model path)
-hmmwv_body = chrono.ChBodyEasy.CreatePrimitive(
-    chrono.ChBodyEasy.Shape.BOX, 
-    size=chrono.ChVectorD(4, 2, 3),  # Adjust dimensions as needed
-    mass=1500,  # Adjust mass as needed
-)
-hmmwv_body.SetPos(chrono.ChVectorD(0, 0, 0.5))  # Initial position
-hmmwv_body.SetRot(chrono.Q_from_Euler(0, 0, 0))  # Initial orientation
+# HMMWV chassis
+chassis = chrono.ChBodyEasy(1000, chrono.ChVectorD(0.5, 0.5, 0.5))  # Replace with actual HMMWV dimensions
+chassis.SetPos(chrono.ChVectorD(0, 0, 0))
+world.Add(chassis)
 
-# Add wheels (replace with your wheel model path)
+# Wheels (replace with actual HMMWV wheel parameters)
 for i in range(4):
-    wheel = chrono.ChWheelEasy.Create(
-        radius=0.4,  # Adjust radius as needed
-        mass=10,  # Adjust mass as needed
-        model_path="path/to/wheel/model.obj",  # Replace with your wheel model path
-    )
-    wheel.SetPos(chrono.ChVectorD(0, 0, 0))  # Initial position
-    hmmwv_body.AddChild(wheel)
+    wheel = chrono.ChWheelEasy(10, 0.5)  # Replace with actual wheel parameters
+    wheel.SetPos(chrono.ChVectorD(0, 0, 0))
+    chassis.AddChild(wheel)
 
-# 2.2 SCM Terrain
-# Create SCM terrain (adjust parameters as needed)
-terrain = chrono.ChBodyEasy.CreatePrimitive(
-    chrono.ChBodyEasy.Shape.PLANE, 
-    mass=0,
-    size=chrono.ChVectorD(10, 10, 1),  
+# SCM terrain
+terrain = chrono.SCMTerrain(10, 10, 10)  # Adjust size as needed
+terrain.SetSoilParameters(
+    cohesion=0.1,  # Adjust soil parameters
+    frictionAngle=30,
+    density=1000,
+    YoungModulus=1e6,
 )
-terrain.SetPos(chrono.ChVectorD(0, 0, 0))
-terrain.SetRot(chrono.Q_from_Euler(0, 0, 0))
+world.Add(terrain)
 
-# Configure SCM soil parameters
-soil_params = chrono.ChSoilParams()
-soil_params.SetYoungModulus(1e6)  # Adjust Young's modulus
-soil_params.SetPoissonRatio(0.3)  # Adjust Poisson's ratio
-soil_params.SetCohesion(1000)  # Adjust cohesion
-soil_params.SetFrictionAngle(30)  # Adjust friction angle
-terrain.SetSoilParams(soil_params)
+# Moving patch
+moving_patch = chrono.ChBodyEasy(100, chrono.ChVectorD(0.5, 0.5, 0.5))  # Adjust size as needed
+moving_patch.SetPos(chassis.GetPos())
+moving_patch.SetBodyFixed(False)
+world.Add(moving_patch)
 
-# Enable moving patch feature
-moving_patch = chrono.ChMovingPatch(terrain, hmmwv_body)
+# 3. Set default parameters
+# ... (configure initial positions, forces, and interactions)
 
-# 3. Set default parameters and interactions
-# Apply mesh visualization to all vehicle components
-hmmwv_body.SetMaterial(chrono.ChMaterialSurface(chrono.ChColor(1, 0, 0)))
-for wheel in hmmwv_body.GetChildren():
-    wheel.SetMaterial(chrono.ChMaterialSurface(chrono.ChColor(0, 1, 0)))
+# Mesh visualization
+chassis.SetVisualShape(chrono.ChBoxShape(chrono.ChVectorD(0.5, 0.5, 0.5)))
+for wheel in chassis.GetChildren():
+    wheel.SetVisualShape(chrono.ChCylinderShape(0.5, 0.2))
 
-# Set up rigid tire model (adjust parameters as needed)
-for wheel in hmmwv_body.GetChildren():
-    wheel.SetTireModel(chrono.ChTireModelRigid)
-    wheel.SetTireRadius(0.4)  # Adjust radius as needed
+# False color plotting for sinkage visualization
+terrain.SetSinkageVisualization(True, irrlicht.IrrlichtApp.GetDefaultEngine())
 
-# 4. Interactive driver system and visualization
-# Create Irrlicht visualization
-vis_app = vis.ChIrrApp(system, 'HMMWV on SCM Terrain', windowWidth=800, windowHeight=600)
-vis_app.AddLight(chrono.ChLight(chrono.ChLight.LIGHT_DIRECTIONAL))
-vis_app.AddCamera(chrono.ChCamera(vis_app.GetSceneManager()))
+# Interactive driver system
+# ... (implement steering, throttle, and braking controls)
 
-# Set up driver system
-driver = chrono.ChDriver()
-driver.SetSteering(0)
-driver.SetThrottle(0)
-driver.SetBrake(0)
+# Real-time simulation
+app.SetTargetFPS(50)
+while app.Run():
+    world.Step(1/50)  # Time step for real-time simulation
+    app.Render()
 
-# 5. Run simulation in real time
-vis_app.SetTargetFPS(50)
-system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))  # Set gravity
 
-while not vis_app.GetQuitKey():
-    vis_app.BeginScene()
-    system.DoStepDynamics(1.0 / 50.0)  # Update dynamics at 50 FPS
-    vis_app.Render()
-    vis_app.EndScene()
-
-# 6. Post-processing (optional)
-# Create a video recording of the simulation
-postprocess.CreateVideo(vis_app, "hmmwv_simulation.avi", 50)
-
-# 7. Cleanup
-vis_app.GetDevice().drop()
 ```
 
 **Explanation:**
 
-1. **Initialization:** The script initializes the PyChrono environment and creates a new physics system.
-2. **HMMWV and Terrain:** It loads the HMMWV model and adds wheels, configuring them with a rigid tire model. A deformable SCM terrain is created with custom soil parameters and a moving patch feature that follows the vehicle.
-3. **Visualization:** Irrlicht is used for visualization, adding lights, a camera, and applying mesh visualization to all vehicle components.
-4. **Driver System:** A basic driver system is set up, allowing control of steering, throttle, and brakes.
-5. **Real-Time Simulation:** The simulation runs in real time, updating dynamics and rendering the scene at 50 frames per second.
-6. **Post-Processing (Optional):** You can optionally record a video of the simulation using PyChrono's post-processing capabilities.
-7. **Cleanup:** The script cleans up resources by dropping the Irrlicht device.
+1. **Initialization:**
+   - Imports necessary libraries.
+   - Sets the Chrono data path.
+   - Creates an Irrlicht application for visualization.
+   - Initializes a Chrono world.
 
-**Notes:**
+2. **Object Creation:**
+   - **HMMWV:** Creates a `ChBodyEasy` for the chassis, sets its initial position, and adds it to the world.
+   - **Wheels:** Creates four `ChWheelEasy` objects, sets their initial positions, and attaches them to the chassis.
+   - **SCM Terrain:** Creates a `SCMTerrain` object, sets its size, and configures soil parameters.
+   - **Moving Patch:** Creates a `ChBodyEasy` object to represent the moving patch, sets its initial position to match the chassis, and adds it to the world.
 
-- Replace placeholders like `"path/to/chrono/data"`, `"path/to/wheel/model.obj"`, and `"path/to/hmmwv/model.obj"` with actual file paths.
-- Adjust parameters like mass, size, soil properties, and tire radius according to your specific requirements.
-- The interactive driver system is basic and can be expanded for more realistic control.
+3. **Default Parameters:**
+   - This section needs to be filled in with specific values for:
+     - HMMWV dimensions and wheel parameters
+     - Moving patch size and dynamics
+     - Initial forces and interactions between objects
+
+4. **Mesh Visualization:**
+   - Sets visual shapes for the chassis and wheels using `ChBoxShape` and `ChCylinderShape`.
+
+5. **Sinkage Visualization:**
+   - Enables false color plotting for sinkage visualization using `SetSinkageVisualization`.
+
+6. **Interactive Driver System:**
+   - This section needs to be implemented to handle steering, throttle, and braking controls.
+
+7. **Real-Time Simulation:**
+   - Sets the target frame rate to 50 FPS using `SetTargetFPS`.
+   - Enters a loop that:
+     - Updates the simulation with `world.Step(1/50)`.
+     - Renders the scene using `app.Render()`.
+
+
+
+**Remember:**
+
+- Replace placeholder values with actual HMMWV and terrain parameters.
+- Implement the interactive driver system based on your desired controls.
+- Adjust the simulation time step (`1/50`) for desired performance and accuracy.

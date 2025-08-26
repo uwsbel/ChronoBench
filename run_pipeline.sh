@@ -11,11 +11,21 @@ set -e  # Exit on error
 # CONFIGURATION SECTION - EDIT THESE VALUES
 # ====================================================================
 
-# API Keys - ADD YOUR KEYS HERE
-export OPENAI_API_KEY=""           # Your OpenAI API key
-export ANTHROPIC_API_KEY=""        # Your Anthropic (Claude) API key
-export GOOGLE_API_KEY=""            # Your Google (Gemini) API key
-export MISTRAL_API_KEY=""           # Your Mistral API key
+# Load API keys from .env file if it exists
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+if [ -f "${SCRIPT_DIR}/.env" ]; then
+    echo "Loading API keys from .env file..."
+    set -a  # automatically export all variables
+    source "${SCRIPT_DIR}/.env"
+    set +a
+fi
+
+# API Keys - These will be overridden by .env if it exists
+export OPENAI_API_KEY="${OPENAI_API_KEY:-}"           # Your OpenAI API key
+export ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY:-}"     # Your Anthropic (Claude) API key
+export GOOGLE_API_KEY="${GOOGLE_API_KEY:-}"           # Your Google (Gemini) API key
+export MISTRAL_API_KEY="${MISTRAL_API_KEY:-}"         # Your Mistral API key
+export NVIDIA_API_KEY="${NVIDIA_API_KEY:-}"           # Your NVIDIA API key
 
 # Conda environment name
 CONDA_ENV="chrono"

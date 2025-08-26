@@ -1,134 +1,142 @@
 ```python
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
-import pychrono.vehicle as chronovehicle
+import numpy as np
 
 # ---------------------------------------------------------------------
 #
-#  Create the simulation system and set up the terrain
+#  Create the simulation system and set up Irrlicht visualization
 #
 # ---------------------------------------------------------------------
 
-my_system = chrono.ChSystemNSC()
-my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
-# Set the simulation step size
-my_system.SetTimestepperType(chrono.ChTimestepperType.CHRONO_TS_FIXED_STEP)
-my_system.SetStep(1.0 / 50.0)
+vis = chronoirr.ChIrrApp(system, "HMMWV Simulation", chronoirr.dimension2du(1280, 720))
+vis.AddTypicalSky()
+vis.AddTypicalCamera(chrono.ChVectorD(0, 2, -5), chrono.ChVectorD(0, 0, 0))
+vis.SetSymbolSize(0.1)
+vis.SetShowInfos(True)
 
-# Create the terrain
-terrain_width = 200
-terrain_length = 200
-terrain = chrono.ChRigidTerrain(my_system, chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 0, 1))))
-patch = terrain.AddPatch(chrono.ChVectorD(-terrain_width / 2, 0, -terrain_length / 2),
-                        chrono.ChVectorD(terrain_width / 2, 0, terrain_length / 2))
+# ---------------------------------------------------------------------
+#
+#   Create the HMMWV vehicle
+#
+# ---------------------------------------------------------------------
+
+# Vehicle chassis
+chassis = chrono.ChBody()
+chassis.SetBodyFixed(False)
+chassis.SetMass(2500)
+chassis.SetInertiaXX(chrono.ChVectorD(1000, 2000, 1500))
+chassis.SetPos(chrono.ChVectorD(0, 1, 0))
+
+# Add a visualization shape for the chassis
+chassis_vis = chronoirr.ChBodySceneNode(chassis, vis.GetSceneManager())
+chassis_vis.add_primitive(chrono.ChCylinderShape(1.5, 2), chrono.ChColor(0.8, 0.2, 0.2))
+
+# Add wheels
+wheel_radius = 0.4
+wheel_width = 0.2
+
+wheels = []
+for i in range(4):
+    wheel = chrono.ChWheel4()
+    wheel.SetSystem(system)
+    wheel.SetBody(chassis)
+    wheel.SetContactMethod(chrono.ChContactMethod_NSC)
+    wheel.SetTireModel(chrono.ChTMeasyTire())
+
+    # Set wheel parameters (adjust as needed)
+    wheel.SetRadius(wheel_radius)
+    wheel.SetWidth(wheel_width)
+    wheel.SetFriction(2.0)
+
+    # Position wheels
+    if i < 2:
+        wheel.SetPos(chrono.ChVectorD(-1.2 + i * 2.4, -wheel_radius, 1.2))
+    else:
+        wheel.SetPos(chrono.ChVectorD(-1.2 + (i - 2) * 2.4, -wheel_radius, -1.2))
+
+    wheels.append(wheel)
+
+    # Add visualization for the wheels
+    wheel_vis = chronoirr.ChBodySceneNode(wheel.GetBody(), vis.GetSceneManager())
+    wheel_vis.add_primitive(chrono.ChCylinderShape(wheel_radius, wheel_width), chrono.ChColor(0.2, 0.2, 0.8))
+
+# ---------------------------------------------------------------------
+#
+#   Create the terrain
+#
+# ---------------------------------------------------------------------
+
+terrain = chrono.ChRigidTerrain()
+terrain.SetSystem(system)
+terrain.SetTexture(chrono.GetChronoDataPath() + 'terrain/textures/grass.jpg')
+patch = chrono.ChRigidTerrain::Patch(terrain, 200, 200, 0.5)
 patch.SetTexture(chrono.GetChronoDataPath() + 'terrain/textures/grass.jpg')
-patch.SetFriction(0.8)
+patch.SetHeight(0)
 
 # ---------------------------------------------------------------------
 #
-# Create the HMMWV vehicle
+#   Set up the driver system
 #
 # ---------------------------------------------------------------------
 
-vehicle = chronovehicle.ChVehicle(my_system)
-
-# Set vehicle parameters
-vehicle.SetChassisFixed(False)
-vehicle.SetChassisPosition(chrono.ChVectorD(0, 1.5, 0))
-vehicle.SetChassisBody(chrono.ChBodyEasyBox(2.5, 1.2, 0.8, 1000))
-vehicle.SetInitWheelPos(chrono.ChVectorD(1.2, -0.6, 1.2), chrono.ChVectorD(-1.2, -0.6, 1.2), chrono.ChVectorD(1.2, -0.6, -1.2), chrono.ChVectorD(-1.2, -0.6, -1.2))
-vehicle.SetWheelRadius(0.4)
-vehicle.SetWheelWidth(0.2)
-
-# Set tire model
-for wheel in vehicle.GetWheels():
-    wheel.SetTireModel(chronovehicle.TMEasyTire(wheel))
-
-# Set contact method
-vehicle.SetSuspensionType(chronovehicle.SuspensionType.DOUBLE_WISHBONE)
-vehicle.SetContactMethod(chrono.ChContactMethod.NSC)
+driver = chrono.ChDriver()
+driver.SetSystem(system)
+driver.SetSteering(0)
+driver.SetThrottle(0)
+driver.SetBraking(0)
 
 # ---------------------------------------------------------------------
 #
-# Create the Irrlicht visualization
-#
-# ---------------------------------------------------------------------
-
-vis = chronoirr.ChIrrApp(my_system, chronoirr.driver. IrrlichtDevice())
-vis.SetWindowSize(1280, 720)
-vis.SetCameraPosition(chrono.ChVectorD(0, 20, 0))
-vis.SetCameraLookAt(chrono.ChVectorD(0, 1, 0))
-
-# Add vehicle visualization
-vehicle.SetVisualizationType(chronovehicle.VisualizationType.PRIMITIVES)
-vis.Add(vehicle)
-
-# Add terrain visualization
-vis.Add(terrain)
-
-# ---------------------------------------------------------------------
-#
-# Create the interactive driver system
-#
-# ---------------------------------------------------------------------
-
-driver = chronovehicle.ChDriver(vehicle)
-driver.SetSteeringSpeed(1.0)
-driver.SetThrottleSpeed(1.0)
-driver.SetBrakingSpeed(1.0)
-
-vis.SetDriver(driver)
-
-# ---------------------------------------------------------------------
-#
-# Simulation loop
+#   Simulation loop
 #
 # ---------------------------------------------------------------------
 
 while vis.Run():
     vis.BeginScene()
-    vis.Render()
+
+    # Get input from keyboard/controller
+    driver.SetSteering(vis.GetDeviceSteering())
+    driver.SetThrottle(vis.GetDeviceThrottle())
+    driver.SetBraking(vis.GetDeviceBraking())
+
+    # Update the simulation
+    system.DoStepDynamics(0.02)
+
+    # Render the scene
     vis.EndScene()
 
-    my_system.DoStepDynamics(1.0 / 50.0)
-
-    driver.Update(vis.GetDeltaTime())
+    # Limit to 50 FPS
+    chrono.ChTime.Wait(0.02)
 ```
 
 **Explanation:**
 
-1. **Initialization:**
-   - Creates a `ChSystemNSC` for the simulation.
-   - Sets gravity and timestepper for real-time simulation at 50 FPS.
-   - Creates a `ChRigidTerrain` with specified dimensions and texture.
+1. **Initialization:** The script begins by importing necessary libraries, creating a Chrono system, and initializing the Irrlicht visualization.
 
-2. **HMMWV Vehicle:**
-   - Creates a `ChVehicle` object.
-   - Sets chassis properties (position, fixed status, and shape).
-   - Defines wheel positions, radius, and width.
-   - Uses the `TMEasyTire` model for tire simulation.
-   - Sets suspension type and contact method.
+2. **Vehicle Creation:**
+   - A `ChBody` is created for the chassis with mass, inertia, and initial position.
+   - Four `ChWheel4` objects are created, each representing a wheel. Parameters like radius, width, friction, and contact method are set.
+   - Visualization shapes (cylinders) are added for both the chassis and wheels using Irrlicht.
 
-3. **Visualization:**
-   - Creates a `ChIrrApp` for Irrlicht visualization.
-   - Sets window size, camera position, and look-at point.
-   - Adds the vehicle and terrain to the visualization.
-   - Sets the vehicle visualization to use primitives.
+3. **Terrain Creation:** A `ChRigidTerrain` object is created with a texture and dimensions.
 
-4. **Interactive Driver:**
-   - Creates a `ChDriver` object for interactive control.
-   - Sets steering, throttle, and braking speeds.
-   - Assigns the driver to the Irrlicht application for user input.
+4. **Driver System:** A `ChDriver` object is created to handle steering, throttle, and braking inputs.
 
 5. **Simulation Loop:**
-   - Runs the Irrlicht application loop.
-   - Renders the scene and updates the vehicle dynamics in each frame.
-   - Updates the driver based on user input.
+   - The main loop runs until the Irrlicht window is closed.
+   - It reads input from the keyboard/controller and updates the driver system.
+   - The Chrono system performs a dynamics step (`DoStepDynamics`).
+   - The scene is rendered using Irrlicht.
+   - The loop is limited to 50 FPS using `ChTime.Wait`.
 
-**Note:**
+**Notes:**
 
 
 
-* This script provides a basic framework. You can customize vehicle parameters, tire models, terrain properties, and driver behavior according to your specific needs.
-* Make sure you have the required PyChrono and Irrlicht libraries installed.
+* This script provides a basic framework. You'll likely need to adjust parameters (mass, inertia, tire properties, etc.) to achieve realistic behavior.
+* Consider adding more detailed vehicle components (suspension, steering system) for increased realism.
+* Explore Chrono's API for more advanced features like collision detection, sensors, and custom controllers.

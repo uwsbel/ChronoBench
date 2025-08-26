@@ -3,102 +3,121 @@ import pychrono as chrono
 import pychrono.irrlicht as chronoirr
 import pychrono.vehicle as chronovehicle
 
-# 1. Initialize PyChrono environment and core components
-chrono.SetChronoDataPath("data/")
+# ---------------------------------------------------------------------
+#
+#  Create the simulation system and add items
+#
 
-# Create the system and the Irrlicht visualization
+# Create the physical system
 system = chrono.ChSystemNSC()
-vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(system)
-vis.SetWindowSize(800, 600)
-vis.SetWindowTitle("FEDA Vehicle Simulation")
-vis.Initialize()
 
-# 2. Add physical systems and objects
+# Set gravitational acceleration
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+
+# Create the Irrlicht application
+app = chronoirr.ChIrrApp(system, "FEDA Vehicle Simulation", chronoirr.dimension2du(1280, 720))
+app.AddTypicalSky()
+app.AddTypicalLights()
+app.SetCameraLocation(chrono.ChVectorD(0, 2, -5))
+app.SetCameraLookAt(chrono.ChVectorD(0, 0, 0))
+
+# ---------------------------------------------------------------------
+#
+#  Create the terrain
+#
 
 # Create a rigid terrain
 terrain = chrono.ChRigidTerrain(system)
-terrain.SetTexture(chrono.GetChronoDataPath() + 'terrain/textures/grass.png')
-patch = chrono.ChRigidTerrainPatch(terrain)
-patch.SetSize(200, 200)
-patch.SetHeight(0)
-terrain.AddPatch(patch)
+heightmap = chrono.ChHeightmap(chrono.GetChronoDataPath() + "heightmap/terrain.png")
+terrain.SetHeightmap(heightmap)
+terrain.SetTexture(chrono.GetChronoDataPath() + "texture/terrain.jpg")
 
-# Create the FEDA vehicle
+# ---------------------------------------------------------------------
+#
+#  Create the FEDA vehicle
+#
+
+# Create the vehicle chassis
 vehicle = chronovehicle.ChVehicle(system)
+vehicle.SetChassisFixed(False)
+vehicle.SetChassisPosition(chrono.ChVectorD(0, 0.5, 0))
+vehicle.SetChassisVisualizationType(chronovehicle.ChVehicle.VisualizationType_MESH)
 
-# Load vehicle chassis
-vehicle.SetChassis(chronovehicle.ChChassis(chrono.ChBodyEasyBox(2.5, 1.2, 0.8, 1000)))
-vehicle.GetChassis().SetPos(chrono.ChVectorD(0, 0.5, 0))
+# Load the vehicle model
+vehicle.SetVehicleModel(chronovehicle.ChVehicleModelFile("FEDA/vehicle.json"))
 
-# Set contact method and tire model
-vehicle.SetCollisionSystemType(chronovehicle.ChCollisionSystemType_NSC)
-vehicle.AddWheel(chronovehicle.ChWheelInfo(
-    location=chrono.ChVectorD(-1.2, -0.6, 0),
-    radius=0.3,
-    width=0.15,
-    mass=20,
-    inertia=0.5,
-    damping=0.5,
-    friction=1.0,
-    tiremodel=chronovehicle.ChTireModelNSC(chrono.ChVectorD(1.0, 1.0, 1.0)),
-))
-vehicle.AddWheel(chronovehicle.ChWheelInfo(
-    location=chrono.ChVectorD(1.2, -0.6, 0),
-    radius=0.3,
-    width=0.15,
-    mass=20,
-    inertia=0.5,
-    damping=0.5,
-    friction=1.0,
-    tiremodel=chronovehicle.ChTireModelNSC(chrono.ChVectorD(1.0, 1.0, 1.0)),
-))
+# Set tire model and contact method
+vehicle.SetTireModel(chronovehicle.ChTireModelNSC())
+vehicle.SetContactMethod(chronovehicle.ChContactMethodNSC())
 
-# 3. Set default parameters
+# ---------------------------------------------------------------------
+#
+#  Set up the interactive driver system
+#
 
-# Set initial vehicle orientation
-vehicle.GetChassis().SetRot(chrono.Q_from_AngAxis(chrono.CH_C_PI / 4, chrono.ChVectorD(0, 0, 1)))
+# Create the driver system
+driver = chronovehicle.ChInteractiveDriver(vehicle)
+driver.SetSteeringSensitivity(0.05)
+driver.SetThrottleSensitivity(0.5)
+driver.SetBrakingSensitivity(0.5)
 
-# Set camera to follow vehicle
-camera = vis.GetCamera()
-camera.SetFollowPos(vehicle.GetChassis().GetPos())
-camera.SetFollowDist(5)
+# ---------------------------------------------------------------------
+#
+#  Simulation loop
+#
 
-# Set visualization type for vehicle parts
-vehicle.SetVisualizationType(chronovehicle.ChVisualizationType_MESH)
+while app.GetDevice().run():
+    app.BeginScene()
 
-# 4. Implement interactive driver system
+    # Update the driver input
+    driver.Update(app.GetDevice().GetElapsedSeconds())
 
-# Placeholder for driver system implementation (e.g., keyboard controls)
-
-# 5. Simulation loop
-
-while vis.Run():
-    # Update vehicle dynamics
-    system.DoStepDynamics(0.02)
-
-    # Update camera position
-    camera.SetFollowPos(vehicle.GetChassis().GetPos())
+    # Advance the simulation
+    system.DoStepDynamics(app.GetDevice().GetTimerStep())
 
     # Render the scene
-    vis.Render()
+    app.DrawAll()
 
+    app.EndScene()
+
+    # Set the frame rate
+    app.GetDevice().sleep(0.02)
 ```
 
 **Explanation:**
 
-1. **Initialization:** The script starts by initializing the PyChrono environment, creating a physical system, and setting up the Irrlicht visualization.
+1. **Initialization:**
+   - Imports necessary PyChrono modules.
+   - Creates a `ChSystemNSC` object to represent the physical system.
+   - Sets gravitational acceleration.
+   - Initializes an Irrlicht application (`ChIrrApp`) for visualization.
+   - Sets camera position and look-at point.
 
-2. **Terrain and Vehicle:** A rigid terrain with a custom texture is created using `ChRigidTerrain`. A FEDA vehicle is instantiated using `ChVehicle`, with its chassis defined as a box.
+2. **Terrain:**
+   - Creates a `ChRigidTerrain` object.
+   - Loads a heightmap and texture for the terrain.
 
-3. **Contact and Tires:** The vehicle's contact method is set to NSC, and a simple tire model (`ChTireModelNSC`) is used for each wheel.
+3. **Vehicle:**
+   - Creates a `ChVehicle` object to represent the FEDA vehicle.
+   - Sets initial position and visualization type.
+   - Loads the vehicle model from a JSON file.
+   - Sets tire model and contact method.
 
-4. **Parameters:** Initial vehicle position and orientation are defined. The camera is set to follow the vehicle from a specific distance.
+4. **Driver:**
+   - Creates an `ChInteractiveDriver` object to control the vehicle.
+   - Sets steering, throttle, and braking sensitivities.
 
-5. **Visualization:** The vehicle parts are set to be visualized using meshes for better realism.
+5. **Simulation Loop:**
+   - Runs the Irrlicht application loop.
+   - Updates the driver input based on user interaction.
+   - Advances the simulation using `DoStepDynamics`.
+   - Renders the scene using Irrlicht.
+   - Sleeps for a short time to maintain a frame rate of 50 FPS.
 
-6. **Driver System:** A placeholder is included for implementing an interactive driver system, which would allow the user to control the vehicle's steering, throttle, and braking.
+**Notes:**
 
-7. **Simulation Loop:** The main loop runs at 50 frames per second, updating the vehicle dynamics using `DoStepDynamics` and rendering the scene using `vis.Render`.
 
-**Note:** This script provides a basic framework for the simulation. You will need to implement the interactive driver system and potentially add more details to the vehicle model and environment.
+
+* This script assumes you have the FEDA vehicle model files (`vehicle.json`, textures, etc.) in a directory named "FEDA". Adjust the paths accordingly.
+* You may need to install additional PyChrono dependencies, such as Irrlicht, depending on your setup.
+* This is a basic example and can be further customized by adding more features, such as sensors, actuators, and advanced control systems.

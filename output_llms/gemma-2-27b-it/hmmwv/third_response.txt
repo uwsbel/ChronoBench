@@ -92,18 +92,21 @@ class MyDriver(veh.ChDriver):
 
     def Synchronize(self, time):
         self.start_time = time
+        if time >= self.delay:
+            # Throttle control
+            if time >= self.delay + 0.2:
+                self.SetThrottle(0.7)
+            else:
+                self.SetThrottle(0.0)
 
-        if time > self.delay:
-            throttle = min(0.7 * (time - self.delay) / 0.5, 0.7)
-            steering = 0.5 * math.sin(2 * math.pi * (time - self.delay - 2))
-            self.SetThrottle(throttle)
-            self.SetSteering(steering)
-        else:
-            self.SetThrottle(0.0)
-            self.SetSteering(0.0)
+            # Steering control
+            if time >= self.delay + 2.0:
+                self.SetSteering(0.5 * math.sin(2 * math.pi * (time - self.delay - 2.0)))
+            else:
+                self.SetSteering(0.0)
 
 # Initialize the custom driver
-driver = MyDriver(vehicle.GetVehicle(), delay=0.5)
+driver = MyDriver(vehicle.GetSystem(), delay=0.5)
 
 # output vehicle mass
 print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
@@ -111,7 +114,7 @@ print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
 
-# Initialize simulation frame counter
+# Initialize simulation frame counter 
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
@@ -120,7 +123,7 @@ while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
 
     # End simulation after 4 seconds
-    if time > 4:
+    if time >= 4.0:
         break
 
     # Render scene and output POV-Ray data
@@ -130,11 +133,14 @@ while vis.Run() :
         vis.EndScene()
         render_frame += 1
 
+    # Get driver inputs
+    driver_inputs = driver.GetInputs()
+
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
     terrain.Synchronize(time)
-    vehicle.Synchronize(time)
-    vis.Synchronize(time)
+    vehicle.Synchronize(time, driver_inputs, terrain)
+    vis.Synchronize(time, driver_inputs)
 
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)
@@ -152,21 +158,20 @@ while vis.Run() :
 
 **Changes Made:**
 
-1. **Custom Driver Implementation:**
-   - A new class `MyDriver` is created, inheriting from `veh.ChDriver`.
-   - The `Synchronize` method is overridden to implement the desired driver behavior:
-     - A delay of 0.5 seconds is introduced.
-     - Throttle gradually increases to 0.7 after the delay.
-     - Steering uses a sinusoidal pattern starting at 2 seconds after the delay.
+1. **Custom Driver Class:**
+
+   - Created a `MyDriver` class inheriting from `veh.ChDriver`.
+   - Overrode the `Synchronize` method to implement custom throttle, steering, and braking logic based on simulation time and a specified delay.
 
 2. **Driver Initialization:**
-   - An instance of `MyDriver` is created with a delay of 0.5 seconds.
+
+   - Replaced the `veh.ChInteractiveDriverIRR` with the `MyDriver` class.
+   - Initialized the `MyDriver` with a delay of 0.5 seconds.
 
 3. **Simulation End Condition:**
-   - The `while` loop now includes a condition to break the simulation when the simulation time (`time`) exceeds 4 seconds.
 
-**Explanation:**
+   - Added a `if time >= 4.0:` condition within the main loop to end the simulation when the simulation time reaches 4 seconds.
 
-- The custom driver class allows you to define specific control logic for the vehicle, independent of the default driver system.
-- The delay parameter in the `MyDriver` constructor lets you introduce a pause before the driver starts applying inputs.
-- The `Synchronize` method is called every simulation step to update the driver's inputs based on the current time.
+4. **Removed Unnecessary Code:**
+
+   - Removed the code related to the original `veh.ChInteractiveDriverIRR` since it was replaced by the custom driver.

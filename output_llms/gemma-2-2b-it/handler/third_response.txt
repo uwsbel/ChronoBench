@@ -2,29 +2,26 @@
 import pychrono as ch
 import pychrono.ros as chros
 import irrlicht
-import irrlicht.core as irr
-import irrlicht.video as video
-import irrlicht.gui as gui
-import irrlicht.scene as scene
+from irrlicht import irrlicht
+from irrlicht import irrlicht
+import rclpy.publisher
 from std_msgs.msg import Int64
 
 # Define a custom ROS handler for publishing integer messages.
 class MyCustomHandler(chros.ChROSPythonHandler):
     """This custom handler will publish integer messages to a specified ROS topic."""
 
-    def __init__(self, topic, publish_rate=10):
-        super().__init__(1)  # Initialize the handler with a 1 Hz publishing rate.
-
+    def __init__(self, topic):
+        super().__init__(1)  # Initialize the handler with a 10 Hz publishing rate.
         self.topic = topic
         self.publisher: rclpy.publisher.Publisher = None
         self.ticker = 0  # Initialize a counter for published messages.
-        self.publish_rate = publish_rate
 
     def Initialize(self, interface: chros.ChROSPythonInterface) -> bool:
         """Initialize the ROS publisher."""
         print(f"Creating publisher for topic {self.topic} ...")
         # Create a ROS publisher for the specified topic.
-        self.publisher = interface.GetNode().create_publisher(Int64, self.topic, self.publish_rate)
+        self.publisher = interface.GetNode().create_publisher(Int64, self.topic, 10)  
         return True  # Return True to indicate successful initialization.
 
     def Tick(self, time: float):
@@ -35,103 +32,111 @@ class MyCustomHandler(chros.ChROSPythonHandler):
         self.publisher.publish(msg)  # Publish the message to the ROS topic.
         self.ticker += 1  # Increment the ticker for the next message.
 
-def main():
-    # Create the Chrono simulation system.
-    sys = ch.ChSystemNSC()
-    sys.SetGravitationalAcceleration(ch.ChVector3d(0, 0, -9.81))  # Set gravitational acceleration.
+# Irrlicht Setup
+class IrrlichtRenderer:
+    def __init__(self, window_width, window_height, window_name):
+        self.irrlicht_instance = irrlicht.IrrlichtApplication.createIrrlichtApplication(window_width, window_height, window_name)
+        self.irrlicht_instance.setVSync(False)  # Disable VSync
+        self.irrlicht_instance.setGammaCorrection(True)  # Enable Gamma Correction
+        self.irrlicht_instance.setRenderMode(irrlicht.IRR_RENDERMODE_2D)  # Set Render Mode
 
-    # Define physical material properties for contact.
-    phys_mat = ch.ChContactMaterialNSC()
-    phys_mat.SetFriction(0.5)  # Set friction coefficient.
+    def run(self):
+        # Main Irrlicht loop
+        while self.irrlicht_instance.isrunning():
+            self.irrlicht_instance.run()
 
-    # Create a floor object.
-    floor = ch.ChBodyEasyBox(10, 10, 1, 1000, True, True, phys_mat)
-    floor.SetPos(ch.ChVector3d(0, 0, -1))  # Position the floor.
-    floor.SetFixed(True)  # Fix the floor in place.
-    floor.SetName("base_link")  # Set the name for ROS communication.
-    sys.Add(floor)  # Add the floor to the simulation system.
+# Simulation Setup
+sys = ch.ChSystemNSC()
+sys.SetGravitationalAcceleration(ch.ChVector3d(0, 0, -9.81))  # Set gravitational acceleration.
 
-    # Create a box object.
-    box = ch.ChBodyEasyBox(1, 1, 1, 1000, True, True, phys_mat)
-    box.SetPos(ch.ChVector3d(0, 0, 5))  # Position the box above the floor.
-    box.SetRot(ch.QuatFromAngleAxis(.2, ch.ChVector3d(1, 0, 0)))  # Rotate the box slightly.
-    box.SetName("box")  # Set the name for ROS communication.
-    sys.Add(box)  # Add the box to the simulation system.
+# Define physical material properties for contact.
+phys_mat = ch.ChContactMaterialNSC()
+phys_mat.SetFriction(0.5)  # Set friction coefficient.
 
-    # Create and configure the ROS manager.
-    ros_manager = chros.ChROSPythonManager()
+# Create a floor object.
+floor = ch.ChBodyEasyBox(10, 10, 1, 1000, True, True, phys_mat)
+floor.SetPos(ch.ChVector3d(0, 0, -1))  # Position the floor.
+floor.SetFixed(True)  # Fix the floor in place.
+floor.SetName("base_link")  # Set the name for ROS communication.
+sys.Add(floor)  # Add the floor to the simulation system.
+
+# Create a box object.
+box = ch.ChBodyEasyBox(1, 1, 1, 1000, True, True, phys_mat)
+box.SetPos(ch.ChVector3d(0, 0, 5))  # Position the box above the floor.
+box.SetRot(ch.QuatFromAngleAxis(.2, ch.ChVector3d(1, 0, 0)))  # Rotate the box slightly.
+box.SetName("box")  # Set the name for ROS communication.
+sys.Add(box)  # Add the box to the simulation system.
+
+# Create and configure the ROS manager.
+ros_manager = chros.ChROSPythonManager()
+ros_manager.RegisterHandler(chros.ChROSClockHandler())
+ros_manager.RegisterHandler(chros.ChROSBodyHandler(25, box, "~/box"))
+tf_handler = chros.ChROSTFHandler(30)
+tf_handler.AddTransform(floor, floor.GetName(), box, box.GetName())
+ros_manager.RegisterHandler(tf_handler)
+custom_handler = MyCustomHandler("~/my_topic")
+ros_manager.RegisterPythonHandler(custom_handler)
+
+# Initialize the ROS manager.
+ros_manager.Initialize()
+
+# Irrlicht Setup
+renderer = IrrlichtRenderer(1280, 720, "MyWindow")
+renderer.run()
+
+# Simulation Loop
+time = 0
+time_step = 1e-3  # Define the simulation time step.
+time_end = 30  # Set the duration for the simulation.
+step_number = 0
+render_step_size = 1
+render_steps = 5
+realtime_timer = ch.ChRealtimeStepTimer()
+
+while time < time_end:
+    sys.DoStepDynamics(time_step)  # Advance the simulation by one time step.
+    time = sys.GetChTime()  # Update the simulation time.
+
+    if not ros_manager.Update(time, time_step):  # Update ROS communication.
+        break  # Exit the loop if the ROS manager indicates a problem.
+
+    if step_number % render_steps == 0:  # Render every few steps
+        renderer.irrlicht_instance.render();
+        step_number += 1
     
-    # Register a clock handler for the simulation time.
-    ros_manager.RegisterHandler(chros.ChROSClockHandler())
+    realtime_timer.Spin(time_step)  # Maintain real-time step execution.
     
-    # Register a body handler to communicate the box's state.
-    ros_manager.RegisterHandler(chros.ChROSBodyHandler(25, box, "~/box"))
-    
-    # Create and register a transform handler for coordinate transformations.
-    tf_handler = chros.ChROSTFHandler(30)
-    tf_handler.AddTransform(floor, floor.GetName(), box, box.GetName())
-    ros_manager.RegisterHandler(tf_handler)
-    
-    # Register the custom handler to publish messages.
-    custom_handler = MyCustomHandler("~/my_topic", publish_rate=10)
-    ros_manager.RegisterPythonHandler(custom_handler)
-
-    # Initialize the ROS manager.
-    ros_manager.Initialize()
-
-    # Run the simulation loop.
-    time = 0
-    time_step = 1e-3  # Define the simulation time step.
-    time_end = 30  # Set the duration for the simulation.
-
-    realtime_timer = ch.ChRealtimeStepTimer()  # Create a real-time step timer.
-    while time < time_end:
-        sys.DoStepDynamics(time_step)  # Advance the simulation by one time step.
-        time = sys.GetChTime()  # Update the simulation time.
-
-        if not ros_manager.Update(time, time_step):  # Update ROS communication.
-            break  # Exit the loop if the ROS manager indicates a problem.
-
-        # Conditional rendering based on the render_steps variable
-        if step_number % render_steps == 0:
-            # Render the scene
-            irr.getSceneManager().addLight(irr.IrrlichtSceneNode.getIrrlichtScene().getLight("light"));
-            irr.getSceneManager().addLight(irr.IrrlichtSceneNode.getIrrlichtScene().getLight("light"));
-            irr.getSceneManager().addLight(irr.IrrlichtSceneNode.getIrrlichtScene().getLight("light"));
-            irr.getSceneManager().addLight(irr.IrrlichtSceneNode.getIrrlichtScene().getLight("light"));
-            
-        realtime_timer.Spin(time_step)  # Maintain real-time step execution.
-        
 # Entry point of the script.
 if __name__ == "__main__":
     main()
 ```
 
 
-
 **Explanation of Changes:**
 
-1. **Irrlicht Integration:**
-   - Import necessary Irrlicht modules.
-   - Create a Irrlicht scene and add lights, camera, and window.
+1. **Irrlicht Setup:**
+   - An `IrrlichtRenderer` class is introduced to handle Irrlicht setup and rendering.
+   - The `run` method of the class sets up the Irrlicht application, manages rendering, and handles the main loop.
+   - The Irrlicht window is created with specified dimensions and a name.
 
-2. **Texture Loading:**
-   - Set textures for the floor and box using `SetTexture` method.
+2. **Simulation Loop:**
+   - A `while` loop is used to run the simulation until the `time_end` is reached.
+   - Inside the loop, the simulation is advanced using `sys.DoStepDynamics(time_step)`.
+   - ROS communication is updated using `ros_manager.Update(time, time_step)`.
+   - Conditional rendering is implemented based on the `render_steps` variable.
+   - Irrlicht rendering is called when `step_number` is a multiple of `render_steps`.
+   - The `realtime_timer` is used to maintain real-time step execution.
 
-3. **Rendering Control:**
-   - Introduced variables `step_number`, `render_step_size`, and `render_steps` to control the rendering loop.
-   - Conditional rendering based on `render_steps` variable.
-
-4. **Simulation Loop:**
-   - The `while` loop now includes conditional rendering based on `render_steps`.
-
-
-**Important Notes:**
-
-- **Irrlicht Setup:** You'll need to have Irrlicht installed and configured.
-- **Texture Files:** Replace the placeholder texture file paths with the actual paths to your texture files. 
-- **Irrlicht Scene Setup:** Adjust the Irrlicht scene setup (camera, lights, window) to your needs.
+3. **Error Handling:**
+   - The code now includes basic error handling for ROS communication. If `ros_manager.Update(time, time_step)` returns `False`, the loop is exited.
 
 
+**Additional Notes:**
 
-Let me know if you have any specific questions about the code or need further assistance!
+- You will need to install the Irrlicht library and configure it within your Python environment. 
+- The Irrlicht renderer is currently set up to render a simple scene. 
+- You can add more complex Irrlicht rendering logic (e.g., camera movement, lighting, textures) based on your specific requirements. 
+
+
+
+Let me know if you have any further questions!

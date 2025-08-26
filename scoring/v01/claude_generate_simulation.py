@@ -2,14 +2,37 @@ import os
 import json
 from tqdm import tqdm
 import anthropic
+from pathlib import Path
 
+def load_env():
+    """Load environment variables from .env file"""
+    env_path = Path(__file__).parent.parent.parent / '.env'
+    if env_path.exists():
+        with open(env_path) as f:
+            for line in f:
+                if line.strip() and not line.startswith('#'):
+                    if '=' in line:
+                        key, value = line.strip().split('=', 1)
+                        # Remove quotes if present
+                        value = value.strip('"').strip("'")
+                        os.environ[key] = value
+        print(f"✓ Loaded API keys from {env_path}")
+    else:
+        print(f"⚠ Warning: .env file not found at {env_path}")
 
-client = anthropic.Anthropic(
-    api_key=os.environ.get("ANTHROPIC_API_KEY")
-)
-key=os.environ.get("ANTHROPIC_API_KEY")
-print(key)
-print(os.environ.get("ANTHROPIC_API_KEY"))
+# Load environment variables from .env
+load_env()
+
+# Get API key from environment
+api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+if not api_key:
+    print("❌ Error: ANTHROPIC_API_KEY not found. Please check your .env file")
+    print("   Expected: ANTHROPIC_API_KEY='your-key-here' in .env")
+    exit(1)
+else:
+    print(f"✓ Anthropic API key loaded (length: {len(api_key)})")
+
+client = anthropic.Anthropic(api_key=api_key)
 def read_script(file_path):
     with open(file_path, "r", encoding="utf-8") as file:
         return file.read()

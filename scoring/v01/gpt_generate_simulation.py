@@ -2,9 +2,35 @@ from openai import OpenAI
 import os
 import json
 from tqdm import tqdm
-#nvidia_api_key = os.getenv("OPENAI_API_KEY")
-nvidia_api_key = "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"
-print(nvidia_api_key)
+from pathlib import Path
+
+def load_env():
+    """Load environment variables from .env file"""
+    env_path = Path(__file__).parent.parent.parent / '.env'
+    if env_path.exists():
+        with open(env_path) as f:
+            for line in f:
+                if line.strip() and not line.startswith('#'):
+                    if '=' in line:
+                        key, value = line.strip().split('=', 1)
+                        # Remove quotes if present
+                        value = value.strip('"').strip("'")
+                        os.environ[key] = value
+        print(f"✓ Loaded API keys from {env_path}")
+    else:
+        print(f"⚠ Warning: .env file not found at {env_path}")
+
+# Load environment variables from .env
+load_env()
+
+# Get API key from environment
+api_key = os.getenv("OPENAI_API_KEY", "")
+if not api_key:
+    print("❌ Error: OPENAI_API_KEY not found. Please check your .env file")
+    print("   Expected: OPENAI_API_KEY='your-key-here' in .env")
+    exit(1)
+else:
+    print(f"✓ OpenAI API key loaded (length: {len(api_key)})")
 def read_script(file_path):
     with open(file_path, "r", encoding="utf-8") as file:
         return file.read()
@@ -24,8 +50,8 @@ def generate_first_code(first_prompt, model_link):
     “”"
     """
     try:
-        global nvidia_api_key
-        client = OpenAI(api_key=nvidia_api_key)
+        global api_key
+        client = OpenAI(api_key=api_key)
         completion = client.chat.completions.create(
             model=model_link,
             messages=[
@@ -65,8 +91,8 @@ Modify the script based on the provided instructions to ensure it meets the spec
 Provide the corrected and modified script below:
     """
     try:
-        global nvidia_api_key
-        client = OpenAI(api_key=nvidia_api_key)
+        global api_key
+        client = OpenAI(api_key=api_key)
         completion = client.chat.completions.create(
             model=model_link,
             messages=[

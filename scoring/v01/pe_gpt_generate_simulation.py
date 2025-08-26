@@ -4,24 +4,54 @@ import json
 import time
 import concurrent.futures
 from tqdm import tqdm
+from pathlib import Path
+
+def load_env():
+    """Load environment variables from .env file"""
+    env_path = Path(__file__).parent.parent.parent / '.env'
+    if env_path.exists():
+        with open(env_path) as f:
+            for line in f:
+                if line.strip() and not line.startswith('#'):
+                    if '=' in line:
+                        key, value = line.strip().split('=', 1)
+                        # Remove quotes if present
+                        value = value.strip('"').strip("'")
+                        os.environ[key] = value
+        print(f"✓ Loaded API keys from {env_path}")
+    else:
+        print(f"⚠ Warning: .env file not found at {env_path}")
+
+# Load environment variables from .env
+load_env()
 
 # -----------------------------------------------------------------------------
 # Configuration
 # -----------------------------------------------------------------------------
-CONTEXT_FILE = r"C:\Users\jingquanw\SimBench\api\api.txt"
+# Update path to use Path for cross-platform compatibility
+CONTEXT_FILE = Path(__file__).parent.parent.parent / "api" / "api.txt"
 
 try:
     with open(CONTEXT_FILE, "r", encoding="utf-8") as f:
         EXTRA_CONTEXT = f.read().strip()
+        print(f"✓ Loaded context from {CONTEXT_FILE}")
 except FileNotFoundError:
     EXTRA_CONTEXT = ""
-    print(f"[!] Warning: context file not found at {CONTEXT_FILE!r}. Continuing without extra context.")
+    print(f"⚠ Warning: context file not found at {CONTEXT_FILE}. Continuing without extra context.")
 
-OPENAI_API_KEY  = os.getenv("OPENAI_API_KEY")
-NVIDIA_API_KEY  = os.getenv("NVIDIA_API_KEY")
+# Get API keys from environment variables (loaded from .env)
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+NVIDIA_API_KEY = os.getenv("NVIDIA_API_KEY", "")
 
 if not (OPENAI_API_KEY or NVIDIA_API_KEY):
-    raise RuntimeError("Please set at least one of OPENAI_API_KEY or NVIDIA_API_KEY in your environment.")
+    print("❌ Error: No API keys found. Please check your .env file")
+    print("   Expected: OPENAI_API_KEY='your-key-here' or NVIDIA_API_KEY='your-key-here' in .env")
+    raise RuntimeError("Please set at least one of OPENAI_API_KEY or NVIDIA_API_KEY in your .env file.")
+else:
+    if OPENAI_API_KEY:
+        print(f"✓ OpenAI API key loaded (length: {len(OPENAI_API_KEY)})")
+    if NVIDIA_API_KEY:
+        print(f"✓ NVIDIA API key loaded (length: {len(NVIDIA_API_KEY)})")
 
 # Reasonable defaults
 TEMPERATURE = 0.6

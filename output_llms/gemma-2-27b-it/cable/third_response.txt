@@ -4,7 +4,8 @@ import pychrono.fea as fea
 import pychrono.irrlicht as chronoirr
 
 # ----------------------------------------------------------------------------
-# Model1: Multiple chains of ANCF cable elements, each connected to a body.
+# Model1: Multiple chains of ANCF cable elements connected to bodies,
+# moving under gravity alone.
 # ----------------------------------------------------------------------------
 
 class Model1:
@@ -17,45 +18,50 @@ class Model1:
         msection_cable2.SetRayleighDamping(0.0001)  # Set Rayleigh damping to zero for this section
 
         # Create chains of beams
-        for i in range(n_chains):
+        for i in range(self.n_chains):
             # Create a truss body (a fixed reference frame in the simulation)
             mtruss = chrono.ChBody()
             mtruss.SetFixed(True)  # Fix the truss body
-            mtruss.SetPos(chrono.ChVector3d(i * 0.2, 0, 0))  # Position the truss body
+
+            # Create a builder to facilitate the creation of ANCF beams
+            builder = fea.ChBuilderCableANCF()
+
+            # Number of elements increases with each chain
+            n_elements = 10 + i * 5 
+
+            # Starting and ending points for the beam, offset for each chain
+            start_point = chrono.ChVector3d(-0.5 + i * 0.2, 0, -0.1)
+            end_point = chrono.ChVector3d(-0.5 + i * 0.2, 0, -0.1 - (n_elements * 0.01))
 
             # Use BuildBeam to create a beam structure consisting of ANCF elements:
-            builder = fea.ChBuilderCableANCF()
-            n_elements = i + 5  # Increasing number of elements per chain
             builder.BuildBeam(
                 mesh,  # The mesh to which the created nodes and elements will be added
                 msection_cable2,  # The beam section properties to use
                 n_elements,  # Number of ANCF elements to create along the beam
-                chrono.ChVector3d(mtruss.GetPos().x, 0, -0.1),  # Starting point ('A' point) of the beam
-                chrono.ChVector3d(mtruss.GetPos().x + 0.5 * (i + 1), 0, -0.1)  # Ending point ('B' point) of the beam
+                start_point,  # Starting point ('A' point) of the beam
+                end_point  # Ending point ('B' point) of the beam
             )
 
             # Apply boundary conditions and loads:
             # Retrieve the end nodes of the beam and apply load/constraints
             builder.GetLastBeamNodes().front().SetForce(chrono.ChVector3d(0, -0.7, 0))  # Apply forces to the front node
 
-            # Create a body (box) and connect it to the beam's endpoint
-            mbody = chrono.ChBody()
-            mbody.SetMass(1)
-            mbody.SetPos(builder.GetLastBeamNodes().back().GetPos())
-            system.Add(mbody)
+            # Create a box body connected to the beam's end point
+            mbox = chrono.ChBody()
+            mbox.SetMass(1)
+            mbox.SetPos(end_point)
+            system.Add(mbox)
 
-            # Create and initialize a hinge constraint to fix beam's end point to the box
+            # Create a constraint to connect the beam's endpoint to the box
             constraint_hinge = fea.ChLinkLockRevolute()
-            constraint_hinge.Initialize(builder.GetLastBeamNodes().back(), mbody)
+            constraint_hinge.Initialize(builder.GetLastBeamNodes().back(), mbox)
             system.Add(constraint_hinge)
 
     def PrintBodyPositions(self, system):
         for i in range(self.n_chains):
-            # Assuming the bodies are named sequentially (mbody0, mbody1, ...)
-            body_name = f"mbody{i}"
-            body = system.SearchBody(body_name)
-            if body:
-                print(f"Chain {i+1} end body position: {body.GetPos()}")
+            # Assuming the box body is the last body added for each chain
+            box_body = system.Get_bodylist()[i * 2 + 1]
+            print(f"Chain {i+1} Box Position: {box_body.GetPos()}")
 
 # Initialize the physical system and mesh container:
 sys = chrono.ChSystemSMC()
@@ -94,7 +100,7 @@ vis.AddCamera(chrono.ChVector3d(0, 0.6, -1))  # Add a camera with specific posit
 vis.AddTypicalLights()  # Add typical lights for better illumination
 
 # Set solver type and settings
-solver = chrono.ChSolverMINRES()
+solver = chrono.ChSolverMINRES() # Choose SparseQR solver
 if solver.GetType()== chrono.ChSolver.Type_MINRES :
 	print( "Using MINRES solver" )
 	sys.SetSolver(solver)
@@ -113,34 +119,20 @@ while vis.Run():
     vis.Render()  # Render the scene
     vis.EndScene()  # End scene rendering
     sys.DoStepDynamics(0.01)  # Advance the simulation by one step with a time step of 0.01 seconds
-    model.PrintBodyPositions(sys) # Print body positions at each step
-
-
+    model.PrintBodyPositions(sys) # Print the positions of the end bodies
 
 ```
 
-**Explanation of Changes:**
+**Changes Made:**
 
-1. **Model Update and Multiple Chains:**
-   - The `Model1` class now takes an optional `n_chains` parameter (defaulting to 6) to control the number of chains.
-   - Inside the `__init__` method, a loop iterates `n_chains` times to create each chain.
+1. **Multiple Chains**: The code now creates multiple chains of ANCF cable elements.
 
-2. **Chain Generation:**
-   - For each chain:
-     - A truss body (`mtruss`) is created and fixed at a position based on the chain index.
-     - The number of ANCF elements in the beam increases with each chain.
-     - The starting and ending points of the beam are adjusted to avoid overlap between chains.
-     - A new body (`mbody`) is created and connected to the beam's endpoint using a hinge constraint.
+2. **Number of Chains**: The `Model1` class now takes an optional `n_chains` parameter to control the number of chains generated.
 
-3. **Visualization:**
-   - Visualization objects are added for the newly created elements and chains, similar to the original code.
+3. **Chain-Specific Positions**: Each chain is positioned with an offset to avoid overlap.
 
-4. **PrintBodyPositions Function:**
-   - A `PrintBodyPositions` function is added to the `Model1` class.
-   - This function iterates through the created bodies (assuming they are named sequentially) and prints their positions at each simulation step.
+4. **Connected Bodies**: Each chain's endpoint is connected to a box body using a hinge constraint.
 
-**Additional Notes:**
+5. **PrintBodyPositions Function**: The `PrintBodyPositions` function is added to print the positions of the end bodies for each chain at each simulation step.
 
-- Ensure that the Irrlicht library is properly installed and configured for PyChrono.
-- You can adjust the parameters such as `n_chains`, beam element count, body masses, and forces to experiment with different configurations.
-- The `PrintBodyPositions` function provides a basic example of how to access and print data during the simulation. You can extend it to collect and analyze other data as needed.
+6. **Visualization**: Visualization objects are added for the newly created elements and chains.

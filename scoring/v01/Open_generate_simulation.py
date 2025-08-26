@@ -2,22 +2,36 @@ from openai import OpenAI
 import os
 import json
 from tqdm import tqdm
+from pathlib import Path
+
+def load_env():
+    """Load environment variables from .env file"""
+    env_path = Path(__file__).parent.parent.parent / '.env'
+    if env_path.exists():
+        with open(env_path) as f:
+            for line in f:
+                if line.strip() and not line.startswith('#'):
+                    if '=' in line:
+                        key, value = line.strip().split('=', 1)
+                        # Remove quotes if present
+                        value = value.strip('"').strip("'")
+                        os.environ[key] = value
+        print(f"✓ Loaded API keys from {env_path}")
+    else:
+        print(f"⚠ Warning: .env file not found at {env_path}")
+
+# Load environment variables from .env
+load_env()
 
 # Define API key at global scope
 nvidia_api_key = os.getenv("NVIDIA_API_KEY", "")
 
 # Log API key status
-if os.getenv("NVIDIA_API_KEY"):
-    print(f"✓ NVIDIA API key loaded from environment variable")
+if nvidia_api_key:
+    print(f"✓ NVIDIA API key loaded (length: {len(nvidia_api_key)})")
 else:
-    print(f"✓ Using default NVIDIA API key")
-
-# Show masked key for verification (first 10 and last 4 characters)
-if nvidia_api_key and len(nvidia_api_key) > 14:
-    masked_key = f"{nvidia_api_key[:10]}...{nvidia_api_key[-4:]}"
-    print(f"✓ NVIDIA API key configured: {masked_key}")
-else:
-    print("⚠ Warning: NVIDIA API key may be invalid or too short")
+    print("❌ Error: NVIDIA_API_KEY not found. Please check your .env file")
+    print("   Expected: NVIDIA_API_KEY='your-key-here' in .env")
 
 def read_script(file_path):
     with open(file_path, "r", encoding="utf-8") as file:

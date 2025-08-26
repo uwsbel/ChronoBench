@@ -22,10 +22,10 @@ tire_model = veh.TireModelType_TMEASY
 
 # Rigid terrain
 terrainHeight = 0      
-terrainLength = 200.0  # Increased terrain length
+terrainLength = 200.0  
 terrainWidth = 100.0   
 
-# Circular path parameters
+# Path parameters
 path_radius = 50.0
 path_center = chrono.ChVector3d(0, 0, 0)
 
@@ -43,16 +43,19 @@ tire_step_size = step_size
 # Time interval between two render frames
 render_step_size = 1.0 / 50  # FPS = 50
 
+# PID controller parameters
+kp = 1.0
+ki = 0.1
+kd = 0.01
 
 # Create the HMMWV vehicle, set parameters, and initialize
-vehicle = veh.HMMWV_Full() # veh.HMMWV_Reduced()  could be another choice here
+vehicle = veh.HMMWV_Full()  
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
-
 
 vehicle.Initialize()
 
@@ -85,78 +88,53 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
-# PID controller parameters
-kp = 1.0
-ki = 0.1
-kd = 0.01
+# Create the path visualization spheres
+path_sphere1 = chrono.ChBodyEasySphere(1.0)
+path_sphere1.SetPos(path_center + chrono.ChVector3d(path_radius, 0, 0))
+path_sphere1.SetColor(chrono.ChColor(1, 0, 0))  # Red
+vehicle.GetSystem().Add(path_sphere1)
 
-# Path follower implementation
-class PathFollower:
-    def __init__(self, vehicle, path_radius, path_center):
-        self.vehicle = vehicle
-        self.path_radius = path_radius
-        self.path_center = path_center
-        self.target_point = self.calculate_target_point(0)
-        self.error = 0
-        self.prev_error = 0
-        self.integral = 0
-
-    def calculate_target_point(self, angle):
-        return self.path_center + chrono.ChVector3d(math.cos(angle), math.sin(angle), 0) * self.path_radius
-
-    def update(self, time):
-        current_position = self.vehicle.GetChassis().GetPos()
-        
-        # Calculate error
-        self.error = (self.target_point - current_position).Length()
-
-        # PID control
-        steering_angle = kp * self.error + ki * self.integral + kd * (self.error - self.prev_error)
-        self.prev_error = self.error
-        self.integral += self.error * time
-
-        # Apply steering angle to vehicle
-        self.vehicle.SetSteeringAngle(steering_angle)
-
-        # Update target point
-        angle = (time * 2 * math.pi) / 10.0  # Adjust speed as needed
-        self.target_point = self.calculate_target_point(angle)
-
-# Initialize path follower
-path_follower = PathFollower(vehicle, path_radius, path_center)
-
-# Set constant throttle
-throttle = 0.3
-
-# Output vehicle mass
-print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
-
-# Number of simulation steps between miscellaneous events
-render_steps = math.ceil(render_step_size / step_size)
+path_sphere2 = chrono.ChBodyEasySphere(1.0)
+path_sphere2.SetPos(path_center + chrono.ChVector3d(-path_radius, 0, 0))
+path_sphere2.SetColor(chrono.ChColor(0, 1, 0))  # Green
+vehicle.GetSystem().Add(path_sphere2)
 
 # Initialize simulation frame counter s
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-while vis.Run() :
+# Simulation loop
+while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
     # Render scene and output POV-Ray data
-    if (step_number % render_steps == 0) :
+    if (step_number % render_steps == 0):
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
         render_frame += 1
 
-    # Update path follower
-    path_follower.update(time)
+    # Get driver inputs (constant throttle)
+    throttle = 0.3
+    steering_angle = 0.0  # Initialize steering angle
 
-    # Apply throttle
-    vehicle.SetThrottle(throttle)
+    # PID control for steering
+    target_pos = path_center + chrono.ChVector3d(path_radius * math.cos(time), path_radius * math.sin(time), 0)
+    error = target_pos - vehicle.GetChassis().GetPos()
+    derivative = (error - prev_error) / step_size
+    integral += error * step_size
+    steering_angle = kp * error + ki * integral + kd * derivative
+
+    prev_error = error
+
+    # Update modules (process inputs from other modules)
+    vehicle.Synchronize(time, throttle, steering_angle, terrain)
+    vis.Synchronize(time, throttle, steering_angle)
 
     # Advance simulation for one timestep for all modules
     vehicle.Advance(step_size)
+    terrain.Advance(step_size)
     vis.Advance(step_size)
 
     # Increment frame number
@@ -171,29 +149,30 @@ while vis.Run() :
 
 **Explanation of Changes:**
 
-1. **Terrain Length:** Increased `terrainLength` to 200.0.
+1. **Path Implementation:**
+   - Defined `path_radius`, `path_center` variables for the circular path.
+   - Created two spheres (`path_sphere1`, `path_sphere2`) to visualize the path.
+   - Calculated the target position on the path based on time using trigonometry.
 
-2. **Circular Path Implementation:**
-   - Defined `path_radius` and `path_center` variables to control the path.
-   - Created a `PathFollower` class to handle path following logic:
-     - `calculate_target_point`: Calculates the target point on the circular path based on the current angle.
-     - `update`:
-       - Calculates the error between the vehicle's position and the target point.
-       - Implements a PID controller to determine the steering angle based on the error.
-       - Updates the target point for the next timestep.
+2. **PID Controller:**
+   - Implemented a basic PID controller for steering.
+   - `kp`, `ki`, `kd` are the PID gains (you can adjust these for better performance).
+   - `prev_error` stores the previous error for derivative calculation.
+   - `integral` accumulates the error over time.
 
-3. **Path Visualization:**
-   - Added two spheres to visualize the path center and a target point.
+3. **Throttle and Steering:**
+   - Set a constant `throttle` value of 0.3.
+   - The steering angle is calculated using the PID controller based on the error between the vehicle's position and the target position on the path.
 
-4. **Driver System:**
-   - Removed the interactive driver (`ChInteractiveDriverIRR`) and replaced it with the `PathFollower` class.
-   - Set a constant throttle value (`throttle = 0.3`).
+4. **Terrain Length:**
+   - Increased `terrainLength` to 200.0.
 
-5. **Simulation Loop Updates:**
-   - Inside the simulation loop:
-     - Call `path_follower.update(time)` to update the path follower and steering angle.
-     - Set the vehicle's throttle using `vehicle.SetThrottle(throttle)`.
+5. **Visualization:**
+   - Added code to visualize the path spheres.
 
 
 
-Let me know if you have any other questions or need further assistance.
+**Remember:**
+
+- You'll need to adjust the PID gains (`kp`, `ki`, `kd`) to achieve the desired steering behavior.
+- This is a basic implementation. You can further enhance the path following by using more sophisticated path planning algorithms and incorporating features like speed control and obstacle avoidance.

@@ -1,101 +1,96 @@
 ```python
 import pychrono as chrono
-import pychrono.core as core
 import pychrono.physics as physics
-import pychrono.dynamics as dynamics
-import pychrono.road as road
-import pychrono.terrain as terrain
-import pychrono.vehicle as vehicle
-import pychrono.simulation as simulation
 import pychrono.ros as ros
+import numpy as np
 
-# Initialize PyChrono environment
+# PyChrono Initialization
 chrono.init()
+chrono.set_time_step(0.01)  # Set time step for simulation
 
-# Create the PyChrono simulation
-sim = simulation.Simulation()
-
-# Create the world
+# Create the environment
 world = chrono.World()
-world.set_gravity(chrono.Vector3(0, -9.81, 0))
 
-# Create the terrain
-terrain_data = terrain.TerrainData(
-    friction=0.6, restitution=0.8, height=10, width=10
-)
-terrain = terrain.Terrain(terrain_data)
-world.add_object(terrain)
+# Terrain
+terrain = chrono.Terrain()
+terrain.set_friction(0.8)
+terrain.set_restitution(0.5)
+terrain.set_height(1.0)  # Define terrain height
 
-# Create the HMMWV vehicle
-vehicle_model = vehicle.HMMWV()
-vehicle_model.set_contact_method(vehicle.ContactMethod.RIGID)
-vehicle_model.set_engine_type(vehicle.EngineType.INTERNAL_COMBUSTION)
-vehicle_model.set_tire_model(vehicle.TireModel.ALL_SEASON)
-vehicle_model.set_mass(1500)
-vehicle_model.set_wheel_base(2.5)
-vehicle_model.set_center_of_gravity(chrono.Vector3(0, 0.5, 0))
+# HMMWV Vehicle
+vehicle = chrono.Vehicle()
+vehicle.set_model("HMMWV")  # Replace with your desired HMMWV model
+vehicle.set_contact_method(chrono.ContactMethod.TOUCH)  # Define contact method
+vehicle.set_engine_type(chrono.EngineType.INTERNAL_COMBUSTION)
+vehicle.set_tire_model(chrono.TireModel.SPHERE)
 
-# Add the vehicle to the world
-world.add_object(vehicle_model)
+# Initialize Driver System
+driver = chrono.Driver()
+driver.set_input_method(chrono.InputMethod.ROS)  # Use ROS for driver input
 
-# Create the driver system
-driver = dynamics.Driver(vehicle_model)
-
-# Integrate ROS for communication
+# ROS Integration
 ros_manager = ros.ROSManager()
-ros_manager.register_handler(chrono.ClockManager)
-ros_manager.register_handler(driver.input_handler)
-ros_manager.register_handler(vehicle_model.state_handler)
+ros_manager.register_handler(chrono.ClockSynchronizationHandler())  # Clock synchronization
+ros_manager.register_handler(chrono.DriverInputHandler(driver))  # Driver inputs
+ros_manager.register_handler(chrono.VehicleStateHandler(vehicle))  # Vehicle state updates
 
-# Initialize the simulation loop
-sim.run(1000)
+# Simulation Loop
+while True:
+    # Update vehicle state
+    vehicle.update_position(0.1)
+    vehicle.update_velocity(0.1)
 
-# Update ROS manager for data publishing
-ros_manager.publish()
+    # Update driver inputs
+    driver.update_inputs()
 
-# Print simulation results
-print("Simulation completed.")
+    # Update terrain
+    terrain.update_position(0.1)
+    terrain.update_velocity(0.1)
 
-# Clean up PyChrono resources
-chrono.cleanup()
+    # Synchronize and advance systems
+    world.update()
+
+    # Publish ROS data
+    ros_manager.publish_data()
+
+    # Wait for next timestep
+    chrono.wait_for_next_timestep()
 ```
 
 **Explanation:**
 
 1. **Initialization:**
-   - Import necessary PyChrono modules.
-   - Initialize PyChrono using `chrono.init()`.
-   - Create a `Simulation` object for the simulation environment.
-   - Create a `World` object to represent the simulation space.
-   - Define the world's gravity.
+   - Import necessary modules.
+   - Initialize PyChrono and set the time step.
+   - Create a world object.
+   - Define the terrain, setting its friction and restitution properties.
+   - Create the HMMWV vehicle with a specified model and contact method.
+   - Create a driver system for vehicle control, using ROS input.
 
-2. **Terrain and Vehicle:**
-   - Define a `TerrainData` object to specify the terrain's properties (friction, restitution, height, width).
-   - Create a `Terrain` object using the defined `TerrainData`.
-   - Create an `HMMWV` object with specific parameters (contact method, engine type, tire model, mass, wheel base, center of gravity).
-   - Add the `HMMWV` object to the `World`.
+2. **ROS Integration:**
+   - Initialize a ROS manager to handle communication.
+   - Register handlers for clock synchronization, driver inputs, and vehicle state updates.
 
-3. **Driver System:**
-   - Create a `Driver` object to control the HMMWV's movement.
+3. **Simulation Loop:**
+   - The loop iterates until the simulation ends.
+   - Inside the loop:
+     - Update the vehicle's position and velocity.
+     - Update the driver's inputs.
+     - Update the terrain's position and velocity.
+     - Synchronize and advance all the systems.
+     - Publish ROS data for communication.
+     - Wait for the next timestep.
 
-4. **ROS Integration:**
-   - Create a `ROSManager` object to manage ROS communication.
-   - Register handlers for:
-     - `ClockManager`: To synchronize the simulation with ROS time.
-     - `driver.input_handler`: To handle driver inputs.
-     - `vehicle_model.state_handler`: To publish vehicle state data.
+**Customization:**
 
-5. **Simulation Loop:**
-   - Start the simulation loop using `sim.run(1000)`, which runs for 1000 timesteps.
-   - Update ROS manager to publish data.
-
-6. **Cleanup:**
-   - Clean up PyChrono resources using `chrono.cleanup()`.
+- **HMMWV Model:** Replace "HMMWV" with the desired HMMWV model name from PyChrono's model library.
+- **Contact Method:** Modify the `vehicle.set_contact_method()` call to define how the vehicle interacts with the terrain (e.g., TOUCH, SLIP, etc.).
+- **Engine Type:** Change the `vehicle.set_engine_type()` to reflect the specific engine type you want to simulate.
+- **Tire Model:** Adjust the `vehicle.set_tire_model()` to match the desired tire model.
+- **Terrain Properties:** Modify the `terrain` object's properties like height, friction, and restitution to match your terrain's characteristics.
+- **Driver System:** Add more complex driver behavior and controls as needed.
+- **ROS Data:** Customize the ROS data published by the simulation.
 
 
-**Note:**
 
-- This script provides a basic framework. You can customize the parameters, add more objects, and integrate more complex ROS functionalities as needed. 
-- You'll need to install the necessary PyChrono and ROS packages. 
-- You can use PyChrono's built-in tools for visualization and analysis. 
-- This example simulates a basic HMMWV with a single wheel.  For more realistic simulations, you would need to add more complex physics and behavior for the vehicle, terrain, and driver.
+This script provides a basic framework for a PyChrono HMMWV simulation. You can expand on it by adding more physical systems, realistic vehicle dynamics, and advanced driver behavior for a more complex and engaging simulation.

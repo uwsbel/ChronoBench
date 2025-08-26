@@ -1,113 +1,166 @@
 ```python
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
+import math
 
-# 1. Initialize the PyChrono environment and core components
+# ---------------------------------------------------------------------
+#
+#  Create the simulation system
+#
+
+# Create a physical system
 my_system = chrono.ChSystemNSC()
+
+# Set gravitational acceleration
 my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
-# Create the Irrlicht visualization system
-vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(my_system)
-vis.SetWindowSize(800, 600)
-vis.SetWindowTitle("Crank-Slider Mechanism")
-vis.Initialize()
+# ---------------------------------------------------------------------
+#
+# Create the ground (truss)
+#
 
-# Set camera position and lighting
-vis.GetCamera().SetLocation(chrono.ChVectorD(2, 2, 2))
-vis.GetCamera().SetLookAt(chrono.ChVectorD(0, 0, 0))
-vis.AddLight(chrono.ChLight(chrono.ChVectorD(0, 5, 0), chrono.ChColor(1, 1, 1)))
+# Create a ground body
+ground = chrono.ChBody()
+ground.SetBodyFixed(True)
 
-# 2. Add physical systems and objects
-# Floor (truss)
-floor_material = chrono.ChMaterialSurfaceNSC()
-floor_material.SetFriction(0.5)
-floor_material.SetRestitution(0.2)
+# Add a truss visualization to the ground
+ground_vis = chronoirr.ChIrrNodeShapeBox(chrono.ChVectorD(10, 0.1, 10), 1)
+ground_vis.SetMaterial(chronoirr.ChIrrMaterial(chrono.ChColor(0.5, 0.5, 0.5)))
+ground.AddVisualShape(ground_vis)
+my_system.AddBody(ground)
 
-floor = chrono.ChBodyEasyBox(10, 0.2, 10, 1000, True, True, floor_material)
-floor.SetPos(chrono.ChVectorD(0, -0.1, 0))
-my_system.Add(floor)
+# ---------------------------------------------------------------------
+#
+# Create the crank-slider mechanism
+#
 
-# Crankshaft
-crankshaft_radius = 0.2
-crankshaft_length = 0.5
-crankshaft = chrono.ChBodyEasyCylinder(crankshaft_radius, crankshaft_length, 1000, True, True)
-crankshaft.SetPos(chrono.ChVectorD(0, 0, 0))
-my_system.Add(crankshaft)
+# Crank parameters
+crank_radius = 0.5
+crank_length = 1.0
 
-# Motor
+# Connecting rod parameters
+rod_length = 2.0
+
+# Piston parameters
+piston_mass = 1.0
+
+# Create the crankshaft
+crank = chrono.ChBody()
+crank.SetPos(chrono.ChVectorD(0, 0, 0))
+crank_vis = chronoirr.ChIrrNodeShapeCylinder(crank_radius, crank_length, 1)
+crank_vis.SetMaterial(chronoirr.ChIrrMaterial(chrono.ChColor(0.8, 0.2, 0.2)))
+crank.AddVisualShape(crank_vis)
+my_system.AddBody(crank)
+
+# Create the connecting rod
+rod = chrono.ChBody()
+rod.SetPos(chrono.ChVectorD(crank_length, 0, 0))
+rod_vis = chronoirr.ChIrrNodeShapeBox(chrono.ChVectorD(rod_length / 2, 0.1, 0.1), 1)
+rod_vis.SetMaterial(chronoirr.ChIrrMaterial(chrono.ChColor(0.2, 0.8, 0.2)))
+rod.AddVisualShape(rod_vis)
+my_system.AddBody(rod)
+
+# Create the piston
+piston = chrono.ChBody()
+piston.SetPos(chrono.ChVectorD(crank_length + rod_length, 0, 0))
+piston_vis = chronoirr.ChIrrNodeShapeSphere(0.2)
+piston_vis.SetMaterial(chronoirr.ChIrrMaterial(chrono.ChColor(0.2, 0.2, 0.8)))
+piston.AddVisualShape(piston_vis)
+my_system.AddBody(piston)
+
+# Create revolute joints
+crank_revolute = chrono.ChLinkRevolute()
+crank_revolute.Initialize(ground, crank, chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 1))
+my_system.AddLink(crank_revolute)
+
+rod_revolute1 = chrono.ChLinkRevolute()
+rod_revolute1.Initialize(crank, rod, chrono.ChVectorD(crank_length, 0, 0), chrono.ChVectorD(0, 0, 1))
+my_system.AddLink(rod_revolute1)
+
+rod_revolute2 = chrono.ChLinkRevolute()
+rod_revolute2.Initialize(rod, piston, chrono.ChVectorD(crank_length + rod_length, 0, 0), chrono.ChVectorD(0, 0, 1))
+my_system.AddLink(rod_revolute2)
+
+# Add a motor to the crankshaft
 motor = chrono.ChLinkMotorRotationSpeed()
-motor.SetTargetSpeed(10)  # radians/s
-motor.Initialize(crankshaft)
-my_system.Add(motor)
+motor.Initialize(ground, crank, chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 1))
+motor.SetSpeedFunction(chrono.ChFunction_Const(math.pi))  # Constant angular speed
+my_system.AddLink(motor)
 
-# Connecting rod
-connecting_rod_length = 1
-connecting_rod = chrono.ChBodyEasyBox(0.1, connecting_rod_length, 0.1, 500, True, True)
-connecting_rod.SetPos(chrono.ChVectorD(crankshaft_radius, 0, 0))
-my_system.Add(connecting_rod)
+# ---------------------------------------------------------------------
+#
+#  Visualization setup
+#
 
-# Piston
-piston_radius = 0.2
-piston = chrono.ChBodyEasyCylinder(piston_radius, 0.2, 500, True, True)
-piston.SetPos(chrono.ChVectorD(crankshaft_radius + connecting_rod_length, 0, 0))
-my_system.Add(piston)
+# Create an Irrlicht application
+application = chronoirr.ChIrrApp(my_system, "Crank-Slider Mechanism", chronoirr.dimension2du(800, 600))
 
-# 3. Set joints and interactions
-# Revolute joint between crankshaft and connecting rod
-revolute_joint = chrono.ChLinkRevolute()
-revolute_joint.Initialize(crankshaft, connecting_rod, chrono.ChVectorD(crankshaft_radius, 0, 0))
-my_system.Add(revolute_joint)
+# Set camera position and look-at point
+application.AddTypicalCamera(chrono.ChVectorD(5, 5, 5), chrono.ChVectorD(0, 0, 0))
 
-# Spherical joint between connecting rod and piston
-spherical_joint = chrono.ChLinkSphere()
-spherical_joint.Initialize(connecting_rod, piston, chrono.ChVectorD(connecting_rod_length, 0, 0))
-my_system.Add(spherical_joint)
+# Add a directional light
+application.AddLight(chrono.ChVectorD(5, 5, 5), chrono.ChColor(1, 1, 1))
 
-# Add collision detection
-my_system.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
-my_system.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+# Set background color
+application.SetBackgroundColor(chrono.ChColor(0.8, 0.8, 0.8))
 
-# 4. Visualization settings
-# Add textures and logos (optional)
+# Set some additional visual elements
+# (e.g., add textures, logos, etc.)
 
-# Run the simulation
-while vis.Run():
-    my_system.DoStepDynamics(0.01)
-    vis.Render()
+# ---------------------------------------------------------------------
+#
+# Simulation loop
+#
 
+application.SetTimestep(0.01)
+while application.GetDevice().run():
+    application.BeginScene()
+    application.DrawAll()
+    application.DoStep()
+    application.EndScene()
 ```
 
 **Explanation:**
 
 1. **Initialization:**
-   - We create a `ChSystemNSC` object to represent the physical system.
-   - We set the gravity using `Set_G_acc`.
-   - We initialize the Irrlicht visualization system (`chronoirr`) and set up the window, camera, and lighting.
 
-2. **Objects and Systems:**
-   - We create the floor, crankshaft, connecting rod, and piston as `ChBody` objects.
-   - We define materials for friction and restitution.
-   - We add a motor to rotate the crankshaft at a constant speed.
-   - We use `ChLinkRevolute` and `ChLinkSphere` to connect the objects with revolute and spherical joints, respectively.
+   - Imports necessary PyChrono and Irrlicht modules.
+   - Creates a `ChSystemNSC` object to manage the physics simulation.
+   - Sets gravitational acceleration.
 
-3. **Interactions and Solver:**
-   - We enable collision detection using a Bullet collision system.
-   - We choose the BARZILAIBORWEIN solver for dynamics calculations.
+2. **Ground:**
+
+   - Creates a fixed body `ground` representing the floor.
+   - Adds a box-shaped visualization to the ground with a gray color.
+
+3. **Crank-Slider Mechanism:**
+
+   - Defines parameters for the crank, connecting rod, and piston.
+   - Creates `ChBody` objects for each component.
+   - Adds cylinder, box, and sphere visualizations to the crank, rod, and piston respectively, with distinct colors.
+   - Creates `ChLinkRevolute` joints to connect the bodies, allowing rotation at the joints.
+   - Adds a `ChLinkMotorRotationSpeed` to the crankshaft to drive it at a constant angular speed.
 
 4. **Visualization:**
-   - We use the Irrlicht visualization system to render the simulation.
-   - You can customize camera settings, lighting, and add textures and logos as needed.
+
+   - Creates a `ChIrrApp` object for Irrlicht visualization.
+   - Sets camera position, look-at point, and background color.
+   - Adds a directional light for illumination.
+   - You can add more visual elements here, like textures, logos, etc.
 
 5. **Simulation Loop:**
-   - The `while vis.Run():` loop runs the simulation until the window is closed.
-   - Inside the loop:
-     - We advance the simulation using `DoStepDynamics`.
-     - We render the scene using `vis.Render()`.
 
-**Remember:**
+   - Sets the simulation timestep.
+   - Enters the main simulation loop, which:
+     - Begins the Irrlicht scene.
+     - Draws all objects in the scene.
+     - Performs a simulation step.
+     - Ends the Irrlicht scene.
 
+**To run this script:**
 
+1. Make sure you have PyChrono and Irrlicht installed.
+2. Save the script as a `.py` file (e.g., `crank_slider.py`).
+3. Run the script from your terminal using `python crank_slider.py`.
 
-* This is a basic example. You can further customize the simulation by adding more objects, changing parameters, implementing constraints, and using advanced visualization features.
-* You can explore PyChrono's documentation for more details on specific classes and functions: [https://pychrono.org/](https://pychrono.org/)
+This will open a window displaying the crank-slider mechanism simulation. You can interact with the camera using mouse and keyboard controls.

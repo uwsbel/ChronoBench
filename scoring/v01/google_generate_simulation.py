@@ -1,9 +1,38 @@
 import os
 import google.generativeai as genai
-import os
 import json
 from tqdm import tqdm
-genai.configure(api_key=os.environ["GEMINI_API_KEY"])
+from pathlib import Path
+
+def load_env():
+    """Load environment variables from .env file"""
+    env_path = Path(__file__).parent.parent.parent / '.env'
+    if env_path.exists():
+        with open(env_path) as f:
+            for line in f:
+                if line.strip() and not line.startswith('#'):
+                    if '=' in line:
+                        key, value = line.strip().split('=', 1)
+                        # Remove quotes if present
+                        value = value.strip('"').strip("'")
+                        os.environ[key] = value
+        print(f"✓ Loaded API keys from {env_path}")
+    else:
+        print(f"⚠ Warning: .env file not found at {env_path}")
+
+# Load environment variables from .env
+load_env()
+
+# Get API key from environment (Google uses GOOGLE_API_KEY in .env)
+api_key = os.environ.get("GOOGLE_API_KEY", "")
+if not api_key:
+    print("❌ Error: GOOGLE_API_KEY not found. Please check your .env file")
+    print("   Expected: GOOGLE_API_KEY='your-key-here' in .env")
+    exit(1)
+else:
+    print(f"✓ Google API key loaded (length: {len(api_key)})")
+
+genai.configure(api_key=api_key)
 
 
 

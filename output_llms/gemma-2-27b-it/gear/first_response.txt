@@ -2,101 +2,98 @@
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
 
-# 1. Initialize the PyChrono environment and core components
-my_system = chrono.ChSystemNSC()
-my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
+# 1. Initialize PyChrono environment and core components
+chrono.SetChronoDataPath("data/")
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
 
-# Create the Irrlicht visualization system
-viz = chronoirr.ChVisualSystemIrrlicht()
-viz.AttachSystem(my_system)
-viz.SetWindowSize(800, 600)
-viz.SetWindowTitle('Epicyclic Gears')
-viz.Initialize()
-viz.AddCamera(chrono.ChVectorD(2, 2, 2))  # Set initial camera position
-viz.AddLight(chrono.ChVectorD(2, 2, 2))  # Add a light source
+# 2. Create visualization system
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetWindowSize(800, 600)
+vis.SetWindowTitle("Epicyclic Gears Simulation")
+vis.Initialize()
+vis.AddCamera(chrono.ChVectorD(2, 2, 2))
+vis.AddLight(chrono.ChVectorD(2, 2, 2))
 
-# 2. Add physical systems and objects
-
-# a. Fixed Truss
-truss_material = chrono.ChMaterialSurfaceNSC()
-truss_material.SetFriction(0.3)
-truss_material.SetRestitution(0.2)
-
-truss_body = chrono.ChBody()
-truss_body.SetBodyFixed(True)
-truss_body.SetPos(chrono.ChVectorD(0, 0, 0))
-
+# 3. Create fixed truss
+truss = chrono.ChBody()
+truss.SetBodyFixed(True)
+system.Add(truss)
 truss_shape = chrono.ChBoxShape()
-truss_shape.SetSize(chrono.ChVectorD(2, 0.2, 0.2))
-truss_body.AddAsset(truss_shape)
-truss_body.SetMaterialSurface(truss_material)
-my_system.Add(truss_body)
+truss_shape.SetSize(chrono.ChVectorD(0.5, 0.5, 0.5))
+truss.AddShape(truss_shape)
+truss.SetPos(chrono.ChVectorD(0, 0, 0))
 
-# b. Rotating Bar
+# 4. Create rotating bar
+bar = chrono.ChBody()
+bar.SetMass(1)
+bar.SetInertiaXX(chrono.ChVectorD(0.1, 0.1, 0.1))
+system.Add(bar)
+bar_shape = chrono.ChCylinderShape()
+bar_shape.SetRadius(0.1)
+bar_shape.SetHeight(1)
+bar.AddShape(bar_shape)
+bar.SetPos(chrono.ChVectorD(0, 0, 0.5))
+
+# 5. Create gears
+gear1 = chrono.ChBodyEasyCylinder(0.2, 0.05, 1000, True, True)
+gear1.SetPos(chrono.ChVectorD(0.5, 0, 0))
+system.Add(gear1)
+
+gear2 = chrono.ChBodyEasyCylinder(0.1, 0.05, 1000, True, True)
+gear2.SetPos(chrono.ChVectorD(0.5, 0, 0.2))
+system.Add(gear2)
+
+# 6. Create gear motor
+motor = chrono.ChLinkMotorRotationSpeed()
+motor.SetBody1(gear1)
+motor.SetBody2(system.Get_ground_body())  # Fixed to ground
+motor.SetTargetSpeed(10)  # Constant rotation speed
+system.Add(motor)
+
+# 7. Set material properties and visualization
+truss_material = chrono.ChMaterialSurfaceNSC()
+truss_material.SetFriction(0.5)
+truss_material.SetRestitution(0.2)
+truss_shape.SetMaterial(truss_material)
+
 bar_material = chrono.ChMaterialSurfaceNSC()
 bar_material.SetFriction(0.5)
-bar_material.SetRestitution(0.1)
+bar_material.SetRestitution(0.2)
+bar_shape.SetMaterial(bar_material)
 
-bar_body = chrono.ChBody()
-bar_body.SetPos(chrono.ChVectorD(0, 0.2, 0))
-bar_body.SetMass(1)
-bar_body.SetInertiaXX(chrono.ChVectorD(0.1, 0.1, 0.01))
+gear1_material = chrono.ChMaterialSurfaceNSC()
+gear1_material.SetFriction(0.5)
+gear1_material.SetRestitution(0.2)
+gear1.GetShape(0).SetMaterial(gear1_material)
 
-bar_shape = chrono.ChCylinderShape()
-bar_shape.SetRadius(0.05)
-bar_shape.SetHeight(1)
-bar_body.AddAsset(bar_shape)
-bar_body.SetMaterialSurface(bar_material)
-my_system.Add(bar_body)
+gear2_material = chrono.ChMaterialSurfaceNSC()
+gear2_material.SetFriction(0.5)
+gear2_material.SetRestitution(0.2)
+gear2.GetShape(0).SetMaterial(gear2_material)
 
-# c. Gears
-gear1_radius = 0.2
-gear2_radius = 0.1
+vis.AddVisualModel(truss)
+vis.AddVisualModel(bar)
+vis.AddVisualModel(gear1)
+vis.AddVisualModel(gear2)
 
-gear1_body = chrono.ChBodyEasyCylinder(gear1_radius, 0.1, 1000, True, True)
-gear1_body.SetPos(chrono.ChVectorD(0.5, 0.2, 0))
-gear1_body.SetMaterialSurface(bar_material)
+# 8. Run the simulation
+while vis.Run():
+    system.DoStepDynamics(0.01)
+    vis.Render()
 
-gear2_body = chrono.ChBodyEasyCylinder(gear2_radius, 0.1, 1000, True, True)
-gear2_body.SetPos(chrono.ChVectorD(0.5 + gear1_radius + gear2_radius, 0.2, 0))
-gear2_body.SetMaterialSurface(bar_material)
-
-# 3. Set necessary default parameters
-
-# Gear Motor
-motor = chrono.ChLinkMotorRotationSpeed()
-motor.SetBody1(gear1_body)
-motor.SetBody2(my_system.Get_ground_body())
-motor.SetTargetSpeed(10)  # Set desired rotation speed
-my_system.Add(motor)
-
-# Constraints
-# Connect bar to truss
-revolute_joint = chrono.ChLinkRevolute()
-revolute_joint.Initialize(truss_body, bar_body, chrono.ChVectorD(0, 0.2, 0))
-my_system.Add(revolute_joint)
-
-# Connect gears
-gear_joint = chrono.ChLinkGear()
-gear_joint.Initialize(gear1_body, gear2_body, chrono.ChVectorD(gear1_radius, 0, 0), chrono.ChVectorD(gear2_radius, 0, 0))
-my_system.Add(gear_joint)
-
-# Visualization settings
-viz.SetSymbolSize(0.05)
-viz.EnableShadows(True)
-
-# Simulation loop
-while viz.Run():
-    my_system.DoStepDynamics(0.01)
-    viz.Render()
 ```
 
-This script creates a basic simulation of epicyclic gears using PyChrono. It includes:
+**Explanation:**
 
-* **Initialization:** Sets up the PyChrono system, gravity, and the Irrlicht visualization.
-* **Objects:** Defines a fixed truss, a rotating bar, and two gears. Materials and shapes are assigned to each object.
-* **Parameters:** Sets initial positions, masses, inertias, and friction coefficients.
-* **Constraints:** Uses `ChLinkRevolute` to connect the bar to the truss and `ChLinkGear` to connect the gears.
-* **Motor:** Implements a `ChLinkMotorRotationSpeed` to enforce a constant rotation speed on the first gear.
-* **Visualization:** Configures Irrlicht for rendering, including camera position, lighting, and object visualization.
-* **Simulation Loop:** Runs the simulation, updating the physics and rendering the scene in each iteration.
+1. **Initialization:** Sets up the Chrono environment, system, and Irrlicht visualization.
+2. **Fixed Truss:** Creates a fixed truss body using a box shape and positions it at the origin.
+3. **Rotating Bar:** Creates a rotating bar body with mass and inertia, a cylinder shape, and positions it above the truss.
+4. **Gears:** Creates two gear bodies using `ChBodyEasyCylinder` with different radii.
+5. **Gear Motor:** Adds a `ChLinkMotorRotationSpeed` to enforce a constant rotation speed on `gear1`.
+6. **Material Properties:** Sets friction and restitution properties for all bodies and shapes.
+7. **Visualization:** Adds visual models for all bodies to the Irrlicht visualization system.
+8. **Simulation Loop:** Runs the simulation loop, performing dynamics calculations and rendering the scene.
+
+**Note:** This script provides a basic framework for simulating epicyclic gears. You can further customize the simulation by adding more complex geometries, constraints, and interactions.

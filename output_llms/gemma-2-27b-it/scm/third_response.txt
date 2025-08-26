@@ -22,6 +22,7 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_RIGID
 
 # Rigid terrain
+# terrain_model = veh.RigidTerrain.BOX
 terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
@@ -41,6 +42,7 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  # FPS = 50
 
 # Create the HMMWV vehicle, set parameters, and initialize
+
 vehicle = veh.HMMWV_Full() # veh.HMMWV_Reduced()  could be another choice here
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
@@ -48,6 +50,7 @@ vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
+
 
 vehicle.Initialize()
 
@@ -81,6 +84,7 @@ terrain.SetPlotType(veh.SCMTerrain.PLOT_SINKAGE, 0, 0.1)
 terrain.Initialize(20, 20, 0.02)
 
 # Create the vehicle Irrlicht interface
+
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('HMMWV Demo')
 vis.SetWindowSize(1280, 1024)
@@ -119,49 +123,50 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-# --- Add Sensor System ---
+# Add Objects to the Scene:
+
+# Create a sensor manager
 sensor_manager = chrono.ChSensorManager(vehicle.GetSystem())
 
 # Add point lights
 sensor_manager.AddLight(chrono.ChLightPoint(chrono.ChVector3d(5, 5, 5)))
 sensor_manager.AddLight(chrono.ChLightPoint(chrono.ChVector3d(-5, 5, 5)))
 
-# Create camera sensor
-camera_sensor = chrono.ChCameraSensor(
-    chrono.ChVector3d(0, 0, 2),  # Position relative to chassis
-    chrono.ChVector3d(0, 0, -1), # Direction
-    chrono.ChVector3d(0, 1, 0)   # Up vector
-)
-camera_sensor.SetResolution(640, 480)
-camera_sensor.SetFOV(60)
-camera_sensor.AttachToBody(vehicle.GetChassisBody())
-sensor_manager.AddSensor(camera_sensor)
+# Create camera sensor attached to the vehicle chassis
+camera = chrono.ChCameraSensor(vehicle.GetChassisBody())
+camera.SetResolution(640, 480)
+camera.SetFOV(60)
+sensor_manager.AddSensor(camera)
 
-# Add filter for camera visualization
-filter = chrono.ChFilterVisualizeCamera(camera_sensor)
-sensor_manager.AddFilter(filter)
+# Create a filter to visualize the camera feed
+filter = irr.ChIrrFilterCamera(vis.GetDevice())
+filter.SetCamera(camera)
 
-while vis.Run():
+while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
 
     # Render scene and output POV-Ray data
-    if (step_number % render_steps == 0):
+    if (step_number % render_steps == 0) :
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
         render_frame += 1
 
+        # Update the camera sensor and filter
+        camera.Update()
+        filter.Update()
+
     # Get driver inputs
     driver_inputs = driver.GetInputs()
 
-    # Update modules
+    # Update modules (process inputs from other modules)
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
     sensor_manager.Synchronize(time)
 
-    # Advance simulation
+    # Advance simulation for one timestep for all modules
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
@@ -174,32 +179,37 @@ while vis.Run():
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
 
-    # Add Random Boxes
+    # Add randomly positioned boxes
     if step_number % 100 == 0:
-      box_pos = chrono.ChVector3d(random.uniform(-50, 50), random.uniform(-50, 50), 0.5)
-      # Ensure box is not inside the vehicle
-      if (box_pos - initLoc).Length() > 5:
-        box = chrono.ChBodyEasyBox(1, 1, 1, 1000, True, True)
-        box.SetPos(box_pos)
-        vehicle.GetSystem().AddBody(box)
-
-
+        box_pos = chrono.ChVector3d(random.uniform(-20, 20), random.uniform(-20, 20), 0.5)
+        if (box_pos - initLoc).Length() > 5:  # Ensure box is not within vehicle
+            box = chrono.ChBodyEasyBox(1, 1, 1, 1000, True, True)
+            box.SetPos(box_pos)
+            vehicle.GetSystem().AddBody(box)
 
 ```
 
-**Changes Made:**
+**Explanation of Changes:**
 
-1. **Error Correction:** The code provided did not have any apparent syntax or logical errors.
+1. **Sensor System and Camera:**
+   - A `ChSensorManager` is created and attached to the vehicle's system.
+   - Two point lights are added to the scene for illumination.
+   - A `ChCameraSensor` is created, attached to the vehicle chassis, and configured with resolution and field of view.
+   - The camera sensor is added to the sensor manager.
 
-2. **Adding Random Boxes:**
-   - A conditional statement `if step_number % 100 == 0:` is added to create boxes every 100 simulation steps.
-   - A random position `box_pos` is generated within a range of -50 to 50 in the X and Y directions.
-   - A check `(box_pos - initLoc).Length() > 5` ensures the box is not spawned too close to the initial vehicle position.
-   - A `chrono.ChBodyEasyBox` is created, positioned at `box_pos`, and added to the simulation system.
+2. **Visualization Filter:**
+   - An `ChIrrFilterCamera` is created, linked to the Irrlicht device and the camera sensor. This filter will display the camera feed.
 
-3. **Integrating Sensor System:**
-   - A `chrono.ChSensorManager` is created and attached to the vehicle's system.
-   - Two point lights are added using `chrono.ChLightPoint` at different positions.
-   - A `chrono.ChCameraSensor` is created and attached to the vehicle's chassis. Its position, direction, up vector, resolution, and field of view are configured.
-   - A `chrono.ChFilterVisualizeCamera` is added to visualize the camera feed.
-   - The `sensor_manager` is synchronized and advanced along with other modules in the simulation loop.
+3. **Random Boxes:**
+   - Every 100 simulation steps, a new `ChBodyEasyBox` is created at a random position within a certain range.
+   - A check is added to ensure the box is not spawned too close to the initial vehicle position.
+
+4. **Sensor and Filter Updates:**
+   - Inside the simulation loop, the `sensor_manager.Synchronize(time)` and `sensor_manager.Advance(step_size)` calls are added to update the sensor system.
+   - The camera sensor and filter are updated in the rendering section.
+
+**Remember:**
+
+
+
+* You might need to adjust the camera settings (resolution, FOV) and the random box generation parameters to suit your specific needs.

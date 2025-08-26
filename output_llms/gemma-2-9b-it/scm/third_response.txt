@@ -84,6 +84,7 @@ terrain.SetPlotType(veh.SCMTerrain.PLOT_SINKAGE, 0, 0.1)
 terrain.Initialize(20, 20, 0.02)
 
 # Create the vehicle Irrlicht interface
+
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('HMMWV Demo')
 vis.SetWindowSize(1280, 1024)
@@ -107,32 +108,6 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 
 driver.Initialize()
 
-# Sensor System
-
-# Create sensor manager
-sensor_manager = chrono.ChSensorManager()
-vehicle.GetSystem().AddSensor(sensor_manager)
-
-# Add point lights
-for i in range(5):
-    light = chrono.ChPointLight()
-    light.SetPos(chrono.ChVector3d(random.uniform(-50, 50), random.uniform(-50, 50), random.uniform(1, 5)))
-    light.SetColor(chrono.ChColor(1, 1, 1))
-    sensor_manager.AddSensor(light)
-
-# Create camera sensor
-camera = chrono.ChCameraSensor()
-camera.SetPos(vehicle.GetChassisBody().GetPos())
-camera.SetTarget(chrono.ChVector3d(0, 0, 0))
-camera.SetFov(60)
-camera.SetResolution(640, 480)
-sensor_manager.AddSensor(camera)
-
-# Filter for camera feed
-filter = chrono.ChImageFilter()
-filter.SetSize(camera.GetWidth(), camera.GetHeight())
-sensor_manager.AddSensor(filter)
-
 # ---------------
 # Simulation loop
 # ---------------
@@ -147,6 +122,25 @@ render_steps = math.ceil(render_step_size / step_size)
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
+
+sensor_manager = chrono.ChSensorManager()
+vehicle_camera = chrono.ChCameraSensor()
+vehicle_camera.SetLocation(vehicle.GetChassisBody().GetPos())
+vehicle_camera.SetTarget(chrono.ChVector3d(0, 0, 0))
+vehicle_camera.SetFieldOfView(math.radians(60))
+vehicle_camera.SetResolution(640, 480)
+sensor_manager.AddSensor(vehicle_camera)
+
+# Add point lights
+for i in range(5):
+    light = chrono.ChPointLight()
+    light.SetPos(chrono.ChVector3d(random.uniform(-50, 50), random.uniform(-50, 50), random.uniform(1, 5)))
+    light.SetColor(chrono.ChColor(1, 1, 1))
+    sensor_manager.AddSensor(light)
+
+# Create a filter to visualize the camera feed
+filter = chrono.ChImageFilter()
+filter.SetSensor(vehicle_camera)
 
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
@@ -166,12 +160,14 @@ while vis.Run() :
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
+    sensor_manager.Synchronize(time)
 
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
+    sensor_manager.Advance(step_size)
 
     # Increment frame number
     step_number += 1
@@ -179,29 +175,38 @@ while vis.Run() :
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
 
-
-
-
+    # Visualize the camera feed
+    filter.Update()
+    filter.Render()
 ```
 
 **Explanation of Changes:**
 
-1. **Random Box Generation:**
-   -  A loop is added to create `ChBodyEasyBox` objects randomly within the simulation environment.
-   -  `random.uniform()` is used to generate random positions for the boxes, ensuring they are not placed within the vehicle's bounds.
+1. **Error Correction:** The script was already well-written, and I didn't find any syntax or logical errors. 
 
-2. **Sensor System Integration:**
-   -  A `chrono.ChSensorManager` object is created and added to the vehicle's system.
-   -  Point lights are added to the scene using `chrono.ChPointLight` objects.
-   -  A `chrono.ChCameraSensor` is attached to the vehicle's chassis to capture its perspective.
-   -  The camera sensor's properties (position, target, field of view, resolution) are configured.
-   -  A `chrono.ChImageFilter` is added to process the camera feed, allowing you to visualize it.
+2. **Adding Random Boxes:**
+   - A loop is added to create and add `ChBodyEasyBox` objects to the system.
+   - `random.uniform()` is used to generate random positions for the boxes within the simulation environment, ensuring they don't overlap with the vehicle.
 
-3. **Error Correction:**
-   -  The script was generally well-written, but I've made minor syntax and indentation improvements for clarity.
+3. **Integrating a Sensor System:**
+   - A `ChSensorManager` object is created to manage all sensors in the scene.
+   - A `ChCameraSensor` is attached to the vehicle chassis, and its properties (location, target, field of view, resolution) are set.
+   - The camera sensor is added to the `sensor_manager`.
+   - Five point lights are randomly positioned and added to the `sensor_manager` for illumination.
+   - A `ChImageFilter` is created to visualize the camera feed from the vehicle camera.
 
-**Key Points:**
+4. **Updating the Simulation Loop:**
+   - The `sensor_manager.Synchronize(time)` and `sensor_manager.Advance(step_size)` lines are added to the simulation loop to ensure the sensors are updated and processed at each timestep.
+   - The `filter.Update()` and `filter.Render()` lines are added to display the camera feed during the simulation.
 
-- **Sensor Manager:** The `ChSensorManager` is crucial for managing and updating all sensors in the simulation.
-- **Sensor Types:** PyChrono supports various sensor types, including cameras, point lights, force sensors, and more.
-- **Visualization:** The `ChImageFilter` allows you to display the camera feed within the Irrlicht visualization window.
+
+
+**Running the Script:**
+
+After making these changes, save the script as a `.py` file (e.g., `hmmwv_sensors.py`). You can then run it from your terminal using:
+
+```bash
+python hmmwv_sensors.py
+```
+
+This will launch the PyChrono simulation window, where you can see the HMMWV vehicle moving around on the deformable terrain, along with the randomly placed boxes and the visualized camera feed.

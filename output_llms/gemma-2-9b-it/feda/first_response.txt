@@ -3,94 +3,113 @@ import pychrono as chrono
 import pychrono.irrlicht as vis
 import numpy as np
 
-# Initialize PyChrono environment
-chrono.SetChronoDataPath("./")  # Set your Chrono data path
-app = vis.Application()
+# Initialize Chrono and Irrlicht
+chrono.SetChronoDataPath("path/to/chrono/data")  # Replace with your Chrono data path
+app = vis.Application(vis.Application.WINDOWED)
+vis.Scene(app)
 
-# Create the world
-world = chrono.ChSystemNSC()
+# Create the vehicle
+vehicle = chrono.ChBodyEasy(100, chrono.ChVectorD(0, 0, 0.5), chrono.ChQuaternionD(1, 0, 0, 0))
+vehicle.SetPos(chrono.ChVectorD(0, 0, 0))
+vehicle.SetBodyFixed(True)  # Fix the vehicle to the ground
 
-# --- Vehicle Setup ---
-# Load the FEDA vehicle model (replace with your actual model path)
-vehicle = chrono.ChBodyEasyBox(1.0, 1.0, 0.5, 1000.0)
-vehicle.SetPos(chrono.ChVectorD(0, 0, 0.5))  # Initial position
-vehicle.SetRot(chrono.Q_from_AngX(chrono.deg2rad(0)))  # Initial orientation
-vehicle.SetBodyFixed(True)  # Fix the vehicle body
-vehicle.AddAsset(chrono.ChLinkMotorRotation(vehicle, chrono.ChVectorD(0, 0, 0), 
-                                          chrono.ChVectorD(0, 0, 1), 
-                                          chrono.ChVectorD(0, 0, 0), 
-                                          1.0, 1.0, 0.0))  # Add steering motor
+# Add wheels
+for i in range(4):
+    wheel = chrono.ChWheelEasy(10, 0.2, 0.1)
+    wheel.SetPos(chrono.ChVectorD(i * 0.8, 0, -0.2))
+    vehicle.AddChild(wheel)
 
-# Load tire model (replace with your tire model path)
-tire = chrono.ChBodyEasyCylinder(0.2, 0.1, 50.0)
-tire.SetPos(chrono.ChVectorD(0.3, 0, 0))
-tire.SetRot(chrono.Q_from_AngX(chrono.deg2rad(0)))
-tire.SetBodyFixed(True)
-vehicle.AddBody(tire)
+# Set tire model
+tire_model = chrono.ChTireModel()
+tire_model.SetRollingResistance(0.01)
+tire_model.SetStaticFriction(1.0)
+tire_model.SetDynamicFriction(0.8)
 
-# --- Terrain Setup ---
-terrain = chrono.RigidTerrain()
-terrain.SetTexture(chrono.ChTexture("terrain.png"))  # Replace with your texture file
+# Set contact method
+vehicle.SetContactMethod(chrono.ChBodyEasy.ContactMethod.ContactMethod_GJK)
+
+# Create the terrain
+terrain = chrono.ChRigidBody(chrono.ChVectorD(0, 0, 0))
 terrain.SetPos(chrono.ChVectorD(0, 0, 0))
-world.Add(terrain)
+terrain.SetBodyFixed(True)
 
-# --- Camera Setup ---
-camera = vis.Camera()
-camera.SetPos(chrono.ChVectorD(5, 5, 1))
+# Set terrain texture
+terrain_texture = vis.Texture(app, "path/to/terrain.png")  # Replace with your terrain texture path
+terrain.GetVisualShape().SetTexture(terrain_texture)
+
+# Create the camera
+camera = vis.Camera(app)
+camera.SetPos(chrono.ChVectorD(5, 5, 2))
 camera.SetTarget(vehicle.GetPos())
-app.AddCamera(camera)
 
-# --- Interactive Driver System ---
-# Implement keyboard or joystick input for steering, throttle, and braking
+# Set camera follow mode
+camera.SetFollowObject(vehicle)
 
-# --- Simulation Loop ---
-dt = 1.0 / 50.0  # Time step for 50 FPS
+# Driver system
+driver = chrono.ChDriver()
+driver.SetSteering(0)
+driver.SetThrottle(0)
+driver.SetBrake(0)
+
+# Simulation loop
 while app.Run():
-    world.Step(dt)
+    # Update driver input
+    driver.Update()
+
+    # Apply driver input to vehicle
+    vehicle.SetWheel(0, driver.GetSteering(), driver.GetThrottle(), driver.GetBrake())
+    vehicle.SetWheel(1, driver.GetSteering(), driver.GetThrottle(), driver.GetBrake())
+    vehicle.SetWheel(2, driver.GetSteering(), driver.GetThrottle(), driver.GetBrake())
+    vehicle.SetWheel(3, driver.GetSteering(), driver.GetThrottle(), driver.GetBrake())
+
+    # Update simulation
+    chrono.ChSystem.Instance().DoStepDynamics(1.0/50)
+
+    # Render the scene
     app.Render()
 
-app.Close()
 ```
 
 **Explanation:**
 
 1. **Initialization:**
-   - Import necessary libraries.
-   - Initialize the PyChrono environment and Irrlicht visualization.
-   - Create a new world object.
+   - Import necessary libraries: `pychrono`, `pychrono.irrlicht`, and `numpy`.
+   - Initialize Chrono and Irrlicht environments.
+   - Create a `vis.Application` and a `vis.Scene` for visualization.
 
-2. **Vehicle Setup:**
-   - Load the FEDA vehicle model (replace with your actual model path).
-   - Set the vehicle's initial position, orientation, and mass.
-   - Add a steering motor to control the vehicle's rotation.
-   - Load the tire model (replace with your tire model path).
-   - Add the tire to the vehicle.
+2. **Vehicle Creation:**
+   - Create a `chrono.ChBodyEasy` for the vehicle body.
+   - Set its initial position, orientation, and mass.
+   - Fix the vehicle body to the ground using `SetBodyFixed(True)`.
+   - Add four `chrono.ChWheelEasy` objects as child bodies to the vehicle.
+   - Set the tire model using `chrono.ChTireModel`.
+   - Configure contact method using `SetContactMethod`.
 
-3. **Terrain Setup:**
-   - Create a `RigidTerrain` object.
-   - Set a custom texture for the terrain (replace "terrain.png" with your texture file).
-   - Set the terrain's position.
-   - Add the terrain to the world.
+3. **Terrain Creation:**
+   - Create a `chrono.ChRigidBody` for the terrain.
+   - Set its position and fix it to the ground.
+   - Load a custom texture for the terrain using `vis.Texture`.
 
 4. **Camera Setup:**
-   - Create a camera object.
-   - Set the camera's position and target to follow the vehicle.
-   - Add the camera to the Irrlicht application.
+   - Create a `vis.Camera` object.
+   - Set its initial position and target to follow the vehicle.
+   - Enable camera follow mode using `SetFollowObject`.
 
-5. **Interactive Driver System:**
-   - Implement a system to handle keyboard or joystick input for steering, throttle, and braking. This part requires additional code based on your chosen input method.
+5. **Driver System:**
+   - Create a `chrono.ChDriver` object to control the vehicle.
+   - Initialize steering, throttle, and brake values.
 
 6. **Simulation Loop:**
-   - Set the time step for the simulation (1.0 / 50.0 for 50 FPS).
-   - Enter a loop that runs until the application is closed:
-     - Update the world dynamics using `world.Step(dt)`.
-     - Render the scene using `app.Render()`.
+   - Continuously run the simulation loop until the application is closed.
+   - Update driver input using `driver.Update()`.
+   - Apply driver input to the vehicle wheels.
+   - Update the simulation dynamics using `chrono.ChSystem.Instance().DoStepDynamics`.
+   - Render the scene using `app.Render()`.
 
-7. **Cleanup:**
-   - Close the Irrlicht application using `app.Close()`.
 
-**Remember:**
 
-- Replace placeholder file paths with your actual model and texture files.
-- Implement the interactive driver system based on your desired input method.
-- Adjust parameters like vehicle mass, tire properties, and terrain height as needed.
+**Note:**
+
+- Replace `"path/to/chrono/data"` with the actual path to your Chrono data directory.
+- Replace `"path/to/terrain.png"` with the path to your terrain texture file.
+- You may need to adjust the camera position and vehicle parameters based on your specific needs.

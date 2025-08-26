@@ -1,156 +1,140 @@
 ```python
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
-import math
+import pychrono.vehicle as chronovehicle
 
 # ---------------------------------------------------------------------
 #
-#  Create the simulation system and set the timestep
+#  Simulation setup
 #
 
-my_system = chrono.ChSystemNSC()
-my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
-my_system.SetTimestep(0.01)
+# Set path to Chrono data directory
+chrono.SetChronoDataPath("path/to/chrono/data")
 
-# ---------------------------------------------------------------------
-#
+# Create the simulation system
+system = chrono.ChSystemNSC()
+
+# Set the gravitational acceleration
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+
 # Create the Irrlicht visualization system
-#
-
 vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(my_system)
+vis.AttachSystem(system)
 vis.SetWindowSize(800, 600)
-vis.SetWindowTitle('ARTcar Simulation')
+vis.SetWindowTitle("ARTcar Simulation")
 vis.Initialize()
-vis.AddTypicalLights()
+vis.AddLogo(chrono.GetChronoDataPath() + 'logo_pychrono.png')
 vis.AddSkyBox()
+vis.AddCamera(chrono.ChVectorD(0, 2, -5))
 
 # ---------------------------------------------------------------------
 #
-# Create the terrain
+#  Create the vehicle
 #
 
-terrain_height = 20
-terrain_width = 50
-terrain = chrono.ChRigidTerrain(my_system, chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(terrain_width, 0, terrain_height), chrono.ChVectorD(0, 1, 0), 0.5)
-terrain.SetTexture(chrono.GetChronoDataPath() + 'terrain/textures/grass.jpg')
-terrain.Initialize()
-
-# ---------------------------------------------------------------------
-#
 # Create the ARTcar vehicle
-#
+vehicle = chronovehicle.ChVehicle("ARTcar")
 
-# Load the ARTcar vehicle model
-vehicle = chrono.ChWheeledVehicle(my_system)
-vehicle.SetChassisCollisionShape(chrono.ChCollisionShape.CreateBox(chrono.ChVectorD(1.5, 0.5, 2)))
+# Set initial position and orientation
+vehicle.SetInitPosition(chrono.ChVectorD(0, 0.5, 0))
+vehicle.SetInitRot(chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0)))
 
-# Set vehicle position and orientation
-vehicle.SetPos(chrono.ChVectorD(0, 1, 0))
-vehicle.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
+# Set contact method (e.g., ChContactMethodNSC)
+vehicle.SetChassisContactMethod(chrono.ChContactMethodNSC())
 
-# Set contact method
-vehicle.SetContactMethod(chrono.ChContactMethod.NSC)
+# Set visualization type (e.g., ChVisualModel::Type::MESH)
+vehicle.SetChassisVisualizationType(chrono.ChVisualModel::Type::MESH)
 
-# Add wheels
-wheel_radius = 0.3
-wheel_width = 0.15
-wheel_pos = chrono.ChVectorD(1.2, 0, 1)
-wheel_rot = chrono.ChQuaternionD(1, 0, 0, 0)
-for i in range(4):
-    wheel = chrono.ChWheel(vehicle.GetSystem())
-    wheel.SetRadius(wheel_radius)
-    wheel.SetWidth(wheel_width)
-    wheel.SetSuspensionStiffness(1000)
-    wheel.SetSuspensionDamping(200)
-    wheel.SetFrictionCoefficient(0.8)
-    wheel.SetSteeringAngle(0)
-    wheel.SetPos(wheel_pos)
-    wheel.SetRot(wheel_rot)
-    vehicle.AddWheel(wheel)
-
-# Set visualization type
-vehicle.SetChassisVisualizationType(chrono.VisualizationType.PRIMITIVES)
-vehicle.SetWheelVisualizationType(chrono.VisualizationType.MESH)
+# Add the vehicle to the simulation system
+system.Add(vehicle)
 
 # ---------------------------------------------------------------------
 #
-# Implement the interactive driver system
+#  Create the terrain
 #
 
-class Driver:
-    def __init__(self, vehicle):
-        self.vehicle = vehicle
-        self.steering = 0
-        self.throttle = 0
-        self.brake = 0
+# Create a rigid terrain
+terrain = chrono.ChRigidTerrain()
+terrain.SetSize(chrono.ChVectorD(50, 50, 1))
 
-    def update(self):
-        # Implement logic for controlling steering, throttle, and braking based on user input
-        # For example, you could use keyboard input or a gamepad
+# Load a custom texture for the terrain
+terrain.SetTexture(chrono.GetChronoDataPath() + 'terrain/textures/grass.jpg')
 
-        # Example: Steering control using keyboard left/right arrows
-        if vis.GetDevice()->IsKeyDown(chrono.irr::KEY_LEFT):
-            self.steering = -1
-        elif vis.GetDevice()->IsKeyDown(chrono.irr::KEY_RIGHT):
-            self.steering = 1
-        else:
-            self.steering = 0
-
-        # Apply steering, throttle, and braking to the vehicle
-        self.vehicle.SetSteeringAngle(self.steering * math.pi / 4)
-        self.vehicle.SetThrottle(self.throttle)
-        self.vehicle.SetBraking(self.brake)
-
-driver = Driver(vehicle)
+# Add the terrain to the simulation system
+system.Add(terrain)
 
 # ---------------------------------------------------------------------
 #
-# Simulation loop
+#  Implement the driver system
 #
+
+# Create an interactive driver system
+driver = chronovehicle.ChInteractiveDriver(vehicle)
+
+# ---------------------------------------------------------------------
+#
+#  Simulation loop
+#
+
+# Set the simulation step size
+dt = 0.01
 
 while vis.Run():
-    # Update driver controls
-    driver.update()
+    # Update the vehicle dynamics
+    system.DoStepDynamics(dt)
 
-    # Advance the simulation
-    my_system.DoStepDynamics(0.01)
+    # Update the driver inputs
+    driver.Update(vis.GetDevice()->GetKeyboard())
 
-    # Update visualization
+    # Update the visualization
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
 
-    # Limit the frame rate to 50 FPS
-    chrono.ChTime.Wait(1.0 / 50.0)
+    # Control the simulation speed (50 FPS)
+    chrono.ChTime.Sleep(1.0 / 50.0)
 
+# End the simulation
+vis.Deinitialize()
 ```
 
 **Explanation:**
 
 1. **Initialization:**
-   - Creates a `ChSystemNSC` for the simulation and sets gravity.
-   - Initializes the Irrlicht visualization system (`chronoirr`) and sets up the window.
-2. **Terrain:**
-   - Creates a `ChRigidTerrain` with specified dimensions and texture.
-3. **ARTcar:**
-   - Creates a `ChWheeledVehicle` and sets its collision shape.
-   - Positions and orients the vehicle.
-   - Sets the contact method to NSC (Non-Smooth Contact).
-   - Adds four wheels with defined properties like radius, width, suspension, and friction.
-   - Sets visualization types for the chassis and wheels.
-4. **Interactive Driver:**
-   - Defines a `Driver` class to handle user input and control the vehicle.
-   - The `update()` method will be responsible for mapping user input (e.g., keyboard keys) to steering, throttle, and braking actions.
+   - Imports necessary modules from PyChrono.
+   - Sets the Chrono data path.
+   - Creates a `ChSystemNSC` object for the simulation.
+   - Sets gravitational acceleration.
+   - Creates an Irrlicht visualization system (`chronoirr.ChVisualSystemIrrlicht`).
+
+2. **Vehicle Creation:**
+   - Creates an `ARTcar` vehicle using `chronovehicle.ChVehicle`.
+   - Sets initial position, orientation, contact method, and visualization type.
+   - Adds the vehicle to the simulation system.
+
+3. **Terrain Creation:**
+   - Creates a `ChRigidTerrain` object.
+   - Sets terrain size and loads a custom texture.
+   - Adds the terrain to the simulation system.
+
+4. **Driver System:**
+   - Creates an `ChInteractiveDriver` object to handle user input for steering, throttle, and braking.
+
 5. **Simulation Loop:**
-   - Continuously runs the Irrlicht visualization loop.
-   - Updates the driver controls in each iteration.
-   - Advances the simulation using `DoStepDynamics()`.
-   - Renders the scene using Irrlicht.
-   - Limits the frame rate to 50 FPS.
+   - Sets the simulation step size (`dt`).
+   - Enters a loop that continues until the Irrlicht window is closed.
+   - Inside the loop:
+     - Updates vehicle dynamics using `system.DoStepDynamics(dt)`.
+     - Updates driver inputs based on keyboard input.
+     - Renders the scene using Irrlicht (`vis.BeginScene()`, `vis.Render()`, `vis.EndScene()`).
+     - Controls the simulation speed to achieve 50 FPS.
 
-**Important Notes:**
+6. **Cleanup:**
+   - Deinitializes the Irrlicht visualization system.
 
-- This script provides a basic framework. You'll need to implement the actual driver logic in the `Driver.update()` method to control the vehicle based on user input.
-- You can customize the vehicle parameters (mass, inertia, suspension, etc.) and the terrain properties as needed.
-- Remember to install the required PyChrono and Irrlicht dependencies.
+**Remember:**
+
+- Replace `"path/to/chrono/data"` with the actual path to your Chrono data directory.
+- Adjust the vehicle parameters (position, orientation, etc.) as needed.
+- Customize the terrain size, texture, and other properties.
+- Implement more complex driver logic or AI if desired.

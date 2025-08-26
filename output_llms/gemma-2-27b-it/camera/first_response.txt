@@ -1,86 +1,88 @@
 ```python
 import pychrono as chrono
+import pychrono.sensor as sensor
 import pychrono.postprocess as postprocess
-import pychrono.irrlicht as chronoirr
+import numpy as np
 
-# 1. Initialize PyChrono environment and core components
+# 1. Initialize the PyChrono environment and core components.
 my_system = chrono.ChSystemNSC()
 my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+my_system.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
 
-# 2. Add the triangular mesh as a fixed body
+# 2. Add the triangular mesh as a fixed body.
 mesh_file = "your_mesh.obj"  # Replace with your .obj file path
 mesh = chrono.ChTriangleMeshConnected()
 mesh.LoadWavefrontMesh(mesh_file)
 body = chrono.ChBody()
+body.SetMesh(mesh)
 body.SetBodyFixed(True)
-body.SetPos(chrono.ChVectorD(0, 0, 0))  # Set initial position
-
-# Create a collision model from the mesh
-col_model = chrono.ChTriangleMeshShape()
-col_model.SetMesh(mesh)
-body.AddShape(col_model)
-
 my_system.Add(body)
 
-# 3. Add camera sensor, sensor manager, and visualizations
-# Create a Irrlicht application
-myapplication = chronoirr.ChIrrApp(my_system, "Camera Orbit Simulation", chronoirr.dimension2du(800, 600))
-myapplication.AddTypicalCamera(chronoirr.vector3df(2, 2, 2))  # Initial camera position
+# 3. Add a camera sensor to the body.
+camera = sensor.ChCameraSensor()
+camera.SetCameraPosition(chrono.ChVectorD(2, 2, 2))
+camera.SetCameraLookAt(chrono.ChVectorD(0, 0, 0))
+camera.SetLens(sensor.ChLens.Type_PERSPECTIVE)
+camera.SetVerticalFOV(60)
+camera.SetAspect(16.0 / 9.0)
 
-# Create a sensor manager
-sensor_manager = postprocess.ChSensorManager(my_system)
+# Add noise filters and visualizations.
+camera.AddFilter(sensor.ChFilterGaussianNoise(stddev=0.01))
+camera.SetVisualizationType(sensor.ChVisualizationType.Type_COLOR)
 
-# Create a camera sensor and attach it to the body
-camera = postprocess.ChCameraSensor(sensor_manager)
-camera.AttachToBody(body)
-camera.SetCameraPosition(chrono.ChVectorD(1, 1, 1))  # Initial camera position relative to the body
+# Create a sensor manager and add the camera.
+sensor_manager = sensor.ChSensorManager(my_system)
+sensor_manager.AddSensor(camera)
 
-# Add noise filters and visualizations
-camera.AddNoiseFilter(postprocess.ChGaussianNoiseFilter(0.01))
-camera.SetVisualizationType(postprocess.ChVisualizationType_IMAGE)
+# Simulation loop
+time_step = 0.01
+simulation_time = 10
 
-# Simulate the system
-myapplication.SetTimestep(0.01)
-while myapplication.GetDevice().run():
-    # Update camera position in an orbit around the mesh
-    angle = myapplication.GetChTime() * 0.5  # Adjust speed as needed
-    camera.SetCameraPosition(chrono.ChVectorD(2 * chrono.ChMath.Sin(angle), 1, 2 * chrono.ChMath.Cos(angle)))
+for i in range(int(simulation_time / time_step)):
+    # Update camera position in an orbit around the mesh.
+    angle = i * 0.1
+    camera.SetCameraPosition(chrono.ChVectorD(2 * np.cos(angle), 2, 2 * np.sin(angle)))
+    camera.SetCameraLookAt(chrono.ChVectorD(0, 0, 0))
 
-    # Simulate one time step
-    my_system.DoStepDynamics(myapplication.GetTimestep())
+    # Simulate the system.
+    my_system.DoStepDynamics(time_step)
 
-    # Print camera buffer data
-    print(camera.GetImageBuffer())
+    # Print camera buffer data.
+    buffer = camera.GetImageBuffer()
+    print(buffer)
 
-    # Render the scene
-    myapplication.DoStep()
+    # Optional: Save camera images to a file.
+    # postprocess.ChPostProcessCamera(camera).SaveImage("image_" + str(i) + ".png")
 
 ```
 
 **Explanation:**
 
 1. **Initialization:**
-   - Creates a Chrono system and sets gravity.
-   - Loads the triangular mesh from the specified `.obj` file.
-   - Creates a fixed body and attaches the mesh as its collision shape.
+   - We create a `ChSystemNSC` object, which represents the physics simulation world.
+   - We set the gravity and solver type for the simulation.
 
-2. **Camera Setup:**
-   - Initializes an Irrlicht application for visualization.
-   - Creates a sensor manager to handle sensors.
-   - Creates a camera sensor, attaches it to the body, and sets its initial position.
-   - Adds a Gaussian noise filter to simulate real-world camera noise.
-   - Sets the visualization type to display camera images.
+2. **Mesh Loading:**
+   - We load a triangular mesh from a Wavefront .obj file using `ChTriangleMeshConnected.LoadWavefrontMesh()`.
+   - We create a `ChBody` object and assign the mesh to it.
+   - We set the body as fixed so it doesn't move during the simulation.
 
-3. **Simulation Loop:**
-   - Sets the simulation timestep.
-   - Enters the main loop, which continues until the Irrlicht window is closed.
-   - Updates the camera's position in an orbit around the mesh using a sinusoidal function.
-   - Performs one step of the Chrono simulation.
-   - Prints the camera buffer data (pixel values) at each step.
-   - Renders the scene using Irrlicht.
+3. **Camera Setup:**
+   - We create a `ChCameraSensor` object and configure its position, look-at point, lens type, field of view, and aspect ratio.
+   - We add a Gaussian noise filter to the camera to simulate real-world noise.
+   - We set the visualization type to color for displaying the camera images.
 
-**Remember:**
+4. **Sensor Manager:**
+   - We create a `ChSensorManager` object to manage the camera sensor.
+   - We add the camera to the sensor manager.
 
-- Replace `"your_mesh.obj"` with the actual path to your mesh file.
-- Adjust the camera position, noise filter parameters, and orbit speed as needed.
-- This script provides a basic framework; you can extend it by adding more objects, interactions, and sensor types.
+5. **Simulation Loop:**
+   - We iterate through the simulation time, updating the camera position in an orbit around the mesh.
+   - We call `my_system.DoStepDynamics()` to advance the simulation by one time step.
+   - We print the camera buffer data, which contains the pixel values of the captured image.
+   - You can optionally save the camera images to files using `ChPostProcessCamera`.
+
+**Remember to:**
+
+- Replace `"your_mesh.obj"` with the actual path to your .obj file.
+- Adjust the simulation parameters (time step, simulation time, camera settings) as needed.

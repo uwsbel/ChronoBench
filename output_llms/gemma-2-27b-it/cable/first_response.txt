@@ -5,28 +5,20 @@ import numpy as np
 
 # ---------------------------------------------------------------------
 #
-#  Create the simulation system
+#  Create the simulation system and add the Irrlicht visualizer
 #
 # ---------------------------------------------------------------------
 
 my_system = chrono.ChSystemNSC()
-
-# Set gravitational acceleration
 my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
-
-# ---------------------------------------------------------------------
-#
-# Create the Irrlicht visualization system
-#
-# ---------------------------------------------------------------------
 
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(my_system)
 vis.SetWindowSize(800, 600)
-vis.SetWindowTitle('ANCF Cable Beam Simulation')
+vis.SetWindowTitle("ANCF Beam Simulation")
 vis.Initialize()
-vis.AddCamera(chrono.ChVectorD(2, 2, 2))
-vis.AddLight(chrono.ChVectorD(2, 2, 2), chrono.ChColor(1, 1, 1))
+vis.AddTypicalSky()
+vis.AddTypicalLights()
 
 # ---------------------------------------------------------------------
 #
@@ -36,43 +28,52 @@ vis.AddLight(chrono.ChVectorD(2, 2, 2), chrono.ChColor(1, 1, 1))
 
 ground = chrono.ChBodyEasyBox(10, 0.2, 10, 1000, True, True)
 ground.SetPos(chrono.ChVectorD(0, -1, 0))
-my_system.Add(ground)
+my_system.AddBody(ground)
 
 # ---------------------------------------------------------------------
 #
-# Create the ANCF cable beam
+# Create the ANCF beam
 #
 # ---------------------------------------------------------------------
 
-beam_length = 2
-num_nodes = 10
-beam_nodes = []
+beam_length = 5
+num_elements = 10
+beam_radius = 0.1
 
-# Define beam material properties
-rho = 1000  # Density
-E = 1e7  # Young's modulus
-A = 0.01  # Cross-sectional area
+beam = chrono.ChBody()
+beam.SetBodyFixed(False)
 
-# Create beam nodes
-for i in range(num_nodes):
-    x = i * beam_length / (num_nodes - 1)
-    node = chrono.ChNodeANCF(chrono.ChVectorD(x, 0, 0))
-    beam_nodes.append(node)
-    my_system.Add(node)
-
-# Create ANCF cable elements
-for i in range(num_nodes - 1):
+# Create ANCF elements and add them to the beam
+for i in range(num_elements):
     element = chrono.ChElementCableANCF()
-    element.SetNodes(beam_nodes[i], beam_nodes[i + 1])
-    element.SetMaterial(chrono.ChMaterialSurfaceNSC(
-        rho, E, A
-    ))
-    my_system.Add(element)
+    element.Set_L0(beam_length / num_elements)
+    element.Set_radius(beam_radius)
+    element.Set_young_modulus(2e7)
+    element.Set_poisson_ratio(0.3)
+    element.Set_density(7850)
 
-# Hinge the first node to the ground
-constraint = chrono.ChLinkLockRevolute()
-constraint.Initialize(beam_nodes[0], ground)
-my_system.Add(constraint)
+    # Set initial position of the element nodes
+    node1 = chrono.ChNodeANCF()
+    node1.SetPos(chrono.ChVectorD(i * beam_length / num_elements, 0, 0))
+    node2 = chrono.ChNodeANCF()
+    node2.SetPos(chrono.ChVectorD((i + 1) * beam_length / num_elements, 0, 0))
+
+    element.AddNode(node1)
+    element.AddNode(node2)
+
+    beam.AddElement(element)
+
+my_system.AddBody(beam)
+
+# ---------------------------------------------------------------------
+#
+# Hinge the beam to the ground
+#
+# ---------------------------------------------------------------------
+
+hinge = chrono.ChLinkLockRevolute()
+hinge.Initialize(ground, beam, chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0)))
+my_system.AddLink(hinge)
 
 # ---------------------------------------------------------------------
 #
@@ -87,33 +88,53 @@ while vis.Run():
 
     my_system.DoStepDynamics(0.01)
 
-    # Visualize beam deformation and nodal positions (example)
-    for node in beam_nodes:
-        pos = node.GetPos()
-        vis.DrawLine(pos, pos + chrono.ChVectorD(0, 0.1, 0), chrono.ChColor(1, 0, 0))
-
-    # Print node positions (optional)
-    # for i, node in enumerate(beam_nodes):
-    #     print(f"Node {i}: {node.GetPos()}")
+    # Print nodal positions for debugging
+    for i in range(beam.GetNnodes()):
+        pos = beam.GetNode(i).GetPos()
+        print(f"Node {i}: {pos}")
 
 ```
 
 **Explanation:**
 
-1. **Initialization:** The script initializes the PyChrono system, sets gravitational acceleration, and creates the Irrlicht visualization system.
-2. **Ground Body:** A fixed ground body is created using `ChBodyEasyBox` to provide a support for the beam.
-3. **ANCF Cable Beam:**
-   - The beam is defined by its length, number of nodes, and material properties (density, Young's modulus, and cross-sectional area).
-   - Nodes are created using `ChNodeANCF` and added to the system.
-   - ANCF cable elements are created using `ChElementCableANCF`, connecting consecutive nodes.
-   - The first node is hinged to the ground using `ChLinkLockRevolute`.
-4. **Simulation Loop:** The main loop runs the simulation, rendering the scene with Irrlicht and performing a dynamics step.
-5. **Visualization:** The script includes a basic visualization example that draws lines from each node to a slightly higher position, indicating the beam's deformation. You can customize this visualization further based on your needs.
+1. **Initialization:**
+   - Imports necessary PyChrono and Irrlicht modules.
+   - Creates a `ChSystemNSC` object for the simulation.
+   - Sets gravitational acceleration.
+   - Initializes the Irrlicht visualizer (`chronoirr`) and sets up the window.
 
-**Notes:**
+2. **Ground Body:**
+   - Creates a simple box body (`ChBodyEasyBox`) to represent the ground.
+   - Positions the ground at y = -1.
+   - Adds the ground body to the simulation system.
 
-- This script provides a basic framework. You can modify it to:
-    - Change beam geometry, material properties, and initial conditions.
-    - Add more complex boundary conditions and external forces.
-    - Implement different visualization techniques.
-- Make sure you have PyChrono and Irrlicht installed.
+3. **ANCF Beam:**
+   - Defines beam parameters (length, number of elements, radius).
+   - Creates a `ChBody` object to hold the beam elements.
+   - Loops through the number of elements:
+     - Creates an `ChElementCableANCF` object for each element.
+     - Sets element properties (length, radius, material properties).
+     - Creates two `ChNodeANCF` objects for the element's nodes.
+     - Sets initial positions of the nodes along the x-axis.
+     - Adds the nodes to the element and the element to the beam body.
+   - Adds the beam body to the simulation system.
+
+4. **Hinge Constraint:**
+   - Creates a `ChLinkLockRevolute` object to hinge the beam to the ground.
+   - Initializes the hinge at the origin (0, 0, 0).
+   - Adds the hinge constraint to the simulation system.
+
+5. **Simulation Loop:**
+   - Enters a loop that continues until the Irrlicht window is closed.
+   - Inside the loop:
+     - Renders the scene using Irrlicht.
+     - Performs a dynamics step using `DoStepDynamics`.
+     - Prints the positions of all beam nodes for debugging (optional).
+
+**To Run:**
+
+1. Make sure you have PyChrono and Irrlicht installed.
+2. Save the script as a `.py` file (e.g., `beam_simulation.py`).
+3. Run the script from the command line: `python beam_simulation.py`
+
+This will open a window displaying the beam simulation. You should see the beam hanging downwards due to gravity and its deformation under its own weight.
