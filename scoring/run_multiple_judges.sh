@@ -216,8 +216,135 @@ MISSING_DATA=()
 FAILED_MODELS=()
 SUCCESSFUL_MODELS=()
 
+# Function to check and run evaluation for models missing evaluation_scores.csv
+check_and_run_missing_evaluations() {
+    local missing_models=()
+    
+    print_message "$YELLOW" "Checking for models with missing evaluation scores..."
+    
+    # Check each model directory for missing evaluation_scores.csv
+    for model_dir in "$OUTPUT_LLMS_DIR"/*/; do
+        if [ -d "$model_dir" ]; then
+            model_name=$(basename "$model_dir")
+            
+            # Skip special directories
+            if [[ "$model_name" == "combined_evaluation_scores"* ]] || [[ "$model_name" == "." ]] || [[ "$model_name" == ".." ]]; then
+                continue
+            fi
+            
+            # Check if model has response files but no evaluation_scores.csv
+            has_responses=false
+            has_evaluation=false
+            
+            # Check for response files in any subdirectory
+            for subdir in "$model_dir"*/; do
+                if [ -d "$subdir" ] && [ -f "$subdir/first_response.txt" ]; then
+                    has_responses=true
+                fi
+                if [ -f "$subdir/evaluation_scores.csv" ]; then
+                    has_evaluation=true
+                fi
+            done
+            
+            if [ "$has_responses" = true ] && [ "$has_evaluation" = false ]; then
+                missing_models+=("$model_name")
+                print_message "$YELLOW" "  Found model with missing evaluation: $model_name"
+            fi
+        fi
+    done
+    
+    # If there are missing models, run evaluatePy.py for them
+    if [ ${#missing_models[@]} -gt 0 ]; then
+        print_message "$YELLOW" "\nFound ${#missing_models[@]} models needing evaluation"
+        print_message "$YELLOW" "Running evaluatePy.py in headless mode..."
+        
+        # Check if xvfb is available
+        if command -v xvfb-run &> /dev/null; then
+            print_message "$GREEN" "Using xvfb-run for headless execution"
+            HEADLESS_CMD="xvfb-run -a"
+        else
+            print_message "$YELLOW" "xvfb-run not found, using DISPLAY= instead"
+            HEADLESS_CMD="env DISPLAY="
+        fi
+        
+        # Update evaluatePy.py to include missing models
+        cd "$SCORING_DIR"
+        
+        # Create a temporary evaluatePy script for missing models
+        cp evaluatePy.py evaluatePy_temp.py
+        
+        # Update the test_model_list in the temporary script
+        model_list_str=$(printf '"%s", ' "${missing_models[@]}")
+        model_list_str="[${model_list_str%, }]"
+        
+        # Update the test_model_list line
+        sed -i "83s/.*/test_model_list = $model_list_str/" evaluatePy_temp.py
+        
+        print_message "$YELLOW" "Running evaluation for missing models: ${missing_models[*]}"
+        print_message "$YELLOW" "This may take a while without visual feedback..."
+        
+        # Run the evaluation script in headless mode
+        $HEADLESS_CMD python evaluatePy_temp.py > "${OUTPUT_BASE_DIR}/missing_models_evaluation.log" 2>&1 &
+        eval_pid=$!
+        
+        # Show progress indicator
+        while kill -0 $eval_pid 2>/dev/null; do
+            printf "  ⠋ Evaluating missing models...\r"
+            sleep 0.5
+            printf "  ⠙ Evaluating missing models...\r"
+            sleep 0.5
+            printf "  ⠹ Evaluating missing models...\r"
+            sleep 0.5
+            printf "  ⠸ Evaluating missing models...\r"
+            sleep 0.5
+            printf "  ⠼ Evaluating missing models...\r"
+            sleep 0.5
+            printf "  ⠴ Evaluating missing models...\r"
+            sleep 0.5
+            printf "  ⠦ Evaluating missing models...\r"
+            sleep 0.5
+            printf "  ⠧ Evaluating missing models...\r"
+            sleep 0.5
+            printf "  ⠇ Evaluating missing models...\r"
+            sleep 0.5
+            printf "  ⠏ Evaluating missing models...\r"
+            sleep 0.5
+        done
+        
+        wait $eval_pid
+        eval_exit_code=$?
+        printf "                                        \r"
+        
+        # Clean up temp file
+        rm -f evaluatePy_temp.py
+        
+        if [ $eval_exit_code -eq 0 ]; then
+            print_message "$GREEN" "✓ Successfully evaluated missing models"
+            
+            # Verify evaluation files were created
+            for model in "${missing_models[@]}"; do
+                eval_count=$(find "$OUTPUT_LLMS_DIR/$model" -name "evaluation_scores.csv" 2>/dev/null | wc -l)
+                if [ $eval_count -gt 0 ]; then
+                    print_message "$GREEN" "  ✓ $model: $eval_count evaluation files created"
+                else
+                    print_message "$YELLOW" "  ⚠ $model: No evaluation files found"
+                fi
+            done
+        else
+            print_message "$RED" "⚠ Evaluation failed for missing models"
+            print_message "$YELLOW" "Check log at: ${OUTPUT_BASE_DIR}/missing_models_evaluation.log"
+            print_message "$YELLOW" "Continuing with available evaluations..."
+        fi
+    else
+        print_message "$GREEN" "All models have evaluation scores or no response files"
+    fi
+}
+
 # Check prerequisites before starting
 check_prerequisites
+
+# Check and run evaluations for models with missing scores
+check_and_run_missing_evaluations
 
 # Save the original combined_evaluation_scores.csv if it exists
 ORIGINAL_COMBINED_SCORES="${OUTPUT_LLMS_DIR}/combined_evaluation_scores_original.csv"
