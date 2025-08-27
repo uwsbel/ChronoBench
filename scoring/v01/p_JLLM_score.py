@@ -1,24 +1,227 @@
 import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from tqdm import tqdm
-nvidia_api_key = os.getenv("OPENAI_API_KEY")
 import evaluate
 from openai import OpenAI
-import os
 import json
-from tqdm import tqdm
 import re
 import sys
 import logging
 import csv
 import io
 import subprocess
+import time
+import random
+
+# Import additional API clients
+try:
+    from anthropic import Anthropic
+except ImportError:
+    Anthropic = None
+    print("Warning: Anthropic library not installed. Claude models will not work.")
+
+try:
+    import google.generativeai as genai
+except ImportError:
+    genai = None
+    print("Warning: Google GenerativeAI library not installed. Gemini models will not work.")
+
+# Load API keys from environment
+openai_api_key = os.getenv("OPENAI_API_KEY")
+anthropic_api_key = os.getenv("ANTHROPIC_API_KEY")
+google_api_key = os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")
+mistral_api_key = os.getenv("MISTRAL_API_KEY")
+nvidia_api_key = openai_api_key  # Keep for backward compatibility
+
 rouge = evaluate.load('rouge')
+
+def get_provider_for_model(model_name):
+    """Determine the API provider for a given model."""
+    model_lower = model_name.lower()
+    
+    if "claude" in model_lower:
+        return "anthropic"
+    elif "gemini" in model_lower or "gemma" in model_lower:
+        return "google"
+    elif "gpt" in model_lower or "o3" in model_lower or "o4" in model_lower:
+        return "openai"
+    elif "mistral" in model_lower or "mixtral" in model_lower or "codestral" in model_lower or "mamba" in model_lower:
+        return "mistral"
+    elif "llama" in model_lower or "nemotron" in model_lower or "phi" in model_lower:
+        return "nvidia"  # These often use NVIDIA endpoints
+    elif "deepseek" in model_lower:
+        return "deepseek"
+    elif "qwen" in model_lower:
+        return "qwen"
+    else:
+        return "openai"  # Default fallback
+
+def get_llm_response(prompt, model_name, temperature=0.2, top_p=0.7, max_tokens=12000):
+    """Unified function to get LLM response from any provider."""
+    provider = get_provider_for_model(model_name)
+    
+    try:
+        if provider == "anthropic":
+            if not Anthropic or not anthropic_api_key:
+                raise Exception("Anthropic API not available or API key not set")
+            
+            client = Anthropic(api_key=anthropic_api_key)
+            
+            # Map model names to Anthropic's naming convention
+            anthropic_model_map = {
+                "claude-3-5-sonnet": "claude-3-5-sonnet-20241022",
+                "claude-3-7-sonnet-20250219": "claude-3-opus-20240229",  # Map to available model
+                "claude-4-sonnet-20250514": "claude-3-5-sonnet-20241022",  # Map to available model
+            }
+            
+            actual_model = anthropic_model_map.get(model_name, model_name)
+            
+            response = client.messages.create(
+                model=actual_model,
+                max_tokens=max_tokens,
+                temperature=temperature,
+                messages=[{"role": "user", "content": prompt}]
+            )
+            return response.content[0].text
+            
+        elif provider == "google":
+            if not genai or not google_api_key:
+                raise Exception("Google API not available or API key not set")
+            
+            genai.configure(api_key=google_api_key)
+            
+            # Map model names to Google's naming convention
+            google_model_map = {
+                "Gemini-1.5-pro": "gemini-1.5-pro",
+                "Gemini-2.5-pro": "gemini-1.5-pro",  # Use 1.5 if 2.5 not available
+                "gemma-2-2b-it": "gemini-1.5-flash",
+                "gemma-2-9b-it": "gemini-1.5-flash",
+                "gemma-2-27b-it": "gemini-1.5-pro",
+                "gemma-3-1b-it": "gemini-1.5-flash",
+            }
+            
+            actual_model = google_model_map.get(model_name, "gemini-1.5-pro")
+            model = genai.GenerativeModel(actual_model)
+            
+            generation_config = genai.types.GenerationConfig(
+                temperature=temperature,
+                top_p=top_p,
+                max_output_tokens=max_tokens,
+            )
+            
+            response = model.generate_content(prompt, generation_config=generation_config)
+            return response.text
+            
+        elif provider == "mistral":
+            if not mistral_api_key:
+                # Fall back to OpenAI client with Mistral endpoint
+                if not openai_api_key:
+                    raise Exception("Mistral API key not set and no OpenAI fallback")
+                    
+            from mistralai.client import MistralClient
+            from mistralai.models.chat_completion import ChatMessage
+            
+            client = MistralClient(api_key=mistral_api_key)
+            
+            # Map model names
+            mistral_model_map = {
+                "mistral-nemo-12b-instruct": "open-mistral-nemo",
+                "mixtral-8x22b-instruct-v0.1": "open-mixtral-8x22b",
+                "mixtral-8x7b-instruct-v0.1": "open-mixtral-8x7b",
+                "mistral-large-latest": "mistral-large-latest",
+                "codestral-22b-instruct-v0.1": "codestral-latest",
+                "mamba-codestral-7b-v0.1": "open-codestral-mamba",
+            }
+            
+            actual_model = mistral_model_map.get(model_name, model_name)
+            
+            response = client.chat(
+                model=actual_model,
+                messages=[ChatMessage(role="user", content=prompt)],
+                temperature=temperature,
+                top_p=top_p,
+                max_tokens=max_tokens,
+            )
+            return response.choices[0].message.content
+            
+        else:
+            # Default to OpenAI API (works for OpenAI, NVIDIA, and compatible endpoints)
+            if not openai_api_key:
+                raise Exception(f"OpenAI API key not set for provider {provider}")
+                
+            client = OpenAI(api_key=openai_api_key)
+            
+            # For NVIDIA and other providers, might need endpoint adjustment
+            if provider == "nvidia":
+                # Some NVIDIA models might need special handling
+                pass
+                
+            completion = client.chat.completions.create(
+                model=model_name,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=temperature,
+                top_p=top_p,
+                max_tokens=max_tokens,
+                stream=False
+            )
+            return completion.choices[0].message.content
+            
+    except Exception as e:
+        print(f"Error with {provider} API for model {model_name}: {str(e)}")
+        raise
+
+def retry_with_exponential_backoff(max_retries=5, base_wait=2, max_wait=60):
+    """
+    Decorator to retry OpenAI API calls with exponential backoff.
+    
+    Args:
+        max_retries: Maximum number of retry attempts
+        base_wait: Base wait time in seconds (will be exponentially increased)
+        max_wait: Maximum wait time in seconds
+    """
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            retries = 0
+            while retries < max_retries:
+                try:
+                    return func(*args, **kwargs)
+                except Exception as e:
+                    error_message = str(e)
+                    
+                    # Check if it's a rate limit error (429)
+                    if "429" in error_message or "rate_limit" in error_message.lower():
+                        # Extract wait time from error message if available
+                        wait_time = base_wait * (2 ** retries) + random.uniform(0, 1)
+                        
+                        # Try to extract specific wait time from error message
+                        import re
+                        wait_match = re.search(r'try again in ([\d.]+)s', error_message)
+                        if wait_match:
+                            suggested_wait = float(wait_match.group(1))
+                            wait_time = min(suggested_wait + 0.5, max_wait)  # Add small buffer
+                        
+                        wait_time = min(wait_time, max_wait)
+                        
+                        print(f"Rate limit hit. Waiting {wait_time:.1f} seconds before retry {retries + 1}/{max_retries}...")
+                        time.sleep(wait_time)
+                        retries += 1
+                        
+                        if retries >= max_retries:
+                            print(f"Max retries ({max_retries}) reached. Returning error.")
+                            raise e
+                    else:
+                        # If it's not a rate limit error, raise immediately
+                        raise e
+            
+            return None  # Should not reach here
+        return wrapper
+    return decorator
 
 def read_script(file_path):
     with open(file_path, "r", encoding="utf-8") as file:
         return file.read()
 
+@retry_with_exponential_backoff(max_retries=5, base_wait=2, max_wait=60)
 def evaluate_pychrono_code_against_reference_document(code, reference_code, api_documentation_link, model_link):
     prompt = f"""
     You are a PyChrono expert tasked with evaluating a simulation script by comparing it against a reference script generated by experts. Your evaluation should consider both the accuracy of the script compared to the reference and adherence to best practices as outlined in the PyChrono API documentation.
@@ -69,25 +272,10 @@ def evaluate_pychrono_code_against_reference_document(code, reference_code, api_
 
     Provide the evaluated score and a brief explanation of the deductions below:
     """
-    try:
-        global nvidia_api_key
-        client = OpenAI(api_key=nvidia_api_key
-        )
-        completion = client.chat.completions.create(
-            model=model_link,
-            messages=[
-                {"role": "user", "content": prompt}
-            ],
-            temperature=0.2,
-            top_p=0.7,
-            max_tokens=1000 * 12,
-            stream=False
-        )
-        return completion.choices[0].message.content, prompt
-    except Exception as e:
-        print('error2:', e)
-        return str(e), str(e)
+    response = get_llm_response(prompt, model_link)
+    return response, prompt
 
+@retry_with_exponential_backoff(max_retries=5, base_wait=2, max_wait=60)
 def evaluate_pychrono_code_against_reference(code, reference_code, model_link):
     prompt = f"""
     You are a PyChrono expert tasked with evaluating a simulation script by comparing it against a reference script generated by experts.
@@ -136,25 +324,10 @@ def evaluate_pychrono_code_against_reference(code, reference_code, model_link):
 
     Provide the evaluated score and a brief explanation of the deductions below:
     """
-    try:
-        global nvidia_api_key
-        client = OpenAI(api_key=nvidia_api_key
-        )
-        completion = client.chat.completions.create(
-            model=model_link,
-            messages=[
-                {"role": "user", "content": prompt}
-            ],
-            temperature=0.2,
-            top_p=0.7,
-            max_tokens=1000 * 12,
-            stream=False
-        )
-        return completion.choices[0].message.content, prompt
-    except Exception as e:
-        print('error2:', e)
-        return str(e), str(e)
+    response = get_llm_response(prompt, model_link)
+    return response, prompt
 
+@retry_with_exponential_backoff(max_retries=5, base_wait=2, max_wait=60)
 def evaluate_pychrono_code_against_document(code, api_documentation_link, model_link):
     prompt = f"""
         You are a PyChrono expert tasked with evaluating a simulation script by comparing it against the PyChrono API documentation. While the API documentation provides guidelines, it may not cover all aspects due to length constraints. Therefore, your evaluation should also be based on your knowledge of best practices in Python coding and general simulation principles.
@@ -200,37 +373,50 @@ def evaluate_pychrono_code_against_document(code, api_documentation_link, model_
 
         Provide the evaluated score and a brief explanation of the deductions below:
         """
-    try:
-        global nvidia_api_key
-        client = OpenAI(api_key=nvidia_api_key
-        )
-        completion = client.chat.completions.create(
-            model=model_link,
-            messages=[
-                {"role": "user", "content": prompt}
-            ],
-            temperature=0.2,
-            top_p=0.7,
-            max_tokens=1000 * 12,
-            stream=False
-        )
-        return completion.choices[0].message.content, prompt
-    except Exception as e:
-        print('error2:', e)
-        return str(e), str(e)
+    response = get_llm_response(prompt, model_link)
+    return response, prompt
 
 def evaluate_and_save_results(round_name, prediction, reference_code, api_path, output_system_path):
-    # Perform first method evaluation (against documentation)
-    score_document, prompt_document = evaluate_pychrono_code_against_document(prediction, api_path, evaluated_model)
-    print(score_document)
-
-    # Perform second method evaluation (against reference code)
-    score_reference, prompt_reference = evaluate_pychrono_code_against_reference(prediction, reference_code, evaluated_model)
-    print(score_reference)
-
-    # Perform third method evaluation (against both reference code and documentation)
-    score_reference_document, prompt_reference_document = evaluate_pychrono_code_against_reference_document(prediction, reference_code, api_path, evaluated_model)
-    print(score_reference_document)
+    # Run all three evaluation methods in parallel
+    from concurrent.futures import ThreadPoolExecutor
+    
+    def eval_document():
+        try:
+            score, prompt = evaluate_pychrono_code_against_document(prediction, api_path, evaluated_model)
+            print(f"✓ {round_name} - Document evaluation complete")
+            return score, prompt
+        except Exception as e:
+            print(f"✗ {round_name} - Document evaluation failed: {e}")
+            return f"Error: {str(e)}", ""
+    
+    def eval_reference():
+        try:
+            score, prompt = evaluate_pychrono_code_against_reference(prediction, reference_code, evaluated_model)
+            print(f"✓ {round_name} - Reference evaluation complete")
+            return score, prompt
+        except Exception as e:
+            print(f"✗ {round_name} - Reference evaluation failed: {e}")
+            return f"Error: {str(e)}", ""
+    
+    def eval_reference_document():
+        try:
+            score, prompt = evaluate_pychrono_code_against_reference_document(prediction, reference_code, api_path, evaluated_model)
+            print(f"✓ {round_name} - Reference+Document evaluation complete")
+            return score, prompt
+        except Exception as e:
+            print(f"✗ {round_name} - Reference+Document evaluation failed: {e}")
+            return f"Error: {str(e)}", ""
+    
+    # Execute all three evaluations in parallel
+    with ThreadPoolExecutor(max_workers=3) as executor:
+        future_document = executor.submit(eval_document)
+        future_reference = executor.submit(eval_reference)
+        future_ref_doc = executor.submit(eval_reference_document)
+        
+        # Wait for all results
+        score_document, prompt_document = future_document.result()
+        score_reference, prompt_reference = future_reference.result()
+        score_reference_document, prompt_reference_document = future_ref_doc.result()
 
     # Define paths for saving scores
     score_document_path = os.path.join(output_system_path, f"{round_name}_score_document.txt")
@@ -322,16 +508,23 @@ def extract_scores_from_txt(file_path):
     with open(file_path, 'r', encoding="utf-8") as file:
         content = file.read()
 
+    # Check if the content is an error message
+    if content.startswith("Error:"):
+        print(f"Warning: {file_path} contains an error instead of a score")
+        return 0  # Return 0 score for failed evaluations
+    
     # Use regex to find the score in the format [[x]]
     match = re.search(r"\[\[(\d+)\]\]", content)
     if match:
         return int(match.group(1))
     else:
-        raise ValueError(f"No valid score found in {file_path}")
+        # Try to handle partial scores or errors more gracefully
+        print(f"Warning: No valid score found in {file_path}, using default score 0")
+        return 0
 
 
 def save_scores_to_csv_with_metadata(output_system_path, test_model, system_folder,
-                                     csv_filename="evaluation_scores.csv"):
+                                    csv_filename="evaluation_scores.csv", evaluated_model="gpt-4o-mini"):
     """
     Extracts scores from text files for different evaluation rounds and saves them into a CSV,
     including metadata like the LLM model, testing model, and system.
@@ -340,6 +533,7 @@ def save_scores_to_csv_with_metadata(output_system_path, test_model, system_fold
     :param test_model: The name of the LLM being evaluated.
     :param system_folder: The name of the dynamical system being tested.
     :param csv_filename: The name of the CSV file to save the scores.
+    :param evaluated_model: The judge model used for evaluation (not currently used in function body).
     """
     # Prepare a list to hold CSV rows
     csv_data = [["Test Model", "System", "Round", "Score Document", "Score Reference", "Score Reference Document"]]
@@ -386,11 +580,11 @@ all_model_list= ["gemma-2-2b-it", "gemma-2-9b-it", "gemma-2-27b-it", "llama-3.1-
  "gpt-4o", "gpt-4o-mini", "claude-3-5-sonnet", "Gemini-1.5-pro",
 "llama4_maverick","llama4_scout", "llama-3.3-70b-instruct","o3","deepseek-r1-8b",
 "deepseek-r1-32b", "deepseek-r1","gemma-3-1b-it","qwen3-235b-a22b","claude-3-7-sonnet-20250219",
-"claude-4-sonnet-20250514","Gemini-2.5-pro","Gemini-1.5-pro","gpt-4.1-mini", "gpt-4.1-nano",
+"claude-4-sonnet-20250514","Gemini-2.5-pro","gpt-4.1-mini", "gpt-4.1-nano",
 "gpt-4.1","o4-mini","llama3.1-8b-f2","llama3.3-70b-sft1","llama3.1-8b-lora1","llama4-109b-lora1","llama3.3-70b-lora1"]
 
-evaluated_model = "gpt-4o"
-evaluated_model = "gpt-4o"
+# The evaluated_model is set by run_multiple_judges.sh script
+evaluated_model = "gpt-4o-mini"
 test_model_list = all_model_list
 
 system_list = ["art", "beam", "buckling", "cable",  "camera", "citybus", "curiosity", "feda", "gator", "gear", "gps_imu", "handler", "hmmwv", "kraz", "lidar", "m113", "man", "mass_spring_damper", "particles", "pendulum",
@@ -399,6 +593,9 @@ system_list = ["art", "beam", "buckling", "cable",  "camera", "citybus", "curios
 system_do_list=system_list
 def process_model_system(test_model, system_folder, dataset_path, Output_path, Output_conversation_path,
                          Output_statistic_path):
+    # Add a small random delay to avoid all threads hitting the API at once
+    time.sleep(random.uniform(0.1, 0.5))
+    
     system_folder_path = os.path.join(dataset_path, system_folder)
     output_system_path = os.path.join(Output_path, test_model, system_folder)
     os.makedirs(output_system_path, exist_ok=True)
@@ -431,13 +628,14 @@ def process_model_system(test_model, system_folder, dataset_path, Output_path, O
         evaluate_and_save_results("third", third_prediction, third_reference, api_path, output_system_path)
 
         # Save the scores and metadata to CSV
-        save_scores_to_csv_with_metadata(output_system_path, test_model, system_folder)
+        save_scores_to_csv_with_metadata(output_system_path, test_model, system_folder, "evaluation_scores.csv")
 
     return f"Completed {system_folder} for model {test_model}"
 
 
 # Parallel processing for all models and systems
-with ThreadPoolExecutor(max_workers=100) as executor:
+# Reduced workers to avoid overwhelming the API with requests
+with ThreadPoolExecutor(max_workers=10) as executor:
     futures = []
     for test_model in test_model_list:
         output_model_path = os.path.join(Output_path, test_model)

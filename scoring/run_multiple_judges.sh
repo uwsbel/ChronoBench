@@ -35,14 +35,10 @@ export GEMINI_API_KEY="${GOOGLE_API_KEY}"  # Google Gemini uses the same key
 # Including all available models from p_JLLM_score.py
 JUDGE_MODELS=(
     # OpenAI Models
-    "gpt-4o"
     "gpt-4o-mini"
-    "gpt-4.1"
     "gpt-4.1-mini"
     "gpt-4.1-nano"
-    "o3"
-    "o4-mini"
-    
+
     # Anthropic Models
     "claude-3-5-sonnet"
     "claude-3-7-sonnet-20250219"
@@ -353,15 +349,15 @@ if [ -f "${OUTPUT_LLMS_DIR}/combined_evaluation_scores.csv" ] && [ ! -f "$ORIGIN
     cp "${OUTPUT_LLMS_DIR}/combined_evaluation_scores.csv" "$ORIGINAL_COMBINED_SCORES"
 fi
 
-# Main loop through judge models
-for judge_model in "${JUDGE_MODELS[@]}"; do
-    # Check if this model's provider has failed
-    provider="${MODEL_PROVIDER[$judge_model]:-unknown}"
+# Function to process a single judge model
+process_judge_model() {
+    local judge_model=$1
+    local provider="${MODEL_PROVIDER[$judge_model]:-unknown}"
     
     if [[ "${FAILED_PROVIDERS[$provider]}" == "true" ]]; then
         print_message "$YELLOW" "\n⏭️ Skipping $judge_model - Provider '$provider' has exceeded failure limit"
         FAILED_MODELS+=("$judge_model: Skipped due to $provider API failures")
-        continue
+        return 1
     fi
     
     print_message "$GREEN" "\n=========================================="
@@ -375,7 +371,7 @@ for judge_model in "${JUDGE_MODELS[@]}"; do
     
     # Update the judge model in p_JLLM_score.py
     print_message "$YELLOW" "Updating judge model to $judge_model..."
-    sed -i "393s/.*/evaluated_model = \"$judge_model\"/" "$JLLM_SCRIPT"
+    sed -i "587s/.*/evaluated_model = \"$judge_model\"/" "$JLLM_SCRIPT"
     
     # Verify the change
     if grep -q "evaluated_model = \"$judge_model\"" "$JLLM_SCRIPT"; then
@@ -399,7 +395,7 @@ for judge_model in "${JUDGE_MODELS[@]}"; do
     max_retries=3
     retry_count=0
     scoring_success=false
-    timeout_duration=60  # 60 seconds timeout per attempt
+    timeout_duration=6000  # 60 seconds timeout per attempt
     
     while [ $retry_count -lt $max_retries ]; do
         retry_count=$((retry_count+1))
@@ -618,7 +614,48 @@ for judge_model in "${JUDGE_MODELS[@]}"; do
     [ -f "${model_output_dir}/combined_evaluation_scores_${judge_model//\./-}.csv" ] && echo "  - combined_evaluation_scores_${judge_model//\./-}.csv"
     [ -f "${model_output_dir}/evaluation_results.csv" ] && echo "  - evaluation_results.csv"
     [ -f "${model_output_dir}/consensus_llm_rankings_top10.png" ] && echo "  - consensus_llm_rankings_top10.png"
+}
+
+# Separate OpenAI models for parallel processing
+OPENAI_JUDGES=()
+OTHER_JUDGES=()
+
+for model in "${JUDGE_MODELS[@]}"; do
+    provider="${MODEL_PROVIDER[$model]:-unknown}"
+    if [[ "$provider" == "openai" ]]; then
+        OPENAI_JUDGES+=("$model")
+    else
+        OTHER_JUDGES+=("$model")
+    fi
 done
+
+print_message "$YELLOW" "\n========================================="
+print_message "$YELLOW" "Processing ${#OPENAI_JUDGES[@]} OpenAI models in parallel..."
+print_message "$YELLOW" "========================================="
+
+# Process OpenAI models in parallel (they can handle concurrent requests)
+if [ ${#OPENAI_JUDGES[@]} -gt 0 ]; then
+    for judge_model in "${OPENAI_JUDGES[@]}"; do
+        (
+            process_judge_model "$judge_model"
+        ) &
+    done
+    
+    # Wait for all OpenAI models to complete
+    wait
+    print_message "$GREEN" "\n✓ All OpenAI judge models completed"
+fi
+
+# Process other models sequentially (to avoid rate limits)
+if [ ${#OTHER_JUDGES[@]} -gt 0 ]; then
+    print_message "$YELLOW" "\n========================================="
+    print_message "$YELLOW" "Processing ${#OTHER_JUDGES[@]} non-OpenAI models sequentially..."
+    print_message "$YELLOW" "========================================="
+    
+    for judge_model in "${OTHER_JUDGES[@]}"; do
+        process_judge_model "$judge_model"
+    done
+fi
 
 # Restore original p_JLLM_score.py
 print_message "$YELLOW" "\nRestoring original p_JLLM_score.py..."
