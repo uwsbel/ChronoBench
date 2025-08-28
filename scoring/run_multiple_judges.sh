@@ -4,6 +4,11 @@
 # This script modifies the judge model in p_JLLM_score.py and runs the complete evaluation pipeline
 # Results are stored in out_diff_models/out_<judge_model>/
 
+# Initialize control variables
+GRACEFUL_SHUTDOWN=false
+CURRENT_PID=""
+CURRENT_JUDGE=""
+
 # Set working directory
 SCORING_DIR="/home/hongyu/Documents/SimBench/scoring"
 OUTPUT_BASE_DIR="${SCORING_DIR}/out_diff_models"
@@ -24,12 +29,26 @@ else
 fi
 
 # Export API Keys (will use .env values if loaded, empty otherwise)
+# Support for multiple OpenAI API keys for parallel processing
 export OPENAI_API_KEY="${OPENAI_API_KEY:-}"
+export OPENAI_API_KEY_1="${OPENAI_API_KEY_1:-$OPENAI_API_KEY}"  # Fallback to single key if not set
+export OPENAI_API_KEY_2="${OPENAI_API_KEY_2:-$OPENAI_API_KEY}"  # Fallback to single key if not set
+export OPENAI_API_KEY_3="${OPENAI_API_KEY_3:-$OPENAI_API_KEY}"  # Fallback to single key if not set
 export ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY:-}"
 export GOOGLE_API_KEY="${GOOGLE_API_KEY:-}"
 export MISTRAL_API_KEY="${MISTRAL_API_KEY:-}"
 export NVIDIA_API_KEY="${NVIDIA_API_KEY:-}"
 export GEMINI_API_KEY="${GOOGLE_API_KEY}"  # Google Gemini uses the same key
+
+# Array to track which API key to use for each OpenAI model
+OPENAI_API_KEYS=("$OPENAI_API_KEY_1" "$OPENAI_API_KEY_2" "$OPENAI_API_KEY_3")
+
+# Check if we have multiple OpenAI keys
+MULTI_OPENAI_KEYS=false
+if [ "$OPENAI_API_KEY_1" != "$OPENAI_API_KEY_2" ] || [ "$OPENAI_API_KEY_2" != "$OPENAI_API_KEY_3" ]; then
+    MULTI_OPENAI_KEYS=true
+    print_message "$GREEN" "✓ Multiple OpenAI API keys detected - enabling parallel processing"
+fi
 
 # Define judge models to test
 # Including all available models from p_JLLM_score.py
@@ -152,21 +171,23 @@ spinner() {
     printf "    \r"
 }
 
-# Function to check if required files exist
+# Function to check if required files exist for JLLM scoring
 check_prerequisites() {
     local missing_files=0
     
-    print_message "$YELLOW" "Checking prerequisites..."
+    print_message "$YELLOW" "Checking prerequisites for JLLM scoring..."
     
-    # Check if LLM outputs exist
+    # Check if LLM outputs exist (responses to evaluate)
     if [ ! -d "$OUTPUT_LLMS_DIR" ]; then
         print_message "$RED" "Error: Output directory $OUTPUT_LLMS_DIR not found"
+        print_message "$RED" "Need LLM responses to evaluate"
         missing_files=1
     fi
     
-    # Check if demo data exists
+    # Check if demo data exists (ground truth)
     if [ ! -d "/home/hongyu/Documents/SimBench/demo_data" ]; then
         print_message "$RED" "Error: Demo data directory not found"
+        print_message "$RED" "Need ground truth for comparison"
         missing_files=1
     fi
     
@@ -176,18 +197,10 @@ check_prerequisites() {
         missing_files=1
     fi
     
-    # Check if p_sim_score.py has been run (evaluation_results.csv should exist)
-    if [ ! -f "$STATISTIC_DIR/evaluation_results.csv" ]; then
-        print_message "$YELLOW" "Warning: $STATISTIC_DIR/evaluation_results.csv not found"
-        print_message "$YELLOW" "Running p_sim_score.py to generate similarity metrics..."
-        cd "$SCORING_DIR"
-        python p_sim_score.py
-        if [ $? -ne 0 ]; then
-            print_message "$RED" "Failed to run p_sim_score.py"
-            missing_files=1
-        else
-            print_message "$GREEN" "Successfully generated similarity metrics"
-        fi
+    # Check if p_JLLM_score.py exists
+    if [ ! -f "$JLLM_SCRIPT" ]; then
+        print_message "$RED" "Error: p_JLLM_score.py not found at $JLLM_SCRIPT"
+        missing_files=1
     fi
     
     if [ $missing_files -eq 1 ]; then
@@ -195,7 +208,7 @@ check_prerequisites() {
         exit 1
     fi
     
-    print_message "$GREEN" "All prerequisites satisfied"
+    print_message "$GREEN" "All prerequisites satisfied for JLLM scoring"
 }
 
 # Create backup of original file
@@ -212,135 +225,12 @@ MISSING_DATA=()
 FAILED_MODELS=()
 SUCCESSFUL_MODELS=()
 
-# Function to check and run evaluation for models missing evaluation_scores.csv
-check_and_run_missing_evaluations() {
-    local missing_models=()
-    
-    print_message "$YELLOW" "Checking for models with missing evaluation scores..."
-    
-    # Check each model directory for missing evaluation_scores.csv
-    for model_dir in "$OUTPUT_LLMS_DIR"/*/; do
-        if [ -d "$model_dir" ]; then
-            model_name=$(basename "$model_dir")
-            
-            # Skip special directories
-            if [[ "$model_name" == "combined_evaluation_scores"* ]] || [[ "$model_name" == "." ]] || [[ "$model_name" == ".." ]]; then
-                continue
-            fi
-            
-            # Check if model has response files but no evaluation_scores.csv
-            has_responses=false
-            has_evaluation=false
-            
-            # Check for response files in any subdirectory
-            for subdir in "$model_dir"*/; do
-                if [ -d "$subdir" ] && [ -f "$subdir/first_response.txt" ]; then
-                    has_responses=true
-                fi
-                if [ -f "$subdir/evaluation_scores.csv" ]; then
-                    has_evaluation=true
-                fi
-            done
-            
-            if [ "$has_responses" = true ] && [ "$has_evaluation" = false ]; then
-                missing_models+=("$model_name")
-                print_message "$YELLOW" "  Found model with missing evaluation: $model_name"
-            fi
-        fi
-    done
-    
-    # If there are missing models, run evaluatePy.py for them
-    if [ ${#missing_models[@]} -gt 0 ]; then
-        print_message "$YELLOW" "\nFound ${#missing_models[@]} models needing evaluation"
-        print_message "$YELLOW" "Running evaluatePy.py in headless mode..."
-        
-        # Check if xvfb is available
-        if command -v xvfb-run &> /dev/null; then
-            print_message "$GREEN" "Using xvfb-run for headless execution"
-            HEADLESS_CMD="xvfb-run -a"
-        else
-            print_message "$YELLOW" "xvfb-run not found, using DISPLAY= instead"
-            HEADLESS_CMD="env DISPLAY="
-        fi
-        
-        # Update evaluatePy.py to include missing models
-        cd "$SCORING_DIR"
-        
-        # Create a temporary evaluatePy script for missing models
-        cp evaluatePy.py evaluatePy_temp.py
-        
-        # Update the test_model_list in the temporary script
-        model_list_str=$(printf '"%s", ' "${missing_models[@]}")
-        model_list_str="[${model_list_str%, }]"
-        
-        # Update the test_model_list line
-        sed -i "83s/.*/test_model_list = $model_list_str/" evaluatePy_temp.py
-        
-        print_message "$YELLOW" "Running evaluation for missing models: ${missing_models[*]}"
-        print_message "$YELLOW" "This may take a while without visual feedback..."
-        
-        # Run the evaluation script in headless mode
-        $HEADLESS_CMD python evaluatePy_temp.py > "${OUTPUT_BASE_DIR}/missing_models_evaluation.log" 2>&1 &
-        eval_pid=$!
-        
-        # Show progress indicator
-        while kill -0 $eval_pid 2>/dev/null; do
-            printf "  ⠋ Evaluating missing models...\r"
-            sleep 0.5
-            printf "  ⠙ Evaluating missing models...\r"
-            sleep 0.5
-            printf "  ⠹ Evaluating missing models...\r"
-            sleep 0.5
-            printf "  ⠸ Evaluating missing models...\r"
-            sleep 0.5
-            printf "  ⠼ Evaluating missing models...\r"
-            sleep 0.5
-            printf "  ⠴ Evaluating missing models...\r"
-            sleep 0.5
-            printf "  ⠦ Evaluating missing models...\r"
-            sleep 0.5
-            printf "  ⠧ Evaluating missing models...\r"
-            sleep 0.5
-            printf "  ⠇ Evaluating missing models...\r"
-            sleep 0.5
-            printf "  ⠏ Evaluating missing models...\r"
-            sleep 0.5
-        done
-        
-        wait $eval_pid
-        eval_exit_code=$?
-        printf "                                        \r"
-        
-        # Clean up temp file
-        rm -f evaluatePy_temp.py
-        
-        if [ $eval_exit_code -eq 0 ]; then
-            print_message "$GREEN" "✓ Successfully evaluated missing models"
-            
-            # Verify evaluation files were created
-            for model in "${missing_models[@]}"; do
-                eval_count=$(find "$OUTPUT_LLMS_DIR/$model" -name "evaluation_scores.csv" 2>/dev/null | wc -l)
-                if [ $eval_count -gt 0 ]; then
-                    print_message "$GREEN" "  ✓ $model: $eval_count evaluation files created"
-                else
-                    print_message "$YELLOW" "  ⚠ $model: No evaluation files found"
-                fi
-            done
-        else
-            print_message "$RED" "⚠ Evaluation failed for missing models"
-            print_message "$YELLOW" "Check log at: ${OUTPUT_BASE_DIR}/missing_models_evaluation.log"
-            print_message "$YELLOW" "Continuing with available evaluations..."
-        fi
-    else
-        print_message "$GREEN" "All models have evaluation scores or no response files"
-    fi
-}
+# Function removed - focusing only on JLLM scoring
 
 # Check prerequisites before starting
 check_prerequisites
 
-# Check and run evaluations for models with missing scores
-check_and_run_missing_evaluations
+# Skip evaluation checking - focus only on JLLM scoring
 
 # Save the original combined_evaluation_scores.csv if it exists
 ORIGINAL_COMBINED_SCORES="${OUTPUT_LLMS_DIR}/combined_evaluation_scores_original.csv"
@@ -352,7 +242,14 @@ fi
 # Function to process a single judge model
 process_judge_model() {
     local judge_model=$1
+    local api_key_override=$2  # Optional: specific API key for this model
     local provider="${MODEL_PROVIDER[$judge_model]:-unknown}"
+    
+    # If an API key override is provided for OpenAI models, use it
+    if [ -n "$api_key_override" ] && [ "$provider" == "openai" ]; then
+        export OPENAI_API_KEY="$api_key_override"
+        print_message "$YELLOW" "Using specific API key for $judge_model"
+    fi
     
     if [[ "${FAILED_PROVIDERS[$provider]}" == "true" ]]; then
         print_message "$YELLOW" "\n⏭️ Skipping $judge_model - Provider '$provider' has exceeded failure limit"
@@ -371,7 +268,13 @@ process_judge_model() {
     
     # Update the judge model in p_JLLM_score.py
     print_message "$YELLOW" "Updating judge model to $judge_model..."
-    sed -i "587s/.*/evaluated_model = \"$judge_model\"/" "$JLLM_SCRIPT"
+    # Find the line number dynamically to be more robust
+    line_num=$(grep -n '^evaluated_model = ' "$JLLM_SCRIPT" | cut -d: -f1)
+    if [ -z "$line_num" ]; then
+        print_message "$RED" "Error: Could not find evaluated_model line in p_JLLM_score.py"
+        continue
+    fi
+    sed -i "${line_num}s/.*/evaluated_model = \"$judge_model\"/" "$JLLM_SCRIPT"
     
     # Verify the change
     if grep -q "evaluated_model = \"$judge_model\"" "$JLLM_SCRIPT"; then
@@ -395,74 +298,37 @@ process_judge_model() {
     max_retries=3
     retry_count=0
     scoring_success=false
-    timeout_duration=6000  # 60 seconds timeout per attempt
     
-    while [ $retry_count -lt $max_retries ]; do
+    while [ $retry_count -lt $max_retries ] && [ "$GRACEFUL_SHUTDOWN" = false ]; do
         retry_count=$((retry_count+1))
-        print_message "$YELLOW" "  Attempt $retry_count/$max_retries for $provider API (timeout: ${timeout_duration}s)..."
+        print_message "$YELLOW" "  Attempt $retry_count/$max_retries for $provider API..."
         
-        # Run in background with timeout to enable spinner and prevent hanging
-        timeout $timeout_duration python p_JLLM_score.py > "${model_output_dir}/jllm_score_log.txt" 2>&1 &
-        pid=$!
+        # Set current judge and PID for signal handler
+        CURRENT_JUDGE="$judge_model"
         
-        # Monitor the process with spinner
-        start_time=$(date +%s)
-        while kill -0 $pid 2>/dev/null; do
-            current_time=$(date +%s)
-            elapsed=$((current_time - start_time))
-            remaining=$((timeout_duration - elapsed))
-            
-            # Update spinner with time remaining
-            printf " [⠋] Evaluating with $judge_model (${elapsed}s elapsed, ${remaining}s remaining)...\r"
-            sleep 0.5
-            printf " [⠙] Evaluating with $judge_model (${elapsed}s elapsed, ${remaining}s remaining)...\r"
-            sleep 0.5
-            printf " [⠹] Evaluating with $judge_model (${elapsed}s elapsed, ${remaining}s remaining)...\r"
-            sleep 0.5
-            printf " [⠸] Evaluating with $judge_model (${elapsed}s elapsed, ${remaining}s remaining)...\r"
-            sleep 0.5
-            printf " [⠼] Evaluating with $judge_model (${elapsed}s elapsed, ${remaining}s remaining)...\r"
-            sleep 0.5
-            printf " [⠴] Evaluating with $judge_model (${elapsed}s elapsed, ${remaining}s remaining)...\r"
-            sleep 0.5
-            printf " [⠦] Evaluating with $judge_model (${elapsed}s elapsed, ${remaining}s remaining)...\r"
-            sleep 0.5
-            printf " [⠧] Evaluating with $judge_model (${elapsed}s elapsed, ${remaining}s remaining)...\r"
-            sleep 0.5
-            printf " [⠇] Evaluating with $judge_model (${elapsed}s elapsed, ${remaining}s remaining)...\r"
-            sleep 0.5
-            printf " [⠏] Evaluating with $judge_model (${elapsed}s elapsed, ${remaining}s remaining)...\r"
-            sleep 0.5
-        done
+        # Run with tee to show output in terminal AND save to log
+        python p_JLLM_score.py 2>&1 | tee "${model_output_dir}/jllm_score_log.txt" &
+        CURRENT_PID=$!
         
-        wait $pid
+        # Monitor the process - output is visible via tee
+        print_message "$YELLOW" "  Output is being displayed in real-time..."
+        
+        wait $CURRENT_PID
         exit_code=$?
+        CURRENT_PID=""
         printf "                                                                                \r"
+        
+        # Check if we're shutting down gracefully
+        if [ "$GRACEFUL_SHUTDOWN" = true ]; then
+            print_message "$YELLOW" "  Evaluation of $judge_model interrupted by shutdown"
+            break
+        fi
         
         if [ $exit_code -eq 0 ]; then
             print_message "$GREEN" "✓ LLM-as-Judge scoring completed successfully"
             scoring_success=true
             SUCCESSFUL_MODELS+=("$judge_model")
             break
-        elif [ $exit_code -eq 124 ]; then
-            # Exit code 124 means timeout was reached
-            print_message "$YELLOW" "  ⏱️ Timeout reached (${timeout_duration}s) for $judge_model"
-            PROVIDER_FAILURES[$provider]=$((${PROVIDER_FAILURES[$provider]:-0} + 1))
-            
-            if [ $retry_count -lt $max_retries ]; then
-                wait_time=$((20 * retry_count))  # 20s, 40s, 60s
-                print_message "$YELLOW" "  Waiting ${wait_time}s before retry..."
-                
-                # Show countdown
-                for ((i=wait_time; i>0; i--)); do
-                    printf "  ⏳ Countdown: ${i}s remaining...\r"
-                    sleep 1
-                done
-                printf "                                        \r"
-            else
-                print_message "$YELLOW" "⚠ Max attempts reached for $judge_model"
-                FAILED_MODELS+=("$judge_model: Timeout after $max_retries attempts")
-            fi
         else
             # Extract and display the actual error
             error_msg=$(tail -n 20 "${model_output_dir}/jllm_score_log.txt" | grep -i "error\|exception\|failed\|rate limit\|quota\|429\|insufficient" | head -1)
@@ -470,25 +336,13 @@ process_judge_model() {
                 error_msg=$(tail -n 5 "${model_output_dir}/jllm_score_log.txt" | tr '\n' ' ')
             fi
             
-            if grep -qi "rate limit\|quota exceeded\|429\|insufficient_quota" "${model_output_dir}/jllm_score_log.txt"; then
-                API_ERRORS+=("$judge_model: API rate limit/quota issue at attempt $retry_count")
-                print_message "$YELLOW" "  ⚠️ API rate limit detected: ${error_msg:0:80}..."
+            # Check the type of error
+            if grep -qi "api key not set\|authentication\|unauthorized" "${model_output_dir}/jllm_score_log.txt"; then
+                API_ERRORS+=("$judge_model: API key not configured")
+                print_message "$RED" "  ✗ API key not set for $provider"
+                FAILED_MODELS+=("$judge_model: API key not configured")
                 PROVIDER_FAILURES[$provider]=$((${PROVIDER_FAILURES[$provider]:-0} + 1))
-                
-                if [ $retry_count -lt $max_retries ]; then
-                    wait_time=$((20 * retry_count))  # 20s, 40s, 60s
-                    print_message "$YELLOW" "  Waiting ${wait_time}s before retry..."
-                    
-                    # Show countdown
-                    for ((i=wait_time; i>0; i--)); do
-                        printf "  ⏳ Countdown: ${i}s remaining...\r"
-                        sleep 1
-                    done
-                    printf "                                        \r"
-                else
-                    print_message "$YELLOW" "⚠ Max retries reached for $judge_model"
-                    FAILED_MODELS+=("$judge_model: API rate limit after $max_retries attempts")
-                fi
+                break  # No point retrying without API key
             else
                 # Check for other known errors and display them
                 if grep -qi "connection\|timeout\|network" "${model_output_dir}/jllm_score_log.txt"; then
@@ -504,6 +358,7 @@ process_judge_model() {
                 fi
                 print_message "$YELLOW" "  Check full log at: ${model_output_dir}/jllm_score_log.txt"
                 print_message "$YELLOW" "⚠ Skipping $judge_model due to errors"
+                PROVIDER_FAILURES[$provider]=$((${PROVIDER_FAILURES[$provider]:-0} + 1))
                 break
             fi
         fi
@@ -523,6 +378,7 @@ process_judge_model() {
     fi
     
     if [ "$scoring_success" = false ]; then
+        print_message "$RED" "❌ Scoring failed for $judge_model, skipping to next model"
         continue
     fi
     
@@ -620,6 +476,10 @@ process_judge_model() {
 OPENAI_JUDGES=()
 OTHER_JUDGES=()
 
+print_message "$YELLOW" "\n========================================="
+print_message "$YELLOW" "Preparing to evaluate with ${#JUDGE_MODELS[@]} judge models"
+print_message "$YELLOW" "========================================="
+
 for model in "${JUDGE_MODELS[@]}"; do
     provider="${MODEL_PROVIDER[$model]:-unknown}"
     if [[ "$provider" == "openai" ]]; then
@@ -629,30 +489,75 @@ for model in "${JUDGE_MODELS[@]}"; do
     fi
 done
 
-print_message "$YELLOW" "\n========================================="
-print_message "$YELLOW" "Processing ${#OPENAI_JUDGES[@]} OpenAI models in parallel..."
-print_message "$YELLOW" "========================================="
+print_message "$GREEN" "✓ OpenAI models (${#OPENAI_JUDGES[@]}): ${OPENAI_JUDGES[*]:0:3}..."
+print_message "$GREEN" "✓ Other models (${#OTHER_JUDGES[@]}): ${OTHER_JUDGES[*]:0:3}..."
 
-# Process OpenAI models in parallel (they can handle concurrent requests)
-if [ ${#OPENAI_JUDGES[@]} -gt 0 ]; then
-    for judge_model in "${OPENAI_JUDGES[@]}"; do
-        (
+print_message "$YELLOW" "\n========================================="
+if [ "$MULTI_OPENAI_KEYS" = true ]; then
+    print_message "$YELLOW" "Processing ${#OPENAI_JUDGES[@]} OpenAI models in PARALLEL..."
+    print_message "$YELLOW" "========================================="
+    print_message "$GREEN" "✓ Multiple API keys available - parallel processing enabled!"
+else
+    print_message "$YELLOW" "Processing ${#OPENAI_JUDGES[@]} OpenAI models sequentially..."
+    print_message "$YELLOW" "========================================="
+    print_message "$YELLOW" "Note: Running sequentially (single API key)"
+fi
+print_message "$YELLOW" "OpenAI models to process: ${OPENAI_JUDGES[*]}"
+
+# Process OpenAI models - parallel if multiple keys, sequential otherwise
+if [ ${#OPENAI_JUDGES[@]} -gt 0 ] && [ "$GRACEFUL_SHUTDOWN" = false ]; then
+    if [ "$MULTI_OPENAI_KEYS" = true ]; then
+        # Parallel processing with different API keys
+        print_message "$GREEN" "Launching parallel processes with separate API keys..."
+        
+        # Assign each model to a different API key and run in parallel
+        key_index=0
+        for judge_model in "${OPENAI_JUDGES[@]}"; do
+            if [ "$GRACEFUL_SHUTDOWN" = true ]; then
+                break
+            fi
+            
+            # Get the API key for this model (round-robin if more than 3 models)
+            api_key="${OPENAI_API_KEYS[$key_index]}"
+            print_message "$YELLOW" "  • $judge_model → API key #$((key_index + 1))"
+            
+            # Launch in background with specific API key
+            (
+                process_judge_model "$judge_model" "$api_key"
+            ) &
+            
+            # Move to next API key (round-robin)
+            key_index=$(( (key_index + 1) % ${#OPENAI_API_KEYS[@]} ))
+        done
+        
+        # Wait for all parallel jobs to complete
+        print_message "$YELLOW" "Waiting for all parallel OpenAI evaluations to complete..."
+        wait
+    else
+        # Sequential processing with single API key
+        for judge_model in "${OPENAI_JUDGES[@]}"; do
+            if [ "$GRACEFUL_SHUTDOWN" = true ]; then
+                break
+            fi
             process_judge_model "$judge_model"
-        ) &
-    done
+        done
+    fi
     
-    # Wait for all OpenAI models to complete
-    wait
-    print_message "$GREEN" "\n✓ All OpenAI judge models completed"
+    if [ "$GRACEFUL_SHUTDOWN" = false ]; then
+        print_message "$GREEN" "\n✓ All OpenAI judge models completed"
+    fi
 fi
 
 # Process other models sequentially (to avoid rate limits)
-if [ ${#OTHER_JUDGES[@]} -gt 0 ]; then
+if [ ${#OTHER_JUDGES[@]} -gt 0 ] && [ "$GRACEFUL_SHUTDOWN" = false ]; then
     print_message "$YELLOW" "\n========================================="
     print_message "$YELLOW" "Processing ${#OTHER_JUDGES[@]} non-OpenAI models sequentially..."
     print_message "$YELLOW" "========================================="
     
     for judge_model in "${OTHER_JUDGES[@]}"; do
+        if [ "$GRACEFUL_SHUTDOWN" = true ]; then
+            break
+        fi
         process_judge_model "$judge_model"
     done
 fi

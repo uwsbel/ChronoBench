@@ -170,48 +170,91 @@ def get_llm_response(prompt, model_name, temperature=0.2, top_p=0.7, max_tokens=
         print(f"Error with {provider} API for model {model_name}: {str(e)}")
         raise
 
-def retry_with_exponential_backoff(max_retries=5, base_wait=2, max_wait=60):
+def retry_with_exponential_backoff(max_retries=None, base_wait=2, max_wait=300):
     """
-    Decorator to retry OpenAI API calls with exponential backoff.
+    Decorator to retry API calls with exponential backoff.
+    For rate limits/usage limits, retries indefinitely.
     
     Args:
-        max_retries: Maximum number of retry attempts
+        max_retries: Maximum number of retry attempts (None = infinite for rate limits)
         base_wait: Base wait time in seconds (will be exponentially increased)
-        max_wait: Maximum wait time in seconds
+        max_wait: Maximum wait time in seconds (increased from 60 to 300)
     """
     def decorator(func):
         def wrapper(*args, **kwargs):
             retries = 0
-            while retries < max_retries:
+            while True:
                 try:
                     return func(*args, **kwargs)
                 except Exception as e:
-                    error_message = str(e)
+                    error_message = str(e).lower()
                     
-                    # Check if it's a rate limit error (429)
-                    if "429" in error_message or "rate_limit" in error_message.lower():
-                        # Extract wait time from error message if available
-                        wait_time = base_wait * (2 ** retries) + random.uniform(0, 1)
-                        
-                        # Try to extract specific wait time from error message
+                    # Check if it's a rate limit or usage limit error
+                    is_rate_limit = any(keyword in error_message for keyword in [
+                        "429", "rate_limit", "rate limit", "quota", "insufficient_quota",
+                        "usage limit", "limit exceeded", "too many requests"
+                    ])
+                    
+                    if is_rate_limit:
+                        # Try to extract specific wait time from error message FIRST
                         import re
-                        wait_match = re.search(r'try again in ([\d.]+)s', error_message)
-                        if wait_match:
-                            suggested_wait = float(wait_match.group(1))
-                            wait_time = min(suggested_wait + 0.5, max_wait)  # Add small buffer
+                        wait_time = None
+                        error_str = str(e)
                         
-                        wait_time = min(wait_time, max_wait)
+                        # Multiple patterns to match different API error formats
+                        patterns = [
+                            r'try again in ([\d.]+)\s*s',  # OpenAI format
+                            r'Please try again in ([\d.]+)',  # Alternative format
+                            r'retry after ([\d.]+)',  # Standard HTTP format
+                            r'wait ([\d.]+) second',  # Generic format
+                            r'available in ([\d.]+) second',  # Quota format
+                        ]
                         
-                        print(f"Rate limit hit. Waiting {wait_time:.1f} seconds before retry {retries + 1}/{max_retries}...")
-                        time.sleep(wait_time)
+                        for pattern in patterns:
+                            wait_match = re.search(pattern, error_str, re.IGNORECASE)
+                            if wait_match:
+                                wait_time = float(wait_match.group(1)) + 1.0  # Add 1 second buffer
+                                print(f"  API provided wait time: {wait_time-1:.0f} seconds")
+                                break
+                        
+                        # If no wait time found in error message, use exponential backoff
+                        if wait_time is None:
+                            # For rate limits without specific time, use exponential backoff with cap
+                            wait_time = base_wait * (2 ** min(retries, 10)) + random.uniform(0, 1)
+                            wait_time = min(wait_time, max_wait)  # Only cap the exponential backoff
+                            print(f"  No wait time in error, using exponential backoff")
+                        
+                        print(f"\n⏳ Rate/usage limit hit. Will retry indefinitely...")
+                        print(f"  Waiting {wait_time:.1f} seconds before retry #{retries + 1}")
+                        print(f"  Error: {str(e)[:150]}...")
+                        print(f"  This is normal - the script will continue automatically after waiting.")
+                        
+                        # Show countdown for long waits
+                        if wait_time > 10:
+                            for remaining in range(int(wait_time), 0, -1):
+                                print(f"\r  Time remaining: {remaining} seconds...", end="", flush=True)
+                                time.sleep(1)
+                            print("\r  Retrying now...                    ", flush=True)
+                        else:
+                            time.sleep(wait_time)
+                        
                         retries += 1
-                        
-                        if retries >= max_retries:
-                            print(f"Max retries ({max_retries}) reached. Returning error.")
-                            raise e
+                        # No limit on retries for rate limit errors
+                        continue
                     else:
-                        # If it's not a rate limit error, raise immediately
-                        raise e
+                        # For non-rate-limit errors, respect max_retries if set
+                        if max_retries and retries >= max_retries:
+                            print(f"Max retries ({max_retries}) reached for non-rate-limit error.")
+                            raise e
+                        elif retries < 3:  # Try up to 3 times for other errors
+                            wait_time = base_wait * (2 ** retries)
+                            print(f"Error occurred. Waiting {wait_time:.1f} seconds before retry {retries + 1}/3...")
+                            time.sleep(wait_time)
+                            retries += 1
+                            continue
+                        else:
+                            # If it's not a rate limit error and we've tried enough, raise
+                            raise e
             
             return None  # Should not reach here
         return wrapper
@@ -221,7 +264,7 @@ def read_script(file_path):
     with open(file_path, "r", encoding="utf-8") as file:
         return file.read()
 
-@retry_with_exponential_backoff(max_retries=5, base_wait=2, max_wait=60)
+@retry_with_exponential_backoff(max_retries=None, base_wait=2, max_wait=300)
 def evaluate_pychrono_code_against_reference_document(code, reference_code, api_documentation_link, model_link):
     prompt = f"""
     You are a PyChrono expert tasked with evaluating a simulation script by comparing it against a reference script generated by experts. Your evaluation should consider both the accuracy of the script compared to the reference and adherence to best practices as outlined in the PyChrono API documentation.
@@ -275,7 +318,7 @@ def evaluate_pychrono_code_against_reference_document(code, reference_code, api_
     response = get_llm_response(prompt, model_link)
     return response, prompt
 
-@retry_with_exponential_backoff(max_retries=5, base_wait=2, max_wait=60)
+@retry_with_exponential_backoff(max_retries=None, base_wait=2, max_wait=300)
 def evaluate_pychrono_code_against_reference(code, reference_code, model_link):
     prompt = f"""
     You are a PyChrono expert tasked with evaluating a simulation script by comparing it against a reference script generated by experts.
@@ -327,7 +370,7 @@ def evaluate_pychrono_code_against_reference(code, reference_code, model_link):
     response = get_llm_response(prompt, model_link)
     return response, prompt
 
-@retry_with_exponential_backoff(max_retries=5, base_wait=2, max_wait=60)
+@retry_with_exponential_backoff(max_retries=None, base_wait=2, max_wait=300)
 def evaluate_pychrono_code_against_document(code, api_documentation_link, model_link):
     prompt = f"""
         You are a PyChrono expert tasked with evaluating a simulation script by comparing it against the PyChrono API documentation. While the API documentation provides guidelines, it may not cover all aspects due to length constraints. Therefore, your evaluation should also be based on your knowledge of best practices in Python coding and general simulation principles.
@@ -407,11 +450,19 @@ def evaluate_and_save_results(round_name, prediction, reference_code, api_path, 
             print(f"✗ {round_name} - Reference+Document evaluation failed: {e}")
             return f"Error: {str(e)}", ""
     
-    # Execute all three evaluations in parallel
-    with ThreadPoolExecutor(max_workers=3) as executor:
-        future_document = executor.submit(eval_document)
-        future_reference = executor.submit(eval_reference)
-        future_ref_doc = executor.submit(eval_reference_document)
+    # Execute evaluations with model-specific concurrency
+    # For OpenAI models, run sequentially to avoid rate limits
+    if evaluated_model in ["gpt-4o", "gpt-4o-mini", "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano", "o3", "o4-mini"]:
+        # Run sequentially for OpenAI models
+        score_document, prompt_document = eval_document()
+        score_reference, prompt_reference = eval_reference()
+        score_reference_document, prompt_reference_document = eval_reference_document()
+    else:
+        # Run in parallel for other models
+        with ThreadPoolExecutor(max_workers=3) as executor:
+            future_document = executor.submit(eval_document)
+            future_reference = executor.submit(eval_reference)
+            future_ref_doc = executor.submit(eval_reference_document)
         
         # Wait for all results
         score_document, prompt_document = future_document.result()
@@ -584,7 +635,7 @@ all_model_list= ["gemma-2-2b-it", "gemma-2-9b-it", "gemma-2-27b-it", "llama-3.1-
 "gpt-4.1","o4-mini","llama3.1-8b-f2","llama3.3-70b-sft1","llama3.1-8b-lora1","llama4-109b-lora1","llama3.3-70b-lora1"]
 
 # The evaluated_model is set by run_multiple_judges.sh script
-evaluated_model = "gpt-4o-mini"
+evaluated_model = "claude-3-5-sonnet"
 test_model_list = all_model_list
 
 system_list = ["art", "beam", "buckling", "cable",  "camera", "citybus", "curiosity", "feda", "gator", "gear", "gps_imu", "handler", "hmmwv", "kraz", "lidar", "m113", "man", "mass_spring_damper", "particles", "pendulum",
@@ -593,8 +644,16 @@ system_list = ["art", "beam", "buckling", "cable",  "camera", "citybus", "curios
 system_do_list=system_list
 def process_model_system(test_model, system_folder, dataset_path, Output_path, Output_conversation_path,
                          Output_statistic_path):
-    # Add a small random delay to avoid all threads hitting the API at once
-    time.sleep(random.uniform(0.1, 0.5))
+    # Add model-specific delays to avoid hitting API rate limits
+    # OpenAI models need longer delays due to strict rate limits
+    if evaluated_model in ["gpt-4o", "gpt-4o-mini", "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano", "o3", "o4-mini"]:
+        delay = random.uniform(2.0, 4.0)  # Longer delay for OpenAI models
+    elif evaluated_model in ["claude-3-5-sonnet", "claude-3-7-sonnet-20250219", "claude-4-sonnet-20250514"]:
+        delay = random.uniform(1.0, 2.0)  # Moderate delay for Anthropic models
+    else:
+        delay = random.uniform(0.5, 1.5)  # Standard delay for other models
+    
+    time.sleep(delay)
     
     system_folder_path = os.path.join(dataset_path, system_folder)
     output_system_path = os.path.join(Output_path, test_model, system_folder)
@@ -634,8 +693,19 @@ def process_model_system(test_model, system_folder, dataset_path, Output_path, O
 
 
 # Parallel processing for all models and systems
-# Reduced workers to avoid overwhelming the API with requests
-with ThreadPoolExecutor(max_workers=10) as executor:
+# Adjust max_workers based on the judge model to avoid rate limits
+# OpenAI models need lower concurrency due to strict rate limits
+if evaluated_model in ["gpt-4o", "gpt-4o-mini", "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano", "o3", "o4-mini"]:
+    max_workers = 2  # Low concurrency for OpenAI models
+    print(f"Using reduced concurrency (max_workers={max_workers}) for OpenAI judge model: {evaluated_model}")
+elif evaluated_model in ["claude-3-5-sonnet", "claude-3-7-sonnet-20250219", "claude-4-sonnet-20250514"]:
+    max_workers = 3  # Moderate concurrency for Anthropic models
+    print(f"Using moderate concurrency (max_workers={max_workers}) for Anthropic judge model: {evaluated_model}")
+else:
+    max_workers = 5  # Conservative concurrency for other models
+    print(f"Using conservative concurrency (max_workers={max_workers}) for judge model: {evaluated_model}")
+
+with ThreadPoolExecutor(max_workers=max_workers) as executor:
     futures = []
     for test_model in test_model_list:
         output_model_path = os.path.join(Output_path, test_model)
