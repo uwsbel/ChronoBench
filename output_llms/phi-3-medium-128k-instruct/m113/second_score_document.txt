@@ -5,126 +5,121 @@
 ### 1. Completeness (40 points)
 
 - **System Initialization Missing (Deduct 15 points):**  
-  The script uses `vehicle.GetSystem()` before the `vehicle` object is created, e.g., in the terrain initialization:  
-  ```python
-  terrain = veh.SCMTerrain(vehicle.GetSystem(), soil_params)
-  ```  
-  However, `vehicle` is only created *after* this line. This is a critical ordering issue. Also, there is no explicit creation of a `chrono.ChSystemSMC()` or `chrono.ChSystemNSC()` object. The system is implicitly obtained from the vehicle, but best practice and the API examples show that the system should be explicitly created and managed. This is a missing essential component.
+  The script uses `vehicle.GetSystem()` to get the system but never explicitly creates or initializes a `chrono.ChSystemSMC()` or `chrono.ChSystemNSC()` system object. According to the API, the system must be explicitly created before use. This is a critical missing component.
 
-- **Vehicle Initialization (Present but with issues) (Deduct 10 points):**  
-  The vehicle is created and initialized, but the order of initialization and setting visualization types is not optimal. Visualization types are set *after* `Initialize()`, which is generally acceptable but not best practice. Also, the vehicle collision system type is set *after* initialization, which may not have effect.
+- **Vehicle Initialization Order (Deduct 5 points):**  
+  The terrain is initialized before the vehicle is created, but the terrain constructor requires the system from the vehicle (`vehicle.GetSystem()`). However, `vehicle` is created *after* the terrain initialization code, so `vehicle` is undefined at that point. This is a logical error but also a completeness issue because the order of initialization is incorrect.
 
-- **Terrain Initialization (Deduct 5 points):**  
-  The terrain is initialized with a height map, but the height map file path `"terrain/height_map.png"` is relative and may not resolve correctly without using `veh.GetDataFile()`. Also, the terrain model type `veh.SCMTerrain.HEIGHT_MAP` is assigned but never used explicitly in the terrain creation. The terrain initialization is incomplete or inconsistent.
+- **Missing `step_size` and `render_step_size` Definitions (Deduct 5 points):**  
+  Variables `step_size` and `render_step_size` are used but never defined in the script. These are essential for time stepping and rendering frequency.
 
-- **Driver Initialization (Present but missing variable) (Deduct 10 points):**  
-  The driver is created with `veh.ChInteractiveDriverIRR(vis)`, but the variable `render_step_size` is used before definition in:  
-  ```python
-  driver.SetSteeringDelta(render_step_size / steering_time)
-  ```  
-  `render_step_size` and `step_size` are used but never defined anywhere in the script. This is a missing essential component for time stepping and driver input handling.
+- **Missing `trackPoint` Definition (Deduct 5 points):**  
+  The `trackPoint` variable is used in `vis.SetChaseCamera(trackPoint, 9.0, 1.5)` but is never defined. This is essential for camera setup.
 
-- **Simulation Loop (Present but with issues) (Deduct 5 points):**  
-  The simulation loop is mostly correct, but `step_number` is incremented twice per iteration, which is redundant and likely a logical error. Also, the hard-coded throttle setting inside the loop is done *after* the synchronization and advance calls, which means it will only affect the next iteration, but this is not clearly commented or structured.
+- **Missing Addition of Vehicle to System (Deduct 5 points):**  
+  The vehicle is initialized but never explicitly added to the system. Although `vehicle.Initialize()` internally adds components, best practice is to ensure the vehicle is properly integrated into the system.
 
-- **Visualization Setup (Present but incomplete) (Deduct 5 points):**  
-  The visualization system is created with `veh.ChTrackedVehicleVisualSystemIrrlicht()`, but the variable `trackPoint` used in `vis.SetChaseCamera(trackPoint, 9.0, 1.5)` is undefined. This is a missing essential component for camera setup.
+- **No Explicit Solver Settings for Terrain or Driver (No deduction):**  
+  The solver is set for the vehicle system, which is acceptable.
 
-**Total Completeness Deduction: 15 + 10 + 5 + 10 + 5 + 5 = 50 points**  
-Since the maximum is 40 points, the deduction caps at 40 points.
+- **No Explicit Collision Model Envelope or Margin Settings (No deduction):**  
+  These are optional but recommended for stability.
+
+**Subtotal deductions for completeness: 15 + 5 + 5 + 5 + 5 = 35 points**
 
 ---
 
 ### 2. Correctness (30 points)
 
 - **Incorrect Use of `vehicle.GetSystem()` Before Vehicle Creation (Deduct 15 points):**  
-  Using `vehicle.GetSystem()` before `vehicle` is created will cause a runtime error.
+  The terrain is created with `veh.SCMTerrain(vehicle.GetSystem(), soil_params)` before `vehicle` is defined. This will cause a runtime error.
 
-- **Setting Collision System Type After Vehicle Initialization (Deduct 10 points):**  
-  The collision system type is set after the vehicle is initialized, which may not take effect. According to best practices, collision system type should be set before initialization.
+- **Incorrect Setting of Throttle in Simulation Loop (Deduct 10 points):**  
+  The code sets `driver_inputs.throttle = 0.8` and then calls `driver.SetThrottle(0.8)` inside the loop *after* `driver.GetInputs()` and `driver.Synchronize()`. This is logically inconsistent because inputs should be set before synchronization. Also, modifying `driver_inputs` directly is not the recommended way; instead, use driver methods to set inputs.
 
-- **Undefined Variables (`render_step_size`, `step_size`, `trackPoint`) (Deduct 10 points):**  
-  These undefined variables will cause runtime errors or logical failures.
+- **Double Increment of `step_number` (Deduct 5 points):**  
+  `step_number` is incremented twice per loop iteration, which is likely a logical error.
 
-- **Redundant Increment of `step_number` (Deduct 5 points):**  
-  Incrementing `step_number` twice per loop iteration is a logical error.
+- **`vehicle.GetVehicle()` vs `vehicle` Usage (Deduct 5 points):**  
+  The code uses both `vehicle.GetVehicle()` and `vehicle` interchangeably. For example, `vehicle.GetVehicle().GetMass()` and `vehicle.GetSystem()`. This is confusing and may cause errors if `GetVehicle()` returns a different object than `vehicle`. The correct approach is to use `vehicle` consistently.
 
-- **Hard-coded throttle setting after synchronization (Deduct 5 points):**  
-  The throttle is set after the synchronization and advance calls, which is not effective for the current timestep.
+- **`vehicle.GetSystem().SetCollisionSystemType()` Called After Vehicle Initialization (No deduction):**  
+  This is acceptable but better to set before initialization.
 
-**Total Correctness Deduction: 15 + 10 + 10 + 5 + 5 = 45 points**  
-Maximum is 30 points, so deduction caps at 30 points.
+**Subtotal deductions for correctness: 15 + 10 + 5 + 5 = 35 points**
 
 ---
 
 ### 3. Code Quality (10 points)
 
 - **Poor Variable Naming and Missing Definitions (Deduct 5 points):**  
-  Variables like `render_step_size`, `step_size`, and `trackPoint` are used without definition or explanation, reducing readability.
+  Variables like `step_size`, `render_step_size`, and `trackPoint` are used without definition, reducing readability and causing confusion.
 
 - **Insufficient Comments (Deduct 5 points):**  
-  While some comments exist, many critical parts lack explanation, especially the simulation loop and driver input handling.
+  While some comments exist, many critical parts lack explanation, especially the simulation loop and variable definitions.
 
-**Total Code Quality Deduction: 10 points**
+**Subtotal deductions for code quality: 10 points**
 
 ---
 
 ### 4. Efficiency (10 points)
 
-- **Redundant Increment of `step_number` (Deduct 5 points):**  
-  Incrementing the same counter twice per loop is unnecessary.
+- **Redundant `step_number` Increment (Deduct 5 points):**  
+  Incrementing `step_number` twice per loop is unnecessary.
 
-- **Repeated Setting of Throttle Inside Loop (Deduct 3 points):**  
-  The throttle is set twice: once by directly modifying `driver_inputs.throttle` and once by calling `driver.SetThrottle(0.8)`. This is redundant.
+- **Unnecessary Setting of Throttle Twice (Deduct 5 points):**  
+  Both modifying `driver_inputs.throttle` and calling `driver.SetThrottle(0.8)` is redundant.
 
-**Total Efficiency Deduction: 8 points**
+**Subtotal deductions for efficiency: 10 points**
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
 - **No Error Handling (Deduct 5 points):**  
-  The script lacks any try-except blocks or checks for file existence (e.g., height map or texture files), which is recommended for robustness.
+  The script lacks any try-except blocks or checks for file existence (e.g., height map, textures), which is recommended for robustness.
 
-**Total Deduction: 5 points**
+- **No Edge Case Handling (No deduction):**  
+  Not critical here.
+
+**Subtotal deductions for error handling: 5 points**
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
-- **Undefined `trackPoint` for Camera Setup (Deduct 5 points):**  
-  The camera chase point is undefined, which will cause an error or no camera tracking.
+- **`trackPoint` Undefined (Deduct 3 points):**  
+  The camera is set to chase `trackPoint`, which is undefined, likely causing an error.
 
 - **Lighting Setup is Minimal (Deduct 2 points):**  
-  The script uses `vis.AddLightDirectional()` but does not add typical lights or cameras explicitly, which may reduce visualization quality.
+  The script uses `AddLightDirectional()` but does not add typical lights or cameras explicitly, which may reduce visualization quality.
 
-**Total Visualization Deduction: 7 points**  
-Maximum is 5 points, so deduction caps at 5 points.
-
----
-
-## Summary of Deductions
-
-| Criterion                  | Max Points | Deduction | Points Awarded |
-|----------------------------|------------|-----------|---------------|
-| Completeness               | 40         | 40        | 0             |
-| Correctness                | 30         | 30        | 0             |
-| Code Quality               | 10         | 10        | 0             |
-| Efficiency                 | 10         | 8         | 2             |
-| Error Handling & Robustness| 5          | 5         | 0             |
-| Visualization Tools        | 5          | 5         | 0             |
-| **Total**                 | **100**    | **98**    | **2**         |
+**Subtotal deductions for visualization: 5 points**
 
 ---
 
-## Final Score: [[2]]
+### Summary of Deductions
+
+| Category                 | Points | Deduction | Remaining |
+|--------------------------|--------|-----------|-----------|
+| Completeness             | 40     | 35        | 5         |
+| Correctness              | 30     | 35        | 0 (min 0) |
+| Code Quality             | 10     | 10        | 0 (min 0) |
+| Efficiency               | 10     | 10        | 0 (min 0) |
+| Error Handling           | 5      | 5         | 0 (min 0) |
+| Visualization            | 5      | 5         | 0 (min 0) |
+| **Total**                | 100    | 100       | **5**     |
+
+Since deductions exceed the category points, the minimum per category is zero.
 
 ---
 
-## Explanation:
+### Final Score: [[5]]
 
-The script is missing essential components such as explicit system initialization, proper variable definitions (`render_step_size`, `step_size`, `trackPoint`), and correct ordering of initialization calls. There are critical correctness issues that would cause runtime errors, such as using `vehicle.GetSystem()` before creating `vehicle`, and setting collision system type after initialization.
+---
 
-Code quality suffers from undefined variables and insufficient comments. Efficiency is reduced by redundant increments and repeated throttle settings. There is no error handling for file loading or simulation setup. Visualization setup is incomplete due to an undefined camera target and minimal lighting.
+### Explanation:
 
-Overall, the script is not runnable as-is and requires significant corrections to meet PyChrono API guidelines and best practices.
+The script is missing critical components such as explicit system initialization, variable definitions (`step_size`, `render_step_size`, `trackPoint`), and proper ordering of vehicle and terrain creation. There are significant correctness issues, including using undefined variables and logical errors in the simulation loop. Code quality suffers from missing comments and unclear variable usage. Efficiency is reduced by redundant code. There is no error handling, and visualization setup is incomplete with undefined camera target and minimal lighting.
+
+These issues severely impact the script's ability to run correctly and produce meaningful simulation results, resulting in a very low score.

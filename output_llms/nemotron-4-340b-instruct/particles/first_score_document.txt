@@ -5,149 +5,168 @@
 ### 1. Completeness (40 points)
 
 - **System Initialization:**  
-  The physics system is correctly initialized with `chrono.ChSystemSMC()`.  
-  **No deduction.**
+  Present and correct (`physics_system = chrono.ChSystemSMC()`). No deduction.
 
 - **Body Creation:**  
-  Bodies are created via `chrono.ChBodyEasySphere` inside the emitter. However, the `ChBodyEasySphere` constructor is called incorrectly (see correctness below). Also, no material is specified for the spheres, which is recommended for SMC systems.  
-  **Minor omission: -5 points** (lack of material specification for bodies).
+  The script creates particles via `chrono.ChBodyEasySphere` inside the emitter. However, the material parameter is missing in the constructor call (see correctness). Also, no explicit material is created or assigned, which is generally essential for SMC systems to define friction, compliance, etc.  
+  **Deduct 10 points** for missing material creation and assignment, which is important for realistic contact behavior.
 
-- **Visualization:**  
-  The script uses `chronoirr.ChIrrApp` for visualization, which is a valid approach. However, the visualization setup is incomplete:  
-  - No calls to `visualization.AddTypicalLights()`, `visualization.AddCamera()`, `visualization.AddSkyBox()`, or `visualization.Initialize()` are made. These are standard steps to properly initialize the Irrlicht visualization system and ensure a usable window with lighting and camera.  
-  - The simulation loop uses `visualization.GetDevice().run()` instead of the recommended `visualization.Run()`.  
-  - The rendering calls are `visualization.DrawAll()` only, missing the typical `BeginScene()` and `EndScene()` calls.  
-  **Deduction: -15 points** (missing essential visualization setup and incorrect usage of visualization loop and rendering).
+- **Visualization Initialization:**  
+  The script uses `chronoirr.ChIrrApp` for visualization, which is a valid approach. However, it lacks calls to `visualization.AddTypicalLights()`, `visualization.AddCamera()`, `visualization.AddSkyBox()`, and `visualization.Initialize()` which are standard for setting up Irrlicht visualization properly. Without these, the visualization will be minimal or incomplete.  
+  **Deduct 10 points** for incomplete visualization setup.
+
+- **Simulation Loop:**  
+  The loop is present and calls `DoStepDynamics` and `DrawAll()`. However, it uses `visualization.GetDevice().run()` instead of the recommended `visualization.Run()`, and it does not use `BeginScene()`, `Render()`, and `EndScene()` calls which are typical for Irrlicht visualization loops.  
+  **Deduct 5 points** for incomplete simulation loop visualization calls.
 
 - **Particle Emitter:**  
-  The emitter class is defined and used, but it lacks some robustness (e.g., no limit on maximum particles, no removal of old particles). This is not strictly essential but is a minor omission.  
-  **No deduction here (not essential).**
+  The emitter class is implemented, but the emission logic is very basic and only emits one particle per emission time. No management of existing particles or removal is done, which is acceptable for a simple demo but could be improved. No deduction here as it is not essential.
 
 - **Force Application:**  
-  The script attempts to apply gravitational attraction between particles via `physics_system.SetInteractionFunction(apply_gravity)`. However, this method does not exist in PyChrono API for applying custom forces between bodies. Forces should be applied manually each time step or via custom force objects.  
-  **Deduction: -15 points** (missing essential correct method for force application).
+  The script attempts to apply gravitational attraction between particles via `SetInteractionFunction(apply_gravity)`. However, this function does not exist in PyChrono API for `ChSystemSMC`. There is no documented `SetInteractionFunction` method on the system object.  
+  **Deduct 15 points** for incorrect API usage (see correctness).
 
-**Total Completeness deduction: 5 + 15 + 15 = 35 points**
+**Subtotal Completeness: 40 - 10 - 10 - 5 = 15**
 
 ---
 
 ### 2. Correctness (30 points)
 
 - **Incorrect use of `ChBodyEasySphere`:**  
-  The constructor is called as:  
-  ```python
-  chrono.ChBodyEasySphere(shape.radius, 1000, True, True, self.position)
-  ```  
-  According to the API, the last argument should be a material pointer or `None`, not a position vector. Position is set separately via `SetPos()`. This will cause an error or unexpected behavior.  
-  **Deduction: -15 points** (significant API misuse).
+  The constructor is called as `chrono.ChBodyEasySphere(shape.radius, 1000, True, True, self.position)`. According to the API, the last parameter should be a material pointer, not a position vector. Position is set later via `SetPos()`.  
+  This is a significant API misuse and will cause errors or unexpected behavior.  
+  **Deduct 15 points**
 
 - **Incorrect use of `chrono.ChQuaternionD(chrono.ChRandom())`:**  
-  `chrono.ChRandom()` returns a float, but `ChQuaternionD` expects 4 floats or a quaternion object. This is invalid and will cause errors.  
-  **Deduction: -15 points** (significant API misuse).
+  `chrono.ChRandom()` returns a float between 0 and 1, but `ChQuaternionD` expects four components or a valid quaternion constructor. This will not create a valid quaternion.  
+  **Deduct 10 points** for logical error in quaternion initialization.
 
-- **Incorrect force application:**  
-  The function `apply_gravity` uses `body1.Accumulate_force(force, body1.GetPos(), False)`. The correct method name is `Accumulate_force` or `AccumulateForce`? According to PyChrono, it is `Accumulate_force`. So this is correct. However, the force vector is constructed as `-chrono.ChVectorD(0, 0, 1) * ...`, which is a fixed direction vector multiplied by scalar, but gravitational force should be along the vector connecting the two bodies, not a fixed direction. This is a logical error in force direction.  
-  **Deduction: -10 points** (logical error in force direction).
+- **Incorrect use of `SetInteractionFunction`:**  
+  No such method exists on `ChSystemSMC`. Applying forces between bodies should be done via custom force application in the simulation loop or via force callbacks, not via a system-wide interaction function.  
+  **Deduct 15 points**
 
-- **Use of `physics_system.SetInteractionFunction(apply_gravity)`:**  
-  This method does not exist in PyChrono. Custom forces must be applied manually or via force objects.  
-  **Already deducted under completeness.**
+- **Force calculation in `apply_gravity`:**  
+  The force vector is hardcoded as `-chrono.ChVectorD(0, 0, 1) * ...` which means the force is always in the negative z-direction, not along the vector between bodies. Gravitational attraction should be along the line connecting the two bodies.  
+  **Deduct 10 points** for logical error in force direction.
 
-- **Simulation loop:**  
-  The loop uses `visualization.GetDevice().run()` which is valid but less idiomatic than `visualization.Run()`. Also, the rendering calls are minimal and do not follow the recommended `BeginScene()`, `Render()`, `EndScene()` pattern.  
-  **Minor inaccuracy: -5 points**
+- **Use of `Accumulate_force`:**  
+  The method `Accumulate_force` is not part of the PyChrono API. The correct method is `AddForce()`.  
+  **Deduct 15 points** for incorrect API usage.
 
-**Total Correctness deduction: 15 + 15 + 10 + 5 = 45 points**
+- **Velocity setting via `SetVel`:**  
+  `SetVel` is not a method on `ChBodyEasySphere` or `ChBody`. The correct method is `SetPos_dt()` or `SetPos_dt()` for velocity.  
+  **Deduct 10 points** for incorrect API usage.
+
+- **Use of `chrono.ChVectorD` instead of `chrono.ChVector3d`:**  
+  The correct vector class is `ChVectorD` or `ChVector3d` depending on the version, but the documentation uses `ChVector3d`. This is minor but inconsistent.  
+  **Deduct 5 points** minor inaccuracy.
+
+- **Use of `visualization.GetDevice().run()` instead of `visualization.Run()`:**  
+  The API documentation recommends `vis.Run()`.  
+  **Deduct 5 points** minor inaccuracy.
+
+**Subtotal Correctness: 30 - 15 - 10 - 15 - 10 - 15 - 10 - 5 - 5 = -55 (capped at 0)**
+
+Since correctness cannot be negative, the score is 0.
 
 ---
 
 ### 3. Code Quality (10 points)
 
 - **Readability and structure:**  
-  The code is mostly readable, but lacks comments explaining key parts (e.g., the emitter logic, force application).  
-  The variable names are reasonable.  
-  The class `RandomShape` is used as a shape generator but is not clearly documented.  
-  The code formatting is acceptable but could be improved with more spacing and comments.  
-  **Deduction: -5 points** (insufficient comments/documentation).
+  The code is reasonably structured with a class for the emitter and a separate shape generator class. Variable names are meaningful.  
+  No major issues here.
 
 - **Comments:**  
-  Only minimal comments are present.  
-  **Deduction: -5 points**
+  The code has minimal comments, only a few lines at the top and inside the emitter class. The force function and main loop lack comments.  
+  **Deduct 5 points** for insufficient comments.
 
-**Total Code Quality deduction: 10 points**
+**Subtotal Code Quality: 10 - 5 = 5**
 
 ---
 
 ### 4. Efficiency (10 points)
 
+- **Particle emission logic:**  
+  The emitter only emits one particle per emission time, which is acceptable.
+
 - **Force application:**  
-  The gravitational force is applied via a function intended to be called automatically via `SetInteractionFunction`, which does not exist. This means the force is never applied, so the simulation is inefficient in achieving its goal.  
-  **Deduction: -5 points** (inefficient force application approach).
+  The `apply_gravity` function is intended to be called for all pairs, but the code does not show how it is called or integrated. The approach is inefficient if implemented as a nested loop over all bodies each step (not shown). However, since the API call is invalid, this is moot.
 
-- **Particle emission:**  
-  The emitter creates a new particle every 0.1 seconds (rate=10), but no limit on total particles or removal is implemented, which could lead to performance degradation over time.  
-  **Deduction: -3 points** (missing optimization for particle lifecycle).
+- **RandomShape class:**  
+  The orientation is generated incorrectly, but no heavy computation.
 
-**Total Efficiency deduction: 8 points**
+- **No caching or reuse of materials:**  
+  Material is not created or reused, which is inefficient.
+
+- **No error handling or checks for division by zero in force calculation:**  
+  Could cause runtime errors.
+
+- **Overall:**  
+  Minor inefficiencies but no egregious waste.
+
+**Deduct 3 points** for missing obvious optimization (material reuse, force direction calculation).
+
+**Subtotal Efficiency: 10 - 3 = 7**
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- No error handling is present for invalid inputs or failed operations.  
-- The emitter does not check for system capacity or particle count.  
-- The random quaternion generation is invalid and will cause runtime errors.  
-- No checks for division by zero in gravitational force calculation (distance could be zero).  
-**Deduction: -5 points** (lack of basic error handling and robustness).
+- No error handling anywhere.
+
+- No checks for division by zero in gravitational force (distance could be zero).
+
+- No validation of inputs or particle limits.
+
+- **Deduct 5 points** for lack of basic error handling.
+
+**Subtotal: 0**
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
-- Visualization is initialized via `chronoirr.ChIrrApp`, which is acceptable.  
-- However, no calls to `AddTypicalLights()`, `AddCamera()`, `AddSkyBox()`, or `Initialize()` are made, which are standard for a proper visualization setup.  
-- The rendering loop uses `DrawAll()` only, missing the recommended `BeginScene()`, `Render()`, and `EndScene()` calls.  
-- The window title is set in the constructor, which is good.  
-**Deduction: -5 points** (incomplete and incorrect visualization setup).
+- Uses `chronoirr.ChIrrApp` which is acceptable.
+
+- Missing calls to `AddTypicalLights()`, `AddCamera()`, `AddSkyBox()`, and `Initialize()` which are standard for visualization setup.
+
+- Uses `DrawAll()` instead of the recommended `BeginScene()`, `Render()`, `EndScene()` pattern.
+
+- **Deduct 5 points** for incomplete visualization setup.
+
+**Subtotal: 0**
 
 ---
 
-### Summary of deductions:
+### **Final Score Calculation**
 
-| Criterion                    | Points | Deduction | Notes                                      |
-|-----------------------------|--------|-----------|--------------------------------------------|
-| Completeness                | 40     | 35        | Missing visualization setup, force method |
-| Correctness                | 30     | 45        | Incorrect API usage, logical errors        |
-| Code Quality               | 10     | 10        | Lack of comments and documentation         |
-| Efficiency                 | 10     | 8         | Inefficient force application, no cleanup  |
-| Error Handling & Robustness| 5      | 5         | No error handling, invalid quaternion       |
-| Visualization Tools        | 5      | 5         | Incomplete visualization setup              |
-| **Total Deductions**       |        | 118       |                                            |
-
----
-
-### Final score calculation:
-
-Total points = 100  
-Deductions = 118 (exceeds total, so minimum score is 0)
-
-**Final score: 0**
+| Category                  | Points | Deduction | Score |
+|---------------------------|--------|-----------|-------|
+| Completeness              | 40     | 25        | 15    |
+| Correctness               | 30     | 30+       | 0     |
+| Code Quality              | 10     | 5         | 5     |
+| Efficiency                | 10     | 3         | 7     |
+| Error Handling & Robustness | 5      | 5         | 0     |
+| Visualization             | 5      | 5         | 0     |
+| **Total**                 | 100    | 73        | **27**|
 
 ---
 
-### Explanation:
+### **Summary of Major Issues:**
 
-The script demonstrates an attempt to set up a particle simulation with attraction forces and visualization using PyChrono. However, it contains multiple critical errors:
+- Incorrect API usage in body creation (`ChBodyEasySphere` constructor), force application (`Accumulate_force`), and nonexistent `SetInteractionFunction`.
 
-- Misuse of PyChrono API (incorrect constructor arguments, invalid quaternion creation).  
-- Attempts to use a non-existent method (`SetInteractionFunction`) for force application.  
-- Incomplete and incorrect visualization setup, missing essential initialization and rendering calls.  
-- Lack of error handling and robustness (e.g., no zero-distance check, invalid quaternion).  
-- Missing comments and documentation reduce code clarity.  
-- Inefficient particle management and force application approach.
+- Logical errors in force direction and quaternion initialization.
 
-These issues collectively prevent the simulation from running correctly or producing the intended behavior, warranting a score of zero.
+- Incomplete visualization setup and simulation loop.
+
+- Lack of material creation and assignment for SMC system.
+
+- No error handling or robustness checks.
+
+- Insufficient comments and documentation.
 
 ---
 
-[[0]]
+[[27]]

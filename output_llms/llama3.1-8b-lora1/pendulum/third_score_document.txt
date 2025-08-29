@@ -4,167 +4,197 @@
 
 ### 1. Completeness (40 points)
 
-- **System Initialization:** Present and correctly done (`sys = chrono.ChSystemNSC()` and gravity set). **No deduction.**
+- **System Initialization:** Present and correctly done with `chrono.ChSystemNSC()`. No deduction.
+- **Gravity Setting:** Correctly set with `sys.SetGravitationalAcceleration(...)`. No deduction.
+- **Ground Body Creation:** Created, added to system, fixed, and collision disabled. No deduction.
+- **Pendulum Bodies Creation:** Two pendulums created, added, mass and inertia set, collision disabled. No deduction.
+- **Visualization Setup:** Irrlicht visualization system created and configured with window size, title, camera, lights, skybox, and logo. No deduction.
+- **Joints:** Three revolute joints created and initialized. However, there is a **critical issue** here (see correctness below).
+- **Simulation Loop:** Present with rendering and stepping. No deduction.
+- **Logging:** Present and functional. No deduction.
 
-- **Body Creation:**  
-  - Ground body created and fixed, collision disabled.  
-  - Pendulum bodies created with mass, inertia, collision disabled.  
-  - Visualization shapes added to bodies.  
-  - Initial positions set.  
-  **No missing essential components here.**
+**Minor completeness issue:**
 
-- **Joint Creation:**  
-  - Three revolute joints created:  
-    - `rev_1` connects ground and pend_1.  
-    - `rev_2` connects pend_1 and pend_2.  
-    - `rev_3` connects ground and pend_1 again (this is suspicious, see correctness).  
-  **All joints are present, but the third joint seems redundant or incorrect (see correctness).**
+- The second pendulum’s initial position is set identical to the first pendulum (`SetPos(chrono.ChVector3d(1, 0, 1))`), which is likely incorrect for a double pendulum setup where the second pendulum should be positioned relative to the first pendulum’s end. This is a minor omission in setting initial conditions properly.
 
-- **Visualization Setup:**  
-  - Irrlicht visualization system created and attached.  
-  - Window size, title, initialization, logo, skybox, camera, and lights added.  
-  **Complete visualization setup.**
+**Deduction:** -5 points for minor omission in initial positioning of pendulums.
 
-- **Simulation Loop:**  
-  - Loop with `vis.Run()`, rendering calls, and `sys.DoStepDynamics()` present.  
-  - Logging after 1 second implemented.  
-  **Complete.**
-
-- **Minor omissions:**  
-  - No collision models or materials are defined, but collision is disabled on all bodies, so this is acceptable.  
-  - No explicit setting of inertia orientation or center of mass offset, but not strictly required here.  
-  - No explicit setting of initial velocities or damping. Not essential but could be considered minor omissions.  
-  **Minor omission: 5 points deduction for lack of initial velocity or damping settings which are common in pendulum simulations to avoid unrealistic perpetual motion.**
-
-**Completeness deduction: 5 points**
+**Completeness score:** 40 - 5 = **35**
 
 ---
 
 ### 2. Correctness (30 points)
 
-- **Incorrect API usage:**  
-  - `sys.Add(ground)` is correct.  
-  - `sys.AddBody(pend_1)` and `sys.AddBody(pend_2)` are correct.  
-  - Use of `chrono.ChVisualShapeCylinder` and adding visual shapes is correct.  
-  - Setting mass and inertia is correct.  
-  - Setting fixed and collision flags is correct.  
-  - Revolute joint initialization uses `chrono.ChFramed(chrono.ChVector3d(0, 0, 1), chrono.ChQuaterniond(1, 0, 0, 0))`.  
-    - According to the API, `Initialize(body1, body2, chrono.ChCoordsysD(position, rotation))` is expected.  
-    - `chrono.ChFramed` is an alias or equivalent to `ChCoordsysD` (likely), so this is acceptable.  
-  - However, the **third revolute joint (`rev_3`) is initialized between ground and pend_1 again**, which duplicates the first joint (`rev_1`). This is a **logical error** because it creates two revolute joints between the same two bodies at the same location and orientation, which is physically inconsistent and will cause simulation issues.  
-  - Also, the initial positions of pend_1 and pend_2 are both set to `(1, 0, 1)`, which means they start overlapping in space. For a double pendulum, pend_2 should be positioned relative to pend_1 (e.g., at the end of pend_1), otherwise the joints will be stressed or invalid. This is a **logical error**.  
-  - The joint frames are all at `(0,0,1)` in absolute coordinates, which is unusual. Typically, the joint frame is at the pivot point, e.g., at the top of pend_1 for the first joint, and at the bottom of pend_1 for the second joint. Using `(0,0,1)` for all joints likely does not correspond to the actual physical pivot points. This will cause incorrect joint behavior.  
-  - The quaternion used for joint orientation is `(1,0,0,0)`, which is identity, so rotation axis is Z by default. This is acceptable if the axis is Z.  
-  - The visualization cylinders for pendulums are rotated by `chrono.QuatFromAngleY(chrono.CH_PI_2)`, which aligns the cylinder along the X axis (since default cylinder axis is Z). This matches the comment that pendulums are initially horizontal pointing towards positive X. This is correct.  
-  - The logging prints only x and y components of position and velocity, ignoring z. This is acceptable but might be incomplete if 3D motion occurs. Minor issue.  
+- **Incorrect use of API / Logical errors:**
 
-**Summary of correctness deductions:**  
-- Duplicate joint between ground and pend_1: **-15 points** (significant logical error).  
-- Overlapping initial positions of pend_1 and pend_2: **-10 points** (logical error affecting simulation correctness).  
-- Joint frames likely incorrectly placed at `(0,0,1)` instead of pivot points: **-10 points** (logical error).  
-- Minor: logging only x and y components: no deduction (minor).  
+  - **Joint Initialization Frames:**
 
-Total correctness deduction: 15 + 10 + 10 = 35 points, but max deduction is 30, so cap at 30 points.
+    - The revolute joints are initialized with `chrono.ChFramed(chrono.ChVector3d(0, 0, 1), chrono.ChQuaterniond(1, 0, 0, 0))`.
+
+    - According to the PyChrono API, the joint frame should be specified as a `ChCoordsysD` (or `ChCoordsys` in Python), which is a coordinate system consisting of a position and a rotation.
+
+    - `chrono.ChFramed` is **not** a valid class or constructor in PyChrono. The correct class to specify a frame is `chrono.ChCoordsysD` or `chrono.ChCoordsys`.
+
+    - This is a **significant API misuse** that will cause runtime errors or incorrect joint behavior.
+
+  - **Joint `rev_3` Initialization:**
+
+    - `rev_3` is intended to connect the second pendulum to the ground, but it is initialized as:
+
+      ```python
+      rev_3.Initialize(ground, pend_1, ...)
+      ```
+
+    - This duplicates the first joint (`rev_1`), which also connects ground and pendulum 1.
+
+    - The second pendulum (`pend_2`) is not connected to the ground at all, which is logically incorrect for a double pendulum setup.
+
+    - This is a **logical error** in joint setup.
+
+  - **Use of `sys.AddBody(pend_1)` vs `sys.Add(pend_1)`**
+
+    - The code uses `sys.AddBody(pend_1)` and `sys.AddBody(pend_2)`.
+
+    - According to the API, the method to add bodies is `sys.Add(body)`.
+
+    - `AddBody` is not a valid method, so this is an **API misuse**.
+
+  - **Use of `chrono.VNULL`**
+
+    - `chrono.VNULL` is used as a zero vector in `chrono.ChFramed(chrono.VNULL, ...)`.
+
+    - The API documentation does not mention `VNULL`.
+
+    - The standard zero vector is `chrono.ChVectorD(0,0,0)` or `chrono.ChVector3d(0,0,0)`.
+
+    - This is a minor API misuse that could cause errors.
+
+- **Summary of deductions:**
+
+  - Incorrect joint frame specification: -15 points (significant API misuse).
+
+  - Incorrect joint connection for `rev_3`: -10 points (logical error).
+
+  - Use of `sys.AddBody` instead of `sys.Add`: -15 points (significant API misuse).
+
+  - Use of `chrono.VNULL`: -5 points (minor API misuse).
+
+**Correctness score:** 30 - (15 + 10 + 15 + 5) = **-10**, but minimum is 0.
 
 ---
 
 ### 3. Code Quality (10 points)
 
-- **Readability:**  
-  - Variable names like `pend_1`, `pend_2`, `rev_1`, `rev_2`, `rev_3` are acceptable but could be more descriptive (e.g., `pendulum1`, `joint_ground_pend1`).  
-  - Reuse of variable name `cyl_1` for multiple cylinders is confusing and poor practice. Should use distinct variable names for each visual shape.  
-  - Indentation and formatting are good.  
-  - Comments are present and mostly clear, explaining purpose of bodies, joints, visualization, and simulation loop.  
-  - Some comments are redundant or slightly inaccurate (e.g., "The pendulum is initially horizontal, pointing towards the positive X direction" is repeated for both pendulums but positions are the same).  
-  - The logging section could be better structured.  
+- **Readability and structure:**
 
-- **Documentation:**  
-  - Comments are present but could be more detailed in some places (e.g., explain why joint frames are chosen as they are).  
-  - No docstrings or function encapsulation (not strictly required for a script).  
+  - Variable names like `pend_1`, `pend_2`, `rev_1`, etc., are meaningful.
 
-**Deductions:**  
-- Reuse of `cyl_1` variable name multiple times: **-5 points** for code clarity.  
-- Comments sufficient but could be improved: **-3 points** for insufficient documentation detail.  
+  - The code is mostly well structured and indented.
 
-Total code quality deduction: 8 points.
+  - However, the repeated reuse of the variable name `cyl_1` for different cylinders is confusing and poor practice.
+
+  - Comments are present but sparse; some comments are redundant or unclear (e.g., "The pendulum can move" is obvious from `SetFixed(False)`).
+
+  - The code lacks docstrings or higher-level explanations.
+
+- **Deductions:**
+
+  - Reusing `cyl_1` for multiple different visual shapes: -3 points (minor readability issue).
+
+  - Insufficient comments and documentation: -5 points.
+
+**Code Quality score:** 10 - 3 - 5 = **2**
 
 ---
 
 ### 4. Efficiency (10 points)
 
-- **Redundant code:**  
-  - Repeated creation of `cyl_1` variable for different cylinders is inefficient and confusing.  
-  - The third revolute joint (`rev_3`) duplicates the first joint, which is unnecessary and inefficient.  
-  - No use of `ChBodyEasyCylinder` or other helper classes that could simplify body creation. Not a big issue.  
-  - No optimization in simulation loop (e.g., fixed time step is fine).  
-  - No unnecessary calculations detected.  
+- **Redundant or unnecessary code:**
 
-- **Missing optimizations:**  
-  - Initial positions of pend_2 could be set relative to pend_1 to avoid manual calculation or overlap.  
-  - Could use functions or loops to reduce code duplication for pendulum creation.  
+  - The repeated creation of `cyl_1` visual shapes with the same variable name is inefficient and confusing.
 
-**Deductions:**  
-- Duplicate joint and variable reuse already penalized elsewhere.  
-- Minor missing optimization opportunities: **-3 points**.  
+  - The second pendulum is positioned identically to the first pendulum, which is inefficient for simulation correctness.
 
-Total efficiency deduction: 3 points.
+  - The logging flag `log_info` is used correctly to avoid repeated prints.
+
+- **No major inefficiencies or redundant calculations.**
+
+- **Deductions:**
+
+  - Minor inefficiency due to variable reuse and initial position setup: -3 points.
+
+**Efficiency score:** 10 - 3 = **7**
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- No error handling at all (try-except blocks, input validation, or checks).  
-- For a simple simulation script, this is common, but best practice suggests at least minimal error handling or assertions.  
-- No checks for joint initialization success or body property validity.  
-- No handling of edge cases like zero mass or invalid inertia.  
+- The code does not include any error handling (try-except blocks) or checks for invalid states.
 
-**Deductions:**  
-- Lack of basic error handling: **-5 points**.  
+- While PyChrono scripts often omit explicit error handling, best practices recommend at least minimal checks or exception handling, especially for file loading (logo) or joint initialization.
+
+- No handling for possible failures in visualization initialization or simulation stepping.
+
+- **Deductions:**
+
+  - Lack of basic error handling: -5 points.
+
+**Error Handling score:** 0
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
-- Visualization system is set up correctly with window size, title, logo, skybox, camera, and lights.  
-- Visual shapes are added to bodies with appropriate colors and orientations.  
-- Minor issue: the ground's visualization cylinder is added at `(0,0,+1)`, which places it 1 unit above ground origin. This might be intentional but could cause confusion.  
-- No camera movement or user interaction beyond default. Acceptable.  
-- Lighting and skybox are typical and sufficient.  
+- Visualization system is properly created and attached.
 
-**Deductions:**  
-- Minor visualization issue with ground cylinder placement: **-2 points**.  
+- Window size, title, camera, skybox, lights, and logo are added.
 
----
+- However:
 
-### **Summary of deductions:**
+  - The camera position is fixed and may not optimally show the double pendulum.
 
-| Category                      | Deduction Points |
-|-------------------------------|------------------|
-| Completeness                  | 5                |
-| Correctness                  | 30 (capped)      |
-| Code Quality                 | 8                |
-| Efficiency                  | 3                |
-| Error Handling and Robustness | 5                |
-| Visualization Tools          | 2                |
-| **Total deductions**          | 53               |
+  - The visualization of the ground is minimal (only a small cylinder at (0,0,1)) and no floor plane or grid is added, which would improve spatial context.
+
+  - The skybox and lights are added, which is good.
+
+- **Deductions:**
+
+  - Minor visualization issues (lack of ground plane or better camera setup): -2 points.
+
+**Visualization score:** 5 - 2 = **3**
 
 ---
 
-### Final score:
+## Final Scoring Summary
 
-100 - 53 = **47**
+| Criterion                   | Max Points | Deductions | Score |
+|-----------------------------|------------|------------|-------|
+| Completeness                | 40         | 5          | 35    |
+| Correctness                 | 30         | 30         | 0     |
+| Code Quality                | 10         | 8          | 2     |
+| Efficiency                  | 10         | 3          | 7     |
+| Error Handling & Robustness | 5          | 5          | 0     |
+| Visualization               | 5          | 2          | 3     |
+| **Total**                  | **100**    | **53**     | **47**|
 
 ---
 
-### Explanation:
+## Explanation of deductions
 
-- The script includes all essential components but has significant logical errors in joint setup and initial body positioning that would severely affect simulation correctness.  
-- Code quality suffers from variable reuse and insufficient comments.  
-- Lack of error handling and minor inefficiencies further reduce the score.  
-- Visualization is mostly correct but has a minor placement issue.  
+- **Major API misuse:** Use of `chrono.ChFramed` instead of `chrono.ChCoordsys` for joint frames, and `sys.AddBody` instead of `sys.Add` will cause runtime errors or incorrect simulation behavior (-30 points).
+
+- **Logical error in joint connections:** The third revolute joint connects ground and pendulum 1 again instead of pendulum 2, breaking the double pendulum chain (-10 points).
+
+- **Minor completeness issue:** Pendulums initialized at the same position, which is physically incorrect (-5 points).
+
+- **Code quality:** Reusing variable names for different visual shapes and insufficient comments (-8 points).
+
+- **Efficiency:** Minor inefficiency in variable reuse and initial setup (-3 points).
+
+- **Error handling:** No error handling at all (-5 points).
+
+- **Visualization:** Minor issues with ground visualization and camera setup (-2 points).
 
 ---
-
-**Final score:**
 
 [[47]]

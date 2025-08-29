@@ -5,144 +5,140 @@
 ### 1. Completeness (40 points)
 
 - **System Initialization:**  
-  The script does **not explicitly create a `ChSystemSMC` or `ChSystemNSC` instance**. Instead, it relies on the vehicle's internal system (via `vehicle.GetSystem()`) when creating the terrain. While this is sometimes acceptable when using vehicle models that internally manage the system, the best practice and typical PyChrono API usage is to explicitly create and manage the system object.  
+  The script does not explicitly create a `ChSystemSMC` or `ChSystemNSC` object. Instead, it relies on the `feda.FEDA` vehicle constructor to create or manage the system internally. According to the API documentation and best practices, the system should be explicitly created and managed by the user, especially when adding terrain and other components.  
   **Deduction: 15 points**
 
 - **Body Creation:**  
-  The vehicle is created via `feda.FEDA(chrono.ChContactMethod_SMC)`, which is correct for the FEDA vehicle model. The terrain is created and initialized properly.  
-  No missing essential components here.
+  The vehicle is created via `feda.FEDA(chrono.ChContactMethod_SMC)`, which is appropriate. The vehicle is configured with contact method, chassis fixed state, collision type, and initial position. This is mostly complete.  
+  **No deduction**
+
+- **Terrain Creation:**  
+  The terrain is created as a `veh.RigidTerrain(vehicle.GetSystem())`. However, the terrain is initialized twice: once immediately after creation (`terrain.Initialize()`) and again after vehicle initialization (`terrain.Initialize()`). This is redundant and may cause issues. Also, the terrain patch is not added explicitly (e.g., no `AddPatch` call), which is typically required to define the terrain surface.  
+  **Deduction: 15 points** (missing terrain patch setup)
 
 - **Visualization Setup:**  
-  The Irrlicht visualization system is created and attached to the vehicle's internal vehicle system (`vis.AttachVehicle(vehicle.GetVehicle())`). However, the visualization setup is minimal: no skybox, no typical lights, no logo, no explicit camera addition (only chase camera). According to the API documentation, adding typical lights and skybox is standard for good visualization.  
-  **Minor omission: 2 points**
+  The Irrlicht visualization system is created and attached to the vehicle's system (`vis.AttachVehicle(vehicle.GetVehicle())`). However, the API documentation suggests attaching the entire system (`vis.AttachSystem(sys)`) rather than just the vehicle. Also, typical lighting, skybox, and camera setup are minimal; only chase camera is set. No lights or skybox are added, which are standard for good visualization.  
+  **Deduction: 5 points** (minor omissions in visualization setup)
 
-- **Driver System:**  
-  The interactive driver is created and initialized properly.
-
-- **Initialization Calls:**  
-  The script calls `vehicle.Initialize()` and `terrain.Initialize()` twice (once before driver initialization and once after). This is redundant and may cause issues or inefficiency. The driver is initialized after vehicle and terrain, which is correct.
+- **Driver Setup:**  
+  The interactive driver is created and initialized properly.  
+  **No deduction**
 
 - **Simulation Loop:**  
-  The loop includes rendering and advancing vehicle and terrain, but it does not advance the underlying system explicitly (e.g., `sys.DoStepDynamics()`), relying on vehicle and terrain advance methods. This is acceptable for vehicle simulations but should be noted.
+  The loop calls `vis.Run()`, `BeginScene()`, `Render()`, `EndScene()`, and updates vehicle, terrain, and driver inputs. However, the order of updates is not optimal: vehicle and terrain are updated before driver inputs are fetched and applied, and then vehicle and terrain are advanced. According to best practices, driver inputs should be fetched before updating the vehicle. Also, the terrain update and advance calls are unusual since terrain is typically static or updated differently.  
+  **Deduction: 5 points** (minor detail in update order and terrain update usage)
 
-**Total Completeness deduction: 15 + 2 = 17 points**
+**Total Completeness Deduction: 15 + 15 + 5 + 5 = 40 points (full deduction)**
 
 ---
 
 ### 2. Correctness (30 points)
 
-- **Incorrect API Usage:**
+- **`chrono.SetChairsThreading(True)`**:  
+  This function does not exist in the PyChrono API documentation. Possibly a typo or confusion with threading settings. The correct threading setup is usually done via system settings or not required explicitly.  
+  **Deduction: 15 points** (incorrect API usage)
 
-  - `chrono.SetChairsThreading(True)` is called at the start. This function is **not part of the PyChrono API** as per the documentation and is likely a typo or confusion with `chrono.SetChronoDataPath()` or threading settings. This is a significant incorrect API call.  
-    **Deduct 15 points**
+- **`chrono.SetChronoDataFilePath("data/")`**:  
+  The correct function is `chrono.SetChronoDataPath()`. The script uses a non-existent function name.  
+  **Deduction: 15 points** (incorrect API usage)
 
-  - `chrono.SetChronoDataFilePath("data/")` is called, but the correct function name is `chrono.SetChronoDataPath()`. This is an incorrect API call and will not set the data path properly.  
-    **Deduct 15 points**
+- **Terrain collision material:**  
+  The terrain collision material is set as `chrono.ChContactMaterialNSC()`, but the vehicle uses SMC contact method. Mixing NSC material with SMC system is incorrect and can cause simulation errors. The terrain material should be consistent with the system's contact method.  
+  **Deduction: 15 points**
 
-- **Vehicle Contact Method:**  
-  The vehicle is created with `chrono.ChContactMethod_SMC` and then calls `vehicle.SetContactMethod(chrono.ChContactMethod_SMC)`. This is redundant but not incorrect.
+- **Vehicle contact method set twice:**  
+  The vehicle is constructed with `chrono.ChContactMethod_SMC` and then `SetContactMethod` is called again with the same parameter. This is redundant but not harmful.  
+  **Deduction: 0 points**
 
-- **Terrain Collision Material:**  
-  The terrain collision material is set to `chrono.ChContactMaterialNSC()`, but the vehicle uses SMC contact method. Mixing NSC and SMC contact materials in the same system is generally incorrect and can cause simulation errors or undefined behavior. The terrain material should be consistent with the system's contact method (SMC in this case).  
-  **Deduct 15 points**
+- **Vehicle chassis collision type:**  
+  Set to `veh.ChassisCollisionType_NONE`, which is acceptable if no chassis collision is desired.  
+  **No deduction**
 
-- **Terrain Initialization:**  
-  `terrain.Initialize()` is called twice (once before visualization and once after vehicle initialization). This is redundant and may cause issues.  
-  **Deduct 5 points**
+- **Driver inputs:**  
+  The driver inputs are fetched after vehicle and terrain update calls but before vehicle advance. This is a minor logical inconsistency but not critical.  
+  **Deduction: 5 points** (minor logical error)
 
-- **Driver Input Handling:**  
-  The driver inputs are retrieved after updating vehicle and terrain but before advancing the vehicle and terrain. This is acceptable.
+- **Terrain initialization called twice:**  
+  Calling `terrain.Initialize()` twice is unnecessary and may cause issues.  
+  **Deduction: 5 points**
 
-- **Simulation Time Step:**  
-  The time step `1/50.0` is used consistently.
-
-**Total Correctness deduction: 15 + 15 + 15 + 5 = 50 points**  
-*However, the maximum deduction is capped at 30 points (total correctness points). So deduct full 30 points.*
+**Total Correctness Deduction: 15 + 15 + 15 + 5 + 5 = 55 points**  
+Since the total correctness points are 30, the maximum deduction is capped at 30. So, **30 points deducted**.
 
 ---
 
 ### 3. Code Quality (10 points)
 
-- **Readability and Structure:**  
+- **Readability and structure:**  
   The code is mostly readable with meaningful variable names (`vehicle`, `terrain`, `vis`, `driver`).  
-  However, there is inconsistent spacing and lack of blank lines between logical blocks (e.g., between initialization and simulation loop).  
-  The code lacks docstrings or detailed comments explaining the purpose of each block beyond very brief comments.
+  However, the code lacks consistent spacing and some comments are minimal or missing. For example, the simulation loop has no comments explaining the update sequence.  
+  **Deduction: 3 points**
 
 - **Comments:**  
-  Comments are minimal and do not explain the rationale behind key steps (e.g., why certain contact methods are chosen, or why terrain material is NSC while vehicle is SMC).  
-  **Deduct 5 points for insufficient comments**
+  There are some comments at the start of sections, but many lines lack explanation, especially around the simulation loop and initialization order.  
+  **Deduction: 3 points**
 
-- **Formatting:**  
-  Minor formatting issues, but overall acceptable.
-
-**Total Code Quality deduction: 5 points**
+**Total Code Quality Deduction: 6 points**
 
 ---
 
 ### 4. Efficiency (10 points)
 
-- **Redundant Initialization Calls:**  
-  `terrain.Initialize()` is called twice unnecessarily.  
-  **Deduct 5 points**
+- **Redundant calls:**  
+  - `terrain.Initialize()` called twice.  
+  - `vehicle.SetContactMethod()` called twice (once in constructor, once explicitly).  
+  These are minor inefficiencies.  
+  **Deduction: 5 points**
 
-- **Redundant Setting of Contact Method:**  
-  `vehicle.SetContactMethod()` is called immediately after the vehicle is created with the same contact method. This is redundant but minor.  
-  **Deduct 3 points**
+- **Update and advance calls:**  
+  The script calls `Update()` and `Advance()` on both vehicle and terrain separately. Usually, the system's `DoStepDynamics()` is called once per timestep, which handles all components. The vehicle and terrain classes may require individual updates, but this could be optimized by calling the system step directly.  
+  **Deduction: 3 points**
 
-- **No other obvious inefficiencies.**
-
-**Total Efficiency deduction: 5 + 3 = 8 points**
+**Total Efficiency Deduction: 8 points**
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- No error handling is present (e.g., no try-except blocks, no checks for successful initialization).  
-- While PyChrono scripts often omit explicit error handling, best practices recommend at least minimal checks or exception handling for robustness.  
-- No handling of edge cases or invalid inputs.
-
-**Deduct 5 points**
+- The script has no error handling, try-except blocks, or checks for initialization success.  
+- No checks on driver inputs or visualization running status beyond `vis.Run()`.  
+- No handling of edge cases such as failed initialization or missing data files.  
+**Deduction: 5 points**
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
-- Visualization system is created and attached properly.  
-- However, missing typical lights, skybox, and logo reduces visualization quality.  
-- Camera is set as chase camera, which is acceptable but no additional cameras or lighting.  
-- Window size and title are set properly.
-
-**Deduct 3 points for incomplete visualization setup**
+- Visualization system is created and attached to the vehicle, but not to the system, which is recommended.  
+- No typical lights, skybox, or additional cameras are added, which are standard for good visualization.  
+- The chase camera is set, which is good.  
+**Deduction: 4 points**
 
 ---
 
 ### Summary of Deductions
 
-| Criterion                  | Points | Deduction | Notes                                  |
-|----------------------------|--------|-----------|----------------------------------------|
-| Completeness               | 40     | 17        | Missing explicit system init, minor visualization omissions |
-| Correctness                | 30     | 30        | Incorrect API calls, mixed contact materials, redundant init |
-| Code Quality               | 10     | 5         | Insufficient comments                   |
-| Efficiency                | 10     | 8         | Redundant calls                         |
-| Error Handling & Robustness| 5      | 5         | No error handling                       |
-| Visualization Tools        | 5      | 3         | Missing lights, skybox                  |
-| **Total Deductions**       |        | **68**    |                                        |
+| Criterion                   | Points | Deduction | Notes                              |
+|-----------------------------|--------|-----------|----------------------------------|
+| Completeness                | 40     | 40        | Missing system init, terrain patch, minor visualization issues |
+| Correctness                 | 30     | 30        | Incorrect API calls, material mismatch, logical errors |
+| Code Quality                | 10     | 6         | Minimal comments, minor readability issues |
+| Efficiency                 | 10     | 8         | Redundant calls, suboptimal update loop |
+| Error Handling & Robustness | 5      | 5         | No error handling or robustness |
+| Visualization Tools         | 5      | 4         | Incomplete visualization setup |
 
-**Final score = 100 - 68 = 32**
+**Total deductions: 40 + 30 + 6 + 8 + 5 + 4 = 93**
 
----
-
-### Final Score:
-
-[[32]]
+**Final score: 100 - 93 = 7**
 
 ---
 
-### Explanation:
+### Final Score
 
-- The script misses explicit system initialization, which is essential in PyChrono simulations.  
-- It uses incorrect API calls (`SetChairsThreading` and `SetChronoDataFilePath` instead of `SetChronoDataPath`).  
-- It mixes contact materials (SMC vehicle with NSC terrain material), which is a significant correctness error.  
-- Redundant initialization calls and minor visualization omissions reduce efficiency and visualization quality.  
-- Lack of error handling and minimal comments reduce robustness and code quality.  
-- Despite these issues, the general structure is recognizable and some components are correctly used, preventing a lower score.
+[[7]]
+
+---
+
+### Explanation
+
+The script demonstrates a basic structure for a PyChrono vehicle simulation with visualization and driver input. However, it misses critical components such as explicit system initialization and terrain patch creation, uses incorrect API functions (`SetChairsThreading`, `SetChronoDataFilePath`), and mixes contact materials inconsistent with the contact method. Visualization setup is minimal and incomplete, lacking lighting and skybox. The simulation loop has minor logical issues and redundant calls. Code quality is acceptable but could be improved with better comments and structure. No error handling is present, reducing robustness. These issues significantly impact the correctness and completeness of the simulation, resulting in a very low score.

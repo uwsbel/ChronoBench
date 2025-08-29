@@ -5,130 +5,140 @@
 ### 1. Completeness (40 points)
 
 - **System Initialization:**
-  - The script calls `chrono.ChSystemSMC()` multiple times but **never assigns it to a variable**. This means the system is created but not stored or referenced, so subsequent calls like `Set_G_acc()` or `Add()` are done on new, separate system instances, not the same one.
-  - **Deduction: 15 points** (missing essential component: proper system initialization and usage).
+  - The script calls `chrono.ChSystemSMC()` multiple times but **never assigns it to a variable**. This means the system is created but not stored or referenced, so subsequent calls like `chrono.ChSystemSMC().Add(...)` create new, distinct systems rather than adding to the same system.
+  - **Missing:** Proper system initialization and reference.
+  - **Deduction:** 15 points (essential component missing).
 
 - **Body Creation:**
-  - The beam mesh is created, nodes are created, but **nodes are not added to the mesh** (`beam_mesh.AddNode()` is missing for `beam_nodeA` and `beam_nodeB`).
-  - The beam element is created with nodes passed in the constructor, but according to the API, `ChElementBeamIGA` does not take nodes in the constructor; nodes should be added separately and the element should be configured accordingly.
-  - The flywheel body is created with a `ChMaterialSurfaceSMC` passed to the constructor, which is not the correct signature. The constructor for `ChBody()` does not take material as an argument; materials are assigned to collision/contact models or shapes.
-  - The flywheel shape is created as `ChSphereShape(0.05)` and added as an asset, which is correct.
-  - The motor body is created with zero mass and inertia, which is acceptable if it is fixed or massless.
-  - The motor joint is initialized between `motor_body` and `beam_nodeA`. However, `ChLinkMotorRotationSpeed.Initialize()` expects two `ChBody` objects, not a body and a node.
-  - **Deduction: 15 points** (missing or incorrect body and element setup).
+  - The beam mesh is created, nodes and elements are added, but **nodes are not added to the mesh** (`beam_mesh.AddNode(beam_nodeA)` and `beam_mesh.AddNode(beam_nodeB)` are missing).
+  - The flywheel body is created but **collision is not enabled**, and no collision shape is added.
+  - The motor body is created with zero mass and inertia, which is unusual but might be intentional.
+  - **Deduction:** 10 points (beam nodes missing from mesh, flywheel missing collision setup).
 
 - **Visualization:**
-  - Visualization system is created and attached to a new system instance (`chrono.ChSystemSMC()` again), not the actual system used in simulation.
-  - Camera is added using `chronoirr.ChCameraSceneNode(...)` with parameters that do not match the documented usage (`vis.AddCamera()` expects a `ChVector3d` position, not a scene node).
-  - **Deduction: 10 points** (visualization present but incorrectly configured).
+  - Visualization system is created and attached to `chrono.ChSystemSMC()` (again, a new system instance, not the one used for simulation).
+  - Visualization setup is mostly correct but:
+    - The camera is added with a complicated call that is not standard (`chronoirr.ChCameraSceneNode(...)`), whereas the documentation suggests `vis.AddCamera(chrono.ChVector3d(...))`.
+    - The visualization loop does not call `vis.BeginScene()` and `vis.EndScene()`, which are recommended for proper rendering.
+  - **Deduction:** 5 points (minor omissions in visualization setup).
 
 - **Simulation Loop:**
-  - The simulation loop calls `chrono.ChSystemSMC().DoStepDynamics(0.01)` on a new system instance every iteration, not the actual system.
-  - **Deduction: 15 points** (missing essential component: proper simulation loop on the correct system).
+  - The loop calls `chrono.ChSystemSMC().DoStepDynamics(0.01)` on a new system instance each time, not the initialized system.
+  - **Deduction:** 15 points (essential component incorrectly configured).
 
-**Total Completeness Deduction: 15 + 15 + 10 + 15 = 55 points** (but max is 40, so capped at 40).
+**Total Completeness Deduction:** 15 + 10 + 5 + 15 = 45 points (cap at 40 points total, so full deduction here).
 
 ---
 
 ### 2. Correctness (30 points)
 
-- **System Usage:**
-  - Multiple calls to `chrono.ChSystemSMC()` create new system instances each time, so bodies and joints are added to different systems, which breaks the simulation.
-  - **Deduction: 15 points** (incorrect API usage with system instance).
+- **System usage:**
+  - Multiple calls to `chrono.ChSystemSMC()` create separate system instances, so adding bodies and running simulation on different systems is incorrect.
+  - **Deduction:** 15 points (significant API misuse).
 
 - **Motor Initialization:**
-  - `motor_motor.Initialize(motor_body, beam_nodeA, ...)` is invalid; the second argument must be a `ChBody`, not a node.
-  - **Deduction: 10 points** (logical error in joint initialization).
+  - The motor is initialized between `motor_body` and `beam_nodeA` (a node, not a body). According to the documentation, `ChLinkMotorRotationSpeed.Initialize()` expects two bodies, not a body and a node.
+  - **Deduction:** 15 points (incorrect joint initialization).
 
-- **Material Usage:**
-  - `ChMaterialSurfaceSMC(1000, 0.3)` is used as a material for a body constructor, which is invalid.
-  - **Deduction: 5 points** (minor API misuse).
+- **Flywheel body creation:**
+  - The flywheel body is created with `chrono.ChBody(chrono.ChMaterialSurfaceSMC(1000, 0.3))`, but `ChBody` constructor does not take a material as an argument; materials are assigned via collision models or contact materials.
+  - **Deduction:** 10 points (incorrect API usage).
 
-- **Beam Element Initialization:**
-  - `ChElementBeamIGA` constructor does not accept nodes directly; nodes should be added to the mesh and element configured accordingly.
-  - **Deduction: 10 points** (incorrect element initialization).
+- **Beam element creation:**
+  - `fea.ChElementBeamIGA(beam_section, beam_nodeA, beam_nodeB)` is called, but according to the API, `ChElementBeamIGA` requires nodes to be added to the mesh and properly initialized.
+  - Nodes are not added to the mesh.
+  - **Deduction:** 10 points (logical error).
 
-- **Visualization Camera:**
-  - `vis.AddCamera()` is called with a scene node instead of a position vector.
-  - **Deduction: 5 points** (minor API misuse).
+- **Mass and inertia for motor_body:**
+  - Setting mass and inertia to zero is allowed but unusual; no deduction here as it might be intentional.
 
-**Total Correctness Deduction: 15 + 10 + 5 + 10 + 5 = 45 points** (capped at 30).
+- **Setting gravity:**
+  - `chrono.ChSystemSMC().Set_G_acc(...)` is called on a new system instance, not the main system.
+  - **Deduction:** 10 points (incorrect system reference).
+
+**Total Correctness Deduction:** 15 + 15 + 10 + 10 + 10 = 60 points (cap at 30 points total).
 
 ---
 
 ### 3. Code Quality (10 points)
 
-- Variable names are meaningful (`beam_material`, `beam_mesh`, `flywheel_body`, etc.).
-- Code lacks comments explaining the steps.
-- Code formatting is acceptable but could be improved with blank lines between logical blocks.
-- No docstrings or inline comments.
-- **Deduction: 5 points** (insufficient comments/documentation).
-- **Deduction: 3 points** (minor readability issues, could be better structured).
+- **Readability:**
+  - Variable names are meaningful.
+  - Code is mostly well structured.
+  - However, lack of consistent system variable usage harms clarity.
+  - **Deduction:** 3 points (minor readability issues).
 
-**Total Code Quality Deduction: 8 points**
+- **Comments:**
+  - Some comments are present but sparse.
+  - No explanation of key steps like system creation, motor setup, or simulation loop.
+  - **Deduction:** 5 points (insufficient comments).
+
+**Total Code Quality Deduction:** 8 points.
 
 ---
 
 ### 4. Efficiency (10 points)
 
-- Repeated calls to `chrono.ChSystemSMC()` create multiple system instances unnecessarily.
-- The system should be created once and stored in a variable.
-- Adding nodes to the mesh is missing, which could cause inefficiency or errors.
-- **Deduction: 5 points** (redundant system creation).
-- No other major inefficiencies.
-- **Deduction: 0 points** for missing minor optimizations.
+- **Repeated calls to `chrono.ChSystemSMC()` create new systems unnecessarily.**
+  - This is inefficient and incorrect.
+  - **Deduction:** 5 points (unnecessary redundant code).
 
-**Total Efficiency Deduction: 5 points**
+- **No other obvious inefficiencies.**
+
+**Total Efficiency Deduction:** 5 points.
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- No error handling or checks for node addition, system initialization, or joint initialization.
+- No error handling or checks.
 - No try-except blocks or validation of inputs.
-- **Deduction: 5 points** (lack of basic error handling).
+- While not always mandatory, basic robustness is recommended.
+- **Deduction:** 5 points (lack of error handling).
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
-- Visualization system is created but attached to a new system instance, not the actual system.
-- Camera setup is incorrect (passing a scene node instead of a position vector).
-- Missing calls to `vis.BeginScene()` and `vis.EndScene()` in the simulation loop, which are recommended for proper rendering.
-- **Deduction: 5 points** (incorrect visualization setup).
+- Visualization system is created and attached but attached to a new system instance, not the main system.
+- Camera added in a non-standard way.
+- Missing `BeginScene()` and `EndScene()` calls in the rendering loop.
+- **Deduction:** 4 points (incorrect visualization setup).
 
 ---
 
-### Summary of Deductions
+### Summary of Deductions:
 
-| Criterion                     | Max Points | Deduction | Points Awarded |
-|-------------------------------|------------|-----------|---------------|
-| Completeness                  | 40         | 40        | 0             |
-| Correctness                  | 30         | 30        | 0             |
-| Code Quality                 | 10         | 8         | 2             |
-| Efficiency                  | 10         | 5         | 5             |
-| Error Handling and Robustness | 5          | 5         | 0             |
-| Use of Visualization Tools   | 5          | 5         | 0             |
-| **Total**                    | 100        | 93        | **7**         |
+| Criterion                     | Points | Deduction | Notes                                      |
+|-------------------------------|--------|-----------|--------------------------------------------|
+| Completeness                  | 40     | 40        | Missing system variable, nodes not added, simulation loop incorrect |
+| Correctness                  | 30     | 30        | Multiple system instances, motor init wrong, flywheel body creation wrong |
+| Code Quality                 | 10     | 8         | Sparse comments, minor readability issues |
+| Efficiency                   | 10     | 5         | Redundant system creation calls            |
+| Error Handling and Robustness| 5      | 5         | No error handling                           |
+| Visualization Tools          | 5      | 4         | Visualization attached to wrong system, missing scene calls |
 
 ---
 
-### Final Score: [[7]]
+### Final score calculation:
+
+- Completeness: 40 - 40 = 0
+- Correctness: 30 - 30 = 0
+- Code Quality: 10 - 8 = 2
+- Efficiency: 10 - 5 = 5
+- Error Handling: 5 - 5 = 0
+- Visualization: 5 - 4 = 1
+
+**Total: 0 + 0 + 2 + 5 + 0 + 1 = 8 points**
 
 ---
 
 ### Explanation:
 
-The script fundamentally fails to maintain a single system instance, which is critical for any PyChrono simulation. Bodies, joints, visualization, and simulation steps are all added or called on different system instances, making the simulation non-functional.
+The script fundamentally fails to maintain a consistent reference to the simulation system, which is critical in PyChrono. This leads to all bodies, meshes, and motors being added to different system instances that are never simulated. The motor is incorrectly initialized between a body and a node, which is invalid. The flywheel body is created with an incorrect constructor argument. The beam nodes are not added to the mesh, which is essential for FEA elements. Visualization is attached to a different system and lacks proper rendering calls. Comments are sparse, and no error handling is present.
 
-The motor joint is incorrectly initialized with a node instead of a body, and the beam element is not properly constructed or connected to nodes.
+These issues severely impact the correctness and completeness of the simulation, resulting in a very low score.
 
-Visualization setup is present but incorrectly configured, including improper camera setup and missing scene management calls.
+---
 
-Code quality suffers from lack of comments and minor readability issues.
-
-Efficiency is impacted by redundant system creation.
-
-No error handling is present.
-
-Due to these critical issues, the score is very low despite some correct usage of API calls and reasonable variable naming.
+[[8]]

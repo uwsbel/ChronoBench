@@ -4,154 +4,163 @@
 
 ### 1. Completeness (40 points)
 
-- **System Initialization:** Present and correctly uses `chrono.ChSystemNSC()`.  
+- **System Initialization:**  
+  Present and correctly uses `chrono.ChSystemNSC()`.  
   **No deduction.**
 
 - **Body Creation:**  
-  - Floor (box), crank (cylinder), rod (box), piston (cylinder) are all created using `ChBodyEasyBox` and `ChBodyEasyCylinder`.  
-  - Positions and rotations are set.  
-  - Bodies are added to the system.  
+  All bodies (floor, crank, rod, piston) are created using `ChBodyEasyBox` and `ChBodyEasyCylinder` with reasonable parameters.  
   **No deduction.**
 
-- **Joints and Links:**  
-  - Revolute joints connecting crank-rod and rod-piston are created and initialized.  
-  - Prismatic joint connecting piston-floor is created and initialized.  
-  - Motor joint to spin crankshaft is created and initialized.  
+- **Joint Creation:**  
+  Revolute joints (`ChLinkLockRevolute`) and prismatic joint (`ChLinkLockPrismatic`) are created and initialized appropriately.  
   **No deduction.**
 
-- **Visualization:**  
-  - Irrlicht visualization system is set up with window size, title, logo, skybox, camera, and lights.  
+- **Motor Setup:**  
+  Motor created with `ChLinkMotorRotationSpeed`, initialized and assigned a constant speed function.  
+  **No deduction.**
+
+- **Visualization Setup:**  
+  Uses Irrlicht visualization with window size, title, logo, skybox, camera, and lights.  
   **No deduction.**
 
 - **Data Collection and Plotting:**  
-  - Arrays for time, angle, position, speed are initialized and populated during simulation.  
-  - Post-simulation plotting with matplotlib is included.  
+  Arrays for time, angle, position, speed are initialized and populated during simulation, then plotted with matplotlib.  
   **No deduction.**
 
 - **Minor omissions:**  
-  - No explicit collision material creation or setting friction/damping. Although not strictly required for this simple demo, it is a common best practice to define materials for contact behavior.  
-  - Collision enabling on bodies is not explicitly set; `ChBodyEasyBox` and `ChBodyEasyCylinder` default to enabling collision, so this is acceptable.  
-  **Minor omission: -5 points.**
+  - No explicit collision material or collision enabling on bodies. By default, `ChBodyEasyBox` and `ChBodyEasyCylinder` enable collision and visualization, but this is implicit.  
+  - No setting of friction or contact parameters, which might be important for realistic contact behavior.  
+  - No explicit setting of mass or inertia; `ChBodyEasy*` classes compute these automatically from density and geometry, which is acceptable.  
+  - No `chrono.SetChronoDataPath()` call to ensure data files (like the logo) are found, but `chrono.GetChronoDataFile()` is used, which typically works if the environment is set up properly.  
+  These are minor omissions but do not prevent the simulation from running.  
+  **Deduct 5 points for minor omissions in contact material and friction setup.**
 
-**Subtotal Completeness: 40 - 5 = 35 points**
+**Completeness deduction: 5 points**
 
 ---
 
 ### 2. Correctness (30 points)
 
 - **API usage correctness:**  
-  - `ChBodyEasyCylinder` usage: The first argument is `chrono.ChAxis_Y` (axis), then radius, then height, then density. This matches the documented signature.  
-  - Positioning and rotations:  
-    - Crank is created along Y-axis but rotated with `chrono.Q_ROTATE_Y_TO_Z` to align along Z-axis. This is correct and matches the API usage.  
-    - Piston is created along Y-axis but rotated with `chrono.Q_ROTATE_Y_TO_X` to align along X-axis. Correct.  
-  - Motor initialization: uses `chrono.ChFramed(crank_center)` as frame. The documentation shows `chrono.ChCoordsysD` for frame initialization. `ChFramed` is a valid alias for `ChCoordsysD` in PyChrono Python bindings, so this is acceptable.  
-  - Motor speed function: uses `chrono.ChFunctionConst(chrono.CH_PI)`. The documentation shows `ChFunction_Const` (underscore), but PyChrono Python bindings often accept both. This is a minor naming inconsistency but unlikely to cause failure.  
-  - Joint initialization frames: use `chrono.ChFramed` with position and optional rotation. This is consistent with the API.  
+  - `ChBodyEasyCylinder` usage: The first argument is an axis enum (`chrono.ChAxis_Y`), which is correct per documentation.  
+  - Positions and rotations of bodies are set with `SetPos` and `SetRot` using `chrono.Q_ROTATE_Y_TO_Z` and `chrono.Q_ROTATE_Y_TO_X`. These are predefined quaternions in PyChrono and used correctly.  
+  - Motor initialization uses `chrono.ChFramed(crank_center)`. However, the documentation and examples use `chrono.ChCoordsysD` (or `chrono.ChCoordsys`) for frames, not `ChFramed`. `ChFramed` is not a standard PyChrono class or constructor. This is a significant API misuse that will cause runtime errors. The correct call should be something like:  
+    ```python
+    chrono.ChCoordsysD(crank_center)
+    ```  
+    or  
+    ```python
+    chrono.ChCoordsys(crank_center)
+    ```  
+  - Similarly, revolute and prismatic joints are initialized with `chrono.ChFramed(...)`, which is incorrect. The API requires `chrono.ChCoordsysD` or `chrono.ChCoordsys`.  
   - Accessing rotation angles:  
-    - `mcrank.GetRot().yAngle()` and `mcrank.GetDerivRot().yAngle()` are used.  
-    - According to PyChrono API, `GetRot()` returns a quaternion, and `yAngle()` returns the rotation angle around the Y-axis. This is correct usage.  
-  - Collecting `mcrank_pos.y` as piston position: The piston moves along X-axis, so collecting crank's Y position for piston position is logically incorrect. The piston position should be taken from the piston body, not the crank, and along the X-axis (since piston slides along X).  
-    - This is a **logical error** affecting data correctness.  
-  - Similarly, `array_speed` collects `mcrank.GetDerivRot().yAngle()`, which is angular velocity of crank, but the label says "Piston Speed [m/s]". This is inconsistent. Piston speed should be linear velocity of piston along X-axis, not crank angular velocity.  
-    - This is a **logical error**.  
+    - `mcrank.GetRot().yAngle()` and `mcrank.GetDerivRot().yAngle()` are used. The `GetRot()` returns a quaternion, but `yAngle()` is not a documented method of quaternion in PyChrono. The correct way to get Euler angles is to convert the quaternion to Euler angles explicitly or use `GetRot().Q_to_Euler123()` or similar.  
+    - `GetDerivRot()` returns the quaternion derivative, not angular velocity. Angular velocity should be obtained via `GetWvel_loc()` or `GetWvel_par()` or `GetWvel()`.  
+    - Using `yAngle()` on quaternion or its derivative is incorrect and will cause errors or wrong results.  
+  - Position data collected is `mcrank_pos.y`, but the piston moves along the X-axis, so piston position should be from `mpiston.GetPos().x` or similar, not crank's Y position.  
+  - Plotting piston speed uses `mcrank_speed`, which is incorrectly obtained and also from the crank, not the piston.  
+  - Motor speed function is created with `chrono.ChFunctionConst(chrono.CH_PI)`, but the method called is `SetMotorFunction()`. The API uses `SetSpeedFunction()`. This is a naming mismatch and will cause an error.  
+  - The simulation loop uses `time = sys.GetChTime()`, which is correct.  
+  - The time step of 1e-3 is reasonable.  
+  - The visualization loop is correctly structured.
 
-- **Joint positions:**  
-  - Joint A at `crank_center + (crank_rad, 0, 0)` is `( -1 + 0.4, 0.5, 0 ) = (-0.6, 0.5, 0)` as commented, but actually `-1 + 0.4 = -0.6` is correct.  
-  - Joint B at `crank_center + (crank_rad + rod_length, 0, 0)` is `-1 + 0.4 + 1.5 = 0.9`. Comment matches.  
-  - Prismatic joint frame uses `chrono.Q_ROTATE_Z_TO_X` to align Z to X-axis, which is correct for slider along X.  
-  **No deduction here.**
+**Summary of correctness issues:**  
+- Use of `chrono.ChFramed` instead of `chrono.ChCoordsysD` or `chrono.ChCoordsys` for joint and motor initialization. **(-15 points)**  
+- Incorrect methods to extract angles and angular velocities from quaternions (`yAngle()` on quaternion and derivative). **(-15 points)**  
+- Use of `SetMotorFunction()` instead of `SetSpeedFunction()` for motor speed function. **(-15 points)**  
+- Logical error: collecting piston position and speed from crank body instead of piston body. **(-10 points)**
 
-- **Motor function setting:**  
-  - Uses `SetMotorFunction` instead of `SetSpeedFunction`. According to the documentation, the method is `SetSpeedFunction(func)`.  
-  - This is an **incorrect API usage** that could cause the motor not to work as intended.  
-  **Deduct 15 points for incorrect API usage.**
+Since the total correctness deduction is capped at 30 points, we assign the maximum deduction here.
 
-- **Summary of correctness deductions:**  
-  - Logical error in data collection (piston position and speed taken from crank): -10 points  
-  - Incorrect motor method name (`SetMotorFunction` instead of `SetSpeedFunction`): -15 points  
-
-**Subtotal Correctness: 30 - 15 - 10 = 5 points**
+**Correctness deduction: 30 points**
 
 ---
 
 ### 3. Code Quality (10 points)
 
-- **Readability:**  
-  - Variable names are meaningful (`mcrank`, `mrod`, `mpiston`, `mjointA`, etc.).  
-  - Code is well structured with comments explaining each block.  
-  - Indentation and formatting are consistent.  
-  **No deduction.**
+- **Readability and structure:**  
+  - Code is well structured with clear variable names (`mcrank`, `mrod`, `mpiston`, etc.).  
+  - Comments are present and explain most steps clearly.  
+  - Imports are clean and standard.  
+  - Minor inconsistency: some comments mention "truss" for the floor, which might be confusing.  
+  - Some lines are long but acceptable.  
+  - No major formatting issues.
 
 - **Comments:**  
-  - Comments are present and explain the purpose of each major step.  
-  - Some comments could be more precise (e.g., "Position the rod at (x=-0.4, y=0.5, z=0)" is slightly confusing because `crank_center` is at -1, so `-1 + 0.4 + rod_length/2` is actually -0.4, but the comment is correct.  
-  - Overall, comments are sufficient.  
-  **No deduction.**
+  - Comments are sufficient and meaningful for most parts.  
+  - Could improve by explaining the choice of rotations and joint frames more explicitly.  
+  - No docstrings or function encapsulation, but this is a script, so acceptable.
 
-**Subtotal Code Quality: 10 points**
+**Deduct 0 points for readability.**  
+**Deduct 0 points for comments.**
+
+**Code quality deduction: 0 points**
 
 ---
 
 ### 4. Efficiency (10 points)
 
-- **Unnecessary calculations or redundant code:**  
-  - The simulation loop collects data every 1 ms, which is reasonable.  
-  - Conversion of lists to numpy arrays inside plotting is efficient.  
-  - No obvious redundant API calls.  
-  - Minor inefficiency: `np.array()` is called multiple times inside plotting instead of once per array. This is minor.  
-  **Deduct 3 points for minor optimization opportunity.**
+- No obvious redundant calculations or unnecessary API calls.  
+- Data arrays are appended inside the loop, which is standard.  
+- Plotting is done after simulation, which is efficient.  
+- No vectorized operations possible inside the simulation loop due to real-time stepping.  
+- Minor optimization: converting lists to numpy arrays inside plotting could be done once outside the plot calls, but this is negligible.
 
-**Subtotal Efficiency: 7 points**
+**No deductions.**
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- No error handling is implemented (e.g., try-except blocks, checks for visualization initialization).  
-- While not always mandatory in simple scripts, best practices recommend at least minimal error handling or assertions.  
-- No handling of edge cases (e.g., simulation stopping conditions other than time and visualization window).  
-**Deduct 5 points for lack of basic error handling.**
+- No error handling at all (try-except blocks, input validation, or checks).  
+- For a simulation script, this is common, but best practices recommend at least minimal error handling or assertions.  
+- No checks for visualization initialization success or motor initialization.  
+- No handling for missing data files (logo).  
+- No handling for simulation divergence or invalid states.
+
+**Deduct 5 points for lack of any error handling or robustness measures.**
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
-- Visualization setup is complete with window size, title, logo, skybox, camera, and lights.  
-- Camera position and target are reasonable.  
-- Lighting is added with `AddTypicalLights()`.  
-- No obvious issues with visualization setup.  
-**No deduction.**
+- Visualization setup is mostly correct: window size, title, logo, skybox, camera, lights.  
+- `vis.AddCamera()` is called with two arguments, but the API shows `AddCamera(position)` only. The second argument (look-at vector) is not standard in PyChrono Irrlicht API. This may cause an error or be ignored.  
+- Lighting and skybox are added properly.  
+- Logo is added via `chrono.GetChronoDataFile()`, which is correct if data path is set.  
+- No custom visual shapes or colors added, but not required.  
+- No camera movement or interaction code, but acceptable.
+
+**Deduct 3 points for incorrect `AddCamera` usage with two arguments.**
 
 ---
 
-## Summary of deductions:
+### **Summary of deductions:**
 
-| Category                  | Points | Reason                                                                                 |
-|---------------------------|--------|----------------------------------------------------------------------------------------|
-| Completeness              | -5     | Missing explicit contact material setup (minor omission)                              |
-| Correctness              | -25    | Incorrect motor method (-15), logical errors in data collection (-10)                 |
-| Code Quality             | 0      | Good readability and comments                                                         |
-| Efficiency               | -3     | Minor optimization in numpy array conversion                                          |
-| Error Handling & Robustness | -5     | No error handling implemented                                                         |
-| Visualization            | 0      | Proper visualization setup                                                            |
-
----
-
-## Final score calculation:
-
-- Completeness: 35  
-- Correctness: 5  
-- Code Quality: 10  
-- Efficiency: 7  
-- Error Handling: 0  
-- Visualization: 5  
-
-**Total = 35 + 5 + 10 + 7 + 0 + 5 = 62 points**
+| Criterion                     | Deduction |
+|-------------------------------|-----------|
+| Completeness                  | 5         |
+| Correctness                  | 30        |
+| Code Quality                 | 0         |
+| Efficiency                  | 0         |
+| Error Handling and Robustness | 5         |
+| Visualization Tools          | 3         |
+| **Total Deduction**           | **43**    |
 
 ---
 
-# Final score and explanation:
+### Final score:
 
-[[62]]
+100 - 43 = **57**
 
-The script is mostly complete and well-structured with good visualization and body/joint setup. However, critical errors in API usage (motor method) and logical errors in data collection significantly reduce correctness. Minor omissions in contact material setup and lack of error handling further reduce the score. Code quality is good, and visualization is properly configured. Efficiency could be slightly improved by reducing redundant numpy conversions.
+---
+
+### Explanation:
+
+The script is mostly complete and well structured, with appropriate bodies, joints, motor, and visualization setup. However, critical API misuse (wrong frame class `ChFramed` instead of `ChCoordsysD`), incorrect method calls (`SetMotorFunction` instead of `SetSpeedFunction`), and incorrect extraction of angles and speeds from quaternions severely impact correctness and would prevent the simulation from running correctly. Minor issues with visualization camera setup and lack of error handling further reduce the score.
+
+---
+
+**Final score:**  
+[[57]]

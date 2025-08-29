@@ -4,193 +4,163 @@
 
 ### 1. Completeness (40 points)
 
-- **System Initialization:**  
-  The script uses `veh.Kraz()` and `veh.Sedan()` which internally create their own systems. However, the script never explicitly creates or manages a `chrono.ChSystemNSC()` or `chrono.ChSystemSMC()` object directly. This is acceptable since the vehicle classes manage the system internally.  
+- **System Initialization**:  
+  The script uses vehicle models (`veh.Kraz()` and `veh.Sedan()`) which internally create their own `ChSystem` instances. The script does not explicitly create or manage a `ChSystem` object directly, which is acceptable for vehicle module usage.  
   **No deduction.**
 
-- **Body Creation:**  
-  The vehicles (`Kraz` and `Sedan`) are created and initialized properly with initial positions and orientations. Terrain is created using `veh.RigidTerrain` and initialized from a JSON file.  
+- **Body Creation**:  
+  The vehicles are created and initialized properly with initial positions and orientations. Terrain is created via `veh.RigidTerrain` and initialized from a JSON file.  
   **No deduction.**
 
-- **Visualization Setup:**  
-  Visualization is created using `veh.ChWheeledVehicleVisualSystemIrrlicht()`, window size, title, camera, logo, lighting, and skybox are set. The vehicle is attached to the visualization system.  
-  However, the script uses `vis.AttachVehicle(vehicle.GetTractor())` but the vehicle is a tracked vehicle (`Kraz`), and the method `GetTractor()` is used. This is consistent with the vehicle API (tracked vehicle has a tractor body).  
-  The sedan is not attached to the visualization system explicitly, which means it will not be rendered. This is a missing essential component for completeness.  
-  **Deduct 15 points for missing visualization attachment of the sedan vehicle.**
+- **Visualization Setup**:  
+  The visualization system is created using `veh.ChWheeledVehicleVisualSystemIrrlicht()`, window size, title, chase camera, logo, directional light, and skybox are added. However, the script uses `vis.AddLightDirectional()` instead of `vis.AddTypicalLights()`. The latter is recommended for standard lighting setups. This is a minor deviation but not critical.  
+  **Deduct 2 points for minor visualization setup omission.**
 
-- **Driver Systems:**  
-  Both vehicles have driver systems created and initialized. The sedan driver is created but the sedan driver inputs are fixed and not interactive. This is acceptable.  
+- **Driver Setup**:  
+  Two drivers are created: one interactive for the Kraz vehicle and one for the sedan with fixed inputs. Both are initialized and synchronized properly.  
   **No deduction.**
 
-- **Simulation Loop:**  
-  The loop runs while `vis.Run()` is true, rendering at the correct intervals, synchronizing all modules, advancing all modules, and spinning for real-time synchronization.  
+- **Simulation Loop**:  
+  The loop handles rendering at fixed intervals, synchronizes all modules, advances them, and uses a realtime timer to maintain real-time pacing. The state of the truck is stored each step.  
   **No deduction.**
 
-- **Data Storage:**  
-  The script stores the tractor's position and rotation in `truck_states`.  
+- **Collision and Contact Settings**:  
+  The collision system type is set to BULLET for both vehicles’ systems. Chassis collision types are set to NONE, which is acceptable if the chassis is not intended to collide. Tire model is set to RIGID, which is valid.  
   **No deduction.**
 
-- **Collision System:**  
-  The collision system type is set to `BULLET` for both vehicles' systems.  
+- **Miscellaneous**:  
+  The script prints vehicle mass, which is useful for debugging.  
   **No deduction.**
 
-- **Terrain Initialization:**  
-  Terrain is initialized from a JSON file, which is a valid approach.  
-  **No deduction.**
-
-- **Summary for Completeness:**  
-  - Missing visualization attachment for the sedan vehicle (essential).  
-  **Deduction: 15 points**
+**Total Completeness deduction: 2 points**
 
 ---
 
 ### 2. Correctness (30 points)
 
-- **Use of `SetChronoDataPath`:**  
-  The script calls `chrono.SetChronoDataPath(chrono.GetChronoDataPath())`. This is redundant but harmless.  
-  **Minor inefficiency, no correctness deduction here.**
+- **API Usage**:  
+  - `veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')` is used, but `chrono.GetChronoDataPath()` usually returns a path with trailing slash, so concatenating `'vehicle/'` without a path separator may cause issues on some OSes. Using `os.path.join()` would be safer. Minor issue.  
+  - The `vehicle.SetChassisVisualizationType(vis_type, vis_type)` call passes two identical arguments; the API expects one argument for the chassis visualization type. This is likely a misuse. The same applies to suspension, wheel, and tire visualization calls where two arguments are passed. According to the API, these methods typically take one argument or specific arguments per wheel or suspension side. This could cause unexpected behavior or errors.  
+  - The `vis.AttachVehicle(vehicle.GetTractor())` call is suspicious. The `AttachVehicle()` method expects a `ChWheeledVehicle` object, but `vehicle.GetTractor()` returns a `ChBody` (the tractor chassis body). This is incorrect and will likely cause runtime errors or no visualization of the vehicle. The correct call should be `vis.AttachVehicle(vehicle)` to attach the whole vehicle system.  
+  - The `sedan_driver` is created as `veh.ChInteractiveDriverIRR(vis)` but then fixed throttle and steering inputs are set manually and passed to `sedan.Synchronize()`. This is inconsistent: if fixed inputs are used, the interactive driver is unnecessary. Alternatively, the interactive driver should be used for interactive control. This is a logical inconsistency but not a critical error.  
+  - The `vehicle.SetChassisCollisionType(chassis_collision_type)` is set to `veh.CollisionType_NONE`. This disables chassis collision, which is acceptable if intended, but if chassis collision is desired, this would be incorrect. No explicit comment clarifies this choice.  
+  - The `vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)` is called after vehicle initialization. This is acceptable but ideally should be set before initialization to ensure proper collision system setup.  
+  - The `sedan.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)` is similarly called after initialization.  
+  - The `driver.SetSteeringDelta(render_step_size / steering_time)` and similar calls are correct and consistent with the documentation.  
+  - The simulation loop correctly calls `Synchronize()` and `Advance()` on all modules.  
+  - The `truck_states.append((vehicle.GetTractor().GetPos(), vehicle.GetTractor().GetRot()))` stores the tractor body state, which is reasonable.  
+  - The `realtime_timer.Spin(step_size)` is used correctly to maintain real-time pacing.
 
-- **Vehicle Initialization:**  
-  Vehicles are initialized with proper contact methods, collision types, visualization types, and initial positions.  
-  **Correct.**
+**Deductions:**
 
-- **Visualization Attachment:**  
-  `vis.AttachVehicle(vehicle.GetTractor())` is correct for the tracked vehicle. However, the sedan is not attached to the visualization system, so it will not be rendered. This is a correctness issue affecting simulation behavior (visualization).  
-  **Deduct 15 points for incorrect/incomplete visualization setup affecting correctness.**
+- Incorrect use of `AttachVehicle(vehicle.GetTractor())` instead of `AttachVehicle(vehicle)`: **-15 points** (significant API misuse affecting visualization and simulation behavior).  
+- Incorrect or inconsistent arguments in visualization type setters (passing two arguments where one is expected): **-10 points** (incorrect configuration, potentially causing errors or unexpected visualization).  
+- Minor path concatenation issue for data path: **-3 points** (minor inefficiency and potential portability issue).  
+- Logical inconsistency in sedan driver usage (interactive driver created but fixed inputs used): **-5 points** (logical error, not critical but confusing).  
+- Setting collision system type after initialization (should be before): **-5 points** (minor correctness issue, may affect collision system behavior).
 
-- **Driver Input Handling:**  
-  The sedan driver is created but the inputs are fixed and not interactive. This is acceptable, but the sedan driver is synchronized and advanced, which is correct.  
-  **No deduction.**
-
-- **Use of `veh.ChDriverInputs()`:**  
-  The sedan inputs are created and set properly.  
-  **Correct.**
-
-- **Use of `vehicle.SetChassisVisualizationType(vis_type, vis_type)`:**  
-  The method is called with two arguments, but according to the API, `SetChassisVisualizationType` takes a single argument. The same applies to other visualization setters like `SetSuspensionVisualizationType(vis_type, vis_type)`. This is an API misuse.  
-  The correct calls should be like:  
-  ```python
-  vehicle.SetChassisVisualizationType(vis_type)
-  vehicle.SetSuspensionVisualizationType(vis_type)
-  ```  
-  Passing two arguments is incorrect and could cause runtime errors or unexpected behavior.  
-  **Deduct 15 points for incorrect API usage in visualization type setters.**
-
-- **Use of `vehicle.GetSystem().SetCollisionSystemType(...)`:**  
-  This is correct.
-
-- **Use of `vis.Synchronize(time, driver_inputs)` and `sedan_driver.Synchronize(time)` etc.:**  
-  The calls are consistent with the API.
-
-- **Use of `driver.GetInputs()`:**  
-  Correct.
-
-- **Use of `realtime_timer.Spin(step_size)`:**  
-  Correct.
-
-- **Summary for Correctness:**  
-  - Incorrect API usage in visualization setters (two arguments instead of one).  
-  - Missing visualization attachment for sedan (already deducted in completeness, but also affects correctness).  
-  **Deduction: 15 points for API misuse in visualization setters.**
+**Total Correctness deduction: 38 points (capped at 30 max).**
 
 ---
 
 ### 3. Code Quality (10 points)
 
-- **Readability and Structure:**  
-  The code is generally well-structured with logical sections and meaningful variable names.  
-  However, some comments are sparse or missing in complex sections (e.g., no comments explaining the simulation loop or the rationale behind fixed sedan inputs).  
-  The indentation is consistent.
+- The code is mostly readable with reasonable variable names (`initLoc`, `vis_type`, `step_size`, etc.).  
+- Comments are present but sparse and mostly at the block level; some lines lack comments explaining why certain choices are made (e.g., why chassis collision is NONE).  
+- Indentation and formatting are consistent.  
+- Some variables like `truck_states` are used without explanation of their purpose beyond the comment.  
+- The code could benefit from more detailed comments explaining the simulation setup and rationale for parameters.
 
-- **Comments:**  
-  There are comments for initial setup and some parameters, but the main simulation loop lacks explanatory comments.  
-  **Deduct 5 points for insufficient comments in the simulation loop and some other parts.**
+**Deductions:**
 
-- **Minor style issues:**  
-  The variable `step_number` is initialized with a comment "Initialize simulation frame counter s" — the trailing 's' seems like a typo.  
-  **Minor issue, no deduction.**
+- Insufficient comments explaining key design choices and some variables: **-5 points**  
+- Otherwise acceptable readability and structure: no further deduction.
 
-- **Summary for Code Quality:**  
-  - Deduct 5 points for insufficient comments/documentation.
+**Total Code Quality deduction: 5 points**
 
 ---
 
 ### 4. Efficiency (10 points)
 
-- **Redundant call:**  
-  `chrono.SetChronoDataPath(chrono.GetChronoDataPath())` is redundant and unnecessary.  
-  **Deduct 3 points for minor inefficiency.**
+- No obvious redundant calculations or unnecessary API calls.  
+- The rendering is done only every `render_steps` steps, which is efficient.  
+- The `sedan_driver` is created but not used interactively, which is inefficient (creating an interactive driver but not using it).  
+- The data path concatenation could be optimized using `os.path.join()` to avoid string concatenation issues.  
+- The `vehicle.SetChassisVisualizationType(vis_type, vis_type)` calls with duplicate arguments may cause redundant internal processing.
 
-- **Repeated visualization type setters with two arguments:**  
-  This is not only incorrect but also redundant if the API expects one argument.  
-  **Already deducted under correctness.**
+**Deductions:**
 
-- **Creation of `sedan_inputs` inside the loop:**  
-  The `sedan_inputs` object is created anew every loop iteration. It could be created once outside the loop and updated if needed. This is a minor inefficiency.  
-  **Deduct 3 points for missing optimization opportunity.**
+- Creating an interactive driver for the sedan but not using it interactively: **-5 points** (inefficient resource usage).  
+- Minor inefficiency in data path concatenation: **-3 points**.
 
-- **Summary for Efficiency:**  
-  - 3 points for redundant `SetChronoDataPath` call.  
-  - 3 points for creating `sedan_inputs` every loop iteration unnecessarily.  
-  **Total deduction: 6 points**
+**Total Efficiency deduction: 8 points**
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- **No error handling:**  
-  The script does not include any try-except blocks or checks for file loading success (e.g., terrain JSON file).  
-  This is a common omission in simulation scripts but is recommended for robustness.  
-  **Deduct 5 points for lack of basic error handling.**
+- The script lacks any try-except blocks or error handling for file loading (e.g., terrain JSON file), which could cause crashes if files are missing or paths are incorrect.  
+- No checks for successful initialization of vehicles or visualization system.  
+- No handling of edge cases such as simulation termination conditions beyond `vis.Run()`.  
+- No validation of driver inputs or vehicle states.
 
-- **Edge cases:**  
-  The script does not check for driver input validity or system initialization success.  
-  **No additional deduction beyond above.**
+**Deductions:**
+
+- Lack of basic error handling for file loading and initialization: **-5 points**  
+- No partial deduction for edge cases since none are handled.
+
+**Total Error Handling deduction: 5 points**
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
-- **Visualization setup:**  
-  The script sets window size, title, chase camera, adds logo, directional light, and skybox.  
-  However, it uses `vis.AddLightDirectional()` instead of `vis.AddTypicalLights()`, which is more standard and provides better lighting.  
-  Also, the sedan vehicle is not attached to the visualization system, so it will not be visible.  
-  **Deduct 5 points for missing sedan visualization and suboptimal lighting setup.**
+- Visualization system is created and initialized properly.  
+- Window size and title are set.  
+- Chase camera is set with a track point.  
+- Logo and skybox are added.  
+- Directional light is added, but `AddTypicalLights()` would be better for standard lighting.  
+- The critical error is the incorrect call `vis.AttachVehicle(vehicle.GetTractor())` instead of `vis.AttachVehicle(vehicle)`, which will prevent proper visualization of the vehicle.  
+- No camera is explicitly added beyond the chase camera, which is acceptable but could be improved.
 
-- **Minor visualization issues:**  
-  No camera addition besides chase camera; no ambient light or multiple light sources.  
-  **No further deduction beyond above.**
+**Deductions:**
 
----
+- Incorrect vehicle attachment to visualization: **-5 points** (major visualization error).  
+- Minor lighting setup suboptimal: **-2 points**.
 
-### Summary of Deductions
-
-| Criterion                     | Deduction | Reason                                                                                 |
-|-------------------------------|-----------|----------------------------------------------------------------------------------------|
-| Completeness                  | 15        | Missing visualization attachment for sedan vehicle.                                   |
-| Correctness                  | 15        | Incorrect API usage: visualization setters called with two arguments instead of one.  |
-| Code Quality                 | 5         | Insufficient comments/documentation, especially in simulation loop.                    |
-| Efficiency                  | 6         | Redundant `SetChronoDataPath` call (3 pts), creating `sedan_inputs` every loop (3 pts).|
-| Error Handling and Robustness | 5         | No error handling for file loading or other potential failures.                        |
-| Visualization Tools          | 5         | Missing sedan visualization attachment and suboptimal lighting setup.                 |
-| **Total Deductions**          | **51**    |                                                                                        |
+**Total Visualization deduction: 7 points (capped at 5 max).**
 
 ---
 
-### Final Score Calculation
+## Summary of Deductions
 
-- Total points: 100  
-- Deductions: 51  
-- **Final score: 49**
+| Criterion                    | Max Points | Deduction | Notes                                      |
+|-----------------------------|------------|-----------|--------------------------------------------|
+| Completeness                | 40         | 2         | Minor visualization omission               |
+| Correctness                | 30         | 30        | Major API misuse and logical errors        |
+| Code Quality               | 10         | 5         | Insufficient comments                       |
+| Efficiency                 | 10         | 8         | Unused interactive driver, minor inefficiency |
+| Error Handling and Robustness | 5          | 5         | No error handling                           |
+| Visualization Tools        | 5          | 5         | Incorrect vehicle attachment, minor lighting|
+
+**Total deductions: 2 + 30 + 5 + 8 + 5 + 5 = 55 points**
+
+**Final score: 100 - 55 = 45**
 
 ---
 
-### Final Output
+### Final score:
 
-[[49]]
+[[45]]
 
 ---
 
-### Brief Explanation of Deductions
+### Brief Explanation of Deductions:
 
-The script is mostly complete and logically structured, with correct vehicle and terrain initialization and a proper simulation loop. However, it misses attaching the sedan vehicle to the visualization system, which is essential for seeing the sedan in the rendered scene. The visualization setters are incorrectly called with two arguments instead of one, violating the API and potentially causing runtime errors. The code lacks sufficient comments, especially in the simulation loop, reducing readability. Minor inefficiencies include redundant data path setting and recreating driver input objects every loop iteration. The script also lacks any error handling for file loading or other common issues, which is important for robustness. Finally, the visualization setup could be improved by using standard lighting methods and ensuring all vehicles are visible. These issues collectively reduce the score to 49 out of 100.
+- The script misses critical correctness points due to misuse of the visualization API (`AttachVehicle` called with a body instead of the vehicle object) and incorrect visualization type setter arguments, which could cause runtime errors or prevent proper visualization.  
+- Logical inconsistencies in driver setup and collision system configuration reduce correctness and efficiency.  
+- Lack of error handling for file loading and initialization reduces robustness.  
+- Minor issues in visualization setup and data path concatenation reduce completeness and efficiency slightly.  
+- Code quality suffers from sparse comments and lack of explanation for key design choices.  
+
+Overall, the script demonstrates a reasonable structure and understanding of PyChrono vehicle simulation setup but contains significant API misuse and lacks robustness and clarity, resulting in a moderate score.

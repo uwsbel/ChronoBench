@@ -4,160 +4,166 @@
 
 ### 1. Completeness (40 points)
 
-- **System Initialization:**
-  - The script creates two systems: `sys = chrono.ChSystemNSC()` and `fea_sys = chrono.ChSystemNSC()`.
-  - However, the script inconsistently uses two systems (`sys` and `fea_sys`) without clear separation or explanation. The `main()` function uses `sys`, but the global code uses `fea_sys`.
-  - The `main()` function is defined but never called until the very end, and it uses `sys` which is defined globally. The global code also runs a simulation loop outside `main()`.
-  - This duplication and mixing of two systems is confusing and incomplete in terms of a clean, single simulation setup.
-  - **Deduction: 15 points** (missing clear, single system initialization and consistent use)
+- **System Initialization**:  
+  The script initializes two systems: `sys = chrono.ChSystemNSC()` and `fea_sys = chrono.ChSystemNSC()`. This is correct and complete for NSC contact.  
+  **No deduction.**
 
-- **Body Creation:**
-  - Bodies such as ground, flywheel, shafts, and beam are created.
-  - However, in the `main()` function, the shaft creation is incorrect:
-    - `shaft = chrono.ChShaft(chrono.ChLinkShaft())` is invalid; `ChShaft` constructor does not take a `ChLinkShaft` as argument.
-    - The shafts `shaftA` and `shaftB` are correctly created later globally.
-  - The flywheel is created twice: once in `main()` and once globally, with slightly different parameters.
-  - The beam is created twice with different parameters and initialization.
-  - The motor initialization is inconsistent: in `main()`, `motor.Initialize(flywheel, shaft.GetFirstBody())` is called, but `shaft.GetFirstBody()` is invalid because `ChShaft` does not have `GetFirstBody()` method.
-  - **Deduction: 15 points** (missing or incorrect body creation and joint initialization)
+- **Body Creation**:  
+  The script creates ground, shafts, flywheel, motor, and beam bodies. However, there are two conflicting sets of body creations and system additions:  
+  - One set inside the `main()` function using `sys`  
+  - Another set outside `main()` using `fea_sys`  
+  This duplication is confusing and likely unintended. Also, in the `main()` function, `sys` is used but never initialized inside `main()`. The global `sys` is defined after `main()`. This ordering is problematic.  
+  **Deduct 15 points** for missing proper system initialization inside `main()` or passing `sys` as argument, and for duplicated/conflicting body creation.
 
-- **Visualization:**
-  - Visualization is created twice: once in `main()` using `irr.ChVisualSystemIrrlicht()` and once globally using `chrono.IrrlichtVisualizer()`.
-  - The global visualization setup is more consistent with the API.
-  - The `main()` visualization setup calls `vis.AttachSystem(sys)` before `sys` is defined in the function scope (though `sys` is global).
-  - The rendering loop is duplicated: one inside `main()`, one globally.
-  - **Deduction: 10 points** (visualization present but inconsistent and partially incorrect)
+- **Visualization Setup**:  
+  Two different visualization setups are present:  
+  - Inside `main()`, using `irr.ChVisualSystemIrrlicht()`  
+  - Outside `main()`, using `chrono.IrrlichtVisualizer()` (which is a newer, higher-level wrapper)  
+  This duplication and inconsistency is confusing and incomplete. Also, inside `main()`, `vis.AttachSystem(sys)` is called before `sys` is defined (if `main()` is called before global `sys` initialization).  
+  **Deduct 15 points** for incomplete and inconsistent visualization setup.
 
-- **Simulation Loop:**
-  - Two simulation loops exist: one inside `main()` and one globally.
-  - Both loops call `DoStepDynamics` twice per iteration, which is redundant.
-  - The loops have complicated and repeated rendering calls.
-  - **Deduction: 5 points** (simulation loop present but redundant and confusing)
+- **FEA Beam Setup**:  
+  The beam is created twice, with different constructors and parameters. The first beam creation inside `main()` uses `fea.ChIGABeamFEA(shaft.GetFirstBody(), shaft.GetSecondBody(), 0.01, 0.1, 100, 100)` which is likely incorrect because the official API expects numeric parameters for beam geometry and mesh size, not bodies as first arguments. The second beam creation outside `main()` uses `fea.ChIGABeamFEA(0, 0, 0, 0, 0, 0, 0.01, 0.1, 100, 100)` which is also suspicious (zeros as first six arguments).  
+  The API documentation shows that `ChIGABeamFEA` constructor expects numeric parameters related to beam geometry and mesh, not bodies.  
+  **Deduct 15 points** for incorrect beam initialization.
 
-**Total Completeness deduction: 15 + 15 + 10 + 5 = 45 points (cap at 40 points max)**
+- **Motor Initialization**:  
+  The motor is initialized with `motor.Initialize(flywheel, shaft.GetFirstBody())` inside `main()`, and similarly outside `main()`. However, `shaft.GetFirstBody()` may not be valid since `shaft` is a `ChShaft` object, which does not have `GetFirstBody()` method according to API docs. Shafts are 1D elements, and their bodies are not accessed this way.  
+  **Deduct 15 points** for incorrect motor initialization.
+
+- **Simulation Loop**:  
+  The simulation loop is duplicated: once inside `main()` and once outside. The loops are similar but operate on different systems (`sys` vs `fea_sys`). This duplication is unnecessary and confusing.  
+  **Deduct 10 points** for duplicated simulation loops and unclear structure.
+
+- **Collision Material and Shape Setup**:  
+  The script attempts to create a collision material and assign it to ground, but the code is fragmented and inconsistent. For example, `ground_mat = material.GetMaterial0()` is called but `material` is a `ChContactMaterialNSC()` which does not have `GetMaterial0()` method. Also, `patch = chrono.ChCollisionShapeBox(material, chrono.ChVector3d(.5,.5,.5))` is invalid because `ChCollisionShapeBox` expects size parameters, not material as first argument.  
+  **Deduct 15 points** for incorrect collision material and shape setup.
+
+- **Summary of Completeness Deductions**:  
+  - Missing or incorrect system and visualization initialization: 15 + 15 = 30  
+  - Incorrect beam initialization: 15  
+  - Incorrect motor initialization: 15  
+  - Duplicated simulation loops: 10  
+  - Incorrect collision material and shape setup: 15  
+  Total deductions exceed 40, but max is 40, so **deduct full 40 points** for completeness.
 
 ---
 
 ### 2. Correctness (30 points)
 
-- **Incorrect API usage:**
-  - `shaft = chrono.ChShaft(chrono.ChLinkShaft())` is invalid; `ChShaft` constructor does not take arguments.
-  - `shaft.GetFirstBody()` and `shaft.GetSecondBody()` are used, but `ChShaft` does not have these methods. These are methods of `ChLinkShaft`.
-  - Motor initialization: `motor.Initialize(flywheel, shaft.GetFirstBody())` is invalid due to above.
-  - `flywheel.AddCollisionShape(chrono.ChCollisionShapeBox(m, 0.1, 0.1, 0.1))` is incorrect; `ChCollisionShapeBox` constructor expects size vector, not mass as first argument.
-  - The beam creation in `main()` uses `fea.ChIGABeamFEA(shaft.GetFirstBody(), shaft.GetSecondBody(), 0.01, 0.1, 100, 100)` which is invalid because `shaft` is not a link between bodies.
-  - The global beam creation uses `fea.ChIGABeamFEA(0, 0, 0, 0, 0, 0, 0.01, 0.1, 100, 100)` with zeros for body pointers, which is invalid.
-  - The motor angle update uses `motor.SetAngle(motor_angle)` but `ChLinkMotorRotationAngle` expects initialization with a frame, and the angle is usually set via a function or by setting the motor target angle properly.
-  - Calling `shaft.SetAngleA(angA)` and `shaft.SetAngleB(angB)` is invalid; `ChShaft` does not have these methods.
-  - The `beam = fea.ChIGABodyFEAcast(beam)` call is suspicious; `ChIGABodyFEAcast` is not a documented method.
-- **Logical errors:**
-  - The flywheel is fixed at origin every step, which may be unnecessary.
-  - Collision enabling/disabling is done repeatedly every step, which is inefficient.
-  - Calling `DoStepDynamics` twice per loop step is incorrect.
-- **Minor inaccuracies:**
-  - The commented-out collision enabling code is inconsistent.
-  - The `render_once` flag logic is confusing and likely ineffective.
-  
-**Deduction:**
-- Major API misuse: 15 points (shaft and motor initialization)
-- Logical errors: 10 points (double DoStepDynamics, flywheel resetting, collision toggling)
-- Minor inaccuracies: 5 points
+- **Incorrect API usage**:  
+  - `shaft = chrono.ChShaft(chrono.ChLinkShaft())` is invalid. `ChShaft` constructor does not take a `ChLinkShaft` argument. `ChShaft` is a shaft element, and `ChLinkShaft` is a link between shafts. They are different classes.  
+  - `shaft.GetFirstBody()` and `shaft.GetSecondBody()` do not exist for `ChShaft`. These methods are for `ChLinkShaft` or `ChLink` objects.  
+  - `motor.Initialize(flywheel, shaft.GetFirstBody())` is invalid because `shaft.GetFirstBody()` is invalid.  
+  - `flywheel.AddCollisionShape(chrono.ChCollisionShapeBox(m, 0.1, 0.1, 0.1))` is invalid: `ChCollisionShapeBox` expects size vector, not mass as first argument.  
+  - `fea.ChIGABodyFEAcast(beam)` is not a documented method. Possibly a typo or misunderstanding of casting.  
+  - The simulation loop calls `sys.DoStepDynamics(step_size)` twice per iteration, which is redundant and incorrect.  
+  - The rendering logic is overly complicated and inconsistent, with multiple `BeginScene()` and `EndScene()` calls nested improperly.  
+  - `motor.SetAngle(motor_angle)` is called every loop, but `ChLinkMotorRotationAngle` expects initialization with a frame, and angle updates should be done via a function or proper method.  
+  **Deduct 15 points** for major incorrect API usage.
 
-**Total Correctness deduction: 30 points**
+- **Logical errors**:  
+  - The motor is initialized between a body and a shaft body, which is conceptually incorrect.  
+  - The flywheel is fixed at origin every step, which may prevent dynamics.  
+  - Collision enabling/disabling is done repeatedly every loop, which is inefficient and unnecessary.  
+  - The beam is initialized with zero or invalid parameters.  
+  **Deduct 10 points** for logical errors.
+
+- **Minor inaccuracies**:  
+  - Unnecessary repeated rendering calls.  
+  - Unused variables and commented-out code clutter.  
+  **Deduct 5 points** for minor inaccuracies.
+
+- **Total correctness deduction: 15 + 10 + 5 = 30 points**
 
 ---
 
 ### 3. Code Quality (10 points)
 
-- The code is poorly structured:
-  - Two separate simulation loops and system setups coexist.
-  - The `main()` function is defined but the global code also runs a simulation loop, causing confusion.
-  - Variable names like `sys` and `fea_sys` are ambiguous.
-  - Lack of consistent commenting; many commented-out lines without explanation.
-  - The code mixes different styles and inconsistent indentation.
-  - The code is verbose with repeated rendering calls.
-- Comments are minimal and often uninformative.
-  
-**Deduction:**
-- Poor readability and structure: 7 points
-- Insufficient comments/documentation: 5 points
+- **Readability and structure**:  
+  - The code is cluttered with duplicated blocks (two systems, two visualization setups, two simulation loops).  
+  - Variable names are inconsistent (`shaft` vs `shaftA` vs `shaftB`).  
+  - The `main()` function is defined but called at the end after global code runs, causing confusion.  
+  - Indentation and spacing are mostly okay but the logic flow is poor.  
+  **Deduct 7 points** for poor structure and readability.
 
-**Total Code Quality deduction: 10 points (max)**
+- **Comments and documentation**:  
+  - Some comments exist but are sparse and sometimes misleading.  
+  - No docstrings or explanations for functions or complex blocks.  
+  **Deduct 5 points** for insufficient comments.
+
+- **Total code quality deduction: 7 + 5 = 10 points**
 
 ---
 
 ### 4. Efficiency (10 points)
 
-- Calling `DoStepDynamics` twice per loop iteration is wasteful.
-- Repeated enabling/disabling collision flags every step is inefficient.
-- Repeated rendering calls in the same loop iteration without clear need.
-- The `beam = fea.ChIGABodyFEAcast(beam)` call every step is unnecessary.
-- The camera adjustments and multiple `BeginScene`/`EndScene` calls are redundant.
-  
-**Deduction:**
-- Unnecessary calculations/redundant code: 5 points
-- Missing obvious optimizations (e.g., caching, avoiding repeated calls): 3 points
+- **Redundant calculations**:  
+  - `sys.DoStepDynamics(step_size)` called twice per loop.  
+  - Collision enabling/disabling every loop unnecessarily.  
+  - Multiple rendering calls per loop, sometimes nested improperly.  
+  **Deduct 10 points** for inefficiencies.
 
-**Total Efficiency deduction: 8 points**
+- **Missed optimizations**:  
+  - Could cache references to bodies and avoid repeated calls.  
+  - Could simplify rendering logic.  
+  **No additional deduction beyond above.**
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- No error handling or try-except blocks.
-- No checks for valid initialization or null pointers.
-- No handling of edge cases such as zero time step or invalid parameters.
-- The code assumes all API calls succeed.
-  
-**Deduction: 5 points**
+- No error handling or checks for invalid states.  
+- No try-except blocks or validation of inputs.  
+- No handling of edge cases like zero or negative parameters.  
+**Deduct 5 points** for lack of error handling.
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
-- Visualization setup is inconsistent:
-  - Two different visualization systems used (`irr.ChVisualSystemIrrlicht()` and `chrono.IrrlichtVisualizer()`).
-  - The first visualization setup in `main()` is incomplete and uses `vis.AttachSystem(sys)` before `sys` is defined locally.
-  - Lighting and skybox are added, but camera setup is minimal.
-  - The rendering loop is cluttered with multiple redundant calls.
-  - The camera is moved multiple times per frame unnecessarily.
-- Minor issues:
-  - No use of `AddCamera()` to set initial camera position.
-  - No comments explaining visualization choices.
-  
-**Deduction:**
-- Incorrect/inadequate visualization setup: 4 points
-- Minor visualization issues: 2 points
-
-**Total Visualization deduction: 5 points (max)**
+- Visualization setup is inconsistent and duplicated.  
+- Use of `irr.ChVisualSystemIrrlicht()` and `chrono.IrrlichtVisualizer()` mixed without clear reason.  
+- Camera control is awkward and repeated multiple times.  
+- Lighting and skybox are added but no custom camera positioning or user interaction.  
+**Deduct 4 points** for inadequate visualization setup.
 
 ---
 
-### **Summary of deductions:**
+### **Summary of deductions**
 
-| Criterion                     | Max Points | Deduction | Notes                                           |
-|-------------------------------|------------|-----------|------------------------------------------------|
-| Completeness                  | 40         | 40        | Missing consistent system, incorrect body setup|
-| Correctness                  | 30         | 30        | Major API misuse, logical errors                |
-| Code Quality                 | 10         | 10        | Poor structure, lack of comments                 |
-| Efficiency                  | 10         | 8         | Redundant calls, inefficient loops               |
-| Error Handling & Robustness | 5          | 5         | No error handling                                |
-| Visualization Tools         | 5          | 5         | Inconsistent and suboptimal visualization setup |
+| Criterion                     | Points | Deduction | Notes                                      |
+|-------------------------------|--------|-----------|--------------------------------------------|
+| Completeness                  | 40     | 40        | Missing/incorrect system, bodies, beam, motor, collision setup |
+| Correctness                  | 30     | 30        | Major API misuse, logical errors, redundant calls |
+| Code Quality                 | 10     | 10        | Poor structure, readability, insufficient comments |
+| Efficiency                  | 10     | 10        | Redundant simulation steps, rendering, collision calls |
+| Error Handling and Robustness | 5      | 5         | No error handling or robustness measures  |
+| Visualization Tools          | 5      | 4         | Inconsistent and inadequate visualization setup |
 
-**Total deductions: 40 + 30 + 10 + 8 + 5 + 5 = 98 points**
+**Total deductions: 40 + 30 + 10 + 10 + 5 + 4 = 99**
 
 ---
 
-### Final score: 100 - 98 = 2 points
+### Final score: 1/100
 
 ---
 
 ### Explanation:
 
-The script suffers from fundamental issues in system and body initialization, incorrect API usage (especially with shafts and motors), duplicated and inconsistent simulation loops, and poor code structure. Visualization is set up twice with conflicting approaches, and the rendering loop is cluttered and inefficient. There is no error handling or robustness considerations. The code quality is low due to poor readability and minimal commenting. Efficiency is compromised by redundant calls and unnecessary recalculations.
+The provided script suffers from fundamental issues in completeness and correctness, including duplicated and conflicting system and visualization setups, incorrect use of PyChrono API (especially for shafts, motors, and beams), and poor simulation loop structure. The code quality is low due to poor organization and lack of comments. Efficiency is compromised by redundant calls, and there is no error handling. Visualization setup is inconsistent and suboptimal.
 
-While the script shows some understanding of PyChrono components, it does not follow the API documentation or best practices sufficiently to produce a working, maintainable simulation.
+To improve, the script should be refactored to:
+
+- Use a single system and visualization setup consistently.  
+- Correctly initialize bodies, shafts, motors, and beams according to the API.  
+- Remove duplicated simulation loops and redundant calls.  
+- Add meaningful comments and improve code structure.  
+- Implement basic error handling and validation.  
+- Simplify and improve visualization logic.
 
 ---
 
-[[2]]
+**Final score:**
+
+[[1]]
