@@ -36,14 +36,16 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Load API key specifically for gpt-4.1-mini (using OPENAI_API_KEY_2)
-openai_api_key = os.getenv("OPENAI_API_KEY_2")
+# Load API key specifically for gpt-4.1-mini judge model
+# Priority order: Model-specific key > Numbered key > Default key
+openai_api_key = os.getenv("OPENAI_API_KEY_GPT41MINI") or os.getenv("OPENAI_API_KEY_2")
 if not openai_api_key:
     # Fallback to default if specific key not found
     openai_api_key = os.getenv("OPENAI_API_KEY")
-    logger.warning("OPENAI_API_KEY_2 not found, using default OPENAI_API_KEY")
+    logger.warning("OPENAI_API_KEY_GPT41MINI and OPENAI_API_KEY_2 not found, using default OPENAI_API_KEY")
 else:
-    logger.info("Using OPENAI_API_KEY_2 for gpt-4.1-mini evaluations")
+    key_source = "OPENAI_API_KEY_GPT41MINI" if os.getenv("OPENAI_API_KEY_GPT41MINI") else "OPENAI_API_KEY_2"
+    logger.info(f"Using {key_source} for gpt-4.1-mini evaluations")
 
 # No other API keys needed - only using OpenAI for judging
 # All model outputs are already generated in output_llms directory
@@ -572,10 +574,17 @@ def extract_scores_from_txt(file_path):
     match = re.search(r"\[\[(\d+)\]\]", content)
     if match:
         return int(match.group(1))
-    else:
-        # Try to handle partial scores or errors more gracefully
-        print(f"Warning: No valid score found in {file_path}, using default score 0")
-        return 0
+    
+    # Handle format like "[[x]] 70" where score is after [[x]]
+    match_x = re.search(r"\[\[x\]\]\s*(\d+)", content)
+    if match_x:
+        score = int(match_x.group(1))
+        print(f"Found score in [[x]] format: {score} in {file_path}")
+        return score
+    
+    # Try to handle partial scores or errors more gracefully
+    print(f"Warning: No valid score found in {file_path}, using default score 0")
+    return 0
 
 
 def save_scores_to_csv_with_metadata(output_system_path, test_model, system_folder,
@@ -624,7 +633,8 @@ def save_scores_to_csv_with_metadata(output_system_path, test_model, system_fold
     print(f"Scores saved to {csv_output_path}")
 # data set path
 dataset_path = r"/home/hongyu/Documents/SimBench/demo_data"
-Output_path = r"/home/hongyu/Documents/SimBench/output_llms"
+# FIXED: Use judge-specific output directory to avoid overwriting between judges
+Output_path = f"/home/hongyu/Documents/SimBench/output_llms_{evaluated_model.replace('.', '-')}"
 Output_conversation_path =  r"/home/hongyu/Documents/SimBench/output_conversion"
 Output_statistic_path = r"/home/hongyu/Documents/SimBench/statistic"
 merge_csv_files(Output_path)

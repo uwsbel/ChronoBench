@@ -36,14 +36,16 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Load API key specifically for gpt-4.1-nano (using OPENAI_API_KEY_3)
-openai_api_key = os.getenv("OPENAI_API_KEY_3")
+# Load API key specifically for gpt-4.1-nano judge model
+# Priority order: Model-specific key > Numbered key > Default key
+openai_api_key = os.getenv("OPENAI_API_KEY_GPT41NANO") or os.getenv("OPENAI_API_KEY_3")
 if not openai_api_key:
     # Fallback to default if specific key not found
     openai_api_key = os.getenv("OPENAI_API_KEY")
-    logger.warning("OPENAI_API_KEY_3 not found, using default OPENAI_API_KEY")
+    logger.warning("OPENAI_API_KEY_GPT41NANO and OPENAI_API_KEY_3 not found, using default OPENAI_API_KEY")
 else:
-    logger.info("Using OPENAI_API_KEY_3 for gpt-4.1-nano evaluations")
+    key_source = "OPENAI_API_KEY_GPT41NANO" if os.getenv("OPENAI_API_KEY_GPT41NANO") else "OPENAI_API_KEY_3"
+    logger.info(f"Using {key_source} for gpt-4.1-nano evaluations")
 
 # No other API keys needed - only using OpenAI for judging
 # All model outputs are already generated in output_llms directory
@@ -424,6 +426,47 @@ def evaluate_pychrono_code_against_document(code, api_documentation_link, model_
     return response, prompt
 
 def evaluate_and_save_results(round_name, prediction, reference_code, api_path, output_system_path):
+    # Check if the prediction is an error message instead of code
+    if prediction.strip().startswith("Error code:") or len(prediction.strip()) < 50:
+        logger.warning(f"⚠️ {round_name} - Skipping evaluation due to invalid prediction (likely error response)")
+        logger.warning(f"  Prediction content: {prediction[:100]}...")
+        
+        # Save error indicators instead of evaluating
+        error_msg = f"FAILED: Model output was an error or too short\nContent: {prediction}"
+        
+        # Save error messages to score files
+        for score_type in ["document", "reference", "reference_document"]:
+            score_path = os.path.join(output_system_path, f"{round_name}_score_{score_type}.txt")
+            with open(score_path, 'w', encoding="utf-8") as file:
+                file.write(error_msg)
+        
+        # Save evaluation data with error flag
+        evaluation_data = {
+            "round_name": round_name,
+            "prediction": prediction,
+            "reference_code": reference_code,
+            "api_path": api_path,
+            "output_system_path": output_system_path,
+            "error": True,
+            "error_message": "Model failed to generate valid code",
+            "scores": {
+                "score_document": error_msg,
+                "score_reference": error_msg,
+                "score_reference_document": error_msg
+            },
+            "prompts": {
+                "prompt_document": "",
+                "prompt_reference": "",
+                "prompt_reference_document": ""
+            }
+        }
+        
+        json_output_path = os.path.join(output_system_path, f"{round_name}_evaluation.json")
+        with open(json_output_path, 'w', encoding="utf-8") as json_file:
+            json.dump(evaluation_data, json_file, indent=4, ensure_ascii=False)
+        
+        return  # Exit early for failed predictions
+    
     # Run all three evaluation methods in parallel
     from concurrent.futures import ThreadPoolExecutor
     
@@ -563,19 +606,35 @@ def extract_scores_from_txt(file_path):
     with open(file_path, 'r', encoding="utf-8") as file:
         content = file.read()
 
-    # Check if the content is an error message
-    if content.startswith("Error:"):
-        print(f"Warning: {file_path} contains an error instead of a score")
-        return 0  # Return 0 score for failed evaluations
+    # Check if the content is an error message or failed evaluation
+    if content.startswith("Error:") or content.startswith("FAILED:"):
+        logger.warning(f"⚠️ {file_path} contains an error/failure instead of a score")
+        logger.debug(f"  Content preview: {content[:200]}...")
+        return -1  # Return -1 to indicate failed evaluation (will be handled separately)
     
-    # Use regex to find the score in the format [[x]]
+    # Use regex to find the score in the format [[x]] or [[x]] followed by number
     match = re.search(r"\[\[(\d+)\]\]", content)
     if match:
-        return int(match.group(1))
-    else:
-        # Try to handle partial scores or errors more gracefully
-        print(f"Warning: No valid score found in {file_path}, using default score 0")
-        return 0
+        score = int(match.group(1))
+        if score == 0:
+            # Log when legitimate zero scores are found
+            logger.info(f"ℹ️ Found legitimate zero score in {file_path}")
+            # Check if it's due to excessive deductions
+            if "deductions exceed" in content.lower() or "capped at 0" in content.lower():
+                logger.info(f"  Zero score due to deductions exceeding 100 points")
+        return score
+    
+    # Handle format like "[[x]] 70" where score is after [[x]]
+    match_x = re.search(r"\[\[x\]\]\s*(\d+)", content)
+    if match_x:
+        score = int(match_x.group(1))
+        logger.debug(f"Found score in [[x]] format: {score} in {file_path}")
+        return score
+    
+    # Try to handle partial scores or errors more gracefully
+    logger.warning(f"⚠️ No valid score found in {file_path}, using default score 0")
+    logger.debug(f"  Content preview: {content[:200]}...")
+    return 0
 
 
 def save_scores_to_csv_with_metadata(output_system_path, test_model, system_folder,
@@ -609,6 +668,14 @@ def save_scores_to_csv_with_metadata(output_system_path, test_model, system_fold
             score_reference = extract_scores_from_txt(score_reference_path)
             score_reference_document = extract_scores_from_txt(score_reference_document_path)
 
+            # Handle failed evaluations (-1 scores)
+            if score_document == -1 or score_reference == -1 or score_reference_document == -1:
+                logger.warning(f"⚠️ Failed evaluation detected for {test_model}/{system_folder}/{round_name}")
+                # Use "FAILED" string for failed evaluations in CSV
+                score_document = "FAILED" if score_document == -1 else score_document
+                score_reference = "FAILED" if score_reference == -1 else score_reference
+                score_reference_document = "FAILED" if score_reference_document == -1 else score_reference_document
+
             # Append the scores along with metadata to the CSV data list
             csv_data.append(
                 [test_model, system_folder, round_name, score_document, score_reference, score_reference_document])
@@ -624,10 +691,11 @@ def save_scores_to_csv_with_metadata(output_system_path, test_model, system_fold
     print(f"Scores saved to {csv_output_path}")
 # data set path
 dataset_path = r"/home/hongyu/Documents/SimBench/demo_data"
-Output_path = r"/home/hongyu/Documents/SimBench/output_llms"
+# FIXED: Use judge-specific output directory to avoid overwriting between judges
+Output_path = f"/home/hongyu/Documents/SimBench/output_llms_{evaluated_model.replace('.', '-')}"
 Output_conversation_path =  r"/home/hongyu/Documents/SimBench/output_conversion"
 Output_statistic_path = r"/home/hongyu/Documents/SimBench/statistic"
-merge_csv_files(Output_path)
+# NOTE: merge_csv_files moved to after evaluation completes
 all_model_list= ["gemma-2-2b-it", "gemma-2-9b-it", "gemma-2-27b-it", "llama-3.1-405b-instruct", "llama-3.1-70b-instruct",
 "llama-3.1-8b-instruct", "phi-3-mini-128k-instruct", "phi-3-medium-128k-instruct",
  "nemotron-4-340b-instruct", "mistral-nemo-12b-instruct", "mixtral-8x22b-instruct-v0.1", "codestral-22b-instruct-v0.1",
@@ -774,6 +842,16 @@ with ThreadPoolExecutor(max_workers=max_workers) as executor:
 logger.info("="*60)
 logger.info("Finished processing all models and systems.")
 logger.info("="*60)
+
+# Merge all individual CSV files into a combined file AFTER evaluation completes
+logger.info("Merging individual evaluation CSV files...")
+merge_output_file = f"combined_evaluation_scores_{evaluated_model}.csv"
+merge_csv_files(Output_path, merge_output_file)
+logger.info(f"Merged CSV saved to {os.path.join(Output_path, merge_output_file)}")
+
+# Also save to OUTPUT_DIR for this specific judge model
+merge_csv_files(Output_path, os.path.join(OUTPUT_DIR, merge_output_file))
+logger.info(f"Copy saved to {os.path.join(OUTPUT_DIR, merge_output_file)}")
 
 # RESUME CAPABILITY INJECTION
 print("\n" + "="*60)

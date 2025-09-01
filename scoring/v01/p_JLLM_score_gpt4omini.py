@@ -54,17 +54,19 @@ logger.addHandler(file_handler)
 logger.addHandler(console_handler)
 
 # ============================================
-# API KEY CONFIGURATION - USE OPENAI_API_KEY_1
+# API KEY CONFIGURATION
 # ============================================
 
-# Load API key specifically for gpt-4o-mini (using OPENAI_API_KEY_1)
-openai_api_key = os.getenv("OPENAI_API_KEY_1")
+# Load API key specifically for gpt-4o-mini judge model
+# Priority order: Model-specific key > Numbered key > Default key
+openai_api_key = os.getenv("OPENAI_API_KEY_GPT4OMINI") or os.getenv("OPENAI_API_KEY_1")
 if not openai_api_key:
     # Fallback to default if specific key not found
     openai_api_key = os.getenv("OPENAI_API_KEY")
-    logger.warning("OPENAI_API_KEY_1 not found, using default OPENAI_API_KEY")
+    logger.warning("OPENAI_API_KEY_GPT4OMINI and OPENAI_API_KEY_1 not found, using default OPENAI_API_KEY")
 else:
-    logger.info("Using OPENAI_API_KEY_1 for gpt-4o-mini evaluations")
+    key_source = "OPENAI_API_KEY_GPT4OMINI" if os.getenv("OPENAI_API_KEY_GPT4OMINI") else "OPENAI_API_KEY_1"
+    logger.info(f"Using {key_source} for gpt-4o-mini evaluations")
 
 # No other API keys needed - only using OpenAI for judging
 # All model outputs are already generated in output_llms directory
@@ -508,9 +510,16 @@ def extract_scores_from_txt(file_path):
     match = re.search(r"\[\[(\d+)\]\]", content)
     if match:
         return int(match.group(1))
-    else:
-        logger.warning(f"Warning: No valid score found in {file_path}, using default score 0")
-        return 0
+    
+    # Handle format like "[[x]] 70" where score is after [[x]]
+    match_x = re.search(r"\[\[x\]\]\s*(\d+)", content)
+    if match_x:
+        score = int(match_x.group(1))
+        logger.info(f"Found score in [[x]] format: {score} in {file_path}")
+        return score
+    
+    logger.warning(f"Warning: No valid score found in {file_path}, using default score 0")
+    return 0
 
 def save_scores_to_csv_with_metadata(output_system_path, test_model, system_folder,
                                     csv_filename="evaluation_scores.csv", evaluated_model="gpt-4o-mini"):
@@ -543,7 +552,8 @@ def save_scores_to_csv_with_metadata(output_system_path, test_model, system_fold
 
 # Paths
 dataset_path = r"/home/hongyu/Documents/SimBench/demo_data"
-Output_path = r"/home/hongyu/Documents/SimBench/output_llms"
+# FIXED: Use judge-specific output directory to avoid overwriting between judges
+Output_path = f"/home/hongyu/Documents/SimBench/output_llms_{evaluated_model.replace('.', '-')}"
 Output_conversation_path = r"/home/hongyu/Documents/SimBench/output_conversion"
 Output_statistic_path = r"/home/hongyu/Documents/SimBench/statistic"
 
