@@ -1,0 +1,61 @@
+# Import necessary libraries
+import os
+import math
+import numpy as np
+from pychrono import chrono as chrono
+from pychrono import vehicle as veh
+from pychrono import irrlicht as chronoirr
+
+# Initialize the PyChrono environment
+chrono.SetChronoDataPath('/path/to/data')
+
+# Create the simulation system
+sys = chrono.ChSystemNSC()
+
+# Set up the vehicle
+car = veh.MAN_10t_Truck()
+car.SetContactMethod(chrono.ChContactMethod_NSC)
+car.SetChassisCollisionType(chrono.ChCollisionType_BULLET)
+car.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.Q_from_AngX(0)))
+car.Initialize()
+
+# Add the vehicle to the system
+sys.Add(car)
+
+# Set up the terrain
+terrain = veh.RigidTerrain(car.GetSystem())
+patch_mat = chrono.ChMaterialSurfaceNSC()
+patch_mat.SetFriction(0.9)
+patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT), 100, 100)
+terrain.Initialize()
+
+# Set up the tire model
+tire_model = veh.TireTMEASY()
+car.SetTireModel(tire_model)
+
+# Set up the driver
+driver = veh.DriverSimple()
+car.SetDriver(driver)
+
+# Set up the visualization
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(sys)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle('MAN 10t Truck Simulation')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVectorD(0, 3, 6))
+vis.AddTypicalLights()
+
+# Set up the simulation loop
+time_step = 0.01
+while vis.Run():
+    sys.DoStepDynamics(time_step)
+    vis.BeginScene()
+    vis.DrawAll()
+    vis.EndScene()
+
+# Clean up
+del vis
+del sys

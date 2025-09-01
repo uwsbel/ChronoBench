@@ -1,0 +1,232 @@
+I'll create a comprehensive PyChrono simulation script for a CityBus vehicle with all the specified requirements. Here's the complete implementation:
+
+```python
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as chronoirr
+import math
+
+def main():
+    # Initialize PyChrono environment and core components
+    chrono.SetChronoDataPath('/path/to/chrono/data/')  # Set your Chrono data path
+    
+    # Create the Chrono system
+    system = chrono.ChSystemNSC()
+    system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+    system.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
+    system.SetSolverMaxIterations(150)
+    system.SetMaxPenetrationRecoverySpeed(4.0)
+    
+    # Vehicle initial parameters
+    initial_location = chrono.ChVectorD(0, 0.5, 0)
+    initial_rotation = chrono.ChQuaternionD(1, 0, 0, 0)
+    
+    # Create the CityBus vehicle
+    citybus = veh.CityBus()
+    citybus.SetContactMethod(chrono.ChContactMethod_NSC)
+    citybus.SetChassisCollisionType(veh.CollisionType_NONE)
+    citybus.SetChassisFixed(False)
+    citybus.SetInitPosition(chrono.ChCoordsysD(initial_location, initial_rotation))
+    
+    # Set tire model (use TMEASY tire model for better performance)
+    tire_model = veh.TireModelType_TMEASY
+    citybus.SetTireType(tire_model)
+    
+    # Initialize the vehicle
+    citybus.Initialize()
+    
+    # Set visualization types for vehicle parts
+    # Chassis visualization
+    citybus.SetChassisVisualizationType(veh.VisualizationType_MESH)
+    
+    # Suspension visualization
+    citybus.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
+    
+    # Steering visualization
+    citybus.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
+    
+    # Wheel visualization
+    citybus.SetWheelVisualizationType(veh.VisualizationType_MESH)
+    
+    # Tire visualization
+    citybus.SetTireVisualizationType(veh.VisualizationType_MESH)
+    
+    # Create rigid terrain
+    terrain = veh.RigidTerrain(system)
+    
+    # Create terrain patch with custom properties
+    patch_mat = chrono.ChMaterialSurfaceNSC()
+    patch_mat.SetFriction(0.9)
+    patch_mat.SetRestitution(0.01)
+    
+    # Add terrain patch
+    patch = terrain.AddPatch(patch_mat, 
+                           chrono.CSYSNORM,
+                           200, 200)  # 200m x 200m terrain
+    
+    # Set terrain texture
+    patch.SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"), 20, 20)
+    patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+    
+    # Initialize terrain
+    terrain.Initialize()
+    
+    # Create the interactive driver system
+    driver = veh.ChInteractiveDriverIRR()
+    
+    # Set driver input parameters
+    steering_time = 1.0  # Time to go from 0 to +1 (or from 0 to -1)
+    throttle_time = 1.0  # Time to go from 0 to +1
+    braking_time = 0.3   # Time to go from 0 to +1
+    
+    driver.SetSteeringDelta(0.02)
+    driver.SetThrottleDelta(0.02)
+    driver.SetBrakingDelta(0.06)
+    
+    # Initialize driver
+    driver.Initialize()
+    
+    # Create Irrlicht visualization system
+    vis = chronoirr.ChVisualSystemIrrlicht()
+    vis.AttachSystem(system)
+    vis.SetCameraVertical(chrono.CameraVerticalDir_Z)
+    vis.SetWindowSize(1280, 720)
+    vis.SetWindowTitle('CityBus Vehicle Simulation')
+    vis.Initialize()
+    vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+    vis.AddSkyBox()
+    vis.AddCamera(chrono.ChVectorD(0, 0, 0))  # Will be updated to follow vehicle
+    vis.AddTypicalLights()
+    
+    # Camera follow settings
+    camera_distance = 8.0
+    camera_height = 3.0
+    
+    # Simulation parameters
+    step_size = 1.0/50.0  # 50 FPS
+    render_step_size = 1.0/50.0  # Render every simulation step
+    
+    # Initialize simulation time
+    time = 0
+    render_steps = math.ceil(render_step_size / step_size)
+    step_number = 0
+    
+    print("Vehicle mass: {:.2f} kg".format(citybus.GetVehicle().GetMass()))
+    print("Controls:")
+    print("  W/S - Throttle/Brake")
+    print("  A/D - Steering")
+    print("  Space - Handbrake")
+    
+    # Simulation loop
+    while vis.Run():
+        time = system.GetChTime()
+        
+        # Update camera to follow vehicle
+        if step_number % 5 == 0:  # Update camera position every 5 steps for performance
+            vehicle_pos = citybus.GetVehicle().GetPos()
+            vehicle_rot = citybus.GetVehicle().GetRot()
+            
+            # Calculate camera position behind the vehicle
+            vehicle_dir = vehicle_rot.GetZaxis()
+            camera_pos = vehicle_pos - vehicle_dir * camera_distance + chrono.ChVectorD(0, camera_height, 0)
+            
+            # Set camera position and target
+            vis.GetActiveCamera().setPosition(chronoirr.vector3df(camera_pos.x, camera_pos.y, camera_pos.z))
+            vis.GetActiveCamera().setTarget(chronoirr.vector3df(vehicle_pos.x, vehicle_pos.y + 1, vehicle_pos.z))
+        
+        # Render scene
+        if step_number % render_steps == 0:
+            vis.BeginScene()
+            vis.Render()
+            
+            # Display vehicle information
+            vehicle_speed = citybus.GetVehicle().GetSpeed()
+            engine_rpm = citybus.GetPowertrain().GetMotorSpeed() * 30 / chrono.CH_C_PI
+            gear = citybus.GetPowertrain().GetCurrentTransmissionGear()
+            
+            # Display info on screen
+            vis.GetGUIEnvironment().getBuiltInFont().draw(
+                f"Speed: {vehicle_speed:.1f} m/s ({vehicle_speed*3.6:.1f} km/h)",
+                chronoirr.rect(10, 10, 400, 30),
+                chronoirr.SColor(255, 255, 255, 255)
+            )
+            
+            vis.GetGUIEnvironment().getBuiltInFont().draw(
+                f"RPM: {engine_rpm:.0f}",
+                chronoirr.rect(10, 30, 400, 50),
+                chronoirr.SColor(255, 255, 255, 255)
+            )
+            
+            vis.GetGUIEnvironment().getBuiltInFont().draw(
+                f"Gear: {gear}",
+                chronoirr.rect(10, 50, 400, 70),
+                chronoirr.SColor(255, 255, 255, 255)
+            )
+            
+            vis.EndScene()
+        
+        # Get driver inputs
+        driver_inputs = driver.GetInputs()
+        
+        # Synchronize systems
+        driver.Synchronize(time)
+        terrain.Synchronize(time)
+        citybus.Synchronize(time, driver_inputs, terrain)
+        vis.Synchronize(time, driver_inputs)
+        
+        # Advance simulation
+        driver.Advance(step_size)
+        terrain.Advance(step_size)
+        citybus.Advance(step_size)
+        system.DoStepDynamics(step_size)
+        
+        step_number += 1
+        
+        # Optional: Exit condition based on simulation time
+        # if time > 100:  # Run for 100 seconds
+        #     break
+
+if __name__ == "__main__":
+    main()
+```
+
+This script creates a comprehensive CityBus vehicle simulation with the following features:
+
+## Key Components:
+
+1. **PyChrono Environment**: Initializes the system with proper solver settings and gravity
+2. **CityBus Vehicle**: Creates and configures the vehicle with:
+   - Initial position and orientation
+   - TMEASY tire model for realistic tire behavior
+   - Mixed visualization (mesh for chassis/wheels, primitives for suspension)
+
+3. **Rigid Terrain**: 200m x 200m terrain with:
+   - Custom material properties (friction, restitution)
+   - Concrete texture for visual appeal
+   - Proper collision properties
+
+4. **Interactive Driver System**: Keyboard controls for:
+   - W/S: Throttle/Brake
+   - A/D: Steering
+   - Space: Handbrake
+
+5. **Irrlicht Visualization**: 
+   - 1280x720 window
+   - Camera following the vehicle from behind
+   - Real-time display of vehicle stats (speed, RPM, gear)
+   - Professional lighting and skybox
+
+6. **Simulation Loop**: 
+   - Runs at 50 FPS as requested
+   - Real-time vehicle dynamics
+   - Smooth camera tracking
+   - Performance-optimized rendering
+
+## Important Notes:
+
+1. **Data Path**: Update `chrono.SetChronoDataPath()` with your actual Chrono installation path
+2. **Dependencies**: Requires PyChrono with vehicle and Irrlicht modules
+3. **Performance**: The simulation is optimized for real-time performance
+4. **Extensibility**: Easy to modify vehicle parameters, terrain properties, or add additional features
+
+The simulation provides an immersive driving experience with realistic vehicle dynamics and responsive controls.

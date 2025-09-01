@@ -1,0 +1,75 @@
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as irr
+
+# Initialize the PyChrono system
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
+
+# Create the M113 vehicle
+vehicle = veh.M113_Vehicle(system)
+vehicle.SetContactMethod(chrono.ChContactMethod_NSC)
+vehicle.SetChassisFixed(False)
+vehicle.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 1), chrono.QUNIT))
+vehicle.SetPowertrainType(veh.PowertrainModelType_SIMPLE_MAP)
+vehicle.SetDriveType(veh.DrivelineTypeTV_FULL)
+vehicle.SetTrackShoeType(veh.TrackShoeType_SINGLE_PIN)
+vehicle.Initialize()
+
+# Set visualization types for all components
+vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
+vehicle.SetTrackShoeVisualizationType(veh.VisualizationType_MESH)
+vehicle.SetSprocketVisualizationType(veh.VisualizationType_MESH)
+vehicle.SetIdlerVisualizationType(veh.VisualizationType_MESH)
+vehicle.SetRoadWheelVisualizationType(veh.VisualizationType_MESH)
+
+# Create the rigid terrain
+terrain = veh.RigidTerrain(vehicle.GetSystem())
+material = chrono.ChMaterialSurfaceNSC()
+material.SetFriction(0.9)
+material.SetRestitution(0.05)
+patch = terrain.AddPatch(material, chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 1), 200, 100)
+patch.SetColor(chrono.ChColor(0.5, 0.5, 0.5))
+terrain.Initialize()
+
+# Create the driver system
+driver = veh.M113_Driver(vehicle)
+driver.Initialize()
+
+# Set up Irrlicht visualization
+application = irr.ChIrrApp(vehicle.GetSystem(), 'M113 Vehicle Simulation', irr.dimension2du(1024, 768))
+application.AddTypicalLights()
+application.AddTypicalSky()
+
+# Set camera position and target
+camera = irr.ChIrrCamera(application.GetDevice(), vehicle.GetChassisBody(), 10.0, 0.5)
+application.AddCamera(camera)
+
+# Simulation loop parameters
+step_size = 0.01
+timer = chrono.ChRealtimeStepTimer()
+
+# Run the simulation loop
+application.SetStepManage(True)
+application.SetTimestep(step_size)
+application.SetTryRealtime(True)
+
+while application.GetDevice().run():
+    time = system.GetChTime()
+    
+    # Get driver inputs
+    driver_inputs = driver.GetInputs()
+    
+    # Synchronize the vehicle, terrain, and driver
+    vehicle.Synchronize(time, driver_inputs, terrain)
+    terrain.Synchronize(time)
+    driver.Synchronize(time)
+    
+    # Update visualization
+    application.BeginScene()
+    application.DrawAll()
+    application.EndScene()
+    
+    # Advance the simulation
+    system.DoStepDynamics(step_size)
+    timer.Spin(step_size)

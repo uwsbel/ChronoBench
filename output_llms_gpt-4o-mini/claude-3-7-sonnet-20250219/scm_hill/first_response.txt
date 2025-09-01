@@ -1,0 +1,192 @@
+# PyChrono HMMWV Vehicle Simulation with SCM Deformable Terrain
+
+```python
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as chronoirr
+import pychrono.sensor as sensor
+import numpy as np
+import os
+
+# ---------------------------------------------------------------------
+# Initialize PyChrono and set paths
+
+# Change this path to your PyChrono data directory
+chrono.SetChronoDataPath('/usr/local/share/chrono/data/')
+veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
+
+# ---------------------------------------------------------------------
+# Create the simulation system
+
+# Set the simulation step size
+step_size = 1e-3
+realtime_timer = True
+
+# Create the physical system
+system = chrono.ChSystemSMC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+system.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
+system.SetSolverMaxIterations(150)
+system.SetMaxPenetrationRecoverySpeed(4.0)
+
+# ---------------------------------------------------------------------
+# Set up the SCM deformable terrain
+
+# Terrain parameters
+terrain_length = 100.0  # size in X direction
+terrain_width = 100.0   # size in Y direction
+terrain_height = 0.2    # terrain thickness
+
+# Soil parameters
+Bekker_Kphi = 0.82e6    # pressure-sinkage coefficient
+Bekker_Kc = 0.1e6       # cohesive modulus
+Bekker_n = 1.1          # exponent
+Mohr_cohesion = 0.01e6  # cohesion
+Mohr_friction = 30      # friction angle (degrees)
+Janosi_shear = 0.01e6   # shear modulus
+elastic_K = 4e8         # elastic stiffness
+damping_R = 3e4         # damping
+
+# Create SCM terrain
+terrain = veh.SCMDeformableTerrain(system)
+terrain.SetPlane(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.Q_from_AngX(-chrono.CH_C_PI_2)))
+terrain.Initialize(terrain_length, terrain_width, terrain_height)
+
+# Set visualization mesh resolution
+terrain.SetSoilParameters(
+    Bekker_Kphi, Bekker_Kc, Bekker_n,
+    Mohr_cohesion, Mohr_friction, Janosi_shear,
+    elastic_K, damping_R
+)
+
+# Set color visualization
+terrain.SetPlotType(veh.SCMDeformableTerrain.PLOT_SINKAGE, 0, 0.1)
+
+# Use mesh visualization
+terrain.SetMeshResolution(0.2)
+
+# Initialize terrain with a height map (flat in this example)
+# Alternatively, you can load a heightmap from an image file
+def height_function(x, y):
+    # Example height function - flat terrain with small bumps
+    return 0.0 + 0.05 * np.sin(0.5 * x) * np.cos(0.5 * y)
+
+for ix in range(101):
+    for iy in range(101):
+        x = terrain_length * (ix / 100.0 - 0.5)
+        y = terrain_width * (iy / 100.0 - 0.5)
+        z = height_function(x, y)
+        terrain.SetHeight(x, y, z)
+
+terrain.Initialize()
+
+# ---------------------------------------------------------------------
+# Create the HMMWV vehicle
+
+# Create the HMMWV vehicle, set parameters, and initialize
+vehicle_file = "hmmwv/vehicle/HMMWV_Vehicle.json"
+powertrain_file = "hmmwv/powertrain/HMMWV_ShaftsPowertrain.json"
+tire_file = "hmmwv/tire/HMMWV_TMeasyTire.json"
+
+# Set initial position and rotation
+init_pos = chrono.ChVectorD(0, 0.5, 0)
+init_rot = chrono.ChQuaternionD(1, 0, 0, 0)
+
+# Create the vehicle
+hmmwv = veh.HMMWV_Full()
+hmmwv.SetContactMethod(chrono.ChContactMethod_SMC)
+hmmwv.SetChassisFixed(False)
+hmmwv.SetInitPosition(chrono.ChCoordsysD(init_pos, init_rot))
+hmmwv.SetTireType(veh.TireModelType_TMEASY)
+hmmwv.SetTireStepSize(step_size)
+hmmwv.Initialize()
+
+# Set visualization type for the chassis and wheels
+hmmwv.SetChassisVisualizationType(veh.VisualizationType_MESH)
+hmmwv.SetWheelVisualizationType(veh.VisualizationType_MESH)
+hmmwv.SetTireVisualizationType(veh.VisualizationType_MESH)
+hmmwv.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
+hmmwv.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
+
+# Extract the vehicle from the Wheeled Vehicle
+vehicle = hmmwv.GetVehicle()
+vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
+
+# ---------------------------------------------------------------------
+# Create a driver system
+
+# Create the driver
+driver_data = veh.ChDataDriver(
+    veh.GetDataFile("hmmwv/driver/Sample_Maneuver.txt"))
+driver = veh.ChDriver(vehicle.GetVehicle())
+driver.Initialize()
+
+# ---------------------------------------------------------------------
+# Create the visualization system
+
+# Create the Irrlicht visualization
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetWindowSize(1280, 720)
+vis.SetWindowTitle("HMMWV Vehicle Simulation with SCM Deformable Terrain")
+vis.Initialize()
+vis.AddSkyBox()
+vis.AddLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))
+vis.AddCamera(chrono.ChVectorD(0, 1.5, -8), chrono.ChVectorD(0, 0, 0))
+vis.AddTypicalLights()
+
+# ---------------------------------------------------------------------
+# Simulation loop
+
+# Initialize simulation frame counter and time
+step_number = 0
+time = 0
+
+# Real-time visualization
+realtime_timer = chrono.ChRealtimeStepTimer()
+
+while vis.Run() and time < 20:
+    # Get driver inputs
+    driver_inputs = driver.GetInputs()
+    
+    # Update modules (process inputs from other modules)
+    driver.Synchronize(time)
+    terrain.Synchronize(time)
+    hmmwv.Synchronize(time, driver_inputs, terrain)
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    
+    # Advance simulation for one timestep for all modules
+    driver.Advance(step_size)
+    terrain.Advance(step_size)
+    hmmwv.Advance(step_size)
+    
+    # Update system
+    system.DoStepDynamics(step_size)
+    
+    # Increment time and frame counter
+    time += step_size
+    step_number += 1
+    
+    # Maintain real-time behavior
+    realtime_timer.Spin(step_size)
+    
+    # Print out some info
+    if step_number % 500 == 0:
+        print(f"Time: {time:.3f}s, Speed: {vehicle.GetVehicle().GetVehicleSpeed():.3f} m/s")
+
+print("Simulation complete!")
+```
+
+This script creates a comprehensive PyChrono simulation with the following components:
+
+1. A HMMWV vehicle model with detailed configuration and visualization settings
+2. An SCM (Soil Contact Model) deformable terrain with customizable soil parameters
+3. A driver system for vehicle control
+4. Real-time visualization using Irrlicht with camera positioning and lighting
+5. A simulation loop that advances all components in sync
+
+The terrain is initialized with a simple height function that creates gentle undulations, but you can modify this to create more complex terrains or load height maps from external files. The simulation runs for 20 seconds or until the visualization window is closed.
+
+Key parameters like soil properties, vehicle initial conditions, and simulation timestep can be easily adjusted to meet specific requirements.

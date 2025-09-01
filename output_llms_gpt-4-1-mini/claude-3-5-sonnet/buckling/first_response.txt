@@ -1,0 +1,127 @@
+Certainly! I'll create a PyChromo simulation script that meets your requirements for a beam buckling scenario with FEA, custom motor functions, constraints, and visualization. Here's the script:
+
+```python
+import pychrono as chrono
+import pychrono.fea as fea
+import pychrono.irrlicht as chronoirr
+import math
+
+# Initialize the ChSystem
+system = chrono.ChSystemNSC()
+
+# Set gravity
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+
+# Create a mesh for FEA
+mesh = fea.ChMesh()
+
+# Create beam material
+beam_material = fea.ChElasticityKirchhoffIsotropic(210e9, 0.3)
+beam_section = fea.ChBeamSectionAdvanced()
+
+# Set beam properties
+height = 0.01
+width = 0.05
+beam_section.SetAsRectangularSection(width, height)
+beam_section.SetYoungModulus(210e9)
+beam_section.SetGshearModulus(80e9)
+beam_section.SetDensity(7850)
+
+# Create beam elements
+beam_length = 1.0
+n_elements = 20
+dx = beam_length / n_elements
+
+for i in range(n_elements):
+    node1 = fea.ChNodeFEAxyzrot(chrono.ChFrameD(chrono.ChVectorD(i * dx, 0, 0)))
+    node2 = fea.ChNodeFEAxyzrot(chrono.ChFrameD(chrono.ChVectorD((i + 1) * dx, 0, 0)))
+    
+    element = fea.ChElementBeamEuler()
+    element.SetNodes(node1, node2)
+    element.SetSection(beam_section)
+    
+    mesh.AddNode(node1)
+    mesh.AddNode(node2)
+    mesh.AddElement(element)
+
+# Add the mesh to the system
+system.Add(mesh)
+
+# Create ground body
+ground = chrono.ChBody()
+ground.SetBodyFixed(true)
+system.Add(ground)
+
+# Fix one end of the beam to the ground
+constraint_ground = chrono.ChLinkMateGeneric()
+constraint_ground.Initialize(mesh.GetNode(0), ground, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)))
+system.AddLink(constraint_ground)
+
+# Create a motor at the other end of the beam
+class CustomMotorFunction(chrono.ChFunction):
+    def __init__(self):
+        super().__init__()
+    
+    def Get_y(self, x):
+        return 0.1 * math.sin(2 * math.pi * x)
+
+motor = chrono.ChLinkMotorLinearPosition()
+motor.Initialize(mesh.GetNode(n_elements), ground, chrono.ChFrameD(chrono.ChVectorD(beam_length, 0, 0)))
+motor_function = CustomMotorFunction()
+motor.SetMotionFunction(motor_function)
+system.AddLink(motor)
+
+# Set up the solver
+solver = chrono.ChSolverMINRES()
+system.SetSolver(solver)
+solver.SetMaxIterations(200)
+solver.SetTolerance(1e-10)
+
+# Set up the timestepper
+stepper = chrono.ChTimestepperHHT()
+system.SetTimestepper(stepper)
+stepper.SetAlpha(-0.2)
+
+# Set up the visualization
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle("Beam Buckling Simulation")
+vis.Initialize()
+vis.AddCamera(chrono.ChVectorD(0.5, 0.5, -1.5))
+vis.AddTypicalLights()
+
+# Simulation loop
+time_step = 0.001
+total_time = 10.0
+
+while vis.Run() and system.GetChTime() < total_time:
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    system.DoStepDynamics(time_step)
+
+vis.GetDevice().closeDevice()
+```
+
+This script does the following:
+
+1. Initializes the PyChrono environment and core components, including the ChSystem and gravity.
+
+2. Creates a finite element mesh for the beam using ChMesh and ChElementBeamEuler elements.
+
+3. Sets up the beam material properties and cross-section.
+
+4. Creates ground body and constrains one end of the beam to it.
+
+5. Implements a custom motor function and applies it to the other end of the beam.
+
+6. Sets up the solver (MINRES) and timestepper (HHT) for accurate dynamics simulation.
+
+7. Initializes the Irrlicht visualization module for rendering the simulation.
+
+8. Runs the simulation loop, updating the system and rendering each frame.
+
+This script simulates a beam buckling scenario with finite element analysis, custom motor function, and constraints. The beam is fixed at one end and has a sinusoidal motion applied to the other end, which should induce buckling behavior.
+
+You can adjust parameters such as beam dimensions, material properties, number of elements, and simulation time to fine-tune the behavior of the system.

@@ -1,0 +1,60 @@
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as chronoirr
+
+# Initialize the Chrono environment
+print("Copyright (c) 2017 projectchrono.org")
+
+# Create the Chrono system
+sys = chrono.ChSystemSMC()
+
+# Create the vehicle (BMW E90 Sedan)
+car = veh.BMW_E90_Sedan()
+car.SetContactMethod(chrono.ChContactMethod_SMC)
+car.SetChassisCollisionType(chrono.ChCollisionType_BOX)
+car.SetInitPosition(chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0.5), chrono.QUNIT))
+car.Initialize()
+
+# Create the TMEasy tire model
+tire_model = veh.ChTMEasy()
+car.SetTireModel(tire_model)
+
+# Create the interactive driver system
+driver = veh.ChIrrNodeApplication()
+car.SetDriver(driver)
+
+# Create the rigid terrain
+terrain = veh.RigidTerrain(car.GetSystem())
+patch = terrain.AddPatch(chrono.ChMaterialSurfaceNSC(), chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 100, 100)
+terrain.Initialize()
+
+# Create the Irrlicht visualization system
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(sys)
+
+# Set the visualization settings
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle("BMW E90 Sedan Simulation")
+vis.Initialize()
+
+# Add a chase camera
+vis.AddCamera(chrono.ChVector3d(0, 0, 2), chrono.ChVector3d(0, 0, 0))
+
+# Add directional lighting
+vis.AddTypicalLights()
+
+# Add a skybox
+vis.AddSkyBox()
+
+# Add textures and logos to the terrain surface
+vis.AddTexture(chrono.GetChronoDataFile("terrain_texture.jpg"), 100, 100)
+vis.AddLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))
+
+# Run the simulation
+while vis.Run():
+    # Update the simulation
+    sys.DoStepDynamics(0.01)
+    # Render the simulation
+    vis.BeginScene()
+    vis.DrawAll()
+    vis.EndScene()

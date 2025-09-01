@@ -1,0 +1,134 @@
+```python
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as chronoirr
+
+# 1. Initialize the PyChrono environment and core components
+
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())  # Ensure data path is set
+
+# Simulation parameters
+step_size = 0.002  # integration step size
+render_step_size = 1.0 / 50  # 50 FPS rendering
+
+# 2. Add the required physical systems and objects as specified
+
+# Create the vehicle system: Full HMMWV
+# Use TMEASY tire model, mesh visualization for all vehicle parts
+contact_method = chrono.ChContactMethod_NSC  # Non-smooth contact (default)
+init_loc = chrono.ChVectorD(0, 0, 1.0)  # Initial position (x=0, y=0, z=1m above ground)
+init_rot = chrono.ChQuaternionD(1, 0, 0, 0)  # No initial rotation
+
+vehicle = veh.HMMWV_Full(contact_method)
+vehicle.SetContactMethod(contact_method)
+vehicle.SetChassisCollisionType(veh.ChassisCollisionType_NONE)  # We'll rely on terrain collision
+vehicle.SetInitPosition(chrono.ChCoordsysD(init_loc, init_rot))
+vehicle.SetTireType(veh.TireModelType_TMEASY)
+vehicle.SetTireStepSize(step_size)
+vehicle.SetInitFwdVel(0)
+
+# Enable mesh visualization for all vehicle parts
+vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
+vehicle.SetSuspensionVisualizationType(veh.VisualizationType_MESH)
+vehicle.SetSteeringVisualizationType(veh.VisualizationType_MESH)
+vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
+vehicle.SetTireVisualizationType(veh.VisualizationType_MESH)
+
+vehicle.Initialize()
+
+# 3. Set necessary default parameters such as positions, forces, and interactions.
+
+# Create the terrain using custom mesh for collision and visualization
+terrain = veh.RigidTerrain(vehicle.GetSystem())
+
+# Load collision mesh
+collision_mesh = chrono.ChTriangleMeshConnected()
+collision_mesh.LoadWavefrontMesh(chrono.GetChronoDataPath() + "vehicle/hmmwv/mesh/Highway_col.obj", True, True)
+terrain_mesh_shape = chrono.ChTriangleMeshShape()
+terrain_mesh_shape.SetMesh(collision_mesh)
+terrain_mesh_shape.SetName("terrain_collision_mesh")
+terrain_mesh_shape.SetStatic(True)
+
+# Create a rigid body for terrain collision
+terrain_body = chrono.ChBody()
+terrain_body.SetBodyFixed(True)
+terrain_body.AddAsset(terrain_mesh_shape)
+terrain_body.GetCollisionModel().ClearModel()
+terrain_body.GetCollisionModel().AddTriangleMesh(
+    collision_mesh, False, False, chrono.ChVectorD(0, 0, 0), chrono.ChMatrix33D(1), 0.01)
+terrain_body.GetCollisionModel().BuildModel()
+terrain_body.SetCollide(True)
+
+# Add visual mesh
+visual_mesh = chrono.ChTriangleMeshShape()
+visual_mesh.LoadWavefrontMesh(chrono.GetChronoDataPath() + "vehicle/hmmwv/mesh/Highway_vis.obj", True, True)
+visual_mesh.SetName("terrain_visual_mesh")
+visual_mesh.SetStatic(True)
+terrain_body.AddAsset(visual_mesh)
+
+# Add a texture for better visualization (optional)
+texture = chrono.ChTexture()
+texture.SetTextureFilename(chrono.GetChronoDataPath() + "vehicle/hmmwv/mesh/grass.jpg")
+terrain_body.AddAsset(texture)
+
+# Add terrain body to the system
+vehicle.GetSystem().Add(terrain_body)
+
+# Initialize the terrain system (not using RigidTerrain's default since we do custom)
+# But we keep the terrain object for possible future extensions
+terrain.Initialize()
+
+# Create the interactive driver system
+driver = veh.ChIrrGuiDriver(vehicle)
+
+# Set driver input time response (optional smoothing)
+driver.SetSteeringDelta(0.1)
+driver.SetThrottleDelta(0.1)
+driver.SetBrakingDelta(0.1)
+
+# Initialize Irrlicht visualization
+application = chronoirr.ChIrrApp(vehicle.GetSystem(), "HMMWV Full Vehicle on Mesh Terrain",
+                                 chronoirr.dimension2du(1280, 720))
+
+application.AddTypicalSky()
+application.AddTypicalLights()
+application.AddTypicalCamera(chronoirr.vector3df(0, -10, 3))
+application.AssetBindAll()
+application.AssetUpdateAll()
+
+# Set timestep for simulation and rendering
+application.SetTimestep(step_size)
+application.SetTryRealtime(True)
+
+# Simulation loop variables
+time = 0
+render_time = 0
+
+# Start simulation loop
+application.SetPaused(False)
+
+while application.GetDevice().run():
+    time = vehicle.GetSystem().GetChTime()
+
+    # Driver inputs
+    driver_inputs = driver.GetInputs()
+
+    # Synchronize modules
+    driver.Synchronize(time)
+    vehicle.Synchronize(time, driver_inputs, terrain_body)
+    terrain.Synchronize(time)
+    application.Synchronize("", driver_inputs)
+
+    # Advance simulation by step_size
+    driver.Advance(step_size)
+    vehicle.Advance(step_size)
+    terrain.Advance(step_size)
+    application.Advance(step_size)
+
+    # Render scene at 50 FPS
+    if time - render_time >= render_step_size:
+        render_time = time
+        application.BeginScene()
+        application.DrawAll()
+        application.EndScene()
+```

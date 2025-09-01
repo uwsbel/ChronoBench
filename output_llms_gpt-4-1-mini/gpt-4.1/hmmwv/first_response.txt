@@ -1,0 +1,162 @@
+Certainly! Below is a **PyChrono** simulation script that sets up a full HMMWV vehicle on a rigid terrain, uses the TMeasy tire model, and visualizes the system with Irrlicht. The script includes an interactive driver for steering, throttle, and braking, and runs the simulation in real time at 50 FPS.
+
+**Requirements:**  
+- `pychrono` and `pychrono_vehicle` must be installed.
+- The HMMWV data directory must be accessible (usually comes with PyChrono Vehicle module).
+
+---
+
+```python
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as irr
+import math
+import time
+
+# -----------------------------------------------------------------------------
+# Initialize Chrono
+# -----------------------------------------------------------------------------
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())
+veh.SetDataPath(veh.GetDataPath())
+
+# -----------------------------------------------------------------------------
+# Simulation parameters
+# -----------------------------------------------------------------------------
+step_size = 2e-3
+render_step_size = 1.0 / 50  # 50 FPS
+
+# -----------------------------------------------------------------------------
+# Create the vehicle
+# -----------------------------------------------------------------------------
+contact_method = chrono.ChContactMethod_NSC
+fixed = False
+chassis_vis = veh.VisualizationType_PRIMITIVES
+wheel_vis = veh.VisualizationType_PRIMITIVES
+tire_vis = veh.VisualizationType_PRIMITIVES
+
+initLoc = chrono.ChVectorD(0, 0, 1.0)  # Initial position (x, y, z)
+initYaw = 0 * chrono.CH_C_DEG_TO_RAD    # Initial orientation (yaw in radians)
+
+vehicle = veh.HMMWV_Full()
+vehicle.SetContactMethod(contact_method)
+vehicle.SetChassisFixed(fixed)
+vehicle.SetInitPosition(chrono.ChCoordsysD(initLoc, chrono.Q_from_AngZ(initYaw)))
+vehicle.SetTireType(veh.TireModelType_TMEASY)
+vehicle.SetTireStepSize(step_size)
+vehicle.Initialize()
+
+vehicle.SetChassisVisualizationType(chassis_vis)
+vehicle.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
+vehicle.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
+vehicle.SetWheelVisualizationType(wheel_vis)
+vehicle.SetTireVisualizationType(tire_vis)
+
+# -----------------------------------------------------------------------------
+# Create the terrain
+# -----------------------------------------------------------------------------
+terrain = veh.RigidTerrain(vehicle.GetSystem())
+
+patch_mat = chrono.ChMaterialSurfaceNSC()
+patch = terrain.AddPatch(
+    patch_mat,
+    chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 1),
+    200.0, 100.0
+)
+patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 100)
+patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+patch.SetFriction(0.9)
+terrain.Initialize()
+
+# -----------------------------------------------------------------------------
+# Create the interactive driver
+# -----------------------------------------------------------------------------
+driver = veh.ChIrrGuiDriver(
+    veh.GetDataFile("UI/driver.json")
+)
+driver.SetSteeringDelta(0.04)
+driver.SetThrottleDelta(0.02)
+driver.SetBrakingDelta(0.1)
+driver.Initialize()
+
+# -----------------------------------------------------------------------------
+# Create the Irrlicht application
+# -----------------------------------------------------------------------------
+app = veh.ChWheeledVehicleIrrApp(
+    vehicle.GetVehicle(),
+    "HMMWV Full Vehicle Demo",
+    irr.dimension2du(1024, 768)
+)
+app.SetSkyBox()
+app.AddTypicalLights()
+app.AddTypicalLogo()
+app.AddTypicalCamera(chrono.ChVectorD(0, 2, 1.75), chrono.ChVectorD(0, 0, 0))
+app.SetChaseCamera(chrono.ChVectorD(0.0, 0.0, 1.75), 6.0, 0.5)
+app.SetTimestep(step_size)
+
+# -----------------------------------------------------------------------------
+# Simulation loop
+# -----------------------------------------------------------------------------
+render_steps = math.ceil(render_step_size / step_size)
+step_number = 0
+time_sim = 0
+
+print("Simulation started. Use arrow keys to steer, throttle, and brake.")
+
+while app.GetDevice().run():
+    time = vehicle.GetSystem().GetChTime()
+
+    # End simulation with ESC
+    if app.IsKeyDown(irr.KEY_KEY_Q):
+        break
+
+    # Render scene
+    if step_number % render_steps == 0:
+        app.BeginScene()
+        app.DrawAll()
+        app.EndScene()
+
+    # Get driver inputs
+    driver.Synchronize(time)
+    steering = driver.GetSteering()
+    throttle = driver.GetThrottle()
+    braking = driver.GetBraking()
+
+    # Synchronize subsystems
+    driver_inputs = veh.DriverInputs()
+    driver_inputs.m_steering = steering
+    driver_inputs.m_throttle = throttle
+    driver_inputs.m_braking = braking
+
+    vehicle.Synchronize(time, driver_inputs, terrain)
+    terrain.Synchronize(time)
+    app.Synchronize("HMMWV Demo", driver_inputs)
+
+    # Advance simulation
+    driver.Advance(step_size)
+    vehicle.Advance(step_size)
+    terrain.Advance(step_size)
+    app.Advance(step_size)
+
+    step_number += 1
+
+    # Real-time synchronization
+    time_sim += step_size
+    time.sleep(max(0, (step_number * step_size) - (time.time() - time_sim)))
+
+print("Simulation ended.")
+```
+
+---
+
+**How to use:**
+- Run the script in an environment with PyChrono and PyChrono Vehicle installed.
+- Use the arrow keys to steer, throttle, and brake.
+- Press `Q` to quit.
+
+**Notes:**
+- The script uses primitive visualization for all vehicle components.
+- The terrain is a 200x100 meter patch with a grass texture.
+- The simulation loop is synchronized to real time at 50 FPS.
+- The driver uses a JSON file for UI configuration (provided by PyChrono Vehicle data).
+
+Let me know if you need further customization!

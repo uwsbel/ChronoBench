@@ -1,0 +1,105 @@
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.sensor as sens
+import pychrono.irrlicht as irr
+import pychrono.utils as utils
+import pychrono.pardisomkl as pardisomkl
+import pychrono.postprocess as post
+import numpy as np
+
+
+chrono.SetChairsThreading(True)
+chrono.SetChronoDataFilePath(chrono.GetChronoDataFilePath() + "../data/")
+myout = chrono.ChStreamOutAsciiFile("gator_sim.txt")
+pardisomkl.ChSolverPardisoMKL.RegisterSolverFactory()
+
+
+gator = veh.ChWheeledVehicle.GetDefault("Gator", "path/to/gator/vehicle/JSON")
+terrain = veh.ChTerrain()
+sensor_manager = sens.ChSensorManager(gator.GetSystem())
+
+
+gator.Initialize(chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 1.1), chrono.ChQuaterniond(1, 0, 0, 0)))
+gator.SetChassisVisualizationType(veh.VisualizationType_VULCAN)
+gator.SetVisualizationType(veh.VisualizationType_PRIMITIVES)
+gator.SetTireVisualizationType(veh.VisualizationType_MESH)
+gator.SetWheelVisualizationType(veh.VisualizationType_MESH)
+
+
+terrain.SetType(veh.TerrainType_RIGID)
+terrain.SetContactMethod(chrono.ChContactMethod_NSC)
+terrain.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+terrain.Initialize()
+
+
+driver = veh.ChInteractiveDriverIRR(irr.GetApp())
+driver.Initialize(gator.GetSystem(), gator.GetDriverVisualization())
+
+
+point_lights = []
+point_lights.append(sens.ChPointLight(chrono.ChVector3f(0, 0, 10), chrono.ChVector3f(0, 0, 0), 5000, 0.5))
+point_lights.append(sens.ChPointLight(chrono.ChVector3f(0, 0, 10), chrono.ChVector3f(0, 0, 0), 5000, 0.5))
+sensor_manager.AddPointLights(point_lights)
+camera = sens.ChCameraSensor(gator.GetChassis(), 1000, chrono.ChVector3d(0, 0, 1.75), 0, chrono.ChVector3d(0, 0, 0))
+camera.SetActive(True)
+camera.SetName("camera")
+camera.SetFocalLength(50)
+camera.SetImageSize(1280, 720)
+camera.SetPixelResolution(1.0)
+sensor_manager.AddSensor(camera)
+
+
+def camera_callback(sens, frame, render, mode, idx):
+    render.SaveImagePNG("camera_image_" + str(idx) + ".png")
+
+camera.SetRenderCallback(camera_callback)
+
+
+def sensor_callback(sens, frame, render, mode, idx):
+    render.SaveImagePNG("sensor_image_" + str(idx) + ".png")
+
+sensor_manager.SetRenderCallback(sensor_callback)
+
+
+step_size = 1e-3
+timestep = 0
+render_mode = sens.SensorRender_Mode_None
+render_mode = sens.SensorRender_Mode_Simple
+render_mode = sens.SensorRender_Mode_Realistic
+render_mode = sens.SensorRender_Mode_Realistic_Decal
+render_mode = sens.SensorRender_Mode_Realistic_Refraction
+render_mode = sens.SensorRender_Mode_Realistic_Refraction_Shadows
+render_mode = sens.SensorRender_Mode_Realistic_Refraction_Shadows_Env
+render_mode = sens.SensorRender_Mode_Realistic_Refraction_Shadows_Env_Filter
+render_mode = sens.SensorRender_Mode_Realistic_Refraction_Shadows_Env_Filter_Env
+render_mode = sens.SensorRender_Mode_Realistic_Refraction_Shadows_Env_Filter_Env_Env
+render_mode = sens.SensorRender_Mode_Realistic_Refraction_Shadows_Env_Filter_Env_Env_Env
+render_mode = sens.SensorRender_Mode_Realistic_Refraction_Shadows_Env_Filter_Env_Env_Env_Env
+render_mode = sens.SensorRender_Mode_Realistic_Refraction_Shadows_Env_Filter_Env_Env_Env_Env_Env
+render_mode = sens.SensorRender_Mode_Realistic_Refraction_Shadows_Env_Filter_Env_Env_Env_Env_Env_Env
+render_mode = sens.SensorRender_Mode_Realistic_Refraction_Shadows_Env_Filter_Env_Env_Env_Env_Env_Env_Env
+render_mode = sens.SensorRender_Mode_Realistic_Refraction_Shadows_Env_Filter_Env_Env_Env_Env_Env_Env_Env_Env
+render_mode = sens.SensorRender_Mode_Realistic_Refraction_Shadows_Env_Filter_Env_Env_Env_Env_Env_Env_Env_Env_Env
+render_mode = sens.SensorRender_Mode_Realistic_Refraction_Shadows_Env_Filter_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env
+render_mode = sens.SensorRender_Mode_Realistic_Refraction_Shadows_Env_Filter_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env
+render_mode = sens.SensorRender_Mode_Realistic_Refraction_Shadows_Env_Filter_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env
+render_mode = sens.SensorRender_Mode_Realistic_Refraction_Shadows_Env_Filter_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env
+render_mode = sens.SensorRender_Mode_Realistic_Refraction_Shadows_Env_Filter_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env
+render_mode = sens.SensorRender_Mode_Realistic_Refraction_Shadows_Env_Filter_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env
+render_mode = sens.SensorRender_Mode_Realistic_Refraction_Shadows_Env_Filter_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env
+render_mode = sens.SensorRender_Mode_Realistic_Refraction_Shadows_Env_Filter_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env
+render_mode = sens.SensorRender_Mode_Realistic_Refraction_Shadows_Env_Filter_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env
+render_mode = sens.SensorRender_Mode_Realistic_Refraction_Shadows_Env_Filter_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env
+render_mode = sens.SensorRender_Mode_Realistic_Refraction_Shadows_Env_Filter_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env
+render_mode = sens.SensorRender_Mode_Realistic_Refraction_Shadows_Env_Filter_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env
+render_mode = sens.SensorRender_Mode_Realistic_Refraction_Shadows_Env_Filter_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env
+render_mode = sens.SensorRender_Mode_Realistic_Refraction_Shadows_Env_Filter_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env
+render_mode = sens.SensorRender_Mode_Realistic_Refraction_Shadows_Env_Filter_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env
+render_mode = sens.SensorRender_Mode_Realistic_Refraction_Shadows_Env_Filter_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env
+render_mode = sens.SensorRender_Mode_Realistic_Refraction_Shadows_Env_Filter_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env
+render_mode = sens.SensorRender_Mode_Realistic_Refraction_Shadows_Env_Filter_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env
+render_mode = sens.SensorRender_Mode_Realistic_Refraction_Shadows_Env_Filter_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env
+render_mode = sens.SensorRender_Mode_Realistic_Refraction_Shadows_Env_Filter_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env
+render_mode = sens.SensorRender_Mode_Realistic_Refraction_Shadows_Env_Filter_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env
+render_mode = sens.SensorRender_Mode_Realistic_Refraction_Shadows_Env_Filter_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env_Env
+render_mode = sens.Sensor_

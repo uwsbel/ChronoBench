@@ -1,0 +1,111 @@
+Certainly! Below is a **PyChrono** simulation script integrated with **ROS** (using `pychrono_ros`). The script:
+
+- Initializes PyChrono and ROS.
+- Sets up a Chrono system with gravity and material properties.
+- Adds a fixed floor and a movable box.
+- Implements a custom ROS handler that publishes integer messages.
+- Configures the ROS manager with clock, body, and transform handlers, and registers the custom handler.
+- Runs a real-time simulation loop, advancing the system and updating ROS communication at each timestep.
+
+**Assumptions:**
+- You have `pychrono` and `pychrono_ros` installed.
+- ROS is running (e.g., `roscore` is active).
+- The ROS topic for the custom handler is `/my_integer_topic`.
+
+---
+
+```python
+import pychrono as chrono
+import pychrono_ros as chros
+import rospy
+from std_msgs.msg import Int32
+import time
+
+# 1. Initialize PyChrono and ROS
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())
+rospy.init_node('chrono_ros_sim', anonymous=True)
+
+# 2. Create Chrono system with gravity
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
+
+# 3. Define material properties
+material = chrono.ChMaterialSurfaceNSC()
+material.SetFriction(0.6)
+material.SetRestitution(0.1)
+
+# 4. Add fixed floor
+floor = chrono.ChBodyEasyBox(2, 2, 0.1, 1000, True, True, material)
+floor.SetPos(chrono.ChVectorD(0, 0, -0.05))
+floor.SetBodyFixed(True)
+system.Add(floor)
+
+# 5. Add movable box
+box = chrono.ChBodyEasyBox(0.5, 0.5, 0.5, 100, True, True, material)
+box.SetPos(chrono.ChVectorD(0, 0, 0.5))
+box.SetBodyFixed(False)
+system.Add(box)
+
+# 6. Custom ROS Handler to publish integer messages
+class MyIntPublisherHandler(chros.ChROSHandler):
+    def __init__(self, topic_name):
+        super().__init__()
+        self.pub = rospy.Publisher(topic_name, Int32, queue_size=10)
+        self.counter = 0
+
+    def Advance(self, time):
+        # Publish an incrementing integer at each call
+        msg = Int32()
+        msg.data = self.counter
+        self.pub.publish(msg)
+        self.counter += 1
+
+# 7. Configure ROS manager and handlers
+ros_manager = chros.ChROSManager(system)
+
+# Add clock handler (publishes /clock)
+ros_manager.AddClockHandler()
+
+# Add body handler for the box (publishes pose, twist, wrench)
+ros_manager.AddBodyHandler(box, "box")
+
+# Add transform handler (publishes /tf)
+ros_manager.AddTFHandler(box, "world", "box_link")
+
+# Register custom integer publisher handler
+int_handler = MyIntPublisherHandler("/my_integer_topic")
+ros_manager.AddHandler(int_handler)
+
+# 8. Simulation loop with real-time synchronization
+timestep = 0.01
+end_time = 5.0
+sim_time = 0.0
+
+print("Starting simulation. Press Ctrl+C to stop.")
+
+try:
+    while sim_time < end_time and not rospy.is_shutdown():
+        start = time.time()
+        system.DoStepDynamics(timestep)
+        ros_manager.Update(sim_time)
+        sim_time += timestep
+        # Real-time synchronization
+        elapsed = time.time() - start
+        if elapsed < timestep:
+            time.sleep(timestep - elapsed)
+except KeyboardInterrupt:
+    print("Simulation interrupted.")
+
+print("Simulation finished.")
+```
+
+---
+
+**Notes:**
+- The custom handler publishes an incrementing integer to `/my_integer_topic` at each simulation step.
+- The simulation loop maintains real-time execution by sleeping for the remainder of each timestep.
+- The ROS manager handles clock, body, and transform messages, as well as the custom handler.
+- You can view the published integer messages with:  
+  `rostopic echo /my_integer_topic`
+
+Let me know if you need further customization!

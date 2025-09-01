@@ -1,0 +1,136 @@
+To create the requested PyChrono simulation, follow this script that initializes the environment, loads a mesh, adds a moving lidar sensor, and implements dynamic orbit motion with data logging:
+
+```python
+import os
+import math
+import numpy as np
+import pychrono as chrono
+import pychrono.sensor as sens
+
+def main():
+    # 1. Initialize environment
+    chrono.SetChronoDataPath(os.path.join(os.path.dirname(__file__), 'data/'))
+    system = chrono.ChSystemNSC()
+    system.SetGravity(chrono.ChVector3d(0, 0, 0))  # No gravity for static scene
+
+    # 2. Create ground and mesh body
+    ground = chrono.ChBody()
+    ground.SetFixed(True)
+    system.Add(ground)
+
+    # Load mesh from OBJ file
+    mesh_path = chrono.GetChronoDataFile("models/cube.obj")  # Replace with your OBJ
+    mesh = chrono.ChVisualShapeModelFile()
+    mesh.SetFilename(mesh_path)
+    
+    mesh_body = chrono.ChBody()
+    mesh_body.AddVisualShape(mesh)
+    mesh_body.SetFixed(True)  # Fix the mesh in space
+    system.Add(mesh_body)
+
+    # 3. Create sensor manager
+    manager = sens.ChSensorManager(system)
+    manager.scene.AddPointLight(chrono.ChVector3d(2, 2, 2), chrono.ChColor(1, 1, 1), 100)
+
+    # Lidar configuration
+    lidar_offset = chrono.ChVector3d(0, 0, 0)
+    lidar_rot = chrono.QuatFromAngleZ(chrono.CH_PI)  # Face forward
+    
+    lidar = sens.ChLidarSensor(
+        mesh_body,             # Parent body
+        10,                    # Scan rate (Hz)
+        lidar_rot,             # Orientation
+        1000,                  # Number of horizontal samples
+        500,                   # Number of vertical channels
+        math.radians(90),      # Horizontal FOV
+        math.radians(30),      # Vertical FOV
+        0.1,                   # Minimum range
+        100.0                  # Maximum range
+    )
+    
+    lidar.SetOffsetPose(lidar_offset)
+    lidar.SetName("Lidar Sensor")
+
+    # Add noise model
+    noise_model = sens.ChNoiseNormal(chrono.ChVector3d(0.01, 0.01, 0.01))
+    lidar.AddNoiseModel(noise_model)
+
+    # Enable visualization
+    lidar.PushFilter(sens.ChFilterVisualize(1280, 720, "Lidar Data"))
+
+    # Add data saving filter
+    lidar.PushFilter(sens.ChFilterPCfromDepth())
+    lidar.PushFilter(sens.ChFilterSave("sensor_data/"))
+
+    # Add to manager
+    manager.AddSensor(lidar)
+
+    # 4. Simulation parameters
+    orbit_radius = 5.0
+    orbit_speed = 0.1  # rad/s
+    timestep = 0.01
+    total_time = 20.0
+    time = 0
+
+    # 5. Simulation loop
+    while time < total_time:
+        # Update lidar orbit position
+        angle = orbit_speed * time
+        new_pos = chrono.ChVector3d(
+            orbit_radius * math.cos(angle),
+            orbit_radius * math.sin(angle),
+            0.5
+        )
+        lidar.SetOffsetPose(chrono.ChFramed(new_pos, lidar_rot))
+
+        # Update sensors
+        manager.Update()
+
+        # Print latest point cloud data
+        buffer = lidar.GetMostRecentBuffer()
+        if buffer.HasData():
+            data = buffer.GetDepthData()
+            print(f"Time {time:.2f}s - Points: {len(data)}")
+            if len(data) > 0:
+                print(f"First point: {data[0]}")
+
+        # Advance simulation
+        system.DoStepDynamics(timestep)
+        time += timestep
+
+if __name__ == "__main__":
+    main()
+```
+
+### Key Features Implemented:
+1. **Mesh Loading**:
+   - Fixed triangular mesh loaded from OBJ file (default: Chrono's cube.obj)
+   - Replace `"models/cube.obj"` with your OBJ path
+
+2. **Lidar Configuration**:
+   - 1000×500 resolution with 90°×30° FOV
+   - Gaussian noise applied to measurements
+   - Point cloud visualization and data saving
+
+3. **Dynamic Orbit Motion**:
+   - Sensor orbits at 5m radius with adjustable speed
+   - Position updated every simulation step
+
+4. **Data Handling**:
+   - Saves point clouds to `sensor_data/` directory
+   - Prints frame statistics and sample point each timestep
+
+### Setup Notes:
+1. Install required packages:
+```bash
+pip install numpy pychrono
+```
+
+2. Place your OBJ file in Chrono's data directory or modify `mesh_path`
+
+3. Adjust these parameters as needed:
+   - `orbit_radius`/`orbit_speed`: Lidar trajectory
+   - Noise parameters in `ChNoiseNormal`
+   - Resolution/FOV in `ChLidarSensor` constructor
+
+This simulation will visualize the lidar point cloud in real-time while saving raw data and printing frame statistics to the console. The sensor orbits around the static mesh while continuously scanning its surface.

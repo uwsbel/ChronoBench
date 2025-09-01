@@ -1,0 +1,101 @@
+```python
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as chronoirr
+
+# 1. Initialize the PyChrono environment and core components
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())  # Ensure data path is set
+
+# Create the physical system
+system = chrono.ChSystemNSC()
+
+# 2. Add the required physical systems and objects as specified
+
+# Create the rigid terrain
+terrain = veh.RigidTerrain(system)
+
+# Create a patch (flat terrain) with specified size and texture
+patch = terrain.AddPatch(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 1), 200, 200)
+patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
+patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+patch.SetMaterialSurface(veh.ChMaterialSurfaceNSC())
+patch.SetTexture(veh.GetDataFile("terrain/textures/bmw_logo.png"), 10, 10)  # Custom logo texture on terrain
+
+terrain.Initialize()
+
+# Create the BMW E90 Sedan vehicle
+vehicle = veh.BMW_E90_Sedan()
+vehicle.SetContactMethod(chrono.ChContactMethod_NSC)
+vehicle.SetChassisCollisionType(veh.ChassisCollisionType_NONE)  # No chassis collision for simplicity
+vehicle.SetTireType(veh.TireModelType_TMEASY)
+vehicle.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0.5), chrono.QUNIT))
+vehicle.SetTireStepSize(1e-3)
+vehicle.Initialize()
+
+# Set visualization types
+vehicle.SetChassisVisualizationType(veh.VisualizationType_PRIMITIVES)
+vehicle.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
+vehicle.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
+vehicle.SetWheelVisualizationType(veh.VisualizationType_PRIMITIVES)
+vehicle.SetTireVisualizationType(veh.VisualizationType_MESH)
+
+# Create the interactive driver system
+driver = veh.ChInteractiveDriver(vehicle)
+driver.SetSteeringDelta(0.04)   # steering increment per input
+driver.SetThrottleDelta(0.1)    # throttle increment per input
+driver.SetBrakingDelta(0.1)     # braking increment per input
+driver.Initialize()
+
+# 3. Set necessary default parameters such as positions, forces, and interactions
+
+# Set the timestep size for the simulation
+timestep = 1e-3
+
+# Initialize the Irrlicht visualization system
+application = chronoirr.ChIrrApp(vehicle.GetSystem(), "BMW E90 Sedan on Rigid Terrain", chronoirr.dimension2du(1280, 720))
+
+# Add typical elements
+application.AddTypicalSky()
+application.AddTypicalLights()
+application.AddTypicalCamera(chronoirr.vector3df(0, -8, 3))
+application.SetChaseCamera(trackPoint=vehicle.GetChassisBody().GetPos(), chaseDistance=6.0, chaseHeight=1.5)
+
+# Add directional light
+light = application.GetDevice().getSceneManager().addLightSceneNode()
+light.setPosition(chronoirr.vector3df(0, -10, 10))
+light.setLightType(chrono.irrlicht.irr.LIGHT_DIRECTIONAL)
+light.setDirection(chronoirr.vector3df(0, 1, -1))
+light.setColor(chronoirr.SColorf(1.0, 1.0, 1.0))
+
+# Add skybox with custom textures
+application.AddTypicalSkyBox(veh.GetDataFile("skybox/sky_upward.jpg"),
+                            veh.GetDataFile("skybox/sky_downward.jpg"),
+                            veh.GetDataFile("skybox/sky_left.jpg"),
+                            veh.GetDataFile("skybox/sky_right.jpg"),
+                            veh.GetDataFile("skybox/sky_front.jpg"),
+                            veh.GetDataFile("skybox/sky_back.jpg"))
+
+# Bind all assets and start the simulation
+application.AssetBindAll()
+application.AssetUpdateAll()
+
+# Simulation loop
+while application.GetDevice().run():
+    application.BeginScene()
+    application.DrawAll()
+
+    # Get driver inputs (interactive)
+    driver_inputs = driver.GetInputs()
+    # Apply driver inputs to vehicle
+    vehicle.GetSteeringController().SetInput(driver_inputs.m_steering)
+    vehicle.GetPowertrain().SetThrottle(driver_inputs.m_throttle)
+    vehicle.GetBrakeController().SetInput(driver_inputs.m_braking)
+
+    # Advance simulation by timestep
+    driver.Synchronize(timestep)
+    vehicle.Synchronize(driver.GetInputs(), terrain)
+    terrain.Synchronize(vehicle.GetChassisBody().GetPos(), vehicle.GetChassisBody().GetRot())
+    system.DoStepDynamics(timestep)
+
+    application.EndScene()
+```

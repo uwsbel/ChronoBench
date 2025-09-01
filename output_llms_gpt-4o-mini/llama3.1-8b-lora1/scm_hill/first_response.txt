@@ -1,0 +1,153 @@
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as irr
+import math
+
+# =============================================================================
+
+def main():
+    #print("Copyright (c) 2017 projectchrono.org\nChrono version: ", CHRONO_VERSION , "\n\n")
+
+    #  Create the HMMWV vehicle, set parameters, and initialize
+    hmmwv = veh.HMMWV_Full()
+    hmmwv.SetContactMethod(contact_method)
+    hmmwv.SetChassisFixed(False)
+    hmmwv.SetInitPosition(chrono.ChCoordsysd(initLoc, chrono.ChQuaterniond(1, 0, 0, 0)))
+    hmmwv.SetEngineType(veh.EngineModelType_SIMPLE)
+    hmmwv.SetTransmissionType(veh.TransmissionModelType_AUTOMATIC_SIMPLE_MAP)
+    hmmwv.SetDriveType(veh.DrivelineTypeWV_AWD)
+    hmmwv.SetTireType(tire_model)
+    hmmwv.SetTireStepSize(tire_step_size)
+    hmmwv.Initialize()
+
+    hmmwv.SetChassisVisualizationType(chassis_vis_type)
+    hmmwv.SetSuspensionVisualizationType(suspension_vis_type)
+    hmmwv.SetSteeringVisualizationType(steering_vis_type)
+    hmmwv.SetWheelVisualizationType(wheel_vis_type)
+    hmmwv.SetTireVisualizationType(tire_vis_type)
+
+    hmmwv.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+
+    # Create the SCM terrain
+    terrain = veh.SCMterrain(hmmwv.GetSystem())
+    if (contact_method == chrono.ChContactMethod_NSC):
+        patch_mat = chrono.ChContactMaterialNSC()
+        patch_mat.SetFriction(0.9)
+        patch_mat.SetRestitution(0.01)
+    elif (contact_method == chrono.ChContactMethod_SMC):
+        patch_mat = chrono.ChContactMaterialSMC()
+        patch_mat.SetFriction(0.9)
+        patch_mat.SetRestitution(0.01)
+        patch_mat.SetYoungModulus(2e7)
+    patch = terrain.AddPatch(patch_mat, 
+                             chrono.CSYSNORM, 
+                             300, 100)
+    patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
+    patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+    patch.SetRadius(100)
+    terrain.Initialize()
+
+    # Create the driver system
+    driver = veh.ChDriver(hmmwv.GetVehicle())
+    driver.Initialize()
+
+    # Create the vehicle Irrlicht interface
+    vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
+    vis.SetWindowTitle('HMMWV')
+    vis.SetWindowSize(1280, 1024)
+    vis.SetChaseCamera(chrono.ChVector3d(0.0, 0.0, 1.75), 6.0, 0.5)
+    vis.Initialize()
+    vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+    vis.AddLightDirectional()
+    vis.AddSkyBox()
+    vis.AttachVehicle(hmmwv.GetVehicle())
+
+    # Set the animation type
+    vis.SetCameraType(veh.CameraType_CHASE)
+
+    # Create the interactive driver system
+    vis.Initialize()
+
+    # Simulation loop
+    hmmwv.GetVehicle().EnableRealtime(True)
+
+    while vis.Run() :
+        time = hmmwv.GetSystem().GetChTime()
+
+        # Render scene
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+
+        # Get driver inputs
+        driver_inputs = driver.GetInputs()
+
+        # Update modules (process inputs from other modules)
+        driver.Synchronize(time)
+        terrain.Synchronize(time)
+        hmmwv.Synchronize(time, driver_inputs, terrain)
+        vis.Synchronize(time, driver_inputs)
+
+        # Advance simulation for one timestep for all modules
+        driver.Advance(step_size)
+        terrain.Advance(step_size)
+        hmmwv.Advance(step_size)
+        vis.Advance(step_size)
+
+    return 0
+
+
+# The path to the Chrono data directory containing various assets (meshes, textures, data files)
+# is automatically set, relative to the default location of this demo.
+# If running from a different directory, you must change the path to the data directory with: 
+#chrono.SetChronoDataPath('path/to/data')
+
+veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
+
+# Initial vehicle location
+initLoc = chrono.ChVector3d(0, -0.1, 0.5)
+
+# Collision type for chassis (None, PRIMITIVES, MESH)
+chassis_collision_type = veh.CollisionType_NONE
+
+# Visualization type for chassis (PRIMITIVES, MESH)
+chassis_vis_type = veh.VisualizationType_MESH
+
+# Collision type for suspension (PRIMITIVES, MESH)
+suspension_collision_type = veh.CollisionType_NONE
+
+# Visualization type for suspension (PRIMITIVES, MESH)
+suspension_vis_type = veh.VisualizationType_PRIMITIVES
+
+# Collision type for steering (PRIMITIVES, MESH)
+steering_collision_type = veh.CollisionType_NONE
+
+# Visualization type for steering (PRIMITIVES, MESH)
+steering_vis_type = veh.VisualizationType_PRIMITIVES
+
+# Collision type for wheel (PRIMITIVES, MESH)
+wheel_collision_type = veh.CollisionType_NONE
+
+# Visualization type for wheel (PRIMITIVES, MESH)
+wheel_vis_type = veh.VisualizationType_PRIMITIVES
+
+# Collision type for tire (PRIMITIVES, MESH)
+tire_collision_type = veh.CollisionType_NONE
+
+# Visualization type for tire (PRIMITIVES, MESH)
+tire_vis_type = veh.VisualizationType_MESH
+
+# Type of tire model (RIGID, FIALA)
+tire_model = veh.TireModelType_TMEASY
+
+# Contact method
+contact_method = chrono.ChContactMethod_SMC
+
+# Simulation step sizes
+step_size = 1e-3
+tire_step_size = 1e-3
+
+# Time interval between two render frames
+render_step_size = 1.0 / 50  # FPS = 50
+
+main()

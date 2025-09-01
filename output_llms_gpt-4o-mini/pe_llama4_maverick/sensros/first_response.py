@@ -1,0 +1,113 @@
+import pychrono as chrono
+import pychrono.sensor as sens
+import pychrono.vehicle as veh
+import pychrono.irrlicht as chronoirr
+import numpy as np
+
+# Initialize the Chrono system
+sys = chrono.ChSystemNSC()
+
+# Create a mesh for visualization
+mesh = chrono.ChTriangleMeshConnected()
+mesh.LoadWavefrontMesh(chrono.GetChronoDataFile("models/sphere.obj"))
+
+# Create a ground body and add the mesh to it
+ground_body = chrono.ChBody()
+ground_body.SetBodyFixed(False)
+ground_body_shape = chrono.ChVisualShapeModel(mesh)
+ground_body.AddVisualShape(ground_body_shape)
+sys.Add(ground_body)
+
+# Set the initial position and velocity of the ground body
+ground_body.SetPos(chrono.ChVector3d(0, 0, 0))
+ground_body.SetPos_dt(chrono.ChVector3d(1, 0, 0))  # Move along the x-axis
+
+# Create a sensor manager
+manager = sens.ChSensorManager(sys)
+
+# Camera sensor
+camera = sens.ChCameraSensor(
+    ground_body,  # body camera is attached to
+    30,  # update rate in Hz
+    chrono.ChFramed(chrono.ChVector3d(-5, 0, 2), chrono.Q_from_AngAxis(chrono.CH_C_PI / 20, chrono.ChVector3d(0, 1, 0))),
+    1280,  # image width
+    720,  # image height
+    chrono.CH_C_PI / 3  # FOV
+)
+manager.AddSensor(camera)
+
+# Lidar sensor
+lidar = sens.ChLidarSensor(
+    ground_body,  # body lidar is attached to
+    30,  # update rate in Hz
+    chrono.ChFramed(chrono.ChVector3d(0, 0, 1), chrono.QUNIT),
+    1000,  # number of horizontal samples
+    100,  # number of vertical channels
+    chrono.CH_C_PI,  # horizontal FOV
+    (-chrono.CH_C_PI / 24, chrono.CH_C_PI / 24),  # vertical angle range
+    100  # max distance
+)
+manager.AddSensor(lidar)
+
+# GPS sensor
+gps = sens.ChGPSSensor(
+    ground_body,  # body gps is attached to
+    10,  # update rate in Hz
+    chrono.ChFramed(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
+    chrono.ChVector3d(40.090294, -88.235869, 233.0)  # reference point (lat, long, alt)
+)
+manager.AddSensor(gps)
+
+# Accelerometer sensor
+accelerometer = sens.ChAccelerometerSensor(
+    ground_body,  # body accelerometer is attached to
+    100,  # update rate in Hz
+    chrono.ChFramed(chrono.ChVector3d(0, 0, 0), chrono.QUNIT)
+)
+manager.AddSensor(accelerometer)
+
+# Gyroscope sensor
+gyroscope = sens.ChGyroscopeSensor(
+    ground_body,  # body gyroscope is attached to
+    100,  # update rate in Hz
+    chrono.ChFramed(chrono.ChVector3d(0, 0, 0), chrono.QUNIT)
+)
+manager.AddSensor(gyroscope)
+
+# Magnetometer sensor
+magnetometer = sens.ChMagnetometerSensor(
+    ground_body,  # body magnetometer is attached to
+    100,  # update rate in Hz
+    chrono.ChFramed(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
+    chrono.ChVector3d(0, 0, 0),  # reference point
+    1  # noise factor
+)
+manager.AddSensor(magnetometer)
+
+# Create a ROS manager and register sensors
+ros_manager = sens.ChROSSensorManager(manager)
+ros_manager.RegisterSensor(camera, "/camera/image", "sensor_msgs/Image")
+ros_manager.RegisterSensor(lidar, "/lidar/points", "sensor_msgs/PointCloud2")
+ros_manager.RegisterSensor(gps, "/gps/fix", "sensor_msgs/NavSatFix")
+ros_manager.RegisterSensor(accelerometer, "/accelerometer/data", "sensor_msgs/Imu")
+ros_manager.RegisterSensor(gyroscope, "/gyroscope/data", "sensor_msgs/Imu")
+ros_manager.RegisterSensor(magnetometer, "/magnetometer/data", "sensor_msgs/MagneticField")
+
+# Create an Irrlicht visualization system
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(sys)
+vis.SetWindowSize(1280, 720)
+vis.SetWindowTitle('Sensor Simulation')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVector3d(0, -10, 0))
+
+# Simulation loop
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    manager.Update()
+    sys.DoStepDynamics(1e-3)
+    ros_manager.Publish()
+    vis.EndScene()

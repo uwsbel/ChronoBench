@@ -1,0 +1,518 @@
+Okay, I need to create a PyChrono script for a mass-spring-damper system. Let me start by recalling the steps involved. First, I have to set up the environment, including the system and visualization. Then, create the bodies, the spring-damper link, and set up the simulation loop with visualization.
+
+Hmm, the user specified using ChLinkTSDA. Right, that's the linear spring-damper link. The system should be NSC or SMC? Well, for a simple system like this, NSC might be sufficient. Let me check the documentation. Oh right, ChSystemNSC is good for rigid bodies with contacts, but since this is a spring, maybe NSC is okay. Alternatively, maybe SMC is better for smooth contacts, but since it's a spring link, perhaps it doesn't matter much here. I'll go with NSC for simplicity.
+
+First, import the necessary modules. I need pychrono, pychrono.irrlicht, and math or numpy if needed. The user mentioned Irrlicht visualization, so I'll include that.
+
+Initialize the system: create a ChSystemNSC instance. Then set up the visualization. The Irrlicht visual system needs to be attached to the system. Set window size, title, camera position, and add typical lights.
+
+Next, create the bodies. The ground is a fixed body. The mass is a moving body. For the ground, I can create a ChBody but set it fixed. The mass can be a box or sphere. Let's use a box for the mass. Use ChBodyEasyBox to create it with a certain density. Position the mass at some initial position, maybe above the ground.
+
+The spring-damper link between the mass and ground. ChLinkTSDA requires two bodies. The ground is one, the mass the other. The link's coordinates are important. The link's rest length should be the initial distance between the bodies. The parameters for stiffness and damping can be set using SetSpringK and SetDampingR. The default parameters? The user says to use default linear spring-damper parameters. Maybe set K=100, R=10 as common defaults. Wait, but the user says "default parameters"—maybe the link has default values already? Let me check. Oh, the ChLinkTSDA has default K=0, so I need to explicitly set them. So I should set K and R.
+
+Adding visual shapes: for the mass, a box shape. Also, maybe a cylinder for the spring? But the link itself doesn't have a visual shape. Oh right, the link is invisible unless we add a visual shape manually. Alternatively, perhaps the spring can be represented by a visual shape between the two points. Hmm, maybe create a visual shape for the spring as a cylinder, but that requires some calculation. Alternatively, just represent the spring with a line or cylinder between the two points. But for simplicity, maybe just add a visual cylinder between the two bodies. Alternatively, the user might just want the mass and spring link to have visual shapes. The mass's visual shape is straightforward. The spring's visual shape might need to be added as a separate object, perhaps a cylinder whose position is updated each frame. That might be a bit involved, but perhaps acceptable.
+
+Alternatively, maybe the link's visual shape can be added via its own methods. Wait, I think ChLinkTSDA doesn't have a visual shape, so I need to create a separate visual object. Let's see. The spring can be represented as a cylinder between the anchor points of the link. So, the link's coordinates are important. The link's coordinates are relative to each body. Let's set the link's coordinate so that the anchor is at the center of the mass and the ground's position.
+
+Wait, the ground is fixed, so its position is (0,0,0) perhaps. Let me structure this step by step.
+
+First, create the ground body. Position it at (0,0,0), fixed. Then the mass is positioned at (0, 0, 0.5), say, so the spring is vertical. The link connects the two bodies at their origins. So the spring's rest length would be the initial distance between the bodies. Let's say the mass is at (0,0,0.5), so the distance from the ground (at 0) is 0.5. The rest length is 0.5, so that the spring is at rest when the mass is at that position.
+
+So steps:
+
+1. Initialize system and visualization.
+
+2. Create ground body:
+
+ground = chrono.ChBody()
+ground.SetBodyFixed(True)
+ground.SetPos(chrono.ChVectorD(0,0,0))
+system.Add(ground)
+
+3. Create mass body:
+
+mass = chrono.ChBodyEasyBox(0.2, 0.2, 0.2, 1000, True, True)
+mass.SetPos(chrono.ChVectorD(0,0,0.5))
+system.Add(mass)
+
+Set mass properties if needed. The ChBodyEasyBox sets mass and inertia automatically based on density.
+
+4. Create the spring-damper link:
+
+springdamper = chrono.ChLinkTSDA()
+springdamper.Initialize(ground, mass, chrono.ChFrameD(chrono.ChVectorD(0,0,0), chrono.QUNIT))
+system.AddLink(springdamper)
+
+Set the parameters:
+
+springdamper.SetSpringK(100)  # stiffness
+springdamper.SetDampingR(10)  # damping coefficient
+springdamper.SetRestLength(0.5)  # initial distance between bodies
+
+5. Add visual shapes:
+
+For the mass, the ChBodyEasyBox already adds a visual shape. But maybe adjust the color or size. Alternatively, add a visual shape explicitly.
+
+Also, add a visual shape for the spring. Since the link doesn't have one, we can create a cylinder between the two anchor points. To do this, perhaps create a visual shape that is a cylinder between the two points. However, since the link's length changes, the cylinder's position and orientation must be updated each frame. Alternatively, use a line strip or something, but Irrlicht might not have that. Maybe a cylinder with a fixed length and position? Hmm, perhaps a better approach is to create a visual shape that is part of the mass or the link.
+
+Alternatively, perhaps the spring can be represented by a cylinder whose length is adjusted each frame. Let's see. The spring's current length can be obtained via springdamper.Get_SpringLength(). So each frame, in the visualization loop, we can update the cylinder's position and orientation.
+
+Wait, but how to do that. Maybe create a visual shape for the spring as a cylinder between the two anchor points. The cylinder's position and orientation would need to be updated each frame.
+
+Alternatively, create a separate visual shape for the spring, and update its position in the render loop.
+
+Alternatively, perhaps the easiest way is to create a cylinder between the two points, and in each frame, adjust its position and orientation based on the current positions of the two bodies.
+
+So steps for visualization:
+
+- Create a cylinder visual shape for the spring. Let's say the cylinder has a radius of 0.02 and length initially 0.5.
+
+But how to attach it to the system. Maybe as a separate visual shape attached to the system, but not to any body. So:
+
+spring_shape = chrono.ChVisualShapeCylinder(0.02, 0.5)
+spring_shape.SetPos(chrono.ChVectorD(0,0,0))
+spring_shape.SetColor(chrono.ChColor(1,0,0))  # red
+system.AddVisualShape(spring_shape)
+
+But then, in each frame, we need to compute the position and orientation of the spring.
+
+Alternatively, perhaps the cylinder can be positioned at the midpoint between the two anchor points, and oriented along the line between them.
+
+So in the render loop, before rendering, we can calculate the current positions of the ground and mass, compute the vector between them, then set the cylinder's position and orientation accordingly.
+
+Hmm, that might be a bit involved. Let me think of the code structure.
+
+In the simulation loop, after each step, before rendering, we can do:
+
+ground_pos = ground.GetPos()
+mass_pos = mass.GetPos()
+delta = mass_pos - ground_pos
+length = delta.Length()
+axis = delta.Normalize()
+rotation = chrono.ChQuaternionD()
+rotation.Q_from_AngAxis(math.atan2(axis.y, axis.x), axis)  # Not sure, perhaps better to use look rotation.
+
+Alternatively, compute the rotation so that the cylinder's local Z-axis aligns with the direction from ground to mass.
+
+The cylinder's length should be the current distance between them, so we can set the cylinder's scale in the Z direction to length, but that might complicate scaling. Alternatively, keep the cylinder's length as the rest length and adjust position.
+
+Alternatively, perhaps it's easier to set the cylinder's position to the midpoint, and set its orientation so that it points along the direction.
+
+Alternatively, perhaps the cylinder can be represented as a line between the two points using a visual shape. Wait, maybe using a line strip?
+
+Wait, ChVisualShape has a method for line strips? Not sure. Alternatively, use a cylinder with a fixed radius and length, and position it between the two points each frame.
+
+Let me try to outline the code for that.
+
+In the visualization loop:
+
+while vis.Run():
+
+    vis.BeginScene()
+
+    # Update spring position and orientation
+
+    ground_pos = ground.GetPos()
+    mass_pos = mass.GetPos()
+    delta = mass_pos - ground_pos
+    length = delta.Length()
+    axis = delta / length  # unit vector along spring
+
+    # Position the cylinder at the midpoint between ground and mass
+    midpoint = (ground_pos + mass_pos) * 0.5
+
+    # The cylinder's coordinate system: Z-axis along the spring direction
+    rotation = chrono.ChQuaternionD()
+    rotation.Q_from_AngAxis(0, axis)  # Wait, perhaps better to align Z with the direction.
+
+    # To align the cylinder's local Z-axis with the direction from ground to mass:
+
+    # The cylinder's frame should have its Z pointing along the axis.
+
+    # Let's compute the rotation from the global frame to the cylinder's frame.
+
+    # Let's assume the cylinder's local Z is along the axis.
+
+    # The cylinder's rotation can be constructed using the axis.
+
+    # Using the look rotation towards the direction.
+
+    # For example, using ChQuaternion::Q_from_AngAxis, but need to compute the rotation.
+
+    # Alternatively, use the function Q_from_AngAxis to rotate the cylinder.
+
+    # Alternatively, perhaps use the function to create a rotation from the axis.
+
+    # Let me think of the cylinder's orientation: it's pointing along the delta vector.
+
+    # So the cylinder's local Z is delta direction.
+
+    # To create a rotation that aligns the cylinder's local Z with delta.
+
+    # The cylinder's initial orientation is along Z, so we need to rotate it so that local Z is along delta.
+
+    # The rotation can be computed as follows:
+
+    # The desired direction is delta. The default direction is (0,0,1).
+
+    # So, find the rotation between (0,0,1) and delta.
+
+    # Using the Q_from_AngAxis function might require calculating the angle and axis.
+
+    # Alternatively, use the cross product and dot product to find the rotation.
+
+    # This might be complex. Maybe for simplicity, just set the rotation to look along the axis.
+
+    # Let's use the look rotation.
+
+    # The cylinder's frame should have its Z pointing towards delta direction.
+
+    # So, the rotation can be computed as follows:
+
+    # The direction vector is delta.
+
+    # The up vector can be arbitrary, say (0,1,0) unless delta is along Y.
+
+    # Let's compute it using ChQuaternion::QlookAtDir.
+
+    rotation = chrono.ChQuaternionD()
+    rotation.QlookAtDir(delta, chrono.ChVectorD(0,1,0))
+
+    # Now set the cylinder's position and rotation.
+
+    spring_shape.SetPos(midpoint)
+    spring_shape.SetRot(rotation)
+
+    # Also, adjust the cylinder's length. Since the cylinder's length is fixed, perhaps we can scale it?
+
+    # Alternatively, set the cylinder's length to the current length.
+
+    # The cylinder's original length is 0.5 (rest length), but we can scale it by the ratio.
+
+    # But scaling might complicate things. Alternatively, set the cylinder's scale.
+
+    # Let's set the scale in Z direction to length / original_length.
+
+    original_length = 0.5  # rest length
+    scale_factor = length / original_length
+    spring_shape.SetScale(chrono.ChVectorD(1,1,scale_factor))
+
+    # Then, render.
+
+    vis.Render()
+
+    vis.EndScene()
+
+    system.DoStepDynamics(time_step)
+
+Wait, but in the visual system, the visual shapes are part of the system, so changing their position and rotation each frame might require updating before rendering.
+
+Alternatively, perhaps the visual shape is added to the system, and in each frame, before rendering, we update its position and orientation.
+
+Hmm, but the visual shape is part of the system's visual models, so we can modify its properties each frame.
+
+Alternatively, maybe it's better to create the visual shape as a separate object not attached to any body, so that we can move it each frame.
+
+Alternatively, perhaps I can create the cylinder as a visual shape attached to the system, and in each frame, adjust its position and rotation.
+
+This approach requires some trigonometry to compute the rotation, but it's manageable.
+
+Alternatively, maybe the cylinder can be represented as a line using a visual shape with a line geometry. Wait, does ChVisualShape support lines? Looking at the documentation, ChVisualShape has a constructor for cylinders, boxes, spheres, etc. But not lines. So perhaps using a cylinder is the way to go.
+
+Alternatively, maybe a thin cylinder with a small radius and length adjusted each frame.
+
+Putting this together, the code would have to update the cylinder's position, rotation, and scale each frame.
+
+Alternatively, perhaps it's simpler to just represent the spring as a cylinder between the two points without scaling, but that might not show the deformation. But the user might just want a visual representation, so even if it's fixed length, it's okay.
+
+Alternatively, maybe the cylinder's length can be fixed, but positioned between the two points. Wait, but that would require moving it along the line.
+
+Hmm, perhaps the easiest way is to have the cylinder's midpoint at the midpoint between the two bodies, and its orientation aligned with the direction, and its length fixed. Then, as the mass moves, the cylinder's position and rotation changes but the length remains the same. That way, the cylinder's visual length doesn't change, but its position and orientation do. That might not show the extension/compression, but it's better than nothing.
+
+Alternatively, perhaps the cylinder's length can be scaled by the current length divided by the rest length. So when the spring is stretched, the cylinder becomes longer.
+
+But scaling the cylinder's Z axis would require setting the scale factor each frame.
+
+Alternatively, create the cylinder with a length equal to the current length each frame, but that would require recreating the visual shape each frame, which is not efficient. So scaling is better.
+
+Okay, proceeding with that approach.
+
+Now, putting all together:
+
+First, in the code:
+
+After creating the springdamper link, create the visual shape for the spring:
+
+spring_shape = chrono.ChVisualShapeCylinder(0.02, 0.5)  # radius 0.02, length 0.5 (rest length)
+spring_shape.SetPos(chrono.ChVectorD(0,0,0))
+spring_shape.SetColor(chrono.ChColor(1,0,0))
+system.AddVisualShape(spring_shape)
+
+Wait, but to add it to the system's visual shapes, we can use system.AddVisualShape, which adds it as a standalone visual shape not attached to any body.
+
+Then, in the simulation loop, before rendering, we need to update its position, rotation, and scale.
+
+So inside the while loop:
+
+while vis.Run():
+
+    vis.BeginScene()
+
+    # Update spring visual
+
+    ground_pos = ground.GetPos()
+    mass_pos = mass.GetPos()
+    delta = mass_pos - ground_pos
+    length = delta.Length()
+    axis = delta / length  # unit vector along spring
+
+    midpoint = (ground_pos + mass_pos) * 0.5
+
+    # Compute rotation to align cylinder's Z-axis with delta direction
+    rotation = chrono.ChQuaternionD()
+    rotation.QlookAtDir(delta, chrono.ChVectorD(0,1,0))  # assuming up is Y
+
+    # Set position and rotation
+    spring_shape.SetPos(midpoint)
+    spring_shape.SetRot(rotation)
+
+    # Scale the cylinder's length
+    original_length = 0.5  # rest length
+    scale_factor = length / original_length
+    spring_shape.SetScale(chrono.ChVectorD(1,1,scale_factor))
+
+    vis.Render()
+    vis.EndScene()
+
+    system.DoStepDynamics(time_step)
+
+Wait, but does the SetScale function work? I think ChVisualShape has SetScale method. Let me confirm. The ChVisualShape class has a SetScale function that takes a ChVector. So yes, scaling is possible.
+
+Okay, that should work.
+
+Now, for the visualization setup:
+
+Initialize the Irrlicht system, attach it to the system, set window size, title, camera.
+
+The camera should be positioned to see the system. Let's set it at (0, 2, 2) looking towards the origin.
+
+Also, add typical lights.
+
+Putting all together:
+
+The full code structure would be:
+
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
+
+def main():
+    # Create the physical system
+    sys = chrono.ChSystemNSC()
+    sys.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Gravity
+
+    # Visualization
+    vis = chronoirr.ChVisualSystemIrrlicht()
+    vis.AttachSystem(sys)
+    vis.SetWindowSize(1024,768)
+    vis.SetWindowTitle('Mass-Spring-Damper Simulation')
+    vis.Initialize()
+    vis.AddCamera(chronoirr.ChVectorD(0, 2, 2))
+    vis.AddTypicalLights()
+
+    # Create ground body
+    ground = chrono.ChBody()
+    ground.SetBodyFixed(True)
+    ground.SetPos(chrono.ChVectorD(0,0,0))
+    sys.Add(ground)
+
+    # Create mass body
+    mass = chrono.ChBodyEasyBox(0.2, 0.2, 0.2, 1000, True, True)
+    mass.SetPos(chrono.ChVectorD(0,0,0.5))
+    sys.Add(mass)
+
+    # Create spring-damper link
+    springdamper = chrono.ChLinkTSDA()
+    springdamper.Initialize(ground, mass, chrono.ChFrameD(chrono.ChVectorD(0,0,0), chrono.QUNIT))
+    springdamper.SetSpringK(100)
+    springdamper.SetDampingR(10)
+    springdamper.SetRestLength(0.5)
+    sys.AddLink(springdamper)
+
+    # Add visual shape for spring
+    spring_shape = chrono.ChVisualShapeCylinder(0.02, 0.5)
+    spring_shape.SetPos(chrono.ChVectorD(0,0,0))
+    spring_shape.SetColor(chrono.ChColor(1,0,0))
+    sys.AddVisualShape(spring_shape)
+
+    # Simulation loop
+    time_step = 0.001
+    while vis.Run():
+        vis.BeginScene()
+        # Update spring visual
+        ground_pos = ground.GetPos()
+        mass_pos = mass.GetPos()
+        delta = mass_pos - ground_pos
+        length = delta.Length()
+        axis = delta / length
+        midpoint = (ground_pos + mass_pos) * 0.5
+        rotation = chrono.ChQuaternionD()
+        rotation.QlookAtDir(delta, chrono.ChVectorD(0,1,0))
+        spring_shape.SetPos(midpoint)
+        spring_shape.SetRot(rotation)
+        original_length = 0.5
+        scale_factor = length / original_length
+        spring_shape.SetScale(chrono.ChVectorD(1,1,scale_factor))
+        vis.Render()
+        vis.EndScene()
+        sys.DoStepDynamics(time_step)
+
+if __name__ == '__main__':
+    main()
+
+Hmm, but wait, the ground body doesn't have a visual shape. The user mentioned adding visual shapes for the mass and spring. The mass has a visual shape from ChBodyEasyBox, but the ground is just a fixed body. Maybe the ground should have a visual shape as well, like a small cube or something to indicate its position.
+
+Adding a visual shape to the ground:
+
+ground_shape = chrono.ChVisualShapeBox(0.1, 0.1, 0.1)
+ground.AddVisualShape(ground_shape)
+
+So in the code:
+
+ground = chrono.ChBody()
+ground.SetBodyFixed(True)
+ground.SetPos(chrono.ChVectorD(0,0,0))
+ground_shape = chrono.ChVisualShapeBox(0.1, 0.1, 0.1)
+ground.AddVisualShape(ground_shape)
+sys.Add(ground)
+
+That way, the ground is visible as a small cube.
+
+Also, the mass's visual shape is already added via ChBodyEasyBox, so that's okay.
+
+Testing the code for possible errors:
+
+- The springdamper's coordinates: the link is initialized between ground and mass, with the local frame at (0,0,0) for both. Since the ground is at (0,0,0), and the mass is at (0,0,0.5), the anchor points are correct.
+
+- The rotation calculation using QlookAtDir: delta is the direction vector from ground to mass. The up vector is (0,1,0), so the cylinder's Y-axis is upwards, which should work.
+
+- The scale factor: when the spring is at rest length (0.5), the scale is 1. When stretched, it scales accordingly.
+
+Possible issues: if the mass moves in other directions, the rotation might not be correct, but for this simple case where movement is along Z, it should be okay.
+
+Another thing: the gravity is applied via sys.Set_G_acc. That's correct.
+
+The time step is 0.001, which is reasonable.
+
+I think this should work. Let me check the code again for syntax.
+
+Wait, in the spring_shape creation, the parameters for cylinder are radius and length. The initial length is 0.5, which matches the rest length. So that's correct.
+
+Also, the initial position of the spring_shape is set to (0,0,0), but it's updated each frame.
+
+Yes, this should be okay.
+
+So the final code should look like this.
+</think>
+
+```python
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
+
+def main():
+    # Initialize physical system with gravity
+    sys = chrono.ChSystemNSC()
+    sys.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Gravity vector
+
+    # Initialize visualization
+    vis = chronoirr.ChVisualSystemIrrlicht()
+    vis.AttachSystem(sys)
+    vis.SetWindowSize(1024, 768)
+    vis.SetWindowTitle('Mass-Spring-Damper Simulation')
+    vis.Initialize()
+    vis.AddCamera(chronoirr.ChVectorD(0, 2, 2))  # Camera position
+    vis.AddTypicalLights()
+
+    # Create ground body (fixed)
+    ground = chrono.ChBody()
+    ground.SetBodyFixed(True)
+    ground.SetPos(chrono.ChVectorD(0, 0, 0))
+    # Add visual shape to ground (small cube)
+    ground_shape = chrono.ChVisualShapeBox(0.1, 0.1, 0.1)
+    ground.AddVisualShape(ground_shape)
+    sys.Add(ground)
+
+    # Create mass body (movable)
+    mass = chrono.ChBodyEasyBox(0.2, 0.2, 0.2, 1000, True, True)
+    mass.SetPos(chrono.ChVectorD(0, 0, 0.5))
+    sys.Add(mass)
+
+    # Create spring-damper link between ground and mass
+    springdamper = chrono.ChLinkTSDA()
+    springdamper.Initialize(ground, mass, chrono.ChFrameD(chrono.ChVectorD(0,0,0), chrono.QUNIT))
+    springdamper.SetSpringK(100)      # Spring stiffness (N/m)
+    springdamper.SetDampingR(10)     # Damping coefficient (Ns/m)
+    springdamper.SetRestLength(0.5)  # Rest length (m)
+    sys.AddLink(springdamper)
+
+    # Create visual shape for the spring (cylinder)
+    spring_shape = chrono.ChVisualShapeCylinder(0.02, 0.5)  # Radius 0.02m, rest length 0.5m
+    spring_shape.SetColor(chrono.ChColor(1, 0, 0))  # Red color
+    sys.AddVisualShape(spring_shape)  # Add as standalone visual shape
+
+    # Simulation time step
+    time_step = 0.001
+
+    # Main simulation loop
+    while vis.Run():
+        vis.BeginScene()
+        
+        # Update spring visual position, orientation, and scale
+        ground_pos = ground.GetPos()
+        mass_pos = mass.GetPos()
+        delta = mass_pos - ground_pos
+        length = delta.Length()
+        axis = delta / length if length > 0 else chrono.ChVectorD(0,0,1)
+        midpoint = (ground_pos + mass_pos) * 0.5
+        
+        # Calculate rotation to align cylinder with spring direction
+        rotation = chrono.ChQuaternionD()
+        rotation.QlookAtDir(delta, chrono.ChVectorD(0, 1, 0))  # Up vector along Y-axis
+        
+        # Update visual properties of the spring
+        spring_shape.SetPos(midpoint)
+        spring_shape.SetRot(rotation)
+        scale_factor = length / 0.5  # Scale based on current length vs rest length
+        spring_shape.SetScale(chrono.ChVectorD(1, 1, scale_factor))
+        
+        vis.Render()
+        vis.EndScene()
+        sys.DoStepDynamics(time_step)
+
+if __name__ == '__main__':
+    main()
+```
+
+### Explanation:
+1. **System Initialization**: 
+   - A `ChSystemNSC` is created to handle rigid body dynamics with non-smooth contact.
+   - Gravity is set to -9.81 m/s² in the Y-direction.
+
+2. **Visualization Setup**:
+   - An Irrlicht visualization system is initialized with a camera positioned at (0, 2, 2) and standard lighting.
+
+3. **Physical Components**:
+   - **Ground Body**: A fixed cube at the origin serves as the anchor point.
+   - **Mass Body**: A box (0.2m³ dimensions) with density 1000 kg/m³ positioned 0.5m above the ground.
+   - **Spring-Damper Link**: `ChLinkTSDA` connects ground and mass with default parameters (K=100 N/m, R=10 Ns/m, rest length 0.5m).
+
+4. **Spring Visualization**:
+   - A red cylinder visually represents the spring. Its position, orientation, and scale are dynamically updated each frame:
+     - **Position**: Midpoint between ground and mass.
+     - **Orientation**: Aligned with the spring's direction using `QlookAtDir`.
+     - **Scale**: Adjusted based on the current spring length to show compression/stretching.
+
+5. **Simulation Loop**:
+   - Updates the spring's visual properties each frame.
+   - Advances the simulation with a time step of 0.001 seconds.
+
+This script provides a dynamic visualization of the mass-spring-damper system, showing real-time deformation of the spring and motion of the mass under gravity and damping forces.

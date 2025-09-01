@@ -1,0 +1,90 @@
+```python
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as chronoirr
+
+# 1. Initialize the PyChrono environment and core components
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())  # Ensure data path is set
+
+# Create the physical system (ChSystem)
+system = chrono.ChSystemNSC()
+
+# 2. Add the required physical systems and objects as specified
+
+# Create the rigid terrain
+terrain = veh.RigidTerrain(system)
+# Create a patch (flat terrain)
+patch = terrain.AddPatch(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT),
+                         200, 200,  # size in x and y
+                         "concrete.jpg",  # texture
+                         1000,  # friction coefficient
+                         0.01)  # restitution coefficient
+patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+patch.SetTextureScale(20, 20)
+terrain.Initialize()
+
+# Create the Kraz vehicle
+vehicle = veh.Kraz(system, chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0.5), chrono.QUNIT))
+vehicle.SetChassisVisualizationType(veh.VisualizationType_PRIMITIVES)
+vehicle.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
+vehicle.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
+vehicle.SetWheelVisualizationType(veh.VisualizationType_PRIMITIVES)
+vehicle.Initialize()
+
+# Set initial vehicle position and orientation
+init_loc = chrono.ChVectorD(0, 0, 0.5)
+init_rot = chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 0, 1))
+vehicle.SetInitPosition(chrono.ChCoordsysD(init_loc, init_rot))
+
+# Initialize the vehicle system (call after setting initial position)
+vehicle.Initialize()
+
+# Create the driver system
+driver = veh.ChIrrGuiDriver(vehicle.GetVehicle(), chronoirr.ChIrrApp(vehicle.GetVehicle().GetSystem(), "Kraz Vehicle Simulation", chronoirr.dimension2du(1280, 720)))
+driver.SetInputDelay(0.1)  # small input delay
+
+# 3. Set necessary default parameters such as positions, forces, and interactions
+
+# Create the Irrlicht application for visualization
+app = chronoirr.ChIrrApp(system, "Kraz Vehicle Simulation", chronoirr.dimension2du(1280, 720))
+
+# Add typical elements
+app.AddTypicalSky()
+app.AddTypicalLights()
+app.AddTypicalCamera(chronoirr.vector3df(0, -10, 1.5))
+
+# Bind all assets and update all assets
+app.AssetBindAll()
+app.AssetUpdateAll()
+
+# Simulation parameters
+timestep = 0.01
+
+# 4. Simulation loop
+app.SetTimestep(timestep)
+app.SetTryRealtime(True)
+
+while app.GetDevice().run():
+    app.BeginScene()
+    app.DrawAll()
+
+    # Get driver inputs
+    driver_inputs = driver.GetInputs()
+
+    # Synchronize modules
+    time = system.GetChTime()
+    driver.Synchronize(time)
+    terrain.Synchronize(time)
+    vehicle.Synchronize(time, driver_inputs, terrain)
+    app.Synchronize("", driver_inputs)
+
+    # Advance simulation by timestep
+    driver.Advance(timestep)
+    terrain.Advance(timestep)
+    vehicle.Advance(timestep)
+    app.Advance(timestep)
+
+    system.DoStepDynamics(timestep)
+
+    app.EndScene()
+```

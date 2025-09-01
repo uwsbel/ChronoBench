@@ -1,0 +1,96 @@
+```python
+import pychrono.core as chrono
+import pychrono.irrlicht as irr
+
+# Initialize Chrono system
+system = chrono.ChSystemSMC()  # Using SMC contact model for better shell interaction handling
+
+# Set default parameters
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+system.SetSolverType(chrono.ChSolver.Type.PARDISO_MKL)  # Use PardisoMKL solver
+system.SetMaxItersSolverSpeed(100)
+system.SetMaxItersSolverStab(100)
+
+# Create the Irrlicht visualization
+application = irr.ChIrrApp(system, "Tablecloth Folding Simulation", irr.dimension2d(1024, 768))
+application.AddTypicalSky()
+application.AddTypicalCamera(chrono.ChVectorD(0, 1, -2))
+application.AddTypicalLights()
+
+# Define material properties for isotropic Kirchhoff shell
+material = chrono.ChMaterialShell()
+material.SetYoungModulus(1e7)  # Example value, adjust as needed
+material.SetPoissonRatio(0.3)
+material.SetDensity(1000)  # Density of fabric/material
+material.SetThickness(0.002)  # Thickness of the tablecloth (2mm)
+
+# Generate mesh grid for the tablecloth
+num_x = 20  # Number of nodes along x
+num_y = 20  # Number of nodes along y
+length = 1.0  # Length of the tablecloth in meters
+width = 1.0   # Width of the tablecloth in meters
+
+dx = length / (num_x - 1)
+dy = width / (num_y - 1)
+
+nodes = []
+for i in range(num_x):
+    for j in range(num_y):
+        x = i * dx
+        y = j * dy
+        z = 0  # Initial flat position
+        node = chrono.ChNodeShells()
+        node.SetMass(0)  # Mass will be assigned via the mesh
+        node.SetPos(chrono.ChVectorD(x, y, z))
+        nodes.append(node)
+
+# Create the mesh
+mesh = chrono.ChMesh()
+
+# Add nodes to the mesh
+for node in nodes:
+    mesh.AddNode(node)
+
+# Generate elements (quadrilateral shell elements)
+for i in range(num_x - 1):
+    for j in range(num_y - 1):
+        # Get the four nodes of the current cell
+        n0 = nodes[i * num_y + j]
+        n1 = nodes[(i + 1) * num_y + j]
+        n2 = nodes[(i + 1) * num_y + (j + 1)]
+        n3 = nodes[i * num_y + (j + 1)]
+        # Create a shell quadrilateral element
+        element = chrono.ChElementShellReissner4()
+        element.SetNodes(n0, n1, n2, n3)
+        element.SetMaterialSurface(chrono.ChMaterialSurfaceSMC())
+        element.SetMaterialShell(material)
+        mesh.AddElement(element)
+
+# Finalize mesh setup
+mesh.Build()
+
+# Add mesh to the system
+system.Add(mesh)
+
+# Fix the nodes at the top edge to simulate attachment (e.g., the tablecloth is held at one side)
+for j in range(num_y):
+    node = nodes[j]  # Top edge nodes (assuming y=0 at top)
+    node.SetFixed(True)
+
+# Optional: Apply initial forces or perturbations to simulate folding
+# For example, lift one corner to start folding
+corner_node = nodes[-1]  # Bottom-right corner
+corner_node.SetFixed(False)
+corner_node.SetForce(chrono.ChVectorD(0, 0, -1))  # Apply downward force to initiate folding
+
+# Initialize the visualization
+application.AssetBindAll()
+application.AssetUpdateAll()
+
+# Simulation loop
+while application.GetDevice().run():
+    application.BeginScene()
+    application.DrawAll()
+    application.DoStep()  # Advance simulation by default timestep
+    application.EndScene()
+```

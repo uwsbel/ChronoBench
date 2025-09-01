@@ -1,0 +1,223 @@
+I'll create a PyChrono simulation demonstrating an epicyclic gear system. This will include a fixed truss, rotating bar, and gears with a motor to enforce constant rotation speed.
+
+```python
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
+import math
+
+# Initialize the Chrono system
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+
+# Set solver parameters
+system.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
+system.SetMaxItersSolverSpeed(100)
+system.SetTolSpeeds(1e-4)
+
+# Create material for gears
+gear_material = chrono.ChMaterialSurfaceNSC()
+gear_material.SetFriction(0.7)
+gear_material.SetRestitution(0.1)
+
+# Create the fixed truss (outer ring gear housing)
+truss = chrono.ChBodyEasyBox(2, 0.2, 0.3, 1000, True, True, gear_material)
+truss.SetPos(chrono.ChVectorD(0, 0, 0))
+truss.SetBodyFixed(True)
+truss.SetName("Truss")
+system.Add(truss)
+
+# Create the sun gear (central gear) - fixed
+sun_gear_radius = 0.2
+sun_gear = chrono.ChBodyEasyCylinder(sun_gear_radius, 0.15, 1000, True, True, gear_material)
+sun_gear.SetPos(chrono.ChVectorD(0, 0, 0))
+sun_gear.SetBodyFixed(True)
+sun_gear.SetName("Sun Gear")
+system.Add(sun_gear)
+
+# Create the planet carrier (rotating bar)
+carrier_length = 0.8
+carrier = chrono.ChBodyEasyBox(carrier_length, 0.05, 0.1, 500, True, True, gear_material)
+carrier.SetPos(chrono.ChVectorD(0, 0, 0))
+carrier.SetName("Planet Carrier")
+system.Add(carrier)
+
+# Create revolute joint between truss and carrier
+carrier_joint = chrono.ChLinkRevolute()
+carrier_joint.Initialize(truss, carrier, chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.Q_from_AngZ(0)))
+system.Add(carrier_joint)
+
+# Create planet gears
+planet_gear_radius = 0.1
+planet_distance = 0.3  # Distance from center
+num_planets = 3
+
+planet_gears = []
+planet_joints = []
+
+for i in range(num_planets):
+    angle = i * 2 * math.pi / num_planets
+    pos_x = planet_distance * math.cos(angle)
+    pos_y = planet_distance * math.sin(angle)
+    
+    # Create planet gear
+    planet_gear = chrono.ChBodyEasyCylinder(planet_gear_radius, 0.12, 300, True, True, gear_material)
+    planet_gear.SetPos(chrono.ChVectorD(pos_x, pos_y, 0))
+    planet_gear.SetName(f"Planet Gear {i+1}")
+    system.Add(planet_gear)
+    planet_gears.append(planet_gear)
+    
+    # Create revolute joint between carrier and planet gear
+    planet_joint = chrono.ChLinkRevolute()
+    planet_joint.Initialize(carrier, planet_gear, 
+                          chrono.ChCoordsysD(chrono.ChVectorD(pos_x, pos_y, 0), 
+                                           chrono.Q_from_AngZ(0)))
+    system.Add(planet_joint)
+    planet_joints.append(planet_joint)
+
+# Create ring gear (outer gear) - this will be our driven gear
+ring_gear_radius = 0.6
+ring_gear = chrono.ChBodyEasyCylinder(ring_gear_radius, 0.1, 800, True, True, gear_material)
+ring_gear.SetPos(chrono.ChVectorD(0, 0, 0.2))
+ring_gear.SetName("Ring Gear")
+system.Add(ring_gear)
+
+# Create revolute joint between truss and ring gear
+ring_joint = chrono.ChLinkRevolute()
+ring_joint.Initialize(truss, ring_gear, 
+                     chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0.2), 
+                                       chrono.Q_from_AngZ(0)))
+system.Add(ring_joint)
+
+# Add motor to enforce constant rotation on the carrier
+motor = chrono.ChLinkMotorRotationSpeed()
+motor.Initialize(truss, carrier, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)))
+motor_function = chrono.ChFunction_Const(math.pi/4)  # Constant angular velocity (45 deg/s)
+motor.SetSpeedFunction(motor_function)
+system.Add(motor)
+
+# Create gear constraints to simulate gear meshing
+# Sun-Planet gear constraints
+for i, planet_gear in enumerate(planet_gears):
+    # Calculate gear ratio
+    sun_radius = sun_gear_radius
+    planet_radius = planet_gear_radius
+    
+    # Create gear constraint
+    gear_constraint = chrono.ChLinkGear()
+    gear_constraint.Initialize(sun_gear, planet_gear, 
+                              chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)),
+                              chrono.ChFrameD(planet_gear.GetPos()))
+    gear_constraint.Set_tau(sun_radius / planet_radius)
+    system.Add(gear_constraint)
+
+# Planet-Ring gear constraints
+for i, planet_gear in enumerate(planet_gears):
+    # Calculate gear ratio (ring gear has internal teeth, so negative ratio)
+    ring_radius = ring_gear_radius
+    planet_radius = planet_gear_radius
+    
+    # Create gear constraint
+    gear_constraint = chrono.ChLinkGear()
+    gear_constraint.Initialize(planet_gear, ring_gear,
+                              chrono.ChFrameD(planet_gear.GetPos()),
+                              chrono.ChFrameD(chrono.ChVectorD(0, 0, 0.2)))
+    gear_constraint.Set_tau(-ring_radius / planet_radius)  # Negative for internal gear
+    system.Add(gear_constraint)
+
+# Create the Irrlicht visualization system
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle('PyChrono Epicyclic Gear System')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVectorD(2, 1.5, 2))
+vis.AddTypicalLights()
+
+# Set colors and visual properties for better visualization
+# Truss - Gray
+truss_asset = truss.GetAssets()[0]
+if isinstance(truss_asset, chrono.ChVisualization):
+    truss_asset.SetColor(chrono.ChColor(0.5, 0.5, 0.5))
+
+# Sun gear - Gold
+sun_gear_asset = sun_gear.GetAssets()[0]
+if isinstance(sun_gear_asset, chrono.ChVisualization):
+    sun_gear_asset.SetColor(chrono.ChColor(1.0, 0.8, 0.0))
+
+# Planet carrier - Blue
+carrier_asset = carrier.GetAssets()[0]
+if isinstance(carrier_asset, chrono.ChVisualization):
+    carrier_asset.SetColor(chrono.ChColor(0.2, 0.4, 0.8))
+
+# Planet gears - Green
+for planet_gear in planet_gears:
+    planet_asset = planet_gear.GetAssets()[0]
+    if isinstance(planet_asset, chrono.ChVisualization):
+        planet_asset.SetColor(chrono.ChColor(0.2, 0.8, 0.2))
+
+# Ring gear - Red
+ring_gear_asset = ring_gear.GetAssets()[0]
+if isinstance(ring_gear_asset, chrono.ChVisualization):
+    ring_gear_asset.SetColor(chrono.ChColor(0.8, 0.2, 0.2))
+
+# Simulation parameters
+timestep = 0.01
+simulation_time = 0
+end_time = 20
+
+print("Starting epicyclic gear system simulation...")
+print("Controls:")
+print("- Mouse: rotate view")
+print("- Arrow keys: move camera")
+print("- ESC: exit simulation")
+
+# Main simulation loop
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    
+    # Display simulation info
+    vis.GetGUIEnvironment().getBuiltInFont().draw(
+        f"Time: {simulation_time:.2f}s",
+        chronoirr.recti(10, 10, 200, 30),
+        chronoirr.SColor(255, 255, 255, 255)
+    )
+    
+    vis.GetGUIEnvironment().getBuiltInFont().draw(
+        f"Carrier Speed: {motor_function.Get_y(simulation_time):.2f} rad/s",
+        chronoirr.recti(10, 35, 300, 55),
+        chronoirr.SColor(255, 255, 255, 255)
+    )
+    
+    vis.EndScene()
+    
+    # Advance the simulation
+    system.DoStepDynamics(timestep)
+    simulation_time += timestep
+    
+    # Stop after end_time seconds
+    if simulation_time >= end_time:
+        break
+
+print("Simulation completed!")
+```
+
+This script creates a complete epicyclic gear system simulation with the following components:
+
+1. **Fixed Truss**: A box-shaped housing that serves as the fixed reference frame
+2. **Sun Gear**: A central fixed cylinder gear at the center
+3. **Planet Carrier**: A rotating bar that holds the planet gears
+4. **Planet Gears**: Three cylindrical gears that orbit around the sun gear
+5. **Ring Gear**: An outer gear that meshes with the planet gears
+6. **Motor**: Provides constant rotation speed to the planet carrier
+
+Key features:
+- **Proper gear constraints** to simulate realistic gear meshing
+- **Color-coded components** for easy identification
+- **Motor control** for constant rotation speed
+- **Real-time information display** showing simulation time and motor speed
+- **Appropriate materials and physics** settings for realistic behavior
+
+The system demonstrates the fundamental principle of epicyclic gears where the planet gears rotate around their own axes while orbiting the sun gear, with the motion constrained by the ring gear. This type of gear system is commonly used in automotive transmissions and various mechanical applications.

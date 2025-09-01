@@ -1,0 +1,127 @@
+Certainly! Below is a **PyChrono** simulation script that demonstrates an epicyclic (planetary) gear system with:
+
+- A **fixed truss** (the frame)
+- A **rotating bar** (the carrier)
+- Two **gears** (sun and planet)
+- A **gear motor** enforcing constant rotation
+- **Visualization** using Irrlicht, with materials and lighting
+
+**Requirements:**  
+- `pychrono` and `pychrono.irrlicht` must be installed.
+
+---
+
+```python
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
+import math
+
+# 1. Initialize the PyChrono environment and core components
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())
+
+# Create the physical system
+system = chrono.ChSystemNSC()
+
+# 2. Add the required physical systems and objects
+
+# --- Fixed truss (the frame) ---
+truss = chrono.ChBody()
+truss.SetBodyFixed(True)
+system.Add(truss)
+
+# --- Rotating bar (the carrier) ---
+bar_length = 0.6
+bar = chrono.ChBodyEasyBox(bar_length, 0.05, 0.05, 1000, True, True)
+bar.SetPos(chrono.ChVectorD(0, 0, 0))
+system.Add(bar)
+
+# Revolute joint for bar (carrier) to truss
+rev_bar = chrono.ChLinkLockRevolute()
+rev_bar.Initialize(bar, truss, chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.Q_from_AngZ(0)))
+system.AddLink(rev_bar)
+
+# --- Sun gear (center) ---
+sun_radius = 0.08
+sun_gear = chrono.ChBodyEasyCylinder(sun_radius, 0.04, 1000, True, True)
+sun_gear.SetPos(chrono.ChVectorD(0, 0, 0))
+sun_gear.SetBodyFixed(True)  # Fixed to truss
+system.Add(sun_gear)
+
+# --- Planet gear (on bar) ---
+planet_radius = 0.08
+planet_offset = bar_length / 2
+planet_gear = chrono.ChBodyEasyCylinder(planet_radius, 0.04, 1000, True, True)
+planet_gear.SetPos(chrono.ChVectorD(planet_offset, 0, 0))
+system.Add(planet_gear)
+
+# Revolute joint for planet gear to bar (carrier)
+rev_planet = chrono.ChLinkLockRevolute()
+rev_planet.Initialize(planet_gear, bar, chrono.ChCoordsysD(chrono.ChVectorD(planet_offset, 0, 0), chrono.Q_from_AngZ(0)))
+system.AddLink(rev_planet)
+
+# --- Gear constraint between sun and planet (epicyclic gear pair) ---
+gear_constraint = chrono.ChLinkGear()
+gear_constraint.Initialize(sun_gear, planet_gear, False,
+                           chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.Q_from_AngZ(0)),
+                           chrono.ChCoordsysD(chrono.ChVectorD(planet_offset, 0, 0), chrono.Q_from_AngZ(0)))
+gear_constraint.Set_ratio(-sun_radius / planet_radius)  # Negative for external gears
+system.AddLink(gear_constraint)
+
+# --- Gear motor to rotate the bar (carrier) at constant speed ---
+motor_speed = chrono.CH_C_PI / 2  # rad/s (90 deg/s)
+motor = chrono.ChLinkMotorRotationSpeed()
+motor.Initialize(bar, truss, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)))
+speed_function = chrono.ChFunction_Const(motor_speed)
+motor.SetSpeedFunction(speed_function)
+system.AddLink(motor)
+
+# 3. Visualization using Irrlicht
+
+# Create the Irrlicht application
+app = chronoirr.ChVisualSystemIrrlicht()
+app.AttachSystem(system)
+app.SetWindowSize(1024, 768)
+app.SetWindowTitle('Epicyclic Gear System')
+app.Initialize()
+app.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+app.AddSkyBox()
+app.AddCamera(chrono.ChVectorD(0.5, 0.5, 0.7), chrono.ChVectorD(0, 0, 0))
+app.AddTypicalLights()
+
+# --- Materials ---
+def make_material(color):
+    mat = chrono.ChVisualMaterial()
+    mat.SetDiffuseColor(color)
+    mat.SetSpecularColor(chrono.ChColor(0.2, 0.2, 0.2))
+    mat.SetShininess(0.5)
+    return mat
+
+# Assign materials
+sun_gear.GetVisualShape(0).SetMaterial(0, make_material(chrono.ChColor(1, 0.7, 0.1)))      # Gold
+planet_gear.GetVisualShape(0).SetMaterial(0, make_material(chrono.ChColor(0.2, 0.6, 1)))   # Blue
+bar.GetVisualShape(0).SetMaterial(0, make_material(chrono.ChColor(0.7, 0.7, 0.7)))         # Gray
+
+# --- Add coordinate axes for reference ---
+axes = chrono.ChBodyEasyBox(0.01, 0.01, 0.01, 1000, True, True)
+axes.SetBodyFixed(True)
+axes.SetPos(chrono.ChVectorD(0, 0, 0))
+system.Add(axes)
+
+# 4. Simulation loop
+while app.Run():
+    app.BeginScene()
+    app.DrawAll()
+    app.EndScene()
+    system.DoStepDynamics(0.002)
+```
+
+---
+
+**How it works:**
+- The **bar** (carrier) rotates about the origin, driven by a **motor**.
+- The **planet gear** is attached to the bar and meshes with the **fixed sun gear** via a gear constraint.
+- The **Irrlicht** visualization shows the gears, bar, and truss with lighting and materials.
+
+**You can adjust** `motor_speed` or gear radii to experiment with different gear ratios and speeds.
+
+Let me know if you need a version with more gears or a ring gear!

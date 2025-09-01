@@ -1,0 +1,214 @@
+I'll create a comprehensive PyChrono simulation script for a MAN 10t truck with the specifications you've outlined. Here's the complete implementation:
+
+```python
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as irr
+import math
+import numpy as np
+
+# Initialize PyChrono environment
+chrono.SetChronoDataPath("path/to/chrono/data/")  # Set appropriate data path
+veh.SetDataPath("path/to/chrono/data/vehicle/")   # Set vehicle data path
+
+# System setup
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))  # Gravity
+
+# Contact material for collision
+contact_material = chrono.ChMaterialSurfaceNSC()
+contact_material.SetFriction(0.9)
+contact_material.SetRestitution(0.01)
+contact_material.SetYoungModulus(2e7)
+contact_material.SetPoissonRatio(0.3)
+
+# Create rigid terrain
+terrain = veh.RigidTerrain(system)
+patch_mat = chrono.ChMaterialSurfaceNSC()
+patch_mat.SetContactFrictionCoefficient(0.9)
+patch_mat.SetContactRestitutionCoefficient(0.01)
+
+patch = terrain.AddPatch(patch_mat, 
+                        chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT),
+                        200.0, 200.0)  # Large terrain patch
+patch.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 200, 200)
+patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+terrain.Initialize()
+
+# Vehicle initial conditions
+init_pos = chrono.ChVectorD(0, 0, 0.5)
+init_rot = chrono.ChQuaternionD(1, 0, 0, 0)
+init_fwd_dir = chrono.ChVectorD(1, 0, 0)
+
+# Create MAN 10t truck
+vehicle = veh.MAN_10t()
+vehicle.SetContactMethod(chrono.ChContactMethod_NSC)
+vehicle.SetChassisCollisionType(veh.CollisionType_NONE)  # Configurable collision
+vehicle.SetChassisFixed(False)
+vehicle.SetInitPosition(chrono.ChCoordsysD(init_pos, init_rot))
+vehicle.SetInitFwdVel(0.0)
+vehicle.Initialize()
+
+# Enable vehicle visualization
+vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
+vehicle.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
+vehicle.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
+vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
+
+# Create TMEASY tire model
+tire_type = veh.TireModelType_TMEASY
+for axle in vehicle.GetAxles():
+    for wheel in axle.GetWheels():
+        tire = veh.TMeasyTire(veh.GetDataFile("MAN_10t/tire/MAN_10t_TMeasyTire.json"))
+        vehicle.InitializeTire(tire, wheel, veh.VisualizationType_MESH)
+
+# Driver system for real-time controls
+driver = veh.ChInteractiveDriverIRR()
+
+# Driver inputs
+driver_inputs = veh.DriverInputs()
+
+# Powertrain
+powertrain = veh.SimpleMapPowertrain(veh.GetDataFile("MAN_10t/powertrain/MAN_10t_SimpleMapPowertrain.json"))
+vehicle.InitializePowertrain(powertrain)
+
+# Initialize Irrlicht visualization
+vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
+vis.SetWindowTitle("MAN 10t Truck Simulation")
+vis.SetWindowSize(1280, 720)
+vis.SetChaseCamera(chrono.ChVectorD(0.0, 0.0, 1.75), 8.0, 0.5)
+vis.Initialize()
+vis.AddLightDirectional()
+vis.AddSkyBox()
+vis.AddLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))
+
+# Add custom terrain textures and environment
+vis.AttachVehicle(vehicle.GetVehicle())
+
+# Driver initialization with visualization
+driver.Initialize()
+
+# Camera settings
+vis.GetActiveCamera().setTarget(irr.vector3df(0, 0, 0))
+vis.GetActiveCamera().setPosition(irr.vector3df(-8, 6, 3))
+
+# Simulation parameters
+step_size = 1e-3
+render_step_size = 1.0 / 50  # 50 FPS
+render_steps = int(render_step_size / step_size)
+
+# Real-time simulation loop
+time = 0.0
+render_frame = 0
+
+print("Controls:")
+print("W/S - Throttle/Brake")
+print("A/D - Steering")
+print("ESC - Exit")
+
+while vis.Run():
+    time = system.GetChTime()
+    
+    # Render scene
+    if render_frame % render_steps == 0:
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+        
+        # Update camera to follow vehicle
+        vehicle_pos = vehicle.GetPos()
+        vehicle_rot = vehicle.GetRot()
+        
+        # Chase camera positioning
+        chase_distance = 8.0
+        chase_height = 2.0
+        
+        # Calculate camera position behind the vehicle
+        fwd_dir = vehicle_rot.Rotate(chrono.ChVectorD(1, 0, 0))
+        camera_pos = vehicle_pos - fwd_dir * chase_distance + chrono.ChVectorD(0, 0, chase_height)
+        
+        # Update visualization camera
+        vis.UpdateCamera(camera_pos, vehicle_pos)
+    
+    # Get driver inputs
+    driver_inputs = driver.GetInputs()
+    
+    # Alternative keyboard controls if interactive driver doesn't work
+    if vis.GetDevice().isKeyPressed(irr.KEY_KEY_W):
+        driver_inputs.m_throttle = min(driver_inputs.m_throttle + 0.02, 1.0)
+    elif vis.GetDevice().isKeyPressed(irr.KEY_KEY_S):
+        driver_inputs.m_braking = min(driver_inputs.m_braking + 0.02, 1.0)
+    else:
+        driver_inputs.m_throttle *= 0.95  # Gradual release
+        driver_inputs.m_braking *= 0.95
+    
+    if vis.GetDevice().isKeyPressed(irr.KEY_KEY_A):
+        driver_inputs.m_steering = max(driver_inputs.m_steering - 0.02, -1.0)
+    elif vis.GetDevice().isKeyPressed(irr.KEY_KEY_D):
+        driver_inputs.m_steering = min(driver_inputs.m_steering + 0.02, 1.0)
+    else:
+        driver_inputs.m_steering *= 0.95  # Return to center
+    
+    # Exit condition
+    if vis.GetDevice().isKeyPressed(irr.KEY_ESCAPE):
+        break
+    
+    # Update systems
+    driver.Synchronize(time)
+    terrain.Synchronize(time)
+    vehicle.Synchronize(time, driver_inputs, terrain)
+    vis.Synchronize(time, driver_inputs)
+    
+    # Advance dynamics
+    driver.Advance(step_size)
+    terrain.Advance(step_size)
+    vehicle.Advance(step_size)
+    vis.Advance(step_size)
+    system.DoStepDynamics(step_size)
+    
+    render_frame += 1
+    
+    # Optional: Print vehicle status
+    if render_frame % 500 == 0:  # Every 10 seconds at 50 FPS
+        vehicle_speed = vehicle.GetSpeed()
+        vehicle_pos = vehicle.GetPos()
+        print(f"Time: {time:.1f}s, Speed: {vehicle_speed:.1f} m/s, Position: ({vehicle_pos.x:.1f}, {vehicle_pos.y:.1f}, {vehicle_pos.z:.1f})")
+
+print("Simulation ended.")
+```
+
+This comprehensive script includes all the requested features:
+
+## Key Components:
+
+1. **PyChrono Environment**: Properly initialized with NSC contact system and gravity
+2. **MAN 10t Truck**: Configured with mesh visualization and collision settings
+3. **TMEASY Tire Model**: Applied to all wheels for realistic tire dynamics
+4. **Rigid Terrain**: Large concrete-textured terrain patch
+5. **Real-time Controls**: WASD controls for steering, throttle, and braking
+6. **Irrlicht Visualization**: Complete with chase camera, lighting, skybox, and logo
+
+## Features:
+
+- **Chase Camera**: Dynamically follows the vehicle
+- **Directional Lighting**: Proper scene illumination
+- **Skybox**: Environmental background
+- **Terrain Textures**: Concrete texture for realism
+- **Real-time Controls**: Responsive vehicle control
+- **Performance Monitoring**: Vehicle status output
+
+## Controls:
+- **W**: Throttle
+- **S**: Brake  
+- **A**: Steer left
+- **D**: Steer right
+- **ESC**: Exit simulation
+
+## Notes:
+1. Update the data paths at the beginning to match your PyChrono installation
+2. The simulation runs at 50 FPS with 1ms physics timesteps
+3. Vehicle visualization includes detailed meshes for chassis and wheels
+4. The tire model uses TMEASY parameters for realistic tire behavior
+5. Camera automatically follows the vehicle with smooth chase cam behavior
+
+The script provides a complete, interactive truck simulation with all the requested visualization and control features.

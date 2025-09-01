@@ -1,0 +1,131 @@
+Here's a complete PyChrono simulation script implementing the requested features:
+
+```python
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as irr
+import pychrono.sensor as sens
+
+def main():
+    # 1. Initialize environment
+    chrono.SetChronoDataPath(chrono.GetChronoDataPath())
+    system = chrono.ChSystemNSC()
+    system.SetGravity(chrono.ChVectorD(0, 0, -9.81))
+    
+    # 2. Create rigid terrain
+    terrain = veh.RigidTerrain(system)
+    patch_mat = chrono.ChMaterialSurfaceNSC()
+    patch = terrain.AddPatch(patch_mat, chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 1), 100, 100)
+    patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
+    terrain.Initialize()
+
+    # 3. Initialize Gator vehicle
+    gator = veh.Gator(system)
+    gator.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 1), chrono.QUNIT))
+    gator.Initialize()
+    
+    # Set visualization types for vehicle parts
+    gator.SetChassisVisualizationType(veh.VisualizationType_PRIMITIVES)
+    gator.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
+    gator.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
+    gator.SetWheelVisualizationType(veh.VisualizationType_MESH)
+    gator.SetTireVisualizationType(veh.VisualizationType_MESH)
+
+    # 4. Create interactive driver
+    driver = veh.InteractiveDriverIRR(gator.GetVehicle())
+    driver.SetSteeringDelta(0.02)
+    driver.SetThrottleDelta(0.02)
+    driver.SetBrakingDelta(0.06)
+
+    # 5. Initialize Irrlicht visualization
+    vis = irr.ChVisualSystemIrrlicht()
+    vis.AttachSystem(system)
+    vis.SetWindowSize(1280, 720)
+    vis.SetWindowTitle('Gator Simulation')
+    vis.Initialize()
+    vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+    vis.AddSkyBox()
+    vis.AddCamera(chrono.ChVectorD(3, 3, 1.5))
+    vis.AddTypicalLights()
+
+    # 6. Setup sensor manager and sensors
+    manager = sens.ChSensorManager(system)
+    manager.scene.AddPointLight(chrono.ChVectorD(2, 2.5, 5), chrono.ChColor(0.8, 0.8, 1.0), 5.0)
+    
+    # Camera sensor attached to chassis
+    offset_pose = chrono.ChFrameD(chrono.ChVectorD(1.5, 0, 1.0), chrono.Q_from_AngZ(0.2))
+    camera = sens.ChCameraSensor(gator.GetChassisBody(), 30, offset_pose, 1280, 720, 1.0)
+    camera.SetName("Vehicle Camera")
+    camera.PushFilter(sens.ChFilterRGBA8())
+    manager.AddSensor(camera)
+
+    # 7. Simulation loop
+    step_size = 0.002
+    render_steps = 2
+
+    while vis.Run():
+        time = system.GetChTime()
+        
+        # Update driver inputs
+        driver_inputs = driver.GetInputs()
+        driver.Synchronize(time)
+        
+        # Update terrain
+        terrain.Synchronize(time)
+        
+        # Update vehicle
+        gator.Synchronize(time, driver_inputs, terrain)
+        
+        # Advance simulation
+        driver.Advance(step_size)
+        terrain.Advance(step_size)
+        gator.Advance(step_size)
+        system.DoStepDynamics(step_size)
+        
+        # Update sensors
+        manager.Update()
+        
+        # Render
+        if step_number % render_steps == 0:
+            vis.BeginScene()
+            vis.Render()
+            vis.RenderFrame(gator.GetChassisBody().GetFrame_REF_to_abs())
+            vis.EndScene()
+            
+        step_number += 1
+
+if __name__ == "__main__":
+    main()
+```
+
+Key features implemented:
+1. **Gator Vehicle** with different visualization types:
+   - Chassis/suspension: Primitive shapes
+   - Wheels/tires: High-quality meshes
+2. **Interactive Driver** with keyboard controls (WASD keys)
+3. **Sensor System**:
+   - Point light source above the vehicle
+   - Camera mounted on the chassis with RGBA8 output
+4. **Visualization**:
+   - Irrlicht real-time rendering
+   - Terrain textures
+   - Coordinate frame visualization
+   - Skybox and lighting
+
+To use this script:
+1. Ensure PyChrono and its dependencies are installed
+2. Run normally - will open interactive Irrlicht window
+3. Controls:
+   - W/S: Accelerate/Brake
+   - A/D: Steer left/right
+   - Mouse: Orbit camera
+   - Space: Reset camera position
+
+The simulation includes:
+- Physics synchronization between systems
+- Sensor data generation
+- Real-time visualization
+- Interactive vehicle control
+- Physical terrain interaction
+
+The camera sensor output can be accessed via `camera.GetMostRecentRGBA8Buffer()` for further processing (not shown in visualization loop).

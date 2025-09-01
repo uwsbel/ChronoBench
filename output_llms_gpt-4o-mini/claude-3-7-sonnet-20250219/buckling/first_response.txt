@@ -1,0 +1,169 @@
+# PyChrono Beam Buckling Simulation with FEA
+
+```python
+# Import required modules
+import pychrono as chrono
+import pychrono.fea as fea
+import pychrono.irrlicht as chronoirr
+import numpy as np
+import math
+
+# Set simulation parameters
+simulation_time = 10.0  # seconds
+time_step = 0.001       # seconds
+beam_length = 2.0       # meters
+beam_height = 0.05      # meters
+beam_width = 0.05       # meters
+num_elements = 20       # number of elements along beam length
+
+# Create the simulation system
+system = chrono.ChSystemSMC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
+
+# Create a material for the beam
+beam_material = fea.ChElasticityKirchhoffIsotropic(210e9,  # Young's modulus [Pa]
+                                                 0.3)    # Poisson ratio
+beam_density = 7800  # kg/m^3
+
+# Create the mesh for the FEA beam
+mesh = fea.ChMesh()
+mesh.SetAutomaticGravity(True)
+
+# Create beam elements
+beam_nodes = []
+element_length = beam_length / num_elements
+
+# Create nodes along the beam
+for i in range(num_elements + 1):
+    x_pos = i * element_length
+    node = fea.ChNodeFEAxyz(chrono.ChVectorD(x_pos, 0, 0))
+    beam_nodes.append(node)
+    mesh.AddNode(node)
+
+# Create elements connecting the nodes
+beam_elements = []
+for i in range(num_elements):
+    element = fea.ChElementBeamEuler()
+    
+    # Set nodes for this element
+    element.SetNodes(beam_nodes[i], beam_nodes[i + 1])
+    
+    # Set beam section properties
+    element.SetSection(fea.ChBeamSectionEulerAdvanced(
+        beam_width * beam_height,              # Cross section area
+        (beam_width * beam_height**3) / 12,    # Iyy moment of inertia
+        (beam_height * beam_width**3) / 12,    # Izz moment of inertia
+        0.0,                                   # Torsional inertia
+        beam_material))                        # Material
+    
+    element.SetDensity(beam_density)
+    
+    beam_elements.append(element)
+    mesh.AddElement(element)
+
+# Add constraints: Fix the first node (cantilever beam)
+constraint_ground = fea.ChLinkPointFrame()
+constraint_ground.Initialize(beam_nodes[0], system.GetGround())
+system.Add(constraint_ground)
+
+# Add another constraint for clamped boundary condition
+constraint_rotation = fea.ChLinkNodeFrame()
+constraint_rotation.Initialize(beam_nodes[0], system.GetGround())
+system.Add(constraint_rotation)
+
+# Add the mesh to the system
+system.Add(mesh)
+
+# Create a motor to apply force at the end of the beam
+motor = chrono.ChLinkMotorForceTime()
+motor_node = fea.ChNodeFEAxyz(beam_nodes[-1].GetPos())
+mesh.AddNode(motor_node)
+
+# Define the force function for the motor
+class MyForceFunction(chrono.ChFunction):
+    def __init__(self):
+        super(MyForceFunction, self).__init__()
+        
+    def Get_y(self, x):
+        # Gradually increase force to cause buckling
+        if x < 2.0:
+            return 100.0 * x  # Gradually increase to 200N
+        else:
+            return 200.0  # Constant force after 2 seconds
+        
+# Set up the motor with the force function
+motor.SetForceFunction(MyForceFunction())
+motor.Initialize(beam_nodes[-1], system.GetGround(), chrono.ChFrameD(beam_nodes[-1].GetPos()))
+system.Add(motor)
+
+# Set up the solver
+solver = chrono.ChSolverMINRES()
+system.SetSolver(solver)
+solver.SetMaxIterations(100)
+solver.SetTolerance(1e-10)
+
+# Set up the timestepper
+system.SetTimestepperType(chrono.ChTimestepper.Type_HHT)
+timestepper = chrono.CastToChTimestepperHHT(system.GetTimestepper())
+timestepper.SetAlpha(-0.2)
+timestepper.SetMaxiters(5)
+timestepper.SetAbsTolerances(1e-8)
+timestepper.SetMode(chrono.ChTimestepperHHT.ACCELERATION)
+timestepper.SetScaling(True)
+
+# Set up visualization
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle("Beam Buckling Simulation")
+vis.Initialize()
+vis.AddCamera(chrono.ChVectorD(1.0, 1.0, 3.0), chrono.ChVectorD(beam_length/2, 0, 0))
+vis.AddTypicalLights()
+
+# Add a mesh visualization for the beam
+mvisualizebeamA = fea.ChVisualizationFEAmesh(mesh)
+mvisualizebeamA.SetFEMdataType(fea.ChVisualizationFEAmesh.E_PLOT_ELEM_BEAM_MZ)
+mvisualizebeamA.SetColorscaleMinMax(-0.4, 0.4)
+mvisualizebeamA.SetSmoothFaces(True)
+mvisualizebeamA.SetWireframe(False)
+mesh.AddAsset(mvisualizebeamA)
+
+mvisualizebeamC = fea.ChVisualizationFEAmesh(mesh)
+mvisualizebeamC.SetFEMglyphType(fea.ChVisualizationFEAmesh.E_GLYPH_NODE_CSYS)
+mvisualizebeamC.SetFEMdataType(fea.ChVisualizationFEAmesh.E_PLOT_NONE)
+mvisualizebeamC.SetSymbolsThickness(0.006)
+mvisualizebeamC.SetSymbolsScale(0.01)
+mvisualizebeamC.SetZbufferHide(False)
+mesh.AddAsset(mvisualizebeamC)
+
+# Run the simulation
+current_time = 0
+while current_time < simulation_time and vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    
+    system.DoStepDynamics(time_step)
+    current_time += time_step
+    
+    # Output some info
+    if system.GetStepcount() % 100 == 0:
+        print(f"Time: {current_time:.3f}, End node position: {beam_nodes[-1].GetPos().x:.3f}, {beam_nodes[-1].GetPos().y:.3f}, {beam_nodes[-1].GetPos().z:.3f}")
+
+# Clean up
+vis.GetDevice().closeDevice()
+print("Simulation completed!")
+```
+
+This script simulates a beam buckling scenario using PyChrono's Finite Element Analysis (FEA) capabilities. Here's what the code does:
+
+1. Initializes PyChrono and sets up the simulation parameters
+2. Creates a beam using Euler-Bernoulli beam elements with proper material properties
+3. Sets up cantilever boundary conditions by fixing one end of the beam
+4. Applies a gradually increasing force at the free end using a custom motor function
+5. Configures an appropriate solver (MINRES) and timestepper (HHT) for accurate dynamics
+6. Sets up visualization using Irrlicht with proper camera placement and lighting
+7. Adds visualization assets to display the beam and its deformation
+8. Runs the simulation loop while rendering the scene and reporting node positions
+
+The beam will undergo buckling as the applied force increases beyond the critical buckling load. The visualization shows both the deformation and the bending moment diagram along the beam.

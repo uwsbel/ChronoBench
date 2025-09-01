@@ -1,0 +1,115 @@
+Certainly! Below is a **PyChrono** simulation script that fulfills your requirements. This script:
+
+- Initializes the PyChrono environment.
+- Creates an HMMWV vehicle with specific initial conditions.
+- Sets up an SCM deformable terrain with custom soil parameters and a height map.
+- Initializes a driver system for vehicle control.
+- Sets up real-time visualization using Irrlicht, including camera and lighting.
+- Implements a simulation loop that synchronizes and advances all components, maintaining real-time execution.
+
+**Note:**  
+- Make sure you have the `pychrono`, `pychrono.vehicle`, and `pychrono.irrlicht` modules installed.
+- Replace `"path/to/heightmap.png"` with the actual path to your height map image.
+
+```python
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as chronoirr
+import time
+
+# 1. Initialize PyChrono
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())
+veh.SetDataPath(veh.GetDataPath())
+
+# 2. Create the vehicle system
+initLoc = chrono.ChVectorD(0, 0.5, 0)  # Initial position (x, y, z)
+initYaw = chrono.CH_C_PI / 6            # Initial yaw angle (30 degrees)
+vehicle = veh.HMMWV_Vehicle(False, veh.ChassisCollisionType_NONE)
+vehicle.SetContactMethod(chrono.ChContactMethod_SMC)
+vehicle.SetChassisFixed(False)
+vehicle.Initialize(chrono.ChCoordsysD(initLoc, chrono.Q_from_AngZ(initYaw)))
+vehicle.SetChassisVisualizationType(veh.VisualizationType_PRIMITIVES)
+vehicle.SetWheelVisualizationType(veh.VisualizationType_PRIMITIVES)
+vehicle.SetTireType(veh.TireModelType_RIGID)
+vehicle.SetTireVisualizationType(veh.VisualizationType_PRIMITIVES)
+
+# 3. Create the SCM deformable terrain
+terrain = veh.SCMDeformableTerrain(vehicle.GetSystem())
+terrain.SetPlane(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT))
+terrain.Initialize(0.0, 0.0, 200.0, 200.0, 0.05)  # x, y, length, width, grid spacing
+
+# Set soil parameters (Bekker model, Mohr-Coulomb, Janosi shear, etc.)
+terrain.SetSoilParameters(2e6, 0, 1.1e4, 0, 1.3e7, 0.01)  # Bekker Kphi, Kc, n, Mohr cohesive, friction, Janosi shear
+terrain.SetElasticModulus(2e7)
+terrain.SetDamping(3e4)
+terrain.SetPlasticYield(0.9)
+
+# Load a height map (replace with your actual file)
+terrain.LoadHeightMap(
+    chrono.GetChronoDataFile("terrain/height_map_bowl.bmp"),  # Example height map
+    200, 200,  # size_x, size_y
+    0, 0,      # x, y position
+    2.0        # height scale
+)
+
+# 4. Create the driver system (simple path-follower)
+path = veh.StraightLinePath(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(100, 0, 0), 1)
+target_speed = 5.0  # m/s
+driver = veh.PathFollowerDriver(vehicle, path, "my_controller.txt", target_speed)
+driver.Initialize()
+
+# 5. Visualization with Irrlicht
+vis = veh.ChWheeledVehicleIrrApp(vehicle, "HMMWV SCM Terrain Demo", chronoirr.dimension2du(1024,768))
+vis.SetSkyBox()
+vis.AddTypicalLights(chrono.ChVectorD(30, 100, 40), chrono.ChVectorD(0, 0, 0), 250, 130)
+vis.AddCamera(chrono.ChVectorD(-6, 2, 0), chrono.ChVectorD(0, 1, 0))
+vis.SetChaseCamera(chrono.ChVectorD(0.0, 1.5, 0.0), 6.0, 0.5)
+vis.SetSymbolScale(1.0)
+vis.SetHUDLocation(500, 20)
+vis.Initialize()
+
+# 6. Simulation loop
+step_size = 3e-3
+render_step_size = 1.0 / 50  # Render at 50 FPS
+realtime_timer = chrono.ChRealtimeStepTimer()
+time_end = 10.0
+
+while vis.Run() and vehicle.GetSystem().GetChTime() < time_end:
+    # Render scene
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+
+    # Get driver inputs
+    driver_inputs = driver.GetInputs()
+
+    # Synchronize systems
+    driver.Synchronize(vehicle.GetSystem().GetChTime())
+    terrain.Synchronize(vehicle.GetSystem().GetChTime())
+    vehicle.Synchronize(vehicle.GetSystem().GetChTime(), driver_inputs, terrain)
+    vis.Synchronize("HMMWV SCM Terrain Demo", driver_inputs)
+
+    # Advance simulation
+    driver.Advance(step_size)
+    terrain.Advance(step_size)
+    vehicle.Advance(step_size)
+    vis.Advance(step_size)
+
+    # Maintain real-time
+    realtime_timer.Spin(step_size)
+
+print("Simulation complete.")
+```
+
+---
+
+**Key Points:**
+- **Vehicle:** HMMWV with rigid tires, initial yaw, and position.
+- **Terrain:** SCM deformable terrain with custom soil parameters and a loaded height map.
+- **Driver:** Path-follower with a straight path and target speed.
+- **Visualization:** Irrlicht app with camera, skybox, and lighting.
+- **Loop:** Synchronizes and advances all systems, maintaining real-time.
+
+**Remember:**  
+- Adjust file paths and parameters as needed for your setup.
+- You can further customize the driver, terrain, or visualization as required.

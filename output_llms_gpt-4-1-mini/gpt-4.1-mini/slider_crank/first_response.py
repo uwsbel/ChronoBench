@@ -1,0 +1,155 @@
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
+
+# 1. Initialize PyChrono system
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())  # Assure data path is set correctly
+system = chrono.ChSystemNSC()
+
+# Set gravity
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+
+# 2. Create Floor (Truss) - fixed body
+floor = chrono.ChBody()
+floor.SetBodyFixed(True)
+floor_shape = chrono.ChBoxShape()
+floor_shape.GetBoxGeometry().Size = chrono.ChVectorD(0.6, 0.1, 0.3)  # size of truss
+floor.GetVisualShapeList().push_back(floor_shape)
+floor.SetPos(chrono.ChVectorD(0, 0, 0))
+system.Add(floor)
+
+# 3. Define key dimensions (all units in meters)
+crank_radius = 0.2
+crank_width = 0.05
+
+connecting_rod_length = 0.6
+connecting_rod_width = 0.04
+connecting_rod_height = 0.04
+
+piston_radius = 0.08
+piston_height = 0.1
+
+# Start position: place crank axis above floor by some offset for clarity
+crank_axis_pos = chrono.ChVectorD(0, 0.15, 0)
+
+# Create Crankshaft (crank) - rotates around fixed axis
+crank = chrono.ChBody()
+crank.SetPos(crank_axis_pos)
+crank.SetMass(2.0)
+crank.SetInertiaXX(chrono.ChVectorD(0.01, 0.01, 0.01))
+crank_shape = chrono.ChCylinderShape()
+crank_shape.GetCylinderGeometry().p1 = chrono.ChVectorD(0, 0, -crank_width / 2)
+crank_shape.GetCylinderGeometry().p2 = chrono.ChVectorD(0, 0, crank_width / 2)
+crank_shape.GetCylinderGeometry().rad = crank_radius * 0.2
+crank.GetVisualShapeList().push_back(crank_shape)
+# Add a box visual to simulate crank arm
+crank_arm = chrono.ChBoxShape()
+crank_arm.GetBoxGeometry().Size = chrono.ChVectorD(crank_radius, 0.02, crank_width / 2)
+crank_arm.SetColor(chrono.ChColor(0.8, 0.1, 0.1))
+crank_arm_pos = chrono.ChCoordsysD(chrono.ChVectorD(crank_radius/2, 0, 0))
+crank_arm.SetPose(crank_arm_pos)
+crank.GetVisualShapeList().push_back(crank_arm)
+system.Add(crank)
+
+# Create Connecting Rod
+conn_rod = chrono.ChBody()
+# Initially aligned horizontally along X axis, starting at crank pin
+conn_rod.SetPos(crank_axis_pos + chrono.ChVectorD(crank_radius, 0, 0))
+conn_rod.SetMass(1.5)
+conn_rod.SetInertiaXX(chrono.ChVectorD(0.02, 0.01, 0.01))
+conn_rod_shape = chrono.ChBoxShape()
+conn_rod_shape.GetBoxGeometry().Size = chrono.ChVectorD(connecting_rod_length * 0.5, connecting_rod_height * 0.5, connecting_rod_width * 0.5)
+conn_rod_shape.SetColor(chrono.ChColor(0.1, 0.7, 0.1))
+conn_rod.GetVisualShapeList().push_back(conn_rod_shape)
+system.Add(conn_rod)
+
+# Create Piston - moves vertically on guide (Y-axis)
+piston = chrono.ChBody()
+piston.SetMass(1.0)
+piston.SetInertiaXX(chrono.ChVectorD(0.01, 0.01, 0.01))
+# Start piston position vertically below crank axis, roughly at connecting rod length
+piston_start_y = crank_axis_pos.y - connecting_rod_length - piston_height*0.5 + crank_radius
+piston.SetPos(chrono.ChVectorD(crank_axis_pos.x + crank_radius, piston_start_y, crank_axis_pos.z))
+piston_shape = chrono.ChCylinderShape()
+piston_shape.GetCylinderGeometry().p1 = chrono.ChVectorD(0, 0, -piston_radius)
+piston_shape.GetCylinderGeometry().p2 = chrono.ChVectorD(0, piston_height, -piston_radius)
+piston_shape.GetCylinderGeometry().rad = piston_radius
+piston_shape.SetColor(chrono.ChColor(0.1, 0.1, 0.7))
+piston.GetVisualShapeList().push_back(piston_shape)
+# Add a box shape for visualization (side)
+piston_box = chrono.ChBoxShape()
+piston_box.GetBoxGeometry().Size = chrono.ChVectorD(piston_radius, piston_height * 0.5, piston_radius*0.8)
+piston_box.SetColor(chrono.ChColor(0.1, 0.1, 0.7))
+piston_box_pos = chrono.ChCoordsysD(chrono.ChVectorD(0, piston_height*0.5, 0))
+piston_box.SetPose(piston_box_pos)
+piston.GetVisualShapeList().push_back(piston_box)
+system.Add(piston)
+
+# 4. Add joints
+
+# Revolute joint for crank at fixed ground (floor)
+joint_crank = chrono.ChLinkLockRevolute()
+joint_crank.Initialize(crank, floor, chrono.ChFrameD(crank_axis_pos, chrono.Q_from_AxisAngle(chrono.ChVectorD(0, 0, 1), 0)))
+system.Add(joint_crank)
+
+# Revolute (pin) joint between crank end and connecting rod
+# Crank pin position changes during simulation at radius along X axis from crank center:
+# Initial pin pos (local coord in crank frame): at (crank_radius, 0, 0)
+pin_pos = crank_axis_pos + chrono.ChVectorD(crank_radius, 0, 0)
+joint_crank_conn = chrono.ChLinkLockRevolute()
+joint_crank_conn.Initialize(conn_rod, crank, chrono.ChFrameD(pin_pos))
+system.Add(joint_crank_conn)
+
+# Revolute joint connecting rod to piston (pin at rod far end)
+rod_piston_pos = piston.GetPos() + chrono.ChVectorD(0, piston_height*0.25, 0)
+joint_conn_pist = chrono.ChLinkLockRevolute()
+joint_conn_pist.Initialize(piston, conn_rod, chrono.ChFrameD(rod_piston_pos))
+system.Add(joint_conn_pist)
+
+# Prismatic joint to guide piston vertically (Y axis)
+prismatic = chrono.ChLinkLockPrismatic()
+prismatic_axis = chrono.ChVectorD(0, 1, 0)  # vertical
+prismatic.Initialize(piston, floor, chrono.ChFrameD(piston.GetPos(), chrono.Q_from_AngAxis(0, prismatic_axis)))
+system.Add(prismatic)
+
+# 5. Add motor to drive crankshaft at constant angular velocity
+motor = chrono.ChLinkMotorRotationAngle()
+motor.Initialize(crank, floor, chrono.ChFrameD(crank_axis_pos, chrono.Q_from_AxisAngle(chrono.ChVectorD(0, 0, 1), 0)))
+
+# Define constant speed function, e.g. 2 rad/s
+motor_speed = 2.0  # rad/s
+
+# Create constant speed function
+motor_function = chrono.ChFunction_Const(motor_speed)
+
+motor.SetMotorFunction(motor_function)
+system.Add(motor)
+
+# 6. Visualization with Irrlicht
+
+application = chronoirr.ChIrrApp(system, "Crank-Slider Demo", chronoirr.dimension2du(1024,768))
+
+# Add typical logo and logo watermark to window
+application.AddLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))
+
+# Add skybox, lights and camera
+application.AddSkyBox()
+application.AddTypicalLights()
+
+# Customize camera settings
+cam_pos = chrono.ChVectorD(1.0, 0.6, 1.0)
+cam_look_at = chrono.ChVectorD(0, 0.2, 0)
+application.SetCameraPosition(cam_pos, cam_look_at)
+
+# Bind all assets to Irrlicht
+application.AssetBindAll()
+application.AssetUpdateAll()
+
+# Setup timestep
+time_step = 0.01
+
+# Simulation loop
+while application.GetDevice().run():
+    application.BeginScene()
+    application.DrawAll()
+    application.DoStep()
+    application.EndScene()

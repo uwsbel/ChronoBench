@@ -1,0 +1,110 @@
+Certainly! Below is a complete PyChrono simulation script that sets up a Gator vehicle on a flat rigid terrain, uses Irrlicht for visualization, applies the TMEASY tire model, and includes an interactive driver. The script ensures mesh visualization for all vehicle components, applies a custom terrain texture, and runs the simulation at 50 FPS in real time.
+
+**Requirements:**  
+- PyChrono (with vehicle and Irrlicht modules)
+- A Gator mesh and TMEASY tire parameter files (provided by Chrono::Vehicle data)
+- A texture image for the terrain (e.g., "grass.jpg" from Chrono data)
+
+```python
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as irr
+import os
+
+# Set Chrono data directories
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())
+veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
+
+# 1. Initialize simulation parameters
+step_size = 2e-3
+render_step_size = 1.0 / 50  # 50 FPS
+time = 0
+frame = 0
+
+# 2. Create the vehicle system
+contact_method = chrono.ChContactMethod_NSC
+system = chrono.ChSystemNSC()
+
+# 3. Create the Gator vehicle
+initLoc = chrono.ChVectorD(0, 0, 0.2)  # x, y, z
+initYaw = chrono.CH_C_PI / 6            # 30 degrees
+gator = veh.Gator(system)
+gator.SetContactMethod(contact_method)
+gator.SetChassisFixed(False)
+gator.SetInitPosition(chrono.ChCoordsysD(initLoc, chrono.Q_from_AngZ(initYaw)))
+gator.SetTireType(veh.TireModelType.TMEASY)
+gator.SetTireStepSize(step_size)
+gator.SetVisualizationTypeChassis(veh.VisualizationType.MESH)
+gator.SetVisualizationTypeSuspension(veh.VisualizationType.MESH)
+gator.SetVisualizationTypeSteering(veh.VisualizationType.MESH)
+gator.SetVisualizationTypeWheel(veh.VisualizationType.MESH)
+gator.SetVisualizationTypeTire(veh.VisualizationType.MESH)
+gator.Initialize()
+
+# 4. Create the terrain
+terrain = veh.RigidTerrain(system)
+patch = terrain.AddPatch(
+    chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT),
+    length=60, width=60
+)
+patch.SetContactFrictionCoefficient(0.9)
+patch.SetRestitutionCoefficient(0.01)
+patch.SetMaterialSurface(chrono.ChMaterialSurfaceNSC())
+patch.SetTexture(chrono.GetChronoDataFile("terrain/textures/grass.jpg"), 200, 200)
+terrain.Initialize()
+
+# 5. Create the Irrlicht application
+app = veh.ChWheeledVehicleIrrApp(
+    gator.GetVehicle(),
+    'Gator on Rigid Terrain',
+    irr.dimension2du(1024, 768)
+)
+app.SetSkyBox()
+app.AddTypicalLights()
+app.AddTypicalLogo()
+app.AddTypicalCamera(chrono.ChVectorD(0, 2, 1.5), chrono.ChVectorD(0, 0, 0))
+app.SetChaseCamera(trackPoint=chrono.ChVectorD(0.0, 0.0, 1.75), chaseDist=6.0, chaseHeight=0.5)
+app.SetTimestep(step_size)
+
+# 6. Create the interactive driver
+driver = veh.ChIrrGuiDriver(app)
+driver.SetSteeringDelta(0.04)
+driver.SetThrottleDelta(0.02)
+driver.SetBrakingDelta(0.1)
+driver.Initialize()
+
+# 7. Simulation loop
+render_steps = int(render_step_size / step_size)
+while app.GetDevice().run():
+    time = system.GetChTime()
+    if frame % render_steps == 0:
+        app.BeginScene()
+        app.DrawAll()
+        app.EndScene()
+    # Get driver inputs
+    driver_inputs = driver.GetInputs()
+    # Update modules
+    driver.Synchronize(time)
+    gator.Synchronize(time, driver_inputs, terrain)
+    terrain.Synchronize(time)
+    # Advance simulation
+    driver.Advance(step_size)
+    gator.Advance(step_size)
+    terrain.Advance(step_size)
+    system.DoStepDynamics(step_size)
+    frame += 1
+
+    # Optional: break after some time
+    # if time > 60:
+    #     break
+```
+
+**Notes:**
+- The script uses mesh visualization for all vehicle components.
+- The terrain uses a grass texture from Chrono's data directory.
+- The interactive driver allows keyboard control (arrow keys for steering/throttle/brake).
+- The simulation loop maintains 50 FPS real-time rendering.
+- Adjust `initLoc`, `initYaw`, and terrain size as needed.
+- Ensure you have the Chrono data files (meshes, textures, TMEASY tire parameters) available.
+
+Let me know if you need further customization!

@@ -1,0 +1,115 @@
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as irr
+import math
+
+# =============================================================================
+
+def main():
+    #print("Copyright (c) 2017 projectchrono.org\nChrono version: ", CHRONO_VERSION , "\n\n")
+
+    #  Create the Chrono system
+    sys = chrono.ChSystemNSC()
+    sys.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+    sys.SetGravitationalAcceleration(chrono.ChVector3d(0,0,-9.81))
+    sys.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
+    sys.GetSolver().AsIterative().SetMaxIterations(150)
+    sys.SetMaxPenetrationRecoverySpeed(4.0)
+
+    # Create the ground body
+    terrain = chrono.ChTerrain(sys)
+    topo = terrain.GetTopo()
+    topo.LoadHeightField(200, 100, lambda x,y: 0.1*chrono.ChFunctionSine(x*0.015).GetVal(y*0.03),  # height
+                          lambda x,y: 2,  # lengthSx
+                          lambda x,y: 1,  # lengthSy
+                          False,          # room
+                          True            # createMesh
+                          )
+    terrain.SetTexture(veh.GetDataFile('terrain/textures/tile4.jpg'), 200, 200)
+    terrain.Initialize()
+    terrain.SetFixed(True)
+
+    # Create and initialize the FWD model
+    fwd = veh.FWD(sys)
+    fwd.SetName("FWD")
+    fwd.SetInitPosition(chrono.ChCoordsysd(chrono.ChVector3d(0, -0.5, 1.0), chrono.QUNIT))
+    fwd.SetEngineType(veh.EngineModelType_SIMPLE)
+    fwd.SetTransmissionType(veh.TransmissionModelType_AUTOMATIC_SIMPLE_MAP)
+    fwd.SetDriveType(veh.DrivelineTypeWV_AWD)
+    fwd.SetTireType(veh.TireModelType_RIGID)
+    fwd.Initialize()
+    fwd.SetContactMethod(chrono.ChContactMethod_NSC)
+
+    # Create and initialize the vehicle
+    vehicle = veh.Turtlebot(fwd)
+    vehicle.SetName("Turtlebot")
+    vehicle.SetInitPosition(chrono.ChCoordsysd(chrono.ChVector3d(0, -0.5, 1.0), chrono.QUNIT))
+    vehicle.SetEngineShafts(fwd.GetEngine().GetMotorOutputs()[0].GetShafts()[0])
+    vehicle.SetTransmissionShafts(fwd.GetTransmission().GetOutputShaft())
+    vehicle.Initialize()
+    vehicle.SetChassisVisualizationType(veh.VisualizationType_PRIMITIVES)
+    vehicle.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
+    vehicle.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
+    vehicle.SetWheelVisualizationType(veh.VisualizationType_NONE)
+    vehicle.SetTireVisualizationType(veh.VisualizationType_PRIMITIVES)
+
+    # Create the Irrlicht visualization
+    vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
+    vis.SetWindowTitle('Turtlebot')
+    vis.SetWindowSize(1280, 1024)
+    vis.SetChaseCamera(chrono.ChVector3d(0.0,0.0,1.75), 6.0, 0.5)
+    vis.Initialize()
+    vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+    vis.AddLightDirectional()
+    vis.AddSkyBox()
+    vis.AttachVehicle(vehicle.GetVehicle())
+
+    # Create an optional mouse controller
+    if (not vis.GetSystem().Run()):
+        return
+
+    # Create the interactive driver system
+    driver = veh.ChInteractiveDriverIRR(vis)
+    driver.SetSteeringDelta(0.02)
+    driver.SetThrottleDelta(0.02)
+    driver.SetBrakingDelta(0.06)
+    driver.Initialize()
+
+    # Simulation loop
+    time = 0
+    tick_time = 0
+    t_end = 100
+    time_left = 1.0 / 30.0  # 30 FPS
+    while (time < t_end) :
+        time = vehicle.GetSystem().GetChTime()
+
+        # Get driver inputs
+        driver_inputs = driver.GetInputs()
+
+        # Update modules (process inputs from other modules)
+        driver.Synchronize(time)
+        vehicle.Synchronize(time, driver_inputs, terrain)
+        terrain.Synchronize(time)
+        vis.Synchronize(time, driver_inputs)
+
+        # Advance simulation for one timestep for all modules
+        driver.Advance(step_size)
+        vehicle.Advance(step_size)
+        terrain.Advance(step_size)
+        vis.Advance(step_size)
+
+    return
+
+# =============================================================================
+
+# The path to the Chrono data directory containing various assets (meshes, textures, data files)
+# is automatically set, relative to the default location of this demo.
+# If running from a different directory, you must change the path to the data directory with: 
+#chrono.SetChronoDataPath('path/to/data')
+
+veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
+
+# Simulation step size
+step_size = 1e-3
+
+main()

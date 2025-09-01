@@ -1,0 +1,147 @@
+```python
+import os
+import math
+import numpy as np
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as chronoirr
+
+# Set Chrono data path
+chrono.SetChronoDataPath(os.path.join(os.path.dirname(__file__), "..", "..", "data"))
+
+# Create the physical system
+sys = chrono.ChSystemSMC()
+
+# Configure contact material for terrain
+terrain_mat = chrono.ChContactMaterialSMC()
+terrain_mat.SetFriction(0.9)
+terrain_mat.SetRestitution(0.01)
+terrain_mat.SetYoungModulus(2e7)
+
+# Create flat rigid terrain
+terrain = veh.RigidTerrain(sys)
+patch = terrain.AddPatch(terrain_mat, 
+                        chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
+                        200, 100)  # Length and width in meters
+patch.SetTexture(chrono.GetChronoDataFile("terrain/textures/tile4.jpg"))
+terrain.Initialize()
+
+# Create Gator vehicle
+gator = veh.Gator(sys)
+gator.SetContactMethod(chrono.ChContactMethod_SMC)
+gator.SetTireType(veh.TIRE_MODEL_TMEASY)
+gator.SetInitPosition(chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0.5), chrono.QuatFromAngleZ(0)))
+gator.SetChassisVisualizationType(veh.VisualizationType_MESH)
+gator.SetSuspensionVisualizationType(veh.VisualizationType_MESH)
+gator.SetSteeringVisualizationType(veh.VisualizationType_MESH)
+gator.SetWheelVisualizationType(veh.VisualizationType_MESH)
+gator.Initialize()
+
+# Create Irrlicht visualization
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(sys)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle('Gator Vehicle Simulation')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVector3d(0, 5, -10))
+vis.AddTypicalLights()
+
+# Create interactive driver
+driver = veh.InteractiveDriverIRR(vis)
+driver.SetVehicle(gator.GetVehicle())
+driver.SetSteeringDelta(0.06)
+driver.SetThrottleDelta(0.02)
+driver.SetBrakingDelta(0.06)
+driver.Initialize()
+
+# Real-time step control
+realtime_timer = chrono.ChRealtimeStepTimer()
+step_size = 1.0 / 50  # 50 FPS simulation rate
+
+# Simulation loop
+while vis.Run():
+    # Get driver inputs
+    driver_inputs = driver.GetInputs()
+    
+    # Synchronize vehicle and driver
+    time = sys.GetChTime()
+    gator.Synchronize(time, driver_inputs, terrain)
+    driver.Synchronize(time)
+    
+    # Advance simulation
+    sys.DoStepDynamics(step_size)
+    
+    # Update driver
+    driver.Advance(step_size)
+    
+    # Render scene
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    
+    # Maintain real-time execution
+    realtime_timer.Spin(step_size)
+```
+
+---
+
+### Key Features Implemented
+
+1. **System Initialization**
+   - Uses `ChSystemSMC` for smooth contact handling required by TMEASY tire model
+   - Sets up Chrono data path for asset loading
+
+2. **Vehicle Configuration**
+   - Creates Gator vehicle with TMEASY tire model
+   - Enables mesh visualization for all components
+   - Positions vehicle 0.5m above terrain to prevent initial penetration
+
+3. **Terrain Setup**
+   - Creates 200m x 100m flat rigid terrain
+   - Applies custom texture using Chrono's built-in texture system
+   - Uses SMC contact material for realistic tire-terrain interaction
+
+4. **Interactive Control**
+   - Implements keyboard-based driver controls
+   - Configures steering, throttle, and braking sensitivity
+   - Maps inputs to vehicle dynamics in real-time
+
+5. **Visualization System**
+   - Sets up 1024x768 window with Irrlicht
+   - Positions camera for optimal vehicle viewing
+   - Adds Chrono logo, skybox, and lighting
+
+6. **Real-Time Simulation**
+   - Maintains 50 FPS simulation rate with real-time timer
+   - Synchronizes physics steps with rendering
+   - Ensures stable execution across different hardware
+
+---
+
+### Controls
+
+- **Arrow Keys**: 
+  - Up/Down = Throttle/Brake
+  - Left/Right = Steering
+- **Spacebar**: Emergency stop
+- **Q/E**: Handbrake control (if implemented)
+
+---
+
+### Customization Options
+
+1. **Terrain**
+   - Modify dimensions in `terrain.AddPatch()`
+   - Change texture path in `SetTexture()`
+
+2. **Vehicle**
+   - Adjust initial position/orientation in `SetInitPosition()`
+   - Modify control sensitivity in `driver.Set*Delta()` calls
+
+3. **Simulation**
+   - Change step size for accuracy/performance tradeoff
+   - Add additional sensors or data collection hooks
+
+This simulation provides a complete framework for vehicle dynamics testing with realistic tire modeling and interactive control, suitable for research, development, or educational purposes.

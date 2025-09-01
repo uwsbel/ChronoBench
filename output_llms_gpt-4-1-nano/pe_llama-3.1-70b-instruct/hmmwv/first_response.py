@@ -1,0 +1,63 @@
+import os
+import math
+import numpy as np
+import pychrono.core as chrono
+import pychrono.irrlicht as chronoirr
+import pychrono.vehicle as veh
+
+# Initialize the PyChrono environment
+chrono.SetChronoDataPath("/path/to/data")
+
+# Create the simulation system
+sys = chrono.ChSystemSMC()
+
+# Create the vehicle
+car = veh.HMMWV()
+car.SetContactMethod(chrono.ChContactMethod_NSC)
+car.SetChassisCollisionType(chrono.ChCollisionType_PRIMITIVE)
+car.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.Q_from_AngX(chrono.CH_C_PI_2)))
+car.SetTireModel(chrono.TireModelType.TMEASY)
+car.SetTireFriction(1.0)
+car.SetTireViscosity(0.1)
+car.SetTireDamping(0.1)
+car.SetTireRollingResistance(0.1)
+car.Initialize(sys)
+
+# Create the terrain
+terrain = veh.RigidTerrain(car.GetSystem())
+patch_mat = chrono.ChMaterialSurfaceNSC()
+patch_mat.SetFriction(0.9)
+patch_mat.SetRestitution(0.01)
+patch_mat.SetRollingFriction(0.01)
+patch_mat.SetSpinningFriction(0.01)
+patch_mat.SetCompliance(0.0001)
+patch_mat.SetComplianceTangent(0.0001)
+patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT), 100, 100)
+terrain.Initialize()
+
+# Create the visualization
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle("HMMWV Simulation")
+vis.AddLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVectorD(0, 3, 6))
+vis.AddTypicalLights()
+vis.AttachSystem(sys)
+vis.Initialize()
+
+# Create the driver system
+driver = veh.ArticulatedDriver(car)
+driver.SetThrottle(0.5)
+driver.SetBraking(0.5)
+driver.SetSteering(0.5)
+driver.Initialize()
+
+# Simulation loop
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    sys.DoStepDynamics(0.02)
+    driver.Synchronize(0.02)
+    vis.RenderFramesPerSecond(50)

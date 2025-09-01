@@ -1,0 +1,161 @@
+# MAN 10t Truck Simulation with PyChrono
+
+```python
+# Import required modules
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as irr
+import numpy as np
+import os
+
+# Global simulation parameters
+step_size = 1e-3          # Integration step size
+tire_step_size = 1e-3     # Tire model integration step size
+terrain_length = 100.0    # Length of the terrain
+terrain_width = 100.0     # Width of the terrain
+
+# Create the Chrono system
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+system.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
+system.SetSolverMaxIterations(150)
+system.SetMaxPenetrationRecoverySpeed(4.0)
+system.SetMinBounceSpeed(2.0)
+system.SetSolverForceTolerance(0)
+
+# Create the rigid terrain
+terrain = veh.RigidTerrain(system)
+patch_mat = chrono.ChMaterialSurfaceNSC()
+patch_mat.SetFriction(0.9)
+patch_mat.SetRestitution(0.01)
+
+# Create a flat terrain patch
+terrain_height = 0.0
+terrain_patch = terrain.AddPatch(patch_mat, 
+                               chrono.ChCoordsysD(chrono.ChVectorD(0, terrain_height, 0), 
+                                                 chrono.QUNIT), 
+                               terrain_length, terrain_width)
+
+# Set terrain visualization properties
+terrain_patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
+terrain_patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+terrain.Initialize()
+
+# Create the vehicle
+# Set vehicle specification file
+vehicle_file = "vehicle/MAN_10t.json"
+tire_file = "vehicle/MAN_10t_TMeasyTire.json"
+
+# Create the vehicle, specify chassis visualization
+vehicle = veh.WheeledVehicle(system, veh.GetDataFile(vehicle_file))
+vehicle.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, terrain_height + 0.5, 0), chrono.QUNIT))
+vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
+vehicle.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
+vehicle.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
+vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
+
+# Create and initialize the tires
+for axle in vehicle.GetAxles():
+    tireL = veh.TMeasyTire(veh.GetDataFile(tire_file))
+    tireR = veh.TMeasyTire(veh.GetDataFile(tire_file))
+    
+    tireL.SetVisualizationType(veh.VisualizationType_MESH)
+    tireR.SetVisualizationType(veh.VisualizationType_MESH)
+    
+    vehicle.InitializeTire(tireL, axle.m_wheels[0], veh.VisualizationType_MESH)
+    vehicle.InitializeTire(tireR, axle.m_wheels[1], veh.VisualizationType_MESH)
+
+# Create the driver system (interactive)
+driver = veh.ChIrrGuiDriver(vehicle.GetVehicle())
+driver.Initialize()
+
+# Create the vehicle Irrlicht interface
+vis = veh.ChWheeledVehicleIrrApp(vehicle.GetVehicle())
+
+# Set visualization parameters
+vis.SetSkyBox()
+vis.AddLogo(veh.GetDataFile("logo/logo_pychrono_alpha.png"))
+vis.AddLightDirectional()
+vis.SetChaseCamera(chrono.ChVectorD(0.0, 0.0, 0.75), 6.0, 0.5)
+vis.SetTimestep(step_size)
+vis.Initialize()
+vis.AddTypicalLights()
+
+# Visualization assets
+vis.GetDevice().getCursorControl().setVisible(False)
+
+# Set the simulation parameters
+terrain.EnableVisualization(True)
+vehicle.GetVehicle().SetTireStepSize(tire_step_size)
+
+# Create a vehicle controller
+throttle_input = 0.0
+steering_input = 0.0
+braking_input = 0.0
+
+# Add some obstacles (optional)
+num_obstacles = 5
+for i in range(num_obstacles):
+    x = chrono.ChRandom() * 50 - 25
+    z = chrono.ChRandom() * 50 - 25
+    
+    obstacle = chrono.ChBodyEasySphere(0.5, 2000, True, True)
+    obstacle.SetPos(chrono.ChVectorD(x, terrain_height + 0.5, z))
+    obstacle.SetBodyFixed(True)
+    system.Add(obstacle)
+
+# Simulation loop
+realtime_timer = chrono.ChRealtimeStepTimer()
+while vis.GetDevice().run():
+    # Render scene
+    vis.BeginScene()
+    vis.Render()
+    
+    # Get driver inputs
+    driver_inputs = driver.GetInputs()
+    
+    # Update modules (process inputs, update states, etc.)
+    time = system.GetChTime()
+    driver.Synchronize(time)
+    vehicle.Synchronize(time, driver_inputs, terrain)
+    terrain.Synchronize(time)
+    vis.Synchronize(time, driver_inputs)
+    
+    # Advance simulation
+    system.DoStepDynamics(step_size)
+    
+    # Finalize rendering
+    vis.EndScene()
+    
+    # Slow down to real-time
+    realtime_timer.Spin(step_size)
+    
+    # Exit if ESC key is pressed
+    if vis.GetDevice().isKeyPressed(irr.KEY_ESCAPE):
+        break
+```
+
+This script creates a simulation of a MAN 10t truck driving on a rigid terrain using PyChrono. Here's what it includes:
+
+1. **System Setup**: Initializes a ChSystemNSC with appropriate solver parameters.
+
+2. **Terrain**: Creates a flat rigid terrain with customizable texture and friction properties.
+
+3. **Vehicle**: Loads a MAN 10t truck model from a JSON file, with visualization options for chassis, suspension, steering, and wheels.
+
+4. **Tires**: Uses the TMEASY tire model for realistic tire behavior.
+
+5. **Driver Controls**: Implements an interactive driver system with Irrlicht, allowing real-time control of the vehicle using keyboard inputs.
+
+6. **Visualization**: Configures the Irrlicht visualization with:
+   - Chase camera following the vehicle
+   - Directional lighting
+   - Skybox for realistic environment
+   - PyChrono logo overlay
+   - Terrain textures
+
+7. **Simulation Loop**: Runs the simulation in real-time, processing driver inputs and advancing the physics.
+
+8. **Optional Obstacles**: Adds random spherical obstacles to the terrain for the truck to navigate around.
+
+The simulation allows you to control the truck's steering, throttle, and braking in real-time through the Irrlicht interface.

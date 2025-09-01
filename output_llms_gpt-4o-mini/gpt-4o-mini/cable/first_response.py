@@ -1,0 +1,67 @@
+import pychrono.core as chrono
+import pychrono.irrlicht as chronoirr
+
+# Initialize the PyChrono environment
+chrono.SetChronoDataPath('path/to/chrono/data/')  # Set the path to Chrono data files
+system = chrono.ChSystemNSC()
+
+# Create a beam composed of ANCF cable elements
+beam_length = 5.0  # Length of the beam
+num_elements = 10   # Number of cable elements
+element_length = beam_length / num_elements
+
+# Create a list to hold the cable elements
+cable_elements = []
+
+# Create the first node (hinged to the ground)
+node0 = chrono.ChNodeFEAxyz(chrono.ChVectorD(0, 0, 0))
+node0.SetFixed(True)  # Fixed at the ground
+system.AddNode(node0)
+
+# Create the cable elements
+for i in range(num_elements):
+    # Create a new node for the current element
+    node = chrono.ChNodeFEAxyz(chrono.ChVectorD(i * element_length, 0, 0))
+    system.AddNode(node)
+
+    # Create the cable element connecting the previous node to the current node
+    if i > 0:
+        cable_element = chrono.ChElementCableANCF()
+        cable_element.SetNodes(node0, node)
+        cable_element.SetDiameter(0.05)  # Set diameter of the cable
+        cable_element.SetDensity(1000)    # Set density of the cable material
+        cable_elements.append(cable_element)
+        system.AddElement(cable_element)
+
+# Apply gravity
+gravity = chrono.ChForce()
+gravity.SetMode(chrono.ChForce.FORCE)
+gravity.SetF(chrono.ChVectorD(0, -9.81 * 1000 * element_length, 0))  # Gravity force
+system.AddForce(gravity)
+
+# Set up the Irrlicht visualization
+application = chronoirr.ChIrrApp(system, "ANCF Beam Simulation", chronoirr.dimension2d(800, 600))
+application.AddSkyBox()
+application.AddCamera(chrono.ChVectorD(0, 2, -10), chrono.ChVectorD(0, 0, 0))
+application.AddLight(chrono.ChVectorD(0, 10, -10), chrono.ChVectorD(1, 1, 1))
+
+# Simulation loop
+while application.GetDevice().run():
+    application.BeginScene()
+    application.DrawAll()
+
+    # Update the system
+    system.DoStepDynamics(0.01)  # Step the simulation
+
+    # Visualize the deformation and nodal positions
+    for element in cable_elements:
+        # Get the positions of the nodes
+        node_a = element.GetNodeA().GetPos()
+        node_b = element.GetNodeB().GetPos()
+        # Draw the cable element as a line
+        application.DrawLine(node_a, node_b, chrono.ChColor(1, 0, 0))  # Red color for the cable
+
+    application.EndScene()
+
+# Clean up
+application.GetDevice().drop()

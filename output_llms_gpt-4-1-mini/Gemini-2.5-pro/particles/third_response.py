@@ -1,0 +1,188 @@
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
+from itertools import combinations
+
+# Callback class to customize particles created by the emitter
+class MyCreatorForAll(chrono.ChRandomShapeCreator_AddBodyCallback):
+    def __init__(self): # Removed vis and coll from constructor
+        super().__init__()
+
+    def OnAddBody(self, body, coords, creator):
+        # Set texture for the created particle
+        if body.GetNumVisualShapes() > 0: # Check if there's at least one visual shape
+            vis_shape = body.GetVisualShape(0)
+            if vis_shape: # Further check if the shape itself is valid
+                vis_shape.SetTexture(chrono.GetChronoDataFile("textures/bluewhite.png"))
+        
+        # Disable gyro torque for potentially better stability with many small particles
+        body.SetUseGyroTorque(False)
+
+# Create a Chrono physical system
+sys = chrono.ChSystemNSC()
+sys.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+# Note: The collision system is automatically retrieved when needed or can be configured further if necessary.
+# coll = sys.GetCollisionSystem() # This line is not strictly needed if coll variable is not used elsewhere explicitly.
+
+# --- Create the three main sphere bodies ---
+
+# Define a common contact material for the spheres
+sphere_mat = chrono.ChContactMaterialNSC()
+sphere_mat.SetFriction(0.2)
+sphere_radius = 2.1
+sphere_density = 1800
+sphere_texture_file = chrono.GetChronoDataFile("textures/concrete.jpg")
+
+# Sphere 1 (msphereBody)
+msphereBody = chrono.ChBodyEasySphere(sphere_radius, sphere_density, True, True, sphere_mat)
+msphereBody.SetPos(chrono.ChVector3d(1, 1, 0))
+msphereBody.SetPosDt(chrono.ChVector3d(0.5, 0, 0.1)) # Initial velocity for Sphere 1
+if msphereBody.GetNumVisualShapes() > 0 and msphereBody.GetVisualShape(0):
+    msphereBody.GetVisualShape(0).SetTexture(sphere_texture_file)
+sys.Add(msphereBody)
+
+# Sphere 2
+sphere2_body = chrono.ChBodyEasySphere(sphere_radius, sphere_density, True, True, sphere_mat)
+sphere2_body.SetPos(chrono.ChVector3d(-10, -10, 0)) # Initial position for Sphere 2
+sphere2_body.SetPosDt(chrono.ChVector3d(-0.5, 0, -0.1)) # Initial velocity for Sphere 2
+if sphere2_body.GetNumVisualShapes() > 0 and sphere2_body.GetVisualShape(0):
+    sphere2_body.GetVisualShape(0).SetTexture(sphere_texture_file)
+sys.Add(sphere2_body)
+
+# Sphere 3
+sphere3_body = chrono.ChBodyEasySphere(sphere_radius, sphere_density, True, True, sphere_mat)
+sphere3_body.SetPos(chrono.ChVector3d(0, 20, 0)) # Initial position for Sphere 3
+sphere3_body.SetPosDt(chrono.ChVector3d(0, -0.5, 0.2)) # Initial velocity for Sphere 3
+if sphere3_body.GetNumVisualShapes() > 0 and sphere3_body.GetVisualShape(0):
+    sphere3_body.GetVisualShape(0).SetTexture(sphere_texture_file)
+sys.Add(sphere3_body)
+
+
+# --- Create an emitter for smaller particles ---
+emitter = chrono.ChParticleEmitter()
+emitter.SetParticlesPerSecond(2000)
+emitter.SetUseParticleReservoir(True)
+emitter.SetParticleReservoirAmount(200)
+
+# Randomizers for particle properties
+# Positioner: particles distributed in a large box
+emitter_positions = chrono.ChRandomParticlePositionOnGeometry()
+# ChBox takes half-dimensions, so this is a 100x100x100 box
+emitter_positions.SetGeometry(chrono.ChBox(chrono.ChVector3d(50, 50, 50)), chrono.ChFrameD())
+emitter.SetParticlePositioner(emitter_positions)
+
+# Aligner: random uniform rotation
+emitter_rotations = chrono.ChRandomParticleAlignmentUniform()
+emitter.SetParticleAligner(emitter_rotations)
+
+# Velocity: random direction, modulus uniformly distributed
+mvelo = chrono.ChRandomParticleVelocityAnyDirection()
+mvelo.SetModulusDistribution(chrono.ChUniformDistribution(0.0, 0.5))
+emitter.SetParticleVelocity(mvelo)
+
+# Angular velocity: random direction, modulus uniformly distributed
+mangvelo = chrono.ChRandomParticleVelocityAnyDirection()
+mangvelo.SetModulusDistribution(chrono.ChUniformDistribution(0.0, 0.2))
+emitter.SetParticleAngularVelocity(mangvelo)
+
+# Creator: spheres with Zhang distribution for diameter, constant density
+mcreator_spheres = chrono.ChRandomShapeCreatorSpheres()
+mcreator_spheres.SetDiameterDistribution(chrono.ChZhangDistribution(0.6, 0.23)) # Mean diameter 0.6, min 0.23
+mcreator_spheres.SetDensityDistribution(chrono.ChConstantDistribution(1600))
+emitter.SetParticleCreator(mcreator_spheres)
+
+# Register the custom callback for newly created particles
+mcreation_callback = MyCreatorForAll() # Instantiate corrected callback
+emitter.RegisterAddBodyCallback(mcreation_callback)
+
+
+# --- Create the Irrlicht visualization ---
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(sys)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle('3-Body and Particle Emitter Gravitational Simulation')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVector3d(0, 14, -40)) # Adjusted camera position slightly for better view
+vis.AddTypicalLights()
+
+
+# --- Configure solver and simulation settings ---
+sys.SetSolverType(chrono.ChSolver.Type_PSOR)
+# sys.GetSolver().AsIterative().SetMaxIterations(40) # This line can cause issues if solver is not iterative.
+# A safer way for PSOR (which is iterative):
+if isinstance(sys.GetSolver(), chrono.ChIterativeSolver):
+    sys.GetSolver().AsIterative().SetMaxIterations(40)
+
+# Set system-wide gravitational acceleration to zero, as custom gravity is applied
+sys.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, 0))
+
+# --- Simulation loop ---
+stepsize = 1e-2
+G_constant = 6.674e-3  # Modified gravitational constant (stronger gravity)
+
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+
+    # Emit new particles
+    emitter.EmitParticles(sys, stepsize)
+
+    # Clear accumulators for all bodies
+    # This must be done before new forces are accumulated for the current step
+    bodylist = sys.GetBodies() # Get the list of all bodies once
+    for body in bodylist:
+        body.EmptyAccumulators()
+
+    # Calculate gravitational forces and potential energy (N-body interaction)
+    potential_energy = 0
+    # Use itertools.combinations to get unique pairs of bodies
+    for body_A, body_B in combinations(bodylist, 2):
+        # Check if bodies are valid and have mass (important if some bodies might be non-physical)
+        if not body_A or not body_B or body_A.GetMass() <= 0 or body_B.GetMass() <= 0:
+            continue
+
+        delta_pos = body_B.GetPos() - body_A.GetPos()
+        distance = delta_pos.Length()
+
+        if distance < 1e-3:  # Avoid division by zero or extremely large forces at very small distances
+            # This could be due to particles spawning too close or exact overlap if collision shapes are small/absent
+            # A small softening factor or skipping the force for this pair can be a simple treatment.
+            # For this example, we'll just skip if they are extremely close to prevent numerical issues.
+            # Proper collision handling should prevent deep penetrations for bodies with volume.
+            continue
+        
+        # Gravitational force magnitude: F = G * m1 * m2 / r^2
+        force_magnitude = G_constant * (body_A.GetMass() * body_B.GetMass()) / (distance * distance)
+        
+        # Force vector
+        force_vector = (delta_pos / distance) * force_magnitude
+        
+        # Apply forces (Newton's third law)
+        # Force is applied at the center of mass, resulting in no torque from this central force.
+        body_A.AccumulateForce(force_vector, body_A.GetPos(), False)  # Force on A from B
+        body_B.AccumulateForce(-force_vector, body_B.GetPos(), False) # Force on B from A
+
+        # Potential energy: U = -G * m1 * m2 / r
+        potential_energy += -G_constant * (body_A.GetMass() * body_B.GetMass()) / distance
+
+    # Calculate total kinetic energy
+    kinetic_energy = 0
+    for body in bodylist:
+        if body and body.GetMass() > 0: # Ensure body is valid and has mass
+            mass = body.GetMass()
+            velocity_sq = body.GetPosDt().Length2()
+            kinetic_energy += 0.5 * mass * velocity_sq
+            
+    total_energy = kinetic_energy + potential_energy
+
+    # Print energy values (optional, can be verbose)
+    # print(f"Time: {sys.GetChTime():.2f} s, Bodies: {len(bodylist)}")
+    # print(f"Kinetic Energy: {kinetic_energy:.3e}, Potential Energy: {potential_energy:.3e}, Total Energy: {total_energy:.3e}")
+
+    # Advance the simulation by one step
+    sys.DoStepDynamics(stepsize)
+
+# Cleanup
+# vis.Dispose() # Not strictly necessary as Python's GC and Irrlicht's own cleanup handle this.

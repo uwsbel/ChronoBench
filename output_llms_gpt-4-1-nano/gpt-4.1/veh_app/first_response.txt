@@ -1,0 +1,133 @@
+Certainly! Below is a **PyChrono** simulation script that fulfills your requirements. This script:
+
+- Initializes the PyChrono environment.
+- Creates a Gator vehicle, sets visualization types for its parts.
+- Adds a rigid terrain.
+- Sets up an interactive driver.
+- Configures a sensor manager with point lights and a camera attached to the chassis.
+- Runs a simulation loop, updating all modules and rendering camera images.
+
+**Note:** This script assumes you have the `PyChrono`, `PyChronoVehicle`, and `PyChronoSensor` modules installed.
+
+```python
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.sensor as sens
+import math
+import time
+
+# 1. Initialize PyChrono environment and core components
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())
+veh.SetDataPath(veh.GetDataPath())
+
+# Simulation parameters
+step_size = 1e-3
+end_time = 5.0
+
+# 2. Create the Chrono physical system
+system = chrono.ChSystemNSC()
+
+# 3. Create the Gator vehicle
+init_pos = chrono.ChVectorD(0, 0, 1.0)
+init_rot = chrono.Q_from_AngZ(0)
+gator = veh.Gator(system)
+gator.SetChassisVisualizationType(veh.VisualizationType.PRIMITIVES)
+gator.SetWheelVisualizationType(veh.VisualizationType.MESH)
+gator.SetTireVisualizationType(veh.VisualizationType.NONE)
+gator.SetSuspensionVisualizationType(veh.VisualizationType.PRIMITIVES)
+gator.SetSteeringVisualizationType(veh.VisualizationType.PRIMITIVES)
+gator.SetInitPosition(chrono.ChCoordsysD(init_pos, init_rot))
+gator.Initialize()
+
+# 4. Add a rigid terrain
+terrain = veh.RigidTerrain(system)
+patch = terrain.AddPatch(
+    chrono.CSYSNORM,
+    chrono.ChVectorD(0, 0, 0),
+    chrono.ChVectorD(100, 100, 1)
+)
+patch.SetContactFrictionCoefficient(0.9)
+patch.SetRestitutionCoefficient(0.01)
+patch.SetMaterialSurface(chrono.ChMaterialSurfaceNSC())
+patch.SetTexture(chrono.GetChronoDataFile("terrain/textures/grass.jpg"), 200, 200)
+patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+terrain.Initialize()
+
+# 5. Add an interactive driver
+driver = veh.ChDriverInteractive(gator)
+driver.Initialize()
+
+# 6. Set up the sensor manager
+manager = sens.ChSensorManager(system)
+manager.scene.AddPointLight(chrono.ChVectorF(10, 0, 10), chrono.ChColor(1, 1, 1), 500)
+manager.scene.AddPointLight(chrono.ChVectorF(-10, 0, 10), chrono.ChColor(1, 1, 1), 500)
+
+# Camera parameters
+cam_update_rate = 30.0  # Hz
+cam_width = 1280
+cam_height = 720
+fov = 1.408  # radians (~80 deg)
+cam_offset = chrono.ChVectorD(0.5, 0, 1.2)  # relative to chassis
+
+# Attach camera to chassis
+camera = sens.ChCameraSensor(
+    gator.GetChassisBody(),  # body to which the sensor is attached
+    cam_update_rate,
+    chrono.ChFrameD(cam_offset, chrono.QUNIT),
+    cam_width,
+    cam_height,
+    fov
+)
+camera.SetName("Gator Camera")
+camera.PushFilter(sens.ChFilterRGBA8Access())  # To access the image buffer
+manager.AddSensor(camera)
+
+# 7. Simulation loop
+realtime_timer = chrono.ChRealtimeStepTimer()
+time_sim = 0.0
+
+print("Starting simulation. Press ESC in the driver window to quit.")
+
+while time_sim < end_time:
+    # 7.1. Get driver inputs
+    driver_inputs = driver.GetInputs()
+
+    # 7.2. Update modules
+    driver.Synchronize(time_sim)
+    terrain.Synchronize(time_sim)
+    gator.Synchronize(time_sim, driver_inputs, terrain)
+    manager.Update()
+
+    # 7.3. Advance simulation
+    driver.Advance(step_size)
+    terrain.Advance(step_size)
+    gator.Advance(step_size)
+    system.DoStepDynamics(step_size)
+
+    # 7.4. Advance time
+    time_sim += step_size
+
+    # 7.5. (Optional) Access camera image buffer
+    # img = camera.GetMostRecentRGBA8Buffer()
+    # if img is not None:
+    #     # Process or save the image as needed
+    #     pass
+
+    # 7.6. Real-time synchronization
+    if not driver.IsRunning():
+        print("Driver window closed by user.")
+        break
+    realtime_timer.Spin(step_size)
+
+print("Simulation complete.")
+```
+
+---
+
+**NOTES:**
+- The script uses the interactive driver window; close it or press ESC to exit.
+- The camera images can be accessed via `camera.GetMostRecentRGBA8Buffer()` if you wish to process or save them.
+- Adjust `end_time` and `step_size` as needed.
+- Make sure you have the required PyChrono modules installed, including `pychrono.sensor` for sensor support.
+
+Let me know if you need further customization!

@@ -1,0 +1,81 @@
+import os
+import math
+import numpy as np
+import pychrono as chrono
+import pychrono.robot as viper
+import pychrono.vehicle as veh  # Added import for vehicle module
+from pychrono import irrlicht as chronoirr
+
+# Create Chrono system
+system = chrono.ChSystemNSC()
+system.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+system.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, -9.81))  # Gravity in negative Z direction
+chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.0025)
+chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
+
+# Create SCM deformable terrain
+terrain = veh.SCMDeformableTerrain(system)
+terrain.SetPlane(chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT))  # X-Y plane
+terrain.SetLength(20)    # Terrain length
+terrain.SetWidth(20)     # Terrain width
+terrain.SetMeshResolution(0.1)  # Mesh resolution
+
+# Set soil parameters for SCM terrain
+soil_params = veh.SCMSoilParams()
+soil_params.BekkerKphi = 0.2e6    # Bekker Kphi parameter
+soil_params.BekkerKc = 0          # Bekker Kc parameter
+soil_params.Bekkern = 1.1         # Bekker n exponent
+soil_params.MohrCoulombCohesion = 0
+soil_params.MohrCoulombFrictionAngle = 30 * chrono.CH_PI / 180  # Friction angle in radians
+soil_params.DrLateralFriction = 0.03
+soil_params.YoungsModulus = 2e7   # Young's modulus
+soil_params.PoissonsRatio = 0.3   # Poisson ratio
+soil_params.plastic_flow = True
+soil_params.use_shear = True
+terrain.SetSoilParameters(soil_params)
+terrain.Initialize()  # Initialize the terrain
+
+# Create Viper rover
+rover = viper.Viper(system)  # Instantiate the Viper rover
+driver = viper.ViperDCMotorControl()  # Create a driver for the rover
+rover.SetDriver(driver)  # Assign the driver to the rover
+
+# Initialize rover position and orientation (corrected Z-coordinate)
+init_pos = chrono.ChVector3d(0, 0, 0.2)  # Adjusted Z-coordinate to position rover above terrain
+init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
+rover.Initialize(chrono.ChFramed(init_pos, init_rot))
+
+# Create run-time visualization
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetCameraVertical(chrono.CameraVerticalDir_Z)
+vis.SetWindowSize(1280, 720)
+vis.SetWindowTitle('Viper rover - SCM Deformable Terrain')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVector3d(0, 2.5, 1.5), chrono.ChVector3d(0, 0, 0.5))
+vis.AddTypicalLights()
+vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0, 0.5), 3, 4, 10, 40, 512)
+
+# Set the simulation time step
+time_step = 1e-3
+
+# Simulation loop
+time = 0
+while vis.Run():
+    time += time_step  # Increment the simulation time
+
+    # Set constant steering (removed time-dependent steering behavior)
+    steering = 0.0
+    driver.SetSteering(steering)  # Set the steering for the rover
+
+    rover.Update()  # Update the rover's state
+
+    # Render the scene
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    
+    # Advance the simulation by one time step
+    system.DoStepDynamics(time_step)

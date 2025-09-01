@@ -1,0 +1,55 @@
+import pychrono.core as chrono
+import pychrono.irrlicht as chronoirr
+
+# Initialize the PyChrono system
+chrono.ChSystemNSC()
+
+# Create the ground body
+ground = chrono.ChBody()
+ground.SetBodyFixed(True)
+chrono.ChSystemNSC().Add(ground)
+
+# Create the mass body
+mass = chrono.ChBody()
+mass.SetMass(1.0)  # Mass of 1 kg
+mass.SetPos(chrono.ChVectorD(0, 1, 0))  # Initial position
+chrono.ChSystemNSC().Add(mass)
+
+# Create a spring-damper connection
+spring_damper = chrono.ChLinkTSDA()
+spring_damper.Initialize(ground, mass, chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 1, 0))
+spring_damper.SetRestLength(1.0)  # Rest length of the spring
+spring_damper.SetSpringK(1000.0)  # Spring constant
+spring_damper.SetDampingR(5.0)  # Damping coefficient
+chrono.ChSystemNSC().Add(spring_damper)
+
+# Set up the Irrlicht visualization
+application = chronoirr.ChIrrApp(chrono.ChSystemNSC(), "Mass-Spring-Damper System", chronoirr.dimension2d(800, 600))
+application.AddTypicalSky(chrono.ChColor(0.5, 0.5, 0.5), 0.5)
+application.AddTypicalLights()
+application.AddTypicalCamera(chrono.ChVectorD(5, 5, 5), chrono.ChVectorD(0, 0, 0))
+
+# Create visual shapes for the mass
+mass_shape = chrono.ChSphere(0.1)  # Sphere with radius 0.1
+mass_shape.SetPos(mass.GetPos())
+mass_shape.SetColor(chrono.ChColor(0.0, 0.0, 1.0))  # Blue color
+mass.AddVisualShape(mass_shape)
+
+# Create visual shapes for the spring
+spring_shape = chrono.ChLinkSpring()
+spring_shape.SetPos(chrono.ChVectorD(0, 0, 0))
+spring_shape.SetColor(chrono.ChColor(0.0, 1.0, 0.0))  # Green color
+spring_shape.SetRadius(0.02)  # Radius of the spring
+spring_shape.SetLength(1.0)  # Length of the spring
+chrono.ChSystemNSC().Add(spring_shape)
+
+# Main simulation loop
+application.SetTimestep(0.01)  # Set the time step
+while application.GetDevice().run():
+    application.BeginScene()
+    application.DrawAll()
+    application.EndScene()
+    chrono.ChSystemNSC().DoStepDynamics(application.GetTimestep())
+
+# Clean up
+application.GetDevice().drop()

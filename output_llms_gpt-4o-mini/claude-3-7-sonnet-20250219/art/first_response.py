@@ -1,0 +1,139 @@
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as chronoirr
+import numpy as np
+import os
+
+# Path to Chrono data directory
+chrono.SetChronoDataPath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "data/"))
+
+# ---------------------------------------------------------------------
+# Initialize the simulation
+
+# Set the global collision method
+collision_method = chrono.ChCollisionSystemType_BULLET
+
+# Create the simulation system
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+system.SetCollisionSystemType(collision_method)
+
+# ---------------------------------------------------------------------
+# Set up the vehicle
+
+# Initial position and orientation of the vehicle
+vehicle_pos = chrono.ChVectorD(0, 0.5, 0)
+vehicle_rot = chrono.ChQuaternionD(1, 0, 0, 0)  # Identity quaternion for zero rotation
+
+# Create the ARTcar vehicle
+vehicle = veh.ARTCar(system)
+vehicle.SetContactMethod(chrono.ChContactMethod_NSC)
+vehicle.SetChassisFixed(False)
+vehicle.SetInitPosition(chrono.ChCoordsysD(vehicle_pos, vehicle_rot))
+vehicle.SetTireType(veh.TireModelType_RIGID)
+vehicle.SetTireStepSize(1e-3)
+vehicle.SetInitFwdVel(0.0)
+vehicle.Initialize()
+
+# ---------------------------------------------------------------------
+# Set up the terrain
+
+# Create the ground
+terrain = veh.RigidTerrain(system)
+patch_mat = chrono.ChMaterialSurfaceNSC()
+patch_mat.SetFriction(0.9)
+patch_mat.SetRestitution(0.01)
+
+# Add a patch (flat ground with specified dimensions)
+terrain_length = 200.0
+terrain_width = 200.0
+patch = terrain.AddPatch(patch_mat, 
+                         chrono.ChVectorD(0, 0, 0),      # height position
+                         chrono.ChVectorD(0, 1, 0),      # normal vector
+                         terrain_length, terrain_width)   # size
+
+# Add a texture to the ground
+texture_path = "terrain/textures/tile4.jpg"
+patch.SetTexture(chrono.GetChronoDataFile(texture_path), 200, 200)
+
+# Initialize the terrain
+terrain.Initialize()
+
+# ---------------------------------------------------------------------
+# Set up the driver inputs
+
+# Create the interactive driver
+driver = veh.ChIrrGuiDriver(vehicle.GetVehicle())
+driver.SetSteeringDelta(0.05)
+driver.SetThrottleDelta(0.05)
+driver.SetBrakingDelta(0.1)
+driver.Initialize()
+
+# ---------------------------------------------------------------------
+# Set up the visualization
+
+# Create the Irrlicht visualization application
+vis = chronoirr.ChIrrApp(system, "ARTCar Demo", chronoirr.dimension2du(1280, 720))
+vis.AddTypicalLogo()
+vis.AddTypicalSky()
+vis.AddTypicalLights()
+vis.AddTypicalCamera(chronoirr.vector3df(0, 1.5, -8), chronoirr.vector3df(0, 0, 0))
+
+# Bind the visualization assets
+vis.AssetBindAll()
+vis.AssetUpdateAll()
+
+# Connect the driver to the visualization
+driver.SetUserChIrrApp(vis)
+
+# ---------------------------------------------------------------------
+# Set up the simulation parameters
+
+# Simulation time step
+step_size = 1e-3
+
+# Render frame step (50 FPS = 0.02s per frame)
+render_step_size = 1.0 / 50.0
+
+# ---------------------------------------------------------------------
+# Run the simulation
+
+# Initialize visualization
+vis.SetTimestep(step_size)
+vis.SetTryRealtime(True)
+
+# Real-time simulation variables
+sim_time = 0.0
+render_time = 0.0
+
+print("Simulation started...")
+
+while vis.GetDevice().run():
+    # Get driver inputs
+    driver_inputs = driver.GetInputs()
+    
+    # Update the vehicle with driver inputs
+    vehicle.Synchronize(sim_time, driver_inputs, terrain)
+    
+    # Advance vehicle dynamics
+    vehicle.Advance(step_size)
+    
+    # Advance system dynamics
+    terrain.Synchronize(sim_time)
+    system.DoStepDynamics(step_size)
+    
+    # Increment simulation time
+    sim_time += step_size
+    
+    # Render scene at specified FPS
+    render_time += step_size
+    if render_time >= render_step_size:
+        vis.BeginScene(True, True, chronoirr.SColor(255, 140, 161, 192))
+        vis.DrawAll()
+        vis.EndScene()
+        render_time = 0
+        
+        # Print vehicle information
+        print(f"Time: {sim_time:.2f}s | Speed: {vehicle.GetVehicle().GetVehicleSpeed():.2f} m/s | Steering: {driver_inputs.m_steering:.2f}")
+
+print("Simulation ended.")

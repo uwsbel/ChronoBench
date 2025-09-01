@@ -1,0 +1,84 @@
+```python
+import pychrono.core as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as irr
+
+# Initialize Chrono system
+chrono.SetChronoDataPath('path/to/data')  # Set the correct data path if needed
+system = chrono.ChSystemNSC()
+
+# Create the Irrlicht application for visualization
+application = irr.ChIrrApp(system, 'HMMWV on Custom Terrain', irr.dimension2d(1024, 768))
+application.GetDevice().setWindowTitle('PyChrono HMMWV Simulation')
+application.AddTypicalSky()
+application.AddTypicalLights()
+application.AddTypicalCamera(irr.vector3df(0, 10, -20))
+application.AssetBindAll()
+application.AssetUpdateAll()
+
+# Set simulation parameters
+application.SetTimestep(1.0 / 50.0)  # 50 FPS
+application.SetTryRealtime(True)
+
+# Create custom terrain using mesh collision and visual meshes
+terrain_mesh_collision = chrono.ChTriangleMesh()
+terrain_mesh_collision.LoadWavefrontMesh('Highway_col.obj')
+terrain_mesh_visual = chrono.ChTriangleMesh()
+terrain_mesh_visual.LoadWavefrontMesh('Highway_vis.obj')
+
+# Create terrain body
+terrain = chrono.ChBodyEasyMesh(terrain_mesh_collision, 1000, True, True)
+terrain.SetPos(chrono.ChVectorD(0, 0, 0))
+terrain.SetBodyFixed(True)
+system.Add(terrain)
+
+# Add visual asset for terrain
+terrain_visual_asset = chrono.ChTriangleMeshShape()
+terrain_visual_asset.SetMesh(terrain_mesh_visual)
+terrain.GetAssets().push_back(terrain_visual_asset)
+
+# Initialize the HMMWV vehicle
+# Load the vehicle from a JSON or predefined model
+vehicle = veh.HMMWV_Vehicle()
+vehicle.SetContactMethod(chrono.ChContactMethod_NSC)
+vehicle.SetTireModel(veh.ChTireModelType_TMEASY)
+vehicle.SetChassisMeshFilename('hmmwv/meshes/hmmwv_chassis.obj')
+vehicle.SetVisualizationType(veh.VehicleVisualizationType_MESH)
+vehicle.Initialize(system, chrono.ChCoordsysD(chrono.ChVectorD(0, 0.5, 0), chrono.Q_from_AngY(0)))
+
+# Set the vehicle's initial position and orientation
+initial_pos = chrono.ChVectorD(0, 0.5, 0)
+initial_rot = chrono.Q_from_AngY(0)
+vehicle.GetChassisBody().SetPos(initial_pos)
+vehicle.GetChassisBody().SetRot(initial_rot)
+
+# Add vehicle to the system
+system.Add(vehicle.GetChassisBody())
+
+# Set visualization for all vehicle components
+vehicle.AssetBindAll()
+vehicle.AssetUpdateAll()
+
+# Create an interactive driver
+driver = veh.ChIrrGuiDriver(application)
+driver.Initialize(vehicle.GetChassisBody())
+
+# Simulation loop
+while application.GetDevice().run():
+    application.BeginScene()
+    application.DrawAll()
+
+    # Get user inputs for steering, throttle, and braking
+    driver.Control()
+
+    # Synchronize the vehicle with driver inputs
+    vehicle.Synchronize(driver.GetSteering(), driver.GetThrottle(), driver.GetBraking())
+
+    # Advance the simulation
+    system.DoStepDynamics(application.GetTimestep())
+
+    # Update vehicle and terrain visualization
+    vehicle.AssetUpdateAll()
+
+    application.EndScene()
+```

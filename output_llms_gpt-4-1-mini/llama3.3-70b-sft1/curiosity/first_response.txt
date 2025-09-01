@@ -1,0 +1,53 @@
+import pychrono as chrono
+import pychrono.robot as robot
+import pychrono.irrlicht as irr
+import math
+import os
+
+# Create Chrono system
+system = chrono.ChSystemNSC()
+system.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+system.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, -3.71))
+chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.0025)
+chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
+
+# Create ground body
+ground_mat = chrono.ChContactMaterialNSC()
+ground = chrono.ChBodyEasyBox(20, 20, 1, 1000, True, True, ground_mat)
+ground.SetPos(chrono.ChVector3d(0, 0, -0.5))
+ground.SetFixed(True)
+#ground.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile('textures/concrete.jpg'))
+system.Add(ground)
+
+# Create Curiosity rover
+driver = robot.CuriosityDCMotorControl()
+rover = robot.Curiosity(system)
+rover.SetDriver(driver)
+rover.Initialize(chrono.ChFramed(chrono.ChVector3d(0, 0.2, 0), chrono.ChQuaterniond(1, 0, 0, 0)))
+
+# Create the Irrlicht visualization
+vis = irr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetCameraVertical(chrono.CameraVerticalDir_Z)
+vis.SetWindowSize(1280, 720)
+vis.SetWindowTitle('Curiosity rover - Direct torque control')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVector3d(0, 3, 3), chrono.ChVector3d(0, 0, 0))
+vis.AddTypicalLights()
+vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0, 0), 3, 4, 10, 40, 512)
+
+time_step = 1e-3
+
+# Simulation loop
+time = 0
+while (vis.Run()) :
+    time = time + time_step
+    rover.Update()
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    system.DoStepDynamics(time_step)
+
+# This simulation setup captures the dynamic interaction of the rover with a Martian terrain, incorporating real-time control inputs for steering.

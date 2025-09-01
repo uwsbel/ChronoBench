@@ -1,0 +1,114 @@
+```python
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as chronoirr
+
+# 1. Initialize the PyChrono environment and core components
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())  # Ensure data path is set
+
+# Create the physical system
+system = chrono.ChSystemNSC()
+
+# Set gravity
+system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
+
+# 2. Add the required physical systems and objects
+
+# Create the fixed ground body with collision properties
+ground = chrono.ChBody()
+ground.SetBodyFixed(True)
+ground.SetCollide(True)
+
+# Create a collision shape for the ground: a large box
+ground_shape = chrono.ChBoxShape()
+ground_shape.GetBoxGeometry().Size = chrono.ChVectorD(50, 50, 0.1)
+ground.AddAsset(ground_shape)
+
+# Add a visual texture to the ground
+ground_texture = chrono.ChTexture()
+ground_texture.SetTextureFilename(chrono.GetChronoDataPath() + "textures/concrete.jpg")
+ground.AddAsset(ground_texture)
+
+# Add collision shape for ground
+ground.GetCollisionModel().ClearModel()
+ground.GetCollisionModel().AddBox(50, 50, 0.1)
+ground.GetCollisionModel().BuildModel()
+
+system.Add(ground)
+
+# Load the Curiosity rover model from the vehicle module
+# PyChrono vehicle module includes a rover model named "Curiosity"
+# We will use the WheeledVehicle class with the rover JSON specification
+
+# Path to rover JSON specification (assuming it's available in Chrono data path)
+rover_json = chrono.GetChronoDataPath() + "vehicle/rover/Curiosity/Curiosity.json"
+
+# Create the rover vehicle
+rover = veh.WheeledVehicle(rover_json, chrono.ChContactMethod_NSC)
+rover.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0.3), chrono.QUNIT))
+rover.SetChassisVisualizationType(veh.VisualizationType_MESH)
+rover.SetWheelVisualizationType(veh.VisualizationType_MESH)
+
+# Add rover to the system
+system.Add(rover.GetVehicle())
+
+# Create a simple powertrain and steering controller for the rover
+# For motor control driver with real-time steering inputs, we use a ChDriver with keyboard input
+
+# Create the Irrlicht application for visualization and input
+application = chronoirr.ChIrrApp(system, "Curiosity Rover on Rigid Terrain", chronoirr.dimension2du(1280, 720))
+
+# Customize camera settings
+application.AddTypicalLights()
+application.AddLogo()
+application.SetSkyBox(chrono.GetChronoDataPath() + "skybox/skyblue")
+application.SetCameraVertical(CameraVertical=chrono.ChVectorD(0, 0, 1))
+application.SetCameraPosition(chrono.ChVectorD(-5, -10, 3))
+application.SetCameraTarget(rover.GetVehicle().GetChassisBody().GetPos())
+
+# Enable shadows
+application.SetShadowLight(chrono.ChVectorD(-10, -10, 20), chrono.ChVectorD(0, 0, 0), 50, 50, 2048, 2048)
+
+# Bind all assets and start the Irrlicht application
+application.AssetBindAll()
+application.AssetUpdateAll()
+
+# Create a keyboard driver for real-time steering and throttle control
+driver = veh.ChIrrGuiDriver(application)
+driver.SetSteeringDelta(0.05)  # Steering increment per input
+driver.SetThrottleDelta(0.1)   # Throttle increment per input
+driver.SetBrakingDelta(0.1)    # Braking increment per input
+
+# Initialize driver inputs
+driver.Initialize()
+
+# Create a simple powertrain model for the rover
+powertrain = veh.SimplePowertrain("SimplePowertrain")
+rover.InitializePowertrain(powertrain)
+
+# Create a simple steering model for the rover
+steering = veh.SimpleSteering("SimpleSteering")
+rover.InitializeSteering(steering)
+
+# Set timestep size
+timestep = 0.01
+
+# Simulation loop
+while application.GetDevice().run():
+    application.BeginScene()
+    application.DrawAll()
+
+    # Get driver inputs
+    driver_inputs = driver.GetInputs()
+
+    # Apply inputs to rover
+    rover.GetVehicle().GetPowertrain().SetThrottle(driver_inputs.m_throttle)
+    rover.GetVehicle().GetPowertrain().SetBraking(driver_inputs.m_braking)
+    rover.GetVehicle().GetSteering().SetSteering(driver_inputs.m_steering)
+
+    # Advance simulation by timestep
+    driver.Synchronize(timestep)
+    rover.Synchronize(driver_inputs, system.GetChTime())
+    system.DoStepDynamics(timestep)
+    application.EndScene()
+```

@@ -1,0 +1,141 @@
+```python
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
+import random
+import math
+
+# Initialize the Chrono system
+system = chrono.ChSystemNSC()
+
+# Set gravity to zero because we will apply custom gravitational forces manually
+system.Set_G_acc(chrono.ChVectorD(0, 0, 0))
+
+# Parameters for particle emitter
+num_particles = 50
+emission_area = 5.0  # cube side length for initial random positions
+max_initial_speed = 1.0
+particle_mass = 1.0
+G_const = 1e-1  # gravitational constant for simulation scaling
+
+# List to hold all particles (ChBody objects)
+particles = []
+
+# Possible shapes for particles: sphere, box, cylinder
+def create_random_shape():
+    shape_type = random.choice(['sphere', 'box', 'cylinder'])
+    if shape_type == 'sphere':
+        radius = random.uniform(0.1, 0.3)
+        shape = ('sphere', radius)
+    elif shape_type == 'box':
+        dims = [random.uniform(0.1, 0.4) for _ in range(3)]
+        shape = ('box', dims)
+    else:  # cylinder
+        radius = random.uniform(0.1, 0.3)
+        height = random.uniform(0.1, 0.5)
+        shape = ('cylinder', radius, height)
+    return shape
+
+def add_particle(shape, pos, vel, rot):
+    body = chrono.ChBody()
+    body.SetMass(particle_mass)
+    body.SetPos(pos)
+    body.SetRot(rot)
+    body.SetPos_dt(vel)
+    body.SetBodyFixed(False)
+    # Inertia approximation for simple shapes
+    if shape[0] == 'sphere':
+        r = shape[1]
+        inertia = (2/5)*particle_mass*r*r
+        body.SetInertiaXX(chrono.ChVectorD(inertia, inertia, inertia))
+        sphere_shape = chrono.ChSphereShape()
+        sphere_shape.GetSphereGeometry().rad = r
+        body.AddVisualShape(sphere_shape)
+    elif shape[0] == 'box':
+        dims = shape[1]
+        ix = (1/12)*particle_mass*(dims[1]**2 + dims[2]**2)
+        iy = (1/12)*particle_mass*(dims[0]**2 + dims[2]**2)
+        iz = (1/12)*particle_mass*(dims[0]**2 + dims[1]**2)
+        body.SetInertiaXX(chrono.ChVectorD(ix, iy, iz))
+        box_shape = chrono.ChBoxShape()
+        box_shape.GetBoxGeometry().Size = chrono.ChVectorD(dims[0]/2, dims[1]/2, dims[2]/2)
+        body.AddVisualShape(box_shape)
+    else:  # cylinder
+        r = shape[1]
+        h = shape[2]
+        ix = (1/12)*particle_mass*(3*r*r + h*h)
+        iy = ix
+        iz = (1/2)*particle_mass*r*r
+        body.SetInertiaXX(chrono.ChVectorD(ix, iy, iz))
+        cyl_shape = chrono.ChCylinderShape()
+        cyl_shape.GetCylinderGeometry().rad = r
+        cyl_shape.GetCylinderGeometry().p1 = chrono.ChVectorD(0, -h/2, 0)
+        cyl_shape.GetCylinderGeometry().p2 = chrono.ChVectorD(0, h/2, 0)
+        body.AddVisualShape(cyl_shape)
+
+    system.Add(body)
+    return body
+
+# Particle emitter: generate particles with random properties
+for _ in range(num_particles):
+    shape = create_random_shape()
+    pos = chrono.ChVectorD(random.uniform(-emission_area/2, emission_area/2),
+                           random.uniform(-emission_area/2, emission_area/2),
+                           random.uniform(-emission_area/2, emission_area/2))
+    vel = chrono.ChVectorD(random.uniform(-max_initial_speed, max_initial_speed),
+                           random.uniform(-max_initial_speed, max_initial_speed),
+                           random.uniform(-max_initial_speed, max_initial_speed))
+    # Random orientation quaternion
+    axis = chrono.ChVectorD(random.uniform(-1,1), random.uniform(-1,1), random.uniform(-1,1))
+    axis.Normalize()
+    angle = random.uniform(0, 2*math.pi)
+    rot = chrono.ChQuaternionD()
+    rot.Q_from_AngAxis(angle, axis)
+    particle = add_particle(shape, pos, vel, rot)
+    particles.append(particle)
+
+# Visualization with Irrlicht
+application = chronoirr.ChIrrApp(system, "Particle Gravity Simulation", chronoirr.dimension2du(1024,768))
+application.AddTypicalSky()
+application.AddTypicalLights()
+application.AddTypicalCamera(chronoirr.vector3df(0, 0, 20))
+
+application.AssetBindAll()
+application.AssetUpdateAll()
+
+# Custom gravitational force application function
+def apply_gravitational_forces():
+    # Reset all forces first
+    for p in particles:
+        p.Empty_forces_accumulators()
+
+    # Compute pairwise gravitational forces
+    for i in range(len(particles)):
+        pi = particles[i]
+        pos_i = pi.GetPos()
+        for j in range(i+1, len(particles)):
+            pj = particles[j]
+            pos_j = pj.GetPos()
+            r_vec = pos_j - pos_i
+            dist = r_vec.Length()
+            if dist < 1e-3:
+                continue  # avoid singularity and self-force
+            force_mag = G_const * particle_mass * particle_mass / (dist * dist)
+            force_dir = r_vec.GetNormalized()
+            force = force_dir * force_mag
+            # Apply equal and opposite forces
+            pi.Accumulate_force(force, pos_i, False)
+            pj.Accumulate_force(-force, pos_j, False)
+
+# Main simulation loop
+application.SetTimestep(0.01)
+
+while application.GetDevice().run():
+    application.BeginScene()
+    application.DrawAll()
+
+    apply_gravitational_forces()
+
+    system.DoStepDynamics(0.01)
+
+    application.EndScene()
+```

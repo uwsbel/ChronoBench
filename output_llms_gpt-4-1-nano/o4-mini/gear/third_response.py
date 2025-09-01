@@ -1,0 +1,231 @@
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
+import math
+
+#
+# 1) SYSTEM SETUP
+#
+sys = chrono.ChSystemNSC()
+
+# CORRECT MATERIAL CLASS for NSC:
+mat = chrono.ChMaterialSurfaceNSC()
+
+#
+# 2) THE FIXED TRUSS
+#
+radA = 1.5
+radB = 3.5
+
+mbody_truss = chrono.ChBodyEasyBox(
+    15, 8, 2,         # X, Y, Z dimensions
+    1000,             # not really used for a fixed body
+    True,             # visualization on
+    False,            # no collision on truss
+    mat)
+sys.Add(mbody_truss)
+mbody_truss.SetBodyFixed(True)
+mbody_truss.SetPos(chrono.ChVectorD(0, 0, 3))
+
+# shared nice texture
+vis_mat = chrono.ChVisualMaterial()
+vis_mat.SetKdTexture(chrono.GetChronoDataFile('textures/pinkwhite.png'))
+
+#
+# 3) ROTATING BAR (CARRIER)
+#
+mbody_train = chrono.ChBodyEasyBox(8, 1.5, 1.0, 1000, True, False, mat)
+sys.Add(mbody_train)
+mbody_train.SetPos(chrono.ChVectorD(3, 0, 0))
+
+# revolute between truss & bar about Z = carrier pivot
+rev_tt = chrono.ChLinkLockRevolute()
+frame_tt = chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT)
+rev_tt.Initialize(mbody_truss, mbody_train, frame_tt)
+sys.AddLink(rev_tt)
+
+#
+# 4) GEAR A (driven by constant‐speed motor)
+#
+mbody_gearA = chrono.ChBodyEasyCylinder(
+    chrono.ChAxis_Y,  # cylinder axis
+    radA,             # radius
+    0.5,              # thickness
+    1000,
+    True,
+    False,
+    mat)
+sys.Add(mbody_gearA)
+mbody_gearA.SetPos(chrono.ChVectorD(0, 0, -1))
+# stand the Y‐axis cylinder up by 90° about X
+mbody_gearA.SetRot(chrono.Q_from_AngX(math.pi / 2))
+mbody_gearA.GetVisualShape(0).SetMaterial(0, vis_mat)
+
+# small “shaft” for visualization
+shaftA = chrono.ChCylinderShape(radA * 0.3,  # radius
+                                1.0)         # height
+shaftA.SetColor(chrono.ChColor(0.2, 0.2, 0.2))
+mbody_gearA.AddVisualShape(
+    shaftA,
+    chrono.ChFrameD(chrono.ChVectorD(0, 3.5, 0),
+                    chrono.Q_from_AngX(math.pi / 2)))
+
+# constant‐speed motor on A w.r.t. truss
+motor = chrono.ChLinkMotorRotationSpeed()
+motor_frame = chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT)
+motor.Initialize(mbody_gearA, mbody_truss, motor_frame)
+motor.SetSpeedFunction(chrono.ChFunction_Const(3.0))  # 3 rad/s
+sys.AddLink(motor)
+
+#
+# 5) GEAR B
+#
+interaxis12 = radA + radB
+mbody_gearB = chrono.ChBodyEasyCylinder(
+    chrono.ChAxis_Y,
+    radB,
+    0.4,
+    1000, True, False, mat)
+sys.Add(mbody_gearB)
+mbody_gearB.SetPos(chrono.ChVectorD(interaxis12, 0, -2))
+mbody_gearB.SetRot(chrono.Q_from_AngX(math.pi / 2))
+mbody_gearB.GetVisualShape(0).SetMaterial(0, vis_mat)
+
+# pivot B to bar
+rev_B = chrono.ChLinkLockRevolute()
+frame_B = chrono.ChFrameD(chrono.ChVectorD(interaxis12, 0, 0), chrono.QUNIT)
+rev_B.Initialize(mbody_train, mbody_gearB, frame_B)
+sys.AddLink(rev_B)
+
+#
+# 6) GEAR CONSTRAINT A↔B
+#
+gearAB = chrono.ChLinkLockGear()
+gearAB.Initialize(mbody_gearA, mbody_gearB, chrono.ChFrameD())
+gearAB.SetFrameShaft1(
+    chrono.ChFrameD(chrono.ChVectorD(0, 0, 0),
+                    chrono.Q_from_AngX(-math.pi / 2)))
+gearAB.SetFrameShaft2(
+    chrono.ChFrameD(chrono.ChVectorD(0, 0, 0),
+                    chrono.Q_from_AngX(-math.pi / 2)))
+gearAB.SetTransmissionRatio(radA / radB)
+gearAB.SetEnforcePhase(True)
+sys.AddLink(gearAB)
+
+#
+# 7) EPICYCLIC GEAR B→C (C is “inner” fixed on the truss)
+#
+radC = 2 * radB + radA
+gearBC = chrono.ChLinkLockGear()
+gearBC.Initialize(mbody_gearB, mbody_truss, chrono.ChFrameD())
+gearBC.SetFrameShaft1(
+    chrono.ChFrameD(chrono.ChVectorD(0, 0, 0),
+                    chrono.Q_from_AngX(-math.pi / 2)))
+gearBC.SetFrameShaft2(
+    chrono.ChFrameD(chrono.ChVectorD(0, 0, -4), chrono.QUNIT))
+gearBC.SetTransmissionRatio(radB / radC)
+gearBC.SetEpicyclic(True)
+sys.AddLink(gearBC)
+
+#
+# 8) NEW BEVEL GEAR D (radius = 5)
+#
+radD = 5.0
+mbody_gearD = chrono.ChBodyEasyCylinder(
+    chrono.ChAxis_Z,  # make its axis Z for simplicity
+    radD,
+    0.5,
+    1000, True, False, mat)
+sys.Add(mbody_gearD)
+mbody_gearD.SetPos(chrono.ChVectorD(-10, 0, -9))
+# rotate 90° about Z (per your request)
+mbody_gearD.SetRot(chrono.Q_from_AngZ(math.pi / 2))
+mbody_gearD.GetVisualShape(0).SetMaterial(0, vis_mat)
+
+# pivot D to the truss along the horizontal X-axis
+rev_D = chrono.ChLinkLockRevolute()
+# build a frame whose X-axis is the hinge axis
+hinge_D = chrono.ChQuaternionD()  # start identity
+# rotate so that local X aligns with global X: that's QUNIT
+# you could also build a Q_from_AngAxis if needed
+rev_frame_D = chrono.ChFrameD(chrono.ChVectorD(-10, 0, -9), chrono.QUNIT)
+rev_D.Initialize(mbody_truss, mbody_gearD, rev_frame_D)
+sys.AddLink(rev_D)
+
+# 1:1 gear constraint A↔D
+gearAD = chrono.ChLinkLockGear()
+gearAD.Initialize(mbody_gearA, mbody_gearD, chrono.ChFrameD())
+# align both shafts (gearA’s shaft is along its local Z after we did that pi/2 about X;
+# gearD’s shaft is its Z)
+gearAD.SetFrameShaft1(
+    chrono.ChFrameD(chrono.ChVectorD(0, 0, 0),
+                    chrono.Q_from_AngX(-math.pi / 2)))
+gearAD.SetFrameShaft2(
+    chrono.ChFrameD(chrono.ChVectorD(0, 0, 0),
+                    chrono.QUNIT))
+gearAD.SetTransmissionRatio(1.0)
+gearAD.SetEnforcePhase(True)
+sys.AddLink(gearAD)
+
+#
+# 9) NEW PULLEY E (radius = 2) & BELT TO D
+#
+radE = 2.0
+mbody_pulleyE = chrono.ChBodyEasyCylinder(
+    chrono.ChAxis_Z,
+    radE,
+    0.3,
+    500, True, False, mat)
+sys.Add(mbody_pulleyE)
+mbody_pulleyE.SetPos(chrono.ChVectorD(-10, -11, -9))
+mbody_pulleyE.SetRot(chrono.Q_from_AngZ(math.pi / 2))
+mbody_pulleyE.GetVisualShape(0).SetMaterial(0, vis_mat)
+
+# pivot E to truss along the same horizontal axis
+rev_E = chrono.ChLinkLockRevolute()
+rev_frame_E = chrono.ChFrameD(chrono.ChVectorD(-10, -11, -9), chrono.QUNIT)
+rev_E.Initialize(mbody_truss, mbody_pulleyE, rev_frame_E)
+sys.AddLink(rev_E)
+
+# “Belt” = a simple gear constraint with the proper ratio
+belt = chrono.ChLinkLockGear()
+belt.Initialize(mbody_gearD, mbody_pulleyE, chrono.ChFrameD())
+belt.SetFrameShaft1(
+    chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT))
+belt.SetFrameShaft2(
+    chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT))
+belt.SetTransmissionRatio(radD / radE)
+belt.SetEnforcePhase(True)
+sys.AddLink(belt)
+
+# add a crude visual “belt” as a block attached to the truss
+belt_vis = chrono.ChBoxShape()
+# half‐sizes: very thin in Z, length ~11 in Y, width small in X
+belt_vis.GetBoxGeometry().Size = chrono.ChVectorD(0.05, 5.5, 0.05)
+mbody_truss.AddVisualShape(
+    belt_vis,
+    chrono.ChFrameD(chrono.ChVectorD(-10, -5.5, -9), chrono.QUNIT),
+    vis_mat)
+
+#
+# 10) IRRLICHT VISUALIZATION
+#
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(sys)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle('Gears and Pulley Demo')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVectorD(12, 15, -20))
+vis.AddTypicalLights()
+
+#
+# 11) SOLVER & LOOP
+#
+sys.SetTimestepperType(chrono.ChTimestepper.Type_EULER_IMPLICIT_PROJECTED)
+
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    sys.DoStepDynamics(1e-3)

@@ -1,0 +1,66 @@
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as irr
+
+# 1. Initialize the PyChrono system
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
+
+# 2. Create and configure the Gator vehicle
+gator = veh.Gator_Full()
+gator.SetContactMethod(chrono.ChContactMethod_NSC)
+gator.SetChassisFixed(False)
+gator.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 1), chrono.QUNIT))
+gator.SetTireType(veh.TMeasy)
+gator.SetTireStepSize(1e-3)
+gator.Initialize(system)
+
+# Enable mesh visualization for all components
+gator.SetChassisVisualizationType(veh.VisualizationType_MESH)
+gator.SetSuspensionVisualizationType(veh.VisualizationType_MESH)
+gator.SetSteeringVisualizationType(veh.VisualizationType_MESH)
+gator.SetWheelVisualizationType(veh.VisualizationType_MESH)
+
+# 3. Create the rigid terrain
+terrain = veh.RigidTerrain(system)
+patch_mat = chrono.ChMaterialSurfaceNSC()
+patch = terrain.AddPatch(patch_mat, chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(200, 100, 1))
+patch.SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"), 100, 100)
+terrain.Initialize()
+
+# 4. Set up Irrlicht visualization
+application = irr.ChIrrApp(system, "Gator Simulation", irr.dimension2du(800, 600))
+application.AddTypicalLogo()
+application.AddTypicalCamera(irr.vector3df(0, 6, 10), irr.vector3df(0, 0, 0))
+application.AddTypicalLights()
+
+application.AssetBindAll()
+application.AssetUpdateAll()
+
+# 5. Create the interactive driver system
+driver = veh.ChIrrGuiDriver(application.GetDevice())
+driver.SetSteeringDelta(0.05)
+driver.SetThrottleDelta(0.05)
+driver.SetBrakingDelta(0.05)
+
+# 6. Simulation loop
+step_size = 1.0 / 50  # 50 FPS
+
+while application.GetDevice().run():
+    time = system.GetChTime()
+
+    # Get driver inputs
+    driver_inputs = driver.GetInputs()
+
+    # Update vehicle, terrain, driver
+    gator.Synchronize(time, driver_inputs, terrain)
+    terrain.Synchronize(time)
+    driver.Synchronize(time)
+
+    # Advance the simulation
+    system.DoStepDynamics(step_size)
+
+    # Update rendering
+    application.BeginScene()
+    application.DrawAll()
+    application.EndScene()

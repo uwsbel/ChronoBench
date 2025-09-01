@@ -1,0 +1,49 @@
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
+
+# Initialize PyChrono environment
+chrono.SetChronoDataPath('path_to_your_chrono_data_folder')
+my_system = chrono.ChSystemNSC()
+
+# Add gravity
+my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+
+# Create a beam composed of ANCF cable elements
+beam_length = 1.0
+num_elements = 10
+element_length = beam_length / num_elements
+
+for i in range(num_elements):
+    element = chrono.ChElementCableANCF()
+    element.SetLength(element_length)
+    element.SetDiameter(0.01)
+    element.SetYoungModulus(2e5)
+    element.SetBeamRaleyghDamping(0.001)
+    element.SetBeamSectionAsCircular(0.005)
+    my_system.Add(element)
+
+    if i == 0:
+        # Hinge the first end to the ground
+        node_ground = chrono.ChNodeBodyEasySphere(0.02, 1000, True, True)
+        my_system.Add(node_ground)
+        my_system.Add(chrono.ChLinkLockLock(node_ground, element.GetNodeA()))
+    else:
+        # Connect the nodes of the elements
+        my_system.Add(chrono.ChLinkPointPoint(element.GetNodeA(), previous_element.GetNodeB()))
+
+    previous_element = element
+
+# Create an Irrlicht application to visualize the beam
+my_application = chronoirr.ChIrrApp(my_system, 'Beam ANCF', chronoirr.dimension2du(1024, 768))
+
+# Set the camera position and target
+my_application.SetCameraVertical(chrono.CameraVerticalDir.Z)
+my_application.SetCameraPosition(chrono.ChVectorD(0, -2, 0))
+my_application.SetCameraTarget(chrono.ChVectorD(0, 0, 0))
+
+# Run the simulation loop
+while my_application.GetDevice().run():
+    my_application.BeginScene()
+    my_application.DrawAll()
+    my_application.DoStep()
+    my_application.EndScene()

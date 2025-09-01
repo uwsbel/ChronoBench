@@ -1,0 +1,209 @@
+import pychrono.core as chrono
+import pychrono.irrlicht as irr
+import pychrono.vehicle as veh
+import math
+import os
+
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())
+veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
+
+# Initial vehicle location and orientation
+initLoc = chrono.ChVector3d(0, 0, 0.5)
+initRot = chrono.ChQuaterniond(1, 0, 0, 0)
+
+# Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
+vis_type = veh.VisualizationType_MESH
+
+# Collision type for chassis (PRIMITIVES, MESH, or NONE)
+chassis_collision_type = veh.CollisionType_NONE
+
+# Type of tire model (RIGID, TMEASY)
+tire_model = veh.TireModelType_TMEASY
+
+# Terrain parameters (We will create 4 patches arranged in 2x2 grid)
+terrainHeight = 0      # base terrain height
+terrainLength = 50.0   # size in X per patch
+terrainWidth = 50.0    # size in Y per patch
+bump_height = 0.3      # bump height for a bump on each patch
+
+# Poon chassis tracked by the camera
+trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
+
+# Contact method
+contact_method = chrono.ChContactMethod_NSC
+contact_vis = False
+
+# Simulation step sizes
+step_size = 1e-3
+tire_step_size = step_size
+
+# Time interval between two render frames
+render_step_size = 1.0 / 50  # FPS = 50
+
+# Create the Gator vehicle, set parameters, and initialize
+vehicle = veh.Gator()
+vehicle.SetContactMethod(contact_method)
+vehicle.SetChassisCollisionType(chassis_collision_type)
+vehicle.SetChassisFixed(False)
+vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
+vehicle.SetTireType(tire_model)
+vehicle.SetTireStepSize(tire_step_size)
+
+vehicle.Initialize()
+
+vehicle.SetChassisVisualizationType(vis_type)
+vehicle.SetSuspensionVisualizationType(vis_type)
+vehicle.SetSteeringVisualizationType(vis_type)
+vehicle.SetWheelVisualizationType(vis_type)
+vehicle.SetTireVisualizationType(vis_type)
+
+vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+
+# Create the terrain
+patch_mat = chrono.ChContactMaterialNSC()
+patch_mat.SetFriction(0.9)
+patch_mat.SetRestitution(0.01)
+terrain = veh.RigidTerrain(vehicle.GetSystem())
+
+# To add 4 terrain patches arranged in 2x2 grid
+# Coordinates of patch centers:
+# Patch 0: ( -terrainLength/2, -terrainWidth/2 )
+# Patch 1: ( +terrainLength/2, -terrainWidth/2 )
+# Patch 2: ( -terrainLength/2, +terrainWidth/2 )
+# Patch 3: ( +terrainLength/2, +terrainWidth/2 )
+
+# 1) Patch 0: flat patch with tiled texture "tile4.jpg" + bump
+patch0_center = chrono.ChVector3d(-terrainLength / 2, -terrainWidth / 2, 0)
+patch0 = terrain.AddPatch(patch_mat,
+                          chrono.ChCoordsysd(patch0_center, chrono.QUNIT),
+                          terrainLength, terrainWidth)
+
+patch0.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
+patch0.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+
+# Add a bump on patch0 as a small hill
+# AddBump(rad, height, center_x, center_y)
+patch0.AddBump(5.0, bump_height, 0, 0)  # center of the patch (local coords)
+
+# 2) Patch 1: flat patch with different texture "grass.jpg" + bump
+patch1_center = chrono.ChVector3d(terrainLength / 2, -terrainWidth / 2, 0)
+patch1 = terrain.AddPatch(patch_mat,
+                          chrono.ChCoordsysd(patch1_center, chrono.QUNIT),
+                          terrainLength, terrainWidth)
+patch1.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)
+patch1.SetColor(chrono.ChColor(0.5, 0.8, 0.5))
+patch1.AddBump(5.0, bump_height, 0, 0)
+
+# 3) Patch 2: flat patch with texture "ststone.jpg" + bump
+patch2_center = chrono.ChVector3d(-terrainLength / 2, terrainWidth / 2, 0)
+patch2 = terrain.AddPatch(patch_mat,
+                          chrono.ChCoordsysd(patch2_center, chrono.QUNIT),
+                          terrainLength, terrainWidth)
+patch2.SetTexture(veh.GetDataFile("terrain/textures/ststone.jpg"), 200, 200)
+patch2.SetColor(chrono.ChColor(0.7, 0.7, 0.7))
+patch2.AddBump(5.0, bump_height, 0, 0)
+
+# 4) Patch 3: heightmap patch for testing gradability
+# Use a height map image provided by Chrono for terrain
+# We'll use the heightmap file "terrain/height_maps/hills.txt"
+# This file contains height data that creates a hilly terrain.
+
+patch3_center = chrono.ChVector3d(terrainLength / 2, terrainWidth / 2, 0)
+
+# The height map file path:
+height_map_path = veh.GetDataFile("terrain/height_maps/hills.txt")
+if not os.path.isfile(height_map_path):
+    print(f"Height map file not found: {height_map_path}")
+    # fallback to flat patch if file missing
+    patch3 = terrain.AddPatch(patch_mat,
+                              chrono.ChCoordsysd(patch3_center, chrono.QUNIT),
+                              terrainLength, terrainWidth)
+    patch3.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
+    patch3.SetColor(chrono.ChColor(0.6, 0.7, 0.6))
+    patch3.AddBump(5.0, bump_height, 0, 0)
+else:
+    patch3 = terrain.AddPatch(patch_mat,
+                              chrono.ChCoordsysd(patch3_center, chrono.QUNIT),
+                              heightMapFile=height_map_path,
+                              length=terrainLength,
+                              width=terrainWidth,
+                              scale_z=2.0)  # scale vertical height to increase bumpiness
+    patch3.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)
+    patch3.SetColor(chrono.ChColor(0.5, 0.7, 0.5))
+
+# Initialize the terrain after adding all patches
+terrain.Initialize()
+
+# -------------------------------------
+# Create the vehicle Irrlicht interface
+# -------------------------------------
+vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
+vis.SetWindowTitle('Gator vehicle')
+vis.SetWindowSize(1280, 1024)
+vis.SetChaseCamera(trackPoint, 6.0, 0.5)
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddLightDirectional()
+vis.AddSkyBox()
+vis.AttachVehicle(vehicle.GetVehicle())
+
+# -------------------------------------
+# Create the driver system
+# -------------------------------------
+driver = veh.ChInteractiveDriverIRR(vis)
+
+# Set the time response for steering and throttle keyboard inputs.
+steering_time = 1.0  # time to go from 0 to +1 (or from 0 to -1)
+throttle_time = 1.0  # time to go from 0 to +1
+braking_time = 0.3   # time to go from 0 to +1
+driver.SetSteeringDelta(render_step_size / steering_time)
+driver.SetThrottleDelta(render_step_size / throttle_time)
+driver.SetBrakingDelta(render_step_size / braking_time)
+
+driver.Initialize()
+
+# ---------------
+# Simulation loop
+# ---------------
+
+# Output vehicle mass
+print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
+
+# Number of simulation steps between miscellaneous events
+render_steps = math.ceil(render_step_size / step_size)
+
+# Initialize simulation frame counter and realtime timer
+realtime_timer = chrono.ChRealtimeStepTimer()
+step_number = 0
+render_frame = 0
+
+while vis.Run():
+    time = vehicle.GetSystem().GetChTime()
+
+    # Render scene and output POV-Ray data
+    if (step_number % render_steps == 0):
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+        render_frame += 1
+
+    # Get driver inputs
+    driver_inputs = driver.GetInputs()
+
+    # Update modules (process inputs from other modules)
+    driver.Synchronize(time)
+    terrain.Synchronize(time)
+    vehicle.Synchronize(time, driver_inputs, terrain)
+    vis.Synchronize(time, driver_inputs)
+
+    # Advance simulation for one timestep for all modules
+    driver.Advance(step_size)
+    terrain.Advance(step_size)
+    vehicle.Advance(step_size)
+    vis.Advance(step_size)
+
+    # Increment frame number
+    step_number += 1
+
+    # Spin in place for real time to catch up
+    realtime_timer.Spin(step_size)

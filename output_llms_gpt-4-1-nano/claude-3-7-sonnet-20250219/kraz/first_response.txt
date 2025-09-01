@@ -1,0 +1,168 @@
+# PyChrono Kraz Vehicle Simulation
+
+```python
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as irr
+import math
+
+# ---------------------------------------------------------------------
+# Initialize the simulation environment
+
+# Set output directory
+chrono.SetChronoDataPath("../data/")
+chrono.SetOutputPath("../output/")
+
+# Create the physical system
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+
+# Set solver settings
+system.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
+system.SetSolverMaxIterations(150)
+system.SetMaxPenetrationRecoverySpeed(4.0)
+
+# ---------------------------------------------------------------------
+# Create the rigid terrain
+
+terrain = veh.RigidTerrain(system)
+patch_material = chrono.ChMaterialSurfaceNSC()
+patch_material.SetFriction(0.9)
+patch_material.SetRestitution(0.01)
+
+# Create a flat terrain patch
+terrain_height = 0
+terrain_length = 100.0
+terrain_width = 100.0
+
+patch = terrain.AddPatch(patch_material, 
+                         chrono.ChCoordsysD(chrono.ChVectorD(0, terrain_height, 0), 
+                                            chrono.QUNIT),
+                         terrain_length, terrain_width)
+
+# Add visual texture
+patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
+terrain.Initialize()
+
+# ---------------------------------------------------------------------
+# Create the Kraz vehicle
+
+# Initial position and orientation
+vehicle_pos = chrono.ChVectorD(0, terrain_height + 0.5, 0)
+vehicle_rot = chrono.ChQuaternionD(1, 0, 0, 0)  # No rotation
+
+# Create the Kraz vehicle
+vehicle = veh.Kraz(system)
+vehicle.SetInitPosition(chrono.ChCoordsysD(vehicle_pos, vehicle_rot))
+vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
+vehicle.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
+vehicle.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
+vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
+
+# Set the powertrain and tire type
+vehicle.SetPowertrainType(veh.PowertrainModelType_SHAFTS)
+vehicle.SetTireType(veh.TireModelType_RIGID)
+
+# Initialize the vehicle
+vehicle.Initialize()
+
+# Set vehicle and tire collision type
+vehicle.SetChassisCollisionType(False)
+vehicle.SetTireCollisionType(veh.ChTire.CollisionType_BULLETS)
+
+# ---------------------------------------------------------------------
+# Create the driver system
+
+# Create the driver
+driver = veh.ChIrrGuiDriver(vehicle.GetVehicle())
+driver.SetSteering(veh.ChIrrGuiDriver.Inputs.LOCK)
+driver.SetThrottle(veh.ChIrrGuiDriver.Inputs.HALF)
+driver.SetBraking(veh.ChIrrGuiDriver.Inputs.NONE)
+
+# Set the driver position
+driver.SetInputMode(veh.ChIrrGuiDriver.InputMode.KEYBOARD)
+
+# Initialize the driver
+driver.Initialize()
+
+# ---------------------------------------------------------------------
+# Create the visualization system
+
+# Define camera settings
+chase_distance = 6.0
+chase_height = 2.0
+camera_pos = vehicle_pos + chrono.ChVectorD(-chase_distance, chase_height, 0)
+
+# Create the Irrlicht visualization
+vis = veh.ChWheeledVehicleIrrApp(vehicle.GetVehicle())
+vis.SetChaseCamera(camera_pos, chase_distance, chase_height)
+vis.SetWindowTitle("Kraz Vehicle Simulation")
+vis.SetWindowSize(1280, 720)
+vis.Initialize()
+
+# Set the vehicle to make it visible in Irrlicht
+vis.AddTypicalLights()
+vis.AddSkyBox()
+vis.AddLogo()
+
+# ---------------------------------------------------------------------
+# Simulation loop
+
+# Simulation end time and step size
+tend = 1000.0  # seconds
+step_size = 1e-3  # seconds
+
+# Initialization for real-time simulation
+realtime_timer = chrono.ChRealtimeStepTimer()
+
+while vis.GetDevice().run():
+    # Get driver inputs
+    driver_inputs = driver.GetInputs()
+    
+    # Update modules (vehicle, terrain, driver, visualization) at the specified step
+    time = vehicle.GetSystem().GetChTime()
+    
+    # Render scene
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    
+    # Get driver inputs
+    driver_inputs = driver.GetInputs()
+    
+    # Update modules (process inputs from driver, update dynamics, etc.)
+    driver.Synchronize(time)
+    vehicle.Synchronize(time, driver_inputs, terrain)
+    terrain.Synchronize(time)
+    vis.Synchronize(time, driver_inputs)
+    
+    # Advance simulation
+    vehicle.Advance(step_size)
+    terrain.Advance(step_size)
+    vis.Advance(step_size)
+    
+    # Delay to achieve real-time simulation
+    realtime_timer.Spin(step_size)
+    
+    # Break simulation if time exceeds end time
+    if time >= tend:
+        break
+
+# Clean up
+vis.GetDevice().closeDevice()
+```
+
+This script implements a PyChrono simulation with a Kraz vehicle on a rigid terrain. Key features include:
+
+1. **Initialization**: Sets up the physical system with appropriate gravity and solver settings.
+2. **Terrain**: Creates a flat, rigid terrain with friction and visual textures.
+3. **Vehicle**: Initializes a Kraz vehicle with specified visualization settings and positioning.
+4. **Driver**: Implements a driver system for vehicle control using keyboard inputs.
+5. **Visualization**: Sets up Irrlicht-based real-time visualization with camera positioning and lighting.
+6. **Simulation Loop**: Implements a time-stepping loop that:
+   - Gets driver inputs
+   - Synchronizes all components (vehicle, terrain, driver, visualization)
+   - Advances the simulation
+   - Maintains real-time execution using a timer
+
+The simulation will run until the end time is reached or the visualization window is closed.

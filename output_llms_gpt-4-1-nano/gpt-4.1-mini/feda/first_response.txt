@@ -1,0 +1,101 @@
+```python
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as chronoirr
+
+# 1. Initialize the PyChrono environment and core components
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())  # Ensure data path is set
+
+# Simulation parameters
+step_size = 1.0 / 50  # 50 FPS
+
+# 2. Add the required physical systems and objects as specified
+
+# Create the vehicle system
+contact_method = chrono.ChContactMethod_NSC  # Non-smooth contact
+initial_loc = chrono.ChVectorD(0, 0, 1.0)  # Starting 1 meter above ground
+initial_rot = chrono.ChQuaternionD(1, 0, 0, 0)  # No rotation
+
+# Initialize the FEDA vehicle
+vehicle = veh.FEDA(contact_method)
+vehicle.SetInitPosition(chrono.ChCoordsysD(initial_loc, initial_rot))
+vehicle.SetChassisCollisionType(veh.ChassisCollisionType_NONE)  # No chassis collision for simplicity
+vehicle.SetTireType(veh.TireModelType_TMEASY)  # Tire model
+vehicle.Initialize()
+
+# Set visualization type for all vehicle parts to mesh
+vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
+vehicle.SetSuspensionVisualizationType(veh.VisualizationType_MESH)
+vehicle.SetSteeringVisualizationType(veh.VisualizationType_MESH)
+vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
+vehicle.SetTireVisualizationType(veh.VisualizationType_MESH)
+
+# Create the terrain
+terrain = veh.RigidTerrain(vehicle.GetSystem())
+terrain.SetContactFriction(0.9f)
+terrain.SetContactRestitution(0.01f)
+terrain.SetContactMaterialProperties(0.9, 0.01, 2e7, 0.3)  # friction, restitution, young_modulus, poisson_ratio
+
+# Add a patch (rigid terrain surface)
+patch = terrain.AddPatch(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT),
+                         200, 200)  # 200m x 200m patch
+patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)
+patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+patch.SetContactFriction(0.9)
+patch.SetContactRestitution(0.01)
+patch.SetContactMaterialProperties(0.9, 0.01, 2e7, 0.3)
+terrain.Initialize()
+
+# 3. Set necessary default parameters such as positions, forces, and interactions.
+
+# Create the Irrlicht application for visualization
+app = chronoirr.ChIrrApp(vehicle.GetSystem(), "FEDA Vehicle on Rigid Terrain",
+                         chronoirr.dimension2du(1280, 720))
+
+# Add typical elements to the Irrlicht scene
+app.AddTypicalSky()
+app.AddTypicalLights()
+app.AddTypicalCamera(chronoirr.vector3df(0, -8, 3))
+
+# Set camera to follow the vehicle from a designated position
+app.SetChaseCamera(trackPoint=chrono.ChVectorD(0, 0, 1.2),
+                   chaseDistance=8.0,
+                   chaseHeight=3.0,
+                   chaseAngle=0.5)
+
+# Initialize the app
+app.AssetBindAll()
+app.AssetUpdateAll()
+app.SetTimestep(step_size)
+
+# Create the interactive driver system
+driver = veh.ChIrrGuiDriver(app)
+driver.SetSteeringDelta(0.06)
+driver.SetThrottleDelta(0.1)
+driver.SetBrakingDelta(0.2)
+driver.Initialize()
+
+# Initialize vehicle subsystems
+vehicle.Initialize()
+
+# Simulation loop
+while app.GetDevice().run():
+    app.BeginScene()
+    app.DrawAll()
+
+    # Get driver inputs
+    driver_inputs = driver.GetInputs()
+
+    # Apply driver inputs to vehicle
+    vehicle.GetSteeringController().SetInput(driver_inputs.m_steering)
+    vehicle.GetPowertrain().SetThrottle(driver_inputs.m_throttle)
+    vehicle.GetBrake().SetBrake(driver_inputs.m_braking)
+
+    # Advance simulation by step size
+    driver.Synchronize(step_size)
+    terrain.Synchronize(step_size)
+    vehicle.Synchronize(step_size, driver_inputs, terrain)
+    app.DoStep()
+
+    app.EndScene()
+```

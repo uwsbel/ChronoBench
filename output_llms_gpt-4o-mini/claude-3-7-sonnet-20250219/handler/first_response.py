@@ -1,0 +1,97 @@
+import pychrono as chrono
+import pychrono.ros as chronoros
+import math
+import time
+import rospy
+from std_msgs.msg import Int32
+
+# Initialize the Chrono physical system
+system = chrono.ChSystemNSC()
+
+# Set gravitational acceleration
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+
+# Create a physical material for contact
+material = chrono.ChMaterialSurfaceNSC()
+material.SetFriction(0.5)
+material.SetRestitution(0.2)
+
+# Create the floor (fixed body)
+floor = chrono.ChBodyEasyBox(10, 0.2, 10, 1000, True, True, material)
+floor.SetPos(chrono.ChVectorD(0, -0.1, 0))  # Position slightly below origin
+floor.SetBodyFixed(True)  # Make it fixed
+system.Add(floor)
+
+# Create a movable box
+box = chrono.ChBodyEasyBox(0.5, 0.5, 0.5, 1000, True, True, material)
+box.SetPos(chrono.ChVectorD(0, 1, 0))  # Position above the floor
+box.SetName("movable_box")  # Set a name for ROS
+system.Add(box)
+
+# Initialize ROS if it hasn't been initialized yet
+if not rospy.is_initialized():
+    rospy.init_node("pychrono_simulation")
+
+# Create a custom ROS handler for integer messages
+class ChROSCustomIntHandler(chronoros.ChROSHandler):
+    def __init__(self, publisher):
+        chronoros.ChROSHandler.__init__(self)
+        self.counter = 0
+        self.publisher = publisher
+        
+    def UpdateHandler(self):
+        msg = Int32()
+        msg.data = self.counter
+        self.publisher.publish(msg)
+        self.counter += 1
+        return True
+
+# Create ROS publisher
+int_publisher = rospy.Publisher("chrono_counter", Int32, queue_size=10)
+
+# Create ROS handler objects
+clock_handler = chronoros.ChROSClockHandler()
+body_handler = chronoros.ChROSBodyHandler(box)
+tf_handler = chronoros.ChROSTransformHandler()
+
+# Create the custom handler
+custom_handler = ChROSCustomIntHandler(int_publisher)
+
+# Create the ROS manager
+ros_manager = chronoros.ChROSManager(system)
+
+# Register the handlers
+ros_manager.AddHandler(clock_handler)
+ros_manager.AddHandler(body_handler)
+ros_manager.AddHandler(tf_handler)
+ros_manager.AddHandler(custom_handler)
+
+# Simulation parameters
+step_size = 0.005  # 5ms
+realtime_factor = 1.0  # Run at real-time speed
+
+# Initialize the ROS manager
+ros_manager.Initialize()
+
+# Main simulation loop
+try:
+    next_time = time.time()
+    while not rospy.is_shutdown():
+        # Calculate time for real-time synchronization
+        current_time = time.time()
+        if current_time < next_time:
+            time.sleep(next_time - current_time)
+        next_time = current_time + step_size * realtime_factor
+        
+        # Advance the simulation
+        system.DoStepDynamics(step_size)
+        
+        # Update all ROS communications
+        ros_manager.UpdateHandlers()
+        
+except KeyboardInterrupt:
+    pass
+
+# Clean up and shutdown
+ros_manager.Shutdown()
+print("Simulation completed")

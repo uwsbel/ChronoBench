@@ -1,0 +1,154 @@
+# PyChrono Simulation with Triangular Mesh and Orbiting Lidar Sensor
+
+```python
+import pychrono as chrono
+import pychrono.sensor as sens
+import numpy as np
+import math
+import os
+
+# ---------------------------------------------------------------------
+# Initialize the Chrono system
+
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())
+my_system = chrono.ChSystemNSC()
+my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+
+# ---------------------------------------------------------------------
+# Create a mesh body from a Wavefront .obj file
+
+mesh_body = chrono.ChBodyEasyMesh(
+    filename="../data/vehicle/terrain/meshes/test.obj",  # Replace with your actual mesh file
+    mass=1.0,
+    visualize=True,
+    collide=True
+)
+mesh_body.SetBodyFixed(True)  # Fix the mesh in space
+mesh_body.SetPos(chrono.ChVectorD(0, 0, 0))
+my_system.Add(mesh_body)
+
+# ---------------------------------------------------------------------
+# Create a sensor manager and add a lidar sensor
+
+# Create the sensor manager
+manager = sens.ChSensorManager(my_system)
+manager.scene.AddPointLight(chrono.ChVectorD(100, 100, 100), chrono.ChColor(1, 1, 1), 500.0)
+
+# Set visualization window
+vis = sens.ChVisualizer()
+vis.AttachSystem(my_system)
+vis.SetWindowSize(1280, 720)
+vis.SetWindowTitle("Lidar Sensor Demo")
+vis.Initialize()
+vis.AddCamera(chrono.ChVectorD(0, 0, 10), chrono.ChVectorD(0, 0, 0))
+vis.SetCameraAngle(0)
+manager.AddSensor(vis)
+
+# Create a lidar with default parameters
+lidar_origin = chrono.ChFrameD(chrono.ChVectorD(0, 0, 5), chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0)))
+lidar = sens.ChLidarSensor(
+    mesh_body,            # body lidar is attached to
+    30.0,                 # scanning rate in Hz
+    lidar_origin,         # offset pose
+    1000,                 # number of horizontal samples
+    100,                  # number of vertical channels
+    chrono.CH_C_2PI,      # horizontal field of view
+    chrono.CH_C_PI / 6.0, # vertical field of view
+    100.0                 # max distance
+)
+
+# Set lidar properties
+lidar.SetName("Lidar Sensor")
+lidar.SetLag(0.0)  # No lag for sensor data
+lidar.SetCollectionWindow(0.0)  # Perfect collection
+
+# Add noise models to the lidar
+lidar_noise = sens.ChLidarNoiseNormal(0.01, 0.001)
+lidar.SetNoiseModel(lidar_noise)
+
+# Add filters to the lidar
+intensity_filter = sens.ChFilterLidarIntensityClip(0.1, 0.9)
+lidar.AddFilter(intensity_filter)
+
+# Add lidar data processors
+lidar.PushFilter(sens.ChFilterPCfromDepth())  # Convert depth data to point cloud
+lidar.PushFilter(sens.ChFilterVisualize(640, 480, "Lidar Data"))  # Visualize lidar data
+
+# Save lidar data to a file
+if not os.path.exists("SENSOR_OUTPUT"):
+    os.makedirs("SENSOR_OUTPUT")
+lidar.PushFilter(sens.ChFilterSavePtCloud("SENSOR_OUTPUT/lidar_data"))
+
+# Add the lidar to the sensor manager
+manager.AddSensor(lidar)
+
+# ---------------------------------------------------------------------
+# Simulation settings
+
+time_step = 0.001  # Time step in seconds
+end_time = 10.0    # Simulation end time in seconds
+orbit_radius = 10.0  # Radius of the orbit
+orbit_height = 5.0  # Height of the orbit
+orbit_speed = 0.5   # Speed of the orbit in radians/second
+
+# ---------------------------------------------------------------------
+# Run the simulation
+
+time = 0.0
+step_number = 0
+
+while time < end_time:
+    # Update lidar position in an orbit around the mesh
+    angle = orbit_speed * time
+    new_x = orbit_radius * math.cos(angle)
+    new_z = orbit_radius * math.sin(angle)
+    
+    # Update lidar's position
+    new_lidar_pos = chrono.ChVectorD(new_x, orbit_height, new_z)
+    # Make the lidar point toward the mesh at origin
+    lidar_dir = chrono.ChVectorD(0, 0, 0) - new_lidar_pos
+    lidar_rot = chrono.Q_from_AngAxis(
+        math.atan2(lidar_dir.z, lidar_dir.x),
+        chrono.ChVectorD(0, 1, 0)
+    )
+    lidar_rot = lidar_rot * chrono.Q_from_AngAxis(
+        -math.atan2(lidar_dir.y, math.sqrt(lidar_dir.x**2 + lidar_dir.z**2)),
+        chrono.ChVectorD(0, 0, 1)
+    )
+    
+    new_lidar_frame = chrono.ChFrameD(new_lidar_pos, lidar_rot)
+    lidar.SetOffsetPose(new_lidar_frame)
+    
+    # Update the system and sensor manager
+    my_system.DoStepDynamics(time_step)
+    manager.Update()
+    
+    # Print lidar data every 30 steps (approx. 1 second with 30Hz lidar)
+    if step_number % 30 == 0:
+        lidar_buffer = lidar.GetMostRecentRawData()
+        if lidar_buffer.HasData():
+            print(f"Time: {time:.2f}s - Lidar data available, points: {len(lidar_buffer.GetPointCloud())}")
+    
+    time += time_step
+    step_number += 1
+    
+    # Optional: break simulation if window is closed
+    if vis.Run() != True:
+        break
+
+# Properly clean up and exit
+print("Simulation complete")
+```
+
+This script creates a PyChrono simulation with:
+
+1. A fixed triangular mesh loaded from a Wavefront .obj file
+2. A lidar sensor with:
+   - Noise model (normal distribution)
+   - Intensity filter
+   - Visualization of point cloud data
+   - Saving of point cloud data to files
+3. A dynamic sensor position that orbits around the mesh
+4. Simulation stepping with regular reporting of lidar data
+
+Note: You may need to adjust the path to the mesh file (`test.obj`) to point to a valid file on your system. Also, ensure you have the appropriate PyChrono modules installed, especially the sensor module.

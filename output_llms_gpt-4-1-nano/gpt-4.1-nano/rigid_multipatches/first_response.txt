@@ -1,0 +1,123 @@
+```python
+import pychrono.core as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as irr
+
+# Initialize the Chrono system
+chrono.SetChronoDataPath('path/to/data')  # Set the correct data path
+system = chrono.ChSystemNSC()
+
+# Create the Irrlicht application for visualization
+application = irr.ChIrrApp(system, 'HMMWV on Complex Terrain', irr.dimension2d(1024, 768))
+application.AddTypicalSky()
+application.AddTypicalCamera(irr.vector3df(0, 5, -15))
+application.AddTypicalLights()
+
+# ------------------------------
+# 1. Create the HMMWV vehicle
+# ------------------------------
+# Define initial position
+initial_pos = chrono.ChVectorD(0, 0.5, 0)
+
+# Create the vehicle using the HMMWV model
+# Note: Adjust parameters as needed for specific configurations
+my_vehicle = veh.HMMWV_Vehicle(
+    system,
+    veh.HMMWV_Vehicle.metallic_color,
+    veh.HMMWV_Vehicle.engine_type::TURBO,
+    veh.HMMWV_Vehicle.drivetrain_type::AWD
+)
+
+# Set initial position
+my_vehicle.GetChassisBody().SetPos(initial_pos)
+
+# Enable mesh visualization for all vehicle components
+my_vehicle.SetChassisVisualizationType(veh.VisualizationType::MESH)
+my_vehicle.SetWheelVisualizationType(veh.VisualizationType::MESH)
+my_vehicle.SetTireVisualizationType(veh.VisualizationType::MESH)
+
+# Initialize the vehicle
+my_vehicle.Initialize()
+
+# Add the vehicle to the physical system
+system.Add(my_vehicle.GetChassisBody())
+
+# ------------------------------
+# 2. Create the complex terrain
+# ------------------------------
+
+# Helper function to create a flat patch with texture
+def create_flat_patch(pos, size, texture_name):
+    patch = chrono.ChBodyEasyBox(size.x, 0.1, size.z, 1000, True, True)
+    patch.SetPos(pos + chrono.ChVectorD(0, -0.05, 0))
+    patch.SetBodyFixed(True)
+    # Assign texture for visualization
+    texture = irr.IrrTexture(texture_name)
+    patch.GetVisualShape().AddTexture(texture)
+    system.Add(patch)
+    return patch
+
+# Helper function to create a mesh-based bump patch
+def create_bump_mesh_patch(pos, size, mesh_filename):
+    mesh_shape = chrono.ChTriangleMeshConnected()
+    mesh_shape.LoadWavefrontMesh(mesh_filename, True, True)
+    mesh_shape.Transform(chrono.ChMatrix33D(1), pos)
+    mesh_body = chrono.ChBodyEasyMesh(mesh_shape, 1000, True, True)
+    mesh_body.SetPos(pos)
+    mesh_body.SetBodyFixed(True)
+    system.Add(mesh_body)
+    return mesh_body
+
+# Helper function to create a heightmap patch
+def create_heightmap_patch(pos, size, heightmap_filename):
+    heightmap = chrono.ChHeightMapTerrain()
+    heightmap.LoadHeightMap(heightmap_filename)
+    heightmap.SetPosition(chrono.ChVectorD(pos.x, pos.y, pos.z))
+    heightmap.SetSize(size.x, size.z)
+    heightmap.Initialize()
+    system.Add(heightmap)
+    return heightmap
+
+# Create flat patches with different textures
+flat_patch1 = create_flat_patch(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(10, 0, 10), 'textures/grass.jpg')
+flat_patch2 = create_flat_patch(chrono.ChVectorD(15, 0, 0), chrono.ChVectorD(10, 0, 10), 'textures/dirt.jpg')
+
+# Create a mesh-based bump patch
+bump_patch = create_bump_mesh_patch(chrono.ChVectorD(30, 0, 0), chrono.ChVectorD(5, 0, 5), 'meshes/bump_mesh.obj')
+
+# Create a heightmap-based patch for varying elevations
+heightmap_patch = create_heightmap_patch(chrono.ChVectorD(45, 0, 0), chrono.ChVectorD(20, 0, 20), 'heightmaps/terrain_heightmap.png')
+
+# ------------------------------
+# 3. Add driver controls
+# ------------------------------
+driver = veh.ChIrrGuiDriver(application)
+driver.Initialize()
+
+# ------------------------------
+# 4. Simulation loop
+# ------------------------------
+application.AssetBindAll()
+application.AssetUpdateAll()
+
+# Set simulation timestep
+time_step = 0.005
+
+# Run the simulation
+while application.GetDevice().run():
+    # Begin scene rendering
+    application.BeginScene()
+    application.DrawAll()
+
+    # Update driver inputs
+    driver.Control()
+
+    # Synchronize the vehicle with driver inputs
+    my_vehicle.Synchronize(driver.GetInput(), chrono.CollisionInfo())
+
+    # Advance the system
+    system.DoStepDynamics(time_step)
+
+    # Update visualization
+    application.EndScene()
+```

@@ -1,0 +1,254 @@
+# PyChrono Turtlebot Navigation Simulation
+
+```python
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
+import numpy as np
+import math
+
+# ---------------------------------------------------------------------
+#  Create the simulation system and add items
+# ---------------------------------------------------------------------
+
+def main():
+    # Create the Chrono system
+    system = chrono.ChSystemNSC()
+    system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
+
+    # Create the ground body
+    ground = chrono.ChBodyEasyBox(20, 0.2, 20, 1000, True, True)
+    ground.SetBodyFixed(True)
+    ground.SetPos(chrono.ChVectorD(0, -0.1, 0))  # Set position slightly below origin
+    ground.SetCollide(True)
+    ground_material = chrono.ChMaterialSurfaceNSC()
+    ground_material.SetFriction(0.8)
+    ground.GetCollisionModel().ClearModel()
+    ground.GetCollisionModel().AddBox(ground_material, 10, 0.1, 10)
+    ground.GetCollisionModel().BuildModel()
+    system.Add(ground)
+    
+    # Add texture to the ground for visualization
+    ground_texture = chrono.ChTexture()
+    ground_texture.SetTextureFilename(chrono.GetChronoDataFile("textures/concrete.jpg"))
+    ground.AddAsset(ground_texture)
+
+    # ---------------------------------------------------------------------
+    #  Create the Turtlebot robot
+    # ---------------------------------------------------------------------
+    
+    # Create main chassis body
+    chassis = chrono.ChBodyEasyBox(0.35, 0.1, 0.35, 10, True, True)
+    chassis.SetPos(chrono.ChVectorD(0, 0.15, 0))  # Position above ground
+    chassis.SetMass(5.0)
+    chassis.SetInertiaXX(chrono.ChVectorD(0.1, 0.1, 0.1))
+    system.Add(chassis)
+    
+    # Add visualization for the chassis
+    chassis_texture = chrono.ChColorAsset()
+    chassis_texture.SetColor(chrono.ChColor(0.2, 0.2, 0.2))
+    chassis.AddAsset(chassis_texture)
+    
+    # Create the wheels
+    wheel_radius = 0.08
+    wheel_width = 0.04
+    wheel_material = chrono.ChMaterialSurfaceNSC()
+    wheel_material.SetFriction(0.9)
+    
+    # Left wheel
+    wheel_L = chrono.ChBodyEasyCylinder(wheel_radius, wheel_width, 1000, True, True)
+    wheel_L.SetPos(chrono.ChVectorD(0, wheel_radius, 0.2))
+    wheel_L.SetRot(chrono.Q_from_AngAxis(chrono.CH_C_PI / 2, chrono.ChVectorD(1, 0, 0)))
+    wheel_L.SetMass(0.5)
+    wheel_L.SetInertiaXX(chrono.ChVectorD(0.01, 0.01, 0.01))
+    wheel_L.SetCollide(True)
+    wheel_L.GetCollisionModel().ClearModel()
+    wheel_L.GetCollisionModel().AddCylinder(wheel_material, wheel_radius, wheel_radius, wheel_width/2)
+    wheel_L.GetCollisionModel().BuildModel()
+    system.Add(wheel_L)
+    
+    # Left wheel visualization
+    wheel_L_color = chrono.ChColorAsset()
+    wheel_L_color.SetColor(chrono.ChColor(0.3, 0.3, 0.3))
+    wheel_L.AddAsset(wheel_L_color)
+    
+    # Right wheel
+    wheel_R = chrono.ChBodyEasyCylinder(wheel_radius, wheel_width, 1000, True, True)
+    wheel_R.SetPos(chrono.ChVectorD(0, wheel_radius, -0.2))
+    wheel_R.SetRot(chrono.Q_from_AngAxis(chrono.CH_C_PI / 2, chrono.ChVectorD(1, 0, 0)))
+    wheel_R.SetMass(0.5)
+    wheel_R.SetInertiaXX(chrono.ChVectorD(0.01, 0.01, 0.01))
+    wheel_R.SetCollide(True)
+    wheel_R.GetCollisionModel().ClearModel()
+    wheel_R.GetCollisionModel().AddCylinder(wheel_material, wheel_radius, wheel_radius, wheel_width/2)
+    wheel_R.GetCollisionModel().BuildModel()
+    system.Add(wheel_R)
+    
+    # Right wheel visualization
+    wheel_R_color = chrono.ChColorAsset()
+    wheel_R_color.SetColor(chrono.ChColor(0.3, 0.3, 0.3))
+    wheel_R.AddAsset(wheel_R_color)
+    
+    # Create castor wheel (smaller wheel at front for balance)
+    castor_radius = 0.03
+    castor = chrono.ChBodyEasySphere(castor_radius, 1000, True, True)
+    castor.SetPos(chrono.ChVectorD(0.15, castor_radius, 0))
+    castor.SetMass(0.2)
+    castor.SetInertiaXX(chrono.ChVectorD(0.001, 0.001, 0.001))
+    castor.SetCollide(True)
+    castor_material = chrono.ChMaterialSurfaceNSC()
+    castor_material.SetFriction(0.4)
+    castor.GetCollisionModel().ClearModel()
+    castor.GetCollisionModel().AddSphere(castor_material, castor_radius)
+    castor.GetCollisionModel().BuildModel()
+    system.Add(castor)
+    
+    # Castor visualization
+    castor_color = chrono.ChColorAsset()
+    castor_color.SetColor(chrono.ChColor(0.4, 0.4, 0.4))
+    castor.AddAsset(castor_color)
+    
+    # Create joints for the wheels
+    # Left wheel joint
+    rev_L = chrono.ChLinkLockRevolute()
+    rev_L.Initialize(wheel_L, chassis, chrono.ChCoordsysD(
+        chrono.ChVectorD(0, wheel_radius, 0.2), 
+        chrono.Q_from_AngAxis(chrono.CH_C_PI / 2, chrono.ChVectorD(0, 0, 1))
+    ))
+    system.Add(rev_L)
+    
+    # Right wheel joint
+    rev_R = chrono.ChLinkLockRevolute()
+    rev_R.Initialize(wheel_R, chassis, chrono.ChCoordsysD(
+        chrono.ChVectorD(0, wheel_radius, -0.2), 
+        chrono.Q_from_AngAxis(chrono.CH_C_PI / 2, chrono.ChVectorD(0, 0, 1))
+    ))
+    system.Add(rev_R)
+    
+    # Castor joint (spherical joint for free rotation)
+    sph = chrono.ChLinkLockSpherical()
+    sph.Initialize(castor, chassis, chrono.ChCoordsysD(chrono.ChVectorD(0.15, castor_radius, 0)))
+    system.Add(sph)
+    
+    # Create motors for the wheels
+    motor_L = chrono.ChLinkMotorRotationSpeed()
+    motor_L.Initialize(wheel_L, chassis, chrono.ChFrameD(chrono.ChVectorD(0, wheel_radius, 0.2), 
+                                                       chrono.Q_from_AngAxis(chrono.CH_C_PI / 2, chrono.ChVectorD(0, 0, 1))))
+    motor_L.SetSpindleConstraint(chrono.ChLinkMotorRotation.SpindleConstraint_OLDHAM)
+    motor_L.SetMotorFunction(chrono.ChFunction_Const(0))  # Initially zero speed
+    system.Add(motor_L)
+    
+    motor_R = chrono.ChLinkMotorRotationSpeed()
+    motor_R.Initialize(wheel_R, chassis, chrono.ChFrameD(chrono.ChVectorD(0, wheel_radius, -0.2),
+                                                       chrono.Q_from_AngAxis(chrono.CH_C_PI / 2, chrono.ChVectorD(0, 0, 1))))
+    motor_R.SetSpindleConstraint(chrono.ChLinkMotorRotation.SpindleConstraint_OLDHAM)
+    motor_R.SetMotorFunction(chrono.ChFunction_Const(0))  # Initially zero speed
+    system.Add(motor_R)
+    
+    # ---------------------------------------------------------------------
+    #  Create the visualization window
+    # ---------------------------------------------------------------------
+    
+    vis = chronoirr.ChVisualSystemIrrlicht()
+    vis.AttachSystem(system)
+    vis.SetWindowSize(1024, 768)
+    vis.SetWindowTitle("Turtlebot Simulation")
+    vis.Initialize()
+    vis.AddCamera(chrono.ChVectorD(1.5, 1.5, 1.5), chrono.ChVectorD(0, 0, 0))
+    vis.AddTypicalLights()
+    
+    # ---------------------------------------------------------------------
+    #  Simulation loop
+    # ---------------------------------------------------------------------
+    
+    time_step = 0.01
+    simulation_time = 0.0
+    max_simulation_time = 20.0  # 20 seconds of simulation
+    
+    # Default wheel speeds (forward)
+    base_speed = 5.0  # rad/s (adjust as needed)
+    left_speed = base_speed
+    right_speed = base_speed
+    
+    while vis.Run() and simulation_time < max_simulation_time:
+        # Update the wheel motor speeds based on simulation time
+        if simulation_time < 2.0:
+            # Move forward for the first 2 seconds
+            left_speed = base_speed
+            right_speed = base_speed
+        elif simulation_time < 5.0:
+            # Turn right from 2 to 5 seconds
+            left_speed = base_speed
+            right_speed = base_speed * 0.5
+        elif simulation_time < 8.0:
+            # Turn left from 5 to 8 seconds
+            left_speed = base_speed * 0.5
+            right_speed = base_speed
+        elif simulation_time < 12.0:
+            # Move forward from 8 to 12 seconds
+            left_speed = base_speed
+            right_speed = base_speed
+        elif simulation_time < 15.0:
+            # Turn right again from 12 to 15 seconds
+            left_speed = base_speed
+            right_speed = base_speed * 0.2
+        else:
+            # Move forward for the rest of the simulation
+            left_speed = base_speed
+            right_speed = base_speed
+        
+        # Apply the motor speeds
+        motor_function_L = chrono.ChFunction_Const(left_speed)
+        motor_function_R = chrono.ChFunction_Const(right_speed)
+        motor_L.SetMotorFunction(motor_function_L)
+        motor_R.SetMotorFunction(motor_function_R)
+        
+        # Step the simulation
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+        
+        system.DoStepDynamics(time_step)
+        simulation_time += time_step
+        
+        # Print robot position and elapsed time
+        if int(simulation_time / time_step) % 100 == 0:
+            pos = chassis.GetPos()
+            print(f"Time: {simulation_time:.2f}s, Position: ({pos.x:.2f}, {pos.y:.2f}, {pos.z:.2f})")
+
+if __name__ == "__main__":
+    main()
+```
+
+## Explanation:
+
+This script creates a PyChrono simulation with a Turtlebot-like robot on a rigid terrain:
+
+1. **System Setup**:
+   - Initializes a Chrono system with gravity
+   - Creates a flat ground with collision properties and texture
+
+2. **Turtlebot Model**:
+   - Main chassis body (rectangular box)
+   - Two main wheels (cylinders) with revolute joints
+   - A castor wheel (sphere) with a spherical joint for balance
+   - Motors attached to the main wheels to control movement
+
+3. **Visualization**:
+   - Uses Irrlicht for real-time rendering
+   - Sets up camera position, lighting, and window properties
+
+4. **Control Logic**:
+   - Implements a timed sequence of movements:
+     - Forward motion (0-2s)
+     - Right turn (2-5s)
+     - Left turn (5-8s)
+     - Forward motion (8-12s)
+     - Sharp right turn (12-15s)
+     - Forward motion (15-20s)
+   - Controls the robot by adjusting the relative speeds of the left and right wheel motors
+
+5. **Simulation Loop**:
+   - Updates the physics, applies motor controls, and renders the scene at each time step
+   - Outputs the robot's position at regular intervals
+
+The simulation runs for 20 seconds, showing the Turtlebot performing a sequence of movements on the terrain.

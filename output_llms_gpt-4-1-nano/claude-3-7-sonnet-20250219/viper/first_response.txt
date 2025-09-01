@@ -1,0 +1,139 @@
+# PyChrono Viper Rover Simulation
+
+```python
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
+import pychrono.vehicle as veh
+import math
+import numpy as np
+
+# ---------------------------------------------------------------------
+# Initialize the Chrono system and set simulation parameters
+
+chrono.SetChronoDataPath('C:/data/chrono_data/')  # Set path to Chrono data directory
+                                                  # Adjust this to your path!
+
+# Create the Chrono system
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
+
+# Create a ground body
+ground = chrono.ChBodyEasyBox(100, 1, 100, 1000, True, True)
+ground.SetBodyFixed(True)
+ground.SetPos(chrono.ChVectorD(0, -0.5, 0))  # Position ground slightly below origin
+ground.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile('textures/concrete.jpg'))
+system.Add(ground)
+
+# ---------------------------------------------------------------------
+# Set up Viper rover
+
+# Initialize the Viper rover
+driver_file = "driver/path_follower.json"  # You may need to adjust this path
+terrain_file = "terrain/RigidPlane.json"   # You may need to adjust this path
+viper_file = "viper/viper.json"           # You may need to adjust this path
+
+# Initialize a rigid terrain
+terrain = veh.RigidTerrain(system, terrain_file)
+
+# Create and initialize the Viper rover
+viper = veh.Viper(system, viper_file)
+viper.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0.5, 0), chrono.ChQuaternionD(1, 0, 0, 0)))
+viper.SetChassisVisualizationType(veh.VisualizationType_MESH)
+viper.SetWheelVisualizationType(veh.VisualizationType_MESH)
+viper.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
+viper.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
+
+# Create and initialize the driver system
+driver = veh.ViperDriver(viper, driver_file)
+
+# ---------------------------------------------------------------------
+# Set up visualization
+
+# Create Irrlicht visualization
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetWindowSize(1280, 720)
+vis.SetWindowTitle("Viper Rover Simulation")
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVectorD(0, 3, -6), chrono.ChVectorD(0, 0, 0))
+vis.AddTypicalLights()
+
+# ---------------------------------------------------------------------
+# Simulation settings
+
+# Simulation time step
+step_size = 5e-3
+realtime_timer = chrono.ChRealtimeStepTimer()
+
+# Simulation duration
+t_end = 20.0
+
+# Variables for steering control
+steering_time = 5.0  # Time for steering to change
+steering_magnitude = 0.5  # Maximum steering angle (in radians)
+
+# ---------------------------------------------------------------------
+# Simulation loop
+
+time = 0.0
+while vis.Run() and time < t_end:
+    # Get driver inputs
+    driver_inputs = driver.GetInputs()
+    
+    # Update steering based on time
+    if time < steering_time:
+        # Gradually increase steering from 0 to maximum
+        steering = (time / steering_time) * steering_magnitude
+    elif time < 2 * steering_time:
+        # Gradually decrease steering from maximum to -maximum
+        steering = steering_magnitude - ((time - steering_time) / steering_time) * 2 * steering_magnitude
+    elif time < 3 * steering_time:
+        # Gradually increase steering from -maximum to 0
+        steering = -steering_magnitude + ((time - 2 * steering_time) / steering_time) * steering_magnitude
+    else:
+        steering = 0
+    
+    # Override driver steering with our programmed steering
+    driver_inputs.m_steering = steering
+    
+    # Set constant throttle
+    driver_inputs.m_throttle = 0.3
+    
+    # Update the rover with new driver inputs
+    viper.Synchronize(time, driver_inputs, terrain)
+    
+    # Update the terrain
+    terrain.Synchronize(time)
+    
+    # Advance simulation by one step
+    system.DoStepDynamics(step_size)
+    
+    # Advance visualization
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    
+    # Update time
+    time += step_size
+    
+    # Try to maintain real-time simulation
+    realtime_timer.Spin(step_size)
+
+# Clean up
+vis.GetDevice().closeDevice()
+print("Simulation completed")
+```
+
+This script creates a PyChrono simulation with a Viper rover on a rigid terrain. It sets up:
+
+1. A Chrono physical system with gravity
+2. A rigid ground plane
+3. A Viper rover with detailed visualization settings
+4. A driver controller for the rover
+5. An Irrlicht-based real-time visualization with proper camera and lighting
+
+During the simulation, the rover's steering angle changes gradually over time in a sinusoidal pattern while maintaining a constant throttle. The simulation runs for 20 seconds or until the visualization window is closed.
+
+Note: You may need to adjust the file paths to match your specific setup and ensure you have the proper PyChrono modules installed. The Viper rover is part of PyChrono's vehicle module and represents NASA's Volatiles Investigating Polar Exploration Rover.

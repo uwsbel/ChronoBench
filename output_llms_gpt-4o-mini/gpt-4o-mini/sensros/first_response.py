@@ -1,0 +1,80 @@
+import pychrono.core as chrono
+import pychrono.irrlicht as chronoirr
+import pychrono.sensor as sensor
+import rospy
+from std_msgs.msg import String
+
+# Initialize the ROS node
+rospy.init_node('chrono_simulation', anonymous=True)
+
+# Create the Chrono system
+chrono.SetChronoDataPath('/path/to/chrono/data/')  # Set your Chrono data path
+system = chrono.ChSystemNSC()
+
+# Create a ground body
+ground = chrono.ChBodyEasyBox(10, 0.1, 10, 1000, True, True)
+ground.SetPos(chrono.ChVectorD(0, -0.05, 0))
+ground.SetBodyFixed(True)
+system.Add(ground)
+
+# Create a mesh object for visualization
+mesh = chrono.ChTriangleMeshConnected()
+mesh.LoadWavefront('path/to/your/mesh.obj')  # Load your mesh file
+mesh_body = chrono.ChBody()
+mesh_body.SetPos(chrono.ChVectorD(0, 0, 0))
+mesh_body.SetMass(1)
+mesh_body.SetInertiaXX(chrono.ChVectorD(1, 1, 1))
+mesh_body.SetCollide(True)
+mesh_body.GetCollisionModel().ClearModel()
+mesh_body.GetCollisionModel().AddTriangleMesh(mesh, chrono.ChVectorD(0, 0, 0), chrono.ChMatrix33(chrono.CH_C_PI / 2), 0.01)
+mesh_body.GetCollisionModel().BuildModel()
+system.Add(mesh_body)
+
+# Create a sensor manager
+sensor_manager = sensor.ChSensorManager(system)
+
+# Add various sensors to the ground body
+camera = sensor.ChCameraSensor(ground, 30, 640, 480, chrono.ChVectorD(0, 1, 5), chrono.ChVectorD(0, 0, 0))
+lidar = sensor.ChLidarSensor(ground, 30, 360, 10)
+gps = sensor.ChGPSSensor(ground)
+accelerometer = sensor.ChAccelerometerSensor(ground)
+gyroscope = sensor.ChGyroscopeSensor(ground)
+magnetometer = sensor.ChMagnetometerSensor(ground)
+
+# Register sensors with the sensor manager
+sensor_manager.AddSensor(camera)
+sensor_manager.AddSensor(lidar)
+sensor_manager.AddSensor(gps)
+sensor_manager.AddSensor(accelerometer)
+sensor_manager.AddSensor(gyroscope)
+sensor_manager.AddSensor(magnetometer)
+
+# ROS publishers for each sensor
+camera_pub = rospy.Publisher('camera_data', String, queue_size=10)
+lidar_pub = rospy.Publisher('lidar_data', String, queue_size=10)
+gps_pub = rospy.Publisher('gps_data', String, queue_size=10)
+accelerometer_pub = rospy.Publisher('accelerometer_data', String, queue_size=10)
+gyroscope_pub = rospy.Publisher('gyroscope_data', String, queue_size=10)
+magnetometer_pub = rospy.Publisher('magnetometer_data', String, queue_size=10)
+
+# Simulation loop
+while not rospy.is_shutdown():
+    # Update sensors
+    sensor_manager.Update()
+
+    # Publish sensor data to ROS topics
+    camera_pub.publish("Camera data")
+    lidar_pub.publish("Lidar data")
+    gps_pub.publish("GPS data")
+    accelerometer_pub.publish("Accelerometer data")
+    gyroscope_pub.publish("Gyroscope data")
+    magnetometer_pub.publish("Magnetometer data")
+
+    # Advance the simulation
+    system.DoStepDynamics(0.01)  # Step size of 10 ms
+
+    # Maintain real-time execution
+    rospy.sleep(0.01)  # Sleep for 10 ms
+
+# Clean up
+rospy.signal_shutdown("Simulation ended.")

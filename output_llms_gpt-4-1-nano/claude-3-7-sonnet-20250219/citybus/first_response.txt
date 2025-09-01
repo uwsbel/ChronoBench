@@ -1,0 +1,193 @@
+# CityBus Vehicle Simulation with PyChrono
+
+```python
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as irr
+import numpy as np
+import os
+
+# -----------------------------
+# Initialize the PyChrono system
+# -----------------------------
+print("Initializing PyChrono...")
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())
+
+# Create the simulation system
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+
+# -----------------------------
+# Create the terrain
+# -----------------------------
+print("Creating the terrain...")
+
+# Create the rigid terrain
+terrain = veh.RigidTerrain(system)
+
+# Set terrain dimensions
+terrain_length = 200.0  # m
+terrain_width = 200.0   # m
+
+# Create patch material
+terrain_mat = chrono.ChMaterialSurfaceNSC()
+terrain_mat.SetFriction(0.9)
+terrain_mat.SetRestitution(0.01)
+
+# Create flat terrain patch
+patch_height = 0
+patch = terrain.AddPatch(
+    terrain_mat,
+    chrono.ChCoordsysD(chrono.ChVectorD(0, patch_height, 0), chrono.QUNIT),
+    terrain_length, terrain_width
+)
+
+# Set custom texture for the terrain
+texture_path = chrono.GetChronoDataPath() + "textures/concrete.jpg"
+patch.SetTexture(texture_path, 200, 200)
+
+# Initialize terrain
+terrain.Initialize()
+
+# -----------------------------
+# Create the vehicle
+# -----------------------------
+print("Creating the vehicle...")
+
+# Create vehicle JSON file paths
+vehicle_file = chrono.GetChronoDataPath() + "vehicle/citybus/vehicle/CityBus_Vehicle.json"
+powertrain_file = chrono.GetChronoDataPath() + "vehicle/citybus/powertrain/CityBus_SimpleMapPowertrain.json"
+tire_file = chrono.GetChronoDataPath() + "vehicle/citybus/tire/CityBus_TMeasyTire.json"
+
+# Create the vehicle, set parameters, and initialize
+vehicle = veh.WheeledVehicle(system, vehicle_file)
+
+# Set visualization type for chassis and wheels
+vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
+vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
+vehicle.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
+vehicle.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
+
+# Set the vehicle initial position and orientation
+vehicle_pos = chrono.ChVectorD(0, patch_height + 0.5, 0)
+vehicle_rot = chrono.ChQuaternionD(1, 0, 0, 0)
+vehicle.Initialize(chrono.ChCoordsysD(vehicle_pos, vehicle_rot))
+
+# Set vehicle mass properties
+vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
+
+# Create and initialize the powertrain
+powertrain = veh.ReadPowertrainJSON(powertrain_file)
+vehicle.InitializePowertrain(powertrain)
+
+# Create and initialize the tires
+for axle in vehicle.GetAxles():
+    for wheel in axle.GetWheels():
+        tire = veh.ReadTireJSON(tire_file)
+        vehicle.InitializeTire(tire, wheel, veh.VisualizationType_MESH)
+
+# -----------------------------
+# Set up visualization
+# -----------------------------
+print("Setting up visualization...")
+
+# Create the Irrlicht visualization
+vis = veh.ChWheeledVehicleIrrApp(vehicle, "CityBus Simulation")
+
+vis.SetHUDLocation(500, 20)
+vis.SetSkyBox()
+vis.AddTypicalLogo()
+vis.AddTypicalLights(irr.vector3df(30, 100, 30), irr.vector3df(30, 100, -30), 250, 130)
+vis.AddTypicalLights(irr.vector3df(-30, 100, 30), irr.vector3df(-30, 100, -30), 250, 130)
+vis.AddLightWithShadow(irr.vector3df(10, 30, 0), irr.vector3df(0, 0, 0), 150, 60, 80, 15, 512, irr.SColorf(0.8, 0.8, 1.0))
+
+# Camera settings
+vis.SetChaseCamera(chrono.ChVectorD(0, 0, -10), 15, 0.5)
+
+# Initialize the visualization
+vis.Initialize()
+
+# -----------------------------
+# Set up driver inputs
+# -----------------------------
+print("Setting up driver inputs...")
+
+# Create the interactive driver
+driver = veh.ChIrrGuiDriver(vis)
+
+# Set the steering delta limit (in radians)
+steering_delta_limit = 0.1
+# Set the shifting delay period (in seconds)
+shifting_delay = 0.1
+
+driver.SetSteeringDelta(steering_delta_limit)
+driver.SetShiftDeltaTime(shifting_delay)
+
+# Initialize the driver
+driver.Initialize()
+
+# -----------------------------
+# Simulation loop
+# -----------------------------
+print("Starting simulation...")
+
+# Set simulation step size
+step_size = 1e-3  # seconds
+render_step_size = 1.0 / 50  # Render at 50 FPS
+
+# Initialize simulation frame counter and simulation time
+step_number = 0
+render_frame = 0
+sim_time = 0
+
+# Initialize the timer
+realtime_timer = chrono.ChRealtimeStepTimer()
+
+while vis.GetDevice().run():
+    # Render scene
+    if sim_time >= render_frame * render_step_size:
+        vis.BeginScene(True, True, irr.SColor(255, 140, 161, 192))
+        vis.DrawAll()
+        vis.EndScene()
+        render_frame += 1
+    
+    # Get driver inputs
+    driver_inputs = driver.GetInputs()
+    
+    # Update modules (process inputs, update dynamics, etc.)
+    vehicle.Synchronize(sim_time, driver_inputs, terrain)
+    terrain.Synchronize(sim_time)
+    vis.Synchronize(sim_time, driver_inputs)
+    
+    # Advance simulation for one step
+    system.DoStepDynamics(step_size)
+    
+    # Increment simulation time
+    sim_time += step_size
+    step_number += 1
+    
+    # Try to maintain real-time simulation
+    realtime_timer.Spin(step_size)
+    
+    # Print simulation stats
+    if step_number % 500 == 0:
+        print(f"Time: {sim_time:.2f} s, Speed: {vehicle.GetVehicleSpeed() * 3.6:.2f} km/h")
+
+# Clean up
+print("Simulation complete!")
+```
+
+This script creates a simulation of a CityBus vehicle on a rigid terrain using PyChrono and Irrlicht for visualization. Key features include:
+
+1. System initialization with gravity and appropriate physics settings
+2. A rigid terrain with a concrete texture
+3. A CityBus vehicle with detailed visualization:
+   - Mesh visualization for chassis and wheels
+   - Primitive visualization for suspension and steering components
+4. A TMeasy tire model for realistic tire behavior
+5. Interactive driver controls for steering, throttle, and braking
+6. Camera settings to follow the vehicle from behind
+7. Real-time simulation running at 50 FPS with physics updates at 1000 Hz
+8. Status updates displaying simulation time and vehicle speed
+
+The simulation allows for interactive control of the CityBus using keyboard inputs through the Irrlicht visualization system.

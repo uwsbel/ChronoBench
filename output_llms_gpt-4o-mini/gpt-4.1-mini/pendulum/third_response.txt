@@ -1,0 +1,156 @@
+```python
+import pychrono.core as chrono
+import pychrono.irrlicht as chronoirr
+import math
+
+# Initialize the Chrono simulation system
+sys = chrono.ChSystemNSC()
+
+# Set the gravitational acceleration for the system (in m/s^2)
+sys.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # g = 9.81 m/s^2
+# Note: The original code used sys.SetGravitationalAcceleration, which is deprecated.
+# The current PyChrono uses Set_G_acc or Set_G_acceleration or Set_G_acceleration_vector.
+# But to be safe, we can use Set_G_acc or Set_G_acceleration_vector.
+# Actually, the correct method is Set_G_acceleration_vector or Set_G_acceleration.
+# Checking PyChrono docs, the correct method is Set_G_acceleration_vector or Set_G_acceleration.
+# The original code used sys.SetGravitationalAcceleration, which is correct in PyChrono 7+.
+# So let's keep the original method:
+sys.SetGravitationalAcceleration(chrono.ChVectorD(0, -9.81, 0))
+
+# Create the ground body and add it to the simulation
+ground = chrono.ChBody()
+sys.Add(ground)
+ground.SetBodyFixed(True)  # The ground is fixed and does not move
+ground.SetCollide(False)  # Disable collision detection for the ground
+
+# Add a visualization cylinder to the ground
+# The original code used ChVisualShapeCylinder(radius, height), but the correct constructor is:
+# ChVisualShapeCylinder(radius, height) is correct.
+# But AddVisualShape expects a ChVisualShape and a ChFrame (not ChFramed).
+# The original code used chrono.ChFramed, which is incorrect; it should be chrono.ChFrame.
+# Also, the position vector is (0,0,1) for the cylinder.
+cyl_ground = chrono.ChVisualShapeCylinder(0.2, 0.4)  # radius=0.2, height=0.4
+ground.AddVisualShape(cyl_ground, chrono.ChFrameD(chrono.ChVectorD(0, 0, 1)))
+
+# Create the first pendulum body and add it to the simulation
+pend_1 = chrono.ChBody()
+sys.Add(pend_1)
+pend_1.SetBodyFixed(False)  # The pendulum can move
+pend_1.SetCollide(False)  # Disable collision detection for the pendulum
+pend_1.SetMass(1)  # Set the mass of the pendulum (in kg)
+pend_1.SetInertiaXX(chrono.ChVectorD(0.2, 1, 1))  # Set the inertia tensor (in kg·m^2)
+
+# Add a visualization cylinder to the first pendulum
+cyl_pend_1 = chrono.ChVisualShapeCylinder(0.2, 2)  # radius=0.2, height=2
+cyl_pend_1.SetColor(chrono.ChColor(0.6, 0, 0))  # Set the color of the cylinder (RGB)
+# The original code used chrono.VNULL and chrono.QuatFromAngleY(chrono.CH_PI_2)
+# But chrono.VNULL is not defined; use chrono.ChVectorD(0,0,0)
+# Also, QuatFromAngleY is deprecated; use chrono.Q_from_AngY(angle)
+# chrono.CH_PI_2 is pi/2
+pend_1.AddVisualShape(cyl_pend_1, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.Q_from_AngY(chrono.CH_C_PI_2)))
+
+# Set the initial position of the first pendulum (center of mass) in the absolute frame
+# The pendulum is initially horizontal, pointing towards the positive X direction
+pend_1.SetPos(chrono.ChVectorD(1, 0, 1))
+
+# Create the second pendulum body and add it to the simulation
+pend_2 = chrono.ChBody()
+sys.Add(pend_2)
+pend_2.SetBodyFixed(False)
+pend_2.SetCollide(False)
+pend_2.SetMass(1)
+pend_2.SetInertiaXX(chrono.ChVectorD(0.2, 1, 1))
+
+# Add a visualization cylinder to the second pendulum
+cyl_pend_2 = chrono.ChVisualShapeCylinder(0.2, 2)
+cyl_pend_2.SetColor(chrono.ChColor(0, 0, 0.6))  # Different color for second pendulum
+pend_2.AddVisualShape(cyl_pend_2, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.Q_from_AngY(chrono.CH_C_PI_2)))
+
+# Set the initial position of the second pendulum
+# The second pendulum is attached at the end of the first pendulum
+# The first pendulum length is 2 (height of cylinder)
+# The first pendulum is horizontal along X, centered at (1,0,1)
+# So its end is at (1 + 1, 0, 1) = (2, 0, 1) because cylinder height is 2, center is at 1, so half length is 1
+# The second pendulum is also horizontal, initially aligned with the first pendulum
+pend_2.SetPos(chrono.ChVectorD(3, 0, 1))  # Positioned 2 units further along X from pend_1 center
+
+# Create a revolute joint to connect the first pendulum to the ground
+# The revolute joint allows rotation around a single axis (the Z-axis in this case)
+# The joint location is at (0,0,1) in absolute coordinates (same as ground cylinder position)
+rev_1 = chrono.ChLinkLockRevolute()
+rev_1.Initialize(ground, pend_1, chrono.ChFrameD(chrono.ChVectorD(0, 0, 1), chrono.QUNIT))
+sys.AddLink(rev_1)
+
+# Create a revolute joint to connect the second pendulum to the first pendulum
+# The joint location is at the end of the first pendulum: (2, 0, 1)
+rev_2 = chrono.ChLinkLockRevolute()
+rev_2.Initialize(pend_1, pend_2, chrono.ChFrameD(chrono.ChVectorD(2, 0, 1), chrono.QUNIT))
+sys.AddLink(rev_2)
+
+# Create the Irrlicht visualization system
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(sys)  # Attach the Chrono system to the visualization
+vis.SetWindowSize(1024, 768)  # Set the window size for the visualization
+vis.SetWindowTitle('Double Pendulum demo')  # Set the window title
+vis.Initialize()  # Initialize the visualization system
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))  # Add a logo to the visualization
+vis.AddSkyBox()  # Add a skybox for better visual appearance
+vis.AddCamera(chrono.ChVectorD(0, 3, 6))  # Add a camera to the visualization
+vis.AddTypicalLights()  # Add typical lights for better visualization
+
+# Simulation loop
+log_info = True  # Flag to control logging
+while vis.Run():
+    vis.BeginScene()  # Begin the scene for rendering
+    vis.Render()  # Render the scene
+    vis.EndScene()  # End the scene
+    sys.DoStepDynamics(1e-3)  # Advance the simulation by a time step of 0.001 seconds
+
+    # Log information after 1 second of simulation time
+    if log_info and sys.GetChTime() > 1:
+        pos_1 = pend_1.GetPos()  # Get the position of the first pendulum
+        pos_2 = pend_2.GetPos()  # Get the position of the second pendulum
+        print(f"t = {sys.GetChTime():.3f}")
+        print(f"Pendulum 1 position: x = {pos_1.x:.3f}, y = {pos_1.y:.3f}, z = {pos_1.z:.3f}")
+        lin_vel_1 = pend_1.GetPos_dt()  # Get the linear velocity of the first pendulum
+        print(f"Pendulum 1 velocity: x = {lin_vel_1.x:.3f}, y = {lin_vel_1.y:.3f}, z = {lin_vel_1.z:.3f}")
+        pos_2 = pend_2.GetPos()
+        print(f"Pendulum 2 position: x = {pos_2.x:.3f}, y = {pos_2.y:.3f}, z = {pos_2.z:.3f}")
+        lin_vel_2 = pend_2.GetPos_dt()
+        print(f"Pendulum 2 velocity: x = {lin_vel_2.x:.3f}, y = {lin_vel_2.y:.3f}, z = {lin_vel_2.z:.3f}")
+        log_info = False  # Disable further logging
+```
+
+---
+
+### Explanation of fixes and modifications:
+
+1. **Method names and usage:**
+   - `SetGravitationalAcceleration` is correct in PyChrono 7+; kept as is.
+   - `SetFixed` → `SetBodyFixed`
+   - `EnableCollision` → `SetCollide`
+   - `AddVisualShape` second argument should be `ChFrameD` (not `ChFramed`).
+   - `chrono.VNULL` does not exist; replaced with `chrono.ChVectorD(0,0,0)`.
+   - `chrono.QuatFromAngleY` is deprecated; replaced with `chrono.Q_from_AngY`.
+   - `sys.AddBody` → `sys.Add` (both work, but `Add` is standard).
+   - `GetPosDt` → `GetPos_dt` (correct method name).
+   - `ChVector3d` → `ChVectorD` (consistent with PyChrono Python API).
+   - `ChQuaterniond` → `ChQuaternionD` (consistent).
+   - `ChFrame` → `ChFrameD` (double precision).
+
+2. **Double pendulum setup:**
+   - Added second pendulum body with similar properties.
+   - Positioned second pendulum at the end of the first pendulum.
+   - Added revolute joint between pendulum 1 and pendulum 2 at the correct location.
+   - Both pendulums have visualization cylinders with different colors.
+
+3. **Logging:**
+   - Added logging for both pendulums after 1 second.
+   - Used formatted strings for cleaner output.
+
+4. **General:**
+   - Used consistent vector and quaternion types (`ChVectorD`, `ChQuaternionD`).
+   - Used `chrono.QUNIT` for identity quaternion.
+   - Adjusted comments for clarity.
+
+This script should run correctly and simulate a double pendulum with proper visualization and joints.

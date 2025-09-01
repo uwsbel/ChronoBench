@@ -1,0 +1,169 @@
+```python
+import pychrono.core as chrono
+import pychrono.irrlicht as irr
+import pychrono.vehicle as veh
+import pychrono.sensor as sens
+import math
+
+# Set the Chrono data directory
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())
+veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
+
+# Initial vehicle location and orientation
+initLoc = chrono.ChVector3d(0, 0, 0.5)
+initRot = chrono.ChQuaterniond(1, 0, 0, 0)
+
+# Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
+vis_type = veh.VisualizationType_MESH
+
+# Collision type for chassis (PRIMITIVES, MESH, or NONE)
+chassis_collision_type = veh.CollisionType_NONE
+
+# Type of tire model (RIGID, TMEASY)
+tire_model = veh.TireModelType_TMEASY
+
+# Rigid terrain parameters
+terrainHeight = 0      # Terrain height
+terrainLength = 100.0  # Size in X direction
+terrainWidth = 100.0   # Size in Y direction
+
+# Point on the chassis tracked by the camera
+trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
+trackPoint.SetPosition(chrono.ChVector3d(0, 0, 0))
+trackPoint.SetRotation(chrono.ChQuaterniond(1, 0, 0, 0))
+
+# Collision material for the chassis
+collision_material = chrono.ChContactMaterialNSC()
+collision_material.SetFriction(0.9)
+collision_material.SetRestitution(0.01)
+
+# Collision model for the chassis
+chassis_collision_model = chrono.ChCollisionModel.Type_BULLET
+
+# Collision type for the vehicle
+vehicle_collision_type = veh.CollisionType_BULLET
+
+# Collision parameters
+vehicle_collision_params = chrono.ChCollisionParams()
+vehicle_collision_params.SetCollisionModel(chassis_collision_model)
+vehicle_collision_params.SetCollisionType(vehicle_collision_type)
+
+# Collision parameters
+vehicle_collision_params.SetCollisionEnvelope(chrono.ChVector3d(0, 0, 0))
+
+# Simulation step sizes
+step_size = 1e-3
+tire_step_size = step_size
+
+# Time interval between two render frames
+render_step_size = 1.0 / 50
+
+# Create the HMMWV vehicle, set properties, and initialize
+vehicle = veh.HMMWV_Full()
+vehicle.SetContactMethod(collision_material)
+vehicle.SetChassisCollisionType(vehicle_collision_type)
+vehicle.SetChassisFixed(False)
+vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
+vehicle.SetTireType(tire_model)
+vehicle.SetTireStepSize(tire_step_size)
+vehicle.SetInitialVelocity(chrono.ChVector3d(0, 0, 0))
+vehicle.SetInitialAcceleration(chrono.ChVector3d(0, 0, 0))
+vehicle.SetFinalVelocity(chrono.ChVector3d(0, 0, 0))
+vehicle.SetFinalAcceleration(chrono.ChVector3d(0, 0, 0))
+vehicle.SetInitialRotation(chrono.ChQuaterniond(1, 0, 0, 0))
+vehicle.SetDynamics(chrono.ChDynamics_None)
+
+# Set visualization settings
+vis = irr.ChVisualSystemIrrlicht()
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle('HMMWV Demo')
+vis.SetWindowSize(1024, 768)
+vis.SetChaseCamera(trackPoint, 6.0, 0.5)
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddLightDirectional()
+vis.AddSkyBox()
+vis.AttachVehicle(vehicle.GetVehicle())
+
+# Create the driver system
+driver = veh.ChInteractiveDriverIRR(vis)
+
+# Set the time response for steering and throttle keyboard inputs
+steering_time = 1.0
+throttle_time = 1.0
+braking_time = 0.3
+driver.SetSteeringDelta(render_step_size / steering_time)
+driver.SetThrottleDelta(render_step_size / throttle_time)
+driver.SetBrakingDelta(render_step_size / braking_time)
+driver.Initialize()
+
+# Initialize sensor manager
+manager = sens.ChSensorManager(vehicle.GetSystem())
+
+# Create an IMU sensor and add it to the manager
+offset_pose = chrono.ChFramed(chrono.ChVector3d(-8, 0, 1), chrono.QUNIT)
+imu = sens.ChAccelerometerSensor(vehicle.GetChassisBody(),                     # Body IMU is attached to
+                                 10,        # Update rate in Hz
+                                 offset_pose,          # Offset pose
+                                 sens.ChNoiseNone())   # Noise model
+imu.SetName("IMU Sensor")
+imu.SetLag(0)
+imu.SetCollectionWindow(0)
+# Provides the host access to the IMU data
+imu.PushFilter(sens.ChFilterAccelAccess())
+# Add the IMU to the sensor manager
+manager.AddSensor(imu)
+
+# Create a GPS sensor and add it to the manager
+gps = sens.ChGPSSensor(vehicle.GetChassisBody(),                     # Body GPS is attached to
+                                 10,        # Update rate in Hz
+                                 offset_pose,          # Offset pose
+                                 chrono.ChVector3d(-89.400, 43.070, 260.0),  # GPS reference point
+                                 sens.ChNoiseNone())   # Noise model
+gps.SetName("GPS Sensor")
+gps.SetLag(0)
+gps.SetCollectionWindow(0)
+# ---------------
+# Simulation loop
+# ---------------
+
+# Output vehicle mass
+print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
+
+# Number of simulation steps between miscellaneous events
+render_steps = math.ceil(render_step_size / step_size)
+
+# Initialize simulation frame counter
+realtime_timer = chrono.ChRealtimeStepTimer()
+step_number = 0
+render_frame = 0
+
+# Simulation loop
+while vis.Run():
+    time = vehicle.GetSystem().GetChTime()
+
+    # Render scene and output POV-Ray data
+    if step_number % render_steps == 0:
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+        render_frame += 1
+
+    # Get driver inputs
+    driver_inputs = driver.GetInputs()
+
+    # Update modules (process inputs from other modules)
+    driver.Synchronize(time)
+    terrain.Synchronize(time, driver_inputs, terrain)
+    vehicle.Synchronize(time, driver_inputs, terrain)
+    vis.Synchronize(time, driver_inputs)
+
+    # Update sensor manager in each step
+    manager.Update()
+    
+    # Increment frame number
+    step_number += 1
+
+    # Spin in place for real time to catch up
+    realtime_timer.Spin(step_size)
+```

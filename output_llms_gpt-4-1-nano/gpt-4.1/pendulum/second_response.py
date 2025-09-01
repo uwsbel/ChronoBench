@@ -1,0 +1,108 @@
+import pychrono.core as chrono
+import pychrono.irrlicht as chronoirr
+import math
+
+# -------------------------------
+# 1. Initialize the Chrono system
+# -------------------------------
+sys = chrono.ChSystemNSC()
+
+# 2. Set lunar gravity
+sys.SetGravitationalAcceleration(chrono.ChVector3d(0, -1.62, 0))  # Moon gravity
+
+# ---------------------------------
+# 3. Create the ground body
+# ---------------------------------
+ground = chrono.ChBody()
+ground.SetFixed(True)
+ground.EnableCollision(False)
+sys.Add(ground)
+
+# 4. Add a visualization cylinder to the ground (unchanged)
+cyl_ground = chrono.ChVisualShapeCylinder(0.2, 0.4)
+ground.AddVisualShape(cyl_ground, chrono.ChFramed(chrono.ChVector3d(0, 0, +1)))
+
+# ---------------------------------
+# 5. Create the pendulum body
+# ---------------------------------
+pend_1 = chrono.ChBody()
+pend_1.SetFixed(False)
+pend_1.EnableCollision(False)
+pend_1.SetMass(2)  # Changed to 2 kg
+pend_1.SetInertiaXX(chrono.ChVector3d(0.4, 1.5, 1.5))  # Changed inertia
+sys.AddBody(pend_1)
+
+# 6. Add a visualization cylinder to the pendulum (length and radius changed)
+cyl_pend = chrono.ChVisualShapeCylinder(0.1, 1.5)  # radius=0.1, height=1.5
+cyl_pend.SetColor(chrono.ChColor(0.6, 0, 0))
+# Cylinder is centered at its midpoint; to have the pivot at (0,0,1), shift by half-length along local Y
+pend_1.AddVisualShape(
+    cyl_pend,
+    chrono.ChFramed(
+        chrono.ChVector3d(0, 0.75, 0),  # shift by half the length along Y
+        chrono.ChQuaterniond(1, 0, 0, 0)  # no rotation
+    )
+)
+
+# 7. Set the initial position of the pendulum (pivot at (0,0,1), center of mass at (0,0.75,0) from pivot)
+#    For a horizontal pendulum pointing along +X, rotate by -90 deg about Z
+pivot_pos = chrono.ChVector3d(0, 0, 1)
+# The center of mass is at (pivot) + (0.75, 0, 0) in local X after rotation
+pend_length = 1.5
+com_offset = chrono.ChVector3d(0.75, 0, 0)  # in local X
+# Rotate by -90 deg about Z: (x, y, z) -> (0, -0.75, 0)
+rot = chrono.Q_from_AngAxis(-math.pi/2, chrono.ChVector3d(0, 0, 1))
+com_offset_rot = rot.Rotate(com_offset)
+pend_1.SetPos(pivot_pos + com_offset_rot)
+pend_1.SetRot(rot)
+
+# 8. Set initial angular velocity (e.g., 1 rad/s about Z)
+pend_1.SetWvel_loc(chrono.ChVector3d(0, 0, 1))  # 1 rad/s about local Z
+
+# ---------------------------------
+# 9. Add a spherical joint at the pivot
+# ---------------------------------
+# Remove revolute joint, use spherical joint instead
+sph_joint = chrono.ChLinkLockSpherical()
+# The joint is located at the pivot (0,0,1)
+sph_joint.Initialize(ground, pend_1, chrono.ChFramed(pivot_pos, chrono.ChQuaterniond(1, 0, 0, 0)))
+sys.AddLink(sph_joint)
+
+# ---------------------------------
+# 10. Add a visualization sphere at the joint (pivot)
+# ---------------------------------
+sphere_joint = chrono.ChVisualShapeSphere(2.0)  # radius=2
+sphere_joint.SetColor(chrono.ChColor(0, 0.5, 1))
+ground.AddVisualShape(sphere_joint, chrono.ChFramed(pivot_pos))
+
+# ---------------------------------
+# 11. Visualization system
+# ---------------------------------
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(sys)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle('ChBodyAuxRef demo (Lunar Pendulum)')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVector3d(0, 3, 6))
+vis.AddTypicalLights()
+
+# ---------------------------------
+# 12. Simulation loop
+# ---------------------------------
+log_info = True
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    sys.DoStepDynamics(1e-3)
+
+    # Log information after 1 second of simulation time
+    if log_info and sys.GetChTime() > 1:
+        pos_1 = pend_1.GetPos()
+        print("t = ", sys.GetChTime())
+        print("     ", pos_1.x, "  ", pos_1.y)
+        lin_vel_1 = pend_1.GetPosDt()
+        print("     ", lin_vel_1.x, "  ", lin_vel_1.y)
+        log_info = False

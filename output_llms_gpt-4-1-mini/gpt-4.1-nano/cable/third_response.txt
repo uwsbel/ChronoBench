@@ -1,0 +1,143 @@
+```python
+import pychrono.core as chrono
+import pychrono.fea as fea
+import pychrono.irrlicht as chronoirr
+
+# ----------------------------------------------------------------------------
+# Model1: Multiple chains of beams composed of ANCF cable elements, with boundary conditions,
+# visualization, and a method to print end body positions during simulation.
+# ----------------------------------------------------------------------------
+
+class Model1:
+    def __init__(self, system, mesh, n_chains=6):
+        self.system = system
+        self.mesh = mesh
+        self.n_chains = n_chains
+        self.end_bodies = []  # To store end bodies of each chain for position printing
+
+        # Loop to create multiple chains
+        for i in range(self.n_chains):
+            # Create a fixed truss body for each chain
+            mtruss = chrono.ChBody()
+            mtruss.SetFixed(True)
+            self.system.Add(mtruss)
+
+            # Define starting point for each chain, offset in Y to avoid overlap
+            start_x = 0.0 + i * 0.2  # offset in X for each chain
+            start_y = i * 0.1        # offset in Y for each chain
+            start_z = -0.1
+
+            end_x = start_x + 0.5
+            end_y = start_y
+            end_z = -0.1
+
+            # Build the beam with increasing number of elements for variety
+            num_elements = 10 + i  # e.g., 10, 11, 12, ...
+            # Create a section for the cable
+            msection_cable = fea.ChBeamSectionCable()
+            msection_cable.SetDiameter(0.015)
+            msection_cable.SetYoungModulus(0.01e9)
+            msection_cable.SetRayleighDamping(0.0001)
+
+            # Build the beam
+            builder = fea.ChBuilderCableANCF()
+            builder.BuildBeam(
+                self.mesh,
+                msection_cable,
+                num_elements,
+                chrono.ChVector3d(start_x, start_y, start_z),
+                chrono.ChVector3d(end_x, end_y, end_z)
+            )
+
+            # Retrieve the last beam's nodes
+            nodes = builder.GetLastBeamNodes()
+            front_node = nodes.front()
+            back_node = nodes.back()
+
+            # Create a body at the end node position to connect to
+            end_body = chrono.ChBody()
+            end_body.SetPos(back_node.GetPos())
+            self.system.Add(end_body)
+            self.end_bodies.append(end_body)
+
+            # Apply force to the front node (start of the beam)
+            front_node.SetForce(chrono.ChVector3d(0, -0.7, 0))
+
+            # Create a hinge constraint at the start node to the truss
+            constraint_hinge_start = fea.ChLinkNodeFrame()
+            constraint_hinge_start.Initialize(front_node, mtruss)
+            self.system.Add(constraint_hinge_start)
+
+            # Create a hinge constraint at the end node to the end body
+            constraint_hinge_end = fea.ChLinkNodeFrame()
+            constraint_hinge_end.Initialize(back_node, end_body)
+            self.system.Add(constraint_hinge_end)
+
+    def PrintBodyPositions(self):
+        print("End body positions of each chain:")
+        for i, body in enumerate(self.end_bodies):
+            pos = body.GetPos()
+            print(f"Chain {i+1} end position: x={pos.x:.3f}, y={pos.y:.3f}, z={pos.z:.3f}")
+
+# Initialize the physical system and mesh container:
+sys = chrono.ChSystemSMC()
+mesh = fea.ChMesh()
+
+# Create the model with multiple chains
+model = Model1(sys, mesh, n_chains=6)
+sys.Add(mesh)  # Add the mesh to the system
+
+# Visualization for the FEM mesh:
+visualizebeamA = chrono.ChVisualShapeFEA(mesh)
+visualizebeamA.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_ELEM_BEAM_MZ)
+visualizebeamA.SetColorscaleMinMax(-0.4, 0.4)
+visualizebeamA.SetSmoothFaces(True)
+visualizebeamA.SetWireframe(False)
+mesh.AddVisualShapeFEA(visualizebeamA)
+
+# Visualization for node positions:
+visualizebeamB = chrono.ChVisualShapeFEA(mesh)
+visualizebeamB.SetFEMglyphType(chrono.ChVisualShapeFEA.GlyphType_NODE_DOT_POS)
+visualizebeamB.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NONE)
+visualizebeamB.SetSymbolsThickness(0.006)
+visualizebeamB.SetSymbolsScale(0.01)
+visualizebeamB.SetZbufferHide(False)
+mesh.AddVisualShapeFEA(visualizebeamB)
+
+# Create the Irrlicht visualization
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(sys)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle('FEA cables')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVector3d(0, 0.6, -1))
+vis.AddTypicalLights()
+
+# Set solver type and settings
+solver = chrono.ChSolverMINRES()
+if solver.GetType() == chrono.ChSolver.Type_MINRES:
+    print("Using MINRES solver")
+    sys.SetSolver(solver)
+    solver.SetMaxIterations(200)
+    solver.SetTolerance(1e-10)
+    solver.EnableDiagonalPreconditioner(True)
+    solver.EnableWarmStart(True)
+    solver.SetVerbose(False)
+
+# Set the timestepper
+ts = chrono.ChTimestepperEulerImplicitLinearized(sys)
+sys.SetTimestepper(ts)
+
+# Simulation loop with position printing
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+
+    # Print positions of end bodies each step
+    model.PrintBodyPositions()
+
+    sys.DoStepDynamics(0.01)
+```

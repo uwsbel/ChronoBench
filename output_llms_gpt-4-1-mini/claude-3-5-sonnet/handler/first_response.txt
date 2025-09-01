@@ -1,0 +1,94 @@
+Here's a PyChrono script that implements the simulation as per your instructions, integrating with ROS:
+
+```python
+import pychrono as chrono
+import pychrono.ros as chrono_ros
+import rclpy
+from std_msgs.msg import Int32
+
+# Initialize the Chrono system
+system = chrono.ChSystemNSC()
+
+# Set gravitational acceleration
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+
+# Create a contact material
+material = chrono.ChMaterialSurfaceNSC()
+material.SetFriction(0.5)
+
+# Create the floor
+floor = chrono.ChBodyEasyBox(20, 1, 20, 1000, True, True, material)
+floor.SetBodyFixed(True)
+system.Add(floor)
+
+# Create a movable box
+box = chrono.ChBodyEasyBox(1, 1, 1, 1000, True, True, material)
+box.SetPos(chrono.ChVectorD(0, 5, 0))
+system.Add(box)
+
+# Custom ROS handler to publish integer messages
+class CustomROSHandler(chrono_ros.ChROSHandler):
+    def __init__(self):
+        super().__init__()
+        self.publisher = self.create_publisher(Int32, 'custom_topic', 10)
+        self.counter = 0
+
+    def ExecutePreDynamics(self):
+        msg = Int32()
+        msg.data = self.counter
+        self.publisher.publish(msg)
+        self.counter += 1
+
+# Initialize ROS
+rclpy.init()
+node = rclpy.create_node('chrono_ros_node')
+
+# Create ROS manager
+ros_manager = chrono_ros.ChROSManager(node)
+
+# Add ROS handlers
+clock_handler = chrono_ros.ChROSClockHandler()
+ros_manager.AddHandler(clock_handler)
+
+body_handler = chrono_ros.ChROSBodyHandler(box, "/box")
+ros_manager.AddHandler(body_handler)
+
+transform_handler = chrono_ros.ChROSTransformHandler(box, "world", "box")
+ros_manager.AddHandler(transform_handler)
+
+custom_handler = CustomROSHandler()
+ros_manager.AddHandler(custom_handler)
+
+# Simulation parameters
+step_size = 0.01
+end_time = 10.0
+
+# Simulation loop
+while system.GetChTime() < end_time:
+    system.DoStepDynamics(step_size)
+    ros_manager.Update()
+    
+    # Maintain real-time execution
+    rclpy.spin_once(node, timeout_sec=0)
+
+# Clean up
+rclpy.shutdown()
+```
+
+This script does the following:
+
+1. Initializes the PyChrono environment and sets up the physical system with gravity.
+
+2. Creates a fixed floor and a movable box as specified.
+
+3. Implements a custom ROS handler (`CustomROSHandler`) to publish integer messages to a topic named 'custom_topic'.
+
+4. Sets up the ROS manager with clock, body, and transform handlers, and registers the custom handler.
+
+5. Runs a simulation loop that advances the system and updates ROS communication at each timestep.
+
+6. Maintains real-time execution by calling `rclpy.spin_once()` in each iteration.
+
+To run this simulation, you'll need to have both PyChrono and ROS 2 installed and properly set up in your Python environment. Make sure to source your ROS 2 setup file before running the script.
+
+Note that this script assumes you're using ROS 2. If you're using ROS 1, you'll need to modify the ROS-related parts of the code accordingly.

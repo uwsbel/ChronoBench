@@ -1,0 +1,173 @@
+Certainly! Below is a **PyChrono** simulation script that sets up an HMMWV vehicle on a complex rigid terrain with multiple patches (flat, mesh, and heightmap), uses Irrlicht for visualization, and includes an interactive driver. The script is well-commented for clarity.
+
+**Requirements:**  
+- PyChrono (with vehicle and Irrlicht modules)
+- Example assets (textures, mesh, heightmap) should be available in the working directory or adjust paths accordingly.
+
+```python
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as irr
+import os
+
+# -----------------------------------------------------------------------------
+# 1. Initialize PyChrono and set up the simulation parameters
+# -----------------------------------------------------------------------------
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())
+veh.SetDataPath(veh.GetDataPath())
+
+# Simulation parameters
+step_size = 2e-3
+render_step_size = 1.0 / 50  # Render at 50 FPS
+
+# -----------------------------------------------------------------------------
+# 2. Create the Chrono system and Irrlicht visualization
+# -----------------------------------------------------------------------------
+system = chrono.ChSystemSMC()
+
+# Create Irrlicht application
+app = veh.ChVehicleIrrApp(
+    system,
+    "HMMWV on Complex Rigid Terrain",
+    irr.dimension2du(1024, 768)
+)
+app.SetSkyBox()
+app.AddTypicalLights()
+app.AddTypicalLogo()
+app.AddLight(chrono.ChVectorD(30, 100, 30), 290, chrono.ChColor(1, 1, 1), True, 40)
+app.SetChaseCamera(chrono.ChVectorD(0, 0, 0), 6.0, 0.5)
+app.SetTimestep(step_size)
+
+# -----------------------------------------------------------------------------
+# 3. Create the HMMWV vehicle
+# -----------------------------------------------------------------------------
+initLoc = chrono.ChVectorD(0, 0, 1.0)
+initRot = chrono.Q_from_AngZ(0)
+
+vehicle = veh.HMMWV_Vehicle(system)
+vehicle.SetContactMethod(chrono.ChContactMethod_SMC)
+vehicle.SetChassisFixed(False)
+vehicle.SetInitPosition(chrono.ChCoordsysD(initLoc, initRot))
+vehicle.SetPowertrainType(veh.PowertrainModelType_SHAFTS)
+vehicle.SetDriveType(veh.DrivelineTypeWV_AWD)
+vehicle.SetTireType(veh.TireModelType_RIGID)
+vehicle.SetTireStepSize(step_size)
+vehicle.Initialize()
+
+# Apply mesh visualization to all vehicle components
+vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
+vehicle.SetSuspensionVisualizationType(veh.VisualizationType_MESH)
+vehicle.SetSteeringVisualizationType(veh.VisualizationType_MESH)
+vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
+vehicle.SetTireVisualizationType(veh.VisualizationType_MESH)
+
+# -----------------------------------------------------------------------------
+# 4. Create a complex rigid terrain with multiple patches
+# -----------------------------------------------------------------------------
+terrain = veh.RigidTerrain(system)
+
+# Patch 1: Flat, asphalt texture
+patch1 = terrain.AddPatch(
+    chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT),
+    chrono.ChVectorD(200, 10, 0.1),
+    "asphalt.jpg"
+)
+patch1.SetFriction(0.9)
+patch1.SetRestitution(0.01)
+patch1.SetColor(chrono.ChColor(0.4, 0.4, 0.4))
+
+# Patch 2: Flat, grass texture, offset to the side
+patch2 = terrain.AddPatch(
+    chrono.ChCoordsysD(chrono.ChVectorD(0, -12, 0), chrono.QUNIT),
+    chrono.ChVectorD(200, 10, 0.1),
+    "grass.jpg"
+)
+patch2.SetFriction(0.8)
+patch2.SetRestitution(0.01)
+patch2.SetColor(chrono.ChColor(0.3, 0.6, 0.3))
+
+# Patch 3: Mesh-based bump (e.g., a speed bump)
+mesh_file = os.path.join(chrono.GetChronoDataPath(), "vehicle/terrain/bump.obj")
+patch3 = terrain.AddPatch(
+    chrono.ChCoordsysD(chrono.ChVectorD(20, 0, 0), chrono.QUNIT),
+    mesh_file,
+    "concrete.jpg"
+)
+patch3.SetFriction(0.85)
+patch3.SetRestitution(0.01)
+patch3.SetColor(chrono.ChColor(0.5, 0.5, 0.5))
+
+# Patch 4: Heightmap-based patch for varying elevations
+heightmap_file = os.path.join(chrono.GetChronoDataPath(), "vehicle/terrain/heightmap.bmp")
+patch4 = terrain.AddPatch(
+    chrono.ChCoordsysD(chrono.ChVectorD(60, 0, 0), chrono.QUNIT),
+    heightmap_file,
+    "dirt.jpg",
+    10, 10, 0.5, 0.0  # size_x, size_y, hMin, hMax
+)
+patch4.SetFriction(0.7)
+patch4.SetRestitution(0.01)
+patch4.SetColor(chrono.ChColor(0.5, 0.4, 0.3))
+
+terrain.Initialize()
+
+# -----------------------------------------------------------------------------
+# 5. Create the interactive driver system
+# -----------------------------------------------------------------------------
+driver = veh.ChIrrGuiDriver(app)
+driver.SetSteeringDelta(0.04)
+driver.SetThrottleDelta(0.02)
+driver.SetBrakingDelta(0.1)
+driver.Initialize()
+
+# -----------------------------------------------------------------------------
+# 6. Simulation loop
+# -----------------------------------------------------------------------------
+app.AssetBindAll()
+app.AssetUpdateAll()
+
+realtime_timer = chrono.ChRealtimeStepTimer()
+render_steps = int(render_step_size / step_size)
+step_number = 0
+
+while app.GetDevice().run():
+    app.BeginScene()
+    app.DrawAll()
+
+    # Collect driver inputs
+    driver_inputs = driver.GetInputs()
+
+    # Update modules
+    driver.Synchronize(app.GetSimulationTime())
+    terrain.Synchronize(app.GetSimulationTime())
+    vehicle.Synchronize(app.GetSimulationTime(), driver_inputs, terrain)
+    app.Synchronize("HMMWV Simulation", driver_inputs)
+
+    # Advance simulation
+    driver.Advance(step_size)
+    terrain.Advance(step_size)
+    vehicle.Advance(step_size)
+    app.Advance(step_size)
+
+    # Step system
+    system.DoStepDynamics(step_size)
+
+    app.EndScene()
+
+    # Maintain real-time
+    realtime_timer.Spin(step_size)
+
+    step_number += 1
+
+# -----------------------------------------------------------------------------
+# End of script
+# -----------------------------------------------------------------------------
+```
+
+**Notes:**
+- Make sure the texture files (`asphalt.jpg`, `grass.jpg`, `concrete.jpg`, `dirt.jpg`), mesh file (`bump.obj`), and heightmap (`heightmap.bmp`) exist in the specified paths. You can use your own assets or those from the Chrono data directory.
+- The driver uses keyboard controls (arrows/WASD for steering/throttle/brake).
+- The simulation runs in real time and renders at 50 FPS.
+- You can adjust patch positions, sizes, and friction as needed for your scenario.
+
+Let me know if you need further customization!

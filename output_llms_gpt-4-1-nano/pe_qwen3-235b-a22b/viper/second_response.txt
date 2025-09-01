@@ -1,0 +1,116 @@
+```python
+import os
+import math
+import numpy as np
+import pychrono as chrono
+import pychrono.robot as viper
+from pychrono import irrlicht as chronoirr
+import pychrono.sensor as sens  # Added per instructions
+
+# Create Chrono system
+system = chrono.ChSystemNSC()
+system.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+system.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, -9.81))  # Set gravity in the negative Z direction
+chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.0025)
+chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
+
+# Create ground body
+ground_mat = chrono.ChContactMaterialNSC()
+ground = chrono.ChBodyEasyBox(20, 20, 1, 1000, True, True, ground_mat)
+ground.SetPos(chrono.ChVector3d(0, 0, -1))  # Position the ground slightly below the origin
+ground.SetFixed(True)  # Fix the ground in place
+
+# Corrected: Access visual shape list properly
+ground_texture = ground.GetVisualShapeList().GetItem(0)
+if ground_texture:
+    ground_texture.SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
+system.Add(ground)
+
+# Create Viper rover
+rover = viper.Viper(system)  # Instantiate the Viper rover
+driver = viper.ViperDCMotorControl()  # Create a driver for the rover
+rover.SetDriver(driver)  # Assign the driver to the rover
+
+# Initialize rover position and orientation
+init_pos = chrono.ChVector3d(0, 0.2, 0)
+init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
+rover.Initialize(chrono.ChFramed(init_pos, init_rot))
+
+# Create run-time visualization
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetCameraVertical(chrono.CameraVerticalDir_Z)
+vis.SetWindowSize(1280, 720)
+vis.SetWindowTitle('Viper rover - Rigid terrain')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVector3d(0, 2.5, 1.5), chrono.ChVector3d(0, 0, 0.5))
+vis.AddTypicalLights()
+vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0, 0.5), 3, 4, 10, 40, 512)
+
+# Enable shadows (commented out to improve performance)
+# vis.EnableShadows()
+
+# Create sensor manager and add point light
+manager = sens.ChSensorManager(system)
+intensity = 1.0
+manager.scene.AddPointLight(chrono.ChVector3f(2, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
+
+# Create camera sensor
+offset_pose = chrono.ChFramed(
+    chrono.ChVector3d(1.0, 0, 1.45),
+    chrono.QuatFromAngleAxis(.2, chrono.ChVector3d(0, 1, 0))
+)
+cam = sens.ChCameraSensor(
+    rover.GetChassis().GetBody(),  # Attach to rover chassis
+    15,  # update rate in Hz
+    offset_pose,
+    720,  # image width
+    480,  # image height
+    1.408  # field of view
+)
+cam.SetName("Third Person POV")
+cam.PushFilter(sens.ChFilterVisualize(720, 480, "Viper Front Camera"))
+manager.AddSensor(cam)
+
+# Simulation timing variables
+time_step = 1e-3
+step_number = 0
+render_step_size = 1.0 / 25  # 25 FPS
+render_steps = math.ceil(render_step_size / time_step)
+
+# Simulation loop
+time = 0
+while vis.Run():
+    time += time_step  # Increment the simulation time
+    steering = 0
+    max_steering = math.pi / 6  # Maximum steering angle
+    
+    # Define the steering behavior over time
+    if 2 < time < 7:
+        steering = max_steering * (time - 2) / 5  # Gradually increase steering
+    elif 7 < time < 12:
+        steering = max_steering * (12 - time) / 5  # Gradually decrease steering
+    
+    driver.SetSteering(steering)  # Set the steering for the rover
+    rover.Update()  # Update the rover's state
+    manager.Update()  # Update sensor manager
+
+    # Render scene at specified intervals
+    if step_number % render_steps == 0:
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+    
+    system.DoStepDynamics(time_step)  # Advance simulation
+    step_number += 1
+``` 
+
+### Key Corrections and Additions:
+1. **Ground Texture Fix**: Replaced `GetVisualShape(0)` with `GetVisualShapeList().GetItem(0)` to properly access the first visual shape.
+2. **Sensor Import**: Added `import pychrono.sensor as sens` for sensor functionality.
+3. **Sensor Manager**: Created and configured the sensor manager with a point light and camera sensor as per instructions.
+4. **Render Timing**: Added variables and conditional rendering to control frame rate (25 FPS).
+5. **Sensor Update**: Added `manager.Update()` inside the simulation loop to process sensor data.
+6. **Order of Operations**: Ensured rendering occurs before dynamics step to visualize the current state, with conditional rendering based on step count.

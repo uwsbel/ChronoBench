@@ -1,0 +1,112 @@
+```python
+import pychrono as chrono
+import pychrono_ros as chrono_ros
+import rclpy
+from rclpy.node import Node
+from std_msgs.msg import Int32
+import time
+
+# 1. Initialize ROS 2 and PyChrono environment
+rclpy.init()
+ros_node = rclpy.create_node('pychrono_ros_sim')
+
+# 2. Create Chrono physical system with gravity
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
+
+# 3. Define material properties
+material = chrono.ChMaterialSurfaceNSC()
+material.SetFriction(0.5)
+material.SetRestitution(0.1)
+material.SetDampingF(0.2)
+
+# 4. Create fixed floor body
+floor = chrono.ChBody()
+floor.SetBodyFixed(True)
+floor.SetMaterialSurface(material)
+floor_shape = chrono.ChBoxShape()
+floor_shape.GetBoxGeometry().Size = chrono.ChVectorD(5, 5, 0.1)
+floor.AddVisualShape(floor_shape)
+floor.SetPos(chrono.ChVectorD(0, 0, -0.1))
+system.Add(floor)
+
+# Add collision shape for floor
+floor.GetCollisionModel().ClearModel()
+floor.GetCollisionModel().AddBox(5, 5, 0.1)
+floor.SetCollide(True)
+floor.GetCollisionModel().BuildModel()
+
+# 5. Create movable box body
+box = chrono.ChBody()
+box.SetBodyFixed(False)
+box.SetMaterialSurface(material)
+box_shape = chrono.ChBoxShape()
+box_shape.GetBoxGeometry().Size = chrono.ChVectorD(0.5, 0.5, 0.5)
+box.AddVisualShape(box_shape)
+box.SetPos(chrono.ChVectorD(0, 0, 1))
+system.Add(box)
+
+# Add collision shape for box
+box.GetCollisionModel().ClearModel()
+box.GetCollisionModel().AddBox(0.5, 0.5, 0.5)
+box.SetCollide(True)
+box.GetCollisionModel().BuildModel()
+
+# 6. Custom ROS handler to publish integer messages
+class CustomIntPublisher(chrono_ros.ChHandler):
+    def __init__(self, node, topic_name="custom_int_topic"):
+        super().__init__()
+        self.node = node
+        self.publisher = node.create_publisher(Int32, topic_name, 10)
+        self.counter = 0
+
+    def OnPostStep(self, system, step):
+        # Publish incrementing integer every step
+        msg = Int32()
+        msg.data = self.counter
+        self.publisher.publish(msg)
+        self.counter += 1
+
+# 7. Setup ROS manager with handlers
+ros_manager = chrono_ros.ChROSNodeManager(system, ros_node)
+
+# Add default handlers
+ros_manager.AddHandler(chrono_ros.ChROSClockHandler(ros_node))
+ros_manager.AddHandler(chrono_ros.ChROSBodyHandler(ros_node))
+ros_manager.AddHandler(chrono_ros.ChROSTransformHandler(ros_node))
+
+# Register custom handler
+custom_handler = CustomIntPublisher(ros_node)
+ros_manager.AddHandler(custom_handler)
+
+# 8. Simulation parameters
+timestep = 0.01
+ros_manager.SetStepSize(timestep)
+
+# 9. Simulation loop with real-time synchronization
+try:
+    last_time = time.time()
+    while rclpy.ok():
+        # Advance simulation
+        system.DoStepDynamics(timestep)
+
+        # Update ROS communication
+        ros_manager.Update()
+
+        # Spin ROS node to handle callbacks
+        rclpy.spin_once(ros_node, timeout_sec=0)
+
+        # Real-time synchronization
+        elapsed = time.time() - last_time
+        sleep_time = timestep - elapsed
+        if sleep_time > 0:
+            time.sleep(sleep_time)
+        last_time = time.time()
+
+except KeyboardInterrupt:
+    pass
+
+# 10. Cleanup
+ros_node.destroy_node()
+rclpy.shutdown()
+```

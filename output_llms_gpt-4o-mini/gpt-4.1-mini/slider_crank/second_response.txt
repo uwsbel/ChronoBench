@@ -1,0 +1,201 @@
+```python
+import pychrono.core as chrono  # Import the core Chrono library
+import pychrono.irrlicht as chronoirr  # Import the Irrlicht visualization library for Chrono
+import matplotlib.pyplot as plt  # Import matplotlib for plotting
+import numpy as np  # Import numpy for numerical operations
+
+# Initialize the Chrono simulation system with non-smooth contact (NSC) method
+sys = chrono.ChSystemNSC()
+
+# Define common parameters for the simulation
+crank_center = chrono.ChVector3d(-1, 0.5, 0)  # Center of the crankshaft (x=-1, y=0.5, z=0)
+crank_rad = 0.4  # Radius of the crankshaft (in meters)
+crank_thick = 0.1  # Thickness of the crankshaft (in meters)
+rod_length = 1.5  # Length of the connecting rod (in meters)
+
+# Create the floor (truss) body, which is a box
+mfloor = chrono.ChBodyEasyBox(3, 1, 3, 1000, True, True)  # Added default parameters for visualization and collision
+mfloor.SetPos(chrono.ChVector3d(0, -0.5, 0))  # Position the floor at (x=0, y=-0.5, z=0)
+mfloor.SetBodyFixed(True)  # Corrected method name from SetFixed to SetBodyFixed
+sys.Add(mfloor)  # Add the floor to the simulation system
+
+# Create the crank body, which is a cylinder
+# Corrected ChBodyEasyCylinder constructor: first param is radius, second is height, third is density
+mcrank = chrono.ChBodyEasyCylinder(crank_rad, crank_thick, 1000, True, True)  # Added default params for visualization and collision
+mcrank.SetPos(crank_center + chrono.ChVector3d(0, 0, -0.1))  # Position the crank at (x=-1, y=0.5, z=-0.1)
+mcrank.SetRot(chrono.Q_ROTATE_Y_TO_Z)  # Rotate the crank to align it along the Z-axis
+sys.Add(mcrank)  # Add the crank to the simulation system
+
+# Create the connecting rod, which is a box
+mrod = chrono.ChBodyEasyBox(rod_length, 0.1, 0.1, 1000, True, True)  # Added default params for visualization and collision
+mrod.SetPos(crank_center + chrono.ChVector3d(crank_rad + rod_length / 2, 0, 0))  # Position the rod at (x=-0.4, y=0.5, z=0)
+sys.Add(mrod)  # Add the rod to the simulation system
+
+# Create the piston, which is a cylinder
+mpiston = chrono.ChBodyEasyCylinder(0.2, 0.3, 1000, True, True)  # Corrected parameters order and added visualization/collision
+mpiston.SetPos(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0))  # Position the piston at (x=0.9, y=0.5, z=0)
+mpiston.SetRot(chrono.Q_ROTATE_Y_TO_X)  # Rotate the piston to align it along the X-axis
+sys.Add(mpiston)  # Add the piston to the simulation system
+
+# Create a motor to spin the crankshaft
+my_motor = chrono.ChLinkMotorRotationSpeed()  # Create a motor that controls rotational speed
+# Corrected Initialize method: use chrono.ChFrame instead of chrono.ChFramed
+my_motor.Initialize(mcrank, mfloor, chrono.ChFrame(crank_center))  # Initialize the motor at the crank center, connecting the crank and the floor
+my_angularspeed = chrono.ChFunction_Const(chrono.CH_C_PI)  # Corrected class name and constant for π rad/s (180°/s)
+my_motor.SetMotorFunction(my_angularspeed)  # Assign the angular speed function to the motor
+sys.Add(my_motor)  # Add the motor to the simulation system
+
+# Create a revolute joint to connect the crank to the rod
+mjointA = chrono.ChLinkLockRevolute()  # Create a revolute (hinge) joint
+mjointA.Initialize(mrod, mcrank, chrono.ChFrame(crank_center + chrono.ChVector3d(crank_rad, 0, 0)))  # Corrected ChFramed to ChFrame
+sys.Add(mjointA)  # Add the joint to the simulation system
+
+# Create a revolute joint to connect the rod to the piston
+mjointB = chrono.ChLinkLockRevolute()  # Create a revolute (hinge) joint
+mjointB.Initialize(mpiston, mrod, chrono.ChFrame(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0)))  # Corrected ChFramed to ChFrame
+sys.Add(mjointB)  # Add the joint to the simulation system
+
+# Create a prismatic joint to connect the piston to the floor, allowing linear motion along the X-axis
+mjointC = chrono.ChLinkLockPrismatic()  # Create a prismatic (slider) joint
+# Corrected ChFramed to ChFrame and rotation quaternion constant
+mjointC.Initialize(mpiston, mfloor, chrono.ChFrame(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0), chrono.Q_ROTATE_Z_TO_X))
+sys.Add(mjointC)  # Add the joint to the simulation system
+
+# Set up the Irrlicht visualization system
+vis = chronoirr.ChVisualSystemIrrlicht()  # Create the Irrlicht visualization system
+vis.AttachSystem(sys)  # Attach the Chrono system to the visualization
+vis.SetWindowSize(1024, 768)  # Set the window size for the visualization (1024x768 pixels)
+vis.SetWindowTitle('Crank demo')  # Set the window title
+vis.Initialize()  # Initialize the visualization system
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))  # Add a logo to the visualization
+vis.AddSkyBox()  # Add a skybox for better visual appearance
+vis.AddCamera(chrono.ChVector3d(1, 1, 3), chrono.ChVector3d(0, 1, 0))  # Add a camera to the visualization, positioned at (x=1, y=1, z=3) and looking at (x=0, y=1, z=0)
+vis.AddTypicalLights()  # Add typical lights for better visualization
+
+# === Part 3: Initialize arrays for plotting ===
+array_time = []
+array_angle = []
+array_pos = []
+array_speed = []
+
+# Simulation parameters
+time_step = 1e-3  # 1 ms time step
+max_time = 20.0  # Stop simulation after 20 seconds
+
+# Helper function to get crank angle from motor
+def get_crank_angle():
+    # The motor speed is constant, so angle = omega * time
+    # Alternatively, get the relative rotation between crank and floor around the motor axis
+    # We'll get the relative rotation quaternion and extract angle around Z axis (motor axis)
+    rel_rot = mcrank.GetRot() * mfloor.GetRot().GetConjugate()
+    # Extract angle around Z axis from quaternion
+    # Since motor axis is Z, we can convert quaternion to angle-axis and get angle * sign of axis.z
+    angle_axis = rel_rot.Q_to_AngAxis()
+    angle = angle_axis[0]
+    axis = angle_axis[1]
+    # Project axis on Z axis to get sign
+    sign = np.sign(axis.z)
+    return angle * sign
+
+# Helper function to get piston position along X axis relative to floor
+def get_piston_pos():
+    # Position of piston relative to floor origin
+    pos = mpiston.GetPos() - mfloor.GetPos()
+    return pos.x
+
+# Helper function to get piston speed along X axis relative to floor
+def get_piston_speed():
+    # Velocity of piston relative to floor
+    vel = mpiston.GetPos_dt() - mfloor.GetPos_dt()
+    return vel.x
+
+# Run the interactive simulation loop with data collection and stop condition
+while vis.Run():
+    current_time = sys.GetChTime()
+
+    # Collect data
+    angle = get_crank_angle()
+    pos = get_piston_pos()
+    speed = get_piston_speed()
+
+    array_time.append(current_time)
+    array_angle.append(angle)
+    array_pos.append(pos)
+    array_speed.append(speed)
+
+    # Visualization and time step integration
+    vis.BeginScene()  # Begin the visualization scene
+    vis.Render()  # Render the scene
+    vis.EndScene()  # End the visualization scene
+    sys.DoStepDynamics(time_step)  # Advance the simulation by a time step of 0.001 seconds (1 ms)
+
+    # Stop simulation after max_time seconds
+    if current_time >= max_time:
+        break
+
+# Close visualization window after simulation ends
+vis.GetDevice().closeDevice()
+
+# === Part 6: Plotting with Matplotlib ===
+array_angle = np.array(array_angle)
+array_pos = np.array(array_pos)
+array_speed = np.array(array_speed)
+
+# Normalize angle to [0, 2*pi] for better plotting
+array_angle_mod = np.mod(array_angle, 2 * np.pi)
+
+fig, axs = plt.subplots(2, 1, figsize=(10, 8), sharex=True)
+
+# First subplot: position vs crank angle
+axs[0].plot(array_angle_mod, array_pos, label='Piston Position')
+axs[0].set_ylabel('Position [m]')
+axs[0].set_title('Piston Position vs Crank Angle')
+axs[0].grid(True)
+axs[0].legend()
+
+# Second subplot: speed vs crank angle
+axs[1].plot(array_angle_mod, array_speed, label='Piston Speed', color='orange')
+axs[1].set_xlabel('Crank Angle [rad]')
+axs[1].set_ylabel('Speed [m/s]')
+axs[1].set_title('Piston Speed vs Crank Angle')
+axs[1].grid(True)
+axs[1].legend()
+
+# Set x-axis ticks to multiples of pi/2 with labels
+pi = np.pi
+ticks = np.array([0, pi/2, pi, 3*pi/2, 2*pi])
+tick_labels = ['0', r'$\pi/2$', r'$\pi$', r'$3\pi/2$', r'$2\pi$']
+axs[1].set_xticks(ticks)
+axs[1].set_xticklabels(tick_labels)
+
+plt.tight_layout()
+plt.show()
+```
+---
+
+### Explanation of corrections and modifications:
+
+1. **Errors fixed:**
+   - `SetFixed` → `SetBodyFixed` (correct method name for fixing a body).
+   - `ChBodyEasyCylinder` constructor parameters corrected: first radius, then height, then density.
+   - Added missing boolean parameters `visualize=True` and `collision=True` to `ChBodyEasyBox` and `ChBodyEasyCylinder` constructors for proper visualization and collision.
+   - `chrono.ChFramed` → `chrono.ChFrame` (correct class name).
+   - `chrono.ChFunctionConst` → `chrono.ChFunction_Const` (correct class name).
+   - `chrono.CH_PI` → `chrono.CH_C_PI` (correct constant for π).
+   - Added `vis.GetDevice().closeDevice()` to properly close the Irrlicht window after simulation ends.
+
+2. **Modifications per instructions:**
+   - Initialized arrays `array_time`, `array_angle`, `array_pos`, `array_speed`.
+   - In the simulation loop, appended current time, crank angle, piston position, and piston speed.
+   - Added a stop condition to break the loop after 20 seconds.
+   - After simulation, plotted two subplots:
+     - Piston position vs crank angle.
+     - Piston speed vs crank angle.
+   - Used numpy to set x-axis ticks at multiples of π/2 with LaTeX labels.
+
+3. **Additional notes:**
+   - The crank angle is extracted from the relative rotation quaternion between crank and floor.
+   - The piston position and speed are taken along the X-axis relative to the floor.
+   - Angle is normalized to [0, 2π] for plotting clarity.
+
+This script should now run correctly, visualize the mechanism, collect data, stop after 20 seconds, and plot the requested graphs.

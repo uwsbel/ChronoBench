@@ -1,0 +1,179 @@
+
+import pychrono.core as chrono
+import pychrono.irrlicht as irr
+import pychrono.vehicle as veh
+import pychrono.sensor as sens
+import math
+import os
+
+
+# =============================================================================
+
+def main():
+    #print("Copyright (c) 2017 projectchrono.org\nChrono version: ", CHRONO_VERSION , "\n\n")
+
+    # Create systems
+
+    #  Create the HMMWV vehicle, set parameters, and initialize
+    hmmwv = veh.HMMWV_Full()
+    hmmwv.SetContactMethod(contact_method)
+    hmmwv.SetChassisCollisionType(chassis_collision_type)
+    hmmwv.SetChassisFixed(False) 
+    hmmwv.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
+    hmmwv.SetEngineType(engine_model)
+    hmmwv.SetTransmissionType(transmission_model)
+    hmmwv.SetDriveType(drive_type)
+    hmmwv.SetSteeringType(steering_type)
+    hmmwv.SetTireType(tire_model)
+    hmmwv.SetTireStepSize(tire_step_size)
+    hmmwv.Initialize()
+
+    hmmwv.SetChassisVisualizationType(chassis_vis_type)
+    hmmwv.SetSuspensionVisualizationType(suspension_vis_type)
+    hmmwv.SetSteeringVisualizationType(steering_vis_type)
+    hmmwv.SetWheelVisualizationType(wheel_vis_type)
+    hmmwv.SetTireVisualizationType(tire_vis_type)
+
+    hmmwv.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+
+    # Create the (custom) SCM deformable terrain patch
+    terrain = veh.SCMTerrain(hmmwv.GetSystem())
+    terrain.SetSoilParameters(2e6,   # Bekker Kphi
+                              0,     # Bekker Kc
+                              1.1,   # Bekker n exponent
+                              0,     # Mohr cohesive limit (Pa)
+                              30,    # Mohr friction limit (degrees)
+                              0.01,  # Janosi shear coefficient (m)
+                              2e8,   # Elastic stiffness (Pa/m), before plastic yield
+                              3e4    # Damping (Pa s/m), proportional to negative vertical speed (optional)
+    )
+
+    # Optionally, enable moving patch feature (single patch around vehicle chassis)
+    terrain.AddMovingPatch(hmmwv.GetChassisBody(), 
+                           chrono.ChVector3d(0, 0, 0), # patch offset
+                           terrainLength,      # size of patch in x direction
+                           terrainWidth,       # size in y direction
+                           delta                # grid spacing
+    )
+
+    # Set plot type for SCM (false color plotting)
+    terrain.SetPlotType(veh.SCMTerrain.PLOT_SINKAGE, 0, 0.1)
+
+    # Initialize the SCM terrain, specifying the initial mesh grid
+    terrain.Initialize(terrainLength, terrainWidth, delta, initLoc + chrono.ChVector3d(0, 0, -hmmwv.GetVehicle().GetGroundClearance() - 0.1))
+
+    # Create the vehicle Irrlicht interface
+    vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
+    vis.SetWindowTitle('HMMWV Deformable Soil Demo')
+    vis.SetWindowSize(1280, 1024)
+    vis.SetChaseCamera(trackPoint, 6.0, 0.5)
+    vis.Initialize()
+    vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+    vis.AddLightDirectional()
+    vis.AddSkyBox()
+    vis.AttachVehicle(hmmwv.GetVehicle())
+
+    # Create the interactive driver system
+    driver = veh.ChInteractiveDriverIRR(vis)
+
+    # Set the time response for steering and throttle keyboard inputs.
+    steering_time = 1.0  # time to go from 0 to +1 (or from 0 to -1)
+    throttle_time = 1.0  # time to go from 0 to +1
+    braking_time = 0.3   # time to go from 0 to +1
+    driver.SetSteeringDelta(render_step_size / steering_time)
+    driver.SetThrottleDelta(render_step_size / throttle_time)
+    driver.SetBrakingDelta(render_step_size / braking_time)
+
+    driver.Initialize()
+
+    # Simulation loop
+    hmmwv.GetVehicle().EnableRealtime(True)
+
+    while vis.Run() :
+        time = hmmwv.GetSystem().GetChTime()
+
+        # Render scene
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+
+        # Collect output data from modules (for inter-module communication)
+        driver_inputs = driver.GetInputs()
+
+        # Update modules (process inputs from other modules)
+        driver.Synchronize(time)
+        terrain.Synchronize(time)
+        hmmwv.Synchronize(time, driver_inputs, terrain)
+        vis.Synchronize(time, driver_inputs)
+
+        # Advance simulation for one timestep for all modules
+        driver.Advance(step_size)
+        terrain.Advance(step_size)
+        hmmwv.Advance(step_size)
+        vis.Advance(step_size)
+
+    return 0
+
+
+# The path to the Chrono data directory containing various assets (meshes, textures, data files)
+# is automatically set, relative to the default location of this demo.
+# If running from a different directory, you must change the path to the data directory with: 
+#chrono.SetChronoDataPath('path/to/data')
+
+veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
+
+# Initial vehicle location and orientation
+initLoc = chrono.ChVector3d(0, 0, 1.6)
+initRot = chrono.ChQuaterniond(1, 0, 0, 0)
+
+# Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
+chassis_vis_type = veh.VisualizationType_MESH
+suspension_vis_type =  veh.VisualizationType_PRIMITIVES
+steering_vis_type = veh.VisualizationType_PRIMITIVES
+wheel_vis_type = veh.VisualizationType_MESH
+tire_vis_type = veh.VisualizationType_MESH 
+
+# Collision type for chassis (PRIMITIVES, MESH, or NONE)
+chassis_collision_type = veh.CollisionType_NONE
+
+# Type of powertrain models (SHAFTS, SIMPLE)
+engine_model = veh.EngineModelType_SHAFTS
+transmission_model = veh.TransmissionModelType_AUTOMATIC_SHAFTS
+
+# Drive type (FWD, RWD, or AWD)
+drive_type = veh.DrivelineTypeWV_AWD
+
+# Steering type (PITMAN_ARM or PITMAN_ARM_SHAFTS)
+steering_type = veh.SteeringTypeWV_PITMAN_ARM
+
+# Type of tire model (RIGID, RIGID_MESH, FIALA, PAC89)
+tire_model = veh.TireModelType_TMEASY
+
+# Rigid terrain
+# terrainHeight = 0;      # terrain height (FLAT terrain only)
+# terrainLength = 100.0;  # size in X direction
+# terrainWidth = 100.0;   # size in Y direction
+
+# SCM deformable terrain
+terrainHeight = 0;      # terrain height (FLAT terrain only)
+terrainLength = 20.0;   # size in X direction
+terrainWidth = 20.0;    # size in Y direction
+delta = 0.05;            # grid spacing
+
+# Point on chassis tracked by the camera
+trackPoint = chrono.ChVector3d(0.0, 0.0, 1.75)
+
+# Contact method
+contact_method = chrono.ChContactMethod_SMC
+contact_vis = False
+
+# Simulation step sizes
+step_size = 2e-3;
+tire_step_size = 1e-3;
+
+# Time interval between two render frames
+render_step_size = 1.0 / 50;  # FPS = 50
+
+# Poon chassis tracked by the camera
+
+main()

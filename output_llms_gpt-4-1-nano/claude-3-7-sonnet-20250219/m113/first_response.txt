@@ -1,0 +1,152 @@
+# PyChrono M113 Vehicle Simulation
+
+```python
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as irr
+import math
+import numpy as np
+
+# ---------------------------------------------------------------------
+# Initialize the PyChrono system and set parameters
+
+# Create the chrono system
+system = chrono.ChSystemSMC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+
+# Set solver settings
+system.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
+system.SetSolverMaxIterations(150)
+system.SetMaxPenetrationRecoverySpeed(4.0)
+
+# ---------------------------------------------------------------------
+# Create the terrain (rigid flat ground)
+
+ground_material = chrono.ChMaterialSurfaceSMC()
+ground_material.SetFriction(0.8)
+ground_material.SetRestitution(0.3)
+ground_material.SetYoungModulus(2e7)
+
+ground = chrono.ChBodyEasyBox(100, 2, 100, 1000, True, True, ground_material)
+ground.SetBodyFixed(True)
+ground.SetPos(chrono.ChVectorD(0, -1, 0))  # Position the ground slightly below the origin
+ground.SetCollide(True)
+system.Add(ground)
+
+# ---------------------------------------------------------------------
+# Create the M113 vehicle
+
+# Initialize the vehicle at a specified position and orientation
+vehicle_pos = chrono.ChVectorD(0, 0.7, 0)
+vehicle_rot = chrono.ChQuaternionD(1, 0, 0, 0)  # No initial rotation
+
+# Create the M113 vehicle
+vehicle = veh.M113()
+vehicle.SetContactMethod(chrono.ChContactMethod_SMC)
+vehicle.SetChassisFixed(False)
+vehicle.SetInitPosition(chrono.ChCoordsysD(vehicle_pos, vehicle_rot))
+vehicle.SetBrakeType(veh.BrakeType_SHAFTS)
+vehicle.SetEngineType(veh.EngineModelType_SIMPLE)
+vehicle.SetTransmissionType(veh.TransmissionModelType_SIMPLE_MAP)
+vehicle.SetDrivelineType(veh.DrivelineTypeTV_TRACKS)
+vehicle.SetTireType(veh.TireModelType_RIGID)
+vehicle.SetTireStepSize(1e-3)
+vehicle.Initialize()
+
+vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
+vehicle.SetSprocketVisualizationType(veh.VisualizationType_MESH)
+vehicle.SetIdlerVisualizationType(veh.VisualizationType_MESH)
+vehicle.SetRoadWheelAssemblyVisualizationType(veh.VisualizationType_MESH)
+vehicle.SetRoadWheelVisualizationType(veh.VisualizationType_MESH)
+vehicle.SetTrackShoeVisualizationType(veh.VisualizationType_MESH)
+
+# Add vehicle to the system
+vehicle.GetSystem().AddBody(ground)
+
+# ---------------------------------------------------------------------
+# Create the driver system for vehicle control
+
+# Create a driver for the vehicle
+driver = veh.ChIrrGuiDriver(vehicle)
+driver.Initialize()
+
+# Set driver parameters
+driver.SetThrottle(0.0)
+driver.SetSteering(0.0)
+driver.SetBraking(0.0)
+
+# ---------------------------------------------------------------------
+# Create Irrlicht visualization
+
+# Create the Irrlicht visualization system
+vis_width = 1280
+vis_height = 720
+vis = irr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetWindowSize(vis_width, vis_height)
+vis.SetWindowTitle("M113 Vehicle Simulation")
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVectorD(0, 4, -6), chrono.ChVectorD(0, 0, 0))
+vis.AddTypicalLights()
+
+# Add a follow-camera for the vehicle
+camera_target = vehicle.GetChassisBody()
+cam_pos = chrono.ChVectorD(0, 2, -6)
+cam_aim = chrono.ChVectorD(0, 0, 2)
+vis.AddCamera(cam_pos, cam_aim)
+
+# ---------------------------------------------------------------------
+# Simulation loop
+
+# Set simulation end time and real-time step sizes
+t_end = 100.0  # end time in seconds
+step_size = 1e-3  # step size in seconds
+realtime_timer = chrono.ChRealtimeStepTimer()
+
+while vis.Run() and system.GetChTime() < t_end:
+    # Get driver inputs
+    driver_inputs = driver.GetInputs()
+    
+    # Update the vehicle with the driver inputs
+    vehicle.Synchronize(system.GetChTime(), driver_inputs, ground.GetContactSurface())
+    
+    # Advance vehicle, terrain, and driver states by one step
+    vehicle.Advance(step_size)
+    driver.Advance(step_size)
+    
+    # Advance the system by one step
+    system.DoStepDynamics(step_size)
+    
+    # Update visualization
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    
+    # Ensure real-time synchronization
+    realtime_timer.Spin(step_size)
+    
+    # Print simulation time
+    if int(system.GetChTime() * 100) % 100 == 0:
+        print(f"Simulation time: {system.GetChTime():.2f} s")
+
+# Clean up
+vis.GetDevice().closeDevice()
+print("Simulation completed!")
+```
+
+This script creates a PyChrono simulation with an M113 tracked vehicle on a rigid terrain. It includes:
+
+1. A proper system initialization with SMC (Smooth Contact Method) for realistic contacts
+2. A flat rigid terrain with appropriate friction and material properties
+3. An M113 tracked vehicle initialized with proper configuration and visualization settings
+4. A driver system to control the vehicle
+5. Irrlicht visualization with camera and lighting setup
+6. A simulation loop that:
+   - Synchronizes the vehicle state with driver inputs
+   - Advances the vehicle, terrain, and driver systems
+   - Updates the visualization
+   - Maintains real-time execution using a timer
+
+The simulation runs for 100 seconds or until the visualization window is closed.

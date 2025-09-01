@@ -1,0 +1,179 @@
+Here's a comprehensive PyChrono simulation script for a full HMMWV vehicle on rigid terrain with Irrlicht visualization:
+
+```python
+import pychrono.core as chrono
+import pychrono.irrlicht as chronoirr
+import pychrono.vehicle as veh
+import math
+
+def main():
+    # Set the Chrono data path for accessing vehicle data files
+    chrono.SetChronoDataPath('/path/to/chrono/data/')  # Update with your Chrono data path
+    veh.SetDataPath('/path/to/vehicle/data/')  # Update with your vehicle data path
+
+    # Initialize the PyChrono environment
+    chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.0025)
+    chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
+
+    # Create the HMMWV vehicle system
+    # Vehicle initial position and orientation
+    initLoc = chrono.ChVectorD(0, 0, 1.6)  # Initial position (x, y, z)
+    initRot = chrono.ChQuaternionD(1, 0, 0, 0)  # Initial orientation (quaternion)
+
+    # Create the vehicle
+    hmmwv = veh.HMMWV_Full()
+    hmmwv.SetContactMethod(chrono.ChContactMethod_NSC)  # Non-smooth contact method
+    hmmwv.SetChassisCollisionType(veh.CollisionType_NONE)
+    hmmwv.SetChassisFixed(False)
+    hmmwv.SetInitPosition(chrono.ChCoordsysD(initLoc, initRot))
+    
+    # Set TMEASY tire model for all wheels
+    hmmwv.SetTireType(veh.TireModelType_TMEASY)
+    hmmwv.SetTireStepSize(1e-3)
+    
+    # Use primitive visualization
+    hmmwv.SetChassisVisualizationType(veh.VisualizationType_PRIMITIVES)
+    hmmwv.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
+    hmmwv.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
+    hmmwv.SetWheelVisualizationType(veh.VisualizationType_PRIMITIVES)
+    hmmwv.SetTireVisualizationType(veh.VisualizationType_PRIMITIVES)
+
+    # Initialize the vehicle
+    hmmwv.Initialize()
+
+    # Set tire properties for TMEASY model
+    tire_FL = hmmwv.GetTire(0, 0)  # Front left
+    tire_FR = hmmwv.GetTire(0, 1)  # Front right
+    tire_RL = hmmwv.GetTire(1, 0)  # Rear left
+    tire_RR = hmmwv.GetTire(1, 1)  # Rear right
+
+    # Set visualization type for tires
+    hmmwv.GetTire(0, 0).SetVisualizationType(veh.VisualizationType_PRIMITIVES)
+    hmmwv.GetTire(0, 1).SetVisualizationType(veh.VisualizationType_PRIMITIVES)
+    hmmwv.GetTire(1, 0).SetVisualizationType(veh.VisualizationType_PRIMITIVES)
+    hmmwv.GetTire(1, 1).SetVisualizationType(veh.VisualizationType_PRIMITIVES)
+
+    # Create the rigid terrain
+    terrain = veh.RigidTerrain(hmmwv.GetSystem())
+    
+    # Configure terrain patch
+    patch_mat = chrono.ChMaterialSurfaceNSC()
+    patch_mat.SetFriction(0.9)
+    patch_mat.SetRestitution(0.01)
+    
+    # Create terrain patch with dimensions and texture
+    patch = terrain.AddPatch(patch_mat,
+                            chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT),
+                            200.0, 200.0)  # 200m x 200m terrain
+    
+    patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+    patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
+    
+    # Initialize terrain
+    terrain.Initialize()
+
+    # Create the interactive driver system
+    driver = veh.ChInteractiveDriverIRR()
+
+    # Set driver input modes
+    driver.SetSteeringDelta(0.02)   # Steering increment
+    driver.SetThrottleDelta(0.02)   # Throttle increment  
+    driver.SetBrakingDelta(0.06)    # Braking increment
+
+    # Initialize driver
+    driver.Initialize()
+
+    # Create Irrlicht application for visualization
+    vis = chronoirr.ChVisualSystemIrrlicht()
+    vis.AttachSystem(hmmwv.GetSystem())
+    vis.SetWindowSize(1280, 720)
+    vis.SetWindowTitle('HMMWV Full Vehicle Simulation')
+    vis.Initialize()
+    vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+    vis.AddSkyBox()
+    vis.AddCamera(chrono.ChVectorD(-8, 0, 3), chrono.ChVectorD(0, 0, 1))
+    vis.AddTypicalLights()
+
+    # Set up the camera to follow the vehicle
+    vis.GetActiveCamera().setTarget(chronoirr.vector3df(0, 0, 0))
+
+    # Simulation parameters
+    step_size = 1.0 / 50.0  # 50 FPS
+    realtime_timer = chrono.ChRealtimeStepTimer()
+
+    # Simulation loop
+    while vis.Run():
+        # Get driver inputs
+        driver.Synchronize(hmmwv.GetSystem().GetChTime())
+        driver_inputs = driver.GetInputs()
+
+        # Update vehicle systems
+        hmmwv.Synchronize(hmmwv.GetSystem().GetChTime(), driver_inputs, terrain)
+
+        # Advance simulation
+        hmmwv.Advance(step_size)
+        terrain.Advance(step_size)
+        driver.Advance(step_size)
+
+        # Update visualization
+        vis.BeginScene()
+        vis.Render()
+        
+        # Display vehicle information
+        vehicle_pos = hmmwv.GetVehicle().GetPos()
+        vehicle_speed = hmmwv.GetVehicle().GetSpeed()
+        
+        # Update camera to follow vehicle
+        vis.GetActiveCamera().setTarget(chronoirr.vector3df(
+            float(vehicle_pos.x), 
+            float(vehicle_pos.y), 
+            float(vehicle_pos.z)
+        ))
+        
+        vis.EndScene()
+
+        # Maintain real-time execution
+        realtime_timer.Spin(step_size)
+
+    return 0
+
+if __name__ == "__main__":
+    main()
+```
+
+This script creates a comprehensive PyChrono simulation with the following key features:
+
+1. **Environment Initialization**: Sets up the PyChrono environment with appropriate collision settings and data paths.
+
+2. **HMMWV Vehicle Setup**: 
+   - Creates a full HMMWV vehicle with specified initial position and orientation
+   - Uses Non-Smooth Contact (NSC) method for contact handling
+   - Implements TMEASY tire model for realistic tire behavior
+   - Sets primitive visualization for all vehicle components
+
+3. **Rigid Terrain Configuration**:
+   - Creates a 200m x 200m flat rigid terrain
+   - Sets appropriate friction and restitution values
+   - Applies texture for visual realism
+
+4. **Interactive Driver System**:
+   - Implements keyboard-based driver controls
+   - Configurable steering, throttle, and braking sensitivity
+
+5. **Visualization with Irrlicht**:
+   - Sets up Irrlicht visualization with proper window size and title
+   - Adds camera, lighting, skybox, and logo
+   - Implements camera tracking to follow the vehicle
+
+6. **Real-time Simulation**:
+   - Runs at 50 FPS as specified
+   - Synchronizes all systems properly
+   - Maintains real-time execution with appropriate timing
+
+**Important Notes**:
+- Update the data paths at the beginning of the script to match your Chrono installation
+- Make sure you have the required Chrono modules installed (core, irrlicht, vehicle)
+- The simulation uses keyboard controls: W/S for throttle/brake, A/D for steering
+- The camera automatically follows the vehicle during simulation
+
+This script provides a complete foundation for HMMWV vehicle simulation and can be extended with additional features as needed.

@@ -1,0 +1,146 @@
+```python
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as chronoirr
+import os
+
+# -----------------------------------------------------------------------------
+# 1. Initialize the PyChrono environment and core components
+# -----------------------------------------------------------------------------
+
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())  # Ensure data path is set
+
+# Create the physical system
+system = chrono.ChSystemNSC()
+
+# Set gravity
+system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
+
+# -----------------------------------------------------------------------------
+# 2. Add the required physical systems and objects as specified
+# -----------------------------------------------------------------------------
+
+# Vehicle parameters
+initial_loc = chrono.ChVectorD(0, 0, 1.0)  # Starting position (x,y,z)
+initial_rot = chrono.ChQuaternionD(1, 0, 0, 0)  # No initial rotation
+
+# Create the HMMWV vehicle
+vehicle = veh.HMMWV_Full()
+vehicle.SetContactMethod(chrono.ChContactMethod_NSC)
+vehicle.SetChassisFixed(False)
+vehicle.SetInitPosition(chrono.ChCoordsysD(initial_loc, initial_rot))
+vehicle.SetEngineType(veh.HMMWV_EngineSimpleMap)  # Simple map engine
+vehicle.SetDriveType(veh.DrivelineTypeWV::AWD)  # All wheel drive
+vehicle.SetTireType(veh.TireModelType::TMEASY)  # Use TMeasy tires
+vehicle.Initialize(system)
+
+# Apply mesh visualization to all vehicle components
+vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
+vehicle.SetSuspensionVisualizationType(veh.VisualizationType_MESH)
+vehicle.SetSteeringVisualizationType(veh.VisualizationType_MESH)
+vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
+vehicle.SetTireVisualizationType(veh.VisualizationType_MESH)
+
+# -----------------------------------------------------------------------------
+# Terrain construction: multiple patches with different surface types
+# -----------------------------------------------------------------------------
+
+terrain = veh.RigidTerrain(vehicle.GetSystem())
+
+# Patch 1: Flat patch with mud texture
+patch1 = terrain.AddPatch(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT),
+                          20, 20)
+patch1.SetTexture(veh.GetDataFile("terrain/textures/mud4.jpg"), 16, 16)
+patch1.SetColor(chrono.ChColor(0.8, 0.7, 0.5))
+patch1.SetFriction(0.9)
+patch1.SetRestitution(0.01)
+patch1.SetMaterialSurface(veh.MaterialSurfaceType::TERRAIN)
+
+# Patch 2: Flat patch with asphalt texture, offset in Y
+patch2 = terrain.AddPatch(chrono.ChCoordsysD(chrono.ChVectorD(20, 0, 0), chrono.QUNIT),
+                          20, 20)
+patch2.SetTexture(veh.GetDataFile("terrain/textures/asphalt.jpg"), 16, 16)
+patch2.SetColor(chrono.ChColor(0.5, 0.5, 0.5))
+patch2.SetFriction(0.9)
+patch2.SetRestitution(0.01)
+patch2.SetMaterialSurface(veh.MaterialSurfaceType::TERRAIN)
+
+# Patch 3: Mesh-based patch for a bump
+mesh_file = veh.GetDataFile("terrain/mesh/bump.obj")
+patch3 = terrain.AddPatchMesh(chrono.ChCoordsysD(chrono.ChVectorD(40, 0, 0), chrono.QUNIT),
+                             mesh_file)
+patch3.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 16, 16)
+patch3.SetColor(chrono.ChColor(0.4, 0.8, 0.4))
+patch3.SetFriction(0.9)
+patch3.SetRestitution(0.01)
+patch3.SetMaterialSurface(veh.MaterialSurfaceType::TERRAIN)
+
+# Patch 4: Heightmap-based patch for varying elevations
+heightmap_file = veh.GetDataFile("terrain/height_maps/hmap_simple.png")
+patch4 = terrain.AddPatchHeightmap(chrono.ChCoordsysD(chrono.ChVectorD(60, 0, 0), chrono.QUNIT),
+                                  heightmap_file,
+                                  0.1,  # height scale
+                                  20, 20)  # size in meters
+patch4.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 16, 16)
+patch4.SetColor(chrono.ChColor(0.6, 0.5, 0.4))
+patch4.SetFriction(0.9)
+patch4.SetRestitution(0.01)
+patch4.SetMaterialSurface(veh.MaterialSurfaceType::TERRAIN)
+
+terrain.Initialize()
+
+# -----------------------------------------------------------------------------
+# 3. Interactive driver system
+# -----------------------------------------------------------------------------
+
+# Create the interactive Irrlicht driver
+driver = veh.ChIrrGuiDriver(vehicle.GetVehicle())
+driver.SetSteeringDelta(0.04)
+driver.SetThrottleDelta(0.1)
+driver.SetBrakingDelta(0.1)
+driver.Initialize()
+
+# -----------------------------------------------------------------------------
+# Visualization system
+# -----------------------------------------------------------------------------
+
+application = chronoirr.ChIrrApp(vehicle.GetVehicle(), "HMMWV on Complex Terrain",
+                                 chronoirr.dimension2du(1280, 720))
+
+application.AddTypicalLights()
+application.AddTypicalCamera(chronoirr.vector3df(0, -40, 10), chronoirr.vector3df(0, 0, 1))
+application.AssetBindAll()
+application.AssetUpdateAll()
+
+# -----------------------------------------------------------------------------
+# Simulation loop parameters
+# -----------------------------------------------------------------------------
+
+timestep = 1.0 / 60  # 60 Hz update rate
+
+# -----------------------------------------------------------------------------
+# Simulation loop
+# -----------------------------------------------------------------------------
+
+while application.GetDevice().run():
+    application.BeginScene()
+    application.DrawAll()
+
+    # Get driver inputs
+    driver_inputs = driver.GetInputs()
+    vehicle.GetVehicle().GetSteeringController().SetInput(driver_inputs.m_steering)
+    vehicle.GetVehicle().GetEngineController().SetThrottle(driver_inputs.m_throttle)
+    vehicle.GetVehicle().GetBrakeController().SetBraking(driver_inputs.m_braking)
+
+    # Synchronize modules
+    time = vehicle.GetSystem().GetChTime()
+    driver.Synchronize(time)
+    vehicle.Synchronize(time, driver.GetInputs(), terrain)
+    terrain.Synchronize(time)
+    application.DoStep()
+
+    # Advance simulation by timestep
+    vehicle.GetSystem().DoStepDynamics(timestep)
+
+    application.EndScene()
+```

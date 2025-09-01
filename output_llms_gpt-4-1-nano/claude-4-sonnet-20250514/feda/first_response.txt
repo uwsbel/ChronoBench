@@ -1,0 +1,219 @@
+Here's a complete PyChrono simulation script for a FEDA vehicle on rigid terrain with Irrlicht visualization:
+
+```python
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as chronoirr
+import math
+
+def main():
+    # Set the path for vehicle data files
+    chrono.SetChronoDataPath(chrono.GetChronoDataPath())
+    veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
+    
+    # Create the Chrono system
+    system = chrono.ChSystemNSC()
+    system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
+    
+    # Set default contact material properties
+    system.SetContactForceModel(chrono.ChSystemNSC.ContactForceModel_Hertz)
+    system.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
+    system.SetSolverMaxIterations(150)
+    system.SetMaxPenetrationRecoverySpeed(4.0)
+    
+    # Initialize the FEDA vehicle
+    initial_location = chrono.ChVectorD(0, 0, 0.5)
+    initial_rotation = chrono.ChQuaternionD(1, 0, 0, 0)
+    
+    # Create the FEDA vehicle
+    vehicle = veh.FEDA()
+    vehicle.SetContactMethod(chrono.ChContactMethod_NSC)
+    vehicle.SetChassisCollisionType(veh.CollisionType_NONE)
+    vehicle.SetChassisFixed(False)
+    vehicle.SetInitPosition(chrono.ChCoordsysD(initial_location, initial_rotation))
+    
+    # Initialize the vehicle
+    vehicle.Initialize()
+    
+    # Set visualization type for vehicle parts (mesh)
+    vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
+    vehicle.SetSuspensionVisualizationType(veh.VisualizationType_MESH)
+    vehicle.SetSteeringVisualizationType(veh.VisualizationType_MESH)
+    vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
+    
+    # Create and initialize the powertrain system
+    powertrain = veh.SimpleMapPowertrain("FEDA/powertrain/FEDA_SimpleMapPowertrain.json")
+    vehicle.InitializePowertrain(powertrain)
+    
+    # Create and initialize the tires
+    tire_type = veh.TireModelType_TMEASY
+    
+    tire_FL = veh.TMeasyTire("FEDA/tire/FEDA_TMeasyTire.json")
+    tire_FR = veh.TMeasyTire("FEDA/tire/FEDA_TMeasyTire.json")
+    tire_RL = veh.TMeasyTire("FEDA/tire/FEDA_TMeasyTire.json")
+    tire_RR = veh.TMeasyTire("FEDA/tire/FEDA_TMeasyTire.json")
+    
+    vehicle.InitializeTire(tire_FL, vehicle.GetAxle(0).m_wheels[0], veh.VisualizationType_MESH)
+    vehicle.InitializeTire(tire_FR, vehicle.GetAxle(0).m_wheels[1], veh.VisualizationType_MESH)
+    vehicle.InitializeTire(tire_RL, vehicle.GetAxle(1).m_wheels[0], veh.VisualizationType_MESH)
+    vehicle.InitializeTire(tire_RR, vehicle.GetAxle(1).m_wheels[1], veh.VisualizationType_MESH)
+    
+    # Create the rigid terrain
+    terrain = veh.RigidTerrain(system)
+    
+    # Create terrain patch with custom texture
+    patch_mat = chrono.ChMaterialSurfaceNSC()
+    patch_mat.SetFriction(0.9)
+    patch_mat.SetRestitution(0.01)
+    
+    patch = terrain.AddPatch(patch_mat, 
+                           chrono.CSYSNORM,  # coordinate system
+                           200, 200)        # dimensions (length x width)
+    
+    # Set terrain texture
+    patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)
+    patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+    
+    terrain.Initialize()
+    
+    # Create the interactive driver system
+    driver = veh.ChInteractiveDriverIRR()
+    
+    # Set driver inputs
+    steering_time = 1.0  # time to go from 0 to +1 (or 0 to -1)
+    throttle_time = 1.0  # time to go from 0 to +1
+    braking_time = 0.3   # time to go from 0 to +1
+    
+    driver.SetSteeringDelta(0.02)
+    driver.SetThrottleDelta(0.02)
+    driver.SetBrakingDelta(0.06)
+    
+    driver.Initialize()
+    
+    # Create the Irrlicht visualization application
+    vis = chronoirr.ChVisualSystemIrrlicht()
+    vis.AttachSystem(system)
+    vis.SetWindowSize(1280, 720)
+    vis.SetWindowTitle('FEDA Vehicle Simulation')
+    vis.Initialize()
+    vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+    vis.AddSkyBox()
+    vis.AddCamera(chrono.ChVectorD(0, 0, 0))
+    vis.AddTypicalLights()
+    
+    # Set camera to follow vehicle
+    vis.GetActiveCamera().setPosition(chronoirr.vector3df(-8, 5, 2))
+    vis.GetActiveCamera().setTarget(chronoirr.vector3df(0, 0, 0))
+    
+    # Simulation settings
+    step_size = 1.0 / 50.0  # 50 FPS
+    render_step_size = 1.0 / 50.0  # Render at 50 FPS
+    
+    # Initialize simulation time
+    time = 0
+    render_time = 0
+    
+    print("Vehicle mass: ", vehicle.GetVehicle().GetMass())
+    print("FEDA Vehicle Simulation")
+    print("Use WASD keys to control the vehicle")
+    print("W/S: Throttle/Brake")
+    print("A/D: Steering")
+    
+    # Simulation loop
+    while vis.Run():
+        # Current time
+        time = system.GetChTime()
+        
+        # Update driver inputs
+        driver_inputs = driver.GetInputs()
+        
+        # Get vehicle location for camera tracking
+        vehicle_pos = vehicle.GetVehicle().GetPos()
+        vehicle_rot = vehicle.GetVehicle().GetRot()
+        
+        # Update camera to follow vehicle
+        camera_distance = 8
+        camera_height = 3
+        
+        # Calculate camera position behind the vehicle
+        forward_dir = vehicle_rot.Rotate(chrono.ChVectorD(1, 0, 0))
+        camera_pos = vehicle_pos - forward_dir * camera_distance + chrono.ChVectorD(0, 0, camera_height)
+        
+        vis.GetActiveCamera().setPosition(chronoirr.vector3df(
+            float(camera_pos.x), float(camera_pos.y), float(camera_pos.z)))
+        vis.GetActiveCamera().setTarget(chronoirr.vector3df(
+            float(vehicle_pos.x), float(vehicle_pos.y), float(vehicle_pos.z + 1)))
+        
+        # Synchronize subsystems
+        driver.Synchronize(time)
+        terrain.Synchronize(time)
+        vehicle.Synchronize(time, driver_inputs, terrain)
+        
+        # Advance dynamics
+        driver.Advance(step_size)
+        terrain.Advance(step_size)
+        vehicle.Advance(step_size)
+        system.DoStepDynamics(step_size)
+        
+        # Render scene
+        if time >= render_time:
+            vis.BeginScene()
+            vis.Render()
+            
+            # Display vehicle information
+            vehicle_speed = vehicle.GetVehicle().GetPointVelocity(chrono.ChVectorD(0, 0, 0)).Length()
+            
+            # Update GUI with vehicle info
+            vis.GetGUIEnvironment().getBuiltInFont().draw(
+                f"Speed: {vehicle_speed:.2f} m/s",
+                chronoirr.recti(10, 10, 200, 30),
+                chronoirr.SColor(255, 255, 255, 255))
+            
+            vis.GetGUIEnvironment().getBuiltInFont().draw(
+                f"Time: {time:.2f} s",
+                chronoirr.recti(10, 35, 200, 55),
+                chronoirr.SColor(255, 255, 255, 255))
+            
+            vis.EndScene()
+            render_time += render_step_size
+
+if __name__ == "__main__":
+    main()
+```
+
+This script creates a comprehensive PyChrono simulation with the following features:
+
+1. **System Initialization**: Sets up the Chrono system with NSC contact method and appropriate solver settings.
+
+2. **FEDA Vehicle Setup**: 
+   - Initializes the FEDA vehicle with specified location and orientation
+   - Sets contact method and collision types
+   - Configures mesh visualization for all vehicle parts
+
+3. **Powertrain and Tires**:
+   - Simple map powertrain system
+   - TMeasy tire model for all four wheels
+   - Mesh visualization for tires
+
+4. **Rigid Terrain**:
+   - Creates a 200x200 meter terrain patch
+   - Applies grass texture
+   - Sets appropriate friction and restitution properties
+
+5. **Interactive Driver System**:
+   - WASD key controls for steering, throttle, and braking
+   - Configurable input sensitivity
+
+6. **Irrlicht Visualization**:
+   - 1280x720 window resolution
+   - Camera following the vehicle from behind
+   - Real-time display of vehicle speed and simulation time
+   - 50 FPS simulation and rendering
+
+7. **Simulation Loop**:
+   - Runs at 50 FPS (0.02s time steps)
+   - Updates all subsystems synchronously
+   - Maintains smooth camera tracking
+   - Displays vehicle information overlay
+
+The simulation provides an interactive driving experience with realistic vehicle dynamics and visual feedback.

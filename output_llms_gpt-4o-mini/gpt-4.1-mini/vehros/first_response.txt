@@ -1,0 +1,68 @@
+```python
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.vehicle.mrole as mrole
+import pychrono.vehicle.ros as ros
+
+# 1. Initialize the PyChrono environment and core components
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())  # Ensure data path is set
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())  # (redundant but safe)
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())  # (redundant but safe)
+
+# Simulation parameters
+step_size = 1e-3  # simulation step size
+t_end = 10.0      # simulation end time
+
+# 2. Add the required physical systems and objects as specified
+
+# Create the vehicle system
+contact_method = chrono.ChContactMethod_NSC  # Non-smooth contact
+vehicle = veh.HMMWV_Full(vehicle.ChContactMethod_NSC)
+vehicle.SetChassisFixed(False)
+vehicle.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 1.0), chrono.QUNIT))
+vehicle.SetTireType(veh.TireModelType_TMEASY)
+vehicle.SetEngineType(veh.EngineModelType_SHAFT)
+vehicle.Initialize()
+
+# Create the terrain
+terrain = veh.RigidTerrain(vehicle.GetSystem())
+patch = terrain.AddPatch(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT),
+                         chrono.ChVectorD(100, 100, 1))
+patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+patch.SetFriction(0.9f)
+patch.SetRestitution(0.01f)
+terrain.Initialize()
+
+# Create the driver system
+driver = veh.ChDriver(vehicle)
+driver.SetInputDelay(0.15)
+driver.Initialize()
+
+# 3. Set necessary default parameters such as positions, forces, and interactions
+# (Already set above: vehicle initial position, terrain friction/restitution, driver input delay)
+
+# Integrate ROS for communication
+ros_manager = ros.ChVehicleRosManager(vehicle, driver, terrain)
+ros_manager.RegisterClockHandler()
+ros_manager.RegisterDriverInputsHandler()
+ros_manager.RegisterVehicleStateHandler()
+ros_manager.Initialize()
+
+# Simulation loop
+time = 0.0
+while time < t_end:
+    # Synchronize all modules at current time
+    driver.Synchronize(time)
+    terrain.Synchronize(time)
+    vehicle.Synchronize(time, driver.GetInputs(), terrain)
+    ros_manager.Synchronize(time)
+
+    # Advance all modules by step size
+    driver.Advance(step_size)
+    terrain.Advance(step_size)
+    vehicle.Advance(step_size)
+    ros_manager.Advance(step_size)
+
+    # Advance simulation time
+    time += step_size
+```

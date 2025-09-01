@@ -1,0 +1,152 @@
+# PyChrono Tablecloth Folding Simulation
+
+```python
+import pychrono as chrono
+import pychrono.fea as fea
+import pychrono.irrlicht as chronoirr
+import numpy as np
+
+# Global simulation parameters
+timestep = 0.001
+max_simulation_time = 5.0
+
+# Initialize the ChronoENGINE system
+system = chrono.ChSystemSMC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
+
+# Create a mesh for the tablecloth
+# Dimensions
+tablecloth_width = 1.0  # meters
+tablecloth_length = 1.0  # meters
+thickness = 0.002  # meters
+
+# Mesh resolution
+nx = 20  # number of elements in x direction
+ny = 20  # number of elements in y direction
+
+# Material properties for fabric (approximate values for cloth)
+density = 300      # kg/m^3
+E = 5e5            # Young's modulus (Pa)
+nu = 0.3           # Poisson ratio
+yield_stress = 1e8 # Yield stress (very high to prevent plasticity)
+
+# Create the material (isotropic Kirchhoff-Love)
+material = fea.ChElasticityKirchhoffIsotropic(E, nu)
+material_plasticity = fea.ChElasticityKirchhoffIsotropic(E, nu)
+material_internal = fea.ChContinuumDrilling(material)
+
+# Create the mesh
+mesh = fea.ChMesh()
+mesh.SetAutomaticGravity(True)
+
+# Create the nodes
+nodes = []
+dx = tablecloth_width / nx
+dy = tablecloth_length / ny
+
+# Create and add nodes
+for iy in range(ny + 1):
+    for ix in range(nx + 1):
+        x = ix * dx - tablecloth_width/2
+        y = 0
+        z = iy * dy - tablecloth_length/2
+        
+        # Create the node
+        node = fea.ChNodeFEAxyz(chrono.ChVectorD(x, y, z))
+        mesh.AddNode(node)
+        nodes.append(node)
+        
+        # Fix the corners to simulate hanging
+        if (ix == 0 and iy == 0) or (ix == nx and iy == 0):
+            node.SetFixed(True)
+
+# Elements
+elements = []
+for iy in range(ny):
+    for ix in range(nx):
+        # Get the four nodes needed for this element
+        idx1 = iy * (nx+1) + ix
+        idx2 = iy * (nx+1) + ix + 1
+        idx3 = (iy+1) * (nx+1) + ix + 1
+        idx4 = (iy+1) * (nx+1) + ix
+        
+        # Create the element
+        element = fea.ChElementShellANCF()
+        
+        # Set nodes
+        element.SetNodes(nodes[idx1], nodes[idx2], nodes[idx3], nodes[idx4])
+        
+        # Set properties
+        element.SetDensity(density)
+        element.SetThickness(thickness)
+        
+        # Set materials
+        element.AddLayer(thickness, 0, material_internal)
+        
+        # Add element to mesh
+        mesh.AddElement(element)
+        elements.append(element)
+
+# Add the mesh to the system
+system.Add(mesh)
+
+# Set up the PardisoMKL solver (requires appropriate modules)
+try:
+    # Try to use the Pardiso solver
+    mkl_solver = chrono.ChSolverPardisoMKL()
+    mkl_solver.LockSparsityPattern(True)
+    mkl_solver.SetVerbose(False)
+    system.SetSolver(mkl_solver)
+except:
+    # Fallback to the default solver if Pardiso is not available
+    print("PardisoMKL solver not available, using default solver")
+    solver = chrono.ChSolverMINRES()
+    solver.SetMaxIterations(100)
+    solver.SetTolerance(1e-10)
+    solver.EnableDiagonalPreconditioner(True)
+    solver.SetVerbose(False)
+    system.SetSolver(solver)
+
+# Set up the timestepper
+system.SetTimestepperType(chrono.ChTimestepper.Type_HHT)
+timestep_integrator = chrono.ChTimestepperHHT(system)
+timestep_integrator.SetAlpha(-0.2)
+timestep_integrator.SetMaxiters(5)
+timestep_integrator.SetAbsTolerances(1e-5)
+timestep_integrator.SetMode(chrono.ChTimestepperHHT.POSITION)
+timestep_integrator.SetScaling(True)
+system.SetTimestepper(timestep_integrator)
+
+# Set up visualization using Irrlicht
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle("Tablecloth Folding Simulation")
+vis.Initialize()
+vis.AddCamera(chrono.ChVectorD(0, 0.5, -1), chrono.ChVectorD(0, 0, 0))
+vis.AddTypicalLights()
+
+# Simulation loop
+time = 0.0
+while time < max_simulation_time:
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    
+    system.DoStepDynamics(timestep)
+    time += timestep
+
+print("Simulation completed")
+```
+
+This script creates a simulation of a tablecloth using shell elements in PyChrono with the following features:
+
+1. Sets up a PyChrono system with gravity
+2. Creates a square tablecloth mesh using ANCF shell elements with an isotropic Kirchhoff material
+3. Fixes the top two corners to simulate hanging
+4. Uses the PardisoMKL solver for efficient computation (with a fallback option)
+5. Sets up proper time-stepping with the HHT integrator
+6. Configures Irrlicht visualization to display the simulation
+7. Runs the simulation for a specified duration
+
+The tablecloth will naturally fold under gravity while being fixed at two corners. You can adjust parameters like material properties, mesh resolution, and dimensions to achieve different folding behaviors.

@@ -1,0 +1,50 @@
+# Import necessary libraries
+import chrono as chrono
+import numpy as np
+
+# Initialize the PyChrono environment
+sys = chrono.ChSystemSMC()
+
+# Define the beam properties
+beam_L = 10.0  # Length of the beam
+beam_wy = 0.5  # Width of the beam in y-direction
+beam_wz = 0.5  # Width of the beam in z-direction
+beam_E = 2.0e11  # Young's modulus of the beam material
+beam_rho = 7850.0  # Density of the beam material
+
+# Create a mesh with a single beam element
+mesh = chrono.ChMesh()
+msection = chrono.ChBeamSectionEulerAdvanced()
+msection.SetAsRectangularSection(beam_wy, beam_wz)
+msection.SetYoungModulus(beam_E)
+msection.SetShearModulus(beam_E * 0.3)
+msection.SetRayleighDamping(0.000)
+hnode1 = chrono.ChNodeFEAxyzrot(chrono.ChFramed(chrono.ChVector3d(0, 0, 0)))
+hnode2 = chrono.ChNodeFEAxyzrot(chrono.ChFramed(chrono.ChVector3d(beam_L, 0, 0)))
+mesh.AddNode(hnode1)
+mesh.AddNode(hnode2)
+belement1 = chrono.ChElementBeamEuler()
+belement1.SetNodes(hnode1, hnode2)
+belement1.SetSection(msection)
+mesh.AddElement(belement1)
+
+# Add the mesh to the system
+sys.Add(mesh)
+
+# Set up the visualization
+vis = chrono.ChVisualSystemIrrlicht()
+vis.AttachSystem(sys)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle('Beam Simulation')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVector3d(0, 3, 6))
+vis.AddTypicalLights()
+
+# Run the simulation loop
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    sys.DoStepDynamics(0.01)

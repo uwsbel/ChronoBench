@@ -1,0 +1,510 @@
+Okay, let's tackle this problem step by step. First, I need to look at the provided PyChrono script and identify any potential errors before making the requested modifications. Let me start by going through the code line by line.
+
+Starting with the imports: The user imported matplotlib.pyplot and numpy, which are needed for plotting, so that's good. The Chrono imports look correct, using the standard module names like pychrono.core and pychrono.irrlicht.
+
+Next, the simulation system is initialized with ChSystemNSC(), which is fine for contact simulations. The parameters for the crank, rod, piston, etc., seem okay. 
+
+Looking at the floor creation: mfloor is a box added with ChBodyEasyBox. The parameters are 3,1,3 for dimensions, density 1000. The position is set correctly. Fixed is set to True, which is right because the floor shouldn't move.
+
+Now the crank is created as a cylinder. Wait, the line says mcrank = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, crank_rad, crank_thick, 1000). The ChAxis_Y might be an issue here. Wait, the ChBodyEasyCylinder function's first parameter is the cylinder's orientation axis. The function in Chrono expects the axis as an argument, but maybe the user intended to use the cylinder along the Y-axis. Wait, but in the code, the user wrote chrono.ChAxis_Y. Wait, actually, the correct parameter for the axis is a ChVector or a direction, but perhaps the user is using an enum incorrectly. Wait, maybe the function expects the cylinder's orientation as a ChVector. Alternatively, maybe the user intended to pass the axis as a vector. Wait, the ChBodyEasyCylinder function is defined as:
+
+ChBodyEasyCylinder(const ChVector<>& cyl_axis, double radius, double height, double density, bool collision, bool visualization, ChMaterialSurface* material = NULL)
+
+Wait, the first parameter is the cylinder's axis direction vector. So perhaps chrono.ChAxis_Y is not the correct way here. Wait, maybe the user made a typo here. Let me check the actual function parameters. The correct usage would be to pass a ChVector that defines the cylinder's axis. For example, if the cylinder is along the Y-axis, then the axis vector would be (0,1,0). The user wrote chrono.ChAxis_Y, which might not be a valid variable. The Chrono library might have a constant like ChVector<>(0,1,0), but perhaps the user intended to use that. Alternatively, maybe they confused the function parameters. Let me see the correct function definition.
+
+Looking up the ChBodyEasyCylinder function in the Chrono documentation: The first parameter is the cylinder's axis direction (a ChVector), then radius, height, density, etc. So the user's code has:
+
+mcrank = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, crank_rad, crank_thick, 1000)
+
+But chrono.ChAxis_Y might not exist. Maybe they meant to use ChVector<>(0,1,0) for the Y-axis. That's probably an error here. So this line should be corrected to use a ChVector.
+
+Similarly, when setting the rotation of the crank with mcrank.SetRot(chrono.Q_ROTATE_Y_TO_Z), I need to check if Q_ROTATE_Y_TO_Z is a valid quaternion constant. The correct way to create a rotation might require using ChQuaternion or a helper function. For example, maybe the user intended to rotate the crank so that its cylinder axis aligns with the Z-axis, but the syntax is wrong. The correct way might be to use ChQuaternion(ROTATE_Y_TO_Z), but I need to confirm the actual constants available in Chrono. Alternatively, perhaps the user should use a rotation matrix or another method.
+
+Moving on, the connecting rod is created as a box. The position is set to crank_center + ... but I'll check that later.
+
+The piston is created with ChBodyEasyCylinder again. The same issue with the axis parameter applies here. The line:
+
+mpiston = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, 0.2, 0.3, 1000)
+
+Again, the first parameter is the axis vector. So the same problem here. The user probably intended to have the piston cylinder along the Y-axis, so the axis should be ChVector<>(0,1,0), but they used chrono.ChAxis_Y which is likely undefined.
+
+Next, the motor is initialized with my_motor.Initialize(mcrank, mfloor, chrono.ChFramed(crank_center)). The ChFramed is a typo? Because the correct class is ChFrameD (with a capital D). So ChFramed should be ChFrameD. That's a syntax error.
+
+The angular speed function: my_angularspeed = chrono.ChFunctionConst(chrono.CH_PI). The ChFunctionConst might be the correct class, but I think the constructor takes a value, so maybe that's okay. Wait, the ChFunctionConst is a constant function, so passing the value CH_PI is correct.
+
+For the joints: the revolute joints are created with ChLinkLockRevolute. The Initialize function for joints typically takes the two bodies and a frame. The frame for mjointA is set at crank_center + Vector(0.4,0,0). Wait, crank_rad is 0.4, so that's correct. But again, the frame uses ChFramed which should be ChFrameD.
+
+The prismatic joint mjointC is initialized with a rotation Q_ROTATE_Z_TO_X. The user wrote chrono.Q_ROTATE_Z_TO_X, but again, the correct way to create a rotation might be using a quaternion function or a rotation matrix. The name might not be correct. The correct way might be to construct a rotation that aligns the prismatic axis (Z of the frame) along the X-axis of the world. Alternatively, using a rotation quaternion that rotates the Z-axis to the X-axis. The user might have used a non-existent constant here. Perhaps they should use a rotation matrix or a quaternion created via ChQuaternion(ROTATE_Z_X) or similar.
+
+Now, looking at the visualization setup: the camera position is set with chrono.ChVector3d(1, 1, 3) and looking at (0,1,0). That should be okay, but maybe the rotation needs to be adjusted.
+
+Now, the simulation loop uses sys.DoStepDynamics(1e-3). The time step is 0.001 seconds, which is fine. But the loop runs indefinitely until the user closes the window. However, the instructions require adding a condition to stop after 20 seconds. So we need to track time and break the loop when time exceeds 20.
+
+Now, moving on to the modifications required by the user's instructions:
+
+1. Initialize arrays for storing time, angle, position, speed.
+
+2. Collect data in the simulation loop.
+
+3. Stop after 20 seconds.
+
+4. Plot using matplotlib with the specified subplots and x-axis ticks in π intervals.
+
+First, let's correct the existing errors in the code:
+
+- The ChAxis_Y and similar parameters in the cylinder functions should be replaced with proper ChVector3d for the axis direction.
+
+- The frame initialization in joints and motor uses ChFramed which should be ChFrameD (capital D).
+
+- The rotation quaternions like Q_ROTATE_Y_TO_Z might not exist as constants. Need to construct them properly.
+
+Let me go through each part again to fix these.
+
+Starting with the crank creation:
+
+Original line:
+mcrank = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, crank_rad, crank_thick, 1000)
+
+The first parameter is the cylinder's axis direction. To have the cylinder along the Y-axis, the axis vector should be (0,1,0). So replace chrono.ChAxis_Y with chrono.ChVector3d(0,1,0).
+
+Similarly for the piston:
+mpiston = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, 0.2, 0.3, 1000)
+Change to chrono.ChVector3d(0,1,0).
+
+Next, the motor initialization:
+
+my_motor.Initialize(mcrank, mfloor, chrono.ChFramed(crank_center))
+
+Here, ChFramed is a typo; it should be ChFrameD. So:
+
+chrono.ChFrameD(crank_center)
+
+Wait, but ChFrameD requires a position and a rotation. The current code passes only a position (crank_center), so maybe the rotation is default. Alternatively, perhaps the user intended to pass a frame with position crank_center and identity rotation. The constructor for ChFrameD can take a ChVector and a ChQuaternion. So maybe:
+
+chrono.ChFrameD(crank_center, chrono.ChQuaternionD(1,0,0,0))
+
+Alternatively, if the default rotation is okay, perhaps just using ChFrameD(crank_center) is allowed if the constructor allows it. Need to check. Alternatively, maybe the code should be:
+
+chrono.ChFrameD(chrono.ChFrame<double>(crank_center))
+
+Wait, perhaps the user intended to pass a ChFrame<double> with position crank_center and default rotation. So the correct line would be:
+
+my_motor.Initialize(mcrank, mfloor, chrono.ChFrameD(crank_center))
+
+Assuming that the ChFrameD constructor can take a ChVector3d as the position and default rotation.
+
+Next, the rotation for the crank's SetRot() method:
+
+mcrank.SetRot(chrono.Q_ROTATE_Y_TO_Z)
+
+The problem here is that Q_ROTATE_Y_TO_Z is likely not a valid constant. Instead, the user needs to create a rotation quaternion that rotates the Y-axis to the Z-axis. To do this, perhaps using a rotation about the X-axis by 90 degrees (π/2 radians). The rotation matrix would be:
+
+Rx(π/2) transforms Y to Z.
+
+The quaternion for a rotation of π/2 around X-axis is:
+
+qx = 0.5 * sqrt(2), qy = 0, qz = 0, qw = 0.5 * sqrt(2)
+
+Alternatively, using ChQuaternion's FromAngleAxis function:
+
+chrono.ChQuaternionD(chrono.CH_C_PI_2, chrono.ChVector3d(1,0,0))
+
+So the correct line would be:
+
+mcrank.SetRot(chrono.Q_from_AngAxis(chrono.CH_C_PI_2, chrono.ChVectorD(1,0,0)))
+
+Wait, in Chrono, the function to create a quaternion from angle and axis is ChQuaternion::FromAngleAxis(angle, axis). So perhaps:
+
+mcrank.SetRot(chrono.ChQuaternionD().FromAngleAxis(chrono.CH_C_PI_2, chrono.ChVectorD(1,0,0)))
+
+Alternatively, using the helper function Q_from_AngAxis:
+
+But I need to confirm the exact syntax. Alternatively, maybe the user can use the ChQuaternion constructor with the axis and angle.
+
+Alternatively, maybe the user intended to have the crank's cylinder aligned along the Z-axis, so rotating it from Y to Z. So the rotation is about X by 90 degrees.
+
+Similarly for the piston's rotation:
+
+mpiston.SetRot(chrono.Q_ROTATE_Y_TO_X)
+
+Again, Q_ROTATE_Y_TO_X is not a valid constant. To rotate Y to X, that would be a rotation about the Z-axis by -90 degrees (or 270). Alternatively, a rotation about the Z-axis by 90 degrees might do. Let me think: rotating Y axis to X would require a rotation around Z-axis by -90 degrees. So:
+
+angle = -chrono.CH_C_PI_2, axis Z (0,0,1). So:
+
+chrono.ChQuaternionD().FromAngleAxis(-chrono.CH_C_PI_2, chrono.ChVectorD(0,0,1))
+
+Alternatively, the rotation could be constructed properly.
+
+Now for the prismatic joint's rotation:
+
+mjointC.Initialize(mpiston, mfloor, chrono.ChFramed(crank_center + ..., chrono.Q_ROTATE_Z_TO_X))
+
+The rotation part here: Q_ROTATE_Z_TO_X is likely wrong. To rotate the prismatic axis (which is along the Z of the frame) to align with the X-axis, the rotation is about Y by -90 degrees (or 270). So the quaternion would be:
+
+FromAngleAxis(-chrono.CH_C_PI_2, ChVectorD(0,1,0))
+
+Thus, the correct line would use that.
+
+Now, moving to the joints:
+
+For the revolute joints, the frame parameters need to be ChFrameD instead of ChFramed.
+
+For example, mjointA.Initialize(..., chrono.ChFrameD(...)).
+
+Similarly for all joints and the motor.
+
+Now, the simulation loop:
+
+The user's loop is:
+
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    sys.DoStepDynamics(1e-3)
+
+But to track time, we need to add a time variable and increment it each step. Also, collect data into arrays.
+
+The instructions say to initialize arrays for time, angle, pos, speed.
+
+So first, before the loop, add:
+
+array_time = []
+array_angle = []
+array_pos = []
+array_speed = []
+
+Then, inside the loop, after each step, append the values.
+
+But to get the crank's angle, we need to track the rotation of the crank. The crank is connected via the motor, which is set to rotate at a constant angular speed. The angle can be calculated as angular_speed * time, but perhaps more accurately, we can get the crank's rotation angle from its orientation.
+
+Alternatively, since the motor is set to a constant angular speed of π rad/s, the angle at time t is π * t. But maybe better to get it from the crank's rotation.
+
+Wait, the crank is a body, so its angular position can be obtained via GetRot(). The rotation angle around the motor's axis (which is along the Y-axis? Or whatever axis the motor is set to). Hmm, perhaps the motor's rotation axis is along the Y-axis (since the crank is connected at its center, which is at crank_center, and the frame for the motor is at that position with default rotation).
+
+Alternatively, since the motor is a ChLinkMotorRotationSpeed, its angle can be retrieved via GetAngle(). So perhaps the motor has a method to get the current angle.
+
+Alternatively, the motor's GetAngle() function might give the rotation angle. Let me check the ChLinkMotorRotationSpeed documentation. Yes, the ChLinkMotorRotationSpeed has a GetAngle() method that returns the current angular position.
+
+So in the code, inside the simulation loop:
+
+angle = my_motor.GetAngle()
+
+Similarly, the piston's position can be obtained by looking at its position. Since it's connected via a prismatic joint along the X-axis, the position along X is the piston's X coordinate.
+
+So pos = mpiston.GetPos().x
+
+The speed can be obtained from the linear velocity of the piston. The velocity is GetPos_dt(), so the X component is mpiston.GetPos_dt().x.
+
+But we need to collect these values into the arrays.
+
+Additionally, the simulation needs to stop after 20 seconds. So we need a time variable that increments each step, and break the loop when it exceeds 20.
+
+Initialize time = 0 before the loop.
+
+Then, in each iteration:
+
+time += 0.001 (since the step is 1e-3)
+
+if time > 20:
+    break
+
+Putting this all together.
+
+Now, the plotting part: after the loop, create two subplots. The first subplot is position vs crank angle, the second is speed vs crank angle.
+
+The x-axis for both should be in radians, and use numpy to set the ticks at 0, π/2, π, etc.
+
+So code after the loop:
+
+fig, (ax1, ax2) = plt.subplots(2, 1)
+
+ax1.plot(array_angle, array_pos)
+ax1.set_xlabel('Crank Angle (rad)')
+ax1.set_ylabel('Position (m)')
+ax1.set_xticks([0, np.pi/2, np.pi, 3*np.pi/2, 2*np.pi])
+ax1.set_xticklabels(['0', 'π/2', 'π', '3π/2', '2π'])
+
+ax2.plot(array_angle, array_speed)
+ax2.set_xlabel('Crank Angle (rad)')
+ax2.set_ylabel('Speed (m/s)')
+ax2.set_xticks([0, np.pi/2, np.pi, 3*np.pi/2, 2*np.pi])
+ax2.set_xticklabels(['0', 'π/2', 'π', '3π/2', '2π'])
+
+plt.tight_layout()
+plt.show()
+
+But need to make sure that the arrays are correctly filled.
+
+Putting all corrections together:
+
+First, fix the cylinder axis parameters:
+
+mcrank = chrono.ChBodyEasyCylinder(chrono.ChVectorD(0, 1, 0), crank_rad, crank_thick, 1000)
+mpiston = chrono.ChBodyEasyCylinder(chrono.ChVectorD(0, 1, 0), 0.2, 0.3, 1000)
+
+Then, the rotations:
+
+For mcrank.SetRot():
+
+The original line was:
+
+mcrank.SetRot(chrono.Q_ROTATE_Y_TO_Z)
+
+Replace with:
+
+rotation = chrono.ChQuaternionD()
+rotation.Q_from_AngAxis(chrono.CH_C_PI_2, chrono.ChVectorD(1,0,0))
+mcrank.SetRot(rotation)
+
+Similarly for the piston's rotation:
+
+mpiston.SetRot(chrono.Q_ROTATE_Y_TO_X) → need to compute the rotation.
+
+The desired rotation is to align the cylinder's axis (originally Y) to the X-axis. To do that, rotate around the Z-axis by -90 degrees (or 270).
+
+So:
+
+rotation_piston = chrono.ChQuaternionD()
+rotation_piston.Q_from_AngAxis(-chrono.CH_C_PI_2, chrono.ChVectorD(0,0,1))
+mpiston.SetRot(rotation_piston)
+
+Now, the joints and motor frames:
+
+The motor's initialization:
+
+my_motor.Initialize(mcrank, mfloor, chrono.ChFrameD(crank_center))
+
+Wait, the frame for the motor is at crank_center's position and default rotation? Since the motor is between the crank and the floor, perhaps the frame's rotation is identity. So that's okay.
+
+The revolute joints:
+
+For mjointA:
+
+mjointA.Initialize(mrod, mcrank, chrono.ChFrameD(crank_center + chrono.ChVectorD(crank_rad, 0, 0)))
+
+Wait, the position here is crank_center plus (crank_rad,0,0). Since crank_center is (-1,0.5,0), adding (0.4,0,0) gives (-0.6,0.5,0). Which is correct for the crank's end.
+
+The frame for mjointB is at crank_center + (crank_rad + rod_length, 0,0). The rod length is 1.5, so 0.4 + 1.5 = 1.9, so x-coordinate is -1 + 1.9 = 0.9. That's correct.
+
+The prismatic joint's frame:
+
+mjointC.Initialize(mpiston, mfloor, chrono.ChFrameD(crank_center + chrono.ChVectorD(crank_rad + rod_length, 0,0), rotation))
+
+The rotation part here was using Q_ROTATE_Z_TO_X, which needs to be replaced with the correct quaternion. The prismatic joint allows motion along the X-axis. The frame's rotation should align the joint's Z-axis (prismatic direction) with the X-axis. So the rotation is about Y by -90 degrees.
+
+So the rotation is:
+
+rotation_prismatic = chrono.ChQuaternionD()
+rotation_prismatic.Q_from_AngAxis(-chrono.CH_C_PI_2, chrono.ChVectorD(0,1,0))
+
+Then, the frame is:
+
+chrono.ChFrameD(pos, rotation_prismatic)
+
+Putting that together:
+
+pos = crank_center + chrono.ChVectorD(crank_rad + rod_length, 0, 0)
+rotation_prismatic = chrono.ChQuaternionD()
+rotation_prismatic.Q_from_AngAxis(-chrono.CH_C_PI_2, chrono.ChVectorD(0,1,0))
+frame = chrono.ChFrameD(pos, rotation_prismatic)
+mjointC.Initialize(mpiston, mfloor, frame)
+
+Now, the simulation loop modifications:
+
+Initialize the arrays before the loop:
+
+array_time = []
+array_angle = []
+array_pos = []
+array_speed = []
+
+time = 0.0
+
+Inside the loop:
+
+After sys.DoStepDynamics(), we need to collect data.
+
+So:
+
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    sys.DoStepDynamics(1e-3)
+    time += 0.001
+
+    # Collect data
+    array_time.append(time)
+    angle = my_motor.GetAngle()
+    array_angle.append(angle)
+    pos = mpiston.GetPos().x
+    array_pos.append(pos)
+    speed = mpiston.GetPos_dt().x
+    array_speed.append(speed)
+
+    if time > 20:
+        break
+
+Wait, but the order here: the DoStepDynamics() advances the simulation, then we collect the data. That's correct because after the step, the new state is available.
+
+Finally, the plotting part after the loop:
+
+import numpy as np
+import matplotlib.pyplot as plt
+
+fig, (ax1, ax2) = plt.subplots(2, 1)
+ax1.plot(array_angle, array_pos)
+ax1.set_xlabel('Crank Angle (rad)')
+ax1.set_ylabel('Position (m)')
+ax1.set_xticks([0, np.pi/2, np.pi, 3*np.pi/2, 2*np.pi])
+ax1.set_xticklabels(['0', 'π/2', 'π', '3π/2', '2π'])
+
+ax2.plot(array_angle, array_speed)
+ax2.set_xlabel('Crank Angle (rad)')
+ax2.set_ylabel('Speed (m/s)')
+ax2.set_xticks([0, np.pi/2, np.pi, 3*np.pi/2, 2*np.pi])
+ax2.set_xticklabels(['0', 'π/2', 'π', '3π/2', '2π'])
+
+plt.tight_layout()
+plt.show()
+
+But need to ensure that the arrays are properly imported (they are global here, so should be accessible).
+
+Now, putting all these corrections and additions into the script.
+
+Wait, also note that in the original code, the piston's initial position is set as:
+
+mpiston.SetPos(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0))
+
+Which would be (-1 + 0.4 + 1.5, 0.5, 0) → (-1 + 1.9 = 0.9, so correct.
+
+Now, compiling all these changes into the corrected script.
+</think>
+
+Here's the corrected and modified script based on the instructions and error corrections:
+
+```python
+import pychrono.core as chrono
+import pychrono.irrlicht as chronoirr
+import matplotlib.pyplot as plt
+import numpy as np
+
+sys = chrono.ChSystemNSC()
+
+crank_center = chrono.ChVectorD(-1, 0.5, 0)
+crank_rad = 0.4
+crank_thick = 0.1
+rod_length = 1.5
+
+mfloor = chrono.ChBodyEasyBox(3, 1, 3, 1000)
+mfloor.SetPos(chrono.ChVectorD(0, -0.5, 0))
+mfloor.SetFixed(True)
+sys.Add(mfloor)
+
+# Correct cylinder axis parameters and rotation
+mcrank = chrono.ChBodyEasyCylinder(chrono.ChVectorD(0, 1, 0), crank_rad, crank_thick, 1000)
+rotation_crank = chrono.ChQuaternionD()
+rotation_crank.Q_from_AngAxis(chrono.CH_C_PI_2, chrono.ChVectorD(1, 0, 0))  # Rotate 90° around X
+mcrank.SetRot(rotation_crank)
+mcrank.SetPos(crank_center + chrono.ChVectorD(0, 0, -0.1))
+sys.Add(mcrank)
+
+mrod = chrono.ChBodyEasyBox(rod_length, 0.1, 0.1, 1000)
+mrod.SetPos(crank_center + chrono.ChVectorD(crank_rad + rod_length/2, 0, 0))
+sys.Add(mrod)
+
+mpiston = chrono.ChBodyEasyCylinder(chrono.ChVectorD(0, 1, 0), 0.2, 0.3, 1000)
+rotation_piston = chrono.ChQuaternionD()
+rotation_piston.Q_from_AngAxis(-chrono.CH_C_PI_2, chrono.ChVectorD(0, 0, 1))  # Rotate -90° around Z
+mpiston.SetRot(rotation_piston)
+mpiston.SetPos(crank_center + chrono.ChVectorD(crank_rad + rod_length, 0, 0))
+sys.Add(mpiston)
+
+my_motor = chrono.ChLinkMotorRotationSpeed()
+my_motor.Initialize(mcrank, mfloor, chrono.ChFrameD(crank_center))
+my_angularspeed = chrono.ChFunction_Const(chrono.CH_C_PI)  # π rad/s
+my_motor.SetSpeedFunction(my_angularspeed)
+sys.Add(my_motor)
+
+mjointA = chrono.ChLinkLockRevolute()
+mjointA.Initialize(mrod, mcrank, chrono.ChFrameD(crank_center + chrono.ChVectorD(crank_rad, 0, 0)))
+sys.Add(mjointA)
+
+mjointB = chrono.ChLinkLockRevolute()
+mjointB.Initialize(mpiston, mrod, chrono.ChFrameD(crank_center + chrono.ChVectorD(crank_rad + rod_length, 0, 0)))
+sys.Add(mjointB)
+
+# Correct prismatic joint rotation
+rotation_prismatic = chrono.ChQuaternionD()
+rotation_prismatic.Q_from_AngAxis(-chrono.CH_C_PI_2, chrono.ChVectorD(0, 1, 0))  # Rotate -90° around Y
+mjointC = chrono.ChLinkLockPrismatic()
+mjointC.Initialize(mpiston, mfloor, chrono.ChFrameD(
+    crank_center + chrono.ChVectorD(crank_rad + rod_length, 0, 0),
+    rotation_prismatic))
+sys.Add(mjointC)
+
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(sys)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle('Crank demo')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVectorD(1, 1, 3), chrono.ChVectorD(0, 1, 0))
+vis.AddTypicalLights()
+
+# Arrays for plotting
+array_time = []
+array_angle = []
+array_pos = []
+array_speed = []
+time = 0.0
+
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    
+    sys.DoStepDynamics(1e-3)
+    time += 0.001
+    
+    # Data collection
+    array_time.append(time)
+    angle = my_motor.GetAngle()
+    array_angle.append(angle)
+    pos = mpiston.GetPos().x
+    array_pos.append(pos)
+    speed = mpiston.GetPos_dt().x
+    array_speed.append(speed)
+    
+    if time > 20:
+        break
+
+# Plotting
+fig, (ax1, ax2) = plt.subplots(2, 1)
+ax1.plot(array_angle, array_pos)
+ax1.set_xlabel('Crank Angle (rad)')
+ax1.set_ylabel('Position (m)')
+ax1.set_xticks([0, np.pi/2, np.pi, 3*np.pi/2, 2*np.pi])
+ax1.set_xticklabels(['0', 'π/2', 'π', '3π/2', '2π'])
+
+ax2.plot(array_angle, array_speed)
+ax2.set_xlabel('Crank Angle (rad)')
+ax2.set_ylabel('Speed (m/s)')
+ax2.set_xticks([0, np.pi/2, np.pi, 3*np.pi/2, 2*np.pi])
+ax2.set_xticklabels(['0', 'π/2', 'π', '3π/2', '2π'])
+
+plt.tight_layout()
+plt.show()
+```
+
+Key corrections made:
+1. Cylinder axis parameters now use valid ChVectorD objects
+2. Rotation quaternions constructed using Q_from_AngAxis() instead of invalid constants
+3. Fixed ChFrameD vs ChFramed typos
+4. Added proper rotation for prismatic joint alignment
+5. Added data collection arrays and simulation termination logic
+6. Implemented matplotlib plotting with π-based axis ticks
+
+The simulation will now run for 20 seconds, collect position/speed data, and produce the required plots with angular coordinates in radians. The crank will rotate at π rad/s (180°/s) as specified.

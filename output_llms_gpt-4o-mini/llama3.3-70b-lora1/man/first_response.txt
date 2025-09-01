@@ -1,0 +1,129 @@
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as irr
+import math as m
+
+# =============================================================================
+
+def main():
+    #print("Copyright (c) 2017 projectchrono.org\nChrono version: ", CHRONO_VERSION , "\n\n")
+
+    #  Create the MAN 10t vehicle
+    vehicle = veh.MAN_10t()
+
+    #  Set vehile properties
+    vehicle.SetContactMethod(chrono.ChContactMethod_SMC)
+    vehicle.SetChassisCollisionType(veh.CollisionType_NONE)
+    vehicle.SetChassisFixed(False) 
+    vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
+    vehicle.SetEngineType(veh.EngineModelType_SHAFTS)
+    vehicle.SetTransmissionType(veh.TransmissionModelType_AUTOMATIC_SHAFTS)
+    vehicle.SetDriveType(veh.DrivelineTypeWV_RWD)
+    vehicle.SetSteeringType(veh.SteeringTypeWV_PITMAN_ARM)
+    vehicle.SetTireType(tire_model)
+    vehicle.SetTireStepSize(tire_step_size)
+    vehicle.Initialize()
+
+    # Create the terrain
+    terrain = veh.RigidTerrain(vehicle.GetSystem())
+    if (contact_method == chrono.ChContactMethod_NSC):
+        patch_mat = chrono.ChContactMaterialNSC()
+        patch_mat.SetFriction(0.9)
+        patch_mat.SetRestitution(0.01)
+    elif (contact_method == chrono.ChContactMethod_SMC):
+        patch_mat = chrono.ChContactMaterialSMC()
+        patch_mat.SetFriction(0.9)
+        patch_mat.SetRestitution(0.01)
+        patch_mat.SetYoungModulus(2e7)
+    patch = terrain.AddPatch(patch_mat, 
+                             chrono.CSYSNORM, 
+                             terrainLength, terrainWidth)
+    patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
+    patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+    terrain.Initialize()
+
+    # Create the vehicle Irrlicht interface
+    vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
+    vis.SetWindowTitle('MAN 10t')
+    vis.SetWindowSize(1280, 1024)
+    vis.SetChaseCamera(trackPoint, 6.0, 0.5)
+    vis.Initialize()
+    vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+    vis.AddLightDirectional()
+    vis.AddSkyBox()
+    vis.AttachVehicle(vehicle.GetVehicle())
+
+    # Create the interactive driver system
+    driver = veh.ChInteractiveDriverIRR(vis)
+    driver.SetSteeringDelta(0.02)
+    driver.SetThrottleDelta(0.02)
+    driver.SetBrakingDelta(0.02)
+    driver.Initialize()
+
+    # Simulation loop
+    vehicle.EnableRealtime(True)
+
+    while vis.Run() :
+        time = vehicle.GetSystem().GetChTime()
+
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+
+        # Get driver inputs
+        driver_inputs = driver.GetInputs()
+
+        # Update modules (process inputs from other modules)
+        driver.Synchronize(time)
+        terrain.Synchronize(time)
+        vehicle.Synchronize(time, driver_inputs, terrain)
+        vis.Synchronize(time, driver_inputs)
+
+        # Advance simulation for one timestep for all modules
+        driver.Advance(step_size)
+        terrain.Advance(step_size)
+        vehicle.Advance(step_size)
+        vis.Advance(step_size)
+
+    return 0
+
+
+# The path to the Chrono data directory containing various assets (meshes, textures, data files)
+# is automatically set, relative to the default location of this demo.
+# If running from a different directory, you must change the path to the data directory with: 
+#chrono.SetChronoDataPath('path/to/data')
+
+veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
+
+# Initial vehicle position
+initLoc = chrono.ChVector3d(0, 0, 1.6)
+
+# Initial vehicle orientation
+initRot = chrono.ChQuaterniond(1, 0, 0, 0)
+
+# Rigid terrain dimensions
+terrainLength = 100.0  # size in X direction
+terrainWidth = 100.0   # size in Y direction
+
+# Terrain height
+terrainHeight = 0.0
+
+# Simulation step size
+step_size = 1e-3
+
+# Tire model
+tire_model = veh.TMEASY
+
+# Contact method
+contact_method = chrono.ChContactMethod_SMC
+
+# Simulation step size
+step_size = 3e-3
+
+# Time interval between two render frames
+render_step_size = 1.0 / 50  # FPS = 50
+
+# Update rate in Hz for interactive driver
+update_rate = 100
+
+main()

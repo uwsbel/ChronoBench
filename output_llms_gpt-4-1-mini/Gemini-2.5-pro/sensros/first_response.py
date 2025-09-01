@@ -1,0 +1,342 @@
+# PyChrono imports
+import pychrono as chrono
+import pychrono.sensor as sens
+import pychrono.irrlicht as chronoirr # For visualization (optional, but helpful)
+
+# Standard Python imports
+import os
+import math
+import time
+
+# Try to import ROS specific modules. If not available, print a warning.
+# This script will still run the Chrono simulation and sensor updates,
+# but will not publish to ROS topics if rospy is not found or roscore is not running.
+try:
+    import rospy
+    from sensor_msgs.msg import Image as RosImage
+    from sensor_msgs.msg import PointCloud2
+    from sensor_msgs.msg import NavSatFix
+    from sensor_msgs.msg import Imu as RosImu # For combined IMU data if needed
+    from geometry_msgs.msg import Vector3Stamped # For individual accel, gyro, mag
+    ros_available = True
+except ImportError:
+    print("ROS (rospy) not found. ROS publishing will be disabled.")
+    ros_available = False
+
+def main():
+    print("Chrono version:", chrono.CHRONO_VERSION)
+    print("Chrono::Sensor version:", sens.GetVersion())
+
+    # ----------------------------
+    # Create the Chrono system
+    # ----------------------------
+    my_system = chrono.ChSystemNSC()
+    my_system.SetGravitationalAcceleration(chrono.ChVector3d(0, -9.81, 0))
+
+    # ----------------------
+    # Create the ground body
+    # ----------------------
+    ground_mat = chrono.ChContactMaterialNSC() # Create a material for the ground
+
+    ground_body = chrono.ChBodyEasyBox(40, 4, 40, 1000, True, True, ground_mat)
+    ground_body.SetPos(chrono.ChVector3d(0, -2, 0)) # Initial position
+    ground_body.SetFixed(False) # Allow it to move
+    my_system.Add(ground_body)
+
+    # Add a visual asset to the ground body (a simple box)
+    # This is implicitly handled by ChBodyEasyBox, but could be explicit:
+    # box_shape = chrono.ChVisualShapeBox(40, 4, 40)
+    # box_shape.SetColor(chrono.ChColor(0.4, 0.4, 0.5))
+    # ground_body.AddVisualShape(box_shape)
+
+    # Configure ground body to move (e.g., constant velocity)
+    ground_velocity = chrono.ChVector3d(0.5, 0, 0.2) # m/s in x and z direction
+    ground_body.SetPosDt(ground_velocity)
+    # For more complex motion, you could use a ChFunction or update position/velocity in the loop
+
+    # ------------------------
+    # Create a Sensor Manager
+    # ------------------------
+    sensor_manager = sens.ChSensorManager(my_system)
+    sensor_manager.SetRayTracer(sens.ChRaytracer.DefaultType) # Use default Embree raytracer
+    sensor_manager.SetVerbose(False) # Set to True for more debug output
+    # Set processing threads (can improve performance for many sensors)
+    # sensor_manager.SetNumThreads(4)
+
+
+    # ------------------------------------
+    # Create a ROS manager (if available)
+    # ------------------------------------
+    if ros_available:
+        try:
+            # Check if roscore is running - quick check
+            rospy.get_master().getSystemState()
+            print("ROS Master detected. Initializing ROS node.")
+            # Initialize the ROS node. Anonymous=True ensures the node has a unique name.
+            # (Only call rospy.init_node() once per process)
+            if not rospy.core.is_initialized():
+                 rospy.init_node('chrono_sensor_simulation', anonymous=True)
+            ros_manager = sens.ChROSManager()
+        except Exception as e:
+            print(f"Could not connect to ROS Master or initialize node: {e}")
+            print("ROS publishing will be disabled for this run.")
+            ros_available = False # Disable ROS functionalities if master not found
+    else:
+        print("ROS functionalities are disabled as rospy is not available.")
+
+    # --------------------
+    # Create Sensors
+    # --------------------
+    # Common parameters
+    update_rate = 30.0  # Hz for most sensors
+
+    # 1. Camera Sensor
+    # Define camera position and orientation relative to the ground_body
+    # Pointing forward, slightly up, mounted on top-front of the ground body
+    cam_offset_pose = chrono.ChFramed(
+        chrono.ChVector3d(1.0, 1.0, 0), # x, y, z position relative to ground_body center
+        chrono.QuatFromAngleAxis(chrono.CH_PI / 12.0, chrono.ChVector3d(0, 1, 0)) # Rotate slightly to the right
+    )
+    camera = sens.ChCameraSensor(
+        ground_body,                                # Parent body
+        update_rate,                                # Update rate
+        cam_offset_pose,                            # Offset pose
+        1280,                                       # Image width
+        720,                                        # Image height
+        chrono.CH_PI / 3.0,                         # Horizontal field of view
+        # sens.CameraLensModelType.FOV_LENS # Lens model (optional)
+    )
+    camera.SetName("CameraSensor")
+    camera.SetLag(0.02) # Simulate 20ms lag
+    camera.SetCollectionWindow(0) # Simulate 0 exposure time
+    camera.PushFilter(sens.ChFilterVisualize(1280, 720, "Camera Feed")) # Visualize in a Sensor window
+    camera.PushFilter(sens.ChFilterRGBA8Access()) # To access RGBA8 data
+    sensor_manager.AddSensor(camera)
+    if ros_available:
+        ros_manager.RegisterSensor(camera, "/chrono_ros/camera/image_raw", message_type=RosImage)
+
+
+    # 2. Lidar Sensor
+    lidar_offset_pose = chrono.ChFramed(
+        chrono.ChVector3d(0.5, 1.5, 0), # Mounted higher
+        chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0)) # Pointing forward
+    )
+    lidar = sens.ChLidarSensor(
+        ground_body,
+        10.0, # Lidar typically has a lower update rate
+        lidar_offset_pose,
+        900,                                         # Number of horizontal samples
+        32,                                          # Number of vertical channels
+        2.0 * chrono.CH_PI,                          # Horizontal FOV (360 degrees)
+        (chrono.CH_PI / 6.0), # Vertical FOV (+-15 degrees from center)
+        # -chrono.CH_PI / 12.0,                        # Min vertical angle
+        # chrono.CH_PI / 12.0,                         # Max vertical angle
+        100.0,                                       # Max range
+        sens.LidarBeamShape.RECTANGULAR,             # Beam shape
+        2,                                           # Sample radius horizontal
+        1,                                           # Sample radius vertical
+        sens.LidarNoiseModel.NOISE_NONE             # Noise model
+    )
+    lidar.SetName("LidarSensor")
+    lidar.SetLag(0.01)
+    lidar.SetCollectionWindow(0.001)
+    lidar.PushFilter(sens.ChFilterPCfromDepth()) # Convert depth to point cloud
+    lidar.PushFilter(sens.ChFilterXYZIAccess()) # Access XYZI data
+    sensor_manager.AddSensor(lidar)
+    if ros_available:
+        ros_manager.RegisterSensor(lidar, "/chrono_ros/lidar/point_cloud", message_type=PointCloud2)
+
+    # 3. GPS Sensor
+    # GPS reference point (latitude, longitude, altitude) for NU-ECE convention
+    # For ENU, it would be (longitude, latitude, altitude)
+    # Let's use a reference point somewhere in Evanston, IL for example
+    gps_reference_point = chrono.ChVector3d(42.0565, -87.6753, 200.0) # Lat, Long, Alt
+    gps_offset_pose = chrono.ChFramed(
+        chrono.ChVector3d(0, 1.0, -0.5), # Rear-top of the ground body
+        chrono.QUNIT
+    )
+    gps = sens.ChGPSSensor(
+        ground_body,
+        5.0, # GPS update rate
+        gps_offset_pose,
+        gps_reference_point,
+        sens.ChNoiseNone() # GPS noise model
+    )
+    gps.SetName("GPSSensor")
+    gps.PushFilter(sens.ChFilterGPSAccess())
+    sensor_manager.AddSensor(gps)
+    if ros_available:
+        ros_manager.RegisterSensor(gps, "/chrono_ros/gps/fix", message_type=NavSatFix)
+
+
+    # 4. IMU Sensors (Accelerometer, Gyroscope, Magnetometer)
+    imu_update_rate = 100.0 # IMUs often have higher update rates
+    imu_offset_pose = chrono.ChFramed(
+        chrono.ChVector3d(0.1, 0.8, 0.1), # Near center of ground body
+        chrono.QUNIT
+    )
+
+    # Accelerometer
+    accel = sens.ChAccelerometerSensor(
+        ground_body,
+        imu_update_rate,
+        imu_offset_pose,
+        sens.ChNoiseNone() # Noise model
+    )
+    accel.SetName("Accelerometer")
+    accel.PushFilter(sens.ChFilterAccelAccess())
+    sensor_manager.AddSensor(accel)
+    if ros_available:
+        # Publishing as geometry_msgs/Vector3Stamped for individual component
+        ros_manager.RegisterSensor(accel, "/chrono_ros/imu/accelerometer", message_type=Vector3Stamped)
+
+    # Gyroscope
+    gyro = sens.ChGyroscopeSensor(
+        ground_body,
+        imu_update_rate,
+        imu_offset_pose,
+        sens.ChNoiseNone()
+    )
+    gyro.SetName("Gyroscope")
+    gyro.PushFilter(sens.ChFilterGyroAccess())
+    sensor_manager.AddSensor(gyro)
+    if ros_available:
+        ros_manager.RegisterSensor(gyro, "/chrono_ros/imu/gyroscope", message_type=Vector3Stamped)
+
+    # Magnetometer
+    # Magnetometer requires a magnetic field reference for ENU convention
+    # (North, East, Down components of magnetic field vector)
+    # Let's use typical values for Earth's magnetic field in Telsa
+    mag_reference_field_enu = chrono.ChVector3d(20e-6, 5e-6, -35e-6) # B_North, B_East, B_Down
+    mag = sens.ChMagnetometerSensor(
+        ground_body,
+        imu_update_rate,
+        imu_offset_pose,
+        sens.ChNoiseNone(),
+        gps_reference_point, # For geo-magnetic model (if used), uses lat, long
+        mag_reference_field_enu # If not using geo-magnetic model, this is the constant field
+    )
+    mag.SetName("Magnetometer")
+    mag.PushFilter(sens.ChFilterMagnetAccess())
+    sensor_manager.AddSensor(mag)
+    if ros_available:
+        ros_manager.RegisterSensor(mag, "/chrono_ros/imu/magnetometer", message_type=Vector3Stamped)
+
+    # Optional: A combined IMU sensor for publishing sensor_msgs/Imu
+    # Note: ChIMUSensor internally creates accel, gyro, mag.
+    # If you want to publish a combined ROS Imu message, you might need to
+    # create a custom filter or manually construct the message from individual sensor data.
+    # Chrono's ChROSManager might not directly support sensor_msgs/Imu for ChIMUSensor yet.
+    # For now, we publish individual components.
+
+    # -------------------------------------
+    # Optional: Create Irrlicht visualizer
+    # -------------------------------------
+    use_irrlicht_viz = True
+    if use_irrlicht_viz:
+        vis = chronoirr.ChVisualSystemIrrlicht()
+        vis.AttachSystem(my_system)
+        vis.SetWindowSize(1280, 720)
+        vis.SetWindowTitle("Chrono Sensor Demo with ROS")
+        vis.Initialize()
+        vis.AddLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))
+        vis.AddSkyBox()
+        vis.AddCamera(chrono.ChVector3d(10, 10, -15), chrono.ChVector3d(0, 0, 0)) # Visualization camera
+        vis.AddTypicalLights()
+        # You can add grid lines for better orientation
+        # vis.EnableCollisionShapeDrawing(True)
+
+    # -------------------
+    # Simulation loop
+    # -------------------
+    time_step = 1e-3  # Simulation time step
+    sim_time = 0.0
+    end_time = 60.0   # Total simulation time
+
+    # Realtime timer for maintaining simulation speed (approximately)
+    realtime_timer = chrono.ChRealtimeStepTimer()
+    realtime_timer.SetStealTime(True) # If true, it will slow down sim to match wall clock
+
+    print("\nStarting simulation loop...")
+    if ros_available:
+        print("ROS Topics should be available (e.g., /chrono_ros/camera/image_raw).")
+        print("Use 'rostopic list' and 'rostopic echo <topic_name>' to inspect.")
+        print("Or use RViz to visualize point clouds and camera images.")
+    else:
+        print("ROS publishing is disabled.")
+
+    try:
+        if use_irrlicht_viz:
+            while vis.Run() and sim_time < end_time:
+                vis.BeginScene(True, True, chrono.ChColor(0.1, 0.1, 0.1))
+                vis.Render()
+                # Optional: draw sensor locations for debugging
+                # sens.ChSensorVisualization.DrawOrigin(vis, 0.5) # Draw sensor origins
+                # sens.ChSensorVisualization.DrawFrame(vis, lidar_offset_pose, 1.0) # Example for one sensor
+                vis.EndScene()
+
+                # Update sensor manager (collects data)
+                sensor_manager.Update()
+
+                # Update ROS manager (publishes data if ROS is available and initialized)
+                if ros_available:
+                    ros_manager.Update()
+
+                # Advance simulation
+                my_system.DoStepDynamics(time_step)
+                sim_time += time_step
+
+                # Maintain real-time execution
+                realtime_timer.Spin(time_step)
+
+                if sim_time % 1 < time_step : # Print time every second
+                     print(f"Sim time: {sim_time:.2f} s")
+
+        else: # Headless mode (no Irrlicht visualization)
+            while sim_time < end_time:
+                # Update sensor manager
+                sensor_manager.Update()
+
+                # Update ROS manager
+                if ros_available:
+                    ros_manager.Update()
+
+                # Advance simulation
+                my_system.DoStepDynamics(time_step)
+                sim_time += time_step
+
+                # Maintain real-time execution
+                realtime_timer.Spin(time_step)
+
+                if sim_time % 1 < time_step : # Print time every second
+                     print(f"Sim time: {sim_time:.2f} s, Ground pos: {ground_body.GetPos().x:.2f}, {ground_body.GetPos().y:.2f}, {ground_body.GetPos().z:.2f}")
+
+                # Check for ROS shutdown signal if running headless with ROS
+                if ros_available and rospy.is_shutdown():
+                    print("ROS shutdown requested. Exiting simulation.")
+                    break
+    
+    except Exception as e:
+        print(f"An error occurred during the simulation loop: {e}")
+    finally:
+        print("Simulation finished.")
+        if use_irrlicht_viz and vis:
+            vis.GetDevice().closeDevice()
+        
+        # It's good practice to explicitly delete the sensor manager
+        # to ensure all sensor resources are released, especially GPU memory.
+        del sensor_manager
+        print("Sensor manager deleted.")
+        if ros_available:
+            # rospy.signal_shutdown("Simulation ended") # This might be too abrupt if node is shared
+            pass
+
+
+if __name__ == "__main__":
+    # Ensure CHRONO_DATA_DIR is set if using Chrono data files (e.g. for meshes, textures)
+    # For this script, it's mainly for the logo if Irrlicht is used.
+    # chrono.SetChronoDataPath(os.environ.get("CHRONO_DATA_DIR", "."))
+    # For sensor specific data (e.g. lens models)
+    sens.SetSensorDataPath(os.path.join(chrono.GetChronoDataPath(), "sensor"))
+
+    main()

@@ -1,0 +1,83 @@
+```python
+import pychrono.core as chrono
+import pychrono.irrlicht as irr
+import rospy
+from std_msgs.msg import Int32
+from pychrono.ros import ChROSmanager
+
+# Initialize ROS node
+rospy.init_node('pychrono_ros_simulation', anonymous=True)
+
+# Create Chrono system
+system = chrono.ChSystemNSC()
+
+# Set gravitational acceleration
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+
+# Define material properties
+material = chrono.ChMaterialSurfaceNSC()
+material.SetFriction(0.5)
+material.SetRestitution(0.1)
+
+# Create a fixed floor
+floor = chrono.ChBody()
+floor.SetBodyFixed(True)
+floor_shape = chrono.ChBoxShape(chrono.ChVectorD(5, 0.1, 5))
+floor.AddShape(floor_shape)
+floor.SetPos(chrono.ChVectorD(0, -0.1, 0))
+floor.SetMaterialSurface(material)
+system.Add(floor)
+
+# Create a movable box
+box = chrono.ChBody()
+box_shape = chrono.ChBoxShape(chrono.ChVectorD(0.5, 0.5, 0.5))
+box.AddShape(box_shape)
+box.SetPos(chrono.ChVectorD(0, 1, 0))
+box.SetMass(1.0)
+box.SetMaterialSurface(material)
+system.Add(box)
+
+# Initialize ROS handler for publishing integer messages
+class CustomROSHandler:
+    def __init__(self, topic_name):
+        self.publisher = rospy.Publisher(topic_name, Int32, queue_size=10)
+        self.message = Int32()
+
+    def publish_message(self, value):
+        self.message.data = value
+        self.publisher.publish(self.message)
+
+# Instantiate custom handler
+custom_handler = CustomROSHandler('/simulation/updates')
+
+# Configure ROS manager
+ros_manager = ChROSmanager()
+ros_manager.SetClockHandler()
+ros_manager.SetBodyHandler()
+ros_manager.SetTransformHandler()
+
+# Register custom handler
+ros_manager.RegisterHandler(custom_handler)
+
+# Simulation parameters
+time_step = 1e-3  # 1 ms timestep
+total_time = 10.0  # total simulation time in seconds
+num_steps = int(total_time / time_step)
+
+# Run simulation loop
+for step in range(num_steps):
+    # Advance the simulation
+    system.DoStepDynamics(time_step)
+
+    # Example: publish a message every 100 steps
+    if step % 100 == 0:
+        custom_handler.publish_message(step)
+
+    # Update ROS communication
+    ros_manager.Update()
+
+    # Optional: sleep to maintain real-time (if needed)
+    # import time
+    # time.sleep(time_step)
+
+```

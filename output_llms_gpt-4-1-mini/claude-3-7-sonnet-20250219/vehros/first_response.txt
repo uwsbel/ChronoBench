@@ -1,0 +1,218 @@
+# PyChrono HMMWV Vehicle Simulation with ROS Integration
+
+```python
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as irr
+import pychrono.ros as ros
+import os
+import math
+import numpy as np
+
+# -----------------------------------------------------
+# Initialize the PyChrono environment
+# -----------------------------------------------------
+
+print("Initialize the Chrono system")
+
+# Set the path to the Chrono data directory
+chrono.SetChronoDataPath(os.environ.get('CHRONO_DATA_DIR', './'))
+
+# Create the simulation system
+system = chrono.ChSystemSMC()
+system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
+
+# Set solver parameters
+system.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
+system.SetSolverMaxIterations(150)
+system.SetMaxPenetrationRecoverySpeed(4.0)
+
+# -----------------------------------------------------
+# Create the vehicle
+# -----------------------------------------------------
+
+print("Create the HMMWV vehicle")
+
+# Create the HMMWV vehicle
+hmmwv = veh.HMMWV_Full()
+hmmwv.SetContactMethod(chrono.ChContactMethod_SMC)
+hmmwv.SetChassisFixed(False)
+hmmwv.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0.5), chrono.ChQuaternionD(1, 0, 0, 0)))
+hmmwv.SetEngineType(veh.EngineModelType_SHAFTS)
+hmmwv.SetTransmissionType(veh.TransmissionModelType_AUTOMATIC)
+hmmwv.SetDriveType(veh.DrivelineTypeWV_AWD)
+hmmwv.SetTireType(veh.TireModelType_RIGID)
+hmmwv.SetTireStepSize(1e-3)
+hmmwv.Initialize()
+
+# Set up visualization for the vehicle
+hmmwv.SetChassisVisualizationType(veh.VisualizationType_MESH)
+hmmwv.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
+hmmwv.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
+hmmwv.SetWheelVisualizationType(veh.VisualizationType_MESH)
+hmmwv.SetTireVisualizationType(veh.VisualizationType_MESH)
+
+# Add the vehicle to the system
+vehicle = hmmwv.GetVehicle()
+vehicle.SetChassisFixed(False)
+
+# -----------------------------------------------------
+# Create the terrain
+# -----------------------------------------------------
+
+print("Create the terrain")
+
+# Create the ground material
+ground_mat = chrono.ChMaterialSurfaceSMC()
+ground_mat.SetFriction(0.9)
+ground_mat.SetRestitution(0.01)
+ground_mat.SetYoungModulus(2e7)
+
+# Create the ground body
+ground = chrono.ChBodyEasyBox(100, 100, 0.2, 1000, True, True, ground_mat)
+ground.SetPos(chrono.ChVectorD(0, 0, -0.1))
+ground.SetBodyFixed(True)
+system.Add(ground)
+
+# -----------------------------------------------------
+# Create the driver system
+# -----------------------------------------------------
+
+print("Create the driver system")
+
+# Create a driver
+driver = veh.ChDataDriver(vehicle.GetVehicle(), chrono.GetChronoDataFile("vehicle/driver/Driving.txt"))
+driver.Initialize()
+
+# -----------------------------------------------------
+# Set up ROS integration
+# -----------------------------------------------------
+
+print("Set up ROS integration")
+
+# Create a ROS node manager
+ros_node = ros.ChROSNode("chrono_hmmwv")
+
+# Register handlers for clock synchronization
+ros_node.SetHandleOnStart(lambda: print("ROS node started"))
+ros_node.SetHandleOnStop(lambda: print("ROS node stopped"))
+
+# Register a handler for driver inputs from ROS
+def handle_driver_inputs(msg):
+    throttle = msg.data[0]
+    steering = msg.data[1]
+    braking = msg.data[2]
+    driver.SetThrottle(throttle)
+    driver.SetSteering(steering)
+    driver.SetBraking(braking)
+
+ros_node.DefSubscriber("driver_inputs", "std_msgs/Float32MultiArray", handle_driver_inputs)
+
+# Register a publisher for vehicle state
+vehicle_state_pub = ros_node.DefPublisher("vehicle_state", "std_msgs/Float32MultiArray")
+
+# Define a function to publish vehicle state
+def publish_vehicle_state():
+    chassis_pos = vehicle.GetVehicle().GetPos()
+    chassis_rot = vehicle.GetVehicle().GetRot()
+    chassis_vel = vehicle.GetVehicle().GetPos_dt()
+    chassis_omega = vehicle.GetVehicle().GetWvel_loc()
+    
+    # Create message with position, orientation, velocity, and angular velocity
+    state = [
+        chassis_pos.x, chassis_pos.y, chassis_pos.z,
+        chassis_rot.e0, chassis_rot.e1, chassis_rot.e2, chassis_rot.e3,
+        chassis_vel.x, chassis_vel.y, chassis_vel.z,
+        chassis_omega.x, chassis_omega.y, chassis_omega.z
+    ]
+    
+    vehicle_state_pub.Publisher().publish(state)
+
+# Initialize ROS
+ros_node.Init()
+
+# -----------------------------------------------------
+# Set up the visualization
+# -----------------------------------------------------
+
+print("Create the visualization")
+
+vis = irr.ChIrrApp(system, "HMMWV Vehicle Simulation", irr.dimension2du(1280, 720))
+vis.AddTypicalLights()
+vis.AddTypicalCamera(irr.vector3df(0, 10, 3), irr.vector3df(0, 0, 0))
+vis.SetSymbolscale(0.5)
+vis.SetShowInfos(True)
+vis.Initialize()
+vis.AddSkyBox()
+
+# -----------------------------------------------------
+# Simulation loop
+# -----------------------------------------------------
+
+print("Start the simulation")
+
+# Simulation parameters
+step_size = 1e-3
+end_time = 20.0
+current_time = 0.0
+
+# Simulation loop
+while (current_time < end_time) and vis.GetDevice().run():
+    # Render scene
+    vis.BeginScene()
+    vis.DrawAll()
+    vis.EndScene()
+    
+    # Get driver inputs
+    driver_inputs = driver.GetInputs()
+    
+    # Update vehicle systems
+    vehicle.Synchronize(current_time, driver_inputs, system)
+    driver.Synchronize(current_time)
+    
+    # Update ROS
+    if ros_node.IsConnected():
+        # Publish vehicle state
+        publish_vehicle_state()
+        
+        # Process ROS callbacks
+        ros_node.SpinOnce()
+    
+    # Advance the simulation
+    system.DoStepDynamics(step_size)
+    vehicle.Advance(step_size)
+    driver.Advance(step_size)
+    
+    # Update current time
+    current_time += step_size
+    
+    # Output simulation status periodically
+    if int(current_time * 1000) % 100 == 0:
+        chassis_pos = vehicle.GetVehicle().GetPos()
+        print(f"Time: {current_time:.3f}s, Position: ({chassis_pos.x:.2f}, {chassis_pos.y:.2f}, {chassis_pos.z:.2f})")
+
+# Clean up
+if ros_node.IsConnected():
+    ros_node.Shutdown()
+
+print("Simulation completed")
+```
+
+This script:
+
+1. Initializes the PyChrono environment with appropriate solver settings
+2. Creates an HMMWV vehicle with specific parameters (SMC contact method, shaft-based engine, automatic transmission, AWD driveline, rigid tire model)
+3. Sets up a flat terrain with defined friction and restitution properties
+4. Creates a driver system to control the vehicle
+5. Integrates ROS communication:
+   - Sets up a ROS node manager
+   - Registers handlers for various events
+   - Creates a subscriber for driver inputs
+   - Creates a publisher for vehicle state
+6. Implements a simulation loop that:
+   - Advances the vehicle, terrain, and driver systems
+   - Updates the ROS manager to process callbacks and publish data
+   - Visualizes the simulation using Irrlicht
+   - Displays simulation progress
+
+The script includes proper synchronization between the vehicle, driver, and ROS systems at each timestep.

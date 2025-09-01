@@ -1,0 +1,105 @@
+```python
+import pychrono.core as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as irr
+import pychrono.ros as ros
+
+# Initialize Chrono system
+system = chrono.ChSystemNSC()
+
+# Set default parameters
+terrain_friction = 0.8
+terrain_restitution = 0.1
+contact_method = chrono.ChContactMethod_NSC  # or ChContactMethod_SMC as needed
+
+# Create terrain
+terrain = veh.RigidTerrain(system)
+terrain.SetFriction(terrain_friction)
+terrain.SetRestitution(terrain_restitution)
+terrain.Initialize()
+
+# Create the HMMWV vehicle
+# Define vehicle parameters
+vehicle_params = veh.HMMWV_VehicleInfo()
+vehicle_params.chassis_mass = 3000  # example mass in kg
+vehicle_params.chassis_width = 2.0
+vehicle_params.chassis_height = 1.0
+vehicle_params.engine_type = veh.EngineType_ThrustVectoring  # specify engine type
+vehicle_params.tire_model = veh.TireModelType_TMeasy  # specify tire model
+vehicle_params.contact_method = contact_method
+
+# Instantiate the vehicle
+vehicle = veh.HMMWV_Vehicle(system, vehicle_params)
+vehicle.Initialize()
+
+# Set initial position and orientation if needed
+initial_pos = chrono.ChVectorD(0, 0, 0.5)  # example starting position
+vehicle.SetChassisPosition(initial_pos)
+
+# Create driver system
+driver = veh.ChDriver(vehicle.GetVehicle())
+driver.SetInputMode(veh.ChDriver.InputMode_Pedal)
+driver.SetThrottle(0.0)
+driver.SetSteering(0.0)
+driver.SetBraking(0.0)
+
+# Initialize ROS node and manager
+ros_manager = ros.ChROSManager()
+ros_manager.Initialize()
+
+# Register ROS handlers
+# Clock synchronization handler
+def clock_callback(msg):
+    # Implement clock sync if needed
+    pass
+
+ros_manager.RegisterHandler("/clock", "sensor_msgs/Clock", clock_callback)
+
+# Driver input handler
+def driver_input_callback(msg):
+    # Map incoming messages to driver controls
+    # For example, assume msg contains throttle, steering, brake
+    driver.SetThrottle(msg.throttle)
+    driver.SetSteering(msg.steering)
+    driver.SetBraking(msg.brake)
+
+ros_manager.RegisterHandler("/driver_input", "custom_msgs/DriverInput", driver_input_callback)
+
+# Vehicle state publisher
+def publish_vehicle_state():
+    # Collect vehicle state data
+    state_msg = ...  # construct message with position, speed, etc.
+    ros_manager.Publish("/vehicle/state", state_msg)
+
+# Simulation parameters
+time_step = 1e-3  # 1 ms timestep
+max_time = 10.0  # total simulation time in seconds
+current_time = 0.0
+
+# Main simulation loop
+while current_time < max_time:
+    # Synchronize ROS
+    ros_manager.Synchronize(current_time)
+
+    # Update driver inputs from ROS
+    ros_manager.CallHandlers()
+
+    # Advance driver
+    driver.Advance(time_step)
+
+    # Advance vehicle
+    vehicle.Advance(time_step)
+
+    # Advance terrain if needed
+    terrain.Synchronize(time_step)
+    terrain.Advance(time_step)
+
+    # Publish vehicle state
+    publish_vehicle_state()
+
+    # Increment time
+    current_time += time_step
+
+# Finalize ROS
+ros_manager.Shutdown()
+```

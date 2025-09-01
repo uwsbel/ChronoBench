@@ -1,0 +1,80 @@
+import pychrono.core as chrono
+import pychrono.irr as chrono_irr
+import random
+import math
+
+# Initialize the PyChrono system
+chrono.ChSystemNSC()
+
+# Create a visualization window using Irrlicht
+app = chrono_irr.ChIrrApp(chrono.ChSystemNSC(), "Particle Emitter Simulation", chrono.irr.dimension2d(800, 600))
+app.AddLogo()
+app.AddSkyBox()
+app.AddCamera(chrono.irr.vector3df(0, 5, -15))
+app.AddLight(chrono.irr.vector3df(0, 10, -10))
+
+# Parameters
+num_particles = 100
+particle_radius = 0.1
+gravity_constant = 6.67430e-11  # Gravitational constant
+time_step = 0.01
+emission_rate = 5  # Particles emitted per second
+
+# Create a list to hold particles
+particles = []
+
+# Function to create a random particle
+def create_random_particle():
+    # Random position within a certain range
+    position = chrono.ChVectorD(random.uniform(-10, 10), random.uniform(0, 10), random.uniform(-10, 10))
+    # Random velocity
+    velocity = chrono.ChVectorD(random.uniform(-1, 1), random.uniform(-1, 1), random.uniform(-1, 1))
+    # Create a particle body
+    particle = chrono.ChBody()
+    particle.SetMass(1.0)  # Mass of the particle
+    particle.SetPos(position)
+    particle.SetPos_dt(velocity)
+    particle.GetCollisionModel().ClearModel()
+    particle.GetCollisionModel().AddSphere(particle_radius)
+    particle.GetCollisionModel().BuildModel()
+    particle.SetCollide(True)
+    chrono.ChCollisionSystemNSC().AddBody(particle)
+    return particle
+
+# Create initial particles
+for _ in range(num_particles):
+    particle = create_random_particle()
+    particles.append(particle)
+    chrono.ChSystemNSC().Add(particle)
+
+# Main simulation loop
+while app.GetDevice().run():
+    app.BeginScene()
+    app.DrawAll()
+
+    # Apply gravitational forces between particles
+    for i in range(len(particles)):
+        for j in range(i + 1, len(particles)):
+            pos_i = particles[i].GetPos()
+            pos_j = particles[j].GetPos()
+            distance = (pos_j - pos_i).Length()
+            if distance > 0:
+                force_magnitude = gravity_constant * (1.0 * 1.0) / (distance * distance)  # Assuming unit mass for simplicity
+                force_direction = (pos_j - pos_i).GetNormalized()
+                force = force_direction * force_magnitude
+                particles[i].AccumulateForce(force)
+                particles[j].AccumulateForce(-force)
+
+    # Update the system
+    chrono.ChSystemNSC().DoStepDynamics(time_step)
+
+    # Emit new particles at a defined rate
+    if random.random() < (emission_rate * time_step):
+        new_particle = create_random_particle()
+        particles.append(new_particle)
+        chrono.ChSystemNSC().Add(new_particle)
+
+    app.EndScene()
+
+# Clean up
+app.GetDevice().drop()

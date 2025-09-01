@@ -1,0 +1,148 @@
+# PyChrono HMMWV on SCM Deformable Terrain Simulation
+
+```python
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as irr
+import numpy as np
+import pychrono.core as core
+
+# Global simulation parameters
+step_size = 5e-3  # Simulation step size
+terrain_length = 100.0  # Terrain length [m]
+terrain_width = 100.0  # Terrain width [m]
+vis_fps = 50  # Visualization frames per second
+
+# Initialize ChSystem
+system = chrono.ChSystemSMC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+system.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
+system.SetSolverMaxIterations(150)
+system.SetMaxPenetrationRecoverySpeed(4.0)
+
+# Create SCM deformable terrain
+terrain = veh.SCMDeformableTerrain(system)
+terrain.SetPlane(chrono.ChCoordsysD())
+terrain.Initialize(terrain_length, terrain_width, 0.2)  # length, width, height
+
+# Set custom SCM soil parameters
+terrain.SetSoilParameters(
+    1.6e7,      # Bekker Kphi [N/m^(n+1)]
+    0,          # Bekker Kc [N/m^(n+2)]
+    1.4,        # Bekker n exponent
+    0.01,       # Janosi shear coefficient [m]
+    30,         # Angle of friction [degrees]
+    2e4,        # Soil cohesion [Pa]
+    6e7,        # Soil damping [N/m/s]
+    3e4,        # Soil stiffness [N/m]
+    0.5,        # Bulldozing factor
+)
+
+# Set up moving patch to follow the vehicle
+terrain.AddMovingPatch(
+    chrono.ChVectorD(0, 0.5, 0),  # center of the moving patch
+    chrono.ChVectorD(5, 1, 5),    # size of the moving patch
+    chrono.ChVectorD(0, 0, 0)     # velocity of the moving patch (will be updated)
+)
+
+# Enable visualization features of the terrain
+terrain.SetPlotType(veh.SCMDeformableTerrain.PLOT_SINKAGE, 0, 0.1)  # false color plot showing sinkage
+
+# Create the HMMWV vehicle
+# Set file paths for the vehicle JSON specification files
+hmmwv_file = veh.GetDataFile("hmmwv/vehicle/HMMWV_Vehicle.json")
+powertrain_file = veh.GetDataFile("hmmwv/powertrain/HMMWV_ShaftsPowertrain.json")
+tire_file = veh.GetDataFile("hmmwv/tire/HMMWV_RigidTire.json")
+
+# Create the HMMWV vehicle
+hmmwv = veh.HMMWV_Full()
+hmmwv.SetContactMethod(chrono.ChContactMethod_SMC)
+hmmwv.SetChassisFixed(False)
+hmmwv.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0.7, 0), chrono.ChQuaternionD(1, 0, 0, 0)))
+hmmwv.SetPowertrainType(veh.PowertrainModelType_SHAFTS)
+hmmwv.SetDriveType(veh.DrivelineTypeWV_AWD)
+hmmwv.SetTireType(veh.TireModelType_RIGID)
+hmmwv.SetTireStepSize(step_size)
+hmmwv.Initialize()
+
+# Set visualization type for vehicle parts
+hmmwv.SetChassisVisualizationType(veh.VisualizationType_MESH)
+hmmwv.SetSuspensionVisualizationType(veh.VisualizationType_MESH)
+hmmwv.SetSteeringVisualizationType(veh.VisualizationType_MESH)
+hmmwv.SetWheelVisualizationType(veh.VisualizationType_MESH)
+hmmwv.SetTireVisualizationType(veh.VisualizationType_MESH)
+
+# Create the vehicle driver system (keyboard inputs)
+driver = veh.ChIrrGuiDriver(hmmwv.GetVehicle())
+driver.SetSteering(veh.GetDataFile("generic/driver/Steering.json"))
+driver.SetThrottle(veh.GetDataFile("generic/driver/Throttle.json"))
+driver.SetBraking(veh.GetDataFile("generic/driver/Braking.json"))
+driver.Initialize()
+
+# Create the Irrlicht visualization
+vis = veh.ChWheeledVehicleIrrApp(hmmwv.GetVehicle())
+vis.SetWindowTitle("HMMWV on SCM Deformable Terrain")
+vis.SetWindowSize(1280, 720)
+vis.SetChaseCamera(6.0, 5.0, 1.0)
+vis.SetTimestep(step_size)
+vis.SetHUDLocation(500, 20)
+vis.Initialize()
+
+# Add vehicle logo
+vis.AddLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))
+
+# Setup for real time simulation
+realtime_timer = chrono.ChRealtimeStepTimer()
+step_number = 0
+render_step = (1.0 / vis_fps) / step_size
+
+# Simulation loop
+while vis.GetDevice().run():
+    # Render scene
+    if step_number % int(render_step) == 0:
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+
+    # Get driver inputs
+    driver.Synchronize(system.GetChTime())
+    
+    # Update vehicle
+    hmmwv.Synchronize(system.GetChTime(), driver.GetInputs(), terrain)
+    
+    # Update terrain
+    terrain.Synchronize(system.GetChTime())
+    
+    # Update SCM moving patch to follow the vehicle
+    chassis_pos = hmmwv.GetVehicle().GetChassisBody().GetPos()
+    terrain.UpdateMovingPatch(
+        chassis_pos,                         # center of the moving patch
+        hmmwv.GetVehicle().GetVehicleSpeed() # velocity of the moving patch
+    )
+    
+    # Update visualization
+    vis.Synchronize(system.GetChTime(), driver.GetInputs())
+    
+    # Advance simulation
+    system.DoStepDynamics(step_size)
+    
+    # Real-time sync
+    realtime_timer.Spin(step_size)
+    
+    step_number += 1
+
+# Clean up
+vis.GetDevice().closeDevice()
+```
+
+This script creates a PyChrono simulation of a HMMWV vehicle on SCM deformable terrain with Irrlicht visualization. The simulation includes:
+
+1. A properly configured ChSystem with SMC contact method
+2. SCM deformable terrain with custom soil parameters
+3. A moving patch feature that follows the vehicle
+4. Sinkage visualization with false color plotting
+5. A fully configured HMMWV vehicle with rigid tires and mesh visualization
+6. Interactive driver controls for steering, throttle, and braking
+7. Real-time simulation with visualization at 50 FPS
+
+The vehicle can be controlled with keyboard inputs through the Irrlicht interface. The terrain will deform based on the interaction with the vehicle, and the sinkage will be visualized with a color map.

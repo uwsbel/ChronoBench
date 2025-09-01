@@ -1,0 +1,135 @@
+import pychrono.core as chrono
+import pychrono.irrlicht as irr
+import pychrono.vehicle as veh
+import math
+
+# =============================================================================
+
+# The path to the Chrono data directory containing various assets (meshes, textures, data files)
+# is automatically set, relative to the default location of this demo.
+# If running from a different directory, you must change the path to the data directory with: 
+#chrono.SetChronoDataPath('path/to/data')
+
+veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
+
+# Initial vehicle location and orientation
+initLoc = chrono.ChVector3d(-15, 0, 0.0)
+initRot = chrono.ChQuaterniond(1, 0, 0, 0)
+
+# Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
+vis_type = veh.VisualizationType_MESH
+
+# Collision type for chassis (PRIMITIVES, MESH, or NONE)
+chassis_collision_type = veh.CollisionType_NONE
+
+# SCM deformable terrain
+# To use soil parameters from the list of pre-defined soils in Shocco,
+# create the soil contact method as follows:
+soil_contact_method = chrono.ChContactMethod_NSC
+patch_mat = veh.SoilParameters(
+    soilyard_params_file="loam.txt")  # Use parameters from loam.txt
+terrain = veh.SCMTerrain(vehicle.GetSystem())
+terrain.SetSoilParameters(patch_mat)
+terrain.Initialize(
+    terrainLength, terrainWidth, delta, payload)
+
+height = veh.vector SigningHeight()
+height.SetHeight(0)
+patch_mat.BindToSoil(terrain.GetSoil())
+
+# Set terrain visualization type
+terrain.SetPlotType(veh.SCMTerrain.PLOT_PRESSURE, 0)
+
+# Create the vehicle Irrlicht interface
+vis = veh.ChTrackedVehicleVisualSystemIrrlicht()
+vis.SetWindowTitle('M113 Demo')
+vis.SetWindowSize(1280, 1024)
+vis.SetChaseCamera(trackPoint, 9.0, 1.5)
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddLightDirectional()
+vis.AddSkyBox()
+vis.AttachVehicle(vehicle.GetVehicle())
+
+# Create the interactive driver system
+driver = veh.ChInteractiveDriverIRR(vis)
+
+# Set the time response for steering and throttle keyboard inputs.
+steering_time = 1.0  # time to go from 0 to +1 (or from 0 to -1)
+throttle_time = 1.0  # time to go from 0 to +1
+braking_time = 0.3   # time to go from 0 to +1
+driver.SetSteeringDelta(render_step_size / steering_time)
+driver.SetThrottleDelta(render_step_size / throttle_time)
+driver.SetBrakingDelta(render_step_size / braking_time)
+
+driver.Initialize()
+
+# Solver and integrator settings
+vehicle.GetSystem().SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
+
+# output vehicle mass
+print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
+
+# Simulation loop
+# ===============
+
+# Number of simulation steps between miscellaneous events
+render_steps = math.ceil(render_step_size / step_size)
+
+# Initialize simulation frame counter s
+step_number = 0
+render_frame = 0
+vehicle.GetVehicle().EnableRealtime(True)
+
+while vis.Run() :
+    time = vehicle.GetSystem().GetChTime()
+
+    # Render scene and output POV-Ray data
+    if (step_number % render_steps == 0) :
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+        render_frame += 1
+
+    # Get driver inputs
+    driver_inputs = driver.GetInputs()
+
+    # Update modules (process inputs from other modules)
+    driver.Synchronize(time)
+    terrain.Synchronize(time)
+    vehicle.Synchronize(time, driver_inputs)
+    vis.Synchronize(time, driver_inputs)
+
+    # Advance simulation for one timestep for all modules
+    driver.Advance(step_size)
+    terrain.Advance(step_size)
+    vehicle.Advance(step_size)
+    vis.Advance(step_size)
+
+    # Create and initialize vehicle
+    vehicle = veh.M113()
+    vehicle.SetContactMethod(contact_method)
+    vehicle.SetTrackShoeType(veh.TrackShoeType_SINGLE_PIN)
+    vehicle.SetDrivelineType(veh.DrivelineTypeTV_BDS)
+    vehicle.SetEngineType(veh.EngineModelType_SHAFTS)
+    vehicle.SetTransmissionType(veh.TransmissionModelType_AUTOMATIC_SHAFTS)
+    vehicle.SetBrakeType(veh.BrakeType_SIMPLE)
+
+    vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
+    vehicle.Initialize()
+
+    vehicle.SetChassisVisualizationType(vis_type)
+    vehicle.SetSprocketVisualizationType(vis_type)
+    vehicle.SetIdlerVisualizationType(vis_type)
+    vehicle.SetIdlerWheelVisualizationType(vis_type)
+    vehicle.SetSuspensionVisualizationType(vis_type)
+    vehicle.SetRoadWheelVisualizationType(vis_type)
+    vehicle.SetTrackShoeVisualizationType(vis_type)
+
+    vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+
+    # Update driver inputs
+    driver_inputs.m_throttle = 0.8  # Set throttle input
+
+    # Increment frame number
+    step_number += 1

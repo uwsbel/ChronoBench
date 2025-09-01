@@ -1,0 +1,390 @@
+I'll create a comprehensive PyChrono simulation script with multiple sensors attached to a ground body, integrated with ROS for data publishing. Here's the complete implementation:
+
+```python
+#!/usr/bin/env python3
+
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.sensor as sens
+import pychrono.ros as chros
+import numpy as np
+import math
+import time
+
+def main():
+    # ========================
+    # Initialize PyChrono System
+    # ========================
+    print("Initializing PyChrono system...")
+    
+    # Create the Chrono system
+    system = chrono.ChSystemNSC()
+    system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))  # Set gravity
+    
+    # Set solver parameters
+    system.GetSolver().SetMaxIterations(150)
+    system.GetSolver().SetTolerance(1e-10)
+    system.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
+    
+    # ========================
+    # Create Ground Body
+    # ========================
+    print("Creating ground body...")
+    
+    # Create ground body
+    ground_body = chrono.ChBodyEasyBox(2, 2, 0.1, 1000, True, True)
+    ground_body.SetPos(chrono.ChVectorD(0, 0, 0))
+    ground_body.SetBodyFixed(False)  # Allow movement
+    ground_body.GetMaterialSurface().SetFriction(0.8)
+    ground_body.GetMaterialSurface().SetRestitution(0.1)
+    
+    # Set initial velocity for movement
+    ground_body.SetPos_dt(chrono.ChVectorD(1.0, 0, 0))  # Move in X direction
+    ground_body.SetWvel_par(chrono.ChVectorD(0, 0, 0.1))  # Slight rotation
+    
+    system.Add(ground_body)
+    
+    # ========================
+    # Add Visualization Mesh
+    # ========================
+    print("Adding visualization mesh...")
+    
+    # Create a visual shape for the ground body
+    visual_shape = chrono.ChVisualizationShapeBox(2, 2, 0.1)
+    visual_shape.SetColor(chrono.ChColor(0.4, 0.4, 0.8))
+    ground_body.AddVisualShape(visual_shape)
+    
+    # Add a reference frame marker
+    marker_shape = chrono.ChVisualizationShapeBox(0.1, 0.1, 0.2)
+    marker_shape.SetColor(chrono.ChColor(1, 0, 0))
+    ground_body.AddVisualShape(marker_shape, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0.15)))
+    
+    # ========================
+    # Initialize Sensor Manager
+    # ========================
+    print("Initializing sensor manager...")
+    
+    sensor_manager = sens.ChSensorManager(system)
+    
+    # Set sensor manager parameters
+    sensor_manager.scene.AddPointLight(chrono.ChVectorF(0, 0, 100), chrono.ChColor(1, 1, 1), 500)
+    sensor_manager.scene.AddPointLight(chrono.ChVectorF(0, -100, 0), chrono.ChColor(1, 1, 1), 500)
+    
+    # ========================
+    # Create Camera Sensor
+    # ========================
+    print("Setting up camera sensor...")
+    
+    # Camera parameters
+    camera_width = 640
+    camera_height = 480
+    camera_fov = 1.408  # Field of view in radians (~80 degrees)
+    camera_lag = 0.0
+    camera_collection_time = 1./30  # 30 FPS
+    
+    # Camera offset pose relative to ground body
+    camera_offset_pose = chrono.ChFrameD(
+        chrono.ChVectorD(0, 0, 1.5),  # 1.5m above ground body
+        chrono.Q_from_AngZ(0)
+    )
+    
+    # Create camera sensor
+    camera = sens.ChCameraSensor(
+        ground_body,              # Attach to ground body
+        30,                       # Update rate (Hz)
+        camera_offset_pose,       # Offset pose
+        camera_width,             # Image width
+        camera_height,            # Image height
+        camera_fov               # Horizontal field of view
+    )
+    
+    camera.SetName("Camera")
+    camera.SetLag(camera_lag)
+    camera.SetCollectionWindow(camera_collection_time)
+    
+    # Add filters to camera
+    camera.PushFilter(sens.ChFilterVisualize(camera_width, camera_height, "Camera Output"))
+    camera.PushFilter(sens.ChFilterRGBA8Access())
+    
+    sensor_manager.AddSensor(camera)
+    
+    # ========================
+    # Create Lidar Sensor
+    # ========================
+    print("Setting up lidar sensor...")
+    
+    # Lidar parameters
+    lidar_offset_pose = chrono.ChFrameD(
+        chrono.ChVectorD(0, 0, 1.0),  # 1m above ground body
+        chrono.Q_from_AngZ(0)
+    )
+    
+    # Create lidar sensor
+    lidar = sens.ChLidarSensor(
+        ground_body,           # Attach to ground body
+        10,                    # Update rate (Hz)
+        lidar_offset_pose,     # Offset pose
+        800,                   # Horizontal samples
+        16,                    # Vertical samples/channels
+        2*chrono.CH_C_PI,      # Horizontal field of view
+        chrono.CH_C_PI/12,     # Max vertical angle
+        -chrono.CH_C_PI/6,     # Min vertical angle
+        100.0                  # Max distance
+    )
+    
+    lidar.SetName("Lidar")
+    lidar.SetLag(0.0)
+    lidar.SetCollectionWindow(0.1)
+    
+    # Add filters to lidar
+    lidar.PushFilter(sens.ChFilterDIAccess())
+    lidar.PushFilter(sens.ChFilterPCfromDepth())
+    lidar.PushFilter(sens.ChFilterXYZIAccess())
+    
+    sensor_manager.AddSensor(lidar)
+    
+    # ========================
+    # Create GPS Sensor
+    # ========================
+    print("Setting up GPS sensor...")
+    
+    gps_offset_pose = chrono.ChFrameD(
+        chrono.ChVectorD(0, 0, 0.5),  # 0.5m above ground body
+        chrono.Q_from_AngZ(0)
+    )
+    
+    gps = sens.ChGPSSensor(
+        ground_body,        # Attach to ground body
+        10,                 # Update rate (Hz)
+        gps_offset_pose,    # Offset pose
+        chrono.ChVectorD(0, 0, 0),  # GPS reference point
+        sens.ChGPSSensor.GPS_REFERENCE.WGS84  # Reference system
+    )
+    
+    gps.SetName("GPS")
+    gps.PushFilter(sens.ChFilterGPSAccess())
+    
+    sensor_manager.AddSensor(gps)
+    
+    # ========================
+    # Create IMU Sensors (Accelerometer, Gyroscope, Magnetometer)
+    # ========================
+    print("Setting up IMU sensors...")
+    
+    imu_offset_pose = chrono.ChFrameD(
+        chrono.ChVectorD(0, 0, 0.1),  # Slightly above ground body
+        chrono.Q_from_AngZ(0)
+    )
+    
+    # Accelerometer
+    accelerometer = sens.ChAccelerometerSensor(
+        ground_body,        # Attach to ground body
+        100,                # Update rate (Hz)
+        imu_offset_pose     # Offset pose
+    )
+    accelerometer.SetName("Accelerometer")
+    accelerometer.PushFilter(sens.ChFilterAccelAccess())
+    sensor_manager.AddSensor(accelerometer)
+    
+    # Gyroscope
+    gyroscope = sens.ChGyroscopeSensor(
+        ground_body,        # Attach to ground body
+        100,                # Update rate (Hz)
+        imu_offset_pose     # Offset pose
+    )
+    gyroscope.SetName("Gyroscope")
+    gyroscope.PushFilter(sens.ChFilterGyroAccess())
+    sensor_manager.AddSensor(gyroscope)
+    
+    # Magnetometer
+    magnetometer = sens.ChMagnetometerSensor(
+        ground_body,        # Attach to ground body
+        100,                # Update rate (Hz)
+        imu_offset_pose,    # Offset pose
+        chrono.ChVectorD(0.2, 0.0, -0.4)  # Magnetic field vector
+    )
+    magnetometer.SetName("Magnetometer")
+    magnetometer.PushFilter(sens.ChFilterMagnetAccess())
+    sensor_manager.AddSensor(magnetometer)
+    
+    # ========================
+    # Initialize ROS Manager
+    # ========================
+    print("Initializing ROS manager...")
+    
+    ros_manager = chros.ChROSPythonManager()
+    ros_manager.Initialize()
+    
+    # Register sensors with ROS topics
+    print("Registering sensors with ROS topics...")
+    
+    # Camera topic
+    ros_manager.RegisterHandler(
+        chros.ChROSCameraHandler(
+            "~/camera/image_raw",
+            camera
+        )
+    )
+    
+    # Lidar topic
+    ros_manager.RegisterHandler(
+        chros.ChROSLidarHandler(
+            "~/lidar/points",
+            lidar
+        )
+    )
+    
+    # GPS topic
+    ros_manager.RegisterHandler(
+        chros.ChROSGPSHandler(
+            "~/gps/fix",
+            gps
+        )
+    )
+    
+    # IMU topics
+    ros_manager.RegisterHandler(
+        chros.ChROSAccelerometerHandler(
+            "~/imu/accelerometer",
+            accelerometer
+        )
+    )
+    
+    ros_manager.RegisterHandler(
+        chros.ChROSGyroscopeHandler(
+            "~/imu/gyroscope",
+            gyroscope
+        )
+    )
+    
+    ros_manager.RegisterHandler(
+        chros.ChROSMagnetometerHandler(
+            "~/imu/magnetometer",
+            magnetometer
+        )
+    )
+    
+    # Publish ground body transform
+    ros_manager.RegisterHandler(
+        chros.ChROSBodyHandler(
+            "~/ground_body/transform",
+            ground_body
+        )
+    )
+    
+    # ========================
+    # Simulation Parameters
+    # ========================
+    step_size = 1e-3
+    simulation_time = 0
+    max_simulation_time = 30.0  # Run for 30 seconds
+    
+    # Real-time execution parameters
+    realtime_timer = chrono.ChRealtimeStepTimer()
+    
+    print("Starting simulation...")
+    print(f"Simulation will run for {max_simulation_time} seconds")
+    print("Publishing sensor data to ROS topics...")
+    
+    # ========================
+    # Simulation Loop
+    # ========================
+    try:
+        while simulation_time < max_simulation_time:
+            # Update ground body motion (create interesting movement pattern)
+            t = simulation_time
+            
+            # Sinusoidal motion pattern
+            pos = chrono.ChVectorD(
+                2 * math.sin(0.5 * t),
+                2 * math.cos(0.3 * t),
+                0.5 + 0.3 * math.sin(0.8 * t)
+            )
+            
+            vel = chrono.ChVectorD(
+                math.cos(0.5 * t),
+                -0.6 * math.sin(0.3 * t),
+                0.24 * math.cos(0.8 * t)
+            )
+            
+            ground_body.SetPos(pos)
+            ground_body.SetPos_dt(vel)
+            
+            # Update sensor manager (this processes all sensors)
+            sensor_manager.Update()
+            
+            # Advance the simulation by one step
+            system.DoStepDynamics(step_size)
+            
+            # Update ROS manager (publish sensor data)
+            ros_manager.Update(simulation_time, step_size)
+            
+            # Update simulation time
+            simulation_time += step_size
+            
+            # Maintain real-time execution
+            realtime_timer.Spin(step_size)
+            
+            # Print progress every 5 seconds
+            if int(simulation_time) % 5 == 0 and int(simulation_time * 1000) % 5000 < step_size * 1000:
+                print(f"Simulation time: {simulation_time:.1f}s / {max_simulation_time}s")
+                pos = ground_body.GetPos()
+                print(f"Ground body position: [{pos.x:.2f}, {pos.y:.2f}, {pos.z:.2f}]")
+    
+    except KeyboardInterrupt:
+        print("\nSimulation interrupted by user")
+    
+    # ========================
+    # Cleanup
+    # ========================
+    print("Cleaning up simulation...")
+    
+    # Shutdown ROS manager
+    ros_manager.Shutdown()
+    
+    print("Simulation completed successfully!")
+    print("\nROS Topics published:")
+    print("  - ~/camera/image_raw (sensor_msgs/Image)")
+    print("  - ~/lidar/points (sensor_msgs/PointCloud2)")
+    print("  - ~/gps/fix (sensor_msgs/NavSatFix)")
+    print("  - ~/imu/accelerometer (sensor_msgs/Imu)")
+    print("  - ~/imu/gyroscope (sensor_msgs/Imu)")
+    print("  - ~/imu/magnetometer (sensor_msgs/MagneticField)")
+    print("  - ~/ground_body/transform (geometry_msgs/TransformStamped)")
+
+if __name__ == "__main__":
+    main()
+```
+
+This comprehensive PyChrono simulation script includes:
+
+## Key Features:
+
+1. **System Initialization**: Sets up the PyChrono environment with proper solver settings and gravity.
+
+2. **Ground Body Creation**: Creates a movable ground body (box shape) with visualization mesh and dynamic motion patterns.
+
+3. **Multiple Sensors**:
+   - **Camera**: RGB camera with 640x480 resolution, 30 FPS
+   - **Lidar**: 3D lidar with 800x16 resolution and 100m range
+   - **GPS**: Global positioning sensor with WGS84 reference
+   - **Accelerometer**: High-frequency acceleration measurements
+   - **Gyroscope**: Angular velocity measurements
+   - **Magnetometer**: Magnetic field measurements
+
+4. **ROS Integration**: All sensors publish data to specific ROS topics using the ROS manager.
+
+5. **Real-time Simulation**: Maintains real-time execution with proper timing controls.
+
+6. **Dynamic Motion**: The ground body follows a complex sinusoidal motion pattern for interesting sensor data.
+
+## ROS Topics Published:
+- `~/camera/image_raw` - Camera images
+- `~/lidar/points` - Lidar point clouds
+- `~/gps/fix` - GPS coordinates
+- `~/imu/accelerometer` - Acceleration data
+- `~/imu/gyroscope` - Angular velocity data
+- `~/imu/magnetometer` - Magnetic field data
+- `~/ground_body/transform` - Body pose transforms
+
+The simulation runs for 30 seconds with proper cleanup and error handling. You can modify the parameters, motion patterns, or sensor configurations as needed for your specific application.

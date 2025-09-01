@@ -1,0 +1,105 @@
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
+import math as m
+
+# Create a Chrono::Engine physical system
+sys = chrono.ChSystemNSC()
+
+# Create contact material shared among all bodies
+mat = chrono.ChContactMaterialNSC()
+
+# Change 1: Gear Sizes
+radA = 1.5  # Original: 2
+radB = 3.5  # Original: 4
+
+# Change 2: Truss Dimensions
+mbody_truss = chrono.ChBodyEasyBox(15, 8, 2, 1000, True, False, mat)  # Original: (20, 10, 2)
+sys.Add(mbody_truss)
+mbody_truss.SetFixed(True)
+mbody_truss.SetPos(chrono.ChVector3d(0, 0, 3))
+
+# Shared visualization material
+vis_mat = chrono.ChVisualMaterial()
+vis_mat.SetKdTexture(chrono.GetChronoDataFile('textures/pinkwhite.png'))
+
+# Create the rotating bar support
+mbody_train = chrono.ChBodyEasyBox(8, 1.5, 1.0, 1000, True, False, mat)
+sys.Add(mbody_train)
+mbody_train.SetPos(chrono.ChVector3d(3, 0, 0))
+
+# Revolute joint between truss and rotating bar
+link_revoluteTT = chrono.ChLinkLockRevolute()
+link_revoluteTT.Initialize(mbody_truss, mbody_train, chrono.ChFramed(chrono.ChVector3d(0,0,0), chrono.QUNIT))
+sys.AddLink(link_revoluteTT)
+
+# First gear (Gear A)
+mbody_gearA = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, radA, 0.5, 1000, True, False, mat)
+sys.Add(mbody_gearA)
+mbody_gearA.SetPos(chrono.ChVector3d(0, 0, -1))
+mbody_gearA.SetRot(chrono.QuatFromAngleX(m.pi / 2))
+mbody_gearA.GetVisualShape(0).SetMaterial(0, vis_mat)
+
+# Change 5: Visual Shaft Size
+mshaft_shape = chrono.ChVisualShapeCylinder(radA * 0.3, 10)  # Original: radA * 0.4, 13
+mbody_gearA.AddVisualShape(mshaft_shape, chrono.ChFramed(chrono.ChVector3d(0, 3.5, 0), chrono.QuatFromAngleX(chrono.CH_PI_2)))
+
+# Motor to rotate Gear A
+link_motor = chrono.ChLinkMotorRotationSpeed()
+link_motor.Initialize(mbody_gearA, mbody_truss, chrono.ChFramed(chrono.ChVector3d(0, 0, 0), chrono.QUNIT))
+# Change 3: Gear Rotation Speed
+link_motor.SetSpeedFunction(chrono.ChFunctionConst(3))  # Original: 6
+sys.AddLink(link_motor)
+
+# Second gear (Gear B)
+interaxis12 = radA + radB
+mbody_gearB = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, radB, 0.4, 1000, True, False, mat)
+sys.Add(mbody_gearB)
+# Change 4: Position of Gear B
+mbody_gearB.SetPos(chrono.ChVector3d(interaxis12, 0, -2))  # Original: -1
+mbody_gearB.SetRot(chrono.QuatFromAngleX(m.pi / 2))
+mbody_gearB.GetVisualShape(0).SetMaterial(0, vis_mat)
+
+# Revolute joint to fix Gear B to rotating bar
+link_revolute = chrono.ChLinkLockRevolute()
+link_revolute.Initialize(mbody_gearB, mbody_train, chrono.ChFramed(chrono.ChVector3d(interaxis12, 0, 0), chrono.QUNIT))
+sys.AddLink(link_revolute)
+
+# Gear constraint between A and B
+link_gearAB = chrono.ChLinkLockGear()
+link_gearAB.Initialize(mbody_gearA, mbody_gearB, chrono.ChFramed())
+link_gearAB.SetFrameShaft1(chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleX(-m.pi / 2)))
+link_gearAB.SetFrameShaft2(chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleX(-m.pi / 2)))
+link_gearAB.SetTransmissionRatio(radA / radB)
+link_gearAB.SetEnforcePhase(True)
+sys.AddLink(link_gearAB)
+
+# Gear constraint between B and the truss (epicyclic gear C)
+radC = 2 * radB + radA
+link_gearBC = chrono.ChLinkLockGear()
+link_gearBC.Initialize(mbody_gearB, mbody_truss, chrono.ChFramed())
+link_gearBC.SetFrameShaft1(chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleX(-m.pi / 2)))
+link_gearBC.SetFrameShaft2(chrono.ChFramed(chrono.ChVector3d(0, 0, -4), chrono.QUNIT))
+link_gearBC.SetTransmissionRatio(radB / radC)
+link_gearBC.SetEpicyclic(True)
+sys.AddLink(link_gearBC)
+
+# Visualization
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(sys)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle('Gears and pulleys')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVector3d(12, 15, -20))
+vis.AddTypicalLights()
+
+# Integrator
+sys.SetTimestepperType(chrono.ChTimestepper.Type_EULER_IMPLICIT_PROJECTED)
+
+# Simulation loop
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    sys.DoStepDynamics(1e-3)

@@ -1,0 +1,65 @@
+import pychrono.core as chrono
+import pychrono.irrlicht as chronoirr
+import numpy as np
+
+# Initialize the PyChrono environment
+chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.001)
+chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.001)
+
+# Create the system
+system = chrono.ChSystemNSC()
+
+# Create the ground body
+ground = chrono.ChBody()
+ground.SetBodyFixed(True)
+ground.SetPos(chrono.ChVectorD(0, 0, 0))
+ground.SetCollide(False)
+system.Add(ground)
+
+# Create the pendulum body
+pendulum_length = 1.0  # Length of the pendulum
+pendulum_mass = 1.0    # Mass of the pendulum
+pendulum_inertia = (1/3) * pendulum_mass * pendulum_length**2  # Inertia for a rod about one end
+
+pendulum = chrono.ChBody()
+pendulum.SetMass(pendulum_mass)
+pendulum.SetInertiaXX(chrono.ChVectorD(0, pendulum_inertia, pendulum_inertia))
+pendulum.SetPos(chrono.ChVectorD(pendulum_length, 0, 0))
+pendulum.SetCollide(False)
+system.Add(pendulum)
+
+# Create a revolute joint between the ground and the pendulum
+joint = chrono.ChLinkLockRevolute()
+joint.Initialize(ground, pendulum, chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.ChQuaternionD(1, 0, 0, 0)))
+system.Add(joint)
+
+# Set initial conditions
+pendulum.SetPos(chrono.ChVectorD(pendulum_length * np.sin(np.pi / 4), -pendulum_length * np.cos(np.pi / 4), 0))  # Initial position
+pendulum.SetPos_dt(chrono.ChVectorD(0, 0, 0))  # Initial velocity
+
+# Create the Irrlicht visualization system
+application = chronoirr.ChIrrApp(system, "Simple Pendulum Simulation", chronoirr.dimension2d(800, 600))
+application.AddTypicalSky()
+application.AddTypicalLights()
+application.AddTypicalCamera(chronoirr.vector3df(0, 2, 5), chronoirr.vector3df(0, 0, 0))
+
+# Set the simulation step size
+time_step = 0.01
+application.SetTimestep(time_step)
+
+# Simulation loop
+while application.GetDevice().run():
+    application.BeginScene()
+    application.DrawAll()
+    application.EndScene()
+
+    # Perform the simulation step
+    system.DoStepDynamics(time_step)
+
+    # Log the pendulum's position and velocity
+    pendulum_pos = pendulum.GetPos()
+    pendulum_vel = pendulum.GetPos_dt()
+    print(f"Time: {system.GetChTime():.2f} s, Position: {pendulum_pos}, Velocity: {pendulum_vel}")
+
+# Clean up
+application.GetDevice().drop()

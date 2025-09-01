@@ -1,0 +1,133 @@
+Here's a comprehensive PyChrono simulation script for a FEDA vehicle on rigid terrain with interactive controls and visualization:
+
+```python
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as chronoirr
+
+# 1. Initialize the Chrono system and environment
+system = chrono.ChSystemSMC()
+system.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, -9.81))
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())
+
+# 2. Create and initialize the FEDA vehicle
+vehicle = veh.FEDA()
+vehicle.SetContactMethod(chrono.ChContactMethod_SMC)
+vehicle.SetChassisFixed(False)
+vehicle.SetInitPosition(chrono.ChCoordsysd(
+    chrono.ChVector3d(0, 0, 0.5),  # Initial position (0.5m above ground)
+    chrono.Q_from_AngZ(0)           # Initial orientation (facing forward)
+))
+vehicle.SetTireType(veh.TireModelType_TMEASY)  # Tire model selection
+vehicle.Initialize()
+
+# Set visualization modes
+vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
+vehicle.SetSuspensionVisualizationType(veh.VisualizationType_MESH)
+vehicle.SetSteeringVisualizationType(veh.VisualizationType_MESH)
+vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
+
+# 3. Create and configure the rigid terrain
+terrain = veh.RigidTerrain(system)
+patch_mat = chrono.ChContactMaterialSMC()
+patch_mat.SetFriction(0.8)  # High friction for off-road terrain
+patch_mat.SetRestitution(0.01)
+
+patch = terrain.AddPatch(patch_mat, 
+                        chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
+                        100, 50)  # 100m x 50m terrain patch
+patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 100, 50)  # Custom texture
+terrain.Initialize()
+
+# 4. Set up the Irrlicht visualization system
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetWindowSize(1280, 720)
+vis.SetWindowTitle("FEDA Vehicle Simulation")
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))
+vis.AddTypicalLights()
+vis.AddSkyBox()
+
+# Set camera to follow vehicle from rear position
+vis.AddCamera(chrono.ChVector3d(-5, 0, 2), chrono.ChVector3d(0, 0, 0.5))
+
+# 5. Create interactive driver system
+driver = veh.ChInteractiveDriverIRR(vis)
+driver.SetSteeringDelta(0.02)
+driver.SetThrottleDelta(0.02)
+driver.SetBrakingDelta(0.06)
+driver.Initialize()
+
+# 6. Simulation timing parameters
+step_size = 0.002
+render_step = 1.0 / 50  # 50 FPS rendering
+frame_number = 0
+
+# 7. Main simulation loop
+while vis.Run():
+    time = system.GetChTime()
+    
+    # Update vehicle systems
+    driver.Synchronize(time)
+    vehicle.Synchronize(time, driver.GetInputs(), terrain)
+    terrain.Synchronize(time)
+    
+    # Advance simulation state
+    system.DoStepDynamics(step_size)
+    
+    # Update visualization
+    if frame_number % int(render_step / step_size) == 0:
+        vis.BeginScene()
+        vis.Render()
+        vis.RenderFrame(vehicle.GetChassisBody().GetFrame_REF_to_abs())
+        vis.EndScene()
+        
+        # Display vehicle stats
+        pos = vehicle.GetPos()
+        speed = vehicle.GetSpeed()
+        print(f"Time: {time:.2f}s | Position: ({pos.x:.1f}, {pos.y:.1f}, {pos.z:.1f}) | Speed: {speed * 3.6:.1f} km/h")
+    
+    frame_number += 1
+```
+
+### Key Components Explained:
+
+1. **Vehicle Initialization**:
+   - Uses the FEDA (Fast Emergency Deployment Amphibious) vehicle model
+   - Configures with SMC contact method and TMEASY tire model
+   - Sets all components to mesh visualization for realistic rendering
+
+2. **Terrain System**:
+   - Creates a 100m x 50m rigid terrain patch
+   - Applies grass texture with high friction coefficient (0.8)
+   - Uses SMC material properties for realistic interaction
+
+3. **Interactive Controls**:
+   - Steering: Keyboard arrows (left/right)
+   - Throttle: Up arrow
+   - Braking: Down arrow
+   - Sensitivity adjustable through delta parameters
+
+4. **Visualization Features**:
+   - Follow camera positioned 5m behind vehicle
+   - Skybox and directional lighting
+   - Coordinate frame visualization on vehicle chassis
+   - Real-time position/speed display in console
+
+5. **Simulation Parameters**:
+   - Physics step: 2ms for accurate dynamics
+   - Rendering: 50 FPS refresh rate
+   - Gravity: Standard Earth gravity (9.81 m/s²)
+
+### Usage Instructions:
+1. Run the simulation
+2. Use keyboard controls:
+   - Arrow keys: Steering and acceleration
+   - 'W': Toggle wireframe mode
+   - 'P': Pause simulation
+   - 'C': Toggle contacts visualization
+   - 'Space': Reset simulation
+   - 'Esc': Exit
+
+The simulation provides real-time vehicle dynamics with terrain interaction, displaying position and speed metrics in the console while maintaining a consistent 50 FPS visualization rate. The FEDA vehicle responds realistically to steering, acceleration, and braking inputs on the textured terrain surface.

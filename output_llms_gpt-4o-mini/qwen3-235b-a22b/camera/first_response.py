@@ -1,0 +1,111 @@
+import pychrono as chrono
+import pychrono.sensor as sens
+import math
+
+# ---------------------
+# Initialize the system
+# ---------------------
+system = chrono.ChSystemNSC()
+system.SetGravity(chrono.ChVectorD(0, 0, 0))
+
+# ---------------------
+# Load the mesh
+# ---------------------
+mesh = chrono.ChTriangleMeshConnected()
+mesh.LoadWavefrontMesh("mesh.obj", False, True)  # Load from file
+
+# Create a fixed body with the mesh
+mesh_body = chrono.ChBody()
+mesh_body.SetMesh(mesh)
+mesh_body.SetBodyFixed(True)
+system.Add(mesh_body)
+
+# ---------------------
+# Create the camera sensor
+# ---------------------
+# Parameters
+update_rate = 30  # Hz
+resolution = (640, 480)
+fov_deg = 60  # Horizontal field of view (degrees)
+
+# Initial offset pose (will be updated dynamically)
+initial_pose = chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT)
+
+camera = sens.ChCameraSensor(
+    mesh_body, update_rate, initial_pose,
+    resolution[0], resolution[1], fov_deg
+)
+camera.SetName("Camera Sensor")
+camera.SetLag(0)
+camera.SetCollectionWindow(0.0)
+
+# Add filters
+camera.PushFilter(sens.ChFilterRGBA8Access())  # To access RGBA8 image data
+camera.PushFilter(sens.ChFilterVisualize(resolution[0], resolution[1], "Camera Feed"))  # Visualize camera feed
+camera.PushFilter(sens.ChFilterImageNoiseGaussian(0.01))  # Gaussian noise (1% intensity)
+
+# Create and add the sensor manager
+manager = sens.ChSensorManager(system)
+manager.AddSensor(camera)
+
+# ---------------------
+# Visualization setup
+# ---------------------
+vis = chrono.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle("PyChrono Mesh with Orbiting Camera")
+vis.Initialize()
+vis.AddCamera(chrono.ChVectorD(0, 0, 5), chrono.ChVectorD(0, 0, 0))
+
+# ---------------------
+# Simulation loop
+# ---------------------
+orbit_radius = 2.0
+orbit_height = 1.0
+angular_velocity = 0.1  # rad/s
+t = 0
+time_step = 0.01
+
+while vis.Run():
+    # Update camera position (orbiting around the mesh)
+    angle = angular_velocity * t
+    x = orbit_radius * math.cos(angle)
+    y = orbit_radius * math.sin(angle)
+    z = orbit_height
+    cam_pos = chrono.ChVectorD(x, y, z)
+
+    # Compute rotation to look at the origin of the mesh body
+    target = chrono.ChVectorD(0, 0, 0)
+    dir_to_target = (target - cam_pos).GetNormalized()
+    quat = chrono.ChQuaternionD().FromTwoVectors(
+        chrono.ChVectorD(0, 0, -1),  # Camera forward direction (negative Z)
+        dir_to_target
+    )
+
+    # Update the camera's offset pose
+    camera.SetOffsetPose(chrono.ChFrameD(cam_pos, quat))
+
+    # Advance the simulation
+    system.DoStepDynamics(time_step)
+    manager.Update()
+
+    # Access and print buffer data
+    buffer = camera.GetMostRecentRGBA8Buffer()
+    if buffer.HasData():
+        print(f"Time: {t:.2f} s, Buffer timestamp: {buffer.TimeStamp():.4f} s")
+
+        # Print a sample pixel (center pixel)
+        width = buffer.Width()
+        height = buffer.Height()
+        if width > 0 and height > 0:
+            center_pixel_index = (height // 2) * width + (width // 2)
+            pixel = buffer.Data()[center_pixel_index]
+            print(f"Center pixel (RGBA): {pixel.R}, {pixel.G}, {pixel.B}, {pixel.A}")
+
+    # Render
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+
+    t += time_step

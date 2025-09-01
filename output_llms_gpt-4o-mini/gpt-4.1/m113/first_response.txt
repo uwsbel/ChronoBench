@@ -1,0 +1,116 @@
+Certainly! Below is a complete PyChrono simulation script that fulfills your requirements. This script:
+
+- Initializes the PyChrono environment.
+- Sets up an M113 tracked vehicle with initial conditions.
+- Creates a rigid terrain with specified friction and restitution.
+- Initializes a driver system for vehicle control.
+- Sets up Irrlicht visualization with camera and lighting.
+- Runs a real-time simulation loop, synchronizing all components at each timestep.
+
+**Note:**  
+- You must have the PyChrono and PyChrono::Vehicle modules installed.
+- Adjust file paths as needed for your system (e.g., data directories).
+
+```python
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as chronoirr
+import time
+
+# 1. Initialize PyChrono
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())
+veh.SetDataPath(veh.GetDataPath())
+
+# 2. Create the physical system
+system = chrono.ChSystemNSC()
+
+# 3. Set up the M113 vehicle
+vehicle = veh.M113_Vehicle(system, False, veh.ChassisCollisionType.NONE)
+initLoc = chrono.ChVectorD(0, 0, 0.5)  # Initial position (x, y, z)
+initYaw = 0.0                          # Initial yaw angle
+vehicle.Initialize(chrono.ChCoordsysD(initLoc, chrono.Q_from_Euler123(chrono.ChVectorD(0, 0, initYaw))))
+vehicle.SetChassisVisualizationType(veh.VisualizationType.PRIMITIVES)
+vehicle.SetTrackShoeVisualizationType(veh.VisualizationType.PRIMITIVES)
+vehicle.SetRoadWheelVisualizationType(veh.VisualizationType.PRIMITIVES)
+vehicle.SetIdlerVisualizationType(veh.VisualizationType.PRIMITIVES)
+vehicle.SetSprocketVisualizationType(veh.VisualizationType.PRIMITIVES)
+
+# 4. Create the rigid terrain
+terrain = veh.RigidTerrain(system)
+patch = terrain.AddPatch(
+    chrono.CSYSNORM,  # Coordinate system (origin, normal)
+    chrono.ChVectorD(0, 0, 0),  # Center
+    chrono.ChVectorD(100, 100, 1)  # Size (x, y, thickness)
+)
+patch.SetContactFrictionCoefficient(0.8)
+patch.SetContactRestitutionCoefficient(0.01)
+patch.SetMaterialSurface(chrono.ChMaterialSurfaceNSC())
+patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
+terrain.Initialize()
+
+# 5. Create the driver system (simple driver with constant inputs)
+throttle_input = 0.5  # 50% throttle
+steering_input = 0.0  # Straight
+braking_input = 0.0   # No brakes
+driver = veh.ChDriver(vehicle)
+driver.Initialize()
+
+# 6. Set up Irrlicht visualization
+vis = veh.ChWheeledVehicleIrrApp(vehicle, "M113 Simulation", chronoirr.dimension2du(1024, 768))
+vis.SetSkyBox()
+vis.AddTypicalLights(chrono.ChVectorD(30, 30, 100), chrono.ChVectorD(-30, -30, 100), 250, 130)
+vis.AddTypicalLogo()
+vis.SetChaseCamera(chrono.ChVectorD(0.0, 0.0, 1.75), 6.0, 0.5)
+vis.SetHUDLocation(500, 20)
+vis.Initialize()
+
+# 7. Simulation parameters
+step_size = 1e-3
+render_step_size = 1.0 / 50  # Render at 50 FPS
+realtime_timer = chrono.ChRealtimeStepTimer()
+
+# 8. Simulation loop
+time_end = 10.0  # seconds
+time = 0.0
+while vis.Run() and time < time_end:
+    # Input handling (here, constant inputs; could be replaced with interactive driver)
+    driver.SetThrottle(throttle_input)
+    driver.SetSteering(steering_input)
+    driver.SetBraking(braking_input)
+
+    # Synchronize all modules
+    driver.Synchronize(time)
+    terrain.Synchronize(time)
+    vehicle.Synchronize(time, driver.GetInputs(), terrain)
+    vis.Synchronize("M113 Simulation", driver.GetInputs())
+
+    # Advance simulation for one step
+    driver.Advance(step_size)
+    terrain.Advance(step_size)
+    vehicle.Advance(step_size)
+    vis.Advance(step_size)
+
+    # Render scene
+    if int(time / render_step_size) != int((time + step_size) / render_step_size):
+        vis.BeginScene()
+        vis.DrawAll()
+        vis.EndScene()
+
+    # Maintain real-time
+    realtime_timer.Spin(step_size)
+    time += step_size
+
+# Cleanup
+vis.GetDevice().closeDevice()
+```
+
+---
+
+**Key Points:**
+- The M113 vehicle is initialized at (0, 0, 0.5) with zero yaw.
+- The terrain patch is 100x100 meters, with friction 0.8 and restitution 0.01.
+- The driver applies constant throttle (50%), no steering or braking.
+- Irrlicht visualization includes a skybox, lights, and a chase camera.
+- The simulation loop synchronizes and advances all modules, maintaining real-time execution.
+
+**You can further customize driver inputs or visualization as needed.**

@@ -1,0 +1,212 @@
+```python
+import pychrono.core as chrono
+import pychrono.sensor as sens
+
+import numpy as np
+import time
+import math
+
+def main():
+    # -----------------
+    # Create the system
+    # -----------------
+    mphysicalSystem = chrono.ChSystemNSC()
+
+    # ----------------------------------
+    # Add a box to be sensed by a lidar
+    # ----------------------------------
+    side = 2.0  # Define the size of the box
+    box_body = chrono.ChBodyEasyBox(side, side, side, 1000)
+    box_body.SetPos(chrono.ChVector3d(0, 0, side/2))  # Position the box so it rests on the ground
+    # Optional: set texture or color
+    # box_body.GetVisualShape(0).SetTextureFilename("path/to/texture.png")
+    mphysicalSystem.Add(box_body)
+
+    # -----------------------
+    # Create a sensor manager
+    # -----------------------
+    manager = sens.ChSensorManager(mphysicalSystem)
+
+    # ------------------------------------------------
+    # Create a lidar and add it to the sensor manager
+    # ------------------------------------------------
+    offset_pose = chrono.ChFramed(
+        chrono.ChVector3d(-12, 0, 1), 
+        chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
+    )
+    # Define lidar parameters
+    update_rate = 5.0
+    horizontal_samples = 800
+    vertical_samples = 300
+    horizontal_fov = 2 * chrono.CH_C_PI  # 360 degrees
+    max_vert_angle = chrono.CH_C_PI / 12
+    min_vert_angle = -chrono.CH_C_PI / 6
+    max_range = 100.0
+    sample_radius = 2
+    divergence_angle = 0.003
+    return_mode = sens.LidarReturnMode_STRONGEST_RETURN
+
+    lidar = sens.ChLidarSensor(
+        box_body,              # Body lidar is attached to
+        update_rate,           # Scanning rate in Hz
+        offset_pose,           # Offset pose
+        horizontal_samples,    # Number of horizontal samples
+        vertical_samples,      # Number of vertical channels
+        horizontal_fov,        # Horizontal field of view
+        max_vert_angle,         # Max vertical angle
+        min_vert_angle,         # Min vertical angle
+        max_range,             # Max lidar range
+        sens.LidarBeamShape_RECTANGULAR,  # Shape of the lidar beam
+        sample_radius,         # Sample radius
+        divergence_angle,      # Divergence angle
+        divergence_angle,      # Divergence angle (again, typically same value)
+        return_mode            # Return mode for the lidar
+    )
+    lidar.SetName("Lidar Sensor")
+    lidar.SetLag(0)
+    lidar.SetCollectionWindow(1.0 / update_rate)
+
+    # Create a second 2D lidar sensor (lidar_2d)
+    # For simplicity, attach it at a different position with one vertical channel
+    offset_pose_2d = chrono.ChFramed(
+        chrono.ChVector3d(-10, 0, 1),
+        chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
+    )
+    vertical_channels_2d = 1
+    lidar_2d = sens.ChLidarSensor(
+        box_body,
+        update_rate,
+        offset_pose_2d,
+        360,  # Horizontal samples for 2D lidar
+        vertical_channels_2d,
+        2 * chrono.CH_C_PI,  # 360 degrees
+        0,  # Max vertical angle (single channel)
+        0,  # Min vertical angle
+        max_range,
+        sens.LidarBeamShape_RECTANGULAR,
+        sample_radius,
+        divergence_angle,
+        divergence_angle,
+        return_mode
+    )
+    lidar_2d.SetName("Lidar 2D Sensor")
+    lidar_2d.SetLag(0)
+    lidar_2d.SetCollectionWindow(1.0 / update_rate)
+
+    # Add both lidars to the sensor manager
+    manager.AddSensor(lidar)
+    manager.AddSensor(lidar_2d)
+
+    # ------------------------------------------------
+    # Create filters and visualization for the lidars
+    # ------------------------------------------------
+    # For the first lidar
+    if "CONST_NORMAL_XYZI" == "CONST_NORMAL_XYZI":  # Noise model placeholder
+        lidar.PushFilter(sens.ChFilterLidarNoiseXYZI(0.01, 0.001, 0.001, 0.01))
+    elif "CONST_NORMAL_XYZI" == "NONE":
+        pass
+
+    if True:  # vis is True
+        lidar.PushFilter(sens.ChFilterVisualize(horizontal_samples, vertical_samples, "Raw Lidar Depth Data"))
+
+    lidar.PushFilter(sens.ChFilterDIAccess())
+    lidar.PushFilter(sens.ChFilterPCfromDepth())
+
+    if True:
+        lidar.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "Lidar Point Cloud"))
+
+    lidar.PushFilter(sens.ChFilterXYZIAccess())
+
+    # For the second lidar (lidar_2d)
+    lidar_2d.PushFilter(sens.ChFilterDIAccess())
+    lidar_2d.PushFilter(sens.ChFilterPCfromDepth())
+    if True:
+        lidar_2d.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "Lidar 2D Point Cloud"))
+    lidar_2d.PushFilter(sens.ChFilterXYZIAccess())
+
+    # Add the lidars to the sensor manager
+    # (already done above)
+
+    # ---------------
+    # Simulate system
+    # ---------------
+    orbit_radius = 10
+    orbit_rate = 0.1
+    ch_time = 0.0
+
+    render_time = 0
+    t1 = time.time()
+
+    step_size = 1e-3
+    end_time = 40.0
+
+    while ch_time < end_time:
+        # Set lidar to orbit around the box
+        lidar.SetOffsetPose(
+            chrono.ChFramed(
+                chrono.ChVector3d(
+                    -orbit_radius * math.cos(ch_time * orbit_rate),
+                    -orbit_radius * math.sin(ch_time * orbit_rate),
+                    1
+                ),
+                chrono.QuatFromAngleAxis(ch_time * orbit_rate, chrono.ChVector3d(0, 0, 1))
+            )
+        )
+
+        # Update second lidar's pose similarly if needed
+        lidar_2d.SetOffsetPose(
+            chrono.ChFramed(
+                chrono.ChVector3d(
+                    -orbit_radius * math.cos(ch_time * orbit_rate + 1),  # offset in phase
+                    -orbit_radius * math.sin(ch_time * orbit_rate + 1),
+                    1
+                ),
+                chrono.QuatFromAngleAxis(ch_time * orbit_rate + 0.5, chrono.ChVector3d(0, 0, 1))
+            )
+        )
+
+        # Access the XYZI buffer from lidars
+        xyzi_buffer = lidar.GetMostRecentXYZIBuffer()
+        if xyzi_buffer.HasData():
+            xyzi_data = xyzi_buffer.GetXYZIData()
+            print('XYZI buffer received from lidar. Resolution: {0}x{1}'.format(xyzi_buffer.Width, xyzi_buffer.Height))
+            print('Max Value: {0}'.format(np.max(xyzi_data)))
+
+        xyzi_buffer_2d = lidar_2d.GetMostRecentXYZIBuffer()
+        if xyzi_buffer_2d.HasData():
+            xyzi_data_2d = xyzi_buffer_2d.GetXYZIData()
+            print('XYZI buffer received from lidar_2d. Resolution: {0}x{1}'.format(xyzi_buffer_2d.Width, xyzi_buffer_2d.Height))
+            print('Max Value: {0}'.format(np.max(xyzi_data_2d)))
+
+        # Update sensor manager
+        manager.Update()
+
+        # Step dynamics
+        mphysicalSystem.DoStepDynamics(step_size)
+
+        # Update time
+        ch_time = mphysicalSystem.GetChTime()
+
+    print("Simulation finished. Total time:", end_time, "Wall time:", time.time() - t1)
+
+# -----------------
+# Lidar parameters
+# -----------------
+
+# Noise model attached to the sensor
+# TODO: Noise models haven't been implemented in python
+# noise_model = "CONST_NORMAL_XYZI"  # Gaussian noise with constant mean and std
+noise_model = "NONE"  # No noise model
+
+# Lidar return mode
+return_mode = sens.LidarReturnMode_STRONGEST_RETURN
+# return_mode = sens.MEAN_RETURN
+# return_mode = sens.FIRST_RETURN
+# return_mode = sens.LAST_RETURN
+
+# Output directory
+out_dir = "SENSOR_OUTPUT/"
+
+if __name__ == "__main__":
+    main()
+```

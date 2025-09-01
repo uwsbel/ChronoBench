@@ -1,0 +1,88 @@
+```python
+import pychrono.core as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as irr
+
+# 1. Initialize the Chrono engine and create the physical system
+chrono.SetChronoDataPath('path/to/data')  # Set the correct data path if needed
+system = chrono.ChSystemNSC()
+
+# 2. Create the Irrlicht application for visualization
+application = irr.ChIrrApp(system, 'FEDA Vehicle Simulation', irr.dimension2du(1024, 768))
+application.AddTypicalSky()
+application.AddTypicalCamera(irr.vector3df(0, 3, -10))
+application.AddTypicalLights()
+
+# 3. Create the terrain
+terrain = veh.RigidTerrain(system)
+# Set terrain texture
+terrain_texture = 'textures/grass.jpg'  # Path to your terrain texture
+terrain.GetGround().AddAsset(chrono.ChTexture(terrain_texture))
+terrain.Initialize()
+
+# 4. Create the FEDA vehicle
+# Define initial position and orientation
+initial_pos = chrono.ChVectorD(0, 0.5, 0)
+initial_rot = chrono.Q_from_AngZ(0)
+
+# Create the vehicle with specified parameters
+vehicle = veh.FEDA_Vehicle(
+    system,
+    initial_pos,
+    initial_rot,
+    veh.ChassisCollisionType_PRIMITIVES,  # or other contact method as needed
+    veh.TireModelType_TMEASY  # Tire model
+)
+
+# Set visualization type for all parts to mesh
+vehicle.SetVisualizationType(veh.VisualizationType_MESH)
+
+# Initialize the vehicle
+vehicle.Initialize()
+
+# 5. Set up the driver (interactive control)
+driver = veh.ChIrrGuiDriver(application)
+driver.Initialize()
+
+# 6. Configure the camera to follow the vehicle
+application.GetSceneManager().AddCamera(irr.ChCameraFPS(application.GetDevice().GetVideoDriver()))
+# Set camera to follow the vehicle from a specific position
+application.GetCamera().SetPosition(irr.vector3df(0, 3, -10))
+application.GetCamera().SetTarget(irr.vector3df(initial_pos.x, initial_pos.y, initial_pos.z))
+application.GetSceneManager().AddCamera(application.GetCamera())
+
+# 7. Main simulation loop
+application.AssetBindAll()
+application.AssetUpdateAll()
+
+# Simulation parameters
+fps = 50
+dt = 1.0 / fps
+
+while application.GetDevice().run():
+    # Begin scene rendering
+    application.BeginScene()
+    application.DrawAll()
+
+    # Update driver inputs
+    driver.ReadControls()
+    # Apply driver inputs to vehicle
+    vehicle.GetSteering().SetInput(driver.GetSteering());
+    vehicle.GetThrottle().SetInput(driver.GetThrottle());
+    vehicle.GetBrake().SetInput(driver.GetBraking());
+
+    # Advance the simulation
+    system.DoStepDynamics(dt)
+
+    # Update camera to follow the vehicle
+    vehicle_pos = vehicle.GetChassis().GetPos()
+    camera_pos = irr.vector3df(vehicle_pos.x, vehicle_pos.y + 2, vehicle_pos.z - 5)
+    application.GetCamera().SetPosition(camera_pos)
+    application.GetCamera().SetTarget(irr.vector3df(vehicle_pos.x, vehicle_pos.y, vehicle_pos.z))
+
+    # End scene rendering
+    application.EndScene()
+
+# 8. Cleanup
+application.GetDevice().closeDevice()
+```

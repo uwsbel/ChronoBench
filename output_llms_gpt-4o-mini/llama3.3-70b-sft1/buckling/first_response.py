@@ -1,0 +1,133 @@
+import pychrono as chrono
+import pychrono.irrlicht as irr
+import pychrono.fea as fea
+import pychrono.sensor as sens
+import numpy as np
+import math as m
+
+
+# // =============================================================================
+
+def MyMotorFunction1(time):
+    return 0.1 * m.sin(2 * m.pi * 0.1 * time)
+
+def MyMotorFunction2(time):
+    return 0.1 * m.cos(2 * m.pi * 0.1 * time)
+
+# // =============================================================================
+
+# Create the system
+sys = chrono.ChSystemSMC()
+sys.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+
+# Create the ground
+ground = chrono.ChBodyEasyBox(1, 1, 1, 1000)
+ground.SetPos(chrono.ChVector3d(0, 0, 0))
+ground.SetFixed(True)
+sys.Add(ground)
+
+# Create the beam
+beam = chrono.ChBodyEasyBox(0.02, 0.02, 1, 1000)
+beam.SetPos(chrono.ChVector3d(0, 0.5, 0))
+beam.SetRot(chrono.QuatFromAngleAxis(m.pi / 2, chrono.ChVector3d(0, 1, 0)))
+sys.Add(beam)
+
+# Create the FEDA elements
+mel1 = fea.ChElementBeamEuler()
+mel1.SetNodes(beam.GetNode(0), ground.GetNode(0))
+mel1.SetSection(0.02, 0.02, 0.02 / 2)
+mel1.SetMaterial(0.01, 0.1, 1000)
+sys.Add(mel1)
+
+mel2 = fea.ChElementBeamEuler()
+mel2.SetNodes(beam.GetNode(1), ground.GetNode(1))
+mel2.SetSection(0.02, 0.02, 0.02 / 2)
+mel2.SetMaterial(0.01, 0.1, 1000)
+sys.Add(mel2)
+
+# Create the motor
+motor1 = chrono.ChLinkMotorRotationAngle()
+motor1.SetSpindleConstraint(chrono.ChLinkMotorRotation.SpindleConstraint_OLDHAM)
+motor1.SetAngleFunction(chrono.ChFunctionRamp(0, m.pi / 4))
+motor1.Initialize(beam, ground, chrono.ChFramed(
+    chrono.ChVector3d(-0.5, 0, 0), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))))
+sys.Add(motor1)
+
+motor2 = chrono.ChLinkMotorRotationAngle()
+motor2.SetSpindleConstraint(chrono.ChLinkMotorRotation.SpindleConstraint_OLDHAM)
+motor2.SetAngleFunction(chrono.ChFunctionRamp(0, -m.pi / 4))
+motor2.Initialize(beam, ground, chrono.ChFramed(
+    chrono.ChVector3d(0.5, 0, 0), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))))
+sys.Add(motor2)
+
+# Create the camera
+vis = irr.ChVisualSystemIrrlicht()
+vis.AttachSystem(sys)
+vis.SetCameraVertical(chrono.CameraVerticalDir_Z)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle('Test')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVector3d(0.2, 0.2, 0.2))
+vis.AddTypicalLights()
+
+# Create the sensor manager
+sens_manager = sens.ChSensorManager(sys)
+intensity = 1.0
+sens_manager.scene.AddPointLight(chrono.ChVector3f(100,100,100),chrono.ChColor(intensity,intensity,intensity),1000.0)
+sens_manager.scene.AddPointLight(chrono.ChVector3f(-100,-100,100),chrono.ChColor(intensity,intensity,intensity),1000.0)
+sens_manager.scene.AddPointLight(chrono.ChVector3f(-100,100,100),chrono.ChColor(intensity,intensity,intensity),1000.0))
+sens_manager.scene.AddPointLight(chrono.ChVector3f(100,-100,100),chrono.ChColor(intensity,intensity,intensity),1000.0))
+sens_manager.scene.AddAreaLight(chrono.ChVector3f(0,0,1), chrono.ChColor(intensity,intensity,intensity), 1000, 1000)
+
+offset_pose = chrono.ChFramed(chrono.ChVector3d(-8, 0, 1), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0)))
+cam = sens.ChCameraSensor(
+    sens_manager.GetSystem(),
+    30,              # fov
+    1.0 / 500,       # exposure time
+    offset_pose,     # offset pose
+    1280,            # image width
+    720,             # image height
+    False            # is grayscale
+)
+cam.SetName("Camera Sensor")
+# cam.SetLag(0)
+# cam.SetCollectionWindow(1.0 / 500)
+sens_manager.AddSensor(cam)
+
+noise_model_none = sens.ChNoiseNone()
+if False:
+    noise_model_gaussian = sens.ChNoiseGaussian(0, 0.001)
+    cam.PushFilter(sens.ChFilterCameraNoise(noise_model_gaussian))
+elif False:
+    noise_model_gaussian = sens.ChNoiseGaussian(0, 0.01)
+    cam.PushFilter(sens.ChFilterCameraNoise(noise_model_gaussian))
+elif False:
+    noise_model_salt_and_pepper = sens.ChNoiseSaltAndPepper(0.01, 0.02)
+    cam.PushFilter(sens.ChFilterCameraNoise(noise_model_salt_and_pepper))
+elif False:
+    noise_model_speckle = sens.ChNoiseSpeckle(0.02, 0.03)
+    cam.PushFilter(sens.ChFilterCameraNoise(noise_model_speckle))
+if True:
+    cam.PushFilter(sens.ChFilterVisualize(1280, 720, 1))
+
+# Create the contact mesh
+contact_mesh = chrono.ChTriangleMeshConnected()
+contact_mesh.LoadWavefrontMesh(chrono.GetChronoDataFile(
+    'models/box2.obj'), False, True)
+contact_mesh.Transform(chrono.ChVector3d(0, 0, 0), chrono.ChMatrix33d(2))
+
+trimesh_shape = chrono.ChVisualShapeTriangleMesh()
+trimesh_shape.SetMesh(contact_mesh)
+trimesh_shape.SetName('Contact Mesh')
+trimesh_shape.SetMutable(False)
+
+vis.GetSceneManager().addMesh(trimesh_shape, chrono.ChColor(0.3, 0.3, 0.3))
+
+# Simulation loop
+while vis.Run() :
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    sys.DoStepDynamics(0.002)

@@ -1,0 +1,136 @@
+```python
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.vehicle.suspension as suspension
+import pychrono.vehicle.tire as tire
+import pychrono.vehicle.driver as driver
+import pychrono.vehicle.terrain as terrain
+import pychrono.irrlicht as chronoirr
+import math
+
+# 1. Initialize the PyChrono environment and core components
+
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())  # Ensure data path is set
+
+# Create the physical system (ChSystem)
+system = chrono.ChSystemSMC()
+
+# 2. Add the required physical systems and objects as specified
+
+# Vehicle initial position and orientation
+init_loc = chrono.ChVectorD(0, 0, 1.0)  # 1 meter above ground
+init_rot = chrono.ChQuaternionD(1, 0, 0, 0)  # no rotation
+
+# Create the HMMWV vehicle
+vehicle = veh.HMMWV_Full(system, chrono.ChCoordsysD(init_loc, init_rot), True, veh.VehicleVisualSystemType::MESH)
+
+# Set contact method to SMC (already done by system)
+vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
+vehicle.SetSuspensionVisualizationType(veh.VisualizationType_MESH)
+vehicle.SetSteeringVisualizationType(veh.VisualizationType_MESH)
+vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
+
+# Use rigid tire model
+for i in range(vehicle.GetNumberAxles()):
+    for j in range(2):  # left and right wheels
+        tire_obj = veh.RigidTire(vehicle.GetWheelBody(i, j))
+        vehicle.SetTire(i, j, tire_obj)
+
+# Initialize vehicle system
+vehicle.Initialize()
+
+# SCM deformable terrain setup
+terrain = terrain.SCMDeformableTerrain(system)
+terrain.SetPlane(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT))
+
+# Custom soil parameters (example values, can be tuned)
+terrain.SetSoilParameters(
+    1.2e6,  # Bekker Kphi (pressure-sinkage parameter) [Pa/m^(n)]
+    0,      # Bekker Kc (cohesion) [Pa/m^(n)]
+    1.1,    # Bekker n exponent
+    0,      # Mohr cohesive limit (Pa)
+    30,     # Mohr friction limit (degrees)
+    0.01,   # Janosi shear coefficient (m)
+    0.02,   # Elastic stiffness (N/m)
+    3e4     # Damping (N s/m)
+)
+
+# Enable moving patch that follows the vehicle chassis
+terrain.EnableMovingPatch(True)
+terrain.SetMovingPatchRadius(4.0)  # radius of moving patch in meters
+terrain.SetMovingPatchSpeed(10.0)  # max speed of moving patch (m/s)
+
+# Visualize sinkage with false color plot
+terrain.SetPlotType(terrain.SCMDeformableTerrain.PLOT_SINKAGE)
+terrain.SetPlotFrequency(50)  # update plot every 50 steps
+
+# Initialize terrain
+terrain.Initialize()
+
+# 3. Set necessary default parameters such as positions, forces, and interactions.
+
+# Create Irrlicht application for visualization
+app = chronoirr.ChIrrApp(system, "HMMWV on SCM Terrain", chronoirr.dimension2du(1280, 720))
+
+app.AddTypicalSky()
+app.AddTypicalLights()
+app.AddTypicalCamera(chronoirr.vector3df(0, -15, 5))
+app.SetTimestep(1.0 / 50)  # 50 FPS
+
+# Bind vehicle and terrain assets to Irrlicht
+app.AssetBindAll()
+app.AssetUpdateAll()
+
+# Interactive driver system
+driver = veh.ChIrrGuiDriver(app)
+driver.SetSteeringDelta(0.1)
+driver.SetThrottleDelta(0.1)
+driver.SetBrakingDelta(0.1)
+
+# Set initial driver inputs to zero
+driver.Initialize()
+
+# Simulation parameters
+timestep = 1.0 / 1000  # 1 ms timestep for solver stability
+render_step_size = 1.0 / 50  # render at 50 FPS
+
+# Initialize simulation time and render timer
+time = 0.0
+render_time = 0.0
+
+# Initialize vehicle and terrain
+vehicle.Initialize()
+terrain.Initialize()
+
+# Main simulation loop
+app.SetTimestep(timestep)
+app.AssetBindAll()
+app.AssetUpdateAll()
+
+while app.GetDevice().run():
+    time = system.GetChTime()
+
+    # Driver inputs
+    steering = driver.GetSteering()
+    throttle = driver.GetThrottle()
+    braking = driver.GetBraking()
+
+    # Apply driver inputs to vehicle
+    vehicle.GetSteering().SetInput(steering)
+    vehicle.GetPowertrain().SetThrottle(throttle)
+    vehicle.GetBraking().SetBrake(braking)
+
+    # Update modules
+    driver.Synchronize(time)
+    vehicle.Synchronize(time, driver.GetInputs(), terrain)
+    terrain.Synchronize(time)
+    app.BeginScene()
+    app.DrawAll()
+    app.EndScene()
+
+    # Advance simulation by timestep
+    driver.Advance(timestep)
+    vehicle.Advance(timestep)
+    terrain.Advance(timestep)
+    system.DoStepDynamics(timestep)
+```

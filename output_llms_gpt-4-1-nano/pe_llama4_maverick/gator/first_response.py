@@ -1,0 +1,126 @@
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as chronoirr
+
+# =============================================================================
+# Setup vehicle parameters
+# =============================================================================
+
+# Initial vehicle location and orientation
+initLoc = chrono.ChVector3d(0, 0, 1.0)
+initRot = chrono.ChQuaterniond(1, 0, 0, 0)
+
+# Simulation step size
+step_size = 2e-3
+
+# Contact method (SMC or NSC)
+contact_method = chrono.ChContactMethod_SMC
+
+# Visualization type (MESH or NONE)
+chassis_vis_type = veh.VisualizationType_MESH
+suspension_vis_type = veh.VisualizationType_MESH
+steering_vis_type = veh.VisualizationType_MESH
+wheel_vis_type = veh.VisualizationType_MESH
+tire_vis_type = veh.VisualizationType_MESH
+
+# =============================================================================
+# Create the vehicle system
+# =============================================================================
+
+# Create the Gator vehicle
+gator = veh.Gator()
+gator.SetContactMethod(contact_method)
+gator.SetChassisCollisionType(veh.CollisionType_NONE)
+gator.SetChassisVisualizationType(chassis_vis_type)
+gator.SetSuspensionVisualizationType(suspension_vis_type)
+gator.SetSteeringVisualizationType(steering_vis_type)
+gator.SetWheelVisualizationType(wheel_vis_type)
+gator.SetTireVisualizationType(tire_vis_type)
+
+# Initialize the vehicle at the specified position and orientation
+gator.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
+
+# Use a simple powertrain model (simple CVT)
+powertrain_model = veh.SimpleCVTPowertrain("Powertrain")
+gator.SetPowertrain(powertrain_model)
+
+# Use the TMeasy tire model
+tire_model = veh.TMeasyTire("TMeasyTire")
+gator.SetTireModel(tire_model)
+
+# Initialize the vehicle
+gator.Initialize()
+
+# =============================================================================
+# Create the terrain
+# =============================================================================
+
+# Create the terrain
+terrain = veh.RigidTerrain(gator.GetSystem())
+
+# Define the terrain patch dimensions and properties
+patch_mat = chrono.ChContactMaterialSMC()
+patch = terrain.AddPatch(patch_mat, 
+                         chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
+                         200, 200)
+
+# Set the terrain visualization
+patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 400, 400)
+patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+
+# Initialize the terrain
+terrain.Initialize()
+
+# =============================================================================
+# Create the Irrlicht visualization
+# =============================================================================
+
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(gator.GetSystem())
+vis.SetWindowSize(1280, 720)
+vis.SetWindowTitle('Gator Vehicle Simulation')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVector3d(10, 10, -5))
+vis.AddTypicalLights()
+
+# =============================================================================
+# Simulation loop
+# =============================================================================
+
+# Create the interactive driver
+driver = veh.ChIrrGuiDriver(vis)
+
+# Set the driver inputs (steering, throttle, braking)
+driver.SetSteeringDelta(0.02)
+driver.SetThrottleDelta(1.0 / 60)
+driver.SetBrakingDelta(1.0 / 60)
+
+# Initialize the simulation time
+realtime_timer = chrono.ChRealtimeStepTimer()
+
+# Simulation loop
+while vis.Run():
+    time = gator.GetSystem().GetChTime()
+
+    # Driver inputs
+    driver_inputs = driver.GetInputs()
+    gator.SetDriverInputs(driver_inputs)
+
+    # Update the vehicle dynamics
+    gator.Update()
+
+    # Update the terrain
+    terrain.Update(time)
+
+    # Render scene
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+
+    # Spin in place for real time
+    realtime_timer.Spin(step_size)
+
+# Cleanup
+vis.GetDevice().drop()

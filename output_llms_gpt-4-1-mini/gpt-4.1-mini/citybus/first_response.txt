@@ -1,0 +1,105 @@
+```python
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as irr
+import os
+
+# -----------------------------------------------------------------------------
+# Initialize the PyChrono environment and core components
+# -----------------------------------------------------------------------------
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())  # Ensure data path is set
+
+# Create the physical system
+system = chrono.ChSystemNSC()
+
+# -----------------------------------------------------------------------------
+# Create the CityBus vehicle
+# -----------------------------------------------------------------------------
+# Vehicle parameters
+init_loc = chrono.ChVectorD(0, 0, 0.5)  # Initial position (x,y,z)
+init_rot = chrono.ChQuaternionD(1, 0, 0, 0)  # No initial rotation (w,x,y,z)
+tire_model = veh.TireModelType.TMEASY  # Tire model type
+
+# Create the vehicle
+vehicle = veh.CityBus()
+vehicle.SetContactMethod(chrono.ChContactMethod_NSC)
+vehicle.SetChassisFixed(False)
+vehicle.SetInitPosition(chrono.ChCoordsysD(init_loc, init_rot))
+vehicle.SetTireType(tire_model)
+vehicle.SetTireStepSize(1e-3)
+vehicle.Initialize()
+
+# Set visualization types:
+# Use mesh visualization for chassis and primitive for suspension and wheels
+vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
+vehicle.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
+vehicle.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
+vehicle.SetWheelVisualizationType(veh.VisualizationType_PRIMITIVES)
+vehicle.SetTireVisualizationType(veh.VisualizationType_MESH)
+
+# -----------------------------------------------------------------------------
+# Create the rigid terrain with custom texture
+# -----------------------------------------------------------------------------
+terrain = veh.RigidTerrain(vehicle.GetSystem())
+patch = terrain.AddPatch(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT),
+                         100, 100)  # 100m x 100m patch
+patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)  # Custom texture with scaling
+patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+patch.SetFriction(0.9f)
+patch.SetRestitution(0.01f)
+terrain.Initialize()
+
+# -----------------------------------------------------------------------------
+# Create the interactive driver system
+# -----------------------------------------------------------------------------
+driver = veh.ChIrrGuiDriver(vehicle)
+driver.SetSteeringDelta(0.04)  # Steering increment per frame
+driver.SetThrottleDelta(0.1)   # Throttle increment per frame
+driver.SetBrakingDelta(0.1)    # Braking increment per frame
+
+# -----------------------------------------------------------------------------
+# Create the Irrlicht application for visualization
+# -----------------------------------------------------------------------------
+app = veh.ChIrrApp(vehicle.GetSystem(), "CityBus Simulation", irr.dimension2du(1280, 720))
+app.AddTypicalLights()
+app.AddTypicalSky()
+app.AddTypicalCamera(irr.vector3df(0, -8, 3))  # Initial camera position behind vehicle
+app.SetTimestep(1.0 / 50)  # 50 FPS timestep
+
+# Attach vehicle and terrain assets to Irrlicht
+app.AssetBindAll()
+app.AssetUpdateAll()
+
+# -----------------------------------------------------------------------------
+# Simulation loop parameters
+# -----------------------------------------------------------------------------
+timestep = 1.0 / 50  # 50 Hz update rate
+
+# -----------------------------------------------------------------------------
+# Main simulation loop
+# -----------------------------------------------------------------------------
+while app.GetDevice().run():
+    app.BeginScene()
+    app.DrawAll()
+
+    # Get driver inputs
+    driver_inputs = driver.GetInputs()
+    vehicle.SteeringInput = driver_inputs.m_steering
+    vehicle.ThrottleInput = driver_inputs.m_throttle
+    vehicle.BrakingInput = driver_inputs.m_braking
+
+    # Synchronize modules
+    time = vehicle.GetSystem().GetChTime()
+    driver.Synchronize(time)
+    terrain.Synchronize(time)
+    vehicle.Synchronize(time, driver_inputs, terrain)
+    app.Synchronize("", driver_inputs)
+
+    # Advance simulation by one timestep
+    driver.Advance(timestep)
+    vehicle.Advance(timestep)
+    terrain.Advance(timestep)
+    app.Advance(timestep)
+
+    app.EndScene()
+```

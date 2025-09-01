@@ -1,0 +1,134 @@
+# PyChrono UAZ Bus Vehicle Simulation
+
+```python
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as irr
+import math
+
+# ---------------------------------------------------------------------
+# Function to create the UAZ bus vehicle
+# ---------------------------------------------------------------------
+def CreateUAZBus(system, init_loc, init_rot):
+    # Create vehicle from JSON specification file
+    uaz_bus_file = "vehicle/UAZBUS_Vehicle.json"
+    uaz_tire_file = "vehicle/UAZBUS_TMeasyTire.json"
+    
+    uaz = veh.WheeledVehicle(system, uaz_bus_file)
+    uaz.SetChassisVisualizationType(veh.VisualizationType_MESH)
+    uaz.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
+    uaz.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
+    uaz.SetWheelVisualizationType(veh.VisualizationType_MESH)
+    
+    # Set initial position and orientation
+    uaz.SetInitPosition(init_loc)
+    uaz.SetInitRotation(init_rot)
+    
+    # Create and initialize the tires
+    for axle in range(uaz.GetNumberAxles()):
+        # Create tire on the left
+        left_tire = veh.TMeasyTire(uaz_tire_file)
+        uaz.InitializeTire(left_tire, uaz.GetAxle(axle).m_wheels[0], veh.VisualizationType_MESH)
+        
+        # Create tire on the right
+        right_tire = veh.TMeasyTire(uaz_tire_file)
+        uaz.InitializeTire(right_tire, uaz.GetAxle(axle).m_wheels[1], veh.VisualizationType_MESH)
+    
+    # Initialize the vehicle
+    uaz.Initialize()
+    
+    return uaz
+
+# ---------------------------------------------------------------------
+# Initialize the simulation
+# ---------------------------------------------------------------------
+
+# Set simulation parameters
+step_size = 1e-3      # simulation step size
+real_time_factor = 1  # real-time factor
+
+# Create the Chrono system
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
+system.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
+system.SetSolverMaxIterations(150)
+system.SetMaxPenetrationRecoverySpeed(4.0)
+
+# Create the ground/terrain
+terrain = veh.RigidTerrain(system, "vehicle/RigidPlane.json")
+terrain.Initialize()
+
+# Set terrain material properties
+terrain_mat = terrain.GetGroundBody().GetMaterialSurfaceNSC()
+terrain_mat.SetFriction(0.9)
+terrain_mat.SetRestitution(0.01)
+
+# Define vehicle initial conditions
+init_loc = chrono.ChVectorD(0, 0, 0.5)  # initial position
+init_rot = chrono.ChQuaternionD(1, 0, 0, 0)  # initial orientation (no rotation)
+
+# Create the UAZ bus vehicle
+uaz = CreateUAZBus(system, init_loc, init_rot)
+
+# Create the driver system
+driver_data = veh.DataDriver("vehicle/driver/Sedan_PathFollower.json")
+driver = veh.ChDataDriver(uaz.GetVehicle(), driver_data)
+driver.Initialize()
+
+# ---------------------------------------------------------------------
+# Create the visualization system
+# ---------------------------------------------------------------------
+
+# Create the Irrlicht visualization system
+vis = irr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetWindowSize(1280, 720)
+vis.SetWindowTitle("UAZ Bus Vehicle Simulation")
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVectorD(0, 8, 3), chrono.ChVectorD(0, 0, 0))
+vis.AddTypicalLights()
+
+# Simulation loop
+time = 0.0
+while vis.Run() and time < 20:
+    # Get driver inputs
+    driver_inputs = driver.GetInputs()
+    
+    # Update modules (process inputs from other modules)
+    driver.Synchronize(time)
+    terrain.Synchronize(time)
+    uaz.Synchronize(time, driver_inputs, terrain)
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    
+    # Advance simulation for one timestep
+    uaz.Advance(step_size)
+    terrain.Advance(step_size)
+    system.DoStepDynamics(step_size)
+    
+    # Update time
+    time += step_size
+    
+    # Try to keep real-time behavior
+    realtime_delay = step_size / real_time_factor - (system.GetChTime() - time)
+    if realtime_delay > 0:
+        chrono.ChRealtimeStepTimer.Delay(realtime_delay)
+```
+
+This script creates a complete PyChrono simulation with a UAZ bus vehicle on a rigid terrain. The key components include:
+
+1. A function to create and initialize the UAZ bus vehicle with proper visualization settings
+2. Creation of a rigid terrain with appropriate friction and restitution properties
+3. A driver system to control the vehicle
+4. Irrlicht visualization with camera and lighting setup
+5. A simulation loop that:
+   - Gets driver inputs
+   - Synchronizes all components (driver, terrain, vehicle)
+   - Renders the visualization
+   - Advances the simulation by one timestep
+   - Maintains real-time execution using delay when possible
+
+The script assumes that the necessary JSON configuration files for the UAZ bus vehicle, tires, terrain, and driver are available in the "vehicle" directory. These files define the detailed properties of each component.

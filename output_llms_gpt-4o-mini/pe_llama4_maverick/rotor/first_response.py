@@ -1,0 +1,85 @@
+import pychrono as chrono
+import pychrono.fea as fea
+import pychrono.irrlicht as chronoirr
+
+# Output directory
+out_dir = chrono.GetChronoOutputPath() + "JEFFCOTT_ROTOR_IGA"
+
+print( "Copyright (c) 2023 Project Chrono")
+
+# Create the system
+sys = chrono.ChSystemNSC()
+
+# Create a mesh
+mesh = fea.ChMesh()
+
+# Create a material for the beam
+material = fea.ChMaterialBeamIGA()
+material.SetYoungModulus(210e9)
+material.SetPoissonRatio(0.3)
+material.SetDensity(7800)
+
+# Create the beam
+builder = fea.ChBuilderBeamIGA()
+builder.BuildBeam(mesh, material, 10, chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(1, 0, 0), 12, 0.010)
+
+# Get the nodes at the ends of the beam
+node_mid = builder.GetLastBeamNodes()[int(len(builder.GetLastBeamNodes()) / 2)]
+node_tip = builder.GetLastBeamNodes()[-1]
+
+# Create a flywheel
+body_flywheel = chrono.ChBodyEasyCylinder(chrono.ChVector3d(0, 0, 0), 0.2, 0.050, 1000, True, True)
+body_flywheel.SetPos(node_mid.GetPos())
+body_flywheel.SetMass(10)
+body_flywheel.SetInertiaXX(chrono.ChVector3d(0.1, 0.1, 0.1))
+sys.Add(body_flywheel)
+
+# Constrain the flywheel to the beam
+constraint = chrono.ChLinkMateFix()
+constraint.Initialize(node_mid, body_flywheel)
+sys.Add(constraint)
+
+# Create a rotational motor
+motor = chrono.ChLinkMotorRotationSpeed()
+motor.Initialize(builder.GetLastBeamNodes()[0], chrono.ChFrame(chrono.ChVector3d(-0.2, 0, 0), chrono.Q_from_AngAxis(chrono.CH_PI / 2, chrono.VECT_Z)))
+sys.Add(motor)
+
+# Set the motor speed
+motor_fun = chrono.ChFunction_Const(chrono.CH_PI)
+motor.SetSpeedFunction(motor_fun)
+
+# Add the mesh to the system
+sys.Add(mesh)
+
+# Set up the visualization
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(sys)
+vis.SetWindowSize(800, 600)
+vis.SetWindowTitle('Jeffcott Rotor IGA Beam Simulation')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVector3d(0.2, 0.2, 0.4))
+vis.AddTypicalLights()
+
+# FEM visualization
+fem_vis = fea.ChVisualShapeFEA(mesh)
+fem_vis.SetFEMdataType(fea.ChVisualShapeFEA.DataType_ELEM_BEAM_MZ)
+fem_vis.SetColorscaleMinMax(-0.4, 0.4)
+fem_vis.SetSmoothFaces(True)
+mesh.AddVisualShapeFEA(fem_vis)
+
+fem_vis = fea.ChVisualShapeFEA(mesh)
+fem_vis.SetFEMglyphType(fea.ChVisualShapeFEA.GlyphType_NODE_CSYS)
+fem_vis.SetFEMdataType(fea.ChVisualShapeFEA.DataType_NONE)
+fem_vis.SetSymbolsThickness(0.006)
+fem_vis.SetSymbolsScale(0.01)
+fem_vis.SetZbufferHide(False)
+mesh.AddVisualShapeFEA(fem_vis)
+
+# Simulation loop
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    sys.DoStepDynamics(0.001)

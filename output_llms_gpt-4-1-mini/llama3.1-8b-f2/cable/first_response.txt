@@ -1,0 +1,136 @@
+import pychrono as chrono
+import pychrono.irrlicht as irr
+import pychrono.cascade as cascade
+from OCC.Core import TopoDS
+
+# The path to the Chrono data directory containing various assets (meshes, textures, data files)
+# is automatically set, relative to the default location of this demo.
+# If running from a different directory, you must change the path to the data directory with: 
+#chrono.SetChronoDataPath('path/to/data')
+
+# If true, use provided callback to change material properties based on location
+var_materials : bool = False
+
+# =============================================================================
+
+def main() :
+    #print("Copyright (c) 2017 projectchrono.org\nChrono version: ", CHRONO_VERSION , "\n\n")
+
+    #  Create the various system components
+    # ----------------------------
+
+    # Create the beam, set parameters, and initialize
+    beam = cascade.ANCFBeamCable(assembly, TopoDS.TopoDS_CompSolid(rod1), L, E, A, 3, True, False)
+    beam.SetDamping(0)
+    beam.Initialize()
+
+    # Create the ground body
+    ground = chrono.ChBodyEasyBox(10, 10, 1, 1000, True, True)
+    ground.SetPos(chrono.ChVector3d(0,0,0))
+    ground.SetFixed(True)
+    ground.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile('textures/blue.png'))
+    ground.Initialize()
+
+    # Create the mass block
+    block = chrono.ChBodyEasyBox(1,1,1, 1000, True, True)
+    block.SetPos(chrono.ChVector3d(0,-10,0))
+    block.SetRot(chrono.ChQuaterniond(1,0,0,0))
+    block.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile('textures/red.png'))
+    block.Initialize()
+
+    # Create the link between block and assembly
+    link = chrono.ChLinkLockpin()
+    link.Initialize(block, assembly, chrono.ChFramed(chrono.ChVector3d(0,0.5,0), chrono.ChQuaterniond(1,0,0,0)))
+    assembly.AddLink(link)
+
+    # Create the visualization system
+    vis = cascade.ChCascadeVisualSystemIrrlicht()
+    vis.SetWindowTitle('ANCFSHEAR')
+    vis.SetWindowSize(1280, 1024)
+    vis.SetChaseCamera(chrono.ChVector3d(0.0, 0.0, 0.75), 6.0, 0.5)
+    vis.Initialize()
+    vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+    vis.AddLightDirectional()
+    vis.AddSkyBox()
+    vis.AttachSystem(assembly.GetSystem())
+
+    # Create the interactive driver system
+    driver = cascade.ChCascadeInteractiveDriverIRR(vis)
+
+    # Set up the interactive driver for response to user input
+    driver.SetCameraOrbitSpeed(0.2)
+    driver.SetCameraZoomSpeed(0.2)
+    driver.SetChaseCameraSpeed(4.0)
+    driver.Initialize()
+
+    # Simulation loop
+    # ---------------
+    while vis.Run() :
+
+        time = assembly.GetSystem().GetChTime()
+
+        # Render scene
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+
+        # Get driver inputs
+        driver_inputs = driver.GetInputs()
+
+        # Update modules (process inputs from other modules)
+        driver.Synchronize(time)
+        ground.Synchronize(time)
+        block.Synchronize(time)
+        beam.Synchronize(time, driver_inputs)
+        vis.Synchronize(time, driver_inputs)
+
+        # Advance simulation for one timestep for all modules
+        driver.Advance(step_size)
+        ground.Advance(step_size)
+        block.Advance(step_size)
+        beam.Advance(step_size)
+        vis.Advance(step_size)
+
+    return 0
+  
+
+# The path to the Chrono data directory containing various assets (meshes, textures, data files)
+# is automatically set, relative to the default location of this demo.
+# If running from a different directory, you must change the path to the data directory with: 
+#chrono.SetChronoDataPath('path/to/data')
+
+# Initial position of the beam
+p0 = chrono.ChVector3d(0, 0, 0.75)
+
+# Beam length
+L = 1.0
+
+# Cross-sectional area and moment of inertia
+A = 0.02
+J = 1.0e-6
+
+# Elastic modulus
+E = 2e7
+
+# Time interval between two render frames
+render_step_size = 1.0 / 50  # FPS = 50
+
+# Simulation step size
+step_size = 1e-3
+
+# Collision system precision
+collision_system_precision = 1e-3
+
+# Create the assembly
+assembly = cascade.ChCascadeAssembly()
+
+# Add items to the assembly
+assembly.AddBody(ground)
+assembly.AddBody(block)
+assembly.AddBody(beam)
+
+# Initialize the system
+assembly.Initialize()
+
+# Perform the simulation
+main()

@@ -1,0 +1,340 @@
+I'll create a comprehensive PyChrono simulation script for an HMMWV on complex rigid terrain with Irrlicht visualization. Here's the complete implementation:
+
+```python
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as irr
+import numpy as np
+import math
+
+def main():
+    # Initialize PyChrono environment
+    chrono.SetChronoDataPath("./data/")
+    veh.SetDataPath("./data/vehicle/")
+    
+    # Create the Chrono system
+    system = chrono.ChSystemNSC()
+    system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
+    
+    # Set solver parameters for better performance
+    system.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
+    system.SetSolverMaxIterations(150)
+    system.SetMaxPenetrationRecoverySpeed(4.0)
+    
+    # Vehicle parameters
+    vehicle_pos = chrono.ChVectorD(0, 0, 1.0)
+    vehicle_rot = chrono.ChQuaternionD(1, 0, 0, 0)
+    
+    # Create HMMWV vehicle
+    hmmwv = veh.HMMWV_Full()
+    hmmwv.SetContactMethod(chrono.ChContactMethod_NSC)
+    hmmwv.SetChassisCollisionType(veh.CollisionType_NONE)
+    hmmwv.SetChassisFixed(False)
+    hmmwv.SetInitPosition(chrono.ChCoordsysD(vehicle_pos, vehicle_rot))
+    
+    # Set engine and drivetrain types
+    hmmwv.SetEngineType(veh.EngineModelType_SIMPLE)
+    hmmwv.SetTransmissionType(veh.TransmissionModelType_AUTOMATIC_SIMPLE)
+    hmmwv.SetDriveType(veh.DrivelineTypeWV_AWD)
+    
+    # Set tire type
+    hmmwv.SetTireType(veh.TireModelType_TMEASY)
+    hmmwv.SetTireStepSize(1e-3)
+    
+    # Initialize vehicle
+    hmmwv.Initialize()
+    
+    # Enable mesh visualization for all components
+    hmmwv.SetChassisVisualizationType(veh.VisualizationType_MESH)
+    hmmwv.SetSuspensionVisualizationType(veh.VisualizationType_MESH)
+    hmmwv.SetSteeringVisualizationType(veh.VisualizationType_MESH)
+    hmmwv.SetWheelVisualizationType(veh.VisualizationType_MESH)
+    hmmwv.SetTireVisualizationType(veh.VisualizationType_MESH)
+    
+    # Create complex terrain with multiple patches
+    terrain = veh.RigidTerrain(system)
+    
+    # Patch 1: Flat concrete patch
+    patch1_mat = chrono.ChMaterialSurfaceNSC()
+    patch1_mat.SetFriction(0.9)
+    patch1_mat.SetRestitution(0.1)
+    patch1_mat.SetYoungModulus(2e7)
+    patch1_mat.SetPoissonRatio(0.3)
+    
+    patch1 = terrain.AddPatch(patch1_mat, 
+                             chrono.ChCoordsysD(chrono.ChVectorD(-20, 0, 0), chrono.QUNIT),
+                             40.0, 20.0)
+    patch1.SetColor(chrono.ChColor(0.5, 0.5, 0.5))
+    patch1.SetTexture("concrete.jpg")
+    
+    # Patch 2: Flat grass patch with different friction
+    patch2_mat = chrono.ChMaterialSurfaceNSC()
+    patch2_mat.SetFriction(0.7)
+    patch2_mat.SetRestitution(0.2)
+    patch2_mat.SetYoungModulus(1e6)
+    patch2_mat.SetPoissonRatio(0.4)
+    
+    patch2 = terrain.AddPatch(patch2_mat,
+                             chrono.ChCoordsysD(chrono.ChVectorD(20, 0, 0), chrono.QUNIT),
+                             40.0, 20.0)
+    patch2.SetColor(chrono.ChColor(0.3, 0.6, 0.3))
+    patch2.SetTexture("grass.jpg")
+    
+    # Patch 3: Flat dirt patch
+    patch3_mat = chrono.ChMaterialSurfaceNSC()
+    patch3_mat.SetFriction(0.6)
+    patch3_mat.SetRestitution(0.15)
+    patch3_mat.SetYoungModulus(5e6)
+    patch3_mat.SetPoissonRatio(0.35)
+    
+    patch3 = terrain.AddPatch(patch3_mat,
+                             chrono.ChCoordsysD(chrono.ChVectorD(0, 30, 0), chrono.QUNIT),
+                             60.0, 30.0)
+    patch3.SetColor(chrono.ChColor(0.7, 0.5, 0.3))
+    patch3.SetTexture("dirt.jpg")
+    
+    # Patch 4: Mesh-based patch for bumps
+    try:
+        mesh_patch_mat = chrono.ChMaterialSurfaceNSC()
+        mesh_patch_mat.SetFriction(0.8)
+        mesh_patch_mat.SetRestitution(0.1)
+        
+        # Create a simple bump mesh programmatically
+        mesh = chrono.ChTriangleMeshConnected()
+        vertices = []
+        indices = []
+        
+        # Create a grid of vertices for the bump
+        size_x, size_z = 20, 20
+        res_x, res_z = 20, 20
+        
+        for i in range(res_x + 1):
+            for j in range(res_z + 1):
+                x = (i / res_x - 0.5) * size_x
+                z = (j / res_z - 0.5) * size_z
+                # Create sinusoidal bumps
+                y = 1.0 * math.sin(x * 0.3) * math.sin(z * 0.3)
+                vertices.append(chrono.ChVectorD(x, y, z))
+        
+        # Create triangular faces
+        for i in range(res_x):
+            for j in range(res_z):
+                v1 = i * (res_z + 1) + j
+                v2 = v1 + 1
+                v3 = (i + 1) * (res_z + 1) + j
+                v4 = v3 + 1
+                
+                # First triangle
+                indices.extend([v1, v3, v2])
+                # Second triangle
+                indices.extend([v2, v3, v4])
+        
+        # Add vertices and faces to mesh
+        for vertex in vertices:
+            mesh.addVertex(vertex)
+        
+        for i in range(0, len(indices), 3):
+            mesh.addTriangle(chrono.ChVectorD(indices[i], indices[i+1], indices[i+2]))
+        
+        patch4 = terrain.AddPatch(mesh_patch_mat,
+                                 chrono.ChCoordsysD(chrono.ChVectorD(0, -30, 2), chrono.QUNIT),
+                                 mesh, "bump_mesh", 0.01, False)
+        patch4.SetColor(chrono.ChColor(0.8, 0.6, 0.4))
+        
+    except Exception as e:
+        print(f"Warning: Could not create mesh patch: {e}")
+        # Create a simple flat patch as fallback
+        patch4 = terrain.AddPatch(patch3_mat,
+                                 chrono.ChCoordsysD(chrono.ChVectorD(0, -30, 0), chrono.QUNIT),
+                                 40.0, 20.0)
+        patch4.SetColor(chrono.ChColor(0.8, 0.6, 0.4))
+    
+    # Patch 5: Heightmap-based patch for varying elevations
+    try:
+        # Create a simple heightmap programmatically
+        heightmap_size = 64
+        heightmap = []
+        
+        for i in range(heightmap_size):
+            row = []
+            for j in range(heightmap_size):
+                x = (i / (heightmap_size - 1) - 0.5) * 2
+                z = (j / (heightmap_size - 1) - 0.5) * 2
+                # Create rolling hills pattern
+                height = 2.0 * (math.sin(x * math.pi * 2) * math.cos(z * math.pi * 2) * 0.5 + 0.5)
+                row.append(height)
+            heightmap.append(row)
+        
+        heightmap_mat = chrono.ChMaterialSurfaceNSC()
+        heightmap_mat.SetFriction(0.75)
+        heightmap_mat.SetRestitution(0.12)
+        
+        # For simplicity, create another mesh patch with height variation
+        hm_mesh = chrono.ChTriangleMeshConnected()
+        hm_vertices = []
+        hm_indices = []
+        
+        # Create vertices from heightmap
+        terrain_size = 30.0
+        for i in range(heightmap_size):
+            for j in range(heightmap_size):
+                x = (i / (heightmap_size - 1) - 0.5) * terrain_size
+                z = (j / (heightmap_size - 1) - 0.5) * terrain_size
+                y = heightmap[i][j]
+                hm_vertices.append(chrono.ChVectorD(x, y, z))
+        
+        # Create triangular faces
+        for i in range(heightmap_size - 1):
+            for j in range(heightmap_size - 1):
+                v1 = i * heightmap_size + j
+                v2 = v1 + 1
+                v3 = (i + 1) * heightmap_size + j
+                v4 = v3 + 1
+                
+                hm_indices.extend([v1, v3, v2])
+                hm_indices.extend([v2, v3, v4])
+        
+        # Add vertices and faces to mesh
+        for vertex in hm_vertices:
+            hm_mesh.addVertex(vertex)
+            
+        for i in range(0, len(hm_indices), 3):
+            hm_mesh.addTriangle(chrono.ChVectorD(hm_indices[i], hm_indices[i+1], hm_indices[i+2]))
+        
+        patch5 = terrain.AddPatch(heightmap_mat,
+                                 chrono.ChCoordsysD(chrono.ChVectorD(50, 0, 0), chrono.QUNIT),
+                                 hm_mesh, "heightmap_mesh", 0.01, False)
+        patch5.SetColor(chrono.ChColor(0.6, 0.4, 0.2))
+        
+    except Exception as e:
+        print(f"Warning: Could not create heightmap patch: {e}")
+        # Create a simple flat patch as fallback
+        patch5 = terrain.AddPatch(patch2_mat,
+                                 chrono.ChCoordsysD(chrono.ChVectorD(50, 0, 0), chrono.QUNIT),
+                                 30.0, 30.0)
+        patch5.SetColor(chrono.ChColor(0.6, 0.4, 0.2))
+    
+    # Initialize terrain
+    terrain.Initialize()
+    
+    # Create interactive driver system
+    driver = veh.ChInteractiveDriverIRR()
+    
+    # Set driver parameters
+    driver.SetSteeringDelta(0.02)
+    driver.SetThrottleDelta(0.02)
+    driver.SetBrakingDelta(0.02)
+    
+    # Initialize driver system
+    driver.Initialize()
+    
+    # Create Irrlicht visualization
+    vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
+    vis.SetWindowTitle("HMMWV on Complex Terrain")
+    vis.SetWindowSize(1280, 720)
+    vis.SetChaseCamera(chrono.ChVectorD(0.0, 0.0, 1.75), 8.0, 0.5)
+    vis.Initialize()
+    vis.AddLogo("logo_chronoengine_alpha.png")
+    vis.AddLightDirectional()
+    vis.AddSkyBox()
+    
+    # Attach visualization to vehicle and terrain
+    vis.AttachVehicle(hmmwv.GetVehicle())
+    
+    # Simulation parameters
+    step_size = 1e-3
+    tire_step_size = 1e-3
+    render_step_size = 1.0/50  # 50 FPS
+    
+    # Initialize simulation time
+    time = 0
+    render_frame = 0
+    
+    print("=== HMMWV Complex Terrain Simulation ===")
+    print("Use WASD keys to control the vehicle:")
+    print("W/S - Throttle/Brake")
+    print("A/D - Steering")
+    print("Press 'Q' to quit")
+    print("=" * 45)
+    
+    # Main simulation loop
+    while vis.Run():
+        current_time = system.GetChTime()
+        
+        # Render scene
+        if time - render_frame >= render_step_size:
+            vis.BeginScene()
+            vis.Render()
+            vis.EndScene()
+            render_frame = time
+        
+        # Get driver inputs
+        driver_inputs = driver.GetInputs()
+        
+        # Synchronize systems
+        time = system.GetChTime()
+        
+        # Update driver
+        driver.Synchronize(time)
+        
+        # Update terrain
+        terrain.Synchronize(time)
+        
+        # Update vehicle
+        hmmwv.Synchronize(time, driver_inputs, terrain)
+        
+        # Advance simulation
+        driver.Advance(step_size)
+        terrain.Advance(step_size)
+        hmmwv.Advance(step_size)
+        system.DoStepDynamics(step_size)
+        
+        # Update time
+        time += step_size
+        
+        # Print vehicle status every 2 seconds
+        if int(time * 10) % 20 == 0:
+            vehicle_pos = hmmwv.GetVehicle().GetPos()
+            vehicle_speed = hmmwv.GetVehicle().GetSpeed()
+            print(f"Time: {time:.1f}s, Position: ({vehicle_pos.x:.1f}, {vehicle_pos.y:.1f}, {vehicle_pos.z:.1f}), Speed: {vehicle_speed:.1f} m/s")
+    
+    print("\nSimulation ended.")
+    return 0
+
+if __name__ == "__main__":
+    main()
+```
+
+This comprehensive PyChrono simulation script creates:
+
+## Key Features:
+
+1. **HMMWV Vehicle Setup**:
+   - Full HMMWV vehicle with mesh visualization
+   - AWD drivetrain with automatic transmission
+   - Simple engine model with TMEASY tires
+   - Proper contact method and collision settings
+
+2. **Complex Multi-Patch Terrain**:
+   - **Patch 1**: Concrete surface with high friction
+   - **Patch 2**: Grass surface with medium friction  
+   - **Patch 3**: Dirt surface with lower friction
+   - **Patch 4**: Mesh-based bumpy terrain with sinusoidal elevation
+   - **Patch 5**: Heightmap-based rolling hills terrain
+
+3. **Interactive Driver System**:
+   - WASD keyboard controls for steering, throttle, and braking
+   - Configurable input sensitivity
+   - Real-time driver input processing
+
+4. **Irrlicht Visualization**:
+   - 1280x720 window with chase camera
+   - Proper lighting and skybox
+   - 50 FPS rendering with mesh visualization for all components
+
+5. **Simulation Parameters**:
+   - 1ms timestep for accurate physics
+   - Consistent real-time rendering
+   - Status updates showing vehicle position and speed
+
+The simulation provides a realistic driving experience with varying terrain conditions, allowing you to test the HMMWV's performance across different surface types including flat patches, bumpy terrain, and rolling hills.

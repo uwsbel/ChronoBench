@@ -1,0 +1,103 @@
+```python
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as chronoirr
+
+# 1. Initialize the PyChrono environment and core components
+
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())  # Ensure data path is set
+
+# Simulation parameters
+time_step = 1.0 / 1000  # simulation step size (s)
+render_step_size = 1.0 / 50  # render at 50 FPS
+
+# 2. Add the required physical systems and objects as specified
+
+# Create the physical system (ChSystem)
+system = chrono.ChSystemNSC()
+
+# Create the ARTcar vehicle
+contact_method = chrono.ChContactMethod_NSC  # Non-smooth contact method
+initial_loc = chrono.ChVectorD(0, 0, 0.5)  # Starting position (x,y,z)
+initial_rot = chrono.ChQuaternionD(1, 0, 0, 0)  # No rotation (identity quaternion)
+vis_type = veh.VisualizationType_MESH  # Use mesh visualization
+
+vehicle = veh.ARTiculated_WheeledVehicle(contact_method)
+vehicle.SetInitPosition(chrono.ChCoordsysD(initial_loc, initial_rot))
+vehicle.SetVisualizationType(vis_type)
+vehicle.Initialize(system)
+
+# 3. Set up a RigidTerrain with defined dimensions, add a custom texture
+
+terrain = veh.RigidTerrain(system)
+terrain_height = 0.0
+terrain_length = 100.0
+terrain_width = 100.0
+
+patch = terrain.AddPatch(chrono.ChVectorD(0, 0, terrain_height),
+                         chrono.ChVectorD(terrain_length, 0, 0),
+                         chrono.ChVectorD(0, terrain_width, 0),
+                         0.8,  # friction coefficient
+                         True)  # patch is rigid
+
+patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 16, 16)
+
+terrain.Initialize()
+
+# 4. Incorporate an interactive driver system to control the vehicle’s steering, throttle, and braking
+
+driver = veh.ChIrrGuiDriver(vehicle.GetVehicle(), chronoirr.ChIrrApp(vehicle.GetVehicle().GetSystem(), "ARTcar Simulation", chronoirr.dimension2du(1280, 720)))
+driver.SetSteeringDelta(0.04)
+driver.SetThrottleDelta(0.1)
+driver.SetBrakingDelta(0.1)
+
+# Initialize Irrlicht visualization
+app = chronoirr.ChIrrApp(system, "ARTcar Simulation", chronoirr.dimension2du(1280, 720))
+app.AddTypicalLights()
+app.AddTypicalSky()
+app.AddTypicalCamera(chronoirr.vector3df(0, -10, 3))
+app.AssetBindAll()
+app.AssetUpdateAll()
+
+# Initialize driver app (must be done after Irrlicht app creation)
+driver = veh.ChIrrGuiDriver(vehicle.GetVehicle(), app)
+driver.SetSteeringDelta(0.04)
+driver.SetThrottleDelta(0.1)
+driver.SetBrakingDelta(0.1)
+
+# 5. Implement a simulation loop that updates the vehicle dynamics and visualization in real time,
+# displaying the simulation at 50 frames per second.
+
+app.SetTimestep(time_step)
+app.SetTryRealtime(True)
+
+time = 0.0
+render_time = 0.0
+
+while app.GetDevice().run():
+    app.BeginScene()
+    app.DrawAll()
+
+    # Get driver inputs
+    driver_inputs = driver.GetInputs()
+
+    # Apply driver inputs to vehicle
+    vehicle.GetVehicle().ApplyDriverInputs(driver_inputs)
+
+    # Advance simulation by time_step
+    vehicle.GetVehicle().Advance(time_step)
+    terrain.Advance(time_step)
+    system.DoStepDynamics(time_step)
+
+    app.EndScene()
+
+    time += time_step
+    render_time += time_step
+
+    # Render at 50 FPS (every 0.02 s)
+    if render_time >= render_step_size:
+        render_time = 0.0
+
+# Clean up
+app.GetDevice().drop()
+```

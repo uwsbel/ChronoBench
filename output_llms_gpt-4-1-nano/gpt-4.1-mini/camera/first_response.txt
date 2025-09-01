@@ -1,0 +1,120 @@
+```python
+import pychrono as chrono
+import pychrono.sensor as sens
+import pychrono.postprocess as postprocess
+import os
+
+# 1. Initialize the PyChrono environment and core components
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())  # Ensure data path is set (optional if you have your own path)
+system = chrono.ChSystemNSC()
+
+# Set gravity (optional, since the mesh is fixed)
+system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
+
+# 2. Add the required physical systems and objects as specified.
+
+# Load a triangular mesh from a Wavefront .obj file
+mesh_path = os.path.join(chrono.GetChronoDataPath(), "sensor", "mesh", "bunny.obj")
+# You can replace the above path with your own .obj file path if needed
+
+# Create a fixed body with the mesh visualization
+fixed_body = chrono.ChBody()
+fixed_body.SetBodyFixed(True)
+system.Add(fixed_body)
+
+# Create a mesh shape and add it to the fixed body for visualization
+mesh_shape = chrono.ChTriangleMeshShape()
+mesh_shape.SetMesh(chrono.ChTriangleMeshConnected())
+mesh_shape.GetMesh().LoadWavefrontMesh(mesh_path, True, True)
+mesh_shape.SetName("mesh")
+mesh_shape.SetStatic(True)
+fixed_body.AddAsset(mesh_shape)
+
+# Optional: add a material for better visualization
+material = chrono.ChVisualMaterial()
+material.SetDiffuseColor(chrono.ChColor(0.6, 0.6, 0.9))
+mesh_shape.AddMaterial(material)
+
+# 3. Set necessary default parameters such as positions, forces, and interactions.
+
+# Create a sensor manager
+manager = sens.ChSensorManager(system)
+
+# Create a camera sensor attached to the fixed body
+camera = sens.ChCameraSensor(fixed_body)
+camera.SetName("Camera")
+camera.SetOffsetPose(chrono.ChFrameD())  # Initially at the origin of the fixed body
+
+# Set camera parameters
+camera.SetImageSize(640, 480)
+camera.SetFOV(1.0)  # radians, ~57 degrees
+camera.SetUpdateRate(30)  # 30 Hz update rate
+
+# Add noise filters to the camera
+noise_filter = sens.ChFilterNoiseNormal(camera)
+noise_filter.SetNoiseGain(0.02)  # small noise
+camera.PushFilter(noise_filter)
+
+# Add visualization filters to the camera
+# For example, a filter to draw a crosshair at the center
+crosshair_filter = sens.ChFilterVisualize(camera)
+camera.PushFilter(crosshair_filter)
+
+# Add the camera sensor to the manager
+manager.AddSensor(camera)
+
+# Simulation parameters
+step_size = 1.0 / 60  # 60 Hz physics step
+simulation_time = 5.0  # seconds
+num_steps = int(simulation_time / step_size)
+
+# Orbit parameters for the camera around the mesh
+orbit_radius = 1.5
+orbit_height = 0.5
+orbit_speed = 0.5  # radians per second
+
+print("Starting simulation...")
+
+for step in range(num_steps):
+    time = step * step_size
+
+    # Update camera position in an orbit around the mesh
+    x = orbit_radius * chrono.cos(orbit_speed * time)
+    y = orbit_radius * chrono.sin(orbit_speed * time)
+    z = orbit_height
+
+    # Set camera pose relative to the fixed body
+    # Camera looks at the origin (mesh center)
+    cam_pos = chrono.ChVectorD(x, y, z)
+    target = chrono.ChVectorD(0, 0, 0)
+    up = chrono.ChVectorD(0, 0, 1)
+
+    # Compute rotation so camera looks at the mesh center
+    # Use Chrono utility function to build a rotation matrix from lookAt
+    def look_at(eye, center, up):
+        f = (center - eye).GetNormalized()
+        s = f.Cross(up).GetNormalized()
+        u = s.Cross(f)
+        rot = chrono.ChMatrix33D()
+        rot.Set_A_axis(s, u, -f)
+        return rot
+
+    rot = look_at(cam_pos, target, up)
+    camera.SetOffsetPose(chrono.ChFrameD(cam_pos, rot))
+
+    # Advance simulation step
+    system.DoStepDynamics(step_size)
+
+    # Update sensor manager (this triggers sensor updates)
+    manager.Update()
+
+    # Access camera buffer data (RGBA8 image)
+    img_buffer = camera.GetMostRecentBufferRGBA8()
+    if img_buffer is not None:
+        # Print some info about the buffer
+        print(f"Step {step}, Time {time:.3f}s: Camera image buffer size = {len(img_buffer)} bytes")
+    else:
+        print(f"Step {step}, Time {time:.3f}s: No camera image buffer available yet.")
+
+print("Simulation finished.")
+```

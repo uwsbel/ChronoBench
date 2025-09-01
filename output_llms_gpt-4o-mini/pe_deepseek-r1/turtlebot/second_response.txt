@@ -1,0 +1,120 @@
+I've reviewed the provided PyChrono script and identified several issues that need correction before implementing the requested modifications:
+
+1. **Incorrect gravity setting**: The script sets gravity in the Z-direction but uses `SetGravitationalAcceleration` with a `ChVector3d` parameter. The correct method is `SetGravity`.
+2. **Turtlebot module import**: The `pychrono.robot` module doesn't contain Turtlebot; it should be imported from `pychrono.robots.turtlebot`.
+3. **Motor control logic**: The original motor speed control uses hardcoded time checks that will be replaced by the new mode-based control.
+4. **Visualization initialization**: The camera position and target parameters need adjustment for better viewing.
+
+Here's the corrected and modified script:
+
+```python
+import os
+import math
+import numpy as np
+import pychrono as chrono
+from pychrono.robots.turtlebot import TurtleBot  # Corrected import
+import pychrono.irrlicht as chronoirr
+
+# Wheel ID definitions (moved outside loop)
+LEFT_DRIVE_WHEEL = 0
+RIGHT_DRIVE_WHEEL = 1
+
+# Movement control function
+def move(robot, mode):
+    """Control robot movement based on specified mode"""
+    if mode == "straight":
+        robot.SetMotorSpeed(LEFT_DRIVE_WHEEL, math.pi)  # Both wheels same speed
+        robot.SetMotorSpeed(RIGHT_DRIVE_WHEEL, math.pi)
+    elif mode == "left":
+        robot.SetMotorSpeed(LEFT_DRIVE_WHEEL, 0)        # Left wheel stops
+        robot.SetMotorSpeed(RIGHT_DRIVE_WHEEL, math.pi)  # Right wheel moves forward
+    elif mode == "right":
+        robot.SetMotorSpeed(LEFT_DRIVE_WHEEL, math.pi)   # Left wheel moves forward
+        robot.SetMotorSpeed(RIGHT_DRIVE_WHEEL, 0)        # Right wheel stops
+    else:
+        raise ValueError("Invalid movement mode")
+
+# Create Chrono system
+system = chrono.ChSystemNSC()
+system.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+system.SetGravity(chrono.ChVector3d(0, 0, -9.81))  # Corrected gravity setting
+chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.0025)
+chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
+
+# Create ground body
+ground_mat = chrono.ChContactMaterialNSC()
+ground = chrono.ChBodyEasyBox(20, 20, 1, 1000, True, True, ground_mat)
+ground.SetPos(chrono.ChVector3d(0, 0, -0.6))  # Adjusted ground position
+ground.SetFixed(True)
+ground.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
+system.Add(ground)
+
+# Create Turtlebot Robot
+init_pos = chrono.ChVector3d(0, 0.2, 0)
+init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
+robot = TurtleBot(system, init_pos, init_rot)  # Corrected class name
+robot.Initialize()
+
+# Create run-time visualization
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetCameraVertical(chrono.CameraVerticalDir_Z)
+vis.SetWindowSize(1280, 720)
+vis.SetWindowTitle('Turtlebot Robot - Rigid terrain')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVector3d(0, 3, 1), chrono.ChVector3d(0, 0, 0.2))  # Better camera position
+vis.AddTypicalLights()
+vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0, 0.5), 3, 4, 10, 40, 512)
+
+# Set the simulation time step
+time_step = 2e-3
+
+# Simulation loop
+time = 0
+current_mode = None
+while vis.Run():
+    # Determine movement mode based on time
+    if time < 5:
+        mode = "straight"
+    elif time < 10:
+        mode = "left"
+    else:
+        mode = "right"
+    
+    # Update movement if mode changed
+    if mode != current_mode:
+        move(robot, mode)
+        print(f"Time {time:.1f}s: Robot now {mode}")
+        current_mode = mode
+
+    # Render the scene
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+
+    # Advance simulation
+    system.DoStepDynamics(time_step)
+    time += time_step
+```
+
+Key changes made:
+1. **Gravity Setting**: Fixed using `SetGravity()` instead of `SetGravitationalAcceleration()`
+2. **Turtlebot Import**: Corrected the import path and class name
+3. **Ground Position**: Adjusted to Z=-0.6 as requested
+4. **Movement Control**: 
+   - Added `move()` function with mode-based control
+   - Implemented timed mode switching (straight for 5s, left for 5s, then right)
+   - Added print statements for mode changes
+5. **Camera Position**: Improved viewing angle
+6. **Code Structure**: 
+   - Moved wheel ID definitions outside the loop
+   - Added mode tracking to avoid redundant function calls
+   - Removed old motor control logic
+
+The robot will now:
+1. Move straight for the first 5 seconds
+2. Turn left for the next 5 seconds
+3. Turn right after 10 seconds
+4. Print status messages at each mode change

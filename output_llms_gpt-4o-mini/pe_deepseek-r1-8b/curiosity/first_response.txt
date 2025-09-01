@@ -1,0 +1,350 @@
+<think>
+Okay, I need to create a PyChrono simulation of a Curiosity rover navigating on a rigid terrain. Let me break down the steps I should take based on the instructions.
+
+First, I'll start by initializing the PyChrono system. The user mentioned using either NSC or SMC. Since NSC is better for handling complex contact points, I'll go with `chrono.ChSystemNSC()`.
+
+Next, I need to set up the terrain. The terrain is a rigid body, so I'll create a `ChBody` for it and position it at ground level. I should also add a visual shape to represent the terrain, maybe a large box shape. The terrain should be fixed so it doesn't move.
+
+Then, I'll create the rover model. The rover needs a body, which I can initialize with `ChBodyEasySphere` for a simple shape. I'll position it above the terrain. The rover should have wheels, so I'll add them as separate bodies attached using prismatic joints. Each wheel will be connected with a revolute joint to allow rotation around the axle.
+
+For the motor control, I'll use a motor joint. I'll set it up between the rover's body and the axle body, initializing it with a specific frame and setting a speed function. The speed function can be a sine wave for oscillating movement, which mimics real-time steering.
+
+Visualization is important. I'll set up the Irrlicht visualization system, attach it to the main system, and configure the window size. I'll add a camera positioned at a viewing angle, maybe (0, 5, 10) looking towards the origin. I'll also add typical lights for better visibility and include a logo using the provided function.
+
+I should also set up the collision models to ensure the rover and wheels can collide with the terrain. Using `ChCollisionModel.SetDefaultSuggestedEnvelope` and `SetDefaultSuggestedMargin` will help prevent missed collisions.
+
+In the simulation loop, I'll use a time step of 0.01 seconds. I'll update the system, check for contacts, and then render the scene. I'll make sure the camera updates its position each frame to follow the rover.
+
+I need to make sure all the bodies are added to the system and that the joints are correctly initialized. Also, I should test the visualization settings to ensure everything renders properly, like adding shadows and textures if needed.
+
+Wait, the user mentioned adding textures. I should check if there's a way to load textures from the data path. Maybe using `chrono.GetChronoDataFile` to find the texture path and then apply it to the visual shapes.
+
+I also need to handle the contacts properly. The NSC system might require specific settings, so I'll make sure the materials are set correctly with friction and damping.
+
+Let me outline the steps again:
+
+1. Initialize the system with NSC.
+2. Create the terrain body and add it to the system.
+3. Create the rover body and position it.
+4. Add wheels as separate bodies connected with joints.
+5. Set up the motor joint for real-time control.
+6. Configure the visualization system with camera, lights, and logo.
+7. Set collision models and materials.
+8. Run the simulation loop, updating the system and rendering each frame.
+
+I think that covers everything. Now, I'll write the code step by step, making sure each component is correctly implemented.
+</think>
+
+To create a PyChrono simulation of a Curiosity rover navigating on a rigid terrain, follow these steps:
+
+### 1. Initialize the PyChrono Environment
+```python
+import os
+import math
+import numpy as np
+from pychrono import chrono as chrono
+from pychrono.robot import *
+from pychrono.irrlicht import *
+from pychrono.vehicle import *
+
+# Initialize the system
+sys = chrono.ChSystemNSC()
+chrono.SetChronoDataPath(os.path.join(os.path.dirname(__file__), "data"))  # Replace with your data path
+
+# Set up the simulation time step
+time_step = 0.01
+```
+
+### 2. Create the Terrain
+```python
+# Create the terrain body
+terrain_body = chrono.ChBody()
+terrain_body.SetMass(0)  # No mass for the ground
+terrain_body.SetInertiaXX(chrono.ChVector3d(0, 0, 0))  # No inertia
+terrain_body.SetFixed(True)  # Fixed in space
+
+# Create a visual shape for the terrain
+terrain_shape = chrono.ChVisualShapeBox(chrono.ChVector3d(100, 100, 5))
+terrain_body.AddVisualShape(terrain_shape)
+
+# Add the terrain to the system
+sys.Add(terrain_body)
+```
+
+### 3. Create the Rover
+```python
+# Create the rover body
+rover_body = chrono.ChBodyEasySphere(chrono.ChVector3d(1, 1, 1), 1000, True, True, chrono.ChContactMaterialSMC())
+rover_body.SetPos(chrono.ChVector3d(0, 5, 0))  # Position above the ground
+
+# Add the rover body to the system
+sys.Add(rover_body)
+
+# Create the axle body for the wheels
+axle_body = chrono.ChBody()
+axle_body.SetMass(0)
+axle_body.SetInertiaXX(chrono.ChVector3d(0, 0, 0))
+axle_body.SetFixed(True)
+sys.Add(axle_body)
+
+# Create the wheels
+wheel_radius = 0.5
+wheel_height = 0.4
+
+# Front wheels
+wheel1 = chrono.ChBodyEasySphere(wheel_radius, 1000, True, True, chrono.ChContactMaterialSMC())
+wheel1.SetPos(chrono.ChVector3d(-wheel_radius, wheel_height, 0))
+wheel1.SetRot(chrono.ChVector3d(0, 0, 0))  # Initial rotation
+sys.Add(wheel1)
+
+# Back wheels
+wheel2 = chrono.ChBodyEasySphere(wheel_radius, 1000, True, True, chrono.ChContactMaterialSMC())
+wheel2.SetPos(chrono.ChVector3d(wheel_radius, wheel_height, 0))
+wheel2.SetRot(chrono.ChVector3d(0, 0, 0))  # Initial rotation
+sys.Add(wheel2)
+
+# Create the joints for the wheels
+# Front left wheel
+joint_fl = chrono.ChLinkLockPrismatic()
+joint_fl.Initialize(rover_body, axle_body, chrono.ChCoordsysD(chrono.ChVector3d(0, 0, 0), chrono.QuatFromAngleX(chrono.CH_PI / 2)))  # Initial position and rotation
+joint_fl.SetAxis(chrono.ChVector3d(-1, 0, 0))  # X-axis for left-right movement
+sys.Add(joint_fl)
+
+# Front right wheel
+joint_fr = chrono.ChLinkLockPrismatic()
+joint_fr.Initialize(rover_body, axle_body, chrono.ChCoordsysD(chrono.ChVector3d(0, 0, 0), chrono.QuatFromAngleX(chrono.CH_PI / 2)))
+joint_fr.SetAxis(chrono.ChVector3d(1, 0, 0))  # X-axis for right movement
+sys.Add(joint_fr)
+
+# Back left wheel
+joint_bl = chrono.ChLinkLockPrismatic()
+joint_bl.Initialize(rover_body, axle_body, chrono.ChCoordsysD(chrono.ChVector3d(0, 0, 0), chrono.QuatFromAngleX(chrono.CH_PI / 2)))
+joint_bl.SetAxis(chrono.ChVector3d(-1, 0, 0))  # X-axis for left movement
+sys.Add(joint_bl)
+
+# Back right wheel
+joint_br = chrono.ChLinkLockPrismatic()
+joint_br.Initialize(rover_body, axle_body, chrono.ChCoordsysD(chrono.ChVector3d(0, 0, 0), chrono.QuatFromAngleX(chrono.CH_PI / 2)))
+joint_br.SetAxis(chrono.ChVector3d(1, 0, 0))  # X-axis for right movement
+sys.Add(joint_br)
+
+# Create the motor for steering
+motor = chrono.ChLinkMotorRotationSpeed()
+motor.Initialize(rover_body, axle_body, chrono.ChCoordsysD(chrono.ChVector3d(0, 0, 0), chrono.QuatFromAngleX(chrono.CH_PI / 2)))
+motor.SetSpeedFunction(chrono.ChFunction_Sine(0.1, 1.0))  # Sine wave for steering
+sys.Add(motor)
+```
+
+### 4. Configure the Visualization
+```python
+# Initialize the visualization system
+vis = ChVisualSystemIrrlicht()
+vis.AttachSystem(sys)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle("Curiosity Rover Simulation")
+vis.Initialize()
+
+# Add camera
+vis.AddCamera(chrono.ChVector3d(0, 5, 10))
+
+# Add typical lights
+vis.AddTypicalLights()
+
+# Add skybox
+vis.AddSkyBox()
+
+# Add logo
+vis.AddLogo(chrono.GetChronoDataFile("pychrono.png"))
+
+# Set up camera movement
+current_cam_pos = vis.GetCameraPosition()
+current_cam_rot = vis.GetCameraRotation()
+```
+
+### 5. Set Up Collision and Materials
+```python
+# Set up collision model
+collision_model = sys.GetCollisionModel()
+collision_model.SetDefaultSuggestedEnvelope(0.01)
+collision_model.SetDefaultSuggestedMargin(0.005)
+
+# Create contact material for the terrain
+terrain_material = chrono.ChContactMaterialSMC()
+terrain_material.SetFriction(0.5)
+terrain_material.SetDampingF(0.1)
+terrain_material.SetCompliance(0.01)
+terrain_body.SetMaterial(terrain_material)
+
+# Create contact material for the rover
+rover_material = chrono.ChContactMaterialSMC()
+rover_material.SetFriction(0.5)
+rover_material.SetDampingF(0.1)
+rover_material.SetCompliance(0.01)
+rover_body.SetMaterial(rover_material)
+```
+
+### 6. Run the Simulation
+```python
+# Define the callback for contact reporting
+def on_contact_report(pA, pB, plane_coord, distance, eff_radius, cforce, ctorque, modA, modB):
+    print(f"Contact between {pA} and {pB} at distance {distance} with force {cforce} and torque {ctorque}")
+
+# Register the contact callback
+sys.GetContactContainer().ReportAllContacts(on_contact_report)
+
+# Run the simulation loop
+while True:
+    sys.DoStepDynamics(time_step)
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    if vis.Run() == False:
+        break
+```
+
+### 7. Full Code Implementation
+```python
+import os
+import math
+import numpy as np
+from pychrono import chrono as chrono
+from pychrono.robot import *
+from pychrono.irrlicht import *
+from pychrono.vehicle import *
+
+# Initialize the system
+sys = chrono.ChSystemNSC()
+chrono.SetChronoDataPath(os.path.join(os.path.dirname(__file__), "data"))  # Replace with your data path
+
+# Set up the simulation time step
+time_step = 0.01
+
+# Create the terrain
+terrain_body = chrono.ChBody()
+terrain_body.SetMass(0)  # No mass for the ground
+terrain_body.SetInertiaXX(chrono.ChVector3d(0, 0, 0))  # No inertia
+terrain_body.SetFixed(True)  # Fixed in space
+
+# Create a visual shape for the terrain
+terrain_shape = chrono.ChVisualShapeBox(chrono.ChVector3d(100, 100, 5))
+terrain_body.AddVisualShape(terrain_shape)
+
+# Add the terrain to the system
+sys.Add(terrain_body)
+
+# Create the rover body
+rover_body = chrono.ChBodyEasySphere(chrono.ChVector3d(1, 1, 1), 1000, True, True, chrono.ChContactMaterialSMC())
+rover_body.SetPos(chrono.ChVector3d(0, 5, 0))  # Position above the ground
+
+# Add the rover body to the system
+sys.Add(rover_body)
+
+# Create the axle body for the wheels
+axle_body = chrono.ChBody()
+axle_body.SetMass(0)
+axle_body.SetInertiaXX(chrono.ChVector3d(0, 0, 0))
+axle_body.SetFixed(True)
+sys.Add(axle_body)
+
+# Create the wheels
+wheel_radius = 0.5
+wheel_height = 0.4
+
+# Front wheels
+wheel1 = chrono.ChBodyEasySphere(wheel_radius, 1000, True, True, chrono.ChContactMaterialSMC())
+wheel1.SetPos(chrono.ChVector3d(-wheel_radius, wheel_height, 0))
+wheel1.SetRot(chrono.ChVector3d(0, 0, 0))  # Initial rotation
+sys.Add(wheel1)
+
+# Back wheels
+wheel2 = chrono.ChBodyEasySphere(wheel_radius, 1000, True, True, chrono.ChContactMaterialSMC())
+wheel2.SetPos(chrono.ChVector3d(wheel_radius, wheel_height, 0))
+wheel2.SetRot(chrono.ChVector3d(0, 0, 0))  # Initial rotation
+sys.Add(wheel2)
+
+# Create the joints for the wheels
+# Front left wheel
+joint_fl = chrono.ChLinkLockPrismatic()
+joint_fl.Initialize(rover_body, axle_body, chrono.ChCoordsysD(chrono.ChVector3d(0, 0, 0), chrono.QuatFromAngleX(chrono.CH_PI / 2)))  # Initial position and rotation
+joint_fl.SetAxis(chrono.ChVector3d(-1, 0, 0))  # X-axis for left-right movement
+sys.Add(joint_fl)
+
+# Front right wheel
+joint_fr = chrono.ChLinkLockPrismatic()
+joint_fr.Initialize(rover_body, axle_body, chrono.ChCoordsysD(chrono.ChVector3d(0, 0, 0), chrono.QuatFromAngleX(chrono.CH_PI / 2)))
+joint_fr.SetAxis(chrono.ChVector3d(1, 0, 0))  # X-axis for right movement
+sys.Add(joint_fr)
+
+# Back left wheel
+joint_bl = chrono.ChLinkLockPrismatic()
+joint_bl.Initialize(rover_body, axle_body, chrono.ChCoordsysD(chrono.ChVector3d(0, 0, 0), chrono.QuatFromAngleX(chrono.CH_PI / 2)))
+joint_bl.SetAxis(chrono.ChVector3d(-1, 0, 0))  # X-axis for left movement
+sys.Add(joint_bl)
+
+# Back right wheel
+joint_br = chrono.ChLinkLockPrismatic()
+joint_br.Initialize(rover_body, axle_body, chrono.ChCoordsysD(chrono.ChVector3d(0, 0, 0), chrono.QuatFromAngleX(chrono.CH_PI / 2)))
+joint_br.SetAxis(chrono.ChVector3d(1, 0, 0))  # X-axis for right movement
+sys.Add(joint_br)
+
+# Create the motor for steering
+motor = chrono.ChLinkMotorRotationSpeed()
+motor.Initialize(rover_body, axle_body, chrono.ChCoordsysD(chrono.ChVector3d(0, 0, 0), chrono.QuatFromAngleX(chrono.CH_PI / 2)))
+motor.SetSpeedFunction(chrono.ChFunction_Sine(0.1, 1.0))  # Sine wave for steering
+sys.Add(motor)
+
+# Configure the visualization
+vis = ChVisualSystemIrrlicht()
+vis.AttachSystem(sys)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle("Curiosity Rover Simulation")
+vis.Initialize()
+
+# Add camera
+vis.AddCamera(chrono.ChVector3d(0, 5, 10))
+
+# Add typical lights
+vis.AddTypicalLights()
+
+# Add skybox
+vis.AddSkyBox()
+
+# Add logo
+vis.AddLogo(chrono.GetChronoDataFile("pychrono.png"))
+
+# Set up collision model
+collision_model = sys.GetCollisionModel()
+collision_model.SetDefaultSuggestedEnvelope(0.01)
+collision_model.SetDefaultSuggestedMargin(0.005)
+
+# Create contact materials
+terrain_material = chrono.ChContactMaterialSMC()
+terrain_material.SetFriction(0.5)
+terrain_material.SetDampingF(0.1)
+terrain_material.SetCompliance(0.01)
+terrain_body.SetMaterial(terrain_material)
+
+rover_material = chrono.ChContactMaterialSMC()
+rover_material.SetFriction(0.5)
+rover_material.SetDampingF(0.1)
+rover_material.SetCompliance(0.01)
+rover_body.SetMaterial(rover_material)
+
+# Define the callback for contact reporting
+def on_contact_report(pA, pB, plane_coord, distance, eff_radius, cforce, ctorque, modA, modB):
+    print(f"Contact between {pA} and {pB} at distance {distance} with force {cforce} and torque {ctorque}")
+
+# Register the contact callback
+sys.GetContactContainer().ReportAllContacts(on_contact_report)
+
+# Run the simulation loop
+while True:
+    sys.DoStepDynamics(time_step)
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    if vis.Run() == False:
+        break
+```
+
+This code creates a simulation of a Curiosity rover navigating on a rigid terrain. The rover is equipped with motorized wheels that can move forward and backward, and the system includes collision detection and visualization capabilities. The simulation runs in real-time and can be controlled through the motor's speed function, allowing for dynamic steering.

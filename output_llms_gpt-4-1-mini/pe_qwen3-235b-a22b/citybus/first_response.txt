@@ -1,0 +1,110 @@
+```python
+import os
+import math
+import numpy as np
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as chronoirr
+
+# Set Chrono data path
+chrono.SetChronoDataPath(os.environ.get('CHRONO_DATA_DIR', ''))
+
+# Initialize the Chrono system
+sys = chrono.ChSystemSMC()
+
+# Create the CityBus vehicle
+bus = veh.CityBus(sys)
+bus.SetContactMethod(chrono.ChContactMethod_SMC)
+bus.SetChassisCollisionType(veh.ChassisCollisionType_MESH)
+bus.SetChassisFixed(False)
+bus.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0.5), chrono.QUNIT))
+bus.SetTireType(veh.TireModelType_TMEASY)
+bus.SetTireStepSize(0.005)
+bus.Initialize()
+
+# Create Rigid Terrain with custom texture
+terrain = veh.RigidTerrain(sys)
+patch_mat = chrono.ChMaterialSurfaceSMC()
+patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysD(), 200, 200)
+patch.SetTexture(chrono.GetChronoDataFile("terrain/textures/concrete.jpg"), 200, 200)
+terrain.Initialize()
+
+# Set up Irrlicht visualization
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(sys)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle('CityBus Simulation')
+vis.Initialize()
+vis.AddLogo()
+vis.AddSkyBox()
+vis.AddTypicalLights()
+
+# Add camera and position it to follow the vehicle
+camera_pos = chrono.ChVector3d(0, 3, -6)
+vis.AddCamera(camera_pos, bus.GetChassis().GetPos())
+
+# Initialize driver system
+driver = veh.VehicleDriver(bus)
+driver.SetSteeringDelta(0.05)
+driver.SetThrottleDelta(0.05)
+driver.SetBrakingDelta(0.05)
+driver.Initialize()
+
+# Simulation loop parameters
+step_timer = chrono.ChRealtimeStepTimer()
+time_step = 0.02  # 50 FPS
+
+# Main simulation loop
+while vis.Run():
+    time = sys.GetChTime()
+    
+    # Update driver inputs
+    driver_inputs = driver.GetInputs()
+    driver.Synchronize(time)
+    
+    # Synchronize vehicle and terrain
+    terrain.Synchronize(time)
+    bus.Synchronize(time, driver_inputs, terrain)
+    
+    # Advance simulation
+    sys.DoStepDynamics(time_step)
+    
+    # Update camera to follow vehicle
+    chassis_pos = bus.GetChassis().GetPos()
+    new_camera_pos = chassis_pos + chrono.ChVector3d(0, 3, -6)
+    vis.GetSceneManager().getActiveCamera().setPosition(new_camera_pos)
+    vis.GetSceneManager().getActiveCamera().setTarget(chassis_pos)
+    
+    # Render scene
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+```
+
+### Explanation of Key Components:
+
+1. **System Initialization**:
+   - `chrono.ChSystemSMC()` is used for smooth contact handling, suitable for vehicle-terrain interactions.
+
+2. **Vehicle Setup**:
+   - The `CityBus` class is initialized with SMC contact method, mesh-based chassis collision, and TMeasy tire model.
+   - Positioned at (0, 0, 0.5) with no initial rotation.
+
+3. **Terrain Configuration**:
+   - A `RigidTerrain` is created with a 200x200 meter patch.
+   - A concrete texture is applied using `SetTexture()` on the terrain patch.
+
+4. **Visualization**:
+   - Irrlicht visualization is configured with a window size of 1024x768.
+   - A camera is added and dynamically updated to follow the vehicle with an offset of (0, 3, -6) relative to the chassis.
+
+5. **Driver System**:
+   - `VehicleDriver` handles input for steering, throttle, and braking with sensitivity settings.
+   - Inputs are synchronized each simulation step to control the vehicle.
+
+6. **Simulation Loop**:
+   - Maintains 50 FPS using `ChRealtimeStepTimer`.
+   - Updates driver inputs, synchronizes vehicle/terrain states, advances dynamics, and renders the scene.
+   - Camera position is updated each frame to maintain the chase perspective.
+
+This script provides a complete simulation of a CityBus on rigid terrain with interactive controls and realistic visualization. Adjustments to vehicle parameters, terrain texture paths, or camera offsets can be made to suit specific requirements.

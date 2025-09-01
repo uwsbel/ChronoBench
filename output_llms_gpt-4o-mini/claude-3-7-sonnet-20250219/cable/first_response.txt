@@ -1,0 +1,140 @@
+# ANCF Beam with One End Hinged Using PyChrono
+
+```python
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
+import numpy as np
+
+def main():
+    # The path to the Chrono data directory containing various assets
+    chrono.SetChronoDataPath("../../../data/")
+    
+    # Create a Chrono system
+    system = chrono.ChSystemNSC()
+    
+    # Set gravity in the negative y direction
+    system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+    
+    # Set the default solver and integrator parameters
+    system.SetSolverType(chrono.ChSolver.Type_SPARSE_QR)
+    system.SetSolverMaxIterations(150)
+    system.SetMaxItersSolverSpeed(150)
+    system.SetMaxItersSolverStab(150)
+    system.SetSolverForceTolerance(1e-10)
+    system.SetTimestepperType(chrono.ChTimestepper.Type_EULER_IMPLICIT_LINEARIZED)
+    
+    # Parameters for the beam
+    beam_length = 2.0         # Length of the beam [m]
+    beam_height = 0.05        # Height of the beam cross section [m]
+    beam_width = 0.05         # Width of the beam cross section [m]
+    num_elements = 10         # Number of ANCF cable elements
+    density = 1000.0          # Density [kg/m^3]
+    E = 2.1e7                 # Young's modulus [Pa]
+    G = 8.0e6                 # Shear modulus [Pa]
+    
+    # Calculate parameters for the beam elements
+    element_length = beam_length / num_elements
+    area = beam_height * beam_width
+    I_x = (beam_width * beam_height**3) / 12.0
+    I_y = (beam_height * beam_width**3) / 12.0
+    I_z = I_y
+    J = I_x + I_y
+    
+    # Create the nodes for the beam elements
+    nodes = []
+    
+    for i in range(num_elements + 1):
+        # Position of the node
+        x = i * element_length
+        y = 0.0
+        z = 0.0
+        
+        # Direction (tangent) of the node
+        dx = 1.0
+        dy = 0.0
+        dz = 0.0
+        
+        # Create the node
+        node = chrono.ChNodeFEAxyzD(chrono.ChVectorD(x, y, z), chrono.ChVectorD(dx, dy, dz))
+        
+        # Set node mass from beam properties
+        node.SetMass(density * area * element_length / 2)
+        
+        # Fix the first node (hinge)
+        if i == 0:
+            node.SetFixed(True)
+        
+        # Add node to the system
+        system.Add(node)
+        nodes.append(node)
+    
+    # Create the beam elements
+    for i in range(num_elements):
+        element = chrono.ChElementCableANCF()
+        
+        # Set the nodes for this element
+        element.SetNodes(nodes[i], nodes[i + 1])
+        
+        # Set element dimensions
+        element.SetSection(area)
+        
+        # Set element material properties
+        element.SetYoungModulus(E)
+        element.SetGshearModulus(G)
+        element.SetBeamRaleyghDamping(0.01)
+        element.SetDensity(density)
+        element.SetI(I_x)
+        
+        # Add element to the system
+        system.Add(element)
+    
+    # Create the visualization application
+    vis = chronoirr.ChVisualSystemIrrlicht()
+    vis.AttachSystem(system)
+    vis.SetWindowSize(1024, 768)
+    vis.SetWindowTitle("ANCF Beam with One End Hinged")
+    vis.Initialize()
+    vis.AddLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))
+    vis.AddSkyBox()
+    vis.AddCamera(chrono.ChVectorD(1, 1, 3))
+    vis.AddTypicalLights()
+    
+    # Simulation loop
+    time_step = 0.001
+    while vis.Run():
+        # Render the scene
+        vis.BeginScene()
+        vis.Render()
+        
+        # Draw the nodes and beam (visualization purposes)
+        for node in nodes:
+            # Draw a sphere at each node position
+            pos = node.GetPos()
+            chronoirr.drawSphere(vis, 0.01, chrono.ChVectorD(pos.x, pos.y, pos.z), chrono.ChColor(0.8, 0.2, 0.2))
+        
+        # Draw lines connecting nodes to visualize the beam
+        for i in range(num_elements):
+            pos1 = nodes[i].GetPos()
+            pos2 = nodes[i+1].GetPos()
+            chronoirr.drawSegment(vis, 
+                                 chrono.ChVectorD(pos1.x, pos1.y, pos1.z),
+                                 chrono.ChVectorD(pos2.x, pos2.y, pos2.z),
+                                 chrono.ChColor(0.0, 0.0, 0.6))
+        
+        vis.EndScene()
+        
+        # Step the simulation
+        system.DoStepDynamics(time_step)
+
+if __name__ == "__main__":
+    main()
+```
+
+This script creates a simulation of a beam using ANCF (Absolute Nodal Coordinate Formulation) cable elements in PyChrono. The beam has one end fixed (hinged) to the ground and is subjected to gravity, which causes it to deform. The main components of the simulation are:
+
+1. A ChSystem to manage all simulation elements
+2. A series of ChNodeFEAxyzD nodes that represent the beam's points along its length
+3. ChElementCableANCF elements that connect the nodes and define the beam's physical properties
+4. Visualization using Irrlicht to render the beam and its deformation
+
+The simulation renders the beam by drawing spheres at each node position and connecting them with line segments. The first node is fixed (hinged) to the ground, while the rest of the beam is free to move under the influence of gravity.

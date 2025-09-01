@@ -1,0 +1,222 @@
+```python
+import pychrono.core as chrono
+import pychrono.irrlicht as irr
+import pychrono.vehicle as veh
+import math
+
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())
+veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
+
+# Initial vehicle location and orientation
+initLoc = chrono.ChVector3d(-40, 0, 0.5)  # Changed as per instructions
+initRot = chrono.ChQuaterniond(1, 0, 0, 0)
+
+# Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
+vis_type = veh.VisualizationType_MESH
+
+# Collision type for chassis (PRIMITIVES, MESH, or NONE)
+chassis_collision_type = veh.CollisionType_NONE
+
+# Type of tire model (RIGID, TMEASY)
+tire_model = veh.TireModelType_TMEASY
+
+# Rigid terrain
+terrainHeight = 0      # terrain height
+terrainLength = 100.0  # size in X direction
+terrainWidth = 100.0   # size in Y direction
+
+# Point tracked by the camera
+trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
+
+# Contact method
+contact_method = chrono.ChContactMethod_NSC
+contact_vis = False
+
+# Simulation step sizes
+step_size = 1e-3
+tire_step_size = step_size
+
+# Time interval between two render frames
+render_step_size = 1.0 / 50  # FPS = 50
+
+
+# Create the UAZBUS vehicle, set parameters, and initialize
+
+vehicle = veh.UAZBUS()
+vehicle.SetContactMethod(contact_method)
+vehicle.SetChassisCollisionType(chassis_collision_type)
+vehicle.SetChassisFixed(False)
+vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
+vehicle.SetTireType(tire_model)
+vehicle.SetTireStepSize(tire_step_size)
+
+vehicle.Initialize()
+
+vehicle.SetChassisVisualizationType(vis_type)
+vehicle.SetSuspensionVisualizationType(vis_type)
+vehicle.SetSteeringVisualizationType(vis_type)
+vehicle.SetWheelVisualizationType(vis_type)
+vehicle.SetTireVisualizationType(vis_type)
+
+vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+
+# Create the terrain
+patch_mat = chrono.ChMaterialSurfaceNSC()  # Corrected material class for NSC contact method
+patch_mat.SetFriction(0.9)
+patch_mat.SetRestitution(0.01)
+terrain = veh.RigidTerrain(vehicle.GetSystem())
+patch = terrain.AddPatch(patch_mat,
+    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, terrainHeight), chrono.QUNIT),
+    terrainLength, terrainWidth)
+
+# Changed terrain texture as per instructions
+patch.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 200, 200)
+patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+terrain.Initialize()
+
+# Create the vehicle Irrlicht interface
+
+vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
+vis.SetWindowTitle('UAZBUS Demo')
+vis.SetWindowSize(1280, 1024)
+vis.SetChaseCamera(trackPoint, 6.0, 0.5)
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddLightDirectional()
+vis.AddSkyBox()
+vis.AttachVehicle(vehicle.GetVehicle())
+
+# Create the driver system
+driver = veh.ChInteractiveDriverIRR(vis)
+
+# Set the time response for steering and throttle keyboard inputs.
+steering_time = 1.0  # time to go from 0 to +1 (or from 0 to -1)
+throttle_time = 1.0  # time to go from 0 to +1
+braking_time = 0.3   # time to go from 0 to +1
+driver.SetSteeringDelta(render_step_size / steering_time)
+driver.SetThrottleDelta(render_step_size / throttle_time)
+driver.SetBrakingDelta(render_step_size / braking_time)
+
+driver.Initialize()
+
+# output vehicle mass
+print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
+
+# Number of simulation steps between miscellaneous events
+render_steps = math.ceil(render_step_size / step_size)
+
+# Initialize simulation frame counter
+realtime_timer = chrono.ChRealtimeStepTimer()
+step_number = 0
+render_frame = 0
+
+# Double lane change maneuver parameters
+# Define time intervals (in seconds) for the maneuver
+t0 = 2.0    # start time of first lane change
+t1 = 4.0    # end time of first lane change
+t2 = 6.0    # start time of second lane change
+t3 = 8.0    # end time of second lane change
+t_brake_start = 10.0  # start braking
+t_brake_end = 12.0    # end braking
+
+# Steering and throttle values for the maneuver
+steering_max = 0.4  # max steering input for lane change
+throttle_cruise = 0.5
+throttle_brake = 0.0
+braking_max = 1.0
+
+while vis.Run():
+    time = vehicle.GetSystem().GetChTime()
+
+    # Implement double lane change maneuver logic
+    # Steering input logic
+    if t0 <= time < t1:
+        # First lane change: steer right (positive)
+        # Linearly ramp steering from 0 to steering_max and back to 0
+        mid = (t0 + t1) / 2
+        if time < mid:
+            steering = steering_max * (time - t0) / (mid - t0)
+        else:
+            steering = steering_max * (t1 - time) / (t1 - mid)
+    elif t2 <= time < t3:
+        # Second lane change: steer left (negative)
+        mid = (t2 + t3) / 2
+        if time < mid:
+            steering = -steering_max * (time - t2) / (mid - t2)
+        else:
+            steering = -steering_max * (t3 - time) / (t3 - mid)
+    else:
+        steering = 0.0
+
+    # Throttle input logic
+    if time < t_brake_start:
+        throttle = throttle_cruise
+        braking = 0.0
+    elif t_brake_start <= time < t_brake_end:
+        throttle = 0.0
+        # Linearly ramp braking from 0 to braking_max
+        braking = braking_max * (time - t_brake_start) / (t_brake_end - t_brake_start)
+    else:
+        throttle = 0.0
+        braking = braking_max
+
+    # Apply inputs to the vehicle
+    driver_inputs = driver.GetInputs()
+    driver_inputs.m_steering = steering
+    driver_inputs.m_throttle = throttle
+    driver_inputs.m_braking = braking
+
+    # Render scene and output POV-Ray data
+    if (step_number % render_steps == 0):
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+        render_frame += 1
+
+    # Update modules (process inputs from other modules)
+    driver.Synchronize(time)
+    terrain.Synchronize(time)
+    vehicle.Synchronize(time, driver_inputs, terrain)
+    vis.Synchronize(time, driver_inputs)
+
+    # Advance simulation for one timestep for all modules
+    driver.Advance(step_size)
+    terrain.Advance(step_size)
+    vehicle.Advance(step_size)
+    vis.Advance(step_size)
+
+    # Increment frame number
+    step_number += 1
+    # Spin in place for real time to catch up
+    realtime_timer.Spin(step_size)
+```
+---
+
+### Explanation of corrections and modifications:
+
+1. **Terrain material class:**
+   - Changed from `chrono.ChContactMaterialNSC()` to `chrono.ChMaterialSurfaceNSC()` because `ChContactMaterialNSC` does not exist in PyChrono; the correct class for NSC contact material is `ChMaterialSurfaceNSC`.
+
+2. **Terrain height in patch coordinates:**
+   - Changed the Z coordinate in `chrono.ChCoordsysd` for the terrain patch from `0` to `terrainHeight` (which is 0 here, but better to use the variable).
+
+3. **Terrain texture:**
+   - Changed from `"terrain/textures/tile4.jpg"` to `"terrain/textures/concrete.jpg"` as per instructions.
+
+4. **Initial vehicle position:**
+   - Changed from `(0, 0, 0.5)` to `(-40, 0, 0.5)` as per instructions.
+
+5. **Double lane change maneuver:**
+   - Added time intervals and logic to control steering, throttle, and braking inputs over time.
+   - Steering ramps up and down for two lane changes (first to the right, then to the left).
+   - Throttle is held constant during lane changes, then reduced to zero during braking.
+   - Braking ramps up after lane changes.
+
+6. **Driver inputs:**
+   - Overwrite the `driver_inputs` obtained from `driver.GetInputs()` with the maneuver inputs before passing to `vehicle.Synchronize()` and `vis.Synchronize()`.
+
+7. **General:**
+   - Kept the rest of the code intact and consistent.
+   - Added comments for clarity.
+
+This script should now run correctly and perform the requested double lane change maneuver with the updated initial position and terrain texture.

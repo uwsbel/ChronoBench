@@ -1,0 +1,122 @@
+```python
+import pychrono as chrono
+import pychrono.fea as fea
+import pychrono.irrlicht as chronoirr
+
+# 1. Initialize the PyChrono environment and core components
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())  # Ensure data path is set (optional if environment variable set)
+
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Gravity pointing downwards
+
+# 2. Add the required physical systems and objects as specified
+
+# Create the mesh container for ANCF cable elements
+mesh = fea.ChMesh()
+
+# Beam parameters
+beam_length = 2.0  # meters
+beam_radius = 0.02  # meters (for visualization)
+num_elements = 10
+
+# Material properties for the beam (steel-like)
+density = 7850  # kg/m^3
+E = 2.1e11  # Young's modulus in Pa
+nu = 0.3  # Poisson ratio
+G = E / (2 * (1 + nu))  # Shear modulus
+
+# Cross-section properties (circular cross-section)
+area = chrono.CH_C_PI * beam_radius**2
+I = (chrono.CH_C_PI * beam_radius**4) / 4  # second moment of area
+
+# Create the ANCF cable section
+section = fea.ChBeamSectionCable()
+section.SetDensity(density)
+section.SetYoungModulus(E)
+section.SetGshear(G)
+section.SetCrossSectionCircular(beam_radius)
+
+# Create nodes and elements
+nodes = []
+for i in range(num_elements + 1):
+    x = beam_length * i / num_elements
+    # Initial position of node
+    pos = chrono.ChVectorD(x, 0, 0)
+    # Initial slope vector (tangent) along x-axis
+    slope = chrono.ChVectorD(1, 0, 0)
+    node = fea.ChNodeFEAxyzD(pos, slope)
+    mesh.AddNode(node)
+    nodes.append(node)
+
+# Create ANCF cable elements connecting nodes
+for i in range(num_elements):
+    element = fea.ChElementCableANCF()
+    element.SetNodes(nodes[i], nodes[i + 1])
+    element.SetSection(section)
+    element.SetAlphaDamp(0.01)  # Some damping
+    mesh.AddElement(element)
+
+# Add the mesh to the system
+system.Add(mesh)
+
+# 2b. Add a fixed hinge at the first node (beam root)
+# We fix the first node's position and slope to simulate a hinged support.
+# For a hinge, we fix position but allow rotation. However, ANCF nodes have position and slope degrees of freedom.
+# To simulate a hinge, we fix the position but leave slope free.
+# PyChrono does not have direct hinge constraints on ANCF nodes, so we fix the node's position DOFs only.
+
+# Fix the first node's position (x,y,z) but leave slope free
+nodes[0].SetFixed(True)  # This fixes all DOFs (position + slope)
+# To simulate a hinge (fixed position but free slope), we need to fix only position DOFs.
+# PyChrono does not provide direct partial fixing on ANCF nodes,
+# so we use a workaround: create a constraint that fixes position but not slope.
+
+# Remove full fix and instead create a constraint to fix position only:
+nodes[0].SetFixed(False)
+
+# Create a constraint to fix the first node's position to its initial position
+pos_constraint = chrono.ChLinkLockPoint()
+pos_constraint.Initialize(nodes[0], None, nodes[0].GetPos())
+system.AddLink(pos_constraint)
+
+# 3. Visualization setup with Irrlicht
+application = chronoirr.ChIrrApp(system, "ANCF Cable Beam Simulation", chronoirr.dimension2du(1024, 768))
+
+application.AddTypicalSky()
+application.AddTypicalLights()
+application.AddTypicalCamera(chronoirr.vector3df(beam_length * 0.5, beam_length * 0.5, beam_length * 2))
+
+# Visualization of the mesh (beam)
+visualize_mesh = fea.ChVisualizationFEAmesh(mesh)
+visualize_mesh.SetWireframe(True)
+visualize_mesh.SetFEMdataType(fea.ChVisualizationFEAmesh.E_PLOT_NODE_SPEED)  # Color by nodal speed
+visualize_mesh.SetColorscaleMinMax(-1, 1)
+visualize_mesh.SetShrinkElements(True, 0.85)
+mesh.AddVisualization(visualize_mesh)
+
+# Visualization of nodes as spheres
+for node in nodes:
+    sphere = chrono.ChSphereShape()
+    sphere.GetSphereGeometry().rad = beam_radius * 1.5
+    node.AddVisualShape(sphere)
+
+application.AssetBindAll()
+application.AssetUpdateAll()
+
+# Simulation loop parameters
+application.SetTimestep(1e-3)
+application.SetTryRealtime(True)
+
+# Run the simulation loop
+while application.GetDevice().run():
+    application.BeginScene()
+    application.DrawAll()
+
+    # Optional: print nodal positions (for debugging or monitoring)
+    # for i, node in enumerate(nodes):
+    #     pos = node.GetPos()
+    #     print(f"Node {i}: {pos.x:.3f}, {pos.y:.3f}, {pos.z:.3f}")
+
+    application.DoStep()
+    application.EndScene()
+```

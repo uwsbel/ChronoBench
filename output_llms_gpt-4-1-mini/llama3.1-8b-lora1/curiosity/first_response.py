@@ -1,0 +1,162 @@
+import pychrono.core as chrono
+import pychrono.irrlicht as irr
+import pychrono.cascade as cascade
+from pychrono import irrlicht as chronoirr
+import math
+
+# =============================================================================
+
+def main():
+    #print("Copyright (c) 2017 projectchrono.org\nChrono version: ", CHRONO_VERSION , "\n\n")
+
+    # --------------
+    # Create the system
+    # --------------
+
+    sys = chrono.ChSystemNSC()
+    sys.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+    sys.SetGravitationalAcceleration(chrono.ChVector3d(0,0,-9.81))
+    sys.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
+    sys.GetSolver().AsIterative().SetMaxIterations(150)
+    sys.SetMaxPenetrationRecoverySpeed(4.0)
+
+    # -------------------------------------
+    # add a terrain with texture and color
+    # -------------------------------------
+
+    mtr = chrono.ChContactMaterialNSC()
+    mtr.SetFriction(0.9)
+    mtr.SetRestitution(0.01)
+
+    tractation = chrono.ChContactMethodNSC()
+    tractation.Material = mtr
+
+    terrain = chrono.ChTerrain(sys)
+    patch = terrain.AddPatch(tractation, 
+                             chrono.CSYSNORM, 
+                             200, 200)
+    patch.SetColor(chrono.ChColor(0.8, 0.8, 1))
+    patch.SetTexture(chrono.GetChronoDataFile('terrain/textures/tile4.jpg'), 200, 200)
+    patch.SetColorTexture(chrono.ChColor(0.3, 0.3, 0.3))
+    terrain.Initialize()
+
+    # -----------------------
+    # Create a rover vehicle
+    # -----------------------
+
+    rover = cascade.RoverEasy()
+    rover.SetName("Curiosity")
+    rover.SetSpindleAxis(chrono.ChVector3d(0, 0, 1))
+    rover.SetChassisFixed(False)
+    rover.SetSuspensionTravel(0.2)
+    rover.SetSuspensionType(cascade.Axle.ShockAbsorberModel.Type_SPRING_SHAFT)
+    rover.SetSteeringType(cascade.Axle.ShockAbsorberModel.Type_SHAFTS)
+    rover.SetDrivelineType(cascade.Axle.DrivelineTypeSHAFTS)
+    rover.SetTireType(cascade.TireModelType_TMEASY)
+    rover.SetTireStepSize(0.01)
+    rover.Initialize(sys)
+
+    rover.GetChassis().SetFixed(False)
+    rover.GetChassis().EnableCollision(0, True)
+    rover.GetChassis().SetFixed(True)
+
+    rover.GetSuspensionLeft().SetWheelRadius(0.08)
+    rover.GetSuspensionRight().SetWheelRadius(0.08)
+
+    rover.GetSteeringLeft().SetLength(0.12)
+    rover.GetSteeringRight().SetLength(0.12)
+
+    rover.GetDriveLeft().SetGearRatio(8.77, 2.9)
+    rover.GetDriveRight().SetGearRatio(8.77, 2.9)
+
+    rover.GetSuspensionLeft().SetSpringStiffness(50000)
+    rover.GetSuspensionRight().SetSpringStiffness(50000)
+
+    rover.GetSteeringLeft().SetShaftStiffness(120000)
+    rover.GetSteeringRight().SetShaftStiffness(120000)
+
+    rover.GetDriveLeft().SetShaftStiffness(120000)
+    rover.GetDriveRight().SetShaftStiffness(120000)
+
+    rover.GetTireLeft().SetTireType(cascade.TireModelType_TMEASY)
+    rover.GetTireRight().SetTireType(cascade.TireModelType_TMEASY)
+
+    rover.GetTireLeft().SetTireStepSize(0.01)
+    rover.GetTireRight().SetTireStepSize(0.01)
+
+    rover.GetTireLeft().SetRollingResistance(0.02)
+    rover.GetTireRight().SetRollingResistance(0.02)
+
+    rover.GetTireLeft().SetTireRadius(0.08)
+    rover.GetTireRight().SetTireRadius(0.08)
+
+    rover.GetTireLeft().SetContactMethod(chrono.ChContactMethodNSC())
+    rover.GetTireRight().SetContactMethod(chrono.ChContactMethodNSC())
+
+    rover.GetTireLeft().SetTireModelType(cascade.TireModelType_TMEASY)
+    rover.GetTireRight().SetTireModelType(cascade.TireModelType_TMEASY)
+
+    rover.GetTireLeft().SetRestitution(0.01)
+    rover.GetTireRight().SetRestitution(0.01)
+
+    rover.GetTireLeft().SetFriction(0.99)
+    rover.GetTireRight().SetFriction(0.99)
+
+    rover.Initialize(sys)
+
+    # -----------------------
+    # Create the driver
+    # -----------------------
+
+    driver = cascade.RoverEasyDC()
+    driver.SetRover(rover)
+    driver.Initialize()
+
+    # -------------------------------------
+    # Create an Irrlicht application
+    # -------------------------------------
+
+    vis = chronoirr.ChVisualSystemIrrlicht()
+    vis.AttachSystem(sys)
+    vis.SetWindowSize(1024,768)
+    vis.SetWindowTitle('Rover')
+    vis.Initialize()
+    vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+    vis.AddSkyBox()
+    vis.AddCamera(chrono.ChVector3d(0.2,0.2,0.2),chrono.ChVector3d(0.0))
+    vis.AddTypicalLights()
+    vis.AddLightWithShadow(chrono.ChVector3d(2.1, -8, 8),
+                           chrono.ChVector3d(0, 0, 0),
+                           300, 500, 0.07, 0.01)
+    vis.AddTerrain()
+
+    # ---------------
+    # Run the simulation
+    # ---------------
+
+    real_time_timer = chrono.ChRealtimeStepTimer()
+    real_time_timer.SetStepSize(0.02)
+
+    while vis.Run() :
+        time = sys.GetChTime()
+
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+
+        driver.Synchronize(time)
+
+        sys.DoStepDynamics(0.01)
+
+        real_time_timer.Spin()
+
+    print('Rover demo\n\n')
+    return 0
+
+
+# The path to the Chrono data directory containing various assets (meshes, textures, data files)
+# is automatically set, relative to the default location of this demo.
+# If running from a different directory, you must change the path to the data directory with: 
+#chrono.SetChronoDataPath('path/to/data')
+
+main()

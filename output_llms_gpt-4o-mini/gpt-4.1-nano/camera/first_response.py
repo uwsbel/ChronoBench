@@ -1,0 +1,122 @@
+import pychrono as chrono
+import pychrono.sensor as sensors
+import math
+import numpy as np
+
+# Initialize the Chrono simulation system
+system = chrono.ChSystemNSC()
+
+# Set gravity or other global parameters if needed
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+
+# -----------------------------------------------
+# 1. Load the mesh (Wavefront .obj file)
+# -----------------------------------------------
+mesh_file = "path/to/your_mesh.obj"  # Replace with your actual mesh file path
+
+# Use Chrono's builder to load the mesh
+# For visualization purposes, create a fixed rigid body with the mesh
+mesh_body = chrono.ChBodyEasyMesh(mesh_file,  # mesh filename
+                                  100,        # density
+                                  True,       # do a collision mesh
+                                  True,       # build visualization mesh
+                                  None,       # optional collision mesh
+                                  sys=system)
+
+# Set the mesh body as fixed
+mesh_body.SetBodyFixed(True)
+
+# -----------------------------------------------
+# 2. Add the mesh object to the scene
+# -----------------------------------------------
+system.Add(mesh_body)
+
+# -----------------------------------------------
+# 3. Initialize the sensor manager and camera sensor
+# -----------------------------------------------
+sensor_manager = sensors.ChSensorManager()
+sensor_manager.scene_manager.SetRenderMode(sensors.SceneManager.SENSOR_VISUALIZATION)
+
+# Create the camera sensor: position and orientation are initially arbitrary
+# We'll update position dynamically later
+camera = sensors.ChCameraSensor(
+    mesh_body,               # parent body
+    20,                     # update rate in Hz
+    chrono.ChVectorD(0, 0, 0),  # position (will be updated dynamically)
+    chrono.ChMatrix33D(1),     # look at matrix (identity initially)
+    640,                     # width pixel
+    480,                     # height pixel
+    30                       # field of view in degrees
+)
+
+# Add noise filter to the camera
+noise_filter = sensors.ChSensorNoiseFilter()
+noise_filter.EnableGaussian(0.0)  # initialize with no noise
+# You can customize noise parameters as needed
+camera.AddFilter(noise_filter)
+
+# Add a visualization filter (e.g., to display the camera image in a window)
+visualization_filter = sensors.ChFilterVisualizeCam()
+camera.AddFilter(visualization_filter)
+
+# Add the camera sensor to the manager
+sensor_manager.AddSensor(camera)
+
+# -----------------------------------------------
+# 4. Simulation parameters
+# -----------------------------------------------
+total_time = 10.0  # seconds
+time_step = 1.0 / 60.0  # seconds
+num_steps = int(total_time / time_step)
+
+# Orbit parameters for camera
+orbit_radius = 2.0
+orbit_speed = 0.5  # radians/sec
+orbit_inclination = math.radians(30)  # inclination angle
+
+# Function to compute camera position in orbit
+def compute_camera_position(t):
+    angle = orbit_speed * t
+    x = orbit_radius * math.cos(angle)
+    y = orbit_radius * math.sin(angle) * math.sin(orbit_inclination)
+    z = orbit_radius * math.sin(angle) * math.cos(orbit_inclination)
+    return chrono.ChVectorD(x, y, z)
+
+# -----------------------------------------------
+# 5. Run the simulation loop
+# -----------------------------------------------
+for step in range(num_steps):
+    current_time = step * time_step
+
+    # Compute new camera position for this step
+    cam_pos = compute_camera_position(current_time)
+
+    # Set camera to look at the mesh center
+    mesh_center = mesh_body.GetPos()
+    direction = mesh_center - cam_pos
+    direction.Normalize()
+    # Create look-at matrix
+    # The camera will look at the mesh center
+    camera.SetPos(cam_pos)
+    camera.SetLookAt(mesh_center)
+
+    # Step the sensor manager to update sensors
+    sensor_manager.SetNextDrawWindow(0)  # optional: to manage visualization windows
+    sensor_manager.Update()
+
+    # Retrieve and print camera buffer data
+    if camera.GetBuffer():
+        image_buffer = camera.GetBuffer()
+        # For illustration: print that data is received
+        print(f"Time {current_time:.2f}s: Received camera buffer with size {len(image_buffer)} bytes.")
+        # Optionally process the buffer (e.g., save images, analyze pixels)
+    else:
+        print(f"Time {current_time:.2f}s: No camera buffer available.")
+
+    # Advance the physics system
+    system.DoStepDynamics(time_step)
+
+# -----------------------------------------------
+# End of simulation
+# -----------------------------------------------
+print("Simulation completed.")

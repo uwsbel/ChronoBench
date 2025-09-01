@@ -1,0 +1,494 @@
+Okay, I need to create a PyChrono simulation of a simple pendulum. Let me start by recalling the basic components required. A pendulum typically has a mass (the bob) connected to a fixed point via a rod or string, which in this case will be modeled as a revolute joint. The ground body will be the fixed point, and the pendulum body will swing under gravity.
+
+First, I should set up the environment. I'll need to import the necessary modules, like pychrono and the irrlicht visualization module. Then initialize the system, probably using ChSystemNSC since it's common for rigid body dynamics.
+
+Next, the visualization setup. I need to create a ChVisualSystemIrrlicht instance, attach it to the system, set the window size and title, add a camera, and initialize the visualization. The camera position should give a good view of the pendulum's motion.
+
+Now, the physical components. The ground body is fixed, so I'll create a ChBody, set its position, and make it fixed. The pendulum body needs to have mass and inertia. Maybe use a sphere for simplicity. I'll use ChBodyEasySphere to create it, which sets mass and inertia automatically based on density. The position should be below the ground point so the pendulum is hanging.
+
+The revolute joint connects the pendulum to the ground. Using ChLinkLockRevolute makes sense here. The joint's frame needs to be positioned at the pivot point. I'll initialize the joint between the ground and pendulum bodies, specifying the coordinatesys at the ground's position and aligned with the system's axes.
+
+Adding gravity to the system is essential. The system's gravity is set via Set_G_acc. Probably set it in the negative Y direction.
+
+Then, the simulation loop. The main loop will run while the visualization is active. Each iteration, update the visualization with BeginScene and Render, advance the simulation step with DoStepDynamics, and log the position and velocity of the pendulum periodically. Maybe every 0.1 seconds or so.
+
+Wait, how to log the position and velocity? I can print them at each step or every few steps. Also, need to make sure the time step is appropriate, like 0.001 seconds for small steps.
+
+Let me structure the code step by step. Start with imports, then system and visualization setup. Then create bodies, joint, apply gravity, add everything to the system and visualization. Then the loop.
+
+Wait, I need to remember to add the visualization shapes to the bodies. The ground might not need a visual shape if it's just a fixed point, but the pendulum should have a sphere shape. The ground could have a small box or cylinder to represent the pivot point visually.
+
+Hmm, maybe the ground body's visual shape can be a small cylinder at the pivot. Alternatively, the pendulum's sphere is sufficient for visualization. Let me think. The pendulum's sphere will be visible, and the joint's position is clear from its motion.
+
+Testing the code structure:
+
+Import modules:
+
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
+import math
+
+Initialize the system:
+
+sys = chrono.ChSystemNSC()
+sys.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Gravity
+
+Visualization setup:
+
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(sys)
+vis.SetWindowSize(1024,768)
+vis.SetWindowTitle('Pendulum Simulation')
+vis.SetSymbolscale(0.01)
+vis.SetShowInfos(True)
+vis.SetCameraPosition(chrono.ChVectorD(0, 3, 5))  # Position the camera
+vis.SetCameraRotation(chrono.Q_from_Euler123(chrono.ChVectorD(0, math.pi/4, 0)))  # Rotate to see the pendulum
+vis.Initialize()
+vis.AddSkyBox()
+vis.AddTypicalLights()
+
+Ground body:
+
+ground = chrono.ChBody()
+ground.SetBodyFixed(True)
+ground.SetPos(chrono.ChVectorD(0, 0, 0))
+sys.Add(ground)
+
+Maybe add a visual shape to the ground for clarity. A small cylinder:
+
+ground_shape = chrono.ChBox(0.1, 0.1, 0.1)  # Or a cylinder, but Box is easier
+ground.AddVisualShape(chrono.ChVisualShapeBox(0.1, 0.1, 0.1), chrono.ChColorAsset(chrono.ChColor(0.5,0.5,0.5)))
+
+Pendulum body:
+
+pendulum_length = 2.0  # length of the rod
+pendulum_mass = 1.0
+pendulum_radius = 0.1
+
+pendulum = chrono.ChBodyEasySphere(pendulum_radius, pendulum_mass, True, True)
+pendulum.SetPos(chrono.ChVectorD(0, -pendulum_length, 0))  # Start hanging down
+
+sys.Add(pendulum)
+
+Revolute joint between ground and pendulum at (0,0,0):
+
+rev_joint = chrono.ChLinkLockRevolute()
+rev_joint.Initialize(ground, pendulum, chrono.ChFrameD(chrono.ChVectorD(0,0,0), chrono.QUNIT))
+sys.AddLink(rev_joint)
+
+Wait, the coordinatesys for the joint's frame is important. The revolute joint allows rotation around the Z-axis by default (assuming the default coordinate system). Wait, the rotation axis is along the Z of the joint's frame. Since the joint is at (0,0,0), and the pendulum is along the negative Y axis, perhaps the rotation axis is along the X or Y? Wait, the default ChFrameD uses the system's coordinate system. Let me think: the revolute joint's axis is along the Z-axis of the joint's frame. So if the joint's frame is at (0,0,0) with identity rotation, the rotation axis is along the global Z. But the pendulum is hanging along the Y axis, so maybe the rotation should be around the X-axis? Hmm, maybe I need to adjust the rotation of the joint's frame so that the pendulum can swing in the X-Y plane.
+
+Wait, perhaps the default setup will work. Let me see: if the joint is at (0,0,0), and the pendulum is at (0,-2,0), then the pendulum can swing in the Y-Z plane? Wait, maybe I need to set the rotation axis to be along the X-axis so that it can swing in the Y-Z plane. Alternatively, perhaps the initial setup is okay. Maybe I should set the rotation axis to be along the X-axis by rotating the joint's frame.
+
+Alternatively, maybe the default is okay. Let me proceed and see. If the pendulum isn't swinging properly, I can adjust later.
+
+Now, adding to the visualization:
+
+pendulum.GetVisualShape(0).SetColor(chrono.ChColor(1,0,0))  # Red color
+
+Then, the simulation loop:
+
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    sys.DoStepDynamics(0.001)  # Time step of 1ms
+
+    # Log position and velocity every 0.1 seconds
+    if sys.GetChTime() % 0.1 < 0.001:
+        pos = pendulum.GetPos()
+        vel = pendulum.GetPos_dt()
+        print(f"Time: {sys.GetChTime():.2f}s, Position: ({pos.x:.2f}, {pos.y:.2f}, {pos.z:.2f}), Velocity: ({vel.x:.2f}, {vel.y:.2f}, {vel.z:.2f})")
+
+Wait, but how to get the angular position? The position is the center of mass, so the displacement from the joint is along the rod. The angle can be calculated from the position coordinates. Alternatively, since it's a revolute joint, maybe we can get the angular position from the joint's data. But for simplicity, perhaps just print the position and velocity vectors.
+
+Wait, the pendulum's position is the center of mass. The displacement from the joint is (pos.x, pos.y, pos.z) minus the joint position (0,0,0). The length is 2m, so the distance should be 2m. The angle can be calculated using arctangent of y/x or something, but maybe the user just wants the position and velocity vectors logged.
+
+Putting it all together, the code should look something like that. Let me check for possible errors:
+
+- Did I forget to add the ground's visual shape to the visualization system? Wait, no, because when you add a visual shape to a body, it's automatically part of the visualization when the body is added to the system and the system is attached to the visual system.
+
+Wait, the ground is a ChBody, and we added a visual shape to it. So when the system is attached to the visual system, the ground's visual shape should be rendered.
+
+Another thing: the ChLinkLockRevolute is a lock, which completely constrains the bodies except for rotation around the axis. That's correct for a revolute joint.
+
+Testing the code in my mind: when the simulation runs, the pendulum should swing downward due to gravity, then swing back and forth. The visualization should show this motion.
+
+Possible issues: maybe the pendulum isn't moving because of incorrect joint setup. Let me think again about the joint's rotation axis. The default ChLinkLockRevolute allows rotation around the Z-axis of the joint's frame. The joint's frame is at (0,0,0) with no rotation, so the rotation axis is the global Z. The pendulum is along the negative Y-axis, so when gravity pulls it down (along negative Y), the rotation would be around Z, which allows swinging in the Y-Z plane. Wait, but the pendulum's initial position is along the negative Y-axis. If gravity is pulling it down (along negative Y), then it's already at the lowest point. Wait, no, because the pendulum is a sphere, so its center of mass is at (0,-2,0). The joint is at (0,0,0). So the pendulum is hanging straight down along the Y-axis. Gravity is also along negative Y, so the pendulum is in equilibrium. Wait, that's a problem. Because the pendulum is already in the lowest energy state, it won't swing unless given an initial push.
+
+Ah, right! The problem instructions didn't mention an initial displacement, but to have a swinging pendulum, we need to set an initial angular displacement. So maybe I should set the pendulum's initial position to be displaced, like along the X axis or something.
+
+Wait, the problem says "simple pendulum", so perhaps it's supposed to start at rest, but due to gravity, it would just hang there. To see motion, we need to give it an initial velocity or position. Let me adjust the initial position to be displaced. For example, set the pendulum's position to (0.5, -pendulum_length, 0), so it's displaced along the X-axis. That way, gravity will cause it to swing back towards the Y-axis.
+
+Alternatively, set an initial angular velocity. But maybe the user expects it to swing naturally, so an initial displacement is better.
+
+So modifying the pendulum's initial position:
+
+pendulum.SetPos(chrono.ChVectorD(0.5, -pendulum_length, 0))
+
+This way, the pendulum starts displaced to the right, and gravity will pull it down, causing it to swing.
+
+Another thing: the joint's rotation axis. If the rotation axis is the Z-axis, then the pendulum can swing in the Y-Z plane. But with the initial displacement along X, that might not be aligned. Wait, the displacement along X would be perpendicular to the Z axis, so the rotation would be around Z, allowing the pendulum to swing in the Y-Z plane. Wait, perhaps I need to adjust the rotation axis of the joint so that the pendulum can swing in the X-Y plane. Let me think again.
+
+The rotation axis is along the Z-axis of the joint's frame. The pendulum's position is (0.5, -2, 0). The joint is at (0,0,0). The displacement vector from the joint to the pendulum's COM is (0.5, -2, 0). The rotation axis is along Z (0,0,1). The torque from gravity would be the cross product of the position vector and the force (mg downward). The torque would be in the direction that causes rotation around the Z-axis, which would make the pendulum swing in the Y-Z plane. But the initial displacement is along X, so maybe the rotation is not happening as expected.
+
+Hmm, perhaps I need to set the rotation axis to the X-axis instead. To do that, the joint's frame should have a rotation so that its local Z is along the desired axis.
+
+Alternatively, maybe I should set the rotation axis to the X-axis. Let me adjust the joint's frame's rotation to have the rotation axis along the X-axis. That way, the pendulum can swing in the Y-Z plane.
+
+Wait, perhaps the confusion is arising from coordinate systems. Let me re-express:
+
+The default ChFrameD for the joint's frame is (position (0,0,0), rotation identity). The rotation axis of the revolute joint is along the Z-axis of the joint's frame. So the pendulum can rotate around the global Z-axis. The initial position is (0.5, -2, 0). The displacement vector is (0.5, -2, 0). The torque from gravity (force downward along Y) would be the cross product of the displacement vector and the force vector (which is along -Y). The torque would be in the direction of the cross product (0.5i -2j) × (-j * mg) = (0.5i × -j mg) + (-2j × -j mg). The cross i × -j is -k, and j × -j is zero. So torque is -0.5mg k. That would cause rotation around the -Z axis. So the pendulum would start rotating around the Z-axis, which is perpendicular to the initial displacement's X direction. That would make the pendulum swing in the Y-Z plane, but starting from an X displacement would require that motion.
+
+Alternatively, perhaps the initial displacement along X is okay, and the pendulum will swing in the plane perpendicular to the rotation axis.
+
+Alternatively, maybe the problem is expecting the pendulum to swing in the vertical plane (like a typical pendulum), so perhaps the rotation axis should be along the X-axis. Let me think: if the rotation axis is along X, then the pendulum can swing in the Y-Z plane. To have the pendulum hang along the Y-axis, that would work. Let me try adjusting the joint's rotation.
+
+To set the rotation axis to the X-axis, the joint's frame's rotation should be such that its local Z-axis is along the X-axis. Wait, the rotation axis is the joint's local Z. To have the rotation axis along global X, the joint's frame's Z-axis must point along X. So the rotation of the frame should be a rotation that aligns the local Z with global X. That can be done with a rotation of 90 degrees around Y-axis.
+
+So, the joint's frame is initialized with:
+
+chrono.ChFrameD(chrono.ChVectorD(0,0,0), chrono.Q_from_AngY(chrono.CH_C_PI_2))
+
+This rotates the frame's local Z axis to point along the global X axis. Therefore, the rotation axis is along the X-axis, allowing the pendulum to swing in the Y-Z plane. That way, an initial displacement along the X direction would be perpendicular to the rotation axis, allowing the pendulum to swing.
+
+Hmm, perhaps this adjustment is necessary. Alternatively, maybe I can just proceed and see if the code works, but the user might expect the pendulum to swing in a plane. Let me adjust the joint's rotation to have the rotation axis along the X-axis.
+
+So modifying the joint initialization:
+
+rev_joint.Initialize(ground, pendulum, chrono.ChFrameD(chrono.ChVectorD(0,0,0), chrono.Q_from_AngY(chrono.CH_C_PI_2)))
+
+This way, the rotation axis is along the X-axis, so the pendulum can swing in the Y-Z plane. The initial displacement along X would be perpendicular to the rotation axis, so the pendulum would swing in that plane.
+
+Alternatively, perhaps I made this too complicated, and the initial setup is okay. Let me proceed with the code as first written but include the initial displacement.
+
+Wait, in the initial setup, the pendulum's position is (0.5, -2, 0). The joint's rotation axis is along Z. The torque would be in the -Z direction, causing rotation around Z, so the pendulum would start moving in the Y-Z plane. The initial position is along X, so the displacement is not in the swing plane, which might cause some twisting. Maybe it's better to set the initial position in the Y-Z plane.
+
+Alternatively, set the initial position to (0, -2 + 0.5, 0) so that it's displaced along Y. Wait, but then gravity is along Y, so the pendulum is still in equilibrium. Hmm, perhaps I should displace it in the X direction and have the rotation axis along Z. Let's see:
+
+If the rotation axis is Z, then the pendulum can swing in the Y-Z plane. The initial position is (0.5, -2, 0). The torque from gravity would cause rotation around Z, which would move the pendulum towards the Y axis. So it would swing in the Y-Z plane, starting from an X displacement. That should work.
+
+Alternatively, perhaps the problem doesn't require the pendulum to swing, but just to hang. But the user probably wants to see it swinging, so an initial displacement is needed.
+
+Alright, I think I can proceed with the code as outlined, making sure to set the initial position off the equilibrium.
+
+Now, putting all the pieces together into the code. Also, ensure that the visualization is properly set up, including the ground's visual shape.
+
+Wait, the ground's visual shape is a box, but maybe it's better to represent the pivot point as a small sphere or cylinder. Alternatively, the ground can be a fixed body with a small sphere at the joint point. Let me adjust that:
+
+ground_shape = chrono.ChVisualShapeSphere(0.1)
+ground.AddVisualShape(ground_shape)
+
+That would make a small sphere at the joint point for visualization.
+
+Another thing: the pendulum's mass and inertia. Using ChBodyEasySphere sets the mass and inertia automatically based on the density and radius. The default density for ChBodyEasySphere is 1000 kg/m³, but I specified pendulum_mass = 1.0. Wait, no, the function ChBodyEasySphere takes the radius, density, and then the material. Wait, looking back at the API documentation in the user's provided info:
+
+chrono.ChBodyEasySphere(radius, density, visualize, collision, material)
+
+Wait, the parameters are (radius, density, visualize, collision, material). So in the code, when I wrote:
+
+pendulum = chrono.ChBodyEasySphere(pendulum_radius, pendulum_mass, True, True)
+
+Wait, that's incorrect. The second parameter is density, not mass. Oh no! That's a mistake. The user's instruction says to set appropriate mass and inertia, but using ChBodyEasySphere with the second parameter as density. So the mass is computed as density * volume.
+
+The volume of a sphere is (4/3)πr³. So if I want a mass of 1 kg, I need to set density such that density * (4/3 π r³) = 1. Let's compute that:
+
+pendulum_radius = 0.1 (meters)
+volume = (4/3)*pi*(0.1)^3 ≈ 0.00418879 m³
+density = 1 / 0.00418879 ≈ 238.732 kg/m³
+
+Alternatively, perhaps it's better to set the mass directly. But the ChBodyEasySphere function doesn't take mass as a parameter. So to set mass, I have to compute the density accordingly. Alternatively, create the body manually.
+
+Alternatively, use ChBody and set mass and inertia explicitly.
+
+Hmm, this is a problem. The user wants to set appropriate mass and inertia, but using ChBodyEasySphere with the second parameter as density may not give the desired mass unless calculated properly.
+
+Let me recalculate. Suppose I want the pendulum to have a mass of 1 kg. The sphere's radius is 0.1 m. The volume is (4/3)*pi*r³ ≈ 0.00418879 m³. So density = mass / volume = 1 / 0.00418879 ≈ 238.73 kg/m³.
+
+So in code:
+
+pendulum = chrono.ChBodyEasySphere(pendulum_radius, 238.73, True, True)
+
+That way, the mass is 1 kg. Alternatively, perhaps the user doesn't care about the exact mass as long as it's reasonable. Alternatively, maybe just set a density of 1000 kg/m³ for simplicity, which would give a mass of ~4.188 kg. But the problem says "appropriate mass", so maybe it's better to set it properly.
+
+Alternatively, perhaps use a box instead of a sphere to make it easier. Let me think: using a box with known dimensions and density.
+
+Alternatively, create the body manually:
+
+pendulum = chrono.ChBody()
+pendulum.SetMass(1.0)
+pendulum.SetInertiaXX(chrono.ChVectorD(2/5 * mass * r², ... )) but that's for a sphere. Wait, the moment of inertia for a solid sphere is (2/5)mr². So:
+
+pendulum.SetInertiaXX(chrono.ChVectorD(2/5 * 1.0 * (0.1)**2, 2/5 * 1.0 * (0.1)**2, 0.0))
+
+Wait, but the orientation might matter. Alternatively, use ChBodyEasySphere but compute the density correctly.
+
+This is an important point. The code as initially written would have incorrect mass unless the density is adjusted.
+
+So I need to correct that part.
+
+Let me adjust the pendulum creation:
+
+pendulum_radius = 0.1
+desired_mass = 1.0
+volume = (4.0/3.0)*math.pi*(pendulum_radius)**3
+density = desired_mass / volume
+
+pendulum = chrono.ChBodyEasySphere(pendulum_radius, density, True, True)
+
+That way, the mass is exactly 1 kg.
+
+Okay, that's fixed.
+
+Another thing: the revolute joint's frame's rotation. To allow swinging in the vertical plane, perhaps the rotation axis should be along the X-axis, so that the pendulum swings in the Y-Z plane. Let me adjust the joint's frame rotation accordingly.
+
+So, the joint's frame is initialized with a rotation of 90 degrees around Y-axis (since Q_from_AngY(PI/2) rotates the local Z to point along X):
+
+rev_joint.Initialize(ground, pendulum, chrono.ChFrameD(chrono.ChVectorD(0,0,0), chrono.Q_from_AngY(chrono.CH_C_PI_2)))
+
+This way, the rotation axis is along the X-axis, allowing the pendulum to swing in the Y-Z plane.
+
+Now, the initial position of the pendulum can be set to (0.5, -pendulum_length, 0), which is displaced along the X-axis. The pendulum will swing in the Y-Z plane, which is now allowed by the rotation axis.
+
+Wait, but the displacement along X would mean that the pendulum's COM is along the X direction, so when gravity acts downward (along -Y), the torque would be around the X axis (the rotation axis). Let me compute the torque:
+
+The displacement vector from the joint is (0.5, -2, 0). The force vector is (0, -mg, 0). The torque is r × F.
+
+The cross product of (0.5, -2, 0) and (0, -mg, 0):
+
+i component: (-2)(0) - 0*(-mg) = 0
+
+j component: 0*0 - 0.5*(-mg) = 0.5 mg
+
+k component: 0.5*(-mg) - (-2)*0 = -0.5 mg
+
+Wait, the cross product is (0, 0.5 mg, -0.5 mg). The torque vector has components in Y and Z. Since the rotation is allowed around the X-axis (the rotation axis), only the torque component along the X-axis would contribute. Wait, no: the torque must be along the rotation axis to cause rotation. Wait, torque is perpendicular to both r and F. The rotation axis is along X. The torque vector here has components in Y and Z, which are perpendicular to the rotation axis. Therefore, this torque would not cause rotation around the X-axis. Hmm, that's a problem.
+
+Wait, perhaps I made a mistake in the rotation axis setup. Let me think again.
+
+If the rotation axis is along the X-axis, then the allowed rotation is around that axis. The torque must have a component along the rotation axis to cause rotation.
+
+Wait, torque is r × F. The torque vector's direction is perpendicular to both r and F. For the rotation to occur around the X-axis, the torque must be along the X-axis.
+
+Wait, let me recalculate:
+
+The displacement vector r is (0.5, -2, 0).
+
+The force F is (0, -mg, 0).
+
+The cross product r × F is:
+
+i component: (-2)(0) - 0*(-mg) = 0
+
+j component: 0*0 - 0.5*(-mg) = 0.5 mg
+
+k component: 0.5*(-mg) - (-2)*0 = -0.5 mg
+
+So the torque vector is (0, 0.5 mg, -0.5 mg). The rotation axis is along X (the joint's rotation axis is X). The torque vector has components in Y and Z, which are perpendicular to the rotation axis. Therefore, this torque would not cause rotation around the X-axis. Hence, the pendulum wouldn't swing in that setup.
+
+Ah, this is a critical mistake. The initial setup's rotation axis is not aligned to allow the torque to cause rotation.
+
+This means that my previous approach is flawed. I need to ensure that the torque due to gravity causes rotation around the desired axis.
+
+Let me think again. To have the pendulum swing in the vertical plane (say, the Y-Z plane), the rotation axis must be perpendicular to that plane. So the rotation axis should be along the X-axis. But then, the torque must be along the X-axis.
+
+Wait, how to get torque along the X-axis?
+
+Suppose the pendulum is displaced along the Y-axis. Let's say the initial position is (0, -2 + 0.5, 0). So displacement vector is (0, -1.5, 0). Then the force is (0, -mg, 0). The cross product would be:
+
+r × F = (0, -1.5, 0) × (0, -mg, 0) = 
+
+i component: (-1.5)(0) - 0*(-mg) = 0
+
+j component: 0*0 - 0*(-mg) = 0
+
+k component: 0*(-mg) - (-1.5)*0 = 0 
+
+Wait, that's zero torque. Because the force is along the same line as the displacement, so no torque. That's equilibrium.
+
+Hmm, this is confusing. Let me try to think with a different coordinate system.
+
+Suppose the rotation axis is along the X-axis. The pendulum is hanging along the negative Y-axis. If we displace it in the Z direction, then the torque would be around X.
+
+Alternatively, perhaps the rotation axis should be along the Y-axis. Let's try that.
+
+If the rotation axis is along Y, then the joint's frame rotation is set to have the local Z axis along Y. To do that, rotate the frame by 90 degrees around the Z-axis.
+
+So the joint's frame is initialized with:
+
+chrono.Q_from_AngZ(chrono.CH_C_PI_2)
+
+This rotates the local Z to point along the Y-axis. Thus, the rotation axis is along Y.
+
+Now, the displacement vector is (0.5, -2, 0). The force is (0, -mg, 0).
+
+The torque is r × F = (0.5, -2, 0) × (0, -mg, 0)
+
+Calculating cross product:
+
+i component: (-2)(0) - 0*(-mg) = 0
+
+j component: 0*0 - 0.5*(-mg) = 0.5 mg
+
+k component: 0.5*(-mg) - (-2)*0 = -0.5 mg
+
+The torque vector is (0, 0.5 mg, -0.5 mg). The rotation axis is along Y (the joint's rotation axis is Y). The torque has components perpendicular to Y (in X and Z), so only the component along Y would contribute. Wait, the torque must be along the rotation axis to cause rotation.
+
+Wait, the torque vector must have a component along the rotation axis to cause rotation. The torque vector here has components in Y and Z? Wait no, the torque components are in Y and Z?
+
+Wait, the rotation axis is along Y. The torque must be along Y to cause rotation. But the cross product's Y component is 0.5 mg, which is along Y? Wait, no:
+
+Wait the cross product components are:
+
+i component (X): 0
+
+j component (Y): 0.5 mg
+
+k component (Z): -0.5 mg
+
+Wait, the torque vector is (0, 0.5 mg, -0.5 mg). The rotation axis is along Y (the joint's rotation axis is Y). So the torque's Y component is along the rotation axis, and the other components are perpendicular. Therefore, the torque along the rotation axis (Y) would cause rotation around Y. 
+
+Wait, but the rotation around the Y-axis would allow the pendulum to swing in the X-Z plane. 
+
+Hmm, perhaps this is getting too tangled. Maybe a simpler approach: set the rotation axis to be along the X-axis and displace the pendulum along the Z-axis.
+
+Alternatively, let's choose the rotation axis along the Z-axis (default), and displace the pendulum along the X-axis. The torque would then have a component along the Z-axis (the rotation axis), causing rotation around Z.
+
+Let me recalculate with rotation axis along Z (default joint setup):
+
+The displacement vector is (0.5, -2, 0). The force is (0, -mg, 0).
+
+Torque = r × F:
+
+i component: (-2)(0) - 0*(-mg) = 0
+
+j component: 0*0 - 0.5*(-mg) = 0.5 mg
+
+k component: 0.5*(-mg) - (-2)*0 = -0.5 mg
+
+The torque vector is (0, 0.5 mg, -0.5 mg). The rotation axis is along Z (the default). The torque's component along Z is the k component, which is -0.5 mg. This would cause rotation around the Z-axis. The pendulum would swing in the plane perpendicular to Z, which is the X-Y plane.
+
+Wait, if the rotation is around Z-axis, then the pendulum can rotate in the X-Y plane. The initial displacement along X would mean that the pendulum will swing in the X-Y plane.
+
+In that case, the initial position (0.5, -2, 0) is in the X-Y plane. The rotation around Z allows movement in that plane. So the pendulum will swing around the Z-axis, which is correct.
+
+Therefore, perhaps the initial setup with the default rotation axis (Z) is okay, and the displacement along X will work.
+
+Thus, the joint doesn't need any rotation, just the default frame.
+
+Therefore, the joint can be initialized as:
+
+rev_joint.Initialize(ground, pendulum, chrono.ChFrameD(chrono.ChVectorD(0,0,0), chrono.QUNIT))
+
+This way, the rotation axis is along Z, and the pendulum can swing in the X-Y plane.
+
+The initial displacement along X (0.5, -2, 0) will cause the pendulum to swing in the X-Y plane. The gravity is along -Y, so the torque around Z will be present.
+
+This should work.
+
+Alright, now I'll proceed to write the code with these corrections.
+</think>
+
+```python
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
+import math
+
+# Initialize the physical system
+sys = chrono.ChSystemNSC()
+sys.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Gravity vector
+
+# Visualization setup
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(sys)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle("Simple Pendulum Simulation")
+vis.SetSymbolScale(0.01)
+vis.SetShowInfos(True)
+vis.SetCamera(chronoirr.ChCameraSettings(chrono.ChVectorD(0, 3, 5), chrono.ChVectorD(0, 0, 0)))
+vis.SetCameraRotation(chrono.Q_from_Euler123(chrono.ChVectorD(0, math.pi/4, 0)))
+vis.Initialize()
+vis.AddSkyBox()
+vis.AddTypicalLights()
+
+# Ground body (fixed pivot point)
+ground = chrono.ChBody()
+ground.SetBodyFixed(True)
+ground.SetPos(chrono.ChVectorD(0, 0, 0))
+sys.Add(ground)
+
+# Visual shape for the ground (small sphere at the pivot)
+ground_shape = chrono.ChVisualShapeSphere(0.1)
+ground.AddVisualShape(ground_shape)
+
+# Pendulum parameters
+pendulum_length = 2.0  # Length of the rod
+pendulum_radius = 0.1  # Radius of the spherical bob
+desired_mass = 1.0     # Desired mass of the pendulum
+
+# Calculate density for the sphere to achieve the desired mass
+volume = (4.0/3.0) * math.pi * (pendulum_radius)**3
+density = desired_mass / volume
+
+# Create the pendulum body (sphere)
+pendulum = chrono.ChBodyEasySphere(pendulum_radius, density, True, True)
+pendulum.SetPos(chrono.ChVectorD(0.5, -pendulum_length, 0))  # Initial displacement along X-axis
+pendulum.SetMaterialSurface(chrono.ChMaterialSurface())  # Default material
+sys.Add(pendulum)
+
+# Revolute joint connecting ground and pendulum (rotation around Z-axis by default)
+rev_joint = chrono.ChLinkLockRevolute()
+rev_joint.Initialize(ground, pendulum, chrono.ChFrameD(chrono.ChVectorD(0,0,0), chrono.QUNIT))
+sys.AddLink(rev_joint)
+
+# Simulation loop
+time_step = 0.001  # Time step for simulation
+log_interval = 0.1  # Log every 0.1 seconds
+
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    
+    sys.DoStepDynamics(time_step)
+    
+    current_time = sys.GetChTime()
+    if current_time % log_interval < time_step:
+        pos = pendulum.GetPos()
+        vel = pendulum.GetPos_dt()
+        print(f"Time: {current_time:.2f}s | Position: ({pos.x:.2f}, {pos.y:.2f}, {pos.z:.2f}) | Velocity: ({vel.x:.2f}, {vel.y:.2f}, {vel.z:.2f})")
+
+# Keep the window open until user closes it
+vis.Run()
+```
+
+**Explanation of Key Components:**
+
+1. **System Initialization**:  
+   - `ChSystemNSC()` is used for non-smooth contact dynamics, suitable for rigid bodies.  
+   - Gravity is applied with `Set_G_acc()` to simulate downward acceleration.
+
+2. **Visualization Setup**:  
+   - `ChVisualSystemIrrlicht` initializes the 3D rendering environment.  
+   - Camera and lighting settings ensure the pendulum is visible and the scene is well-lit.
+
+3. **Ground Body**:  
+   - A fixed body representing the pivot point.  
+   - A small sphere visual shape marks the pivot location.
+
+4. **Pendulum Body**:  
+   - Created using `ChBodyEasySphere` with calculated density to achieve a mass of 1 kg.  
+   - Initialized with an initial displacement along the X-axis to induce motion.
+
+5. **Revolute Joint**:  
+   - `ChLinkLockRevolute` connects the pendulum to the ground, allowing rotation around the Z-axis (default).  
+   - This enables swinging in the X-Y plane.
+
+6. **Simulation Loop**:  
+   - Advances the simulation with `DoStepDynamics()`.  
+   - Periodically logs the pendulum's position and velocity for analysis.
+
+**Key Considerations**:  
+- The pendulum's initial displacement along the X-axis ensures it swings in the X-Y plane due to gravity.  
+- The revolute joint's default rotation axis (Z) allows this motion.  
+- The calculated density ensures the pendulum has the desired mass while maintaining realistic inertia properties.

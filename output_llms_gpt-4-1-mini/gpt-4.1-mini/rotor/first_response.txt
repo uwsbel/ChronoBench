@@ -1,0 +1,188 @@
+```python
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
+import pychrono.fea as fea
+import pychrono.irrlicht as irr
+
+# 1. Initialize the PyChrono environment and core components
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())  # Ensure data path is set
+
+system = chrono.ChSystemSMC()
+system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))  # Gravity along -Z
+
+# 2. Create the IGA beam representing the Jeffcott rotor shaft
+
+# Beam parameters
+beam_length = 1.0  # meters
+beam_radius = 0.02  # meters
+beam_density = 7800  # kg/m^3 (steel)
+beam_E = 2.1e11  # Young's modulus (Pa)
+beam_G = 8.1e10  # Shear modulus (Pa)
+beam_nurbs_degree = 3
+beam_num_elements = 10
+
+# Create the IGA beam
+beam = fea.ChBeamIGA()
+beam.SetSystem(system)
+
+# Define the beam section (circular cross-section)
+section = fea.ChBeamSectionCosserat()
+section.SetDensity(beam_density)
+section.SetYoungModulus(beam_E)
+section.SetGshear(beam_G)
+section.SetRadius(beam_radius)
+section.SetBeamRaleyghDamping(0.01)  # small damping
+
+beam.SetSection(section)
+
+# Create a NURBS curve for the beam centerline (straight line along X)
+# Control points for a straight line from (0,0,0) to (beam_length,0,0)
+control_points = []
+for i in range(beam_num_elements + 1):
+    x = beam_length * i / beam_num_elements
+    control_points.append(chrono.ChVectorD(x, 0, 0))
+
+beam.SetNurbsControlPoints(control_points)
+beam.SetNurbsDegree(beam_nurbs_degree)
+beam.SetNumElements(beam_num_elements)
+
+beam.SetAlphaDamp(0.01)  # Rayleigh damping
+
+beam.Initialize()
+
+# Fix the left end of the beam (at x=0)
+beam.GetConstrainedNodes().append(0)  # constrain first node
+
+# 3. Create the flywheel at the beam center
+
+# Flywheel parameters
+flywheel_radius = 0.1  # meters
+flywheel_thickness = 0.05  # meters
+flywheel_density = 7800  # kg/m^3
+
+# Create a rigid body for the flywheel
+flywheel = chrono.ChBody()
+flywheel.SetMass(chrono.CH_C_PI * flywheel_radius**2 * flywheel_thickness * flywheel_density)
+flywheel.SetInertiaXX(chrono.ChVectorD(0.5 * flywheel.GetMass() * flywheel_radius**2,
+                                      0.5 * flywheel.GetMass() * flywheel_radius**2,
+                                      0.5 * flywheel.GetMass() * flywheel_radius**2))
+
+# Position the flywheel at the beam center (x = beam_length/2)
+flywheel_pos = chrono.ChVectorD(beam_length / 2, 0, 0)
+flywheel.SetPos(flywheel_pos)
+flywheel.SetBodyFixed(False)
+system.Add(flywheel)
+
+# Visual shape for the flywheel (cylinder along Z)
+cyl_shape = chrono.ChCylinderShape()
+cyl_shape.GetCylinderGeometry().p1 = chrono.ChVectorD(0, 0, -flywheel_thickness / 2)
+cyl_shape.GetCylinderGeometry().p2 = chrono.ChVectorD(0, 0, flywheel_thickness / 2)
+cyl_shape.GetCylinderGeometry().rad = flywheel_radius
+flywheel.AddVisualShape(cyl_shape)
+
+# 4. Attach the flywheel to the beam center node with a rigid joint
+
+# Find the beam node closest to the center
+center_node_index = beam_num_elements // 2
+
+# Create a ChLinkMateGeneric to rigidly connect flywheel and beam node
+link_flywheel = chrono.ChLinkMateGeneric()
+link_flywheel.SetConstrainedCoords(True, True, True, True, True, True)  # lock all DOFs
+
+# Connect flywheel to the beam node's ChNodeFEAxyzrot
+node_center = beam.GetNodalElement(center_node_index)
+node_center_pos = beam.GetNurbsControlPoints()[center_node_index]
+
+# The beam node is a ChNodeFEAxyzrot, but we need a ChBody for the joint.
+# So we create a ChBodyAuxRef at the node position and link it to the beam node.
+
+# Create a body to represent the beam node for the joint
+beam_node_body = chrono.ChBodyAuxRef()
+beam_node_body.SetMass(1e-6)  # negligible mass
+beam_node_body.SetInertiaXX(chrono.ChVectorD(1e-6, 1e-6, 1e-6))
+beam_node_body.SetPos(node_center_pos)
+beam_node_body.SetBodyFixed(True)  # fixed relative to beam node position
+system.Add(beam_node_body)
+
+# Link the beam node body to the flywheel rigidly
+link_flywheel.Initialize(flywheel, beam_node_body, chrono.ChCoordsysD(node_center_pos))
+system.Add(link_flywheel)
+
+# 5. Create a rotational motor driving the left end of the beam
+
+# The left end node index is 0
+left_node_pos = beam.GetNurbsControlPoints()[0]
+
+# Create a ChBodyAuxRef to represent the left beam node for the motor joint
+left_node_body = chrono.ChBodyAuxRef()
+left_node_body.SetMass(1e-6)
+left_node_body.SetInertiaXX(chrono.ChVectorD(1e-6, 1e-6, 1e-6))
+left_node_body.SetPos(left_node_pos)
+left_node_body.SetBodyFixed(True)
+system.Add(left_node_body)
+
+# Create a motor body to apply rotation (a dummy body)
+motor_body = chrono.ChBody()
+motor_body.SetMass(1e-3)
+motor_body.SetInertiaXX(chrono.ChVectorD(1e-3, 1e-3, 1e-3))
+motor_body.SetPos(left_node_pos)
+motor_body.SetBodyFixed(False)
+system.Add(motor_body)
+
+# Revolute joint between motor body and left node body (rotation about X axis)
+motor_joint = chrono.ChLinkLockRevolute()
+motor_joint.Initialize(motor_body, left_node_body, chrono.ChCoordsysD(left_node_pos, chrono.Q_from_AngAxis(0, chrono.ChVectorD(1, 0, 0))))
+system.Add(motor_joint)
+
+# Rotational motor to drive the motor_body with prescribed angular velocity
+motor = chrono.ChLinkMotorRotationAngle()
+motor.Initialize(motor_body, left_node_body, chrono.ChFrameD(left_node_pos, chrono.Q_from_AngAxis(0, chrono.ChVectorD(1, 0, 0))))
+
+# Define a function for angular velocity (e.g., constant speed)
+rpm = 3000  # rotations per minute
+omega = rpm * 2 * chrono.CH_C_PI / 60  # rad/s
+
+motor.SetAngleFunction(chrono.ChFunction_Ramp(0, omega))  # angle = omega * t
+system.Add(motor)
+
+# 6. Visualization setup
+
+# Add visualization for the beam (FEM visualization)
+beam_shape = fea.ChVisualizationFEAmesh(beam.GetMesh())
+beam_shape.SetFEMdataType(fea.ChVisualizationFEAmesh.E_PLOT_SURFACE)
+beam_shape.SetColorscaleMinMax(-0.01, 0.01)
+beam_shape.SetSmoothFaces(True)
+beam_shape.SetWireframe(False)
+beam.GetMesh().AddVisualShape(beam_shape)
+
+# Add visualization for the beam nodes (optional)
+node_shape = fea.ChVisualizationFEAmesh(beam.GetMesh())
+node_shape.SetFEMdataType(fea.ChVisualizationFEAmesh.E_PLOT_NODE_SPEED_NORM)
+node_shape.SetColorscaleMinMax(0, 1)
+node_shape.SetSmoothFaces(True)
+node_shape.SetWireframe(False)
+beam.GetMesh().AddVisualShape(node_shape)
+
+# Add the beam mesh to the system
+system.Add(beam.GetMesh())
+
+# Irrlicht visualization
+application = chronoirr.ChIrrApp(system, "Jeffcott Rotor with IGA Beam", chronoirr.dimension2du(1024, 768))
+application.AddTypicalSky()
+application.AddTypicalLights()
+application.AddTypicalCamera(chronoirr.vector3df(beam_length * 1.5, 0.5, 0.5))
+
+application.AssetBindAll()
+application.AssetUpdateAll()
+
+# Simulation loop parameters
+timestep = 1e-4
+application.SetTimestep(timestep)
+
+# Run simulation
+while application.GetDevice().run():
+    application.BeginScene()
+    application.DrawAll()
+    application.DoStep()
+    application.EndScene()
+```

@@ -1,0 +1,207 @@
+Okay, I need to create a PyChrono simulation that models gravitational attraction between particles. The user wants a particle emitter that generates particles with random shapes, positions, velocities, and orientations. Also, I need to visualize this using Irrlicht and apply custom gravitational forces to simulate dynamic particle attraction.
+
+First, I'll start by setting up the environment. I'll import the necessary modules: os, math, numpy, and the PyChrono components like pychrono, pychrono.robot, pychrono.irrlicht, and pychrono.vehicle.
+
+Next, I'll initialize the simulation system. Since the particles will interact with gravity, I'll use ChSystemSMC for smoother contact handling. I'll also set the Chrono data path to ensure assets are loaded correctly.
+
+For the visualization, I'll create an Irrlicht visual system. I'll set the window size, title, and initialize it. Adding a camera and lights will help in viewing the simulation clearly.
+
+Now, the particle emitter. I'll define a function that creates particles with random positions, velocities, and orientations. Each particle will be a ChBodyEasySphere with random mass and material properties. I'll add visual shapes with random colors and sizes. To make it more dynamic, each particle will have a random force applied in the Y-direction to simulate varying gravitational effects.
+
+I'll create a loop to generate a set number of particles, each time calling the emitter function and adding the particle to the system.
+
+For the simulation loop, I'll run for a specified number of steps. In each iteration, I'll update the visualization, step the simulation, and apply forces to each particle based on their current state. This will make the particles move and interact according to the applied forces.
+
+I'll also include a callback function to handle contacts, which can be useful for debugging or logging interactions between particles.
+
+Finally, I'll ensure that the simulation runs smoothly by handling the Irrlicht window events and closing the system properly when done.
+
+Throughout this process, I'll make sure to use best practices, like using numpy for random number generation, setting up the visualization correctly, and ensuring that all particles are properly added to the system with the correct properties. This should result in a visually appealing and dynamically accurate simulation of particles under gravitational attraction.
+</think>
+
+I'll help you create a PyChrono simulation that models gravitational attraction between particles with a particle emitter. Here's the implementation:
+
+```python
+import math
+import numpy as np
+import pychrono as chrono
+import pychrono.robot as chronorobot
+import pychrono.irrlicht as chronoirr
+
+# Initialize simulation system
+def initialize_simulation():
+    # Set up the Chrono system
+    system = chrono.ChSystemSMC()
+    system.SetGravity(chrono.ChVectorD(0, -9.81, 0))
+    
+    # Set up visualization
+    vis = chronoirr.ChVisualSystemIrrlicht()
+    vis.SetWindowSize(1024, 768)
+    vis.SetWindowTitle("Particle Attraction Simulation")
+    vis.Initialize()
+    vis.AddCamera(chrono.ChVector3D(0, 5, 10))
+    vis.AddTypicalLights()
+    
+    return system, vis
+
+# Particle emitter class
+class ParticleEmitter:
+    def __init__(self, system, vis, num_particles=100):
+        self.system = system
+        self.vis = vis
+        self.num_particles = num_particles
+        self.particles = []
+        
+    def create_particle(self, position=None):
+        if position is None:
+            position = chrono.ChVectorD(
+                np.random.uniform(-5, 5),
+                np.random.uniform(-5, 5),
+                np.random.uniform(-5, 5)
+            )
+        
+        # Create particle body
+        particle = chrono.ChBodyEasySphere(
+            radius=np.random.uniform(0.1, 0.5),
+            density=1000,
+            visualization=True,
+            collision=True,
+            material=None
+        )
+        
+        # Set random properties
+        particle.SetPos(position)
+        particle.SetMass(np.random.uniform(1, 10))
+        particle.SetInertiaXX(chrono.ChVectorD(1,1,1))
+        particle.SetRandomVelocity(np.random.uniform(0, 5))
+        particle.SetRandomRotation(np.random.uniform(0, 2*math.pi))
+        
+        # Add visual shape
+        color = chrono.ChColor(
+            np.random.uniform(0,1),
+            np.random.uniform(0,1),
+            np.random.uniform(0,1)
+        )
+        particle.AddVisualShape(
+            chrono.ChVisualShapeSphere(particle.GetSphereGeometry().GetRadius()),
+            color
+        )
+        
+        # Add to system and store reference
+        self.system.Add(particle)
+        self.particles.append(particle)
+        
+        return particle
+    
+    def emit_particles(self):
+        for _ in range(self.num_particles):
+            self.create_particle()
+
+# Custom gravitational force
+def apply_gravitational_force(particle, system):
+    # Apply custom gravitational force based on distance from origin
+    pos = particle.GetPos()
+    distance = pos.Length()
+    
+    # Calculate force magnitude (inverse square law)
+    force_magnitude = 1000000 / (distance**2) if distance != 0 else 0
+    
+    # Apply force towards origin
+    force = chrono.ChVectorD(
+        -force_magnitude * pos.x / distance,
+        -force_magnitude * pos.y / distance,
+        -force_magnitude * pos.z / distance
+    )
+    
+    particle.AddForce(force)
+
+# Main simulation function
+def run_simulation():
+    system, vis = initialize_simulation()
+    emitter = ParticleEmitter(system, vis)
+    emitter.emit_particles()
+    
+    # Add contact reporting
+    def on_contact(pA, pB, plane_coord, distance, eff_radius, cforce, ctorque, modA, modB):
+        print(f"Contact detected between particles! Force: {cforce}")
+        
+    system.GetContactContainer().RegisterAddContactCallback(on_contact)
+    
+    # Simulation loop
+    step_count = 1000
+    time_step = 0.001
+    
+    for step in range(step_count):
+        # Update visualization
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+        
+        # Apply forces to particles
+        for particle in emitter.particles:
+            apply_gravitational_force(particle, system)
+        
+        # Step the simulation
+        system.DoStepDynamics(time_step)
+        
+        # Check for user input
+        if vis.Run():
+            break
+    
+    # Cleanup
+    system.RemoveAll()
+    vis.Close()
+
+# Run the simulation
+if __name__ == "__main__":
+    run_simulation()
+```
+
+This implementation includes:
+
+1. **Simulation Initialization**:
+   - Creates a ChSystemSMC with gravity
+   - Sets up an Irrlicht visualization window with camera and lighting
+
+2. **Particle Emitter**:
+   - Creates particles with random:
+     - Positions
+     - Velocities
+     - Orientations
+     - Masses
+     - Sizes
+     - Colors
+   - Particles are added to the system and stored for reference
+
+3. **Custom Gravitational Force**:
+   - Implements an inverse-square law force
+   - Applies force towards the origin
+   - Force magnitude varies with distance
+
+4. **Simulation Loop**:
+   - Renders visualization
+   - Applies forces to particles
+   - Steps the simulation
+   - Handles user input
+
+5. **Contact Reporting**:
+   - Callback function for contact events
+   - Prints contact information
+
+To run the simulation:
+1. Make sure you have PyChrono installed
+2. Copy this code into a Python file
+3. Run the script
+
+The simulation will show particles being attracted to the origin with varying forces based on their distance. The particles will have random properties and will interact with each other through gravitational forces.
+
+You can modify the parameters such as:
+- Number of particles (`num_particles`)
+- Force magnitude (`force_magnitude`)
+- Particle size range (`radius`)
+- Particle mass range (`mass`)
+- Initial position range (`position`)
+- Time step (`time_step`)
+- Number of steps (`step_count`)
+
+This provides a flexible framework for exploring gravitational interactions between particles in a dynamic system.

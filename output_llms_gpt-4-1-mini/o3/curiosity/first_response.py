@@ -1,0 +1,178 @@
+#!/usr/bin/env python
+# =============================================================================
+# Curiosity rover on a rigid‐terrain demo – PyChrono/Vehicle + Irrlicht
+# =============================================================================
+#
+# Controls (while the Irrlicht window has the focus)
+#   W / S  : throttle forward / reverse
+#   A / D  : steer left / right
+#   SPACE  : full brake
+#   TAB    : toggle wireframe
+#   ESC    : quit
+# =============================================================================
+
+from math import pi
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
+import pychrono.vehicle as veh
+
+# -------------------------------------------------------------------------
+# 1. Global simulation parameters
+# -------------------------------------------------------------------------
+time_step        = 1.0e-3           # integrator step size
+tire_step_size   = 1.0e-3           # step used internally by tire model
+render_step_size = 1.0 / 60.0       # draw once every N seconds
+
+# -------------------------------------------------------------------------
+# 2. Chrono initialisation
+# -------------------------------------------------------------------------
+chrono.SetChronoDataPath( chrono.GetChronoDataPath() )
+veh.SetDataPath   ( veh.GetDataPath() )
+
+system = chrono.ChSystemNSC()          # non-smooth contact (rigid bodies)
+
+# Optional – a gentler contact model for the light rover
+system.Set_G_acc( chrono.ChVectorD(0, 0, -3.71) )   # Mars gravity  [m/s^2]
+
+# -------------------------------------------------------------------------
+# 3. Rigid terrain with collision
+# -------------------------------------------------------------------------
+terrain = veh.RigidTerrain( system )
+
+patch_mat = chrono.ChContactMaterialNSC()
+patch_mat.SetFriction( 0.9 )
+patch_mat.SetRestitution( 0.01 )
+
+# Single, large flat patch (10m × 10m) sitting at z = 0
+patch = terrain.AddPatch( patch_mat,
+                          chrono.ChCoordsysD( chrono.ChVectorD( 0, 0, 0 ),
+                                              chrono.QUNIT ),
+                          10, 10 )
+
+# Give the patch a nice Mars texture
+texture_file = chrono.GetChronoDataFile( "vehicle/terrain/textures/sand.jpg" )
+patch.SetTexture( texture_file, 1.0, 1.0 )
+
+terrain.Initialize()
+
+# -------------------------------------------------------------------------
+# 4. Curiosity rover
+# -------------------------------------------------------------------------
+rover = veh.Curiosity( system )          # chassis + wheels + suspensions
+
+init_loc = chrono.ChVectorD( 0, 0, 0.35 )   # slightly above ground
+rover.Initialize( chrono.ChCoordsysD(init_loc, chrono.QUNIT) )
+
+# Reduce realism a bit for speed
+rover.SetStepsize( tire_step_size )
+
+# -------------------------------------------------------------------------
+# 5. Simple real-time keyboard driver
+# -------------------------------------------------------------------------
+class KeyboardDriver(veh.ChDriver):
+    def __init__(self, app) -> None:
+        super().__init__()
+        self.throttle = 0.0
+        self.steering = 0.0
+        self.braking  = 0.0
+        self.app      = app
+        self.wireframe = False
+
+    # Irrlicht key callback
+    def OnEvent(self, ev):
+        if ev.EventType != chronoirr.EET_KEY_INPUT_EVENT:
+            return False
+
+        key = ev.KeyInput
+        down = key.PressedDown
+
+        if   key.Key == chronoirr.KEY_KEY_W:  self.throttle =  1.0 if down else 0
+        elif key.Key == chronoirr.KEY_KEY_S:  self.throttle = -1.0 if down else 0
+        elif key.Key == chronoirr.KEY_KEY_A:  self.steering =  1.0 if down else 0
+        elif key.Key == chronoirr.KEY_KEY_D:  self.steering = -1.0 if down else 0
+        elif key.Key == chronoirr.KEY_SPACE:  self.braking  =  1.0 if down else 0
+        elif key.Key == chronoirr.KEY_TAB and not down:
+            self.wireframe = not self.wireframe
+            self.app.SetWireframe(self.wireframe)
+        elif key.Key == chronoirr.KEY_ESCAPE and not down:
+            self.app.GetDevice().closeDevice()
+
+        return False
+
+    # Override ChDriver virtuals ------------------------------------------
+    def Synchronize(self, time):
+        # Smooth steering & throttle
+        self.m_steering = 0.5 * self.m_steering + 0.5 * self.steering
+        self.m_throttle = self.throttle
+        self.m_braking  = self.braking
+
+driver = KeyboardDriver(None)   # dummy, we patch 'app' later
+
+# -------------------------------------------------------------------------
+# 6. Irrlicht application
+# -------------------------------------------------------------------------
+app = chronoirr.ChIrrApp( system,
+                          "Curiosity rover – rigid terrain",
+                          chronoirr.dimension2du(1280, 720) )
+driver.app = app                                            # now patch
+
+# A “chase” camera tracking the rover’s chassis COM
+chassis_body = rover.GetChassis().GetBody()
+cam_pos = chrono.ChVectorD( 3, -4, 2 )
+app.AddChaseCamera( chassis_body, cam_pos, 1.6, 0.2 )
+
+# Nice visuals ------------------------------------------------------------
+app.AddTypicalLogo()
+app.AddTypicalSky()
+app.AddLightWithShadow( chrono.ChVectorD( 5, 5, 5 ),
+                        chrono.ChVectorD( 0, 0, 0 ),
+                        20, 1, 20, 30, 50 )
+app.AddLight( chrono.ChVectorD(-3, -3, 5), 3.0 )
+
+app.AssetBindAll()
+app.AssetUpdateAll()
+
+# Hook driver to Irrlicht events
+app.GetDevice().setEventReceiver( driver )
+
+# -------------------------------------------------------------------------
+# 7. Simulation loop
+# -------------------------------------------------------------------------
+realtime_timer = chrono.ChRealtimeStepTimer()
+render_time    = 0.0
+
+print("Controls: W/S throttle  A/D steer  SPACE brake  TAB wireframe")
+
+while app.GetDevice().run():
+    # Irrlicht
+    app.BeginScene()
+    app.DrawAll()
+
+    # Time bookkeeping ----------------------------------------------------
+    time_now = system.GetChTime()
+
+    # Driver input
+    driver.Synchronize(time_now)
+
+    # Pass inputs to the rover
+    rover.Synchronize( time_now,
+                       driver.GetSteering(),
+                       driver.GetThrottle(),
+                       driver.GetBraking(),
+                       terrain )
+
+    # Advance simulation  --------------------------------------------------
+    step = realtime_timer.SuggestSimulationStep( time_step )
+    rover.Advance( step )
+    terrain.Advance( step )
+    system.DoStepDynamics( step )
+
+    # Optionally limit rendering rate
+    render_time += step
+    if render_time > render_step_size:
+        render_time = 0.0        # draw roughly at 60 FPS
+
+    app.EndScene()
+
+# -------------------------------------------------------------------------
+print("Simulation finished.")

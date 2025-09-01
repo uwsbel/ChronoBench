@@ -1,0 +1,96 @@
+```python
+import pychrono.core as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as irr
+
+# 1. Initialize the Chrono engine and create the physical system
+chrono.SetChronoDataPath('path/to/data')  # Set the correct data path if needed
+system = chrono.ChSystemNSC()
+
+# 2. Create the Irrlicht visualization application
+application = irr.ChIrrApp(system, 'HMMWV on SCM Terrain', irr.dimension2d(1024, 768))
+application.AddTypicalSky()
+application.AddTypicalCamera(irr.vector3df(0, 3, -10))
+application.AddTypicalLights()
+
+# 3. Create the HMMWV vehicle
+# Define initial position and orientation
+initial_pos = chrono.ChVectorD(0, 0.5, 0)
+initial_rot = chrono.Q_from_AngX(0)
+
+# Create the vehicle using the HMMWV model
+# Note: Ensure the vehicle model files are available in the data path
+hmmwv = veh.HMMWV_Vehicle(chrono.GetChronoDataFile('vehicle/hmmwv/HMMWV.json'))
+hmmwv.Initialize(initial_pos, initial_rot)
+
+# Set the tire model to rigid
+for tire in hmmwv.GetTireList():
+    tire.SetTireType(veh.TireModelType_Rigid)
+
+# Apply mesh visualization to all vehicle components
+# For each subsystem, enable mesh visualization
+for subsystem in [hmmwv.GetChassis(), hmmwv.GetSteering(), hmmwv.GetDriveline(),
+                  hmmwv.GetSuspension(veh.LEFT_SUSPENSION),
+                  hmmwv.GetSuspension(veh.RIGHT_SUSPENSION),
+                  hmmwv.GetWheel(veh.LEFT_WHEEL),
+                  hmmwv.GetWheel(veh.RIGHT_WHEEL)]:
+    subsystem.SetMeshVisualization(True)
+
+# 4. Create the SCM deformable terrain
+# Define soil parameters
+soil_params = {
+    'Kphi': 15000,       # shear modulus
+    'Kc': 300000,        # cohesion
+    'Kdet': 1500,        # damping
+    'p0': 2.0,           # reference pressure
+    'murn': 2.0,         # Murnaghan exponent
+    'cr': 0.8,           # cohesion ratio
+    'cmu': 0.8,          # friction coefficient
+    'Kf': 0.0,           # fluid pressure coefficient
+    'K': 0.0,            # bulk modulus
+    'density': 1200,     # soil density
+    'viscous': 0.0        # viscosity
+}
+
+# Create the terrain
+terrain = veh.SCMDeformableTerrain(system)
+terrain.Initialize(soil_params)
+
+# Enable sinkage visualization with false color plotting
+terrain.SetSinkageVisualization(True)
+terrain.SetSinkageColorMap(veh.SCMDeformableTerrain.ColorMapType_HeatMap)
+
+# Enable moving patch that follows the vehicle chassis
+terrain.EnableMovingPatch(True)
+terrain.SetMovingPatchPosition(hmmwv.GetChassis().GetPos())
+
+# 5. Set up the driver system for user control
+driver = veh.ChIrrGuiDriver(application)
+driver.Initialize()
+
+# 6. Configure the simulation to run in real time at 50 FPS
+application.SetTimeStep(0.02)  # 1/50 seconds
+application.SetTryRealtime(True)
+
+# 7. Main simulation loop
+while application.GetDevice().run():
+    # Update the moving patch position to follow the vehicle chassis
+    chassis_pos = hmmwv.GetChassis().GetPos()
+    terrain.SetMovingPatchPosition(chassis_pos)
+
+    # Get driver inputs
+    driver.ReadControls()
+
+    # Apply driver inputs to vehicle
+    hmmwv.GetSteering().SetSteeringInput(driver.GetSteering())
+    hmmwv.GetThrottle().SetThrottleInput(driver.GetThrottle())
+    hmmwv.GetBrake().SetBrakeInput(driver.GetBrake())
+
+    # Advance the system
+    system.DoStepDynamics(application.GetTimeStep())
+
+    # Render the scene
+    application.BeginScene()
+    application.DrawAll()
+    application.EndScene()
+```

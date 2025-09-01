@@ -1,0 +1,120 @@
+import os
+import math
+import numpy as np
+import pychrono as chrono
+import pychrono.robot as robot
+import pychrono.sensor as sens
+from pychrono import irrlicht as chronoirr
+
+# Create Chrono system
+system = chrono.ChSystemNSC()
+system.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+system.Set_G_acc(chrono.ChVector3d(0, 0, -9.81))
+chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.0025)
+chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
+
+# Create ground body with contact material and add it to the system
+ground_mat = chrono.ChMaterialSurfaceNSC()
+# Corrected material to appropriate surface material for contacts
+
+ground = chrono.ChBodyEasyBox(20, 20, 1, 1000, True, True, ground_mat)
+ground.SetPos(chrono.ChVector3d(0, 0, -0.5))  # Position the ground slightly below the origin
+ground.SetBodyFixed(True)  # Correct method name: SetBodyFixed, not SetFixed
+ground.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
+system.AddBody(ground)  # Corrected to AddBody, not Add
+
+# create a long box for rover to cross
+box = chrono.ChBodyEasyBox(0.25, 5, 0.25, 1000, True, True, ground_mat)
+box.SetPos(chrono.ChVector3d(0, 0, 0.0))
+box.SetBodyFixed(True)  # corrected
+box.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/blue.png"))
+system.AddBody(box)  # corrected
+
+# Create Curiosity rover and add it to the system
+rover = robot.Curiosity(system)
+
+# Create driver for rover
+driver = robot.CuriosityDCMotorControl()
+rover.SetDriver(driver)
+
+# Initialize rover position and orientation
+init_pos = chrono.ChVector3d(-5, 0.0, 0)
+init_rot = chrono.ChQuaternionD(1, 0, 0, 0)  # Correct class is ChQuaternionD (capital D)
+rover.Initialize(chrono.ChCoordsysD(init_pos, init_rot))  # Correct param: use ChCoordsysD
+
+# *** Added the sensor manager ***
+manager = sens.ChSensorManager(system)
+
+# Define lidar parameters
+lidar_update_rate = 15  # Hz
+horizontal_samples = 500
+vertical_samples = 4
+horizontal_fov = 2 * math.pi  # 360 degrees
+vertical_fov = math.radians(10)  # e.g., 10 degrees vertical FoV
+
+# Transform: place lidar on rover's chassis
+lidar_offset = chrono.ChFrameD(chrono.ChVectorD(0, 0, 0.8))  # example offset above chassis
+
+chassis_body = rover.GetChassisBody()
+
+# Create lidar sensor
+lidar = sens.ChLidarSensor(
+    chassis_body,
+    lidar_update_rate,
+    lidar_offset,
+    horizontal_samples,
+    vertical_samples,
+    horizontal_fov,
+    vertical_fov,
+    0,  # min distance
+    20,  # max distance (meters)
+)
+
+# Add a point cloud filter to the lidar
+pointcloud_filter = sens.ChFilterPCfromRangeImage()
+lidar.PushFilter(pointcloud_filter)
+
+# Add callback to optionally process the data (not required here)
+
+manager.AddSensor(lidar)
+
+# Create the Irrlicht visualization
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetCameraVertical(chrono.CameraVerticalDir_Z)
+vis.SetWindowSize(1280, 720)
+vis.SetWindowTitle('Curiosity rover - Rigid terrain with Lidar sensor')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVectorD(0, 3, 3), chrono.ChVectorD(0, 0, 0))
+vis.AddTypicalLights()
+vis.AddLightWithShadow(chrono.ChVectorD(1.5, -2.5, 5.5), chrono.ChVectorD(0, 0, 0), 3, 4, 10, 40, 512)
+
+# Enable shadows (commented out to improve performance)
+# vis.EnableShadows()
+
+# Set the simulation time step
+time_step = 1e-3
+
+# Simulation loop
+time = 0
+while vis.Run():
+    time += time_step
+
+    # ask rover to move forward
+    driver.SetSteering(0.0)
+
+    # Update rover dynamics
+    rover.Update()
+
+    # Update sensor manager (IMPORTANT for lidar, etc.)
+    manager.Update()
+
+    # Render the scene
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+
+    # Advance simulation by one time step
+    system.DoStepDynamics(time_step)

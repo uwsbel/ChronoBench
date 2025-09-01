@@ -1,0 +1,104 @@
+```python
+import pychrono as chrono
+import pychrono.fea as fea
+import pychrono.irrlicht as chronoirr
+
+# 1. Initialize the PyChrono environment and core components
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())  # Ensure data path is set if needed
+
+# Create the physical system
+system = chrono.ChSystemSMC()
+
+# Set the solver to PardisoMKL for efficient solving
+solver = chrono.ChSolverPardisoMKL()
+system.SetSolver(solver)
+solver.EnableStabilization(True)
+
+# 2. Add the required physical systems and objects as specified
+
+# Create the FEA mesh container
+mesh = fea.ChMesh()
+system.Add(mesh)
+
+# Define tablecloth parameters
+cloth_length = 1.0  # meters
+cloth_width = 1.0   # meters
+num_div_x = 20      # number of elements along length
+num_div_y = 20      # number of elements along width
+
+# Material properties for isotropic Kirchhoff shell
+E = 2e7          # Young's modulus in Pa (example value)
+nu = 0.3         # Poisson's ratio
+rho = 1000       # density kg/m^3
+thickness = 0.002  # thickness in meters
+
+# Create isotropic Kirchhoff shell material
+material = fea.ChMaterialShellKirchhoff()
+material.Set_E(E)
+material.Set_v(nu)
+material.Set_rho(rho)
+material.Set_thickness(thickness)
+
+# Generate mesh grid nodes and elements for the tablecloth
+
+# Create nodes
+nodes = []
+dx = cloth_length / num_div_x
+dy = cloth_width / num_div_y
+
+for iy in range(num_div_y + 1):
+    for ix in range(num_div_x + 1):
+        x = ix * dx
+        y = iy * dy
+        z = 0.0
+        node = fea.ChNodeFEAxyzD(chrono.ChVectorD(x, y, z))
+        node.SetMass(0)  # mass is handled by shell elements
+        mesh.AddNode(node)
+        nodes.append(node)
+
+# Create shell elements (quadrilateral elements split into two triangles)
+for iy in range(num_div_y):
+    for ix in range(num_div_x):
+        # node indices in the grid
+        n0 = iy * (num_div_x + 1) + ix
+        n1 = n0 + 1
+        n2 = n0 + (num_div_x + 1)
+        n3 = n2 + 1
+
+        # Create two triangular shell elements per quad
+        # First triangle (n0, n1, n3)
+        element1 = fea.ChElementShellReissner4()
+        element1.SetNodes(nodes[n0], nodes[n1], nodes[n3], nodes[n2])  # Use 4-node shell element
+        element1.SetMaterial(material)
+        mesh.AddElement(element1)
+
+# 3. Set necessary default parameters such as positions, forces, and interactions.
+
+# Fix the nodes along one edge to simulate table attachment (e.g., y=0 edge)
+for ix in range(num_div_x + 1):
+    node = nodes[ix]  # nodes at y=0
+    node.SetFixed(True)
+
+# Optional: Add gravity
+system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
+
+# 4. Setup Irrlicht visualization system
+application = chronoirr.ChIrrApp(system, "Folding Tablecloth Simulation", chronoirr.dimension2du(1024, 768))
+
+application.AddTypicalSky()
+application.AddTypicalLights()
+application.AddTypicalCamera(chronoirr.vector3df(0.5, -1.5, 1.0), chronoirr.vector3df(0.5, 0.5, 0))
+
+application.AssetBindAll()
+application.AssetUpdateAll()
+
+# Simulation loop parameters
+application.SetTimestep(0.01)
+
+# Run the simulation
+while application.GetDevice().run():
+    application.BeginScene()
+    application.DrawAll()
+    application.DoStep()
+    application.EndScene()
+```

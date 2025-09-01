@@ -1,0 +1,213 @@
+I'll create a PyChrono simulation demonstrating beam finite elements with visualization using the Irrlicht engine. Here's a comprehensive script:
+
+```python
+import pychrono as chrono
+import pychrono.fea as fea
+import pychrono.irrlicht as chronoirr
+import numpy as np
+
+# Initialize the PyChrono environment
+print("PyChrono Beam Finite Elements Simulation")
+
+# Create the physical system
+system = chrono.ChSystemSMC()
+system.SetGravitationalAcceleration(chrono.ChVector3d(0, -9.81, 0))
+
+# Create a mesh for finite element analysis
+mesh = fea.ChMesh()
+
+# Material properties for the beam
+# Create Euler-Bernoulli beam section
+beam_material = fea.ChMaterialBeamEuler()
+beam_material.SetDensity(7800)  # Steel density kg/m³
+beam_material.SetYoungModulus(200e9)  # Young's modulus Pa
+beam_material.SetPoissonRatio(0.3)  # Poisson ratio
+
+# Cross-section properties (rectangular beam)
+beam_width = 0.02  # 2 cm
+beam_height = 0.05  # 5 cm
+beam_area = beam_width * beam_height
+beam_Iyy = (beam_width * beam_height**3) / 12  # Second moment of area about y-axis
+beam_Izz = (beam_height * beam_width**3) / 12  # Second moment of area about z-axis
+
+# Create beam section
+beam_section = fea.ChBeamSectionEulerAdvanced()
+beam_section.SetArea(beam_area)
+beam_section.SetIyy(beam_Iyy)
+beam_section.SetIzz(beam_Izz)
+beam_section.SetJ(beam_Iyy + beam_Izz)  # Polar moment of inertia
+beam_section.SetBeamMaterial(beam_material)
+
+# Create nodes for the beam (cantilever beam)
+beam_length = 2.0  # 2 meters
+num_elements = 10
+num_nodes = num_elements + 1
+nodes = []
+
+# Create nodes along the beam
+for i in range(num_nodes):
+    x_pos = (i * beam_length) / num_elements
+    node = fea.ChNodeFEAxyzrot()
+    node.SetPos(chrono.ChVector3d(x_pos, 1.0, 0))
+    node.SetRot(chrono.ChQuaterniond(1, 0, 0, 0))
+    mesh.AddNode(node)
+    nodes.append(node)
+
+# Create beam elements connecting the nodes
+elements = []
+for i in range(num_elements):
+    element = fea.ChElementBeamEuler()
+    element.SetNodes(nodes[i], nodes[i + 1])
+    element.SetSection(beam_section)
+    mesh.AddElement(element)
+    elements.append(element)
+
+# Fix the first node (cantilever boundary condition)
+constraint = fea.ChBuiltinConstraint()
+constraint.SetNodes(nodes[0])
+constraint.SetConstrainedCoords(True, True, True, True, True, True)  # All DOF fixed
+mesh.AddConstraint(constraint)
+
+# Apply a load at the free end
+force_magnitude = 1000  # 1000 N downward
+force_vector = chrono.ChVector3d(0, -force_magnitude, 0)
+load = fea.ChLoadNodeForce(nodes[-1], force_vector)
+load_container = fea.ChLoadContainer()
+load_container.Add(load)
+
+# Add the mesh and load container to the system
+system.Add(mesh)
+system.Add(load_container)
+
+# Create visualization system using Irrlicht
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle('PyChrono Beam FEA Simulation')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVector3d(3, 2, 3), chrono.ChVector3d(1, 1, 0))
+vis.AddTypicalLights()
+
+# Visualization settings for FEA elements
+# Add visualization for nodes
+vis_nodes = fea.ChVisualizationFEAmesh(mesh)
+vis_nodes.SetFEMdataType(fea.ChVisualizationFEAmesh.DataType_NODE_SPEED_NORM)
+vis_nodes.SetColorscaleMinMax(0.0, 5.0)
+vis_nodes.SetSmoothFaces(True)
+mesh.AddVisualShapeFEA(vis_nodes)
+
+# Add visualization for beam elements
+vis_beams = fea.ChVisualizationFEAmesh(mesh)
+vis_beams.SetFEMdataType(fea.ChVisualizationFEAmesh.DataType_SURFACE)
+vis_beams.SetWireframe(False)
+vis_beams.SetDrawInUndeformedReference(False)
+mesh.AddVisualShapeFEA(vis_beams)
+
+# Solver settings
+solver = chrono.ChSolverMINRES()
+solver.SetMaxIterations(200)
+solver.SetTolerance(1e-10)
+solver.EnableDiagonalPreconditioner(True)
+system.SetSolver(solver)
+
+# Integrator settings
+system.SetTimestepperType(chrono.ChTimestepper.Type_EULER_IMPLICIT_LINEARIZED)
+
+# Simulation parameters
+time_step = 0.01
+simulation_time = 0
+end_time = 5.0
+
+# Additional visualization: Add a coordinate system at the fixed end
+coord_sys = chrono.ChVisualShapeTriangleMesh()
+coord_asset = chrono.ChTriangleMeshConnected()
+coord_asset.LoadWavefrontMesh(chrono.GetChronoDataFile('shapes/coordinate_system.obj'), False, True)
+coord_sys.SetMesh(coord_asset)
+coord_sys.SetScale(0.1)
+
+# Create a body for the coordinate system visualization
+coord_body = chrono.ChBody()
+coord_body.SetPos(nodes[0].GetPos())
+coord_body.SetFixed(True)
+coord_body.AddVisualShape(coord_sys)
+system.Add(coord_body)
+
+print(f"Beam properties:")
+print(f"Length: {beam_length} m")
+print(f"Cross-section: {beam_width*1000} mm x {beam_height*1000} mm")
+print(f"Number of elements: {num_elements}")
+print(f"Applied load: {force_magnitude} N")
+print(f"Material: Steel (E = {beam_material.GetYoungModulus()/1e9} GPa)")
+
+# Simulation loop
+while vis.Run() and simulation_time < end_time:
+    vis.BeginScene()
+    vis.Render()
+    
+    # Display simulation info
+    vis.GetGUIEnvironment().getBuiltInFont().draw(
+        f"Time: {simulation_time:.2f}s",
+        chronoirr.recti(10, 10, 200, 30),
+        chronoirr.SColor(255, 255, 255, 255)
+    )
+    
+    # Get tip displacement for monitoring
+    tip_pos = nodes[-1].GetPos()
+    tip_displacement = tip_pos.y - 1.0  # Initial y position was 1.0
+    
+    vis.GetGUIEnvironment().getBuiltInFont().draw(
+        f"Tip Displacement: {tip_displacement:.4f}m",
+        chronoirr.recti(10, 40, 300, 60),
+        chronoirr.SColor(255, 255, 255, 255)
+    )
+    
+    vis.EndScene()
+    
+    # Advance the simulation
+    system.DoStepDynamics(time_step)
+    simulation_time += time_step
+
+print("Simulation completed!")
+print(f"Final tip displacement: {nodes[-1].GetPos().y - 1.0:.6f} m")
+
+# Calculate theoretical tip displacement for comparison
+# For a cantilever beam with point load at tip: δ = (P*L³)/(3*E*I)
+E = beam_material.GetYoungModulus()
+I = beam_Iyy  # Using Iyy for bending about z-axis
+theoretical_displacement = (force_magnitude * beam_length**3) / (3 * E * I)
+print(f"Theoretical tip displacement: {-theoretical_displacement:.6f} m")
+```
+
+This script demonstrates a comprehensive beam finite element simulation with the following features:
+
+## Key Components:
+
+1. **System Initialization**: Creates a PyChrono system with gravity
+2. **Material Properties**: Defines steel material with realistic properties
+3. **Beam Cross-section**: Rectangular beam with calculated moment of inertia
+4. **Mesh Creation**: Creates nodes and Euler-Bernoulli beam elements
+5. **Boundary Conditions**: Fixed support at one end (cantilever)
+6. **Loading**: Point load applied at the free end
+7. **Visualization**: Real-time rendering with Irrlicht engine
+
+## Simulation Features:
+
+- **Cantilever beam** with 10 finite elements
+- **Steel material properties** (E = 200 GPa, ρ = 7800 kg/m³)
+- **Applied load** of 1000 N downward at the tip
+- **Real-time visualization** showing beam deformation
+- **Displacement monitoring** with comparison to theoretical values
+- **Color-coded visualization** showing node velocities
+
+## Educational Value:
+
+The script includes theoretical displacement calculation for validation, making it useful for understanding beam theory and finite element analysis. The visualization clearly shows the beam deformation under load, and the console output provides both numerical results and theoretical comparison.
+
+This simulation can be easily modified to:
+- Change beam dimensions and material properties
+- Apply different loading conditions
+- Modify boundary conditions
+- Increase mesh refinement
+- Add dynamic loading scenarios

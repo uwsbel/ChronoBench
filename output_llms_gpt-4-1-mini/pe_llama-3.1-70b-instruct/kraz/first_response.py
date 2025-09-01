@@ -1,0 +1,75 @@
+# Import necessary libraries and modules
+import os
+import math
+import numpy as np
+import pychrono.core as chrono
+import pychrono.irrlicht as chronoirr
+import pychrono.vehicle as veh
+
+# Set the path to the Chrono data directory
+chrono.SetChronoDataPath(os.path.join(os.path.dirname(__file__), "data"))
+
+# Create the simulation system and set the collision system type
+sys = chrono.ChSystemSMC()
+sys.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+
+# Create the Kraz vehicle and initialize it
+kraz = veh.Kraz()
+kraz.SetContactMethod(chrono.ChContactMethod_NSC)
+kraz.SetChassisCollisionType(chrono.ChCollisionType_BULLET)
+kraz.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT))
+kraz.Initialize(sys)
+
+# Create the rigid terrain and initialize it
+terrain = veh.RigidTerrain(sys)
+patch_mat = veh.ChTerrainMaterial()
+patch_mat.SetFriction(0.9)
+patch_mat.SetRestitution(0.01)
+patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT), 100, 100)
+terrain.Initialize()
+
+# Create the driver system for vehicle control
+driver = veh.ChIrrVehicleDriver()
+driver.SetVehicle(kraz.GetChassisBody())
+driver.SetSteeringFunction(chrono.ChFunction_Const(0))
+driver.SetThrottleFunction(chrono.ChFunction_Const(0.5))
+driver.Initialize()
+
+# Create the Irrlicht visualization and set the camera settings
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle("Kraz Simulation")
+vis.AddLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVectorD(0, 3, 6))
+vis.AddTypicalLights()
+vis.Initialize()
+vis.AttachSystem(sys)
+
+# Set the simulation timestep and duration
+dt = 0.01
+t_end = 10
+
+# Simulation loop
+while vis.Run():
+    # Advance the simulation
+    sys.DoStepDynamics(dt)
+
+    # Advance the vehicle and terrain
+    kraz.Advance(dt)
+    terrain.Synchronize(dt)
+
+    # Advance the driver system
+    driver.Advance(dt)
+
+    # Render the visualization
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+
+    # Check for simulation end
+    if sys.GetChTime() >= t_end:
+        break
+
+# Finalize the simulation
+vis.Finalize()

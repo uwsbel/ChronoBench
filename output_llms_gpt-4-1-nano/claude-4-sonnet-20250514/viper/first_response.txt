@@ -1,0 +1,192 @@
+I'll create a comprehensive PyChrono simulation script with a Viper rover on rigid terrain. Here's the complete implementation:
+
+```python
+import pychrono.core as chrono
+import pychrono.irrlicht as chronoirr
+import pychrono.vehicle as veh
+import pychrono.robot as robot
+import math
+
+def main():
+    # Initialize the PyChrono environment
+    chrono.SetChronoDataPath("path/to/chrono/data/")  # Set your Chrono data path
+    
+    # Create the Chrono system
+    system = chrono.ChSystemNSC()
+    system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
+    
+    # Set solver parameters for better stability
+    system.SetSolverMaxIterations(50)
+    system.SetSolverTolerance(1e-6)
+    
+    # Create the ground body (rigid terrain)
+    ground = chrono.ChBodyEasyBox(100, 2, 100, 1000, True, True)
+    ground.SetPos(chrono.ChVectorD(0, -1, 0))
+    ground.SetBodyFixed(True)
+    
+    # Set ground material properties
+    ground_mat = chrono.ChMaterialSurfaceNSC()
+    ground_mat.SetFriction(0.8)
+    ground_mat.SetRestitution(0.1)
+    ground.GetCollisionModel().SetDefaultSuggestedEnvelope(0.01)
+    ground.GetCollisionModel().SetDefaultSuggestedMargin(0.01)
+    ground.SetMaterialSurface(ground_mat)
+    
+    # Add ground to system
+    system.Add(ground)
+    
+    # Initialize the Viper rover
+    rover = robot.Viper(system)
+    
+    # Set rover initial position and orientation
+    init_pos = chrono.ChVectorD(0, 0.5, 0)
+    init_rot = chrono.ChQuaternionD(1, 0, 0, 0)
+    rover.SetSystemCollisionType(chrono.ChCollisionSystem.Type_BULLET)
+    rover.Initialize(chrono.ChFrameD(init_pos, init_rot))
+    
+    # Create and initialize the rover driver
+    driver = robot.ViperDCMotorControl()
+    
+    # Set initial driver inputs
+    driver.SetMotorSpeed(0.0, robot.ViperWheelID_LF)  # Left Front
+    driver.SetMotorSpeed(0.0, robot.ViperWheelID_RF)  # Right Front
+    driver.SetMotorSpeed(0.0, robot.ViperWheelID_LM)  # Left Middle
+    driver.SetMotorSpeed(0.0, robot.ViperWheelID_RM)  # Right Middle
+    driver.SetMotorSpeed(0.0, robot.ViperWheelID_LB)  # Left Back
+    driver.SetMotorSpeed(0.0, robot.ViperWheelID_RB)  # Right Back
+    
+    # Create the Irrlicht visualization system
+    vis = chronoirr.ChVisualSystemIrrlicht()
+    vis.AttachSystem(system)
+    vis.SetWindowSize(1280, 720)
+    vis.SetWindowTitle('Viper Rover Simulation')
+    vis.Initialize()
+    
+    # Set camera position and target
+    camera_pos = chrono.ChVectorD(5, 3, 5)
+    camera_target = chrono.ChVectorD(0, 0, 0)
+    vis.AddCamera(camera_pos, camera_target)
+    
+    # Add lighting
+    vis.AddTypicalLights()
+    vis.AddLight(chrono.ChVectorD(10, 10, 10), 100, chrono.ChColor(1, 1, 1))
+    vis.AddLight(chrono.ChVectorD(-10, 10, -10), 100, chrono.ChColor(0.8, 0.8, 1))
+    
+    # Add logo and sky
+    vis.AddLogo()
+    vis.AddSkyBox()
+    
+    # Simulation parameters
+    time_step = 0.01
+    simulation_time = 20.0  # Total simulation time
+    steering_change_period = 5.0  # Time period for steering changes
+    max_motor_speed = 10.0  # Maximum motor speed (rad/s)
+    
+    # Initialize simulation variables
+    time = 0
+    step_number = 0
+    
+    print("Starting Viper rover simulation...")
+    print(f"Simulation will run for {simulation_time} seconds")
+    print("Watch as the rover's steering gradually changes over time")
+    
+    # Main simulation loop
+    while vis.Run() and time < simulation_time:
+        # Calculate steering based on time (gradually changing)
+        steering_phase = (time % steering_change_period) / steering_change_period
+        steering_angle = math.sin(2 * math.pi * steering_phase) * 0.3  # Max 30 degrees
+        
+        # Calculate motor speeds for differential steering
+        base_speed = 5.0  # Base forward speed
+        steering_factor = steering_angle * 2.0
+        
+        left_speed = base_speed - steering_factor
+        right_speed = base_speed + steering_factor
+        
+        # Set motor speeds for all wheels
+        driver.SetMotorSpeed(left_speed, robot.ViperWheelID_LF)
+        driver.SetMotorSpeed(right_speed, robot.ViperWheelID_RF)
+        driver.SetMotorSpeed(left_speed, robot.ViperWheelID_LM)
+        driver.SetMotorSpeed(right_speed, robot.ViperWheelID_RM)
+        driver.SetMotorSpeed(left_speed, robot.ViperWheelID_LB)
+        driver.SetMotorSpeed(right_speed, robot.ViperWheelID_RB)
+        
+        # Update rover with driver inputs
+        rover.Update()
+        
+        # Get rover position for camera tracking
+        rover_pos = rover.GetChassis().GetPos()
+        
+        # Update camera to follow rover
+        camera_offset = chrono.ChVectorD(5, 3, 5)
+        new_camera_pos = rover_pos + camera_offset
+        vis.GetActiveCamera().setPosition(chronoirr.vector3df(
+            new_camera_pos.x, new_camera_pos.y, new_camera_pos.z))
+        vis.GetActiveCamera().setTarget(chronoirr.vector3df(
+            rover_pos.x, rover_pos.y, rover_pos.z))
+        
+        # Advance the simulation
+        system.DoStepDynamics(time_step)
+        
+        # Update visualization
+        vis.BeginScene()
+        vis.Render()
+        
+        # Display simulation info
+        if step_number % 100 == 0:  # Print every 100 steps
+            print(f"Time: {time:.2f}s, Rover Position: ({rover_pos.x:.2f}, {rover_pos.y:.2f}, {rover_pos.z:.2f})")
+            print(f"Steering angle: {math.degrees(steering_angle):.1f}°, Left speed: {left_speed:.1f}, Right speed: {right_speed:.1f}")
+        
+        vis.EndScene()
+        
+        # Update time and step counter
+        time += time_step
+        step_number += 1
+    
+    print("Simulation completed!")
+    return 0
+
+if __name__ == "__main__":
+    main()
+```
+
+This comprehensive script includes all the requested features:
+
+## Key Components:
+
+1. **System Initialization**: Creates the Chrono system with gravity settings and solver parameters
+
+2. **Rigid Terrain**: Creates a large box as ground with appropriate material properties (friction, restitution)
+
+3. **Viper Rover**: Initializes the rover with proper positioning and collision settings
+
+4. **Driver System**: Sets up motor control for all six wheels with differential steering
+
+5. **Irrlicht Visualization**: 
+   - Real-time 3D visualization
+   - Camera tracking that follows the rover
+   - Multiple light sources for better visibility
+   - Professional window setup with logo and skybox
+
+6. **Dynamic Simulation Loop**:
+   - Gradually changing steering over time using sinusoidal function
+   - Differential steering by varying left/right wheel speeds
+   - Camera automatically follows rover movement
+   - Real-time status updates
+
+## Key Features:
+
+- **Realistic Physics**: Proper gravity, collision detection, and material properties
+- **Smooth Steering**: Steering angle changes smoothly over a 5-second period
+- **Visual Feedback**: Camera follows rover, multiple lighting sources
+- **Performance Monitoring**: Regular status updates showing position and control inputs
+- **Robust Configuration**: Proper solver settings for stable simulation
+
+## Usage Notes:
+
+1. Make sure to set the correct Chrono data path in the `chrono.SetChronoDataPath()` line
+2. The simulation runs for 20 seconds with gradually changing steering patterns
+3. The rover will move forward while turning left and right in a sinusoidal pattern
+4. All simulation parameters can be easily adjusted at the top of the main function
+
+This script provides a complete, professional-grade PyChrono simulation that demonstrates the Viper rover's capabilities on rigid terrain with dynamic steering control.

@@ -1,0 +1,108 @@
+Here's a PyChrono script that implements the simulation as described in your instructions:
+
+```python
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as irr
+import pychrono.vehicle.irrlicht as virr
+import math
+
+# Initialize the ChronoVehicle system
+chrono.SetChronoDataPath('/path/to/chrono/data/')
+veh.SetDataPath('/path/to/vehicle/data/')
+
+# Create the simulation system
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+
+# Create the terrain
+terrain = veh.RigidTerrain(system)
+patch_mat = chrono.ChMaterialSurfaceNSC()
+patch_mat.SetFriction(0.9)
+patch_mat.SetRestitution(0.01)
+terrain_patch = terrain.AddPatch(patch_mat, 
+                                 chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT),
+                                 200, 200)
+terrain_patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
+terrain.Initialize()
+
+# Create the vehicle
+vehicle_file = veh.GetDataFile("citybus/vehicle/CityBus_Vehicle.json")
+powertrain_file = veh.GetDataFile("citybus/powertrain/CityBus_SimpleMapPowertrain.json")
+tire_file = veh.GetDataFile("citybus/tire/CityBus_TMeasyTire.json")
+
+vehicle = veh.WheeledVehicle(system, vehicle_file)
+vehicle.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0.5, 0), chrono.QUNIT))
+
+powertrain = veh.ReadPowertrainJSON(powertrain_file)
+vehicle.InitializePowertrain(powertrain)
+
+for axle in vehicle.GetAxles():
+    for wheel in axle.GetWheels():
+        tire = veh.ReadTireJSON(tire_file)
+        vehicle.InitializeTire(tire, wheel, veh.VisualizationType_MESH)
+
+# Create the driver system
+driver = veh.ChIrrGuiDriver(vehicle.GetVehicle())
+driver.SetSteeringDelta(0.02)
+driver.SetThrottleDelta(0.02)
+driver.SetBrakingDelta(0.06)
+driver.Initialize()
+
+# Create the vehicle Irrlicht interface
+vis = virr.ChWheeledVehicleIrrApp(vehicle.GetVehicle(), powertrain, 'CityBus')
+
+vis.SetWindowTitle('CityBus Demo')
+vis.SetChaseCamera(chrono.ChVectorD(0, 5, -15), 6.0, 0.5)
+vis.SetChaseCameraState(virr.ChChaseCamera.Track)
+vis.SetChaseCameraMultipliers(1.0, 5.0, 0.6)
+
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+
+# Simulation loop
+step_size = 1e-3
+realtime_timer = chrono.ChRealtimeStepTimer()
+
+while vis.Run():
+    time = vehicle.GetSystem().GetChTime()
+
+    # Get driver inputs
+    driver_inputs = driver.GetInputs()
+
+    # Update modules (process inputs from other modules)
+    driver.Synchronize(time)
+    terrain.Synchronize(time)
+    vehicle.Synchronize(time, driver_inputs, terrain)
+    vis.Synchronize(time, driver_inputs)
+
+    # Advance simulation for one timestep for all modules
+    driver.Advance(step_size)
+    terrain.Advance(step_size)
+    vehicle.Advance(step_size)
+    vis.Advance(step_size)
+
+    # Ensure real-time simulation
+    realtime_timer.Spin(step_size)
+
+    # Exit if simulation time exceeds 20 seconds
+    if time > 20:
+        break
+
+# Clean up
+vis.GetDevice().closeDevice()
+```
+
+This script does the following:
+
+1. Initializes the PyChrono environment and core components.
+2. Creates a rigid terrain with a custom texture.
+3. Loads and initializes a CityBus vehicle model with specified parameters.
+4. Sets up an interactive driver system for vehicle control.
+5. Configures the Irrlicht visualization, including camera settings.
+6. Implements a simulation loop running at real-time (approximately 50 FPS with a 1ms time step).
+7. Updates vehicle dynamics and renders the scene in each frame.
+
+Make sure to replace `/path/to/chrono/data/` and `/path/to/vehicle/data/` with the correct paths to your PyChrono data directories.
+
+This script provides a basic framework for the CityBus simulation. You may need to adjust some parameters or add additional features depending on your specific requirements.

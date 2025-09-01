@@ -1,0 +1,136 @@
+# PyChrono Beam Finite Elements Simulation
+
+```python
+# Import required modules
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
+import numpy as np
+
+# Initialize the simulation system
+sys = chrono.ChSystemNSC()
+sys.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
+
+# Helper function to create visualization material
+def CreateVisualMaterial(color=chrono.ChColor(0.1, 0.1, 0.1)):
+    vis_material = chrono.ChVisualMaterial()
+    vis_material.SetAmbientColor(color)
+    vis_material.SetDiffuseColor(color)
+    vis_material.SetSpecularColor(color)
+    vis_material.SetFresnelMin(0)
+    vis_material.SetFresnelMax(0.2)
+    return vis_material
+
+# Create a beam section with the given properties
+beam_section = chrono.ChBeamSectionEulerAdvanced()
+beam_width = 0.05
+beam_height = 0.05
+
+# Set section properties
+beam_section.SetDensity(1000)  # kg/m^3
+beam_section.SetYoungModulus(0.05e9)  # Young's modulus
+beam_section.SetGwithPoissonRatio(0.3)  # Poisson ratio
+beam_section.SetAsRectangularSection(beam_width, beam_height)
+beam_section.SetBeamRaleyghDamping(0.01)  # Add Rayleigh damping
+
+# Create the mesh of beam elements
+beam_mesh = chrono.ChMesh()
+sys.Add(beam_mesh)
+
+# Define the number of elements and the size of each element
+n_elements = 10
+length_element = 0.1
+total_length = n_elements * length_element
+
+# Create nodes and elements for a horizontal cantilever beam
+nodes = []
+
+for i in range(n_elements + 1):
+    # Create node
+    node = chrono.ChNodeFEAxyzrot(chrono.ChFrameD(
+        chrono.ChVectorD(i * length_element, 0, 0),  # Position
+        chrono.ChQuaternionD(1, 0, 0, 0)))           # Rotation (no rotation)
+    
+    # Set node mass and inertia
+    node_mass = beam_section.GetMassPerUnitLength() * length_element
+    node_inertia = chrono.ChVectorD(
+        beam_section.GetInertiaJyyPerUnitLength() * length_element,
+        beam_section.GetInertiaJzzPerUnitLength() * length_element,
+        beam_section.GetInertiaJxxPerUnitLength() * length_element)
+    
+    node.SetMass(node_mass)
+    node.SetInertiaXX(node_inertia)
+    
+    # Fix the first node (cantilever constraint)
+    if i == 0:
+        node.SetFixed(True)
+    
+    beam_mesh.AddNode(node)
+    nodes.append(node)
+
+# Create beam elements connecting the nodes
+beams = []
+for i in range(n_elements):
+    beam = chrono.ChElementBeamEuler()
+    beam.SetNodes(nodes[i], nodes[i + 1])
+    beam.SetSection(beam_section)
+    
+    beam_mesh.AddElement(beam)
+    beams.append(beam)
+
+# Add visualization for the beam elements
+for i, beam in enumerate(beams):
+    vis_beam = chrono.ChVisualShapeBeam(
+        beam.GetNodeA(),
+        beam.GetNodeB(),
+        chrono.ChBeamSectionShapeRectangular(beam_width, beam_height))
+    
+    vis_beam.AddMaterial(CreateVisualMaterial(chrono.ChColor(0.5, 0.0, 0.0)))
+    beam.AddVisualShape(vis_beam)
+
+# Add a tip force to the last node to demonstrate beam deflection
+tip_node = nodes[-1]
+force_mag = 10  # N
+force_dir = chrono.ChVectorD(0, -1, 0)  # Downward force
+tip_node.SetForce(force_mag * force_dir)
+
+# Create the Irrlicht visualization system
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(sys)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle("PyChrono Beam Finite Elements Demo")
+vis.Initialize()
+vis.AddCamera(chrono.ChVectorD(total_length/2, 0, 2), chrono.ChVectorD(total_length/2, 0, 0))
+vis.AddTypicalLights()
+
+# Simulation settings
+time_step = 0.001
+total_time = 5.0
+
+# Simulation loop
+time = 0
+while vis.Run() and time < total_time:
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    
+    sys.DoStepDynamics(time_step)
+    time += time_step
+    
+    # Display some information
+    if int(time / time_step) % 100 == 0:
+        tip_pos = nodes[-1].GetPos()
+        print(f"Time: {time:.3f}, Tip position: ({tip_pos.x:.3f}, {tip_pos.y:.3f}, {tip_pos.z:.3f})")
+
+print("Simulation completed!")
+```
+
+This code creates a PyChrono simulation demonstrating beam finite elements with the following features:
+
+1. A cantilever beam composed of 10 beam elements with rectangular cross-section
+2. Material properties including density, Young's modulus, and Poisson ratio
+3. Fixed constraint at one end of the beam (cantilever configuration)
+4. Applied downward force at the beam tip to demonstrate deflection
+5. Visualization using the Irrlicht engine
+6. Simulation loop with regular output of the beam tip position
+
+The beam will visibly bend under the applied force and gravity, demonstrating the elastic properties of the finite element model. The rectangular beam elements are visualized in red for clarity.
