@@ -302,6 +302,21 @@ evaluate_code() {
     fi
 }
 
+update_model_discovery() {
+    print_header "Phase 4.5: Updating Model Discovery"
+    
+    cd "${SCORING_DIR}"
+    
+    # Run auto-discovery to ensure all models are included
+    ${PYTHON_CMD:-python} auto_discover_models.py
+    
+    if [ $? -eq 0 ]; then
+        print_success "Model list updated with all discovered models"
+    else
+        print_warning "Model discovery failed - using existing list"
+    fi
+}
+
 calculate_scores() {
     print_header "Phase 5: Calculating Similarity Scores"
     
@@ -309,6 +324,9 @@ calculate_scores() {
         print_warning "Scores already calculated. Skipping..."
         return
     fi
+    
+    # First update model discovery
+    update_model_discovery
     
     cd "${SCORING_DIR}"
     ${PYTHON_CMD:-python} p_sim_score.py
@@ -452,6 +470,17 @@ main() {
     
     # Check dependencies
     check_dependencies
+    
+    # Validate pipeline before running
+    print_header "Validating Pipeline Configuration"
+    cd "${SCORING_DIR}"
+    ${PYTHON_CMD:-python} validate_pipeline.py
+    if [ $? -ne 0 ]; then
+        print_error "Pipeline validation failed. Please fix issues before running."
+        print_warning "Run: python ${SCORING_DIR}/validate_pipeline.py for details"
+        exit 1
+    fi
+    print_success "Pipeline validation passed"
     
     # Run pipeline phases
     clean_ground_truth
