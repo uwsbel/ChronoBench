@@ -3,25 +3,10 @@ import json
 from tqdm import tqdm
 import anthropic
 from pathlib import Path
+from dotenv import load_dotenv
 
-def load_env():
-    """Load environment variables from .env file"""
-    env_path = Path(__file__).parent.parent.parent / '.env'
-    if env_path.exists():
-        with open(env_path) as f:
-            for line in f:
-                if line.strip() and not line.startswith('#'):
-                    if '=' in line:
-                        key, value = line.strip().split('=', 1)
-                        # Remove quotes if present
-                        value = value.strip('"').strip("'")
-                        os.environ[key] = value
-        print(f"✓ Loaded API keys from {env_path}")
-    else:
-        print(f"⚠ Warning: .env file not found at {env_path}")
-
-# Load environment variables from .env
-load_env()
+# Load environment variables from .env file
+load_dotenv()
 
 # Get API key from environment
 api_key = os.environ.get("ANTHROPIC_API_KEY", "")

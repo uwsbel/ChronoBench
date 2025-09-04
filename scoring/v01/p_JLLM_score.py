@@ -12,6 +12,10 @@ import io
 import subprocess
 import time
 import random
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Import additional API clients
 try:
@@ -26,7 +30,7 @@ except ImportError:
     genai = None
     print("Warning: Google GenerativeAI library not installed. Gemini models will not work.")
 
-# Load API keys from environment
+# Load API keys from environment (now loaded from .env)
 openai_api_key = os.getenv("OPENAI_API_KEY")
 anthropic_api_key = os.getenv("ANTHROPIC_API_KEY")
 google_api_key = os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")

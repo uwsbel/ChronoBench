@@ -13,6 +13,10 @@ import subprocess
 import time
 import random
 from datetime import datetime
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Only OpenAI API needed for judge model
 # The evaluated models' outputs are already generated and saved
@@ -36,7 +40,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Load API key specifically for gpt-4.1-nano judge model
+# Load API key specifically for gpt-4.1-nano judge model (now loaded from .env)
 # Priority order: Model-specific key > Numbered key > Default key
 openai_api_key = os.getenv("OPENAI_API_KEY_GPT41NANO") or os.getenv("OPENAI_API_KEY_3")
 if not openai_api_key:

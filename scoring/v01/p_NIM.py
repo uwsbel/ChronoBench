@@ -3,6 +3,10 @@ import os
 import json
 import concurrent.futures
 from tqdm import tqdm
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 nvidia_api_key = os.getenv("NVIDIA_API_KEY")
 if not nvidia_api_key:
