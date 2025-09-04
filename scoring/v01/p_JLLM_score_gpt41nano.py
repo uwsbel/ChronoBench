@@ -735,6 +735,18 @@ test_model_list = [
     # Microsoft Phi Models
     "phi-3-mini-128k-instruct",
     "phi-3-medium-128k-instruct",
+
+    "gemma-2-9b-it",
+    "gemma-2-27b-it",
+    "gemma-2-2b-it",
+    "gemma-3-27b-it",
+    "gemma-3-1b-it",
+    "mistral-nemo-12b-instruct",
+    "mixtral-8x22b-instruct-v0.1",
+    "mixtral-8x7b-instruct-v0.1",
+    "codestral-22b-instruct-v0.1",
+    "mistral-large-latest",
+    "mamba-codestral-7b-v0.1",
     
     # Qwen Model
     "qwen3-235b-a22b"
