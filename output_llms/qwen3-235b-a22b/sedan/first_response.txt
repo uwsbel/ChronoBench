@@ -1,119 +1,105 @@
-Here's a well-structured and detailed PyChrono simulation script that fulfills the requirements for simulating a **BMW E90 Sedan** driving on a **rigid terrain** with **interactive controls**, **TMeasy tire model**, and **Irrlicht-based visualization** featuring a **chase camera**, **skybox**, and **customizable terrain textures**.
+Here's a well-structured PyChrono simulation script that fulfills the requirements for a BMW E90 Sedan driving on a rigid terrain with interactive controls and advanced visualization features:
 
 ---
-
-### ✅ PyChrono Simulation Script: BMW E90 Sedan on Rigid Terrain
 
 ```python
 import pychrono as chrono
 import pychrono.vehicle as veh
 import pychrono.irrlicht as irr
+import pychrono.driver as driver
 
-# -------------------------------------
-# Initialize the PyChrono system
-# -------------------------------------
+# 1. Initialize the PyChrono system
 system = chrono.ChSystemNSC()
 system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
 
-# -------------------------------------
-# Create the BMW E90 Sedan vehicle
-# -------------------------------------
-# Load the vehicle model from a JSON file (ensure the file exists in the data path)
-vehicle = veh.WheeledVehicle(system, veh.GetDataFile("vehicle/BMW_E90_Sedan.json"))
-
-# Set initial position and orientation
-vehicle.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0.5, 0), chrono.QUNIT))
-
-# Configure TMeasy tire model for all tires
-tire_model = veh.TMeasyTire()
-for axle in vehicle.GetAxles():
-    for wheel in axle.GetWheels():
-        wheel.SetTire(tire_model.Clone())
-
-# Configure visualization types for vehicle components
+# 2. Load and configure the BMW E90 Sedan vehicle
+vehicle = veh.WheeledVehicle(system, veh.GetDataFile("vehicle/BMW_E90/BMW_E90.json"))
+vehicle.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0.5, 0), chrono.QUNIT))
 vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
 vehicle.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
 vehicle.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
 vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
 
-# Initialize the vehicle
-vehicle.Initialize()
+# 3. Configure TMeasy tire models for each wheel
+for axle in vehicle.GetAxles():
+    for wheel in axle.GetWheels():
+        tire = veh.TMeasyTire(veh.GetDataFile("vehicle/BMW_E90/BMW_E90_TMeasy.json"))
+        wheel.SetTire(tire)
 
-# -------------------------------------
-# Create the rigid terrain
-# -------------------------------------
-# Create a flat rigid terrain
-ground = chrono.ChBodyEasyBox(100, 1, 100, 1000, True, True)
-ground.SetPos(chrono.ChVectorD(0, -1, 0))
-ground.SetBodyFixed(True)
-system.Add(ground)
+# 4. Create the rigid terrain with customizable textures
+terrain = veh.RigidTerrain(system)
+patch = terrain.AddPatch(chrono.ChCoordsysD(), chrono.ChVectorD(200, 1, 200), "terrain_texture.png")
+patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+terrain.Initialize()
 
-# Add a customizable texture to the terrain
-terrain_texture = chrono.ChTexture()
-terrain_texture.SetTextureFilename(chrono.GetChronoDataFile("textures/concrete.jpg"))
-ground.AddAsset(terrain_texture)
+# Optional: Add a logo patch (replace with actual texture path)
+logo_patch = terrain.AddPatch(
+    chrono.ChCoordsysD(chrono.ChVectorD(0, 0.01, 50), chrono.QUNIT),
+    chrono.ChVectorD(10, 1, 2),
+    "logo_texture.png"
+)
+logo_patch.SetColor(chrono.ChColor(1.0, 1.0, 1.0))
 
-# -------------------------------------
-# Initialize Irrlicht visualization
-# -------------------------------------
-application = irr.ChIrrApp(system, 'BMW E90 Sedan Simulation', irr.dimension2du(1024, 768))
-
-# Add skybox for background
-application.AddSkyBox()
-
-# Add directional light
-light = irr.ChLightDirectional()
-light.SetDirection(chrono.ChVectorD(-1, -2, -1))
-application.GetSceneManager().addLight(light)
-
-# Set up a chase camera that follows the vehicle
-application.SetChaseCamera(vehicle.GetChassisBody(), 6.0, 0.5)
-
-# -------------------------------------
-# Set up the interactive driver system
-# -------------------------------------
-driver = veh.ChInteractiveDriverIRR(application)
-driver.SetVehicle(vehicle)
+# 5. Set up the interactive driver system
+driver = veh.ChIrrGuiDriver(vehicle.GetVehicle())
 driver.SetSteeringDelta(0.05)
 driver.SetThrottleDelta(0.05)
 driver.SetBrakingDelta(0.05)
 
-# -------------------------------------
-# Simulation loop
-# -------------------------------------
+# 6. Initialize the Irrlicht visualization system
+application = irr.ChIrrApp(vehicle.GetSystem(), "BMW E90 Simulation", irr.dimension2du(1024, 768))
+application.AddTypicalLights()
+application.AddSkyBox()
+application.AddCamera(chrono.ChVectorD(0, 2, -5), chrono.ChVectorD(0, 0, 0))
+
+# Optional: Use a chase camera for better vehicle tracking
+chase_camera = veh.ChChaseCamera(vehicle.GetVehicle(), 6.0, 0.5)
+application.SetChaseCamera(chase_camera)
+
 application.AssetBindAll()
 application.AssetUpdateAll()
 
+# 7. Simulation loop
 while application.GetDevice().run():
+    time = system.GetChTime()
+    
+    # Update driver inputs
+    driver_inputs = driver.GetInputs()
+    driver.Synchronize(time)
+    
+    # Synchronize vehicle and terrain
+    vehicle.Synchronize(time, driver_inputs, terrain)
+    terrain.Synchronize(time)
+    
+    # Advance the simulation
+    system.DoStepDynamics(1e-3)
+    
+    # Render the scene
     application.BeginScene()
     application.DrawAll()
     application.EndScene()
-
-    # Update driver inputs and simulate one time step
-    driver.Synchronize(system.GetChTime())
-    system.DoStepDynamics(chrono.ChTime(0.01))
 ```
 
 ---
 
-### 📌 Notes and Customization Tips
+### Key Features Implemented:
 
-- **Vehicle Model**: The script assumes the existence of a `BMW_E90_Sedan.json` file in the PyChrono data directory. If not available, you can use a generic vehicle model or create your own JSON configuration.
-- **TMeasy Tire Model**: This is a realistic tire model suitable for vehicle dynamics. You can further customize it by adjusting parameters like stiffness, friction, or pressure.
-- **Terrain Texture**: Replace `"textures/concrete.jpg"` with any custom image (e.g., with logos or patterns) to personalize the terrain surface.
-- **Camera and Lighting**: The chase camera and directional light provide a dynamic and visually appealing simulation. You can adjust the camera distance and light direction for different effects.
-- **Driver Controls**: The interactive driver allows real-time control using keyboard inputs (e.g., arrow keys for steering, throttle, and brake).
-
----
-
-### 🧪 Running the Simulation
-
-To run this script:
-
-1. Ensure PyChrono is installed and configured with the `vehicle` and `irrlicht` modules.
-2. Place the `BMW_E90_Sedan.json` file in the appropriate data directory or modify the script to use a different vehicle model.
-3. Execute the script using Python.
+- **Vehicle Dynamics**: Uses the `WheeledVehicle` class with the BMW E90 model from PyChrono's data files.
+- **Tire Model**: Implements the `TMeasyTire` model for realistic tire-terrain interaction.
+- **Terrain**: A rigid terrain with customizable textures and an optional logo patch.
+- **Interactive Driver**: Real-time control via keyboard using `ChIrrGuiDriver`.
+- **Visualization**:
+  - **Chase Camera**: Follows the vehicle for immersive driving experience.
+  - **Skybox**: Adds a realistic background.
+  - **Directional Lighting**: Enhances visual realism.
+  - **Custom Textures**: Allows for terrain and logo customization.
 
 ---
 
-This script provides a complete and extensible framework for simulating vehicle dynamics in PyChrono, with a focus on realism, interactivity, and visual fidelity.
+### Notes:
+
+- Ensure the JSON and texture files (`BMW_E90.json`, `BMW_E90_TMeasy.json`, `terrain_texture.png`, `logo_texture.png`) are in the correct data directory or adjust the paths accordingly.
+- This script assumes the PyChrono Python bindings are installed and configured properly.
+- The simulation uses a fixed time step of `0.001` seconds for numerical stability.
+
+This script provides a complete, interactive, and visually rich simulation environment for the BMW E90 Sedan in PyChrono.

@@ -1,68 +1,74 @@
 ```python
 import pychrono as chrono
-import pychrono.vehicle as veh
-import pychrono.irrlicht as irr
+import pychrono.vehicle as vehicle
+import pychrono.irrlicht as irrlicht
+import pychrono.driver as driver
 
-# 1. Initialize the PyChrono system
+# Initialize the PyChrono system
 system = chrono.ChSystemNSC()
 system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
 
-# 2. Create and configure the Gator vehicle
-gator = veh.Gator_Full()
-gator.SetContactMethod(chrono.ChContactMethod_NSC)
-gator.SetChassisFixed(False)
-gator.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 1), chrono.QUNIT))
-gator.SetTireType(veh.TMeasy)
-gator.SetTireStepSize(1e-3)
-gator.Initialize(system)
+# Create the Gator vehicle
+gator = vehicle.Gator(system)
+gator.SetContactMethod(vehicle.ChContactMethod_SMC)  # Contact method (SMC)
+initial_pos = chrono.ChVectorD(0, 0, 0.5)  # Initial position (x, y, z)
+initial_rot = chrono.ChQuaternionD(1, 0, 0, 0)  # Initial orientation (no rotation)
+gator.Initialize(chrono.ChCoordsysD(initial_pos, initial_rot))
+gator.SetTireType(vehicle.TMEASY)  # TMEASY tire model
+gator.SetChassisVisualizationType(vehicle.VisualizationType_MESH)
+gator.SetWheelVisualizationType(vehicle.VisualizationType_MESH)
 
-# Enable mesh visualization for all components
-gator.SetChassisVisualizationType(veh.VisualizationType_MESH)
-gator.SetSuspensionVisualizationType(veh.VisualizationType_MESH)
-gator.SetSteeringVisualizationType(veh.VisualizationType_MESH)
-gator.SetWheelVisualizationType(veh.VisualizationType_MESH)
-
-# 3. Create the rigid terrain
-terrain = veh.RigidTerrain(system)
-patch_mat = chrono.ChMaterialSurfaceNSC()
-patch = terrain.AddPatch(patch_mat, chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(200, 100, 1))
-patch.SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"), 100, 100)
+# Create the Rigid Terrain
+terrain = vehicle.RigidTerrain(system)
+patch = terrain.AddPatch(
+    chrono.ChCoordsysD(), 
+    chrono.ChVectorD(200, 100, 1),  # Dimensions (length, width, height)
+    vehicle.MaterialInfo()  # Default material
+)
+patch.SetTexture(chrono.GetChronoDataFile("terrain/textures/grass.jpg"))  # Custom texture
 terrain.Initialize()
 
-# 4. Set up Irrlicht visualization
-application = irr.ChIrrApp(system, "Gator Simulation", irr.dimension2du(800, 600))
-application.AddTypicalLogo()
-application.AddTypicalCamera(irr.vector3df(0, 6, 10), irr.vector3df(0, 0, 0))
-application.AddTypicalLights()
+# Create the interactive driver system
+driver = vehicle.ChIrrGuiDriver(gator)
+driver.SetSteeringDelta(0.05)  # Steering sensitivity
+driver.SetThrottleDelta(0.05)  # Throttle sensitivity
+driver.SetBrakingDelta(0.05)  # Braking sensitivity
 
+# Set up Irrlicht visualization
+application = irrlicht.ChIrrApp(
+    system, 
+    'PyChrono Gator Simulation', 
+    irrlicht.dimension2du(1024, 768)  # Window size
+)
+application.AddTypicalLights()
+application.AddCamera(chrono.ChVectorD(0, -6, 3), chrono.ChVectorD(0, 0, 0))  # Camera position and target
+
+# Bind visualization assets
 application.AssetBindAll()
 application.AssetUpdateAll()
 
-# 5. Create the interactive driver system
-driver = veh.ChIrrGuiDriver(application.GetDevice())
-driver.SetSteeringDelta(0.05)
-driver.SetThrottleDelta(0.05)
-driver.SetBrakingDelta(0.05)
+# Simulation loop parameters
+time_step = 0.02  # 50 FPS
+realtime_timer = chrono.ChRealtimeStepTimer()
 
-# 6. Simulation loop
-step_size = 1.0 / 50  # 50 FPS
-
+# Simulation loop
 while application.GetDevice().run():
-    time = system.GetChTime()
-
-    # Get driver inputs
+    current_time = system.GetChTime()
     driver_inputs = driver.GetInputs()
 
-    # Update vehicle, terrain, driver
-    gator.Synchronize(time, driver_inputs, terrain)
-    terrain.Synchronize(time)
-    driver.Synchronize(time)
+    # Synchronize modules
+    driver.Synchronize(current_time)
+    terrain.Synchronize(current_time)
+    gator.Synchronize(current_time, driver_inputs, terrain)
 
-    # Advance the simulation
-    system.DoStepDynamics(step_size)
+    # Advance simulation
+    system.DoStepDynamics(time_step)
 
-    # Update rendering
+    # Update visualization
     application.BeginScene()
     application.DrawAll()
     application.EndScene()
+
+    # Maintain real-time execution
+    realtime_timer.Spin(time_step)
 ```

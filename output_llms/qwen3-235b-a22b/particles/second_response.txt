@@ -1,4 +1,4 @@
-Here is the corrected and modified PyChrono script that addresses all identified issues and implements the requested changes:
+Here's the corrected and modified PyChrono script that addresses all the requirements and fixes potential issues in the original code:
 
 ```python
 import pychrono as chrono
@@ -6,23 +6,27 @@ import pychrono.irrlicht as chronoirr
 from itertools import combinations
 
 class MyCreatorForAll(chrono.ChRandomShapeCreator_AddBodyCallback):
-    def __init__(self, vis):
+    def __init__(self, vis, coll):
         super().__init__()
         self.vis = vis
+        self.coll = coll
 
     def OnAddBody(self, body, coords, creator):
-        # Set texture and visualization
-        body.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/bluewhite.png"))
+        if body.GetVisualShapeCount() > 0:
+            body.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/bluewhite.png"))
         self.vis.BindItem(body)
+        self.coll.BindItem(body)
+        body.SetUseGyroTorque(False)
 
 # Create a Chrono physical system
 sys = chrono.ChSystemNSC()
 sys.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+coll = sys.GetCollisionSystem()
 
-# Create a sphere body
+# Create a sphere body - corrected parameter order
 sphere_mat = chrono.ChContactMaterialNSC()
 sphere_mat.SetFriction(0.2)
-msphereBody = chrono.ChBodyEasySphere(2.1, 1800, True, True, sphere_mat)
+msphereBody = chrono.ChBodyEasySphere(sphere_mat, 2.1, 1800, True, True)
 msphereBody.SetPos(chrono.ChVector3d(1, 1, 0))
 msphereBody.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
 sys.Add(msphereBody)
@@ -67,7 +71,7 @@ vis.AddCamera(chrono.ChVector3d(0, 14, -20))
 vis.AddTypicalLights()
 
 # Attach callback to the emitter
-mcreation_callback = MyCreatorForAll(vis)
+mcreation_callback = MyCreatorForAll(vis, coll)
 emitter.RegisterAddBodyCallback(mcreation_callback)
 
 # Simulation settings
@@ -88,16 +92,15 @@ while vis.Run():
     for body in sys.GetBodies():
         body.EmptyAccumulators()
 
-    # Move G_constant definition here as requested
+    # Moved G_constant inside loop as per instruction
     G_constant = 6.674e-3  # Modified gravitational constant
 
-    # Calculate and apply gravitational forces
     mlist = list(combinations(sys.GetBodies(), 2))
     for abodyA, abodyB in mlist:
         D_attract = abodyB.GetPos() - abodyA.GetPos()
         r_attract = D_attract.Length()
-        if r_attract < 1e-6:  # Avoid division by zero
-            continue
+        if r_attract == 0:
+            continue  # Avoid division by zero
         f_attract = G_constant * (abodyA.GetMass() * abodyB.GetMass()) / (r_attract ** 2)
         F_attract = (D_attract / r_attract) * f_attract
         abodyA.AccumulateForce(F_attract, abodyA.GetPos(), False)
@@ -109,44 +112,51 @@ while vis.Run():
     kinetic_energy = 0.0
     potential_energy = 0.0
 
-    # Compute kinetic energy
+    # Calculate kinetic energy
     for body in sys.GetBodies():
         mass = body.GetMass()
-        vel = body.GetPos_dt()
+        vel = body.GetPos_dt()  # Velocity vector
         kinetic_energy += 0.5 * mass * vel.Length2()
 
-    # Compute potential energy
+    # Calculate potential energy
     pairs = combinations(sys.GetBodies(), 2)
-    for bodyA, bodyB in pairs:
-        D = bodyB.GetPos() - bodyA.GetPos()
+    for abodyA, abodyB in pairs:
+        D = abodyB.GetPos() - abodyA.GetPos()
         r = D.Length()
-        if r < 1e-6:
-            continue
-        potential_energy += - G_constant * (bodyA.GetMass() * bodyB.GetMass()) / r
+        if r == 0:
+            continue  # Avoid division by zero
+        potential_energy += - G_constant * (abodyA.GetMass() * abodyB.GetMass()) / r
 
     total_energy = kinetic_energy + potential_energy
 
-    print(f"Kinetic Energy: {kinetic_energy:.4f}, Potential Energy: {potential_energy:.4f}, Total Energy: {total_energy:.4f}")
+    print(f"Kinetic Energy: {kinetic_energy}, Potential Energy: {potential_energy}, Total Energy: {total_energy}")
 ```
 
-### Key Corrections and Modifications:
-1. **Callback Class Fix**:
-   - Removed the `coll.BindItem(body)` call from the `MyCreatorForAll` class since the collision system does not have this method.
-   - Simplified the constructor to only require the visualization system.
+Key modifications and corrections:
 
-2. **Particle Creator Replacement**:
-   - Changed from `ChRandomShapeCreatorConvexHulls` to `ChRandomShapeCreatorSpheres`.
-   - Configured diameter distribution using `ChZhangDistribution(0.6, 0.23)` and density with `ChConstantDistribution(1600)`.
+1. **Particle Creator Replacement**:
+   - Changed from `ChRandomShapeCreatorConvexHulls` to `ChRandomShapeCreatorSpheres`
+   - Set diameter distribution using `ChZhangDistribution(0.6, 0.23)`
+   - Set density distribution to 1600 using `ChConstantDistribution`
+
+2. **Parameter Order Fix**:
+   - Corrected the parameter order in `ChBodyEasySphere` constructor to `(material, radius, density, collide, visualize)`
 
 3. **Energy Calculations**:
-   - Added kinetic energy calculation using `0.5 * mass * velocity.Length2()`.
-   - Added gravitational potential energy calculation using `-G * m1 * m2 / r`.
-   - Printed all energy values each simulation step.
+   - Added kinetic energy calculation using `0.5 * mass * velocity.Length2()`
+   - Added gravitational potential energy calculation using pairwise interactions
+   - Calculated total energy as sum of kinetic and potential energies
+   - Added print statement to display energy values
 
-4. **G_constant Placement**:
-   - Moved `G_constant` inside the simulation loop just before the force calculations, as requested.
+4. **G_constant Organization**:
+   - Moved `G_constant` definition inside the simulation loop just before energy calculations
+   - Used the same constant in both force calculations and energy calculations
 
-5. **Zero Division Handling**:
-   - Added checks to avoid division by zero in both force and energy calculations.
+5. **Safety Checks**:
+   - Added zero-length vector check to prevent division by zero
+   - Added visual shape count check in callback to prevent accessing non-existent shapes
 
-This script now correctly implements all requested features while fixing the original issues in the provided code.
+6. **Code Robustness**:
+   - Improved error handling in shape access
+   - Better organization of simulation components
+   - More descriptive comments and structure

@@ -1,0 +1,127 @@
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as chronoirr
+import numpy as np
+
+# ---------------------------------------------------------------------
+#
+#  Demo code about using the FEDA vehicle model
+#  with a RigidTerrain environment
+#
+# ---------------------------------------------------------------------
+
+# Set the path to the Chrono data directory
+chrono.SetChronoDataPath("../data/")
+
+# ---------------------------------------------------------------------
+#
+#  Create the simulation system and add items
+#
+# ---------------------------------------------------------------------
+
+# Create a physical system
+sys = chrono.ChSystemNSC()
+sys.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+
+# Set gravity
+sys.Set_G_acc(chrono.ChVector3d(0, -9.81, 0))
+
+# ---------------------------------------------------------------------
+#
+#  Create the terrain
+#
+# ---------------------------------------------------------------------
+
+# Create the rigid terrain
+terrain = veh.RigidTerrain(sys)
+terrain.SetTexture(chrono.GetChronoDataFile("textures/terrain.png"))
+terrain.SetSize(100, 100)
+terrain.SetHeightDistribution(veh.RigidTerrain.HeightDistributionType.BUMP)
+terrain.SetHeightScale(1.0)
+terrain.Initialize()
+
+# ---------------------------------------------------------------------
+#
+#  Create the FEDA vehicle
+#
+# ---------------------------------------------------------------------
+
+# Create the FEDA vehicle
+vehicle = veh.FEDA(sys)
+
+# Set initial vehicle position and orientation
+init_pos = chrono.ChVector3d(0, 0.5, 0)  # Slightly above the terrain
+init_rot = chrono.Q_from_AngAxis(0, chrono.ChVector3d(0, 1, 0))  # No rotation
+vehicle.SetInitPosition(chrono.ChCoordsysd(init_pos, init_rot))
+
+# Set contact method
+contact_method = veh.ChContactMethod.SMC
+vehicle.SetContactMethod(contact_method)
+
+# Set tire model
+tire_model = veh.ChTireModel.RADIAL
+vehicle.SetTireModel(tire_model)
+
+# Set mesh visualization type for all vehicle parts
+vehicle.SetVisualizationType(veh.FEDA.VisualizationType.MESH)
+
+# Initialize the vehicle
+vehicle.Initialize()
+
+# ---------------------------------------------------------------------
+#
+#  Create the driver system
+#
+# ---------------------------------------------------------------------
+
+# Create an interactive driver system
+driver = veh.FEDA_Driver(vehicle)
+driver.SetSteeringDelta(0.01)
+driver.SetThrottleDelta(0.01)
+driver.SetBrakingDelta(0.01)
+driver.Initialize()
+
+# ---------------------------------------------------------------------
+#
+#  Create the visualization system
+#
+# ---------------------------------------------------------------------
+
+# Create an Irrlicht application to visualize the system
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(sys)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle('FEDA Vehicle Simulation')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVector3d(5, 2, -5))
+vis.AddTypicalLights()
+
+# ---------------------------------------------------------------------
+#
+#  Run the simulation
+#
+# ---------------------------------------------------------------------
+
+# Simulation loop
+time_step = 0.01
+fps = 50
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+
+    # Update the driver system
+    driver.Synchronize(time_step)
+
+    # Step the simulation
+    sys.DoStepDynamics(time_step)
+
+    # Adjust camera to follow the vehicle
+    camera_pos = vehicle.GetPos() + chrono.ChVector3d(5, 2, -5)
+    vis.GetCamera().SetPosition(camera_pos)
+    vis.GetCamera().LookAt(vehicle.GetPos())
+
+    # Limit the simulation to 50 FPS
+    chrono.Sleep(1.0 / fps)

@@ -1,0 +1,1 @@
+Error code: 404 - {'error': {'message': 'The model `microsoft/phi-3-medium-4k-instruct` does not exist', 'type': 'invalid_request_error', 'param': None, 'code': 'model_not_found'}}

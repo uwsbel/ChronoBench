@@ -1,0 +1,122 @@
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
+import pychrono.vehicle as veh
+import pychrono.vehicle.wheeled_vehicle as veh_wheel
+import numpy as np
+
+# =============================================================================
+# Simulation parameters
+# =============================================================================
+# Simulation step size
+step_size = 0.02  # 50 Hz
+
+# Simulation end time
+t_end = 100
+
+# =============================================================================
+# Create the simulation system and add items
+# =============================================================================
+# Create the Chrono physical system
+system = chrono.ChSystemNSC()
+
+# Set gravitational acceleration
+system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
+
+# Create the Irrlicht application
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.SetWindowSize(1280, 720)
+vis.SetWindowTitle('CityBus Simulation')
+vis.Initialize()
+vis.AddLogo()
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVectorD(0, 0, 2))
+vis.AddTypicalLights()
+vis.AssetBindAll()
+vis.AssetUpdateAll()
+
+# Create the vehicle system
+vehicle = veh_wheel.WheelVehicle(chrono.GetChronoDataFile('vehicle/hmmwv/vehicle.json'))
+vehicle.Initialize(system, veh_wheel.VehicleSide.NORTH)
+
+# Set initial vehicle location and orientation
+vehicle.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0.5),
+                                         chrono.ChQuaternionD(1, 0, 0, 0)))
+
+# Set visualization type for chassis and wheels
+vehicle.GetChassis().SetVisualizationType(veh_wheel.VisualizationType.MESH)
+for axle in vehicle.GetAxles():
+    for wheel in axle.GetWheels():
+        wheel.SetVisualizationType(veh_wheel.VisualizationType.PRIM)
+
+# =============================================================================
+# Create the terrain
+# =============================================================================
+# Create a rigid terrain
+terrain = veh.RigidTerrain(system)
+
+# Set texture for terrain
+texture = veh.RigidTerrain.Texture(chrono.GetChronoDataFile('terrain/textures/tile4.jpg'), 20, 20)
+terrain.AddTexture(texture)
+
+# Create a large flat patch
+patch = veh.RigidTerrain.Patch(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 1),
+                              100, 100, 0, 0, 100, 100)
+terrain.AddPatch(patch)
+terrain.Initialize()
+
+# =============================================================================
+# Create the driver system
+# =============================================================================
+# Create a driver system
+driver = veh_wheel.ChInteractiveDriverIRR(vis.GetDevice())
+
+# Set initial driver inputs
+driver.SetSteeringDelta(0.0)
+driver.SetThrottleDelta(0.0)
+driver.SetBrakingDelta(0.0)
+
+# =============================================================================
+# Simulation loop
+# =============================================================================
+# Number of simulation steps
+num_steps = int(t_end / step_size)
+
+# Initialize simulation frame counter
+step = 0
+
+# Camera setup to follow the vehicle
+camera = vis.GetCamera()
+camera.SetPosition(chrono.ChVectorD(0, -5, 2))
+camera.SetAimPoint(chrono.ChVectorD(0, 0, 0.5))
+
+# Simulation loop
+while vis.Run() and step < num_steps:
+    # Get current simulation time
+    time = step * step_size
+
+    # Update the driver inputs
+    driver_inputs = driver.GetInputs()
+
+    # Apply driver inputs to vehicle
+    vehicle.SetSteering(driver_inputs.m_steering)
+    vehicle.SetThrottle(driver_inputs.m_throttle)
+    vehicle.SetBraking(driver_inputs.m_braking)
+
+    # Update vehicle state
+    vehicle.Update(time)
+
+    # Advance simulation by one step
+    system.DoStepDynamics(step_size)
+
+    # Update visualization
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+
+    # Update camera position to follow vehicle
+    vehicle_pos = vehicle.GetChassis().GetPos()
+    camera.SetPosition(chrono.ChVectorD(vehicle_pos.x, vehicle_pos.y - 5, 2))
+    camera.SetAimPoint(chrono.ChVectorD(vehicle_pos.x, vehicle_pos.y, 0.5))
+
+    # Increment simulation step counter
+    step += 1

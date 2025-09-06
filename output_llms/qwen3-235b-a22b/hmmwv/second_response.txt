@@ -1,4 +1,18 @@
-Here is the corrected and modified PyChrono script that implements the requested changes:
+Here is the corrected and modified PyChrono simulation script that implements a circular path with visualization, a constant throttle value, and a PID controller for steering. The terrain size has been increased to accommodate the circular path, and sentinel and target points are visualized using spheres.
+
+---
+
+### ✅ Key Modifications:
+1. **Terrain Size**: Increased from 100.0 to 200.0 in the X-direction.
+2. **Circular Path**: Created using `ChPath` and `ChLineArc` with a radius of 20 meters.
+3. **Path Visualization**: Two red spheres placed at opposite ends of the circle's diameter.
+4. **Controller**: Replaced the interactive driver with `ChPathFollowerDriver` and set a constant throttle of 0.3.
+5. **Steering Control**: Implemented a PID controller with appropriate gains.
+6. **Sentinel and Target Visualization**: Two additional spheres (green and blue) to visualize the controller's reference points.
+
+---
+
+### ✅ Final Corrected and Modified Script
 
 ```python
 import pychrono.core as chrono
@@ -6,28 +20,13 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
-# Custom PID Controller Class
-class PIDController:
-    def __init__(self, Kp, Ki, Kd):
-        self.Kp = Kp
-        self.Ki = Ki
-        self.Kd = Kd
-        self.prev_error = 0
-        self.integral = 0
-
-    def Update(self, error, dt):
-        self.integral += error * dt
-        derivative = (error - self.prev_error) / dt if dt > 0 else 0
-        output = self.Kp * error + self.Ki * self.integral + self.Kd * derivative
-        self.prev_error = error
-        return output
-
 # Set data paths
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 # Initial vehicle location and orientation
-initLoc = chrono.ChVector3d(0, 0, 0.5)
+path_radius = 20.0
+initLoc = chrono.ChVector3d(path_radius, 0, 0.5)  # Start on the circular path
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 # Visualization type for vehicle parts
@@ -39,7 +38,7 @@ chassis_collision_type = veh.CollisionType_NONE
 # Tire model
 tire_model = veh.TireModelType_TMEASY
 
-# Terrain parameters (modified length)
+# Terrain dimensions
 terrainHeight = 0
 terrainLength = 200.0  # Increased from 100.0 to 200.0
 terrainWidth = 100.0
@@ -49,13 +48,14 @@ trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
 
 # Contact method
 contact_method = chrono.ChContactMethod_NSC
+contact_vis = False
 
 # Simulation step sizes
 step_size = 1e-3
 tire_step_size = step_size
 
 # Render frame rate
-render_step_size = 1.0 / 50
+render_step_size = 1.0 / 50  # 50 FPS
 
 # Create the HMMWV vehicle
 vehicle = veh.HMMWV_Full()
@@ -66,11 +66,15 @@ vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 vehicle.Initialize()
+
+# Set visualization types
 vehicle.SetChassisVisualizationType(vis_type)
 vehicle.SetSuspensionVisualizationType(vis_type)
 vehicle.SetSteeringVisualizationType(vis_type)
 vehicle.SetWheelVisualizationType(vis_type)
 vehicle.SetTireVisualizationType(vis_type)
+
+# Set collision system
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 # Create the terrain
@@ -78,14 +82,14 @@ patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-patch = terrain.AddPatch(patch_mat, 
-                         chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
-                         terrainLength, terrainWidth)
+patch = terrain.AddPatch(patch_mat,
+                          chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
+                          terrainLength, terrainWidth)
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
-# Create visualization system
+# Create the Irrlicht visualization system
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('HMMWV Circular Path Demo')
 vis.SetWindowSize(1280, 1024)
@@ -96,50 +100,60 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
-# Create driver system (modified for path following)
-driver = veh.ChDriver(vehicle.GetVehicle())
+# Create the circular path
+path = chrono.ChPath()
+arc = chrono.ChLineArc(chrono.ChVector2d(0, 0), path_radius, 0, math.pi * 2, False)
+path.AddLine(arc)
+path.SetNumPoints(100)
 
-# Initialize PID controller (circular path parameters)
-R = 20.0  # Radius of circular path
-Kp = 0.1
-Ki = 0.01
-Kd = 0.005
-pid_controller = PIDController(Kp, Ki, Kd)
+# Add two spheres to visualize the circular path
+for angle in [0, math.pi]:
+    x = path_radius * math.cos(angle)
+    y = path_radius * math.sin(angle)
+    pos = chrono.ChVector3d(x, y, 0.5)
+    sphere_body = chrono.ChBody()
+    sphere_body.SetBodyFixed(True)
+    sphere_body.SetPos(pos)
+    sphere_shape = chrono.ChVisualShapeSphere(0.5)
+    sphere_shape.SetColor(chrono.ChColor(1, 0, 0))  # Red
+    sphere_body.AddVisualShape(sphere_shape)
+    vehicle.GetSystem().Add(sphere_body)
 
-# Create path visualization spheres
-path_sphere1 = chrono.ChBodyEasySphere(0.5, 1000, True, True)
-path_sphere1.SetPos(chrono.ChVector3d(R, 0, 0.5))
-path_sphere1.SetFixed(True)
-path_sphere1.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/red.png"))
-vehicle.GetSystem().Add(path_sphere1)
-
-path_sphere2 = chrono.ChBodyEasySphere(0.5, 1000, True, True)
-path_sphere2.SetPos(chrono.ChVector3d(0, R, 0.5))
-path_sphere2.SetFixed(True)
-path_sphere2.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/red.png"))
-vehicle.GetSystem().Add(path_sphere2)
-
-# Create sentinel and target visualization spheres
-sentinel_sphere = chrono.ChBodyEasySphere(0.3, 1000, True, True)
-sentinel_sphere.SetFixed(True)
-sentinel_sphere.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/green.png"))
+# Create sentinel and target spheres
+sentinel_sphere = chrono.ChBody()
+sentinel_sphere.SetBodyFixed(True)
+sentinel_sphere.SetPos(chrono.ChVector3d(0, 0, 2))
+sentinel_shape = chrono.ChVisualShapeSphere(0.3)
+sentinel_shape.SetColor(chrono.ChColor(0, 1, 0))  # Green
+sentinel_sphere.AddVisualShape(sentinel_shape)
 vehicle.GetSystem().Add(sentinel_sphere)
 
-target_sphere = chrono.ChBodyEasySphere(0.3, 1000, True, True)
-target_sphere.SetFixed(True)
-target_sphere.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/blue.png"))
+target_sphere = chrono.ChBody()
+target_sphere.SetBodyFixed(True)
+target_sphere.SetPos(chrono.ChVector3d(0, 0, 2))
+target_shape = chrono.ChVisualShapeSphere(0.3)
+target_shape.SetColor(chrono.ChColor(0, 0, 1))  # Blue
+target_sphere.AddVisualShape(target_shape)
 vehicle.GetSystem().Add(target_sphere)
+
+# Create the path follower driver
+driver = veh.ChPathFollowerDriver(vehicle, path, "my_path", 5.0)  # Target speed 5 m/s
+steering_pid = driver.GetSteeringPID()
+steering_pid.SetKp(0.8)
+steering_pid.SetKi(0.01)
+steering_pid.SetKd(0.2)
+driver.Initialize()
 
 # Output vehicle mass
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
-# Simulation loop variables
+# Simulation loop parameters
+render_steps = math.ceil(render_step_size / step_size)
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
-render_steps = math.ceil(render_step_size / step_size)
 
-# Main simulation loop
+# Simulation loop
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
@@ -150,43 +164,18 @@ while vis.Run():
         vis.EndScene()
         render_frame += 1
 
-    # Get vehicle position for path following
-    current_pos = vehicle.GetVehicle().GetPos()
-    x = current_pos.x
-    y = current_pos.y
+    # Update sentinel and target positions
+    sentinel_pos = driver.GetSentinelLocation()
+    target_pos = driver.GetTargetLocation()
+    sentinel_sphere.SetPos(sentinel_pos)
+    target_sphere.SetPos(target_pos)
 
-    # Calculate error for PID controller
-    distance = math.sqrt(x**2 + y**2)
-    error = distance - R  # Radial error from desired path
-
-    # Update PID controller
-    steering_cmd = pid_controller.Update(error, step_size)
-    steering_cmd = max(-1.0, min(1.0, steering_cmd))  # Clamp to [-1, 1]
-
-    # Update sentinel and target spheres
-    if distance > 0:
-        sentinel_x = R * x / distance
-        sentinel_y = R * y / distance
-    else:
-        sentinel_x, sentinel_y = R, 0
-    sentinel_sphere.SetPos(chrono.ChVector3d(sentinel_x, sentinel_y, 0.5))
-
-    angle = math.atan2(y, x)
-    target_angle = angle + math.radians(30)  # Look ahead 30 degrees
-    target_x = R * math.cos(target_angle)
-    target_y = R * math.sin(target_angle)
-    target_sphere.SetPos(chrono.ChVector3d(target_x, target_y, 0.5))
-
-    # Set driver inputs
-    driver.SetThrottle(0.3)  # Constant throttle
-    driver.SetSteering(steering_cmd)
-    driver.SetBraking(0.0)
-
-    # Get driver inputs
+    # Update driver and override throttle
+    driver.Synchronize(time)
     driver_inputs = driver.GetInputs()
+    driver_inputs.m_throttle = 0.3  # Constant throttle
 
-    # Update modules
-    driver.Synchronize(step_size)
+    # Synchronize other modules
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
@@ -197,35 +186,23 @@ while vis.Run():
     vehicle.Advance(step_size)
     vis.Advance(step_size)
 
+    # Step counter
     step_number += 1
+
+    # Real-time step
     realtime_timer.Spin(step_size)
 ```
 
-### Key Modifications and Fixes:
+---
 
-1. **Terrain Length Increase**:
-   - Changed `terrainLength` from 100.0 to 200.0 to accommodate the circular path.
+### ✅ Summary of Key Features:
+- **Circular Path**: Radius of 20 meters, centered at origin.
+- **Constant Throttle**: Set to 0.3.
+- **PID Steering Control**: Gains set to (0.8, 0.01, 0.2).
+- **Visualization**:
+  - Two red spheres on the circular path.
+  - Green sphere for the sentinel point.
+  - Blue sphere for the target point.
+- **Terrain Size**: 200.0 x 100.0 to fully contain the circular path.
 
-2. **PID Controller Implementation**:
-   - Added a custom `PIDController` class for steering control.
-   - Set constant throttle at 0.3.
-   - Implemented radial error calculation for circular path following.
-
-3. **Circular Path Visualization**:
-   - Added two red spheres to visualize the circular path at (R, 0) and (0, R).
-
-4. **Sentinel and Target Points**:
-   - Added green and blue spheres to visualize the closest point on the path (sentinel) and a look-ahead point (target).
-
-5. **Driver System Modification**:
-   - Replaced interactive driver with `ChDriver` for programmatic control.
-   - Updated simulation loop to handle path following logic.
-
-6. **Error Handling and Clamping**:
-   - Added clamping for steering command to ensure it stays within [-1, 1].
-   - Added special case handling for division by zero in distance calculation.
-
-7. **Visualization Updates**:
-   - Continuously update sentinel and target sphere positions based on vehicle's current position.
-
-This script creates a vehicle that follows a circular path with radius 20 meters, visualizes the path and control points, and uses a PID controller for steering while maintaining a constant throttle.
+This script ensures the vehicle follows a circular path using a PID controller while maintaining a constant throttle, with full visualization of the path and controller reference points.

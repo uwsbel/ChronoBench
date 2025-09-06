@@ -1,4 +1,4 @@
-I'll analyze the script, identify potential errors, and modify it according to the instructions. Here's the corrected and modified version:
+I'll analyze the given PyChrono script, identify potential errors, and then modify it according to the instructions. Here's the corrected and modified version:
 
 ```python
 import math as m
@@ -7,24 +7,43 @@ import pychrono.fea as fea
 import pychrono.pardisomkl as mkl
 import pychrono.irrlicht as chronoirr
 
-# Create the system
+class ChFunctionMyFun(chrono.ChFunction):
+    def __init__(self, A1, A2, T1, T2, T3, w):
+        super().__init__()
+        self.A1 = A1
+        self.A2 = A2
+        self.T1 = T1
+        self.T2 = T2
+        self.T3 = T3
+        self.w = w
+
+    def GetVal(self, x):
+        if x < self.T1:
+            return self.A1 * m.sin(self.w * x)
+        elif x < self.T2:
+            return self.A1 * m.sin(self.w * self.T1) + (self.A2 - self.A1) * (x - self.T1) / (self.T2 - self.T1)
+        elif x < self.T3:
+            return self.A2 * m.sin(self.w * (x - self.T2 + self.T1))
+        else:
+            return 0
+
 sys = chrono.ChSystemSMC()
 
-# Create the mesh
 mesh = fea.ChMesh()
 sys.Add(mesh)
 
-# Set gravity
-mesh.SetAutomaticGravity(True, 2)  # for max precision in gravity of FE
+mesh.SetAutomaticGravity(True,
+                         2)  # for max precision in gravity of FE, at least 2 integration points per element when using cubic IGA
 sys.SetGravitationalAcceleration(chrono.ChVector3d(0, -9.81, 0))
 
-# Beam parameters
 beam_L = 6
 beam_ro = 0.050
 beam_ri = 0.045
-CH_PI = 3.141592653589793  # More precise value of pi
+CH_PI = 3.141592653589793  # Corrected PI value
 
-# Create a section for beams
+# Create a section, i.e. thickness and material properties
+# for beams. This will be shared among some beams.
+
 minertia = fea.ChInertiaCosseratSimple()
 minertia.SetDensity(7800)
 minertia.SetArea(CH_PI * (pow(beam_ro, 2) - pow(beam_ri, 2)))
@@ -39,78 +58,69 @@ melasticity.SetIzz((CH_PI / 4.0) * (pow(beam_ro, 4) - pow(beam_ri, 4)))
 melasticity.SetJ((CH_PI / 2.0) * (pow(beam_ro, 4) - pow(beam_ri, 4)))
 
 msection = fea.ChBeamSectionCosserat(minertia, melasticity)
+
 msection.SetCircular(True)
-msection.SetDrawCircularRadius(beam_ro)
+msection.SetDrawCircularRadius(beam_ro)  # SetAsCircularSection(..) would overwrite Ixx Iyy J etc.
 
-# Create the beam using IGA
+# Use the ChBuilderBeamIGA tool for creating a straight rod
+# divided in Nel elements:
+
 builder = fea.ChBuilderBeamIGA()
-builder.BuildBeam(mesh, msection, 20,
-                  chrono.ChVector3d(0, 0, 0),
-                  chrono.ChVector3d(beam_L, 0, 0),
-                  chrono.VECT_Y, 1)
+builder.BuildBeam(mesh,  # the mesh to put the elements in
+                  msection,  # section of the beam
+                  20,  # number of sections (spans)
+                  chrono.ChVector3d(0, 0, 0),  # start point
+                  chrono.ChVector3d(beam_L, 0, 0),  # end point
+                  chrono.VECT_Y,  # suggested Y direction of section
+                  1)  # order (3 = cubic, etc)
 
-# Get the middle node
-node_mid = builder.GetLastBeamNodes()[int(m.floor(builder.GetLastBeamNodes().size() / 2.0))]
+node_mid = builder.GetLastBeamNodes()[m.floor(builder.GetLastBeamNodes().size() / 2.0)]
 
-# Create and add the flywheel
-mbodyflywheel = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, 0.24, 0.1, 7800)
+# Create the flywheel and attach it to the center of the beam
+
+mbodyflywheel = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, 0.24, 0.1, 7800)  # R, h, density
 mbodyflywheel.SetCoordsys(
-    chrono.ChCoordsysd(node_mid.GetPos() + chrono.ChVector3d(0, 0.05, 0),
+    chrono.ChCoordsysd(node_mid.GetPos() + chrono.ChVector3d(0, 0.05, 0),  # flywheel initial center (plus Y offset)
                        chrono.QuatFromAngleAxis(CH_PI / 2.0, chrono.VECT_Z))
+    # flywheel initial alignment (rotate 90° so cylinder axis is on X)
 )
 sys.Add(mbodyflywheel)
 
-# Create joint between flywheel and beam
 myjoint = chrono.ChLinkMateFix()
 myjoint.Initialize(node_mid, mbodyflywheel)
 sys.Add(myjoint)
 
-# Create fixed truss
+# Create the truss
 truss = chrono.ChBody()
 truss.SetFixed(True)
 sys.Add(truss)
 
-# Create end bearing
+# Create the end bearing
 bearing = chrono.ChLinkMateGeneric(False, True, True, False, True, True)
-bearing.Initialize(builder.GetLastBeamNodes()[-1],
+bearing.Initialize(builder.GetLastBeamNodes().back(),
                    truss,
-                   chrono.ChFramed(builder.GetLastBeamNodes()[-1].GetPos()))
+                   chrono.ChFramed(builder.GetLastBeamNodes().back().GetPos())
+                   )
 sys.Add(bearing)
 
-# Custom motor function class
-class ChFunctionMyFun(chrono.ChFunction):
-    def __init__(self, A1, A2, T1, T2, T3, w):
-        super().__init__()
-        self.A1 = A1
-        self.A2 = A2
-        self.T1 = T1
-        self.T2 = T2
-        self.T3 = T3
-        self.w = w
-
-    def GetVal(self, x):
-        if x < self.T1:
-            return self.A1 * x
-        elif x < self.T2:
-            return self.A1 * self.T1 + self.A2 * (x - self.T1)
-        elif x < self.T3:
-            return self.A1 * self.T1 + self.A2 * (self.T2 - self.T1) + self.w * (x - self.T2)
-        else:
-            return 0
-
-# Create motor with custom function
+# Create the motor that rotates the beam
 rotmotor1 = chrono.ChLinkMotorRotationSpeed()
-rotmotor1.Initialize(builder.GetLastBeamNodes()[0],  # body A (slave)
+
+# Connect the rotor and the stator and add the motor to the system:
+rotmotor1.Initialize(builder.GetLastBeamNodes().front(),  # body A (slave)
                      truss,  # body B (master)
-                     chrono.ChFramed(builder.GetLastBeamNodes()[0].GetPos(),
-                                     chrono.QuatFromAngleAxis(CH_PI / 2.0, chrono.VECT_Y)))
+                     chrono.ChFramed(builder.GetLastBeamNodes().front().GetPos(),
+                                     chrono.QuatFromAngleAxis(CH_PI / 2.0, chrono.VECT_Y))
+                     # motor frame, in abs. coords
+                     )
 sys.Add(rotmotor1)
 
-# Set custom motor function with example parameters
-motor_function = ChFunctionMyFun(A1=1.0, A2=2.0, T1=0.5, T2=1.0, T3=1.5, w=3.0)
-rotmotor1.SetMotorFunction(motor_function)
+# Create custom motor function with parameters
+f_custom = ChFunctionMyFun(A1=10, A2=20, T1=2, T2=4, T3=6, w=5)
+rotmotor1.SetMotorFunction(f_custom)
 
-# Visualization settings for FEM mesh
+# Attach a visualization of the FEM mesh.
+
 mvisualizebeamA = chrono.ChVisualShapeFEA(mesh)
 mvisualizebeamA.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_SURFACE)
 mvisualizebeamA.SetSmoothFaces(True)
@@ -124,7 +134,7 @@ mvisualizebeamC.SetSymbolsScale(0.01)
 mvisualizebeamC.SetZbufferHide(False)
 mesh.AddVisualShapeFEA(mvisualizebeamC)
 
-# Create visualization
+# Create the Irrlicht visualization
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(sys)
 vis.SetWindowSize(1024, 768)
@@ -135,19 +145,18 @@ vis.AddSkyBox()
 vis.AddCamera(chrono.ChVector3d(0, 1, 4), chrono.ChVector3d(beam_L / 2, 0, 0))
 vis.AddTypicalLights()
 
-# Set solver
+# Set up HHT timestepper
+timestepper = chrono.ChTimestepperHHT(sys)
+timestepper.SetAlpha(-0.2)
+timestepper.SetMaxIters(50)
+timestepper.SetTol(1e-10)
+sys.SetTimestepper(timestepper)
+
 msolver = mkl.ChSolverPardisoMKL()
 sys.SetSolver(msolver)
 
-# Optional: Set HHT timestepper (commented out by default)
-# sys.SetTimestepperType(chrono.ChTimestepper.Type_HHT)
-# hht_alpha = -0.2  # Example value for HHT alpha parameter
-# sys.SetHHTalpha(hht_alpha)
-
-# Perform static linear analysis
 sys.DoStaticLinear()
 
-# Simulation loop
 while vis.Run():
     vis.BeginScene()
     vis.Render()
@@ -155,27 +164,24 @@ while vis.Run():
     sys.DoStepDynamics(0.002)
 ```
 
-Key corrections and modifications made:
+### Corrections and Modifications Made:
 
 1. **Errors Fixed**:
-   - Changed `CH_PI` to a more precise value (3.141592653589793)
-   - Fixed `builder.GetLastBeamNodes().back()` to `builder.GetLastBeamNodes()[-1]` (Pythonic way)
-   - Added proper integer conversion for node index calculation
-   - Fixed `builder.GetLastBeamNodes().front()` to `builder.GetLastBeamNodes()[0]`
+   - Corrected the value of `CH_PI` to a more precise value (3.141592653589793)
+   - Fixed the `GetVal` method name in the custom function class (was missing in the original instructions but properly implemented)
+   - Ensured proper indentation and syntax throughout the script
 
 2. **Motor Function Modification**:
-   - Created `ChFunctionMyFun` class that inherits from `chrono.ChFunction`
-   - Implemented the `GetVal` method with piecewise conditions based on time
-   - Replaced the sine function with an instance of this custom function
+   - Created a new class `ChFunctionMyFun` that inherits from `chrono.ChFunction`
+   - Implemented the `GetVal` method with piecewise conditions based on time `x`
+   - Replaced the sine motor function with this custom function with sample parameters
 
 3. **Visualization and Additional Settings**:
-   - Maintained all existing visualization settings
-   - Added optional HHT timestepper setup (commented out by default)
-   - Kept all the FEM mesh visualization configurations as specified
+   - Retained all the existing visualization settings for the FEM mesh
+   - Added a more precise HHT timestepper with appropriate parameters (alpha, max iterations, tolerance)
 
-4. **General Improvements**:
-   - Added more comments for clarity
-   - Improved code organization and readability
-   - Ensured all necessary imports are present
+4. **Other Improvements**:
+   - Maintained all the original functionality while adding the requested modifications
+   - Ensured the script remains compatible with PyChrono's API
 
-The script should now run correctly and meet all the specified requirements. The custom motor function provides more complex speed control based on time conditions, and the visualization settings are preserved as requested.
+The script should now run correctly with the new custom motor function and improved timestepper settings.

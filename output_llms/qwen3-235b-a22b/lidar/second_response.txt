@@ -1,4 +1,4 @@
-Here's the corrected and modified PyChrono script based on the provided instructions:
+Here's the corrected and modified PyChrono script that meets the specified requirements:
 
 ```python
 import pychrono.core as chrono
@@ -13,36 +13,33 @@ def main():
     # -----------------
     mphysicalSystem = chrono.ChSystemNSC()
 
-    # -------------------------------
-    # Add a box to be sensed by lidar
-    # -------------------------------
-    # Box dimensions parameter
-    side = 1.0
-    
-    # Create the box body
+    # -----------------------
+    # Create a box to replace mesh
+    # -----------------------
     box_body = chrono.ChBodyEasyBox(side, side, side, 1000)
     box_body.SetPos(chrono.ChVector3d(0, 0, 0))
     box_body.SetFixed(True)
     
-    # Add a texture to the box
-    texture = chrono.ChVisualTexture(chrono.GetChronoDataFile("textures/blue.png"))
-    box_body.GetVisualShape(0).AddTexture(texture)
+    # Add texture to the box
+    mat = chrono.ChVisualMaterial()
+    mat.SetKdTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
+    box_body.GetVisualShape(0).SetMaterial(0, mat)
     
-    # Add the box to the system
     mphysicalSystem.Add(box_body)
 
     # -----------------------
-    # Create a sensor manager
+    # Create sensor manager
     # -----------------------
     manager = sens.ChSensorManager(mphysicalSystem)
 
     # ------------------------------------------------
-    # Create a 3D lidar and add it to the sensor manager
+    # Create 3D lidar and add it to the sensor manager
     # ------------------------------------------------
     offset_pose = chrono.ChFramed(
         chrono.ChVector3d(-12, 0, 1), 
         chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
     )
+    
     lidar = sens.ChLidarSensor(
         box_body,              # Body lidar is attached to (now box_body)
         update_rate,           # Scanning rate in Hz
@@ -55,17 +52,15 @@ def main():
         100.0,                 # Maximum lidar range
         sens.LidarBeamShape_RECTANGULAR,  # Shape of the lidar beam
         sample_radius,         # Sample radius
-        divergence_angle,      # Divergence angle X
-        divergence_angle,      # Divergence angle Y
+        divergence_angle,      # Divergence angle
+        divergence_angle,      # Divergence angle (again, typically same value)
         return_mode            # Return mode for the lidar
     )
     lidar.SetName("3D Lidar Sensor")
     lidar.SetLag(lag)
     lidar.SetCollectionWindow(collection_time)
 
-    # -----------------------------------------------------------------
-    # Create a filter graph for post-processing the data from the lidar
-    # -----------------------------------------------------------------
+    # Add filters for 3D lidar
     if noise_model == "CONST_NORMAL_XYZI":
         lidar.PushFilter(sens.ChFilterLidarNoiseXYZI(0.01, 0.001, 0.001, 0.01))
     elif noise_model == "NONE":
@@ -83,28 +78,28 @@ def main():
     lidar.PushFilter(sens.ChFilterXYZIAccess())
     manager.AddSensor(lidar)
 
-    # -------------------------------------------------
-    # Create a 2D lidar and add it to the sensor manager
-    # -------------------------------------------------
-    lidar_2d_offset = chrono.ChFramed(
-        chrono.ChVector3d(0, 0, 1), 
+    # ------------------------------------------------
+    # Create 2D lidar and add it to the sensor manager
+    # ------------------------------------------------
+    offset_pose_2d = chrono.ChFramed(
+        chrono.ChVector3d(-10, 0, 1), 
         chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
     )
     
     lidar_2d = sens.ChLidarSensor(
         box_body,              # Body lidar is attached to
         update_rate,           # Scanning rate in Hz
-        lidar_2d_offset,       # Offset pose
+        offset_pose_2d,        # Offset pose
         horizontal_samples,    # Number of horizontal samples
         1,                     # Vertical samples (1 for 2D)
         horizontal_fov,        # Horizontal field of view
-        0.0,                   # Max vertical angle
-        0.0,                   # Min vertical angle
+        0.0,                   # Max vertical field of view (flat for 2D)
+        0.0,                   # Min vertical field of view (flat for 2D)
         100.0,                 # Maximum lidar range
         sens.LidarBeamShape_RECTANGULAR,  # Shape of the lidar beam
         sample_radius,         # Sample radius
-        divergence_angle,      # Divergence angle X
-        divergence_angle,      # Divergence angle Y
+        divergence_angle,      # Divergence angle
+        divergence_angle,      # Divergence angle (again, typically same value)
         return_mode            # Return mode for the lidar
     )
     lidar_2d.SetName("2D Lidar Sensor")
@@ -114,7 +109,9 @@ def main():
     # Add filters for 2D lidar
     if noise_model == "CONST_NORMAL_XYZI":
         lidar_2d.PushFilter(sens.ChFilterLidarNoiseXYZI(0.01, 0.001, 0.001, 0.01))
-    
+    elif noise_model == "NONE":
+        pass
+
     if vis:
         lidar_2d.PushFilter(sens.ChFilterVisualize(horizontal_samples, 1, "Raw 2D Lidar Depth Data"))
 
@@ -122,7 +119,7 @@ def main():
     lidar_2d.PushFilter(sens.ChFilterPCfromDepth())
 
     if vis:
-        lidar_2d.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "2D Lidar Point Cloud"))
+        lidar_2d.PushFilter(sens.ChFilterVisualizePointCloud(640, 1, 1.0, "2D Lidar Point Cloud"))
 
     lidar_2d.PushFilter(sens.ChFilterXYZIAccess())
     manager.AddSensor(lidar_2d)
@@ -138,7 +135,7 @@ def main():
     t1 = time.time()
 
     while ch_time < end_time:
-        # Set lidar to orbit around the box
+        # Set 3D lidar to orbit around the box
         lidar.SetOffsetPose(
             chrono.ChFramed(
                 chrono.ChVector3d(
@@ -173,54 +170,71 @@ def main():
 # Lidar parameters
 # -----------------
 noise_model = "NONE"  # No noise model
+
+# Lidar return mode
 return_mode = sens.LidarReturnMode_STRONGEST_RETURN
+
+# Update rate in Hz
 update_rate = 5.0
+
+# Number of horizontal and vertical samples
 horizontal_samples = 800
 vertical_samples = 300
+
+# Horizontal and vertical field of view (radians)
 horizontal_fov = 2 * chrono.CH_PI  # 360 degrees
 max_vert_angle = chrono.CH_PI / 12
 min_vert_angle = -chrono.CH_PI / 6
+
+# Lag time
 lag = 0
-collection_time = 1. / update_rate
+
+# Collection window for the lidar
+collection_time = 1. / update_rate  # typically 1/update rate
+
+# Radius of samples to use
 sample_radius = 2
+
+# Divergence angle
 divergence_angle = 0.003
+
+# Box dimensions
+side = 2.0  # Length of each side of the box
 
 # ---------------------
 # Simulation parameters
 # ---------------------
 step_size = 1e-3
 end_time = 40.0
-save = False
 vis = True
-out_dir = "SENSOR_OUTPUT/"
 
 main()
 ```
 
-Key changes and corrections made:
+### Key Modifications and Error Corrections:
 
 1. **Mesh Replacement**:
-   - Replaced the triangle mesh with a box using `ChBodyEasyBox`
-   - Added texture to the box
-   - Defined `side` parameter in the configuration section
+   - Replaced the triangular mesh with a box using `chrono.ChBodyEasyBox`.
+   - Added a concrete texture to the box using `ChVisualMaterial`.
 
-2. **Lidar Attachment**:
-   - Changed lidar attachment from mesh_body to box_body
-   - Adjusted lidar offset position for the box
+2. **Removed Mesh Loading and Scaling**:
+   - Removed all code related to loading and scaling the `.obj` file.
 
-3. **2D Lidar Addition**:
-   - Added a new 2D lidar sensor with vertical_samples=1
-   - Set vertical angles to 0 for 2D scanning
-   - Added appropriate filters for the 2D lidar
-   - Included visualization for both lidars
+3. **Lidar Attachment**:
+   - Changed the lidar attachment from the mesh body to the new box body.
 
-4. **Code Structure**:
-   - Fixed variable ordering to ensure all parameters are defined before use
-   - Improved code organization for better readability
-   - Added proper texture handling for the box
+4. **Added 2D Lidar Sensor**:
+   - Created a new 2D lidar sensor with `vertical_samples = 1`.
+   - Set vertical angles to 0 for a flat scan plane.
+   - Added appropriate filters and visualizations for the 2D lidar.
 
-5. **Parameter Management**:
-   - Added `side` parameter to the configuration section
-   - Ensured all parameters are properly defined before use in the main function
+5. **Parameter Organization**:
+   - Added the `side` parameter for box dimensions before it's used in the main function.
 
-This script will now simulate a box object with both 3D and 2D lidar sensors orbiting around it, providing both depth data and point cloud visualizations for each sensor.
+6. **Texture Path Correction**:
+   - Used `chrono.GetChronoDataFile` for proper texture path resolution.
+
+7. **Simulation Loop**:
+   - Maintained the orbital movement for the 3D lidar while keeping the 2D lidar fixed.
+
+This script should now correctly simulate a box with both 3D and 2D lidar sensors attached, with proper visualization and data processing filters applied.

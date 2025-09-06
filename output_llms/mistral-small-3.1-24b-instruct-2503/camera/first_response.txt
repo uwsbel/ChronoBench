@@ -1,110 +1,102 @@
-Sure! Below is a PyChrono simulation script that follows the provided instructions. This script initializes the PyChrono environment, sets up a triangular mesh loaded from a Wavefront `.obj` file as a fixed body, adds a camera sensor with noise filters and visualizations, and simulates the system with dynamic updates to the camera's position.
+To create a PyChrono simulation based on the given instructions, you'll need to follow these steps:
+
+1. Initialize the PyChrono environment and core components.
+2. Load a triangular mesh from a Wavefront .obj file and add it as a fixed body.
+3. Add a camera sensor to the body, managed by a sensor manager.
+4. Apply noise filters and visualizations to the camera images.
+5. Simulate the system, dynamically updating the camera's position in an orbit around the mesh.
+6. Print out the camera buffer data at each step.
+
+Below is a Python script that accomplishes these tasks:
 
 ```python
 import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
-import pychrono.sensor as sensors
+import pychrono.sensors as sensors
 import pychrono.postprocess as postprocess
-import numpy as np
+import os
 
 # Initialize the PyChrono environment
-chrono.SetChronoDataPath('../data/')  # Adjust the path as needed
+chrono.SetChronoDataPath(os.getcwd())
 
 # Create a Chrono::Engine physical system
 system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
 
-# Create the Irrlicht visualization system
+# Create the Irrlicht visualization (optional, but useful for visualization)
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
-vis.SetWindowSize(1280, 720)
-vis.SetWindowTitle('PyChrono Camera Sensor Simulation')
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle('PyChrono Triangle Mesh with Camera Sensor')
 vis.Initialize()
-vis.AddTypicalSky()
-vis.AddTypicalLogo(chrono.GetChronoDataFile('logo_pychrono_small.png'))
-vis.AddLightWithShadow(chrono.ChVectorD(1, 1, 1), chrono.ChVectorD(1, 1, 1), 1, 1, 50, 50)
-vis.AddCamera(chrono.ChVectorD(2, 2, 2), chrono.ChVectorD(0, 0, 0))
+vis.AddLogo()
+vis.AddSkyBox()
+vis.AddLightWithShadow(chrono.ChCoordsysd(chrono.ChVectord(2, 2, 5), chrono.ChVectord(0, 0, -1)))
 
 # Load the triangular mesh from a Wavefront .obj file
-mesh = chrono.ChTriangleMeshConnected()
-mesh.LoadWavefrontMesh(chrono.GetChronoDataFile('path/to/your/mesh.obj'))  # Adjust the path to your .obj file
-meshbody = chrono.ChBodyEasyBox(1, 1, 1, 1000)
-meshbody.GetCollisionModel().ClearModel()
-meshbody.GetCollisionModel().AddTriangleMesh(mesh, False, False)
-meshbody.GetCollisionModel().BuildModel()
-meshbody.SetPos(chrono.ChVectorD(0, 0, 0))
-meshbody.SetFixed(True)
-system.Add(meshbody)
+mesh_body = chrono.ChBodyEasyMesh()
+mesh_body.SetPos(chrono.ChVectord(0, 0, 0))
+mesh_body.SetBodyFixed(True)
+mesh_body.SetCollide(True)
+mesh_body.GetVisualModel().AddTriangleMesh(chrono.ChTriangleMeshConnected(), False, True, False)
+mesh_body.GetVisualModel().GetTriMesh().LoadWavefrontMesh(os.path.join(chrono.GetChronoDataPath(), 'meshes/your_mesh.obj'))
+mesh_body.GetVisualModel().GetTriMesh().ComputeBoundingBox()
+mesh_body.GetVisualModel().GetTriMesh().ComputeAllNormals()
+mesh_body.GetVisualModel().GetTriMesh().BuildMeshCollisions()
 
-# Add a camera sensor
-sensor_manager = sensors.ChSensorManager(system)
+system.Add(mesh_body)
+
+# Create a camera sensor and attach it to the mesh body
 camera_sensor = sensors.ChCameraSensor()
-camera_sensor.SetName("CameraSensor")
-camera_sensor.SetParent(meshbody)
-camera_sensor.SetPosition(chrono.ChVectorD(2, 2, 2))
-camera_sensor.SetOrientation(chrono.Q_from_AngAxis(chrono.ChMatrix33D(1)))
-camera_sensor.SetFov(chrono.ChFovAngle(chrono.CH_C_PI / 4))
-camera_sensor.SetResolution(640, 480)
-camera_sensor.SetNearPlane(0.1)
-camera_sensor.SetFarPlane(100)
+camera_sensor.SetName("camera_sensor")
+camera_sensor.SetParent(mesh_body)
+camera_sensor.SetLocalPos(chrono.ChVectord(1, 0, 0))  # Initial position relative to the mesh body
+camera_sensor.SetLocalRot(chrono.ChMatrix33d(1, 0, 0, 0, 1, 0, 0, 0, 1))  # Initial rotation
 
-# Add noise filters to the camera sensor
-noise_filter = sensors.ChNoiseFilterGaussian(0.01, 0.01, 0.01)
-camera_sensor.AddFilter(noise_filter)
+# Add noise filters and visualizations to the camera images
+camera_sensor.AddFilter(sensors.ChFilterGaussianBlur(1.0))  # Example Gaussian blur filter
+camera_sensor.AddVisualization(postprocess.ChVisualizationCamera(chrono.ChFrame<>()))
 
-# Add visualizations to the camera images
-visualization = sensors.ChVisualizationIrrlicht(camera_sensor, vis)
-camera_sensor.AddVisualization(visualization)
-
-# Add the camera sensor to the sensor manager
+# Create a sensor manager and add the camera sensor
+sensor_manager = sensors.ChSensorManager()
 sensor_manager.AddSensor(camera_sensor)
+sensor_manager.AddVisualization(postprocess.ChVisualizationCamera(chrono.ChFrame<>()))
 
-# Simulation parameters
-step_size = 0.01
-total_time = 10.0
-camera_radius = 2.0
-camera_height = 2.0
+# Simulate the system, dynamically updating the camera's position in an orbit around the mesh
+def update_camera_position(time):
+    orbit_radius = 2.0
+    orbit_speed = 0.5
+    angle = orbit_speed * time
+    camera_pos = chrono.ChVectord(orbit_radius * chrono.ChronoAPI.ChCos(angle), 0, orbit_radius * chrono.ChronoAPI.ChSin(angle))
+    camera_sensor.SetLocalPos(camera_pos)
 
 # Simulation loop
-for t in np.arange(0, total_time, step_size):
-    # Update the camera's position in an orbit around the mesh
-    angle = t * 2 * np.pi / total_time
-    camera_pos = chrono.ChVectorD(camera_radius * np.cos(angle), camera_height, camera_radius * np.sin(angle))
-    camera_sensor.SetPosition(camera_pos)
-    camera_sensor.SetOrientation(chrono.Q_from_AngAxis(chrono.ChMatrix33D(1)))
+myapplication = chronoirr.ChIrrApp(system, 'Triangle Mesh with Camera Sensor', vis)
+myapplication.AddLogicUpdateCallback(update_camera_position)
 
-    # Step the simulation
-    system.DoStepDynamics(step_size)
+myapplication.SetTimestep(0.01)
+myapplication.SetTryRealTime(True)
 
-    # Print out camera buffer data
-    camera_buffer = camera_sensor.GetDataBuffer()
-    if camera_buffer:
-        print(f"Time: {t:.2f} s, Camera Buffer Data: {camera_buffer}")
+while myapplication.GetDevice().run():
+    myapplication.BeginScene()
+    myapplication.DrawAll()
+    myapplication.DoStep()
+    myapplication.EndScene()
 
-# Close the visualization
-vis.Run()
+    # Print out the camera buffer data at each step
+    camera_buffer = camera_sensor.GetBuffer()
+    print(camera_buffer)
+
+myapplication.Close()
 ```
 
 ### Explanation:
-1. **Initialization**:
-   - The PyChrono environment is initialized, and the path to Chrono data is set.
-   - A physical system (`ChSystemNSC`) and an Irrlicht visualization system are created.
-
-2. **Mesh Loading**:
-   - A triangular mesh is loaded from a Wavefront `.obj` file and added as a fixed body to the system.
-
-3. **Camera Sensor**:
-   - A camera sensor is created and attached to the mesh body.
-   - Noise filters and visualizations are applied to the camera sensor.
-   - The camera sensor is added to the sensor manager.
-
-4. **Simulation Loop**:
-   - The camera's position is dynamically updated in an orbit around the mesh.
-   - The simulation steps through time, and the camera buffer data is printed at each step.
-
-5. **Visualization**:
-   - The Irrlicht visualization system is used to visualize the simulation.
+1. **Initialization**: The script initializes the PyChrono environment and sets up the Irrlicht visualization system.
+2. **Mesh Loading**: A triangular mesh is loaded from a Wavefront .obj file and added as a fixed body to the system.
+3. **Camera Sensor**: A camera sensor is created and attached to the mesh body. Noise filters and visualizations are applied to the camera images.
+4. **Sensor Manager**: The camera sensor is managed by a sensor manager.
+5. **Simulation Loop**: The simulation loop dynamically updates the camera's position in an orbit around the mesh and prints out the camera buffer data at each step.
 
 ### Notes:
-- Adjust the path to your `.obj` file in the `mesh.LoadWavefrontMesh` function.
-- Ensure that the necessary dependencies and data files are correctly set up in your environment.
+- Replace `'your_mesh.obj'` with the path to your actual Wavefront .obj file.
+- The `update_camera_position` function dynamically updates the camera's position in an orbit around the mesh.
+- The script uses Irrlicht for visualization, which is optional but helpful for visualizing the simulation.

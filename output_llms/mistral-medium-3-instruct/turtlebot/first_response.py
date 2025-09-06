@@ -1,0 +1,91 @@
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
+import numpy as np
+
+# 1. Initialize the PyChrono environment and core components
+chrono.SetChronoDataPath("PATH_TO_CHRONO_DATA")  # Set path to Chrono data directory
+
+# Create a Chrono physical system
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
+
+# 2. Add the required physical systems and objects
+
+# Create the ground body
+ground = chrono.ChBodyEasyBox(10, 0.1, 10, 1000, True, True)
+ground.SetPos(chrono.ChVectorD(0, -0.1, 0))
+ground.SetBodyFixed(True)
+ground.GetVisualModel().SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
+system.Add(ground)
+
+# Create the Turtlebot
+turtlebot = chrono.ChBodyEasyBox(0.3, 0.1, 0.2, 10, True, True)
+turtlebot.SetPos(chrono.ChVectorD(0, 0.1, 0))
+turtlebot.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))  # No initial rotation
+turtlebot.GetVisualModel().SetTexture(chrono.GetChronoDataFile("textures/bluewhite.png"))
+system.Add(turtlebot)
+
+# Create wheels (simplified representation)
+wheel_radius = 0.05
+wheel_width = 0.02
+
+# Left wheel
+left_wheel = chrono.ChBodyEasyCylinder(wheel_radius, wheel_width, 1, True, True)
+left_wheel.SetPos(chrono.ChVectorD(-0.1, 0.05, 0))
+left_wheel.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
+left_wheel.GetVisualModel().SetTexture(chrono.GetChronoDataFile("textures/black.png"))
+system.Add(left_wheel)
+
+# Right wheel
+right_wheel = chrono.ChBodyEasyCylinder(wheel_radius, wheel_width, 1, True, True)
+right_wheel.SetPos(chrono.ChVectorD(0.1, 0.05, 0))
+right_wheel.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
+right_wheel.GetVisualModel().SetTexture(chrono.GetChronoDataFile("textures/black.png"))
+system.Add(right_wheel)
+
+# Create motors to connect wheels to the body
+motor_left = chrono.ChLinkMotorRotationSpeed()
+motor_left.Initialize(turtlebot, left_wheel, chrono.ChFrameD(chrono.ChVectorD(-0.1, 0.05, 0)))
+system.Add(motor_left)
+
+motor_right = chrono.ChLinkMotorRotationSpeed()
+motor_right.Initialize(turtlebot, right_wheel, chrono.ChFrameD(chrono.ChVectorD(0.1, 0.05, 0)))
+system.Add(motor_right)
+
+# 3. Set up visualization
+application = chronoirr.ChIrrApp(system, "Turtlebot Simulation", chronoirr.dimension2du(1024, 768))
+application.AddTypicalLogo()
+application.AddTypicalSky()
+application.AddTypicalLights()
+application.AddTypicalCamera(chronoirr.vector3df(0.5, 1.5, -1.5))
+application.AssetBindAll()
+application.AssetUpdateAll()
+
+# 4. Simulation loop
+time_step = 0.01
+sim_time = 0
+while application.GetDevice().run():
+    application.BeginScene()
+    application.DrawAll()
+    application.DoStepDynamics(time_step)
+    application.EndScene()
+
+    # Motor control logic
+    if sim_time < 2.0:
+        # Move forward
+        motor_left.SetMotorSpeed(10)
+        motor_right.SetMotorSpeed(10)
+    elif sim_time < 4.0:
+        # Turn left
+        motor_left.SetMotorSpeed(-5)
+        motor_right.SetMotorSpeed(5)
+    elif sim_time < 6.0:
+        # Turn right
+        motor_left.SetMotorSpeed(5)
+        motor_right.SetMotorSpeed(-5)
+    else:
+        # Stop
+        motor_left.SetMotorSpeed(0)
+        motor_right.SetMotorSpeed(0)
+
+    sim_time += time_step

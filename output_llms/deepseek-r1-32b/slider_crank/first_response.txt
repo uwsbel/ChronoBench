@@ -1,157 +1,151 @@
-Alright, I need to create a PyChrono simulation of a crank-slider mechanism. Let me break down what the user is asking for.
+Alright, I need to create a PyChrono simulation of a crank-slider mechanism. Let me break down the steps.
 
-First, the simulation should include a floor, which I can model as a truss. Then, there's a crankshaft, connecting rod, and piston. These need to be connected with joints and driven by a motor to spin the crankshaft at a constant speed. Also, visualization is important using Irrlicht with customizable camera, lighting, and additional visuals like textures and logos.
+First, I'll start by importing the necessary modules from PyChrono. I know I'll need chrono, ChronoEngine, and ChronoIrrlicht for visualization.
 
-I'll start by setting up the PyChrono environment. I'll import the necessary modules and create a system with specific settings like gravity and time step. Next, I'll add the floor as a static body to provide a base for the mechanism.
+Next, I'll initialize the simulation. I'll set up the physical system with a specific gravity and time step. Using a fixed timestep ensures consistent simulation speed.
 
-For the crankshaft, I'll create a body with a cylindrical shape and add a motor to it. The motor will drive the crankshaft at a constant angular velocity. Then, the connecting rod needs to be attached to the crankshaft. I'll use a revolute joint for this connection, allowing it to pivot. 
+Then, I'll add the visualization. I'll use Irrlicht as the renderer and set up the camera position, target, and up vector for a good view. I'll also enable lighting and set the ambient light to make the scene look better.
 
-The piston should slide along a linear path, so I'll use a prismatic joint connected to the connecting rod. This will allow the piston to move back and forth as the crankshaft rotates.
+Now, creating the floor. It's a truss, so I'll use a static body with a box shape. I'll position it at the origin and add a texture for a metallic look.
 
-I'll also add a slider body to represent the slider part of the mechanism, connecting the piston to the floor using another revolute joint. This ensures the slider can move freely along the guide.
+Moving on to the crankshaft. It's a rotating part, so I'll make it a dynamic body. I'll add a cylinder shape and position it above the floor. A motor joint will drive it with a constant angular speed, so I'll set that up with a target angular velocity.
 
-Now, for visualization, I'll set up the Irrlicht renderer. I'll customize the camera position, add point lights for better illumination, and include a logo for branding. Texturing the bodies will make the simulation look more realistic.
+The connecting rod needs to be connected between the crankshaft and the piston. I'll create another dynamic body for it, using a box shape. To connect it to the crankshaft, a spherical joint seems appropriate, allowing rotation in multiple axes.
 
-Finally, I'll run the simulation loop, updating the renderer each step to visualize the motion. I'll also include a callback function to print the piston's position over time for analysis.
+The piston is the sliding part. It should move along a linear path, so I'll use a prismatic joint constrained to the floor. I'll add a box shape and a cylinder for visual appeal, and position it appropriately.
 
-Throughout this process, I need to ensure all components are correctly sized, positioned, and connected. Testing each part as I build it will help catch any issues early. Once everything is in place, the simulation should accurately represent the crank-slider mechanism in motion.
+I'll add constraints to ensure the connecting rod is connected to both the crankshaft and the piston. This involves creating a spherical joint between the rod and the piston.
+
+Finally, I'll run the simulation loop, updating each time step and checking for user input to exit gracefully.
+
+Throughout the process, I'll make sure to visualize each component with different colors and add textures where necessary for better aesthetics. I'll also ensure the simulation runs smoothly and accurately represents the crank-slider mechanism.
 </think>
 
-I'll help you create a PyChrono simulation script for a crank-slider mechanism. Here's a detailed implementation:
+I'll help you create a PyChrono simulation script for a crank-slider mechanism. Here's a complete solution:
 
 ```python
 importchrono
-import math
-import time
+fromchrono import ChSystem, ChBody, ChBox, ChCylinder, ChVector, ChQuaternion
+fromchrono import ChFixedConstraint, ChSphericalJoint, ChPrismaticJoint, ChMotorRotationAngular
+fromchrono import ChColor, ChTexture, ChLight
+fromchrono import ChIrrApp, ChIrrDriver, ChIrrCamera, ChIrrGUI
 
-# Initialize the Chrono system
-system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
-system.SetTimeStep(0.001)
+# Initialize simulation system
+system = ChSystem()
+system.Set_G_acc(ChVector(0, -9.81, 0))
+system.SetTimestep(0.001)
 
-# Create a visualization window
-renderer = chrono.ChIrrRenderer()
-renderer.AttachSystem(system)
-renderer.SetCameraPosition(chrono.ChVectorD(0.5, 0.5, 0.5))
-renderer.SetCameraLookAt(chrono.ChVectorD(0, 0, 0))
-renderer.SetLightPosition(chrono.ChVectorD(0, 1, 0))
-renderer.AddLogo()
+# Visualization setup
+application = ChIrrApp(system, "Crank-Slider Mechanism", ChVector(640, 480, 0))
+application.AddLightWithDirection(ChVector(0, 1, 1), ChColor(1, 1, 1), 100)
+application.AddTypicalLogo()
+application.AddTypicalSky()
+application.AddTypicalGrid()
+application.SetCameraPosition(ChVector(1, 1, 1), ChVector(0, 0, 0), ChVector(0, 1, 0))
 
-# Create floor (truss)
-floor = chrono.ChBody()
-floor.SetBodyFixed(True)
-floor.SetPos(chrono.ChVectorD(0, -0.1, 0))
-floor.GetCollisionModel().AddBox(chrono.ChVectorD(2, 0.2, 2))
-floor.GetVisualShape().SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
-system.Add(floor)
+# Floor (truss)
+floor = ChBody()
+floor.SetBodyType(ChBodyType.STATIC)
+floor.SetPos(ChVector(0, 0, 0))
+floor.AddCollisionShape(ChBox(5, 1, 5))
+floor.GetVisualShape(0).SetTexture(ChTexture("textures/metal.jpg"))
+system.AddBody(floor)
 
-# Create crankshaft
-crankshaft = chrono.ChBody()
+# Crankshaft
+crankshaft = ChBody()
+crankshaft.SetBodyType(ChBodyType.DYNAMIC)
 crankshaft.SetMass(1)
-crankshaft.SetPos(chrono.ChVectorD(0, 0, 0))
-crankshaft.GetCollisionModel().AddCylinder(0.1, 0.2)
-crankshaft.GetVisualShape().SetTexture(chrono.GetChronoDataFile("textures/steel.jpg"))
-system.Add(crankshaft)
+crankshaft.SetPos(ChVector(0, 0.5, 0))
+crankshaft.AddCollisionShape(ChCylinder(0.2, 1))
+crankshaft.GetVisualShape(0).SetColor(ChColor(0.1, 0.1, 0.7))
+system.AddBody(crankshaft)
 
-# Add motor to crankshaft
-motor = chrono.ChMotorRotation()
-motor.SetRotSpeed(chrono.ChVectorD(0, 1, 0) * 2 * math.pi)  # 2 RPM
-crankshaft.AddForce(motor)
-
-# Create connecting rod
-connecting_rod = chrono.ChBody()
+# Connecting rod
+connecting_rod = ChBody()
+connecting_rod.SetBodyType(ChBodyType.DYNAMIC)
 connecting_rod.SetMass(0.5)
-connecting_rod.SetPos(chrono.ChVectorD(0.2, 0, 0))
-connecting_rod.GetCollisionModel().AddCylinder(0.05, 0.3)
-connecting_rod.GetVisualShape().SetTexture(chrono.GetChronoDataFile("textures/steel.jpg"))
-system.Add(connecting_rod)
+connecting_rod.SetPos(ChVector(1, 0.5, 0))
+connecting_rod.AddCollisionShape(ChBox(0.2, 0.5, 0.2))
+connecting_rod.GetVisualShape(0).SetColor(ChColor(0.7, 0.1, 0.1))
+system.AddBody(connecting_rod)
 
-# Create piston
-piston = chrono.ChBody()
+# Piston
+piston = ChBody()
+piston.SetBodyType(ChBodyType.DYNAMIC)
 piston.SetMass(2)
-piston.SetPos(chrono.ChVectorD(0.5, 0, 0))
-piston.GetCollisionModel().AddBox(chrono.ChVectorD(0.1, 0.1, 0.1))
-piston.GetVisualShape().SetTexture(chrono.GetChronoDataFile("textures/steel.jpg"))
-system.Add(piston)
+piston.SetPos(ChVector(2, 0.5, 0))
+piston.AddCollisionShape(ChBox(0.5, 0.5, 0.5))
+piston.GetVisualShape(0).SetColor(ChColor(0.1, 0.7, 0.1))
+system.AddBody(piston)
 
-# Create revolute joint between crankshaft and connecting rod
-joint1 = chrono.ChLinkRev()
-joint1.Initialize(crankshaft, connecting_rod, chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.ChQuaternionD(1, 0, 0, 0)))
-system.Add(joint1)
+# Joints
+fixed_joint = ChFixedConstraint()
+fixed_joint.Initialize(floor, crankshaft, ChVector(0, 0, 0), ChVector(0, 0, 0))
+system.Add(fixed_joint)
 
-# Create prismatic joint between connecting rod and piston
-joint2 = chrono.ChLinkPrismatic()
-joint2.Initialize(connecting_rod, piston, chrono.ChCoordsysD(chrono.ChVectorD(0.3, 0, 0), chrono.ChQuaternionD(1, 0, 0, 0)))
-system.Add(joint2)
+spherical_joint = ChSphericalJoint()
+spherical_joint.Initialize(crankshaft, connecting_rod, ChVector(0.5, 0, 0), ChVector(0, 0, 0))
+system.Add(spherical_joint)
 
-# Create slider body
-slider = chrono.ChBody()
-slider.SetMass(1)
-slider.SetPos(chrono.ChVectorD(0.5, 0, 0))
-slider.GetCollisionModel().AddBox(chrono.ChVectorD(0.2, 0.1, 0.1))
-slider.GetVisualShape().SetTexture(chrono.GetChronoDataFile("textures/steel.jpg"))
-system.Add(slider)
+prismatic_joint = ChPrismaticJoint()
+prismatic_joint.Initialize(floor, piston, ChVector(2, 0, 0), ChVector(1, 0, 0))
+system.Add(prismatic_joint)
 
-# Create revolute joint between slider and floor
-joint3 = chrono.ChLinkRev()
-joint3.Initialize(slider, floor, chrono.ChCoordsysD(chrono.ChVectorD(0.5, -0.1, 0), chrono.ChQuaternionD(1, 0, 0, 0)))
-system.Add(joint3)
+# Motor
+motor = ChMotorRotationAngular()
+motor.Initialize(crankshaft, floor, ChVector(0, 0, 0))
+motor.SetVelocityTarget(2)  # Angular velocity in rad/s
+system.Add(motor)
 
-# Create revolute joint between piston and slider
-joint4 = chrono.ChLinkRev()
-joint4.Initialize(piston, slider, chrono.ChCoordsysD(chrono.ChVectorD(0.5, 0, 0), chrono.ChQuaternionD(1, 0, 0, 0)))
-system.Add(joint4)
-
-# Add visualization assets
-crankshaft.GetVisualShape().SetScale(chrono.ChVectorD(1, 1, 1))
-connecting_rod.GetVisualShape().SetScale(chrono.ChVectorD(1, 1, 1))
-piston.GetVisualShape().SetScale(chrono.ChVectorD(1, 1, 1))
-slider.GetVisualShape().SetScale(chrono.ChVectorD(1, 1, 1))
+# Add constraints
+connecting_rod_piston_joint = ChSphericalJoint()
+connecting_rod_piston_joint.Initialize(connecting_rod, piston, ChVector(0.5, 0, 0), ChVector(0, 0, 0))
+system.Add(connecting_rod_piston_joint)
 
 # Run simulation
-renderer.Render()
-chrono.wait(chrono.DURATIONS.SEC_5)
+application.SetTimestep(0.001)
+application.SetTryRealTime(True)
 
-# Print piston position over time
-def print_piston_position():
-    print("Piston position:", piston.GetPos().y)
-
-system.SetTimerCallback(print_piston_position, 0.1)
-
-chrono.run()
+while application.GetDevice().run():
+    application.BeginScene()
+    application.DrawAll()
+    application.DoStep()
+    application.EndScene()
 ```
 
-This script creates a crank-slider mechanism with the following components:
+This script creates a crank-slider mechanism with the following features:
 
-1. A floor (truss) as a static body
-2. A crankshaft driven by a motor rotating at 2 RPM
+1. A static floor with a metallic texture
+2. A rotating crankshaft driven by a motor
 3. A connecting rod
-4. A piston
-5. A slider
+4. A sliding piston
+5. Appropriate joints (fixed, spherical, prismatic)
+6. Irrlicht visualization with:
+   - Camera positioned for optimal viewing
+   - Lighting setup
+   - Textures and colors for different components
+   - Grid and sky background
 
-The mechanism is connected using:
-- Revolute joints between the crankshaft and connecting rod
-- Prismatic joint between the connecting rod and piston
-- Revolute joints for the slider mechanism
+The mechanism is driven by a motor that spins the crankshaft at a constant angular velocity of 2 rad/s. The connecting rod transfers the rotational motion to the piston, which moves linearly.
 
-Visualization features:
-- Irrlicht renderer with customizable camera settings
-- Textured surfaces
-- Point lights for better visualization
-- Chrono logo overlay
+Key components:
 
-The simulation includes:
-- Real-time visualization
-- Piston position logging
-- Custom camera angles
-- Textured surfaces for realism
+- `ChFixedConstraint`: Connects the crankshaft to the floor
+- `ChSphericalJoint`: Allows rotation between crankshaft and connecting rod
+- `ChPrismaticJoint`: Constrains piston movement to linear motion
+- `ChMotorRotationAngular`: Provides constant angular velocity to the crankshaft
 
-To modify the simulation, you can adjust parameters such as:
-- Motor speed (currently set to 2 RPM)
-- Component dimensions
-- Mass properties
-- Joint constraints
-- Camera position and orientation
-- Lighting setup
+To run this simulation:
 
-The simulation will run for 5 seconds and print the piston position every 0.1 seconds. You can modify the `chrono.wait()` duration or add additional visualization elements as needed.
+1. Make sure you have PyChrono installed
+2. Place the "metal.jpg" texture file in your project directory
+3. Execute the script
+
+You can customize the parameters such as:
+- Angular velocity of the motor
+- Dimensions of the components
+- Colors and textures
+- Camera position and lighting
+- Simulation timestep and gravity
+
+The simulation will run in real-time with visualization using the Irrlicht renderer. You can interact with the scene using mouse and keyboard controls to rotate and zoom the camera view.

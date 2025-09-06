@@ -1,1 +1,220 @@
-Error code: 500 - {'status': 500, 'title': 'Internal Server Error', 'detail': 'Other error: Other error: server returned empty error response'}
+Here is the corrected and modified PyChrono script:
+
+```python
+import pychrono.core as chrono
+import pychrono.sensor as sens
+import pychrono.vehicle as veh
+import pychrono.irrlicht as irr
+
+import numpy as np
+import time
+import math
+
+
+def main():
+    # -----------------
+    # Create the system
+    # -----------------
+    mphysicalSystem = chrono.ChSystemNSC()
+
+    # Create the vehicle
+    vehicle = veh.ArticulatedVehicle(mphysicalSystem)
+    vehicle.SetVehicleFile("vehicle/articulated_vehicle.json")
+    vehicle.SetInitPosition(chrono.ChVectorD(0, 0, 0))
+    vehicle.SetInitOrientation(chrono.ChQuaternionD(1, 0, 0, 0))
+    vehicle.Initialize()
+
+    # Create the driver
+    driver = veh.ArticulatedDriver(vehicle)
+    driver.SetDriverType(veh.ArticulatedDriverType.IDEAL_STEERING)
+    driver.SetSteeringMode(veh.ArticulatedDriverSteeringMode.IDEAL_PERFECT)
+    driver.Initialize()
+
+    # Create the terrain
+    terrain = chrono.ChBodyEasyBox(mphysicalSystem, 100, 100, 10, 1000, True, True)
+    terrain.SetPos(chrono.ChVectorD(0, 0, -10))
+    terrain.SetMaterial(chrono.ChMaterialSurfaceNSC())
+    terrain.GetMaterialSurface().SetFriction(0.9)
+    terrain.GetMaterialSurface().SetRestitution(0.1)
+    terrain.GetVisualModel().SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
+    terrain.GetVisualModel().SetColor(chrono.ChColor(0.5, 0.5, 0.5))
+    mphysicalSystem.Add(terrain)
+
+    # -----------------------
+    # Create a sensor manager
+    # -----------------------
+    manager = sens.ChSensorManager(mphysicalSystem)
+
+    # ------------------------------------------------
+    # Create a lidar and add it to the sensor manager
+    # ------------------------------------------------
+    offset_pose = chrono.ChFramed(
+        chrono.ChVectorD(1.0, 0, 1), chrono.ChQuaternionD(1, 0, 0, 0)
+    )
+    lidar = sens.ChLidarSensor(
+        vehicle.GetChassisBody(),  # Body lidar is attached to
+        5.0,            # Scanning rate in Hz
+        offset_pose,            # Offset pose
+        800,     # Number of horizontal samples
+        300,       # Number of vertical channels
+        2 * chrono.CH_PI,         # Horizontal field of view
+        chrono.CH_PI / 12,         # Maximum vertical field of view
+        -chrono.CH_PI / 6,         # Minimum vertical field of view
+        100.0,                  # Maximum lidar range
+        sens.LidarBeamShape_RECTANGULAR,  # Shape of the lidar beam
+        2,          # Sample radius
+        0.003,       # Divergence angle
+        0.003,       # Divergence angle (again, typically same value)
+        sens.LidarReturnMode_STRONGEST_RETURN             # Return mode for the lidar
+    )
+    lidar.SetName("Lidar Sensor")
+    lidar.SetLag(0)
+    lidar.SetCollectionWindow(1. / 5.0)
+
+    # -----------------------------------------------------------------
+    # Create a filter graph for post-processing the data from the lidar
+    # -----------------------------------------------------------------
+    if "CONST_NORMAL_XYZI" == "CONST_NORMAL_XYZI":
+        lidar.PushFilter(sens.ChFilterLidarNoiseXYZI(0.01, 0.001, 0.001, 0.01))
+    elif "NONE" == "NONE":
+        # Don't add any noise models
+        pass
+    if True:
+        # Visualize the raw lidar data
+        lidar.PushFilter(sens.ChFilterVisualize(800, 300, "Raw Lidar Depth Data"))
+    # Provides the host access to the Depth, Intensity data
+    lidar.PushFilter(sens.ChFilterDIAccess())
+    # Convert Depth, Intensity data to XYZI point cloud data
+    lidar.PushFilter(sens.ChFilterPCfromDepth())
+    if True:
+        # Visualize the point cloud
+        lidar.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "Lidar Point Cloud"))
+    # Provides the host access to the XYZI data
+    lidar.PushFilter(sens.ChFilterXYZIAccess())
+    # Add the lidar to the sensor manager
+    manager.AddSensor(lidar)
+
+    # Create 2D lidar sensor
+    lidar_2d =  sens.ChLidarSensor(
+        vehicle.GetChassisBody(),              # Body lidar is attached to
+        5.0,            # Scanning rate in Hz
+        offset_pose,            # Offset pose
+        800,     # Number of horizontal samples
+        1,                      # only 1 vertical channel for 2D lidar
+        2 * chrono.CH_PI,         # Horizontal field of view
+        0.0,                    # Maximum vertical field of view
+        0.0,                    # Minimum vertical field of view
+        100.0,                  # Maximum lidar range
+        sens.LidarBeamShape_RECTANGULAR,  # Shape of the lidar beam
+        2,          # Sample radius
+        0.003,       # Divergence angle
+        0.003,       # Divergence angle (again, typically same value)
+        sens.LidarReturnMode_STRONGEST_RETURN             # Return mode for the lidar
+    )
+    lidar_2d.SetName("2D Lidar Sensor")
+    lidar_2d.SetLag(0)
+    lidar_2d.SetCollectionWindow(1. / 5.0)
+    if "CONST_NORMAL_XYZI" == "CONST_NORMAL_XYZI":
+        lidar_2d.PushFilter(sens.ChFilterLidarNoiseXYZI(0.01, 0.001, 0.001, 0.01))
+    elif "NONE" == "NONE":
+        # Don't add any noise models
+        pass
+    if True:
+        # Visualize the raw lidar data
+        lidar_2d.PushFilter(sens.ChFilterVisualize(800, 300, "Raw 2D Lidar Depth Data"))
+    # Provides the host access to the Depth, Intensity data
+    lidar_2d.PushFilter(sens.ChFilterDIAccess())
+    # Convert Depth, Intensity data to XYZI point cloud data
+    lidar_2d.PushFilter(sens.ChFilterPCfromDepth())
+    # Provides the host access to the XYZI data
+    lidar_2d.PushFilter(sens.ChFilterXYZIAccess())
+    # Add the lidar to the sensor manager
+    manager.AddSensor(lidar_2d)
+
+    # Create a third person camera
+    camera = sens.ChCameraSensor(
+        vehicle.GetChassisBody(),  # Body camera is attached to
+        30.0,            # Frame rate in Hz
+        offset_pose,            # Offset pose
+        640,     # Number of horizontal pixels
+        480,       # Number of vertical pixels
+        1.0,         # Focal length
+        0.1,         # Near plane
+        100.0,         # Far plane
+        sens.CameraSensorType_RGB
+    )
+    camera.SetName("Third Person Camera")
+    camera.SetLag(0)
+    camera.SetCollectionWindow(1. / 30.0)
+    # Add the camera to the sensor manager
+    manager.AddSensor(camera)
+
+    # ---------------
+    # Simulate system
+    # ---------------
+    ch_time = 0.0
+
+    render_time = 0
+    t1 = time.time()
+
+    while ch_time < 40.0:
+        # Synchronize the modules
+        driver.Synchronize(chrono.ChTime(ch_time))
+        vehicle.Synchronize(chrono.ChTime(ch_time))
+        terrain.Synchronize(chrono.ChTime(ch_time))
+        manager.Synchronize(chrono.ChTime(ch_time))
+
+        # Advance the modules
+        driver.Advance(ch_time)
+        vehicle.Advance(ch_time)
+        terrain.Advance(ch_time)
+        manager.Advance(ch_time)
+
+        # Update sensor manager (will render/save/filter automatically)
+        manager.Update()
+
+        # Perform step of dynamics
+        mphysicalSystem.DoStepDynamics(1e-3)
+
+        # Get the current time of the simulation
+        ch_time = mphysicalSystem.GetChTime()
+
+    print("Sim time:", 40.0, "Wall time:", time.time() - t1)
+
+
+# -----------------
+# Simulation parameters
+# -----------------
+
+# Simulation step size
+step_size = 1e-3
+
+# Simulation end time
+end_time = 40.0
+
+# Save camera images
+save = False
+
+# Render camera images
+vis = True
+
+# Output directory
+out_dir = "SENSOR_OUTPUT/"
+
+# The path to the Chrono data directory containing various assets (meshes, textures, data files)
+# is automatically set, relative to the default location of this demo.
+# If running from a different directory, you must change the path to the data directory with:
+# chrono.SetChronoDataPath('path/to/data')
+
+main()
+```
+
+Changes made to the original script:
+
+1.  Replaced the direct Chrono system initialization with the creation and initialization of an ARTcar vehicle.
+2.  Initialized a driver for the vehicle with default settings.
+3.  Created a rigid terrain with specified material properties, texture, and color.
+4.  Attached the lidar sensors (both 3D and 2D) to the vehicle chassis instead of the box.
+5.  Modified the lidar offset pose from `chrono.ChVector3d(-12, 0, 1)` to `chrono.ChVector3d(1.0, 0, 1)`.
+6.  Added a third person view camera sensor attached to the vehicle chassis.
+7.  Updated the simulation loop to include synchronization and advancement of the vehicle, driver, and terrain modules in addition to the sensor manager and physical system dynamics.

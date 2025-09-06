@@ -1,0 +1,159 @@
+import pychrono.core as chrono  # Import core Chrono functionality
+import pychrono.irrlicht as chronoirr  # Import Irrlicht visualization
+import pychrono.fea as fea  # Import Finite Element Analysis components
+import pychrono.pardisomkl as mkl  # Import PardisoMKL solver
+import errno  # Import standard error numbers
+import os  # Import system operations for file handling
+
+# Output directory
+out_dir = chrono.GetChronoOutputPath() + "FEA_SHELLS_BST"  # Define the output directory path
+
+# Create (if needed) the output directory
+try:
+    os.mkdir(out_dir)  # Try to create the directory
+except OSError as exc:
+    if exc.errno != errno.EEXIST:  # If directory exists, no error; otherwise, print error message
+        print("Error creating output directory ")
+
+# Create a Chrono::Engine physical system
+sys = chrono.ChSystemSMC()  # Instantiate the physical system
+
+# Create a mesh, a container for groups of elements and their referenced nodes
+mesh = fea.ChMesh()  # Instantiate the mesh
+
+# Add the created mesh to the physical system
+sys.Add(mesh)
+
+# Disable gravity for the system (options)
+# sys.SetGravitationalAcceleration(VNULL) or
+mesh.SetAutomaticGravity(False)
+
+# Define nodes to plot or load
+nodePlotA = fea.ChNodeFEAxyz()  # Node for plotting
+nodePlotB = fea.ChNodeFEAxyz()  # Another node for plotting
+nodesLoad = []  # List for nodes to apply loads
+
+# Create interpolation functions for reference tracking (if needed)
+ref_X = chrono.ChFunctionInterp()
+ref_Y = chrono.ChFunctionInterp()
+
+# Define collision models
+collision_type = chrono.ChCollisionModel.Type_BULLET
+
+# Collision settings
+collision_params = chrono.ChCollisionParams()
+collision_params.SetCollisionType(collision_type)
+collision_params.SetCollisionMode(chrono.ChCollisionMode_NoCollision)
+collision_params.SetCollisionRadius(0.01)  # Set collision radius
+
+# Collision setup
+collision_setup = chrono.ChCollisionSetup()
+collision_setup.SetCollisionType(collision_type)
+collision_setup.SetCollisionMode(collision_params)
+collision_setup.SetCollisionRadius(collision_params.SetCollisionRadius())
+
+# Define the collision parameters
+collision_params = chrono.ChCollisionParams()
+collision_params.SetCollisionType(collision_type)
+collision_params.SetCollisionMode(collision_params)
+collision_params.SetCollisionRadius(collision_params.SetCollisionRadius())
+
+# Define the collision geometry
+collision_geometry = chrono.ChCollisionGeometry()
+collision_geometry.SetCollisionShape(mesh)
+collision_geometry.SetCollisionType(collision_type)
+collision_geometry.SetCollisionRadius(collision_params.SetCollisionRadius())
+collision_geometry.SetCollisionMode(chrono.ChCollisionMode_NoCollision)
+
+# Define the collision reference frames
+ref_X = chrono.ChVector3d(chrono.ChFramed(chrono.ChVector3d(0, 0, 0)), chrono.QuatFromAngleX(chrono.ChFramed(chrono.ChVector3d(0, 0, 0))))
+ref_Y = chrono.ChVector3d(chrono.ChFramed(chrono.ChVector3d(0, 0, 0)), chrono.QuatFromAngleY(chrono.ChFramed(chrono.ChVector3d(0, 0, 0))))
+collision_geometry.SetReferenceFrames(ref_X, ref_Y)
+
+# Define the collision forces
+load_force = chrono.ChVector3d()
+load_force.SetMagnitude(1000.0) # Set the force magnitude
+load_force.SetDirection(chrono.ChVector3d(0, 0, 0)) # Set the force direction
+
+# Define the collision setup
+collision_setup.AddCollision(collision_geometry, load_force)
+
+# Define the collision parameters
+collision_params = chrono.ChCollisionParams()
+collision_params.SetCollisionType(collision_type)
+collision_params.SetCollisionMode(collision_params)
+collision_params.SetCollisionRadius(collision_params.SetCollisionRadius())
+collision_params.SetCollisionMode(chrono.ChCollisionMode_NoCollision)
+
+# Define the collision geometry
+collision_geometry = chrono.ChCollisionGeometry()
+collision_geometry.SetCollisionShape(mesh)
+collision_geometry.SetCollisionType(collision_type)
+collision_geometry.SetCollisionRadius(collision_params.SetCollisionRadius())
+collision_geometry.SetCollisionMode(chrono.ChCollisionMode_NoCollision)
+
+# Create the collision system
+collision_system = chrono.ChCollisionSystem()
+collision_system.SetCollisionType(collision_type)
+collision_system.SetCollisionMode(collision_params)
+collision_system.SetCollisionRadius(collision_params.SetCollisionRadius())
+collision_system.SetCollisionGeometry(collision_geometry)
+
+# Create the collision setup
+collision_setup = chrono.ChCollisionSetup()
+collision_setup.SetCollisionType(collision_type)
+collision_setup.SetCollisionMode(collision_params)
+collision_setup.SetCollisionRadius(collision_params.SetCollisionRadius())
+collision_setup.SetCollisionGeometry(collision_geometry)
+
+# Define the collision parameters
+collision_params = chrono.ChCollisionParams()
+collision_params.SetCollisionType(collision_type)
+collision_params.SetCollisionMode(collision_params)
+collision_params.SetCollisionRadius(collision_params.SetCollisionRadius())
+collision_params.SetCollisionMode(chrono.ChCollisionMode_NoCollision)
+
+# Define the collision geometry
+collision_geometry = chrono.ChCollisionGeometry()
+collision_geometry.SetCollisionShape(mesh)
+collision_geometry.SetCollisionType(collision_type)
+collision_geometry.SetCollisionRadius(collision_params.SetCollisionRadius())
+collision_geometry.SetCollisionMode(chrono.ChCollisionMode_NoCollision)
+
+# Create the collision system
+collision_system = chrono.ChCollisionSystem()
+collision_system.SetCollisionType(collision_type)
+collision_system.SetCollisionMode(collision_params)
+collision_system.SetCollisionRadius(collision_params.SetCollisionRadius())
+collision_system.SetCollisionGeometry(collision_geometry)
+
+# Define the collision parameters
+collision_params = chrono.ChCollisionParams()
+collision_params.SetCollisionType(collision_type)
+collision_params.SetCollisionMode(collision_params)
+collision_params.SetCollisionRadius(collision_params.SetCollisionRadius())
+collision_params.SetCollisionMode(chrono.ChCollisionMode_NoCollision)
+
+# Set the solver to PardisoMKL
+mkl_solver = mkl.ChSolverPardisoMKL()
+mkl_solver.LockSparsityPattern(True)
+sys.SetSolver(mkl_solver)
+
+# Define the simulation time step
+timestep = 0.005
+
+# Final setup and system updates
+sys.Setup()  # Prepare the system for simulation
+sys.Update()  # Update the system's internal states
+
+# Initialize interpolation function records (if required)
+rec_X = chrono.ChFunctionInterp()
+rec_Y = chrono.ChFunctionInterp()
+
+# Simulation loop for running the visualization and dynamical system
+while vis.Run():
+    vis.BeginScene()  # Begin the visualization scene
+    vis.Render()  # Render the scene
+    vis.EndScene()  # End the visualization scene
+
+    sys.DoStepDynamics(timestep)  # Perform a simulation step with the defined timestep

@@ -1,25 +1,4 @@
-Let's start by reviewing the given PyChrono script to identify and correct any potential errors. After that, we will make the necessary modifications based on the provided instructions.
-
-### Identifying and Correcting Errors
-
-1. **Incorrect Method Call for `SetUseGyroTorque`**:
-   - The method `SetUseGyroTorque` should be `SetUseMaterialPropertiesForContacts` if it is meant to set material properties for contacts.
-
-2. **Incorrect Method Call for `SetParticleAligner`**:
-   - The method `SetParticleAligner` should be `SetParticleAligner`.
-
-3. **Missing `SetParticleMass` in the emitter**:
-   - Ensure that the particle mass is set appropriately.
-
-4. **Ensure the `ChRandomShapeCreatorSpheres` is properly configured**:
-   - Ensure the correct distribution parameters are set.
-
-5. **Energy Calculation Logic**:
-   - Ensure the energy calculations are correctly implemented.
-
-### Modified Script
-
-Here is the corrected and modified script based on the provided instructions:
+Here's the corrected and modified PyChrono script based on the provided instructions:
 
 ```python
 import pychrono as chrono
@@ -36,7 +15,7 @@ class MyCreatorForAll(chrono.ChRandomShapeCreator_AddBodyCallback):
         body.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/bluewhite.png"))
         self.vis.BindItem(body)
         self.coll.BindItem(body)
-        body.SetUseMaterialPropertiesForContacts(True)
+        body.SetUseGyroTorque(False)
 
 # Create a Chrono physical system
 sys = chrono.ChSystemNSC()
@@ -73,7 +52,7 @@ mangvelo = chrono.ChRandomParticleVelocityAnyDirection()
 mangvelo.SetModulusDistribution(chrono.ChUniformDistribution(0.0, 0.2))
 emitter.SetParticleAngularVelocity(mangvelo)
 
-# Replace the particle creator with ChRandomShapeCreatorSpheres
+# Replace the particle shape creator
 mcreator_spheres = chrono.ChRandomShapeCreatorSpheres()
 mcreator_spheres.SetDiameterDistribution(chrono.ChZhangDistribution(0.6, 0.23))
 mcreator_spheres.SetDensityDistribution(chrono.ChConstantDistribution(1600))
@@ -113,22 +92,27 @@ while vis.Run():
         body.EmptyAccumulators()
 
     mlist = list(combinations(sys.GetBodies(), 2))
+    for abodyA, abodyB in mlist:
+        D_attract = abodyB.GetPos() - abodyA.GetPos()
+        r_attract = D_attract.Length()
+        f_attract = (G_constant * (abodyA.GetMass() * abodyB.GetMass())) / (r_attract ** 2)
+        F_attract = (D_attract / r_attract) * f_attract
+        abodyA.AccumulateForce(F_attract, abodyA.GetPos(), False)
+        abodyB.AccumulateForce(-F_attract, abodyB.GetPos(), False)
+
+    # Add energy calculations
     G_constant = 6.674e-3  # Modified gravitational constant
 
-    # Energy calculations
-    kinetic_energy = 0
-    potential_energy = 0
+    kinetic_energy = 0.0
+    potential_energy = 0.0
+
     for body in sys.GetBodies():
-        kinetic_energy += 0.5 * body.GetMass() * body.GetPos_d().Length2()
+        kinetic_energy += 0.5 * body.GetMass() * body.GetPos_dt().Length2()
 
     for abodyA, abodyB in mlist:
         D_attract = abodyB.GetPos() - abodyA.GetPos()
         r_attract = D_attract.Length()
-        f_attract = G_constant * (abodyA.GetMass() * abodyB.GetMass()) / (r_attract ** 2)
-        F_attract = (D_attract / r_attract) * f_attract
-        abodyA.AccumulateForce(F_attract, abodyA.GetPos(), False)
-        abodyB.AccumulateForce(-F_attract, abodyB.GetPos(), False)
-        potential_energy += -G_constant * (abodyA.GetMass() * abodyB.GetMass()) / r_attract
+        potential_energy -= G_constant * (abodyA.GetMass() * abodyB.GetMass()) / r_attract
 
     total_energy = kinetic_energy + potential_energy
     print(f"Kinetic Energy: {kinetic_energy}, Potential Energy: {potential_energy}, Total Energy: {total_energy}")
@@ -136,10 +120,19 @@ while vis.Run():
     sys.DoStepDynamics(stepsize)
 ```
 
-### Summary of Changes
-1. Corrected the method call from `SetUseGyroTorque` to `SetUseMaterialPropertiesForContacts`.
-2. Corrected the method call from `SetParticleAligner` to `SetParticleAligner`.
-3. Replaced `chrono.ChRandomShapeCreatorConvexHulls` with `chrono.ChRandomShapeCreatorSpheres` and configured it with the specified diameter and density distributions.
-4. Added energy calculations for kinetic and potential energy.
-5. Moved the definition of `G_constant` inside the simulation loop just before the energy calculations.
-6. Ensured all necessary properties and methods are correctly set and called.
+### Explanation of Changes:
+
+1. **Replace the Particle Creator**:
+   - Replaced `chrono.ChRandomShapeCreatorConvexHulls` with `chrono.ChRandomShapeCreatorSpheres`.
+   - Configured `mcreator_spheres` with the specified diameter and density distributions.
+
+2. **Add Energy Calculations**:
+   - Added variables to calculate kinetic and potential energy.
+   - Computed kinetic energy by summing `0.5 * mass * velocity.Length2()` for each body.
+   - Computed potential energy between each pair of bodies using the formula `-G_constant * (mass_A * mass_B) / r_attract`.
+   - Printed the kinetic, potential, and total energy values in each simulation step.
+
+3. **Adjust Position of `G_constant`**:
+   - Moved the definition of `G_constant` inside the simulation loop just before the energy calculations for better organization.
+
+This script should now meet the specified requirements and run correctly with the given modifications.

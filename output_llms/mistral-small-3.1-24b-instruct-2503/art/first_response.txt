@@ -1,4 +1,4 @@
-Sure, let's create a PyChrono simulation script based on your instructions. Below is the Python code that sets up an ARTcar vehicle on a rigid terrain using Irrlicht for visualization. The script initializes the vehicle with specific parameters, sets up the terrain, and includes an interactive driver system to control the vehicle.
+Sure! Below is a PyChrono simulation script that follows the provided instructions. This script initializes the PyChrono environment, sets up an ARTcar vehicle on a rigid terrain, and includes visualization using Irrlicht. It also incorporates an interactive driver system to control the vehicle.
 
 ```python
 import pychrono.core as chrono
@@ -6,92 +6,89 @@ import pychrono.irrlicht as chronoirr
 import pychrono.vehicle as veh
 import pychrono.fea as fea
 
-# Initialize the PyChrono environment
-chrono.SetChronoDataPath('/path/to/chrono/data')  # Set the path to Chrono data directory
+# Initialize the Chrono::Engine
+chrono.SetChronoDataPath('path/to/chrono/data')
 
 # Create the system
 system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
-
-# Create the terrain
-terrain = veh.ChTerrain(chrono.ChVectorD(0, 0, 0))
-terrain.SetTexture(veh.ChTerrain.CUSTOM, '/path/to/texture.png')  # Set custom texture
-terrain.Initialize(system)
 
 # Create the vehicle
 vehicle = veh.ChVehicleARTcar()
-vehicle.SetChassisBody(chrono.ChBodyEasyBox(1, 1, 2, 1000, True, True))  # Example chassis
-vehicle.SetInitPosition(chrono.ChVectorD(0, 1, 0))  # Initial position
-vehicle.SetInitOrientation(chrono.ChQuaternionD(1, 0, 0, 0))  # Initial orientation
-vehicle.SetContactMethod(chrono.ChContactMethod_SMC)  # Contact method
-vehicle.SetVisualizationType(veh.ChVehicleARTcar.VISUALIZATION_TYPE_MESH)  # Visualization type
-vehicle.Initialize(system)
+vehicle.SetChassisBody(chrono.ChBodyEasyBox(1.5, 0.5, 0.3, 1000, True, True))
+vehicle.SetChassisPos(chrono.ChVectorD(0, 0, 0.5))
+vehicle.SetChassisInitRot(chrono.Q_from_AngAxis(chrono.ChVectorD(1, 0, 0), chrono.CH_C_PI / 2))
+
+# Set up the contact method
+vehicle.SetContactMethod(chrono.ChContactMethodNSC)
 
 # Add the vehicle to the system
-system.Add(vehicle.GetChassisBody())
+system.Add(vehicle.GetVehicleBody())
 
-# Create the driver system
+# Create the rigid terrain
+terrain = chrono.ChBodyEasyBox(20, 20, 0.1, 1000, True, True)
+terrain.SetPos(chrono.ChVectorD(0, 0, -0.05))
+terrain.SetMaterialSurface(chrono.ChMaterialSurfaceNSC())
+terrain.GetMaterialSurface().SetFriction(0.9)
+terrain.GetMaterialSurface().SetRestitution(0.2)
+terrain.GetMaterialSurface().SetCompliance(0.0001)
+terrain.GetMaterialSurface().SetComplianceT(0.0001)
+system.Add(terrain)
+
+# Add custom texture to the terrain
+terrain_texture = chronoirr.ChVisualizationIrrlicht()
+terrain_texture.AddTexture(chrono.GetChronoDataFile('textures/concrete.jpg'), chronoirr.ChVisualizationIrrlicht.MATERIAL_LIGHT_GREY_PLASTIC)
+terrain_texture.AttachToBody(terrain)
+
+# Create the interactive driver system
 driver = veh.ChDriverARTcar()
 driver.Initialize(vehicle)
-driver.SetSteeringDelta(0)  # Initial steering angle
-driver.SetThrottle(0)  # Initial throttle
-driver.SetBraking(0)  # Initial braking
+driver.SetSteeringDelta(0.0)
+driver.SetThrottle(0.0)
+driver.SetBraking(0.0)
 
-# Create the Irrlicht visualization system
-vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(system)
-vis.SetWindowSize(1280, 720)
-vis.SetWindowTitle('ARTcar Simulation')
-vis.Initialize()
-vis.AddTypicalSky()
-vis.AddTypicalLogo()
-vis.AddLightWithShadow(chrono.ChVectorD(1.0, -1.0, 1.0), chrono.ChVectorD(0.8, -0.8, 0.8), 100, 100, 300, 400, 50)
+# Create the Irrlicht application
+application = chronoirr.ChIrrApp(chrono.GetChronoDataPath() + 'data', 'ARTcar Simulation', chronoirr.dimension2du(1280, 720))
+application.AddSystem(system)
+application.AddVisualization(terrain_texture)
+application.SetTimestep(1.0 / 50.0)
+application.SetTryRealTimeRate(50.0)
 
-# Set up the simulation loop
-dt = 1.0 / 50  # Time step for 50 frames per second
-time = 0.0
-step = 0
+# Create the driver camera
+camera = chronoirr.ChIrrCamera()
+camera.SetPosition(chrono.ChVectorD(0, -3, 2))
+camera.SetTarget(chrono.ChVectorD(0, 0, 0.5))
+application.AddCamera(camera)
 
-while vis.Run():
-    time += dt
-    step += 1
+# Simulation loop
+application.AssetBindAll()
+application.AssetUpdateAll()
 
-    # Update the driver inputs (this is a placeholder; you should implement actual input handling)
-    driver.SetSteeringDelta(0.1 * chrono.ChRandom())
-    driver.SetThrottle(0.5 + 0.5 * chrono.ChRandom())
-    driver.SetBraking(0.1 * chrono.ChRandom())
+while application.GetDevice().run():
+    application.BeginScene()
+    application.DrawAll()
+    application.DoStep()
+    application.EndScene()
+
+    # Update the driver input
+    driver.Synchronize(application.GetDevice().getTimer().getTime())
 
     # Update the vehicle dynamics
-    system.DoStepDynamics(dt)
+    system.DoStepDynamics(application.GetTimestep())
 
-    # Update the visualization
-    vis.BeginScene()
-    vis.Render()
-    vis.EndScene()
-
-# Clean up
-vis.Close()
+# Close the application
+application.CloseDevice()
 ```
 
 ### Explanation:
-1. **Initialization**:
-   - The PyChrono environment is initialized with the necessary paths and system settings.
-   - The `ChSystemNSC` object is created to manage the physical simulation.
+1. **Initialize the PyChrono environment**: The script starts by setting the Chrono data path and creating a `ChSystemNSC` object.
+2. **Add the ARTcar vehicle**: The vehicle is created with specific parameters for its chassis, position, and orientation.
+3. **Set up the contact method**: The contact method is set to `ChContactMethodNSC`.
+4. **Create the rigid terrain**: A rigid terrain is created with defined dimensions and material properties.
+5. **Add custom texture**: A custom texture is added to the terrain for visualization.
+6. **Create the interactive driver system**: The driver system is initialized to control the vehicle's steering, throttle, and braking.
+7. **Set up Irrlicht visualization**: The Irrlicht application is created to visualize the simulation at 50 frames per second.
+8. **Simulation loop**: The loop updates the vehicle dynamics and visualization in real time.
 
-2. **Terrain Setup**:
-   - A `ChTerrain` object is created and initialized with a custom texture.
+Make sure to replace `'path/to/chrono/data'` with the actual path to your Chrono data directory and adjust the texture path if necessary.
 
-3. **Vehicle Setup**:
-   - An `ARTcar` vehicle is created with specified parameters such as initial position, orientation, contact method, and visualization type.
-   - The vehicle is added to the system.
-
-4. **Driver System**:
-   - A `ChDriverARTcar` object is created to control the vehicle's steering, throttle, and braking.
-
-5. **Visualization**:
-   - The Irrlicht visualization system is set up to display the simulation.
-   - The simulation loop runs at 50 frames per second, updating the vehicle dynamics and visualization in real time.
-
-### Note:
-- Replace `'/path/to/chrono/data'` and `'/path/to/texture.png'` with the actual paths to your Chrono data directory and texture file.
-- The driver input handling is a placeholder. You should implement actual input handling to control the vehicle interactively.
+This script provides a basic setup. Depending on your specific requirements, you might need to add more details or adjust parameters.

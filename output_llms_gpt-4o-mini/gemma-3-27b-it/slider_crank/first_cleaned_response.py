@@ -1,0 +1,93 @@
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
+import pychrono.robot as robot
+import math
+
+
+
+
+sys = chrono.ChSystemSMC()
+sys.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+
+
+chrono.SetChronoDataPath("../chrono/data/")
+
+
+body_floor = chrono.ChBody()
+body_floor.SetBodyFixed(True)
+body_floor.SetMass(1)
+body_floor.SetPos(chrono.ChVector3d(0, -0.1, 0))
+body_floor.SetShape(chrono.ChCollisionShapeBox(10, 0.1, 10))
+body_floor.AddVisualShape(chrono.ChVisualShapeBox(10, 0.1, 10))
+sys.Add(body_floor)
+
+
+crank_length = 0.5
+crank_radius = 0.2
+crank = chrono.ChBody()
+crank.SetMass(1)
+crank.SetPos(chrono.ChVector3d(-crank_radius, 0, 0))
+crank.SetShape(chrono.ChCollisionShapeBox(crank_length, 0.05, 0.05))
+crank.AddVisualShape(chrono.ChVisualShapeBox(crank_length, 0.05, 0.05))
+sys.Add(crank)
+
+
+rod_length = 0.6
+rod = chrono.ChBody()
+rod.SetMass(1)
+rod.SetPos(chrono.ChVector3d(-crank_radius + crank_length, 0, 0))
+rod.SetShape(chrono.ChCollisionShapeBox(rod_length, 0.05, 0.05))
+rod.AddVisualShape(chrono.ChVisualShapeBox(rod_length, 0.05, 0.05))
+sys.Add(rod)
+
+
+piston_length = 0.1
+piston = chrono.ChBody()
+piston.SetMass(1)
+piston.SetPos(chrono.ChVector3d(-crank_radius + crank_length + rod_length, 0, 0))
+piston.SetShape(chrono.ChCollisionShapeBox(piston_length, 0.05, 0.05))
+piston.AddVisualShape(chrono.ChVisualShapeBox(piston_length, 0.05, 0.05))
+piston.SetBodyFixed(False)
+sys.Add(piston)
+
+
+
+
+crank_joint = chrono.ChLinkLockRevolute()
+crank_joint.Initialize(body_floor, crank, chrono.ChCoordsysD(chrono.ChVector3d(-crank_radius, 0, 0), chrono.Q_from_AngAxis(chrono.CH_PI_2, chrono.ChVector3d(0, 0, 1))))
+sys.Add(crank_joint)
+
+
+rod_joint = chrono.ChLinkLockRevolute()
+rod_joint.Initialize(crank, rod, chrono.ChCoordsysD(chrono.ChVector3d(crank_length, 0, 0), chrono.QUNIT))
+sys.Add(rod_joint)
+
+
+piston_joint = chrono.ChLinkLockRevolute()
+piston_joint.Initialize(rod, piston, chrono.ChCoordsysD(chrono.ChVector3d(rod_length, 0, 0), chrono.QUNIT))
+sys.Add(piston_joint)
+
+
+motor = chrono.ChLinkMotorRotationSpeed()
+motor.Initialize(body_floor, crank, chrono.ChCoordsysD(chrono.ChVector3d(-crank_radius, 0, 0), chrono.Q_from_AngAxis(chrono.CH_PI_2, chrono.ChVector3d(0, 0, 1))))
+motor.SetSpeedFunction(chrono.ChFunction_Const(2))  
+motor.SetTorqueFunction(chrono.ChFunction_Const(10))
+sys.Add(motor)
+
+
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(sys)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle('Crank-Slider Mechanism')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVector3d(2, 2, -3))
+vis.AddTypicalLights()
+
+
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    sys.DoStepDynamics(0.01)

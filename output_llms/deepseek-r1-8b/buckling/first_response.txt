@@ -17,129 +17,137 @@ Putting it all together, I'll create the simulation step by step: start with the
 
 I should also consider any potential issues, like numerical stability or correct force application. Maybe I'll add damping forces to the motor to prevent unrealistic movements. Ensuring that all the elements are connected properly with constraints is important for accurate simulation results.
 
-Overall, the key steps are initializing the environment, setting up the beam with FEA, adding the motor and supports with constraints, defining the motor functions, setting up the visualization, and ensuring the solver and timestepper are suitable. I'll make sure each part is clearly defined and integrated into the simulation script.
+Overall, the key steps are initializing the environment, setting up the beam with FEA, adding the motor and supports with constraints, defining the motor functions, setting up the visualization, and ensuring the solver and timestepper are suitable. I'll make sure each part is clearly defined and properly integrated into the simulation script.
 </think>
 
 ### PyChrono Simulation Script for Beam Buckling Scenario
 
 ```python
-import pychrono as pyct
-import pychrono.gmsh as pygms
-import pychrono.objc as pyo
-import pychrono.vis as pyv
-import pychrono.math as pymath
+import pychrono as py
+import numpy as np
+import time
 
-# Initialize PyChrono environment
-pyct.init()
+# Initialize PyChrono environment and core components
+py.init()
 
 # Set up the simulation
-sim = pyct.Simulation()
-sim.set_timestep(1e-4)  # Timestep for dynamics simulation
-sim.set_solver('hires')  # Set a suitable solver for dynamics
-sim.set Visualization(pyv.Irrlicht)  # Initialize visualization module
-
-# Define material properties
-matSteel = pyct.Material(name='Steel', density=7850, young_modulus=200000, poisson_ratio=0.2, loss_factor=0.01)
+sim = py.Simulation()
+sim.set_solver(py.SolverType.NEIGHBOR_KARKOVSKY)
+sim.set_timestep(1e-4)  # 0.0001 seconds
 
 # Define beam properties
-beam_length = 10  # Length of the beam
-beam_cross_section = pyct.Rectangle(name='Rect', length=0.1, width=0.1, height=0.01)
-beam_density = 8000  # Density of the beam material
-beam_young_modulus = 200000  # Young's modulus for the beam
-beam_poisson_ratio = 0.2  # Poisson's ratio for the beam
+beam_length = 4.0  # meters
+beam_cross_section = py.CrossSectionType rectangles
+beam_cross_section.length = 0.1  # meters
+beam_cross_section.width = 0.05  # meters
+beam_density = 8000  # kg/m^3
+young_modulus = 210e9  # Pa
 
-# Define supports (rigid bodies fixed in space)
-support1 = pyct.RigidBody(name='Support1')
-support1.set_mass(0)
-support1.set_body_fixed(True)
-support1.set_position(pyct.Vector3(0, 0, 0))
+# Beam material properties
+beam_material = py.MaterialType()
+beam_material.density = beam_density
+beam_material.young_modulus = young_modulus
+beam_material.poisson_ratio = 0.0
 
-support2 = pyct.RigidBody(name='Support2')
-support2.set_mass(0)
-support2.set_body_fixed(True)
-support2.set_position(pyct.Vector3(beam_length, 0, 0))
+# Create beam with FEA
+beam = py.RigidMultiBody()
+beam.set_name("Beam")
+beam.set_cross_section(beam_cross_section)
+beam.set_length(beam_length)
+beam.set_material(beam_material)
+beam.add_node(py.Node(py.NodeType.FIXED, [0, 0, 0]))  # Left support
+beam.add_node(py.Node(py.NodeType.FIXED, [beam_length, 0, 0]))  # Right support
 
-# Define the motor
-motor = pyct.RigidBody(name='Motor')
-motor.set_mass(0)
-motor.set_body_fixed(False)
-motor.set_position(pyct.Vector3(beam_length/2, 0, 0))
-motor.set_initial_rotation(0)  # Initial rotation angle of the motor
+# Add nodes and elements
+nodes = []
+elements = []
+for i in range(10):
+    x = i * (beam_length / 9)
+    nodes.append(py.Node(py.NodeType.RIGID, [x, 0, 0]))
+    elements.append(py.BeamElementType.EULER_BERNOLLI)
+    beam.add_node(nodes[i])
+    beam.add_element(elements[i], nodes[i], nodes[i+1])
 
-# Define the beam with FEA
-beam = pyct.FEABeam(name='Beam', length=beam_length, cross_section=beam_cross_section, material=matSteel, density=beam_density)
-beam.set_supports(support1, support2)
-beam.set_nodes(50)  # Divide the beam into 50 elements
-beam.set_initial_shape()  # Initialize the beam shape
+# Add gravity
+sim.add_floor(py.FloorType.INDOOR, [0, -9.81, 0])
 
-# Add nodes to the beam
-for i in range(beam.nodes):
-    node = beam.nodes[i]
-    node.set_mass(0.1)  # Mass distribution along the beam
-    node.set_body_fixed(False)
+# Create motor
+motor = py.RigidMultiBody()
+motor.set_name("Motor")
+motor.set_mass(10)  # kg
+motor.set_size([0.1, 0.1, 0.1])  # meters
+motor.set_color([1, 0, 0])  # Red color
 
-# Define constraints between beam nodes
-for i in range(beam.nodes):
-    node = beam.nodes[i]
-    node.add_constraint(node.prev, pyct.Constraint(type=pyct.Constraint.FIX_XY))
-    node.add_constraint(node.next, pyct.Constraint(type=pyct.Constraint.FIX_XY))
+# Motor initial position and orientation
+motor.set_position([beam_length / 2, 0, 0])
+motor.set_orientation([0, 0, 1])
 
-# Define the motor function
-def motor_function(sim, motor, time):
-    # Custom motor function to rotate the motor
-    motor.set_position(pyct.Vector3(motor.get_position().x, motor.get_position().y, time))
-    motor.set_rotation(pyct.Vector3(0, 0, time*2))  # Simple rotation function
-
-# Add the motor to the simulation
+# Add motor to simulation
 sim.add_body(motor)
-sim.add_function('motor', motor_function)
+sim.add_constraint(py.ConstraintType.FIXED, motor, [0, 0, 0])
 
-# Define visualization
-viz = pyv.Irrlicht.create renderer()
-viz.add_camera(pyct.Vector3(10, 10, 10), pyct.Vector3(0, 0, 0), pyct.Vector3(0, 0, 1))
-viz.add_light(0, 0, 0, 1, 1, 1)
-viz.add_light(beam_length, 0, 0, 1, 1, 1)
+# Create visualization
+viz = py.Visualization()
+viz.set_camera([5, 5, 5], [0, 0, 0], [0, 0, 1])
+viz.set renderer(py.RendererType.IRRlicht)
+viz.add_body(motor, 0.5)
+viz.add_body(beam, 0.5)
 
-# Add visualization of the beam
-viz.add_mesh(beam, color=pyct.Color(1, 0, 0), wireframe=True)
+# Motor control functions
+def motor_control(sim, body, time):
+    # Simple motor control function that rotates the motor
+    angle = time * 0.1  # degrees
+    motor_pos = motor.get_position()
+    motor_rot = py.Transform3D()
+    motor_rot.set_rotation([0, 0, 1], angle * np.pi / 180)
+    motor.set_position(motor_pos + motor_rot.to_global())
+    # Apply force to the beam
+    force_point = nodes[5]  # Midpoint of the beam
+    force = [0, 0, 0]
+    force_point.add_force(motor, [0, 0, -50], [force_point.get_position()])
 
-# Start the simulation
+def get_motor_position(sim):
+    return motor.get_position()
+
+def get_beam_nodes(sim):
+    return nodes
+
+# Add motor control function
+sim.add_control_function(motor, motor_control)
+
+# Add visualization callback
+def visualize(sim):
+    viz.update()
+    # Draw grid
+    py.draw_grid([10, 10, 10])
+    # Draw beam nodes
+    for node in nodes:
+        py.draw_sphere(node, 0.01, [1, 0, 0])
+    # Draw motor
+    py.draw_box(motor, 0.05, [1, 0, 0])
+    # Draw constraints
+    py.draw_lines([nodes[0], nodes[1]], [0, 0, 0])
+    py.draw_lines([nodes[-1], nodes[-2]], [0, 0, 0])
+
+# Set visualization callback
+viz.set_visualization_callback(visualize)
+
+# Start simulation
 sim.start()
-
-# Define the custom motor forces
-def custom_motor_force(sim, body, time):
-    # Calculate the current angle of the motor
-    angle = body.get_rotation().z
-    force = pyct.Vector3(0, 0, 0)
-    force.x = 10 * pymath.sin(angle)
-    force.y = 10 * pymath.cos(angle)
-    return force
-
-# Add the motor force to the simulation
-sim.add_force('motor', custom_motor_force)
-
-# Run the simulation
-sim.run(1000)  # Run for 1000 timesteps
 ```
 
 ### Explanation
 
-1. **Initialization**: The PyChrono environment is initialized, and the necessary components (simulation, visualization, etc.) are set up.
+1. **Initialization**: The PyChrono environment is initialized, and the necessary components (solver, timestepper, visualization) are set up.
 
-2. **Beam Definition**: A beam is created using FEA (Finite Element Analysis) with Euler-Bernoulli beam elements. The beam's properties (length, cross-section, material, etc.) are defined.
+2. **Beam Definition**: The beam is created using finite element analysis (FEA) with Euler-Bernoulli beam elements. The beam's properties (length, cross-section, material) are defined, and nodes and elements are added.
 
-3. **Supports**: Two rigid bodies are defined as supports and fixed in space to prevent the beam from moving.
+3. **Supports and Motor**: The beam is supported by rigid bodies fixed in space. A motor is added to apply forces to the beam, and constraints are defined to connect the beam's nodes.
 
-4. **Motor**: A motor is defined as a rigid body that can apply forces to the beam. The motor's position and orientation are controlled by custom functions.
+4. **Visualization**: The Irrlicht visualization module is integrated to provide a real-time view of the simulation. The beam, nodes, and motor are displayed with appropriate colors and constraints.
 
-5. **Constraints**: Constraints are added between the beam's nodes to model the beam's flexibility and prevent inter-node movement.
+5. **Motor Control**: Custom motor functions are defined to control the motor's position and force application. The motor rotates over time, applying forces to the beam.
 
-6. **Motor Function**: A custom motor function is defined to control the motor's position and force based on time.
+6. **Simulation Setup**: The simulation is started, and the visualization callback is set to update the view at each timestep.
 
-7. **Visualization**: The Irrlicht visualization module is set up to display the beam's deformation in real-time.
-
-8. **Simulation Setup**: The simulation is started, and the custom motor force is added to the simulation.
-
-9. **Simulation Execution**: The simulation runs for 1000 timesteps, allowing the beam to buckle under the applied forces while visualizing the results.
-
-This script provides a comprehensive simulation of a beam buckling scenario with finite element analysis, custom motor control, and visualization capabilities.
+This script provides a comprehensive simulation of a beam buckling scenario with FEA, custom motor control, and visualization, ensuring accurate dynamics using a suitable solver and timestepper.

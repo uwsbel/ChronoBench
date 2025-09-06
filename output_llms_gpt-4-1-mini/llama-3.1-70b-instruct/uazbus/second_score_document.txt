@@ -5,36 +5,37 @@
 ### 1. Completeness (40 points)
 
 - **System Initialization**:  
-  The script does not explicitly create a `chrono.ChSystemNSC()` or `chrono.ChSystemSMC()` system object. Instead, it relies on the vehicle's internal system via `vehicle.GetSystem()`. This is acceptable and common in vehicle simulations using the `veh` module, where the vehicle internally manages the system.  
-  **No deduction** here.
+  The script uses `veh.UAZBUS()` which internally creates and manages the underlying `ChSystem` object. This is standard practice in vehicle simulations with PyChrono's vehicle module. The system is properly configured with contact method and collision system type.  
+  **No deduction.**
 
 - **Body Creation**:  
-  The vehicle (`veh.UAZBUS()`) is created and initialized properly. Terrain is created using `veh.RigidTerrain` and initialized.  
-  **No deduction**.
+  The vehicle chassis and tires are created via the `veh.UAZBUS()` class, which abstracts body creation. This is appropriate and complete for vehicle simulations.  
+  **No deduction.**
 
 - **Visualization Setup**:  
-  The Irrlicht visualization system is created and attached to the vehicle. Window size, title, camera, lighting, skybox, and logo are set.  
-  **No deduction**.
+  The Irrlicht visualization system is properly created and attached to the vehicle. Window size, title, camera, lighting, skybox, and logo are set.  
+  **No deduction.**
 
-- **Driver System**:  
-  An interactive driver is created and initialized with proper input response times.  
-  **No deduction**.
+- **Terrain Setup**:  
+  The terrain is created as a rigid patch with appropriate material properties and texture. The terrain is initialized correctly.  
+  **No deduction.**
+
+- **Driver Setup**:  
+  An interactive driver is created and configured with reasonable steering, throttle, and braking response times.  
+  **No deduction.**
 
 - **Simulation Loop**:  
-  The loop includes synchronization and advancement of all modules, rendering, and real-time stepping.  
-  **No deduction**.
-
-- **Contact Material and Terrain Patch**:  
-  Contact material is created with friction and restitution set. Terrain patch is added with texture and color.  
-  **No deduction**.
+  The loop includes synchronization and advancement of all modules (driver, terrain, vehicle, visualization), with rendering at appropriate intervals.  
+  **No deduction.**
 
 - **Miscellaneous**:  
-  The vehicle mass is printed, which is a useful output.  
-  **No deduction**.
+  Output of vehicle mass is included, which is a useful diagnostic.  
+  **No deduction.**
 
-- **Minor omission**:  
-  The script does not explicitly set collision envelope or margin globally via `chrono.ChCollisionModel.SetDefaultSuggestedEnvelope()` or `SetDefaultSuggestedMargin()`. While not strictly required, it is a best practice to set these for stability in collision detection.  
-  **Deduct 5 points** for minor omission of collision margin/envelope settings.
+- **Minor omissions**:  
+  - The code does not explicitly set the collision envelope or margin, which can improve collision detection stability. This is a minor omission but not essential.  
+  - The `contact_vis` variable is defined but never used. Minor unused variable.  
+  **Deduct 5 points for minor omissions.**
 
 **Completeness score: 40 - 5 = 35**
 
@@ -42,67 +43,83 @@
 
 ### 2. Correctness (30 points)
 
-- **Use of API**:  
-  The vehicle is created and configured correctly with contact method, collision type, tire model, and step size.  
-  The terrain is created with NSC contact material, matching the contact method.  
-  The visualization system is correctly set up and attached to the vehicle.  
-  The driver inputs are correctly manipulated for lane change and braking maneuvers.  
-  The synchronization and advancement calls are in the correct order and use correct parameters.
+- **API Usage**:  
+  - `veh.UAZBUS()` is used correctly with appropriate setters before initialization.  
+  - Contact method and collision system type are set correctly.  
+  - Terrain patch material uses `ChContactMaterialNSC()` which matches the NSC contact method.  
+  - Visualization system is correctly initialized and attached.  
+  - Driver inputs are manually overridden for lane change and braking maneuvers, which is logically sound.  
+  - Synchronize and Advance calls are in correct order and with correct parameters.  
+  - The time stepping and rendering intervals are consistent.  
+  - The use of `chrono.ChRealtimeStepTimer()` for real-time synchronization is appropriate.  
 
-- **Potential issue**:  
-  The vehicle's system collision type is set to `chrono.ChCollisionSystem.Type_BULLET` after initialization. According to best practices, collision system type should be set before initialization to ensure proper setup. Setting it after `vehicle.Initialize()` may not have the intended effect or could cause inconsistencies.  
-  **Deduct 15 points** for incorrect order of setting collision system type.
+- **Potential issues**:  
+  - The vehicle's visualization types are set **after** `vehicle.Initialize()`. According to best practices and some PyChrono vehicle examples, visualization types should be set **before** `Initialize()` to ensure proper visualization assets are loaded and configured. Setting visualization types after initialization may cause some visualization elements to not appear or be incomplete.  
+  - The `vehicle.SetChassisFixed(False)` call is redundant because the default is already unfixed, but this is minor.  
+  - The `driver_inputs` object is modified directly, but the driver is then synchronized with time, which may overwrite inputs. However, in PyChrono vehicle examples, this pattern is acceptable when manually overriding inputs.  
+  - The `driver.Synchronize(time)` call is made **before** modifying `driver_inputs` in the loop, which means the manual input changes may not be reflected properly. The typical pattern is to modify inputs **before** calling `driver.Synchronize(time)`. This is a logical error that can cause the lane change and braking maneuvers to not be applied correctly.  
+  - The `vis.Synchronize(time, driver_inputs)` call is made, but the visualization system typically only needs the time and vehicle state; passing `driver_inputs` is unusual but not necessarily wrong.  
+  - The `vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)` is called **after** vehicle initialization. According to best practices, collision system type should be set before initialization to ensure proper collision system creation. This could cause unexpected behavior or inefficiencies.  
+  - The `chrono.SetChronoDataPath(chrono.GetChronoDataPath())` call is redundant and unnecessary; it sets the data path to itself. This is minor but unnecessary.  
 
-- **Logical error**:  
-  The driver inputs are modified directly on `driver_inputs` obtained from `driver.GetInputs()`. However, the script does not call `driver.SetInputs(driver_inputs)` or similar to update the driver with the modified inputs. According to typical usage, after modifying inputs, the driver should be updated or the inputs passed back. This could cause the lane change and braking maneuvers to not be applied.  
-  **Deduct 10 points** for logical error in driver input handling.
+**Deductions:**  
+- Visualization types set after initialization: **-10 points** (important detail)  
+- Logical error in input synchronization order: **-10 points** (logical error affecting behavior)  
+- Setting collision system type after initialization: **-10 points** (important for correct collision behavior)  
+- Minor unnecessary call to `SetChronoDataPath`: **-5 points**  
 
-- **Minor inaccuracy**:  
-  The initial vehicle position is set with a Z coordinate of 0.5, which is reasonable but might cause slight initial penetration with terrain at height 0.0. Usually, vehicle initial height is set slightly above terrain height plus half the chassis height to avoid initial collisions. This is minor and likely not critical.  
-  **Deduct 5 points** for minor inaccuracy.
+Total deductions: 10 + 10 + 10 + 5 = 35 points, but maximum deduction is 30 points for correctness category, so capped at **-30 points**.
 
-**Correctness score: 30 - 15 - 10 - 5 = 0**
+Correctness score: 30 - 30 = 0
 
 ---
 
 ### 3. Code Quality (10 points)
 
 - **Readability and structure**:  
-  The code is well-structured, with meaningful variable names and logical grouping of code sections.  
-  Comments are present but sparse; some sections have comments, others do not. For example, the lane change maneuver is commented, but the main simulation loop lacks inline comments explaining synchronization and advancement steps.  
-  **Deduct 3 points** for insufficient comments/documentation.
+  - The code is mostly well-structured and logically ordered.  
+  - Variable names are meaningful (`initLoc`, `vis_type`, `step_size`, etc.).  
+  - Indentation and formatting are consistent.  
+  - However, some comments are sparse or missing in critical sections (e.g., the simulation loop lacks comments explaining the synchronization and advancement steps).  
+  - The lane change and braking logic is clear but could be better documented.  
+  - The unused variable `contact_vis` is present without explanation.  
+  - The print statement uses Python 3 style but lacks parentheses around the string (though it is correct).  
+  - The final comment `# Initialize simulation frame counter s` has a stray 's' at the end, indicating a minor typo.  
 
-- **Formatting**:  
-  The code formatting is consistent and PEP8 compliant for the most part.  
-  **No deduction**.
+**Deductions:**  
+- Insufficient comments in the simulation loop and input override logic: **-5 points**  
+- Minor typo and unused variable: **-2 points**  
 
-**Code Quality score: 10 - 3 = 7**
+Code Quality score: 10 - 7 = 3
 
 ---
 
 ### 4. Efficiency (10 points)
 
-- **Redundant or unnecessary calculations**:  
-  The `chrono.SetChronoDataPath(chrono.GetChronoDataPath())` call is redundant because it sets the data path to itself. This is unnecessary but harmless.  
-  **Deduct 3 points** for minor inefficiency.
+- The code uses `math.ceil(render_step_size / step_size)` to compute render steps, which is efficient.  
+- The simulation loop advances all modules once per step, which is standard.  
+- The `driver_inputs` object is modified every loop iteration, which is necessary for the lane change maneuver.  
+- The `chrono.SetChronoDataPath(chrono.GetChronoDataPath())` call is redundant and unnecessary.  
+- The visualization calls are done only at render steps, which is efficient.  
+- No obvious redundant calculations or API calls except the redundant data path setting.  
 
-- **Other efficiency**:  
-  The simulation loop uses `math.ceil(render_step_size / step_size)` to calculate render steps, which is appropriate.  
-  The driver input deltas are set based on render step size, which is efficient.  
-  No other obvious inefficiencies.
+**Deductions:**  
+- One instance of redundant call to `SetChronoDataPath`: **-5 points**  
+- No other inefficiencies found.  
 
-**Efficiency score: 10 - 3 = 7**
+Efficiency score: 10 - 5 = 5
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- The script does not include any error handling (try-except blocks) or checks for file existence (e.g., texture files, logo image).  
-- While PyChrono scripts often omit explicit error handling for brevity, best practices recommend at least minimal checks or exception handling for robustness.  
-- No handling of edge cases such as simulation termination conditions beyond `vis.Run()`.  
-- No validation of driver inputs or terrain initialization success.
+- The script does not include any error handling (try-except blocks) or checks for file existence (e.g., texture or logo files).  
+- The code assumes all resources are present and that the vehicle initializes successfully.  
+- This is common in example scripts but not robust for production code.  
+- No handling of edge cases such as simulation failure or invalid inputs.  
 
-**Deduct 5 points** for lack of basic error handling and robustness.
+**Deductions:**  
+- Lack of basic error handling: **-5 points**  
 
 Error Handling score: 0
 
@@ -110,47 +127,52 @@ Error Handling score: 0
 
 ### 6. Use of Visualization Tools (5 points)
 
-- Visualization system is properly initialized with window size, title, chase camera, lighting, skybox, and logo.  
-- The script uses `vis.AddLightDirectional()` instead of `vis.AddTypicalLights()`. The documentation suggests `AddTypicalLights()` as a standard lighting setup; `AddLightDirectional()` alone may not provide sufficient lighting for all scenes.  
-- No camera addition beyond chase camera; this is acceptable but could be enhanced.  
-- Minor visualization issue: no mention of shadows or advanced lighting, but this is optional.
+- The visualization system is properly initialized with window size, title, chase camera, lighting, skybox, and logo.  
+- The lighting is added via `AddLightDirectional()`, but the API documentation suggests `AddTypicalLights()` for standard lighting, which adds multiple lights for better scene illumination. Using only directional light may result in suboptimal lighting.  
+- The camera is set with `SetChaseCamera()` which is appropriate for vehicle visualization.  
+- The texture on terrain is set with a high tiling factor (200x200), which may be excessive and cause performance issues or visual artifacts.  
+- The visualization synchronization call passes `driver_inputs`, which is unusual but not necessarily wrong.  
+- No explicit call to `vis.AddCamera()` or `vis.AddTypicalLights()`.  
+- No comments explaining visualization choices.  
 
-**Deduct 2 points** for minor visualization suboptimal lighting setup.
+**Deductions:**  
+- Suboptimal lighting setup (directional only instead of typical lights): **-3 points**  
+- Excessive terrain texture tiling (minor visualization issue): **-2 points**  
 
-Visualization score: 5 - 2 = 3
-
----
-
-### **Final score calculation:**
-
-| Category                  | Points | Deduction | Score |
-|---------------------------|--------|-----------|-------|
-| Completeness              | 40     | 5         | 35    |
-| Correctness               | 30     | 30        | 0     |
-| Code Quality              | 10     | 3         | 7     |
-| Efficiency                | 10     | 3         | 7     |
-| Error Handling & Robustness| 5      | 5         | 0     |
-| Visualization             | 5      | 2         | 3     |
-| **Total**                 | 100    | 48        | **52**|
+Visualization score: 5 - 5 = 0
 
 ---
 
 ### **Summary of deductions:**
 
-- Missing collision margin/envelope settings (minor completeness omission): -5  
-- Setting collision system type after vehicle initialization (major correctness error): -15  
-- Modifying driver inputs without updating driver (logical error): -10  
-- Minor initial vehicle height inaccuracy: -5  
-- Insufficient comments/documentation: -3  
-- Redundant data path setting: -3  
-- Lack of error handling: -5  
-- Suboptimal lighting setup: -2  
+| Category                  | Points | Deductions | Score |
+|---------------------------|--------|------------|-------|
+| Completeness              | 40     | 5          | 35    |
+| Correctness               | 30     | 30         | 0     |
+| Code Quality              | 10     | 7          | 3     |
+| Efficiency                | 10     | 5          | 5     |
+| Error Handling & Robustness | 5      | 5          | 0     |
+| Visualization             | 5      | 5          | 0     |
+| **Total**                 | 100    | 57         | **43**|
 
 ---
 
-[[52]]
+### Final score: [[43]]
 
 ---
 
-**Explanation:**  
-The script is mostly complete and well-structured, with proper use of PyChrono vehicle and visualization APIs. However, critical correctness issues, especially the incorrect order of setting the collision system type and the failure to update driver inputs after modification, severely impact the simulation's behavior. Minor omissions in collision settings, error handling, and visualization reduce the score further. The code quality and efficiency are generally good but could be improved with better comments and removal of redundant calls.
+### Explanation of deductions:
+
+- The most critical issues are in **Correctness**, where the order of setting visualization types, collision system type, and the synchronization of driver inputs are incorrect or suboptimal, potentially causing the simulation to behave incorrectly or visualization to be incomplete. These are major errors leading to a full deduction in that category.
+
+- Minor omissions in completeness, such as not setting collision envelopes or margins, and an unused variable, led to a small deduction.
+
+- Code quality suffers from insufficient comments and minor typos.
+
+- Efficiency is reduced by a redundant call to set the data path.
+
+- No error handling is present, which is a significant omission for robustness.
+
+- Visualization setup is functional but suboptimal due to lighting choices and texture tiling.
+
+Overall, the script is a reasonable starting point but requires corrections in API usage order, better documentation, error handling, and visualization improvements to be considered a high-quality PyChrono simulation script.

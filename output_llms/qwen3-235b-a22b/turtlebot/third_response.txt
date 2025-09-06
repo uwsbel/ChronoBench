@@ -4,8 +4,8 @@ import math
 import numpy as np
 import pychrono as chrono
 import pychrono.robot as turtlebot
-from pychrono import irrlicht as chronoirr
 import pychrono.sensor as sens  # Added sensor module
+from pychrono import irrlicht as chronoirr
 
 # Create Chrono system
 system = chrono.ChSystemNSC()
@@ -25,67 +25,38 @@ system.Add(ground)
 # Create Turtlebot Robot
 init_pos = chrono.ChVector3d(0, 0.2, 0)
 init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
-robot = turtlebot.TurtleBot(system, init_pos, init_rot)
-robot.Initialize()
+robot = turtlebot.TurtleBot(system, init_pos, init_rot)  # Removed Initialize() call
 
-# Add random boxes
+# Add randomly placed boxes
+np.random.seed(42)
 for i in range(5):
-    box_size = 0.4
+    box_size = 0.5
+    box_x = np.random.uniform(-10, 10)
+    box_y = np.random.uniform(-10, 10)
+    box_z = -0.1 + 0.5 * box_size  # Centered above ground (ground top at Z=-0.1)
     box_mat = chrono.ChContactMaterialNSC()
     box = chrono.ChBodyEasyBox(box_size, box_size, box_size, 1000, True, True, box_mat)
-    x = np.random.uniform(-10, 10)
-    y = np.random.uniform(-10, 10)
-    z_pos = -0.1 + box_size / 2  # Ground top at -0.1
-    box.SetPos(chrono.ChVector3d(x, y, z_pos))
-    box.SetFixed(False)
-    box.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/blue.png"))
+    box.SetPos(chrono.ChVector3d(box_x, box_y, box_z))
     system.Add(box)
 
 # Create sensor manager and lidar
 manager = sens.ChSensorManager(system)
-manager.SetVerbose(False)
-
-# Lidar configuration
-lidar_offset = chrono.ChFramed(
-    chrono.ChVector3d(0, 0, 0.2),
-    chrono.ChQuaterniond(1, 0, 0, 0)
-)
 lidar = sens.ChLidarSensor(
-    robot.GetBody(),  # Attach to robot's main body
+    robot.GetChassisBody(),
     10,  # Update rate
-    lidar_offset,
-    100,  # Horizontal samples
+    chrono.ChFrameD(chrono.ChVector3d(0, 0, 0.2), chrono.ChQuaterniond(1, 0, 0, 0)),
+    360,  # Horizontal samples
     1,    # Vertical samples
-    chrono.CH_C_PI,  # Horizontal FOV
-    chrono.CH_C_PI / 180 * 10,  # Vertical FOV
-    100.0  # Max distance
+    chrono.CH_C_PI * 2,  # Horizontal FOV
+    chrono.CH_C_DEG_TO_RAD * 30,  # Vertical FOV
+    10.0  # Max distance
 )
-lidar.SetName("Lidar Sensor")
-lidar.SetLag(0.0)
-lidar.SetCollectionWindow(0.0)
-
-# Add filters to lidar
 lidar.PushFilter(sens.ChFilterDIAccess())
 lidar.PushFilter(sens.ChFilterPCfromDepth())
-lidar.PushFilter(sens.ChFilterVisualizePointCloud("Lidar Point Cloud"))
+lidar.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "Lidar Point Cloud"))
 manager.AddSensor(lidar)
 
-# Motion control function
-LEFT_DRIVE_WHEEL = 0
-RIGHT_DRIVE_WHEEL = 1
-
-def move(mode):
-    if mode == 'straight':
-        robot.SetMotorSpeed(-2 * math.pi, LEFT_DRIVE_WHEEL)
-        robot.SetMotorSpeed(-2 * math.pi, RIGHT_DRIVE_WHEEL)
-    elif mode == 'left':
-        robot.SetMotorSpeed(0, LEFT_DRIVE_WHEEL)
-        robot.SetMotorSpeed(-2 * math.pi, RIGHT_DRIVE_WHEEL)
-    elif mode == 'right':
-        robot.SetMotorSpeed(-2 * math.pi, LEFT_DRIVE_WHEEL)
-        robot.SetMotorSpeed(0, RIGHT_DRIVE_WHEEL)
-
-# Visualization setup
+# Create visualization
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
 vis.SetCameraVertical(chrono.CameraVerticalDir_Z)
@@ -98,24 +69,37 @@ vis.AddCamera(chrono.ChVector3d(0, 1.5, 0.2), chrono.ChVector3d(0, 0, 0.2))
 vis.AddTypicalLights()
 vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0, 0.5), 3, 4, 10, 40, 512)
 
-# Simulation parameters
-time_step = 2e-3
-time = 0
+# Define wheel IDs and movement function
+LEFT_DRIVE_WHEEL = 0
+RIGHT_DRIVE_WHEEL = 1
+
+def move(mode):
+    if mode == 'straight':
+        robot.SetMotorSpeed(math.pi, LEFT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(math.pi, RIGHT_DRIVE_WHEEL)
+    elif mode == 'left':
+        robot.SetMotorSpeed(0, LEFT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(math.pi, RIGHT_DRIVE_WHEEL)
+    elif mode == 'right':
+        robot.SetMotorSpeed(math.pi, LEFT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(0, RIGHT_DRIVE_WHEEL)
 
 # Simulation loop
+time_step = 2e-3
+time = 0
 while vis.Run():
-    # Apply straight movement
+    # Apply movement control
     move('straight')
-    
-    # Render the scene
-    vis.BeginScene()
-    vis.Render()
-    vis.EndScene()
-
-    # Advance simulation
-    system.DoStepDynamics(time_step)
-    time += time_step
     
     # Update sensor manager
     manager.Update()
+    
+    # Increment time
+    time += time_step
+    
+    # Render and step simulation
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    system.DoStepDynamics(time_step)
 ```

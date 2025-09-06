@@ -62,6 +62,7 @@ def collect_jllm_scores(jllm_name: str) -> pd.DataFrame:
         return pd.DataFrame()
     
     all_scores = []
+    failed_evaluations = []  # Track failed evaluations
     
     # Walk through model directories
     for model_dir in output_dir.iterdir():
@@ -87,12 +88,31 @@ def collect_jllm_scores(jllm_name: str) -> pd.DataFrame:
             if score_file.exists():
                 try:
                     df = pd.read_csv(score_file)
-                    # Extract the three score columns
+                    # Check for FAILED values
                     if all(col in df.columns for col in ['Score Document', 'Score Reference', 'Score Reference Document']):
-                        model_scores.append(df[['Score Document', 'Score Reference', 'Score Reference Document']].values)
+                        score_cols = ['Score Document', 'Score Reference', 'Score Reference Document']
+                        
+                        # Check if any values are FAILED
+                        for idx, row in df.iterrows():
+                            for col in score_cols:
+                                if str(row[col]) == 'FAILED':
+                                    failed_evaluations.append({
+                                        'model': model_name,
+                                        'system': system_dir.name,
+                                        'round': row.get('Round', 'unknown'),
+                                        'column': col
+                                    })
+                        
+                        # Try to convert to numeric
+                        for col in score_cols:
+                            df[col] = pd.to_numeric(df[col], errors='coerce')
+                        # Only add rows that have at least some valid scores
+                        clean_df = df[score_cols].dropna(how='all')
+                        if not clean_df.empty:
+                            model_scores.append(clean_df.values)
                 except Exception as e:
                     logger.warning(f"Error reading {score_file}: {e}")
-        
+    
         if model_scores:
             # Calculate average across all systems and rounds
             scores_array = np.vstack(model_scores)
@@ -104,6 +124,35 @@ def collect_jllm_scores(jllm_name: str) -> pd.DataFrame:
                 'Score Reference': avg_scores[1],
                 'Score Reference Document': avg_scores[2]
             })
+    
+    # Report failed evaluations
+    if failed_evaluations:
+        logger.error(f"\n{'='*60}")
+        logger.error(f"ERROR: Found {len(failed_evaluations)} FAILED evaluations")
+        logger.error(f"{'='*60}")
+        
+        # Group by model
+        failed_by_model = {}
+        for fail in failed_evaluations:
+            model = fail['model']
+            if model not in failed_by_model:
+                failed_by_model[model] = []
+            failed_by_model[model].append(fail)
+        
+        for model, failures in failed_by_model.items():
+            logger.error(f"\n{model}:")
+            for fail in failures[:5]:  # Show first 5 failures per model
+                logger.error(f"  - {fail['system']}/{fail['round']}: {fail['column']}")
+            if len(failures) > 5:
+                logger.error(f"  ... and {len(failures)-5} more failures")
+        
+        logger.error(f"\n{'='*60}")
+        logger.error("Please run: python fix_failed_simulations.py")
+        logger.error("to attempt to regenerate these failed simulations")
+        logger.error(f"{'='*60}\n")
+        
+        # Don't exit, just report the error
+        # sys.exit(1)
     
     if not all_scores:
         logger.warning(f"No scores found for {jllm_name}")

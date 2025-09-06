@@ -9,7 +9,7 @@ import math
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
-# Initial vehicle location and orientation
+# Initial vehicle location and orientation - MODIFIED POSITION
 initLoc = chrono.ChVector3d(-40, 0, 0.5)  # Changed from (0, 0, 0.5) to (-40, 0, 0.5)
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
@@ -49,7 +49,6 @@ vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
-
 vehicle.Initialize()
 
 vehicle.SetChassisVisualizationType(vis_type)
@@ -69,8 +68,8 @@ patch = terrain.AddPatch(patch_mat,
     chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
     terrainLength, terrainWidth)
 
-# Changed terrain texture from tile4.jpg to concrete.jpg
-patch.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 200, 200)
+# MODIFIED TERRAIN TEXTURE
+patch.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 200, 200)  # Changed from tile4.jpg to concrete.jpg
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
@@ -111,58 +110,53 @@ render_frame = 0
 
 # Double lane change maneuver parameters
 lane_change_start_time = 2.0
-first_lane_change_duration = 2.0
-second_lane_change_duration = 2.0
-braking_start_time = 6.0
+lane_change_duration = 3.0
+second_lane_change_time = 6.0
+braking_start_time = 10.0
 braking_duration = 2.0
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
-
-    # Double lane change maneuver logic
-    if time < lane_change_start_time:
-        # Initial acceleration phase
-        driver_inputs = veh.DriverInputs()
-        driver_inputs.m_throttle = 0.5
-    elif time < lane_change_start_time + first_lane_change_duration:
-        # First lane change (left)
-        driver_inputs = veh.DriverInputs()
-        driver_inputs.m_throttle = 0.3
-        driver_inputs.m_steering = -0.5  # Negative for left turn
-    elif time < lane_change_start_time + first_lane_change_duration + 1.0:
-        # Straighten after first lane change
-        driver_inputs = veh.DriverInputs()
-        driver_inputs.m_throttle = 0.3
-        driver_inputs.m_steering = 0.0
-    elif time < lane_change_start_time + first_lane_change_duration + 1.0 + second_lane_change_duration:
-        # Second lane change (right)
-        driver_inputs = veh.DriverInputs()
-        driver_inputs.m_throttle = 0.3
-        driver_inputs.m_steering = 0.5  # Positive for right turn
-    elif time < braking_start_time:
-        # Straighten after second lane change
-        driver_inputs = veh.DriverInputs()
-        driver_inputs.m_throttle = 0.3
-        driver_inputs.m_steering = 0.0
-    elif time < braking_start_time + braking_duration:
-        # Braking phase
-        driver_inputs = veh.DriverInputs()
-        driver_inputs.m_throttle = 0.0
-        driver_inputs.m_braking = 0.8
-        driver_inputs.m_steering = 0.0
-    else:
-        # After maneuver completes
-        driver_inputs = veh.DriverInputs()
-        driver_inputs.m_throttle = 0.0
-        driver_inputs.m_braking = 0.0
-        driver_inputs.m_steering = 0.0
-
     # Render scene and output POV-Ray data
     if (step_number % render_steps == 0):
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
         render_frame += 1
+
+    # Double lane change maneuver logic - ADDED
+    if time < lane_change_start_time:
+        # Initial straight driving
+        driver_inputs = driver.GetInputs()
+    elif time < lane_change_start_time + lane_change_duration:
+        # First lane change (left)
+        driver_inputs = driver.GetInputs()
+        driver_inputs.m_steering = 0.5  # Steer left
+        driver_inputs.m_throttle = 0.6  # Moderate acceleration
+    elif time < second_lane_change_time:
+        # Straight after first lane change
+        driver_inputs = driver.GetInputs()
+        driver_inputs.m_steering = 0.0  # Straight
+    elif time < second_lane_change_time + lane_change_duration:
+        # Second lane change (right)
+        driver_inputs = driver.GetInputs()
+        driver_inputs.m_steering = -0.5  # Steer right
+    elif time < braking_start_time:
+        # Straight after second lane change
+        driver_inputs = driver.GetInputs()
+        driver_inputs.m_steering = 0.0  # Straight
+    elif time < braking_start_time + braking_duration:
+        # Braking phase
+        driver_inputs = driver.GetInputs()
+        driver_inputs.m_steering = 0.0  # Straight
+        driver_inputs.m_throttle = 0.0  # No throttle
+        driver_inputs.m_braking = 0.8   # Apply brakes
+    else:
+        # After braking
+        driver_inputs = driver.GetInputs()
+        driver_inputs.m_steering = 0.0  # Straight
+        driver_inputs.m_throttle = 0.0  # No throttle
+        driver_inputs.m_braking = 0.0   # No braking
 
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
@@ -183,16 +177,14 @@ while vis.Run():
 ```
 
 Key modifications made:
-1. Changed initial vehicle position from `(0, 0, 0.5)` to `(-40, 0, 0.5)` as instructed
-2. Changed terrain texture from `tile4.jpg` to `concrete.jpg`
-3. Added double lane change maneuver logic with:
-   - Initial acceleration phase
-   - First lane change (left)
-   - Straightening phase
+1. Changed the initial vehicle position from `(0, 0, 0.5)` to `(-40, 0, 0.5)` as instructed
+2. Changed the terrain texture from `tile4.jpg` to `concrete.jpg`
+3. Added a double lane change maneuver logic with:
+   - Initial straight driving phase
+   - First lane change (left) with moderate acceleration
+   - Straight driving after first lane change
    - Second lane change (right)
-   - Braking phase
-   - Final stop phase
-4. Fixed a minor comment typo ("Poon chassis" to "Point on chassis")
-5. Ensured the driver inputs are properly managed throughout the maneuver
+   - Braking phase after the second lane change
+   - Final straight driving with no throttle or braking
 
-The script should now run correctly with the specified modifications. The double lane change maneuver is implemented with timed phases for steering and braking inputs.
+The script appears to be correct in terms of syntax and method usage. The main changes were the requested modifications rather than error corrections. The original script was already well-structured and functional.

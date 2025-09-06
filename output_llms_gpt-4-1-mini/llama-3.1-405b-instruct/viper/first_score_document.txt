@@ -7,161 +7,181 @@
 - **System Initialization:** Present and correct (`chrono.ChSystemNSC()` and gravity set). **No deduction.**
 
 - **Body Creation:**
-
-  - Ground body created using `ChBodyEasyBox`.  
-    - **Issue:** The constructor is incorrectly called with `sys` as the first argument, which is not part of the API for `ChBodyEasyBox`. According to the documentation, `ChBodyEasyBox(lengthX, lengthY, lengthZ, density, visualize, collision, material=None)` is the signature. The system is not passed here.  
-    - Also, the position and rotation are set as arguments, but `ChBodyEasyBox` does not accept position or rotation in the constructor; these should be set via `SetPos()` and `SetRot()` after creation.  
-    - **Deduction:** This is a significant API misuse affecting body placement and simulation correctness. Deduct **15 points** under Correctness.
-
-  - Rover body created similarly with the same incorrect constructor usage.  
-    - Same issues as above. Deduct **15 points** under Correctness.
-
-- **Driver creation:**
-
-  - Created as `chrono.ChPart(sys)`.  
-  - **Issue:** There is no `ChPart` class in PyChrono API documentation or standard usage. Possibly a confusion or typo.  
-  - The driver is then added to the system and attached as a child to the rover.  
-  - **Deduction:** Missing or incorrect component. Deduct **15 points** under Completeness.
-
-- **Joints and links:**
-
-  - No joints or constraints are created to connect the driver to the rover or to implement steering.  
-  - The code attempts to update the rover's steering by calling `rover.SetFrame_COG_to_REF(...)` with a `ChFrameMovingD` that applies a rotation for steering.  
-  - **Issue:** `SetFrame_COG_to_REF` is not a standard method in PyChrono API; the correct method is `SetFrame_COG_to_REF()` but it expects a `ChFrame` or `ChFrameMoving` object, and this is usually not used to steer a vehicle. Steering typically requires joints or motors.  
-  - No wheels or steering mechanisms are modeled.  
-  - **Deduction:** Missing essential components for a rover simulation (wheels, joints, steering mechanisms). Deduct **15 points** under Completeness.
+  - Ground and rover bodies created using `ChBodyEasyBox`. However, the API signature for `ChBodyEasyBox` is:
+    ```python
+    ChBodyEasyBox(lengthX, lengthY, lengthZ, density, visualize, collision, material=None)
+    ```
+    The script incorrectly passes `sys` as the first argument, which is not part of the API. This is a **significant error** (see correctness below).
+  - The ground and rover bodies lack explicit material specification, which is optional but recommended for contact properties. **Minor omission** but acceptable.
+  - The driver is created as `chrono.ChPart(sys)`, which is **incorrect**; `ChPart` is not a PyChrono class. The correct base class for bodies is `ChBody()`. This is a **major missing component**.
+  - The driver is added as a child to the rover via `rover.AddChild(driver)`. This is not a standard method in PyChrono for attaching bodies; typically, joints or constraints are used. This is a **logical error**.
 
 - **Visualization:**
+  - Visualization system created with `chronoirr.ChVisualSystemIrrlicht()`.
+  - However, the visualization system is **not attached to the system** via `vis.AttachSystem(sys)`, which is essential for visualization to track the system bodies.
+  - The camera is added with two arguments, but the API expects a single position vector or a position and target vector as a single argument (the documentation shows `AddCamera(position)` or `AddCamera(position, target)` but the example uses `AddCamera(chrono.ChVector3d(0, 3, 6))`). The code uses `AddCamera(chrono.ChVectorD(-5, 2, -5), chrono.ChVectorD(0, 0, 0))` which is acceptable if the API supports it.
+  - Lighting is added with `AddLightWithShadow`, which is acceptable.
+  - The visualization loop uses `vis.DrawAll()`, but the recommended approach is to use `vis.Run()`, `vis.BeginScene()`, `vis.Render()`, and `vis.EndScene()` for proper rendering. This is a **minor omission**.
 
-  - Visualization system created with Irrlicht.  
-  - However, `vis.AttachSystem(sys)` is missing, which is essential to link the physical system to the visualization.  
-  - The camera is added with two arguments (position and look-at), but the API expects a single position vector for `AddCamera()`.  
-  - Lighting is added with `AddLightWithShadow()`, which is not documented in the provided API; the documented method is `AddTypicalLights()`.  
-  - **Deduction:** Visualization is present but incorrectly configured and incomplete. Deduct **10 points** under Completeness.
+- **Simulation Loop:**
+  - The loop advances time and calls `sys.DoStepDynamics(time_step)`.
+  - Steering angle is updated, but the method used to update the rover's orientation is incorrect (see correctness).
 
-- **Simulation loop:**
+**Deductions:**
 
-  - Present and basic.  
-  - However, it does not check `vis.Run()` to ensure the window is open, which is standard practice.  
-  - Also, rendering is done with `vis.DrawAll()`, which is not part of the documented API; the standard sequence is `BeginScene()`, `Render()`, `EndScene()`.  
-  - **Deduction:** Minor omissions in simulation loop and rendering. Deduct **5 points** under Completeness.
+- Missing correct driver creation and attachment: **-15 points**
+- Visualization system not attached to system: **-15 points**
+- Minor omission in visualization loop usage: **-5 points**
 
-**Total Completeness deduction: 15 (driver missing) + 15 (missing joints) + 10 (visualization incomplete) + 5 (simulation loop minor) = 45 points**
-
-Since total completeness is 40 points, the maximum deduction is 40 points.
+**Subtotal Completeness: 40 - 35 = 5 points**
 
 ---
 
 ### 2. Correctness (30 points)
 
-- **Incorrect constructor usage for `ChBodyEasyBox` (passing `sys` and position/rotation in constructor):** Deduct **15 points**.
+- **Incorrect use of `ChBodyEasyBox`:** The first argument is `sys`, which is not part of the API. The correct signature is `(lengthX, lengthY, lengthZ, density, visualize, collision, material=None)`. Passing `sys` will cause an error or unexpected behavior. **-15 points**
 
-- **Use of non-existent class `ChPart`:** Deduct **15 points**.
+- **Driver creation:** `chrono.ChPart(sys)` is invalid; `ChPart` does not exist in PyChrono. The driver should be a `ChBody()` or a derived class. **-15 points**
 
-- **Incorrect method `SetFrame_COG_to_REF` usage for steering:** This is a logical error; steering should be implemented via joints or motors, not by setting the frame directly. Deduct **10 points**.
+- **Attachment of driver to rover:** Using `rover.AddChild(driver)` is not a valid method in PyChrono. To attach bodies, joints or constraints should be used. **-10 points**
 
-- **Visualization API misuse (`AddCamera` with two arguments, `AddLightWithShadow` not documented, `DrawAll` instead of BeginScene/Render/EndScene):** Deduct **5 points**.
+- **Updating rover steering:**
+  - The code uses `rover.SetFrame_COG_to_REF(chrono.ChFrameMovingD(...))` with a quaternion constructed as `(1, 0, 0, steering_angle)`.
+  - Quaternions are `(w, x, y, z)` and must be normalized. Setting `z` to `steering_angle` directly is incorrect.
+  - Also, `SetFrame_COG_to_REF` is not a standard method for updating orientation dynamically in PyChrono.
+  - The correct approach would be to set the rotation via `SetRot(chrono.ChQuaternionD(...))` or use a joint to steer wheels.
+  - This is a **major logical error** affecting simulation behavior. **-15 points**
 
-**Total Correctness deduction: 15 + 15 + 10 + 5 = 45 points**
+- **Gravity setting:** Uses `sys.Set_G_acc(...)`, but the correct method is `sys.Set_G_acc(chrono.ChVectorD(...))`. This is correct.
 
-Maximum deduction is 30 points, so full 30 points deducted.
+- **Visualization camera and lighting:** Acceptable.
+
+**Deductions:**
+
+- Incorrect `ChBodyEasyBox` usage: **-15 points**
+- Invalid driver creation: **-15 points**
+- Invalid attachment of driver: **-10 points**
+- Incorrect steering update: **-15 points**
+
+Total deductions exceed 30 points, but max deduction is 30.
+
+**Subtotal Correctness: 0 points**
 
 ---
 
 ### 3. Code Quality (10 points)
 
-- The code has some comments but they are sparse and do not explain key steps or rationale.
+- The code has some comments, but they are sparse and sometimes redundant (e.g., `# Create a driver for the rover` but no explanation of why or how).
 
-- Variable names are reasonable (`sys`, `ground`, `rover`, `driver`, `vis`).
+- Variable names are meaningful (`sys`, `ground`, `rover`, `driver`, `vis`, `time_step`, `time_end`, `steering_angle`).
 
 - Formatting is acceptable.
 
-- Lack of docstrings or detailed comments explaining the simulation setup.
+- Lack of docstrings or detailed comments explaining the physics or design choices.
 
-- **Deduction:** Moderate lack of comments/documentation. Deduct **5 points** for insufficient comments.
+- No error handling or input validation.
 
-- Readability is acceptable, so no further deduction.
+**Deductions:**
+
+- Insufficient comments/documentation: **-5 points**
+
+- Overall readability and structure acceptable: no further deduction.
+
+**Subtotal Code Quality: 5 points**
 
 ---
 
 ### 4. Efficiency (10 points)
 
-- No obvious redundant calculations.
+- The steering angle update is simple and efficient.
 
-- However, the steering angle is updated every loop, but the method used to apply it is incorrect and inefficient.
+- The simulation loop does not check if the visualization window is still open (`vis.Run()`), which could cause issues if the window is closed prematurely.
 
-- The code does not check if the visualization window is still open (`vis.Run()`), which could cause unnecessary computations after window closure.
+- The visualization rendering uses `vis.DrawAll()`, which is less efficient and less flexible than the recommended `BeginScene()`, `Render()`, `EndScene()` pattern.
 
-- **Deduction:** Missing `vis.Run()` check is a minor inefficiency. Deduct **3 points**.
+- No redundant calculations or obvious inefficiencies.
+
+**Deductions:**
+
+- Missing `vis.Run()` check and proper rendering loop: **-3 points**
+
+**Subtotal Efficiency: 7 points**
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- No error handling at all (e.g., no try-except blocks, no checks on file paths or system initialization).
+- No error handling for invalid paths (`chrono.SetChronoDataPath('/path/to/chrono/data/')`).
 
-- The data path is hardcoded without validation.
+- No checks for visualization initialization success.
 
-- No handling of visualization window closure or simulation termination conditions.
+- No handling for simulation termination conditions other than time.
 
-- **Deduction:** Lack of basic error handling. Deduct **5 points**.
+- No handling for potential exceptions.
+
+**Deductions:**
+
+- Lack of basic error handling: **-5 points**
+
+**Subtotal Error Handling: 0 points**
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
-- Visualization system is created but not attached to the system (`vis.AttachSystem(sys)` missing).
+- Visualization system created but **not attached to the system** (`vis.AttachSystem(sys)` missing).
 
-- Incorrect camera setup (two arguments instead of one).
+- Lighting added with shadows, skybox added.
 
-- Use of `AddLightWithShadow` which is not documented.
+- Camera added with position and target.
 
-- Use of `DrawAll()` which is not part of the documented API.
+- Visualization loop uses `vis.DrawAll()` instead of recommended pattern.
 
-- No typical lights added.
+- No logo added (optional).
 
-- **Deduction:** Incorrect and incomplete visualization setup. Deduct **5 points**.
+**Deductions:**
 
----
+- Missing `AttachSystem`: **-5 points**
 
-## Summary of deductions:
+- Minor visualization loop issue: already counted under completeness.
 
-| Criterion                     | Max Points | Deduction | Notes                                      |
-|-------------------------------|------------|-----------|--------------------------------------------|
-| Completeness                  | 40         | 40        | Missing driver class, joints, visualization incomplete |
-| Correctness                  | 30         | 30        | Incorrect API usage for bodies, driver, steering, visualization |
-| Code Quality                 | 10         | 5         | Insufficient comments                       |
-| Efficiency                  | 10         | 3         | Missing `vis.Run()` check                    |
-| Error Handling and Robustness | 5          | 5         | No error handling                           |
-| Visualization Tools          | 5          | 5         | Visualization setup incorrect               |
-| **Total**                    | **100**    | **88**    |                                            |
+**Subtotal Visualization: 0 points**
 
 ---
 
-## Final score:
+### **Final Score Calculation**
 
-100 - 88 = **12**
+| Category                  | Points | Deduction | Score |
+|---------------------------|--------|-----------|-------|
+| Completeness              | 40     | 35        | 5     |
+| Correctness               | 30     | 30        | 0     |
+| Code Quality              | 10     | 5         | 5     |
+| Efficiency                | 10     | 3         | 7     |
+| Error Handling & Robustness | 5      | 5         | 0     |
+| Visualization             | 5      | 5         | 0     |
+| **Total**                 | 100    | 83        | 17    |
 
 ---
 
-[[12]]
+### **Summary of Major Issues**
+
+- Incorrect usage of `ChBodyEasyBox` constructor (passing system as first argument).
+
+- Invalid creation of driver body (`ChPart` does not exist).
+
+- Incorrect method to attach driver to rover.
+
+- Incorrect method and quaternion usage for steering update.
+
+- Visualization system not attached to the system.
+
+- Missing proper visualization rendering loop.
+
+- Lack of error handling.
 
 ---
 
-### Explanation:
+[[17]]
 
-The script includes the basic structure of a PyChrono simulation but contains multiple critical errors:
-
-- The use of `ChBodyEasyBox` is incorrect (passing system and position/rotation in constructor).
-
-- The driver is created using a non-existent class `ChPart`.
-
-- No joints or mechanisms are used to implement steering or connect the driver to the rover.
-
-- Visualization setup is incomplete and uses incorrect API calls.
-
-- The simulation loop does not follow best practices for rendering and window management.
-
-- Lack of error handling and insufficient comments reduce code robustness and clarity.
-
-These issues severely impact the correctness and completeness of the simulation, leading to a low score.
+**Explanation:**  
+The script includes essential components but with critical API misuse and logical errors that would prevent the simulation from running correctly. The driver creation and attachment are fundamentally flawed, and the steering update is incorrectly implemented. Visualization setup is incomplete without attaching the system and using the proper rendering loop. Code quality is moderate, but lack of comments and error handling further reduce the score. Efficiency is acceptable but could be improved with better visualization loop control.

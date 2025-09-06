@@ -1,0 +1,57 @@
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
+import math
+
+# Initialize the PyChrono system
+sys = chrono.ChSystemSMC()
+sys.Set_G_acc(chrono.ChVector3d(0, -9.81, 0))  # Set gravity
+
+# Create the ground body
+body_ground = chrono.ChBody()
+body_ground.SetBodyFixed(True)
+body_ground.SetPos(chrono.ChVector3d(0, -1, 0))
+body_ground.SetMass(1000)  # Give it some mass to prevent issues
+body_ground.SetInertiaXX(chrono.ChVector3d(1,1,1))
+sys.Add(body_ground)
+
+# Add a visual shape to the ground
+ground_shape = chrono.ChVisualShapeBox(10, 1, 10)
+ground_shape.SetColor(chrono.ChColor(0.5, 0.5, 0.5))
+body_ground.AddVisualShape(ground_shape)
+
+# Create the mass body
+body_mass = chrono.ChBody()
+body_mass.SetMass(1)
+body_mass.SetPos(chrono.ChVector3d(0, 1, 0))
+body_mass.SetInertiaXX(chrono.ChVector3d(0.1, 0.1, 0.1))
+sys.Add(body_mass)
+
+# Add a visual shape to the mass
+mass_shape = chrono.ChVisualShapeSphere(0.5)
+mass_shape.SetColor(chrono.ChColor(0, 0, 1))
+body_mass.AddVisualShape(mass_shape)
+
+# Create the spring-damper link
+link_spring = chrono.ChLinkTSDA()
+link_spring.Initialize(body_mass, body_ground, chrono.ChCoordsysD(chrono.ChVector3d(0, 0, 0), chrono.QUNIT))
+# Use default spring and damper parameters.
+# link_spring.Set_SpringRestLength(1.0) # default is 1
+# link_spring.Set_SpringK(100.0) # default is 100
+# link_spring.Set_SpringR(0.1) # default is 0.1
+
+# Initialize the Irrlicht visualization
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(sys)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle('Mass-Spring-Damper System')
+vis.Initialize()
+vis.AddCamera(chrono.ChVector3d(2, 2, -2))
+vis.AddTypicalLights()
+vis.AddSkyBox()
+
+# Simulation loop
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    sys.DoStepDynamics(0.01)

@@ -1,4 +1,4 @@
-I'll review the script, identify any potential issues, and then modify it according to the instructions. Here's the corrected and modified version:
+I'll review the script, identify any potential errors, and then modify it according to the instructions. Here's the corrected and modified version:
 
 ```python
 import pychrono.core as chrono
@@ -44,8 +44,7 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  # FPS = 50
 
 # Added logging step size
-log_step_size = 1.0 / 10  # Log at 10 Hz
-log_steps = math.ceil(log_step_size / step_size)
+log_step_size = 0.1  # Log every 0.1 seconds
 
 # Create the HMMWV vehicle, set parameters, and initialize
 vehicle = veh.HMMWV_Full() # veh.HMMWV_Reduced() could be another choice
@@ -106,7 +105,7 @@ driver.Initialize()
 manager = sens.ChSensorManager(vehicle.GetSystem())
 
 # Create an IMU sensor and add it to the manager
-offset_pose = chrono.ChFramed(chrono.ChVector3d(-8, 0, 1), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0)))
+offset_pose = chrono.ChFrameMoving<>(chrono.ChVector3d(-8, 0, 1), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0)))
 imu = sens.ChAccelerometerSensor(vehicle.GetChassisBody(),                     # Body IMU is attached to
                                  10,        # Update rate in Hz
                                  offset_pose,          # Offset pose
@@ -136,6 +135,9 @@ manager.AddSensor(gps)
 # Initialize GPS data list
 gps_data = []
 
+# Calculate log steps
+log_steps = math.ceil(log_step_size / step_size)
+
 # ---------------
 # Simulation loop
 # ---------------
@@ -155,6 +157,18 @@ render_frame = 0
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
+    # Modified driver inputs based on simulation time
+    if time < 6.0:
+        # First 6 seconds: accelerate and steer
+        driver.SetSteering(0.5 * math.sin(time))  # Oscillating steering
+        driver.SetThrottle(0.8)  # Constant throttle
+        driver.SetBraking(0.0)   # No braking
+    else:
+        # After 6 seconds: brake and straighten steering
+        driver.SetSteering(0.0)  # Straight
+        driver.SetThrottle(0.0)  # No throttle
+        driver.SetBraking(0.7)   # Apply braking
+
     # Render scene and output POV-Ray data
     if step_number % render_steps == 0:
         vis.BeginScene()
@@ -162,23 +176,14 @@ while vis.Run():
         vis.EndScene()
         render_frame += 1
 
-    # Get driver inputs - modified to include specific commands
-    driver_inputs = driver.GetInputs()
+    # Log GPS data at specified intervals
+    if step_number % log_steps == 0:
+        gps_buffer = gps.GetMostRecentGPSBuffer()
+        if gps_buffer:
+            gps_data.append(gps_buffer.GetGPSData())
 
-    # Modified driver inputs based on simulation time
-    if time < 3.0:
-        # First 3 seconds: accelerate forward with slight left turn
-        driver_inputs.m_throttle = 0.5
-        driver_inputs.m_steering = 0.2
-    elif time < 6.0:
-        # Next 3 seconds: accelerate forward with slight right turn
-        driver_inputs.m_throttle = 0.5
-        driver_inputs.m_steering = -0.2
-    else:
-        # After 6 seconds: brake
-        driver_inputs.m_throttle = 0.0
-        driver_inputs.m_braking = 0.8
-        driver_inputs.m_steering = 0.0
+    # Get driver inputs
+    driver_inputs = driver.GetInputs()
 
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
@@ -195,50 +200,28 @@ while vis.Run():
     # Update sensor manager in each step
     manager.Update()
 
-    # Added GPS data logging
-    if step_number % log_steps == 0:
-        gps_buffer = gps.GetMostRecentGPSBuffer()
-        if gps_buffer:
-            gps_data.append(gps_buffer.GetGPSData())
-
     # Increment frame number
     step_number += 1
 
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
 
-# Added GPS data output
+# Print the logged GPS data at the end of simulation
 print("GPS Data: ", gps_data)
 ```
 
-Key modifications made:
+Key corrections and modifications made:
 
-1. **Added Logging Step Size**:
-   - Defined `log_step_size` (10 Hz) and calculated `log_steps`
+1. **Corrections**:
+   - Fixed the `ChFramed` to `ChFrameMoving<>` for the offset_pose (correct class name)
+   - Ensured all necessary imports are present
 
-2. **Initialized GPS Data List**:
-   - Added `gps_data = []` before the simulation loop
+2. **Modifications**:
+   - Added `log_step_size` variable to control logging frequency
+   - Initialized `gps_data` list to store GPS coordinates
+   - Added GPS data logging mechanism that logs at intervals defined by `log_steps`
+   - Modified driver inputs to include specific throttle and steering commands based on simulation time
+   - Added braking after 6 seconds as requested
+   - Added output of logged GPS data at the end of the simulation
 
-3. **Added GPS Data Logging**:
-   - Implemented logging at `log_steps` intervals using `gps.GetMostRecentGPSBuffer().GetGPSData()`
-   - Appended data to `gps_data` list
-
-4. **Modified Driver Inputs**:
-   - Changed driver inputs to include specific throttle and steering commands:
-     - First 3 seconds: accelerate forward with slight left turn
-     - Next 3 seconds: accelerate forward with slight right turn
-     - After 6 seconds: brake
-
-5. **Added GPS Data Output**:
-   - Added `print("GPS Data: ", gps_data)` at the end of the simulation loop
-
-Potential issues identified and corrected:
-1. The original script didn't have any obvious syntax errors or incorrect method names.
-2. The main improvement was adding proper error checking for the GPS buffer access.
-3. The driver input modification ensures the vehicle follows a specific path rather than just responding to user input.
-
-The modified script should now:
-- Log GPS data at regular intervals
-- Follow a predefined path with specific steering and throttle commands
-- Output the collected GPS data at the end of the simulation
-- Maintain all the original functionality while adding the requested features
+The script now includes all the requested functionality while maintaining the original simulation structure. The GPS data will be collected at regular intervals and printed at the end of the simulation, and the vehicle will follow a specific driving pattern with steering, acceleration, and braking phases.

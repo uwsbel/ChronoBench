@@ -10,104 +10,78 @@ import pychrono.irrlicht as irr
 chrono.SetChronoDataPath("/path/to/chrono/data/")
 
 # Create a Chrono::Engine physical system
-my_system = chrono.ChSystemNSC()
-
-# Create the ground body
-ground = chrono.ChBodyEasyBox(
-    my_system,        # the physical system where the body will be created
-    100, 2, 100,     # x, y, z dimensions
-    1000,            # density
-    True,            # enable contact geometry
-    True,            # enable visualization geometry
-    0.01,            # contact material friction
-    0.9             # contact material restitution
-)
-ground.SetBodyFixed(True)
+sys = chrono.ChSystemNSC()
 
 # Create the vehicle model
-my_truck = veh.ChPart(ground)
-my_truck.SetMass(10000)
-my_truck.SetInertiaXX(chrono.ChVectorD(1000, 1000, 1000))
-
-# Add visualization assets for the vehicle model
-my_truck.AddVisualizationAssets(
-    veh.ChVisualizationType_MESH, 
-    "/path/to/truck/mesh.obj", 
-    "/path/to/truck/texture.png"
-)
-
-# Add collision shape for the vehicle model
-my_truck.AddCollisionShape(
-    veh.ChCollisionShapeType_BOX, 
-    chrono.ChVectorD(5, 2, 10)
-)
+veh_model = veh.ChPart()
+veh_model.SetMass(10000)  # 10t truck
+veh_model.SetInertiaXX(1000)
+veh_model.SetInertiaYY(1000)
+veh_model.SetInertiaZZ(1000)
+sys.Add(veh_model)
 
 # Create the TMEasy tire model
-my_tire = veh.ChTMEasyTireModel(my_system)
-my_tire.SetTireParam(veh.ChTMEasyTireModel.PARAM_RADIUS, 0.5)
-my_tire.SetTireParam(veh.ChTMEasyTireModel.PARAM_WIDTH, 0.3)
-my_tire.SetTireParam(veh.ChTMEasyTireModel.PARAM_TREAD, 0.05)
+tire_model = veh.ChTMEasyTireModel()
+tire_model.SetTireRadius(0.5)
+tire_model.SetTireWidth(0.2)
+tire_model.SetTreadDepth(0.05)
+tire_model.SetFrictionCoefficient(0.7)
+sys.Add(tire_model)
 
-# Add the tire model to the vehicle
-my_truck.AddTireModel(my_tire)
+# Create the driver controls
+driver = veh.ChIrrNodeDriver()
+driver.SetSteering(0)
+driver.SetThrottle(0)
+driver.SetBraking(0)
+sys.Add(driver)
 
-# Create real-time driver controls
-my_driver = veh.ChRealtimeDriver(my_system)
-my_driver.Initialize()
+# Create the Irrlicht visualization system
+vis = irr.ChVisualSystemIrrlicht()
+vis.SetWindowSize(800, 600)
+vis.SetWindowTitle("PyChrono Simulation")
+vis.Initialize()
+sys.Add(vis)
 
-# Add controls for steering, throttle, and braking
-my_driver.AddControl(veh.ChRealtimeDriver.CONTROL_TYPE_STEERING)
-my_driver.AddControl(veh.ChRealtimeDriver.CONTROL_TYPE_THROTTLE)
-my_driver.AddControl(veh.ChRealtimeDriver.CONTROL_TYPE_BRAKING)
+# Create a chase camera
+camera = irr.ChCamera()
+camera.SetCameraPosition(chrono.ChVectorD(0, 2, -5))
+camera.SetCameraTarget(chrono.ChVectorD(0, 0, 0))
+vis.AddCamera(camera)
 
-# Create an Irrlicht visualization system
-application = irr.ChIrrApp(
-    my_system, 
-    "MAN 10t Truck Simulation", 
-    irr.dimension2du(800, 600), 
-    False, 
-    True
-)
+# Create directional lighting
+light = irr.ChLightWithShadow()
+light.SetLightDirection(chrono.ChVectorD(1, -1, -1))
+light.SetLightIntensity(1)
+vis.AddLight(light)
 
-# Add a chase camera
-application.AddCamera(
-    irr.ChCameraType_CHASE, 
-    2.0, 
-    0.5, 
-    irr.dimension2du(0, 0)
-)
+# Create a skybox
+skybox = irr.ChSkyBox()
+skybox.SetSkyBoxTexture("/path/to/skybox/texture.jpg")
+vis.AddSkyBox(skybox)
 
-# Add directional lighting
-application.AddLight(
-    irr.ChLightType_DIRECTIONAL, 
-    chrono.ChVectorD(1, 1, 1), 
-    chrono.ChVectorD(0, 0, 0)
-)
+# Create a rigid terrain
+terrain = veh.ChRigidTerrain()
+terrain.SetTerrainHeight(0)
+terrain.SetTerrainTexture("/path/to/terrain/texture.jpg")
+sys.Add(terrain)
 
-# Add a skybox
-application.AddSkyBox(
-    irr.ChSkyBoxType_CUBEMAP, 
-    "/path/to/skybox/top.png", 
-    "/path/to/skybox/bottom.png", 
-    "/path/to/skybox/left.png", 
-    "/path/to/skybox/right.png", 
-    "/path/to/skybox/front.png", 
-    "/path/to/skybox/back.png"
-)
+# Create a vehicle-terrain interaction
+interaction = veh.ChVehicleTerrainInteraction()
+interaction.SetVehicle(veh_model)
+interaction.SetTerrain(terrain)
+sys.Add(interaction)
 
-# Customize terrain textures and logos
-application.SetTerrainTexture("/path/to/terrain/texture.png")
-application.SetLogo("/path/to/logo.png")
+# Set the simulation time step and simulation duration
+sys.SetTimeStep(0.01)
+sys.SetEndTime(100)
 
 # Run the simulation
-application.AssetBindAll()
-application.AssetUpdateAll()
-application.Simulate(0, 100)
-
-# Close the simulation
-application.Close()
+while sys.GetTime() < sys.GetEndTime():
+    sys.DoStepDynamics(sys.GetTimeStep())
+    vis.AdvanceTime(sys.GetTimeStep())
+    vis.DrawAll()
 ```
 
-This script creates a PyChrono simulation showcasing the dynamics of a MAN 10t truck driving on a rigid terrain. The system includes a vehicle model with configurable visualization and collision settings, a TMEASY tire model, and real-time driver controls for steering, throttle, and braking. The simulation is visualized using the Irrlicht visualization system with a chase camera, directional lighting, a skybox, and customizable terrain textures and logos. 
+Note that you'll need to replace the `/path/to/chrono/data/`, `/path/to/skybox/texture.jpg`, and `/path/to/terrain/texture.jpg` placeholders with the actual file paths on your system.
 
-Please replace the "/path/to/*" placeholders with the actual file paths to your assets.
+Also, this script assumes a basic understanding of PyChrono and its modules. You may need to modify the script to fit your specific use case or to add additional features such as customizable terrain textures and logos.

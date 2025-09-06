@@ -171,12 +171,15 @@ def _chat_completion(model_name: str, prompt: str):
     last_err = None
     for attempt in range(1, RETRIES + 1):
         try:
+            # Special case for gemma-3-27b-it which has a 4096 max_tokens limit
+            tokens_to_use = 4096 if "gemma-3-27b-it" in model_id else MAX_TOKENS
+            
             resp = client.chat.completions.create(
                 model=model_id,
                 messages=[{"role": "user", "content": prompt}],
                 temperature=TEMPERATURE,
                 top_p=TOP_P,
-                max_tokens=MAX_TOKENS,
+                max_tokens=tokens_to_use,
                 stream=False,
             )
             return resp.choices[0].message.content, prompt

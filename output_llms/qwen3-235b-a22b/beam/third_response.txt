@@ -1,19 +1,47 @@
-Here is the corrected and modified PyChrono script that addresses the identified issues and fulfills the requirement of adding an additional beam segment using `BuildBeam()`:
+To address the requirements and correct the issues in the provided PyChrono script, we proceed with the following modifications:
 
 ---
 
-### ✅ **Corrections Made**
-1. **Section Rotation Fix**:  
-   The original line `msection.SetSectionRotation(45 * chrono.CH_RAD_TO_DEG)` was incorrect. It incorrectly converts 45 radians to degrees, which is not the intended behavior.  
-   - **Fixed to**: `msection.SetSectionRotation(chrono.CH_DEG_TO_RAD * 45)`  
-     This correctly sets the section rotation to **45 degrees** in radians.
+### ✅ **Error Identified and Corrected**
 
-2. **Addition of a New Beam Segment**:  
-   As per the instruction, a new beam is added starting from the last node of the previous beam (i.e., the endpoint of the first beam created by `BuildBeam()`), and ending at `(0.2, 0.1, -0.1)` with the Y-up direction `(0, 1, 0)`.
+The line:
+
+```python
+msection.SetSectionRotation(45*chrono.CH_RAD_TO_DEG)
+```
+
+is **incorrect**. The function `SetSectionRotation` expects an angle in **radians**, but the code incorrectly converts 45 radians to degrees. This results in an extremely large rotation (approximately 2578.8 degrees), which is not intended.
+
+**Correction:**
+
+We should convert **45 degrees to radians** using the correct conversion factor:
+
+```python
+msection.SetSectionRotation(45 * chrono.CH_DEG_TO_RAD)
+```
 
 ---
 
-### ✅ **Modified Script**
+### ✅ **Requirement Implementation**
+
+The task requires adding **another beam segment** using `builder.BuildBeam()`. This new beam should:
+
+- Start at the **last node** of the previously created beam (i.e., the end of the first beam).
+- End at the point `(0.2, 0.1, -0.1)`.
+- Use the same beam section and Y-up direction `(0, 1, 0)`.
+
+To ensure the new beam starts at the correct position, we retrieve the position of the last node from the previous beam using:
+
+```python
+prev_last_node = builder.GetLastBeamNodes().back()
+a_point = prev_last_node.GetPos()
+```
+
+This ensures the new beam starts at the **same position** as the last node of the previous beam, even if the coordinates change in the future.
+
+---
+
+### ✅ **Final Corrected and Modified Script**
 
 ```python
 import pychrono as chrono
@@ -38,10 +66,9 @@ msection.SetShearModulus(0.01e9 * 0.3)
 msection.SetRayleighDamping(0.000)
 msection.SetCentroid(0, 0.02)
 msection.SetShearCenter(0, 0.1)
-# ✅ Corrected section rotation to 45 degrees in radians
-msection.SetSectionRotation(chrono.CH_DEG_TO_RAD * 45)
+msection.SetSectionRotation(45 * chrono.CH_DEG_TO_RAD)  # Corrected from CH_RAD_TO_DEG
 
-# Add some EULER-BERNOULLI BEAMS
+# Add some EULER-BERNOULLI BEAMS manually
 beam_L = 0.1
 
 hnode1 = fea.ChNodeFEAxyzrot(chrono.ChFramed(chrono.ChVector3d(0, 0, 0)))
@@ -81,28 +108,32 @@ constr_d.Initialize(hnode1, mtruss, False, hnode1.Frame(), hnode1.Frame())
 sys.Add(constr_d)
 constr_d.SetConstrainedCoords(False, True, True, False, False, False)
 
-# Build first beam using ChBuilderBeamEuler
+# Add beam using ChBuilderBeamEuler
 builder = fea.ChBuilderBeamEuler()
 
+# First beam
 builder.BuildBeam(mesh, msection, 5,
                   chrono.ChVector3d(0, 0, -0.1),
                   chrono.ChVector3d(0.2, 0, -0.1),
                   chrono.ChVector3d(0, 1, 0))
 
-# Fix the endpoint of the first beam and apply force to the start
+# Apply constraints to the first beam
 builder.GetLastBeamNodes().back().SetFixed(True)
 builder.GetLastBeamNodes().front().SetForce(chrono.ChVector3d(0, -1, 0))
 
-# ✅ Add a new beam starting from the endpoint of the previous beam
+# Add second beam (new requirement)
+prev_last_node = builder.GetLastBeamNodes().back()
+a_point = prev_last_node.GetPos()
+
 builder.BuildBeam(mesh, msection, 5,
-                  chrono.ChVector3d(0.2, 0, -0.1),  # Start at previous beam's endpoint
-                  chrono.ChVector3d(0.2, 0.1, -0.1),  # New endpoint
-                  chrono.ChVector3d(0, 1, 0))  # Y-up direction
+                  a_point,
+                  chrono.ChVector3d(0.2, 0.1, -0.1),
+                  chrono.ChVector3d(0, 1, 0))
 
 # Disable gravity on FEA mesh
 mesh.SetAutomaticGravity(False)
 
-# Add mesh to the system
+# Add mesh to system
 sys.Add(mesh)
 
 # Visualization
@@ -110,6 +141,7 @@ visualizebeamA = chrono.ChVisualShapeFEA(mesh)
 visualizebeamA.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_ELEM_BEAM_MZ)
 visualizebeamA.SetColorscaleMinMax(-0.4, 0.4)
 visualizebeamA.SetSmoothFaces(True)
+visualizebeamA.SetWireframe(False)
 mesh.AddVisualShapeFEA(visualizebeamA)
 
 visualizebeamC = chrono.ChVisualShapeFEA(mesh)
@@ -120,7 +152,7 @@ visualizebeamC.SetSymbolsScale(0.01)
 visualizebeamC.SetZbufferHide(False)
 mesh.AddVisualShapeFEA(visualizebeamC)
 
-# Visualization system
+# Irrlicht visualization
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(sys)
 vis.SetWindowSize(1024, 768)
@@ -131,7 +163,7 @@ vis.AddSkyBox()
 vis.AddCamera(chrono.ChVector3d(0.1, 0.1, 0.2))
 vis.AddTypicalLights()
 
-# Use MKL Pardiso solver
+# Use MKL solver
 msolver = mkl.ChSolverPardisoMKL()
 sys.SetSolver(msolver)
 
@@ -146,9 +178,9 @@ while vis.Run():
 ---
 
 ### ✅ **Summary of Changes**
-| Issue | Fix |
-|------|-----|
-| Incorrect section rotation | Replaced `CH_RAD_TO_DEG` with `CH_DEG_TO_RAD` |
-| Missing beam segment | Added a second `BuildBeam()` call to connect the last node of the first beam to a new endpoint |
 
-This script now correctly models a beam structure with two connected beam segments, with proper rotation and visualization, and is ready for simulation.
+- ✅ **Fixed** incorrect section rotation by using `CH_DEG_TO_RAD`.
+- ✅ **Added** a new beam using `builder.BuildBeam()` that starts at the last node of the previous beam and ends at `(0.2, 0.1, -0.1)`.
+- ✅ **Ensured** the new beam uses the same beam section and Y-up direction as the previous one.
+
+This updated script now correctly simulates the desired beam structure with proper material orientation and additional beam geometry as specified.

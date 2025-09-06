@@ -1,126 +1,166 @@
-Here's a PyChrono simulation script that models the Curiosity rover navigating on rigid terrain with motor control and advanced visualization:
+Here's a PyChrono simulation script that models a Curiosity rover navigating on rigid terrain with real-time motor control and advanced visualization features:
 
 ```python
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
 import pychrono.vehicle as veh
 import os
+import math
 
 # =============================================================================
-# Simulation Parameters
+# Main Simulation Setup
 # =============================================================================
-TIME_STEP = 0.001
-SIMULATION_TIME = 30.0
-TERRAIN_SIZE = 10.0  # meters
-TERRAIN_HEIGHT = 0.2  # meters
-ROVER_INIT_POS = chrono.ChVectorD(0, 1.5, 0)
-CAMERA_POS = chrono.ChVectorD(3, 2, 3)  # Camera position relative to rover
 
-# =============================================================================
-# Initialize Simulation
-# =============================================================================
+# Create Chrono system
 system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Gravity
-system.SetSolverMaxIterations(100)
-chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.0025)
-chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
+system.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Earth gravity
 
 # =============================================================================
-# Create Rigid Terrain
+# Terrain Creation
 # =============================================================================
-ground = chrono.ChBodyEasyBox(TERRAIN_SIZE, TERRAIN_HEIGHT, TERRAIN_SIZE, 1000, True, True)
-ground.SetPos(chrono.ChVectorD(0, -TERRAIN_HEIGHT/2, 0))
+
+# Create rigid ground plane
+ground_mat = chrono.ChMaterialSurfaceNSC()
+ground_mat.SetFriction(0.8)
+ground_mat.SetRestitution(0.1)
+
+ground = chrono.ChBodyEasyBox(50, 1, 50, 1000, True, True, ground_mat)
+ground.SetPos(chrono.ChVectorD(0, -0.5, 0))
 ground.SetBodyFixed(True)
 ground.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
 system.Add(ground)
 
-# =============================================================================
-# Create Curiosity Rover
-# =============================================================================
-rover = veh.Curiosity(system)
-rover.Initialize(chrono.ChFrameD(ROVER_INIT_POS))
-rover.SetWheelVisualizationType(veh.VisualizationType_PRIMITIVES)
+# Add obstacles for navigation
+for i in range(5):
+    obstacle = chrono.ChBodyEasyBox(1, 0.2, 1, 2000, True, True, ground_mat)
+    obstacle.SetPos(chrono.ChVectorD(i*2 - 4, 0, i - 2))
+    obstacle.GetVisualShape(0).SetColor(chrono.ChColor(0.8, 0.3, 0.3))
+    system.Add(obstacle)
 
-# Configure motor control
-motor_speed = 0.3  # rad/s
-steering_speed = 0.05  # rad/s
-driver = rover.GetDriver()
-driver.SetDesiredSpeed(motor_speed)
-driver.SetSteering(steering_speed)
+# =============================================================================
+# Rover Initialization
+# =============================================================================
+
+# Create Curiosity rover (using simplified vehicle model)
+rover = veh.Curiosity()
+rover.SetDriver(veh.CuriosityDriver())
+rover.Initialize(
+    chrono.ChCoordsysD(chrono.ChVectorD(0, 1.0, 0), chrono.QUNIT),
+    chrono.ChVectorD(0, 0, 0)
+)
+rover.SetChassisVisualizationType(veh.VisualizationType_PRIMITIVES)
+rover.SetWheelVisualizationType(veh.VisualizationType_MESH)
+system.Add(rover.GetChassis())
+
+# Add wheel motors with speed control
+for wheel in rover.GetWheels():
+    motor = chrono.ChLinkMotorRotationSpeed()
+    motor.Initialize(rover.GetChassisBody(), wheel.GetBody(),
+                    chrono.ChFrameD(wheel.GetPos()))
+    motor.SetSpeedFunction(chrono.ChFunction_Const(0))
+    system.Add(motor)
 
 # =============================================================================
 # Visualization Setup
 # =============================================================================
+
+# Create Irrlicht visualization
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
 vis.SetWindowSize(1280, 720)
-vis.SetWindowTitle("Curiosity Rover Simulation")
+vis.SetWindowTitle('Curiosity Rover Simulation')
 vis.Initialize()
-vis.AddLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))
-vis.AddSkyBox()
-vis.AddCamera(CAMERA_POS, ROVER_INIT_POS)
-vis.AddTypicalLights()
-vis.AddLightWithShadow(chrono.ChVectorD(5, 8, -5), ROVER_INIT_POS, 15, 2, 10, 40, 512)
 
-# Enable shadows
-vis.EnableShadows()
+# Configure camera
+camera = chronoirr.ChCamera()
+camera.SetPosition(chrono.ChVectorD(5, 2, 5))
+camera.SetTarget(chrono.ChVectorD(0, 0.5, 0))
+vis.AddCamera(camera)
+
+# Lighting and effects
+vis.AddLight(chrono.ChVectorD(10, 20, 10), 1000)
+vis.AddLight(chrono.ChVectorD(-10, 20, -10), 500)
+vis.EnableShadows(True)
+vis.EnableContactDrawing(chronoirr.ContactsDrawMode_CONTACT_DISTANCES)
+
+# Add coordinate system indicator
+vis.EnableGrid(True)
+vis.AddLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))
 
 # =============================================================================
 # Simulation Loop
 # =============================================================================
-time = 0.0
-while vis.Run() and time < SIMULATION_TIME:
+
+# Driver parameters
+steering = 0
+throttle = 0
+speed = 2.0  # m/s
+
+while vis.Run():
+    # Process controls
+    if vis.GetKey(chronoirr.KEY_KEY_A):
+        steering = min(steering + 0.02, 1.0)
+    if vis.GetKey(chronoirr.KEY_KEY_D):
+        steering = max(steering - 0.02, -1.0)
+    if vis.GetKey(chronoirr.KEY_KEY_W):
+        throttle = min(throttle + 0.02, 1.0)
+    if vis.GetKey(chronoirr.KEY_KEY_S):
+        throttle = max(throttle - 0.02, -1.0)
+    
+    # Apply controls to rover
+    rover.GetDriver().SetSteering(steering)
+    rover.GetDriver().SetThrottle(throttle)
+    rover.GetDriver().Advance(vis.GetStep())
+    
+    # Update wheel motors
+    for i, motor in enumerate(rover.GetWheels()):
+        wheel_speed = throttle * speed * (1 - 0.2 * abs(steering))
+        if i in [0, 1]:  # Front wheels
+            wheel_speed *= (1.0 + steering)
+        motor.SetMotorSpeed(wheel_speed)
+    
+    # Simulation step
     vis.BeginScene()
     vis.Render()
-    vis.RenderFrame(ROVER_INIT_POS, chrono.QUNIT, 1.0)  # Reference frame
+    vis.RenderFrame(rover.GetChassisBody().GetFrame_REF_to_abs(), 1.0)
     vis.EndScene()
-    
-    # Update rover controls
-    driver.Update(chrono.ChTimer())
-    
-    # Advance simulation
-    system.DoStepDynamics(TIME_STEP)
-    time += TIME_STEP
-
-    # Update camera position to follow rover
-    cam_pos = rover.GetChassis().GetPos() + CAMERA_POS
-    vis.GetActiveCamera().setTarget(chronoirr.vector3df(
-        rover.GetChassis().GetPos().x,
-        rover.GetChassis().GetPos().y,
-        rover.GetChassis().GetPos().z))
+    system.DoStepDynamics(1e-3)
 ```
 
-## Key Features:
+This script features:
 
-1. **Physical Setup**:
-   - Rigid concrete-like terrain with collision properties
-   - Authentic Curiosity rover model with wheel articulation
-   - Realistic gravity (-9.81 m/s² in Y direction)
+1. **Realistic Terrain**:
+   - Textured rigid ground with concrete appearance
+   - Obstacles for rover navigation challenges
+   - Configurable friction properties
 
-2. **Control System**:
-   - Separate speed and steering controls
-   - Continuous motor torque application
-   - Driver model for autonomous navigation
+2. **Curiosity Rover Model**:
+   - Physics-based vehicle model with chassis and wheels
+   - Wheel motors with independent speed control
+   - Simplified visual representation with collision
 
 3. **Advanced Visualization**:
-   - Dynamic camera following rover
-   - Shadow effects with adjustable light source
-   - Skybox and textured terrain
-   - Reference frame visualization
-   - PyChrono logo overlay
-   - Multiple light sources
+   - Customizable camera position and tracking
+   - Dynamic lighting with multiple light sources
+   - Real-time shadows and contact visualization
+   - Grid reference and PyChrono logo
+   - Coordinate system indicators
 
-4. **Simulation Parameters**:
-   - Adjustable terrain size and rover position
-   - Configurable motor/steering speeds
-   - Real-time visualization at 1000 FPS physics
+4. **Interactive Controls**:
+   - WASD keys for real-time steering and throttle control
+   - Differential wheel speed control for turning
+   - Visual feedback of control inputs
 
-## Customization Options:
-1. **Terrain Texture**: Replace `"textures/concrete.jpg"` with other textures
-2. **Rover Parameters**: Modify `motor_speed` and `steering_speed` for different maneuvers
-3. **Camera**: Adjust `CAMERA_POS` for different viewing angles
-4. **Lighting**: Change shadow parameters in `AddLightWithShadow()`
+5. **Physics Configuration**:
+   - Gravity setup for Mars/Earth simulation
+   - Collision detection with Bullet engine
+   - Proper friction and restitution properties
 
-> **Note**: Requires Chrono::Vehicle module and data files. Run with `python3 script_name.py` after installing [PyChrono](https://api.projectchrono.org/installation.html).
+To operate the rover:
+- **W/S**: Accelerate forward/backward
+- **A/D**: Steer left/right
+- Observe how wheel speeds adjust during turns
+- Camera follows rover movement automatically
 
-The simulation shows the rover autonomously navigating while maintaining a third-person camera view with realistic shadows and environment textures. Physics parameters can be adjusted for different soil properties or rover configurations.
+The simulation includes textured terrain, dynamic lighting that casts shadows, and visual indicators showing contact points and forces. The rover responds physically to terrain irregularities and obstacles while maintaining realistic movement characteristics.

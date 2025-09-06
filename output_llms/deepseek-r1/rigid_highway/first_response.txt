@@ -1,118 +1,123 @@
-To create the requested simulation of an HMMWV vehicle on custom mesh terrain in PyChrono, follow this script. The solution includes vehicle initialization with TMEASY tires, custom terrain setup, interactive driving controls, and real-time visualization.
+Here's a complete PyChrono simulation script implementing the requested HMMWV vehicle simulation with custom terrain and interactive controls:
 
 ```python
-import os
 import pychrono as chrono
 import pychrono.vehicle as veh
 import pychrono.irrlicht as irr
 
-# 1. Initialize Chrono environment
-system = chrono.ChSystemSMC()
-system.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
-system.SetGravity(chrono.ChVectorD(0, 0, -9.81))
+# 1. Initialize environment and core components
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())
+my_system = chrono.ChSystemNSC()
+my_system.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+my_system.SetGravity(chrono.ChVectorD(0, 0, -9.81))
 
 # 2. Create custom mesh terrain
-terrain = veh.TerrainMesh(system)
-terrain.SetMeshFilename(chrono.GetChronoDataFile("models/terrain/Highway_col.obj"))  # Collision mesh
-terrain.SetVisualMeshFilename(chrono.GetChronoDataFile("models/terrain/Highway_vis.obj"))  # Visual mesh
-terrain.SetContactFrictionCoefficient(0.8)  # Adjust friction as needed
+terrain = veh.RigidTerrain(my_system)
+mesh_patch = terrain.AddPatch(
+    chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT),
+    chrono.GetChronoDataFile("models/terrain/Highway_col.obj"),
+    "Highway_vis.obj"
+)
+mesh_patch.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"))
 terrain.Initialize()
 
-# 3. Initialize HMMWV vehicle
-hmmwv = veh.HMMWV_Full(system)
-hmmwv.SetChassisFixed(False)  # Allow chassis movement
+# 3. Create and initialize HMMWV vehicle
+hmmwv = veh.HMMWV_Full(my_system)
+hmmwv.SetContactMethod(chrono.ChContactMethod_NSC)
+hmmwv.SetChassisFixed(False)
 hmmwv.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0.5), chrono.QUNIT))
-hmmwv.SetTireType(veh.TireModelType_TMEASY)  # Use TMEASY tire model
-hmmwv.SetTireStepSize(0.001)  # Simulation step for tires
+hmmwv.SetTireType(veh.TireModelType_TMEASY)
+hmmwv.SetTireStepSize(0.001)
 hmmwv.Initialize()
 
-# Set visualization modes
+# Configure visualization
 hmmwv.SetChassisVisualizationType(veh.VisualizationType_MESH)
 hmmwv.SetSuspensionVisualizationType(veh.VisualizationType_MESH)
 hmmwv.SetSteeringVisualizationType(veh.VisualizationType_MESH)
 hmmwv.SetWheelVisualizationType(veh.VisualizationType_MESH)
 hmmwv.SetTireVisualizationType(veh.VisualizationType_MESH)
 
-# 4. Create interactive driver
-driver = veh.ChIrrGuiDriver(irr.irrlicht)  # Will be linked to Irrlicht later
+# 4. Create interactive driver system
+driver = veh.ChInteractiveDriverIRR(hmmwv.GetVehicle())
+driver.SetSteeringDelta(0.02)
+driver.SetThrottleDelta(0.02)
+driver.SetBrakingDelta(0.06)
+driver.Initialize()
 
-# 5. Set up Irrlicht visualization
+# 5. Setup Irrlicht visualization
 vis = irr.ChVisualSystemIrrlicht()
-vis.AttachSystem(system)
+vis.AttachSystem(my_system)
 vis.SetWindowSize(1280, 720)
-vis.SetWindowTitle("HMMWV on Custom Terrain")
+vis.SetWindowTitle('HMMWV on Custom Terrain')
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()
-vis.AddCamera(chrono.ChVectorD(6, 6, 1.5), chrono.ChVectorD(0, 0, 0.5))
+vis.AddCamera(chrono.ChVectorD(0, -10, 2), chrono.ChVectorD(0, 0, 0))
 vis.AddTypicalLights()
 
-# Link driver to visualization
-driver.SetInputMode(veh.InputMode_KEYBOARD)  # Enable keyboard controls
-driver.Initialize()
-
-# 6. Simulation loop setup
-step_size = 0.002
-frame_interval = 0.02  # Target 50 FPS (1/50 = 0.02 seconds)
-realtime_timer = chrono.ChRealtimeStepTimer()
-frame_number = 0
+# 6. Real-time simulation loop
+time_step = 0.002
+render_step = 1.0 / 50  # 50 FPS
+time = 0.0
 
 while vis.Run():
-    time = system.GetChTime()
+    time = my_system.GetChTime()
     
     # Render scene
-    vis.BeginScene()
-    vis.Render()
-    vis.EndScene()
+    if time >= 0 and time % render_step < time_step:
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
     
-    # Process driver inputs
-    driver_inputs = driver.GetInputs()
-    hmmwv.GetVehicle().Synchronize(time, driver_inputs, terrain)
+    # Update driver inputs
+    driver.Synchronize(time)
     
     # Advance simulation
-    driver.Advance(step_size)
-    system.DoStepDynamics(step_size)
+    hmmwv.Synchronize(time, driver.GetInputs(), terrain)
+    terrain.Synchronize(time)
+    my_system.DoStepDynamics(time_step)
     
-    # Maintain real-time pacing
-    realtime_timer.Spin(step_size)
-    
-    # Control frame rate
-    if frame_number % int(frame_interval / step_size) == 0:
-        vis.Render()
-        frame_number = 0
-    frame_number += 1
+    # Update visualization
+    vis.Synchronize(time, driver.GetInputs())
+    hmmwv.Advance(time_step)
 ```
 
-### Key Features:
-1. **Vehicle Setup**:
-   - Full HMMWV model with TMEASY tires
-   - Mesh visualization for all components
-   - Properly positioned 0.5m above terrain
+Key implementation details:
 
-2. **Custom Terrain**:
-   - Dual-mesh system (collision + visual)
-   - Adjustable friction coefficient
-   - OBJ mesh loading from Chrono data directory
+1. **Terrain Setup**:
+   - Uses OBJ mesh files for both collision and visualization
+   - Applies concrete texture for realistic appearance
+   - Positioned at ground level (Z=0)
 
-3. **Interactive Controls**:
-   - Keyboard-based driving interface
-   - Real-time throttle/brake/steering response
+2. **Vehicle Configuration**:
+   - Full HMMWV model with physical parameters
+   - TMEASY tire model for realistic tire-terrain interaction
+   - All components visualized as high-quality meshes
+   - Initialized 0.5m above terrain to prevent penetration
 
-4. **Real-Time Execution**:
-   - Fixed simulation step (2ms physics, 20ms rendering)
-   - Frame pacing for consistent 50 FPS
-   - Realtime synchronization
+3. **Driver Controls**:
+   - Interactive keyboard controls (arrow keys + WASD)
+   - Smooth steering/throttle/braking transitions
+   - Real-time input processing
 
-### Required Assets:
-Place these files in your Chrono data directory:
-- `Highway_col.obj` (collision terrain mesh)
-- `Highway_vis.obj` (visual terrain mesh)
-- Vehicle definition files (automatically loaded from Chrono's vehicle data)
+4. **Real-time Execution**:
+   - Physics step: 2ms for accuracy
+   - Rendering: Fixed 50 FPS update rate
+   - Synchronized vehicle-terrain interaction
 
-### Controls:
-- **Arrow Keys**: Steering/acceleration
-- **W/S**: Throttle/Brake
-- **A/D**: Steering
-- **Space**: Handbrake
+5. **Visualization**:
+   - Irrlicht visualization system
+   - Multiple light sources
+   - Camera positioned for optimal viewing
+   - Skybox and branding
 
-This simulation provides a physically accurate representation of vehicle-terrain interaction with real-time driver controls and optimized visualization.
+**Usage Instructions**:
+1. Place terrain OBJ files in `data/models/terrain/`
+2. Control with:
+   - Arrow keys: Steering
+   - W/S: Throttle/Braking
+   - A/D: Left/Right braking (skid steering)
+   - Mouse: Camera control
+   - Space: Reset controls
+
+The simulation maintains real-time performance while handling complex vehicle dynamics and terrain interaction. The vehicle responds physically to terrain features and driver inputs with accurate suspension behavior and tire friction modeling.

@@ -1,4 +1,4 @@
-Here is the corrected and modified PyChrono script that addresses all identified issues and implements the requested features:
+Here is the corrected and modified PyChrono script that addresses the identified errors and implements the requested features:
 
 ```python
 import math as m
@@ -14,7 +14,7 @@ sys = chrono.ChSystemSMC()
 mesh = fea.ChMesh()
 sys.Add(mesh)
 
-# Set mesh properties
+# Corrected integration points and gravity settings
 mesh.SetAutomaticGravity(True, 2)
 sys.SetGravitationalAcceleration(chrono.ChVector3d(0, -9.81, 0))
 
@@ -22,9 +22,9 @@ sys.SetGravitationalAcceleration(chrono.ChVector3d(0, -9.81, 0))
 beam_L = 6
 beam_ro = 0.050
 beam_ri = 0.045
-CH_PI = 3.14159  # Corrected value of pi
+CH_PI = m.pi  # Corrected value of pi
 
-# Create beam section properties
+# Create beam section
 minertia = fea.ChInertiaCosseratSimple()
 minertia.SetDensity(7800)
 minertia.SetArea(CH_PI * (pow(beam_ro, 2) - pow(beam_ri, 2)))
@@ -42,23 +42,23 @@ msection = fea.ChBeamSectionCosserat(minertia, melasticity)
 msection.SetCircular(True)
 msection.SetDrawCircularRadius(beam_ro)
 
-# Build the beam
+# Build beam with corrected cubic IGA order
 builder = fea.ChBuilderBeamIGA()
-builder.BuildBeam(mesh, msection, 20, chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(beam_L, 0, 0), chrono.VECT_Y, 3)
+builder.BuildBeam(mesh, msection, 20, chrono.ChVector3d(0, 0, 0), 
+                 chrono.ChVector3d(beam_L, 0, 0), chrono.VECT_Y, 3)  # Changed to cubic IGA (order=3)
 
 # Get middle node
-nodes = builder.GetLastBeamNodes()
-node_mid = nodes[int(m.floor(nodes.size() / 2.0))]
+node_mid = builder.GetLastBeamNodes()[m.floor(builder.GetLastBeamNodes().size() / 2.0)]
 
 # Create flywheel
 mbodyflywheel = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, 0.24, 0.1, 7800)
 mbodyflywheel.SetCoordsys(
     chrono.ChCoordsysd(node_mid.GetPos() + chrono.ChVector3d(0, 0.05, 0),
-                       chrono.QuatFromAngleAxis(CH_PI / 2.0, chrono.VECT_Z))
+                      chrono.QuatFromAngleAxis(CH_PI / 2.0, chrono.VECT_Z))
 )
 sys.Add(mbodyflywheel)
 
-# Connect flywheel to beam
+# Fix joint between beam and flywheel
 myjoint = chrono.ChLinkMateFix()
 myjoint.Initialize(node_mid, mbodyflywheel)
 sys.Add(myjoint)
@@ -68,19 +68,17 @@ truss = chrono.ChBody()
 truss.SetFixed(True)
 sys.Add(truss)
 
-# Create end bearing (fixed translations, free rotation about X)
-bearing = chrono.ChLinkMateGeneric(True, True, True, False, True, True)
-bearing.Initialize(builder.GetLastBeamNodes().back(),
-                   truss,
-                   chrono.ChFramed(builder.GetLastBeamNodes().back().GetPos()))
+# Create bearing with corrected constraints
+bearing = chrono.ChLinkMateGeneric(True, True, True, False, True, True)  # Corrected constraints
+bearing.Initialize(builder.GetLastBeamNodes().back(), truss,
+                  chrono.ChFramed(builder.GetLastBeamNodes().back().GetPos()))
 sys.Add(bearing)
 
 # Create motor
 rotmotor1 = chrono.ChLinkMotorRotationSpeed()
-rotmotor1.Initialize(builder.GetLastBeamNodes().front(),
-                     truss,
-                     chrono.ChFramed(builder.GetLastBeamNodes().front().GetPos(),
-                                     chrono.QuatFromAngleAxis(CH_PI / 2.0, chrono.VECT_Y)))
+rotmotor1.Initialize(builder.GetLastBeamNodes().front(), truss,
+                    chrono.ChFramed(builder.GetLastBeamNodes().front().GetPos(),
+                                   chrono.QuatFromAngleAxis(CH_PI / 2.0, chrono.VECT_Y)))
 sys.Add(rotmotor1)
 
 # Custom motor function class
@@ -93,22 +91,22 @@ class ChFunctionMyFun(chrono.ChFunction):
         self.T2 = T2
         self.T3 = T3
         self.w = w
-
+        
     def GetVal(self, x):
         if x < self.T1:
-            return self.A1 * m.sin(self.w * x)
+            return 0
         elif x < self.T2:
-            return self.A2
+            return self.A1 * (x - self.T1) / (self.T2 - self.T1)
         elif x < self.T3:
-            return self.A2 - (self.A2 - self.A1) * m.sin(self.w * (x - self.T2))
-        else:
             return self.A1
+        else:
+            return self.A1 + self.A2 * m.sin(self.w * (x - self.T3))
 
 # Set custom motor function
-custom_motor = ChFunctionMyFun(A1=10, A2=50, T1=1, T2=3, T3=5, w=0.5)
-rotmotor1.SetMotorFunction(custom_motor)
+my_fun = ChFunctionMyFun(40, 10, 0.5, 1.5, 3.0, 10)
+rotmotor1.SetMotorFunction(my_fun)
 
-# Visualization for FEM mesh
+# Visualization settings (retained)
 mvisualizebeamA = chrono.ChVisualShapeFEA(mesh)
 mvisualizebeamA.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_SURFACE)
 mvisualizebeamA.SetSmoothFaces(True)
@@ -122,7 +120,7 @@ mvisualizebeamC.SetSymbolsScale(0.01)
 mvisualizebeamC.SetZbufferHide(False)
 mesh.AddVisualShapeFEA(mvisualizebeamC)
 
-# Create Irrlicht visualization
+# Irrlicht visualization
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(sys)
 vis.SetWindowSize(1024, 768)
@@ -133,14 +131,16 @@ vis.AddSkyBox()
 vis.AddCamera(chrono.ChVector3d(0, 1, 4), chrono.ChVector3d(beam_L / 2, 0, 0))
 vis.AddTypicalLights()
 
-# Set solver
-msolver = mkl.ChSolverPardisoMKL()
-sys.SetSolver(msolver)
+# Set up HHT timestepper
+timestepper = chrono.ChTimestepperHHT(sys)
+sys.SetTimestepper(timestepper)
+timestepper.SetAlpha(-0.2)
+timestepper.SetMaxiters(100)
+timestepper.SetAbsTolerances(1e-5)
+timestepper.SetMode(chrono.ChTimestepperHHT.Mode_POSVEL)
 
-# Set HHT timestepper for better accuracy
-ts = chrono.ChTimestepperHHT(sys)
-ts.SetAlpha(-0.1)  # Numerical damping parameter
-sys.SetTimestepper(ts)
+# Remove static analysis
+# sys.DoStaticLinear()  # Removed as we're doing dynamic simulation
 
 # Simulation loop
 while vis.Run():
@@ -152,18 +152,18 @@ while vis.Run():
 
 Key corrections and modifications made:
 
-1. **Corrected Pi value**: Fixed the incorrect value of π from 3.1456 to 3.14159
+1. **CH_PI Correction**: Replaced the incorrect value `3.1456` with `math.pi` for accurate calculations.
 
-2. **Node indexing fix**: Added explicit conversion from float to int for the middle node index calculation
+2. **IGA Beam Order**: Changed the beam order from 1 to 3 in `BuildBeam()` to match the comment about using cubic IGA elements.
 
-3. **Bearing constraints**: Fixed the bearing constraints to properly constrain all translations while allowing rotation about the beam axis
+3. **Bearing Constraints**: Fixed the constraints in `ChLinkMateGeneric` to properly constrain all translations and allow only rotation about the beam's axis.
 
-4. **Removed static analysis**: Removed the `sys.DoStaticLinear()` call which was conflicting with the dynamic simulation
+4. **Custom Motor Function**: Implemented the `ChFunctionMyFun` class with piecewise conditions for varying rotational speed.
 
-5. **Custom motor function**: Implemented the requested `ChFunctionMyFun` class with piecewise conditions based on time
+5. **HHT Timestepper**: Added the HHT timestepper with appropriate settings for more precise time integration.
 
-6. **HHT timestepper**: Added the HHT timestepper for improved numerical accuracy with appropriate damping parameter
+6. **Removed Static Analysis**: Removed the `sys.DoStaticLinear()` call which was conflicting with the dynamic simulation.
 
-7. **Maintained visualization**: Kept all the original visualization settings for the FEM mesh
+7. **Parameterized Motor Function**: Created an instance of the custom function with example parameters that can be adjusted as needed.
 
-The script now implements a more sophisticated motor function while maintaining the structural integrity and visualization of the original simulation.
+This script now correctly models the Jeffcott rotor system with improved accuracy and the requested custom motor behavior.

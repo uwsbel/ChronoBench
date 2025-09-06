@@ -1,0 +1,633 @@
+Okay, I need to create a PyChrono simulation based on the user's instructions. Let me start by recalling the steps they mentioned. First, initializing the environment and core components. Then adding the physical systems like the UAZBUS vehicle, terrain, driver, and visualization. Also, setting parameters like friction, restitution, camera settings, and ensuring real-time execution in the simulation loop.
+
+Hmm, I remember that PyChrono has a vehicle module with predefined vehicles like the UAZBUS. So I should import that. The terrain is supposed to be rigid, maybe a plane. For the driver, perhaps a simple driver that can control the vehicle's steering and throttle. The visualization uses Irrlicht, so I need to set up the Irrlicht system with specific camera positions and lighting.
+
+Let me think about the structure. The main steps would be:
+
+1. Import necessary modules: chrono, chronovehicle, chronoirrlicht.
+2. Create the physical system (ChSystemNSC for dynamics).
+3. Initialize the vehicle: create UAZBUS, set initial position and orientation.
+4. Create the terrain: a plane with specified friction and restitution.
+5. Set up the driver: maybe a constant throttle or user input? The user didn't specify control details, so perhaps a simple driver that drives forward.
+6. Visualization setup: Irrlicht, camera settings, maybe add a light source.
+7. Simulation loop: time step, step the system, update driver, render, sync with real-time.
+
+Wait, the user mentioned "real-time execution", so the loop should have a step that sleeps to match real time. Also, the simulation loop needs to advance the vehicle, terrain, driver, and visual system each step. Oh, the vehicle and terrain are part of the system, so stepping the system should handle that. The driver needs to update its inputs each step.
+
+I need to make sure to set the friction and restitution coefficients on the terrain. The terrain is a plane, so adding a plane shape to the system. The vehicle's tires will interact with that plane.
+
+For the Irrlicht camera, maybe set an initial position looking at the vehicle. The user didn't specify exact coordinates, so I'll choose reasonable defaults. Also, enabling lighting to make the scene visible.
+
+Wait, the UAZBUS has its own suspension, wheels, etc. So when creating the vehicle, I have to specify the system and terrain. The vehicle is added to the system via Add().
+
+Let me outline the code structure:
+
+Import modules.
+
+Create the Chrono system.
+
+Create the Irrlicht application, passing the system.
+
+Set up the terrain (plane with material properties).
+
+Create the vehicle, initialize it at a position above the terrain.
+
+Set up the driver (maybe a simple driver with throttle and steering).
+
+Initialize the visualization: add the vehicle and terrain to the Irrlicht system, set camera and lighting.
+
+Simulation loop: while the app runs, step the system, update driver, render, sleep to maintain real-time.
+
+Wait, the driver needs to be connected to the vehicle. The driver's inputs (steering, throttle, brake) should be set each step. Since the user didn't specify control inputs, perhaps set a constant throttle to make it move forward.
+
+Also, the simulation time step should be set appropriately. Maybe use the default time step or a small one like 1e-3.
+
+Let me check the parameters required. The user mentioned "specified initial conditions" but didn't give specifics. I'll assume default positions, like the vehicle starting at (0,0,1) to be above the terrain plane at z=0.
+
+Friction for the terrain: perhaps 0.9, restitution 0.1 as common defaults.
+
+For the camera, maybe position it behind the vehicle, looking towards it. Like (5, 5, 2) or something, with a target at the vehicle's position.
+
+Lighting: add a point light or directional light.
+
+Now, putting it all together in code.
+
+Wait, in PyChrono, the Irrlicht app is typically created with a ChIrrApp, which requires the system and a window name. Then, the camera is set via SetCamera, maybe using SetCameraPosition and SetCameraTarget.
+
+The driver: the driver is part of the vehicle system. The UAZBUS has a driver interface. So after creating the vehicle, we can set the driver. Maybe use a driver that applies a constant throttle, like 0.5, and zero steering. The user didn't specify, so I'll make a simple one.
+
+The simulation loop: in each iteration, update the driver (set throttle and steering), then do system.DoStepDynamics(step_size). Also, render the scene and sync with real time.
+
+Wait, the Irrlicht app has a function to advance the simulation and render. The loop might look like:
+
+while app.GetDevice().run():
+    key = app.GetDevice().getKey()
+    # handle any key inputs if needed
+    time = system.GetChTime()
+    driver.Update(time, vehicle)  # assuming driver has an Update method
+    system.DoStepDynamics(step_size)
+    app.BeginScene()
+    app.DrawAll()
+    app.EndScene()
+    app.GetDevice().sleep(ms)
+
+But the exact driver setup depends on the driver type. The chrono vehicle drivers have classes like ChDriver, which can be connected to the vehicle. Maybe set a target speed or use a simple driver.
+
+Alternatively, the driver could be a manual driver, but since no inputs are specified, perhaps a simple driver that applies throttle. Let me check the API.
+
+Looking up, the ChDriver class has methods to set steering and throttle. The UAZBUS vehicle has a method to set the driver.
+
+So steps:
+
+After creating the vehicle, create a driver instance, set its inputs, then vehicle.SetDriver(driver).
+
+In the loop, perhaps the driver's inputs are static, so no need to update each step unless using some control logic. But for simplicity, maybe just set the driver once.
+
+Alternatively, to make it move, set a constant throttle in the driver.
+
+Wait, perhaps the driver needs to be updated each step. Let me see an example.
+
+In the chrono tutorials, when using a driver, they often have the driver's Update function called each step with the current time and vehicle state.
+
+So the driver's Update method would compute the steering and throttle based on some logic. Since the user didn't specify, maybe set a simple driver that maintains a constant throttle and zero steering.
+
+Alternatively, use a driver that follows a path, but without more info, a simple approach is better.
+
+Putting it all together, here's a possible code outline:
+
+Import statements:
+
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as irr
+
+Create the system:
+
+system = chrono.ChSystemNSC()
+
+Create the Irrlicht app:
+
+app = irr.ChIrrApp(system, 'UAZBUS Simulation', irr.dimension2du(1024,768))
+app.SetSymbolsRendering(False)
+app.AddTypicalLogo()
+app.AddTypicalSky()
+app.AddTypicalLights()
+app.AddTypicalCamera(position=chrono.ChVectorD(5, 5, 2), angle=-60)
+
+Wait, the camera position and angle might need adjustment. Alternatively, set camera position and target:
+
+app.SetCameraPosition(chrono.ChVectorD(10, 10, 10))
+app.SetCameraTarget(chrono.ChVectorD(0,0,0))
+
+But maybe better to position it behind the vehicle.
+
+Terrain: Create a plane.
+
+patch_radius = 100
+patch_length = 100
+terrain = veh.ChTerrain(system)
+terrain.SetFriction(0.9)
+terrain.SetRestitution(0.1)
+terrain.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+terrain.SetTextureLength(patch_length, patch_radius)
+terrain.Initialize(patch_length, patch_radius, True,  # use patches
+                  0.2,  # patch height
+                  0.5,  # patch separation
+                  veh.ChTerrain.TerrainType concrete)
+Wait, perhaps using a concrete type or just a simple plane. Alternatively, maybe the user just wants a flat plane without texture details, so maybe using a simple plane shape added to the system.
+
+Alternatively, the terrain can be a simple plane with material properties. Let me think. The vehicle's wheels need to interact with the terrain. The terrain in chrono_vehicle is a specialized class that creates a plane with specific properties.
+
+Wait, the ChTerrain class is part of the vehicle module and is designed for vehicle simulations. So using that is better. The parameters like friction and restitution can be set via SetFriction and SetRestitution.
+
+Then, the vehicle is created on top of that terrain.
+
+So:
+
+terrain = veh.ChTerrain(system)
+terrain.SetFriction(0.9)
+terrain.SetRestitution(0.1)
+terrain.Initialize(100, 100, True,  # parameters as per the example
+                  0.2, 0.5, veh.ChTerrain.TerrainType concrete)
+Wait, but the parameters for Initialize are (length, width, use patches, patch height, patch separation, type). Maybe the exact parameters can be adjusted, but for simplicity, just set to default.
+
+Then, create the UAZBUS:
+
+vehicle = veh.vehCreateVehicle('UAZBUS', system)
+vehicle.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0,0,1), chrono.QUNIT))
+vehicle.SetDriver(veh.ChDriver())  # create a driver
+
+Wait, the driver needs to be initialized. The driver can be a simple one. Let's set the driver's throttle to a constant value.
+
+driver = veh.ChDriver()
+driver.SetThrottle(0.5)
+driver.SetSteering(0)
+vehicle.SetDriver(driver)
+
+Alternatively, in the simulation loop, set the driver's inputs each step. Hmm, perhaps better to set it once if it's constant.
+
+Wait, the driver's Update function may require to be called each step. Let me check the API. The driver's Update method is called by the vehicle's Update function, which is part of the system step. Maybe the driver just needs to be set with the desired inputs.
+
+Alternatively, perhaps the driver is supposed to have its own Update method called each step with the current time and vehicle state. So in the loop, before stepping the system, we do driver.Update(time, vehicle).
+
+Wait, looking at the ChDriver documentation, it has an Update function that takes the current time and the vehicle. The driver can then compute steering and throttle based on some logic. Since the user didn't specify, perhaps just set a constant throttle via driver.SetThrottle(0.5) once, and steering to 0.
+
+Alternatively, the driver could be a manual driver, but without user input, it's better to set a simple driver.
+
+So after creating the driver, set its throttle and steering.
+
+Then add the vehicle to the system:
+
+system.Add(vehicle.GetChassis())
+
+Wait, no. The vehicle's constructor probably adds its components to the system. Or maybe the vehicle needs to be added via vehicle.Initialize(...). Wait, maybe I need to properly initialize the vehicle with the terrain.
+
+Wait, the standard way to create a vehicle in chrono is:
+
+vehicle = veh.vehCreateVehicle('UAZBUS', system)
+vehicle.Initialize(terrain, chrono.ChCoordsysD(chrono.ChVectorD(0,0,1), chrono.QUNIT), True)
+
+Ah, right! The vehicle must be initialized with the terrain and its initial position.
+
+So correcting that:
+
+vehicle = veh.vehCreateVehicle('UAZBUS', system)
+vehicle.Initialize(terrain, chrono.ChCoordsysD(chrono.ChVectorD(0,0,1), chrono.QUNIT), True)  # the last parameter is visualization flag?
+
+Wait, the third parameter in Initialize is 'init_suspension', which if true initializes the suspension forces. So set to True.
+
+Then, set the driver as before.
+
+Now, adding the visualization. The Irrlicht app needs to add the vehicle and terrain.
+
+app.Add(terrain.GetVisualization())
+app.Add(vehicle.GetVisualization())
+
+Wait, the terrain's visualization might be added via the terrain's own AddVisualization method, but perhaps the ChTerrain class has a method to add its visualization. Alternatively, maybe the terrain is part of the system and automatically rendered. Hmm, perhaps the terrain's visualization is handled by its own Add function.
+
+Alternatively, in the Irrlicht app, after creating the terrain, you can add it to the scene:
+
+app.Add(terrain)
+
+Wait, the ChTerrain class has a GetAssets() method, so maybe adding it to the app:
+
+app.Add(terrain)
+
+But I'm not sure. Alternatively, the vehicle's visualization is added via vehicle.GetVisualSystem(), so:
+
+app.Add(vehicle.GetVisualSystem())
+
+Similarly for the terrain's visualization.
+
+Alternatively, perhaps the terrain's visualization is part of the terrain object, so just adding it to the app.
+
+Alternatively, maybe the terrain is part of the system and the Irrlicht app automatically renders it. Maybe I need to check an example.
+
+Looking at the chrono vehicle examples, like the basic_vehicle.py, they do:
+
+app = ChIrrApp(...)
+app.Add(terrain)
+app.Add(vehicle.GetVisualSystem())
+
+So I'll follow that.
+
+Then, setting up the camera. Let's position it behind the vehicle. Suppose the vehicle starts at (0,0,1), so camera at (10, 0, 2), looking towards (0,0,1):
+
+app.SetCameraPosition(chrono.ChVectorD(10, 0, 2))
+app.SetCameraTarget(chrono.ChVectorD(0,0,1))
+
+Or maybe a different angle. Alternatively, using SetCamera(chronoirrlighting.ChIrrCameraType.WALLPAPER, ...). Not sure, but setting position and target should work.
+
+Lighting: adding a point light or directional light. The AddTypicalLights() might be sufficient.
+
+Now, the simulation loop. The Irrlicht app has a loop that runs while the window is open. Inside the loop, we need to step the system, update the driver, render, and sync with real time.
+
+The loop would look like:
+
+app.SetTimestep(0.01)  # time step, maybe smaller like 0.005
+
+while app.GetDevice().run():
+    key = app.GetDevice().getKey()
+    # Handle any key inputs if needed, like exit on escape
+    if (key == irr.KEYKEY_ESCAPE):
+        break
+
+    time = system.GetChTime()
+
+    # Update the driver (if needed)
+    # For a simple driver with constant throttle, maybe no need to update each step
+    # But to be safe, call driver.Update(time, vehicle)
+    driver.Update(time, vehicle)
+
+    # Advance the dynamics
+    system.DoStepDynamics(app.GetDT())
+
+    # Render scene
+    app.BeginScene()
+    app.DrawAll()
+    app.EndScene()
+
+    # Synchronize with real time
+    app.GetDevice().sleepMS(int(1000 * app.GetDT() - (chrono.GetTimer() - time)))
+
+Wait, the sleepMS should be the time needed to maintain real-time. The app.GetDT() is the time step. The actual elapsed time is measured, and sleep the remaining time.
+
+Alternatively, using the standard method:
+
+app.DoStep()
+
+Wait, maybe the Irrlicht app has a DoStep() function that handles stepping and rendering. Let me check the API.
+
+Looking up, the ChIrrApp has a function DoStep() which does the step and rendering. So perhaps the loop can be simplified.
+
+Alternatively, perhaps the loop should be:
+
+while app.Run():
+    app.BeginScene()
+    app.DrawAll()
+    app.EndScene()
+    app.DoStep()
+
+But I need to ensure that the driver is updated and the system is stepped.
+
+Alternatively, the standard approach in examples is:
+
+app.SetTimestep(step_size)
+while app.GetDevice().run():
+    key = app.GetDevice().getKey()
+    if key == irr.KEY_ESCAPE:
+        break
+    # Update driver if needed
+    driver.Update(time, vehicle)
+    # Advance simulation
+    system.DoStepDynamics(step_size)
+    # Update rendering
+    app.BeginScene()
+    app.DrawAll()
+    app.EndScene()
+    # Synchronize with real time
+    app.GetDevice().sleepMS(int(1000 * step_size - (chrono.GetTimer() - time)))
+
+Hmm, but the exact timing might vary. Alternatively, using app.DoStep() which handles the stepping and rendering.
+
+Alternatively, the Irrlicht app's DoStep() function already steps the system and renders, so maybe the loop is simpler.
+
+Wait, perhaps the correct way is to use the app's built-in functions. Let me think again.
+
+In the Chrono examples, the typical loop is:
+
+app.SetTimestep(step_size)
+
+while app.GetDevice().run():
+    key = app.GetDevice().getKey()
+    if key == irr.KEY_ESCAPE:
+        break
+
+    # Update driver
+    driver.Update(system.GetChTime(), vehicle)
+
+    # Advance simulation
+    system.DoStepDynamics(step_size)
+
+    # Render
+    app.BeginScene()
+    app.DrawAll()
+    app.EndScene()
+    # Synchronize with real time
+    app.GetDevice().sleepMS(int(1000 * step_size))
+
+But this might not account for the actual time taken by the simulation step. Alternatively, use app.DoStep() which handles stepping and rendering.
+
+Wait, the ChIrrApp.DoStep() function is supposed to do the step and render, but I need to confirm.
+
+Looking at the API docs for ChIrrApp:
+
+The DoStep() function is described as:
+
+void DoStep()
+{
+    double time_step = GetTimestep();
+    system.DoStepDynamics(time_step);
+    // Update the Irrlicht scene
+    // ...
+}
+
+So perhaps using app.DoStep() would handle the stepping and rendering. But then how to update the driver?
+
+Alternatively, perhaps the driver needs to be updated before the step.
+
+So the loop would be:
+
+while app.GetDevice().run():
+    key = app.GetDevice().getKey()
+    if key == irr.KEY_ESCAPE:
+        break
+
+    # Update driver
+    driver.Update(system.GetChTime(), vehicle)
+
+    # Advance simulation and render
+    app.DoStep()
+
+But I'm not sure if DoStep() automatically does the system step. Alternatively, perhaps the DoStep() does the system step internally.
+
+Alternatively, perhaps the correct approach is to call system.DoStepDynamics and then render via app.Begin/EndScene.
+
+This is getting a bit confusing. Maybe better to look at an example from the Chrono tutorials.
+
+Looking at the basic_vehicle.py example from PyChrono:
+
+In that example, they have:
+
+while app.GetDevice().run():
+    key = app.GetDevice().getKey()
+    if (key == irr.KEYKEY_ESCAPE):
+        break
+
+    # Update the driver
+    driver.UserInputs(vehicle)
+
+    # Advance the vehicle
+    vehicle.Synchronize(driver.GetInputs())
+    vehicle.Update(0.05)
+
+    # Advance the terrain
+    terrain.Synchronize(vehicle.GetChassis().GetPos())
+
+    # Update modules (for asset rendering)
+    vehicle.AssetUpdate()
+
+    # Render scene
+    app.BeginScene()
+    app.DrawAll()
+    app.EndScene()
+
+Wait, but in this example, the vehicle's Update is called with a time step, but the system step isn't explicitly done. Maybe the vehicle's Update handles the dynamics?
+
+Hmm, perhaps in the vehicle module, the vehicle's Update function is part of the system's stepping. Or maybe the system is stepped via the vehicle's Update.
+
+Alternatively, perhaps in the vehicle module's setup, the vehicle's components are part of the system, so system.DoStepDynamics is needed.
+
+This is a bit unclear. To make sure the simulation runs correctly, perhaps explicitly call system.DoStepDynamics with the time step.
+
+So putting it all together, here's a possible code structure:
+
+Initialize everything as before, then:
+
+app.SetTimestep(0.01)  # time step
+
+while app.GetDevice().run():
+    key = app.GetDevice().getKey()
+    if key == irr.KEY_ESCAPE:
+        break
+
+    # Update driver inputs
+    driver.Update(system.GetChTime(), vehicle)
+
+    # Step the system
+    system.DoStepDynamics(app.GetTimestep())
+
+    # Update the terrain if needed (maybe not necessary if it's static)
+    # terrain.Synchronize(...)
+
+    # Update vehicle visualization
+    vehicle.AssetUpdate()
+
+    # Render
+    app.BeginScene()
+    app.DrawAll()
+    app.EndScene()
+
+    # Synchronize with real time
+    app.GetDevice().sleepMS(int(1000 * app.GetTimestep()))
+
+Wait, but the sleep might need to account for the time taken by the simulation step. Alternatively, use the standard method where the sleep is the time step minus the elapsed time.
+
+Alternatively, perhaps the Irrlicht app's DoStep() function handles the timing, but I'm not sure.
+
+Alternatively, the example code from Chrono's basic_vehicle.py uses vehicle.Update and terrain.Synchronize, but doesn't explicitly call system.DoStepDynamics. Maybe the vehicle's Update function is handling the system stepping?
+
+Wait, in the basic_vehicle.py example, the vehicle is created using the vehicle module, and the system is managed by the vehicle's own functions. Perhaps in that case, the system is not explicitly stepped, but the vehicle's Update function advances the simulation.
+
+Hmm, this is a bit conflicting. Let me check the vehicle module's documentation.
+
+The vehicle module's vehicles are built using the Chrono::Vehicle system, which is integrated into the main Chrono system. So the system needs to be stepped.
+
+Perhaps in the basic_vehicle example, the vehicle's Update function is part of the system's step. Or maybe the vehicle's Update function is part of the system's step.
+
+Alternatively, perhaps the example is using an older version where the vehicle module handles the system steps internally. To avoid confusion, I'll proceed with explicitly calling system.DoStepDynamics.
+
+Now, putting all the pieces together, here's the code:
+
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as irr
+
+# Create the Chrono system
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
+
+# Create the Irrlicht visualization
+app = irr.ChIrrApp(system, 'UAZBUS Simulation', irr.dimension2du(1024,768))
+app.SetSymbolsRendering(False)
+app.AddTypicalLogo()
+app.AddTypicalSky()
+app.AddTypicalLights()
+app.AddTypicalCamera(chrono.ChVectorD(10, 10, 10), chrono.ChVectorD(0,0,0))
+
+# Create terrain
+terrain = veh.ChTerrain(system)
+terrain.SetFriction(0.9)
+terrain.SetRestitution(0.1)
+terrain.Initialize(100, 100, True,  # length, width, use patches
+                  0.2, 0.5, veh.ChTerrain.TerrainType.CONCRETE)
+app.Add(terrain)
+
+# Create the UAZBUS vehicle
+vehicle = veh.vehCreateVehicle('UAZBUS', system)
+vehicle.Initialize(terrain, chrono.ChCoordsysD(chrono.ChVectorD(0,0,1), chrono.QUNIT), True)
+app.Add(vehicle.GetVisualSystem())
+
+# Create and initialize the driver
+driver = veh.ChDriver()
+driver.SetThrottle(0.5)  # constant throttle
+driver.SetSteering(0)
+vehicle.SetDriver(driver)
+
+# Set camera position and target
+app.SetCameraPosition(chrono.ChVectorD(10, 0, 2))
+app.SetCameraTarget(chrono.ChVectorD(0,0,1))
+
+# Simulation time step
+step_size = 0.01
+app.SetTimestep(step_size)
+
+# Simulation loop
+while app.GetDevice().run():
+    key = app.GetDevice().getKey()
+    if key == irr.KEY_ESCAPE:
+        break
+
+    # Update driver (if needed)
+    driver.Update(system.GetChTime(), vehicle)
+
+    # Advance the simulation
+    system.DoStepDynamics(step_size)
+
+    # Update visualization
+    vehicle.AssetUpdate()
+
+    # Render scene
+    app.BeginScene()
+    app.DrawAll()
+    app.EndScene()
+
+    # Synchronize with real time
+    app.GetDevice().sleepMS(int(1000 * step_size))
+
+Wait, but in this code, the terrain is added via app.Add(terrain), and the vehicle's visual system is added. The driver is set with constant throttle. The simulation loop steps the system and updates the driver each step.
+
+However, I might have missed some parts. For example, the vehicle's suspension needs to be initialized properly. Also, the driver's Update function might require the vehicle's current state, so it's important to call it each step.
+
+Another thing: the vehicle's Initialize method might require the terrain to be passed so that the wheels can interact with it. The code above does that.
+
+Testing this code, I think it should work. But perhaps the camera settings need adjustment. Also, the initial position of the vehicle is set to (0,0,1), which is above the terrain (assuming the terrain is at z=0). That should be okay.
+
+The driver's throttle is set to 0.5, so the vehicle should accelerate forward. The steering is zero, so it goes straight.
+
+The time step is 0.01 seconds, and the sleep is set to match that, so it should run in real-time.
+
+I think this covers all the user's requirements: initializing the environment, adding the vehicle, terrain with friction and restitution, driver, Irrlicht visualization with camera and lighting, and a simulation loop that steps everything and maintains real-time.
+</think>
+
+```python
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as irr
+
+# Initialize Chrono system
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
+
+# Create Irrlicht visualization
+app = irr.ChIrrApp(system, 'UAZBUS Simulation', irr.dimension2du(1024, 768))
+app.SetSymbolsRendering(False)
+app.AddTypicalLogo()
+app.AddTypicalSky()
+app.AddTypicalLights()
+app.AddTypicalCamera(chrono.ChVectorD(10, 10, 10), chrono.ChVectorD(0, 0, 0))
+
+# Create terrain
+terrain = veh.ChTerrain(system)
+terrain.SetFriction(0.9)
+terrain.SetRestitution(0.1)
+terrain.Initialize(100, 100, True, 0.2, 0.5, veh.ChTerrain.TerrainType.CONCRETE)
+app.Add(terrain)
+
+# Create UAZBUS vehicle
+vehicle = veh.vehCreateVehicle('UAZBUS', system)
+vehicle.Initialize(terrain, chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 1), chrono.QUNIT), True)
+app.Add(vehicle.GetVisualSystem())
+
+# Configure driver
+driver = veh.ChDriver()
+driver.SetThrottle(0.5)  # Constant throttle
+driver.SetSteering(0)
+vehicle.SetDriver(driver)
+
+# Camera settings
+app.SetCameraPosition(chrono.ChVectorD(10, 0, 2))
+app.SetCameraTarget(chrono.ChVectorD(0, 0, 1))
+
+# Simulation parameters
+step_size = 0.01
+app.SetTimestep(step_size)
+
+# Simulation loop
+while app.GetDevice().run():
+    key = app.GetDevice().getKey()
+    if key == irr.KEY_ESCAPE:
+        break
+
+    # Update driver inputs
+    driver.Update(system.GetChTime(), vehicle)
+
+    # Advance simulation
+    system.DoStepDynamics(step_size)
+
+    # Update visualization
+    vehicle.AssetUpdate()
+
+    # Render and synchronize
+    app.BeginScene()
+    app.DrawAll()
+    app.EndScene()
+    app.GetDevice().sleepMS(int(1000 * step_size))
+```
+
+**Explanation:**
+
+1. **Initialization:**
+   - The Chrono system is created with gravity set.
+   - An Irrlicht application is initialized with a window and default assets (logo, sky, lights).
+
+2. **Terrain Setup:**
+   - A `ChTerrain` object is configured with friction (0.9) and restitution (0.1).
+   - The terrain is initialized as a concrete surface with specified dimensions and added to the visualization.
+
+3. **Vehicle Creation:**
+   - The UAZBUS vehicle is created using `vehCreateVehicle` and initialized at position (0,0,1) above the terrain.
+   - The vehicle's visual components are added to the Irrlicht app.
+
+4. **Driver Configuration:**
+   - A simple driver is set with constant throttle (0.5) and zero steering to move the vehicle forward.
+
+5. **Visualization Settings:**
+   - The camera is positioned to view the vehicle from behind, and lighting is enabled.
+
+6. **Simulation Loop:**
+   - The loop runs while the window is open.
+   - The driver updates inputs, the system is stepped forward, and the scene is rendered.
+   - Real-time synchronization is maintained using `sleepMS`.
+
+This script sets up a basic simulation where the UAZBUS vehicle accelerates forward on a rigid terrain with the specified parameters and visualization settings.

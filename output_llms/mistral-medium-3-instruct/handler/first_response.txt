@@ -3,135 +3,160 @@
 Below is a complete PyChrono simulation script that integrates with ROS, following your specifications:
 
 ```python
+#!/usr/bin/env python3
+
 import pychrono as chrono
-import pychrono.ros as chrono_ros
+import pychrono.irrlich as chrono_irrlich
 import rospy
 from std_msgs.msg import Int32
 
-# Initialize ROS node
-rospy.init_node('chrono_ros_simulation', anonymous=True)
-
-# Create a Chrono physical system
-system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravitational acceleration
-
-# Set material properties
-material = chrono.ChMaterialSurfaceNSC()
-material.SetFriction(0.4)
-material.SetRestitution(0.2)
-
-# Create a fixed floor
-floor_body = chrono.ChBody()
-floor_body.SetPos(chrono.ChVectorD(0, -1, 0))
-floor_body.SetBodyFixed(True)
-floor_body.GetVisualModel().AddBox(10, 1, 10, True, chrono.ChColor(0.5, 0.5, 0.5))
-floor_body.GetCollisionModel().AddBox(10, 1, 10)
-floor_body.GetCollisionModel().SetMaterialSurface(material)
-system.Add(floor_body)
-
-# Create a movable box
-box_body = chrono.ChBody()
-box_body.SetPos(chrono.ChVectorD(0, 2, 0))
-box_body.SetMass(1.0)
-box_body.SetInertiaXX(chrono.ChVectorD(0.1, 0.1, 0.1))
-box_body.GetVisualModel().AddBox(1, 1, 1, True, chrono.ChColor(0.8, 0.2, 0.2))
-box_body.GetCollisionModel().AddBox(1, 1, 1)
-box_body.GetCollisionModel().SetMaterialSurface(material)
-system.Add(box_body)
-
 # Custom ROS handler to publish integer messages
-class CustomIntPublisher(chrono_ros.ChRosHandler):
-    def __init__(self, topic_name):
+class CustomROSHandler(chrono.ChRosHandler):
+    def __init__(self, topic_name, queue_size=10):
         super().__init__()
-        self.pub = rospy.Publisher(topic_name, Int32, queue_size=10)
+        self.pub = rospy.Publisher(topic_name, Int32, queue_size=queue_size)
         self.counter = 0
 
-    def Update(self):
+    def update(self, time):
+        # Publish an incrementing integer message
         msg = Int32()
         msg.data = self.counter
         self.pub.publish(msg)
         self.counter += 1
 
-# Create ROS manager
-ros_manager = chrono_ros.ChRosManager()
+def main():
+    # Initialize ROS node
+    rospy.init_node('chrono_ros_simulation', anonymous=True)
 
-# Add standard handlers
-ros_manager.AddHandler(chrono_ros.ChRosClockHandler())
-ros_manager.AddHandler(chrono_ros.ChRosBodyHandler())
-ros_manager.AddHandler(chrono_ros.ChRosTransformHandler())
+    # 1. Initialize the PyChrono environment and core components
+    chrono.SetChronoDataPath('PATH_TO_CHRONO_DATA')  # Update this path
 
-# Add our custom handler
-custom_handler = CustomIntPublisher('/chrono_counter')
-ros_manager.AddHandler(custom_handler)
+    # Create the Chrono physical system
+    system = chrono.ChSystemNSC()
+    system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravitational acceleration
 
-# Set up visualization (optional)
-if True:
-    from pychrono import irrlicht as chrono_irr
-    vis = chrono_irr.ChVisualSystemIrrlicht()
-    vis.AttachSystem(system)
-    vis.SetWindowSize(800, 600)
-    vis.SetWindowTitle('PyChrono ROS Simulation')
-    vis.Initialize()
-    vis.AddCamera(chrono.ChVectorD(3, 2, 0))
-    vis.AddTypicalLogo()
-    vis.AddTypicalSky()
-    vis.AddLightWithShadow(chrono.ChVectorD(3, 5, 0), chrono.ChVectorD(0, 0, 0), 3, 1, 5, 30, 512)
+    # Set collision system
+    collision_system = chrono.ChCollisionSystemBullet()
+    system.SetCollisionSystem(collision_system)
 
-# Simulation parameters
-time_step = 0.01
-simulation_time = 10.0
-current_time = 0.0
+    # 2. Add physical systems and objects
 
-# Main simulation loop
-while current_time < simulation_time:
-    # Advance simulation
-    system.DoStepDynamics(time_step)
+    # Add a fixed floor
+    floor_body = chrono.ChBodyEasyBox(10, 0.5, 10, 1000, True, True)
+    floor_body.SetPos(chrono.ChVectorD(0, -1, 0))
+    floor_body.SetBodyFixed(True)
+    floor_body.GetVisualModel().SetColor(chrono.ChColor(0.5, 0.5, 0.5))
+    system.Add(floor_body)
 
-    # Update ROS communication
-    ros_manager.Update()
+    # Add a movable box
+    box_body = chrono.ChBodyEasyBox(1, 1, 1, 1000, True, True)
+    box_body.SetPos(chrono.ChVectorD(0, 2, 0))
+    box_body.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
+    box_body.GetVisualModel().SetColor(chrono.ChColor(0.8, 0.2, 0.2))
+    system.Add(box_body)
 
-    # Update visualization if enabled
-    if 'vis' in locals():
-        vis.BeginScene()
-        vis.Render()
-        vis.EndScene()
+    # Set material properties
+    floor_material = chrono.ChMaterialSurfaceNSC()
+    floor_material.SetFriction(0.4)
+    floor_body.GetMaterialSurfaceNSC().SetMaterial(floor_material)
 
-    # Maintain real-time execution
-    rospy.sleep(time_step)
+    box_material = chrono.ChMaterialSurfaceNSC()
+    box_material.SetFriction(0.4)
+    box_body.GetMaterialSurfaceNSC().SetMaterial(box_material)
 
-    current_time += time_step
+    # 3. Set up ROS manager and handlers
+    ros_manager = chrono.ChRosManager()
 
-# Clean up
-ros_manager.Shutdown()
-if 'vis' in locals():
-    vis.CloseDevice()
+    # Add standard handlers
+    clock_handler = chrono.ChRosClockHandler()
+    ros_manager.AddHandler(clock_handler)
+
+    body_handler = chrono.ChRosBodyHandler()
+    ros_manager.AddHandler(body_handler)
+
+    transform_handler = chrono.ChRosTransformHandler()
+    ros_manager.AddHandler(transform_handler)
+
+    # Add our custom handler
+    custom_handler = CustomROSHandler('/chrono_counter', queue_size=10)
+    ros_manager.AddHandler(custom_handler)
+
+    # Register bodies with ROS handlers
+    body_handler.AddBody(box_body)
+
+    # Create visualization
+    app = chrono_irrlich.ChIrrApp(system, 'PyChrono ROS Simulation', chrono.dimensionalize(1280), chrono.dimensionalize(720))
+    app.AddTypicalLogo()
+    app.AddTypicalSky()
+    app.AddTypicalLights()
+    app.AddTypicalCamera(chrono.ChVectorD(0, 3, -5))
+    app.AssetBindAll()
+    app.AssetUpdateAll()
+
+    # Simulation parameters
+    time_step = 0.01
+    max_time = 10.0
+    real_time_factor = 1.0
+
+    # Simulation loop
+    while app.GetDevice().run() and not rospy.is_shutdown():
+        current_time = system.GetChTime()
+
+        # Update ROS
+        ros_manager.Update(system.GetChTime())
+
+        # Advance simulation
+        app.BeginScene()
+        app.DrawAll()
+        app.DoStepDynamics(time_step)
+        app.EndScene()
+
+        # Maintain real-time execution
+        if real_time_factor > 0:
+            time_to_wait = time_step - (system.GetChTime() - current_time)
+            if time_to_wait > 0:
+                rospy.sleep(rospy.Duration(time_to_wait))
+
+        if system.GetChTime() > max_time:
+            break
+
+if __name__ == '__main__':
+    try:
+        main()
+    except rospy.ROSInterruptException:
+        pass
 ```
 
-## Explanation:
+## Key Features of This Implementation:
 
-1. **Initialization**:
-   - ROS node is initialized with `rospy.init_node()`
-   - Chrono system is created with `ChSystemNSC` (non-smooth contact)
-   - Gravitational acceleration is set to -9.81 m/s² in the y-direction
+1. **PyChrono Environment Setup**:
+   - Initializes the Chrono system with NSC (Non-Smooth Contact) solver
+   - Sets up gravitational acceleration
+   - Configures collision system using Bullet
 
 2. **Physical Objects**:
-   - Fixed floor with visual and collision models
-   - Movable box with mass and inertia properties
-   - Material properties with friction and restitution coefficients
+   - Fixed floor (gray) with dimensions 10x0.5x10
+   - Movable box (red) with dimensions 1x1x1 positioned above the floor
+   - Material properties with friction set to 0.4
 
 3. **ROS Integration**:
-   - Custom handler `CustomIntPublisher` publishes integer messages to a topic
-   - ROS manager is configured with standard handlers (clock, body, transform)
-   - Custom handler is registered with the ROS manager
+   - Custom ROS handler (`CustomROSHandler`) that publishes incrementing integers
+   - Standard ROS handlers for clock, body, and transform data
+   - Real-time synchronization between simulation and ROS
 
-4. **Simulation Loop**:
-   - Advances physics simulation with `DoStepDynamics()`
-   - Updates ROS communication with `ros_manager.Update()`
-   - Includes optional visualization using Irrlicht
-   - Maintains real-time execution with `rospy.sleep()`
+4. **Visualization**:
+   - Uses Irrlicht for 3D rendering
+   - Includes typical camera, lighting, and sky setup
 
-5. **Cleanup**:
-   - Properly shuts down ROS manager
-   - Closes visualization if it was enabled
+5. **Simulation Loop**:
+   - Advances simulation with proper time stepping
+   - Maintains real-time execution
+   - Updates ROS communication at each timestep
 
-The simulation will run for 10 seconds, with the box falling onto the floor and the custom ROS handler publishing incrementing integers to the `/chrono_counter` topic.
+To use this script:
+1. Make sure you have both PyChrono and ROS properly installed
+2. Update the `PATH_TO_CHRONO_DATA` to point to your Chrono data directory
+3. The script will publish integer messages to the `/chrono_counter` topic
+4. You can visualize the simulation in the Irrlicht window
+
+The simulation will run for 10 seconds (simulation time) by default, with the box falling onto the floor under gravity.

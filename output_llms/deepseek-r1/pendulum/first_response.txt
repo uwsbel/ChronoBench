@@ -1,101 +1,122 @@
-To create a simple pendulum simulation in PyChrono with Irrlicht visualization, follow this step-by-step solution:
+To create a simulation of a simple pendulum using PyChrono with Irrlicht visualization, follow this step-by-step solution:
 
 ```python
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
+import math
 
-def main():
-    # 1. Initialize system and set default parameters
-    system = chrono.ChSystemNSC()
-    system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Gravity
-    
-    # 2. Create ground body
-    ground = chrono.ChBody()
-    ground.SetBodyFixed(True)  # Ground doesn't move
-    system.Add(ground)
-    
-    # 3. Create pendulum body (thin box-shaped)
-    pendulum = chrono.ChBody()
-    pendulum.SetMass(1.0)  # Mass = 1kg
-    pendulum.SetInertiaXX(chrono.ChVectorD(0.1, 0.01, 0.1))  # Custom inertia
-    
-    # Set initial position (hanging down with slight offset)
-    pendulum.SetPos(chrono.ChVectorD(0.5, -0.5, 0))
-    
-    # Visual shape (red box: 0.05m wide, 1m long, 0.05m thick)
-    box_shape = chrono.ChBoxShape()
-    box_shape.GetBoxGeometry().Size = chrono.ChVectorD(0.025, 0.5, 0.025)
-    pendulum.AddVisualShape(box_shape, chrono.ChFrameD(chrono.VNULL, chrono.Q_from_AngX(chrono.CH_C_PI_2)))
-    system.Add(pendulum)
-    
-    # 4. Create revolute joint at origin
-    pivot = chrono.ChLinkLockRevolute()
-    pivot.Initialize(ground, pendulum, chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0)))
-    system.Add(pivot)
-    
-    # 5. Set up Irrlicht visualization
-    vis = chronoirr.ChVisualSystemIrrlicht()
-    vis.AttachSystem(system)
-    vis.SetWindowSize(1280, 720)
-    vis.SetWindowTitle('PyChrono Pendulum')
-    vis.Initialize()
-    vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
-    vis.AddSkyBox()
-    vis.AddCamera(chrono.ChVectorD(1, 0.5, 2))
-    vis.AddTypicalLights()
-    
-    # 6. Simulation loop
-    time_step = 0.001
-    step_number = 0
-    log_interval = 20  # Log every 20 steps
-    
-    while vis.Run():
-        vis.BeginScene()
-        vis.Render()
-        vis.EndScene()
-        
-        system.DoStepDynamics(time_step)
-        
-        # Log data periodically
-        if step_number % log_interval == 0:
-            pos = pendulum.GetPos()
-            vel = pendulum.GetPos_dt()
-            print(f"Time: {system.GetChTime():.3f}s | "
-                  f"Position: ({pos.x:.3f}, {pos.y:.3f}, {pos.z:.3f}) | "
-                  f"Velocity: ({vel.x:.3f}, {vel.y:.3f}, {vel.z:.3f})")
-        
-        step_number += 1
+# 1. Initialize the system and set gravity
+system = chrono.ChSystemNSC()
+system.Set_Grav(chrono.ChVectorD(0, -9.81, 0))  # Standard gravity along Y
 
-if __name__ == "__main__":
-    main()
+# 2. Create ground body
+ground = chrono.ChBody()
+ground.SetBodyFixed(True)  # Ground is fixed
+system.Add(ground)
+
+# Add visualization asset for ground (box at origin)
+ground_box = chrono.ChBoxShape()
+ground_box.GetBoxGeometry().Size = chrono.ChVectorD(0.3, 0.1, 0.3)
+ground_box.SetColor(chrono.ChColor(0.6, 0.6, 0.6))
+ground.AddVisualShape(ground_box)
+
+# 3. Create pendulum body (rod with point mass at end)
+pendulum = chrono.ChBody()
+system.Add(pendulum)
+
+# Set mass properties (mass = 1 kg, inertia approximated for thin rod)
+length = 2.0  # Pendulum length (meters)
+pendulum_mass = 1.0
+inertia_yy = pendulum_mass * length**2  # I_yy for rotation
+pendulum.SetMass(pendulum_mass)
+pendulum.SetInertiaXX(chrono.ChVectorD(1, inertia_yy, 1))  # Only I_yy matters
+
+# Position pendulum COM below joint (initial position = vertical)
+pendulum.SetPos(chrono.ChVectorD(0, -length/2, 0))
+
+# Add visualization (red box for rod)
+rod_shape = chrono.ChBoxShape()
+rod_shape.GetBoxGeometry().Size = chrono.ChVectorD(0.05, length/2, 0.05)
+rod_shape.SetColor(chrono.ChColor(0.9, 0.1, 0.1))
+pendulum.AddVisualShape(rod_shape, chrono.ChFrameD(chrono.ChVectorD(0, -length/2, 0)))
+
+# 4. Create revolute joint between ground and pendulum
+revolute = chrono.ChLinkLockRevolute()
+revolute.Initialize(ground, pendulum, chrono.ChCoordsysD(chrono.ChVectorD(0,0,0)))
+system.AddLink(revolute)
+
+# 5. Set up Irrlicht visualization
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle('Simple Pendulum')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVectorD(0, 0, 3))  # Camera position
+vis.AddTypicalLights()
+
+# 6. Simulation loop
+step_size = 0.001
+log_interval = 0.01  # Log every 0.01 seconds
+log_timer = 0
+
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    system.DoStepDynamics(step_size)
+    
+    # Log position and velocity at specified intervals
+    time = system.GetChTime()
+    log_timer += step_size
+    if log_timer >= log_interval:
+        log_timer = 0
+        pos = pendulum.GetPos()
+        vel = pendulum.GetPos_dt()
+        print(f"Time: {time:.3f}s | Position: ({pos.x:.3f}, {pos.y:.3f}) | Velocity: ({vel.x:.3f}, {vel.y:.3f})")
 ```
 
-Key components explained:
+**Key Components Explained:**
 
-1. **System Initialization**:
-   - Creates physical system with Newtonian dynamics (NSC)
-   - Sets gravity to -9.81 m/s² in Y-direction
+1. **System Initialization:**
+   - Creates a physical system with gravity (-9.81 m/s² along Y-axis)
+   - Uses Non-Smooth Contact (NSC) solver for efficient simulation
 
-2. **Ground Body**:
-   - Fixed body at origin serving as pivot point
+2. **Ground Body:**
+   - Fixed body at origin (0,0,0)
+   - Visualized as a gray box for reference
 
-3. **Pendulum Setup**:
-   - Mass: 1 kg with custom inertia for rod-like object
-   - Initial position offset to start at 30° angle
-   - Visualized as thin red box (1m long, 5cm thick)
+3. **Pendulum Body:**
+   - Mass = 1 kg, length = 2 meters
+   - Inertia calculated for thin rod (I_yy = mL²)
+   - Positioned so center of mass is at (0, -1, 0) initially
+   - Visualized as a red rod extending downward from joint
 
-4. **Joint Connection**:
-   - Revolute joint at origin allowing rotation in XY plane
-   - Constrains pendulum to ground at (0,0,0)
+4. **Revolute Joint:**
+   - Connects ground and pendulum at (0,0,0)
+   - Allows rotation only about Z-axis
 
-5. **Visualization**:
-   - Irrlicht window with skybox, camera positioning
-   - Chrono logo and directional lights
-   - Real-time rendering at 60 FPS
+5. **Visualization Setup:**
+   - Creates Irrlicht window with camera 3m away
+   - Adds skybox and lighting for better visualization
+   - Includes PyChrono logo in corner
 
-6. **Simulation & Logging**:
-   - Fixed time step of 1ms for stable simulation
-   - Logs position/velocity 20 times per second
-   - Dynamic physics updates each time step
+6. **Simulation Loop:**
+   - Runs at 1000 FPS (step_size = 0.001s)
+   - Logs pendulum position and velocity every 0.01 seconds
+   - Real-time visualization updates
 
-The pendulum will swing under gravity with realistic physics. The output console will show time-stamped position and velocity data while the Irrlicht window provides real-time 3D visualization of the swinging motion.
+**Expected Behavior:**
+- Pendulum starts vertically downward (equilibrium position)
+- When released, it swings under gravity
+- Console outputs position/velocity data at regular intervals
+- Visualization shows smooth pendulum motion
+
+**Adjustment Notes:**
+- Change `length` variable to modify pendulum size
+- Adjust `pendulum_mass` for different masses
+- Modify `log_interval` to change output frequency
+- Camera position can be changed in `AddCamera()` call
+
+This simulation demonstrates fundamental physics of a pendulum while providing real-time visualization and data logging capabilities.

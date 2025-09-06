@@ -197,12 +197,48 @@ def main():
                    "slider_crank", "tablecloth", "turtlebot", "uazbus", "veh_app", "vehros", "viper"]
     # system_do_list=["rotor", "scm", "scm_hill", "sedan", "sensros", "slider_crank", "tablecloth", "turtlebot", "uazbus", "veh_app","vehros","viper"]
     system_do_list = system_list
-    dataset_path = r"C:\Users\jingquanw\SimBench\demo_data"
-    output_path  = r"C:\Users\jingquanw\SimBench\output_llms"
-    output_conv  = r"C:\Users\jingquanw\SimBench\output_conversion"
-    test_model_list = ["deepseek-r1"]
+    dataset_path = r"/home/hongyu/Documents/SimBench/demo_data"
+    output_path  = r"/home/hongyu/Documents/SimBench/output_llms"
+    output_conv  = r"/home/hongyu/Documents/SimBench/output_conversion"
+    test_model_list = ["gemma-2-2b-it",
+                       "gemma-2-9b-it",
+                       "gemma-2-27b-it",
+                       "gemma-3-27b-it",
+                       "gemma-3-1b-it",
 
-    MAX_WORKERS = 5
+                       "llama4_maverick",
+                       "llama4_scout",
+                       "llama-3.3-70b-instruct",
+                       "llama-3.1-70b-instruct",
+                       "llama-3.1-405b-instruct",
+                       "llama-3.1-8b-instruct",
+                       
+                       
+                       "qwen3-235b-a22b",
+                       "qwq-32b",
+                       "qwen3-7b-instuct",
+                       
+                       "codestral-22b-instruct-v0.1", 
+
+                       "mistral-small-3.1-24b-instruct-2503",
+                       "mistral-medium-3-instruct",
+                       "mixtral-8x22b-instruct-v0.1",
+                       "mixtral-8x7b-instruct-v0.1",
+                       "mistral-nemo-12b-instruct",
+                       "mistral-large-latest",
+
+                       "nemotron-4-340b-instruct",
+                       "mamba-codestral-7b-v0.1",
+                       
+                       "phi-3-medium-128k-instruct",
+                       "phi-3-mini-128k-instruct",
+                       "phi-4-mini-instruct",
+
+                       "deepseek-r1",
+                       "deepseek-r1-32b",
+                       "deepseek-r1-8b"]
+
+    MAX_WORKERS = 10
 
     for test_model in test_model_list:
         link = opensource_model_links[test_model]

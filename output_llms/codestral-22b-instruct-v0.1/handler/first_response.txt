@@ -1,1 +1,46 @@
-Error code: 500 - {'status': 500, 'title': 'Internal Server Error', 'detail': 'Other error: Other error: server returned empty error response'}
+```python
+import pychrono as chrono
+import pychrono.ros as chrono_ros
+import rospy
+from std_msgs.msg import Int32
+
+# 1. Initialize the PyChrono environment and core components
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # set gravitational acceleration
+
+# 2. Add the required physical systems and objects as specified
+floor = chrono.ChBodyEasyBox(10, 1, 10, 1000, True, True)
+floor.SetPos(chrono.ChVectorD(0, -5, 0))
+floor.SetBodyFixed(True)
+system.Add(floor)
+
+box = chrono.ChBodyEasyBox(1, 1, 1, 1000, True, True)
+box.SetPos(chrono.ChVectorD(0, 5, 0))
+system.Add(box)
+
+# Create a custom ROS handler
+class CustomROSHandler(chrono_ros.ChROSHandler):
+    def __init__(self, topic_name):
+        self.pub = rospy.Publisher(topic_name, Int32, queue_size=10)
+
+    def Update(self, system):
+        msg = Int32()
+        msg.data = int(system.GetChTime())
+        self.pub.publish(msg)
+
+# Configure the ROS manager with clock, body, and transform handlers
+ros_manager = chrono_ros.ChROSManager()
+ros_manager.SetClockHandler(chrono_ros.ChROSClockHandler(system))
+ros_manager.SetBodyHandler(chrono_ros.ChROSRigidBodyHandler(system))
+ros_manager.SetTransformHandler(chrono_ros.ChROSChTransformHandler(system))
+
+# Register the custom handler
+custom_handler = CustomROSHandler("/custom_topic")
+ros_manager.AddHandler(custom_handler)
+
+# Run a simulation loop
+while system.GetChTime() < 10:
+    system.DoStepDynamics(0.01)
+    ros_manager.Update()
+```
+This script creates a PyChrono simulation integrated with ROS. It sets up a Chrono system with gravitational acceleration and adds a fixed floor and a movable box to the system. A custom ROS handler is created to publish integer messages to a specified topic. The ROS manager is configured with clock, body, and transform handlers, and the custom handler is registered. The script then runs a simulation loop, advancing the system and updating ROS communication at each timestep.

@@ -1,122 +1,86 @@
-Here's a well-structured PyChrono simulation script that meets the specified requirements, including initialization, visualization, terrain setup, and an interactive driver system:
-
 ```python
 import pychrono as chrono
 import pychrono.vehicle as veh
-import pychrono.Irrlicht as irr
+import pychrono.terrain as terrain
+import pychrono.irrlicht as chronoirr
 
-# ----------------------------
-# Initialize PyChrono System
-# ----------------------------
-chrono.SetChronoDataPath(chrono.GetChronoDataPath())
+# Initialize the Chrono system
 system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
-# ----------------------------
-# Create Rigid Terrain
-# ----------------------------
-terrain = veh.RigidTerrain(system)
-patch_mat = chrono.ChMaterialSurfaceNSC()
-patch_mat.SetFriction(0.9)
-patch_mat.SetRestitution(0.01)
-patch = terrain.AddPatch(patch_mat, 
-                         chrono.ChVectorD(0, 0, 0), 
-                         chrono.ChVectorD(200, 200, 1))
-patch.SetTexture(chrono.GetChronoDataFile("terrain/textures/tile4.jpg"))
-terrain.Initialize()
-
-# ----------------------------
-# Initialize CityBus Vehicle
-# ----------------------------
+# Create the CityBus vehicle
 bus = veh.CityBus(system)
-bus.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 1.2), chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0))))
-bus.SetTireType(veh.TireModelType_TMeasy)
-bus.SetTireStepSize(1e-3)
+bus.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 1.0, 0), chrono.QUNIT))
+bus.SetTireType(veh.TireModelType_TMEASY)  # Use TMeasy tire model
 bus.Initialize()
 
-# ----------------------------
-# Initialize Irrlicht Visualization
-# ----------------------------
-application = irr.ChIrrApp(system, "CityBus Simulation", irr.dimension2du(1280, 720))
-application.AddTypicalLights()
-application.AddSkyBox()
-application.AddLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))
+# Set visualization assets for the vehicle
+# Chassis with mesh
+chassis = bus.GetChassis().GetBody()
+chassis_mesh = chrono.ChTriangleMeshConnected()
+chassis_mesh.LoadWavefrontMesh(chrono.GetChronoDataFile("vehicle/CityBus/CityBus.obj"))
+chassis.AddAsset(chassis_mesh)
 
-# Set camera to follow vehicle
-camera_pos = bus.GetChassisPos() + chrono.ChVectorD(0, 5, -10)
-application.AddCamera(irr.vector3df(camera_pos.x, camera_pos.y, camera_pos.z),
-                     irr.vector3df(bus.GetChassisPos().x, bus.GetChassisPos().y, bus.GetChassisPos().z))
+# Wheels with primitive cylinders
+for i in range(bus.GetNumberofWheels()):
+    wheel = bus.GetWheelBody(i)
+    wheel_cyl = chrono.ChCylinderShape(0.3, 0.2)  # Radius, width
+    wheel.AddAsset(wheel_cyl)
 
-application.AssetBindAll()
-application.AssetUpdateAll()
+# Create Rigid Terrain with custom texture
+terrain_obj = terrain.RigidTerrain(system)
+patch = terrain_obj.AddPatch(chrono.ChMaterialSurfaceNSC(), chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(200, 1, 200))
+patch.SetTexture(chrono.GetChronoDataFile("terrain/textures/tile.png"))
+terrain_obj.Initialize()
 
-# ----------------------------
-# Setup Interactive Driver
-# ----------------------------
-driver = veh.ChIrrGuiDriver(application)
+# Set up Irrlicht visualization
+application = chronoirr.ChIrrApp(system, 'CityBus Simulation', chronoirr.dimension2du(1024, 768))
+application.AddTypicalLogo()
+application.AddTypicalCamera(chronoirr.vector3df(0, 3, -6), chronoirr.vector3df(0, 1, 0))
+application.AddLightWithShadow(chronoirr.vector3df(10, 20, 10), chronoirr.vector3df(0, 0, 0), 100, 1, 100, 45, chronoirr.video.SColorf(0.8, 0.8, 1.0))
+
+# Set up interactive driver system
+driver = veh.ChIrrGuiDriver(application.GetDevice())
 driver.SetSteeringDelta(0.05)
 driver.SetThrottleDelta(0.05)
 driver.SetBrakingDelta(0.05)
 
-# ----------------------------
-# Simulation Loop
-# ----------------------------
-step_size = 0.02  # 50 Hz
-frame_rate = 50
+# Simulation loop parameters
+step_size = 1.0 / 50.0  # 50 FPS
+rt_timer = chrono.ChRealtimeStepTimer()
 
+# Camera follow settings
+camera = application.GetSceneManager().getActiveCamera()
+camera_offset = chronoirr.vector3df(0, 5, -10)  # Offset from vehicle
+
+# Main simulation loop
 while application.GetDevice().run():
     time = system.GetChTime()
 
     # Get driver inputs
     driver_inputs = driver.GetInputs()
 
-    # Synchronize components
-    bus.Synchronize(time, driver_inputs)
-    terrain.Synchronize(time)
-    driver.Synchronize(time)
-    application.Synchronize(time)
+    # Synchronize vehicle and terrain
+    bus.Synchronize(time, driver_inputs, terrain_obj)
+    terrain_obj.Synchronize(time)
 
-    # Advance dynamics
+    # Advance simulation
     system.DoStepDynamics(step_size)
 
-    # Update camera position to follow the vehicle
-    bus_pos = bus.GetChassisPos()
-    cam_node = application.GetSceneManager().getActiveCamera()
-    cam_node.setPosition(irr.vector3df(bus_pos.x, bus_pos.y + 5, bus_pos.z - 10))
-    cam_node.setTarget(irr.vector3df(bus_pos.x, bus_pos.y, bus_pos.z))
+    # Update camera to follow vehicle
+    chassis_pos = bus.GetChassis().GetPos()
+    camera.setTarget(chronoirr.vector3df(chassis_pos.x, chassis_pos.y, chassis_pos.z))
+    camera.setPosition(chronoirr.vector3df(
+        chassis_pos.x + camera_offset.X,
+        chassis_pos.y + camera_offset.Y,
+        chassis_pos.z + camera_offset.Z
+    ))
 
     # Render scene
     application.BeginScene()
     application.DrawAll()
     application.EndScene()
+
+    # Maintain real-time execution
+    rt_timer.Spin(step_size)
 ```
-
----
-
-### ✅ Key Features Implemented
-
-- **System Initialization**: Creates a PyChrono system with gravity and prepares for simulation.
-- **Rigid Terrain**: Uses `RigidTerrain` with a custom texture (`tile4.jpg`) for realistic ground.
-- **CityBus Vehicle**: Initializes the vehicle at a specified location with orientation and uses the TMeasy tire model.
-- **Visualization**:
-  - Uses Irrlicht for real-time rendering.
-  - Applies a combination of mesh and primitive visualizations (default in `CityBus` model).
-  - Camera follows the vehicle dynamically.
-- **Interactive Driver**:
-  - Implements `ChIrrGuiDriver` for keyboard control.
-  - Allows steering, throttle, and braking via arrow keys or WASD.
-- **Simulation Loop**:
-  - Runs at 50 FPS with a fixed step size of `0.02` seconds.
-  - Updates vehicle dynamics and renders the scene in real-time.
-
----
-
-### 📁 Notes
-
-- Ensure that the texture file `tile4.jpg` (or any desired custom texture) is located in the `terrain/textures/` directory within your Chrono data path.
-- The `CityBus` model assumes the presence of default visualization assets (meshes and materials). If custom visualization is required, additional asset setup can be added.
-- The camera follows the vehicle with a fixed offset, but this can be adjusted for different viewing angles.
-
----
-
-This script provides a complete simulation environment for a CityBus on a rigid terrain with interactive control and real-time visualization using PyChrono and Irrlicht.

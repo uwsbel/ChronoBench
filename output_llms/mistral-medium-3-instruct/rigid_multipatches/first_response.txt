@@ -1,4 +1,4 @@
-# PyChrono HMMWV Simulation with Complex Terrain
+# PyChrono HMMWV Simulation on Complex Terrain
 
 Below is a comprehensive PyChrono simulation script for an HMMWV on complex terrain with Irrlicht visualization:
 
@@ -10,174 +10,191 @@ import numpy as np
 import os
 
 # =============================================================================
-# Initialize PyChrono and create the simulation system
+# Simulation parameters
 # =============================================================================
 
-# Set the path to the Chrono data directory
-chrono.SetChronoDataPath(os.path.join(os.path.dirname(__file__), '../../data/'))
+# Simulation step size
+step_size = 1e-3
 
-# Create the Chrono simulation system
-system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravitational acceleration
+# Time interval between two render frames
+render_step_size = 1 / 50  # FPS = 50
+
+# Point on chassis tracked by the camera
+camera_target = chrono.ChVectorD(0, 0, 1)
 
 # =============================================================================
+# Create the systems and simulation
+# =============================================================================
+
+# Create the vehicle system
+vehicle_system = veh.VehicleSystem()
+vehicle_system.SetChTimeStep(step_size)
+
 # Create the terrain system
-# =============================================================================
+terrain_system = veh.TerrainSystem()
+terrain_system.SetChTimeStep(step_size)
 
-# Create the terrain
-terrain = veh.RigidTerrain(system)
-
-# Add a large flat patch (asphalt)
-asphalt_patch = terrain.AddPatch(chrono.ChCoordinatesysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT),
-                                20, 20,  # Dimensions (width, length)
-                                0.1,     # Thickness
-                                True,    # Collision enabled
-                                0.8,     # Friction coefficient
-                                1e6,     # Normal stiffness
-                                1e5,     # Normal damping
-                                1e6,     # Tangential stiffness
-                                1e5)     # Tangential damping
-asphalt_patch.SetColor(chrono.ChColor(0.3, 0.3, 0.3))
-asphalt_patch.SetTexture(veh.GetDataFile("terrain/textures/asphalt.jpg"))
-
-# Add a flat patch with different texture (concrete)
-concrete_patch = terrain.AddPatch(chrono.ChCoordinatesysD(chrono.ChVectorD(15, 0, 0), chrono.QUNIT),
-                                20, 20,
-                                0.1,
-                                True,
-                                0.9,
-                                1e6,
-                                1e5,
-                                1e6,
-                                1e5)
-concrete_patch.SetColor(chrono.ChColor(0.5, 0.5, 0.5))
-concrete_patch.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"))
-
-# Add a mesh-based patch for a bump
-bump_patch = terrain.AddPatch(chrono.ChCoordinatesysD(chrono.ChVectorD(5, 0, 0), chrono.QUNIT),
-                             veh.GetDataFile("terrain/meshes/bump.obj"),
-                             True,
-                             0.7,
-                             1e6,
-                             1e5,
-                             1e6,
-                             1e5)
-bump_patch.SetColor(chrono.ChColor(0.8, 0.6, 0.4))
-
-# Add a heightmap-based patch for varying elevations
-heightmap_patch = terrain.AddPatch(chrono.ChCoordinatesysD(chrono.ChVectorD(-5, 0, 0), chrono.QUNIT),
-                                  veh.GetDataFile("terrain/height_maps/test64.bmp"),
-                                  10, 10,  # Dimensions
-                                  0.1,     # Height scale
-                                  True,
-                                  0.6,
-                                  1e6,
-                                  1e5,
-                                  1e6,
-                                  1e5)
-heightmap_patch.SetColor(chrono.ChColor(0.4, 0.8, 0.4))
-heightmap_patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"))
-
-# Finalize the terrain
-terrain.Initialize()
+# Create the visualization system
+vis_system = veh.ChVehicleVisualSystemIrrlicht()
+vis_system.SetChTimeStep(step_size)
+vis_system.SetWindowTitle("HMMWV on Complex Terrain")
+vis_system.SetWindowSize(1280, 720)
+vis_system.SetCameraVertical(chrono.ChCameraVertical_Down)
+vis_system.SetCameraTarget(camera_target)
+vis_system.SetCameraDistance(10)
+vis_system.Initialize()
 
 # =============================================================================
 # Create the HMMWV vehicle
 # =============================================================================
 
-# Create the vehicle system
-vehicle = veh.WheeledVehicle(chrono.GetVehicleDataFile("hmmwv/vehicle/HMMWV_Vehicle.json"))
-vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
-vehicle.SetInitializePosition(chrono.ChVectorD(0, 0.5, 0))
-vehicle.SetInitializeRotation(chrono.ChQuaternionD(1, 0, 0, 0))
+# Create the HMMWV vehicle
+hmmwv = veh.HMMWV_Vehicle(vehicle_system)
+hmmwv.SetChassisVisualizationType(veh.VisualizationType_Mesh)
+hmmwv.SetSuspensionVisualizationType(veh.VisualizationType_Mesh)
+hmmwv.SetSteeringVisualizationType(veh.VisualizationType_Mesh)
+hmmwv.SetWheelVisualizationType(veh.VisualizationType_Mesh)
 
-# Set vehicle parameters
-vehicle.SetChassisFixed(False)
-vehicle.SetEngineType(veh.EngineModelType::SHAFT)
-vehicle.SetDrivelineType(veh.DrivelineType::AWD)
-vehicle.SetTireType(veh.TireModelType::RIGID)
+# Initialize the vehicle at the specified location
+hmmwv.Initialize(chrono.ChVectorD(0, 0, 0.5), chrono.ChQuaternionD(1, 0, 0, 0))
 
-# Initialize the vehicle
-vehicle.Initialize(chrono.GetChronoDataPath() + "/vehicle/hmmwv/")
+# Set engine and drivetrain type
+hmmwv.SetEngineType(veh.EngineModelType_LinearTorque)
+hmmwv.SetDrivetrainType(veh.DrivetrainType_AWD)
 
-# Create the vehicle system and add it to the simulation system
-vehicle_system = veh.ChVehicleSystem(system)
-vehicle_system.AddVehicle(vehicle)
+# =============================================================================
+# Create the complex terrain
+# =============================================================================
+
+# Create the terrain patches
+terrain = veh.RigidTerrain(terrain_system)
+
+# Flat patch with asphalt texture
+asphalt_patch = veh.TerrainPatch()
+asphalt_patch.SetSurfaceMaterial(veh.RigidTerrainMaterial(1.0, 0.8, 0.6, 0.5))
+asphalt_patch.SetTexture("textures/asphalt.jpg")
+asphalt_patch.SetBoxSize(100, 100)
+asphalt_patch.SetBoxCenter(chrono.ChVectorD(0, 0, 0))
+asphalt_patch.SetBoxAngle(0)
+terrain.AddPatch(asphalt_patch)
+
+# Flat patch with gravel texture
+gravel_patch = veh.TerrainPatch()
+gravel_patch.SetSurfaceMaterial(veh.RigidTerrainMaterial(0.8, 0.6, 0.4, 0.7))
+gravel_patch.SetTexture("textures/gravel.jpg")
+gravel_patch.SetBoxSize(50, 50)
+gravel_patch.SetBoxCenter(chrono.ChVectorD(50, 50, 0))
+gravel_patch.SetBoxAngle(45)
+terrain.AddPatch(gravel_patch)
+
+# Mesh-based patch for a bump
+bump_mesh = chrono.ChTriangleMeshConnected()
+bump_mesh.LoadWavefrontMesh("meshes/bump.obj", False, True)
+bump_patch = veh.TerrainPatch()
+bump_patch.SetSurfaceMaterial(veh.RigidTerrainMaterial(0.6, 0.5, 0.3, 0.8))
+bump_patch.SetTexture("textures/concrete.jpg")
+bump_patch.SetMesh(bump_mesh, chrono.ChVectorD(20, 20, 0), chrono.ChQuaternionD(1, 0, 0, 0))
+terrain.AddPatch(bump_patch)
+
+# Heightmap-based patch for varying elevations
+heightmap = veh.HeightMap()
+heightmap.LoadFromFile("heightmaps/terrain.hmp")
+heightmap_patch = veh.TerrainPatch()
+heightmap_patch.SetSurfaceMaterial(veh.RigidTerrainMaterial(0.5, 0.4, 0.2, 0.9))
+heightmap_patch.SetTexture("textures/grass.jpg")
+heightmap_patch.SetHeightMap(heightmap, chrono.ChVectorD(-50, -50, 0), chrono.ChVectorD(100, 100, 20))
+terrain.AddPatch(heightmap_patch)
+
+# Finalize the terrain
+terrain.Initialize()
 
 # =============================================================================
 # Create the driver system
 # =============================================================================
 
-# Create an interactive driver
-driver = veh.ChInteractiveDriverIRR()
-
-# Initialize the driver
+# Create the interactive driver
+driver = veh.ChInteractiveDriverIRR(vis_system)
+driver.SetSteeringDelta(0.02)
+driver.SetThrottleDelta(0.02)
+driver.SetBrakingDelta(0.02)
 driver.Initialize()
 
 # =============================================================================
-# Create the visualization system
-# =============================================================================
-
-# Create the Irrlicht application
-app = chronoirr.ChIrrApp(vehicle_system, "HMMWV Simulation", chrono.ChVectorD(1280, 720))
-app.AddTypicalLogo()
-app.AddTypicalSky()
-app.AddTypicalLights()
-app.AddTypicalCamera(chrono.ChVectorD(5, 2, 0))
-app.SetTimestep(0.01)  # Set the timestep
-
-# Customize the camera
-camera = app.GetCamera()
-camera.SetPosition(chrono.ChVectorD(5, 2, 0))
-camera.SetAimPoint(chrono.ChVectorD(0, 0, 0))
-
-# =============================================================================
 # Simulation loop
 # =============================================================================
 
-# Number of simulation steps
-num_steps = 1000
+# Number of simulation steps between two 3D view render frames
+render_steps = int(np.ceil(render_step_size / step_size))
 
-# Simulation loop
-while app.GetDevice().run():
-    # Begin the scene
-    app.BeginScene()
+# Initialize simulation frame counter
+frame = 0
 
-    # Render the scene
-    app.DrawAll()
+while vis_system.Run():
+    # Get the current time
+    time = hmmwv.GetSystem().GetChTime()
 
-    # Advance the simulation for one timestep for all modules
-    driver.Synchronize(0.01)
-    vehicle_system.Synchronize(0.01, driver.GetSteering(), driver.GetThrottle(), driver.GetBraking())
-    app.DoStep()
+    # Driver inputs
+    driver_input = driver.GetInputs()
 
-    # End the scene
-    app.EndScene()
+    # Update the driver system
+    driver.Synchronize(time)
+
+    # Update the vehicle state
+    driver.SetSteering(hmmwv.GetSteeringAngle())
+    driver.SetThrottle(hmmwv.GetEngineThrottle())
+    driver.SetBraking(hmmwv.GetBrakeForce())
+
+    # Update the vehicle system
+    hmmwv.Synchronize(time, driver_input.m_steering, driver_input.m_throttle, driver_input.m_braking)
+
+    # Update the terrain system
+    terrain.Synchronize(time)
+
+    # Advance simulation for one timestep for all modules
+    hmmwv.Advance(step_size)
+    terrain.Advance(step_size)
+
+    # Render scene
+    if frame % render_steps == 0:
+        vis_system.BeginScene()
+        vis_system.Render()
+        vis_system.EndScene()
+
+    frame += 1
 ```
 
-## Key Features of This Simulation:
+## Key Components Explained:
 
-1. **Complex Terrain System**:
-   - Flat patches with different textures (asphalt and concrete)
-   - Mesh-based patch for a bump obstacle
-   - Heightmap-based patch for varying elevations
+1. **Initialization**:
+   - Sets up the PyChrono environment with vehicle, terrain, and visualization systems
+   - Configures simulation parameters like step size and rendering rate
 
-2. **HMMWV Vehicle Setup**:
-   - Initialized with specific position and orientation
-   - Configured with AWD drivetrain and shaft engine model
-   - Mesh visualization for all vehicle components
+2. **Vehicle Setup**:
+   - Creates an HMMWV with mesh visualization for all components
+   - Initializes position and orientation
+   - Configures engine and drivetrain types
 
-3. **Interactive Driver System**:
-   - Allows real-time control of steering, throttle, and braking
-   - Integrated with Irrlicht visualization
+3. **Complex Terrain**:
+   - Flat patches with different textures (asphalt, gravel)
+   - Mesh-based bump patch
+   - Heightmap-based terrain with varying elevations
+   - Different material properties for each surface type
 
-4. **Visualization**:
-   - Irrlicht-based real-time rendering
-   - Custom camera setup for better viewing
-   - Proper lighting and skybox
+4. **Driver System**:
+   - Interactive driver for real-time control
+   - Configurable steering, throttle, and braking inputs
 
-5. **Simulation Parameters**:
-   - Consistent timestep of 0.01 seconds
-   - Proper physics parameters for vehicle-terrain interaction
+5. **Simulation Loop**:
+   - Handles driver inputs
+   - Synchronizes all systems
+   - Advances simulation with consistent timestep
+   - Renders the scene in real-time
 
-To run this simulation, you'll need to have PyChrono properly installed with the vehicle module and all required data files. The simulation provides a realistic environment for testing the HMMWV's performance on complex terrain.
+## Requirements:
+- PyChrono with vehicle module
+- Irrlicht visualization support
+- Mesh files for vehicle components and terrain bump
+- Texture files for terrain surfaces
+- Heightmap file for elevation data
+
+This script provides a complete simulation of an HMMWV on complex terrain with interactive control and realistic visualization.

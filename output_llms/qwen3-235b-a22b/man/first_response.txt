@@ -1,127 +1,77 @@
-Here is a well-structured and documented PyChrono simulation script that fulfills the requirements for simulating a **MAN 10t truck** driving on a **rigid terrain** with **TMeasy tire models**, **real-time driver controls**, and **Irrlicht-based visualization** featuring a **chase camera**, **skybox**, **directional lighting**, and **customizable terrain textures**.
-
----
-
-### ✅ Prerequisites
-
-Ensure you have the following installed:
-- PyChrono (with vehicle and Irrlicht modules)
-- Appropriate assets (e.g., textures, models) in the `chrono::GetDataPath()` directory
-
----
-
-### 📜 Simulation Script
-
 ```python
 import pychrono as chrono
 import pychrono.vehicle as veh
 import pychrono.irrlicht as irr
 
-# ----------------------------
-# 1. Initialize the PyChrono System
-# ----------------------------
+# Initialize the Chrono system with NSC solver
 system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))  # Set gravity
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
 
-# ----------------------------
-# 2. Create the Rigid Terrain
-# ----------------------------
+# Create the Irrlicht visualization system with customizable settings
+application = irr.ChIrrApp(system, 'MAN 10t Truck Simulation', irr.dimension2du(1280, 720))
+application.AddSkyBox()  # Add skybox for realism
+application.AddLogo()    # Add Chrono logo
+
+# Add directional lighting for enhanced visuals
+light = irr.ChIrrLight()
+light.SetType(irr.ELT_DIRECTIONAL)
+light.SetDirection(chrono.ChVectorD(1, -1, 0).GetNormalized())  # Directional light from top-front
+application.GetSceneManager().addLight(light)
+
+# Create and configure the MAN 10t truck
+truck = veh.MAN_10t(system)  # Initialize the MAN 10t vehicle model
+truck.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 1, 0), chrono.ChQuaternionD(1, 0, 0, 0)))  # Position and orientation
+truck.SetEngineType(veh.EngineModelType_SIMPLE_MAP)  # Simple engine model
+truck.SetTransmissionType(veh.TransmissionModelType_AUTOMATIC_SIMPLE_MAP)  # Automatic transmission
+truck.SetTireType(veh.TireModelType_TMEASY)  # Use TMEASY tire model for realistic dynamics
+truck.SetChassisVisualizationType(veh.VisualizationType_MESH)  # 3D mesh for chassis
+truck.SetWheelVisualizationType(veh.VisualizationType_MESH)   # 3D mesh for wheels
+truck.Initialize()  # Finalize truck setup
+
+# Create rigid terrain with customizable texture
 terrain = veh.RigidTerrain(system)
-patch = terrain.AddPatch(chrono.ChCoordsysD(), chrono.ChVectorD(200, 100, 1), True, True)
-patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 100)  # Customizable texture
-terrain.Initialize()
+patch = terrain.AddPatch(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(200, 1, 200), 0.9, 0.01)  # Terrain dimensions and material properties
+patch.SetTexture(chrono.GetChronoDataFile("terrain/textures/tile.png"), 100, 100)  # Apply texture
+terrain.Initialize()  # Finalize terrain setup
 
-# ----------------------------
-# 3. Create and Configure the MAN 10t Truck
-# ----------------------------
-truck = veh.MAN_10t(system)
-truck.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 1.5), chrono.QUNIT))  # Start position and orientation
+# Configure real-time driver controls
+driver = veh.ChIrrGuiDriver(application.GetDevice())  # Link driver to Irrlicht window
+driver.SetSteeringDelta(0.05)     # Sensitivity for steering
+driver.SetThrottleDelta(0.05)     # Sensitivity for throttle
+driver.SetBrakingDelta(0.05)      # Sensitivity for braking
+truck.GetVehicle().SetDriver(driver)  # Connect driver to the truck
 
-# Set visualization types
-truck.SetChassisVisualizationType(veh.VisualizationType_MESH)
-truck.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
-truck.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
-truck.SetWheelVisualizationType(veh.VisualizationType_MESH)
+# Set up chase camera to follow the vehicle
+application.SetChaseCamera(truck.GetChassisBody(), 6.0, 0.5)  # Distance and height from chassis
 
-# Replace default tires with TMeasy models
-for axle in truck.GetAxles():
-    for wheel in axle.GetWheels():
-        tire = veh.ChTMeasyTire("TMeasyTire")
-        tire.SetSize(0.3, 0.2)  # Example tire dimensions
-        tire.SetRimRadius(0.3)
-        tire.SetTireWidth(0.2)
-        tire.SetContactMaterialSurface(chrono.ChMaterialSurfaceNSC())
-        tire.Initialize(wheel, veh.WheelID())  # Attach to the wheel
-
-# ----------------------------
-# 4. Set Up Irrlicht Visualization
-# ----------------------------
-application = irr.ChIrrApp(system, 'MAN 10t Truck Simulation', irr.dimension2du(1024, 768))
-application.AddTypicalLogo()
-application.AddSkyBox()
-application.AddCamera(chrono.ChVectorD(0, -5, 2), chrono.ChVectorD(0, 0, 0))  # Initial camera position
-application.AddLightWithShadow(chrono.ChVectorD(10, -25, 10), chrono.ChVectorD(0, 0, 0), 100, 10, 20, 60)
-
-# Set up chase camera
-chase_camera = veh.ChChaseCamera(truck.GetChassisBody(), 4.0, 0.5)  # Distance and height
-application.SetChaseCamera(chase_camera)
-
-# ----------------------------
-# 5. Set Up Real-Time Driver Controls
-# ----------------------------
-driver = veh.ChIrrGuiDriver(application.GetDevice())
-driver.SetSteeringDelta(0.05)
-driver.SetThrottleDelta(0.05)
-driver.SetBrakingDelta(0.05)
-
-# ----------------------------
-# 6. Simulation Loop
-# ----------------------------
-step_size = 1e-3  # Simulation time step
-rt_timer = chrono.ChRealtimeStepTimer()
-
+# Simulation loop
+application.SetTimestep(0.01)  # Set fixed time step for real-time simulation
 while application.GetDevice().run():
-    time = system.GetChTime()
-    driver_inputs = driver.GetInputs()
-
-    # Synchronize components
-    truck.Synchronize(time, driver_inputs)
+    time = system.GetChTime()  # Get current simulation time
+    
+    # Synchronize components for current time step
+    driver.Synchronize(time)
+    truck.Synchronize(time)
     terrain.Synchronize(time)
-    application.Synchronize("MAN 10t Truck Simulation", driver_inputs)
-
+    
     # Advance the simulation
-    system.DoStepDynamics(step_size)
-
-    # Update visualization
+    system.DoStepDynamics(0.01)
+    
+    # Render the scene
     application.BeginScene()
     application.DrawAll()
     application.EndScene()
-
-    rt_timer.Spin(step_size)
 ```
 
----
+### Key Features Implemented:
+1. **Chrono System Setup**: Initializes the physical system with gravity.
+2. **Vehicle Model**: Uses the MAN 10t truck with configurable visualization (3D mesh) and TMEASY tire dynamics.
+3. **Rigid Terrain**: Creates a textured terrain with customizable friction and restitution.
+4. **Real-Time Controls**: Implements steering, throttle, and braking via keyboard inputs.
+5. **Irrlicht Visualization**: Includes chase camera, directional lighting, skybox, and Chrono logo.
+6. **Simulation Loop**: Handles synchronization and rendering at a fixed time step for real-time performance.
 
-### 📌 Notes
-
-- **TMeasy Tire Parameters**: The `ChTMeasyTire` class can be further configured using JSON files or custom parameters. For production use, consider loading a JSON file with calibrated tire properties.
-- **Customization**: You can change the terrain texture by replacing `"terrain/textures/grass.jpg"` with any other image path.
-- **Chase Camera**: The `ChChaseCamera` follows the truck's chassis and can be adjusted for distance and height.
-- **Real-Time Controls**: The `ChIrrGuiDriver` allows keyboard input for steering, throttle, and braking.
-
----
-
-### 🧪 Running the Simulation
-
-To run the simulation:
-1. Save the script as `man_truck_simulation.py`
-2. Ensure the PyChrono environment is set up with the required assets
-3. Execute the script using Python:
-
-```bash
-python man_truck_simulation.py
-```
-
----
-
-This script provides a complete and extensible framework for simulating a MAN 10t truck in PyChrono with advanced visualization and physics modeling.
+### Notes:
+- **Texture Path**: Ensure the `tile.png` texture exists in the Chrono data directory or modify the path accordingly.
+- **Camera Control**: The chase camera follows the truck's chassis with adjustable distance and height.
+- **Driver Inputs**: Arrow keys control steering, throttle, and braking, with sensitivity set via `Set*Delta` methods.

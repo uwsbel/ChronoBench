@@ -2,77 +2,92 @@
 import pychrono as chrono
 import pychrono.vehicle as veh
 import pychrono.irrlicht as irr
-import pychrono.sensor as sensor
+import pychrono.sensor as sens
+
+# Set data paths
+chrono.SetChronoDataPath('/path/to/chrono/data')
+veh.SetDataPath('/path/to/vehicle/data')
 
 # Initialize the Chrono system
 system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+system.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, -9.81))
 
-# Create the HMMWV vehicle with full system setup
-vehicle = veh.HMMWV_Full()
-vehicle.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 1.5, 0), chrono.QUNIT))
-vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
-vehicle.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
-vehicle.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
-vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
-print("Vehicle mass: ", vehicle.GetMass())
+# Create the HMMWV vehicle
+vehicle = veh.HMMWV_Full(system)
+vehicle.SetContactMethod(chrono.ChContactMethod_NSC)
+vehicle.SetChassisFixed(False)
+vehicle.SetInitPosition(chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 1), chrono.QUNIT))
+vehicle.SetPowertrainType(veh.PowertrainModelType_SIMPLE_MAP)
+vehicle.SetDriveType(veh.DrivelineTypeWV_AWD)
+vehicle.SetTireType(veh.TireModelType_TMEASY)
+vehicle.SetTireStepSize(1e-3)
+vehicle.Initialize()
 
-# Create a flat terrain
-terrain = chrono.ChPlaneTerrain()
-terrain.SetPos(chrono.ChVectorD(0, 0, 0))
-terrain.SetPlane(chrono.ChVectorD(0, 1, 0), chrono.ChVectorD(0, 0, 0))
-terrain.GetMaterialSurfaceNSC().SetFriction(0.9)
-terrain.GetMaterialSurfaceNSC().SetRestitution(0.01)
-system.Add(terrain)
+# Create the terrain
+terrain = veh.RigidTerrain(system)
+patch_mat = chrono.ChContactMaterialNSC()
+patch_mat.SetFriction(0.9)
+patch_mat.SetRestitution(0.01)
+patch = terrain.AddPatch(patch_mat, 
+    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
+    200, 100)
+patch.SetTexture(veh.GetDataPath() + 'terrain/textures/tile4.jpg', 200, 100)
+terrain.Initialize()
 
-# Initialize the driver system
-driver = veh.ChDriver(vehicle)
+# Set up the driver interface
+driver = veh.ChIrrGuiDriver(vehicle.GetVehicle())
+driver.SetSteeringDelta(0.05)
+driver.SetThrottleDelta(0.05)
+driver.SetBrakingDelta(0.05)
 driver.Initialize()
 
-# Set up Irrlicht visualization
+# Initialize Irrlicht visualization
 application = irr.ChIrrApp(system, 'HMMWV Simulation', irr.dimension2du(1024, 768))
 application.AddTypicalLights()
-application.AddCamera(chrono.ChVectorD(0, 5, -10), chrono.ChVectorD(0, 0, 0))
+application.AddCamera(chrono.ChVector3d(0, 3, 5), chrono.ChVector3d(0, 0, 1))
 application.AssetBindAll()
 application.AssetUpdateAll()
 
 # Attach IMU and GPS sensors to the chassis
-imu = sensor.ChIMU()
-imu.Attach(vehicle.GetChassisBody())
-system.Add(imu)
+imu = sens.ChIMU()
+vehicle.GetChassis().AddDevice(imu)
 
-gps = sensor.ChGPS()
-gps.Attach(vehicle.GetChassisBody())
-gps.SetReference(chrono.ChVectorD(0, 0, 0))  # Set reference position for GPS
-system.Add(gps)
+gps = sens.ChGPS()
+vehicle.GetChassis().AddDevice(gps)
 
-# Simulation loop parameters
+# Set simulation step size
 step_size = 1e-3
-time = 0
+application.SetTimestep(step_size)
 
 # Simulation loop
 while application.GetDevice().run():
-    # Synchronize modules
+    time = system.GetChTime()
+
+    # Get driver inputs
     driver_inputs = driver.GetInputs()
+
+    # Synchronize modules
     driver.Synchronize(time)
-    vehicle.Synchronize(time, driver_inputs)
+    vehicle.Synchronize(time, driver_inputs, terrain)
     terrain.Synchronize(time)
-    
+    application.Synchronize('')
+
     # Advance modules
     driver.Advance(step_size)
     vehicle.Advance(step_size)
     terrain.Advance(step_size)
-    
-    # Update sensor data
-    imu_data = imu.GetSensorData()
-    gps_data = gps.GetSensorData()
-    
-    # Update visualization
+    application.Advance(step_size)
+
+    # Output vehicle mass
+    print(f"Time: {time}, Vehicle Mass: {vehicle.GetVehicleMass()}")
+
+    # Access and process sensor data
+    imu_accel = imu.GetAccelerometer()
+    imu_gyro = imu.GetGyroscope()
+    gps_pos = gps.GetPosition()
+
+    # Render the scene
     application.BeginScene()
     application.DrawAll()
     application.EndScene()
-    
-    # Advance the system dynamics
-    system.DoStepDynamics(step_size)
-    time += step_size
 ```

@@ -1,165 +1,161 @@
-Okay, let's craft a PyChrono simulation script to model a HMMWV on a flat terrain, incorporating Irrlicht visualization, a RigidTerrain, and a driver system.  This will be a substantial script, so I’ll break it down into manageable sections with detailed explanations.  Keep in mind this is a starting point, and you'll likely need to adjust parameters and add more complexity based on your specific needs and desired level of detail.
+Okay, let's craft a PyChrono simulation script for a HMMWV on a flat terrain, incorporating the specified requirements. This will be a substantial script, so I'll break it down into logical sections with comments explaining the purpose.  Due to the complexity of PyChrono, this will be a relatively detailed example, focusing on the core elements.
 
 ```python
 import pychrono
 import pychrono.core as pc
 import pychrono.visual as v
+import irlayout as lr
 import numpy as np
-import time
 
-# --- 1. Environment Setup ---
-# Define the terrain dimensions (adjust as needed)
-terrain_width = 10.0
-terrain_height = 5.0
-terrain_depth = 2.0
+# --- 1. Environment Setup & Core Initialization ---
 
-# Define the texture (replace with your terrain image)
-terrain_texture = "terrain.png" #  Create a simple terrain.png for testing.  Replace with a real image.
+# Define the terrain dimensions
+terrain_width = 10
+terrain_height = 5
+terrain_x = 0
+terrain_y = 0
 
-# Initialize the RigidTerrain
-rigid_terrain = pc.RigidTerrain(
+# Define the vehicle's initial position and orientation
+vehicle_x = 1
+vehicle_y = 1
+vehicle_orientation = 0  # 0 = Facing Right, 90 = Facing Forward, 180 = Facing Backward
+vehicle_velocity = 0.1
+
+# Define the HMMWV parameters
+hmmwv_type = "HMMWV"
+hmmwv_mobility = 2  # Higher mobility = larger vehicle
+hmmwv_armor = 3
+hmmwv_max_speed = 1.5
+hmmwv_contact_method = "Contact Method" # "Contact Method" or "Static Contact"
+hmmwv_tire_model = "Irrlicht Tire Model" # Default Irrlicht Tire Model
+
+# Initialize PyChrono environment
+try:
+    env = pc.Environment(
+        terrain_width,
+        terrain_height,
+        vehicle_x,
+        vehicle_y,
+        vehicle_orientation,
+        hmmwv_type,
+        hmmwv_mobility,
+        hmmwv_armor,
+        hmmwv_max_speed,
+        hmmwv_contact_method,
+        hmmwv_tire_model
+    )
+except Exception as e:
+    print(f"Error initializing environment: {e}")
+    exit()
+
+# --- 2. Physical Systems & Objects ---
+
+# Create the RigidTerrain object
+terrain = lr.Terrain(
     width=terrain_width,
     height=terrain_height,
-    depth=terrain_depth,
-    texture=terrain_texture,
-    # Add other terrain parameters as needed (e.g., normal, color)
+    texture='white',
+    color='white'
 )
 
-# --- 2. HMMWV Parameters ---
-# Vehicle parameters
-vehicle_speed = 1.0  # m/s
-vehicle_weight = 100.0  # kg
-vehicle_radius = 0.5  # meters
-vehicle_center_x = 0.0
-vehicle_center_y = 0.0
-vehicle_center_z = 0.0
-vehicle_orientation = np.array([0.0, 0.0, 0.0])  # Initial orientation (degrees)
-vehicle_contact_method = pc.ContactMethod.Primitive.ContactMethod_Point
-# --- 3.  HMMWV Model (Simplified) ---
-# This is a *very* basic HMMWV model.  A real model would be far more complex.
-# We'll use a simplified state space and transition probabilities.
+# Create the vehicle primitive
+vehicle = pc.Primitive(
+    name='Vehicle',
+    type=pc.VehicleType.Vehicle,
+    x=vehicle_x,
+    y=vehicle_y,
+    orientation=vehicle_orientation,
+    velocity=vehicle_velocity,
+    contact_method=hmmwv_contact_method,
+    tire_model=hmmwv_tire_model
+)
 
-# State space:  Position, Orientation, Velocity
-state_space = [
-    vehicle_center_x,
-    vehicle_center_y,
-    vehicle_center_z,
-    vehicle_orientation,
-    vehicle_velocity
-]
+# --- 3.  Interaction System (Simplified) ---
 
-# Transition probabilities (Simplified - adjust for realism)
-transition_probabilities = {
-    "position": [0.5, 0.5, 0.5, 0.5, 0.5],  # Example:  Move 50% of the time, no change, slight rotation, some speed
-    "orientation": [0.7, 0.3, 0.1, 0.1, 0.1],  # Example:  70% rotation, 30% position, 10% velocity
-    "velocity": [0.2, 0.1, 0.0, 0.0, 0.0] # Example:  2 m/s, 1 m/s, 0 m/s, 0 m/s, 0 m/s
-}
+# Define a simple steering input (simplified for demonstration)
+steering_input = pc.Input(
+    name='steering_input',
+    type='control',
+    value=0.0
+)
 
-# --- 4.  Simulation Loop ---
-def run_simulation():
-    print("Starting HMMWV Simulation...")
-    
-    # Initialize PyChrono
-    pychrono.init(
-        initial_time=0.0,
-        simulation_time=10.0, # seconds
-        initial_state=vehicle_orientation,
-        initial_velocity=vehicle_velocity,
-        # Add more parameters as needed (e.g.,  acceleration, deceleration)
-    )
+# Define a simple throttle input
+throttle_input = pc.Input(
+    name='throttle_input',
+    type='control',
+    value=0.0
+)
 
-    # Run the simulation
-    simulation = pc.Simulation(
-        rigid_terrain,
-        vehicle_speed,
-        vehicle_weight,
-        vehicle_radius,
-        vehicle_center_x,
-        vehicle_center_y,
-        vehicle_center_z,
-        vehicle_orientation,
-        transition_probabilities,
-        # Add more parameters as needed (e.g.,  acceleration, deceleration)
-    )
+# Define a simple braking input
+brake_input = pc.Input(
+    name='brake_input',
+    type='control',
+    value=0.0
+)
 
-    simulation.run()
+# Connect the inputs to the vehicle's control system
+vehicle.set_input(steering_input, throttle_input, brake_input)
 
-    print("Simulation completed.")
+# --- 4. Simulation Loop ---
 
-    # --- 5. Visualization (Irrlicht) ---
-    # Create an Irrlicht scene
-    scene = v.Scene(
-        width=terrain_width,
-        height=terrain_height,
-        background=v.Color(0.2, 0.8, 0.2), # Light gray background
-        # Add other Irrlicht elements as needed (e.g., camera, objects)
-    )
+# Set up the simulation loop
+simulation = pc.Simulation(
+    env,
+    vehicle=vehicle,
+    time_step=0.01,  # Adjust for desired simulation speed
+    frame_rate=50,
+    # Add any other simulation parameters here (e.g., damping, etc.)
+)
 
-    # Render the vehicle
-    vehicle_object = v.Object(
-        position=vehicle_center_x,
-        orientation=vehicle_orientation,
-        size=vehicle_radius,
-        color=v.Color(0.5, 0.5, 0.5),  # Red color
-        # Add other object properties as needed
-    )
-    scene.add(vehicle_object)
+# Start the simulation
+simulation.run()
 
-    # Display the scene
-    v.show(scene)
+# --- 5. Visualization ---
 
-    # --- 6.  Stopping and Throttle (Simple) ---
-    print("Stopping the vehicle...")
-    vehicle_orientation = np.array([0.0, 0.0, 0.0])  # Stop
-    print("Applying throttle...")
-    vehicle_velocity = np.array([0.0, 0.0, 0.0])
-    
-    #Simulate a short stop
-    time.sleep(0.1)
-    
-    print("Applying throttle...")
-    vehicle_velocity = np.array([0.0, 0.0, 0.0])
-    
-    #Simulate a short throttle
-    time.sleep(0.1)
+#  Use irlayout to render the vehicle
+try:
+    lr.Render(env, vehicle)
+except Exception as e:
+    print(f"Error rendering: {e}")
 
-    # --- 7.  End Simulation ---
-    print("Simulation finished.")
-    pychrono.end(simulation)
-
-
-if __name__ == "__main__":
-    run_simulation()
+# --- 6.  Clean Up (Optional) ---
+#  You might want to clean up resources here.
+#  For example, close the environment.
+# env.close()
 ```
 
-**Explanation and Key Improvements:**
+**Explanation and Key Considerations:**
 
-1. **Imports:** Includes all necessary PyChrono and NumPy libraries.
-2. **Terrain Setup:** Defines the terrain dimensions and texture.  *Crucially*, this is where you'd replace the placeholder `terrain.png` with an actual image.
-3. **HMMWV Parameters:**  Defines the vehicle's speed, weight, radius, and orientation.
-4. **State Space:** Defines the state variables that the HMMWV will track.
-5. **Transition Probabilities:**  These are *very* simplified.  A real HMMWV would have much more complex transition probabilities.
-6. **`run_simulation()` Function:** Encapsulates the simulation logic.
-7. **PyChrono Initialization:**  Initializes the simulation.
-8. **Simulation Loop:**  The core of the simulation, running the `Simulation` object.
-9. **Irrlicht Visualization:**  Creates an Irrlicht scene to display the vehicle.  This is a basic example; you'll likely want to add more sophisticated rendering.
-10. **Stopping and Throttle:** Adds simple stopping and throttle functionality.  This demonstrates basic control.
-11. **`if __name__ == "__main__":`:**  Ensures the simulation runs only when the script is executed directly.
+1. **Import Libraries:**  We import `pychrono`, `pychrono.core`, `pychrono.visual`, `irlayout`, and `numpy`.
+2. **Environment Setup:**
+   - `pc.Environment()`:  Creates the simulation environment, defining the terrain, vehicle position, orientation, and other parameters.  The `hmmwv_type` is crucial for setting up the HMMWV's behavior.
+   - `terrain = lr.Terrain(...)`: Creates the terrain object.
+3. **Vehicle Creation:**
+   - `pc.Primitive()`:  Creates the vehicle object.
+   - `type=pc.VehicleType.Vehicle`: Specifies the vehicle type.
+   - `x`, `y`, `orientation`:  Define the vehicle's position and orientation.
+4. **Interaction System:**
+   - `pc.Input()`:  Creates input objects for steering, throttle, and braking. These are *very* basic for demonstration.  In a real simulation, you'd likely use more sophisticated input methods.
+   - `vehicle.set_input()`: Connects the input objects to the vehicle's control system.
+5. **Simulation Loop:**
+   - `pc.Simulation()`:  Creates the simulation object.
+   - `time_step`: Controls the frequency of updates in the simulation. Smaller values lead to more accurate results but increase computation time.
+   - `frame_rate`:  The number of frames per second.
+6. **Visualization:**
+   - `lr.Render(env, vehicle)`:  Uses `irlayout` to render the vehicle.  This is a basic visualization; you can customize the appearance further.
+7. **Cleanup (Optional):**  The `env.close()` line is commented out, but it's a good practice to close the environment when you're finished to release resources.
 
-**Important Considerations and Next Steps:**
+**Important Notes and Next Steps:**
 
-* **Terrain Data:**  The `terrain.png` image is *essential*.  You'll need to create or obtain a realistic terrain image.
-* **Transition Probabilities:**  This is where the complexity of the HMMWV model lies.  You'll need to research and implement more realistic transition probabilities based on the vehicle's behavior.
-* **State Space:**  Expand the state space to include more relevant variables (e.g., wheel speed, brake pressure, etc.).
-* **Vehicle Dynamics:**  Implement more accurate equations of motion (e.g., Newton's laws of motion).
-* **Collision Detection:**  Add collision detection to prevent the vehicle from colliding with itself or obstacles.
-* **Sensor Simulation:**  Simulate sensors (e.g., radar, lidar) to provide additional information about the environment.
-* **More Complex HMMWV Models:** Research and implement more sophisticated HMMWV models.
-* **Error Handling:** Add error handling to gracefully handle unexpected situations.
+* **Irlayout:**  `irlayout` is a powerful tool for creating interactive visualizations.  You'll need to install it: `pip install irlayout`.  The `lr.Render()` function is the core of the visualization.
+* **HMMWV Logic:** The HMMWV's behavior is *extremely* complex.  This script provides a basic framework. You'll need to implement the HMMWV's state transition matrix, observation, and control algorithms.  PyChrono's documentation is essential for understanding how to model this.
+* **Dynamic Terrain:**  The terrain is static in this example.  You'll need to implement terrain generation and movement.
+* **More Complex Interactions:**  The input system is extremely simplified.  You'll need to add more sophisticated input methods (e.g., buttons, joystick, etc.) to allow the user to control the vehicle.
+* **Physics:**  PyChrono's physics engine is essential for realistic vehicle dynamics. You'll need to implement the vehicle's kinematic and dynamic equations of motion.
+* **Error Handling:** Add more robust error handling (e.g., check for invalid input values).
 
-To help me refine this script further, could you tell me:
+This script provides a starting point.  Building a fully functional HMMWV simulation in PyChrono is a significant undertaking.  Let me know if you'd like help with any specific aspect of the simulation (e.g., implementing the HMMWV's state transition matrix, adding more complex interactions, or improving the visualization).  To help me tailor the script further, could you tell me:
 
-*   What kind of terrain image are you planning to use?
-*   What level of detail are you aiming for in the visualization?
-*   Are there any specific aspects of the HMMWV you want to focus on (e.g., specific transition probabilities, sensor simulation)?
-*   What is your experience level with PyChrono and Irrlicht?
+*   What specific aspects of the HMMWV simulation are you most interested in?
+*   Do you have any specific requirements for the visualization (e.g., different rendering modes, custom textures)?
+*   Are there any particular challenges you anticipate encountering?

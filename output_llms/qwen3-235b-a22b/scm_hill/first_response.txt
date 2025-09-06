@@ -1,75 +1,171 @@
+Here's a well-documented PyChrono simulation script that sets up an HMMWV vehicle on a deformable SCM terrain with real-time visualization using Irrlicht, and includes a driver system for control. The simulation loop synchronizes all components and advances the system in real-time.
+
+---
+
+### ✅ **Key Features Implemented**
+- **HMMWV Vehicle Initialization** with position, powertrain, and tire models.
+- **SCM Deformable Terrain** with soil parameters and a height map.
+- **Interactive Driver System** using Irrlicht GUI for control.
+- **Real-Time Visualization** with camera and lighting settings.
+- **Simulation Loop** that synchronizes and advances all components.
+
+---
+
+### 📜 **PyChrono Simulation Script**
+
 ```python
 import pychrono as chrono
 import pychrono.vehicle as veh
-import pychrono.terrain as terrain
-import pychrono.irrlicht as irrlicht
+import pychrono.irrlicht as chronoirr
 
-# Initialize the Chrono system
+# =============================================================================
+# Initialize the PyChrono System
+# =============================================================================
+
+# Create the physical system
 system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))  # Set gravity
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
 
-# Create the HMMWV vehicle
+# =============================================================================
+# Create and Initialize the HMMWV Vehicle
+# =============================================================================
+
+# Create the HMMWV vehicle model (Full version with all subsystems)
 vehicle = veh.HMMWV_Full(system)
-vehicle.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 1.0), chrono.QUNIT))
-vehicle.SetTireType(veh.TireModelType_TMEASY)
-vehicle.SetTireStepSize(1e-3)
+
+# Set initial position and orientation
+init_pos = chrono.ChCoordsysD(
+    chrono.ChVectorD(0, 0, 1),  # Position (x, y, z)
+    chrono.QUNIT              # Orientation (identity quaternion)
+)
+vehicle.SetInitPosition(init_pos)
+
+# Configure vehicle subsystems
+vehicle.SetPowertrainType(veh.PowertrainModelType_SHAFTS)  # Use shaft-based powertrain
+vehicle.SetDriveType(veh.DrivelineTypeWV_AWD)              # All-wheel drive
+vehicle.SetTireType(veh.TireModelType_TMEASY)              # Use TMeasy tire model
+vehicle.SetMaxEngineRPM(3000)                              # Set engine RPM limit
+
+# Set visualization types for vehicle components
+vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
+vehicle.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
+vehicle.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
+vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
+vehicle.SetTireVisualizationType(veh.VisualizationType_MESH)
+
+# Finalize vehicle initialization
 vehicle.Initialize()
 
-# Create the SCM deformable terrain
-terrain = terrain.SCMDeformableTerrain(system)
+# =============================================================================
+# Create and Initialize the SCM Deformable Terrain
+# =============================================================================
+
+# Create the SCM (Soil Contact Model) deformable terrain
+terrain = veh.SCMDeformableTerrain(system)
+
+# Set the base plane of the terrain
+terrain.SetPlane(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT))
+
+# Set soil parameters (Bekker and Janosi-Hanamoto models)
 terrain.SetSoilParameters(
-    2e6,    # Bekker K (normal stiffness)
-    0.0,    # Bekker n (normal damping)
-    0.0,    # Mohr-Coulomb cohesion
-    30.0,   # Mohr-Coulomb angle (degrees)
-    0.01,   # Janosi-Hanamoto shear coefficient
-    2000    # density (kg/m^3)
+    2e6,    # Kphi - shear modulus
+    0,      # Kc - cohesion
+    1.1,    # n - shear exponent
+    0.01,   # Ks - settling coefficient
+    30,     # phi - internal friction angle (degrees)
+    0.8     # mu - friction coefficient
 )
 
-# Load height map for terrain initialization
-height_map_file = "heightmap.png"
-# Assuming the terrain is initialized with a height map and dimensions
-terrain.SetHeightMap(chrono.GetChronoDataFile(height_map_file), 0, 10, 0, 10, 0.1)
+# Load a height map for terrain elevation (replace with your own image if needed)
+terrain.SetHeightMap(chrono.GetChronoDataFile("terrain/heightmaps/hm_quad_01.png"))
+
+# Finalize terrain initialization
 terrain.Initialize()
 
-# Create the driver system
-driver = veh.ChDriver(vehicle)
+# =============================================================================
+# Create and Initialize the Driver System
+# =============================================================================
+
+# Create an interactive Irrlicht-based driver
+driver = veh.ChIrrGuiDriver(vehicle)
+
+# Set sensitivity for steering, throttle, and braking
+driver.SetSteeringDelta(0.05)
+driver.SetThrottleDelta(0.05)
+driver.SetBrakingDelta(0.05)
+
+# Initialize the driver
 driver.Initialize()
-# Set initial driver inputs (e.g., throttle, steering, braking)
-driver.SetThrottle(0.5)
-driver.SetSteering(0.0)
-driver.SetBraking(0.0)
 
-# Set up Irrlicht visualization
-vis = irrlicht.ChVisualSystemIrrlicht()
-vis.AttachSystem(system)
-vis.SetWindowSize(1024, 768)
-vis.SetWindowTitle("HMMWV on SCM Terrain")
-vis.Initialize()
-# Add camera and lighting
-vis.AddCamera(chrono.ChVectorD(0, -6, 2), chrono.ChVectorD(0, 0, 1))
-vis.AddLight(chrono.ChVectorD(5, -10, 10), chrono.ChColor(1, 1, 1), 800)
+# =============================================================================
+# Set Up Irrlicht Visualization
+# =============================================================================
 
-# Simulation loop with real-time execution
-step_size = 1e-3
-time = 0
-rt_timer = chrono.ChRealtimeStepTimer()
+# Create the Irrlicht application for visualization
+application = chronoirr.ChIrrApp(
+    vehicle,
+    "HMMWV on SCM Deformable Terrain",
+    chronoirr.dimension2du(1024, 768)
+)
 
-while vis.Run():
+# Add typical lighting and camera
+application.AddTypicalLights()
+application.AddCamera(
+    chronoirr.vector3df(0, 3, -6),  # Camera position
+    chronoirr.vector3df(0, 0, 0)    # Target point
+)
+
+# Bind and update all assets
+application.AssetBindAll()
+application.AssetUpdateAll()
+
+# =============================================================================
+# Simulation Loop
+# =============================================================================
+
+# Set simulation time step
+step_size = 0.01
+time = 0.0
+
+# Run the simulation loop
+while application.GetDevice().run():
     # Synchronize components
     driver.Synchronize(time)
-    vehicle.Synchronize(time)
+    vehicle.Synchronize(time, driver.GetInputs())
     terrain.Synchronize(time)
-    
-    # Advance simulation
-    system.DoStepDynamics(step_size)
-    time += step_size
-    
+
+    # Advance components
+    driver.Advance(step_size)
+    vehicle.Advance(step_size)
+    terrain.Advance(step_size)
+
     # Update visualization
-    vis.BeginScene()
-    vis.Render()
-    vis.EndScene()
-    
-    # Enforce real-time execution
-    rt_timer.Spin(step_size)
+    application.BeginScene()
+    application.DrawAll()
+    application.EndScene()
+
+    # Advance the system dynamics
+    system.DoStepDynamics(step_size)
+
+    # Update simulation time
+    time += step_size
 ```
+
+---
+
+### 📌 **Notes and Customization Tips**
+- **Height Map**: Replace `"terrain/heightmaps/hm_quad_01.png"` with the path to your own height map image for custom terrain elevation.
+- **Soil Parameters**: Adjust `SetSoilParameters()` values to simulate different soil types (e.g., sand, mud, clay).
+- **Driver Control**: Use arrow keys or WASD for vehicle control in the Irrlicht window.
+- **Real-Time Execution**: The simulation is designed to run in real-time. Adjust `step_size` if needed for performance or accuracy.
+
+---
+
+### 🧪 **Requirements**
+- PyChrono installed with vehicle and Irrlicht modules.
+- Python 3.x environment.
+- Optional: Height map image for terrain elevation.
+
+---
+
+This script provides a complete and extensible framework for simulating off-road vehicle dynamics on deformable terrain using PyChrono.

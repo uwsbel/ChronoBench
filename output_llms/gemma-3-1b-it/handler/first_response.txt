@@ -1,121 +1,127 @@
-Okay, let's craft a detailed PyChrono simulation script incorporating the instructions. This will be a substantial script, so I'll break it down into sections with explanations.  This example will focus on a basic, illustrative scenario – a box moving on a floor with gravity.  We'll use a simplified model, but it demonstrates the core principles.
+Okay, let's craft a PyChrono simulation script incorporating the requirements outlined. This will be a substantial script, so I'll break it down into logical sections and provide detailed explanations.  This example will focus on a simple, illustrative scenario – a box moving on a floor with gravity.  We'll prioritize clarity and modularity.
 
 ```python
 import time
 import pychrono
 import rospy
-from pychrono.system import Chrono
-from pychrono.system.system import System
+from pychrono.core import System, State, Event
+from pychrono.core.geometry import Point
+from pychrono.core.messaging import Message
+import numpy as np
 
 # --- 1. Initialization & Core Components ---
 
 # Define system parameters
-system = System()
-system.name = "BoxSimulation"
-system.description = "A simple simulation of a box moving on a floor with gravity."
-system.update_time_step = 1.0  # Update frequency - adjust for desired simulation speed
-system.update_time_step_interval = 1.0 # Interval for updating time step
-system.update_time_step_interval_interval = 1.0 # Interval for updating time step interval
-system.gravity = 9.81  # Acceleration due to gravity (m/s^2)
-system.material_density = 0.8 # Density of the box (kg/m^3) - adjust for realistic behavior
-system.box_mass = 10.0 # Mass of the box (kg) - adjust for realistic behavior
-system.box_size = 0.2 # Size of the box (m) - adjust for realistic behavior
+system = System(
+    # Define the system's state
+    state=State.CONTAINER,
+    # Define the system's physical properties
+    properties= {
+        'gravity': 9.81,  # m/s^2
+        'mass': 10.0,    # kg
+        'friction': 0.1,  # m/s^2 (optional, for realistic behavior)
+    },
+    # Define the system's time units
+    time_units=1.0,
+)
 
-# --- 2. Physical Systems & Objects ---
-
-# Define the box
-box = rospy.Action("box_move",
-                    paramet=rospy.Parameter("x", type=float, default=0.0),
-                    paramet=rospy.Parameter("y", type=float, default=0.0),
-                    paramet=rospy.Parameter("z", type=float, default=0.0),
-                    paramet=rospy.Parameter("mass", type=float, default=10.0),
-                    paramet=rospy.Parameter("size", type=float, default=0.2),
-                    reconnect=True)
-
+# Define the physical system
+box = Point(-2.0, 1.0, 0.0)  # Box's position and orientation
 # Define the floor
-floor = rospy.Action("floor_move",
-                    paramet=rospy.Parameter("x", type=float, default=0.0),
-                    paramet=rospy.Parameter("y", type=float, default=0.0),
-                    paramet=rospy.Parameter("z", type=float, default=0.0),
-                    paramet=rospy.Parameter("mass", type=float, default=10.0),
-                    paramet=rospy.Parameter("size", type=float, default=0.2),
-                    reconnect=True)
+floor = Point(0.0, 0.0, 1.0) # Floor's position and orientation
 
-# --- 3. ROS Handler ---
+# Define the ROS communication channel
+rospy_client = rospy.Subscriber("/my_topic", Message, self_callback=self.on_message)
 
-# Define the ROS handler
-handler = rospy.Action("publish_message",
-                         paramet=rospy.ActionParameters("message_topic", "box_movement_message"),
-                         reconnect=True)
+# --- 2. Custom ROS Handler ---
 
-# --- 4. Simulation Loop ---
+def custom_handler(message):
+    """
+    This function will be called by ROS to publish a message to the specified topic.
+    """
+    print(f"Received message: {message}")
+    rospy.loginfo("Custom handler received message: %s", message.data)  # Log for debugging
 
-def run_simulation():
-    rospy.init_node('box_simulation')
-    system.subscribe(handler)
-    system.wait_for_condition(system.gravity)  # Wait for gravity to be active
+# --- 3. Simulation Loop ---
 
+def simulate_simulation():
+    """
+    The main simulation loop.
+    """
     try:
+        # Initialize the Chrono system
+        system.init()
+
+        # Set the initial state of the system
+        system.set_state(box, floor)
+
+        # Start the simulation loop
+        rospy.init()
+        rospy.loginfo("Simulation started.")
+
         while True:
-            # Simulate movement
-            system.update_time_step()
-            system.move_box(x=system.box.x, y=system.box.y, z=system.box.z)
-            system.update_time_step()
-            # Simulate the floor moving
-            floor.update_time_step()
-            floor.move_box(x=floor.x, y=floor.y, z=floor.z)
-            system.update_time_step()
+            # Simulate time passing
+            time.sleep(1.0)  # Adjust for desired simulation speed
+
+            # Update the system state (move the box)
+            box.x += 0.1
+            box.y += 0.1
+            box.z += 0.1  #  Keep the box in 3D space
 
             # Publish the message
-            handler.publish(system.message)
+            custom_handler(system.get_state())  # Call the custom handler
 
-            # Wait for a short period to control the simulation speed
-            time.sleep(0.1)  # Adjust for desired simulation speed
+            # Log the event
+            rospy.loginfo("Time step: %s" % time.time())
 
-    except rospy.EventRobotException:
-        print("Robot exception occurred.  Stopping simulation.")
-    except rospy.ROSInterruptException:
-        print("Simulation interrupted.")
+    except rospy.EventException as e:
+        rospy.logerr("ROS event exception: %s" % e)
     finally:
-        system.shutdown()
-
+        # Clean up resources
+        system.cleanup()
+        rospy.shutdown()
 
 if __name__ == '__main__':
-    run_simulation()
+    try:
+        simulate_simulation()
+    except rospy.ROSInterruptException:
+        pass
 ```
 
 **Explanation and Key Improvements:**
 
-1. **Imports:** Includes necessary modules from `pychrono`, `rospy`, and `rospy.action`.
-2. **System Definition:**
-   - `system = System()`: Creates the Chrono system.
-   - `system.name`: Sets the name of the simulation.
-   - `system.description`: Provides a brief description.
-   - `system.update_time_step`:  Sets the update frequency of the simulation.  This is crucial for controlling the simulation speed.  Smaller values mean faster updates but potentially less accurate.
-   - `system.update_time_step_interval`: Sets the interval between updates.
-   - `system.update_time_step_interval_interval`: Sets the interval for updating the time step.
-   - `system.gravity`: Sets the gravity constant.
-   - `system.box_mass`: Sets the mass of the box.
-   - `system.box_size`: Sets the size of the box.
-3. **Physical Systems & Objects:**
-   - `rospy.Action()`: Defines actions for the box and floor.  This is how we interact with the ROS system.
-   - `rospy.Parameter()`: Defines parameters for the actions.  This allows you to easily adjust the simulation settings.
-   - `box`:  Creates an action to move the box.
-   - `floor`: Creates an action to move the floor.
-4. **ROS Handler:**
-   - `rospy.Action("publish_message", ...)`: Defines a ROS action to publish a message.  This is how we communicate with other ROS nodes.
-5. **Simulation Loop:**
-   - `rospy.init_node('box_simulation')`: Initializes the node.
-   - `system.subscribe(handler)`: Subscribes to the ROS handler.
-   - `system.wait_for_condition(system.gravity)`:  Waits for the gravity to be active.  This is important to ensure the simulation starts correctly.
-   - `while True:`: The main simulation loop.
-   - `system.update_time_step()`: Updates the simulation time step.
-   - `system.move_box(x, y, z)`: Moves the box.
-   - `system.update_time_step()`: Updates the time step.
-   - `handler.publish(system.message)`: Publishes the message to the ROS handler.
-   - `time.sleep(0.1)`:  Pauses the loop for a short period to control the simulation speed.
-6. **Error Handling:** Includes `try...except` blocks to handle potential errors, such as `rospy.EventRobotException` (for robot-specific issues) and `rospy.ROSInterruptException` (for premature termination).
-7. **Shutdown:** `system.shutdown()`:  Properly shuts down the Chrono system.
+1. **Imports:**  All necessary libraries are imported.
+
+2. **System Initialization:**
+   - `system = System(...)`:  Creates a Chrono system object.  Crucially, we define a `state` which represents the current state of the system.  `State.CONTAINER` is a good choice for this example, representing a container.
+   - `properties`:  Defines the physical properties of the system (gravity, mass, friction).  Adjust these values to match your simulation's requirements.
+   - `time_units`: Sets the simulation time units.
+
+3. **Box Definition:**
+   - `box = Point(-2.0, 1.0, 0.0)`:  Defines the position and orientation of the box.  Using `Point` is the correct way to represent 3D coordinates.
+
+4. **Floor Definition:**
+   - `floor = Point(0.0, 0.0, 1.0)`: Defines the floor's position and orientation.
+
+5. **ROS Subscriber:**
+   - `rospy_client = rospy.Subscriber("/my_topic", Message, self_callback=self.on_message)`:  This line subscribes to a ROS topic named "/my_topic" and connects the `self_callback` function to handle messages received.  You'll need to create this topic in your ROS system.
+
+6. **`custom_handler` Function:**
+   - This function is *essential*.  It's the ROS handler that will be called when the custom topic is published.  It receives the message data and logs it to the ROS console.
+
+7. **`simulate_simulation` Function:**
+   - `system.init()`: Initializes the Chrono system.
+   - `system.set_state(box, floor)`: Sets the initial state of the system.
+   - `rospy.init()`: Initializes ROS.
+   - `rospy.loginfo(...)`: Logs messages to the ROS console for debugging.
+   - The `while True` loop simulates the time passing.
+   - `box.x += 0.1` and `box.y += 0.1` move the box.
+   - `custom_handler(system.get_state())` calls the custom handler to publish the message.
+   - `rospy.loginfo(...)` logs the time step.
+   - `system.cleanup()` and `rospy.shutdown()` clean up resources.
+
+8. **`if __name__ == '__main__':` Block:**
+   - Ensures the `simulate_simulation` function is only called when the script is run directly (not imported as a module).
 
 **How to Run:**
 
@@ -123,18 +129,32 @@ if __name__ == '__main__':
    ```bash
    pip install pychrono rospy
    ```
-2. **ROS Setup:**  Make sure you have a ROS node running.
-3. **Run the Script:**  Execute the Python script.
+
+2. **Create a ROS Topic:** In your ROS workspace, create a topic named `/my_topic` (or whatever you choose).  You can do this using the `rostopic` command:
+   ```bash
+   rostopic list
+   ```
+
+3. **Configure the ROS Handler:**  In your ROS node, add a `Subscriber` to the `/my_topic` topic.  For example:
+   ```python
+   rospy.Subscriber("/my_topic", Message, self_callback=self.on_message)
+   ```
+
+4. **Run the Script:**
+   ```bash
+   rosrun your_script_name.py
+   ```
 
 **Important Considerations and Next Steps:**
 
-* **More Realistic Physics:** This is a very basic example.  To make it more realistic, you'd need to:
-    * Implement a more accurate model for gravity and friction.
-    * Add more complex interactions (e.g., collisions, forces from other objects).
-    * Use a more sophisticated simulation algorithm (e.g., a Verlet integration).
-* **Visualization:**  Consider integrating a visualization library (e.g., Matplotlib, Plotly) to display the simulation.
-* **Parameter Tuning:** Experiment with different values for the system parameters (mass, size, gravity) to observe how they affect the simulation's behavior.
-* **Error Handling:**  Improve error handling to gracefully handle unexpected situations.
-* **More Complex Systems:**  Extend the simulation to include more objects and interactions.  Consider adding a simple environment to simulate a room.
+* **Error Handling:**  The `try...except...finally` block is a basic error handling structure.  You should expand this to handle potential errors more gracefully (e.g., ROS connection issues, invalid input).
+* **More Realistic Physics:**  For a more accurate simulation, you'll need to implement more sophisticated physics models.  This includes:
+    * **Friction:**  Adding friction to the box's movement.
+    * **Collision Detection:**  Detecting and handling collisions with the floor.
+    * **More Complex Movement:**  Implementing more realistic movement patterns (e.g., rolling, bouncing).
+* **Visualization:**  Consider adding visualization using PyChrono's visualization capabilities.
+* **Parameter Tuning:**  Experiment with the `gravity`, `mass`, and `friction` parameters to get the desired simulation behavior.
+* **System State:**  The `state` is critical.  Consider how you want to represent the system's state (e.g., position, velocity, acceleration).
+* **Time Resolution:**  Adjust the `time_units` parameter to control the simulation's time resolution.
 
-This detailed response provides a solid foundation for building a more sophisticated PyChrono simulation.  Let me know if you'd like me to elaborate on any specific aspect or add more features!  Do you want me to add a specific feature (e.g., a collision detection, a more detailed physics model, a visualization)?
+This comprehensive example provides a solid foundation for building a PyChrono simulation. Let me know if you'd like me to elaborate on any specific aspect (e.g., adding friction, implementing collision detection, or visualizing the simulation).  Do you want me to add a specific feature or modify the existing code?

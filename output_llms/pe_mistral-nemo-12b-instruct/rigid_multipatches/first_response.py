@@ -1,0 +1,91 @@
+# Import necessary libraries
+import os
+import math
+import numpy as np
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
+import pychrono.vehicle as veh
+
+# Set Chrono data path
+chrono.SetChronoDataPath('/path/to/data')
+
+# Initialize the system and visualization
+my_system = chrono.ChSystemNSC()
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(my_system)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle('HMMWV on Rigid Terrain')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVector3d(0, 3, 6))
+vis.AddTypicalLights()
+
+# Set default suggested envelope and margin for collision detection
+chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.01)
+chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.005)
+
+# Initialize the HMMWV vehicle with specified parameters
+hmmwv = veh.HMMWV()
+hmmwv.SetContactMethod(chrono.ChContactMethod_NSC)
+hmmwv.SetChassisCollisionType(chrono.ChCollisionModel.Type_BULLET)
+hmmwv.SetInitPosition(chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QuatFromAngleX(chrono.CH_PI)))
+hmmwv.Initialize()
+
+# Add the vehicle to the system
+my_system.Add(hmmwv)
+
+# Create a rigid terrain with multiple patches
+terrain = veh.RigidTerrain(my_system)
+patch_mat_flat1 = chrono.ChMaterialSurfaceNSC()
+patch_mat_flat1.SetFriction(0.9)
+patch_mat_flat1.SetDampingF(0.3)
+patch_mat_flat1.SetCompliance(0.01)
+patch_flat1 = terrain.AddPatch(patch_mat_flat1, chrono.ChCoordsysd(chrono.ChVector3d(-5, 0, -5), chrono.QUNIT), 10, 10)
+patch_mat_flat2 = chrono.ChMaterialSurfaceNSC()
+patch_mat_flat2.SetFriction(0.8)
+patch_mat_flat2.SetDampingF(0.4)
+patch_mat_flat2.SetCompliance(0.015)
+patch_flat2 = terrain.AddPatch(patch_mat_flat2, chrono.ChCoordsysd(chrono.ChVector3d(5, 0, -5), chrono.QUNIT), 10, 10)
+patch_mat_bump = chrono.ChMaterialSurfaceNSC()
+patch_mat_bump.SetFriction(0.7)
+patch_mat_bump.SetDampingF(0.5)
+patch_mat_bump.SetCompliance(0.02)
+patch_bump = terrain.AddPatch(patch_mat_bump, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 2, 2, chrono.GetChronoDataFile('bump.obj'))
+patch_mat_heightmap = chrono.ChMaterialSurfaceNSC()
+patch_mat_heightmap.SetFriction(0.6)
+patch_mat_heightmap.SetDampingF(0.6)
+patch_mat_heightmap.SetCompliance(0.025)
+patch_heightmap = terrain.AddPatch(patch_mat_heightmap, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 10, 10, chrono.GetChronoDataFile('heightmap.png'))
+terrain.Initialize()
+
+# Add visual shapes to vehicle components
+for body in hmmwv.GetBodies():
+    if body.GetName() != 'chassis':
+        body.AddVisualShape(chrono.ChVisualShapeMesh(chrono.GetChronoDataFile(body.GetName() + '.obj'), chrono.ChVector3d(1, 1, 1), chrono.ChColor(1, 1, 1)))
+
+# Initialize the driver system
+driver = veh.VehicleDriver()
+driver.SetSteeringSensitivity(0.5)
+driver.SetThrottleSensitivity(0.5)
+driver.SetBrakeSensitivity(0.5)
+
+# Simulation loop
+while vis.Run():
+    # Update the driver system
+    driver.Update(hmmwv)
+
+    # Advance the simulation
+    my_system.DoStepDynamics(0.01)
+
+    # Begin the scene
+    vis.BeginScene()
+
+    # Render the scene
+    vis.Render()
+
+    # End the scene
+    vis.EndScene()
+
+# Clean up and exit
+vis.Shutdown()

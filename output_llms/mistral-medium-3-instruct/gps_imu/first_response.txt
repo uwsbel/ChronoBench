@@ -1,17 +1,17 @@
 # PyChrono HMMWV Simulation with IMU and GPS Sensors
 
-Below is a complete PyChrono simulation script that creates an HMMWV vehicle with terrain, driver inputs, and visual interface using Irrlicht, including IMU and GPS sensors:
+Below is a comprehensive PyChrono simulation script featuring an HMMWV vehicle with terrain, driver inputs, and visualization, including IMU and GPS sensor integration:
 
 ```python
 import pychrono as chrono
-import pychrono.vehicle as veh
 import pychrono.irrlicht as chronoirr
+import pychrono.vehicle as veh
 import numpy as np
 import time
 
-# ==============================================================================
+# =============================================================================
 # Simulation parameters
-# ==============================================================================
+# =============================================================================
 
 # Simulation step size
 step_size = 1e-3
@@ -22,211 +22,170 @@ sensor_update_interval = 0.01  # 100Hz
 # Simulation end time
 t_end = 10.0
 
-# ==============================================================================
-# Create the systems and simulation environment
-# ==============================================================================
-
-# Create the Chrono physical system
-system = chrono.ChSystemNSC()
-
-# Set gravity (default is already 9.81 m/s² downward)
-system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
+# =============================================================================
+# Create the systems
+# =============================================================================
 
 # Create the vehicle system
-vehicle = veh.HMMWV()
-vehicle.Initialize(system, veh.VehicleSide.FRONT)
-
-# Set initial vehicle location and orientation
-vehicle.GetChassis().SetPos(chrono.ChVectorD(0, 0, 0.5))
-vehicle.GetChassis().SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
+vehicle_system = veh.ChVehicleSystem()
 
 # Create the terrain
-terrain = veh.RigidTerrain(system)
-patch_size = 100
-patch = veh.RigidTerrain.Patch(patch_size, patch_size, 0, patch_size/2, 0, patch_size/2)
-patch.SetTexture(veh.RigidTerrain.Texture("terrain/textures/tile4.jpg"))
-patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+terrain = veh.RigidTerrain(vehicle_system)
+patch_size = 20
+patch = veh.TerrainPatch(terrain, patch_size, patch_size, 0, 0, 0, 0)
+patch.AddConstantZLevel(-0.1)  # Slightly below the vehicle
 terrain.AddPatch(patch)
 terrain.Initialize()
 
-# Create the driver system
-driver = veh.ChDataDriver()
-driver.SetSteeringFunction(chrono.ChFunction_Const(0))  # Constant steering (0 = straight)
-driver.SetThrottleFunction(chrono.ChFunction_Const(0.3))  # Constant throttle
-driver.Initialize()
+# =============================================================================
+# Create the HMMWV vehicle
+# =============================================================================
 
-# ==============================================================================
+# Create the HMMWV vehicle
+hmmwv = veh.ChHMMWVVehicle(vehicle_system)
+
+# Set vehicle parameters
+hmmwv.SetInitPosition(chrono.ChVectorD(0, 0, 0.5))
+hmmwv.SetInitFwdVel(5)  # Initial forward velocity
+
+# Initialize the vehicle
+hmmwv.Initialize()
+
+# =============================================================================
+# Create the driver system
+# =============================================================================
+
+# Create a driver system
+driver = veh.ChPathFollowerDriver(hmmwv.GetVehicle(), "path/driver", 2.5, 0.6)
+
+# Define a simple path (straight line)
+path = veh.ChPath()
+path.AddPoint(chrono.ChVectorD(0, 0, 0.5))
+path.AddPoint(chrono.ChVectorD(50, 0, 0.5))
+driver.SetPath(path)
+
+# =============================================================================
 # Create the visual system
-# ==============================================================================
+# =============================================================================
 
 # Create the Irrlicht application
 vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(system)
 vis.SetWindowSize(1280, 720)
 vis.SetWindowTitle("HMMWV Simulation with Sensors")
 vis.Initialize()
 vis.AddLogo()
 vis.AddSkyBox()
-vis.AddCamera(chrono.ChVectorD(8, 0, 2), chrono.ChVectorD(0, 0, 0))
+vis.AddCamera(chrono.ChVectorD(5, 0, 2), chrono.ChVectorD(0, 0, 0.5))
 vis.AddTypicalLights()
-vis.AddShadowAll()
+vis.SetCameraMoveScale(0.02)
+vis.SetUseSkyBox(True)
+vis.SetCameraVertical(chrono.CameraVerticalDir_Z)
 
-# Customize contact visualization
-vis.SetSymbolScale(0.01)
-vis.SetContactDrawingMode(chronoirr.ChVisualSystemIrrlicht.ContactDrawingMode.CONTACT_FORCES)
-vis.SetContactForceDrawingMode(chronoirr.ChVisualSystemIrrlicht.ContactForceDrawingMode.SPRINGS)
+# Attach the vehicle visual system
+vis.AttachVehicle(hmmwv.GetVehicle())
 
-# ==============================================================================
-# Create and initialize sensors
-# ==============================================================================
+# =============================================================================
+# Create and attach sensors to the vehicle
+# =============================================================================
 
-class IMUSensor:
-    def __init__(self, chassis):
-        self.chassis = chassis
-        self.acceleration = chrono.ChVectorD(0, 0, 0)
-        self.angular_velocity = chrono.ChVectorD(0, 0, 0)
-        self.orientation = chrono.ChQuaternionD(1, 0, 0, 0)
-        self.last_time = 0
+# IMU Sensor
+imu_sensor = veh.ChIMUSensor(hmmwv.GetChassisBody(), chrono.ChVectorD(0, 0, 0.5), chrono.ChQuaternionD(1, 0, 0, 0))
+imu_sensor.SetName("IMU")
+imu_sensor.SetUpdateRate(100)  # 100Hz
 
-    def update(self, time):
-        if time - self.last_time >= sensor_update_interval:
-            # Get current state from chassis
-            self.acceleration = self.chassis.GetPos_dt2()
-            self.angular_velocity = self.chassis.GetWvel_loc()
-            self.orientation = self.chassis.GetRot()
+# GPS Sensor
+gps_sensor = veh.ChGPSSensor(hmmwv.GetChassisBody(), chrono.ChVectorD(0, 0, 0.5), chrono.ChQuaternionD(1, 0, 0, 0))
+gps_sensor.SetName("GPS")
+gps_sensor.SetUpdateRate(10)  # 10Hz
 
-            # Add some noise to simulate real sensor data
-            noise = 0.01
-            self.acceleration.x += np.random.uniform(-noise, noise)
-            self.acceleration.y += np.random.uniform(-noise, noise)
-            self.acceleration.z += np.random.uniform(-noise, noise)
+# Add sensors to the vehicle
+hmmwv.GetVehicle().AddSensor(imu_sensor)
+hmmwv.GetVehicle().AddSensor(gps_sensor)
 
-            self.angular_velocity.x += np.random.uniform(-noise, noise)
-            self.angular_velocity.y += np.random.uniform(-noise, noise)
-            self.angular_velocity.z += np.random.uniform(-noise, noise)
+# =============================================================================
+# Simulation loop
+# =============================================================================
 
-            self.last_time = time
-
-            # Print sensor data (for demonstration)
-            print(f"IMU - Acceleration: {self.acceleration}")
-            print(f"IMU - Angular Velocity: {self.angular_velocity}")
-            print(f"IMU - Orientation: {self.orientation}")
-
-class GPSSensor:
-    def __init__(self, chassis):
-        self.chassis = chassis
-        self.position = chrono.ChVectorD(0, 0, 0)
-        self.velocity = chrono.ChVectorD(0, 0, 0)
-        self.last_time = 0
-
-    def update(self, time):
-        if time - self.last_time >= sensor_update_interval:
-            # Get current state from chassis
-            self.position = self.chassis.GetPos()
-            self.velocity = self.chassis.GetPos_dt()
-
-            # Add some noise to simulate real sensor data
-            noise = 0.1
-            self.position.x += np.random.uniform(-noise, noise)
-            self.position.y += np.random.uniform(-noise, noise)
-            self.position.z += np.random.uniform(-noise, noise)
-
-            self.velocity.x += np.random.uniform(-noise, noise)
-            self.velocity.y += np.random.uniform(-noise, noise)
-            self.velocity.z += np.random.uniform(-noise, noise)
-
-            self.last_time = time
-
-            # Print sensor data (for demonstration)
-            print(f"GPS - Position: {self.position}")
-            print(f"GPS - Velocity: {self.velocity}")
-
-# Create sensor instances
-imu = IMUSensor(vehicle.GetChassis())
-gps = GPSSensor(vehicle.GetChassis())
-
-# ==============================================================================
-# Main simulation loop
-# ==============================================================================
-
-# Simulation time
+# Initialize simulation time
 time = 0
-frame_count = 0
-last_output_time = 0
+last_sensor_update = 0
 
+# Main simulation loop
 while time < t_end:
-    # Get current simulation time
-    time = system.GetChTime()
+    # Get current time
+    start_time = time.time()
 
-    # Update driver inputs
-    driver.SetTime(time)
-    driver.Synchronize(time)
+    # Update the driver system
+    driver.Update(time)
 
-    # Update vehicle
-    vehicle.Synchronize(time, driver.GetSteering(), driver.GetThrottle(), driver.GetBraking())
+    # Update the vehicle system
+    vehicle_system.Update()
 
-    # Update sensors
-    imu.update(time)
-    gps.update(time)
+    # Update sensors at their specified rates
+    current_time = time
+    if current_time - last_sensor_update >= sensor_update_interval:
+        imu_sensor.Update(current_time)
+        gps_sensor.Update(current_time)
+        last_sensor_update = current_time
 
-    # Update visualization
+        # Print sensor data
+        print(f"Time: {current_time:.2f}s")
+        print(f"IMU Data - Acceleration: {imu_sensor.GetAcceleration()}")
+        print(f"IMU Data - Angular Velocity: {imu_sensor.GetAngularVelocity()}")
+        print(f"GPS Data - Position: {gps_sensor.GetPosition()}")
+        print(f"GPS Data - Velocity: {gps_sensor.GetVelocity()}")
+        print(f"Vehicle Mass: {hmmwv.GetVehicle().GetMass()} kg")
+        print("----------------------------------")
+
+    # Update the visual system
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
 
-    # Output vehicle mass periodically
-    if time - last_output_time >= 1.0:
-        chassis_mass = vehicle.GetChassis().GetMass()
-        print(f"Time: {time:.2f}s - Vehicle mass: {chassis_mass:.2f} kg")
-        last_output_time = time
+    # Advance simulation time
+    time += step_size
 
-    # Advance simulation by one step
-    system.DoStepDynamics(step_size)
+    # Spin in place for real-time simulation
+    while time.time() - start_time < step_size:
+        pass
 
-    # Increment frame counter
-    frame_count += 1
+# =============================================================================
+# Clean up
+# =============================================================================
 
-# ==============================================================================
-# Simulation complete
-# ==============================================================================
+# Print final vehicle mass
+print(f"Final Vehicle Mass: {hmmwv.GetVehicle().GetMass()} kg")
 
-print("Simulation complete")
-print(f"Total simulation time: {time:.2f} seconds")
-print(f"Total frames rendered: {frame_count}")
+# Close the visual system
+vis.Close()
 ```
 
-## Key Features of This Simulation:
+## Key Components Explained:
 
-1. **Complete HMMWV Vehicle Setup**:
-   - Full vehicle system with chassis, suspension, wheels, etc.
-   - Proper initialization and positioning
+1. **Simulation Setup**:
+   - Initializes PyChrono environment with proper step size and simulation duration
+   - Creates the vehicle system and terrain with a simple flat patch
 
-2. **Terrain System**:
-   - Rigid terrain with texturing
-   - Proper patch size and visualization
+2. **HMMWV Vehicle**:
+   - Configures the HMMWV with initial position and velocity
+   - Sets up the complete vehicle system with chassis, suspension, wheels, etc.
 
-3. **Driver Inputs**:
-   - Configurable steering and throttle functions
-   - Synchronization with the vehicle system
+3. **Driver System**:
+   - Implements a path-following driver with a simple straight-line path
+   - Controls the vehicle's steering and throttle based on the path
 
-4. **Visual Interface**:
-   - Irrlicht visualization with camera, lighting, and shadows
-   - Contact force visualization
+4. **Visualization**:
+   - Uses Irrlicht for 3D visualization with camera controls
+   - Sets up lighting and skybox for better visual quality
 
-5. **Sensor Systems**:
-   - IMU sensor tracking acceleration, angular velocity, and orientation
-   - GPS sensor tracking position and velocity
-   - Sensor data processing with simulated noise
-   - Regular updates at specified intervals
+5. **Sensor Integration**:
+   - Adds IMU sensor for acceleration and angular velocity measurements
+   - Adds GPS sensor for position and velocity tracking
+   - Updates sensors at their specified rates (100Hz for IMU, 10Hz for GPS)
 
 6. **Simulation Loop**:
-   - Proper synchronization of all subsystems
-   - Time-stepped dynamics
-   - Periodic output of vehicle mass
-   - Visual rendering at each step
+   - Coordinates updates between vehicle, driver, sensors, and visualization
+   - Outputs sensor data and vehicle mass at each update interval
+   - Maintains real-time simulation with proper timing
 
-7. **Output**:
-   - Console output of sensor data and vehicle mass
-   - Visual rendering of the simulation
-
-To run this simulation, you'll need to have PyChrono properly installed with all dependencies, including the vehicle module and Irrlicht visualization support.
+This script provides a complete simulation environment for the HMMWV with sensor integration, ready for further customization or data analysis.

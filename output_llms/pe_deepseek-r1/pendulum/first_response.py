@@ -1,0 +1,91 @@
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
+import math
+
+def main():
+    # 1. Create the simulation system
+    system = chrono.ChSystemNSC()
+    system.SetGravity(chrono.ChVector3d(0, -9.81, 0))  # Set gravity downward
+    
+    # 2. Create ground body
+    ground = chrono.ChBody()
+    ground.SetFixed(True)  # Make ground stationary
+    system.Add(ground)
+    
+    # Add visual asset to ground (small cube at pivot point)
+    ground_shape = chrono.ChVisualShapeBox(0.1, 0.1, 0.1)
+    ground_shape.SetColor(chrono.ChColor(0.8, 0.2, 0.2))
+    ground.AddVisualShape(ground_shape, chrono.ChFramed(chrono.ChVector3d(0, 0, 0)))
+    
+    # 3. Create pendulum body (rod with sphere at end)
+    pendulum = chrono.ChBody()
+    pendulum.SetMass(1.0)  # 1 kg mass
+    pendulum.SetInertiaXX(chrono.ChVector3d(0.1, 0.1, 0.1))  # Inertia tensor
+    
+    # Calculate center of mass position (2m below pivot)
+    pendulum_length = 2.0
+    com_position = chrono.ChVector3d(0, -pendulum_length/2, 0)
+    pendulum.SetPos(com_position)
+    
+    # Add visual components
+    rod_shape = chrono.ChVisualShapeCylinder(0.05, pendulum_length)
+    rod_shape.SetColor(chrono.ChColor(0.6, 0.6, 0.8))
+    pendulum.AddVisualShape(rod_shape, chrono.ChFramed(chrono.ChVector3d(0, pendulum_length/2, 0)))
+    
+    sphere_shape = chrono.ChVisualShapeSphere(0.2)
+    sphere_shape.SetColor(chrono.ChColor(0.2, 0.6, 0.8))
+    pendulum.AddVisualShape(sphere_shape, chrono.ChFramed(chrono.ChVector3d(0, -pendulum_length, 0)))
+    
+    system.Add(pendulum)
+    
+    # 4. Create revolute joint at top (Z-axis rotation)
+    pivot = chrono.ChVector3d(0, 0, 0)
+    joint = chrono.ChLinkLockRevolute()
+    joint.Initialize(ground, pendulum, 
+                    chrono.ChFramed(pivot, chrono.QuatFromAngleX(0)))
+    system.Add(joint)
+    
+    # 5. Set up visualization
+    vis = chronoirr.ChVisualSystemIrrlicht()
+    vis.AttachSystem(system)
+    vis.SetWindowSize(1280, 720)
+    vis.SetWindowTitle('Simple Pendulum Simulation')
+    vis.Initialize()
+    vis.AddLogo(chrono.GetChronoDataPath() + 'logo_pychrono_alpha.png')
+    vis.AddSkyBox()
+    vis.AddCamera(chrono.ChVector3d(0, -1, 3))  # Position camera to view pendulum
+    vis.AddTypicalLights()
+    
+    # 6. Simulation loop
+    time_step = 0.01
+    frame_interval = 0.02  # Log every 0.02 seconds (20ms)
+    next_log_time = 0
+    
+    while vis.Run():
+        # Render the scene
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+        
+        # Perform simulation step
+        system.DoStepDynamics(time_step)
+        
+        # Log position and velocity at specified intervals
+        current_time = system.GetChTime()
+        if current_time >= next_log_time:
+            # Get pendulum position and velocity
+            pos = pendulum.GetPos()
+            vel = pendulum.GetPosDt()
+            
+            # Calculate angular displacement (theta)
+            theta = math.atan2(pos.x, -pos.y)  # Angle from vertical
+            
+            print(f"Time: {current_time:.3f}s | "
+                  f"Position: ({pos.x:.3f}, {pos.y:.3f}) | "
+                  f"Velocity: ({vel.x:.3f}, {vel.y:.3f}) | "
+                  f"Angle: {math.degrees(theta):.2f}°")
+            
+            next_log_time += frame_interval
+
+if __name__ == '__main__':
+    main()

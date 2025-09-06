@@ -1,14 +1,11 @@
-Certainly! Below is a PyChrono script that fulfills the requirements specified for simulating a CityBus vehicle on a rigid terrain with visualization using Irrlicht. This script initializes the environment, sets up the vehicle with specified parameters, and includes an interactive driver system for controlling the vehicle.
+To create a simulation script based on the provided instructions using PyChrono and Irrlicht for visualization, follow the steps below. This script will initialize the environment, set up the CityBus vehicle on a rigid terrain, and implement the necessary controls and visualization.
 
 ```python
-import pychrono.core as chrono
+import pychrono as chrono
 import pychrono.irrlicht as chronoirr
-import pychrono.vehicle as veh
-import pychrono.vehicle.wheeled_vehicle as veh_wheeled
+import pychrono.postprocess as postprocess
 
-# --------------------------
-# Initialize the simulation
-# --------------------------
+# Initialize the PyChrono environment
 chrono.SetChronoDataPath('path/to/chrono/data')
 
 # Create a Chrono::Engine physical system
@@ -22,79 +19,76 @@ vis.SetWindowSize(1280, 720)
 vis.SetWindowTitle('CityBus Simulation')
 vis.Initialize()
 vis.AddTypicalSky()
-vis.AddTypicalLogo(chrono.GetChronoDataFile('logo_pychrono_rgb.png'))
-vis.AddLightWithShadow(chrono.ChCoordsysD(chrono.ChVectorD(2, 4, 5), chrono.Q_UNIT),  # position
-                       chrono.ChVectorD(1, 1, 1),  # direction
-                       5, 5, 20, 40, 50,  # near, far, angle, resolution_x, resolution_y
-                       chrono.ChColor(1, 1, 1))  # color
+vis.AddTypicalLogo()
+vis.AddLightWithShadow(chrono.ChVectorD(1, 1, 1), chrono.ChVectorD(0, 0, 0), 1, 1, 10, 50, 512)
+vis.AddCamera(chrono.ChVectorD(0, 10, -20), chrono.ChVectorD(0, 0, 0))
 
-# --------------------------
-# Create the rigid terrain
-# --------------------------
-terrain = veh_wheeled.ChTerrain()
-terrain.SetContactMaterial(0.8, 0.8, 0.01)
-terrain.Initialize(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(100, 100, 0), 1, 1)
-terrain.GetGroundSurface().LoadTexture(chrono.GetChronoDataFile('textures/concrete.jpg'))
+# Create a RigidTerrain with a custom texture
+terrain = chrono.ChTerrain()
+terrain.SetTexture(chrono.GetChronoDataFile('textures/concrete.jpg'), True)
+terrain.SetSmooth(False)
+terrain.Initialize(system)
 
-# Add the terrain to the system
-system.Add(terrain)
+# Load the CityBus vehicle
+vehicle = chrono.ChVehicle()
+vehicle.SetChassisBody(chrono.ChBody())
+vehicle.GetChassisBody().SetPos(chrono.ChVectorD(0, 1, 0))
+vehicle.GetChassisBody().SetRot(chrono.Q_from_AngAxis(chrono.CHR_PI / 2, chrono.ChVectorD(1, 0, 0)))
 
-# --------------------------
-# Create the CityBus vehicle
-# --------------------------
-citybus = veh_wheeled.ChVehicleCityBus()
-citybus.InitSystem(system, veh_wheeled.ChVehicleCityBus.VEHICLE_2AXLES)
-citybus.SetChassisBodyVisualizationType(veh_wheeled.ChVehicleCityBus.VISUALIZATION_MESH)
-citybus.SetChassisBodyMeshFilename(chrono.GetChronoDataFile('vehicle/citybus/chassis_geom.obj'))
-citybus.SetChassisBodyTextureFilename(chrono.GetChronoDataFile('vehicle/citybus/chassis_texture.png'))
-citybus.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0.5), chrono.Q_from_AngAxis(chrono.ChVectorD(0, 0, 1), chrono.CHR_PI_2)))
+# Add wheels to the vehicle
+wheel1 = chrono.ChWheel()
+wheel1.SetRadius(0.4)
+wheel1.SetSuspensionRestLength(0.4)
+wheel1.SetSuspensionSpringStiffness(20000)
+wheel1.SetSuspensionDamping(400)
+vehicle.AddWheel(wheel1, chrono.ChVectorD(1.5, 0, 1.5))
+vehicle.AddWheel(wheel1, chrono.ChVectorD(-1.5, 0, 1.5))
+vehicle.AddWheel(wheel1, chrono.ChVectorD(1.5, 0, -1.5))
+vehicle.AddWheel(wheel1, chrono.ChVectorD(-1.5, 0, -1.5))
+
+# Set up the driver system
+driver = chrono.ChDriver()
+driver.Initialize(vehicle)
+driver.SetSteering(0)
+driver.SetThrottle(0)
+driver.SetBraking(0)
 
 # Add the vehicle to the system
-system.Add(citybus)
+system.Add(vehicle.GetChassisBody())
+for wheel in vehicle.GetWheels():
+    system.Add(wheel.GetChassis())
 
-# --------------------------
-# Create the driver system
-# --------------------------
-driver = veh_wheeled.ChDriver()
-driver.Initialize(citybus)
-driver.SetSteeringController(veh_wheeled.ChGenericDriverController())
-driver.SetThrottleController(veh_wheeled.ChGenericDriverController())
-driver.SetBrakingController(veh_wheeled.ChGenericDriverController())
+# Set up the simulation parameters
+system.SetTimestepperType(chrono.ChTimestepperType.HHT)
+system.SetSolverType(chrono.ChSolverType.BARZILAIBORWEIN)
+system.SetSolverMaxIterations(100)
+system.SetSolverTolerance(1e-10)
 
-# --------------------------
-# Set up the camera
-# --------------------------
-camera = vis.AddCamera(chrono.ChVectorD(10, -10, 5), chrono.ChVectorD(0, 0, 0))
-camera.SetNearClip(0.1)
-camera.SetFarClip(1000)
-camera.SetYfov(chrono.CHR_PI / 4)
+# Set up the visualization loop
+step_size = 1.0 / 50.0  # 50 frames per second
+total_time = 10.0  # total simulation time in seconds
 
-# --------------------------
-# Simulation loop
-# --------------------------
-def simulation_step():
-    while vis.Run():
-        time = system.GetChronoDataTime()
-        driver.UpdateDriver(time)
+# Run the simulation loop
+while vis.Run() and system.GetChTime() < total_time:
+    system.DoStepDynamics(step_size)
+    vis.Render()
 
-        system.DoStepDynamics(1.0 / 50)
-        vis.Render()
+# Finalize the visualization system
+vis.Close()
 
-simulation_step()
+# Optionally, save the simulation data for post-processing
+postprocess.ChGnuplot.WritePlotFile(system, "simulation_data.txt")
 ```
 
 ### Explanation:
+1. **Initialize the PyChrono environment**: Set the Chrono data path and create the physical system.
+2. **Create the Irrlicht visualization system**: Set up the window size, title, and add typical elements like sky, logo, and lights.
+3. **Create a RigidTerrain**: Initialize the terrain with a custom texture.
+4. **Load the CityBus vehicle**: Set up the chassis and wheels with specified parameters.
+5. **Set up the driver system**: Initialize the driver and set initial controls.
+6. **Add the vehicle to the system**: Add the chassis and wheels to the physical system.
+7. **Set up the simulation parameters**: Configure the timestepper and solver.
+8. **Run the simulation loop**: Update the vehicle dynamics and render the scene in real-time at 50 frames per second.
+9. **Finalize the visualization system**: Close the visualization window and optionally save the simulation data.
 
-1. **Initialization**: The script initializes the Chrono::Engine and Irrlicht visualization systems. It sets up the simulation environment, including gravity and window settings.
-
-2. **Terrain Creation**: A rigid terrain is created with a specified contact material and texture. The terrain is added to the simulation system.
-
-3. **Vehicle Creation**: The CityBus vehicle is initialized with the specified parameters, including its position, orientation, and mesh files for visualization. The vehicle is then added to the simulation system.
-
-4. **Driver System**: An interactive driver system is set up to control the vehicle's steering, throttle, and braking.
-
-5. **Camera Setup**: The camera is positioned to follow the vehicle from a specified viewpoint.
-
-6. **Simulation Loop**: The simulation loop runs at 50 frames per second, updating the vehicle dynamics and rendering the scene in real-time using Irrlicht.
-
-Make sure to replace `'path/to/chrono/data'` with the actual path to your Chrono data directory and ensure that the necessary mesh and texture files are available in the specified locations.
+This script provides a basic framework for simulating a CityBus vehicle on a rigid terrain with PyChrono and Irrlicht. You can further customize the vehicle parameters, terrain, and driver controls as needed.

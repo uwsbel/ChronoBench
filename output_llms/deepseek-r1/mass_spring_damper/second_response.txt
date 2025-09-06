@@ -1,109 +1,101 @@
-To address the task, I identified and corrected errors in the original script, then implemented the requested enhancements. Here's the detailed solution:
-
-**Key Corrections:**
-1. Fixed incorrect visualization attachment to ground by replacing `ChFramed` with direct `ChVector3d`
-2. Added missing `ChBodyEasy` for proper collision handling (though disabled)
-3. Corrected spring visualization parameters order (radius, turns, resolution)
-
-**Enhancements Implemented:**
-1. Created `MySpringForce` custom force functor
-2. Added mirrored body (`body_2`) at (1, -3, 0)
-3. Added second ground sphere (`sph_2`) at (1, 0, 0)
-4. Configured `spring_2` with custom force functor
+Here's the corrected and modified script based on your instructions:
 
 ```python
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
 
-# Parameters
+# Spring parameters
 rest_length = 1.5
 spring_coef = 50
 damping_coef = 1
 
 # Custom force functor implementation
 class MySpringForce(chrono.ChLinkTSDA.ForceFunctor):
-    def __init__(self, k, c):
+    def __init__(self, spring_coef, damping_coef):
         super().__init__()
-        self.k = k
-        self.c = c
+        self.spring_coef = spring_coef
+        self.damping_coef = damping_coef
         
     def Evaluate(self, time, rest_length, length, vel, link):
-        force = -self.k * (length - rest_length) - self.c * vel
+        force = -self.spring_coef * (length - rest_length) - self.damping_coef * vel
         return force
 
 # Create system
 sys = chrono.ChSystemNSC()
 sys.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, 0))
 
-# Ground body
-ground = chrono.ChBodyEasyBox(1, 1, 1, 1000)  # Use ChBodyEasy for consistency
+# Create ground body
+ground = chrono.ChBody()
 sys.AddBody(ground)
 ground.SetFixed(True)
 ground.EnableCollision(False)
 
-# Ground visual elements
+# Add visual spheres to ground
 sph_1 = chrono.ChVisualShapeSphere(0.1)
-sph_1.SetColor(chrono.ChColor(0, 1, 0))  # Green
-ground.AddVisualShape(sph_1, chrono.ChVector3d(-1, 0, 0))
-
 sph_2 = chrono.ChVisualShapeSphere(0.1)
-sph_2.SetColor(chrono.ChColor(0, 1, 0))  # Green
-ground.AddVisualShape(sph_2, chrono.ChVector3d(1, 0, 0))
+ground.AddVisualShape(sph_1, chrono.ChFrameD(chrono.ChVector3d(-1, 0, 0)))
+ground.AddVisualShape(sph_2, chrono.ChFrameD(chrono.ChVector3d(1, 0, 0)))
 
-# First body (left)
-body_1 = chrono.ChBodyEasyBox(1, 1, 1, 1000)  # Mass = 1000 * volume
+# Create first body (body_1)
+body_1 = chrono.ChBody()
 sys.AddBody(body_1)
 body_1.SetPos(chrono.ChVector3d(-1, -3, 0))
 body_1.SetFixed(False)
 body_1.EnableCollision(False)
+body_1.SetMass(1)
+body_1.SetInertiaXX(chrono.ChVector3d(1, 1, 1))
 
-# First body visual
+# Attach visualization to body_1
 box_1 = chrono.ChVisualShapeBox(1, 1, 1)
-box_1.SetColor(chrono.ChColor(0.6, 0, 0))  # Red
+box_1.SetColor(chrono.ChColor(0.6, 0, 0))
 body_1.AddVisualShape(box_1)
 
-# First spring (direct coefficients)
-spring_1 = chrono.ChLinkTSDA()
-spring_1.Initialize(body_1, ground, True, 
-                    chrono.ChVector3d(0, 0, 0), 
-                    chrono.ChVector3d(-1, 0, 0))
-spring_1.SetRestLength(rest_length)
-spring_1.SetSpringCoefficient(spring_coef)
-spring_1.SetDampingCoefficient(damping_coef)
-sys.AddLink(spring_1)
-spring_1.AddVisualShape(chrono.ChVisualShapeSpring(0.05, 15, 80))  # Fixed parameter order
-
-# Second body (right)
-body_2 = chrono.ChBodyEasyBox(1, 1, 1, 1000)  # Same as body_1
+# Create second body (body_2)
+body_2 = chrono.ChBody()
 sys.AddBody(body_2)
 body_2.SetPos(chrono.ChVector3d(1, -3, 0))
 body_2.SetFixed(False)
 body_2.EnableCollision(False)
+body_2.SetMass(1)
+body_2.SetInertiaXX(chrono.ChVector3d(1, 1, 1))
 
-# Second body visual
+# Attach visualization to body_2
 box_2 = chrono.ChVisualShapeBox(1, 1, 1)
-box_2.SetColor(chrono.ChColor(0, 0, 0.6))  # Blue
+box_2.SetColor(chrono.ChColor(0, 0, 0.6))
 body_2.AddVisualShape(box_2)
 
-# Second spring (custom force functor)
+# Create first spring (using direct coefficients)
+spring_1 = chrono.ChLinkTSDA()
+spring_1.Initialize(body_1, ground, True, 
+                    chrono.ChVector3d(-1, -3, 0),  # Absolute position on body_1
+                    chrono.ChVector3d(-1, 0, 0))    # Absolute position on ground
+spring_1.SetRestLength(rest_length)
+spring_1.SetSpringCoefficient(spring_coef)
+spring_1.SetDampingCoefficient(damping_coef)
+sys.AddLink(spring_1)
+
+# Create second spring (using custom force functor)
 spring_2 = chrono.ChLinkTSDA()
 spring_2.Initialize(body_2, ground, True, 
-                    chrono.ChVector3d(0, 0, 0), 
-                    chrono.ChVector3d(1, 0, 0))
+                    chrono.ChVector3d(1, -3, 0),   # Absolute position on body_2
+                    chrono.ChVector3d(1, 0, 0))     # Absolute position on ground
 spring_2.SetRestLength(rest_length)
-spring_2.SetForceFunctor(MySpringForce(spring_coef, damping_coef))
+spring_2.RegisterForceFunctor(chrono.ChSharedPtr(MySpringForce(spring_coef, damping_coef)))
 sys.AddLink(spring_2)
-spring_2.AddVisualShape(chrono.ChVisualShapeSpring(0.05, 15, 80))  # Fixed parameter order
 
-# Visualization setup
+# Add spring visualizations
+spring_1.AddVisualShape(chrono.ChVisualShapeSpring(0.05, 80, 15))
+spring_2.AddVisualShape(chrono.ChVisualShapeSpring(0.05, 80, 15))
+
+# Setup visualization
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(sys)
 vis.SetWindowSize(1024, 768)
-vis.SetWindowTitle('Custom Spring Functor Demo')
+vis.SetWindowTitle('ChLinkTSDA demo')
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()
-vis.AddCamera(chrono.ChVector3d(0, -6, 9))
+vis.AddCamera(chrono.ChVector3d(0, 0, 6))
 vis.AddTypicalLights()
 
 # Simulation loop
@@ -114,11 +106,20 @@ while vis.Run():
     sys.DoStepDynamics(1e-3)
 ```
 
-**Key Improvements:**
-1. **Custom Force Functor**: `MySpringForce` implements the required spring-damper physics
-2. **Mirrored Setup**: Symmetric bodies and springs for visual comparison
-3. **Visual Distinction**: Different colors for bodies (red/blue) and ground markers (green)
-4. **Corrected Visualization**: Proper spring rendering with 15 turns and 80 resolution segments
-5. **Camera Position**: Adjusted for better view of both springs
+Key modifications and corrections:
+1. Fixed the ground visualization syntax (changed `ChFramed` to `ChFrameD`)
+2. Added the `MySpringForce` class implementing custom force calculations
+3. Added a second visual sphere to the ground at (1,0,0)
+4. Created a second body (`body_2`) with mirrored position and blue color
+5. Added a second spring (`spring_2`) using the custom force functor
+6. Corrected spring initialization to use absolute positions consistently
+7. Added visualization for both springs
+8. Maintained the original direct coefficient setup for the first spring
 
-The simulation now shows two identical mass-spring systems side-by-side: one using direct spring coefficients and the other using the custom force functor, both visually distinguishable and physically correct.
+The simulation now features:
+- Two bodies connected to ground with springs
+- First spring uses direct coefficient setup
+- Second spring uses custom force calculations
+- Visual differentiation between bodies (red and blue)
+- Both springs visualized with spiral shapes
+- Gravity disabled to focus on spring dynamics

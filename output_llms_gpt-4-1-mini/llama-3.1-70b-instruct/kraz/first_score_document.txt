@@ -5,100 +5,99 @@
 ### 1. Completeness (40 points)
 
 - **System Initialization:**  
-  - The system is created correctly with `chrono.ChSystemNSC()`.  
-  - The collision envelope is set via `chrono.ChCollisionSystem.SetDefaultSuggestedEnvelope(0.001)`.  
-  - **Issue:** The correct API call to set the default envelope is `chrono.ChCollisionModel.SetDefaultSuggestedEnvelope()`, not `chrono.ChCollisionSystem.SetDefaultSuggestedEnvelope()`. This is a significant API misuse (see Correctness).  
-  - **Deduction:** None here yet, will deduct under Correctness.
+  The system is initialized correctly with `chrono.ChSystemNSC()`.  
+  **No deduction.**
+
+- **Collision Settings:**  
+  The script calls `chrono.ChCollisionSystem.SetDefaultSuggestedEnvelope(0.001)`.  
+  However, the API documentation shows this method as `chrono.ChCollisionModel.SetDefaultSuggestedEnvelope()`. The script uses `ChCollisionSystem` instead of `ChCollisionModel`. This is an incorrect API usage (see correctness below).  
+  **No deduction here (correctness will cover).**
 
 - **Vehicle Creation:**  
-  - The vehicle is created as `veh.ChKraz()`.  
-  - However, the vehicle API typically requires calling `Initialize()` after setting parameters to properly initialize the vehicle and add it to the system. This is missing.  
-  - Also, setting chassis mass and inertia manually is unusual because the vehicle model usually has predefined mass and inertia properties. Overriding them without calling `Initialize()` may cause inconsistencies.  
-  - The chassis body is added manually to the system via `mysystem.Add(kraz.GetChassisBody())`. This is not the standard approach; normally, the vehicle object manages its bodies internally after initialization.  
-  - **Deduction:** Missing `Initialize()` call and incorrect vehicle setup → **-15 points** (essential component detail missing).
+  The vehicle is created using `veh.ChKraz()`. However, the API documentation for vehicle examples shows that vehicles are typically initialized with `SetContactMethod()`, `SetInitPosition()`, and then `Initialize()`. None of these steps are done here. Instead, the code sets chassis visualization, material, mass, inertia, position, and orientation manually, then adds the chassis body to the system.  
+  This is a **major omission** because:  
+  - The vehicle is not properly initialized via `Initialize()`.  
+  - The vehicle system is not attached to the simulation system properly.  
+  - The vehicle's internal subsystems (wheels, suspension, steering) are not initialized or added.  
+  - The vehicle is treated as a single body rather than a full vehicle model.  
+  According to the API, vehicle creation requires calling `Initialize()` and adding the vehicle system to the simulation, not just the chassis body.  
+  **Deduct 15 points for missing essential vehicle initialization.**
 
 - **Terrain Creation:**  
-  - The terrain is created using `chrono.ChBodyEasyBox(mysystem, 10, 10, 1, 1000, True, True)`.  
-  - The first argument to `ChBodyEasyBox` should be size parameters, not the system. The correct signature is:  
-    ```python
-    ChBodyEasyBox(lengthX, lengthY, lengthZ, density, visualize, collision, material)
-    ```  
-  - Passing `mysystem` as the first argument is incorrect.  
-  - Also, the terrain body is added to the system manually, which is correct.  
-  - **Deduction:** Incorrect usage of `ChBodyEasyBox` constructor → **-15 points** (essential component incorrectly configured).
+  The terrain is created as a `chrono.ChBodyEasyBox` with parameters `(mysystem, 10, 10, 1, 1000, True, True)`.  
+  This is incorrect usage:  
+  - The constructor signature for `ChBodyEasyBox` is `(lengthX, lengthY, lengthZ, density, visualize, collision, material)`.  
+  - The first argument should be `lengthX` (float), but `mysystem` (a system object) is passed instead.  
+  This is a **significant error** in body creation.  
+  Also, the terrain is added to the system, but no collision model or fixed status is set. The terrain should be fixed (static) to act as ground.  
+  **Deduct 15 points for missing essential body creation and incorrect parameters.**
 
 - **Driver System:**  
-  - `veh.ChIrrGuiDriver()` is created and set up with the vehicle.  
-  - `driver.Initialize()` is called, which is correct.  
-  - **No deduction.**
+  The driver is created as `veh.ChIrrGuiDriver()`, set with vehicle, steering/throttle/braking deltas, and initialized.  
+  This is mostly correct, but since the vehicle is not properly initialized, the driver will not function correctly.  
+  **Deduct 5 points for minor omission related to vehicle-driver integration.**
 
-- **Visualization:**  
-  - The Irrlicht visualization system is created with `chronoirr.ChVisualSystemIrrlicht()`.  
-  - However, the visualization system is **not attached to the system** via `application.AttachSystem(mysystem)`. This is essential for visualization to reflect the simulation state.  
-  - The visualization is configured extensively, but the missing `AttachSystem()` is a major omission.  
-  - Also, `application.Initialize()` is missing, which is required to set up the visualization window and resources before running the loop.  
-  - **Deduction:** Missing `AttachSystem()` and `Initialize()` → **-15 points** (essential visualization setup missing).
+- **Visualization Setup:**  
+  The visualization system is created with `chronoirr.ChVisualSystemIrrlicht()`.  
+  However, the visualization system is **not attached to the system** via `AttachSystem(mysystem)`, nor is it initialized via `Initialize()`. These are essential steps for visualization to work properly.  
+  Also, the code calls many `SetShowInfo*` methods, many of which are not standard or do not exist in the documented API (e.g., `SetShowInfoCameraPosition`, `SetShowInfoCameraTarget`, etc.). This suggests misunderstanding or misuse of the visualization API.  
+  **Deduct 15 points for missing essential visualization setup and incorrect configuration.**
 
 - **Simulation Loop:**  
-  - The loop uses `application.GetDevice().run()` which is correct.  
-  - The calls to `BeginScene()`, `DrawAll()`, and `EndScene()` are mostly correct, but `DrawAll()` is called twice per loop iteration (once after `BeginScene()` and once after `Synchronize()`), which is redundant.  
-  - The order of `driver.Synchronize()`, `application.Synchronize()`, and `mysystem.DoStepDynamics()` is not optimal. Usually, the system step is done before synchronization with driver and visualization.  
-  - **Deduction:** Minor inefficiency and slight deviation from best practice → **-5 points**.
+  The loop uses `application.GetDevice().run()` which is correct.  
+  It calls `BeginScene()`, `DrawAll()`, `EndScene()`, then `mysystem.DoStepDynamics(0.01)`, then synchronizes driver and application.  
+  However, `application.DrawAll()` is called twice per loop (before and after synchronization), which is redundant.  
+  Also, the driver and application synchronization order is not ideal; typically, driver synchronization should happen before `DoStepDynamics()`.  
+  **Deduct 5 points for minor deviations in simulation loop structure.**
 
-**Total Completeness deduction: 15 + 15 + 15 + 5 = 50 points**  
-But since the maximum is 40, cap at **-40 points**.
+**Total Completeness deduction:** 15 (vehicle) + 15 (terrain) + 5 (driver) + 15 (visualization) + 5 (loop) = **55 points**  
+Since max is 40, cap deduction at 40 points.
 
 ---
 
 ### 2. Correctness (30 points)
 
-- **Incorrect API call:**  
-  - `chrono.ChCollisionSystem.SetDefaultSuggestedEnvelope(0.001)` is invalid. The correct call is:  
-    ```python
-    chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.001)
-    ```  
-  - This will cause an AttributeError or no effect on collision envelope, affecting collision detection.  
-  - **Deduction:** -15 points.
+- **Incorrect API usage:**  
+  - `chrono.ChCollisionSystem.SetDefaultSuggestedEnvelope(0.001)` is incorrect; it should be `chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.001)`.  
+  - `ChBodyEasyBox` is called with wrong parameters (passing system as first argument).  
+  - The vehicle is manipulated at the chassis body level instead of using the vehicle API properly (`Initialize()`, `SetContactMethod()`, etc.).  
+  - Visualization system is not attached to the system and not initialized.  
+  - Many `SetShowInfo*` calls do not exist or are not documented, likely no effect or errors.  
+  **Deduct 15 points for each of these major API misuses:**  
+  - Collision envelope call (15 points)  
+  - Terrain creation (15 points)  
+  - Vehicle initialization (15 points)  
+  - Visualization setup (15 points)  
+  Since total is 30 points max, cap deduction at 30 points.
 
-- **Vehicle setup:**  
-  - Missing `Initialize()` call on vehicle after setting parameters. Without this, the vehicle is not properly initialized, and adding the chassis body manually is not standard and may cause simulation errors.  
-  - **Deduction:** -15 points.
+- **Logical errors:**  
+  - Adding only the chassis body to the system without the full vehicle system will cause simulation errors or incomplete behavior.  
+  - Terrain is not fixed, so it may fall under gravity.  
+  **Deduct 10 points for logical errors.**
 
-- **Terrain creation:**  
-  - Passing `mysystem` as the first argument to `ChBodyEasyBox` is incorrect and will cause runtime errors or unexpected behavior.  
-  - **Deduction:** -15 points.
+- **Minor inaccuracies:**  
+  - Calling `SetChassisMaterial(chrono.ChMaterialSurfaceNSC())` without setting friction or other properties.  
+  - Setting chassis inertia vectors with `(1,1,1)` which is unrealistic and probably placeholder values.  
+  - Redundant calls to `application.DrawAll()` in the loop.  
+  **Deduct 5 points for minor inaccuracies.**
 
-- **Visualization:**  
-  - Missing `AttachSystem()` and `Initialize()` calls will cause visualization to not work properly or crash.  
-  - **Deduction:** -15 points.
-
-- **Simulation loop order:**  
-  - Calling `mysystem.DoStepDynamics()` after visualization synchronization is not standard; usually, the system step is done first, then driver and visualization synchronize.  
-  - **Deduction:** -10 points (logical error).
-
-- **Redundant `DrawAll()` call:**  
-  - Calling `DrawAll()` twice per loop is unnecessary.  
-  - **Deduction:** -5 points (minor inaccuracy).
-
-**Total Correctness deduction: 15 + 15 + 15 + 15 + 10 + 5 = 75 points**  
-Cap at maximum 30 points, so **-30 points**.
+**Total Correctness deduction:** capped at 30 points.
 
 ---
 
 ### 3. Code Quality (10 points)
 
-- **Readability:**  
-  - Variable names are meaningful (`mysystem`, `kraz`, `terrain`, `driver`, `application`).  
-  - Code is mostly well structured.  
-  - However, the code lacks comments explaining the purpose of blocks or parameters, which is important for maintainability.  
-  - The long list of visualization `SetShowInfo*` calls is excessive and repetitive, which could be simplified or grouped.  
-  - **Deduction:** -3 points for lack of comments and slight verbosity.
+- **Readability and structure:**  
+  - The code lacks comments explaining the purpose of blocks or parameters.  
+  - Variable names like `mysystem`, `kraz`, `terrain`, `driver`, `application` are acceptable but could be more descriptive.  
+  - The code is somewhat cluttered with many visualization `SetShowInfo*` calls, reducing readability.  
+  **Deduct 5 points for lack of comments and clutter.**
 
-- **Formatting:**  
-  - Indentation and spacing are good.  
-  - **No deduction.**
+- **Documentation:**  
+  - No comments describing the simulation setup, parameters, or loop.  
+  **Deduct 5 points for insufficient comments.**
 
-**Total Code Quality deduction: -3 points.**
+**Total Code Quality deduction:** 10 points.
 
 ---
 
@@ -106,79 +105,58 @@ Cap at maximum 30 points, so **-30 points**.
 
 - **Redundant calls:**  
   - `application.DrawAll()` is called twice per loop iteration unnecessarily.  
-  - The long list of `SetShowInfo*` calls is verbose and could be optimized by setting only needed info or using loops.  
-  - **Deduction:** -5 points for redundancy and verbosity.
+  **Deduct 5 points for redundancy.**
 
 - **Optimization opportunities:**  
-  - The vehicle parameters are set manually but without initialization, which is inefficient and error-prone.  
-  - Could use vehicle's built-in initialization and default parameters.  
-  - **Deduction:** -3 points for missing optimization.
+  - Visualization settings could be consolidated or reduced.  
+  - Vehicle initialization could be streamlined using the vehicle API.  
+  **Deduct 3 points for missed optimization.**
 
-**Total Efficiency deduction: -8 points.**
+**Total Efficiency deduction:** 8 points.
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- No error handling is present (e.g., try-except blocks, validation of inputs).  
-- No checks for successful initialization or device availability.  
-- While PyChrono scripts often omit explicit error handling, basic robustness is recommended.  
-- **Deduction:** -5 points.
+- No error handling or checks are present (e.g., verifying system initialization, vehicle initialization success, or visualization setup).  
+- No handling of edge cases or exceptions.  
+**Deduct 5 points for lack of error handling.**
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
-- Missing `AttachSystem()` and `Initialize()` calls for visualization system → visualization will not work correctly.  
-- Excessive and possibly redundant calls to `SetShowInfo*` methods clutter the code and may impact performance.  
-- Lighting and camera setup are mostly correct.  
-- **Deduction:** -5 points for incorrect/incomplete visualization setup.
+- Visualization system is not attached to the system (`AttachSystem`) and not initialized (`Initialize()`), which are essential steps.  
+- Excessive and likely invalid `SetShowInfo*` calls clutter the code and may cause runtime warnings or no effect.  
+- Lighting and camera setup is mostly present but incomplete without initialization.  
+**Deduct 5 points for incorrect/inadequate visualization setup.**
 
 ---
 
-## Summary of Deductions
+## Summary of deductions:
 
-| Criterion                      | Max Points | Deduction | Notes                                  |
-|-------------------------------|------------|-----------|----------------------------------------|
-| Completeness                  | 40         | 40        | Missing vehicle initialization, terrain misuse, visualization setup missing |
-| Correctness                  | 30         | 30        | Wrong API calls, missing vehicle init, terrain constructor misuse, visualization errors |
-| Code Quality                 | 10         | 3         | Lack of comments, verbosity            |
-| Efficiency                  | 10         | 8         | Redundant calls, verbosity, missing optimization |
-| Error Handling and Robustness | 5          | 5         | No error handling                      |
-| Visualization Tools          | 5          | 5         | Missing AttachSystem and Initialize    |
-
-**Total deductions: 40 + 30 + 3 + 8 + 5 + 5 = 91 points**
-
----
-
-## Final Score
-
-Starting from 100 points, subtract 91 → **9 points**
+| Criterion                    | Max Points | Deduction | Notes                                      |
+|-----------------------------|------------|-----------|--------------------------------------------|
+| Completeness                | 40         | 40        | Missing vehicle init, terrain wrong, visualization missing |
+| Correctness                | 30         | 30        | Wrong API calls, logical errors            |
+| Code Quality               | 10         | 10        | No comments, clutter                        |
+| Efficiency                 | 10         | 8         | Redundant calls, missed optimizations      |
+| Error Handling and Robustness | 5          | 5         | No error handling                           |
+| Visualization Tools        | 5          | 5         | Missing AttachSystem and Initialize        |
+| **Total**                  | 100        | 98        |                                            |
 
 ---
 
-# Final output:
+## Final score:
 
-[[9]]
+100 - 98 = **2**
 
 ---
 
-# Explanation:
+[[2]]
 
-The script contains critical errors that prevent it from running correctly or producing a valid simulation:
+---
 
-- The vehicle is not properly initialized, missing the essential `Initialize()` call, and the chassis body is manually added, which is not standard.
+### Explanation:
 
-- The terrain creation uses an incorrect constructor call, passing the system as the first argument instead of size parameters.
-
-- The collision envelope is set via a non-existent API call.
-
-- The visualization system is not attached to the system nor initialized, which will prevent rendering.
-
-- The simulation loop has redundant rendering calls and an incorrect order of synchronization and stepping.
-
-- The code lacks comments and has verbose, repetitive visualization settings.
-
-- No error handling is implemented.
-
-These issues lead to a very low score despite some correct structural elements like imports and basic loop structure.
+The script shows a fundamental misunderstanding of the PyChrono vehicle and visualization APIs. Essential steps such as proper vehicle initialization, terrain creation with correct parameters, attaching and initializing the visualization system, and correct API usage for collision settings are missing or incorrect. The simulation loop has redundant calls, and the code lacks comments and error handling. These issues severely impact the correctness and completeness of the simulation, leading to a very low score.

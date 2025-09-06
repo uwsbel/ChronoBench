@@ -5,177 +5,175 @@
 ### 1. Completeness (40 points)
 
 - **System Initialization:**  
-  The system is initialized with `chrono.ChSystemNSC()`. However, the solver type is set via `system.SetSolverType(chrono.ChSolverType_SOR)`, which is not a documented method in PyChrono's Python API. The solver type is usually set by creating a solver object and assigning it to the system, not by a direct `SetSolverType` call.  
-  **Deduction: -10 points** (component present but incorrectly configured)
+  The system is initialized correctly with `chrono.ChSystemNSC()`. However, the solver type is set with `system.SetSolverType(chrono.ChSolverType_SOR)`. According to the PyChrono API, `SetSolverType()` expects an enum from `chrono.ChSolver.Type`, e.g., `chrono.ChSolver.Type_SOR`. The code uses `chrono.ChSolverType_SOR` which is not the documented enum. This is a correctness issue but also affects completeness because the solver type is not properly set.  
+  **No deduction here for completeness**, but will deduct under correctness.
 
 - **Body Creation:**  
-  Bodies are created using `chrono.ChBody()`, and mass, position, rotation, and velocity are set. However, inertia is never set, which is important for realistic rotational dynamics. Also, collision is never enabled or set up for the bodies, which is essential for physical interactions and collision detection in PyChrono.  
-  **Deduction: -15 points** (missing essential component: collision setup and inertia)
+  The `ParticleEmitter` class creates particles as `chrono.ChBody()` instances with mass, position, rotation, velocity, and visual shapes. However, the bodies do not have collision enabled (`EnableCollision(True)` is missing), nor is a collision shape added to the collision model. This means particles will not collide or interact physically, which is a major omission in a physics simulation involving multiple bodies.  
+  **Deduct 15 points for missing collision setup on bodies.**
 
-- **Visualization:**  
-  The code uses `chrono.ChIrrApp` for visualization, which is a valid approach but is deprecated in favor of `chronoirr.ChVisualSystemIrrlicht()` in the latest API. The visualization setup includes lights and camera positioning, but no skybox or logo is added. Also, the visualization loop uses `application.GetDevice().run()` instead of `application.GetDevice().run()` (correct), but the rendering calls are `BeginScene()`, `DrawAll()`, and `EndScene()`, which are consistent with `ChIrrApp`.  
-  **Deduction: 0 points** (component present and mostly correct, though slightly outdated API usage)
-
-- **Particle Emitter:**  
-  The emitter class is implemented and emits particles with random shapes and colors. However, it uses `SetRot(chrono.ChQuaternionD(rx, ry, rz))` with Euler angles passed directly to a quaternion constructor, which is incorrect (see correctness). Also, no collision model is added to the particles, so they won't collide.  
-  **Deduction: -10 points** (missing collision models and incorrect rotation setup)
+- **Visualization Setup:**  
+  The code uses `chrono.ChIrrApp` for visualization, which is a valid approach. It adds typical lights, sets camera position and look-at, and calls `BeginScene()`, `DrawAll()`, and `EndScene()` properly.  
+  However, the API documentation recommends using `chronoirr.ChVisualSystemIrrlicht()` for visualization setup, attaching the system, initializing, and then running the loop. `ChIrrApp` is a higher-level helper class but is less flexible and somewhat deprecated in favor of `ChVisualSystemIrrlicht`. Still, `ChIrrApp` is part of PyChrono and acceptable.  
+  **No deduction here for completeness.**
 
 - **Simulation Loop:**  
-  The loop handles user input, emits particles, applies gravitational forces, and steps the simulation. The reset functionality is implemented but not integrated into the main loop properly (the reset function is defined after the loop and never called).  
-  **Deduction: -5 points** (minor omission: reset function not used)
+  The loop correctly calls `application.GetDevice().run()`, `BeginScene()`, `DrawAll()`, `EndScene()`, and `system.DoStepDynamics()`.  
+  However, the time step is set on the system via `system.SetTimeStep(0.001)`, but `DoStepDynamics()` is called without a parameter. According to the API, `DoStepDynamics(time_step)` requires the time step argument. This is a correctness issue but also affects completeness because the simulation step is not properly advanced.  
+  **No deduction here for completeness**, but deduct under correctness.
 
-**Total Completeness Deduction:** 10 + 15 + 10 + 5 = 40 points deducted  
-**Remaining Completeness:** 0 points (full 40 points minus 40 deducted)
+- **Particle Emission:**  
+  The emitter emits particles with random positions, velocities, orientations, and shapes. This is complete for the purpose.  
+  **No deduction.**
+
+- **Gravitational Forces:**  
+  The emitter applies pairwise gravitational forces manually. This is a custom force implementation, which is acceptable.  
+  **No deduction.**
+
+- **Reset Simulation:**  
+  There is a `reset_simulation()` function defined but never called. Also, in the main loop, pressing 'R' removes particles from the system and clears the list, which is good.  
+  **No deduction.**
+
+**Summary for Completeness:**  
+- Missing collision setup on bodies: **-15 points**
 
 ---
 
 ### 2. Correctness (30 points)
 
-- **Incorrect API usage:**  
-  - `system.SetSolverType(chrono.ChSolverType_SOR)` is not a valid method in PyChrono Python API. The solver is set by creating a solver object and assigning it via `system.SetSolver()`.  
-  - `particle.SetRot(chrono.ChQuaternionD(rx, ry, rz))` is incorrect because `ChQuaternionD` expects quaternion components (w, x, y, z), not Euler angles. The correct approach is to convert Euler angles to a quaternion using helper functions like `chrono.Q_from_Euler123()` or similar.  
-  - Visual shape classes used are `ChSphereShape()`, `ChBoxShape()`, and `ChCylinderShape()`, but according to the documentation, the correct classes are `ChVisualShapeSphere()`, `ChVisualShapeBox()`, and `ChVisualShapeCylinder()`. The code uses the wrong class names for visual shapes.  
-  - The `SetDimensions()` method on `ChBoxShape()` is not documented; the correct constructor takes dimensions. Similarly, `SetRadius()` and `SetHeight()` are not documented for visual shapes; these are usually set in the constructor.  
-  - The gravitational force calculation does not check for zero or near-zero distances, which can cause division by zero errors.  
-  - The force application uses `p1.AddForce(force)` and `p2.AddForce(-force)`, which is correct in principle but could be problematic if forces accumulate incorrectly without resetting forces each step (though PyChrono handles this internally).  
-  - The `system.DoStepDynamics()` is called without a time step argument, but the API requires the time step as an argument.  
-  - The reset code uses `system.Remove(particle)`, but the correct method is `system.RemoveBody(particle)`.  
-  - The visualization uses `application.GetDevice().isKeyDown(chrono.CH_KEY_SPACE)`, but `isKeyDown` is not a documented method; the correct method is `application.GetDevice().run()` for loop control, and key input is handled differently in Irrlicht.  
-  - The `application.Run()` call at the end is redundant since the simulation loop is already running manually.  
-  **Deduction: -15 points** (incorrect API usages that affect simulation behavior)
+- **Incorrect Solver Type Enum:**  
+  `system.SetSolverType(chrono.ChSolverType_SOR)` is incorrect. The correct usage is `system.SetSolverType(chrono.ChSolver.Type_SOR)` or similar enum from `chrono.ChSolver.Type`. This will cause the solver type not to be set properly.  
+  **Deduct 15 points.**
 
-- **Logical errors:**  
-  - The random choice for particle shape uses `random.random()` multiple times independently in the if-elif-else chain, which means the probabilities do not sum to 1 as intended. The code calls `random.random()` three times per emission, so the logic is flawed.  
-  - The gravitational force calculation does not handle the case when two particles are at the same position (distance=0), leading to division by zero.  
-  **Deduction: -10 points** (logical errors)
+- **Quaternion Initialization:**  
+  The code uses `chrono.ChQuaternionD(rx, ry, rz)` to set rotation. According to the API, `ChQuaternionD` expects four components (w, x, y, z) or can be constructed from axis-angle or Euler angles differently. Passing three floats directly is incorrect and will not produce a valid rotation quaternion.  
+  **Deduct 15 points.**
 
-- **Minor inaccuracies:**  
-  - The velocity is set via `SetVelocity()`, which is correct, but no angular velocity is set.  
-  - The mass is set but inertia is not, which can cause unrealistic rotational behavior.  
-  **Deduction: -5 points**
+- **Missing Collision Model Setup:**  
+  As noted, bodies lack collision enabling and collision shapes. This is a logical error because the simulation involves multiple particles and gravitational forces, but no collision detection or response.  
+  **Deduct 10 points.**
 
-**Total Correctness Deduction:** 15 + 10 + 5 = 30 points deducted  
-**Remaining Correctness:** 0 points (full 30 points minus 30 deducted)
+- **`DoStepDynamics()` Usage:**  
+  The method is called without a time step argument, but the API requires `DoStepDynamics(time_step)`. This will cause the simulation not to advance properly or raise an error.  
+  **Deduct 15 points.**
+
+- **Random Shape Selection Logic:**  
+  The code calls `random.random()` multiple times in the if-elif-else chain, which means the probabilities are not mutually exclusive as intended. For example, the first `if random.random() < 0.33` is checked, then a new random number is generated for the `elif random.random() < 0.66`. This means the probabilities do not sum to 1 correctly, and the last else will be triggered more often than expected.  
+  **Deduct 5 points for logical error in random selection.**
+
+- **Applying Forces:**  
+  The gravitational force calculation does not check for zero distance or very small distances, which could cause division by zero or extremely large forces.  
+  **Deduct 3 points for missing edge case handling.**
+
+- **Using `particle.GetVisualShape(0).SetColor(...)`:**  
+  The code assumes the first visual shape exists and sets color. This is acceptable but fragile if no visual shapes are added. Here, visual shapes are added, so no issue.  
+  **No deduction.**
+
+- **Removing Bodies:**  
+  The code calls `system.Remove(particle)` to remove bodies. According to the API, the method is `sys.Remove(body)`. This is correct.  
+  **No deduction.**
+
+**Summary for Correctness:**  
+- Solver type enum incorrect: -15  
+- Quaternion initialization incorrect: -15  
+- Missing collision setup: -10  
+- `DoStepDynamics()` missing argument: -15  
+- Random shape selection logic error: -5  
+- Missing zero-distance check in force calculation: -3  
+
+Total deductions: 63 points (but max is 30, so capped at 30).
 
 ---
 
 ### 3. Code Quality (10 points)
 
-- **Readability and structure:**  
-  - The code is mostly readable with meaningful variable names.  
-  - However, inconsistent spacing (e.g., `importchrono` instead of `import chrono`) and missing spaces after commas reduce readability.  
-  - The indentation is mostly correct but some lines are cramped (e.g., `system =chrono.ChSystemNSC()`).  
-  - The class and function definitions lack docstrings.  
-  **Deduction: -5 points** (minor readability and formatting issues)
+- **Readability and Structure:**  
+  The code is mostly readable, with meaningful variable names and a clear class structure for the emitter.  
+  However, the code lacks consistent spacing (e.g., `importchrono` instead of `import chrono`), and some lines are not spaced properly (e.g., `system =chrono.ChSystemNSC()`), which reduces readability.  
+  The random shape selection uses multiple calls to `random.random()` in the same if-elif-else chain, which is a poor practice.  
+  The `reset_simulation()` function is defined after the main loop and never used, which is poor structure.  
+  **Deduct 5 points for readability and structure issues.**
 
-- **Comments and documentation:**  
-  - There are some comments, but many parts lack explanation, especially the rationale behind choices (e.g., gravitational constant, solver type).  
-  - The reset function is defined but not documented or integrated.  
-  **Deduction: -5 points** (insufficient comments/documentation)
-
-**Total Code Quality Deduction:** 10 points deducted  
-**Remaining Code Quality:** 0 points
+- **Comments:**  
+  The code has some comments explaining the purpose of functions and blocks, but many lines lack comments, especially on complex operations like gravitational force calculation.  
+  **Deduct 5 points for insufficient comments.**
 
 ---
 
 ### 4. Efficiency (10 points)
 
-- **Unnecessary calculations:**  
-  - The gravitational force calculation is done in a double nested loop over all particles, which is O(n²). For large numbers of particles, this is inefficient. Spatial partitioning or approximate methods could be used.  
-  - The random choice for shape calls `random.random()` multiple times unnecessarily.  
-  **Deduction: -5 points**
+- **Random Number Calls:**  
+  Multiple calls to `random.random()` in the shape selection cause unnecessary overhead and logical errors. Better to call once and compare ranges.  
+  **Deduct 5 points.**
 
-- **Missing optimizations:**  
-  - The code recalculates `random.random()` multiple times per particle emission instead of once and branching accordingly.  
-  - The gravitational force calculation does not skip pairs with zero or very small distance.  
-  **Deduction: -3 points**
+- **Force Calculation:**  
+  The gravitational force is computed pairwise in a double loop, which is O(n²). For large numbers of particles, this is inefficient but acceptable for small numbers. No caching or spatial partitioning is used.  
+  **No deduction (acceptable for example).**
 
-**Total Efficiency Deduction:** 8 points deducted  
-**Remaining Efficiency:** 2 points
+- **Quaternion Construction:**  
+  Constructing quaternions incorrectly may cause unnecessary overhead or errors.  
+  **No additional deduction beyond correctness.**
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- **Lack of error handling:**  
-  - No checks for division by zero in gravitational force calculation.  
-  - No try-except blocks or input validation.  
-  - No handling of empty particle list in gravitational force application.  
-  **Deduction: -5 points**
+- **No Error Handling:**  
+  The code does not handle exceptions or invalid inputs, e.g., division by zero in force calculation.  
+  **Deduct 5 points.**
 
-- **Edge cases:**  
-  - The reset function is not called in the main loop, so clearing particles on user input is not robust.  
-  **Deduction: -3 points**
-
-**Total Error Handling Deduction:** 8 points deducted (cap at 5 points max per guidelines)  
-**Remaining Error Handling:** 0 points
+- **Edge Cases:**  
+  No check for zero or near-zero distance in gravitational force calculation.  
+  **Deduct 3 points.**
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
-- **Incorrect or inadequate visualization setup:**  
-  - Uses deprecated `chrono.ChIrrApp` instead of `chronoirr.ChVisualSystemIrrlicht()`.  
-  - Visual shapes use incorrect classes (`ChSphereShape` instead of `ChVisualShapeSphere`).  
-  - No skybox or logo added, which are common for better visualization.  
-  - Camera and lighting are set, which is good.  
-  **Deduction: -4 points**
+- **Visualization Setup:**  
+  The code uses `chrono.ChIrrApp`, which is acceptable but less flexible than `ChVisualSystemIrrlicht`.  
+  The camera and lighting are set up properly.  
+  However, the API documentation recommends calling `application.DrawAll()` inside `BeginScene()` and `EndScene()`, which is done correctly.  
+  **No major deduction.**
 
-- **Minor visualization issues:**  
-  - Colors are set correctly, but no material or texture is applied.  
-  **Deduction: -2 points**
-
-**Total Visualization Deduction:** 6 points (cap at 5 points max)  
-**Remaining Visualization:** 0 points
+- **Minor Visualization Issues:**  
+  No skybox or logo added, which could improve visualization but not essential.  
+  **Deduct 2 points for minor visualization completeness.**
 
 ---
 
-### **Summary of deductions:**
+### Summary of Deductions
 
-| Criterion                    | Points | Deducted | Remaining |
-|-----------------------------|--------|----------|-----------|
-| Completeness                | 40     | 40       | 0         |
-| Correctness                 | 30     | 30       | 0         |
-| Code Quality                | 10     | 10       | 0         |
-| Efficiency                  | 10     | 8        | 2         |
-| Error Handling and Robustness | 5      | 5        | 0         |
-| Visualization               | 5      | 5        | 0         |
-| **Total**                  | 100    | 98       | **2**     |
-
----
-
-### **Final score: [[2]]**
+| Criterion                      | Deduction Points |
+|-------------------------------|------------------|
+| Completeness                  | 15               |
+| Correctness                  | 30 (capped)      |
+| Code Quality                 | 10               |
+| Efficiency                  | 5                |
+| Error Handling and Robustness | 8                |
+| Visualization Tools          | 2                |
+| **Total Deductions**           | **70**           |
 
 ---
 
-### **Explanation of deductions:**
+### Final Score
 
-- The script misses essential components such as collision setup and inertia for bodies, which are critical for realistic simulation behavior.  
-- It uses incorrect PyChrono API calls (e.g., `SetSolverType`, visual shape classes, quaternion initialization), which would cause runtime errors or incorrect simulation results.  
-- Logical errors in random shape selection and gravitational force calculation (division by zero risk) further reduce correctness.  
-- Code quality suffers from poor formatting, lack of comments, and inconsistent style.  
-- Efficiency is poor due to naive O(n²) gravitational force calculation and redundant random calls.  
-- No error handling or robustness measures are present.  
-- Visualization setup uses deprecated classes and incorrect visual shape classes, limiting the quality of the rendered simulation.  
+Starting from 100 points, subtracting 70 points:
 
-Overall, the script demonstrates an attempt to create a particle emitter simulation with gravitational interactions, but due to multiple critical API misuses and missing components, it would not run correctly or produce a meaningful simulation without significant fixes.
+**Score = 30**
 
 ---
 
-**Recommendations for improvement:**
+### Explanation
 
-- Use correct PyChrono API calls for solver setup, visual shapes, and quaternion initialization.  
-- Add collision models and enable collision for particles.  
-- Set inertia tensors for bodies.  
-- Fix random shape selection logic to use a single random number per emission.  
-- Add error handling for zero-distance in gravitational force calculations.  
-- Improve code formatting and add comments/docstrings.  
-- Use `chronoirr.ChVisualSystemIrrlicht()` for visualization with proper initialization and rendering calls.  
-- Optimize gravitational force calculations for larger particle counts.  
-- Integrate reset functionality properly in the main loop.
+- Major issues with correctness (incorrect API usage for solver type, quaternion, and simulation stepping) severely impact the simulation's functionality.  
+- Missing collision setup on bodies is a critical omission for a physics simulation.  
+- Code quality and error handling are below best practices, reducing maintainability and robustness.  
+- Minor inefficiencies and visualization omissions further reduce the score.  
+- Despite these issues, the overall structure and intent are clear, and the simulation loop and visualization calls are mostly correct.
 
 ---
 
 **Final score:**
 
-[[2]]
+[[30]]

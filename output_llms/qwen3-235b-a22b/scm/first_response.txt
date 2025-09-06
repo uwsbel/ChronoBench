@@ -1,69 +1,125 @@
+Here's a well-structured PyChrono simulation script that fulfills the requirements for simulating a full HMMWV on SCM deformable terrain with Irrlicht visualization, interactive driver controls, and real-time rendering at 50 FPS.
+
+---
+
+### ✅ **PyChrono Simulation Script: HMMWV on SCM Deformable Terrain**
+
 ```python
 import pychrono as chrono
-import pychrono.vehicle as veh
-import pychrono.irrlicht as irr
+import pychrono.vehicle as vehicle
+import pychrono.irrlicht as irrlicht
 import pychrono.driver as driver
 
-# Initialize the Chrono system
+# -------------------------------
+# Initialize the PyChrono system
+# -------------------------------
 system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
-chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.001)
-chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.001)
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
 
-# Create the HMMWV vehicle
-vehicle = veh.HMMWV_Full()
-vehicle.SetContactMethod(chrono.ChContactMethod_NSC)
-vehicle.SetChassisFixed(False)
-# Set initial position and orientation (at origin, no rotation)
-vehicle.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 1.0, 0), chrono.ChQuaternionD(1, 0, 0, 0)))
-vehicle.SetTireType(veh.TireModelType_RIGID)
-vehicle.SetTireStepSize(0.02)
-vehicle.SetMeshVisualization(True)  # Enable mesh visualization
-vehicle.Initialize()
+# -------------------------------
+# Create Irrlicht visualization
+# -------------------------------
+app = irrlicht.ChIrrApp(system, 'HMMWV on SCM Deformable Terrain', irrlicht.core.dimension2du(1024, 768))
+app.AddTypicalLights()
+app.AddCamera(chrono.ChVectorD(0, 3, -5), chrono.ChVectorD(0, 0, 0))  # Camera setup
 
-# Create the SCM terrain
-terrain = veh.SCMTerrain(system)
-terrain.SetSoilParameters(2e6,   # Bekker stiffness K
-                          1.1,   # Bekker exponent n
-                          0,     # Cohesion
-                          0.5,   # Internal friction angle (radians)
-                          1e-3,  # Shear stress scale
-                          2000)  # Soil density
-# Enable moving patch following the chassis
-terrain.EnableMovingPatch(vehicle.GetChassisBody(), chrono.ChVectorD(10, 4, 4))  # Adjust size as needed
-terrain.SetPlotType(veh.SCMTerrain.PLOT_SINKAGE)  # Visualize sinkage with false colors
-terrain.Initialize()
+# -------------------------------
+# Create and configure the HMMWV vehicle
+# -------------------------------
+hmmwv = vehicle.HMMWV_Full()
+hmmwv.SetContactMethod(chrono.ChContactMethod_NSC)
+hmmwv.SetChassisFixed(False)
+hmmwv.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0.5, 0), chrono.QUNIT))  # Initial position and orientation
+hmmwv.SetTireType(vehicle.TireModelType_Rigid)  # Use rigid tire model
+hmmwv.SetTireStepSize(1e-3)  # Smaller step for tire dynamics
+hmmwv.Initialize()
 
-# Set up Irrlicht visualization
-application = irr.ChIrrApp(system, 'HMMWV on SCM Terrain', irr.dimension2du(1280, 720))
-application.AddTypicalLights()
-application.AddCamera(chrono.ChVectorD(0, 3, -6), chrono.ChVectorD(0, 0, 0))
-application.AssetBindAll()
-application.AssetUpdateAll()
+# Set visualization types for all components
+hmmwv.SetChassisVisualizationType(vehicle.VisualizationType_Mesh)
+hmmwv.SetWheelVisualizationType(vehicle.VisualizationType_Mesh)
+hmmwv.SetSuspensionVisualizationType(vehicle.VisualizationType_Mesh)
+hmmwv.SetSteeringVisualizationType(vehicle.VisualizationType_Mesh)
 
-# Set up the driver system
-drv = veh.ChIrrGuiDriver(vehicle.GetVehicle())
-drv.SetSteeringDelta(0.05)
-drv.SetThrottleDelta(0.05)
-drv.SetBrakingDelta(0.05)
-application.SetDriver(drv)
+# -------------------------------
+# Create and configure the SCM deformable terrain
+# -------------------------------
+terrain = vehicle.SCMDeformableTerrain(system)
+terrain.SetSoilParameters(
+    BekkerKphi=1e4,  # Shear deformation modulus
+    BekkerKc=0,      # Cohesion
+    Bekkern=1.1,     # Exponent
+    MohrCohesion=0,  # Mohr-Coulomb cohesion
+    MohrFriction=30, # Friction angle (degrees)
+    JanosiShear=0.01, # Shear displacement
+    ElasticStiffness=2e5  # Elastic stiffness
+)
+terrain.Initialize(chrono.ChVectorD(0, 0, 0), 20, 20, 0.1)  # Position, length, width, height
+terrain.SetMovingPatch(True)  # Enable moving patch
+terrain.AttachMovingPatchToBody(hmmwv.GetChassisBody())  # Attach to chassis
+terrain.EnableSinkageVisualization(True)  # Enable false color sinkage visualization
 
-# Simulation loop
-system.SetStep(0.02)  # 50 FPS
+# -------------------------------
+# Create and configure the driver system
+# -------------------------------
+driver = driver.ChIrrGuiDriver(app.GetDevice())
+driver.SetSteeringDelta(0.05)     # Sensitivity for steering
+driver.SetThrottleDelta(0.05)     # Sensitivity for throttle
+driver.SetBrakingDelta(0.05)      # Sensitivity for braking
+driver.Initialize()
 
-while application.GetDevice().run():
-    # Synchronize the driver
-    drv.Synchronize(application.GetTime())
-    
+# -------------------------------
+# Simulation loop setup
+# -------------------------------
+step_size = 1.0 / 50.0  # 50 FPS simulation step
+realtime_timer = chrono.ChRealtimeStepTimer()
+
+# -------------------------------
+# Main simulation loop
+# -------------------------------
+while app.GetDevice().run():
+    time = system.GetChTime()
+
+    # Get driver inputs
+    driver_inputs = driver.GetInputs()
+
     # Synchronize vehicle and terrain
-    vehicle.Synchronize(application.GetTime(), drv.GetInputs(), terrain)
-    terrain.Synchronize(application.GetTime())
-    
+    hmmwv.Synchronize(time, driver_inputs)
+    terrain.Synchronize(time)
+    driver.Synchronize(time)
+
     # Advance the simulation
-    system.DoStepDynamics(0.02)
-    
-    # Update visualization
-    application.BeginScene()
-    application.DrawAll()
-    application.EndScene()
+    system.DoStepDynamics(step_size)
+
+    # Render the scene
+    app.BeginScene()
+    app.DrawAll()
+    app.EndScene()
+
+    # Maintain real-time execution
+    realtime_timer.Spin(step_size)
 ```
+
+---
+
+### 📌 **Key Features Implemented**
+
+| Feature | Description |
+|--------|-------------|
+| **Vehicle Model** | Full HMMWV with rigid tire model and mesh visualization for all components |
+| **Deformable Terrain** | SCM-based terrain with custom soil parameters and moving patch that follows the chassis |
+| **Sinkage Visualization** | False color plotting of terrain sinkage depth |
+| **Driver Controls** | Interactive steering, throttle, and braking via keyboard using Irrlicht GUI |
+| **Real-Time Simulation** | 50 FPS rendering and dynamics update using `ChRealtimeStepTimer` |
+
+---
+
+### 🧪 **Notes for Execution**
+
+- Ensure all required PyChrono modules (`vehicle`, `irrlicht`, `driver`) are installed and accessible.
+- The HMMWV model assumes the use of built-in data files for mesh geometry and vehicle parameters.
+- Soil parameters can be adjusted for different terrain behaviors (e.g., sand, mud, clay).
+- The simulation will run in real-time, but performance may vary depending on system hardware and complexity of the scene.
+
+---
+
+This script provides a complete and modular simulation environment for testing vehicle-terrain interaction with high fidelity and interactive control.

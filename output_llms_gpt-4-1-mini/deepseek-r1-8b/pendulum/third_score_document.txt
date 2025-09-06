@@ -4,215 +4,174 @@
 
 ### 1. Completeness (40 points)
 
-- **System initialization:** Present and correctly done with `chrono.ChSystemNSC()`. No deduction.
-- **Gravity setting:** Correctly set with `sys.SetGravitationalAcceleration(...)`. No deduction.
-- **Body creation:**
-  - Ground body created, fixed, collision disabled. Good.
-  - Pendulum bodies created with mass, inertia, collision disabled, and visualization. Good.
-- **Joint creation:**
-  - Revolute joints created between ground and pendulum 1, and pendulum 1 and pendulum 2.
-  - However, the second joint initialization frame is suspicious (see correctness).
+- **System Initialization:** Present and correctly done with `chrono.ChSystemNSC()`. No deduction.
+- **Gravity Setting:** Correctly set with `sys.SetGravitationalAcceleration(...)`. No deduction.
+- **Body Creation:**
+  - Ground body created, fixed, collision disabled. No deduction.
+  - Pendulum bodies created, mass and inertia set, collision disabled. No deduction.
 - **Visualization:**
   - Visualization system created and attached.
   - Window size, title, initialization, logo, skybox, camera, and lights added.
-  - Ground visualization added twice (redundant, but completeness-wise present).
-- **Simulation loop:** Present with rendering and stepping.
+  - Visual shapes added to bodies.
+  - Minor redundancy: ground visualization cylinder added twice (see Efficiency).
+- **Joints:**
+  - Revolute joints created and initialized.
+  - However, the initialization of the second revolute joint uses a quaternion `(0,0,1,0)` which is not a normalized quaternion (norm = 1, but this quaternion represents a 180° rotation around z-axis). This is unusual and likely incorrect for joint orientation.
+  - Also, the frame for the second joint is defined at `pend_1_pos + chrono.ChVector3d(0, 0, 0.5)`, but the pendulum length is 2 units along X (visual shape rotated by 90° around Y), so the joint should be at the end of pend_1, which is likely at `pend_1_pos + (1,0,0)` or similar, not (0,0,0.5) in Z.
+  - This is a logical error in joint placement (see Correctness).
+- **Initial positions:**
+  - Only pend_1 position is set explicitly.
+  - pend_2 position is never set, which is essential for proper initialization.
+  - This is a missing essential component (pend_2 initial position).
+- **Logging:**
+  - Logs position and velocity of pendulums after 1 second. Good practice.
 
-**No essential components missing.**
+**Deductions:**
 
-**Minor omissions:**
+- Missing initial position for `pend_2`: **-15 points** (essential component missing).
+- Joint initialization for `rev_2` frame is incorrect or incomplete: **-10 points** (important detail lacking).
+- Ground visualization shape added twice (minor redundancy): **-5 points** (minor omission).
 
-- The ground visualization is added twice (redundant, but no missing component).
-- No material or collision model setup, but since collision is disabled, this is acceptable.
-
-**Deduction:** 0 points.
+**Subtotal Completeness:** 40 - 15 - 10 - 5 = **10 points**
 
 ---
 
 ### 2. Correctness (30 points)
 
+- **API usage:**
+  - `sys.Add(ground)` is used correctly.
+  - For pendulums, `sys.AddBody(pend_1)` and `sys.AddBody(pend_2)` are used correctly.
+  - `EnableCollision(False)` used properly.
+  - `SetMass` and `SetInertiaXX` used correctly.
+  - Visualization shapes added properly.
 - **Joint initialization:**
-
-  - The first revolute joint is initialized with:
-
-    ```python
-    rev_1.Initialize(ground, pend_1, chrono.ChFramed(chrono.ChVector3d(0, 0, 1), chrono.ChQuaterniond(1, 0, 0, 0)))
-    ```
-
-    The API documentation specifies `Initialize(body1, body2, chrono.ChCoordsysD(position, rotation))` for joints.
-
-    Here, `chrono.ChFramed` is used instead of `chrono.ChCoordsysD`. `ChFramed` is a C++ class, not a Python API class. The correct Python class is `chrono.ChCoordsysD`.
-
-    This is a significant API misuse and will cause errors or unexpected behavior.
-
-- **Similarly, for the second revolute joint:**
-
-  ```python
-  rev_2.Initialize(pend_1, pend_2, chrono.ChFramed(pend_1_pos + chrono.ChVector3d(0, 0, 0.5), chrono.ChQuaterniond(0, 0, 1, 0)))
-  ```
-
-  Again, `chrono.ChFramed` is used instead of `chrono.ChCoordsysD`.
-
+  - `rev_1.Initialize(ground, pend_1, chrono.ChFramed(...))` uses `ChFramed` instead of `ChCoordsysD` as per documentation. The API documentation shows `Initialize(body1, body2, chrono.ChCoordsysD(position, rotation))`.
+  - `ChFramed` is not a standard PyChrono class for joint initialization frames; the correct class is `chrono.ChCoordsysD`.
+  - This is a significant API misuse and will cause runtime errors or incorrect joint setup.
+  - Similarly for `rev_2.Initialize(...)`.
 - **Quaternion usage:**
-
-  - `chrono.ChQuaterniond(1, 0, 0, 0)` is a valid quaternion representing no rotation, but the API documentation examples use `chrono.QUNIT` or `chrono.QuatFromAngleX/Y/Z`.
-
-  - The second quaternion `chrono.ChQuaterniond(0, 0, 1, 0)` is not normalized (norm = 1), but the order of components is `(w, x, y, z)`. So this quaternion corresponds to `w=0`, `x=0`, `y=1`, `z=0`, which is a 180-degree rotation around the Y-axis. This might be intentional but is not documented or explained.
-
-- **Body addition:**
-
-  - For the ground, `sys.Add(ground)` is used, but the API documentation uses `sys.Add(body)` or `sys.AddBody(body)`. `sys.Add()` is not a documented method for adding bodies.
-
-  - For pendulums, `sys.AddBody(pend_1)` and `sys.AddBody(pend_2)` are used, which is correct.
-
-  - This inconsistency is a minor correctness issue.
-
-- **Visualization shapes:**
-
-  - `AddVisualShape` is used with `chrono.ChVisualShapeCylinder(...)` and a frame.
-
-  - The API documentation uses `chrono.ChCoordsysD` or `chrono.ChFrameD` for frames, but here `chrono.ChFramed` is used again, which is a C++ class, not Python.
-
-  - This is an API misuse and will cause errors.
-
-- **Repeated ground visualization:**
-
-  - The ground visualization is added twice, which is redundant but not incorrect.
-
+  - `chrono.ChQuaterniond(1, 0, 0, 0)` for `rev_1` is valid (identity quaternion).
+  - `chrono.ChQuaterniond(0, 0, 1, 0)` for `rev_2` is a 180° rotation around Z, which is unusual and likely incorrect for a revolute joint axis.
+- **Initial position of pend_2 missing:** Logical error, pend_2 will be at origin by default, causing joint misalignment.
+- **Visualization:**
+  - `AddVisualShape` usage is correct.
+- **Simulation loop:**
+  - `sys.DoStepDynamics(1e-3)` is correct.
+  - Visualization loop is standard.
 - **Logging:**
-
-  - The logging prints the position and velocity components with some formatting issues (extra spaces, inconsistent lines), but this is minor.
-
-- **Summary of correctness deductions:**
-
-  - Using `chrono.ChFramed` instead of `chrono.ChCoordsysD` for joint initialization and visual shape frames is a **major API misuse** that will break the code.
-
-  - Using `sys.Add(ground)` instead of `sys.AddBody(ground)` is a minor inconsistency.
+  - Accessing `GetPos()` and `GetPosDt()` is correct.
 
 **Deductions:**
 
-- 15 points for incorrect use of `chrono.ChFramed` instead of `chrono.ChCoordsysD` in joint initialization and visual shape frames.
+- Incorrect use of `ChFramed` instead of `ChCoordsysD` in joint initialization: **-15 points** (significant API misuse).
+- Logical error in joint frame orientation and position for `rev_2`: **-10 points**.
+- Missing initial position for `pend_2` (already deducted under completeness, no double deduction).
+- Minor unnecessary calls: adding ground visualization twice (already deducted under completeness).
 
-- 5 points for inconsistent body addition method (`sys.Add` vs `sys.AddBody`).
+**Subtotal Correctness:** 30 - 15 - 10 = **5 points**
 
 ---
 
 ### 3. Code Quality (10 points)
 
 - **Readability:**
-
-  - Variable names are meaningful (`sys`, `ground`, `pend_1`, `pend_2`, `rev_1`, `rev_2`, `vis`).
-
+  - Variable names are meaningful (`sys`, `ground`, `pend_1`, `rev_1`, etc.).
   - Code is structured logically.
-
   - Indentation and formatting are good.
-
 - **Comments:**
-
   - Comments are present and explain most steps.
-
-  - Some comments could be more precise (e.g., quaternion meaning).
-
+  - Some comments could be more precise (e.g., joint frames).
 - **Minor issues:**
-
-  - The logging print statements could be formatted better (e.g., using f-strings).
-
-  - The repeated addition of ground visualization is not explained.
+  - Redundant addition of ground visual shape is not commented or explained.
+  - Could improve by grouping related code blocks or adding function encapsulation for clarity.
 
 **Deductions:**
 
-- 0 points for readability (good).
+- Minor lack of clarity in comments about joint frames and pend_2 initialization: **-3 points**.
+- Redundant code without explanation: **-2 points**.
 
-- 3 points for insufficient or slightly unclear comments on quaternion usage and repeated visualization.
+**Subtotal Code Quality:** 10 - 3 - 2 = **5 points**
 
 ---
 
 ### 4. Efficiency (10 points)
 
-- **Redundant code:**
-
-  - Ground visualization added twice.
-
-- **Unnecessary calculations:**
-
-  - The second joint initialization uses `pend_1.GetPos()` every time, but since pend_1 position is static at initialization, this could be stored once.
-
+- **Redundancy:**
+  - Ground visual shape added twice unnecessarily.
+- **Optimization:**
+  - No use of `ChBodyEasyCylinder` or similar helper classes that could simplify pendulum creation.
+  - No reuse of variables or functions to avoid repetition.
 - **Simulation step size:**
-
-  - `sys.DoStepDynamics(1e-3)` is reasonable.
-
-- **Logging flag:**
-
-  - `log_info` flag used to print only once, which is efficient.
+  - Fixed at 1 ms, which is reasonable.
+- **Visualization:**
+  - No unnecessary calls inside the loop.
 
 **Deductions:**
 
-- 5 points for redundant addition of ground visualization.
+- Redundant addition of ground visual shape: **-5 points**.
+- Missing minor optimization opportunities (e.g., setting pend_2 position once, using helper constructors): **-3 points**.
 
-- 0 points for other efficiency issues.
+**Subtotal Efficiency:** 10 - 5 - 3 = **2 points**
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- No error handling is present.
-
-- No try-except blocks or checks for visualization initialization or system state.
-
-- While PyChrono scripts often omit explicit error handling, basic robustness is recommended.
+- No error handling or checks for invalid states.
+- No try-except blocks or validation of inputs.
+- No checks for visualization initialization success.
+- No handling of edge cases (e.g., pendulum initial overlap).
 
 **Deductions:**
 
-- 5 points for lack of any error handling or robustness considerations.
+- Lack of basic error handling: **-5 points**.
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
 - Visualization system is properly created and attached.
-
-- Window size, title, logo, skybox, camera, and lights are added.
-
-- However, the ground visualization is added twice, which is unnecessary.
-
-- The camera position is reasonable.
-
+- Window size and title set.
+- Logo, skybox, camera, and lights added.
+- Visual shapes added to bodies.
+- Minor issue: ground visual shape added twice (redundant).
+- Camera position is reasonable.
 - Lighting is typical.
-
-- No interactive controls or user instructions, but not required.
 
 **Deductions:**
 
-- 2 points for minor visualization redundancy and lack of explanation for repeated ground visualization.
+- Minor visualization redundancy: **-2 points**.
 
 ---
 
-### **Summary of deductions:**
+### **Final Score Calculation**
 
-| Category                     | Deduction Points | Reason                                                                                   |
-|------------------------------|------------------|------------------------------------------------------------------------------------------|
-| Completeness                 | 0                | All essential components present                                                        |
-| Correctness                 | 20               | Major misuse of `chrono.ChFramed` instead of `chrono.ChCoordsysD` (15), inconsistent `sys.Add` (5) |
-| Code Quality                | 3                | Minor comment insufficiency                                                             |
-| Efficiency                  | 5                | Redundant ground visualization addition                                                 |
-| Error Handling and Robustness | 5                | No error handling                                                                       |
-| Visualization Tools         | 2                | Minor redundancy in visualization setup                                                |
-| **Total deductions**         | **35**           |                                                                                          |
-
----
-
-### Final score:
-
-100 - 35 = **65**
+| Category                  | Points | Deductions | Score |
+|---------------------------|--------|------------|-------|
+| Completeness              | 40     | 15+10+5=30 | 10    |
+| Correctness               | 30     | 15+10=25   | 5     |
+| Code Quality              | 10     | 3+2=5      | 5     |
+| Efficiency                | 10     | 5+3=8      | 2     |
+| Error Handling & Robustness| 5      | 5          | 0     |
+| Visualization             | 5      | 2          | 3     |
+| **Total**                 | 100    | 75         | **25**|
 
 ---
 
-**Final output:**
+### **Summary of Major Issues:**
 
-[[65]]
+- Incorrect joint initialization API usage (`ChFramed` instead of `ChCoordsysD`).
+- Missing initial position for the second pendulum.
+- Logical errors in joint frame placement and orientation.
+- Redundant addition of ground visual shape.
+- No error handling.
+- Minor code quality and efficiency issues.
 
 ---
 
-**Explanation:**
+[[25]]
 
-The script is mostly complete and logically structured with good use of PyChrono features. However, it contains significant API misuse by using `chrono.ChFramed` (a C++ class) instead of the correct Python class `chrono.ChCoordsysD` for joint initialization and visual shape frames, which would cause runtime errors or incorrect simulation behavior. There is also inconsistency in adding bodies to the system and redundant visualization code. The lack of any error handling and minor comment insufficiencies further reduce the score. Overall, the script demonstrates a good understanding of PyChrono but requires corrections to API usage and some cleanup to be fully correct and robust.
+---
+
+**Explanation:**  
+The script includes all major components but has critical API misuse and logical errors that would prevent the simulation from running correctly or producing expected results. The missing initial position for the second pendulum and incorrect joint frames are significant issues. Redundancies and lack of error handling further reduce the score. The code is readable and commented but could be improved in clarity and structure. Visualization setup is mostly correct but has minor inefficiencies.

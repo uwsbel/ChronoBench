@@ -6,137 +6,184 @@
 
 - **System Initialization:** Present and correct (`chrono.ChSystemNSC()`), gravity set properly. **No deduction.**
 
-- **Body Creation:**
-  - Ground body created using `ChBodyEasyBox` with reasonable parameters, fixed in space. **No deduction.**
-  - Mass body created using `ChBodyEasySphere`. However, the constructor is called with `mysystem` as the first argument, which is incorrect (see correctness below). Also, mass is explicitly set after creation, which is redundant since `ChBodyEasySphere` sets mass from density and volume automatically. **Minor issue but more correctness-related.**
-  
-- **Joint/Link Creation:**
-  - `ChLinkTSDA` spring-damper link created and initialized between ground and mass.
-  - Initialization uses two identical points `(0,0,0)` on both bodies, which is not physically meaningful for a spring (should be points in the respective body frames where the spring attaches). This is a logical error. **Deduct 15 points for missing important details in joint initialization.**
+- **Body Creation:**  
+  - Ground body created using `ChBodyEasyBox` with parameters, positioned and fixed.  
+  - Mass body created using `ChBodyEasySphere`, positioned, and mass set.  
+  - However, **the mass body is created with density 1000 and then mass explicitly set to 1**. This is inconsistent because `ChBodyEasySphere` sets mass and inertia automatically based on density and size. Overriding mass without adjusting inertia or reinitializing is incomplete.  
+  - Also, **the ground and mass bodies are not explicitly added to the system with `mysystem.Add(body)`**. According to the API, bodies must be added to the system to be simulated. This is a major omission.
 
-- **Visualization:**
-  - Visualization system created with window size, title, skybox, lights, and camera.
-  - However, the visualization system is **not attached to the physical system** (`application.AttachSystem(mysystem)` is missing). Without this, visualization will not reflect the simulation state. **Deduct 15 points for missing essential visualization setup.**
-  - Visual shapes are added to `mass` and `spring` using `AddVisualShape`, but the usage is incorrect (see correctness). Also, no visual shape is added to the ground. **Deduct 10 points for incomplete visualization details.**
+  **Deduction: -15 points** (missing essential step: adding bodies to the system).
 
-- **Simulation Loop:**
-  - Loop runs while `application.GetDevice().run()` (correct method is `application.Run()` or `application.Run()` per docs).
-  - Simulation step and max iterations set on system using `SetStep` and `SetMaxiter`, which are **not valid methods** on `ChSystemNSC`. Step size is usually passed to `DoStepDynamics()`. **Deduct 15 points for incorrect system configuration.**
+- **Visualization Setup:**  
+  - Visualization system created and window size/title set.  
+  - Skybox, typical lights, and camera added.  
+  - **However, the visualization system is not attached to the physical system via `application.AttachSystem(mysystem)`**. This is essential for visualization to reflect the simulation state.  
+  - Also, `application.Initialize()` is missing, which is required to prepare the visualization system before running the loop.
 
-**Total Completeness deduction: 15 (joint init) + 15 (visualization attach) + 10 (visual shapes) + 15 (system step config) = 55 points**
+  **Deduction: -15 points** (missing essential visualization setup steps).
 
-Since max is 40, cap deduction at 40 points.
+- **Spring-Damper Link:**  
+  - Created with `ChLinkTSDA()`.  
+  - Initialized between ground and mass with two points at (0,0,0) in both bodies.  
+  - **This is problematic:** The two points are both at the origin of each body, but the bodies are at different positions (ground at (0,-1,0), mass at (0,2,0)). The spring should be initialized with points in absolute or relative coordinates that correspond to the connection points in each body. Using identical zero vectors likely means the spring is initialized with zero length and no meaningful connection.  
+  - The API documentation suggests using `Initialize(body1, body2, point1, point2)` where points are in the coordinate system of each body or in absolute coordinates.  
+  - Also, the spring is added to the system with `mysystem.Add(spring)`, which is correct.
+
+  **Deduction: -10 points** (incorrect joint initialization).
+
+- **Visual Shapes for Mass and Spring:**  
+  - The code attempts to add visual shapes using `AddVisualShape` with `ChVisualShape` constructor.  
+  - According to the API, visual shapes are created via specific classes like `ChVisualShapeSphere(radius)`, `ChVisualShapeCylinder(radius, height)`, etc., and then added to bodies via `AddVisualShape(shape)`.  
+  - The usage `chrono.ChVisualShape(chrono.ChVisualShape.SHAPE_SPHERE, ...)` is **incorrect**; `ChVisualShape` is not a constructor that takes shape type as argument.  
+  - Also, the parameters `(chrono.ChVectorD(0.5, 0.5, 0.5), chrono.ChColor(1, 0, 0))` do not match the API for visual shapes.  
+  - This indicates a misunderstanding of the visualization API.
+
+  **Deduction: -15 points** (incorrect use of visual shape API).
+
+- **Simulation Step and Max Iterations:**  
+  - `mysystem.SetStep(0.01)` and `mysystem.SetMaxiter(100)` are called.  
+  - These methods do not exist in the PyChrono API for `ChSystemNSC`. The time step is passed directly to `DoStepDynamics()`.  
+  - Setting max iterations is done via solver settings, not via `SetMaxiter`.  
+  - This is an incorrect API usage.
+
+  **Deduction: -15 points** (incorrect API usage).
+
+- **Simulation Loop:**  
+  - Loop uses `application.GetDevice().run()` which is the Irrlicht device run method.  
+  - Inside loop, `mysystem.DoStepDynamics(0.01)` is called, which is correct.  
+  - Visualization calls `BeginScene()`, `DrawAll()`, `EndScene()` are used.  
+  - According to the API, the visualization system uses `BeginScene()`, `Render()`, `EndScene()`.  
+  - `DrawAll()` is not a documented method of `ChVisualSystemIrrlicht`.  
+  - Also, the loop should check `application.Run()` or `application.Run()` (depending on API), but `GetDevice().run()` is acceptable but less idiomatic.  
+  - Missing `application.Initialize()` before the loop.
+
+  **Deduction: -10 points** (incorrect visualization loop calls and missing initialization).
+
+**Total Completeness Deduction: 15 + 15 + 15 + 15 + 10 = 70 points deducted (max is 40, so capped at 40).**
 
 ---
 
 ### 2. Correctness (30 points)
 
-- **Incorrect use of constructors:**
-  - `ChBodyEasyBox` and `ChBodyEasySphere` constructors are called with `mysystem` as the first argument, but per API, these constructors do **not** take the system as an argument. Instead, bodies are created standalone and then added to the system via `mysystem.Add(body)`.
-  - This is a significant API misuse that will cause runtime errors or unexpected behavior. **Deduct 15 points.**
+- **Incorrect initialization of spring points (see above).**  
+  Deducted under completeness, but also correctness because it affects simulation behavior.
 
-- **Joint Initialization:**
-  - `spring.Initialize(ground, mass, chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 0))` is invalid.
-  - The `Initialize` method expects two bodies and two **ChVector3d** points in the **local coordinate systems** of the two bodies where the spring attaches.
-  - Using the same point `(0,0,0)` on both bodies means the spring length is zero and will not behave correctly.
-  - **Deduct 10 points for logical error.**
+- **Incorrect use of `SetMass` on `ChBodyEasySphere` without adjusting inertia or reinitializing.**  
+  This can cause inconsistent dynamics.
 
-- **Adding bodies and joints to system:**
-  - The ground and mass bodies are created but **never added to the system** via `mysystem.Add(ground)` or `mysystem.Add(mass)`.
-  - Only the spring is added via `mysystem.Add(spring)`.
-  - This is a critical error; bodies must be added to the system to participate in simulation.
-  - **Deduct 15 points for major logical error.**
+  **Deduct 10 points** (logical error).
 
-- **Visual shapes:**
-  - `mass.AddVisualShape(chrono.ChVisualShape(...))` is incorrect usage.
-  - The API uses specific visual shape constructors like `ChVisualShapeSphere(radius)` or `ChVisualShapeBox(size)`.
-  - Also, `ChVisualShape` is not a class to be instantiated directly.
-  - Visual shapes should be created and then added via `AddVisualShape(shape)`.
-  - **Deduct 10 points for incorrect API usage.**
+- **Incorrect use of `SetStep` and `SetMaxiter` on system.**  
+  Deducted under completeness, but also correctness.
 
-- **Simulation loop:**
-  - The loop uses `application.GetDevice().run()` which is not the documented method; the correct method is `application.Run()`.
-  - **Deduct 5 points for minor API misuse.**
+- **Incorrect visual shape creation and addition.**  
+  Deducted under completeness, but also correctness.
 
-**Total Correctness deduction: 15 + 10 + 15 + 10 + 5 = 55 points**
+- **Missing `AttachSystem` on visualization system.**  
+  This will cause visualization to not reflect simulation state.
 
-Max is 30, so cap deduction at 30 points.
+  **Deduct 15 points** (significant API misuse).
+
+- **Use of `application.GetDevice().run()` instead of `application.Run()` or `application.Run()` is minor but acceptable.**
+
+  **No deduction.**
+
+**Total Correctness Deduction: 15 + 10 = 25 points.**
 
 ---
 
 ### 3. Code Quality (10 points)
 
-- The code has some comments, which is good.
-- Variable names are meaningful (`mysystem`, `ground`, `mass`, `spring`, `application`).
-- Formatting is acceptable.
-- However, comments are sparse and do not explain important steps like joint initialization or visualization attachment.
-- No docstrings or structured comments.
-- **Deduct 5 points for insufficient comments/documentation.**
-- Readability is decent, no major issues.
-- **No deduction for readability.**
+- **Readability:**  
+  - Variable names are meaningful (`mysystem`, `application`, `ground`, `mass`, `spring`).  
+  - Code is structured logically.  
+  - Indentation and formatting are good.
+
+  **No deduction.**
+
+- **Comments:**  
+  - Comments are present but minimal.  
+  - Some comments are redundant or obvious (e.g., `# Create the simulation system and set the default parameters`).  
+  - No comments explaining the spring initialization or the visualization setup.  
+  - No docstrings or explanations of choices.
+
+  **Deduct 5 points** for insufficient comments/documentation.
 
 ---
 
 ### 4. Efficiency (10 points)
 
-- No obvious redundant calculations or inefficient code.
-- However, setting mass explicitly on `mass` after creating with `ChBodyEasySphere` is redundant.
-- Also, adding visual shapes incorrectly may cause overhead or no effect.
-- Minor inefficiency in not attaching visualization system to the physical system.
-- **Deduct 3 points for minor inefficiencies and missed optimization.**
+- No obvious redundant calculations or code.  
+- The code is straightforward.
+
+- However, the unnecessary calls to `SetStep` and `SetMaxiter` (which do not exist) could be considered inefficient or confusing.
+
+  **Deduct 5 points** for unnecessary API calls.
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- No error handling or try-except blocks.
-- While not always mandatory in simple scripts, basic checks or exception handling for initialization failures or visualization setup are recommended.
-- **Deduct 5 points for lack of any error handling or robustness measures.**
+- No error handling present.  
+- No try-except blocks or checks for initialization success.  
+- While PyChrono scripts often omit explicit error handling, basic checks or exception handling would improve robustness.
+
+  **Deduct 5 points** for lack of error handling.
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
-- Visualization system created and configured with window size, title, skybox, lights, and camera.
-- However, **missing `AttachSystem` call**, which is essential.
-- Visual shapes added incorrectly.
-- No visual shape added to ground.
-- **Deduct 5 points for incorrect/incomplete visualization setup.**
+- Visualization system created and basic elements added (skybox, lights, camera).  
+- Missing `AttachSystem` and `Initialize` calls.  
+- Incorrect visual shape creation and addition.  
+- Incorrect rendering calls (`DrawAll()` instead of `Render()`).
+
+  **Deduct 5 points** for inadequate visualization setup.
 
 ---
 
-## Summary of deductions:
+### Summary of Deductions
 
-| Criterion                  | Max Points | Deduction | Notes                                     |
-|----------------------------|------------|-----------|-------------------------------------------|
-| Completeness               | 40         | 40        | Missing system attachment, joint init, etc. |
-| Correctness               | 30         | 30        | Incorrect constructors, missing Add calls, joint init errors |
-| Code Quality              | 10         | 5         | Sparse comments                            |
-| Efficiency                | 10         | 3         | Minor inefficiencies                       |
-| Error Handling & Robustness | 5          | 5         | No error handling                          |
-| Visualization Tools       | 5          | 5         | Missing AttachSystem, incorrect visual shapes |
+| Criterion                  | Points | Deduction | Notes                                      |
+|----------------------------|--------|-----------|--------------------------------------------|
+| Completeness               | 40     | 40        | Missing adding bodies, visualization attach/init, incorrect spring init, visual shapes, system methods |
+| Correctness               | 30     | 25        | Incorrect API usage, spring init, mass setting, visualization attach |
+| Code Quality              | 10     | 5         | Insufficient comments                       |
+| Efficiency                | 10     | 5         | Unnecessary API calls                       |
+| Error Handling & Robustness| 5      | 5         | No error handling                           |
+| Visualization Tools       | 5      | 5         | Missing attach/init, incorrect visual shapes, rendering calls |
 
-**Total deductions: 40 + 30 + 5 + 3 + 5 + 5 = 88**
+**Total deductions: 40 + 25 + 5 + 5 + 5 + 5 = 85 points**
 
-**Final score: 100 - 88 = 12**
+**Final score: 100 - 85 = 15**
 
 ---
 
-### Final score and explanation:
+### Final Score:
 
-[[12]]
+[[15]]
 
-**Explanation:**
+---
 
-The script includes the basic structure of a PyChrono simulation but contains several critical errors that prevent it from running correctly or producing meaningful results:
+### Explanation:
 
-- The bodies are created incorrectly by passing the system as an argument to constructors, and they are never added to the system explicitly.
-- The spring joint is initialized with invalid attachment points.
-- The visualization system is not attached to the physical system, so no visualization will occur.
-- Visual shapes are added using incorrect API calls.
-- Simulation step size and max iterations are set using non-existent methods.
-- The simulation loop uses an incorrect method to check if the visualization is running.
-- There is no error handling.
-- Comments are minimal and do not clarify important steps.
+The script includes the basic structure of a PyChrono simulation but misses several essential components and misuses key APIs:
 
-These issues severely impact the correctness and completeness of the simulation, leading to a low score despite the presence of some correct elements like gravity setting and basic visualization setup.
+- Bodies are not added to the system, so they won't be simulated.
+
+- Visualization system is not attached to the physical system and not initialized, so no rendering will occur.
+
+- The spring link is initialized incorrectly, likely resulting in no meaningful spring force.
+
+- Visual shapes are created and added incorrectly, using non-existent constructors.
+
+- The system methods `SetStep` and `SetMaxiter` do not exist and are misused.
+
+- The simulation loop uses incorrect visualization rendering calls.
+
+- Lack of error handling and minimal comments reduce code robustness and clarity.
+
+- Minor inefficiencies due to unnecessary API calls.
+
+These issues severely impact the simulation's correctness, completeness, and visualization, resulting in a low score.

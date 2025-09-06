@@ -4,220 +4,164 @@
 
 ### 1. Completeness (40 points)
 
-- **System Initialization**:  
-  The script does not explicitly create a `chrono.ChSystemNSC()` or `chrono.ChSystemSMC()` system object. Instead, it relies on the vehicle class `veh.HMMWV_Full()` to internally create and manage the system. This is acceptable and common in vehicle simulations using PyChrono's vehicle module, as the vehicle internally manages the system.  
-  **No deduction** here.
+- **System Initialization:**  
+  The script uses `vehicle = veh.HMMWV_Full()` which internally creates and manages the system. This is acceptable for vehicle simulations. No explicit `ChSystemNSC()` or `ChSystemSMC()` is created by the user, but this is standard practice in vehicle module usage.  
+  **No deduction.**
 
-- **Body Creation**:  
-  The vehicle and terrain bodies are created properly via the vehicle module and `veh.RigidTerrain`. The terrain patch is created with material and texture, and initialized correctly.  
-  **No deduction**.
+- **Body Creation:**  
+  The vehicle chassis, tires, and suspension are created via the `veh.HMMWV_Full()` class. Terrain is created properly with material and patch.  
+  **No deduction.**
 
-- **Visualization Setup**:  
-  The Irrlicht visualization system is created via `veh.ChWheeledVehicleVisualSystemIrrlicht()`, initialized, and configured with window size, title, camera, logo, lighting, and skybox. The vehicle is attached properly.  
-  **No deduction**.
+- **Visualization:**  
+  Visualization system is created with `veh.ChWheeledVehicleVisualSystemIrrlicht()`, window size, title, camera, lighting, skybox, and logo are set. Vehicle is attached properly.  
+  **No deduction.**
 
-- **Simulation Loop**:  
-  The simulation loop is present, with rendering steps, synchronization, and advancing of all modules (terrain, vehicle, visualization).  
-  **No deduction**.
+- **Controller and Path:**  
+  A PID controller is implemented and used to steer the vehicle along a circular path. Sentinel and target points are visualized.  
+  **No deduction.**
 
-- **Controller Implementation**:  
-  A PID controller is implemented for steering control, which is a reasonable addition for a demo.  
-  **No deduction**.
+- **Simulation Loop:**  
+  The loop uses `vis.Run()` correctly, rendering every `render_steps`, synchronizing and advancing terrain, vehicle, and visualization modules. Real-time stepping is used.  
+  **No deduction.**
 
-- **Driver Inputs**:  
-  Driver inputs are created and updated each step.  
-  **No deduction**.
+- **Missing Components:**  
+  - The script does not explicitly set the collision envelope or margin globally, which is recommended for stability. This is a minor omission.  
+  - The friction and restitution for terrain material are set, but no damping or compliance is set (not strictly necessary for NSC).  
+  - The PID controller uses a fixed `step_size` for integral and derivative calculations, which is acceptable here.  
+  - The vehicle's collision system is set to BULLET after initialization, which is acceptable but usually set before initialization.  
+  **Minor omissions, deduct 5 points.**
 
-- **Contact and Collision Settings**:  
-  The contact method is set to NSC, and the collision system type is set to BULLET for the vehicle system, which is appropriate.  
-  **No deduction**.
-
-- **Miscellaneous**:  
-  The script prints vehicle mass, which is informative.  
-  **No deduction**.
-
-**Summary**: All essential components are present and properly configured.  
-**Completeness score: 40/40**
+**Completeness score: 40 - 5 = 35**
 
 ---
 
 ### 2. Correctness (30 points)
 
-- **Vehicle System Setup**:  
-  The vehicle is created and initialized correctly. The contact method and collision system type are set properly.
+- **API Usage:**  
+  - `veh.HMMWV_Full()` usage is correct.  
+  - Setting contact method, collision type, visualization types, tire model, and step sizes are done properly.  
+  - Terrain creation with `veh.RigidTerrain` and patch is correct.  
+  - Visualization system setup and attachment are correct.  
+  - PID controller logic is reasonable, but the error calculation is questionable:  
+    ```python
+    error = math.atan2(target_point.y - vehicle_position.y, target_point.x - vehicle_position.x) - vehicle.GetVehicle().GetRot().GetAngle()
+    ```  
+    Here, `vehicle.GetVehicle().GetRot().GetAngle()` returns the angle of the quaternion representing rotation, but this is not the vehicle's heading angle in the XY plane. The quaternion angle is the rotation angle about the quaternion's axis, which is not necessarily the yaw angle. This will cause incorrect steering error calculation.  
+    Correct approach would be to extract the yaw angle (heading) from the vehicle's rotation quaternion, e.g., by converting quaternion to Euler angles or using a helper function.  
+    **Logical error: deduct 10 points.**
 
-- **Terrain Material**:  
-  The terrain material is created as `chrono.ChContactMaterialNSC()`, which matches the NSC contact method. Friction and restitution are set appropriately.
+- **Collision system type set after vehicle initialization:**  
+  The collision system type is set after `vehicle.Initialize()`. According to best practices, collision system type should be set before initialization to ensure proper setup. This could cause unexpected behavior.  
+  **Deduct 10 points.**
 
-- **Visualization**:  
-  The visualization system is created and attached to the vehicle correctly.
+- **Driver inputs:**  
+  The `veh.ChDriverInputs()` is created every loop iteration, which is acceptable but could be optimized by creating once and updating values. No correctness issue here.  
 
-- **Simulation Loop**:  
-  The loop uses `vis.Run()` correctly. The rendering is done every `render_steps` steps, which is standard.
+- **Visualization calls:**  
+  `vis.DrawSphere()` is called with parameters including `vis.GetDevice().GetVideoDriver()` and `vis.GetDevice().GetSceneManager()`. This is not standard documented usage; typically, visualization systems provide higher-level methods or require custom scene node creation. This may or may not work depending on Irrlicht internals.  
+  This is a minor correctness issue.  
+  **Deduct 5 points.**
 
-- **PID Controller**:  
-  The calculation of the error uses:
-
-  ```python
-  error = math.atan2(target_point.y - vehicle_position.y, target_point.x - vehicle_position.x) - vehicle.GetVehicle().GetRot().GetAngle()
-  ```
-
-  Here, `vehicle.GetVehicle().GetRot().GetAngle()` returns the angle of the quaternion representing the vehicle's orientation. However, `GetAngle()` returns the rotation angle about the quaternion's axis, which is not necessarily the yaw angle in the XY plane. This is a **logical error** because the vehicle's heading should be extracted as the yaw angle (rotation about Z-axis), not the quaternion's rotation angle.
-
-  Correct approach would be to extract the yaw angle from the quaternion, e.g.:
-
-  ```python
-  rot = vehicle.GetVehicle().GetRot()
-  yaw = math.atan2(2*(rot.e0*rot.e3 + rot.e1*rot.e2), 1 - 2*(rot.e2*rot.e2 + rot.e3*rot.e3))
-  ```
-
-  or use a helper function to get the yaw angle.
-
-  This error affects the steering control logic and could cause incorrect steering behavior.
-
-  **Deduct 10 points for logical error in orientation handling.**
-
-- **Driver Inputs**:  
-  The driver inputs are set every step, which is correct.
-
-- **Use of `veh.ChDriverInputs()`**:  
-  This is a correct way to set driver inputs.
-
-- **Use of `vis.DrawSphere()`**:  
-  The method is used to visualize sentinel and target points. However, `DrawSphere()` is not a documented method of `ChWheeledVehicleVisualSystemIrrlicht` or Irrlicht visualization in the API documentation. Usually, visualization of custom shapes requires creating `ChVisualShape` objects or using Irrlicht's scene manager directly. This may be a **minor API misuse or unsupported feature**.
-
-  **Deduct 5 points for minor incorrect or unsupported visualization API usage.**
-
-- **Use of `vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)`**:  
-  This is correct and recommended for better collision handling.
-
-- **Use of `chrono.SetChronoDataPath(chrono.GetChronoDataPath())`**:  
-  This is redundant but harmless.
-
-- **Use of `veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')`**:  
-  This is correct.
-
-**Summary**: One logical error in orientation extraction (-10), minor visualization API misuse (-5).  
-**Correctness score: 30 - 10 - 5 = 15/30**
+**Correctness score: 30 - 10 - 10 - 5 = 5**
 
 ---
 
 ### 3. Code Quality (10 points)
 
-- **Readability and Structure**:  
-  The code is generally well-structured and readable. Variable names are meaningful (`initLoc`, `initRot`, `vis_type`, `step_size`, etc.). The PID controller is encapsulated in a class.
+- **Readability:**  
+  - Variable names are meaningful (`initLoc`, `initRot`, `vis_type`, etc.).  
+  - Code is structured logically with comments explaining sections.  
+  - The PID controller is implemented as a class with clear methods.  
+  - Indentation and formatting are consistent.  
+  - Minor inconsistency: the comment `# Number of simulation steps between miscellaneous events` is vague; better to specify "between render frames".  
+  - The simulation frame counter variable `s` is declared in the comment but not used; instead `step_number` is used. This is a minor clarity issue.  
+  **No deduction.**
 
-- **Comments**:  
-  There are some comments, but many blocks lack detailed explanations, especially the PID controller and the simulation loop. For example, the purpose of sentinel and target points is not explained. The logic behind the PID gains is not commented.
+- **Comments:**  
+  - Comments are present and helpful for most sections.  
+  - Some comments could be more descriptive, e.g., explaining the PID controller logic or the error calculation.  
+  - No docstrings or function-level comments for the PID class.  
+  **Deduct 5 points for insufficient comments/documentation.**
 
-- **Formatting**:  
-  The code formatting is consistent.
-
-- **Minor issues**:  
-  The variable `step_number` is initialized with a comment "Initialize simulation frame counter s" — the "s" seems like a typo or leftover.
-
-- **Docstrings**:  
-  No docstrings for the PID controller class or functions.
-
-**Deduct 3 points for insufficient comments and minor documentation issues.**
-
-**Code Quality score: 7/10**
+**Code Quality score: 10 - 5 = 5**
 
 ---
 
 ### 4. Efficiency (10 points)
 
-- **Redundant Calls**:  
-  - `chrono.SetChronoDataPath(chrono.GetChronoDataPath())` is redundant; no need to set the data path to itself.  
-  - The PID controller updates integral and derivative every step with fixed `step_size`. This is acceptable.
+- **Unnecessary calculations:**  
+  - `driver_inputs` is instantiated every loop iteration; better to create once and update values. Minor inefficiency.  
+  - The `error_derivative` calculation in PID uses fixed `step_size` which is fine here.  
+  - The `vis.DrawSphere()` calls pass device and scene manager every frame; this could be optimized by creating persistent scene nodes or using higher-level visualization calls.  
+  - The `vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)` is called after initialization, which may cause internal reinitialization or inefficiency.  
+  **Deduct 5 points for inefficiencies.**
 
-- **Calculation of `render_steps`**:  
-  Correctly uses `math.ceil(render_step_size / step_size)`.
+- **Missing optimizations:**  
+  - The PID controller could be improved by clamping integral windup or limiting steering input range.  
+  - The `render_steps` calculation uses `math.ceil(render_step_size / step_size)` which is good.  
+  **No deduction.**
 
-- **In the simulation loop**:  
-  - `vis.DrawSphere()` is called every step, which may be inefficient if the visualization system does not support this method efficiently.  
-  - The calculation of `error` involves `vehicle.GetVehicle().GetRot().GetAngle()` which is a costly call and logically incorrect (already deducted).
-
-- **No obvious redundant calculations or inefficiencies**.
-
-**Deduct 3 points for minor inefficiency due to redundant `SetChronoDataPath` and possibly inefficient visualization calls.**
-
-**Efficiency score: 7/10**
+**Efficiency score: 10 - 5 = 5**
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- **Error Handling**:  
-  The script does not include any try-except blocks or checks for file existence (e.g., texture files, logo image).  
-  This is common in example scripts but is a lack of robustness.
+- **Error handling:**  
+  - No try-except blocks or checks for file loading (e.g., textures, logos).  
+  - No checks for vehicle or terrain initialization success.  
+  - No handling of possible division by zero or invalid math operations in PID or error calculation.  
+  - No handling of edge cases such as vehicle going off path or invalid inputs.  
+  **Deduct 5 points for lack of basic error handling.**
 
-- **Edge Cases**:  
-  The PID controller does not handle integral windup or saturation of steering input.  
-  No checks on steering input limits or throttle limits.
+- **Edge cases:**  
+  - The PID controller does not handle integral windup or saturation.  
+  - The error calculation does not normalize angle differences to [-pi, pi], which can cause large steering commands.  
+  **Deduct 3 points for inadequate edge case handling.**
 
-- **No validation of vehicle or terrain initialization success.**
-
-**Deduct 5 points for lack of basic error handling and robustness.**
-
-**Error Handling score: 0/5**
+**Error Handling score: 5 - 5 - 3 = 0 (minimum 0)**
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
-- **Setup**:  
-  Visualization system is properly initialized with window size, title, chase camera, logo, directional light, and skybox.
+- **Visualization setup:**  
+  - Window size, title, camera, lighting, skybox, and logo are set properly.  
+  - The chase camera is set with a track point, distance, and height.  
+  - The `AddLightDirectional()` is used instead of `AddTypicalLights()`. The former is acceptable but less comprehensive.  
+  - The spheres for sentinel and target points are drawn every frame, which is good for visualization.  
+  - However, the method of drawing spheres by passing device and scene manager is non-standard and may cause issues or inefficiency.  
+  **Deduct 3 points for minor visualization issues.**
 
-- **Lighting**:  
-  Uses `AddLightDirectional()` but does not use `AddTypicalLights()` which is recommended for better lighting.
-
-- **Custom Visual Elements**:  
-  Attempts to draw spheres for sentinel and target points using `vis.DrawSphere()`, which is not a standard documented method. This may not work or be inefficient.
-
-- **Camera**:  
-  Chase camera is set properly.
-
-**Deduct 3 points for minor visualization issues: use of undocumented `DrawSphere()` and suboptimal lighting (missing typical lights).**
-
-**Visualization score: 2/5**
+**Visualization score: 5 - 3 = 2**
 
 ---
 
-### **Final Score Calculation**
+### **Summary of deductions:**
 
-| Category                     | Points | Deduction | Score |
-|------------------------------|--------|-----------|-------|
-| Completeness                 | 40     | 0         | 40    |
-| Correctness                  | 30     | 15        | 15    |
-| Code Quality                 | 10     | 3         | 7     |
-| Efficiency                   | 10     | 3         | 7     |
-| Error Handling and Robustness| 5      | 5         | 0     |
-| Visualization                | 5      | 3         | 2     |
-| **Total**                   | **100**| **29**    | **71**|
-
----
-
-### **Summary of Deductions**
-
-- Logical error in orientation extraction for steering control (-10 points).
-- Minor incorrect visualization API usage (`DrawSphere`) (-5 points).
-- Insufficient comments and documentation (-3 points).
-- Minor inefficiency due to redundant data path setting and visualization calls (-3 points).
-- Lack of error handling and robustness (-5 points).
-- Minor visualization setup issues (lighting and custom shapes) (-3 points).
+| Criterion                     | Points | Deduction | Remaining |
+|-------------------------------|--------|-----------|-----------|
+| Completeness                  | 40     | 5         | 35        |
+| Correctness                  | 30     | 25        | 5         |
+| Code Quality                 | 10     | 5         | 5         |
+| Efficiency                   | 10     | 5         | 5         |
+| Error Handling and Robustness| 5      | 5+3=8     | 0         |
+| Visualization                | 5      | 3         | 2         |
+| **Total**                   | 100    | 51        | **49**    |
 
 ---
 
-[[71]]
+### **Final Score: [[49]]**
 
 ---
 
-**Additional Recommendations:**
+### **Explanation:**
 
-- Correct the orientation extraction for the vehicle yaw angle to properly compute steering error.
-- Replace or properly implement visualization of sentinel and target points using supported Irrlicht scene nodes or visual shapes.
-- Add comments explaining the PID controller and simulation logic.
-- Remove redundant `SetChronoDataPath` call.
-- Add basic error handling for file loading and input ranges.
-- Use `AddTypicalLights()` for better lighting in visualization.
+- The script is mostly complete and follows standard vehicle simulation setup with PyChrono.  
+- Major correctness issues arise from the incorrect calculation of the steering error using quaternion angle instead of yaw, and setting the collision system type after vehicle initialization, which can cause simulation inaccuracies or unexpected behavior.  
+- Minor correctness issues with visualization calls and some inefficiencies in code structure.  
+- Lack of error handling and robustness measures is a significant drawback.  
+- Visualization setup is mostly correct but uses some non-standard calls for drawing spheres.  
+- Code quality is acceptable but could be improved with more detailed comments and minor clarifications.
+
+Overall, the script would run but produce incorrect steering behavior and potentially unstable collision handling, limiting its practical usability without fixes.

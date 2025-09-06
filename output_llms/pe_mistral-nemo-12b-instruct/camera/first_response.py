@@ -1,0 +1,76 @@
+import os
+import math
+import numpy as np
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
+import pychrono.sensors as sensors
+
+# 1. Initialize PyChrono environment and core components
+chrono.SetChronoDataPath(os.path.join(os.getcwd(), '..', 'data'))
+
+# 2. Add physical systems and objects
+# Create a system with Signorini-Moreau Contact (SMC) mechanics
+my_system = chrono.ChSystemSMC()
+
+# Load a triangular mesh from a Wavefront .obj file
+mesh_path = chrono.GetChronoDataFile('triangle.obj')
+my_mesh = chrono.ChTriangleMeshConnected()
+my_mesh.LoadWavefrontMesh(mesh_path)
+
+# Create a fixed body with the mesh as its visual shape
+body_mesh = chrono.ChBody()
+body_mesh.SetBodyFixed(True)
+body_mesh.AddVisualShape(chrono.ChVisualShapeTriangleMesh(mesh_path, chrono.ChColor(0.5, 0.5, 0.5)))
+my_system.Add(body_mesh)
+
+# 3. Set necessary default parameters and interactions
+# Create a camera sensor and attach it to the mesh body
+camera_sensor = sensors.ChCameraSensor()
+camera_sensor.SetWindowSize(640, 480)
+camera_sensor.SetFocalLength(50)
+camera_sensor.SetFocalPoint(chrono.ChVector3d(0, 0, 0))
+camera_sensor.SetPrincipalPoint(chrono.ChVector2d(320, 240))
+camera_sensor.SetUpVector(chrono.VECT_Z)
+camera_sensor.SetViewVector(chrono.VECT_X)
+camera_sensor.SetBody(body_mesh)
+my_system.Add(camera_sensor)
+
+# Create a sensor manager to handle the camera sensor
+sensor_manager = sensors.ChSensorManager()
+sensor_manager.AddCameraSensor(camera_sensor)
+
+# Add noise filters and visualizations to the camera images
+camera_sensor.SetNoiseFilter(sensors.ChNoiseFilter())
+camera_sensor.SetVisualization(sensors.ChVisualization())
+
+# Create a camera controller to dynamically update the camera's position
+camera_controller = chrono.ChCameraController()
+camera_controller.SetBody(body_mesh)
+camera_controller.SetCamera(camera_sensor)
+camera_controller.SetOrbitDistance(5)
+camera_controller.SetOrbitElevation(math.pi / 2)
+camera_controller.SetOrbitAzimuth(0)
+
+# Create a visualization system to display the simulation
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(my_system)
+vis.SetWindowSize(800, 600)
+vis.SetWindowTitle('PyChrono Mesh Visualization')
+vis.Initialize()
+
+# Simulation loop
+while vis.Run():
+    # Update the camera's position in an orbit around the mesh
+    camera_controller.DoStep()
+
+    # Print out camera buffer data at each step
+    camera_buffer = camera_sensor.GetImageBuffer()
+    print(f'Camera buffer data: {camera_buffer}')
+
+    # Advance the simulation by a time step
+    my_system.DoStepDynamics(0.01)
+
+    # Render the current frame
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()

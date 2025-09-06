@@ -61,6 +61,55 @@ logger.info("="*60)
 
 rouge = evaluate.load('rouge')
 
+# ============================================
+# PROGRESS TRACKING
+# ============================================
+
+class ProgressTracker:
+    def __init__(self, output_dir):
+        self.progress_file = os.path.join(output_dir, "progress.json")
+        self.load_progress()
+    
+    def load_progress(self):
+        if os.path.exists(self.progress_file):
+            with open(self.progress_file, 'r') as f:
+                self.progress = json.load(f)
+        else:
+            self.progress = {
+                "completed": [],
+                "failed": [],
+                "in_progress": None,
+                "start_time": datetime.now().isoformat(),
+                "last_update": datetime.now().isoformat()
+            }
+    
+    def save_progress(self):
+        self.progress["last_update"] = datetime.now().isoformat()
+        with open(self.progress_file, 'w') as f:
+            json.dump(self.progress, f, indent=2)
+    
+    def mark_completed(self, model, system):
+        key = f"{model}/{system}"
+        if key not in self.progress["completed"]:
+            self.progress["completed"].append(key)
+            logger.info(f"✓ Completed: {key} ({len(self.progress['completed'])} total)")
+            self.save_progress()
+    
+    def mark_failed(self, model, system, error):
+        key = f"{model}/{system}"
+        self.progress["failed"].append({"key": key, "error": str(error), "time": datetime.now().isoformat()})
+        logger.error(f"✗ Failed: {key} - {error}")
+        self.save_progress()
+    
+    def is_completed(self, model, system):
+        return f"{model}/{system}" in self.progress["completed"]
+    
+    def set_in_progress(self, model, system):
+        self.progress["in_progress"] = f"{model}/{system}"
+        self.save_progress()
+
+progress_tracker = ProgressTracker(OUTPUT_DIR)
+
 def get_provider_for_model(model_name):
     """For JLLM scoring, only OpenAI models are used as judges."""
     # All judge models (gpt-4o-mini, gpt-4.1-mini, gpt-4.1-nano) are OpenAI models
@@ -642,7 +691,7 @@ def extract_scores_from_txt(file_path):
 
 
 def save_scores_to_csv_with_metadata(output_system_path, test_model, system_folder,
-                                    csv_filename="evaluation_scores.csv", evaluated_model="gpt-4o-mini"):
+                                    csv_filename="evaluation_scores.csv", evaluated_model="gpt-4.1-nano"):
     """
     Extracts scores from text files for different evaluation rounds and saves them into a CSV,
     including metadata like the LLM model, testing model, and system.
@@ -769,61 +818,108 @@ system_list = ["art", "beam", "buckling", "cable",  "camera", "citybus", "curios
                "rigid_highway", "rigid_multipatches", "rotor", "scm", "scm_hill", "sedan", "sensros", "slider_crank", "tablecloth", "turtlebot", "uazbus", "veh_app","vehros","viper"]
 #system_do_list= ["rotor", "scm", "scm_hill", "sedan", "sensros", "slider_crank", "tablecloth", "turtlebot", "uazbus", "veh_app","vehros","viper"]
 system_do_list=system_list
+
+def is_already_evaluated(output_path, test_model, system_folder):
+    """Check if all score files exist for a model/system combination"""
+    required_files = [
+        'first_score_document.txt',
+        'second_score_document.txt', 
+        'third_score_document.txt',
+        'evaluation_scores.csv'
+    ]
+    
+    system_path = os.path.join(output_path, test_model, system_folder)
+    
+    if not os.path.exists(system_path):
+        return False
+    
+    for file in required_files:
+        file_path = os.path.join(system_path, file)
+        if not os.path.exists(file_path) or os.path.getsize(file_path) == 0:
+            return False
+    
+    return True
+
 def process_model_system(test_model, system_folder, dataset_path, Output_path, Output_conversation_path,
                          Output_statistic_path):
-    # Add model-specific delays to avoid hitting API rate limits
-    # OpenAI models need longer delays due to strict rate limits
-    if evaluated_model in ["gpt-4o", "gpt-4o-mini", "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano", "o3", "o4-mini"]:
-        delay = random.uniform(2.0, 4.0)  # Longer delay for OpenAI models
-    elif evaluated_model in ["claude-3-5-sonnet", "claude-3-7-sonnet-20250219", "claude-4-sonnet-20250514"]:
-        delay = random.uniform(1.0, 2.0)  # Moderate delay for Anthropic models
-    else:
-        delay = random.uniform(0.5, 1.5)  # Standard delay for other models
+    """Process a single model/system combination with enhanced logging"""
     
-    time.sleep(delay)
+    # Check if already evaluated using progress tracker
+    if progress_tracker.is_completed(test_model, system_folder):
+        logger.info(f"⏭️  Skipping: {test_model}/{system_folder} (already evaluated)")
+        return f"Skipped: {system_folder} for model {test_model}"
     
-    system_folder_path = os.path.join(dataset_path, system_folder)
-    output_system_path = os.path.join(Output_path, test_model, system_folder)
-    os.makedirs(output_system_path, exist_ok=True)
+    # Also check file system for safety
+    if is_already_evaluated(Output_path, test_model, system_folder):
+        progress_tracker.mark_completed(test_model, system_folder)
+        logger.info(f"⏭️  Skipping: {test_model}/{system_folder} (files exist)")
+        return f"Skipped: {system_folder} for model {test_model}"
+    
+    progress_tracker.set_in_progress(test_model, system_folder)
+    
+    try:
+        # Add model-specific delays to avoid hitting API rate limits
+        # OpenAI models need longer delays due to strict rate limits
+        if evaluated_model in ["gpt-4o", "gpt-4o-mini", "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano", "o3", "o4-mini"]:
+            delay = random.uniform(2.0, 4.0)  # Longer delay for OpenAI models
+        elif evaluated_model in ["claude-3-5-sonnet", "claude-3-7-sonnet-20250219", "claude-4-sonnet-20250514"]:
+            delay = random.uniform(1.0, 2.0)  # Moderate delay for Anthropic models
+        else:
+            delay = random.uniform(0.5, 1.5)  # Standard delay for other models
+        
+        time.sleep(delay)
+        
+        system_folder_path = os.path.join(dataset_path, system_folder)
+        output_system_path = os.path.join(Output_path, test_model, system_folder)
+        os.makedirs(output_system_path, exist_ok=True)
 
-    if system_folder in system_do_list:
-        print(f'Processing model {test_model} on system {system_folder}')
+        if system_folder in system_do_list:
+            print(f'Processing model {test_model} on system {system_folder}')
 
-        # Read the three response Python files
-        first_response_path = os.path.join(output_system_path, "first_response.py")
-        second_response_path = os.path.join(output_system_path, "second_response.py")
-        third_response_path = os.path.join(output_system_path, "third_response.py")
+            # Read the three response Python files
+            first_response_path = os.path.join(output_system_path, "first_response.py")
+            second_response_path = os.path.join(output_system_path, "second_response.py")
+            third_response_path = os.path.join(output_system_path, "third_response.py")
 
-        first_prediction = read_script(first_response_path)
-        second_prediction = read_script(second_response_path)
-        third_prediction = read_script(third_response_path)
+            first_prediction = read_script(first_response_path)
+            second_prediction = read_script(second_response_path)
+            third_prediction = read_script(third_response_path)
 
-        first_reference_path = os.path.join(system_folder_path, 'truth1.py')
-        second_reference_path = os.path.join(system_folder_path, 'truth2.py')
-        third_reference_path = os.path.join(system_folder_path, 'truth3.py')
+            first_reference_path = os.path.join(system_folder_path, 'truth1.py')
+            second_reference_path = os.path.join(system_folder_path, 'truth2.py')
+            third_reference_path = os.path.join(system_folder_path, 'truth3.py')
 
-        first_reference = read_script(first_reference_path)
-        second_reference = read_script(second_reference_path)
-        third_reference = read_script(third_reference_path)
+            first_reference = read_script(first_reference_path)
+            second_reference = read_script(second_reference_path)
+            third_reference = read_script(third_reference_path)
 
-        api_path = read_script(os.path.join(r'/home/hongyu/Documents/SimBench/api', 'api.txt'))
+            api_path = read_script(os.path.join(r'/home/hongyu/Documents/SimBench/api', 'api.txt'))
 
-        # Example usage for first, second, and third rounds
-        evaluate_and_save_results("first", first_prediction, first_reference, api_path, output_system_path)
-        evaluate_and_save_results("second", second_prediction, second_reference, api_path, output_system_path)
-        evaluate_and_save_results("third", third_prediction, third_reference, api_path, output_system_path)
+            # Example usage for first, second, and third rounds
+            evaluate_and_save_results("first", first_prediction, first_reference, api_path, output_system_path)
+            evaluate_and_save_results("second", second_prediction, second_reference, api_path, output_system_path)
+            evaluate_and_save_results("third", third_prediction, third_reference, api_path, output_system_path)
 
-        # Save the scores and metadata to CSV
-        save_scores_to_csv_with_metadata(output_system_path, test_model, system_folder, "evaluation_scores.csv")
+            # Save the scores and metadata to CSV
+            save_scores_to_csv_with_metadata(output_system_path, test_model, system_folder, "evaluation_scores.csv")
+            
+            # Mark as completed
+            progress_tracker.mark_completed(test_model, system_folder)
 
-    return f"Completed {system_folder} for model {test_model}"
+        return f"Completed {system_folder} for model {test_model}"
+    
+    except Exception as e:
+        error_msg = str(e)
+        logger.error(f"Error processing {test_model}/{system_folder}: {error_msg}")
+        progress_tracker.mark_failed(test_model, system_folder, error_msg)
+        return f"Failed {system_folder} for model {test_model}: {error_msg}"
 
 
 # Parallel processing for all models and systems
 # Adjust max_workers based on the judge model to avoid rate limits
 # OpenAI models need lower concurrency due to strict rate limits
 if evaluated_model in ["gpt-4o", "gpt-4o-mini", "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano", "o3", "o4-mini"]:
-    max_workers = 2  # Low concurrency for OpenAI models
+    max_workers = 10  # Low concurrency for OpenAI models
     print(f"Using reduced concurrency (max_workers={max_workers}) for OpenAI judge model: {evaluated_model}")
 elif evaluated_model in ["claude-3-5-sonnet", "claude-3-7-sonnet-20250219", "claude-4-sonnet-20250514"]:
     max_workers = 3  # Moderate concurrency for Anthropic models
@@ -874,31 +970,4 @@ print("\n" + "="*60)
 print("RESUME MODE ENABLED - Checking for completed evaluations")
 print("="*60)
 
-def is_already_evaluated(output_path, test_model, system_folder):
-    """Check if all score files exist for a model/system combination"""
-    required_files = [
-        'first_score_document.txt',
-        'second_score_document.txt', 
-        'third_score_document.txt',
-        'evaluation_scores.csv'
-    ]
-    
-    system_path = os.path.join(output_path, test_model, system_folder)
-    
-    if not os.path.exists(system_path):
-        return False
-    
-    for file in required_files:
-        file_path = os.path.join(system_path, file)
-        if not os.path.exists(file_path) or os.path.getsize(file_path) == 0:
-            return False
-    
-    return True
-
-# Wrap the original process_model_system
-_original_process = process_model_system
-def process_model_system(test_model, system_folder, dataset_path, Output_path, Output_conversation_path, Output_statistic_path):
-    if is_already_evaluated(Output_path, test_model, system_folder):
-        print(f"⏭️  Skipping: {test_model}/{system_folder} (already evaluated)")
-        return f"Skipped: {system_folder} for model {test_model}"
-    return _original_process(test_model, system_folder, dataset_path, Output_path, Output_conversation_path, Output_statistic_path)
+# Progress tracking is now integrated directly into process_model_system function

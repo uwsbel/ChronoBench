@@ -5,175 +5,165 @@
 ### 1. Completeness (40 points)
 
 - **System Initialization:** Present and correctly uses `chrono.ChSystemSMC()`. ✔️  
-- **Mesh and FEM Setup:** The mesh is created and added to the system. Beam section properties are defined with inertia and elasticity. The beam is built using `ChBuilderBeamIGA`. ✔️  
-- **Body Creation:** Flywheel body created with `ChBodyEasyCylinder`, positioned and oriented properly. Truss body created and fixed. ✔️  
+- **Body Creation:**  
+  - Beam mesh created with `fea.ChMesh()` and beam elements via `ChBuilderBeamIGA`. ✔️  
+  - Flywheel created with `ChBodyEasyCylinder`. ✔️  
+  - Truss body created and fixed. ✔️  
 - **Joints and Links:**  
-  - Fixed joint between flywheel and beam node (`ChLinkMateFix`) initialized correctly.  
-  - Bearing created with `ChLinkMateGeneric` and initialized with correct parameters.  
-  - Motor joint created with `ChLinkMotorRotationSpeed` and initialized properly. ✔️  
-- **Motor Function:** Custom motor function class defined and used with the motor. ✔️  
+  - Fixed joint between flywheel and beam node (`ChLinkMateFix`). ✔️  
+  - Bearing created with `ChLinkMateGeneric` and initialized properly. ✔️  
+  - Motor joint created with `ChLinkMotorRotationSpeed` and initialized. ✔️  
 - **Visualization:**  
-  - FEM mesh visualization shapes added with appropriate data types and glyphs.  
-  - Irrlicht visualization system created and configured with window size, title, logo, skybox, camera, and lights. ✔️  
-- **Solver:** Pardiso MKL solver set and assigned to system. ✔️  
-- **Simulation Loop:** Visualization loop with rendering and `sys.DoStepDynamics` present. ✔️  
-- **Static Analysis:** `sys.DoStaticLinear()` called before dynamic loop, which is appropriate for initial static equilibrium. ✔️  
+  - Visualization system (`ChVisualSystemIrrlicht`) created and attached. ✔️  
+  - Visual shapes for FEM mesh added with appropriate settings. ✔️  
+- **Simulation Loop:** Present with proper calls to `vis.Run()`, `BeginScene()`, `Render()`, `EndScene()`, and `sys.DoStepDynamics()`. ✔️  
+- **Custom Motor Function:** Defined and used correctly. ✔️  
 
-**No essential components missing.**
+**No essential components are missing.**
 
-**Minor completeness issues:**  
-- The beam builder’s order parameter is set to `1` (linear), but the comment says `(3 = cubic, etc)`. Typically, for IGA beams, cubic (order=3) is preferred for smoothness and accuracy. Using order=1 is not incorrect but may not align with the comment or best practice for IGA beams. This is a minor deviation.  
-- The constant `CH_PI` is defined as `3.1456` instead of using `math.pi` or `chrono.CH_PI` (which is defined as `3.141592653589793`). This is a minor inaccuracy that could affect precision in geometry calculations.
+**No major missing details in components.**
 
-**Deduction:** 5 points for minor deviations in completeness.
+**Minor omissions:**  
+- The code uses a hardcoded approximate value for π (`CH_PI = 3.1456`) instead of `math.pi` or `chrono.CH_C_PI` (if available). This is a minor deviation from best practice. (-5 points)  
+- The `SetAutomaticGravity(True, 2)` is used, which is good, but the comment about "max precision" is somewhat vague; however, this is minor and acceptable.  
+- No explicit setting of collision models or materials for the flywheel or truss, but since the flywheel is created with `ChBodyEasyCylinder` and the truss is fixed and likely non-colliding, this is acceptable.  
+- The motor function is set with `SetMotorFunction(f_ramp)`, but the API documentation shows `SetSpeedFunction(func)`. This is a minor naming inconsistency (see correctness below).  
+
+**Completeness score:** 40 - 5 = **35**
 
 ---
 
 ### 2. Correctness (30 points)
 
-- **API Usage:**  
-  - `ChSystemSMC` used correctly for SMC contact.  
-  - `fea.ChInertiaCosseratSimple` and `fea.ChElasticityCosseratSimple` used properly with correct property setters.  
-  - `ChBuilderBeamIGA.BuildBeam` called with correct parameters.  
-  - Joints (`ChLinkMateFix`, `ChLinkMateGeneric`, `ChLinkMotorRotationSpeed`) initialized properly with correct frames and bodies.  
-  - Motor function subclass correctly overrides `GetVal`.  
-  - Visualization setup uses correct data types and glyph types.  
-  - Solver `ChSolverPardisoMKL` correctly instantiated and assigned.  
-  - Simulation loop uses `vis.Run()`, `BeginScene()`, `Render()`, `EndScene()`, and `sys.DoStepDynamics()` correctly. ✔️  
+- **Use of `ChSystemSMC()`:** Correct for smooth contact simulations. ✔️  
+- **Beam Section and Material Setup:**  
+  - `fea.ChInertiaCosseratSimple` and `fea.ChElasticityCosseratSimple` used correctly with appropriate properties. ✔️  
+  - Section created and circular properties set correctly. ✔️  
+- **Beam Builder:**  
+  - `ChBuilderBeamIGA.BuildBeam` called with correct parameters. ✔️  
+- **Node Access:**  
+  - `builder.GetLastBeamNodes()` returns a Python list or vector-like container. The code uses `m.floor(builder.GetLastBeamNodes().size() / 2.0)` which is a C++ style `.size()` call. In Python, lists use `len()`. This is a **logical error** that would cause an AttributeError at runtime. (-10 points)  
+- **Flywheel Creation:**  
+  - `ChBodyEasyCylinder` constructor is called with `chrono.ChAxis_Y` as the first argument. According to the PyChrono API, `ChBodyEasyCylinder` signature is typically `(radius, height, density, ...)`. The code passes `(chrono.ChAxis_Y, 0.24, 0.1, 7800)`. This is **incorrect** usage and would cause an error or unexpected behavior. The axis should be set via orientation, not as the first argument. (-15 points)  
+- **Joint Initialization:**  
+  - `ChLinkMateFix.Initialize(node_mid, mbodyflywheel)` is incorrect because `Initialize` expects two `ChBody` objects and a frame or coordinate system. Here, `node_mid` is a beam node (FEA node), not a `ChBody`. This is a **logical error** and would cause failure. (-10 points)  
+- **Bearing Joint:**  
+  - `ChLinkMateGeneric` initialized with `builder.GetLastBeamNodes().back()` and `truss`. Again, `builder.GetLastBeamNodes().back()` is C++ style; in Python, it should be `[-1]`. Also, the first argument should be a `ChBody` or similar, not a node. This is a **logical error**. (-10 points)  
+- **Motor Joint:**  
+  - `rotmotor1.Initialize(builder.GetLastBeamNodes().front(), truss, ...)` uses `.front()` which is C++ style; in Python, it should be `[0]`. Also, again, the first argument should be a `ChBody`, not a node. (-10 points)  
+- **Motor Function:**  
+  - The API documentation shows `SetSpeedFunction(func)`, but the code uses `SetMotorFunction(f_ramp)`. This is a **minor API misuse** or outdated method name. (-5 points)  
+- **Gravity Setting:**  
+  - `sys.SetGravitationalAcceleration(chrono.ChVector3d(0, -9.81, 0));` is correct. ✔️  
+- **Solver:**  
+  - `mkl.ChSolverPardisoMKL()` used and set correctly. ✔️  
+- **Static Linear Solve:**  
+  - `sys.DoStaticLinear()` called before dynamic loop. This is acceptable. ✔️  
+- **Visualization:**  
+  - Visualization setup is correct (see visualization section). ✔️  
 
-- **Logical Errors:**  
-  - The bearing joint is created with `ChLinkMateGeneric(False, True, True, False, True, True)`. This means:  
-    - X translation locked: False (free)  
-    - Y translation locked: True (locked)  
-    - Z translation locked: True (locked)  
-    - X rotation locked: False (free)  
-    - Y rotation locked: True (locked)  
-    - Z rotation locked: True (locked)  
-  This configuration is unusual for a bearing, which typically allows rotation around one axis and constrains others. The initialization frame is set at the last beam node position, but no rotation is specified, which may cause misalignment. This could lead to incorrect bearing behavior.  
-  - The motor joint is initialized between the first beam node and the fixed truss, with a motor frame rotated 90° about Y. This is consistent with the flywheel orientation, so likely correct.  
-  - The flywheel is positioned at the middle node plus a Y offset of 0.05, which is reasonable.  
-  - The custom motor function returns zero after `T3`, which is acceptable.  
-  - The use of `SetAutomaticGravity(True, 2)` is correct for IGA beams.  
-  - The `sys.SetGravitationalAcceleration` is called after `SetAutomaticGravity`, which is acceptable but usually gravity is set before mesh creation; no major issue here.  
+**Summary of correctness deductions:**  
+- `.size()` and `.front()/.back()` used on Python lists: -10 -10 -10 = -30 (but total correctness deduction max is 30, so capped at -30)  
+- Flywheel constructor misuse: -15  
+- Joint initialization with nodes instead of bodies: -10 (flywheel joint) + -10 (bearing) + -10 (motor) = -30 (capped by total correctness max)  
+- Motor function naming: -5  
 
-- **Incorrect or questionable API usage:**  
-  - The `myjoint.Initialize(node_mid, mbodyflywheel)` call uses a beam node as a body. Beam nodes in IGA are not rigid bodies but FEA nodes. The API documentation for `ChLinkMateFix.Initialize` expects two `ChBody` objects or compatible rigid bodies. Using a node directly may not be correct and could cause runtime errors or unexpected behavior. Usually, to fix a body to a beam, one would use a `ChLinkMateFix` between the body and the beam mesh or a beam element body, or use `ChLinkPointFrame` or similar. This is a significant correctness issue.  
-  - The `rotmotor1.SetMotorFunction(f_ramp)` is called, but the API documentation specifies `SetSpeedFunction`. The code uses `SetMotorFunction`, which is not a documented method for `ChLinkMotorRotationSpeed`. The correct method should be `SetSpeedFunction`. This is a significant API misuse and will cause the motor speed function not to be set properly.  
-  - The `builder.GetLastBeamNodes()` returns a Python list, so `.size()` is not a valid method; instead, `len()` should be used. The code uses `builder.GetLastBeamNodes().size()`, which will raise an AttributeError. This is a critical error.  
-  - The import `import math as m` is used, but `m.floor()` is called on a float division result. Since `builder.GetLastBeamNodes().size()` is invalid, this line will fail.  
-  - The `CH_PI` constant is defined as `3.1456` instead of the more accurate `3.141592653589793`. This can cause small inaccuracies in inertia and elasticity calculations. Minor but worth noting.  
-
-**Deductions:**  
-- 15 points for incorrect use of `SetMotorFunction` instead of `SetSpeedFunction`.  
-- 15 points for using `.size()` on a Python list (should be `len()`), which will cause runtime error.  
-- 10 points for initializing `ChLinkMateFix` between a beam node and a rigid body (likely invalid).  
-- 5 points for minor inaccuracies like `CH_PI` and gravity setting order.
-
-Total correctness deduction: 15 + 15 + 10 + 5 = 45 points, but maximum deduction is 30 points (cap at total correctness points).
+Total correctness deductions exceed 30, so capped at **-30 points**.
 
 ---
 
 ### 3. Code Quality (10 points)
 
 - **Readability:**  
-  - Variable names are mostly meaningful (`mesh`, `builder`, `mbodyflywheel`, `myjoint`, etc.).  
-  - The code is structured logically with comments explaining sections.  
-  - Some comments are present but sparse; for example, the custom motor function class lacks docstrings or detailed explanation.  
-  - The use of `m` alias for `math` is acceptable but less common than `import math` or `from math import floor`.  
-  - The code uses inconsistent semicolons at the end of some lines (e.g., `minertia.SetDensity(7800);`), which is unnecessary in Python and not idiomatic.  
-  - The code uses a hardcoded approximate value for pi instead of `math.pi` or `chrono.CH_PI`.  
-  - The indentation and formatting are consistent.  
-
+  - Variable names are mostly meaningful (`beam_L`, `beam_ro`, `msection`, `builder`, `mbodyflywheel`, etc.). ✔️  
+  - Code is structured logically with comments explaining sections. ✔️  
 - **Comments:**  
-  - Some comments explain the purpose of blocks, but many lines lack inline comments, especially for complex operations like joint initialization.  
-  - The custom motor function class could benefit from a docstring explaining the parameters and behavior.  
+  - Comments are present but sparse in some places (e.g., no explanation of the custom motor function parameters).  
+  - Some comments could be clearer or more detailed.  
+- **Formatting:**  
+  - Minor inconsistent spacing (e.g., semicolons at line ends, unnecessary in Python).  
+  - Use of `m` alias for `math` is acceptable but uncommon; usually `import math` or `import math as math` is preferred for clarity.  
+- **Use of constants:**  
+  - Hardcoded `CH_PI` instead of `math.pi` or `chrono.CH_C_PI` is a minor style issue.  
+- **Overall:** Minor issues but generally good.
 
 **Deductions:**  
-- 5 points for minor code quality issues (semicolons, inconsistent use of constants, sparse comments).  
-- 3 points for insufficient comments/documentation on custom classes and complex initializations.
+- Minor readability and style issues: -3 points  
+- Insufficient comments on custom function and some complex parts: -3 points  
 
-Total code quality deduction: 8 points.
+**Code quality score:** 10 - 6 = **4**
 
 ---
 
 ### 4. Efficiency (10 points)
 
-- The code does not contain obvious redundant calculations or unnecessary API calls.  
-- The use of `pow()` instead of `**` is acceptable but slightly less efficient and less Pythonic.  
-- The `CH_PI` constant is defined manually instead of using the built-in constant, which is a minor inefficiency.  
-- The motor function uses multiple `if-elif` branches, which is fine for this use case.  
-- The visualization setup is standard and not redundant.  
-- The solver is set once, which is efficient.  
-- The simulation loop uses a fixed timestep of 0.002, which is reasonable.  
+- **Unnecessary calculations or redundant code:**  
+  - The code calculates `(pow(beam_ro, 4) - pow(beam_ri, 4))` multiple times; could be stored in a variable for reuse. Minor optimization opportunity. (-3 points)  
+  - The custom motor function uses multiple `if-elif` branches with repeated calculations; could be optimized but acceptable.  
+- **Use of `SetAutomaticGravity(True, 2)`:** Good practice for FE gravity integration.  
+- **No obvious redundant API calls.**
 
 **Deductions:**  
-- 3 points for minor inefficiencies: manual pi constant, use of `pow()` over `**`, and minor style inefficiencies.
+- Minor optimization opportunity in repeated calculations: -3 points  
+
+**Efficiency score:** 10 - 3 = **7**
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- No explicit error handling (try-except) is present. While not always necessary in PyChrono scripts, it is good practice to handle potential exceptions, especially for file loading or dynamic casting.  
-- The custom motor function does not handle edge cases explicitly (e.g., negative `x` values), but the function returns 0 for `x >= T3`, which is acceptable.  
-- The code assumes that `builder.GetLastBeamNodes()` returns a non-empty list; no checks are made.  
-- The visualization loop assumes `vis.Run()` will always be valid.  
-- No checks for solver initialization success or mesh validity.  
+- No explicit error handling (try-except blocks) or input validation.  
+- The custom motor function does not handle negative or out-of-range inputs robustly (e.g., negative `x` values).  
+- No checks for empty node lists before accessing indices.  
+- However, PyChrono scripts often omit explicit error handling for brevity, but best practice suggests at least minimal checks.  
 
 **Deductions:**  
-- 5 points for lack of any error handling or robustness checks.
+- Lack of basic error handling: -5 points  
+
+**Error handling score:** 0
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
-- Visualization system is set up correctly with window size, title, logo, skybox, camera, and lights.  
-- Two visual shapes for the mesh are added: surface and node coordinate systems, which is good practice.  
-- The camera is positioned reasonably.  
-- Lighting is added with `AddTypicalLights()`.  
-- No obvious visualization misconfigurations.  
-- Minor issue: The logo file path is hardcoded using `chrono.GetChronoDataFile('logo_pychrono_alpha.png')`, which is correct but assumes the data path is set correctly elsewhere (not shown).  
-- No advanced visualization features like shadows or post-processing are used, but not required.  
+- Visualization system is properly created and attached. ✔️  
+- Window size and title set. ✔️  
+- Logo, skybox, camera, and typical lights added. ✔️  
+- Visual shapes for FEM mesh added with appropriate data types and glyphs. ✔️  
+- Minor issue: The camera is added with `vis.AddCamera(chrono.ChVector3d(0, 1, 4), chrono.ChVector3d(beam_L / 2, 0, 0))` which is correct.  
+- No obvious visualization misconfigurations.
 
-**Deductions:**  
-- No major issues; minor 2 points deduction for assuming data path setup for logo.
+**No deductions.**
 
 ---
 
-### **Summary of Deductions**
+### **Final scoring:**
 
-| Category                      | Points | Reason                                                                                   |
-|-------------------------------|--------|------------------------------------------------------------------------------------------|
-| Completeness                  | -5     | Minor deviations: order=1 vs comment, manual pi constant                                |
-| Correctness                  | -30    | Incorrect `.size()` usage, wrong motor function setter, invalid joint initialization    |
-| Code Quality                 | -8     | Semicolons, sparse comments, manual pi, inconsistent style                              |
-| Efficiency                  | -3     | Minor inefficiencies: manual pi, `pow()` usage                                          |
-| Error Handling and Robustness | -5     | No error handling or robustness checks                                                  |
-| Visualization Tools          | -2     | Minor assumption on data path for logo                                                  |
-| **Total Deductions**          | **-53**|                                                                                          |
-
----
-
-### Final Score Calculation
-
-- Completeness: 40 - 5 = 35  
-- Correctness: 30 - 30 = 0 (max deduction capped)  
-- Code Quality: 10 - 8 = 2  
-- Efficiency: 10 - 3 = 7  
-- Error Handling: 5 - 5 = 0  
-- Visualization: 5 - 2 = 3  
-
-**Total = 35 + 0 + 2 + 7 + 0 + 3 = 47 points**
+| Category                      | Points | Deductions | Score |
+|-------------------------------|--------|------------|-------|
+| Completeness                  | 40     | 5          | 35    |
+| Correctness                   | 30     | 30         | 0     |
+| Code Quality                  | 10     | 6          | 4     |
+| Efficiency                   | 10     | 3          | 7     |
+| Error Handling and Robustness | 5      | 5          | 0     |
+| Visualization Tools           | 5      | 0          | 5     |
+| **Total**                    | 100    | 49         | **51**|
 
 ---
 
-### **Final Score:**
+### **Summary of major issues:**
 
-[[47]]
+- Incorrect use of C++ style `.size()`, `.front()`, `.back()` on Python lists (runtime errors).  
+- Incorrect constructor call for `ChBodyEasyCylinder`.  
+- Incorrect joint initialization using nodes instead of bodies.  
+- Missing basic error handling.  
+- Minor style and efficiency issues.
 
 ---
 
-### **Explanation:**
+[[51]]
 
-The script includes all essential components and generally follows the PyChrono API structure. However, critical errors in API usage (such as using `.size()` on a Python list, incorrect motor function setter, and invalid joint initialization between a beam node and a rigid body) severely impact correctness and would prevent the simulation from running properly. Minor issues in code style, documentation, and efficiency further reduce the score. Lack of error handling and robustness checks also detract from the overall quality. Visualization is mostly well done with only minor assumptions.
+---
 
-Fixing the critical API misuse and improving code quality and robustness would significantly improve the score.
+**Explanation:**  
+The script covers all essential components and sets up a reasonably complete simulation with visualization. However, critical API misuse and logical errors related to Python list handling and joint initialization with nodes instead of bodies severely impact correctness and would prevent the script from running successfully. Minor style and efficiency issues further reduce the score. Visualization is well handled, but lack of error handling and robustness also deduct points. Overall, the script is a good starting point but requires significant corrections to be functional and robust.

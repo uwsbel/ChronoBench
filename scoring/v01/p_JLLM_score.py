@@ -646,8 +646,34 @@ system_list = ["art", "beam", "buckling", "cable",  "camera", "citybus", "curios
                "rigid_highway", "rigid_multipatches", "rotor", "scm", "scm_hill", "sedan", "sensros", "slider_crank", "tablecloth", "turtlebot", "uazbus", "veh_app","vehros","viper"]
 #system_do_list= ["rotor", "scm", "scm_hill", "sedan", "sensros", "slider_crank", "tablecloth", "turtlebot", "uazbus", "veh_app","vehros","viper"]
 system_do_list=system_list
+
+def is_already_evaluated(output_path, test_model, system_folder):
+    """Check if all score files exist for a model/system combination"""
+    required_files = [
+        'first_score_document.txt',
+        'second_score_document.txt', 
+        'third_score_document.txt',
+        'evaluation_scores.csv'
+    ]
+    
+    system_path = os.path.join(output_path, test_model, system_folder)
+    
+    if not os.path.exists(system_path):
+        return False
+    
+    for file in required_files:
+        file_path = os.path.join(system_path, file)
+        if not os.path.exists(file_path) or os.path.getsize(file_path) == 0:
+            return False
+    
+    return True
+
 def process_model_system(test_model, system_folder, dataset_path, Output_path, Output_conversation_path,
                          Output_statistic_path):
+    # Check if already evaluated
+    if is_already_evaluated(Output_path, test_model, system_folder):
+        print(f"⏭️  Skipping: {test_model}/{system_folder} (already evaluated)")
+        return f"Skipped: {system_folder} for model {test_model}"
     # Add model-specific delays to avoid hitting API rate limits
     # OpenAI models need longer delays due to strict rate limits
     if evaluated_model in ["gpt-4o", "gpt-4o-mini", "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano", "o3", "o4-mini"]:

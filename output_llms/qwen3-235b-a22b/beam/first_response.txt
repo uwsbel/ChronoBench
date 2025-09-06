@@ -1,102 +1,81 @@
-Here's a well-structured PyChrono simulation script that demonstrates the use of beam finite elements with visualization using the Irrlicht engine. The simulation includes a simple cantilever beam fixed at one end, made of a single beam element, and visualized in real-time.
-
----
-
-### ✅ Simulation Overview
-
-- **System Initialization**: A PyChrono `ChSystemNSC` is used to model non-smooth contact dynamics.
-- **Finite Element Mesh**: A mesh containing two nodes and one Euler-Bernoulli beam element is created.
-- **Material and Cross-Section**: The beam is assigned a linear elastic material and geometric properties.
-- **Constraints**: One node is fixed to the ground using a `ChLinkMateFix`.
-- **Visualization**: The beam is visualized using the Irrlicht engine, showing von Mises stress.
-
----
-
-### 🧱 Code Implementation
-
 ```python
 import pychrono as chrono
 import pychrono.fea as fea
-import pychrono.irrlicht as irr
+import pychrono.irrlicht as irrlicht
 
-# 1. Initialize the physical system
+# Create the physical system
 system = chrono.ChSystemNSC()
 
-# 2. Create a finite element mesh
+# Create the FEA mesh
 mesh = fea.ChMesh()
 
-# 3. Define two nodes for the beam
-nodeA = fea.ChNodeFEAxyz(chrono.ChVectorD(0, 0, 0))  # Fixed end
-nodeB = fea.ChNodeFEAxyz(chrono.ChVectorD(1, 0, 0))  # Free end
+# Material properties (Steel)
+E = 2e11  # Young's modulus in Pa
+nu = 0.3   # Poisson ratio
+rho = 7800 # Density in kg/m^3
+area = 0.01 # Cross-sectional area in m^2
+Iy = 0.0001 # Area moment of inertia in m^4 (Y-axis)
+Iz = 0.0001 # Area moment of inertia in Z-axis
+J = 0.0001  # Torsion constant in m^4
 
-# Add nodes to the mesh
-mesh.AddNode(nodeA)
-mesh.AddNode(nodeB)
+# Create beam material
+material = fea.ChMaterialBeam()
+material.SetYoungModulus(E)
+material.SetPoissonRatio(nu)
+material.SetDensity(rho)
+material.SetArea(area)
+material.SetIyy(Iy)
+material.SetIzz(Iz)
+material.SetJ(J)
 
-# 4. Define material properties for the beam
-# Young's modulus [Pa], Poisson ratio, Density [kg/m^3]
-material = fea.ChMaterialBeamIso(2e6, 0.3, 1000)
+# Beam geometry
+L = 1.0  # Length in meters
+num_elements = 10
+dx = L / num_elements
 
-# 5. Create a beam element
-beam_element = fea.ChElementBeamEuler()
-beam_element.SetNodes(nodeA, nodeB)
-beam_element.SetMaterial(material)
-beam_element.SetAx(0.01)    # Cross-sectional area [m^2]
-beam_element.SetIyy(0.0001)  # Area moment of inertia about y-axis [m^4]
-beam_element.SetIzz(0.0001)  # Area moment of inertia about z-axis [m^4]
-beam_element.SetJ(0.0002)    # Polar moment of inertia [m^4]
+# Create nodes
+nodes = []
+for i in range(num_elements + 1):
+    pos = chrono.ChVectorD(i * dx, 0, 0)
+    node = fea.ChNodeFEAxyz(pos)
+    nodes.append(node)
+    mesh.AddNode(node)
 
-# Add the beam element to the mesh
-mesh.AddElement(beam_element)
+# Fix the first node
+nodes[0].SetFixed(True)
 
-# 6. Add the mesh to the system
+# Create beam elements
+for i in range(num_elements):
+    element = fea.ChElementBeamEuler()
+    element.SetNodes(nodes[i], nodes[i+1])
+    element.SetMaterial(material)
+    mesh.AddElement(element)
+
+# Add the mesh to the system
 system.Add(mesh)
 
-# 7. Apply constraint: Fix nodeA to the ground
-constraint = chrono.ChLinkMateFix()
-constraint.Initialize(nodeA, system.GetGroundBody())
-system.Add(constraint)
+# Add visualization assets for the mesh
+vis = fea.ChVisualizationFEAmesh(mesh)
+vis.SetFEMdataType(fea.ChVisualizationFEAmesh.E_PLOT_BEAM)
+vis.SetBeamRadius(0.01)  # Visual radius of the beam elements
+mesh.AddAsset(vis)
+mesh.AddAsset(chrono.ChColorAsset(chrono.ChColor(0.4, 0.4, 1.0)))  # Blue color
 
-# 8. Add visualization assets to the mesh
-vis_mesh = fea.ChVisualizationFEAmesh(mesh)
-vis_mesh.SetFEMdataType(fea.ChVisualizationFEAmesh.E_PLOT_BEAM_VONMISES)  # Visualize von Mises stress
-vis_mesh.SetColorscaleMinMax(0, 500)  # Stress range for visualization
-mesh.AddAsset(vis_mesh)
-
-# 9. Set up Irrlicht visualization
-application = irr.ChIrrApp(system, 'PyChrono Beam Finite Element Simulation', irr.dimension2du(1024, 768))
-
+# Set up Irrlicht visualization
+application = irrlicht.ChIrrApp(system, 'PyChrono Beam Simulation', irrlicht.dimension2du(1024, 768))
+application.AddTypicalLogo()
 application.AddTypicalSky()
-application.AddTypicalLights()
-application.AddTypicalCamera(irr.vector3df(0, 2, -3))  # Camera position
+application.AddTypicalLights(irrlicht.vector3df(30, 100, 30))
+application.AddTypicalCamera(chrono.ChVectorD(0, 1, -3), chrono.ChVectorD(0, 0, 0))
 
+# Bind and update assets
 application.AssetBindAll()
 application.AssetUpdateAll()
 
-# 10. Simulation loop
+# Simulation loop
 while application.GetDevice().run():
     application.BeginScene()
     application.DrawAll()
-    application.EndScene()
     system.DoStepDynamics(0.01)
+    application.EndScene()
 ```
-
----
-
-### 📝 Notes
-
-- **Material and Cross-Section**: The beam uses a lower Young's modulus (`2e6 Pa`) to allow visible deformation under gravity. You can adjust this value for different stiffness levels.
-- **Visualization**: The simulation visualizes von Mises stress. You can switch to other FEM data types like displacement or strain by changing `SetFEMdataType`.
-- **Gravity**: The system uses the default gravity of `9.81 m/s²` in the negative Y-direction.
-
----
-
-### 🧪 Expected Behavior
-
-- The beam should visibly deform downward due to gravity.
-- The color gradient on the beam will reflect the von Mises stress distribution.
-- The simulation runs in real-time with Irrlicht rendering.
-
----
-
-This script provides a solid foundation for visualizing beam finite elements in PyChrono and can be extended with additional elements, loads, or constraints for more complex simulations.

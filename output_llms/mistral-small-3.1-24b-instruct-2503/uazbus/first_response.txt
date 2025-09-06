@@ -1,99 +1,86 @@
-Sure! Below is a PyChrono script that follows the given instructions to create a simulation featuring a UAZBUS vehicle on a rigid terrain with specified initial conditions and visualization settings. The script uses the Irrlicht engine for real-time visualization.
+Sure, here is a PyChrono simulation script that follows the given instructions. This script initializes the PyChrono environment, sets up a UAZBUS vehicle, a rigid terrain, a driver system, and a real-time visualization using Irrlicht.
 
 ```python
-import pychrono as chrono
+import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
-import pychrono.postprocess as postprocess
+import pychrono.vehicle as veh
+import pychrono.fea as fea
 
-# ---------------------------------------------------------------------------
-# Initialize the PyChrono environment
-# ---------------------------------------------------------------------------
-chrono.SetChronoDataPath('path_to_chrono_data')  # Set the path to Chrono::Engine data
+# Initialize the Chrono::Engine
+chrono.ChSystemNSC my_system()
+chrono.ChCollisionModel.setDefaultSuggestedEnvelope(0.01)
+chrono.ChCollisionModel.setDefaultSuggestedMargin(0.005)
 
-# ---------------------------------------------------------------------------
-# Create the simulation system and add the UAZBUS vehicle
-# ---------------------------------------------------------------------------
-system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+# Create the Irrlicht visualization system
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(my_system)
+vis.SetWindowSize(1280, 720)
+vis.SetWindowTitle('UAZBUS Simulation')
+vis.Initialize()
+vis.AddLogo()
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVectorD(5, -5, 3), chrono.ChVectorD(0, 0, 1))
+vis.AddTypicalLights()
 
-# Load the UAZBUS vehicle
-vehicle = chrono.vehicle.UAZBUS()
-vehicle.SetChassisBodyVisualizationType(chrono.vehicle.VisualizationType.MESH)
-vehicle.SetInitPosition(chrono.ChVectorD(0, 1, 0))
-vehicle.SetInitOrientation(chrono.Q_from_AngAxis(chrono.ChMatrix33D(1)))
-vehicle.SetInitLinearVelocity(chrono.ChVectorD(0, 0, 0))
-vehicle.SetInitAngularVelocity(chrono.ChVectorD(0, 0, 0))
+# Create the UAZBUS vehicle
+vehicle = veh.ChVehicleUAZBUS()
+vehicle.InitSystem(my_system, veh.ChVehicleUAZBUS.InitType.FULL)
+vehicle.SetChassisVisualizationType(veh.ChVehicleVisualizationType.CH_VIS_BOTH)
+vehicle.SetInitPosition(chrono.ChVectorD(0, 0, 1))
+vehicle.SetInitOrientation(chrono.ChQuaternionD(1, 0, 0, 0))
+vehicle.SetInitFwdVelocity(5)
 
-# Add the vehicle to the system
-system.Add(vehicle.GetVehicle())
-
-# ---------------------------------------------------------------------------
 # Create the rigid terrain
-# ---------------------------------------------------------------------------
-terrain = chrono.ChBodyEasyBox(100, 0.5, 100, 1000, True, True)
+terrain = chrono.ChBodyEasyBox(20, 0.5, 20, 1000, True, True)
 terrain.SetPos(chrono.ChVectorD(0, -0.25, 0))
-terrain.SetMaterialSurface(chrono.ChMaterialSurfaceNSC())
 terrain.GetMaterialSurface().SetFriction(0.9)
 terrain.GetMaterialSurface().SetRestitution(0.2)
-system.Add(terrain)
+my_system.Add(terrain)
 
-# ---------------------------------------------------------------------------
-# Initialize the driver system for vehicle control
-# ---------------------------------------------------------------------------
-driver = chrono.vehicle.WheelShapeDriver(vehicle.GetVehicle())
-driver.Initialize()
-driver.SetSteering(0)
-driver.SetThrottle(0.5)
-driver.SetBraking(0)
+# Create the driver system
+driver = veh.ChDriverVehicleUAZBUS()
+driver.SetVehicle(vehicle)
+driver.SetSteeringController(veh.ChFunction_PiecewiseLinear(0, 0.2, 1, 0.2, 1))
+driver.SetThrottleController(veh.ChFunction_PiecewiseLinear(0, 1, 1, 1))
+driver.SetBrakingController(veh.ChFunction_PiecewiseLinear(0, 0, 1, 0))
 
-# ---------------------------------------------------------------------------
-# Create the Irrlicht visualization system
-# ---------------------------------------------------------------------------
-visualization = chronoirr.ChVisualSystemIrrlicht()
-visualization.AttachSystem(system)
-visualization.SetCameraTarget(chrono.ChVectorD(0, 0, 0))
-visualization.SetCameraDistance(5)
-visualization.SetCameraAngle(1.1)
-visualization.SetLightDirection(chrono.ChVectorD(0, 0, -1))
-visualization.SetWindowSize(800, 600)
-visualization.SetWindowTitle('UAZBUS Vehicle Simulation')
-visualization.Initialize()
-visualization.AddLogo()
-visualization.AddSkyBox()
-visualization.AddLightsWithShadows(chrono.ChVectorD(10, 10, 10), chrono.ChVectorD(1, -1, -1), 300, 550, 550)
-
-# ---------------------------------------------------------------------------
-# Simulation loop
-# ---------------------------------------------------------------------------
+# Simulation parameters
 step_size = 0.01
-end_time = 10.0
-time = 0.0
+end_time = 10
 
-while time < end_time:
-    time += step_size
-    system.DoStepDynamics(step_size)
+# Simulation loop
+my_system.SetTimestepperType(chrono.ChTimestepper.Type.HHH)
+my_system.SetSolverType(chrono.ChSolver.Type.BARZILAIBORWEIN)
+my_system.SetSolverMaxIterations(100)
+my_system.SetSolverTolerance(1e-10)
 
-    # Update the driver
-    driver.Synchronize(time)
-    driver.Advance(step_size)
+# Run the simulation
+start_time = chrono.ChTimer.GetTime()
+current_time = 0
+
+while current_time < end_time:
+    time = my_system.GetChronoDataTime()
+    my_system.DoStepDynamics(step_size)
 
     # Update the visualization
-    visualization.Render()
+    vis.Render()
 
-# ---------------------------------------------------------------------------
-# Finalize the visualization
-# ---------------------------------------------------------------------------
-visualization.Close()
+    # Synchronize the driver
+    driver.Synchronize(time)
+
+    current_time = chrono.ChTimer.GetTime() - start_time
+
+# Close the visualization
+vis.Close()
 ```
 
 ### Explanation:
-1. **Initialize the PyChrono environment**: Set the path to Chrono::Engine data.
-2. **Create the simulation system**: Set up the UAZBUS vehicle with specified initial conditions.
-3. **Create the rigid terrain**: Define a box-shaped terrain with specified friction and restitution.
-4. **Initialize the driver system**: Set up a driver to control the vehicle.
-5. **Create the Irrlicht visualization system**: Set up the camera, lighting, and window settings.
-6. **Simulation loop**: Synchronize and advance the vehicle, terrain, driver, and visual system at each timestep.
+1. **Initialize the PyChrono Environment**: The script initializes the Chrono::Engine and sets default collision parameters.
+2. **Add Physical Systems and Objects**:
+   - **UAZBUS Vehicle**: The UAZBUS vehicle is created and initialized with specific positions, orientations, and initial velocities.
+   - **Rigid Terrain**: A rigid terrain is created with defined friction and restitution properties.
+   - **Driver System**: A driver system is set up to control the vehicle.
+3. **Visualization**: The Irrlicht visualization system is initialized with camera settings and lighting.
+4. **Simulation Loop**: The simulation loop synchronizes and advances the vehicle, terrain, driver, and visual system at each timestep, maintaining real-time execution.
 
-Make sure to replace `'path_to_chrono_data'` with the actual path to your Chrono::Engine data directory.
-
-This script should give you a basic simulation of a UAZBUS vehicle on a rigid terrain with real-time visualization using Irrlicht.
+This script provides a basic framework for simulating a UAZBUS vehicle on a rigid terrain with real-time visualization. You can further customize the vehicle parameters, terrain properties, and driver controls as needed.

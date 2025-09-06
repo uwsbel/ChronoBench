@@ -1,0 +1,68 @@
+# Import necessary libraries
+import os
+import math
+import numpy as np
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
+
+# Set Chrono's data path
+chrono.SetChronoDataPath(os.path.join(os.getcwd(), '..', '..', '..', '..', 'data'))
+
+# Initialize the system and visualization
+sys = chrono.ChSystemSMC()
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(sys)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle('Simple Pendulum Simulation')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVector3d(0, 0, -5))
+vis.AddTypicalLights()
+
+# Define material properties
+material = chrono.ChContactMaterial()
+material.SetFriction(0.4)
+material.SetDampingF(0.1)
+material.SetCompliance(0.01)
+sys.AddContactMaterial(material)
+
+# Create and add ground body
+ground = chrono.ChBody()
+ground.SetBodyFixed(True)
+ground_shape = chrono.ChVisualShapeBox(chrono.ChVector3d(10, 10, 10))
+ground.AddVisualShape(ground_shape)
+sys.Add(ground)
+
+# Create and add pendulum body
+pendulum = chrono.ChBody()
+pendulum.SetMass(1.0)
+pendulum.SetInertiaXX(chrono.ChVector3d(0.1, 0.1, 0.01))
+pendulum.SetPos(chrono.ChVector3d(0, 1, 0))
+pendulum_shape = chrono.ChVisualShapeSphere(0.5)
+pendulum.AddVisualShape(pendulum_shape, chrono.ChFrameD(chrono.ChVector3d(0, 0, 0), chrono.QUNIT))
+sys.Add(pendulum)
+
+# Create and add revolute joint
+joint = chrono.ChLinkLockRevolute()
+joint.Initialize(ground, pendulum, chrono.ChCoordsysD(chrono.ChVector3d(0, 1, 0), chrono.QUNIT))
+sys.Add(joint)
+
+# Simulation loop
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+
+    # Update the system and log pendulum's position and velocity
+    sys.DoStepDynamics(0.01)
+    pendulum_pos = pendulum.GetPos()
+    pendulum_vel = pendulum.GetPos_dt()
+    print(f'Pendulum position: {pendulum_pos}, Velocity: {pendulum_vel}')
+
+    # Break the loop if the pendulum hits the ground
+    if pendulum_pos.y < 0.5:
+        break
+
+# Clean up and exit
+vis.GetDevice().closeDevice()

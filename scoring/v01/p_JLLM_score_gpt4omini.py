@@ -704,7 +704,7 @@ logger.info(f"Processing {len(test_model_list)} models × {len(system_do_list)} 
 logger.info("="*60)
 
 # Use low concurrency for OpenAI models
-max_workers = 2
+max_workers = 10
 logger.info(f"Using reduced concurrency (max_workers={max_workers}) for OpenAI judge model: {evaluated_model}")
 
 with ThreadPoolExecutor(max_workers=max_workers) as executor:

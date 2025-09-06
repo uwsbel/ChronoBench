@@ -1,97 +1,94 @@
-To create the described PyChrono simulation, you will need to follow a series of steps to initialize the environment, set up the vehicle, configure the terrain, and implement the visualization and interaction systems. Below is a comprehensive script that accomplishes these tasks:
+Certainly! Below is a PyChrono script that follows the specified instructions for simulating a full HMMWV on SCM deformable terrain using Irrlicht for visualization.
 
 ```python
-import pychrono as chrono
+import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
 import pychrono.vehicle as veh
+import pychrono.solvers as solvers
 
-# 1. Initialize the PyChrono environment and core components
-chrono.SetChronoDataPath('path/to/chrono/data')  # Set the path to Chrono::Engine data directory
+# Initialize the PyChrono environment
+chrono.SetChronoDataPath('../data/')  # Set the path to the Chrono data directory
 
-# Create the system
+# Create a Chrono::Engine physical system
 system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
 
 # Create the Irrlicht visualization system
-vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(system)
-vis.SetWindowSize(1280, 720)
-vis.SetWindowTitle('HMMWV on SCM Terrain')
-vis.Initialize()
-vis.AddTypicalSky()
-vis.AddTypicalLogo(chrono.GetChronoDataFile('logo_pychrono_white.png'))
-vis.AddLightWithShadow(chrono.ChVectorD(1.0, -1.0, 1.0), chrono.ChVectorD(0, 0, 0), 1, 1, 10, 50, 512)
-vis.SetCameraVertical(chrono.CameraVerticalDir_Z)
+visualization = chronoirr.ChIrrApp()
+visualization.AddTypicalSky()
+visualization.AddTypicalLogo(chrono.GetChronoDataFile('logo_pychrono_small.png'))
+visualization.AddTypicalCamera(chrono.ChVectorD(0, 5, -3), chrono.ChVectorD(0, 0, 0))
+visualization.AddTypicalLights()
+visualization.SetWindowSize(1280, 1024)
+visualization.SetWindowTitle('HMMWV on SCM Terrain')
+visualization.Initialize()
+visualization.AssetBind(system)
 
-# 2. Add the required physical systems and objects
-# Load the HMMWV vehicle
-vehicle = veh.HMMWV()
-vehicle.SetChassisBodyVisualizationType(veh.ChVisualizationType_MESH)
-vehicle.SetTireVisualizationType(veh.ChVisualizationType_MESH)
-vehicle.SetInitPosition(chrono.ChVectorD(0, 1, 0))
-vehicle.SetInitOrientation(chrono.Q_from_AngAxis(chrono.CHRONO_PI_2, chrono.ChVectorD(0, 0, 1)))
+# Create the SCM terrain
+terrain = veh.ChTerrainSCM()
+terrain.Initialize(100, 100, 0.5, 0.5, chrono.ChVectorD(0, -0.5, 0))
+terrain.SetContactMaterial(0.3, 0.01, 0.01, 0.01, 10, 10, 10, 10)
+terrain.SetCustomSoilParameters(0.2, 100000, 100000, 100000, 100000, 0.01, 0.01, 0.01)
+terrain.EnableFalseColorVisualization()
+terrain.EnableMovingPatch(True, 2, 2, chrono.ChVectorD(0, 0, 0))
+
+# Add the terrain to the system
+system.Add(terrain)
+
+# Create the HMMWV vehicle
+vehicle = veh.ChVehicleHMMWV()
+vehicle.Initialize()
+vehicle.SetChassisBodyVisualizationType(veh.ChVehicleVisualizationType.MESH)
+vehicle.SetChassisBodyMeshFilename(chrono.GetChronoDataFile('vehicle/hmmwv/chassis_chassis_body.obj'))
+vehicle.SetInitPosition(chrono.ChVectorD(0, 0, 0.5))
+vehicle.SetInitOrientation(chrono.Q_from_AngAxis(chrono.ChMatrix33D(1)))
 
 # Add the vehicle to the system
-vehicle.System().Setup(chrono.ChSystemNSC())
-system.Add(vehicle.System())
+system.Add(vehicle.GetVehicleSystem())
 
-# 3. Configure the SCM terrain
-terrain = veh.SCMDeformableTerrain(system)
-terrain.SetTextureFilename(chrono.GetChronoDataFile('terrain/textures/grass.png'))
-terrain.SetMeshFilename(chrono.GetChronoDataFile('terrain/meshes/flat.obj'))
-terrain.SetDeformableMeshFilename(chrono.GetChronoDataFile('terrain/meshes/flat_deformable.obj'))
-terrain.SetMaterialProperties(2e6, 100, 100, 20, 0.01, 40, 40, 80, 0.01, 50)
-terrain.SetPatchSize(4, 4)
-terrain.SetMovingPatch(vehicle.GetChassis().GetBodyFrame())
-terrain.SetSinkageVisualization(True)
-terrain.Initialize()
+# Set up the driver system
+driver = veh.ChDriverVehicle()
+driver.SetVehicle(vehicle)
+driver.SetSteeringController(veh.ChDriverSteeringController_PID())
+driver.SetThrottleController(veh.ChDriverThrottleController_PID())
+driver.SetBrakingController(veh.ChDriverBrakingController_PID())
+driver.SetSteeringControllerParameters(0.1, 0, 0)
+driver.SetThrottleControllerParameters(0.1, 0, 0)
+driver.SetBrakingControllerParameters(0.1, 0, 0)
+driver.SetSteeringInput(0)
+driver.SetThrottleInput(0)
+driver.SetBrakingInput(0)
 
-# 4. Set up the interactive driver system
-driver = veh.ChDriver()
-driver.Initialize(vehicle, system)
-driver.SetSteeringController(veh.ChGeneric_2DOF_Controller(1.5, 1.0, 0.2, 0.1, 0.1))
-driver.SetThrottleController(veh.ChProportionalController(0.2))
-driver.SetBrakingController(veh.ChProportionalController(1.0))
+# Set up the simulation parameters
+system.SetSolverType(solvers.ChSolverMINRES())
+system.SetMaxPenetrationRecoverySpeed(1.0)
+system.SetTimestepperType(chrono.ChTimestepperEulerImplicit)
+system.SetMaxIterationsSpeed(100)
+system.SetMaxIterationsStab(100)
 
-# 5. Run the simulation in real time
-run_time = 10  # seconds
-current_time = 0
-time_step = 1.0 / 50  # 50 frames per second
+# Run the simulation in real-time
+run_time = 10.0  # Total simulation time in seconds
+step_size = 1.0 / 50.0  # Time step for 50 FPS
+current_time = 0.0
 
 while current_time < run_time:
-    system.DoStepDynamics(time_step)
-    vis.Render()
-    current_time += time_step
+    visualization.BeginScene()
+    visualization.Render()
 
-vis.Close()
+    system.DoStepDynamics(step_size)
+
+    visualization.EndScene()
+    current_time += step_size
+
+# Close the Irrlicht visualization
+visualization.Close()
 ```
 
 ### Explanation:
-1. **Initialization**:
-   - The `chrono.SetChronoDataPath` sets the path to the Chrono::Engine data directory.
-   - `chrono.ChSystemNSC` creates the main Chrono system.
-   - `chrono.ChVectorD` sets the gravitational acceleration.
-   - `chronoirr.ChVisualSystemIrrlicht` initializes the Irrlicht visualization system.
+1. **Initialize the PyChrono environment**: Set the Chrono data path and create the physical system and visualization system.
+2. **Create the SCM terrain**: Initialize the terrain with custom soil parameters, enable false color visualization, and moving patch feature.
+3. **Create the HMMWV vehicle**: Initialize the vehicle with specific parameters, including position, orientation, and mesh visualization.
+4. **Set up the driver system**: Configure steering, throttle, and braking controllers.
+5. **Run the simulation**: Execute the simulation in real-time with a frame rate of 50 FPS.
 
-2. **Vehicle Setup**:
-   - The HMMWV vehicle is created and configured with mesh visualization for the chassis and tires.
-   - The vehicle's initial position and orientation are set.
-   - The vehicle is added to the Chrono system.
-
-3. **Terrain Configuration**:
-   - The SCM deformable terrain is created with custom soil parameters.
-   - The terrain mesh and texture files are specified.
-   - The terrain is configured to visualize sinkage with false color plotting.
-   - A moving patch feature is enabled to follow the vehicle chassis.
-
-4. **Driver System**:
-   - An interactive driver system is set up to control steering, throttle, and braking.
-   - Controllers are configured for steering, throttle, and braking.
-
-5. **Simulation Loop**:
-   - The simulation runs in real time, updating the vehicle dynamics and rendering the scene at 50 frames per second.
-
-### Notes:
-- Ensure that the paths to the Chrono data files and terrain meshes/textures are correct.
-- Adjust the simulation parameters (e.g., run time, time step) as needed.
-- This script assumes that the necessary Chrono and Irrlicht libraries are properly installed and configured.
+This script sets up the environment, adds the necessary components, and runs the simulation as specified. Adjust the parameters and paths as needed for your specific setup.

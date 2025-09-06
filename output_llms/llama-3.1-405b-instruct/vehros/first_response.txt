@@ -1,91 +1,74 @@
-Here is a PyChrono simulation script based on the provided instructions:
+Here's a sample PyChrono simulation script based on the given instructions:
+
 ```python
 import pychrono.core as chrono
 import pychrono.vehicle as veh
 import pychrono.irrlicht as irr
 import rospy
+from ros_chrono.msg import VehicleState, DriverInputs
 
 # Initialize PyChrono environment
 chrono.SetChronoDataPath('/path/to/chrono/data/')
 
-# Create a Chrono::Engine physical system
+# Create a ChronoEngine physical system
 sys = chrono.ChSystemNSC()
 
-# Create an HMMWV vehicle with specific parameters
+# Set default parameters
+contact_method = chrono.ChMaterialSurface::NSC
+engine_type = veh.ChPart::ENGINE_TYPE_GASOLINE
+tire_model = veh.ChPart::TIRE_MODEL_PACEJKA
+
+# Create an HMMWV vehicle
 vehicle = veh.ChHMMWV()
-vehicle.SetContactMethod(veh.ChHMMWV.ContactMethod_SHAFTS)
-vehicle.SetEngineType(veh.ChHMMWV.EngineType_SIMPLE)
-vehicle.SetTireModel(veh.ChHMMWV.TireModel_RIGID)
+vehicle.Initialize(sys, contact_method, engine_type, tire_model)
 
-# Set vehicle initial position and orientation
-vehicle.SetPos(chrono.ChVectorD(0, 0, 0.5))
-vehicle.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
-
-# Add vehicle to the system
-sys.Add(vehicle)
-
-# Create a terrain with defined friction and restitution
-terrain = chrono.ChBodyEasyBox(sys.GetGroundBody(), 10, 10, 1, 1000, True, True)
+# Create a terrain
+terrain = veh.ChTerrain()
+terrain.Initialize(sys, 'path/to/terrain/mesh.obj')
 terrain.SetFriction(0.8)
 terrain.SetRestitution(0.2)
 
-# Add terrain to the system
-sys.Add(terrain)
+# Create a driver system
+driver = veh.ChDriver()
+driver.Initialize(vehicle, sys)
 
-# Initialize a driver system for vehicle control
-driver = veh.ChIrrNodeApplication(vehicle)
-driver.SetSteeringIncrement(0.1)
-driver.SetThrottleIncrement(0.1)
-driver.SetBrakingIncrement(0.1)
-
-# Add driver to the system
-sys.Add(driver)
-
-# Integrate ROS for communication
+# Initialize ROS node
 rospy.init_node('pychrono_simulation')
 
-# Register handlers for clock synchronization, driver inputs, and vehicle state
+# Register ROS handlers
 def clock_sync_handler(msg):
-    sys.SetTime(msg.clock)
+    sys.SetChTime(msg.time)
 
-def driver_input_handler(msg):
+def driver_inputs_handler(msg):
     driver.SetSteering(msg.steering)
     driver.SetThrottle(msg.throttle)
     driver.SetBraking(msg.braking)
 
-def vehicle_state_handler(msg):
-    vehicle.SetPos(msg.position)
-    vehicle.SetRot(msg.orientation)
+def vehicle_state_publisher():
+    msg = VehicleState()
+    msg.position = vehicle.GetPos()
+    msg.velocity = vehicle.GetVel()
+    msg.acceleration = vehicle.GetAcc()
+    rospy.Publisher('vehicle_state', VehicleState, queue_size=10).publish(msg)
 
-rospy.Subscriber('/clock', Clock, clock_sync_handler)
-rospy.Subscriber('/driver_input', DriverInput, driver_input_handler)
-rospy.Subscriber('/vehicle_state', VehicleState, vehicle_state_handler)
-
-# Create a ROS manager for data publishing
-ros_manager = chrono.ChRosManager(sys, 'pychrono_simulation')
+rospy.Subscriber('clock_sync', rospy.Time, clock_sync_handler)
+rospy.Subscriber('driver_inputs', DriverInputs, driver_inputs_handler)
 
 # Simulation loop
-while sys.GetTime() < 100:
-    # Synchronize and advance the vehicle, terrain, and driver systems
-    sys.DoStepDynamics(0.01)
+while not rospy.is_shutdown():
+    # Synchronize systems
+    sys.DoStepDynamics(chrono.ChTimeStep(1e-3))
     driver.Synchronize()
     terrain.Synchronize()
 
-    # Update the ROS manager for data publishing
-    ros_manager.Update()
+    # Advance systems
+    sys.DoStepKinematics()
+    driver.Advance()
+    terrain.Advance()
 
-    # Publish vehicle state and driver inputs
-    vehicle_state_msg = VehicleState()
-    vehicle_state_msg.position = vehicle.GetPos()
-    vehicle_state_msg.orientation = vehicle.GetRot()
-    rospy.publish('/vehicle_state', vehicle_state_msg)
-
-    driver_input_msg = DriverInput()
-    driver_input_msg.steering = driver.GetSteering()
-    driver_input_msg.throttle = driver.GetThrottle()
-    driver_input_msg.braking = driver.GetBraking()
-    rospy.publish('/driver_input', driver_input_msg)
+    # Update ROS manager
+    vehicle_state_publisher()
+    rospy.sleep(0.001)
 ```
-This script initializes a PyChrono simulation environment and creates an HMMWV vehicle with specific parameters. It sets up a terrain with defined friction and restitution and initializes a driver system for vehicle control. The script integrates ROS for communication, registering handlers for clock synchronization, driver inputs, and vehicle state. Finally, it implements a simulation loop that synchronizes and advances the vehicle, terrain, and driver systems at each timestep, updating the ROS manager for data publishing.
 
-Note that this script assumes that the necessary ROS messages (e.g., `Clock`, `DriverInput`, `VehicleState`) have been defined and are available in the ROS environment. Additionally, the script uses placeholder values for the vehicle's initial position and orientation, as well as the terrain's dimensions and properties. These values should be adjusted according to the specific requirements of the simulation.
+Note that this script assumes you have the necessary dependencies installed, including PyChrono, ROS, and the required message packages. You may need to modify the script to fit your specific use case. Additionally, this script is for demonstration purposes only and may not work as-is in your environment.

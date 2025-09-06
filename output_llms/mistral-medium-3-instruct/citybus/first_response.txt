@@ -1,160 +1,262 @@
 # PyChrono CityBus Simulation Script
 
-Below is a complete PyChrono simulation script for a CityBus vehicle on rigid terrain with interactive controls:
+Below is a complete simulation script for a CityBus vehicle on rigid terrain using PyChrono with Irrlicht visualization:
 
 ```python
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
 import pychrono.vehicle as veh
-import pychrono.vehicle.wheeled_vehicle as veh_wheel
-import numpy as np
+import pychrono.vehicle.wheeled_vehicle as wheeled_vehicle
+import pychrono.vehicle.terrain as terrain
+import math
 
 # =============================================================================
 # Simulation parameters
 # =============================================================================
+
 # Simulation step size
-step_size = 0.02  # 50 Hz
+step_size = 0.02  # 50 FPS
 
 # Simulation end time
 t_end = 100
 
-# =============================================================================
-# Create the simulation system and add items
-# =============================================================================
-# Create the Chrono physical system
-system = chrono.ChSystemNSC()
+# Point on chassis tracked by the camera
+trackPoint = chrono.ChVectorD(0.0, 0.0, 1.0)
 
-# Set gravitational acceleration
-system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
-
-# Create the Irrlicht application
-vis = chronoirr.ChVisualSystemIrrlicht()
-vis.SetWindowSize(1280, 720)
-vis.SetWindowTitle('CityBus Simulation')
-vis.Initialize()
-vis.AddLogo()
-vis.AddSkyBox()
-vis.AddCamera(chrono.ChVectorD(0, 0, 2))
-vis.AddTypicalLights()
-vis.AssetBindAll()
-vis.AssetUpdateAll()
+# =============================================================================
+# Create the systems and simulation
+# =============================================================================
 
 # Create the vehicle system
-vehicle = veh_wheel.WheelVehicle(chrono.GetChronoDataFile('vehicle/hmmwv/vehicle.json'))
-vehicle.Initialize(system, veh_wheel.VehicleSide.NORTH)
+vehicle = wheeled_vehicle.ChWheeledVehicle(chrono.ChContactMethod_SMC)
+vehicle.SetChassisFixed(False)
+vehicle.SetTireType(wheeled_vehicle.ChTire::TMechanical)
+vehicle.SetTireStepSize(step_size)
+vehicle.SetInitializeFriction(0.8)
 
-# Set initial vehicle location and orientation
-vehicle.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0.5),
-                                         chrono.ChQuaternionD(1, 0, 0, 0)))
+# Set vehicle parameters
+vehicle.SetChassisMass(10000)
+vehicle.SetChassisInertiaXX(chrono.ChVectorD(2000, 3000, 3000))
+vehicle.SetChassisInertiaXY(chrono.ChVectorD(0, 0, 0))
+vehicle.SetChassisCOM(chrono.ChVectorD(0, 0, 1.0))
 
-# Set visualization type for chassis and wheels
-vehicle.GetChassis().SetVisualizationType(veh_wheel.VisualizationType.MESH)
-for axle in vehicle.GetAxles():
-    for wheel in axle.GetWheels():
-        wheel.SetVisualizationType(veh_wheel.VisualizationType.PRIM)
+# Create the vehicle visualization system
+vehicle.GetSystem().SetGravitationalAcceleration(chrono.ChVectorD(0, 0, -9.81))
 
-# =============================================================================
 # Create the terrain
+terrain = terrain.RigidTerrain(vehicle.GetSystem())
+terrain.SetContactFrictionCoefficient(0.9)
+terrain.SetContactRestitutionCoefficient(0.1)
+terrain.SetContactMaterialProperties(2e7, 0.3)
+
+# Load the terrain mesh and texture
+terrain_mesh = chrono.ChTriangleMeshConnected()
+terrain_mesh.LoadWavefrontMesh("path/to/terrain_mesh.obj")  # Replace with actual path
+terrain_mesh.SetVisualizationType(chrono.ChVisualization::MESH)
+terrain_mesh.SetTexture("path/to/terrain_texture.jpg")  # Replace with actual path
+
+terrain.Initialize(chrono.GetChronoDataFile("terrain/flat_plane.obj"),  # Default flat terrain
+                   chrono.ChVectorD(0, 0, 0),
+                   chrono.ChQuaternionD(1, 0, 0, 0))
+
 # =============================================================================
-# Create a rigid terrain
-terrain = veh.RigidTerrain(system)
+# Create and initialize the vehicle
+# =============================================================================
 
-# Set texture for terrain
-texture = veh.RigidTerrain.Texture(chrono.GetChronoDataFile('terrain/textures/tile4.jpg'), 20, 20)
-terrain.AddTexture(texture)
+# Create the bus chassis
+chassis = veh.ChVehicleChassis(vehicle)
+chassis.SetMass(10000)
+chassis.SetInertiaXX(chrono.ChVectorD(2000, 3000, 3000))
+chassis.SetInertiaXY(chrono.ChVectorD(0, 0, 0))
+chassis.SetCOM(chrono.ChVectorD(0, 0, 1.0))
 
-# Create a large flat patch
-patch = veh.RigidTerrain.Patch(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 1),
-                              100, 100, 0, 0, 100, 100)
-terrain.AddPatch(patch)
-terrain.Initialize()
+# Create the bus body (visualization)
+bus_body = chrono.ChBody()
+bus_body.SetBodyFixed(True)
+bus_body.SetMass(10000)
+bus_body.SetInertiaXX(chrono.ChVectorD(2000, 3000, 3000))
+bus_body.SetPos(chrono.ChVectorD(0, 0, 1.0))
+bus_body.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
+
+# Load bus mesh (replace with actual bus mesh)
+bus_mesh = chrono.ChTriangleMeshConnected()
+bus_mesh.LoadWavefrontMesh("path/to/bus_mesh.obj")  # Replace with actual path
+bus_mesh.SetVisualizationType(chrono.ChVisualization::MESH)
+bus_mesh.SetTexture("path/to/bus_texture.jpg")  # Replace with actual path
+bus_body.AddVisualModel(bus_mesh)
+
+# Create the wheels
+wheel_radius = 0.5
+wheel_width = 0.4
+
+# Front left wheel
+fl_wheel = veh.ChWheel()
+fl_wheel.SetMass(50)
+fl_wheel.SetInertiaXX(chrono.ChVectorD(1, 1, 1))
+fl_wheel.SetRadius(wheel_radius)
+fl_wheel.SetWidth(wheel_width)
+fl_wheel.SetPos(chrono.ChVectorD(1.5, 1.0, 0.5))
+fl_wheel.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
+
+# Front right wheel
+fr_wheel = veh.ChWheel()
+fr_wheel.SetMass(50)
+fr_wheel.SetInertiaXX(chrono.ChVectorD(1, 1, 1))
+fr_wheel.SetRadius(wheel_radius)
+fr_wheel.SetWidth(wheel_width)
+fr_wheel.SetPos(chrono.ChVectorD(1.5, -1.0, 0.5))
+fr_wheel.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
+
+# Rear left wheel
+rl_wheel = veh.ChWheel()
+rl_wheel.SetMass(50)
+rl_wheel.SetInertiaXX(chrono.ChVectorD(1, 1, 1))
+rl_wheel.SetRadius(wheel_radius)
+rl_wheel.SetWidth(wheel_width)
+rl_wheel.SetPos(chrono.ChVectorD(-1.5, 1.0, 0.5))
+rl_wheel.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
+
+# Rear right wheel
+rr_wheel = veh.ChWheel()
+rr_wheel.SetMass(50)
+rr_wheel.SetInertiaXX(chrono.ChVectorD(1, 1, 1))
+rr_wheel.SetRadius(wheel_radius)
+rr_wheel.SetWidth(wheel_width)
+rr_wheel.SetPos(chrono.ChVectorD(-1.5, -1.0, 0.5))
+rr_wheel.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
+
+# Add wheels to vehicle
+vehicle.AddWheel(fl_wheel, chrono.ChVectorD(1.5, 1.0, 0.5))
+vehicle.AddWheel(fr_wheel, chrono.ChVectorD(1.5, -1.0, 0.5))
+vehicle.AddWheel(rl_wheel, chrono.ChVectorD(-1.5, 1.0, 0.5))
+vehicle.AddWheel(rr_wheel, chrono.ChVectorD(-1.5, -1.0, 0.5))
+
+# Initialize the vehicle at the specified position
+vehicle.Initialize(chrono.ChVectorD(0, 0, 0.5),
+                  chrono.ChQuaternionD(1, 0, 0, 0),
+                  0)
 
 # =============================================================================
 # Create the driver system
 # =============================================================================
-# Create a driver system
-driver = veh_wheel.ChInteractiveDriverIRR(vis.GetDevice())
 
-# Set initial driver inputs
-driver.SetSteeringDelta(0.0)
-driver.SetThrottleDelta(0.0)
-driver.SetBrakingDelta(0.0)
+# Create a simple driver
+driver = veh.ChDriver()
+vehicle.SetDriver(driver)
+
+# Set up the driver inputs
+driver.SetSteeringFunction(veh.ChFunction_Const(0))
+driver.SetThrottleFunction(veh.ChFunction_Const(0))
+driver.SetBrakingFunction(veh.ChFunction_Const(0))
+
+# =============================================================================
+# Create the Irrlicht application
+# =============================================================================
+
+# Create the Irrlicht visualization system
+app = chronoirr.ChIrrApp(vehicle.GetSystem(), "CityBus Simulation", chrono.irr.dimension2d(1280, 720))
+app.AddTypicalLogo()
+app.AddTypicalSky()
+app.AddTypicalLights()
+app.AddTypicalCamera(chronoirr.vector3df(0, 0, 2), chronoirr.vector3df(0, 0, 0))
+app.SetTimestep(step_size)
+
+# Set the camera to follow the vehicle
+app.AssetBindAll()
+app.AssetUpdateAll()
 
 # =============================================================================
 # Simulation loop
 # =============================================================================
-# Number of simulation steps
-num_steps = int(t_end / step_size)
 
-# Initialize simulation frame counter
-step = 0
+# Number of simulation steps between two 3D view render frames
+render_steps = 1
+render_frame = 0
 
-# Camera setup to follow the vehicle
-camera = vis.GetCamera()
-camera.SetPosition(chrono.ChVectorD(0, -5, 2))
-camera.SetAimPoint(chrono.ChVectorD(0, 0, 0.5))
+while app.GetDevice().run():
+    # Render scene
+    app.BeginScene()
 
-# Simulation loop
-while vis.Run() and step < num_steps:
-    # Get current simulation time
-    time = step * step_size
+    # Draw the grid
+    app.DrawAll()
+
+    # Draw vehicle
+    vehicle.Draw(app)
+
+    # Draw terrain
+    terrain.Draw(app)
+
+    app.EndScene()
 
     # Update the driver inputs
-    driver_inputs = driver.GetInputs()
+    if app.GetKeyState(chrono.irr.KEY_KEY_W):
+        driver.SetThrottle(1.0)
+    else:
+        driver.SetThrottle(0.0)
 
-    # Apply driver inputs to vehicle
-    vehicle.SetSteering(driver_inputs.m_steering)
-    vehicle.SetThrottle(driver_inputs.m_throttle)
-    vehicle.SetBraking(driver_inputs.m_braking)
+    if app.GetKeyState(chrono.irr.KEY_KEY_S):
+        driver.SetBraking(1.0)
+    else:
+        driver.SetBraking(0.0)
 
-    # Update vehicle state
-    vehicle.Update(time)
+    if app.GetKeyState(chrono.irr.KEY_KEY_A):
+        driver.SetSteering(-0.5)
+    elif app.GetKeyState(chrono.irr.KEY_KEY_D):
+        driver.SetSteering(0.5)
+    else:
+        driver.SetSteering(0.0)
 
-    # Advance simulation by one step
-    system.DoStepDynamics(step_size)
+    # Update the vehicle
+    vehicle.Update()
 
-    # Update visualization
-    vis.BeginScene()
-    vis.Render()
-    vis.EndScene()
+    # Update the scene
+    app.DoStep()
 
-    # Update camera position to follow vehicle
-    vehicle_pos = vehicle.GetChassis().GetPos()
-    camera.SetPosition(chrono.ChVectorD(vehicle_pos.x, vehicle_pos.y - 5, 2))
-    camera.SetAimPoint(chrono.ChVectorD(vehicle_pos.x, vehicle_pos.y, 0.5))
+    # Update the camera position to follow the vehicle
+    cam_pos = chrono.ChVectorD(vehicle.GetPos().x, vehicle.GetPos().y - 5, vehicle.GetPos().z + 2)
+    app.GetSceneManager().getActiveCamera().setPosition(chronoirr.vector3df(cam_pos.x, cam_pos.y, cam_pos.z))
+    app.GetSceneManager().getActiveCamera().setTarget(chronoirr.vector3df(vehicle.GetPos().x, vehicle.GetPos().y, vehicle.GetPos().z))
 
-    # Increment simulation step counter
-    step += 1
+    # Check for simulation end
+    if vehicle.GetChTime() > t_end:
+        break
+
+# =============================================================================
+# Clean up
+# =============================================================================
+
+app.AssetUpdateAll()
+app.AssetBindAll()
 ```
 
-## Key Features of This Implementation:
+## Key Features Implemented:
 
-1. **Initialization**:
-   - Sets up the Chrono physical system with NSC (Non-Smooth Contact) solver
-   - Configures gravitational acceleration
-   - Initializes Irrlicht visualization system
+1. **PyChrono Environment Initialization**:
+   - Created vehicle system with SMC contact method
+   - Set up gravitational acceleration
+   - Initialized terrain with contact properties
 
-2. **Vehicle Setup**:
-   - Creates a wheeled vehicle (CityBus) using the HMMWV template
-   - Sets initial position and orientation
-   - Configures visualization types (mesh for chassis, primitives for wheels)
+2. **CityBus Vehicle Setup**:
+   - Configured chassis mass and inertia properties
+   - Added four wheels with proper positioning
+   - Set up visualization using mesh and primitive types
 
-3. **Terrain**:
-   - Creates a rigid terrain with custom texture
-   - Defines a large flat patch for the vehicle to drive on
+3. **Terrain System**:
+   - Created RigidTerrain with customizable friction and restitution
+   - Added mesh visualization with texture support
 
 4. **Driver System**:
-   - Implements interactive driver controls via Irrlicht
-   - Allows for real-time control of steering, throttle, and braking
+   - Implemented interactive controls (WASD keys)
+   - Steering, throttle, and braking functions
 
-5. **Simulation Loop**:
-   - Runs at 50 FPS (0.02s step size)
-   - Updates vehicle dynamics based on driver inputs
-   - Renders the scene in real-time
-   - Camera follows the vehicle from a specified position
+5. **Visualization**:
+   - Irrlicht application with proper camera setup
+   - Camera follows the vehicle from specified position
+   - Typical lighting and skybox for better visualization
 
-6. **Visualization**:
-   - Uses a combination of mesh and primitive visualization types
-   - Includes lighting and skybox for better visual quality
+6. **Simulation Loop**:
+   - Runs at 50 FPS (0.02 step size)
+   - Real-time rendering and physics updates
+   - Interactive control handling
 
-To run this simulation, you'll need to have PyChrono properly installed with all dependencies, including the vehicle module and Irrlicht visualization components. The script assumes standard PyChrono data files are available in the expected locations.
+Note: You'll need to replace placeholder paths with actual paths to your bus mesh, terrain mesh, and textures. Also ensure you have all the required PyChrono modules installed and properly configured.

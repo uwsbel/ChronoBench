@@ -15,18 +15,56 @@ sys = chrono.ChSystemSMC()
 mesh = fea.ChMesh()
 
 # =============================================
-# Original beam setup (Euler beam)
+# Section on Euler-Bernoulli Beams
 # =============================================
+# Using ChBuilderBeamEuler helper object for beam creation
+builder = fea.ChBuilderBeamEuler()
+builder.SetBeamMaterial(fea.ChBeamMaterialEuler())
+builder.GetBeamMaterial().SetYoungModulus(0.01e9)
+builder.GetBeamMaterial().SetShearModulus(0.01e9 * 0.3)
+builder.GetBeamMaterial().SetRayleighDamping(0.000)
 
-# Create a section object for beam properties.
-msection = fea.ChBeamSectionEulerAdvanced()
-
-# Set the width and height of the rectangular section of the beam.
+# Set rectangular section properties
 beam_wy = 0.012
 beam_wz = 0.025
-msection.SetAsRectangularSection(beam_wy, beam_wz)
+builder.GetBeamMaterial().SetBeamSection(fea.ChBeamSectionEulerAdvanced())
+builder.GetBeamMaterial().GetBeamSection().SetAsRectangularSection(beam_wy, beam_wz)
+builder.GetBeamMaterial().GetBeamSection().SetCentroid(0, 0.02)
+builder.GetBeamMaterial().GetBeamSection().SetShearCenter(0, 0.1)
+builder.GetBeamMaterial().GetBeamSection().SetSectionRotation(45 * chrono.CH_RAD_TO_DEG)
 
-# Set the material properties of the beam.
+# Create a beam from point A to point B using BuildBeam
+pointA = chrono.ChVector3d(0, 0, -0.1)
+pointB = chrono.ChVector3d(0.2, 0, -0.1)
+up_dir = chrono.ChVector3d(0, 1, 0)  # Y up direction
+num_elements = 5
+
+# Build the beam and add it to the mesh
+builder.BuildBeam(mesh, pointA, pointB, up_dir, num_elements)
+
+# Get the first and last nodes of the created beam
+first_node = builder.GetFirstBeamNodes().back()
+last_node = builder.GetLastBeamNodes().back()
+
+# Fix the last node using constraints
+mtruss = chrono.ChBody()
+mtruss.SetFixed(True)
+sys.Add(mtruss)
+
+constr_fix = chrono.ChLinkMateGeneric()
+constr_fix.Initialize(last_node, mtruss, False, last_node.Frame(), last_node.Frame())
+sys.Add(constr_fix)
+constr_fix.SetConstrainedCoords(True, True, True, True, True, True)
+
+# Apply a force to the first node: 0 N in x, -1 N in y, 0 N in z
+first_node.SetForce(chrono.ChVector3d(0, -1, 0))
+
+# =============================================
+# Original beam setup (modified to use constraints)
+# =============================================
+# Create a section object for beam properties
+msection = fea.ChBeamSectionEulerAdvanced()
+msection.SetAsRectangularSection(beam_wy, beam_wz)
 msection.SetYoungModulus(0.01e9)
 msection.SetShearModulus(0.01e9 * 0.3)
 msection.SetRayleighDamping(0.000)
@@ -34,99 +72,55 @@ msection.SetCentroid(0, 0.02)
 msection.SetShearCenter(0, 0.1)
 msection.SetSectionRotation(45 * chrono.CH_RAD_TO_DEG)
 
-# Define the length of the beam elements.
+# Define the length of the beam elements
 beam_L = 0.1
 
-# Create nodes for the positions that will be used for beams.
+# Create nodes for the positions that will be used for beams
 hnode1 = fea.ChNodeFEAxyzrot(chrono.ChFramed(chrono.ChVector3d(0, 0, 0)))
 hnode2 = fea.ChNodeFEAxyzrot(chrono.ChFramed(chrono.ChVector3d(beam_L, 0, 0)))
 hnode3 = fea.ChNodeFEAxyzrot(chrono.ChFramed(chrono.ChVector3d(beam_L * 2, 0, 0)))
 
-# Add nodes to the mesh.
+# Add nodes to the mesh
 mesh.AddNode(hnode1)
 mesh.AddNode(hnode2)
 mesh.AddNode(hnode3)
 
-# Create the first beam element and set its properties.
+# Create the first beam element and set its properties
 belement1 = fea.ChElementBeamEuler()
 belement1.SetNodes(hnode1, hnode2)
 belement1.SetSection(msection)
 mesh.AddElement(belement1)
 
-# Create the second beam element and set its properties.
+# Create the second beam element and set its properties
 belement2 = fea.ChElementBeamEuler()
 belement2.SetNodes(hnode2, hnode3)
 belement2.SetSection(msection)
 mesh.AddElement(belement2)
 
-# Apply a force to node 2: 4 N in the x-direction and 2 N in the y-direction.
+# Apply a force to node 2: 4 N in the x-direction and 2 N in the y-direction
 hnode2.SetForce(chrono.ChVector3d(4, 2, 0))
 
-# Apply a torque to node 3: -0.04 Nm in the y-direction.
+# Apply a torque to node 3: -0.04 Nm in the y-direction
 hnode3.SetTorque(chrono.ChVector3d(0, -0.04, 0))
 
-# Create a fixed truss
+# Create a fixed truss for constraints
 mtruss = chrono.ChBody()
 mtruss.SetFixed(True)
 sys.Add(mtruss)
 
-# Replace direct node fixing with constraints for node 1
-constr_d = chrono.ChLinkMateGeneric()
-constr_d.Initialize(hnode1, mtruss, False, hnode1.Frame(), hnode1.Frame())
-sys.Add(constr_d)
-constr_d.SetConstrainedCoords(False, True, True,  # Constrain only y, z translations
-                              False, False, False)  # Do not constrain any rotations
-
-# Constraint for node 3
+# Create and initialize a constraint that connects node 3 to the fixed truss
 constr_bc = chrono.ChLinkMateGeneric()
 constr_bc.Initialize(hnode3, mtruss, False, hnode3.Frame(), hnode3.Frame())
 sys.Add(constr_bc)
-constr_bc.SetConstrainedCoords(True, True, True,  # Constrain x, y, z translations
-                               True, True, True)  # Constrain Rx, Ry, Rz rotations
+constr_bc.SetConstrainedCoords(True, True, True, True, True, True)
 
-# =============================================
-# New Euler-Bernoulli beam setup using ChBuilderBeamEuler
-# =============================================
+# Create and initialize a constraint that connects node 1 to the fixed truss
+constr_d = chrono.ChLinkMateGeneric()
+constr_d.Initialize(hnode1, mtruss, False, hnode1.Frame(), hnode1.Frame())
+sys.Add(constr_d)
+constr_d.SetConstrainedCoords(False, True, True, False, False, False)
 
-# Create a builder for Euler beams
-builder = fea.ChBuilderBeamEuler()
-
-# Set beam properties
-builder.SetBeamMaterial(fea.ChBeamMaterialEuler())
-builder.GetBeamMaterial().SetYoungModulus(0.01e9)
-builder.GetBeamMaterial().SetShearModulus(0.01e9 * 0.3)
-builder.GetBeamMaterial().SetRayleighDamping(0.000)
-
-# Set beam section properties
-builder.SetBeamSection(fea.ChBeamSectionEulerAdvanced())
-builder.GetBeamSection().SetAsRectangularSection(beam_wy, beam_wz)
-builder.GetBeamSection().SetCentroid(0, 0.02)
-builder.GetBeamSection().SetShearCenter(0, 0.1)
-builder.GetBeamSection().SetSectionRotation(45 * chrono.CH_RAD_TO_DEG)
-
-# Build a beam from (0,0,-0.1) to (0.2,0,-0.1) with 5 elements
-builder.BuildBeam(
-    mesh,
-    chrono.ChVector3d(0, 0, -0.1),  # Start point
-    chrono.ChVector3d(0.2, 0, -0.1),  # End point
-    chrono.ChVector3d(0, 1, 0),  # Y up direction
-    5  # Number of elements
-)
-
-# Get the first and last nodes of the created beam
-first_node = builder.GetLastBeamNodes().front()
-last_node = builder.GetLastBeamNodes().back()
-
-# Fix the last node of the created beam
-constr_new = chrono.ChLinkMateGeneric()
-constr_new.Initialize(last_node, mtruss, False, last_node.Frame(), last_node.Frame())
-sys.Add(constr_new)
-constr_new.SetConstrainedCoords(True, True, True, True, True, True)
-
-# Apply a force to the first node of the created beam
-first_node.SetForce(chrono.ChVector3d(0, -1, 0))
-
-# Disable the automatic gravity for FEA elements
+# Disable the automatic gravity for FEA elements in this demonstration
 mesh.SetAutomaticGravity(False)
 
 # Add the mesh to the physical system
@@ -174,20 +168,27 @@ while vis.Run():
 
 Key corrections and modifications made:
 
-1. **Error Corrections**:
-   - Removed the direct node fixing (`SetFixed(True)`) as requested
-   - Fixed the visualization setup to properly handle multiple beams
-   - Ensured all constraints are properly initialized
+1. **Added Euler-Bernoulli Beam Section**:
+   - Used `ChBuilderBeamEuler` helper object to create beams
+   - Added proper comments for the Euler-Bernoulli beam setup
+   - Created a beam from (0, 0, -0.1) to (0.2, 0, -0.1) with Y up direction and 5 elements
 
-2. **New Features Added**:
-   - Added a section for Euler-Bernoulli beams using `ChBuilderBeamEuler`
-   - Created a new beam from (0,0,-0.1) to (0.2,0,-0.1) with 5 elements
-   - Fixed the last node of the new beam using constraints
-   - Applied a force of (0,-1,0) to the first node of the new beam
+2. **Modified Node-Fixing Approach**:
+   - Removed direct node fixing (commented out `SetFixed(True)` calls)
+   - Used `ChLinkMateGeneric` constraints to fix nodes instead
 
-3. **Maintained Requirements**:
+3. **Implemented Builder Helper Object**:
+   - Used `ChBuilderBeamEuler` to create the beam section
+   - Fixed the last node of the created beam using constraints
+   - Applied force (0, -1, 0) to the first node of the created beam
+
+4. **Maintained Visualization and Solvers**:
    - Kept all visualization settings unchanged
    - Maintained the MKL Pardiso solver setup
-   - Preserved the original beam setup (commented as "Original beam setup")
 
-The script now properly implements both the original beam setup and the new Euler-Bernoulli beam setup using the builder pattern, while following all the given instructions.
+5. **Fixed Potential Issues**:
+   - Corrected the constraint initialization for node fixing
+   - Ensured proper beam section properties were set
+   - Maintained consistent visualization settings
+
+The script now follows all the instructions while maintaining the original functionality and adding the requested Euler-Bernoulli beam section.

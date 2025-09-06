@@ -1,0 +1,200 @@
+import pychrono.core as chrono
+import pychrono.sensor as sens
+import numpy as np
+import time
+import math
+
+def main():
+    # ---------------------
+    # Simulation parameters
+    # ---------------------
+    step_size = 1e-3
+    end_time = 40.0
+    vis = True
+    out_dir = "SENSOR_OUTPUT/"
+    
+    # -----------------
+    # Lidar parameters
+    # -----------------
+    noise_model = "NONE"
+    return_mode = sens.LidarReturnMode_STRONGEST_RETURN
+    update_rate = 5.0
+    horizontal_samples = 800
+    vertical_samples = 300
+    horizontal_fov = 2 * chrono.CH_PI
+    max_vert_angle = chrono.CH_PI / 12
+    min_vert_angle = -chrono.CH_PI / 6
+    lag = 0
+    collection_time = 1. / update_rate
+    sample_radius = 2
+    divergence_angle = 0.003
+
+    # Box dimensions
+    side = 2.0  # Box side length
+
+    # -----------------
+    # Create the system
+    # -----------------
+    mphysicalSystem = chrono.ChSystemNSC()
+
+    # ----------------------------------
+    # Create a box instead of mesh object
+    # ----------------------------------
+    box_body = chrono.ChBodyEasyBox(side, side, side, 1000)  # Create box body
+    box_body.SetPos(chrono.ChVector3d(0, 0, 0))
+    box_body.SetFixed(True)
+    
+    # Add texture for visualization
+    box_vis = chrono.ChVisualShapeBox(side, side, side)
+    box_vis.SetTexture(chrono.GetChronoDataFile("textures/bluewhite.png"))
+    box_body.AddVisualShape(box_vis)
+    
+    mphysicalSystem.Add(box_body)
+
+    # -----------------------
+    # Create a sensor manager
+    # -----------------------
+    manager = sens.ChSensorManager(mphysicalSystem)
+
+    # ------------------------------------------------
+    # Create 3D lidar and add it to sensor manager
+    # ------------------------------------------------
+    offset_pose = chrono.ChFramed(
+        chrono.ChVector3d(-12, 0, 1), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
+    )
+    lidar = sens.ChLidarSensor(
+        box_body,              # Attach to box instead of mesh
+        update_rate,           
+        offset_pose,           
+        horizontal_samples,    
+        vertical_samples,      
+        horizontal_fov,        
+        max_vert_angle,        
+        min_vert_angle,        
+        100.0,                 
+        sens.LidarBeamShape_RECTANGULAR,
+        sample_radius,         
+        divergence_angle,      
+        divergence_angle,      
+        return_mode            
+    )
+    lidar.SetName("3D Lidar Sensor")
+    lidar.SetLag(lag)
+    lidar.SetCollectionWindow(collection_time)
+
+    # -----------------------------------------------------------------
+    # Create filter graph for 3D lidar
+    # -----------------------------------------------------------------
+    if noise_model == "CONST_NORMAL_XYZI":
+        lidar.PushFilter(sens.ChFilterLidarNoiseXYZI(0.01, 0.001, 0.001, 0.01))
+    elif noise_model == "NONE":
+        pass
+
+    if vis:
+        lidar.PushFilter(sens.ChFilterVisualize(horizontal_samples, vertical_samples, "3D Lidar Depth Data"))
+
+    lidar.PushFilter(sens.ChFilterDIAccess())
+    lidar.PushFilter(sens.ChFilterPCfromDepth())
+
+    if vis:
+        lidar.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "3D Lidar Point Cloud"))
+
+    lidar.PushFilter(sens.ChFilterXYZIAccess())
+    manager.AddSensor(lidar)
+
+    # ------------------------------------------------
+    # Create 2D lidar (1 vertical channel) and add it
+    # ------------------------------------------------
+    offset_pose_2d = chrono.ChFramed(
+        chrono.ChVector3d(-8, 0, 1.5),  # Different position
+        chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
+    )
+    lidar_2d = sens.ChLidarSensor(
+        box_body,              # Attach to box
+        update_rate,           
+        offset_pose_2d,        
+        horizontal_samples,    # Same horizontal resolution
+        1,                     # Only 1 vertical channel
+        horizontal_fov,        
+        0.001,                 # Very small vertical FOV
+        -0.001,                # Creates a single scanning plane
+        100.0,                 
+        sens.LidarBeamShape_RECTANGULAR,
+        sample_radius,         
+        divergence_angle,      
+        divergence_angle,      
+        return_mode            
+    )
+    lidar_2d.SetName("2D Lidar Sensor")
+    lidar_2d.SetLag(lag)
+    lidar_2d.SetCollectionWindow(collection_time)
+
+    # -----------------------------------------------------------------
+    # Create filter graph for 2D lidar
+    # -----------------------------------------------------------------
+    if noise_model == "CONST_NORMAL_XYZI":
+        lidar_2d.PushFilter(sens.ChFilterLidarNoiseXYZI(0.01, 0.001, 0.001, 0.01))
+    elif noise_model == "NONE":
+        pass
+
+    if vis:
+        lidar_2d.PushFilter(sens.ChFilterVisualize(horizontal_samples, 1, "2D Lidar Depth Data"))
+
+    lidar_2d.PushFilter(sens.ChFilterDIAccess())
+    lidar_2d.PushFilter(sens.ChFilterPCfromDepth())
+
+    if vis:
+        lidar_2d.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "2D Lidar Point Cloud"))
+
+    lidar_2d.PushFilter(sens.ChFilterXYZIAccess())
+    manager.AddSensor(lidar_2d)
+
+    # ---------------
+    # Simulate system
+    # ---------------
+    orbit_radius = 10
+    orbit_rate = 0.1
+    ch_time = 0.0
+
+    render_time = 0
+    t1 = time.time()
+
+    while ch_time < end_time:
+        # Update both lidars in orbit pattern
+        time_val = ch_time * orbit_rate
+        lidar.SetOffsetPose(
+            chrono.ChFramed(
+                chrono.ChVector3d(
+                    -orbit_radius * math.cos(time_val),
+                    -orbit_radius * math.sin(time_val),
+                    1
+                ),
+                chrono.QuatFromAngleAxis(time_val, chrono.ChVector3d(0, 0, 1))
+            )
+        )
+        
+        # Update 2D lidar in opposite orbit
+        lidar_2d.SetOffsetPose(
+            chrono.ChFramed(
+                chrono.ChVector3d(
+                    orbit_radius * math.cos(time_val),
+                    orbit_radius * math.sin(time_val),
+                    1.5
+                ),
+                chrono.QuatFromAngleAxis(-time_val, chrono.ChVector3d(0, 0, 1))
+            )
+        )
+
+        # Update sensor manager
+        manager.Update()
+
+        # Perform step of dynamics
+        mphysicalSystem.DoStepDynamics(step_size)
+
+        # Get current simulation time
+        ch_time = mphysicalSystem.GetChTime()
+
+    print("Sim time:", end_time, "Wall time:", time.time() - t1)
+
+if __name__ == "__main__":
+    main()

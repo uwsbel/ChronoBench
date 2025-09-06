@@ -1,4 +1,4 @@
-Here's a sample script that simulates the specified epicyclic gear system using PyChrono:
+Here's a sample script that simulates the specified system of epicyclic gears using PyChrono:
 
 ```python
 # Import necessary modules
@@ -7,63 +7,88 @@ import pychrono.irrlicht as chronoirr
 import numpy as np
 
 # Set the simulation parameters
-chrono.SetChronoDataPath('./data/')
+gears_radius = [0.1, 0.05]  # radius of the gears
+gears_thickness = 0.02  # thickness of the gears
+gears_distance = 0.2  # distance between the gears
+rotating_bar_length = 0.4  # length of the rotating bar
+rotating_bar_thickness = 0.01  # thickness of the rotating bar
+truss_length = 0.6  # length of the fixed truss
+truss_thickness = 0.02  # thickness of the fixed truss
+motor_torque = 0.1  # torque applied by the motor
+motor_speed = 2 * np.pi  # rotation speed enforced by the motor
 
-# Create a Chrono::Engine physical system
+# Initialize the Chrono environment
 my_system = chrono.ChSystemNSC()
 
 # Create the ground body
-ground = chrono.ChBodyEasyBox(10, 10, 0.1, 1000, True, True)
+ground = chrono.ChBodyEasyBox(my_system, 1, 1, 0.1, 1000, True, False)
+ground.SetPos(chrono.ChVectorD(0, 0, -0.05))
 my_system.Add(ground)
-ground.SetBodyFixed(True)
 
 # Create the fixed truss
-truss = chrono.ChBodyEasyBox(2, 0.2, 0.2, 1000, True, True)
+truss = chrono.ChBodyEasyBox(my_system, truss_length, truss_thickness, truss_thickness, 1000, True, False)
+truss.SetPos(chrono.ChVectorD(0, 0, truss_length / 2))
 my_system.Add(truss)
-truss.SetBodyFixed(True)
-truss.SetPos(chrono.ChVectorD(0, 0, 1))
 
 # Create the rotating bar
-bar = chrono.ChBodyEasyCylinder(0.1, 1, 1000, True, True)
-my_system.Add(bar)
-bar.SetPos(chrono.ChVectorD(0, 0, 2))
+rotating_bar = chrono.ChBodyEasyBox(my_system, rotating_bar_length, rotating_bar_thickness, rotating_bar_thickness, 1000, False, True)
+rotating_bar.SetPos(chrono.ChVectorD(0, 0, rotating_bar_length / 2))
+my_system.Add(rotating_bar)
 
-# Create the gear bodies
-gear1 = chrono.ChBodyEasyCylinder(0.2, 0.2, 1000, True, True)
-gear2 = chrono.ChBodyEasyCylinder(0.3, 0.2, 1000, True, True)
+# Create the gears
+gear1 = chrono.ChBodyEasyCylinder(my_system, gears_radius[0], gears_thickness, 1000, False, True)
+gear1.SetPos(chrono.ChVectorD(-gears_distance / 2, 0, gears_radius[0]))
 my_system.Add(gear1)
+
+gear2 = chrono.ChBodyEasyCylinder(my_system, gears_radius[1], gears_thickness, 1000, False, True)
+gear2.SetPos(chrono.ChVectorD(gears_distance / 2, 0, gears_radius[1]))
 my_system.Add(gear2)
-gear1.SetPos(chrono.ChVectorD(-0.5, 0, 2))
-gear2.SetPos(chrono.ChVectorD(0.5, 0, 2))
 
-# Create a revolute joint between the bar and gear1
-rev_joint = chrono.ChLinkRevolute()
-rev_joint.Initialize(bar, gear1, chrono.ChFrameD(chrono.ChVectorD(-0.5, 0, 2)))
-my_system.Add(rev_joint)
+# Add constraints
+# Fixed constraint between the truss and the ground
+fixed_constraint = chrono.ChLinkMateFix()
+fixed_constraint.Initialize(truss, ground, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.Q_from_AngX(0)))
+my_system.Add(fixed_constraint)
 
-# Create a revolute joint between the bar and gear2
-rev_joint2 = chrono.ChLinkRevolute()
-rev_joint2.Initialize(bar, gear2, chrono.ChFrameD(chrono.ChVectorD(0.5, 0, 2)))
-my_system.Add(rev_joint2)
+# Revolute constraint between the rotating bar and the truss
+revolute_constraint = chrono.ChLinkMateRevolute()
+revolute_constraint.Initialize(rotating_bar, truss, chrono.ChFrameD(chrono.ChVectorD(0, 0, rotating_bar_length / 2), chrono.Q_from_AngX(0)))
+my_system.Add(revolute_constraint)
 
-# Create a motor to enforce a constant rotation speed
+# Gear constraints between the gears and the rotating bar
+gear_constraint1 = chrono.ChLinkGear()
+gear_constraint1.Initialize(gear1, rotating_bar, chrono.ChFrameD(chrono.ChVectorD(-gears_distance / 2, 0, gears_radius[0]), chrono.Q_from_AngX(0)), -1)
+my_system.Add(gear_constraint1)
+
+gear_constraint2 = chrono.ChLinkGear()
+gear_constraint2.Initialize(gear2, rotating_bar, chrono.ChFrameD(chrono.ChVectorD(gears_distance / 2, 0, gears_radius[1]), chrono.Q_from_AngX(0)), 1)
+my_system.Add(gear_constraint2)
+
+# Add a motor to enforce a constant rotation speed
 motor = chrono.ChLinkMotorRotationSpeed()
-motor.Initialize(bar, gear1, chrono.ChFrameD(chrono.ChVectorD(-0.5, 0, 2)))
-motor.SetMotorFunction(chrono.ChFunction_Ramp(0, 10))
+motor.Initialize(rotating_bar, truss, chrono.ChFrameD(chrono.ChVectorD(0, 0, rotating_bar_length / 2), chrono.Q_from_AngX(0)))
+motor.SetMotorFunction(chrono.ChFunction_Const(motor_speed))
 my_system.Add(motor)
 
+# Add a torque to the motor
+torque = chrono.ChLinkMotorRotationTorque()
+torque.Initialize(rotating_bar, truss, chrono.ChFrameD(chrono.ChVectorD(0, 0, rotating_bar_length / 2), chrono.Q_from_AngX(0)))
+torque.SetMotorFunction(chrono.ChFunction_Const(motor_torque))
+my_system.Add(torque)
+
 # Create the Irrlicht visualization system
-application = chronoirr.ChIrrApp(my_system, 'Epicyclic Gear System', chronoirr.dimension2du(800, 600))
+application = chronoirr.ChIrrApp(my_system, 'Epicyclic Gears', chronoirr.dimension2du(800, 600))
+
+# Set the visualization parameters
 application.AddTypicalSky()
+application.AddTypicalCamera(chronoirr.vector3df(0, 0, 1))
 application.AddTypicalLights()
-application.AddCamera(chronoirr.vector3df(0, 0, 5))
 application.AssetBindAll()
 application.AssetUpdateAll()
 
-# Set the simulation time step and run the simulation
+# Run the simulation
 application.SetTimestep(0.01)
 application.SetTryRealtime(True)
-
 while application.GetDevice().run():
     application.BeginScene()
     application.DrawAll()
@@ -71,4 +96,4 @@ while application.GetDevice().run():
     application.EndScene()
 ```
 
-This script creates a simulation of an epicyclic gear system, including a fixed truss, a rotating bar, and two gears. A motor is used to enforce a constant rotation speed on one of the gears. The simulation is visualized using the Irrlicht system, with a camera positioned to view the entire setup. The script uses a time step of 0.01 seconds and attempts to run in real-time.
+This script creates a system of epicyclic gears with a fixed truss, a rotating bar, and two gears. A motor is added to enforce a constant rotation speed, and a torque is applied to the motor. The entire setup is visualized using the Irrlicht visualization system with typical sky, camera, and lights. The simulation is run in real-time with a time step of 0.01 seconds.

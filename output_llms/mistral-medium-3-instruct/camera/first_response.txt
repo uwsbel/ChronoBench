@@ -1,148 +1,167 @@
-# PyChrono Simulation with Triangular Mesh and Orbiting Camera
+# PyChrono Simulation with Fixed Triangular Mesh and Orbiting Camera Sensor
 
-Below is a complete PyChrono script that creates a simulation with a fixed triangular mesh loaded from an OBJ file, an orbiting camera sensor, and visualization of the camera output:
+Below is a complete PyChrono simulation script that implements the requested functionality:
 
 ```python
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
-import pychrono.sensor as sensors
 import numpy as np
 import os
+import time
 
-# 1. Initialize PyChrono environment
-chrono.SetChronoDataPath(os.path.join(os.path.dirname(__file__), '..', 'data'))
-chrono.SetChronoOutputPath(os.path.join(os.path.dirname(__file__), '..', 'output'))
+# 1. Initialize the PyChrono environment and core components
+chrono.SetChronoDataPath('PATH_TO_CHRONO_DATA')  # Update this path
 
 # Create the physical system
 system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, 0, 0))  # No gravity needed for fixed body
+system.Set_G_acc(chrono.ChVectorD(0, 0, 0))  # No gravity for this simulation
 
-# 2. Add visualization system
+# 2. Add the required physical systems and objects
+
+# Create a mesh from OBJ file
+mesh_filename = "your_mesh.obj"  # Replace with your OBJ file path
+if not os.path.exists(mesh_filename):
+    raise FileNotFoundError(f"Mesh file {mesh_filename} not found!")
+
+# Create the fixed body with the mesh
+mesh_body = chrono.ChBody()
+mesh_body.SetBodyFixed(True)  # Fixed in space
+system.Add(mesh_body)
+
+# Load the mesh visualization assets
+mesh_visualization = chrono.ChTriangleMeshShape()
+mesh_visualization.SetMeshFromFile(mesh_filename)
+mesh_body.AddVisualShape(mesh_visualization)
+
+# Create collision geometry (optional, if you want collision detection)
+mesh_collision = chrono.ChTriangleMeshShape()
+mesh_collision.SetMeshFromFile(mesh_filename)
+mesh_body.AddAsset(mesh_collision)
+
+# 3. Set necessary default parameters
+
+# Create the camera sensor
+camera = chrono.ChCameraSensor(
+    width=640,  # Image width
+    height=480,  # Image height
+    hfov=55,     # Horizontal field of view in degrees
+    vfov=42,     # Vertical field of view in degrees
+    update_rate=30  # Update rate in Hz
+)
+
+# Set initial camera position (looking at the mesh)
+camera.SetPos(chrono.ChVectorD(2, 0, 0))  # Initial position
+camera.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))  # Initial rotation (pointing at origin)
+
+# Add the camera to the system
+system.Add(camera)
+
+# Create a sensor manager to handle the camera
+sensor_manager = chrono.ChSensorManager(system)
+sensor_manager.AddSensor(camera)
+
+# Add noise filters to the camera
+noise_model = chrono.ChCameraNoiseWhite(0.01)  # White noise with 0.01 intensity
+camera.AddNoiseModel(noise_model)
+
+# Create the visualization system
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
-vis.SetWindowSize(1280, 720)
-vis.SetWindowTitle('Triangular Mesh with Orbiting Camera')
+vis.SetWindowSize(800, 600)
+vis.SetWindowTitle("PyChrono - Fixed Mesh with Orbiting Camera")
 vis.Initialize()
 vis.AddLogo()
 vis.AddSkyBox()
-vis.AddCamera(chrono.ChVectorD(2, 2, 2), chrono.ChVectorD(0, 0, 0))
+vis.AddCamera(chrono.ChVectorD(0, 0, 6))
 vis.AddTypicalLights()
-vis.SetCameraMoveScale(0.05)
+vis.AddLightWithShadow(chrono.ChVectorD(1.5, 1.5, 5), chrono.ChVectorD(0, 0, 0), 3, 1, 10)
 
-# 3. Load the triangular mesh (replace with your OBJ file path)
-mesh_path = "path/to/your/mesh.obj"  # Update this path
-mesh = chrono.ChTriangleMeshConnected()
-mesh.LoadWavefrontMesh(mesh_path, False, True)
-
-# Create a fixed body with the mesh
-fixed_body = chrono.ChBody()
-fixed_body.SetBodyFixed(True)
-fixed_body.GetVisualModel().AddTriangleMesh(mesh)
-fixed_body.GetCollisionModel().AddTriangleMesh(mesh)
-system.Add(fixed_body)
-
-# 4. Create camera sensor
-camera = sensors.ChCameraSensor(
-    fixed_body,                # Parent body
-    10,                        # Update rate in Hz
-    chrono.ChFrameD(chrono.ChVectorD(5, 0, 0), chrono.QUNIT),  # Initial position
-    640,                       # Width
-    480,                       # Height
-    1.0                        # Focal length
-)
-
-# Configure camera parameters
-camera.SetLensModel(sensors.ChLensModelPINHOLE)
-camera.SetImagePlaneSize(640, 480)
-camera.SetClippingPlanes(0.1, 100)
-camera.SetUseColorTexture(True)
-
-# Add noise filters
-noise_filter = sensors.ChFilterGaussianNoise()
-noise_filter.SetNoiseLevel(0.01)  # 1% noise
-camera.AddFilter(noise_filter)
-
-# Add visualization filter
-visualization_filter = sensors.ChFilterVisualize(640, 480, "Camera View")
-camera.AddFilter(visualization_filter)
-
-# Create sensor manager
-sensor_manager = sensors.ChSensorManager(system)
-sensor_manager.AddSensor(camera)
-
-# 5. Simulation parameters
+# Simulation parameters
 time_step = 0.01
-end_time = 10.0
+end_time = 10.0  # Simulation duration in seconds
+output_dir = "camera_output"
+os.makedirs(output_dir, exist_ok=True)
 
-# 6. Simulation loop
-while vis.Run():
-    # Update camera position in orbit
-    time = system.GetChTime()
-    radius = 5.0
-    angle = time * 0.5  # Adjust angular speed as needed
-
-    # Circular orbit around the mesh
-    cam_pos = chrono.ChVectorD(
+# Simulation loop
+current_time = 0
+frame_count = 0
+while current_time < end_time:
+    # Update the camera position in an orbit around the mesh
+    radius = 2.0
+    angle = current_time * 0.5  # Angular speed
+    camera_pos = chrono.ChVectorD(
         radius * np.cos(angle),
         radius * np.sin(angle),
-        2.0  # Keep some height
+        0.5  # Small elevation
     )
+    camera.SetPos(camera_pos)
 
-    # Point camera at origin
-    camera.SetCameraToBodyOffset(chrono.ChFrameD(cam_pos, chrono.Q_from_AngAxis(chrono.CH_PI/2, chrono.ChVectorD(0,0,1))))
+    # Make the camera always look at the origin (mesh)
+    look_at = chrono.ChVectorD(0, 0, 0)
+    camera.SetRot(chrono.ChQuaternionD().Q_from_AngAxis(angle + chrono.CH_C_PI/2, chrono.ChVectorD(0, 0, 1)))
 
-    # Advance simulation
+    # Advance the simulation
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
 
-    # Print camera buffer info
-    if camera.GetLatestFrame() is not None:
-        frame = camera.GetLatestFrame()
-        print(f"Time: {time:.2f}s | Camera position: {cam_pos} | Buffer size: {frame.GetBufferWidth()}x{frame.GetBufferHeight()}")
+    # Update the sensor manager
+    sensor_manager.Update()
 
-    # Step simulation
-    system.DoStepDynamics(time_step)
+    # Get the camera buffer data
+    if camera.HasDataReady():
+        buffer = camera.GetMostRecentBuffer()
+        if buffer:
+            # Print some information about the camera buffer
+            print(f"Time: {current_time:.2f}s - Camera position: {camera_pos}")
+            print(f"Buffer size: {buffer.GetWidth()}x{buffer.GetHeight()}")
+            print(f"First pixel value: {buffer.GetPixel(0, 0)}")
 
-    # Check if simulation time has ended
-    if time >= end_time:
-        break
+            # Save the image (optional)
+            if frame_count % 10 == 0:  # Save every 10 frames
+                buffer.SaveAsPNG(os.path.join(output_dir, f"frame_{frame_count:04d}.png"))
+
+    # Increment time and frame count
+    current_time += time_step
+    frame_count += 1
+    time.sleep(time_step)  # Real-time simulation
 
 # Clean up
-sensor_manager.RemoveSensor(camera)
+vis.CloseDevice()
 ```
 
-## Key Components Explained:
+## Key Features of This Implementation:
 
-1. **Initialization**:
-   - Sets up the PyChrono environment with data paths
-   - Creates a physical system with no gravity (since we have a fixed body)
+1. **System Initialization**:
+   - Sets up a ChSystemNSC (non-smooth contact dynamics)
+   - Configures the visualization system with Irrlicht
 
-2. **Visualization**:
-   - Uses Irrlicht for 3D visualization
-   - Sets up camera and lighting for the scene
+2. **Mesh Loading**:
+   - Loads a triangular mesh from a Wavefront .obj file
+   - Creates both visual and collision representations
+   - Fixes the mesh body in space
 
-3. **Mesh Loading**:
-   - Loads a triangular mesh from an OBJ file
-   - Creates a fixed body with collision and visualization models
+3. **Camera Sensor**:
+   - Creates a camera sensor with configurable resolution and FOV
+   - Adds white noise to simulate real-world sensor noise
+   - Implements orbiting behavior around the mesh
 
-4. **Camera Sensor**:
-   - Creates a camera sensor attached to the fixed body
-   - Configures lens model, resolution, and clipping planes
-   - Adds noise and visualization filters
+4. **Simulation Loop**:
+   - Updates camera position in a circular orbit
+   - Renders the scene with visualization
+   - Processes camera data at each step
+   - Saves sample images periodically
 
-5. **Orbiting Camera**:
-   - Updates camera position in a circular orbit around the mesh
-   - Camera always points toward the origin (center of the mesh)
+5. **Data Output**:
+   - Prints camera position and buffer information
+   - Saves images to disk for later analysis
 
-6. **Simulation Loop**:
-   - Advances the simulation with proper time steps
-   - Prints camera buffer information at each step
-   - Includes visualization updates
+## Notes:
 
-## Requirements:
-- PyChrono installed with all dependencies
-- A valid Wavefront OBJ file for the triangular mesh
-- Adjust the mesh path and camera parameters as needed for your specific case
+1. Replace `PATH_TO_CHRONO_DATA` with your actual PyChrono data path.
+2. Replace `your_mesh.obj` with the path to your actual OBJ file.
+3. The camera orbit parameters (radius, speed) can be adjusted as needed.
+4. The simulation runs in real-time with a small sleep between frames.
+5. The output directory will contain sample images from the camera.
 
-The script will display the mesh in a 3D window with an orbiting camera, while also showing the camera's view in a separate visualization window and printing buffer information to the console.
+This script provides a complete implementation of the requested simulation with all specified components.

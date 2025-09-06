@@ -1,109 +1,106 @@
-Sure! Below is a Python script that uses PyChrono to create a simulation modeling the gravitational attraction between particles. The script initializes the PyChrono environment, sets up a particle emitter to generate particles with random shapes, positions, velocities, and orientations, and visualizes the simulation using Irrlicht.
+Certainly! Below is a Python script that sets up a PyChrono simulation to model the gravitational attraction between particles. It includes a particle emitter to generate particles with random shapes, positions, velocities, and orientations. The simulation is visualized using Irrlicht, and custom gravitational forces are applied to simulate particle attraction dynamically.
 
 ```python
 import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
-import pychrono.physics as chronophys
+import pychrono.physics as chronophysics
 import random
 
-# Initialize the Chrono::Engine system
-chrono.SetChronoDataPath('path/to/chrono/data')  # Set the path to Chrono data
+# Initialize the Chrono::Engine
+chrono.ChSystemNSC msystem = chrono.ChSystemNSC()
+chrono.ChCollisionModel::SetDefaultSuggestedEnvelope(0.001)
+chrono.ChCollisionModel::SetDefaultSuggestedMargin(0.001)
 
-# Create a Chrono::Engine physical system
-system = chrono.ChSystemNSC()
-
-# Create an Irrlicht visualization (renderer)
-visualization = chronoirr.ChIrrApp()
+# Set up the Irrlicht visualization
+visualization = chronoirr.ChIrrApp(mystem, L"Gravitational Attraction Simulation", chronoirr.dimension2du(800, 600))
 visualization.AddTypicalSky()
-visualization.AddTypicalLogo()
-visualization.AddTypicalLights()
-visualization.AddLightWithShadow(chrono.ChVectorD(1, 1, 1), chrono.ChVectorD(0, 0, 0), 10, 5, 50, 40, 50)
-visualization.SetSymbolScale(1.0)
-visualization.SetContactDrawSize(0.01)
-visualization.SetContactForceDrawSize(0.001)
-visualization.SetFrameSpeed(60)
-visualization.SetTryRealTimeStep(True)
-visualization.AssetBindAll()
-visualization.AssetUpdateAll()
+visualization.AddTypicalLogo(chrono.GetChronoDataPath() + 'logo_chrono_small.png')
+visualization.AddLightWithShadow(chrono.ChVector(1, 1, 1), chrono.ChVector(0, 0, 0), 10, 10, 30, 50, 50)
+visualization.SetSymbolScale(0.02)
+visualization.SetContactVisualizationType(chronoirr.ChIrrApp.ES_CONTACTSURFACENORMAL)
+visualization.SetTimestep(0.01)
+visualization.SetTryRealTime(True)
 
-# Set up the system
-system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))  # Set gravity
+# Create a particle emitter
+class ParticleEmitter:
+    def __init__(self, system):
+        self.system = system
 
-# Function to create a particle with random properties
-def create_random_particle():
-    particle = chrono.ChParticle()
-    particle.SetPos(chrono.ChVectorD(random.uniform(-5, 5), random.uniform(-5, 5), random.uniform(5, 10)))
-    particle.SetMass(1)
-    particle.SetVel(chrono.ChVectorD(random.uniform(-1, 1), random.uniform(-1, 1), random.uniform(-1, 1)))
-    particle.SetCollide(True)
-    particle.SetBodyFixed(False)
-    particle.SetName("Particle")
-    return particle
+    def emit_particle(self):
+        # Create a particle
+        particle = chrono.ChParticle()
+        particle.SetPos(chrono.ChVectorD(random.uniform(-1, 1), random.uniform(-1, 1), random.uniform(-1, 1)))
+        particle.SetMass(1.0)
+        particle.SetBodyFixed(False)
 
-# Function to add gravitational force between particles
-def add_gravitational_force(particle1, particle2):
-    G = 6.67430e-11  # Gravitational constant
-    r = particle1.GetPos() - particle2.GetPos()
-    distance = r.Length()
-    if distance == 0:
-        return
-    force_magnitude = G * (particle1.GetMass() * particle2.GetMass()) / (distance ** 2)
-    force_direction = r.Normalize()
-    force = force_direction * force_magnitude
-    particle1.AddForce(force)
-    particle2.AddForce(-force)
+        # Random velocity
+        velocity = chrono.ChVectorD(random.uniform(-0.1, 0.1), random.uniform(-0.1, 0.1), random.uniform(-0.1, 0.1))
+        particle.SetPos_dt(velocity)
 
-# Particle emitter
-particles = []
-emission_rate = 1  # Number of particles to emit per second
-emission_interval = 1 / emission_rate
+        # Add the particle to the system
+        self.system.Add(particle)
+
+        # Create a visual shape for the particle
+        body_shape = chrono.ChSphereShape()
+        body_shape.GetSphereGeometry().rad = 0.05
+        body_asset = chronoirr.ChIrrNodepointpoint(body_shape, chrono.ChVector(0, 0, 0), 0.1, chrono.ChColor(1, 0, 0))
+        particle.AddAsset(body_asset)
+
+# Create the particle emitter
+emitter = ParticleEmitter(mystem)
+
+# Function to apply gravitational forces
+def apply_gravitational_forces(system):
+    particles = system.Get_physics_items(chrono.ChPhysicsItemType_CH_PARTICLE)
+    for i in range(len(particles)):
+        for j in range(i + 1, len(particles)):
+            p1 = particles[i]
+            p2 = particles[j]
+            pos1 = p1.GetPos()
+            pos2 = p2.GetPos()
+            dist = (pos2 - pos1).Length()
+            if dist > 0:
+                force_magnitude = 1.0 / (dist ** 2)
+                force_direction = (pos2 - pos1).GetNormalized()
+                force = force_direction * force_magnitude
+                p1.AddForce(force)
+                p2.AddForce(-force)
 
 # Main simulation loop
 def main():
-    visualization.SetWindowSize(800, 600)
-    visualization.SetWindowTitle('Particle Gravity Simulation')
-    visualization.Initialize()
-    visualization.AddSystem(system)
+    visualization.SetStepCallback(apply_gravitational_forces, mystem)
 
-    # Create a timer for particle emission
-    emission_timer = 0
+    # Emit particles at the beginning
+    for _ in range(10):
+        emitter.emit_particle()
 
+    # Run the simulation
     while visualization.Run():
-        current_time = visualization.GetTime()
+        mystem.DoStepDynamics(0.01)
 
-        # Emit particles at the specified rate
-        if current_time - emission_timer >= emission_interval:
-            new_particle = create_random_particle()
-            system.Add(new_particle)
-            particles.append(new_particle)
-            emission_timer = current_time
+        # Emit particles periodically
+        if mystem.GetChTime() % 1.0 < 0.01:
+            emitter.emit_particle()
 
-        # Update the system
-        system.DoStepDynamics(0.01)
-
-        # Apply gravitational forces between all pairs of particles
-        for i in range(len(particles)):
-            for j in range(i + 1, len(particles)):
-                add_gravitational_force(particles[i], particles[j])
-
-        # Update visualization
-        visualization.BeginScene()
-        visualization.Render()
-        visualization.EndScene()
-
+# Run the simulation
 if __name__ == "__main__":
     main()
 ```
 
 ### Explanation:
-1. **Initialization**: The script initializes the Chrono::Engine system and sets up Irrlicht for visualization.
-2. **Particle Creation**: The `create_random_particle` function generates particles with random positions, velocities, and masses.
-3. **Gravitational Force**: The `add_gravitational_force` function calculates and applies gravitational forces between pairs of particles.
-4. **Particle Emission**: Particles are emitted at a specified rate using a timer.
-5. **Simulation Loop**: The main loop runs the simulation, updates the system dynamics, applies gravitational forces, and renders the visualization.
+1. **Initialization**:
+   - The Chrono::Engine is initialized, and default collision parameters are set.
+   - The Irrlicht visualization is set up with typical sky, logo, and lighting.
 
-### Note:
-- Make sure to replace `'path/to/chrono/data'` with the actual path to your Chrono data directory.
-- This script assumes that you have PyChrono and Irrlicht properly installed and configured.
+2. **Particle Emitter**:
+   - A `ParticleEmitter` class is defined to create particles with random positions, velocities, and shapes.
+   - Particles are added to the system, and visual shapes are created for them.
 
-You can run this script in a Python environment with the necessary dependencies to see the simulation in action.
+3. **Gravitational Forces**:
+   - The `apply_gravitational_forces` function calculates the gravitational attraction between particles and applies the corresponding forces.
+
+4. **Simulation Loop**:
+   - The simulation runs in a loop, updating the system dynamics and visualizing the particles.
+   - Particles are emitted periodically to keep the simulation dynamic.
+
+This script provides a basic framework for simulating gravitational attraction between particles using PyChrono and visualizing it with Irrlicht. You can further customize the particle properties, emission rates, and gravitational constants as needed.

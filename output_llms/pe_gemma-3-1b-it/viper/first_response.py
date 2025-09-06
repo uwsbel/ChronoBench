@@ -1,0 +1,94 @@
+import chrono
+import numpy as np
+import math
+import os
+import sys
+import time
+
+# Initialize PyChrono environment
+try:
+    chrono = chrono.ChSystem()
+    chrono.SetChronoDataPath('/path/to/data')  # Replace with your data directory
+except Exception as e:
+    print(f"Error initializing Chrono: {e}")
+    exit()
+
+# --- Simulation Setup ---
+try:
+    # Initialize System
+    my_system = chrono.ChSystem()
+    my_system.SetChronoDataPath('/path/to/data')  # Replace with your data directory
+    print("System initialized successfully.")
+
+    # Set Collision System
+    my_system.SetCollisionModel(chrono.ChCollisionModel.Type_Viper) # Viper rover
+    print("Collision system set to Viper.")
+
+    # Set Default Suggested Envelope
+    my_system.SetDefaultSuggestedEnvelope(0.01)
+    print("Default suggested envelope set.")
+
+    # --- Physical System Setup ---
+    # Define the Rigid Terrain
+    terrain = chrono.ChRigidTerrain()
+    terrain.SetContactMethod(chrono.ChContactMethod.Type_Viper) # Viper rover
+    terrain.SetChassisCollisionType(chrono.ChCollisionSystem.Type_Viper)
+    terrain.SetInitPosition(chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QuatFromAngleX(chrono.CH_PI)))
+    terrain.SetContactMethod(chrono.ChContactMethod.Type_Viper) # Viper rover
+    print("Rigid terrain initialized.")
+
+    # --- Visualization ---
+    vis = chrono.ChVisualSystemIrrlicht()
+    vis.AttachSystem(my_system)
+    vis.SetWindowSize(1024, 768)
+    vis.SetWindowTitle('Viper Simulation')
+    print("Visualization system attached.")
+
+    # --- Body Initialization ---
+    # Define the Viper Rover
+    body = chrono.ChBody()
+    body.SetPos(chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QuatFromAngleX(chrono.CH_PI)))
+    body.SetMass(100)
+    body.SetInertiaXX(chrono.ChVector3d(10, 10, 10))
+    body.SetFixed(True)
+    print("Viper rover initialized.")
+
+    # --- Joint and Link Setup ---
+    # Revolute Joint
+    rev_joint = chrono.ChLinkLockRevolute()
+    rev_joint.Initialize(body, body, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QuatFromAngleX(chrono.CH_PI)))
+    print("Revolute joint initialized.")
+
+    # Prismatic Joint
+    pris_joint = chrono.ChLinkLockPrismatic()
+    pris_joint.Initialize(body, body, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QuatFromAngleX(chrono.CH_PI)))
+    print("Prismatic joint initialized.")
+
+    # Spherical Joint
+    spher_joint = chrono.ChLinkLockSpherical()
+    spher_joint.Initialize(body, body, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QuatFromAngleX(chrono.CH_PI)))
+    print("Spherical joint initialized.")
+
+    # --- Simulation Loop ---
+    sys.DoStepDynamics(0.01)
+    print("Simulation loop started.")
+
+    # --- Visualization Update Loop ---
+    while vis.Run():
+        # Update the Rover's Position
+        body.SetPos(chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QuatFromAngleX(chrono.CH_PI)))
+
+        # Render the Simulation
+        vis.Render()
+        print("Rendering...")
+
+        # Print Simulation Status
+        print(f"Time: {time.time()}")
+        print("---")
+
+    print("Simulation loop finished.")
+    sys.Destroy(vis)
+    sys.Destroy(body)
+    print("Simulation destroyed.")
+    print("Exiting.")
+    exit()

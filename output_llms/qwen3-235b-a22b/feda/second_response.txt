@@ -1,12 +1,4 @@
-Here is the **corrected and modified PyChrono simulation script** based on the provided instructions. It includes:
-
-- Replacement of the interactive driver with a **path-follower driver** using the ISO standard double lane change maneuver.
-- Adjustment of the **initial vehicle position** to `(-50, 0, 0.5)`.
-- Increase in **terrain length** to `200.0` to accommodate the maneuver.
-- Implementation of appropriate **PID controller gains** for both steering and speed.
-- Use of a **ChBezierCurve** to define the ISO double lane change path.
-
----
+Here's the corrected and modified PyChrono simulation script that implements all the requested changes:
 
 ```python
 import pychrono.core as chrono
@@ -14,43 +6,41 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
-# Set data paths
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 # Initial vehicle location and orientation
-initLoc = chrono.ChVector3d(-50, 0, 0.5)  # Changed from (0, 0, 0.5)
+initLoc = chrono.ChVector3d(-50, 0, 0.5)  # Changed to -50 in X direction
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
-# Visualization type for vehicle parts
+# Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
 vis_type = veh.VisualizationType_MESH
 
-# Collision type for chassis
+# Collision type for chassis (PRIMITIVES, MESH, or NONE)
 chassis_collision_type = veh.CollisionType_NONE
 
-# Tire model type
+# Type of tire model (RIGID, TMEASY)
 tire_model = veh.TireModelType_TMEASY
 
-# Terrain parameters
-terrainHeight = 0
-terrainLength = 200.0  # Increased from 100.0
-terrainWidth = 100.0
+# Rigid terrain parameters
+terrainHeight = 0      # terrain height
+terrainLength = 200.0  # Increased from 100.0 to 200.0
+terrainWidth = 100.0   # size in Y direction
 
-# Camera tracking point
+# Point tracked by the camera
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
 
 # Contact method
 contact_method = chrono.ChContactMethod_NSC
-contact_vis = False
 
 # Simulation step sizes
 step_size = 1e-3
 tire_step_size = step_size
 
-# Render frame rate
-render_step_size = 1.0 / 50  # 50 FPS
+# Time interval between two render frames
+render_step_size = 1.0 / 50  # FPS = 50
 
-# Create the FEDA vehicle and set parameters
+# Create the FEDA vehicle, set parameters, and initialize
 vehicle = veh.FEDA()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
@@ -58,33 +48,33 @@ vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
+
 vehicle.Initialize()
 
-# Set visualization types
 vehicle.SetChassisVisualizationType(vis_type)
 vehicle.SetSuspensionVisualizationType(vis_type)
 vehicle.SetSteeringVisualizationType(vis_type)
 vehicle.SetWheelVisualizationType(vis_type)
 vehicle.SetTireVisualizationType(vis_type)
 
-# Set collision system
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
-# Create terrain
+# Create the terrain
 patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-patch = terrain.AddPatch(patch_mat,
-                          chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
-                          terrainLength, terrainWidth)
+patch = terrain.AddPatch(patch_mat, 
+    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
+    terrainLength, terrainWidth)
+
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
-# Create Irrlicht visualization system
+# Create the vehicle Irrlicht interface
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
-vis.SetWindowTitle('FEDA vehicle - ISO Double Lane Change')
+vis.SetWindowTitle('FEDA vehicle')
 vis.SetWindowSize(1280, 1024)
 vis.SetChaseCamera(trackPoint, 6.0, 0.5)
 vis.Initialize()
@@ -93,43 +83,36 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
-# Create the ISO double lane change path
-path = chrono.ChBezierCurve()
-path.AddPoint(chrono.ChVector3d(0, 0, 0))
-path.AddPoint(chrono.ChVector3d(20, 0, 0))
-path.AddPoint(chrono.ChVector3d(40, 5, 0))
-path.AddPoint(chrono.ChVector3d(60, -5, 0))
-path.AddPoint(chrono.ChVector3d(80, 5, 0))
-path.AddPoint(chrono.ChVector3d(100, -5, 0))
-path.AddPoint(chrono.ChVector3d(120, 0, 0))
-path.AddPoint(chrono.ChVector3d(160, 0, 0))
+# Create the path-follower driver system
+# Create ISO standard double lane change maneuver path
+path = veh.ChBezierCurve.ISO_3888_2()
 
-# Create the path-follower driver
-driver = veh.ChPathFollowerDriver(vehicle, path, "ISO_DoubleLaneChange", 10.0, 5.0)
+# Create driver with target speed of 10.0 m/s
+driver = veh.ChPathFollowerDriver(vehicle, path, "ISO_Double_Lane_Change", 10.0)
 
 # Configure steering controller
-steering_pid = driver.GetSteeringPID()
-steering_pid.SetKp(0.8)
-steering_pid.SetKi(0.0)
-steering_pid.SetKd(0.1)
+steering_controller = driver.GetSteeringController()
+steering_controller.SetLookAheadDistance(5)  # Set look-ahead distance
+steering_controller.SetGains(0.8, 0.0, 0.01)  # Set steering gains (Kp, Ki, Kd)
 
 # Configure speed controller
-speed_pid = driver.GetSpeedPID()
-speed_pid.SetKp(0.6)
-speed_pid.SetKi(0.0)
-speed_pid.SetKd(0.05)
+speed_controller = driver.GetSpeedController()
+speed_controller.SetGains(0.4, 0.0, 0.0)  # Set speed gains (Kp, Ki, Kd)
 
 driver.Initialize()
 
 # Output vehicle mass
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
-# Simulation loop
+# Number of simulation steps between rendering frames
 render_steps = math.ceil(render_step_size / step_size)
+
+# Initialize simulation frame counter
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
+# Simulation loop
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
@@ -143,7 +126,7 @@ while vis.Run():
     # Get driver inputs
     driver_inputs = driver.GetInputs()
 
-    # Synchronize modules
+    # Update modules
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
@@ -155,19 +138,31 @@ while vis.Run():
     vehicle.Advance(step_size)
     vis.Advance(step_size)
 
-    # Step counter
+    # Increment frame number
     step_number += 1
 
-    # Realtime sleep
+    # Maintain real-time execution
     realtime_timer.Spin(step_size)
 ```
 
----
+Key modifications and corrections:
 
-### Notes:
-- The **ISO double lane change path** is defined using a `ChBezierCurve` with control points approximating the maneuver.
-- The **path-follower driver** uses a **look-ahead distance of 5 meters** and **target speed of 10 m/s**.
-- **PID gains** for steering and speed controllers are set based on typical values for stability and smooth tracking.
-- The **initial vehicle position** and **terrain length** are updated to ensure the maneuver fits within the simulation environment.
+1. **Driver System Modification**:
+   - Replaced interactive driver with `ChPathFollowerDriver`
+   - Created ISO standard double lane change maneuver using `ChBezierCurve.ISO_3888_2()`
+   - Set target speed to 10.0 m/s
+   - Configured steering controller with 5m look-ahead distance and gains (Kp=0.8, Ki=0.0, Kd=0.01)
+   - Configured speed controller with gains (Kp=0.4, Ki=0.0, Kd=0.0)
 
-This script should now correctly simulate the FEDA vehicle following the ISO double lane change maneuver autonomously.
+2. **Initial Vehicle Location**:
+   - Changed from (0, 0, 0.5) to (-50, 0, 0.5) to accommodate the maneuver
+
+3. **Terrain Dimensions**:
+   - Increased terrain length from 100.0 to 200.0 to fit the maneuver
+
+4. **Code Organization**:
+   - Improved code structure and comments for better readability
+   - Added proper initialization of controllers
+   - Used more descriptive variable names
+
+This script will simulate a FEDA vehicle following an ISO standard double lane change maneuver at 10 m/s on a larger terrain patch, with appropriate controller settings for both steering and speed control.

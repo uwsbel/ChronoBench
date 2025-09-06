@@ -1,0 +1,77 @@
+# PyChrono Simulation: Turtlebot on Rigid Terrain
+
+# 1. Initialize PyChrono environment and core components
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
+import pychrono.vehicle as veh
+import pychrono.robot as rob
+
+# Set Chrono data path
+chrono.SetChronoDataPath('/path/to/data')
+
+# 2. Add required physical systems and objects
+# Initialize the system with gravity
+sys = chrono.ChSystemSMC()
+sys.Set_Gravity(chrono.ChVector3d(0, 0, -9.81))
+
+# Create a ground body
+ground = chrono.ChBody()
+ground.SetBodyFixed(True)
+ground.SetPos(chrono.ChVector3d(0, 0, -1))
+ground_shape = chrono.ChVisualShapeBox(chrono.ChVector3d(100, 100, 1))
+ground.AddVisualShape(ground_shape)
+sys.Add(ground)
+
+# Initialize the Turtlebot robot
+turtlebot = rob.Turtlebot(sys, True, True)
+turtlebot.Initialize(chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0.1), chrono.QuatFromAngleX(chrono.CH_PI / 2)))
+
+# 3. Set necessary default parameters
+# Set camera position and target
+cam_pos = chrono.ChVector3d(0, -1, 1)
+cam_target = chrono.ChVector3d(0, 0, 0)
+
+# Initialize the visualization system with Irrlicht
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(sys)
+vis.SetWindowSize(800, 600)
+vis.SetWindowTitle('Turtlebot Simulation')
+vis.Initialize()
+
+# Add a camera to the visualization
+vis.AddCamera(cam_pos, cam_target)
+
+# Add typical lights to the scene
+vis.AddTypicalLights()
+
+# 4. Implement simulation loop with motor control and rendering
+# Timestep for simulation
+dt = 0.01
+
+# Motor control function to turn left and right at specified times
+def motor_control(t):
+    if t < 5:
+        return 0.5  # Turn left
+    elif t < 10:
+        return -0.5  # Turn right
+    else:
+        return 0  # Stop
+
+# Simulation loop
+while vis.Run():
+    # Advance the simulation by one timestep
+    sys.DoStepDynamics(dt)
+
+    # Update motor control
+    t = sys.GetChTime()
+    left_wheel_speed = motor_control(t)
+    right_wheel_speed = motor_control(t)
+    turtlebot.SetWheelSpeeds(left_wheel_speed, right_wheel_speed)
+
+    # Render the current frame
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+
+    # Wait for a short time to limit the frame rate
+    chrono.ChThreadSleep(0.005)

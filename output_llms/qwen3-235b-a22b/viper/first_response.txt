@@ -1,96 +1,94 @@
 ```python
 import pychrono as chrono
-import pychrono.viper as viper
-import pychrono.irrlicht as irrlicht
+import pychrono.irrlicht as irr
+import pychrono.vehicle as veh
 
-# Initialize the Chrono system with gravity
+# Initialize Chrono system with gravity
 system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
 
-# Create a rigid ground body
+# Create a rigid ground plane
 ground = chrono.ChBody()
 ground.SetBodyFixed(True)
-ground.SetCollide(True)
-ground.GetCollisionModel().ClearModel()
-ground.GetCollisionModel().AddBox(100, 1, 100)  # Large flat ground
-ground.SetPos(chrono.ChVectorD(0, -1, 0))  # Position the ground
+ground.SetCollide(False)
+ground.AddAsset(chrono.ChBoxShape(10, 10, 1))  # Ground dimensions
+ground.AddAsset(chrono.ChColorAsset(0.5, 0.5, 0.5))  # Gray color
 system.Add(ground)
 
 # Initialize the Viper rover
-rover = viper.ChViper(system)
-rover.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0.5, 0), chrono.QUNIT))  # Start position and orientation
+viper = veh.Viper(system)  # Assuming Viper class exists in vehicle module
+viper.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0.5), chrono.QUNIT))  # Initial position and orientation
+viper.Initialize()
 
-# Set up the driver for the Viper rover
-driver = viper.ChViperDriver()
-rover.SetDriver(driver)
+# Create and initialize the driver
+driver = veh.ChDriver(viper)
+driver.Initialize()
 
-# Configure Irrlicht visualization
-application = irrlicht.ChIrrApp(system, 'Viper Rover Simulation', irrlicht.dimension2du(1280, 720))
-application.AddTypicalLogo()
-application.AddTypicalCamera(irrlicht.vector3df(0, 3, -6), irrlicht.vector3df(0, 0, 0))  # Camera setup
-application.AddTypicalLights()
-application.AssetBindAll()
-application.AssetUpdateAll()
+# Set up Irrlicht visualization
+vis = irr.ChIrrApp(system, 'Viper Simulation', irr.dimension2du(800, 600))
+vis.AddTypicalLights()  # Add default lighting
+vis.AddCamera(chrono.ChVectorD(0, -5, 1), chrono.ChVectorD(0, 0, 0))  # Camera position and target
+vis.AssetBindAll()  # Bind assets
+vis.AssetUpdateAll()  # Update assets
 
-# Simulation parameters
-end_time = 10.0  # Duration for steering change (seconds)
-max_steering = 1.0  # Maximum steering input (-1 to 1)
+# Simulation loop parameters
+time = 0.0
+step = 1e-3  # Time step (0.001 seconds)
+duration = 10.0  # Time to reach max steering (seconds)
+max_steer = 0.5  # Maximum steering value (adjust based on rover's steering range)
 
-# Simulation loop
-while application.GetDevice().run():
-    current_time = system.GetChTime()
-    
-    # Gradually change steering from -max to +max over end_time
-    if current_time <= end_time:
-        steering = -max_steering + (2 * max_steering) * (current_time / end_time)
+# Run simulation loop
+while vis.GetDevice().run():
+    # Update steering input gradually over time
+    if time < duration:
+        steering = (time / duration) * max_steer
     else:
-        steering = max_steering  # Hold at maximum steering after end_time
-    
-    # Update driver inputs
-    driver.SetSteering(steering)
-    driver.SetThrottle(0.3)  # Apply constant throttle for forward motion
+        steering = max_steer
+    driver.SetSteering(steering)  # Apply steering to the driver
 
-    # Advance the simulation
-    system.DoStepDynamics(1e-3)  # Fixed time step of 0.001 seconds
+    # Advance the simulation by one time step
+    system.DoStepDynamics(step)
+    time += step
 
-    # Update and render the scene
-    application.BeginScene()
-    application.DrawAll()
-    application.EndScene()
+    # Render the scene
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
 ```
 
 ---
 
-### Explanation of Key Components:
+### **Explanation of Key Components**
 
 1. **Chrono System Initialization**:
-   - The `ChSystemNSC` class is used for the non-smooth contact (NSC) solver.
-   - Gravity is set to `-9.81` m/s² in the Y-direction.
+   - A `ChSystemNSC` object is created to represent the physical system with non-smooth contact (NSC) method.
+   - Gravity is set to `-9.81 m/s²` in the z-direction.
 
 2. **Rigid Terrain**:
-   - A large box (`100x1x100`) is used for the ground.
-   - Positioned at `y = -1` to allow the rover to start above the terrain.
+   - A `ChBody` is created for the ground, fixed in place and non-colliding.
+   - A box shape and gray color are added for visualization.
 
 3. **Viper Rover**:
-   - The `ChViper` class is used to create the rover.
-   - The rover is initialized at position `(0, 0.5, 0)` with no initial rotation.
+   - The `Viper` class is assumed to be part of the `vehicle` module, representing a predefined rover model.
+   - The rover is initialized at a height of `0.5` meters above the ground with no initial rotation.
 
 4. **Driver Setup**:
-   - A `ChViperDriver` is used to control the rover.
-   - The driver is updated in the simulation loop to control steering and throttle.
+   - A `ChDriver` is created and associated with the Viper rover.
+   - The driver is used to control the rover's steering input.
 
 5. **Irrlicht Visualization**:
-   - A 3D window is created with a resolution of `1280x720`.
-   - A typical camera and lighting setup is added for visualization.
-   - The camera is positioned at `(0, 3, -6)` and looks at the origin.
+   - An `ChIrrApp` object is created for real-time rendering.
+   - Default lighting and a fixed camera are added to view the simulation.
+   - Assets are bound and updated for rendering.
 
 6. **Simulation Loop**:
    - The loop runs while the Irrlicht window is open.
-   - Steering input is linearly interpolated from `-max_steering` to `+max_steering` over `end_time`.
-   - A constant throttle is applied to move the rover forward.
-   - The simulation is advanced using a fixed time step of `0.001` seconds.
-   - The scene is rendered at each step using Irrlicht.
+   - Steering input is gradually increased from `0` to `max_steer` over `duration` seconds.
+   - The simulation is advanced using `DoStepDynamics`, and the scene is rendered each frame.
 
 ---
 
-This script provides a complete simulation of a Viper rover on a rigid terrain with real-time visualization and dynamic steering control. The rover's steering input is gradually adjusted over a specified time period, and the simulation is rendered using the Irrlicht engine.
+### **Notes**
+- This script assumes the existence of a `Viper` class in the `vehicle` module. If not available, you may need to load a JSON configuration or define the rover manually.
+- The `ChDriver` is used to apply steering inputs. If the Viper requires additional synchronization (e.g., throttle, braking), those can be added similarly.
+- The camera is fixed; for dynamic camera tracking, consider using `AddChaseCamera` or updating the camera position dynamically.

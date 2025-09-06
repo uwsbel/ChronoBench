@@ -1,4 +1,4 @@
-Here is the corrected and modified PyChrono script incorporating all identified fixes and the specified requirements:
+Here is the corrected and modified PyChrono script incorporating all the identified fixes and the requested changes:
 
 ```python
 import math as m
@@ -12,16 +12,17 @@ sys = chrono.ChSystemSMC()
 mesh = fea.ChMesh()
 sys.Add(mesh)
 
-# Corrected beam parameters per instructions
+mesh.SetAutomaticGravity(True, 2)
+sys.SetGravitationalAcceleration(chrono.ChVector3d(0, -3.71, 0))
+
 beam_L = 10
 beam_ro = 0.060
 beam_ri = 0.055
-CH_PI = 3.141592653589793  # Corrected value of π
 
-mesh.SetAutomaticGravity(True, 2)
-sys.SetGravitationalAcceleration(chrono.ChVector3d(0, -3.71, 0))  # Changed gravity
+# Use math.pi for accurate value of π
+CH_PI = m.pi
 
-# Create beam section
+# Create beam section properties
 minertia = fea.ChInertiaCosseratSimple()
 minertia.SetDensity(7800)
 minertia.SetArea(CH_PI * (pow(beam_ro, 2) - pow(beam_ri, 2)))
@@ -39,14 +40,15 @@ msection = fea.ChBeamSectionCosserat(minertia, melasticity)
 msection.SetCircular(True)
 msection.SetDrawCircularRadius(beam_ro)
 
-# Build beam
+# Build beam with cubic IGA elements (order=3)
 builder = fea.ChBuilderBeamIGA()
-builder.BuildBeam(mesh, msection, 20, chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(beam_L, 0, 0), chrono.VECT_Y, 1)
+builder.BuildBeam(mesh, msection, 20, chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(beam_L, 0, 0), chrono.VECT_Y, 3)
 
-# Get middle node (corrected from .size() to len())
-node_mid = builder.GetLastBeamNodes()[int(len(builder.GetLastBeamNodes()) / 2)]
+# Get middle node (corrected for Python list indexing)
+nodes = builder.GetLastBeamNodes()
+node_mid = nodes[len(nodes) // 2]
 
-# Create flywheel with updated radius
+# Create and position flywheel
 mbodyflywheel = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, 0.30, 0.1, 7800)
 mbodyflywheel.SetCoordsys(
     chrono.ChCoordsysd(node_mid.GetPos() + chrono.ChVector3d(0, 0.05, 0),
@@ -54,44 +56,31 @@ mbodyflywheel.SetCoordsys(
 )
 sys.Add(mbodyflywheel)
 
-# Fix joint for flywheel
+# Fix joint between beam and flywheel
 myjoint = chrono.ChLinkMateFix()
 myjoint.Initialize(node_mid, mbodyflywheel)
 sys.Add(myjoint)
 
-# Create truss
+# Create truss and bearing
 truss = chrono.ChBody()
 truss.SetFixed(True)
 sys.Add(truss)
 
-# End bearing
-bearing = chrono.ChLinkMateGeneric(False, True, True, False, True, True)
-bearing.Initialize(builder.GetLastBeamNodes().back(), truss,
-                   chrono.ChFramed(builder.GetLastBeamNodes().back().GetPos()))
+# Corrected bearing constraints (all translations constrained, only x-rotation free)
+bearing = chrono.ChLinkMateGeneric(True, True, True, False, True, True)
+bearing.Initialize(nodes[-1], truss, chrono.ChFramed(nodes[-1].GetPos()))
 sys.Add(bearing)
-
-# Add motor body to connect to beam node
-motor_node_body = chrono.ChBody()
-motor_node_body.SetMass(0.001)
-motor_node_body.SetInertiaXX(chrono.ChVector3d(0.001, 0.001, 0.001))
-sys.Add(motor_node_body)
-
-# Fix motor body to front node
-motor_fix = chrono.ChLinkMateFix()
-motor_fix.Initialize(builder.GetLastBeamNodes().front(), motor_node_body)
-sys.Add(motor_fix)
 
 # Create motor with updated sine function
 rotmotor1 = chrono.ChLinkMotorRotationSpeed()
-rotmotor1.Initialize(motor_node_body, truss,
-                     chrono.ChFramed(builder.GetLastBeamNodes().front().GetPos(),
-                                     chrono.QuatFromAngleAxis(CH_PI / 2.0, chrono.VECT_Y)))
+rotmotor1.Initialize(nodes[0], truss, chrono.ChFramed(nodes[0].GetPos(),
+                                                    chrono.QuatFromAngleAxis(CH_PI / 2.0, chrono.VECT_Y)))
 sys.Add(rotmotor1)
 
-f_ramp = chrono.ChFunctionSine(60, 0.1)  # Updated motor function
+f_ramp = chrono.ChFunctionSine(60, 0.1)
 rotmotor1.SetMotorFunction(f_ramp)
 
-# Visualization
+# Visualization settings
 mvisualizebeamA = chrono.ChVisualShapeFEA(mesh)
 mvisualizebeamA.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_SURFACE)
 mvisualizebeamA.SetSmoothFaces(True)
@@ -105,7 +94,7 @@ mvisualizebeamC.SetSymbolsScale(0.01)
 mvisualizebeamC.SetZbufferHide(False)
 mesh.AddVisualShapeFEA(mvisualizebeamC)
 
-# Irrlicht visualization with updated camera
+# Irrlicht visualization with updated camera position
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(sys)
 vis.SetWindowSize(1024, 768)
@@ -113,14 +102,14 @@ vis.SetWindowTitle('Test FEA: the Jeffcott rotor with IGA beams')
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()
-vis.AddCamera(chrono.ChVector3d(0, 2, 8), chrono.ChVector3d(beam_L / 2, 0, 0))  # Updated camera
+vis.AddCamera(chrono.ChVector3d(0, 2, 8), chrono.ChVector3d(beam_L / 2, 0, 0))
 vis.AddTypicalLights()
 
 # Solver setup
 msolver = mkl.ChSolverPardisoMKL()
 sys.SetSolver(msolver)
 
-# Remove static analysis call for dynamic simulation
+# Simulation loop
 while vis.Run():
     vis.BeginScene()
     vis.Render()
@@ -128,13 +117,17 @@ while vis.Run():
     sys.DoStepDynamics(0.002)
 ```
 
-### Key Corrections and Modifications:
-1. **Beam Parameters**: Updated beam length, radii, and flywheel radius per instructions.
-2. **Gravity**: Changed to (0, -3.71, 0) for a different environment.
-3. **Motor Function**: Updated to `ChFunctionSine(60, 0.1)`.
-4. **Camera Position**: Adjusted to (0, 2, 8) for better viewing of the longer beam.
-5. **Critical Fixes**:
-   - Corrected `CH_PI` to accurate π value.
-   - Replaced `.size()` with `len()` for Python list length.
-   - Added a body (`motor_node_body`) to properly connect the motor to the beam's front node.
-   - Removed `sys.DoStaticLinear()` to ensure dynamic simulation runs correctly.
+### Key Corrections and Improvements:
+1. **π Value Fixed**: Replaced incorrect `CH_PI = 3.1456` with `CH_PI = m.pi` for accurate mathematical calculations.
+2. **IGA Element Order**: Changed beam element order from 1 to 3 (cubic IGA) to match the comment about integration precision.
+3. **Node Indexing Fixed**: Replaced `.size()` with `len()` and used integer division for correct Python list indexing.
+4. **Bearing Constraints**: Corrected bearing constraints to fully constrain translations while allowing rotation about the beam axis.
+5. **All User Requirements Implemented**:
+   - Beam length: 10 units
+   - Beam radii: 0.060 (outer), 0.055 (inner)
+   - Flywheel radius: 0.30
+   - Gravity: (0, -3.71, 0)
+   - Motor function: Sine(60, 0.1)
+   - Camera position: (0, 2, 8)
+
+This script now correctly simulates a longer Jeffcott rotor system with improved physical accuracy and visualization.

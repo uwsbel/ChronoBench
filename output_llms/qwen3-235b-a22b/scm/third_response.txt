@@ -1,4 +1,4 @@
-Here's the corrected and modified PyChrono script that addresses potential issues in the original code and implements the requested features:
+Here is the corrected and modified PyChrono simulation script that introduces randomly positioned boxes and integrates a sensor system with a camera and lighting:
 
 ```python
 import pychrono.core as chrono
@@ -39,8 +39,6 @@ contact_method = chrono.ChContactMethod_SMC
 # Simulation step sizes
 step_size = 1e-3
 tire_step_size = step_size
-
-# Render frame rate
 render_step_size = 1.0 / 50
 
 # Create vehicle
@@ -53,14 +51,11 @@ vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 vehicle.Initialize()
 
-# Set visualization types
 vehicle.SetChassisVisualizationType(vis_type)
 vehicle.SetSuspensionVisualizationType(vis_type)
 vehicle.SetSteeringVisualizationType(vis_type)
 vehicle.SetWheelVisualizationType(vis_type)
 vehicle.SetTireVisualizationType(vis_type)
-
-# Set collision system
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 # Create SCM terrain
@@ -70,7 +65,7 @@ terrain.AddMovingPatch(vehicle.GetChassisBody(), chrono.ChVector3d(0, 0, 0), chr
 terrain.SetPlotType(veh.SCMTerrain.PLOT_SINKAGE, 0, 0.1)
 terrain.Initialize(20, 20, 0.02)
 
-# Create Irrlicht visualization
+# Create visualization
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('HMMWV Demo')
 vis.SetWindowSize(1280, 1024)
@@ -81,7 +76,7 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
-# Create driver system
+# Create driver
 driver = veh.ChInteractiveDriverIRR(vis)
 steering_time = 1.0
 throttle_time = 1.0
@@ -91,60 +86,43 @@ driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
-# Add random boxes to the scene
+# Add random boxes
 num_boxes = 10
-box_size = 1.0
-min_distance = 5.0
-
-for i in range(num_boxes):
+box_size = chrono.ChVector3d(1, 1, 1)
+for _ in range(num_boxes):
     while True:
         x = random.uniform(-terrainLength/2, terrainLength/2)
         y = random.uniform(-terrainWidth/2, terrainWidth/2)
-        dist = math.sqrt((x - initLoc.x())**2 + (y - initLoc.y())**2)
-        if dist > min_distance:
+        dx = x - initLoc.x()
+        dy = y - initLoc.y()
+        if dx*dx + dy*dy > 25:
             break
-    box = chrono.ChBodyEasyBox(box_size, box_size, box_size, 1000, True, True)
-    box.SetPos(chrono.ChVector3d(x, y, box_size / 2))
-    vehicle.GetSystem().Add(box)
+    box_body = chrono.ChBodyEasyBox(box_size, 1000, True, True)
+    box_body.SetPos(chrono.ChVector3d(x, y, terrainHeight + box_size.z() / 2))
+    box_body.GetVisualShape(0).SetColor(chrono.ChColor(0.8, 0.4, 0.2))
+    vehicle.GetSystem().Add(box_body)
 
 # Create sensor manager
 manager = sens.ChSensorManager(vehicle.GetSystem())
 
 # Add point lights
-light1 = chrono.ChLightPoint()
-light1.SetPosition(chrono.ChVector3d(10, 10, 20))
-vehicle.GetSystem().AddLight(light1)
-
-light2 = chrono.ChLightPoint()
-light2.SetPosition(chrono.ChVector3d(-10, -10, 20))
-vehicle.GetSystem().AddLight(light2)
+manager.scene.AddPointLight(chrono.ChVector3d(10, 10, 100), chrono.ChColor(1,1,1), 500)
+manager.scene.AddPointLight(chrono.ChVector3d(-20, -20, 50), chrono.ChColor(0.5,0.5,0.5), 300)
 
 # Create camera sensor
-camera_offset = chrono.ChFramed(
-    chrono.ChVector3d(0, 0, 1.5),
-    chrono.ChQuaterniond(1, 0, 0, 0)
-)
 camera = sens.ChCameraSensor(
     vehicle.GetChassisBody(),
-    60.0,
-    camera_offset,
+    60,
+    chrono.ChFrameD(chrono.ChVector3d(0, 0, 1.5), chrono.ChQuaterniond(1, 0, 0, 0)),
     1280,
     800,
-    chrono.CH_C_PI / 3,
-    2,
-    0.01,
-    0.001
+    chrono.CH_C_PI / 3
 )
-camera.SetName("Camera Sensor")
 camera.AddFilter(sens.ChFilterVisualize(1280, 800, "Camera Feed"))
 manager.AddSensor(camera)
 
-manager.Initialize()
-
-# Output vehicle mass
-print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
-
 # Simulation loop
+print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 render_steps = math.ceil(render_step_size / step_size)
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
@@ -172,39 +150,34 @@ while vis.Run():
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
+    
+    # Update sensors
     manager.Update()
 
+    # Increment counters
     step_number += 1
     realtime_timer.Spin(step_size)
 ```
 
-Key modifications and corrections:
-
+### Key Modifications:
 1. **Random Box Placement**:
-   - Added random box generation with collision avoidance around the vehicle
-   - Boxes are created using `ChBodyEasyBox` and added to the system
-   - Ensures boxes are not placed within 5 meters of the vehicle's starting position
+   - Added 10 randomly positioned boxes that avoid a 5m radius around the vehicle's starting position
+   - Boxes are 1m³ in size with brown coloring for visibility
+   - Proper collision and visualization flags enabled
 
 2. **Sensor System Integration**:
-   - Added sensor module import and manager initialization
-   - Created two point light sources for scene illumination
-   - Implemented a camera sensor with:
+   - Added sensor manager with two point light sources
+   - Integrated camera sensor on vehicle chassis with:
      - 60Hz update rate
      - 1280x800 resolution
-     - 60-degree field of view
-     - Visual filter for real-time camera feed visualization
-   - Added camera to the sensor manager and initialized it
+     - 60° field of view
+     - Real-time visualization filter
+   - Camera positioned 1.5m above chassis center
 
-3. **Code Corrections**:
-   - Fixed missing imports for sensor module and random
-   - Corrected camera sensor initialization parameters
-   - Added proper box dimensions and positioning
-   - Ensured proper initialization of all components
-   - Added missing `manager.Update()` call in simulation loop
+3. **Bug Fixes**:
+   - Added missing imports for sensor module and random library
+   - Fixed camera frame initialization with proper quaternion
+   - Improved box placement logic to ensure valid positions
+   - Added proper light parameters for sensor scene
 
-4. **Performance Considerations**:
-   - Maintained efficient simulation loop structure
-   - Properly integrated sensor updates with simulation steps
-   - Used appropriate visualization settings for both Irrlicht and sensor camera
-
-This script creates a complete simulation environment with a vehicle, deformable terrain, randomly placed obstacles, and a sensor system featuring a camera feed visualization. The simulation maintains real-time performance while providing both visual and sensor-based observation capabilities.
+The simulation now includes both the original vehicle dynamics and the new environmental objects with sensor visualization capabilities.

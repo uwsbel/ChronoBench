@@ -2,82 +2,90 @@
 import pychrono as chrono
 import pychrono.vehicle as veh
 import pychrono.irrlicht as irr
+import pychrono.driver as driver
 
-# Simulation parameters
-step_size = 1.0 / 50.0
-time = 0.0
-
-# Create the Chrono system
+# Initialize the PyChrono system
 system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+system.Set_G_acc(chrono.ChVector3d(0, -9.81, 0))
+
+# Set simulation step size for 50 FPS (0.02 seconds)
+step_size = 0.02
 
 # Create the HMMWV vehicle
-vehicle = veh.HMMWV_Full()
-vehicle.Initialize(system)
+vehicle = veh.HMMWV_Full(system)
 vehicle.SetContactMethod(chrono.ChContactMethod_NSC)
+vehicle.SetChassisFixed(False)
+vehicle.SetInitPosition(chrono.ChCoordsysd(chrono.ChVector3d(0, 1.5, 0), chrono.QUNIT))
 vehicle.SetTireType(veh.TireModelType_TMeasy)
-vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
-vehicle.SetSuspensionVisualizationType(veh.VisualizationType_MESH)
-vehicle.SetSteeringVisualizationType(veh.VisualizationType_MESH)
-vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
-vehicle.GetVehicle().SetChassisPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 1.0, 0), chrono.QUNIT))
+vehicle.SetTireStepSize(step_size)
+vehicle.Initialize()
 
-# Create the Irrlicht application
-application = irr.ChIrrApp(system, 'HMMWV on Custom Terrain', irr.dimension2du(1024, 768))
-application.AddTypicalLogo()
-application.AddTypicalSky()
-application.AddTypicalLights(irr.vector3df(30, 100, 30), irr.vector3df(30, 0, 30), 256, 256)
-application.AddCamera(chrono.ChVectorD(0, 3, -6), chrono.ChVectorD(0, 1, 0))
-application.AssetBindAll()
-application.AssetUpdateAll()
-
-# Create the driver system
-driver = veh.ChIrrGuiDriver(application.GetDevice(), vehicle.GetVehicle(), 20, 0.3, True, True)
-
-# Load the custom terrain mesh
-# Collision mesh
+# Create custom terrain using mesh files
+# Load collision and visual meshes
 mesh_col = chrono.ChTriangleMeshConnected()
-mesh_col.LoadWavefrontMesh('Highway_col.obj', True, True)
-# Visual mesh
+mesh_col.LoadWavefrontMesh("Highway_col.obj", True, True)
+
 mesh_vis = chrono.ChTriangleMeshConnected()
-mesh_vis.LoadWavefrontMesh('Highway_vis.obj', True, True)
+mesh_vis.LoadWavefrontMesh("Highway_vis.obj", True, True)
 
-# Create the ground body
-ground = chrono.ChBody()
-ground.SetBodyFixed(True)
-ground.GetCollisionModel().ClearModel()
-ground.GetCollisionModel().AddTriangleMesh(mesh_col, True, chrono.ChVectorD(0, 0, 0), chrono.ChMatrix33D(1))
-ground.GetCollisionModel().BuildModel()
-ground.SetCollide(True)
+# Create terrain body
+terrain_body = chrono.ChBody()
+terrain_body.SetBodyFixed(True)
+terrain_body.SetCollide(True)
+system.Add(terrain_body)
 
-# Add visual shape to ground
+# Add collision mesh to terrain
+terrain_body.GetCollisionModel().ClearModel()
+terrain_body.GetCollisionModel().AddTriangleMesh(
+    mesh_col, 
+    chrono.ChVector3d(0, 0, 0), 
+    chrono.ChMatrix33d(chrono.QUNIT), 
+    True, 
+    True
+)
+terrain_body.GetCollisionModel().BuildModel()
+
+# Add visual mesh to terrain
 vis_shape = chrono.ChVisualShapeTriangleMesh()
 vis_shape.SetMesh(mesh_vis)
-vis_shape.SetName('Highway Terrain')
-ground.AddVisualShape(vis_shape)
+vis_shape.SetName("Highway Visualization")
+terrain_body.AddVisualShape(vis_shape)
 
-system.AddBody(ground)
+# Initialize Irrlicht application
+application = irr.ChIrrApp(system, "HMMWV Simulation", irr.dimension2du(1024, 768))
+application.AddTypicalLogo()
+application.AddTypicalSky()
+application.AddTypicalLights(irr.vector3df(30, 100, 30), irr.vector3df(30, 0, 30), 128)
+application.AddCamera(chrono.ChVector3d(0, 5, -10), chrono.ChVector3d(0, 0, 0))
 
-# Real-time step timer
-rt_timer = chrono.ChRealtimeStepTimer()
+# Initialize interactive driver
+my_driver = driver.InteractiveDriverIRR(application)
+my_driver.SetSteeringDelta(0.05)
+my_driver.SetThrottleDelta(0.05)
+my_driver.SetBrakingDelta(0.05)
+my_driver.Initialize()
+
+# Configure step management for real-time simulation
+application.SetStepManage(True)
+application.SetTimestep(step_size)
+application.SetTryRealtime(True)
 
 # Simulation loop
 while application.GetDevice().run():
-    # Maintain real-time step
-    rt_timer.Spin(step_size)
-    time += step_size
+    time = system.GetChTime()
 
-    # Get driver inputs
-    driver_inputs = driver.GetInputs()
+    # Update driver inputs
+    my_driver.Advance(step_size)
+    driver_inputs = my_driver.GetInputs()
 
-    # Synchronize driver and vehicle
-    driver.Synchronize(time)
-    vehicle.GetVehicle().Synchronize(time, driver_inputs)
+    # Synchronize vehicle with driver inputs
+    vehicle.Synchronize(time, driver_inputs)
+    vehicle.Advance(step_size)
 
-    # Advance vehicle and system
+    # Advance the simulation
     system.DoStepDynamics(step_size)
 
-    # Update visualization
+    # Render scene
     application.BeginScene()
     application.DrawAll()
     application.EndScene()

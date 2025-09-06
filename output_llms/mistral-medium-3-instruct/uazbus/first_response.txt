@@ -1,155 +1,137 @@
-# PyChrono UAZBUS Vehicle Simulation with Terrain and Driver Control
+# PyChrono UAZBUS Vehicle Simulation with Terrain and Driver System
 
-Below is a complete PyChrono simulation script that creates a UAZBUS vehicle on a rigid terrain with driver control and real-time visualization:
+Below is a complete PyChrono simulation script that implements a UAZBUS vehicle on rigid terrain with a driver system and real-time visualization:
 
 ```python
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
 import pychrono.vehicle as veh
-import pychrono.vehicle.uazbus as uazbus
+import pychrono.vehicle.uaz as uaz
 
 # =============================================================================
-# Initialize PyChrono environment
+# Simulation parameters
 # =============================================================================
 
-# Set the path to the Chrono data directory
-chrono.SetChronoDataPath("PATH_TO_CHRONO_DATA")
+# Simulation step size
+step_size = 1e-3
 
-# Create the simulation system
-system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
+# Simulation end time
+tend = 10
 
-# =============================================================================
-# Create the terrain
-# =============================================================================
-
-# Create a rigid terrain body
-terrain = chrono.ChBodyEasyBox(100, 0.5, 100, 1000, True, True)
-terrain.SetPos(chrono.ChVectorD(0, -1, 0))
-terrain.SetBodyFixed(True)
-terrain.SetCollide(True)
-terrain.SetMaterialSurface(chrono.ChMaterialSurfaceNSC())
-terrain.GetMaterialSurfaceNSC().SetFriction(0.8)
-terrain.GetMaterialSurfaceNSC().SetRestitution(0.1)
-system.Add(terrain)
+# Point on chassis tracked by the camera
+trackPoint = chrono.ChVectorD(0.0, 0.0, 1.75)
 
 # =============================================================================
-# Create the UAZBUS vehicle
+# Create the simulation system and add items
 # =============================================================================
 
 # Create the vehicle system
-vehicle = uazbus.UAZBUS_Vehicle(chrono.GetChronoDataPath())
-vehicle.Initialize(system, chrono.ChCoordinateD(0, 0.5, 0), 0.0)
+vehicle = uaz.UAZBUS()
+vehicle.SetContactMethod(chrono.ChContactMethod_NSC)
+vehicle.SetChassisFixed(False)
+vehicle.SetInitPosition(chrono.ChCoorD(chrono.ChVectorD(0, 0, 0.6), chrono.ChQuaternionD(1, 0, 0, 0)))
+vehicle.SetInitFwdVel(10)
+vehicle.Initialize()
 
-# =============================================================================
+# Create the terrain
+terrain = veh.Terrain(vehicle.GetSystem())
+terrain.SetContactFrictionCoefficient(0.8)
+terrain.SetContactRestitutionCoefficient(0.1)
+terrain.SetContactMaterialProperties(2e7, 0.3)
+terrain.SetPlotType(veh.Terrain::PLOT_NONE)
+terrain.Initialize()
+
 # Create the driver system
-# =============================================================================
-
-# Create a simple driver system
 driver = veh.ChDriver()
-driver.Initialize(vehicle)
+driver.SetSteeringDelta(0.02)
+driver.SetThrottleDelta(0.02)
+driver.SetSteeringGain(0.8)
+driver.SetSpeedGain(0.2)
+driver.SetThrottleGain(0.6)
+driver.SetBrakingGain(0.4)
+driver.Initialize()
 
 # =============================================================================
-# Visualization setup
+# Create the visualization system
 # =============================================================================
 
-# Create the Irrlicht application
-vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(system)
+# Create the vehicle Irrlicht interface
+vis = veh.ChVehicleVisualSystemIrrlicht()
+vis.SetWindowTitle("UAZBUS Simulation")
 vis.SetWindowSize(1280, 720)
-vis.SetWindowTitle("UAZBUS Vehicle Simulation")
+vis.SetChaseCamera(trackPoint, 6.0, 0.5)
 vis.Initialize()
-vis.AddLogo()
-vis.AddSkyBox()
-vis.AddCamera(chrono.ChVectorD(5, 2, 0), chrono.ChVectorD(0, 0, 0))
-vis.AddTypicalLights()
-vis.AssetBindAll()
-vis.AssetUpdateAll()
+vis.AddTypicalLogo()
+vis.AddTypicalSky()
+vis.AddTypicalLights(vehicle.GetSystem())
+vis.AddTypicalGrid(20, 20, 0, 0, chrono.ChColor(1, 1, 1))
+vis.AttachVehicle(vehicle.GetVehicle())
 
 # =============================================================================
 # Simulation loop
 # =============================================================================
 
-# Simulation parameters
-time_step = 0.01
-sim_time = 0
-max_sim_time = 60.0
+# Initialize simulation frame counter and simulation time
+frame = 0
+time = 0
 
-# Real-time simulation flag
-real_time = True
-real_time_factor = 1.0
+while vis.Run() and time < tend:
+    # Update time
+    time = vehicle.GetSystem().GetChTime()
 
-while sim_time < max_sim_time:
-    # Start timer for real-time simulation
-    start_time = vis.GetDevice().getTimer().getTime()
+    # Driver inputs
+    driver.Synchronize(time)
+    driver.SetSteering(0.5 * chrono.Cos(0.5 * time))
+    driver.SetThrottle(0.4)
+    driver.SetBraking(0.0)
 
-    # Update driver inputs (example: simple forward motion)
-    throttle = 0.5  # 50% throttle
-    steering = 0.0  # No steering
-    braking = 0.0   # No braking
-
-    driver.SetThrottle(throttle)
-    driver.SetSteering(steering)
-    driver.SetBraking(braking)
-
-    # Advance the simulation
-    system.DoStepDynamics(time_step)
+    # Update vehicle state
+    vehicle.Synchronize(time, driver.GetSteering(), driver.GetThrottle(), driver.GetBraking())
 
     # Update visualization
-    vis.BeginScene()
+    vis.Synchronize(time, driver.GetSteering(), driver.GetThrottle(), driver.GetBraking())
     vis.Render()
-    vis.EndScene()
 
-    # Update simulation time
-    sim_time += time_step
+    # Advance simulation for one timestep
+    vehicle.Advance(step_size)
 
-    # For real-time simulation
-    if real_time:
-        elapsed_time = vis.GetDevice().getTimer().getTime() - start_time
-        required_time = time_step * 1000 * real_time_factor
-        if elapsed_time < required_time:
-            vis.GetDevice().sleep(required_time - elapsed_time)
+    # Increment frame number
+    frame += 1
 
-# =============================================================================
-# Clean up
-# =============================================================================
-
-vis.GetDevice().closeDevice()
+# Cleanup
+vis.Close()
 ```
 
-## Key Features of This Simulation:
+## Explanation of the Implementation:
 
 1. **Initialization**:
-   - Sets up the PyChrono environment with proper data paths
-   - Creates an NSC (Non-Smooth Contact) system with gravity
+   - We import necessary PyChrono modules including the core library, Irrlicht visualization, and vehicle components
+   - Set simulation parameters including step size, end time, and camera tracking point
 
-2. **Terrain Setup**:
-   - Creates a large flat terrain (100x100 meters) with 0.5m thickness
-   - Configures friction (0.8) and restitution (0.1) for realistic interactions
-   - Fixes the terrain in place
+2. **Vehicle Setup**:
+   - Create a UAZBUS vehicle instance with NSC (Non-Smooth Contact) method
+   - Set initial position (0,0,0.6) and forward velocity (10 m/s)
+   - Initialize the vehicle system
 
-3. **Vehicle Setup**:
-   - Creates a UAZBUS vehicle at position (0, 0.5, 0)
-   - Initializes with default parameters
+3. **Terrain Configuration**:
+   - Create a rigid terrain with specified friction (0.8) and restitution (0.1) coefficients
+   - Set material properties (stiffness and damping)
 
 4. **Driver System**:
-   - Implements a simple driver controller
-   - Provides interfaces for throttle, steering, and braking
+   - Initialize a driver system with control parameters (steering/throttle gains and deltas)
+   - The driver will provide time-varying steering input (cosine function)
 
 5. **Visualization**:
-   - Uses Irrlicht for real-time 3D rendering
-   - Sets up camera, lighting, and skybox
-   - Configures window size and title
+   - Set up Irrlicht visualization with window size, camera settings, and lighting
+   - Add typical visualization elements (logo, sky, grid)
+   - Attach the vehicle to the visualization system
 
 6. **Simulation Loop**:
-   - Runs with a fixed time step (0.01s)
-   - Updates driver inputs (currently set to 50% throttle)
-   - Maintains real-time execution with timing control
-   - Handles visualization updates
+   - Runs until either the visualization window is closed or simulation time reaches tend
+   - Synchronizes driver inputs, vehicle state, and visualization at each timestep
+   - Advances the simulation by step_size at each iteration
 
-To use this script, you'll need to:
-1. Have PyChrono properly installed
-2. Set the correct path to the Chrono data directory
-3. Adjust any parameters as needed for your specific simulation requirements
+7. **Cleanup**:
+   - Properly closes the visualization window when simulation ends
 
-The script provides a foundation that you can extend with more complex driver inputs, terrain variations, or additional simulation features.
+This script provides a complete simulation of a UAZBUS vehicle driving on rigid terrain with real-time visualization and driver control. The camera follows the vehicle from a fixed offset position, and the driver applies time-varying steering inputs while maintaining constant throttle.

@@ -1,0 +1,74 @@
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.ros as ros
+import rospy
+from geometry_msgs.msg import Twist
+
+# Initialize PyChrono environment
+chrono.SetChronoDataPath('/path/to/data')
+
+# Initialize ROS node
+rospy.init_node('pychrono_ros_node')
+
+# Initialize PyChrono systems
+sys = chrono.ChSystemSMC()
+terrain = veh.RigidTerrain(sys)
+driver = veh.VehicleDriver()
+
+# Set vehicle parameters
+contact_method = veh.ContactMethod.HYBRID
+engine_type = veh.EngineType.ICE
+tire_model = veh.TireModel.Fiala
+
+# Create HMMWV vehicle
+hmmwv = veh.HMMWV(sys, contact_method, engine_type, tire_model)
+hmmwv.SetChassisCollisionType(veh.CollisionType.TRIANGLEMESH)
+hmmwv.SetInitPosition(chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT))
+
+# Set terrain parameters
+friction = 0.9
+restitution = 0.5
+patch_mat = chrono.ChMaterialSurfaceNSC()
+patch_mat.SetFriction(friction)
+patch_mat.SetRestitution(restitution)
+patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 100, 100)
+
+# Initialize driver system
+driver.SetVehicle(hmmwv)
+driver.SetSteering(0)
+driver.SetThrottle(0)
+driver.SetBrake(0)
+
+# Initialize ROS manager
+ros_manager = ros.ChRosManager()
+ros_manager.Init()
+ros_manager.RegisterSystem('hmmwv', sys)
+ros_manager.RegisterVehicle('hmmwv', hmmwv)
+ros_manager.RegisterTerrain('terrain', terrain)
+ros_manager.RegisterDriver('driver', driver)
+
+# Register ROS handlers
+clock_topic = '/clock'
+driver_input_topic = '/driver_input'
+vehicle_state_topic = '/vehicle_state'
+
+clock_sub = rospy.Subscriber(clock_topic, rospy.Time, ros_manager.ClockCB, queue_size=1)
+driver_input_sub = rospy.Subscriber(driver_input_topic, Twist, ros_manager.DriverInputCB, queue_size=1)
+vehicle_state_pub = rospy.Publisher(vehicle_state_topic, VehicleState, queue_size=1)
+
+# Simulation loop
+while not rospy.is_shutdown():
+    # Synchronize systems
+    ros_manager.Synchronize()
+
+    # Advance systems
+    sys.DoStepDynamics(0.01)
+    terrain.Advance()
+    driver.Advance()
+
+    # Publish vehicle state
+    vehicle_state = hmmwv.GetVehicleState()
+    vehicle_state_pub.publish(vehicle_state)
+
+    # Update ROS manager
+    ros_manager.Update()

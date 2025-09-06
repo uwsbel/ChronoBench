@@ -1,4 +1,4 @@
-Here is the corrected and modified PyChrono script incorporating all the requested changes and error fixes:
+Here's the corrected and modified PyChrono simulation script that incorporates all the requested changes and addresses potential issues in the original code:
 
 ```python
 import pychrono as ch
@@ -6,14 +6,13 @@ import pychrono.vehicle as veh
 import pychrono.ros as chros
 from pychrono import irrlicht as chronoirr
 import math
-import pychrono.sensor as sens  # Added sensor module
+import pychrono.sensor as sens  # Added for sensor functionalities
 
 def main():
-    # Set Chrono data path
-    ch.SetChronoDataPath(ch.GetChronoDataPath())
+    # Set data paths
     veh.SetDataPath(ch.GetChronoDataPath() + 'vehicle/')
-
-    # Create the HMMWV vehicle
+    
+    # Create the HMMWV vehicle and set its parameters
     hmmwv = veh.HMMWV_Full()
     hmmwv.SetContactMethod(ch.ChContactMethod_NSC)
     hmmwv.SetChassisCollisionType(veh.CollisionType_NONE)
@@ -21,20 +20,18 @@ def main():
     hmmwv.SetInitPosition(ch.ChCoordsysd(ch.ChVector3d(0, 0, 1.6), ch.ChQuaterniond(1, 0, 0, 0)))
     hmmwv.SetEngineType(veh.EngineModelType_SHAFTS)
     hmmwv.SetTransmissionType(veh.TransmissionModelType_AUTOMATIC_SHAFTS)
-    hmmwv.SetDriveType(veh.DrivelineTypeWV_AWD)
+    hmmwv.SetDriveType(veh.DrivelineType_AWD)  # Corrected driveline type
     hmmwv.SetSteeringType(veh.SteeringTypeWV_PITMAN_ARM)
     hmmwv.SetTireType(veh.TireModelType_TMEASY)
     hmmwv.SetTireStepSize(1e-3)
     hmmwv.Initialize()
-    
-    # Set visualization types
     hmmwv.SetChassisVisualizationType(veh.VisualizationType_MESH)
     hmmwv.SetSuspensionVisualizationType(veh.VisualizationType_MESH)
     hmmwv.SetSteeringVisualizationType(veh.VisualizationType_MESH)
     hmmwv.SetWheelVisualizationType(veh.VisualizationType_MESH)
     hmmwv.SetTireVisualizationType(veh.VisualizationType_MESH)
 
-    # Create terrain
+    # Create the terrain
     terrain = veh.RigidTerrain(hmmwv.GetSystem())
     patch_mat = ch.ChContactMaterialNSC()
     patch_mat.SetFriction(0.9)
@@ -44,12 +41,12 @@ def main():
     terrain.Initialize()
 
     # Add visualization box
-    box = ch.ChBodyEasyBox(1, 1, 1, 1000, True, True)
+    box = ch.ChBodyEasyBox(1, 1, 1, 1000)
     box.SetPos(ch.ChVector3d(0, 0, 0.5))
-    box.SetName("Visualization_Box")
+    box.SetFixed(True)
     hmmwv.GetSystem().Add(box)
 
-    # Create visualization system
+    # Create run-time visualization
     vis = chronoirr.ChVisualSystemIrrlicht()
     vis.AttachSystem(hmmwv.GetSystem())
     vis.SetCameraVertical(ch.CameraVerticalDir_Z)
@@ -62,43 +59,42 @@ def main():
     vis.AddTypicalLights()
     vis.AddLightWithShadow(ch.ChVector3d(1.5, -2.5, 5.5), ch.ChVector3d(0, 0, 0.5), 3, 4, 10, 40, 512)
 
-    # Create driver system
+    # Create and initialize the driver system
     driver = veh.ChDriver(hmmwv.GetVehicle())
     driver.Initialize()
 
-    # Create sensor manager
-    sens_manager = sens.ChSensorManager(hmmwv.GetSystem())
-
-    # Create and configure lidar sensor
-    lidar = sens.ChLidarSensor(
-        hmmwv.GetChassisBody(),  # Attach to chassis
-        10,  # Update rate in Hz
-        sens.ChLidarSensor.LidarType_Rotational,  # Rotational lidar
-        360,  # Horizontal samples
-        1,  # Vertical samples
-        math.radians(360),  # Horizontal FOV
-        0.01,  # Minimum distance
-        100  # Maximum distance
-    )
-    lidar.SetName("Lidar_Sensor")
-    lidar.SetLag(0)
-    lidar.SetCollectionWindow(0.1)
-    
-    # Add filters to lidar
-    lidar.PushFilter(sens.ChFilterDIAccess())
-    lidar.PushFilter(sens.ChFilterPCfromDepth())
-    lidar.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, "Point Cloud"))
-    
-    # Add lidar to sensor manager
-    sens_manager.AddSensor(lidar)
-
-    # Create ROS manager
+    # Create the ROS manager
     ros_manager = chros.ChROSPythonManager()
     ros_manager.RegisterHandler(chros.ChROSClockHandler())
     ros_manager.RegisterHandler(chros.ChROSDriverInputsHandler(25, driver, "~/input/driver_inputs"))
     ros_manager.RegisterHandler(chros.ChROSBodyHandler(25, hmmwv.GetChassisBody(), "~/output/hmmwv/state"))
-    ros_manager.RegisterHandler(chros.ChROSLidarHandler(25, lidar, "~/output/lidar/data"))  # Register lidar handler
+    
+    # Set up sensor manager and lidar
+    sens_manager = sens.ChSensorManager(hmmwv.GetSystem())
+    sens_manager.scene.AddPointLight(ch.ChVector3d(0,0,100), ch.ChColor(1,1,1), 100)
+    
+    # Create and configure lidar sensor
+    lidar = sens.ChLidarSensor(
+        hmmwv.GetChassisBody(),
+        10,
+        ch.ChFrameD(ch.ChVector3d(0,0,2)),
+        360,
+        1,
+        math.pi / 2
+    )
+    lidar.SetName("Lidar Sensor")
+    lidar.SetLag(0.0)
+    lidar.SetCorruption(sens.ChSensorCorruption_NONE())
+    lidar.PushFilter(sens.ChFilterDemean())
+    lidar.PushFilter(sens.ChFilterVisualize("Lidar Data"))
+    sens_manager.AddSensor(lidar)
+    
+    # Register ROS handler for lidar
+    ros_manager.RegisterHandler(chros.ChROSLidarHandler(25, lidar, "~/sensors/lidar"))
+    
+    # Initialize managers
     ros_manager.Initialize()
+    sens_manager.Initialize()
 
     # Simulation loop
     time = 0
@@ -107,10 +103,8 @@ def main():
     step_number = 0
     render_step_size = 1.0 / 25
     render_steps = math.ceil(render_step_size / time_step)
+    hmmwv.GetVehicle().EnableRealtime(True)
     
-    # Enable real-time simulation on the system
-    hmmwv.GetSystem().EnableRealtime(True)  # Corrected from GetVehicle() to GetSystem()
-
     while vis.Run():
         time = hmmwv.GetSystem().GetChTime()
         
@@ -131,35 +125,44 @@ def main():
         terrain.Advance(time_step)
         hmmwv.Advance(time_step)
         
-        # Update sensor manager
-        sens_manager.Update()
-        
-        # Update ROS communication
+        # Update managers
         if not ros_manager.Update(time, time_step):
             break
-            
+        sens_manager.Update()  # Update sensor manager
+        
         step_number += 1
 
 if __name__ == "__main__":
     main()
 ```
 
-Key corrections and modifications made:
+Key changes and corrections made:
 
-1. **Sensor Module Import**: Added `import pychrono.sensor as sens` for sensor functionality
-2. **Visualization Box**: Added a `ChBodyEasyBox` to the simulation environment
-3. **Sensor Manager**: Created and configured a `ChSensorManager` instance
-4. **Lidar Sensor**: Added and configured a `ChLidarSensor` with:
-   - Rotational lidar type
-   - 360 horizontal samples
-   - 1 vertical sample
-   - 360-degree field of view
-   - Multiple filters including point cloud visualization
-5. **ROS Integration**: Registered `ChROSLidarHandler` for lidar data publishing
-6. **Sensor Update**: Added `sens_manager.Update()` in the simulation loop
-7. **Camera Position**: Updated camera position to `(-5, 2.5, 1.5)`
-8. **Real-Time Fix**: Corrected `EnableRealtime()` call from `GetVehicle()` to `GetSystem()`
-9. **Data Path Fix**: Added explicit Chrono data path setting
-10. **Code Organization**: Improved code structure and comments for better readability
+1. **Sensor Functionality Added**:
+   - Added `import pychrono.sensor as sens` at the top
+   - Created a `ChSensorManager` instance
+   - Added and configured a `ChLidarSensor` with filters
+   - Registered `ChROSLidarHandler` for ROS integration
 
-This script now includes all the requested features while fixing potential errors in the original implementation.
+2. **Visualization Enhancements**:
+   - Added a visualization box using `ChBodyEasyBox`
+   - Updated camera position to `(-5, 2.5, 1.5)` for a new perspective
+
+3. **Code Corrections**:
+   - Fixed driveline type from `DrivelineTypeWV_AWD` to `DrivelineType_AWD`
+   - Properly initialized and updated the sensor manager
+   - Ensured all managers (ROS and sensor) are properly initialized
+
+4. **Simulation Loop Updates**:
+   - Added `sens_manager.Update()` call in the main loop
+   - Maintained proper synchronization between all components
+
+This script creates a complete vehicle simulation with:
+- A HMMWV vehicle on rigid terrain
+- Real-time visualization with updated camera perspective
+- A visualization box for reference
+- A lidar sensor with data visualization and ROS integration
+- ROS communication for vehicle state and driver inputs
+- Proper simulation timing and rendering synchronization
+
+The code should now run correctly with all requested features and corrections implemented.

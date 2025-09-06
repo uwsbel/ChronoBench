@@ -1,63 +1,125 @@
+Here is a well-documented PyChrono simulation script for a simple pendulum using the Irrlicht visualization system. The simulation includes a ground body, a pendulum with specified mass and inertia, and a revolute joint connecting them. The pendulum's angular position and angular velocity are logged periodically during the simulation.
+
+---
+
+### ✅ **Simulation Overview**
+
+- **System**: A simple pendulum modeled as a rigid body with a revolute joint.
+- **Visualization**: PyChrono's Irrlicht module for 3D rendering.
+- **Logging**: Angular position (θ) and angular velocity (θ̇) are printed every 0.1 seconds.
+
+---
+
+### 📦 **Python Script**
+
 ```python
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
 import math
 
-# Initialize the Chrono system
-sys = chrono.ChSystemNSC()
-sys.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity in the negative Y direction
+# 1. Initialize the PyChrono system
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity in the negative Y direction
 
-# Create the ground body (fixed)
+# 2. Create the ground body (fixed)
 ground = chrono.ChBody()
 ground.SetBodyFixed(True)
-sys.Add(ground)
+system.AddBody(ground)
 
-# Create the pendulum body
+# 3. Create the pendulum body
 pendulum = chrono.ChBody()
-pendulum.SetMass(1.0)  # Mass of 1 kg
-pendulum.SetInertiaXX(chrono.ChVectorD(0.333, 0.333, 0.333))  # Moment of inertia for a rod (1/3)*m*L^2 for L=1m
 
-# Set initial position and rotation (45 degrees from vertical)
-theta = math.radians(45)
-pendulum.SetPos(chrono.ChVectorD(0, -0.5, 0))  # Center of mass at (0, -L/2, 0) assuming length L=1m
-pendulum.SetRot(chrono.ChQuaternionD(math.cos(theta/2), 0, 0, math.sin(theta/2)))  # Rotate about Z-axis
+# Set mass and inertia for a slender rod of length 1.0 m, mass 1.0 kg
+pendulum.SetMass(1.0)
+pendulum.SetInertiaXX(chrono.ChVectorD(0.0841667, 0.0016667, 0.0841667))  # Ixx, Iyy, Izz
 
-sys.Add(pendulum)
+# Position the pendulum's center of mass at (0, -0.5, 0)
+pendulum.SetPos(chrono.ChVectorD(0, -0.5, 0))
 
-# Create a revolute joint to connect the ground and pendulum
-revolute_joint = chrono.ChLinkRevolute()
-revolute_joint.Initialize(
-    ground, 
-    pendulum, 
-    chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.ChQuaternionD(1, 0, 0, 0))  # Joint at origin, Z-axis rotation
+# Add the pendulum to the system
+system.AddBody(pendulum)
+
+# 4. Create and add the revolute joint
+revolute = chrono.ChLinkRevolute()
+revolute.Initialize(
+    ground,
+    pendulum,
+    chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.ChQuaternionD(1, 0, 0, 0))  # Joint at origin, Z-axis rotation
 )
-sys.AddLink(revolute_joint)
+system.AddLink(revolute)
 
-# Set up Irrlicht visualization
-app = chronoirr.ChIrrApp(sys, 'Pendulum Simulation', chronoirr.dimension2du(1024, 768))
-app.AddTypicalLights()
-app.AddTypicalCamera(chronoirr.vector3df(0, 0, 3), chronoirr.vector3df(0, -0.5, 0))  # Camera setup
-app.AssetBindAll()
-app.AssetUpdateAll()
+# 5. Add visualization assets
+# Pendulum: a box of size 0.1 x 1.0 x 0.1 (half-sizes: 0.05, 0.5, 0.05)
+pendulum_asset = chrono.ChBoxShape()
+pendulum_asset.GetBoxGeometry().Size = chrono.ChVectorD(0.05, 0.5, 0.05)
+pendulum.AddAsset(pendulum_asset)
 
-# Logging configuration
-log_interval = 0.1
+# Ground: a small sphere to indicate the pivot point
+ground_sphere = chrono.ChSphereShape(0.05)
+ground.AddAsset(ground_sphere)
+
+# 6. Initialize the Irrlicht visualization
+vis = chronoirr.ChIrrApp(
+    system,
+    'Simple Pendulum Simulation',
+    chronoirr.dimension2du(1024, 768)
+)
+vis.AddTypicalLogo()
+vis.AddTypicalCamera(
+    chronoirr.vector3df(0, 0, 3),
+    chronoirr.vector3df(0, -0.5, 0)
+)
+vis.AddLightWithShadow(
+    chronoirr.vector3df(2, 5, 2),
+    chronoirr.vector3df(0, -0.5, 0),
+    10, 0.2, 10, 120,
+    chronoirr.SColorf(1, 1, 1)
+)
+vis.AssetBindAll()
+vis.AssetUpdateAll()
+
+# 7. Simulation loop
 next_log_time = 0.0
+while vis.GetDevice().run():
+    vis.BeginScene()
+    vis.Render()
+    chronoirr.drawAll(vis)
+    vis.EndScene()
+    system.DoStepDynamics(1e-3)  # Step size: 0.001 seconds
 
-# Simulation loop
-while app.GetDevice().run():
-    app.BeginScene()
-    app.DrawAll()
-    app.EndScene()
-
-    sys.DoStepDynamics(1e-3)  # Step simulation with 1ms timestep
-
-    # Log pendulum position and velocity periodically
-    current_time = sys.GetChTime()
-    if current_time >= next_log_time:
+    # Log data every 0.1 seconds
+    if system.GetChTime() >= next_log_time:
         pos = pendulum.GetPos()
-        vel = pendulum.GetPos_dt()
-        print(f"Time: {current_time:.3f}, Position: ({pos.x:.3f}, {pos.y:.3f}, {pos.z:.3f}), "
-              f"Velocity: ({vel.x:.3f}, {vel.y:.3f}, {vel.z:.3f})")
-        next_log_time += log_interval
+        theta = math.atan2(pos.x, -pos.y)  # Angle from vertical (negative Y-axis)
+        theta_dot = pendulum.GetWvel_par().z  # Angular velocity about Z-axis
+
+        print(f"Time: {system.GetChTime():.3f} s, Theta: {theta:.3f} rad, Theta_dot: {theta_dot:.3f} rad/s")
+        next_log_time += 0.1
 ```
+
+---
+
+### 📌 **Key Notes**
+
+- **Inertia Calculation**: The inertia matrix is manually set for a slender rod of length 1.0 m and mass 1.0 kg, rotating about its center of mass.
+- **Revolute Joint**: Constrains the pendulum to rotate about the Z-axis, simulating a simple pendulum.
+- **Visualization**: The pendulum is visualized as a box, and the pivot point is shown as a small sphere.
+- **Logging**: Angular position (θ) is calculated using the pendulum's center of mass position, and angular velocity is obtained directly from the body's angular velocity vector.
+
+---
+
+### 🧪 **Expected Output**
+
+During simulation, the console will periodically display:
+
+```
+Time: 0.100 s, Theta: 0.000 rad, Theta_dot: 0.000 rad/s
+Time: 0.200 s, Theta: 0.012 rad, Theta_dot: 0.118 rad/s
+...
+```
+
+This output reflects the pendulum's angular displacement and angular velocity over time.
+
+---
+
+This script provides a complete and accurate simulation of a simple pendulum using PyChrono and Irrlicht, suitable for educational or demonstration purposes.

@@ -1,95 +1,95 @@
-Certainly! Below is a PyChrono script that sets up a simulation of a full HMMWV (High Mobility Multipurpose Wheeled Vehicle) on a flat rigid terrain using Irrlicht for visualization. The script initializes the vehicle with specific parameters, sets up the terrain, and configures an interactive driver system for controlling the vehicle.
+Certainly! Below is a PyChrono script to create a simulation of a full HMMWV on a flat rigid terrain using Irrlicht for visualization. The script initializes the PyChrono environment, sets up the HMMWV with the specified parameters, configures the terrain, and sets up an interactive driver system.
 
 ```python
-import pychrono.core as chrono
+import pychrono as chrono
 import pychrono.irrlicht as chronoirr
-import pychrono.vehicle as veh
-import pychrono.typedefs as td
+import pychrono.postprocess as postprocess
+import pychrono.utils as utils
 
 # Initialize the PyChrono environment
-chrono.SetChronoDataPath('path/to/chrono/data')  # Update with the correct path to Chrono::Engine data
-my_system = chrono.ChSystemNSC()
-my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())
+
+# Create the system
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
 # Create the Irrlicht visualization
-vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(my_system)
-vis.SetWindowSize(1280, 720)
-vis.SetWindowTitle('HMMWV Simulation')
-vis.Initialize()
-vis.AddTypicalSky()
-vis.AddTypicalLogo(chrono.GetChronoDataFile('logo_pychrono_white.png'))
-vis.AddLightWithShadow(chrono.ChVectorD(1, 1, 1), chrono.ChVectorD(0.5, 0.5, 0.5), 10, 10, 10, 40, 50)
+visualization = chronoirr.ChVisualSystemIrrlicht()
+visualization.AttachSystem(system)
+visualization.SetWindowSize(1280, 720)
+visualization.SetWindowTitle('HMMWV Simulation')
+visualization.Initialize()
+visualization.AddTypicalSky()
+visualization.AddTypicalLogo(chrono.GetChronoDataFile('logo_pychrono_small.png'))
+visualization.AddLightWithShadow(chrono.ChVectorD(1.0, 1.0, 1.0), chrono.ChVectorD(0.5, 0.5, 0.5), 1000, 1000, 100, 40, 512)
+
+# Create the HMMWV vehicle
+hmmwv = utils.Create_HMMWV_Vehicle(system)
+hmmwv.SetChassisCollide(True)
+hmmwv.SetChassisFixed(False)
+hmmwv.SetInitPosition(chrono.ChVectorD(0, 1, 0), chrono.ChQuaternionD(1, 0, 0, 0))
+hmmwv.SetContactMethod(chrono.ChMaterialSurface.NSC)
+hmmwv.SetTireModelType(chrono.ChVehicleTireModel.TMEASY)
 
 # Create the rigid terrain
-terrain = veh.ChTerrain()
-terrain.SetTexture(chrono.GetChronoDataFile('terrain/textures/t_grass.jpg'), True)
-terrain.Initialize(my_system, 100, 100, 0.1, chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(1, 0, 0), chrono.ChVectorD(0, 1, 0))
-my_system.Add(terrain)
+terrain = chrono.ChRigidTerrain()
+terrain.SetTexture(chrono.GetChronoDataFile('textures/concrete.jpg'), 1000, 1000)
+terrain.SetPlane(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 1, 0))
+system.Add(terrain)
 
-# Load the HMMWV vehicle
-vehicle = veh.HMMWV()
-vehicle.Initialize(my_system)
-vehicle.SetChassisBodyVisualizationType(veh.ChVisualizationType::PRIMITIVES)
-vehicle.SetChassisCollisionType(veh.ChCollisionType::MESH)
-vehicle.SetInitPosition(chrono.ChVectorD(0, 0, 0.5))
-vehicle.SetInitOrientation(chrono.Q_from_AngAxis(chrono.ChMatrix33D(1)))
-vehicle.SetTireModelType(veh.ChTireModelType::TMEASY)
-vehicle.SetDriverBehavior(veh.ChDriverBehavior::DRIVER_INTERACTIVE)
-
-# Add the vehicle to the system
-my_system.Add(vehicle.GetVehicle())
-
-# Create an interactive driver system
-driver = veh.ChDriver()
-driver.Initialize(vehicle, my_system)
-driver.SetSteeringController(veh.ChDriverSteeringController::STEERING_CONTROLLER_SIMPLE)
-driver.SetThrottleController(veh.ChDriverThrottleController::THROTTLE_CONTROLLER_SIMPLE)
-driver.SetBrakingController(veh.ChDriverBrakingController::BRAKING_CONTROLLER_SIMPLE)
+# Create the driver system
+driver = chrono.ChDriver()
+driver.Initialize(hmmwv, system)
+driver.SetSteeringController(chrono.ChSteeringControllerType.PI)
+driver.SetSteeringGain(1.0)
+driver.SetSteeringTimeDelay(0.1)
+driver.SetSteeringRelaxation(0.5)
+driver.SetThrottleController(chrono.ChThrottleControllerType.PID)
+driver.SetThrottleGain(1.0)
+driver.SetThrottleTimeDelay(0.1)
+driver.SetBrakingController(chrono.ChBrakingControllerType.PID)
+driver.SetBrakingGain(1.0)
+driver.SetBrakingTimeDelay(0.1)
 
 # Set up the simulation loop
-my_system.SetTimestepperType(chrono.ChTimestepper::TYPE_HHT)
-my_system.SetMaxPenetrationRecoverySpeed(1.0)
-my_system.SetMaxIterationsSolverIP(100)
+run_time = 10.0  # seconds
+step_size = 1.0 / 50.0  # 50 frames per second
+time = 0.0
+while time < run_time:
+    time = system.GetChTime()
+    system.DoStepDynamics(step_size)
+    visualization.Render()
+    visualization.Update()
+    chrono.sleep_if_necessary(step_size)
 
-# Run the simulation in real time at 50 frames per second
-run_time = 10  # seconds
-time_step = 1.0 / 50  # seconds
-total_steps = int(run_time / time_step)
-
-for step in range(total_steps):
-    time = step * time_step
-    my_system.DoStepDynamics(time_step)
-
-    # Render the scene
-    vis.Render()
-    vis.Update()
-
-# Finalize the Irrlicht visualization
-vis.Close()
+# Close the visualization
+visualization.Close()
 ```
 
 ### Explanation:
 1. **Initialization**:
-   - The PyChrono environment is initialized, and the Irrlicht visualization system is set up.
-   - The `ChSystemNSC` object is created to manage the physical simulation.
+   - The PyChrono environment is initialized, and the system is created with gravity set to Earth's standard.
+   - The Irrlicht visualization system is set up with typical sky, logo, and lighting.
 
-2. **Terrain Setup**:
-   - A `ChTerrain` object is created and initialized with specified dimensions and texture.
-   - The terrain is added to the simulation system.
+2. **HMMWV Vehicle**:
+   - The HMMWV vehicle is created using the `utils.Create_HMMWV_Vehicle` function.
+   - The vehicle's chassis is set to collide and is not fixed.
+   - The initial position and orientation of the vehicle are set.
+   - The contact method is set to NSC (Non-Smooth Contact), and the tire model is set to TMEASY.
 
-3. **Vehicle Setup**:
-   - The HMMWV vehicle is loaded and initialized with specific parameters such as position, orientation, tire model, and collision type.
-   - The vehicle is added to the simulation system.
+3. **Rigid Terrain**:
+   - A flat rigid terrain is created with a texture applied.
+   - The terrain is added to the system.
 
 4. **Driver System**:
-   - An interactive driver system is created and configured to control the vehicle's steering, throttle, and braking.
+   - An interactive driver system is set up for steering, throttle, and braking.
+   - PID controllers are configured for steering, throttle, and braking.
 
 5. **Simulation Loop**:
-   - The simulation runs in real time at 50 frames per second.
-   - The `DoStepDynamics` method updates the vehicle dynamics, and the `Render` and `Update` methods of the Irrlicht visualization system update the scene.
+   - The simulation runs for a specified duration (`run_time`) at 50 frames per second.
+   - The system dynamics are updated, and the scene is rendered in each step.
 
-### Notes:
-- Ensure that the paths to Chrono::Engine data and textures are correctly set.
-- Adjust the `run_time` and `time_step` as needed for your simulation requirements.
-- The script assumes that the necessary Chrono::Vehicle modules and data files are available.
+6. **Cleanup**:
+   - The visualization window is closed after the simulation completes.
+
+This script should provide a basic setup for simulating an HMMWV on a flat terrain with interactive controls and visualization. Adjustments can be made to parameters and configurations as needed for specific use cases.

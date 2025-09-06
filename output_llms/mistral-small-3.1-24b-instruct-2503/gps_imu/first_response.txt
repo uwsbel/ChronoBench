@@ -1,94 +1,102 @@
-Certainly! Below is a Python script that sets up a PyChrono simulation featuring an HMMWV vehicle with terrain, driver inputs, and a visual interface using Irrlicht. It also includes IMU and GPS sensors attached to the vehicle's chassis and processes sensor data at each simulation step.
+Certainly! Below is a PyChrono simulation script that meets the specified instructions. This script initializes the PyChrono environment, sets up the HMMWV vehicle with terrain, driver inputs, IMU, and GPS sensors, and integrates the Irrlicht visual interface.
 
 ```python
-import pychrono.core as chrono
-import pychrono.vehicle as veh
+import pychrono as chrono
 import pychrono.irrlicht as chronoirr
+import pychrono.postprocess as postprocess
 import pychrono.sensor as sensors
+import pychrono.vehicle as veh
 
 # Initialize the PyChrono environment
-chrono.SetChronoDataPath('path/to/chrono/data')
+chrono.SetChronoDataPath('../data/')  # Path to Chrono data directory
 
 # Create the simulation system
 system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
 
-# Create the HMMWV vehicle system
-hmmwv = veh.HMMWV()
-hmmwv.SetChassisBodyFixed(False)
-hmmwv.SetInitPosition(chrono.ChVectorD(0, 0, 0.5))
-hmmwv.SetInitOrientation(chrono.ChQuaternionD(1, 0, 0, 0))
-hmmwv.SetChassisVisualizationType(veh.ChVisualizationType::PRISMATIC)
-hmmwv.SetChassisCollisionType(veh.ChCollisionType::MESH)
+# Create the vehicle system
+vehicle = veh.HMMWV()
+vehicle.SetChassisBodyVisualizationType(veh.ChVisualizationType::MESH)
+vehicle.SetInitPosition(chrono.ChVectorD(0, 1, 0), chrono.ChQuaternionD(1, 0, 0, 0))
+vehicle.SetChassisBodyFixed(False)
+vehicle.SetTireStepSize(0.01)
 
-# Add the HMMWV vehicle to the system
-vehicle = veh.ChVehicleSystemNSC(system)
-vehicle.Add(hmmwv)
-vehicle.Initialize()
-
-# Create the terrain
-terrain = veh.RigidTerrain(system)
-terrain.SetContactMaterial(veh.ChMaterialSurface::DefaultTerrain())
-terrain.SetPlane(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 1)))
-terrain.Initialize()
-
-# Add the driver
+# Create the driver system
 driver = veh.ChDriver()
-driver.SetSteeringController(veh.ChDriver::STEERING_CONTROLLER_PI)
-driver.SetThrottleController(veh.ChDriver::THROTTLE_CONTROLLER_PID)
-driver.SetBrakeController(veh.ChDriver::BRAKE_CONTROLLER_PID)
-driver.Initialize(hmmwv, system.GetChTime())
-vehicle.AddDriver(driver)
+driver.Initialize(vehicle.GetVehicle())
+driver.SetSteeringController(veh.ChGeneric_2WSteering::STEERING_TYPE_PI)
+driver.SetSteeringControllerGains(1.0, 0.1)
+driver.SetThrottleController(veh.ChGenericPowerController::CONTROLLER_TYPE_PI)
+driver.SetThrottleControllerGains(0.2, 0.1)
 
-# Create and attach IMU and GPS sensors to the vehicle's chassis
-imu_sensor = sensors.ChIMUSensor()
-gps_sensor = sensors.ChGPS()
-hmmwv.GetChassisBody().AddSensor(imu_sensor)
-hmmwv.GetChassisBody().AddSensor(gps_sensor)
+# Create the terrain system
+terrain = veh.ChTerrain()
+terrain.SetContactMaterial(vehicle.GetVehicle().GetSystem().GetContactMethod())
+terrain.Initialize(chrono.ChVectorD(0, -0.5, 0), chrono.ChQuaternionD(1, 0, 0, 0))
+terrain.SetPlane(chrono.ChVectorD(0, 1, 0), -0.5)
+terrain.SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"), 200, 200)
 
-# Create the visual system
-vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(system)
-vis.SetWindowTitle('HMMWV Simulation with Sensors')
-vis.SetWindowSize(1280, 720)
-vis.SetCameraPosition(chrono.ChVectorD(0, -5, 3))
-vis.SetCameraTarget(chrono.ChVectorD(0, 0, 0))
+# Add vehicle, driver, and terrain to the system
+system.Add(vehicle.GetVehicle())
+system.Add(driver.GetDriver())
+system.Add(terrain.GetTerrain())
 
-# Simulation loop
+# Add IMU and GPS sensors
+imu_sensor = sensors.ChImuSensor(vehicle.GetVehicle().GetChassisBody())
+gps_sensor = sensors.ChGpsSensor(vehicle.GetVehicle().GetChassisBody())
+
+# Add sensors to the system
+system.Add(imu_sensor)
+system.Add(gps_sensor)
+
+# Create the Irrlicht visual interface
+vis = chronoirr.ChIrrApp(system, 'HMMWV Simulation', chronoirr.dimension2du(800, 600))
+vis.AddTypicalSky()
+vis.AddTypicalLogo(chrono.GetChronoDataFile('logo_pychrono_small.png'))
+vis.AddLightWithShadow(chrono.ChVectorD(1.0, -1.0, 1.0), chrono.ChVectorD(0.7, 0.7, 0.9), 1000, 10, 10, 30, 50)
+vis.EnableRTshadows(True)
+vis.AddLight(chrono.ChVectorD(0.5, 0.5, 1), chrono.ChColorf(0.6, 0.6, 0.6), 0.5)
+vis.AddCamera(chrono.ChVectorD(5, 5, 5), chrono.ChVectorD(0, 0, 0))
+
+# Add vehicle to the visual interface
+vis.AddVisualSystem(vehicle.GetVehicle())
+vis.AddVisualSystem(terrain.GetTerrain())
+
+# Run the simulation loop
 step_size = 0.01
 end_time = 10.0
 time = 0.0
 
 while time < end_time:
-    time = system.GetChTime()
-
-    # Update sensors
-    imu_sensor.Update(system.GetChTime())
-    gps_sensor.Update(system.GetChTime())
-
-    # Output vehicle mass
-    vehicle_mass = hmmwv.GetChassisBody().GetMass()
-    print(f"Time: {time:.2f}s, Vehicle Mass: {vehicle_mass} kg")
+    time += step_size
 
     # Synchronize and advance the simulation
     system.DoStepDynamics(step_size)
 
-    # Render the scene
-    vis.Render()
+    # Process and update sensor data
+    imu_sensor.Synchronize()
+    gps_sensor.Synchronize()
 
-# Close the visual system
-vis.ExitApplication()
+    # Output vehicle mass
+    chassis_mass = vehicle.GetVehicle().GetChassisBody().GetMass()
+    print(f'Time: {time:.2f} s, Vehicle Mass: {chassis_mass:.2f} kg')
+
+    # Render the scene
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+
+# Close the visualization
+vis.Close()
 ```
 
 ### Explanation:
-1. **Initialization**: The PyChrono environment is initialized, and the simulation system is created.
-2. **Vehicle Setup**: An HMMWV vehicle is created and added to the simulation system. The vehicle's initial position and orientation are set.
-3. **Terrain**: A rigid terrain is created and added to the system.
-4. **Driver**: A driver is created and initialized with the vehicle.
-5. **Sensors**: IMU and GPS sensors are created and attached to the vehicle's chassis.
-6. **Visual System**: The Irrlicht visual system is set up to render the simulation.
-7. **Simulation Loop**: The simulation runs for a specified duration, updating sensors, outputting vehicle mass, and rendering the scene at each step.
+1. **Initialization**: The script starts by setting the Chrono data path and creating the simulation system with gravity.
+2. **Vehicle Setup**: The HMMWV vehicle is initialized with a specified position and orientation. The vehicle's chassis is set to be movable.
+3. **Driver Setup**: A driver system is created and configured with steering and throttle controllers.
+4. **Terrain Setup**: A flat terrain is created and added to the system.
+5. **Sensors**: IMU and GPS sensors are attached to the vehicle's chassis and added to the system.
+6. **Visual Interface**: The Irrlicht visual interface is set up, and the vehicle and terrain are added to it.
+7. **Simulation Loop**: The simulation runs in a loop, advancing the system by a specified step size, processing sensor data, outputting the vehicle mass, and rendering the scene.
 
-### Notes:
-- Ensure that the path to the Chrono data directory is correctly set.
-- Adjust the simulation parameters (step size, end time, etc.) as needed.
-- The script assumes that the necessary Chrono libraries and dependencies are installed and properly configured.
+This script provides a comprehensive setup for simulating an HMMWV vehicle with sensors and a visual interface using PyChrono.

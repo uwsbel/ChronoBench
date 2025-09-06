@@ -1,0 +1,125 @@
+import math as m  # Import the math library for trigonometric functions, constants, etc.
+import pychrono as chrno  # Import the main PyChrono library
+import pychrono.fea as fea  # Import the finite element analysis module from PyChrono
+import pychrono.robot  # Import the robotics module
+import pychrono.vehicle  # Import the vehicle module
+import pychrono.irrlicht as chronicls  # Import the Irrlicht visualization module from PyChrono
+import pychrono.physics as fea
+import pychrono.vehicle as v
+import pychrono.robot as r
+import pychrono.vehicle as vr
+
+# Custom function class for motor angle:
+class ChFunctionMyFun(chrono.ChFunction):
+    def __init__(self):
+        chrono.ChFunction.__init__(self)
+    def GetVal(self, x):
+        if x > 0.5:
+            return chrono.CH_PI
+        else:
+            return -chrono.CH_PI * (1.0 - m.cos(chrono.CH_PI * x / 0.3)) / 2.0
+
+# Define the output directory path
+out_dir = chrono.GetChronoOutputPath() + "BEAM_FAILED"
+
+# Create a Chrono::Engine physical system
+sys = chrono.ChSytemSMC()
+
+# Define key geometrical parameters
+L = 1.2
+H = 0.4
+K = 0.07
+vA = chrono.ChVector3d(0, 0, 0)
+vC = chrono.ChVector3d(L, 0, 0)
+vB = chrono.ChVector3d(L, -H, 0)
+vG = chrono.ChVector3d(L - K, -H, 0)
+vd = chrono.ChVector3d(0, 0, 0.0001)
+
+# Create a truss body, fixed in space:
+body_trss = chrono.ChBody()
+body_trss.SetFixed(True)
+sys.AddBody(body_trss)
+
+# Attach a visualization shape to the truss
+boxtruss = chrono.ChVisualShapeBox(0.03, 0.25, 0.15)
+body_trss.AddVisualShape(boxtruss, chrono.ChFramed(chrono.ChVector3d(-0.01, 0, 0), chrono.QUNIT))
+
+# Create a crank body:
+body_crank = chrono.ChBody()
+body_crank.SetPos((vC + vG) * 0.5)
+sys.AddBody(body_crank)
+
+# Create a rotational motor
+motor = chrono.ChLinkMotorRotationSpeed()
+motor.Initialize(body_truss, body_crank, chrono.ChFramed(vG))
+myfun = ChFunctionMyFun()
+motor.SetTorqueFunction(myfun)
+sys.Add(motor)
+
+# Create a robotic arm:
+arm = r.RoboticArm()
+arm.SetPosition(chrono.ChVector3d(0, 0, 0))
+arm.SetMass(100)
+arm.SetVelocity(chrono.ChVector3d(0, 0, 0))
+arm.SetAngle(chrono.ChVector3d(0, 0, 0))
+
+# Create a vehicle:
+vehicle = v.Vehicle()
+vehicle.SetPosition(chrono.ChVector3d(0, 0, 0))
+vehicle.SetMass(100)
+vehicle.SetVelocity(chrono.ChVector3d(0, 0, 0))
+vehicle.SetAngle(chrono.ChVector3d(0, 0, 0))
+
+# Create a FEM mesh container:
+mesh = fea.ChMesh()
+
+# Define horizontal beam parameters
+beam_wy = 0.12
+beam_wz = 0.15
+
+# Create section properties for the IGA beam
+minertia = fea.ChIneritaCosseratSimple()
+minertia.SetAsRectangularSection(beam_wy, beam_wz, 2700)
+melasticity = fea.ChElasticityCosseratSimple()
+melasticity.SetYoungModulus(72.0e9)
+melasticity.SetShearModulusFromPoisson(0.35)
+melasticity.SetAsRectangularSection(beam_wy, beam_wz)
+msection1 = fea.ChMassSectionCosserat(minertia, melasticity)
+msection1.SetDrawThickness(beam_wy * 0.5, beam_wz)
+
+# Build the IGA beam
+builder_iga = fea.ChBuilderBeamIGA()
+builder_iga.BuildBeam(mesh, msection1, 30, vA, vC, chrono.ChVector3d(0, 0, 0))
+
+# Define nodes at the ends of the crank beam
+node_crnkG = builderA.GetLastBeamNodes()[0]
+node_crankB = builderA.GetLastBeamNodes()[-1]
+
+# Create a constraint between the crank beam and the body crank
+constr_cbd = chrono.ChLinkMatePrismatic()
+constr_cbd.Initialize(node_crnkG, body_crank, False, node_crnkG.Frame(), node_crnkG.Frame())
+sys.Add(constr_cbd)
+constr_cbd.SetConstrainedCoords(True, True, True, True, True, True)
+
+# Create a constraint between the vertical beam and the crank beam
+constr_bc = chrono.ChLinkMateGeneric()
+constr_bc.Initialize(node_down, node_crankB, False, node_crankB.Frame(), node_crankB.Frame())
+sys.Add(constr_bc)
+constr_bc.SetConstrainedCoords(True, True, False, True, True, False)
+
+# Attach a visualization shape for the constraint
+sphereconstr3 = chrono.ChVisualShapeSphere(0.01)
+constr_bc.AddVisualShape(sphereconstr3)
+
+# Create a rotor:
+rotor = r.Rotor()
+rotor.SetPosition(chrono.ChVector3d(0, 0, 0))
+rotor.SetMass(50)
+rotor.SetVelocity(chrono.ChVector3d(0, 0, 0))
+rotor.SetAngle(chrono.ChVector3d(0, 0, 0))
+
+# Create a simulation
+sys.SetSimulation(rotor)
+sys.SetSimulationTime(0)
+sys.SetSimulationStep(0.001)
+sys.SetSimulationLoop(True)

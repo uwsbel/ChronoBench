@@ -1,0 +1,65 @@
+# Import necessary libraries
+import os
+import math
+import numpy as np
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
+import pychrono.vehicle as veh
+
+# Set Chrono data path
+chrono.SetChronoDataPath(os.path.join(os.environ['CHRONO_DATA'], '..'))
+
+# Initialize the system and visualization
+sys = chrono.ChSystemSMC()
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(sys)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle('Gator Vehicle Simulation')
+vis.Initialize()
+
+# Set up the Gator vehicle
+gator = veh.Gator()
+gator.SetContactMethod(chrono.ChContactMethod_NSC)
+gator.SetChassisCollisionType(chrono.ChCollisionModel.Type_MSH)
+gator.SetInitPosition(chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0.2), chrono.QuatFromAngleX(math.pi / 2)))
+gator.Initialize()
+
+# Set up the rigid terrain
+terrain = veh.RigidTerrain(sys)
+patch_mat = chrono.ChContactMaterial()
+patch_mat.SetFriction(0.9)
+patch_mat.SetDampingF(0.3)
+patch_mat.SetCompliance(0.01)
+patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 100, 100)
+terrain.Initialize()
+
+# Set up tire model
+tire_model = veh.TMeasyTireModel()
+tire_model.SetTireRadius(0.3)
+tire_model.SetTireWidth(0.2)
+tire_model.SetTirePressure(2.5)
+tire_model.SetTireLoad(500)
+gator.SetTireModel(tire_model)
+
+# Set up driver system
+driver = veh.Driver()
+driver.SetSteeringSensitivity(0.5)
+driver.SetThrottleSensitivity(0.5)
+driver.SetBrakeSensitivity(0.5)
+gator.SetDriver(driver)
+
+# Simulation loop
+while vis.Run():
+    # Update vehicle dynamics
+    gator.Update()
+
+    # Render the scene
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+
+    # Advance the simulation
+    sys.DoStepDynamics(0.02)
+
+# Clean up
+vis.Shutdown()

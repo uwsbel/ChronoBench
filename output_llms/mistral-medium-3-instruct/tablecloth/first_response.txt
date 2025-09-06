@@ -1,146 +1,153 @@
-# PyChrono Simulation: Tablecloth Folding with Shell Elements
+# PyChrono Simulation: Folding Tablecloth with Shell Elements
 
-Below is a complete PyChrono script that models the folding of a tablecloth using shell elements with an isotropic Kirchhoff material, mesh generation, Irrlicht visualization, and PardisoMKL solver:
+Below is a complete PyChrono script that models the folding of a tablecloth using shell elements with an isotropic Kirchhoff material, mesh grid generation, Irrlicht visualization, and PardisoMKL solver:
 
 ```python
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
 import numpy as np
 
-# 1. Initialize the PyChrono environment and core components
-chrono.SetChronoDataPath('PATH_TO_CHRONO_DATA')  # Set path to Chrono data directory
+# 1. Initialize PyChrono environment and core components
+chrono.SetChronoDataPath('PATH_TO_CHRONO_DATA')  # Set your Chrono data path
 
 # Create the physical system
 system = chrono.ChSystemNSC()
 
-# Set the solver (PardisoMKL for efficient dynamics)
+# Set the solver settings
 system.SetSolverType(chrono.ChSolver.Type_PARDISO_MKL)
 system.SetSolverWarmStarting(True)
+system.GetSettings().solver.solver_mode = chrono.ChSolverSettings::SOLVE_USING_FULL_INERTIA
 
-# Set gravitational acceleration
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
-
-# 2. Create the tablecloth using shell elements with Kirchhoff material
+# 2. Add physical systems and objects
 
 # Material properties for the tablecloth
-density = 0.1  # kg/m^2
-young_modulus = 1e6  # Pa
-poisson_ratio = 0.3
-thickness = 0.001  # m
+E = 1e6  # Young's modulus (adjust as needed)
+nu = 0.3  # Poisson's ratio
+thickness = 0.001  # Tablecloth thickness
+density = 1000.0  # Density (kg/m^3)
 
 # Create isotropic Kirchhoff material
-material = chrono.ChContinuumMaterialKirchhoff(density, young_modulus, poisson_ratio, thickness)
+material = chrono.ChMaterialShellKirchhoff(E, nu, thickness, density)
 
 # Create the mesh for the tablecloth
-length_x = 1.0  # m
-length_y = 1.0  # m
-num_elements_x = 20
-num_elements_y = 20
+nx = 20  # Number of elements along x-axis
+ny = 20  # Number of elements along y-axis
+width = 1.0  # Width of the tablecloth
+height = 1.0  # Height of the tablecloth
 
-# Create the FE mesh
-mesh = chrono.fea.ChMesh()
+# Create a rectangular mesh
+mesh = chrono.ChMesh()
 
-# Create the nodes
+# Create nodes
 nodes = []
-for i in range(num_elements_x + 1):
-    for j in range(num_elements_y + 1):
-        x = i * length_x / num_elements_x
-        y = j * length_y / num_elements_y
-        node = chrono.fea.ChNodeFEAxyz(chrono.ChVectorD(x, 0, y))
-        node.SetMass(0)  # Mass will be handled by elements
+for i in range(nx + 1):
+    for j in range(ny + 1):
+        x = -width/2 + i * width/nx
+        y = -height/2 + j * height/ny
+        z = 0.0
+
+        node = chrono.ChNodeFEAxyz(chrono.ChVectorD(x, y, z))
+        node.SetMass(0.0)  # Mass will be handled by the elements
         mesh.AddNode(node)
         nodes.append(node)
 
-# Create the shell elements
-elements = []
-for i in range(num_elements_x):
-    for j in range(num_elements_y):
-        # Get the four nodes for this element
-        n0 = nodes[i * (num_elements_y + 1) + j]
-        n1 = nodes[(i + 1) * (num_elements_y + 1) + j]
-        n2 = nodes[(i + 1) * (num_elements_y + 1) + j + 1]
-        n3 = nodes[i * (num_elements_y + 1) + j + 1]
+# Create shell elements
+for i in range(nx):
+    for j in range(ny):
+        # Get the four nodes of the quad element
+        n1 = i * (ny + 1) + j
+        n2 = (i + 1) * (ny + 1) + j
+        n3 = (i + 1) * (ny + 1) + j + 1
+        n4 = i * (ny + 1) + j + 1
 
         # Create the shell element
-        element = chrono.fea.ChElementShellANCF_3423()
-        element.SetNodes(n0, n1, n2, n3)
+        element = chrono.ChElementShellANCF_3443()
+        element.SetNodes(nodes[n1], nodes[n2], nodes[n3], nodes[n4])
         element.SetMaterial(material)
         mesh.AddElement(element)
-        elements.append(element)
 
 # Add the mesh to the system
 system.Add(mesh)
 
-# 3. Set up visualization with Irrlicht
+# Fix boundary conditions (fix one edge of the tablecloth)
+fixed_edge = 0  # Fix the left edge (x = -width/2)
+for i in range(ny + 1):
+    node_index = fixed_edge * (ny + 1) + i
+    nodes[node_index].SetFixed(True)
+
+# 3. Set up visualization
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
 vis.SetWindowSize(800, 600)
-vis.SetWindowTitle("Tablecloth Folding Simulation")
+vis.SetWindowTitle('Tablecloth Folding Simulation')
 vis.Initialize()
+vis.AddCamera(chrono.ChVectorD(0, -2, 0.5))
+vis.AddTypicalLights()
 vis.AddLogo()
 vis.AddSkyBox()
-vis.AddCamera(chrono.ChVectorD(0.5, 0.5, 2))
-vis.AddTypicalLights()
-vis.AddLightWithShadow(chrono.ChVectorD(1, 3, 1), chrono.ChVectorD(0, 0, 0), 5, 1, 10, 40, 512)
+vis.SetSymbolScale(0.01)
 
-# Visualize the mesh
-node_asset = chrono.fea.ChVisualizationFEAmesh(mesh)
-node_asset.SetFEMdataType(chrono.fea.ChVisualizationFEAmesh.E_PLOT_NODE_DOT_POS)
-node_asset.SetSymbolsThickness(0.01)
-mesh.AddAsset(node_asset)
+# Create a floor for reference
+floor = chrono.ChBody()
+floor.SetBodyFixed(True)
+floor.GetVisualModel().AddBox(2, 2, 0.01, chrono.ChVectorD(0, 0, -0.01))
+floor.GetVisualModel().GetMaterial(0).SetDiffuseColor(chrono.ChColor(0.5, 0.5, 0.5))
+system.Add(floor)
 
-element_asset = chrono.fea.ChVisualizationFEAmesh(mesh)
-element_asset.SetFEMdataType(chrono.fea.ChVisualizationFEAmesh.E_PLOT_ELEM_SHELL_3)
-element_asset.SetWireframe(True)
-element_asset.SetColor(chrono.ChColor(0.7, 0.7, 0.9))
-mesh.AddAsset(element_asset)
+# Simulation parameters
+time_step = 1e-3
+end_time = 5.0
 
-# 4. Simulation loop
-time_step = 0.001
-sim_time = 5.0
+# Apply initial conditions (optional: add some initial disturbance)
+for node in nodes:
+    if not node.IsFixed():
+        # Add small random velocity to create folding effect
+        node.SetPos_dt(chrono.ChVectorD(
+            0.0,
+            0.0,
+            0.1 * (np.random.rand() - 0.5)
+        ))
 
+# Simulation loop
 while vis.Run():
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
 
+    # Perform simulation step
     system.DoStepDynamics(time_step)
 
-    # Print current simulation time
-    current_time = system.GetChTime()
-    if current_time >= sim_time:
+    # Check if simulation time has ended
+    if system.GetChTime() > end_time:
         break
-
-    # Optional: Add some perturbation to initiate folding
-    if current_time < 0.1:
-        for node in nodes:
-            if node.GetPos().x > 0.4 and node.GetPos().x < 0.6 and node.GetPos().z > 0.4 and node.GetPos().z < 0.6:
-                node.SetPos(node.GetPos() + chrono.ChVectorD(0, 0.01, 0))
 ```
 
-## Key Features of This Simulation:
+## Key Features of This Implementation:
 
 1. **Initialization**:
-   - Sets up the Chrono environment with NSC (non-smooth contact) system
-   - Configures the PardisoMKL solver for efficient dynamics
+   - Sets up the PyChrono environment with NSC (Non-Smooth Contact) system
+   - Configures the PardisoMKL solver for efficient dynamics computation
 
-2. **Tablecloth Modeling**:
-   - Creates a rectangular mesh grid with shell elements
-   - Uses isotropic Kirchhoff material properties
-   - Implements ANCF (Absolute Nodal Coordinate Formulation) shell elements
+2. **Physical System**:
+   - Creates an isotropic Kirchhoff material for the tablecloth
+   - Generates a rectangular mesh grid with shell elements
+   - Implements proper boundary conditions by fixing one edge
 
 3. **Visualization**:
-   - Sets up Irrlicht visualization system
-   - Includes camera, lighting, and visualization assets for nodes and elements
+   - Uses Irrlicht for real-time visualization
+   - Includes a reference floor and proper lighting
+   - Sets up camera and window parameters
 
-4. **Simulation Control**:
-   - Implements a time-stepping loop
-   - Includes an optional perturbation to initiate folding
-   - Runs for a specified simulation time
+4. **Simulation Parameters**:
+   - Defines time step and total simulation duration
+   - Applies initial disturbances to initiate folding
+   - Includes a main simulation loop with visualization updates
 
-To run this simulation, you'll need to:
-1. Have PyChrono properly installed with all dependencies
-2. Set the correct path to Chrono data directory
-3. Ensure you have the MKL libraries available for the Pardiso solver
+## Notes:
 
-The simulation will show the tablecloth initially flat, then folding under gravity with some initial perturbation to break symmetry.
+- You'll need to adjust the `PATH_TO_CHRONO_DATA` to point to your Chrono data directory
+- Material properties (Young's modulus, Poisson's ratio, etc.) can be adjusted based on your specific requirements
+- The mesh resolution (nx, ny) can be increased for more detailed simulations (but will increase computation time)
+- The initial disturbance velocities create the folding effect - you can modify these as needed
+
+This script provides a complete implementation of a tablecloth folding simulation using PyChrono's shell elements with all the requested features.

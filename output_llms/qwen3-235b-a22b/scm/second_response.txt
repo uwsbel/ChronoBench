@@ -1,23 +1,32 @@
-To meet the requirements of encapsulating the SCM terrain parameters and initializing them using predefined configurations, we have implemented a new class `SCMTerrainParameters`. This class provides a clean and modular way to manage different terrain types such as "soft", "mid", and "hard", each with its own set of soil parameters.
-
-Additionally, we corrected a logical error in the original code where the terrain was initialized with hardcoded dimensions (`20, 20`) instead of using the predefined `terrainLength` and `terrainWidth` variables.
+To meet the requirements of encapsulating the SCM terrain parameters and initializing them via predefined configurations, we have introduced a new class `SCMTerrainParameters`. This class manages different soil presets such as `"soft"`, `"mid"`, and `"hard"`, each with its own set of soil parameters. This approach improves modularity, readability, and maintainability of the simulation code.
 
 ---
 
 ### ✅ Key Modifications
 
-1. **Encapsulation of SCM Terrain Parameters**  
-   A new class `SCMTerrainParameters` was introduced with a static method `get_parameters()` that returns the appropriate soil parameters based on the selected configuration.
+1. **Class Definition**:
+   - A new class `SCMTerrainParameters` is defined to encapsulate soil parameters.
+   - It accepts a `terrain` object and provides a method `set_preset(preset_name)` to apply predefined soil configurations.
 
-2. **Use of Predefined Configurations**  
-   The terrain is now initialized using the `SCMTerrainParameters.get_parameters()` method, allowing for easy switching between terrain types.
+2. **Preset Configurations**:
+   - Three presets are defined: `"soft"`, `"mid"`, and `"hard"`.
+   - Each preset includes values for:
+     - Bekker Kphi
+     - Bekker Kc
+     - Bekker n exponent
+     - Mohr cohesion
+     - Mohr friction angle
+     - Janosi shear coefficient
+     - Elastic stiffness
+     - Damping
 
-3. **Fix for Terrain Initialization Dimensions**  
-   The `terrain.Initialize()` call was corrected to use `terrainLength` and `terrainWidth` instead of hardcoded values.
+3. **Usage in Simulation**:
+   - The original direct call to `terrain.SetSoilParameters(...)` is replaced with an instance of `SCMTerrainParameters`.
+   - The `set_preset("soft")` method is used to initialize the terrain with the `"soft"` configuration.
 
 ---
 
-### ✅ Final Corrected and Modified PyChrono Script
+### 🛠️ Corrected and Modified Code
 
 ```python
 import pychrono.core as chrono
@@ -25,22 +34,59 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
+# Class to manage SCM terrain parameters with presets
+class SCMTerrainParameters:
+    def __init__(self, terrain):
+        self.terrain = terrain
+        self.presets = {
+            'soft': {
+                'kphi': 2e6,
+                'kc': 0,
+                'n': 1.1,
+                'cohesion': 0,
+                'friction_angle': 30,
+                'shear_coeff': 0.01,
+                'elastic_stiffness': 2e8,
+                'damping': 3e4
+            },
+            'mid': {
+                'kphi': 5e6,
+                'kc': 1e3,
+                'n': 1.3,
+                'cohesion': 1000,
+                'friction_angle': 35,
+                'shear_coeff': 0.02,
+                'elastic_stiffness': 5e8,
+                'damping': 5e4
+            },
+            'hard': {
+                'kphi': 1e7,
+                'kc': 5e3,
+                'n': 1.5,
+                'cohesion': 5000,
+                'friction_angle': 40,
+                'shear_coeff': 0.03,
+                'elastic_stiffness': 1e9,
+                'damping': 1e5
+            }
+        }
+
+    def set_preset(self, preset_name):
+        preset = self.presets[preset_name]
+        self.terrain.SetSoilParameters(
+            preset['kphi'],
+            preset['kc'],
+            preset['n'],
+            preset['cohesion'],
+            preset['friction_angle'],
+            preset['shear_coeff'],
+            preset['elastic_stiffness'],
+            preset['damping']
+        )
+
 # Set data paths
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
-
-# Define a class to encapsulate SCM terrain parameters
-class SCMTerrainParameters:
-    @staticmethod
-    def get_parameters(config='soft'):
-        if config == 'soft':
-            return (2e6, 0, 1.1, 0, 30, 0.01, 2e8, 3e4)
-        elif config == 'mid':
-            return (5e6, 1e3, 1.2, 500, 35, 0.02, 5e8, 4e4)
-        elif config == 'hard':
-            return (1e7, 5e3, 1.5, 2e3, 50, 0.05, 1e9, 1e5)
-        else:
-            raise ValueError(f"Invalid terrain configuration: {config}")
 
 # Initial vehicle location and orientation
 initLoc = chrono.ChVector3d(-8, 0, 0.6)
@@ -57,8 +103,8 @@ tire_model = veh.TireModelType_RIGID
 
 # Terrain dimensions
 terrainHeight = 0
-terrainLength = 100.0  # size in X direction
-terrainWidth = 100.0   # size in Y direction
+terrainLength = 100.0
+terrainWidth = 100.0
 
 # Camera tracking point
 trackPoint = chrono.ChVector3d(0.0, 0.0, 1.71)
@@ -70,8 +116,6 @@ contact_vis = False
 # Simulation step sizes
 step_size = 1e-3
 tire_step_size = step_size
-
-# Render frame rate
 render_step_size = 1.0 / 50  # 50 FPS
 
 # Create the HMMWV vehicle
@@ -91,24 +135,24 @@ vehicle.SetSteeringVisualizationType(vis_type)
 vehicle.SetWheelVisualizationType(vis_type)
 vehicle.SetTireVisualizationType(vis_type)
 
-# Set collision system type
+# Set collision system
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
-# Create the SCM deformable terrain
+# Create and configure the SCM terrain
 terrain = veh.SCMTerrain(vehicle.GetSystem())
 
 # Use the SCMTerrainParameters class to set soil parameters
-params = SCMTerrainParameters.get_parameters(config='soft')
-terrain.SetSoilParameters(*params)
+terrain_params = SCMTerrainParameters(terrain)
+terrain_params.set_preset("soft")  # Can be "mid" or "hard" as needed
 
-# Optionally add a moving patch around the chassis
+# Optionally, enable moving patch feature
 terrain.AddMovingPatch(vehicle.GetChassisBody(), chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(5, 3, 1))
 
 # Set plot type for visualization
 terrain.SetPlotType(veh.SCMTerrain.PLOT_SINKAGE, 0, 0.1)
 
-# Initialize the terrain with correct dimensions
-terrain.Initialize(terrainLength, terrainWidth, 0.02)
+# Initialize the terrain
+terrain.Initialize(20, 20, 0.02)
 
 # Create the Irrlicht visualization system
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
@@ -140,44 +184,40 @@ print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 render_steps = math.ceil(render_step_size / step_size)
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
+render_frame = 0
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
-    # Render scene
     if step_number % render_steps == 0:
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
+        render_frame += 1
 
-    # Get driver inputs
     driver_inputs = driver.GetInputs()
 
-    # Synchronize modules
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
 
-    # Advance simulation
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
 
-    # Step counter
     step_number += 1
-
-    # Real-time spin
     realtime_timer.Spin(step_size)
 ```
 
 ---
 
-### ✅ Summary
+### ✅ Benefits of the Modification
 
-- **Encapsulation**: The `SCMTerrainParameters` class encapsulates soil parameters for different terrain types.
-- **Modularity**: The terrain is now initialized using a configuration-based approach, making it easy to extend or modify.
-- **Correctness**: The terrain dimensions are now correctly initialized using `terrainLength` and `terrainWidth`.
+- **Encapsulation**: Soil parameters are now encapsulated in a dedicated class, improving code structure.
+- **Reusability**: Presets allow for easy switching between different terrain types.
+- **Maintainability**: Adding or modifying terrain configurations is now straightforward.
+- **Readability**: The main simulation logic is cleaner and more focused on behavior rather than data.
 
-This updated script is now more maintainable, scalable, and adheres to the design principles of encapsulation and modularity.
+This approach ensures that the simulation remains flexible and scalable for future enhancements.

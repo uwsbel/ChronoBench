@@ -1,6 +1,6 @@
 # PyChrono Simple Pendulum Simulation
 
-Here's a complete script for simulating a simple pendulum using PyChrono with Irrlicht visualization:
+Below is a complete Python script that creates a simple pendulum simulation using PyChrono with Irrlicht visualization:
 
 ```python
 import pychrono as chrono
@@ -9,7 +9,7 @@ import numpy as np
 import time
 
 # 1. Initialize the PyChrono environment and core components
-chrono.SetChronoDataPath("PATH_TO_CHRONO_DATA")  # Set the path to Chrono data directory
+chrono.SetChronoDataPath("PATH_TO_CHRONO_DATA")  # Update this path to your Chrono data directory
 
 # Create the physical system
 system = chrono.ChSystemNSC()
@@ -18,109 +18,108 @@ system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
 # 2. Add the required physical systems and objects
 
 # Create the ground body
-ground = chrono.ChBodyEasyBox(4, 0.5, 4, 1000, True, True)
+ground = chrono.ChBodyEasyBox(10, 0.5, 10, 1000, True, True)
 ground.SetPos(chrono.ChVectorD(0, -1, 0))
 ground.SetBodyFixed(True)
 system.Add(ground)
 
 # Create the pendulum bob
 pendulum_length = 2.0
-bob_radius = 0.1
+bob_radius = 0.2
 bob_mass = 1.0
 
-# Calculate moment of inertia for a sphere (I = 2/5 * m * r^2)
+bob = chrono.ChBodyEasySphere(bob_radius, bob_mass, True, True)
+bob.SetPos(chrono.ChVectorD(pendulum_length, 0, 0))
+
+# Calculate inertia for the sphere (I = 2/5 * m * r^2 for solid sphere)
 bob_inertia = (2.0/5.0) * bob_mass * bob_radius**2
+bob.SetInertiaXX(chrono.ChVectorD(bob_inertia, bob_inertia, bob_inertia))
 
-pendulum = chrono.ChBodyEasySphere(bob_radius, bob_mass, True, True)
-pendulum.SetPos(chrono.ChVectorD(0, 0, 0))
-pendulum.SetInertiaXX(chrono.ChVectorD(bob_inertia, bob_inertia, bob_inertia))
-system.Add(pendulum)
+system.Add(bob)
 
-# Create the revolute joint (pendulum pivot)
+# Create the revolute joint at the pivot point
 pivot_point = chrono.ChVectorD(0, 0, 0)
 joint = chrono.ChLinkLockRevolute()
-joint.Initialize(ground, pendulum, chrono.ChFrameD(pivot_point))
+joint.Initialize(ground, bob, chrono.ChFrameD(pivot_point))
 system.Add(joint)
 
 # 3. Set up visualization
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
 vis.SetWindowSize(800, 600)
-vis.SetWindowTitle('Simple Pendulum Simulation')
+vis.SetWindowTitle("Simple Pendulum Simulation")
 vis.Initialize()
 vis.AddLogo()
 vis.AddSkyBox()
-vis.AddCamera(chrono.ChVectorD(5, 2, 0))
+vis.AddCamera(chrono.ChVectorD(0, 0, 6))
 vis.AddTypicalLights()
+vis.AddLightWithShadow(chrono.ChVectorD(5, 10, 5), chrono.ChVectorD(0, 0, 0), 15, 1, 15, 40, 512)
 
-# Create a custom application to handle visualization and logging
-class PendulumApp(chronoirr.ChIrrApp):
-    def __init__(self, system, vis):
-        super().__init__(system, vis)
-        self.time_step = 0.01
-        self.log_interval = 0.1  # seconds
-        self.last_log_time = 0
+# Create some markers for visualization
+marker_pivot = chrono.ChMarker(chrono.ChFrameD(pivot_point))
+system.Add(marker_pivot)
 
-    def Advance(self, step):
-        # Log pendulum state periodically
-        current_time = self.GetDevice().getTimer().getTime() / 1000.0
-        if current_time - self.last_log_time >= self.log_interval:
-            # Get pendulum position and velocity
-            pos = self.system.Get_bodylist()[1].GetPos()
-            vel = self.system.Get_bodylist()[1].GetPos_dt()
+# Simulation parameters
+time_step = 0.01
+sim_time = 10.0
+output_freq = 10  # Output every 10 steps
 
-            print(f"Time: {current_time:.2f}s")
-            print(f"Position: ({pos.x:.3f}, {pos.y:.3f}, {pos.z:.3f})")
-            print(f"Velocity: ({vel.x:.3f}, {vel.y:.3f}, {vel.z:.3f})")
-            print("---")
+# Simulation loop
+current_time = 0
+output_step = 0
 
-            self.last_log_time = current_time
+while vis.Run() and current_time < sim_time:
+    # Advance simulation for one timestep
+    system.DoStepDynamics(time_step)
 
-        # Advance simulation
-        self.DoStepDynamics(self.time_step)
-
-# Create and run the application
-app = PendulumApp(system, vis)
-
-# Give the pendulum an initial push
-pendulum.SetPos_dt(chrono.ChVectorD(0.5, 0, 0))  # Initial velocity
-
-# Run the simulation
-while vis.Run():
+    # Update visualization
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
-    app.Advance(0.01)
+
+    # Periodically log the pendulum's position and velocity
+    output_step += 1
+    if output_step % output_freq == 0:
+        bob_pos = bob.GetPos()
+        bob_vel = bob.GetPos_dt()
+        print(f"Time: {current_time:.2f}s")
+        print(f"  Position: ({bob_pos.x:.3f}, {bob_pos.y:.3f}, {bob_pos.z:.3f})")
+        print(f"  Velocity: ({bob_vel.x:.3f}, {bob_vel.y:.3f}, {bob_vel.z:.3f})")
+        print("---")
+
+    current_time += time_step
+    time.sleep(time_step)  # Slow down simulation for better visualization
+
+print("Simulation completed.")
 ```
 
-## Key Features of This Implementation:
+## Key Components Explained:
 
-1. **Physical System Setup**:
-   - Creates a ChSystemNSC (non-smooth contact) system with gravity
-   - Sets up a fixed ground body and a spherical pendulum bob
+1. **System Setup**:
+   - Uses `ChSystemNSC` (non-smooth contact) for the physical system
+   - Sets gravity to Earth's standard gravity (9.81 m/s² downward)
 
-2. **Pendulum Properties**:
-   - Configures mass, radius, and calculates proper inertia for a sphere
-   - Positions the pendulum at the origin (0,0,0)
+2. **Bodies**:
+   - **Ground**: A fixed box body to serve as the pendulum's base
+   - **Pendulum Bob**: A spherical body with proper mass and inertia properties
 
-3. **Joint Configuration**:
-   - Uses a ChLinkLockRevolute to create a perfect pivot joint
-   - Connects the pendulum to the ground at the origin
+3. **Joint**:
+   - `ChLinkLockRevolute` creates a revolute joint at the pivot point (0,0,0)
+   - Connects the ground to the pendulum bob
 
 4. **Visualization**:
-   - Uses Irrlicht for real-time 3D rendering
-   - Sets up camera, lights, and basic scene elements
+   - Uses Irrlicht for real-time visualization
+   - Includes camera, lights, and skybox for better visual quality
+   - Adds a marker at the pivot point
 
-5. **Logging System**:
+5. **Simulation Loop**:
+   - Runs for 10 simulated seconds with 0.01s time steps
    - Periodically logs the pendulum's position and velocity
-   - Custom application class handles both simulation and visualization
+   - Includes a small sleep to make visualization smoother
 
-6. **Initial Conditions**:
-   - Gives the pendulum an initial push to start the motion
+To run this script, you'll need to:
+1. Install PyChrono (with Irrlicht support)
+2. Set the correct path to your Chrono data directory
+3. Have the required dependencies installed
 
-To run this simulation, you'll need to:
-1. Have PyChrono properly installed
-2. Set the correct path to Chrono data files
-3. Have the Irrlicht visualization dependencies available
-
-The simulation will show a pendulum swinging in 3D space with periodic console output of its state.
+The simulation will show a pendulum swinging under gravity, with periodic output of its state to the console.

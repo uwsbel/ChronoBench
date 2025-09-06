@@ -1,6 +1,34 @@
-Here is the corrected and modified PyChrono script that addresses potential issues in the original code and implements the requested changes to add a new terrain patch with specified properties:
+To address the requirements and ensure the simulation runs correctly, the following steps were taken:
 
 ---
+
+### ✅ **Error Identification and Fixes**
+
+1. **Redundant `chrono.SetChronoDataPath()`**  
+   The line `chrono.SetChronoDataPath(chrono.GetChronoDataPath())` is redundant and can be removed. It sets the data path to itself, which has no effect.
+
+2. **Incorrect Use of `GetVehicle()` in Mass Output**  
+   The line `print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())` is unnecessary. The `vehicle` object itself is a `ChWheeledVehicle`, which directly exposes the `GetMass()` method. This was corrected to `print("VEHICLE MASS: ", vehicle.GetMass())`.
+
+3. **Initialization Timing for Terrain Patches**  
+   The new terrain patch must be added **before** calling `terrain.Initialize()`. Otherwise, it will not be properly initialized and may not appear in the simulation.
+
+---
+
+### ✅ **Implementation of New Terrain Patch**
+
+A new terrain patch was added using the `AddPatch` method with the following specifications:
+
+- **Mesh File**: `bump.obj`
+- **Position**: `(0, -42, 0)`
+- **Color**: `(0.5, 0.5, 0.8)`
+- **Texture**: `dirt.jpg` with scaling `(6.0, 6.0)`
+
+The visualization mesh was loaded separately using `veh.GetDataFile()` to ensure correct path resolution. A `ChVisualShapeTriangleMesh` was created and configured with the specified color and texture before being added to the patch's ground body.
+
+---
+
+### ✅ **Final Corrected and Modified Script**
 
 ```python
 import pychrono.core as chrono
@@ -11,7 +39,7 @@ import math
 """
 !!!! Set this path before running the demo!
 """
-chrono.SetChronoDataPath(chrono.GetChronoDataPath())
+# Removed redundant line: chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 # Initial vehicle location and orientation
@@ -68,42 +96,40 @@ vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
+
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 
 # First terrain patch (Highway)
-patch = terrain.AddPatch(patch_mat,
+patch = terrain.AddPatch(patch_mat, 
     chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
-    veh.GetDataFile("terrain/meshes/Highway_col.obj"),
+    chrono.GetChronoDataFile('vehicle/terrain/meshes/Highway_col.obj'),
     True, 0.01, False)
 
 vis_mesh = chrono.ChTriangleMeshConnected().CreateFromWavefrontFile(
-    veh.GetDataFile("terrain/meshes/Highway_vis.obj"), True, True
-)
+    veh.GetDataFile("terrain/meshes/Highway_vis.obj"), True, True)
+
 tri_mesh_shape = chrono.ChVisualShapeTriangleMesh()
 tri_mesh_shape.SetMesh(vis_mesh)
 tri_mesh_shape.SetMutable(False)
 patch.GetGroundBody().AddVisualShape(tri_mesh_shape)
 
-# Second terrain patch (Bump)
-patch2 = terrain.AddPatch(patch_mat,
+# New terrain patch (Bump)
+new_patch = terrain.AddPatch(patch_mat, 
     chrono.ChCoordsysd(chrono.ChVector3d(0, -42, 0), chrono.QUNIT),
-    veh.GetDataFile("terrain/meshes/bump.obj"),
+    chrono.GetChronoDataFile('vehicle/terrain/meshes/bump.obj'),
     True, 0.01, False)
 
-vis_mesh2 = chrono.ChTriangleMeshConnected().CreateFromWavefrontFile(
-    veh.GetDataFile("terrain/meshes/bump.obj"), True, True
-)
-tri_mesh_shape2 = chrono.ChVisualShapeTriangleMesh()
-tri_mesh_shape2.SetMesh(vis_mesh2)
+vis_mesh_bump = chrono.ChTriangleMeshConnected().CreateFromWavefrontFile(
+    veh.GetDataFile("terrain/meshes/bump.obj"), True, True)
 
-# Create and apply material with color and texture
-material2 = chrono.ChVisualMaterial()
-material2.SetKd(chrono.ChColor(0.5, 0.5, 0.8))  # Diffuse color
-material2.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
-tri_mesh_shape2.AddMaterial(material2)
-tri_mesh_shape2.SetMutable(False)
-patch2.GetGroundBody().AddVisualShape(tri_mesh_shape2)
+tri_mesh_shape_bump = chrono.ChVisualShapeTriangleMesh()
+tri_mesh_shape_bump.SetMesh(vis_mesh_bump)
+tri_mesh_shape_bump.SetRGBAColor(chrono.ChColor(0.5, 0.5, 0.8))  # RGB color
+tri_mesh_shape_bump.SetTexture(chrono.GetChronoDataFile("textures/dirt.jpg"), 6.0, 6.0)
+tri_mesh_shape_bump.SetMutable(False)
+new_patch.GetGroundBody().AddVisualShape(tri_mesh_shape_bump)
 
+# Finalize terrain
 terrain.Initialize()
 
 # Create the vehicle Irrlicht interface
@@ -131,17 +157,16 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 # Output vehicle mass
-print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
+print("VEHICLE MASS: ", vehicle.GetMass())
 
 # Number of simulation steps between render frames
 render_steps = math.ceil(render_step_size / step_size)
 
-# Initialize simulation frame counter
+# Simulation loop
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-# Simulation loop
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
@@ -176,20 +201,12 @@ while vis.Run():
 
 ---
 
-### ✅ Summary of Changes and Fixes:
+### ✅ **Summary of Changes**
 
-1. **Corrected Data Path Usage**:
-   - Replaced `chrono.GetChronoDataFile(...)` with `veh.GetDataFile(...)` for terrain mesh files to ensure consistency with the vehicle data path.
+- Removed redundant `chrono.SetChronoDataPath()` call.
+- Fixed incorrect use of `GetVehicle()` in the mass output.
+- Added a new terrain patch using `bump.obj` at `(0, -42, 0)` with specified color and texture.
+- Ensured the new patch is added **before** `terrain.Initialize()`.
+- Applied proper visualization settings including color and texture.
 
-2. **Added New Terrain Patch**:
-   - Created a second terrain patch using `bump.obj` located at `(0, -42, 0)`.
-   - Applied a diffuse color of `(0.5, 0.5, 0.8)` using `ChVisualMaterial.SetKd()`.
-   - Applied a texture `dirt.jpg` with scaling factors `(6.0, 6.0)`.
-
-3. **Visual Material Application**:
-   - Used `ChVisualMaterial` to define the appearance of the new patch and added it to the visual shape.
-
-4. **Maintained Simulation Loop**:
-   - Ensured the simulation loop remains unchanged and functional.
-
-This script now includes the requested terrain patch with the specified visual properties and is corrected for potential path-related issues.
+This script now correctly simulates the vehicle with the additional terrain patch as specified.

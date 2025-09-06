@@ -1,113 +1,94 @@
 ```python
 import pychrono as chrono
 import pychrono.fea as fea
-import pychrono.irrlicht as irrlicht
-import pychrono.mkl as mkl
+import pychrono.irrlicht as irr
 
-# Initialize the Chrono system with non-smooth contact (NSC) solver
+# Initialize the system with PardisoMKL solver
 sys = chrono.ChSystemNSC()
-sys.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity in Y-direction
+solver = chrono.ChSolverPardisoMKL()
+sys.SetSolver(solver)
+sys.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
-# Tablecloth mesh parameters
-length = 1.0  # X direction
-width = 1.0   # Z direction
-num_nodes_x = 10
-num_nodes_z = 10
-dx = length / (num_nodes_x - 1)
-dz = width / (num_nodes_z - 1)
-
-# Create FEA mesh
+# Create the finite element mesh
 mesh = fea.ChMesh()
 
-# Generate nodes in X-Z plane with rotational DOF
+# Mesh parameters
+nx = 20
+ny = 20
+Lx = 1.0
+Ly = 1.0
+dx = Lx / (nx - 1)
+dy = Ly / (ny - 1)
+thickness = 0.001
+density = 1000
+E = 2.2e9  # Young's modulus (Pa)
+nu = 0.3   # Poisson ratio
+
+# Create nodes (ChNodeFEAxyzD for ANCF shell elements)
 nodes = []
-for i in range(num_nodes_x):
+for i in range(nx):
     row = []
-    for j in range(num_nodes_z):
-        x = i * dx
-        z = j * dz
-        pos = chrono.ChVectorD(x, 0, z)
-        rot = chrono.ChQuaternionD(1, 0, 0, 0)  # Identity rotation
-        node = fea.ChNodeFEAxyzrot(chrono.ChFrameD(pos, rot))
-        # Fix nodes along the top edge (j=0)
-        if j == 0:
-            node.SetFixed(True)
+    for j in range(ny):
+        x = i * dx - Lx / 2
+        y = j * dy - Ly / 2
+        z = 0.0
+        director = chrono.ChVectorD(0, 0, thickness / 2)  # Initial director vector
+        node = fea.ChNodeFEAxyzD(chrono.ChVectorD(x, y, z), director)
         mesh.AddNode(node)
         row.append(node)
     nodes.append(row)
 
-# Create shell elements with Kirchhoff material
-material = fea.ChMaterialShellKirchhoff()
-material.SetYoungModulus(2.1e9)    # 2.1 GPa
-material.SetPoissonRatio(0.3)      # Steel-like material
-material.SetThickness(0.001)       # 1 mm thickness
+# Create shell elements (ChElementShell44ANCF)
+for i in range(nx - 1):
+    for j in range(ny - 1):
+        node0 = nodes[i][j]
+        node1 = nodes[i+1][j]
+        node2 = nodes[i+1][j+1]
+        node3 = nodes[i][j+1]
 
-# Populate elements in grid
-for i in range(num_nodes_x - 1):
-    for j in range(num_nodes_z - 1):
-        # Get corner nodes
-        n1 = nodes[i][j]
-        n2 = nodes[i+1][j]
-        n3 = nodes[i+1][j+1]
-        n4 = nodes[i][j+1]
-        
-        # Create and configure element
-        element = fea.ChElementShellKirchhoff()
-        element.SetNodes(n1, n2, n3, n4)
+        element = fea.ChElementShell44ANCF()
+        element.SetNodes(node0, node1, node2, node3)
+
+        # Assign isotropic material
+        material = fea.ChMaterialShellANCF()
+        material.SetDensity(density)
+        material.SetYoungModulus(E)
+        material.SetPoissonRatio(nu)
         element.SetMaterial(material)
-        element.SetAlphaDamp(0.0)  # No damping
+
         mesh.AddElement(element)
 
-# Add mesh to system
+# Add mesh to the system
 sys.Add(mesh)
 
-# Configure PardisoMKL solver for efficient dynamics
-solver = mkl.ChSolverPardisoMKL()
-sys.SetSolver(solver)
+# Fix corner nodes
+corner_nodes = [nodes[0][0], nodes[-1][0], nodes[0][-1], nodes[-1][-1]]
+for node in corner_nodes:
+    node.SetFixed(True)
 
 # Set up Irrlicht visualization
-vis = irrlicht.ChVisualSystemIrrlicht()
-vis.AttachSystem(sys)
+vis = irr.ChVisualSystemIrrlicht()
 vis.SetWindowSize(1024, 768)
 vis.SetWindowTitle('Tablecloth Folding Simulation')
 vis.Initialize()
-vis.AddCamera(chrono.ChVectorD(0, 1, -2))  # Position camera
-vis.AddLight(chrono.ChVectorD(1, 2, -1), 2.5)  # Add light source
+vis.AddLogo()
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVectorD(0, 0.5, 1.5), chrono.ChVectorD(0, 0, 0))
+vis.AttachSystem(sys)
+
+# Add mesh visualization
+mesh_vis = fea.ChVisualizationFEAmesh(mesh)
+mesh_vis.SetFEMdataType(fea.ChVisualizationFEAmesh.E_FEM_DATATYPE_ELEM_STRESS)
+mesh_vis.SetColorscaleMinMax(-0.1, 0.1)
+mesh_vis.AddFaces(True)
+mesh_vis.SetDrawWireframe(True)
+mesh.AddAsset(mesh_vis)
 
 # Simulation loop
+step_size = 0.001
 while vis.Run():
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
-    sys.DoStepDynamics(0.01)  # Step simulation with 10ms time step
+    sys.DoStepDynamics(step_size)
 ```
-
----
-
-### Key Implementation Details:
-
-1. **System Initialization**:
-   - Created a Chrono system with non-smooth contact (NSC) solver
-   - Set gravity to simulate natural folding behavior
-
-2. **FEA Mesh Construction**:
-   - Generated a 10x10 grid of nodes in X-Z plane
-   - Used `ChNodeFEAxyzrot` nodes to support rotational degrees of freedom
-   - Fixed top edge nodes to create folding constraints
-
-3. **Shell Element Implementation**:
-   - Created quadrilateral shell elements using `ChElementShellKirchhoff`
-   - Assigned isotropic Kirchhoff material with realistic parameters
-   - Connected elements to form continuous mesh structure
-
-4. **Solver Configuration**:
-   - Set PardisoMKL solver for efficient handling of sparse linear systems
-   - Direct solver is well-suited for stiff FEA problems
-
-5. **Visualization System**:
-   - Implemented Irrlicht 3D visualization with camera and lighting
-   - Real-time rendering of mesh deformation during simulation
-
----
-
-This simulation will demonstrate the tablecloth folding under gravity, with the fixed top edge nodes creating natural draping behavior. The Kirchhoff shell formulation captures bending and stretching deformations realistically, while the PardisoMKL solver ensures numerical stability and performance.

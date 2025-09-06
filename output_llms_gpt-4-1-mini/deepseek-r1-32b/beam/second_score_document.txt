@@ -4,198 +4,179 @@
 
 ### 1. Completeness (40 points)
 
-- **System Initialization:** Present and correctly done with `chrono.ChSystemSMC()`. **No deduction.**
+- **System initialization:** Present and correctly uses `chrono.ChSystemSMC()`. (No deduction)
+- **Mesh creation and FEA elements:** Properly creates a mesh, beam section, nodes, and beam elements. (No deduction)
+- **Material properties:** Set with reasonable values, including Young's modulus, shear modulus, damping, centroid, shear center, and section rotation. (No deduction)
+- **Nodes and elements:** Nodes and elements are created and added to the mesh correctly. (No deduction)
+- **Force and torque application:** Forces and torques applied to nodes correctly. (No deduction)
+- **Body creation:** A fixed truss body is created and added to the system. (No deduction)
+- **Constraints:** Constraints are created using `ChLinkMateGeneric` to fix nodes or partially constrain them. This replaces the deprecated or unavailable `SetFixed(True)` on nodes, which is correct. (No deduction)
+- **Beam builder usage:** Uses `ChBuilderBeamEuler` to create a new beam with multiple elements, adds nodes and elements to the main mesh, fixes the last node, and applies force to the first node. (No deduction)
+- **Gravity:** Disabled automatic gravity on the mesh, which is appropriate if gravity is not desired. (No deduction)
+- **Adding mesh to system:** Done correctly. (No deduction)
+- **Visualization:** Adds two visual shapes for beams and nodes with appropriate settings. (No deduction)
+- **Visualization system:** Properly creates and configures Irrlicht visualization with window size, title, logo, skybox, camera, and lights. (No deduction)
+- **Solver:** Sets MKL Pardiso solver, which is appropriate for FEA problems. (No deduction)
+- **Simulation loop:** Properly structured with visualization run check, scene begin/end, render, and system step. (No deduction)
 
-- **Mesh and Elements:** Mesh created, nodes and beam elements added properly. Also, a second beam created via `ChBuilderBeamEuler`. **No deduction.**
+**Minor completeness issue:**
 
-- **Material and Section Properties:** Beam section properties set, including Young’s modulus, shear modulus, damping, centroid, shear center, and section rotation. However:
+- The `SetSectionRotation` call uses `45 * chrono.CH_RAD_TO_DEG`. According to the API, `CH_RAD_TO_DEG` converts radians to degrees, so multiplying 45 (degrees) by this factor is incorrect; it should be either `45 * chrono.CH_DEG_TO_RAD` or just `chrono.CH_C_DEG_TO_RAD` (depending on the API). This is a minor detail but affects correctness (discussed below).
 
-  - The `SetSectionRotation` call uses `45 * chrono.CH_RAD_TO_DEG`. According to the API, `CH_RAD_TO_DEG` converts radians to degrees, but 45 is presumably degrees already. This is a minor confusion but more on correctness below.
+**Deduction:** 5 points for this minor deviation in setting section rotation.
 
-- **Nodes and Constraints:** Nodes created and added. Constraints applied via `ChLinkMateGeneric` to fix nodes. This is correct and replaces deprecated `SetFixed(True)` on nodes.
-
-- **Force and Torque Application:** Forces and torques applied to nodes correctly.
-
-- **Visualization:** Visualization shapes for beams and nodes added, with appropriate settings.
-
-- **Solver:** MKL Pardiso solver set correctly.
-
-- **Simulation Loop:** Present and correctly structured.
-
-- **Gravity:** Disabled on mesh with `SetAutomaticGravity(False)`.
-
-- **Missing Components:** No essential components missing. The script covers system, mesh, elements, forces, constraints, visualization, solver, and simulation loop.
-
-- **Minor omission:** The script does not explicitly set the system gravity (which defaults to Earth gravity). Since gravity is disabled on the mesh, this is acceptable. No deduction.
-
-**Completeness deduction:** 0 points.
+**Completeness score:** 40 - 5 = 35
 
 ---
 
 ### 2. Correctness (30 points)
 
-- **Use of `SetSectionRotation`:** The line
+- **Node creation:** Uses `fea.ChNodeFEAxyzrot(chrono.ChFramed(chrono.ChVector3d(...)))`. According to the API, `ChNodeFEAxyzrot` can be constructed with a `ChFrame` or `ChCoordsys`. `ChFramed` is a C++ class; in Python, the equivalent is `chrono.ChFrameD` or `chrono.ChCoordsysD`. Using `chrono.ChFramed` is likely incorrect or a typo. This will cause an error or unexpected behavior.
 
-  ```python
-  msection.SetSectionRotation(45 * chrono.CH_RAD_TO_DEG)
-  ```
+- **Correct usage:** Should be `fea.ChNodeFEAxyzrot(chrono.ChFrameD(chrono.ChVector3d(...)))` or `fea.ChNodeFEAxyzrot(chrono.ChCoordsysD(chrono.ChVector3d(...)))`.
 
-  is incorrect. `CH_RAD_TO_DEG` is a constant to convert radians to degrees (≈57.2958). Multiplying 45 (which is presumably degrees) by this constant results in a huge number (~2578 degrees). The API expects the rotation in radians or degrees depending on the function, but the name suggests degrees.
+- **Similarly, in constraints:** `constr_bc.Initialize(hnode3, mtruss, False, hnode3.Frame(), hnode3.Frame())` is correct if `hnode3.Frame()` returns a `ChFrameD` or `ChCoordsysD`. This is fine.
 
-  The correct usage should be either:
+- **Use of `SetFixed(True)` on nodes:** The code replaces `hnode1.SetFixed(True)` with a constraint, which is correct since nodes do not have `SetFixed` in PyChrono Python API.
 
-  - `msection.SetSectionRotation(45 * chrono.CH_DEG_TO_RAD)` if 45 degrees is converted to radians, or
+- **Force and torque application:** `SetForce` and `SetTorque` are used correctly on nodes.
 
-  - `msection.SetSectionRotation(45)` if the function expects degrees.
+- **Builder usage:** `builder.BuildBeam()` returns a mesh; adding nodes and elements from it to the main mesh is correct.
 
-  This is a **significant API misuse** that could affect beam orientation.
+- **Accessing last and first beam nodes:** `builder.GetLastBeamNodes().back()` and `builder.GetFirstBeamNodes().front()` are C++ STL methods, not Python list methods. In Python, it should be `[-1]` and `[0]` respectively.
 
-- **Node creation:** The nodes are created as:
+- **This is a significant correctness error** that will cause runtime exceptions.
 
-  ```python
-  hnode1 = fea.ChNodeFEAxyzrot(chrono.ChFramed(chrono.ChVector3d(0, 0, 0)))
-  ```
+- **`SetSectionRotation(45 * chrono.CH_RAD_TO_DEG)`:** As noted, this is incorrect usage of the conversion constant. It should be `45 * chrono.CH_DEG_TO_RAD` or simply `chrono.CH_C_DEG_TO_RAD` (depending on API). This affects the beam section orientation.
 
-  This is correct usage.
+- **Solver setting:** Using MKL Pardiso solver is correct and appropriate.
 
-- **Force and torque application:** `SetForce` and `SetTorque` are used on nodes, which is correct.
+- **Simulation loop:** Correct.
 
-- **Constraints:** Use of `ChLinkMateGeneric` to constrain nodes to a fixed body is correct and preferred over deprecated `SetFixed(True)` on nodes.
+**Deduction:**
 
-- **Adding nodes and elements from builder:** The code adds nodes and elements from the builder beam mesh to the main mesh, which is correct.
+- 15 points for incorrect use of `ChFramed` instead of `ChFrameD` or `ChCoordsysD` in node creation.
 
-- **Fixing last node of new beam:**
+- 15 points for incorrect use of `.back()` and `.front()` methods on Python lists (builder nodes), which will cause runtime errors.
 
-  ```python
-  last_node = builder.GetLastBeamNodes().back()
-  last_node.SetFixed(True)
-  ```
+- 5 points for incorrect use of `CH_RAD_TO_DEG` in `SetSectionRotation`.
 
-  Here, `back()` is a C++ STL method, not a Python list method. In Python, to get the last element, use `[-1]`. This will cause an **AttributeError** at runtime.
+Total correctness deduction: 15 + 15 + 5 = 35 points.
 
-- **Applying force to first node of new beam:**
+Since total correctness is 30 points, maximum deduction is 30 points.
 
-  ```python
-  first_node = builder.GetFirstBeamNodes().front()
-  first_node.SetForce(chrono.ChVector3d(0, -1, 0))
-  ```
-
-  Similarly, `front()` is a C++ STL method, not Python. Should be `[0]`.
-
-- **Solver setting:**
-
-  ```python
-  msolver = mkl.ChSolverPardisoMKL()
-  sys.SetSolver(msolver)
-  ```
-
-  This is correct.
-
-- **Simulation loop:** Correct usage of `vis.Run()`, `BeginScene()`, `Render()`, `EndScene()`, and `sys.DoStepDynamics()`.
-
-- **Minor logical error:** The force and torque applied to nodes are set once before the simulation loop, but forces on nodes in FEA might need to be updated or applied as loads or boundary conditions. However, this is acceptable for a static or quasi-static load.
-
-**Correctness deductions:**
-
-- Incorrect use of `SetSectionRotation` with wrong unit conversion: **-15 points**
-
-- Use of `.back()` and `.front()` on Python lists (builder nodes) will cause runtime errors: **-15 points**
+**Correctness score:** 0 points.
 
 ---
 
 ### 3. Code Quality (10 points)
 
-- **Readability:** Variable names are meaningful (`hnode1`, `belement1`, `msection`, `builder`, etc.). The code is structured logically.
+- **Readability:** Variable names are meaningful (e.g., `beam_wy`, `beam_L`, `hnode1`, `belement1`, `msection`).
 
-- **Comments:** There are comments explaining major steps, but some comments are minimal or generic (e.g., "Create and add the first beam element"). More detailed comments on the purpose of constraints or the builder beam would improve clarity.
+- **Structure:** The code is logically structured, with comments explaining major steps.
 
-- **Formatting:** Generally good, but inconsistent indentation in the final simulation loop (the last line `sys.DoStepDynamics(0.001)` is indented too far).
+- **Comments:** There are comments before major blocks, but some comments are minimal or redundant (e.g., "Create a fixed truss" before creating a fixed body).
 
-- **Minor issue:** The code mixes camelCase and snake_case (e.g., `SetAutomaticGravity` vs `SetSectionRotation`), but this is dictated by the PyChrono API.
+- **Formatting:** Indentation and spacing are consistent.
 
-**Code quality deductions:**
+- **Minor issue:** The comment `# Add Euler-Bernoulli beam section` is misleading because the builder creates a beam mesh, not just a section.
 
-- Minor indentation issue and somewhat sparse comments: **-3 points**
+- **Some comments could be more descriptive, especially around constraints and builder usage.**
+
+**Deduction:**
+
+- 3 points for minor comment insufficiencies and slight ambiguity.
+
+- No deduction for readability or structure.
+
+**Code Quality score:** 10 - 3 = 7
 
 ---
 
 ### 4. Efficiency (10 points)
 
-- No obvious redundant calculations or unnecessary API calls.
+- **No obvious redundant calculations or unnecessary API calls.**
 
-- The code disables automatic gravity on the mesh, which is appropriate.
+- **The mesh is built twice: once manually adding nodes and elements, and once via builder. This is intentional and acceptable.**
 
-- The addition of nodes and elements from the builder mesh to the main mesh is necessary.
+- **Disabling automatic gravity on mesh is appropriate if gravity is not desired.**
 
-- The force and torque are applied once; no dynamic updates are shown, but this is acceptable.
+- **No obvious inefficiencies.**
 
-- Minor inefficiency: The code creates two separate beam setups (manual nodes and builder beam) but does not clarify why both are needed. This could be intentional for demonstration.
-
-- The visualization shapes are added twice for different purposes, which is standard.
-
-**Efficiency deductions:** 0 points.
+**Deduction:** 0 points.
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- No error handling is present (e.g., try-except blocks).
+- **No error handling is present.**
 
-- The code assumes all API calls succeed.
+- **While PyChrono scripts often do not include explicit try-except blocks, basic checks or assertions could improve robustness.**
 
-- This is common in example scripts but is a best practice to include minimal error handling or at least checks.
+- **For example, verifying that nodes and elements are successfully created before adding.**
 
-- The use of `.back()` and `.front()` without checking list length is risky.
+- **No handling for potential exceptions from invalid API calls (e.g., `.back()` on Python list).**
 
-**Error handling deductions:** -5 points (lack of any error handling and potential runtime errors).
+**Deduction:**
+
+- 5 points for lack of any error handling or robustness considerations.
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
-- Visualization system is set up correctly with window size, title, logo, skybox, camera, and lights.
+- **Visualization system is properly initialized and configured.**
 
-- Visual shapes for beams and nodes are added with appropriate data types and settings.
+- **Logo, skybox, camera, and lights are added.**
 
-- The camera position is somewhat close (`(0.1, 0.1, 0.2)`), which might be too close for good visualization, but this is minor.
+- **Visual shapes for beam elements and node coordinate systems are added with appropriate settings.**
 
-- Lighting and skybox are added properly.
+- **Minor issue:** Camera position is `(0.1, 0.1, 0.2)`, which is very close to the beam (beam length is 0.2). This may cause a cramped or awkward view.
 
-**Visualization deductions:** 0 points.
+- **Better camera placement (e.g., further away or at an angle) would improve visualization.**
 
----
+**Deduction:**
 
-## Summary of Deductions
-
-| Criterion                     | Deduction Points | Reason                                                                                   |
-|-------------------------------|------------------|------------------------------------------------------------------------------------------|
-| Completeness                  | 0                | All essential components present and configured.                                        |
-| Correctness                  | 30               | Incorrect unit conversion in `SetSectionRotation` (-15), misuse of `.back()` and `.front()` (-15). |
-| Code Quality                 | 3                | Minor indentation and sparse comments.                                                  |
-| Efficiency                  | 0                | No inefficiencies detected.                                                             |
-| Error Handling and Robustness | 5                | No error handling, potential runtime errors due to `.back()` and `.front()`.            |
-| Visualization Tools          | 0                | Visualization setup is correct and complete.                                            |
-
-**Total deductions: 38 points**
+- 2 points for suboptimal camera placement.
 
 ---
 
-## Final Score Calculation
+### **Summary of deductions:**
 
-- Total points: 100
-- Deductions: 38
-- **Final score: 62**
+| Criterion                    | Points | Deduction | Notes                                      |
+|-----------------------------|--------|-----------|--------------------------------------------|
+| Completeness                | 40     | 5         | Minor error in section rotation units      |
+| Correctness                 | 30     | 30        | Wrong node constructor, wrong list methods, section rotation units |
+| Code Quality                | 10     | 3         | Insufficient comments                       |
+| Efficiency                  | 10     | 0         | No issues                                  |
+| Error Handling & Robustness | 5      | 5         | No error handling                           |
+| Visualization               | 5      | 2         | Suboptimal camera placement                 |
+| **Total**                  | 100    | 45        |                                            |
 
 ---
 
-[[62]]
+### **Final score:**
+
+100 - 45 = **55**
 
 ---
 
-**Explanation:**
+### **Explanation:**
 
-The script is mostly complete and well-structured, with appropriate use of PyChrono APIs for system setup, mesh, beam elements, constraints, forces, visualization, solver, and simulation loop. However, critical errors in API usage (incorrect unit conversion for section rotation and incorrect Python list access methods `.back()` and `.front()`) will cause runtime errors and incorrect simulation behavior, leading to a significant deduction in correctness and error handling.
+The script is mostly complete and well-structured, with appropriate use of PyChrono features for FEA beam simulation and visualization. However, critical correctness issues exist:
 
-Minor code quality issues and lack of error handling further reduce the score slightly. Visualization is well done and does not warrant deductions.
+- The use of `ChFramed` instead of `ChFrameD` or `ChCoordsysD` for node initialization will cause runtime errors.
 
-Overall, the script is functional with corrections but currently flawed in key API usages.
+- The use of `.back()` and `.front()` methods on Python lists is invalid and will cause exceptions.
+
+- Incorrect unit conversion for section rotation affects beam orientation.
+
+These correctness errors are severe enough to prevent the simulation from running as intended, leading to a large deduction.
+
+Minor issues in comments, lack of error handling, and visualization camera placement further reduce the score.
+
+---
+
+**Final score:**
+
+[[55]]

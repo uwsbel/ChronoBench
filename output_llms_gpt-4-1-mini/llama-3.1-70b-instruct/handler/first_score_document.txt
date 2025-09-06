@@ -4,140 +4,156 @@
 
 ### 1. Completeness (40 points)
 
-- **System Initialization:**  
-  Present and correct (`chrono.ChSystemNSC()`), with gravity set. **No deduction.**
+- **System Initialization:** Present and correct (`chrono.ChSystemNSC()`), gravitational acceleration set properly. **No deduction.**
 
-- **Body Creation:**  
-  Two bodies created: floor and box. However, the floor is created with `chrono.ChBodyEasyBox(mysystem, 10, 1, 10, 1000, True, material)` which is incorrect usage. According to the API, `ChBodyEasyBox` constructor signature is:  
+- **Body Creation:** Two bodies created: floor and box. However, the floor is created with `chrono.ChBodyEasyBox(mysystem, 10, 1, 10, 1000, True, material)`. According to the API, `ChBodyEasyBox` signature is:
+
   ```python
   ChBodyEasyBox(lengthX, lengthY, lengthZ, density, visualize, collision, material)
-  ```  
-  The first argument should be lengthX, not the system. The system is not passed to the constructor. The body must be added to the system explicitly via `mysystem.Add(body)`. This is missing.  
-  **Deduct 15 points for missing proper body creation and addition to system.**
+  ```
+  
+  The first argument should be lengthX, but the code passes `mysystem` as the first argument, which is incorrect. This is a **significant error** (see correctness below).
 
-- **Material Creation:**  
-  Uses `chrono.ChMaterialSurfaceNSC()`, which is correct for NSC system. Sets friction and restitution. Restitution is not a standard method for `ChMaterialSurfaceNSC()`; the API documentation shows `SetFriction()`, `SetDampingF()`, `SetCompliance()`, but not `SetRestitution()`. This is likely an incorrect or unsupported call.  
-  **Deduct 15 points for incorrect API usage on material.**
+- **Bodies Added to System:** The code does **not** call `mysystem.Add(floor)` or `mysystem.Add(box)`. This is a **major omission** because bodies must be added to the system to be simulated. **Deduct 15 points.**
 
-- **ROS Integration:**  
-  The code creates a custom ROS handler subclassing `chrono.ChROSHandler`, sets up a publisher, and registers it with `ros_manager`. It also adds standard ROS handlers (`ChROSClockHandler`, `ChROSBODYHandler`, `ChROSTransformHandler`). This is a good integration.  
-  However, the custom handler's `Advance` method publishes `mstep` (the time step) as an integer message. This is a simplistic example but acceptable.  
-  **No deduction.**
+- **Material Creation:** Uses `chrono.ChMaterialSurfaceNSC()`. The API documentation shows `ChContactMaterialNSC()` for NSC contact materials, not `ChMaterialSurfaceNSC()`. This is an **incorrect API usage** (see correctness).
 
-- **Visualization Setup:**  
-  Creates an Irrlicht visualization system (`chronoirr.ChVisualSystemIrrlicht()`), sets window size, title, typical length, and camera. However:  
-  - The visualization system is **not attached to the system** via `app.AttachSystem(mysystem)`, which is essential for visualization to reflect the simulation state.  
-  - The visualization system is **not initialized** via `app.Initialize()`.  
-  - The camera is set with `SetCamera()` which is not a documented method; the API uses `AddCamera()`.  
-  - The rendering loop uses `driver.BeginScene()`, `driver.Render()`, `driver.EndScene()`, but the API documentation shows the visualization system itself has `BeginScene()`, `Render()`, `EndScene()` methods. Using the driver directly is unusual and likely incorrect.  
-  **Deduct 15 points for incomplete and incorrect visualization setup.**
+- **ROS Integration:** Custom ROS handler subclassing `chrono.ChROSHandler` is created and registered. The ROS manager is created and handlers added. This is a good inclusion.
 
-- **Simulation Loop:**  
-  The loop calls `mysystem.DoStepDynamics(0.01)`, which is correct. It advances ROS manager and updates visualization.  
-  However, the loop lacks a time step variable and does not control simulation time explicitly. Minor issue.  
-  **Deduct 5 points for minor omission in simulation loop clarity.**
+- **Visualization:** Uses `chronoirr.ChVisualSystemIrrlicht()`, sets window size, title, typical length, and camera. However, the visualization system is **not attached to the system** via `app.AttachSystem(mysystem)`, nor is `app.Initialize()` called. Also, the rendering loop uses `driver.BeginScene()` etc., but the API documentation shows the visualization system itself has `BeginScene()`, `Render()`, and `EndScene()` methods. Using the driver directly for rendering is **incorrect**. **Deduct 15 points for incomplete visualization setup.**
 
-**Total Completeness Deduction: 15 + 15 + 15 + 5 = 50 points (max is 40, so capped at 40 deduction).**
+- **Simulation Loop:** Present and calls `mysystem.DoStepDynamics(0.01)` and advances ROS manager.
+
+- **Summary Completeness deductions:**
+
+  - Missing `mysystem.Add(body)` calls: **-15**
+  - Visualization incomplete (missing AttachSystem, Initialize, wrong rendering calls): **-15**
+
+**Total Completeness deduction: 30 points**
 
 ---
 
 ### 2. Correctness (30 points)
 
-- **Incorrect `ChBodyEasyBox` usage:**  
-  Passing system as first argument is wrong. Also, bodies are not added to the system explicitly. This will cause the bodies not to be simulated.  
-  **Deduct 15 points.**
+- **Incorrect use of `ChBodyEasyBox`:** The first argument is `mysystem` instead of `lengthX`. This will cause a runtime error or unexpected behavior. **-15 points**
 
-- **Material `SetRestitution` method:**  
-  `ChMaterialSurfaceNSC` does not have `SetRestitution`. This is an incorrect API call and could cause runtime errors or be ignored.  
-  **Deduct 15 points.**
+- **Material creation:** Uses `chrono.ChMaterialSurfaceNSC()` which is not documented; the correct class is `chrono.ChContactMaterialNSC()`. This is a significant API misuse. **-15 points**
 
-- **Visualization camera setup:**  
-  Using `SetCamera()` is not a documented method; the correct approach is `AddCamera()`. This will cause the camera not to be set properly.  
-  **Deduct 10 points.**
+- **Body fixed setting:** Uses `SetBodyFixed(True)` instead of `SetFixed(True)`. The API documentation shows `SetFixed()`. This is a **minor API misuse** but could cause the body not to be fixed. **-10 points**
 
-- **Using Irrlicht driver directly for rendering:**  
-  The API expects the visualization system to handle scene rendering, not the driver directly. This could cause rendering issues.  
-  **Deduct 10 points.**
+- **Camera setup:** The camera is set with `SetCamera(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 1), chrono.ChVectorD(0, 1, 0))`. This places the camera at the origin looking along +Z. Usually, the camera should be placed away from the origin to see the scene. This is a **logical error** in visualization setup. **-5 points**
 
-- **ROS handler `Advance` method argument:**  
-  The `Advance` method receives `mstep` (time step), but the ROS manager's `Advance` is called with `mysystem.GetChTime()`. This mismatch might cause confusion but is not critical.  
-  **No deduction.**
+- **ROS handler `Advance` method:** The parameter `mstep` is used as the data to publish. However, `Advance` is called with the current simulation time (`mysystem.GetChTime()`), which is a float, but the message is `Int32`. This will cause a type mismatch or truncation. This is a **logical error** in ROS message publishing. **-10 points**
 
-**Total Correctness Deduction: 15 + 15 + 10 + 10 = 50 points (max is 30, capped at 30 deduction).**
+- **Summary Correctness deductions:**
+
+  - `ChBodyEasyBox` misuse: **-15**
+  - Material class misuse: **-15**
+  - `SetBodyFixed` vs `SetFixed`: **-10**
+  - Camera position poor choice: **-5**
+  - ROS message type mismatch: **-10**
+
+**Total Correctness deduction: 55 points** (exceeds max 30, so capped at 30)
 
 ---
 
 ### 3. Code Quality (10 points)
 
-- **Readability and structure:**  
-  The code is mostly readable with meaningful variable names. However, inconsistent naming (`mysystem` vs `sys` is fine), and the ROS handler class is defined inline without comments.  
-  - Lack of comments explaining key steps (e.g., why ROS handlers are added, or visualization setup).  
-  **Deduct 5 points for insufficient comments.**
+- **Readability:** Variable names like `mysystem`, `material`, `floor`, `box` are clear. The code is mostly well structured.
 
-- **Formatting:**  
-  The code is formatted reasonably well.  
-  **No deduction.**
+- **Comments:** Sparse comments, only a few lines explaining major steps. No docstrings or detailed explanations.
 
-**Total Code Quality Deduction: 5 points.**
+- **Formatting:** Generally acceptable.
+
+- **Summary Code Quality deductions:**
+
+  - Minor lack of comments: **-5 points**
+
+**Total Code Quality deduction: 5 points**
 
 ---
 
 ### 4. Efficiency (10 points)
 
-- No obvious redundant calculations or inefficient API usage.  
-- The simulation loop calls `ros_manager.Advance()` with current simulation time, which is appropriate.  
-- The visualization rendering uses the driver directly, which is unusual but not necessarily inefficient.  
-- No explicit time step variable or control, but minor.  
-**No deduction.**
+- No obvious redundant calculations or inefficient API usage.
+
+- The ROS handler publishes every simulation step without any rate limiting or checks, which might be inefficient but acceptable in this context.
+
+- The visualization rendering uses the driver directly instead of the visualization system's methods, which is not efficient or correct.
+
+- **Summary Efficiency deductions:**
+
+  - Using driver directly for rendering instead of visualization system methods: **-5 points**
+
+**Total Efficiency deduction: 5 points**
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- No error handling for ROS initialization or PyChrono system setup.  
-- No try-except blocks or checks for ROS node initialization or shutdown.  
-- No checks for valid data path or resource loading.  
-- No handling of possible exceptions in the simulation loop.  
-**Deduct 5 points for lack of basic error handling.**
+- No error handling present (try-except blocks, checks for ROS initialization, or path existence).
+
+- No checks for ROS node initialization (`rospy.init_node()` missing).
+
+- No validation of data path.
+
+- **Summary Error Handling deductions:**
+
+  - Lack of basic error handling and ROS initialization: **-5 points**
+
+**Total Error Handling deduction: 5 points**
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
-- Visualization system is created but **not attached to the system** and **not initialized**.  
-- Camera setup uses an incorrect method.  
-- Rendering uses the driver directly instead of the visualization system's methods.  
-- No addition of lights, skybox, or other typical visual elements.  
-**Deduct 5 points for incorrect and incomplete visualization setup.**
+- Visualization system created but not attached to system.
+
+- `app.Initialize()` not called.
+
+- Camera placed at origin looking along +Z, which is not useful.
+
+- No lights, skybox, or other visual enhancements added.
+
+- Using driver directly for rendering instead of visualization system methods.
+
+- **Summary Visualization deductions:**
+
+  - Missing AttachSystem and Initialize: **-3 points**
+
+  - Poor camera setup and no lighting: **-2 points**
+
+**Total Visualization deduction: 5 points**
 
 ---
 
 ## Summary of Deductions
 
-| Criterion                      | Max Points | Deduction | Notes                                      |
-|-------------------------------|------------|-----------|--------------------------------------------|
-| Completeness                  | 40         | 40        | Missing system add, incorrect body creation, incomplete visualization, minor loop issue |
-| Correctness                  | 30         | 30        | Incorrect API usage for bodies, material, visualization camera, rendering |
-| Code Quality                 | 10         | 5         | Lack of comments                           |
-| Efficiency                   | 10         | 0         | No issues                                 |
-| Error Handling and Robustness| 5          | 5         | No error handling                         |
-| Visualization Tools          | 5          | 5         | Visualization setup incomplete and incorrect |
+| Category                    | Max Points | Deduction | Notes                                      |
+|-----------------------------|------------|-----------|--------------------------------------------|
+| Completeness                | 40         | 30        | Missing Add(body), incomplete visualization |
+| Correctness                | 30         | 30        | API misuse, logical errors, capped at max  |
+| Code Quality               | 10         | 5         | Sparse comments                             |
+| Efficiency                 | 10         | 5         | Incorrect rendering approach                |
+| Error Handling & Robustness| 5          | 5         | No error handling or ROS init               |
+| Visualization Tools        | 5          | 5         | Missing AttachSystem, Initialize, poor camera|
 
-**Total deductions: 40 + 30 + 5 + 0 + 5 + 5 = 85 points**
+**Total deductions: 80 points**
 
 ---
 
 ## Final Score
 
-Starting from 100 points: 100 - 85 = 15 points.
+100 - 80 = **20**
 
 ---
 
 **Final score:**
 
-[[15]]
+[[20]]
 
 ---
 
-**Explanation:**  
-The script includes many essential components but has critical errors in body creation and addition to the system, incorrect material API usage, and incomplete and incorrect visualization setup. The ROS integration is reasonable but minimal. The lack of error handling and insufficient comments further reduce the score. The simulation loop is functional but could be clearer. Overall, the script would not run correctly without fixing these major issues.
+**Explanation:**
+
+The script includes many essential components but suffers from critical API misuse (wrong arguments to `ChBodyEasyBox`, wrong material class), missing system additions of bodies, incomplete visualization setup (missing AttachSystem and Initialize, incorrect rendering calls), and logical errors in ROS message publishing and camera placement. The lack of ROS node initialization and error handling further reduce robustness. Minor issues in comments and code structure also contribute to deductions. Overall, the script is incomplete and incorrect in key areas, leading to a low score.

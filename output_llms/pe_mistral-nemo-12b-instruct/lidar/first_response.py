@@ -1,0 +1,66 @@
+import os
+import math
+import numpy as np
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
+import pychrono.vehicle as veh
+import pychrono.robot as robosimian
+import pychrono.fea as fea
+
+# Set Chrono data path
+chrono.SetChronoDataPath('/path/to/data')
+
+# Initialize the system and visualization
+sys = chrono.ChSystemSMC()
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(sys)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle('Triangular Mesh with Lidar Simulation')
+vis.Initialize()
+
+# Load the triangular mesh from a Wavefront .obj file
+mesh = chrono.ChTriangleMeshConnected()
+mesh.LoadWavefrontMesh(chrono.GetChronoDataFile('mesh.obj'), False, False)
+
+# Create a fixed body with the mesh as a visual shape
+body = chrono.ChBody()
+body.SetBodyFixed(True)
+body.AddVisualShape(chrono.ChVisualShapeTriangleMesh(mesh, chrono.ChMaterialSurface(), 0.01))
+sys.Add(body)
+
+# Initialize the lidar sensor manager
+lidar_manager = veh.LidarSensorManager()
+lidar_manager.SetSystem(sys)
+
+# Add a lidar sensor to the body
+lidar = lidar_manager.AddLidarSensor('LidarSensor', body, chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(0, 0, 1), 0.1, 100, 0.05, 0.05)
+lidar.SetNoiseFilter(veh.LidarNoiseFilter.LaserNoiseFilter)
+lidar.SetVisualization(True)
+lidar.SetSaveData(True)
+
+# Set lidar data saving options
+lidar_manager.SetDataSaving(True, 'lidar_data.txt')
+
+# Define the lidar orbit parameters
+orbit_radius = 2.0
+orbit_angle = 0.0
+
+# Simulation loop
+while vis.Run():
+    # Update the lidar's position in an orbit around the mesh
+    lidar.SetPos(chrono.ChVector3d(orbit_radius * math.cos(orbit_angle), orbit_radius * math.sin(orbit_angle), 0))
+    orbit_angle += 0.01
+
+    # Print lidar buffer data at each simulation step
+    print('Lidar buffer data:', lidar.GetBufferData())
+
+    # Perform one simulation step
+    sys.DoStepDynamics(0.01)
+
+    # Render the scene
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+
+# Save lidar data to a file
+lidar_manager.SaveDataToFile('lidar_data.txt')
