@@ -1,3 +1,6 @@
+Here's a Python script that implements the simulation of a simple pendulum using PyChrono with Irrlicht for visualization:
+
+```python
 # Import necessary modules
 import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
@@ -216,4 +219,3 @@ vis.AddCameraMotionMode(chronoirr.ChVisualSystemIrrlicht.CAMMODE_ALL)
 vis.AddCameraMotionMode(chronoirr.ChVisualSystemIrrlicht.CAMMODE_ALL)
 vis.AddCameraMotionMode(chronoirr.ChVisualSystemIrrlicht.CAMMODE_ALL)
 vis.AddCameraMotionMode(chronoirr.ChVisualSystemIrrlicht.C
-print("error happened with only start ```python")

@@ -6,46 +6,41 @@ import pychrono.irrlicht as irr
 chrono.SetChronoDataPath('/path/to/chrono/data/')
 
 
-mphysicalSystem = chrono.ChSystemNSC()
+my_system = chrono.ChSystemNSC()
 
 
-mvehicle = veh.ChUAZBUS()
-mvehicle.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0.5, 0), chrono.ChQuaternionD(1, 0, 0, 0)))
-mvehicle.SetMass(1500)
-mvehicle.SetMaxTorque(100)
-mphysicalSystem.Add(mvehicle)
+my_vehicle = veh.ChUAZBUS()
+my_vehicle.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0.5, 0), chrono.Q_from_AngX(0)))
+my_vehicle.SetSuspensionType(veh.ChUAZBUS.SuspensionType_SHAFTS)
+my_vehicle.SetTireType(veh.ChUAZBUS.TireModelType_RIGID)
+my_vehicle.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0.5, 0), chrono.Q_from_AngX(0)))
+my_vehicle.SetPowertrainType(veh.ChUAZBUS.PowertrainModelType_SIMPLE)
+my_vehicle.SetDriveType(veh.ChUAZBUS.DriveType_REARWHEELDRIVE)
+my_vehicle.SetBrakeType(veh.ChUAZBUS.BrakeType_SHAFTS)
 
 
-mterrain = veh.RigidTerrain(mphysicalSystem)
-mterrain.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, -0.5, 0), chrono.ChQuaternionD(1, 0, 0, 0)), 1024, 1024)
-mterrain.SetFrictionCoefficient(0.8)
-mterrain.SetRestitutionCoefficient(0.2)
-mphysicalSystem.Add(mterrain)
+terrain = veh.RigidTerrain(my_system)
+terrain.SetFrictionCoefficient(0.8)
+terrain.SetRestitutionCoefficient(0.2)
+terrain.Initialize()
 
 
-mdriver = veh.ChIrrlichtDriver(mvehicle)
-mdriver.Initialize()
-mdriver.SetSteering(0)
-mdriver.SetThrottle(0)
-mdriver.SetBraking(0)
+my_driver = veh.ChIrrNodeDriver(my_vehicle)
+my_driver.Initialize()
 
 
-mapp = irr.ChIrrApp(mphysicalSystem, "PyChrono Simulation", irr.dimension2du(800, 600))
-mapp.AddTypicalSky()
-mapp.AddTypicalLights()
-mapp.AddCamera(chrono.ChVectorD(0, 1.5, -5))
-mapp.SetSymbolscale(0.02)
-mapp.SetShowInfos(True)
+application = irr.ChIrrApp(my_system, 'UAZBUS Simulation', irr.dimension2du(800, 600))
+application.AddTypicalSky()
+application.AddTypicalLights()
+application.AddCamera(chrono.ChVectorD(-5, 2, -10), chrono.ChVectorD(0, 0, 0))
+application.AssetBindAll()
+application.AssetUpdateAll()
 
 
-while mapp.GetDevice().run():
-    
-    mdriver.Synchronize(mvehicle)
-    
-    
-    mphysicalSystem.DoStepDynamics(chrono.ChTimestepD(1e-3))
-    
-    
-    mapp.BeginScene(True, True, irr.SColor(255, 140, 161, 192))
-    mapp.DrawAll()
-    mapp.EndScene()
+application.SetTimestep(0.01)
+application.SetTryRealtime(True)
+while application.GetDevice().run():
+    application.BeginScene()
+    application.DrawAll()
+    application.DoStep()
+    application.EndScene()

@@ -29,7 +29,7 @@ step_size = 1e-3
 tire_step_size = step_size
 
 # Simulation end time
-tend = 1000
+end_time = 30
 
 # Time interval between two render frames
 render_step_size = 1.0 / 50  # FPS = 50
@@ -149,7 +149,7 @@ lidar = sens.ChLidarSensor(
     2 * chrono.CH_PI,         # Horizontal field of view
     chrono.CH_PI / 12,         # Maximum vertical field of view
     -chrono.CH_PI / 6,         # Minimum vertical field of view
-    100.0,                  # Maximum lidar range
+    30.0,                  # Maximum lidar range (changed to 30)
     sens.LidarBeamShape_RECTANGULAR,  # Shape of the lidar beam
     2,          # Sample radius
     0.003,       # Divergence angle
@@ -178,7 +178,7 @@ depth_cam = sens.ChDepthCameraSensor(
     image_width,
     image_height,
     fov,
-    30  # Maximum depth
+    30.0  # Maximum depth
 )
 depth_cam.SetName("Depth Camera")
 depth_cam.PushFilter(sens.ChFilterVisualizeDepthMap(image_width, image_height, "Depth Map"))
@@ -189,7 +189,6 @@ manager.AddSensor(depth_cam)
 # ---------------
 realtime_timer = chrono.ChRealtimeStepTimer()
 time = 0
-end_time = 30
 while time < end_time:
     time = gator.GetSystem().GetChTime()
     # set driver inputs
@@ -205,14 +204,15 @@ while time < end_time:
 
     manager.Update()
 
-    # Log vehicle state
-    vehicle_state = gator.GetVehicle().GetChassisBody().GetFrame_COG_to_abs()
-    print(f"Time: {time:.2f}, Position: ({vehicle_state.GetPos().x():.2f}, {vehicle_state.GetPos().y():.2f}, {vehicle_state.GetPos().z():.2f}), Heading: {vehicle_state.GetRot().GetEuler().z():.2f}")
-
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)
     terrain.Advance(step_size)
     gator.Advance(step_size)
+
+    # Log vehicle state
+    pos = gator.GetChassisBody().GetPos()
+    heading = gator.GetChassisBody().GetRot().GetAngle()
+    print(f"Time: {time:.2f}, Pos: ({pos.x:.2f}, {pos.y:.2f}, {pos.z:.2f}), Heading: {heading:.2f}")
 
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)

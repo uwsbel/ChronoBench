@@ -1,0 +1,70 @@
+import chrono
+import chrono.irrlicht as chronoirr
+
+# ---
+#  Create the simulation system
+# ---
+
+# Create a Chrono physical system
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
+
+# ---
+# Create the physical objects
+# ---
+
+# Create a rigid body representing the mass
+body = chrono.ChBodyEasy()
+body.SetBodyFixed(False)
+body.SetMass(1.0)
+body.SetPos(chrono.ChVectorD(0, 1, 0))
+body.SetCollide(True)
+system.Add(body)
+
+# Create a visual shape for the mass
+sphere_shape = chrono.ChSphereShape()
+sphere_shape.GetSphereGeometry().rad = 0.5
+body.AddAsset(sphere_shape)
+sphere_shape.SetMaterial(chrono.ChMaterialSurfaceNSC())
+
+# Create a link (spring-damper) between the mass and the ground
+link = chrono.ChLinkTSDA()
+link.Initialize(body,
+                None,  # Ground is implicitly defined as zero displacement
+                False, # is fixed to ground
+                chrono.ChCoordsys(chrono.ChVectorD(0, 0, 0)))
+link.Set_SpringRestLength(1.0)
+link.Set_SpringK(100.0)
+link.Set_SpringR(0.5) # damping coefficient
+system.Add(link)
+
+# Create a visual shape for the spring
+cylinder_shape = chrono.ChCylinderShape()
+cylinder_shape.GetCylinderGeometry().rad = 0.05
+cylinder_shape.GetCylinderGeometry().height = 1.0
+link.AddAsset(cylinder_shape)
+cylinder_shape.SetMaterial(chrono.ChMaterialSurfaceNSC())
+
+# ---
+#  Create an Irrlicht application to visualize the system
+# ---
+
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle('Mass-Spring-Damper System')
+vis.Initialize()
+vis.AddCamera(chrono.ChVectorD(2, 2, -3))
+vis.AddTypicalLights()
+
+# ---
+#  Run the simulation
+# ---
+
+time_step = 0.01
+time_end = 10.0
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    system.DoStepDynamics(time_step)

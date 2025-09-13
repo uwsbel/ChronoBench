@@ -4,10 +4,15 @@ import pychrono.irrlicht as irr
 
 def main():
     
+    step_size = 2e-3
+    tire_step_size = 1e-3
+
+    
     hmmwv = veh.HMMWV_Full()
     hmmwv.SetContactMethod(chrono.ChContactMethod_NSC)
     hmmwv.SetChassisFixed(False)
-    hmmwv.SetInitPosition(chrono.ChCoordsysd(chrono.ChVector3d(6, -70, 0.5), chrono.ChQuaterniond(1, 0, 0, 0)))  
+    
+    hmmwv.SetInitPosition(chrono.ChCoordsysd(chrono.ChVector3d(6, -70, 0.5), chrono.ChQuaterniond(1, 0, 0, 0)))
     hmmwv.SetEngineType(veh.EngineModelType_SIMPLE)
     hmmwv.SetTransmissionType(veh.TransmissionModelType_AUTOMATIC_SIMPLE_MAP)
     hmmwv.SetDriveType(veh.DrivelineTypeWV_AWD)
@@ -30,24 +35,27 @@ def main():
     terrain_mat = chrono.ChContactMaterialNSC()
     terrain_mat.SetFriction(0.9)
     terrain_mat.SetRestitution(0.01)
-
+    
     
     patch = terrain.AddPatch(
         terrain_mat,
         chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
-        veh.GetDataFile("vehicle/terrain/meshes/Highway_col.obj")
+        veh.GetDataFile("terrain/meshes/Highway_col.obj")
     )
     
     
-    patch.GetGroundBody().GetCollisionModel().SetEnvelope(0.01)
-
+    ground_body = terrain.GetGroundBody()
+    ground_body.GetCollisionModel().SetEnvelope(0.01)
     
-    vis_mesh = chrono.ChTriangleMeshConnected()
-    vis_mesh.LoadWavefrontMesh(veh.GetDataFile("terrain/meshes/Highway_vis.obj"))
-    visual_shape = chrono.ChVisualShapeTriangleMesh()
-    visual_shape.SetMesh(vis_mesh)
-    patch.GetGroundBody().AddVisualShape(visual_shape)
-
+    
+    ground_body.GetVisualShapes().clear()
+    
+    
+    vis_mesh = chrono.ChVisualShapeTriangleMesh()
+    vis_mesh.SetMesh(chrono.ChTriangleMeshConnected())
+    vis_mesh.GetMesh().LoadWavefrontMesh(veh.GetDataFile("terrain/meshes/Highway_vis.obj"))
+    ground_body.AddVisualShape(vis_mesh)
+    
     terrain.Initialize()
 
     
@@ -95,10 +103,9 @@ def main():
 
     return 0
 
+
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 
-step_size = 2e-3
-tire_step_size = 1e-3
-
-main()
+if __name__ == "__main__":
+    main()

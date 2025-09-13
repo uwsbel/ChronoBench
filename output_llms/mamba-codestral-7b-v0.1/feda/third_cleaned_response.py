@@ -1,3 +1,4 @@
+```python
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
@@ -129,6 +130,3 @@ if vis:
     cam.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Before Grayscale Filter"))
 
 manager.AddSensor(cam)
-
-
-print("error happened with only start ```python")

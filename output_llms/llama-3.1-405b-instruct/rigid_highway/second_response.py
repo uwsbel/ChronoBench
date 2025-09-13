@@ -52,7 +52,6 @@ vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 
-
 vehicle.Initialize()
 
 vehicle.SetChassisVisualizationType(vis_type)
@@ -78,21 +77,21 @@ tri_mesh_shape.SetMesh(vis_mesh)
 tri_mesh_shape.SetMutable(False)
 patch.GetGroundBody().AddVisualShape(tri_mesh_shape)
 
-# Add a new terrain patch
-new_patch_mat = chrono.ChContactMaterialNSC()
-new_patch_mat.SetFriction(0.9)
-new_patch_mat.SetRestitution(0.01)
-new_patch = terrain.AddPatch(new_patch_mat, 
+# Additional Terrain Patch Creation
+patch_mat2 = chrono.ChContactMaterialNSC()
+patch_mat2.SetFriction(0.9)
+patch_mat2.SetRestitution(0.01)
+patch2 = terrain.AddPatch(patch_mat2, 
     chrono.ChCoordsysd(chrono.ChVector3d(0, -42, 0), chrono.QUNIT),
     chrono.GetChronoDataFile('vehicle/terrain/meshes/bump.obj'),
     True, 0.01, False)
-new_vis_mesh = chrono.ChTriangleMeshConnected().CreateFromWavefrontFile(veh.GetDataFile("terrain/meshes/bump.obj"), True, True)
-new_tri_mesh_shape = chrono.ChVisualShapeTriangleMesh()
-new_tri_mesh_shape.SetMesh(new_vis_mesh)
-new_tri_mesh_shape.SetMutable(False)
-new_tri_mesh_shape.SetColor(chrono.ChColor(0.5, 0.5, 0.8))
-new_tri_mesh_shape.SetTexture(chrono.GetChronoDataFile('vehicle/terrain/textures/dirt.jpg'), 6.0, 6.0)
-new_patch.GetGroundBody().AddVisualShape(new_tri_mesh_shape)
+vis_mesh2 = chrono.ChTriangleMeshConnected().CreateFromWavefrontFile(veh.GetDataFile("terrain/meshes/bump.obj"), True, True)
+tri_mesh_shape2 = chrono.ChVisualShapeTriangleMesh()
+tri_mesh_shape2.SetMesh(vis_mesh2)
+tri_mesh_shape2.SetMutable(False)
+tri_mesh_shape2.SetColor(chrono.ChColor(0.5, 0.5, 0.8))
+tri_mesh_shape2.AddTexture(chrono.GetChronoDataFile('vehicle/terrain/textures/dirt.jpg'), 6.0, 6.0)
+patch2.GetGroundBody().AddVisualShape(tri_mesh_shape2)
 
 terrain.Initialize()
 
@@ -107,7 +106,6 @@ vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
-
 
 # Create the driver system
 driver = veh.ChInteractiveDriverIRR(vis)

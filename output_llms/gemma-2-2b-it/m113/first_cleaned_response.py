@@ -1,3 +1,4 @@
+```python
 import pychrono as chrono
 import pychrono.irrlicht as irrlicht
 import pychrono.irrlicht.irrlicht_utils as irrutils
@@ -244,4 +245,3 @@ terrain = chrono.Terrain(
     chrono.Vector3(10, 10, 10),
     chrono.Vector3(0, 0, 0),
     chrono.Vector3(10, 10
-print("error happened with only start ```python")

@@ -5,19 +5,16 @@ import pychrono.sensor as sens
 
 def main():
     
+    chrono.SetChronoDataPath(chrono.GetChronoDataPath())
     system = chrono.ChSystemNSC()
-    system.SetGravitationalAcceleration(chrono.ChVectorD(0, 0, -9.81))
-    system.SetSolverMaxIterations(100)
-
+    system.SetGravity(chrono.ChVectorD(0, 0, -9.81))
+    
     
     terrain = veh.RigidTerrain(system)
-    terrain_mat = chrono.ChMaterialSurfaceNSC()
-    terrain_mat.SetFriction(0.9)
-    terrain_mat.SetRestitution(0.01)
-    terrain.Initialize(chrono.ChVectorD(0, 0, 0), 
-                      chrono.ChVectorD(0, 0, 1), 
-                      200, 200, 0.1, terrain_mat)
-    terrain.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
+    patch_mat = chrono.ChMaterialSurfaceNSC()
+    patch = terrain.AddPatch(patch_mat, chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 1), 100, 100)
+    patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
+    terrain.Initialize()
 
     
     gator = veh.Gator(system)
@@ -25,16 +22,23 @@ def main():
     gator.Initialize()
     
     
-    gator.GetChassis().GetBody().SetVisualizationType(chrono.VisualizationType_PRIMITIVES)
-    gator.GetSteering().GetVisualBody().SetVisualizationType(chrono.VisualizationType_PRIMITIVES)
-    for wheel in gator.GetWheels():
-        wheel.GetSpindle().SetVisualizationType(chrono.VisualizationType_MESH)
+    gator.SetChassisVisualizationType(veh.VisualizationType_PRIMITIVES)
+    gator.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
+    gator.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
+    gator.SetWheelVisualizationType(veh.VisualizationType_MESH)
+    gator.SetTireVisualizationType(veh.VisualizationType_MESH)
+
+    
+    driver = veh.InteractiveDriverIRR(gator.GetVehicle())
+    driver.SetSteeringDelta(0.02)
+    driver.SetThrottleDelta(0.02)
+    driver.SetBrakingDelta(0.06)
 
     
     vis = irr.ChVisualSystemIrrlicht()
     vis.AttachSystem(system)
     vis.SetWindowSize(1280, 720)
-    vis.SetWindowTitle('Gator Vehicle Simulation')
+    vis.SetWindowTitle('Gator Simulation')
     vis.Initialize()
     vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
     vis.AddSkyBox()
@@ -42,53 +46,50 @@ def main():
     vis.AddTypicalLights()
 
     
-    driver = veh.ChInteractiveDriverIRR(vis)
-    driver.SetSteeringDelta(0.02)
-    driver.SetThrottleDelta(0.02)
-    driver.SetBrakingDelta(0.06)
-    driver.Initialize()
-
-    
-    sensor_manager = sens.ChSensorManager(system)
-    sensor_manager.scene.AddPointLight(chrono.ChVectorF(2, 2.5, 5), chrono.ChColor(1, 1, 1), 5.0)
+    manager = sens.ChSensorManager(system)
+    manager.scene.AddPointLight(chrono.ChVectorD(2, 2.5, 5), chrono.ChColor(0.8, 0.8, 1.0), 5.0)
     
     
-    camera = sens.ChCameraSensor(
-        gator.GetChassisBody(),  
-        30,  
-        chrono.ChFrameD(chrono.ChVectorD(0.5, 0, 0.5), chrono.Q_from_AngAxis(0.2, chrono.ChVectorD(0, 1, 0))),  
-        1280,  
-        720,   
-        chrono.CH_C_PI / 3  
-    )
+    offset_pose = chrono.ChFrameD(chrono.ChVectorD(1.5, 0, 1.0), chrono.Q_from_AngZ(0.2))
+    camera = sens.ChCameraSensor(gator.GetChassisBody(), 30, offset_pose, 1280, 720, 1.0)
     camera.SetName("Vehicle Camera")
-    camera.PushFilter(sens.ChFilterVisualize(1280, 720, "Camera View"))
-    sensor_manager.AddSensor(camera)
+    camera.PushFilter(sens.ChFilterRGBA8())
+    manager.AddSensor(camera)
 
     
-    time_step = 0.005
+    step_size = 0.002
+    render_steps = 2
+
     while vis.Run():
         time = system.GetChTime()
         
         
+        driver_inputs = driver.GetInputs()
         driver.Synchronize(time)
         
         
-        gator.Synchronize(time, driver.GetInputs(), terrain)
         terrain.Synchronize(time)
         
         
-        driver.Advance(time_step)
-        gator.Advance(time_step)
-        system.DoStepDynamics(time_step)
+        gator.Synchronize(time, driver_inputs, terrain)
         
         
-        sensor_manager.Update()
+        driver.Advance(step_size)
+        terrain.Advance(step_size)
+        gator.Advance(step_size)
+        system.DoStepDynamics(step_size)
         
         
-        vis.BeginScene()
-        vis.Render()
-        vis.EndScene()
+        manager.Update()
+        
+        
+        if step_number % render_steps == 0:
+            vis.BeginScene()
+            vis.Render()
+            vis.RenderFrame(gator.GetChassisBody().GetFrame_REF_to_abs())
+            vis.EndScene()
+            
+        step_number += 1
 
 if __name__ == "__main__":
     main()

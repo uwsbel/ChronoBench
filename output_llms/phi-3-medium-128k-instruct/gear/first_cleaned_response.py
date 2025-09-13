@@ -1,3 +1,5 @@
+```python
+
 from pychrono import Chrono, Erl, SimTK, ChSystemNSC
 from pychrono.modelling import ChAssumeMass, ChLink6D
 from pychrono.irrlicht import IriVisualSystem, IriMaterial
@@ -483,4 +485,3 @@ system.SetSolverTolerance(1e-6)
 system.SetSolverIterationLimit(1000)
 
 system.SetSolverTolerance.setSolver.SetSolver.SetSolver.SetSolver.SetSolverance.SetSolver.SetSolverance.SetSolverance.SetSolverance.SetSolverance.SetSolverance.SetSolverance.SetSolverance.SetSolverance.SetSolverance.SetSolverance.SetSolverance.SetSolverance.SetSolverance.SetSolverance.SetSolverance.SetSolverance.SetSolverance.SetSolverance.SetSolverance.SetSolverance.SetSolverance.SetSolverance.SetSolverance.SetSolverance.SetSolverance.SetSolverance.SetSol
-print("error happened with only start ```python")

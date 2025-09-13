@@ -46,8 +46,9 @@ def main():
     vis.AddTypicalLights()
     vis.AddLightWithShadow(ch.ChVector3d(1.5, -2.5, 5.5), ch.ChVector3d(0, 0, 0.5), 3, 4, 10, 40, 512)
     
-    box = ch.ChBodyEasyBox(hmmwv.GetSystem(), 1, 1, 1, 1000, True, True)
-    box.SetPos(ch.ChVector3d(0, 0, 2))
+    box = ch.ChBodyEasyBox(hmmwv.GetSystem(), 1, 1, 1, 1000)
+    box.SetPos(ch.ChVector3d(0, 0, 1))
+    box.SetBodyFixed(True)
     
     driver = veh.ChDriver(hmmwv.GetVehicle())
     driver.Initialize()  
@@ -59,15 +60,17 @@ def main():
     
     ros_manager.RegisterHandler(chros.ChROSBodyHandler(25, hmmwv.GetChassisBody(), "~/output/hmmwv/state"))
     
-    sens_manager = sens.ChSensorManager(hmmwv.GetSystem())
-    
-    lidar = sens.ChLidarSensor(hmmwv.GetSystem(), 100, ch.ChVector3d(0, 0, 2), ch.ChQuaterniond(1, 0, 0, 0), 100, 0.1, 100)
+    lidar = sens.ChLidarSensor(hmmwv.GetSystem(), 100, ch.ChVector3d(0, 0, 1), ch.ChQuaterniond(1, 0, 0, 0), 100, 100, 0.1, 10)
+    lidar.SetCollectionWindow(0.1)
+    lidar.SetScanningFrequency(10)
     lidar.AddFilter(sens.ChFilterShade())
-    lidar.AddFilter(sens.ChFilterRange(0.1, 100))
-    sens_manager.AddSensor(lidar)
+    lidar.AddFilter(sens.ChFilterRange(0.1, 10))
     
     ros_manager.RegisterHandler(chros.ChROSLidarHandler(25, lidar, "~/output/lidar"))
     ros_manager.Initialize()  
+    
+    sens_manager = sens.ChSensorManager(hmmwv.GetSystem())
+    sens_manager.AddSensor(lidar)
     
     time = 0
     time_step = 1e-3  
@@ -93,11 +96,11 @@ def main():
         terrain.Synchronize(time)  
         hmmwv.Synchronize(time, driver_inputs, terrain)  
         
-        sens_manager.Update()
-        
         driver.Advance(time_step)
         terrain.Advance(time_step)
         hmmwv.Advance(time_step)
+        
+        sens_manager.Update()
         
         if not ros_manager.Update(time, time_step):
             break  

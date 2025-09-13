@@ -1,0 +1,93 @@
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
+import time
+import rospy
+from std_msgs.msg import Int32
+
+class CustomROSHelper(object):
+    """
+    A custom ROS helper class to publish integer messages.
+    """
+    def __init__(self, topic_name):
+        self.topic_name = topic_name
+        self.publisher = rospy.Publisher(self.topic_name, Int32, queue_size=10)
+
+    def publish_message(self, data):
+        """
+        Publishes an integer message to the specified ROS topic.
+        """
+        message = Int32()
+        message.data = data
+        self.publisher.publish(message)
+
+def main():
+    """
+    Main function to set up and run the PyChrono simulation with ROS integration.
+    """
+    # Initialize ROS node
+    rospy.init_node('pychrono_ros_sim', anonymous=True)
+
+    # Initialize PyChrono system
+    system = chrono.ChSystemNSC()
+    system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+
+    # Create physical material properties
+    material = chrono.ChMaterialSurfaceNSC()
+    material.SetFriction(0.4)
+    material.SetRestitution(0.2)
+
+    # Create a fixed floor
+    body_floor = chrono.ChBodyEasy()
+    body_floor.SetBodyFixed(True)
+    body_floor.SetPos(chrono.ChVectorD(0, -1, 0))
+    body_floor.SetMaterialSurface(material)
+    body_floor.SetShapeBoxes(0.5, 0.1, 1)
+    system.Add(body_floor)
+
+    # Create a movable box
+    body_box = chrono.ChBodyEasy()
+    body_box.SetPos(chrono.ChVectorD(0, 1, 0))
+    body_box.SetMaterialSurface(material)
+    body_box.SetShapeBoxes(0.1, 0.1, 0.1)
+    system.Add(body_box)
+
+    # Create a custom ROS handler
+    ros_helper = CustomROSHelper('chrono_data')
+
+    # Configure the ROS manager
+    ros_manager = chrono.ChRosManager()
+    ros_manager.SetSystem(system)
+    ros_manager.SetClockHandler(True)
+    ros_manager.SetBodyHandler(True)
+    ros_manager.SetTransformHandler(True)
+    ros_manager.RegisterHelper(ros_helper)
+
+    # Initialize the visualization (optional)
+    vis = chronoirr.ChVisualSystemIrrlicht()
+    vis.AttachSystem(system)
+    vis.SetWindowSize(1024, 768)
+    vis.SetWindowTitle('PyChrono with ROS')
+    vis.Initialize()
+    vis.AddCamera(chrono.ChVectorD(0, 2, -3))
+    vis.AddTypicalLights()
+
+    # Simulation loop
+    time_step = 0.005
+    while vis.Run():
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+
+        system.DoStepDynamics(time_step)
+
+        # Publish data to ROS
+        ros_manager.Update()
+        ros_helper.publish_message(int(body_box.GetPos().y() * 100)) # Example: Publish box's Y position
+
+        # Maintain real-time execution
+        time.sleep(time_step)
+
+    print("Simulation finished.")
+
+if __name__ == "__main__":
+    main()

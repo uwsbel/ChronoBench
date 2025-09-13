@@ -1,3 +1,6 @@
+Here's the corrected and modified PyChrono script based on the given instructions:
+
+```python
 import math as m  
 import pychrono as chrono  
 import pychrono.fea as fea  
@@ -716,4 +719,3 @@ function.py
 
 
 function.py
-print("error happened with only start ```python")

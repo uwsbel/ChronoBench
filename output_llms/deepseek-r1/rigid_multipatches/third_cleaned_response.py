@@ -75,7 +75,8 @@ def main():
     driver.SetBrakingDelta(0.06)
     driver.Initialize()
 
-    hmmwv.GetVehicle().EnableRealtime(True)
+    
+    hmmwv.GetSystem().EnableRealtime(True)
 
     while vis.Run():
         time = hmmwv.GetSystem().GetChTime()

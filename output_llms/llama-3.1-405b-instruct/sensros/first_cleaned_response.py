@@ -12,80 +12,87 @@ sys = chrono.ChSystemNSC()
 
 
 mesh = chrono.ChBodyEasyMesh(sys.NewBody(), '/path/to/mesh.obj', 1000, True, True, 0.01, 0.01)
-sys.Add(mesh)
 
 
 ground = sys.NewBody()
-sys.Add(ground)
+ground.SetBodyFixed(True)
+ground.SetPos(chrono.ChVectorD(0, -1, 0))
 
 
-ground.SetPos(chrono.ChVectorD(0, 0, 0))
-ground.SetBodyFixed(False)
+ground_asset = chrono.ChIrrNodeAsset()
+ground.AddAsset(ground_asset)
+
+
+ground_node = chrono.ChIrrNode(ground.GetReference())
+ground_node.SetName('ground')
+ground_node.SetPos(chrono.ChVectorD(0, -1, 0))
 
 
 manager = sens.ChSensorManager(sys)
 
 
 camera = sens.ChCameraSensor(
-    sys,  
-    60,  
-    chrono.ChVectorD(1.5, 0, 0.5),  
-    chrono.ChQuaternionD(0, 0, 0, 1),  
-    1280,  
-    720,  
-    3.14 / 4,  
-    0.1,  
-    1000,  
+    sys,
+    640,  
+    480,  
+    60,   
+    1.4,  
+    chrono.ChVectorD(0.5, 0.5, 0.5),  
+    chrono.ChQuaternionD(1, 0, 0, 0)   
 )
 manager.AddSensor(camera)
 
+
 lidar = sens.ChLidarSensor(
-    sys,  
+    sys,
     100,  
-    chrono.ChVectorD(0, 0, 1),  
-    chrono.ChQuaternionD(0, 0, 0, 1),  
-    150,  
-    0.1,  
     100,  
-    0.1,  
     100,  
-    0.05,  
+    100,  
+    100,  
+    1.4,  
+    chrono.ChVectorD(0.5, 0.5, 0.5),  
+    chrono.ChQuaternionD(1, 0, 0, 0)   
 )
 manager.AddSensor(lidar)
 
+
 gps = sens.ChGPSSensor(
-    sys,  
-    10,  
-    chrono.ChVectorD(0, 0, 0),  
-    chrono.ChQuaternionD(0, 0, 0, 1),  
-    0.1,  
+    sys,
+    1.0,  
+    1.4,  
+    chrono.ChVectorD(0.5, 0.5, 0.5),  
+    chrono.ChQuaternionD(1, 0, 0, 0)   
 )
 manager.AddSensor(gps)
 
+
 accelerometer = sens.ChAccelerometerSensor(
-    sys,  
-    200,  
-    chrono.ChVectorD(0, 0, 0),  
-    chrono.ChQuaternionD(0, 0, 0, 1),  
-    0.1,  
+    sys,
+    1.0,  
+    1.4,  
+    chrono.ChVectorD(0.5, 0.5, 0.5),  
+    chrono.ChQuaternionD(1, 0, 0, 0)   
 )
 manager.AddSensor(accelerometer)
 
+
 gyroscope = sens.ChGyroscopeSensor(
-    sys,  
-    200,  
-    chrono.ChVectorD(0, 0, 0),  
-    chrono.ChQuaternionD(0, 0, 0, 1),  
-    0.1,  
+    sys,
+    1.0,  
+    1.4,  
+    chrono.ChVectorD(0.5, 0.5, 0.5),  
+    chrono.ChQuaternionD(1, 0, 0, 0)   
 )
 manager.AddSensor(gyroscope)
 
+
 magnetometer = sens.ChMagnetometerSensor(
-    sys,  
-    50,  
-    chrono.ChVectorD(0, 0, 0),  
-    chrono.ChQuaternionD(0, 0, 0, 1),  
-    0.1,  
+    sys,
+    1.0,  
+    1.4,  
+    chrono.ChVectorD(0.5, 0.5, 0.5),  
+    chrono.ChQuaternionD(1, 0, 0, 0)   
 )
 manager.AddSensor(magnetometer)
 
@@ -101,7 +108,7 @@ ros_manager.RegisterSensor(gyroscope, 'gyroscope/data', Imu)
 ros_manager.RegisterSensor(magnetometer, 'magnetometer/data', MagneticField)
 
 
-rospy.init_node('pychrono_simulation')
+rospy.init_node('chrono_simulation')
 
 
 while not rospy.is_shutdown():

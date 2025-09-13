@@ -6,40 +6,6 @@ import math
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
-# Custom Driver Class Implementation
-class MyDriver(veh.ChDriver):
-    def __init__(self, delay):
-        super().__init__()
-        self.delay = delay  # Input delay parameter
-
-    def Synchronize(self, time):
-        effective_time = time - self.delay
-        
-        if effective_time < 0:
-            # Before delay period, no inputs
-            self.m_throttle = 0.0
-            self.m_steering = 0.0
-            self.m_braking = 0.0
-        else:
-            # Throttle control
-            if effective_time < 0.2:
-                self.m_throttle = 0.0
-            else:
-                # Ramp up to 0.7 over 0.5 seconds
-                t_throttle = effective_time - 0.2
-                self.m_throttle = min(0.7, t_throttle * (0.7/0.5))
-
-            # Steering control
-            if effective_time < 2.0:
-                self.m_steering = 0.0
-            else:
-                # Sinusoidal pattern (0.5 Hz)
-                t_steer = effective_time - 2.0
-                self.m_steering = math.sin(t_steer * math.pi)
-
-            # No braking
-            self.m_braking = 0.0
-
 # Initial vehicle location and orientation
 initLoc = chrono.ChVector3d(0, 0, 0.5)
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
@@ -53,12 +19,12 @@ chassis_collision_type = veh.CollisionType_NONE
 # Type of tire model (RIGID, TMEASY)
 tire_model = veh.TireModelType_TMEASY
 
-# Rigid terrain parameters
-terrainHeight = 0
-terrainLength = 100.0
-terrainWidth = 100.0
+# Rigid terrain
+terrainHeight = 0      # terrain height
+terrainLength = 100.0  # size in X direction
+terrainWidth = 100.0   # size in Y direction
 
-# Camera tracking point
+# Point on chassis tracked by the camera
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
 
 # Contact method
@@ -69,10 +35,10 @@ contact_vis = False
 step_size = 1e-3
 tire_step_size = step_size
 
-# Render frame rate
+# Time interval between two render frames
 render_step_size = 1.0 / 50  # FPS = 50
 
-# Create and initialize vehicle
+# Create the HMMWV vehicle, set parameters, and initialize
 vehicle = veh.HMMWV_Full()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
@@ -90,19 +56,17 @@ vehicle.SetTireVisualizationType(vis_type)
 
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
-# Create terrain
+# Create the terrain
 patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-patch = terrain.AddPatch(patch_mat, 
-                        chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
-                        terrainLength, terrainWidth)
+patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), terrainLength, terrainWidth)
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
-# Create visualization system
+# Create the vehicle Irrlicht interface
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('HMMWV Demo')
 vis.SetWindowSize(1280, 1024)
@@ -113,14 +77,49 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
+# Custom driver class implementation
+class MyDriver(veh.ChDriver):
+    def __init__(self, vehicle, delay):
+        super().__init__(vehicle)
+        self.delay = delay
+        
+    def Synchronize(self, time):
+        if time < self.delay:
+            self.SetThrottle(0, False)
+            self.SetSteering(0, False)
+            self.SetBraking(0, False)
+        else:
+            t_active = time - self.delay
+            
+            # Throttle control: ramp to 0.7 after 0.2s active time
+            if t_active < 0.2:
+                throttle_val = 0
+            elif t_active < 0.7:
+                throttle_val = 0.7 * (t_active - 0.2) / 0.5
+            else:
+                throttle_val = 0.7
+                
+            # Steering control: sinusoidal starting at 2s simulation time
+            if time < 2.0:
+                steering_val = 0
+            else:
+                steering_val = 0.6 * math.sin(2 * math.pi * (time - 2.0))
+                
+            self.SetThrottle(throttle_val, False)
+            self.SetSteering(steering_val, False)
+            self.SetBraking(0, False)
+
 # Create and initialize custom driver
-driver = MyDriver(0.5)
+driver = MyDriver(vehicle.GetVehicle(), 0.5)
 driver.Initialize()
 
+# Output vehicle mass
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
-# Simulation loop parameters
+# Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
+
+# Initialize simulation frame counter
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
@@ -129,7 +128,7 @@ render_frame = 0
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
     
-    # Simulation end condition
+    # End simulation at 4 seconds
     if time >= 4.0:
         break
 
@@ -140,11 +139,13 @@ while vis.Run():
         vis.EndScene()
         render_frame += 1
 
-    # Get and process driver inputs
+    # Get driver inputs (handled internally in Synchronize)
     driver_inputs = driver.GetInputs()
+
+    # Update modules
     driver.Synchronize(time)
-    vehicle.Synchronize(time, driver_inputs, terrain)
     terrain.Synchronize(time)
+    vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
 
     # Advance simulation
@@ -153,5 +154,6 @@ while vis.Run():
     vehicle.Advance(step_size)
     vis.Advance(step_size)
 
+    # Increment counters
     step_number += 1
     realtime_timer.Spin(step_size)

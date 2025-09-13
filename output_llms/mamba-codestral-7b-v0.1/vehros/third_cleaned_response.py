@@ -1,3 +1,4 @@
+```python
 import pychrono as ch
 import pychrono.vehicle as veh
 import pychrono.ros as chros
@@ -103,7 +104,4 @@ def main():
         driver_inputs = driver.GetInputs()
         driver.Synchronize(time)  
         terrain.Synchronize(time)  
-        hmmwv.Synchronize(time, driver_inputs, terrain)  
-
-        
-print("error happened with only start ```python")
+        hmmwv.Synchronize(time, driver_inputs, terrain)

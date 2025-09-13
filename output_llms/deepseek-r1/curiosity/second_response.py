@@ -20,33 +20,32 @@ ground.SetFixed(True)  # Fix the ground in place
 ground.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
 system.Add(ground)
 
-# Create a long box obstacle
+# Create obstacle (long box for rover to cross)
 obstacle_mat = chrono.ChContactMaterialNSC()
-obstacle = chrono.ChBodyEasyBox(4.0, 0.5, 0.2, 1000, True, True, obstacle_mat)
-obstacle.SetPos(chrono.ChVector3d(0, 0, 0.1))  # Positioned in the rover's path
+obstacle = chrono.ChBodyEasyBox(0.5, 4.0, 0.1, 2000, True, True, obstacle_mat)
+obstacle.SetPos(chrono.ChVector3d(0, 0, 0.05))  # Positioned at origin with top at z=0.1
 obstacle.SetFixed(True)
-obstacle.GetVisualShape(0).SetColor(chrono.ChColor(0.9, 0.4, 0.1))  # Orange color for visibility
+obstacle.GetVisualShape(0).SetColor(chrono.ChColor(0.9, 0.5, 0.3))  # Distinct color
 system.Add(obstacle)
 
 # Create Curiosity rover and add it to the system
 rover = robot.Curiosity(system)
 
-# Create driver for rover and set throttle to move forward
+# Create driver for rover
 driver = robot.CuriosityDCMotorControl()
-driver.SetThrottle(0.3)  # Set throttle to 30% for forward motion
 rover.SetDriver(driver)
 
-# Initialize rover position and orientation
-init_pos = chrono.ChVector3d(-5, 0.0, 0)  # Updated initial position
+# Initialize rover position and orientation (modified position)
+init_pos = chrono.ChVector3d(-5, 0.0, 0)  # Changed from (0, 0.2, 0) to (-5, 0.0, 0)
 init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
-rover.Initialize(chrono.ChFrameD(init_pos, init_rot))  # Corrected ChFrameD
+rover.Initialize(chrono.ChFrame(init_pos, init_rot))  # Corrected from ChFramed to ChFrame
 
 # Create the Irrlicht visualization
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
 vis.SetCameraVertical(chrono.CameraVerticalDir_Z)
 vis.SetWindowSize(1280, 720)
-vis.SetWindowTitle('Curiosity rover - Rigid terrain')
+vis.SetWindowTitle('Curiosity rover - Rigid terrain with obstacle')
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()
@@ -58,12 +57,9 @@ vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0
 time_step = 1e-3
 
 # Simulation loop
-time = 0
 while vis.Run():
-    time += time_step
-
-    # Set steering input to zero (no steering)
-    driver.SetSteering(0.0)
+    # Set constant zero steering input (modified from time-varying steering)
+    driver.SetSteering(0)  # Rover moves straight forward
 
     # Update rover dynamics
     rover.Update()

@@ -14,13 +14,10 @@ chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.0025)
 chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
 
 
-manager = sens.ChSensorManager(system)  
-
-
 ground_mat = chrono.ChContactMaterialNSC()
 ground = chrono.ChBodyEasyBox(20, 20, 1, 1000, True, True, ground_mat)
-ground.SetPos(chrono.ChVector3d(0, 0, -0.5))
-ground.SetFixed(True)
+ground.SetPos(chrono.ChVector3d(0, 0, -0.5))  
+ground.SetFixed(True)  
 ground.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
 system.Add(ground)
 
@@ -44,42 +41,37 @@ init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
 rover.Initialize(chrono.ChFrameD(init_pos, init_rot))  
 
 
-chassis = rover.GetChassis()
-lidar_offset = chrono.ChVector3d(0, 0, 0.5)  
-lidar_pose = chrono.ChFrameD(lidar_offset, chrono.QUNIT)
+manager = sens.ChSensorManager(system)
 
 
-update_rate = 10
-horizontal_samples = 1000
-vertical_samples = 50
-horizontal_fov = 360 * chrono.CH_DEG_TO_RAD
-vertical_fov = 30 * chrono.CH_DEG_TO_RAD
-max_distance = 100.0
+lidar_offset_pose = chrono.ChFramed(chrono.ChVector3d(0, 0, 0.2), chrono.Q_ROTATE_Y_TO_Z)
+lidar_params = sens.ChLidarSensor.pointcloud()
+lidar_params.hFOV = 180  
+lidar_params.max_distance = 100
+lidar_params.samples = 2250  
+lidar_params.vertical_samples = 64  
+lidar_params.vFOV = 20  
+lidar_params.update_rate = 10  
 
 
 lidar = sens.ChLidarSensor(
-    chassis,
-    update_rate,
-    lidar_pose,
-    horizontal_samples,
-    vertical_samples,
-    horizontal_fov,
-    vertical_fov,
-    max_distance,
-    sens.VisualizationType_POINTS
+    rover.GetChassisBody(),  
+    update_rate=lidar_params.update_rate,
+    lidar_offset_pose,
+    lidar_params.samples,
+    lidar_params.vertical_samples,
+    lidar_params.hFOV,
+    lidar_params.vFOV,
+    lidar_params.max_distance
 )
-
-
 lidar.SetName("Lidar Sensor")
 lidar.SetLag(0.0)
 lidar.SetCollectionWindow(0.0)
 
 
+noise_model = sens.ChNoiseNormalDist(0, 0.1)
+lidar.AddNoiseModel(noise_model)
 lidar.PushFilter(sens.ChFilterPCfromDepth())
-lidar.PushFilter(sens.ChFilterVisualize(horizontal_samples, vertical_samples, "Lidar Data"))
-lidar.PushFilter(sens.ChFilterAccessXYZ())
-
-
 manager.AddSensor(lidar)
 
 
@@ -105,12 +97,13 @@ while vis.Run():
 
     
     driver.SetSteering(0.0)
+    driver.SetSpeed(0.5)  
 
     
     rover.Update()
-
     
-    manager.Update()
+    
+    manager.Update()  
 
     
     vis.BeginScene()

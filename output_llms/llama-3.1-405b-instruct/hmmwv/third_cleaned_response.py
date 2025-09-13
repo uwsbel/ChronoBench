@@ -83,40 +83,33 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 
+
 class MyDriver(veh.ChDriver):
     def __init__(self, delay):
         veh.ChDriver.__init__(self)
         self.delay = delay
+        self.throttle_time = 0.2
+        self.steering_time = 2.0
 
     def Synchronize(self, time):
-        
         if time < self.delay:
-            return
-
-        
-        if time < 0.2 + self.delay:
-            throttle = (time - self.delay) / 0.2 * 0.7
+            self.SetThrottle(0)
+            self.SetSteering(0)
+            self.SetBraking(0)
         else:
-            throttle = 0.7
-
-        
-        if time > 2 + self.delay:
-            steering = math.sin((time - 2 - self.delay) * 2 * math.pi)
-        else:
-            steering = 0
-
-        
-        braking = 0
-
-        
-        driver_inputs = veh.DriverInputs()
-        driver_inputs.m_throttle = throttle
-        driver_inputs.m_steering = steering
-        driver_inputs.m_braking = braking
-        self.SetInputs(driver_inputs)
+            if time < self.throttle_time + self.delay:
+                self.SetThrottle((time - self.delay) / self.throttle_time * 0.7)
+            else:
+                self.SetThrottle(0.7)
+            if time > self.steering_time + self.delay:
+                self.SetSteering(0.5 * math.sin(2 * math.pi * (time - self.steering_time - self.delay)))
+            else:
+                self.SetSteering(0)
+            self.SetBraking(0)
 
 
 driver = MyDriver(0.5)
+driver.Initialize()
 
 
 print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
@@ -133,6 +126,10 @@ while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
 
     
+    if time > 4.0:
+        break
+
+    
     if (step_number % render_steps == 0) :
         vis.BeginScene()
         vis.Render()
@@ -140,10 +137,13 @@ while vis.Run() :
         render_frame += 1
 
     
+    driver_inputs = driver.GetInputs()
+
+    
     driver.Synchronize(time)
     terrain.Synchronize(time)
-    vehicle.Synchronize(time, driver.GetInputs(), terrain)
-    vis.Synchronize(time, driver.GetInputs())
+    vehicle.Synchronize(time, driver_inputs, terrain)
+    vis.Synchronize(time, driver_inputs)
 
     
     driver.Advance(step_size)
@@ -156,7 +156,3 @@ while vis.Run() :
 
     
     realtime_timer.Spin(step_size)
-
-    
-    if time > 4:
-        break

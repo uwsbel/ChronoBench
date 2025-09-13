@@ -1,66 +1,68 @@
 import pychrono as chrono
-import pychrono.irrlicht as irr
+import pychrono.irrlicht as chronoirr
 
-# 1. Initialize system and set gravity
-system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
+def main():
+    # 1. Initialize system and set gravity
+    system = chrono.ChSystemNSC()
+    system.Set_G_acc(chrono.ChVectorD(0, 0, 0))  # No gravity for pure vertical motion
+    
+    # 2. Create ground body
+    ground = chrono.ChBody()
+    ground.SetBodyFixed(True)
+    ground.SetPos(chrono.ChVectorD(0, 0, 0))
+    system.Add(ground)
+    
+    # Add visualization to ground
+    ground_shape = chrono.ChBoxShape()
+    ground_shape.GetBoxGeometry().Size = chrono.ChVectorD(0.5, 0.1, 0.5)
+    ground.AddVisualShape(ground_shape)
+    
+    # 3. Create mass body (1kg box)
+    mass = chrono.ChBody()
+    mass.SetMass(1)
+    mass.SetPos(chrono.ChVectorD(0, -1, 0))  # Initial position below ground
+    mass.SetInertiaXX(chrono.ChVectorD(1, 1, 1))
+    system.Add(mass)
+    
+    # Add visualization to mass
+    box_shape = chrono.ChBoxShape()
+    box_shape.GetBoxGeometry().Size = chrono.ChVectorD(0.2, 0.2, 0.2)
+    mass.AddVisualShape(box_shape)
+    
+    # 4. Create spring-damper between ground and mass
+    spring = chrono.ChLinkTSDA()
+    spring.Initialize(ground, mass, True, 
+                      chrono.ChVectorD(0, 0, 0),  # Point on ground
+                      chrono.ChVectorD(0, 0, 0))   # Point on mass
+    spring.SetSpringCoefficient(100)  # 100 N/m
+    spring.SetDampingCoefficient(1)   # 1 N·s/m
+    spring.SetRestLength(1.0)         # Natural length = initial distance
+    system.Add(spring)
+    
+    # Add spring visualization
+    spring_vis = chrono.ChSpringShape()
+    spring_vis.SetNumRenderPoints(20)
+    spring_vis.SetSpringRadius(0.05)
+    spring.AddVisualShape(spring_vis)
+    
+    # 5. Set up Irrlicht visualization
+    vis = chronoirr.ChVisualSystemIrrlicht()
+    vis.AttachSystem(system)
+    vis.SetWindowSize(1280, 720)
+    vis.SetWindowTitle('Mass-Spring-Damper System')
+    vis.Initialize()
+    vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+    vis.AddSkyBox()
+    vis.AddCamera(chrono.ChVectorD(1, -1, 1), chrono.ChVectorD(0, -1, 0))
+    vis.AddTypicalLights()
+    
+    # 6. Simulation loop
+    time_step = 0.001
+    while vis.Run():
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+        system.DoStepDynamics(time_step)
 
-# 2. Create ground body with visualization
-ground = chrono.ChBody()
-ground.SetBodyFixed(True)
-ground.SetName("Ground")
-
-# Ground visualization (thick box)
-ground_shape = chrono.ChBoxShape()
-ground_shape.GetBoxGeometry().Size = chrono.ChVectorD(1, 1, 0.1)
-ground.AddVisualShape(ground_shape, chrono.ChFrameD(chrono.ChVectorD(0, 0, -0.1)))
-system.Add(ground)
-
-# 3. Create mass body (box)
-mass = chrono.ChBody()
-mass.SetPos(chrono.ChVectorD(0, 0, 1))  # Initial position
-mass.SetMass(1.0)
-mass.SetName("Mass")
-
-# Calculate proper inertia for 20cm cube
-size = 0.2
-inertia = (1.0/12.0) * (size**2 + size**2)
-mass.SetInertiaXX(chrono.ChVectorD(inertia, inertia, inertia))
-
-# Mass visualization
-box_shape = chrono.ChBoxShape()
-box_shape.GetBoxGeometry().Size = chrono.ChVectorD(size, size, size)
-mass.AddVisualShape(box_shape)
-system.Add(mass)
-
-# 4. Create spring-damper link
-spring = chrono.ChLinkTSDA()
-spring.Initialize(ground, mass, True, chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 0))
-spring.SetSpringCoefficient(10)    # N/m
-spring.SetDampingCoefficient(1)    # N·s/m
-spring.SetRestLength(1.0)          # Initial length
-spring.SetName("SpringDamper")
-
-# Spring visualization
-spring_vis = chrono.ChSpringShape(0.05, 20, 20)  # radius, coils, resolution
-spring.AddVisualShape(spring_vis)
-system.Add(spring)
-
-# 5. Set up Irrlicht visualization
-application = irr.ChIrrApp(system, "Mass-Spring-Damper System", irr.dimension2du(800, 600))
-application.AddTypicalCamera(irr.vector3df(0, 3, 2), irr.vector3df(0, 0, 0.5))
-application.AddTypicalLights()
-application.AddShadowAll()
-application.AssetBindAll()
-application.AssetUpdateAll()
-
-# 6. Configure simulation parameters
-application.SetTimestep(0.01)
-application.SetTryRealtime(True)
-
-# 7. Run simulation loop
-while application.GetDevice().run():
-    application.BeginScene()
-    application.DrawAll()
-    application.DoStep()
-    application.EndScene()
+if __name__ == '__main__':
+    main()

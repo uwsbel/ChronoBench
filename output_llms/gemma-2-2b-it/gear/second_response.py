@@ -1,3 +1,4 @@
+```python
 import pychrono as chrono                         # Importing the Chrono library
 import pychrono.irrlicht as chronoirr             # Importing the Irrlicht visualization library for Chrono
 import math as m                                  # Importing the math library for mathematical operations
@@ -64,4 +65,3 @@ interaxis12 = radA + radB                                           # Calculatin
 mbody_gearB = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y,            # Creating second gear with cylinder shape
                                         radB, 0.4,                  # Setting radius and height
                                         1000, True, False, mat)     # Setting mass,
-print("error happened with only start ```python")

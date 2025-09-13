@@ -3,109 +3,90 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
-chrono.SetChronoDataPath(chrono.GetChronoDataPath())
+# Set data paths
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
-# Initial vehicle location and orientation
-initLoc = chrono.ChVector3d(-15, 0, 0.5)  # Updated initial location
-initRot = chrono.ChQuaterniond(1, 0, 0, 0)
+# Updated initial location and orientation
+initLoc = chrono.ChVector3d(-15, 0, 0.5)  # Changed from (0,0,0.5)
+initRot = chrono.ChQuaterniond(1, 0, 0, 0)  # Unchanged rotation
 
-# Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
+# Visualization and collision settings
 vis_type = veh.VisualizationType_MESH
-
-# Collision type for chassis (PRIMITIVES, MESH, or NONE)
 chassis_collision_type = veh.CollisionType_NONE
-
-# Type of tire model (RIGID, TMEASY)
 tire_model = veh.TireModelType_TMEASY
 
-# Rigid terrain
-terrainHeight = 0
+# Rigid terrain with corrected height
+terrainHeight = 0.5  # Corrected to match vehicle height
 terrainLength = 100.0
 terrainWidth = 100.0
 
-# Camera tracking point
-trackPoint = chrono.ChVector3d(3, 0, 2.1)  # Updated track point
+# Updated camera track point and chase distance
+trackPoint = chrono.ChVector3d(3, 0, 2.1)  # Changed from (0,0,2.1)
+chase_dist = 25.0
+chase_height = 10.5  # Changed from 1.5
 
-# Contact method
+# Simulation parameters
 contact_method = chrono.ChContactMethod_NSC
 contact_vis = False
-
-# Simulation step sizes
 step_size = 1e-3
 tire_step_size = step_size
-
-# Time interval between two render frames
 render_step_size = 1.0 / 50  # FPS = 50
 
-# Create the Kraz vehicle, set parameters, and initialize
+# Create and initialize vehicle
 vehicle = veh.Kraz()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
-vehicle.Initialize()
+vehicle.SetTireStepSize(tire_step_size)  # Initialize tire step size
+vehicle.InitializeTires()  # Initialize tires with specified model
 
+# Set visualization types
 vehicle.SetChassisVisualizationType(vis_type, vis_type)
 vehicle.SetSteeringVisualizationType(vis_type)
 vehicle.SetSuspensionVisualizationType(vis_type, vis_type)
 vehicle.SetWheelVisualizationType(vis_type, vis_type)
 vehicle.SetTireVisualizationType(vis_type, vis_type)
-
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
-# Initialize tires
-if tire_model == veh.TireModelType_TMEASY:
-    for axle in vehicle.GetAxles():
-        tire_left = veh.TMeasyTire()
-        tire_right = veh.TMeasyTire()
-        tire_left.LoadParameters(veh.GetDataFile("truck/tire/MAN_5t_TMeasyTire.json"))  # Adjust path as needed
-        tire_right.LoadParameters(veh.GetDataFile("truck/tire/MAN_5t_TMeasyTire.json"))
-        vehicle.InitializeTire(tire_left, axle.GetWheel(veh.LEFT), vis_type)
-        vehicle.InitializeTire(tire_right, axle.GetWheel(veh.RIGHT), vis_type)
-elif tire_model == veh.TireModelType_RIGID:
-    for axle in vehicle.GetAxles():
-        tire_left = veh.RigidTire()
-        tire_right = veh.RigidTire()
-        tire_left.Initialize(axle.GetWheel(veh.LEFT))
-        tire_right.Initialize(axle.GetWheel(veh.RIGHT))
-        vehicle.GetTireList().append(tire_left)
-        vehicle.GetTireList().append(tire_right)
-
-# Create the terrain
+# Create terrain
 patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 patch = terrain.AddPatch(patch_mat, 
-    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
+    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, terrainHeight),  # Use terrainHeight
     terrainLength, terrainWidth)
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
-# Create the vehicle Irrlicht interface
+# Visualization setup
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('Kraz Demo')
 vis.SetWindowSize(1280, 1024)
-vis.SetChaseCamera(trackPoint, 25.0, 10.5)  # Updated camera parameters
+vis.SetChaseCamera(trackPoint, chase_dist, chase_height)  # Updated parameters
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetTractor())
 
-# Create and initialize the driver system
-driver = veh.ChDriver()
+# Create driver with double lane change maneuver
+driver = veh.ChDriver(vehicle.GetTractor())
+# Double lane change parameters
+lc_start = 1.0
+lc_length = 40.0
+lc_width = 3.5
+lc_speed = 10.0
+driver = veh.ChDoubleLaneChangeDriver(vehicle.GetTractor(), lc_speed, lc_length, lc_width, lc_start)
 driver.Initialize()
 
 # Output vehicle mass
 print("VEHICLE MASS: ", vehicle.GetTractor().GetMass())
 
-# Number of simulation steps between render frames
+# Simulation loop
 render_steps = math.ceil(render_step_size / step_size)
-
-# Initialize simulation frame counters
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
@@ -119,42 +100,6 @@ while vis.Run():
         vis.Render()
         vis.EndScene()
         render_frame += 1
-
-    # Double lane change maneuver based on time
-    if time < 1.0:
-        # Initial acceleration
-        steering = 0.0
-        throttle = 0.5
-        braking = 0.0
-    elif time < 2.0:
-        # First lane change (right)
-        steering = 0.5 * (time - 1.0)
-        throttle = 0.5
-        braking = 0.0
-    elif time < 3.0:
-        # Return to center
-        steering = 0.5 - 0.5 * (time - 2.0)
-        throttle = 0.5
-        braking = 0.0
-    elif time < 4.0:
-        # Second lane change (left)
-        steering = -0.5 * (time - 3.0)
-        throttle = 0.5
-        braking = 0.0
-    elif time < 5.0:
-        # Final return to center
-        steering = -0.5 + 0.5 * (time - 4.0)
-        throttle = 0.5
-        braking = 0.0
-    else:
-        # Continue straight
-        steering = 0.0
-        throttle = 0.5
-        braking = 0.0
-
-    driver.SetSteering(steering)
-    driver.SetThrottle(throttle)
-    driver.SetBraking(braking)
 
     # Get driver inputs
     driver_inputs = driver.GetInputs()

@@ -1,103 +1,94 @@
 import os
-import math
-import chrono
-import chrono.vehicle as veh
-import chrono.irrlicht as irr
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as irr
 
 
+chrono.SetChronoDataPath(os.path.join(os.path.dirname(__file__), 'data/'))
+veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 
-
-system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
-
+step_size = 0.005
+render_step = 1.0 / 50  
 
 
+system = chrono.ChSystemSMC()
+system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
+system.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
-
-init_pos = chrono.ChVectorD(0, 0.5, 0)
-hmmwv = veh.HMMWV_Full(system)
-hmmwv.SetInitPosition(chrono.ChCoordsysD(init_pos, chrono.QUNIT))
-hmmwv.SetTireType(veh.RigidTire)  
-hmmwv.Initialize()
-
-
-hmmwv.SetChassisVisualizationType(veh.VisualizationType_MESH)
-hmmwv.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
-hmmwv.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
-hmmwv.SetWheelVisualizationType(veh.VisualizationType_MESH)
-hmmwv.SetTireVisualizationType(veh.VisualizationType_MESH)
-
-
-
+vehicle = veh.HMMWV_Full(system)
+vehicle.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0.5), chrono.QUNIT))
+vehicle.Initialize()
+vehicle.SetChassisVisualizationType(veh.VisualizationType_PRIMITIVES)
+vehicle.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
+vehicle.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
+vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
 
 
 terrain = veh.SCMDeformableTerrain(system)
-terrain.SetPlane(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT))
+terrain.SetPlane(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.Q_from_AngX(0)))
+terrain.Initialize(20.0, 10.0, 0.04)  
 
 
-terrain.SetSoilParameters(
-    2e6,        
-    0,          
-    1.1,        
-    17,         
-    30,         
-    1e7,        
-    2e4,        
-    3e4         
-)
+p = {
+    "mu": 0.8,
+    "Kc": 0.2e4,
+    "Kphi": 0.5e6,
+    "n": 1.1,
+    "cohesion": 0.2e4,
+    "shear_angle": 20,
+    "Kelastic": 2e6,
+    "damping": 0.2e4
+}
+terrain.SetSoilParameters(p["mu"], p["Kc"], p["Kphi"], p["n"], p["cohesion"], 
+                          p["shear_angle"], p["Kelastic"], p["damping"])
 
 
-terrain.Initialize(40, 40, 0.1)  
-
-
-terrain.SetPlotType(veh.SCMDeformableTerrain.PLOT_PRESSURE, 0, 30000)
-terrain.SetVisualization(True)
-
-
-
-
-
-app = veh.ChVehicleIrrApp(hmmwv.GetVehicle(), "HMMWV SCM Demo")
-app.AddTypicalLights()
-app.AddSkyBox()
-app.SetChaseCamera(chrono.ChVectorD(0.0, 0.0, 1.75), 6.0, 0.5)
-app.SetTimestep(0.02)
-
-
-
-
-
-driver = app.GetDriver()
+driver = veh.ChInteractiveDriverIRR(vehicle.GetVehicle())
+driver.SetSteeringDelta(0.02)
+driver.SetThrottleDelta(0.02)
+driver.SetBrakingDelta(0.06)
 driver.Initialize()
 
 
+vis = irr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetWindowSize(1280, 720)
+vis.SetWindowTitle('HMMWV on Deformable Terrain')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVectorD(3, 3, 1.5), chrono.ChVectorD(0, 0, 0.5))
+vis.AddLightWithShadow(chrono.ChVectorD(5, 5, 5), chrono.ChVectorD(0, 0, 0), 10, 2, 10, 40, 512)
+vis.AddTypicalLights()
 
 
-
-time_step = 0.02
-while app.GetDevice().run():
+realtime_timer = chrono.ChRealtimeStepTimer()
+while vis.Run():
     time = system.GetChTime()
     
     
-    app.BeginScene()
-    app.DrawAll()
-    app.EndScene()
+    if time % render_step < step_size:
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
     
     
     driver_inputs = driver.GetInputs()
-    
-    
     driver.Synchronize(time)
-    hmmwv.Synchronize(time, driver_inputs)
+    
+    
+    vehicle.Synchronize(time, driver_inputs, terrain)
     terrain.Synchronize(time)
-    app.Synchronize("", driver_inputs)
     
     
-    app.Advance(time_step)
-    system.DoStepDynamics(time_step)
+    driver.Advance(step_size)
+    vehicle.Advance(step_size)
+    terrain.Advance(step_size)
+    system.DoStepDynamics(step_size)
+    
+    
+    realtime_timer.Spin(step_size)
 
-    
-    if not app.GetPaused():
-        app.Update()
+print("Simulation completed")

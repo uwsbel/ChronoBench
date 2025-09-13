@@ -90,7 +90,7 @@ while vis.Run():
     for body in sys.GetBodies():
         body.EmptyAccumulators()
 
-    # Calculate energies
+    # Energy calculations
     G_constant = 6.674e-3  # Gravitational constant
     kinetic_energy = 0
     potential_energy = 0
@@ -102,15 +102,15 @@ while vis.Run():
     for abodyA, abodyB in mlist:
         D_attract = abodyB.GetPos() - abodyA.GetPos()
         r_attract = D_attract.Length()
-        potential_energy -= G_constant * (abodyA.GetMass() * abodyB.GetMass()) / r_attract
-
-        # Apply gravitational attraction
         f_attract = G_constant * (abodyA.GetMass() * abodyB.GetMass()) / (r_attract ** 2)
         F_attract = (D_attract / r_attract) * f_attract
         abodyA.AccumulateForce(F_attract, abodyA.GetPos(), False)
         abodyB.AccumulateForce(-F_attract, abodyB.GetPos(), False)
+        potential_energy -= G_constant * (abodyA.GetMass() * abodyB.GetMass()) / r_attract
 
     total_energy = kinetic_energy + potential_energy
-    print(f"Kinetic Energy: {kinetic_energy}, Potential Energy: {potential_energy}, Total Energy: {total_energy}")
+    print("Kinetic energy:", kinetic_energy)
+    print("Potential energy:", potential_energy)
+    print("Total energy:", total_energy)
 
     sys.DoStepDynamics(stepsize)

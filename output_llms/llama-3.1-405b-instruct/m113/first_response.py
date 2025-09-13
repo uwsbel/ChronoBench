@@ -1,49 +1,46 @@
-# Import necessary modules
+# Import necessary PyChrono modules
 import pychrono.core as chrono
 import pychrono.vehicle as veh
-import pychrono.irrlicht as chronoirr
+import pychrono.irrlicht as irr
 
-# Initialize the PyChrono environment
+# Set the simulation step size and end time
+step_size = 1e-3
+end_time = 100
+
+# Initialize the Chrono::Engine
 chrono.SetChronoDataPath('/path/to/chrono/data/')
-
-# Create a Chrono::Engine physical system
-mphysicalSystem = chrono.ChSystemNSC()
+my_system = chrono.ChSystemNSC()
 
 # Create the M113 vehicle
-mvehicle = veh.M113()
-mvehicle.Initialize(mphysicalSystem)
-mvehicle.SetChassisPosition(chrono.ChVectorD(0, 0.5, 0))
-mvehicle.SetChassisRotation(chrono.ChQuaternionD(1, 0, 0, 0))
-mvehicle.SetInitialSpeed(chrono.ChVectorD(0, 0, 0))
+my_vehicle = veh.M113()
+my_vehicle.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0.5, 0), chrono.ChQuaternionD(1, 0, 0, 0)))
+my_system.Add(my_vehicle)
 
 # Create the terrain
-mterrain = veh.RigidTerrain(mphysicalSystem)
-mterrain.SetFrictionCoefficient(0.7)
-mterrain.SetRestitutionCoefficient(0.2)
-mterrain.Initialize()
+terrain = veh.RigidTerrain(my_system)
+terrain.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, -0.5, 0), chrono.ChQuaternionD(1, 0, 0, 0)), 1024, 1024, 20, 20, 0.05, 0.05, 0.001, 0.001)
+my_system.Add(terrain)
 
 # Create the driver system
-mdriver = veh.ChDriver()
-mdriver.Initialize(mvehicle)
-mdriver.SetSteeringController(veh.ChConstantSteeringController(0.0))
-mdriver.SetThrottleController(veh.ChConstantThrottleController(0.0))
-mdriver.SetBrakingController(veh.ChConstantBrakingController(0.0))
+driver = veh.ChDriver(my_vehicle)
+driver.Initialize()
 
-# Create the Irrlicht visualization system
-mapplication = chronoirr.ChIrrApp(mphysicalSystem, 'PyChrono Simulation', chronoirr.dimension2du(800, 600))
-mapplication.AddTypicalSky()
-mapplication.AddTypicalLights()
-mapplication.AddCamera(chronoirr.vector3df(0, 2, -5))
-mapplication.AssetBindAll()
-mapplication.AssetUpdateAll()
+# Create the Irrlicht application
+myapplication = irr.ChIrrApp(my_system, 'PyChrono M113 Simulation', irr.dimension2du(800, 600))
+myapplication.AddTypicalSky()
+myapplication.AddTypicalLights()
+myapplication.AddCamera(chrono.ChVectorD(0, 1.5, -5))
+myapplication.AssetBindAll()
+myapplication.AssetUpdateAll()
 
 # Simulation loop
-while mapplication.GetDevice().run():
-    # Synchronize and advance the vehicle, terrain, driver, and visual system
-    mvehicle.Synchronize(mphysicalSystem.GetChTime())
-    mterrain.Synchronize(mphysicalSystem.GetChTime())
-    mdriver.Synchronize(mphysicalSystem.GetChTime())
-    mapplication.BeginScene()
-    mapplication.DrawAll()
-    mapplication.EndScene()
-    mphysicalSystem.DoStepDynamics(chrono.ChTimeStepD(1e-3))
+while myapplication.GetDevice().run():
+    myapplication.BeginScene()
+    myapplication.DrawAll()
+    myapplication.DoStepDynamics(step_size)
+    driver.Synchronize(time)
+    driver.Advance(step_size)
+    myapplication.EndScene()
+    time += step_size
+    if time >= end_time:
+        break

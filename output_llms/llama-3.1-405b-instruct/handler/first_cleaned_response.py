@@ -1,77 +1,63 @@
 import pychrono.core as chrono
-import pychrono.irrlicht as chronoirr
+import pychrono_ros as ros
 import rospy
 from std_msgs.msg import Int32
-import numpy as np
 
 
 chrono.SetChronoDataPath('/usr/local/share/chrono/data/')
 
 
-rospy.init_node('pychrono_simulation')
+system = chrono.ChSystemNSC()
 
 
-sys = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
 
-sys.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+material = chrono.ChMaterialSurfaceNSC()
+material.SetFriction(0.5)
+material.SetRestitution(0.2)
+system.SetMaterialSurface(material)
 
 
-floor_mat = chrono.ChMaterialSurfaceNSC()
-floor_mat.SetFriction(0.5)
-floor_mat.SetRestitution(0.5)
-floor_body = chrono.ChBodyEasyBox(sys,  
-                                  10, 10, 1,  
-                                  1000,  
-                                  True,  
-                                  floor_mat)  
-sys.Add(floor_body)
+floor = chrono.ChBodyEasyBox(10, 1, 10, 1000, True)
+floor.SetPos(chrono.ChVectorD(0, -1, 0))
+system.Add(floor)
 
 
-box_mat = chrono.ChMaterialSurfaceNSC()
-box_mat.SetFriction(0.5)
-box_mat.SetRestitution(0.5)
-box_body = chrono.ChBodyEasyBox(sys,  
-                                1, 1, 1,  
-                                1000,  
-                                False,  
-                                box_mat)  
-sys.Add(box_body)
+box = chrono.ChBodyEasyBox(1, 1, 1, 1, False)
+box.SetPos(chrono.ChVectorD(0, 1, 0))
+system.Add(box)
 
 
-class CustomROSHAndler(chrono.ChROSHAndler):
+class CustomHandler(ros.ChRosBase):
     def __init__(self):
         super().__init__()
-        self.pub = rospy.Publisher('custom_topic', Int32, queue_size=10)
+        self.publisher = rospy.Publisher('custom_topic', Int32, queue_size=10)
 
-    def Advance(self, time):
+    def advance(self, time):
         msg = Int32()
-        msg.data = int(time * 1000)  
-        self.pub.publish(msg)
+        msg.data = int(time)
+        self.publisher.publish(msg)
 
 
-ros_manager = chrono.ChROSMAndler(sys)
+ros_manager = ros.ChRosSystem(system)
 
 
-ros_manager.AddHandler(chrono.ChROSClockHandler())
+ros_manager.AddHandler(ros.ChRosClockHandler())
+ros_manager.AddHandler(ros.ChRosBodyHandler())
+ros_manager.AddHandler(ros.ChRosTransformHandler())
+ros_manager.AddHandler(CustomHandler())
 
 
-ros_manager.AddHandler(chrono.ChROSBodyHandler())
+rospy.init_node('pychrono_ros_node')
 
 
-ros_manager.AddHandler(chrono.ChROSTransformHandler())
-
-
-ros_manager.AddHandler(CustomROSHAndler())
-
-
-time_step = 0.01
-while not rospy.is_shutdown():
+while True:
     
-    sys.DoStepDynamics(time_step)
+    system.DoStepDynamics(0.01)
 
     
-    ros_manager.Advance(sys.GetChTime())
+    ros_manager.Advance(0.01)
 
     
-    rospy.sleep(time_step)
+    chrono.ChUtils.Sleep(0.01)

@@ -1,3 +1,4 @@
+```python
 import math as m  # Import the math library for trigonometric functions, constants, etc.
 import pychrono as chrno  # Import the main PyChrono library
 import pychrono.fea as fea  # Import the finite element analysis module from PyChrono
@@ -125,4 +126,3 @@ builderB.BuildBeam(mesh, section3, 4, vG + vd, vB + vd, chrno.ChVector3d(0, 1, 0
 # Define nodes at the ends of the crank beam
 node_crnkG = builderB.GetLastBeamNodes()[0]
 node_
-print("error happened with only start ```python")

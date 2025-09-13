@@ -1,3 +1,4 @@
+```python
 import pychrono as chrono  
 import pychrono.fea as fea  
 import pychrono.pardisomkl as mkl  
@@ -124,5 +125,4 @@ vis.SetWindowSize(1024, 768)
 vis.SetWindowTitle('FEA beams')  
 vis.Initialize()  
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))  
-vis.AddSkyBox()  
-print("error happened with only start ```python")
+vis.AddSkyBox()

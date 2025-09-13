@@ -137,7 +137,6 @@ def main():
         # Update sensors and ROS data.
         sens_manager.Update()
 
-        # Check if the ROS manager update fails.
         if not ros_manager.Update():
             print("ROS manager update failed. Exiting simulation.")
             break

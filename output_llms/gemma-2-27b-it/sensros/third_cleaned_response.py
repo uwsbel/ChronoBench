@@ -1,3 +1,4 @@
+```python
 import pychrono as ch
 import pychrono.sensor as sens
 import pychrono.ros as chros
@@ -83,6 +84,3 @@ def main():
     acc.PushFilter(sens.ChFilterAccelAccess())  
     acc.SetName("accelerometer")
     sens_manager.AddSensor(acc)
-
-    
-print("error happened with only start ```python")

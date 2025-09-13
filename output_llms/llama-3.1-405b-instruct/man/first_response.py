@@ -1,9 +1,77 @@
-It seems like there are no instructions provided. Please provide the instructions, and I'll be happy to help you generate a simulation script using PyChrono.
+# Import necessary PyChrono modules
+import pychrono.core as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as irr
 
-Once you provide the instructions, I'll make sure to:
+# Initialize the PyChrono environment
+chrono.SetChronoDataPath("/path/to/chrono/data/")
 
-1. Initialize the PyChrono environment and core components.
-2. Add the required physical systems and objects as specified.
-3. Set necessary default parameters such as positions, forces, and interactions.
+# Create a Chrono::Engine physical system
+my_system = chrono.ChSystemNSC()
 
-Please provide the instructions, and I'll get started on creating the simulation script.
+# Create the ground body
+ground = chrono.ChBodyEasyBox(
+    my_system,          # Parent system
+    100, 2, 100,       # Box dimensions (x, y, z)
+    1000,              # Density
+    True,              # Visualization flag
+    True,              # Collision flag
+    0.5                # Friction coefficient
+)
+ground.SetBodyFixed(True)
+
+# Create a vehicle model with a TMEasy tire model
+my_truck = veh.ChPart::LoadPart(
+    my_system,          # Parent system
+    "/path/to/vehicle/model",  # Model file path
+    "MAN_10t",          # Vehicle model name
+    0,                  # Visualization flags
+    0                   # Collision flags
+)
+my_truck.Initialize()
+
+# Create a TMEasy tire model
+tire_model = veh.ChTMEasyTireModel()
+my_truck.SetTireModel(tire_model)
+
+# Create a driver system with real-time controls for steering, throttle, and braking
+driver = veh.ChIrrNodeDriver(
+    my_system,          # Parent system
+    my_truck,           # Vehicle model
+    irr.IrrlichtDevice()  # Irrlicht device
+)
+driver.Initialize()
+
+# Set default parameters
+my_truck.SetInitPosition(chrono.ChVectorD(0, 1, 0))  # Initial position
+my_truck.SetInitPos_dt(chrono.ChVectorD(0, 0, 0))    # Initial velocity
+driver.SetSteering(0)                                # Initial steering angle
+driver.SetThrottle(0)                                # Initial throttle value
+driver.SetBraking(0)                                 # Initial braking value
+
+# Create an Irrlicht visualization system
+application = irr.ChIrrApp(
+    my_system,          # Physical system
+    "MAN 10t Truck Simulation",  # Window title
+    irr.dimension2du(800, 600)  # Window dimensions
+)
+
+# Set up the Irrlicht visualization system
+application.AddSkyBox()
+application.AddTypicalLights()
+application.AddChaseCamera(
+    my_truck,           # Target object
+    1.5,                # Camera distance
+    0.5                 # Camera height
+)
+application.AssetBindAll()
+application.AssetUpdateAll()
+
+# Run the simulation
+application.SetTimestep(0.01)  # Time step
+application.SetTryRealtime(True)  # Real-time mode
+
+while application.GetDevice().run():
+    application.BeginScene()
+    application.DrawAll()
+    application.EndScene()

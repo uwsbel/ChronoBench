@@ -7,8 +7,8 @@ chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 
-initLoc = chrono.ChVector3d(-15, 0, 0.0)
-initRot = chrono.ChQuaterniond(1, 0, 0, 0)
+initLoc = chrono.ChVectorD(-15, 0, 0.0)
+initRot = chrono.ChQuaternionD(1, 0, 0, 0)
 
 
 vis_type = veh.VisualizationType_MESH
@@ -17,10 +17,12 @@ vis_type = veh.VisualizationType_MESH
 chassis_collision_type = veh.CollisionType_NONE
 
 
-terrain_model = veh.SCMDeformableTerrain()
+terrainHeight = 0      
+terrainLength = 100.0  
+terrainWidth = 100.0   
 
 
-trackPoint = chrono.ChVector3d(0.0, 0.0, 0.1)
+trackPoint = chrono.ChVectorD(0.0, 0.0, 0.1)
 
 
 contact_method = chrono.ChContactMethod_SMC
@@ -37,12 +39,12 @@ render_step_size = 1.0 / 50
 vehicle = veh.M113()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetTrackShoeType(veh.TrackShoeType_SINGLE_PIN)
-vehicle.SetDrivelineType(veh.DrivelineTypeTV_BDS)
+vehicle.SetDrivelineType(veh.DrivelineType_TV_BDS)
 vehicle.SetEngineType(veh.EngineModelType_SHAFTS)
 vehicle.SetTransmissionType(veh.TransmissionModelType_AUTOMATIC_SHAFTS)
 vehicle.SetBrakeType(veh.BrakeType_SIMPLE)
 
-vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
+vehicle.SetInitPosition(chrono.ChCoordsysD(initLoc, initRot))
 vehicle.Initialize()
 
 vehicle.SetChassisVisualizationType(vis_type)
@@ -56,19 +58,27 @@ vehicle.SetTrackShoeVisualizationType(vis_type)
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
+patch_mat = chrono.ChContactMaterialSMC()
+patch_mat.SetFriction(0.9)
+patch_mat.SetRestitution(0.01)
 terrain = veh.SCMDeformableTerrain(vehicle.GetSystem())
-terrain.SetSoilParameters(0.2,  
+terrain.SetSoilParameters(0.1,  
                           0.01,  
-                          0.005,  
-                          0.01,  
-                          0.001)  
-terrain.InitializeUsingHeightmap(veh.GetDataFile("terrain/heightmaps/heightmap_1024.bmp"),
-                                  1024,  
-                                  1024,  
-                                  10.0,  
-                                  10.0,  
-                                  1.0)  
-terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 200, 200)
+                          1500,  
+                          100,   
+                          0.4)   
+terrain.Initialize(chrono.GetDataFile("terrain/meshes/heightmap.bmp"),  
+                   128,  
+                   128,  
+                   0.1,  
+                   0.1,  
+                   0,    
+                   10)   
+patch = terrain.AddPatch(patch_mat, 
+                         chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT), 
+                         terrainLength, terrainWidth)
+patch.SetTexture(chrono.GetDataFile("terrain/textures/dirt.jpg"), 200, 200)
+patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 
 
 vis = veh.ChTrackedVehicleVisualSystemIrrlicht()

@@ -4,7 +4,6 @@ import pychrono.vehicle as veh
 import math
 import random
 
-# Set the Chrono data path
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
@@ -91,30 +90,6 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
-# Add point lights at various positions in the scene
-pl1 = irr.IrrlichtPointLight()
-pl1.SetPosition(chrono.ChVector3d(10, 0, 2))
-vis.AddLight(pl1)
-
-pl2 = irr.IrrlichtPointLight()
-pl2.SetPosition(chrono.ChVector3d(-10, 0, 2))
-vis.AddLight(pl2)
-
-# Create a sensor manager
-sensor_manager = chrono.ChSensorManager(vehicle.GetSystem())
-
-# Create a camera sensor attached to the vehicle chassis
-camera_sensor = chrono.ChCameraSensor(vehicle.GetChassisBody())
-camera_sensor.SetResolution(640, 480)
-camera_sensor.SetFOV(60)
-camera_sensor.SetRange(0.1, 1000)
-sensor_manager.AddSensor(camera_sensor)
-
-# Add a filter to visualize the camera feed during the simulation
-camera_filter = irr.IrrlichtCameraFilter()
-camera_filter.SetCameraSensor(camera_sensor)
-vis.AddFilter(camera_filter)
-
 # Create the driver system
 driver = veh.ChInteractiveDriverIRR(vis)
 
@@ -128,11 +103,30 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 
 driver.Initialize()
 
-# Add randomly positioned boxes to the simulation environment
+# Add objects to the scene
 for i in range(10):
-    box = chrono.ChBodyEasyBox(vehicle.GetSystem(), 1, 1, 1, 1000)
-    box.SetPos(chrono.ChVector3d(random.uniform(-20, 20), random.uniform(-20, 20), 1))
-    vehicle.GetSystem().AddBody(box)
+    box = chrono.ChBodyEasyBox(1, 1, 1, 1000)
+    box.SetPos(chrono.ChVector3d(random.uniform(-10, 10), random.uniform(-10, 10), 0.5))
+    if (box.GetPos() - vehicle.GetChassisBody().GetPos()).Length() > 5:
+        vehicle.GetSystem().AddBody(box)
+
+# Integrate a sensor system
+sensor_manager = chrono.ChSensorManager(vehicle.GetSystem())
+
+# Add point lights
+for i in range(5):
+    light = chrono.ChPointLight()
+    light.SetPos(chrono.ChVector3d(random.uniform(-10, 10), random.uniform(-10, 10), 2))
+    vis.AddLightSource(light)
+
+# Create a camera sensor
+camera = chrono.ChCameraSensor(vehicle.GetChassisBody(), 640, 480, 60)
+camera.SetFOV(60)
+camera.SetRange(0.1, 100)
+sensor_manager.AddSensor(camera)
+
+# Add a filter to visualize the camera feed
+vis.AddFilter(camera)
 
 # ---------------
 # Simulation loop

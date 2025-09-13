@@ -1,3 +1,5 @@
+```python
+
 import chrono
 
 import chrono.irrlicht
@@ -540,4 +542,3 @@ options.SetUseAutomaticLightCasters(1)
 options.SetUseAutomaticLightCasters(1)
 
 options.SetUseAutomaticLighting(1)
-print("error happened with only start ```python")

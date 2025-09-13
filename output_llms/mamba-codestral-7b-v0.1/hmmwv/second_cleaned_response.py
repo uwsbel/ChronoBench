@@ -1,3 +1,6 @@
+Here is the corrected and modified PyChrono script based on the provided instructions:
+
+```python
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
@@ -139,6 +142,3 @@ while vis.Run() :
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
-
-    
-print("error happened with only start ```python")

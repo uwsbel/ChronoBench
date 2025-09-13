@@ -1,3 +1,4 @@
+```python
 import pychrono.core as chrono
 import pychrono.sensor as sens
 
@@ -81,6 +82,3 @@ def main():
     
     if vis:
         cam.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Before Grayscale Filter"))
-
-    
-print("error happened with only start ```python")

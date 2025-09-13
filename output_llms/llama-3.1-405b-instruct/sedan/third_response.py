@@ -93,10 +93,10 @@ vis.AttachVehicle(vehicle.GetVehicle())
 # Create the driver system
 driver = veh.ChInteractiveDriverIRR(vis)
 
-# Set the time response for steering and throttle keyboard inputs.
-steering_time = 5.0  # increased steering response time
-throttle_time = 1.0  # time to go from 0 to +1
-braking_time = 0.3   # time to go from 0 to +1
+# Set the time response for steering and throttle keyboard inputs
+steering_time = 5.0  # increased steering response time to 5 seconds
+throttle_time = 1.0  
+braking_time = 0.3   
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
@@ -110,9 +110,8 @@ ref_speed = 10.0  # m/s
 kp = 0.1
 ki = 0.01
 kd = 0.001
-error = 0.0
+integral_error = 0.0
 prev_error = 0.0
-integral = 0.0
 
 # ---------------
 # Simulation loop
@@ -142,22 +141,22 @@ while vis.Run() :
     # Get driver inputs
     driver_inputs = driver.GetInputs()
 
+    # Calculate speed error
+    speed = vehicle.GetVehicle().GetSpeed()
+    error = ref_speed - speed
+    integral_error += error * step_size
+    derivative_error = (error - prev_error) / step_size
+    prev_error = error
+
+    # PID control for throttle
+    throttle = kp * error + ki * integral_error + kd * derivative_error
+    driver_inputs.m_throttle = throttle
+
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
-
-    # Calculate speed error
-    speed = vehicle.GetVehicle().GetSpeed()
-    error = ref_speed - speed
-    integral += error * step_size
-    derivative = (error - prev_error) / step_size
-    prev_error = error
-
-    # PID control for throttle
-    throttle = kp * error + ki * integral + kd * derivative
-    driver_inputs.m_throttle = throttle
 
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)

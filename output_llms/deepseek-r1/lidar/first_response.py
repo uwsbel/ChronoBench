@@ -1,105 +1,99 @@
+import os
+import math
+import numpy as np
 import pychrono as chrono
 import pychrono.sensor as sens
-import math
-import os
-
-# Simulation parameters
-SIM_TIME = 10.0
-TIME_STEP = 0.001
-ORBIT_RADIUS = 5.0
-ANGULAR_SPEED = 0.5  # rad/s
-
-# Lidar parameters
-UPDATE_RATE = 30  # Hz
-HORIZ_SAMPLES = 16
-VERT_SAMPLES = 1
-HORIZ_FOV = 2 * math.pi  # 360 degrees
-VERT_FOV = math.pi / 18  # 10 degrees
 
 def main():
-    # Create Chrono system
+    # 1. Initialize environment
+    chrono.SetChronoDataPath(os.path.join(os.path.dirname(__file__), 'data/'))
     system = chrono.ChSystemNSC()
-    system.SetGravitationalAcceleration(chrono.ChVectorD(0, 0, 0))
+    system.SetGravity(chrono.ChVector3d(0, 0, 0))  # No gravity for static scene
 
-    # Create fixed mesh body
-    mesh_body = chrono.ChBodyEasyMesh(
-        "path/to/mesh.obj",  # Replace with actual path
-        1000,                # Density
-        True,                # Compute mass
-        True,                # Visualization
-        False                # Collision
-    )
-    mesh_body.SetBodyFixed(True)
-    mesh_body.SetPos(chrono.ChVectorD(0, 0, 0))
+    # 2. Create ground and mesh body
+    ground = chrono.ChBody()
+    ground.SetFixed(True)
+    system.Add(ground)
+
+    # Load mesh from OBJ file
+    mesh_path = chrono.GetChronoDataFile("models/cube.obj")  # Replace with your OBJ
+    mesh = chrono.ChVisualShapeModelFile()
+    mesh.SetFilename(mesh_path)
+    
+    mesh_body = chrono.ChBody()
+    mesh_body.AddVisualShape(mesh)
+    mesh_body.SetFixed(True)  # Fix the mesh in space
     system.Add(mesh_body)
 
-    # Create sensor manager
+    # 3. Create sensor manager
     manager = sens.ChSensorManager(system)
-    manager.scene.AddPointLight(chrono.ChVectorD(2, 2.5, 0), chrono.ChColor(1, 1, 1), 500)
+    manager.scene.AddPointLight(chrono.ChVector3d(2, 2, 2), chrono.ChColor(1, 1, 1), 100)
 
-    # Initialize lidar position
-    initial_pos = chrono.ChVectorD(ORBIT_RADIUS, 0, 0)
-    initial_rot = chrono.Q_from_AngZ(math.pi)
-    offset_pose = chrono.ChFrameD(initial_pos, initial_rot)
-
-    # Create lidar sensor
-    lidar = sens.ChLidarSensor(
-        mesh_body,
-        UPDATE_RATE,
-        offset_pose,
-        HORIZ_SAMPLES,
-        VERT_SAMPLES,
-        HORIZ_FOV,
-        VERT_FOV,
-        VERT_FOV/2,
-        0.0,
-        1.0/UPDATE_RATE
-    )
-    lidar.SetName("Orbiting Lidar")
+    # Lidar configuration
+    lidar_offset = chrono.ChVector3d(0, 0, 0)
+    lidar_rot = chrono.QuatFromAngleZ(chrono.CH_PI)  # Face forward
     
+    lidar = sens.ChLidarSensor(
+        mesh_body,             # Parent body
+        10,                    # Scan rate (Hz)
+        lidar_rot,             # Orientation
+        1000,                  # Number of horizontal samples
+        500,                   # Number of vertical channels
+        math.radians(90),      # Horizontal FOV
+        math.radians(30),      # Vertical FOV
+        0.1,                   # Minimum range
+        100.0                  # Maximum range
+    )
+    
+    lidar.SetOffsetPose(lidar_offset)
+    lidar.SetName("Lidar Sensor")
+
     # Add noise model
-    lidar.AddNoiseModel(sens.ChNoiseNormalDist(0, 0.01))
+    noise_model = sens.ChNoiseNormal(chrono.ChVector3d(0.01, 0.01, 0.01))
+    lidar.AddNoiseModel(noise_model)
 
-    # Add processing filters
-    lidar.PushFilter(sens.ChFilterAccess())
-    lidar.PushFilter(sens.ChFilterVisualize(HORIZ_SAMPLES, VERT_SAMPLES, "Lidar Data"))
+    # Enable visualization
+    lidar.PushFilter(sens.ChFilterVisualize(1280, 720, "Lidar Data"))
+
+    # Add data saving filter
     lidar.PushFilter(sens.ChFilterPCfromDepth())
-    lidar.PushFilter(sens.ChFilterSavePtCloud("lidar_data"))
+    lidar.PushFilter(sens.ChFilterSave("sensor_data/"))
 
+    # Add to manager
     manager.AddSensor(lidar)
 
-    # Simulation loop
-    current_time = 0.0
-    while current_time < SIM_TIME:
+    # 4. Simulation parameters
+    orbit_radius = 5.0
+    orbit_speed = 0.1  # rad/s
+    timestep = 0.01
+    total_time = 20.0
+    time = 0
+
+    # 5. Simulation loop
+    while time < total_time:
         # Update lidar orbit position
-        theta = ANGULAR_SPEED * current_time
-        new_pos = chrono.ChVectorD(
-            ORBIT_RADIUS * math.cos(theta),
-            ORBIT_RADIUS * math.sin(theta),
-            0
+        angle = orbit_speed * time
+        new_pos = chrono.ChVector3d(
+            orbit_radius * math.cos(angle),
+            orbit_radius * math.sin(angle),
+            0.5
         )
-        new_rot = chrono.Q_from_AngZ(theta + math.pi)
-        lidar.SetOffsetPose(chrono.ChFrameD(new_pos, new_rot))
+        lidar.SetOffsetPose(chrono.ChFramed(new_pos, lidar_rot))
 
         # Update sensors
         manager.Update()
 
-        # Access and print lidar data
+        # Print latest point cloud data
         buffer = lidar.GetMostRecentBuffer()
-        if buffer and buffer.HasData():
-            print(f"\nTime: {current_time:.2f}")
-            print(f"Lidar Position: {new_pos}")
-            print(f"Points captured: {buffer.Width * buffer.Height}")
-            
-            # Print first 3 points (if available)
-            pc = buffer.GetPointCloud()
-            if pc:
-                for i in range(min(3, len(pc))):
-                    print(f"Point {i}: {pc[i]}")
+        if buffer.HasData():
+            data = buffer.GetDepthData()
+            print(f"Time {time:.2f}s - Points: {len(data)}")
+            if len(data) > 0:
+                print(f"First point: {data[0]}")
 
         # Advance simulation
-        system.DoStepDynamics(TIME_STEP)
-        current_time += TIME_STEP
+        system.DoStepDynamics(timestep)
+        time += timestep
 
 if __name__ == "__main__":
     main()

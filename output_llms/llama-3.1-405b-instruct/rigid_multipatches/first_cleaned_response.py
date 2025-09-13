@@ -3,65 +3,80 @@ import pychrono.irrlicht as chronoirr
 import numpy as np
 
 
-chrono.SetChronoDataPath('/path/to/chrono/data/')
+chrono.SetChronoDataPath('/path/to/chrono/data')
 
 
 sys = chrono.ChSystemNSC()
 
 
-application = chronoirr.ChIrrApp(sys, 'HMMWV Simulation', chronoirr.dimension2du(800, 600))
-
-
-application.SetTimestep(0.01)
+material = chrono.ChMaterialSurfaceNSC()
+material.SetFriction(0.5)
+material.SetRestitution(0.2)
 
 
 vehicle = chrono.ChHMMWV()
-vehicle.SetPosition(chrono.ChVectorD(0, 1, 0))
+vehicle.SetChassisPosition(chrono.ChVectorD(0, 1, 0))
 vehicle.SetEngineType(chrono.ChHMMWV.ENGINE_TYPE_GASOLINE)
 vehicle.SetDrivetrainType(chrono.ChHMMWV.DRIVETRAIN_TYPE_4WD)
+vehicle.SetMeshVisualization(True)
+
+
 sys.Add(vehicle)
 
 
-for component in vehicle.GetComponents():
-    component.AddVisualizationMesh(chrono.ChVisualSystem.MESH)
+terrain = chrono.ChBodyEasyMesh()
+terrain.SetPosition(chrono.ChVectorD(0, -2, 0))
 
 
-terrain = chrono.ChBodyEasyTerrain(sys)
-terrain.SetPosition(chrono.ChVectorD(0, -1, 0))
+patch1 = chrono.ChBodyEasyBox()
+patch1.SetDimensions(chrono.ChVectorD(10, 0.1, 10))
+patch1.SetPosition(chrono.ChVectorD(-10, -2, 0))
+patch1.AddAsset(chrono.ChTexture('concrete.jpg'))
+
+patch2 = chrono.ChBodyEasyBox()
+patch2.SetDimensions(chrono.ChVectorD(10, 0.1, 10))
+patch2.SetPosition(chrono.ChVectorD(10, -2, 0))
+patch2.AddAsset(chrono.ChTexture('asphalt.jpg'))
 
 
-patch1 = chrono.ChEasyTerrainPatch(chrono.ChVectorD(-10, 0, -10), chrono.ChVectorD(10, 0, 10), chrono.ChVisualSystem.TEXTURE_SAND)
-terrain.AddPatch(patch1)
-
-patch2 = chrono.ChEasyTerrainPatch(chrono.ChVectorD(-5, 0, -5), chrono.ChVectorD(5, 0, 5), chrono.ChVisualSystem.TEXTURE_GRASS)
-terrain.AddPatch(patch2)
-
-
-bump_mesh = chrono.ChTriangleMeshConnected()
-bump_mesh.AddTriangle(chrono.ChVectorD(-1, 0, -1), chrono.ChVectorD(1, 0, -1), chrono.ChVectorD(0, 1, 0))
-bump_patch = chrono.ChEasyTerrainPatch(chrono.ChVectorD(-2, 0, -2), chrono.ChVectorD(2, 0, 2), bump_mesh)
-terrain.AddPatch(bump_patch)
+bump = chrono.ChBodyEasyMesh()
+bump.SetMesh(chrono.ChTriangleMeshConnected())
+bump.GetMesh().AddTriangle(chrono.ChVectorD(-1, 0, -1), chrono.ChVectorD(1, 0, -1), chrono.ChVectorD(0, 1, -1))
+bump.SetPosition(chrono.ChVectorD(0, -2, -5))
 
 
-heightmap = chrono.ChHeightmap()
-heightmap.Load('/path/to/heightmap.png')
-heightmap_patch = chrono.ChEasyTerrainPatch(chrono.ChVectorD(-10, 0, -10), chrono.ChVectorD(10, 0, 10), heightmap)
-terrain.AddPatch(heightmap_patch)
+heightmap = chrono.ChBodyEasyHeightMap()
+heightmap.SetHeightMap(chrono.ChHeightMap())
+heightmap.GetHeightMap().SetSize(100, 100)
+heightmap.GetHeightMap().SetHeightRange(0, 5)
+for i in range(100):
+    for j in range(100):
+        heightmap.GetHeightMap().SetHeight(i, j, np.random.uniform(0, 5))
 
-sys.Add(terrain)
-
-
-driver = chrono.ChIrrNodeDriver(application.GetDevice())
-driver.SetVehicle(vehicle)
-driver.SetSteeringDelta(0.1)
-driver.SetThrottleDelta(0.1)
-driver.SetBrakingDelta(0.1)
+heightmap.SetPosition(chrono.ChVectorD(0, -2, 10))
 
 
+sys.Add(patch1)
+sys.Add(patch2)
+sys.Add(bump)
+sys.Add(heightmap)
+
+
+driver = chrono.ChIrrNodeAsset()
+driver.Set SteeringController(chrono.ChSteeringController())
+driver.SetThrottleController(chrono.ChThrottleController())
+driver.SetBrakeController(chrono.ChBrakeController())
+
+
+application = chronoirr.ChIrrApp(sys, 'HMMWV Simulation', chronoirr.dimension2du(800, 600))
+application.AddTypicalSky()
+application.AddTypicalLights()
+application.AddCamera(chronoirr.vector3df(0, 5, -10))
+
+
+application.SetTimestep(0.01)
 while application.GetDevice().run():
-    
-    application.DoStep()
-    
     application.BeginScene()
     application.DrawAll()
+    application.DoStep()
     application.EndScene()

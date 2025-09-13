@@ -1,3 +1,4 @@
+```python
 import pychrono.core as chrono
 import pychrono.sensor as sens
 
@@ -189,6 +190,3 @@ collection_time = 1. / update_rate
 
 
 sample_radius = 2
-
-
-print("error happened with only start ```python")

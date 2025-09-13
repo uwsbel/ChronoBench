@@ -5,6 +5,10 @@ import pychrono as chrono
 import pychrono.robot as turtlebot
 from pychrono import irrlicht as chronoirr
 
+# Wheel ID constants
+LEFT_DRIVE_WHEEL = 0
+RIGHT_DRIVE_WHEEL = 1
+
 # Create Chrono system
 system = chrono.ChSystemNSC()
 system.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
@@ -15,7 +19,7 @@ chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
 # Create ground body as terrain plane that robot will drive on
 ground_mat = chrono.ChContactMaterialNSC()
 ground = chrono.ChBodyEasyBox(20, 20, 1, 1000, True, True, ground_mat)
-ground.SetPos(chrono.ChVector3d(0, 0, -0.6))  # Adjusted ground position
+ground.SetPos(chrono.ChVector3d(0, 0, -0.6))  # Adjusted Z position
 ground.SetFixed(True)  # Fix the ground in place
 ground.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
 system.Add(ground)
@@ -42,41 +46,43 @@ vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0
 # Set the simulation time step
 time_step = 2e-3
 
-# Define WheelID enum values for motor control
-LEFT_DRIVE_WHEEL = 0
-RIGHT_DRIVE_WHEEL = 1
-
+# Movement control function
 def move(mode):
-    """Control robot movement with specified mode"""
     if mode == 'straight':
         robot.SetMotorSpeed(LEFT_DRIVE_WHEEL, math.pi)
         robot.SetMotorSpeed(RIGHT_DRIVE_WHEEL, math.pi)
     elif mode == 'left':
         robot.SetMotorSpeed(LEFT_DRIVE_WHEEL, 0)
-        robot.SetMotorSpeed(RIGHT_DRIVE_WHEEL, -math.pi)
+        robot.SetMotorSpeed(RIGHT_DRIVE_WHEEL, math.pi)
     elif mode == 'right':
-        robot.SetMotorSpeed(LEFT_DRIVE_WHEEL, -math.pi)
+        robot.SetMotorSpeed(LEFT_DRIVE_WHEEL, math.pi)
         robot.SetMotorSpeed(RIGHT_DRIVE_WHEEL, 0)
     else:
-        raise ValueError("Invalid movement mode")
+        raise ValueError("Invalid mode. Use 'straight', 'left', or 'right'.")
 
 # Simulation loop
 time = 0
-current_mode = None
-while vis.Run():
-    # Determine current movement mode based on time
-    if time < 5:
-        new_mode = 'straight'
-    elif time < 10:
-        new_mode = 'left'
-    else:
-        new_mode = 'right'
+current_action = None  # Track current action for printing
 
-    # Update motors when mode changes
-    if new_mode != current_mode:
-        move(new_mode)
-        print(f"Time {time:.2f} s: Robot is moving {new_mode}.")
-        current_mode = new_mode
+while vis.Run():
+    # Determine action based on time
+    if time < 5.0:
+        action = 'straight'
+    elif time < 10.0:
+        action = 'left'
+    else:
+        action = 'right'
+    
+    # Update action if changed
+    if action != current_action:
+        current_action = action
+        print(f"Time {time:.1f}s: Robot is now {action.replace('_', ' ')}")
+    
+    # Execute movement command
+    move(action)
+    
+    # Increment time counter
+    time += time_step
 
     # Render the scene
     vis.BeginScene()
@@ -85,4 +91,3 @@ while vis.Run():
 
     # Advance the simulation by one time step
     system.DoStepDynamics(time_step)
-    time += time_step

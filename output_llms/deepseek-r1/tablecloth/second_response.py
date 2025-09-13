@@ -45,7 +45,7 @@ for iz in range(nsections_z + 1):
         mynodes.append(mnode)
 
 # Create elements
-melementmonitor = None
+melementmonitor = None  # Initialize monitoring element
 for iz in range(nsections_z):
     for ix in range(nsections_x):
         # Create element A
@@ -54,16 +54,12 @@ for iz in range(nsections_z):
         boundary_2 = mynodes[(iz + 1) * (nsections_x + 1) + ix - 1] if ix > 0 else None
         boundary_3 = mynodes[(iz - 1) * (nsections_x + 1) + ix + 1] if iz > 0 else None
 
-        melementA.SetNodes(mynodes[iz * (nsections_x + 1) + ix],
+        melementA.SetNodes(mynodes[iz * (nsections_x + 1) + ix], 
                           mynodes[iz * (nsections_x + 1) + ix + 1],
-                          mynodes[(iz + 1) * (nsections_x + 1) + ix],
+                          mynodes[(iz + 1) * (nsections_x + 1) + ix], 
                           boundary_1, boundary_2, boundary_3)
         melementA.AddLayer(thickness, 0, material)
         mesh.AddElement(melementA)
-        
-        # Assign monitoring element
-        if iz == 0 and ix == 1:
-            melementmonitor = melementA
 
         # Create element B
         melementB = fea.ChElementShellBST()
@@ -71,48 +67,52 @@ for iz in range(nsections_z):
         boundary_2 = mynodes[iz * (nsections_x + 1) + ix + 2] if ix < nsections_x - 1 else None
         boundary_3 = mynodes[(iz + 2) * (nsections_x + 1) + ix] if iz < nsections_z - 1 else None
 
-        melementB.SetNodes(mynodes[(iz + 1) * (nsections_x + 1) + ix + 1],
+        melementB.SetNodes(mynodes[(iz + 1) * (nsections_x + 1) + ix + 1], 
                           mynodes[(iz + 1) * (nsections_x + 1) + ix],
-                          mynodes[iz * (nsections_x + 1) + ix + 1],
+                          mynodes[iz * (nsections_x + 1) + ix + 1], 
                           boundary_1, boundary_2, boundary_3)
         melementB.AddLayer(thickness, 0, material)
         mesh.AddElement(melementB)
 
-# Fix upper nodes
+        # Assign monitoring element (Instruction 3)
+        if iz == 0 and ix == 1:
+            melementmonitor = melementA
+
+# Fix upper nodes (Instruction 4)
 for j in range(30):
     for k in range(30):
-        idx = j * (nsections_x + 1) + k
-        mynodes[idx].SetFixed(True)
+        index = j * (nsections_x + 1) + k
+        if index < len(mynodes):
+            mynodes[index].SetFixed(True)
 
-# Create visualizations for shell elements
-mvisualizeshellA = chrono.ChVisualShapeFEA(mesh)
+# Create visualizations for shell elements (Instruction 5)
+mvisualizeshellA = fea.ChVisualShapeFEA(mesh)
 mvisualizeshellA.SetShellResolution(2)
-# Optional visualization settings (commented out)
-# mvisualizeshellA.SetSmoothFaces(True)
-# mvisualizeshellA.SetWireframe(True)
-# mvisualizeshellA.SetBackfaceCull(True)
+mvisualizeshellA.SetSmoothFaces(True)
+mvisualizeshellA.SetWireframe(True)
+# mvisualizeshellA.SetBackfaceCull(True)  # Optional backface culling
 mesh.AddVisualShapeFEA(mvisualizeshellA)
 
-mvisualizeshellB = chrono.ChVisualShapeFEA(mesh)
-mvisualizeshellB.SetFEMglyphType(chrono.ChVisualShapeFEA.GlyphType_NODE_DOT_POS)
+mvisualizeshellB = fea.ChVisualShapeFEA(mesh)
+mvisualizeshellB.SetFEMglyphType(fea.ChVisualShapeFEA.GlyphType_NODE_DOT_POS)
 mvisualizeshellB.SetSymbolsThickness(0.006)
-mvisualizeshellB.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NONE)
+mvisualizeshellB.SetFEMdataType(fea.ChVisualShapeFEA.DataType_NONE)  # Set data type to NONE
 mesh.AddVisualShapeFEA(mvisualizeshellB)
 
-# Node monitoring and loading setup
+# Node monitoring and loading setup (Instruction 1)
 nodePlotA = mynodes[0]
 nodePlotB = mynodes[-1]
-nodesLoad = []
-load_force = chrono.ChVector3d(0, -100, 0)  # Example load vector
+nodesLoad = [mynodes[-1]]  # Using last node for loading
+load_force = chrono.ChVector3d(0, -50, 0)  # Downward force
 
-# Populate nodesLoad (example: right edge nodes)
-for iz in range(nsections_z + 1):
-    ix = nsections_x
-    nodesLoad.append(mynodes[iz * (nsections_x + 1) + ix])
+# Apply loads to selected nodes
+for node in nodesLoad:
+    node.SetForce(load_force)
 
 # Reference tracking functions
-ref_X = chrono.ChFunction_Recorder()
-ref_Y = chrono.ChFunction_Recorder()
+ref_X = chrono.ChFunction_Const(0)
+ref_Y = chrono.ChFunction_Const(0)
+mnodemonitor = mynodes[0]  # Initialize monitoring node
 
 # Irrlicht visualization system setup
 vis = chronoirr.ChVisualSystemIrrlicht()
@@ -125,12 +125,12 @@ vis.AddSkyBox()
 vis.AddCamera(chrono.ChVector3d(1, 0.3, 1.3), chrono.ChVector3d(0.5, -0.3, 0.5))
 vis.AddTypicalLights()
 
-# Change solver to PardisoMKL with updated settings
+# Change solver to PardisoMKL with sparsity lock (Instruction 6)
 mkl_solver = mkl.ChSolverPardisoMKL()
-mkl_solver.LockSparsityPattern(True)
+mkl_solver.LockSparsityPattern(True)  # Lock sparsity pattern for optimization
 sys.SetSolver(mkl_solver)
 
-# Define time step for simulation
+# Define time step for simulation (Instruction 7)
 timestep = 0.005
 
 # Final setup and system updates
@@ -142,13 +142,4 @@ while vis.Run():
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
-    
-    # Apply loads to selected nodes
-    for node in nodesLoad:
-        node.SetForce(load_force)
-    
-    # Update reference tracking
-    ref_X.AddPoint(sys.GetChTime(), nodePlotA.GetPos().x)
-    ref_Y.AddPoint(sys.GetChTime(), nodePlotA.GetPos().y)
-    
     sys.DoStepDynamics(timestep)

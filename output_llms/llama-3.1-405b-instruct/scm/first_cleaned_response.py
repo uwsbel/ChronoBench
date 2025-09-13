@@ -1,43 +1,59 @@
 import pychrono.core as chrono
-import pychrono.irrlicht as chronoirr
 import pychrono.vehicle as veh
-import pychrono.scm as scm
+import pychrono.irrlicht as irr
+import numpy as np
 
 
 chrono.SetChronoDataPath('/path/to/chrono/data/')
 
 
-my_system = chrono.ChSystemNSC()
+sys = chrono.ChSystemNSC()
 
 
-terrain = scm.SCMDeformableTerrain(my_system)
-terrain.SetSoilParameters(scm.SoilParameters(scm.SoilType.SAND, 0.1, 0.01, 0.001))
-terrain.SetMovingPatchEnabled(True)
-terrain.SetSinkageVisualization(True)
+vehicle = veh.ChPart('HMMWV')
+vehicle.SetMass(3000)
+vehicle.SetInertiaXX(1000)
+vehicle.SetInertiaYY(1000)
+vehicle.SetInertiaZZ(1000)
 
 
-vehicle = veh.HMMWV(my_system, veh.HMMWV_Chassis(), veh.HMMWV_Suspension(), veh.HMMWV_Steering())
-vehicle.SetChassisPosition(chrono.ChVectorD(0, 0.5, 0))
-vehicle.SetChassisOrientation(chrono.ChQuaternionD(1, 0, 0, 0))
-vehicle.SetTireModel(veh.RigidTireModel())
-vehicle.SetTireVisualization(veh.MeshVisualization())
+vehicle.SetPos(chrono.ChVectorD(0, 1, 0))
+vehicle.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
 
 
-my_system.Add(vehicle)
+chassis = veh.ChChassis()
+vehicle.AddAsset(chassis)
 
 
-driver = veh.ChIrrNodeDriver(vehicle)
-driver.SetSteeringController(veh.ChIrrNodeDriver.SteeringControllerType.KEYBOARD)
-driver.SetThrottleController(veh.ChIrrNodeDriver.ThrottleControllerType.KEYBOARD)
-driver.SetBrakingController(veh.ChIrrNodeDriver.BrakingControllerType.KEYBOARD)
+tire = veh.ChRigidTire()
+tire.SetRadius(0.4)
+tire.SetWidth(0.2)
+tire.SetMass(50)
+vehicle.AddAsset(tire)
 
 
-app = chronoirr.ChIrrApp(my_system, 'HMMWV on SCM Deformable Terrain', chronoirr.dimension2du(800, 600))
-app.AddTypicalSky()
+terrain = veh.ChSCMTerrain()
+terrain.SetSoilParameters(0.2, 0.01, 0.01)  
+terrain.EnableMovingPatch(True)
+sys.Add(terrain)
+
+
+sys.Add(vehicle)
+
+
+app = irr.ChIrrApp(sys, 'HMMWV on SCM Deformable Terrain', irr.dimension2du(800, 600))
 app.AddTypicalLights()
-app.AddCamera(chronoirr.vector3df(0, 2, -5))
-app.SetSymbolscale(0.02)
-app.SetShowInfos(True)
+app.AddSkyBox()
+app.AddCamera(chrono.ChVectorD(0, 2, -5), chrono.ChVectorD(0, 0, 0))
+
+
+app.AssetBindAll()
+app.AssetUpdateAll()
+
+
+driver = veh.ChIrrNodeAppDriver()
+driver.Initialize()
+sys.Add(driver)
 
 
 app.SetTimestep(0.02)
@@ -45,16 +61,12 @@ app.SetTryRealtime(True)
 
 
 while app.GetDevice().run():
-    
-    my_system.DoStepDynamics(app.GetTimestep())
-
-    
-    driver.Synchronize()
-
-    
-    app.BeginScene()
+    app.BeginScene(True, True, irr.SColor(255, 140, 161, 192))
     app.DrawAll()
     app.EndScene()
 
     
-    app.GetDevice().getTimer().setSpeed(50)
+    sys.DoStepDynamics(app.GetTimestep())
+
+    
+    app.Render()

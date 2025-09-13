@@ -101,7 +101,7 @@ driver.Initialize()
 manager = sens.ChSensorManager(vehicle.GetSystem())
 
 # Create an IMU sensor and add it to the manager
-offset_pose = chrono.ChFrameD(chrono.ChVector3d(0, 0, 1), chrono.QuaternionD(1, 0, 0, 0))
+offset_pose = chrono.ChFrameD(chrono.ChVector3d(0, 0, 1), chrono.QUNIT)
 imu = sens.ChAccelerometerSensor(vehicle.GetChassisBody(),                     # Body IMU is attached to
                                  10,        # Update rate in Hz
                                  offset_pose,          # Offset pose
@@ -186,11 +186,12 @@ while vis.Run():
 print("GPS Data: ", gps_data)
 
 # Plot GPS data
-gps_data = np.array(gps_data)
-plt.figure(figsize=(10, 8))
-plt.plot(gps_data[:, 0], gps_data[:, 1])
-plt.xlabel('Latitude')
-plt.ylabel('Longitude')
+gps_lat = [data[0] for data in gps_data]
+gps_lon = [data[1] for data in gps_data]
+plt.figure(figsize=(10, 10))
+plt.plot(gps_lon, gps_lat)
+plt.xlabel('Longitude')
+plt.ylabel('Latitude')
 plt.title('GPS Trajectory')
 plt.grid(True)
 plt.show()

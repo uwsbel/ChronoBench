@@ -1,98 +1,99 @@
-import os
-import math
 import pychrono as chrono
-import pychrono.sensor as sens
+import pychrono.irrlicht as irrlicht
+import pychrono.sensor as sensor
+import numpy as np
+import os
 
-def main():
-    # Initialize Chrono system
-    chrono.SetChronoDataPath(os.path.join(os.environ['CHRONO_DATA_DIR'], 'data/'))
-    system = chrono.ChSystemNSC()
-    system.SetGravitationalAcceleration(chrono.ChVectorD(0, 0, 0))
+# Set data path for assets
+chrono.SetChronoDataPath(os.path.join(os.path.dirname(__file__), 'data/'))
 
-    # Create fixed triangular mesh body
-    mesh_body = chrono.ChBody()
-    mesh_body.SetBodyFixed(True)
-    mesh_body.SetPos(chrono.ChVectorD(0, 0, 0))
+# Initialize simulation system
+system = chrono.ChSystemNSC()
+system.SetGravity(chrono.ChVectorD(0, -9.81, 0))
+
+# Create fixed body for mesh
+mesh_body = chrono.ChBody()
+mesh_body.SetBodyFixed(True)
+system.Add(mesh_body)
+
+# Load mesh from OBJ file and attach to body
+mesh_path = "models/triangular_mesh.obj"  # Replace with actual path
+mesh = chrono.ChTriangleMeshConnected()
+mesh.LoadWavefrontMesh(mesh_path)
+mesh_shape = chrono.ChTriangleMeshShape(mesh)
+mesh_shape.SetName("MeshVisualization")
+mesh_body.AddAsset(mesh_shape)
+
+# Create Irrlicht visualization
+application = irrlicht.ChIrrApp(system, "Camera Sensor Demo", 800, 600)
+application.AddTypicalSky()
+application.AddTypicalCamera(chrono.ChVectorD(2, 2, -3))
+application.AddTypicalLights()
+application.AssetBindAll()
+application.AssetUpdateAll()
+
+# Initialize sensor manager
+manager = sensor.ChSensorManager(system)
+manager.scene.AddPointLight(chrono.ChVectorF(10, 10, 10), chrono.ChColor(1, 1, 1), 1000)
+
+# Camera orbit parameters
+orbit_radius = 3.0
+orbit_height = 1.0
+angular_speed = 0.1  # rad/s
+
+# Create camera sensor
+camera = sensor.ChCameraSensor(
+    mesh_body,              # Parent body
+    30,                     # Update rate (Hz)
+    chrono.ChFrameD(chrono.ChVectorD(orbit_radius, orbit_height, 0), 
+                   chrono.Q_from_AngZ(np.pi/2)),  # Initial pose
+    1280,                   # Image width
+    720,                    # Image height
+    np.deg2rad(75)          # Field of view
+)
+camera.SetName("Orbiting Camera")
+
+# Configure camera settings
+camera.PushFilter(sensor.ChFilterRGBA8Access())
+camera.PushFilter(sensor.ChFilterVisualize(1280, 720, "Camera View"))
+camera.PushFilter(sensor.ChFilterNoiseNormal(0.0, 0.02))  # Gaussian noise
+
+manager.AddSensor(camera)
+
+# Simulation parameters
+time_step = 0.01
+current_time = 0.0
+orbit_angle = 0.0
+
+# Main simulation loop
+while application.GetDevice().run():
+    application.BeginScene()
+    application.DrawAll()
     
-    # Load mesh from OBJ file (replace with your actual file path)
-    obj_mesh = chrono.ChObjFileShape()
-    obj_mesh.SetFilename("model.obj")
-    mesh_body.AddAsset(obj_mesh)
-    system.Add(mesh_body)
+    # Update camera orbit position
+    orbit_angle += angular_speed * time_step
+    cam_x = orbit_radius * np.cos(orbit_angle)
+    cam_z = orbit_radius * np.sin(orbit_angle)
+    cam_pos = chrono.ChVectorD(cam_x, orbit_height, cam_z)
+    
+    # Point camera towards mesh origin
+    cam_rot = chrono.ChMatrix33D()
+    cam_rot.Set_A_Raxis(-cam_pos, chrono.ChVectorD(0, 1, 0))
+    camera.SetOffsetPose(chrono.ChFrameD(cam_pos, cam_rot.Get_A_quaternion()))
+    
+    # Advance simulation
+    manager.Update()
+    system.DoStepDynamics(time_step)
+    application.EndScene()
+    current_time += time_step
+    
+    # Access and print camera data
+    buffer = camera.GetMostRecentRGBA8Buffer()
+    if buffer.HasData():
+        rgba8_data = buffer.GetRGBA8Data()
+        print(f"Time: {current_time:.2f}s | Camera Data: "
+              f"First Pixel: {rgba8_data[0,0]} | "
+              f"Buffer Shape: {rgba8_data.shape} | "
+              f"Mean Intensity: {np.mean(rgba8_data):.1f}")
 
-    # Create orbiting body for camera
-    orbit_body = chrono.ChBody()
-    orbit_body.SetMass(0)  # Make kinematic
-    system.Add(orbit_body)
-
-    # Sensor manager
-    manager = sens.ChSensorManager(system)
-    manager.scene.AddPointLight(chrono.ChVectorF(100, 100, 100), chrono.ChColor(1, 1, 1), 500.0)
-
-    # Camera parameters
-    time_step = 0.005
-    update_rate = 1/time_step  # Match simulation steps
-    image_width = 64
-    image_height = 48
-    fov = 70
-    orbit_radius = 3.0
-    orbit_height = 2.0
-    orbit_speed = 0.5  # Radians per second
-
-    # Create camera sensor
-    camera = sens.ChCameraSensor(
-        orbit_body,
-        update_rate,
-        chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0))),
-        image_width,
-        image_height,
-        fov
-    )
-    camera.SetName("Orbital Camera")
-    camera.SetLag(0)
-    camera.SetCollectionWindow(0)
-
-    # Add noise model
-    noise_model = sens.ChNoiseNormal(0.0, 0.1)
-    camera.AddNoiseModel(noise_model)
-
-    # Enable visualization
-    camera.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Camera View"))
-
-    manager.AddSensor(camera)
-
-    # Simulation loop
-    time = 0.0
-    while time < 10.0:
-        # Update orbital position and orientation
-        new_time = time + time_step
-        angle = orbit_speed * new_time
-        x = orbit_radius * math.cos(angle)
-        y = orbit_radius * math.sin(angle)
-        pos = chrono.ChVectorD(x, y, orbit_height)
-        
-        # Calculate look-at rotation
-        look_frame = chrono.ChFrameD(pos)
-        look_frame.LookAt(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 1))
-        
-        orbit_body.SetPos(pos)
-        orbit_body.SetRot(look_frame.GetRot())
-
-        # Simulation step
-        system.DoStepDynamics(time_step)
-        
-        # Update sensors
-        manager.Update()
-
-        # Print camera data
-        if camera.GetMostRecentFrame():
-            frame = camera.GetMostRecentFrame()
-            print(f"\nTime: {new_time:.3f}")
-            print(f"Camera Position: {pos.x():.2f}, {pos.y():.2f}, {pos.z():.2f}")
-            print(f"Image Resolution: {image_width}x{image_height}")
-            print(f"First pixel RGBA: {frame.GetRGBA8Data()[0][0]}")
-
-        time = new_time
-
-if __name__ == "__main__":
-    main()
+print("Simulation completed.")

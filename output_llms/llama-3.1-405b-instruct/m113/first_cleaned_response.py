@@ -1,48 +1,45 @@
 import pychrono.core as chrono
 import pychrono.vehicle as veh
-import pychrono.irrlicht as chronoirr
+import pychrono.irrlicht as irr
+
+
+step_size = 1e-3
+end_time = 100
 
 
 chrono.SetChronoDataPath('/path/to/chrono/data/')
+my_system = chrono.ChSystemNSC()
 
 
-mphysicalSystem = chrono.ChSystemNSC()
+my_vehicle = veh.M113()
+my_vehicle.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0.5, 0), chrono.ChQuaternionD(1, 0, 0, 0)))
+my_system.Add(my_vehicle)
 
 
-mvehicle = veh.M113()
-mvehicle.Initialize(mphysicalSystem)
-mvehicle.SetChassisPosition(chrono.ChVectorD(0, 0.5, 0))
-mvehicle.SetChassisRotation(chrono.ChQuaternionD(1, 0, 0, 0))
-mvehicle.SetInitialSpeed(chrono.ChVectorD(0, 0, 0))
+terrain = veh.RigidTerrain(my_system)
+terrain.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, -0.5, 0), chrono.ChQuaternionD(1, 0, 0, 0)), 1024, 1024, 20, 20, 0.05, 0.05, 0.001, 0.001)
+my_system.Add(terrain)
 
 
-mterrain = veh.RigidTerrain(mphysicalSystem)
-mterrain.SetFrictionCoefficient(0.7)
-mterrain.SetRestitutionCoefficient(0.2)
-mterrain.Initialize()
+driver = veh.ChDriver(my_vehicle)
+driver.Initialize()
 
 
-mdriver = veh.ChDriver()
-mdriver.Initialize(mvehicle)
-mdriver.SetSteeringController(veh.ChConstantSteeringController(0.0))
-mdriver.SetThrottleController(veh.ChConstantThrottleController(0.0))
-mdriver.SetBrakingController(veh.ChConstantBrakingController(0.0))
+myapplication = irr.ChIrrApp(my_system, 'PyChrono M113 Simulation', irr.dimension2du(800, 600))
+myapplication.AddTypicalSky()
+myapplication.AddTypicalLights()
+myapplication.AddCamera(chrono.ChVectorD(0, 1.5, -5))
+myapplication.AssetBindAll()
+myapplication.AssetUpdateAll()
 
 
-mapplication = chronoirr.ChIrrApp(mphysicalSystem, 'PyChrono Simulation', chronoirr.dimension2du(800, 600))
-mapplication.AddTypicalSky()
-mapplication.AddTypicalLights()
-mapplication.AddCamera(chronoirr.vector3df(0, 2, -5))
-mapplication.AssetBindAll()
-mapplication.AssetUpdateAll()
-
-
-while mapplication.GetDevice().run():
-    
-    mvehicle.Synchronize(mphysicalSystem.GetChTime())
-    mterrain.Synchronize(mphysicalSystem.GetChTime())
-    mdriver.Synchronize(mphysicalSystem.GetChTime())
-    mapplication.BeginScene()
-    mapplication.DrawAll()
-    mapplication.EndScene()
-    mphysicalSystem.DoStepDynamics(chrono.ChTimeStepD(1e-3))
+while myapplication.GetDevice().run():
+    myapplication.BeginScene()
+    myapplication.DrawAll()
+    myapplication.DoStepDynamics(step_size)
+    driver.Synchronize(time)
+    driver.Advance(step_size)
+    myapplication.EndScene()
+    time += step_size
+    if time >= end_time:
+        break

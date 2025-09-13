@@ -83,15 +83,14 @@ patch3 = terrain.AddPatch(patch_mat,
     50, 50)
 patch3.SetTexture(veh.GetDataFile("terrain/textures/tile6.jpg"), 200, 200)
 patch3.SetColor(chrono.ChColor(0.6, 0.6, 0.3))
-patch3.SetWaveHeight(0.15)  
+patch3.SetWaveHeight(0.1)  
 
 patch4 = terrain.AddPatch(patch_mat, 
     chrono.ChCoordsysd(chrono.ChVector3d(0, 25, 0), chrono.QUNIT), 
     50, 50)
-patch4.SetTexture(veh.GetDataFile("terrain/textures/height_map.png"), 200, 200)
+patch4.SetHeightMap(veh.GetDataFile("terrain/height_maps/bump.jpg"), 200, 200)
 patch4.SetColor(chrono.ChColor(0.5, 0.5, 0.2))
-patch4.SetWaveHeight(0.1)  
-patch4.SetHeightMap(veh.GetDataFile("terrain/textures/height_map.png"), 0.1, 10)  
+patch4.SetWaveHeight(0.2)  
 
 terrain.Initialize()
 

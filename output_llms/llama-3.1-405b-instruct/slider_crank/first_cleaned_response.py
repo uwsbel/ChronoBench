@@ -1,88 +1,88 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
+import numpy as np
 
 
-chrono.SetChronoDataPath('/path/to/chrono/data/')  
+chrono.SetChronoDataPath("/path/to/chrono/data/")
 
 
 sys = chrono.ChSystemNSC()
 
 
 floor = chrono.ChBodyEasyBox(sys,  
-                             10, 10, 1,  
-                             1000,  
-                             True,  
-                             True)  
+                              10, 10, 0.1,  
+                              1000,  
+                              True,  
+                              False,  
+                              0.5)  
 sys.Add(floor)
 
 
 crankshaft = chrono.ChBodyEasyCylinder(sys,  
-                                       1,  
-                                       5,  
-                                       1000,  
-                                       True,  
-                                       True)  
-crankshaft.SetPos(chrono.ChVectorD(0, 0, 3))  
+                                        0.5,  
+                                        2,  
+                                        700,  
+                                        True,  
+                                        False,  
+                                        0.5)  
+crankshaft.SetPos(chrono.ChVectorD(0, 0, 1))
+crankshaft.SetRot(chrono.ChQuaternionD(0, 0, 0, 1))
 sys.Add(crankshaft)
 
 
-connecting_rod = chrono.ChBodyEasyBox(sys,  
-                                      2, 0.5, 5,  
-                                      1000,  
-                                      True,  
-                                      True)  
-connecting_rod.SetPos(chrono.ChVectorD(3, 0, 3))  
-sys.Add(connecting_rod)
+rod = chrono.ChBodyEasyBox(sys,  
+                            2, 0.1, 0.1,  
+                            700,  
+                            True,  
+                            False,  
+                            0.5)  
+rod.SetPos(chrono.ChVectorD(1, 0, 1))
+rod.SetRot(chrono.ChQuaternionD(0, 0, 0, 1))
+sys.Add(rod)
 
 
-piston = chrono.ChBodyEasyBox(sys,  
-                              1, 1, 2,  
-                              1000,  
-                              True,  
-                              True)  
-piston.SetPos(chrono.ChVectorD(6, 0, 3))  
+piston = chrono.ChBodyEasyCylinder(sys,  
+                                    0.25,  
+                                    1,  
+                                    700,  
+                                    True,  
+                                    False,  
+                                    0.5)  
+piston.SetPos(chrono.ChVectorD(2, 0, 1))
+piston.SetRot(chrono.ChQuaternionD(0, 0, 0, 1))
 sys.Add(piston)
 
 
 revolute_joint = chrono.ChLinkRevolute()
-revolute_joint.Initialize(crankshaft,  
-                          connecting_rod,  
-                          chrono.ChFrameD(chrono.ChVectorD(0, 0, 3)))  
+revolute_joint.Initialize(crankshaft, rod, chrono.ChVectorD(0, 0, 1))
 sys.Add(revolute_joint)
 
-prismatic_joint = chrono.ChLinkPrismatic()
-prismatic_joint.Initialize(connecting_rod,  
-                           piston,  
-                           chrono.ChFrameD(chrono.ChVectorD(3, 0, 3)),  
-                           chrono.ChVectorD(1, 0, 0))  
-sys.Add(prismatic_joint)
+revolute_joint2 = chrono.ChLinkRevolute()
+revolute_joint2.Initialize(rod, piston, chrono.ChVectorD(2, 0, 1))
+sys.Add(revolute_joint2)
 
 
 motor = chrono.ChLinkMotorRotationSpeed()
-motor.Initialize(crankshaft,  
-                 chrono.ChFrameD(chrono.ChVectorD(0, 0, 3)))  
-motor.SetMotorFunction(chrono.ChFunction_Const(chrono.CH_C_PI / 2))  
+motor.Initialize(crankshaft, floor, chrono.ChVectorD(0, 0, 1))
+motor.SetMotorFunction(chrono.ChFunction_Const(chrono.CH_C_PI / 2))
 sys.Add(motor)
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(sys)
 vis.SetWindowSize(800, 600)
 vis.SetWindowTitle("Crank-Slider Mechanism")
 vis.Initialize()
-vis.AddCamera(chrono.ChVectorD(10, 10, 10),  
-              chrono.ChVectorD(0, 0, 0))  
-vis.AddLight(chrono.ChVectorD(10, 10, 10),  
-             chrono.ChVectorD(0, 0, 0),  
-             100,  
-             chrono.ChColor(1, 1, 1))  
 vis.AddSkyBox()
+vis.AddCamera(chrono.ChVectorD(0, 0, 5), chrono.ChVectorD(0, 0, 0))
+vis.AddLightWithShadow(chrono.ChVectorD(2, 2, 2), chrono.ChVectorD(0, 0, 0), 3, 2, 2, 40, 512)
+
+
 vis.AddLogo()
 vis.AddTypicalLights()
 
 
 while vis.Run():
-    sys.DoStepDynamics(0.01)  
+    sys.DoStepDynamics(1e-3)
     vis.BeginScene()
     vis.DrawAll()
     vis.EndScene()

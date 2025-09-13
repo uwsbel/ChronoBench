@@ -1,3 +1,6 @@
+Here is the PyChrono simulation script based on the provided instructions:
+
+```python
 import chrono as e
 import irrlight as irrl
 
@@ -410,4 +413,3 @@ terrain.set_sinkage_max_value(0.5)
 terrain.set_sinkage_min_value(0)
 terrain.set_sinkage_max_value(0.5)
 terrain.set_sink
-print("error happened with only start ```python")

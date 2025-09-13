@@ -1,3 +1,6 @@
+Here's the corrected and modified PyChrono script based on the given instructions:
+
+```python
 import pychrono.core as chrono
 import pychrono.sensor as sens
 import pychrono.vehicle as vehicle
@@ -442,4 +445,3 @@ def main():
     artcar.SetWheelSuspensionTwistRestLength(0.0)
     artcar.SetWheelSuspensionTwistMaxLength(0.05)
     artcar.SetWheelSuspensionTwistMaxDisp(0.025
-print("error happened with only start ```python")

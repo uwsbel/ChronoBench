@@ -16,7 +16,7 @@ chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
 # Create ground body as terrain plane that robot will drive on
 ground_mat = chrono.ChContactMaterialNSC()
 ground = chrono.ChBodyEasyBox(20, 20, 1, 1000, True, True, ground_mat)
-ground.SetPos(chrono.ChVector3d(0, 0, -0.6))  # Adjusted ground position
+ground.SetPos(chrono.ChVector3d(0, 0, -0.6))  # Position the ground slightly below the origin
 ground.SetFixed(True)  # Fix the ground in place
 ground.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
 system.Add(ground)
@@ -28,43 +28,27 @@ robot = turtlebot.TurtleBot(system, init_pos, init_rot)  # Create Turtlebot inst
 robot.Initialize()  # Initialize the robot
 
 # Create sensor manager
-manager = sens.ChSensorManager(system)
-system.Add(manager)
+sensor_manager = sens.ChSensorManager(system)
+system.AddSensorManager(sensor_manager)
 
 # Configure and add lidar sensor
-lidar = sens.ChLidarSensor(
-    system,
-    100,  # scanning rate
-    chrono.ChFrameD(chrono.ChVector3d(0, 0.5, 0), chrono.ChQuaternionD(1, 0, 0, 0)),  # offset pose
-    0.1,  # max distance
-    0.05,  # min distance
-    0.01,  # accuracy
-    0.1,  # horizontal FOV
-    0.1  # vertical FOV
-)
-manager.AddSensor(lidar)
+lidar_params = sens.ChLidarSensorParams()
+lidar_params.model = sens.ChLidarSensorModel.QUADRANT
+lidar_params.horizontal_samples = 100
+lidar_params.vertical_samples = 1
+lidar_params.horizontal_fov = chrono.CH_C_PI / 2
+lidar_params.min_range = 0.1
+lidar_params.max_range = 10.0
+lidar_params.rate = 10.0
+lidar = sens.ChLidarSensor(lidar_params, chrono.ChFrameD(chrono.ChVector3d(0, 0, 0.2)))
+sensor_manager.AddSensor(lidar)
 
-# Add filters to lidar sensor
-lidar.AddFilter(sens.ChFilterShadows())
-lidar.AddFilter(sens.ChFilterNoise(0.05))
-
-# Create randomly placed boxes
+# Add randomly placed boxes
 for _ in range(5):
     box_mat = chrono.ChContactMaterialNSC()
-    box = chrono.ChBodyEasyBox(
-        np.random.uniform(0.5, 2),  # length
-        np.random.uniform(0.5, 2),  # width
-        np.random.uniform(0.5, 2),  # height
-        100,  # density
-        True,  # collide
-        True,  # visualize
-        box_mat
-    )
-    box.SetPos(chrono.ChVector3d(
-        np.random.uniform(-5, 5),
-        np.random.uniform(-5, 5),
-        np.random.uniform(0, 2)
-    ))
+    box = chrono.ChBodyEasyBox(0.5, 0.5, 0.5, 10, True, True, box_mat)
+    box.SetPos(chrono.ChVector3d(np.random.uniform(-5, 5), np.random.uniform(-5, 5), 0.25))
+    box.SetFixed(True)
     system.Add(box)
 
 # Define motion control function for Turtlebot
@@ -101,13 +85,8 @@ time_step = 2e-3
 # Simulation loop
 time = 0
 while vis.Run():
-    # Move Turtlebot
     move('straight')
-
-    # Update sensor manager
-    manager.Update()
-
-    # Increment time counter
+    sensor_manager.Update()
     time += time_step
 
     # Render the scene

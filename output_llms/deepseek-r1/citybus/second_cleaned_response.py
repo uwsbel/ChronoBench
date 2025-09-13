@@ -20,6 +20,7 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 
+
 terrainHeight = 0      
 terrainLength = 100.0  
 terrainWidth = 100.0   
@@ -82,12 +83,12 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 
-entries = veh.vector_Entry()
-entries.push_back(veh.DataDriverEntry(0.0, 0.0, 0.0, 0.0))  
-entries.push_back(veh.DataDriverEntry(0.1, 0.0, 1.0, 0.0))
-entries.push_back(veh.DataDriverEntry(0.5, 0.7, 1.0, 0.0))
+driver_data = veh.vector_Entry()
+driver_data.push_back(veh.DataDriverEntry(0.0, 0.0, 0.0, 0.0))  
+driver_data.push_back(veh.DataDriverEntry(0.1, 0.0, 1.0, 0.0))
+driver_data.push_back(veh.DataDriverEntry(0.5, 0.7, 1.0, 0.0))
 
-driver = veh.ChDataDriver(vehicle.GetVehicle(), entries)
+driver = veh.ChDataDriver(vehicle.GetVehicle(), driver_data)
 driver.Initialize()
 
 
@@ -105,7 +106,7 @@ while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
     
-    if (step_number % render_steps == 0):
+    if step_number % render_steps == 0:
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
@@ -125,6 +126,9 @@ while vis.Run():
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
-
+    
+    
     step_number += 1
+    
+    
     realtime_timer.Spin(step_size)

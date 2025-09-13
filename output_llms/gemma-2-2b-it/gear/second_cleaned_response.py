@@ -1,3 +1,4 @@
+```python
 import pychrono as chrono                         
 import pychrono.irrlicht as chronoirr             
 import math as m                                  
@@ -63,5 +64,4 @@ sys.AddLink(link_motor)
 interaxis12 = radA + radB                                           
 mbody_gearB = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y,            
                                         radB, 0.4,                  
-                                        1000, True, False, mat)     
-print("error happened with only start ```python")
+                                        1000, True, False, mat)

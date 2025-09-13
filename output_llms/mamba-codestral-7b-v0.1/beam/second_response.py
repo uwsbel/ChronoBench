@@ -1,3 +1,6 @@
+Here is the corrected and modified PyChrono script:
+
+```python
 import pychrono as chrono
 import pychrono.fea as fea
 import pychrono.pardisomkl as mkl
@@ -103,4 +106,3 @@ vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(sys)
 vis.SetWindowSize(1024, 768)
 vis.SetWindowTitle('FEA
-print("error happened with only start ```python")

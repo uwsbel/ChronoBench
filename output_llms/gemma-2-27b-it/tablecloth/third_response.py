@@ -1,3 +1,4 @@
+```python
 import pychrono.core as chrono  # Import core Chrono functionality
 import pychrono.irrlicht as chronoirr  # Import Irrlicht visualization
 import pychrono.fea as fea  # Import Finite Element Analysis components
@@ -133,4 +134,3 @@ if (True):  # Block to execute the following setup
     mvisualizeshellA.SetShellResolution(2)  # Set resolution for shell visualization
     mvisualizeshellA.SetBackfaceCull(True)  # Enable backface culling
     mesh.AddVisualShapeFEA(mvisualizeshellA)  # Add visual shape to mesh
-print("error happened with only start ```python")

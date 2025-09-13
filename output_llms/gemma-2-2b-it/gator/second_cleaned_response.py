@@ -1,3 +1,4 @@
+```python
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
@@ -178,4 +179,3 @@ terrain_patches = [
         chrono.ChVector3d(0, 0, 0),
         chrono.ChVector3d(0, 0, 0),
         chrono.ChVector3d(0, 0, 0),
-print("error happened with only start ```python")

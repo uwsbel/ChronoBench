@@ -22,15 +22,15 @@ def main():
     mesh_body = ch.ChBody()
     mesh_body.SetPos(ch.ChVector3d(0, 0, 0))
     mesh_body.AddVisualShape(trimesh_shape)
-    mesh_body.SetFixed(False)  # Make the body movable.
-    mesh_body.SetMass(0)  # Set mass to 0 (static object).
+    mesh_body.SetFixed(True)  # Make the body static.
+    mesh_body.SetMass(1)  # Set mass to 1 (dynamic object).
     sys.Add(mesh_body)
 
     # Create a ground body to attach sensors.
     ground_body = ch.ChBodyEasyBox(1, 1, 1, 1000, False, False)
     ground_body.SetPos(ch.ChVector3d(0, 0, 0))
-    ground_body.SetFixed(False)  # Make the body movable.
-    ground_body.SetMass(0)  # Set mass to 0 (static object).
+    ground_body.SetFixed(True)  # Make the body static.
+    ground_body.SetMass(1)  # Set mass to 1 (dynamic object).
     sys.Add(ground_body)
 
     # Create the sensor manager.
@@ -44,7 +44,7 @@ def main():
     sens_manager.scene.AddPointLight(ch.ChVector3f(23, 2.5, 100), ch.ChColor(intensity, intensity, intensity), 500.0)
 
     # Create and configure a camera sensor.
-    offset_pose = ch.ChFrameD(ch.ChVector3d(-8, 0, 2), ch.QuaternionD(0.2, ch.ChVector3d(0, 1, 0)))
+    offset_pose = ch.ChFrameD(ch.ChVector3d(-8, 0, 2), ch.QuatD.FromAngleAxis(.2, ch.ChVector3d(0, 1, 0)))
     cam = sens.ChCameraSensor(ground_body, 30, offset_pose, 1280, 720, 1.408)
     cam.PushFilter(sens.ChFilterVisualize(1280, 720, "Camera"))  # Visualize the camera output.
     cam.PushFilter(sens.ChFilterRGBA8Access())  # Access raw RGBA8 data.
@@ -60,12 +60,10 @@ def main():
     lidar.SetName("lidar")
     sens_manager.AddSensor(lidar)
 
-    # Create and configure a 2D Lidar sensor.
-    lidar2d = sens.ChLidarSensor2D(ground_body, 5., offset_pose, 90, 300, 2*ch.CH_PI, ch.CH_PI / 12, -ch.CH_PI / 6, 100., 0)
+    # Create and configure a 2D lidar sensor.
+    lidar2d = sens.ChLidarSensor2D(ground_body, 10., offset_pose, 180, 400, 2*ch.CH_PI, 0.1, 100., 0)
     lidar2d.PushFilter(sens.ChFilterDIAccess())  # Access raw lidar data.
-    lidar2d.PushFilter(sens.ChFilterPCfromDepth())  # Convert depth data to point cloud.
-    lidar2d.PushFilter(sens.ChFilterXYZIAccess())  # Access point cloud data.
-    lidar2d.PushFilter(sens.ChFilterVisualizePointCloud(1280, 720, 1, "Lidar2D"))  # Visualize the point cloud.
+    lidar2d.PushFilter(sens.ChFilterVisualizeScan(1280, 720, 1, "Lidar 2D"))  # Visualize the scan.
     lidar2d.SetName("lidar2d")
     sens_manager.AddSensor(lidar2d)
 

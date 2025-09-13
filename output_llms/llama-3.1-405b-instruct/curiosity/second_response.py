@@ -20,9 +20,9 @@ ground.SetFixed(True)  # Fix the ground in place
 ground.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
 system.Add(ground)
 
-# Create a long box obstacle for the rover to cross
+# Create a long box obstacle
 obstacle_mat = chrono.ChContactMaterialNSC()
-obstacle = chrono.ChBodyEasyBox(2, 0.5, 0.5, 1000, True, True, obstacle_mat)
+obstacle = chrono.ChBodyEasyBox(5, 0.5, 0.5, 1000, True, True, obstacle_mat)
 obstacle.SetPos(chrono.ChVector3d(2, 0, 0))  # Position the obstacle
 obstacle.SetFixed(True)  # Fix the obstacle in place
 obstacle.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))

@@ -22,14 +22,14 @@ tire_model = veh.TireModelType_RIGID
 
 
 terrainHeight = 0      
-terrainLength = 40.0   
-terrainWidth = 40.0    
+terrainLength = 100.0  
+terrainWidth = 100.0   
 
 
 trackPoint = chrono.ChVector3d(0.0, 0.0, 1.71)
 
 
-contact_method = chrono.ChContactMethod_NSC  
+contact_method = chrono.ChContactMethod_NSC
 contact_vis = False
 
 
@@ -48,7 +48,6 @@ vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 
-vehicle.Initialize()
 
 vehicle.SetChassisVisualizationType(vis_type)
 vehicle.SetSuspensionVisualizationType(vis_type)
@@ -56,21 +55,22 @@ vehicle.SetSteeringVisualizationType(vis_type)
 vehicle.SetWheelVisualizationType(vis_type)
 vehicle.SetTireVisualizationType(vis_type)
 
+vehicle.Initialize()
+
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-patch = terrain.AddHeightfield(veh.GetDataFile("terrain/height_maps/bump64.bmp"), 
-                              terrainLength, terrainWidth, -1, 1, 
-                              chrono.ChVector3d(0, 0, 0), chrono.ChQuaterniond(1, 0, 0, 0))
+patch = terrain.AddPatch(
+    chrono.ChCoordsysd(chrono.ChVector3d(-1, 1, 0)),  
+    veh.GetDataFile("terrain/height_maps/bump64.bmp"),
+    "field_mesh",
+    40,  
+    40,  
+    -1,  
+    1    
+)
 patch.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
-
-
-material = chrono.ChMaterialSurfaceNSC()
-material.SetFriction(math.tan(math.radians(30)))  
-material.SetRestitution(0)
-patch.SetContactMaterial(material)
-
 terrain.Initialize()
 
 
@@ -101,9 +101,13 @@ driver.Initialize()
 
 
 
+
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
+
 render_steps = math.ceil(render_step_size / step_size)
+
+
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
@@ -111,6 +115,7 @@ render_frame = 0
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
+    
     if step_number % render_steps == 0:
         vis.BeginScene()
         vis.Render()
@@ -132,5 +137,8 @@ while vis.Run():
     vehicle.Advance(step_size)
     vis.Advance(step_size)
 
+    
     step_number += 1
+
+    
     realtime_timer.Spin(step_size)

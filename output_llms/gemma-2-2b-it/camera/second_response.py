@@ -1,3 +1,4 @@
+```python
 import pychrono.core as chrono
 import pychrono.sensor as sens
 
@@ -121,4 +122,3 @@ def main():
     while ch_time < end_time:
         # Dynamically set the camera's position around the orbit
         cam.
-print("error happened with only start ```python")

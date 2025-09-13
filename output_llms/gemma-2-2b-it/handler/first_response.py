@@ -1,3 +1,4 @@
+```python
 import pychrono as chrono
 import pychrono.physics as physics
 import pychrono.ros as ros
@@ -271,4 +272,3 @@ floor = chrono.RigidBody(
     chrono.Vector3(0, 0, 0),
     chrono.Vector3(0, 0, 0),
     chrono.Vector3(0, 0,
-print("error happened with only start ```python")

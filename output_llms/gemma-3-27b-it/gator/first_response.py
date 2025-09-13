@@ -1,0 +1,145 @@
+import chrono
+import chrono.irrlicht as chronoirr
+import chrono.vehicle as chronoveh
+
+# ---
+# Initialize the PyChrono environment and core components
+# ---
+
+# Create a Chrono physical system
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
+
+# ---
+# Create the rigid terrain
+# ---
+
+terrain = chrono.ChRigidBody()
+terrain.SetBodyFixed(True)
+terrain.SetMass(0)
+terrain.SetPos(chrono.ChVectorD(0, -0.1, 0))  # Lower terrain slightly
+terrain.SetShape(chrono.ChBoxShape())
+terrain.SetBox(100, 0.1, 100)  # Terrain dimensions
+system.Add(terrain)
+
+# Create a texture for the terrain
+terrain_texture = chronoirr.ChTexture()
+terrain_texture.SetFilename(chrono.GetChronoDataPath() + "terrain/grass.png")
+terrain.SetTexture(terrain_texture)
+
+# ---
+# Create the Gator vehicle
+# ---
+
+# Define vehicle parameters
+vehicle_length = 2.5
+vehicle_width = 1.5
+vehicle_height = 1.0
+vehicle_mass = 500.0
+
+# Create the vehicle chassis
+chassis = chronoveh.ChVehicle()
+chassis.SetBodyFixed(False)
+chassis.SetMass(vehicle_mass)
+chassis.SetPos(chrono.ChVectorD(0, vehicle_height, 0))
+chassis.SetTransform(chrono.ChQuaternionD().Get_EulerXYZ(0, 0, 0))
+system.Add(chassis)
+
+# Load the Gator vehicle mesh
+mesh_file = chrono.GetChronoDataPath() + "vehicle/gator/gator.obj"
+mesh = chrono.ChTriangleMeshConnected()
+mesh.LoadFromFile(mesh_file)
+mesh.SetAutomaticUpdate(True)
+
+chassis.AddAsset(mesh)
+chassis.SetCollide(True)
+chassis.SetVisualizationType(chrono.ChVehicle.VISUALIZATION_MESH)
+
+# ---
+# Define the tire model and parameters
+# ---
+
+# Use the TMEASY tire model
+tire_model = chronoveh.ChTireTMeasy()
+tire_model.SetVisualizationType(chronoveh.ChTire.VISUALIZATION_MESH)
+
+# ---
+# Create the wheels and attach them to the chassis
+# ---
+
+wheel_radius = 0.3
+wheel_width = 0.2
+wheel_offset_front = vehicle_length / 2 - 0.5
+wheel_offset_rear = -vehicle_length / 2 + 0.5
+wheel_offset_side = vehicle_width / 2 + 0.1
+
+# Front left wheel
+wheel_FL = chronoveh.ChWheel()
+wheel_FL.SetTire(tire_model)
+wheel_FL.SetRadius(wheel_radius)
+wheel_FL.SetWidth(wheel_width)
+wheel_FL.SetPos(chrono.ChVectorD(wheel_offset_front, wheel_radius, wheel_offset_side))
+wheel_FL.SetTransform(chrono.ChQuaternionD().Get_EulerXYZ(0, chrono.CH_C_PI / 2, 0))
+chassis.AddWheel(wheel_FL)
+
+# Front right wheel
+wheel_FR = chronoveh.ChWheel()
+wheel_FR.SetTire(tire_model)
+wheel_FR.SetRadius(wheel_radius)
+wheel_FR.SetWidth(wheel_width)
+wheel_FR.SetPos(chrono.ChVectorD(wheel_offset_front, wheel_radius, -wheel_offset_side))
+wheel_FR.SetTransform(chrono.ChQuaternionD().Get_EulerXYZ(0, chrono.CH_C_PI / 2, 0))
+chassis.AddWheel(wheel_FR)
+
+# Rear left wheel
+wheel_RL = chronoveh.ChWheel()
+wheel_RL.SetTire(tire_model)
+wheel_RL.SetRadius(wheel_radius)
+wheel_RL.SetWidth(wheel_width)
+wheel_RL.SetPos(chrono.ChVectorD(wheel_offset_rear, wheel_radius, wheel_offset_side))
+wheel_RL.SetTransform(chrono.ChQuaternionD().Get_EulerXYZ(0, chrono.CH_C_PI / 2, 0))
+chassis.AddWheel(wheel_RL)
+
+# Rear right wheel
+wheel_RR = chronoveh.ChWheel()
+wheel_RR.SetTire(tire_model)
+wheel_RR.SetRadius(wheel_radius)
+wheel_RR.SetWidth(wheel_width)
+wheel_RR.SetPos(chrono.ChVectorD(wheel_offset_rear, wheel_radius, -wheel_offset_side))
+wheel_RR.SetTransform(chrono.ChQuaternionD().Get_EulerXYZ(0, chrono.CH_C_PI / 2, 0))
+chassis.AddWheel(wheel_RR)
+
+# ---
+# Create the interactive driver system
+# ---
+
+driver = chronoveh.ChIrrAppDriver()
+driver.SetVehicle(chassis)
+driver.SetSteeringDelta(0.05)
+driver.SetThrottleDelta(0.1)
+driver.SetBrakingDelta(0.1)
+
+# ---
+# Create the Irrlicht visualization
+# ---
+
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle('Gator Vehicle Simulation')
+vis.Initialize()
+vis.AddCamera(chrono.ChVectorD(0, 5, -10))
+vis.AddTypicalLights()
+
+# ---
+# Simulation loop
+# ---
+
+timestep = 1.0 / 50.0  # 50 FPS
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+
+    driver.Synchronize(timestep)
+    system.DoStepDynamics(timestep)

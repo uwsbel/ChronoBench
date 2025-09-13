@@ -1,77 +1,63 @@
 import pychrono.core as chrono
-import pychrono.irrlicht as chronoirr
+import pychrono_ros as ros
 import rospy
 from std_msgs.msg import Int32
-import numpy as np
 
 # Initialize PyChrono environment
 chrono.SetChronoDataPath('/usr/local/share/chrono/data/')
 
-# Initialize ROS node
-rospy.init_node('pychrono_simulation')
-
 # Create a Chrono system
-sys = chrono.ChSystemNSC()
+system = chrono.ChSystemNSC()
 
 # Set gravitational acceleration
-sys.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+
+# Set default material properties
+material = chrono.ChMaterialSurfaceNSC()
+material.SetFriction(0.5)
+material.SetRestitution(0.2)
+system.SetMaterialSurface(material)
 
 # Add a fixed floor
-floor_mat = chrono.ChMaterialSurfaceNSC()
-floor_mat.SetFriction(0.5)
-floor_mat.SetRestitution(0.5)
-floor_body = chrono.ChBodyEasyBox(sys,  # parent system
-                                  10, 10, 1,  # dimensions
-                                  1000,  # density
-                                  True,  # fixed object
-                                  floor_mat)  # material
-sys.Add(floor_body)
+floor = chrono.ChBodyEasyBox(10, 1, 10, 1000, True)
+floor.SetPos(chrono.ChVectorD(0, -1, 0))
+system.Add(floor)
 
 # Add a movable box
-box_mat = chrono.ChMaterialSurfaceNSC()
-box_mat.SetFriction(0.5)
-box_mat.SetRestitution(0.5)
-box_body = chrono.ChBodyEasyBox(sys,  # parent system
-                                1, 1, 1,  # dimensions
-                                1000,  # density
-                                False,  # non-fixed object
-                                box_mat)  # material
-sys.Add(box_body)
+box = chrono.ChBodyEasyBox(1, 1, 1, 1, False)
+box.SetPos(chrono.ChVectorD(0, 1, 0))
+system.Add(box)
 
 # Create a custom ROS handler
-class CustomROSHAndler(chrono.ChROSHAndler):
+class CustomHandler(ros.ChRosBase):
     def __init__(self):
         super().__init__()
-        self.pub = rospy.Publisher('custom_topic', Int32, queue_size=10)
+        self.publisher = rospy.Publisher('custom_topic', Int32, queue_size=10)
 
-    def Advance(self, time):
+    def advance(self, time):
         msg = Int32()
-        msg.data = int(time * 1000)  # milliseconds
-        self.pub.publish(msg)
+        msg.data = int(time)
+        self.publisher.publish(msg)
 
 # Create a ROS manager
-ros_manager = chrono.ChROSMAndler(sys)
+ros_manager = ros.ChRosSystem(system)
 
-# Add clock handler
-ros_manager.AddHandler(chrono.ChROSClockHandler())
+# Configure ROS manager
+ros_manager.AddHandler(ros.ChRosClockHandler())
+ros_manager.AddHandler(ros.ChRosBodyHandler())
+ros_manager.AddHandler(ros.ChRosTransformHandler())
+ros_manager.AddHandler(CustomHandler())
 
-# Add body handler
-ros_manager.AddHandler(chrono.ChROSBodyHandler())
-
-# Add transform handler
-ros_manager.AddHandler(chrono.ChROSTransformHandler())
-
-# Add custom handler
-ros_manager.AddHandler(CustomROSHAndler())
+# Initialize ROS node
+rospy.init_node('pychrono_ros_node')
 
 # Simulation loop
-time_step = 0.01
-while not rospy.is_shutdown():
+while True:
     # Advance the system
-    sys.DoStepDynamics(time_step)
+    system.DoStepDynamics(0.01)
 
     # Update ROS communication
-    ros_manager.Advance(sys.GetChTime())
+    ros_manager.Advance(0.01)
 
     # Maintain real-time execution
-    rospy.sleep(time_step)
+    chrono.ChUtils.Sleep(0.01)

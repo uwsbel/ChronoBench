@@ -3,69 +3,65 @@ import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
 import numpy as np
 
-# Initialize the PyChrono environment
-chrono.SetChronoDataPath('/path/to/chrono/data/')  # Set path to Chrono data
+# Set the simulation parameters
+beam_length = 5.0  # in meters
+beam_thickness = 0.1  # in meters
+num_elements = 10
+num_nodes = num_elements + 1
+
+# Initialize the Chrono environment
+chrono.SetChronoDataPath('/path/to/chrono/data/')  # Replace with your Chrono data path
 
 # Create a Chrono system
 sys = chrono.ChSystemNSC()
 
 # Create the ground body
-ground = chrono.ChBodyEasyBox(sys,  # Parent system
-                              10, 10, 1,  # Dimensions (x, y, z)
-                              1000,  # Density
-                              True,  # Visualization
-                              True,  # Collision
-                              chrono.ChMaterialSurfaceNSC())  # Material
-ground.SetBodyFixed(True)  # Fix the ground body
+ground = chrono.ChBodyEasyBox(sys, 10, 10, 1, 1000, True, True)
+ground.SetPos(chrono.ChVectorD(0, -1, 0))
+sys.Add(ground)
 
-# Create the beam
-beam_length = 5.0  # Length of the beam
-beam_radius = 0.1  # Radius of the beam
-num_elements = 10  # Number of ANCF cable elements
-num_nodes = num_elements + 1  # Number of nodes
-
-# Create the nodes
-nodes = []
+# Create the beam nodes
+beam_nodes = []
 for i in range(num_nodes):
-    node = chrono.ChNodeFEAxyzD(sys)  # Create a finite element node
-    node.SetMass(1.0)  # Set the node mass
-    node.SetInertia(chrono.ChVectorD(0.1, 0.1, 0.1))  # Set the node inertia
-    nodes.append(node)
+    node = chrono.ChNodeFEAxyzD(sys)
+    node.SetPos(chrono.ChVectorD(i * beam_length / num_elements, 0, 0))
+    beam_nodes.append(node)
+    sys.Add(node)
 
 # Create the ANCF cable elements
 for i in range(num_elements):
-    element = chrono.ChElementCableANCF()  # Create an ANCF cable element
-    element.SetNodes(nodes[i], nodes[i + 1])  # Set the nodes for the element
-    element.SetMaterial(chrono.ChMaterialCable())  # Set the material for the element
-    sys.Add(element)  # Add the element to the system
+    element = chrono.ChElementCableANCF()
+    element.SetNodes(beam_nodes[i], beam_nodes[i + 1])
+    element.SetArea(chrono.ChVectorD(beam_thickness, beam_thickness, beam_thickness))
+    sys.Add(element)
 
-# Set the initial positions of the nodes
-for i in range(num_nodes):
-    x = i * beam_length / (num_nodes - 1)
-    y = beam_radius * np.sin(np.pi * x / beam_length)
-    z = beam_radius * np.cos(np.pi * x / beam_length)
-    nodes[i].SetPos(chrono.ChVectorD(x, y, z))  # Set the node position
+# Add a hinge constraint to the first node
+hinge = chrono.ChLinkMateFix()
+hinge.Initialize(ground, beam_nodes[0], chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)))
+sys.Add(hinge)
 
-# Add the hinge constraint
-hinge = chrono.ChLinkMateGeneric()  # Create a generic mate link
-hinge.Initialize(nodes[0], ground, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)))  # Initialize the hinge
-sys.Add(hinge)  # Add the hinge to the system
+# Set the default gravity
+sys.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
-# Set the gravity
-sys.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set the gravity acceleration
+# Create an Irrlicht application
+application = chronoirr.ChIrrApp(sys, 'Beam Simulation', chronoirr.dimension2du(800, 600))
 
-# Create the Irrlicht application
-app = chronoirr.ChIrrApp(sys, 'Beam Simulation', chronoirr.dimension2du(800, 600))  # Create the Irrlicht application
-app.AddTypicalSky()  # Add a typical sky
-app.AddTypicalLights()  # Add typical lights
-app.AddCamera(chronoirr.vector3df(0, 0, -10))  # Add a camera
+# Set up the Irrlicht visualization
+application.AddSkyBox()
+application.AddTypicalLights()
+application.AssetBindAll()
+application.AssetUpdateAll()
 
 # Simulation loop
-while app.GetDevice().run():
-    app.BeginScene()  # Begin the scene
-    app.DrawAll()  # Draw all objects
-    app.EndScene()  # End the scene
-    sys.DoStepDynamics(0.01)  # Perform a simulation step
+while application.GetDevice().run():
+    # Update the simulation
+    sys.DoStepDynamics(0.01)
 
-# Clean up
-del sys
+    # Update the Irrlicht visualization
+    application.BeginScene()
+    application.DrawAll()
+    application.EndScene()
+
+    # Print the nodal positions
+    for i, node in enumerate(beam_nodes):
+        print(f'Node {i+1} position: {node.GetPos()}')

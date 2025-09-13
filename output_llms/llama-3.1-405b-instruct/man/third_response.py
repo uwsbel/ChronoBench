@@ -5,7 +5,6 @@ import pychrono.sensor as sens
 import math
 import numpy as np
 
-
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
@@ -52,7 +51,6 @@ vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 
-
 vehicle.Initialize()
 
 vehicle.SetChassisVisualizationType(vis_type)
@@ -90,21 +88,20 @@ vis.AttachVehicle(vehicle.GetVehicle())
 
 # Create sensor manager
 manager = sens.ChSensorManager(vehicle.GetSystem())
-manager.Scene().AddCamera(chrono.ChVector3d(-5, 0, 1.5), chrono.ChQuaterniond(1, 0, 0, 0))
+manager.SceneAdd(vis.GetSceneManager())
 
 # Create lidar sensor
 lidar = sens.ChLidarSensor(
     vehicle.GetChassisBody(),
     100,  # number of horizontal samples
     2,   # number of vertical samples
-    -0.5 * math.pi / 2,  # vertical FOV lo
-    0.5 * math.pi / 2,   # vertical FOV hi
-    -math.pi,  # horizontal FOV lo
-    math.pi,   # horizontal FOV hi
+    -chrono.CH_C_PI_2,  # horizontal start angle
+    chrono.CH_C_PI_2,   # horizontal end angle
+    -chrono.CH_C_PI_4,  # vertical start angle
+    chrono.CH_C_PI_4,   # vertical end angle
     100.0,  # max distance
-    0.02,   # accuracy
-    0.1,    # lag
-    0.01    # collection time
+    0.1,    # accuracy
+    0.1     # scanning rate
 )
 manager.AddSensor(lidar)
 
@@ -115,11 +112,9 @@ for i in range(10):
         1,  # length
         1,  # width
         1,  # height
-        1000,  # density
-        True,  # collide
-        True   # visualization
+        1000  # density
     )
-    box.SetPos(chrono.ChVector3d(np.random.uniform(-10, 10), np.random.uniform(-10, 10), 0.5))
+    box.SetPos(chrono.ChVector3d(np.random.uniform(-10, 10), np.random.uniform(-10, 10), 1))
     vehicle.GetSystem().AddBody(box)
 
 # Create the driver system
@@ -169,7 +164,6 @@ while vis.Run() :
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
-    manager.Advance(step_size)
 
     # Increment frame number
     step_number += 1

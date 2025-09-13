@@ -42,7 +42,6 @@ render_step_size = 1.0 / 50  # FPS = 50
 
 # Logging step size
 log_step_size = 0.1
-log_steps = math.ceil(log_step_size / step_size)
 
 # Create the HMMWV vehicle, set parameters, and initialize
 vehicle = veh.HMMWV_Full() # veh.HMMWV_Reduced() could be another choice
@@ -103,7 +102,7 @@ driver.Initialize()
 manager = sens.ChSensorManager(vehicle.GetSystem())
 
 # Create an IMU sensor and add it to the manager
-offset_pose = chrono.ChFrameD(chrono.ChVector3d(-8, 0, 1), chrono.QuaternionD(1, 0, 0, 0))
+offset_pose = chrono.ChFrameD(chrono.ChVector3d(-8, 0, 1), chrono.QUNIT)
 imu = sens.ChAccelerometerSensor(vehicle.GetChassisBody(),                     # Body IMU is attached to
                                  10,        # Update rate in Hz
                                  offset_pose,          # Offset pose
@@ -133,15 +132,9 @@ manager.AddSensor(gps)
 # Initialize GPS data list
 gps_data = []
 
-# ---------------
-# Simulation loop
-# ---------------
-
-# Output vehicle mass
-print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
-
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
+log_steps = math.ceil(log_step_size / step_size)
 
 # Initialize simulation frame counter
 realtime_timer = chrono.ChRealtimeStepTimer()
@@ -166,13 +159,12 @@ while vis.Run():
         driver_inputs.m_steering = 0.2
     elif time < 6:
         driver_inputs = driver.GetInputs()
-        driver_inputs.m_throttle = 0.5
+        driver_inputs.m_throttle = 1.0
         driver_inputs.m_steering = -0.2
     else:
         driver_inputs = driver.GetInputs()
         driver_inputs.m_throttle = 0.0
         driver_inputs.m_braking = 1.0
-        driver_inputs.m_steering = 0.0
 
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)

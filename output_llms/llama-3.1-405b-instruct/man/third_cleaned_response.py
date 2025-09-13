@@ -5,7 +5,6 @@ import pychrono.sensor as sens
 import math
 import numpy as np
 
-
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
@@ -52,7 +51,6 @@ vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 
-
 vehicle.Initialize()
 
 vehicle.SetChassisVisualizationType(vis_type)
@@ -90,21 +88,20 @@ vis.AttachVehicle(vehicle.GetVehicle())
 
 
 manager = sens.ChSensorManager(vehicle.GetSystem())
-manager.Scene().AddCamera(chrono.ChVector3d(-5, 0, 1.5), chrono.ChQuaterniond(1, 0, 0, 0))
+manager.SceneAdd(vis.GetSceneManager())
 
 
 lidar = sens.ChLidarSensor(
     vehicle.GetChassisBody(),
     100,  
     2,   
-    -0.5 * math.pi / 2,  
-    0.5 * math.pi / 2,   
-    -math.pi,  
-    math.pi,   
+    -chrono.CH_C_PI_2,  
+    chrono.CH_C_PI_2,   
+    -chrono.CH_C_PI_4,  
+    chrono.CH_C_PI_4,   
     100.0,  
-    0.02,   
     0.1,    
-    0.01    
+    0.1     
 )
 manager.AddSensor(lidar)
 
@@ -115,11 +112,9 @@ for i in range(10):
         1,  
         1,  
         1,  
-        1000,  
-        True,  
-        True   
+        1000  
     )
-    box.SetPos(chrono.ChVector3d(np.random.uniform(-10, 10), np.random.uniform(-10, 10), 0.5))
+    box.SetPos(chrono.ChVector3d(np.random.uniform(-10, 10), np.random.uniform(-10, 10), 1))
     vehicle.GetSystem().AddBody(box)
 
 
@@ -169,7 +164,6 @@ while vis.Run() :
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
-    manager.Advance(step_size)
 
     
     step_number += 1

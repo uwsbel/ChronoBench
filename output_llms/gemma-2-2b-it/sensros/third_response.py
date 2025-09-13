@@ -1,3 +1,4 @@
+```python
 import pychrono as ch
 import pychrono.sensor as sens
 import pychrono.ros as chros
@@ -84,4 +85,3 @@ def main():
     gyro = sens.ChGyroscopeSensor(ground_body, 100, offset_pose, noise_model_none)
     gyro.PushFilter(sens.ChFilterGyroAccess())  # Access gyroscope data.
     gyro.SetName("gyroscope
-print("error happened with only start ```python")

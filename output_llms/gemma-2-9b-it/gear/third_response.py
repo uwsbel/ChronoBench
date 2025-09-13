@@ -1,3 +1,4 @@
+```python
 import pychrono as chrono                         # Importing the Chrono library
 import pychrono.irrlicht as chronoirr             # Importing the Irrlicht visualization library for Chrono
 import math as m                                  # Importing the math library for mathematical operations
@@ -68,4 +69,3 @@ sys.AddLink(link_motor)                                             # Adding the
 
 # Create the second gear
 interaxis12 = radA + radB                                           # Calculating distance between the
-print("error happened with only start ```python")

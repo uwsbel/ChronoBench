@@ -82,41 +82,34 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
-# Custom driver class
+
+# Custom Driver Class Implementation
 class MyDriver(veh.ChDriver):
     def __init__(self, delay):
         veh.ChDriver.__init__(self)
         self.delay = delay
+        self.throttle_time = 0.2
+        self.steering_time = 2.0
 
     def Synchronize(self, time):
-        # Delay in driver inputs
         if time < self.delay:
-            return
-
-        # Throttle gradually increasing to 0.7 after 0.2 seconds
-        if time < 0.2 + self.delay:
-            throttle = (time - self.delay) / 0.2 * 0.7
+            self.SetThrottle(0)
+            self.SetSteering(0)
+            self.SetBraking(0)
         else:
-            throttle = 0.7
+            if time < self.throttle_time + self.delay:
+                self.SetThrottle((time - self.delay) / self.throttle_time * 0.7)
+            else:
+                self.SetThrottle(0.7)
+            if time > self.steering_time + self.delay:
+                self.SetSteering(0.5 * math.sin(2 * math.pi * (time - self.steering_time - self.delay)))
+            else:
+                self.SetSteering(0)
+            self.SetBraking(0)
 
-        # Steering using a sinusoidal pattern starting at 2 seconds
-        if time > 2 + self.delay:
-            steering = math.sin((time - 2 - self.delay) * 2 * math.pi)
-        else:
-            steering = 0
-
-        # Braking
-        braking = 0
-
-        # Set driver inputs
-        driver_inputs = veh.DriverInputs()
-        driver_inputs.m_throttle = throttle
-        driver_inputs.m_steering = steering
-        driver_inputs.m_braking = braking
-        self.SetInputs(driver_inputs)
-
-# Create the custom driver
+# Create the custom driver system
 driver = MyDriver(0.5)
+driver.Initialize()
 
 # output vehicle mass
 print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
@@ -132,6 +125,10 @@ render_frame = 0
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
 
+    # End simulation after 4 seconds
+    if time > 4.0:
+        break
+
     # Render scene and output POV-Ray data
     if (step_number % render_steps == 0) :
         vis.BeginScene()
@@ -139,11 +136,14 @@ while vis.Run() :
         vis.EndScene()
         render_frame += 1
 
+    # Get driver inputs
+    driver_inputs = driver.GetInputs()
+
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
     terrain.Synchronize(time)
-    vehicle.Synchronize(time, driver.GetInputs(), terrain)
-    vis.Synchronize(time, driver.GetInputs())
+    vehicle.Synchronize(time, driver_inputs, terrain)
+    vis.Synchronize(time, driver_inputs)
 
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)
@@ -156,7 +156,3 @@ while vis.Run() :
 
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
-
-    # End simulation after 4 seconds
-    if time > 4:
-        break

@@ -1,3 +1,4 @@
+```python
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
@@ -159,4 +160,3 @@ while vis.Run() :
 
 
 """
-print("error happened with only start ```python")

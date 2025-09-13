@@ -14,3 +14,74 @@ physics.SetVisualSystem(visualization)
 visualization.SetWindowSize(800, 600)
 visualization.SetWindowTitle("HMMWV on Complex Terrain")
 visualization.Initialize()
+
+# Create the HMMWV vehicle
+vehicle = chrono.ChVehicle()
+
+# Set the vehicle parameters
+vehicle.SetChassisPosition(chrono.ChVectorD(0, 0, 0))
+vehicle.SetEngineType(chrono.ChVehicle::EngineType::ENGINE_SIMPLE)
+vehicle.SetDrivetrainType(chrono.ChVehicle::DrivetrainType::DRIVETRAIN_SIMPLE)
+
+# Add mesh visualization to all vehicle components
+vehicle.AddVisualizationAssets()
+
+# Add the vehicle to the physical system
+physics.Add(vehicle)
+
+# Set the initial position of the vehicle
+vehicle.SetChassisPosition(chrono.ChVectorD(0, 0, 0))
+
+# Set the initial orientation of the vehicle
+vehicle.SetChassisRotation(chrono.ChQuaternionD(1, 0, 0, 0))
+
+# Set the initial steering angle
+vehicle.SetSteeringValue(0)
+
+# Set the initial throttle value
+vehicle.SetThrottleValue(0)
+
+# Set the initial braking value
+vehicle.SetBrakingValue(0)
+
+# Create a terrain with multiple patches
+terrain = chrono.ChTerrain()
+
+# Add a flat patch with a specific texture
+flat_patch = chrono.ChTerrainPlane()
+flat_patch.SetTexture(chrono.GetChronoDataFile("terrain/textures/concrete.jpg"))
+terrain.AddPatch(flat_patch)
+
+# Add a mesh-based patch for a bump
+bump_patch = chrono.ChTerrainPlane()
+bump_patch.SetMesh(chrono.GetChronoDataFile("terrain/bump.obj"))
+terrain.AddPatch(bump_patch)
+
+# Add a heightmap-based patch for varying elevations
+heightmap_patch = chrono.ChTerrainPlane()
+heightmap_patch.SetHeightmap(chrono.GetChronoDataFile("terrain/heightmap.png"))
+terrain.AddPatch(heightmap_patch)
+
+# Add the terrain to the physical system
+physics.Add(terrain)
+
+# Create an interactive driver system
+driver = chrono.ChIrrGuiDriver()
+
+# Set the driver to control steering, throttle, and braking
+driver.SetSteeringFunction(lambda: vehicle.GetSteeringValue())
+driver.SetThrottleFunction(lambda: vehicle.GetThrottleValue())
+driver.SetBrakingFunction(lambda: vehicle.GetBrakingValue())
+
+# Set the driver to update the simulation at a consistent timestep
+driver.SetTimestep(0.01)
+
+# Set the driver to render the scene in real time
+driver.SetMode(chronoirr.ChIrrGuiDriver.Mode::DRIVE_REALTIME)
+
+# Run the simulation
+while visualization.Run():
+    physics.DoStepDynamics(driver.GetTimestep())
+    visualization.BeginScene()
+    visualization.DrawAll()
+    visualization.EndScene()

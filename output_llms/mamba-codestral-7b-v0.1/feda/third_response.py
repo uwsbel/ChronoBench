@@ -1,3 +1,4 @@
+```python
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
@@ -131,4 +132,3 @@ if vis:
 manager.AddSensor(cam)
 
 # output vehicle mass
-print("error happened with only start ```python")

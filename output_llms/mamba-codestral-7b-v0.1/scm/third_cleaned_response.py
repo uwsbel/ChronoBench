@@ -1,3 +1,4 @@
+```python
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
@@ -95,4 +96,3 @@ vis.AttachVehicle(vehicle.GetVehicle())
 
 
 manager = sens.ChSensorManager(vehicle.Get
-print("error happened with only start ```python")

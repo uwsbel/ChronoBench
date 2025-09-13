@@ -51,7 +51,7 @@ mangvelo = chrono.ChRandomParticleVelocityAnyDirection()
 mangvelo.SetModulusDistribution(chrono.ChUniformDistribution(0.0, 0.2))
 emitter.SetParticleAngularVelocity(mangvelo)
 
-# Replace with sphere particle creator (Instruction 1)
+# Replace with sphere particle creator
 mcreator_spheres = chrono.ChRandomShapeCreatorSpheres()
 mcreator_spheres.SetDiameterDistribution(chrono.ChZhangDistribution(0.6, 0.23))
 mcreator_spheres.SetDensityDistribution(chrono.ChConstantDistribution(1600))
@@ -89,33 +89,38 @@ while vis.Run():
 
     for body in sys.GetBodies():
         body.EmptyAccumulators()
-
-    # Define G_constant inside the loop before usage (adjusted for correctness)
-    G_constant = 6.674e-3
-
-    # Calculate gravitational forces
+    
+    # Define G_constant inside the loop
+    G_constant = 6.674e-3  # Modified gravitational constant
+    
+    # Initialize energy variables
+    kinetic_energy = 0.0
+    potential_energy = 0.0
+    
+    # Calculate kinetic energy
+    for body in sys.GetBodies():
+        vel = body.GetPos_dt()
+        kinetic_energy += 0.5 * body.GetMass() * vel.Length2()
+    
+    # Calculate potential energy and forces
     mlist = list(combinations(sys.GetBodies(), 2))
     for abodyA, abodyB in mlist:
         D_attract = abodyB.GetPos() - abodyA.GetPos()
         r_attract = D_attract.Length()
+        
+        # Force calculation
         f_attract = G_constant * (abodyA.GetMass() * abodyB.GetMass()) / (r_attract ** 2)
         F_attract = (D_attract / r_attract) * f_attract
         abodyA.AccumulateForce(F_attract, abodyA.GetPos(), False)
         abodyB.AccumulateForce(-F_attract, abodyB.GetPos(), False)
-
-    # Compute energies (Instruction 2)
-    kinetic_energy = 0.0
-    for body in sys.GetBodies():
-        vel = body.GetPos_dt()
-        mass = body.GetMass()
-        kinetic_energy += 0.5 * mass * vel.Length2()
-
-    potential_energy = 0.0
-    for abodyA, abodyB in mlist:
-        r = (abodyB.GetPos() - abodyA.GetPos()).Length()
-        potential_energy += (-G_constant * abodyA.GetMass() * abodyB.GetMass()) / r
-
+        
+        # Potential energy calculation
+        potential_energy -= G_constant * (abodyA.GetMass() * abodyB.GetMass()) / r_attract
+    
+    # Calculate total energy
     total_energy = kinetic_energy + potential_energy
-    print(f"Kinetic Energy: {kinetic_energy:.4f}, Potential Energy: {potential_energy:.4f}, Total Energy: {total_energy:.4f}")
+    
+    # Print energy values
+    print(f"Kinetic energy: {kinetic_energy:.4f}, Potential energy: {potential_energy:.4f}, Total energy: {total_energy:.4f}")
 
     sys.DoStepDynamics(stepsize)

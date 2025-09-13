@@ -20,7 +20,6 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 # Rigid terrain
-# terrain_model = veh.RigidTerrain.BOX
 terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
@@ -39,9 +38,7 @@ tire_step_size = step_size
 # Time interval between two render frames
 render_step_size = 1.0 / 50  # FPS = 50
 
-
 # Create the UAZBUS vehicle, set parameters, and initialize
-
 vehicle = veh.UAZBUS() 
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
@@ -49,7 +46,6 @@ vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
-
 
 vehicle.Initialize()
 
@@ -75,7 +71,6 @@ patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 # Create the vehicle Irrlicht interface
-
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('UAZBUS Demo')
 vis.SetWindowSize(1280, 1024)
@@ -100,7 +95,7 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 # output vehicle mass
-print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
@@ -110,15 +105,14 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-# Double lane change maneuver parameters
-start_time = 0
-lane_change_time = 2
-steering_angle = 0.2
-throttle_adjustment = 0.5
-braking_time = 5
+# Simulation time intervals and corresponding steering and throttle adjustments
+time_intervals = [(0, 2), (2, 4), (4, 6), (6, 8)]
+steering_adjustments = [0, 0.2, -0.2, 0]
+throttle_adjustments = [0.5, 0.5, 0.5, 0]
 
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
+    
     # Render scene and output POV-Ray data
     if (step_number % render_steps == 0) :
         vis.BeginScene()
@@ -128,17 +122,6 @@ while vis.Run() :
 
     # Get driver inputs
     driver_inputs = driver.GetInputs()
-
-    # Double lane change maneuver logic
-    if time > start_time and time < start_time + lane_change_time:
-        driver_inputs.steering = steering_angle
-        driver_inputs.throttle = throttle_adjustment
-    elif time > start_time + lane_change_time and time < start_time + 2 * lane_change_time:
-        driver_inputs.steering = -steering_angle
-        driver_inputs.throttle = throttle_adjustment
-    elif time > braking_time:
-        driver_inputs.throttle = 0
-        driver_inputs.braking = 1
 
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
@@ -151,6 +134,14 @@ while vis.Run() :
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
+
+    # Double lane change maneuver
+    for i, interval in enumerate(time_intervals):
+        if interval[0] <= time <= interval[1]:
+            driver_inputs.m_steering = steering_adjustments[i]
+            driver_inputs.m_throttle = throttle_adjustments[i]
+            if i == len(time_intervals) - 1:
+                driver_inputs.m_braking = 1.0
 
     # Increment frame number
     step_number += 1

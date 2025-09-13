@@ -1,60 +1,67 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
-import numpy as np
 
 
-chrono.SetChronoDataPath('/path/to/chrono/data/')  
+chrono.SetChronoDataPath("/path/to/chrono/data/")
 
 
 sys = chrono.ChSystemNSC()
 
 
 ground = chrono.ChBodyEasyBox(sys,  
-                              10, 10, 1,  
+                              100, 100, 1,  
                               1000,  
                               True,  
                               True,  
-                              chrono.ChVectorD(0, 0, -1))  
+                              0.5)  
 ground.SetBodyFixed(True)  
+sys.Add(ground)
 
 
 pendulum = chrono.ChBodyEasyCylinder(sys,  
                                      0.1,  
                                      1.0,  
-                                     1000,  
+                                     1.0,  
                                      True,  
                                      True,  
-                                     chrono.ChVectorD(0, 0, 1))  
-pendulum.SetMass(10)  
+                                     0.5)  
+pendulum.SetMass(1.0)  
 pendulum.SetInertiaXX(chrono.ChVectorD(0.1, 0.1, 0.1))  
+sys.Add(pendulum)
 
 
 rev_joint = chrono.ChLinkRevolute()
-rev_joint.Initialize(ground,  
-                     pendulum,  
-                     chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)))  
-sys.AddLink(rev_joint)  
+rev_joint.Initialize(ground, pendulum, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0.5)))  
+sys.Add(rev_joint)
 
 
-application = chronoirr.ChIrrApp(sys,  
-                                 'PyChrono Simple Pendulum',  
-                                 chronoirr.dimension2du(800, 600))  
+pendulum.SetPos(chrono.ChVectorD(0, 0, 1.0))  
+pendulum.SetVel(chrono.ChVectorD(0, 0, 0))  
 
 
-application.AddTypicalSky()  
-application.AddTypicalLights()  
-application.AddCamera(chrono.ChVectorD(0, 0, 2))  
+app = chronoirr.ChIrrApp(sys, "Simple Pendulum", chronoirr.dimension2du(800, 600))
 
 
-while application.GetDevice().run():
-    
-    sys.DoStepDynamics(0.01)  
+app.AddTypicalSky()
+app.AddTypicalLights()
+app.AddCamera(chrono.ChVectorD(0, 0, 2.0))
+app.AssetBindAll()
 
-    
-    print('Pendulum position:', pendulum.GetPos().x(), pendulum.GetPos().y(), pendulum.GetPos().z())
-    print('Pendulum velocity:', pendulum.GetPos_dt().x(), pendulum.GetPos_dt().y(), pendulum.GetPos_dt().z())
 
-    
-    application.BeginScene()
-    application.DrawAll()
-    application.EndScene()
+app.SetTimestep(0.01)
+app.SetTryRealtime(True)
+
+
+def LogPendulumState():
+    print(f"Time: {sys.GetChTime():.2f} s")
+    print(f"Pendulum position: {pendulum.GetPos().x:.2f}, {pendulum.GetPos().y:.2f}, {pendulum.GetPos().z:.2f}")
+    print(f"Pendulum velocity: {pendulum.GetVel().x:.2f}, {pendulum.GetVel().y:.2f}, {pendulum.GetVel().z:.2f}")
+
+
+while app.GetDevice().run():
+    app.BeginScene()
+    app.DrawAll()
+    app.DoStep()
+    app.EndScene()
+    if sys.GetChTime() % 0.1 < 0.01:  
+        LogPendulumState()

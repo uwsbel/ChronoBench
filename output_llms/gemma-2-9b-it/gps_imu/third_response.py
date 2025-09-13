@@ -1,3 +1,4 @@
+```python
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
@@ -185,4 +186,3 @@ while vis.Run():
     step_number += 1
 
     # Spin
-print("error happened with only start ```python")

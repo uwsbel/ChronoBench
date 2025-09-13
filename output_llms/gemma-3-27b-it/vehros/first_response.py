@@ -1,0 +1,75 @@
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.ros as ros
+import time
+
+# --- Simulation setup ---
+chrono.SetChronoDataPath("./")  # Set the path to the Chrono data directory
+
+# Create a Chrono system
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
+
+# --- Terrain ---
+terrain = chrono.ChTerrain()
+terrain.Create(system, "plane", 100, 100, 0, 0)
+terrain.SetFriction(0.5)
+terrain.SetRestitution(0.1)
+system.Add(terrain)
+
+# --- Vehicle setup ---
+hmmwv = veh.HMMWV(system)
+hmmwv.SetVehicleModel("hmmwv")
+hmmwv.SetTireModel(veh.TireModelType.FTIRE)  # Use FTIRE tire model
+hmmwv.SetEngineType(veh.EngineType.GASOLINE)  # Use gasoline engine
+hmmwv.SetContactMethod(veh.ContactMethodType.BULLET) #Use bullet contact method
+hmmwv.Initialize()
+
+# Set initial vehicle position
+hmmwv.SetPos(chrono.ChVectorD(0, 1, 0))
+
+# --- Driver system ---
+driver = veh.Driver(system)
+driver.SetVehicle(hmmwv)
+driver.SetInput(veh.DriverInput())
+driver.SetMode(veh.DriverMode.MANUAL)
+
+# --- ROS integration ---
+ros_manager = ros.RosManager()
+ros_manager.Initialize(system)
+
+# Register ROS handlers
+clock_handler = ros.RosClockHandler(system)
+ros_manager.RegisterHandler(clock_handler)
+
+driver_input_handler = ros.RosDriverInputHandler(driver)
+ros_manager.RegisterHandler(driver_input_handler)
+
+vehicle_state_handler = ros.RosVehicleStateHandler(hmmwv)
+ros_manager.RegisterHandler(vehicle_state_handler)
+
+# --- Simulation loop ---
+timestep = 0.01
+time_total = 10
+
+while system.GetChTime() < time_total:
+    # Synchronize ROS
+    ros_manager.Synchronize()
+
+    # Advance the simulation
+    system.DoStepDynamics(timestep)
+
+    # Update driver inputs (example: constant throttle)
+    driver.SetThrottle(0.5)
+    driver.SetSteering(0.0)
+    driver.SetBraking(0.0)
+
+    # Update ROS manager for data publishing
+    ros_manager.Update()
+
+    # Print simulation time
+    print(f"Time: {system.GetChTime():.2f}")
+
+# --- Clean up ---
+ros_manager.Shutdown()
+print("Simulation finished.")

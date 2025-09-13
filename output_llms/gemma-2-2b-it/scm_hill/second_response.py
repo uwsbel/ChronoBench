@@ -1,3 +1,4 @@
+```python
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
@@ -282,4 +283,3 @@ while vis.Run() :
 
     # Update the vehicle's state
     vehicle.UpdateState(
-print("error happened with only start ```python")

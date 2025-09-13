@@ -1,3 +1,4 @@
+```python
 import pychrono.core as chrono
 import pychrono.sensor as sens
 
@@ -123,4 +124,3 @@ def main():
         manager.Update()
 
         # Perform a step of dynamics simulation
-print("error happened with only start ```python")

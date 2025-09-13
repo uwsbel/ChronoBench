@@ -4,7 +4,6 @@ import pychrono.vehicle as veh
 import math
 import random
 
-
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
@@ -92,30 +91,6 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 
-pl1 = irr.IrrlichtPointLight()
-pl1.SetPosition(chrono.ChVector3d(10, 0, 2))
-vis.AddLight(pl1)
-
-pl2 = irr.IrrlichtPointLight()
-pl2.SetPosition(chrono.ChVector3d(-10, 0, 2))
-vis.AddLight(pl2)
-
-
-sensor_manager = chrono.ChSensorManager(vehicle.GetSystem())
-
-
-camera_sensor = chrono.ChCameraSensor(vehicle.GetChassisBody())
-camera_sensor.SetResolution(640, 480)
-camera_sensor.SetFOV(60)
-camera_sensor.SetRange(0.1, 1000)
-sensor_manager.AddSensor(camera_sensor)
-
-
-camera_filter = irr.IrrlichtCameraFilter()
-camera_filter.SetCameraSensor(camera_sensor)
-vis.AddFilter(camera_filter)
-
-
 driver = veh.ChInteractiveDriverIRR(vis)
 
 
@@ -130,9 +105,28 @@ driver.Initialize()
 
 
 for i in range(10):
-    box = chrono.ChBodyEasyBox(vehicle.GetSystem(), 1, 1, 1, 1000)
-    box.SetPos(chrono.ChVector3d(random.uniform(-20, 20), random.uniform(-20, 20), 1))
-    vehicle.GetSystem().AddBody(box)
+    box = chrono.ChBodyEasyBox(1, 1, 1, 1000)
+    box.SetPos(chrono.ChVector3d(random.uniform(-10, 10), random.uniform(-10, 10), 0.5))
+    if (box.GetPos() - vehicle.GetChassisBody().GetPos()).Length() > 5:
+        vehicle.GetSystem().AddBody(box)
+
+
+sensor_manager = chrono.ChSensorManager(vehicle.GetSystem())
+
+
+for i in range(5):
+    light = chrono.ChPointLight()
+    light.SetPos(chrono.ChVector3d(random.uniform(-10, 10), random.uniform(-10, 10), 2))
+    vis.AddLightSource(light)
+
+
+camera = chrono.ChCameraSensor(vehicle.GetChassisBody(), 640, 480, 60)
+camera.SetFOV(60)
+camera.SetRange(0.1, 100)
+sensor_manager.AddSensor(camera)
+
+
+vis.AddFilter(camera)
 
 
 

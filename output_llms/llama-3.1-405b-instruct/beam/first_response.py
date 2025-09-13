@@ -1,7 +1,5 @@
-# Import necessary modules
 import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
-import numpy as np
 
 # Initialize the PyChrono environment
 chrono.SetChronoDataPath('/path/to/chrono/data/')
@@ -14,37 +12,45 @@ mesh = chrono.ChMesh()
 
 # Define beam properties
 beam_length = 1.0
-beam_radius = 0.05
-beam_density = 7800
-beam_E = 2.1e11
-beam_G = 8.1e10
+beam_radius = 0.1
+beam_density = 1000.0
+beam_E = 2.0e5
+beam_G = 7.5e4
 
 # Create beam nodes
 node1 = chrono.ChNodeFEAxyzD(chrono.ChVectorD(0, 0, 0))
 node2 = chrono.ChNodeFEAxyzD(chrono.ChVectorD(beam_length, 0, 0))
 
-# Create beam elements
-beam_element = chrono.ChElementBeamANCF()
-beam_element.SetNodes(node1, node2)
-beam_element.SetDimensions(beam_radius)
-beam_element.SetMaterialProperties(beam_density, beam_E, beam_G)
+# Create beam element
+beam = chrono.ChElementBeamANCF()
+beam.SetNodes(node1, node2)
+beam.SetDimensions(beam_radius, beam_length)
+beam.SetMaterialProperties(beam_density, beam_E, beam_G)
 
-# Add beam elements to the mesh
-mesh.AddElement(beam_element)
+# Add beam element to mesh
+mesh.AddElement(beam)
 
-# Add the mesh to the system
+# Add mesh to system
 sys.Add(mesh)
 
-# Create an Irrlicht application
-application = chronoirr.ChIrrApp(sys, 'PyChrono Beam Simulation', chronoirr.dimension2du(800, 600))
+# Create a body to attach the mesh to
+body = chrono.ChBody()
+sys.AddBody(body)
+body.AddAsset(mesh)
 
-# Set up the Irrlicht engine
+# Set visualization
+application = chronoirr.ChIrrApp(sys, 'PyChrono Beam Simulation', chronoirr.dimension2du(800, 600))
 application.AddTypicalSky()
-application.AddTypicalCamera(chronoirr.vector3df(0, 0, 1))
-application.AddLightWithShadow(chronoirr.vector3df(2, 4, 2), chronoirr.vector3df(0, 0, 0), 3, 2, 10, 120)
+application.AddTypicalCamera(chronoirr.vector3df(0.5, 0.5, 1.0))
+application.AddLightWithShadow(chronoirr.vector3df(2, 4, 2), chronoirr.vector3df(0, 0, 0), 3, 4, 10, 10)
+
+# Set simulation loop
+application.SetTimestep(0.01)
+application.SetTryRealtime(True)
 
 # Run the simulation loop
-application.AssetBindAll()
-application.AssetUpdateAll()
-application.Simulate()
-application.Run()
+while application.GetDevice().run():
+    application.BeginScene()
+    application.DrawAll()
+    application.DoStep()
+    application.EndScene()

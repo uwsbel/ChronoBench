@@ -1,0 +1,81 @@
+import pychrono as chrono
+import pychrono.sensor
+import pychrono.postprocess
+import numpy as np
+
+# --- Simulation setup ---
+chrono.SetChronoDataPath("./")  # Set the path to the Chrono data directory
+
+# Create a physical system
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+
+# --- Create the mesh body ---
+mesh_file = "cube.obj"  # Replace with your .obj file
+mesh_body = chrono.ChBodyEasy()
+mesh_body.SetBodyFixed(True)
+mesh_body.AddAsset(chrono.ChTriangleMeshConnected())
+mesh_body.GetAsset().LoadFromFile(mesh_file)
+mesh_body.SetCollide(True)
+system.Add(mesh_body)
+
+# --- Create the Lidar sensor ---
+sensor_manager = chrono.ChSensorManager()
+sensor_manager.AddSensor(mesh_body)
+
+lidar = chrono.ChLidarSensor()
+lidar.SetSensorName("Lidar")
+lidar.SetScanRate(30)  # Scans per second
+lidar.SetHorizontalResolution(360)
+lidar.SetVerticalResolution(60)
+lidar.SetMaxDistance(10.0)
+lidar.SetNoise(0.01)  # Add some noise
+lidar.SetVisualization(True)  # Show the lidar rays
+lidar.SetSaveData(True)  # Save the data to a file
+lidar.SetSaveFile("lidar_data.txt")
+
+sensor_manager.AddSensor(lidar)
+sensor_manager.AttachSensor(lidar, mesh_body)
+
+# --- Orbit parameters ---
+orbit_radius = 5.0
+orbit_speed = 1.0  # radians per step
+orbit_angle = 0.0
+
+# --- Simulation loop ---
+time_step = 0.01
+num_steps = 500
+
+for step in range(num_steps):
+    system.DoStepDynamics(time_step)
+
+    # Update lidar position in orbit
+    orbit_angle += orbit_speed * time_step
+    lidar_position = chrono.ChVectorD(
+        orbit_radius * np.cos(orbit_angle),
+        0.5,  # Keep it at a fixed height
+        orbit_radius * np.sin(orbit_angle),
+    )
+    lidar.SetPosition(lidar_position)
+    lidar.SetDirection(chrono.ChVectorD(0, 0, 0))  # Point towards the origin
+
+    # Print lidar buffer data
+    if lidar.HasNewData():
+        data = lidar.GetBuffer()
+        print(f"Step {step}: Lidar data - {len(data)} points")
+        # You can process the 'data' here.  It's a list of ChVectorD representing the
+        # detected points.  Each point also has a 'distance' attribute.
+        # Example:
+        # for point in data:
+        #     print(f"  Point: {point.x}, {point.y}, {point.z}, Distance: {point.distance}")
+        
+    sensor_manager.UpdateSensors(system.GetChTime())
+
+# --- Post-processing (optional) ---
+# Create a visualization
+vis = chrono.ChVisualSystemSLX()
+vis.AttachSystem(system)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle("Lidar Simulation")
+vis.Initialize()
+vis.Run()

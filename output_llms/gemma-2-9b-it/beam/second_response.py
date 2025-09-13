@@ -1,3 +1,4 @@
+```python
 import pychrono as chrono  # Import the main PyChrono module.
 import pychrono.fea as fea  # Import the finite element analysis (FEA) module.
 import pychrono.pardisomkl as mkl  # Import the Pardiso MKL linear solver module.
@@ -125,4 +126,3 @@ vis.SetWindowTitle('FEA beams')  # Set the window title.
 vis.Initialize()  # Initialize the visual system.
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))  # Add the Chrono logo.
 vis.AddSkyBox()  # Add a
-print("error happened with only start ```python")

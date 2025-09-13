@@ -11,33 +11,27 @@ import pychrono.irrlicht as chronoirr
 class Model1:
     def __init__(self, system, mesh, n_chains=6):
         self.n_chains = n_chains
-        self.system = system
-        self.mesh = mesh
         self.bodies = []
-
-        
         for i in range(n_chains):
             
             msection_cable2 = fea.ChBeamSectionCable()
             msection_cable2.SetDiameter(0.015)  
             msection_cable2.SetYoungModulus(0.01e9)  
             msection_cable2.SetRayleighDamping(0.0001)  
-
             
             builder = fea.ChBuilderCableANCF()
-
             
             builder.BuildBeam(
                 mesh,  
                 msection_cable2,  
-                10 + i,  
-                chrono.ChVector3d(0, 0, -0.1 - i * 0.1),  
-                chrono.ChVector3d(0.5, 0, -0.1 - i * 0.1)  
+                10 + i*2,  
+                chrono.ChVector3D(0, 0, -0.1 - i*0.2),  
+                chrono.ChVector3D(0.5, 0, -0.1 - i*0.2)  
             )
 
             
             
-            builder.GetLastBeamNodes().front().SetForce(chrono.ChVector3d(0, -0.7, 0))  
+            builder.GetLastBeamNodes().front().SetForce(chrono.ChVector3D(0, -0.7, 0))  
 
             
             mtruss = chrono.ChBody()
@@ -50,15 +44,16 @@ class Model1:
 
             
             body = chrono.ChBody()
-            body.SetMass(1)
-            body.SetInertiaXX(chrono.ChVector3d(0.1, 0.1, 0.1))
+            body.SetPos(chrono.ChVector3D(0.5, 0, -0.1 - i*0.2))
+            body.SetMass(1.0)
+            body.SetInertiaXX(chrono.ChVector3D(0.1, 0.1, 0.1))
             system.Add(body)
             self.bodies.append(body)
 
             
-            constraint_beam_body = fea.ChLinkNodeFrame()
-            constraint_beam_body.Initialize(builder.GetLastBeamNodes().back(), body)
-            system.Add(constraint_beam_body)
+            constraint_box = chrono.ChLinkMateFix()
+            constraint_box.Initialize(builder.GetLastBeamNodes().back(), body)
+            system.Add(constraint_box)
 
     def PrintBodyPositions(self):
         for i, body in enumerate(self.bodies):
@@ -98,7 +93,7 @@ vis.SetWindowTitle('FEA cables')
 vis.Initialize()  
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))  
 vis.AddSkyBox()  
-vis.AddCamera(chrono.ChVector3d(0, 0.6, -1))  
+vis.AddCamera(chrono.ChVector3D(0, 0.6, -1))  
 vis.AddTypicalLights()  
 
 

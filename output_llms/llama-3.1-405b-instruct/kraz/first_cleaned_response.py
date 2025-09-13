@@ -6,50 +6,45 @@ import pychrono.irrlicht as irr
 chrono.SetChronoDataPath('/path/to/chrono/data/')
 
 
-mphysicalSystem = chrono.ChSystemNSC()
+sys = chrono.ChSystemNSC()
 
 
-mvehicle = veh.WheeledVehicle(mphysicalSystem, veh.WheeledVehicle.WHEEL_VEHICLE_KRAZ)
-mvehicle.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0.5), chrono.ChQuaternionD(1, 0, 0, 0)))
+ground = chrono.ChBodyEasyBox(sys, 100, 2, 100, 1000, True, True)
+ground.SetPos(chrono.ChVectorD(0, -2, 0))
+ground.SetBodyFixed(True)
 
 
-mphysicalSystem.Add(mvehicle)
+kraz = veh.ChKraz(sys)
+kraz.SetChassisPosition(chrono.ChVectorD(0, 1, 0))
+kraz.SetChassisRotation(chrono.Q_from_AngZ(0))
+kraz.Initialize()
 
 
-mterrain = veh.RigidTerrain(mphysicalSystem)
-mterrain.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, -0.1), chrono.ChQuaternionD(1, 0, 0, 0)), 0.02, 1024, 1024)
-mterrain.SetFrictionCoefficient(0.9)
-mterrain.SetRestitutionCoefficient(0.01)
+driver = veh.ChIrrGuiDriver(kraz)
+driver.Initialize()
 
 
-mphysicalSystem.Add(mterrain)
+app = irr.ChIrrApp(sys, 'PyChrono Simulation', irr.dimension2du(800, 600))
 
 
-mdriver = veh.ChDriver(mvehicle)
-mdriver.Initialize()
+camera = app.GetSceneManager().addCamera(irr.SColor(255, 255, 255, 255))
+camera.setPosition(irr.core.vector3df(0, 5, -10))
+camera.setTarget(irr.core.vector3df(0, 0, 0))
 
 
-mapplication = irr.ChIrrApp(mphysicalSystem, "PyChrono Simulation", irr.dimension2du(800, 600))
+light = app.GetSceneManager().addLightSource(irr.SColor(255, 255, 255, 255), irr.core.vector3df(0, 5, -10))
 
 
-mcamera = mapplication.GetSceneManager().AddCamera(chrono.ChVectorD(2, 0, 1), chrono.ChVectorD(0, 0, 0))
-mcamera.SetNearValue(0.1)
-mcamera.SetFarValue(100)
-
-
-mlight = mapplication.GetSceneManager().AddLight(chrono.ChVectorD(2, 2, 2), chrono.ChColor(1, 1, 1), 1)
-
-
-while mapplication.GetDevice().run():
+while app.GetDevice().run():
+    time = sys.GetChTime()
     
-    mvehicle.Synchronize(chrono.ChTimestep(1e-3))
-    mterrain.Synchronize(chrono.ChTimestep(1e-3))
-    mdriver.Synchronize(chrono.ChTimestep(1e-3))
-
     
-    mphysicalSystem.DoStepDynamics(chrono.ChTimestep(1e-3))
+    driver.Synchronize(time)
+    sys.DoStepDynamics(0.01)
+    app.BeginScene(True, True, irr.SColor(255, 255, 255, 255))
+    app.DrawAll()
+    app.EndScene()
 
-    
-    mapplication.BeginScene()
-    mapplication.DrawAll()
-    mapplication.EndScene()
+
+del sys
+del app

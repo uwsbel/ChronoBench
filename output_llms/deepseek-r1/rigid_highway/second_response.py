@@ -3,12 +3,9 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
-"""
-!!!! Set this path before running the demo!
-"""
-# Corrected data path setup (user should replace with actual path)
-chrono.SetChronoDataPath(chrono.GetChronoDataPath())  # Update with your actual path
-veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
+# Set data paths
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())
+veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')  # Corrected path separator
 
 # Initial vehicle location and orientation
 initLoc = chrono.ChVector3d(6, -70, 0.5)
@@ -28,19 +25,21 @@ terrainHeight = 0
 terrainLength = 100.0
 terrainWidth = 100.0
 
-# Camera tracking point
+# Poon chassis tracked by the camera
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
 
 # Contact method
 contact_method = chrono.ChContactMethod_NSC
 contact_vis = False
 
-# Simulation parameters
+# Simulation step sizes
 step_size = 1e-3
 tire_step_size = step_size
-render_step_size = 1.0 / 50  # 50 FPS
 
-# Create and initialize HMMWV vehicle
+# Time interval between render frames
+render_step_size = 1.0 / 50  # FPS = 50
+
+# Create and initialize vehicle
 vehicle = veh.HMMWV_Full()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
@@ -50,12 +49,12 @@ vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 vehicle.Initialize()
 
-# Set visualization types
 vehicle.SetChassisVisualizationType(vis_type)
 vehicle.SetSuspensionVisualizationType(vis_type)
 vehicle.SetSteeringVisualizationType(vis_type)
 vehicle.SetWheelVisualizationType(vis_type)
 vehicle.SetTireVisualizationType(vis_type)
+
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 # Create terrain
@@ -64,48 +63,44 @@ patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 
-# Original terrain patch
+# Original highway patch
 patch = terrain.AddPatch(
     patch_mat,
     chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
     chrono.GetChronoDataFile('vehicle/terrain/meshes/Highway_col.obj'),
     True, 0.01, False
 )
-
-# Load and configure visual mesh for original patch
-vis_mesh = chrono.ChTriangleMeshConnected()
-vis_mesh.LoadWavefrontMesh(veh.GetDataFile("terrain/meshes/Highway_vis.obj"), True, True)
+vis_mesh = chrono.ChTriangleMeshConnected().CreateFromWavefrontFile(
+    veh.GetDataFile("terrain/meshes/Highway_vis.obj"), True, True
+)
 tri_mesh_shape = chrono.ChVisualShapeTriangleMesh()
 tri_mesh_shape.SetMesh(vis_mesh)
 tri_mesh_shape.SetMutable(False)
 patch.GetGroundBody().AddVisualShape(tri_mesh_shape)
 
-# New terrain patch with bump.obj
-new_patch = terrain.AddPatch(
+# NEW TERRAIN PATCH (as per instructions)
+patch_bump = terrain.AddPatch(
     patch_mat,
     chrono.ChCoordsysd(chrono.ChVector3d(0, -42, 0), chrono.QUNIT),
     chrono.GetChronoDataFile('vehicle/terrain/meshes/bump.obj'),
     True, 0.01, False
 )
-
-# Create visual material for new patch
-material = chrono.ChVisualMaterial()
-material.SetDiffuseColor(chrono.ChColor(0.5, 0.5, 0.8))  # RGB color
-material.SetKdTexture(chrono.GetChronoDataFile('vehicle/terrain/textures/dirt.jpg'))
-material.SetTextureScale(chrono.ChVector2d(6.0, 6.0))
-
-# Configure visual mesh for new patch
-vis_mesh_bump = chrono.ChTriangleMeshConnected()
-vis_mesh_bump.LoadWavefrontMesh(chrono.GetChronoDataFile('vehicle/terrain/meshes/bump.obj'), True, True)
+vis_mesh_bump = chrono.ChTriangleMeshConnected().CreateFromWavefrontFile(
+    veh.GetDataFile("terrain/meshes/bump.obj"), True, True
+)
 tri_mesh_shape_bump = chrono.ChVisualShapeTriangleMesh()
 tri_mesh_shape_bump.SetMesh(vis_mesh_bump)
 tri_mesh_shape_bump.SetMutable(False)
-tri_mesh_shape_bump.AddMaterial(material)
-new_patch.GetGroundBody().AddVisualShape(tri_mesh_shape_bump)
+tri_mesh_shape_bump.SetColor(chrono.ChColor(0.5, 0.5, 0.8))  # RGB color
+tri_mesh_shape_bump.SetTexture(
+    veh.GetDataFile("terrain/textures/dirt.jpg"),  # Texture path
+    6.0, 6.0  # UV scaling factors
+)
+patch_bump.GetGroundBody().AddVisualShape(tri_mesh_shape_bump)
 
 terrain.Initialize()
 
-# Create Irrlicht visualization
+# Create vehicle Irrlicht interface
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('HMMWV Demo')
 vis.SetWindowSize(1280, 1024)
@@ -116,8 +111,10 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
-# Driver system setup
+# Create driver system
 driver = veh.ChInteractiveDriverIRR(vis)
+
+# Set input time responses
 steering_time = 1.0
 throttle_time = 1.0
 braking_time = 0.3
@@ -126,7 +123,7 @@ driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
-# Simulation loop setup
+# Simulation loop
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 render_steps = math.ceil(render_step_size / step_size)
 realtime_timer = chrono.ChRealtimeStepTimer()
@@ -136,23 +133,18 @@ render_frame = 0
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
-    # Render scene
     if step_number % render_steps == 0:
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
         render_frame += 1
 
-    # Process inputs
     driver_inputs = driver.GetInputs()
-
-    # Update modules
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
 
-    # Advance simulation
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)

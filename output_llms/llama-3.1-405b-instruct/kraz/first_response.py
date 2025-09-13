@@ -1,56 +1,51 @@
-# Import necessary modules
+# Import necessary PyChrono modules
 import pychrono.core as chrono
 import pychrono.vehicle as veh
 import pychrono.irrlicht as irr
 
-# Initialize the PyChrono environment
+# Set the path to the Chrono data directory
 chrono.SetChronoDataPath('/path/to/chrono/data/')
 
 # Create a Chrono::Engine physical system
-mphysicalSystem = chrono.ChSystemNSC()
+sys = chrono.ChSystemNSC()
 
-# Create a vehicle
-mvehicle = veh.WheeledVehicle(mphysicalSystem, veh.WheeledVehicle.WHEEL_VEHICLE_KRAZ)
-mvehicle.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0.5), chrono.ChQuaternionD(1, 0, 0, 0)))
+# Create the ground body
+ground = chrono.ChBodyEasyBox(sys, 100, 2, 100, 1000, True, True)
+ground.SetPos(chrono.ChVectorD(0, -2, 0))
+ground.SetBodyFixed(True)
 
-# Add the vehicle to the physical system
-mphysicalSystem.Add(mvehicle)
+# Create the Kraz vehicle
+kraz = veh.ChKraz(sys)
+kraz.SetChassisPosition(chrono.ChVectorD(0, 1, 0))
+kraz.SetChassisRotation(chrono.Q_from_AngZ(0))
+kraz.Initialize()
 
-# Create a terrain
-mterrain = veh.RigidTerrain(mphysicalSystem)
-mterrain.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, -0.1), chrono.ChQuaternionD(1, 0, 0, 0)), 0.02, 1024, 1024)
-mterrain.SetFrictionCoefficient(0.9)
-mterrain.SetRestitutionCoefficient(0.01)
+# Create the driver system
+driver = veh.ChIrrGuiDriver(kraz)
+driver.Initialize()
 
-# Add the terrain to the physical system
-mphysicalSystem.Add(mterrain)
+# Create the Irrlicht application
+app = irr.ChIrrApp(sys, 'PyChrono Simulation', irr.dimension2du(800, 600))
 
-# Create a driver system
-mdriver = veh.ChDriver(mvehicle)
-mdriver.Initialize()
+# Add camera
+camera = app.GetSceneManager().addCamera(irr.SColor(255, 255, 255, 255))
+camera.setPosition(irr.core.vector3df(0, 5, -10))
+camera.setTarget(irr.core.vector3df(0, 0, 0))
 
-# Create an Irrlicht application
-mapplication = irr.ChIrrApp(mphysicalSystem, "PyChrono Simulation", irr.dimension2du(800, 600))
-
-# Set up the camera
-mcamera = mapplication.GetSceneManager().AddCamera(chrono.ChVectorD(2, 0, 1), chrono.ChVectorD(0, 0, 0))
-mcamera.SetNearValue(0.1)
-mcamera.SetFarValue(100)
-
-# Add a light source
-mlight = mapplication.GetSceneManager().AddLight(chrono.ChVectorD(2, 2, 2), chrono.ChColor(1, 1, 1), 1)
+# Add light source
+light = app.GetSceneManager().addLightSource(irr.SColor(255, 255, 255, 255), irr.core.vector3df(0, 5, -10))
 
 # Simulation loop
-while mapplication.GetDevice().run():
-    # Synchronize the vehicle, terrain, and driver
-    mvehicle.Synchronize(chrono.ChTimestep(1e-3))
-    mterrain.Synchronize(chrono.ChTimestep(1e-3))
-    mdriver.Synchronize(chrono.ChTimestep(1e-3))
+while app.GetDevice().run():
+    time = sys.GetChTime()
+    
+    # Synchronize and advance simulation
+    driver.Synchronize(time)
+    sys.DoStepDynamics(0.01)
+    app.BeginScene(True, True, irr.SColor(255, 255, 255, 255))
+    app.DrawAll()
+    app.EndScene()
 
-    # Advance the simulation
-    mphysicalSystem.DoStepDynamics(chrono.ChTimestep(1e-3))
-
-    # Update the Irrlicht application
-    mapplication.BeginScene()
-    mapplication.DrawAll()
-    mapplication.EndScene()
+# Clean up
+del sys
+del app

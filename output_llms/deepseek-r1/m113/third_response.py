@@ -3,25 +3,25 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
-chrono.SetChronoDataPath(chrono.GetChronoDataPath())
+# Set data paths
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 # Initial vehicle location and orientation (MODIFIED)
-initLoc = chrono.ChVector3d(-5, 0, 0.5)  # Changed coordinates
+initLoc = chrono.ChVector3d(-5, 0, 0.5)
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
-# Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
+# Visualization type for vehicle parts
 vis_type = veh.VisualizationType_MESH
 
-# Collision type for chassis (PRIMITIVES, MESH, or NONE)
+# Collision type for chassis
 chassis_collision_type = veh.CollisionType_NONE
 
-# Rigid terrain
+# Rigid terrain parameters
 terrainHeight = 0
 terrainLength = 100.0
 terrainWidth = 100.0
 
-# Poon chassis tracked by the camera
+# Point tracked by camera
 trackPoint = chrono.ChVector3d(0.0, 0.0, 0.1)
 
 # Contact method
@@ -32,10 +32,10 @@ contact_vis = False
 step_size = 5e-4
 tire_step_size = step_size
 
-# Time interval between two render frames
+# Render frame interval
 render_step_size = 1.0 / 50  # FPS = 50
 
-# Create and initialize the M113 vehicle
+# Create and initialize vehicle
 vehicle = veh.M113()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetTrackShoeType(veh.TrackShoeType_SINGLE_PIN)
@@ -47,6 +47,7 @@ vehicle.SetBrakeType(veh.BrakeType_SIMPLE)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.Initialize()
 
+# Set visualization modes
 vehicle.SetChassisVisualizationType(vis_type)
 vehicle.SetSprocketVisualizationType(vis_type)
 vehicle.SetIdlerVisualizationType(vis_type)
@@ -57,30 +58,39 @@ vehicle.SetTrackShoeVisualizationType(vis_type)
 
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
-# Create the terrain
+# Create terrain
 patch_mat = chrono.ChContactMaterialSMC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 patch = terrain.AddPatch(patch_mat, 
-    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
-    terrainLength, terrainWidth)
-
+                         chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
+                         terrainLength, terrainWidth)
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
-# Add a long box obstacle (NEW ADDITION)
-box = chrono.ChBodyEasyBox(10.0, 2.0, 0.5,  # Length, width, height
-                          2000,             # Density kg/m³
-                          True,             # Enable visualization
-                          True)             # Enable collision
-box.SetPos(chrono.ChVector3d(5, 0, 0.25))   # Position centered in front
-box.SetFixed(True)                          # Make the box static
-box.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
-vehicle.GetSystem().AddBody(box)
+# ADD OBSTACLE BOX (MODIFICATION)
+box_body = chrono.ChBody()
+box_body.SetPos(chrono.ChVector3d(0, 0, 0.25))  # Centered at (0,0,0.25)
+box_body.SetMass(1)
+box_body.SetFixed(True)  # Static obstacle
 
-# Create the vehicle Irrlicht interface
+# Visualization
+box_shape = chrono.ChBoxShape(chrono.ChVector3d(10, 1, 0.5))  # 10m long, 1m wide, 0.5m high
+box_shape.SetColor(chrono.ChColor(0.6, 0.3, 0.3))
+box_body.AddVisualShape(box_shape)
+
+# Collision
+box_mat = chrono.ChContactMaterialSMC()
+box_body.GetCollisionModel().ClearModel()
+box_body.GetCollisionModel().AddBox(box_mat, 5, 0.5, 0.25)  # Half-dimensions
+box_body.GetCollisionModel().BuildModel()
+box_body.EnableCollision(True)
+
+vehicle.GetSystem().AddBody(box_body)
+
+# Create visualization system
 vis = veh.ChTrackedVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('M113 Demo')
 vis.SetWindowSize(1280, 1024)
@@ -91,10 +101,10 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
-# Create the driver system
+# Create driver system
 driver = veh.ChInteractiveDriverIRR(vis)
 
-# Set input time parameters
+# Set input response times
 steering_time = 1.0
 throttle_time = 1.0
 braking_time = 0.3
@@ -103,17 +113,16 @@ driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
-# Solver settings
+# Simulation settings
 vehicle.GetSystem().SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
-
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
-render_steps = math.ceil(render_step_size / step_size)
+# Initialize counters
 step_number = 0
-render_frame = 0
-
+render_steps = math.ceil(render_step_size / step_size)
 vehicle.GetVehicle().EnableRealtime(True)
 
+# Simulation loop
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
     
@@ -122,11 +131,10 @@ while vis.Run():
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
-        render_frame += 1
-
-    # Get and modify driver inputs (THROTTLE HARD-CODED)
+    
+    # Get and MODIFY driver inputs (throttle override)
     driver_inputs = driver.GetInputs()
-    driver_inputs.m_throttle = 0.8  # Throttle override
+    driver_inputs.m_throttle = 0.8  # Hard-coded throttle (MODIFICATION)
     
     # Update modules
     driver.Synchronize(time)

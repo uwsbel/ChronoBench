@@ -3,77 +3,91 @@ import pychrono.irrlicht as chronoirr
 import numpy as np
 
 
-chrono.SetChronoDataPath('/path/to/chrono/data/')
+np.random.seed(42)
 
 
 sys = chrono.ChSystemNSC()
 
 
-material = chrono.ChMaterialSurfaceNSC()
+application = chronoirr.ChIrrApp(sys, 'PyChrono Gravitational Attraction', chronoirr.dimension2du(800, 600))
 
 
-class ParticleEmitter:
-    def __init__(self, sys, num_particles):
-        self.sys = sys
-        self.num_particles = num_particles
-
-    def emit(self):
-        for _ in range(self.num_particles):
-            
-            shape_type = np.random.choice(['sphere', 'box', 'cylinder'])
-            if shape_type == 'sphere':
-                body = chrono.ChBodyEasySphere(0.1, 1000, True, True, material)
-            elif shape_type == 'box':
-                body = chrono.ChBodyEasyBox(0.1, 0.1, 0.1, 1000, True, True, material)
-            else:
-                body = chrono.ChBodyEasyCylinder(0.1, 0.1, 1000, True, True, material)
-
-            
-            x = np.random.uniform(-1, 1)
-            y = np.random.uniform(-1, 1)
-            z = np.random.uniform(-1, 1)
-            body.SetPos(chrono.ChVectorD(x, y, z))
-
-            
-            vx = np.random.uniform(-1, 1)
-            vy = np.random.uniform(-1, 1)
-            vz = np.random.uniform(-1, 1)
-            body.SetPos_dt(chrono.ChVectorD(vx, vy, vz))
-
-            
-            q = chrono.ChQuaternionD(np.random.uniform(-1, 1), np.random.uniform(-1, 1), np.random.uniform(-1, 1), np.random.uniform(-1, 1))
-            body.SetRot(q)
-
-            
-            self.sys.AddBody(body)
+application.SetTimestep(0.01)
+application.SetTryRealtime(True)
 
 
-emitter = ParticleEmitter(sys, 100)
-emitter.emit()
+def create_particle():
+    
+    shape = np.random.choice(['sphere', 'box', 'cylinder'])
+    
+    
+    if shape == 'sphere':
+        particle = chrono.ChBodyEasySphere(0.1,  
+                                           1,    
+                                           True,  
+                                           True)  
+    elif shape == 'box':
+        particle = chrono.ChBodyEasyBox(0.2,  
+                                        1,    
+                                        True,  
+                                        True)  
+    else:
+        particle = chrono.ChBodyEasyCylinder(0.1,  
+                                             0.2,  
+                                             1,    
+                                             True,  
+                                             True)  
+    
+    
+    particle.SetPos(chrono.ChVectorD(np.random.uniform(-1, 1),
+                                     np.random.uniform(-1, 1),
+                                     np.random.uniform(-1, 1)))
+    
+    
+    particle.SetVel(chrono.ChVectorD(np.random.uniform(-0.5, 0.5),
+                                     np.random.uniform(-0.5, 0.5),
+                                     np.random.uniform(-0.5, 0.5)))
+    
+    
+    particle.SetRot(chrono.Q_from_AngZ(np.random.uniform(0, 2 * np.pi)))
+    
+    return particle
 
 
-def gravitational_force(sys):
-    G = 6.67430e-11  
-    for i in range(sys.GetNbodies()):
-        body_i = sys.GetBody(i)
-        for j in range(i+1, sys.GetNbodies()):
-            body_j = sys.GetBody(j)
-            distance = (body_i.GetPos() - body_j.GetPos()).Length()
-            force = G * body_i.GetMass() * body_j.GetMass() / (distance**2)
-            direction = (body_j.GetPos() - body_i.GetPos()).GetNormalized()
-            body_i.AddForce(chrono.ChVectorD(force * direction.x, force * direction.y, force * direction.z))
-            body_j.AddForce(chrono.ChVectorD(-force * direction.x, -force * direction.y, -force * direction.z))
+for _ in range(10):
+    particle = create_particle()
+    sys.Add(particle)
 
 
-sys.SetCustomForce(gravitational_force)
+class GravitationalForce(chrono.ChForce):
+    def __init__(self):
+        super().__init__()
+        self.SetF_x(chrono.ChFunction_Const(0))
+        self.SetF_y(chrono.ChFunction_Const(0))
+        self.SetF_z(chrono.ChFunction_Const(0))
+    
+    def Update(self, time):
+        
+        for i in range(sys.GetNbodies()):
+            for j in range(i + 1, sys.GetNbodies()):
+                body_i = sys.GetBody(i)
+                body_j = sys.GetBody(j)
+                distance = (body_i.GetPos() - body_j.GetPos()).Length()
+                force = 0.1 / (distance ** 2)  
+                direction = (body_j.GetPos() - body_i.GetPos()).GetNormalized()
+                self.SetF_x(chrono.ChFunction_Const(force * direction.x()))
+                self.SetF_y(chrono.ChFunction_Const(force * direction.y()))
+                self.SetF_z(chrono.ChFunction_Const(force * direction.z()))
+                body_i.AddForce(self)
+                body_j.AddForce(-self)
 
 
-app = chronoirr.ChIrrApp(sys, 'PyChrono Simulation', chronoirr.dimension2du(800, 600))
+force = GravitationalForce()
+sys.Add(force)
 
 
-app.AddTypicalSky()
-app.AddTypicalCamera(chronoirr.vector3df(0, 0, 1))
-app.AddTypicalLights()
-
-
-app.GetDevice().run()
+while application.GetDevice().run():
+    application.BeginScene()
+    application.DrawAll()
+    application.DoStep()
+    application.EndScene()

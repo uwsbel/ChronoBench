@@ -15,14 +15,10 @@ chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
 
 
 terrain = veh.SCMDeformableTerrain(system)
-terrain.SetPlane(chrono.ChCoordsysD(chrono.ChVector3d(0, 0, -1), chrono.ChQuaternionD(1, 0, 0, 0)))
+terrain.SetPlane(chrono.ChCoordsysD(chrono.ChVector3d(0, 0, -1), chrono.Q_ROTATE_X_TO_Z))
 terrain.SetSize(20, 20)
-terrain.SetResolution(128, 128)
-terrain.SetSoilParameters(0.2,  
-                          0.01,  
-                          0.005,  
-                          0.01,  
-                          0.0)   
+terrain.SetMeshResolution(100, 100)
+terrain.SetSoilParameters(0.1, 0.01, 0.1, 0.01, 0.01, 0.01, 0.1)
 system.Add(terrain)
 
 
@@ -58,7 +54,7 @@ time_step = 1e-3
 time = 0
 while vis.Run():
     time += time_step  
-    steering = 0.0  
+    steering = 0.0
     
     driver.SetSteering(steering)  
 

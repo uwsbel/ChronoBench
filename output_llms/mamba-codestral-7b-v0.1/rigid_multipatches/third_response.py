@@ -1,3 +1,4 @@
+```python
 import pychrono as chrono
 import pychrono.vehicle as veh
 import pychrono.irrlicht as irr
@@ -101,4 +102,3 @@ def main():
     vis.AddLightDirectional()
     vis.AddSkyBox()
     vis.AttachVehicle(
-print("error happened with only start ```python")

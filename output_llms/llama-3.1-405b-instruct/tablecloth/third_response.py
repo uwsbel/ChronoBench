@@ -38,13 +38,13 @@ ref_X = chrono.ChFunctionInterp()
 ref_Y = chrono.ChFunctionInterp()
 
 # Define load force vector
-load_force = chrono.ChVector3D()
+load_force = chrono.ChVector3d()
 
 # Monitoring nodes and elements
 mnodemonitor = fea.ChNodeFEAxyz()  # Node for monitoring
 melementmonitor = fea.ChElementShellBST()  # Element for monitoring
 
-if True:  # Block to execute the following setup
+if (True):  # Block to execute the following setup
     # Define material properties
     density = 100  # Material density
     E = 6e4  # Young's modulus
@@ -70,7 +70,7 @@ if True:  # Block to execute the following setup
     # Create nodes for the mesh grid
     for iz in range(nsections_z + 1):
         for ix in range(nsections_x + 1):
-            p = chrono.ChVectorD(ix * (L_x / nsections_x), 0, iz * (L_z / nsections_z))  # Calculate node position
+            p = chrono.ChVector3d(ix * (L_x / nsections_x), 0, iz * (L_z / nsections_z))  # Calculate node position
             mnode = fea.ChNodeFEAxyz(p)  # Create node at calculated position
             mesh.AddNode(mnode)  # Add node to mesh
             mynodes.append(mnode)  # Append node to the list
@@ -82,13 +82,13 @@ if True:  # Block to execute the following setup
             melementA = fea.ChElementShellBST()
             mesh.AddElement(melementA)
 
-            if iz == 0 and ix == 1:
+            if (iz == 0 and ix == 1):
                 melementmonitor = melementA  # Assign element to monitor
 
             # Define boundary nodes
             boundary_1 = mynodes[(iz + 1) * (nsections_x + 1) + ix + 1]
-            boundary_2 = mynodes[(iz + 1) * (nsections_x + 1) + ix - 1] if ix > 0 else None
-            boundary_3 = mynodes[(iz - 1) * (nsections_x + 1) + ix + 1] if iz > 0 else None
+            boundary_2 = mynodes[(iz + 1) * (nsections_x + 1) + ix - 1] if (ix > 0) else None
+            boundary_3 = mynodes[(iz - 1) * (nsections_x + 1) + ix + 1] if (iz > 0) else None
 
             # Set nodes to the element
             melementA.SetNodes(
@@ -107,8 +107,8 @@ if True:  # Block to execute the following setup
 
             # Define boundary nodes
             boundary_1 = mynodes[(iz) * (nsections_x + 1) + ix]
-            boundary_2 = mynodes[(iz) * (nsections_x + 1) + ix + 2] if ix < nsections_x - 1 else None
-            boundary_3 = mynodes[(iz + 2) * (nsections_x + 1) + ix] if iz < nsections_z - 1 else None
+            boundary_2 = mynodes[(iz) * (nsections_x + 1) + ix + 2] if (ix < nsections_x - 1) else None
+            boundary_3 = mynodes[(iz + 2) * (nsections_x + 1) + ix] if (iz < nsections_z - 1) else None
 
             # Set nodes to the element
             melementB.SetNodes(
@@ -149,7 +149,7 @@ vis.SetWindowTitle('Shells FEA test: triangle BST elements')  # Set window title
 vis.Initialize()  # Initialize the visualization window
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))  # Add logo to the window
 vis.AddSkyBox()  # Add a skybox for background
-vis.AddCamera(chrono.ChVectorD(1, .3, 1.3), chrono.ChVectorD(.5, -.3, .5))  # Add and position the camera
+vis.AddCamera(chrono.ChVector3d(1, .3, 1.3), chrono.ChVector3d(.5, -.3, .5))  # Add and position the camera
 vis.AddTypicalLights()  # Add typical lights to the scene
 
 # Change solver to PardisoMKL

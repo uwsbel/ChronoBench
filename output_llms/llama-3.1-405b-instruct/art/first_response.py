@@ -1,84 +1,57 @@
 import pychrono.core as chrono
-import pychrono.irrlicht as chronoirr
-import numpy as np
+import pychrono.vehicle as veh
+import pychrono.irrlicht as irr
 
-# Initialize the PyChrono environment
+# Initialize the Chrono environment
 chrono.SetChronoDataPath('/path/to/chrono/data/')
 
-# Create a Chrono::Engine physical system
-my_system = chrono.ChSystemNSC()
-
-# Create the ground body
-ground = chrono.ChBodyEasyBox(my_system,  # parent system
-                              100, 100, 2,  # dimensions
-                              1000,  # density
-                              True,  # visualization?
-                              True,  # collide?
-                              chrono.ChMaterialSurfaceNSC())  # material
-ground.SetBodyFixed(True)
-ground.SetPos(chrono.ChVectorD(0, -2, 0))
-
-# Create the vehicle body
-vehicle = chrono.ChPart(chrono.ChBodyEasyBox(my_system,  # parent system
-                                             4, 2, 1,  # dimensions
-                                             500,  # density
-                                             True,  # visualization?
-                                             True,  # collide?
-                                             chrono.ChMaterialSurfaceNSC()))  # material
-vehicle.SetPos(chrono.ChVectorD(0, 1, 0))
-
-# Create the vehicle's wheels
-wheels = []
-for i in range(4):
-    wheel = chrono.ChPart(chrono.ChBodyEasyCylinder(my_system,  # parent system
-                                                    0.5,  # radius
-                                                    0.2,  # height
-                                                    100,  # density
-                                                    True,  # visualization?
-                                                    True,  # collide?
-                                                    chrono.ChMaterialSurfaceNSC()))  # material
-    wheel.SetPos(chrono.ChVectorD(-1.5 + i * 1.0, -0.5, 0))
-    wheels.append(wheel)
-
-# Create the vehicle's suspension
-suspension = []
-for i in range(4):
-    spring = chrono.ChLinkSpring()
-    spring.Initialize(vehicle, wheels[i], False, chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 0), True)
-    spring.SetSpringCoefficient(10000)
-    spring.SetDampingCoefficient(50)
-    my_system.AddLink(spring)
-    suspension.append(spring)
-
-# Create the RigidTerrain
-terrain = chrono.ChRigidTerrain(my_system)
-terrain.SetSize(chrono.ChVectorD(100, 100, 2))
-terrain.SetPos(chrono.ChVectorD(0, -2, 0))
-terrain.SetMaterialSurface(chrono.ChMaterialSurfaceNSC())
-terrain.SetTexture(chrono.ChTexture("terrain_texture.png"))
-
-# Create the driver system
-driver = chrono.ChIrrNodeAsset(my_system)
-driver.SetChassisBody(vehicle)
-driver.SetWheels(wheels)
-driver.SetSteeringType(chrono.ChDriver.STEERING_TYPE_TARGET)
-driver.SetThrottleType(chrono.ChDriver.THROTTLE_TYPE_TARGET)
-driver.SetBrakingType(chrono.ChDriver.BRAKING_TYPE_TARGET)
+# Create a Chrono system
+sys = chrono.ChSystemNSC()
 
 # Create the Irrlicht application
-myapplication = chronoirr.ChIrrApp(my_system, 'PyChrono example', chronoirr.dimension2du(800, 600))
+app = irr.ChIrrApp(sys, 'ARTcar Vehicle Simulation', irr.dimension2du(800, 600))
 
-# Set up the simulation loop
-myapplication.AddTypicalSky()
-myapplication.AddTypicalCamera(chronoirr.vector3df(0, 0, -10))
-myapplication.AddTypicalLights()
+# Set the simulation step size
+app.SetTimestep(0.01)
 
-while myapplication.GetDevice().run():
-    myapplication.BeginScene()
-    myapplication.DrawAll()
-    myapplication.DoStep()
-    myapplication.EndScene()
+# Set the simulation frame rate
+app.SetTryRealtime(True)
+app.GetDevice().setTimer(50)  # 50 frames per second
 
-# Clean up
-del myapplication
-del my_system
+# Create the vehicle
+vehicle = veh.ChPart('ARTcar')
+vehicle.SetMass(1500)
+vehicle.SetInertiaXX(300)
+vehicle.SetInertiaYY(400)
+vehicle.SetInertiaZZ(500)
+vehicle.SetPos(chrono.ChVectorD(0, 1.5, 0))
+vehicle.SetRot(chrono.Q_from_AngX(0.2))
+
+# Create the RigidTerrain
+terrain = veh.RigidTerrain(sys)
+terrain.SetSize(chrono.ChVectorD(100, 2, 100))
+terrain.SetPos(chrono.ChVectorD(0, -2, 0))
+terrain.SetTexture('/path/to/terrain/texture.png')
+
+# Add the vehicle to the system
+sys.Add(vehicle)
+
+# Add the terrain to the system
+sys.Add(terrain)
+
+# Create the interactive driver system
+driver = veh.ChIrrNodeDriver(app)
+driver.Initialize()
+
+# Set the vehicle's driver
+vehicle.SetDriver(driver)
+
+# Simulation loop
+while app.GetDevice().run():
+    # Update the vehicle dynamics
+    sys.DoStepDynamics(app.GetTimestep())
+
+    # Update the Irrlicht visualization
+    app.BeginScene(True, True, irr.SColor(255, 140, 140, 140))
+    app.DrawAll()
+    app.EndScene()

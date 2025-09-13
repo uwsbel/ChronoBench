@@ -47,22 +47,22 @@ my_angularspeed = chrono.ChFunctionConst(chrono.CH_PI)  # ang.speed: 180°/s
 my_motor.SetMotorFunction(my_angularspeed)
 sys.Add(my_motor)
 
-# Create crank-rod joint (spherical joint)
-mjointA = chrono.ChLinkBallSocket()
+# Create crank-rod joint: Change to spherical (ball-and-socket)
+mjointA = chrono.ChLinkLockSpherical()
 mjointA.Initialize(mrod,
                    mcrank,
                    chrono.ChFramed(crank_center + chrono.ChVector3d(crank_rad, 0, 0)))
 sys.Add(mjointA)
 
-# Create rod-piston joint (spherical joint)
-mjointB = chrono.ChLinkBallSocket()
+# Create rod-piston joint: Change to spherical (ball-and-socket)
+mjointB = chrono.ChLinkLockSpherical()
 mjointB.Initialize(mpiston,
                    mrod,
                    chrono.ChFramed(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0)))
 sys.Add(mjointB)
 
-# Create piston-truss joint (planar joint)
-mjointC = chrono.ChLinkPlanar()
+# Create piston-truss joint: Change to plane-plane (planar) joint
+mjointC = chrono.ChLinkLockPlanar()
 mjointC.Initialize(mpiston,
                    mfloor,
                    chrono.ChFramed(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0),
@@ -116,3 +116,5 @@ ax2.grid()
 
 # trick to plot \pi on x axis of plots instead of 1 2 3 4 etc.
 plt.xticks(np.linspace(0, 2 * np.pi, 5), ['0', r'$\pi/2$', r'$\pi$', r'$3\pi/2$', r'$2\pi$'])
+
+plt.show()

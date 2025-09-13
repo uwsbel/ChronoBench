@@ -1,3 +1,5 @@
+```python
+
 import pychrono
 
 import pychrono.modes as modes
@@ -191,4 +193,3 @@ import pychrono.sensor_visualizer_vector_image_vector_vector_vector_camera as se
 import pychrono.sensor_visualizer_vector_image_vector_vector_vector_camera as sensor_visualizer_vector_image_vector_vector_vector_camera
 
 import pychrono.sensor_visualizer_vector_image_vector_vector_vector_camera as sensor_visualizer_vector_image_vector_vector_vector_camera
-print("error happened with only start ```python")

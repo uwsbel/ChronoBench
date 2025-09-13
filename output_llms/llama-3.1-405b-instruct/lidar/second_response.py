@@ -15,17 +15,17 @@ def main():
     # ----------------------------------
     # Add a box to be sensed by a lidar
     # ----------------------------------
-    side = 1.0
+    side = 2.0
     box_body = chrono.ChBodyEasyBox(side, side, side, 1000)
-    box_body.SetPos(chrono.ChVector3d(0, 0, 0))
+    box_body.SetPos(chrono.ChVector3D(0, 0, 0))
     box_body.SetBodyFixed(True)
     mphysicalSystem.Add(box_body)
 
     # Create a visual representation of the box
     box_shape = chrono.ChVisualShapeBox()
-    box_shape.SetBoxGeometry(chrono.ChVector3d(side, side, side))
+    box_shape.SetBoxGeometry(chrono.ChVector3D(side, side, side))
     box_shape.SetName("Box")
-    box_shape.SetMutable(False)
+    box_shape.SetColor(chrono.ChColor(1, 0, 0))
     box_body.AddVisualShape(box_shape)
 
     # -----------------------
@@ -36,8 +36,8 @@ def main():
     # ------------------------------------------------
     # Create a lidar and add it to the sensor manager
     # ------------------------------------------------
-    offset_pose = chrono.ChFramed(
-        chrono.ChVector3d(-12, 0, 1), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
+    offset_pose = chrono.ChFrameD(
+        chrono.ChVectorD(-12, 0, 1), chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0))
     )
     lidar = sens.ChLidarSensor(
         box_body,              # Body lidar is attached to
@@ -94,10 +94,10 @@ def main():
         update_rate,            # Scanning rate in Hz
         offset_pose,            # Offset pose
         horizontal_samples,     # Number of horizontal samples
-        1,                      # Number of vertical channels
+        1,                     # Number of vertical channels
         horizontal_fov,         # Horizontal field of view
-        0,                      # Maximum vertical field of view
-        0,                      # Minimum vertical field of view
+        0,                     # Maximum vertical field of view
+        0,                     # Minimum vertical field of view
         100.0,                  # Maximum lidar range
         sens.LidarBeamShape_RECTANGULAR,  # Shape of the lidar beam
         sample_radius,          # Sample radius
@@ -105,7 +105,7 @@ def main():
         divergence_angle,       # Divergence angle (again, typically same value)
         return_mode             # Return mode for the lidar
     )
-    lidar_2d.SetName("2D Lidar Sensor")
+    lidar_2d.SetName("Lidar 2D Sensor")
     lidar_2d.SetLag(lag)
     lidar_2d.SetCollectionWindow(collection_time)
 
@@ -118,7 +118,7 @@ def main():
 
     if vis:
         # Visualize the raw 2D lidar data
-        lidar_2d.PushFilter(sens.ChFilterVisualize(horizontal_samples, 1, "Raw 2D Lidar Depth Data"))
+        lidar_2d.PushFilter(sens.ChFilterVisualize(horizontal_samples, 1, "Raw Lidar 2D Depth Data"))
 
     # Provides the host access to the Depth, Intensity data
     lidar_2d.PushFilter(sens.ChFilterDIAccess())
@@ -128,7 +128,7 @@ def main():
 
     if vis:
         # Visualize the point cloud
-        lidar_2d.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "2D Lidar Point Cloud"))
+        lidar_2d.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "Lidar 2D Point Cloud"))
 
     # Provides the host access to the XYZI data
     lidar_2d.PushFilter(sens.ChFilterXYZIAccess())
@@ -149,25 +149,23 @@ def main():
     while ch_time < end_time:
         # Set lidar to orbit around the box body
         lidar.SetOffsetPose(
-            chrono.ChFramed(
-                chrono.ChVector3d(
+            chrono.ChFrameD(
+                chrono.ChVectorD(
                     -orbit_radius * math.cos(ch_time * orbit_rate),
                     -orbit_radius * math.sin(ch_time * orbit_rate),
                     1
                 ),
-                chrono.QuatFromAngleAxis(ch_time * orbit_rate, chrono.ChVector3d(0, 0, 1))
+                chrono.Q_from_AngAxis(ch_time * orbit_rate, chrono.ChVectorD(0, 0, 1))
             )
         )
-
-        # Set 2D lidar to orbit around the box body
         lidar_2d.SetOffsetPose(
-            chrono.ChFramed(
-                chrono.ChVector3d(
+            chrono.ChFrameD(
+                chrono.ChVectorD(
                     -orbit_radius * math.cos(ch_time * orbit_rate),
                     -orbit_radius * math.sin(ch_time * orbit_rate),
                     1
                 ),
-                chrono.QuatFromAngleAxis(ch_time * orbit_rate, chrono.ChVector3d(0, 0, 1))
+                chrono.Q_from_AngAxis(ch_time * orbit_rate, chrono.ChVectorD(0, 0, 1))
             )
         )
 

@@ -1,3 +1,4 @@
+```python
 import pychrono.core as chrono
 import pychrono.sensor as sens
 
@@ -83,4 +84,3 @@ def main():
         cam.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Before Grayscale Filter"))
 
     # Provide host access to the RGBA8 buffer
-print("error happened with only start ```python")

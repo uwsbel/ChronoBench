@@ -1,72 +1,76 @@
+import os
 import pychrono as chrono
 import pychrono.vehicle as veh
 import pychrono.irrlicht as irr
-import math
 
 
-chrono.SetChronoDataPath(chrono.GetChronoDataPath())
-system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
+chrono.SetChronoDataPath("path/to/chrono/data/")  
 
-
-vehicle = veh.FEDA_Vehicle(False, veh.RigidTerrain.ContactMethod_NSC)
-vehicle.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 1), chrono.Q_from_AngZ(0)))
-vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
-vehicle.SetSuspensionVisualizationType(veh.VisualizationType_MESH)
-vehicle.SetSteeringVisualizationType(veh.VisualizationType_MESH)
-vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
-
-
-terrain = veh.RigidTerrain(system)
-patch = terrain.AddPatch(chrono.ChCoordsysD(), 100, 100)
-patch.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 100, 100)
-patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
-terrain.Initialize()
-
-
-vis = irr.ChVisualSystemIrrlicht()
-vis.AttachSystem(system)
-vis.SetWindowSize(1280, 720)
-vis.SetWindowTitle("FEDA Vehicle Simulation")
-vis.Initialize()
-vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
-vis.AddSkyBox()
-vis.AddCamera(chrono.ChVectorD(3, 3, 1), chrono.ChVectorD(0, 0, 0))
-vis.AddTypicalLights()
-
-
-driver = veh.ChInteractiveDriverIRR(vis)
-steering_time = 1.0  
-driver.SetSteeringDelta(1.0/(50.0 * steering_time))
-driver.SetThrottleDelta(0.5/50.0)
-driver.SetBrakingDelta(0.5/50.0)
-driver.Initialize()
-
-
-step_size = 0.02
-render_steps = math.ceil(1.0 / (50 * step_size))
-realtime_timer = chrono.ChRealtimeStepTimer()
-
-
-while vis.Run():
-    time = system.GetChTime()
+def main():
     
-    
-    vehicle.Synchronize(time, driver.GetInputs(), terrain)
-    terrain.Synchronize(time)
-    driver.Synchronize(time)
-    
-    
-    system.DoStepDynamics(step_size)
-    
-    
-    vis.BeginScene()
-    vis.Render()
-    vis.EndScene()
-    
-    
-    realtime_timer.Spin(step_size)
+    system = chrono.ChSystemSMC()
+    system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
 
+    
+    vehicle = veh.FEDA(system)
+    vehicle.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 1.0), chrono.QUNIT))
+    vehicle.SetTireType(veh.TireModelType.RIGID)
+    vehicle.Initialize()
+    vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
+    vehicle.SetSuspensionVisualizationType(veh.VisualizationType_MESH)
+    vehicle.SetSteeringVisualizationType(veh.VisualizationType_MESH)
+    vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
 
-del vis
-del system
+    
+    terrain = veh.RigidTerrain(system)
+    patch_mat = chrono.ChMaterialSurfaceSMC()
+    patch = terrain.AddPatch(patch_mat, chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 1), 100, 100)
+    patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)  
+    terrain.Initialize()
+
+    
+    vis = irr.ChVisualSystemIrrlicht()
+    vis.AttachSystem(system)
+    vis.SetWindowSize(1280, 720)
+    vis.SetWindowTitle("FEDA Vehicle Simulation")
+    vis.Initialize()
+    vis.AddLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))
+    vis.AddSkyBox()
+    vis.AddCamera(chrono.ChVectorD(6, 3, 1.5), chrono.ChVectorD(0, 0, 1))
+    vis.AddTypicalLights()
+    vis.AddLightWithShadow(chrono.ChVectorD(-5, 8, 5), chrono.ChVectorD(0, 0, 0.5), 50, 3, 30, 30, 512)
+
+    
+    driver = veh.ChIrrGuiDriver(vis)
+    driver.SetSteeringDelta(0.02)
+    driver.SetThrottleDelta(0.02)
+    driver.SetBrakingDelta(0.06)
+    driver.Initialize()
+
+    
+    step_size = 0.02  
+    realtime_timer = chrono.ChRealtimeStepTimer()
+
+    while vis.Run():
+        time = system.GetChTime()
+        
+        
+        driver_inputs = driver.GetInputs()
+        vehicle.DriverInputs(driver_inputs)
+        
+        
+        vehicle.Synchronize(time, driver_inputs, terrain)
+        terrain.Synchronize(time)
+        vis.Synchronize(time, driver_inputs)
+        
+        
+        vehicle.Advance(step_size)
+        terrain.Advance(step_size)
+        vis.Advance(step_size)
+        
+        
+        vis.Render()
+        realtime_timer.Spin(step_size)
+
+if __name__ == "__main__":
+    main()

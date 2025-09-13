@@ -1,3 +1,5 @@
+```python
+
 import pychrono
 
 import pychrono.rigid_body_tree as rbt
@@ -442,4 +444,3 @@ lidar_sensor.SetScanRate(10)
 lidar_sensor.SetScanAngle(np.pi / 2)
 
 lidar_sensor.SetScanRate(10)
-print("error happened with only start ```python")

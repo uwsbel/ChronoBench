@@ -110,9 +110,8 @@ ref_speed = 10.0
 kp = 0.1
 ki = 0.01
 kd = 0.001
-error = 0.0
+integral_error = 0.0
 prev_error = 0.0
-integral = 0.0
 
 
 
@@ -143,21 +142,21 @@ while vis.Run() :
     driver_inputs = driver.GetInputs()
 
     
+    speed = vehicle.GetVehicle().GetSpeed()
+    error = ref_speed - speed
+    integral_error += error * step_size
+    derivative_error = (error - prev_error) / step_size
+    prev_error = error
+
+    
+    throttle = kp * error + ki * integral_error + kd * derivative_error
+    driver_inputs.m_throttle = throttle
+
+    
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
-
-    
-    speed = vehicle.GetVehicle().GetSpeed()
-    error = ref_speed - speed
-    integral += error * step_size
-    derivative = (error - prev_error) / step_size
-    prev_error = error
-
-    
-    throttle = kp * error + ki * integral + kd * derivative
-    driver_inputs.m_throttle = throttle
 
     
     driver.Advance(step_size)

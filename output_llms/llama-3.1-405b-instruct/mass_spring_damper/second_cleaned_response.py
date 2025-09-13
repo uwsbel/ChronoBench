@@ -1,6 +1,5 @@
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
-import numpy as np
 
 
 rest_length = 1.5
@@ -14,10 +13,16 @@ class MySpringForce(chrono.ForceFunctor):
         self.spring_coef = spring_coef
         self.damping_coef = damping_coef
 
-    def Evaluate(self, time, q, v):
+    def Evaluate(self, link, time):
         
-        force = -self.spring_coef * (q - rest_length) - self.damping_coef * v
-        return force
+        length = link.GetLinkLength()
+        velocity = link.GetLinkVelocity()
+
+        
+        force = -self.spring_coef * (length - rest_length) - self.damping_coef * velocity
+
+        
+        link.SetLinkForce(force)
 
 
 sys = chrono.ChSystemNSC()
@@ -79,11 +84,7 @@ body_2.AddVisualShape(box_2)
 spring_2 = chrono.ChLinkTSDA()
 spring_2.Initialize(body_2, ground, True, chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(1, 0, 0))
 spring_2.SetRestLength(rest_length)
-
-
 my_spring_force = MySpringForce(spring_coef, damping_coef)
-
-
 spring_2.RegisterForceFunctor(my_spring_force)
 sys.AddLink(spring_2)
 
@@ -100,7 +101,6 @@ vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()
 vis.AddCamera(chrono.ChVector3d(0, 0, 6))
 vis.AddTypicalLights()
-
 
 while vis.Run():
     vis.BeginScene()

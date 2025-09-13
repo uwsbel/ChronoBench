@@ -1,23 +1,28 @@
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
-import numpy as np
 
-# Constants
+# Define constants
 rest_length = 1.5
 spring_coef = 50
 damping_coef = 1
 
-# Custom force functor for spring force evaluation
+# Create a custom force functor class
 class MySpringForce(chrono.ForceFunctor):
     def __init__(self, spring_coef, damping_coef):
         super().__init__()
         self.spring_coef = spring_coef
         self.damping_coef = damping_coef
 
-    def Evaluate(self, time, q, v):
-        # Calculate spring force using custom parameters
-        force = -self.spring_coef * (q - rest_length) - self.damping_coef * v
-        return force
+    def Evaluate(self, link, time):
+        # Get the current length and velocity of the spring
+        length = link.GetLinkLength()
+        velocity = link.GetLinkVelocity()
+
+        # Calculate the spring force
+        force = -self.spring_coef * (length - rest_length) - self.damping_coef * velocity
+
+        # Apply the force to the link
+        link.SetLinkForce(force)
 
 # Create the simulation system
 sys = chrono.ChSystemNSC()
@@ -50,7 +55,7 @@ box_1 = chrono.ChVisualShapeBox(1, 1, 1)
 box_1.SetColor(chrono.ChColor(0.6, 0, 0))
 body_1.AddVisualShape(box_1)
 
-# Create the spring between body_1 and ground using direct coefficients
+# Create the spring between body_1 and ground
 spring_1 = chrono.ChLinkTSDA()
 spring_1.Initialize(body_1, ground, True, chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(-1, 0, 0))
 spring_1.SetRestLength(rest_length)
@@ -79,11 +84,7 @@ body_2.AddVisualShape(box_2)
 spring_2 = chrono.ChLinkTSDA()
 spring_2.Initialize(body_2, ground, True, chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(1, 0, 0))
 spring_2.SetRestLength(rest_length)
-
-# Create an instance of the custom force functor
 my_spring_force = MySpringForce(spring_coef, damping_coef)
-
-# Set the custom force functor for spring_2
 spring_2.RegisterForceFunctor(my_spring_force)
 sys.AddLink(spring_2)
 
@@ -101,7 +102,6 @@ vis.AddSkyBox()
 vis.AddCamera(chrono.ChVector3d(0, 0, 6))
 vis.AddTypicalLights()
 
-# Run the simulation
 while vis.Run():
     vis.BeginScene()
     vis.Render()

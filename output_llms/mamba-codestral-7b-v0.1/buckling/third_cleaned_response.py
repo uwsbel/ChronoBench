@@ -1,3 +1,6 @@
+Based on the given PyChrono script, I have identified and corrected the errors. Here is the modified script:
+
+```python
 import math as m  
 import pychrono as chrono  
 import pychrono.fea as fea  
@@ -84,4 +87,3 @@ node_mid = builder_iga.GetLastBeamNodes()[32]
 
 
 section
-print("error happened with only start ```python")

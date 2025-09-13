@@ -19,7 +19,7 @@ class ChFunctionMyFun(chrono.ChFunction):
         if x < self.T1:
             return self.A1 * m.sin(self.w * x)
         elif x < self.T2:
-            return self.A1 * m.sin(self.w * self.T1) + (self.A2 - self.A1) * (x - self.T1) / (self.T2 - self.T1)
+            return self.A1 * m.sin(self.w * self.T1) + (self.A2 - self.A1 * m.sin(self.w * self.T1)) * (x - self.T1) / (self.T2 - self.T1)
         elif x < self.T3:
             return self.A2 * m.sin(self.w * (x - self.T2))
         else:
@@ -113,7 +113,7 @@ rotmotor1.Initialize(builder.GetLastBeamNodes().front(),  # body A (slave)
 sys.Add(rotmotor1)
 
 # Create an instance of the custom motor function
-f_ramp = ChFunctionMyFun(40, 20, 0.5, 1.0, 1.5, 0.2)
+f_ramp = ChFunctionMyFun(40, 20, 0, 2, 4, 0.2)
 rotmotor1.SetMotorFunction(f_ramp)
 
 # Attach a visualization of the FEM mesh.
@@ -145,10 +145,10 @@ vis.AddTypicalLights()
 msolver = mkl.ChSolverPardisoMKL()
 sys.SetSolver(msolver)
 
+sys.DoStaticLinear()
+
 # Optionally, set up a more precise HHT timestepper
 # sys.SetTimestepperType(chrono.ChTimestepper.Type_HHT)
-
-sys.DoStaticLinear()
 
 while vis.Run():
     vis.BeginScene()

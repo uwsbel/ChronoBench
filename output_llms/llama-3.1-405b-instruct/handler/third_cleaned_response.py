@@ -9,8 +9,8 @@ from std_msgs.msg import Int64
 class MyCustomHandler(chros.ChROSHandler):
     
 
-    def __init__(self, topic, publish_rate):
-        super().__init__(publish_rate)  
+    def __init__(self, topic):
+        super().__init__(10)  
 
         self.topic = topic
         self.publisher: rclpy.publisher.Publisher = None
@@ -45,7 +45,7 @@ def main():
     floor.SetPos(ch.ChVector3d(0, 0, -1))  
     floor.SetFixed(True)  
     floor.SetName("base_link")  
-    floor.SetTexture("path/to/floor/texture.png")  
+    floor.SetTexture("floor_texture.png")  
     sys.Add(floor)  
 
     
@@ -53,7 +53,7 @@ def main():
     box.SetPos(ch.ChVector3d(0, 0, 5))  
     box.SetRot(ch.QuatFromAngleAxis(.2, ch.ChVector3d(1, 0, 0)))  
     box.SetName("box")  
-    box.SetTexture("path/to/box/texture.png")  
+    box.SetTexture("box_texture.png")  
     sys.Add(box)  
 
     
@@ -71,32 +71,28 @@ def main():
     ros_manager.RegisterHandler(tf_handler)
     
     
-    publish_rate = 10  
-    custom_handler = MyCustomHandler("~/my_topic", publish_rate)
+    custom_handler = MyCustomHandler("~/my_topic")
     ros_manager.RegisterPythonHandler(custom_handler)
 
     
     ros_manager.Initialize()
 
     
-    vis = chronoirr.ChVisualSystemIrrlicht()
-    vis.AttachSystem(sys)
-    vis.SetWindowSize(800, 600)
-    vis.SetWindowTitle("PyChrono Simulation")
-    vis.Initialize()
-    vis.AddCamera(chronoirr.ChVisualSystemIrrlicht.CAMERA_ORTHOGRAPHIC)
-    vis.AddLight(chronoirr.ChVisualSystemIrrlicht.LIGHT_DIRECTIONAL, 100, 100, 100)
-    vis.AddLight(chronoirr.ChVisualSystemIrrlicht.LIGHT_POINT, 50, 50, 50)
+    myapplication = chronoirr.ChIrrApp(sys, 'PyChrono example', chronoirr.dimension2du(1024, 768))
+    myapplication.AddTypicalSky()
+    myapplication.AddTypicalLights()
+    myapplication.AddCamera(chronoirr.vector3df(0, 0, 10))
+    myapplication.AssetBindAll()
+    myapplication.AssetUpdateAll()
 
     
     time = 0
     time_step = 1e-3  
     time_end = 30  
     step_number = 0
-    render_step_size = 1 / 60  
+    render_step_size = 1e-2
     render_steps = int(render_step_size / time_step)
 
-    realtime_timer = ch.ChRealtimeStepTimer()  
     while time < time_end:
         sys.DoStepDynamics(time_step)  
         time = sys.GetChTime()  
@@ -104,12 +100,12 @@ def main():
         if not ros_manager.Update(time, time_step):  
             break  
 
-        
-        if step_number % render_steps == 0:
-            vis.RunTimeStep()
-
         step_number += 1
-        realtime_timer.Spin(time_step)  
+        if step_number % render_steps == 0:
+            myapplication.BeginScene()
+            myapplication.DrawAll()
+            myapplication.DoStep()
+            myapplication.EndScene()
 
 
 if __name__ == "__main__":

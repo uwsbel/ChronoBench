@@ -1,9 +1,77 @@
-It seems like there are no instructions provided. Please provide the instructions, and I'll be happy to help you generate a simulation script using PyChrono.
+# Import necessary PyChrono modules
+import pychrono.core as chrono
+import pychrono.irrlicht as chronoirr
+import numpy as np
 
-Once you provide the instructions, I'll make sure to:
+# Initialize the PyChrono environment
+chrono.SetChronoDataPath("/path/to/chrono/data/")
 
-1. Initialize the PyChrono environment and core components.
-2. Add the required physical systems and objects as specified.
-3. Set necessary default parameters such as positions, forces, and interactions.
+# Create a ChronoEngine physical system
+sys = chrono.ChSystemNSC()
 
-Please provide the instructions, and I'll get started on creating the simulation script.
+# Create the ground body
+ground = chrono.ChBodyEasyBox(sys,  # Parent system
+                              100, 100, 2,  # Box dimensions (x, y, z)
+                              1000,  # Density
+                              True,  # Visualization
+                              True,  # Collision
+                              chrono.ChMaterialSurfaceNSC()  # Material
+                              )
+ground.SetBodyFixed(True)
+sys.Add(ground)
+
+# Create the rover model
+rover = chrono.ChBodyEasyBox(sys,  # Parent system
+                             2, 1, 1,  # Box dimensions (x, y, z)
+                             1000,  # Density
+                             True,  # Visualization
+                             True,  # Collision
+                             chrono.ChMaterialSurfaceNSC()  # Material
+                             )
+rover.SetPos(chrono.ChVectorD(0, 0, 1.5))  # Set initial position
+sys.Add(rover)
+
+# Add a motor control driver to the rover
+motor = chrono.ChLinkMotorRotationSpeed()
+motor.Initialize(rover,  # Body to control
+                 chrono.ChFrameD(chrono.ChVectorD(0, 0, 0),  # Motor frame
+                                 chrono.QUNIT)  # Motor rotation
+                 )
+sys.Add(motor)
+
+# Create an Irrlicht application
+app = chronoirr.ChIrrApp(sys,  # Physical system
+                         "Curiosity Rover Simulation",  # Window title
+                         chronoirr.dimension2du(800, 600),  # Window size
+                         chronoirr.VerticalFlip,  # Window orientation
+                         chronoirr.SkyBox,  # Sky box mode
+                         chronoirr.SkyLight  # Sky light mode
+                         )
+
+# Customize camera settings
+app.AddCamera(chronoirr.vector3df(0, 0, 5),  # Camera position
+              chronoirr.vector3df(0, 0, 0))  # Camera target
+app.AddTypicalLights()  # Add default lighting
+app.AddLightWithShadow(chronoirr.vector3df(2, 4, 2),  # Light position
+                       chronoirr.vector3df(0, 0, 0),  # Light target
+                       3,  # Light radius
+                       2,  # Light color
+                       10,  # Shadow map size
+                       512,  # Shadow map resolution
+                       1000)  # Shadow intensity
+
+# Add visual elements
+app.AssetBindAll()
+app.AssetUpdateAll()
+
+# Set simulation parameters
+sys.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))  # Gravity
+sys.SetStep(0.01)  # Time step
+sys.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)  # Solver type
+
+# Run the simulation
+while app.GetDevice().run():
+    app.BeginScene()
+    app.DrawAll()
+    app.DoStep()
+    app.EndScene()

@@ -30,7 +30,7 @@ class Model1:
 
         
         
-        builder.GetLastBeamNodes()[0].SetForce(chrono.ChVector3d(0, -0.7, 0))  
+        builder.GetLastBeamNodes().front().SetForce(chrono.ChVector3d(0, -0.7, 0))  
 
         
         mtruss = chrono.ChBody()
@@ -38,7 +38,7 @@ class Model1:
 
         
         constraint_hinge = fea.ChLinkNodeFrame()
-        constraint_hinge.Initialize(builder.GetLastBeamNodes()[-1], mtruss)  
+        constraint_hinge.Initialize(builder.GetLastBeamNodes().back(), mtruss)
         system.Add(constraint_hinge)  
 
 

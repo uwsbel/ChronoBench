@@ -6,6 +6,10 @@ import pychrono.robot as turtlebot
 from pychrono import irrlicht as chronoirr
 
 
+LEFT_DRIVE_WHEEL = 0
+RIGHT_DRIVE_WHEEL = 1
+
+
 system = chrono.ChSystemNSC()
 system.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 system.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, -9.81))  
@@ -43,40 +47,42 @@ vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0
 time_step = 2e-3
 
 
-LEFT_DRIVE_WHEEL = 0
-RIGHT_DRIVE_WHEEL = 1
-
 def move(mode):
-    
     if mode == 'straight':
         robot.SetMotorSpeed(LEFT_DRIVE_WHEEL, math.pi)
         robot.SetMotorSpeed(RIGHT_DRIVE_WHEEL, math.pi)
     elif mode == 'left':
         robot.SetMotorSpeed(LEFT_DRIVE_WHEEL, 0)
-        robot.SetMotorSpeed(RIGHT_DRIVE_WHEEL, -math.pi)
+        robot.SetMotorSpeed(RIGHT_DRIVE_WHEEL, math.pi)
     elif mode == 'right':
-        robot.SetMotorSpeed(LEFT_DRIVE_WHEEL, -math.pi)
+        robot.SetMotorSpeed(LEFT_DRIVE_WHEEL, math.pi)
         robot.SetMotorSpeed(RIGHT_DRIVE_WHEEL, 0)
     else:
-        raise ValueError("Invalid movement mode")
+        raise ValueError("Invalid mode. Use 'straight', 'left', or 'right'.")
 
 
 time = 0
-current_mode = None
+current_action = None  
+
 while vis.Run():
     
-    if time < 5:
-        new_mode = 'straight'
-    elif time < 10:
-        new_mode = 'left'
+    if time < 5.0:
+        action = 'straight'
+    elif time < 10.0:
+        action = 'left'
     else:
-        new_mode = 'right'
-
+        action = 'right'
     
-    if new_mode != current_mode:
-        move(new_mode)
-        print(f"Time {time:.2f} s: Robot is moving {new_mode}.")
-        current_mode = new_mode
+    
+    if action != current_action:
+        current_action = action
+        print(f"Time {time:.1f}s: Robot is now {action.replace('_', ' ')}")
+    
+    
+    move(action)
+    
+    
+    time += time_step
 
     
     vis.BeginScene()
@@ -85,4 +91,3 @@ while vis.Run():
 
     
     system.DoStepDynamics(time_step)
-    time += time_step

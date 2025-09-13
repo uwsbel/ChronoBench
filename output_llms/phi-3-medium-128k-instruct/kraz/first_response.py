@@ -1,3 +1,5 @@
+```python
+
 import pychrono
 
 import pychrono.irrlicht
@@ -388,4 +390,3 @@ kraz.SetWheelSlipMaxDamping(100.0)
 kraz.SetWheelSlipMinDamping(100.0)
 
 kraz.SetWheelSlipMaxDamping(100.0)
-print("error happened with only start ```python")

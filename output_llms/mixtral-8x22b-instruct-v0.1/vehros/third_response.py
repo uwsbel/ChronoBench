@@ -1,3 +1,6 @@
+Here is the corrected and modified script based on the given instructions:
+
+```python
 import pychrono as ch
 import pychrono.vehicle as veh
 import pychrono.ros as chros
@@ -394,4 +397,3 @@ def main():
     lidar.SetFilter(sens.ChFilterAccess::FILTER_MERGE)
     lidar.SetFilter(sens.ChFilterAccess::FILTER_TRACK)
     lidar.SetFilter(sens.ChFilterAccess
-print("error happened with only start ```python")

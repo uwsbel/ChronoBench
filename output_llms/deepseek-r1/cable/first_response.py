@@ -2,73 +2,67 @@ import pychrono as chrono
 import pychrono.fea as fea
 import pychrono.irrlicht as chronoirr
 
-# System setup
+# 1. Initialize system and set gravity
 system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity downward
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Gravity in -Y direction
 
-# Create FEA mesh
+# 2. Create a mesh for the ANCF cable elements
 mesh = fea.ChMesh()
 system.Add(mesh)
 
-# Cable section properties
-section = fea.ChBeamSectionCable()
-section.SetDiameter(0.05)       # 5 cm diameter
-section.SetYoungModulus(1e7)    # Flexible material
-section.SetDensity(1000)        # Density of water-like material
-section.SetDamping(0.01)        # Add damping
+# 3. Define beam properties
+length = 1.0          # Beam length (m)
+n_elements = 8        # Number of elements
+density = 1000        # kg/m³
+youngs_modulus = 1e7  # Pa
+area = 0.01 * 0.01    # Cross-section area (10x10 mm)
+damping = 0.01        # Damping ratio
 
-# Geometry parameters
-num_elements = 10
-beam_length = 2.0               # 2 meters
-dx = beam_length / num_elements # Element length
-
-# Create nodes
+# 4. Create nodes (equally spaced along the beam)
 nodes = []
-for i in range(num_elements + 1):
-    x_pos = i * dx
+for i in range(n_elements + 1):
+    x_pos = i * (length / n_elements)
     node = fea.ChNodeFEAxyzD(chrono.ChVectorD(x_pos, 0, 0), 
-                            chrono.ChVectorD(1, 0, 0))  # Initial direction along X
+                            chrono.ChVectorD(0, 1, 0))  # Initial direction
     mesh.AddNode(node)
     nodes.append(node)
 
-# Fix first node to ground using a point frame constraint
-ground = chrono.ChBody()
-ground.SetBodyFixed(True)
-system.Add(ground)
+# 5. Fix the first node (hinged to ground)
+constraint = fea.ChLinkPointFrame()
+constraint.Initialize(nodes[0], chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)))
+system.Add(constraint)
 
-link = fea.ChLinkPointFrame()
-link.Initialize(nodes[0], ground)
-system.Add(link)
-
-# Create cable elements between nodes
-for i in range(num_elements):
+# 6. Create ANCF cable elements between nodes
+for i in range(n_elements):
     element = fea.ChElementCableANCF()
     element.SetNodes(nodes[i], nodes[i + 1])
-    element.SetSection(section)
+    element.SetSection(area)
+    element.SetMaterial(chrono.ChBeamSectionCable(density, youngs_modulus, damping))
     mesh.AddElement(element)
 
-# Visualization settings
-vis_mesh = fea.ChVisualizationFEAmesh(mesh)
-vis_mesh.SetFEMdataType(fea.ChVisualizationFEAmesh.E_PLOT_ELEM_BEAM_MX)
-vis_mesh.SetColorscaleMinMax(-0.4, 0.4)
-vis_mesh.SetSmoothFaces(True)
-mesh.AddVisualizationFEA(vis_mesh)
+# 7. Set up Irrlicht visualization
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetWindowSize(1280, 720)
+vis.SetWindowTitle('ANCF Beam Simulation')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVectorD(0.5, 0.5, 1.5))  # Camera position
+vis.AddTypicalLights()
 
-# Irrlicht setup
-application = chronoirr.ChIrrApp(system, "ANCF Cable Beam", chronoirr.dimension2du(800, 600))
-application.AddTypicalSky()
-application.AddTypicalCamera(chronoirr.vector3df(0.5, 0.5, 3.0))  # Adjust camera position
-application.AddTypicalLights()
-application.AssetBindAll()
-application.AssetUpdateAll()
+# 8. Visualize nodes and elements
+visualize_nodes = chronoirr.ChVisualShapePoint(0.02)
+visualize_beam = chronoirr.ChVisualShapeFEA(mesh)
+visualize_beam.SetFEMdataType(chronoirr.FEMDataType.ELEM_BEAM_MZ)
+visualize_beam.SetColorscaleMinMax(-0.1, 0.1)
+visualize_beam.SetSmoothFaces(True)
+mesh.AddVisualShapeFEA(visualize_beam)
 
-# Simulation loop settings
-application.SetTimestep(0.001)
-application.SetTryRealtime(True)
-
-# Simulation execution
-while application.GetDevice().run():
-    application.BeginScene()
-    application.DrawAll()
-    application.DoStep()
-    application.EndScene()
+# 9. Simulation loop
+timestep = 0.001
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    system.DoStepDynamics(timestep)

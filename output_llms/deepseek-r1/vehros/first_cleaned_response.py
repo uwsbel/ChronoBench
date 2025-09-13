@@ -1,105 +1,64 @@
-import os
-import rospy
-from geometry_msgs.msg import Twist, PoseStamped
 import pychrono as chrono
 import pychrono.vehicle as veh
-
-
-current_steering = 0.0
-current_throttle = 0.0
-current_brake = 0.0
-
-def cmd_vel_callback(msg):
-    global current_steering, current_throttle, current_brake
-    current_steering = max(-1.0, min(1.0, msg.angular.z))
-    current_throttle = max(0.0, min(1.0, msg.linear.x))
-    current_brake = max(0.0, min(1.0, -msg.linear.y))
+import pychrono.ros as chros
+import numpy as np
 
 def main():
-    rospy.init_node('chrono_simulation')
-
     
-    chrono.SetChronoDataPath(os.path.join(os.environ['CHRONO_DATA_DIR'], 'data/'))
-    
-    
+    chrono.SetChronoDataPath("path/to/chrono/data/")  
     system = chrono.ChSystemSMC()
-    system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
-    system.SetSolverMaxIterations(100)
-
-    
-    vehicle = veh.HMMWV(system)
-    vehicle.SetContactMethod(chrono.ChContactMethod_SMC)
-    vehicle.SetChassisFixed(False)
-    vehicle.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 1), chrono.QUNIT))
-    vehicle.SetEngineType(veh.EngineModelType_SHAFTS)
-    vehicle.SetTransmissionType(veh.TransmissionModelType_AUTOMATIC_SHAFTS)
-    vehicle.SetDriveType(veh.DrivelineTypeWV_AWD)
-    vehicle.SetTireType(veh.TireModelType_TMEASY)
-    vehicle.Initialize()
-
-    
-    vehicle.SetChassisVisualizationType(veh.VisualizationType_PRIMITIVES)
-    vehicle.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
-    vehicle.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
-    vehicle.SetTireVisualizationType(veh.VisualizationType_MESH)
+    system.SetGravity(chrono.ChVectorD(0, 0, -9.81))
+    system.SetSolverMaxIterations(50)
 
     
     terrain = veh.RigidTerrain(system)
-    patch = terrain.AddPatch(
-        chrono.ChCoordsysD(), 
-        chrono.ChVectorD(200, 200, 0.5)
-    )
-    patch.SetContactFriction(0.8)
-    patch.SetContactRestitution(0.01)
-    patch.SetTexture(veh.TerrainTextureType_GRASS, 64, 64)
-    terrain.Initialize()
+    patch_mat = chrono.ChMaterialSurfaceSMC()
+    patch_mat.SetFriction(0.8)
+    patch_mat.SetRestitution(0.01)
+    terrain.Initialize(chrono.ChVectorD(0, 0, 0), patch_mat)
 
     
-    rospy.Subscriber('/cmd_vel', Twist, cmd_vel_callback)
-    state_pub = rospy.Publisher('/vehicle_state', PoseStamped, queue_size=10)
+    hmmwv = veh.HMMWV_Full(system)
+    hmmwv.SetContactMethod(chrono.ChContactMethod_SMC)
+    hmmwv.SetChassisFixed(False)
+    hmmwv.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0.5), chrono.QUNIT))
+    hmmwv.SetEngineType(veh.EngineModelType_SIMPLE_MAP)
+    hmmwv.SetTransmissionType(veh.TransmissionModelType_SIMPLE_MAP)
+    hmmwv.SetDriveType(veh.DrivelineTypeWV_RWD)
+    hmmwv.SetTireType(veh.TireModelType_TMEASY)
+    hmmwv.Initialize()
 
     
-    time_step = 0.01
-    time = 0.0
+    ros_manager = chros.ChROSPublisherManager()
+    ros_manager.RegisterHandler(chros.ROSCollisionHandler(terrain.GetGroundBody(), "ground"))
+    ros_manager.RegisterHandler(chros.ROSClockHandler())
+    ros_manager.RegisterHandler(chros.ROSDriverInputsHandler(hmmwv.GetDriver(), "driver_inputs"))
+    ros_manager.RegisterHandler(chros.ROSVehicleStateHandler(hmmwv.GetVehicle(), "vehicle_state"))
+    ros_manager.Initialize()
 
-    while not rospy.is_shutdown():
-        
-        driver_inputs = veh.DriverInputs()
-        driver_inputs.m_steering = current_steering
-        driver_inputs.m_throttle = current_throttle
-        driver_inputs.m_braking = current_brake
+    
+    driver = veh.ChInteractiveDriverIRR(hmmwv.GetVehicle())
+    driver.SetSteeringDelta(0.02)
+    driver.SetThrottleDelta(0.02)
+    driver.SetBrakingDelta(0.06)
+    driver.Initialize()
 
+    
+    time_step = 0.002
+    time_end = 1000
+    time = 0
+
+    while time < time_end:
         
-        vehicle.Synchronize(time, driver_inputs)
+        driver.Synchronize(time)
         terrain.Synchronize(time)
-
-        
+        hmmwv.Synchronize(time, driver.GetInputs(), terrain)
         system.DoStepDynamics(time_step)
+        
+        
+        ros_manager.Update(time, system)
+        
         time += time_step
 
-        
-        chassis = vehicle.GetChassisBody()
-        pos = chassis.GetPos()
-        rot = chassis.GetRot()
-
-        pose_msg = PoseStamped()
-        pose_msg.header.stamp = rospy.Time.now()
-        pose_msg.header.frame_id = "world"
-        pose_msg.pose.position.x = pos.x
-        pose_msg.pose.position.y = pos.y
-        pose_msg.pose.position.z = pos.z
-        pose_msg.pose.orientation.x = rot.e0
-        pose_msg.pose.orientation.y = rot.e1
-        pose_msg.pose.orientation.z = rot.e2
-        pose_msg.pose.orientation.w = rot.e3
-
-        state_pub.publish(pose_msg)
-
-        
-        rospy.spin_once()
-
-if __name__ == '__main__':
-    try:
-        main()
-    except rospy.ROSInterruptException:
-        pass
+if __name__ == "__main__":
+    main()

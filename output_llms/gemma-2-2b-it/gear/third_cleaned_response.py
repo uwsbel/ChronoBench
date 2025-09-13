@@ -1,3 +1,4 @@
+```python
 import pychrono as chrono                         
 import pychrono.irrlicht as chronoirr             
 import math as m                                  
@@ -68,4 +69,3 @@ sys.AddLink(link_motor)
 
 
 interaxis12 = radA + radB
-print("error happened with only start ```python")

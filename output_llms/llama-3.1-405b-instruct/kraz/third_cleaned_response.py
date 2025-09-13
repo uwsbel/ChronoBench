@@ -7,10 +7,10 @@ chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 
-truck_initLoc = chrono.ChVector3d(0, -5, 0.5)
+truck_initLoc = chrono.ChVector3d(0, 0, 0.5)
 truck_initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
-sedan_initLoc = chrono.ChVector3d(0, 5, 0.5)
+sedan_initLoc = chrono.ChVector3d(10, 0, 0.5)
 sedan_initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 
@@ -26,6 +26,9 @@ sedan_tire_model = veh.TireModelType_TMEASY
 
 terrain_model = veh.RigidTerrain.MESH
 terrain_mesh = veh.GetDataFile("terrain/meshes/highway.obj")
+terrainHeight = 0      
+terrainLength = 100.0  
+terrainWidth = 100.0   
 
 
 trackPoint = chrono.ChVector3d(0,0, 2.1)
@@ -47,7 +50,7 @@ truck.SetContactMethod(contact_method)
 truck.SetChassisCollisionType(chassis_collision_type)
 truck.SetChassisFixed(False)
 truck.SetInitPosition(chrono.ChCoordsysd(truck_initLoc, truck_initRot))
-truck.SetTireType(truck_tire_model)
+truck.SetTireModel(truck_tire_model)
 truck.Initialize()
 
 truck.SetChassisVisualizationType(vis_type, vis_type)
@@ -56,13 +59,15 @@ truck.SetSuspensionVisualizationType(vis_type, vis_type)
 truck.SetWheelVisualizationType(vis_type, vis_type)
 truck.SetTireVisualizationType(vis_type, vis_type)
 
+truck.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+
 
 sedan = veh.Sedan()
 sedan.SetContactMethod(contact_method)
 sedan.SetChassisCollisionType(chassis_collision_type)
 sedan.SetChassisFixed(False)
 sedan.SetInitPosition(chrono.ChCoordsysd(sedan_initLoc, sedan_initRot))
-sedan.SetTireType(sedan_tire_model)
+sedan.SetTireModel(sedan_tire_model)
 sedan.Initialize()
 
 sedan.SetChassisVisualizationType(vis_type, vis_type)
@@ -70,6 +75,8 @@ sedan.SetSteeringVisualizationType(vis_type)
 sedan.SetSuspensionVisualizationType(vis_type, vis_type)
 sedan.SetWheelVisualizationType(vis_type, vis_type)
 sedan.SetTireVisualizationType(vis_type, vis_type)
+
+sedan.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
 patch_mat = chrono.ChContactMaterialNSC()
@@ -80,11 +87,13 @@ patch = terrain.AddPatch(patch_mat,
     chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
     terrain_mesh)
 
+patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
+patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
-vis.SetWindowTitle('Truck and Sedan Demo')
+vis.SetWindowTitle('Kraz and Sedan Demo')
 vis.SetWindowSize(1280, 1024)
 vis.SetChaseCamera(trackPoint, 25.0, 1.5)
 vis.Initialize()
@@ -92,7 +101,7 @@ vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(truck.GetTractor())
-vis.AttachVehicle(sedan.GetTractor())
+vis.AttachVehicle(sedan.GetChassis())
 
 
 truck_driver = veh.ChInteractiveDriverIRR(vis)
@@ -111,10 +120,11 @@ truck_driver.Initialize()
 sedan_driver = veh.ChDriver()
 sedan_driver.SetThrottle(0.5)
 sedan_driver.SetSteering(0.0)
+sedan_driver.Initialize()
 
 
 print( "TRUCK MASS: ",  truck.GetTractor().GetMass())
-print( "SEDAN MASS: ",  sedan.GetTractor().GetMass())
+print( "SEDAN MASS: ",  sedan.GetChassis().GetMass())
 
 
 render_steps = math.ceil(render_step_size / step_size)
@@ -139,14 +149,13 @@ while vis.Run() :
 
     
     truck_driver_inputs = truck_driver.GetInputs()
-    sedan_driver_inputs = sedan_driver.GetInputs()
 
     
     truck_driver.Synchronize(time)
     sedan_driver.Synchronize(time)
     terrain.Synchronize(time)
     truck.Synchronize(time, truck_driver_inputs, terrain)
-    sedan.Synchronize(time, sedan_driver_inputs, terrain)
+    sedan.Synchronize(time, sedan_driver.GetInputs(), terrain)
     vis.Synchronize(time, truck_driver_inputs)
 
     
@@ -159,10 +168,19 @@ while vis.Run() :
 
     
     truck_states.append((truck.GetTractor().GetPos(), truck.GetTractor().GetRot()))
-    sedan_states.append((sedan.GetTractor().GetPos(), sedan.GetTractor().GetRot()))
+    sedan_states.append((sedan.GetChassis().GetPos(), sedan.GetChassis().GetRot()))
 
     
     step_number += 1
 
     
     realtime_timer.Spin(step_size)
+
+
+with open("truck_states.txt", "w") as f:
+    for state in truck_states:
+        f.write(str(state[0].x) + " " + str(state[0].y) + " " + str(state[0].z) + " " + str(state[1].e0) + " " + str(state[1].e1) + " " + str(state[1].e2) + " " + str(state[1].e3) + "\n")
+
+with open("sedan_states.txt", "w") as f:
+    for state in sedan_states:
+        f.write(str(state[0].x) + " " + str(state[0].y) + " " + str(state[0].z) + " " + str(state[1].e0) + " " + str(state[1].e1) + " " + str(state[1].e2) + " " + str(state[1].e3) + "\n")

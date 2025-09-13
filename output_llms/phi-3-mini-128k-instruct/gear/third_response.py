@@ -1,3 +1,4 @@
+```python
 import pychrono as chrono                         # Importing the Chrono library
 import pychrono.irrlicht as chronoirr             # Importing the Irrlicht visualization library for Chrono
 import math as m                                  # Importing the math library for mathematical operations
@@ -6162,4 +6163,3 @@ link_revoluteTT.Initialize(mbody_truss, mbody_train,                  # Initiali
 
 
 ,
-print("error happened with only start ```python")

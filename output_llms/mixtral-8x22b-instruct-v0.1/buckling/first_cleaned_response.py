@@ -2,17 +2,19 @@ import pychrono as chrono
 import pychrono.irrlicht as chronoirr
 import numpy as np
 
+
 my_application = chronoirr.ChIrrApp(chronoirr.ChIrrApp.Type.CHRONO, "Beam Buckling Simulation", chronoirr.dimension2du(800, 600))
 
 
 my_system = chrono.ChSystemNSC()
 
-beam_length = 1.0
-beam_width = 0.05
-beam_height = 0.05
-beam_density = 7850
-beam_youngs_modulus = 200e9
-beam_poisson_ratio = 0.3
+
+beam_length = 1.0  
+beam_width = 0.05  
+beam_height = 0.05  
+beam_density = 7850  
+beam_youngs_modulus = 200e9  
+beam_poisson_ratio = 0.3  
 
 
 beam = chrono.ChElementBeamFEA()
@@ -23,11 +25,12 @@ beam.SetDensity(beam_density)
 beam.SetYoungModulus(beam_youngs_modulus)
 beam.SetPoissonRatio(beam_poisson_ratio)
 
+
 my_system.Add(beam)
 
 
 def custom_motor_function(t):
-
+    
     pass
 
 
@@ -36,6 +39,7 @@ motor.Set_speed_function(custom_motor_function)
 
 
 my_system.Add(motor)
+
 
 
 fixed_point = chrono.ChVectorD(0, 0, 0)
@@ -50,8 +54,11 @@ my_system.Add(constraint)
 beam.GetNodeN().SetPos(chrono.ChVectorD(0, 0, 0))
 beam.GetNodeN().SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
 
+
+
+
 my_system.SetIntegrationType(chrono.ChSystem.IntegrationType.HHT)
-my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
+my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  
 
 
 timestepper = chrono.ChTimestepperHHT()

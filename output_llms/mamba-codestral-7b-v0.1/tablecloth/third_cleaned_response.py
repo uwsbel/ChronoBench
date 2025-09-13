@@ -1,3 +1,4 @@
+```python
 import pychrono.core as chrono  
 import pychrono.irrlicht as chronoirr  
 import pychrono.fea as fea  
@@ -103,4 +104,3 @@ if (True):
 
             
             melement
-print("error happened with only start ```python")

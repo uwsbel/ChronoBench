@@ -68,9 +68,9 @@ opensource_model_links = {
 }
 
 # data set path
-dataset_path = 'D:\SimBench\demo_data'
-Output_path = 'D:\SimBench\output'
-Output_conversation_path = 'D:\SimBench\output_conversion'
+dataset_path = '/home/hongyu/Documents/andy_simbench/SimBench/demo_data'
+Output_path = '/home/hongyu/Documents/andy_simbench/SimBench/output'
+Output_conversation_path = '/home/hongyu/Documents/andy_simbench/SimBench/output_conversion'
 # in the dataset_path, there are 34 dynamical system folders, each folder is a dyanmical system which contains 8 files [3 input text files, input1.txt, input2.txt, input3.txt;
 # 2 python input files, pyinput2.py, pyinput3.py; 3 ground truth python files truth1.py, truth2.py, truth3.py]
 #test_model_list = ["gemma-2-2b-it", "gemma-2-9b-it", "gemma-2-27b-it", "llama-3.1-405b-instruct", "llama-3.1-70b-instruct", "codellama-70b", "llama-3.1-8b-instruct", "phi-3-mini-128k-instruct", "phi-3-small-8k-instruct", "phi-3-medium-128k-instruct",
@@ -106,9 +106,9 @@ difference = system_list - MBS_list - FEA_list - SEN_list - RBT_list - VEH_list
 
 print(difference)
 # data set path
-dataset_path = 'D:\SimBench\demo_data'
-Output_path = 'D:\SimBench\output'
-Output_statistic_path = 'D:\SimBench\statistic'
+dataset_path = '/home/hongyu/Documents/andy_simbench/SimBench/demo_data'
+Output_path = '/home/hongyu/Documents/andy_simbench/SimBench/output'
+Output_statistic_path = '/home/hongyu/Documents/andy_simbench/SimBench/statistic'
 
 # using tqdm to show the progress bar
 for test_model in tqdm(test_model_list):

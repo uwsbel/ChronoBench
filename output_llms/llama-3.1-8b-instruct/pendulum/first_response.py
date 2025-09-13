@@ -1,5 +1,3 @@
-Here is the code that meets the specifications:
-```
 import chrono as c
 import chrono_irrlicht as irr
 
@@ -47,5 +45,3 @@ while True:
     vis.Render()
     log.Log()
     c.wait(0.01)
-```
-This code initializes the PyChrono environment, creates a ground body and a pendulum body, connects them with a revolute joint, sets default parameters, creates a visualization system, sets up the visualization, sets up the simulation, sets up the logging, and runs the simulation.

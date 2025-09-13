@@ -1,98 +1,99 @@
-import os
-import math
 import pychrono as chrono
-import pychrono.sensor as sens
+import pychrono.irrlicht as irrlicht
+import pychrono.sensor as sensor
+import numpy as np
+import os
 
-def main():
+
+chrono.SetChronoDataPath(os.path.join(os.path.dirname(__file__), 'data/'))
+
+
+system = chrono.ChSystemNSC()
+system.SetGravity(chrono.ChVectorD(0, -9.81, 0))
+
+
+mesh_body = chrono.ChBody()
+mesh_body.SetBodyFixed(True)
+system.Add(mesh_body)
+
+
+mesh_path = "models/triangular_mesh.obj"  
+mesh = chrono.ChTriangleMeshConnected()
+mesh.LoadWavefrontMesh(mesh_path)
+mesh_shape = chrono.ChTriangleMeshShape(mesh)
+mesh_shape.SetName("MeshVisualization")
+mesh_body.AddAsset(mesh_shape)
+
+
+application = irrlicht.ChIrrApp(system, "Camera Sensor Demo", 800, 600)
+application.AddTypicalSky()
+application.AddTypicalCamera(chrono.ChVectorD(2, 2, -3))
+application.AddTypicalLights()
+application.AssetBindAll()
+application.AssetUpdateAll()
+
+
+manager = sensor.ChSensorManager(system)
+manager.scene.AddPointLight(chrono.ChVectorF(10, 10, 10), chrono.ChColor(1, 1, 1), 1000)
+
+
+orbit_radius = 3.0
+orbit_height = 1.0
+angular_speed = 0.1  
+
+
+camera = sensor.ChCameraSensor(
+    mesh_body,              
+    30,                     
+    chrono.ChFrameD(chrono.ChVectorD(orbit_radius, orbit_height, 0), 
+                   chrono.Q_from_AngZ(np.pi/2)),  
+    1280,                   
+    720,                    
+    np.deg2rad(75)          
+)
+camera.SetName("Orbiting Camera")
+
+
+camera.PushFilter(sensor.ChFilterRGBA8Access())
+camera.PushFilter(sensor.ChFilterVisualize(1280, 720, "Camera View"))
+camera.PushFilter(sensor.ChFilterNoiseNormal(0.0, 0.02))  
+
+manager.AddSensor(camera)
+
+
+time_step = 0.01
+current_time = 0.0
+orbit_angle = 0.0
+
+
+while application.GetDevice().run():
+    application.BeginScene()
+    application.DrawAll()
     
-    chrono.SetChronoDataPath(os.path.join(os.environ['CHRONO_DATA_DIR'], 'data/'))
-    system = chrono.ChSystemNSC()
-    system.SetGravitationalAcceleration(chrono.ChVectorD(0, 0, 0))
-
     
-    mesh_body = chrono.ChBody()
-    mesh_body.SetBodyFixed(True)
-    mesh_body.SetPos(chrono.ChVectorD(0, 0, 0))
+    orbit_angle += angular_speed * time_step
+    cam_x = orbit_radius * np.cos(orbit_angle)
+    cam_z = orbit_radius * np.sin(orbit_angle)
+    cam_pos = chrono.ChVectorD(cam_x, orbit_height, cam_z)
     
     
-    obj_mesh = chrono.ChObjFileShape()
-    obj_mesh.SetFilename("model.obj")
-    mesh_body.AddAsset(obj_mesh)
-    system.Add(mesh_body)
-
+    cam_rot = chrono.ChMatrix33D()
+    cam_rot.Set_A_Raxis(-cam_pos, chrono.ChVectorD(0, 1, 0))
+    camera.SetOffsetPose(chrono.ChFrameD(cam_pos, cam_rot.Get_A_quaternion()))
     
-    orbit_body = chrono.ChBody()
-    orbit_body.SetMass(0)  
-    system.Add(orbit_body)
-
     
-    manager = sens.ChSensorManager(system)
-    manager.scene.AddPointLight(chrono.ChVectorF(100, 100, 100), chrono.ChColor(1, 1, 1), 500.0)
-
+    manager.Update()
+    system.DoStepDynamics(time_step)
+    application.EndScene()
+    current_time += time_step
     
-    time_step = 0.005
-    update_rate = 1/time_step  
-    image_width = 64
-    image_height = 48
-    fov = 70
-    orbit_radius = 3.0
-    orbit_height = 2.0
-    orbit_speed = 0.5  
-
     
-    camera = sens.ChCameraSensor(
-        orbit_body,
-        update_rate,
-        chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0))),
-        image_width,
-        image_height,
-        fov
-    )
-    camera.SetName("Orbital Camera")
-    camera.SetLag(0)
-    camera.SetCollectionWindow(0)
+    buffer = camera.GetMostRecentRGBA8Buffer()
+    if buffer.HasData():
+        rgba8_data = buffer.GetRGBA8Data()
+        print(f"Time: {current_time:.2f}s | Camera Data: "
+              f"First Pixel: {rgba8_data[0,0]} | "
+              f"Buffer Shape: {rgba8_data.shape} | "
+              f"Mean Intensity: {np.mean(rgba8_data):.1f}")
 
-    
-    noise_model = sens.ChNoiseNormal(0.0, 0.1)
-    camera.AddNoiseModel(noise_model)
-
-    
-    camera.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Camera View"))
-
-    manager.AddSensor(camera)
-
-    
-    time = 0.0
-    while time < 10.0:
-        
-        new_time = time + time_step
-        angle = orbit_speed * new_time
-        x = orbit_radius * math.cos(angle)
-        y = orbit_radius * math.sin(angle)
-        pos = chrono.ChVectorD(x, y, orbit_height)
-        
-        
-        look_frame = chrono.ChFrameD(pos)
-        look_frame.LookAt(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 1))
-        
-        orbit_body.SetPos(pos)
-        orbit_body.SetRot(look_frame.GetRot())
-
-        
-        system.DoStepDynamics(time_step)
-        
-        
-        manager.Update()
-
-        
-        if camera.GetMostRecentFrame():
-            frame = camera.GetMostRecentFrame()
-            print(f"\nTime: {new_time:.3f}")
-            print(f"Camera Position: {pos.x():.2f}, {pos.y():.2f}, {pos.z():.2f}")
-            print(f"Image Resolution: {image_width}x{image_height}")
-            print(f"First pixel RGBA: {frame.GetRGBA8Data()[0][0]}")
-
-        time = new_time
-
-if __name__ == "__main__":
-    main()
+print("Simulation completed.")

@@ -1,5 +1,3 @@
-Here is the code that meets the specifications:
-```
 import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
 import pychrono.vehicle as chrono_vehicle
@@ -82,5 +80,3 @@ while app.Run():
     driver.BeginScene(True, True, True)
     driver.Render()
     driver.EndScene()
-```
-Note that you'll need to replace `"/path/to/chrono/data"` with the actual path to the Chrono data directory on your system. Also, make sure to install the necessary dependencies, including PyChrono, ROS, and Irrlicht.

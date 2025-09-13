@@ -5,40 +5,93 @@ import json
 from tqdm import tqdm
 import pandas as pd
 from concurrent.futures import ProcessPoolExecutor, as_completed
-from pathlib import Path
-import logging, os
-logging.getLogger("evaluate").setLevel(logging.ERROR)
-os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = "1"
 
 # Define paths
-DATA_ROOT                  = Path("C:/Users/jingquanw/SimBench/")
-dataset_path               = DATA_ROOT / "demo_data"
-output_path                = DATA_ROOT / "output_llms"
-output_statistic_path      = DATA_ROOT / "statistic"
+dataset_path = r'/home/hongyu/Documents/andy_simbench/SimBench/demo_data'
+output_path = r'/home/hongyu/Documents/andy_simbench/SimBench/output_llms'
+output_statistic_path = r'/home/hongyu/Documents/andy_simbench/SimBench/statistic'
+
 # List of models and systems to evaluate
+# test_model_list = [
+#     "gemma-2-2b-it", "gemma-2-9b-it", "gemma-2-27b-it",
+#     "llama-3.1-405b-instruct", "llama-3.1-70b-instruct",
+#     "llama-3.1-8b-instruct", "phi-3-mini-128k-instruct", "nemotron-4-340b-instruct",
+#     "mistral-nemo-12b-instruct", "mixtral-8x22b-instruct-v0.1",
+#     "codestral-22b-instruct-v0.1", "mixtral-8x7b-instruct-v0.1",
+#     "mistral-large-latest", "mamba-codestral-7b-v0.1",
+#     "gpt-4o", "gpt-4o-mini", "claude-3-5-sonnet", "Gemini-1.5-pro","phi-3-medium-128k-instruct",
+# ]
+# test_model_list = ["llama-3.3-70b-instruct"]
+# test_model_list = ["llama-3.1-8b-instruct-lora-final"] # typo, this really referes to 4.1-mini finetuned
+# test_model_list = ["deepseek-r1", "deepseek-r1-32b", "deepseek-r1-8b", "gemma-2-27b-it", "gemma-2-2b-it", "gemma-3-1b-it", "gpt-4.1-mini", ]
+# test_model_list = ["deepseek-r1",
+#  "deepseek-r1-32b",
+#  "deepseek-r1-8b",
+#  "gemma-2-27b-it",
+#  "gemma-2-2b-it",
+#  "gemma-3-1b-it",
+#  "gpt-4.1-mini",
+#  "gpt-4.1-nano",
+#  "gpt-4o-mini",
+#  "llama-3.3-70b-instruct",
+#  "llama4-maverick",
+#  "llama4-scout",
+#  "mamba-codestral-7b-v0.1",
+#  "mistral-nemo-12b-instruct",
+#  "mixtral-8x22b-instruct-v0.1",
+#  "mixtral-8x7b-instruct-v0.1",
+#  "phi-3-medium-128k-instruct",
+#  "phi-3-mini-128k-instruct",
+#  "qwen3-235b-a22b"]
+
 test_model_list = [
-    "gemma-2-2b-it", "gemma-2-9b-it", "gemma-2-27b-it", "llama-3.1-405b-instruct", "llama-3.1-70b-instruct",
-"llama-3.1-8b-instruct", "phi-3-mini-128k-instruct", "phi-3-medium-128k-instruct",
- "nemotron-4-340b-instruct", "mistral-nemo-12b-instruct", "mixtral-8x22b-instruct-v0.1", "codestral-22b-instruct-v0.1",
- "mixtral-8x7b-instruct-v0.1", "mistral-large-latest", "mamba-codestral-7b-v0.1",
- "gpt-4o", "gpt-4o-mini", "claude-3-5-sonnet", "Gemini-1.5-pro",
-"llama4_maverick","llama4_scout", "llama-3.3-70b-instruct","o3","deepseek-r1-8b",
-"deepseek-r1-32b", "deepseek-r1","gemma-3-1b-it","qwen3-235b-a22b","claude-3-7-sonnet-20250219",
-"claude-4-sonnet-20250514","Gemini-2.5-pro","Gemini-1.5-pro","gpt-4.1-mini", "gpt-4.1-nano",
-"gpt-4.1","o4-mini","llama3.1-8b-f1","gpt-4o-mini-f1","llama3.3-70b-sft1","gpt-4o-mini-f3","pe_gpt-4o-mini","llama3.1-8b-lora1",
-"pe_llama-3.3-70b-instruct","pe_llama-3.1-405b-instruct","pe_deepseek-r1-32b","pe_llama-3.1-8b-instruct","pe_llama4_scout","llama4-109b-lora1",
-"llama3.3-70b-lora1"
+    # DeepSeek Models
+    "deepseek-r1",
+    "deepseek-r1-8b",
+    "deepseek-r1-32b",
+    
+    # Meta/Llama Models
+    "llama-3.1-405b-instruct",
+    "llama-3.1-70b-instruct",
+    "llama-3.1-8b-instruct",
+    "llama-3.3-70b-instruct",
+    "llama4_maverick",
+    "llama4_scout",
+    
+    # NVIDIA Models
+    "nemotron-4-340b-instruct",
+    
+    # Microsoft Phi Models
+    "phi-3-mini-128k-instruct",
+    "phi-3-medium-128k-instruct",
+    
+    # # Google Gemma Models
+    "gemma-2-9b-it",
+    "gemma-2-27b-it",
+    "gemma-2-2b-it",
+    "gemma-3-1b-it",
+    "gemma-3-27b-it",
+    
+    # Mistral Models
+    "mistral-nemo-12b-instruct",
+    "mixtral-8x22b-instruct-v0.1",
+    "mixtral-8x7b-instruct-v0.1",
+    "codestral-22b-instruct-v0.1",
+    "mistral-large-latest",
+    "mamba-codestral-7b-v0.1",
+    
+    # Qwen Model
+    "qwen3-235b-a22b"
 ]
 
-system_list = [
-    "art", "beam", "buckling", "cable", "car", "camera",
-    "citybus", "curiosity", "feda", "gator", "gear",
-    "gps_imu", "handler", "hmmwv", "kraz", "lidar", "m113",
-    "man", "mass_spring_damper", "particles", "pendulum",
-    "rigid_highway", "rigid_multipatches", "rotor", "scm",
-    "scm_hill", "sedan", "sensros", "slider_crank",
-    "tablecloth", "turtlebot", "uazbus", "veh_app", "vehros", "viper"
-]
+
+
+system_list = ["art", "beam", "buckling", "cable",  "camera", "citybus", 
+               "curiosity", "feda", "gator", "gear", "gps_imu", "handler", "hmmwv", "kraz", "lidar", "m113", "man", "mass_spring_damper", "particles", "pendulum",
+               "rigid_highway", "rigid_multipatches", "rotor", "scm", 
+               "scm_hill", "sedan", "sensros", "slider_crank", 
+               "tablecloth", "turtlebot", "uazbus", "veh_app","vehros",
+               "viper"]
 
 system_do_list = system_list
 
@@ -132,7 +185,7 @@ if __name__ == '__main__':
     df = pd.DataFrame(all_data)
 
     # Save the DataFrame to a single CSV file
-    output_file = os.path.join(output_statistic_path, "evaluation_results.csv")
+    output_file = os.path.join(output_statistic_path, "evaluation_results_1.csv")
     os.makedirs(os.path.dirname(output_file), exist_ok=True)
     df.to_csv(output_file, index=False)
 

@@ -1,3 +1,5 @@
+```python
+
 import pychrono as chrono
 
 import pychrono.visualization as visual
@@ -477,4 +479,3 @@ my_tablecloth.SetDefaultParameters(
 
 
 ),
-print("error happened with only start ```python")

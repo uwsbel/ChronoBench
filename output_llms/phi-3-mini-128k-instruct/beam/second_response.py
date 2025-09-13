@@ -1,3 +1,4 @@
+```python
 import pychrono as chrono # Import the main PyChrono module.
 import pychrono.fea as fea # Import the finite element analysis (FEA) module.
 import pychrono.pardisomkl as mkl # Import the Pardiso MKL linear solver module.
@@ -6719,4 +6720,3 @@ re
 
 .
 .
-print("error happened with only start ```python")

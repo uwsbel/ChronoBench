@@ -40,7 +40,6 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  
 
 
-
 vehicle = veh.Kraz()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
@@ -124,20 +123,20 @@ while vis.Run() :
     vis.Synchronize(time, driver_inputs)
 
     
-    if time < 5:
-        driver_inputs.m_steering = 0.1
-    elif time < 10:
-        driver_inputs.m_steering = -0.1
-    elif time < 15:
-        driver_inputs.m_steering = 0.1
-    else:
-        driver_inputs.m_steering = 0
-
-    
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
+
+    
+    if time < 5:
+        driver.SetSteering(0.2)
+    elif time < 10:
+        driver.SetSteering(-0.2)
+    elif time < 15:
+        driver.SetSteering(0.2)
+    else:
+        driver.SetSteering(0)
 
     
     step_number += 1

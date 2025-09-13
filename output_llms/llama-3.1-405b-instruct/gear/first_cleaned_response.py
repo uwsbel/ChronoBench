@@ -2,86 +2,74 @@ import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
 
 
-chrono.SetChronoDataPath('/path/to/chrono/data/')
+gears_radius = [0.2, 0.1]  
+gears_thickness = 0.05  
+bar_length = 0.5  
+truss_length = 1.0  
+motor_speed = 2.0  
 
 
-sys = chrono.ChSystemNSC()
+my_system = chrono.ChSystemNSC()
 
 
-ground = chrono.ChBodyEasyBox(sys, 10, 1, 10, 1000, True, True)
-ground.SetPos(chrono.ChVectorD(0, -5, 0))
-sys.Add(ground)
+application = chronoirr.ChIrrApp(my_system, 'Epicyclic Gears Simulation', chronoirr.dimension2du(800, 600))
 
 
-truss = chrono.ChBodyEasyBox(sys, 2, 2, 2, 1000, True, True)
-truss.SetPos(chrono.ChVectorD(0, 0, 0))
-truss.SetBodyFixed(True)
-sys.Add(truss)
+truss_body = chrono.ChBodyEasyBox(my_system, truss_length, 0.1, 0.1, 1000, True)
+truss_body.SetPos(chrono.ChVectorD(0, 0, 0))
+truss_body.SetBodyFixed(True)
+my_system.Add(truss_body)
 
 
-bar = chrono.ChBodyEasyCylinder(sys, 1, 1, 1000, True, True)
-bar.SetPos(chrono.ChVectorD(0, 2, 0))
-sys.Add(bar)
+bar_body = chrono.ChBodyEasyBox(my_system, bar_length, 0.05, 0.05, 100, False)
+bar_body.SetPos(chrono.ChVectorD(0, 0, 0.5))
+bar_body.SetMass(10)
+my_system.Add(bar_body)
 
 
-gear1 = chrono.ChBodyEasyCylinder(sys, 0.5, 1, 1000, True, True)
-gear1.SetPos(chrono.ChVectorD(-1, 2, 0))
-sys.Add(gear1)
+gear1_body = chrono.ChBodyEasyCylinder(my_system, gears_radius[0], gears_thickness, 100, False)
+gear1_body.SetPos(chrono.ChVectorD(-0.25, 0, 0.5))
+gear1_body.SetMass(5)
+my_system.Add(gear1_body)
 
-gear2 = chrono.ChBodyEasyCylinder(sys, 0.5, 1, 1000, True, True)
-gear2.SetPos(chrono.ChVectorD(1, 2, 0))
-sys.Add(gear2)
-
-
-rev1 = chrono.ChLinkRevolute()
-rev1.Initialize(bar, gear1, chrono.ChFrameD(chrono.ChVectorD(-1, 2, 0)))
-sys.Add(rev1)
+gear2_body = chrono.ChBodyEasyCylinder(my_system, gears_radius[1], gears_thickness, 100, False)
+gear2_body.SetPos(chrono.ChVectorD(0.25, 0, 0.5))
+gear2_body.SetMass(5)
+my_system.Add(gear2_body)
 
 
-rev2 = chrono.ChLinkRevolute()
-rev2.Initialize(bar, gear2, chrono.ChFrameD(chrono.ChVectorD(1, 2, 0)))
-sys.Add(rev2)
+motor = chrono.ChLinkMotorRotationSpeed(my_system)
+motor.Initialize(gear1_body, gear2_body, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0.5)))
+motor.SetMotorFunction(chrono.ChFunction_Ramp(0, motor_speed))
+my_system.Add(motor)
 
 
-gear_constraint = chrono.ChLinkGear()
-gear_constraint.Initialize(gear1, gear2, 2, 1, chrono.ChFrameD(chrono.ChVectorD(0, 2, 0)))
-sys.Add(gear_constraint)
+bar_gear1_joint = chrono.ChLinkRevolute(my_system)
+bar_gear1_joint.Initialize(bar_body, gear1_body, chrono.ChFrameD(chrono.ChVectorD(-0.25, 0, 0.5)))
+my_system.Add(bar_gear1_joint)
+
+bar_gear2_joint = chrono.ChLinkRevolute(my_system)
+bar_gear2_joint.Initialize(bar_body, gear2_body, chrono.ChFrameD(chrono.ChVectorD(0.25, 0, 0.5)))
+my_system.Add(bar_gear2_joint)
 
 
-motor = chrono.ChLinkMotorRotationSpeed()
-motor.Initialize(bar, gear1, chrono.ChFrameD(chrono.ChVectorD(-1, 2, 0)))
-motor.SetMotorFunction(chrono.ChFunction_Const(chrono.CH_C_PI / 2))
-sys.Add(motor)
+truss_bar_joint = chrono.ChLinkRevolute(my_system)
+truss_bar_joint.Initialize(truss_body, bar_body, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0.5)))
+my_system.Add(truss_bar_joint)
 
 
-app = chronoirr.ChIrrApp(sys, 'Epicyclic Gears', chronoirr.dimension2du(800, 600))
+application.AssetBindAll()
+application.AssetUpdateAll()
 
 
-app.AddCamera(chronoirr.vector3df(0, 5, -10))
+application.SetCamera(chronoirr.vector3df(1, 1, 1), chronoirr.vector3df(0, 0, 0))
 
 
-app.AddLight(chronoirr.vector3df(2, 2, 2), chronoirr.vector3df(0, 0, 0), 3, 0, 3, 7)
+application.SetTimestep(0.01)
+application.SetTryRealtime(True)
 
-
-app.AssetBindAll()
-app.AssetUpdateAll()
-ground.GetVisualShape().SetMaterial(app.GetMaterial('ground'))
-
-
-truss.GetVisualShape().SetMaterial(app.GetMaterial('metal'))
-
-
-bar.GetVisualShape().SetMaterial(app.GetMaterial('metal'))
-
-
-gear1.GetVisualShape().SetMaterial(app.GetMaterial('metal'))
-gear2.GetVisualShape().SetMaterial(app.GetMaterial('metal'))
-
-
-app.SetTimestep(0.01)
-app.SetTryRealtime(True)
-while app.GetDevice().run():
-    app.BeginScene()
-    app.DrawAll()
-    app.DoStep()
-    app.EndScene()
+while application.GetDevice().run():
+    application.BeginScene()
+    application.DrawAll()
+    application.DoStep()
+    application.EndScene()

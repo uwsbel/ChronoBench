@@ -1,3 +1,4 @@
+```python
 import pychrono.core as chrono
 import pychrono.sensor as sens
 
@@ -182,4 +183,3 @@ return_mode = sens.LidarReturnMode_STRONGEST_RETURN
 
 
 update_rate =
-print("error happened with only start ```python")

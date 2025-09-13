@@ -1,0 +1,89 @@
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
+import pychrono.vehicle as veh
+
+# --- Create the simulation system ---
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
+
+# --- Create the terrain ---
+terrain = chrono.ChRigidBody()
+terrain.SetBodyFixed(True)
+terrain.SetMass(0)
+terrain.SetCollide(True)
+terrain.SetVisualizationType(chrono.ChVisualizationType.MESH)
+terrain.GetCollisionModel().ClearModel()
+terrain.GetCollisionModel().AddBox(chrono.ChVectorD(100, 1, 100))  # Large box for the terrain
+terrain.SetPos(chrono.ChVectorD(0, -0.1, 0))  # Lower the terrain slightly
+
+# Custom terrain texture (replace 'path/to/your/texture.png' with an actual path)
+try:
+    texture = chronoirr.ChTexture("path/to/your/texture.png")
+except:
+    print("Warning: Texture not found. Using default terrain color.")
+    texture = None
+
+system.Add(terrain)
+
+# --- Create the FEDA vehicle ---
+vehicle = veh.FEDA_Vehicle(system)
+
+# --- Vehicle setup ---
+vehicle.SetVehicleMass(1500.0)
+vehicle.SetEngineType(veh.FEDA_EngineType.GASOLINE)
+vehicle.SetDriveType(veh.FEDA_DriveType.RWD)
+vehicle.SetInitialPosition(chrono.ChVectorD(0, 1, 0))
+vehicle.SetInitialOrientation(chrono.ChQuaternionD(1, 0, 0, 0))
+
+# --- Tire model ---
+vehicle.SetTireModel(veh.FEDA_TireModel.LUGRE)
+
+# --- Contact method ---
+vehicle.SetContactMethod(veh.FEDA_ContactMethod.NSC)
+
+# --- Visualization ---
+vehicle.SetVisualizationType(chrono.ChVisualizationType.MESH)
+
+# --- Add the vehicle to the system ---
+system.Add(vehicle)
+
+# --- Create the Irrlicht application ---
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle('FEDA Vehicle Simulation')
+vis.Initialize()
+vis.AddCamera(chrono.ChVectorD(0, 2, -5))
+vis.AddTypicalLights()
+
+# --- Camera following the vehicle ---
+camera_offset = chrono.ChVectorD(0, 2, -5)
+camera_up = chrono.ChVectorD(0, 1, 0)
+
+# --- Interactive driver system ---
+driver = veh.FEDA_Driver(vehicle)
+driver.SetSteeringDelta(0.05)
+driver.SetThrottleDelta(0.01)
+driver.SetBrakingDelta(0.01)
+
+# --- Simulation loop ---
+vis.ShowShadows(True)
+vis.SetShadowsScale(2.0)
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+
+    # Update the vehicle dynamics
+    system.DoStepDynamics(1.0 / 50.0)  # 50 FPS
+
+    # Update camera position
+    camera_pos = vehicle.GetPos() + camera_offset
+    vis.GetIrrlichtApplication().getSceneManager().getActiveCamera().setPosition(camera_pos)
+    vis.GetIrrlichtApplication().getSceneManager().getActiveCamera().setTarget(vehicle.GetPos())
+    vis.GetIrrlichtApplication().getSceneManager().getActiveCamera().setUpVector(camera_up)
+
+    # Update driver input (example: constant throttle)
+    driver.SetThrottle(0.5)  # Example: 50% throttle
+    driver.SetSteering(0.0) # Example: Straight steering
+    driver.SetBraking(0.0) # Example: No braking

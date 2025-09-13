@@ -1,10 +1,10 @@
 import pychrono.core as chrono
 import pychrono.vehicle as veh
-import pychrono.irrlicht as chronoirr
+import pychrono.irrlicht as irr
 import numpy as np
 
 
-chrono.SetChronoDataPath('/path/to/chrono/data/')
+chrono.SetChronoDataPath('./data/')
 
 
 sys = chrono.ChSystemNSC()
@@ -13,66 +13,52 @@ sys = chrono.ChSystemNSC()
 terrain = veh.SCMDeformableTerrain(sys)
 terrain.SetSoilParameters(0.2,  
                           0.01,  
-                          0.005,  
-                          0.01,  
-                          0.001  
-                          )
-terrain.Initialize('/path/to/heightmap.bmp',  
-                   0.1,  
-                   0.1,  
-                   0.01  
-                   )
+                          0.001,  
+                          2000,   
+                          0.01,   
+                          0.2)    
+terrain.Initialize(1024, 1024, 20.0)  
 
 
-vehicle = veh.HMMWV(sys)
-vehicle.Initialize()
-vehicle.SetChassisPosition(chrono.ChVectorD(0, 0, 0.5))
+height_map = np.random.rand(1024, 1024) * 2 - 1
+terrain.SetHeightMap(height_map)
+
+
+vehicle = veh.HMMWV(sys, drivetrain=veh.e_drivetrain_RWD, suspension=veh.e_suspension_SemiTrailingArm)
+vehicle.SetChassisPosition(chrono.ChVectorD(0, 2, 0))
 vehicle.SetChassisRotation(chrono.ChQuaternionD(1, 0, 0, 0))
 
 
-driver = veh.ChDriver(sys)
+vehicle.Initialize()
+
+
+driver = veh.ChIrrNodeDriver(vehicle)
 driver.Initialize()
-driver.SetSteeringController(0.03,  
-                             0.01  
-                             )
-driver.SetThrottleController(0.1,  
-                             0.01  
-                             )
-driver.SetBrakingController(0.1,  
-                            0.01  
-                            )
 
 
-vis = chronoirr.ChVisualSystemIrrlicht()
-vis.SetWindowSize(800, 600)
-vis.SetWindowTitle('HMMWV Simulation')
-vis.Initialize()
-vis.AddSkyBox()
-vis.AddCamera(chrono.ChVectorD(-2, 0, 1),  
-              chrono.ChVectorD(0, 0, 0)  
-              )
-vis.AddLight(chrono.ChVectorD(-2, 2, 2),  
-             chrono.ChVectorD(0, 0, 0),  
-             0.5,  
-             0.1,  
-             chrono.ChColor(1, 1, 1)  
-             )
+app = irr.ChIrrApp(sys, 'HMMWV on Deformable Terrain', irr.dimension2du(800, 600))
+app.AddTypicalSky()
+app.AddTypicalLights()
+app.AddCamera(chrono.ChVectorD(0, 5, -10))
+app.SetSymbolscale(0.02)
 
 
-while vis.Run():
+while app.GetDevice().run():
     
-    sys.DoStepDynamics(chrono.ChTimestep(1e-3))
+    vehicle.Synchronize(time=app.GetSimulationTime())
+    terrain.Synchronize(time=app.GetSimulationTime())
 
     
-    driver.SetSteering(0.1 * np.sin(chrono.ChTime(10) * sys.GetChTime()))
-    driver.SetThrottle(0.5)
-    driver.SetBraking(0.0)
+    vehicle.Advance(app.GetStepSize())
+    terrain.Advance(app.GetStepSize())
 
     
-    vehicle.Advance(chrono.ChTimestep(1e-3))
-    terrain.Advance(chrono.ChTimestep(1e-3))
+    driver.Update()
 
     
-    vis.BeginScene()
-    vis.DrawAll()
-    vis.EndScene()
+    app.BeginScene(True, True, irr.SColor(255, 255, 255))
+    app.DrawAll()
+    app.EndScene()
+
+    
+    app.Step()

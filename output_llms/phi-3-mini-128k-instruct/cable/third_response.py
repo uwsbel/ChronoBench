@@ -1,3 +1,4 @@
+```python
 import pychrono.core as chrono
 import pychrono.fea as fea
 import pychrono.irrlicht as chronoirr
@@ -5463,4 +5464,3 @@ vis.AddLogo(chrono.GetChrono
 
 
 ,
-print("error happened with only start ```python")

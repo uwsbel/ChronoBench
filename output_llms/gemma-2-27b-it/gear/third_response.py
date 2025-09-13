@@ -1,3 +1,4 @@
+```python
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
 import math as m
@@ -95,4 +96,3 @@ sys.AddLink(link_gearAB)
 # Create the gear constraint between second gear B and a large wheel C with inner teeth
 link_gearBC = chrono.ChLinkLockGear()
 link_gearBC.Initialize(mbody_gearB, m
-print("error happened with only start ```python")

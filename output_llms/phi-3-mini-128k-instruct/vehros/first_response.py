@@ -1,3 +1,5 @@
+```python
+
 import pychrono as chrono
 
 import pychrono.openrobotics as pchrobotics
@@ -425,4 +427,3 @@ vehicle.SetTireContactNormalMoment(0.0)
 vehicle.SetTireContactTangentialMoment(0.0)
 
 vehicle.SetTireContactNormalRadius(
-print("error happened with only start ```python")

@@ -70,8 +70,8 @@ patch = terrain.AddPatch(patch_mat,
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
-
 # Create the vehicle Irrlicht interface
+
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('City Bus Demo')
 vis.SetWindowSize(1280, 1024)
@@ -83,13 +83,28 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 # Create the driver system
-# Define a sequence of driver inputs using veh.vector_Entry and veh.DataDriverEntry
-driver_inputs = veh.vector_Entry()
-driver_inputs.append(veh.DataDriverEntry(0.0, 0.0, 0.0, 0.0))  # time, throttle, steering, braking
-driver_inputs.append(veh.DataDriverEntry(0.1, 1.0, 0.0, 0.0))
-driver_inputs.append(veh.DataDriverEntry(0.5, 1.0, 0.7, 0.0))
-
 driver = veh.ChDataDriver()
+driver_inputs = veh.vector_Entry()
+
+# Define a sequence of driver inputs
+entry1 = veh.DataDriverEntry(0.0)
+entry1.SetThrottle(0.0)
+entry1.SetSteering(0.0)
+entry1.SetBraking(0.0)
+driver_inputs.append(entry1)
+
+entry2 = veh.DataDriverEntry(0.1)
+entry2.SetThrottle(1.0)
+entry2.SetSteering(0.0)
+entry2.SetBraking(0.0)
+driver_inputs.append(entry2)
+
+entry3 = veh.DataDriverEntry(0.5)
+entry3.SetThrottle(1.0)
+entry3.SetSteering(0.7)
+entry3.SetBraking(0.0)
+driver_inputs.append(entry3)
+
 driver.SetInputs(driver_inputs)
 
 # output vehicle mass
@@ -113,11 +128,14 @@ while vis.Run() :
         vis.EndScene()
         render_frame += 1
 
+    # Get driver inputs
+    driver_input = driver.GetInputs(time)
+
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
     terrain.Synchronize(time)
-    vehicle.Synchronize(time, driver.GetInputs(), terrain)
-    vis.Synchronize(time, driver.GetInputs())
+    vehicle.Synchronize(time, driver_input, terrain)
+    vis.Synchronize(time, driver_input)
 
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)

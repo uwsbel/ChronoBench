@@ -1,3 +1,4 @@
+```python
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
@@ -1064,4 +1065,3 @@ R
 5
 ,00,
 0,
-print("error happened with only start ```python")

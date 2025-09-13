@@ -2,72 +2,67 @@ import pychrono as chrono
 import pychrono.vehicle as veh
 import pychrono.irrlicht as irr
 
-# 1. Initialize Chrono system
+# 1. Initialize Chrono system and core components
 system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Gravity
 
 # 2. Create rigid terrain
-terrain = veh.RigidTerrain(system, chrono.ChContactMaterialNSC())
-patch = terrain.AddPatch(chrono.ChVectorD(0, 0, 0), 
-                        chrono.ChVectorD(0, 1, 0), 
-                        100, 100)
-patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
+terrain = veh.RigidTerrain(system)
+terrain_patch = terrain.AddPatch(
+    chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT),
+    chrono.ChVectorD(100, 1, 100)  # Dimensions
+)
+terrain_patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 100, 100)
 terrain.Initialize()
 
 # 3. Initialize Viper rover
 rover = veh.Viper(system)
-rover.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0.5, 0), 
-                                   chrono.Q_from_AngZ(0)))
-rover.SetChassisVisualizationType(veh.VisualizationType_PRIMITIVES)
-rover.SetWheelVisualizationType(veh.VisualizationType_PRIMITIVES)
+rover.SetDriverPos(chrono.ChVectorD(0, 0, 0))  # Initial position
+rover.Initialize(veh.ChCoordsysD(chrono.ChVectorD(0, 0.5, 0), chrono.Q_from_AngZ(0)))
 
-# 4. Create and initialize driver
+# 4. Configure driver system with steering control
 driver = veh.ViperDCMotorControl()
-driver.SetGains(0.5, 0.0, 0.0)
+driver.SetGains(0.5, 0, 0)  # PID gains for steering
 rover.SetDriver(driver)
 
-# 5. Set up Irrlicht visualization
+# 5. Create Irrlicht visualization
 vis = irr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
 vis.SetWindowSize(1280, 720)
-vis.SetWindowTitle('Viper Rover Simulation')
+vis.SetWindowTitle("Viper Rover Steering Demo")
 vis.Initialize()
-vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))
 vis.AddSkyBox()
-vis.AddCamera(chrono.ChVectorD(3, 2, 3), chrono.ChVectorD(0, 0, 0))
-vis.AddTypicalLights()
+vis.AddCamera(chrono.ChVectorD(2, 1.5, 2), chrono.ChVectorD(0, 0.5, 0))  # Position & target
+vis.AddTypicalLights(chrono.ChVectorD(50, 50, 50), chrono.ChVectorD(-50, -50, 50))  # Key lights
 
 # 6. Simulation parameters
 step_size = 0.005
-render_step = 1.0 / 50  # 50 Hz rendering
+render_step = 1.0 / 50  # 50 FPS
 sim_time = 0
-steering_duration = 5.0  # Time to reach max steering
-start_steering_time = 2.0
-max_steering = 0.5
+steering_duration = 10.0  # Total steering period
+max_steering = 0.3       # Max steering angle (radians)
 
-# 7. Main simulation loop
+# 7. Simulation loop
 while vis.Run():
-    time = system.GetChTime()
+    # Update steering based on simulation time
+    steering_angle = max_steering * chrono.ChSineStep(sim_time, 1.0, 0.0, steering_duration, 0.0)
+    driver.SetSteering(steering_angle)
     
-    # Update steering gradually
-    if time > start_steering_time:
-        t_steer = time - start_steering_time
-        steering = min(t_steer / steering_duration, 1.0) * max_steering
-        driver.SetSteering(steering)
-    
-    # Update driver inputs
-    driver.SetTargetSpeed(1.0)  # Constant forward speed
-    driver.Update(step_size)
-    
-    # Render scene
-    if time % render_step < step_size:
-        vis.BeginScene()
-        vis.Render()
-        vis.EndScene()
+    # Update rover and driver
+    rover.Update(sim_time, step_size, steering_angle, 0.5)  # Constant speed 0.5 m/s
     
     # Advance simulation
-    rover.Update()
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
     system.DoStepDynamics(step_size)
+    
+    # Increment simulation time
     sim_time += step_size
+    
+    # Exit after completing steering cycle
+    if sim_time >= steering_duration:
+        break
 
-print("Simulation completed.")
+print("Simulation completed successfully.")

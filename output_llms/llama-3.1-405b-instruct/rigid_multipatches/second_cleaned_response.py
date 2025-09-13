@@ -29,9 +29,9 @@ def main():
     patch_mat = chrono.ChContactMaterialNSC()
     patch_mat.SetFriction(0.9)
     patch_mat.SetRestitution(0.01)
-    patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3D(0, 0, 0), chrono.QUNIT),
+    patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3D(0, 0, 0), chrono.QUNIT), 
                              veh.GetDataFile("terrain/meshes/Highway_col.obj"), 0.01)
-    patch.SetCollision(True)
+    patch.SetCollisionEnable(True)
 
     
     visual_mesh = chrono.ChVisualShapeTriangleMesh()
@@ -60,7 +60,7 @@ def main():
 
     hmmwv.GetVehicle().EnableRealtime(True)
 
-    while vis.Run():
+    while vis.Run() :
         time = hmmwv.GetSystem().GetChTime()
 
         

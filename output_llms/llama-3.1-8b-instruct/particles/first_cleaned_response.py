@@ -1,3 +1,6 @@
+Here's a PyChrono script that meets the requirements:
+
+```python
 import chrono as chrono
 from chrono import ChVector, ChColor, ChColorRGB
 from chrono import ChBody, ChBodySet, ChBodySetData, ChBodyData, ChBodySetData, ChBodyData
@@ -238,4 +241,3 @@ from chrono import ChParticle, ChParticleData, ChParticleData
 from chrono import ChShape, ChShapeData, ChShapeData
 from chrono import ChSphere, ChSphereData, ChSphereData
 from chrono
-print("error happened with only start ```python")

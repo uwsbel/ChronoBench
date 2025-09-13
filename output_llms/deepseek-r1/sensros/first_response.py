@@ -1,114 +1,167 @@
 import pychrono as chrono
-import pychrono.ros as chrono_ros
 import pychrono.sensor as sens
+import pychrono.irrlicht as chronoirr
 import math
+import time
 
-# Initialize Chrono system
-sys = chrono.ChSystemNSC()
-sys.SetGravitationalAcceleration(chrono.ChVectorD(0, 0, 0))
+def main():
+    # =============================================================================
+    # 1. Initialize PyChrono environment
+    # =============================================================================
+    chrono.SetChronoDataPath("C:/path/to/chrono/data/")  # Set your Chrono data path
+    system = chrono.ChSystemNSC()
+    system.SetGravity(chrono.ChVector3d(0, 0, -9.81))
 
-# Create moving ground body
-ground = chrono.ChBody()
-ground.SetIdentifier(0)
-ground.SetBodyFixed(False)
-sys.Add(ground)
+    # =============================================================================
+    # 2. Create ground body and motion
+    # =============================================================================
+    ground = chrono.ChBody()
+    ground.SetFixed(False)
+    ground.SetMass(1)
+    ground.SetInertiaXX(chrono.ChVector3d(1, 1, 1))
+    system.Add(ground)
 
-# Add visualization mesh
-mesh = chrono.ChObjFileShape()
-mesh.SetFilename(chrono.GetChronoDataFile("models/cube.obj"))
-mesh.SetScale(chrono.ChVectorD(2, 0.1, 2))
-ground.AddVisualShape(mesh)
+    # Add visualization mesh
+    mesh = chrono.ChVisualShapeBox(0.2, 0.2, 0.1)
+    mesh.SetColor(chrono.ChColor(0.6, 0.3, 0.0))
+    ground.AddVisualShape(mesh)
 
-# Create oscillating motion using a motor
-motor = chrono.ChLinkMotorLinearPosition()
-motor.Initialize(ground, chrono.ChBodyFrame(), chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)))
-sys.AddLink(motor)
-motion_func = chrono.ChFunction_Sine(0.5, 0.5)  # Amplitude 0.5m, frequency 0.5Hz
-motor.SetPositionFunction(motion_func)
+    # Motion function (vertical oscillation)
+    motion_func = chrono.ChFunctionSine(0.5, 0.5)  # amplitude=0.5m, frequency=0.5Hz
+    motion = chrono.ChLinkMotorLinPosition()
+    motion.SetMotionFunction(motion_func)
+    motion.Initialize(ground, system.GetGroundBody(), 
+                      chrono.ChFramed(chrono.ChVector3d(0, 0, 0)))
+    system.Add(motion)
 
-# Initialize sensor manager
-sensor_manager = sens.ChSensorManager(sys)
-sensor_manager.scene.AddPointLight(chrono.ChVectorD(0, 10, 0), chrono.ChColor(1, 1, 1), 1000)
+    # =============================================================================
+    # 3. Create sensor manager and sensors
+    # =============================================================================
+    manager = sens.ChSensorManager(system)
+    manager.scene.AddPointLight(chrono.ChVector3d(2, 2.5, 5), chrono.ChColor(1, 1, 1), 1000)
 
-# Sensor parameters
-update_rate = 30  # Hz
-lag = 0.0
-exposure_time = 0.0
+    # Camera sensor
+    cam_offset = chrono.ChVector3d(0.1, 0, 0.1)
+    cam_rot = chrono.ChQuaterniond(1, 0, 0, 0)
+    camera = sens.ChCameraSensor(
+        ground,
+        30,  # update rate [Hz]
+        chrono.ChFrameD(cam_offset, cam_rot),
+        1920,  # width
+        1080,  # height
+        chrono.CH_PI / 3  # FOV
+    )
+    camera.SetName("Camera")
+    camera.PushFilter(sens.ChFilterRGBA8Access())
+    manager.AddSensor(camera)
 
-# Camera sensor
-camera_offset = chrono.ChFrameD(chrono.ChVectorD(0, 1, 0), 
-                               chrono.Q_from_AngAxis(-chrono.CH_C_PI/2, chrono.ChVectorD(1, 0, 0)))
-camera = sens.ChCameraSensor(
-    ground, update_rate, camera_offset,
-    1280, 720, 1.396,  # 80° FOV
-    sens.CameraLensModelType_PINHOLE
-)
-camera.SetName("Camera")
-camera.PushFilter(sens.ChFilterRGBA8Access())
-camera.PushFilter(chrono_ros.ChFilterROS2Topic("camera", "rgb"))
-sensor_manager.AddSensor(camera)
+    # Lidar sensor
+    lidar_offset = chrono.ChVector3d(0, 0.1, 0.1)
+    lidar = sens.ChLidarSensor(
+        ground,
+        10,  # update rate
+        chrono.ChFrameD(lidar_offset, chrono.Q_from_AngZ(chrono.CH_PI)),
+        1800,  # horizontal samples
+        30,    # vertical samples
+        chrono.CH_PI,  # horizontal FOV
+        chrono.CH_PI/6  # vertical FOV
+    )
+    lidar.SetName("Lidar")
+    lidar.PushFilter(sens.ChFilterAccess())
+    manager.AddSensor(lidar)
 
-# Lidar sensor
-lidar_offset = chrono.ChFrameD(chrono.ChVectorD(0, 0.5, 0))
-lidar = sens.ChLidarSensor(
-    ground, 10, lidar_offset,
-    1000, 100,  # Horizontal and vertical samples
-    2*chrono.CH_C_PI, chrono.CH_C_PI/6, 100.0  # FOVs and max distance
-)
-lidar.SetName("Lidar")
-lidar.PushFilter(sens.ChFilterDIAccess())
-lidar.PushFilter(chrono_ros.ChFilterROS2Topic("lidar", "points"))
-sensor_manager.AddSensor(lidar)
-
-# GPS sensor
-gps_offset = chrono.ChFrameD(chrono.ChVectorD(0, 0.2, 0))
-gps = sens.ChGPSSensor(
-    ground, 10, gps_offset,
-    chrono.ChVectorD(0, 0, 0)  # Reference location
-)
-gps.PushFilter(chrono_ros.ChFilterROS2Topic("gps", "nav"))
-sensor_manager.AddSensor(gps)
-
-# IMU sensors (accelerometer, gyroscope, magnetometer)
-imu_offset = chrono.ChFrameD(chrono.ChVectorD(0, 0.1, 0))
-
-# Accelerometer
-accel = sens.ChAccelerometerSensor(ground, 100, imu_offset)
-accel.PushFilter(chrono_ros.ChFilterROS2Topic("accelerometer", "imu"))
-sensor_manager.AddSensor(accel)
-
-# Gyroscope
-gyro = sens.ChGyroscopeSensor(ground, 100, imu_offset)
-gyro.PushFilter(chrono_ros.ChFilterROS2Topic("gyroscope", "imu"))
-sensor_manager.AddSensor(gyro)
-
-# Magnetometer
-mag = sens.ChMagnetometerSensor(ground, 100, imu_offset)
-mag.SetMagneticFieldFunction(lambda pos: chrono.ChVectorD(0, 0, 1e-5))
-mag.PushFilter(chrono_ros.ChFilterROS2Topic("magnetometer", "mag"))
-sensor_manager.AddSensor(mag)
-
-# Initialize ROS2 node
-chrono_ros.ChROS2.Initialize()
-node = chrono_ros.ChROS2Node("chrono_sensor_node")
-sensor_manager.GetROS2Publisher().Register(node)
-
-# Simulation loop
-time_step = 0.001
-duration = 10  # seconds
-realtime = True
-timer = chrono.ChRealtimeStepTimer()
-
-while sys.GetChTime() < duration:
-    # Update sensors
-    sensor_manager.Update()
+    # IMU sensors (accelerometer, gyroscope, magnetometer)
+    imu_offset = chrono.ChVector3d(0, 0, 0.05)
+    imu_frame = chrono.ChFrameD(imu_offset)
     
-    # Advance simulation
-    sys.DoStepDynamics(time_step)
-    
-    # Spin ROS node
-    node.SpinOnce()
-    
-    # Maintain real-time
-    if realtime:
-        timer.Spin(time_step)
+    accel = sens.ChAccelerometerSensor(
+        ground,
+        100,  # update rate
+        imu_frame,
+        chrono.ChVector3d(0, 0, -9.81)  # offset gravity
+    )
+    accel.SetName("Accelerometer")
+    manager.AddSensor(accel)
+
+    gyro = sens.ChGyroscopeSensor(
+        ground,
+        100,  # update rate
+        imu_frame
+    )
+    gyro.SetName("Gyroscope")
+    manager.AddSensor(gyro)
+
+    mag = sens.ChMagnetometerSensor(
+        ground,
+        100,  # update rate
+        imu_frame,
+        chrono.ChVector3d(0, 1, 0)  # local magnetic field
+    )
+    mag.SetName("Magnetometer")
+    manager.AddSensor(mag)
+
+    # GPS sensor
+    gps = sens.ChGPSSensor(
+        ground,
+        10,  # update rate
+        chrono.ChFrameD(chrono.ChVector3d(0,0,0.1)),
+        chrono.ChVector3d(0, 0, 0),  # reference location
+        0.1  # noise stdev
+    )
+    gps.SetName("GPS")
+    manager.AddSensor(gps)
+
+    # =============================================================================
+    # 4. Set up ROS integration
+    # =============================================================================
+    ros_manager = sens.ChROSPublisher()
+    ros_manager.RegisterSensor(camera, "/sensors/camera")
+    ros_manager.RegisterSensor(lidar, "/sensors/lidar")
+    ros_manager.RegisterSensor(accel, "/sensors/accel")
+    ros_manager.RegisterSensor(gyro, "/sensors/gyro")
+    ros_manager.RegisterSensor(mag, "/sensors/mag")
+    ros_manager.RegisterSensor(gps, "/sensors/gps")
+
+    # =============================================================================
+    # 5. Create visualization and simulation loop
+    # =============================================================================
+    vis = chronoirr.ChVisualSystemIrrlicht()
+    vis.AttachSystem(system)
+    vis.SetCameraVertical(chrono.CameraVerticalDir_Z)
+    vis.SetWindowSize(1280, 720)
+    vis.SetWindowTitle("PyChrono Sensors Demo")
+    vis.Initialize()
+    vis.AddLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))
+    vis.AddSkyBox()
+    vis.AddCamera(chrono.ChVector3d(1, 1, 1), chrono.ChVector3d(0, 0, 0))
+    vis.AddTypicalLights()
+
+    # Simulation parameters
+    step_size = 0.001
+    realtime_step = True
+    frame = 0
+
+    while vis.Run():
+        # Update sensor positions to follow moving body
+        for sensor in [camera, lidar, accel, gyro, mag, gps]:
+            sensor.PushUpdate()
+
+        # Update ROS data
+        ros_manager.Update(step_size, frame)
+
+        # Advance simulation
+        system.DoStepDynamics(step_size)
+        
+        # Update visualization
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+        
+        # Maintain real-time pacing
+        if realtime_step:
+            time.sleep(step_size)
+        
+        frame += 1
+
+if __name__ == "__main__":
+    main()

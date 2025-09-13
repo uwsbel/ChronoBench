@@ -16,7 +16,7 @@ vis_type_mesh = veh.VisualizationType_MESH
 # Collision type for chassis (PRIMITIVES, MESH, or NONE)
 chassis_collision_type = veh.CollisionType_NONE
 
-# Type of tire model (RIGID, TMEASY)
+# Type of tire model (RIGID, PACEJKA)
 tire_model = veh.TireModelType_PACEJKA  # Changed to Pacejka
 
 # Rigid terrain
@@ -32,7 +32,7 @@ trackPoint = chrono.ChVector3d(-15.0, 10.0, 5.8)
 contact_method = chrono.ChContactMethod_NSC
 contact_vis = False
 
-# Simulation step sizes
+# Simulation step sizes (reduced for stability)
 step_size = 5e-4  # Reduced from 1e-3 to 5e-4
 tire_step_size = 5e-4  # Reduced from 1e-3 to 5e-4
 
@@ -46,7 +46,6 @@ vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
-vehicle.SetTireParametersFile(veh.GetDataFile("tire/Pacejka89.json"))  # Added parameters file
 vehicle.SetTireStepSize(tire_step_size)
 
 vehicle.Initialize()
@@ -68,11 +67,12 @@ patch = terrain.AddPatch(patch_mat,
     chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
     terrainLength, terrainWidth)
 
-patch.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 200, 200)  # Changed texture
+# Changed texture to dirt.jpg
+patch.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
-
 # Create the vehicle Irrlicht interface
+
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('City Bus Demo')
 vis.SetWindowSize(1280, 1024)

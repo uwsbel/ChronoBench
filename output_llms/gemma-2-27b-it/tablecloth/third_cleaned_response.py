@@ -1,3 +1,4 @@
+```python
 import pychrono.core as chrono  
 import pychrono.irrlicht as chronoirr  
 import pychrono.fea as fea  
@@ -132,5 +133,4 @@ if (True):
     mvisualizeshellA.SetWireframe(True)  
     mvisualizeshellA.SetShellResolution(2)  
     mvisualizeshellA.SetBackfaceCull(True)  
-    mesh.AddVisualShapeFEA(mvisualizeshellA)  
-print("error happened with only start ```python")
+    mesh.AddVisualShapeFEA(mvisualizeshellA)

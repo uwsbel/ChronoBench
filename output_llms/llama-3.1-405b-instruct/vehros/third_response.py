@@ -42,12 +42,13 @@ def main():
     vis.Initialize()
     vis.AddLogo(ch.GetChronoDataFile('logo_pychrono_alpha.png'))
     vis.AddSkyBox()
-    vis.AddCamera(ch.ChVector3d(-5, 2.5, 1.5), ch.ChVector3d(0, 0, 1))  # Changed camera position
+    vis.AddCamera(ch.ChVector3d(-5, 2.5, 1.5), ch.ChVector3d(0, 0, 1))  # Modified camera position
     vis.AddTypicalLights()
     vis.AddLightWithShadow(ch.ChVector3d(1.5, -2.5, 5.5), ch.ChVector3d(0, 0, 0.5), 3, 4, 10, 40, 512)
     # Create a visualization box
-    box = ch.ChBodyEasyBox(hmmwv.GetSystem(), 1, 1, 1, 1000, True, True)
-    box.SetPos(ch.ChVector3d(0, 0, 2))
+    box = ch.ChBodyEasyBox(hmmwv.GetSystem(), 1, 1, 1, 1000)
+    box.SetPos(ch.ChVector3d(0, 0, 1))
+    box.SetBodyFixed(True)
     # Create and initialize the driver system.
     driver = veh.ChDriver(hmmwv.GetVehicle())
     driver.Initialize()  # Initialize the driver system.
@@ -58,16 +59,18 @@ def main():
     ros_manager.RegisterHandler(chros.ChROSDriverInputsHandler(25, driver, "~/input/driver_inputs"))
     # Register the vehicle state handler to publish vehicle state to ROS topic '~/output/hmmwv/state'.
     ros_manager.RegisterHandler(chros.ChROSBodyHandler(25, hmmwv.GetChassisBody(), "~/output/hmmwv/state"))
-    # Set up sensor manager
-    sens_manager = sens.ChSensorManager(hmmwv.GetSystem())
-    # Add and configure a ChLidarSensor
-    lidar = sens.ChLidarSensor(hmmwv.GetSystem(), 100, ch.ChVector3d(0, 0, 2), ch.ChQuaterniond(1, 0, 0, 0), 100, 0.1, 100)
+    # Create and configure a ChLidarSensor
+    lidar = sens.ChLidarSensor(hmmwv.GetSystem(), 100, ch.ChVector3d(0, 0, 1), ch.ChQuaterniond(1, 0, 0, 0), 100, 100, 0.1, 10)
+    lidar.SetCollectionWindow(0.1)
+    lidar.SetScanningFrequency(10)
     lidar.AddFilter(sens.ChFilterShade())
-    lidar.AddFilter(sens.ChFilterRange(0.1, 100))
-    sens_manager.AddSensor(lidar)
-    # Register ChROSLidarHandler to publish lidar data to ROS
+    lidar.AddFilter(sens.ChFilterRange(0.1, 10))
+    # Register the lidar handler to publish lidar data to ROS topic '~/output/lidar'.
     ros_manager.RegisterHandler(chros.ChROSLidarHandler(25, lidar, "~/output/lidar"))
     ros_manager.Initialize()  # Initialize the ROS manager.
+    # Create a sensor manager
+    sens_manager = sens.ChSensorManager(hmmwv.GetSystem())
+    sens_manager.AddSensor(lidar)
     # Start the simulation loop.
     time = 0
     time_step = 1e-3  # Define the simulation time step.
@@ -92,12 +95,12 @@ def main():
         driver.Synchronize(time)  # Synchronize the driver system.
         terrain.Synchronize(time)  # Synchronize the terrain.
         hmmwv.Synchronize(time, driver_inputs, terrain)  # Synchronize the vehicle with inputs and terrain.
-        # Update sensor manager
-        sens_manager.Update()
         # Advance the simulation for all modules by one timestep.
         driver.Advance(time_step)
         terrain.Advance(time_step)
         hmmwv.Advance(time_step)
+        # Update the sensor manager
+        sens_manager.Update()
         # Update the ROS manager to handle data publishing.
         if not ros_manager.Update(time, time_step):
             break  # Exit loop if ROS manager update fails.

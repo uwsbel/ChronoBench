@@ -1,0 +1,72 @@
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
+import pychrono.vehicle as veh
+
+# --- Create the simulation system ---
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
+
+# --- Create the terrain ---
+terrain = chrono.ChTerrain()
+terrain.Create(system, "terrain", chrono.ChVectorD(0, 0, 0), 100, 100, 10, 10)
+terrain.SetFriction(0.5)
+terrain.SetRestitution(0.1)
+
+# --- Create the UAZBUS vehicle ---
+vehicle = veh.ChVehicle()
+vehicle.SetVehicleModel("UAZBUS")
+vehicle.Initialize(system)
+
+# Set initial vehicle position and orientation
+vehicle.SetPos(chrono.ChVectorD(0, 1, 0))
+vehicle.SetTransform(chrono.ChFrameD(chrono.ChVectorD(0, 1, 0), chrono.Q_from_Ang3(0, 0, 0)))
+
+# --- Create the driver system ---
+driver = veh.ChDriver()
+driver.SetVehicle(vehicle)
+driver.SetThrottleSource(veh.ChThrottleSource.ThrottlePedal)
+driver.SetSteeringSource(veh.ChSteeringSource.SteeringWheel)
+driver.SetBrakingSource(veh.ChBrakingSource.BrakePedal)
+driver.SetClutchSource(veh.ChClutchSource.ClutchPedal)
+driver.SetGearShiftSource(veh.ChGearShiftSource.GearShift)
+
+# --- Set initial driver inputs ---
+driver.SetThrottle(0.0)
+driver.SetSteering(0.0)
+driver.SetBraking(0.0)
+driver.SetClutch(0.0)
+driver.SetGear(1)
+
+# --- Create the Irrlicht application for real-time visualization ---
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle('UAZBUS Simulation')
+vis.Initialize()
+vis.AddCamera(chrono.ChVectorD(0, 2, -5))
+vis.AddTypicalLights()
+
+# --- Simulation loop ---
+timestep = 0.01
+time = 0.0
+
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+
+    # Update the driver inputs (example: constant throttle)
+    driver.SetThrottle(0.5)
+    driver.SetSteering(0.0)
+    
+    # Advance the simulation
+    system.DoStepDynamics(timestep)
+    vehicle.Synchronize(timestep)
+    driver.Synchronize(timestep)
+    vis.Synchronize(system, timestep)
+
+    time += timestep
+
+    if time > 10:
+        print("Simulation finished after 10 seconds.")
+        break

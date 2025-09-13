@@ -101,3 +101,30 @@ while vis.Run():
     system.DoStepDynamics(time_step)
 
     step_number += 1
+
+manager = sens.ChSensorManager(system)
+     intensity = 1.0
+     manager.scene.AddPointLight(chrono.ChVector3f(2, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
+
+offset_pose = chrono.ChFramed(chrono.ChVector3d(1.0, 0, 1.45), chrono.QuatFromAngleAxis(.2, chrono.ChVector3d(0, 1, 0)))
+     cam = sens.ChCameraSensor(
+         rover.GetChassis().GetBody(),
+         15, 
+         offset_pose,
+         720, 
+         480, 
+         1.408 
+     )
+     cam.SetName("Third Person POV")
+     cam.PushFilter(sens.ChFilterVisualize(720, 480, "Viper Front Camera"))
+     manager.AddSensor(cam)
+
+step_number = 0
+     render_step_size = 1.0 / 25  
+     render_steps = math.ceil(render_step_size / time_step)
+
+if (step_number % render_steps == 0):
+         vis.BeginScene()
+         vis.Render()
+         vis.EndScene()
+     step_number += 1

@@ -1,8 +1,8 @@
 import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from tqdm import tqdm
-nvidia_api_key = os.getenv("OPENAI_API_KEY")
-print(nvidia_api_key)
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+print(OPENAI_API_KEY)
 import evaluate
 from openai import OpenAI
 import os
@@ -71,8 +71,8 @@ def evaluate_pychrono_code_against_reference_document(code, reference_code, api_
     Provide the evaluated score and a brief explanation of the deductions below:
     """
     try:
-        global nvidia_api_key
-        client = OpenAI(api_key=nvidia_api_key
+        global OPENAI_API_KEY
+        client = OpenAI(api_key=OPENAI_API_KEY
         )
         completion = client.chat.completions.create(
             model=model_link,
@@ -138,8 +138,8 @@ def evaluate_pychrono_code_against_reference(code, reference_code, model_link):
     Provide the evaluated score and a brief explanation of the deductions below:
     """
     try:
-        global nvidia_api_key
-        client = OpenAI(api_key=nvidia_api_key
+        global OPENAI_API_KEY
+        client = OpenAI(api_key=OPENAI_API_KEY
         )
         completion = client.chat.completions.create(
             model=model_link,
@@ -202,8 +202,8 @@ def evaluate_pychrono_code_against_document(code, api_documentation_link, model_
         Provide the evaluated score and a brief explanation of the deductions below:
         """
     try:
-        global nvidia_api_key
-        client = OpenAI(api_key=nvidia_api_key
+        global OPENAI_API_KEY
+        client = OpenAI(api_key=OPENAI_API_KEY
         )
         completion = client.chat.completions.create(
             model=model_link,

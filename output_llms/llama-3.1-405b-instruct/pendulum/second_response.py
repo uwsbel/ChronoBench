@@ -29,24 +29,24 @@ pend_1.SetInertiaXX(chrono.ChVectorD(0.4, 1.5, 1.5))  # Set the inertia tensor (
 # Add a visualization cylinder to the pendulum
 cyl_1 = chrono.ChVisualShapeCylinder(0.1, 1.5)  # Cylinder with radius 0.1 and height 1.5
 cyl_1.SetColor(chrono.ChColor(0.6, 0, 0))  # Set the color of the cylinder (RGB)
-pend_1.AddVisualShape(cyl_1, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.Q_from_AngY(math.pi/2)))
+pend_1.AddVisualShape(cyl_1, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.Q_from_AngY(chrono.CH_C_PI_2)))
 
 # Set the initial position of the pendulum (center of mass) in the absolute frame
 # The pendulum is initially horizontal, pointing towards the positive X direction
 pend_1.SetPos(chrono.ChVectorD(1, 0, 1))
 
-# Set an initial angular velocity for the pendulum
+# Set the initial angular velocity for the pendulum
 pend_1.SetWvel_loc(chrono.ChVectorD(0, 0, 1))
 
 # Create a spherical joint to connect the pendulum to the ground
 # The spherical joint allows rotation around all axes
-sph_1 = chrono.ChLinkLockSpherical()
+sph_1 = chrono.ChLinkMateSpherical()
 sph_1.Initialize(ground, pend_1, chrono.ChFrameD(chrono.ChVectorD(0, 0, 1)))
-sys.Add(sph_1)
+sys.AddLink(sph_1)
 
 # Add a visualization sphere to the joint
-sph_v = chrono.ChVisualShapeSphere(2)  # Sphere with radius 2
-sph_1.AddVisualShape(sph_v)
+sph_shape = chrono.ChVisualShapeSphere(2)  # Sphere with radius 2
+sph_1.AddVisualShape(sph_shape)
 
 # Create the Irrlicht visualization system
 vis = chronoirr.ChVisualSystemIrrlicht()

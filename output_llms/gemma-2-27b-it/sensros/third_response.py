@@ -1,3 +1,4 @@
+```python
 import pychrono as ch
 import pychrono.sensor as sens
 import pychrono.ros as chros
@@ -85,4 +86,3 @@ def main():
     sens_manager.AddSensor(acc)
 
     # Create and configure
-print("error happened with only start ```python")

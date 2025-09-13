@@ -1,101 +1,92 @@
+#!/usr/bin/env python3
+import os
 import pychrono as chrono
 import pychrono.vehicle as veh
 import pychrono.irrlicht as irr
-import math
 
-# 1. Initialize PyChrono environment
-system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
+# =============================================================================
+# Main simulation function
+# =============================================================================
+def main():
+    # 1. Initialize PyChrono environment
+    chrono.SetChronoDataPath(os.path.join(os.path.dirname(__file__), 'data/'))
+    system = chrono.ChSystemNSC()
+    system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
-# 2. Create vehicle system
-vehicle = veh.MAN_5t_Vehicle()
-vehicle.SetContactMethod(chrono.ChContactMethod_NSC)
-vehicle.SetChassisCollisionType(veh.CollisionType_PRIMITIVES)
-vehicle.SetChassisFixed(False) 
-vehicle.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0.5), chrono.QUNIT))
-vehicle.SetTireType(veh.TireModelType_TMEASY)
-vehicle.Initialize()
+    # 2. Create rigid terrain
+    terrain = veh.RigidTerrain(system)
+    patch_mat = chrono.ChMaterialSurfaceNSC()
+    patch_mat.SetFriction(0.9)
+    patch_mat.SetRestitution(0.01)
+    patch = terrain.AddPatch(patch_mat, chrono.ChVectorD(0, 0, 0), 
+                            chrono.ChVectorD(0, 0, 1), 200, 100)
+    patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
+    terrain.Initialize()
 
-# Adjust vehicle parameters for 10t configuration
-vehicle.GetVehicle().SetChassisMass(10000)  # 10,000 kg
-vehicle.SetChassisVisualizationType(veh.VisualizationType_PRIMITIVES)
-vehicle.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
-vehicle.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
-vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
+    # 3. Create and initialize MAN truck
+    truck = veh.MAN_10t()
+    truck.SetContactMethod(chrono.ChContactMethod_NSC)
+    truck.SetChassisFixed(False)
+    truck.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 1, 0), chrono.QUNIT))
+    truck.SetTireType(veh.TireModelType_TMEASY)
+    truck.Initialize()
 
-# 3. Create and initialize TMEASY tires
-tire_pressure = 130e3  # Pa
-for axle in vehicle.GetVehicle().GetAxles():
-    tire_l = veh.TMeasyTire(axle.m_wheels[0].GetName())
-    tire_r = veh.TMeasyTire(axle.m_wheels[1].GetName())
-    
-    tire_l.SetPressure(tire_pressure)
-    tire_r.SetPressure(tire_pressure)
-    
-    tire_l.Initialize(axle.m_wheels[0])
-    tire_r.Initialize(axle.m_wheels[1])
-    
-    system.Add(tire_l)
-    system.Add(tire_r)
+    # Configure visualization
+    truck.SetChassisVisualizationType(veh.VisualizationType_PRIMITIVES)
+    truck.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
+    truck.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
+    truck.SetWheelVisualizationType(veh.VisualizationType_MESH)
+    truck.SetTireVisualizationType(veh.VisualizationType_MESH)
 
-# 4. Create rigid terrain
-terrain = veh.RigidTerrain(system)
-patch_mat = chrono.ChMaterialSurfaceNSC()
-patch_mat.SetFriction(0.9)
-patch_mat.SetRestitution(0.01)
-patch = terrain.AddPatch(patch_mat, chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 1), 200, 100)
-patch.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 200, 200)
-patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
-terrain.Initialize()
+    # 4. Create interactive driver system
+    driver = veh.InteractiveDriverIRR(truck.GetVehicle())
+    driver.SetSteeringDelta(0.02)
+    driver.SetThrottleDelta(0.02)
+    driver.SetBrakingDelta(0.06)
+    driver.Initialize()
 
-# 5. Set up Irrlicht visualization
-vis = irr.ChVisualSystemIrrlicht()
-vis.AttachSystem(system)
-vis.SetWindowSize(1280, 720)
-vis.SetWindowTitle('MAN 10t Truck Simulation')
-vis.Initialize()
+    # 5. Create Irrlicht visualization
+    vis = irr.ChVisualSystemIrrlicht()
+    vis.AttachSystem(system)
+    vis.SetWindowSize(1280, 720)
+    vis.SetWindowTitle('MAN 10t Truck Simulation')
+    vis.Initialize()
+    vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+    vis.AddSkyBox()
+    vis.AddCamera(chrono.ChVectorD(0, 2, -5), chrono.ChVectorD(0, 0, 0))
+    vis.AddTypicalLights()
+    vis.AddLightWithShadow(chrono.ChVectorD(-5, 8, -5), chrono.ChVectorD(0, 0, 0), 
+                          50, 5, 50, 35, 512, chrono.ChColor(0.8, 0.8, 1.0))
 
-# Add chase camera
-vis.AddCamera(chrono.ChVectorD(-6, 0, 2), chrono.ChVectorD(0, 0, 0.5))
-vis.AddTypicalLights()
-vis.AddLightWithShadow(chrono.ChVectorD(-5, 0, 8), chrono.ChVectorD(0, 0, 0), 50, 5, 50, 35, 512)
-vis.AddSkyBox()
-vis.EnableShadows()
+    # 6. Simulation loop
+    step_size = 0.005
+    render_step = 1.0 / 50  # 50 FPS
 
-# 6. Create real-time driver controls
-driver = veh.ChIrrGuiDriver(vis)
-steering_time = 1.0  # Time to turn from lock to lock
-driver.SetSteeringDelta(1.0 / (50.0 * steering_time))
-driver.SetThrottleDelta(1.0 / 50.0)
-driver.SetBrakingDelta(1.0 / 50.0)
-
-# 7. Simulation loop parameters
-step_size = 0.02
-render_step = 1.0 / 50  # FPS
-
-# Main simulation loop
-time = 0
-while vis.Run():
-    time = system.GetChTime()
-    
-    # Update driver inputs
-    driver_inputs = driver.GetInputs()
-    vehicle.GetVehicle().Synchronize(time, driver_inputs, terrain)
-    terrain.Synchronize(time)
-    
-    # Advance simulation
-    driver.Synchronize(time)
-    vis.Synchronize(time, driver_inputs)
-    system.DoStepDynamics(step_size)
-    
-    # Update visualization
-    if time % render_step < step_size:
+    truck.GetVehicle().EnableRealtime(True)
+    while vis.Run():
+        time = system.GetChTime()
+        
+        # Update driver inputs
+        driver.Synchronize(time)
+        
+        # Update vehicle systems
+        truck.Synchronize(time, driver.GetInputs(), terrain)
+        terrain.Synchronize(time)
+        
+        # Advance simulation
+        system.DoStepDynamics(step_size)
+        
+        # Update visualization
         vis.BeginScene()
         vis.Render()
+        vis.RenderFrame(chrono.ChVectorD(0,0,0), chrono.QUNIT, 2)  # Reference frame
         vis.EndScene()
+        
+        # Draw steering wheel and controls
+        driver.DrawHUD(True, True, True, 120, 40, 12, 0.5, 0.5)
 
-    # Update chase camera
-    cam_pos = vehicle.GetVehicle().GetChassisBody().GetPos() + chrono.ChVectorD(-6, 0, 2)
-    vis.GetActiveCamera().setTarget(irr.vector3df(vehicle.GetVehicle().GetChassisBody().GetPos().x,
-                                                 vehicle.GetVehicle().GetChassisBody().GetPos().y,
-                                                 vehicle.GetVehicle().GetChassisBody().GetPos().z))
+# =============================================================================
+# Entry point
+# =============================================================================
+if __name__ == "__main__":
+    main()

@@ -43,7 +43,7 @@ tire_step_size = step_size
 render_step_size = 1.0 / 20  
 
 
-vehicle = veh.HMMWV_Full()  
+vehicle = veh.HMMWV_Full() 
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
@@ -98,18 +98,31 @@ vis.AttachVehicle(vehicle.GetVehicle())
 
 obstacles = []
 for i in range(5):
-    obstacle = chrono.ChBodyEasyBox(vehicle.GetSystem(), 1, 1, 1, 1000)
+    obstacle = chrono.ChBodyEasyBox(1, 1, 1, 1000, True, True)
     obstacle.SetPos(chrono.ChVector3d(np.random.uniform(-10, 10), np.random.uniform(-10, 10), 1))
+    vehicle.GetSystem().AddBody(obstacle)
     obstacles.append(obstacle)
 
 
 manager = sens.ChSensorManager(vehicle.GetSystem())
 
 
-lidar = sens.ChLidarSensor(vehicle.GetChassisBody(), 100, chrono.ChVector3d(0, 0, 1), chrono.ChQuaterniond(1, 0, 0, 0), 100, 0.1, 10)
-lidar.SetVisualizationMode(sens.ChLidarSensor.VISUALIZATION_MODE_ALL)
-lidar.SetFilterList([sens.ChFilterShade(), sens.ChFilterRange(0, 10)])
+lidar = sens.ChLidarSensor(
+    vehicle.GetChassisBody(),  
+    chrono.ChFrameD(chrono.ChVector3d(0, 0, 2), chrono.Q_from_AngX(chrono.CH_C_PI / 2)),  
+    100,  
+    -chrono.CH_C_PI / 4,  
+    chrono.CH_C_PI / 2,  
+    100,  
+    -chrono.CH_C_PI / 4,  
+    chrono.CH_C_PI / 4,  
+    100  
+)
 manager.AddSensor(lidar)
+
+
+filter = sens.ChFilterVisualizeLidar(0.5, 1.0, "lidar")
+manager.AddFilter(filter)
 
 
 driver = veh.ChInteractiveDriverIRR(vis)

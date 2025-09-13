@@ -1,3 +1,6 @@
+Here is the corrected and modified PyChrono script based on the provided instructions:
+
+```python
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
 import math as m
@@ -49,4 +52,3 @@ mbody_gearA.AddVisualShape(mshaft_shape, chrono.ChFramed(chrono.ChVector3d(0, 3.
 
 link_motor = chrono.ChLinkMotorRotationSpeed()
 link_motor.Initialize(mbody_gearA, mbody_truss, chrono.ChFramed(chrono.ChVector3d(0,
-print("error happened with only start ```python")

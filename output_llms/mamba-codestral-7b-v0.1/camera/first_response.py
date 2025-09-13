@@ -1,3 +1,6 @@
+Sure, here's a basic script that should accomplish what you're asking for. Please note that you'll need to replace `'path_to_your_obj_file.obj'` with the actual path to your .obj file.
+
+```python
 import pychrono
 
 # Initialize the PyChrono environment and core components
@@ -141,4 +144,3 @@ camera.SetOutputTextureMipmap(True)  # Set the camera's output texture mipmap
 camera.SetOutputTextureFlip(True)  # Set the camera's output texture flip
 camera.SetOutputTextureSwap(True)  # Set the camera's output texture swap
 camera.SetOutputTextureBorder(pychrono.ChCameraSensor.OUTPUT_
-print("error happened with only start ```python")

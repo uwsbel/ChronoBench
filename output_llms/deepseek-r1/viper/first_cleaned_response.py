@@ -4,70 +4,65 @@ import pychrono.irrlicht as irr
 
 
 system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  
 
 
-terrain = veh.RigidTerrain(system, chrono.ChContactMaterialNSC())
-patch = terrain.AddPatch(chrono.ChVectorD(0, 0, 0), 
-                        chrono.ChVectorD(0, 1, 0), 
-                        100, 100)
-patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
+terrain = veh.RigidTerrain(system)
+terrain_patch = terrain.AddPatch(
+    chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT),
+    chrono.ChVectorD(100, 1, 100)  
+)
+terrain_patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 100, 100)
 terrain.Initialize()
 
 
 rover = veh.Viper(system)
-rover.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0.5, 0), 
-                                   chrono.Q_from_AngZ(0)))
-rover.SetChassisVisualizationType(veh.VisualizationType_PRIMITIVES)
-rover.SetWheelVisualizationType(veh.VisualizationType_PRIMITIVES)
+rover.SetDriverPos(chrono.ChVectorD(0, 0, 0))  
+rover.Initialize(veh.ChCoordsysD(chrono.ChVectorD(0, 0.5, 0), chrono.Q_from_AngZ(0)))
 
 
 driver = veh.ViperDCMotorControl()
-driver.SetGains(0.5, 0.0, 0.0)
+driver.SetGains(0.5, 0, 0)  
 rover.SetDriver(driver)
 
 
 vis = irr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
 vis.SetWindowSize(1280, 720)
-vis.SetWindowTitle('Viper Rover Simulation')
+vis.SetWindowTitle("Viper Rover Steering Demo")
 vis.Initialize()
-vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))
 vis.AddSkyBox()
-vis.AddCamera(chrono.ChVectorD(3, 2, 3), chrono.ChVectorD(0, 0, 0))
-vis.AddTypicalLights()
+vis.AddCamera(chrono.ChVectorD(2, 1.5, 2), chrono.ChVectorD(0, 0.5, 0))  
+vis.AddTypicalLights(chrono.ChVectorD(50, 50, 50), chrono.ChVectorD(-50, -50, 50))  
 
 
 step_size = 0.005
 render_step = 1.0 / 50  
 sim_time = 0
-steering_duration = 5.0  
-start_steering_time = 2.0
-max_steering = 0.5
+steering_duration = 10.0  
+max_steering = 0.3       
 
 
 while vis.Run():
-    time = system.GetChTime()
+    
+    steering_angle = max_steering * chrono.ChSineStep(sim_time, 1.0, 0.0, steering_duration, 0.0)
+    driver.SetSteering(steering_angle)
     
     
-    if time > start_steering_time:
-        t_steer = time - start_steering_time
-        steering = min(t_steer / steering_duration, 1.0) * max_steering
-        driver.SetSteering(steering)
+    rover.Update(sim_time, step_size, steering_angle, 0.5)  
     
     
-    driver.SetTargetSpeed(1.0)  
-    driver.Update(step_size)
-    
-    
-    if time % render_step < step_size:
-        vis.BeginScene()
-        vis.Render()
-        vis.EndScene()
-    
-    
-    rover.Update()
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
     system.DoStepDynamics(step_size)
+    
+    
     sim_time += step_size
+    
+    
+    if sim_time >= steering_duration:
+        break
 
-print("Simulation completed.")
+print("Simulation completed successfully.")

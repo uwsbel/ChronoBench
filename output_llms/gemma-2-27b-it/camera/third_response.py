@@ -1,3 +1,4 @@
+```python
 import pychrono.core as chrono
 import pychrono.sensor as sens
 
@@ -122,4 +123,3 @@ def main():
             print('First Pixel: {0}'.format(rgba8_data[0, 0, :]))
 
         # Update the sensor manager (render/save/filter
-print("error happened with only start ```python")

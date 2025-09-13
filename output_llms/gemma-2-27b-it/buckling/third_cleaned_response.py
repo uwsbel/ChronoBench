@@ -1,3 +1,4 @@
+```python
 import math as m  
 import pychrono as chrno  
 import pychrono.fea as fea  
@@ -125,4 +126,3 @@ builderB.BuildBeam(mesh, section3, 4, vG + vd, vB + vd, chrno.ChVector3d(0, 1, 0
 
 node_crnkG = builderB.GetLastBeamNodes()[0]
 node_
-print("error happened with only start ```python")

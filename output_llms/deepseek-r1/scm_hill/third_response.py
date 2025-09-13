@@ -24,14 +24,14 @@ tire_model = veh.TireModelType_RIGID
 
 # Rigid terrain parameters
 terrainHeight = 0      # terrain height
-terrainLength = 40.0   # size in X direction
-terrainWidth = 40.0    # size in Y direction
+terrainLength = 100.0  # size in X direction
+terrainWidth = 100.0   # size in Y direction
 
 # Poon chassis tracked by the camera
 trackPoint = chrono.ChVector3d(0.0, 0.0, 1.71)
 
-# Contact method
-contact_method = chrono.ChContactMethod_NSC  # Changed to NSC
+# Contact method (CHANGED TO NSC)
+contact_method = chrono.ChContactMethod_NSC
 contact_vis = False
 
 # Simulation step sizes
@@ -50,29 +50,29 @@ vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 
-vehicle.Initialize()
-
+# Set visualization modes BEFORE initialization
 vehicle.SetChassisVisualizationType(vis_type)
 vehicle.SetSuspensionVisualizationType(vis_type)
 vehicle.SetSteeringVisualizationType(vis_type)
 vehicle.SetWheelVisualizationType(vis_type)
 vehicle.SetTireVisualizationType(vis_type)
 
+vehicle.Initialize()
+
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
-# Create the rigid terrain
+# Create rigid terrain (REPLACED SCM WITH RIGID TERRAIN)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-patch = terrain.AddHeightfield(veh.GetDataFile("terrain/height_maps/bump64.bmp"), 
-                              terrainLength, terrainWidth, -1, 1, 
-                              chrono.ChVector3d(0, 0, 0), chrono.ChQuaterniond(1, 0, 0, 0))
+patch = terrain.AddPatch(
+    chrono.ChCoordsysd(chrono.ChVector3d(-1, 1, 0)),  # Center position
+    veh.GetDataFile("terrain/height_maps/bump64.bmp"),
+    "field_mesh",
+    40,  # Size in X (meters)
+    40,  # Size in Y (meters)
+    -1,  # Min height
+    1    # Max height
+)
 patch.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
-
-# Configure terrain material (NSC)
-material = chrono.ChMaterialSurfaceNSC()
-material.SetFriction(math.tan(math.radians(30)))  # Friction from original 30 degrees
-material.SetRestitution(0)
-patch.SetContactMaterial(material)
-
 terrain.Initialize()
 
 # Create the vehicle Irrlicht interface
@@ -103,9 +103,13 @@ driver.Initialize()
 # Simulation loop
 # ---------------
 
+# output vehicle mass
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
+# Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
+
+# Initialize simulation frame counter
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
@@ -113,6 +117,7 @@ render_frame = 0
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
+    # Render scene and output POV-Ray data
     if step_number % render_steps == 0:
         vis.BeginScene()
         vis.Render()
@@ -122,17 +127,20 @@ while vis.Run():
     # Get driver inputs
     driver_inputs = driver.GetInputs()
 
-    # Update modules
+    # Update modules (process inputs from other modules)
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
 
-    # Advance simulation
+    # Advance simulation for one timestep for all modules
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
 
+    # Increment frame number
     step_number += 1
+
+    # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)

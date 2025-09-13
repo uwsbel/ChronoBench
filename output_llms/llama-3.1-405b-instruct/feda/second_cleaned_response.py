@@ -82,18 +82,26 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 
-path = veh.ChPath()
-path.AddPoint(chrono.ChVector3d(-50, 0, 0.5))
-path.AddPoint(chrono.ChVector3d(-25, -10, 0.5))
-path.AddPoint(chrono.ChVector3d(0, -20, 0.5))
-path.AddPoint(chrono.ChVector3d(25, -10, 0.5))
-path.AddPoint(chrono.ChVector3d(50, 0, 0.5))
-path.SetClosed(True)
+path = chrono.ChBezierCurve()
+path.AddPoint(chrono.ChVector3d(-50, 0, 0))
+path.AddPoint(chrono.ChVector3d(-25, -10, 0))
+path.AddPoint(chrono.ChVector3d(0, -20, 0))
+path.AddPoint(chrono.ChVector3d(25, -10, 0))
+path.AddPoint(chrono.ChVector3d(50, 0, 0))
 
-driver = veh.ChPathFollowerDriver(path, 10.0)
-driver.GetSteeringController().SetLookAheadDistance(5)
-driver.GetSteeringController().SetGains(0.5, 0.1)
-driver.GetSpeedController().SetGains(0.5, 0.1)
+driver = veh.ChPathFollowerDriver()
+driver.SetTargetSpeed(10.0)
+driver.SetSteeringController(look_ahead_distance=5, gain=0.1, damping_ratio=0.5)
+driver.SetSpeedController(gain=0.1, damping_ratio=0.5)
+driver.SetPath(path)
+
+
+steering_time = 1.0  
+throttle_time = 1.0  
+braking_time = 0.3   
+driver.SetSteeringDelta(render_step_size / steering_time)
+driver.SetThrottleDelta(render_step_size / throttle_time)
+driver.SetBrakingDelta(render_step_size / braking_time)
 
 driver.Initialize()
 

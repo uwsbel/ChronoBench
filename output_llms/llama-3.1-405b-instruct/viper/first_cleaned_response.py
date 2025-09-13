@@ -1,75 +1,66 @@
 import pychrono.core as chrono
+import pychrono.vehicle as veh
 import pychrono.irrlicht as chronoirr
-import numpy as np
 
 
-chrono.SetChronoDataPath('/path/to/chrono/data/')
+chrono.SetChronoDataPath("path/to/chrono/data/")
 
 
 sys = chrono.ChSystemNSC()
 sys.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
 
-ground = chrono.ChBodyEasyBox(sys,  
-                              100, 100, 2,  
-                              1000,  
-                              True,  
-                              True,  
-                              chrono.ChVectorD(0, -1, 0),  
-                              chrono.ChQuaternionD(1, 0, 0, 0))  
+ground = chrono.ChBodyEasyBox(sys, 100, 1, 100, 1000, True, True)
 sys.Add(ground)
 
 
-rover = chrono.ChBodyEasyBox(sys,  
-                             1.5, 0.8, 0.5,  
-                             100,  
-                             True,  
-                             True,  
-                             chrono.ChVectorD(0, 0.5, 0),  
-                             chrono.ChQuaternionD(1, 0, 0, 0))  
+rover = veh.ChPart_ViperRover(sys)
+rover.SetChassisPosition(chrono.ChVectorD(0, 1, 0))
+rover.SetChassisRotation(chrono.ChQuaternionD(1, 0, 0, 0))
 sys.Add(rover)
 
 
-driver = chrono.ChPart(sys)
-driver.SetMass(50)
-driver.SetInertiaXX(chrono.ChVectorD(0.1, 0.1, 0.1))
-sys.Add(driver)
+driver = veh.ChDriver(rover)
+driver.Initialize()
 
 
-rover.AddChild(driver)
+app = chronoirr.ChVisualSystemIrrlicht()
+app.AttachSystem(sys)
+app.SetWindowSize(800, 600)
+app.SetWindowTitle("Viper Rover Simulation")
 
 
-vis = chronoirr.ChVisualSystemIrrlicht()
-vis.SetWindowSize(800, 600)
-vis.SetWindowTitle("Viper Rover Simulation")
-vis.Initialize()
-vis.AddSkyBox()
-vis.AddCamera(chrono.ChVectorD(-5, 2, -5), chrono.ChVectorD(0, 0, 0))
-vis.AddLightWithShadow(chrono.ChVectorD(-5, 5, -5), chrono.ChVectorD(0, 0, 0), 3)
+camera = chronoirr.ChIrrNodeCamera(app.GetSceneManager(), app.Get IrrlichtDevice())
+camera.SetPosition(chrono.ChVectorD(-5, 5, -10))
+camera.SetTarget(chrono.ChVectorD(0, 1, 0))
+
+
+light = chronoirr.ChIrrNodeLight(app.GetSceneManager())
+light.SetPosition(chrono.ChVectorD(-5, 5, -10))
+light.SetTarget(chrono.ChVectorD(0, 1, 0))
 
 
 time_step = 0.01
-time_end = 10
-time = 0
-steering_angle = 0
+time_end = 10.0
+time = 0.0
+steering_angle = 0.0
+steering_rate = 0.1
 
 while time < time_end:
     
-    steering_angle += 0.01
-    if steering_angle > chrono.CH_C_PI / 4:
-        steering_angle = -chrono.CH_C_PI / 4
-
-    
-    rover.SetFrame_COG_to_REF(chrono.ChFrameMovingD(chrono.ChVectorD(0, 0, 0), chrono.ChQuaternionD(1, 0, 0, steering_angle)))
+    steering_angle += steering_rate * time_step
+    if steering_angle > 0.5:
+        steering_rate = -steering_rate
+    elif steering_angle < -0.5:
+        steering_rate = -steering_rate
+    driver.SetSteering(steering_angle)
 
     
     sys.DoStepDynamics(time_step)
-
-    
-    vis.DrawAll()
-
-    
+    app.BeginScene()
+    app.DrawAll()
+    app.EndScene()
     time += time_step
 
 
-vis.Close()
+app.Close()

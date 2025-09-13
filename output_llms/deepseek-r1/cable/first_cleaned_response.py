@@ -11,64 +11,58 @@ mesh = fea.ChMesh()
 system.Add(mesh)
 
 
-section = fea.ChBeamSectionCable()
-section.SetDiameter(0.05)       
-section.SetYoungModulus(1e7)    
-section.SetDensity(1000)        
-section.SetDamping(0.01)        
-
-
-num_elements = 10
-beam_length = 2.0               
-dx = beam_length / num_elements 
+length = 1.0          
+n_elements = 8        
+density = 1000        
+youngs_modulus = 1e7  
+area = 0.01 * 0.01    
+damping = 0.01        
 
 
 nodes = []
-for i in range(num_elements + 1):
-    x_pos = i * dx
+for i in range(n_elements + 1):
+    x_pos = i * (length / n_elements)
     node = fea.ChNodeFEAxyzD(chrono.ChVectorD(x_pos, 0, 0), 
-                            chrono.ChVectorD(1, 0, 0))  
+                            chrono.ChVectorD(0, 1, 0))  
     mesh.AddNode(node)
     nodes.append(node)
 
 
-ground = chrono.ChBody()
-ground.SetBodyFixed(True)
-system.Add(ground)
-
-link = fea.ChLinkPointFrame()
-link.Initialize(nodes[0], ground)
-system.Add(link)
+constraint = fea.ChLinkPointFrame()
+constraint.Initialize(nodes[0], chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)))
+system.Add(constraint)
 
 
-for i in range(num_elements):
+for i in range(n_elements):
     element = fea.ChElementCableANCF()
     element.SetNodes(nodes[i], nodes[i + 1])
-    element.SetSection(section)
+    element.SetSection(area)
+    element.SetMaterial(chrono.ChBeamSectionCable(density, youngs_modulus, damping))
     mesh.AddElement(element)
 
 
-vis_mesh = fea.ChVisualizationFEAmesh(mesh)
-vis_mesh.SetFEMdataType(fea.ChVisualizationFEAmesh.E_PLOT_ELEM_BEAM_MX)
-vis_mesh.SetColorscaleMinMax(-0.4, 0.4)
-vis_mesh.SetSmoothFaces(True)
-mesh.AddVisualizationFEA(vis_mesh)
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetWindowSize(1280, 720)
+vis.SetWindowTitle('ANCF Beam Simulation')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVectorD(0.5, 0.5, 1.5))  
+vis.AddTypicalLights()
 
 
-application = chronoirr.ChIrrApp(system, "ANCF Cable Beam", chronoirr.dimension2du(800, 600))
-application.AddTypicalSky()
-application.AddTypicalCamera(chronoirr.vector3df(0.5, 0.5, 3.0))  
-application.AddTypicalLights()
-application.AssetBindAll()
-application.AssetUpdateAll()
+visualize_nodes = chronoirr.ChVisualShapePoint(0.02)
+visualize_beam = chronoirr.ChVisualShapeFEA(mesh)
+visualize_beam.SetFEMdataType(chronoirr.FEMDataType.ELEM_BEAM_MZ)
+visualize_beam.SetColorscaleMinMax(-0.1, 0.1)
+visualize_beam.SetSmoothFaces(True)
+mesh.AddVisualShapeFEA(visualize_beam)
 
 
-application.SetTimestep(0.001)
-application.SetTryRealtime(True)
-
-
-while application.GetDevice().run():
-    application.BeginScene()
-    application.DrawAll()
-    application.DoStep()
-    application.EndScene()
+timestep = 0.001
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    system.DoStepDynamics(timestep)

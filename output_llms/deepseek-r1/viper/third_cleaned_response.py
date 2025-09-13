@@ -3,7 +3,7 @@ import math
 import numpy as np
 import pychrono as chrono
 import pychrono.robot as viper
-import pychrono.vehicle as veh
+import pychrono.vehicle as veh  
 from pychrono import irrlicht as chronoirr
 
 
@@ -15,17 +15,18 @@ chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
 
 
 terrain = veh.SCMDeformableTerrain(system)
-terrain.SetPlane(chrono.ChCoordsysd(chrono.ChVector3d(0, 0, -0.5), chrono.QUNIT))
+terrain.SetPlane(chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT))
+terrain.SetSoilParameters(
+    2e6,   
+    0,     
+    1.1,   
+    0,     
+    30,    
+    0.01,  
+    2e8,   
+    3e4    
+)
 terrain.Initialize(20, 20, 0.2)  
-terrain.SetSoilParameters(2e6,  
-                          1e4,  
-                          1.1,  
-                          3e4,  
-                          30,   
-                          4e4,  
-                          1e8)  
-terrain.SetPlotType(veh.SCMDeformableTerrain.PLOT_PRESSURE, 0, 30000)
-system.Add(terrain)
 
 
 rover = viper.Viper(system)  
@@ -35,7 +36,7 @@ rover.SetDriver(driver)
 
 init_pos = chrono.ChVector3d(0, 0.2, 0)
 init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
-rover.Initialize(chrono.ChFrameD(init_pos, init_rot))  
+rover.Initialize(chrono.ChFramed(init_pos, init_rot))
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
@@ -60,8 +61,8 @@ while vis.Run():
     
     
     steering = 0.0
+    
     driver.SetSteering(steering)  
-
     rover.Update()  
 
     

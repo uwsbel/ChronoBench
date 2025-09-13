@@ -1,3 +1,4 @@
+```python
 import pychrono.core as chrono  # Import core Chrono functionality
 import pychrono.irrlicht as chronoirr  # Import Irrlicht visualization
 import pychrono.fea as fea  # Import Finite Element Analysis components
@@ -103,4 +104,3 @@ if (True):  # Block to execute the following setup
 
             # Create second element
             melement
-print("error happened with only start ```python")

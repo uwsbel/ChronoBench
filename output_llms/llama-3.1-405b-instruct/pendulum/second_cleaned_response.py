@@ -29,7 +29,7 @@ pend_1.SetInertiaXX(chrono.ChVectorD(0.4, 1.5, 1.5))
 
 cyl_1 = chrono.ChVisualShapeCylinder(0.1, 1.5)  
 cyl_1.SetColor(chrono.ChColor(0.6, 0, 0))  
-pend_1.AddVisualShape(cyl_1, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.Q_from_AngY(math.pi/2)))
+pend_1.AddVisualShape(cyl_1, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.Q_from_AngY(chrono.CH_C_PI_2)))
 
 
 
@@ -40,13 +40,13 @@ pend_1.SetWvel_loc(chrono.ChVectorD(0, 0, 1))
 
 
 
-sph_1 = chrono.ChLinkLockSpherical()
+sph_1 = chrono.ChLinkMateSpherical()
 sph_1.Initialize(ground, pend_1, chrono.ChFrameD(chrono.ChVectorD(0, 0, 1)))
-sys.Add(sph_1)
+sys.AddLink(sph_1)
 
 
-sph_v = chrono.ChVisualShapeSphere(2)  
-sph_1.AddVisualShape(sph_v)
+sph_shape = chrono.ChVisualShapeSphere(2)  
+sph_1.AddVisualShape(sph_shape)
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()

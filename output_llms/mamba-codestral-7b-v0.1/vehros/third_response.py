@@ -1,3 +1,4 @@
+```python
 import pychrono as ch
 import pychrono.vehicle as veh
 import pychrono.ros as chros
@@ -106,4 +107,3 @@ def main():
         hmmwv.Synchronize(time, driver_inputs, terrain)  # Synchronize the vehicle with inputs and terrain.
 
         # Advance the simulation for all modules by one
-print("error happened with only start ```python")

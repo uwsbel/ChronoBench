@@ -15,3 +15,15 @@ vis.AddLogo(chronoirr.GetChronoDataFile("logo_pychrono_alpha.png"))
 vis.AddSkyBox()
 vis.AddTypicalLights()
 vis.AddCamera(chrono.ChVectorD(0, 5, -10))
+
+# Create the HMMWV vehicle
+vehicle = chrono.ChVehicleMoving(chrono.ChVectorD(0, 0, 0), chrono.ChQuaternionD(1, 0, 0, 0))
+
+# Set vehicle parameters
+vehicle.SetChassisMass(2500)
+vehicle.SetChassisInertiaXX(chrono.ChVectorD(1000, 1000, 1000))
+vehicle.SetChassisVisualizationType(chrono.ChVehicleVisualizationType_PRIMITIVES)
+
+# Add IMU and GPS sensors to the vehicle
+imu = chrono.ChIMUSensor(vehicle.GetChassis())
+gps = chrono.ChGPSsensor(vehicle.GetChassis())

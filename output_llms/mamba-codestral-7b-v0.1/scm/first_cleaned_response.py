@@ -1,3 +1,6 @@
+Sure, here's a basic outline of how you might structure your PyChrono simulation script based on the instructions you provided:
+
+```python
 import pychrono
 
 
@@ -240,4 +243,3 @@ terrain.SetMeshNumSmoothIterations(2)
 terrain.SetMeshNumSmoothIterations(2)
 terrain.SetMeshNumSmoothIterations(2)
 terrain.SetMeshNumSmoothIterations(2)
-print("error happened with only start ```python")

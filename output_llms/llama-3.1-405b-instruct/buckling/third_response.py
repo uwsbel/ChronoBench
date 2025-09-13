@@ -1,15 +1,15 @@
-import math as m
-import pychrono as chrono
-import pychrono.fea as fea
-import pychrono.pardisomkl as mklsolver
-import pychrono.irrlicht as chronoirr
-import os
+import math as m  # Import the math library for trigonometric functions, constants, etc.
+import pychrono as chrono  # Import the main PyChrono library
+import pychrono.fea as fea  # Import the finite element analysis module from PyChrono
+import pychrono.pardisomkl as mklsolver  # Import the Pardiso solver module from PyChrono
+import pychrono.irrlicht as chronoirr  # Import the Irrlicht visualization module from PyChrono
+import os  # Import the OS library for file and directory operations
 
 # Custom function class for motor angle:
 class ChFunctionMyFun(chrono.ChFunction):
     def __init__(self):
-        super().__init__()
-    def GetVal(self, x):
+        chrono.ChFunction.__init__(self)
+    def Get_y(self, x):
         if x > 0.5:
             return chrono.CH_PI
         else:
@@ -33,20 +33,22 @@ vd = chrono.ChVectorD(0, 0, 0.0001)
 
 # Create a truss body, fixed in space:
 body_truss = chrono.ChBody()
-body_truss.SetFixed(True)
-sys.AddBody(body_truss)
+body_truss.SetBodyFixed(True)
+sys.Add(body_truss)
 
 # Attach a visualization shape to the truss
-boxtruss = chrono.ChVisualShapeBox(0.03, 0.25, 0.15)
-body_truss.AddVisualShape(boxtruss, chrono.ChFrameD(chrono.ChVectorD(-0.01, 0, 0), chrono.QUNIT))
+boxtruss = chrono.ChBoxShape()
+boxtruss.GetBoxGeometry().Size = chrono.ChVectorD(0.03, 0.25, 0.15)
+body_truss.AddVisualShape(boxtruss)
 
 # Create a crank body:
 body_crank = chrono.ChBody()
 body_crank.SetPos((vC + vG) * 0.5)
-sys.AddBody(body_crank)
+sys.Add(body_crank)
 
 # Attach a visualization shape to the crank
-boxcrank = chrono.ChVisualShapeBox(K, 0.05, 0.03)
+boxcrank = chrono.ChBoxShape()
+boxcrank.GetBoxGeometry().Size = chrono.ChVectorD(K, 0.05, 0.03)
 body_crank.AddVisualShape(boxcrank)
 
 # Create a rotational motor
@@ -70,7 +72,7 @@ melasticity = fea.ChElasticityCosseratSimple()
 melasticity.SetYoungModulus(72.0e9)
 melasticity.SetShearModulusFromPoisson(0.35)
 melasticity.SetAsRectangularSection(beam_wy, beam_wz)
-msection1 = fea.ChMassSectionCosserat(minertia, melasticity)
+msection1 = fea.ChMaterialSectionCosserat(minertia, melasticity)
 msection1.SetDrawThickness(beam_wy * 0.5, beam_wz)
 
 # Build the IGA beam
@@ -83,7 +85,7 @@ node_tip = builder_iga.GetLastBeamNodes()[65]
 node_mid = builder_iga.GetLastBeamNodes()[32]
 
 # Define vertical beam parameters using Euler beams
-section2 = fea.ChBeamSectionAdvancedEuler()
+section2 = fea.ChBeamSectionEulerAdvanced()
 hbeam_d = 0.05
 section2.SetDensity(2500)
 section2.SetYoungModulus(75.0e9)
@@ -106,7 +108,8 @@ sys.Add(constr_bb)
 constr_bb.SetConstrainedCoords(True, False, True, False, False, False)
 
 # Attach a visualization shape for the constraint
-sphereconstr2 = chrono.ChVisualShapeSphere(0.02)
+sphereconstr2 = chrono.ChSphereShape()
+sphereconstr2.GetSphereGeometry().rad = 0.02
 constr_bb.AddVisualShape(sphereconstr2)
 
 # Create a crank beam
@@ -139,7 +142,8 @@ sys.Add(constr_bc)
 constr_bc.SetConstrainedCoords(True, True, False, True, True, False)
 
 # Attach a visualization shape for the constraint
-sphereconstr3 = chrono.ChVisualShapeSphere(0.01)
+sphereconstr3 = chrono.ChSphereShape()
+sphereconstr3.GetSphereGeometry().rad = 0.01
 constr_bc.AddVisualShape(sphereconstr3)
 
 # Final touches:

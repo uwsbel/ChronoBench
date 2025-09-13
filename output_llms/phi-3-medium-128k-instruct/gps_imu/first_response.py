@@ -1,3 +1,5 @@
+```python
+
 import pychrono
 
 import pychrono.vehicle_dynamics as vehicle_dynamics
@@ -348,4 +350,3 @@ hmmwv.SetVehicleCGMassRel153(0.05)
 hmmwv.SetVehicleCGMassRel154(0.05)
 
 hmmwv.SetVehicle.SetVehicleCGMass(0.05)
-print("error happened with only start ```python")

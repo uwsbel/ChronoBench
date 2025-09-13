@@ -83,34 +83,37 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
-# Add point lights to the scene
-pl1 = irr.IrrlichtLight()
-pl1.SetType(irr.IrrlichtLight.Type_Point)
+# Add point lights
+pl1 = irr.IrrlichtLight(vis.GetIrrlichtDevice(), irr.IrrlichtLight.Type_Point)
 pl1.SetPosition(chrono.ChVector3d(-10, 0, 5))
-pl1.SetIntensity(0.5)
+pl1.SetRadius(20)
+pl1.SetIntensity(1.5)
 vis.AddLight(pl1)
 
-pl2 = irr.IrrlichtLight()
-pl2.SetType(irr.IrrlichtLight.Type_Point)
+pl2 = irr.IrrlichtLight(vis.GetIrrlichtDevice(), irr.IrrlichtLight.Type_Point)
 pl2.SetPosition(chrono.ChVector3d(10, 0, 5))
-pl2.SetIntensity(0.5)
+pl2.SetRadius(20)
+pl2.SetIntensity(1.5)
 vis.AddLight(pl2)
 
-# Create a sensor manager
+# Create the sensor manager
 sensor_manager = veh.ChSensorManager(vehicle.GetSystem())
 
 # Create a camera sensor
-camera = veh.ChCameraSensor(vehicle.GetChassisBody())
-camera.SetResolution(1024, 768)
+camera = veh.ChCameraSensor(vehicle.GetSystem())
+camera.SetName("FPV_Camera")
 camera.SetFOV(60)
-camera.SetRange(0.1, 1000)
-sensor_manager.AddSensor(camera)
+camera.SetResolution(1024, 768)
+camera.SetPosition(chrono.ChVector3d(-2.5, 0, 1.5))
+camera.SetDirection(chrono.ChVector3d(1, 0, 0))
+vehicle.GetChassisBody().AddSensor(camera)
 
-# Create a visualization filter for the camera
-camera_filter = irr.IrrlichtFilter()
-camera_filter.SetType(irr.IrrlichtFilter.Type_Image)
-camera_filter.SetSource(camera)
-vis.AddFilter(camera_filter)
+# Add a visualization filter to render the image
+filter = veh.ChVisualizationFilter(vis.GetIrrlichtDevice())
+filter.SetSensor(camera)
+filter.SetWidth(512)
+filter.SetHeight(384)
+sensor_manager.AddFilter(filter)
 
 # Create the driver system
 driver = veh.ChInteractiveDriverIRR(vis)

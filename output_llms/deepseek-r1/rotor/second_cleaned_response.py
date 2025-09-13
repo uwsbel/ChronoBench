@@ -9,7 +9,7 @@ sys = chrono.ChSystemSMC()
 mesh = fea.ChMesh()
 sys.Add(mesh)
 
-mesh.SetAutomaticGravity(True, 2)
+mesh.SetAutomaticGravity(True, 2)  
 sys.SetGravitationalAcceleration(chrono.ChVector3d(0, -3.71, 0))  
 
 beam_L = 10  
@@ -36,19 +36,21 @@ msection.SetDrawCircularRadius(beam_ro)
 
 
 builder = fea.ChBuilderBeamIGA()
-builder.BuildBeam(mesh, msection, 20, 
-                  chrono.ChVector3d(0, 0, 0), 
-                  chrono.ChVector3d(beam_L, 0, 0), 
-                  chrono.VECT_Y, 1)
+builder.BuildBeam(mesh,
+                  msection,
+                  20,  
+                  chrono.ChVector3d(0, 0, 0),
+                  chrono.ChVector3d(beam_L, 0, 0),
+                  chrono.VECT_Y,  
+                  1)  
 
 node_mid = builder.GetLastBeamNodes()[len(builder.GetLastBeamNodes()) // 2]
 
 
 mbodyflywheel = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, 0.30, 0.1, 7800)  
-mbodyflywheel.SetCoordsys(chrono.ChCoordsysd(
-    node_mid.GetPos() + chrono.ChVector3d(0, 0.05, 0),
-    chrono.QuatFromAngleAxis(m.pi/2, chrono.VECT_Z)
-))
+mbodyflywheel.SetCoordsys(
+    chrono.ChCoordsysd(node_mid.GetPos() + chrono.ChVector3d(0, 0.05, 0),
+                       chrono.QuatFromAngleAxis(m.pi / 2.0, chrono.VECT_Z))
 sys.Add(mbodyflywheel)
 
 
@@ -61,18 +63,23 @@ truss = chrono.ChBody()
 truss.SetFixed(True)
 sys.Add(truss)
 
-bearing = chrono.ChLinkMateGeneric(False, True, True, False, True, True)
-bearing.Initialize(builder.GetLastBeamNodes()[-1], truss, 
-                   chrono.ChFramed(builder.GetLastBeamNodes()[-1].GetPos()))
+
+bearing = chrono.ChLinkMateGeneric(True, True, True, False, True, True)  
+bearing.Initialize(builder.GetLastBeamNodes().back(),
+                   truss,
+                   chrono.ChFramed(builder.GetLastBeamNodes().back().GetPos()))
 sys.Add(bearing)
 
 
 rotmotor1 = chrono.ChLinkMotorRotationSpeed()
-rotmotor1.Initialize(builder.GetLastBeamNodes()[0], truss,
-                    chrono.ChFramed(builder.GetLastBeamNodes()[0].GetPos(),
-                                    chrono.QuatFromAngleAxis(m.pi/2, chrono.VECT_Y)))
+rotmotor1.Initialize(builder.GetLastBeamNodes().front(),
+                     truss,
+                     chrono.ChFramed(builder.GetLastBeamNodes().front().GetPos(),
+                                     chrono.QuatFromAngleAxis(m.pi / 2.0, chrono.VECT_Y)))
 sys.Add(rotmotor1)
-rotmotor1.SetMotorFunction(chrono.ChFunctionSine(60, 0.1))  
+
+f_ramp = chrono.ChFunctionSine(60, 0.1)  
+rotmotor1.SetMotorFunction(f_ramp)
 
 
 mvisualizebeamA = chrono.ChVisualShapeFEA(mesh)
@@ -82,19 +89,21 @@ mesh.AddVisualShapeFEA(mvisualizebeamA)
 
 mvisualizebeamC = chrono.ChVisualShapeFEA(mesh)
 mvisualizebeamC.SetFEMglyphType(chrono.ChVisualShapeFEA.GlyphType_NODE_CSYS)
+mvisualizebeamC.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NONE)
 mvisualizebeamC.SetSymbolsThickness(0.006)
 mvisualizebeamC.SetSymbolsScale(0.01)
+mvisualizebeamC.SetZbufferHide(False)
 mesh.AddVisualShapeFEA(mvisualizebeamC)
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(sys)
 vis.SetWindowSize(1024, 768)
-vis.SetWindowTitle('Modified Jeffcott Rotor Simulation')
+vis.SetWindowTitle('Modified Jeffcott Rotor with IGA Beams')
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()
-vis.AddCamera(chrono.ChVector3d(0, 2, 8), chrono.ChVector3d(beam_L/2, 0, 0))  
+vis.AddCamera(chrono.ChVector3d(0, 2, 8), chrono.ChVector3d(beam_L / 2, 0, 0))  
 vis.AddTypicalLights()
 
 
@@ -102,7 +111,7 @@ msolver = mkl.ChSolverPardisoMKL()
 sys.SetSolver(msolver)
 
 
-sys.DoStaticNonlinear()  
+sys.DoStaticLinear()
 
 while vis.Run():
     vis.BeginScene()

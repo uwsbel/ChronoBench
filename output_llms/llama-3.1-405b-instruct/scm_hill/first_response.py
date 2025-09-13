@@ -1,78 +1,65 @@
+# Import necessary modules
 import pychrono.core as chrono
 import pychrono.vehicle as veh
-import pychrono.irrlicht as chronoirr
+import pychrono.irrlicht as irr
 import numpy as np
 
 # Initialize the PyChrono environment
-chrono.SetChronoDataPath('/path/to/chrono/data/')
+chrono.SetChronoDataPath('./data/')
 
-# Create a Chrono::Engine physical system
+# Create a ChronoEngine physical system
 sys = chrono.ChSystemNSC()
 
 # Create an SCM deformable terrain
 terrain = veh.SCMDeformableTerrain(sys)
-terrain.SetSoilParameters(0.2,  # density
-                          0.01,  # friction angle (rad)
-                          0.005,  # cohesion (Pa)
-                          0.01,  # damping ratio
-                          0.001  # elastic modulus (Pa)
-                          )
-terrain.Initialize('/path/to/heightmap.bmp',  # height map
-                   0.1,  # x-size (m)
-                   0.1,  # y-size (m)
-                   0.01  # max height (m)
-                   )
+terrain.SetSoilParameters(0.2,  # friction angle (rad)
+                          0.01,  # cohesion (Pa)
+                          0.001,  # damping ratio
+                          2000,   # elastic stiffness (Pa)
+                          0.01,   # plastic stiffness (Pa)
+                          0.2)    # critical state soil moisture content
+terrain.Initialize(1024, 1024, 20.0)  # (num cells x, num cells y, cell size)
+
+# Create a height map for the terrain
+height_map = np.random.rand(1024, 1024) * 2 - 1
+terrain.SetHeightMap(height_map)
 
 # Create an HMMWV vehicle
-vehicle = veh.HMMWV(sys)
-vehicle.Initialize()
-vehicle.SetChassisPosition(chrono.ChVectorD(0, 0, 0.5))
+vehicle = veh.HMMWV(sys, drivetrain=veh.e_drivetrain_RWD, suspension=veh.e_suspension_SemiTrailingArm)
+vehicle.SetChassisPosition(chrono.ChVectorD(0, 2, 0))
 vehicle.SetChassisRotation(chrono.ChQuaternionD(1, 0, 0, 0))
 
+# Initialize the vehicle system
+vehicle.Initialize()
+
 # Create a driver system
-driver = veh.ChDriver(sys)
+driver = veh.ChIrrNodeDriver(vehicle)
 driver.Initialize()
-driver.SetSteeringController(0.03,  # steering gain
-                             0.01  # steering rate (rad/s)
-                             )
-driver.SetThrottleController(0.1,  # throttle gain
-                             0.01  # throttle rate (1/s)
-                             )
-driver.SetBrakingController(0.1,  # braking gain
-                            0.01  # braking rate (1/s)
-                            )
 
-# Create an Irrlicht visualization system
-vis = chronoirr.ChVisualSystemIrrlicht()
-vis.SetWindowSize(800, 600)
-vis.SetWindowTitle('HMMWV Simulation')
-vis.Initialize()
-vis.AddSkyBox()
-vis.AddCamera(chrono.ChVectorD(-2, 0, 1),  # camera position
-              chrono.ChVectorD(0, 0, 0)  # camera target
-              )
-vis.AddLight(chrono.ChVectorD(-2, 2, 2),  # light position
-             chrono.ChVectorD(0, 0, 0),  # light target
-             0.5,  # light intensity
-             0.1,  # light radius
-             chrono.ChColor(1, 1, 1)  # light color
-             )
+# Create an Irrlicht application
+app = irr.ChIrrApp(sys, 'HMMWV on Deformable Terrain', irr.dimension2du(800, 600))
+app.AddTypicalSky()
+app.AddTypicalLights()
+app.AddCamera(chrono.ChVectorD(0, 5, -10))
+app.SetSymbolscale(0.02)
 
-# Simulation loop
-while vis.Run():
-    # Synchronize simulation time and real time
-    sys.DoStepDynamics(chrono.ChTimestep(1e-3))
+# Create a simulation loop
+while app.GetDevice().run():
+    # Synchronize the vehicle and terrain systems
+    vehicle.Synchronize(time=app.GetSimulationTime())
+    terrain.Synchronize(time=app.GetSimulationTime())
 
-    # Update driver inputs
-    driver.SetSteering(0.1 * np.sin(chrono.ChTime(10) * sys.GetChTime()))
-    driver.SetThrottle(0.5)
-    driver.SetBraking(0.0)
+    # Advance the vehicle and terrain systems
+    vehicle.Advance(app.GetStepSize())
+    terrain.Advance(app.GetStepSize())
 
-    # Update vehicle and terrain
-    vehicle.Advance(chrono.ChTimestep(1e-3))
-    terrain.Advance(chrono.ChTimestep(1e-3))
+    # Update the driver system
+    driver.Update()
 
-    # Update visualization
-    vis.BeginScene()
-    vis.DrawAll()
-    vis.EndScene()
+    # Update the Irrlicht application
+    app.BeginScene(True, True, irr.SColor(255, 255, 255))
+    app.DrawAll()
+    app.EndScene()
+
+    # Advance the simulation time
+    app.Step()

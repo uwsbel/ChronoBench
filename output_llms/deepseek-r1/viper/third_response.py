@@ -3,7 +3,7 @@ import math
 import numpy as np
 import pychrono as chrono
 import pychrono.robot as viper
-import pychrono.vehicle as veh
+import pychrono.vehicle as veh  # Added per instruction 1
 from pychrono import irrlicht as chronoirr
 
 # Create Chrono system
@@ -13,19 +13,20 @@ system.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, -9.81))  # Set gravi
 chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.0025)
 chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
 
-# Create SCM deformable terrain
+# Create SCM deformable terrain (replaces rigid ground per instruction 2)
 terrain = veh.SCMDeformableTerrain(system)
-terrain.SetPlane(chrono.ChCoordsysd(chrono.ChVector3d(0, 0, -0.5), chrono.QUNIT))
-terrain.Initialize(20, 20, 0.2)  # length, width, mesh resolution
-terrain.SetSoilParameters(2e6,  # Bekker Kphi
-                          1e4,  # Bekker Kc
-                          1.1,  # Bekker n exponent
-                          3e4,  # Mohr cohesive limit (Pa)
-                          30,   # Mohr friction limit (degrees)
-                          4e4,  # Janosi shear parameter (m)
-                          1e8)  # Elastic stiffness (Pa/m), before plastic yield
-terrain.SetPlotType(veh.SCMDeformableTerrain.PLOT_PRESSURE, 0, 30000)
-system.Add(terrain)
+terrain.SetPlane(chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT))
+terrain.SetSoilParameters(
+    2e6,   # Bekker Kphi
+    0,     # Bekker Kc
+    1.1,   # Bekker n exponent
+    0,     # Mohr cohesive limit (Pa)
+    30,    # Mohr friction limit (degrees)
+    0.01,  # Janosi shear coefficient (m)
+    2e8,   # Elastic stiffness (Pa/m)
+    3e4    # Damping (Pa s/m)
+)
+terrain.Initialize(20, 20, 0.2)  # Length = 20m, Width = 20m, Resolution = 0.2m
 
 # Create Viper rover
 rover = viper.Viper(system)  # Instantiate the Viper rover
@@ -35,7 +36,7 @@ rover.SetDriver(driver)  # Assign the driver to the rover
 # Initialize rover position and orientation
 init_pos = chrono.ChVector3d(0, 0.2, 0)
 init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
-rover.Initialize(chrono.ChFrameD(init_pos, init_rot))  # Corrected from ChFramed to ChFrameD
+rover.Initialize(chrono.ChFramed(init_pos, init_rot))
 
 # Create run-time visualization
 vis = chronoirr.ChVisualSystemIrrlicht()
@@ -58,10 +59,10 @@ time = 0
 while vis.Run():
     time += time_step  # Increment the simulation time
     
-    # Constant steering value
+    # Constant steering set to 0.0 (per instruction 3)
     steering = 0.0
+    
     driver.SetSteering(steering)  # Set the steering for the rover
-
     rover.Update()  # Update the rover's state
 
     # Render the scene

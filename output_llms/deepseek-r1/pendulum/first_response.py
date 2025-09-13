@@ -1,70 +1,67 @@
 import pychrono as chrono
-import pychrono.irrlicht as irrlicht
-import math
+import pychrono.irrlicht as chronoirr
 
-# System setup
-system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Gravity in -Y direction
-
-# Create ground body
-ground = chrono.ChBodyEasyBox(0.2, 0.2, 0.2, 1000, True, False)
-ground.SetPos(chrono.ChVectorD(0, 0, 0))
-ground.SetBodyFixed(True)
-ground.GetVisualShape(0).SetColor(chrono.ChColor(0.8, 0.2, 0.2))
-system.Add(ground)
-
-# Pendulum parameters
-length = 2.0    # Full length of pendulum
-radius = 0.05   # Radius of cylindrical pendulum
-density = 1000  # kg/m³
-
-# Create pendulum body (cylinder oriented along Y axis)
-pendulum = chrono.ChBodyEasyCylinder(radius, length, density, True, False)
-pendulum.SetPos(chrono.ChVectorD(0, -length/2, 0))  # Position center at half-length
-pendulum.SetRot(chrono.Q_from_AngZ(math.radians(30)))  # Initial 30° displacement
-pendulum.GetVisualShape(0).SetColor(chrono.ChColor(0.2, 0.8, 0.2))
-system.Add(pendulum)
-
-# Create revolute joint between ground and pendulum
-revolute = chrono.ChLinkRevolute()
-revolute.Initialize(ground, pendulum, 
-                    chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0),  # Joint position
-                                     chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 0, 1))))  # Z axis
-system.Add(revolute)
-
-# Create Irrlicht visualization
-vis = irrlicht.ChIrrApp(system, "Simple Pendulum", irrlicht.dimension2du(800, 600))
-vis.AddTypicalLights()
-vis.AddTypicalCamera(irrlicht.vector3df(0, -1, 3), irrlicht.vector3df(0, 0, 0))
-vis.AssetBindAll()
-vis.AssetUpdateAll()
-
-# Simulation loop setup
-time_step = 0.01
-log_interval = 0.1
-next_log_time = 0
-
-while vis.GetDevice().run():
-    vis.BeginScene()
-    vis.DrawAll()
-    vis.DoStepDynamics(time_step)
-    vis.EndScene()
+def main():
+    # 1. Initialize system and set default parameters
+    system = chrono.ChSystemNSC()
+    system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Gravity
     
-    current_time = system.GetChTime()
+    # 2. Create ground body
+    ground = chrono.ChBody()
+    ground.SetBodyFixed(True)  # Ground doesn't move
+    system.Add(ground)
     
-    # Log data at specified intervals
-    if current_time >= next_log_time:
-        # Get joint state
-        angle = math.degrees(revolute.GetRelAngle())
-        ang_vel = revolute.GetRelWvel().z
+    # 3. Create pendulum body (thin box-shaped)
+    pendulum = chrono.ChBody()
+    pendulum.SetMass(1.0)  # Mass = 1kg
+    pendulum.SetInertiaXX(chrono.ChVectorD(0.1, 0.01, 0.1))  # Custom inertia
+    
+    # Set initial position (hanging down with slight offset)
+    pendulum.SetPos(chrono.ChVectorD(0.5, -0.5, 0))
+    
+    # Visual shape (red box: 0.05m wide, 1m long, 0.05m thick)
+    box_shape = chrono.ChBoxShape()
+    box_shape.GetBoxGeometry().Size = chrono.ChVectorD(0.025, 0.5, 0.025)
+    pendulum.AddVisualShape(box_shape, chrono.ChFrameD(chrono.VNULL, chrono.Q_from_AngX(chrono.CH_C_PI_2)))
+    system.Add(pendulum)
+    
+    # 4. Create revolute joint at origin
+    pivot = chrono.ChLinkLockRevolute()
+    pivot.Initialize(ground, pendulum, chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0)))
+    system.Add(pivot)
+    
+    # 5. Set up Irrlicht visualization
+    vis = chronoirr.ChVisualSystemIrrlicht()
+    vis.AttachSystem(system)
+    vis.SetWindowSize(1280, 720)
+    vis.SetWindowTitle('PyChrono Pendulum')
+    vis.Initialize()
+    vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+    vis.AddSkyBox()
+    vis.AddCamera(chrono.ChVectorD(1, 0.5, 2))
+    vis.AddTypicalLights()
+    
+    # 6. Simulation loop
+    time_step = 0.001
+    step_number = 0
+    log_interval = 20  # Log every 20 steps
+    
+    while vis.Run():
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
         
-        # Calculate pendulum end position
-        local_end = chrono.ChVectorD(0, -length/2, 0)  # Bottom end in local coordinates
-        global_end = pendulum.TransformPointLocalToParent(local_end)
+        system.DoStepDynamics(time_step)
         
-        print(f"Time: {current_time:.2f}s | "
-              f"Angle: {angle:.2f}° | "
-              f"Angular Velocity: {ang_vel:.2f} rad/s | "
-              f"End Position: ({global_end.x:.2f}, {global_end.y:.2f}, {global_end.z:.2f})")
+        # Log data periodically
+        if step_number % log_interval == 0:
+            pos = pendulum.GetPos()
+            vel = pendulum.GetPos_dt()
+            print(f"Time: {system.GetChTime():.3f}s | "
+                  f"Position: ({pos.x:.3f}, {pos.y:.3f}, {pos.z:.3f}) | "
+                  f"Velocity: ({vel.x:.3f}, {vel.y:.3f}, {vel.z:.3f})")
         
-        next_log_time += log_interval
+        step_number += 1
+
+if __name__ == "__main__":
+    main()
