@@ -1,140 +1,77 @@
-To create the requested PyChrono simulation with a fixed triangular mesh, orbiting camera sensor, and real-time data logging, follow this script:
+
 
 ```python
-import pychrono as chrono
-import pychrono.irrlicht as irrlicht
-import pychrono.sensor as sensor
+import chrono.core as chrono
+import chrono.irrlicht as irrlicht
+import chrono.sensor as sens
+import math
 import numpy as np
-import os
 
-# Set data path for assets
-chrono.SetChronoDataPath(os.path.join(os.path.dirname(__file__), 'data/'))
-
-# Initialize simulation system
+# 1. Initialize the Chrono system
 system = chrono.ChSystemNSC()
-system.SetGravity(chrono.ChVectorD(0, -9.81, 0))
 
-# Create fixed body for mesh
+# 2. Create a fixed body with a triangular mesh
 mesh_body = chrono.ChBody()
 mesh_body.SetBodyFixed(True)
+
+# Load OBJ mesh
+trimesh = chrono.ChTriangleMeshConnected()
+trimesh.LoadWavefrontMesh(chrono.GetChronoDataFile("models/cube.obj"))  # Replace with your OBJ file
+
+# Add visualization assets
+visual_shape = chrono.ChTriangleMeshShape()
+visual_shape.SetMesh(trimesh)
+visual_shape.SetName("mesh_visual")
+mesh_body.AddVisualShape(visual_shape)
+
 system.Add(mesh_body)
 
-# Load mesh from OBJ file and attach to body
-mesh_path = "models/triangular_mesh.obj"  # Replace with actual path
-mesh = chrono.ChTriangleMeshConnected()
-mesh.LoadWavefrontMesh(mesh_path)
-mesh_shape = chrono.ChTriangleMeshShape(mesh)
-mesh_shape.SetName("MeshVisualization")
-mesh_body.AddAsset(mesh_shape)
+# 3. Create sensor manager
+manager = sens.ChSensorManager(system)
+manager.scene.AddPointLight(chrono.ChVectorD(2, 2, 2), chrono.ChColor(1, 1, 1), 500)
 
-# Create Irrlicht visualization
-application = irrlicht.ChIrrApp(system, "Camera Sensor Demo", 800, 600)
-application.AddTypicalSky()
-application.AddTypicalCamera(chrono.ChVectorD(2, 2, -3))
-application.AddTypicalLights()
-application.AssetBindAll()
-application.AssetUpdateAll()
-
-# Initialize sensor manager
-manager = sensor.ChSensorManager(system)
-manager.scene.AddPointLight(chrono.ChVectorF(10, 10, 10), chrono.ChColor(1, 1, 1), 1000)
-
-# Camera orbit parameters
-orbit_radius = 3.0
-orbit_height = 1.0
-angular_speed = 0.1  # rad/s
-
-# Create camera sensor
-camera = sensor.ChCameraSensor(
-    mesh_body,              # Parent body
-    30,                     # Update rate (Hz)
-    chrono.ChFrameD(chrono.ChVectorD(orbit_radius, orbit_height, 0), 
-                   chrono.Q_from_AngZ(np.pi/2)),  # Initial pose
-    1280,                   # Image width
-    720,                    # Image height
-    np.deg2rad(75)          # Field of view
+# 4. Create camera sensor
+offset_pose = chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.Q_ROTATE_Y_TO_Z)
+cam = sens.ChCameraSensor(
+    mesh_body,         # Parent body
+    30,                # Update rate in Hz
+    offset_pose,       # Offset pose
+    640,               # Image width
+    480,               # Image height
+    chrono.CH_C_PI/3   # Field of view
 )
-camera.SetName("Orbiting Camera")
 
 # Configure camera settings
-camera.PushFilter(sensor.ChFilterRGBA8Access())
-camera.PushFilter(sensor.ChFilterVisualize(1280, 720, "Camera View"))
-camera.PushFilter(sensor.ChFilterNoiseNormal(0.0, 0.02))  # Gaussian noise
+cam.SetName("Orbit Camera")
+cam.SetLag(0.1)
+cam.SetCollectionWindow(0.02)
 
-manager.AddSensor(camera)
+# Add noise model
+noise_model = sens.ChNoiseNormalDist(0.0, 0.02)
+cam.AddNoiseModel(noise_model)
 
-# Simulation parameters
-time_step = 0.01
-current_time = 0.0
-orbit_angle = 0.0
+# Add visualization filter
+cam.PushFilter(sens.ChFilterVisualize(640, 480, "Camera View"))
 
-# Main simulation loop
-while application.GetDevice().run():
-    application.BeginScene()
-    application.DrawAll()
-    
-    # Update camera orbit position
-    orbit_angle += angular_speed * time_step
-    cam_x = orbit_radius * np.cos(orbit_angle)
-    cam_z = orbit_radius * np.sin(orbit_angle)
-    cam_pos = chrono.ChVectorD(cam_x, orbit_height, cam_z)
-    
-    # Point camera towards mesh origin
-    cam_rot = chrono.ChMatrix33D()
-    cam_rot.Set_A_Raxis(-cam_pos, chrono.ChVectorD(0, 1, 0))
-    camera.SetOffsetPose(chrono.ChFrameD(cam_pos, cam_rot.Get_A_quaternion()))
-    
-    # Advance simulation
-    manager.Update()
-    system.DoStepDynamics(time_step)
-    application.EndScene()
-    current_time += time_step
-    
-    # Access and print camera data
-    buffer = camera.GetMostRecentRGBA8Buffer()
-    if buffer.HasData():
-        rgba8_data = buffer.GetRGBA8Data()
-        print(f"Time: {current_time:.2f}s | Camera Data: "
-              f"First Pixel: {rgba8_data[0,0]} | "
-              f"Buffer Shape: {rgba8_data.shape} | "
-              f"Mean Intensity: {np.mean(rgba8_data):.1f}")
+# Add filter to access buffer
+acc_filter = sens.ChFilterAccess()
+cam.PushFilter(acc_filter)
 
-print("Simulation completed.")
-```
+# Add sensor to manager
+manager.AddSensor(cam)
 
-### Key Features:
-1. **Mesh Handling**:
-   - Fixed body with triangular mesh loaded from OBJ file
-   - Automatic asset binding for visualization
+# 5. Create Irrlicht visualization
+vis = irrlicht.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle("Camera Orbit Simulation")
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVectorD(3, 3, 3))
+vis.AddTypicalLights()
 
-2. **Camera System**:
-   - Sensor attached to orbiting parent body
-   - Real-time visualization filter for camera feed
-   - Gaussian noise applied to images
-   - RGBA8 data buffer access
-
-3. **Dynamic Orbit**:
-   - Camera circles around mesh at adjustable height/radius
-   - Automatic orientation towards mesh center
-   - Configurable angular speed
-
-4. **Data Logging**:
-   - Real-time pixel data extraction
-   - Frame timing information
-   - Statistical image metrics (mean intensity)
-
-### Setup Notes:
-1. Place your OBJ file in `data/models/` and update `mesh_path`
-2. Install required dependencies:
-   ```bash
-   pip install numpy pychrono
-   ```
-3. For sensor visualization, ensure OpenGL support is available
-
-### Customization Points:
-- Adjust `orbit_radius`, `orbit_height`, and `angular_speed` for different trajectories
-- Modify noise parameters in `ChFilterNoiseNormal` constructor
-- Change image resolution/settings in camera constructor
-- Add additional sensors or filters as needed
-
-This script provides a complete simulation with real-time visualization, sensor data processing, and dynamic camera movement around a static mesh object.
+# 6. Simulation parameters
+radius = 3.0
+angle = 0.0
+angular_speed = 0.02 

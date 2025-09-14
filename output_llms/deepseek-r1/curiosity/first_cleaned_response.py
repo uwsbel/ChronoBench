@@ -1,87 +1,69 @@
-import pychrono as chrono
-import pychrono.irrlicht as chronoirr
-import pychrono.vehicle as veh
 import os
+import pychrono as chrono
+import pychrono.irrlicht as irrlicht
+import pychrono.robot as robot
 
-
-
-
-TIME_STEP = 0.001
-SIMULATION_TIME = 30.0
-TERRAIN_SIZE = 10.0  
-TERRAIN_HEIGHT = 0.2  
-ROVER_INIT_POS = chrono.ChVectorD(0, 1.5, 0)
-CAMERA_POS = chrono.ChVectorD(3, 2, 3)  
-
-
-
-
-system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  
-system.SetSolverMaxIterations(100)
-chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.0025)
-chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
-
-
-
-
-ground = chrono.ChBodyEasyBox(TERRAIN_SIZE, TERRAIN_HEIGHT, TERRAIN_SIZE, 1000, True, True)
-ground.SetPos(chrono.ChVectorD(0, -TERRAIN_HEIGHT/2, 0))
-ground.SetBodyFixed(True)
-ground.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
-system.Add(ground)
-
-
-
-
-rover = veh.Curiosity(system)
-rover.Initialize(chrono.ChFrameD(ROVER_INIT_POS))
-rover.SetWheelVisualizationType(veh.VisualizationType_PRIMITIVES)
-
-
-motor_speed = 0.3  
-steering_speed = 0.05  
-driver = rover.GetDriver()
-driver.SetDesiredSpeed(motor_speed)
-driver.SetSteering(steering_speed)
-
-
-
-
-vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(system)
-vis.SetWindowSize(1280, 720)
-vis.SetWindowTitle("Curiosity Rover Simulation")
-vis.Initialize()
-vis.AddLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))
-vis.AddSkyBox()
-vis.AddCamera(CAMERA_POS, ROVER_INIT_POS)
-vis.AddTypicalLights()
-vis.AddLightWithShadow(chrono.ChVectorD(5, 8, -5), ROVER_INIT_POS, 15, 2, 10, 40, 512)
-
-
-vis.EnableShadows()
-
-
-
-
-time = 0.0
-while vis.Run() and time < SIMULATION_TIME:
-    vis.BeginScene()
-    vis.Render()
-    vis.RenderFrame(ROVER_INIT_POS, chrono.QUNIT, 1.0)  
-    vis.EndScene()
+def main():
+    
+    system = chrono.ChSystemNSC()
+    system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
     
     
-    driver.Update(chrono.ChTimer())
-    
-    
-    system.DoStepDynamics(TIME_STEP)
-    time += TIME_STEP
+    terrain = chrono.ChBodyEasyBox(20, 1, 20, 1000, True, True)
+    terrain.SetPos(chrono.ChVectorD(0, -0.5, 0))
+    terrain.SetBodyFixed(True)
+    terrain.GetVisualShape(0).SetTexture(chrono.GetChronoDataPath() + "textures/concrete.jpg")
+    system.Add(terrain)
 
     
-    cam_pos = rover.GetChassis().GetPos() + CAMERA_POS
-    vis.GetActiveCamera().setTarget(chronoirr.vector3df(
-        rover.GetChassis().GetPos().x,
-        rover.GetChassis().GetPos().y,
-        rover.GetChassis().GetPos().z))
+    rover = robot.Curiosity()
+    rover.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0.5, 0), chrono.QUNIT))
+    rover.SetDriverInputs(0, 0, 0)  
+    system.Add(rover.GetChassis())
+
+    
+    application = irrlicht.ChIrrApp(system, "Curiosity Rover Simulation", irrlicht.dimension2du(1280, 720))
+    application.AddTypicalLogo(chrono.GetChronoDataPath() + 'logo_pychrono_alpha.png')
+    application.AddTypicalSky()
+    application.AddTypicalCamera(irrlicht.vector3df(3, 2, 3), irrlicht.vector3df(0, 0, 0))
+    application.AddLightWithShadow(irrlicht.vector3df(10, 10, 10), irrlicht.vector3df(0, 0, 0), 50, 5, 50, 55, 512)
+    application.EnableShadows()
+
+    
+    steering = 0.0
+    speed = 0.5
+    max_steering = 0.3
+
+    
+    application.AssetBindAll()
+    application.AssetUpdateAll()
+    time_step = 0.001
+
+    while application.GetDevice().run():
+        application.BeginScene()
+        application.DrawAll()
+        
+        
+        driver_inputs = rover.GetDriverInputs()
+        if application.GetDevice().getEventReceiver().IsKeyDown(irrlicht.KEY_UPARROW):
+            speed = min(speed + 0.01, 2.0)
+        if application.GetDevice().getEventReceiver().IsKeyDown(irrlicht.KEY_DOWNARROW):
+            speed = max(speed - 0.01, 0.0)
+        if application.GetDevice().getEventReceiver().IsKeyDown(irrlicht.KEY_LEFTARROW):
+            steering = max(steering - 0.01, -max_steering)
+        if application.GetDevice().getEventReceiver().IsKeyDown(irrlicht.KEY_RIGHTARROW):
+            steering = min(steering + 0.01, max_steering)
+
+        
+        rover.SetDriverInputs(steering, speed, speed)
+        
+        
+        rover_pos = rover.GetChassis().GetPos()
+        application.GetActiveCamera().setTarget(irrlicht.vector3df(rover_pos.x, rover_pos.y, rover_pos.z))
+        
+        
+        application.DoStepDynamic(time_step)
+        application.EndScene()
+
+if __name__ == "__main__":
+    main()

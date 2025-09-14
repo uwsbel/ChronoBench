@@ -1,68 +1,82 @@
-import pychrono as chrono
-import pychrono.fea as fea
-import pychrono.irrlicht as chronoirr
+import chrono.core as chrono
+import chrono.irrlicht as chronoirr
+import chrono.fea as fea
 
-# 1. Initialize system and set gravity
-system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Gravity in -Y direction
-
-# 2. Create a mesh for the ANCF cable elements
-mesh = fea.ChMesh()
-system.Add(mesh)
-
-# 3. Define beam properties
-length = 1.0          # Beam length (m)
-n_elements = 8        # Number of elements
-density = 1000        # kg/m³
-youngs_modulus = 1e7  # Pa
-area = 0.01 * 0.01    # Cross-section area (10x10 mm)
-damping = 0.01        # Damping ratio
-
-# 4. Create nodes (equally spaced along the beam)
-nodes = []
-for i in range(n_elements + 1):
-    x_pos = i * (length / n_elements)
-    node = fea.ChNodeFEAxyzD(chrono.ChVectorD(x_pos, 0, 0), 
-                            chrono.ChVectorD(0, 1, 0))  # Initial direction
-    mesh.AddNode(node)
-    nodes.append(node)
-
-# 5. Fix the first node (hinged to ground)
-constraint = fea.ChLinkPointFrame()
-constraint.Initialize(nodes[0], chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)))
-system.Add(constraint)
-
-# 6. Create ANCF cable elements between nodes
-for i in range(n_elements):
-    element = fea.ChElementCableANCF()
-    element.SetNodes(nodes[i], nodes[i + 1])
-    element.SetSection(area)
-    element.SetMaterial(chrono.ChBeamSectionCable(density, youngs_modulus, damping))
-    mesh.AddElement(element)
-
-# 7. Set up Irrlicht visualization
-vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(system)
-vis.SetWindowSize(1280, 720)
-vis.SetWindowTitle('ANCF Beam Simulation')
-vis.Initialize()
-vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
-vis.AddSkyBox()
-vis.AddCamera(chrono.ChVectorD(0.5, 0.5, 1.5))  # Camera position
-vis.AddTypicalLights()
-
-# 8. Visualize nodes and elements
-visualize_nodes = chronoirr.ChVisualShapePoint(0.02)
-visualize_beam = chronoirr.ChVisualShapeFEA(mesh)
-visualize_beam.SetFEMdataType(chronoirr.FEMDataType.ELEM_BEAM_MZ)
-visualize_beam.SetColorscaleMinMax(-0.1, 0.1)
-visualize_beam.SetSmoothFaces(True)
-mesh.AddVisualShapeFEA(visualize_beam)
-
-# 9. Simulation loop
-timestep = 0.001
-while vis.Run():
-    vis.BeginScene()
-    vis.Render()
-    vis.EndScene()
-    system.DoStepDynamics(timestep)
+def main():
+    # 1. Initialize system
+    system = chrono.ChSystemNSC()
+    system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+    
+    # 2. Create FEA mesh
+    mesh = fea.ChMesh()
+    system.Add(mesh)
+    
+    # 3. Material properties for ANCF cable
+    rho = 1000  # density
+    E = 1e8     # Young's modulus
+    diam = 0.02 # cable diameter
+    section = fea.ChBeamSectionCable()
+    section.SetDiameter(diam)
+    section.SetYoungModulus(E)
+    section.SetDensity(rho)
+    
+    # 4. Create beam nodes and elements
+    length = 2.0
+    n_elements = 10
+    node_spacing = length / n_elements
+    
+    nodes = []
+    for i in range(n_elements + 1):
+        pos = chrono.ChVectorD(node_spacing * i, 0, 0)
+        node = fea.ChNodeFEAxyzD(pos, chrono.ChVectorD(0, 0, 1))
+        nodes.append(node)
+        mesh.AddNode(node)
+        
+        if i == 0:
+            # Fix first node
+            constraint = fea.ChDirichletBoundary()
+            constraint.SetImposePosition(True)
+            constraint.SetImposeSlopeX(True)
+            constraint.SetImposeSlopeY(True)
+            constraint.SetImposeSlopeZ(True)
+            constraint.AddNode(node)
+            mesh.Add(constraint)
+    
+    for i in range(n_elements):
+        element = fea.ChElementCableANCF()
+        element.SetNodes(nodes[i], nodes[i + 1])
+        element.SetSection(section)
+        mesh.AddElement(element)
+    
+    # 5. Set up Irrlicht visualization
+    vis = chronoirr.ChIrrApp(system, "ANCF Cable Beam", chronoirr.dimension2du(800, 600))
+    vis.AddTypicalLights()
+    vis.AddTypicalCamera(chronoirr.vector3df(1.5, 0.5, 2.5))
+    
+    # Visualization assets for FEA
+    vis_fea = fea.ChVisualizationFEAmesh(mesh)
+    vis_fea.SetFEMdataType(fea.ChVisualizationFEAmesh.E_PLOT_ELEM_BEAM_MZ)
+    vis_fea.SetColorscaleMinMax(-100, 100)
+    vis_fea.SetSmoothFaces(True)
+    vis_fea.SetWireframe(True)
+    mesh.AddAsset(vis_fea)
+    
+    vis.AssetBindAll()
+    vis.AssetUpdateAll()
+    
+    # 6. Simulation loop
+    system.SetTimestepperType(chrono.ChTimestepper.Type_HHT)
+    timestepper = system.GetTimestepper().AsTimestepperHHT()
+    timestepper.SetAlpha(-0.2)
+    timestepper.SetStepControl(True)
+    timestepper.SetVerbose(False)
+    
+    vis.Initialize()
+    while vis.GetDevice().run():
+        vis.BeginScene()
+        vis.DrawAll()
+        vis.EndScene()
+        system.DoStepDynamics(1e-4)
+    
+if __name__ == "__main__":
+    main()

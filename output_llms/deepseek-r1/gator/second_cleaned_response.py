@@ -1,1 +1,7 @@
-Error code: 504
+```python
+import pychrono.core as chrono
+import pychrono.irrlicht as irr
+import pychrono.vehicle as veh
+import math
+
+chrono.SetChronoDataPath(chrono.GetChronoData

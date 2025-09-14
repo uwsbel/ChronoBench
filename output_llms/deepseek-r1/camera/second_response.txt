@@ -1,36 +1,11 @@
-Based on the provided instructions and code review, I've identified and corrected several issues in the script. The main errors were:
 
-1. **Incorrect class name**: `ChFramed` should be `ChFrameD` for camera offset poses
-2. **Scope issues**: Camera parameters were defined after main() but used before declaration
-3. **Undefined variables**: `update_rate`, `image_width`, etc. needed to be moved
-4. **Redundant light sources**: Extra point lights were removed per instructions
-
-Here's the corrected and modified script:
 
 ```python
 import pychrono.core as chrono
 import pychrono.sensor as sens
+
 import math
 import time
-
-# -----------------
-# Camera parameters (moved before main() for proper scoping)
-# -----------------
-update_rate = 30        # Update rate in Hz
-image_width = 960       # Modified to 960 pixels (was 1280)
-image_height = 480      # Modified to 480 pixels (was 720)
-fov = 1.408             # Camera's horizontal field of view in radians
-lag = 0                 # Lag between sensing and data accessibility
-exposure_time = 0       # Exposure time for each image
-
-# ---------------------
-# Simulation parameters
-# ---------------------
-step_size = 1e-3        # Simulation step size
-end_time = 20.0         # Simulation end time
-save = True             # Modified to enable saving (was False)
-vis = True              # Render camera images
-out_dir = "SENSOR_OUTPUT/"  # Output directory
 
 def main():
     # -----------------
@@ -61,41 +36,30 @@ def main():
     # -----------------------
     manager = sens.ChSensorManager(mphysicalSystem)
 
-    # Add point lights (modified: only one point light remains)
     intensity = 1.0
-    manager.scene.AddPointLight(chrono.ChVector3f(2, 2.5, 100), 
-                               chrono.ChColor(intensity, intensity, intensity), 
-                               500.0)
-    # Area light kept as per instructions
-    manager.scene.AddAreaLight(chrono.ChVector3f(0, 0, 4), 
-                              chrono.ChColor(intensity, intensity, intensity), 
-                              500.0, 
-                              chrono.ChVector3f(1, 0, 0), 
-                              chrono.ChVector3f(0, -1, 0))
+    manager.scene.AddPointLight(chrono.ChVector3f(2, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
+    manager.scene.AddAreaLight(chrono.ChVector3f(0, 0, 4), chrono.ChColor(intensity, intensity, intensity), 500.0, chrono.ChVector3f(1, 0, 0), chrono.ChVector3f(0, -1, 0))
 
     # ------------------------------------------------
-    # Create a camera (with modified offset position)
+    # Create a camera and add it to the sensor manager
     # ------------------------------------------------
-    # Modified offset: (-7, 0, 2) instead of (-5, 0, 2)
-    offset_pose = chrono.ChFrameD(chrono.ChVector3d(-7, 0, 2), 
-                                 chrono.QuatFromAngleAxis(2, chrono.ChVector3d(0, 1, 0)))
+    offset_pose = chrono.ChFramed(chrono.ChVector3d(-7, 0, 2), chrono.QuatFromAngleAxis(2, chrono.ChVector3d(0, 1, 0)))
 
     cam = sens.ChCameraSensor(
-        mesh_body,              # Body camera is attached to
-        update_rate,            # Update rate in Hz
-        offset_pose,            # Offset pose
-        image_width,            # Image width
-        image_height,           # Image height
-        fov                     # Field of view
+        mesh_body,
+        update_rate,
+        offset_pose,
+        image_width,
+        image_height,
+        fov
     )
     cam.SetName("Camera Sensor")
     cam.SetLag(lag)
     cam.SetCollectionWindow(exposure_time)
 
     # ------------------------------------------------------------------
-    # Create filter graph
+    # Create a filter graph for post-processing the data from the camera
     # ------------------------------------------------------------------
-    noise_model = "CONST_NORMAL"
     if noise_model == "CONST_NORMAL":
         cam.PushFilter(sens.ChFilterCameraNoiseConstNormal(0.0, 0.02))
     elif noise_model == "PIXEL_DEPENDENT":
@@ -119,31 +83,28 @@ def main():
 
     cam.PushFilter(sens.ChFilterImageResize(int(image_width / 2), int(image_height / 2)))
     cam.PushFilter(sens.ChFilterR8Access())
+
     manager.AddSensor(cam)
 
     # ---------------
     # Simulate system
     # ---------------
     orbit_radius = 10
-    orbit_rate = 0.1  # Modified: 0.1 rad/s instead of 0.5 rad/s
+    orbit_rate = 0.1
     ch_time = 0.0
 
     t1 = time.time()
 
     while ch_time < end_time:
-        # Update camera position with new orbit rate
-        cam.SetOffsetPose(chrono.ChFrameD(
-            chrono.ChVector3d(-orbit_radius * math.cos(ch_time * orbit_rate), 
-                             -orbit_radius * math.sin(ch_time * orbit_rate), 
-                             1),
-            chrono.QuatFromAngleAxis(ch_time * orbit_rate, chrono.ChVector3d(0, 0, 1))
-        ))
+        cam.SetOffsetPose(chrono.ChFramed(
+            chrono.ChVector3d(-orbit_radius * math.cos(ch_time * orbit_rate), -orbit_radius * math.sin(ch_time * orbit_rate), 1),
+            chrono.QuatFromAngleAxis(ch_time * orbit_rate, chrono.ChVector3d(0, 0, 1))))
 
         rgba8_buffer = cam.GetMostRecentRGBA8Buffer()
         if rgba8_buffer.HasData():
             rgba8_data = rgba8_buffer.GetRGBA8Data()
-            print(f'RGBA8 buffer received. Resolution: {rgba8_buffer.Width}x{rgba8_buffer.Height}')
-            print(f'First Pixel: {rgba8_data[0, 0, :]}')
+            print('RGBA8 buffer received from cam. Camera resolution: {0}x{1}'.format(rgba8_buffer.Width, rgba8_buffer.Height))
+            print('First Pixel: {0}'.format(rgba8_data[0, 0, :]))
 
         manager.Update()
         mphysicalSystem.DoStepDynamics(step_size)
@@ -151,20 +112,25 @@ def main():
 
     print("Sim time:", end_time, "Wall time:", time.time() - t1)
 
-# Execute main function
+# -----------------
+# Camera parameters
+# -----------------
+noise_model = "CONST_NORMAL"
+update_rate = 30
+image_width = 960
+image_height = 480
+fov = 1.408
+lag = 0
+exposure_time = 0
+
+# ---------------------
+# Simulation parameters
+# ---------------------
+step_size = 1e-3
+end_time = 20.0
+save = True
+vis = True
+out_dir = "SENSOR_OUTPUT/"
+
 main()
 ```
-
-Key changes made:
-1. Fixed `ChFramed` → `ChFrameD` in both camera offset positions
-2. Moved all parameter definitions above `main()` for proper scoping
-3. Removed 3 extra point lights as instructed
-4. Changed camera offset position from (-5,0,2) to (-7,0,2)
-5. Updated orbit rate from 0.5 to 0.1 rad/s
-6. Set image dimensions to 960x480 pixels
-7. Enabled image saving by setting `save = True`
-8. Removed unused `lens_model` variable
-9. Added proper string formatting in print statements
-10. Maintained all other functionality while fixing scoping issues
-
-The script should now run without errors while meeting all the specified requirements.

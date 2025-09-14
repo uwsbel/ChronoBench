@@ -48,9 +48,10 @@ vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
+# Modified parameters for higher speed
 vehicle.SetMaxMotorVoltageRatio(0.26)  # Updated from 0.16 to 0.26
-vehicle.SetStallTorque(0.4)  # Updated from 0.3 to 0.4
-vehicle.SetTireRollingResistance(0.03)  # Updated from 0.06 to 0.03
+vehicle.SetStallTorque(0.4)            # Updated from 0.3 to 0.4
+vehicle.SetTireRollingResistance(0.03) # Updated from 0.06 to 0.03
 
 vehicle.Initialize()
 
@@ -77,7 +78,7 @@ terrain.Initialize()
 
 # Create the vehicle Irrlicht interface
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
-vis.SetWindowTitle('ARTcar Simulation')
+vis.SetWindowTitle('dart')
 vis.SetWindowSize(1280, 1024)
 vis.SetChaseCamera(trackPoint, 6.0, 0.5)
 vis.Initialize()
@@ -103,9 +104,13 @@ driver.Initialize()
 # Simulation loop
 # ---------------
 
-print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
+# Corrected vehicle mass output
+print("VEHICLE MASS: ", vehicle.GetMass())  # Fixed method call
 
+# Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
+
+# Initialize simulation frame counter
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
@@ -113,23 +118,30 @@ render_frame = 0
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
+    # Render scene and output POV-Ray data
     if step_number % render_steps == 0:
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
         render_frame += 1
 
+    # Get driver inputs
     driver_inputs = driver.GetInputs()
 
+    # Update modules (process inputs from other modules)
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
 
+    # Advance simulation for one timestep for all modules
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
 
+    # Increment frame number
     step_number += 1
+
+    # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)

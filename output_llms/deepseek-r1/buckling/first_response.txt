@@ -1,151 +1,98 @@
-To create a beam buckling simulation using PyChrono with Finite Element Analysis (FEA), follow this step-by-step solution. The script initializes the environment, sets up a beam with FEA elements, applies a compressive force via a controlled motor, and visualizes the buckling using Irrlicht.
 
-### Complete Simulation Code
+
 ```python
-import pychrono as chrono
-import pychrono.irrlicht as chronoirr
-import pychrono.fea as fea
+import chrono
+import chrono.fea as fea
+import chrono.irrlicht as irrlicht
+from chrono import ChVectorD, ChLinkMotorLinearPosition, ChFunction_Ramp
 
-def main():
-    # 1. Initialize system and set environment
-    system = chrono.ChSystemNSC()
-    system.Set_G_acc(chrono.ChVectorD(0, 0, 0))  # Disable gravity
+# 1. Initialize system and set parameters
+system = chrono.ChSystemNSC()
+system.Set_G_acc(ChVectorD(0, 0, 0))  # Disable gravity
 
-    # 2. Create ground body for reference
-    ground = chrono.ChBodyEasyBox(0.1, 0.1, 0.1, 1000)
-    ground.SetBodyFixed(True)
-    ground.SetPos(chrono.ChVectorD(0, 0, 0))
-    system.Add(ground)
+# 2. Create FEA mesh
+mesh = fea.ChMesh()
+system.Add(mesh)
 
-    # 3. Create FEA mesh for the beam
-    mesh = fea.ChMesh()
-    system.Add(mesh)
+# 3. Define beam properties
+beam_length = 2.0
+n_elements = 10
+beam_section = fea.ChBeamSectionEuler()
+beam_section.SetAsRectangularSection(0.05, 0.05)  # 5x5 cm cross-section
+beam_section.SetYoungModulus(2e11)  # Steel
+beam_section.SetGwithPoissonRatio(0.3)
+beam_section.SetDensity(7850)
 
-    # 4. Define beam material and section properties
-    density = 7800  # kg/m³ (steel)
-    E = 2.0e11      # Pa (Young's modulus)
-    nu = 0.3         # Poisson's ratio
-    width = 0.02     # m (rectangular cross-section)
-    height = 0.01    # m
-    
-    beam_section = fea.ChBeamSectionEulerAdvanced()
-    beam_section.SetDensity(density)
-    beam_section.SetYoungModulus(E)
-    beam_section.SetShearModulus(E / (2 * (1 + nu)))
-    beam_section.SetAsRectangularSection(width, height)
-    beam_section.SetRayleighDampingBeta(0.001)  # Damping coefficient
+# 4. Create nodes and elements
+nodes = []
+for i in range(n_elements + 1):
+    node = fea.ChNodeFEAxyzrot(chrono.ChFrameD(ChVectorD(i * beam_length/n_elements, 0, 0)))
+    if i == 0:
+        node.SetFixed(True)  # Fixed end
+    nodes.append(node)
+    mesh.AddNode(node)
 
-    # 5. Create beam nodes and elements
-    length = 1.0    # Beam length (m)
-    num_elements = 10
-    dx = length / num_elements
-    nodes = []
+for i in range(n_elements):
+    element = fea.ChElementBeamEuler()
+    element.SetNodes(nodes[i], nodes[i+1])
+    element.SetSection(beam_section)
+    mesh.AddElement(element)
 
-    # Create nodes along the x-axis
-    for i in range(num_elements + 1):
-        node = fea.ChNodeFEAxyzrot(chrono.ChFrameD(chrono.ChVectorD(i * dx, 0, 0)))
-        node.SetMass(0)
-        mesh.AddNode(node)
-        nodes.append(node)
+# 5. Create motorized constraint for displacement
+motor_body = chrono.ChBodyEasyBox(0.1, 0.1, 0.1, 1000)
+motor_body.SetPos(nodes[-1].GetPos())
+system.Add(motor_body)
 
-    # Create beam elements between nodes
-    for i in range(num_elements):
-        element = fea.ChElementBeamEuler()
-        element.SetNodes(nodes[i], nodes[i + 1])
-        element.SetSection(beam_section)
-        mesh.AddElement(element)
+motor_link = ChLinkMotorLinearPosition()
+motor_link.Initialize(motor_body, chrono.ChBody(), 
+                     chrono.ChCoordsysD(nodes[-1].GetPos()))
+motor_link.SetMotorFunction(ChFunction_Ramp(0, -0.0005))  # Linear displacement
+system.Add(motor_link)
 
-    # 6. Fix the first node (clamped boundary condition)
-    constraint_fixed = fea.ChLinkPointFrame()
-    constraint_fixed.Initialize(nodes[0], ground)
-    system.Add(constraint_fixed)
+# Connect motor body to end node
+node_body_link = fea.ChLinkNodeBody()
+node_body_link.Initialize(nodes[-1], motor_body)
+system.Add(node_body_link)
 
-    # 7. Create slider and constraints at the free end
-    slider = chrono.ChBodyEasyBox(0.1, 0.1, 0.1, 1000)
-    slider.SetPos(nodes[-1].GetPos())
-    system.Add(slider)
+# 6. Configure visualization
+vis = irrlicht.ChIrrApp(system, "Beam Buckling Analysis", 800, 600)
+vis.AddTypicalCamera(irrlicht.vector3df(-1, 0.5, 1))
+vis.AddTypicalLights()
+vis.AddFEAmesh(mesh)  # Add FEA mesh visualization
+vis.AssetBindAll()
+vis.AssetUpdateAll()
 
-    # Prismatic constraint for axial motion only
-    prismatic = chrono.ChLinkLockPrismatic()
-    prismatic.Initialize(ground, slider, 
-                         chrono.ChCoordsysD(nodes[-1].GetPos(), chrono.Q_from_AngY(chrono.CH_C_PI_2)))
-    system.Add(prismatic)
+# 7. Configure solver and timestepper
+solver = chrono.ChSolverMINRES()
+solver.SetMaxIterations(200)
+solver.SetTolerance(1e-10)
+system.SetSolver(solver)
 
-    # Connect last node to slider
-    constraint_slider = fea.ChLinkPointFrame()
-    constraint_slider.Initialize(nodes[-1], slider)
-    system.Add(constraint_slider)
+system.SetTimestepperType(chrono.ChTimestepper.Type_HHT)
+hht_stepper = system.GetTimestepper().AsTimestepperHHT()
+hht_stepper.SetAlpha(-0.2)
+hht_stepper.SetGamma(0.5)
+hht_stepper.SetStepControl(True)
 
-    # 8. Define motor function for compressive displacement
-    motor_func = chrono.ChFunction_Ramp(0, -0.01)  # Linear displacement: -0.01 m/s
-    motor = chrono.ChLinkMotorLinearPosition()
-    motor.Initialize(ground, slider, chrono.ChFrameD(nodes[-1].GetPos()))
-    motor.SetMotionFunction(motor_func)
-    system.Add(motor)
+# 8. Run simulation
+vis.Run()
 
-    # 9. Set solver and timestepper
-    system.SetSolverType(chrono.ChSolver.Type_MINRES)
-    system.SetSolverMaxIterations(100)
-    system.SetSolverTolerance(1e-10)
-    system.SetTimestepperType(chrono.ChTimestepper.Type_HHT)
-    system.GetSolver().AsIterative().SetVerbose(False)
-
-    # 10. Set up visualization
-    vis = chronoirr.ChVisualSystemIrrlicht()
-    vis.AttachSystem(system)
-    vis.SetWindowSize(1024, 768)
-    vis.SetWindowTitle("Beam Buckling Simulation")
-    vis.Initialize()
-    vis.AddLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))
-    vis.AddSkyBox()
-    vis.AddCamera(chrono.ChVectorD(1.5, 0.5, 1.5), chrono.ChVectorD(0, 0, 0))
-    vis.AddTypicalLights()
-
-    # Visualize beam elements (color maps to axial force)
-    beam_vis = fea.ChVisualShapeFEA(mesh)
-    beam_vis.SetFEMdataType(fea.ChVisualShapeFEA.DataType_ELEM_BEAM_MX)
-    beam_vis.SetColorscaleMinMax(-1000, 1000)  # Customize based on expected forces
-    beam_vis.SetSmoothFaces(True)
-    beam_vis.SetWireframe(False)
-    mesh.AddVisualShapeFEA(beam_vis)
-
-    # 11. Simulation loop
-    time_step = 0.001
-    time_end = 10.0  # Simulate for 10 seconds
-
-    while vis.Run() and system.GetChTime() < time_end:
-        vis.BeginScene()
-        vis.Render()
-        vis.EndScene()
-        system.DoStepDynamics(time_step)
-
-if __name__ == "__main__":
-    main()
+while vis.GetDevice().run():
+    vis.BeginScene()
+    vis.DrawAll()
+    vis.DoStepDynamics(0.001)
+    vis.EndScene()
 ```
 
-### Key Components Explained:
-1. **System Initialization**:
-   - Disabled gravity to isolate buckling effects.
-   - Added a ground body for reference constraints.
+This script:
+- Creates a fixed-free Euler-Bernoulli beam using FEA
+- Applies compressive displacement via motor constraint
+- Uses HHT timestepper for numerical stability
+- Implements MINRES solver for linear systems
+- Includes Irrlicht visualization
+- Demonstrates proper FEA constraints and loads
 
-2. **FEA Beam Setup**:
-   - Created a mesh with `ChBeamSectionEulerAdvanced` for Euler-Bernoulli beam theory.
-   - Defined steel material properties and rectangular cross-section.
-   - Discretized the beam into 10 elements with clamped-free boundary conditions.
-
-3. **Motor and Constraints**:
-   - **Prismatic Constraint**: Restricts motion of the end slider to the beam's axial direction.
-   - **Linear Motor**: Applies compressive displacement at 0.01 m/s using `ChFunction_Ramp`.
-
-4. **Solver Configuration**:
-   - **MINRES Solver**: Efficient for FEA problems with constraints.
-   - **HHT Timestepper**: Implicit method for stable dynamics.
-
-5. **Visualization**:
-   - Color mapping shows axial force (`MX`) evolution during buckling.
-   - Irrlicht provides real-time 3D visualization of deformation.
-
-### Execution:
-- Run the script to observe beam buckling under quasi-static compression.
-- The beam deforms laterally when the critical load is exceeded, demonstrating Euler buckling.
-- Adjust parameters (e.g., `motor_func`, `width/height`, `E`) to explore different buckling scenarios.
+The beam will compress until buckling occurs due to the applied displacement. Parameters can be adjusted by modifying:
+- Beam dimensions in `SetAsRectangularSection()`
+- Material properties in beam section
+- Displacement rate in `ChFunction_Ramp

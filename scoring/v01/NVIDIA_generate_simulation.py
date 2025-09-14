@@ -27,7 +27,8 @@ def generate_first_code(first_prompt,model_link):
         global nvidia_api_key
         client = OpenAI(
             base_url="https://integrate.api.nvidia.com/v1",
-            api_key=nvidia_api_key
+            api_key=nvidia_api_key,
+            timeout=120.0  # Add 2-minute timeout
         )
         completion = client.chat.completions.create(
             model=model_link,
@@ -37,9 +38,16 @@ def generate_first_code(first_prompt,model_link):
             temperature=0.6,
             top_p=0.9,
             max_tokens=4096,
-            stream=False
+            stream=True  # Enable streaming to prevent 504 timeouts
         )
-        return completion.choices[0].message.content,prompt
+
+        # Collect streamed response
+        response_content = ""
+        for chunk in completion:
+            if chunk.choices[0].delta.content is not None:
+                response_content += chunk.choices[0].delta.content
+
+        return response_content, prompt
     except Exception as e:
         print('error1:', e)
         return str(e),str(e)
@@ -70,7 +78,8 @@ Provide the corrected and modified script below:
         global nvidia_api_key
         client = OpenAI(
             base_url="https://integrate.api.nvidia.com/v1",
-            api_key=nvidia_api_key
+            api_key=nvidia_api_key,
+            timeout=120.0  # Add 2-minute timeout
         )
         completion = client.chat.completions.create(
             model=model_link,
@@ -80,9 +89,16 @@ Provide the corrected and modified script below:
             temperature=0.6,
             top_p=0.9,
             max_tokens=4096,
-            stream=False
+            stream=True  # Enable streaming to prevent 504 timeouts
         )
-        return completion.choices[0].message.content, prompt
+
+        # Collect streamed response
+        response_content = ""
+        for chunk in completion:
+            if chunk.choices[0].delta.content is not None:
+                response_content += chunk.choices[0].delta.content
+
+        return response_content, prompt
     except Exception as e:
         print('error2:', e)
         return str(e),str(e)

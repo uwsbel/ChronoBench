@@ -1,81 +1,82 @@
 import pychrono as chrono
+import pychrono.irrlicht as irrlicht
 import pychrono.fea as fea
-import pychrono.irrlicht as chronoirr
 
 def main():
-    # 1. Initialize environment
-    chrono.SetChronoDataPath(chrono.GetChronoDataPath())
-    system = chrono.ChSystemSMC()
-    system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Gravity
-
-    # 2. Create mesh container
+    # 1. Initialize system and create physical system
+    system = chrono.ChSystemNSC()
     mesh = fea.ChMesh()
     system.Add(mesh)
+    
+    # Material properties for beams
+    density = 7850  # kg/m³ (steel)
+    E = 2.1e11      # Young's modulus [Pa]
+    nu = 0.3        # Poisson's ratio
+    beam_width = 0.1
+    beam_height = 0.2
+    section = fea.ChBeamSectionEulerAdvanced()
+    section.SetAsRectangularSection(beam_width, beam_height)
+    section.SetYoungModulus(E)
+    section.SetShearModulus(E/(2*(1+nu)))
+    section.SetDensity(density)
+    section.SetRayleighDamping(0.01)
 
-    # 3. Material properties (steel)
-    density = 7800  # kg/m³
-    E = 2e11        # Pa (Young's modulus)
-    nu = 0.3         # Poisson ratio
-    beam_material = fea.ChBeamMaterialEuler()
-    beam_material.SetDensity(density)
-    beam_material.SetYoungModulus(E)
-    beam_material.SetPoissonRatio(nu)
-
-    # 4. Create nodes
-    length = 4.0     # Beam length
-    num_elements = 8
-    dx = length / num_elements
+    # 2. Create nodes and beam elements
+    num_elements = 10
+    length = 5.0    # Total beam length
+    node_spacing = length / num_elements
     nodes = []
 
     for i in range(num_elements + 1):
-        position = chrono.ChVectorD(dx * i, 0, 0)
-        node = fea.ChNodeFEAxyzrot(chrono.ChFrameD(position))
+        pos = chrono.ChVectorD(node_spacing * i, 0, 0)
+        node = fea.ChNodeFEAxyzrot(chrono.ChFrameD(pos))
         node.SetMass(0)
+        if i == 0:
+            # Fix first node
+            fixed = fea.ChLinkPointFrame()
+            fixed.Initialize(node, system.GetBody(0))
+            system.Add(fixed)
         mesh.AddNode(node)
         nodes.append(node)
 
-    # 5. Fix first node (cantilever)
-    fix_node = nodes[0]
-    constraint = fea.ChLinkPointFrame()
-    constraint.Initialize(fix_node, chrono.ChFrameD(fix_node.GetPos()))
-    mesh.Add(constraint)
-
-    # 6. Create beam elements
     for i in range(num_elements):
         element = fea.ChElementBeamEuler()
-        element.SetNodes(nodes[i], nodes[i + 1])
-        element.SetSection(beam_material)
+        element.SetNodes(nodes[i], nodes[i+1])
+        element.SetSection(section)
         mesh.AddElement(element)
 
-    # 7. Apply force at free end
-    force = chrono.ChVectorD(0, -500, 0)  # 500N downward
-    nodes[-1].SetForce(force)
+    # 3. Add visualization
+    vis_shape = fea.ChVisualShapeFEA(mesh)
+    vis_shape.SetFEMdataType(fea.ChVisualShapeFEA.DataType_ELEM_BEAM_MZ)
+    vis_shape.SetColorscaleMinMax(-100, 100)
+    vis_shape.SetSmoothFaces(True)
+    vis_shape.SetWireframe(True)
+    mesh.AddVisualShapeFEA(vis_shape)
 
-    # 8. Visualization setup
-    vis = chronoirr.ChVisualSystemIrrlicht()
-    vis.AttachSystem(system)
-    vis.SetWindowSize(1280, 720)
-    vis.SetWindowTitle('Beam FEM - Cantilever')
-    vis.Initialize()
-    vis.AddSkyBox()
-    vis.AddCamera(chrono.ChVectorD(2, 1, 3), chrono.ChVectorD(0, 0, 0))
-    vis.AddTypicalLights()
+    # 4. Set up Irrlicht visualization
+    application = irrlicht.ChIrrApp(system, "Beam FEM Demo", irrlicht.dimension2du(1280, 720))
+    application.AddLogo()
+    application.AddSkyBox()
+    application.AddTypicalLights()
+    application.AddCamera(chrono.ChVectorD(-2, 1.5, 3), chrono.ChVectorD(0, 0, 0))
+    application.AssetBindAll()
+    application.AssetUpdateAll()
 
-    # Visualize beam elements
-    beam_visual = fea.ChVisualizationFEAmesh(mesh)
-    beam_visual.SetFEMdataType(fea.E_PLOT_ELEM_BEAM_MZ)
-    beam_visual.SetColorscaleMinMax(-400, 400)
-    beam_visual.SetSmoothFaces(True)
-    beam_visual.SetWireframe(True)
-    mesh.AddVisualShapeFEA(beam_visual)
+    # 5. Configure simulation settings
+    system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+    h = 0.001
+    integrator = chrono.ChTimestepperHHT(system)
+    integrator.SetStepControl(True)
+    integrator.SetVerbose(False)
+    system.SetTimestepper(integrator)
+    
+    # 6. Run simulation loop
+    application.SetTimestep(h)
+    while application.GetDevice().run():
+        application.BeginScene()
+        application.DrawAll()
+        application.DoStep()
+        application.EndScene()
 
-    # 9. Simulation loop
-    time_step = 0.001
-    while vis.Run():
-        vis.BeginScene()
-        vis.Render()
-        vis.EndScene()
-        system.DoStepDynamics(time_step)
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

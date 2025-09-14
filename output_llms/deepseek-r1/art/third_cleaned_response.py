@@ -48,9 +48,10 @@ vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
+
 vehicle.SetMaxMotorVoltageRatio(0.26)  
-vehicle.SetStallTorque(0.4)  
-vehicle.SetTireRollingResistance(0.03)  
+vehicle.SetStallTorque(0.4)            
+vehicle.SetTireRollingResistance(0.03) 
 
 vehicle.Initialize()
 
@@ -77,7 +78,7 @@ terrain.Initialize()
 
 
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
-vis.SetWindowTitle('ARTcar Simulation')
+vis.SetWindowTitle('dart')
 vis.SetWindowSize(1280, 1024)
 vis.SetChaseCamera(trackPoint, 6.0, 0.5)
 vis.Initialize()
@@ -103,9 +104,13 @@ driver.Initialize()
 
 
 
-print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
+
+print("VEHICLE MASS: ", vehicle.GetMass())  
+
 
 render_steps = math.ceil(render_step_size / step_size)
+
+
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
@@ -113,23 +118,30 @@ render_frame = 0
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
+    
     if step_number % render_steps == 0:
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
         render_frame += 1
 
+    
     driver_inputs = driver.GetInputs()
 
+    
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
 
+    
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
 
+    
     step_number += 1
+
+    
     realtime_timer.Spin(step_size)

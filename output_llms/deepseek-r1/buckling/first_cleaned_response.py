@@ -1,119 +1,93 @@
+import os
 import pychrono as chrono
-import pychrono.irrlicht as chronoirr
 import pychrono.fea as fea
+import pychrono.irrlicht as irrlicht
 
-def main():
-    
-    system = chrono.ChSystemNSC()
-    system.Set_G_acc(chrono.ChVectorD(0, 0, 0))  
 
-    
-    ground = chrono.ChBodyEasyBox(0.1, 0.1, 0.1, 1000)
-    ground.SetBodyFixed(True)
-    ground.SetPos(chrono.ChVectorD(0, 0, 0))
-    system.Add(ground)
+chrono.SetChronoDataPath(os.path.join(os.environ['CHRONO_ROOT'], 'data/'))
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, 0, 0))  
 
-    
-    mesh = fea.ChMesh()
-    system.Add(mesh)
 
-    
-    density = 7800  
-    E = 2.0e11      
-    nu = 0.3         
-    width = 0.02     
-    height = 0.01    
-    
-    beam_section = fea.ChBeamSectionEulerAdvanced()
-    beam_section.SetDensity(density)
-    beam_section.SetYoungModulus(E)
-    beam_section.SetShearModulus(E / (2 * (1 + nu)))
-    beam_section.SetAsRectangularSection(width, height)
-    beam_section.SetRayleighDampingBeta(0.001)  
+mesh = fea.ChMesh()
+beam_length = 2.0
+n_nodes = 10
+section = fea.ChBeamSectionEulerAdvanced()
 
-    
-    length = 1.0    
-    num_elements = 10
-    dx = length / num_elements
-    nodes = []
 
-    
-    for i in range(num_elements + 1):
-        node = fea.ChNodeFEAxyzrot(chrono.ChFrameD(chrono.ChVectorD(i * dx, 0, 0)))
-        node.SetMass(0)
-        mesh.AddNode(node)
-        nodes.append(node)
+rho = 7850  
+E = 2e11    
+nu = 0.3    
+section.SetDensity(rho)
+section.SetYoungModulus(E)
+section.SetBeamRectangular(0.02, 0.02)  
 
-    
-    for i in range(num_elements):
-        element = fea.ChElementBeamEuler()
-        element.SetNodes(nodes[i], nodes[i + 1])
-        element.SetSection(beam_section)
-        mesh.AddElement(element)
 
-    
-    constraint_fixed = fea.ChLinkPointFrame()
-    constraint_fixed.Initialize(nodes[0], ground)
-    system.Add(constraint_fixed)
+nodes = []
+for i in range(n_nodes):
+    pos = chrono.ChVectorD(0, i * beam_length/(n_nodes-1), 0)
+    node = fea.ChNodeFEAxyzrot(chrono.ChFrameD(pos))
+    node.SetMass(0)
+    mesh.AddNode(node)
+    nodes.append(node)
 
-    
-    slider = chrono.ChBodyEasyBox(0.1, 0.1, 0.1, 1000)
-    slider.SetPos(nodes[-1].GetPos())
-    system.Add(slider)
+for i in range(n_nodes-1):
+    element = fea.ChElementBeamEuler()
+    element.SetNodes(nodes[i], nodes[i+1])
+    element.SetSection(section)
+    mesh.AddElement(element)
 
-    
-    prismatic = chrono.ChLinkLockPrismatic()
-    prismatic.Initialize(ground, slider, 
-                         chrono.ChCoordsysD(nodes[-1].GetPos(), chrono.Q_from_AngY(chrono.CH_C_PI_2)))
-    system.Add(prismatic)
 
-    
-    constraint_slider = fea.ChLinkPointFrame()
-    constraint_slider.Initialize(nodes[-1], slider)
-    system.Add(constraint_slider)
+constraint = fea.ChLinkPointFrame()
+constraint.Initialize(nodes[0], nodes[0].Frame().GetCoord())
+mesh.AddConstraint(constraint)
 
-    
-    motor_func = chrono.ChFunction_Ramp(0, -0.01)  
-    motor = chrono.ChLinkMotorLinearPosition()
-    motor.Initialize(ground, slider, chrono.ChFrameD(nodes[-1].GetPos()))
-    motor.SetMotionFunction(motor_func)
-    system.Add(motor)
 
-    
-    system.SetSolverType(chrono.ChSolver.Type_MINRES)
-    system.SetSolverMaxIterations(100)
-    system.SetSolverTolerance(1e-10)
-    system.SetTimestepperType(chrono.ChTimestepper.Type_HHT)
-    system.GetSolver().AsIterative().SetVerbose(False)
+motor_function = chrono.ChFunction_Ramp(0, 0.001)  
+motor = fea.ChLoadMotorLinearPosition(nodes[-1].GetBody())
+motor.SetMotionLaw(motor_function)
+motor.SetMotorFunction(motor_function)
 
-    
-    vis = chronoirr.ChVisualSystemIrrlicht()
-    vis.AttachSystem(system)
-    vis.SetWindowSize(1024, 768)
-    vis.SetWindowTitle("Beam Buckling Simulation")
-    vis.Initialize()
-    vis.AddLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))
-    vis.AddSkyBox()
-    vis.AddCamera(chrono.ChVectorD(1.5, 0.5, 1.5), chrono.ChVectorD(0, 0, 0))
-    vis.AddTypicalLights()
+load_container = chrono.ChLoadContainer()
+load_container.Add(motor)
+system.Add(load_container)
 
-    
-    beam_vis = fea.ChVisualShapeFEA(mesh)
-    beam_vis.SetFEMdataType(fea.ChVisualShapeFEA.DataType_ELEM_BEAM_MX)
-    beam_vis.SetColorscaleMinMax(-1000, 1000)  
-    beam_vis.SetSmoothFaces(True)
-    beam_vis.SetWireframe(False)
-    mesh.AddVisualShapeFEA(beam_vis)
 
-    
-    time_step = 0.001
-    time_end = 10.0  
+vis = irrlicht.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle('Beam Buckling Simulation')
+vis.Initialize()
+vis.AddCamera(chrono.ChVectorD(0.3, 1.0, 0.3), chrono.ChVectorD(0, 0.5, 0))
+vis.AddTypicalLights()
 
-    while vis.Run() and system.GetChTime() < time_end:
-        vis.BeginScene()
-        vis.Render()
-        vis.EndScene()
-        system.DoStepDynamics(time_step)
 
-if __name__ == "__main__":
-    main()
+fea_vis = fea.ChVisualizationFEAmesh(mesh)
+fea_vis.SetFEMdataType(fea.FEADataType_ELEM_BEAM_MZ)
+fea_vis.SetColorscaleMinMax(-100, 100)
+fea_vis.SetSmoothFaces(True)
+fea_vis.SetWireframe(False)
+mesh.AddVisualizationFEA(fea_vis)
+
+system.Add(mesh)
+
+
+solver = chrono.ChSolverMINRES()
+system.SetSolver(solver)
+solver.SetMaxIterations(200)
+solver.SetTolerance(1e-10)
+solver.EnableDiagonalPreconditioner(True)
+
+system.SetTimestepperType(chrono.ChTimestepper.Type_HHT)
+integrator = system.GetTimestepper().AsTimestepperHHT()
+integrator.SetAlpha(-0.2)
+integrator.SetStepControl(True)
+integrator.SetVerbose(False)
+
+
+dt = 0.001
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    system.DoStepDynamics(dt)

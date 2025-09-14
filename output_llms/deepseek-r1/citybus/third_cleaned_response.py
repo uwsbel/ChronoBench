@@ -34,7 +34,7 @@ contact_vis = False
 
 
 step_size = 5e-4  
-tire_step_size = 5e-4  
+tire_step_size = step_size  
 
 
 render_step_size = 1.0 / 50  
@@ -67,8 +67,7 @@ patch = terrain.AddPatch(patch_mat,
     chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
     terrainLength, terrainWidth)
 
-
-patch.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 200, 200)
+patch.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 200, 200)  
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 

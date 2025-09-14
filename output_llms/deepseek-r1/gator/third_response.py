@@ -10,21 +10,21 @@ veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 initLoc = chrono.ChVector3d(0, 0, 0.5)
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
-# [MODIFICATION 1] Changed visualization to primitives
+# Visualization type changed to PRIMITIVES
 vis_type = veh.VisualizationType_PRIMITIVES
 
-# [MODIFICATION 2] Added primitive collision for chassis
+# Chassis collision type changed to PRIMITIVES
 chassis_collision_type = veh.CollisionType_PRIMITIVES
 
 # Type of tire model (RIGID, TMEASY)
 tire_model = veh.TireModelType_TMEASY
 
 # Rigid terrain
-terrainHeight = 0      # terrain height
-terrainLength = 100.0  # size in X direction
-terrainWidth = 100.0   # size in Y direction
+terrainHeight = 0      
+terrainLength = 100.0  
+terrainWidth = 100.0   
 
-# Point on chassis tracked by the camera
+# Poon chassis tracked by the camera
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
 
 # Contact method
@@ -70,7 +70,11 @@ patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
+# -------------------------------------
 # Create the vehicle Irrlicht interface
+# Create the driver system
+# -------------------------------------
+
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('Gator vehicle')
 vis.SetWindowSize(1280, 1024)
@@ -81,10 +85,10 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
-# Create the driver system
+# Create the driver system with increased response times
 driver = veh.ChInteractiveDriverIRR(vis)
 
-# [MODIFICATION 3] Increased time responses for less responsive controls
+# Increased time responses for less responsive controls
 steering_time = 2.0  # Increased from 1.0
 throttle_time = 2.0  # Increased from 1.0
 braking_time = 0.6   # Increased from 0.3
@@ -94,23 +98,29 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 
 driver.Initialize()
 
-# Simulation parameters
-print("VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+# ---------------
+# Simulation loop
+# ---------------
+
+print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+
 render_steps = math.ceil(render_step_size / step_size)
+
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-while vis.Run():
+while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
 
-    if step_number % render_steps == 0:
+    if (step_number % render_steps == 0) :
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
         render_frame += 1
 
     driver_inputs = driver.GetInputs()
+
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
@@ -122,4 +132,5 @@ while vis.Run():
     vis.Advance(step_size)
 
     step_number += 1
+
     realtime_timer.Spin(step_size)

@@ -74,8 +74,64 @@ SKIP_EXISTING_SIMULATIONS = False  # Set to False to regenerate simulations even
 SKIP_EXISTING_SCORING = False      # Set to False to re-score even if scores exist
 
 # Parallel processing configuration
-MAX_GENERATION_WORKERS = 1   # Conservative for NVIDIA's 40 RPM limit
+# For NVIDIA: Large models self-rate-limit, small models need throttling
+# For OpenAI: Can use more workers due to higher rate limits
+MAX_GENERATION_WORKERS = 1   # Default, will be overridden per provider/model
 MAX_SCORING_WORKERS = 20     # Aggressive for OpenAI's 5000 RPM limit
+
+def get_nvidia_workers(model_id: str) -> int:
+    """Determine optimal worker count for NVIDIA models based on size.
+    Large models take longer and naturally stay under 40 RPM.
+    Small models complete quickly and need throttling.
+    """
+    model_lower = model_id.lower()
+
+    # Mega models (>300B): Very slow, can use many workers
+    # Check for deepseek-r1 (not the distilled versions)
+    if "deepseek-r1" in model_lower and "distill" not in model_lower:
+        return 10  # DeepSeek-R1 671B: ~0.5 RPM per worker = 5 RPM total
+    elif "405b" in model_lower:
+        return 10  # Llama-405B: ~0.5 RPM per worker = 5 RPM total
+    elif "340b" in model_lower:
+        return 10  # Nemotron-340B: ~0.5 RPM per worker = 5 RPM total
+
+    # Large models (70-200B): Slow, can use several workers
+    elif "qwen3-235b" in model_lower:
+        return 8  # Qwen3-235B: ~0.8 RPM per worker = 6-7 RPM total
+    elif "mixtral-8x22b" in model_lower:
+        return 8  # Mixtral-8x22B (141B MoE): ~1 RPM per worker = 8 RPM total
+    elif "mistral-large" in model_lower:
+        return 8  # Mistral-Large (123B): ~1 RPM per worker = 8 RPM total
+    elif "70b" in model_lower:
+        return 6  # 70B models: ~2 RPM per worker = 12 RPM total
+    elif "mixtral-8x7b" in model_lower:
+        return 5  # Mixtral-8x7B (47B MoE): ~2 RPM per worker = 10 RPM total
+
+    # Medium models (20-50B): Moderate speed
+    elif "32b" in model_lower:
+        return 4  # 32B models: ~3 RPM per worker = 12 RPM total
+    elif "27b" in model_lower:
+        return 4  # 27B models: ~3 RPM per worker = 12 RPM total
+    elif "22b" in model_lower or "codestral-22b" in model_lower:
+        return 4  # 22B models: ~3 RPM per worker = 12 RPM total
+
+    # Small-medium models (10-20B): Faster
+    elif "17b" in model_lower or "maverick" in model_lower or "scout" in model_lower:
+        return 3  # 17B models: ~4 RPM per worker = 12 RPM total
+    elif "14b" in model_lower or "phi-3-medium" in model_lower:
+        return 3  # 14B models: ~4 RPM per worker = 12 RPM total
+    elif "12b" in model_lower or "nemo" in model_lower:
+        return 3  # 12B models: ~4 RPM per worker = 12 RPM total
+
+    # Small models (<10B): Fast, need throttling
+    elif "8b" in model_lower or "9b" in model_lower:
+        return 2  # 8-9B models: ~8 RPM per worker = 16 RPM total
+    elif "7b" in model_lower or "mamba" in model_lower:
+        return 2  # 7B models: ~8 RPM per worker = 16 RPM total
+    elif "3.8b" in model_lower or "phi-3-mini" in model_lower:
+        return 2  # 3.8B Phi-mini: ~10 RPM per worker = 20 RPM total
+    else:
+        return 2  # 1-2B models: ~10 RPM per worker = 20 RPM total
 
 # -----------------------------
 # 1) Paths (edit if needed)
@@ -127,7 +183,8 @@ def get_nvidia_openai():
         from openai import OpenAI
         nvidia_openai_client = OpenAI(
             api_key=NVIDIA_API_KEY,
-            base_url="https://integrate.api.nvidia.com/v1"
+            base_url="https://integrate.api.nvidia.com/v1",
+            timeout=1200.0  # Add 2-minute timeout for large models
         )
     return nvidia_openai_client
 
@@ -155,7 +212,7 @@ MODEL_REGISTRY: Dict[str, Tuple[str, str]] = {
     "Gemini-1.5-pro": ("google", "gemini-1.5-pro"),
 
     # NVIDIA NIM API models (using NVIDIA API for all OSS models)
-    "qwen3-235b-a22b":               ("nvidia", "qwen/qwen-2.5-32b-instruct"),
+    "qwen3-235b-a22b":               ("nvidia", "qwen/qwen3-235b-a22b"),  # Fixed: Using correct 235B model ID
     "gemma-2-27b-it":                ("nvidia", "google/gemma-2-27b-it"),
     "gemma-2-9b-it":                 ("nvidia", "google/gemma-2-9b-it"),
     "gemma-2-2b-it":                 ("nvidia", "google/gemma-2-2b-it"),
@@ -254,14 +311,21 @@ def call_provider(provider: str, model_id: str, prompt: str, max_tokens: int = 4
         if not NVIDIA_API_KEY:
             raise RuntimeError("Missing NVIDIA_API_KEY for model: " + model_id)
         client = get_nvidia_openai()
+        # Use streaming to prevent 504 timeouts
         resp = client.chat.completions.create(
             model=model_id,
             messages=[{"role":"user","content": f"{SYSTEM_PREAMBLE}\n\n{prompt}"}],
             temperature=0.6,
             top_p=0.9,
             max_tokens=max_tokens,
+            stream=True  # Enable streaming for NVIDIA
         )
-        return resp.choices[0].message.content
+        # Collect streamed response
+        response_content = ""
+        for chunk in resp:
+            if chunk.choices[0].delta.content is not None:
+                response_content += chunk.choices[0].delta.content
+        return response_content
 
     else:
         raise ValueError(f"Unknown provider: {provider}")
@@ -862,24 +926,36 @@ def run_model(model_name: str):
     if provider not in ["openai", "nvidia"]:
         print(f"[!] Provider {provider} not supported (only OpenAI and NVIDIA); skipping {model_name}"); return
 
+    # Determine worker count based on provider and model
+    if provider == "nvidia":
+        generation_workers = get_nvidia_workers(model_id)
+    elif provider == "openai":
+        generation_workers = 5  # OpenAI has higher rate limits
+    else:
+        generation_workers = MAX_GENERATION_WORKERS
+
     print(f"\n=== Running model: {model_name} ({provider}:{model_id}) ===")
-    print(f"    Processing {len(SYSTEMS)} systems with {MAX_GENERATION_WORKERS} parallel workers")
+    print(f"    Processing {len(SYSTEMS)} systems with {generation_workers} parallel workers")
     model_out_root = os.path.join(OUTPUT_PATH, model_name)
     os.makedirs(model_out_root, exist_ok=True)
 
-    # Process systems in parallel
-    with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_GENERATION_WORKERS) as executor:
-        # Submit all system processing tasks
-        futures = {
-            executor.submit(
+    # Process systems in parallel with provider-specific worker count
+    with concurrent.futures.ThreadPoolExecutor(max_workers=generation_workers) as executor:
+        # Submit all system processing tasks with small delay for NVIDIA to prevent overload
+        futures = {}
+        for i, system in enumerate(SYSTEMS):
+            future = executor.submit(
                 process_single_system,
                 model_name,
                 provider,
                 model_id,
                 system
-            ): system
-            for system in SYSTEMS
-        }
+            )
+            futures[future] = system
+
+            # Add small delay between NVIDIA submissions to prevent gateway overload
+            if provider == "nvidia" and i < len(SYSTEMS) - 1:
+                sleep(0.5)  # 0.5 second delay between NVIDIA requests
 
         # Track progress with tqdm
         for future in tqdm(

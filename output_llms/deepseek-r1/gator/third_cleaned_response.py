@@ -71,6 +71,10 @@ patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 
+
+
+
+
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('Gator vehicle')
 vis.SetWindowSize(1280, 1024)
@@ -95,22 +99,28 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 
-print("VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+
+
+
+print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+
 render_steps = math.ceil(render_step_size / step_size)
+
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-while vis.Run():
+while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
 
-    if step_number % render_steps == 0:
+    if (step_number % render_steps == 0) :
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
         render_frame += 1
 
     driver_inputs = driver.GetInputs()
+
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
@@ -122,4 +132,5 @@ while vis.Run():
     vis.Advance(step_size)
 
     step_number += 1
+
     realtime_timer.Spin(step_size)

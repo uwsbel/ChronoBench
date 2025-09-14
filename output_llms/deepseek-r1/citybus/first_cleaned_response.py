@@ -1,42 +1,37 @@
+import os
+import math
 import pychrono as chrono
 import pychrono.vehicle as veh
 import pychrono.irrlicht as irr
-import os
 
 
-chrono.SetChronoDataPath(chrono.GetChronoDataPath())
-veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
-
-
+chrono.SetChronoDataPath(os.path.join(os.path.dirname(__file__), 'data/'))
 system = chrono.ChSystemNSC()
-system.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
 system.SetSolverMaxIterations(150)
-system.SetMaxPenetrationRecoverySpeed(4.0)
+system.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
+
+
+vehicle = veh.CityBus()
+vehicle.SetContactMethod(chrono.ChContactMethod_NSC)
+vehicle.SetChassisVisualizationType(veh.VisualizationType_PRIMITIVES)
+vehicle.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
+vehicle.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
+vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
+vehicle.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0.5, 0), chrono.Q_from_AngZ(0)))
+vehicle.Initialize()
+
+vehicle.SetChassisVehicleCollide(True)
+vehicle.SetTireStepSize(1e-3)
+vehicle.SetTireType(veh.TireModelType_TMEASY)
 
 
 terrain = veh.RigidTerrain(system)
-patch_mat = chrono.ChMaterialSurfaceNSC()
-patch_mat.SetFriction(0.9)
-patch_mat.SetRestitution(0.01)
-patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0)), 200, 100)
-patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
+patch = terrain.AddPatch(chrono.ChCoordsysD(), 
+                        chrono.ChVectorD(200, 1, 200), 
+                        chrono.ChVectorD(0, 0, 0))
+patch.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 200, 200)
+patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
-
-
-bus = veh.CityBus()
-bus.SetContactMethod(chrono.ChContactMethod_NSC)
-bus.SetChassisFixed(False)
-bus.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0.5, 0), chrono.Q_ROTATE_Y_TO_Z))
-bus.SetTireType(veh.TireModelType_RIGID)
-bus.SetTireStepSize(0.001)
-bus.Initialize()
-
-
-bus.SetChassisVisualizationType(veh.VisualizationType_MESH)
-bus.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
-bus.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
-bus.SetWheelVisualizationType(veh.VisualizationType_MESH)
-bus.SetTireVisualizationType(veh.VisualizationType_MESH)
 
 
 vis = irr.ChVisualSystemIrrlicht()
@@ -46,47 +41,41 @@ vis.SetWindowTitle('CityBus Simulation')
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()
-vis.AddCamera(chrono.ChVectorD(6, 3, -10), chrono.ChVectorD(0, 0, 0))
+vis.AddCamera(chrono.ChVectorD(0, 2, -5), chrono.ChVectorD(0, 0, 0))
 vis.AddTypicalLights()
-vis.AddLightWithShadow(chrono.ChVectorD(-5, 8, -5), chrono.ChVectorD(0, 0, 0), 50, 3, 10, 40, 512)
 
 
 driver = veh.ChInteractiveDriverIRR(vis)
-steering_time = 1.0  
-driver.SetSteeringDelta(0.02 / steering_time)
-driver.SetThrottleDelta(0.02)
-driver.SetBrakingDelta(0.06)
+steering_controller = veh.ChSteeringControllerIrregularInput(0.1)
+driver.SetSteeringController(steering_controller)
 driver.Initialize()
 
 
-step_size = 0.002
-render_step = 1.0 / 50  
-time = 0
-frame_number = 0
+step_size = 0.02
+realtime_step = True
+frame_rate = 50
 
 while vis.Run():
     time = system.GetChTime()
     
     
-    driver.Synchronize(time)
+    driver_inputs = driver.GetInputs()
+    vehicle.DriverInputs(driver_inputs)
     
     
-    bus.Synchronize(time, driver.GetInputs(), terrain)
+    vehicle.Synchronize(time, driver_inputs, terrain)
+    terrain.Synchronize(time)
+    vis.Synchronize(time, driver_inputs)
     
     
-    driver.Advance(step_size)
-    bus.Advance(step_size)
-    terrain.Advance(step_size)
     system.DoStepDynamics(step_size)
     
     
+    vis.Advance(step_size)
     vis.BeginScene()
     vis.Render()
-    vis.RenderFrame(chrono.ChFrameD(), 2)  
     vis.EndScene()
     
     
-    if time >= frame_number * render_step:
-        frame_number += 1
-
-print("Simulation completed")
+    if realtime_step:
+        chrono.ChRealtimeStep(step_size)

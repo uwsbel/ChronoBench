@@ -20,7 +20,6 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 # Rigid terrain
-# terrain_model = veh.RigidTerrain.BOX
 terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
@@ -82,7 +81,7 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
-# Create the data-driven driver system (MODIFICATION 1)
+# Create the data-driven driver system
 driver_data = veh.vector_Entry()
 driver_data.push_back(veh.DataDriverEntry(0.0, 0.0, 0.0, 0.0))  # time, steering, throttle, braking
 driver_data.push_back(veh.DataDriverEntry(0.1, 0.0, 1.0, 0.0))
@@ -105,8 +104,8 @@ render_frame = 0
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
-    # Render scene and output POV-Ray data
-    if step_number % render_steps == 0:
+    # Render scene
+    if (step_number % render_steps == 0):
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
@@ -115,20 +114,17 @@ while vis.Run():
     # Get driver inputs
     driver_inputs = driver.GetInputs()
 
-    # Update modules (process inputs from other modules)
+    # Update modules
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
 
-    # Advance simulation for one timestep for all modules
+    # Advance simulation
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
-    
-    # Increment frame number
+
     step_number += 1
-    
-    # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
