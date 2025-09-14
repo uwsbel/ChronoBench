@@ -6,25 +6,25 @@ import math
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
-# Initial vehicle location and orientation - MODIFIED (1)
-initLoc = chrono.ChVector3d(1, 0, 0.5)
+# Initial vehicle location and orientation (Modified Instruction 1)
+initLoc = chrono.ChVector3d(1, 0, 0.5)  # Changed from (0,0,0.5)
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
-# Visualization type for vehicle parts - MODIFIED (2)
-vis_type = veh.VisualizationType_PRIMITIVES
+# Visualization type for vehicle parts (Modified Instruction 2)
+vis_type = veh.VisualizationType_PRIMITIVES  # Changed from MESH
 
-# Collision type for chassis - MODIFIED (3)
-chassis_collision_type = veh.CollisionType_MESH
+# Collision type for chassis (Modified Instruction 3)
+chassis_collision_type = veh.CollisionType_MESH  # Changed from NONE
 
-# Type of tire model - MODIFIED (4)
-tire_model = veh.TireModelType_FIALA
+# Type of tire model (Modified Instruction 4)
+tire_model = veh.TireModelType_FIALA  # Changed from TMEASY
 
-# Rigid terrain
-terrainHeight = 0
-terrainLength = 100.0
-terrainWidth = 100.0
+# Rigid terrain parameters
+terrainHeight = 0      # terrain height
+terrainLength = 100.0  # size in X direction
+terrainWidth = 100.0   # size in Y direction
 
-# Point on chassis tracked by the camera
+# Poon chassis tracked by the camera
 trackPoint = chrono.ChVector3d(0.0, 0.0, 0.2)
 
 # Contact method
@@ -39,6 +39,8 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  # FPS = 50
 
 # Create systems
+
+# Create the ARTcar vehicle, set parameters, and initialize
 vehicle = veh.ARTcar()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
@@ -50,27 +52,25 @@ vehicle.SetMaxMotorVoltageRatio(0.16)
 vehicle.SetStallTorque(0.3)
 vehicle.SetTireRollingResistance(0.06)
 
-vehicle.Initialize()
-
+# Set visualization types BEFORE initialization (Critical fix)
 vehicle.SetChassisVisualizationType(vis_type)
 vehicle.SetSuspensionVisualizationType(vis_type)
 vehicle.SetSteeringVisualizationType(vis_type)
 vehicle.SetWheelVisualizationType(vis_type)
 vehicle.SetTireVisualizationType(vis_type)
 
+vehicle.Initialize()
+
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
-# Create the terrain
+# Create the terrain with proper thickness parameter (Critical fix)
 patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-patch = terrain.AddPatch(
-    patch_mat, 
-    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
-    terrainLength, 
-    terrainWidth
-)
+patch = terrain.AddPatch(patch_mat, 
+    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
+    terrainLength, terrainWidth, 0.2)  # Added thickness parameter
 
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
@@ -78,7 +78,7 @@ terrain.Initialize()
 
 # Create the vehicle Irrlicht interface
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
-vis.SetWindowTitle('ARTcar Simulation')
+vis.SetWindowTitle('ARTcar Demo')
 vis.SetWindowSize(1280, 1024)
 vis.SetChaseCamera(trackPoint, 6.0, 0.5)
 vis.Initialize()
@@ -90,16 +90,16 @@ vis.AttachVehicle(vehicle.GetVehicle())
 # Create the driver system
 driver = veh.ChInteractiveDriverIRR(vis)
 
-# Set the time response for inputs
-steering_time = 1.0
-throttle_time = 1.0
-braking_time = 0.3
+# Set the time response for steering and throttle keyboard inputs
+steering_time = 1.0  # time to go from 0 to +1 (or from 0 to -1)
+throttle_time = 1.0  # time to go from 0 to +1
+braking_time = 0.3   # time to go from 0 to +1
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
-# Simulation loop
+# Simulation loop setup
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 render_steps = math.ceil(render_step_size / step_size)
 realtime_timer = chrono.ChRealtimeStepTimer()
@@ -109,18 +109,23 @@ render_frame = 0
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
+    # Render scene
     if step_number % render_steps == 0:
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
         render_frame += 1
 
+    # Get driver inputs
     driver_inputs = driver.GetInputs()
+
+    # Update modules
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
 
+    # Advance simulation
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)

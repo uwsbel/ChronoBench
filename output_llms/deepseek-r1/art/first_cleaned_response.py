@@ -5,80 +5,85 @@ import math
 
 def main():
     
-    chrono.SetChronoDataPath("path/to/chrono/data/")  
-    system = chrono.ChSystemNSC()
-    system.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
-    system.SetSolverMaxIterations(100)
+    step_size = 0.01
+    frame_interval = 0.02  
+    contact_method = chrono.ChContactMethod_SMC
 
     
-    init_pos = chrono.ChVectorD(0, 0.5, 0)
-    init_rot = chrono.ChQuaternionD(1, 0, 0, 0)
-    car = veh.ARTcar(system)
-    car.Initialize(chrono.ChCoordsysD(init_pos, init_rot))
-    car.SetChassisVisualizationType(veh.VisualizationType_PRIMITIVES)
-    car.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
-    car.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
-    car.SetWheelVisualizationType(veh.VisualizationType_MESH)
+    system = chrono.ChSystemSMC()
+    system.SetSolverMaxIterations(100)
+    system.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
 
     
     terrain = veh.RigidTerrain(system)
-    patch_mat = chrono.ChMaterialSurfaceNSC()
-    patch = terrain.AddPatch(patch_mat, chrono.ChVectorD(0, 0, 0), 
-                            chrono.ChVectorD(0, 0, 1), 100, 100)
-    patch.SetTexture("path/to/texture.jpg", 200, 200)  
+    patch_mat = chrono.ChMaterialSurfaceSMC()
+    patch = terrain.AddPatch(patch_mat, 
+                            chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT), 
+                            100, 100)
+    patch.SetTexture(veh.GetChronoDataFile("textures/concrete.jpg"), 100, 100)
     terrain.Initialize()
 
     
-    vis = irr.ChVisualSystemIrrlicht()
-    vis.AttachSystem(system)
-    vis.SetWindowSize(1280, 720)
-    vis.SetWindowTitle("ARTcar Simulation")
-    vis.Initialize()
-    vis.AddLogo()
-    vis.AddSkyBox()
-    vis.AddCamera(chrono.ChVectorD(8, 8, -5), init_pos)
-    vis.AddTypicalLights()
-    vis.AddLightWithShadow(chrono.ChVectorD(-5, 8, -5), init_pos, 50, 2, 50, 35, 512)
+    init_loc = chrono.ChVectorD(0, 0.5, 0)
+    init_rot = chrono.ChQuaternionD(1, 0, 0, 0)
+    artcar = veh.ARTcar()
+    artcar.SetContactMethod(contact_method)
+    artcar.SetInitPosition(chrono.ChCoordsysD(init_loc, init_rot))
+    artcar.SetTireStepSize(step_size)
+    artcar.Initialize()
 
     
-    driver = veh.ChInteractiveDriverIRR(vis)
+    artcar.SetChassisVisualizationType(veh.VisualizationType_MESH)
+    artcar.SetWheelVisualizationType(veh.VisualizationType_MESH)
+
+    
+    vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
+    vis.SetWindowTitle('ARTcar Simulation')
+    vis.SetChaseCamera(chrono.ChVectorD(0, 0, 1), 5.0, 0.5)
+    vis.Initialize()
+    vis.AddTypicalLights()
+    vis.AddSkyBox()
+    vis.AttachVehicle(artcar.GetVehicle())
+
+    
+    driver = veh.ChIrrGuiDriver(vis)
     driver.SetSteeringDelta(0.02)
     driver.SetThrottleDelta(0.02)
     driver.SetBrakingDelta(0.06)
     driver.Initialize()
 
     
-    step_size = 0.005
-    frame_step = 1.0 / 50  
     realtime_timer = chrono.ChRealtimeStepTimer()
+    time = 0
     frame_number = 0
 
     while vis.Run():
         time = system.GetChTime()
-        
+
         
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
-        
+
         
         driver_inputs = driver.GetInputs()
-        
-        
-        car.Synchronize(time, driver_inputs, terrain)
+        artcar.Synchronize(time, driver_inputs)
         terrain.Synchronize(time)
-        driver.Synchronize(time)
+        vis.Synchronize(time, driver_inputs)
+
         
-        
+        artcar.Advance(step_size)
+        terrain.Advance(step_size)
+        vis.Advance(step_size)
         system.DoStepDynamics(step_size)
-        
+
         
         realtime_timer.Spin(step_size)
+
         
-        
-        if frame_number % int(frame_step / step_size) == 0:
-            vis.SetWindowTitle(f"ARTcar Simulation | FPS: {1/(realtime_timer.SpinTime()):.1f}")
-        
+        if frame_number % int(frame_interval / step_size) == 0:
+            vis.UpdateVisualization(step_size)
+
         frame_number += 1
 
 if __name__ == "__main__":

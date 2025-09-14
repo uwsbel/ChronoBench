@@ -1,115 +1,94 @@
-Here's a PyChrono script that demonstrates beam finite elements using Euler-Bernoulli beams in a cantilever configuration with real-time visualization:
+
 
 ```python
 import pychrono as chrono
+import pychrono.irrlicht as irrlicht
 import pychrono.fea as fea
-import pychrono.irrlicht as chronoirr
+from pychrono import ChVectorD, ChQuaternionD
 
 def main():
-    # 1. Initialize environment
-    chrono.SetChronoDataPath(chrono.GetChronoDataPath())
-    system = chrono.ChSystemSMC()
-    system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Gravity
+    # 1. Initialize system
+    system = chrono.ChSystemNSC()
+    system.Set_G_acc(ChVectorD(0, 0, 0))  # Optional: Set gravity if needed
 
-    # 2. Create mesh container
+    # 2. Create a mesh for finite elements
     mesh = fea.ChMesh()
     system.Add(mesh)
 
-    # 3. Material properties (steel)
-    density = 7800  # kg/m³
-    E = 2e11        # Pa (Young's modulus)
-    nu = 0.3         # Poisson ratio
-    beam_material = fea.ChBeamMaterialEuler()
-    beam_material.SetDensity(density)
-    beam_material.SetYoungModulus(E)
-    beam_material.SetPoissonRatio(nu)
+    # 3. Create beam material properties
+    density = 7850  # kg/m³ (steel)
+    E = 2.1e11      # Young's modulus (Pa)
+    nu = 0.3        # Poisson ratio
+    beam_material = fea.ChMaterialBeamEuler(density, E, nu)
 
-    # 4. Create nodes
-    length = 4.0     # Beam length
-    num_elements = 8
+    # Beam cross-section properties
+    area = 0.001        # Cross-sectional area (m²)
+    Iyy = 8.33e-8       # Area moment of inertia
+    Izz = 8.33e-8
+    section = fea.ChBeamSectionEuler(area, Iyy, Izz, beam_material)
+
+    # 4. Create nodes and elements
+    num_elements = 10
+    length = 1.0  # Total beam length
     dx = length / num_elements
-    nodes = []
 
-    for i in range(num_elements + 1):
-        position = chrono.ChVectorD(dx * i, 0, 0)
-        node = fea.ChNodeFEAxyzrot(chrono.ChFrameD(position))
-        node.SetMass(0)
-        mesh.AddNode(node)
-        nodes.append(node)
+    # Create first node (fixed)
+    node1 = fea.ChNodeFEAxyzrot(chrono.ChFrameD(ChVectorD(0, 0, 0)))
+    node1.SetFixed(True)
+    mesh.AddNode(node1)
 
-    # 5. Fix first node (cantilever)
-    fix_node = nodes[0]
-    constraint = fea.ChLinkPointFrame()
-    constraint.Initialize(fix_node, chrono.ChFrameD(fix_node.GetPos()))
-    mesh.Add(constraint)
+    prev_node = node1
+    for i in range(1, num_elements + 1):
+        # Create subsequent nodes
+        new_node = fea.ChNodeFEAxyzrot(chrono.ChFrameD(ChVectorD(i * dx, 0, 0)))
+        mesh.AddNode(new_node)
 
-    # 6. Create beam elements
-    for i in range(num_elements):
+        # Create beam element between nodes
         element = fea.ChElementBeamEuler()
-        element.SetNodes(nodes[i], nodes[i + 1])
-        element.SetSection(beam_material)
+        element.SetNodes(prev_node, new_node)
+        element.SetSection(section)
         mesh.AddElement(element)
 
-    # 7. Apply force at free end
-    force = chrono.ChVectorD(0, -500, 0)  # 500N downward
-    nodes[-1].SetForce(force)
+        prev_node = new_node
 
-    # 8. Visualization setup
-    vis = chronoirr.ChVisualSystemIrrlicht()
-    vis.AttachSystem(system)
-    vis.SetWindowSize(1280, 720)
-    vis.SetWindowTitle('Beam FEM - Cantilever')
-    vis.Initialize()
-    vis.AddSkyBox()
-    vis.AddCamera(chrono.ChVectorD(2, 1, 3), chrono.ChVectorD(0, 0, 0))
+    # 5. Apply force at the free end
+    last_node = prev_node
+    last_node.SetForce(ChVectorD(0, 0, -0.5))  # Apply vertical force
+
+    # 6. Add visualization
+    vis_shape = fea.ChVisualShapeFEA(mesh)
+    vis_shape.SetFEMdataType(fea.ChVisualShapeFEA.DataType_ELEM_BEAM_MZ)
+    vis_shape.SetColorscaleMinMax(-50, 50)
+    vis_shape.SetSmoothFaces(True)
+    vis_shape.SetWireframe(True)
+    mesh.AddVisualShapeFEA(vis_shape)
+
+    # 7. Set up Irrlicht visualization
+    vis = irrlicht.ChIrrApp(system, "Beam FEM Demo", irrlicht.dimension2du(1280, 720))
     vis.AddTypicalLights()
+    vis.AddTypicalCamera(irrlicht.vector3df(1.5, 0.5, 1.5))
+    vis.AssetBindAll()
+    vis.AssetUpdateAll()
 
-    # Visualize beam elements
-    beam_visual = fea.ChVisualizationFEAmesh(mesh)
-    beam_visual.SetFEMdataType(fea.E_PLOT_ELEM_BEAM_MZ)
-    beam_visual.SetColorscaleMinMax(-400, 400)
-    beam_visual.SetSmoothFaces(True)
-    beam_visual.SetWireframe(True)
-    mesh.AddVisualShapeFEA(beam_visual)
-
-    # 9. Simulation loop
-    time_step = 0.001
-    while vis.Run():
+    # 8. Simulation loop
+    timestep = 0.001
+    while vis.GetDevice().run():
         vis.BeginScene()
-        vis.Render()
+        vis.DrawAll()
+        vis.GetVideoDriver().setMaterial(vis.GetVideoDriver().getMaterial2D())
+        vis.GetSystem().DoStepDynamics(timestep)
         vis.EndScene()
-        system.DoStepDynamics(time_step)
 
 if __name__ == '__main__':
     main()
 ```
 
-Key components of this simulation:
+This script:
+1. Creates a cantilever beam using Euler-Bernoulli beam elements
+2. Fixes the first node and applies vertical force at the free end
+3. Implements color-coded visualization of bending moments
+4. Uses Irrlicht for real-time 3D visualization
+5. Sets up proper beam material and section properties
+6. Runs an interactive simulation loop
 
-1. **Beam Elements**:
-   - Uses Euler-Bernoulli beam theory (`ChElementBeamEuler`)
-   - 8 elements for a 4-meter beam
-   - Steel material properties (E=200 GPa, density=7800 kg/m³)
-
-2. **Boundary Conditions**:
-   - Fixed constraint at first node (cantilever)
-   - Vertical load (500N downward) at free end
-
-3. **Visualization**:
-   - Color-coded bending moment visualization
-   - Real-time interactive view with Irrlicht
-   - Camera positioned for optimal viewing
-   - Wireframe + smooth shading display
-
-4. **Physics Setup**:
-   - Implicit HHT integrator (default in ChSystemSMC)
-   - Gravity set to -9.81 m/s² in Y-direction
-   - Fixed time step of 1ms for stability
-
-To modify the simulation:
-- Change `num_elements` for different mesh resolutions
-- Adjust `force` vector magnitude/direction
-- Modify `beam_material` properties for different materials
-- Change visualization type using `SetFEMdataType()` (options: E_PLOT_ELEM_BEAM_MX, MY, MZ, etc.)
-
-The beam will deflect under the combined action of gravity and the applied end force, with colors indicating bending moment distribution along the beam. Use mouse controls in the Irrlicht window to rotate/zoom/pan the view.
+The beam will bend under the applied force, demonstrating FEM beam element behavior. Adjust parameters like force magnitude, beam length, or material properties to observe different responses.
