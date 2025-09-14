@@ -726,7 +726,7 @@ def process_single_system(
         print(f"    → {system}: Starting round 1/3...", flush=True)
         p1 = prompt_first(read_text(in1_txt))
         # Will retry until success with the @retry_until_success decorator
-        r1 = call_provider(provider, model_id, p1, max_tokens=4096)
+        r1 = call_provider(provider, model_id, p1, max_tokens=4096*4)
         write_text(first_resp_path, r1)
 
         # ---- Generate 2nd round
@@ -735,7 +735,7 @@ def process_single_system(
         print(f"    → {system}: Starting round 2/3...", flush=True)
         p2 = prompt_second_third(read_text(in2_txt), read_text(in2_py))
         # Will retry until success with the @retry_until_success decorator
-        r2 = call_provider(provider, model_id, p2, max_tokens=4096)
+        r2 = call_provider(provider, model_id, p2, max_tokens=4096*4)
         write_text(second_resp_path, r2)
 
         # ---- Generate 3rd round
@@ -744,7 +744,7 @@ def process_single_system(
         print(f"    → {system}: Starting round 3/3...", flush=True)
         p3 = prompt_second_third(read_text(in3_txt), read_text(in3_py))
         # Will retry until success with the @retry_until_success decorator
-        r3 = call_provider(provider, model_id, p3, max_tokens=4096)
+        r3 = call_provider(provider, model_id, p3, max_tokens=4096*4)
         write_text(third_resp_path, r3)
 
         # Save convo JSON

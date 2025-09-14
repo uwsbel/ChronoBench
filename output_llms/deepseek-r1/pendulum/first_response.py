@@ -1,67 +1,71 @@
 import pychrono as chrono
-import pychrono.irrlicht as chronoirr
+import pychrono.irrlicht as irrlicht
+import math
 
-def main():
-    # 1. Initialize system and set default parameters
-    system = chrono.ChSystemNSC()
-    system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Gravity
-    
-    # 2. Create ground body
-    ground = chrono.ChBody()
-    ground.SetBodyFixed(True)  # Ground doesn't move
-    system.Add(ground)
-    
-    # 3. Create pendulum body (thin box-shaped)
-    pendulum = chrono.ChBody()
-    pendulum.SetMass(1.0)  # Mass = 1kg
-    pendulum.SetInertiaXX(chrono.ChVectorD(0.1, 0.01, 0.1))  # Custom inertia
-    
-    # Set initial position (hanging down with slight offset)
-    pendulum.SetPos(chrono.ChVectorD(0.5, -0.5, 0))
-    
-    # Visual shape (red box: 0.05m wide, 1m long, 0.05m thick)
-    box_shape = chrono.ChBoxShape()
-    box_shape.GetBoxGeometry().Size = chrono.ChVectorD(0.025, 0.5, 0.025)
-    pendulum.AddVisualShape(box_shape, chrono.ChFrameD(chrono.VNULL, chrono.Q_from_AngX(chrono.CH_C_PI_2)))
-    system.Add(pendulum)
-    
-    # 4. Create revolute joint at origin
-    pivot = chrono.ChLinkLockRevolute()
-    pivot.Initialize(ground, pendulum, chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0)))
-    system.Add(pivot)
-    
-    # 5. Set up Irrlicht visualization
-    vis = chronoirr.ChVisualSystemIrrlicht()
-    vis.AttachSystem(system)
-    vis.SetWindowSize(1280, 720)
-    vis.SetWindowTitle('PyChrono Pendulum')
-    vis.Initialize()
-    vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
-    vis.AddSkyBox()
-    vis.AddCamera(chrono.ChVectorD(1, 0.5, 2))
-    vis.AddTypicalLights()
-    
-    # 6. Simulation loop
-    time_step = 0.001
-    step_number = 0
-    log_interval = 20  # Log every 20 steps
-    
-    while vis.Run():
-        vis.BeginScene()
-        vis.Render()
-        vis.EndScene()
-        
-        system.DoStepDynamics(time_step)
-        
-        # Log data periodically
-        if step_number % log_interval == 0:
-            pos = pendulum.GetPos()
-            vel = pendulum.GetPos_dt()
-            print(f"Time: {system.GetChTime():.3f}s | "
-                  f"Position: ({pos.x:.3f}, {pos.y:.3f}, {pos.z:.3f}) | "
-                  f"Velocity: ({vel.x:.3f}, {vel.y:.3f}, {vel.z:.3f})")
-        
-        step_number += 1
+# Create the Chrono system
+system = chrono.ChSystemNSC()
+system.SetGravitationalAcceleration(chrono.ChVector3d(0, -9.81, 0))
 
-if __name__ == "__main__":
-    main()
+# Create ground body
+ground = chrono.ChBody()
+ground.SetFixed(True)
+system.Add(ground)
+
+# Add visualization for ground
+ground_box = chrono.ChBoxShape()
+ground_box.GetBoxGeometry().Size = chrono.ChVector3d(0.5, 0.5, 0.5)
+ground.AddVisualShape(ground_box)
+
+# Create pendulum body
+pendulum = chrono.ChBody()
+pendulum.SetMass(1.0)
+pendulum.SetInertiaXX(chrono.ChVector3d(0.1, 0.1, 4.0/3.0))  # Izz for rod about end
+pendulum.SetPos(chrono.ChVector3d(0, -1, 0))
+pendulum.SetRot(chrono.Q_from_AngZ(math.pi/6))  # Initial 30° displacement
+system.Add(pendulum)
+
+# Add visualization for pendulum
+pendulum_shape = chrono.ChBoxShape()
+pendulum_shape.GetBoxGeometry().Size = chrono.ChVector3d(0.2, 2.0, 0.2)
+pend_shape_asset = pendulum.AddVisualShape(pendulum_shape)
+pend_shape_asset.SetColor(chrono.ChColor(1.0, 0.0, 0.0))  # Red
+
+# Create revolute joint between ground and pendulum
+revolute = chrono.ChLinkRevolute()
+revolute.Initialize(ground, pendulum,
+    chrono.ChCoordsysD(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),  # Ground frame
+    chrono.ChCoordsysD(chrono.ChVector3d(0, 1, 0), chrono.QUNIT))  # Pendulum frame (1m above COM)
+system.Add(revolute)
+
+# Create Irrlicht visualization
+vis = irrlicht.ChIrrApp(system, "Simple Pendulum", 800, 600)
+vis.AddTypicalCamera(chrono.ChVector3d(0, 0, 5))
+vis.AddTypicalLights()
+vis.AssetBindAll()
+vis.AssetUpdateAll()
+vis.Initialize()
+
+# Simulation parameters
+time_step = 0.001
+end_time = 10.0
+log_interval = 0.1
+last_log_time = -log_interval
+
+# Main simulation loop
+while vis.GetDevice().run():
+    vis.BeginScene()
+    vis.DrawAll()
+    vis.EndScene()
+    
+    current_time = system.GetChTime()
+    system.DoStepDynamics(time_step)
+
+    # Log data at specified intervals
+    if current_time - last_log_time >= log_interval:
+        pos = pendulum.GetPos()
+        vel = pendulum.GetLinVel()
+        print(f"Time: {current_time:.2f}s | Position: ({pos.x:.2f}, {pos.y:.2f}, {pos.z:.2f}) | Velocity: ({vel.x:.2f}, {vel.y:.2f}, {vel.z:.2f})")
+        last_log_time = current_time
+    
+    if current_time >= end_time:
+        break

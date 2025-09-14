@@ -22,14 +22,15 @@ def main():
     mesh_body = ch.ChBody()
     mesh_body.SetPos(ch.ChVector3d(0, 0, 0))
     mesh_body.AddVisualShape(trimesh_shape)
-    mesh_body.SetMass(0)  # Static object (mass=0)
-    sys.Add(mesh_body)  # ADDED: Add mesh body to system
+    mesh_body.SetFixed(False)  # Make the body movable.
+    mesh_body.SetMass(0)  # Set mass to 0 (static object).
+    sys.Add(mesh_body)  # Fixed: Add mesh body to system
 
     # Create a ground body to attach sensors.
     ground_body = ch.ChBodyEasyBox(1, 1, 1, 1000, False, False)
     ground_body.SetPos(ch.ChVector3d(0, 0, 0))
-    ground_body.SetFixed(False)  # Make the body movable
-    # REMOVED: SetMass(0) - Causes conflict with SetFixed(False)
+    ground_body.SetFixed(False)  # Make the body movable.
+    ground_body.SetMass(0)  # Set mass to 0 (static object).
     sys.Add(ground_body)
 
     # Create the sensor manager.
@@ -60,11 +61,10 @@ def main():
     sens_manager.AddSensor(lidar)
     
     
-    # Create 2d lidar with proper filters
+    # Create 2d lidar
     offset_pose_2dlidar = ch.ChFramed(ch.ChVector3d(-8, 0, 0), ch.QuatFromAngleAxis(.2, ch.ChVector3d(0, 1, 0)))
     lidar2d = sens.ChLidarSensor(ground_body, 5, offset_pose_2dlidar, 480, 1, 2 * ch.CH_PI, ch.CH_PI / 12, -ch.CH_PI / 6, 100.0)
-    # ADDED: Necessary filters for 2D Lidar
-    lidar2d.PushFilter(sens.ChFilterDIAccess())
+    lidar2d.PushFilter(sens.ChFilterDIAccess())  # Fixed: Added required filters
     lidar2d.PushFilter(sens.ChFilterPCfromDepth())
     lidar2d.PushFilter(sens.ChFilterXYZIAccess())
     lidar2d.PushFilter(sens.ChFilterVisualizePointCloud(1280, 720, 1,"2D Lidar Scan Data"))
@@ -106,7 +106,7 @@ def main():
     # Register handlers for each sensor, specifying ROS topics for output.
     ros_manager.RegisterHandler(chros.ChROSCameraHandler(cam.GetUpdateRate() / 4, cam, "~/output/camera/data/image"))
     ros_manager.RegisterHandler(chros.ChROSLidarHandler(lidar, "~/output/lidar/data/pointcloud"))
-    ros_manager.RegisterHandler(chros.ChROSLidarHandler(lidar2d, "~/output/lidar2d/data/scan",chros.ChROSLidarHandlerMessageType_LASER_SCAN))
+    ros_manager.RegisterHandler(chros.ChROSLidarHandler(lidar2d, "~/output/lidar2d/data/scan", chros.ChROSLidarHandler.LASER_SCAN))  # Fixed enum type
     ros_manager.RegisterHandler(chros.ChROSGPSHandler(gps, "~/output/gps/data"))
     acc_handler = chros.ChROSAccelerometerHandler(acc, "~/output/accelerometer/data")
     ros_manager.RegisterHandler(acc_handler)
@@ -138,9 +138,8 @@ def main():
         # Update sensors and ROS data.
         sens_manager.Update()
 
-        # ADDED: ROS manager update with status check
-        if not ros_manager.Update(time, time_step):
-            print("ROS manager update failed, exiting...")
+        # Update ROS manager and check status
+        if not ros_manager.Update(time):
             break
 
         sys.DoStepDynamics(time_step)  # Advance the simulation by one time step.

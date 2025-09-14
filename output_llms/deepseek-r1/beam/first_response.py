@@ -1,82 +1,82 @@
 import pychrono as chrono
-import pychrono.irrlicht as irrlicht
+import pychrono.irrlicht as chrono_irrlicht
 import pychrono.fea as fea
 
-def main():
-    # 1. Initialize system and create physical system
-    system = chrono.ChSystemNSC()
-    mesh = fea.ChMesh()
-    system.Add(mesh)
-    
-    # Material properties for beams
-    density = 7850  # kg/m³ (steel)
-    E = 2.1e11      # Young's modulus [Pa]
-    nu = 0.3        # Poisson's ratio
-    beam_width = 0.1
-    beam_height = 0.2
-    section = fea.ChBeamSectionEulerAdvanced()
-    section.SetAsRectangularSection(beam_width, beam_height)
-    section.SetYoungModulus(E)
-    section.SetShearModulus(E/(2*(1+nu)))
-    section.SetDensity(density)
-    section.SetRayleighDamping(0.01)
+# 1. Initialize system and set gravity
+system = chrono.ChSystemNSC()
+system.SetGravitationalAcceleration(chrono.ChVector3d(0, -9.81, 0))
 
-    # 2. Create nodes and beam elements
-    num_elements = 10
-    length = 5.0    # Total beam length
-    node_spacing = length / num_elements
-    nodes = []
+# 2. Create mesh container
+mesh = chrono.ChMesh()
+system.Add(mesh)
 
-    for i in range(num_elements + 1):
-        pos = chrono.ChVectorD(node_spacing * i, 0, 0)
-        node = fea.ChNodeFEAxyzrot(chrono.ChFrameD(pos))
-        node.SetMass(0)
-        if i == 0:
-            # Fix first node
-            fixed = fea.ChLinkPointFrame()
-            fixed.Initialize(node, system.GetBody(0))
-            system.Add(fixed)
-        mesh.AddNode(node)
-        nodes.append(node)
+# 3. Create beam material and section properties
+beam_material = chrono.ChBeamMaterialEuler()
+beam_material.SetDensity(1000)        # kg/m^3
+beam_material.SetYoungModulus(1e7)    # Pa
+beam_material.SetShearModulus(beam_material.GetYoungModulus()/(2*(1+0.3)))  # Poisson ratio 0.3
+beam_material.SetRayleighDampingBeta(0.01)
 
-    for i in range(num_elements):
-        element = fea.ChElementBeamEuler()
-        element.SetNodes(nodes[i], nodes[i+1])
-        element.SetSection(section)
-        mesh.AddElement(element)
+beam_section = chrono.ChBeamSectionEuler()
+beam_section.SetAsCircularSection(0.05)  # Radius 5cm
+beam_section.SetMaterial(beam_material)
 
-    # 3. Add visualization
-    vis_shape = fea.ChVisualShapeFEA(mesh)
-    vis_shape.SetFEMdataType(fea.ChVisualShapeFEA.DataType_ELEM_BEAM_MZ)
-    vis_shape.SetColorscaleMinMax(-100, 100)
-    vis_shape.SetSmoothFaces(True)
-    vis_shape.SetWireframe(True)
-    mesh.AddVisualShapeFEA(vis_shape)
+# 4. Create nodes and beam elements
+num_elements = 10
+length = 5.0  # meters
+node_spacing = length / num_elements
 
-    # 4. Set up Irrlicht visualization
-    application = irrlicht.ChIrrApp(system, "Beam FEM Demo", irrlicht.dimension2du(1280, 720))
-    application.AddLogo()
-    application.AddSkyBox()
-    application.AddTypicalLights()
-    application.AddCamera(chrono.ChVectorD(-2, 1.5, 3), chrono.ChVectorD(0, 0, 0))
-    application.AssetBindAll()
-    application.AssetUpdateAll()
+nodes = []
+for i in range(num_elements + 1):
+    position = chrono.ChVector3d(i * node_spacing, 0, 0)
+    node = fea.ChNodeFEAxyzrot(chrono.ChFrame(position))
+    node.SetMass(0)
+    mesh.AddNode(node)
+    nodes.append(node)
 
-    # 5. Configure simulation settings
-    system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
-    h = 0.001
-    integrator = chrono.ChTimestepperHHT(system)
-    integrator.SetStepControl(True)
-    integrator.SetVerbose(False)
-    system.SetTimestepper(integrator)
-    
-    # 6. Run simulation loop
-    application.SetTimestep(h)
-    while application.GetDevice().run():
-        application.BeginScene()
-        application.DrawAll()
-        application.DoStep()
-        application.EndScene()
+# Fix first node
+nodes[0].SetFixed(True)
 
-if __name__ == "__main__":
-    main()
+# Create elements between nodes
+for i in range(num_elements):
+    beam_element = fea.ChElementBeamEuler()
+    beam_element.SetNodes(nodes[i], nodes[i+1])
+    beam_element.SetSection(beam_section)
+    mesh.AddElement(beam_element)
+
+# 5. Set up visualization
+vmesh = chrono.ChVisualShapeFEA(mesh)
+vmesh.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NONE)
+vmesh.SetBeamResolution(chrono.ChVisualShapeFEA.BeamResolution_High)
+vmesh.SetBeamWidth(0.02)
+vmesh.SetColor(chrono.ChColor(0.9, 0.7, 0.3))
+mesh.AddVisualShapeFEA(vmesh)
+
+# 6. Configure solver and integrator for FEA
+system.SetSolverType(chrono.ChSolver.Type_MINRES)
+system.GetSolverAsIterative().SetMaxIterations(100)
+system.GetSolverAsIterative().SetTolerance(1e-10)
+system.SetTimestepperType(chrono.ChTimestepper.Type_HHT)
+integrator = system.GetTimestepper().AsTimestepperHHT()
+integrator.SetAlpha(-0.2)
+integrator.SetMaxIters(5)
+integrator.SetAbsTolerances(1e-5)
+
+# 7. Set up Irrlicht visualization
+app = chrono_irrlicht.ChIrrApp(system, "Beam FEM Demo", chrono_irrlicht.dimension2du(1280, 720))
+app.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+app.AddSkyBox()
+app.AddTypicalLights()
+app.AddCamera(chrono.ChVector3d(-1, 0.5, 3), chrono.ChVector3d(3, 0, 0))
+app.AssetBindAll()
+app.AssetUpdateAll()
+
+# 8. Configure time stepping and run simulation
+time_step = 0.001
+app.SetTimestep(time_step)
+
+while app.GetDevice().run():
+    app.BeginScene()
+    app.DrawAll()
+    app.DoStep()
+    app.EndScene()

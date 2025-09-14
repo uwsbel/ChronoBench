@@ -1,93 +1,100 @@
-import os
 import pychrono as chrono
 import pychrono.fea as fea
 import pychrono.irrlicht as irrlicht
+import pychrono.mkl as mkl
 
+def main():
+    
+    system = chrono.ChSystemSMC()
+    system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
 
-chrono.SetChronoDataPath(os.path.join(os.environ['CHRONO_ROOT'], 'data/'))
-system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, 0, 0))  
+    
+    mesh = fea.ChMesh()
+    material = fea.ChMaterialBeamEuler(chrono.ChMaterialSurface.SMC)
+    beam_section = fea.ChBeamSectionEulerAdvanced()
+    
+    
+    density = 7850
+    E = 2e11
+    nu = 0.3
+    ks = 0.5
+    area = 0.05*0.05
+    Iyy = (0.05**4)/12
+    Izz = Iyy
 
+    material.SetYoungModulus(E)
+    beam_section.SetDensity(density)
+    beam_section.SetAsRectangularSection(0.05, 0.05)
+    
+    
+    builder = fea.ChBuilderBeamEuler()
+    node_start = fea.ChNodeFEAxyzrot(chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)))
+    mesh.AddNode(node_start)
+    
+    builder.BuildBeam(mesh,                      
+                      material,                  
+                      beam_section,              
+                      5.0,                       
+                      0.1,                       
+                      chrono.ChVectorD(1, 0, 0), 
+                      fea.ANCF_BEZIER_STAIRS,    
+                      node_start)                
 
-mesh = fea.ChMesh()
-beam_length = 2.0
-n_nodes = 10
-section = fea.ChBeamSectionEulerAdvanced()
+    
+    fixed = chrono.ChLinkPointFrame()
+    fixed.Initialize(node_start, system.Get_bodyframe())
+    system.Add(fixed)
 
+    
+    class MotorFunction(chrono.ChFunction):
+        def __init__(self):
+            super().__init__()
+            self.time = 0
+        def Get_y(self, x):
+            return -0.001 * x  
 
-rho = 7850  
-E = 2e11    
-nu = 0.3    
-section.SetDensity(rho)
-section.SetYoungModulus(E)
-section.SetBeamRectangular(0.02, 0.02)  
+    motor_func = MotorFunction()
+    
+    
+    node_end = builder.GetLastBeamNodes()[1]
+    motor = fea.ChLoadMotorLinearPosition()
+    motor.SetMotionLaw(motor_func)
+    motor.SetMotorNode(node_end)
+    motor.SetDirection(chrono.ChVectorD(1, 0, 0))  
+    motor.SetMotorSystem(system)
+    system.Add(motor)
 
+    
+    system.Add(mesh)
 
-nodes = []
-for i in range(n_nodes):
-    pos = chrono.ChVectorD(0, i * beam_length/(n_nodes-1), 0)
-    node = fea.ChNodeFEAxyzrot(chrono.ChFrameD(pos))
-    node.SetMass(0)
-    mesh.AddNode(node)
-    nodes.append(node)
+    
+    solver = mkl.ChSolverMKL()
+    system.SetSolver(solver)
+    system.SetTimestepperType(chrono.ChTimestepper.Type_HHT)
+    system.SetTimestepperTolerance(1e-6)
 
-for i in range(n_nodes-1):
-    element = fea.ChElementBeamEuler()
-    element.SetNodes(nodes[i], nodes[i+1])
-    element.SetSection(section)
-    mesh.AddElement(element)
+    
+    vis = irrlicht.ChVisualSystemIrrlicht()
+    vis.AttachSystem(system)
+    vis.SetWindowSize(1280, 720)
+    vis.SetWindowTitle('Beam Buckling FEA')
+    vis.Initialize()
+    vis.AddCamera(chrono.ChVectorD(5, 3, 0.5), chrono.ChVectorD(0, 0, 0))
+    vis.AddTypicalLights()
+    vis.AddSkyBox()
+    
+    
+    fea_vis = fea.ChVisualizationFEAmesh(mesh)
+    fea_vis.SetFEMdataType(fea.ChVisualizationFEAmesh.E_PLOT_ELEM_BEAM_MZ)
+    mesh.AddAsset(fea_vis)
 
+    
+    timestep = 0.001
+    while vis.Run():
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+        system.DoStepDynamics(timestep)
 
-constraint = fea.ChLinkPointFrame()
-constraint.Initialize(nodes[0], nodes[0].Frame().GetCoord())
-mesh.AddConstraint(constraint)
-
-
-motor_function = chrono.ChFunction_Ramp(0, 0.001)  
-motor = fea.ChLoadMotorLinearPosition(nodes[-1].GetBody())
-motor.SetMotionLaw(motor_function)
-motor.SetMotorFunction(motor_function)
-
-load_container = chrono.ChLoadContainer()
-load_container.Add(motor)
-system.Add(load_container)
-
-
-vis = irrlicht.ChVisualSystemIrrlicht()
-vis.AttachSystem(system)
-vis.SetWindowSize(1024, 768)
-vis.SetWindowTitle('Beam Buckling Simulation')
-vis.Initialize()
-vis.AddCamera(chrono.ChVectorD(0.3, 1.0, 0.3), chrono.ChVectorD(0, 0.5, 0))
-vis.AddTypicalLights()
-
-
-fea_vis = fea.ChVisualizationFEAmesh(mesh)
-fea_vis.SetFEMdataType(fea.FEADataType_ELEM_BEAM_MZ)
-fea_vis.SetColorscaleMinMax(-100, 100)
-fea_vis.SetSmoothFaces(True)
-fea_vis.SetWireframe(False)
-mesh.AddVisualizationFEA(fea_vis)
-
-system.Add(mesh)
-
-
-solver = chrono.ChSolverMINRES()
-system.SetSolver(solver)
-solver.SetMaxIterations(200)
-solver.SetTolerance(1e-10)
-solver.EnableDiagonalPreconditioner(True)
-
-system.SetTimestepperType(chrono.ChTimestepper.Type_HHT)
-integrator = system.GetTimestepper().AsTimestepperHHT()
-integrator.SetAlpha(-0.2)
-integrator.SetStepControl(True)
-integrator.SetVerbose(False)
-
-
-dt = 0.001
-while vis.Run():
-    vis.BeginScene()
-    vis.Render()
-    vis.EndScene()
-    system.DoStepDynamics(dt)
+if __name__ == "__main__":
+    main()

@@ -8,6 +8,7 @@ import os
 class ChFunctionMyFun(chrono.ChFunction):
     def __init__(self):
         chrono.ChFunction.__init__(self)
+
     def GetVal(self, x):
         if x > 0.4:
             return chrono.CH_PI
@@ -32,7 +33,7 @@ body_truss.SetFixed(True)
 sys.AddBody(body_truss)
 
 
-boxtruss = chrono.ChVisualShapeBox(0.03, 0.25, 0.12)
+boxtruss = chrono.ChVisualShapeBox(0.03, 0.25, 0.12)  
 body_truss.AddVisualShape(boxtruss, chrono.ChFramed(chrono.ChVector3d(-0.01, 0, 0), chrono.QUNIT))
 
 body_crank = chrono.ChBody()
@@ -40,11 +41,11 @@ body_crank.SetPos((vB + vG) * 0.5)
 sys.AddBody(body_crank)
 
 
-boxcrank = chrono.ChVisualShapeBox(K, 0.03, 0.03)
+boxcrank = chrono.ChVisualShapeBox(K, 0.03, 0.03)  
 body_crank.AddVisualShape(boxcrank)
 
 motor = chrono.ChLinkMotorRotationAngle()
-motor.Initialize(body_truss, body_crank, chrono.ChFrame(vG))  
+motor.Initialize(body_truss, body_crank, chrono.ChFramed(vG))
 myfun = ChFunctionMyFun()
 motor.SetAngleFunction(myfun)
 sys.Add(motor)
@@ -54,7 +55,6 @@ mesh = fea.ChMesh()
 
 beam_wy = 0.12  
 beam_wz = 0.012  
-
 minertia = fea.ChInertiaCosseratSimple()
 minertia.SetAsRectangularSection(beam_wy, beam_wz, 2700)
 
@@ -73,8 +73,8 @@ node_tip = builder_iga.GetLastBeamNodes()[-1]
 node_mid = builder_iga.GetLastBeamNodes()[17]
 
 
-section2 = fea.ChBeamSectionEulerAdvanced()
 hbeam_d = 0.03  
+section2 = fea.ChBeamSectionEulerAdvanced()
 section2.SetDensity(2700)
 section2.SetYoungModulus(73.0e9)
 section2.SetShearModulusFromPoisson(0.3)
@@ -93,12 +93,12 @@ sys.Add(constr_bb)
 constr_bb.SetConstrainedCoords(True, True, True, False, False, False)
 
 
-sphereconstr2 = chrono.ChVisualShapeSphere(0.012)
+sphereconstr2 = chrono.ChVisualShapeSphere(0.012)  
 constr_bb.AddVisualShape(sphereconstr2)
 
 
-section3 = fea.ChBeamSectionEulerAdvanced()
 crankbeam_d = 0.054  
+section3 = fea.ChBeamSectionEulerAdvanced()
 section3.SetDensity(2700)
 section3.SetYoungModulus(73.0e9)
 section3.SetShearModulusFromPoisson(0.3)
@@ -122,7 +122,7 @@ sys.Add(constr_bc)
 constr_bc.SetConstrainedCoords(True, True, True, True, True, False)
 
 
-sphereconstr3 = chrono.ChVisualShapeSphere(0.014)
+sphereconstr3 = chrono.ChVisualShapeSphere(0.014)  
 constr_bc.AddVisualShape(sphereconstr3)
 
 mesh.SetAutomaticGravity(False)

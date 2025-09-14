@@ -1,66 +1,107 @@
+import os
+import math
+import time
 import pychrono as chrono
 import pychrono.vehicle as veh
-import pychrono.irrlicht as chronoirr
+import pychrono.irrlicht as irr
 
-def main():
+
+
+
+CONTACT_METHOD = chrono.ChContactMethod_SMC
+STEP_SIZE = 0.005
+VISUALIZATION_FPS = 50  
+
+
+
+
+system = chrono.ChSystemSMC()
+system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
+
+
+
+
+initial_pos = chrono.ChVectorD(0, 0, 0.5)
+initial_rot = chrono.Q_ROTATE_Y_TO_Z  
+
+artcar = veh.ARTVehicle(
+    system,
+    initial_pos,
+    initial_rot,
+    contact_method=CONTACT_METHOD,
+    visualization_type=veh.VisualizationType_MESH
+)
+artcar.Initialize()
+
+
+
+
+terrain = veh.RigidTerrain(system)
+patch_mat = chrono.ChMaterialSurfaceSMC()
+patch = terrain.AddPatch(
+    patch_mat,
+    chrono.ChVectorD(0, 0, 0),
+    chrono.ChVectorD(0, 0, 1),
+    100.0,  
+    100.0   
+)
+patch.SetTexture(veh.GetChronoDataFile("terrain/textures/concrete.jpg"), 100, 100)
+terrain.Initialize()
+
+
+
+
+driver = veh.InteractiveDriver(artcar.GetVehicle())
+artcar.GetVehicle().SetDriver(driver)
+
+
+
+
+vis = irr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetWindowTitle("ARTcar Simulation")
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVectorD(3, 3, 1.5))
+vis.AddTypicalLights()
+
+
+driver.SetInputDataFile(veh.GetDataFile("driver/InputData.txt"))
+driver.Initialize()
+vis.AddUserEventReceiver(driver.GetInputReceiver())
+
+
+
+
+frame_interval = 1.0 / VISUALIZATION_FPS
+last_frame_time = time.time()
+
+while vis.Run():
     
-    system = chrono.ChSystemSMC()
-    system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
+    current_time = time.time()
+    if (current_time - last_frame_time) < frame_interval:
+        time.sleep(frame_interval - (current_time - last_frame_time))
+    last_frame_time = current_time
 
     
-    vehicle = veh.WheeledVehicle(system, veh.GetDataFile('artcar/ARTcar_Vehicle.json'))
-    init_pos = chrono.ChVectorD(0, 0, 0.5)
-    init_rot = chrono.ChQuaternionD(1, 0, 0, 0)
-    vehicle.Initialize(chrono.ChCoordsysD(init_pos, init_rot))
-    vehicle.SetChassisVisualizationType(veh.VisualizationType_PRIMITIVES)
-    vehicle.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
-    vehicle.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
-    vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
+    time = system.GetChTime()
+    driver.Synchronize(time)
+    artcar.Synchronize(time)
+    system.DoStepDynamics(STEP_SIZE)
+    
+    
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
 
     
-    terrain = veh.RigidTerrain(system)
-    patch_mat = chrono.ChMaterialSurfaceSMC()
-    patch_mat.SetFriction(0.9)
-    patch_mat.SetRestitution(0.01)
-    patch = terrain.AddPatch(patch_mat, 
-                            chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT),
-                            200, 200)  
-    patch.SetTexture(veh.GetDataFile('terrain/textures/concrete.jpg'), 200, 200)
-    terrain.Initialize()
+    irr.ChIrrTools.drawAllStats(
+        vis,
+        artcar.GetVehicle().GetSteeringController().GetControlModeString(),
+        True
+    )
+    irr.ChIrrTools.drawGUI(vis)
 
-    
-    app = chronoirr.ChIrrApp(system, 'ARTcar Simulation', chronoirr.dimension2du(1280, 720))
-    app.AddTypicalLights()
-    app.AddTypicalCamera(chronoirr.vector3df(2, 2, 1))
-    app.AssetBindAll()
-    app.AssetUpdateAll()
 
-    
-    driver = veh.InteractiveDriverIRR(app)
-    driver.SetSteeringDelta(0.02)
-    driver.SetThrottleDelta(0.02)
-    driver.SetBrakingDelta(0.02)
-
-    
-    time_step = 0.01
-    frame_step = 0.02  
-    time = 0
-    while app.GetDevice().run():
-        time += time_step
-        
-        
-        driver_inputs = driver.GetInputs()
-        vehicle.Synchronize(time, driver_inputs)
-        terrain.Synchronize(time)
-        
-        
-        app.BeginScene()
-        app.DrawAll()
-        system.DoStepDynamics(time_step)
-        app.EndScene()
-        
-        
-        chrono.ChRealtimeStepTimer.Sleep(frame_step)
-
-if __name__ == "__main__":
-    main()
+vis.GetDevice().closeDevice()

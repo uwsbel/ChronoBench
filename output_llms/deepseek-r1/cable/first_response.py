@@ -1,82 +1,74 @@
-import chrono.core as chrono
-import chrono.irrlicht as chronoirr
+import chrono
+import chrono_irrlicht as irr
 import chrono.fea as fea
 
-def main():
-    # 1. Initialize system
-    system = chrono.ChSystemNSC()
-    system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
-    
-    # 2. Create FEA mesh
-    mesh = fea.ChMesh()
-    system.Add(mesh)
-    
-    # 3. Material properties for ANCF cable
-    rho = 1000  # density
-    E = 1e8     # Young's modulus
-    diam = 0.02 # cable diameter
-    section = fea.ChBeamSectionCable()
-    section.SetDiameter(diam)
-    section.SetYoungModulus(E)
-    section.SetDensity(rho)
-    
-    # 4. Create beam nodes and elements
-    length = 2.0
-    n_elements = 10
-    node_spacing = length / n_elements
-    
-    nodes = []
-    for i in range(n_elements + 1):
-        pos = chrono.ChVectorD(node_spacing * i, 0, 0)
-        node = fea.ChNodeFEAxyzD(pos, chrono.ChVectorD(0, 0, 1))
-        nodes.append(node)
-        mesh.AddNode(node)
-        
-        if i == 0:
-            # Fix first node
-            constraint = fea.ChDirichletBoundary()
-            constraint.SetImposePosition(True)
-            constraint.SetImposeSlopeX(True)
-            constraint.SetImposeSlopeY(True)
-            constraint.SetImposeSlopeZ(True)
-            constraint.AddNode(node)
-            mesh.Add(constraint)
-    
-    for i in range(n_elements):
-        element = fea.ChElementCableANCF()
-        element.SetNodes(nodes[i], nodes[i + 1])
-        element.SetSection(section)
-        mesh.AddElement(element)
-    
-    # 5. Set up Irrlicht visualization
-    vis = chronoirr.ChIrrApp(system, "ANCF Cable Beam", chronoirr.dimension2du(800, 600))
-    vis.AddTypicalLights()
-    vis.AddTypicalCamera(chronoirr.vector3df(1.5, 0.5, 2.5))
-    
-    # Visualization assets for FEA
-    vis_fea = fea.ChVisualizationFEAmesh(mesh)
-    vis_fea.SetFEMdataType(fea.ChVisualizationFEAmesh.E_PLOT_ELEM_BEAM_MZ)
-    vis_fea.SetColorscaleMinMax(-100, 100)
-    vis_fea.SetSmoothFaces(True)
-    vis_fea.SetWireframe(True)
-    mesh.AddAsset(vis_fea)
-    
-    vis.AssetBindAll()
-    vis.AssetUpdateAll()
-    
-    # 6. Simulation loop
-    system.SetTimestepperType(chrono.ChTimestepper.Type_HHT)
-    timestepper = system.GetTimestepper().AsTimestepperHHT()
-    timestepper.SetAlpha(-0.2)
-    timestepper.SetStepControl(True)
-    timestepper.SetVerbose(False)
-    
-    vis.Initialize()
-    while vis.GetDevice().run():
-        vis.BeginScene()
-        vis.DrawAll()
-        vis.EndScene()
-        system.DoStepDynamics(1e-4)
-    
-if __name__ == "__main__":
-    main()
+# Parameters
+beam_length = 2.0
+num_elements = 10
+node_spacing = beam_length / num_elements
+density = 1000.0  # kg/m^3
+youngs_modulus = 1e9  # Pa
+cross_section = 0.01 ** 2  # m^2 (10x10mm square)
+damping_alpha = 0.02
+damping_beta = 0.02
+
+# Create system and set gravity
+system = chrono.ChSystemSMC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+
+# Create FEA mesh
+mesh = fea.ChMesh()
+system.Add(mesh)
+
+# Create material for ANCF cables
+material = fea.ChMaterialCableANCF(density, youngs_modulus, cross_section)
+
+# Create nodes
+nodes = []
+for i in range(num_elements + 1):
+    position = chrono.ChVectorD(i * node_spacing, 0, 0)
+    slope = chrono.ChVectorD(1, 0, 0)  # Initial slope (aligned with X-axis)
+    node = fea.ChNodeCableANCF(position, slope)
+    nodes.append(node)
+    mesh.AddNode(node)
+
+# Create cable elements
+for i in range(num_elements):
+    element = fea.ChElementCableANCF()
+    element.SetNodes(nodes[i], nodes[i + 1])
+    element.SetMaterial(material)
+    element.SetAlpha(damping_alpha)
+    element.SetBeta(damping_beta)
+    mesh.AddElement(element)
+
+# Fix first node to ground
+ground = chrono.ChBody()
+ground.SetBodyFixed(True)
+system.Add(ground)
+lock = chrono.ChLinkPointFrame()
+lock.Initialize(nodes[0], ground)
+system.Add(lock)
+
+# Configure Irrlicht visualization
+application = irr.ChIrrApp(system, "ANCF Cable Beam Simulation", 800, 600)
+application.AddTypicalCamera(chrono.ChVectorD(1, 0.5, 1))
+application.AddTypicalLights()
+application.AssetBindAll()
+application.AssetUpdateAll()
+
+# Set solver parameters
+system.SetSolverType(chrono.ChSolver.Type_MINRES)
+system.SetSolverMaxIterations(100)
+system.SetSolverTolerance(1e-10)
+system.SetSolverVerbose(False)
+
+# Simulation loop parameters
+time_step = 1e-4
+application.SetTimestep(time_step)
+
+# Run simulation
+while application.GetDevice().run():
+    application.BeginScene()
+    application.DrawAll()
+    application.DoStepDynamics(time_step)
+    application.EndScene()

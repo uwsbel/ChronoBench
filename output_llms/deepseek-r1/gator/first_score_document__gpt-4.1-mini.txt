@@ -5,161 +5,172 @@
 ### 1. Completeness (40 points)
 
 - **System Initialization:**  
-  Present and correctly done with `chrono.ChSystemNSC()` and gravity set.  
+  The system is correctly initialized with `chrono.ChSystemSMC()`.  
   **No deduction.**
 
 - **Vehicle Creation and Initialization:**  
-  The `veh.Gator` vehicle is created and initialized. However, the order of setting visualization types is after `Initialize()`. According to best practices and typical PyChrono vehicle examples, visualization types should be set **before** calling `Initialize()`. Setting visualization after initialization may not have the intended effect.  
-  **Deduct 10 points** for this important detail.
+  The `veh.Gator` vehicle is created, contact method set, chassis fixed flag set, initial position set, tire type set, and `Initialize()` called.  
+  However, the order of calls is slightly off:  
+  - According to best practices and examples, visualization types should be set **before** calling `Initialize()`. Here, the visualization types are set **after** `Initialize()`. This is a minor deviation but important because `Initialize()` sets up the vehicle and its components, and visualization types should be configured before that to take effect properly.  
+  **Deduct 5 points** for minor omission/deviation in vehicle initialization order.
 
 - **Terrain Setup:**  
-  Terrain is created with a patch, texture, color, and initialized. This is complete and correct.  
-  **No deduction.**
+  Terrain is created with `veh.RigidTerrain(system)`, a patch is added with a material, texture is set, and terrain is initialized.  
+  However, the material `patch_mat` is created but no friction or other contact properties are set. The default material might work, but it is best practice to set friction and damping explicitly for realistic terrain behavior.  
+  **Deduct 5 points** for minor omission in terrain material properties.
 
 - **Visualization Setup:**  
-  The Irrlicht app is created, lights and camera added, timestep set. This is mostly correct. However, the camera position `(0, 6, 1.5)` is somewhat unusual (camera is 6 units in Y, which is lateral or vertical depending on coordinate system). Usually, the camera is placed behind and above the vehicle for better visualization (e.g., `(0, 3, 6)`). This is a minor issue.  
-  **Deduct 2 points** for suboptimal camera placement (minor visualization issue).
+  Visualization system is created and attached to the system, window size and title set, initialized, logo added, skybox added, camera added, and typical lights added.  
+  This is complete and correct.  
+  **No deduction.**
 
 - **Driver Setup:**  
-  The interactive driver is created and initialized properly.  
+  The `veh.ChIrrGuiDriver` is created with the visualization system, steering axis set, and driver initialized.  
+  This is correct and complete.  
   **No deduction.**
 
 - **Simulation Loop:**  
-  The loop runs while the device is active, calls `BeginScene()`, draws, gets inputs, synchronizes vehicle and terrain, steps dynamics, and ends scene conditionally based on elapsed time. This is mostly correct. However, the call to `app.Synchronize()` is with an empty string as the first argument, which is supposed to be the time or a string representing the driver state. According to PyChrono vehicle examples, the first argument is usually the current time or a string describing the driver state (e.g., `"Driver"`). Passing an empty string is unusual and may cause issues.  
-  **Deduct 10 points** for this important detail.
+  The loop runs while `vis.Run()` is true, gets current time, begins scene, draws all, synchronizes driver, vehicle, terrain, steps dynamics, synchronizes visualization, ends scene, and calls `ChRealtimeStep`.  
+  This is mostly correct. However, the order of calls inside the loop is slightly off compared to best practices:  
+  - Typically, `driver.Synchronize()` should be called **before** `vis.BeginScene()` to update inputs before rendering.  
+  - `vis.DrawAll()` is deprecated in favor of `vis.Render()`. The documentation suggests using `vis.Render()` to render the scene.  
+  - The `vis.Synchronize()` call is usually done before `vis.Render()` or `vis.DrawAll()`. Here, it is done after `system.DoStepDynamics()`, which is acceptable but not optimal.  
+  These are minor but notable deviations.  
+  **Deduct 5 points** for minor deviations in simulation loop order and use of deprecated visualization call.
 
-- **Closing Device:**  
-  The device is closed after the loop ends.  
-  **No deduction.**
-
-**Total Completeness deduction: 10 + 10 + 2 = 22 points**
+- **Summary Completeness Deductions:**  
+  - Vehicle visualization set after Initialize: -5  
+  - Terrain material properties missing: -5  
+  - Simulation loop minor order and deprecated call: -5  
+  **Total completeness deduction: 15 points**
 
 ---
 
 ### 2. Correctness (30 points)
 
-- **Use of `Set_G_acc`:**  
-  The method `Set_G_acc` is used on the system. According to the PyChrono API, the correct method is `Set_G_acc()` (underscore between Set and G_acc) or `Set_G_acc`? The official API uses `Set_G_acc()`. The code uses `Set_G_acc(chrono.ChVectorD(0, 0, -9.81))` which is correct.  
+- **Contact Method Setting:**  
+  The system is created as `ChSystemSMC()`, and the vehicle contact method is set to `ChContactMethod_SMC`. This is consistent and correct.  
   **No deduction.**
 
-- **Setting Contact Method on Vehicle:**  
-  The vehicle is created with the system, then `SetContactMethod` is called. According to PyChrono vehicle examples, the contact method is usually specified at vehicle construction or before initialization. Here, it is set after creation but before initialization, which is acceptable.  
+- **Vehicle Initialization:**  
+  The vehicle is initialized with `Initialize()` without arguments, which is acceptable.  
   **No deduction.**
 
-- **Visualization Type Setting After Initialization:**  
-  As noted, visualization types are set after `Initialize()`. This is incorrect and will likely have no effect or cause visualization not to appear as intended.  
-  **Deduct 15 points** for incorrect API usage that affects simulation visualization.
+- **Terrain Patch Creation:**  
+  The patch is added with `AddPatch(patch_mat, chrono.ChVectorD(0,0,0), chrono.ChVectorD(0,0,1), 100.0, 100.0)`.  
+  According to the documentation, `AddPatch` expects a `ChCoordsysD` for the patch frame, not separate position and normal vectors. The code passes position and normal vectors separately, which is incorrect. The correct call is:  
+  ```python
+  patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysD(chrono.ChVectorD(0,0,0), chrono.QUNIT), 100.0, 100.0)
+  ```  
+  This is a significant API misuse that could cause errors or unexpected behavior.  
+  **Deduct 15 points** for incorrect `AddPatch` usage.
 
-- **Driver Inputs and Synchronization:**  
-  `driver.GetInputs()` is called and passed to `gator.DriverInputs()`. This is correct.  
-  **No deduction.**
+- **Driver Steering Axis:**  
+  The steering axis is set to `(0,0,0.6)`. This is unusual because the steering axis is typically a unit vector along an axis (e.g., `(0,0,1)`). Setting it to `(0,0,0.6)` is not normalized and might cause unexpected behavior.  
+  This is a logical error.  
+  **Deduct 10 points** for incorrect steering axis vector.
 
-- **Terrain Synchronization:**  
-  `terrain.Synchronize(time)` is called, which is correct.  
-  **No deduction.**
+- **Visualization Calls:**  
+  Using `vis.DrawAll()` instead of `vis.Render()` is deprecated and may cause issues.  
+  **Deduct 5 points** for minor incorrect visualization API usage.
 
-- **Vehicle Synchronization:**  
-  `gator.Synchronize(time, driver_inputs, terrain)` is correct.  
-  **No deduction.**
-
-- **App Synchronization:**  
-  `app.Synchronize("", driver_inputs)` is called with an empty string as first argument, which is likely incorrect. The first argument should be the time or a string describing the driver state. This could cause logical errors in the visualization or input handling.  
-  **Deduct 10 points** for logical error.
-
-- **Timestep and Frame Time:**  
-  The timestep is 0.001, frame time is 1/50. The `app.DoStepDynamics(time_step)` is called every loop, and `app.EndScene()` is called only when elapsed time exceeds frame time. This is a bit unusual because typically `BeginScene()` and `EndScene()` are called every frame, and `DoStepDynamics()` is called every physics timestep. Here, `EndScene()` is called less frequently than `BeginScene()`, which could cause rendering artifacts or incomplete frames.  
-  **Deduct 10 points** for logical error in rendering loop.
-
-- **Use of `realtime_timer.Spin(time_step)`:**  
-  This is correct for real-time pacing.  
-  **No deduction.**
-
-**Total Correctness deduction: 15 + 10 + 10 = 35 points**  
-(Note: The total correctness points are 30, so max deduction is 30 points.)
+- **Summary Correctness Deductions:**  
+  - Incorrect `AddPatch` call: -15  
+  - Steering axis vector not normalized: -10  
+  - Deprecated visualization call: -5  
+  **Total correctness deduction: 30 points**
 
 ---
 
 ### 3. Code Quality (10 points)
 
-- **Readability and Structure:**  
-  The code is mostly readable with reasonable variable names. However, there are no comments explaining the steps, which is a best practice especially in simulation scripts.  
-  **Deduct 5 points** for lack of comments.
+- The code is mostly readable with meaningful variable names (`system`, `gator`, `terrain`, `vis`, `driver`).  
+- The code lacks comments explaining the purpose of sections or key steps, which is important for maintainability and clarity.  
+- The formatting is consistent and PEP8 compliant.  
+- No docstrings or inline comments are present.  
+- The import of `math` is unused.  
+- The variable `step_size` and `render_step` are well named.  
+- The simulation loop is clear but could benefit from comments.  
 
-- **Formatting:**  
-  The code is formatted well, with blank lines separating logical blocks.  
-  **No deduction.**
+**Deductions:**  
+- Lack of comments/documentation: -5 points  
+- Unused import (`math`): minor issue but not severe, no deduction or -1 (too minor)  
+- Overall readability is good.  
 
-**Total Code Quality deduction: 5 points**
+**Total code quality deduction: 5 points**
 
 ---
 
 ### 4. Efficiency (10 points)
 
-- **Unnecessary Calculations or Redundancies:**  
-  No obvious redundant code or unnecessary calculations. The loop is straightforward.  
-  **No deduction.**
+- No obvious redundant calculations or repeated API calls.  
+- The simulation loop calls `system.GetChTime()` each iteration, which is standard.  
+- The `driver.Synchronize()` is called after `vis.BeginScene()`, which is slightly suboptimal but not a big efficiency issue.  
+- The `vis.DrawAll()` call is deprecated and may be less efficient than `vis.Render()`.  
+- No explicit use of `ChRealtimeStep` with the simulation step size; it uses `render_step` which is acceptable.  
+- No unnecessary variables or repeated calculations.  
 
-- **Optimization Opportunities:**  
-  The visualization update is done only every 1/50 seconds, but `BeginScene()` is called every loop iteration, which is inefficient. It would be better to call `BeginScene()` and `EndScene()` together every frame.  
-  **Deduct 3 points** for missing optimization in rendering loop.
+**Deductions:**  
+- Minor inefficiency due to deprecated visualization call and suboptimal call order: -3 points  
 
-**Total Efficiency deduction: 3 points**
+**Total efficiency deduction: 3 points**
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- **Error Handling:**  
-  There is no error handling for environment variables (e.g., `CHRONO_DATA_DIR`), which could cause a crash if not set.  
-  **Deduct 5 points** for lack of basic error handling.
+- No error handling is present (e.g., no try-except blocks).  
+- No checks for environment variables like `CHRONO_DATA_DIR` before usage, which could cause runtime errors if the environment variable is missing.  
+- No validation of inputs or system states.  
+- While error handling is not always mandatory in simple simulation scripts, best practices recommend at least minimal checks for robustness.  
 
-- **Edge Cases:**  
-  No handling of possible device failure or driver input errors.  
-  **Deduct 3 points** for inadequate edge case handling.
-
-**Total Error Handling deduction: 5 points** (max deduction)
+**Deductions:**  
+- Lack of basic error handling and environment variable check: -5 points  
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
-- **Visualization Setup:**  
-  The app adds typical lights and a camera, which is good. However, the camera position is suboptimal (minor issue already deducted). No skybox or logo is added, which is optional but recommended for better visualization.  
-  **Deduct 2 points** for minor visualization setup issues.
+- Visualization system is set up with window size, title, logo, skybox, camera, and lights.  
+- The camera position `(3,3,1.5)` is reasonable.  
+- The logo is added correctly.  
+- The use of `vis.DrawAll()` instead of `vis.Render()` is a minor issue.  
+- The lighting and skybox are added, which is good.  
+- No advanced visualization features like shadows or post-processing are used, but not required.  
 
-- **Visualization Calls:**  
-  The order of `AssetBindAll()` and `AssetUpdateAll()` is correct.  
-  **No deduction.**
-
-**Total Visualization deduction: 2 points**
-
----
-
-### Summary of Deductions:
-
-| Criterion                  | Points | Deduction | Notes                                      |
-|----------------------------|--------|-----------|--------------------------------------------|
-| Completeness               | 40     | 22        | Visualization set after init; app.Sync arg; minor camera issue |
-| Correctness                | 30     | 30        | Visualization after init; app.Sync arg; rendering loop logic    |
-| Code Quality               | 10     | 5         | Lack of comments                           |
-| Efficiency                | 10     | 3         | Rendering loop inefficiency                 |
-| Error Handling & Robustness| 5      | 5         | No error handling for env vars             |
-| Visualization Tools        | 5      | 2         | Minor visualization setup issues           |
-| **Total**                 | 100    | 67        |                                            |
+**Deductions:**  
+- Minor visualization issue due to deprecated call: -2 points  
 
 ---
 
-### Final Score:
+### **Summary of Deductions**
 
-100 - 67 = **33**
+| Criterion                   | Max Points | Deduction | Notes                                      |
+|-----------------------------|------------|-----------|--------------------------------------------|
+| Completeness                | 40         | 15        | Vehicle viz after init, terrain mat props, sim loop order |
+| Correctness                | 30         | 30        | Wrong AddPatch call, steering axis vector, deprecated vis call |
+| Code Quality               | 10         | 5         | Lack of comments/documentation             |
+| Efficiency                 | 10         | 3         | Deprecated vis call, minor inefficiency    |
+| Error Handling & Robustness| 5          | 5         | No error handling or env var check         |
+| Visualization Tools        | 5          | 2         | Deprecated vis call                         |
+| **Total Deductions**       |            | 60        |                                            |
 
 ---
 
-**Final output:**
+### Final Score Calculation
 
-[[33]]
+- Total points: 100  
+- Deductions: 60  
+- **Final score: 40**
 
 ---
 
-**Explanation:**  
-The script includes all essential components but has significant issues with the order of visualization setup (setting visualization types after vehicle initialization), incorrect argument to `app.Synchronize()`, and a flawed rendering loop that calls `BeginScene()` every iteration but `EndScene()` only every 1/50 seconds, which can cause rendering problems. There is also no error handling for environment variables, and the code lacks comments. Minor visualization and efficiency issues further reduce the score. These issues are critical enough to warrant substantial deductions in correctness and completeness.
+### Final Output
+
+[[40]]
+
+---
+
+### Brief Explanation of Deductions
+
+The script correctly covers most essential components but has a critical API misuse in the terrain patch creation (`AddPatch` expects a `ChCoordsysD` frame, not separate vectors), which could cause runtime errors or incorrect terrain behavior. The steering axis vector is incorrectly set to a non-unit vector, potentially affecting driver input. Visualization uses a deprecated method (`DrawAll()` instead of `Render()`), which affects correctness, efficiency, and visualization quality. The vehicle visualization types are set after initialization, which is a minor but important deviation from best practices. The terrain material lacks friction and damping settings, which are important for realistic simulation. The simulation loop has minor ordering issues. The code lacks comments and error handling, including no check for the environment variable `CHRONO_DATA_DIR`, risking runtime failure if the environment is not set. These issues combined lead to a significant deduction, resulting in a final score of 40.

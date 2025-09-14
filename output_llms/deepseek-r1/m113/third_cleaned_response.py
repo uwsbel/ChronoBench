@@ -3,11 +3,11 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
-
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 
-initLoc = chrono.ChVector3d(-5, 0, 0.5)
+initLoc = chrono.ChVector3d(-5, 0, 0.5)  
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 
@@ -31,8 +31,6 @@ contact_vis = False
 
 step_size = 5e-4
 tire_step_size = step_size
-
-
 render_step_size = 1.0 / 50  
 
 
@@ -64,31 +62,25 @@ patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 patch = terrain.AddPatch(patch_mat, 
-                         chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
-                         terrainLength, terrainWidth)
+    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
+    terrainLength, terrainWidth)
+
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 
-box_body = chrono.ChBody()
-box_body.SetPos(chrono.ChVector3d(0, 0, 0.25))  
-box_body.SetMass(1)
-box_body.SetFixed(True)  
-
-
-box_shape = chrono.ChBoxShape(chrono.ChVector3d(10, 1, 0.5))  
-box_shape.SetColor(chrono.ChColor(0.6, 0.3, 0.3))
-box_body.AddVisualShape(box_shape)
-
-
 box_mat = chrono.ChContactMaterialSMC()
-box_body.GetCollisionModel().ClearModel()
-box_body.GetCollisionModel().AddBox(box_mat, 5, 0.5, 0.25)  
-box_body.GetCollisionModel().BuildModel()
-box_body.EnableCollision(True)
-
-vehicle.GetSystem().AddBody(box_body)
+box_mat.SetFriction(0.9)
+box_mat.SetRestitution(0.01)
+box = chrono.ChBodyEasyBox(20, 2, 0.5,  
+                           1000,        
+                           True,        
+                           True,        
+                           box_mat)     
+box.SetPos(chrono.ChVector3d(10, 0, 0.25))  
+box.SetFixed(True)  
+vehicle.GetSystem().Add(box)
 
 
 vis = veh.ChTrackedVehicleVisualSystemIrrlicht()
@@ -103,8 +95,6 @@ vis.AttachVehicle(vehicle.GetVehicle())
 
 
 driver = veh.ChInteractiveDriverIRR(vis)
-
-
 steering_time = 1.0
 throttle_time = 1.0
 braking_time = 0.3
@@ -117,11 +107,10 @@ driver.Initialize()
 vehicle.GetSystem().SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
-
-step_number = 0
 render_steps = math.ceil(render_step_size / step_size)
+step_number = 0
+render_frame = 0
 vehicle.GetVehicle().EnableRealtime(True)
-
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
@@ -131,7 +120,8 @@ while vis.Run():
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
-    
+        render_frame += 1
+
     
     driver_inputs = driver.GetInputs()
     driver_inputs.m_throttle = 0.8  

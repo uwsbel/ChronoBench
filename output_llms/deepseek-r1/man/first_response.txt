@@ -1,145 +1,90 @@
-Here's a complete PyChrono simulation script for the MAN 10t truck scenario with TMEASY tires and interactive controls:
+
 
 ```python
-#!/usr/bin/env python3
 import os
 import pychrono as chrono
 import pychrono.vehicle as veh
 import pychrono.irrlicht as irr
 
-# =============================================================================
-# Main simulation function
-# =============================================================================
-def main():
-    # 1. Initialize PyChrono environment
-    chrono.SetChronoDataPath(os.path.join(os.path.dirname(__file__), 'data/'))
-    system = chrono.ChSystemNSC()
-    system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+# 1. Initialize PyChrono environment
+chrono.SetChronoDataPath(os.path.join(os.environ['CHRONO_DATA_DIR'], 'data/'))
+system = chrono.ChSystemSMC()
+system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
 
-    # 2. Create rigid terrain
-    terrain = veh.RigidTerrain(system)
-    patch_mat = chrono.ChMaterialSurfaceNSC()
-    patch_mat.SetFriction(0.9)
-    patch_mat.SetRestitution(0.01)
-    patch = terrain.AddPatch(patch_mat, chrono.ChVectorD(0, 0, 0), 
-                            chrono.ChVectorD(0, 0, 1), 200, 100)
-    patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
-    terrain.Initialize()
+# 2. Create vehicle system
+vehicle = veh.MAN_5t_Vehicle()
+vehicle.SetContactMethod(chrono.ChContactMethod_SMC)
+vehicle.SetChassisFixed(False)
+vehicle.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0.5), chrono.QUNIT))
+vehicle.SetTireType(veh.TireModelType_TMEASY)
+vehicle.Initialize()
 
-    # 3. Create and initialize MAN truck
-    truck = veh.MAN_10t()
-    truck.SetContactMethod(chrono.ChContactMethod_NSC)
-    truck.SetChassisFixed(False)
-    truck.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 1, 0), chrono.QUNIT))
-    truck.SetTireType(veh.TireModelType_TMEASY)
-    truck.Initialize()
+# Configure visualization
+vehicle.SetChassisVisualizationType(veh.VisualizationType_PRIMITIVES)
+vehicle.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
+vehicle.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
+vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
 
-    # Configure visualization
-    truck.SetChassisVisualizationType(veh.VisualizationType_PRIMITIVES)
-    truck.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
-    truck.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
-    truck.SetWheelVisualizationType(veh.VisualizationType_MESH)
-    truck.SetTireVisualizationType(veh.VisualizationType_MESH)
+# Configure TMEASY tires
+tire_pressure = 100000  # Pa
+for axle in vehicle.GetAxles():
+    tire_l = axle.m_wheels[0].GetTire()
+    tire_r = axle.m_wheels[1].GetTire()
+    tire_l.SetVisualizationType(veh.VisualizationType_MESH)
+    tire_r.SetVisualizationType(veh.VisualizationType_MESH)
+    tire_l.SetPressure(tire_pressure)
+    tire_r.SetPressure(tire_pressure)
 
-    # 4. Create interactive driver system
-    driver = veh.InteractiveDriverIRR(truck.GetVehicle())
-    driver.SetSteeringDelta(0.02)
-    driver.SetThrottleDelta(0.02)
-    driver.SetBrakingDelta(0.06)
-    driver.Initialize()
+# 3. Create and configure rigid terrain
+terrain = veh.RigidTerrain(system)
+patch = terrain.AddPatch(chrono.ChCoordsysD(), 
+                        chrono.ChVectorD(100, 100, 1), 
+                        chrono.ChVectorD(0, 0, 1))
+patch.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 100, 100)
+patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+terrain.Initialize()
 
-    # 5. Create Irrlicht visualization
-    vis = irr.ChVisualSystemIrrlicht()
-    vis.AttachSystem(system)
-    vis.SetWindowSize(1280, 720)
-    vis.SetWindowTitle('MAN 10t Truck Simulation')
-    vis.Initialize()
-    vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
-    vis.AddSkyBox()
-    vis.AddCamera(chrono.ChVectorD(0, 2, -5), chrono.ChVectorD(0, 0, 0))
-    vis.AddTypicalLights()
-    vis.AddLightWithShadow(chrono.ChVectorD(-5, 8, -5), chrono.ChVectorD(0, 0, 0), 
-                          50, 5, 50, 35, 512, chrono.ChColor(0.8, 0.8, 1.0))
+# 4. Set up Irrlicht visualization
+vis = irr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetWindowSize(1280, 720)
+vis.SetWindowTitle('MAN 10t Truck Simulation')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVectorD(-5, 0, 2), chrono.ChVectorD(0, 0, 0.5))
+vis.AddLightWithShadow(chrono.ChVectorD(-10, 10, 10), chrono.ChVectorD(0, 0, 0), 50, 10, 50, 8192)
 
-    # 6. Simulation loop
-    step_size = 0.005
-    render_step = 1.0 / 50  # 50 FPS
+# 5. Create interactive driver
+driver = veh.InteractiveDriver(vis)
+driver.SetSteeringDelta(0.02)
+driver.SetThrottleDelta(0.02)
+driver.SetBrakingDelta(0.06)
+driver.Initialize()
 
-    truck.GetVehicle().EnableRealtime(True)
-    while vis.Run():
-        time = system.GetChTime()
-        
-        # Update driver inputs
-        driver.Synchronize(time)
-        
-        # Update vehicle systems
-        truck.Synchronize(time, driver.GetInputs(), terrain)
-        terrain.Synchronize(time)
-        
-        # Advance simulation
-        system.DoStepDynamics(step_size)
-        
-        # Update visualization
-        vis.BeginScene()
-        vis.Render()
-        vis.RenderFrame(chrono.ChVectorD(0,0,0), chrono.QUNIT, 2)  # Reference frame
-        vis.EndScene()
-        
-        # Draw steering wheel and controls
-        driver.DrawHUD(True, True, True, 120, 40, 12, 0.5, 0.5)
+# Simulation loop parameters
+time_step = 0.002
+real_time_step = 0.02
+time = 0.0
 
-# =============================================================================
-# Entry point
-# =============================================================================
-if __name__ == "__main__":
-    main()
+while vis.Run():
+    time = system.GetChTime()
+    
+    # Update driver inputs
+    driver.Synchronize(time)
+    
+    # Advance simulation
+    vehicle.Synchronize(time, driver.GetInputs(), terrain)
+    terrain.Synchronize(time)
+    vis.Synchronize(time, driver.GetInputs())
+    
+    # Advance dynamics
+    system.DoStepDynamics(time_step)
+    
+    # Update visualization
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    
+    time += real_time_step
 ```
-
-Key features implemented:
-
-1. **Vehicle System**:
-- MAN 10t truck model with 3 axles (first steering, others driven)
-- TMEASY tire model for realistic tire dynamics
-- Configurable visualization modes (PRIMITIVES for chassis, MESH for wheels)
-
-2. **Terrain**:
-- Rigid infinite plane with high-friction surface
-- Tiled texture with repeating pattern
-- Customizable material properties
-
-3. **Visualization**:
-- Irrlicht real-time rendering
-- Chase camera following vehicle
-- Skybox for environment context
-- Directional lighting with shadows
-- Custom PyChrono logo overlay
-- Coordinate frame reference
-
-4. **Driver Controls**:
-- Interactive keyboard controls:
-  - Arrow keys: Steering
-  - W/S: Throttle/Braking
-  - A/D: Gear shifting
-- On-screen HUD showing control inputs
-- Adjustable control sensitivity
-
-5. **Simulation Setup**:
-- Real-time synchronization
-- Physics time step (5ms) vs rendering (50 FPS)
-- Gravity and collision parameters
-- Shadow rendering for depth perception
-
-**Usage Instructions**:
-1. Requires PyChrono installation with Vehicle and Irrlicht modules
-2. Press these keys during simulation:
-   - Arrow keys: Steering
-   - W/S: Accelerate/Brake
-   - A/D: Shift gears
-   - Space: Handbrake
-   - C: Toggle controls HUD
-3. Camera controls:
-   - Mouse: Orbit view
-   - Mouse wheel: Zoom
-   - F: Toggle fullscreen
-
-The simulation demonstrates realistic vehicle dynamics including weight transfer during acceleration/braking, steering response, and tire-road interaction physics. The TMEASY tire model provides slip-dependent friction characteristics for authentic handling behavior.

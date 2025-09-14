@@ -37,7 +37,7 @@ def generate_first_code(first_prompt,model_link):
             ],
             temperature=0.6,
             top_p=0.9,
-            max_tokens=4096,
+            max_tokens=4096*4,
             stream=True  # Enable streaming to prevent 504 timeouts
         )
 
@@ -88,7 +88,7 @@ Provide the corrected and modified script below:
             ],
             temperature=0.6,
             top_p=0.9,
-            max_tokens=4096,
+            max_tokens=4096*4,
             stream=True  # Enable streaming to prevent 504 timeouts
         )
 

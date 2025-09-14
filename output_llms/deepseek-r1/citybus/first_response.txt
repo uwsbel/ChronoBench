@@ -1,88 +1,78 @@
 
 
 ```python
-import pychrono as chrono
-import pychrono.vehicle as veh
-import pychrono.irrlicht as irr
+import chrono.chrono as chrono
+import chrono.chrono_vehicle as veh
+import chrono.chrono_irrlicht as irr
 
-def main():
-    # Set Chrono data path
-    chrono.SetChronoDataPath(chrono.GetChronoDataPath())
+# Set data path to Chrono data directory
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 
-    # Create Chrono system
-    system = chrono.ChSystemNSC()
-    system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+# Create Chrono system
+system = chrono.ChSystemNSC()
 
-    # Initialize CityBus vehicle
-    bus = veh.CityBus()
-    bus.SetContactMethod(chrono.ChContactMethod_NSC)
-    bus.SetChassisCollisionType(veh.CollisionType_NONE)
-    bus.SetChassisFixed(False)
-    bus.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0.5, 0), chrono.QUNIT))
-    bus.SetTireType(veh.TireModelType_TMEASY)
-    bus.Initialize()
+# Initialize CityBus vehicle
+vehicle = veh.CityBus()
+vehicle.SetContactMethod(chrono.ChContactMethod_NSC)
+vehicle.SetChassisFixed(False)
+vehicle.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0.5, 0), chrono.QUNIT))
+vehicle.SetTireType(veh.TireType_RIGID)
+vehicle.Initialize()
 
-    # Set visualization types
-    bus.SetChassisVisualizationType(veh.VisualizationType_MESH)
-    bus.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
-    bus.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
-    bus.SetWheelVisualizationType(veh.VisualizationType_MESH)
-    bus.SetTireVisualizationType(veh.VisualizationType_MESH)
+# Set visualization types
+vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
+vehicle.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
+vehicle.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
+vehicle.SetWheelVisualizationType(veh.VisualizationType_PRIMITIVES)
+vehicle.SetTireVisualizationType(veh.VisualizationType_MESH)
 
-    # Create RigidTerrain with custom texture
-    terrain = veh.RigidTerrain(system)
-    patch = terrain.AddPatch(chrono.ChCoordsysD(), chrono.ChVectorD(100, 100, 1))
-    patch.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 100, 100)
-    patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
-    terrain.Initialize()
+# Create rigid terrain
+terrain = veh.RigidTerrain(system)
+patch = terrain.AddPatch(
+    chrono.ChCoordsysD(), 
+    chrono.ChVectorD(200, 200, 0.5), 
+    veh.TerrainType_GRANULAR
+)
+patch.SetTexture(veh.GetChronoDataFile("terrain/textures/concrete.jpg"), 200, 200)
+terrain.Initialize()
 
-    # Create Irrlicht visualization
-    app = irr.ChIrrApp(system, "CityBus Simulation", irr.dimension2du(1280, 720))
-    app.AddTypicalLights()
-    app.AddTypicalSky(chrono.GetChronoDataPath() + "skybox/")
-    app.AssetBindAll()
-    app.AssetUpdateAll()
+# Create Irrlicht application
+app = irr.ChIrrApp(system, "CityBus Simulation", 1024, 768)
+app.AddTypicalLights()
+app.AddTypicalCamera(irr.vector3df(0, 0, 0))
+app.SetChaseCamera(vehicle.GetChassisBody(), 8.0, 0.5)
+app.AssetBindAll()
+app.AssetUpdateAll()
 
-    # Set chase camera following vehicle
-    camera = irr.ChChaseCamera(bus.GetChassisBody())
-    camera.SetDistance(10)
-    camera.SetHeight(2)
-    camera.SetPosition(chrono.ChVectorD(-10, 2, 3))
-    app.SetCamera(camera)
+# Create interactive driver
+driver = veh.ChInteractiveDriverIRR(app)
+driver.SetSteeringDelta(0.02)
+driver.SetThrottleDelta(0.02)
+driver.SetBrakingDelta(0.02)
+driver.Initialize()
 
-    # Create interactive driver system
-    driver = veh.ChInteractiveDriverIRR(app)
-    driver.SetSteeringDelta(0.02)
-    driver.SetThrottleDelta(0.04)
-    driver.SetBrakingDelta(0.08)
-    driver.Initialize()
+# Simulation parameters
+step_size = 0.02
 
-    # Simulation loop timing
-    time_step = 0.02  # 50 FPS
-    app.SetTimestep(time_step)
-
-    while app.GetDevice().run():
-        time = system.GetChTime()
-        
-        # Update camera position
-        camera.SetCameraPos(bus.GetChassisBody().GetPos() + chrono.ChVectorD(-10, 2, 3))
-        
-        # Render scene
-        app.BeginScene()
-        app.DrawAll()
-        app.EndScene()
-        
-        # Get driver inputs
-        driver_inputs = driver.GetInputs()
-        
-        # Update systems
-        bus.Synchronize(time, driver_inputs, terrain)
-        terrain.Synchronize(time)
-        driver.Synchronize(time)
-        
-        # Advance simulation
-        app.DoStepDynamics(time_step)
-
-if __name__ == "__main__":
-    main()
+# Main simulation loop
+while app.GetDevice().run():
+    time = system.GetChTime()
+    
+    # Render scene
+    app.BeginScene()
+    app.DrawAll()
+    
+    # Get driver inputs
+    driver_inputs = driver.GetInputs()
+    
+    # Update modules
+    vehicle.Synchronize(time, driver_inputs, terrain)
+    terrain.Synchronize(time)
+    app.Synchronize("", driver_inputs)
+    
+    # Advance simulation
+    app.Advance(step_size)
+    system.DoStepDynamics(step_size)
+    
+    app.EndScene()
 ```

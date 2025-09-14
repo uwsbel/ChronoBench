@@ -1,4 +1,4 @@
-Based on the instructions, I've identified and corrected the issues in the script while implementing the requested modifications. Here's the updated script:
+
 
 ```python
 import pychrono.core as chrono
@@ -9,81 +9,74 @@ import math
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
-# Initial vehicle location and orientation (modified)
-initLoc = chrono.ChVector3d(-20, 0, 1.5)  # Changed location
+# Initial vehicle location and orientation
+initLoc = chrono.ChVector3d(-20, 0, 1.5)  # Modified location
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
-# Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
+# Visualization type for vehicle parts
 vis_type = veh.VisualizationType_MESH
 
-# Collision type for chassis (PRIMITIVES, MESH, or NONE)
+# Collision type for chassis
 chassis_collision_type = veh.CollisionType_NONE
 
-# Type of tire model (RIGID, TMEASY)
+# Type of tire model
 tire_model = veh.TireModelType_TMEASY
 
-# Rigid terrain parameters (modified to heightmap)
-terrainHeight = 0
+# Heightfield terrain parameters
+terrainHeight = 5.0    # Height scaling factor
 terrainLength = 100.0
 terrainWidth = 100.0
 
-# Poon chassis tracked by the camera
+# Camera tracking point
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
 
-# Contact method
+# Contact method and visualization
 contact_method = chrono.ChContactMethod_NSC
 contact_vis = False
 
-# Simulation step sizes
+# Simulation parameters
 step_size = 1e-3
 tire_step_size = step_size
-
-# Time interval between two render frames
 render_step_size = 1.0 / 50  # FPS = 50
 
-# Create the MAN vehicle, set parameters, and initialize (modified vehicle type)
-vehicle = veh.MAN_5t()  # Changed to MAN_5t
-vehicle.SetContactMethod(contact_method)
+# Create and initialize MAN 5t vehicle
+vehicle = veh.MAN_5t(contact_method)  # Changed vehicle type
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
+vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 vehicle.Initialize()
 
+# Set visualization modes
 vehicle.SetChassisVisualizationType(vis_type)
 vehicle.SetSuspensionVisualizationType(vis_type)
 vehicle.SetSteeringVisualizationType(vis_type)
 vehicle.SetWheelVisualizationType(vis_type)
 vehicle.SetTireVisualizationType(vis_type)
 
-vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
-
-# Create the terrain with heightmap (modified)
+# Create heightfield terrain with hills
 patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 
-# Add heightmap patch instead of flat patch
+# Add heightfield patch with hills
 patch = terrain.AddHeightfield(
-    patch_mat, 
-    veh.GetDataFile("heightmaps/bump64.bmp"),  # Heightmap image
-    terrainLength, 
-    terrainWidth, 
-    0,          # Height min
-    5,          # Height max
-    0,          # Thickness
-    1.0,        # Scale
-    False       # Flip XZ
+    patch_mat,
+    veh.GetDataFile("terrain/heightmaps/bump_1m.jpg"),  # Height map file
+    chrono.ChVector2d(terrainLength, terrainWidth),
+    terrainHeight,  # Height scaling
+    0, 0            # Offset
 )
 patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)  # Changed texture
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
-# Create the vehicle Irrlicht interface
+# Create Irrlicht visualization
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
-vis.SetWindowTitle('MAN 5t Demo')  # Updated title
+vis.SetWindowTitle('MAN 5t Demo')
 vis.SetWindowSize(1280, 1024)
 vis.SetChaseCamera(trackPoint, 15.0, 0.5)
 vis.Initialize()
@@ -92,10 +85,8 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
-# Create the driver system
+# Create interactive driver
 driver = veh.ChInteractiveDriverIRR(vis)
-
-# Set the time response for inputs
 steering_time = 1.0
 throttle_time = 1.0
 braking_time = 0.3
@@ -104,16 +95,12 @@ driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
-# Output vehicle mass
-print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
-
-# Number of simulation steps between renders
+# Simulation loop
 render_steps = math.ceil(render_step_size / step_size)
-
-# Initialize counters
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
-render_frame = 0
+
+print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
@@ -123,35 +110,30 @@ while vis.Run():
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
-        render_frame += 1
     
-    # Get driver inputs
-    driver_inputs = driver.GetInputs()
-
     # Update modules
+    driver_inputs = driver.GetInputs()
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
-
+    
     # Advance simulation
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
-
-    # Increment counters
+    
     step_number += 1
     realtime_timer.Spin(step_size)
 ```
 
-Key changes made:
-1. **Initial Location**: Changed from `(0, 0, 0.5)` to `(-20, 0, 1.5)`
-2. **Vehicle Type**: Changed from `MAN_10t` to `MAN_5t`
-3. **Terrain Type**: 
-   - Replaced flat terrain with heightmap using `AddHeightfield`
-   - Used sample heightmap `bump64.bmp` with height range 0-5m
-4. **Terrain Texture**: Changed from `tile4.jpg` to `grass.jpg`
-5. **Window Title**: Updated to reflect new vehicle type
-
-The script now creates a MAN 5t vehicle starting at position (-20, 0, 1.5) on a hilly terrain with grass texture, using PyChrono's heightmap functionality for realistic terrain variation.
+Key modifications and corrections:
+1. Fixed vehicle creation using proper constructor with contact method
+2. Corrected initialization order for collision system type
+3. Changed initial location to (-20, 0, 1.5)
+4. Updated vehicle type to MAN_5t
+5. Replaced flat terrain with heightfield terrain using bump map
+6. Changed terrain texture to grass.jpg
+7. Removed incorrect SetContactMethod call
+8. Organized parameter declarations for clarity

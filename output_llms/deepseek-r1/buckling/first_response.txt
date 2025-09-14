@@ -1,98 +1,114 @@
 
 
 ```python
-import chrono
-import chrono.fea as fea
-import chrono.irrlicht as irrlicht
-from chrono import ChVectorD, ChLinkMotorLinearPosition, ChFunction_Ramp
+import pychrono as chrono
+import pychrono.fea as fea
+import pychrono.irrlicht as irrlicht
+import pychrono.mkl as mkl
 
-# 1. Initialize system and set parameters
-system = chrono.ChSystemNSC()
-system.Set_G_acc(ChVectorD(0, 0, 0))  # Disable gravity
+def main():
+    # 1. Initialize system
+    system = chrono.ChSystemSMC()
+    system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
 
-# 2. Create FEA mesh
-mesh = fea.ChMesh()
-system.Add(mesh)
+    # 2. Create FEA mesh
+    mesh = fea.ChMesh()
+    material = fea.ChMaterialBeamEuler(chrono.ChMaterialSurface.SMC)
+    beam_section = fea.ChBeamSectionEulerAdvanced()
+    
+    # Steel beam properties
+    density = 7850
+    E = 2e11
+    nu = 0.3
+    ks = 0.5
+    area = 0.05*0.05
+    Iyy = (0.05**4)/12
+    Izz = Iyy
 
-# 3. Define beam properties
-beam_length = 2.0
-n_elements = 10
-beam_section = fea.ChBeamSectionEuler()
-beam_section.SetAsRectangularSection(0.05, 0.05)  # 5x5 cm cross-section
-beam_section.SetYoungModulus(2e11)  # Steel
-beam_section.SetGwithPoissonRatio(0.3)
-beam_section.SetDensity(7850)
+    material.SetYoungModulus(E)
+    beam_section.SetDensity(density)
+    beam_section.SetAsRectangularSection(0.05, 0.05)
+    
+    # 3. Build cantilever beam
+    builder = fea.ChBuilderBeamEuler()
+    node_start = fea.ChNodeFEAxyzrot(chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)))
+    mesh.AddNode(node_start)
+    
+    builder.BuildBeam(mesh,                      # FEA mesh
+                      material,                  # Beam material
+                      beam_section,              # Beam section
+                      5.0,                       # Beam length
+                      0.1,                       # Element length
+                      chrono.ChVectorD(1, 0, 0), # Beam direction
+                      fea.ANCF_BEZIER_STAIRS,    # Element type
+                      node_start)                # Start node
 
-# 4. Create nodes and elements
-nodes = []
-for i in range(n_elements + 1):
-    node = fea.ChNodeFEAxyzrot(chrono.ChFrameD(ChVectorD(i * beam_length/n_elements, 0, 0)))
-    if i == 0:
-        node.SetFixed(True)  # Fixed end
-    nodes.append(node)
-    mesh.AddNode(node)
+    # 4. Add constraints
+    fixed = chrono.ChLinkPointFrame()
+    fixed.Initialize(node_start, system.Get_bodyframe())
+    system.Add(fixed)
 
-for i in range(n_elements):
-    element = fea.ChElementBeamEuler()
-    element.SetNodes(nodes[i], nodes[i+1])
-    element.SetSection(beam_section)
-    mesh.AddElement(element)
+    # 5. Create motor function for compressive displacement
+    class MotorFunction(chrono.ChFunction):
+        def __init__(self):
+            super().__init__()
+            self.time = 0
+        def Get_y(self, x):
+            return -0.001 * x  # Gradually increasing displacement
 
-# 5. Create motorized constraint for displacement
-motor_body = chrono.ChBodyEasyBox(0.1, 0.1, 0.1, 1000)
-motor_body.SetPos(nodes[-1].GetPos())
-system.Add(motor_body)
+    motor_func = MotorFunction()
+    
+    # Create motor between last node and ground
+    node_end = builder.GetLastBeamNodes()[1]
+    motor = fea.ChLoadMotorLinearPosition()
+    motor.SetMotionLaw(motor_func)
+    motor.SetMotorNode(node_end)
+    motor.SetDirection(chrono.ChVectorD(1, 0, 0))  # X-axis direction
+    motor.SetMotorSystem(system)
+    system.Add(motor)
 
-motor_link = ChLinkMotorLinearPosition()
-motor_link.Initialize(motor_body, chrono.ChBody(), 
-                     chrono.ChCoordsysD(nodes[-1].GetPos()))
-motor_link.SetMotorFunction(ChFunction_Ramp(0, -0.0005))  # Linear displacement
-system.Add(motor_link)
+    # 6. Add mesh to system
+    system.Add(mesh)
 
-# Connect motor body to end node
-node_body_link = fea.ChLinkNodeBody()
-node_body_link.Initialize(nodes[-1], motor_body)
-system.Add(node_body_link)
+    # 7. Set solver and timestepper
+    solver = mkl.ChSolverMKL()
+    system.SetSolver(solver)
+    system.SetTimestepperType(chrono.ChTimestepper.Type_HHT)
+    system.SetTimestepperTolerance(1e-6)
 
-# 6. Configure visualization
-vis = irrlicht.ChIrrApp(system, "Beam Buckling Analysis", 800, 600)
-vis.AddTypicalCamera(irrlicht.vector3df(-1, 0.5, 1))
-vis.AddTypicalLights()
-vis.AddFEAmesh(mesh)  # Add FEA mesh visualization
-vis.AssetBindAll()
-vis.AssetUpdateAll()
+    # 8. Visualization setup
+    vis = irrlicht.ChVisualSystemIrrlicht()
+    vis.AttachSystem(system)
+    vis.SetWindowSize(1280, 720)
+    vis.SetWindowTitle('Beam Buckling FEA')
+    vis.Initialize()
+    vis.AddCamera(chrono.ChVectorD(5, 3, 0.5), chrono.ChVectorD(0, 0, 0))
+    vis.AddTypicalLights()
+    vis.AddSkyBox()
+    
+    # Visualize beam elements
+    fea_vis = fea.ChVisualizationFEAmesh(mesh)
+    fea_vis.SetFEMdataType(fea.ChVisualizationFEAmesh.E_PLOT_ELEM_BEAM_MZ)
+    mesh.AddAsset(fea_vis)
 
-# 7. Configure solver and timestepper
-solver = chrono.ChSolverMINRES()
-solver.SetMaxIterations(200)
-solver.SetTolerance(1e-10)
-system.SetSolver(solver)
+    # 9. Simulation loop
+    timestep = 0.001
+    while vis.Run():
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+        system.DoStepDynamics(timestep)
 
-system.SetTimestepperType(chrono.ChTimestepper.Type_HHT)
-hht_stepper = system.GetTimestepper().AsTimestepperHHT()
-hht_stepper.SetAlpha(-0.2)
-hht_stepper.SetGamma(0.5)
-hht_stepper.SetStepControl(True)
-
-# 8. Run simulation
-vis.Run()
-
-while vis.GetDevice().run():
-    vis.BeginScene()
-    vis.DrawAll()
-    vis.DoStepDynamics(0.001)
-    vis.EndScene()
+if __name__ == "__main__":
+    main()
 ```
 
 This script:
-- Creates a fixed-free Euler-Bernoulli beam using FEA
-- Applies compressive displacement via motor constraint
-- Uses HHT timestepper for numerical stability
-- Implements MINRES solver for linear systems
-- Includes Irrlicht visualization
-- Demonstrates proper FEA constraints and loads
+1. Creates a cantilever beam using Euler-Bernoulli beam elements
+2. Applies gradually increasing compressive displacement using custom motor function
+3. Uses HHT timestepper for numerical stability
+4. Implements MKL solver for efficient FEA solution
+5. Visualizes beam bending moments using color mapping
+6. Includes proper constraints and boundary conditions
 
-The beam will compress until buckling occurs due to the applied displacement. Parameters can be adjusted by modifying:
-- Beam dimensions in `SetAsRectangularSection()`
-- Material properties in beam section
-- Displacement rate in `ChFunction_Ramp
+The beam will buckle under compressive displacement while the Irrlicht visualization shows the deformation patterns. The motor function can be modified to implement different displacement-time relationships.

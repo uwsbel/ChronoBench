@@ -4,156 +4,141 @@
 
 ### 1. Completeness (40 points)
 
-- **System Initialization:**  
-  Present and correctly done with `chrono.ChSystemSMC()`, gravity set, and solver iterations configured.  
-  **No deduction.**
+- **System Initialization:** Present and correctly done with `chrono.ChSystemNSC()` and gravity set.  
+- **Vehicle Creation:** The HMMWV vehicle is created and initialized properly with contact method, initial position, and tire type.  
+- **Visualization Setup:** Visualization is set up using `irr.ChIrrApp` with lights, camera, and asset binding.  
+- **Terrain Setup:** Terrain is created with a patch, friction, restitution, and initialized.  
+- **Driver Setup:** GUI driver is created and linked to the vehicle.  
+- **Simulation Loop:** Loop runs while device is active, synchronizes driver, vehicle, terrain, and renders the scene.  
 
-- **Body Creation:**  
-  The vehicle (`veh.HMMWV_Full`) is created and initialized properly. Terrain is created using `veh.RigidTerrain` and initialized.  
-  **No deduction.**
-
-- **Visualization:**  
-  Visualization system is created and attached, window size and title set, initialized, logo, skybox, camera, and lights added.  
-  **No deduction.**
-
-- **Driver Setup:**  
-  Driver created using `veh.ChIrrGuiDriver` and initialized with deltas for steering, throttle, and braking.  
-  **No deduction.**
-
-- **Simulation Loop:**  
-  Loop runs while visualization is active, rendering at a fixed rate, synchronizing all components, advancing them, and stepping the system dynamics.  
-  **No deduction.**
-
-- **Missing or incomplete components:**  
-  - The terrain patch material (`patch_mat`) is created but no friction or other material properties are set. According to best practices, friction should be set for realistic contact behavior.  
-  - The vehicle's contact method is set twice: once implicitly by passing the system to the vehicle constructor, and again explicitly with `vehicle.SetContactMethod(chrono.ChContactMethod_SMC)`. This is redundant but not harmful.  
-  - The vehicle's initial position is set with `chrono.QUNIT` (identity quaternion), which is correct.  
-  - The vehicle's tire step size is set, which is good.  
-  - The visualization types for chassis, suspension, steering, wheels, and tires are all set to `PRIMITIVES`, which is acceptable but could be considered minimalistic; no deduction here as it is a valid choice.  
-  - The `driver.GetInputs()` is assigned to `vehicle.GetDriverInputs()` incorrectly (see correctness).  
-  - No explicit collision model envelope or margin settings are made, which is optional but recommended for stability. Minor omission.  
+**Minor omissions:**  
+- The visualization settings for the vehicle (chassis, suspension, steering, wheels, tires) are set **after** `Initialize()`. According to best practices and typical usage, visualization types should be set **before** calling `Initialize()` to ensure proper setup. This is a minor deviation but important for correct visualization.  
+- The terrain is created with a patch size of `(100, 100, 1)`. The third parameter is the height of the patch, but the documentation example uses a 2D vector for size (length and width). The code uses a 3D vector, which is acceptable since the API accepts `ChVectorD` for size, but the height dimension is usually 0 or 1. This is acceptable but slightly unusual.  
+- No explicit call to add the vehicle or its components to the system is needed since `veh.HMMWV` handles this internally.  
+- No explicit collision system type is set for the system (e.g., Bullet), but this is optional and defaults are acceptable.  
 
 **Deduction:**  
-- Missing friction setting on terrain material: **-10 points** (component present but lacks important details).  
-- Minor omission of collision envelope/margin settings: **-5 points**.
+- 5 points for minor deviation in visualization setup order (setting visualization after Initialize).  
 
-**Subtotal Completeness:** 40 - 10 - 5 = 25 points
+**Completeness score:** 40 - 5 = **35**
 
 ---
 
 ### 2. Correctness (30 points)
 
-- **Incorrect API usage:**  
-  - The line:  
-    ```python
-    vehicle.GetDriverInputs() = driver_inputs
-    ```  
-    This is invalid Python syntax and incorrect API usage. `GetDriverInputs()` is a getter method returning a copy or reference to inputs, not a setter. The correct method to set driver inputs is usually `vehicle.SetDriverInputs(driver_inputs)` or passing inputs during `Synchronize`. According to the vehicle API, driver inputs are passed to `vehicle.Synchronize()`; setting them directly is not standard.  
-    This is a **significant error** that would break the simulation or cause runtime errors.  
-    **-15 points**
+- **API usage:**  
+  - `chrono.SetChronoDataPath("data/")` is correct, assuming the data folder is correctly placed.  
+  - `system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))` is correct for gravity.  
+  - Vehicle creation and initialization follow the documented API.  
+  - Visualization setup uses `irr.ChIrrApp` correctly, including lights and camera.  
+  - Driver is created and linked properly.  
+  - Simulation loop calls `driver.Synchronize()`, `hmmwv.Synchronize()`, `terrain.Synchronize()`, and rendering calls in correct order.  
+  - The time step is set and used consistently.  
+  - The loop uses `app.GetDevice().run()` which is the correct method to check if the Irrlicht device is running.  
+  - `app.DoStep()` is called inside the loop, which advances the simulation by the timestep.  
 
-- **Logical errors:**  
-  - The order of advancing components and calling `system.DoStepDynamics(step_size)` is not optimal. Usually, `DoStepDynamics()` is called first to advance the physics, then visualization and other components are updated. Here, `vehicle.Advance()`, `terrain.Advance()`, and `vis.Advance()` are called before `DoStepDynamics()`. This may cause synchronization issues or visual lag.  
-  - However, in vehicle simulations, it is common to advance subsystems before stepping the system to update internal states. This is acceptable and not a clear error.  
-  **No deduction.**
+- **Potential issues:**  
+  - The `driver_inputs = driver.GetInputs()` line is unnecessary because `driver.Synchronize(time)` updates the driver inputs internally, and `hmmwv.Synchronize(time, driver_inputs)` expects the driver inputs. However, this is not an error, just a minor inefficiency.  
+  - The `hmmwv.SetDriver(driver)` is correct, but the vehicle's `Synchronize()` method expects the driver inputs, which is correctly passed.  
+  - The terrain is created with `veh.RigidTerrain(system)`, which is correct.  
+  - The patch texture path `"textures/concrete.jpg"` is used directly as a string. According to best practice, textures should be loaded via `chrono.GetChronoDataFile()` to ensure correct path resolution. This could cause a runtime error if the relative path is incorrect.  
+  - The `app.SetTryRealtime(True)` is correct for attempting real-time simulation.  
 
-- **Minor inaccuracies:**  
-  - The `steering_time` variable is defined but only used once to compute `driver.SetSteeringDelta(0.02 / steering_time)`. This is fine but could be simplified.  
-  - The camera is added with two arguments for position and target, but the API documentation shows `AddCamera(position)` only. The code uses:  
-    ```python
-    vis.AddCamera(chrono.ChVectorD(6, 3, 1.5), chrono.ChVectorD(0, 0, 1))
-    ```  
-    The documentation example shows only one argument for `AddCamera()`. This may be an API misuse or an extension in the vehicle module. If the API does not support two arguments, this is an error.  
-    **Assuming the API only supports one argument, this is an incorrect usage.**  
-    **-15 points** (significant API misuse affecting visualization behavior).
+**Deduction:**  
+- 5 points for minor inefficiency/unnecessary call (`driver.GetInputs()` stored but not strictly needed).  
+- 10 points for potential runtime issue due to direct texture path string instead of using `chrono.GetChronoDataFile()`. This could cause the texture not to load properly, affecting visualization.  
+- No other significant API misuse or logical errors found.  
 
-- **Redundant API calls:**  
-  - `vehicle.SetContactMethod(chrono.ChContactMethod_SMC)` is called after vehicle creation, which already uses the system's contact method. This is redundant but harmless.  
-  **No deduction.**
-
-**Subtotal Correctness:** 30 - 15 - 15 = 0 points
+**Correctness score:** 30 - 10 - 5 = **15**
 
 ---
 
 ### 3. Code Quality (10 points)
 
-- **Readability and structure:**  
-  - The code is mostly well structured and readable.  
-  - Variable names are meaningful (`system`, `terrain`, `vehicle`, `driver`, `vis`, `step_size`, etc.).  
-  - Indentation and formatting are consistent.  
-  - However, there are no comments explaining the purpose of blocks or key steps.  
-  **-5 points** for lack of comments/documentation.
+- The code is generally readable with meaningful variable names (`system`, `hmmwv`, `terrain`, `app`, `driver`).  
+- The code is structured logically: initialization, setup, simulation loop.  
+- However, there are **no comments** explaining the purpose of code blocks or key steps, which is a best practice especially for simulation scripts.  
+- Some minor formatting issues: inconsistent blank lines (e.g., no blank line before the simulation loop), and the indentation and spacing are acceptable but could be improved for clarity.  
 
-- **Comments:**  
-  - No comments at all.  
-  **-5 points** for insufficient comments.
+**Deduction:**  
+- 5 points for lack of comments/documentation.  
+- 2 points for minor formatting/readability improvements possible.  
 
-**Subtotal Code Quality:** 10 - 5 - 5 = 0 points
+**Code Quality score:** 10 - 5 - 2 = **3**
 
 ---
 
 ### 4. Efficiency (10 points)
 
-- **Unnecessary calculations or redundant code:**  
-  - The redundant call to `vehicle.SetContactMethod()` after construction is unnecessary.  
-  **-5 points**
+- The simulation loop calls `driver.GetInputs()` every iteration, which is not strictly necessary since `driver.Synchronize()` updates internal inputs. This is a minor inefficiency.  
+- The visualization asset binding and update calls (`AssetBindAll()` and `AssetUpdateAll()`) are done once before the loop, which is efficient.  
+- No redundant or repeated initialization calls inside the loop.  
+- The timestep is set once and used consistently.  
+- No obvious unnecessary calculations or redundant API calls.  
 
-- **Missing optimization opportunities:**  
-  - The calculation of `int(render_step / step_size)` is done every loop iteration. This could be precomputed once before the loop for efficiency.  
-  **-3 points**
+**Deduction:**  
+- 3 points for minor inefficiency in driver input retrieval.  
 
-**Subtotal Efficiency:** 10 - 5 - 3 = 2 points
+**Efficiency score:** 10 - 3 = **7**
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- No error handling or try-except blocks are present.  
-- No checks for file paths or resource loading success (e.g., texture or logo files).  
-- No handling of edge cases such as driver inputs out of range or system initialization failures.  
-- While not always mandatory in example scripts, basic error handling is recommended.  
-**-5 points**
+- The script does not include any error handling (try-except blocks) or checks for resource loading success (e.g., texture file).  
+- No handling of edge cases such as device failure or simulation errors.  
+- While not strictly required for a minimal example, best practices recommend at least minimal error handling or resource validation.  
+
+**Deduction:**  
+- 5 points for lack of any error handling or robustness considerations.  
+
+**Error Handling score:** 0
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
-- Visualization system is properly created and attached.  
-- Window size and title set.  
-- Logo, skybox, camera, and lights added.  
-- However, the `AddCamera()` call uses two arguments, which is inconsistent with the documented API that expects one argument (a position vector). This likely causes an error or unexpected behavior.  
-- The lighting and skybox setup is standard and acceptable.  
-- No minor issues such as suboptimal lighting or incomplete visual elements.  
-**-5 points** for incorrect visualization API usage.
+- Visualization is set up using `irr.ChIrrApp` with window size, lights, and camera.  
+- The camera is positioned at `(0, 3, 3)` looking at `(0, 0, 0)`, which is reasonable.  
+- Lighting is added via `AddTypicalLights()`.  
+- The vehicle visualization types are set to `PRIMITIVES`, but as noted earlier, this is done after `Initialize()`, which may prevent proper visualization setup.  
+- The terrain patch uses a texture, but the texture path is given as a raw string instead of using `chrono.GetChronoDataFile()`, which may cause the texture not to load.  
+- No skybox or other environment visuals are added, which is acceptable but could improve visualization.  
+
+**Deduction:**  
+- 3 points for incorrect order of visualization setup (after Initialize).  
+- 2 points for minor visualization issue with texture loading path.  
+
+**Visualization score:** 5 - 3 - 2 = 0
 
 ---
 
-### **Summary of deductions:**
+### **Summary of Deductions**
 
-| Criterion                  | Max Points | Deductions | Points Awarded |
-|----------------------------|------------|------------|---------------|
-| Completeness               | 40         | 15         | 25            |
-| Correctness               | 30         | 30         | 0             |
-| Code Quality              | 10         | 10         | 0             |
-| Efficiency                | 10         | 8          | 2             |
-| Error Handling & Robustness| 5          | 5          | 0             |
-| Visualization Tools       | 5          | 5          | 0             |
-| **Total**                 | **100**    | **73**     | **27**        |
+| Criterion                  | Points | Deduction | Score |
+|----------------------------|--------|-----------|-------|
+| Completeness               | 40     | 5         | 35    |
+| Correctness                | 30     | 15        | 15    |
+| Code Quality               | 10     | 7         | 3     |
+| Efficiency                 | 10     | 3         | 7     |
+| Error Handling & Robustness| 5      | 5         | 0     |
+| Visualization Tools        | 5      | 5         | 0     |
+| **Total**                 | 100    | 40        | **60**|
 
 ---
 
-### Final score:  
-[[27]]
+### Final score: [[60]]
 
 ---
 
 ### Explanation:
 
-- The script includes all essential components but misses important material properties (friction) and minor best practices (collision margins).  
-- The biggest issues are incorrect API usage for setting driver inputs and incorrect `AddCamera()` call, which would cause runtime errors or incorrect simulation behavior.  
-- Code quality suffers due to lack of comments and documentation.  
-- Efficiency is slightly reduced by redundant calls and minor inefficiencies.  
-- No error handling is present, which is a best practice omission.  
-- Visualization setup is mostly complete but marred by the incorrect camera API usage.  
+The script covers all essential components of a PyChrono vehicle simulation, including system setup, vehicle creation, terrain, driver, visualization, and simulation loop. However, it has several issues:
 
-Overall, the script is a reasonable starting point but requires corrections in API usage, better documentation, and improved robustness to be considered a high-quality PyChrono simulation script.
+- Visualization settings for the vehicle are applied after initialization, which is against best practices and can cause visualization problems.  
+- The texture path for terrain is hardcoded as a string instead of using the recommended `chrono.GetChronoDataFile()` method, risking texture loading failure.  
+- Minor inefficiencies such as unnecessary retrieval of driver inputs.  
+- Lack of comments and error handling reduces code quality and robustness.  
+- Visualization setup is minimal and has minor issues affecting the visual output.  
+
+These issues lead to significant deductions in correctness, visualization, and code quality, resulting in a final score of 60 out of 100.

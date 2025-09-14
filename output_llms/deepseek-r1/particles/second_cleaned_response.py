@@ -37,7 +37,7 @@ emitter.SetParticleReservoirAmount(200)
 
 
 emitter_positions = chrono.ChRandomParticlePositionOnGeometry()
-emitter_positions.SetGeometry(chrono.ChBox(50, 50, 50), chrono.ChFramed())
+emitter_positions.SetGeometry(chrono.ChBox(50, 50, 50), chrono.ChFrameD())  
 emitter.SetParticlePositioner(emitter_positions)
 
 emitter_rotations = chrono.ChRandomParticleAlignmentUniform()
@@ -89,38 +89,33 @@ while vis.Run():
 
     for body in sys.GetBodies():
         body.EmptyAccumulators()
-    
+
     
     G_constant = 6.674e-3  
-    
+
     
     kinetic_energy = 0.0
-    potential_energy = 0.0
-    
-    
     for body in sys.GetBodies():
-        vel = body.GetPos_dt()
-        kinetic_energy += 0.5 * body.GetMass() * vel.Length2()
+        kinetic_energy += 0.5 * body.GetMass() * body.GetPos_dt().Length2()
+
     
-    
-    mlist = list(combinations(sys.GetBodies(), 2))
-    for abodyA, abodyB in mlist:
+    potential_energy = 0.0
+    body_list = sys.GetBodies()
+    for abodyA, abodyB in combinations(body_list, 2):
         D_attract = abodyB.GetPos() - abodyA.GetPos()
         r_attract = D_attract.Length()
-        
-        
+        potential_energy += -G_constant * (abodyA.GetMass() * abodyB.GetMass()) / r_attract
+
+    total_energy = kinetic_energy + potential_energy
+    print(f"Kinetic: {kinetic_energy:.2f}, Potential: {potential_energy:.2f}, Total: {total_energy:.2f}")
+
+    
+    for abodyA, abodyB in combinations(body_list, 2):
+        D_attract = abodyB.GetPos() - abodyA.GetPos()
+        r_attract = D_attract.Length()
         f_attract = G_constant * (abodyA.GetMass() * abodyB.GetMass()) / (r_attract ** 2)
         F_attract = (D_attract / r_attract) * f_attract
         abodyA.AccumulateForce(F_attract, abodyA.GetPos(), False)
         abodyB.AccumulateForce(-F_attract, abodyB.GetPos(), False)
-        
-        
-        potential_energy -= G_constant * (abodyA.GetMass() * abodyB.GetMass()) / r_attract
-    
-    
-    total_energy = kinetic_energy + potential_energy
-    
-    
-    print(f"Kinetic energy: {kinetic_energy:.4f}, Potential energy: {potential_energy:.4f}, Total energy: {total_energy:.4f}")
 
     sys.DoStepDynamics(stepsize)

@@ -1,66 +1,69 @@
 import pychrono as chrono
+import pychrono.irrlicht as chronoirr
 import pychrono.vehicle as veh
-import pychrono.irrlicht as irr
 
 def main():
-    # Initialize environment
-    chrono.SetChronoDataPath("path/to/data/")  # Replace with actual path
+    # 1. Initialize PyChrono environment
     system = chrono.ChSystemNSC()
-    system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Gravity
+    system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
-    # Create rigid terrain
+    # 2. Create rigid terrain
     terrain = veh.RigidTerrain(system)
-    patch_mat = chrono.ChMaterialSurfaceNSC()
-    patch_mat.SetFriction(0.8)
-    patch_mat.SetRestitution(0.01)
-    terrain.Initialize(chrono.ChCoordsysD(), patch_mat)
+    terrain_mat = chrono.ChMaterialSurfaceNSC()
+    terrain_mat.SetFriction(0.8)
+    terrain_mat.SetRestitution(0.01)
+    patch = terrain.AddPatch(terrain_mat, chrono.ChCoordsysD(chrono.ChVectorD(0, -1, 0), chrono.QUNIT), 100, 100)
+    patch.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 100, 100)
+    terrain.Initialize()
 
-    # Create M113 vehicle
-    vehicle = veh.M113(system)
-    init_pos = chrono.ChVectorD(0, 0.5, 0)  # Start above ground
-    init_rot = chrono.ChQuaternionD(1, 0, 0, 0)  # Identity rotation
-    vehicle.Initialize(veh.ChCoordsysD(init_pos, init_rot))
+    # 3. Create M113 vehicle
+    init_pos = chrono.ChVectorD(0, 1, 1.5)
+    m113_vehicle = veh.m113.M113(system)
+    m113_vehicle.Initialize(chrono.ChCoordsysD(init_pos, chrono.QUNIT))
+    m113_vehicle.SetChassisVisualizationType(veh.VisualizationType_PRIMITIVES)
+    m113_vehicle.SetSprocketVisualizationType(veh.VisualizationType_PRIMITIVES)
+    m113_vehicle.SetIdlerVisualizationType(veh.VisualizationType_PRIMITIVES)
+    m113_vehicle.SetRoadWheelVisualizationType(veh.VisualizationType_PRIMITIVES)
+    m113_vehicle.SetTrackShoeVisualizationType(veh.VisualizationType_PRIMITIVES)
 
-    # Initialize driver system
-    driver = veh.ChInteractiveDriverIRR(vehicle)
+    # 4. Initialize Irrlicht visualization
+    app = chronoirr.ChIrrApp(system, "M113 Simulation", chronoirr.dimension2du(1280, 720))
+    app.AddTypicalLights()
+    app.AddTypicalCamera(chronoirr.vector3df(3, 2, -5), chronoirr.vector3df(0, 1, 0))
+    app.EnableShadows(True)
+    app.AssetBindAll()
+    app.AssetUpdateAll()
+
+    # 5. Create driver system
+    driver = chronoirr.ChIrrGuiDriver(app)
     driver.SetSteeringDelta(0.02)
     driver.SetThrottleDelta(0.02)
-    driver.SetBrakingDelta(0.06)
+    driver.SetBrakingDelta(0.02)
     driver.Initialize()
 
-    # Set up Irrlicht visualization
-    vis = irr.ChVisualSystemIrrlicht()
-    vis.AttachSystem(system)
-    vis.SetWindowSize(1280, 720)
-    vis.SetWindowTitle('M113 Simulation')
-    vis.Initialize()
-    vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
-    vis.AddSkyBox()
-    vis.AddCamera(chrono.ChVectorD(3, 2, 0), chrono.ChVectorD(0, 0.5, 0))  # Position and target
-    vis.AddTypicalLights()
-    vis.AddLightWithShadow(
-        chrono.ChVectorD(10, 10, 10),  # Position
-        chrono.ChVectorD(0, 0, 0),     # Direction
-        50, 10, 50,                    # Parameters
-        60, 512, chrono.ChColor(0.8, 0.8, 0.8)
-    )
+    # 6. Simulation loop settings
+    time_step = 0.01
+    app.SetTimestep(time_step)
+    app.SetTryRealtime(True)
 
-    # Simulation loop
-    step_size = 0.005
-    realtime_timer = chrono.ChRealtimeStepTimer()
-    while vis.Run():
-        # Update visualization
-        vis.BeginScene()
-        vis.Render()
-        vis.EndScene()
+    # 7. Real-time simulation loop
+    while app.GetDevice().run():
+        time = system.GetChTime()
         
         # Update driver inputs
-        driver.Synchronize(chrono.ChTimer.GetTime())
-        
+        driver_inputs = driver.GetInputs()
+        driver.Synchronize(time)
+        m113_vehicle.Synchronize(time, driver_inputs, terrain)
+        app.Synchronize("", driver_inputs)
+
         # Advance simulation
-        vehicle.Synchronize(chrono.ChTimer.GetTime(), driver.GetInputs(), terrain)
-        system.DoStepDynamics(step_size)
-        realtime_timer.Spin(step_size)  # Maintain real-time pacing
+        app.Advance(time_step)
+        system.DoStepDynamics(time_step)
+
+        # Update visualization
+        app.BeginScene(True, True, chronoirr.SColor(255, 140, 161, 192))
+        app.DrawAll()
+        app.EndScene()
 
 if __name__ == "__main__":
     main()

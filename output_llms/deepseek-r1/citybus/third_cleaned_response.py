@@ -46,6 +46,7 @@ vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
+vehicle.SetTireParameters(veh.GetDataFile("citybus/tire/CityBus_PacejkaTire.json"))  
 vehicle.SetTireStepSize(tire_step_size)
 
 vehicle.Initialize()

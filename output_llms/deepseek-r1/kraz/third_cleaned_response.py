@@ -1,1 +1,140 @@
-Error code: 504
+import pychrono.core as chrono
+import pychrono.irrlicht as irr
+import pychrono.vehicle as veh
+import math
+
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())
+veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
+
+
+truck_initLoc = chrono.ChVector3d(-5, 0, 0.5)
+truck_initRot = chrono.ChQuaterniond(1, 0, 0, 0)
+sedan_initLoc = chrono.ChVector3d(5, 0, 0.5)
+sedan_initRot = chrono.ChQuaterniond(1, 0, 0, 0)
+
+
+vis_type = veh.VisualizationType_MESH
+
+
+chassis_collision_type = veh.CollisionType_NONE
+
+
+truck_tire_model = veh.TireModelType_RIGID
+sedan_tire_model = veh.TireModelType_TMEASY
+
+
+contact_method = chrono.ChContactMethod_NSC
+
+
+system = chrono.ChSystem()
+system.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+
+
+truck = veh.Kraz()
+truck.SetContactMethod(contact_method)
+truck.SetChassisCollisionType(chassis_collision_type)
+truck.SetChassisFixed(False)
+truck.SetInitPosition(chrono.ChCoordsysd(truck_initLoc, truck_initRot))
+truck.SetTireType(truck_tire_model)
+truck.Initialize(system)
+truck.SetChassisVisualizationType(vis_type)
+truck.SetSuspensionVisualizationType(vis_type)
+truck.SetSteeringVisualizationType(vis_type)
+truck.SetWheelVisualizationType(vis_type)
+truck.SetTireVisualizationType(vis_type)
+
+
+sedan = veh.Sedan()
+sedan.SetContactMethod(contact_method)
+sedan.SetChassisCollisionType(chassis_collision_type)
+sedan.SetChassisFixed(False)
+sedan.SetInitPosition(chrono.ChCoordsysd(sedan_initLoc, sedan_initRot))
+sedan.SetTireType(sedan_tire_model)
+sedan.Initialize(system)
+sedan.SetChassisVisualizationType(vis_type)
+sedan.SetSuspensionVisualizationType(vis_type)
+sedan.SetSteeringVisualizationType(vis_type)
+sedan.SetWheelVisualizationType(vis_type)
+sedan.SetTireVisualizationType(vis_type)
+
+
+terrain = veh.RigidTerrain(system)
+highway_mesh = chrono.GetChronoDataFile("vehicle/terrain/meshes/highway.obj")
+patch_mat = chrono.ChContactMaterialNSC()
+patch_mat.SetFriction(0.9)
+patch_mat.SetRestitution(0.01)
+patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), highway_mesh)
+patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
+terrain.Initialize()
+
+
+vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
+vis.SetWindowTitle('Vehicle Demo')
+vis.SetWindowSize(1280, 1024)
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddLightDirectional()
+vis.AddSkyBox()
+vis.AttachVehicle(truck.GetVehicle())
+vis.AddVehicle(sedan.GetVehicle())
+vis.SetChaseCamera(chrono.ChVector3d(0, 0, 2), 15.0, 0.5)
+
+
+truck_driver = veh.ChInteractiveDriverIRR(vis)
+sedan_driver = veh.ChFunctionDriver(sedan.GetVehicle())
+
+
+steering_func = chrono.ChFunction_Const(0.0)
+throttle_func = chrono.ChFunction_Const(0.5)
+sedan_driver.SetSteeringFunction(steering_func)
+sedan_driver.SetThrottleFunction(throttle_func)
+
+truck_driver.Initialize()
+sedan_driver.Initialize()
+
+
+step_size = 1e-3
+render_step_size = 1/50 
+
+
+tractor_states = []
+trailer_states = []
+
+realtime_timer = chrono.ChRealtimeStepTimer()
+step_number = 0
+
+while vis.Run():
+    time = system.GetChTime()
+    
+    
+    if step_number % int(render_step_size/step_size) == 0:
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+    
+    
+    truck_inputs = truck_driver.GetInputs()
+    
+    
+    truck_driver.Synchronize(time)
+    sedan_driver.Synchronize(time)
+    terrain.Synchronize(time)
+    truck.Synchronize(time, truck_inputs, terrain)
+    sedan.Synchronize(time, {}, terrain)
+    vis.Synchronize(time, truck_inputs)
+    
+    
+    truck_driver.Advance(step_size)
+    sedan_driver.Advance(step_size)
+    terrain.Advance(step_size)
+    truck.Advance(step_size)
+    sedan.Advance(step_size)
+    vis.Advance(step_size)
+    
+    
+    tractor_states.append(truck.GetVehicle().GetPos())
+    if truck.GetNumTrailers() > 0:
+        trailer_states.append(truck.GetTrailer(0).GetPos())
+    
+    step_number += 1
+    realtime_timer.Spin(step_size)

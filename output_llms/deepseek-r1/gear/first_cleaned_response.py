@@ -1,78 +1,93 @@
 import pychrono as chrono
-import pychrono.irrlicht as chronoirr
+import pychrono.irrlicht as irrlicht
 
-def main():
-    
-    system = chrono.ChSystemNSC()
-    system.Set_G_acc(chrono.ChVectorD(0, 0, 0))  
 
-    
-    ground = chrono.ChBody()
-    ground.SetBodyFixed(True)
-    ground.SetPos(chrono.ChVectorD(0, 0, 0))
-    system.Add(ground)
+sun_radius = 1.0
+planet_radius = 0.5
+bar_length = sun_radius + planet_radius  
 
-    
-    bar = chrono.ChBodyEasyBox(3.0, 0.2, 0.2, 1000)  
-    bar.SetPos(chrono.ChVectorD(0, 0, 0))
-    bar.SetRot(chrono.Q_from_AngY(chrono.CH_C_PI / 2))  
-    system.Add(bar)
 
-    
-    sun_radius = 1.0
-    sun = chrono.ChBodyEasyCylinder(sun_radius, 0.2, 1000)
-    sun.SetPos(chrono.ChVectorD(0, 0, 0))
-    sun.SetBodyFixed(True)  
-    system.Add(sun)
+system = chrono.ChSystemNSC()
+system.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
 
-    
-    planet_radius = 0.5
-    planet = chrono.ChBodyEasyCylinder(planet_radius, 0.2, 1000)
-    planet.SetPos(chrono.ChVectorD(1.5, 0, 0))  
-    system.Add(planet)
 
-    
-    motor = chrono.ChLinkMotorRotationSpeed()
-    motor.Initialize(bar, ground, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)))
-    motor_speed = chrono.ChFunction_Const(0.5)  
-    motor.SetSpeedFunction(motor_speed)
-    system.Add(motor)
+truss = chrono.ChBody()
+truss.SetBodyFixed(True)
+truss.SetCollide(False)
+system.Add(truss)
 
-    
-    planet_joint = chrono.ChLinkLockRevolute()
-    planet_joint.Initialize(planet, bar, 
-                            chrono.ChCoordsysD(chrono.ChVectorD(1.5, 0, 0)))
-    system.Add(planet_joint)
 
-    
-    vis = chronoirr.ChVisualSystemIrrlicht()
-    vis.AttachSystem(system)
-    vis.SetWindowSize(1280, 720)
-    vis.SetWindowTitle('Epicyclic Gear Simulation')
-    vis.Initialize()
-    vis.AddCamera(chrono.ChVectorD(0, -3, 2), chrono.ChVectorD(0, 0, 0))
-    vis.AddTypicalLights()
+sun_gear = chrono.ChBody()
+sun_gear.SetPos(chrono.ChVectorD(0, 0, 0))
+sun_gear.SetBodyFixed(True)
+sun_gear.SetCollide(False)
+sun_shape = chrono.ChCylinderShape()
+sun_shape.GetCylinderGeometry().p1 = chrono.ChVectorD(0, 0, 0.2)
+sun_shape.GetCylinderGeometry().p2 = chrono.ChVectorD(0, 0, -0.2)
+sun_shape.GetCylinderGeometry().rad = sun_radius
+sun_gear.AddAsset(sun_shape)
+sun_gear.AddAsset(chrono.ChColorAsset(chrono.ChColor(0.6, 0.2, 0.2)))
+system.Add(sun_gear)
 
-    
-    sun_mat = chrono.ChVisualMaterial()
-    sun_mat.SetDiffuseColor(chrono.ChColor(0.8, 0.2, 0.2))  
-    sun.GetVisualShape(0).SetMaterial(0, sun_mat)
 
-    bar_mat = chrono.ChVisualMaterial()
-    bar_mat.SetDiffuseColor(chrono.ChColor(0.2, 0.6, 0.2))  
-    bar.GetVisualShape(0).SetMaterial(0, bar_mat)
+bar = chrono.ChBody()
+bar.SetPos(chrono.ChVectorD(0, 0, 0))
+bar.SetMass(1.0)
+bar.SetInertiaXX(chrono.ChVectorD(1, 1, 1))
+bar.SetCollide(False)
+bar_shape = chrono.ChBoxShape()
+bar_shape.GetBoxGeometry().SetLengths(chrono.ChVectorD(0.1, bar_length, 0.1))
+bar.AddAsset(bar_shape)
+bar.AddAsset(chrono.ChColorAsset(chrono.ChColor(0.2, 0.5, 0.8)))
+system.Add(bar)
 
-    planet_mat = chrono.ChVisualMaterial()
-    planet_mat.SetDiffuseColor(chrono.ChColor(0.2, 0.2, 0.8))  
-    planet.GetVisualShape(0).SetMaterial(0, planet_mat)
 
-    
-    time_step = 0.01
-    while vis.Run():
-        vis.BeginScene()
-        vis.Render()
-        vis.EndScene()
-        system.DoStepDynamics(time_step)
+motor = chrono.ChLinkMotorRotationSpeed()
+motor.Initialize(truss, bar, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT))
+motor.SetSpeedFunction(chrono.ChFunction_Const(chrono.CH_C_PI))  
+system.Add(motor)
 
-if __name__ == "__main__":
-    main()
+
+planet_gear = chrono.ChBody()
+planet_gear.SetPos(chrono.ChVectorD(0, bar_length, 0))
+planet_gear.SetMass(0.5)
+planet_gear.SetInertiaXX(chrono.ChVectorD(0.1, 0.1, 0.1))
+planet_gear.SetCollide(False)
+planet_shape = chrono.ChCylinderShape()
+planet_shape.GetCylinderGeometry().p1 = chrono.ChVectorD(0, 0, 0.2)
+planet_shape.GetCylinderGeometry().p2 = chrono.ChVectorD(0, 0, -0.2)
+planet_shape.GetCylinderGeometry().rad = planet_radius
+planet_gear.AddAsset(planet_shape)
+planet_gear.AddAsset(chrono.ChColorAsset(chrono.ChColor(0.2, 0.8, 0.2)))
+system.Add(planet_gear)
+
+
+planet_joint = chrono.ChLinkRevolute()
+planet_joint.Initialize(bar, planet_gear, 
+                        chrono.ChCoordsysD(chrono.ChVectorD(0, bar_length, 0), 
+                                           chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 0, 1))))
+system.Add(planet_joint)
+
+
+gear = chrono.ChLinkGear()
+gear.Initialize(motor, planet_joint)
+gear.SetTau(-sun_radius / planet_radius)  
+system.Add(gear)
+
+
+vis = irrlicht.ChIrrApp(system, "Epicyclic Gears", 800, 600)
+vis.AddTypicalLights(irrlicht.vector3df(30, 50, 30), irrlicht.vector3df(30, -50, 30), 200, 200)
+vis.AddTypicalCamera(chrono.ChVectorD(3, 3, 3))
+vis.AssetBindAll()
+vis.AssetUpdateAll()
+
+
+vis.Initialize()
+vis.Run()
+
+timestep = 0.005
+while vis.GetDevice().run():
+    vis.BeginScene()
+    vis.DrawAll()
+    vis.DoStepDynamics(timestep)
+    vis.EndScene()

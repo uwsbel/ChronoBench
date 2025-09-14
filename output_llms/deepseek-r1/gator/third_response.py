@@ -11,10 +11,10 @@ initLoc = chrono.ChVector3d(0, 0, 0.5)
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 # Visualization type changed to PRIMITIVES
-vis_type = veh.VisualizationType_PRIMITIVES
+vis_type = veh.VisualizationType_PRIMITIVES  # Modified Instruction 1
 
 # Chassis collision type changed to PRIMITIVES
-chassis_collision_type = veh.CollisionType_PRIMITIVES
+chassis_collision_type = veh.CollisionType_PRIMITIVES  # Modified Instruction 2
 
 # Type of tire model (RIGID, TMEASY)
 tire_model = veh.TireModelType_TMEASY
@@ -38,15 +38,14 @@ tire_step_size = step_size
 # Time interval between two render frames
 render_step_size = 1.0 / 50  # FPS = 50
 
-# Create the Gator vehicle, set parameters, and initialize
-vehicle = veh.Gator()
+# Create the Gator vehicle with corrected class name
+vehicle = veh.GatorVehicle()  # Fixed vehicle class name
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
-
 vehicle.Initialize()
 
 vehicle.SetChassisVisualizationType(vis_type)
@@ -70,11 +69,7 @@ patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
-# -------------------------------------
 # Create the vehicle Irrlicht interface
-# Create the driver system
-# -------------------------------------
-
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('Gator vehicle')
 vis.SetWindowSize(1280, 1024)
@@ -85,35 +80,31 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
-# Create the driver system with increased response times
-driver = veh.ChInteractiveDriverIRR(vis)
+# Create driver system with corrected class name
+driver = veh.ChIrrGuiDriver(vis)  # Fixed driver class name
 
-# Increased time responses for less responsive controls
-steering_time = 2.0  # Increased from 1.0
-throttle_time = 2.0  # Increased from 1.0
-braking_time = 0.6   # Increased from 0.3
+# Increased time response parameters for less responsiveness
+steering_time = 2.0  # Increased from 1.0 (Modified Instruction 3)
+throttle_time = 2.0  # Increased from 1.0 (Modified Instruction 3)
+braking_time = 0.6   # Increased from 0.3 (Modified Instruction 3)
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
 
 driver.Initialize()
 
-# ---------------
 # Simulation loop
-# ---------------
-
-print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 render_steps = math.ceil(render_step_size / step_size)
-
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-while vis.Run() :
+while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
-    if (step_number % render_steps == 0) :
+    if (step_number % render_steps == 0):
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
@@ -132,5 +123,4 @@ while vis.Run() :
     vis.Advance(step_size)
 
     step_number += 1
-
     realtime_timer.Spin(step_size)

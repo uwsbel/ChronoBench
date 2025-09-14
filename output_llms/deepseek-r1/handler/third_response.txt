@@ -1,30 +1,30 @@
-Based on the instructions and error analysis, here's the corrected and modified script:
+
 
 ```python
 import pychrono as ch
 import pychrono.ros as chros
-import pychrono.irrlicht as chrirr  # Import Irrlicht module
-from rclpy.publisher import Publisher  # Corrected publisher import
+import pychrono.irrlicht as ch_irr
+import rclpy.publisher
+import rclpy.qos
 from std_msgs.msg import Int64
 
 # Define a custom ROS handler for publishing integer messages.
 class MyCustomHandler(chros.ChROSHandler):
     """This custom handler will publish integer messages to a specified ROS topic."""
 
-    def __init__(self, topic, rate):  # Added rate parameter
-        super().__init__(rate)  # Use specified rate instead of fixed 1 Hz
+    def __init__(self, topic):
+        super().__init__(10)  # Set publishing rate to 10 Hz
         self.topic = topic
-        self.publisher: Publisher = None
+        self.publisher: rclpy.publisher.Publisher = None
         self.ticker = 0
 
     def Initialize(self, interface: chros.ChROSPythonInterface) -> bool:
-        """Initialize the ROS publisher."""
         print(f"Creating publisher for topic {self.topic} ...")
-        self.publisher = interface.GetNode().create_publisher(Int64, self.topic, 1)
+        qos_profile = rclpy.qos.QoSProfile(depth=1)
+        self.publisher = interface.GetNode().create_publisher(Int64, self.topic, qos_profile)
         return True
 
     def Tick(self, time: float):
-        """Publish an integer message to the ROS topic."""
         print(f"Publishing {self.ticker} ...")
         msg = Int64()
         msg.data = self.ticker
@@ -32,124 +32,75 @@ class MyCustomHandler(chros.ChROSHandler):
         self.ticker += 1
 
 def main():
-    # Create the Chrono simulation system
     sys = ch.ChSystemNSC()
     sys.SetGravitationalAcceleration(ch.ChVector3d(0, 0, -9.81))
 
-    # Define physical material properties for contact
+    # Create Irrlicht visualization system
+    vis = ch_irr.ChVisualSystemIrrlicht()
+    vis.AttachSystem(sys)
+    vis.SetWindowSize(1280, 720)
+    vis.SetWindowTitle('PyChrono Simulation')
+    vis.Initialize()
+    vis.AddCamera(ch.ChVector3d(0, -3, 2), ch.ChVector3d(0, 0, 0))
+    vis.AddTypicalLights()
+
     phys_mat = ch.ChContactMaterialNSC()
     phys_mat.SetFriction(0.5)
 
-    # Create a floor object
+    # Create floor with texture
     floor = ch.ChBodyEasyBox(10, 10, 1, 1000, True, True, phys_mat)
     floor.SetPos(ch.ChVector3d(0, 0, -1))
     floor.SetFixed(True)
     floor.SetName("base_link")
+    floor.GetVisualShape(0).SetTexture(ch.GetChronoDataFile("textures/concrete.jpg"))
     sys.Add(floor)
 
-    # Create a box object
+    # Create box with texture
     box = ch.ChBodyEasyBox(1, 1, 1, 1000, True, True, phys_mat)
     box.SetPos(ch.ChVector3d(0, 0, 5))
     box.SetRot(ch.QuatFromAngleAxis(.2, ch.ChVector3d(1, 0, 0)))
     box.SetName("box")
+    box.GetVisualShape(0).SetTexture(ch.GetChronoDataFile("textures/blue.png"))
     sys.Add(box)
 
-    # Set textures for visualization
-    floor_texture = ch.GetChronoDataFile("textures/concrete.jpg")
-    box_texture = ch.GetChronoDataFile("textures/cubetexture_bluewhite.png")
-    floor.GetVisualShape(0).SetTexture(floor_texture)
-    box.GetVisualShape(0).SetTexture(box_texture)
-
-    # Create and configure Irrlicht visualization
-    vis = chrirr.ChVisualSystemIrrlicht()
-    vis.AttachSystem(sys)
-    vis.SetWindowSize(1024, 768)
-    vis.SetWindowTitle('PyChrono Simulation')
-    vis.Initialize()
-    vis.AddCamera(ch.ChVector3d(0, 3, 3), ch.ChVector3d(0, 0, 0))  # Camera position and target
-    vis.AddTypicalLights()
-    vis.AddSkyBox()
-
-    # Create and configure ROS manager with publish rate
-    publish_rate = 10  # 10 Hz publishing rate
+    # Configure ROS manager with 10 Hz publishing rate
     ros_manager = chros.ChROSPythonManager()
+    ros_manager.RegisterHandler(chros.ChROSClockHandler(10))
+    ros_manager.RegisterHandler(chros.ChROSBodyHandler(10, box, "~/box"))
     
-    # Register handlers with publish_rate
-    ros_manager.RegisterHandler(chros.ChROSClockHandler(publish_rate))
-    ros_manager.RegisterHandler(chros.ChROSBodyHandler(publish_rate, box, "~/box"))
-    
-    # Create and register transform handler
-    tf_handler = chros.ChROSTFHandler(publish_rate)
+    tf_handler = chros.ChROSTFHandler(10)
     tf_handler.AddTransform(floor, floor.GetName(), box, box.GetName())
     ros_manager.RegisterHandler(tf_handler)
     
-    # Register custom handler with publish_rate
-    custom_handler = MyCustomHandler("~/my_topic", publish_rate)
+    custom_handler = MyCustomHandler("~/my_topic")
     ros_manager.RegisterPythonHandler(custom_handler)
-
-    # Initialize ROS manager
     ros_manager.Initialize()
 
     # Simulation parameters
-    time = 0
     time_step = 1e-3
     time_end = 30
-    step_number = 0  # Track simulation steps
-    render_step_size = 1.0 / 60  # 60 FPS rendering
-    render_steps = int(render_step_size / time_step)  # Steps between renders
+    time = 0
+    step_number = 0
+    render_step_size = 1/60  # 60 FPS
+    render_steps = max(1, int(render_step_size / time_step))
 
     realtime_timer = ch.ChRealtimeStepTimer()
     while time < time_end:
-        # Handle visualization events
-        if not vis.Run():
-            break
-        
-        # Advance simulation
         sys.DoStepDynamics(time_step)
         time = sys.GetChTime()
 
-        # Update ROS
         if not ros_manager.Update(time, time_step):
             break
 
-        # Render every render_steps
+        # Conditional rendering
         if step_number % render_steps == 0:
             vis.BeginScene()
             vis.Render()
             vis.EndScene()
-        
-        step_number += 1
+
         realtime_timer.Spin(time_step)
+        step_number += 1
 
 if __name__ == "__main__":
     main()
 ```
-
-Key Changes Made:
-1. **Irrlicht Visualization**:
-   - Added full visualization setup with camera, lights, and skybox
-   - Set window properties (size 1024x768, title)
-   - Camera positioned at (0,3,3) looking at origin
-
-2. **Textures**:
-   - Added concrete texture for floor
-   - Added blue-white cube texture for box
-   - Used `GetChronoDataFile()` for platform-independent paths
-
-3. **Publish Rate**:
-   - Added `publish_rate = 10` variable
-   - Modified all handlers to use this rate
-   - Updated custom handler to accept rate parameter
-
-4. **Rendering Control**:
-   - Added `step_number`, `render_step_size` (1/60s), and `render_steps` variables
-   - Implemented conditional rendering every `render_steps` simulation steps
-   - Added visualization system event handling in main loop
-
-5. **Error Corrections**:
-   - Fixed ROS publisher import (`from rclpy.publisher import Publisher`)
-   - Corrected TF handler initialization (proper rate handling)
-   - Added Irrlicht module import (`pychrono.irrlicht`)
-   - Fixed texture application to visual shapes
-
-The simulation now has proper visualization, runs at 10Hz for ROS publishing, renders at approximately 60 FPS, and includes textured objects with correct physical properties.
