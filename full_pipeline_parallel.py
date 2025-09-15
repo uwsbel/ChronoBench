@@ -217,66 +217,78 @@ MODEL_REGISTRY: Dict[str, Tuple[str, str]] = {
     "gemma-2-9b-it":                 ("nvidia", "google/gemma-2-9b-it"),
     "gemma-2-2b-it":                 ("nvidia", "google/gemma-2-2b-it"),
     "gemma-3-1b-it":                 ("nvidia", "google/gemma-3-1b-it"),
-    "gemma-3-27b-it":                ("nvidia", "google/gemma-3-27b-it"),
-    "llama4_maverick":               ("nvidia", "meta-llama/llama-4-maverick"),
-    "llama4_scout":                  ("nvidia", "meta-llama/llama-4-scout"),
-    "llama-3.3-70b-instruct":        ("nvidia", "meta-llama/llama-3.3-70b-instruct"),
+    "gemma-3-27b-it":                ("nvidia", "nvdev/google/gemma-3-27b-it"),
+    "llama4_maverick":               ("nvidia", "nvdev/meta/llama-4-maverick-17b-128e-instruct"),
+    "llama4_scout":                  ("nvidia", "nvdev/meta/llama-4-scout-17b-16e-instruct"),
+    "llama-3.3-70b-instruct":        ("nvidia", "nvdev/meta/llama-3.3-70b-instruct"),
     "llama-3.1-405b-instruct":       ("nvidia", "meta-llama/llama-3.1-405b-instruct"),
     "llama-3.1-70b-instruct":        ("nvidia", "meta-llama/llama-3.1-70b-instruct"),
     "llama-3.1-8b-instruct":         ("nvidia", "meta-llama/llama-3.1-8b-instruct"),
     "mixtral-8x22b-instruct-v0.1":   ("nvidia", "mistralai/mixtral-8x22b-instruct"),
     "mixtral-8x7b-instruct-v0.1":    ("nvidia", "mistralai/mixtral-8x7b-instruct"),
     "codestral-22b-instruct-v0.1":   ("nvidia", "mistralai/codestral-22b-instruct"),
-    "mistral-nemo-12b-instruct":     ("nvidia", "nvidia/mistral-nemo-12b-instruct"),
+    "mistral-nemo-12b-instruct":     ("nvidia", "nv-mistralai/mistral-nemo-12b-instruct"),
     "mistral-large-latest":          ("nvidia", "mistralai/mistral-large"),
     "mamba-codestral-7b-v0.1":       ("nvidia", "mistralai/mamba-codestral-7b-v0.1"),
-    "deepseek-r1-8b":                ("nvidia", "deepseek-ai/deepseek-r1-distill-8b"),
-    "deepseek-r1-32b":               ("nvidia", "deepseek-ai/deepseek-r1-distill-32b"),
-    "deepseek-r1":                   ("nvidia", "deepseek-ai/deepseek-r1"),
+    "deepseek-r1-8b":                ("nvidia", "deepseek-ai/deepseek-r1-distill-llama-8b"),
+    "deepseek-r1-32b":               ("nvidia", "deepseek-ai/deepseek-r1-distill-qwen-32b"),
+    "deepseek-r1":                   ("nvidia", "deepseek-ai/deepseek-r1-0528"),
     "nemotron-4-340b-instruct":      ("nvidia", "nvidia/nemotron-4-340b-instruct"),
     "phi-3-mini-128k-instruct":      ("nvidia", "microsoft/phi-3-mini-128k-instruct"),
-    "phi-3-medium-128k-instruct":    ("nvidia", "microsoft/phi-3-medium-128k-instruct"),
+    "phi-3-medium-128k-instruct":    ("nvidia", "microsoft/Phi-3-medium-128k-instruct"),
+
+    # Additional models from p_NIM.py
+    "mistral-small-3.1-24b-instruct-2503": ("nvidia", "mistralai/mistral-small-3.1-24b-instruct-2503"),
+    "mistral-medium-3-instruct":     ("nvidia", "mistralai/mistral-medium-3-instruct"),
+    "qwq-32b":                        ("nvidia", "qwen/qwq-32b"),
+    "qwen3-7b-instuct":               ("nvidia", "qwen/qwen2-7b-instruct"),
+    "phi-4-mini-instruct":            ("nvidia", "microsoft/phi-4-mini-instruct"),
 }
 
 # === Student LLMs to be scored by the 3 judge LLMs ===
 ALL_MODELS = [
-    # DeepSeek Models
-    #"deepseek-r1",
+    # DeepSeek Models (3)
+    "deepseek-r1",
     "deepseek-r1-8b",
-    # "deepseek-r1-32b",
-    
-    # # Meta/Llama Models
-    # "llama-3.1-405b-instruct",
-    # "llama-3.1-70b-instruct",
-    # "llama-3.1-8b-instruct",
-    # "llama-3.3-70b-instruct",
-    # "llama4_maverick",
-    # "llama4_scout",
-    
-    # # NVIDIA Models
-    # "nemotron-4-340b-instruct",
-    
-    # # Microsoft Phi Models
-    # "phi-3-mini-128k-instruct",
-    # "phi-3-medium-128k-instruct",
-    
-    # # # Google Gemma Models
-    # "gemma-2-9b-it",
-    # "gemma-2-27b-it",
-    # "gemma-2-2b-it",
-    # "gemma-3-1b-it",
-    # "gemma-3-27b-it",
-    
-    # # Mistral Models
-    # "mistral-nemo-12b-instruct",
-    # "mixtral-8x22b-instruct-v0.1",
-    # "mixtral-8x7b-instruct-v0.1",
-    # "codestral-22b-instruct-v0.1",
-    # "mistral-large-latest",
-    # "mamba-codestral-7b-v0.1",
-    
-    # # Qwen Model
-    # "qwen3-235b-a22b"
+    "deepseek-r1-32b",
+
+    # Meta/Llama Models (6)
+    "llama-3.1-405b-instruct",
+    "llama-3.1-70b-instruct",
+    "llama-3.1-8b-instruct",
+    "llama-3.3-70b-instruct",
+    "llama4_maverick",
+    "llama4_scout",
+
+    # NVIDIA Models (1)
+    "nemotron-4-340b-instruct",
+
+    # Microsoft Phi Models (4)
+    "phi-3-mini-128k-instruct",
+    "phi-3-medium-128k-instruct",
+    "phi-4-mini-instruct",
+
+    # Google Gemma Models (5)
+    "gemma-2-9b-it",
+    "gemma-2-27b-it",
+    "gemma-2-2b-it",
+    "gemma-3-1b-it",
+    "gemma-3-27b-it",
+
+    # Mistral Models (8)
+    "mistral-nemo-12b-instruct",
+    "mixtral-8x22b-instruct-v0.1",
+    "mixtral-8x7b-instruct-v0.1",
+    "codestral-22b-instruct-v0.1",
+    "mistral-large-latest",
+    "mamba-codestral-7b-v0.1",
+    "mistral-small-3.1-24b-instruct-2503",
+    "mistral-medium-3-instruct",
+
+    # Qwen Models (3)
+    "qwen3-235b-a22b",
+    "qwq-32b",
+    "qwen3-7b-instuct",
 ]
 
 # -----------------------------
@@ -655,7 +667,7 @@ def _run_triplet_for_judge(judge_model: str, code: str, ref: str, api_doc: str):
 # -----------------------------
 # 9) Systems list
 # -----------------------------
-SYSTEMS = ["art", "beam", "buckling", "cable", "camera", "citybus", "curiosity", "feda", "gator", "gear", "gps_imu", "handler", "hmmwv", "kraz", "lidar", "m113", "man", "mass_spring_damper", "particles", "pendulum",
+SYSTEMS = ["art", "beam", "buckling", "cable", "car", "camera", "citybus", "curiosity", "feda", "gator", "gear", "gps_imu", "handler", "hmmwv", "kraz", "lidar", "m113", "man", "mass_spring_damper", "particles", "pendulum",
                "rigid_highway", "rigid_multipatches", "rotor", "scm", "scm_hill", "sedan", "sensros", "slider_crank", "tablecloth", "turtlebot", "uazbus", "veh_app","vehros","viper"]
 
 # -----------------------------

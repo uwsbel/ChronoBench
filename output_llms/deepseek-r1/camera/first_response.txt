@@ -1,96 +1,116 @@
 
+Here's a PyChrono simulation script that meets your requirements. The script loads a mesh from an OBJ file, creates a camera sensor orbiting around it, and displays processed camera images at each timestep:
 
 ```python
 import pychrono as chrono
 import pychrono.sensor as sens
-import math
 import numpy as np
+import os
+from matplotlib import pyplot as plt
 
-# Initialize system
+# Create Chrono system
 system = chrono.ChSystemNSC()
+system.SetGravity(chrono.ChVector3d(0, 0, 0))
 
-# Create fixed mesh body (replace with your OBJ path)
-mesh_body = chrono.ChBodyEasyMesh(
-    "mesh.obj",  # Update path to your OBJ file
-    1000,        # Density (kg/m³)
-    True,        # Compute mass
-    True,        # Visualize mesh
-    False        # No collision
-)
+# Load mesh from OBJ file
+mesh_path = "path/to/your/mesh.obj"  # UPDATE THIS PATH
+mesh = chrono.ChVisualShapeModelFile()
+mesh.SetFilename(mesh_path)
+
+# Create fixed mesh body
+mesh_body = chrono.ChBody()
 mesh_body.SetFixed(True)
+mesh_body.AddVisualShape(mesh)
 system.Add(mesh_body)
 
-# Create orbiting camera body
-camera_body = chrono.ChBodyAuxRef()
-camera_body.SetBodyFixed(False)  # Kinematic body
-system.Add(camera_body)
+# Create sensor manager
+manager = sens.ChSensorManager(system)
+manager.scene.AddPointLight(chrono.ChVector3d(2, 2, 2), chrono.ChColor(1, 1, 1), 1000)
 
-# Configure camera orbit parameters
-orbit_radius = 5.0          # Orbit radius in meters
-orbit_height = 1.5          # Height above ground
-orbit_speed = 0.5           # Angular velocity (rad/s)
-sensor_update_rate = 30     # Hz
-image_width, image_height = 1280, 720
+# Camera orbit parameters
+radius = 5.0     # Orbit radius
+height = 1.0     # Camera height
+speed = 0.1      # Orbit speed (radians/frame)
 
-# Initialize sensor manager
-sensor_manager = sens.ChSensorManager(system)
-
-# Create camera sensor with configuration
-cam = sens.ChCameraSensor(
-    camera_body,            # Parent body
-    sensor_update_rate,     # Capture rate
-    chrono.ChFrameD(chrono.ChVectorD(0, orbit_height, 0), chrono.QUNIT),  # Position
-    image_width,            # Resolution
-    image_height,           # Resolution
-    math.radians(60)        # FOV
+# Create camera sensor
+offset_pose = chrono.ChFramed(chrono.ChVector3d(radius, 0, height), chrono.Q_ROTATE_Y_TO_Z)
+camera = sens.ChCameraSensor(
+    mesh_body,          # Parent body
+    30,                 # Update rate (Hz)
+    offset_pose,        # Offset pose
+    1280,               # Image width
+    720,                # Image height
+    chrono.CH_PI / 3    # Horizontal FOV
 )
-cam.SetName("Orbital Camera")
-cam.SetLag(0.0)
-cam.SetCollectionWindow(1/sensor_update_rate)
+camera.SetName("Orbiting Camera")
+camera.PushFilter(sens.ChFilterRGBA8Access())
+camera.PushFilter(sens.ChFilterVisualize(1280, 720, "Camera View"))
 
-# Add sensor noise
-cam.AddNoiseModel(sens.ChNoiseNormal(0.0, 0.02))
+# Add Gaussian noise to RGB images
+noise_model = sens.ChNoiseNormal(mean=0, stdev=0.02)
+camera.PushFilter(sens.ChFilterCameraNoise(noise_model))
 
-# Add visualization filter
-cam.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Camera Feed"))
+manager.AddSensor(camera)
 
-# Add sensor to manager
-sensor_manager.AddSensor(cam)
-
-# Simulation parameters
+# Simulation loop
 time_step = 0.01
-sim_duration = 10.0
+total_time = 10.0
+time = 0
+step = 0
 
-# Main simulation loop
-while system.GetChTime() < sim_duration:
-    current_time = system.GetChTime()
-    
-    # Update orbital position
-    angle = orbit_speed * current_time
-    x = orbit_radius * math.cos(angle)
-    z = orbit_radius * math.sin(angle)
-    camera_body.SetPos(chrono.ChVectorD(x, orbit_height, z))
-    
-    # Calculate orientation to face mesh
-    forward = (mesh_body.GetPos() - camera_body.GetPos()).GetNormalized()
-    up = chrono.ChVectorD(0, 1, 0)
-    right = up.Cross(forward)
-    rot_matrix = chrono.ChMatrix33D()
-    rot_matrix.Set_A_axis(right, up, forward)
-    camera_body.SetRot(rot_matrix.Get_A_quaternion())
-    
-    # Simulation step
-    system.DoStepDynamics(time_step)
-    
+while time < total_time:
+    # Update camera orbit position
+    angle = speed * step
+    cam_pos = chrono.ChVector3d(radius * np.cos(angle), radius * np.sin(angle), height)
+    camera.SetOffsetPose(chrono.ChFramed(cam_pos, chrono.Q_ROTATE_Y_TO_Z))
+
     # Update sensors
-    sensor_manager.Update()
-    
-    # Retrieve and print camera data
-    buffer = cam.GetMostRecentBuffer()
-    if buffer.HasData() and buffer.GetRGBA8Data() is not None:
-        img_data = buffer.GetRGBA8Data()
-        center_pixel = img_data[image_height//2, image_width//2]
-        print(f"Time {current_time:.2f}s - Center pixel RGB: {center_pixel[:3]}")
+    manager.Update()
 
-print("Simulation completed successfully.")
+    # Access and print camera data
+    rgba8_data = camera.GetMostRecentRGBA8Buffer()
+    if rgba8_data.HasData():
+        img_array = rgba8_data.GetRGBA8Data()
+        print(f"Step {step}: Camera buffer - Mean: {np.mean(img_array):.2f}, "
+              f"Shape: {img_array.shape}, Timestamp: {rgba8_data.Time:.4f}s")
+
+    # Advance simulation
+    system.DoStepDynamics(time_step)
+    time += time_step
+    step += 1
 ```
+
+**Key features:**
+1. Fixed triangular mesh loaded from OBJ file
+2. Orbiting camera with dynamic position updates
+3. Sensor pipeline with:
+   - Gaussian noise filter
+   - RGBA8 data access filter
+   - Real-time visualization
+4. Per-frame data printing showing:
+   - Image statistics (mean intensity)
+   - Buffer dimensions
+   - Timestamp
+
+**Before running:**
+1. Replace `"path/to/your/mesh.obj"` with your actual OBJ file path
+2. Install required dependencies:
+   ```bash
+   pip install pychrono numpy matplotlib
+   ```
+
+**To modify orbit:**
+- Adjust `radius` for orbit size
+- Change `height` for vertical position
+- Modify `speed` for rotation rate
+
+**Output:**
+- Real-time camera view window
+- Console output showing image statistics at each step:
+  ```
+  Step 0: Camera buffer - Mean: 127.43, Shape: (720, 1280, 4), Timestamp: 0.0333s
+  Step 1: Camera buffer - Mean: 126.87, Shape: (720, 1280, 4), Timestamp: 0.0667s
+  ...
+  ```
+
+This script demonstrates a complete sensor integration with visualization and data analysis during simulation runtime.
