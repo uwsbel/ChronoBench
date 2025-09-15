@@ -39,35 +39,14 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  
 
 
-circular_radius = 50.0  
-circular_center = chrono.ChVector3d(0, 0, 0.5)  
-path_points = []  
-
-def generateCircularPath():
-    angle = 0
-    while True:
-        x = circular_radius * math.cos(angle)
-        y = circular_radius * math.sin(angle)
-        z = 0.5  
-        point = chrono.ChVector3d(x, y, z)
-        path_points.append(point)
-        angle += 0.1  
-        if angle > 2 * math.pi:
-            break
-
-generateCircularPath()
-
-
-vehicle = veh.HMMWV_Full()  
+vehicle = veh.HMMWV_Full()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
-
 vehicle.Initialize()
-
 
 vehicle.SetChassisVisualizationType(vis_type)
 vehicle.SetSuspensionVisualizationType(vis_type)
@@ -75,14 +54,7 @@ vehicle.SetSteeringVisualizationType(vis_type)
 vehicle.SetWheelVisualizationType(vis_type)
 vehicle.SetTireVisualizationType(vis_type)
 
-
-path_follower = veh.ChPathFollowerVehicleSystem()
-path_follower.SetVehicle(vehicle)
-path_follower.SetPathPoints(path_points)
-path_follower.SetPathIndex(0)  
-path_follower.SetMaxSteeringAngle(1.0)
-path_follower.SetMaxSpeed(5.0)  
-path_follower.Initialize()
+vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
 patch_mat = chrono.ChContactMaterialNSC()
@@ -106,28 +78,26 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 
-start_point = path_points[0]
-end_point = path_points[-1]
-start_sphere = vis.AddSphere(start_point, 0.5, chrono.ChColor(0, 1, 0))
-end_sphere = vis.AddSphere(end_point, 0.5, chrono.ChColor(1, 0, 0))
+path_radius = 50.0  
+path = veh.ChPath()
+path.SetRadius(path_radius)
+path.SetFrequency(1)  
+path.Initialize()
+path_follower = veh.ChPathFollower(path, vehicle.GetVehicle())
+path_follower.Initialize()
 
 
-path_follower_controller = veh.ChPathFollowerPIDController()
-path_follower_controller.SetProportionalGain(0.1)
-path_follower_controller.SetIntegralGain(0.1)
-path_follower_controller.SetDerivativeGain(0.05)
-path_follower_controller.Initialize()
+start_point = chrono.ChVector3d(path_radius, 0, 0)
+end_point = chrono.ChVector3d(-path_radius, 0, 0)
+start_sphere = chrono.ChSphere(start_point, 0.5, 1, 1, 1, 1.0)
+end_sphere = chrono.ChSphere(end_point, 0.5, 1, 1, 1, 1.0)
 
 
 driver = None  
 
 
-steering_time = 1.0  
-throttle_time = 1.0  
-braking_time = 0.3   
-
-
-print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
+vis.AddSphere(start_sphere)
+vis.AddSphere(end_sphere)
 
 
 render_steps = math.ceil(render_step_size / step_size)
@@ -151,28 +121,18 @@ while vis.Run():
     vehicle.Synchronize(time)
     terrain.Synchronize(time)
     path_follower.Synchronize(time)
-    vis.Synchronize(time)
 
     
-    driver.Advance(step_size)  
-    terrain.Advance(step_size)
     vehicle.Advance(step_size)
+    terrain.Advance(step_size)
     path_follower.Advance(step_size)
 
     
-    current_pos = vehicle.GetVehicle().GetPosition()
-    current_angle = path_follower.GetCurrentAngle()
-
-    
-    
-    
-
-    
-    steering_angle = path_follower_controller.GetSteeringAngle(current_pos, current_angle)
-    steering_delta = steering_angle * (render_step_size / 2)  
-
-    
-    vehicle.GetVehicle().SetSteering(steering_delta)
+    current_pos = path_follower.GetVehiclePosition()
+    current_pos_x = current_pos[0]
+    current_pos_y = current_pos[1]
+    vis.SetSpherePosition(start_sphere, current_pos_x, current_pos_y)
+    vis.SetSpherePosition(end_sphere, current_pos_x, current_pos_y)
 
     
     step_number += 1

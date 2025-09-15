@@ -1,106 +1,75 @@
 import PyChrono as pc
-import PyIrrlicht as ir
-import math
-import time
+from PyChrono.Vehicle import Vehicle
+from PyChrono.Terrain import RigidTerrain
+from PyChrono.Input import Input
+from PyChrono.Visualization import Visualization
 
-# Initialize PyChrono and Irrlicht
-pc.init()
-ir.init()
-
-# Create simulation and scene
+# Initialize PyChrono components
 simulation = pc.Simulation()
-scene = simulation.scene
+renderer = pc.Renderer()
+vehicle = Vehicle("citybus")
+terrain = RigidTerrain()
+input_handler = Input()
+visualization = Visualization()
 
-# Create vehicle
-vehicle = pc.RigidVehicle2D()
-vehicle.name = "CityBus"
-vehicle.position = [0, 0, 0]
-vehicle.orientation = 0
-vehicle.tire_model = pc.Tire2DModel()  # Simple tire model
+# Initialize vehicle
+vehicle.set_position(pc.Vec3(0, 0, 0))
+vehicle.set_orientation(pc.Vec3(1, 0, 0))  # Face along positive x-axis
+vehicle.set_tire_model(pc.TireModel.GLOBAL)
 
-# Add vehicle mesh
-mesh = pc.Mesh()
-mesh.type = pc.MeshType.Mesh
-# Use a box or a more detailed model for the bus
-# This is a simplified example
-mesh.vertices = [
-    [-1, -1, 0],
-    [1, -1, 0],
-    [1, 1, 0],
-    [-1, 1, 0],
-    [0, 0, 1],
-    [0, 0, -1]
-]
-mesh.material = pc.Material()
-mesh.material.diffuse = [1, 1, 1]
-scene.add_object(mesh)
+# Add tires
+tire1 = vehicle.add_component(pc.ComponentType.TIRE, pc.Vec3(1.5, 0.5, 0))
+tire2 = vehicle.add_component(pc.ComponentType.TIRE, pc.Vec3(-1.5, 0.5, 0))
+tire3 = vehicle.add_component(pc.ComponentType.TIRE, pc.Vec3(-1.5, -0.5, 0))
+tire4 = vehicle.add_component(pc.ComponentType.TIRE, pc.Vec3(1.5, -0.5, 0))
 
-# Set up wheels and tires
-wheel_positions = [[1, 0], [-1, 0], [0, 1], [0, -1]]
-tires = []
-for pos in wheel_positions:
-    tire = pc.Tire2D()
-    tire.position = pos
-    tire.tire_model = pc.Tire2DModel()
-    tires.append(tire)
-for tire in tires:
-    scene.add_object(tire)
+# Initialize terrain
+terrain.set_texture(pc.Texture("asphalt.jpg"))
+terrain.set_position(pc.Vec3(0, 0, 0))
 
-# Create rigid terrain
-terrain = pc.RigidTerrain()
-terrain.type = pc.TerrainType.Plane
-terrain.position = [0, 0, 0]
-terrain.rotation = 0
-terrain.material = pc.Material()
-terrain.material.diffuse = [0.8, 0.2, 0.2]  # Road texture
-scene.add_object(terrain)
+# Setup camera and visualization
+renderer.set_camera_position(pc.Vec3(5, 5, 5))
+renderer.set_camera_target(vehicle.get_position())
+renderer.set_auto_cam(True)
+renderer.set VisualizationType(pc.VisualizationType.MIXED)  # Mix of mesh and primitives
+renderer.set_render_size(pc.RenderSize(800, 600))
 
-# Set up camera
-camera = pc.Camera()
-camera.position = [0, 5, 5]
-camera.look_at = [0, 0, 0]
-camera fov = 45
-scene.add_object(camera)
+# Setup simulation
+simulation.set_step_size(0.02)  # 50 FPS
+simulation.set_update_mode(pc.UpdateMode.CONTINUOUS)
 
-# Driver input handling
-def handle_input():
-    speed = 0
-    steering = 0
-    if pc.Input.is_pressed(pc.Input.Key.Key_D):
-        speed = 0.1
-    elif pc.Input.is_pressed(pc.Input.Key.Key_A):
-        speed = -0.1
-    if pc.Input.is_pressed(pc.Input.Key.Key_W):
-        steering = 0.1
-    elif pc.Input.is_pressed(pc.Input.Key.Key_S):
-        steering = -0.1
-    return speed, steering
+# Setup input handling
+input_handler.set_mouse_mode(pc.InputMode.FOLLOW)
+input_handler.set_keyboard_map({
+    pc.KeyboardKey.W: (0, 1),  # Accelerate
+    pc.KeyboardKey.S: (0, -1),  # Brake
+    pc.KeyboardKey.A: (1, 0),  # Left steering
+    pc.KeyboardKey.D: (-1, 0)  # Right steering
+})
+
+# Initialize vehicle dynamics
+vehicle.set_dynamics_enabled(True)
+vehicle.set_mass(1000)
 
 # Simulation loop
-target_fps = 50
-step = 1.0 / target_fps
-simulation.step = step
-
 while True:
-    # Update vehicle dynamics
-    speed, steering = handle_input()
-    vehicle.velocity = [speed, 0]
-    vehicle.angle = -steering * 0.1  # Simple steering model
-
-    # Update camera position
-    camera.position = [camera.position.x + speed * 10, camera.position.y]
-    camera.look_at = [0, 0, 0]
-
-    # Render the scene
-    scene.clear()
-    scene.add_light()
-    scene.add_object(terrain)
-    scene.add_object(vehicle)
-    scene.add_object(camera)
-    ir.update()
-
-    # Control simulation speed
-    time.sleep(step)
-
-# Exit the simulation when the window is closed
-pc.close()
+    # Update simulation
+    simulation.update()
+    
+    # Get input
+    input_data = input_handler.get_input()
+    
+    # Control vehicle
+    if input_data.left > 0:
+        vehicle.set_steering_angle(pc.Vec3(-0.1, 0, 0))
+    if input_data.right > 0:
+        vehicle.set_steering_angle(pc.Vec3(0.1, 0, 0))
+    if input_data.accelerate > 0:
+        vehicle.set_speed(pc.Vec3(0.1, 0, 0))
+    if input_data.brake > 0:
+        vehicle.set_speed(pc.Vec3(-0.1, 0, 0))
+    
+    # Render
+    renderer.begin_frame()
+    visualization.render()
+    renderer.end_frame()

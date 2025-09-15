@@ -137,21 +137,6 @@ cam.SetName("Third Person POV")
 cam.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Gator Camera"))
 manager.AddSensor(cam)
 
-# Create Depth Camera
-depth_cam_offset = chrono.ChFramed(chrono.ChVector3d(-5.0, 0, 2), chrono.ChQuaterniond(1, 0, 0, 0))
-depth_cam = sens.ChDepthCameraSensor(
-    gator.GetChassisBody(),
-    update_rate,
-    depth_cam_offset,
-    image_width,
-    image_height,
-    fov,
-    30.0  # Maximum depth
-)
-depth_cam.SetName("Depth Camera")
-depth_cam.PushFilter(sens.ChFilterDepthMapVisualize(image_width, image_height, "Depth Map"))
-manager.AddSensor(depth_cam)
-
 # create lidar sensor
 offset_pose = chrono.ChFramed(
         chrono.ChVector3d(0.0, 0, 2), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
@@ -185,15 +170,29 @@ lidar.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "Lidar Point Cl
 # Add the lidar to the sensor manager
 manager.AddSensor(lidar)
 
-# Initialize logging
-log_file = open("vehicle_state.csv", "w", newline='')
-csv_writer = csv.writer(log_file)
-csv_writer.writerow(["Time", "X", "Y", "Z", "Heading"])
+# Add Depth Camera
+depth_cam_offset = chrono.ChFramed(chrono.ChVector3d(-5.0, 0, 2), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0)))
+depth_cam = sens.ChDepthCameraSensor(
+    gator.GetChassisBody(),
+    update_rate,
+    depth_cam_offset,
+    image_width,
+    image_height,
+    fov,
+    30.0  # Maximum depth
+)
+depth_cam.SetName("Depth Camera")
+depth_cam.PushFilter(sens.ChFilterVisualizeDepthMap(image_width, image_height, "Depth Map"))
+manager.AddSensor(depth_cam)
+
+# Initialize CSV for vehicle state logging
+csv_file = open("vehicle_state.csv", mode='w', newline='')
+csv_writer = csv.writer(csv_file)
+csv_writer.writerow(['Time', 'X', 'Y', 'Z', 'Heading'])
 
 # ---------------
 # Simulation loop
 # ---------------
-
 
 realtime_timer = chrono.ChRealtimeStepTimer()
 time = 0
@@ -214,11 +213,11 @@ while time < end_time:
     manager.Update()
 
     # Log vehicle state
-    chassis = gator.GetChassisBody()
-    pos = chassis.GetPos()
-    rot = chassis.GetRot()
-    euler = rot.GetEuler()
-    csv_writer.writerow([time, pos.x, pos.y, pos.z, euler.z])
+    pos = gator.GetChassisBody().GetPos()
+    rot = gator.GetChassisBody().GetRot()
+    mat = rot.Q_to_mat33()
+    heading = math.atan2(mat[1][0], mat[0][0])
+    csv_writer.writerow([time, pos.x, pos.y, pos.z, heading])
 
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)
@@ -228,5 +227,5 @@ while time < end_time:
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
 
-# Close log file
-log_file.close()
+# Close CSV file
+csv_file.close()

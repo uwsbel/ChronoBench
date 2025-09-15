@@ -138,21 +138,6 @@ cam.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Gator Camera")
 manager.AddSensor(cam)
 
 
-depth_cam_offset = chrono.ChFramed(chrono.ChVector3d(-5.0, 0, 2), chrono.ChQuaterniond(1, 0, 0, 0))
-depth_cam = sens.ChDepthCameraSensor(
-    gator.GetChassisBody(),
-    update_rate,
-    depth_cam_offset,
-    image_width,
-    image_height,
-    fov,
-    30.0  
-)
-depth_cam.SetName("Depth Camera")
-depth_cam.PushFilter(sens.ChFilterDepthMapVisualize(image_width, image_height, "Depth Map"))
-manager.AddSensor(depth_cam)
-
-
 offset_pose = chrono.ChFramed(
         chrono.ChVector3d(0.0, 0, 2), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
     )
@@ -186,10 +171,24 @@ lidar.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "Lidar Point Cl
 manager.AddSensor(lidar)
 
 
-log_file = open("vehicle_state.csv", "w", newline='')
-csv_writer = csv.writer(log_file)
-csv_writer.writerow(["Time", "X", "Y", "Z", "Heading"])
+depth_cam_offset = chrono.ChFramed(chrono.ChVector3d(-5.0, 0, 2), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0)))
+depth_cam = sens.ChDepthCameraSensor(
+    gator.GetChassisBody(),
+    update_rate,
+    depth_cam_offset,
+    image_width,
+    image_height,
+    fov,
+    30.0  
+)
+depth_cam.SetName("Depth Camera")
+depth_cam.PushFilter(sens.ChFilterVisualizeDepthMap(image_width, image_height, "Depth Map"))
+manager.AddSensor(depth_cam)
 
+
+csv_file = open("vehicle_state.csv", mode='w', newline='')
+csv_writer = csv.writer(csv_file)
+csv_writer.writerow(['Time', 'X', 'Y', 'Z', 'Heading'])
 
 
 
@@ -214,11 +213,11 @@ while time < end_time:
     manager.Update()
 
     
-    chassis = gator.GetChassisBody()
-    pos = chassis.GetPos()
-    rot = chassis.GetRot()
-    euler = rot.GetEuler()
-    csv_writer.writerow([time, pos.x, pos.y, pos.z, euler.z])
+    pos = gator.GetChassisBody().GetPos()
+    rot = gator.GetChassisBody().GetRot()
+    mat = rot.Q_to_mat33()
+    heading = math.atan2(mat[1][0], mat[0][0])
+    csv_writer.writerow([time, pos.x, pos.y, pos.z, heading])
 
     
     driver.Advance(step_size)
@@ -229,4 +228,4 @@ while time < end_time:
     realtime_timer.Spin(step_size)
 
 
-log_file.close()
+csv_file.close()

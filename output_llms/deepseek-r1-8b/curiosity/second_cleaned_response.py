@@ -14,11 +14,18 @@ chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
 
 
 ground_mat = chrono.ChContactMaterialNSC()
-ground = chrono.ChBodyEasyBox(50, 20, 1, 1000, True, True, ground_mat)
-ground.SetPos(chrono.ChVector3d(-5, 0, -0.5))  
+ground = chrono.ChBodyEasyBox(20, 20, 1, 1000, True, True, ground_mat)
+ground.SetPos(chrono.ChVector3d(0, 0, -0.5))  
 ground.SetFixed(True)  
 ground.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
 system.Add(ground)
+
+
+obstacle = chrono.ChBoxNSC(5, 1, 1)
+obstacle.SetPos(chrono.ChVector3d(0, 0, 0))
+obstacle.SetFixed(True)
+obstacle.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
+system.Add(obstacle)
 
 
 rover = robot.Curiosity(system)

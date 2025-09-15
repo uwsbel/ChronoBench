@@ -71,14 +71,14 @@ patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 
-box = chrono.ChBodyEasyBox(20.0, 2.0, 0.5,  
-                           1000,  
-                           True,  
-                           True,  
-                           patch_mat)  
-box.SetPos(chrono.ChVector3d(20.0, 0, 0.25))  
-box.SetBodyFixed(True)
-box.SetColor(chrono.ChColor(0.5, 0.3, 0.2))
+box_mat = chrono.ChContactMaterialSMC()
+box_mat.SetFriction(0.9)
+box_mat.SetRestitution(0.01)
+
+box = chrono.ChBodyEasyBox(15, 1.0, 1.0, 2000, True, True, box_mat)  
+box.SetPos(chrono.ChVector3d(10, 0, 0.5))  
+box.SetFixed(True)
+box.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/blue.png"))
 vehicle.GetSystem().Add(box)
 
 
@@ -96,28 +96,32 @@ vis.AttachVehicle(vehicle.GetVehicle())
 driver = veh.ChInteractiveDriverIRR(vis)
 
 
-steering_time = 1.0
-throttle_time = 1.0
-braking_time = 0.3
+steering_time = 1.0  
+throttle_time = 1.0  
+braking_time = 0.3   
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
+
 driver.Initialize()
 
 
 vehicle.GetSystem().SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
 
-print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
+
+print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+
 
 render_steps = math.ceil(render_step_size / step_size)
+
+
 step_number = 0
 render_frame = 0
 vehicle.GetVehicle().EnableRealtime(True)
-
-while vis.Run():
+while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
     
-    if (step_number % render_steps == 0):
+    if (step_number % render_steps == 0) :
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
@@ -125,14 +129,15 @@ while vis.Run():
 
     
     driver_inputs = driver.GetInputs()
-    driver_inputs.throttle = 0.8  
+    
+    
+    driver_inputs.m_throttle = 0.8  
     
     
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs)
     vis.Synchronize(time, driver_inputs)
-    
     
     driver.Advance(step_size)
     terrain.Advance(step_size)

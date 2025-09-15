@@ -22,17 +22,17 @@ chassis_collision_type = veh.CollisionType_NONE
 # Type of tire model (RIGID, TMEASY)
 tire_model = veh.TireModelType_RIGID
 
-# Rigid terrain parameters
-terrainHeight = 0.5  # terrain height
+# Rigid terrain
+terrain_model = veh.RigidTerrain.Box
+terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
-terrainResolution = 40  # mesh resolution
 
 # Poon chassis tracked by the camera
 trackPoint = chrono.ChVector3d(0.0, 0.0, 1.71)
 
 # Contact method
-contact_method = chrono.ChContactMethod_NS
+contact_method = chrono.ChContactMethod_NSC
 contact_vis = False
 
 # Simulation step sizes
@@ -62,15 +62,16 @@ vehicle.SetTireVisualizationType(vis_type)
 
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
-# Create the single rigid terrain patch
-terrain = veh.RigidTerrain()
-terrain.SetHeightMap(veh.GetDataFile("terrain/height_maps/bump64.bmp"), terrainHeight)
-terrain.SetSize(terrainLength, terrainWidth)
-terrain.SetMeshResolution(terrainResolution)
-terrain.Initialize()
+# Create the rigid terrain
+terrain = veh.RigidTerrain.Box(vehicle.GetSystem())
+terrain.SetHeightMap(veh.GetDataFile("terrain/height_maps/bump64.bmp"), terrainHeight, terrainLength, terrainWidth)
+terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), terrainLength, terrainWidth)
 
-# Set texture for the terrain
-terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"))
+# Remove moving patch feature
+terrain.AddMovingPatch = False
+
+# Initialize the rigid terrain
+terrain.Initialize()
 
 # Create the vehicle Irrlicht interface
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()

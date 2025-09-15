@@ -58,14 +58,11 @@ vehicle.SetTireVisualizationType(vis_type)
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
-
-ground_mat = chrono.ChContactMaterialNSC()
-ground_mat.SetFriction(0.5)
-ground_mat.SetRestitution(0.3)
-
-
+patch_mat = chrono.ChContactMaterialNSC()
+patch_mat.SetFriction(0.9)
+patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-patch = terrain.AddPatch(ground_mat, 
+patch = terrain.AddPatch(patch_mat, 
     chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
     terrainLength, terrainWidth)
 
@@ -84,29 +81,19 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 
 
-sensor_manager = veh.ChSensorManager(vis)
-sensor_manager.Enable()  
+light = chrono.ChLightDirectional()
+light.SetPosition(chrono.ChVector3d(5, 5, 5))
+light.SetIntensity(1.5)
+vis.AddLight(light)
 
 
-light1 = vis.AddLightDirectional()
-light1.SetPosition(chrono.ChVector3d(5, 5, 5))
-light1.SetIntensity(1.5)
-
-light2 = vis.AddLightDirectional()
-light2.SetPosition(chrono.ChVector3d(-5, 5, 5))
-light2.SetIntensity(1.5)
-
-light3 = vis.AddLightPoint()
-light3.SetPosition(chrono.ChVector3d(0, 0, 5))
-light3.SetIntensity(0.5)
-
-
-camera_sensor = veh.ChCameraSensor(sensor_manager, 1920, 1080)  
-camera_sensor.SetFOV(60.0)  
-camera_sensor.SetAttachPoint(chrono.ChVector3d(0, 0, 0.5))  
-camera_sensor.SetFilter(veh.ChSensorVisualizationFilter())  
-sensor_manager.AddSensor(camera_sensor)
-sensor_manager.AttachSensor(camera_sensor, "chassis")
+sensor_manager = vehicle.GetSystem().CreateSensorManager()
+sensor_manager.AddCameraSensor(
+    chrono.ChCameraSensor(
+        chrono.ChVector3d(0, 0, 0),  
+        2048, 2048, 16, 90.0  
+    )
+)
 
 
 driver = veh.ChInteractiveDriverIRR(vis)
@@ -165,4 +152,4 @@ while vis.Run():
 
     
     sensor_manager.Update()
-    camera_sensor.Update()
+    vis.AddCameraSensor()

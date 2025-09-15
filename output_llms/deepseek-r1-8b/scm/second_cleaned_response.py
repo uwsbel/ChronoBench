@@ -40,6 +40,49 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  
 
 
+class SCMTerrainParams:
+    def __init__(self, config="soft"):
+        self.config = config
+        self.soilKphi = 2e6
+        self.soilKc = 0
+        self.nExponent = 1.1
+        self.mohrCohesiveLimit = 0
+        self.mohrFrictionLimit = 30
+        self.janosiShearCoefficient = 0.01
+        self.elasticStiffness = 2e8
+        self.damping = 3e4
+
+    def Initialize(self):
+        if self.config == "soft":
+            self.soilKphi = 2e6
+            self.soilKc = 0
+            self.nExponent = 1.1
+            self.mohrCohesiveLimit = 0
+            self.mohrFrictionLimit = 30
+            self.janosiShearCoefficient = 0.01
+            self.elasticStiffness = 2e8
+            self.damping = 3e4
+        elif self.config == "mid":
+            self.soilKphi = 5e6
+            self.soilKc = 1e6
+            self.nExponent = 1.2
+            self.mohrCohesiveLimit = 10
+            self.mohrFrictionLimit = 35
+            self.janosiShearCoefficient = 0.02
+            self.elasticStiffness = 4e8
+            self.damping = 5e4
+        elif self.config == "hard":
+            self.soilKphi = 1e7
+            self.soilKc = 2e6
+            self.nExponent = 1.3
+            self.mohrCohesiveLimit = 20
+            self.mohrFrictionLimit = 40
+            self.janosiShearCoefficient = 0.03
+            self.elasticStiffness = 5e8
+            self.damping = 7e4
+
+terrainParams = SCMTerrainParams("mid")
+
 
 vehicle = veh.HMMWV_Full()  
 vehicle.SetContactMethod(contact_method)
@@ -51,81 +94,22 @@ vehicle.SetTireStepSize(tire_step_size)
 
 vehicle.Initialize()
 
-vehicle.SetChassisVisualizationType(vis_type)
-vehicle.SetSuspensionVisualizationType(vis_type)
-vehicle.SetSteeringVisualizationType(vis_type)
-vehicle.SetWheelVisualizationType(vis_type)
-vehicle.SetTireVisualizationType(vis_type)
-
-vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
-
 
 terrain = veh.SCMTerrain(vehicle.GetSystem())
-
-
-class SCM_Terrain_Params:
-    def __init__(self):
-        self.Bekker_Kphi = 2e6  
-        self.Bekker_Kc = 0
-        self.Bekker_n = 1.1
-        self.Mohr_cohesive_limit = 0
-        self.Mohr_friction_limit = 30  
-        self.Janosi_shear_coefficient = 0.01
-        self.Elastic_stiffness = 2e8
-        self.Damping = 3e4
-
-    def SetParameters(self, Bekker_Kphi, Bekker_Kc, Bekker_n, Mohr_cohesive_limit, Mohr_friction_limit, Janosi_shear_coefficient, Elastic_stiffness, Damping):
-        self.Bekker_Kphi = Bekker_Kphi
-        self.Bekker_Kc = Bekker_Kc
-        self.Bekker_n = Bekker_n
-        self.Mohr_cohesive_limit = Mohr_cohesive_limit
-        self.Mohr_friction_limit = Mohr_friction_limit
-        self.Janosi_shear_coefficient = Janosi_shear_coefficient
-        self.Elastic_stiffness = Elastic_stiffness
-        self.Damping = Damping
-
-    @property
-    def GetBekker_Kphi(self):
-        return self.Bekker_Kphi
-
-    @property
-    def GetBekker_Kc(self):
-        return self.Bekker_Kc
-
-    
-
-
-terrain_params = SCM_Terrain_Params()
-terrain_params.SetParameters(
-    terrainHeight,  
-    0,            
-    1.1,          
-    0,            
-    30,           
-    0.01,         
-    2e8,          
-    3e4           
-)
 terrain.SetSoilParameters(
-    terrain_params.GetBekker_Kphi,
-    terrain_params.GetBekker_Kc,
-    terrain_params.GetBekker_n,
-    terrain_params.GetMohr_cohesive_limit,
-    terrain_params.GetMohr_friction_limit,
-    terrain_params.GetJanosi_shear_coefficient,
-    terrain_params.GetElastic_stiffness,
-    terrain_params.GetDamping
+    terrainParams.soilKphi,
+    terrainParams.soilKc,
+    terrainParams.nExponent,
+    terrainParams.mohrCohesiveLimit,
+    terrainParams.mohrFrictionLimit,
+    terrainParams.janosiShearCoefficient,
+    terrainParams.elasticStiffness,
+    terrainParams.damping
 )
-
 
 terrain.AddMovingPatch(vehicle.GetChassisBody(), chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(5, 3, 1))
 
-
-terrain.SetPlotType(veh.SCMTerrain.PLOT_SINKAGE, 0, 0.1)
-
-
 terrain.Initialize(20, 20, 0.02)
-
 
 
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
@@ -189,6 +173,7 @@ while vis.Run():
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
+    vis.Advance(step_size)
 
     
     step_number += 1

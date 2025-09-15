@@ -4,9 +4,11 @@ import pychrono.ros as chros
 import rclpy.publisher
 from std_msgs.msg import String
 
-# Define a custom ROS handler for publishing string messages.
+# Define a custom ROS handler for publishing integer messages.
 class MyCustomHandler(chros.ChROSHandler):
     """This custom handler will publish string messages to a specified ROS topic."""
+
+    message = "Hello, world! At time: "  # Added attribute as per instructions
 
     def __init__(self, topic):
         super().__init__(1)  # Initialize the handler with a 1 Hz publishing rate.
@@ -14,7 +16,6 @@ class MyCustomHandler(chros.ChROSHandler):
         self.topic = topic
         self.publisher: rclpy.publisher.Publisher = None
         self.ticker = 0  # Initialize a counter for published messages.
-        self.message = "Hello, world! At time: "  # Set the default message string.
 
     def Initialize(self, interface: chros.ChROSPythonInterface) -> bool:
         """Initialize the ROS publisher."""
@@ -25,9 +26,9 @@ class MyCustomHandler(chros.ChROSHandler):
 
     def Tick(self, time: float):
         """Publish a string message to the ROS topic."""
-        print(f"Publishing {self.ticker} ...")
+        print(f"Publishing {self.message + str(self.ticker)} ...")
         msg = String()  # Create a message object of type String.
-        msg.data = f"{self.message}{self.ticker}"  # Set the message data to the current ticker value.
+        msg.data = self.message + str(self.ticker)  # Set the message data to the current ticker value.
         self.publisher.publish(msg)  # Publish the message to the ROS topic.
         self.ticker += 1  # Increment the ticker for the next message.
 

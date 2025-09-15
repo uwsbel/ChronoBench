@@ -1,109 +1,73 @@
-import pychrono as pychrono
-import pychrono.vehicles as vehicles
-import pychrono.input as input
-import pychrono.render as render
+import pychrono as pyc
+import pychrono.trajectory as pt
+import pychrono.gpu as pg
+import pychrono.viewer.irrviewer as pyciv
 
 
-pychrono.init()
+sim = pyc.Simulation()
+sim.set_gpu_mode('CPU')
 
 
-scene = pychrono.Scene()
-scene.set_renderer(render.Irrlicht())
+vehicle = pyc.Vehicle()
+vehicle.set_name('HMMWV')
+vehicle.set_tire_model('TMEASY')
+vehicle.set_contact_method('vessel')
+vehicle.set_initial_position(pyc.Vector3(0, 0, 0))
+vehicle.set_initial_orientation(pyc.Vector3(0, 0, 0))
+sim.add_vehicle(vehicle)
 
 
-ground = pychrono.objects.Plane()
-ground.set_material(pychrono.materials.Material(
-    color=[1, 1, 1],
-    double_sided=False,
-    texture="ground/ground_diffuse.tga",
-    texture_normal="ground/ground_normal.tga"
-))
-scene.add_object(ground)
+terrain = pyc.Terrain()
+terrain.set_ground_type('ground')
+terrain.set_collision_mesh('Highway_col.obj')
+terrain.set_visual_mesh('Highway_vis.obj')
+sim.add_terrain(terrain)
 
 
-hmmwv = vehicles.HMMWV()
-hmmwv.set_name("HMMWV")
-hmmwv.set_contact_method(pychrono Contact)
-hmmwv.set_tire_model("TMEASY")
-hmmwv.set_position(pychrono.Vector3(
-    x=0,
-    y=0,
-    z=0
-))
-hmmwv.set_orientation(pychrono.Vector3(
-    x=1,
-    y=0,
-    z=0
-))
-scene.add_object(hmmwv)
+renderer = pyciv.IrrViewer()
+renderer.set_camera_position(pyc.Vector3(10, 10, 10))
+renderer.set_camera_rotation(pyc.Vector3(0, 0, 0))
+renderer.set_render_window_size(1024, 768)
+sim.add_viewer(renderer)
 
 
-terrain_col = pychrono.objects.Mesh()
-terrain_col.load("Highway_col.obj")
-terrain_vis = pychrono.objects.Mesh()
-terrain_vis.load("Highway_vis.obj")
-scene.add_object(terrain_col)
-scene.add_object(terrain_vis)
+sim.set_simulation_timestep(1 / 50)
+sim.set_maximum_number_of_steps(100000)
+sim.set_physics_timestep(1 / 1000)
+sim.set_render_timestep(1 / 50)
 
 
-driver = pychrono.input.Driver()
-driver.set_max_steering_angle(1.0)
-driver.set_max_throttle(1.0)
-driver.set_max_braking_force(1.0)
+input_handler = pyc.InputHandler()
+input_handler.add_axis('steering', 0, 1, pyc.InputAxisType.XM)
+input_handler.add_axis('throttle', 0, 1, pyc.InputAxisType.Z)
+input_handler.add_axis('braking', 0, -1, pyc.InputAxisType.Z)
 
 
-hmmwv.set_damping(pychrono.Vector3(
-    x=0.1,
-    y=0.1,
-    z=0.1
-))
+vehicle.set_steering_input(input_handler.get_axis('steering'))
+vehicle.set_throttle_input(input_handler.get_axis('throttle'))
+vehicle.set_braking_input(input_handler.get_axis('braking'))
 
 
-simulation_frequency = 50  
-sim_loop = pychrono.SimLoop()
-sim_loop.set_frequency(simulation_frequency)
+def simulation_loop():
+    global sim, renderer, vehicle, input_handler
 
-
-def vehicle_update():
     
-    steer = driver.get_steering()
-    accel = driver.get_throttle()
-    brake = driver.get_brake()
+    sim.update()
+    vehicle.update()
+
     
+    renderer.set_camera_position(sim.get_viewer_camera_position())
+
     
-    if brake > 0.0:
-        hmmwv.set_force(pychrono.Vector3(
-            x=0,
-            y=0,
-            z=-brake*1000  
-        ))
-    if accel > 0.0:
-        hmmwv.set_force(pychrono.Vector3(
-            x=accel*1000,
-            y=0,
-            z=0
-        ))
+    input_handler.update()
+    vehicle.set_steering_input(input_handler.get_axis('steering'))
+    vehicle.set_throttle_input(input_handler.get_axis('throttle'))
+    vehicle.set_braking_input(input_handler.get_axis('braking'))
+
     
-    
-    if steer > 0.0:
-        hmmwv.set_yaw(pychrono.YAW_LEFT)
-    elif steer < 0.0:
-        hmmwv.set_yaw(pychrono.YAW_RIGHT)
+    renderer.render()
+
+simulation_loop()
 
 
-hmmwv.set_visible(True)
-hmmwv.set_mesh("vehicle/HMMWV_mesh.obj")
-
-
-sim_loop.start()
-render.begin()
-while True:
-    
-    vehicle_update()
-    
-    
-    scene.update()
-    render.draw()
-    
-    
-    pychrono.sleep(1/simulation_frequency)
+sim.start()

@@ -3,62 +3,73 @@ import chronoirr
 
 # Initialize the Chrono system
 system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Gravity
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
 
 # Create Irrlicht application
 application = chronoirr.ChIrrApp(system, "Simple Pendulum", chronoirr.dimension2du(800, 600))
-application.AddTypicalIrrlichtLogo()
+application.AddTypicalSky()
 application.AddTypicalLights()
-application.SetCameraPosition(chrono.ChVectorD(0, 3, 3))
-application.SetCameraLookAt(chrono.ChVectorD(0, 0, 0))
+application.SetCameraPosition(chrono.ChVectorD(0, 3, 5))
+application.SetCameraRotation(chrono.ChVectorD(0, -45, 0))
 
 # Create ground body
 ground = chrono.ChBody()
 ground.SetMass(0)  # Static body
 ground.SetPos(chrono.ChVectorD(0, 0, 0))
-ground.GetCollisionModel().AddBox(chrono.ChCollisionModel.BoxData(4, 1, 4))
-ground.GetMaterialSurface().SetFriction(0.5)
-system.AddBody(ground)
+ground.GetCollisionModel().AddBox(chrono.ChCollisionModel(), chrono.ChVectorD(5, 1, 5))
+ground.GetMaterialSurface().Set_texture(chrono.GetChronoDataFile("textures/grass.jpg"))
+application.GetSystem().AddBody(ground)
 
 # Create pendulum body
 pendulum = chrono.ChBody()
-pendulum.SetMass(1)  # Mass of 1 kg
-pendulum.SetInertiaXX(chrono.ChVectorD(0.2, 0.2, 0.2))  # Inertia tensor for a sphere
-pendulum.SetPos(chrono.ChVectorD(0, 1, 0))  # Start position above ground
-
-# Add collision and visualization shapes
-pendulum.GetCollisionModel().AddCylinder(chrono.ChCollisionModel.CylinderData(0.1, 0.2))
-pendulum.GetVisualShape().AddCylinder(chrono.ChColor(0.8, 0, 0), 0.1, 0.2)
-
-system.AddBody(pendulum)
+pendulum.SetMass(1)  # Mass in kg
+pendulum.SetInertiaXX(chrono.ChVectorD(0.01, 0.01, 0.01))  # Inertia tensor
+pendulum.SetPos(chrono.ChVectorD(0, 2, 0))  # Initial position
 
 # Create revolute joint between ground and pendulum
-joint = chrono.ChLinkRevolute()
-joint.Initialize(ground, pendulum, chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(1, 0, 0)))
-system.AddLink(joint)
+revolute = chrono.ChLinkRevolute()
+revolute.Initialize(ground, pendulum, chrono.ChCoordsysD(
+    chrono.ChVectorD(0, 0, 0),
+    chrono.ChMatrix33D(chrono.ChQuaternionD(1, 0, 0, 0))
+))
+revolute.SetPivot(chrono.ChVectorD(0, 0, 0))
+revolute.SetAxis(chrono.ChVectorD(1, 0, 0))
+revolute.SetAngle(chrono.CH_C_45_DEG)  # Initial angle
+application.GetSystem().AddLink(revolute)
 
-# Add damping force for realism
-damping = chrono.ChDampingForce()
-damping.SetCoefficient(0.1)
-pendulum.AddForce(damping)
+# Add visualization assets
+pendulum.GetAssets().push_back(chrono.ChSphereShape(0.2))
 
-# Visualization settings
-application.SetRenderMode(chronoirr.RENDER_MODE_OPENGL)
-application.SetBackgroundColor(chrono.ChColor(0.1, 0.1, 0.1))
-application.GetCamera().SetFov(60)
-application.GetCamera().SetNearClip(0.1)
+# Add constraint to prevent vertical movement
+constraint = chrono.ChLinkLockPointToLine()
+constraint.Initialize(ground, pendulum, chrono.ChCoordsysD(
+    chrono.ChVectorD(0, 2, 0),
+    chrono.ChMatrix33D(chrono.ChQuaternionD(1, 0, 0, 0))
+))
+constraint.SetCfm(chrono.ChVectorD(0.001, 0.001, 0.001))
+constraint.SetCfm_rot(chrono.ChVectorD(0.001, 0.001, 0.001))
+application.GetSystem().AddLink(constraint)
 
-# Function to log pendulum state
-def log_state(system, time):
-    pos = pendulum.GetPos()
-    vel = pendulum.GetPos_dt()
-    print(f"Time: {time:.2f}s | Position: {pos} | Velocity: {vel}")
-
-# Run simulation
+# Simulation loop
 application.SetTimestep(0.001)
-application.SetPostStepCallback(log_state, 0.1)  # Log every 0.1 seconds
+application.BeginRun()
 
-while application.Run():
-    application.BeginScene()
-    application.DrawAll()
-    application.EndScene()
+while application.GetDevice().run():
+    application.BeginStep()
+    application.DoStep()
+    application.EndStep()
+    
+    # Log position and velocity every 0.1 seconds
+    if application.GetSystem().GetChTime() % 0.1 < 1e-6:
+        pos = pendulum.GetPos()
+        vel = pendulum.GetPos_dt()
+        print(f"Time: {application.GetSystem().GetChTime():.2f}s")
+        print(f"Position: ({pos.x:.2f}, {pos.y:.2f}, {pos.z:.2f})")
+        print(f"Velocity: ({vel.x:.2f}, {vel.y:.2f}, {vel.z:.2f})")
+        print("------------------------")
+    
+    if application.GetDevice().keyPress(chrono.CH_KEY_ESCAPE):
+        break
+
+application.EndRun()
+application.GetDevice().closeDevice()

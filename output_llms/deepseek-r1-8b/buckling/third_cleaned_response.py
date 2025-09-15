@@ -11,9 +11,9 @@ class ChFunctionMyFun(chrono.ChFunction):
         chrono.ChFunction.__init__(self)
     def GetVal(self, x):
         if x > 0.5:
-            return chrono.CH_PI
+            return m.pi  
         else:
-            return -chrono.CH_PI * (1.0 - m.cos(chrono.CH_PI * x / 0.3)) / 2.0
+            return -m.pi * (1.0 - m.cos(m.pi * x / 0.3)) / 2.0
 
 
 out_dir = chrono.GetChronoOutputPath() + "BEAM_FAILED"
@@ -79,8 +79,8 @@ builder_iga.BuildBeam(mesh, msection1, 30, vA, vC, chrono.VECT_X, 3)
 
 
 builder_iga.GetLastBeamNodes().front().SetFixed(True)
-node_tip = builder_iga.GetLastBeamNodes()[29]  
-node_mid = builder_iga.GetLastBeamNodes()[15]  
+node_tip = builder_iga.GetLastBeamNodes()[65]
+node_mid = builder_iga.GetLastBeamNodes()[32]
 
 
 section2 = fea.ChBeamSectionAdvancedEuler()

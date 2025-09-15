@@ -1,138 +1,81 @@
 import pychrono as pychrono
-     import matplotlib.pyplot as plt
-     import cv2  
-
-pychrono.init_pychrono()
-
-num_elements = 5
-     length = 1.0
-     cross_section_area = 0.01
-     young_modulus = 100000.0
-     tension_strength = 1000.0
-
-elements = []
-     for i in range(num_elements):
-         elem = pychrono.analyze.ANCFBeamElement(length, cross_section_area, young_modulus, tension_strength)
-         elements.append(elem)
-
-hinge = pychrono.rigidbody.JointRevolute()
-     free_joint = pychrono.rigidbody.JointFree()
-
-subjects = []
-     subjects.append(elements[0])
-     subjects.append(elements[1])
-     
-     subjects.append(hinge)
-     subjects.append(free_joint)
-     
-     ground = pychrono.subjects.Subject()
-     ground.add_object(pychrono.objects.StaticPlane())
-     subjects.append(ground)
-
-ground.fix(hinge)
-
-gravity = pychrono.forces.Gravity()
-     gravity.set_force(free_joint, 0, -9.81, 0)
-
-free_end_node = elements[0].nodes[-1]
-     free_end_node.set_position(free_joint, 0, length, 0)
-
-solver = pychrono.solver.Solver()
-     for subject in subjects:
-         subject.register(solver)
-
-renderer = pychrono.renderer.IrrlichtRenderer()
-     camera = pychrono.renderer.Camera(2560, 1440, 500, 1000, 0, 0, 0)
-     renderer.set_camera(camera)
-     renderer.set_light(0, 0, 1000, 1000, 1000, 0)
-
-time = 0.0
-     step = 0.001
-     max_steps = 1000
-
-for _ in range(max_steps):
-         
-         solver.solve()
-         
-         for elem in elements:
-             elem.nodes.update()
-         
-         renderer.render()
-         plt.show()
-
-import pychrono as pychrono
-import matplotlib.pyplot as plt
-import cv2
+import pychrono.viewer.iranviewer as iranviewer
 
 
-pychrono.init_pychrono()
+pychrono.initialize()
+scene = pychrono.Scene()
+camera = pychrono.Camera()
+renderer = iranviewer.IrrRenderer()
+renderer.setScene(scene)
+renderer.setLightingEnabled(True)
 
 
-num_elements = 5
-length = 1.0
-cross_section_area = 0.01
-young_modulus = 100000.0
-tension_strength = 1000.0
+num_elements = 10
+length = 5.0  
+cross-sectional_area = 0.1  
+density = 8000  
+young_modulus = 210000  
+poisson_ratio = 0.2
 
 
-elements = []
+cable_elements = []
 for i in range(num_elements):
-    elem = pychrono.analyze.ANCFBeamElement(length, cross_section_area, young_modulus, tension_strength)
-    elements.append(elem)
+    cable = pychrono.RigidRod(
+        name="cable" + str(i),
+        length=length / num_elements,
+        cross-sectional_area=cross-sectional_area,
+        density=density,
+        young_modulus=young_modulus,
+        poisson_ratio=poisson_ratio
+    )
+    cable_elements.append(cable)
 
 
-hinge = pychrono.rigidbody.JointRevolute()
-free_joint = pychrono.rigidbody.JointFree()
+fixed_node = pychrono.Node("fixed", pychrono.Vec3(0, 0, 0), pychrono.Vec3(0, 0, 0))
+free_node = pychrono.Node("free", pychrono.Vec3(0, length, 0), pychrono.Vec3(0, 0, 0))
 
 
-subjects = []
-for elem in elements:
-    subjects.append(elem)
-subjects.append(hinge)
-subjects.append(free_joint)
+current_node = fixed_node
+for cable in cable_elements:
+    current_node = pychrono.RigidRod.create(
+        name=cable.name,
+        first_node=current_node,
+        second_node=pychrono.Node("node" + str(i), pychrono.Vec3(
+            0, (i+1)*length/num_elements, 0), pychrono.Vec3(0, 0, 0))
+    )
 
 
-ground = pychrono.subjects.Subject()
-ground.add_object(pychrono.objects.StaticPlane())
-subjects.append(ground)
+gravity_field = pychrono.Forces.GravityField(g=9.81, direction=pychrono.Vec3(0, -1, 0))
+force = pychrono.Forces.Force(
+    name="gravity",
+    body=free_node,
+    force=gravity_field.get_force(free_node.get_pos())
+)
 
 
-ground.fix(hinge)
+scene.add_elements(cable_elements)
+scene.add_forces([force])
 
 
-gravity = pychrono.forces.Gravity()
-gravity.set_force(free_joint, 0, -9.81, 0)
+renderer.setLightDirection(pychrono.Vec3(1, 1, 1))
+renderer.setLightIntensity(1)
+renderer.setAmbientLight(pychrono.Vec4(0.5, 0.5, 0.5, 1))
 
 
-free_end_node = elements[0].nodes[-1]
-free_end_node.set_position(free_joint, 0, length, 0)
+camera.set_pos(pychrono.Vec3(5, 5, 5))
+camera.look_at(pychrono.Vec3(0, 0, 0))
 
 
-solver = pychrono.solver.Solver()
-for subject in subjects:
-    subject.register(solver)
+time_step = 0.01
+max_steps = 10000
 
 
-renderer = pychrono.renderer.IrrlichtRenderer()
-camera = pychrono.renderer.Camera(2560, 1440, 500, 1000, 0, 0, 0)
-renderer.set_camera(camera)
-renderer.set_light(0, 0, 1000, 1000, 1000, 0)
-
-
-time = 0.0
-step = 0.001
-max_steps = 1000
-
-
-for _ in range(max_steps):
+for step in range(max_steps):
+    pychrono.Simulate()
+    renderer.update()
     
-    solver.solve()
     
-    for elem in elements:
-        elem.nodes.update()
     
-    renderer.render()
-    plt.show()
+    
 
-
-plt.close()
+renderer.close()

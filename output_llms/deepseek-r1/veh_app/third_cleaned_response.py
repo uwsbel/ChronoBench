@@ -75,9 +75,9 @@ gator.SetTireVisualizationType(tire_vis_type)
 
 
 print("Vehicle mass:   " + str(gator.GetVehicle().GetMass()))
-print("Driveline type: " + str(gator.GetVehicle().GetDriveline().GetType()))
-print("Brake type:     " + str(gator.GetVehicle().GetBrake(1, veh.LEFT).GetType()))
-print("Tire type:      " + str(gator.GetVehicle().GetTire(1, veh.LEFT).GetType()))
+print("Driveline type: " + gator.GetVehicle().GetDriveline().GetTemplateName())
+print("Brake type:     " + gator.GetVehicle().GetBrake(1, veh.LEFT).GetTemplateName())
+print("Tire type:      " + gator.GetVehicle().GetTire(1, veh.LEFT).GetTemplateName())
 print("\n")
 
 
@@ -131,26 +131,28 @@ cam = sens.ChCameraSensor(
     fov
 )
 cam.SetName("Third Person POV")
+
 cam.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Gator Camera"))
 manager.AddSensor(cam)
 
 
-offset_pose_depth = chrono.ChFramed(chrono.ChVector3d(-5.0, 0, 2), chrono.QUNIT)
+offset_pose_depth = chrono.ChFramed(chrono.ChVector3d(-5.0, 0, 2), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0)))
 depth_cam = sens.ChCameraSensor(
     gator.GetChassisBody(),
     update_rate,
     offset_pose_depth,
     image_width,
     image_height,
-    fov,
-    sens.CameraLensModelType_PINHOLE,
-    False,
-    sens.CameraModelType_DEPTH
+    fov
 )
 depth_cam.SetName("Depth Camera")
-depth_cam.SetMaxDepth(30.0)
-depth_cam.PushFilter(sens.ChFilterDepthToRGBA())
-depth_cam.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Depth Map"))
+depth_cam.SetLag(lag)
+depth_cam.SetCollectionWindow(exposure_time)
+depth_cam.SetDepth(True)  
+depth_cam.SetDepthMax(30)  
+
+if vis:
+    depth_cam.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Depth Map"))
 manager.AddSensor(depth_cam)
 
 
@@ -158,29 +160,38 @@ offset_pose = chrono.ChFramed(
         chrono.ChVector3d(0.0, 0, 2), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
     )
 lidar = sens.ChLidarSensor(
-    gator.GetChassisBody(),
-    update_rate,
-    offset_pose,
-    800,
-    300,
-    2 * chrono.CH_PI,
-    chrono.CH_PI / 12,
-    -chrono.CH_PI / 6,
-    100.0,
-    sens.LidarBeamShape_RECTANGULAR,
-    2,
-    0.003,
-    0.003,
-    sens.LidarReturnMode_STRONGEST
+    gator.GetChassisBody(),              
+    update_rate,            
+    offset_pose,            
+    800,     
+    300,       
+    2 * chrono.CH_PI,         
+    chrono.CH_PI / 12,         
+    -chrono.CH_PI / 6,         
+    100.0,                  
+    sens.LidarReturnMode_STRONGEST_RETURN,  
+    sens.LidarBeamShape_RECTANGULAR,  
+    0.003,       
+    0.003,       
+    0.0          
 )
 lidar.SetName("Lidar Sensor")
 lidar.SetLag(lag)
 lidar.SetCollectionWindow(1/update_rate)
+
 lidar.PushFilter(sens.ChFilterDIAccess())
+
 lidar.PushFilter(sens.ChFilterPCfromDepth())
+
 lidar.PushFilter(sens.ChFilterXYZIAccess())
-lidar.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "Lidar Point Cloud"))
+if vis:
+    lidar.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "Lidar Point Cloud"))
+
 manager.AddSensor(lidar)
+
+
+log_file = open("vehicle_state.log", "w")
+log_file.write("time,x,y,z,heading\n")
 
 
 
@@ -191,15 +202,8 @@ end_time = 30
 while time < end_time:
     time = gator.GetSystem().GetChTime()
     
-    
-    pos = gator.GetVehicle().GetPos()
-    heading = gator.GetVehicle().GetRot().GetYaw()
-    print(f"Time {time:.3f}: Position ({pos.x:.3f}, {pos.y:.3f}, {pos.z:.3f}), Heading {heading:.3f} rad")
-    
-    
     driver.SetSteering(0.5)
     driver.SetThrottle(0.2)
-    
     
     driver_inputs = driver.GetInputs()
 
@@ -207,7 +211,19 @@ while time < end_time:
     driver.Synchronize(time)
     terrain.Synchronize(time)
     gator.Synchronize(time, driver_inputs, terrain)
+
     manager.Update()
+
+    
+    chassis_body = gator.GetVehicle().GetChassisBody()
+    pos = chassis_body.GetPos()
+    rot = chassis_body.GetRot()
+    
+    euler = rot.GetEulerAngles()
+    heading = euler.z  
+    
+    
+    log_file.write(f"{time},{pos.x},{pos.y},{pos.z},{heading}\n")
 
     
     driver.Advance(step_size)
@@ -216,3 +232,6 @@ while time < end_time:
 
     
     realtime_timer.Spin(step_size)
+
+
+log_file.close()

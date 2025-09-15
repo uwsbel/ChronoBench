@@ -2,83 +2,93 @@ importchrono
 import math
 import numpy as np
 
-# Initialize the Chrono system
-system =chrono.ChSystem()
+# Initialize Chrono system
+system = chrono.ChSystemNSC()
 system.SetSolverType(chrono.ChSolverType.PARDISO_MKL)
+system.SetSolverIterations(10)
 system.SetSolverTolerance(1e-6)
-system.SetMaxIterations(100)
 
-# Create a mesh for the tablecloth
-mesh =chrono.ChMesh()
+# Create Irrlicht visualization
+vis = chrono.ChIrrApp(system, "Tablecloth Folding Simulation", chrono.CVT_UTF8, 800, 600, False)
+vis.SetCamera(chrono.ChVectorD(0, 1.5, 1.5), chrono.ChVectorD(0, 0, 0))
+vis.SetLight(chrono.ChVectorD(0, 1, 0), chrono.ChVectorD(0.5, 0.5, 0.5))
 
-# Tablecloth dimensions
-length = 1.0  # Length of the tablecloth
-width = 1.0    # Width of the tablecloth
-num_x = 20     # Number of elements along length
-num_y = 20     # Number of elements along width
+# Tablecloth parameters
+cloth_size = 1.0  # Size of the cloth in meters
+num_elements_x = 10  # Number of elements along x-axis
+num_elements_z = 10  # Number of elements along z-axis
+element_length = cloth_size / num_elements_x
+material = chrono.ChMaterialSurface()
+material.SetYoungModulus(1e6)  # Young's modulus
+material.SetPoissonRatio(0.3)  # Poisson's ratio
+density = 100  # Density in kg/m^3
+thickness = 0.01  # Thickness in meters
 
-# Element dimensions
-dx = length / num_x
-dy = width / num_y
+# Create tablecloth mesh
+cloth = chrono.ChMesh()
+cloth.SetMaterial(material)
+cloth.SetYoungModulus(1e6)
+cloth.SetPoissonRatio(0.3)
+cloth.SetDensity(density)
+cloth.SetThickness(thickness)
 
-# Create nodes
+# Add nodes
 nodes = []
-for i in range(num_x + 1):
-    for j in range(num_y + 1):
-        x = -length/2 + i*dx
-        y = -width/2 + j*dy
-        z = 0.0
-        node =chrono.ChNodeFEAxyz()
-        node.SetPos(chrono.ChVectorD(x, y, z))
-        mesh.AddNode(node)
+for x in np.linspace(-cloth_size/2, cloth_size/2, num_elements_x+1):
+    for z in np.linspace(-cloth_size/2, cloth_size/2, num_elements_z+1):
+        y = 0.0  # Start at y=0
+        pos = chrono.ChVectorD(x, y, z)
+        node = chrono.ChNodeFEAxyzD()
+        node.SetPos(pos)
+        system.AddNode(node)
         nodes.append(node)
 
-# Create shell elements
-for i in range(num_x):
-    for j in range(num_y):
-        n1 = nodes[i*(num_y+1) + j]
-        n2 = nodes[(i+1)*(num_y+1) + j]
-        n3 = nodes[(i+1)*(num_y+1) + j+1]
-        n4 = nodes[i*(num_y+1) + j+1]
+# Add shell elements
+for i in range(num_elements_x):
+    for j in range(num_elements_z):
+        # Get corner nodes
+        n1 = nodes[i*(num_elements_z+1) + j]
+        n2 = nodes[(i+1)*(num_elements_z+1) + j]
+        n3 = nodes[(i+1)*(num_elements_z+1) + j+1]
+        n4 = nodes[i*(num_elements_z+1) + j+1]
         
-        element =chrono.ChElementShellANCF()
+        # Create shell element
+        element = chrono.ChElementShellANCF()
         element.SetNodes(n1, n2, n3, n4)
-        
-        # Material properties (isotropic Kirchhoff material)
-        E = 1e6   # Young's modulus
-        nu = 0.3  # Poisson's ratio
-        rho = 1000  # Density
-        thickness = 0.01  # Thickness of the cloth
-        
-        element.SetMaterial(chrono.ChMaterialSurface())
-        element.GetMaterial().SetYoungModulus(E)
-        element.GetMaterial().SetPoissonRatio(nu)
-        element.GetMaterial().SetDensity(rho)
+        element.SetMaterial(material)
         element.SetThickness(thickness)
-        
-        mesh.AddElement(element)
+        element.SetDensity(density)
+        element.SetYoungModulus(1e6)
+        element.SetPoissonRatio(0.3)
+        element.SetMassMatrixType(chrono.ChElementShellANCF.MASSMATRIX.diag)
+        element.SetStiffnessMatrixType(chrono.ChElementShellANCF.STIFFNESSMATRIX.full)
+        system.AddElement(element)
 
-# Add mesh to the system
-system.Add(mesh)
+# Add constraints to hold the cloth
+for i in [0, num_elements_x]:
+    for j in [0, num_elements_z]:
+        node_idx = i*(num_elements_z+1) + j
+        node = nodes[node_idx]
+        constraint = chrono.ChLinkPointFix()
+        constraint.Initialize(node, chrono.ChFrameD())
+        system.Add(constraint)
 
-# Create a fixed constraint for the corners
-corner_nodes = [nodes[0], nodes[num_y], nodes[-num_y-1], nodes[-1]]
-for node in corner_nodes:
-    constraint =chrono.ChLinkPointPoint()
-    constraint.Initialize(node, system.GetGround(), node.GetPos())
-    system.Add(constraint)
+# Add light to the scene
+light = chrono.ChLight()
+light.SetDirection(chrono.ChVectorD(0, 1, 0))
+light.SetIntensity(1)
+vis.AddLight(light)
 
-# Visualization setup
-visualizer =chrono.ChIrrApp(system, "Tablecloth Simulation", chronoirr.dimension2D(800, 600))
-visualizer.AddTypicalLights()
-visualizer.AddTypicalCamera(chrono.ChVectorD(0, 0, 2), chrono.ChVectorD(0, 0, 0))
+# Add cloth to visualization
+vis.Add(cloth)
 
-# Set up the mesh visualization
-mesh_shape =chrono.ChVisualizationFEAMesh()
-mesh_shape.SetScale(1.0)
-mesh_shape.SetColor(chrono.ChColor(0.8, 0.8, 0.8))
-mesh_shape.SetFEMesh(mesh.GetFEMesh())
-mesh.AddVisualization(mesh_shape)
-
-# Run the simulation
-visualizer.Run()
+# Run simulation
+vis.Begin()
+while vis.Run():
+    vis.BeginScene()
+    vis.DrawAll()
+    vis.EndScene()
+    chrono.ChIrrApp.Synch()
+    system.DoStepDynamics(0.001)
+    print("Time =", system.GetChTime())
+vis.End()

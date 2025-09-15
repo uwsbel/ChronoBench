@@ -11,18 +11,18 @@ initLoc = chrono.ChVector3d(0, 0, 0.5)
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 
-vis_type = veh.VisualizationType_MESH
+vis_type = 1  
 
 
-chassis_collision_type = veh.CollisionType_NONE
+chassis_collision_type = 2
 
 
-tire_model = veh.TireModelType_RIGID  
+tire_model = veh.TireModelType_RIGID
 
 
-terrainHeight = 0      
-terrainLength = 100.0  
-terrainWidth = 100.0   
+terrainHeight = 0
+terrainLength = 100.0
+terrainWidth = 100.0
 
 
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
@@ -39,7 +39,7 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  
 
 
-vehicle = veh.UAZBUS() 
+vehicle = veh.UAZBUS()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
@@ -55,15 +55,13 @@ vehicle.SetSteeringVisualizationType(vis_type)
 vehicle.SetWheelVisualizationType(vis_type)
 vehicle.SetTireVisualizationType(vis_type)
 
-vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
-
 
 patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-patch = terrain.AddPatch(patch_mat, 
-    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
+patch = terrain.AddPatch(patch_mat,
+    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
     terrainLength, terrainWidth)
 
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
@@ -72,13 +70,9 @@ terrain.Initialize()
 
 
 box = chrono.ChBody()
-box.SetBodyFixed(True)
+box.SetBodyType(chrono.ChBodyType.STATIC)
 box.SetPos(chrono.ChVector3d(5, 0, 0.1))
 box.SetDimensions(chrono.ChVector3d(0.5, 5, 0.2))
-box.GetCollisionModel().AddBox(chrono.ChVector3d(0.25, 2.5, 0.1))
-box_mat = chrono.ChMaterialSurfaceNSC()
-box_mat.SetFriction(0.9)
-box.GetCollisionModel().SetMaterialSurface(box_mat)
 vehicle.GetSystem().AddBody(box)
 
 
@@ -93,31 +87,12 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 
-class SimpleDriver:
-    def __init__(self, vis):
-        self.vis = vis
-        self.throttle = 0.5  
-        self.steering = 0.0
-        self.braking = 0.0
-    
-    def GetInputs(self):
-        return veh.DriverInputs(self.steering, self.throttle, self.braking)
-    
-    def Synchronize(self, time):
-        pass
-    
-    def Advance(self, step):
-        pass
-    
-    def Initialize(self):
-        pass
-
-driver = SimpleDriver(vis)  
+driver = veh.ChInteractiveDriverIRR(vis)
 
 
-steering_time = 1.0  
-throttle_time = 1.0  
-braking_time = 0.3   
+steering_time = 1.0
+throttle_time = 1.0
+braking_time = 0.3
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
@@ -147,7 +122,8 @@ while vis.Run():
 
     
     driver_inputs = driver.GetInputs()
-
+    driver_inputs.throttle = 0.5  
+    
     
     driver.Synchronize(time)
     terrain.Synchronize(time)
@@ -162,5 +138,6 @@ while vis.Run():
 
     
     step_number += 1
+    
     
     realtime_timer.Spin(step_size)

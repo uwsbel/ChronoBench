@@ -22,7 +22,6 @@ sys.Add(mfloor)
 
 mcrank = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, crank_rad, crank_thick, 1000)
 mcrank.SetPos(crank_center + chrono.ChVector3d(0, 0, -0.1))
-
 mcrank.SetRot(chrono.Q_ROTATE_Y_TO_Z)
 sys.Add(mcrank)
 
@@ -61,11 +60,10 @@ mjointB.Initialize(mpiston,
 sys.Add(mjointB)
 
 
-mjointC = chrono.ChLinkLockPlane()
+mjointC = chrono.ChLinkLockPlanar()
 mjointC.Initialize(mpiston,
                    mfloor,
-                   chrono.ChFramed(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0),
-                                   chrono.Q_ROTATE_Z_TO_X))
+                   chrono.ChFramed(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0)))
 sys.Add(mjointC)
 
 vis = chronoirr.ChVisualSystemIrrlicht()
@@ -75,7 +73,7 @@ vis.SetWindowTitle('Crank demo')
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()
-vis.AddCamera(chrono.ChVector3d(1, 1, 3), chrono.ChVector3d(0, 1, 0))
+vis.AddCamera(chrono.ChVector3d(2, 1, 3), chrono.ChVector3d(0, 1, 0))
 vis.AddTypicalLights()
 
 

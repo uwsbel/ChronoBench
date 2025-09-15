@@ -13,7 +13,7 @@ try:
     os.mkdir(out_dir)  
 except OSError as exc:
     if exc.errno != errno.EEXIST:  
-        print("Error creating output directory")
+        print("Error creating output directory ")
 
 
 sys = chrono.ChSystemSMC()  
@@ -25,7 +25,8 @@ mesh = fea.ChMesh()
 sys.Add(mesh)
 
 
-sys.SetGravitationalAcceleration(chrono.ChVector3d(0, -9.81, 0))  
+
+mesh.SetAutomaticGravity(False)
 
 
 nodePlotA = fea.ChNodeFEAxyz()  
@@ -82,7 +83,7 @@ if (True):
             mesh.AddElement(melementA)
 
             if (iz == 0 and ix == 1):
-                melementmonitor = melementA  
+                ementmonitor = melementA  
 
             
             boundary_1 = mynodes[(iz + 1) * (nsections_x + 1) + ix + 1]
@@ -91,8 +92,8 @@ if (True):
 
             
             melementA.SetNodes(
-                mynodes[iz * (nsections_x + 1) + ix],
-                mynodes[iz * (nsections_x + 1) + ix + 1],
+                mynodes[(iz) * (nsections_x + 1) + ix],
+                mynodes[(iz) * (nsections_x + 1) + ix + 1],
                 mynodes[(iz + 1) * (nsections_x + 1) + ix],
                 boundary_1, boundary_2, boundary_3
             )
@@ -105,15 +106,15 @@ if (True):
             mesh.AddElement(melementB)
 
             
-            boundary_1 = mynodes[iz * (nsections_x + 1) + ix]
-            boundary_2 = mynodes[iz * (nsections_x + 1) + ix + 2] if (ix < nsections_x - 1) else None
+            boundary_1 = mynodes[(iz) * (nsections_x + 1) + ix]
+            boundary_2 = mynodes[(iz) * (nsections_x + 1) + ix + 2] if (ix < nsections_x - 1) else None
             boundary_3 = mynodes[(iz + 2) * (nsections_x + 1) + ix] if (iz < nsections_z - 1) else None
 
             
             melementB.SetNodes(
                 mynodes[(iz + 1) * (nsections_x + 1) + ix + 1],
                 mynodes[(iz + 1) * (nsections_x + 1) + ix],
-                mynodes[iz * (nsections_x + 1) + ix + 1],
+                mynodes[(iz) * (nsections_x + 1) + ix + 1],
                 boundary_1, boundary_2, boundary_3
             )
 
@@ -131,6 +132,7 @@ if (True):
     mvisualizeshellA.SetWireframe(True)  
     mvisualizeshellA.SetBackfaceCull(True)  
     mvisualizeshellA.SetShellResolution(2)  
+    
     mesh.AddVisualShapeFEA(mvisualizeshellA)  
 
     
@@ -164,19 +166,8 @@ sys.Setup()
 sys.Update()  
 
 
-
-for node in mynodes[:nsections_x + 1]:
-    if node.GetPosition().y == 0:  
-        node.ApplyForce(load_force, chrono.ChVector3d(0, -100, 0))
-
-
 rec_X = chrono.ChFunctionInterp()
 rec_Y = chrono.ChFunctionInterp()
-
-
-
-for node in mynodes[-nsections_x - 1:]:
-    node.SetFixed(True)
 
 
 while vis.Run():

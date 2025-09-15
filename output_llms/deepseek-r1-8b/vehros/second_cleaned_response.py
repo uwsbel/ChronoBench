@@ -1,13 +1,11 @@
 import pychrono as ch
-import pychrono.veh as veh
+import pychrono.vehicle as veh
 import pychrono.ros as chros
 from pychrono import irrlicht as chronoirr
 
 def main():
     
     hmmwv = veh.HMMWV_Full()
-    ch.GetChronoDataPath()  
-    hmmwv.SetDataPath(ch.GetChronoDataPath() + 'vehicle/')  
     hmmwv.SetContactMethod(ch.ChContactMethod_NSC)  
     hmmwv.SetChassisCollisionType(veh.CollisionType_NONE)  
     hmmwv.SetChassisFixed(False)  
@@ -18,11 +16,6 @@ def main():
     hmmwv.SetSteeringType(veh.SteeringTypeWV_PITMAN_ARM)  
     hmmwv.SetTireType(veh.TireModelType_TMEASY)  
     hmmwv.SetTireStepSize(1e-3)  
-    hmmwv.SetChassisVisualizationType(veh.ChVisualizationType_BOX)  
-    hmmwv.SetSuspensionVisualizationType(veh.ChVisualizationType_SPRING)  
-    hmmwv.SetSteeringVisualizationType(veh.ChVisualizationType_HOLLOW_LINE)  
-    hmmwv.SetWheelVisualizationType(veh.ChVisualizationType_WHEEL)  
-    hmmwv.SetTireVisualizationType(veh.ChVisualizationType_CIRCLE)  
     hmmwv.Initialize()  
 
     
@@ -30,8 +23,8 @@ def main():
     patch_mat = ch.ChContactMaterialNSC()  
     patch_mat.SetFriction(0.9)  
     patch_mat.SetRestitution(0.01)  
-    patch_mat.SetTexture(ch.GetChronoDataPath() + 'vehicle/terrain/textures/tile4.jpg', 100, 100)  
-    terrain.AddPatch(patch_mat, ch.CSYSNORM, 100.0, 100.0)  
+    patch = terrain.AddPatch(patch_mat, ch.CSYSNORM, 100.0, 100.0)  
+    patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 100, 100)  
     terrain.Initialize()  
 
     
@@ -39,17 +32,6 @@ def main():
     driver.Initialize()  
 
     
-    vis_system = chronoirr.ChVisualSystemIrrlicht()  
-    vis_system.SetChronoVersion(ch.GetChronoVersion())  
-    vis_system.SetRenderPostProcessing(True)  
-    vis_system.SetRenderWindowShow(True)  
-    vis_system.SetRenderLoopEnabled(True)  
-    vis_system.AddRenderer(hmmwv.GetVehicle().GetChassisBody())  
-    vis_system.AddRenderer(hmmwv.GetVehicle().GetSuspension())  
-    vis_system.AddRenderer(hmmwv.GetVehicle().GetWheels())  
-    vis_system.AddRenderer(hmmwv.GetVehicle().GetSteering())  
-    vis_system.AddRenderer(hmmwv.GetVehicle().GetTires())  
-
     ros_manager = chros.ChROSPythonManager()
     ros_manager.RegisterHandler(chros.ChROSClockHandler())  
     
@@ -64,7 +46,13 @@ def main():
     time_end = 30  
 
     hmmwv.GetVehicle().EnableRealtime(True)  
-    while time < time_end:
+    vis_system = chronoirr.ChVisualSystemIrrlicht()  
+    renderer = vis_system.GetRenderer()  
+    renderer.SetWindow("PyChrono Visualization", 800, 600)  
+    renderer.SetCamera(ch.ChCameraPerspective(45.0, 0.0, 1000.0))  
+    renderer.SetLight(0, ch.ChLightDirection(0, 0, 1))  
+
+    while True:
         time = hmmwv.GetSystem().GetChTime()  
 
         
@@ -83,6 +71,7 @@ def main():
             break  
 
         
+        renderer.Update()
         vis_system.RenderFrame()
 
 if __name__ == "__main__":

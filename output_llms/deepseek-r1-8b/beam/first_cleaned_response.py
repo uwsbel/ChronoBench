@@ -1,65 +1,52 @@
-import pychrono as pychrono
-import pychrono.physics.numpy as numpyPhysics
-import pychrono.render.iran as irandispatch
-
-
-pychrono.init()
-sim = pychrono.Simulation(numpyPhysics.NumpyPhysics())
-sim.set_solver(10, 10)
-
-
-nodes = [
-    pychrono.Node(pychrono.Vector3(0, 0, 0)),
-    pychrono.Node(pychrono.Vector3(1, 0, 0)),
-    pychrono.Node(pychrono.Vector3(2, 0, 0)),
-    pychrono.Node(pychrono.Vector3(3, 0, 0)),
-    pychrono.Node(pychrono.Vector3(2, 0, 0))  
-]
-
-
-beams = [
-    pychrono.Beams(nodes[0], nodes[1], young_modulus=200e9, shear_modulus=0.5e11, density=8000),
-    pychrono.Beams(nodes[1], nodes[2], young_modulus=200e9, shear_modulus=0.5e11, density=8000),
-    pychrono.Beams(nodes[2], nodes[3], young_modulus=200e9, shear_modulus=0.5e11, density=8000),
-    pychrono.Beams(nodes[3], nodes[4], young_modulus=200e9, shear_modulus=0.5e11, density=8000)
-]
-
-
-sim.add_nodes(nodes)
-sim.add_beams(beams)
-
-
-sim.set_gravity(pychrono.Vector3(0, -9.81, 0))
-
-
-renderer = pychrono.render.BasicRenderer()
-renderer.set_camera(pychrono.Camera(pychrono.Vector3(5, 5, 5), pychrono.Vector3(0, 0, 0)))
-renderer.set_light(pychrono.Light(pychrono.Vector3(10, 10, 10), pychrono.Vector3(0, 0, 0)))
-
-
-force = pychrono.Forces()
-force.add(pychrono.Vector3(0, 0, 0), nodes[2], pychrono.Vector3(0, 10, 0))
-sim.add_force(force)
-
-
+import pychrono as pc
+import pychrono.viewer as v
 import numpy as np
-import time
 
-t = 0
-while True:
-    t += 0.001
-    sim.step()
-    renderer.update()
-    window.draw()
 
+pc.init()
+viewer = v.Viewer(window_size=(800, 600), enable_antialiasing=True)
+viewer.add_light(ambient=True, color=(1,1,1), intensity=0.5)
+
+
+body = pc.RigidBody("Beam Body", position=(0, 0, 0), mass=1)
+beam_length = 5.0
+beam_cross_section = 0.1  
+beam_young_modulus = 200  
+nodes = []
+for i in range(0, beam_length, 0.1):
+    nodes.append(pc.Node(f"Node {i}", position=(i, 0, 0)))
+beam = pc.Beam(nodes[0], nodes[-1], cross_section=beam_cross_section, young_modulus=beam_young_modulus)
+
+
+scene = pc.Scene()
+scene.add_body(body)
+scene.add_mesh(beam)
+for node in nodes:
+    scene.add_node(node)
+spring = pc.Spring(nodes[0], 0.1, 100)  
+scene.add_spring(spring)
+
+
+force = pc.Forces()
+force.add_spring(nodes[0], nodes[1], 0.1, 100)
+body.add_forces(force)
+
+
+viewer.add_scene(scene)
+for node in nodes:
+    node.mesh.color = (node.index / len(nodes), 0.5, 0.5)
+scene.ambient_color = (0.2, 0.2, 0.2)
+
+def simulate():
+    viewer.clear_render()
     
-    for event in renderer.window.get_events():
-        if event.type == pychrono.Renderer.EVENT_KEYDOWN:
-            key = event.key
-            if key == pychrono.Renderer.KEY_ESCAPE:
-                exit()
-            elif key == pychrono.Renderer.KEY_A:
-                force.set_local_force(nodes[2], pychrono.Vector3(0, 10, 0))
-            elif key == pychrono.Renderer.KEY_S:
-                force.set_local_force(nodes[2], pychrono.Vector3(0, -10, 0))
-    time.sleep(0.001)
+    viewer.simulate()
+    
+    viewer.forces.update()
+    
+    viewer.render()
+    viewer.flip()
+
+
+viewer.key_press_handler.add_handler(lambda: viewer.simulate(), " ")
+viewer.show()

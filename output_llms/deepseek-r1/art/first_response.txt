@@ -1,88 +1,134 @@
 
+Here's the PyChrono simulation script following your instructions. The script creates an ARTcar vehicle simulation on rigid terrain with interactive driving controls:
 
 ```python
+#!/usr/bin/env python
+# ARTcar Simulation with PyChrono and Irrlicht
+
 import pychrono as chrono
+import pychrono.irrlicht as chronoirr
 import pychrono.vehicle as veh
-import pychrono.irrlicht as irr
-import math
-import time
+import os
 
-def main():
-    # 1. Initialize PyChrono environment
-    chrono.SetChronoDataPath("data/")
-    system = chrono.ChSystemNSC()
-    system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
+# Set data path for Chrono assets
+chrono.SetChronoDataPath("C:/path/to/chrono/data/")  # Update this path
+veh.SetDataPath(chrono.GetChronoDataPath() + "vehicle/")
 
-    # 2. Create ARTcar vehicle
-    initial_pos = chrono.ChVectorD(0, 0, 0.5)
-    initial_rot = chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0))
-    contact_method = chrono.ChContactMethod_NSC
-    visualization_type = veh.VisualizationType_MESH
+# Simulation parameters
+step_size = 0.005
+render_fps = 50  # Target frames per second
+render_step_size = 1.0 / render_fps
 
-    artcar = veh.ARTcar()
-    artcar.SetInitPosition(chrono.ChCoordsysD(initial_pos, initial_rot))
-    artcar.Initialize(chrono.TrackedCollisionFamily::FAMILY_ACCESSORY)
-    artcar.SetVisualizationType(visualization_type)
+# Initialize Chrono system
+system = chrono.ChSystemSMC()
+system.SetSolverMaxIterations(100)
 
-    # 3. Create RigidTerrain
-    terrain = veh.RigidTerrain(system)
-    patch_mat = chrono.ChMaterialSurfaceNSC()
-    patch_mat.SetFriction(0.9)
-    patch_mat.SetRestitution(0.01)
+# Create vehicle system
+car = veh.ARTcar()
+car.SetContactMethod(chrono.ChContactMethod_SMC)
+car.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0.5, 0), chrono.QUNIT))
+car.SetChassisVisualizationType(veh.VisualizationType_PRIMITIVES)
+car.SetWheelVisualizationType(veh.VisualizationType_MESH)
+car.Initialize()
+
+# Set vehicle subsystems parameters
+car.SetChassisFixed(False)
+car.SetTireType(veh.TireModelType_RIGID)
+car.SetTireStepSize(step_size)
+
+# Create rigid terrain
+terrain = veh.RigidTerrain(system)
+patch_mat = chrono.ChMaterialSurfaceSMC()
+patch = terrain.AddPatch(patch_mat, 
+                         chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT),
+                         100, 100)  # 100m x 100m patch
+patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 100, 100)
+terrain.Initialize()
+
+# Create Irrlicht visualization
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetWindowSize(1280, 720)
+vis.SetWindowTitle("ARTcar Simulation")
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVectorD(6, 3, 6), chrono.ChVectorD(0, 0, 0))
+vis.AddTypicalLights()
+
+# Add vehicle to visualization
+car.InitializeVisualization(vis)
+
+# Create interactive driver
+driver = veh.ChInteractiveDriverIRR(vis)
+steering_time = 1.0  # seconds to turn from lock to lock
+driver.SetSteeringDelta(render_step_size / steering_time)
+driver.SetThrottleDelta(render_step_size / 1.0)
+driver.SetBrakingDelta(render_step_size / 0.3)
+driver.Initialize()
+
+# Simulation loop
+time = 0
+real_time_timer = chrono.ChRealtimeStepTimer()
+
+while vis.Run():
+    time = system.GetChTime()
     
-    patch = terrain.AddPatch(patch_mat, 
-                            chrono.ChVectorD(0, 0, 0), 
-                            chrono.ChVectorD(0, 0, 1), 
-                            50, 50)  # 50x50 meter patch
-    patch.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 50, 50)
-    patch.SetColor(chrono.ChColor(0.5, 0.5, 0.5))
-    terrain.Initialize()
+    # Update visualization
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    
+    # Get driver inputs
+    driver_inputs = driver.GetInputs()
+    
+    # Update vehicle systems
+    car.Synchronize(time, driver_inputs, terrain)
+    terrain.Synchronize(time)
+    driver.Synchronize(time)
+    
+    # Advance dynamics
+    system.DoStepDynamics(step_size)
+    
+    # Enforce real-time synchronization
+    real_time_timer.Spin(step_size)
 
-    # 4. Set up Irrlicht visualization
-    vis = irr.ChVisualSystemIrrlicht()
-    vis.AttachSystem(system)
-    vis.SetWindowSize(1280, 720)
-    vis.SetWindowTitle("ARTcar Simulation")
-    vis.Initialize()
-    vis.AddLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))
-    vis.AddSkyBox()
-    vis.AddCamera(chrono.ChVectorD(5, 5, 2), chrono.ChVectorD(0, 0, 0))
-    vis.AddTypicalLights()
-
-    # 5. Create interactive driver
-    driver = veh.ChInteractiveDriverIRR(vis)
-    driver.SetSteeringDelta(0.02)
-    driver.SetThrottleDelta(0.04)
-    driver.SetBrakingDelta(0.06)
-    driver.Initialize()
-
-    # 6. Simulation loop
-    step_size = 0.002
-    frame_step = 0.02  # 50 FPS
-    realtime_timer = chrono.ChRealtimeStepTimer()
-    simulation_time = 0
-
-    while vis.Run():
-        # Update driver inputs
-        driver.Advance(step_size)
-        
-        # Update vehicle systems
-        artcar.Advance(step_size)
-        
-        # Advance simulation
-        system.DoStepDynamics(step_size)
-        simulation_time += step_size
-
-        # Update visualization
-        vis.BeginScene()
-        vis.Render()
-        vis.EndScene()
-
-        # Maintain real-time synchronization
-        realtime_timer.Spin(frame_step)
-
-    return 0
-
-if __name__ == "__main__":
-    main()
+print("Simulation completed.")
 ```
+
+Key features of this simulation:
+1. **ARTcar Vehicle**:
+   - Physics-based model with SMC contact method
+   - Mesh visualization for wheels
+   - Positioned at (0, 0.5, 0) with default orientation
+   - Rigid tire model with configurable step size
+
+2. **Terrain**:
+   - 100x100 meter rigid terrain patch
+   - Custom tiled texture (tile4.jpg from Chrono assets)
+   - SMC contact material properties
+
+3. **Interactive Controls**:
+   - Steering (arrow keys or joystick)
+   - Throttle (up arrow/button)
+   - Braking (down arrow/button)
+   - Realistic control response times
+
+4. **Visualization**:
+   - Camera positioned to view vehicle
+   - Skybox and directional lighting
+   - Target frame rate of 50 FPS
+   - Pychrono logo overlay
+
+5. **Simulation Parameters**:
+   - Physics step: 5ms (stable for vehicle simulations)
+   - Real-time synchronization
+   - SMC contact method with 100 solver iterations
+
+To use this script:
+1. Replace `"C:/path/to/chrono/data/"` with your actual Chrono data path
+2. Ensure you have the ARTcar model in your vehicle assets
+3. Install required dependencies (PyChrono with Irrlicht support)
+4. Adjust camera position/terrain size as needed
+
+The simulation provides real-time interaction where you can drive the ARTcar using keyboard controls (arrow keys) with physics-based vehicle dynamics and collision handling.

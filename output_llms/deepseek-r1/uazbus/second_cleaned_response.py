@@ -20,6 +20,7 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 
+
 terrainHeight = 0      
 terrainLength = 100.0  
 terrainWidth = 100.0   
@@ -39,6 +40,8 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  
 
 
+
+
 vehicle = veh.UAZBUS() 
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
@@ -46,6 +49,8 @@ vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
+
+
 vehicle.Initialize()
 
 vehicle.SetChassisVisualizationType(vis_type)
@@ -65,9 +70,11 @@ patch = terrain.AddPatch(patch_mat,
     chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
     terrainLength, terrainWidth)
 
-patch.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 200, 200)  
+
+patch.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
+
 
 
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
@@ -81,52 +88,82 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 
-driver_inputs = veh.DriverInputs()
-step_number = 0
-render_steps = math.ceil(render_step_size / step_size)
-realtime_timer = chrono.ChRealtimeStepTimer()
+driver = veh.ChDriver()
 
-while vis.Run():
+
+print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+
+
+render_steps = math.ceil(render_step_size / step_size)
+
+
+realtime_timer = chrono.ChRealtimeStepTimer()
+step_number = 0
+render_frame = 0
+
+while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
     
     
-    if step_number % render_steps == 0:
+    if (step_number % render_steps == 0) :
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
+        render_frame += 1
 
     
-    steering = 0.0
-    throttle = 0.0
-    braking = 0.0
-
     if time < 2.0:
-        throttle = 0.5
+        
+        driver.SetThrottle(0.5)
+        driver.SetSteering(0.0)
+        driver.SetBraking(0.0)
     elif time < 4.0:
-        throttle = 0.5
-        steering = 0.5 * (time - 2.0) / 2.0  
+        
+        driver.SetThrottle(0.5)
+        driver.SetSteering(0.5)
+        driver.SetBraking(0.0)
     elif time < 6.0:
-        throttle = 0.5
-        steering = 0.5 - (time - 4.0)  
+        
+        driver.SetThrottle(0.5)
+        driver.SetSteering(-0.5)
+        driver.SetBraking(0.0)
     elif time < 8.0:
-        throttle = 0.5
-        steering = -0.5 + (time - 6.0)  
+        
+        driver.SetThrottle(0.5)
+        driver.SetSteering(0.5)
+        driver.SetBraking(0.0)
+    elif time < 10.0:
+        
+        driver.SetThrottle(0.5)
+        driver.SetSteering(-0.5)
+        driver.SetBraking(0.0)
+    elif time < 12.0:
+        
+        driver.SetThrottle(0.5)
+        driver.SetSteering(0.0)
+        driver.SetBraking(0.0)
     else:
-        braking = 1.0  
-
-    driver_inputs.m_steering = steering
-    driver_inputs.m_throttle = throttle
-    driver_inputs.m_braking = braking
+        
+        driver.SetThrottle(0.0)
+        driver.SetSteering(0.0)
+        driver.SetBraking(1.0)
 
     
+    driver_inputs = driver.GetInputs()
+
+    
+    driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
 
     
+    driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
 
+    
     step_number += 1
+    
     realtime_timer.Spin(step_size)

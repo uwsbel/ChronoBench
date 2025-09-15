@@ -3,7 +3,7 @@ import math
 import numpy as np
 import pychrono as chrono
 import pychrono.robot as robot
-import pychrono.sensor as sens  # Added sensor module import
+import pychrono.sensor as sens  # Added sensor module
 from pychrono import irrlicht as chronoirr
 
 # Create Chrono system
@@ -21,7 +21,7 @@ ground.SetFixed(True)  # Fix the ground in place
 ground.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
 system.Add(ground)
 
-# Create a long box for rover to cross
+# create a long box for rover to cross
 box = chrono.ChBodyEasyBox(0.25, 5, 0.25, 1000, True, True, ground_mat)
 box.SetPos(chrono.ChVector3d(0, 0, 0.0))
 box.SetFixed(True)
@@ -31,50 +31,44 @@ system.Add(box)
 # Create Curiosity rover and add it to the system
 rover = robot.Curiosity(system)
 
-# Initialize rover position and orientation (fixed ChFramed typo to ChFrameD)
+# Create driver for rover
+driver = robot.CuriosityDCMotorControl()
+rover.SetDriver(driver)
+
+# Initialize rover position and orientation
 init_pos = chrono.ChVector3d(-5, 0.0, 0)
 init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
-rover.Initialize(chrono.ChFrameD(init_pos, init_rot))
+rover.Initialize(chrono.ChFramed(init_pos, init_rot))
 
 # Create sensor manager
 manager = sens.ChSensorManager(system)
+manager.scene.AddPointLight(chrono.ChVector3f(0, 0, 100), chrono.ChVector3f(2, 2, 2), 5000)
 
-# Lidar parameters
-lidar_offset = chrono.ChVector3d(0.5, 0, 0.2)  # Offset from chassis
-lidar_rot = chrono.ChQuaterniond(1, 0, 0, 0)
-lidar_update_rate = 10
-lidar_hor_samples = 450
-lidar_ver_samples = 45
-lidar_hor_fov = 2 * chrono.CH_PI  # 360 degree horizontal FOV
-lidar_ver_fov = chrono.CH_PI / 6  # 30 degree vertical FOV
-lidar_max_dist = 20.0
-
-# Add lidar to rover's chassis
-chassis = rover.GetChassis()
+# Add lidar to rover chassis
+chassis = rover.GetChassis().GetBody()
+lidar_offset_pose = chrono.ChFramed(chrono.ChVector3d(0.2, 0, 0.4), chrono.Q_from_AngAxis(0, chrono.ChVector3d(0, 1, 0)))
 lidar = sens.ChLidarSensor(
-    chassis,             # Parent body
-    lidar_update_rate,   # Update rate
-    chrono.ChFrameD(lidar_offset, lidar_rot),  # Pose
-    lidar_hor_samples,   # Horizontal samples
-    lidar_ver_samples,   # Vertical samples
-    lidar_hor_fov,       # Horizontal FOV
-    lidar_ver_fov,       # Vertical FOV
-    lidar_max_dist       # Maximum distance
+    chassis,
+    10,  # Update rate (Hz)
+    lidar_offset_pose,
+    3600,  # Horizontal samples
+    32,    # Vertical samples
+    chrono.CH_PI,  # Horizontal FOV (360°)
+    chrono.CH_PI / 9,  # Vertical FOV (20°)
+    100.0  # Max range
 )
-
-# Configure lidar
-lidar.SetName("Lidar Sensor")
-lidar.SetLag(0.0)
-lidar.SetCollectionWindow(0.0)
+lidar.SetName("Lidar")
+lidar.SetLag(0.1)
+lidar.SetCollectionWindow(0.01)
 
 # Add noise model
-noise_model = sens.ChNoiseNormal(0.0, 0.1)
-lidar.AddNoiseModel(noise_model)
+noise_model = sens.ChNoiseNormalDist(0.0, 0.01)
+lidar.SetNoiseModel(noise_model)
 
-# Add visualization to sensor
-lidar.PushFilter(sens.ChFilterVisualize(lidar_hor_samples, lidar_ver_samples, "Lidar Data"))
+# Add point cloud visualization filter
+pc_filter = sens.ChFilterVisualizePointCloud(640, 480, 1.0, "Lidar Point Cloud")
+lidar.PushFilter(pc_filter)
 
-# Add sensor to manager
 manager.AddSensor(lidar)
 
 # Create the Irrlicht visualization
@@ -82,7 +76,7 @@ vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
 vis.SetCameraVertical(chrono.CameraVerticalDir_Z)
 vis.SetWindowSize(1280, 720)
-vis.SetWindowTitle('Curiosity rover - Rigid terrain')
+vis.SetWindowTitle('Curiosity rover with Lidar')
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()
@@ -93,21 +87,17 @@ vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0
 # Set the simulation time step
 time_step = 1e-3
 
-# Create driver for rover
-driver = robot.CuriosityDCMotorControl()
-rover.SetDriver(driver)
-
 # Simulation loop
 time = 0
 while vis.Run():
     time += time_step
 
-    # Ask rover to move forward
+    # ask rover to move forward
     driver.SetSteering(0.0)
 
     # Update rover dynamics
     rover.Update()
-
+    
     # Update sensor manager
     manager.Update()
 

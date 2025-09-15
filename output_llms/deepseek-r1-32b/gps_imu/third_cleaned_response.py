@@ -188,15 +188,9 @@ while vis.Run():
     realtime_timer.Spin(step_size)
 
 
-plt.figure(figsize=(10, 6))
-gps_x = [point[0] for point in gps_data]
-gps_y = [point[1] for point in gps_data]
-plt.plot(gps_x, gps_y, 'b-', label='GPS Trajectory')
+plt.figure()
+plt.plot([point[0] for point in gps_data], [point[1] for point in gps_data])
 plt.xlabel('Latitude')
 plt.ylabel('Longitude')
-plt.title('Vehicle GPS Trajectory')
-plt.grid(True)
-plt.legend()
+plt.title('GPS Trajectory')
 plt.show()
-
-print("GPS Data: ", gps_data)

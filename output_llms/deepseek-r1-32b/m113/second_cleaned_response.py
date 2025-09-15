@@ -1,14 +1,14 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
-import pychrono.postprocess as postproc
+import pychrono.soil as soil
 import math
 
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 
-initLoc = chrono.ChVector3d(-15, 0, 0.0)  
+initLoc = chrono.ChVector3d(-15, 0, 0.0)
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 
@@ -16,14 +16,6 @@ vis_type = veh.VisualizationType_MESH
 
 
 chassis_collision_type = veh.CollisionType_NONE
-
-
-terrainHeight = 0      
-terrainLength = 100.0  
-terrainWidth = 100.0   
-
-
-trackPoint = chrono.ChVector3d(0.0, 0.0, 1.0)  
 
 
 contact_method = chrono.ChContactMethod_SMC
@@ -59,24 +51,26 @@ vehicle.SetTrackShoeVisualizationType(vis_type)
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
-soil_model = chrono.ChSoilModelSCM()
-soil_model.SetShearModulus(1e6)  
-soil_model.SetCohesion(1e4)      
-soil_model.SetFrictionAngle(0.3) 
-soil_model.SetDensity(1800)     
+terrain = soil.ChDeformableTerrainSCM(vehicle.GetSystem())
+terrain.SetSize(100.0, 100.0)  
+terrain.SetResolution(200, 200)  
+terrain.SetHeightMap(lambda x, z: 0.05 * math.sin(x / 5) * math.sin(z / 5))  
 
 
-height_map = postproc.ChHeightMap()
-height_map.SetDimension(100, 100)  
-height_map.SetScale(1.0, 1.0)      
-height_map.Load(chrono.GetChronoDataFile("heightmaps/hmap_pits.dat"))
+soil_params = soil.ChSoilParameters()
+soil_params.m_cohesion = 1000.0
+soil_params.m_friction = 0.6
+soil_params.m_density = 1500.0
+soil_params.m_shear_strength = 500.0
+terrain.SetSoilParameters(soil_params)
 
 
-terrain = veh.SCMTerrain(vehicle.GetSystem())
-terrain.SetHeightMap(height_map)
-terrain.SetSoilModel(soil_model)
-terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 200, 200)
-terrain.SetColor(chrono.ChColor(0.4, 0.3, 0.2))  
+terrain_texture = chrono.ChTexture()
+terrain_texture.SetTextureFilename(chrono.GetChronoDataFile('terrain/textures/dirt.jpg'))
+terrain_texture.SetTextureScale(20.0, 20.0)
+terrain.SetTexture(terrain_texture)
+
+terrain.Initialize()
 
 
 vis = veh.ChTrackedVehicleVisualSystemIrrlicht()
@@ -127,7 +121,7 @@ while vis.Run():
         render_frame += 1
 
     
-    driver_inputs = veh.DriverInputs()
+    driver_inputs = driver.GetInputs()
     driver_inputs.throttle = 0.8  
     
     

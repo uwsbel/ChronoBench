@@ -1,4 +1,13 @@
 
+Based on the instructions and code review, I've made the following modifications:
+
+1. Fixed ground position (z from -1 to -0.6)
+2. Added sensor manager and lidar configuration
+3. Added 5 randomly positioned boxes
+4. Created move() function for Turtlebot control
+5. Updated simulation loop with motion control and sensor updates
+
+Here's the corrected and enhanced script:
 
 ```python
 import os
@@ -6,7 +15,7 @@ import math
 import numpy as np
 import pychrono as chrono
 import pychrono.robot as turtlebot
-import pychrono.sensor as sens
+import pychrono.sensor as sens  # Added sensor module
 from pychrono import irrlicht as chronoirr
 
 # Create Chrono system
@@ -19,17 +28,23 @@ chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
 # Create ground body
 ground_mat = chrono.ChContactMaterialNSC()
 ground = chrono.ChBodyEasyBox(20, 20, 1, 1000, True, True, ground_mat)
-ground.SetPos(chrono.ChVector3d(0, 0, -0.6))  # Adjusted ground position
+ground.SetPos(chrono.ChVector3d(0, 0, -0.6))  # Adjusted z-position
 ground.SetFixed(True)
 ground.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
 system.Add(ground)
 
-# Create random boxes
-for _ in range(5):
-    x = np.random.uniform(-8, 8)
-    y = np.random.uniform(-8, 8)
-    box = chrono.ChBodyEasyBox(0.5, 0.5, 0.5, 1000, True, True, ground_mat)
-    box.SetPos(chrono.ChVector3d(x, y, 0.25))
+# Add randomly placed boxes
+for i in range(5):
+    box_mat = chrono.ChContactMaterialNSC()
+    box = chrono.ChBodyEasyBox(0.2, 0.2, 0.2, 1000, True, True, box_mat)
+    while True:  # Ensure boxes don't spawn near robot start
+        x = np.random.uniform(-2, 2)
+        y = np.random.uniform(-2, 2)
+        if math.sqrt(x**2 + (y-0.2)**2) > 0.5:  # Avoid robot start position
+            break
+    box.SetPos(chrono.ChVector3d(x, y, 0))
+    box.SetFixed(False)
+    box.GetVisualShape(0).SetColor(chrono.ChColor(0.9, 0.2, 0.2))
     system.Add(box)
 
 # Create Turtlebot Robot
@@ -38,71 +53,107 @@ init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
 robot = turtlebot.TurtleBot(system, init_pos, init_rot)
 robot.Initialize()
 
+# Wheel ID constants
+LEFT_DRIVE_WHEEL = turtlebot.TurtleBot.LEFT
+RIGHT_DRIVE_WHEEL = turtlebot.TurtleBot.RIGHT
+
+# Motion control function
+def move(mode):
+    if mode == 'straight':
+        robot.SetMotorSpeed(math.pi, LEFT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(math.pi, RIGHT_DRIVE_WHEEL)
+    elif mode == 'left':
+        robot.SetMotorSpeed(0, LEFT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(math.pi, RIGHT_DRIVE_WHEEL)
+    elif mode == 'right':
+        robot.SetMotorSpeed(math.pi, LEFT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(0, RIGHT_DRIVE_WHEEL)
+    elif mode == 'stop':
+        robot.SetMotorSpeed(0, LEFT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(0, RIGHT_DRIVE_WHEEL)
+
 # Create sensor manager
-sensor_manager = sens.ChSensorManager(system)
-sensor_manager.scene.AddPointLight(chrono.ChVector3d(2, 2.5, 5), chrono.ChColor(2, 2, 2), 500)
+manager = sens.ChSensorManager(system)
+manager.scene.AddPointLight(chrono.ChVector3d(100, 100, 100), chrono.ChColor(1, 1, 1), 5000)
 
 # Configure lidar sensor
-chassis = robot.GetChassisBody()
-lidar_offset = chrono.ChVector3d(0, 0, 0.2)
-lidar_transform = chrono.ChFramed(lidar_offset, chrono.Q_from_AngZ(0))
+lidar_offset = chrono.ChFrameD(chrono.ChVector3d(0, 0, 0.2), chrono.QUNIT)
 lidar = sens.ChLidarSensor(
-    chassis,
-    10,
-    lidar_transform,
-    1000,
-    32,
-    360,
-    20,
-    35,
-    -15,
-    100.0
+    robot.GetChassisBody(),   # Parent body
+    10,                       # Update rate (Hz)
+    lidar_offset,             # Offset pose
+    4500,                     # Horizontal samples
+    32,                       # Vertical samples
+    2 * math.pi,              # Horizontal FOV (360°)
+    math.pi/3,                # Vertical FOV (60°)
+    math.pi/6,                # Max vertical angle
+    -math.pi/6,               # Min vertical angle
+    100.0                     # Max distance
 )
-lidar.SetName("Lidar")
-lidar.PushFilter(sens.ChFilterLidarNoiseXYZ(0.01, 0.02))
-lidar.PushFilter(sens.ChFilterLidarIntensityNoise(0.1))
-lidar.PushFilter(sens.ChFilterPCfromDepth())
-lidar.PushFilter(sens.ChFilterLidarReduce(0.02))
-lidar.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.5))
-sensor_manager.AddSensor(lidar)
+lidar.SetName("Lidar Sensor")
+lidar.SetLag(0.0)
+lidar.SetCollectionWindow(0.0)
 
-# Visualization setup
+# Add lidar filters
+lidar.PushFilter(sens.ChFilterDIAccess())
+lidar.PushFilter(sens.ChFilterPCfromDepth())
+lidar.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "Lidar Point Cloud"))
+manager.AddSensor(lidar)
+
+# Create run-time visualization
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
 vis.SetCameraVertical(chrono.CameraVerticalDir_Z)
 vis.SetWindowSize(1280, 720)
-vis.SetWindowTitle('Turtlebot Robot - Modified Simulation')
+vis.SetWindowTitle('Turtlebot Robot with Lidar')
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()
 vis.AddCamera(chrono.ChVector3d(0, 1.5, 0.2), chrono.ChVector3d(0, 0, 0.2))
 vis.AddTypicalLights()
+vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0, 0.5), 3, 4, 10, 40, 512)
 
-# Wheel constants
-LEFT_DRIVE_WHEEL = 0
-RIGHT_DRIVE_WHEEL = 1
-
-# Motion control function
-def move(robot, mode):
-    if mode == 'straight':
-        speed = math.pi
-        robot.SetMotorSpeed(speed, LEFT_DRIVE_WHEEL)
-        robot.SetMotorSpeed(speed, RIGHT_DRIVE_WHEEL)
-    elif mode == 'left':
-        robot.SetMotorSpeed(0, LEFT_DRIVE_WHEEL)
-        robot.SetMotorSpeed(-math.pi, RIGHT_DRIVE_WHEEL)
-    elif mode == 'right':
-        robot.SetMotorSpeed(-math.pi, LEFT_DRIVE_WHEEL)
-        robot.SetMotorSpeed(0, RIGHT_DRIVE_WHEEL)
+# Set simulation time step
+time_step = 2e-3
 
 # Simulation loop
-time_step = 2e-3
+time = 0
 while vis.Run():
-    move(robot, 'straight')  # Set movement mode
-    sensor_manager.Update()  # Update sensors
+    # Update motion control
+    if time < 1.0:
+        move('straight')
+    elif time < 2.0:
+        move('left')
+    elif time < 3.0:
+        move('right')
+    else:
+        move('stop')
     
+    # Update sensors
+    manager.Update()
+    
+    # Render scene
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
+    
+    # Advance simulation
     system.DoStepDynamics(time_step)
+    time += time_step
 ```
+
+Key changes made:
+1. Ground Z-position adjusted to -0.6
+2. Added sensor manager and configured 360° lidar with visualization
+3. Added 5 randomly positioned boxes (avoiding robot start)
+4. Created move() function for intuitive robot control
+5. Updated simulation loop with time-based motion control
+6. Added sensor manager update in main loop
+7. Improved visualization labels and parameters
+
+The script now features:
+- Turtlebot moving in straight/left/right patterns
+- Lidar sensor visualization
+- Interactive obstacles
+- Proper timing control for motions
+- Sensor data processing pipeline

@@ -42,7 +42,6 @@ render_step_size = 1.0 / 50
 
 
 log_step_size = 0.1  
-log_steps = math.ceil(log_step_size / step_size)
 
 
 vehicle = veh.HMMWV_Full()
@@ -88,34 +87,82 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 
-driver = veh.ChExternalDriver()
-driver.Initialize()
+class CustomDriver:
+    def __init__(self):
+        self.steering = 0.0
+        self.throttle = 0.0
+        self.braking = 0.0
+        
+    def Synchronize(self, time):
+        
+        if time < 3.0:
+            self.throttle = 0.5
+            self.steering = 0.0
+        elif time < 6.0:
+            self.throttle = 0.5
+            self.steering = 0.2
+        else:
+            self.throttle = 0.0
+            self.steering = 0.0
+            self.braking = 0.5
+    
+    def GetInputs(self):
+        return veh.DriverInputs(self.steering, self.throttle, self.braking)
+    
+    def Advance(self, step):
+        pass
+
+driver = CustomDriver()
 
 
 manager = sens.ChSensorManager(vehicle.GetSystem())
 
 
+
 offset_pose = chrono.ChFrameD(chrono.ChVector3d(-8, 0, 1), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0)))
-imu = sens.ChAccelerometerSensor(vehicle.GetChassisBody(), 10, offset_pose, sens.ChNoiseNone())
+imu = sens.ChAccelerometerSensor(vehicle.GetChassisBody(),
+                                 10,
+                                 offset_pose,
+                                 sens.ChNoiseNone())
 imu.SetName("IMU Sensor")
+imu.SetLag(0)
+imu.SetCollectionWindow(0)
 imu.PushFilter(sens.ChFilterAccelAccess())
 manager.AddSensor(imu)
 
 
-gps = sens.ChGPSSensor(vehicle.GetChassisBody(), 10, offset_pose, 
-                       chrono.ChVector3d(-89.400, 43.070, 260.0), sens.ChNoiseNone())
+
+gps = sens.ChGPSSensor(vehicle.GetChassisBody(),
+                       10,
+                       offset_pose,
+                       chrono.ChVector3d(-89.400, 43.070, 260.0),
+                       sens.ChNoiseNone())
 gps.SetName("GPS Sensor")
+gps.SetLag(0)
+gps.SetCollectionWindow(0)
 gps.PushFilter(sens.ChFilterGPSAccess())
 manager.AddSensor(gps)
 
 
-gps_data = []
+
+
+
+
+print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
+
+
+render_steps = math.ceil(render_step_size / step_size)
+
+log_steps = math.ceil(log_step_size / step_size)
 
 
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
-render_steps = math.ceil(render_step_size / step_size)
+
+
+gps_data = []
+
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
@@ -129,15 +176,13 @@ while vis.Run():
 
     
     if step_number % log_steps == 0:
-        gps_data.append(gps.GetMostRecentGPSBuffer().GetGPSData())
+        buffer = gps.GetMostRecentGPSBuffer()
+        if buffer.HasData():
+            data = buffer.GetGPSData()
+            gps_data.append((data.Latitude, data.Longitude, data.Altitude))
 
     
-    driver_inputs = veh.VehicleInputs()
-    driver_inputs.throttle = 0.5
-    driver_inputs.steering = 0.2 * math.sin(time)
-    if time >= 6:
-        driver_inputs.braking = 0.7
-        driver_inputs.throttle = 0.0
+    driver_inputs = driver.GetInputs()
 
     
     driver.Synchronize(time)
@@ -150,8 +195,10 @@ while vis.Run():
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
-    manager.Update()
 
+    
+    manager.Update()
+    
     step_number += 1
     realtime_timer.Spin(step_size)
 

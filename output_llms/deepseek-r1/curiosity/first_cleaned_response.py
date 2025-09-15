@@ -1,70 +1,87 @@
-import os
 import pychrono as chrono
-import pychrono.vehicle as veh
-import pychrono.irrlicht as irr
+import pychrono.robot as robot
+import pychrono.irrlicht as chronoirr
+import os
+
+
+chrono.SetChronoDataPath("path/to/chrono/data/")  
 
 
 system = chrono.ChSystemNSC()
 system.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
-system.SetSolverType(chrono.ChSolver.Type_PSOR)
+system.SetSolverType(chrono.ChSolver.Type_PSS)
 system.SetSolverMaxIterations(100)
 
 
-terrain = veh.RigidTerrain(system)
-patch_mat = chrono.ChMaterialSurfaceNSC()
-patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysD(), 200, 100)
-patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
-terrain.Initialize()
+ground_mat = chrono.ChMaterialSurfaceNSC()
+ground_mat.SetFriction(0.9)
+ground_mat.SetRestitution(0.01)
+
+ground = chrono.ChBodyEasyBox(50, 1, 50, 1000, True, True, ground_mat)
+ground.SetPos(chrono.ChVectorD(0, -0.5, 0))
+ground.SetBodyFixed(True)
+system.Add(ground)
 
 
-rover = veh.Viper(system)
-rover.SetDriverCollision(True)
-rover.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 1, 0), chrono.QUNIT))
-rover.SetChassisVisualizationType(veh.VisualizationType_MESH)
-rover.SetWheelVisualizationType(veh.VisualizationType_MESH)
+ground_texture = chrono.ChTexture()
+ground_texture.SetTextureFilename(chrono.GetChronoDataFile("textures/concrete.jpg"))
+ground.AddAsset(ground_texture)
 
 
-driver = veh.InteractiveDriver(rover.GetVehicle())
-driver.SetSteeringDelta(0.02)
-driver.SetThrottleDelta(0.02)
-driver.Initialize()
+rover = robot.Curiosity()
+rover.SetDriver(robot.CuriosityDCMotorControl())
+rover.Initialize(chrono.ChFrameD(chrono.ChVectorD(0, -0.4, 0), chrono.QUNIT))
+system.Add(rover.GetChassis().GetBody())
 
 
-vis = irr.ChVisualSystemIrrlicht()
+vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
 vis.SetWindowSize(1280, 720)
 vis.SetWindowTitle("Curiosity Rover Simulation")
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))
 vis.AddSkyBox()
-vis.AddCamera(chrono.ChVectorD(5, 3, -5))
-vis.AddLightWithShadow(chrono.ChVectorD(10, 10, -5), chrono.ChVectorD(0, 0, 0), 50, 5, 50, 512)
+vis.AddCamera(chrono.ChVectorD(3, 2, 3), chrono.ChVectorD(0, 0, 0))
+vis.AddTypicalLights()
+vis.AddLightWithShadow(chrono.ChVectorD(10, 10, 10), chrono.ChVectorD(0, 0, 0), 50, 5, 20, 50, 512)
 
 
-vis.EnableShadows(True)
-vis.EnableAntiAliasing(True)
-vis.EnableGrid(False)
-rover.GetVehicle().GetChassis().GetBody().GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/rover_body.png"))
+vis.EnableShadows()
 
 
-time_step = 0.005
+time_step = 0.001
+time = 0
+last_time = 0
+
+
+steering_angle = 0.0
+speed_level = 0.0
+
+
 while vis.Run():
+    time = system.GetChTime()
+    
+    
+    steering_angle = 0.3 * chrono.ChSineStep(time, 1.0, 0.5)
+    speed_level = 0.5
+    
+    rover.GetDriver().SetSteering(steering_angle)
+    rover.GetDriver().SetSpeed(speed_level)
+    rover.GetDriver().Update(time_step)
+    
+    
     vis.BeginScene()
     vis.Render()
+    vis.EndScene()
     
     
-    driver.Synchronize(time_step)
-    rover.Synchronize(time_step, driver.GetInputs())
-    system.Synchronize(time_step)
     system.DoStepDynamics(time_step)
     
     
-    cam_pos = rover.GetChassisPos() + chrono.ChVectorD(-5, 2, -5)
-    vis.GetActiveCamera().setTarget(irr.vector3df(rover.GetChassisPos().x, rover.GetChassisPos().y, rover.GetChassisPos().z))
-    
-    
-    vis.GetGUIEnvironment().addStaticText(
-        "NASA/JPL - Curiosity Rover Simulation\nUse Arrow Keys to Drive\nW/S - Throttle\nA/D - Steer",
-        irr.recti(10, 10, 400, 80), True, False)
-    
-    vis.EndScene()
+    if time - last_time > 0.02:  
+        cam_pos = rover.GetChassis().GetBody().GetPos() + chrono.ChVectorD(-3, 1, 0)
+        vis.GetActiveCamera().setTarget(chronoirr.vector3df(rover.GetChassis().GetBody().GetPos().x, 
+                                                          rover.GetChassis().GetBody().GetPos().y,
+                                                          rover.GetChassis().GetBody().GetPos().z))
+        vis.GetActiveCamera().setPosition(chronoirr.vector3df(cam_pos.x, cam_pos.y, cam_pos.z))
+        last_time = time

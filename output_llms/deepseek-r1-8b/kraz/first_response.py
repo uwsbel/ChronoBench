@@ -1,65 +1,109 @@
 import pychrono as pychrono
 import pychrono.vehicles as vehicles
-from pychrono.ira import *
-from pychrono.utils import *
+import pychrono.gfx as gfx
 
-# Initialize the simulation
-sim = pychrono.Simulator()
-sim.set_rendering_device("Irrlicht")
-sim.set_timestep(1/60)  # 60 FPS
+# Initialize PyChrono environment
+pychrono.init()
+sim = pychrono.Simulation()
+sim.set_time_step(1.0/60.0)  # 60 FPS
 
-# Create the terrain
-terrain = pychrono.objects.RigidPlane(sim, "terrain", pychrono.Vec3(0, 0, 0), pychrono.Vec3(50, 50, 0))
-terrain.get_object().set_material_properties(friction=0.6, restitution=0.3)
+# Initialize vehicle
+vehicle = pychrono.RigidBody()
+vehicle.set_name("Kraz_Vehicle")
+vehicle.set_mass(1000)  # 1000 kg
+vehicle.set_inertia(1000, 1000, 1000)  # Ixx, Iyy, Izz
 
-# Create the vehicle
-car = pychrono.vehicles.RigidVehicle(sim, "Kraz", pychrono.Vec3(0, 0, 0), pychrono.Vec3(4, 2, 2), mass=1000)
-car.setSuspensionParameters(damping=0.5, spring_rate=1000, anti_roll=100, anti_pitch=100)
+# Add a simple vehicle body (incomplete, to be extended)
+body = pychrono.Body()
+body.set_position(pychrono.Vec3(0, 0, 0))
+body.set_rotation(pychrono.Vec3(0, 0, 0))
+vehicle.add_body(body)
 
-# Create the driver
-driver = pychrono.driver.Driver(sim, "Driver 1")
-driver.set_control_laws(acceleration_control=0.5, steering_control=0.5)
+# Add a basic suspension system (incomplete, to be extended)
+suspension = pychrono.Suspension()
+suspension.set_body(body)
+suspension.set_ground_body(pychrono.RigidBody())  # Ground body
+suspension.set_length(1.0)  # 1 meter
+suspension.set_damping(5.0)  # Damping coefficient
+suspension.set_friction(100.0)  # Friction coefficient
+suspension.set_restitution(0.3)  # Restitution coefficient
+vehicle.add_component(suspension)
 
-# Set up camera and lighting
-cam = sim.get_camera()
-cam.set_position(pychrono.Vec3(10, 10, 10))
-cam.set_lookat(pychrono.Vec3(0, 0, 0))
-cam.set_up(pychrono.Vec3(0, 1, 0))
+# Initialize terrain
+terrain = pychrono.RigidBody()
+terrain.set_name("Terrain")
+terrain.set_mass(0)  # No mass for the ground
+terrain.set_inertia(0, 0, 0)  # No inertia for the ground
+terrain.set_friction(100.0)  # Friction coefficient
+terrain.set_restitution(0.3)  # Restitution coefficient
+terrain.set_position(pychrono.Vec3(0, -0.5, 0))  # Ground level
+sim.add_body(terrain)
 
-light1 = pychrono.objects.Light(sim, "ambient_light", pychrono.Vec3(0, 0, 0), color=Vec3(1, 1, 1))
-light2 = pychrono.objects.Light(sim, "directional_light", pychrono.Vec3(10, 10, 10), color=Vec3(1, 1, 1), direction=Vec3(-1, -1, -1))
+# Initialize driver system
+driver = pychrono.DriverComponent()
+driver.set_name("Driver")
+driver.set_mass(80)  # 80 kg
+driver.set_inertia(0, 0, 0)  # No inertia for the driver
+driver.set_position(pychrono.Vec3(-5, 0, 0))  # Initial position
+driver.set_rotation(pychrono.Vec3(0, 0, 0))  # Initial orientation
+sim.add_component(driver)
 
-# Visualization settings
-rendering = sim.get_rendering()
-rendering.set_camera(cam)
-rendering.add_light(light1)
-rendering.add_light(light2)
+# Initialize PID controller for driving
+steering_controller = pychrono.PIDController()
+steering_controller.set_name("Steering_Controller")
+steering_controller.set_gain(0.1)  # Gain for steering
+steering_controller.set_max_output(1.0)  # Maximum steering force
 
-# Simulation loop
-running = True
-while running:
+throttle_controller = pychrono.PIDController()
+throttle_controller.set_name("Throttle_Controller")
+throttle_controller.set_gain(0.5)  # Gain for throttle
+throttle_controller.set_max_output(1.0)  # Maximum throttle force
+
+driver.set_controller(steering_controller, "steering")
+driver.set_controller(throttle_controller, "throttle")
+
+# Initialize visualization
+renderer = gfx.IrrlichtRenderer()
+renderer.set_hfov(45.0)  # Horizontal field of view
+renderer.set_vfov(45.0)  # Vertical field of view
+renderer.set_position(pychrono.Vec3(0, 0, 5))  # Camera position
+renderer.set.look_at(pychrono.Vec3(0, 0, 0))  # Look at origin
+renderer.add_light_source(pychrono.Vec3(0, 1, 0))  # Add ambient light
+
+# Add vehicle to the simulation
+sim.add_body(vehicle)
+sim.add_body(terrain)
+sim.add_component(driver)
+
+# Define the simulation loop
+def simulation_loop():
+    global vehicle, terrain, driver, renderer, sim
+    # Update driver input
+    speed = 10.0  # Initial speed
+    steering = 0.0  # Initial steering
+    
+    # Update vehicle actuation
+    # This is a simplified example; a real vehicle would have more complex actuation
+    front_wheel = vehicle.get_body("front_wheel")
+    rear_wheel = vehicle.get_body("rear_wheel")
+    
+    # Simple steering and throttle control
+    front_wheel.set_force(pychrono.Vec3(0, 0, -100.0 * steering))  # Steering force
+    rear_wheel.set_force(pychrono.Vec3(0, 0, 100.0 * speed))  # Throttle force
+    
+    # Update physics
     sim.update()
-    sim.render()
     
-    # Handle user input
-    for event in sim.get_event_queue().get_next_event():
-        if event.type == pychrono.simulator.SIM_EVENT_KEYDOWN:
-            key = event.key
-            if key == pychrono.keys.KEY_UP and KEY_ACCELERATOR:
-                driver.set_acceleration(0)
-            elif key == pychrono.keys.KEY_DOWN and KEY_ACCELERATOR:
-                driver.set_acceleration(0.5)
-            elif key == pychrono.keys.KEY_UP and KEY BRAKE:
-                driver.set_acceleration(-0.5)
-            elif key == pychrono.keys.KEY_DOWN and KEY BRAKE:
-                driver.set_acceleration(0)
-            elif key == pychrono.keys.KEY_UP and KEY STEER_LEFT:
-                driver.set_steering(-0.5)
-            elif key == pychrono.keys.KEY_DOWN and KEY STEER_LEFT:
-                driver.set_steering(0)
-            elif key == pychrono.keys.KEY_UP and KEY STEER_RIGHT:
-                driver.set_steering(0.5)
-            elif key == pychrono.keys.KEY_DOWN and KEY STEER_RIGHT:
-                driver.set_steering(0)
+    # Update visualization
+    renderer.update()
     
-    running = not running if sim.get_event_queue().get_event("SIM_CLOSE") else running
+    # Repeat
+    return
+
+# Start the simulation
+simulation_loop()
+
+# Run the simulation in a separate thread for real-time visualization
+import threading
+thread = threading.Thread(target=simulation_loop)
+thread.start()

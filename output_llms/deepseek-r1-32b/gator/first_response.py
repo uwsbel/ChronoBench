@@ -1,67 +1,55 @@
-import pychrono as chrono
-import pychrono irrlicht as chronoirr
+importchrono
+import ChronoEngine as chrono
+import ChronoPostprocess as postprocess
 
-# Create the Chrono system
+# Initialize the simulation
 system = chrono.ChSystemDFS()
-
-# Create the Irrlicht application
-app = chronoirr.ChIrrApp(system, "Gator Vehicle Simulation", chronoirr.dimension2du(1024, 768))
-app.SetCamera(chronoirr.vector3df(0, 5, 10), chronoirr.vector3df(0, 0, 0))
-app.AddTypicalLights()
+application = chrono.ChIrrApp(system, "Gator Vehicle Simulation", chrono.CIrrlicht::.dimension2du(1024, 768))
+application.SetCameraVerticalSpeed(5)
+application.SetCameraVerticalDistance(5)
+application.SetCameraHorizontalDistance(5)
+application.SetCameraHeight(5)
+application.SetFullScreen(False)
+application.Initialize()
 
 # Create the Gator vehicle
-vehicle = chrono.ChWheeledVehicle()
-vehicle.SetBodyPose(chrono.ChFrame<>(chrono.ChVector<>(0, 0, 1)))
-
-# Set vehicle parameters
-vehicle.SetContactMethod(chrono.ChContactMethod::NSC)
-vehicle.SetTireType(chrono.ChTireType::TMEASY)
-vehicle.SetTireRadius(0.3)
-vehicle.SetTireDamping(0.2)
-
-# Add wheels
-wheel_positions = [
-    chrono.ChVector<>(1.0, 0.5, 0.0),
-    chrono.ChVector<>(1.0, -0.5, 0.0),
-    chrono.ChVector<>(-1.0, 0.5, 0.0),
-    chrono.ChVector<>(-1.0, -0.5, 0.0)
-]
-
-for pos in wheel_positions:
-    wheel = vehicle.AddWheel(chrono.ChassisLocation(pos, chrono.ChQuaternion<>(1, 0, 0, 0)), 0.2, 0.3, 0.05)
-    wheel_mesh = chrono.ChVisualShapeSphere(0.15, chrono.ChColor(0.5, 0.5, 0.5))
-    wheel.GetVisualShape().AddVisualShape(wheel_mesh)
+vehicle = chrono.vehicle.Gator()
+vehicle.SetInitPosition(chrono.ChVectorD(0, 0, 1))
+vehicle.SetInitRotation(chrono.ChQuaternionD(chrono.CH_C_PI / 2, 0, 0))
+vehicle.SetContactMethod("chrono")
+vehicle.SetTireModel("tmeasy")
+vehicle.SetRenderMesh(True)
+system.Add(vehicle.GetChassis())
 
 # Create the terrain
-terrain = chrono.ChRigidTerrain(system, chrono.ChCollisionSystem())
-terrain.SetSize(100, 100)
-terrain.SetHeight(0)
-terrain.SetTexture(chrono.ChTexture())
-terrain.GetMaterial().Set_texture_filename("custom_terrain_texture.jpg")
-terrain.GetMaterial().Set_color(chrono.ChColor(0.8, 0.8, 0.8))
+terrain = chrono.ChRigidTerrain()
+terrain.SetDimensions(chrono.ChVectorD(100, 100, 0.1))
+terrain.SetTexture("path/to/terrain_texture.jpg", 5, 5)
 system.Add(terrain)
 
-# Create driver
-driver = chrono.ChDriver()
-driver.SetSteering(0)
-driver.SetThrottle(0)
-driver.SetBraking(0)
-vehicle.SetDriver(driver)
+# Set up the driver
+driver = chrono.ChIrrGuiDriver(application)
+driver.SetVehicle(vehicle)
 
-# Set up input handling
-app.SetEventCallback(driver)
+# Simulation loop
+step_size = 1 / 50.0
+real_time_factor = 1.0
 
-# Set up the simulation loop
-render_step = 0.01  # 100Hz simulation
-app.SetTimestep(render_step)
-
-# Run the simulation
-while app.Run():
-    # Update driver inputs
+while application.GetDevice().run():
+    # Update vehicle and driver
+    vehicle.Update(chrono.GetChTime())
     driver.Update()
     
-    # Perform time integration
-    system.DoStepDynamics(render_step)
+    # Update terrain
+    terrain.Update()
     
-    # Render scene
-    app.Render()
+    # Advance simulation
+    system.DoStepDynamics(step_size)
+    application.GetDevice().setTimeStep(step_size * real_time_factor)
+    
+    # Check for exit
+    if application.GetDevice().isKeyDown(chrono.CH_KEY_ESCAPE):
+        break
+
+# Close the application
+application.GetDevice().closeDevice()

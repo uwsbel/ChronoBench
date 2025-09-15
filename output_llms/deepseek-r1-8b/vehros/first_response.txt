@@ -1,196 +1,99 @@
 <think>
-Okay, so I need to create a PyChrono simulation based on the user's instructions. Let me go through each part step by step.
+Okay, so I need to create a PyChrono simulation script based on the user's instructions. Let me break down what they're asking for.
 
-First, the user wants to initialize the PyChrono environment and core components. I remember that in PyChrono, you typically start by importing the necessary modules and initializing the simulation. So I'll import PyChrono and ROS. Then, I'll create a Simulation object and a ROSManager. That should set up the basic structure.
+First, they want an HMMWV vehicle with specific parameters. I know that in PyChrono, vehicles are usually created using the Vehicle class. I'll need to set parameters like contact method, engine type, and tire model. I'm not entirely sure about the exact parameters for the HMMWV, but I can look up some common ones or maybe use default values if I'm unsure.
 
-Next, the vehicle is an HMMWV. I need to add a vehicle system. I'll use the VehicleSystem class, set the name to "HMMWV". Since it's a ground vehicle, I'll set the contact method to "force", which I think is the default, but I should double-check. The engine type is "diesel" and the tire model is "soft". I'll create the vehicle with these parameters and add it to the simulation.
+Next, the terrain setup. They mentioned defined friction and restitution. I think the terrain is created using the Terrain class. I'll set the friction coefficient, maybe around 0.2 for rough terrain, and restitution, perhaps 0.3 to simulate some bounce. The size and shape can be something simple, like a flat ground plane.
 
-Now, the terrain. I'll create a TerrainSystem with a name like "flat_terrain". The terrain dimensions are important; maybe a large flat area, so I'll set size_x and size_y to 100 each. For terrain type, flat makes sense. Friction is 0.5 and restitution 0.3, which are typical values. I'll add the terrain to the simulation.
+Then, the driver system. PyChrono has a Driver class that controls the vehicle. I'll need to initialize this driver and attach it to the vehicle. Also, I should set up a keyboard handler so the driver can input commands like acceleration and steering. I'll use the KeyboardHandler class for this.
 
-The driver system is next. I'll create a DriverSystem with a name like "driver_1". The driver needs to control the vehicle, so I'll set the vehicle ID to the index of the vehicle in the simulation. The driver's car control mode should be "tank", which allows for independent control of wheels. I'll add the driver to the simulation.
+ROS integration is another key part. They want communication between the simulation and ROS. I remember that PyChrono has an ROSManager class. I'll need to create an instance of this and register some handlers. The clock synchronization handler will update the ROS clock based on the simulation's time. The driver input handler will send the driver's commands to ROS. For the vehicle state, I'll get the vehicle's state each timestep and send it to ROS.
 
-For the simulation loop, I need to set a timestep of 0.1 seconds. In each step, I'll synchronize the vehicle, terrain, and driver. Then, I'll process events, like input from the driver. The vehicle's physics should be updated, and the simulation step run. After each step, I'll update the ROS manager to publish data.
+Now, putting it all together in the simulation loop. Each timestep, I'll synchronize the ROS clock, update the driver's inputs, advance the vehicle and terrain, and then handle any data publication through ROS. I'll run the simulation for a set number of steps, say 1000, and at each step, perform these actions.
 
-ROS integration is crucial. I'll create a ROSManager and register handlers. The clock synchronization handler will update the simulation time based on ROS's clock. The driver input handler will get commands from ROS and send them to the vehicle. The vehicle state handler will publish the vehicle's state to ROS. I'll add these handlers to the ROSManager and link them to the respective ROS topics.
+Wait, I'm not sure about the exact parameters for the HMMWV. Maybe I should look up the typical parameters for a vehicle in PyChrono. For example, contact method could be 'force' or 'velocity', engine type might be 'differential', and tire model could be 'soft' or 'hard'. I'll go with some defaults for now, but maybe include comments suggesting that they can be adjusted.
 
-I should also make sure that all systems are added to the simulation correctly. The vehicle is added to the simulation's default group, which is probably the ground group. The terrain is added to the terrain group. The driver is added to the driver group.
+Also, when setting up the terrain, I should make sure it's large enough for the vehicle to move without issues. Maybe a square of 100m x 100m. The shape can be a rectangle for simplicity.
 
-Wait, in the VehicleSystem, the contact method is set to "force". Is that correct? I think for ground vehicles, it should be "force" or "velocity". Maybe I should confirm that. Also, the tire model as "soft" is a default, but perhaps I should look if there are more options or specific models for HMMWV.
+For the driver, I'll set up a keyboard handler so the user can input commands. The driver will have a VehicleController attached to the HMMWV, allowing for acceleration and steering inputs.
 
-The terrain's dimensions seem okay, but maybe I should adjust them based on the vehicle's size. If the vehicle is longer than 100 units, the terrain might be too small. But since the user didn't specify, I'll proceed with 100x100.
+In the simulation loop, I'll make sure to call the ROSManager's step() method to handle any pending messages and updates. Then, at each step, I'll update the driver's inputs based on the keyboard events and send the vehicle's state to ROS.
 
-For the driver, setting the car control mode to "tank" allows each wheel to be controlled independently, which is suitable for differential control. I'll make sure the driver is linked to the vehicle correctly.
-
-In the simulation loop, I'll process the events each timestep. The vehicle's state will be updated based on the driver's inputs. The ROSManager will handle publishing the vehicle's state, which can be useful for visualization or further processing.
-
-I think I've covered all the main points. Now, I'll structure the code accordingly, making sure each component is initialized and added to the simulation. I'll also ensure that the ROS topics are correctly registered and that the handlers are properly linked.
+I think that covers all the main points. Now, I'll structure the code accordingly, making sure each component is initialized properly and the simulation runs smoothly.
 </think>
 
-To create a comprehensive PyChrono simulation featuring an HMMWV vehicle with ROS integration, follow these structured steps:
-
-### 1. Initialize PyChrono and Core Components
-- **Import Necessary Libraries**: Ensure that PyChrono and ROS are imported.
-- **Create Simulation and ROS Manager**: Initialize the simulation and ROS manager to manage the simulation environment and communication.
-
 ```python
-import PyChrono as pychrono
-import pychrono.ros as pychronoros
+import pychrono as pychrono
+from pychrono.vehicles import Vehicle, VehicleController
+from pychrono.gearboxes import DifferentialGearbox
+from pychrono.tires import SoftTire
+from pychrono.contact import Contact
+from pychrono import ROSManager
+from pychrono.input_handlers import KeyboardHandler
+import numpy as np
 
-# Initialize simulation
-sim = pychrono.Simulation()
-sim.set_time_unit(pychrono.TimeUnit.SECOND)
+# Initialize PyChrono
+pychrono.init()
+
+# Initialize vehicle
+vehicle = Vehicle("HMMWV", "ground", contact_method="force", engine_type="differential", tire_model="soft")
+# Add a differential gearbox
+vehicle.gearbox = DifferentialGearbox()
+# Add tires
+vehicle.tires = [SoftTire(), SoftTire()]
+# Set vehicle properties
+vehicle.mass = 1500  # kg
+vehicle.inertia = np.array([100, 100, 100])  # I_x, I_y, I_z (kg m²)
+vehicle.center_of_mass = np.array([0, 0, 0])  # assuming CoM is at center
+vehicle.width = 2.5  # meters
+vehicle.length = 5.0  # meters
+vehicle.height = 1.5  # meters
+
+# Initialize terrain
+terrain = pychrono.Terrain("ground", friction=0.2, restitution=0.3)
+terrain.size = 100  # meters in each dimension
+terrain.shape = "rect"  # "rect" for rectangle, "sphere" for sphere, "box" for box
+terrain.position = np.array([0, 0, 0])  # position of terrain relative to world frame
+
+# Initialize driver
+driver = pychrono.Driver()
+driver_controller = VehicleController(driver, vehicle)
+driver_controller.input_handler = KeyboardHandler()
+driver_controller.input_handler.set_period(100)  # 100Hz
 
 # Initialize ROS manager
-ros_manager = pychronoros.ROSManager(sim)
-```
-
-### 2. Define the Vehicle System
-- **Vehicle Parameters**: Set contact method, engine type, and tire model.
-- **Create Vehicle Instance**: Add the vehicle to the simulation.
-
-```python
-# Define vehicle parameters
-vehicle_contact_method = "force"
-vehicle_engine_type = "diesel"
-vehicle_tire_model = "soft"
-
-# Create vehicle system
-vehicle_system = pychrono.Systems.VehicleSystem(sim, name="HMMWV")
-vehicle_system.set_contact_method(vehicle_contact_method)
-vehicle_system.set_engine_type(vehicle_engine_type)
-vehicle_system.set_tire_model(vehicle_tire_model)
-
-# Add vehicle to simulation
-sim.add_system(vehicle_system)
-```
-
-### 3. Define the Terrain System
-- **Terrain Dimensions and Properties**: Set size, type, friction, and restitution.
-- **Add Terrain to Simulation**: Ensure the terrain is correctly added to the simulation.
-
-```python
-# Define terrain parameters
-terrain_size_x = 100
-terrain_size_y = 100
-terrain_type = "flat"
-terrain_friction = 0.5
-terrain_restitution = 0.3
-
-# Create terrain system
-terrain_system = pychrono.Systems.TerrainSystem(sim, name="flat_terrain")
-terrain_system.set_size_x(terrain_size_x)
-terrain_system.set_size_y(terrain_size_y)
-terrain_system.set_type(terrain_type)
-terrain_system.set_friction(terrain_friction)
-terrain_system.set_restitution(terrain_restitution)
-
-# Add terrain to simulation
-sim.add_system(terrain_system)
-```
-
-### 4. Define the Driver System
-- **Driver Parameters**: Set vehicle ID and control mode.
-- **Create Driver Instance**: Add the driver to the simulation.
-
-```python
-# Define driver parameters
-driver_name = "driver_1"
-vehicle_id = 0  # Assuming vehicle is the first in the simulation
-
-# Create driver system
-driver_system = pychrono.Systems.DriverSystem(sim, name=driver_name)
-driver_system.set_control_mode("tank")
-driver_system.set_vehicle_id(vehicle_id)
-
-# Add driver to simulation
-sim.add_system(driver_system)
-```
-
-### 5. Set Up the Simulation Loop
-- **Time Step**: Define the timestep for the simulation loop.
-- **Simulation Loop**: Process each timestep, updating systems and handling ROS events.
-
-```python
-# Set simulation timestep
-sim.set_step(0.1)
-
-# Define simulation loop
-while True:
-    # Synchronize all systems
-    sim.sync()
-    
-    # Process events
-    sim.process_event()
-    
-    # Update vehicle state based on driver input
-    driver_input = sim.get_input()
-    vehicle_system.set_input(driver_input)
-    
-    # Update physics
-    sim.update()
-    
-    # Update ROS manager
-    ros_manager.update()
-    
-    # Publish vehicle state to ROS
-    vehicle_state = vehicle_system.get_state()
-    ros_manager.publish("vehicle_state", vehicle_state)
-    
-    # Sleep to control simulation speed
-    pychrono.sleep(sim.get_step())
-```
-
-### 6. Integrate ROS for Communication
-- **ROS Topics**: Register handlers for clock synchronization, driver input, and vehicle state.
-- **ROS Handler Functions**: Implement functions to handle ROS messages.
-
-```python
-# Define ROS clock synchronization handler
-def clock_sync_handler():
-    sim.set_time(ros_manager.get_clock().get_time().seconds)
-
+ros_manager = pychrono.ROSManager()
 # Register clock synchronization handler
+def clock_sync_handler():
+    ros_manager.clock_sync()
+clock_sync_handler = staticmethod(clock_sync_handler)
 ros_manager.register_handler("clock_sync", clock_sync_handler)
-
-# Define driver input handler
-def driver_input_handler(msg):
-    input = msg.data
-    sim.set_input(input)
-
 # Register driver input handler
+def driver_input_handler():
+    driver_controller.input_handler.update()
+driver_input_handler = staticmethod(driver_input_handler)
 ros_manager.register_handler("driver_input", driver_input_handler)
-
-# Define vehicle state handler
-def vehicle_state_handler(msg):
-    state = msg.data
-    vehicle_system.set_state(state)
-
 # Register vehicle state handler
+def vehicle_state_handler():
+    state = vehicle.get_state()
+    state publiation
+vehicle_state_handler = staticmethod(vehicle_state_handler)
 ros_manager.register_handler("vehicle_state", vehicle_state_handler)
 
-# Link ROS topics
-ros_manager.link_topic("clock_sync", "clock_sync")
-ros_manager.link_topic("driver_input", "driver_input")
-ros_manager.link_topic("vehicle_state", "vehicle_state")
+# Simulation loop
+timestep = 0.01  # seconds
+for _ in range(1000):
+    # Synchronize ROS clock
+    ros_manager.step()
+    # Update driver input
+    driver_controller.input_handler.update()
+    # Advance simulation
+    pychrono.simulate(timestep)
+    # Update terrain
+    terrain.step()
+    # Publish data
+    ros_manager.publish()
+
+# Cleanup
+pychrono.terminate()
 ```
-
-### 7. Final Assembly
-- **Add Systems to Groups**: Ensure all systems are correctly grouped.
-- **Start Simulation**: Begin the simulation loop.
-
-```python
-# Add systems to appropriate groups
-sim.add_system_to_group(sim.get_system_id(vehicle_system), "ground")
-sim.add_system_to_group(sim.get_system_id(terrain_system), "terrain")
-sim.add_system_to_group(sim.get_system_id(driver_system), "driver")
-
-# Start simulation
-sim.start()
-```
-
-### 8. Considerations
-- **Vehicle Contact Method**: Ensure it's set correctly for the vehicle type.
-- **Terrain Dimensions**: Adjust based on vehicle size for accurate simulation.
-- **Driver Control Mode**: "tank" allows independent wheel control, suitable for differential steering.
-
-This setup provides a robust simulation environment with the HMMWV vehicle, realistic terrain, and ROS integration for communication and control.

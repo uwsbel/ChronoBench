@@ -42,7 +42,8 @@ def main():
     
     intensity = 1.0  
     manager.scene.AddPointLight(chrono.ChVector3f(2, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
-    manager.scene.AddAreaLight(chrono.ChVector3f(0, 0, 4), chrono.ChColor(intensity, intensity, intensity), 500.0, chrono.ChVector3f(1, 0, 0), chrono.ChVector3f(0, -1, 0))
+    
+    manager.scene.AddAreaLight(chrono.ChVector3f(0, 0, 4), chrono.ChColor(intensity, intensity, intensity), 500.0, 1.0, 1.0, chrono.ChVector3f(1, 0, 0), chrono.ChVector3f(0, -1, 0))
 
     
     
@@ -173,7 +174,7 @@ step_size = 1e-3
 end_time = 20.0
 
 
-save = True  
+save = True
 
 
 vis = True

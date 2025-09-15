@@ -1,72 +1,107 @@
 importchrono
 import math
+import time
 
-# Initialize system
-system = chrono.ChSystemNSC()
-solver = chrono.ChLcpSolver()
-system.SetSolver(solver)
-timestepper = chrono.ChTimestepperHHT(system)
-system.SetTimestepper(timestepper)
+# Initialize PyChrono and visualization
+chrono.ChRandom::SetSeed(time.time())
+sys = chrono.ChSystemNSC()
+vis = chrono.ChVisualSystemIrrlicht()
+vis.SetWindowTitle('Beam Buckling Simulation')
+vis.SetWindowSize(1024,768)
+vis.SetNumberOfCameras(1)
+vis.Camera_placement(chrono.ChVectorD(0,5,5), chrono.ChVectorD(0,0,0))
+vis.EnableLight(chrono.ChLightType.CH_LIGHT_DIRECTIONAL)
+vis.SetLightDirection(chrono.ChVectorD(1,1,1))
+sys.SetVisualSystem(vis)
 
-# Beam properties
-young_modulus = 2e11
+# Create beam properties
+young_modulus = 2.1e11  # Steel
 poisson_ratio = 0.3
-cross_section_area = 0.01
-beam_length = 1.0
+area = 0.01  # Cross-sectional area
+inertia = 0.0001  # Moment of inertia
 num_elements = 10
-element_length = beam_length / num_elements
+length = 2.0
+spacing = length / num_elements
 
-# Create beam elements
-elements = []
-for i in range(num_elements):
-    element = chrono.ChBody()
-    element.SetMass(1.0)
-    element.SetPos(chrono.ChVectorD(i * element_length, 0, 0))
-    elements.append(element)
-    system.Add(element)
-    
-    # Visualization
-    asset = chrono.ChVisualShape()
-    asset.SetGeometry(chrono.ChBox(0.5 * element_length, 0.1, 0.1))
-    element.AddAsset(asset)
+# Create beam
+beam = chrono.ChBody()
+beam.SetMass(0)
+beam.SetBodyFixed(True)
+sys.Add(beam)
 
-# Add constraints
-for i in range(num_elements - 1):
-    constraint = chrono.ChLinkSpherical()
-    constraint.Initialize(elements[i], elements[i+1], chrono.ChCoordsD(chrono.ChVectorD(element_length, 0, 0)))
-    system.Add(constraint)
+# Add nodes and elements
+nodes = []
+for i in range(num_elements + 1):
+    node = chrono.ChNodeFEAxyz()
+    node.SetPos(chrono.ChVectorD(0, 0, i*spacing))
+    node.SetMass(0)
+    sys.Add(node)
+    nodes.append(node)
 
-# Fixed constraint for the first element
-fixed = chrono.ChLinkFix()
-fixed.Initialize(elements[0], chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)))
-system.Add(fixed)
+    if i > 0:
+        element = chrono.ChElementBeam()
+        element.SetNodes(nodes[i-1], node)
+        element.SetYoungModulus(young_modulus)
+        element.SetPoissonRatio(poisson_ratio)
+        element.SetArea(area)
+        element.SetInertia(inertia)
+        sys.Add(element)
 
-# Motor function
+# Add visualization
+for element in sys.GetElements():
+    if isinstance(element, chrono.ChElementBeam):
+        element.SetVisualization(chrono.ChVisualizationFEA(chrono.ChColor(0.8,0.8,0.8)))
+
+# Add fixed constraint at base
+constraint = chrono.ChLinkLockNode()
+constraint.Initialize(nodes[0], beam.GetFrame_REF(), chrono.ChVectorD(0,0,0))
+sys.Add(constraint)
+
+# Add motor function
 def motor_function(time):
-    return 1000 * math.sin(time * 2 * math.pi / 5)
+    max_force = 100000  # Maximum compressive force
+    max_time = 5  # Time to reach maximum force
+    if time < max_time:
+        return max_force * (time / max_time)
+    else:
+        return max_force
 
-# Apply motor force to the last element
-force = chrono.ChForce()
-force.SetF(motor_function(0) * chrono.ChVectorD(-1, 0, 0))
-elements[-1].AddForce(force)
+motor = chrono.ChLinkMotorRotation()
+motor.Initialize(nodes[-1], beam.GetFrame_REF(), chrono.ChVectorD(0,0,1))
+motor.SetPositionFunction(motor_function)
+sys.Add(motor)
 
-# Visualization setup
-vis = chrono.ChIrrApp(system, "Beam Buckling Simulation", chrono.CH.dimension2D(800, 600))
-vis.AddLight(chrono.ChVectorD(0, 1, 3), chrono.ChColor(1, 1, 1))
-vis.SetCamera(chrono.ChVectorD(1.5, 1.5, 1.5), chrono.ChVectorD(0, 0, 0))
-vis.SetRenderMode(chrono.ChIrrApp.RENDER_MODE_OPENGL)
-vis.EnableShadows()
-vis.SetRenderFrequency(60)
+# Add mass for visualization
+mass = chrono.ChBody()
+mass.SetMass(10)
+mass.SetPos(chrono.ChVectorD(0, 0, length))
+mass.SetVisualization(chrono.ChVisualizationSphere(0.1, chrono.ChColor(1,0,0)))
+sys.Add(mass)
 
-# Simulation parameters
-step_size = 0.001
-num_steps = 5000
+# Add constraint for mass
+constraint_mass = chrono.ChLinkLockNode()
+constraint_mass.Initialize(nodes[-1], mass.GetFrame_REF(), chrono.ChVectorD(0,0,0))
+sys.Add(constraint_mass)
+
+# Set up solver and timestepper
+sys.SetSolverType(chrono.ChSolverType.CH_SOLVER_HHT)
+sys.GetSolver().SetTolerance(1e-6)
+sys.GetSolver().SetMaxIterations(100)
+sys.SetTimestepperType(chrono.ChTimestepperType.CH_Timestepper.Implicit_Newmark)
+sys.GetTimestepper().SetGamma(0.58)
+sys.GetTimestepper().SetBeta(0.3025)
+
+# Add all bodies and constraints to system
+sys.Add(beam)
+sys.Add(nodes)
+sys.Add(constraint)
+sys.Add(motor)
+sys.Add(mass)
+sys.Add(constraint_mass)
 
 # Run simulation
 vis.Begin()
-for step in range(num_steps):
-    current_time = step * step_size
-    force.SetF(motor_function(current_time) * chrono.ChVectorD(-1, 0, 0))
-    system.DoStepDynamics(step_size)
-    vis.Render()
+while vis.Run():
+    sys.DoStepDynamics(0.001)
+    time.sleep(0.001)
 vis.End()

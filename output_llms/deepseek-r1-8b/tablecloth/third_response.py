@@ -6,14 +6,14 @@ import errno  # Import standard error numbers
 import os  # Import system operations for file handling
 
 # Output directory
-out_dir = chrono.GetChronoOutputPath() + "FEA_SHELLS_BST"  # Define the output directory path
+out_dir = chrono.GetChronoOutputPath() + "FEA_SHELLS_BST"  # Define the output directory
 
 # Create (if needed) the output directory
 try:
     os.mkdir(out_dir)  # Try to create the directory
 except OSError as exc:
     if exc.errno != errno.EEXIST:  # If directory exists, no error; otherwise, print error message
-        print("Error creating output directory")
+        print("Error creating output directory ")
 
 # Create a Chrono::Engine physical system
 sys = chrono.ChSystemSMC()  # Instantiate the physical system
@@ -25,7 +25,8 @@ mesh = fea.ChMesh()  # Instantiate the mesh
 sys.Add(mesh)
 
 # Disable gravity for the system (options)
-sys.SetGravitationalAcceleration(chrono.ChVector3d(0, -9.81, 0))  # Enable gravity
+# sys.SetGravitationalAcceleration(VNULL) or
+mesh.SetAutomaticGravity(False)
 
 # Define nodes to plot or load
 nodePlotA = fea.ChNodeFEAxyz()  # Node for plotting
@@ -82,7 +83,7 @@ if (True):  # Block to execute the following setup
             mesh.AddElement(melementA)
 
             if (iz == 0 and ix == 1):
-                melementmonitor = melementA  # Assign element to monitor
+                ementmonitor = melementA  # Assign element to monitor
 
             # Define boundary nodes
             boundary_1 = mynodes[(iz + 1) * (nsections_x + 1) + ix + 1]
@@ -91,8 +92,8 @@ if (True):  # Block to execute the following setup
 
             # Set nodes to the element
             melementA.SetNodes(
-                mynodes[iz * (nsections_x + 1) + ix],
-                mynodes[iz * (nsections_x + 1) + ix + 1],
+                mynodes[(iz) * (nsections_x + 1) + ix],
+                mynodes[(iz) * (nsections_x + 1) + ix + 1],
                 mynodes[(iz + 1) * (nsections_x + 1) + ix],
                 boundary_1, boundary_2, boundary_3
             )
@@ -105,15 +106,15 @@ if (True):  # Block to execute the following setup
             mesh.AddElement(melementB)
 
             # Define boundary nodes
-            boundary_1 = mynodes[iz * (nsections_x + 1) + ix]
-            boundary_2 = mynodes[iz * (nsections_x + 1) + ix + 2] if (ix < nsections_x - 1) else None
+            boundary_1 = mynodes[(iz) * (nsections_x + 1) + ix]
+            boundary_2 = mynodes[(iz) * (nsections_x + 1) + ix + 2] if (ix < nsections_x - 1) else None
             boundary_3 = mynodes[(iz + 2) * (nsections_x + 1) + ix] if (iz < nsections_z - 1) else None
 
             # Set nodes to the element
             melementB.SetNodes(
                 mynodes[(iz + 1) * (nsections_x + 1) + ix + 1],
                 mynodes[(iz + 1) * (nsections_x + 1) + ix],
-                mynodes[iz * (nsections_x + 1) + ix + 1],
+                mynodes[(iz) * (nsections_x + 1) + ix + 1],
                 boundary_1, boundary_2, boundary_3
             )
 
@@ -131,6 +132,7 @@ if (True):  # Block to execute the following setup
     mvisualizeshellA.SetWireframe(True)  # Enable wireframe mode
     mvisualizeshellA.SetBackfaceCull(True)  # Enable backface culling
     mvisualizeshellA.SetShellResolution(2)  # Set resolution for shell visualization
+    # mvisualizeshellA.SetBackfaceCull(True)  # Enable backface culling (optional)
     mesh.AddVisualShapeFEA(mvisualizeshellA)  # Add visual shape to mesh
 
     # Create visualization of FEM data
@@ -163,20 +165,9 @@ timestep = 0.005
 sys.Setup()  # Prepare the system for simulation
 sys.Update()  # Update the system's internal states
 
-# Apply forces to simulate loading
-# For example, apply a force to the bottom nodes
-for node in mynodes[:nsections_x + 1]:
-    if node.GetPosition().y == 0:  # Bottom nodes
-        node.ApplyForce(load_force, chrono.ChVector3d(0, -100, 0))
-
 # Initialize interpolation function records (if required)
 rec_X = chrono.ChFunctionInterp()
 rec_Y = chrono.ChFunctionInterp()
-
-# Apply boundary conditions (if needed)
-# For example, fix the top nodes
-for node in mynodes[-nsections_x - 1:]:
-    node.SetFixed(True)
 
 # Simulation loop for running the visualization and dynamical system
 while vis.Run():

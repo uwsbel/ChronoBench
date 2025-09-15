@@ -1,113 +1,98 @@
-importchrono aschrono
-fromchrono importfea
-fromchrono import irrlicht as chronoirr
-importmath
+importchrono
+import math
 
 # Initialize the Chrono system
-system = fea.ChSystemFEA()
-system.SetGravitationalAcceleration(chrono.ChVectorD(0, -9.81, 0))
-system.SetSolverType(chrono.ChSolverType.DIRMIN)
-system.SetSolverMaxIterations(100)
-system.SetSolverTolerance(1e-6)
+system =chrono.ChSystem()
+system.SetSolverType(chrono.ChSolverType_SOR)
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
-# Create a mesh of beam finite elements
-class BeamElementSimulation:
-    def __init__(self):
+# Create a physical system with beams
+class BeamElementDemo:
+    def __init__(self, system):
         self.system = system
         self.nodes = []
-        self.beams = []
-        self.create_mesh()
-        self.add_visualization()
-        self.setup_simulation()
-
-    def create_mesh(self):
-        # Create a 3x3x3 grid of nodes
-        node_size = 0.2
-        num_nodes_x = 3
-        num_nodes_y = 3
-        num_nodes_z = 3
-
-        for x in range(num_nodes_x):
-            for y in range(num_nodes_y):
-                for z in range(num_nodes_z):
-                    node = fea.ChNodeFEAxyz()
-                    node.SetPos(chrono.ChVectorD(x * node_size, y * node_size, z * node_size))
-                    self.system.AddNode(node)
-                    self.nodes.append(node)
-
-        # Create beams between nodes
-        beam_length = node_size
-        E = 200e9  # Young's modulus for steel
-        G = 80e9    # Shear modulus for steel
-        A = 0.001   # Cross-sectional area
-        I = 0.0001  # Moment of inertia
-
-        for i, node in enumerate(self.nodes):
-            # Connect to neighbors in x, y, z directions
-            if (i + num_nodes_y * num_nodes_z) < len(self.nodes):
-                neighbor = self.nodes[i + num_nodes_y * num_nodes_z]
-                beam = fea.ChElementBeam()
-                beam.SetNodes(node, neighbor)
-                beam.SetMaterial(chrono.ChMaterialANISOTROPIC())
-                beam.GetMaterial().SetYoungModulus(E)
-                beam.GetMaterial().SetShearModulus(G)
-                beam.SetCrossSectionArea(A)
-                beam.SetMomentInertia(I)
-                self.system.AddElement(beam)
-                self.beams.append(beam)
-
-            if (i + num_nodes_z) < len(self.nodes):
-                neighbor = self.nodes[i + num_nodes_z]
-                beam = fea.ChElementBeam()
-                beam.SetNodes(node, neighbor)
-                beam.SetMaterial(chrono.ChMaterialANISOTROPIC())
-                beam.GetMaterial().SetYoungModulus(E)
-                beam.GetMaterial().SetShearModulus(G)
-                beam.SetCrossSectionArea(A)
-                beam.SetMomentInertia(I)
-                self.system.AddElement(beam)
-                self.beams.append(beam)
-
-            if (i + 1) < len(self.nodes):
-                neighbor = self.nodes[i + 1]
-                beam = fea.ChElementBeam()
-                beam.SetNodes(node, neighbor)
-                beam.SetMaterial(chrono.ChMaterialANISOTROPIC())
-                beam.GetMaterial().SetYoungModulus(E)
-                beam.GetMaterial().SetShearModulus(G)
-                beam.SetCrossSectionArea(A)
-                beam.SetMomentInertia(I)
-                self.system.AddElement(beam)
-                self.beams.append(beam)
-
+        self.elements = []
+        
+    def create_nodes(self):
+        # Create nodes for the beam
+        node1 = chrono.ChNodeFEAxyz()
+        node1.SetPos(chrono.ChVectorD(0, 0, 0))
+        self.system.AddNode(node1)
+        self.nodes.append(node1)
+        
+        node2 = chrono.ChNodeFEAxyz()
+        node2.SetPos(chrono.ChVectorD(2, 0, 0))
+        self.system.AddNode(node2)
+        self.nodes.append(node2)
+        
+    def create_elements(self):
+        # Create beam element properties
+        young_modulus = 2.1e11  # Steel Young's modulus
+        shear_modulus = 8.1e10  # Steel shear modulus
+        area = 0.01  # Cross-sectional area
+        inertia = 0.0001  # Moment of inertia
+        
+        # Create beam element
+        beam = chrono.ChElementBeam()
+        beam.SetNodes(self.nodes[0], self.nodes[1])
+        beam.SetYoungModulus(young_modulus)
+        beam.SetShearModulus(shear_modulus)
+        beam.SetArea(area)
+        beam.SetMomentOfInertia(inertia)
+        self.system.AddElement(beam)
+        self.elements.append(beam)
+        
     def add_visualization(self):
-        # Add visualization assets to beams
-        for beam in self.beams:
-            vis = chrono.ChVisualizationBeam()
-            vis.SetColor(chrono.ChColor(0.5, 0.5, 0.5))
-            vis.SetScale(1.0)
-            beam.AddAsset(vis)
+        # Add visualization for the beam
+        for element in self.elements:
+            shape = chrono.ChShape()
+            shape.SetPos(element.GetNodes()[0].GetPos())
+            shape.SetScale(chrono.ChVectorD(1, 1, 1))
+            
+            cylinder = chrono.ChCylinder()
+            cylinder.SetHeight(2)
+            cylinder.SetRadius(0.1)
+            shape.GetAsset().AddGeometry(cylinder)
+            
+            element.GetAssets().push_back(shape)
+            self.system.AddAsset(shape)
 
-        # Fix boundary conditions
-        for node in self.nodes[:len(self.nodes)//num_nodes_y//num_nodes_z]:
-            node.SetPosFixed(True)
+# Create the beam system
+beam_demo = BeamElementDemo(system)
+beam_demo.create_nodes()
+beam_demo.create_elements()
+beam_demo.add_visualization()
 
-    def setup_simulation(self):
-        # Create Irrlicht application
-        self.app = chronoirr.ChIrrApp(self.system, "Beam Finite Element Simulation", chronoirr.dimension2du(800, 600))
-        self.app.SetCameraPosition(chrono.ChVectorD(1, 1, 1))
-        self.app.SetCameraRotation(chrono.ChVectorD(-45, 45, 0))
-        self.app.AddTypicalLights()
+# Add a floor for visualization
+floor = chrono.ChBody()
+floor.SetBodyFixed(True)
+floor.SetPos(chrono.ChVectorD(0, -1, 0))
+floor.GetCollisionModel().AddPlane(chrono.ChVectorD(0,1,0), chrono.ChVectorD(0,0,0))
+floor.GetVisualShape().SetMaterial(chrono.ChVisualMaterial())
+floor.GetVisualShape().SetTexture(chrono.GetChronoDataPath() + 'textures/concrete.jpg')
+system.AddBody(floor)
 
-        # Add interactive devices
-        self.app.AddUserLogicCallback(self.step_callback)
-        self.app.AddKeyboard()
-        self.app.AddMouse()
+# Add lighting
+light = chrono.ChLight()
+light.SetPos(chrono.ChVectorD(0, 5, 5))
+light.SetIntensity(1)
+system.AddLight(light)
 
-    def step_callback(self, time):
-        # Apply forces or modify simulation parameters here
-        pass
+# Set up Irrlicht renderer
+renderer = chrono.ChIrrRenderer()
+renderer.AttachSystem(system)
+renderer.SetWindowTitle('Beam Finite Element Demo')
+renderer.SetCameraPosition(chrono.ChVectorD(3, 3, 3))
+renderer.SetCameraRotation(chrono.ChVectorD(-60, -60, 0))
+renderer.SetLightPosition(chrono.ChVectorD(0, 5, 5))
+renderer.EnableShadows()
+renderer.EnableAntiAliasing()
 
-# Run the simulation
-simulation = BeamElementSimulation()
-simulation.app.Run()
+# Run simulation
+renderer.Begin()
+while renderer.Run():
+    renderer.Render()
+    system.DoStepDynamics(0.001)
+    if chrono.ChKey pressed 'q':
+        break
+renderer.End()

@@ -20,10 +20,11 @@ ground.SetFixed(True)  # Fix the ground in place
 ground.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
 system.Add(ground)
 
-# Create a long box obstacle
-obstacle = chrono.ChBodyEasyBox(2, 1, 0.5, 1000, True, True, ground_mat)
-obstacle.SetPos(chrono.ChVector3d(0, 0, 0.25))  # Position the obstacle above the ground
-obstacle.SetFixed(True)  # Fix the obstacle in place
+# Add a long box obstacle
+obstacle_mat = chrono.ChContactMaterialNSC()
+obstacle = chrono.ChBodyEasyBox(4, 1, 0.5, 1000, True, True, obstacle_mat)
+obstacle.SetPos(chrono.ChVector3d(2, 0, 0))  # Position the obstacle in front of the rover's new starting position
+obstacle.SetFixed(True)
 obstacle.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
 system.Add(obstacle)
 
@@ -48,12 +49,9 @@ vis.SetWindowTitle('Curiosity rover - Rigid terrain with obstacle')
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()
-vis.AddCamera(chrono.ChVector3d(-5, 3, 3), chrono.ChVector3d(-5, 0, 0))  # Adjusted camera position
+vis.AddCamera(chrono.ChVector3d(0, 3, 3), chrono.ChVector3d(0, 0, 0))
 vis.AddTypicalLights()
 vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0, 0), 3, 4, 10, 40, 512)
-
-# Enable shadows (commented out to improve performance)
-# vis.EnableShadows()
 
 # Set the simulation time step
 time_step = 1e-3
@@ -63,10 +61,9 @@ time = 0
 while vis.Run():
     time += time_step
 
-    # Set constant steering input for forward movement
-    steering = 0.0
-    driver.SetSteering(steering)
-    driver.SetThrottle(1.0)  # Added throttle to make the rover move forward
+    # Set constant forward speed with zero steering
+    driver.SetSpeed(0.5)  # Speed in m/s
+    driver.SetSteering(0)
 
     # Update rover dynamics
     rover.Update()

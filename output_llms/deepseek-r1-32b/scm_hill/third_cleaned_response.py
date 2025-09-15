@@ -57,14 +57,6 @@ vehicle.SetWheelVisualizationType(vis_type)
 vehicle.SetTireVisualizationType(vis_type)
 
 
-terrain = veh.RigidTerrain(vehicle.GetSystem())
-terrain.SetHeight(terrainHeight)
-terrain.SetLength(terrainLength)
-terrain.SetWidth(terrainWidth)
-terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
-terrain.Initialize()
-
-
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('HMMWV Demo')
 vis.SetWindowSize(1280, 1024)
@@ -89,8 +81,12 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 
-
-
+terrain = veh.RigidTerrain(vehicle.GetSystem())
+terrain.SetDimensions(terrainLength, terrainWidth, terrainHeight)
+terrain.SetPosition(chrono.ChVector3d(0, 0, terrainHeight))
+terrain.SetMaterial(veh.MaterialType_DIRT)
+terrain.SetHeightMap(veh.GetDataFile("terrain/height_maps/bump64.bmp"), 40, 40, -1, 1, 0.02)
+terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
 
 
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())

@@ -2,31 +2,31 @@ import os
 import math
 import numpy as np
 import pychrono as chrono
-from pychrono.robots.turtlebot import TurtleBot
-import pychrono.irrlicht as chronoirr
+import pychrono.robot as turtlebot
+from pychrono import irrlicht as chronoirr
 
 # Create Chrono system
 system = chrono.ChSystemNSC()
 system.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
-system.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, -9.81))
+system.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, -9.81))  # Set gravity in negative Z direction
 chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.0025)
 chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
 
-# Create ground body
+# Create ground body as terrain plane that robot will drive on
 ground_mat = chrono.ChContactMaterialNSC()
 ground = chrono.ChBodyEasyBox(20, 20, 1, 1000, True, True, ground_mat)
-ground.SetPos(chrono.ChVector3d(0, 0, -0.6))
-ground.SetFixed(True)
+ground.SetPos(chrono.ChVector3d(0, 0, -0.6))  # Adjusted ground position
+ground.SetFixed(True)  # Fix the ground in place
 ground.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
 system.Add(ground)
 
 # Create Turtlebot Robot
-init_pos = chrono.ChVector3d(0, 0.2, 0)
-init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
-robot = TurtleBot(system, init_pos, init_rot)
-robot.Initialize()
+init_pos = chrono.ChVector3d(0, 0.2, 0)  # Initial position of the robot
+init_rot = chrono.ChQuaterniond(1, 0, 0, 0)  # Initial orientation of the robot
+robot = turtlebot.TurtleBot(system, init_pos, init_rot)  # Create Turtlebot instance
+robot.Initialize()  # Initialize the robot
 
-# Visualization setup
+# Create run-time visualization
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
 vis.SetCameraVertical(chrono.CameraVerticalDir_Z)
@@ -39,48 +39,52 @@ vis.AddCamera(chrono.ChVector3d(0, 1.5, 0.2), chrono.ChVector3d(0, 0, 0.2))
 vis.AddTypicalLights()
 vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0, 0.5), 3, 4, 10, 40, 512)
 
-# Motor control function
+# Set the simulation time step
+time_step = 2e-3
+
+# Define WheelID enum values for motor control
+LEFT_DRIVE_WHEEL = 0
+RIGHT_DRIVE_WHEEL = 1
+
+# Define movement control function
 def move(mode):
     if mode == 'straight':
-        robot.SetMotorSpeed(math.pi, 0)  # Left wheel
-        robot.SetMotorSpeed(math.pi, 1)  # Right wheel
+        robot.SetMotorSpeed(math.pi, LEFT_DRIVE_WHEEL)      # Forward left
+        robot.SetMotorSpeed(math.pi, RIGHT_DRIVE_WHEEL)     # Forward right
     elif mode == 'left':
-        robot.SetMotorSpeed(0, 0)
-        robot.SetMotorSpeed(-math.pi, 1)
+        robot.SetMotorSpeed(-math.pi, LEFT_DRIVE_WHEEL)     # Reverse left
+        robot.SetMotorSpeed(math.pi, RIGHT_DRIVE_WHEEL)     # Forward right
     elif mode == 'right':
-        robot.SetMotorSpeed(-math.pi, 0)
-        robot.SetMotorSpeed(0, 1)
+        robot.SetMotorSpeed(math.pi, LEFT_DRIVE_WHEEL)      # Forward left
+        robot.SetMotorSpeed(-math.pi, RIGHT_DRIVE_WHEEL)    # Reverse right
     else:
         raise ValueError("Invalid movement mode")
 
-# Simulation parameters
-time_step = 2e-3
+# Simulation loop
 time = 0
 current_mode = None
-
-# Simulation loop
 while vis.Run():
-    # Determine movement mode based on time
-    if time < 5:
-        mode = 'straight'
-    elif time < 10:
-        mode = 'left'
+    # Determine current movement mode based on time
+    if time < 5.0:
+        new_mode = 'straight'
+    elif time < 10.0:
+        new_mode = 'left'
     else:
-        mode = 'right'
-
-    # Update movement when mode changes
-    if mode != current_mode:
-        print(f"Robot is moving {mode}.")
-        current_mode = mode
+        new_mode = 'right'
     
-    # Apply motor controls
-    move(mode)
+    # Update movement if mode changed
+    if new_mode != current_mode:
+        print(f"Robot now moving: {new_mode}")
+        current_mode = new_mode
+        move(new_mode)
+    
+    # Increment time counter
+    time += time_step
 
-    # Render scene
+    # Render the scene
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
 
-    # Advance simulation
+    # Advance the simulation by one time step
     system.DoStepDynamics(time_step)
-    time += time_step

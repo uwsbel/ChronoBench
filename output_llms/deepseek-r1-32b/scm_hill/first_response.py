@@ -1,74 +1,100 @@
-import pychrono as chrono
-import pychrono.vehicle as vehicle
-import pychrono.irrlicht as irr
-import numpy as np
+importchrono
+importchrono.vehicle
+importchrono.visual
+importchrono.sensor
+importchrono.engine
+importchrono.input
+importchrono.output
+importchrono.animation
+importchrono.math
+importchrono.utils
+importchrono irrlicht
 
-# Create the Chrono::Engine core
-core = chrono.ChCore()
-core.SetTimeStep(0.001)  # Time step for simulation
+# Initialize PyChrono environment
+chrono.SetChronoDataPath('path_to_chrono_data')
+system = chrono.ChSystemNSC()
+system.SetSolverType(chrono.ChSolverType.SOLVER_BARZILAI_BORWEIN)
+system.SetSolverMaxIterations(100)
+system.SetSolverTolerance(1e-6)
 
-# Create the HMMWV vehicle
-hmmwv = vehicle.HMMWV()
-hmmwv.SetInitPosition(chrono.ChVectorD(0, 0, 1))  # Initial position
-core.Add(hmmwv)
+# Create HMMWV vehicle
+hmmwv = chrono.vehicle.HMMWV()
+hmmwv.SetChassisPos(chrono.ChVectorD(0, 0, 1))
+hmmwv.SetChassisRot(chrono.ChQuaternionD(1, 0, 0, 0))
+hmmwv.Initialize()
 
-# Create the Soil Contact Method (SCM) deformable terrain
-scm = vehicle.SoilContactMethod()
-scm.SetSoilStiffness(1e6)  # Soil stiffness
-scm.SetSoilDamping(0.1)    # Soil damping
-scm.SetSoilFriction(0.5)   # Soil friction
-
-# Create initial height map (flat terrain for demonstration)
-height_map = np.zeros((100, 100))  # 100x100 grid
-height_map += 0.0  # Flat terrain
-
-# Initialize terrain with height map
-terrain = vehicle.Terrain()
-terrain.SetHeightMap(height_map, 100.0, 100.0, 0.1)  # 100m x 100m area, 0.1m resolution
-terrain.SetSoilParameters(scm)  # Apply soil parameters
-core.Add(terrain)
-
-# Create Irrlicht visualization
-vis = irr.ChIrrApp(core, "HMMWV on Deformable Terrain", irr.VEC2D(800, 600))
-vis.SetCameraPosition(chrono.ChVectorD(5, 5, 5))  # Camera position
-vis.SetCameraLookAt(chrono.ChVectorD(0, 0, 1))    # Look at vehicle
-
-# Add lighting
-vis.AddLight(chrono.ChVectorD(5, 5, 5), chrono.ChColor(1, 1, 1))  # Ambient light
-vis.AddLight(chrono.ChVectorD(0, 0, 10), chrono.ChColor(1, 1, 1)) # Directional light
+# Create SCM deformable terrain
+terrain = chrono.vehicle.SCMDeformableTerrain()
+terrain.SetYoungsModulus(1e7)
+terrain.SetDamping(0.1)
+terrain.SetThickness(0.5)
+terrain.SetSize(20, 20)
+terrain.SetHeightMapResolution(100, 100)
+height_map = [[0 for _ in range(100)] for _ in range(100)]
+terrain.Initialize(height_map)
+terrain.SetPosition(chrono.ChVectorD(0, 0, 0))
+terrain.SetRotation(chrono.ChQuaternionD(1, 0, 0, 0))
+terrain.Initialize()
 
 # Create driver system
-driver = vehicle.Driver()
-hmmwv.SetDriver(driver)
+driver = chrono.vehicle.Driver()
+driver.SetVehicle(hmmwv)
+driver.SetTargetSpeed(10)
+driver.SetTargetSteering(0.5)
+driver.Initialize()
 
-# Initialize simulation
-vis.Begin()
-core.SetNumThreads(4)  # Use 4 threads for simulation
+# Create Irrlicht visualization
+vis = chrono.ChVisualSystemIrrlicht()
+vis.SetWindowTitle('HMMWV Simulation')
+vis.SetWindowSize(1280, 720)
+vis.SetRenderMode(chrono.ChRenderFlags::RENDER_OPENGL)
+vis.Initialize()
+vis.AddLight(chrono.ChVectorD(0, 0, 10), chrono.ChColor(1, 1, 1))
+camera = vis.GetCamera()
+camera.SetPosition(chrono.ChVectorD(10, 0, 5))
+camera.SetRotation(chrono.ChQuaternionD(1, 0, 0, 0))
+vis.Add(hmmwv.GetChassis())
+vis.Add(terrain)
+
+# Add vehicle components to visualization
+for wheel in hmmwv.GetWheels():
+    vis.Add(wheel)
 
 # Simulation loop
-for step in range(10000):  # Run for 10 seconds (10000 steps with 0.001 timestep)
+simulation_time = 0
+timestep = 0.01
+end_time = 10
+
+while simulation_time < end_time:
     # Update vehicle
-    hmmwv.Update()
-    
-    # Update terrain
-    terrain.Update()
+    hmmwv.Synchronize()
+    hmmwv.Update(timestep)
     
     # Update driver
-    driver.Update()
+    driver.Synchronize()
+    driver.Update(timestep)
+    
+    # Update terrain
+    terrain.Synchronize()
+    terrain.Update(timestep)
     
     # Update visualization
-    vis.Update()
-    
-    # Synchronize simulation and visualization
     vis.Synchronize()
+    vis.Update(timestep)
     
-    # Advance simulation time
-    core.DoStepDynamics()
+    # Advance simulation
+    system.DoStepDynamics(timestep)
+    simulation_time += timestep
     
-    # Print simulation time
-    if step % 100 == 0:
-        print(f"Simulation time: {core.GetTime():.2f}s")
-        print(f"Frame rate: {vis.GetFrameRate():.1f} FPS")
+    # Check for exit
+    if vis.CheckExit():
+        break
+    
+    # Print simulation status
+    print(f'Simulation time: {simulation_time:.2f}s')
+    print(f'Vehicle speed: {hmmwv.GetSpeed():.2f} m/s')
+    print(f'Driver input: {driver.GetTargetSteering():.2f}')
+    print('------------------------')
 
-# Close visualization
-vis.End()
+# End simulation
+vis.Close()

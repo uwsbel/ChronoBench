@@ -3,12 +3,11 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
-# Set Chrono data paths
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 # Initial vehicle location and orientation
-initLoc = chrono.ChVector3d(-5, 0, 0.5)  # Changed initial location
+initLoc = chrono.ChVector3d(-5, 0, 0.5)  # Changed initial position
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 # Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
@@ -56,8 +55,6 @@ vehicle.SetSuspensionVisualizationType(vis_type)
 vehicle.SetRoadWheelVisualizationType(vis_type)
 vehicle.SetTrackShoeVisualizationType(vis_type)
 
-vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
-
 # Create the terrain
 patch_mat = chrono.ChContactMaterialSMC()
 patch_mat.SetFriction(0.9)
@@ -71,14 +68,11 @@ patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
-# Add a long box to the system to test vehicle mobility
+# Add a long box to test vehicle mobility
 box = chrono.ChBody()
-box.SetMass(0)  # Make it static
-box.SetPos(chrono.ChVector3d(0, 0, 0.5))  # Position at ground level
-box.SetDimensions(chrono.ChVector3d(10, 1, 1))  # Long box dimensions
-box_mat = chrono.ChMaterialSurface()
-box_mat.SetFriction(0.5)
-box.GetCollisionModel().AddBoxGeometry(box_mat, chrono.ChVector3d(10, 1, 1))
+box.SetPos(chrono.ChVector3d(5, 0, 0.5))  # Position in front of vehicle
+box.SetDimensions(chrono.ChVector3d(2, 1, 1))  # Length, width, height
+box.SetMaterialSurface(patch_mat)  # Use same material as terrain
 vehicle.GetSystem().AddBody(box)
 
 # Create the vehicle Irrlicht interface
@@ -131,9 +125,8 @@ while vis.Run():
 
     # Get driver inputs
     driver_inputs = driver.GetInputs()
-    
-    # Hard-coded throttle value of 0.8
-    driver_inputs.m_throttle = 0.8
+    # Force throttle to 0.8
+    driver_inputs.throttle = 0.8  # Hard-coded throttle value
     
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)

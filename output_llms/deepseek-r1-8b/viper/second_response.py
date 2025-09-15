@@ -4,7 +4,7 @@ import numpy as np
 import pychrono as chrono
 import pychrono.robot as viper
 from pychrono import irrlicht as chronoirr
-import pychrono.sensor as sens  # Import added for sensor functionality
+import pychrono.sensor as sens  # Added import
 
 # Create Chrono system
 system = chrono.ChSystemNSC()
@@ -32,7 +32,7 @@ init_pos = chrono.ChVector3d(0, 0.2, 0)
 init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
 rover.Initialize(chrono.ChFramed(init_pos, init_rot))
 
-# Create run-time visualization
+# Create run-time visualization and sensor manager
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
 vis.SetCameraVertical(chrono.CameraVerticalDir_Z)
@@ -44,10 +44,7 @@ vis.AddSkyBox()
 vis.AddTypicalLights()
 vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0, 0.5), 3, 4, 10, 40, 512)
 
-# Enable shadows (commented out to improve performance)
-# vis.EnableShadows()
-
-# Create sensor manager and add point light
+# Add sensor manager and point light
 manager = sens.ChSensorManager(system)
 intensity = 1.0
 manager.scene.AddPointLight(chrono.ChVector3f(2, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
@@ -70,9 +67,6 @@ manager.AddSensor(cam)
 step_number = 0
 render_step_size = 1.0 / 25  # FPS = 25
 render_steps = math.ceil(render_step_size / time_step)
-
-# Set the simulation time step
-time_step = 1e-3
 
 # Simulation loop
 time = 0

@@ -1,14 +1,14 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
-import pychrono.postprocess as postproc
+import pychrono.soil as soil
 import math
 
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 # Initial vehicle location and orientation
-initLoc = chrono.ChVector3d(-15, 0, 0.0)  # Changed initial position
+initLoc = chrono.ChVector3d(-15, 0, 0.0)
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 # Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
@@ -16,14 +16,6 @@ vis_type = veh.VisualizationType_MESH
 
 # Collision type for chassis (PRIMITIVES, MESH, or NONE)
 chassis_collision_type = veh.CollisionType_NONE
-
-# Rigid terrain
-terrainHeight = 0      # terrain height
-terrainLength = 100.0  # size in X direction
-terrainWidth = 100.0   # size in Y direction
-
-# Poon chassis tracked by the camera
-trackPoint = chrono.ChVector3d(0.0, 0.0, 1.0)  # Adjusted camera height
 
 # Contact method
 contact_method = chrono.ChContactMethod_SMC
@@ -59,24 +51,26 @@ vehicle.SetTrackShoeVisualizationType(vis_type)
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 # Create the SCM deformable terrain
-soil_model = chrono.ChSoilModelSCM()
-soil_model.SetShearModulus(1e6)  # Pa
-soil_model.SetCohesion(1e4)      # Pa
-soil_model.SetFrictionAngle(0.3) # radians
-soil_model.SetDensity(1800)     # kg/m^3
+terrain = soil.ChDeformableTerrainSCM(vehicle.GetSystem())
+terrain.SetSize(100.0, 100.0)  # X and Y dimensions
+terrain.SetResolution(200, 200)  # Grid cells in X and Y directions
+terrain.SetHeightMap(lambda x, z: 0.05 * math.sin(x / 5) * math.sin(z / 5))  # Simple height map
 
-# Create height map
-height_map = postproc.ChHeightMap()
-height_map.SetDimension(100, 100)  # cells
-height_map.SetScale(1.0, 1.0)      # meters per cell
-height_map.Load(chrono.GetChronoDataFile("heightmaps/hmap_pits.dat"))
+# Set soil parameters
+soil_params = soil.ChSoilParameters()
+soil_params.m_cohesion = 1000.0
+soil_params.m_friction = 0.6
+soil_params.m_density = 1500.0
+soil_params.m_shear_strength = 500.0
+terrain.SetSoilParameters(soil_params)
 
-# Create SCM terrain
-terrain = veh.SCMTerrain(vehicle.GetSystem())
-terrain.SetHeightMap(height_map)
-terrain.SetSoilModel(soil_model)
-terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 200, 200)
-terrain.SetColor(chrono.ChColor(0.4, 0.3, 0.2))  # Dirt color
+# Set terrain texture
+terrain_texture = chrono.ChTexture()
+terrain_texture.SetTextureFilename(chrono.GetChronoDataFile('terrain/textures/dirt.jpg'))
+terrain_texture.SetTextureScale(20.0, 20.0)
+terrain.SetTexture(terrain_texture)
+
+terrain.Initialize()
 
 # Create the vehicle Irrlicht interface
 vis = veh.ChTrackedVehicleVisualSystemIrrlicht()
@@ -111,7 +105,7 @@ print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
 
-# Initialize simulation frame counters
+# Initialize simulation frame counter
 step_number = 0
 render_frame = 0
 vehicle.GetVehicle().EnableRealtime(True)
@@ -119,24 +113,24 @@ vehicle.GetVehicle().EnableRealtime(True)
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
     
-    # Render scene
+    # Render scene and output POV-Ray data
     if (step_number % render_steps == 0):
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
         render_frame += 1
 
-    # Hard-coded throttle value
-    driver_inputs = veh.DriverInputs()
-    driver_inputs.throttle = 0.8  # Constant throttle
+    # Get driver inputs and set hard-coded throttle
+    driver_inputs = driver.GetInputs()
+    driver_inputs.throttle = 0.8  # Set constant throttle
     
-    # Update modules
+    # Update modules (process inputs from other modules)
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs)
     vis.Synchronize(time, driver_inputs)
     
-    # Advance simulation for one timestep
+    # Advance simulation for one timestep for all modules
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)

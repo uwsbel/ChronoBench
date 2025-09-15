@@ -1,91 +1,66 @@
 import pychrono as pychrono
-import pychrono.gui as pyguui
-import pychrono.objloader as objloader
+import pychrono.visualizations as pyvis
+import numpy as np
 
-# Initialize PyChrono and the core components
+# Initialize PyChrono environment
 pychrono.init()
-pyguui.init()
 
-# Load the triangular mesh from the .obj file
-mesh_obj = objloader.OBJLoader()
-tri_mesh = mesh_obj.load("triangular_mesh.obj")
-tri_mesh.setName("tri_mesh")
-
-# Create a fixed body and attach the mesh
+# Create a scene and add a triangular mesh from a Wavefront .obj file
+scene = pychrono.Scene()
+# Load the triangular mesh from the Wavefront .obj file
+mesh = pychrono.Mesh("data/triangular_mesh.obj")
+# Add the mesh as a fixed body to the scene
 body = pychrono.Body()
-body.setMass(1)
-body.setName("fixed_body")
-body.setPose(pychrono.Pose(pychrono.Vec3(0, 0, 0), pychrono.Vec3(0, 0, 0)))
-body.setAttachObject(tri_mesh)
+body.set_mass(0)  # Make it a fixed body
+body.set_name("Triangular Mesh")
+scene.add_body(body, mesh)
 
-# Create a camera sensor
-camera_sensor = pychrono.Sensors.CameraSensor()
-camera_sensor.setName("camera_sensor")
-camera_sensor.setNoiseGain(0.1)  # Add noise filtering
+# Add a camera sensor to the body
+sensor = pychrono.Sensors.CameraSensor(body)
+# Attach a sensor manager to the camera sensor
+sensor_manager = pychrono.Sensors.SensorManager(sensor)
+# Add a noise filter to the camera sensor
+noise_filter = pychrono.Sensors.NoiseFilters.GaussianNoiseFilter(sigma=0.1)
+sensor_manager.add_filter(noise_filter)
 
-# Create a sensor manager to manage the camera sensor
-sensor_manager = pychrono.Sensors.SensorManager()
-sensor_manager.setName("sensor_manager")
-sensor_manager.addSensor(camera_sensor)
-sensor_manager.addVisualizationSensor(pychrono.Sensors.VisualizationSensor.CameraVisualizationSensor(camera_sensor))
+# Define the camera's orbit motion
+def update_camera(sim, body, time):
+    # Define the orbit parameters
+    radius = 5.0  # Distance from the mesh
+    angle = time * 0.5  # Angular speed
+    # Update the body's local position for camera movement
+    body_local_pos = body.get_local_position()
+    body_local_pos.x = radius * pychrono.maths.sin(angle)
+    body_local_pos.y = radius * pychrono.maths.cos(angle)
+    body.set_local_position(body_local_pos)
 
-# Define the camera's position and orbital path
-initial_pos = pychrono.Vec3(5, 0, 5)
-target_pos = pychrono.Vec3(5, 0, 5)
-orbit_radius = 5
-orbit_height = 5
+# Set up the camera sensor properties
+sensor.set_resolution(256, 256)  # Set camera resolution
+sensor.set_focal_length(512.0)  # Set focal length for depth sensing
+sensor.set_depth_mode(pychrono.Sensors.CameraSensor.DepthMode.PHI)  # Set depth sensing mode
 
-# Create a PID controller for orbital movement
-pid_controller = pychrono.Controllers.PIDController()
-pid_controller.setName("orbit_controller")
-pid_controller.setGains(0.1, 0.1, 0.1)
+# Set up the visualization
+renderer = pyvis.Renderer()
+renderer.set_camera(sensor)
+renderer.set_antialiasing(16)  # Enable antialiasing for smoother images
 
-# Attach the PID controller to the body
-body.setController(pid_controller)
+# Create a simulation loop
+simulation_loop = pychrono.SimulationLoop()
+simulation_loop.set_timestep(0.1)  # Set simulation timestep
 
-# Define the camera's movement constraints
-camera_constraints = pychrono.Body()
-camera_constraints.setName("camera_constraints")
-camera_constraints.setPose(pychrono.Pose(initial_pos, pychrono.Vec3(0, 0, 0)))
-
-# Set up the simulation
-simulation = pychrono.Simulation()
-simulation.setSolver(pychrono.Solvers.RK4())
-simulation.setTimestep(0.01)
-simulation.setNumSteps(10000)  # Simulate for 10 seconds
-
-# Add the body and camera to the simulation
-simulation.addBody(body)
-simulation.addSensor(sensor_manager)
-
-# Define the camera's initial position and target point for orbit
-camera_body = pychrono.Body()
-camera_body.setName("camera_body")
-camera_body.setPose(pychrono.Pose(initial_pos, pychrono.Vec3(0, 0, 0)))
-camera_body.setAttachObject(camera_sensor)
-
-# Add the camera body to the simulation
-simulation.addBody(camera_body)
-
-# Define the orbit path
-orbit_path = pychrono.Orbit()
-orbit_path.setName("orbit_path")
-orbit_path.setInitialPosition(initial_pos)
-orbit_path.setTargetPosition(target_pos)
-orbit_path.setRadius(orbit_radius)
-orbit_path.setHeight(orbit_height)
-
-# Add the orbit path to the simulation
-simulation.addOrbitPath(orbit_path)
+# Add the camera position update function
+simulation_loop.add_function(update_camera, body, 0.1)
 
 # Run the simulation
-simulation.run()
+simulation_loop.start()
 
-# Print camera buffer data at each step
-for i in range(10000):
-    data = simulation.getSensorBuffer(sensor_manager)
-    print(f"Camera buffer data at step {i}:")
-    print(f"Depth: {data.depth}")
-    print(f"Color: {data.color}")
-    print(f"Pose: {data.pose}")
-    print("-------------------")
+# Print the camera buffer data at each step
+while True:
+    # Get the current camera image
+    image = sensor.get_image()
+    # Convert the image to a numpy array for display
+    img_array = np.array(image)
+    print("Camera Image Data:")
+    print(img_array)
+    # Add a small delay to ensure the simulation runs at the correct speed
+    pychrono.sleep(0.1)

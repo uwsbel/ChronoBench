@@ -4,6 +4,12 @@ import matplotlib.pyplot as plt
 import numpy as np  
 
 
+array_time = []
+array_angle = []
+array_pos = []
+array_speed = []
+
+
 sys = chrono.ChSystemNSC()
 
 
@@ -69,50 +75,41 @@ vis.AddCamera(chrono.ChVector3d(1, 1, 3), chrono.ChVector3d(0, 1, 0))
 vis.AddTypicalLights()  
 
 
-array_time = []
-array_angle = []
-array_pos = []
-array_speed = []
-
-
-while vis.Run():
+while True:
     
     vis.BeginScene()  
     vis.Render()  
     vis.EndScene()  
-
     
-    current_time = sys.GetTime()  
-    current_angle = mcrank.GetRot().GetZ()  
-    current_pos = mcrank.GetPos().GetY()  
-    current_speed = my_motor.GetAngularSpeed()  
-
+    
+    current_time = sys.GetTime() * 0.001  
+    current_angle = my_motor.GetAngularSpeed()  
+    current_pos = mpiston.GetPos().x  
+    current_speed = my_angularspeed.GetVelocity()  
+    
     
     array_time.append(current_time)
     array_angle.append(current_angle)
     array_pos.append(current_pos)
     array_speed.append(current_speed)
-
     
-    if current_time > 20:
+    
+    if current_time >= 20:
         break
-
-    
-    sys.DoStepDynamics(1e-3)
 
 
 plt.figure(figsize=(10, 5))
 plt.subplot(1, 2, 1)
-plt.plot(array_angle, array_pos, 'b-', linewidth=2)
-plt.xlabel('Crank Angle (rad)')
+plt.plot(array_time, array_pos, 'b-', linewidth=2)
+plt.xlabel('Time (s)')
 plt.ylabel('Position (m)')
-plt.title('Position vs Crank Angle')
+plt.title('Crank Position vs Time')
 plt.grid(True)
 plt.subplot(1, 2, 2)
-plt.plot(array_angle, array_speed, 'r-', linewidth=2)
-plt.xlabel('Crank Angle (rad)')
+plt.plot(array_time, array_speed, 'r-', linewidth=2)
+plt.xlabel('Time (s)')
 plt.ylabel('Speed (m/s)')
-plt.title('Speed vs Crank Angle')
+plt.title('Crank Speed vs Time')
 plt.grid(True)
 plt.tight_layout()
 plt.show()

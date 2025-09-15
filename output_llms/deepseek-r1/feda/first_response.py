@@ -1,71 +1,97 @@
+import os
 import pychrono as chrono
 import pychrono.vehicle as veh
 import pychrono.irrlicht as irr
 
-# Set data paths for Chrono and Vehicle assets
-chrono.SetChronoDataPath("path/to/chrono/data/")
-veh.SetDataPath("path/to/vehicle/data/")
+# Set data paths
+chrono.SetChronoDataPath(os.path.join(os.environ.get('CHRONO_DATA_DIR', ''), 'data/'))
+veh.SetDataPath(os.path.join(os.environ.get('CHRONO_DATA_DIR', ''), 'data/vehicle/'))
 
 def main():
-    # 1. Initialize system and contact method
-    system = chrono.ChSystemSMC()
-    system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
+    # 1. Initialize system
+    system = chrono.ChSystemNSC()
+    system.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+    system.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
+    system.SetSolverMaxIterations(150)
 
-    # 2. Create and initialize FEDA vehicle
-    init_pos = chrono.ChVectorD(0, 0, 0.5)
-    init_rot = chrono.QUNIT
-    contact_method = chrono.ChContactMethod_SMC
-    vehicle = veh.FEDAVehicle(system, contact_method)
-    vehicle.Initialize(chrono.ChCoordsysD(init_pos, init_rot))
-    
-    # Set mesh visualization for all components
-    vehicle.SetVisualizationType(veh.VisualizationType_MESH)
-
-    # 3. Create and initialize RigidTerrain with custom texture
+    # 2. Create terrain
     terrain = veh.RigidTerrain(system)
-    patch_mat = chrono.ChMaterialSurfaceSMC()
-    patch = terrain.AddPatch(patch_mat, 
-                            chrono.ChVectorD(0, 0, 0), 
-                            chrono.ChVectorD(0, 0, 1), 
-                            200, 200)
-    patch.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 200, 200)
+    patch_mat = chrono.ChMaterialSurfaceNSC()
+    patch_mat.SetFriction(0.9)
+    patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysD(), 200, 100)
+    patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
     terrain.Initialize()
 
-    # 4. Set up Irrlicht visualization
-    app = irr.ChIrrApp(system, "FEDA Simulation", irr.dimension2du(800, 600))
-    app.AddTypicalLights()
-    app.AddTypicalCamera(irr.vector3df(-5, -8, 2), irr.vector3df(0, 0, 0.5))
-    app.AssetBindAll()
-    app.AssetUpdateAll()
+    # 3. Create and initialize FEDA vehicle
+    init_pos = chrono.ChVectorD(0, 0.5, 0)
+    init_rot = chrono.ChQuaternionD(1, 0, 0, 0)
+    feda = veh.FEDA_Vehicle(system)
+    feda.SetInitPosition(chrono.ChCoordsysD(init_pos, init_rot))
+    feda.SetTireType(veh.TireModelType_RIGID)
+    feda.Initialize()
 
-    # 5. Create interactive driver system
-    driver = veh.ChInteractiveDriverIRR(app)
+    # Set visualization modes
+    feda.SetChassisVisualizationType(veh.VisualizationType_MESH)
+    feda.SetSuspensionVisualizationType(veh.VisualizationType_MESH)
+    feda.SetSteeringVisualizationType(veh.VisualizationType_MESH)
+    feda.SetWheelVisualizationType(veh.VisualizationType_MESH)
+    feda.SetTireVisualizationType(veh.VisualizationType_MESH)
+
+    # 4. Create Irrlicht visualization
+    vis = irr.ChVisualSystemIrrlicht()
+    vis.AttachSystem(system)
+    vis.SetWindowSize(1280, 720)
+    vis.SetWindowTitle("FEDA Vehicle Simulation")
+    vis.Initialize()
+    vis.AddLogo()
+    vis.AddSkyBox()
+    vis.AddCamera(chrono.ChVectorD(0, 1, -10))
+    vis.AddTypicalLights()
+
+    # 5. Create interactive driver
+    driver = veh.ChIrrGuiDriver(vis)
     driver.SetSteeringDelta(0.02)
     driver.SetThrottleDelta(0.02)
-    driver.SetBrakingDelta(0.02)
-    driver.Initialize()
+    driver.SetBrakingDelta(0.06)
+    feda.GetVehicle().SetChassisDriver(driver)
 
-    # 6. Configure simulation parameters
-    time_step = 0.02  # 50 FPS
-    realtime_step = 0.02
+    # 6. Configure vehicle systems
+    feda.GetVehicle().SetChassisVisualizationType(veh.VisualizationType_MESH)
+    feda.GetVehicle().SetSuspensionVisualizationType(veh.VisualizationType_MESH)
+    feda.GetVehicle().SetSteeringVisualizationType(veh.VisualizationType_MESH)
+    feda.GetVehicle().SetWheelVisualizationType(veh.VisualizationType_MESH)
+    feda.GetVehicle().SetTireVisualizationType(veh.VisualizationType_MESH)
 
-    while app.GetDevice().run():
+    # 7. Simulation loop
+    step_size = 0.002
+    render_step = 1.0 / 50  # 50 FPS
+
+    realtime_timer = chrono.ChRealtimeStepTimer()
+    frame_number = 0
+
+    while vis.Run():
         time = system.GetChTime()
         
         # Update driver inputs
-        driver_inputs = driver.GetInputs()
-        vehicle.Synchronize(time, driver_inputs)
-        terrain.Synchronize(time)
+        driver.Synchronize(time)
         
-        # Advance simulation
-        app.BeginScene(True, True, irr.SColor(255, 140, 161, 192))
-        app.DrawAll()
-        system.DoStepDynamics(time_step)
-        app.EndScene()
-
-        # Maintain real-time simulation rate
-        if time > 0:
-            chrono.ChRealtimeStepTimer.Spin(realtime_step)
+        # Update vehicle
+        feda.Synchronize(time, driver.GetInputs(), terrain)
+        
+        # Advance dynamics
+        system.DoStepDynamics(step_size)
+        
+        # Update visualization
+        if frame_number % int(render_step / step_size) == 0:
+            vis.BeginScene()
+            vis.Render()
+            vis.RenderFrame(init_pos, init_rot, 2)  # Reference frame
+            vis.EndScene()
+        
+        # Update driver GUI
+        driver.Advance(step_size)
+        realtime_timer.Spin(step_size)
+        frame_number += 1
 
 if __name__ == "__main__":
     main()

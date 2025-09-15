@@ -1,89 +1,104 @@
 import pychrono as pychrono
-import cv2
-import numpy as np
+import pychrono.render as pyrender
+from pychrono import vehicle
+from pychrono import driver
+from pychrono import contact
+from pychrono import rigidbody
+from pychrono import materials
+from pychrono import meshes
 
-# Initialize PyChrono
+# Initialize PyChrono environment
 pychrono.init()
 
-# Create the core
-core = pychrono.Core(pychrono文献.ODE)
+# Initialize renderer
+renderer = pyrender.IrrlichtRenderer()
+renderer.set_frame_rate(50)
+renderer.set_vsync(True)
+renderer.enable_shadows(True)
 
-# Vehicle parameters
-vehicle_mass = 1500  # kg
-vehicle_length = 4.0  # m
-vehicle_width = 2.0  # m
-tire_radius = 0.5  # m
+# Initialize camera
+camera = renderer.camera
+camera.set_position([5, 0, 5])
+camera.set_lookat([0, 0, 0])
+camera.set_up([0, 1, 0])
 
-# Vehicle setup
-vehicle = pychrono.RigidBody("Vehicle")
-vehicle.set_mass(vehicle_mass)
-vehicle.set_contact_method(pychrono.Contact)
-vehicle.set_tire_model(pychrono.Tires.SOFT)
-vehicle.set_position(np.array([0, 0, 0.5], dtype=np.float64))  # initial position
-vehicle.set_orientation(pychrono.Orientation(np.array([1, 0, 0], dtype=np.float64)))  # initial orientation
-vehicle.add_shape("Vehicle", mesh="vehicle.obj", scale=[vehicle_length, vehicle_width, 1.0])
-vehicle.add_center_of_mass(np.array([0.5, 0.5, 0.0], dtype=np.float64))
+# Initialize vehicle
+vehicle_body = vehicle.Body()
+vehicle_body.set_mass(1000)
+vehicle_body.set_contact_method(contact.ContactArea)
+vehicle_body.set_position([0, 0, 0])
+vehicle_body.set_orientation([0, 0, 1])
+vehicle_body.set_material(materials.Material(0.5, 0.2, 0.2, 0.8))
 
-# Terrain setup
-terrain = pychrono.RigidTerrain("Terrain", pychrono.TerrainType.Plane, pychrono.TerrainContact.Contact)
-terrain.set_dimensions(40, 40, 0.5)
-terrain.set_texture("terrain_texture.png")
-terrain.set_position(np.array([0, 0, 0], dtype=np.float64))
-terrain.add_shape("Ground", mesh="ground.obj", material="grass")
-terrain.set_contact_method(pychrono.Contact)
+# Initialize tires
+tire_radius = 0.3
+tire_mass = 5
+tire_friction = 0.1
+tires = []
+for i in range(4):
+    tire = vehicle.Tire()
+    tire.set_model("SoftTire")
+    tire.set_radius(tire_radius)
+    tire.set_mass(tire_mass)
+    tire.set_friction(tire_friction)
+    tire.set_position([0, 0, 0])
+    tire.set_contact_point([0, 0, 0])
+    tires.append(tire)
 
-# Driver system
-driver = pychrono.InteractiveDriver()
-driver.set_control_force("steer", 100.0)
-driver.set_control_force("throttle", 50.0)
-driver.set_control_force("brake", 100.0)
+# Attach tires to suspension points
+suspension_points = vehicle.Body()
+suspension_points.set_mass(0)
+suspension_points.set_position([0, -0.5, 0])
+suspension_points.set_orientation([0, 0, 1])
+for tire in tires:
+    tire.set_parent(suspension_points)
 
-# Camera setup
-camera = pychrono.Camera("Camera")
-camera.set_position(np.array([0, 0, 10], dtype=np.float64))
-camera.set_look_at(np.array([0, 0, 0], dtype=np.float64))
-camera.set_fov(60.0 * pychrono文献.ODE.math.pi / 180.0)
-camera.set_near_clipping(0.1)
-camera.set_far_clipping(1000.0)
+# Create terrain
+terrain = rigidbody.RigidPlane()
+terrain.set_position([0, 0, 0])
+terrain.set_size(10, 10)
+terrain.set_material(materials.Material(1, 0.5, 0.5, 0.8))
+terrain.set_contact_method(contact.ContactArea)
+renderer.add_object(terrain)
 
-# Renderer setup
-renderer = pychrono.Renderer("Irrlicht", 1280, 720)
-renderer.set_mesh_visualization(True)
-renderer.set_ground_visualization(True)
-renderer.set_ground_texture("terrain_texture.png")
+# Create vehicle mesh
+vehicle_mesh = meshes.Mesh("box")
+vehicle_mesh.set_position([0, 0, 0])
+vehicle_mesh.set_rotation([0, 0, 1])
+renderer.add_mesh(vehicle_mesh, vehicle_body)
+
+# Initialize driver
+driver = pychrono.driver.Driver()
+driver.set_vehicle(vehicle_body)
+driver.set_controls(["steering", "throttle", "brake"])
+driver.set_camera(camera)
 
 # Simulation loop
-sim = pychrono.Simulation(core, 1/50.0)  # 50 FPS
-
-def simulation_step():
-    sim.update()
+frame = 0
+while pychrono.get_time() < 1000:
+    # Handle driver input
+    speed = 5
+    if pychrono.input.keyboard.get_key('w'):
+        speed = 10
+    if pychrono.input.keyboard.get_key('s'):
+        speed = -10
+    if pychrono.input.keyboard.get_key('a'):
+        driver.set_steering(-0.5)
+    if pychrono.input.keyboard.get_key('d'):
+        driver.set_steering(0.5)
+    driver.set_throttle(0.5 if pychrono.input.keyboard.get_key(' ') else 0)
+    driver.set_brake(0.5 if pychrono.input.keyboard.get_key(' ') else 0)
     
-    # Vehicle dynamics
-    vehicle.add_force(-pychrono文献.ODE.vector3d(0, 0, -9.81), "Vehicle")
-    contact_point = vehicle.get_contact_point(0)
-    normal = contact_point.get_normal()
-    friction = -normal * pychrono文献.ODE.vector3d(0, 0, 0)
-    friction_magnitude = 0.5 * vehicle_mass * pychrono文献.ODE.g * abs(normal.z)
-    vehicle.add_force(friction, "Vehicle")
+    # Update vehicle dynamics
+    pychrono.update()
+    vehicle_body.update()
     
-    # Update camera position
-    vehicle_pos = vehicle.get_position()
-    camera.set_position(np.array([0, 5, 10], dtype=np.float64))
-    camera.set_look_at(np.array([vehicle_pos.x, vehicle_pos.y, vehicle_pos.z], dtype=np.float64))
+    # Render scene
+    renderer.begin_frame()
+    renderer.render()
+    renderer.end_frame()
     
-    # Handle controls
-    controls = driver.get_controls()
-    if controls.left:
-        vehicle.add_force(pychrono文献.ODE.vector3d(-0.5, 0, 0), "Vehicle")
-    if controls.right:
-        vehicle.add_force(pychrono文献.ODE.vector3d(0.5, 0, 0), "Vehicle")
-    if controls.throttle:
-        vehicle.add_force(pychrono文献.ODE.vector3d(0, 0.5, 0), "Vehicle")
-    if controls.brake:
-        vehicle.add_force(pychrono文献.ODE.vector3d(0, 0, -0.5), "Vehicle")
-    
-    renderer.render(view_matrix=core.get_view_matrix(), camera_view_matrix=core.get_camera_view_matrix())
-    
-    return True
-
-sim.run(simulation_step, 0, 1000)
+    # Display info
+    print(f"Frame: {frame} | Speed: {speed} | Battery: 100%", end=' ')
+    frame += 1
+print()

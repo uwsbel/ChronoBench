@@ -83,7 +83,7 @@ if (True):  # Block to execute the following setup
             mesh.AddElement(melementA)
 
             if (iz == 0 and ix == 1):
-                melementmonitor = melementA  # Assign element to monitor
+                ementmonitor = melementA  # Assign element to monitor
 
             # Define boundary nodes
             boundary_1 = mynodes[(iz + 1) * (nsections_x + 1) + ix + 1]
@@ -122,15 +122,15 @@ if (True):  # Block to execute the following setup
             melementB.AddLayer(thickness, 0 * chrono.CH_DEG_TO_RAD, material)
 
     # Fix upper nodes of the mesh
-    for j in range(nsections_z + 1):
-        for k in range(nsections_x + 1):
+    for j in range(30):
+        for k in range(30):
             mynodes[j * (nsections_x + 1) + k].SetFixed(True)
 
     # Create visualizations for shell elements
     mvisualizeshellA = chrono.ChVisualShapeFEA(mesh)
     mvisualizeshellA.SetSmoothFaces(True)  # Enable smooth faces
     mvisualizeshellA.SetWireframe(True)    # Enable wireframe mode
-    mvisualizeshellA.SetBackfaceCull(True)  # Enable backface culling
+    mvisualizeshellA.SetBackfaceCull(True) # Enable backface culling
     mvisualizeshellA.SetShellResolution(2)  # Set resolution for shell visualization
     mesh.AddVisualShapeFEA(mvisualizeshellA)  # Add visual shape to mesh
 

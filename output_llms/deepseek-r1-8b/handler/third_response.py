@@ -1,27 +1,25 @@
 import pychrono as ch
 import pychrono.ros as chros
-import rclpy.publisher
+import rclpy
+from rclpy.publisher import Publisher
 from std_msgs.msg import Int64
-import chvis
-from pychrono.ros.chros_handler import ChROSHandler
 import time
 
 # Define a custom ROS handler for publishing integer messages.
-class MyCustomHandler(ChROSHandler):
-    """This custom handler will publish integer messages to a specified ROS topic at 10 Hz."""
+class MyCustomHandler(chros.ChROSHandler):
+    """This custom handler will publish integer messages to a specified ROS topic."""
 
-    def __init__(self, topic):
+    def __init__(self, topic, publish_rate=10):
         super().__init__(1)  # Initialize the handler with a 1 Hz publishing rate.
         self.topic = topic
-        self.publisher: rclpy.publisher.Publisher = None
-        self.ticker = 0  # Initialize a counter for published messages.
-        self.publish_rate = 10  # Set the publication rate to 10 Hz
+        self.publisher: Publisher = None
+        self.ticker = 0  # Initialize a counter for published messages
+        self.publish_rate = publish_rate  # Set the publishing rate
 
     def Initialize(self, interface: chros.ChROSPythonInterface) -> bool:
         """Initialize the ROS publisher."""
         print(f"Creating publisher for topic {self.topic} ...")
-        # Create a ROS publisher for the specified topic.
-        self.publisher = interface.GetNode().create_publisher(Int64, self.topic, self.publish_rate)
+        self.publisher = interface.GetNode().create_publisher(Int64, self.topic, 1)
         return True  # Return True to indicate successful initialization.
 
     def Tick(self, time: float):
@@ -31,9 +29,11 @@ class MyCustomHandler(ChROSHandler):
         msg.data = self.ticker  # Set the message data to the current ticker value.
         self.publisher.publish(msg)  # Publish the message to the ROS topic.
         self.ticker += 1  # Increment the ticker for the next message.
-        # Reset the ticker every 10 messages to cycle through 0-9
-        if self.ticker >= 10:
-            self.ticker = 0
+        time.sleep(self.publish_rate * 1e-6)  # Sleep to control publishing rate
+
+def SetTexture(body: ch.ChBody, texture_path: str):
+    """Set texture for a body."""
+    body.SetTexture(ch.ChTexture2d(texture_path))
 
 def main():
     # Create the Chrono simulation system.
@@ -58,6 +58,15 @@ def main():
     box.SetName("box")  # Set the name for ROS communication.
     sys.Add(box)  # Add the box to the simulation system.
 
+    # Visualization setup
+    renderer = ch.ChIrrRenderer(sys.GetName())
+    renderer.SetCoordinateSystem(ch.ChVector3d(0, 0, 0), ch.ChVector3d(1, 0, 0), ch.ChVector3d(0, 1, 0))
+    renderer.SetCameraDistance(5, 1)
+    renderer.SetLightSetup(ch.ChLightSetup())
+    renderer.GetLightSetup().Add(ch.ChLightPos(0, 0, 5, 0, 0, 0))
+    renderer.GetLightSetup().EnableSkyRenderer(True)
+    renderer.GetLightSetup().SetSkyRendererParameters(1024, 1024, 5, 16, 12)
+
     # Create and configure the ROS manager.
     ros_manager = chros.ChROSPythonManager()
     
@@ -73,34 +82,24 @@ def main():
     ros_manager.RegisterHandler(tf_handler)
     
     # Register the custom handler to publish messages.
-    custom_handler = MyCustomHandler("~/my_topic")
+    custom_handler = MyCustomHandler("~/my_topic", 10)
     ros_manager.RegisterPythonHandler(custom_handler)
 
     # Initialize the ROS manager.
     ros_manager.Initialize()
 
-    # Visualization setup
-    scene = chvis.Scene()
-    scene.background = chvis.Color(0, 0, 0)
-    camera = scene.add_camera("perspective", position=(5, 5, 5), look_at=(0, 0, 0))
-    light = scene.add_light("directional", position=(10, 10, 10), color=(1, 1, 1))
-    window = scene.add_window()
-    window.set_size(800, 600)
-    window.set_position(chvis.Vector2i(100, 100))
-    window.set_caption("PyChrono ROS Simulation")
-
-    # Set floor and box textures
-    floor_texture_path = "floor_texture.png"
-    box_texture_path = "box_texture.png"
-    floor.SetTexture(chvis.Texture2D(floor_texture_path, True))
-    box.SetTexture(chvis.Texture2D(box_texture_path, True))
-
-    # Publishing configuration
+    # Render settings
     step_number = 0
-    render_step_size = 0.01  # 100ms
-    render_steps = 100  # Render every 100 simulation steps
+    render_step_size = 100  # Number of simulation steps between renders
+    render_steps = 10      # Number of renders per simulation second
 
-    # Simulation loop
+    # Initialize rendering thread
+    import threading
+    render_thread = threading.Thread(target=render_scene, args=(sys, renderer, render_step_size, render_steps))
+    render_thread.daemon = True
+    render_thread.start()
+
+    # Run the simulation loop.
     time = 0
     time_step = 1e-3  # Define the simulation time step.
     time_end = 30  # Set the duration for the simulation.
@@ -110,16 +109,30 @@ def main():
         sys.DoStepDynamics(time_step)  # Advance the simulation by one time step.
         time = sys.GetChTime()  # Update the simulation time.
 
-        # Conditional rendering
-        if step_number % render_steps == 0:
-            # Update the scene
-            scene.update()
-            step_number += 1
-
         if not ros_manager.Update(time, time_step):  # Update ROS communication.
             break  # Exit the loop if the ROS manager indicates a problem.
 
         realtime_timer.Spin(time_step)  # Maintain real-time step execution.
+
+        # Update visualization periodically
+        step_number += 1
+        if step_number % render_step_size == 0:
+            render_scene(sys, renderer, render_step_size, render_steps)
+
+    # Cleanup rendering thread
+    render_thread.join()
+
+def render_scene(sys, renderer, render_step_size, render_steps):
+    """Periodically update the visualization scene."""
+    import time
+    last_render_time = time.time() * 1e-6
+    while True:
+        current_time = time.time() * 1e-6
+        elapsed = current_time - last_render_time
+        if elapsed >= (1 / render_steps) * 1e-6:
+            renderer.Update(sys, ch.ChVector3d(current_time - sys.GetChTime()))
+            last_render_time = current_time
+            time.sleep(1 / render_steps)
 
 # Entry point of the script.
 if __name__ == "__main__":

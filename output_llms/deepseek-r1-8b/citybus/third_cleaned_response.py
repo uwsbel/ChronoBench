@@ -20,7 +20,7 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_PACEJKA_89  
 
 
-
+terrain_model = veh.RigidTerrain.BOX  
 terrainHeight = 0      
 terrainLength = 100.0  
 terrainWidth = 100.0   

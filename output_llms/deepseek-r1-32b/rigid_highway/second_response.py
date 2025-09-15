@@ -78,19 +78,25 @@ tri_mesh_shape.SetMutable(False)
 patch.GetGroundBody().AddVisualShape(tri_mesh_shape)
 
 # Add new terrain patch with bump.obj
-new_patch = terrain.AddPatch(patch_mat,
+bump_patch = terrain.AddPatch(patch_mat,
     chrono.ChCoordsysd(chrono.ChVector3d(0, -42, 0), chrono.QUNIT),
-    veh.GetDataFile("terrain/meshes/bump.obj"),
+    chrono.GetChronoDataFile('vehicle/terrain/meshes/bump.obj'),
     True, 0.01, False)
-new_patch.SetColor(chrono.ChColor(0.5, 0.5, 0.8))  # Set color to (0.5, 0.5, 0.8)
-new_patch.GetGroundBody().SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
 
-# Create visual mesh for the new patch
-vis_mesh_bump = chrono.ChTriangleMeshConnected().CreateFromWavefrontFile(veh.GetDataFile("terrain/meshes/bump.obj"), True, True)
-tri_mesh_shape_bump = chrono.ChVisualShapeTriangleMesh()
-tri_mesh_shape_bump.SetMesh(vis_mesh_bump)
-tri_mesh_shape_bump.SetMutable(False)
-new_patch.GetGroundBody().AddVisualShape(tri_mesh_shape_bump)
+# Create visual mesh for bump patch
+bump_vis_mesh = chrono.ChTriangleMeshConnected().CreateFromWavefrontFile(veh.GetDataFile("terrain/meshes/bump.obj"), True, True)
+bump_tri_mesh_shape = chrono.ChVisualShapeTriangleMesh()
+bump_tri_mesh_shape.SetMesh(bump_vis_mesh)
+bump_tri_mesh_shape.SetMutable(False)
+bump_tri_mesh_shape.SetColor(chrono.ChColor(0.5, 0.5, 0.8))  # Set color to purple
+
+# Add texture to bump patch
+texture = chrono.ChTexture()
+texture.SetTextureFilename(chrono.GetChronoDataFile('textures/dirt.jpg'))
+texture.SetScale(6.0, 6.0)
+bump_tri_mesh_shape.AddTexture(texture)
+
+bump_patch.GetGroundBody().AddVisualShape(bump_tri_mesh_shape)
 
 terrain.Initialize()
 

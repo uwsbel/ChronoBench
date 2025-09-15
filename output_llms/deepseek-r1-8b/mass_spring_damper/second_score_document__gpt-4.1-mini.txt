@@ -4,130 +4,150 @@
 
 ### 1. Completeness (40 points)
 
-- **System Initialization:** Present and correct (`chrono.ChSystemNSC()`), gravity set to zero explicitly. ✔️  
-- **Body Creation:** Two dynamic bodies (`body_1`, `body_2`) and one fixed ground body created. ✔️  
-- **Body Properties:** Mass, inertia, fixed state, and collision settings are set properly. ✔️  
-- **Visual Shapes:** Visual shapes added to bodies and ground. ✔️  
-- **Joints/Links:** Two `ChLinkTSDA` springs created and added to the system. ✔️  
-- **Custom ForceFunctor:** Defined and used for `spring_2`. ✔️  
-- **Visualization:** Irrlicht visualization system properly initialized and configured. ✔️  
-- **Simulation Loop:** Present and correctly structured. ✔️  
+- **System Initialization:** Present and correctly done with `chrono.ChSystemNSC()`.  
+- **Body Creation:** Ground and two dynamic bodies are created and added to the system. Bodies have positions, mass, inertia, and collision disabled as appropriate.  
+- **Visualization:** Visualization system is set up with Irrlicht, window size, title, logo, skybox, camera, and lights added.  
+- **Joints and Links:** Two `ChLinkTSDA` springs are created and initialized between bodies and ground.  
+- **Custom Force Functor:** A custom force functor is defined and used for one spring.  
+- **Simulation Loop:** Present with proper calls to `vis.Run()`, `BeginScene()`, `Render()`, `EndScene()`, and `sys.DoStepDynamics()`.
 
 **No essential components are missing.**
 
-**No major omissions in configuration.**
+**Minor omissions or deviations:**  
+- The `spring_2.Initialize()` call uses the same frame points as `spring_1` (`chrono.ChVector3d(0,0,0)` and `chrono.ChVector3d(-1,0,0)`), but `spring_2` is connected between `body_2` (at position `(1, -3, 0)`) and `ground`. The frame points seem inconsistent with the body positions (see correctness below).  
+- The `MySpringForce` and `MySpringForce2` classes are essentially duplicates; only one is needed. This is a minor redundancy but not a completeness issue.
 
-**Minor issue:** The `MySpringForce` class constructor is missing; it uses `self.spring_coef` and `self.damping_coef` but these are never set in the class, which will cause an error at runtime. This is a completeness issue related to class definition.
-
-**Deduction:** -10 points for missing constructor and incomplete force functor definition.
+**Deduction:** 0 points (no missing essential components).
 
 ---
 
 ### 2. Correctness (30 points)
 
 - **ForceFunctor Implementation:**  
-  - The `ComputeForce` method returns `chrono.ChVector3d(spring_force, damping_force)`. However, `spring_force` and `damping_force` are both `ChVector3d` objects (or at least `spring_force` is), so passing two vectors as arguments to `ChVector3d` constructor is incorrect. This will cause a runtime error or unexpected behavior.  
-  - The spring force calculation uses `(chrono.ChVector3d(0, 0, 0) - local_pos)`, which is correct for a spring pulling towards origin, but no consideration of rest length is made. Usually, the spring force depends on the difference between the current length and rest length along the spring axis. This is a logical error.  
-  - The damping force is scaled by `body.GetMass()`, which is unusual; damping is typically proportional to velocity, not mass times velocity. This is a logical error.  
+  - The `ComputeForce` method uses `body.GetPos(frame) - other.GetPos(frame)` to get a vector `pos`. Then it uses `pos.GetZ()` and `pos.GetVelocity(frame).GetZ()`.  
+  - However, `ChVector` objects do not have a `GetVelocity()` method. Velocity is a property of the body, not the position vector. The correct way to get velocity relative to the other body would be to get the velocity of each body and subtract them.  
+  - This is a significant API misuse and will cause runtime errors or incorrect force calculations.
+
 - **Spring Initialization:**  
-  - `spring_1` is initialized with two points: `(0,0,0)` on `body_1` and `(-1,0,0)` on `ground`. This is inconsistent with the visual shape placement and body positions. For example, `body_1` is at `(-1, -3, 0)`, but the spring is initialized at `(0,0,0)` on `body_1`. This may cause the spring to be initialized in an unintended configuration.  
-  - `spring_2` is initialized similarly, but the second point is also `(-1,0,0)` on ground, which is likely incorrect because `body_2` is at `(1, -3, 0)`. The anchor points on ground should be consistent with the bodies' positions. This is a logical error.  
-- **Visual Shape Initialization:**  
-  - `chrono.ChVisualShapeBox(1,1,1)` is used, but according to the documentation, the constructor expects a `ChVector3d` for size, not three separate floats. This is an API misuse.  
-  - Similarly, `chrono.ChVisualShapeBox(1,1,1)` is used twice without wrapping the sizes in `ChVector3d`. This is an incorrect API usage.  
+  - `spring_1.Initialize(body_1, ground, True, chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(-1, 0, 0))`  
+    This initializes the spring between `body_1` and `ground` with endpoints at `(0,0,0)` in `body_1`'s frame and `(-1,0,0)` in `ground`'s frame.  
+  - Given `body_1` is at `(-1, -3, 0)` and `ground` is fixed at origin, this seems inconsistent because the spring endpoints do not correspond to the body positions. The frames should be consistent with the bodies' positions or at least logically placed.  
+  - Similarly, `spring_2.Initialize(body_2, ground, True, chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(-1, 0, 0))` is used, but `body_2` is at `(1, -3, 0)`. Using `(-1, 0, 0)` as the ground attachment point is inconsistent and likely incorrect.  
+  - This could lead to incorrect spring behavior or simulation instability.
+
+- **Visual Shapes:**  
+  - `chrono.ChVisualShapeBox(1,1,1)` is called with three separate arguments, but the API expects a single `ChVector3d` argument for size. The correct call should be `chrono.ChVisualShapeBox(chrono.ChVector3d(1,1,1))`.  
+  - This is an API misuse and will likely cause an error or unexpected behavior.
+
 - **Adding Visual Shapes to Ground:**  
-  - `ground.AddVisualShape(sph_1, chrono.ChFramed(chrono.ChVector3d(-1, 0, 0)))` is used, but `ChFramed` is not a documented class or constructor in the API. The correct class is `ChFrame` or `ChCoordsysD` (depending on version). This is an API misuse.  
-- **ForceFunctor Constructor:**  
-  - The `MySpringForce` class is instantiated with `MySpringForce(spring_coef, damping_coef)`, but the class does not define an `__init__` method to accept these parameters. This will cause a runtime error.  
-- **Simulation Step:**  
-  - `sys.DoStepDynamics(1e-3)` is called with a reasonable timestep. ✔️  
-- **Visualization Camera Position:**  
-  - `vis.AddCamera(chrono.ChVector3d(0, 0, 6))` is acceptable, though a more typical camera position might be elevated (e.g., y=3) for better viewing. This is minor.  
+  - `ground.AddVisualShape(sph_1, chrono.ChFramed(chrono.ChVector3d(-1, 0, 0)))` is used.  
+  - The API expects `ChCoordsysD` or `ChFrame` for frame specification, not `ChFramed`. `ChFramed` is not a standard class in PyChrono API. This is an incorrect API usage.
+
+- **Use of `SetFixed` and `EnableCollision`:** Correctly used.
+
+- **Custom Force Functor:**  
+  - The force functor is set only on `spring_2`. `spring_1` uses the default spring and damping coefficients. This is acceptable.
 
 **Deductions:**  
-- -15 points for incorrect use of `ChVisualShapeBox` constructor.  
-- -15 points for incorrect use of `ChFramed` (nonexistent class) for visual shape placement.  
-- -15 points for incorrect `ComputeForce` return and missing constructor in `MySpringForce`.  
-- -10 points for logical errors in spring initialization points and force calculations.  
+- Incorrect use of `pos.GetVelocity(frame)` (significant API misuse): -15 points  
+- Incorrect initialization frames for springs (logical error): -10 points  
+- Incorrect call to `ChVisualShapeBox` constructor (API misuse): -15 points  
+- Incorrect use of `ChFramed` (API misuse): -15 points  
+
+Total deductions here exceed the available 30 points, but per guidelines, deduct per issue up to max 30 points.
+
+**Final deduction for correctness:** -30 points
 
 ---
 
 ### 3. Code Quality (10 points)
 
-- **Readability:** Variable names are meaningful (`body_1`, `spring_1`, etc.).  
-- **Structure:** Code is mostly linear, no functions or modularization. Acceptable for a short script.  
-- **Comments:** No comments at all explaining the purpose of classes, variables, or steps. This reduces understandability.  
-- **Formatting:** Mostly consistent indentation and spacing.  
-- **Class Definition:** `MySpringForce` lacks an `__init__` method and comments.  
+- **Readability:**  
+  - Code is mostly readable with meaningful variable names.  
+  - However, duplicate classes `MySpringForce` and `MySpringForce2` with identical code is redundant and confusing.  
+  - Lack of comments explaining the purpose of classes, variables, or simulation setup.  
+  - Inconsistent formatting: sometimes spaces around operators, sometimes not.  
+  - Minor naming inconsistency (`sph_1` and `sph_2` are visual shapes added to ground, but no comments clarify their purpose.
+
+- **Comments:**  
+  - No comments at all in the code, which is a poor practice especially for custom force functors and simulation setup.
 
 **Deductions:**  
-- -5 points for lack of comments and documentation.  
-- -3 points for missing constructor and explanation in `MySpringForce`.  
+- For readability and structure: -5 points  
+- For lack of comments: -5 points
 
 ---
 
 ### 4. Efficiency (10 points)
 
-- No obvious redundant calculations or unnecessary API calls.  
-- The force functor computes forces directly, but the incorrect return type and missing rest length consideration reduce efficiency in simulation convergence.  
-- Minor inefficiency in creating two separate visual shapes for spheres on ground instead of possibly using a single shape or a more efficient method, but this is negligible.  
+- **Redundant Code:**  
+  - Duplicate force functor classes with identical code is inefficient.  
+  - The force calculation calls `body.GetPos(frame)` and `other.GetPos(frame)` twice in the same method (once for position difference, once for velocity difference). Could be optimized by storing results.  
+  - The force functor incorrectly calls `pos.GetVelocity(frame)`, which is invalid and inefficient if it were valid.
+
+- **Visualization Setup:** Reasonable, no obvious inefficiencies.
 
 **Deductions:**  
-- -3 points for missing rest length consideration in custom force functor, which could cause inefficient or incorrect force application.  
+- Duplicate force functor classes: -5 points  
+- Minor inefficiency in repeated calls inside `ComputeForce`: -3 points
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- No error handling or input validation anywhere.  
-- The custom force functor will cause runtime errors due to missing constructor and incorrect return type.  
-- No checks for body or link initialization success.  
-- No handling of edge cases such as zero-length vectors or invalid parameters.  
+- No error handling or checks for invalid inputs or states.  
+- No try-except blocks or validation of parameters.  
+- This is common in many simulation scripts but still a best practice to include at least minimal checks or assertions.
 
-**Deductions:**  
-- -5 points for lack of any error handling and robustness considerations.  
+**Deduction:** -5 points
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
-- Visualization system is properly created and attached to the system. ✔️  
-- Window size and title set. ✔️  
-- Logo, skybox, camera, and typical lights added. ✔️  
-- Minor suboptimal camera position (straight along z-axis, no elevation), but acceptable.  
-- Visual shapes added to bodies and springs. ✔️  
-- Use of `ChVisualShapeSpring` is correct. ✔️  
+- Visualization system is properly created and attached to the system.  
+- Window size and title set.  
+- Logo, skybox, camera, and typical lights added.  
+- The camera is placed at `(0,0,6)`, which is acceptable but might be suboptimal for viewing the scene given the bodies are at y = -3 and x = ±1. A better camera position might be `(0, 3, 6)` or similar for a better angle.  
+- Minor issue: no call to `vis.SetWindowTitle` before `vis.Initialize()` is acceptable but better to set before initialization.  
+- No explicit call to `vis.Update()` or similar, but `vis.Run()` loop is correct.
 
-**No significant issues.**
-
----
-
-### **Summary of Deductions**
-
-| Category                     | Deduction Points |
-|------------------------------|------------------|
-| Completeness                 | -10              |
-| Correctness                 | -15 -15 -15 -10 = -55 |
-| Code Quality                | -5 -3 = -8       |
-| Efficiency                  | -3               |
-| Error Handling and Robustness | -5               |
-| Visualization Tools         | 0                |
-| **Total Deductions**          | **-81**          |
+**Deductions:**  
+- Minor visualization issue with camera placement: -2 points
 
 ---
 
-### **Final Score**
+### **Summary of deductions:**
 
-Starting from 100 points:
-
-100 - 81 = 19 points
+| Criterion                     | Deduction (points) |
+|-------------------------------|--------------------|
+| Completeness                  | 0                  |
+| Correctness                  | 30                 |
+| Code Quality                 | 10                 |
+| Efficiency                  | 8                  |
+| Error Handling and Robustness | 5                  |
+| Visualization Tools          | 2                  |
+| **Total Deductions**          | **55**             |
 
 ---
 
-### **Explanation**
+### **Final score:**
 
-The script includes all essential components but suffers from multiple critical API misuses and logical errors that would prevent it from running correctly or producing the intended simulation behavior. The custom force functor is incomplete and incorrectly implemented, the visual shape constructors are misused, and the spring initialization points are inconsistent with body positions. Additionally, the code lacks comments and error handling, reducing maintainability and robustness.
+Starting from 100 points, subtract 55 points:
+
+**Score = 45**
 
 ---
 
-[[19]]
+### **Explanation:**
+
+- The script includes all essential components but suffers from multiple significant API misuses (incorrect method calls, wrong constructor usage, invalid frame specification) that would prevent it from running correctly or producing accurate simulation results.  
+- The force functor implementation is incorrect due to misuse of velocity retrieval.  
+- Visualization setup is mostly correct but has minor camera placement issues.  
+- Code quality is lowered by redundancy and lack of comments.  
+- No error handling is present.  
+- Efficiency could be improved by removing duplicate classes and optimizing force calculations.
+
+---
+
+[[45]]

@@ -79,9 +79,10 @@ vis.AddCamera(chrono.ChVector3d(0, 0.6, -1))
 vis.AddTypicalLights()  
 
 
-solver = chrono.ChSolverMINRES()  
+solver = chrono.ChSolverMINRES()
 if solver.GetType() == chrono.ChSolver.Type_MINRES:
     print("Using MINRES solver")
+sys.SetSolver(solver)
 solver.SetMaxIterations(200)  
 solver.SetTolerance(1e-10)  
 solver.EnableDiagonalPreconditioner(True)  
@@ -97,19 +98,4 @@ while vis.Run():
     vis.BeginScene()  
     vis.Render()  
     vis.EndScene()  
-    sys.DoStepDynamics(0.01)  
-
-msection_cable2.SetRayleighDamping(0.0001)
-
-builder.GetLastBeamNodes().front().SetForce(chrono.ChVector3d(0, -0.7, 0))
-
-if solver.GetType() == chrono.ChSolver.Type_MINRES:
-         print("Using MINRES solver")
-     solver.SetMaxIterations(200)
-     solver.SetTolerance(1e-10)
-     solver.EnableDiagonalPreconditioner(True)
-     solver.EnableWarmStart(True)
-     solver.SetVerbose(False)
-
-mesh.AddVisualShapeFEA(visualizebeamA)
-     mesh.AddVisualShapeFEA(visualizebeamB)
+    sys.DoStepDynamics(0.01)

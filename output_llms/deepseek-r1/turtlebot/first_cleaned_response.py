@@ -1,57 +1,64 @@
 import pychrono as chrono
+import pychrono.robot as turtlebot
 import pychrono.irrlicht as chronoirr
-from pychrono import ChCoordsysD, ChVectorD, Q_from_AngZ
 
-
-system = chrono.ChSystemNSC()
-system.Set_GravitationalAcceleration(ChVectorD(0, -9.81, 0))
-
-
-ground = chrono.ChBody()
-ground.SetBodyFixed(True)
-ground.GetCollisionModel().ClearModel()
-ground.GetCollisionModel().AddBox(10, 0.1, 10)  
-ground.GetCollisionModel().BuildModel()
-ground.SetCollide(True)
-
-
-ground_vis = chrono.ChBoxShape()
-ground_vis.GetBoxGeometry().Size = ChVectorD(10, 0.1, 10)
-ground.AddAsset(ground_vis)
-system.Add(ground)
-
-
-init_pos = ChVectorD(0, 0.2, 0)  
-init_rot = Q_from_AngZ(0)        
-turtlebot = chrono.ChTurtleBot(system)
-turtlebot.Initialize(ChCoordsysD(init_pos, init_rot))
-
-
-app = chronoirr.ChIrrApp(system, "Turtlebot Simulation", 800, 600)
-app.AddTypicalCamera(chronoirr.vector3df(0, 2, -3))  
-app.AddTypicalLights()
-app.AddShadowAll()
-app.AssetBindAll()
-app.AssetUpdateAll()
-
-
-driver = turtlebot.GetDriver()
-time_step = 0.01
-
-
-while app.GetDevice().run():
-    app.BeginScene()
-    app.DrawAll()
-    app.EndScene()
+def main():
     
-    current_time = system.GetChTime()
+    system = chrono.ChSystemNSC()
+    system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+
+    
+    ground = chrono.ChBodyEasyBox(20, 0.1, 20, 1000)
+    ground.SetPos(chrono.ChVectorD(0, -0.05, 0))
+    ground.SetBodyFixed(True)
+    ground.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
+    system.Add(ground)
+
+    
+    bot = turtlebot.TurtleBot(system)
+    bot.Initialize(chrono.ChFrameD(chrono.ChVectorD(0, -0.2, 0), chrono.Q_from_AngY(chrono.CH_C_PI/2)))
     
     
-    if current_time >= 2.0 and current_time < 4.0:
-        driver.SetSpeeds(5, 3)  
-    elif current_time >= 4.0:
-        driver.SetSpeeds(5, 5)  
+    vis = chronoirr.ChVisualSystemIrrlicht()
+    vis.AttachSystem(system)
+    vis.SetWindowSize(1280, 720)
+    vis.SetWindowTitle("TurtleBot Simulation")
+    vis.Initialize()
+    vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+    vis.AddSkyBox()
+    vis.AddCamera(chrono.ChVectorD(3, 1.5, 3), chrono.ChVectorD(0, 0, 0))
+    vis.AddTypicalLights()
+    vis.AddLightWithShadow(chrono.ChVectorD(5, 5, 5), chrono.ChVectorD(0, 0, 0), 10, 2, 10, 40, 512)
+
     
+    time_step = 0.01
+    current_time = 0
+    simulation_duration = 5.0  
+
     
-    turtlebot.Update()
-    system.DoStepDynamics(time_step)
+    while vis.Run() and current_time < simulation_duration:
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+
+        
+        if current_time < 1.0:
+            
+            bot.SetMotorSpeeds(1.0, 1.0)  
+        elif current_time < 2.0:
+            
+            bot.SetMotorSpeeds(0.5, 1.5)  
+        elif current_time < 3.0:
+            
+            bot.SetMotorSpeeds(1.5, 0.5)  
+        else:
+            
+            bot.SetMotorSpeeds(1.0, 1.0)
+
+        
+        bot.Update()
+        system.DoStepDynamics(time_step)
+        current_time += time_step
+
+if __name__ == "__main__":
+    main()

@@ -14,11 +14,10 @@ initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 vis_type = veh.VisualizationType_MESH
 
 
-chassis_collision_type = veh.CollisionType_NONE
+chassis_collision_type = veh.CollisionType_RIGID  
 
 
-tire_model = veh.TireModelType_RIGID
-
+tire_model = veh.TireModelType_TMEASY  
 
 
 terrainHeight = 0      
@@ -40,7 +39,7 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  
 
 
-vehicle = veh.HMMWV_Full()
+vehicle = veh.HMMWV_Full()  
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
@@ -50,13 +49,11 @@ vehicle.SetTireStepSize(tire_step_size)
 
 vehicle.Initialize()
 
-
 vehicle.SetChassisVisualizationType(vis_type)
 vehicle.SetSuspensionVisualizationType(vis_type)
 vehicle.SetSteeringVisualizationType(vis_type)
 vehicle.SetWheelVisualizationType(vis_type)
 vehicle.SetTireVisualizationType(vis_type)
-
 
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
@@ -93,79 +90,34 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 
-
-boxes = []
-
-for _ in range(20):
-    
-    box_pos = chrono.ChVector3d(
-        -50 + chrono.RandFloat(-30, 30),
-        -50 + chrono.RandFloat(-30, 30),
-        0.0 + chrono.RandFloat(-10, 10)
-    )
-    
-    
-    box_size = chrono.ChVector3d(
-        1 + chrono.RandFloat(0, 1),
-        1 + chrono.RandFloat(0, 1),
-        1 + chrono.RandFloat(0, 1)
-    )
-    
-    
-    box_material = chrono.ChMaterial()
-    box_material.SetDiffuseColor(chrono.ChColor(
-        chrono.RandFloat(0, 1),
-        chrono.RandFloat(0, 1),
-        chrono.RandFloat(0, 1)
-    ))
-    
-    
-    box = veh.ChBodyEasyBox()
-    box.SetPosition(box_pos)
-    box.SetSize(box_size)
-    box.SetMaterial(box_material)
-    box.Create()
-    box.AttachTo(vehicle.GetSystem())
-    boxes.append(box)
-
-
-sensor_manager = veh.ChSensorManager()
-
-camera = veh.ChCameraSensor()
-camera.SetPosition(trackPoint)
-camera.SetFieldOfView(90.0)  
-camera.SetResolution(256, 256)  
-camera.AttachTo(sensor_manager)
-sensor_manager.AddSensor(camera)
-
-
-light_positions = [
-    chrono.ChVector3d(0, 0, 10),
-    chrono.ChVector3d(10, 0, 10),
-    chrono.ChVector3d(-10, 0, 10),
-    chrono.ChVector3d(0, 10, 10),
-    chrono.ChVector3d(0, -10, 10)
-]
-
-for pos in light_positions:
-    light = veh.ChLightSource()
-    light.SetPosition(pos)
-    light.SetDiffuseColor(chrono.ChColor(1, 1, 1))
-    light.Create()
-    light.AttachTo(vehicle.GetSystem())
-
-
-sensor_manager.Initialize()
-sensor_manager.AttachTo(vehicle.GetSystem())
-
-
-camera_render_target = veh.ChRenderTarget()
-camera_render_target.AttachTo(vis.GetDevice())
-camera.AttachTo(camera_render_target)
-sensor_manager.AddRenderTarget(camera_render_target, "Camera Feed")
-
-
 driver = veh.ChInteractiveDriverIRR(vis)
+
+
+sensor_manager = veh.ChSensorManager(driver)
+camera_sensor = veh.ChCameraSensor(sensor_manager)
+camera_sensor.SetResolution(256, 256)  
+camera_sensor.SetFieldOfView(60.0)    
+camera_sensor.SetSensorPosition(chrono.ChCoordsysd(0, 0, 5, 0, 0, 0))  
+camera_sensor.SetSensorRotation(chrono.ChQuaterniond(1, 0, 0, 0))  
+sensor_manager.AddSensor(camera_sensor)
+
+
+camera_visual = veh.ChSensorVisualizer(sensor_manager, veh.VisualizationType_MESH)
+camera_visual.SetSensorFilter(chrono.ChSensorType_CAMERA)
+camera_visual.AddVisualization(camera_sensor)
+
+
+for _ in range(10):
+    box = veh.ChBodyEasyBox(vehicle.GetSystem())
+    box.SetName(f"box_{_}")
+    box.SetPosition(chrono.ChVector3d(
+        (100 * (_ % 5)) - 50,
+        (100 * (_ // 5)) - 50,
+        0
+    ))  
+    box.SetSize(chrono.ChVector3d(0.5, 0.5, 0.5))  
+    box.Initialize()
+    vehicle.GetSystem().AddObject(box)
 
 
 steering_time = 1.0  

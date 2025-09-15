@@ -1,28 +1,36 @@
+terrain = chrono.ChSCMDeformableTerrain()
+   terrain.SetPlane(chrono.ChVector3d(0, 0, 0))  
+   terrain.SetDimensions(100, 100, 1)  
+   terrain.SetMeshResolution(100, 100, 10)  
+   terrain.SetMaterial(chrono.ChMaterialNSC().SetStiffness(1000.0).SetDamping(0.5))  
+   system.Add(terrain)
+
 import os
 import math
 import numpy as np
 import pychrono as chrono
 import pychrono.robot as viper
-import pychrono.vehicle as veh
-from pychrono import irrlicht as chronoirr
+from pychrono import veh, irrlicht as chronoirr
 
 
 system = chrono.ChSystemNSC()
 system.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
-system.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, -9.81))  
+system.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, -9.81))
 chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.0025)
 chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
 
 
-ground_mat = chrono.ChContactMaterialNSC()
-ground = chrono.ChBodySCMPlane(50, 50, 100, 1000000, 0.4)  
-ground.SetMaterial(ground_mat)
-system.Add(ground)
+terrain = chrono.ChSCMDeformableTerrain()
+terrain.SetPlane(chrono.ChVector3d(0, 0, 0))  
+terrain.SetDimensions(100, 100, 1)  
+terrain.SetMeshResolution(100, 100, 10)  
+terrain.SetMaterial(chrono.ChMaterialNSC().SetStiffness(1000.0).SetDamping(0.5))  
+system.Add(terrain)
 
 
-rover = viper.Viper(system)  
-driver = viper.ViperDCMotorControl()  
-rover.SetDriver(driver)  
+rover = viper.Viper(system)
+driver = viper.ViperDCMotorControl()
+rover.SetDriver(driver)
 
 
 init_pos = chrono.ChVector3d(0, 0.2, 0)
@@ -34,10 +42,11 @@ vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
 vis.SetCameraVertical(chrono.CameraVerticalDir_Z)
 vis.SetWindowSize(1280, 720)
-vis.SetWindowTitle('Viper rover - Deformable terrain')
+vis.SetWindowTitle('Viper rover - Rigid terrain')
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()
+vis.AddCamera(chrono.ChVector3d(0, 2.5, 1.5), chrono.ChVector3d(0, 0, 1))
 vis.AddTypicalLights()
 vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0, 0.5), 3, 4, 10, 40, 512)
 
@@ -50,17 +59,17 @@ time_step = 1e-3
 
 time = 0
 while vis.Run():
-    time += time_step  
+    time += time_step
     steering = 0.0  
-    
+
     driver.SetSteering(steering)  
 
-    rover.Update()  
+    rover.Update()
 
     
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
-    
+
     
     system.DoStepDynamics(time_step)

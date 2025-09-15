@@ -1,129 +1,86 @@
-import pychrono as pc
+import PyChrono as pc
 import numpy as np
-import Irrlicht as ir
+import Irrlicht
 
-# Initialize PyChrono
-pc.init()
-ir.init()
+# Initialize PyChrono environment
+simulation = pc.Simulation()
+pc.set_physics_settings(simulation, gravity=0.001)  # Set small gravity for visible attraction
 
-# Simulation parameters
-sim = pc.Simulation(pc.SolverType.PC_Solver, 0.1)  # Time step 0.1 ms
-sim.set_solver_tolerance(1e-8)
-
-# Particle properties
-particle_mass = 1.0
-particle_size = 0.1
-gravity_constant = 100.0  # Adjust this to modify gravitational strength
-
-# Particle emitter function
-def create_particle():
-    # Random position
-    pos = np.array([np.random.uniform(-10, 10) for _ in range(3)])
+# ParticleEmitter class to generate particles with random properties
+class ParticleEmitter:
+    def __init__(self, simulation):
+        self.simulation = simulation
+        self.particles = []
+        self.shape_options = ['circle', 'square', 'random_shape']
+        self.position_options = np.random.uniform(-10, 10, size=(100,))
+        self.velocity_options = np.random.uniform(-10, 10, size=(100,))
+        self.orientation_options = np.random.uniform(0, 2*np.pi, size=(100,))
     
-    # Random velocity
-    vel = np.array([np.random.uniform(-10, 10) for _ in range(3)])
-    vel = vel / np.linalg.norm(vel) * 10  # Normalize velocity
-    
-    # Random orientation
-    orient = np.random.uniform(0, 2*np.pi, 3)
-    orient = np.array([orient[0], orient[1], orient[2]])
-    
-    # Create particle
-    particle = pc.Particle()
-    particle.set_mass(particle_mass)
-    particle.set_shape(pc.Sphere(particle_size))
-    particle.set_position(pos)
-    particle.set_velocity(vel)
-    particle.set_orientation(orient)
-    return particle
+    def emit(self):
+        for _ in range(100):
+            shape = np.random.choice(self.shape_options)
+            pos = np.random.choice(self.position_options)
+            vel = np.random.choice(self.velocity_options)
+            orient = np.random.choice(self.orientation_options)
+            
+            # Create particle
+            particle = pc.Particle()
+            particle.position = pos
+            particle.velocity = vel
+            particle.orientation = orient
+            particle.shape = shape
+            self.simulation.add_particle(particle)
+            self.particles.append(particle)
 
-# Visualization setup
-renderer = ir.Renderer()
-camera = ir.Camera()
-renderer.set_camera(camera)
-renderer.set_background_color(ir.Color(0, 0, 0))
+# Setup visualization
+renderer = Irrlicht.Renderer(simulation, camera=pc.Camera())
+renderer.scene.clear()
+light = Irrlicht.Light()
+light.position = (10, 10, 10)
+renderer.add_light(light)
+renderer.camera.position = (50, 50, 50)
 
-# Create shader for particle visualization
-particle_shader = ir.Shader()
-particle_shader.set_vertex_shader(
-    """
-    void main() {
-        vec3 pos = worldPos;
-        vec3 vel = worldVel;
-        vec3 force = worldForce;
-        float speed = length(vel);
-        float force_mag = length(force);
-        vec3 color = vec3(
-            (force_mag * 0.5) / (speed * 0.5 + 1.0),
-            (force_mag * 0.5) / (speed * 0.5 + 1.0),
-            (speed / (speed * 0.5 + 1.0))
-        );
-        color *= 0.5 + 0.5 * sin(time) * 0.5;
-        gl_FragColor = vec4(color, 1.0);
-    }
-    """
+# Set up simulation
+def gravity_force(particle1, particle2):
+    r = np.linalg.norm(particle1.position - particle2.position)
+    if r < 1e-10:
+        return 0
+    m1 = particle1.mass
+    m2 = particle2.mass
+    G = 0.001  # Gravitational constant
+    F = G * m1 * m2 / (r**2)
+    F_vector = (particle2.position - particle1.position) * F / (r**2) * particle1.mass
+    return F_vector
+
+simulation.add_particle_system(
+    particles=[particle for particle in simulation.particles],
+    force_func=gravity_force,
+    shape=particle.shape for particle in simulation.particles,
+    mass=1.0 for particle in simulation.particles
 )
-
-# Visualization setup for forces
-force_shader = ir.Shader()
-force_shader.set_vertex_shader(
-    """
-    void main() {
-        vec3 force = worldForce;
-        vec3 color = vec3(
-            (length(force) * 0.5) / (length(worldVel) * 0.5 + 1.0),
-            (length(force) * 0.5) / (length(worldVel) * 0.5 + 1.0),
-            0.0
-        );
-        gl_FragColor = vec4(color, 1.0);
-    }
-    """
-)
-
-renderer.set_shader_for_particles(particle_shader)
-renderer.set_shader_for_lines(force_shader)
 
 # Simulation loop
+simulation.run(1000, 1000000)
+
+# Handle key events for camera control
+def key_event_handler(key):
+    if key.key_code == ord('W'):
+        renderer.camera.position[1] += 5
+    if key.key_code == ord('S'):
+        renderer.camera.position[1] -= 5
+    if key.key_code == ord('A'):
+        renderer.camera.position[0] -= 5
+    if key.key_code == ord('D'):
+        renderer.camera.position[0] += 5
+    if key.key_code == ord('R'):
+        renderer.camera.look_at = np.array([0, 0, 0])
+
+simulation.event_handler = key_event_handler
+
+# Main simulation loop
 while True:
-    # Clear previous objects
-    sim.clear_objects()
-    
-    # Emit new particle
-    particle = create_particle()
-    sim.add_object(particle)
-    
-    # Apply gravity between particles
-    particles = sim.get_objects()
-    num_particles = len(particles)
-    
-    for i in range(num_particles):
-        for j in range(i + 1, num_particles):
-            p1 = particles[i]
-            p2 = particles[j]
-            
-            # Calculate distance
-            r = np.linalg.norm(p1.get_position() - p2.get_position())
-            
-            if r > 1e-8:  # Avoid division by zero
-                force = gravity_constant * particle_mass * p1.get_mass() / (r ** 2)
-                acc1 = force / (p1.get_mass()) * (p2.get_position() - p1.get_position()) / (r ** 2)
-                acc2 = force / (p2.get_mass()) * (p1.get_position() - p2.get_position()) / (r ** 2)
-                
-                p1.add_force(acc1)
-                p2.add_force(acc2)
-    
-    # Visualize simulation
-    renderer.begin_frame()
+    simulation.step()
     renderer.render()
-    
-    # Handle key input for emitting particles
-    keys = ir.Keyboard()
-    if keys.key_pressed(ir.Key('e')):
-        particle = create_particle()
-        sim.add_object(particle)
-    
-    renderer.end_frame()
-    
-    # Limit number of particles
-    if len(particles) > 1000:
-        sim.remove_objects(sim.get_objects()[-1000:])
+    renderer.scene.clear()
+    for particle in simulation.particles:
+        renderer.draw_sphere(particle.position, particle.radius=0.1, color=(1,1,1))

@@ -3,19 +3,20 @@ import pychrono.irrlicht as chronoirr
 
 
 class MySpringForce(chrono.ForceFunctor):
-    def __init__(self):
+    def __init__(self, spring_coef=50, damping_coef=1):
         super().__init__()
-        self.spring_coef = 50
-        self.damping_coef = 1
+        self.spring_coef = spring_coef
+        self.damping_coef = damping_coef
 
-    def Evaluate(self, F, dt):
+    def Evaluate(self, force, body):
         
-        delta = self.GetLink().GetRelativePosition()
+        pos = body.GetPos()
+        disp = pos - chrono.ChVector3d(1, 0, 0)  
+        vel = body.GetPos_dt()
         
-        velocity = self.GetLink().GetRelativeVelocity()
         
-        F spring_force = -self.spring_coef * delta - self.damping_coef * velocity
-        F.force = spring_force
+        force.Force = -self.spring_coef * disp - self.damping_coef * vel
+
 
 rest_length = 1.5
 spring_coef = 50
@@ -45,7 +46,6 @@ body_1.EnableCollision(False)
 body_1.SetMass(1)
 body_1.SetInertiaXX(chrono.ChVector3d(1, 1, 1))
 
-
 box_1 = chrono.ChVisualShapeBox(1, 1, 1)
 box_1.SetColor(chrono.ChColor(0.6, 0, 0))
 body_1.AddVisualShape(box_1)
@@ -59,9 +59,8 @@ body_2.EnableCollision(False)
 body_2.SetMass(1)
 body_2.SetInertiaXX(chrono.ChVector3d(1, 1, 1))
 
-
 box_2 = chrono.ChVisualShapeBox(1, 1, 1)
-box_2.SetColor(chrono.ChColor(0, 0, 0.6))
+box_2.SetColor(chrono.ChColor(0, 0.6, 0))
 body_2.AddVisualShape(box_2)
 
 
@@ -72,7 +71,6 @@ spring_1.SetSpringCoefficient(spring_coef)
 spring_1.SetDampingCoefficient(damping_coef)
 sys.AddLink(spring_1)
 
-
 spring_1.AddVisualShape(chrono.ChVisualShapeSpring(0.05, 80, 15))
 
 
@@ -82,18 +80,13 @@ spring_2.SetRestLength(rest_length)
 sys.AddLink(spring_2)
 
 
-my_force = MySpringForce()
-my_force.spring_coef = spring_coef
-my_force.damping_coef = damping_coef
-spring_2.SetForceFunctor(my_force)
-
-
-spring_2.AddVisualShape(chrono.ChVisualShapeSpring(0.05, 80, 15))
+force_functor = MySpringForce(spring_coef, damping_coef)
+spring_2.SetForceFunctor(force_functor)
 
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(sys)
 vis.SetWindowSize(1024, 768)
-vis.SetWindowTitle('ChLinkTSDA demo with Custom Force')
+vis.SetWindowTitle('ChLinkTSDA demo')
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()

@@ -1,66 +1,65 @@
-import os
-import math
 import pychrono as chrono
 import pychrono.vehicle as veh
 import pychrono.irrlicht as irr
 
 def main():
-    # 1. Initialize PyChrono environment
-    chrono.SetChronoDataPath(os.path.join(os.getenv('CHRONO_DATA_DIR'), 'data/'))
+    # 1. Initialize environment and core components
     system = chrono.ChSystemNSC()
-    system.SetSolverMaxIterations(150)
     system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+    system.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
+    system.SetSolverMaxIterations(150)
 
-    # 2. Create vehicle and terrain systems
-    # Initialize UAZBUS vehicle
-    vehicle = veh.UAZBUS()
-    vehicle.SetContactMethod(chrono.ChContactMethod_NSC)
-    vehicle.SetChassisCollisionType(veh.ChassisCollisionType_NONE)
-    vehicle.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0.5, 0), chrono.QUNIT))
-    vehicle.SetTireStepSize(0.002)
-    vehicle.Initialize()
-
-    # Set visualization parameters
-    vehicle.SetChassisVisualizationType(veh.VisualizationType_PRIMITIVES)
-    vehicle.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
-    vehicle.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
-    vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
-    vehicle.SetTireVisualizationType(veh.VisualizationType_MESH)
-
-    # Create rigid terrain
+    # 2. Create rigid terrain
     terrain = veh.RigidTerrain(system)
     patch_mat = chrono.ChMaterialSurfaceNSC()
-    patch_mat.SetFriction(0.8)
-    patch_mat.SetRestitution(0.01)
-    patch = terrain.AddPatch(patch_mat, chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 1, 0), 200, 200)
+    patch_mat.SetFriction(0.9)  # Set friction coefficient
+    patch_mat.SetRestitution(0.01)  # Set restitution
+    patch = terrain.AddPatch(patch_mat, chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 1), 100, 100)
     patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
     terrain.Initialize()
 
-    # 3. Initialize driver system
-    driver = veh.ChInteractiveDriverIRR(vehicle)
+    # 3. Create and initialize UAZ vehicle
+    uaz = veh.UAZBUS()
+    uaz.SetContactMethod(chrono.ChContactMethod_NSC)
+    uaz.SetChassisFixed(False)
+    uaz.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 1, 0), chrono.Q_from_AngZ(0)))
+    uaz.SetTireType(veh.TireModelType_TMEASY)
+    uaz.Initialize()
+
+    uaz.SetChassisVisualizationType(veh.VisualizationType_PRIMITIVES)
+    uaz.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
+    uaz.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
+    uaz.SetWheelVisualizationType(veh.VisualizationType_MESH)
+    uaz.SetTireVisualizationType(veh.VisualizationType_MESH)
+
+    # 4. Create driver system
+    driver = veh.ChInteractiveDriverIRR(uaz.GetVehicle())
     driver.SetSteeringDelta(0.02)
     driver.SetThrottleDelta(0.02)
     driver.SetBrakingDelta(0.06)
     driver.Initialize()
 
-    # 4. Set up real-time visualization
-    vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
-    vis.SetWindowTitle('UAZBUS Simulation')
+    # 5. Create Irrlicht visualization
+    vis = irr.ChVisualSystemIrrlicht()
+    vis.AttachSystem(system)
     vis.SetWindowSize(1280, 720)
-    vis.SetChaseCamera(chrono.ChVectorD(0.0, 0.0, 1.75), 6.0, 0.5)
-    vis.AddLightDirectional()
+    vis.SetWindowTitle('UAZBUS Simulation')
+    vis.Initialize()
+    vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
     vis.AddSkyBox()
-    vis.AddLogo()
-    vis.AttachVehicle(vehicle)
+    vis.AddCamera(chrono.ChVectorD(5, 2, 5), chrono.ChVectorD(0, 0, 0))
+    vis.AddLightWithShadow(chrono.ChVectorD(10, 20, 10), chrono.ChVectorD(0, 0, 0), 50, 10, 40, 60, 512)
+    vis.EnableShadows()
 
-    # 5. Simulation loop
-    time_step = 0.02
+    uaz.GetVehicle().SetVisualSystem(vis)
+
+    # 6. Simulation loop
+    step_size = 0.002
     realtime_timer = chrono.ChRealtimeStepTimer()
-
     while vis.Run():
         time = system.GetChTime()
         
-        # Update visualization and driver inputs
+        # Update visualization
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
@@ -68,17 +67,22 @@ def main():
         # Get driver inputs
         driver_inputs = driver.GetInputs()
         
-        # Update systems
+        # Update modules
         driver.Synchronize(time)
-        vehicle.Synchronize(time, driver_inputs, terrain)
+        uaz.Synchronize(time, driver_inputs, terrain)
         terrain.Synchronize(time)
         vis.Synchronize(time, driver_inputs)
         
         # Advance simulation
-        system.DoStepDynamics(time_step)
+        uaz.Advance(step_size)
+        terrain.Advance(step_size)
+        vis.Advance(step_size)
+        
+        # Advance system state
+        system.DoStepDynamics(step_size)
         
         # Maintain real-time execution
-        realtime_timer.Spin(time_step)
+        realtime_timer.Spin(step_size)
 
 if __name__ == "__main__":
     main()

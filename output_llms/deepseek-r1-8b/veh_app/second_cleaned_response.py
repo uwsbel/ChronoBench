@@ -4,8 +4,6 @@ import pychrono.vehicle as veh
 import pychrono.sensor as sens
 import math
 import os
-import chrono.rigidbody as rigidbody
-import chrono.contact as contact
 
 
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
@@ -62,7 +60,7 @@ vis = True
 gator = veh.Gator()
 gator.SetContactMethod(chrono.ChContactMethod_NSC)
 gator.SetChassisFixed(False)
-gator.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
+gator.SetInitPosition(initLoc)
 gator.SetBrakeType(veh.BrakeType_SHAFTS)
 gator.SetTireType(veh.TireModelType_TMEASY)
 gator.SetTireStepSize(tire_step_size)
@@ -109,7 +107,7 @@ intensity = 1.0
 manager.scene.AddPointLight(chrono.ChVector3f(2, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
 
 
-offset_pose = chrono.ChFramed(chrono.ChVector3d(-8.0, 0, 1.45), chrono.QuatFromAngleAxis(.2, chrono.ChVector3d(0, 1, 0)))
+offset_pose = chrono.ChFramed(chrono.ChVector3d(-8.0, 0, 1.45), chrono.QuatFromAngleAxis(0.2, chrono.ChVector3d(0, 1, 0)))
 cam = sens.ChCameraSensor(
     gator.GetChassisBody(),
     update_rate,
@@ -119,54 +117,33 @@ cam = sens.ChCameraSensor(
     fov
 )
 cam.SetName("Third Person POV")
+
 cam.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Gator Camera"))
 manager.AddSensor(cam)
 
 
-
-
-box = rigidbody.ChRigidBody(gator.GetSystem())
-box.SetMass(1)
-box.SetCollisionShape(chrono.ChCollisionShape.Box(chrono.ChVector3d(0, 0, 0.5), 1, 1, 1))
-box.GetMaterial().SetFriction(0.5)
-box.GetMaterial().SetRestitution(0.2)
-box.SetColor(chrono.ChColor(0.0, 0.0, 1.0))
-box.SetTexture(veh.GetDataFile("default textures/box.png"), 1, 1)
-gator.GetSystem().AddRigidBody(box)
-
-cylinder = rigidbody.ChRigidBody(gator.GetSystem())
-cylinder.SetMass(1)
-cylinder.SetCollisionShape(chrono.ChCollisionShape.Cylinder(chrono.ChVector3d(0, 0, 1.5), 0.5, 1))
-cylinder.GetMaterial().SetFriction(0.5)
-cylinder.GetMaterial().SetRestitution(0.2)
-cylinder.SetColor(chrono.ChColor(0.0, 0.0, 1.0))
-cylinder.SetTexture(veh.GetDataFile("default textures/cylinder.png"), 1, 1)
-gator.GetSystem().AddRigidBody(cylinder)
-
-
 lidar = sens.ChLidarSensor(
-    gator.GetSystem(),
+    gator.GetChassisBody(),
     update_rate,
     chrono.ChVector3d(0.0, 0, 2),
-    800,
-    300,
-    2 * chrono.CH_PI,
-    chrono.CH_PI / 12,
-    chrono.CH_PI / 6,
-    100.0,
-    True,
-    2,
-    0.003,
-    sens.ChLidarSensor.StrongestReturnMode,
-    [sens.ChSensorDataFilter.Depth, sens.ChSensorDataFilter.Intensity],
-    [sens.ChSensorDataXYZI]
+    800,  
+    300,  
+    2 * chrono.CH_PI,  
+    chrono.CH_PI / 12,  
+    chrono.CH_PI / 6,   
+    100.0,              
+    True,                
+    2,                  
+    math.radians(0.003), 
+    sens.LidarSensorReturnMode.STRONGEST_RETURN
+)
+lidar.SetFilters(
+    sens.LidarSensorFilter_DEPTH,
+    sens.LidarSensorFilter_INTENSITY,
+    sens.LidarSensorFilter_XYZI
 )
 lidar.SetName("Lidar Sensor")
-lidar.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Lidar View"))
 manager.AddSensor(lidar)
-
-
-
 
 
 
@@ -178,8 +155,10 @@ end_time = 30
 while time < end_time:
     time = gator.GetSystem().GetChTime()
     
+    
     driver.SetSteering(0.5)
     driver.SetThrottle(0.2)
+    
     
     driver_inputs = driver.GetInputs()
 

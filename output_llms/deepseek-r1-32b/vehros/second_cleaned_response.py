@@ -5,16 +5,10 @@ from pychrono import irrlicht as chronoirr
 
 def main():
     
+    veh.SetDataPath(ch.GetChronoDataPath() + 'vehicle/')
+
+    
     hmmwv = veh.HMMWV_Full()
-    veh.SetDataPath(ch.GetChronoDataPath() + 'vehicle/')  
-    
-    
-    hmmwv.SetChassisVisualizationType(veh.VehicleVisualizationType.VISUALIZATION_ALL)
-    hmmwv.SetSuspensionVisualizationType(veh.VehicleVisualizationType.VISUALIZATION_ALL)
-    hmmwv.SetSteeringVisualizationType(veh.VehicleVisualizationType.VISUALIZATION_ALL)
-    hmmwv.SetWheelVisualizationType(veh.VehicleVisualizationType.VISUALIZATION_ALL)
-    hmmwv.SetTireVisualizationType(veh.VehicleVisualizationType.VISUALIZATION_ALL)
-    
     hmmwv.SetContactMethod(ch.ChContactMethod_NSC)  
     hmmwv.SetChassisCollisionType(veh.CollisionType_NONE)  
     hmmwv.SetChassisFixed(False)  
@@ -25,6 +19,14 @@ def main():
     hmmwv.SetSteeringType(veh.SteeringTypeWV_PITMAN_ARM)  
     hmmwv.SetTireType(veh.TireModelType_TMEASY)  
     hmmwv.SetTireStepSize(1e-3)  
+
+    
+    hmmwv.SetChassisVisualizationType(veh.VisualizationType_PRIMITIVES)
+    hmmwv.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
+    hmmwv.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
+    hmmwv.SetWheelVisualizationType(veh.VisualizationType_PRIMITIVES)
+    hmmwv.SetTireVisualizationType(veh.VisualizationType_PRIMITIVES)
+
     hmmwv.Initialize()  
 
     
@@ -41,6 +43,7 @@ def main():
     
     driver = veh.ChDriver(hmmwv.GetVehicle())
     driver.Initialize()  
+    hmmwv.GetVehicle().SetDriver(driver)  
 
     
     ros_manager = chros.ChROSPythonManager()
@@ -55,20 +58,17 @@ def main():
     vis = chronoirr.ChVisualSystemIrrlicht()
     vis.SetWindowTitle('HMMWV Simulation')
     vis.SetWindowSize(1024, 768)
-    vis.SetNumberOfCameras(1)
-    vis.SetActiveCamera(0)
-    vis.GetCamera(0).SetPosition(ch.ChVector3d(5, 5, 5))
-    vis.GetCamera(0).SetLookAt(ch.ChVector3d(0, 0, 0))
-    vis.GetCamera(0).SetFocalLength(100)
-    vis.AddLight(ch.ChVector3d(5, 5, 5), ch.ChColor(1, 1, 1))
-    vis.AddLight(ch.ChVector3d(0, 0, 5), ch.ChColor(1, 1, 1))
-    vis.AttachGridToTerrain()
-    vis.AttachCameraToVehicle(hmmwv.GetChassisBody())
-    vis.SetRenderMode(chronoirr.RENDER_MODE_OPENGL)
-    vis.Initialize()
-    vis.AddShadowLights()
-    vis.AddSkyBox()
-    vis.AddGrid()
+    vis.SetNumberOfBuffers(2)
+    vis.SetShadows(True)
+    vis.SetLightPosition(ch.ChVectorD(0, 0, 5))
+    vis.SetLightIntensity(1)
+    vis.SetCameraPosition(ch.ChVectorD(5, 0, 3))
+    vis.SetCameraRotation(ch.ChVectorD(0, 0, -45))
+    vis.Render()
+    
+    
+    vis.Add(hmmwv.GetVehicle())
+    vis.Add(terrain.GetTerrain())
 
     
     time = 0
@@ -77,6 +77,10 @@ def main():
 
     hmmwv.GetVehicle().EnableRealtime(True)  
     
+    
+    renderer = chronoirr.ChIrrRenderer(vis)
+    renderer.SetRenderFlags(chronoirr.IRRRENDERER_RENDER_OBJECTS | chronoirr.IRRRENDERER_RENDER_WIREFRAME)
+
     while time < time_end:
         time = hmmwv.GetSystem().GetChTime()  
 
@@ -99,10 +103,6 @@ def main():
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
-
-        
-        if vis.WasWindowClosed():
-            break
 
 if __name__ == "__main__":
     main()

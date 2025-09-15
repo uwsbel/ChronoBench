@@ -1,89 +1,88 @@
-import os
-import math
 import pychrono as chrono
 import pychrono.vehicle as veh
 import pychrono.irrlicht as irr
 
-
-chrono.SetChronoDataPath(os.path.join(os.getenv('CHRONO_DATA_DIR'), 'data/'))
-system = chrono.ChSystemSMC()
-system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
-
-
-vehicle = veh.HMMWV_Full(system)
-vehicle.SetContactMethod(chrono.ChContactMethod_SMC)
-vehicle.SetChassisFixed(False)
-vehicle.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0.5), chrono.QUNIT))
-vehicle.SetTireType(veh.TireModelType_TMEASY)
-vehicle.SetTireStepSize(0.001)
-vehicle.Initialize()
-
-
-vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
-vehicle.SetSuspensionVisualizationType(veh.VisualizationType_MESH)
-vehicle.SetSteeringVisualizationType(veh.VisualizationType_MESH)
-vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
-vehicle.SetTireVisualizationType(veh.VisualizationType_MESH)
-
-
-ground = chrono.ChBody()
-ground.SetPos(chrono.ChVectorD(0, 0, 0))
-ground.SetBodyFixed(True)
-
-
-collision_mesh = chrono.ChTriangleMeshConnected()
-collision_mesh.LoadWavefrontMesh(chrono.GetChronoDataFile('Highway_col.obj'))
-ground.GetCollisionModel().ClearModel()
-ground.GetCollisionModel().AddTriangleMesh(collision_mesh, True, False, chrono.ChVectorD(0,0,0))
-ground.GetCollisionModel().BuildModel()
-ground.SetCollide(True)
-
-
-visual_mesh = chrono.ChObjFileShape()
-visual_mesh.SetFilename(chrono.GetChronoDataFile('Highway_vis.obj'))
-ground.AddVisualShape(visual_mesh)
-system.Add(ground)
-
-
-vis = irr.ChVisualSystemIrrlicht()
-vis.AttachSystem(system)
-vis.SetWindowSize(1280, 720)
-vis.SetWindowTitle('HMMWV on Custom Terrain')
-vis.Initialize()
-vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
-vis.AddSkyBox()
-vis.AddCamera(chrono.ChVectorD(0, 10, 2))
-vis.AddTypicalLights()
-
-
-driver = veh.ChInteractiveDriverIRR(vis)
-steering_controller = veh.ChSteeringControllerSMC()
-driver.SetSteeringController(steering_controller)
-driver.SetInputDataFile(veh.GetDataFile("MDF/driver/Accelerations.txt"))
-driver.SetInputMode(veh.InputMode_DATAFILE)
-driver.Initialize()
-
-
-time_step = 0.002
-real_time_frame = 0.02  
-time = 0
-
-while vis.Run():
-    time = system.GetChTime()
+def main():
     
+    chrono.SetChronoDataPath("path/to/chrono/data/")  
+    veh.SetDataPath("path/to/vehicle/data/")  
+
     
-    vis.BeginScene()
-    vis.Render()
-    vis.EndScene()
+    system = chrono.ChSystemSMC()
+    system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
+    system.SetSolverMaxIterations(150)
+
     
+    terrain = veh.RigidTerrain(system)
+    patch_mat = chrono.ChMaterialSurfaceSMC()
+    mesh_patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysD())
+    mesh_patch.SetMeshFilename("path/to/Highway_col.obj")  
+    mesh_patch.SetVisualizationMesh("path/to/Highway_vis.obj")  
+    mesh_patch.SetTexture("path/to/texture.jpg")  
+    terrain.Initialize()
+
     
-    driver_inputs = driver.GetInputs()
-    vehicle.GetDriver().SetInputs(driver_inputs)
+    init_pos = chrono.ChVectorD(0, 0, 0.5)
+    init_rot = chrono.ChQuaternionD(1, 0, 0, 0)
     
+    hmmwv = veh.HMMWV_Full(system)
+    hmmwv.SetInitPosition(chrono.ChCoordsysD(init_pos, init_rot))
+    hmmwv.SetTireType(veh.TireModelType_TMEASY)
+    hmmwv.SetChassisVisualizationType(veh.VisualizationType_MESH)
+    hmmwv.SetSuspensionVisualizationType(veh.VisualizationType_MESH)
+    hmmwv.SetSteeringVisualizationType(veh.VisualizationType_MESH)
+    hmmwv.SetWheelVisualizationType(veh.VisualizationType_MESH)
+    hmmwv.Initialize()
+
     
-    driver.Synchronize(time)
-    vehicle.Synchronize(time, driver_inputs, terrain)
-    system.DoStepDynamics(time_step)
+    driver = veh.ChIrrGuiDriver(hmmwv.GetVehicle())
+
     
+    vis = irr.ChVisualSystemIrrlicht()
+    vis.AttachSystem(system)
+    vis.SetWindowSize(1280, 720)
+    vis.SetWindowTitle("HMMWV on Custom Terrain")
+    vis.Initialize()
+    vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+    vis.AddSkyBox()
+    vis.AddCamera(chrono.ChVectorD(8, 8, 1.5))
+    vis.AddTypicalLights()
+    vis.AddLightWithShadow(chrono.ChVectorD(-5, 0, 8), chrono.ChVectorD(0, 0, 0), 50, 2, 30, 50, 512)
+    vis.EnableShadows()
+
     
-    chrono.ChRealtimeStep(real_time_frame)
+    step_size = 0.002
+    render_step = 1.0 / 50  
+    realtime_timer = chrono.ChRealtimeStepTimer()
+    step_number = 0
+
+    while vis.Run():
+        time = system.GetChTime()
+        
+        
+        driver_inputs = driver.GetInputs()
+        driver.Synchronize(time)
+        
+        
+        hmmwv.Synchronize(time, driver_inputs, terrain)
+        terrain.Synchronize(time)
+        
+        
+        system.DoStepDynamics(step_size)
+        
+        
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+        
+        
+        realtime_timer.Spin(step_size)
+        
+        
+        if step_number % int(render_step / step_size) == 0:
+            vis.SetWindowTitle(f"HMMWV Simulation - Time: {time:.2f}s")
+        
+        step_number += 1
+
+if __name__ == "__main__":
+    main()

@@ -1,97 +1,80 @@
-importchrono
-importchrono.vehicle as vehicle
-importchrono.visual as vis
+importchrono as chrono
+import math
 
 # Initialize the Chrono system
-system = chrono.ChSystemNSC()
-system.SetSolverType(chrono.ChSolverType.SPT)
-system.SetMaxItersSolverSpeed(100)
-system.SetSolverTolerance(1e-6)
-system.Set timestep(0.001)
+system = chrono.ChSystem()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
+
+# Set up Irrlicht visualization
+vis = chrono.ChIrrApp(system, "ARTcar Simulation", chrono.CHDimension(800, 600))
+vis.SetCameraPosition(chrono.ChVectorD(5, 5, 5))
+vis.SetCameraRotation(chrono.ChVectorD(-45, 45, 0))
 
 # Create the ARTcar vehicle
-vehicle = vehicle.ChVehicle()
-vehicle.SetVehicleType(vehicle.ChVehicleType.ARTcar)
-vehicle.SetChassisInitialPosition(chrono.ChVectorD(0, 0, 1))
-vehicle.SetChassisInitialOrientation(chrono.ChQuaternionD(1, 0, 0, 0))
-vehicle.SetContactMethod(chrono.ChContactMethod.NSC)
-vehicle.SetVisualizationType(chrono.ChVisualizationType_MESH)
-vehicle.Initialize()
+car = chrono.ChVehicleArtcar()
+car.SetPos(chrono.ChVectorD(0, 0, 1))  # Position
+car.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))  # Orientation (identity)
+car.SetContactMethod(chrono.ChContactMethod_NSM)  # Contact method
+car.SetVisualization(chrono.ChVisualizationType_MESH)  # Visualization type
+system.Add(car)
 
 # Create the rigid terrain
-terrain = vehicle.ChRigidTerrain()
-terrain.SetDimensions(chrono.ChVectorD(20, 20, 1))
-terrain.SetPosition(chrono.ChVectorD(0, 0, 0))
-terrain.SetTextureFilename("terrain_texture.jpg")
-terrain.Initialize()
+terrain = chrono.ChRigidTerrain()
+terrain.SetPos(chrono.ChVectorD(0, 0, 0))
+terrain.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
+terrain.SetSize(100, 100)  # X and Z dimensions
+terrain.SetHeight(0)  # Y dimension
+terrain.SetTexture("terrain_texture.jpg", 100, 100)  # Apply texture
+system.Add(terrain)
 
-# Create a driver
-driver = vehicle.ChDriver()
-driver.SetVehicle(vehicle)
-driver.SetSteering(0)
-driver.SetThrottle(0.5)
-driver.SetBraking(0)
-driver.Initialize()
+# Add terrain to Irrlicht scene
+terrain_node = chrono.ChIrrNodeShared(terrain)
+vis.GetScene().Add(terrain_node)
 
-# Visualization setup
-vis_app = vis.ChVisualIrrlicht()
-vis_app.SetSystem(system)
-vis_app.SetWindowTitle("ARTcar Simulation")
-vis_app.SetCameraPosition(chrono.ChVectorD(5, 5, 5))
-vis_app.SetCameraRotation(chrono.ChQuaternionD(1, 0, 0, 0))
-vis_app.AddLight(chrono.ChVectorD(5, 5, 5), chrono.ChColor(1, 1, 1))
-vis_app.AddLight(chrono.ChVectorD(-5, -5, 5), chrono.ChColor(1, 1, 1))
-vis_app.AddGrid(chrono.ChVectorD(20, 20, 20), 1, 1)
+# Set up driver controls
+steering = 0.0
+throttle = 0.0
+brake = 0.0
 
-# Add objects to visualization
-vis_app.Add(vehicle.GetChassis())
-for wheel in vehicle.GetWheels():
-    vis_app.Add(wheel)
-vis_app.Add(terrain.GetTerrain())
+def on_key_press(event):
+    global steering, throttle, brake
+    if event.key == chrono.CH_KEY_LEFT:
+        steering += 0.1
+    if event.key == chrono.CH_KEY_RIGHT:
+        steering -= 0.1
+    if event.key == chrono.CH_KEY_UP:
+        throttle = 0.5
+        brake = 0.0
+    if event.key == chrono.CH_KEY_DOWN:
+        throttle = 0.0
+        brake = 0.5
+
+vis.SetKeyboardCallback(on_key_press)
 
 # Simulation loop
-simulation_time = 10
-render_steps = 50
-step_count = int(simulation_time / system.GetTimestep() / render_steps)
+frame_rate = 50
+time_step = 1.0 / frame_rate
+step_count = 1000
 
-for _ in range(step_count):
-    # Update vehicle
-    vehicle.Update()
+for step in range(step_count):
+    # Update vehicle controls
+    car.GetDriver().SetThrottle(throttle)
+    car.GetDriver().SetBrake(brake)
+    car.GetDriver().SetSteering(steering)
     
-    # Update terrain
-    terrain.Update()
+    # Update vehicle
+    car.Update(time_step)
+    
+    # Update system
+    system.DoStepDynamics(time_step)
     
     # Update visualization
-    vis_app.BeginScene()
-    vis_app.Render()
-    vis_app.EndScene()
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
     
-    # Handle user input
-    vis_app.ProcessEvents()
-    if vis_app.GetDevice().IsKeyDown(chrono.KEY_ESCAPE):
-        break
-    
-    # Control inputs
-    if vis_app.GetDevice().IsKeyDown(chrono.KEY_LEFT):
-        driver.SetSteering(-0.5)
-    elif vis_app.GetDevice().IsKeyDown(chrono.KEY_RIGHT):
-        driver.SetSteering(0.5)
-    else:
-        driver.SetSteering(0)
-        
-    if vis_app.GetDevice().IsKeyDown(chrono.KEY_UP):
-        driver.SetThrottle(0.8)
-    else:
-        driver.SetThrottle(0.5)
-        
-    if vis_app.GetDevice().IsKeyDown(chrono.KEY_DOWN):
-        driver.SetBraking(0.5)
-    else:
-        driver.SetBraking(0)
-    
-    # Advance simulation
-    system.DoStepDynamics(system.GetTimestep())
-    vis_app.WaitForVSYNC()
+    # Sleep to maintain frame rate
+    chrono.Sleep(time_step * 1000)
 
-# Close visualization
-vis_app.Close()
+# Close the visualization window
+vis.Close()

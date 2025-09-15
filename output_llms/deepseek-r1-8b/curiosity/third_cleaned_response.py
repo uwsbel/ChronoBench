@@ -4,7 +4,7 @@ import numpy as np
 import pychrono as chrono
 import pychrono.robot as robot
 from pychrono import irrlicht as chronoirr
-import pychrono.sensor as sens  
+import pychrono.sensor as sens
 
 
 system = chrono.ChSystemNSC()
@@ -62,27 +62,26 @@ time_step = 1e-3
 sensor_manager = sens.ChSensorManager(system)
 
 
-lidar_update_rate = 10  
-horizontal_samples = 360
-vertical_samples = 360
-field_of_view = 90  
+lidar_params = {
+    'update_rate': 10,  
+    'horizontal_samples': 64,
+    'vertical_samples': 4,
+    'fov': 45,  
+    'min_distance': 0.1,
+    'max_distance': 100.0,
+    'noise': 0.1,
+    'distortion': 0.1,
+    'attenuation': 0.98
+}
 
 
 lidar_sensor = sens.ChLidarSensor(
     system,
-    "Lidar",
-    lidar_update_rate,
-    horizontal_samples,
-    vertical_samples,
-    field_of_view,
-    1000  
+    rover.GetChassis(),
+    lidar_params
 )
-rover.GetChassis().AddSensor(lidar_sensor)
-
-
-lidar_sensor.AddFilter(sens.ChPointCloudFilter())
-
-
+lidar_sensor.SetToi(chrono.ChVector3d(1.0, 0, 0))  
+lidar_sensor.SetFilter(sens.ChLidarFilter.ToF(chrono.ChVector3d(1.0, 0, 0), 0.1, 100.0))
 sensor_manager.AddSensor(lidar_sensor)
 
 
@@ -91,13 +90,13 @@ while vis.Run():
     time += time_step
 
     
+    sensor_manager.Update()
+
+    
     driver.SetSteering(0.0)
 
     
     rover.Update()
-
-    
-    sensor_manager.Update()
 
     
     vis.BeginScene()

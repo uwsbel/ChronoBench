@@ -16,7 +16,7 @@ sys.SetGravitationalAcceleration(chrono.ChVector3d(0, -3.71, 0));
 beam_L = 10
 beam_ro = 0.060
 beam_ri = 0.055
-CH_PI = m.pi  
+CH_PI = 3.1456
 
 
 

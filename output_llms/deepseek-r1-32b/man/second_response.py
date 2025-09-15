@@ -8,7 +8,7 @@ chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 # Initial vehicle location and orientation
-initLoc = chrono.ChVector3d(-20, 0, 1.5)  # Changed initial location
+initLoc = chrono.ChVector3d(-20, 0, 1.5)  # Changed location
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 # Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
@@ -20,8 +20,8 @@ chassis_collision_type = veh.CollisionType_NONE
 # Type of tire model (RIGID, TMEASY)
 tire_model = veh.TireModelType_TMEASY
 
-# Rigid terrain with hills
-terrainHeight = 0      # terrain base height
+# Rigid terrain parameters
+terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
 
@@ -40,7 +40,7 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  # FPS = 50
 
 # Create the MAN vehicle, set parameters, and initialize
-vehicle = veh.MAN_5t()  # Changed vehicle type to MAN_5t
+vehicle = veh.MAN_5t()  # Changed to MAN_5t
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
@@ -56,23 +56,23 @@ vehicle.SetSteeringVisualizationType(vis_type)
 vehicle.SetWheelVisualizationType(vis_type)
 vehicle.SetTireVisualizationType(vis_type)
 
-vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type.BULLET)  # Fixed method name
+vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
-# Create the terrain with hills
+# Create the terrain with height map
 patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 
-# Define a simple height map function for hills
-def height_map(x, z):
-    return 0.5 * math.sin(0.1 * x) * math.sin(0.1 * z)  # Creates a hilly terrain
-
+# Add height map terrain
+height_map = veh.GetDataFile('terrain/heightmaps/hm1.csv')
 patch = terrain.AddHeightMap(patch_mat,
-                            chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
-                            terrainLength, terrainWidth,  # Size of terrain
-                            100, 100,                     # Grid size
-                            height_map)                   # Height map function
+                            height_map,
+                            50.0,  # height scale
+                            1.0,   # dx
+                            1.0,   # dy
+                            100.0, # texture repeat x
+                            100.0) # texture repeat y
 
 patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)  # Changed texture
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
@@ -80,7 +80,7 @@ terrain.Initialize()
 
 # Create the vehicle Irrlicht interface
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
-vis.SetWindowTitle('MAN 5t Demo')  # Updated title
+vis.SetWindowTitle('MAN 5t Demo')
 vis.SetWindowSize(1280, 1024)
 vis.SetChaseCamera(trackPoint, 15.0, 0.5)
 vis.Initialize()

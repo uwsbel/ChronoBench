@@ -14,6 +14,9 @@ chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.0025)
 chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
 
 
+manager = sens.ChSensorManager(system)  
+
+
 ground_mat = chrono.ChContactMaterialNSC()
 ground = chrono.ChBodyEasyBox(20, 20, 1, 1000, True, True, ground_mat)
 ground.SetPos(chrono.ChVector3d(0, 0, -0.5))  
@@ -28,7 +31,6 @@ box.SetFixed(True)
 box.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/blue.png"))
 system.Add(box)
 
-
 rover = robot.Curiosity(system)
 
 
@@ -41,37 +43,24 @@ init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
 rover.Initialize(chrono.ChFramed(init_pos, init_rot))
 
 
-manager = sens.ChSensorManager(system)  
+lidar_params = sens.ChLidarSensorParams()
+lidar_params.m_update_rate = 10.0  
+lidar_params.m_horizontal_samples = 360  
+lidar_params.m_vertical_samples = 1  
+lidar_params.m_horizontal_fov = chrono.CH_C_PI * 0.75  
+lidar_params.m_vertical_fov = chrono.CH_C_PI  
+lidar_params.m_max_range = 10.0  
+lidar_params.m_resolution = 0.01  
+
+lidar = sens.ChLidarSensor(lidar_params)
+lidar.SetName("rover_lidar")
+lidar.SetParentFrame(rover.GetChassis().GetFrame())  
+lidar.SetPose(chrono.ChPose(chrono.ChVector3d(0, 0, 0.5), chrono.ChQuaterniond(1, 0, 0, 0)))  
 
 
-
-lidar_update_rate = 10.0  
-lidar_h_samples = 180  
-lidar_v_samples = 16  
-lidar_h_fov = 90.0  
-lidar_v_fov = 30.0  
-lidar_range = 10.0  
-lidar_noise = 0.01  
-
-
-lidar = sens.ChLidarSensor()
-lidar.SetName("Rover Lidar")
-lidar.SetUpdateRate(lidar_update_rate)
-lidar.SetHSamples(lidar_h_samples)
-lidar.SetVSamples(lidar_v_samples)
-lidar.SetHFov(lidar_h_fov)
-lidar.SetVFov(lidar_v_fov)
-lidar.SetRange(lidar_range)
-lidar.SetNoiseStandardDeviation(lidar_noise)
-
-
-lidar.Attach(rover.GetChassis())
-
-
-filters = sens.ChLidarFilterContainer()
-filters.AddFilter(sens.ChLidarFilterRemoveGround())
-filters.AddFilter(sens.ChLidarFilterVoxelGrid(0.1))  
-lidar.SetFilterContainer(filters)
+box_filter = sens.ChBoxFilter()
+box_filter.SetExtents(chrono.ChVector3d(5, 5, 5))  
+lidar.AddFilter(box_filter)
 
 
 manager.AddSensor(lidar)

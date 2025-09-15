@@ -1,90 +1,78 @@
-import pychrono as pychrono
-   import pychrono.openCV as pyopv
-   from pychrono.trajectory import Trajectory
-   from pychrono.renderer import *
-
-sim = pychrono.Simulation("Gator_Simulation", output_path="output/")
-
-import pyirr
-   from pyirr.renderer import *
-
-renderer = pyirr.createRenderer()
-   renderer.setSimulation(sim)
-   renderer.setRenderWindowEnabled(True)
-   renderer.setWindowSize(800, 600)
-
-body = pychrono.RigidBody("Vehicle Body")
-   body.setMass(1000)  
-   body.setMomentOfInertia(1000, 1000, 1000)  
-
-suspension = pychrono.RigidBody("Suspension")
-   suspension.setMass(50)
-   suspension.setMomentOfInertia(50, 50, 50)
-
-wheel = pychrono.RigidBody("Wheel")
-   wheel.setMass(10)
-   wheel.setMomentOfInertia(10, 10, 10)
-   wheel.setRadius(0.5)  
-   wheel.setContactPoint(suspension, 0.5, 0, 0)  
-
-tire = pychrono.Tire("TMEASY", wheel, 100, 100, 100)  
-
-terrain = pychrono.RigidTerrain("FlatTerrain", 1000, 1000, 5, 5)
-   
-   terrain.setTexture("path/to/texture.jpg")
-
-terrain.setSurfaceFriction(0.3)
-   terrain.setNormalForce(0.5)
-
-body.setInitialPosition(0, 0, 0)
-   body.setInitialOrientation(0)
-
-contact_point = pychrono.ContactPoint(body, terrain)
-   contact_point.setNormal(0, 0, 1)
-   contact_point.setDistance(0, 0, 0.5)
+import PyChrono as pc
+from PyChrono.Input import *
+from PyChrono.Visual import *
+from PyChrono.Vehicle import *
+from PyChrono.Terrain import *
+from PyChrono.Interaction import *
+from PyChrono.Material import *
 
 
-   speed = 0
-   steering = 0
-   throttle = 0
-   brake = 0
+pc.init()
 
-   
-   controls = {
-       'A': (-0.5, 0, 0),  
-       'D': (0.5, 0, 0),   
-       'W': (0, 0, 0.5),   
-       'S': (0, 0, -0.5)   
-   }
 
-   
-   sim.registerInputHandler("Keyboard", controls)
+scene = pc.Scene()
+renderer = pc.VisualRenderer()
+renderer.mesh = True  
 
-def update():
-       global speed, steering, throttle, brake
-       
-       body.setLinearVelocity(speed)
-       body.setAngularVelocity(steering)
-       body.setForce(0, 0, 0)  
-       body.addTorque(0, 0, 0)  
 
-       
-       body.setForce(0, 0, 0)
-       body.addTorque(0, 0, 0)
-       body.update()
+sim = pc.Simulation()
+sim.timestep = 0.02  
 
-       
-       tire.update()
 
-       
-       sim.step()
-       renderer.update()
+terrain = pc.RigidTerrain()
+terrain.size = [100, 100, 5]  
+terrain.texture = "data/textures/flat/ground_1.dds"  
+terrain.position = [0, 0, 0]  
+scene.add_component(terrain)
 
-sim.start()
-   while True:
-       update()
-       
-       renderer.render()
-       
-       if sim.isExit():
-           break
+
+vehicle = pc.Vehicle()
+vehicle.type = "gator"  
+vehicle.position = [0, 1, 0]  
+vehicle.orientation = [0, 0, 0]  
+vehicle.contact = "force"  
+vehicle.tire = pc.Tire("TMEASY")  
+scene.add_component(vehicle)
+
+
+
+vehicle.chassis = pc.Mesh("data/models/vehicle/chassis.gmd")
+vehicle.front_tire = pc.Mesh("data/models/vehicle/tire.gmd")
+vehicle.rear_tire = pc.Mesh("data/models/vehicle/tire.gmd")
+
+
+input = pc.Input()
+input.keyboard = True
+input.keyboard_map = {
+    pc.KEY_W: "throttle",  
+    pc.KEY_S: "brake",    
+    pc.KEY_A: "steer_left",  
+    pc.KEY_D: "steer_right"  
+}
+
+
+def simulation_loop():
+    
+    input_data = pc.get_input()
+    
+    
+    vehicle.update()
+    
+    
+    if input_data.keyboard_map[pc.KEY_W]:
+        vehicle.force = [0, 0, 0.5]  
+    if input_data.keyboard_map[pc.KEY_S]:
+        vehicle.force = [0, 0, -0.5]  
+    if input_data.keyboard_map[pc.KEY_A]:
+        vehicle.steering = -0.5  
+    if input_data.keyboard_map[pc.KEY_D]:
+        vehicle.steering = 0.5  
+    
+    
+    renderer.update()
+    
+    
+    sim.step()
+
+
+simulation_loop()

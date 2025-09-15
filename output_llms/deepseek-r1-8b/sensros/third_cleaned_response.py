@@ -24,6 +24,7 @@ def main():
     mesh_body.AddVisualShape(trimesh_shape)
     mesh_body.SetFixed(False)  
     mesh_body.SetMass(0)  
+    sys.Add(mesh_body)  
 
     
     ground_body = ch.ChBodyEasyBox(1, 1, 1, 1000, False, False)
@@ -31,7 +32,6 @@ def main():
     ground_body.SetFixed(False)  
     ground_body.SetMass(0)  
     sys.Add(ground_body)
-    sys.Add(mesh_body)  
 
     
     sens_manager = sens.ChSensorManager(sys)
@@ -67,9 +67,9 @@ def main():
     lidar2d.PushFilter(sens.ChFilterPCfromDepth())  
     lidar2d.PushFilter(sens.ChFilterXYZIAccess())  
     lidar2d.PushFilter(sens.ChFilterVisualizePointCloud(1280, 720, 1,"2D Lidar Scan Data"))
-    lidar2d.SetName("lidar2d")
+    lidar2d.SetName("2D Lidar")
     sens_manager.AddSensor(lidar2d)
-    
+
     
     noise_model_none = sens.ChNoiseNone()
     gps_reference = ch.ChVector3d(-89.4, 433.07, 260.)
@@ -106,7 +106,7 @@ def main():
     
     ros_manager.RegisterHandler(chros.ChROSCameraHandler(cam.GetUpdateRate() / 4, cam, "~/output/camera/data/image"))
     ros_manager.RegisterHandler(chros.ChROSLidarHandler(lidar, "~/output/lidar/data/pointcloud"))
-    ros_manager.RegisterHandler(chros.ChROSLidarHandler(lidar2d, "~/output/lidar2d/data/scan", chros.ChROSLidarHandlerMessageType_LASER_SCAN))
+    ros_manager.RegisterHandler(chros.ChROSLidarHandler(lidar2d, "~/output/lidar2d/data/scan",chros.ChROSLidarHandlerMessageType_LASER_SCAN))
     ros_manager.RegisterHandler(chros.ChROSGPSHandler(gps, "~/output/gps/data"))
     acc_handler = chros.ChROSAccelerometerHandler(acc, "~/output/accelerometer/data")
     ros_manager.RegisterHandler(acc_handler)
@@ -137,9 +137,10 @@ def main():
 
         
         sens_manager.Update()
-        ros_status = ros_manager.GetStatus()
-        if not ros_status.connected:
-            print("ROS connection failed. Exiting simulation.")
+        
+        
+        if not ros_manager.GetStatus():
+            print("ROS manager connection lost, exiting simulation.")
             break
 
         sys.DoStepDynamics(time_step)  

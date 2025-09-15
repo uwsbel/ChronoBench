@@ -1,104 +1,86 @@
 import pychrono as chrono
-import pychrono.irrlicht as irrlicht
-import math
+import pychrono.irrlicht as chronoirr
 
-def main():
-    # 1. Initialize system
-    system = chrono.ChSystemNSC()
-    system.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+# Create the Chrono system
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))  # Gravity
 
-    # 2. Create bodies
-    # -----------------
+# Create ground body (truss)
+ground = chrono.ChBody()
+ground.SetBodyFixed(True)
+system.AddBody(ground)
 
-    # Floor (truss)
-    floor = chrono.ChBody()
-    floor.SetBodyFixed(True)
-    floor.SetPos(chrono.ChVectorD(0, -0.2, 0))
-    floor_box = chrono.ChBoxShape()
-    floor_box.GetBox().Size = chrono.ChVectorD(1, 0.1, 1)
-    floor.AddAsset(floor_box)
-    floor_texture = chrono.ChTexture(chrono.GetChronoDataFile("textures/checker2.png"))
-    floor.AddAsset(floor_texture)
-    system.Add(floor)
+# Create crankshaft (rotating part)
+crank = chrono.ChBodyEasyCylinder(0.02, 0.15, 7800)  # Radius, height, density
+crank.SetPos(chrono.ChVectorD(0, 0, 0))
+crank.SetRot(chrono.Q_from_AngY(chrono.CH_C_PI_2))  # Orient horizontally
+system.AddBody(crank)
 
-    # Crankshaft (rotating arm)
-    crank = chrono.ChBodyEasyBox(0.2, 0.1, 0.1, 1000, True, True)
-    crank.SetPos(chrono.ChVectorD(0, 0, 0))
-    crank.SetRot(chrono.QUNIT)
-    crank.AddAsset(chrono.ChColorAsset(chrono.ChColor(0.8, 0.2, 0.2)))
-    system.Add(crank)
+# Create connecting rod
+rod = chrono.ChBodyEasyBox(0.5, 0.015, 0.015, 7800)  # Length, width, height
+rod.SetPos(chrono.ChVectorD(0.25, 0, 0))
+system.AddBody(rod)
 
-    # Connecting rod
-    rod = chrono.ChBodyEasyBox(0.3, 0.05, 0.05, 1000, True, True)
-    rod.SetPos(chrono.ChVectorD(0.25, 0, 0))
-    rod.AddAsset(chrono.ChColorAsset(chrono.ChColor(0.2, 0.8, 0.2)))
-    system.Add(rod)
+# Create piston (slider)
+piston = chrono.ChBodyEasyCylinder(0.04, 0.06, 7800)
+piston.SetPos(chrono.ChVectorD(0.7, 0, 0))
+piston.SetRot(chrono.Q_from_AngY(chrono.CH_C_PI_2))  # Orient horizontally
+system.AddBody(piston)
 
-    # Piston
-    piston = chrono.ChBodyEasyBox(0.1, 0.1, 0.1, 1000, True, True)
-    piston.SetPos(chrono.ChVectorD(0.4, 0, 0))
-    piston.AddAsset(chrono.ChColorAsset(chrono.ChColor(0.2, 0.2, 0.8)))
-    system.Add(piston)
+# Create joints
+# 1. Revolute joint between ground and crankshaft (at origin)
+revolute_ground_crank = chrono.ChLinkLockRevolute()
+revolute_ground_crank.Initialize(ground, crank, 
+                                chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0)))
+system.AddLink(revolute_ground_crank)
 
-    # 3. Create joints and constraints
-    # ---------------------------------
+# 2. Revolute joint between crankshaft and connecting rod
+revolute_crank_rod = chrono.ChLinkLockRevolute()
+revolute_crank_rod.Initialize(crank, rod, 
+                             chrono.ChCoordsysD(chrono.ChVectorD(0.15, 0, 0)))
+system.AddLink(revolute_crank_rod)
 
-    # Revolute joint between crank and floor
-    crank_joint = chrono.ChLinkLockRevolute()
-    crank_joint.Initialize(crank, floor, 
-                          chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), 
-                                           chrono.Q_from_AngAxis(math.pi/2, chrono.VECT_Y)))
-    system.Add(crank_joint)
+# 3. Revolute joint between connecting rod and piston
+revolute_rod_piston = chrono.ChLinkLockRevolute()
+revolute_rod_piston.Initialize(rod, piston, 
+                              chrono.ChCoordsysD(chrono.ChVectorD(0.5, 0, 0)))
+system.AddLink(revolute_rod_piston)
 
-    # Motor to drive the crank
-    motor = chrono.ChLinkMotorRotationSpeed()
-    motor.Initialize(crank, floor, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)))
-    motor.SetSpeedFunction(chrono.ChFunction_Const(math.pi))  # 180 degrees/s
-    system.Add(motor)
+# 4. Prismatic joint between ground and piston (constrain to X-axis)
+prismatic_ground_piston = chrono.ChLinkLockPrismatic()
+prismatic_ground_piston.Initialize(ground, piston, 
+                                  chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0)),
+                                  chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0)))
+prismatic_ground_piston.SetMotionAxis(chrono.ChVectorD(1, 0, 0))  # X-axis motion
+system.AddLink(prismatic_ground_piston)
 
-    # Revolute joint between crank and rod
-    rod_joint1 = chrono.ChLinkLockRevolute()
-    rod_joint1.Initialize(crank, rod, 
-                         chrono.ChCoordsysD(chrono.ChVectorD(0.1, 0, 0), chrono.QUNIT))
-    system.Add(rod_joint1)
+# Add motor to crankshaft
+motor = chrono.ChLinkMotorRotationSpeed()
+motor.Initialize(ground, crank, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)))
+motor.SetSpeedFunction(chrono.ChFunction_Const(chrono.CH_C_PI))  # 180°/s (π rad/s)
+system.AddLink(motor)
 
-    # Revolute joint between rod and piston
-    rod_joint2 = chrono.ChLinkLockRevolute()
-    rod_joint2.Initialize(rod, piston, 
-                         chrono.ChCoordsysD(chrono.ChVectorD(0.4, 0, 0), chrono.QUNIT))
-    system.Add(rod_joint2)
+# Create Irrlicht visualization
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetWindowSize(1280, 720)
+vis.SetWindowTitle('Crank-Slider Mechanism')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVectorD(0.5, -1, 0.2), chrono.ChVectorD(0.5, 0, 0))
+vis.AddTypicalLights()
 
-    # Prismatic joint between piston and floor
-    piston_joint = chrono.ChLinkLockPrismatic()
-    piston_joint.Initialize(piston, floor, 
-                           chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT))
-    system.Add(piston_joint)
+# Add visual assets
+texture = chrono.ChTexture(chrono.GetChronoDataFile('textures/bluewhite.png'))
+ground.AddVisualShape(chrono.ChBoxShape(0.2, 0.2, 0.1)).SetTexture(texture)
+crank.GetVisualShape(0).SetTexture(texture)
+rod.GetVisualShape(0).SetTexture(texture)
+piston.GetVisualShape(0).SetTexture(texture)
 
-    # 4. Visualization setup
-    # -----------------------
-
-    # Create Irrlicht application
-    myapplication = irrlicht.ChIrrApp(system, "Crank-Slider Mechanism", irrlicht.dimension2du(1024,768))
-    myapplication.AddTypicalSky()
-    myapplication.AddTypicalLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))
-    myapplication.AddTypicalCamera(irrlicht.vector3df(1.5, 0.5, 1.5), irrlicht.vector3df(0,0,0))
-    myapplication.AddTypicalLights()
-    myapplication.EnableShadows()
-
-    # Asset binding
-    myapplication.AssetBindAll()
-    myapplication.AssetUpdateAll()
-
-    # Simulation loop
-    myapplication.SetTimestep(0.005)
-    myapplication.SetTryRealtime(True)
-
-    while myapplication.GetDevice().run():
-        myapplication.BeginScene()
-        myapplication.DrawAll()
-        irrlicht.ChIrrTools.drawAllCOGs(system, myapplication.GetVideoDriver(), 0.5)
-        myapplication.DoStep()
-        myapplication.EndScene()
-
-if __name__ == "__main__":
-    main()
+# Simulation loop
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    system.DoStepDynamics(1e-3)

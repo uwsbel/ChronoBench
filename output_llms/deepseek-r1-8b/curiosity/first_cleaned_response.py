@@ -1,128 +1,97 @@
-import pychrono as pychrono
-import pychrono.trajectory
-import pychrono.objmodel
-import pychrono.gfx
-import pychrono.gfx.oppengl
+import pychrono as pc
+pc.init()
 
 
-sim = pychrono.Simulation()
-sim.set_real_time(True)
+simulation_timestep = 1e-3  
+simulation_speed = 1000  
+num_solver_iterations = 10  
 
 
-ground = pychrono.RigidBody()
-ground.set_mass(0)  
-ground.set_size(50, 50)  
-ground.set_collision_response(True)  
-ground.set_friction(1.0)  
-sim.add_object(ground)
+ground = pc.RigidBody('ground')
+ground.set_mass(0)
+ground.set_position(pc.Vec3(0, 0, 0))
+ground.set_collision_response(pc.Vec3(1e9, 0, 0))  
 
 
-rover = pychrono.RigidBody()
-rover.set_mass(200)  
-rover.set_size(3.5, 2.5, 2.0)  
-rover.set_color(1, 0.5, 0)  
-sim.add_object(rover)
+terrain = []
+
+for i in range(10):
+    box = pc.RigidBody('terrain_box' + str(i))
+    box.set_mass(0)
+    box.set_size(pc.Vec3(1, 1, 1))
+    box.set_position(pc.Vec3(
+        (i-4)*2, 0, 0.5 + i*0.5
+    ))
+    box.set_collision_response(pc.Vec3(1e9, 0, 0))
+    terrain.append(box)
 
 
-motor = pychrono.Motor()
-motor.set_name("steering_motor")  
-sim.add_actuator(motor)
+rover = pc.RigidBody('curiosity')
+rover.set_mass(2000)  
+rover.set_size(pc.Vec3(4, 2.5, 2))  
+rover.set_position(pc.Vec3(-2, -1, 0.5))  
 
 
-rover_ground_interaction = pychrono.GroundInteraction()
-rover_ground_interaction.set_normal_coeff(1.0)  
-rover_ground_interaction.set_friction_coeff(0.5)  
-rover.add_interactor(rover_ground_interaction)
-
-
-import pychrono.gfx.oppengl
-import pychrono.gfx.oppengl.shader
-import pychrono.gfx.oppengl.texture
-
-
-renderer = pychrono.gfx.Renderer()
-renderer.set_size(800, 600)
-renderer.set_hither(1000.0)
-renderer.set_far(1000.0)
-
-
-light = pychrono.gfx.Light()
-light.set_position(5, 5, 5)
-light.set_color(1, 1, 1)
-renderer.add_light(light)
-
-
-camera = pychrono.gfx.Camera()
-camera.set_position(10, 10, 10)
-camera.set_lookat(0, 0, 0)
-camera.set_up(0, 1, 0)
-renderer.add_camera(camera)
-
-
-ground_texture = pychrono.gfx.Texture()
-ground_texture.load("grass.jpg")
-renderer.add_ground_texture(ground_texture)
-
-
-rover_texture = pychrono.gfx.Texture()
-rover_texture.load("curiosity_rover.jpg")
-rover.set_texture(rover_texture)
-
-
-motor_controller = pychrono.MotorController()
-motor_controller.set_actuator_name("steering_motor")
-sim.add_controller(motor_controller)
-
-
-steering_input = pychrono.Input("steering", 0.5)  
-
-
-sim.set_gravity(0, 0, -9.81)
-
-
-sim.set_time_step(0.01)
-
-
-sim.set_collision_response(1.0)
-
-
-sim.start()
-
-
-def motor_control():
+wheels = []
+for i in range(4):
+    wheel = pc.Sphere('wheel' + str(i), 0.5)  
+    wheel.set_position(pc.Vec3(
+        -2 + 0.5, 
+        -1, 
+        0.5
+    ))
     
-    current_input = steering_input.get_value()
+    wheel_body = pc.Body('wheel_body' + str(i), wheel)
+    wheel_body.set_parent(rover)
+    wheels.append(wheel_body)
+
+
+motor_control = pc.MotorControl('motor_control', 4)  
+motor_control.add_actuator(rover, 0, pc.MotorType.ROTARY, 100, 1000)  
+motor_control.add_actuator(rover, 1, pc.MotorType.ROTARY, 100, 1000)  
+motor_control.add_actuator(rover, 2, pc.MotorType.ROTARY, 100, 1000)  
+motor_control.add_actuator(rover, 3, pc.MotorType.ROTARY, 100, 1000)  
+
+
+steering_control = pc.PIDControl('steering_control', 4)
+steering_control.add_input('left', pc.PID(10, 0.1, 0.1))
+steering_control.add_input('right', pc.PID(10, 0.1, 0.1))
+steering_control.add_output(motor_control, 0, 'left')
+steering_control.add_output(motor_control, 1, 'right')
+
+
+rover.set_max_linear_velocity(pc.Vec3(0.5, 0, 0))
+
+
+vis = pc.Visualizer('visualization')
+vis.set_camera_position(pc.Vec3(5, 5, 5))
+vis.set_camera.look_at(pc.Vec3(-2, -1, 0.5))
+vis.add_light(pc.DirectionalLight(pc.Vec3(1, 1, 1), pc.Vec3(10, 10, 10)))
+vis.add_ground_plane(ground)
+vis.add_terrain(terrain)
+vis.add_rover(rover)
+vis.add_textures(pc.Texture('ground_texture'), 'ground/ground_texture.png')
+vis.add_textures(pc.Texture('rover_texture'), 'rover/curiosity_texture.png')
+vis.add_hood('curiosity', 'curiosity_hood.png')
+
+
+def update_motors():
+    current_angle = rover.get_angle(pc.Vec3(0, 1, 0))
+    torque = steering_control.get_output('torque')
     
     
-    steering_angle = pychrono.math.radians_to_degrees(current_input * 4.0)
-    
-    
-    motor.set_torque(1.0 * np.cos(steering_angle))
-    
-    
-    print("Current Steering Input:", current_input)
-    print("Current Steering Angle:", steering_angle)
-    print("Current Motor Torque:", motor.get_torque())
+    motor_torque = pc.Vec3(
+        torque['left'] * 1000 * pc.nm_to_torque,
+        torque['right'] * 1000 * pc.nm_to_torque,
+        0
+    )
+    motor_control.set_torque(motor_torque)
 
 
-sim.run(motor_control)
+pc.set_solver(pc.SolverType.FIXED, num_solver_iterations)
+pc.set_simulation_timestep(simulation_timestep)
 
-
-title = pychrono.gfx.Text()
-title.set_font_size(24)
-title.set_text("Curiosity Rover Navigation")
-title.set_position(400, 50)
-renderer.add_text(title)
-
-
-camera_controls = pychrono.gfx.Controls()
-camera_controls.add_mouse_zoom(True)
-camera_controls.add_mouse_pan(True)
-camera_controls.add_mouse_rotate(True)
-renderer.set_controls(camera_controls)
-
-
-renderer.close()
-
-
-sim.stop()
+while pc.simulate():
+    update_motors()
+    vis.render()
+    pc.wait_for_simulation_step()

@@ -1,84 +1,89 @@
 import pychrono as chrono
+import pychrono.irrlicht as chronoirr
 import pychrono.vehicle as veh
-import pychrono.irrlicht as irr
-import math
-import time
+import os
 
-def main():
+
+chrono.SetChronoDataPath("C:/path/to/chrono/data/")  
+veh.SetDataPath(chrono.GetChronoDataPath() + "vehicle/")
+
+
+step_size = 0.005
+render_fps = 50  
+render_step_size = 1.0 / render_fps
+
+
+system = chrono.ChSystemSMC()
+system.SetSolverMaxIterations(100)
+
+
+car = veh.ARTcar()
+car.SetContactMethod(chrono.ChContactMethod_SMC)
+car.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0.5, 0), chrono.QUNIT))
+car.SetChassisVisualizationType(veh.VisualizationType_PRIMITIVES)
+car.SetWheelVisualizationType(veh.VisualizationType_MESH)
+car.Initialize()
+
+
+car.SetChassisFixed(False)
+car.SetTireType(veh.TireModelType_RIGID)
+car.SetTireStepSize(step_size)
+
+
+terrain = veh.RigidTerrain(system)
+patch_mat = chrono.ChMaterialSurfaceSMC()
+patch = terrain.AddPatch(patch_mat, 
+                         chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT),
+                         100, 100)  
+patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 100, 100)
+terrain.Initialize()
+
+
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetWindowSize(1280, 720)
+vis.SetWindowTitle("ARTcar Simulation")
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVectorD(6, 3, 6), chrono.ChVectorD(0, 0, 0))
+vis.AddTypicalLights()
+
+
+car.InitializeVisualization(vis)
+
+
+driver = veh.ChInteractiveDriverIRR(vis)
+steering_time = 1.0  
+driver.SetSteeringDelta(render_step_size / steering_time)
+driver.SetThrottleDelta(render_step_size / 1.0)
+driver.SetBrakingDelta(render_step_size / 0.3)
+driver.Initialize()
+
+
+time = 0
+real_time_timer = chrono.ChRealtimeStepTimer()
+
+while vis.Run():
+    time = system.GetChTime()
     
-    chrono.SetChronoDataPath("data/")
-    system = chrono.ChSystemNSC()
-    system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
-
     
-    initial_pos = chrono.ChVectorD(0, 0, 0.5)
-    initial_rot = chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0))
-    contact_method = chrono.ChContactMethod_NSC
-    visualization_type = veh.VisualizationType_MESH
-
-    artcar = veh.ARTcar()
-    artcar.SetInitPosition(chrono.ChCoordsysD(initial_pos, initial_rot))
-    artcar.Initialize(chrono.TrackedCollisionFamily::FAMILY_ACCESSORY)
-    artcar.SetVisualizationType(visualization_type)
-
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
     
-    terrain = veh.RigidTerrain(system)
-    patch_mat = chrono.ChMaterialSurfaceNSC()
-    patch_mat.SetFriction(0.9)
-    patch_mat.SetRestitution(0.01)
     
-    patch = terrain.AddPatch(patch_mat, 
-                            chrono.ChVectorD(0, 0, 0), 
-                            chrono.ChVectorD(0, 0, 1), 
-                            50, 50)  
-    patch.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 50, 50)
-    patch.SetColor(chrono.ChColor(0.5, 0.5, 0.5))
-    terrain.Initialize()
-
+    driver_inputs = driver.GetInputs()
     
-    vis = irr.ChVisualSystemIrrlicht()
-    vis.AttachSystem(system)
-    vis.SetWindowSize(1280, 720)
-    vis.SetWindowTitle("ARTcar Simulation")
-    vis.Initialize()
-    vis.AddLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))
-    vis.AddSkyBox()
-    vis.AddCamera(chrono.ChVectorD(5, 5, 2), chrono.ChVectorD(0, 0, 0))
-    vis.AddTypicalLights()
-
     
-    driver = veh.ChInteractiveDriverIRR(vis)
-    driver.SetSteeringDelta(0.02)
-    driver.SetThrottleDelta(0.04)
-    driver.SetBrakingDelta(0.06)
-    driver.Initialize()
-
+    car.Synchronize(time, driver_inputs, terrain)
+    terrain.Synchronize(time)
+    driver.Synchronize(time)
     
-    step_size = 0.002
-    frame_step = 0.02  
-    realtime_timer = chrono.ChRealtimeStepTimer()
-    simulation_time = 0
+    
+    system.DoStepDynamics(step_size)
+    
+    
+    real_time_timer.Spin(step_size)
 
-    while vis.Run():
-        
-        driver.Advance(step_size)
-        
-        
-        artcar.Advance(step_size)
-        
-        
-        system.DoStepDynamics(step_size)
-        simulation_time += step_size
-
-        
-        vis.BeginScene()
-        vis.Render()
-        vis.EndScene()
-
-        
-        realtime_timer.Spin(frame_step)
-
-    return 0
-
-if __name__ == "__main__":
-    main()
+print("Simulation completed.")

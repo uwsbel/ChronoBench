@@ -1,88 +1,101 @@
-import os
-import time
-import numpy as np
 import pychrono as chrono
 import pychrono.vehicle as veh
 import pychrono.ros as chros
+import numpy as np
 
-def main():
+
+
+
+ros_manager = chros.ChROSPyManager()
+ros_manager.RegisterHandler(chros.ROSTimestampHandler())
+ros_manager.RegisterHandler(chros.ROSParamsHandler())
+ros_manager.Initialize()
+
+
+
+
+contact_method = chrono.ChContactMethod_NSC
+step_size = 0.002
+tire_model = veh.TireModelType_TMEASY
+engine_model = veh.EngineModelType_SIMPLE_MAP
+drive_type = veh.DrivelineTypeWV_RWD
+init_pos = chrono.ChVectorD(0, 0, 0.5)
+
+
+
+
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
+system.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
+system.SetSolverMaxIterations(150)
+
+
+
+
+hmmwv = veh.HMMWV_Full()
+hmmwv.SetContactMethod(contact_method)
+hmmwv.SetChassisFixed(False)
+hmmwv.SetInitPosition(chrono.ChCoordsysD(init_pos))
+hmmwv.SetEngineType(engine_model)
+hmmwv.SetTransmissionType(veh.TransmissionModelType_AUTOMATIC_SIMPLE_MAP)
+hmmwv.SetDriveType(drive_type)
+hmmwv.SetTireType(tire_model)
+hmmwv.Initialize()
+
+
+hmmwv.SetChassisVisualizationType(veh.VisualizationType_PRIMITIVES)
+hmmwv.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
+hmmwv.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
+hmmwv.SetWheelVisualizationType(veh.VisualizationType_NONE)
+hmmwv.SetTireVisualizationType(veh.VisualizationType_MESH)
+
+vehicle = hmmwv.GetVehicle()
+
+
+
+
+terrain = veh.RigidTerrain(system)
+patch_mat = chrono.ChContactMaterialNSC()
+patch_mat.SetFriction(0.9)
+patch_mat.SetRestitution(0.01)
+patch = terrain.AddPatch(patch_mat, 
+                         chrono.CSYSNORM, 
+                         200, 400)
+patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
+terrain.Initialize()
+
+
+
+
+driver = veh.ChInteractiveDriverIRR(vehicle)  
+ros_manager.RegisterHandler(
+    chros.VehicleInputsHandler(0.5, vehicle, driver, "~/controls")
+)
+
+
+state_handler = chros.VehicleStateHandler(vehicle, "~/vehicle_state")
+ros_manager.RegisterHandler(state_handler)
+
+
+
+
+time = 0
+while ros_manager.ProcessEvents():
+    time = system.GetChTime()
     
-    chrono.SetChronoDataPath(os.path.join(os.environ['CHRONO_DATA_DIR'], 'data/'))
-    system = chrono.ChSystemSMC()
-    system.SetSolverMaxIterations(100)
-    system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
-
     
-    contact_method = chrono.ChContactMethod_SMC
-    engine_type = veh.EngineModelType_SHAFTS
-    tire_type = veh.TireModelType_TMEASY
-    steering_type = veh.SteeringTypeWV_PITMAN_ARM
-
-    vehicle = veh.HMMWV_Full()
-    vehicle.SetContactMethod(contact_method)
-    vehicle.SetChassisFixed(False)
-    vehicle.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0.5), chrono.QUNIT))
-    vehicle.SetEngineType(engine_type)
-    vehicle.SetTransmissionType(veh.TransmissionModelType_SHAFTS)
-    vehicle.SetTireType(tire_type)
-    vehicle.SetSteeringType(steering_type)
-    vehicle.Initialize()
-
-    vehicle.SetChassisVisualizationType(veh.VisualizationType_PRIMITIVES)
-    vehicle.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
-    vehicle.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
-    vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
-    vehicle.SetTireVisualizationType(veh.VisualizationType_MESH)
-
+    ros_manager.Synchronize(time)
     
-    terrain = veh.RigidTerrain(system)
-    patch_mat = chrono.ChMaterialSurfaceSMC()
-    patch_mat.SetFriction(0.9)
-    patch_mat.SetRestitution(0.01)
-    patch = terrain.AddPatch(patch_mat, chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 1), 100, 100)
-    patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
-    terrain.Initialize()
-
     
-    ros_manager = chros.ChROSManager()
-    node = chros.ChROSInterface("chrono_sim")
-
+    driver.Synchronize(time)
     
-    clock_handler = chros.ChROSClockHandler()
-    ros_manager.RegisterHandler(clock_handler)
-
     
-    driver_inputs = veh.DriverInputs()
-    driver_handler = chros.ChROSTopicHandlerDriverInputs(
-        "/input/driver_controls", driver_inputs, node)
-    ros_manager.RegisterHandler(driver_handler)
-
+    vehicle.Synchronize(time)
+    terrain.Synchronize(time)
+    system.DoStepDynamics(step_size)
     
-    vehicle_handler = chros.ChROSTopicHandlerVehicleState(
-        "/state/vehicle", vehicle.GetVehicle(), node)
-    ros_manager.RegisterHandler(vehicle_handler)
-
-    ros_manager.Initialize()
-
     
-    step_size = 0.02
-    realtime_timer = chrono.ChRealtimeStepTimer()
-    while ros_manager.Update(step_size, system.GetChTime()):
-        
-        time = system.GetChTime()
-        driver_inputs = driver_handler.GetInputs()
-        
-        
-        vehicle.Synchronize(time, driver_inputs, terrain)
-        terrain.Synchronize(time)
-        
-        
-        system.DoStepDynamics(step_size)
-        
-        
-        ros_manager.Advance(step_size)
-        
-        realtime_timer.Spin(step_size)
+    ros_manager.Update(time, step_size)
 
-if __name__ == "__main__":
-    main()
+print("Simulation completed.")

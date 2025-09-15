@@ -1,126 +1,127 @@
-import pychrono as pychrono
-import pychrono.viewer.iranengine as iran
-import numpy as np
+import pychrono as pc
+import pychrono.guitools as gui
+from pychrono.objects import *
+from pychrono.mesh import *
+from pychrono.dynamics import *
+from pychronovisualization import *
+from pychronoinput import *
+from pychronomaterials import *
 
-# Initialize PyChrono
-pychrono.init()
+# Initialize PyChrono environment
+pc.setGlobalCoordinateSystem(pc.COORDINATE_SYSTEM 世界)
 
-# Initialize the scene
-scene = pychrono.Scene()
+# Create a scene
+scene = pc.Scene()
+scene.setAmbientLightColor(1, 1, 1)  # Set ambient light for visualization
 
-# Create fixed truss using boxes
-truss = []
-# Create a list of segments for the truss
-truss_segments = [
-    pychrono.Mesh("box"),
-    pychrono.Mesh("box"),
-    pychrono.Mesh("box"),
-    pychrono.Mesh("box"),
-    pychrono.Mesh("box"),
-    pychrono.Mesh("box"),
-    pychrono.Mesh("box"),
-    pychrono.Mesh("box")
-]
+# Create a ground plane
+ground = pc.RigidBody()
+ground.setMass(0)
+ground.setShape(pc.Sphere(0, 0, 0, 1, 1, 1))  # Create a ground plane using a sphere
+ground.setPosition(pc.Vector(0, 0, -1))  # Position the ground plane at z = -1
 
-# Position the truss
-truss_positions = np.array([
-    [0, 0, 0],
-    [5, 0, 0],
-    [5, 5, 0],
-    [0, 5, 0],
-    [2.5, 0, 0],
-    [2.5, 5, 0],
-    [3, 2.5, 0],
-    [3, 2.5, 0]
-])
+# Create a camera
+camera = pc.Camera()
+camera.setPos(pc.Vector(0, 0, 5))  # Position the camera at (0, 0, 5)
 
-# Assign fixed positions
-for i in range(len(truss_segments)):
-    truss_segments[i].set_position(truss_positions[i])
-
-# Assign fixed material
-for i in range(len(truss_segments)):
-    truss_segments[i].set_material(pychrono.MaterialFixed())
-
-# Add truss segments to the scene
-for seg in truss_segments:
-    scene.add_object(seg)
+# Create a fixed truss
+truss = pc.RigidBody()
+truss.setMass(0)
+truss.setShape(pc.Box(0.5, 0.5, 0.5))  # Create a box for the truss
+truss.setPosition(pc.Vector(0, 0, 0))  # Position the truss at the origin
 
 # Create a rotating bar
-rotating_bar = pychrono.Mesh("cylinder")
-rotating_bar.set_radius(0.5)
-rotating_bar.set_height(2)
-rotating_bar.set_material(pychrono.MaterialFixed())
-
-# Attach the bar to the truss
-bar_position = np.array([2.5, 2.5, 0])
-rotating_bar.set_position(bar_position)
-
-# Add the bar to the scene
-scene.add_object(rotating_bar)
-
-# Create a rotational force to drive the bar
-rotational_force = pychrono.Forces()
-rotational_force.set_z(100)
-rotational_force.set_torque(10)
-rotating_bar.add_force(rotational_force)
-
-# Create the fixed gear
-fixed_gear = pychrono.Mesh("cylinder")
-fixed_gear.set_radius(0.5)
-fixed_gear.set_height(2)
-fixed_gear.set_position(np.array([5, 0, 0]))
-fixed_gear.set_material(pychrono.MaterialGold())
-scene.add_object(fixed_gear)
-
-# Create the moving gear
-moving_gear = pychrono.Mesh("cylinder")
-moving_gear.set_radius(0.4)
-moving_gear.set_height(2)
-moving_gear.set_position(np.array([5, 3, 0]))
-moving_gear.set_material(pychrono.MaterialGold())
-scene.add_object(moving_gear)
-
-# Define gear parameters
-radius = 0.5
-teeth = 20
+rotating_bar = pc.RigidBody()
+rotating_bar.setMass(0)
+rotating_bar.setShape(pc.Sphere(0.5, 0.5, 0.5))  # Create a sphere for the rotating bar
+rotating_bar.setPosition(pc.Vector(1, 0, 0))  # Position the rotating bar at (1, 0, 0)
 
 # Create a gear motor
-gear_motor = pychrono.Mesh("cylinder")
-gear_motor.set_radius(0.5)
-gear_motor.set_height(2)
-gear_motor.set_position(np.array([5, 3, 0]))
-gear_motor.set_material(pychrono.MaterialGold())
+gear_motor = pc.Motor()
+gear_motor.setGearRatio(10)  # Set a high gear ratio to maintain constant rotation speed
 
-# Add the motor to the moving gear
-moving_gear.add_object(gear_motor)
+# Create two gears
+gear1 = pc.Gear()
+gear1.setNumber Teeth(20)
+gear1.setRadius(0.5)
+gear1.setPosition(pc.Vector(0, 0, 0))
 
-# Define motor parameters
-motor_torque = 50
-motor_force = 100
+gear2 = pc.Gear()
+gear2.setNumber Teeth(20)
+gear2.setRadius(0.6)
+gear2.setPosition(pc.Vector(0, 0, 0))
 
-# Set up the Irrlicht viewer
-viewer = iran.IrrViewer(scene)
-viewer.set_active_window()
-viewer.set_hmd_mode(False)
-viewer.show()
+# Create a joint for the rotating bar
+joint_rotating_bar = pc.FixedJoint()
+joint_rotating_bar.setAttachPoint1(rotating_bar, pc.Vector(0, 0, 0))
+joint_rotating_bar.setAttachPoint2(gear_motor, pc.Vector(0, 0, 0))
+joint_rotating_bar.setAxis(pc.Vector(0, 0, 1))  # Rotate around the z-axis
 
-# Set camera position
-camera_pos = np.array([5, 5, 10])
-viewer.camera().set_position(camera_pos)
+# Create a joint for the first gear
+joint_gear1 = pc.EpicyclicJoint()
+joint_gear1.setAttachPoint1(gear1, pc.Vector(0, 0, 0))
+joint_gear1.setAttachPoint2(rotating_bar, pc.Vector(0, 0, 0))
+joint_gear1.setAxis(pc.Vector(0, 0, 1))  # Rotate around the z-axis
+joint_gear1.setNumber Teeth(20)
+joint_gear1.setRadius1(gear1.getRadius())
+joint_gear1.setRadius2(gear_motor.getRadius())
 
-# Set lighting
-light = pychrono.Lights()
-light.set_position(np.array([10, 10, 10]))
-light.set_diffuse_color(pychrono.Color(1, 1, 1))
-light.set_specular_color(pychrono.Color(1, 1, 1))
-scene.add_light(light)
+# Create a joint for the second gear
+joint_gear2 = pc.EpicyclicJoint()
+joint_gear2.setAttachPoint1(gear2, pc.Vector(0, 0, 0))
+joint_gear2.setAttachPoint2(rotating_bar, pc.Vector(0, 0, 0))
+joint_gear2.setAxis(pc.Vector(0, 0, 1))  # Rotate around the z-axis
+joint_gear2.setNumber Teeth(20)
+joint_gear2.setRadius1(gear2.getRadius())
+joint_gear2.setRadius2(gear_motor.getRadius())
 
-# Add ambient light
-ambient_light = pychrono.Lights()
-ambient_light.set_position(np.array([10, 10, 10]))
-ambient_light.set_diffuse_color(pychrono.Color(0.5, 0.5, 0.5))
-scene.add_light(ambient_light)
+# Add the rigid bodies to the scene
+scene.add(gear_motor)
+scene.add(rotating_bar)
+scene.add(truss)
+scene.add(gear1)
+scene.add(gear2)
+scene.add(joint_gear1)
+scene.add(joint_gear2)
+scene.add(joint_rotating_bar)
+
+# Visualize the setup using Irrlicht
+renderer = pc.Renderer()
+renderer.setClearColor(0.5, 0.5, 0.5)  # Set a light gray background
+renderer.setCamera(camera)
+renderer.setLightDirection(pc.Vector(0, 0, 1))  # Add a light from above
+
+# Add materials
+truss_material = pc.Material()
+truss_material.setDiffuseColor(0.5, 0.5, 0.5)  # Gray material
+rotating_bar_material = pc.Material()
+rotating_bar_material.setDiffuseColor(1, 0, 0)  # Red material
+gear_material = pc.Material()
+gear_material.setDiffuseColor(0.5, 0.5, 0.5)  # Gray material
+
+# Assign materials to the rigid bodies
+truss.setMaterial(truss_material)
+rotating_bar.setMaterial(rotating_bar_material)
+gear1.setMaterial(gear_material)
+gear2.setMaterial(gear_material)
+
+# Add the visualization
+visualization = pc.Visualization(scene, renderer)
+
+# Set up the simulation
+simulation = pc.Simulation(scene, 1e-10)  # Set a very small time step for simulation
+
+# Add forces
+gravity = pc.Force()
+gravity.setGravity(pc.Vector(0, 0, -9.81))
+simulation.addForce(gear1, gravity)
+simulation.addForce(gear2, gravity)
+simulation.addForce(rotating_bar, gravity)
+simulation.addForce(truss, gravity)
+
+# Add the visualization callback
+def draw():
+    visualization.render()
 
 # Run the simulation
-pychrono.Simulation()
+simulation.run(0, 10)  # Run the simulation for 10 seconds

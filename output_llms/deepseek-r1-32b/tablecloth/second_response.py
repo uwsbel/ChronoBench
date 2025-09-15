@@ -35,14 +35,6 @@ material.SetDensity(density)
 L_x, L_z = 1, 1
 nsections_x, nsections_z = 40, 40
 
-# Node monitoring and loading setup
-nodePlotA = None
-nodePlotB = None
-nodesLoad = []
-ref_X = lambda x: x  # Placeholder for X interpolation function
-ref_Y = lambda y: y  # Placeholder for Y interpolation function
-load_force = chrono.ChVector3d(0, 0, 0)
-
 # Create nodes
 mynodes = []
 for iz in range(nsections_z + 1):
@@ -51,33 +43,37 @@ for iz in range(nsections_z + 1):
         mnode = fea.ChNodeFEAxyz(p)
         mesh.AddNode(mnode)
         mynodes.append(mnode)
-        # Monitoring nodes
-        if iz == 0 and ix == 0:
-            nodePlotA = mnode
-        if iz == nsections_z and ix == nsections_x:
-            nodePlotB = mnode
-nodesLoad = [nodePlotA, nodePlotB]
+
+# Monitoring and loading setup
+nodePlotA = None
+nodePlotB = None
+nodesLoad = []
+ref_X = lambda x: x
+ref_Y = lambda y: y
+load_force = chrono.ChVector3d(0, -10, 0)
+
+# Monitoring nodes
+mnodemonitor = None
+melementmonitor = None
 
 # Create elements
-melementmonitor = None
 for iz in range(nsections_z):
     for ix in range(nsections_x):
-        # Element A
-        melementA = fea.ChElementShellBST()
+        # Boundary conditions with conditional checks
         boundary_1 = mynodes[(iz + 1) * (nsections_x + 1) + ix + 1]
         boundary_2 = mynodes[(iz + 1) * (nsections_x + 1) + ix - 1] if ix > 0 else None
         boundary_3 = mynodes[(iz - 1) * (nsections_x + 1) + ix + 1] if iz > 0 else None
 
+        melementA = fea.ChElementShellBST()
         melementA.SetNodes(mynodes[iz * (nsections_x + 1) + ix], mynodes[iz * (nsections_x + 1) + ix + 1],
                            mynodes[(iz + 1) * (nsections_x + 1) + ix], boundary_1, boundary_2, boundary_3)
         melementA.AddLayer(thickness, 0, material)
         mesh.AddElement(melementA)
-        
-        # Monitoring element
+
         if iz == 0 and ix == 1:
             melementmonitor = melementA
 
-        # Element B
+        # Second element
         melementB = fea.ChElementShellBST()
         boundary_1 = mynodes[iz * (nsections_x + 1) + ix]
         boundary_2 = mynodes[iz * (nsections_x + 1) + ix + 2] if ix < nsections_x - 1 else None
@@ -96,8 +92,8 @@ for j in range(30):
 # Create visualizations for shell elements
 mvisualizeshellA = chrono.ChVisualShapeFEA(mesh)
 mvisualizeshellA.SetShellResolution(2)
-mvisualizeshellA.SetSmoothFaces(True)
-mvisualizeshellA.SetWireframe(True)
+# mvisualizeshellA.SetSmoothFaces(True)
+# mvisualizeshellA.SetWireframe(True)
 # mvisualizeshellA.SetBackfaceCulling(True)
 mesh.AddVisualShapeFEA(mvisualizeshellA)
 
@@ -123,7 +119,7 @@ mkl_solver = mkl.ChSolverPardisoMKL()
 mkl_solver.LockSparsityPattern(True)
 sys.SetSolver(mkl_solver)
 
-# Define time step for simulation
+# Adjusted time step
 timestep = 0.005
 
 # Final setup and system updates

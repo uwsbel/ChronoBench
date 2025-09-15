@@ -1,141 +1,112 @@
 importchrono
-import random
 import math
+import random
+from chrono import ChVector, ChQuaternion, ChSystem, ChIrrApp, ChIrrGui, ChCollisionModel, ChBody, ChSphere, ChBox, ChCylinder
 
 # Initialize the Chrono system
-system =chrono.ChSystemNSC()
-system.SetSolverType(chrono.ChSolverType_SOR)
-system.SetTimeStep(0.001)
+system = ChSystem()
+system.Set_G_acc(ChVector(0, 0, 0))  # Gravity will be handled by custom forces
 
-# Create a particle emitter class
-class ParticleEmitter:
-    def __init__(self, system):
-        self.system = system
-        self.particles = []
-
-    def emit_particle(self):
-        # Random position within a cube
-        x = random.uniform(-5, 5)
-        y = random.uniform(-5, 5)
-        z = random.uniform(-5, 5)
-        
-        # Random velocity
-        vx = random.uniform(-1, 1)
-        vy = random.uniform(-1, 1)
-        vz = random.uniform(-1, 1)
-        
-        # Random orientation
-        rx = random.uniform(0, 2 * math.pi)
-        ry = random.uniform(0, 2 * math.pi)
-        rz = random.uniform(0, 2 * math.pi)
-        
-        # Create a particle with random shape
-        if random.random() < 0.33:
-            # Sphere
-            particle =chrono.ChBody()
-            particle.SetMass(1)
-            particle.SetPos(chrono.ChVectorD(x, y, z))
-            particle.SetRot(chrono.ChQuaternionD(rx, ry, rz))
-            particle.SetVelocity(chrono.ChVectorD(vx, vy, vz))
-            sphere =chrono.ChSphereShape()
-            sphere.SetRadius(random.uniform(0.1, 0.5))
-            particle.AddVisualShape(sphere)
-        elif random.random() < 0.66:
-            # Box
-            particle =chrono.ChBody()
-            particle.SetMass(1)
-            particle.SetPos(chrono.ChVectorD(x, y, z))
-            particle.SetRot(chrono.ChQuaternionD(rx, ry, rz))
-            particle.SetVelocity(chrono.ChVectorD(vx, vy, vz))
-            box =chrono.ChBoxShape()
-            box.SetDimensions(chrono.ChVectorD(random.uniform(0.2, 0.8), random.uniform(0.2, 0.8), random.uniform(0.2, 0.8)))
-            particle.AddVisualShape(box)
-        else:
-            # Cylinder
-            particle =chrono.ChBody()
-            particle.SetMass(1)
-            particle.SetPos(chrono.ChVectorD(x, y, z))
-            particle.SetRot(chrono.ChQuaternionD(rx, ry, rz))
-            particle.SetVelocity(chrono.ChVectorD(vx, vy, vz))
-            cylinder =chrono.ChCylinderShape()
-            cylinder.SetHeight(random.uniform(0.4, 1.2))
-            cylinder.SetRadius(random.uniform(0.1, 0.3))
-            particle.AddVisualShape(cylinder)
-        
-        # Random color
-        r = random.uniform(0, 1)
-        g = random.uniform(0, 1)
-        b = random.uniform(0, 1)
-        particle.GetVisualShape(0).SetColor(chrono.ChColor(r, g, b))
-        
-        self.system.AddBody(particle)
-        self.particles.append(particle)
-        return particle
-
-    def apply_gravitational_forces(self):
-        # Apply gravitational forces between all pairs of particles
-        for i in range(len(self.particles)):
-            for j in range(i + 1, len(self.particles)):
-                p1 = self.particles[i]
-                p2 = self.particles[j]
-                
-                # Calculate distance between particles
-                dx = p2.GetPos().x - p1.GetPos().x
-                dy = p2.GetPos().y - p1.GetPos().y
-                dz = p2.GetPos().z - p1.GetPos().z
-                distance = math.sqrt(dx**2 + dy**2 + dz**2)
-                
-                # Calculate gravitational force
-                G = 0.1  # Gravitational constant
-                force_magnitude = G * p1.GetMass() * p2.GetMass() / (distance**2)
-                
-                # Calculate force vector
-                force = chrono.ChVectorD(
-                    force_magnitude * dx / distance,
-                    force_magnitude * dy / distance,
-                    force_magnitude * dz / distance
-                )
-                
-                # Apply forces
-                p1.AddForce(force)
-                p2.AddForce(-force)
-
-# Create Irrlicht application
-application =chrono.ChIrrApp(system, "Particle Gravitation Simulation", chrono.CH.dimension2D(800, 600))
+# Set up Irrlicht visualization
+application = ChIrrApp(system, "Particle Attraction Simulation", ChVector(1024, 768, 0))
 application.AddTypicalLights()
-application.SetCameraPosition(chrono.ChVectorD(10, 10, 10))
-application.SetCameraLookAt(chrono.ChVectorD(0, 0, 0))
+application.AddTypicalLogo()
+application.SetCameraPosition(ChVector(0, 50, 50))
+application.SetCameraRotation(ChQuaternion(0.7071, 0, 0.7071, 0))
 
-# Create particle emitter
-emitter = ParticleEmitter(system)
+# Particle parameters
+num_particles = 50
+particle_mass = 1.0
+gravitational_constant = 0.001  # Adjust this value for different attraction strength
 
-# Main simulation loop
-while application.GetDevice().run():
-    application.BeginScene()
-    application.DrawAll()
+def create_particle(shape_type):
+    """Create a particle with random properties"""
+    particle = ChBody()
+    system.AddBody(particle)
+    particle.SetMass(particle_mass)
     
-    # Handle user input
-    if application.GetDevice().isKeyDown(chrono.CH_KEY_SPACE):
-        emitter.emit_particle()
+    # Random position around origin
+    x = random.uniform(-5, 5)
+    y = random.uniform(-5, 5)
+    z = random.uniform(-5, 5)
+    particle.SetPos(ChVector(x, y, z))
     
-    if application.GetDevice().isKeyDown(chrono.CH_KEY_R):
-        for particle in emitter.particles:
-            system.Remove(particle)
-        emitter.particles.clear()
+    # Random velocity
+    vx = random.uniform(-1, 1)
+    vy = random.uniform(-1, 1)
+    vz = random.uniform(-1, 1)
+    particle.SetPos_dt(ChVector(vx, vy, vz))
+    
+    # Random orientation
+    angle = random.uniform(0, 2 * math.pi)
+    axis = ChVector(random.uniform(-1, 1), random.uniform(-1, 1), random.uniform(-1, 1))
+    particle.SetRot(ChQuaternion(angle, axis))
+    
+    # Create geometry based on shape type
+    if shape_type == 'sphere':
+        sphere = ChSphere()
+        sphere.SetRadius(random.uniform(0.1, 0.5))
+        particle.AddGeometry(sphere)
+    elif shape_type == 'box':
+        box = ChBox()
+        box.SetDimensions(ChVector(random.uniform(0.2, 1), random.uniform(0.2, 1), random.uniform(0.2, 1)))
+        particle.AddGeometry(box)
+    elif shape_type == 'cylinder':
+        cylinder = ChCylinder()
+        cylinder.SetHeight(random.uniform(0.5, 2))
+        cylinder.SetRadius(random.uniform(0.1, 0.5))
+        particle.AddGeometry(cylinder)
+    
+    particle.GetGeometry().SetMaterialColor(random.uniform(0,1), random.uniform(0,1), random.uniform(0,1))
+    particle.SetCollide(False)  # Disable collision for simplicity
+    
+    return particle
+
+# Create particles with random shapes
+particles = []
+for _ in range(num_particles):
+    shape_type = random.choice(['sphere', 'box', 'cylinder'])
+    particles.append(create_particle(shape_type))
+
+def apply_gravitational_forces():
+    """Apply gravitational forces between all particle pairs"""
+    for i in range(len(particles)):
+        for j in range(i+1, len(particles)):
+            # Calculate distance between particles
+            pos_i = particles[i].GetPos()
+            pos_j = particles[j].GetPos()
+            delta = pos_j - pos_i
+            distance = delta.Length()
+            
+            if distance > 0:
+                # Calculate gravitational force
+                force_magnitude = gravitational_constant * (particle_mass * particle_mass) / (distance * distance)
+                force_direction = delta.Normalize()
+                
+                # Apply forces to both particles
+                particles[i].AddForce(force_direction * force_magnitude)
+                particles[j].AddForce(-force_direction * force_magnitude)
+
+# Simulation loop
+application.Begin()
+while application.GetDevice().Run():
+    # Clear forces
+    for particle in particles:
+        particle.ClearForces()
     
     # Apply gravitational forces
-    emitter.apply_gravitational_forces()
+    apply_gravitational_forces()
     
-    # Update the system
-    system.DoStepDynamics()
+    # Add damping to prevent excessive movement
+    for particle in particles:
+        velocity = particle.GetPos_dt()
+        damping_force = -0.1 * velocity
+        particle.AddForce(damping_force)
     
+    # Update simulation
+    system.DoStepDynamics(0.005)
+    application.BeginScene()
+    application.DrawAll()
     application.EndScene()
 
-# Reset simulation
-def reset_simulation():
-    for particle in emitter.particles:
-        system.Remove(particle)
-    emitter.particles.clear()
-
-# Run the simulation
-application.Run()
+application.End()

@@ -90,26 +90,26 @@ while vis.Run():
     for body in sys.GetBodies():
         body.EmptyAccumulators()
 
-    # Calculate energies
-    kinetic_energy = 0.0
-    potential_energy = 0.0
-
-    # Compute kinetic energy
-    for body in sys.GetBodies():
-        kinetic_energy += 0.5 * body.GetMass() * body.GetVelocity().Length2()
-
-    # Compute gravitational potential energy
-    mlist = list(combinations(sys.GetBodies(), 2))
+    # Calculate gravitational constant and energy
     G_constant = 6.674e-3  # Modified gravitational constant
+    
+    # Calculate kinetic energy
+    kinetic_energy = 0
+    for body in sys.GetBodies():
+        kinetic_energy += 0.5 * body.GetMass() * body.GetPos_dt().Length2()
+    
+    # Calculate potential energy
+    potential_energy = 0
+    mlist = list(combinations(sys.GetBodies(), 2))
     for abodyA, abodyB in mlist:
         D_attract = abodyB.GetPos() - abodyA.GetPos()
         r_attract = D_attract.Length()
         potential_energy += -G_constant * (abodyA.GetMass() * abodyB.GetMass()) / r_attract
-
+    
     total_energy = kinetic_energy + potential_energy
+    
     print(f"Kinetic Energy: {kinetic_energy:.4f}, Potential Energy: {potential_energy:.4f}, Total Energy: {total_energy:.4f}")
 
-    # Apply gravitational forces between bodies
     for abodyA, abodyB in mlist:
         D_attract = abodyB.GetPos() - abodyA.GetPos()
         r_attract = D_attract.Length()

@@ -21,7 +21,7 @@ sys.Add(mfloor)
 
 mcrank = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, crank_rad, crank_thick, 1000)
 mcrank.SetPos(crank_center + chrono.ChVector3d(0, 0, -0.1))
-mcrank.SetRot(chrono.Q_ROTATE_Y_TO_Z)
+mcrank.SetRot(chrono.Q_ROTATE_Y_TO_Z)  
 sys.Add(mcrank)
 
 
@@ -32,37 +32,37 @@ sys.Add(mrod)
 
 mpiston = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, 0.2, 0.3, 1000)
 mpiston.SetPos(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0))
-mpiston.SetRot(chrono.Q_ROTATE_Y_TO_X)
+mpiston.SetRot(chrono.Q_ROTATE_Y_TO_X)  
 sys.Add(mpiston)
 
 
 my_motor = chrono.ChLinkMotorRotationSpeed()
-my_motor.Initialize(mcrank, mfloor, chrono.ChFrameD(crank_center))
-my_angularspeed = chrono.ChFunctionConst(np.pi)
+my_motor.Initialize(mcrank, mfloor, chrono.ChFrameD(crank_center))  
+my_angularspeed = chrono.ChFunctionConst(chrono.CH_PI)  
 my_motor.SetMotorFunction(my_angularspeed)
 sys.Add(my_motor)
 
 
 mjointA = chrono.ChLinkLockRevolute()
-mjointA.Initialize(mrod, mcrank, chrono.ChFrameD(crank_center + chrono.ChVector3d(crank_rad, 0, 0)))
+mjointA.Initialize(mrod, mcrank, chrono.ChFrameD(crank_center + chrono.ChVector3d(crank_rad, 0, 0)))  
 sys.Add(mjointA)
 
+
 mjointB = chrono.ChLinkLockRevolute()
-mjointB.Initialize(mpiston, mrod, chrono.ChFrameD(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0)))
+mjointB.Initialize(mpiston, mrod, chrono.ChFrameD(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0)))  
 sys.Add(mjointB)
 
 
 mjointC = chrono.ChLinkLockPrismatic()
-mjointC.Initialize(mpiston, mfloor, chrono.ChFrameD(
-    crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0),
-    chrono.QUNIT))
+
+mjointC.Initialize(mpiston, mfloor, chrono.ChFrameD(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0)))
 sys.Add(mjointC)
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(sys)
 vis.SetWindowSize(1024, 768)
-vis.SetWindowTitle('Crank demo')
+vis.SetWindowTitle('Crank Mechanism Simulation')
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()
@@ -76,6 +76,10 @@ array_pos = []
 array_speed = []
 
 
+sim_time = 0
+end_time = 20  
+
+
 while vis.Run():
     vis.BeginScene()
     vis.Render()
@@ -85,42 +89,49 @@ while vis.Run():
     sys.DoStepDynamics(1e-3)
     
     
-    current_time = sys.GetChTime()
+    sim_time = sys.GetChTime()
     
     
-    if current_time >= 20:
-        vis.GetDevice().closeDevice()
+    if sim_time >= end_time:
         break
     
     
-    array_time.append(current_time)
-    array_angle.append(np.pi * current_time)  
-    array_pos.append(mpiston.GetPos().x)
-    array_speed.append(mpiston.GetLinVel().x)
+    crank_angle = my_motor.GetMotorRot()  
+    piston_pos = mpiston.GetPos().x       
+    piston_speed = mpiston.GetPosDt().x   
+    
+    
+    array_time.append(sim_time)
+    array_angle.append(crank_angle)
+    array_pos.append(piston_pos)
+    array_speed.append(piston_speed)
 
 
-x_ticks = np.arange(0, 2*np.pi + np.pi/2, np.pi/2)
-x_labels = ['0', 'π/2', 'π', '3π/2', '2π']
-
-plt.figure(figsize=(12, 6))
+plt.figure(figsize=(12, 5))
 
 
-plt.subplot(2, 1, 1)
-plt.plot(array_angle, array_pos)
-plt.xticks(x_ticks, x_labels)
+plt.subplot(1, 2, 1)
+plt.plot(array_angle, array_pos, 'b-')
 plt.xlabel('Crank Angle [rad]')
-plt.ylabel('Position [m]')
-plt.title('Piston Position vs Crank Angle')
+plt.ylabel('Piston Position [m]')
+plt.title('Position vs Crank Angle')
 plt.grid(True)
+plt.xticks(
+    [0, np.pi/2, np.pi, 3*np.pi/2, 2*np.pi],
+    ['0', 'π/2', 'π', '3π/2', '2π']
+)
 
 
-plt.subplot(2, 1, 2)
-plt.plot(array_angle, array_speed, color='orange')
-plt.xticks(x_ticks, x_labels)
+plt.subplot(1, 2, 2)
+plt.plot(array_angle, array_speed, 'r-')
 plt.xlabel('Crank Angle [rad]')
-plt.ylabel('Speed [m/s]')
-plt.title('Piston Speed vs Crank Angle')
+plt.ylabel('Piston Speed [m/s]')
+plt.title('Speed vs Crank Angle')
 plt.grid(True)
+plt.xticks(
+    [0, np.pi/2, np.pi, 3*np.pi/2, 2*np.pi],
+    ['0', 'π/2', 'π', '3π/2', '2π']
+)
 
 plt.tight_layout()
 plt.show()

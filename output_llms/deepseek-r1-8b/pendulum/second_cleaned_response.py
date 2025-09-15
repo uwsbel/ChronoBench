@@ -15,8 +15,8 @@ ground.SetFixed(True)
 ground.EnableCollision(False)  
 
 
-sphere = chrono.ChVisualShapeSphere(0.2)  
-ground.AddVisualShape(sphere, chrono.ChFramed(chrono.ChVector3d(0, 0, +1)))
+sphere_1 = chrono.ChVisualShapeSphere(0.1)  
+ground.AddVisualShape(sphere_1, chrono.ChFramed(chrono.ChVector3d(0, 0, +1)))
 
 
 pend_1 = chrono.ChBody()
@@ -27,18 +27,20 @@ pend_1.SetMass(2)
 pend_1.SetInertiaXX(chrono.ChVector3d(0.4, 1.5, 1.5))  
 
 
+sphere_1 = chrono.ChVisualShapeSphere(0.1)  
 cyl_1 = chrono.ChVisualShapeCylinder(0.1, 1.5)  
-cyl_1.SetColor(chrono.ChColor(0.6, 0, 0))  
-pend_1.AddVisualShape(cyl_1, chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleY(chrono.CH_PI_2)))
+pend_1.AddVisualShape(cyl_1, chrono.ChFramed(chrono.ChVector3d(0, 0, +1)))
 
 
 
-pend_1.SetPos(chrono.ChVector3d(1, 0, 1))
+
+pend_1.SetPos(chrono.ChVector3d(0.5, 0, 0))  
 
 
 
 spherical_joint = chrono.ChLinkSpherical()
-spherical_joint.Initialize(ground, pend_1, chrono.ChFramed(chrono.ChVector3d(0, 0, 1), chrono.ChQuaterniond(0, 1, 0, 0)))  
+spherical_joint.Initialize(ground, pend_1, chrono.ChFramed(chrono.ChVector3d(0, 0, 1), 
+    chrono.ChQuaterniond(1, 0, 0, 0)))  
 sys.AddLink(spherical_joint)
 
 
@@ -53,7 +55,7 @@ vis.AddCamera(chrono.ChVector3d(0, 3, 6))
 vis.AddTypicalLights()  
 
 
-pend_1.SetAngVel(0.5)  
+pend_1.SetAngularVelocity(0.1)  
 
 
 log_info = True  

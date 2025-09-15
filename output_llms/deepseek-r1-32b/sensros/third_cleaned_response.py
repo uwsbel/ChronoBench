@@ -68,7 +68,6 @@ def main():
     lidar2d.PushFilter(sens.ChFilterPCfromDepth())  
     lidar2d.PushFilter(sens.ChFilterXYZIAccess())  
     lidar2d.PushFilter(sens.ChFilterVisualizePointCloud(1280, 720, 1,"2D Lidar Scan Data"))  
-    lidar2d.SetName("lidar2d")
     sens_manager.AddSensor(lidar2d)
     
     
@@ -141,7 +140,8 @@ def main():
 
         
         if not ros_manager.Update():
-            break  
+            print("ROS manager update failed. Exiting simulation.")
+            break
 
         sys.DoStepDynamics(time_step)  
 

@@ -1,50 +1,70 @@
-import chrono
-from chrono import ChSystemNSC, ChBodyEasyBox, ChLinkTSDA, ChVector3d, ChColor
-from chrono.irrlicht import ChVisualSystemIrrlicht
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
 
-# Create physical system
-system = ChSystemNSC()
+def main():
+    # 1. Initialize the system
+    system = chrono.ChSystemNSC()
+    system.Set_G_acc(chrono.ChVectorD(0, 0, 0))  # No gravity for this demo
+    
+    # 2. Create the ground body
+    ground = chrono.ChBody()
+    ground.SetBodyFixed(True)
+    ground_pos = chrono.ChVectorD(0, 0, 0)
+    
+    # Add visualization assets to ground
+    ground_shape = chrono.ChBoxShape()
+    ground_shape.GetBoxGeometry().Size = chrono.ChVectorD(0.1, 0.1, 0.1)
+    ground_shape.SetColor(chrono.ChColor(0.2, 0.3, 0.8))
+    ground.AddVisualShape(ground_shape)
+    system.Add(ground)
+    
+    # 3. Create the mass body
+    mass = chrono.ChBody()
+    mass.SetMass(1.0)
+    initial_pos = chrono.ChVectorD(0, 0, -1)  # Start below ground for stretching
+    mass.SetPos(initial_pos)
+    
+    # Add visualization assets to mass
+    mass_shape = chrono.ChSphereShape()
+    mass_shape.GetSphereGeometry().rad = 0.2
+    mass_shape.SetColor(chrono.ChColor(0.8, 0.3, 0.2))
+    mass.AddVisualShape(mass_shape)
+    system.Add(mass)
+    
+    # 4. Create spring-damper between ground and mass
+    spring = chrono.ChLinkTSDA()
+    spring.Initialize(ground, mass, True, ground_pos, initial_pos)
+    
+    # Set spring parameters
+    spring.SetSpringCoefficient(50)   # N/m
+    spring.SetDampingCoefficient(1)   # N·s/m
+    spring.SetRestLength(0.5)         # Rest length
+    
+    # Add spring visualization
+    spring_shape = chrono.ChSpringShape()
+    spring_shape.SetNumRenderPoints(50)
+    spring_shape.SetColor(chrono.ChColor(0.1, 0.9, 0.2))
+    spring.AddVisualShape(spring_shape)
+    system.Add(spring)
+    
+    # 5. Set up Irrlicht visualization
+    vis = chronoirr.ChVisualSystemIrrlicht()
+    vis.AttachSystem(system)
+    vis.SetWindowSize(1024, 768)
+    vis.SetWindowTitle('Mass-Spring-Damper System')
+    vis.Initialize()
+    vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+    vis.AddSkyBox()
+    vis.AddCamera(chrono.ChVectorD(1, 0.5, 0), chrono.ChVectorD(0, 0, -1))
+    vis.AddTypicalLights()
+    
+    # 6. Simulation loop
+    time_step = 0.001
+    while vis.Run():
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+        system.DoStepDynamics(time_step)
 
-# Create ground body (fixed)
-ground = chrono.ChBody()
-ground.SetFixed(True)
-system.Add(ground)
-
-# Create mass body (1 kg box)
-mass = ChBodyEasyBox(0.2, 0.2, 0.2, 1000)  # Dimensions 0.2m, density 1000 kg/m³
-mass.SetPos(ChVector3d(0, 0, 2))          # Initial position 2m above ground
-mass.GetVisualShape(0).SetColor(ChColor(1, 0, 0))  # Red color
-system.Add(mass)
-
-# Create spring-damper between ground and mass
-spring = ChLinkTSDA()
-spring.Initialize(ground, mass, 
-                  ChVector3d(0, 0, 0),   # Ground attachment point
-                  ChVector3d(0, 0, 0))   # Mass attachment point
-spring.SetSpringCoefficient(100)        # Spring stiffness (N/m)
-spring.SetDampingCoefficient(5)         # Damping coefficient (Ns/m)
-spring.SetRestLength(2)                 # Rest length matches initial distance
-system.Add(spring)
-
-# Add spring visualization
-spring_shape = chrono.ChSpringShape(0.05, 80, 15)  # Radius 0.05m, 80 coils
-spring.AddVisualShape(spring_shape)
-
-# Set up Irrlicht visualization
-vis = ChVisualSystemIrrlicht()
-vis.AttachSystem(system)
-vis.SetWindowSize(1024, 768)
-vis.SetWindowTitle('Mass-Spring-Damper System')
-vis.Initialize()
-vis.AddCamera(ChVector3d(0, -3, 2), ChVector3d(0, 0, 2))  # Camera position and target
-vis.AddTypicalLights()  # Add default lighting
-
-# Configure simulation parameters
-time_step = 0.001
-
-# Simulation loop
-while vis.Run():
-    vis.BeginScene()
-    vis.Render()
-    vis.EndScene()
-    system.DoStepDynamics(time_step)
+if __name__ == "__main__":
+    main()

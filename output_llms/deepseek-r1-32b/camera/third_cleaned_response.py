@@ -5,46 +5,20 @@ import math
 import time
 
 
-
-
-
-
 noise_model = "CONST_NORMAL"  
+update_rate = 30              
+image_width = 1280            
+image_height = 720            
+fov = 1.408                   
+lag = 0                       
+exposure_time = 0             
 
 
-update_rate = 30
-
-
-image_width = 1280
-image_height = 720
-
-
-fov = 1.408  
-
-
-lag = 0
-
-
-exposure_time = 0
-
-
-
-
-
-
-step_size = 1e-3
-
-
-end_time = 20.0
-
-
-save = False
-
-
-vis = True
-
-
-out_dir = "SENSOR_OUTPUT/"
+step_size = 1e-3              
+end_time = 20.0               
+save = False                  
+vis = True                    
+out_dir = "SENSOR_OUTPUT/"    
 
 def main():
     
@@ -56,18 +30,11 @@ def main():
     
     
     
-    
-    side = 1.0  
-    box_body = chrono.ChBody()
+    side = 2  
+    box_body = chrono.ChBodyEasyBox(side, side, side, 1000)
     box_body.SetPos(chrono.ChVector3d(0, 0, 0))  
-    box_body.AddVisualShape(chrono.ChVisualShapeBox(side, side, side))  
-    box_body.SetFixed(True)  
-    mphysicalSystem.Add(box_body)  
-
-    
-    material = chrono.ChMaterialSurface()
-    material.SetTexture(chrono.GetChronoDataFile("textures/stone.jpg"), 1.0, 1.0)
-    box_body.GetVisualShape(0).SetMaterial(material)
+    box_body.SetFixed(True)                      
+    mphysicalSystem.Add(box_body)                
 
     
     
@@ -91,12 +58,12 @@ def main():
 
     
     cam = sens.ChCameraSensor(
-        box_body,              
-        update_rate,            
-        offset_pose,            
-        image_width,            
-        image_height,           
-        fov                     
+        box_body,             
+        update_rate,          
+        offset_pose,          
+        image_width,          
+        image_height,         
+        fov                   
     )
     cam.SetName("Camera Sensor")
     cam.SetLag(lag)  

@@ -8,6 +8,7 @@ import os
 class ChFunctionMyFun(chrono.ChFunction):
     def __init__(self):
         chrono.ChFunction.__init__(self)
+
     def GetVal(self, x):
         if x > 0.4:
             return chrono.CH_PI
@@ -21,6 +22,7 @@ sys = chrono.ChSystemSMC()
 L = 1.2  
 H = 0.3  
 K = 0.07  
+
 vA = chrono.ChVector3d(0, 0, 0)
 vC = chrono.ChVector3d(L, 0, 0)
 vB = chrono.ChVector3d(L, -H, 0)
@@ -32,7 +34,7 @@ body_truss.SetFixed(True)
 sys.AddBody(body_truss)
 
 
-boxtruss = chrono.ChVisualShapeBox(0.03, 0.25, 0.12)
+boxtruss = chrono.ChVisualShapeBox(0.03, 0.25, 0.12)  
 body_truss.AddVisualShape(boxtruss, chrono.ChFrameD(chrono.ChVector3d(-0.01, 0, 0), chrono.QUNIT))
 
 body_crank = chrono.ChBody()
@@ -40,11 +42,11 @@ body_crank.SetPos((vB + vG) * 0.5)
 sys.AddBody(body_crank)
 
 
-boxcrank = chrono.ChVisualShapeBox(K, 0.03, 0.03)
+boxcrank = chrono.ChVisualShapeBox(K, 0.03, 0.03)  
 body_crank.AddVisualShape(boxcrank)
 
 motor = chrono.ChLinkMotorRotationAngle()
-motor.Initialize(body_truss, body_crank, chrono.ChFrameD(vG))
+motor.Initialize(body_truss, body_crank, chrono.ChFrameD(vG))  
 myfun = ChFunctionMyFun()
 motor.SetAngleFunction(myfun)
 sys.Add(motor)
@@ -81,18 +83,23 @@ section2.SetShearModulusFromPoisson(0.3)
 section2.SetRayleighDamping(0.000)
 section2.SetAsCircularSection(hbeam_d)
 
+
 builderA = fea.ChBuilderBeamEuler()
 builderA.BuildBeam(mesh, section2, 6, vC + vd, vB + vd, chrono.ChVector3d(1, 0, 0))  
+
 node_top = builderA.GetLastBeamNodes()[0]
 node_down = builderA.GetLastBeamNodes()[-1]
 
 constr_bb = chrono.ChLinkMateGeneric()
-constr_bb.Initialize(node_top, node_tip, False, node_top.Frame(), node_top.Frame())
+
+constr_bb.Initialize(node_top, node_tip, False, 
+                     chrono.ChFrameD(node_top.GetPos(), node_top.GetRot()),
+                     chrono.ChFrameD(node_tip.GetPos(), node_tip.GetRot()))
 sys.Add(constr_bb)
 constr_bb.SetConstrainedCoords(True, True, True, False, False, False)
 
 
-sphereconstr2 = chrono.ChVisualShapeSphere(0.012)
+sphereconstr2 = chrono.ChVisualShapeSphere(0.012)  
 constr_bb.AddVisualShape(sphereconstr2)
 
 
@@ -104,23 +111,31 @@ section3.SetShearModulusFromPoisson(0.3)
 section3.SetRayleighDamping(0.000)
 section3.SetAsCircularSection(crankbeam_d)
 
+
 builderB = fea.ChBuilderBeamEuler()
 builderB.BuildBeam(mesh, section3, 5, vG + vd, vB + vd, chrono.ChVector3d(0, 1, 0))  
+
 node_crankG = builderB.GetLastBeamNodes()[0]
 node_crankB = builderB.GetLastBeamNodes()[-1]
 
 constr_cbd = chrono.ChLinkMateGeneric()
-constr_cbd.Initialize(node_crankG, body_crank, False, node_crankG.Frame(), node_crankG.Frame())
+
+constr_cbd.Initialize(node_crankG, body_crank, False,
+                      chrono.ChFrameD(node_crankG.GetPos(), node_crankG.GetRot()),
+                      chrono.ChFrameD(body_crank.GetPos(), body_crank.GetRot()))
 sys.Add(constr_cbd)
 constr_cbd.SetConstrainedCoords(True, True, True, True, True, True)
 
 constr_bc = chrono.ChLinkMateGeneric()
-constr_bc.Initialize(node_down, node_crankB, False, node_crankB.Frame(), node_crankB.Frame())
+
+constr_bc.Initialize(node_down, node_crankB, False,
+                     chrono.ChFrameD(node_down.GetPos(), node_down.GetRot()),
+                     chrono.ChFrameD(node_crankB.GetPos(), node_crankB.GetRot()))
 sys.Add(constr_bc)
 constr_bc.SetConstrainedCoords(True, True, True, True, True, False)
 
 
-sphereconstr3 = chrono.ChVisualShapeSphere(0.014)
+sphereconstr3 = chrono.ChVisualShapeSphere(0.014)  
 constr_bc.AddVisualShape(sphereconstr3)
 
 mesh.SetAutomaticGravity(False)
@@ -161,6 +176,7 @@ sys.SetTimestepper(ts)
 while vis.Run():
     vis.BeginScene()
     vis.Render()
-    chronoirr.drawGrid(vis, 0.05, 0.05, 20, 20, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT))
+    chronoirr.drawGrid(vis, 0.05, 0.05, 20, 20,
+                       chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT))
     vis.EndScene()
     sys.DoStepDynamics(0.001)

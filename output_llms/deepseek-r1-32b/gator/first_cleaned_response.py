@@ -1,67 +1,55 @@
-import pychrono as chrono
-import pychrono irrlicht as chronoirr
+importchrono
+import ChronoEngine as chrono
+import ChronoPostprocess as postprocess
 
 
 system = chrono.ChSystemDFS()
+application = chrono.ChIrrApp(system, "Gator Vehicle Simulation", chrono.CIrrlicht::.dimension2du(1024, 768))
+application.SetCameraVerticalSpeed(5)
+application.SetCameraVerticalDistance(5)
+application.SetCameraHorizontalDistance(5)
+application.SetCameraHeight(5)
+application.SetFullScreen(False)
+application.Initialize()
 
 
-app = chronoirr.ChIrrApp(system, "Gator Vehicle Simulation", chronoirr.dimension2du(1024, 768))
-app.SetCamera(chronoirr.vector3df(0, 5, 10), chronoirr.vector3df(0, 0, 0))
-app.AddTypicalLights()
+vehicle = chrono.vehicle.Gator()
+vehicle.SetInitPosition(chrono.ChVectorD(0, 0, 1))
+vehicle.SetInitRotation(chrono.ChQuaternionD(chrono.CH_C_PI / 2, 0, 0))
+vehicle.SetContactMethod("chrono")
+vehicle.SetTireModel("tmeasy")
+vehicle.SetRenderMesh(True)
+system.Add(vehicle.GetChassis())
 
 
-vehicle = chrono.ChWheeledVehicle()
-vehicle.SetBodyPose(chrono.ChFrame<>(chrono.ChVector<>(0, 0, 1)))
-
-
-vehicle.SetContactMethod(chrono.ChContactMethod::NSC)
-vehicle.SetTireType(chrono.ChTireType::TMEASY)
-vehicle.SetTireRadius(0.3)
-vehicle.SetTireDamping(0.2)
-
-
-wheel_positions = [
-    chrono.ChVector<>(1.0, 0.5, 0.0),
-    chrono.ChVector<>(1.0, -0.5, 0.0),
-    chrono.ChVector<>(-1.0, 0.5, 0.0),
-    chrono.ChVector<>(-1.0, -0.5, 0.0)
-]
-
-for pos in wheel_positions:
-    wheel = vehicle.AddWheel(chrono.ChassisLocation(pos, chrono.ChQuaternion<>(1, 0, 0, 0)), 0.2, 0.3, 0.05)
-    wheel_mesh = chrono.ChVisualShapeSphere(0.15, chrono.ChColor(0.5, 0.5, 0.5))
-    wheel.GetVisualShape().AddVisualShape(wheel_mesh)
-
-
-terrain = chrono.ChRigidTerrain(system, chrono.ChCollisionSystem())
-terrain.SetSize(100, 100)
-terrain.SetHeight(0)
-terrain.SetTexture(chrono.ChTexture())
-terrain.GetMaterial().Set_texture_filename("custom_terrain_texture.jpg")
-terrain.GetMaterial().Set_color(chrono.ChColor(0.8, 0.8, 0.8))
+terrain = chrono.ChRigidTerrain()
+terrain.SetDimensions(chrono.ChVectorD(100, 100, 0.1))
+terrain.SetTexture("path/to/terrain_texture.jpg", 5, 5)
 system.Add(terrain)
 
 
-driver = chrono.ChDriver()
-driver.SetSteering(0)
-driver.SetThrottle(0)
-driver.SetBraking(0)
-vehicle.SetDriver(driver)
+driver = chrono.ChIrrGuiDriver(application)
+driver.SetVehicle(vehicle)
 
 
-app.SetEventCallback(driver)
+step_size = 1 / 50.0
+real_time_factor = 1.0
 
-
-render_step = 0.01  
-app.SetTimestep(render_step)
-
-
-while app.Run():
+while application.GetDevice().run():
     
+    vehicle.Update(chrono.GetChTime())
     driver.Update()
     
     
-    system.DoStepDynamics(render_step)
+    terrain.Update()
     
     
-    app.Render()
+    system.DoStepDynamics(step_size)
+    application.GetDevice().setTimeStep(step_size * real_time_factor)
+    
+    
+    if application.GetDevice().isKeyDown(chrono.CH_KEY_ESCAPE):
+        break
+
+
+application.GetDevice().closeDevice()

@@ -3,7 +3,7 @@ import pychrono.fea as fea
 import pychrono.pardisomkl as mkl
 import pychrono.irrlicht as chronoirr
 
-print("Example: PyChrono using beam finite elements");
+print("Example: PyChrono using Euler-Bernoulli beam finite elements");
 
 sys = chrono.ChSystemSMC()
 
@@ -22,8 +22,8 @@ msection.SetAsRectangularSection(beam_wy, beam_wz)
 msection.SetYoungModulus(0.01e9)
 msection.SetShearModulus(0.01e9 * 0.3)
 msection.SetRayleighDamping(0.000)
-msection.SetCentroid(0, 0.02)
-msection.SetShearCenter(0, 0.1)
+msection.SetCentroid(0,0.02)
+msection.SetShearCenter(0,0.1)
 msection.SetSectionRotation(45*chrono.CH_RAD_TO_DEG)
 
 # Add some EULER-BERNOULLI BEAMS:
@@ -74,7 +74,7 @@ constr_d = chrono.ChLinkMateGeneric()
 constr_d.Initialize(hnode1, mtruss, False, hnode1.Frame(), hnode1.Frame())
 sys.Add(constr_d)
 constr_d.SetConstrainedCoords(False, True, True,     # x, y, z
-                              False, False, False)    # Rx, Ry, Rz
+                              False, False,False)    # Rx, Ry, Rz
 
 
 # Add some EULER-BERNOULLI BEAMS (the fast way!)
@@ -95,21 +95,24 @@ builder.BuildBeam(mesh,                   # the mesh where to put the created no
                     chrono.ChVector3d(0.2, 0, -0.1), # the 'B' point in space (end of beam)
                     chrono.ChVector3d(0, 1, 0))      # the 'Y' up direction of the section for the beam
 
-# Add another beam segment
-last_beam_nodes = builder.GetLastBeamNodes()
-last_beam = last_beam_nodes[-1]
-new_beam = builder.BuildBeam(mesh,
-                            msection,
-                            5,
-                            last_beam.Frame(),  # 'A' point is the last node of the previous beam
-                            chrono.ChVector3d(0.2, 0.1, -0.1),
-                            chrono.ChVector3d(0, 1, 0))
+## After having used BuildBeam(), you can retrieve the nodes used for the beam,
+## For example say you want to fix the A end and apply a force to the B end:
+builder.GetLastBeamNodes().back().SetFixed(True)
+builder.GetLastBeamNodes().front().SetForce(chrono.ChVector3d(0, -1, 0))
 
-# Fix the 'A' node of the new beam
-new_beam.SetFixed(True)
+# Add another beam segment using `builder.BuildBeam()`
+# New beam starts from the last node of the previous beam (A) and ends at (0.2, 0.1, -0.1)
+builder.BuildBeam(mesh,
+                 msection,
+                 5,
+                 chrono.ChVector3d(0, 0, -0.1),  # A point for new beam
+                 chrono.ChVector3d(0.2, 0.1, -0.1),  # B point for new beam
+                 chrono.ChVector3d(0, 1, 0))      # Y up direction
 
-# Add the new beam element to the mesh
-mesh.AddElement(new_beam)
+## Retrieve the nodes for the new beam and apply forces/torques
+new_beam_nodes = builder.GetLastBeamNodes()
+new_beam_nodes.back().SetFixed(True)  # Fix the A end of the new beam
+new_beam_nodes.front().SetForce(chrono.ChVector3d(0, -1, 0))  # Apply force to the B end
 
 # We do not want gravity effect on FEA elements in this demo
 mesh.SetAutomaticGravity(False);
@@ -128,14 +131,6 @@ visualizebeamA.SetColorscaleMinMax(-0.4, 0.4)
 visualizebeamA.SetSmoothFaces(True)
 visualizebeamA.SetWireframe(False)
 mesh.AddVisualShapeFEA(visualizebeamA)
-
-visualizebeamC = chrono.ChVisualShapeFEA(mesh)
-visualizebeamC.SetFEMglyphType(chrono.ChVisualShapeFEA.GlyphType_NODE_CSYS)
-visualizebeamC.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NONE)
-visualizebeamC.SetSymbolsThickness(0.006)
-visualizebeamC.SetSymbolsScale(0.01)
-visualizebeamC.SetZbufferHide(False)
-mesh.AddVisualShapeFEA(visualizebeamC)
 
 # Create the Irrlicht visualization
 vis = chronoirr.ChVisualSystemIrrlicht()

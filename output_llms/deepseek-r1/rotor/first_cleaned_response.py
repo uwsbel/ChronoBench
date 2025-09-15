@@ -3,85 +3,82 @@ import pychrono.fea as fea
 import pychrono.irrlicht as chronoirr
 
 
-system = chrono.ChSystemNSC()
+system = chrono.ChSystemSMC()
 system.Set_G_acc(chrono.ChVectorD(0, 0, 0))  
 
 
-L = 2.0          
-n_elements = 10  
-beam_diameter = 0.1
-density = 7800   
-E = 2e11         
-nu = 0.3         
+length = 2.0  
+n_elements = 32  
+order = 2  
 
 
-beam_section = fea.ChBeamSectionEuler()
-beam_section.SetDensity(density)
-beam_section.SetYoungModulus(E)
-beam_section.SetGwithPoissonRatio(nu)
-beam_section.SetAsCircularSection(beam_diameter / 2)
+density = 7800  
+E = 200e9  
+nu = 0.3  
+diameter = 0.05  
+area = chrono.CH_C_PI * (diameter/2)**2
+Iyy = chrono.CH_C_PI * (diameter**4)/64
+section = fea.ChBeamSectionEuler()
+section.SetAsCircularSection(diameter)
+section.SetDensity(density)
+section.SetYoungModulus(E)
 
 
-builder = fea.ChBuilderBeamIGA()
-builder.BuildBeam(system, beam_section, n_elements, 
-                 chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, L, 0))
-nodes = builder.GetLastBeamNodes()
+path = fea.ChLineBezier(chrono.ChMatrixDynamicD(2, 3))
+path.SetPoint(0, chrono.ChVectorD(0, 0, 0))
+path.SetPoint(1, chrono.ChVectorD(0, 0, length))
+
+mesh = fea.ChMesh()
+beam = fea.ChBeamIGA()
+beam.SetupGeometry(path, n_elements, order)
+beam.SetSection(section)
+beam.SetSectionRotation(0)  
+mesh.AddElement(beam)
+system.Add(mesh)
 
 
-center_node = nodes[int(n_elements/2)]
-flywheel = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, 0.2, 0.05, density)
-flywheel.SetPos(center_node.GetPos())
+flywheel = chrono.ChBodyEasyCylinder(0.15, 0.05, 7800)  
+flywheel.SetPos(chrono.ChVectorD(0, 0, length/2))
 system.Add(flywheel)
 
 
-link = chrono.ChLinkPointFrame()
-link.Initialize(center_node, flywheel)
-system.Add(link)
+node_mid = beam.GetNode(int(n_elements/2))
+constraint = fea.ChLinkPointFrame()
+constraint.Initialize(node_mid, flywheel)
+system.Add(constraint)
 
-
-motor_node = nodes[0]
-motor_body = chrono.ChBody()
-motor_body.SetPos(motor_node.GetPos())
-system.Add(motor_body)
-
-
-link_motor = chrono.ChLinkPointFrame()
-link_motor.Initialize(motor_node, motor_body)
-system.Add(link_motor)
-
-
-motor_anchor = chrono.ChBody()
-motor_anchor.SetBodyFixed(True)
-system.Add(motor_anchor)
 
 motor = chrono.ChLinkMotorRotationSpeed()
-motor.Initialize(motor_anchor, motor_body, 
-                chrono.ChFrameD(motor_body.GetPos(), 
-                               chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0))))
-motor.SetSpeedFunction(chrono.ChFunction_Const(chrono.CH_C_PI))  
+motor_shaft = chrono.ChBody()
+motor_shaft.SetBodyFixed(True)
+system.Add(motor_shaft)
+
+motor.Initialize(motor_shaft, beam.GetNode(0).GetBody(),
+                 chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)))
+motor.SetSpeedFunction(chrono.ChFunction_Ramp(0, 2.0))  
 system.Add(motor)
 
 
-app = chronoirr.ChIrrApp(system, "Jeffcott Rotor", 800, 600)
-app.AddTypicalLights()
-app.AddTypicalCamera(chronoirr.vector3df(0, L/2, 1.5), chronoirr.vector3df(0, L/2, 0))
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetWindowSize(1280, 720)
+vis.SetWindowTitle('Jeffcott Rotor - IGA Beam')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVectorD(1.5, 0.5, 1.0))
+vis.AddTypicalLights()
 
 
-beam_mesh = builder.GetBeamMesh()
-vis_mesh = fea.ChVisualizationFEAmesh(beam_mesh)
-vis_mesh.SetFEMdataType(fea.ChVisualizationFEAmesh.E_PLOT_ELEM_BEAM_MX)
-vis_mesh.SetColorscaleMinMax(-100, 100)
-beam_mesh.AddAsset(vis_mesh)
-
-app.AssetBindAll()
-app.AssetUpdateAll()
+vis_fem = fea.ChVisualizationFEAmesh(mesh)
+vis_fem.SetFEMdataType(fea.ChVisualizationFEAmesh.E_PLOT_NODE_SPEED_NORM)
+vis_fem.SetColorscaleMinMax(0, 5)
+mesh.AddVisualizationFEA(vis_fem)
 
 
-app.SetTimestep(0.001)
-app.SetTryRealtime(True)
-
-while app.GetDevice().run():
-    app.BeginScene()
-    app.DrawAll()
-    app.DoStepDynamics(0.001)
-    app.EndScene()
+time_step = 0.001
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    system.DoStepDynamics(time_step)

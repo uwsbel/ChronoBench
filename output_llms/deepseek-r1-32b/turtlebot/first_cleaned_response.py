@@ -1,70 +1,80 @@
 importchrono
-import chronoirrlicht as chrono_irr
-import numpy as np
+importchrono Irrlicht
+importchrono collision
+importchrono sensors
+importchrono robot
+importnumpy as np
 
 
-system = chrono.ChSystem()
-system.SetGravity(chrono.ChVectorD(0, -9.81, 0))
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  
+
+
+system.SetSolverType(chrono.ChSolverType.SOLVER_BARZILAI_BORWEIN)
+system.SetMaxItersSolverSpeed(100)
+system.SetToleranceSolverSpeed(1e-6)
 
 
 ground = chrono.ChBody()
-ground.SetMass(0)  
+ground.SetBodyFixed(True)
 ground.SetPos(chrono.ChVectorD(0, 0, 0))
-ground_shape = chrono.ChBoxShape()
-ground_shape.GetDimensions().x = 20
-ground_shape.GetDimensions().y = 20
-ground_shape.GetDimensions().z = 1
-ground.AddVisualShape(ground_shape)
-system.Add(ground)
+ground.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
 
 
-bot = chrono.ChTurtlebot()
-bot.SetPos(chrono.ChVectorD(0, 0.5, 0))  
-bot.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))  
-system.Add(bot)
+ground_shape = chrono.ChBox()
+ground_shape.GetDimensions().x = 10
+ground_shape.GetDimensions().y = 1
+ground_shape.GetDimensions().z = 10
+ground.AddCollisionShape(ground_shape)
 
 
-app = chrono_irr.ChIrrApp(system, "Turtlebot Simulation", chrono_irr.dimension(800, 600))
-app.AddTypicalIrrlichtLights()
-app.AddTypicalIrrlichtCamera(chrono.ChVectorD(2, 2, 2), chrono.ChVectorD(0, 0, 0))
+system.AddBody(ground)
 
 
-timestep = 0.01
-time = 0
-max_time = 5  
+turtlebot = chrono.robot.create_robot("Turtlebot")
+turtlebot.SetPos(chrono.ChVectorD(0, 0.5, 0))  
+turtlebot.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))  
 
 
-motors = bot.GetMotors()
-left_speed = 1  
-right_speed = 1  
+system.Add(turtlebot)
 
 
-while app.GetDevice().run() and time < max_time:
+vis = chrono.ChIrrApp(system, "Turtlebot Simulation", chrono.CHDimension(800, 600))
+vis.SetCameraPosition(chrono.ChVectorD(2, 2, 2))
+vis.SetCameraTarget(chrono.ChVectorD(0, 0, 0))
+vis.AddPointLight(chrono.ChVectorD(2, 2, 2), chrono.ChColor(1, 1, 1))
+
+
+motor_indices = turtlebot.GetMotorIndices()
+left_motor = motor_indices[0]
+right_motor = motor_indices[1]
+
+
+simulation_time = 10.0
+step_size = 0.001
+num_steps = int(simulation_time / step_size)
+
+
+for step in range(num_steps):
     
-    if time < 1:
-        
-        motors[0].SetSpeed(left_speed)
-        motors[1].SetSpeed(right_speed)
-    elif 1 <= time < 2:
-        
-        motors[0].SetSpeed(-left_speed)
-        motors[1].SetSpeed(right_speed)
-    elif 2 <= time < 3:
-        
-        motors[0].SetSpeed(left_speed)
-        motors[1].SetSpeed(-right_speed)
+    if step < num_steps/3:
+        turtlebot.SetMotorTargetSpeed(left_motor, 1.0)  
+        turtlebot.SetMotorTargetSpeed(right_motor, 1.0)  
+    elif step < 2*num_steps/3:
+        turtlebot.SetMotorTargetSpeed(left_motor, -1.0)  
+        turtlebot.SetMotorTargetSpeed(right_motor, -1.0)  
     else:
-        
-        motors[0].SetSpeed(0)
-        motors[1].SetSpeed(0)
+        turtlebot.SetMotorTargetSpeed(left_motor, 0.0)  
+        turtlebot.SetMotorTargetSpeed(right_motor, 0.0)  
     
     
-    system.DoStepDynamics(timestep)
+    system.DoStepDynamics(step_size)
     
     
-    app.Render()
+    vis.Render()
     
     
-    time += timestep
+    chrono.ChSleep(0.001)
 
-print("Simulation completed!")
+
+vis.Close()

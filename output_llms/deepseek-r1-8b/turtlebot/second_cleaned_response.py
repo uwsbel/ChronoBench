@@ -42,66 +42,52 @@ vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0
 
 
 
-
-class MovementMode:
-    STRAIGHT = "straight"
-    LEFT = "left"
-    RIGHT = "right"
-
 def move(mode):
     
-    if mode not in MovementMode.__dict__.values():
-        raise ValueError(f"Invalid mode: {mode}")
+    if mode not in ['straight', 'left', 'right']:
+        raise ValueError("Invalid mode: must be 'straight', 'left', or 'right'")
     
-    
-    left_speed = 0
-    right_speed = 0
-    
-    if mode == MovementMode.STRAIGHT:
-        left_speed = 1
-        right_speed = 1
-    elif mode == MovementMode.LEFT:
-        left_speed = 1
-        right_speed = -1
-    elif mode == MovementMode.RIGHT:
-        left_speed = -1
-        right_speed = 1
-    
-    robot.SetMotorSpeed(left_speed, LEFT_DRIVE_WHEEL)
-    robot.SetMotorSpeed(right_speed, RIGHT_DRIVE_WHEEL)
-    
-    return
+    if mode == 'straight':
+        robot.SetMotorSpeed(1, LEFT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(1, RIGHT_DRIVE_WHEEL)
+    elif mode == 'left':
+        robot.SetMotorSpeed(-math.pi, LEFT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(math.pi, RIGHT_DRIVE_WHEEL)
+    elif mode == 'right':
+        robot.SetMotorSpeed(math.pi, LEFT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(-math.pi, RIGHT_DRIVE_WHEEL)
 
 
-time_step = 2e-3
+LEFT_DRIVE_WHEEL = 0
+RIGHT_DRIVE_WHEEL = 1
 
 
 time = 0
+current_mode = 'straight'
+last_mode_change = 0
+
 while vis.Run():
     
-    LEFT_DRIVE_WHEEL = 0
-    RIGHT_DRIVE_WHEEL = 1
-    
-    
-    move_mode = MovementMode.STRAIGHT
-    if time >= 5:
-        if time >= 10:
-            move_mode = MovementMode.RIGHT
+    elapsed_time = time - last_mode_change
+    if elapsed_time > 5:
+        if current_mode == 'straight':
+            current_mode = 'left'
+        elif current_mode == 'left':
+            current_mode = 'right'
         else:
-            move_mode = MovementMode.LEFT
-    elif time >= 5:
-        move_mode = MovementMode.LEFT
+            current_mode = 'straight'
+        last_mode_change = time
     
     
-    print(f"Robot action: {move_mode}")
+    print(f"Current action: {current_mode}")
     
     
-    if abs(time - 1.0) < 1e-4:
-        move(MovementMode.LEFT)
-        
+    if abs(time - 1.0) < 1e-4 and current_mode == 'straight':
+        move('left')
     
-    if abs(time - 2.0) < 1e-4:
-        move(MovementMode.RIGHT)
+    
+    if abs(time - 2.0) < 1e-4 and current_mode == 'left':
+        move('right')
     
     
     time += time_step

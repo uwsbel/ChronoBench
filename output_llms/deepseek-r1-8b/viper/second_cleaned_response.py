@@ -45,9 +45,6 @@ vis.AddTypicalLights()
 vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0, 0.5), 3, 4, 10, 40, 512)
 
 
-
-
-
 manager = sens.ChSensorManager(system)
 intensity = 1.0
 manager.scene.AddPointLight(chrono.ChVector3f(2, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
@@ -70,9 +67,6 @@ manager.AddSensor(cam)
 step_number = 0
 render_step_size = 1.0 / 25  
 render_steps = math.ceil(render_step_size / time_step)
-
-
-time_step = 1e-3
 
 
 time = 0

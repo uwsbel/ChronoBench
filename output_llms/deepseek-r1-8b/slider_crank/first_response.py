@@ -1,108 +1,140 @@
 import PyChrono as pc
+from pychrono.objects import *
+from pychrono.visualization import *
 
-# Initialize PyChrono and the scene
-pc.init()
-scene = pc.createScene()
-scene.setClearColor(pc.Color(0, 0, 0, 1))
-camera = scene.createCameraNode()
-camera.setPos([5, 5, 5])
-camera.setLookAt([0, 0, 0])
+# Initialize PyChrono simulation
+sim = pc.Simulation()
+sim.set_tolerance(1e-8)
+
+# Define system components
+# Floor/truss
+floor = Box2D(
+    name="Floor",
+    size=(2, 2, 0.2),
+    position=(0, 0, 0),
+    material=Material(
+        color=(0.8, 0.2, 0.2),
+        texture="floor",
+        double_sided=False
+    )
+)
+sim.add_object(floor)
+
+# Crankshaft
+crankshaft = Rod2D(
+    name="Crankshaft",
+    length=0.5,
+    cross_section=0.01,
+    position=(0, 0, 0),
+    orientation=(0, 0, 1),
+    material=Material(
+        color=(0.9, 0.9, 0.9),
+        texture="aluminum",
+        double_sided=False
+    )
+)
+sim.add_object(crankshaft)
+
+# Connecting rod
+connecting_rod = Rod2D(
+    name="ConnectingRod",
+    length=0.4,
+    cross_section=0.01,
+    position=crankshaft.position + (crankshaft.length, 0, 0),
+    orientation=(0, 0, 1),
+    joints=Joint2D(
+        type=Joint2D.Pin,
+        first_body=crankshaft,
+        second_body=floor,
+        position=(0, 0, 0)
+    ),
+    joints=Joint2D(
+        type=Joint2D.Spherical,
+        first_body=crankshaft,
+        second_body=floor,
+        position=(0, 0, 0)
+    ),
+    material=Material(
+        color=(0.9, 0.9, 0.9),
+        texture="aluminum",
+        double_sided=False
+    )
+)
+sim.add_object(connecting_rod)
+
+# Piston
+piston = Cylinder2D(
+    name="Piston",
+    radius=0.05,
+    height=0.1,
+    position=connecting_rod.position + (0, 0, 0.1),
+    orientation=(0, 0, 1),
+    material=Material(
+        color=(0, 0, 0),
+        texture="piston",
+        double_sided=False
+    )
+)
+sim.add_object(piston)
+
+# Piston to floor joint
+piston_to_floor = Joint2D(
+    type=Joint2D.Slider,
+    first_body=piston,
+    second_body=floor,
+    position=(0, 0, 0.1 - 0.05)
+)
+
+# Motor
+motor = RotationalMotor2D(
+    name="Motor",
+    angular_speed=60,  # Degrees per second
+    axis=(0, 0, 1),
+    connected_body=crankshaft,
+    connected_joint=crankshaft.joints[0]
+)
+sim.add_object(motor)
+
+# Visualization setup
+# Create visualization
+viz = Visualization(sim)
+viz.camera = Camera2D(
+    position=(5, 5, 5),
+    look_at=(0, 0, 0),
+    up=(0, 1, 0),
+    fov=60,
+    size=(800, 600)
+)
 
 # Add lighting
-light = scene.createLightNode()
-light.setPos([10, 10, 10])
-light.setDir([0, 0, -1])
-scene.addLightNode(light)
+viz.add_light(
+    position=(10, 10, 10),
+    color=(1, 1, 1)
+)
 
-# Create the floor (truss)
-floor_nodes = []
-for x in range(-5, 6):
-    for z in range(-5, 6):
-        if x == 0 or z == 0:
-            continue
-        node = pc.createCubeNode(pc.Mesh.createBox(0.1, 0.1, 0.1))
-        node.setPos([x, 0, z])
-        scene.addNode(node)
-        floor_nodes.append(node)
+# Add textures
+viz.textures.add("floor", "pychrono/textures/floor")
+viz.textures.add("aluminum", "pychrono/textures/aluminum")
+viz.textures.add("piston", "pychrono/textures/piston")
 
-# Create the crankshaft
-crankshaft = pc.createCylinderNode(pc.Mesh.createCylinder(0.1, 0.1, 2, 32))
-crankshaft.setMaterial(pc.Material(pc.Texture("crankshaft texture"), pc.TextureType.Diffuse))
-joint_crank = pc.createSphericalJointNode()
-joint_crank.setAttachPoint([0, 0, 0])
-crankshaft.setInertiaTensor(pc.Matrix3x3.createIdentity())
-crankshaft.setMass(0.1)
-crankshaft.setFriction(0.5)
-crankshaft.setRestitution(0.3)
-scene.addNode(crankshaft)
-scene.addJointNode(joint_crank)
+# Setup simulation
+sim.init()
 
-# Create the connecting rod
-connecting_rod = pc.createCylinderNode(pc.Mesh.createCylinder(0.1, 0.1, 2, 32))
-connecting_rod.setMaterial(pc.Material(pc.Texture("connecting rod texture"), pc.TextureType.Diffuse))
-joint_connect = pc.createRevoluteJointNode()
-joint_connect.setAttachPoint([0, 0, 0])
-connecting_rod.setInertiaTensor(pc.Matrix3x3.createIdentity())
-connecting_rod.setMass(0.1)
-connecting_rod.setFriction(0.5)
-connecting_rod.setRestitution(0.3)
-scene.addNode(connecting_rod)
-scene.addJointNode(joint_connect)
-
-# Create the piston
-piston = pc.createCylinderNode(pc.Mesh.createCylinder(0.1, 0.1, 2, 32))
-piston.setMaterial(pc.Material(pc.Texture("piston texture"), pc.TextureType.Diffuse))
-piston.setPos([0, 0, 0.5])
-piston.setInertiaTensor(pc.Matrix3x3.createIdentity())
-piston.setMass(0.1)
-piston.setFriction(0.5)
-piston.setRestitution(0.3)
-scene.addNode(piston)
-
-# Create the slider
-slider = pc.createBoxNode(pc.Mesh.createBox(0.1, 0.1, 0.2, 32))
-slider.setMaterial(pc.Material(pc.Texture("slider texture"), pc.TextureType.Diffuse))
-slider.setPos([0, 0.5, 0])
-scene.addNode(slider)
-
-# Create the motor
-motor = pc.createMotorNode()
-joint_motor = pc.createRevoluteJointNode()
-joint_motor.setAttachPoint([0, 0, 0])
-motor.setAngularVelocity(pc.Vec3(0, 0, 10))
-scene.addNode(motor)
-scene.addJointNode(joint_motor)
-
-# Add constraints
-constraint = pc.createConstraintNode()
-constraint.setAttachPoint([0, 0, 0])
-constraint.setBody1(piston)
-constraint.setBody2(connecting_rod)
-constraint.setType(pc.ConstraintType.Contact)
-scene.addNode(constraint)
-
-# Add logo
-logo_node = pc.createPlaneNode(pc.Mesh.createQuad(1, 1))
-logo_node.setMaterial(pc.Material(pc.Texture("logo texture"), pc.TextureType.Diffuse))
-logo_node.setPos([0, 0, 2])
-scene.addNode(logo_node)
-
-# Start the simulation
-pc.startSimulation()
-
-# Visualization settings
-renderer = pc.createIrrlichtRenderer(scene)
-renderer.setLightingEnabled(True)
-renderer.setShadowEnabled(True)
-renderer.setHfov(60)
-renderer.setVfov(45)
-renderer.setDistanceCamera(True)
-renderer.setRenderSize(pc.getRenderWindow().getSize())
-
-# Optional: Add keyframe animation
-@pc.keyframe_callback
-def animate(t):
-    renderer.update()
-    return True
-
-pc.runSimulation()
+# Simulation loop
+while True:
+    # Update motor
+    motor.update()
+    
+    # Update simulation
+    sim.update()
+    
+    # Check contacts and joints
+    sim.check_contacts()
+    sim.check_joints()
+    
+    # Visualize
+    viz.render()
+    
+    # Close loop when window is closed
+    if viz.window.closed:
+        break

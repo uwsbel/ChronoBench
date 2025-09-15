@@ -1,94 +1,104 @@
-#!/usr/bin/env python3
 import pychrono as chrono
 import pychrono.fea as fea
-import pychrono.irrlicht as irrlicht
+import pychrono.irrlicht as chronoirr
 
-def main():
-    # 1. Initialize PyChrono environment
-    chrono.SetChronoDataPath(chrono.GetChronoDataPath())
-    system = chrono.ChSystemNSC()
-    system.Set_G_acc(chrono.ChVectorD(0, 0, 0))  # Optional: remove gravity
-    
-    # 2. Create FEA beam mesh
-    mesh = fea.ChMesh()
-    material = fea.ChMaterialBeamEuler(
-        2.1e11,  # Young's modulus (steel)
-        0.3,     # Poisson ratio
-        7800,    # Density
-        1e8,     # Damping coefficient
-        0.05     # Rayleigh damping
-    )
-    
-    # Beam geometry parameters
-    length = 5.0
-    num_elements = 20
-    node_spacing = length / num_elements
-    beam_w = 0.1  # Cross-section width
-    
-    # Create nodes and elements
-    nodes = []
-    for i in range(num_elements + 1):
-        pos = chrono.ChVectorD(node_spacing * i, 0, 0)
-        node = fea.ChNodeFEAxyzrot(chrono.ChFrameD(pos))
-        nodes.append(node)
-        mesh.AddNode(node)
-        
-        if i > 0:
-            element = fea.ChElementBeamEuler()
-            element.SetNodes(nodes[i-1], nodes[i])
-            element.SetSection(fea.ChBeamSectionEulerSimple(material, beam_w**2/12, beam_w**2))
-            mesh.AddElement(element)
-    
-    # Fix first node (cantilever)
-    constraint = fea.ChLinkPointFrame()
-    constraint.Initialize(nodes[0], nodes[0].Frame().GetPos())
-    mesh.AddLink(constraint)
-    
-    # 3. Create motor function for axial displacement
-    motor_function = chrono.ChFunction_Ramp(0, 0.02)  # Displacement rate
-    
-    motor_load = fea.ChLoadMotorLinearPosition()
-    motor_load.SetMotorFunction(motor_function)
-    motor_load.SetLink(nodes[-1])
-    mesh.AddLoad(motor_load)
-    
-    # 4. Add visualization and assets
-    visbeam = fea.ChVisualizationFEAmesh(mesh)
-    visbeam.SetFEMdataType(fea.ChVisualizationFEAmesh.E_PLOT_ELEM_BEAM_MZ)
-    mesh.AddAsset(visbeam)
-    
-    system.Add(mesh)
-    
-    # 5. Set up solver and timestepper
-    solver = chrono.ChSolverMINRES()
-    system.SetSolver(solver)
-    solver.SetMaxIterations(100)
-    solver.SetTolerance(1e-12)
-    solver.EnableDiagonalPreconditioner(True)
-    
-    system.SetTimestepperType(chrono.ChTimestepper.Type_HHT)
-    integrator = system.GetTimestepper().As_ChTimestepperHHT()
-    integrator.SetAlpha(-0.2)
-    integrator.SetStepControl(True)
-    
-    # 6. Irrlicht visualization setup
-    vis = irrlicht.ChVisualSystemIrrlicht()
-    vis.AttachSystem(system)
-    vis.SetWindowSize(1280, 720)
-    vis.SetWindowTitle('Beam Buckling FEA')
-    vis.Initialize()
-    vis.AddLogo()
-    vis.AddSkyBox()
-    vis.AddCamera(chrono.ChVectorD(3, 0.5, 3))
-    vis.AddTypicalLights()
-    
-    # 7. Simulation loop
-    time_step = 0.001
-    while vis.Run():
-        vis.BeginScene()
-        vis.Render()
-        vis.EndScene()
-        system.DoStepDynamics(time_step)
-    
-if __name__ == '__main__':
-    main()
+# 1. Initialize system and set solver parameters
+system = chrono.ChSystemSMC()
+system.Set_G_acc(chrono.ChVector3d(0, 0, 0))  # Disable gravity
+
+# Configure solver for FEA stability
+system.SetSolverType(chrono.ChSolver.Type::MINRES)
+system.SetSolverMaxIterations(100)
+system.SetSolverTolerance(1e-10)
+system.SetSolverWarmStarting(True)
+
+# 2. Create FEA mesh and beam elements
+mesh = fea.ChMesh()
+system.Add(mesh)
+
+# Beam properties
+length = 10.0  # m
+width = 0.1    # m
+density = 7800 # kg/m³
+E = 2e11       # Pa (Young's modulus)
+nu = 0.3       # Poisson's ratio
+n_elements = 20  # Number of beam elements
+
+# Create material (Euler-Bernoulli beams)
+beam_material = fea.ChBeamSectionEulerAdvanced()
+beam_material.SetDensity(density)
+beam_material.SetYoungModulus(E)
+beam_material.SetShearModulus(E/(2*(1+nu)))
+beam_material.SetAsRectangularSection(width, width)
+
+# Define nodes along Y-axis
+nodes = []
+for i in range(n_elements + 1):
+    node = fea.ChNodeFEAxyzrot(chrono.ChFramed(chrono.ChVector3d(0, i * length/n_elements, 0)))
+    node.SetMass(0)
+    mesh.AddNode(node)
+    nodes.append(node)
+
+# Create beam elements between nodes
+for i in range(n_elements):
+    element = fea.ChElementBeamEuler()
+    element.SetNodes(nodes[i], nodes[i+1])
+    element.SetSection(beam_material)
+    mesh.AddElement(element)
+
+# 3. Set boundary conditions (fixed base)
+constraint_fixed = fea.ChLinkNodeFrame()
+constraint_fixed.Initialize(nodes[0], 
+                           chrono.ChFrameD(nodes[0].GetPos()))
+system.Add(constraint_fixed)
+
+# 4. Create motor system for compressive load
+motor_body = chrono.ChBodyEasyBox(0.2, 0.2, 0.2, 1000)
+motor_body.SetPos(chrono.ChVector3d(0, length, 0))
+system.Add(motor_body)
+
+# Connect top node to motor body
+constraint_top = fea.ChLinkNodeFrame()
+constraint_top.Initialize(nodes[-1], motor_body)
+system.Add(constraint_top)
+
+# Create linear motor between motor body and ground
+motor = chrono.ChLinkMotorLinearPosition()
+motor.Initialize(motor_body, 
+                chrono.ChFrameD(chrono.ChVector3d(0, length, 0)),
+                chrono.ChFrameD(chrono.ChVector3d(0, length, 0)))
+system.Add(motor)
+
+# Custom motor function (linearly increasing displacement)
+class LinearDisplacement(chrono.ChFunction):
+    def __init__(self):
+        super().__init__()
+        self.speed = -0.02  # m/s (compressive direction)
+    def GetVal(self, x):
+        return self.speed * x
+
+motor.SetMotionFunction(LinearDisplacement())
+
+# 5. Visualization setup
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle("Beam Buckling Simulation")
+vis.Initialize()
+vis.AddCamera(chrono.ChVector3d(0.5, length/2, length), chrono.ChVector3d(0, length/2, 0))
+vis.AddTypicalLights()
+
+# Visualize beam elements
+beam_visual = fea.ChVisualShapeFEA(mesh)
+beam_visual.SetFEMdataType(fea.VisualDataType::ELEM_BEAM_MZ)
+beam_visual.SetColorscaleMinMax(-500, 500)
+beam_visual.SetSmoothFaces(True)
+mesh.AddVisualShapeFEA(beam_visual)
+
+# 6. Simulation loop
+time_step = 0.001
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    system.DoStepDynamics(time_step)

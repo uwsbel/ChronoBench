@@ -1,68 +1,93 @@
 importchrono
 importchrono.vehicle as vehicle
-importchrono.sensor as sensor
+importchrono.sensors as sensors
 importchrono.visualization as vis
 
-
-chrono.SetChronoDataPath()
-sys = chrono.ChSystemNSC()
-sys.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
-
-
-vis_app = vis.ChIrrApp(sys, "Gator Vehicle Simulation", 1024, 768)
-vis_app.AddTypicalLights()
-vis_app.AddTypicalLogo()
-vis_app.SetCamera(chrono.ChVectorD(0, 10, -20), chrono.ChVectorD(0, 0, 0))
-
-
-gator = vehicle.Gator()
-gator.Initialize(sys, True, True)  
-
-
-gator.GetChassis().SetVisualizationType(chrono.ChVisualizationType.VT_MESH)
-gator.GetLeftWheel().SetVisualizationType(chrono.ChVisualizationType.VT_SIMPLE)
-gator.GetRightWheel().SetVisualizationType(chrono.ChVisualizationType.VT_SIMPLE)
-
-
-terrain = chrono.ChBody()
-terrain.SetBodyFixed(True)
-terrain.SetCollisionShape(chrono.ChCollisionShape(chrono.ChPlane()))
-terrain.GetCollisionModel().SetMaterialSurface(chrono.ChMaterialSurface(0.5, 0.5))
-sys.AddBody(terrain)
-
-
-driver = vehicle.ChInteractiveDriver(sys, vis_app.GetInput())
-driver.Initialize(gator.GetDriver(), True, True)
-
-
-sensor_mgr = sensor.ChSensorManager(sys)
-sensor_mgr.AttachTo(chrono.ChNodePoint(gator.GetChassis()))
-sensor_mgr.AddPointLight(chrono.ChVectorD(0, 1, 0), 100, 1, 1, 1)
-sensor_mgr.AddCamera(640, 480, 90, 0.1, 100)
-
-
-def on_key_press(event):
-    if event.Key == 27:  
-        vis_app.Quit()
-
-vis_app.AddKeyDownCallback(on_key_press)
-
-
-vis_app.Begin()
-while vis_app.Run():
+def create_gator_simulation():
     
-    driver.Synchronize()
-    
-    
-    terrain.Update()
-    
-    
-    gator.Update()
-    
-    
-    sensor_mgr.Update()
-    
-    
-    sys.DoStepDynamics(chrono.ChRealtimeStep())
+    system = chrono.ChSystem()
+    system.SetGravity(chrono.ChVectorD(0, -9.81, 0))
 
-vis_app.End()
+    
+    gator = vehicle.Gator()
+    gator.Initialize(system, chrono.ChCoordsysD(chrono.ChVectorD(0, 0.5, 1), chrono.ChQuaternionD(1, 0, 0, 0)))
+
+    
+    gator.SetChassisVisualizationType(vehicle.ChassisVisualizationType.TEXTURE)
+    gator.SetWheelVisualizationType(vehicle.WheelVisualizationType.MESH)
+    gator.SetSuspensionVisualizationType(vehicle.SuspensionVisualizationType.RIGIDLINKS)
+    gator.SetSteeringVisualizationType(vehicle.SteeringVisualizationType.RIGIDLINKS)
+    gator.SetTransmissionVisualizationType(vehicle.TransmissionVisualizationType.RIGIDLINKS)
+    gator.SetDrivelineVisualizationType(vehicle.DrivelineVisualizationType.RIGIDLINKS)
+
+    
+    terrain = chrono.ChTerrain(system)
+    terrain.SetSize(100, 100)
+    terrain.SetPosition(chrono.ChVectorD(0, 0, 0))
+    terrain.SetTextureRepeat(20, 20)
+    terrain.SetMaterial(chrono.ChMaterialSurface())
+    terrain.SetCollisionMaterial(chrono.ChMaterialSurface())
+    terrain.Build()
+
+    
+    driver = chrono.ChDriver()
+    driver.Attach(gator.GetChassis())
+    driver.SetInputType(chrono.ChDriver.INPUT_KEYBOARD)
+
+    
+    sensor_manager = sensors.ChSensorManager(system)
+    sensor_manager.SetRenderScene(True)
+
+    
+    camera = sensors.ChCameraSensor()
+    camera.SetName("Main Camera")
+    camera.SetPosition(chrono.ChVectorD(0, 1, 3))
+    camera.SetRotation(chrono.ChQuaternionD(1, 0, 0, 0))
+    camera.SetViewport(0, 0, 640, 480)
+    camera.AttachTo(gator.GetChassis())
+    sensor_manager.AddSensor(camera)
+
+    
+    light1 = sensors.ChPointLight()
+    light1.SetName("Light 1")
+    light1.SetPosition(chrono.ChVectorD(10, 10, 10))
+    light1.SetIntensity(100)
+    sensor_manager.AddSensor(light1)
+
+    light2 = sensors.ChPointLight()
+    light2.SetName("Light 2")
+    light2.SetPosition(chrono.ChVectorD(-10, 10, 10))
+    light2.SetIntensity(100)
+    sensor_manager.AddSensor(light2)
+
+    
+    vis.addAllVisualizationAssets(gator)
+    vis.addAllVisualizationAssets(terrain)
+
+    
+    for step in range(1000):
+        
+        driver.Update()
+
+        
+        terrain.Update()
+
+        
+        gator.Update()
+
+        
+        sensor_manager.Update()
+
+        
+        sensor_manager.Render()
+
+        
+        system.DoStepDynamics(0.01)
+
+        
+        system.Synchronize()
+
+    return system
+
+
+system = create_gator_simulation()

@@ -1,69 +1,69 @@
 importchrono
 import math
-import time
 
 
-import pychrono as chrono
-import pychrono.vehicle as vehicle
-import pychrono.irrlicht as irr
+chrono.CHRONO_INIT()
 
 
-system = chrono.ChSystem()
+system = chrono.ChSystemNSC()
 system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  
 
 
-veh = vehicle.UAZBUS()
-veh.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 1), chrono.ChQuaternionD(1, 0, 0, 0)))
-veh.SetChassisFixed(False)
-veh.Initialize(system)
-
-
-terrain = vehicle.ChTerrain()
-terrain.SetPlane(chrono.ChVectorD(0, 0, 1), 0)  
+terrain = chrono.ChRigidTerrain(system)
+terrain.SetDimensions(20, 20)  
+terrain.SetHeight(0)  
 terrain.SetFriction(0.9)  
 terrain.SetRestitution(0.5)  
-terrain.SetDimensions(100, 100)  
-terrain.Initialize(system)
+terrain.SetCollisionMargin(0.05)  
+terrain.Build()
 
 
-driver = vehicle.ChDriver()
-driver.SetThrottle(0.5)  
-driver.SetSteering(0)    
-driver.Initialize(veh.GetDriverInputs())
+vehicle = chrono.vehicle.UAZBUS()
+vehicle.SetChassisInitialPosition(chrono.ChVectorD(0, 0, 1))  
+vehicle.SetChassisInitialRotation(chrono.ChQuaternionD(1, 0, 0, 0))  
+vehicle.Initialize()
 
 
-vis = irr.ChIrrApp(system, "UAZBUS Simulation", irr.dimension2du(800, 600))
-vis.AddTypicalLights()  
-vis.AddLight(chrono.ChVectorD(0, 10, 10), chrono.ChColor(1, 1, 1))  
-vis.AddAllTypicalCameras()
-vis.SetCamera(chrono.ChVectorD(5, 0, 5), chrono.ChVectorD(0, 0, 0))  
+driver = chrono.vehicle.ChDriver()
+driver.Initialize(vehicle.GetDriverInputs())
+driver.SetTargetSpeed(10)  
 
 
-simulation_time = 10.0  
-timestep = 0.01        
-time = 0.0
+app = chrono.ChIrrApp(system, "UAZBUS Simulation", chrono.CHIRR_SIZE(800, 600))
+app.SetCameraPosition(chrono.ChVectorD(10, 0, 5))  
+app.SetCameraRotation(chrono.ChQuaternionD(1, 0, 0, 0))  
+app.AddLight(chrono.ChVectorD(0, 0, 5), chrono.ChColor(1, 1, 1))  
+app.AddGridDecoration()  
 
-while time < simulation_time:
+
+app.AddChassis(vehicle.GetChassis())
+
+
+step_size = 0.01  
+num_steps = 1000  
+
+
+for i in range(num_steps):
     
-    driver.Synchronize(time)
-    driver.Update(veh.GetDriverInputs())
-    
-    
-    veh.Update(time)
-    
-    
-    system.DoStepDynamics(timestep)
-    
-    
-    vis.BeginScene()
-    vis.Render()
-    vis.EndScene()
+    vehicle.Update(step_size)
     
     
-    if vis.GetDevice().GetKey( irr.KEY_ESCAPE ):
+    driver.Update(step_size)
+    
+    
+    terrain.Update()
+    
+    
+    app.BeginScene()
+    app.DrawAll()
+    app.EndScene()
+    
+    
+    system.DoStepDynamics(step_size)
+    
+    
+    if app.GetDevice().IsKeyDown(chrono.KEY_ESCAPE):
         break
-    
-    time += timestep
 
 
-vis.GetDevice().Close()
+chrono.CHRONO_SHUTDOWN()

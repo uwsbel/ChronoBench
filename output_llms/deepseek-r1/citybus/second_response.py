@@ -20,6 +20,7 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 # Rigid terrain
+# terrain_model = veh.RigidTerrain.BOX
 terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
@@ -69,8 +70,8 @@ patch = terrain.AddPatch(patch_mat,
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
-
 # Create the vehicle Irrlicht interface
+
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('City Bus Demo')
 vis.SetWindowSize(1280, 1024)
@@ -81,14 +82,13 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
-# Create and initialize the data-driven driver system
-driver_data = veh.vector_Entry()
-driver_data.push_back(veh.DataDriverEntry(0.0, 0.0, 0.0, 0.0))  # time, steering, throttle, braking
-driver_data.push_back(veh.DataDriverEntry(0.1, 0.0, 1.0, 0.0))
-driver_data.push_back(veh.DataDriverEntry(0.5, 0.7, 1.0, 0.0))
+# Create the driver system (data-driven)
+driver_data = []
+driver_data.append(veh.DataDriverEntry(0.0, 0.0, 0.0, 0.0))   # time, steering, throttle, braking
+driver_data.append(veh.DataDriverEntry(0.1, 0.0, 1.0, 0.0))
+driver_data.append(veh.DataDriverEntry(0.5, 0.7, 1.0, 0.0))
 
 driver = veh.ChDataDriver(vehicle.GetVehicle(), driver_data)
-driver.Initialize()
 
 # output vehicle mass
 print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
@@ -96,7 +96,7 @@ print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
 
-# Initialize simulation frame counter
+# Initialize simulation frame counter s
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
@@ -104,7 +104,7 @@ render_frame = 0
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
 
-    # Render scene
+    # Render scene and output POV-Ray data
     if (step_number % render_steps == 0) :
         vis.BeginScene()
         vis.Render()
@@ -125,9 +125,7 @@ while vis.Run() :
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
-    
     # Increment frame number
     step_number += 1
-    
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)

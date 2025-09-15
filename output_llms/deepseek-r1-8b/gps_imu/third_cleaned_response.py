@@ -43,7 +43,7 @@ render_step_size = 1.0 / 50
 log_step_size = 1.0 / 20    
 
 
-vehicle = veh.HMMWV_Full()  
+vehicle = veh.HMMWV_Full() 
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
@@ -67,8 +67,8 @@ patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-patch = terrain.AddPatch(patch_mat,
-                         chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
+patch = terrain.AddPatch(patch_mat, 
+                         chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
                          terrainLength, terrainWidth)
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
@@ -91,7 +91,7 @@ driver = veh.ChInteractiveDriverIRR(vis)
 
 steering_time = 1.0  
 throttle_time = 1.0  
-braking_time = 0.3    
+braking_time = 0.3   
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
@@ -102,7 +102,7 @@ manager = sens.ChSensorManager(vehicle.GetSystem())
 
 
 offset_pose = chrono.ChFramed(chrono.ChVector3d(0, 0, 1), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0)))
-imu = sens.ChAccelerometerSensor(vehicle.GetChassisBody(),
+imu = sens.ChAccelerometerSensor(vehicle.GetChassisBody(),                     
                                  10,        
                                  offset_pose,          
                                  sens.ChNoiseNone())   
@@ -115,7 +115,7 @@ imu.PushFilter(sens.ChFilterAccelAccess())
 manager.AddSensor(imu)
 
 
-gps = sens.ChGPSSensor(vehicle.GetChassisBody(),
+gps = sens.ChGPSSensor(vehicle.GetChassisBody(),                     
                        10,        
                        offset_pose,          
                        chrono.ChVector3d(-89.400, 43.070, 260.0),  
@@ -161,7 +161,6 @@ while vis.Run():
     
     driver.SetThrottle(0.5)
     driver.SetSteering(0.6)
-    driver_inputs = driver.GetInputs()
     
     
     driver.Synchronize(time)
@@ -185,11 +184,12 @@ while vis.Run():
     realtime_timer.Spin(step_size)
 
 
-plt.figure(figsize=(12, 6))
-plt.plot(gps_data, label='GPS Trajectory')
+plt.figure(figsize=(10, 7))
+plt.plot(gps_data, linestyle='-', marker='o')
 plt.xlabel('Time (seconds)')
-plt.ylabel('Position (latitude, longitude)')
-plt.title('HMMWV GPS Data')
-plt.legend()
+plt.ylabel('Position (lat, lon)')
+plt.title('HMMWV GPS Trajectory')
+plt.grid(True)
 plt.show()
+
 print("GPS Data: ", gps_data)

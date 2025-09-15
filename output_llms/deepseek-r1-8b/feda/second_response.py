@@ -47,8 +47,8 @@ vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 
-# Initialize vehicle components
 vehicle.Initialize()
+
 vehicle.SetChassisVisualizationType(vis_type)
 vehicle.SetSuspensionVisualizationType(vis_type)
 vehicle.SetSteeringVisualizationType(vis_type)
@@ -62,8 +62,8 @@ patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-patch = terrain.AddPatch(patch_mat, 
-    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
+patch = terrain.AddPatch(patch_mat,
+    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
     terrainLength, terrainWidth)
 
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
@@ -76,21 +76,38 @@ vis.SetWindowTitle('FEDA vehicle')
 vis.SetWindowSize(1280, 1024)
 vis.SetChaseCamera(trackPoint, 6.0, 0.5)
 vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddLightDirectional()
+vis.AddSkyBox()
+vis.AttachVehicle(vehicle.GetVehicle())
 
-# Add path follower for autonomous driving
-path = veh.ChVehiclePathFollower()
-path.SetTargetSpeed(10.0)
-path.SetLookahead(5.0)
-path.SetGains(0.1, 0.1, 0.1, 0.1)  # steer, angle, speed
-vehicle.GetSystem().AddVehiclePath(path)
-path.AttachVehicle(vehicle.GetVehicle())
-path.SetActive()
+# Create the path-follower driver system
+driver = veh.ChDriver(vehicle.GetVehicle())
+driver.SetDriverType(veh.ChDriverType_CRUISECONTROL)
+driver.SetTargetSpeed(10.0)  # Set target speed for path-follower
 
-# Remove interactive driver system
-# driver = veh.ChInteractiveDriverIRR(vis)
+# Create path for double lane change maneuver
+waypoints = [
+    chrono.ChCoordsysd(chrono.ChVector3d(-50, 0, 0.5), chrono.QUNIT),
+    chrono.ChCoordsysd(chrono.ChVector3d(-50, 1.5, 0.5), chrono.QUNIT),
+    chrono.ChCoordsysd(chrono.ChVector3d(0, 1.5, 0.5), chrono.QUNIT),
+    chrono.ChCoordsysd(chrono.ChVector3d(0, -1.5, 0.5), chrono.QUNIT),
+    chrono.ChCoordsysd(chrono.ChVector3d(50, -1.5, 0.5), chrono.QUNIT),
+    chrono.ChCoordsysd(chrono.ChVector3d(50, 0, 0.5), chrono.QUNIT),
+    chrono.ChCoordsysd(chrono.ChVector3d(50, 1.5, 0.5), chrono.QUNIT),
+    chrono.ChCoordsysd(chrono.ChVector3d(0, 1.5, 0.5), chrono.QUNIT)
+]
+driver.GetPath().AddPathWaypoints(waypoints)
+driver.GetPath().SetLookaheadDistance(5.0)  # Set look-ahead distance
+driver.GetPath().SetPathWidth(1.5)  # Set path width for double lane change
 
-# Initialize path follower
-path.Initialize()
+# Configure steering and speed controllers
+steering_gain = 0.1
+speed_gain = 0.5
+driver.GetSteeringController().SetGain(steering_gain)
+driver.GetSpeedController().SetGain(speed_gain)
+
+driver.Initialize()
 
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
@@ -111,14 +128,15 @@ while vis.Run():
         render_frame += 1
 
     # Update modules
+    driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time)
     vis.Synchronize(time)
 
     # Advance simulation for one timestep
+    driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
-    vis.Advance(step_size)
 
     # Increment frame number
     step_number += 1

@@ -19,75 +19,52 @@ sys = chrono.ChSystemNSC()
 sys.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 coll = sys.GetCollisionSystem()
 
-# Create three spheres for the three-body problem
+# Create three spheres with specified positions and velocities
 sphere_mat = chrono.ChContactMaterialNSC()
 sphere_mat.SetFriction(0.2)
 
 # Sphere 1
-msphereBody = chrono.ChBodyEasySphere(2.1, 1800, True, True, sphere_mat)
-msphereBody.SetPos(chrono.ChVector3d(1, 1, 0))
-msphereBody.SetPos_dt(chrono.ChVector3d(0.5, 0, 0.1))  # Initial velocity
-msphereBody.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
-sys.Add(msphereBody)
+msphereBody1 = chrono.ChBodyEasySphere(2.1, 1800, True, True, sphere_mat)
+msphereBody1.SetPos(chrono.ChVector3d(1, 1, 0))
+msphereBody1.SetPosDt(chrono.ChVector3d(0.5, 0, 0.1))  # Initial velocity
+msphereBody1.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
+sys.Add(msphereBody1)
 
 # Sphere 2
-sphere2 = chrono.ChBodyEasySphere(2.1, 1800, True, True, sphere_mat)
-sphere2.SetPos(chrono.ChVector3d(-10, -10, 0))
-sphere2.SetPos_dt(chrono.ChVector3d(-0.5, 0, -0.1))  # Initial velocity
-sphere2.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
-sys.Add(sphere2)
+msphereBody2 = chrono.ChBodyEasySphere(2.1, 1800, True, True, sphere_mat)
+msphereBody2.SetPos(chrono.ChVector3d(-10, -10, 0))
+msphereBody2.SetPosDt(chrono.ChVector3d(-0.5, 0, -0.1))  # Initial velocity
+msphereBody2.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
+sys.Add(msphereBody2)
 
 # Sphere 3
-sphere3 = chrono.ChBodyEasySphere(2.1, 1800, True, True, sphere_mat)
-sphere3.SetPos(chrono.ChVector3d(0, 20, 0))
-sphere3.SetPos_dt(chrono.ChVector3d(0, -0.5, 0.2))  # Initial velocity
-sphere3.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
-sys.Add(sphere3)
-
-# Create an emitter
-emitter = chrono.ChParticleEmitter()
-emitter.SetParticlesPerSecond(2000)
-emitter.SetUseParticleReservoir(True)
-emitter.SetParticleReservoirAmount(200)
-
-# Randomizers for particle properties
-emitter_positions = chrono.ChRandomParticlePositionOnGeometry()
-emitter_positions.SetGeometry(chrono.ChBox(50, 50, 50), chrono.ChFramed())
-emitter.SetParticlePositioner(emitter_positions)
-
-emitter_rotations = chrono.ChRandomParticleAlignmentUniform()
-emitter.SetParticleAligner(emitter_rotations)
-
-mvelo = chrono.ChRandomParticleVelocityAnyDirection()
-mvelo.SetModulusDistribution(chrono.ChUniformDistribution(0.0, 0.5))
-emitter.SetParticleVelocity(mvelo)
-
-mangvelo = chrono.ChRandomParticleVelocityAnyDirection()
-mangvelo.SetModulusDistribution(chrono.ChUniformDistribution(0.0, 0.2))
-emitter.SetParticleAngularVelocity(mangvelo)
-
-mcreator_spheres = chrono.ChRandomShapeCreatorSpheres()
-mcreator_spheres.SetDiameterDistribution(chrono.ChZhangDistribution(0.6, 0.23))
-mcreator_spheres.SetDensityDistribution(chrono.ChConstantDistribution(1600))
-emitter.SetParticleCreator(mcreator_spheres)
+msphereBody3 = chrono.ChBodyEasySphere(2.1, 1800, True, True, sphere_mat)
+msphereBody3.SetPos(chrono.ChVector3d(0, 20, 0))
+msphereBody3.SetPosDt(chrono.ChVector3d(0, -0.5, 0.2))  # Initial velocity
+msphereBody3.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
+sys.Add(msphereBody3)
 
 # Create the Irrlicht visualization
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(sys)
 vis.SetWindowSize(1024, 768)
-vis.SetWindowTitle('Three-Body Particle Emitter Demo')
+vis.SetWindowTitle('Three-Body Simulation')
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()
 vis.AddCamera(chrono.ChVector3d(0, 14, -20))
 vis.AddTypicalLights()
 
+# Register the callback for all bodies
 mcreation_callback = MyCreatorForAll(vis, coll)
-emitter.RegisterAddBodyCallback(mcreation_callback)
 
+# Simulation settings
 sys.SetSolverType(chrono.ChSolver.Type_PSOR)
 sys.GetSolver().AsIterative().SetMaxIterations(40)
-sys.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, 0))
+sys.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, 0))  # No external gravity
+
+# Reduced gravitational constant for simulation purposes
+G_constant = 6.674e-3
 
 # Simulation loop
 stepsize = 1e-2
@@ -97,39 +74,35 @@ while vis.Run():
     vis.Render()
     vis.EndScene()
 
-    emitter.EmitParticles(sys, stepsize)
-
+    # Clear accumulators
     for body in sys.GetBodies():
         body.EmptyAccumulators()
 
-    G_constant = 6.674e-3  # Modified gravitational constant
-
-    # Calculate the total kinetic energy of the system
+    # Calculate kinetic and potential energy
     kinetic_energy = 0
     for body in sys.GetBodies():
         mass = body.GetMass()
-        velocity = body.GetPos_dt()
+        velocity = body.GetPosDt()
         kinetic_energy += 0.5 * mass * velocity.Length2()
 
-    # Calculate the total potential energy of the system (using gravitational potential)
     potential_energy = 0
     for abodyA, abodyB in combinations(sys.GetBodies(), 2):
         D_attract = abodyB.GetPos() - abodyA.GetPos()
         r_attract = D_attract.Length()
         potential_energy += -G_constant * (abodyA.GetMass() * abodyB.GetMass()) / r_attract
 
-    # Total energy of the system
-    total_energy = kinetic_energy + potential_energy
-    mlist = list(combinations(sys.GetBodies(), 2))
-    for abodyA, abodyB in mlist:
+    # Apply gravitational forces
+    for abodyA, abodyB in combinations(sys.GetBodies(), 2):
         D_attract = abodyB.GetPos() - abodyA.GetPos()
         r_attract = D_attract.Length()
-        f_attract = G_constant * (abodyA.GetMass() * abodyB.GetMass()) / (r_attract ** 2)
-        F_attract = (D_attract / r_attract) * f_attract
-        abodyA.AccumulateForce(F_attract, abodyA.GetPos(), False)
-        abodyB.AccumulateForce(-F_attract, abodyB.GetPos(), False)
+        if r_attract > 0:  # Avoid division by zero
+            f_attract = G_constant * (abodyA.GetMass() * abodyB.GetMass()) / (r_attract ** 2)
+            F_attract = (D_attract / r_attract) * f_attract
+            abodyA.AccumulateForce(F_attract, abodyA.GetPos(), False)
+            abodyB.AccumulateForce(-F_attract, abodyB.GetPos(), False)
 
-    # Print the energy values
+    # Print energy values
+    total_energy = kinetic_energy + potential_energy
     print(
         f"Kinetic Energy: {kinetic_energy:.6f}, Potential Energy: {potential_energy:.6f}, Total Energy: {total_energy:.6f}")
 

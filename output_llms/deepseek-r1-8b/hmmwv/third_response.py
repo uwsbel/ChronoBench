@@ -64,13 +64,12 @@ patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-patch = terrain.AddPatch(patch_mat,chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),terrainLength, terrainWidth)
+patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), terrainLength, terrainWidth)
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 # Create the vehicle Irrlicht interface
-
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('HMMWV Demo')
 vis.SetWindowSize(1280, 1024)
@@ -81,51 +80,55 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
-# Custom Driver Class
+# Custom Driver Class Implementation
 class MyDriver(veh.ChDriver):
     def __init__(self, delay=0.5):
         super().__init__()
         self.delay = delay
-        self.last_sync_time = 0.0
+        self.throttle = 0.0
+        self.steering = 0.0
+        self.braking = 0.0
+        self.throttle_time = 0.0
+        self.steering_time = 0.0
 
-    def Synchronize(self, time):
-        time_elapsed = time - self.last_sync_time
-        if time_elapsed > 1e-7:  # Avoid division by zero
-            self.last_sync_time = time
+    def Synchronize(self, time, driver_inputs):
+        # Apply delay to driver inputs
+        if time - self.last_time >= self.delay:
+            self.last_time = time
 
-        # Throttle control
-        if time > 2.0:
-            max_throttle = 0.7
-            if time < 2.0 + 0.2:
-                throttle = 0.0 + (max_throttle - 0.0) * (time - 2.0) / 0.2
+            # Update control inputs
+            self.throttle = min(1.0, max(0.0, self.throttle + (time - self.last_time) / 2.0))
+            
+            # Sinusoidal steering pattern starting at 2 seconds
+            if time >= 2.0:
+                self.steering = math.sin((time - 2.0) * 2.0) * 0.5
             else:
-                throttle = max_throttle
-        else:
-            throttle = 0.0
+                self.steering = 0.0
+            
+            # Braking at 3 seconds
+            if time >= 3.0:
+                self.braking = 1.0
+            else:
+                self.braking = 0.0
 
-        # Steering control
-        if time > 2.0:
-            steering = 1.0 * math.sin((time - 2.0) * 2.0) / 2.0
-            steering *= 0.8  # Dampening effect
-        else:
-            steering = 0.0
+        # Apply controls
+        self.driverInputs.Throttle = self.throttle
+        self.driverInputs.Steering = self.steering
+        self.driverInputs.Braking = self.braking
 
-        # Braking control
-        if time > 4.0:
-            braking = 1.0
-        else:
-            braking = 0.0
-
-        self.SetThrottle(throttle)
-        self.SetSteering(steering)
-        self.SetBraking(braking)
-
-# Initialize custom driver
 driver = MyDriver(delay=0.5)
 driver.Initialize()
 
-# Simulation end condition
-simulation_end_time = 4.0
+# Set the time response for steering and throttle keyboard inputs
+steering_time = 1.0  # time to go from 0 to +1 (or from 0 to -1)
+throttle_time = 1.0  # time to go from 0 to +1
+braking_time = 0.3   # time to go from 0 to +1
+driver.SetSteeringDelta(render_step_size / steering_time)
+driver.SetThrottleDelta(render_step_size / throttle_time)
+driver.SetBrakingDelta(render_step_size / braking_time)
+
+# output vehicle mass
+print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
@@ -134,6 +137,8 @@ render_steps = math.ceil(render_step_size / step_size)
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
+
+simulation_end_time = 4.0  # seconds to stop simulation
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
@@ -145,20 +150,17 @@ while vis.Run():
         vis.EndScene()
         render_frame += 1
 
-    # Get driver inputs (not used but required for synchronization)
+    # Get driver inputs
     driver_inputs = driver.GetInputs()
 
     # Update modules (process inputs from other modules)
-    driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
-    vis.Synchronize(time, driver_inputs)
 
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
-    vis.Advance(step_size)
 
     # Increment frame number
     step_number += 1
@@ -169,6 +171,3 @@ while vis.Run():
     # End simulation when time reaches 4 seconds
     if time >= simulation_end_time:
         break
-
-# Terminate visualization
-vis.Terminate()

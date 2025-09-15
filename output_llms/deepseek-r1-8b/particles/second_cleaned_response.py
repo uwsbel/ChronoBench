@@ -2,6 +2,7 @@ import pychrono as chrono
 import pychrono.irrlicht as chronoirr
 from itertools import combinations
 
+
 class MyCreatorForAll(chrono.ChRandomShapeCreator_AddBodyCallback):
     def __init__(self, vis, coll):
         super().__init__()
@@ -13,6 +14,7 @@ class MyCreatorForAll(chrono.ChRandomShapeCreator_AddBodyCallback):
         self.vis.BindItem(body)
         self.coll.BindItem(body)
         body.SetUseGyroTorque(False)
+
 
 
 sys = chrono.ChSystemNSC()
@@ -86,27 +88,34 @@ while vis.Run():
 
     emitter.EmitParticles(sys, stepsize)
 
+    
     for body in sys.GetBodies():
         body.EmptyAccumulators()
 
     
-    kinetic_energy = 0.0
-    for body in sys.GetBodies():
-        velocity = body.GetVelocity()
-        mass = body.GetMass()
-        kinetic_energy += 0.5 * mass * velocity.Length2()
+    total_kinetic = 0.0
+    total_potential = 0.0
 
     
-    potential_energy = 0.0
-    for abodyA, abodyB in combinations(sys.GetBodies(), 2):
-        D_attract = abodyB.GetPos() - abodyA.GetPos()
-        r_attract = D_attract.Length()
-        if r_attract > 1e-10:  
-            potential_energy -= G_constant * (abodyA.GetMass() * abodyB.GetMass()) / (r_attract ** 2)
+    for body in sys.GetBodies():
+        mass = body.GetMass()
+        vel = body.GetVelocity()
+        total_kinetic += 0.5 * mass * vel.Length2()
 
-    total_energy = kinetic_energy + potential_energy
-    print(f"Kinetic Energy: {kinetic_energy:.3f}")
-    print(f"Potential Energy: {potential_energy:.3f}")
-    print(f"Total Energy: {total_energy:.3f}")
+    
+    for bodyA, bodyB in combinations(sys.GetBodies(), 2):
+        r_attract = (bodyA.GetPos() - bodyB.GetPos()).Length()
+        if r_attract < 1e-10:  
+            continue
+        potential_energy = -G_constant * (bodyA.GetMass() * bodyB.GetMass()) / (r_attract ** 2)
+        total_potential += potential_energy
+
+    total_energy = total_kinetic + total_potential
+
+    
+    print(f"Step: {stepsize:.3f}")
+    print(f"Kinetic Energy: {total_kinetic:.3f}")
+    print(f"Potential Energy: {total_potential:.3f}")
+    print(f"Total Energy: {total_energy:.3f}\n")
 
     sys.DoStepDynamics(stepsize)

@@ -1,27 +1,25 @@
 import pychrono as ch
 import pychrono.ros as chros
-import rclpy.publisher
+import rclpy
+from rclpy.publisher import Publisher
 from std_msgs.msg import Int64
-import chvis
-from pychrono.ros.chros_handler import ChROSHandler
 import time
 
 
-class MyCustomHandler(ChROSHandler):
+class MyCustomHandler(chros.ChROSHandler):
     
 
-    def __init__(self, topic):
+    def __init__(self, topic, publish_rate=10):
         super().__init__(1)  
         self.topic = topic
-        self.publisher: rclpy.publisher.Publisher = None
+        self.publisher: Publisher = None
         self.ticker = 0  
-        self.publish_rate = 10  
+        self.publish_rate = publish_rate  
 
     def Initialize(self, interface: chros.ChROSPythonInterface) -> bool:
         
         print(f"Creating publisher for topic {self.topic} ...")
-        
-        self.publisher = interface.GetNode().create_publisher(Int64, self.topic, self.publish_rate)
+        self.publisher = interface.GetNode().create_publisher(Int64, self.topic, 1)
         return True  
 
     def Tick(self, time: float):
@@ -31,9 +29,11 @@ class MyCustomHandler(ChROSHandler):
         msg.data = self.ticker  
         self.publisher.publish(msg)  
         self.ticker += 1  
-        
-        if self.ticker >= 10:
-            self.ticker = 0
+        time.sleep(self.publish_rate * 1e-6)  
+
+def SetTexture(body: ch.ChBody, texture_path: str):
+    
+    body.SetTexture(ch.ChTexture2d(texture_path))
 
 def main():
     
@@ -59,6 +59,15 @@ def main():
     sys.Add(box)  
 
     
+    renderer = ch.ChIrrRenderer(sys.GetName())
+    renderer.SetCoordinateSystem(ch.ChVector3d(0, 0, 0), ch.ChVector3d(1, 0, 0), ch.ChVector3d(0, 1, 0))
+    renderer.SetCameraDistance(5, 1)
+    renderer.SetLightSetup(ch.ChLightSetup())
+    renderer.GetLightSetup().Add(ch.ChLightPos(0, 0, 5, 0, 0, 0))
+    renderer.GetLightSetup().EnableSkyRenderer(True)
+    renderer.GetLightSetup().SetSkyRendererParameters(1024, 1024, 5, 16, 12)
+
+    
     ros_manager = chros.ChROSPythonManager()
     
     
@@ -73,32 +82,22 @@ def main():
     ros_manager.RegisterHandler(tf_handler)
     
     
-    custom_handler = MyCustomHandler("~/my_topic")
+    custom_handler = MyCustomHandler("~/my_topic", 10)
     ros_manager.RegisterPythonHandler(custom_handler)
 
     
     ros_manager.Initialize()
 
     
-    scene = chvis.Scene()
-    scene.background = chvis.Color(0, 0, 0)
-    camera = scene.add_camera("perspective", position=(5, 5, 5), look_at=(0, 0, 0))
-    light = scene.add_light("directional", position=(10, 10, 10), color=(1, 1, 1))
-    window = scene.add_window()
-    window.set_size(800, 600)
-    window.set_position(chvis.Vector2i(100, 100))
-    window.set_caption("PyChrono ROS Simulation")
-
-    
-    floor_texture_path = "floor_texture.png"
-    box_texture_path = "box_texture.png"
-    floor.SetTexture(chvis.Texture2D(floor_texture_path, True))
-    box.SetTexture(chvis.Texture2D(box_texture_path, True))
-
-    
     step_number = 0
-    render_step_size = 0.01  
-    render_steps = 100  
+    render_step_size = 100  
+    render_steps = 10      
+
+    
+    import threading
+    render_thread = threading.Thread(target=render_scene, args=(sys, renderer, render_step_size, render_steps))
+    render_thread.daemon = True
+    render_thread.start()
 
     
     time = 0
@@ -110,16 +109,30 @@ def main():
         sys.DoStepDynamics(time_step)  
         time = sys.GetChTime()  
 
-        
-        if step_number % render_steps == 0:
-            
-            scene.update()
-            step_number += 1
-
         if not ros_manager.Update(time, time_step):  
             break  
 
         realtime_timer.Spin(time_step)  
+
+        
+        step_number += 1
+        if step_number % render_step_size == 0:
+            render_scene(sys, renderer, render_step_size, render_steps)
+
+    
+    render_thread.join()
+
+def render_scene(sys, renderer, render_step_size, render_steps):
+    
+    import time
+    last_render_time = time.time() * 1e-6
+    while True:
+        current_time = time.time() * 1e-6
+        elapsed = current_time - last_render_time
+        if elapsed >= (1 / render_steps) * 1e-6:
+            renderer.Update(sys, ch.ChVector3d(current_time - sys.GetChTime()))
+            last_render_time = current_time
+            time.sleep(1 / render_steps)
 
 
 if __name__ == "__main__":

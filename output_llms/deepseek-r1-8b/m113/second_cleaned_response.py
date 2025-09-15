@@ -17,23 +17,25 @@ vis_type = veh.VisualizationType_MESH
 chassis_collision_type = veh.CollisionType_NONE
 
 
-
-patch_mat = chrono.ChContactMaterialSMC()
-patch_mat.SetFriction(0.6)
-patch_mat.SetRestitution(0.3)
-patch_mat.SetDeformation(0.2)
-patch_mat.SetPressure(1.0)
-
-
-terrain = veh.SCMTerrain(vehicle.GetSystem())
-patch = terrain.AddPatch(patch_mat,
-    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
-    100, 100)
+scm_height = 10.0  
+scm_width = 100.0  
+scm_depth = 100.0  
+scm_res = 100       
+scm_texture = "dirt"
 
 
-patch.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 200, 200)
-patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
-terrain.Initialize()
+trackPoint = chrono.ChVector3d(0.0, 0.0, 0.1)
+
+
+contact_method = chrono.ChContactMethod_SMC
+contact_vis = False
+
+
+step_size = 5e-4
+tire_step_size = step_size
+
+
+render_step_size = 1.0 / 50  
 
 
 vehicle = veh.M113()
@@ -47,7 +49,6 @@ vehicle.SetBrakeType(veh.BrakeType_SIMPLE)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.Initialize()
 
-
 vehicle.SetChassisVisualizationType(vis_type)
 vehicle.SetSprocketVisualizationType(vis_type)
 vehicle.SetIdlerVisualizationType(vis_type)
@@ -56,8 +57,18 @@ vehicle.SetSuspensionVisualizationType(vis_type)
 vehicle.SetRoadWheelVisualizationType(vis_type)
 vehicle.SetTrackShoeVisualizationType(vis_type)
 
-
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+
+
+scm_mat = chrono.ChContactMaterialSCM()
+scm_mat.SetFriction(0.8)
+scm_mat.SetRestitution(0.3)
+terrain = veh.SCMTerrain(vehicle.GetSystem())
+terrain.InitializeSCMTerrain(
+    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
+    scm_height, scm_width, scm_depth, scm_res,
+    scm_texture
+)
 
 
 vis = veh.ChTrackedVehicleVisualSystemIrrlicht()
@@ -78,13 +89,14 @@ steering_time = 1.0
 throttle_time = 1.0  
 braking_time = 0.3   
 driver.SetSteeringDelta(render_step_size / steering_time)
-driver.SetThrottleDelta(render_step_size / throttle_time)  
+driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
 
 driver.Initialize()
 
 
-vehicle.GetSystem().SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
+
+vehicle.GetSystem().SetSolverType(chrono.ChSolver.Type_CGNS)
 
 
 render_steps = math.ceil(render_step_size / step_size)
@@ -93,11 +105,10 @@ render_steps = math.ceil(render_step_size / step_size)
 step_number = 0
 render_frame = 0
 vehicle.GetVehicle().EnableRealtime(True)
-
-while vis.Run():
+while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
     
-    if (step_number % render_steps == 0):
+    if (step_number % render_steps == 0) :
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
@@ -106,14 +117,9 @@ while vis.Run():
     
     driver_inputs = driver.GetInputs()
     
-    
-    driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs)
     vis.Synchronize(time, driver_inputs)
-    
-    
-    driver.Throttle(0.8)
     
     driver.Advance(step_size)
     terrain.Advance(step_size)

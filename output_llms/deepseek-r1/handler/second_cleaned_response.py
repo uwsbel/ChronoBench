@@ -10,24 +10,23 @@ class MyCustomHandler(chros.ChROSHandler):
 
     def __init__(self, topic):
         super().__init__(1)  
-        self.message = "Hello, world! At time: "  
         self.topic = topic
         self.publisher: rclpy.publisher.Publisher = None
         self.ticker = 0  
+        self.message = "Hello, world! At time: "  
 
     def Initialize(self, interface: chros.ChROSPythonInterface) -> bool:
         
         print(f"Creating publisher for topic {self.topic} ...")
         
-        self.publisher = interface.GetNode().create_publisher(String, self.topic, 1)
+        self.publisher = interface.GetNode().create_publisher(String, self.topic, 1)  
         return True  
 
     def Tick(self, time: float):
         
-        print(f"Publishing {self.ticker} ...")
         msg = String()  
-        
-        msg.data = self.message + str(self.ticker)
+        msg.data = self.message + str(self.ticker)  
+        print(f"Publishing '{msg.data}' ...")
         self.publisher.publish(msg)  
         self.ticker += 1  
 

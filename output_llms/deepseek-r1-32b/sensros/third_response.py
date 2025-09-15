@@ -68,7 +68,6 @@ def main():
     lidar2d.PushFilter(sens.ChFilterPCfromDepth())  # Convert depth data to point cloud.
     lidar2d.PushFilter(sens.ChFilterXYZIAccess())  # Access point cloud data.
     lidar2d.PushFilter(sens.ChFilterVisualizePointCloud(1280, 720, 1,"2D Lidar Scan Data"))  # Visualize the point cloud.
-    lidar2d.SetName("lidar2d")
     sens_manager.AddSensor(lidar2d)
     
     # Create and configure a GPS sensor.
@@ -139,9 +138,10 @@ def main():
         # Update sensors and ROS data.
         sens_manager.Update()
 
-        # Check ROS manager update status
+        # Check if ROS manager update was successful
         if not ros_manager.Update():
-            break  # Exit loop if ROS update fails
+            print("ROS manager update failed. Exiting simulation.")
+            break
 
         sys.DoStepDynamics(time_step)  # Advance the simulation by one time step.
 

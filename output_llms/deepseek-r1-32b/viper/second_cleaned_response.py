@@ -3,8 +3,8 @@ import math
 import numpy as np
 import pychrono as chrono
 import pychrono.robot as viper
+import pychrono.sensor as sens
 from pychrono import irrlicht as chronoirr
-import pychrono.sensor as sens  
 
 
 system = chrono.ChSystemNSC()
@@ -35,7 +35,7 @@ rover.Initialize(chrono.ChFramed(init_pos, init_rot))
 
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
-vis.SetCameraVertical(chronoirr.CameraVerticalDir_Z)
+vis.SetCameraVertical(chrono.CameraVerticalDir_Z)
 vis.SetWindowSize(1280, 720)
 vis.SetWindowTitle('Viper rover - Rigid terrain')
 vis.Initialize()
@@ -49,23 +49,12 @@ vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0
 
 
 
-time_step = 1e-3
-
-
-step_number = 0
-render_step_size = 1.0 / 25  
-render_steps = math.ceil(render_step_size / time_step)
-
-
 manager = sens.ChSensorManager(system)
 intensity = 1.0
 manager.scene.AddPointLight(chrono.ChVector3f(2, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
 
 
-offset_pose = chrono.ChFramed(
-    chrono.ChVector3d(1.0, 0, 1.45),
-    chrono.ChQuaterniond(chrono.Q_from_AngAxis(0.2, chrono.ChVector3d(0, 1, 0)))
-)
+offset_pose = chrono.ChFramed(chrono.ChVector3d(1.0, 0, 1.45), chrono.ChQuatD(chrono.Q_from_AngAxis(0.2, chrono.ChVector3d(0, 1, 0))))
 cam = sens.ChCameraSensor(
     rover.GetChassis().GetBody(),
     15,  
@@ -79,8 +68,16 @@ cam.PushFilter(sens.ChFilterVisualize(720, 480, "Viper Front Camera"))
 manager.AddSensor(cam)
 
 
+time_step = 1e-3
+
+
+step_number = 0
+render_step_size = 1.0 / 25  
+render_steps = math.ceil(render_step_size / time_step)
+
+
 time = 0
-while True:  
+while vis.Run():
     time += time_step  
     steering = 0
     max_steering = math.pi / 6  
@@ -93,18 +90,17 @@ while True:
     
     driver.SetSteering(steering)  
 
+    rover.Update()  
+
     
     manager.Update()
-    
-    rover.Update()  
 
     
     if step_number % render_steps == 0:
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
+    step_number += 1
     
     
     system.DoStepDynamics(time_step)
-    
-    step_number += 1

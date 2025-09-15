@@ -54,8 +54,6 @@ mesh.AddElement(belement2)
 
 
 hnode2.SetForce(chrono.ChVector3d(4, 2, 0))
-
-
 hnode3.SetTorque(chrono.ChVector3d(0, -0.04, 0))
 
 
@@ -76,30 +74,20 @@ sys.Add(constr_d)
 constr_d.SetConstrainedCoords(False, True, True, False, False, False)
 
 
-
 builder = fea.ChBuilderBeamEuler()
-builder.SetNodesPerElement(5)  
-builder.SetTotalLength(0.2)    
-builder.SetSection(msection)   
-builder.SetStartPoint(chrono.ChVector3d(0, 0, -0.1))  
-builder.SetEndPoint(chrono.ChVector3d(0.2, 0, -0.1))   
-builder.SetYAxis(chrono.ChVector3d(0, 1, 0))          
-
-
-beam_mesh = builder.BuildBeam()
-
-
-for node in beam_mesh.GetNodes():
-    mesh.AddNode(node)
-for element in beam_mesh.GetElements():
-    mesh.AddElement(element)
+builder.SetSection(msection)
+builder.SetNodes(5)
+builder.SetStartPoint(chrono.ChVector3d(0, 0, -0.1))
+builder.SetEndPoint(chrono.ChVector3d(0.2, 0, -0.1))
+builder.SetUpY()
+builder.BuildBeam(mesh)
 
 
 last_node = builder.GetLastBeamNodes().back()
 last_node.SetFixed(True)
 
 
-first_node = builder.GetFirstBeamNodes().front()
+first_node = builder.GetFirstBeamNodes().back()
 first_node.SetForce(chrono.ChVector3d(0, -1, 0))
 
 

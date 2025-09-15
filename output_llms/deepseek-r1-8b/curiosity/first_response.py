@@ -1,128 +1,98 @@
-import pychrono as pychrono
-import pychrono.trajectory
-import pychrono.objmodel
-import pychrono.gfx
-import pychrono.gfx.oppengl
+# Initialize PyChrono
+import pychrono as pc
+pc.init()
 
-# Initialize the simulation
-sim = pychrono.Simulation()
-sim.set_real_time(True)
+# Set simulation parameters
+simulation_timestep = 1e-3  # Simulation timestep
+simulation_speed = 1000  # Simulation steps per second
+num_solver_iterations = 10  # Solver iterations
 
-# Add the ground as a static rigid body
-ground = pychrono.RigidBody()
-ground.set_mass(0)  # Mass is zero for a static body
-ground.set_size(50, 50)  # Size of the ground plane
-ground.set_collision_response(True)  # Enable collision response
-ground.set_friction(1.0)  # Friction coefficient
-sim.add_object(ground)
+# Create ground
+ground = pc.RigidBody('ground')
+ground.set_mass(0)
+ground.set_position(pc.Vec3(0, 0, 0))
+ground.set_collision_response(pc.Vec3(1e9, 0, 0))  # Stiff material
 
-# Add the rover as a dynamic rigid body
-rover = pychrono.RigidBody()
-rover.set_mass(200)  # Mass of the rover
-rover.set_size(3.5, 2.5, 2.0)  # Dimensions of the rover
-rover.set_color(1, 0.5, 0)  # Color of the rover
-sim.add_object(rover)
+# Create terrain (uneven ground)
+terrain = []
+# Create boxes for terrain
+for i in range(10):
+    box = pc.RigidBody('terrain_box' + str(i))
+    box.set_mass(0)
+    box.set_size(pc.Vec3(1, 1, 1))
+    box.set_position(pc.Vec3(
+        (i-4)*2, 0, 0.5 + i*0.5
+    ))
+    box.set_collision_response(pc.Vec3(1e9, 0, 0))
+    terrain.append(box)
 
-# Add a motor system for the rover
-motor = pychrono.Motor()
-motor.set_name("steering_motor")  # Name for motor control
-sim.add_actuator(motor)
+# Create rover
+rover = pc.RigidBody('curiosity')
+rover.set_mass(2000)  # Mass of the rover
+rover.set_size(pc.Vec3(4, 2.5, 2))  # Dimensions of the rover
+rover.set_position(pc.Vec3(-2, -1, 0.5))  # Initial position
 
-# Add ground interaction for the rover
-rover_ground_interaction = pychrono.GroundInteraction()
-rover_ground_interaction.set_normal_coeff(1.0)  # Normal force coefficient
-rover_ground_interaction.set_friction_coeff(0.5)  # Friction coefficient
-rover.add_interactor(rover_ground_interaction)
+# Create wheels
+wheels = []
+for i in range(4):
+    wheel = pc.Sphere('wheel' + str(i), 0.5)  # Radius 0.5m
+    wheel.set_position(pc.Vec3(
+        -2 + 0.5, 
+        -1, 
+        0.5
+    ))
+    # Attach wheel to rover
+    wheel_body = pc.Body('wheel_body' + str(i), wheel)
+    wheel_body.set_parent(rover)
+    wheels.append(wheel_body)
 
-# Import Irrlicht for visualization
-import pychrono.gfx.oppengl
-import pychrono.gfx.oppengl.shader
-import pychrono.gfx.oppengl.texture
+# Add motor control
+motor_control = pc.MotorControl('motor_control', 4)  # 4 wheels
+motor_control.add_actuator(rover, 0, pc.MotorType.ROTARY, 100, 1000)  # Front left
+motor_control.add_actuator(rover, 1, pc.MotorType.ROTARY, 100, 1000)  # Front right
+motor_control.add_actuator(rover, 2, pc.MotorType.ROTARY, 100, 1000)  # Rear left
+motor_control.add_actuator(rover, 3, pc.MotorType.ROTARY, 100, 1000)  # Rear right
 
-# Create the renderer
-renderer = pychrono.gfx.Renderer()
-renderer.set_size(800, 600)
-renderer.set_hither(1000.0)
-renderer.set_far(1000.0)
+# Add steering control
+steering_control = pc.PIDControl('steering_control', 4)
+steering_control.add_input('left', pc.PID(10, 0.1, 0.1))
+steering_control.add_input('right', pc.PID(10, 0.1, 0.1))
+steering_control.add_output(motor_control, 0, 'left')
+steering_control.add_output(motor_control, 1, 'right')
 
-# Add lights
-light = pychrono.gfx.Light()
-light.set_position(5, 5, 5)
-light.set_color(1, 1, 1)
-renderer.add_light(light)
+# Set maximum speed
+rover.set_max_linear_velocity(pc.Vec3(0.5, 0, 0))
 
-# Add camera
-camera = pychrono.gfx.Camera()
-camera.set_position(10, 10, 10)
-camera.set_lookat(0, 0, 0)
-camera.set_up(0, 1, 0)
-renderer.add_camera(camera)
+# Set up visualization
+vis = pc.Visualizer('visualization')
+vis.set_camera_position(pc.Vec3(5, 5, 5))
+vis.set_camera.look_at(pc.Vec3(-2, -1, 0.5))
+vis.add_light(pc.DirectionalLight(pc.Vec3(1, 1, 1), pc.Vec3(10, 10, 10)))
+vis.add_ground_plane(ground)
+vis.add_terrain(terrain)
+vis.add_rover(rover)
+vis.add_textures(pc.Texture('ground_texture'), 'ground/ground_texture.png')
+vis.add_textures(pc.Texture('rover_texture'), 'rover/curiosity_texture.png')
+vis.add_hood('curiosity', 'curiosity_hood.png')
 
-# Add ground texture
-ground_texture = pychrono.gfx.Texture()
-ground_texture.load("grass.jpg")
-renderer.add_ground_texture(ground_texture)
-
-# Add rover texture
-rover_texture = pychrono.gfx.Texture()
-rover_texture.load("curiosity_rover.jpg")
-rover.set_texture(rover_texture)
-
-# Define motor control
-motor_controller = pychrono.MotorController()
-motor_controller.set_actuator_name("steering_motor")
-sim.add_controller(motor_controller)
-
-# Define steering input
-steering_input = pychrono.Input("steering", 0.5)  # 0.5 is the default value
-
-# Set gravity
-sim.set_gravity(0, 0, -9.81)
-
-# Set time step
-sim.set_time_step(0.01)
-
-# Set collision response
-sim.set_collision_response(1.0)
-
-# Start the simulation
-sim.start()
-
-# Define a function to handle motor control input
-def motor_control():
-    # Get the current steering input
-    current_input = steering_input.get_value()
+# Function to update motor torques
+def update_motors():
+    current_angle = rover.get_angle(pc.Vec3(0, 1, 0))
+    torque = steering_control.get_output('torque')
     
-    # Calculate the steering angle
-    steering_angle = pychrono.math.radians_to_degrees(current_input * 4.0)
-    
-    # Set the motor torque
-    motor.set_torque(1.0 * np.cos(steering_angle))
-    
-    # Print the current state
-    print("Current Steering Input:", current_input)
-    print("Current Steering Angle:", steering_angle)
-    print("Current Motor Torque:", motor.get_torque())
+    # Apply torques
+    motor_torque = pc.Vec3(
+        torque['left'] * 1000 * pc.nm_to_torque,
+        torque['right'] * 1000 * pc.nm_to_torque,
+        0
+    )
+    motor_control.set_torque(motor_torque)
 
-# Run the simulation with the motor control function
-sim.run(motor_control)
+# Simulation loop
+pc.set_solver(pc.SolverType.FIXED, num_solver_iterations)
+pc.set_simulation_timestep(simulation_timestep)
 
-# Add title and label
-title = pychrono.gfx.Text()
-title.set_font_size(24)
-title.set_text("Curiosity Rover Navigation")
-title.set_position(400, 50)
-renderer.add_text(title)
-
-# Add camera controls
-camera_controls = pychrono.gfx.Controls()
-camera_controls.add_mouse_zoom(True)
-camera_controls.add_mouse_pan(True)
-camera_controls.add_mouse_rotate(True)
-renderer.set_controls(camera_controls)
-
-# Close the renderer
-renderer.close()
-
-# Exit the simulation
-sim.stop()
+while pc.simulate():
+    update_motors()
+    vis.render()
+    pc.wait_for_simulation_step()

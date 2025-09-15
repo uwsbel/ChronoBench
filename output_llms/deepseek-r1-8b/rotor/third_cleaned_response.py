@@ -81,6 +81,18 @@ bearing.Initialize(builder.GetLastBeamNodes().back(),
 sys.Add(bearing)
 
 
+rotmotor1 = chrono.ChLinkMotorRotationSpeed()
+
+
+rotmotor1.Initialize(builder.GetLastBeamNodes().front(),  
+                     truss,  
+                     chrono.ChFramed(builder.GetLastBeamNodes().front().GetPos(),
+                                     chrono.QuatFromAngleAxis(CH_PI / 2.0, chrono.VECT_Y))
+                     
+                     )
+sys.Add(rotmotor1)
+
+
 class ChFunctionMyFun(chrono.ChFunction):
     def __init__(self, A1, A2, T1, T2, T3, w):
         self.A1 = A1
@@ -92,26 +104,16 @@ class ChFunctionMyFun(chrono.ChFunction):
         self.current_time = 0.0
 
     def GetVal(self, x):
-        if x <= self.T1:
-            return self.A1 * (x / self.T1)
-        elif self.T1 <= x <= self.T2:
-            return self.A1
-        elif self.T2 <= x <= self.T3:
-            return self.A1 * ((self.T3 - x) / (self.T3 - self.T2))
+        if x < self.T1:
+            return self.A1 * m.sin(self.w * x)
+        elif self.T1 <= x < self.T2:
+            return self.A2 * m.sin(self.w * x)
         else:
-            return 0.0
+            return 0.0  
 
-rotmotor1 = chrono.ChLinkMotorRotationSpeed()
-rotmotor1.Initialize(builder.GetLastBeamNodes().front(),  
-                     truss,  
-                     chrono.ChFramed(builder.GetLastBeamNodes().front().GetPos(),
-                                     chrono.QuatFromAngleAxis(CH_PI / 2.0, chrono.VECT_Y))
-                     
-                     )
-sys.Add(rotmotor1)
 
-f_ramp = ChFunctionMyFun(A1=1, A2=0.5, T1=2, T2=4, T3=6, w=2*m.pi)
-rotmotor1.SetMotorFunction(f_ramp)
+motor_func = ChFunctionMyFun(1.0, 1.0, 0.0, 0.2, 0.0, 10.0)
+rotmotor1.SetMotorFunction(motor_func)
 
 
 
@@ -140,7 +142,9 @@ vis.AddCamera(chrono.ChVector3d(0, 1, 4), chrono.ChVector3d(beam_L / 2, 0, 0))
 vis.AddTypicalLights()
 
 
-sys.GetTimeStep().SetHHT(10)
+
+
+
 
 msolver = mkl.ChSolverPardisoMKL()
 sys.SetSolver(msolver)

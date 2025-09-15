@@ -1,97 +1,89 @@
 import pychrono as pychrono
-from pychrono import Vehicle, VehicleChassis, RigidBody, InteractiveDriver, SensorManager
-from pychrono.vehicles import Gator
-from pychrono.visualization import Scene, Camera
+from pychrono import Gator
+from pychrono import Vehicle
+from pychrono import Driver
+from pychrono import Terrain
+from pychrono import SensorManager
+from pychrono import PointLight
+from pychrono import Camera
 
-# Initialize the PyChrono environment
+# Initialize PyChrono
 simulation = pychrono.Simulation()
-vehicle = Gator()
-scene = Scene()
-scene.setgroundplane()
+simulation.set_solver_type(pychrono.SolverType.Direct)
 
-# Add physical systems
-chassis = VehicleChassis()
-vehicle.chassis = chassis
+# Initialize vehicle components
+gator = Gator()
+gator.set_name("Gator")
+gator.set VisualizationType("cylinder")  # Chassis
+gator.set_engine_visualization_type("sphere")  # Engine
+gator.set_transmission_visualization_type("box")  # Transmission
+gator.set_suspension_visualization_type("cylinder")  # Suspension
+gator.set_wheels_visualization_type("cylinder")  # Wheels
+gator.set_cab_visualization_type("mesh")  # Cab
 
-# Add wheels
-wheel_positions = [(0, 0, 0), (1, 0, 0), (1.5, 0, 0), (2.5, 0, 0)]
-wheels = []
-for pos in wheel_positions:
-    wheel = RigidBody(pychrono.PHYSICS.RigidBody, pos, pychrono.MASS.MASS_POINT)
-    wheel.setVisualizationType(pychrono.VISUAL.SPHERE)
-    wheels.append(wheel)
-for wheel in wheels:
-    vehicle.chassis.addBody(wheel, "wheel")
+# Initialize terrain
+terrain = Terrain()
+terrain.set_name("Terrain")
+terrain.set_visualization_type("plane")
+terrain.set_material("rigid")
 
-# Add suspension
-suspension = RigidBody(pychrono.PHYSICS.RigidBody, (0, 1, 0), pychrono.MASS.MASS_POINT)
-suspension.setVisualizationType(pychrono.VISUAL.CYLINDER)
-suspension.setConnectedBody(chassis, "suspension")
-suspension.setSpringRate(1000)
-suspension.setDamperRate(100)
-suspension.setLength(1)
-suspension.setDampingRatio(0.5)
-suspension.setVisualizationType(pychrono.VISUAL.CYLINDER)
-chassis.addBody(suspension, "suspension")
+# Initialize driver system
+driver = Driver()
+driver.set_name("Driver")
+driver.set_control_mode(Driver.ControlMode.Automatic)  # Default control mode
+driver.set_visualization_type("mesh")
+simulation.add_driver(driver)
 
-# Add engine
-engine = RigidBody(pychrono.PHYSICS.RigidBody, (0, 0, 0), pychrono.MASS.MASS_POINT)
-engine.setVisualizationType(pychrono.VISUAL.AXIAL_BOX)
-engine.setConnectedBody(chassis, "engine")
-engine.setMotor(1000, 1000)
-chassis.addBody(engine, "engine")
-
-# Add driver
-driver = InteractiveDriver()
-driver.setVehicle(vehicle)
-driver.setDriverPosition((0, 1, 0))
-driver.setDriverHeight(1.3)
-driver.setDriverVisualizationType(pychrono.VISUAL.CAPSULE)
-scene.addDriver(driver)
-
-# Set up visualization
-scene.setVisualizationType(chassis, pychrono.VISUAL.CYLINDER)
-for wheel in wheels:
-    scene.setVisualizationType(wheel, pychrono.VISUAL.SPHERE)
-scene.setVisualizationType(engine, pychrono.VISUAL.AXIAL_BOX)
-scene.setVisualizationType(suspension, pychrono.VISUAL.CYLINDER)
-scene.setVisualizationType(driver, pychrono.VISUAL.CAPSULE)
-
-# Set up sensor manager
+# Add visualization elements
 sensor_manager = SensorManager()
-lights = []
+# Add point lights for wheels
 for i in range(4):
-    light = pychrono.VISUAL.POINT_LIGHT()
-    light.setPos(wheel_positions[i])
-    lights.append(light)
-sensor_manager.addLights(lights)
+    light = PointLight()
+    light.set_name(f"Wheel Light {i}")
+    light.set_position(gator.get_wheels_position()[i])
+    light.set_color(1, 0.5, 0)  # Yellow lights
+    sensor_manager.add_light(light)
+
+# Add camera
 camera = Camera()
-camera.setPos((0, 1.5, 2))
-camera.setRot(0, 45, 0)
-camera.setProjectionType(pychrono.VISUAL.PERSPECTIVE)
-sensor_manager.addCamera(camera)
-scene.addSensorManager(sensor_manager)
+camera.set_name("Chassis Camera")
+camera.set_position([0, 1, 5])  # Position in front of vehicle
+simulation.add_sensor_component(camera, gator.get_chassis())
+
+# Add all objects to simulation
+simulation.add_object(gator)
+simulation.add_object(terrain)
+simulation.add_object(driver)
+simulation.add_object(sensor_manager)
+
+# Set default parameters
+gator.set_initial_position([0, 0, 0])
+gator.set_mass(1000)
+terrain.set_initial_position([0, 0, -5])
+terrain.set_size([50, 50, 5])
+
+# Set up simulation loop
+timestep = 0.01
+simulation.set_timestep(timestep)
+
+# Camera position update callback
+def update_camera():
+    camera.set_position([0, 1, 5])  # Position in front of vehicle
+
+# Driver input callback
+def driver_input(event):
+    if event.key == pychrono.keys['KEY_UP']:
+        driver.set_max_speed(15)
+    elif event.key == pychrono.keys['KEY_DOWN']:
+        driver.set_max_speed(-15)
+
+# Visualization setup
+simulation.set VisualizationType("OpenGL")
+simulation.add_event_callback("KEY", driver_input)
+simulation.add_event_callback("DISPLAY", update_camera)
 
 # Run simulation
-timestep = 0.01
-simulation.run(timestep)
-simulation.setTimestep(timestep)
-
 while True:
-    # Update driver
-    driver.update()
-    
-    # Update terrain
-    terrain = RigidBody(pychrono.PHYSICS.RigidBody, (0, 0, 0), pychrono.MASS.MASS_POINT)
-    terrain.setVisualizationType(pychrono.VISUAL.GRASS)
-    scene.addBody(terrain, "terrain")
-    
-    # Update vehicle
-    vehicle.update()
-    simulation.step()
-    
-    # Update sensor manager
-    sensor_manager.update()
-    
-    # Render
-    scene.render()
+    simulation.update()
+    simulation.render()
+    timestep = simulation.get_timestep()

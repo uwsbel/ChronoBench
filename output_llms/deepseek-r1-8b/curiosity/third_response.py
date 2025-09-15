@@ -4,7 +4,7 @@ import numpy as np
 import pychrono as chrono
 import pychrono.robot as robot
 from pychrono import irrlicht as chronoirr
-import pychrono.sensor as sens  # Added import for sensor module
+import pychrono.sensor as sens
 
 # Create Chrono system
 system = chrono.ChSystemNSC()
@@ -21,7 +21,7 @@ ground.SetFixed(True)  # Fix the ground in place
 ground.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
 system.Add(ground)
 
-# Create a long box for rover to cross
+# create a long box for rover to cross
 box = chrono.ChBodyEasyBox(0.25, 5, 0.25, 1000, True, True, ground_mat)
 box.SetPos(chrono.ChVector3d(0, 0, 0.0))
 box.SetFixed(True)
@@ -62,27 +62,26 @@ time_step = 1e-3
 sensor_manager = sens.ChSensorManager(system)
 
 # Define lidar parameters
-lidar_update_rate = 10  # Hz
-horizontal_samples = 360
-vertical_samples = 360
-field_of_view = 90  # degrees
+lidar_params = {
+    'update_rate': 10,  # Hz
+    'horizontal_samples': 64,
+    'vertical_samples': 4,
+    'fov': 45,  # degrees
+    'min_distance': 0.1,
+    'max_distance': 100.0,
+    'noise': 0.1,
+    'distortion': 0.1,
+    'attenuation': 0.98
+}
 
-# Create and attach lidar sensor to rover
+# Create and add lidar sensor to rover
 lidar_sensor = sens.ChLidarSensor(
     system,
-    "Lidar",
-    lidar_update_rate,
-    horizontal_samples,
-    vertical_samples,
-    field_of_view,
-    1000  # distance (meter)
+    rover.GetChassis(),
+    lidar_params
 )
-rover.GetChassis().AddSensor(lidar_sensor)
-
-# Add point cloud filter for lidar data processing
-lidar_sensor.AddFilter(sens.ChPointCloudFilter())
-
-# Add lidar sensor to sensor manager
+lidar_sensor.SetToi(chrono.ChVector3d(1.0, 0, 0))  # Set the direction of the lidar
+lidar_sensor.SetFilter(sens.ChLidarFilter.ToF(chrono.ChVector3d(1.0, 0, 0), 0.1, 100.0))
 sensor_manager.AddSensor(lidar_sensor)
 
 # Simulation loop
@@ -90,14 +89,14 @@ time = 0
 while vis.Run():
     time += time_step
 
-    # ask rover to move forward
+    # Update sensor manager
+    sensor_manager.Update()
+
+    # Ask rover to move forward
     driver.SetSteering(0.0)
 
     # Update rover dynamics
     rover.Update()
-
-    # Update sensor manager
-    sensor_manager.Update()
 
     # Render the scene
     vis.BeginScene()

@@ -52,21 +52,11 @@ def main():
     sens_manager.AddSensor(cam)
 
     
-    lidar = sens.ChLidarSensor(ground_body, 0.5, offset_pose, 90, 300, 2*ch.CH_PI, ch.CH_PI / 12, -ch.CH_PI / 6, 100., 0)
-    lidar.PushFilter(sens.ChFilterDIAccess())  
-    lidar.PushFilter(sens.ChFilterPCfromDepth())  
-    lidar.PushFilter(sens.ChFilterXYZIAccess())  
+    lidar = sens.ChLidarSensor(ground_body, 5., offset_pose, 90, 300, 2*ch.CH_PI, ch.CH_PI / 12, -ch.CH_PI / 6, 100., 0)
+    lidar.PushFilter(sens.ChFilterLIDARScan())  
     lidar.PushFilter(sens.ChFilterVisualizePointCloud(1280, 720, 1))  
-    lidar.SetName("lidar")
+    lidar.SetName("lidar2d")
     sens_manager.AddSensor(lidar)
-
-    
-    lidar2d = sens.ChLidar2DSensor(ground_body, 0.1, offset_pose, 0.1, 180.0, 0.1, 0.1, 0.1, 10.0)
-    lidar2d.PushFilter(sens.ChFilterDIAccess())
-    lidar2d.PushFilter(sens.ChFilterRangeImageAccess())
-    lidar2d.PushFilter(sens.ChFilterVisualize2D(1280, 720, 1))
-    lidar2d.SetName("lidar2d")
-    sens_manager.AddSensor(lidar2d)
 
     
     noise_model_none = sens.ChNoiseNone()
@@ -104,7 +94,8 @@ def main():
     
     ros_manager.RegisterHandler(chros.ChROSCameraHandler(cam.GetUpdateRate() / 4, cam, "~/output/camera/data/image"))
     ros_manager.RegisterHandler(chros.ChROSLidarHandler(lidar, "~/output/lidar/data/pointcloud"))
-    ros_manager.RegisterHandler(chros.ChROSLidar2DHandler(lidar2d, "~/output/lidar2d/data/scan"))
+    ros_manager.RegisterHandler(chros.ChROSLidarHandler(lidar, "~/output/lidar2d/data/scan"))  
+    ros_manager.RegisterHandler(chros.ChROSGPSHandler(gps, "~/output/gps/data"))
     acc_handler = chros.ChROSAccelerometerHandler(acc, "~/output/accelerometer/data")
     ros_manager.RegisterHandler(acc_handler)
     gyro_handler = chros.ChROSGyroscopeHandler(gyro, "~/output/gyroscope/data")

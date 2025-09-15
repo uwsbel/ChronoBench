@@ -1,93 +1,107 @@
 import pychrono as pychrono
-from pychrono import (Simulation, Vehicle, Wheel, Joint, Force, Contact, Rigid, Nut, Bolt, Damper, Spring, Motor, Gear, Differential, Map, MapPoint, MapSector, MapSurface, MapMaterial, MapPatch, MapHeightmap, IrrlichtRenderer, Input, InputEvent, InputManager)
+from pychrono import Vehicle, VehicleComponent, Scene, Tensor
+import pychrono.vehicles as pyvehicles
+from pychrono.render import *
+import numpy as np
 
-def main():
-    # Initialize PyChrono
-    sim = pychrono.Simulation()
-    sim.set_time_step(0.001)
-    sim.setVisualization(True)
-    sim.set VisualizationType(pychrono.VisualizationType.Irrlicht)
-    
-    # Initialize vehicle
-    vehicle = Vehicle("HMMWV", pychrono.VehicleType. Wheeled, 4)
-    vehicle.set_mass(2000)
-    vehicle.set_center_of_mass(0.5, 0, 0.5)
-    vehicle.set_ground_contact(True)
-    
-    # Add wheels
-    for i in range(4):
-        wheel = Wheel("Wheel", pychrono.WheelType.Rigid)
-        wheel.set_radius(0.25)
-        vehicle.add_wheeled(wheel, i)
-    
-    # Add suspension
-    suspension = Spring("Suspension", pychrono.SpringType.Linear)
-    suspension.set_stiffness(1000)
-    suspension.set_damping(10)
-    vehicle.add_component(suspension, i, pychrono.SuspensionType.Spring)
-    
-    # Add engine
-    engine = Motor("Engine", pychrono.MotorType.Diesel)
-    engine.set_power(100)
-    engine.set_torque(100)
-    vehicle.add_component(engine, 0, pychrono.MotorType.Transmission)
-    
-    # Define terrain
-    ground = Rigid("Ground", pychrono.RigidType.Static)
-    ground.set_position(0, 0, 0)
-    sim.add_rigid_body(ground)
-    
-    # Add terrain patches
-    # Flat patch
-    patch1 = MapPatch("Flat1", MapMaterial.Asphalt, MapType.Texture, "asphalt.png")
-    patch1.set_position(0, 0, 0)
-    sim.add_map_patch(patch1)
-    
-    # Mesh-based bump
-    bump_mesh = MapPatch("Bump", MapMaterial.Default, MapType.Mesh, "bump.obj")
-    bump_mesh.set_position(5, 0, 0)
-    sim.add_map_patch(bump_mesh)
-    
-    # Heightmap-based elevation
-    elevation_map = MapHeightmap("Elevation", 50, "heightmap.txt")
-    elevation_map.set_position(10, 0, 0)
-    sim.add_map_heightmap(elevation_map)
-    
-    # Visualization
-    renderer = IrrlichtRenderer("Irrlicht", 1024, 768)
-    renderer.set_window(sim.get_window())
-    renderer.set_antialias(4)
-    
-    # Input setup
-    input_manager = InputManager()
-    input_manager.set_device_type("gamepad")
-    
-    # Interactive controls
-    input_manager.add_input_event("STEERING", InputEvent.ABS, 0.1, "LEFT,RIGHT")
-    input_manager.add_input_event("THROTTLE", InputEvent.ABS, 0.1, "UP,DOWN")
-    input_manager.add_input_event("BRAKE", InputEvent.ABS, 0.1, "A,W")
-    
-    # Start simulation
-    sim.start()
-    
-    while sim.is_running():
-        # Process input
-        input_events = input_manager.get_input_events()
-        for event in input_events:
-            if event.type == InputEvent.ABS:
-                if event.axis == 0:
-                    vehicle.set_steering(event.value)
-                elif event.axis == 1:
-                    vehicle.set_throttle(event.value)
-                elif event.axis == 2:
-                    vehicle.set_brake(event.value)
-        
-        # Render
-        renderer.render()
-        sim.step()
-    
-    # Stop simulation
-    sim.stop()
+# Initialize PyChrono environment
+scene = Scene()
+scene.set_ground_friction(1000.0)  # Ground friction coefficient
+scene.set_air_resistance(100.0)    # Air resistance coefficient
 
-if __name__ == "__main__":
-    main()
+# Initialize HMMWV vehicle
+vehicle = Vehicle(scene, "HMMWV")
+vehicle.set_position(pychrono.Vector3(0, 0, 0))  # Initial position
+vehicle.set驾驶类型("4轮驱动")  # Four-wheeled drivetrain
+vehicle.set发动机类型("水平-opel")  # Horizontal engine layout
+vehicle.set_max速度(30, 30)  # Max speed [m/s, rpm]
+
+# Add vehicle components
+suspension = VehicleComponent(vehicle, "悬挂系统", pychrono.ComponentType.SUSPENSION)
+suspension.set参数("压缩率", 0.3)  # Spring rate
+suspension.set参数("阻尼", 0.5)    # Damping coefficient
+
+# Add wheels
+wheel1 = VehicleComponent(vehicle, "前轮", pychrono.ComponentType.WHEEL)
+wheel1.set参数("半径", 0.3)
+wheel1.set参数("摩擦系数", 0.7)
+wheel1.set参数("驱动力", True)
+
+wheel2 = VehicleComponent(vehicle, "后轮", pychrono.ComponentType.WHEEL)
+wheel2.set参数("半径", 0.3)
+wheel2.set参数("摩擦系数", 0.7)
+wheel2.set参数("驱动力", True)
+
+# Create terrain patches
+# Flat patch
+flat_patch = pychrono.TerrainPatch(scene, "flat", pychrono.TerrainType.GRASS, pychrono.TerrainSurfaceType.FLAT)
+flat_patch.set_position(pychrono.Vector3(0, 0, 0))
+flat_patch.set_height(0)
+
+# Bump patch (using mesh)
+bump_mesh = pychrono.TerrainPatch(scene, "bump", pychrono.TerrainType.ASPhALT, pychrono.TerrainSurfaceType.MESH)
+bump_mesh.set_position(pychrono.Vector3(5, 0, 0))
+bump_mesh.load_mesh("bump_mesh.obj")  # Replace with your bump mesh file
+
+# Heightmap patch
+heightmap_patch = pychrono.TerrainPatch(scene, "heightmap", pychrono.TerrainType.GRASS, pychrono.TerrainSurfaceType.HEIGHTMAP)
+heightmap_patch.set_position(pychrono.Vector3(10, 0, 0))
+heightmap_patch.load_heightmap("heightmap.hgt")  # Replace with your heightmap file
+
+# Set up visualization
+renderer = IrrlichtRenderer(scene)
+renderer.set_camera_position(pychrono.Vector3(5, 5, 5))
+renderer.set_view_vector(pychrono.Vector3(0, 0, 1))
+renderer.set_up_vector(pychrono.Vector3(0, 1, 0))
+renderer.set_light_color(pychrono.Vector3(1, 1, 1))
+renderer.set_light_position(pychrono.Vector3(10, 10, 10))
+
+# Enable wireframe visualization for vehicle components
+renderer.set_wireframe_mode(True)
+
+# Initialize controls
+controls = pychrono.Controls()
+steering = 0
+throttle = 0
+braking = 0
+
+# Interactive driver system
+def update_controls():
+    global steering, throttle, braking
+    if controls.is_key_pressed(pychrono.Key.LEFT):
+        steering = -0.5
+    if controls.is_key_pressed(pychrono.Key.RIGHT):
+        steering = 0.5
+    if controls.is_key_pressed(pychrono.Key.ACCELERATE):
+        throttle = 1.0
+    if controls.is_key_pressed(pychrono.Key.BRAKE):
+        braking = 1.0
+    else:
+        steering = 0
+        throttle = 0
+        braking = 0
+
+# Simulation loop
+timestep = 1.0 / 60.0  # 60 FPS
+while True:
+    # Update controls
+    update_controls()
+    
+    # Update vehicle state
+    vehicle.update(timestep)
+    
+    # Update renderer
+    renderer.begin_frame()
+    renderer.render()
+    renderer.end_frame()
+    
+    # Apply forces
+    forces = vehicle.get_forces()
+    if forces[0].x != 0 or forces[0].y != 0:
+        vehicle.apply_force(forces[0])
+    
+    # Print vehicle speed
+    print(f"Speed: {vehicle.get_speed():.2f} m/s")
+    
+    # Next timestep
+    pychrono timestep(timestep)

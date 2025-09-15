@@ -1,65 +1,109 @@
 import pychrono as pychrono
 import pychrono.vehicles as vehicles
-from pychrono.ira import *
-from pychrono.utils import *
+import pychrono.gfx as gfx
 
 
-sim = pychrono.Simulator()
-sim.set_rendering_device("Irrlicht")
-sim.set_timestep(1/60)  
+pychrono.init()
+sim = pychrono.Simulation()
+sim.set_time_step(1.0/60.0)  
 
 
-terrain = pychrono.objects.RigidPlane(sim, "terrain", pychrono.Vec3(0, 0, 0), pychrono.Vec3(50, 50, 0))
-terrain.get_object().set_material_properties(friction=0.6, restitution=0.3)
+vehicle = pychrono.RigidBody()
+vehicle.set_name("Kraz_Vehicle")
+vehicle.set_mass(1000)  
+vehicle.set_inertia(1000, 1000, 1000)  
 
 
-car = pychrono.vehicles.RigidVehicle(sim, "Kraz", pychrono.Vec3(0, 0, 0), pychrono.Vec3(4, 2, 2), mass=1000)
-car.setSuspensionParameters(damping=0.5, spring_rate=1000, anti_roll=100, anti_pitch=100)
+body = pychrono.Body()
+body.set_position(pychrono.Vec3(0, 0, 0))
+body.set_rotation(pychrono.Vec3(0, 0, 0))
+vehicle.add_body(body)
 
 
-driver = pychrono.driver.Driver(sim, "Driver 1")
-driver.set_control_laws(acceleration_control=0.5, steering_control=0.5)
+suspension = pychrono.Suspension()
+suspension.set_body(body)
+suspension.set_ground_body(pychrono.RigidBody())  
+suspension.set_length(1.0)  
+suspension.set_damping(5.0)  
+suspension.set_friction(100.0)  
+suspension.set_restitution(0.3)  
+vehicle.add_component(suspension)
 
 
-cam = sim.get_camera()
-cam.set_position(pychrono.Vec3(10, 10, 10))
-cam.set_lookat(pychrono.Vec3(0, 0, 0))
-cam.set_up(pychrono.Vec3(0, 1, 0))
-
-light1 = pychrono.objects.Light(sim, "ambient_light", pychrono.Vec3(0, 0, 0), color=Vec3(1, 1, 1))
-light2 = pychrono.objects.Light(sim, "directional_light", pychrono.Vec3(10, 10, 10), color=Vec3(1, 1, 1), direction=Vec3(-1, -1, -1))
-
-
-rendering = sim.get_rendering()
-rendering.set_camera(cam)
-rendering.add_light(light1)
-rendering.add_light(light2)
+terrain = pychrono.RigidBody()
+terrain.set_name("Terrain")
+terrain.set_mass(0)  
+terrain.set_inertia(0, 0, 0)  
+terrain.set_friction(100.0)  
+terrain.set_restitution(0.3)  
+terrain.set_position(pychrono.Vec3(0, -0.5, 0))  
+sim.add_body(terrain)
 
 
-running = True
-while running:
+driver = pychrono.DriverComponent()
+driver.set_name("Driver")
+driver.set_mass(80)  
+driver.set_inertia(0, 0, 0)  
+driver.set_position(pychrono.Vec3(-5, 0, 0))  
+driver.set_rotation(pychrono.Vec3(0, 0, 0))  
+sim.add_component(driver)
+
+
+steering_controller = pychrono.PIDController()
+steering_controller.set_name("Steering_Controller")
+steering_controller.set_gain(0.1)  
+steering_controller.set_max_output(1.0)  
+
+throttle_controller = pychrono.PIDController()
+throttle_controller.set_name("Throttle_Controller")
+throttle_controller.set_gain(0.5)  
+throttle_controller.set_max_output(1.0)  
+
+driver.set_controller(steering_controller, "steering")
+driver.set_controller(throttle_controller, "throttle")
+
+
+renderer = gfx.IrrlichtRenderer()
+renderer.set_hfov(45.0)  
+renderer.set_vfov(45.0)  
+renderer.set_position(pychrono.Vec3(0, 0, 5))  
+renderer.set.look_at(pychrono.Vec3(0, 0, 0))  
+renderer.add_light_source(pychrono.Vec3(0, 1, 0))  
+
+
+sim.add_body(vehicle)
+sim.add_body(terrain)
+sim.add_component(driver)
+
+
+def simulation_loop():
+    global vehicle, terrain, driver, renderer, sim
+    
+    speed = 10.0  
+    steering = 0.0  
+    
+    
+    
+    front_wheel = vehicle.get_body("front_wheel")
+    rear_wheel = vehicle.get_body("rear_wheel")
+    
+    
+    front_wheel.set_force(pychrono.Vec3(0, 0, -100.0 * steering))  
+    rear_wheel.set_force(pychrono.Vec3(0, 0, 100.0 * speed))  
+    
+    
     sim.update()
-    sim.render()
     
     
-    for event in sim.get_event_queue().get_next_event():
-        if event.type == pychrono.simulator.SIM_EVENT_KEYDOWN:
-            key = event.key
-            if key == pychrono.keys.KEY_UP and KEY_ACCELERATOR:
-                driver.set_acceleration(0)
-            elif key == pychrono.keys.KEY_DOWN and KEY_ACCELERATOR:
-                driver.set_acceleration(0.5)
-            elif key == pychrono.keys.KEY_UP and KEY BRAKE:
-                driver.set_acceleration(-0.5)
-            elif key == pychrono.keys.KEY_DOWN and KEY BRAKE:
-                driver.set_acceleration(0)
-            elif key == pychrono.keys.KEY_UP and KEY STEER_LEFT:
-                driver.set_steering(-0.5)
-            elif key == pychrono.keys.KEY_DOWN and KEY STEER_LEFT:
-                driver.set_steering(0)
-            elif key == pychrono.keys.KEY_UP and KEY STEER_RIGHT:
-                driver.set_steering(0.5)
-            elif key == pychrono.keys.KEY_DOWN and KEY STEER_RIGHT:
-                driver.set_steering(0)
+    renderer.update()
     
-    running = not running if sim.get_event_queue().get_event("SIM_CLOSE") else running
+    
+    return
+
+
+simulation_loop()
+
+
+import threading
+thread = threading.Thread(target=simulation_loop)
+thread.start()

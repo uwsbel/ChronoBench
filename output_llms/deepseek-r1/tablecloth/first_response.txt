@@ -1,88 +1,108 @@
 
+To create a simulation of a tablecloth folding using PyChrono with shell elements, follow this script. It sets up a Kirchhoff material, generates a mesh grid, uses the PardisoMKL solver, and includes Irrlicht visualization:
 
 ```python
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
-import pychrono.mkl as mkl
+import pychrono.fea as fea
 
-# System setup
-system = chrono.ChSystemSMC()
-system.SetGravitationalAcceleration(chrono.ChVector3d(0, -9.81, 0))
+def main():
+    # 1. Initialize system
+    system = chrono.ChSystemSMC()
+    system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Gravity
 
-# Set PardisoMKL solver
-system.SetSolverType(chrono.ChSolver.Type.PARDISO_MKL)
-solver = system.GetSolver().AsMKL()
-solver.SetSparsityPatternLock(True)
-solver.SetVerbose(False)
+    # 2. Create mesh container
+    mesh = fea.ChMesh()
+    system.Add(mesh)
 
-# Create mesh
-mesh = chrono.ChMesh()
-system.Add(mesh)
+    # 3. Material properties (isotropic Kirchhoff)
+    rho = 1000  # Density (kg/m³)
+    E = 2e6     # Young's modulus (Pa)
+    nu = 0.3    # Poisson's ratio
+    material = fea.ChMaterialShellReissnerIsothropic(E, nu, rho)
 
-# Material properties (simulating fabric)
-rho = 1000  # Density (kg/m³)
-E = 1e7     # Young's modulus (Pa)
-nu = 0.3    # Poisson's ratio
-thickness = 0.001  # 1mm thickness
-material = chrono.ChMaterialShellANCF(rho, E, nu)
+    # 4. Mesh parameters
+    length_x = 1.0  # Tablecloth length (x)
+    length_y = 1.0  # Tablecloth width (y)
+    num_div_x = 20  # Divisions along x
+    num_div_y = 20  # Divisions along y
 
-# Create grid of nodes
-length_x = 1.0
-length_y = 1.0
-nx = 10
-ny = 10
+    # 5. Create nodes
+    nodes = []
+    for iy in range(num_div_y + 1):
+        for ix in range(num_div_x + 1):
+            x = ix * (length_x / num_div_x)
+            y = iy * (length_y / num_div_y)
+            node = fea.ChNodeFEAxyzD(
+                chrono.ChVectorD(x, 0.5, y),
+                chrono.ChVectorD(0, 1, 0)  # Initial normal (y-up)
+            )
+            mesh.AddNode(node)
+            nodes.append(node)
 
-dx = length_x / nx
-dy = length_y / ny
-nodes = []
+    # 6. Create shell elements (quadrilateral Reissner shells)
+    for iy in range(num_div_y):
+        for ix in range(num_div_x):
+            n0 = nodes[iy * (num_div_x + 1) + ix]
+            n1 = nodes[iy * (num_div_x + 1) + ix + 1]
+            n2 = nodes[(iy + 1) * (num_div_x + 1) + ix + 1]
+            n3 = nodes[(iy + 1) * (num_div_x + 1) + ix]
 
-for j in range(ny + 1):
-    for i in range(nx + 1):
-        x = i * dx
-        y = j * dy
-        node = chrono.ChNodeFEAxyzD(chrono.ChVector3d(x, y, 0), chrono.ChVector3d(0, 0, 1))
-        nodes.append(node)
-        mesh.AddNode(node)
+            element = fea.ChElementShellReissner4()
+            element.SetNodes(n0, n1, n2, n3)
+            element.SetMaterial(material)
+            mesh.AddElement(element)
 
-# Create shell elements
-for j in range(ny):
-    for i in range(nx):
-        n0 = j * (nx + 1) + i
-        n1 = j * (nx + 1) + i + 1
-        n2 = (j + 1) * (nx + 1) + i + 1
-        n3 = (j + 1) * (nx + 1) + i
+    # 7. Fix edge nodes (clamp one edge)
+    for ix in range(num_div_x + 1):
+        nodes[ix].SetFixed(True)  # First row (y=0)
 
-        element = chrono.ChElementShellANCF_3423()
-        element.SetNodes(nodes[n0], nodes[n1], nodes[n2], nodes[n3])
-        element.AddLayer(thickness, 0 * chrono.CH_DEG_TO_RAD, material)
-        element.SetAlphaDamp(0.02)
-        mesh.AddElement(element)
+    # 8. Setup PardisoMKL solver
+    solver = chrono.ChSolverPardisoMKL()
+    system.SetSolver(solver)
+    system.SetSolverForceTolerance(1e-8)
 
-# Fix left edge nodes
-for j in range(ny + 1):
-    nodes[j * (nx + 1)].SetFixed(True)
+    # 9. Setup Irrlicht visualization
+    vis = chronoirr.ChVisualSystemIrrlicht()
+    vis.AttachSystem(system)
+    vis.SetWindowSize(1024, 768)
+    vis.SetWindowTitle("Tablecloth Folding")
+    vis.Initialize()
+    vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+    vis.AddSkyBox()
+    vis.AddCamera(chrono.ChVectorD(1, 0.5, 1.2))
+    vis.AddTypicalLights()
 
-# Visualization setup
-vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(system)
-vis.SetWindowSize(1024, 768)
-vis.SetWindowTitle('Folding Tablecloth Simulation')
-vis.Initialize()
-vis.AddCamera(chrono.ChVector3d(1.5, 0.5, 1.5))
-vis.AddTypicalLights()
+    # Visualize mesh
+    vis_mesh = fea.ChVisualizationFEAmesh(mesh)
+    vis_mesh.SetFEMdataType(fea.VisFEAmeshDataType_ELEM_SHELL)
+    vis_mesh.SetShellResolution(2)
+    vis_mesh.SetColorscaleMinMax(-0.5, 0.5)
+    mesh.AddVisualizationFEA(vis_mesh)
 
-# Enable mesh visualization
-mesh_vis = chrono.ChVisualShapeFEA(mesh)
-mesh_vis.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NODE_SPEED_NORM)
-mesh_vis.SetColorscaleMinMax(0.0, 5.0)
-mesh_vis.SetSmoothFaces(True)
-mesh.AddVisualShapeFEA(mesh_vis)
+    # 10. Simulation loop
+    time_step = 0.001
+    while vis.Run():
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+        system.DoStepDynamics(time_step)
 
-# Simulation loop
-timestep = 0.001
-while vis.Run():
-    vis.BeginScene()
-    vis.Render()
-    vis.EndScene()
-    system.DoStepDynamics(timestep)
+if __name__ == "__main__":
+    main()
 ```
+
+### Key Components Explained:
+1. **System Setup**: Creates the physical system with gravity.
+2. **Kirchhoff Material**: Uses `ChMaterialShellReissnerIsothropic` for isotropic elasticity.
+3. **Mesh Generation**:
+   - Creates a grid of nodes (21x21 for a 1m x 1m cloth)
+   - Uses quadrilateral Reissner shell elements (`ChElementShellReissner4`)
+4. **Boundary Conditions**: Clamps nodes along one edge (y=0) to simulate a fixed table edge.
+5. **Solver**: Configures `ChSolverPardisoMKL` for efficient sparse matrix solving.
+6. **Visualization**:
+   - Irrlicht for real-time 3D rendering
+   - Color-coded shell deformation visualization
+   - Camera positioned for optimal viewing
+
+The tablecloth will fold dynamically under gravity starting from a flat initial position, with one edge fixed. Adjust `num_div_x/num_div_y` for resolution, and material properties (`E`, `nu`, `rho`) for different cloth behaviors.

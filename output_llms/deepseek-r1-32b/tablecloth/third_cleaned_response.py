@@ -83,7 +83,7 @@ if (True):
             mesh.AddElement(melementA)
 
             if (iz == 0 and ix == 1):
-                melementmonitor = melementA  
+                ementmonitor = melementA  
 
             
             boundary_1 = mynodes[(iz + 1) * (nsections_x + 1) + ix + 1]
@@ -122,15 +122,15 @@ if (True):
             melementB.AddLayer(thickness, 0 * chrono.CH_DEG_TO_RAD, material)
 
     
-    for j in range(nsections_z + 1):
-        for k in range(nsections_x + 1):
+    for j in range(30):
+        for k in range(30):
             mynodes[j * (nsections_x + 1) + k].SetFixed(True)
 
     
     mvisualizeshellA = chrono.ChVisualShapeFEA(mesh)
     mvisualizeshellA.SetSmoothFaces(True)  
     mvisualizeshellA.SetWireframe(True)    
-    mvisualizeshellA.SetBackfaceCull(True)  
+    mvisualizeshellA.SetBackfaceCull(True) 
     mvisualizeshellA.SetShellResolution(2)  
     mesh.AddVisualShapeFEA(mvisualizeshellA)  
 

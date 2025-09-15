@@ -11,11 +11,11 @@ sys.Add(mesh)
 
 mesh.SetAutomaticGravity(True,
                          2)  
-sys.SetGravitationalAcceleration(chrono.ChVector3d(0, -3.71, 0))  
+sys.SetGravitationalAcceleration(chrono.ChVector3d(0, -3.71, 0))
 
-beam_L = 10  
-beam_ro = 0.060  
-beam_ri = 0.055  
+beam_L = 10
+beam_ro = 0.060
+beam_ri = 0.055
 CH_PI = 3.1456
 
 
@@ -92,7 +92,7 @@ rotmotor1.Initialize(builder.GetLastBeamNodes().front(),
                      )
 sys.Add(rotmotor1)
 
-f_ramp = chrono.ChFunctionSine(60, 0.1)  
+f_ramp = chrono.ChFunctionSine(60, 0.1)
 rotmotor1.SetMotorFunction(f_ramp)
 
 
@@ -118,7 +118,7 @@ vis.SetWindowTitle('Test FEA: the Jeffcott rotor with IGA beams')
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()
-vis.AddCamera(chrono.ChVector3d(0, 2, 8), chrono.ChVector3d(beam_L / 2, 0, 0))  
+vis.AddCamera(chrono.ChVector3d(0, 2, 8), chrono.ChVector3d(beam_L / 2, 0, 0))
 vis.AddTypicalLights()
 
 msolver = mkl.ChSolverPardisoMKL()

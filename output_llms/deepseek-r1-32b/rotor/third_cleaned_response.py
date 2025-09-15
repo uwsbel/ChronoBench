@@ -14,7 +14,7 @@ class ChFunctionMyFun(chrono.ChFunction):
         self.T2 = T2
         self.T3 = T3
         self.w = w
-
+        
     def GetVal(self, x):
         if x < self.T1:
             return self.A1 * m.sin(self.w * x)
@@ -57,12 +57,12 @@ msection.SetDrawCircularRadius(beam_ro)
 
 builder = fea.ChBuilderBeamIGA()
 builder.BuildBeam(mesh,
-                  msection,
-                  20,
-                  chrono.ChVector3d(0, 0, 0),
-                  chrono.ChVector3d(beam_L, 0, 0),
-                  chrono.VECT_Y,
-                  1)
+                 msection,
+                 20,
+                 chrono.ChVector3d(0, 0, 0),
+                 chrono.ChVector3d(beam_L, 0, 0),
+                 chrono.VECT_Y,
+                 1)
 
 node_mid = builder.GetLastBeamNodes()[m.floor(builder.GetLastBeamNodes().size() / 2.0)]
 
@@ -84,28 +84,26 @@ sys.Add(truss)
 bearing = chrono.ChLinkMateGeneric(False, True, True, False, True, True)
 bearing.Initialize(builder.GetLastBeamNodes().back(),
                    truss,
-                   chrono.ChFramed(builder.GetLastBeamNodes().back().GetPos())
-                   )
+                   chrono.ChFramed(builder.GetLastBeamNodes().back().GetPos()))
 sys.Add(bearing)
 
 rotmotor1 = chrono.ChLinkMotorRotationSpeed()
 rotmotor1.Initialize(builder.GetLastBeamNodes().front(),
                      truss,
                      chrono.ChFramed(builder.GetLastBeamNodes().front().GetPos(),
-                                     chrono.QuatFromAngleAxis(CH_PI / 2.0, chrono.VECT_Y))
-                     )
+                                     chrono.QuatFromAngleAxis(CH_PI / 2.0, chrono.VECT_Y)))
+
+
+A1 = 40
+A2 = 0.2
+T1 = 1
+T2 = 2
+T3 = 3
+w = 1
+f_custom = ChFunctionMyFun(A1, A2, T1, T2, T3, w)
+rotmotor1.SetMotorFunction(f_custom)
+
 sys.Add(rotmotor1)
-
-
-A1 = 10.0  
-A2 = 5.0   
-T1 = 1.0   
-T2 = 2.0   
-T3 = 3.0   
-w = 2.0    
-custom_function = ChFunctionMyFun(A1, A2, T1, T2, T3, w)
-rotmotor1.SetMotorFunction(custom_function)
-
 
 mvisualizebeamA = chrono.ChVisualShapeFEA(mesh)
 mvisualizebeamA.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_SURFACE)
@@ -132,6 +130,11 @@ vis.AddTypicalLights()
 
 msolver = mkl.ChSolverPardisoMKL()
 sys.SetSolver(msolver)
+
+
+
+
+
 
 
 

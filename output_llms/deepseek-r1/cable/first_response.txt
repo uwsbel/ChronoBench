@@ -1,76 +1,89 @@
 
+To simulate a beam composed of ANCF cable elements in PyChrono with one end hinged to the ground and subjected to gravity, follow the script below. This code creates a flexible beam using ANCF cable elements, fixes the first node to the ground, and visualizes the deformation using the Irrlicht engine.
 
 ```python
-import chrono
-import chrono.fea as fea
-import chrono.irrlicht as irr
-import math
+import pychrono as chrono
+import pychrono.fea as fea
+import pychrono.irrlicht as chronoirr
 
-# System setup
+# Create the physical system
 system = chrono.ChSystemSMC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Gravity in -Y direction
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
 
-# Create FEA mesh
+# Create a mesh for finite elements
 mesh = fea.ChMesh()
 system.Add(mesh)
 
 # Beam parameters
-length = 2.0
-n_elements = 10
-radius = 0.05
-area = math.pi * radius**2
-I_yy = math.pi * radius**4 / 4  # Second moment of area
-E = 1e7                         # Young's modulus
-density = 1000                  # Material density
-damping = 0.01                  # Rayleigh damping
+beam_length = 2.0         # Total beam length (m)
+n_elements = 10           # Number of ANCF cable elements
+node_spacing = beam_length / n_elements
+section_area = 0.01 * 0.01  # Cross-section area (10x10 mm)
+density = 7800            # Density of steel (kg/m³)
+young_modulus = 2e11      # Young's modulus (Pa)
+damping_ratio = 0.01      # Damping coefficient
 
-# Create cable section
-section = fea.ChBeamSectionCable()
-section.SetArea(area)
-section.SetI(I_yy)
-section.SetYoungModulus(E)
-section.SetDensity(density)
-section.SetRayleighDamping(damping)
-
-# Create nodes
+# Create beam nodes and elements
 nodes = []
 for i in range(n_elements + 1):
-    x = i * (length / n_elements)
-    pos = chrono.ChVectorD(x, 0, 0)
-    dir = chrono.ChVectorD(1, 0, 0)  # Initial direction vector
-    node = fea.ChNodeFEAxyzD(pos, dir)
-    node.SetMass(0)
-    if i == 0:
-        node.SetFixed(True)  # Fix first node (hinged support)
-    mesh.AddNode(node)
+    position = chrono.ChVectorD(i * node_spacing, 0, 0)
+    node = fea.ChNodeFEAxyzD(position, chrono.ChVectorD(1, 0, 0))
     nodes.append(node)
+    mesh.AddNode(node)
 
-# Create ANCF cable elements
+    # Fix the first node to ground using a constraint
+    if i == 0:
+        constraint = fea.ChLinkPointFrame()
+        constraint.Initialize(node, chrono.ChFrameD(position))
+        system.Add(constraint)
+
+# Create cable elements between nodes
 for i in range(n_elements):
     element = fea.ChElementCableANCF()
     element.SetNodes(nodes[i], nodes[i + 1])
-    element.SetSection(section)
-    element.SetVisualize(True)
-    element.SetColor(chrono.ChColor(0.9, 0.9, 0.9))
+    element.SetSectionArea(section_area)
+    element.SetDensity(density)
+    element.SetYoungModulus(young_modulus)
+    element.SetDampingCoefficient(damping_ratio)
     mesh.AddElement(element)
 
-# Create Irrlicht visualization
-application = irr.ChIrrApp(system, "ANCF Cable Beam", irr.dimension2du(1024, 768))
-application.AddTypicalSky()
-application.AddTypicalLights(irr.vector3df(30, 100, 100), irr.vector3df(30, -100, 80), 200, 130)
-application.AddTypicalCamera(irr.vector3df(1.5, 0.5, -2), irr.vector3df(1.5, 0.5, 0))
-
-application.AssetBindAll()
-application.AssetUpdateAll()
-
-# Simulation loop settings
-application.SetTimestep(0.001)
-application.SetTryRealtime(True)
+# Create the Irrlicht visualization
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle('ANCF Beam Simulation')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVectorD(1, 0.5, 1.5), chrono.ChVectorD(0, 0, 0))
+vis.AddTypicalLights()
 
 # Simulation loop
-while application.GetDevice().run():
-    application.BeginScene()
-    application.DrawAll()
-    application.DoStep()
-    application.EndScene()
+step_size = 0.001
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.RenderFrames(2.0)  # Render reference frames
+    vis.RenderMeshlines()   # Render mesh lines
+    vis.EndScene()
+    system.DoStepDynamics(step_size)
 ```
+
+### Key Components Explained:
+1. **System Setup**: Creates a physical system with gravity.
+2. **Mesh Initialization**: Sets up a finite element mesh to hold nodes and elements.
+3. **Beam Construction**:
+   - **Nodes**: Positions spaced evenly along the x-axis with initial direction vectors.
+   - **Constraints**: The first node is fixed to the ground using `ChLinkPointFrame`.
+   - **Elements**: ANCF cable elements connect nodes with material properties (steel).
+4. **Visualization**:
+   - Uses Irrlicht for 3D rendering.
+   - Displays the beam, reference frames, and mesh lines.
+   - Camera positioned to view the beam deformation clearly.
+
+### Parameters:
+- **Beam**: 2 meters long, 10 elements, 10x10 mm cross-section.
+- **Material**: Steel (density 7800 kg/m³, Young's modulus 200 GPa).
+- **Damping**: 1% damping ratio for numerical stability.
+
+Run this script to observe the beam's dynamic deformation under gravity with one end hinged. The visualization updates in real-time, showing nodal positions and element deformation.

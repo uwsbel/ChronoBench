@@ -1,90 +1,79 @@
-import pychrono as pychrono
-   import pychrono.openCV as pyopv
-   from pychrono.trajectory import Trajectory
-   from pychrono.renderer import *
+# Import necessary modules
+import PyChrono as pc
+from PyChrono.Input import *
+from PyChrono.Visual import *
+from PyChrono.Vehicle import *
+from PyChrono.Terrain import *
+from PyChrono.Interaction import *
+from PyChrono.Material import *
 
-sim = pychrono.Simulation("Gator_Simulation", output_path="output/")
+# Initialize PyChrono environment
+pc.init()
 
-import pyirr
-   from pyirr.renderer import *
+# Create a new scene
+scene = pc.Scene()
+renderer = pc.VisualRenderer()
+renderer.mesh = True  # Enable mesh visualization for all components
 
-renderer = pyirr.createRenderer()
-   renderer.setSimulation(sim)
-   renderer.setRenderWindowEnabled(True)
-   renderer.setWindowSize(800, 600)
+# Initialize simulation
+sim = pc.Simulation()
+sim.timestep = 0.02  # 50 FPS
 
-body = pychrono.RigidBody("Vehicle Body")
-   body.setMass(1000)  # Mass in kg
-   body.setMomentOfInertia(1000, 1000, 1000)  # Moment of inertia
+# Create a flat rigid terrain
+terrain = pc.RigidTerrain()
+terrain.size = [100, 100, 5]  # Dimensions (x, y, z)
+terrain.texture = "data/textures/flat/ground_1.dds"  # Custom texture path
+terrain.position = [0, 0, 0]  # Position in scene
+scene.add_component(terrain)
 
-suspension = pychrono.RigidBody("Suspension")
-   suspension.setMass(50)
-   suspension.setMomentOfInertia(50, 50, 50)
+# Initialize the Gator vehicle
+vehicle = pc.Vehicle()
+vehicle.type = "gator"  # Use the Gator vehicle type
+vehicle.position = [0, 1, 0]  # Initial position (x, y, z)
+vehicle.orientation = [0, 0, 0]  # Initial orientation (roll, pitch, yaw)
+vehicle.contact = "force"  # Contact method
+vehicle.tire = pc.Tire("TMEASY")  # Use TMEASY tire model
+scene.add_component(vehicle)
 
-wheel = pychrono.RigidBody("Wheel")
-   wheel.setMass(10)
-   wheel.setMomentOfInertia(10, 10, 10)
-   wheel.setRadius(0.5)  # Tire radius
-   wheel.setContactPoint(suspension, 0.5, 0, 0)  # Position on suspension
+# Add vehicle components (you can add more components as needed)
+# For this example, we'll add a simple vehicle structure
+vehicle.chassis = pc.Mesh("data/models/vehicle/chassis.gmd")
+vehicle.front_tire = pc.Mesh("data/models/vehicle/tire.gmd")
+vehicle.rear_tire = pc.Mesh("data/models/vehicle/tire.gmd")
 
-tire = pychrono.Tire("TMEASY", wheel, 100, 100, 100)  # Parameters
+# Set up the driver input system
+input = pc.Input()
+input.keyboard = True
+input.keyboard_map = {
+    pc.KEY_W: "throttle",  # Acceleration (throttle)
+    pc.KEY_S: "brake",    # Braking (reverse throttle)
+    pc.KEY_A: "steer_left",  # Steering left (negative)
+    pc.KEY_D: "steer_right"  # Steering right (positive)
+}
 
-terrain = pychrono.RigidTerrain("FlatTerrain", 1000, 1000, 5, 5)
-   # Set custom texture path
-   terrain.setTexture("path/to/texture.jpg")
+# Define the simulation loop
+def simulation_loop():
+    # Get input
+    input_data = pc.get_input()
+    
+    # Update vehicle dynamics
+    vehicle.update()
+    
+    # Apply driver inputs
+    if input_data.keyboard_map[pc.KEY_W]:
+        vehicle.force = [0, 0, 0.5]  # Acceleration force
+    if input_data.keyboard_map[pc.KEY_S]:
+        vehicle.force = [0, 0, -0.5]  # Braking force
+    if input_data.keyboard_map[pc.KEY_A]:
+        vehicle.steering = -0.5  # Steering left
+    if input_data.keyboard_map[pc.KEY_D]:
+        vehicle.steering = 0.5  # Steering right
+    
+    # Update visualization
+    renderer.update()
+    
+    # Next timestep
+    sim.step()
 
-terrain.setSurfaceFriction(0.3)
-   terrain.setNormalForce(0.5)
-
-body.setInitialPosition(0, 0, 0)
-   body.setInitialOrientation(0)
-
-contact_point = pychrono.ContactPoint(body, terrain)
-   contact_point.setNormal(0, 0, 1)
-   contact_point.setDistance(0, 0, 0.5)
-
-# Initialize input variables
-   speed = 0
-   steering = 0
-   throttle = 0
-   brake = 0
-
-   # Define control mapping
-   controls = {
-       'A': (-0.5, 0, 0),  # Steering left
-       'D': (0.5, 0, 0),   # Steering right
-       'W': (0, 0, 0.5),   # Accelerate
-       'S': (0, 0, -0.5)   # Brake
-   }
-
-   # Register input handlers
-   sim.registerInputHandler("Keyboard", controls)
-
-def update():
-       global speed, steering, throttle, brake
-       # Update vehicle state
-       body.setLinearVelocity(speed)
-       body.setAngularVelocity(steering)
-       body.setForce(0, 0, 0)  # Clear forces
-       body.addTorque(0, 0, 0)  # Clear torques
-
-       # Apply forces and torques
-       body.setForce(0, 0, 0)
-       body.addTorque(0, 0, 0)
-       body.update()
-
-       # Update tire forces
-       tire.update()
-
-       # Update simulation
-       sim.step()
-       renderer.update()
-
-sim.start()
-   while True:
-       update()
-       # Render the scene
-       renderer.render()
-       # Break loop on exit
-       if sim.isExit():
-           break
+# Start the simulation loop
+simulation_loop()

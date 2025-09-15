@@ -3,7 +3,6 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
-
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
@@ -56,13 +55,15 @@ vehicle.SetSteeringVisualizationType(vis_type)
 vehicle.SetWheelVisualizationType(vis_type)
 vehicle.SetTireVisualizationType(vis_type)
 
+vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+
 
 patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
-terrain = veh.RigidTerrain()
-patch = terrain.AddPatch(patch_mat,
-    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
+terrain = veh.RigidTerrain(vehicle.GetSystem())
+patch = terrain.AddPatch(patch_mat, 
+    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
     terrainLength, terrainWidth)
 
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
@@ -81,19 +82,25 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 
-path = veh.CreateDoubleLaneChangePath(vehicle.GetVehicle(),  
-                                     10.0,                  
-                                     5.0,                   
-                                     5.0,                   
-                                     0.5,                   
-                                     1.0,                   
-                                     0.1)                   
+
+path = veh.ChDoubleLaneChangePath()
+path.SetGlobalPosition(chrono.ChVector3d(-50, 0, 0.5))  
+
+driver = veh.ChPathFollowerDriver(path)
+driver.SetTargetSpeed(10.0)  
 
 
-driver = veh.ChPathFollowerDriverIRR(vis, path)
-driver.SetThrottleMax(1.0)
-driver.SetBrakingMax(1.0)
+steering_controller = driver.GetSteeringController()
+steering_controller.SetLookAheadDistance(5.0)
+steering_controller.SetKp(5.0)  
+steering_controller.SetKi(0.1)  
+steering_controller.SetKd(0.5)  
 
+
+speed_controller = driver.GetSpeedController()
+speed_controller.SetKp(5.0)  
+speed_controller.SetKi(0.1)  
+speed_controller.SetKd(0.5)  
 
 driver.Initialize()
 

@@ -59,24 +59,16 @@ vehicle.SetTireVisualizationType(vis_type)
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
-
-heightMap = []
-for x in range(0, terrainLength, 5):
-    for y in range(0, terrainWidth, 5):
-        height = math.sin((x / 10) * 2) * 2 + math.cos((y / 10) * 2) * 1
-        heightMap.append(height)
-
-
+patch_mat = chrono.ChContactMaterialNSC()
+patch_mat.SetFriction(0.9)
+patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-for i, height in enumerate(heightMap):
-    patch = terrain.AddPatch(
-        chrono.ChContactMaterialNSC(),
-        chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
-        terrainLength, terrainWidth,
-        x=i*5, y=j*5, height=height
-    )
-    patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)
-    patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+patch = terrain.AddPatch(patch_mat, 
+    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
+    terrainLength, terrainWidth)
+
+patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)
+patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 

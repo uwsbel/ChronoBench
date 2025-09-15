@@ -36,14 +36,6 @@ L_x, L_z = 1, 1
 nsections_x, nsections_z = 40, 40
 
 
-nodePlotA = None
-nodePlotB = None
-nodesLoad = []
-ref_X = lambda x: x  
-ref_Y = lambda y: y  
-load_force = chrono.ChVector3d(0, 0, 0)
-
-
 mynodes = []
 for iz in range(nsections_z + 1):
     for ix in range(nsections_x + 1):
@@ -51,29 +43,33 @@ for iz in range(nsections_z + 1):
         mnode = fea.ChNodeFEAxyz(p)
         mesh.AddNode(mnode)
         mynodes.append(mnode)
-        
-        if iz == 0 and ix == 0:
-            nodePlotA = mnode
-        if iz == nsections_z and ix == nsections_x:
-            nodePlotB = mnode
-nodesLoad = [nodePlotA, nodePlotB]
 
 
+nodePlotA = None
+nodePlotB = None
+nodesLoad = []
+ref_X = lambda x: x
+ref_Y = lambda y: y
+load_force = chrono.ChVector3d(0, -10, 0)
+
+
+mnodemonitor = None
 melementmonitor = None
+
+
 for iz in range(nsections_z):
     for ix in range(nsections_x):
         
-        melementA = fea.ChElementShellBST()
         boundary_1 = mynodes[(iz + 1) * (nsections_x + 1) + ix + 1]
         boundary_2 = mynodes[(iz + 1) * (nsections_x + 1) + ix - 1] if ix > 0 else None
         boundary_3 = mynodes[(iz - 1) * (nsections_x + 1) + ix + 1] if iz > 0 else None
 
+        melementA = fea.ChElementShellBST()
         melementA.SetNodes(mynodes[iz * (nsections_x + 1) + ix], mynodes[iz * (nsections_x + 1) + ix + 1],
                            mynodes[(iz + 1) * (nsections_x + 1) + ix], boundary_1, boundary_2, boundary_3)
         melementA.AddLayer(thickness, 0, material)
         mesh.AddElement(melementA)
-        
-        
+
         if iz == 0 and ix == 1:
             melementmonitor = melementA
 
@@ -96,8 +92,8 @@ for j in range(30):
 
 mvisualizeshellA = chrono.ChVisualShapeFEA(mesh)
 mvisualizeshellA.SetShellResolution(2)
-mvisualizeshellA.SetSmoothFaces(True)
-mvisualizeshellA.SetWireframe(True)
+
+
 
 mesh.AddVisualShapeFEA(mvisualizeshellA)
 

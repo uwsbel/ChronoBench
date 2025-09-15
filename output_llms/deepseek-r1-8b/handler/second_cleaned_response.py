@@ -8,13 +8,14 @@ from std_msgs.msg import String
 class MyCustomHandler(chros.ChROSHandler):
     
 
+    message = "Hello, world! At time: "  
+
     def __init__(self, topic):
         super().__init__(1)  
 
         self.topic = topic
         self.publisher: rclpy.publisher.Publisher = None
         self.ticker = 0  
-        self.message = "Hello, world! At time: "  
 
     def Initialize(self, interface: chros.ChROSPythonInterface) -> bool:
         
@@ -25,9 +26,9 @@ class MyCustomHandler(chros.ChROSHandler):
 
     def Tick(self, time: float):
         
-        print(f"Publishing {self.ticker} ...")
+        print(f"Publishing {self.message + str(self.ticker)} ...")
         msg = String()  
-        msg.data = f"{self.message}{self.ticker}"  
+        msg.data = self.message + str(self.ticker)  
         self.publisher.publish(msg)  
         self.ticker += 1  
 

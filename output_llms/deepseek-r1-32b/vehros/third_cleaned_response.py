@@ -50,59 +50,60 @@ def main():
     vis.AddLightWithShadow(ch.ChVector3d(1.5, -2.5, 5.5), ch.ChVector3d(0, 0, 0.5), 3, 4, 10, 40, 512)
     
     
+    box = sens.ChBodyEasyBox(1, 1, 1)
+    box.SetPos(ch.ChVector3d(5, 0, 1.6))
+    box.GetVisualShape(0).SetMaterialColor(ch.ChColor(0.5, 0.5, 0.5))
+    vis.GetSystem().AddBody(box)
+    
+    
     driver = veh.ChDriver(hmmwv.GetVehicle())
-    
-    
-    sens_manager = sens.ChSensorManager(hmmwv.GetSystem())
-    
-    
-    box = ch.ChBodyEasyBox(1, 1, 1)
-    box.SetPos(ch.ChVector3d(0, 0, 0))
-    box.SetMaterialSurface(ch.ChVisualMaterial())
-    box.GetMaterialSurface().SetDiffuseColor(ch.ChColor(0.5, 0.5, 0.5))
-    box.GetMaterialSurface().SetSpecularColor(ch.ChColor(0.2, 0.2, 0.2))
-    box.GetCollisionModel().SetCollisionType(ch.CollisionType_NONE)
-    hmmwv.GetSystem().AddBody(box)
-    
-    
-    lidar = sens.ChLidarSensor()
-    lidar.SetName("lidar_sensor")
-    lidar.SetRange(100.0)
-    lidar.SetHRes(360)
-    lidar.SetVRes(90)
-    lidar.SetHStart(-180)
-    lidar.SetVStart(-45)
-    lidar.SetFovHorizontal(360)
-    lidar.SetFovVertical(90)
-    lidar.SetSampleRate(100)
-    lidar.SetNoiseLevel(0.01)
-    lidar.SetDistanceNoise(0.001)
-    lidar.SetAngularNoise(0.001)
-    
-    
-    coord_filter = sens.ChLidarSensorCoordinateFilter()
-    coord_filter.SetMinDistance(0.1)
-    coord_filter.SetMaxDistance(100)
-    lidar.AddFilter(coord_filter)
-    
-    point_cloud_filter = sens.ChLidarSensorPointCloudFilter()
-    point_cloud_filter.SetResolution(0.1)
-    lidar.AddFilter(point_cloud_filter)
-    
-    range_filter = sens.ChLidarSensorRangeFilter()
-    range_filter.SetMinRange(0.1)
-    range_filter.SetMaxRange(50)
-    lidar.AddFilter(range_filter)
-    
-    
-    sens_manager.AddSensor(lidar)
+    driver.Initialize()
     
     
     ros_manager = chros.ChROSPythonManager()
     ros_manager.RegisterHandler(chros.ChROSClockHandler())
     ros_manager.RegisterHandler(chros.ChROSDriverInputsHandler(25, driver, "~/input/driver_inputs"))
     ros_manager.RegisterHandler(chros.ChROSBodyHandler(25, hmmwv.GetChassisBody(), "~/output/hmmwv/state"))
-    ros_manager.RegisterHandler(chros.ChROSLidarHandler(25, lidar, "~/output/lidar/data"))
+    
+    
+    sens_manager = sens.ChSensorManager(hmmwv.GetSystem())
+    
+    
+    lidar = sens.ChLidarSensor()
+    lidar.SetName("lidar")
+    lidar.SetPosition(ch.ChVector3d(0, 0, 1.6))
+    lidar.SetRotation(ch.ChQuaterniond(1, 0, 0, 0))
+    lidar.SetRange(50.0)
+    lidar.SetHorizontalAngleRange(-1.5708, 1.5708)
+    lidar.SetVerticalAngleRange(-0.7854, 0.7854)
+    lidar.SetNumberOfBeams(360)
+    lidar.SetBeamSpacing(0.01)
+    
+    
+    distance_filter = sens.ChLidarDistanceFilter()
+    distance_filter.SetMinDistance(0.1)
+    distance_filter.SetMaxDistance(50.0)
+    lidar.AddFilter(distance_filter)
+    
+    intensity_filter = sens.ChLidarIntensityFilter()
+    intensity_filter.SetMinIntensity(0.1)
+    intensity_filter.SetMaxIntensity(1.0)
+    lidar.AddFilter(intensity_filter)
+    
+    coordinate_filter = sens.ChLidarCoordinateFilter()
+    coordinate_filter.SetMinX(-10)
+    coordinate_filter.SetMaxX(10)
+    coordinate_filter.SetMinY(-10)
+    coordinate_filter.SetMaxY(10)
+    coordinate_filter.SetMinZ(0)
+    coordinate_filter.SetMaxZ(20)
+    lidar.AddFilter(coordinate_filter)
+    
+    sens_manager.AddSensor(lidar)
+    
+    
+    ros_manager.RegisterHandler(chros.ChROSLidarHandler(25, lidar, "~/output/hmmwv/lidar"))
+    
     ros_manager.Initialize()
     
     
@@ -117,7 +118,7 @@ def main():
     while vis.Run():
         time = hmmwv.GetSystem().GetChTime()
         
-        if step_number % render_steps == 0:
+        if (step_number % render_steps == 0):
             vis.BeginScene()
             vis.Render()
             vis.EndScene()
@@ -131,8 +132,7 @@ def main():
         terrain.Advance(time_step)
         hmmwv.Advance(time_step)
         
-        
-        sens_manager.Update()
+        sens_manager.Update()  
         
         if not ros_manager.Update(time, time_step):
             break

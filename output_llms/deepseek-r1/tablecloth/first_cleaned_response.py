@@ -1,84 +1,88 @@
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
-import pychrono.mkl as mkl
+import pychrono.fea as fea
 
+def main():
+    
+    system = chrono.ChSystemSMC()
+    system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  
 
-system = chrono.ChSystemSMC()
-system.SetGravitationalAcceleration(chrono.ChVector3d(0, -9.81, 0))
+    
+    mesh = fea.ChMesh()
+    system.Add(mesh)
 
+    
+    rho = 1000  
+    E = 2e6     
+    nu = 0.3    
+    material = fea.ChMaterialShellReissnerIsothropic(E, nu, rho)
 
-system.SetSolverType(chrono.ChSolver.Type.PARDISO_MKL)
-solver = system.GetSolver().AsMKL()
-solver.SetSparsityPatternLock(True)
-solver.SetVerbose(False)
+    
+    length_x = 1.0  
+    length_y = 1.0  
+    num_div_x = 20  
+    num_div_y = 20  
 
+    
+    nodes = []
+    for iy in range(num_div_y + 1):
+        for ix in range(num_div_x + 1):
+            x = ix * (length_x / num_div_x)
+            y = iy * (length_y / num_div_y)
+            node = fea.ChNodeFEAxyzD(
+                chrono.ChVectorD(x, 0.5, y),
+                chrono.ChVectorD(0, 1, 0)  
+            )
+            mesh.AddNode(node)
+            nodes.append(node)
 
-mesh = chrono.ChMesh()
-system.Add(mesh)
+    
+    for iy in range(num_div_y):
+        for ix in range(num_div_x):
+            n0 = nodes[iy * (num_div_x + 1) + ix]
+            n1 = nodes[iy * (num_div_x + 1) + ix + 1]
+            n2 = nodes[(iy + 1) * (num_div_x + 1) + ix + 1]
+            n3 = nodes[(iy + 1) * (num_div_x + 1) + ix]
 
+            element = fea.ChElementShellReissner4()
+            element.SetNodes(n0, n1, n2, n3)
+            element.SetMaterial(material)
+            mesh.AddElement(element)
 
-rho = 1000  
-E = 1e7     
-nu = 0.3    
-thickness = 0.001  
-material = chrono.ChMaterialShellANCF(rho, E, nu)
+    
+    for ix in range(num_div_x + 1):
+        nodes[ix].SetFixed(True)  
 
+    
+    solver = chrono.ChSolverPardisoMKL()
+    system.SetSolver(solver)
+    system.SetSolverForceTolerance(1e-8)
 
-length_x = 1.0
-length_y = 1.0
-nx = 10
-ny = 10
+    
+    vis = chronoirr.ChVisualSystemIrrlicht()
+    vis.AttachSystem(system)
+    vis.SetWindowSize(1024, 768)
+    vis.SetWindowTitle("Tablecloth Folding")
+    vis.Initialize()
+    vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+    vis.AddSkyBox()
+    vis.AddCamera(chrono.ChVectorD(1, 0.5, 1.2))
+    vis.AddTypicalLights()
 
-dx = length_x / nx
-dy = length_y / ny
-nodes = []
+    
+    vis_mesh = fea.ChVisualizationFEAmesh(mesh)
+    vis_mesh.SetFEMdataType(fea.VisFEAmeshDataType_ELEM_SHELL)
+    vis_mesh.SetShellResolution(2)
+    vis_mesh.SetColorscaleMinMax(-0.5, 0.5)
+    mesh.AddVisualizationFEA(vis_mesh)
 
-for j in range(ny + 1):
-    for i in range(nx + 1):
-        x = i * dx
-        y = j * dy
-        node = chrono.ChNodeFEAxyzD(chrono.ChVector3d(x, y, 0), chrono.ChVector3d(0, 0, 1))
-        nodes.append(node)
-        mesh.AddNode(node)
+    
+    time_step = 0.001
+    while vis.Run():
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+        system.DoStepDynamics(time_step)
 
-
-for j in range(ny):
-    for i in range(nx):
-        n0 = j * (nx + 1) + i
-        n1 = j * (nx + 1) + i + 1
-        n2 = (j + 1) * (nx + 1) + i + 1
-        n3 = (j + 1) * (nx + 1) + i
-
-        element = chrono.ChElementShellANCF_3423()
-        element.SetNodes(nodes[n0], nodes[n1], nodes[n2], nodes[n3])
-        element.AddLayer(thickness, 0 * chrono.CH_DEG_TO_RAD, material)
-        element.SetAlphaDamp(0.02)
-        mesh.AddElement(element)
-
-
-for j in range(ny + 1):
-    nodes[j * (nx + 1)].SetFixed(True)
-
-
-vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(system)
-vis.SetWindowSize(1024, 768)
-vis.SetWindowTitle('Folding Tablecloth Simulation')
-vis.Initialize()
-vis.AddCamera(chrono.ChVector3d(1.5, 0.5, 1.5))
-vis.AddTypicalLights()
-
-
-mesh_vis = chrono.ChVisualShapeFEA(mesh)
-mesh_vis.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NODE_SPEED_NORM)
-mesh_vis.SetColorscaleMinMax(0.0, 5.0)
-mesh_vis.SetSmoothFaces(True)
-mesh.AddVisualShapeFEA(mesh_vis)
-
-
-timestep = 0.001
-while vis.Run():
-    vis.BeginScene()
-    vis.Render()
-    vis.EndScene()
-    system.DoStepDynamics(timestep)
+if __name__ == "__main__":
+    main()

@@ -41,8 +41,9 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  
 
 
-log_step_size = 100  
-gps_data = []  
+log_step_size = 1.0  
+log_steps = int(log_step_size / step_size)
+gps_data = []
 
 
 vehicle = veh.HMMWV_Full() 
@@ -144,6 +145,7 @@ render_steps = math.ceil(render_step_size / step_size)
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
+log_counter = 0
 
 
 while vis.Run():
@@ -157,18 +159,8 @@ while vis.Run():
         render_frame += 1
 
     
-    driver_inputs = {}
-    driver.inputs = driver_inputs
-
     
-    if time < 6.0:
-        driver.inputs['throttle'] = 0.5  
-        driver.inputs['steering'] = 0.2   
-        driver.inputs['braking'] = 0.0    
-    else:
-        driver.inputs['throttle'] = 0.0   
-        driver.inputs['steering'] = 0.0   
-        driver.inputs['braking'] = 0.5    
+    driver_inputs = get_driver_inputs(time)  
 
     
     driver.Synchronize(time)
@@ -184,10 +176,14 @@ while vis.Run():
 
     
     manager.Update()
-
     
-    if step_number % log_step_size == 0:
-        gps_data.append(gps.GetMostRecentGPSBuffer().GetGPSData())
+    
+    log_counter += 1
+    if log_counter >= log_steps:
+        log_counter = 0
+        gps_buffer = gps.GetMostRecentGPSBuffer()
+        if gps_buffer:
+            gps_data.append(gps_buffer.GetGPSData())
 
     
     step_number += 1

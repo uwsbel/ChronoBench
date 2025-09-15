@@ -1,178 +1,93 @@
 import pychrono as pychrono
-import numpy as np
-import open3d as o3d
+from pychrono import Vehicle, VehicleController, World, Ground, Light, SkyBox, Visualization, TireModel
 
 # Initialize the simulation
 sim = pychrono.Simulation()
-sim.setPhysicsEnabled(True)
-sim.setTimestep(1e-5)  # Set the simulation timestep
-sim.setSolverType(pychrono.SolverType.SOLVER_SPOROX)
+sim.set_time_step(0.001)
+sim.set_max_steps(10000)
 
-# Initialize the renderer
-renderer = pychrono.IrrlichtRenderer()
-renderer.setCameraPosition([50, 50, 50])
-renderer.setLookAtPoint([0, 0, 0])
-renderer.setUpVector([0, 1, 0])
-renderer.setShadowEnabled(True)
-renderer.setSkyboxEnabled(True)
-renderer.setLightDirection([10, 10, 10])
-renderer.setLightIntensity(1)
-renderer.setLightColor([255, 255, 255])
-renderer.setLightRadius(5)
-renderer.setLightAutoScale(True)
-renderer.setLightEnabled(True)
+# Initialize the vehicle
+vehicle = Vehicle("MAN 10t Truck", pychrono.VehicleModels.MAN_T80)
+vehicle.set_name("MAN 10t Truck")
+vehicle.set驾驶员(True)
+vehicle.set_controls(True)  # Enable steering, throttle, and braking controls
 
-# Vehicle model
-chassis = pychrono.Link()
-chassis.setMass(2000)  # Mass of the chassis
-chassis.setInertia(0.1, 0.1, 0.1)  # Inertia for the chassis
+# Add driver controls
+driver_controls = VehicleController()
+driver_controls.set_max_steering_angle(0.5)
+driver_controls.set_max_throttle(0.5)
+driver_controls.set_max_braking_force(0.5)
+vehicle.set_controller(driver_controls)
 
-cab = pychrono.Link()
-cab.setMass(50)  # Mass of the cab
-cab.setInertia(0.05, 0.05, 0.05)  # Inertia for the cab
-
-# Position the chassis and cab
-chassis.setPos([0, 0, 0])
-cab.setPos([0, 1, 1.5])  # Position above the chassis
-
-# Add the vehicle to the simulation
-vehicle = pychrono.Vehicle()
-vehicle.addLink(chassis)
-vehicle.addLink(cab)
-
-# Add the tires
-tire1 = pychrono.Tire()
-tire1.setRadius(0.5)
-tire1.setFriction(1)
-tire1.setRollingFriction(0.1)
-tire1.setContactStiffness(1)
-tire1.setPosition([0, 0.5, 0])
-vehicle.addTire(tire1)
-
-tire2 = pychrono.Tire()
-tire2.setRadius(0.5)
-tire2.setFriction(1)
-tire2.setRollingFriction(0.1)
-tire2.setContactStiffness(1)
-tire2.setPosition([-0.5, 0.5, 0])
-vehicle.addTire(tire2)
-
-tire3 = pychrono.Tire()
-tire3.setRadius(0.5)
-tire3.setFriction(1)
-tire3.setRollingFriction(0.1)
-tire3.setContactStiffness(1)
-tire3.setPosition([-0.5, -0.5, 0])
-vehicle.addTire(tire3)
-
-tire4 = pychrono.Tire()
-tire4.setRadius(0.5)
-tire4.setFriction(1)
-tire4.setRollingFriction(0.1)
-tire4.setContactStiffness(1)
-tire4.setPosition([0.5, -0.5, 0])
-vehicle.addTire(tire4)
-
-# Create the terrain
-terrain = pychrono.Plane()
-terrain.setNormal([0, 0, 1])
-terrain.setDistance(0)
-terrain.setSizeX(2000)
-terrain setSizeY(2000)
-terrain.setPosition([-1000, -1000, 0])
-
-# Create the ground plane
-ground = pychrono.Plane()
-ground.setNormal([0, 0, 1])
-ground.setDistance(0)
-ground.setSizeX(2000)
-ground.setSizeY(2000)
-ground.setPosition([-1000, -1000, -0.5])
+# Initialize the world
+world = World()
+world.set_gravity(True, 0, -9.81)
+world.set_ground("Rigid Terrain", Ground(0, 0, 0, 50, 100, 0.5))
+world.set_texture("terrain/flat_terrain", "terrain/flat_terrain_diff")
+world.set_logo("logo/man_truck.png")
 
 # Add lighting
-light = pychrono.Light()
-light.setPosition([1000, 1000, 1000])
-light.setDirection([0, 0, -1])
-renderer.addLight(light)
+light = Light.DirectionalLight(1000, 1000, 1000, 0, 0, 0)
+light.set_position(5, 5, 5)
+world.add_light(light)
 
-# Add ambient light
-ambient_light = pychrono.Light()
-ambient_light.setPosition([1000, 1000, 1000])
-ambient_light.setIntensity(0.5)
-renderer.addLight(ambient_light)
+sky = SkyBox("sky/skybox", "sky/skybox_diff")
+sky.set_position(100, 100, 100)
+world.add_sky(sky)
 
-# Add skybox texture path
-renderer.setSkyboxTexturePath("pychrono/textures/skybox/")  # Replace with your skybox texture path
+# Add visualization
+viz = Visualization("Irrlicht Visualization")
+viz.set_camera_position(0, 0, 5)
+viz.set_chase_camera(True)
+viz.set_antialiasing(4)
+viz.set_shadows(True)
+viz.set_texture("truck/man_truck", "truck/man_truck_diff")
+viz.set_terrain_texture("terrain/flat_terrain", "terrain/flat_terrain_diff")
+viz.set_terrain_logo("logo/man_truck.png")
 
-# Add the vehicle to the simulation
-sim.addObject(vehicle, "Vehicle")
-sim.addObject(chassis, "Chassis")
-sim.addObject(cab, "Cab")
+# Add vehicle-tire interaction
+tire_model = TireModel("TMEASY")
+tire_model.set_parameters(200000, 0.1, 0.001, 0.1)
+vehicle.add_tire_model(tire_model)
 
-# Add the terrain and ground to the simulation
-sim.addObject(terrain, "Terrain")
-sim.addObject(ground, "Ground")
+# Set collision properties
+vehicle.set_collision_detection(True)
+vehicle.set_contact_handling(True)
+vehicle.set_friction(0.5)
+vehicle.set_normal_force(1000.0)
+vehicle.set_static_friction(0.5)
 
-# Add the logo to the vehicle
-logo = pychrono.Plane()
-logo.setMaterial("MAN_Logo")  # Replace with your logo material
-logo.setPosition([0, 1, 1.5])
-sim.addObject(logo, "MAN_Logo")
+# Set up simulation loop
+def update_simulation():
+    pychrono.pyUpdate()
+    # Get driver input
+    speed = vehicle.get_speed()
+    # Limit maximum speed
+    if speed > 10:
+        speed = 10
+    # Update vehicle state
+    vehicle.set_speed(speed[0], speed[1], speed[2])
+    
+    # Apply controls
+    steering = driver_controls.get_steering()
+    vehicle.set_steering(steering)
+    
+    throttle = driver_controls.get_throttle()
+    vehicle.set_throttle(throttle)
+    
+    braking = driver_controls.get_braking()
+    vehicle.set_braking(braking)
 
-# Define the controls
-controls = pychrono.InputHandler()
-controls.setAxis("Steering", 0.5)
-controls.setAxis("Throttle", 1)
-controls.setAxis("Brake", -1)
-
-# Set up the vehicle controls
-vehicle.setSteeringAxis(controls.getAxis("Steering"))
-vehicle.setThrottleAxis(controls.getAxis("Throttle"))
-vehicle.setBrakeAxis(controls.getAxis("Brake"))
-
-# Set up the camera
-chase_camera = pychrono.Camera()
-chase_camera.setPosition([50, 50, 50])
-chase_camera.setLookAtPoint([0, 0, 0])
-chase_camera.setUpVector([0, 1, 0])
-sim.addObject(chase_camera, "Chase_Camera")
-
-# Enable collisions
-sim.setCollisionEnabled(True)
-
-# Define the contact handler
-contact_handler = pychrono.ContactHandler()
-sim.setContactHandler(contact_handler)
-
-# Set up the simulation loop
-def draw():
-    global sim, renderer
-    renderer.update()
-    renderer.draw()
-
-# Set up the simulation loop
-sim.init()
-sim.addEventCallback(draw)
-
-# Start the simulation
+# Start simulation
+sim.add_update_function(update_simulation)
 sim.start()
 
-# Keep the simulation running
-while True:
-    pass
+# Example key presses (to be handled in the visualization window)
+print("Example key controls:")
+print("A: Accelerate")
+print("W: Brake")
+print("F: Steering Left")
+print("D: Steering Right")
 
-# Add the logo to the vehicle
-logo = pychrono.Plane()
-logo.setMaterial("MAN_Logo")  # Replace with your logo material
-logo.setPosition([0, 1, 1.5])
-sim.addObject(logo, "MAN_Logo")
-
-# Add the chase camera
-chase_camera = pychrono.Camera()
-chase_camera.setPosition([50, 50, 50])
-chase_camera.setLookAtPoint([0, 0, 0])
-chase_camera.setUpVector([0, 1, 0])
-sim.addObject(chase_camera, "Chase_Camera")
-
-# Finalize the simulation
-sim.end()
+# Run the simulation
+sim.run()

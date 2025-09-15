@@ -3,7 +3,7 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import pychrono.sensor as sens
 import math
-import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt  # Added for GPS plot
 
 # Set the Chrono data directory
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
@@ -43,7 +43,7 @@ render_step_size = 1.0 / 50  # FPS = 50
 log_step_size = 1.0 / 20    # Frequency of data logging
 
 # Create the HMMWV vehicle, set parameters, and initialize
-vehicle = veh.HMMWV_Full()
+vehicle = veh.HMMWV_Full() # veh.HMMWV_Reduced() could be another choice
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
@@ -100,83 +100,108 @@ driver.Initialize()
 # Initialize sensor manager
 manager = sens.ChSensorManager(vehicle.GetSystem())
 
-# Create an IMU sensor and add it to the manager
-offset_pose = chrono.ChFrame(chrono.ChVector3d(0, 0, 1), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0)))
-imu = sens.ChIMUSensor(vehicle.GetChassisBody(),  # Body IMU is attached to
-                       10,        # Update rate in Hz
-                       offset_pose,          # Offset pose
-                       sens.ChNoiseNone())   # Noise model
+# Create an IMU sensor and add it to the manager (with modified offset)
+imu_offset_pose = chrono.ChFrameD(chrono.ChVector3d(0, 0, 1), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0)))
+imu = sens.ChAccelerometerSensor(vehicle.GetChassisBody(),  # Body IMU is attached to
+                                 10,                       # Update rate in Hz
+                                 imu_offset_pose,          # Modified offset pose
+                                 sens.ChNoiseNone())       # Noise model
 imu.SetName("IMU Sensor")
-imu.PushFilter(sens.ChFilterIMUAccess())  # Correct filter for IMU data access
+imu.SetLag(0)
+imu.SetCollectionWindow(0)
+# Provides the host access to the IMU data
+imu.PushFilter(sens.ChFilterAccelAccess())
+# Add the IMU to the sensor manager
 manager.AddSensor(imu)
 
-# Create a GPS sensor and add it to the manager
-gps = sens.ChGPSSensor(vehicle.GetChassisBody(),  # Body GPS is attached to
-                       10,        # Update rate in Hz
-                       offset_pose,          # Offset pose
+# Create a GPS sensor and add it to the manager (original offset maintained)
+gps_offset_pose = chrono.ChFrameD(chrono.ChVector3d(-8, 0, 1), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0)))
+gps = sens.ChGPSSensor(vehicle.GetChassisBody(),            # Body GPS is attached to
+                       10,                                  # Update rate in Hz
+                       gps_offset_pose,                     # Original offset pose
                        chrono.ChVector3d(-89.400, 43.070, 260.0),  # GPS reference point
-                       sens.ChNoiseNone())   # Noise model
+                       sens.ChNoiseNone())                  # Noise model
 gps.SetName("GPS Sensor")
+gps.SetLag(0)
+gps.SetCollectionWindow(0)
+# Provides the host access to the GPS data
 gps.PushFilter(sens.ChFilterGPSAccess())
+# Add the GPS to the sensor manager
 manager.AddSensor(gps)
 
 # ---------------
 # Simulation loop
 # ---------------
 
+# Output vehicle mass
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
+# Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
 log_steps = math.ceil(log_step_size / step_size)
+# Initialize simulation frame counter
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
-gps_data = []
 
+gps_data = []
+# Simulation loop
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
+    # Render scene and output POV-Ray data
     if step_number % render_steps == 0:
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
         render_frame += 1
-        
     if step_number % log_steps == 0:
+        # get most recent GPS data
         gps_coor = gps.GetMostRecentGPSBuffer().GetGPSData()
         gps_data.append([gps_coor[0], gps_coor[1], gps_coor[2]])
-
-    # Simplified constant driver inputs
-    driver.SetThrottle(0.5)
-    driver.SetSteering(0.6)
-    driver.SetBraking(0.0)
+    
+    # Set constant driver inputs as requested
+    driver.SetThrottle(0.5)  # Constant throttle
+    driver.SetSteering(0.6)  # Constant steering
     
     driver_inputs = driver.GetInputs()
     
+    # Update modules (process inputs from other modules)
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
 
+    # Advance simulation for one timestep for all modules
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
 
+    # Update sensor manager in each step
     manager.Update()
+    
+    # Increment frame number
     step_number += 1
+
+    # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
 
-# Plot GPS trajectory
-lat = [point[0] for point in gps_data]
-lon = [point[1] for point in gps_data]
-
-plt.figure(figsize=(8, 6))
-plt.plot(lon, lat, 'b-')
-plt.xlabel('Longitude (degrees)')
-plt.ylabel('Latitude (degrees)')
-plt.title('Vehicle GPS Trajectory')
-plt.grid(True)
-plt.show()
+# Plot GPS trajectory after simulation
+if gps_data:
+    latitudes = [data[0] for data in gps_data]
+    longitudes = [data[1] for data in gps_data]
+    
+    plt.figure(figsize=(10, 6))
+    plt.plot(longitudes, latitudes, 'b-', linewidth=2)
+    plt.scatter(longitudes[0], latitudes[0], color='green', marker='o', s=100, label='Start')
+    plt.scatter(longitudes[-1], latitudes[-1], color='red', marker='x', s=100, label='End')
+    plt.xlabel('Longitude')
+    plt.ylabel('Latitude')
+    plt.title('Vehicle GPS Trajectory')
+    plt.grid(True)
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
 
 print("GPS Data: ", gps_data)

@@ -20,7 +20,7 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_PACEJKA_89  # Changed from TMEASY to Pacejka 89
 
 # Rigid terrain
-# terrain_model = veh.RigidTerrain.BOX
+terrain_model = veh.RigidTerrain.BOX  # Added definition
 terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
@@ -33,7 +33,7 @@ contact_method = chrono.ChContactMethod_NSC
 contact_vis = False
 
 # Simulation step sizes
-step_size = 5e-4  # Changed from 1e-3 to 5e-4
+step_size = 5e-4  # Reduced from 1e-3
 tire_step_size = step_size
 
 # Time interval between two render frames

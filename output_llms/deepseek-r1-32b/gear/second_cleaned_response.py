@@ -70,7 +70,7 @@ mbody_gearB = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y,
                                         radB, 0.4,                  
                                         1000, True, False, mat)     
 sys.Add(mbody_gearB)                                                
-mbody_gearB.SetPos(chrono.ChVector3d(interaxis12, 0, -2))           
+mbody_gearB.SetPos(chrono.ChVector3d(interaxis12, 0, -2))          
 mbody_gearB.SetRot(chrono.QuatFromAngleX(m.pi / 2))                 
 mbody_gearB.GetVisualShape(0).SetMaterial(0, vis_mat)               
 
@@ -97,7 +97,7 @@ link_gearBC = chrono.ChLinkLockGear()
 link_gearBC.Initialize(mbody_gearB, mbody_truss, chrono.ChFramed())       
 link_gearBC.SetFrameShaft1(chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleX(-m.pi / 2)))    
 link_gearBC.SetFrameShaft2(chrono.ChFramed(chrono.ChVector3d(0, 0, -4), chrono.QUNIT))        
-link_gearBC.SetTransmissionRatio(-radB / radC)                            
+link_gearBC.SetTransmissionRatio(radB / radC)                             
 link_gearBC.SetEpicyclic(True)                                            
 sys.AddLink(link_gearBC)                                                  
 

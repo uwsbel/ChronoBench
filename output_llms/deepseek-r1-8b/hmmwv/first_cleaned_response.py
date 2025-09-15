@@ -1,126 +1,100 @@
-import PyChrono as pc
-import Irrlicht as ir
-import numpy as np
+import pychrono as pychrono
+import pychrono.gui
+import pychrono(irrlicht)
 
 
-pc.init()
-ir.init()
+pychrono.init PyChrono()
+pychrono.set_default_physics_settings()
+pychrono.set_default_visualization_settings()
 
 
-simulation = pc.Simulation()
-scene = pc.Scene()
+vehicle = pychrono.RigidBody2D()
+vehicle.set_name("HMMWV")
+vehicle.set_position([0, 0])
+vehicle.set_orientation(pychrono.math.Rotation2D())
+vehicle.set_contact_method(pychrono.Contact)
 
 
-vehicle_body = pc.RigidBody('Vehicle Body')
-vehicle_body.set_mass(1000)  
-vehicle_body.set_geometry(pc.BoxShape(2, 2, 2))  
-
-engine = pc.RigidBody('Engine')
-engine.set_mass(200)  
-engine.set_geometry(pc.BoxShape(1, 1, 1))
-
-transmission = pc.RigidBody('Transmission')
-transmission.set_mass(150)  
-transmission.set_geometry(pc.BoxShape(0.5, 0.5, 0.5))
+tire1 = pychrono.Tire2D(name="TMEASY", radius=0.5, friction=1.0, contact_damping=0.3)
+tire2 = pychrono.Tire2D(name="TMEASY", radius=0.5, friction=1.0, contact_damping=0.3)
+tire3 = pychrono.Tire2D(name="TMEASY", radius=0.5, friction=1.0, contact_damping=0.3)
+tire4 = pychrono.Tire2D(name="TMEASY", radius=0.5, friction=1.0, contact_damping=0.3)
 
 
-wheel1 = pc.RigidBody('Wheel 1')
-wheel1.set_mass(10)  
-wheel1.set_geometry(pc.CylinderShape(0.5, 0.5, 0.5))
-wheel1.set_contact_friction(0.5)  
+vehicle.add(tire1, pychrono.Vehicle.WheelLocation.FRONT_LEFT)
+vehicle.add(tire2, pychrono.Vehicle.WheelLocation.FRONT_RIGHT)
+vehicle.add(tire3, pychrono.Vehicle.WheelLocation.BACK_LEFT)
+vehicle.add(tire4, pychrono.Vehicle.WheelLocation.BACK_RIGHT)
 
 
-suspension_point = pc.RigidBody('Suspension Point')
-suspension_point.set_mass(5)  
-suspension_point.set_geometry(pc.SphereShape(0.2))
+engine = pychrono.Engine2D(name="Engine", power=100, torque=100, max_rpm=3000)
+engine.set_control_input(pychrono.Vehicle.Steer, 0)
+engine.set_control_input(pychrono.Vehicle.Throttle, 0)
+engine.set_control_input(pychrono.Vehicle.Brake, 0)
 
 
-wheel1.attach_to(suspension_point, pc.JointType.REVOLUTE, pc.Vec3(0, 0, 0))
-wheel1.set_rotation(pc.Vec3(0, 0, 0))  
+suspension = pychrono.Suspension2D(name="Suspension", spring_rate=1000, damping_rate=10)
+suspension.set_control_input(pychrono.Vehicle.Height, 0)
 
 
+terrain = pychrono.RigidTerrain(name="Terrain", dimensions=[8192, 8192], texture="flat")
+terrain.set_static(True)
 
 
-driver_seat = pc.RigidBody('Driver Seat')
-driver_seat.set_mass(50)  
-driver_seat.set_geometry(pc.BoxShape(0.5, 0.5, 0.5))
-driver_seat.set_position(pc.Vec3(0.5, 0.5, 0.5))  
+renderer = pychrono.IrrlichtRenderer()
+renderer.set_window_size(1024, 768)
+renderer.set_hud_alignment(pychrono.Irrlicht.HUD_ALIGN_RIGHT)
+renderer.set_wireframe_mode(True)
+renderer.set_camera_position([100, 50, 10])
+renderer.set_look_at([0, 0, 0])
 
 
-scene.add_object(vehicle_body)
-scene.add_object(engine)
-scene.add_object(transmission)
-scene.add_object(wheel1)
-scene.add_object(suspension_point)
-scene.add_object(driver_seat)
+driver = pychrono.Driver(name="Driver")
+driver.set_control_input(pychrono.Vehicle.Steer, 0)
+driver.set_control_input(pychrono.Vehicle.Throttle, 0)
+driver.set_control_input(pychrono.Vehicle.Brake, 0)
 
 
-terrain = pc.RigidTerrain('Terrain')
-terrain.set_size(pc.Vec3(100, 100, 0))  
-terrain.set_texture(pc.Texture('grass'))  
-terrain.set_ground_friction(0.3)  
-terrain.set_contact_method(pc.Contact)  
+speed_label = pychrono.HUDText2D(name="Speed", position=[0, 50, 0])
+rpm_label = pychrono.HUDText2D(name="RPM", position=[0, 100, 0])
+gear_label = pychrono.HUDText2D(name="Gear", position=[0, 150, 0])
 
 
-scene.add_object(terrain)
+renderer.add_vehicle(vehicle, name="Vehicle", wireframe=True)
+renderer.add_terrain(terrain, name="Terrain")
 
 
-driver = pc.Driver('Driver')
-driver.set_control_scheme(pc.DriverControlScheme(
-    pc.Input(
-        pc.KeyboardInput(
-            pc.Key('w'), pc.Forces([0, 0, -1.0]),
-            pc.Key('s'), pc.Forces([0, 0, 1.0]),
-            pc.Key('a'), pc.Forces([-1.0, 0, 0]),
-            pc.Key('d'), pc.Forces([1.0, 0, 0]),
-            pc.Key(' ', pc.Forces([0, 0, 0.5]),
-            pc.Key('Shift'), pc.Forces([0, 0, -1.0])
-        )
-    )
-))
+simit = pychrono.Simit()
+simit.set_timestep(1 / 50)  
+simit.set_real_time(True)
 
 
-camera = pc.Camera('Camera')
-camera.set_position(pc.Vec3(10, 10, 10))
-camera.set_lookat(pc.Vec3(0, 0, 0))
-camera.set_up(pc.Vec3(0, 1, 0))
+vehicle.add(pychrono.Vehicle.Dynamics2D(mass=100, inertia=[0, 0, 1], friction=0.1, damping=0.5))
+engine.add_output_to_wheels([0, 0, 0, 0])
+suspension.add_output_to_vehicle([0, 0, 0])
 
 
-renderer = pc.Renderer('Renderer')
-renderer.set_camera(camera)
-renderer.set_light(pc.Light(pc.Vec3(10, 10, 10), pc.Vec3(-1, -1, -1), 0.5))
-renderer.set_ambient_light(pc.Color(0.5, 0.5, 0.5))
+driver.set_input_source(pychrono.Driver.InputSource.Keyboard)
+driver.set_control_mapping(pychrono.Driver.ControlMapping.SteerLeft, pychrono.Driver.ControlMapping.ThrottleForward, pychrono.Driver.ControlMapping.BrakeReverse)
 
 
-simulation.set_time_step(0.02)  
-simulation.set_gravity(pc.Vec3(0, 0, -9.81))
-
+simit.start()
 while True:
-    simulation.update()
+    simit.step()
+    renderer.update()
+    speed = vehicle.get_velocity()[0]
+    rpm = engine.get_output()[0]
+    gear = engine.get_gear()
     
+    speed_label.set_text(f"Speed: {int(speed)}")
+    rpm_label.set_text(f"RPM: {int(rpm)}")
+    gear_label.set_text(f"Gear: {int(gear)}")
     
-    forces = pc.Vec3(0, 0, 0)
-    
-    
-    if driver.input(pc.KeyboardInput(pc.Key('w'))):
-        forces.x += 0.5  
-    if driver.input(pc.KeyboardInput(pc.Key('s'))):
-        forces.x -= 0.5  
-    if driver.input(pc.KeyboardInput(pc.Key(' '))):
-        forces.z += 0.5  
-    if driver.input(pc.KeyboardInput(pc.Key('Shift'))):
-        forces.z -= 0.5  
-    
-    
-    for i in range(4):
-        wheel = scene.get_object('Wheel {}'.format(i+1))
-        if wheel:
-            wheel.set_forces(forces * (1.0 / 4.0))
-    
-    
-    renderer.begin_frame()
-    renderer.render(scene)
-    renderer.end_frame()
-
-
-simulation.run_loop()
+    if pychrono.Keyboard.is_pressed(pychrono.Keyboard.Key.W):
+        driver.set_throttle(0.5)
+    elif pychrono.Keyboard.is_pressed(pychrono.Keyboard.Key.S):
+        driver.set_brake(0.5)
+    elif pychrono.Keyboard.is_pressed(pychrono.Keyboard.Key.A):
+        driver.set_steer(-1.0)
+    elif pychrono.Keyboard.is_pressed(pychrono.Keyboard.Key.D):
+        driver.set_steer(1.0)

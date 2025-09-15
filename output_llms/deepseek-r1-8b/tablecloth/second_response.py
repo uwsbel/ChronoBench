@@ -20,23 +20,6 @@ sys = chrono.ChSystemSMC()
 mesh = fea.ChMesh()
 sys.Add(mesh)
 
-# Define node variables for monitoring and loading
-nodePlotA = None
-nodePlotB = None
-nodesLoad = []
-ref_X = None
-ref_Y = None
-load_force = None
-mnodemonitor = None
-melementmonitor = None
-
-# Create interpolation functions for reference tracking
-def get_ref_X(iz, ix):
-    return ref_X[iz][ix] if ref_X[iz][ix] is not None else 0.0
-
-def get_ref_Y(iz, ix):
-    return ref_Y[iz][ix] if ref_Y[iz][ix] is not None else 0.0
-
 # Material properties
 density = 100
 E = 6e4
@@ -61,67 +44,78 @@ for iz in range(nsections_z + 1):
         mesh.AddNode(mnode)
         mynodes.append(mnode)
 
-# Fix certain nodes
-for j in range(30):
-    for k in range(30):
-        mynodes[j * (nsections_x + 1) + k].SetFixed(True)
-
 # Create elements
 for iz in range(nsections_z):
     for ix in range(nsections_x):
         melementA = fea.ChElementShellBST()
-        # Corrected node indexing with boundary checks
-        if ix > 0:
-            boundary_2 = mynodes[(iz + 1) * (nsections_x + 1) + ix - 1]
-        else:
-            boundary_2 = None
-        if iz > 0:
-            boundary_3 = mynodes[(iz - 1) * (nsections_x + 1) + ix + 1]
-        else:
-            boundary_3 = None
+        boundary_1 = mynodes[(iz + 1) * (nsections_x + 1) + ix + 1]
+        boundary_2 = mynodes[(iz + 1) * (nsections_x + 1) + ix - 1] if ix > 0 else None
+        boundary_3 = mynodes[(iz - 1) * (nsections_x + 1) + ix + 1] if iz > 0 else None
 
-        melementA.SetNodes(
-            mynodes[iz * (nsections_x + 1) + ix],
-            mynodes[iz * (nsections_x + 1) + ix + 1],
-            mynodes[(iz + 1) * (nsections_x + 1) + ix],
-            boundary_1,
-            boundary_2,
-            boundary_3
-        )
+        melementA.SetNodes(mynodes[iz * (nsections_x + 1) + ix], mynodes[iz * (nsections_x + 1) + ix + 1],
+                           mynodes[(iz + 1) * (nsections_x + 1) + ix], boundary_1, boundary_2, boundary_3)
         melementA.AddLayer(thickness, 0, material)
         mesh.AddElement(melementA)
 
         melementB = fea.ChElementShellBST()
-        if ix < nsections_x - 1:
-            boundary_2 = mynodes[iz * (nsections_x + 1) + ix + 2]
-        else:
-            boundary_2 = None
-        if iz < nsections_z - 1:
-            boundary_3 = mynodes[(iz + 2) * (nsections_x + 1) + ix]
-        else:
-            boundary_3 = None
+        boundary_1 = mynodes[iz * (nsections_x + 1) + ix]
+        boundary_2 = mynodes[iz * (nsections_x + 1) + ix + 2] if ix < nsections_x - 1 else None
+        boundary_3 = mynodes[(iz + 2) * (nsections_x + 1) + ix] if iz < nsections_z - 1 else None
 
-        melementB.SetNodes(
-            mynodes[(iz + 1) * (nsections_x + 1) + ix + 1],
-            mynodes[(iz + 1) * (nsections_x + 1) + ix],
-            mynodes[iz * (nsections_x + 1) + ix + 1],
-            boundary_1,
-            boundary_2,
-            boundary_3
-        )
+        melementB.SetNodes(mynodes[(iz + 1) * (nsections_x + 1) + ix + 1], mynodes[(iz + 1) * (nsections_x + 1) + ix],
+                           mynodes[iz * (nsections_x + 1) + ix + 1], boundary_1, boundary_2, boundary_3)
         melementB.AddLayer(thickness, 0, material)
         mesh.AddElement(melementB)
 
-# Assign element monitor
-if iz == 0 and ix == 1:
-    melementmonitor = melementA
+# Node monitoring and loading setup
+nodePlotA = mynodes[0]
+nodePlotB = mynodes[0]
+nodesLoad = []
+
+# Define interpolation functions for reference tracking
+ref_X = lambda x: x
+ref_Y = lambda y: y
+
+# Create load force vector
+load_force = chrono.ChVector3d(0, 0, 0)
+
+# Add monitoring nodes
+mnodemonitor = fea.ChNodeFEAxyz(chrono.ChVector3d(0, 0, 0))
+mesh.AddNode(mnodemonitor)
+
+# Add monitoring element
+ementmonitor = None
+for iz in range(nsections_z):
+    for ix in range(nsections_x):
+        if iz == 0 and ix == 1:
+            emonitor = melementA
+            emonitor.SetMonitoring(True, 1)
+            emonitormonitor = fea.ChElementMonitorFEA(emonitor)
+            mesh.AddVisualShapeFEA(emonitormonitor)
+
+# Fix upper nodes
+for j in range(30):
+    for k in range(30):
+        mynodes[j * (nsections_x + 1) + k].SetFixed(True)
+
+# Construct boundary nodes with conditional checks
+for iz in range(nsections_z + 1):
+    for ix in range(nsections_x + 1):
+        if iz == 0 and ix > 0:
+            boundary_1 = mynodes[(iz + 1) * (nsections_x + 1) + ix + 1]
+            boundary_2 = mynodes[(iz + 1) * (nsections_x + 1) + ix - 1] if ix > 0 else None
+            boundary_3 = mynodes[(iz - 1) * (nsections_x + 1) + ix + 1] if iz > 0 else None
+        elif iz > 0 and ix == 0:
+            boundary_1 = mynodes[iz * (nsections_x + 1) + ix]
+            boundary_2 = mynodes[iz * (nsections_x + 1) + ix + 2] if ix < nsections_x - 1 else None
+            boundary_3 = mynodes[(iz + 2) * (nsections_x + 1) + ix] if iz < nsections_z - 1 else None
 
 # Create visualizations for shell elements
 mvisualizeshellA = chrono.ChVisualShapeFEA(mesh)
 mvisualizeshellA.SetShellResolution(2)
 mvisualizeshellA.SetSmoothFaces(True)
-mvisualizeshellA.SetWireframeMode(True)
-mvisualizeshellA.SetBackfaceCulling(True)  # Comment this line for debugging
+mvisualizeshellA.SetWireframe(True)
+mvisualizeshellA.SetBackfaceCulling(True)  # Commented out for optional visualization
 mesh.AddVisualShapeFEA(mvisualizeshellA)
 
 mvisualizeshellB = chrono.ChVisualShapeFEA(mesh)

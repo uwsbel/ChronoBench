@@ -1,110 +1,103 @@
 importchrono
-importchrono.vehicle as veh
-importchrono.physics as phy
-importchrono.visualization as vis
-importchrono.input as inp
+import math
+import time
 
 
-system = chrono.ChSystemNSC()
+system =chrono.ChSystemNSC()
 system.SetSolverType(chrono.ChSolverType.SOLVER_BARZILAI_BORWEIN)
 system.SetSolverMaxIterations(100)
 system.SetSolverTolerance(1e-6)
-system.SetMaxPenetration(1e-3)
+system.SetRealTimeSimulation(True)
 
 
-vis = vis.ChVisualizer()
-vis.SetWindowTitle("HMMWV on Deformable Terrain")
-vis.SetWindowSize(1280, 720)
-vis.SetRenderMode(vis.ChRenderMode.RENDER_OPENGL)
-vis.SetCameraPosition(chrono.ChVectorD(0, 5, 10))
-vis.SetCameraRotation(chrono.ChVectorD(0, -45, 0))
+application =chrono.ChIrrApp(system, "HMMWV on Deformable Terrain", chrono.CH,dimensions=(800,600))
+application.SetCameraPosition(chrono.ChVectorD(5,5,2))
+application.SetCameraRotation(chrono.ChVectorD(0,0,0))
 
 
-hmmwv = veh.ChHMMWV()
-hmmwv.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0.5), chrono.ChQuaternionD(1, 0, 0, 0)))
-hmmwv.SetTireType(veh.ChTireType.RIGID_MESH)
-hmmwv.SetVisualizationType(veh.ChVisualizationType.MESH)
+hmmwv =chrono.ChHMMWV()
+hmmwv.SetChassisPos(chrono.ChVectorD(0,0,1))
+hmmwv.SetChassisRot(chrono.ChQuaternionD(1,0,0,0))
 hmmwv.Initialize()
 
 
-soil_params = phy.ChSoilParameters()
-soil_params.density = 1500
-soil_params.friction = 0.5
-soil_params.restitution = 0.2
-soil_params.shear_strength = 10000
-soil_params. cohesion = 10000
-soil_params.tension = 10000
-soil_params.viscosity = 0.1
-soil_params.k = 1e7
-soil_params.G = 1e6
-soil_params.alpha = 0.1
-soil_params.beta = 0.1
-soil_params.gamma = 0.1
-
-terrain = phy.ChTerrainSCM()
-terrain.SetSize(20, 20)
-terrain.SetPosition(chrono.ChVectorD(0, 0, 0))
-terrain.SetSoilParameters(soil_params)
+terrain =chrono.ChSCMTerrain()
+terrain.SetSize(20,20)  
+terrain.SetPosition(chrono.ChVectorD(0,0,0))
+terrain.SetSoilParameters(
+    density=1500,  
+    friction=0.5,
+    cohesion=1000,
+    tangent_modulus=1e6,
+    damping=0.1
+)
+terrain.EnableMovingPatch(True)
+terrain.SetMovingPatchDimensions(5,5)  
+terrain.SetMovingPatchOffset(0,0)  
+terrain.EnableSinkageVisualization(True)
+terrain.SetSinkageColorRange(0,0.3)  
 terrain.Initialize()
 
 
-patch = phy.ChPatch()
-patch.SetSize(5, 5)
-patch.SetPosition(chrono.ChVectorD(0, 0, 0))
-patch.SetColor(chrono.ChColor(0.5, 0.5, 0.5))
-patch.Initialize()
+hmmwv.GetChassis().SetCollide(True)
+hmmwv.GetChassis().SetRender(True)
+for wheel in hmmwv.GetWheelSet().GetWheelList():
+    wheel.Get Rim().SetCollide(True)
+    wheel.Get Rim().SetRender(True)
+    wheel.Get Tire().SetCollide(True)
+    wheel.Get Tire().SetRender(True)
 
 
-system.Add(hmmwv.GetVehicle())
-system.Add(terrain)
-system.Add(patch)
+driver =chrono.ChDriver(hmmwv.GetDriver())
+driver.SetMaxThrottle(1)
+driver.SetMaxSteering(1)
+driver.SetMaxBraking(1)
 
 
-driver = veh.ChDriver()
-driver.SetSteering(0)
-driver.SetThrottle(0)
-driver.SetBraking(0)
-hmmwv.SetDriver(driver)
+def on_key_press(event):
+    if event.key == 'w':
+        driver.SetThrottle(1)
+    elif event.key == 's':
+        driver.SetThrottle(-1)
+    elif event.key == 'a':
+        driver.SetSteering(1)
+    elif event.key == 'd':
+        driver.SetSteering(-1)
+    elif event.key == 'q':
+        driver.SetBraking(1)
+    elif event.key == 'e':
+        driver.SetBraking(-1)
+
+application.SetKeyDownCallback(on_key_press)
 
 
-input = inp.ChInput()
-input.Initialize()
+light =chrono.ChLight()
+light.SetPosition(chrono.ChVectorD(5,5,5))
+light.SetIntensity(1)
+application.AddLight(light)
+
+dir_light =chrono.ChDirLight()
+dir_light.SetDirection(chrono.ChVectorD(-1,-1,-1))
+dir_light.SetIntensity(0.5)
+application.AddLight(dir_light)
 
 
-step_size = 0.01
-time = 0
-while time < 100:
-    
-    hmmwv.Update(time)
-    
-    
-    chassis = hmmwv.GetChassis()
-    patch.SetPosition(chassis.GetPos())
+application.Begin()
+while application.GetDevice().run():
+    application.BeginScene()
+    application.DrawAll()
+    application.EndScene()
     
     
-    terrain.Update()
+    driver.Update()
+    system.DoStepDynamics(1/50)  
     
     
-    input.Update()
-    if input.KeyDown(ord('W')):
-        driver.SetThrottle(0.5)
-    elif input.KeyDown(ord('S')):
-        driver.SetBraking(0.5)
-    elif input.KeyDown(ord('A')):
-        driver.SetSteering(-0.5)
-    elif input.KeyDown(ord('D')):
-        driver.SetSteering(0.5)
-    else:
-        driver.SetThrottle(0)
-        driver.SetBraking(0)
-        driver.SetSteering(0)
+    chassis_pos =hmmwv.GetChassis().GetPos()
+    terrain.SetMovingPatchOffset(chassis_pos.x, chassis_pos.z)
     
     
-    system.DoStepDynamics(step_size)
-    time += step_size
+    terrain.UpdateVisualization()
+    time.sleep(0.02)  
     
-    
-    vis.Render()
-    vis.BeginScene()
-    vis.RenderAll()
-    vis.EndScene()
+application.End()

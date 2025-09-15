@@ -3,13 +3,12 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
-# Set Chrono data path
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 # Initial vehicle location and orientation
 initLoc = chrono.ChVector3d(-15, 0, 0.5)
-initRot = chrono.ChQuaterniond(0, 0, 1, 0)  # Rotated 180 degrees around Y-axis
+initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 # Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
 vis_type = veh.VisualizationType_MESH
@@ -21,14 +20,13 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 # Rigid terrain
+# terrain_model = veh.RigidTerrain.BOX
 terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
 
-# Camera track point and chase camera settings
+# Poon chassis tracked by the camera
 trackPoint = chrono.ChVector3d(3, 0, 2.1)
-chaseCameraDistance = 25.0
-chaseCameraHeight = 10.5
 
 # Contact method
 contact_method = chrono.ChContactMethod_NSC
@@ -42,6 +40,7 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  # FPS = 50
 
 # Create the kraz vehicle, set parameters, and initialize
+
 vehicle = veh.Kraz()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
@@ -74,17 +73,18 @@ terrain.Initialize()
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('Kraz Demo')
 vis.SetWindowSize(1280, 1024)
-vis.SetChaseCamera(trackPoint, chaseCameraDistance, chaseCameraHeight)
+vis.SetChaseCamera(trackPoint, 25.0, 10.5)
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetTractor())
 
+
 # Create the driver system
 driver = veh.ChInteractiveDriverIRR(vis)
 
-# Set the time response for steering and throttle keyboard inputs
+# Set the time response for steering and throttle keyboard inputs.
 steering_time = 1.0  # time to go from 0 to +1 (or from 0 to -1)
 throttle_time = 1.0  # time to go from 0 to +1
 braking_time = 0.3   # time to go from 0 to +1
@@ -94,27 +94,22 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 
 driver.Initialize()
 
-# Output vehicle mass
-print("VEHICLE MASS: ", vehicle.GetTractor().GetMass())
+# output vehicle mass
+print( "VEHICLE MASS: ",  vehicle.GetTractor().GetMass())
 
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
 
-# Initialize simulation frame counters
+# Initialize simulation frame counter s
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-# Double lane change maneuver parameters
-lane_change_time = [2.0, 4.5, 5.0, 7.5]
-steering_values = [-1.0, 0.0, 1.0, 0.0]
-current_lane_change = 0
-
-while vis.Run():
+while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
 
     # Render scene and output POV-Ray data
-    if (step_number % render_steps == 0):
+    if (step_number % render_steps == 0) :
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
@@ -122,6 +117,16 @@ while vis.Run():
 
     # Get driver inputs
     driver_inputs = driver.GetInputs()
+    
+    # Double lane change maneuver sequence
+    if time >= 2.0 and time < 4.0:  # First lane change left
+        driver.SetSteering(-0.5)  # Negative steering angle for left turn
+    elif time >= 4.0 and time < 6.0:  # Straighten
+        driver.SetSteering(0)
+    elif time >= 6.0 and time < 8.0:  # Second lane change right
+        driver.SetSteering(0.5)  # Positive steering angle for right turn
+    elif time >= 8.0:  # Straighten after lane changes
+        driver.SetSteering(0)
 
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
@@ -134,11 +139,6 @@ while vis.Run():
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
-
-    # Implement double lane change maneuver
-    if time >= lane_change_time[current_lane_change]:
-        driver_inputs.m_steering = steering_values[current_lane_change]
-        current_lane_change = (current_lane_change + 1) % len(lane_change_time)
 
     # Increment frame number
     step_number += 1

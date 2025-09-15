@@ -81,6 +81,18 @@ bearing.Initialize(builder.GetLastBeamNodes().back(),
 sys.Add(bearing)
 
 # Create the motor that rotates the beam
+rotmotor1 = chrono.ChLinkMotorRotationSpeed()
+
+# Connect the rotor and the stator and add the motor to the system:
+rotmotor1.Initialize(builder.GetLastBeamNodes().front(),  # body A (slave)
+                     truss,  # body B (master)
+                     chrono.ChFramed(builder.GetLastBeamNodes().front().GetPos(),
+                                     chrono.QuatFromAngleAxis(CH_PI / 2.0, chrono.VECT_Y))
+                     # motor frame, in abs. coords
+                     )
+sys.Add(rotmotor1)
+
+# Define custom motor function
 class ChFunctionMyFun(chrono.ChFunction):
     def __init__(self, A1, A2, T1, T2, T3, w):
         self.A1 = A1
@@ -92,26 +104,16 @@ class ChFunctionMyFun(chrono.ChFunction):
         self.current_time = 0.0
 
     def GetVal(self, x):
-        if x <= self.T1:
-            return self.A1 * (x / self.T1)
-        elif self.T1 <= x <= self.T2:
-            return self.A1
-        elif self.T2 <= x <= self.T3:
-            return self.A1 * ((self.T3 - x) / (self.T3 - self.T2))
+        if x < self.T1:
+            return self.A1 * m.sin(self.w * x)
+        elif self.T1 <= x < self.T2:
+            return self.A2 * m.sin(self.w * x)
         else:
-            return 0.0
+            return 0.0  # or other condition as needed
 
-rotmotor1 = chrono.ChLinkMotorRotationSpeed()
-rotmotor1.Initialize(builder.GetLastBeamNodes().front(),  # body A (slave)
-                     truss,  # body B (master)
-                     chrono.ChFramed(builder.GetLastBeamNodes().front().GetPos(),
-                                     chrono.QuatFromAngleAxis(CH_PI / 2.0, chrono.VECT_Y))
-                     # motor frame, in abs. coords
-                     )
-sys.Add(rotmotor1)
-
-f_ramp = ChFunctionMyFun(A1=1, A2=0.5, T1=2, T2=4, T3=6, w=2*m.pi)
-rotmotor1.SetMotorFunction(f_ramp)
+# Set up motor function
+motor_func = ChFunctionMyFun(1.0, 1.0, 0.0, 0.2, 0.0, 10.0)
+rotmotor1.SetMotorFunction(motor_func)
 
 # Attach a visualization of the FEM mesh.
 
@@ -139,8 +141,10 @@ vis.AddSkyBox()
 vis.AddCamera(chrono.ChVector3d(0, 1, 4), chrono.ChVector3d(beam_L / 2, 0, 0))
 vis.AddTypicalLights()
 
-# Optional: Enable HHT timestepper for more precise simulation
-sys.GetTimeStep().SetHHT(10)
+# Optional: Set HHT timestepper
+# msolver = mkl.ChSolverPardisoMKL()
+# sys.SetSolver(msolver)
+# sys.SetTimeStepper(chrono.ChTimeStepperHHT(1e-6))
 
 msolver = mkl.ChSolverPardisoMKL()
 sys.SetSolver(msolver)

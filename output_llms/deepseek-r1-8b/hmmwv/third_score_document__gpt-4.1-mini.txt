@@ -4,142 +4,184 @@
 
 ### 1. Completeness (40 points)
 
-- **System Initialization:**  
-  The script uses `veh.HMMWV_Full()` which internally creates and manages the Chrono system. This is acceptable for vehicle simulations. However, the script does not explicitly create or configure a `chrono.ChSystemNSC()` or `chrono.ChSystemSMC()` instance, which is typical in many PyChrono examples. Since the vehicle wrapper handles this internally, this is not a missing essential component. **No deduction.**
+- **System Initialization**:  
+  The script uses `veh.HMMWV_Full()` which internally creates and manages the system. However, the script does not explicitly create a `chrono.ChSystemNSC()` or `chrono.ChSystemSMC()` system object. This is acceptable and common in vehicle module usage, as the vehicle class manages the system internally.  
+  **No deduction.**
 
-- **Body Creation:**  
-  The vehicle and terrain bodies are created properly using the vehicle module's classes (`veh.HMMWV_Full()` and `veh.RigidTerrain`). The terrain patch is added with material and texture. **No deduction.**
+- **Body Creation**:  
+  The vehicle and terrain bodies are created properly using the vehicle module's classes (`veh.HMMWV_Full()` and `veh.RigidTerrain`). The terrain patch is created with appropriate material and texture.  
+  **No deduction.**
 
-- **Visualization:**  
-  Visualization is set up using `veh.ChWheeledVehicleVisualSystemIrrlicht()`. The window is initialized, camera set, logo added, lighting and skybox are included, and the vehicle is attached. This is complete and correct. **No deduction.**
+- **Visualization Setup**:  
+  Visualization is set up using `veh.ChWheeledVehicleVisualSystemIrrlicht()`, which is the recommended visualization system for vehicle simulations. Window size, title, camera, logo, lighting, skybox, and vehicle attachment are all properly configured.  
+  **No deduction.**
 
-- **Driver Implementation:**  
-  A custom driver class `MyDriver` is implemented with throttle, steering, and braking inputs synchronized over time. This is a good practice and complete. **No deduction.**
+- **Driver Setup**:  
+  A custom driver class `MyDriver` is defined inheriting from `veh.ChDriver`. It overrides `Synchronize` and manages throttle, steering, and braking inputs. The driver is initialized and deltas for steering, throttle, and braking are set.  
+  However, the driver class uses `self.driverInputs` without initialization or assignment in the constructor or elsewhere. The base class `veh.ChDriver` does not provide a `driverInputs` attribute by default; instead, the `Synchronize` method typically receives a `driver_inputs` argument to modify. The code uses `driver_inputs` as an argument but then writes to `self.driverInputs`, which is undefined. This is a **significant error** that would cause runtime failure or incorrect behavior.  
+  **Deduct 15 points for missing or incorrect driver input handling.**
 
-- **Simulation Loop:**  
-  The loop includes synchronization, advancing all modules, rendering at specified intervals, and realtime stepping. The loop terminates at the specified simulation end time. **No deduction.**
+- **Simulation Loop**:  
+  The loop runs while visualization is active, synchronizes terrain, vehicle, and driver, advances all, and uses a realtime timer. It also breaks after `simulation_end_time`.  
+  **No deduction.**
 
-- **Collision and Contact:**  
-  The collision system type is set to BULLET, which is appropriate. The contact material is created and assigned to the terrain patch. **No deduction.**
+- **Other Components**:  
+  The code sets contact method, collision system type, and tire model appropriately.  
+  **No deduction.**
 
-- **Missing or incomplete components:**  
-  - The script does not explicitly set collision envelope or margin, which can improve collision stability (recommended in the docs). This is a minor omission.  
-  - The `chrono.SetChronoDataPath(chrono.GetChronoDataPath())` call is redundant (setting path to itself), but harmless.
-
-**Deduction:**  
-- Minor omission for not setting collision envelope/margin: **-5 points**
+**Total Completeness deduction: 15 points**
 
 ---
 
 ### 2. Correctness (30 points)
 
-- **API Usage:**  
-  All API calls conform to the documented usage. The vehicle is initialized properly, visualization is attached correctly, and the simulation loop follows best practices.
+- **Driver Synchronize method logic**:  
+  The logic inside `Synchronize` uses `self.last_time` but this attribute is never initialized in `__init__`. This will cause an `AttributeError` on first call.  
+  **Deduct 15 points for this critical logical error.**
 
-- **Driver Synchronize Logic:**  
-  The driver logic uses time-based conditions to ramp throttle, steering, and braking inputs. The logic is sound and will not cause errors.
+- **Throttle update logic**:  
+  The line `self.throttle = min(1.0, max(0.0, self.throttle + (time - self.last_time) / 2.0))` uses `(time - self.last_time)` after updating `self.last_time = time` just before it, so this difference is zero, making throttle never increase. This is a logical error in the throttle update.  
+  **Deduct 10 points for logical error in throttle update.**
 
-- **Visualization System:**  
-  The visualization system is correctly initialized and attached to the vehicle.
+- **Use of `vehicle.GetVehicle().GetMass()`**:  
+  The call to `GetVehicle()` on `vehicle` (which is already a vehicle object) is redundant or possibly incorrect. The `veh.HMMWV_Full()` class does not have a `GetVehicle()` method; it is itself the vehicle. The correct call should be `vehicle.GetMass()`. This would raise an AttributeError.  
+  **Deduct 15 points for incorrect API usage here.**
 
-- **Simulation Loop:**  
-  The loop uses `vis.Run()` as the condition, which is correct. The rendering frequency is controlled by `render_steps`, which is computed correctly.
+- **Use of `veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')`**:  
+  This is correct usage to set the vehicle data path.  
+  **No deduction.**
 
-- **Potential Issues:**  
-  - The simulation end time is 4.0 seconds, but the driver applies full braking only after 4.0 seconds, so braking will never be applied. This is a logical error in the driver behavior relative to simulation length.  
-  - The `driver.Initialize()` is called without arguments, which is correct for this base class.  
-  - The `vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)` is called after vehicle initialization. According to best practices, collision system type should be set before initialization to ensure proper setup. This could lead to unexpected behavior or inefficiencies.
+- **Collision system type set after vehicle initialization**:  
+  The collision system type is set after vehicle initialization:  
+  ```python
+  vehicle.Initialize()
+  vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+  ```  
+  According to best practices, collision system type should be set before initialization to ensure proper setup. Setting it after initialization may have no effect or cause issues.  
+  **Deduct 10 points for incorrect order of collision system setup.**
 
-**Deductions:**  
-- Logical error: braking applied after simulation end time (braking never triggered): **-10 points**  
-- Incorrect ordering of collision system type setting (should be before vehicle.Initialize()): **-15 points**
+- **Driver delta settings**:  
+  The driver delta settings are called on `driver` object, but the base class `veh.ChDriver` does not have `SetSteeringDelta`, `SetThrottleDelta`, or `SetBrakingDelta` methods documented. These methods are typically part of `ChPathFollowerDriver` or other driver classes. This may cause an AttributeError or be ineffective.  
+  **Deduct 10 points for incorrect or unsupported API calls on driver.**
+
+- **Use of `driver.GetInputs()`**:  
+  The driver inputs are obtained via `driver.GetInputs()`, which is correct.  
+  **No deduction.**
+
+- **Use of `driver.Advance(step_size)`**:  
+  Correct usage to advance the driver state.  
+  **No deduction.**
+
+- **Use of `terrain.Synchronize(time)` and `vehicle.Synchronize(time, driver_inputs, terrain)`**:  
+  Correct usage.  
+  **No deduction.**
+
+- **Use of `terrain.Advance(step_size)` and `vehicle.Advance(step_size)`**:  
+  Correct usage.  
+  **No deduction.**
+
+**Total Correctness deduction: 15 + 10 + 15 + 10 + 10 = 60 points**  
+But since total correctness is 30 points, cap deduction at 30.
 
 ---
 
 ### 3. Code Quality (10 points)
 
-- **Readability:**  
-  The code is mostly readable with meaningful variable names (`initLoc`, `initRot`, `vis_type`, etc.). The driver class is well structured.
+- **Readability and structure**:  
+  The code is mostly well structured with meaningful variable names and logical flow.  
+  However, the driver class lacks comments and has unclear logic in `Synchronize`. The use of `self.driverInputs` is unexplained and inconsistent.  
+  **Deduct 5 points for insufficient comments and unclear driver code.**
 
-- **Comments:**  
-  There are no comments explaining the purpose of code blocks or parameters, which reduces clarity for readers unfamiliar with PyChrono.
+- **Comments**:  
+  The script has no comments explaining the purpose of major blocks, parameters, or the driver logic.  
+  **Deduct 5 points for lack of comments/documentation.**
 
-- **Formatting:**  
-  The code is formatted well with consistent indentation and spacing.
-
-**Deductions:**  
-- Lack of comments/documentation: **-5 points**  
-- Otherwise good readability and structure: no further deduction.
+**Total Code Quality deduction: 10 points**
 
 ---
 
 ### 4. Efficiency (10 points)
 
-- **Redundant or unnecessary calculations:**  
-  - The call `chrono.SetChronoDataPath(chrono.GetChronoDataPath())` is redundant and unnecessary.  
-  - The driver’s `Synchronize` method computes `time_elapsed` but does not use it meaningfully (only updates `last_sync_time` if > 1e-7, but no other logic depends on it). This is minor inefficiency.  
-  - The rendering step calculation and usage are appropriate.
+- **Unnecessary calls**:  
+  The line `chrono.SetChronoDataPath(chrono.GetChronoDataPath())` is redundant; it sets the data path to what it already is.  
+  **Deduct 5 points for unnecessary call.**
 
-- **Optimization opportunities:**  
-  - The simulation loop could use `sys.DoStepDynamics(step_size)` instead of manually calling `Advance()` on each module for potentially better integration, but since this is a vehicle simulation with multiple modules, the current approach is standard.
+- **Repeated calculation of `render_steps`**:  
+  `render_steps = math.ceil(render_step_size / step_size)` is calculated once and used properly.  
+  **No deduction.**
 
-**Deductions:**  
-- Redundant `SetChronoDataPath` call: **-5 points**  
-- Minor inefficiency in driver `Synchronize` method: **-3 points**
+- **In driver `Synchronize` method**:  
+  The throttle update uses `(time - self.last_time)` after setting `self.last_time = time`, making the increment always zero. This is inefficient and logically incorrect.  
+  **Already accounted for in correctness deduction.**
+
+- **Use of `print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())`**:  
+  This is a one-time print, no efficiency issue.  
+  **No deduction.**
+
+**Total Efficiency deduction: 5 points**
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- The script does not include any error handling (try-except blocks) or checks for resource loading failures (e.g., texture or logo files).  
-- The simulation loop relies on `vis.Run()` but does not handle exceptions or unexpected termination conditions.  
-- No checks for valid initialization states or input ranges.
+- **No error handling**:  
+  The script does not check for exceptions or invalid states (e.g., driver inputs, vehicle initialization).  
+  While PyChrono scripts often omit explicit error handling, best practices recommend at least minimal checks or try-except blocks for robustness.  
+  **Deduct 5 points for lack of basic error handling.**
 
-**Deductions:**  
-- Lack of basic error handling: **-5 points**
+- **Edge cases**:  
+  The driver logic does not handle edge cases such as negative time or time resets.  
+  **Deduct 3 points for inadequate edge case handling.**
+
+**Total Error Handling deduction: 5 points** (capped at max 5)
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
-- Visualization setup includes window title, size, chase camera, logo, directional light, and skybox.  
-- However, the script uses `vis.AddLightDirectional()` instead of `vis.AddTypicalLights()`, which is more standard and provides better lighting setup.  
-- No camera controls or multiple cameras are added, but this is acceptable for a simple demo.
+- **Visualization setup**:  
+  The visualization system is properly initialized with window size, title, chase camera, logo, directional light, and skybox.  
+  However, the script uses `vis.AddLightDirectional()` instead of `vis.AddTypicalLights()`, which is more standard and recommended for vehicle visualization. Using only directional light may result in suboptimal lighting.  
+  **Deduct 2 points for minor visualization issue.**
 
-**Deductions:**  
-- Suboptimal lighting setup (directional light only instead of typical lights): **-2 points**
+- **Camera setup**:  
+  The chase camera is set with a fixed point and distance, which is appropriate.  
+  **No deduction.**
 
----
+- **Rendering loop**:  
+  The rendering loop calls `BeginScene()`, `Render()`, and `EndScene()` properly.  
+  **No deduction.**
 
-### **Summary of Deductions**
-
-| Category                     | Deduction Points | Reason                                                                                     |
-|------------------------------|------------------|--------------------------------------------------------------------------------------------|
-| Completeness                 | 5                | Minor omission: no collision envelope/margin set                                          |
-| Correctness                 | 25               | Logical error in driver braking timing (10), collision system set after initialization (15)|
-| Code Quality                | 5                | Lack of comments                                                                           |
-| Efficiency                  | 8                | Redundant SetChronoDataPath (5), minor inefficiency in driver Synchronize (3)             |
-| Error Handling and Robustness| 5                | No error handling                                                                         |
-| Visualization Tools         | 2                | Suboptimal lighting setup                                                                 |
-| **Total Deductions**        | **50**           |                                                                                            |
+**Total Visualization deduction: 2 points**
 
 ---
 
-### Final Score Calculation
+### Summary of deductions:
 
-- Starting from 100 points  
-- Deduct 50 points total  
-
-**Final score: 50**
+| Criterion                  | Deduction Points |
+|----------------------------|------------------|
+| Completeness               | 15               |
+| Correctness               | 30 (capped)      |
+| Code Quality              | 10               |
+| Efficiency                | 5                |
+| Error Handling & Robustness| 5                |
+| Visualization             | 2                |
+| **Total**                 | **67**           |
 
 ---
 
-### Explanation
+### Final score:
 
-The script is mostly complete and uses the PyChrono API correctly for vehicle simulation and visualization. However, significant issues include the incorrect order of setting the collision system type (which can affect simulation correctness), and a logical error where braking is never applied due to simulation end time. Minor issues include lack of comments, redundant code, no error handling, and suboptimal lighting setup.
+100 - 67 = **33**
+
+---
+
+### Explanation:
+
+The script is mostly complete and sets up a vehicle simulation with terrain and visualization correctly. However, critical errors in the driver class implementation (missing initialization of `last_time`, misuse of `driverInputs`, incorrect throttle update logic), incorrect API usage (`vehicle.GetVehicle()`), and improper order of collision system setup significantly impact correctness and functionality. Code quality suffers from lack of comments and unclear driver logic. Minor inefficiencies and missing error handling further reduce the score. Visualization is mostly correct but could be improved with standard lighting.
 
 ---
 
 **Final score:**
 
-[[50]]
+[[33]]

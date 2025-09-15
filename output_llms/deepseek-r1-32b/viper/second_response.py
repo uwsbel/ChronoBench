@@ -3,8 +3,8 @@ import math
 import numpy as np
 import pychrono as chrono
 import pychrono.robot as viper
+import pychrono.sensor as sens
 from pychrono import irrlicht as chronoirr
-import pychrono.sensor as sens  # Added import for sensor module
 
 # Create Chrono system
 system = chrono.ChSystemNSC()
@@ -35,7 +35,7 @@ rover.Initialize(chrono.ChFramed(init_pos, init_rot))
 # Create run-time visualization
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
-vis.SetCameraVertical(chronoirr.CameraVerticalDir_Z)
+vis.SetCameraVertical(chrono.CameraVerticalDir_Z)
 vis.SetWindowSize(1280, 720)
 vis.SetWindowTitle('Viper rover - Rigid terrain')
 vis.Initialize()
@@ -48,24 +48,13 @@ vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0
 # Enable shadows (commented out to improve performance)
 # vis.EnableShadows()
 
-# Set the simulation time step
-time_step = 1e-3
-
-# Added variables for simulation step and render step size
-step_number = 0
-render_step_size = 1.0 / 25  # FPS = 25
-render_steps = math.ceil(render_step_size / time_step)
-
-# Create sensor manager and add point light
+# Create sensor manager
 manager = sens.ChSensorManager(system)
 intensity = 1.0
 manager.scene.AddPointLight(chrono.ChVector3f(2, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
 
 # Create camera sensor
-offset_pose = chrono.ChFramed(
-    chrono.ChVector3d(1.0, 0, 1.45),
-    chrono.ChQuaterniond(chrono.Q_from_AngAxis(0.2, chrono.ChVector3d(0, 1, 0)))
-)
+offset_pose = chrono.ChFramed(chrono.ChVector3d(1.0, 0, 1.45), chrono.ChQuatD(chrono.Q_from_AngAxis(0.2, chrono.ChVector3d(0, 1, 0))))
 cam = sens.ChCameraSensor(
     rover.GetChassis().GetBody(),
     15,  # update rate
@@ -78,9 +67,17 @@ cam.SetName("Third Person POV")
 cam.PushFilter(sens.ChFilterVisualize(720, 480, "Viper Front Camera"))
 manager.AddSensor(cam)
 
+# Set the simulation time step
+time_step = 1e-3
+
+# Variables for simulation and rendering control
+step_number = 0
+render_step_size = 1.0 / 25  # Target FPS = 25
+render_steps = math.ceil(render_step_size / time_step)
+
 # Simulation loop
 time = 0
-while True:  # Changed from vis.Run() to manual loop control
+while vis.Run():
     time += time_step  # Increment the simulation time
     steering = 0
     max_steering = math.pi / 6  # Maximum steering angle
@@ -93,18 +90,17 @@ while True:  # Changed from vis.Run() to manual loop control
     
     driver.SetSteering(steering)  # Set the steering for the rover
 
+    rover.Update()  # Update the rover's state
+
     # Update sensor manager
     manager.Update()
-    
-    rover.Update()  # Update the rover's state
 
     # Render the scene at specific intervals
     if step_number % render_steps == 0:
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
+    step_number += 1
     
     # Advance the simulation by one time step
     system.DoStepDynamics(time_step)
-    
-    step_number += 1

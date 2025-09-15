@@ -1,53 +1,92 @@
-importchrono
+importchrono as chrono
 importchrono.vehicle as vehicle
 importchrono.sensor as sensor
-importchrono irrlicht
+importchrono irrlicht as irr
 
 
-system = chrono.ChSystem()
-system.SetSolver(chrono.ChSolverMINRES())
-system.GetSolver().SetTolerance(1e-6)
-system.GetSolver().SetMaxIterations(100)
-system.SetIntegrator(chrono.ChIntegratorHHT(0.001))
+def main():
+    
+    system = chrono.ChSystemNSC()
+    system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
+    
+    terrain = vehicle.ChTerrain(system)
+    terrain.SetSize(100, 100)
+    terrain.SetHeight(0)
+    terrain.SetMaterial(vehicle.ChMaterialSurface('grass'))
+    terrain.SetTexture(vehicle.ChTexture('textures/grass.jpg'))
+    terrain.SetVertices(vehicle.ChTerrainVertex())
+    terrain.Build()
 
-terrain = vehicle.CreateChampPaddedPlane(system)
-terrain.SetPos(chrono.ChVectorD(0, 0, 0))
-terrain.Set_texture("terrain_texture.jpg")
+    
+    vehicle = vehicle.ChHMMWV()
+    vehicle.SetChassisMass(2000)
+    vehicle.SetChassisInertia(chrono.ChVectorD(100, 200, 100))
+    vehicle.SetChassisDimensions(chrono.ChVectorD(4, 2, 1.5))
+    vehicle.SetChassisPos(chrono.ChVectorD(0, 1, 0))
+    vehicle.SetChassisRot(chrono.ChQuaternionD(1, 0, 0, 0))
+    vehicle.SetSuspensionType(vehicle.ChSuspensionType.Rigid)
+    vehicle.SetTireType(vehicle.ChTireType.Rigid)
+    vehicle.SetEngineType(vehicle.ChEngineType.Simple)
+    vehicle.SetTransmissionType(vehicle.ChTransmissionType.Simple)
+    vehicle.Initialize()
 
+    
+    imu = sensor.ChIMU()
+    imu.SetName('imu')
+    imu.SetPosition(chrono.ChVectorD(0, 0, 0))
+    imu.SetRotation(chrono.ChQuaternionD(1, 0, 0, 0))
+    vehicle.GetChassis().AddSensor(imu)
 
-vehicle_config = vehicle.HMMWV()
-vehicle_config.vehicle.SetPos(chrono.ChVectorD(0, 0, 1))
-vehicle_config.vehicle.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
-vehicle_config.vehicle.Create()
-vehicle_config.vehicle.Set Trailer()
+    gps = sensor.ChGPS()
+    gps.SetName('gps')
+    gps.SetPosition(chrono.ChVectorD(0, 0, 0))
+    gps.SetRotation(chrono.ChQuaternionD(1, 0, 0, 0))
+    vehicle.GetChassis().AddSensor(gps)
 
+    
+    driver = vehicle.ChDriver()
+    driver.SetSteering(0)
+    driver.SetThrottle(0)
+    driver.SetBraking(0)
+    vehicle.SetDriver(driver)
 
-driver = vehicle.ChDriver()
-driver.SetSteering(0.5)
-driver.SetThrottle(0.8)
-vehicle_config.vehicle.SetDriver(driver)
-
-
-app = chrono.IrrlichtApp(system)
-app.SetCameraPos(chrono.ChVectorD(5, 5, 5))
-app.AddLight(chrono.ChVectorD(5, 5, 5), chrono.ChColor(1, 1, 1))
-
-
-imu = sensor.ChIMU()
-imu.SetPos(chrono.ChVectorD(0, 0, 0))
-vehicle_config.vehicle.GetChassis().AddSensor(imu)
-
-gps = sensor.ChGPS()
-gps.SetPos(chrono.ChVectorD(0, 0, 0))
-vehicle_config.vehicle.GetChassis().AddSensor(gps)
-
-
-while app.Run():
-    vehicle_config.vehicle.Update()
-    driver.Update()
-    imu.Update()
-    gps.Update()
-    system.DoStepDynamics()
+    
+    app = irr.ChIrrApp(system, 'HMMWV Simulation', irr.VEC2i(800, 600))
+    app.AddTypicalLights()
+    app.AddTypicalLogo()
+    app.AddTypicalSky()
+    app.AddTypicalGrid()
+    app.SetCamera(chrono.ChVectorD(10, 10, 10), chrono.ChVectorD(0, 0, 0))
     app.Render()
-    print("Vehicle mass:", vehicle_config.vehicle.GetMass())
+
+    
+    while app.Run():
+        
+        driver.SetSteering(app.GetSteering())
+        driver.SetThrottle(app.GetThrottle())
+        driver.SetBraking(app.GetBraking())
+
+        
+        vehicle.Update()
+
+        
+        imu.Update()
+        gps.Update()
+
+        
+        print(f"Vehicle mass: {vehicle.GetChassis().GetMass()}")
+        print(f"IMU acceleration: {imu.GetAcceleration()}")
+        print(f"GPS position: {gps.GetPosition()}")
+
+        
+        system.DoStepDynamics(0.01)
+
+        
+        app.Render()
+
+    
+    app.Close()
+
+if __name__ == '__main__':
+    main()

@@ -3,7 +3,7 @@ import pychrono.irrlicht as chronoirr
 from itertools import combinations
 
 
-class MyCreatorForAll(chrono.ChRandomShapeCreator.AddBodyCallback):
+class MyCreatorForAll(chrono.ChRandomShapeCreator_AddBodyCallback):
     def __init__(self, vis, coll):
         super().__init__()
         self.vis = vis
@@ -47,7 +47,7 @@ mvelo = chrono.ChRandomParticleVelocityAnyDirection()
 mvelo.SetModulusDistribution(chrono.ChUniformDistribution(0.0, 0.5))
 emitter.SetParticleVelocity(mvelo)
 
-mangvelo = chrono.ChRandomParticleAngularVelocityAnyDirection()
+mangvelo = chrono.ChRandomParticleVelocityAnyDirection()
 mangvelo.SetModulusDistribution(chrono.ChUniformDistribution(0.0, 0.2))
 emitter.SetParticleAngularVelocity(mangvelo)
 
@@ -87,13 +87,36 @@ while vis.Run():
 
     emitter.EmitParticles(sys, stepsize)
 
-    for body in sys.GetBodies():
+    
+    G_constant = 6.674e-3  
+
+    
+    bodies = list(sys.GetBodies())
+    
+    
+    kinetic_energy = 0.0
+    for body in bodies:
+        vel = body.GetPos_dt()
+        kinetic_energy += 0.5 * body.GetMass() * vel.Length2()
+    
+    
+    potential_energy = 0.0
+    for abodyA, abodyB in combinations(bodies, 2):
+        D_attract = abodyB.GetPos() - abodyA.GetPos()
+        r_attract = D_attract.Length()
+        potential_energy -= G_constant * (abodyA.GetMass() * abodyB.GetMass()) / r_attract
+    
+    total_energy = kinetic_energy + potential_energy
+    
+    
+    print(f"Kinetic energy: {kinetic_energy}, Potential energy: {potential_energy}, Total energy: {total_energy}")
+
+    
+    for body in bodies:
         body.EmptyAccumulators()
 
     
-    G_constant = 6.674e-3  
-    mlist = list(combinations(sys.GetBodies(), 2))
-    for abodyA, abodyB in mlist:
+    for abodyA, abodyB in combinations(bodies, 2):
         D_attract = abodyB.GetPos() - abodyA.GetPos()
         r_attract = D_attract.Length()
         f_attract = G_constant * (abodyA.GetMass() * abodyB.GetMass()) / (r_attract ** 2)
@@ -102,22 +125,3 @@ while vis.Run():
         abodyB.AccumulateForce(-F_attract, abodyB.GetPos(), False)
 
     sys.DoStepDynamics(stepsize)
-
-    
-    kinetic_energy = 0.0
-    potential_energy = 0.0
-    
-    
-    for body in sys.GetBodies():
-        vel = body.GetPosDt()
-        kinetic_energy += 0.5 * body.GetMass() * vel.Length2()
-    
-    
-    bodies = list(sys.GetBodies())
-    for a, b in combinations(bodies, 2):
-        delta = b.GetPos() - a.GetPos()
-        r = delta.Length()
-        potential_energy += -G_constant * a.GetMass() * b.GetMass() / r
-    
-    total_energy = kinetic_energy + potential_energy
-    print(f"Kinetic: {kinetic_energy:.2f}, Potential: {potential_energy:.2f}, Total: {total_energy:.2f}")

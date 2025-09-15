@@ -1,7 +1,6 @@
-import chrono
-import chrono.fea as fea
-import chrono.irrlicht as irr
-import math
+import pychrono as chrono
+import pychrono.fea as fea
+import pychrono.irrlicht as chronoirr
 
 
 system = chrono.ChSystemSMC()
@@ -12,61 +11,55 @@ mesh = fea.ChMesh()
 system.Add(mesh)
 
 
-length = 2.0
-n_elements = 10
-radius = 0.05
-area = math.pi * radius**2
-I_yy = math.pi * radius**4 / 4  
-E = 1e7                         
-density = 1000                  
-damping = 0.01                  
-
-
-section = fea.ChBeamSectionCable()
-section.SetArea(area)
-section.SetI(I_yy)
-section.SetYoungModulus(E)
-section.SetDensity(density)
-section.SetRayleighDamping(damping)
+beam_length = 2.0         
+n_elements = 10           
+node_spacing = beam_length / n_elements
+section_area = 0.01 * 0.01  
+density = 7800            
+young_modulus = 2e11      
+damping_ratio = 0.01      
 
 
 nodes = []
 for i in range(n_elements + 1):
-    x = i * (length / n_elements)
-    pos = chrono.ChVectorD(x, 0, 0)
-    dir = chrono.ChVectorD(1, 0, 0)  
-    node = fea.ChNodeFEAxyzD(pos, dir)
-    node.SetMass(0)
-    if i == 0:
-        node.SetFixed(True)  
-    mesh.AddNode(node)
+    position = chrono.ChVectorD(i * node_spacing, 0, 0)
+    node = fea.ChNodeFEAxyzD(position, chrono.ChVectorD(1, 0, 0))
     nodes.append(node)
+    mesh.AddNode(node)
+
+    
+    if i == 0:
+        constraint = fea.ChLinkPointFrame()
+        constraint.Initialize(node, chrono.ChFrameD(position))
+        system.Add(constraint)
 
 
 for i in range(n_elements):
     element = fea.ChElementCableANCF()
     element.SetNodes(nodes[i], nodes[i + 1])
-    element.SetSection(section)
-    element.SetVisualize(True)
-    element.SetColor(chrono.ChColor(0.9, 0.9, 0.9))
+    element.SetSectionArea(section_area)
+    element.SetDensity(density)
+    element.SetYoungModulus(young_modulus)
+    element.SetDampingCoefficient(damping_ratio)
     mesh.AddElement(element)
 
 
-application = irr.ChIrrApp(system, "ANCF Cable Beam", irr.dimension2du(1024, 768))
-application.AddTypicalSky()
-application.AddTypicalLights(irr.vector3df(30, 100, 100), irr.vector3df(30, -100, 80), 200, 130)
-application.AddTypicalCamera(irr.vector3df(1.5, 0.5, -2), irr.vector3df(1.5, 0.5, 0))
-
-application.AssetBindAll()
-application.AssetUpdateAll()
-
-
-application.SetTimestep(0.001)
-application.SetTryRealtime(True)
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle('ANCF Beam Simulation')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVectorD(1, 0.5, 1.5), chrono.ChVectorD(0, 0, 0))
+vis.AddTypicalLights()
 
 
-while application.GetDevice().run():
-    application.BeginScene()
-    application.DrawAll()
-    application.DoStep()
-    application.EndScene()
+step_size = 0.001
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.RenderFrames(2.0)  
+    vis.RenderMeshlines()   
+    vis.EndScene()
+    system.DoStepDynamics(step_size)

@@ -20,7 +20,6 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_RIGID
 
 # Rigid terrain
-# terrain_model = veh.RigidTerrain.BOX
 terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
@@ -65,8 +64,8 @@ patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-patch = terrain.AddPatch(patch_mat,
-    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
+patch = terrain.AddPatch(patch_mat, 
+    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
     terrainLength, terrainWidth)
 
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
@@ -74,16 +73,12 @@ patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 # Create the box obstacle
-box_obstacle = veh.RigidBox(
-    chrono.ChVector3d(5, 0, 0.1),
-    chrono.ChVector3d(0.5, 5, 0.2),
-    chrono.ChColor(1, 0, 0),
-    chrono.ChVector3d(0, 0, 0),
-    chrono.ChVector3d(0, 0, 0)
-)
-box_obstacle.SetMass(0)
-box_obstacle.Initialize()
-terrain.AddRigidObject(box_obstacle)
+box_terrain = veh.RigidTerrain.Box(vehicle.GetSystem())
+box_terrain.SetDimensions(0.5, 5, 0.2)
+box_terrain.SetPosition(chrono.ChVector3d(5, 0, 0.1))
+box_terrain.SetCollisionType(veh.CollisionType_NONE)
+terrain.AddBox(box_terrain)
+terrain.Initialize()
 
 # Create the vehicle Irrlicht interface
 
@@ -100,18 +95,8 @@ vis.AttachVehicle(vehicle.GetVehicle())
 # Create the driver system
 driver = veh.ChInteractiveDriverIRR(vis)
 
-# Set the time response for steering and throttle keyboard inputs.
-steering_time = 1.0  # time to go from 0 to +1 (or from 0 to -1)
-throttle_time = 1.0  # time to go from 0 to +1
-braking_time = 0.3   # time to go from 0 to +1
-driver.SetSteeringDelta(render_step_size / steering_time)
-driver.SetThrottle(0.5)  # Constant throttle value
-driver.SetBrakingDelta(render_step_size / braking_time)
-
-driver.Initialize()
-
-# output vehicle mass
-print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
+# Set constant throttle control
+driver.SetThrottleValue(0.5)  # Constant throttle of 0.5
 
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
@@ -121,10 +106,10 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-while vis.Run():
+while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
     # Render scene and output POV-Ray data
-    if (step_number % render_steps == 0):
+    if (step_number % render_steps == 0) :
         vis.BeginScene()
         vis.Render()
         vis.EndScene()

@@ -39,10 +39,11 @@ def main():
     # Initialize the sensor manager to manage all sensors in the simulation
     manager = sens.ChSensorManager(mphysicalSystem)
 
-    # Add point lights to the scene for illumination
+    # Add point lights to the scene for illumination (only one point light remains)
     intensity = 1.0  # Set the light intensity
     manager.scene.AddPointLight(chrono.ChVector3f(2, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
-    manager.scene.AddAreaLight(chrono.ChVector3f(0, 0, 4), chrono.ChColor(intensity, intensity, intensity), 500.0, chrono.ChVector3f(1, 0, 0), chrono.ChVector3f(0, -1, 0))
+    # Fixed area light with correct parameters
+    manager.scene.AddAreaLight(chrono.ChVector3f(0, 0, 4), chrono.ChColor(intensity, intensity, intensity), 500.0, 1.0, 1.0, chrono.ChVector3f(1, 0, 0), chrono.ChVector3f(0, -1, 0))
 
     # ------------------------------------------------
     # Create a camera and add it to the sensor manager
@@ -110,7 +111,7 @@ def main():
     # Simulate system
     # ---------------
     orbit_radius = 10  # Radius of the camera orbit
-    orbit_rate = 0.1   # Modified orbit rate to 0.1 radians per second
+    orbit_rate = 0.1   # Reduced orbit rate (0.1 rad/s)
     ch_time = 0.0      # Initialize simulation time
 
     t1 = time.time()  # Record the start time of the simulation
@@ -149,9 +150,9 @@ noise_model = "CONST_NORMAL"  # Constant normal noise model
 # Update rate in Hz
 update_rate = 30
 
-# Image width and height
-image_width = 960   # Modified width to 960 pixels
-image_height = 480  # Modified height to 480 pixels
+# Updated image dimensions
+image_width = 960   # Changed from 1280
+image_height = 480  # Changed from 720
 
 # Camera's horizontal field of view
 fov = 1.408  # Horizontal field of view in radians
@@ -172,8 +173,8 @@ step_size = 1e-3
 # Simulation end time
 end_time = 20.0
 
-# Save camera images
-save = True  # Enabled image saving
+# Save camera images (now enabled)
+save = True
 
 # Render camera images
 vis = True

@@ -9,31 +9,39 @@ def main():
     
     
     
-    mphysicalSystem = chrono.ChSystemNSC()
+    
+    vehicle = chrono.ChVehicle()
+    vehicle.SetName("ARTcar")
     
     
-    artcar = chrono.ChVehicle()
-    artcar.SetName("ARTcar")
+    vehicle.SetInertia(chrono.ChVector3d(100, 100, 100))
+    vehicle.SetMass(100)
+    vehicle.SetFriction(0.5)
+    vehicle.SetRollingFriction(0.1)
+    vehicle.SetSpinningFriction(0.1)
     
     
-    driver = chrono.ChVehicleDriver()
-    artcar.SetDriver(driver)
+    driver = chrono.ChDriver(vehicle)
+    driver.SetName("Vehicle Driver")
     
     
-    
-    
-    terrain_size = 50
-    terrain = chrono.ChBodyEasyBox(terrain_size, terrain_size, terrain_size, 1)
-    terrain.SetPos(chrono.ChVector3d(0, -5, -1))
-    terrain.GetVisualModel().GetShape(0).SetTexture(chrono.GetChronoDataFile("textures/ground.png"))
-    terrain.SetMaterialProperties(chrono.ChMaterialProperties(
-        young_modulus=1000000000,
-        poisson_ratio=0.2,
-        friction=1.0
+    terrain = chrono.ChTerrain()
+    terrain.SetMaterial(chrono.ChMaterial(
+        chrono.ChVector3d(0, 0, 0),  
+        chrono.ChVector3d(1, 0, 0),  
+        chrono.ChVector3d(0, 1, 0),  
+        "terrain_1",                  
+        chrono.ChColor(0.5, 0.5, 0.5),  
+        1.0,                           
+        0.3                            
     ))
-    mphysicalSystem.Add(terrain)
+    terrain.SetPosition(chrono.ChVector3d(0, 0, -10))
+    vehicle.Add(terrain)
     
     
+    
+    
+    manager = sens.ChSensorManager(vehicle)
     
     
     
@@ -43,84 +51,84 @@ def main():
         chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
     )
     lidar = sens.ChLidarSensor(
-        artcar.GetChassis(),  
-        update_rate,          
-        offset_pose,          
-        horizontal_samples,     
-        vertical_samples,       
-        horizontal_fov,         
-        max_vert_angle,         
-        min_vert_angle,         
-        100.0,                  
+        vehicle.GetChassis(),          
+        update_rate,                  
+        offset_pose,                  
+        horizontal_samples,            
+        vertical_samples,             
+        horizontal_fov,               
+        max_vert_angle,              
+        min_vert_angle,              
+        100.0,                       
         sens.LidarBeamShape_RECTANGULAR,  
-        sample_radius,          
-        divergence_angle,       
-        divergence_angle,       
-        return_mode             
+        sample_radius,                
+        divergence_angle,             
+        divergence_angle,             
+        return_mode                     
     )
     lidar.SetName("3D Lidar Sensor")
     lidar.SetLag(lag)
     lidar.SetCollectionWindow(collection_time)
     
     
-    lidar_2d = sens.ChLidarSensor(
-        artcar.GetChassis(),  
-        update_rate,          
-        offset_pose,          
-        horizontal_samples,     
-        1,                      
-        horizontal_fov,         
-        0.0,                    
-        0.0,                    
-        100.0,                  
-        sens.LidarBeamShape_RECTANGULAR,  
-        sample_radius,          
-        divergence_angle,       
-        divergence_angle,       
-        return_mode             
-    )
-    lidar_2d.SetName("2D Lidar Sensor")
-    lidar_2d.SetLag(lag)
-    lidar_2d.SetCollectionWindow(collection_time)
     
     
     if noise_model == "CONST_NORMAL_XYZI":
         lidar.PushFilter(sens.ChFilterLidarNoiseXYZI(0.01, 0.001, 0.001, 0.01))
-        lidar_2d.PushFilter(sens.ChFilterLidarNoiseXYZI(0.01, 0.001, 0.001, 0.01))
     elif noise_model == "NONE":
+        
         pass
-    
-    
-    third_person_camera = sens.ChSensor(
-        artcar.GetChassis(),  
-        chrono.ChVector3d(5, 5, 5),  
-        chrono.QuatFromAngleAxis(0, chrono.ChVector3d(1, 0, 0)),  
-        sens.SensorType_Camera_Perspective,
-        45,  
-        1024,  
-        768,  
-        1000.0  
-    )
-    third_person_camera.SetName("Third Person Camera")
-    mphysicalSystem.Add(third_person_camera)
-    
-    
     if vis:
+        
         lidar.PushFilter(sens.ChFilterVisualize(horizontal_samples, vertical_samples, "Raw 3D Lidar Depth Data"))
-        lidar_2d.PushFilter(sens.ChFilterVisualize(horizontal_samples, 1, "Raw 2D Lidar Depth Data"))
-        third_person_camera.PushFilter(sens.ChFilterVisualizeCamera("Third Person View"))
-    
     
     lidar.PushFilter(sens.ChFilterDIAccess())
-    lidar.PushFilter(sens.ChFilterPCfromDepth())
-    lidar_2d.PushFilter(sens.ChFilterPCfromDepth())
-    lidar.PushFilter(sens.ChFilterXYZIAccess())
-    lidar_2d.PushFilter(sens.ChFilterXYZIAccess())
     
+    lidar.PushFilter(sens.ChFilterPCfromDepth())
+    if vis:
+        
+        lidar.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "Lidar Point Cloud"))
+    
+    lidar.PushFilter(sens.ChFilterXYZIAccess())
     
     manager.AddSensor(lidar)
+    
+    
+    lidar_2d = sens.ChLidarSensor(
+        vehicle.GetChassis(),          
+        update_rate,                  
+        offset_pose,                  
+        horizontal_samples,            
+        1,                          
+        horizontal_fov,               
+        0.0,                        
+        0.0,                        
+        100.0,                       
+        sens.LidarBeamShape_RECTANGULAR,  
+        sample_radius,                
+        divergence_angle,             
+        divergence_angle,             
+        return_mode                     
+    )
+    lidar_2d.SetName("2D Lidar Sensor")
+    lidar_2d.SetLag(lag)
+    lidar_2d.SetCollectionWindow(collection_time)
+    if noise_model == "CONST_NORMAL_XYZI":
+        lidar_2d.PushFilter(sens.ChFilterLidarNoiseXYZI(0.01, 0.001, 0.001, 0.01))
+    elif noise_model == "NONE":
+        
+        pass
+    if vis:
+        
+        lidar_2d.PushFilter(sens.ChFilterVisualize(horizontal_samples, 1, "Raw 2D Lidar Depth Data"))
+    
+    lidar_2d.PushFilter(sens.ChFilterDIAccess())
+    
+    lidar_2d.PushFilter(sens.ChFilterPCfromDepth())
+    
+    lidar_2d.PushFilter(sens.ChFilterXYZIAccess())
+    
     manager.AddSensor(lidar_2d)
-    manager.AddSensor(third_person_camera)
     
     
     
@@ -128,18 +136,11 @@ def main():
     orbit_radius = 10
     orbit_rate = 0.1
     ch_time = 0.0
-    end_time = 40.0
-    
+
     render_time = 0
     t1 = time.time()
-    
+
     while ch_time < end_time:
-        
-        artcar.Update()
-        driver.Update()
-        terrain.UpdateDynamics()
-        terrain.UpdateGeometry()  
-        
         
         lidar.SetOffsetPose(
             chrono.ChFramed(
@@ -151,24 +152,27 @@ def main():
                 chrono.QuatFromAngleAxis(ch_time * orbit_rate, chrono.ChVector3d(0, 0, 1))
             )
         )
-        
+
         
         xyzi_buffer = lidar.GetMostRecentXYZIBuffer()
         if xyzi_buffer.HasData():
             xyzi_data = xyzi_buffer.GetXYZIData()
             print('XYZI buffer received from lidar. Lidar resolution: {0}x{1}'.format(xyzi_buffer.Width, xyzi_buffer.Height))
             print('Max Value: {0}'.format(np.max(xyzi_data)))
-        
+
         
         manager.Update()
+
         
+        vehicle.DoStepDynamics(step_size)
+
         
-        mphysicalSystem.DoStepDynamics(step_size)
-        
-        
-        ch_time = mphysicalSystem.GetChTime()
-    
+        ch_time = vehicle.GetChTime()
+
     print("Sim time:", end_time, "Wall time:", time.time() - t1)
+
+
+
 
 
 
@@ -181,11 +185,14 @@ noise_model = "NONE"
 return_mode = sens.LidarReturnMode_STRONGEST_RETURN
 
 
+
+
+
 update_rate = 5.0
 
 
 horizontal_samples = 800
-vertical_samples = 300
+vertical_samples = 1  
 
 
 horizontal_fov = 2 * chrono.CH_PI  

@@ -1,70 +1,81 @@
+# Import necessary modules
 importchrono
-import chronoirrlicht as chrono_irr
-import numpy as np
+importchrono Irrlicht
+importchrono collision
+importchrono sensors
+importchrono robot
+importnumpy as np
 
 # Create the Chrono system
-system = chrono.ChSystem()
-system.SetGravity(chrono.ChVectorD(0, -9.81, 0))
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
+
+# Set up the solver
+system.SetSolverType(chrono.ChSolverType.SOLVER_BARZILAI_BORWEIN)
+system.SetMaxItersSolverSpeed(100)
+system.SetToleranceSolverSpeed(1e-6)
 
 # Create ground body
 ground = chrono.ChBody()
-ground.SetMass(0)  # Make it static
+ground.SetBodyFixed(True)
 ground.SetPos(chrono.ChVectorD(0, 0, 0))
-ground_shape = chrono.ChBoxShape()
-ground_shape.GetDimensions().x = 20
-ground_shape.GetDimensions().y = 20
-ground_shape.GetDimensions().z = 1
-ground.AddVisualShape(ground_shape)
-system.Add(ground)
+ground.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
 
-# Create Turtlebot
-bot = chrono.ChTurtlebot()
-bot.SetPos(chrono.ChVectorD(0, 0.5, 0))  # Position above ground
-bot.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))  # Orientation
-system.Add(bot)
+# Create ground geometry
+ground_shape = chrono.ChBox()
+ground_shape.GetDimensions().x = 10
+ground_shape.GetDimensions().y = 1
+ground_shape.GetDimensions().z = 10
+ground.AddCollisionShape(ground_shape)
 
-# Create Irrlicht application
-app = chrono_irr.ChIrrApp(system, "Turtlebot Simulation", chrono_irr.dimension(800, 600))
-app.AddTypicalIrrlichtLights()
-app.AddTypicalIrrlichtCamera(chrono.ChVectorD(2, 2, 2), chrono.ChVectorD(0, 0, 0))
+# Add ground to system
+system.AddBody(ground)
+
+# Create Turtlebot robot
+turtlebot = chrono.robot.create_robot("Turtlebot")
+turtlebot.SetPos(chrono.ChVectorD(0, 0.5, 0))  # Set initial position
+turtlebot.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))  # Set initial orientation
+
+# Add robot to system
+system.Add(turtlebot)
+
+# Set up Irrlicht visualization
+vis = chrono.ChIrrApp(system, "Turtlebot Simulation", chrono.CHDimension(800, 600))
+vis.SetCameraPosition(chrono.ChVectorD(2, 2, 2))
+vis.SetCameraTarget(chrono.ChVectorD(0, 0, 0))
+vis.AddPointLight(chrono.ChVectorD(2, 2, 2), chrono.ChColor(1, 1, 1))
+
+# Get motor indices for left and right wheels
+motor_indices = turtlebot.GetMotorIndices()
+left_motor = motor_indices[0]
+right_motor = motor_indices[1]
 
 # Simulation parameters
-timestep = 0.01
-time = 0
-max_time = 5  # Run for 5 seconds
-
-# Initialize motors
-motors = bot.GetMotors()
-left_speed = 1  # m/s
-right_speed = 1  # m/s
+simulation_time = 10.0
+step_size = 0.001
+num_steps = int(simulation_time / step_size)
 
 # Simulation loop
-while app.GetDevice().run() and time < max_time:
-    # Update motor speeds at specific times
-    if time < 1:
-        # Move forward
-        motors[0].SetSpeed(left_speed)
-        motors[1].SetSpeed(right_speed)
-    elif 1 <= time < 2:
-        # Turn left
-        motors[0].SetSpeed(-left_speed)
-        motors[1].SetSpeed(right_speed)
-    elif 2 <= time < 3:
-        # Turn right
-        motors[0].SetSpeed(left_speed)
-        motors[1].SetSpeed(-right_speed)
+for step in range(num_steps):
+    # Set motor speeds (left and right turns)
+    if step < num_steps/3:
+        turtlebot.SetMotorTargetSpeed(left_motor, 1.0)  # Left turn
+        turtlebot.SetMotorTargetSpeed(right_motor, 1.0)  # Left turn
+    elif step < 2*num_steps/3:
+        turtlebot.SetMotorTargetSpeed(left_motor, -1.0)  # Right turn
+        turtlebot.SetMotorTargetSpeed(right_motor, -1.0)  # Right turn
     else:
-        # Stop
-        motors[0].SetSpeed(0)
-        motors[1].SetSpeed(0)
+        turtlebot.SetMotorTargetSpeed(left_motor, 0.0)  # Stop
+        turtlebot.SetMotorTargetSpeed(right_motor, 0.0)  # Stop
     
     # Update system
-    system.DoStepDynamics(timestep)
+    system.DoStepDynamics(step_size)
     
     # Render
-    app.Render()
+    vis.Render()
     
-    # Increment time
-    time += timestep
+    # Sleep to control simulation speed
+    chrono.ChSleep(0.001)
 
-print("Simulation completed!")
+# Close visualization window
+vis.Close()

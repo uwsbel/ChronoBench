@@ -56,7 +56,7 @@ vehicle.SetSteeringVisualizationType(vis_type)
 vehicle.SetWheelVisualizationType(vis_type)
 vehicle.SetTireVisualizationType(vis_type)
 
-vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type.BULLET)  
+vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
 patch_mat = chrono.ChContactMaterialNSC()
@@ -65,14 +65,14 @@ patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 
 
-def height_map(x, z):
-    return 0.5 * math.sin(0.1 * x) * math.sin(0.1 * z)  
-
+height_map = veh.GetDataFile('terrain/heightmaps/hm1.csv')
 patch = terrain.AddHeightMap(patch_mat,
-                            chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
-                            terrainLength, terrainWidth,  
-                            100, 100,                     
-                            height_map)                   
+                            height_map,
+                            50.0,  
+                            1.0,   
+                            1.0,   
+                            100.0, 
+                            100.0) 
 
 patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)  
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
@@ -80,7 +80,7 @@ terrain.Initialize()
 
 
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
-vis.SetWindowTitle('MAN 5t Demo')  
+vis.SetWindowTitle('MAN 5t Demo')
 vis.SetWindowSize(1280, 1024)
 vis.SetChaseCamera(trackPoint, 15.0, 0.5)
 vis.Initialize()

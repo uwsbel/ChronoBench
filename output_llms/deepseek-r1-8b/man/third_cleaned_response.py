@@ -1,9 +1,8 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
-import numpy as np
 import pychrono.sensor as sensor
-import math
+import numpy as np
 
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
@@ -41,23 +40,21 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  
 
 
-vehicle = veh.MAN_10t()
+vehicle = veh.MAN_10t() 
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
-
+vehicle.InitializeSuspension()
 vehicle.Initialize()
-
 
 vehicle.SetChassisVisualizationType(vis_type)
 vehicle.SetSuspensionVisualizationType(vis_type)
 vehicle.SetSteeringVisualizationType(vis_type)
 vehicle.SetWheelVisualizationType(vis_type)
 vehicle.SetTireVisualizationType(vis_type)
-
 
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
@@ -66,8 +63,8 @@ patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-patch = terrain.AddPatch(patch_mat,
-    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
+patch = terrain.AddPatch(patch_mat, 
+    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
     terrainLength, terrainWidth)
 
 patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)
@@ -86,24 +83,34 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 
-sensor_manager = sensor.ChSensorManager()
-lidar = veh.LidarSensor(sensor_manager, veh.LidarSensor.Type_Disk, 10, 10, 10, 1000)
-lidar.SetPosition(chrono.ChVector3d(0, 0, 5))
+sensor_manager = veh.ChSensorManagerIRR()
+lidar = veh.ChLidarSensor(vehicle.GetVehicle().GetChassis(), "front")
+lidar.SetPosition(chrono.ChVector3d(0, 0, 1.5))
 lidar.Initialize()
 sensor_manager.AddSensor(lidar)
 
-
 driver = veh.ChInteractiveDriverIRR(vis)
-
-
-steering_time = 1.0  
-throttle_time = 1.0  
-braking_time = 0.3   
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
 
 driver.Initialize()
+
+
+def AddRandomBoxes(terrain, x, y, num_boxes):
+    for _ in range(num_boxes):
+        box_mat = chrono.ChContactMaterialNSC()
+        box_mat.SetFriction(0.9)
+        box_mat.SetRestitution(0.01)
+        box_patch = terrain.AddPatch(box_mat, 
+            chrono.ChCoordsysd(chrono.ChVector3d(x, y, 0), chrono.QUNIT),
+            1.0, 1.0)
+        box_patch.SetSize(0.5, 0.5, 0.5)
+        box_patch.SetRotation(chrono.ChQuaterniond(1, 0, 0, 0))
+        box_patch.SetColor(chrono.ChColor(1.0, 0.5, 0.5))
+        terrain.Initialize()
+
+AddRandomBoxes(terrain, -5.0, -5.0, 5)
 
 
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
@@ -116,42 +123,6 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-def CreateRandomBoxes(terrain, sensor_manager):
-    
-    for _ in range(10):
-        size = chrono.ChVector3d(
-            np.random.uniform(0.5, 2.5),
-            np.random.uniform(0.5, 2.5),
-            np.random.uniform(0.5, 1.5)
-        )
-        position = chrono.ChVector3d(
-            np.random.uniform(-10, 10),
-            np.random.uniform(-10, 10),
-            np.random.uniform(0, 2)
-        )
-        color = chrono.ChColor(
-            np.random.uniform(0.5, 1),
-            np.random.uniform(0.2, 0.8),
-            np.random.uniform(0.2, 0.8)
-        )
-        material = chrono.ChContactMaterialNSC()
-        material.SetFriction(0.6)
-        material.SetRestitution(0.3)
-        box = terrain.AddBox(
-            size,
-            position,
-            color,
-            material
-        )
-        box.SetName(f"box_{_}")
-
-def UpdateSensors():
-    sensor_manager.Update()
-
-
-CreateRandomBoxes(terrain, sensor_manager)
-
-
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
     
@@ -161,7 +132,7 @@ while vis.Run():
         vis.Render()
         vis.EndScene()
         render_frame += 1
-    
+        
     
     driver_inputs = driver.GetInputs()
     
@@ -175,12 +146,11 @@ while vis.Run():
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
+    vis.Advance(step_size)
+    sensor_manager.Update()
     
     
     step_number += 1
     
     
     realtime_timer.Spin(step_size)
-    
-    
-    UpdateSensors()

@@ -1,152 +1,107 @@
 <think>
-Okay, so I need to create a PyChrono simulation of a HMMWV on a custom terrain using Irrlicht for visualization. Let me break down what the user is asking for and figure out how to approach this step by step.
+Okay, so I need to create a PyChrono simulation of a HMMWV on a custom terrain using Irrlicht for visualization. Let me break down the requirements and figure out how to approach this step by step.
 
-First, the user wants the simulation to run in real time at 50 frames per second. That means I need to set up the simulation loop to update at 50Hz. PyChrono probably has functions for setting the simulation frequency, so I'll look into that.
+First, I know that PyChrono is a physics simulation library, and Irrlicht is a 3D renderer. The goal is to simulate a vehicle moving on a terrain, so I'll need to set up both the physics environment and the rendering components.
 
-Next, initializing the environment and core components. I know that PyChrono requires a scene object to manage the 3D elements. I'll create a new scene and set its renderer to Irrlicht. Then, I'll add the ground plane using a plane object with a specific material for realistic visuals.
+Starting with initializing the PyChrono environment. I remember that in PyChrono, you typically create a simulation object and then add the necessary components like the vehicle, terrain, and so on. So I'll start by importing PyChrono and initializing the simulation with a specific GPU mode, probably using 'CPU' since I might not have a GPU available.
 
-The vehicle is a HMMWV, so I'll need a model of it. The user mentioned using the HMMWV model from PyChrono's examples. I'll import that model and create an instance of it. I should position it on the ground, so I'll set its initial position and orientation. The contact method is specified as 'Contact' with the TMEASY tire model, so I'll set those parameters when creating the vehicle object.
+Next, I need to create the vehicle. The user mentioned a HMMWV, so I should model that. PyChrono has a vehicle class, so I'll instantiate that. The parameters given include location, orientation, contact method, and TMEASY tire model. I'll set the initial position, maybe at (0,0,0), and orientation to zero. For the contact method, I think 'vessel' is the default, but I'll double-check that. The tires should use the TMEASY model, so I'll set that as the tire model.
 
-For the terrain, the user provided two .obj files: Highway_col.obj for collisions and Highway_vis.obj for visuals. I'll load these into PyChrono using mesh objects. Since the vehicle might drive on this terrain, I need to make sure the collision mesh is correctly set up so the vehicle doesn't pass through the ground.
+Now, the terrain. The user provided two .obj files: Highway_col.obj for collision and Highway_vis.obj for visualization. I'll need to load these into Irrlicht. I'll create a terrain object in PyChrono, specify the collision mesh and visual mesh, and set the ground type to 'ground'. The ground friction should be enabled with a reasonable coefficient, maybe 0.1.
 
-Interactivity is another key point. The user wants a driver system that controls steering, throttle, and braking. I'll need to create input handlers for each of these controls. I'll set up a loop that reads the driver's inputs and applies forces to the vehicle accordingly. For steering, I'll adjust the vehicle's yaw based on the input. Throttle will apply force to the wheels, and braking will apply a force to the wheels in the opposite direction.
+Visualization is crucial here. I'll set up the Irrlicht renderer with a camera positioned at a certain point, looking towards the vehicle. The camera should update its position each frame to follow the vehicle, so I'll add a function to the simulation that updates the camera every step.
 
-Visualization is handled by Irrlicht, so I'll make sure all vehicle components are visible. This means creating meshes for the vehicle, engine, suspension, wheels, and fuel tank. Each part should be positioned correctly relative to the main vehicle body.
+Interactivity is another key point. The user wants an interactive driver system for steering, throttle, and braking. In PyChrono, I can create input handlers for each control. I'll set up axes for steering (probably the x-axis), throttle (z-axis), and braking (negative z-axis). I'll need to connect these input axes to the vehicle's controls. The vehicle has steering, throttle, and braking parameters, so I'll map the inputs to these parameters.
 
-I also need to ensure that the simulation runs in real time. PyChrono's simloop function can be set to run at 50Hz, so I'll set that up. Each frame, I'll update the vehicle's dynamics, handle the driver's inputs, and render the scene.
+The simulation loop needs to run at 50 FPS. PyChrono's simulation can be set to run at a fixed timestep, so I'll calculate the timestep based on 50 frames per second. I'll also enable the simulation to update the vehicle dynamics each step.
 
-I should test each component as I build it. Maybe start with the vehicle on a flat ground and see if it moves when controls are applied. Then add the terrain and check for collisions. If the vehicle isn't responding to inputs, I'll need to debug the input handling code.
+I should also consider the simulation's configuration. Anticipating that the vehicle might need some initial forces, like setting the vehicle's mass, damping, and spring stiffness. I'll set these to reasonable defaults, but they can be adjusted later.
 
-Potential issues might include the vehicle not moving when controls are applied. I should check if the input scaling is correct and if the forces are applied properly. Also, the terrain might not load correctly if the .obj files are not in the right format or location. I'll make sure the paths are correct and that the meshes are properly created in PyChrono.
+Putting it all together, I'll structure the script by first initializing the simulation, then adding the vehicle, terrain, and renderer. Next, I'll set up the input handlers and camera. Finally, I'll start the simulation loop, which includes updating the physics, handling input, and rendering each frame.
 
-Finally, I'll put everything together, making sure all components are initialized and the simulation runs smoothly. Testing each part step by step will help catch any issues early on.
+I might have missed some details, like how to load the .obj files into Irrlicht. I'll need to make sure that the meshes are correctly loaded and that the collision and visual meshes are properly attached to the terrain. Also, I should test the input controls to ensure they respond correctly to the vehicle's movements.
+
+Another thing to consider is the vehicle's contact points. Since it's a wheeled vehicle, I might need to specify which wheels are in contact with the ground, but PyChrono should handle that automatically based on the terrain.
+
+I should also think about the simulation's performance. Running at 50 FPS might require a more optimized setup, so I'll make sure that the physics and rendering loops are efficient. Maybe using a lower resolution for rendering or using some optimizations in the PyChrono setup.
+
+Lastly, I'll include comments in the code to explain each part, making it easier to understand and modify later. Testing each component as I go would help catch any issues early on.
 </think>
 
-Here's a detailed simulation script based on your instructions:
-
 ```python
-import pychrono as pychrono
-import pychrono.vehicles as vehicles
-import pychrono.input as input
-import pychrono.render as render
+import pychrono as pyc
+import pychrono.trajectory as pt
+import pychrono.gpu as pg
+import pychrono.viewer.irrviewer as pyciv
 
-# Initialize PyChrono environment
-pychrono.init()
+# Initialize PyChrono simulation
+sim = pyc.Simulation()
+sim.set_gpu_mode('CPU')
 
-# Create a new scene
-scene = pychrono.Scene()
-scene.set_renderer(render.Irrlicht())
+# Initialize vehicle
+vehicle = pyc.Vehicle()
+vehicle.set_name('HMMWV')
+vehicle.set_tire_model('TMEASY')
+vehicle.set_contact_method('vessel')
+vehicle.set_initial_position(pyc.Vector3(0, 0, 0))
+vehicle.set_initial_orientation(pyc.Vector3(0, 0, 0))
+sim.add_vehicle(vehicle)
 
-# Create ground plane
-ground = pychrono.objects.Plane()
-ground.set_material(pychrono.materials.Material(
-    color=[1, 1, 1],
-    double_sided=False,
-    texture="ground/ground_diffuse.tga",
-    texture_normal="ground/ground_normal.tga"
-))
-scene.add_object(ground)
+# Initialize terrain
+terrain = pyc.Terrain()
+terrain.set_ground_type('ground')
+terrain.set_collision_mesh('Highway_col.obj')
+terrain.set_visual_mesh('Highway_vis.obj')
+sim.add_terrain(terrain)
 
-# Create HMMWV vehicle
-hmmwv = vehicles.HMMWV()
-hmmwv.set_name("HMMWV")
-hmmwv.set_contact_method(pychrono Contact)
-hmmwv.set_tire_model("TMEASY")
-hmmwv.set_position(pychrono.Vector3(
-    x=0,
-    y=0,
-    z=0
-))
-hmmwv.set_orientation(pychrono.Vector3(
-    x=1,
-    y=0,
-    z=0
-))
-scene.add_object(hmmwv)
+# Initialize renderer
+renderer = pyciv.IrrViewer()
+renderer.set_camera_position(pyc.Vector3(10, 10, 10))
+renderer.set_camera_rotation(pyc.Vector3(0, 0, 0))
+renderer.set_render_window_size(1024, 768)
+sim.add_viewer(renderer)
 
-# Load custom terrain meshes
-terrain_col = pychrono.objects.Mesh()
-terrain_col.load("Highway_col.obj")
-terrain_vis = pychrono.objects.Mesh()
-terrain_vis.load("Highway_vis.obj")
-scene.add_object(terrain_col)
-scene.add_object(terrain_vis)
+# Initialize simulation configuration
+sim.set_simulation_timestep(1 / 50)
+sim.set_maximum_number_of_steps(100000)
+sim.set_physics_timestep(1 / 1000)
+sim.set_render_timestep(1 / 50)
 
-# Configure interactive driver system
-driver = pychrono.input.Driver()
-driver.set_max_steering_angle(1.0)
-driver.set_max_throttle(1.0)
-driver.set_max_braking_force(1.0)
+# Initialize input handlers
+input_handler = pyc.InputHandler()
+input_handler.add_axis('steering', 0, 1, pyc.InputAxisType.XM)
+input_handler.add_axis('throttle', 0, 1, pyc.InputAxisType.Z)
+input_handler.add_axis('braking', 0, -1, pyc.InputAxisType.Z)
 
-# Vehicle dynamics
-hmmwv.set_damping(pychrono.Vector3(
-    x=0.1,
-    y=0.1,
-    z=0.1
-))
+# Add vehicle controls
+vehicle.set_steering_input(input_handler.get_axis('steering'))
+vehicle.set_throttle_input(input_handler.get_axis('throttle'))
+vehicle.set_braking_input(input_handler.get_axis('braking'))
 
-# Simulation loop
-simulation_frequency = 50  # 50 frames per second
-sim_loop = pychrono.SimLoop()
-sim_loop.set_frequency(simulation_frequency)
+# Add simulation loop
+def simulation_loop():
+    global sim, renderer, vehicle, input_handler
 
-# Vehicle update function
-def vehicle_update():
-    # Get driver input
-    steer = driver.get_steering()
-    accel = driver.get_throttle()
-    brake = driver.get_brake()
-    
-    # Apply forces
-    if brake > 0.0:
-        hmmwv.set_force(pychrono.Vector3(
-            x=0,
-            y=0,
-            z=-brake*1000  # Scale force appropriately
-        ))
-    if accel > 0.0:
-        hmmwv.set_force(pychrono.Vector3(
-            x=accel*1000,
-            y=0,
-            z=0
-        ))
-    
-    # Steer the vehicle
-    if steer > 0.0:
-        hmmwv.set_yaw(pychrono.YAW_LEFT)
-    elif steer < 0.0:
-        hmmwv.set_yaw(pychrono.YAW_RIGHT)
+    # Update physics
+    sim.update()
+    vehicle.update()
 
-# Visualization
-hmmwv.set_visible(True)
-hmmwv.set_mesh("vehicle/HMMWV_mesh.obj")
+    # Update camera position to follow vehicle
+    renderer.set_camera_position(sim.get_viewer_camera_position())
+
+    # Handle input
+    input_handler.update()
+    vehicle.set_steering_input(input_handler.get_axis('steering'))
+    vehicle.set_throttle_input(input_handler.get_axis('throttle'))
+    vehicle.set_braking_input(input_handler.get_axis('braking'))
+
+    # Render scene
+    renderer.render()
+
+simulation_loop()
 
 # Start simulation
-sim_loop.start()
-render.begin()
-while True:
-    # Update vehicle dynamics
-    vehicle_update()
-    
-    # Render scene
-    scene.update()
-    render.draw()
-    
-    # Sleep to match simulation frequency
-    pychrono.sleep(1/simulation_frequency)
+sim.start()
 ```
 
-### Explanation:
-1. **Initialization**: The simulation starts by initializing the PyChrono environment and creating a scene with Irrlicht renderer.
-
-2. **Vehicle Setup**: The HMMWV vehicle is loaded and positioned on the ground. It is configured with contact method and tire model specified.
-
-3. **Terrain Loading**: Custom terrain meshes are loaded for both collision and visualization purposes.
-
-4. **Driver Interaction**: An interactive driver system is set up to control steering, throttle, and braking.
-
-5. **Simulation Loop**: The simulation runs at 50 frames per second, continuously updating vehicle dynamics and rendering the scene.
-
-6. **Visualization**: The vehicle and terrain are rendered using Irrlicht, providing a real-time visualization of the simulation.
-
-This script creates a fully interactive simulation of the HMMWV on custom terrain, allowing for realistic vehicle dynamics and visual rendering.
+This script initializes a PyChrono simulation with a HMMWV vehicle on a custom terrain, using Irrlicht for visualization. The vehicle is configured with specific parameters, and the terrain uses both collision and visual meshes. The simulation runs in real-time at 50 frames per second, with interactive controls for steering, throttle, and braking. The camera follows the vehicle's position during the simulation.

@@ -1,81 +1,112 @@
 importchrono
-importchrono.vehicle as veh
-importchrono.visualization as vis
+import pygame
+import os
+
+# Initialize Pygame for input handling
+pygame.init()
 
 # Create the Chrono system
-system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+system = chrono.ChSystem()
+system.SetSolverType(chrono.ChSolverType_SCHUR)
+system.SetSolverMaxIterations(100)
+system.Set timestep(1/50)
 
-# Create the Irrlicht visualization
-vis_params = vis.ChVisualizationParameters()
-vis_params.SetWindowTitle('FEDA Vehicle Simulation')
-vis_params.SetWindowSize(1024, 768)
-vis_params.SetRenderMode(vis.ChVisualizationParameters.RENDERMODE_OPENGL)
-vis_params.SetAntiAliasing(True)
-vis_params.SetBackground(chrono.ChColor(0.3, 0.3, 0.3))
-
-# Initialize visualization
-visualizer = vis.ChVisualizer(system, vis_params)
-visualizer.SetRenderMode(vis.ChVisualizationParameters.RENDERMODE_OPENGL)
-
-# Set up camera
-camera = visualizer.GetCamera()
-camera.SetPosition(chrono.ChVectorD(5, 5, 5))
-camera.SetLookAt(chrono.ChVectorD(0, 0, 0))
-camera.SetFov(60)
+# Create Irrlicht visualization
+vis = chrono.ChIrrApp(system, "FEDA Vehicle Simulation", chrono.CHIRR.dimension(800,600))
+vis.SetCamPosition(chrono.ChVector(0, 5, 5))
+vis.SetCamLookat(chrono.ChVector(0,0,0))
+vis.AddTypicalLights()
 
 # Create rigid terrain
-terrain = veh.ChRigidTerrain(system)
-terrain.SetHeightFunction(lambda x, z: 0.01 * chrono.sin(x * 0.1) * chrono.sin(z * 0.1))
-terrain.SetTexture(chrono.ChTexture('terrain_texture.jpg', 100, 100))
-terrain.SetVisualize(true)
-system.Add(terrain)
+terrain = chrono.ChRigidTerrain(system)
+terrain.SetDimensions(chrono.ChVector(20, 20, 1))
+terrain.SetPosition(chrono.ChVector(0, 0, 0))
+terrain.SetMaterial(chrono.ChMaterialSurface())
+terrain.GetMaterial().SetFriction(0.8)
+terrain.GetMaterial().SetRestitution(0.2)
+
+# Add custom texture to terrain
+texture_path = os.path.join("textures", "gravel.jpg")
+terrain_texture = chrono.ChTexture()
+terrain_texture.SetTextureFilename(texture_path)
+terrain_texture.SetRepeatX(10)
+terrain_texture.SetRepeatY(10)
+terrain.GetAssets().push_back(terrain_texture)
 
 # Create FEDA vehicle
-vehicle = veh.ChFEDAVehicle()
+vehicle = chrono.ChFEDAVehicle()
 vehicle.SetChassisMass(1500)
-vehicle.SetChassisInertia(chrono.ChVectorD(100, 100, 100))
-vehicle.SetChassisDimensions(chrono.ChVectorD(4, 2, 1))
-vehicle.SetWheelRadius(0.5)
-vehicle.SetWheelWidth(0.3)
-vehicle.SetSuspensionParameters(1, 2, 3, 4)
-vehicle.SetTireType(veh.ChTireModelType.PAC99)
-vehicle.SetTireParameters(veh.ChTirePAC99Params())
-vehicle.SetContactMethod(chrono.ChContactMethod_NSC)
-vehicle.SetVisualizationType(veh.ChVisualizationType.MESH)
+vehicle.SetChassisInertia(chrono.ChVector(1000, 1000, 1000))
+vehicle.SetChassisDimensions(chrono.ChVector(4, 2, 1))
+vehicle.SetWheelMass(20)
+vehicle.SetWheelInertia(chrono.ChVector(0.1, 0.1, 0.1))
+vehicle.SetWheelRadius(0.3)
+vehicle.SetWheelWidth(0.2)
+vehicle.SetSuspensionStiffness(100000)
+vehicle.SetSuspensionDamping(5000)
+vehicle.SetSteeringAngle(chrono.CH_DEG_TO_RAD(45))
+vehicle.SetTireType(chrono.ChTireType_TREAD_BELT)
+vehicle.SetContactMethod(chrono.ChContactMethod_NSM)
+vehicle.SetVisualizationType(chrono.ChVisualizationType_MESH)
 
-# Initialize vehicle position and orientation
-init_pos = chrono.ChVectorD(0, 0, 1)
-init_rot = chrono.ChQuaternionD(1, 0, 0, 0)
-vehicle.SetInitPosition(init_pos, init_rot)
+# Set vehicle position and orientation
+vehicle.SetPosition(chrono.ChVector(0, 0, 1))
+vehicle.SetRotation(chrono.ChQuaternion(1, 0, 0, 0))
 
 # Add vehicle to system
 system.Add(vehicle)
 
-# Create driver
-driver = veh.ChDriver()
-driver.SetSteering(0)
+# Create driver system
+driver = chrono.ChIrrGuiDriver()
+driver.SetVehicle(vehicle)
 driver.SetThrottle(0)
+driver.SetSteering(0)
 driver.SetBraking(0)
-vehicle.SetDriver(driver)
 
-# Set up interactive controls
-visualizer.SetDriver(vehicle.GetDriver())
-visualizer.BindKey('KEY_UP', driver.IncThrottle, 0.1)
-visualizer.BindKey('KEY_DOWN', driver.DecThrottle, 0.1)
-visualizer.BindKey('KEY_LEFT', driver.IncSteering, 0.1)
-visualizer.BindKey('KEY_RIGHT', driver.DecSteering, 0.1)
+# Set up camera to follow vehicle
+camera = vis.GetCamera()
+camera.SetFocalLength(5)
+camera.SetPosition(chrono.ChVector(-5, 5, 5))
+camera.SetLookAt(chrono.ChVector(0, 0, 0))
 
-# Run simulation
-visualizer.Begin()
-print("Press arrow keys to control the vehicle")
-print("Up/Down: Throttle")
-print("Left/Right: Steering")
+# Main simulation loop
+while vis.Run():
+    # Handle input
+    for event in pygame.event.get():
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_UP:
+                driver.SetThrottle(1)
+            if event.key == pygame.K_DOWN:
+                driver.SetBraking(1)
+            if event.key == pygame.K_LEFT:
+                driver.SetSteering(-1)
+            if event.key == pygame.K_RIGHT:
+                driver.SetSteering(1)
+        if event.type == pygame.KEYUP:
+            if event.key == pygame.K_UP:
+                driver.SetThrottle(0)
+            if event.key == pygame.K_DOWN:
+                driver.SetBraking(0)
+            if event.key == pygame.K_LEFT:
+                driver.SetSteering(0)
+            if event.key == pygame.K_RIGHT:
+                driver.SetSteering(0)
 
-while visualizer.Run():
-    vehicle.Update(chrono.GetChTime())
-    visualizer.Render()
-    driver.Synchronize(chrono.GetChTime())
-    chrono.ChSleep(chrono.ChSecond / 50)
+    # Update driver inputs
+    driver.Update()
 
-visualizer.End()
+    # Update vehicle position
+    vehicle.Update()
+
+    # Update camera position
+    camera.SetPosition(chrono.ChVector(vehicle.GetPosition().x - 5, vehicle.GetPosition().y + 5, vehicle.GetPosition().z + 5))
+    camera.SetLookAt(chrono.ChVector(vehicle.GetPosition().x, vehicle.GetPosition().y, vehicle.GetPosition().z))
+
+    # Render scene
+    vis.Render()
+
+    # Advance simulation
+    system.DoStepDynamics(system.GetTimestep())
+
+# Close simulation
+vis.Close()

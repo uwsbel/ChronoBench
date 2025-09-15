@@ -43,22 +43,15 @@ vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0
 
 
 def move(mode):
-    LEFT_DRIVE_WHEEL = 0
-    RIGHT_DRIVE_WHEEL = 1
-    speed = 1.0  
-    
     if mode == 'straight':
-        robot.SetMotorSpeed(speed, LEFT_DRIVE_WHEEL)
-        robot.SetMotorSpeed(speed, RIGHT_DRIVE_WHEEL)
-        print("Moving straight")
+        robot.SetMotorSpeed(2.0, turtlebot.TurtleBot.LEFT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(2.0, turtlebot.TurtleBot.RIGHT_DRIVE_WHEEL)
     elif mode == 'left':
-        robot.SetMotorSpeed(-speed, LEFT_DRIVE_WHEEL)
-        robot.SetMotorSpeed(speed, RIGHT_DRIVE_WHEEL)
-        print("Turning left")
+        robot.SetMotorSpeed(-math.pi, turtlebot.TurtleBot.LEFT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(math.pi, turtlebot.TurtleBot.RIGHT_DRIVE_WHEEL)
     elif mode == 'right':
-        robot.SetMotorSpeed(speed, LEFT_DRIVE_WHEEL)
-        robot.SetMotorSpeed(-speed, RIGHT_DRIVE_WHEEL)
-        print("Turning right")
+        robot.SetMotorSpeed(math.pi, turtlebot.TurtleBot.LEFT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(-math.pi, turtlebot.TurtleBot.RIGHT_DRIVE_WHEEL)
     else:
         raise ValueError("Invalid mode. Mode must be 'straight', 'left', or 'right'.")
 
@@ -69,15 +62,18 @@ time_step = 2e-3
 time = 0
 while vis.Run():
     
-    if time < 5.0:
-        current_mode = 'straight'
-    elif 5.0 <= time < 10.0:
-        current_mode = 'left'
+    if 0 <= time < 5:
+        move('straight')
+        if time >= 0 and time < 1e-4:  
+            print("Moving straight")
+    elif 5 <= time < 10:
+        move('left')
+        if time >= 5 and time < 5 + 1e-4:  
+            print("Turning left")
     else:
-        current_mode = 'right'
-    
-    
-    move(current_mode)
+        move('right')
+        if time >= 10 and time < 10 + 1e-4:  
+            print("Turning right")
 
     
     time += time_step

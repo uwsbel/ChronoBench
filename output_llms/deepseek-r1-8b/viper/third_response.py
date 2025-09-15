@@ -1,28 +1,37 @@
+# Create deformable terrain
+   terrain = chrono.ChSCMDeformableTerrain()
+   terrain.SetPlane(chrono.ChVector3d(0, 0, 0))  # Define the ground plane
+   terrain.SetDimensions(100, 100, 1)  # Length, width, height
+   terrain.SetMeshResolution(100, 100, 10)  # Mesh resolution
+   terrain.SetMaterial(chrono.ChMaterialNSC().SetStiffness(1000.0).SetDamping(0.5))  # Set soil parameters
+   system.Add(terrain)
+
 import os
 import math
 import numpy as np
 import pychrono as chrono
 import pychrono.robot as viper
-import pychrono.vehicle as veh
-from pychrono import irrlicht as chronoirr
+from pychrono import veh, irrlicht as chronoirr
 
 # Create Chrono system
 system = chrono.ChSystemNSC()
 system.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
-system.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, -9.81))  # Set gravity in the negative Z direction
+system.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, -9.81))
 chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.0025)
 chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
 
-# Create ground using SCM deformable terrain
-ground_mat = chrono.ChContactMaterialNSC()
-ground = chrono.ChBodySCMPlane(50, 50, 100, 1000000, 0.4)  # Create deformable terrain with specified parameters
-ground.SetMaterial(ground_mat)
-system.Add(ground)
+# Create deformable terrain
+terrain = chrono.ChSCMDeformableTerrain()
+terrain.SetPlane(chrono.ChVector3d(0, 0, 0))  # Define the ground plane
+terrain.SetDimensions(100, 100, 1)  # Length, width, height
+terrain.SetMeshResolution(100, 100, 10)  # Mesh resolution
+terrain.SetMaterial(chrono.ChMaterialNSC().SetStiffness(1000.0).SetDamping(0.5))  # Set soil parameters
+system.Add(terrain)
 
 # Create Viper rover
-rover = viper.Viper(system)  # Instantiate the Viper rover
-driver = viper.ViperDCMotorControl()  # Create a driver for the rover
-rover.SetDriver(driver)  # Assign the driver to the rover
+rover = viper.Viper(system)
+driver = viper.ViperDCMotorControl()
+rover.SetDriver(driver)
 
 # Initialize rover position and orientation
 init_pos = chrono.ChVector3d(0, 0.2, 0)
@@ -34,33 +43,34 @@ vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
 vis.SetCameraVertical(chrono.CameraVerticalDir_Z)
 vis.SetWindowSize(1280, 720)
-vis.SetWindowTitle('Viper rover - Deformable terrain')
+vis.SetWindowTitle('Viper rover - Rigid terrain')
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()
+vis.AddCamera(chrono.ChVector3d(0, 2.5, 1.5), chrono.ChVector3d(0, 0, 1))
 vis.AddTypicalLights()
 vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0, 0.5), 3, 4, 10, 40, 512)
 
 # Enable shadows (commented out to improve performance)
 # vis.EnableShadows()
 
-# Set the simulation time step
+# Set simulation time step
 time_step = 1e-3
 
 # Simulation loop
 time = 0
 while vis.Run():
-    time += time_step  # Increment the simulation time
-    steering = 0.0  # Set constant steering value
-    
+    time += time_step
+    steering = 0.0  # Set constant steering
+
     driver.SetSteering(steering)  # Set the steering for the rover
 
-    rover.Update()  # Update the rover's state
+    rover.Update()
 
     # Render the scene
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
-    
+
     # Advance the simulation by one time step
     system.DoStepDynamics(time_step)

@@ -21,16 +21,16 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_RIGID
 
 
-terrainHeight = 0.5  
+terrain_model = veh.RigidTerrain.Box
+terrainHeight = 0      
 terrainLength = 100.0  
 terrainWidth = 100.0   
-terrainResolution = 40  
 
 
 trackPoint = chrono.ChVector3d(0.0, 0.0, 1.71)
 
 
-contact_method = chrono.ChContactMethod_NS
+contact_method = chrono.ChContactMethod_NSC
 contact_vis = False
 
 
@@ -61,14 +61,15 @@ vehicle.SetTireVisualizationType(vis_type)
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
-terrain = veh.RigidTerrain()
-terrain.SetHeightMap(veh.GetDataFile("terrain/height_maps/bump64.bmp"), terrainHeight)
-terrain.SetSize(terrainLength, terrainWidth)
-terrain.SetMeshResolution(terrainResolution)
+terrain = veh.RigidTerrain.Box(vehicle.GetSystem())
+terrain.SetHeightMap(veh.GetDataFile("terrain/height_maps/bump64.bmp"), terrainHeight, terrainLength, terrainWidth)
+terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), terrainLength, terrainWidth)
+
+
+terrain.AddMovingPatch = False
+
+
 terrain.Initialize()
-
-
-terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"))
 
 
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()

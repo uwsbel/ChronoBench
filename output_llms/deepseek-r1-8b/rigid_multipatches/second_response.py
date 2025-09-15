@@ -3,7 +3,7 @@ import pychrono.vehicle as veh
 import pychrono.irrlicht as irr
 
 def main():
-    # Create the HMMWV vehicle, set parameters, and initialize
+    #  Create the HMMWV vehicle, set parameters, and initialize
     hmmwv = veh.HMMWV_Full()
     hmmwv.SetContactMethod(chrono.ChContactMethod_NSC)
     hmmwv.SetChassisFixed(False)
@@ -15,41 +15,34 @@ def main():
     hmmwv.SetTireStepSize(tire_step_size)
     hmmwv.Initialize()
 
-    # Set visualization type for vehicle parts
     hmmwv.SetChassisVisualizationType(veh.VisualizationType_MESH)
     hmmwv.SetSuspensionVisualizationType(veh.VisualizationType_MESH)
     hmmwv.SetSteeringVisualizationType(veh.VisualizationType_MESH)
     hmmwv.SetWheelVisualizationType(veh.VisualizationType_MESH)
     hmmwv.SetTireVisualizationType(veh.VisualizationType_MESH)
 
-    # Initialize collision system
     hmmwv.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
-    # Create the terrain
+    # Create the terrain with a single patch
     terrain = veh.RigidTerrain(hmmwv.GetSystem())
 
-    # Create terrain patch with contact material
-    patch_mat = chrono.ChContactMaterialNSC()
-    patch_mat.SetFriction(0.9)
-    patch_mat.SetRestitution(0.01)
-    patch_mat.SetThickness(0.01)  # Set contact material thickness
+    # Create contact material for terrain
+    terrain_mat = chrono.ChContactMaterialNSC()
+    terrain_mat.SetFriction(0.9)
+    terrain_mat.SetRestitution(0.01)
+    terrain_mat.SetContactThickness(0.01)  # Set contact thickness
 
-    # Add single terrain patch using the highway mesh
-    terrain_patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
-                                      veh.GetDataFile("vehicle/terrain/meshes/Highway_col.obj"), 64.0, 64.0, 0.0, 3.0)
-    terrain_patch.SetColor(chrono.ChColor(1.0, 0.5, 0.5))
-    terrain_patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 64.0, 64.0)
+    # Add single terrain patch using mesh file
+    terrain_patch = terrain.AddPatch(terrain_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
+                                      veh.GetDataFile("vehicle/terrain/meshes/Highway_col.obj"), 32, 32, 0.0, 3.0)
+    terrain_patch.SetColor(chrono.ChColor(1.0, 0.8, 0.8))
+    terrain_patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 32, 32)
 
-    # Enable collision for the terrain's ground body
-    terrain.GetBody().SetCollisionEnabled(True)
-
-    # Create visual mesh for terrain
-    visual_mesh = veh.ChVisualShapeTriangleMesh()
-    visual_mesh.SetFileName(veh.GetDataFile("terrain/meshes/Highway_vis.obj"))
-    visual_mesh.Create()
-
-    # Attach visual mesh to the terrain's ground body
-    terrain.GetBody().AddVisualShape(visual_mesh)
+    # Add visual mesh to terrain
+    vis_shape = chrono.ChVisualShapeTriangleMesh()
+    vis_shape.SetMeshFile(veh.GetDataFile("terrain/meshes/Highway_vis.obj"))
+    vis_shape.SetCollisionShape(chrono.ChVisualShape(chrono.ChColor(1.0, 1.0, 1.0), 0.8))
+    terrain.GetGroundBody().AddShape(vis_shape)
 
     terrain.Initialize()
 
@@ -71,10 +64,9 @@ def main():
     driver.SetBrakingDelta(0.06)
     driver.Initialize()
 
-    # Enable real-time simulation
     hmmwv.GetVehicle().EnableRealtime(True)
 
-    while vis.Run():
+    while vis.Run() :
         time = hmmwv.GetSystem().GetChTime()
 
         # Draw scene
@@ -85,13 +77,13 @@ def main():
         # Get driver inputs
         driver_inputs = driver.GetInputs()
 
-        # Update modules with current time
+        # Update modules (process inputs from other modules)
         driver.Synchronize(time)
         terrain.Synchronize(time)
         hmmwv.Synchronize(time, driver_inputs, terrain)
         vis.Synchronize(time, driver_inputs)
 
-        # Advance simulation for one timestep
+        # Advance simulation for one timestep for all modules
         driver.Advance(step_size)
         terrain.Advance(step_size)
         hmmwv.Advance(step_size)
@@ -106,5 +98,4 @@ step_size = 2e-3
 tire_step_size = 1e-3
 
 
-if __name__ == "__main__":
-    main()
+main()

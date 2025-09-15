@@ -3,6 +3,7 @@ import pychrono.vehicle as veh
 import pychrono.ros as chros
 from pychrono import irrlicht as chronoirr
 import math
+import pychrono.sensor as sens  
 
 def main():
     veh.SetDataPath(ch.GetChronoDataPath() + 'vehicle/')
@@ -26,33 +27,37 @@ def main():
     hmmwv.SetTireVisualizationType(veh.VisualizationType_MESH)
     
     
-    sens_manager = ch.ChSensorManager()
-    box = ch.ChBodyEasyBox()
-    box.Attach(hmmwv.GetChassisBody())
-    box.SetSize(ch.ChVector3d(0.5, 0.5, 0.5))
-    box.SetColor(ch.ChColor(1, 0, 0))  
+    sens_manager = sens.ChSensorManager()
     
-    lidar = ch.ChLidarSensor()
-    lidar.SetMaxDistance(10)  
-    lidar.SetResolution(0.01)  
-    lidar.SetLaserColor(ch.ChColor(0, 1, 1))  
-    lidar.SetFOV(45)  
-    lidar.SetAccuracy(0.1)  
-    lidar.SetAngularResolution(0.1)  
+    lidar_sensor = sens.ChLidarSensor(
+        sens.ChSensorConfig(
+            frequency=10,  
+            angular_resolution=0.1,  
+            range_min=0.5,  
+            range_max=8.0,  
+            field_of_view=90,  
+        ),
+        hmmwv.GetVehicle().GetSystem()
+    )
+    sens_manager.AddSensor(lidar_sensor)
+    
+    
+    ros_manager = chros.ChROSPythonManager()
+    ros_manager.RegisterHandler(chros.ChROSLidarHandler(25, lidar_sensor, "~/output/lidar/data"))
     
     
     vis = chronoirr.ChVisualSystemIrrlicht()
     vis.AttachSystem(hmmwv.GetSystem())
     vis.SetCameraVertical(ch.CameraVerticalDir_Z)
     vis.SetWindowSize(1280, 720)
-    vis.SetWindowTitle('Viper rover - Rigid terrain with sensors')
+    vis.SetWindowTitle('Viper rover - Rigid terrain with Lidar')
     vis.Initialize()
     vis.AddLogo(ch.GetChronoDataFile('logo_pychrono_alpha.png'))
     vis.AddSkyBox()
-    vis.AddCamera(ch.ChVector3d(-5, 2.5, 1.5))  
+    vis.AddCamera(ch.ChVector3d(-5, 2.5, 1.5), ch.ChVector3d(0, 0, 1))
     vis.AddTypicalLights()
     vis.AddLightWithShadow(ch.ChVector3d(1.5, -2.5, 5.5), ch.ChVector3d(0, 0, 0.5), 3, 4, 10, 40, 512)
-    vis.AddBody(box)
+    vis.AddChBodyEasyBox(hmmwv.GetChassisBody(), 1, 1, 1, ch.VisualizationColor_Cyan)
     
     
     driver = veh.ChDriver(hmmwv.GetVehicle())
@@ -66,7 +71,7 @@ def main():
     
     ros_manager.RegisterHandler(chros.ChROSBodyHandler(25, hmmwv.GetChassisBody(), "~/output/hmmwv/state"))
     
-    ros_manager.RegisterHandler(chros.ChROSLidarHandler(10, lidar, "~/output/lidar/data"))
+    ros_manager.RegisterHandler(chros.ChROSLidarHandler(25, lidar_sensor, "~/output/lidar/data"))
     ros_manager.Initialize()  
 
     
@@ -81,6 +86,7 @@ def main():
     render_step_size = 1.0 / 25  
     render_steps = math.ceil(render_step_size / time_step)
     hmmwv.GetVehicle().EnableRealtime(True)  
+    
     while vis.Run():  
         time = hmmwv.GetSystem().GetChTime()  
         
@@ -102,8 +108,9 @@ def main():
         
         if not ros_manager.Update(time, time_step):
             break  
-        sens_manager.Update(time, time_step)  
         step_number += 1
+        
+        sens_manager.Update()
 
 if __name__ == "__main__":
     main()

@@ -7,6 +7,7 @@ from std_msgs.msg import String  # Changed message type to String
 # Define a custom ROS handler for publishing string messages.
 class MyCustomHandler(chros.ChROSHandler):
     """This custom handler will publish string messages to a specified ROS topic."""
+    message = "Hello, world! At time: "  # Added message attribute
 
     def __init__(self, topic):
         super().__init__(1)  # Initialize the handler with a 1 Hz publishing rate.
@@ -14,7 +15,6 @@ class MyCustomHandler(chros.ChROSHandler):
         self.topic = topic
         self.publisher: rclpy.publisher.Publisher = None
         self.ticker = 0  # Initialize a counter for published messages.
-        self.message = "Hello, world! At time: "  # Added message attribute
 
     def Initialize(self, interface: chros.ChROSPythonInterface) -> bool:
         """Initialize the ROS publisher."""
@@ -26,8 +26,8 @@ class MyCustomHandler(chros.ChROSHandler):
     def Tick(self, time: float):
         """Publish a string message to the ROS topic."""
         print(f"Publishing {self.message}{self.ticker} ...")
-        msg = String()  # Changed message type to String
-        msg.data = self.message + str(self.ticker)  # Concatenated message
+        msg = String()  # Create a message object of type String
+        msg.data = f"{self.message}{self.ticker}"  # Set the message data
         self.publisher.publish(msg)  # Publish the message to the ROS topic
         self.ticker += 1  # Increment the ticker for the next message
 
@@ -50,7 +50,7 @@ def main():
     # Create a box object.
     box = ch.ChBodyEasyBox(1, 1, 1, 1000, True, True, phys_mat)
     box.SetPos(ch.ChVector3d(0, 0, 5))  # Position the box above the floor.
-    box.SetRot(ch.QuatFromAngleAxis(0.2, ch.ChVector3d(1, 0, 0)))  # Rotate the box slightly.
+    box.SetRot(ch.QuatFromAngleAxis(.2, ch.ChVector3d(1, 0, 0)))  # Rotate the box slightly.
     box.SetName("box")  # Set the name for ROS communication.
     sys.Add(box)  # Add the box to the simulation system.
 

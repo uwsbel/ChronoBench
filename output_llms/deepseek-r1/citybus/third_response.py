@@ -16,8 +16,9 @@ vis_type_mesh = veh.VisualizationType_MESH
 # Collision type for chassis (PRIMITIVES, MESH, or NONE)
 chassis_collision_type = veh.CollisionType_NONE
 
-# Type of tire model (RIGID, PACEJKA)
-tire_model = veh.TireModelType_PACEJKA  # Changed to Pacejka
+# Type of tire model (RIGID, TMEASY)
+# Changed to Pacejka89 as requested
+tire_model = veh.TireModelType_PACEJKA
 
 # Rigid terrain
 # terrain_model = veh.RigidTerrain.BOX
@@ -33,7 +34,8 @@ contact_method = chrono.ChContactMethod_NSC
 contact_vis = False
 
 # Simulation step sizes
-step_size = 5e-4  # Reduced from 1e-3 to 5e-4
+# Reduced step size to 5e-4 as requested
+step_size = 5e-4
 tire_step_size = step_size
 
 # Time interval between two render frames
@@ -67,11 +69,12 @@ patch = terrain.AddPatch(patch_mat,
     chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
     terrainLength, terrainWidth)
 
-patch.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 200, 200)  # Changed texture
+# Changed texture to dirt.jpg as requested
+patch.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
-
 # Create the vehicle Irrlicht interface
+
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('City Bus Demo')
 vis.SetWindowSize(1280, 1024)

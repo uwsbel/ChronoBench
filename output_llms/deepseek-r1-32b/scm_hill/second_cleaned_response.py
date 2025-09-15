@@ -1,9 +1,9 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
-import numpy as np
-from pychrono import sensor
+import pychrono.sensor as sens
 import math
+import numpy as np
 
 
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
@@ -43,8 +43,7 @@ tire_step_size = step_size
 render_step_size = 1.0 / 20  
 
 
-
-vehicle = veh.HMMWV_Full() 
+vehicle = veh.HMMWV_Full()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
@@ -65,13 +64,13 @@ vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 terrain = veh.SCMTerrain(vehicle.GetSystem())
 terrain.SetSoilParameters(2e6,   
-                            0,     
-                            1.1,   
-                            0,     
-                            30,    
-                            0.01,  
-                            2e8,   
-                            3e4    
+                         0,     
+                         1.1,   
+                         0,     
+                         30,    
+                         0.01,  
+                         2e8,   
+                         3e4    
 )
 
 
@@ -86,41 +85,66 @@ terrain.Initialize(veh.GetDataFile("terrain/height_maps/bump64.bmp"),40, 40, -1,
 terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
 
 
-obstacles = []
-for i in range(5):
-    obstacle = chrono.ChBody()
-    obstacle.SetBodyFixed(True)
-    obstacle.SetCollide(True)
-    obstacle.SetName("Obstacle" + str(i))
-    
-    
-    pos = chrono.ChVector3d(
-        np.random.uniform(-50, 50),
-        np.random.uniform(-50, 50),
-        1.0
-    )
-    obstacle.SetPos(pos)
-    
-    
-    box = chrono.ChBox()
-    box.GetDimensions().x = 2.0
-    box.GetDimensions().y = 2.0
-    box.GetDimensions().z = 2.0
-    obstacle.AddGeometry(box)
-    
-    
-    mat = chrono.ChMaterialSurface()
-    mat.SetFriction(0.5)
-    obstacle.GetCollisionModel().AddMaterial(mat)
-    
-    
-    vehicle.GetSystem().AddBody(obstacle)
-    obstacles.append(obstacle)
+def create_obstacles(system):
+    num_obstacles = 5
+    for i in range(num_obstacles):
+        
+        pos = chrono.ChVector3d(
+            np.random.uniform(-50, 50),  
+            np.random.uniform(-50, 50),  
+            np.random.uniform(0.5, 2)    
+        )
+        size = chrono.ChVector3d(
+            np.random.uniform(1, 3),    
+            np.random.uniform(1, 3),    
+            np.random.uniform(1, 3)     
+        )
+        
+        
+        box = chrono.ChBoxShape()
+        box.SetDimensions(size)
+        
+        
+        body = chrono.ChBody()
+        body.SetPos(pos)
+        body.SetMass(1000)  
+        body.AddVisualShape(box)
+        body.GetCollisionModel().AddBoxGeometry(size)
+        
+        
+        system.Add(body)
 
+create_obstacles(vehicle.GetSystem())
+
+
+sensor_manager = sens.ChSensorManager()
+sensor_manager.AttachTo(vehicle.GetChassisBody())
+
+
+lidar_params = sens.ChLidarParameters()
+lidar_params.horz_start_angle = -45.0
+lidar_params.horz_end_angle = 45.0
+lidar_params.vert_start_angle = 15.0
+lidar_params.vert_end_angle = -15.0
+lidar_params.range = 100.0
+lidar_params.horz_res = 0.5
+lidar_params.vert_res = 1.0
+lidar_params.noise = 0.05
+
+lidar = sens.ChLidar(sensor_manager, lidar_params)
+lidar.SetName("lidar")
+lidar.SetPos(chrono.ChVector3d(0, 0, 2))  
+
+
+lidar.GetVisualization().SetMinHitDistance(0.1)
+lidar.GetVisualization().SetMaxHitDistance(lidar_params.range)
+lidar.GetVisualization().SetDrawPoints(True)
+lidar.GetVisualization().SetDrawSegments(True)
+lidar.GetVisualization().SetDrawCoordinateSystem(True)
 
 
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
-vis.SetWindowTitle('HMMWV Demo')
+vis.SetWindowTitle('HMMWV Demo with Lidar')
 vis.SetWindowSize(1280, 1024)
 vis.SetChaseCamera(trackPoint, 6.0, 0.5)
 vis.Initialize()
@@ -130,31 +154,7 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 
-manager = sensor.ChSensorManager(vehicle.GetSystem())
-
-
-lidar = sensor.ChLidar()
-lidar.SetParent(vehicle.GetChassisBody())
-lidar.SetPosition(chrono.ChVector3d(0, 0, 1.7))
-lidar.SetRotation(chrono.ChQuaterniond(1, 0, 0, 0))
-lidar.SetRange(50.0)
-lidar.SetHorizontalAngleRange(-1.5708, 1.5708)  
-lidar.SetVerticalAngleRange(-0.7854, 0.7854)    
-lidar.SetRotationSpeed(2.0)                    
-lidar.SetSamplesPerSecond(1000)
-lidar.SetNoiseFloor(0.01)
-lidar.SetVisualization(True)
-
-
-lidar.GetVisualization().SetMinRange(0.1)
-lidar.GetVisualization().SetMaxRange(50.0)
-lidar.GetVisualization().SetObjectFilter(sensor.ChLidarVisualization.FILTER_VEHICLE)
-lidar.GetVisualization().SetObjectFilter(sensor.ChLidarVisualization.FILTER_OBSTACLES)
-
-manager.AddSensor(lidar)
-
-
-driver = veh.ChInteractiveDriverIRR(vis, manager)
+driver = veh.ChInteractiveDriverIRR(vis)
 
 
 steering_time = 1.0  
@@ -171,7 +171,7 @@ driver.Initialize()
 
 
 
-print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 
 render_steps = math.ceil(render_step_size / step_size)
@@ -181,14 +181,14 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-while vis.Run() :
+while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
     
-    manager.Update()
+    sensor_manager.Update()
 
     
-    if (step_number % render_steps == 0) :
+    if (step_number % render_steps == 0):
         vis.BeginScene()
         vis.Render()
         vis.EndScene()

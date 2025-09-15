@@ -2,7 +2,7 @@ import pychrono as ch
 import pychrono.ros as chros
 
 import rclpy.publisher
-from std_msgs.msg import String  # Changed message type from Int64 to String
+from std_msgs.msg import String  # Changed from Int64 to String
 
 # Define a custom ROS handler for publishing string messages.
 class MyCustomHandler(chros.ChROSHandler):
@@ -10,26 +10,25 @@ class MyCustomHandler(chros.ChROSHandler):
 
     def __init__(self, topic):
         super().__init__(1)  # Initialize the handler with a 1 Hz publishing rate.
-        self.message = "Hello, world! At time: "  # Added message attribute
         self.topic = topic
         self.publisher: rclpy.publisher.Publisher = None
         self.ticker = 0  # Initialize a counter for published messages.
+        self.message = "Hello, world! At time: "  # Added message attribute
 
     def Initialize(self, interface: chros.ChROSPythonInterface) -> bool:
         """Initialize the ROS publisher."""
         print(f"Creating publisher for topic {self.topic} ...")
-        # Create a ROS publisher for the specified topic with String type
-        self.publisher = interface.GetNode().create_publisher(String, self.topic, 1)
+        # Create a ROS publisher for the specified topic.
+        self.publisher = interface.GetNode().create_publisher(String, self.topic, 1)  # Changed to String
         return True  # Return True to indicate successful initialization.
 
     def Tick(self, time: float):
         """Publish a string message to the ROS topic."""
-        print(f"Publishing {self.ticker} ...")
         msg = String()  # Create a message object of type String
-        # Concatenate message with ticker counter
-        msg.data = self.message + str(self.ticker)
-        self.publisher.publish(msg)  # Publish the message to the ROS topic
-        self.ticker += 1  # Increment the ticker for the next message
+        msg.data = self.message + str(self.ticker)  # Create concatenated string
+        print(f"Publishing '{msg.data}' ...")
+        self.publisher.publish(msg)  # Publish the message to the ROS topic.
+        self.ticker += 1  # Increment the ticker for the next message.
 
 def main():
     # Create the Chrono simulation system.

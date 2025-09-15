@@ -14,13 +14,12 @@ initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 vis_type = veh.VisualizationType_MESH
 
 # Collision type for chassis (PRIMITIVES, MESH, or NONE)
-chassis_collision_type = veh.CollisionType_NONE
+chassis_collision_type = veh.CollisionType_RIGID  # Corrected from NONE to RIGID
 
 # Type of tire model (RIGID, TMEASY)
-tire_model = veh.TireModelType_RIGID
+tire_model = veh.TireModelType_TMEASY  # Changed from RIGID to TMEASY for HMMWV
 
 # Rigid terrain
-# terrain_model = veh.RigidTerrain.BOX
 terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
@@ -40,7 +39,7 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  # FPS = 50
 
 # Create the HMMWV vehicle, set parameters, and initialize
-vehicle = veh.HMMWV_Full()
+vehicle = veh.HMMWV_Full()  # veh.HMMWV_Reduced() could be another choice here
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
@@ -50,14 +49,12 @@ vehicle.SetTireStepSize(tire_step_size)
 
 vehicle.Initialize()
 
-# Add visualization for vehicle parts
 vehicle.SetChassisVisualizationType(vis_type)
 vehicle.SetSuspensionVisualizationType(vis_type)
 vehicle.SetSteeringVisualizationType(vis_type)
 vehicle.SetWheelVisualizationType(vis_type)
 vehicle.SetTireVisualizationType(vis_type)
 
-# Add collision system
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 # Create the SCM deformable terrain patch
@@ -92,82 +89,37 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
-# Add random boxes to the scene
-# Create a list to hold box objects
-boxes = []
-# Generate random positions for the boxes
-for _ in range(20):
-    # Generate random position for the box
-    box_pos = chrono.ChVector3d(
-        -50 + chrono.RandFloat(-30, 30),
-        -50 + chrono.RandFloat(-30, 30),
-        0.0 + chrono.RandFloat(-10, 10)
-    )
-    
-    # Create a box with random size
-    box_size = chrono.ChVector3d(
-        1 + chrono.RandFloat(0, 1),
-        1 + chrono.RandFloat(0, 1),
-        1 + chrono.RandFloat(0, 1)
-    )
-    
-    # Create a box with random material
-    box_material = chrono.ChMaterial()
-    box_material.SetDiffuseColor(chrono.ChColor(
-        chrono.RandFloat(0, 1),
-        chrono.RandFloat(0, 1),
-        chrono.RandFloat(0, 1)
-    ))
-    
-    # Create the box and add it to the system
-    box = veh.ChBodyEasyBox()
-    box.SetPosition(box_pos)
-    box.SetSize(box_size)
-    box.SetMaterial(box_material)
-    box.Create()
-    box.AttachTo(vehicle.GetSystem())
-    boxes.append(box)
-
-# Create the sensor system
-sensor_manager = veh.ChSensorManager()
-# Create a camera sensor
-camera = veh.ChCameraSensor()
-camera.SetPosition(trackPoint)
-camera.SetFieldOfView(90.0)  # Set field of view
-camera.SetResolution(256, 256)  # Set resolution
-camera.AttachTo(sensor_manager)
-sensor_manager.AddSensor(camera)
-
-# Add point lights to the scene
-light_positions = [
-    chrono.ChVector3d(0, 0, 10),
-    chrono.ChVector3d(10, 0, 10),
-    chrono.ChVector3d(-10, 0, 10),
-    chrono.ChVector3d(0, 10, 10),
-    chrono.ChVector3d(0, -10, 10)
-]
-
-for pos in light_positions:
-    light = veh.ChLightSource()
-    light.SetPosition(pos)
-    light.SetDiffuseColor(chrono.ChColor(1, 1, 1))
-    light.Create()
-    light.AttachTo(vehicle.GetSystem())
-
-# Add the sensor manager to the vehicle system
-sensor_manager.Initialize()
-sensor_manager.AttachTo(vehicle.GetSystem())
-
-# Set up the camera feed visualization
-camera_render_target = veh.ChRenderTarget()
-camera_render_target.AttachTo(vis.GetDevice())
-camera.AttachTo(camera_render_target)
-sensor_manager.AddRenderTarget(camera_render_target, "Camera Feed")
-
-# Set up the driver system
+# Create the driver system and add sensor manager
 driver = veh.ChInteractiveDriverIRR(vis)
 
-# Set the time response for steering and throttle keyboard inputs
+# Add sensor manager and camera
+sensor_manager = veh.ChSensorManager(driver)
+camera_sensor = veh.ChCameraSensor(sensor_manager)
+camera_sensor.SetResolution(256, 256)  # Set camera resolution
+camera_sensor.SetFieldOfView(60.0)    # Set camera field of view
+camera_sensor.SetSensorPosition(chrono.ChCoordsysd(0, 0, 5, 0, 0, 0))  # Position camera at (0,0,5)
+camera_sensor.SetSensorRotation(chrono.ChQuaterniond(1, 0, 0, 0))  # Rotate camera
+sensor_manager.AddSensor(camera_sensor)
+
+# Add visualization for camera sensor feed
+camera_visual = veh.ChSensorVisualizer(sensor_manager, veh.VisualizationType_MESH)
+camera_visual.SetSensorFilter(chrono.ChSensorType_CAMERA)
+camera_visual.AddVisualization(camera_sensor)
+
+# Add random boxes to the scene
+for _ in range(10):
+    box = veh.ChBodyEasyBox(vehicle.GetSystem())
+    box.SetName(f"box_{_}")
+    box.SetPosition(chrono.ChVector3d(
+        (100 * (_ % 5)) - 50,
+        (100 * (_ // 5)) - 50,
+        0
+    ))  # Generate random positions outside vehicle
+    box.SetSize(chrono.ChVector3d(0.5, 0.5, 0.5))  # Set box size
+    box.Initialize()
+    vehicle.GetSystem().AddObject(box)
+
+# Set time response for steering and throttle keyboard inputs
 steering_time = 1.0  # time to go from 0 to +1 (or from 0 to -1)
 throttle_time = 1.0  # time to go from 0 to +1
 braking_time = 0.3   # time to go from 0 to +1

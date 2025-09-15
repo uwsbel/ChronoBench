@@ -1,7 +1,7 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
-import pychrono.sensor as sens
+import pychrono.sensor as sensor
 import numpy as np
 import math
 
@@ -9,17 +9,17 @@ chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 
-initLoc = chrono.ChVector3d(0, 0, 0.5)
-initRot = chrono.ChQuaterniond(1, 0, 0, 0)
+initLoc = chrono.ChVector3(0, 0, 0.5)
+initRot = chrono.ChQuaternion(1, 0, 0, 0)
 
 
-vis_type = veh.VisualizationType_MESH
+vis_type = veh.VisualizationType.MESH
 
 
-chassis_collision_type = veh.CollisionType_NONE
+chassis_collision_type = veh.CollisionType.NONE
 
 
-tire_model = veh.TireModelType_TMEASY
+tire_model = veh.TireModelType.TMEASY
 
 
 terrainHeight = 0      
@@ -27,7 +27,7 @@ terrainLength = 100.0
 terrainWidth = 100.0   
 
 
-trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
+trackPoint = chrono.ChVector3(-3.0, 0.0, 1.1)
 
 
 contact_method = chrono.ChContactMethod_NSC
@@ -45,7 +45,7 @@ vehicle = veh.MAN_10t()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
-vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
+vehicle.SetInitPosition(chrono.ChCoordsys(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 
@@ -65,7 +65,7 @@ patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 patch = terrain.AddPatch(patch_mat, 
-    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
+    chrono.ChCoordsys(chrono.ChVector3(0, 0, 0), chrono.QUNIT), 
     terrainLength, terrainWidth)
 
 patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)
@@ -73,36 +73,26 @@ patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 
-num_boxes = 20
-box_height = 1.0
-box_length = 0.5
-box_width = 0.5
-
-for i in range(num_boxes):
-    pos = chrono.ChVector3d(
-        np.random.uniform(-40, 40),
-        np.random.uniform(-40, 40),
-        terrainHeight + box_height/2
-    )
-    box = chrono.ChBodyEasyBox(
-        box_length, box_width, box_height,
-        1000, True, True, patch_mat
-    )
-    box.SetPos(pos)
-    box.SetBodyFixed(True)
-    vehicle.GetSystem().AddBody(box)
-
-
-sensor_manager = sens.ChSensorManager(vehicle.GetSystem())
-lidar = sens.ChLidar()
-lidar.SetName("lidar")
-lidar.SetRange(50.0)
-lidar.SetHorizontalResolution(0.1)
-lidar.SetVerticalResolution(0.1)
-lidar.SetFov(180.0)
-lidar.SetUpdateRate(1.0 / render_step_size)
+sensor_manager = chrono.ChSensorManager()
+lidar = sensor.ChLidar()
+lidar.SetPosition(chrono.ChVector3(0, 0, 1))
+lidar.SetRotation(chrono.ChQuaternion(1, 0, 0, 0))
+lidar.SetRange(50)
+lidar.SetHorizontalAngle(-90, 90, 0.5)
+lidar.SetVerticalAngle(-45, 45, 1)
 sensor_manager.AddSensor(lidar)
-vehicle.GetSystem().AddSensor(sensor_manager)
+
+
+num_boxes = 10
+for i in range(num_boxes):
+    box = chrono.ChBody()
+    box.SetBodyType(chrono.ChBodyType::CHBODY_STATIC)
+    box.SetPos(chrono.ChVector3(np.random.uniform(-50, 50), np.random.uniform(-50, 50), 1))
+    box.SetMass(1)
+    box.GetCollisionModel().AddBox(chrono.ChVector3(1, 1, 1))
+    box.GetVisualShape().SetMaterial(chrono.ChVisualMaterial())
+    box.GetVisualShape().SetTexture(chrono.GetChronoDataFile("textures/blue.png"))
+    vehicle.GetSystem().Add(box)
 
 
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
@@ -129,7 +119,7 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 
-print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
+print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 
 
 render_steps = math.ceil(render_step_size / step_size)
@@ -139,14 +129,14 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-while vis.Run():
+while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
     
     
     sensor_manager.Update()
     
     
-    if (step_number % render_steps == 0):
+    if (step_number % render_steps == 0) :
         vis.BeginScene()
         vis.Render()
         vis.EndScene()

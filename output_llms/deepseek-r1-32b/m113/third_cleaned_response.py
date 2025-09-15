@@ -3,7 +3,6 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
-
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
@@ -56,8 +55,6 @@ vehicle.SetSuspensionVisualizationType(vis_type)
 vehicle.SetRoadWheelVisualizationType(vis_type)
 vehicle.SetTrackShoeVisualizationType(vis_type)
 
-vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
-
 
 patch_mat = chrono.ChContactMaterialSMC()
 patch_mat.SetFriction(0.9)
@@ -73,12 +70,9 @@ terrain.Initialize()
 
 
 box = chrono.ChBody()
-box.SetMass(0)  
-box.SetPos(chrono.ChVector3d(0, 0, 0.5))  
-box.SetDimensions(chrono.ChVector3d(10, 1, 1))  
-box_mat = chrono.ChMaterialSurface()
-box_mat.SetFriction(0.5)
-box.GetCollisionModel().AddBoxGeometry(box_mat, chrono.ChVector3d(10, 1, 1))
+box.SetPos(chrono.ChVector3d(5, 0, 0.5))  
+box.SetDimensions(chrono.ChVector3d(2, 1, 1))  
+box.SetMaterialSurface(patch_mat)  
 vehicle.GetSystem().AddBody(box)
 
 
@@ -132,8 +126,7 @@ while vis.Run():
     
     driver_inputs = driver.GetInputs()
     
-    
-    driver_inputs.m_throttle = 0.8
+    driver_inputs.throttle = 0.8  
     
     
     driver.Synchronize(time)

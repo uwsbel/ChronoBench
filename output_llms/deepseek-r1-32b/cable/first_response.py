@@ -2,86 +2,78 @@ importchrono
 import math
 
 # Initialize the Chrono system
-system = chrono.ChSystem()
+system = chrono.ChSystemNSC()
 system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Gravity acceleration
 
-# Create Irrlicht application for visualization
-application = chrono.ChIrrApp(system, "ANCF Beam Simulation", chrono.CHDimension(800, 600))
-application.AddTypicalSky()
-application.AddTypicalLights()
-application.SetCamera(chrono.ChVectorD(0, 5, 5), chrono.ChVectorD(0, 0, 0))
-
-# Parameters for the beam
-num_elements = 10
-element_length = 0.5
-total_length = num_elements * element_length
-mass_per_unit_length = 1.0
-cross_section_area = 0.01
-young_modulus = 2e5
-
-# Create nodes
-nodes = []
-for i in range(num_elements + 1):
-    node = chrono.ChNodeFEAxyz()
-    node.SetPos(chrono.ChVectorD(i * element_length, 0, 0))
-    system.Add(node)
-    nodes.append(node)
-
-# Create cable elements
-for i in range(num_elements):
-    cable = chrono.ChElementCableANCF()
-    cable.SetNodes(nodes[i], nodes[i+1])
-    cable.SetProperties(mass_per_unit_length, cross_section_area, young_modulus)
-    system.Add(cable)
-
-# Fix the first node (hinge constraint)
-nodes[0].GetBody().SetMass(0)
-nodes[0].GetBody().SetBodyFixed(True)
-
-# Create a mesh for visualization
-mesh = chrono.ChTriangleMeshShape()
-for i in range(num_elements):
-    # Create triangles for visualization
-    p1 = nodes[i].GetPos()
-    p2 = nodes[i+1].GetPos()
-    # Add points to the mesh
-    mesh.AddPoint(p1)
-    mesh.AddPoint(p2)
-
-# Create a body to attach the mesh
-body = chrono.ChBody()
-body.SetMaterialSurface(chrono.ChMaterialSurface())
-body.GetCollisionModel().SetFamily(chrono.COLLIDE_FAMILY_GHOST)
-body.AddAsset(mesh)
-system.Add(body)
-
-# Add a fixed body for ground reference
+# Create a ground body
 ground = chrono.ChBody()
-ground.SetBodyFixed(True)
+ground.SetBodyType(chrono.CHBODY_TYPE_STATIC)
 ground.SetPos(chrono.ChVectorD(0, 0, 0))
-ground_shape = chrono.ChBoxShape()
-ground_shape.SetDimensions(chrono.ChVectorD(total_length, 1, 1))
-ground.AddAsset(ground_shape)
 ground.AddAsset(chrono.ChColorAsset(0.5, 0.5, 0.5))
 system.Add(ground)
 
-# Compile the mesh
-mesh.Compile()
+# Beam parameters
+num_elements = 10
+length = 1.0
+area = 0.001
+density = 8000
+young_modulus = 2e11
+damping = 0.1
+
+# Create beam body
+beam = chrono.ChBody()
+beam.SetMass(10.0)
+beam.SetBodyType(chrono.CHBODY_TYPE_FLEXIBLE)
+beam.AddAsset(chrono.ChColorAsset(0.8, 0.2, 0.2))
+beam.SetPos(chrono.ChVectorD(0, length/2, 0))
+system.Add(beam)
+
+# Add ANCF cable elements
+element_mass = (density * area * length) / num_elements
+for i in range(num_elements):
+    node_mass = element_mass / 3
+    element_length = length / num_elements
+    
+    # Create nodes
+    node1 = chrono.ChBody()
+    node1.SetMass(node_mass)
+    node1.SetBodyType(chrono.CHBODY_TYPE_FLEXIBLE)
+    node1.SetPos(chrono.ChVectorD(0, i*element_length, 0))
+    system.Add(node1)
+    
+    node2 = chrono.ChBody()
+    node2.SetMass(node_mass)
+    node2.SetBodyType(chrono.CHBODY_TYPE_FLEXIBLE)
+    node2.SetPos(chrono.ChVectorD(0, (i+1)*element_length, 0))
+    system.Add(node2)
+    
+    # Create cable element
+    cable = chrono.ChLinkANCF()
+    cable.Initialize(node1, node2, False, chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 0))
+    cable.Set_CableK(young_modulus * area / element_length)
+    cable.Set_CableD(damping * young_modulus * area / element_length)
+    system.Add(cable)
+
+# Add constraints
+constraint = chrono.ChLinkPointPoint()
+constraint.Initialize(ground, beam, chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 0))
+system.Add(constraint)
+
+# Create Irrlicht application
+application = chrono.ChIrrApp(system, "Beam Simulation", chrono.CHIRR.dimension(800, 600))
+application.AddTypicalLights()
+application.AddTypicalCamera(chrono.ChVectorD(2, 2, 2), chrono.ChVectorD(0, 0, 0))
 
 # Simulation loop
-application.AssetSetShow(chrono.CHAABB_TYPE, False)
-application.AssetSetShow(chrono.CHNODE_TYPE, True)
-application.AssetSetShow(chrono.CHELEMENT_TYPE, True)
-
 while application.GetDevice().Run():
     application.BeginScene()
     application.DrawAll()
-    application.DoStep()
+    system.DoStepDynamics(0.001)
     application.EndScene()
     
-    # Update simulation time
-    system.DoStepDynamics(0.001)
-    
-    # Print time step (optional)
-    if system.GetChTime() % 0.1 < 0.001:
-        print(f"Time: {system.GetChTime():.3f}s")
+    # Exit on key press
+    if application.GetDevice().Key按下(chrono.CHKEY_ESCAPE):
+        break
+
+# Keep application running
+application.GetDevice().WaitOnExit()

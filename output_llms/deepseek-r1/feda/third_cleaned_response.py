@@ -1,8 +1,9 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
-import pychrono.sensor as sens
+import pychrono.sensor as sens  
 import math
+
 
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
@@ -13,11 +14,7 @@ initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 
 vis_type = veh.VisualizationType_MESH
-
-
 chassis_collision_type = veh.CollisionType_NONE
-
-
 tire_model = veh.TireModelType_TMEASY
 
 
@@ -31,12 +28,8 @@ trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
 
 contact_method = chrono.ChContactMethod_NSC
 contact_vis = False
-
-
 step_size = 1e-3
 tire_step_size = step_size
-
-
 render_step_size = 1.0 / 50  
 
 
@@ -48,6 +41,7 @@ vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 vehicle.Initialize()
+
 
 vehicle.SetChassisVisualizationType(vis_type)
 vehicle.SetSuspensionVisualizationType(vis_type)
@@ -61,54 +55,48 @@ patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-patch = terrain.AddPatch(patch_mat, 
+patch = terrain.AddPatch(
+    patch_mat, 
     chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
-    terrainLength, terrainWidth, 0.2)  
-
-patch.SetTexture(veh.GetDataFile("terrain/textures/grass1.jpg"), 200, 200)
-patch.SetColor(chrono.ChColor(0.5, 0.8, 0.5))
+    terrainLength, terrainWidth
+)
+patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)  
+patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
-vis.SetWindowTitle('FEDA vehicle')
+vis.SetWindowTitle('FEDA vehicle with Camera Sensor')
 vis.SetWindowSize(1280, 1024)
 vis.SetChaseCamera(trackPoint, 6.0, 0.5)
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
+
+
+vis.AddLight(chrono.ChVector3d(2, 0, 2), 3, chrono.ChColor(1.0, 1.0, 1.0))  
+vis.AddLight(chrono.ChVector3d(-2, -2, 3), 4, chrono.ChColor(0.8, 0.8, 1.0)) 
 vis.AddSkyBox()
+
+
 vis.AttachVehicle(vehicle.GetVehicle())
 
 
-vis.AddLight(chrono.ChVector3d(2, 2, 5), 10, chrono.ChColor(1, 1, 1))
-vis.AddLight(chrono.ChVector3d(-2, -2, 5), 10, chrono.ChColor(1, 1, 1))
+manager = sens.ChSensorManager(vehicle.GetSystem())
+manager.scene.AddPointLight(chrono.ChVector3d(100, 100, 100), chrono.ChColor(1, 1, 1), 500.0)
 
-
-sensor_manager = sens.ChSensorManager(vehicle.GetSystem())
-sensor_manager.SetKeyframeSizeFromTimeStep(step_size)
-
-
-chassis_body = vehicle.GetVehicle().GetChassisBody()
-camera_offset = chrono.ChVector3d(1.5, 0, 1.0)  
-camera_pose = chrono.ChFrameD(camera_offset, chrono.Q_from_AngAxis(0, chrono.ChVector3d(0, 1, 0)))
 
 camera = sens.ChCameraSensor(
-    chassis_body,
-    30,        
-    camera_pose,
-    1280,      
-    720,       
-    60,        
-    sens.CameraLensModelType_PINHOLE,
-    0.1,       
-    100.0      
+    vehicle.GetChassisBody(),           
+    30,                                 
+    chrono.ChFramed(chrono.ChVector3d(0.5, 0, 1.0), chrono.Q_from_AngZ(0)),  
+    1920,                               
+    1080,                               
+    chrono.CH_PI / 3                    
 )
-
-camera.SetName("First Person Camera")
-camera.PushFilter(sens.ChFilterVisualize(1280, 720, "First Person View"))
-camera.PushFilter(sens.ChFilterRGBA8Access())
-sensor_manager.AddSensor(camera)
+camera.SetName("Driver View")
+camera.PushFilter(sens.ChFilterVisualize(1920, 1080, "FEDAs First-Person View"))
+manager.AddSensor(camera)
 
 
 driver = veh.ChInteractiveDriverIRR(vis)
@@ -122,7 +110,7 @@ driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
-print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
+print("VEHICLE MASS:", vehicle.GetVehicle().GetMass())
 
 
 render_steps = math.ceil(render_step_size / step_size)
@@ -154,9 +142,9 @@ while vis.Run():
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
-
     
-    sensor_manager.Update()
+    
+    manager.Update()
 
     step_number += 1
     realtime_timer.Spin(step_size)

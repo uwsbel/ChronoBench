@@ -1,104 +1,86 @@
 importchrono
-importchrono irrlicht as chvis
 import math
 
 
-system = chrono.ChSystemNSC()
+system =chrono.ChSystem()
 system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  
 
 
-renderer = chvis.ChIrrRenderer()
+truss_body1 =chrono.ChBody()
+truss_body1.SetPos(chrono.ChVectorD(-1, 0, 0))
+truss_body1.SetMass(1)
+truss_body1.SetInertiaXX(chrono.ChVectorD(1, 1, 1))
+system.Add(truss_body1)
+
+truss_body2 =chrono.ChBody()
+truss_body2.SetPos(chrono.ChVectorD(1, 0, 0))
+truss_body2.SetMass(1)
+truss_body2.SetInertiaXX(chrono.ChVectorD(1, 1, 1))
+system.Add(truss_body2)
+
+
+truss_link =chrono.ChLinkFixed()
+truss_link.Initialize(truss_body1, truss_body2, chrono.ChFrameD(chrono.ChVectorD(2, 0, 0)))
+system.Add(truss_link)
+
+
+rotating_bar =chrono.ChBody()
+rotating_bar.SetPos(chrono.ChVectorD(0, 0, 0))
+rotating_bar.SetMass(1)
+rotating_bar.SetInertiaXX(chrono.ChVectorD(1, 1, 1))
+system.Add(rotating_bar)
+
+
+bar_joint =chrono.ChLinkRev()
+bar_joint.Initialize(truss_body1, rotating_bar, chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.ChQuaternionD(1, 0, 0, 0)))
+system.Add(bar_joint)
+
+
+fixed_gear =chrono.ChBody()
+fixed_gear.SetPos(chrono.ChVectorD(0, 0, 0))
+fixed_gear.SetMass(2)
+fixed_gear.SetInertiaXX(chrono.ChVectorD(2, 2, 2))
+fixed_gear.SetMaterialSurface(chrono.ChVisualMaterial(chrono.ChColor(0.2, 0.8, 0.2)))  
+system.Add(fixed_gear)
+
+
+rotating_gear =chrono.ChBody()
+rotating_gear.SetPos(chrono.ChVectorD(0, 1, 0))
+rotating_gear.SetMass(2)
+rotating_gear.SetInertiaXX(chrono.ChVectorD(2, 2, 2))
+rotating_gear.SetMaterialSurface(chrono.ChVisualMaterial(chrono.ChColor(0.8, 0.2, 0.2)))  
+system.Add(rotating_gear)
+
+
+gear_joint =chrono.ChLinkRev()
+gear_joint.Initialize(rotating_bar, rotating_gear, chrono.ChCoordsysD(chrono.ChVectorD(0, 1, 0), chrono.ChQuaternionD(1, 0, 0, 0)))
+system.Add(gear_joint)
+
+
+gear_motor =chrono.ChLinkMotorRotation()
+gear_motor.Initialize(fixed_gear, rotating_gear, chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.ChQuaternionD(1, 0, 0, 0)))
+gear_motor.SetMotorType(chrono.ChLinkMotorRotation.MOTOR_TYPE_SPEED)
+gear_motor.SetSpeed(chrono.CH_C_2PI * 10)  
+system.Add(gear_motor)
+
+
+renderer =chrono.ChIrrRenderer()
 renderer.AttachSystem(system)
-renderer.SetWindowTitle("Epicyclic Gear System")
-renderer.SetCameraPosition(chrono.ChVectorD(2, 2, 2))
-renderer.SetCameraLookAt(chrono.ChVectorD(0, 0, 0))
-renderer.SetLightPosition(chrono.ChVectorD(0, 1, 1))
-renderer.SetLightIntensity(1)
+renderer.SetCameraPosition(chrono.ChVectorD(3, 3, 3))
+renderer.SetCameraRotation(chrono.ChQuaternionD(1, 0, 0, 0))
+renderer.AddPointLight(chrono.ChVectorD(2, 2, 2), chrono.ChColor(1, 1, 1))
 
 
-truss = chrono.ChBodyFixed()
-truss.SetPos(chrono.ChVectorD(0, 0, 0))
-truss.SetMaterialSurface(chrono.ChMaterialSurfaceRGBA(0.8, 0.8, 0.8, 1))
-system.Add(truss)
+fixed_gear_shape =chrono.ChCylinder()
+fixed_gear_shape.SetRadius(0.5)
+fixed_gear_shape.SetHeight(0.2)
+fixed_gear.AddVisualShape(fixed_gear_shape)
 
-
-bar = chrono.ChBody()
-bar.SetMass(1)
-bar.SetPos(chrono.ChVectorD(0, 1, 0))
-bar.SetMaterialSurface(chrono.ChMaterialSurfaceRGBA(0.5, 0.5, 0.5, 1))
-system.Add(bar)
-
-
-rev_bar = chrono.ChLinkRev()
-rev_bar.Initialize(truss, bar, chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.ChMatrix33D()))
-system.Add(rev_bar)
-
-
-gear1 = chrono.ChBody()
-gear1.SetMass(2)
-gear1.SetPos(chrono.ChVectorD(1, 0, 0))
-gear1.SetMaterialSurface(chrono.ChMaterialSurfaceRGBA(0.8, 0.3, 0.3, 1))
-system.Add(gear1)
-
-
-rev_gear1 = chrono.ChLinkRev()
-rev_gear1.Initialize(truss, gear1, chrono.ChCoordsysD(chrono.ChVectorD(1, 0, 0), chrono.ChMatrix33D()))
-system.Add(rev_gear1)
-
-
-gear2 = chrono.ChBody()
-gear2.SetMass(2)
-gear2.SetPos(chrono.ChVectorD(-1, 0, 0))
-gear2.SetMaterialSurface(chrono.ChMaterialSurfaceRGBA(0.3, 0.8, 0.3, 1))
-system.Add(gear2)
-
-
-rev_gear2 = chrono.ChLinkRev()
-rev_gear2.Initialize(truss, gear2, chrono.ChCoordsysD(chrono.ChVectorD(-1, 0, 0), chrono.ChMatrix33D()))
-system.Add(rev_gear2)
-
-
-gear_ratio = 1.0  
-radius_bar = 0.5
-radius_gear1 = 0.5
-radius_gear2 = 0.5
-
-
-gearConstraint1 = chrono.ChLinkLockRevolute()
-gearConstraint1.Initialize(bar, gear1, chrono.ChCoordsysD(chrono.ChVectorD(0, 1, 0), chrono.ChMatrix33D()))
-gearConstraint1.SetGearRatio(gear_ratio * (radius_bar / radius_gear1))
-system.Add(gearConstraint1)
-
-
-gearConstraint2 = chrono.ChLinkLockRevolute()
-gearConstraint2.Initialize(bar, gear2, chrono.ChCoordsysD(chrono.ChVectorD(0, -1, 0), chrono.ChMatrix33D()))
-gearConstraint2.SetGearRatio(gear_ratio * (radius_bar / radius_gear2))
-system.Add(gearConstraint2)
-
-
-motor = chrono.ChMotorRotationSpeed()
-motor.SetMotorType(chrono.ChMotorRotationSpeed.MOTOR_TYPE_RPM)
-motor.SetSpeed(10)  
-rev_gear1.AddMotor(motor)
-
-
-ground = chrono.ChBodyFixed()
-ground.SetPos(chrono.ChVectorD(0, -1, 0))
-ground.SetMaterialSurface(chrono.ChMaterialSurfaceRGBA(0.4, 0.4, 0.4, 1))
-system.Add(ground)
-
-
-bar.AddCollisionShape(chrono.ChCollisionBox(chrono.ChVectorD(0.1, 0.5, 0.1)))
-gear1.AddCollisionShape(chrono.ChCollisionCylinder(0.5, 0.1))
-gear2.AddCollisionShape(chrono.ChCollisionCylinder(0.5, 0.1))
-
-
-bar.AddAsset(chrono.ChVisualShapeBox(chrono.ChVectorD(0.1, 0.5, 0.1), chrono.ChColor(0.5, 0.5, 0.5)))
-gear1.AddAsset(chrono.ChVisualShapeCylinder(0.5, 0.1, chrono.ChColor(0.8, 0.3, 0.3)))
-gear2.AddAsset(chrono.ChVisualShapeCylinder(0.5, 0.1, chrono.ChColor(0.3, 0.8, 0.3)))
+rotating_gear_shape =chrono.ChCylinder()
+rotating_gear_shape.SetRadius(0.3)
+rotating_gear_shape.SetHeight(0.2)
+rotating_gear.AddVisualShape(rotating_gear_shape)
 
 
 renderer.Render()
-for _ in range(1000):
-    system.DoStepDynamics(0.001)
-    renderer.Render()
+chrono.WaitKey()

@@ -1,83 +1,100 @@
 import pychrono as pychrono
+from pychrono.objects import *
+from pychrono.sensors import *
+from pychrono.render import *
 import numpy as np
-import os
 
 
 pychrono.init()
 
 
+scene = pychrono.Scene()
 
 
-
-mesh = pychrono.Mesh("example.obj", pychrono.DCS)
-
-mesh.set_name("Triangular Mesh")
-mesh.set_position(pychrono.Vector3d(0, 0, 0))
-mesh.set_size(pychrono.Vector3d(1, 1, 1))
-mesh.set_color(pychrono.Color(1, 1, 1))
+obj = pychrono.objects.MeshObject("triangular_mesh.obj")
+scene.add_object(obj)
 
 
-lidar = pychrono.LidarSensor()
-lidar.set_name("Lidar Sensor")
-
-lidar.set_mount_point(mesh)
-
-lidar.set_noise_model(pychrono.LidarNoiseModel.Poisson(1e-6))
-lidar.set_filter_type(pychrono.LidarFilterType.GaussianBlur(0.1))
-lidar.set_max_distance(10.0)
+obj.set_body_type("fixed")
 
 
+lidar_sensor = pychrono.sensors.LidarSensor()
+lidar_sensor.set_noise_level(0.1)  
+lidar_sensor.set_parent(obj)  
 
 
+orbit_radius = 5.0  
+orbit_vertical = 5.0  
+orbit_speed = 1.0  
+orbit_period = 10.0  
 
-viewer = pychrono.Viewer()
-
-camera = pychrono.Camera()
-camera.set_position(pychrono.Vector3d(5, 5, 5))
-camera.set_lookat(pychrono.Vector3d(0, 0, 0))
-camera.set_up(pychrono.Vector3d(0, 1, 0))
-viewer.set_camera(camera)
-
-viewer.set_antialiasing(True)
-
-viewer.add_mesh(mesh)
-viewer.add_sensor(lidar)
+lidar = pychrono.objects.Body()
+lidar.set_body_type("dynamic")
+lidar.set_mass(0.0)  
+lidar.set_size(0.1, 0.1, 0.1)  
+lidar.set_position(obj.get_position() + pychrono.Vec3(orbit_radius, 0, orbit_vertical))
+lidar.set_velocity(pychrono.Vec3(orbit_speed, 0, 0))
 
 
-orbit_radius = 5.0
-orbit_height = 1.0
-orbit_speed = 1.0
-lidar_path = pychrono.Path()
-lidar_path.set_type(pychrono.PathType.Circle)
-lidar_path.set_radius(orbit_radius)
-lidar_path.set_height(orbit_height)
-lidar_path.set_period(2 * np.pi / orbit_speed)
+orbit_constraint = pychrono.constraints.OrbitConstraint(lidar, obj)
+scene.add_constraint(orbit_constraint)
 
 
-timestep = 0.01
-simulation_steps = 1000
+camera = pychrono.objects.Camera()
+camera.set_position(pychrono.Vec3(10, 10, 10))
+camera.set_look_at(pychrono.Vec3(0, 0, 0))
+camera.set_up(pychrono.Vec3(0, 1, 0))
+renderer = pychrono.render.Renderer(camera)
+renderer.setClearColor(0.5, 0.5, 0.5)
 
-for step in range(simulation_steps):
+
+lidar_visual = pychrono.render.PointCloudVisualizer()
+lidar_visual.set_source(lidar.get_source())
+renderer.add(lidar_visual)
+
+
+mesh_visual = pychrono.render.MeshVisualizer()
+mesh_visual.set_source(obj.get_source())
+renderer.add(mesh_visual)
+
+
+simulation_time = pychrono.SimTime(0, 1.0)  
+final_time = pychrono.SimTime(10, 1.0)    
+dt = pychrono.SimTime(0.01, 1.0)        
+
+
+lidar_buffer = []
+current_time = 0.0
+
+
+while simulation_time < final_time:
     
-    lidar_path.update(step * timestep)
-    lidar.set_position(lidar_path.get_position())
-    
-    
-    data = lidar.get_buffer()
-    
-    
-    print(f"Lidar Data at step {step}:")
-    print("Timestamp: ", data.timestamp)
-    print("Points: ", data.points)
-    print("Depths: ", data.depths)
-    print("\n")
+    scene.update()
     
     
-    filename = f"lidar_data_{step}.csv"
-    np.savetxt(filename, data, delimiter=',')
-    
-    
-    pychrono.simulate(timestep)
-    
+    current_time += dt.get_value()
+    angle = (current_time / orbit_period) * 360.0
+    lidar.set_position(obj.get_position() + pychrono.Vec3(
+        orbit_radius * np.cos(angle * np.pi / 180),
+        0,
+        orbit_vertical + orbit_radius * np.sin(angle * np.pi / 180)
+    ))
 
-viewer.close()
+    
+    lidar_data = lidar.get_source().get_point_cloud()
+    lidar_buffer.append(lidar_data.copy())
+    
+    
+    print(f"Lidar Data at time {current_time:.3f}:")
+    print("PointCloud Shape:", lidar_data.shape)
+    print("First few points:", lidar_data[:3, :])
+    
+    
+    simulation_time += dt
+
+
+with open("lidar_data.npy", "wb") as f:
+    np.save(f, np.array(lidar_buffer))
+
+
+renderer.close()

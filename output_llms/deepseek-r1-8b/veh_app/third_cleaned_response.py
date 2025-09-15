@@ -170,46 +170,43 @@ lidar.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "Lidar Point Cl
 manager.AddSensor(lidar)
 
 
-offset_pose = chrono.ChFramed(
+offset_pose_depth = chrono.ChFramed(
     chrono.ChVector3d(-5.0, 0, 2),
     chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
 )
-depth_camera = sens.ChDepthCameraSensor(
+depth_cam = sens.ChCameraSensor(
     gator.GetChassisBody(),
     update_rate,
-    offset_pose,
+    offset_pose_depth,
     image_width,
     image_height,
     fov,
-    max_depth=30
+    max_depth=30,
+    visualization_filter="Depth Map"
 )
-depth_camera.SetName("Depth Camera")
-depth_camera.PushFilter(sens.ChFilterVisualizeDepthMap(image_width, image_height, "Depth Map"))
-manager.AddSensor(depth_camera)
-
+depth_cam.SetName("Depth Camera")
+depth_cam.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "Depth Map"))
+manager.AddSensor(depth_cam)
 
 
 
 
 realtime_timer = chrono.ChRealtimeStepTimer()
 time = 0
-end_time = 1000  
-logging_interval = 1  
-
+end_time = 30
 while time < end_time:
     time = gator.GetSystem().GetChTime()
     
     
-    if time % logging_interval == 0:
-        vehicle_state = gator.GetVehicle().GetState()
-        print(f"Simulation Time: {time:.3f}s")
-        print(f"Vehicle Position: ({vehicle_state.GetPos().x:.3f}, {vehicle_state.GetPos().y:.3f}, {vehicle_state.GetPos().z:.3f})")
-        print(f"Vehicle Heading: {vehicle_state.GetRot().y:.3f} rad")
-        print("\n")
+    vehicle = gator.GetVehicle()
+    pos = vehicle.GetInitPosition()
+    heading = vehicle.GetInitHeading()
+    print(f"Time: {time:.2f}, Position: ({pos.x}, {pos.y}, {pos.z}), Heading: {heading.y:.2f} rad")
     
     
     driver.SetSteering(0.5)
     driver.SetThrottle(0.2)
+    
     
     driver_inputs = driver.GetInputs()
 
@@ -227,6 +224,3 @@ while time < end_time:
 
     
     realtime_timer.Spin(step_size)
-
-
-print(f"Simulation completed at time: {time:.3f}s")

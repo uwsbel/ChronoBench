@@ -1,54 +1,64 @@
 importchrono
-importchrono.robot as chrobot
-importchrono.gui as chgui
-importchrono.visual as chvisual
+import math
+from chrono import ChSystem, ChBody, ChVectorD, ChQuaternionD, ChPlane
+from chrono.vehicle import vehicle, driver
+from chrono irrlicht import ChIrrApp, ChIrrDriver
 
 
-system =chrono.ChSystemNSC()
-system.Set_Gravity(chrono.ChVectorD(0, -9.81, 0))
+system = ChSystem()
+system.Set_G_acc(ChVectorD(0, -9.81, 0))
 
 
-ground =chrono.ChBody()
-ground.SetBodyFixed(True)
-ground.SetPos(chrono.ChVectorD(0, 0, 0))
-ground_shape =chrono.ChBoxGeometry(10, 10, 10)
-ground.AddGeometry(ground_shape)
-ground.GetMaterialSurface().SetFriction(0.5)
-system.Add(ground)
+ground = ChBody()
+ground.SetMass(0)
+ground.SetPos(ChVectorD(0, 0, 0))
+ground.SetRot(ChQuaternionD(1, 0, 0, 0))
+ground_shape = ChPlane()
+ground_shape.SetNormal(ChVectorD(0, 1, 0))
+ground_shape.SetHeight(0)
+ground.AddShape(ground_shape)
+system.AddBody(ground)
 
 
-rover = chrobot.ChViper()
-rover.Initialize(system, chrono.ChVectorD(0, 0.5, 0), 0)
-system.Add(rover)
+rover = vehicle.Viper()
+rover.Initialize(system, driver.ChIrrDriver(), True)
+rover.SetInitPosition(ChVectorD(0, 0.5, 0))
 
 
-application = chgui.ChIrrApp(system, "Viper Rover Simulation", 800, 600)
-application.AddTypicalLights()
-application.AddTypicalCamera(chrono.ChVectorD(5, 5, 5), chrono.ChVectorD(0, 0, 0))
-application.SetCameraVerticalDir(chrono.ChVectorD(0, 1, 0))
-application.SetCameraFocalLength(3000)
-application.Render()
+app = ChIrrApp(system, "Viper Rover Simulation", 640, 480)
+app.SetLightPosition(ChVectorD(0, 10, 0))
+app.SetLightDir(ChVectorD(0, -1, 0))
+app.SetCameraPosition(ChVectorD(5, 5, 5))
+app.SetCameraTarget(ChVectorD(0, 0, 0))
+app.AddTypicalLights()
+app.AddAllTypicalLogo()
+app.AddTypicalSky()
 
 
-driver = rover.GetDriver()
-driver.SetThrottle(0.5)
+driver = ChIrrDriver()
+driver.Initialize(rover, app)
 
 
-time = 0
-steering_angle = 0
+simulation_time = 10.0
+timestep = 0.01
+time = 0.0
 
-while time < 60:
+
+while app.Loop() and time < simulation_time:
     
-    steering_angle = 0.5 * chrono.sin(time * 0.5)
-    driver.SetSteering(steering_angle)
+    time += timestep
+    driver.GetDriver().SetSteering((math.sin(time * 2) * 0.5))
     
     
-    application.BeginScene()
-    application.DrawAll()
-    application.EndScene()
+    system.DoStepDynamics(timestep)
+    app.Render()
+    app.BeginScene()
+    app.DrawAll()
+    app.EndScene()
     
-    system.DoStepDynamics(chrono.ChRealtimeStep())
-    time += system.GetChTimeStep()
+    
+    if app.GetDevice().KeyDown( irr.KEY_ESCAPE ):
+        break
 
 
-application.Close()
+app.End()

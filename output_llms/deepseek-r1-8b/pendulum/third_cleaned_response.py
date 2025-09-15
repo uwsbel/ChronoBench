@@ -15,8 +15,8 @@ ground.SetFixed(True)
 ground.EnableCollision(False)  
 
 
-ground.AddVisualShape(chrono.ChVisualShapeCylinder(0.2, 0.4), 
-                       chrono.ChFramed(chrono.ChVector3d(0, 0, +1)))
+cyl_1 = chrono.ChVisualShapeCylinder(0.2, 0.4)  
+ground.AddVisualShape(cyl_1, chrono.ChFramed(chrono.ChVector3d(0, 0, +1)))
 
 
 pend_1 = chrono.ChBody()
@@ -27,13 +27,13 @@ pend_1.SetMass(1)
 pend_1.SetInertiaXX(chrono.ChVector3d(0.2, 1, 1))  
 
 
-pend_1.AddVisualShape(chrono.ChVisualShapeCylinder(0.2, 2), 
-                       chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleY(chrono.CH_PI_2)))
-pend_1.GetVisualShape(0).SetColor(chrono.ChColor(0.6, 0, 0))  
+cyl_1 = chrono.ChVisualShapeCylinder(0.2, 2)  
+cyl_1.SetColor(chrono.ChColor(0.6, 0, 0))  
+pend_1.AddVisualShape(cyl_1, chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleY(chrono.CH_PI_2)))
 
 
 
-pend_1.SetPos(chrono.ChVector3d(0, 0, 1))
+pend_1.SetPos(chrono.ChVector3d(1, 0, 1))
 
 
 rev_1 = chrono.ChLinkLockRevolute()
@@ -49,16 +49,17 @@ pend_2.SetMass(1)
 pend_2.SetInertiaXX(chrono.ChVector3d(0.2, 1, 1))  
 
 
-pend_2.AddVisualShape(chrono.ChVisualShapeCylinder(0.2, 2), 
-                       chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleY(chrono.CH_PI_2)))
-pend_2.GetVisualShape(0).SetColor(chrono.ChColor(0.0, 0.5, 1.0))  
+cyl_2 = chrono.ChVisualShapeCylinder(0.2, 2)  
+cyl_2.SetColor(chrono.ChColor(0.6, 0, 0))  
+pend_2.AddVisualShape(cyl_2, chrono.ChFramed(chrono.ChVector3d(0, 0, +1)))
+
+
+
+pend_2.SetPos(chrono.ChVector3d(0, -1, 1))
 
 
 rev_2 = chrono.ChLinkLockRevolute()
-
-pend_1_pos = pend_1.GetPos()
-rev_2.Initialize(pend_1, pend_2, chrono.ChFramed(pend_1_pos + chrono.ChVector3d(0, 0, 0.5), 
-                                                  chrono.ChQuaterniond(0, 0, 1, 0)))
+rev_2.Initialize(pend_1, pend_2, chrono.ChFramed(chrono.ChVector3d(0, 0, 1), chrono.ChQuaterniond(1, 0, 0, 0)))
 sys.AddLink(rev_2)
 
 
@@ -73,10 +74,6 @@ vis.AddCamera(chrono.ChVector3d(0, 3, 6))
 vis.AddTypicalLights()  
 
 
-ground.AddVisualShape(chrono.ChVisualShapeCylinder(0.2, 0.4), 
-                       chrono.ChFramed(chrono.ChVector3d(0, 0, +1)))
-
-
 log_info = True  
 while vis.Run():
     vis.BeginScene()  
@@ -89,11 +86,10 @@ while vis.Run():
         pos_1 = pend_1.GetPos()  
         print("t = ", sys.GetChTime())
         print("     ", pos_1.x, "  ", pos_1.y)
-        print("     ", pos_1.z, "  ")  
         lin_vel_1 = pend_1.GetPosDt()  
         print("     ", lin_vel_1.x, "  ", lin_vel_1.y)
-        print("     ", lin_vel_1.z, "  ")  
         pos_2 = pend_2.GetPos()  
         print("     ", pos_2.x, "  ", pos_2.y)
-        print("     ", pos_2.z, "  ")  
+        lin_vel_2 = pend_2.GetPosDt()  
+        print("     ", lin_vel_2.x, "  ", lin_vel_2.y)
         log_info = False

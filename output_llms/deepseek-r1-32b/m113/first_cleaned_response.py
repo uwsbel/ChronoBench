@@ -1,71 +1,65 @@
-importchrono
-importchrono.vehicle as veh
-importchrono.visual as vis
-importchrono irrlicht as irr
+import pychrono as chrono
+import pychrono.vehicle as vehicle
+import pychrono irrlicht as chronoirr
 
 
 system = chrono.ChSystemNSC()
-system.SetSolverType(chrono.SOLVER_SPC)
-system.SetSolverMaxIterations(100)
-system.Set timestep(0.01)
+system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
+system.Set_time_step(0.001)
 
 
-application = irr.ChIrrApp(system, "M113 Vehicle Simulation", irr.VECTORMATH_CROSS)
-application.SetWindowSize(1024, 768)
-application.SetRenderMode(irr.RENDER_OPENGL)
-application.SetCameraPosition(chrono.ChVectorD(0, 5, 10))
-application.SetCameraRotation(chrono.ChVectorD(0, -45, 0))
-application.AddTypicalLights()
+vehicle_system = vehicle.ChVehicleSystem(system)
+m113 = vehicle.ChM113()
+m113.Initialize(vehicle_system, chrono.ChVectorD(0, 0, 1))
 
 
-vehicle = veh.ChM113()
-vehicle.SetChassisMass(5000)
-vehicle.SetChassisInertia(chrono.ChVectorD(500, 100, 500))
-vehicle.SetChassisPos(chrono.ChVectorD(0, 0, 1))
-vehicle.SetInitialVelocity(chrono.ChVectorD(0, 0, 0))
-vehicle.SetDriver(veh.ChDriver())
-vehicle.Initialize()
-
-
-terrain = veh.ChTerrain()
+terrain = vehicle.ChTerrain()
 terrain.SetSize(100, 100)
-terrain.SetHeight(0)
-terrain.SetFriction(0.5)
-terrain.SetRestitution(0.3)
-terrain.SetColor(chrono.ChColor(0.4, 0.4, 0.4))
-terrain.Initialize()
+terrain.SetPosition(chrono.ChVectorD(0, 0, 0))
+terrain.SetFriction(0.8)
+terrain.SetRestitution(0.1)
+terrain.CreateCollisionModel()
 system.Add(terrain)
 
 
-renderer = vis.ChIrrRenderer(application)
-renderer.AttachAll()
+driver = vehicle.ChDriver()
+driver.Initialize(m113.GetDriverInterface())
+driver.SetInputs(0, 0, 0)  
 
 
-driver = vehicle.GetDriver()
-driver.SetThrottle(0.5)
-driver.SetSteering(0)
-driver.SetTargetSpeed(10)
+vis = chronoirr.ChIrrApp(system, "M113 Simulation", chronoirr.dimension2du(800, 600))
+vis.SetLightPosition(chrono.ChVectorD(0, 0, 10))
+vis.SetLightDir(chrono.ChVectorD(0, 0, -1))
+vis.AddTypicalLights()
+vis.AddAllTypicalCameraDofs()
+vis.SetCameraPosition(chrono.ChVectorD(5, 5, 5))
+vis.SetCameraDirection(chrono.ChVectorD(-1, -1, 0))
 
 
-for step in range(10000):
-    
-    driver.Synchronize(time_step)
-    
-    
-    vehicle.Synchronize(time_step)
-    vehicle.Update(time_step)
-    
-    
-    application.BeginScene()
-    renderer.Render()
-    application.EndScene()
+vis.Add(m113.GetVehicle())
+vis.Add(terrain.GetCollisionModel())
+
+
+time = 0
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
     
     
-    system.DoStepDynamics(time_step)
+    m113.Update(time)
+    driver.Update(time)
     
     
-    if application.GetKeyboard().IsKeyDown(irr.KEY_ESCAPE):
+    system.DoStepDynamics(system.Get_time_step())
+    
+    
+    time += system.Get_time_step()
+    vis.Synchronize(time)
+    
+    
+    if vis.GetKeyboard().IsKeyDown(chronoirr.KEY_ESCAPE):
         break
 
-
-application.End()
+vis.Close()
+return m113, system

@@ -221,9 +221,9 @@ MODEL_REGISTRY: Dict[str, Tuple[str, str]] = {
     "llama4_maverick":               ("nvidia", "nvdev/meta/llama-4-maverick-17b-128e-instruct"),
     "llama4_scout":                  ("nvidia", "nvdev/meta/llama-4-scout-17b-16e-instruct"),
     "llama-3.3-70b-instruct":        ("nvidia", "nvdev/meta/llama-3.3-70b-instruct"),
-    "llama-3.1-405b-instruct":       ("nvidia", "meta-llama/llama-3.1-405b-instruct"),
-    "llama-3.1-70b-instruct":        ("nvidia", "meta-llama/llama-3.1-70b-instruct"),
-    "llama-3.1-8b-instruct":         ("nvidia", "meta-llama/llama-3.1-8b-instruct"),
+    "llama-3.1-405b-instruct":       ("nvidia", "meta/llama-3.1-405b-instruct"),
+    "llama-3.1-70b-instruct":        ("nvidia", "meta/llama-3.1-70b-instruct"),
+    "llama-3.1-8b-instruct":         ("nvidia", "meta/llama-3.1-8b-instruct"),
     "mixtral-8x22b-instruct-v0.1":   ("nvidia", "mistralai/mixtral-8x22b-instruct"),
     "mixtral-8x7b-instruct-v0.1":    ("nvidia", "mistralai/mixtral-8x7b-instruct"),
     "codestral-22b-instruct-v0.1":   ("nvidia", "mistralai/codestral-22b-instruct"),
@@ -248,9 +248,9 @@ MODEL_REGISTRY: Dict[str, Tuple[str, str]] = {
 # === Student LLMs to be scored by the 3 judge LLMs ===
 ALL_MODELS = [
     # DeepSeek Models (3)
-    "deepseek-r1",
-    "deepseek-r1-8b",
-    "deepseek-r1-32b",
+    # "deepseek-r1",
+    # "deepseek-r1-8b",
+    # "deepseek-r1-32b",
 
     # Meta/Llama Models (6)
     "llama-3.1-405b-instruct",

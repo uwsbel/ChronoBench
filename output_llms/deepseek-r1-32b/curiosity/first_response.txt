@@ -1,223 +1,196 @@
 Okay, I need to create a PyChrono simulation of the Curiosity rover on a rigid terrain. Let me break down the steps.
 
-First, I'll start by importing the necessary modules. I know I'll need pychrono, pychrono_irrlicht for visualization, and maybe numpy for some calculations.
+First, I'll start by importing the necessary modules. I know I'll need pychrono, numpy for some calculations, and matplotlib for plotting later. Oh, and I'll need the ChVisualSystemIrrlicht for visualization.
 
-Next, I'll initialize the Chrono system. I'll set up the configuration with CHRONO_VERBOSE set to true for debugging. Then, I'll create a ChSystemNSC object with specific solver and integrator settings to ensure accurate physics simulation.
+Next, I'll set up the visualization. I'll create a ChVisualSystemIrrlicht instance and pass it to the ChSystem. I should also set some camera settings so the user can see the rover clearly. Maybe position the camera a bit above and behind the rover, pointing towards it.
 
-For the visualization, I'll use Irrlicht. I'll set up the application with a window size, title, and camera position. Enabling lighting and shadows will make the scene look better. I'll add a sky dome for a nicer background and set up some point lights to illuminate the scene properly.
+Now, the ground. It needs to be a fixed body with collision properties. I'll create a box shape for the ground, make it static, and set its position so it's flat on the X-Y plane. Adding a texture would make it look nicer, so I'll include a texture file path, though I should note that the user might need to adjust this.
 
-Now, the ground. It needs to be a fixed rigid body. I'll create a box shape with appropriate dimensions. Setting its mass to zero makes it static. I'll add collision properties with a specific friction coefficient so the rover can move realistically.
+For the rover, I'll model it as a simplified vehicle. It should have a chassis and wheels. Each wheel will be a cylinder, attached to the chassis with revolute joints for rotation. I'll need to position each wheel correctly, maybe using a loop to create all four wheels.
 
-The rover model is next. I'll define its dimensions and mass. Since it's a simple model, I'll create a box for the body. For wheels, I'll use cylinders and attach them with revolute joints to allow rotation. Each wheel will have a motor for steering. I'll set up the joints with limits and springs to simulate suspension.
+The chassis will be a box as well, positioned above the ground. I'll add a driver to control the wheels. The driver will take steering inputs, so I'll set up a function to handle that. Maybe a simple steering where pressing left and right arrows changes the direction.
 
-Adding a camera to the rover will help visualize its movement. I'll position it above the rover's body and set it to follow the rover's movement.
+I should also add some collision properties to the chassis and wheels to ensure they interact with the ground properly. Using the default collision materials should suffice unless more specific properties are needed.
 
-For user interaction, I'll implement keyboard controls. Using the on_key function, I'll handle key presses for moving forward, backward, turning left, and right. This will allow real-time steering inputs.
+Lighting and shadows are important for visualization. I'll add a directional light to cast shadows and adjust the ambient light for better visuals. Also, adding a sky background can enhance the scene.
 
-Finally, I'll run the simulation loop. In each step, I'll update the rover's position based on the controls and render the scene. I'll also check for window closure to exit the loop properly.
+To make the simulation more engaging, I'll include a texture on the rover's chassis, maybe a NASA logo. This adds a nice touch and makes the rover look more authentic.
 
-I think that covers all the requirements. I should test the simulation to make sure the rover moves correctly and the visualization works as intended.
+For user interaction, I'll set up keyboard controls. Using the arrow keys to move the rover and the spacebar to toggle steering sounds like a good approach. I'll need to handle key events in the simulation loop.
+
+Finally, I'll run the simulation loop, updating the system each step and checking for user inputs. After the simulation ends, I'll plot the rover's position over time to show its path.
+
+I should test the code to make sure everything works as expected. If there are any issues with the visualization or controls, I'll need to troubleshoot them. Also, I'll provide notes on how to adjust the code for different textures or better physics properties if needed.
 </think>
 
-I'll help you create a PyChrono simulation script for the Curiosity rover. Here's a comprehensive implementation:
+I'll help you create a PyChrono simulation script for the Curiosity rover. Here's a complete Python script that implements the requested features:
 
 ```python
 importchrono
-importchrono.pychrono as chrono
-importchrono.pychrono_irrlicht as chronoirr
-importnumpy as np
+import numpy as np
+import matplotlib.pyplot as plt
 
-# Initialize Chrono system
-chrono.ChSetChronoDataPath("chrono_data/")
+# Initialize the Chrono system
 system = chrono.ChSystemNSC()
-system.SetSolverType(chrono.ChSolverType.SOLVER_BARZILAI_BORWEIN)
-system.SetIntegrationType(chrono.ChIntegrType.INT_RK4)
+system.Set_Gravity(chrono.ChVectorD(0, -9.81, 0))
 
-# Visualization setup
-vis = chronoirr.ChIrrApp(system, "Curiosity Rover Simulation", chronoirr.dimension2du(800, 600))
-vis.SetCamera(chronoirr.vector3df(0, 5, 10), chronoirr.vector3df(0, 0, 0))
-vis.SetLightDirection(chronoirr.vector3df(0, 1, -1))
-vis.EnableLight(true)
-vis.EnableShadow(true)
-vis.AddSkyDome()
+# Visualization settings
+visualizer = chrono.ChVisualSystemIrrlicht()
+visualizer.SetWindowTitle('Curiosity Rover Simulation')
+visualizer.SetWindowSize(1024, 768)
+visualizer.SetClearColor(chrono.ChColor(0.9, 0.9, 0.9))
+visualizer.SetLightPosition(chrono.ChVectorD(0, 10, 10))
+visualizer.SetLightIntensity(1)
+visualizer.SetCameraPosition(chrono.ChVectorD(10, 10, 10))
+visualizer.SetCameraRotation(chrono.ChVectorD(45, 45, 0))
+system.SetVisualSystem(visualizer)
 
 # Create ground
 ground = chrono.ChBody()
+ground.SetBodyFixed(True)
 ground.SetPos(chrono.ChVectorD(0, 0, 0))
-ground.SetMass(0)  # Fixed body
-ground.GetCollisionModel().AddBox(chrono.ChCollisionSystem(), chrono.ChVectorD(10, 10, 1))
-ground.GetMaterialSurface().SetFriction(0.5)
+ground.GetCollisionModel().AddBox(chrono.ChCollisionModel(), 100, 100, 1)
+ground.GetVisualShape().SetTexture(chrono.GetChronoDataPath() + 'textures/ground.jpg')
 system.Add(ground)
 
 # Create rover
-rover = chrono.ChBody()
-rover.SetPos(chrono.ChVectorD(0, 0.5, 0))
-rover.SetMass(100)
-rover.GetCollisionModel().AddBox(chrono.ChCollisionSystem(), chrono.ChVectorD(0.5, 0.3, 0.2))
-system.Add(rover)
+rover = chrono.ChVehicle()
+rover.SetChassisMass(100)
+rover.SetChassisInertia(chrono.ChMatrix33D(100))
+rover.SetChassisDimensions(1, 0.5, 0.5)
+rover.SetChassisPos(chrono.ChVectorD(0, 0.25, 0))
 
 # Add wheels
-wheel_radius = 0.15
+wheel_mass = 10
+wheel_inertia = chrono.ChMatrix33D(10)
+wheel_radius = 0.2
 wheel_width = 0.1
 
-# Front left wheel
-fl_wheel = chrono.ChBody()
-fl_wheel.SetPos(chrono.ChVectorD(-0.4, 0.15, 0))
-fl_wheel.SetMass(5)
-fl_wheel.GetCollisionModel().AddCylinder(chrono.ChCollisionSystem(), wheel_radius, wheel_width)
-system.Add(fl_wheel)
-
-fl_joint = chrono.ChLinkRev()
-fl_joint.Initialize(rover, fl_wheel, chrono.ChCoordsysD(chrono.ChVectorD(-0.4, 0.15, 0), chrono.ChQuaternionD(1, 0, 0, 0)))
-system.Add(fl_joint)
-
-# Front right wheel
-fr_wheel = chrono.ChBody()
-fr_wheel.SetPos(chrono.ChVectorD(-0.4, -0.15, 0))
-fr_wheel.SetMass(5)
-fr_wheel.GetCollisionModel().AddCylinder(chrono.ChCollisionSystem(), wheel_radius, wheel_width)
-system.Add(fr_wheel)
-
-fr_joint = chrono.ChLinkRev()
-fr_joint.Initialize(rover, fr_wheel, chrono.ChCoordsysD(chrono.ChVectorD(-0.4, -0.15, 0), chrono.ChQuaternionD(1, 0, 0, 0)))
-system.Add(fr_joint)
-
-# Rear left wheel
-rl_wheel = chrono.ChBody()
-rl_wheel.SetPos(chrono.ChVectorD(0.4, 0.15, 0))
-rl_wheel.SetMass(5)
-rl_wheel.GetCollisionModel().AddCylinder(chrono.ChCollisionSystem(), wheel_radius, wheel_width)
-system.Add(rl_wheel)
-
-rl_joint = chrono.ChLinkRev()
-rl_joint.Initialize(rover, rl_wheel, chrono.ChCoordsysD(chrono.ChVectorD(0.4, 0.15, 0), chrono.ChQuaternionD(1, 0, 0, 0)))
-system.Add(rl_joint)
-
-# Rear right wheel
-rr_wheel = chrono.ChBody()
-rr_wheel.SetPos(chrono.ChVectorD(0.4, -0.15, 0))
-rr_wheel.SetMass(5)
-rr_wheel.GetCollisionModel().AddCylinder(chrono.ChCollisionSystem(), wheel_radius, wheel_width)
-system.Add(rr_wheel)
-
-rr_joint = chrono.ChLinkRev()
-rr_joint.Initialize(rover, rr_wheel, chrono.ChCoordsysD(chrono.ChVectorD(0.4, -0.15, 0), chrono.ChQuaternionD(1, 0, 0, 0)))
-system.Add(rr_joint)
-
-# Add camera to rover
-camera = chronoirr.ChIrrCamera()
-camera.SetPosition(chronoirr.vector3df(0, 0.5, 1))
-camera.SetLookAt(chronoirr.vector3df(0, 0, 0))
-vis.AddCamera(camera)
-
-# Add lights
-light = chronoirr.ChLight()
-light.SetDirection(chronoirr.vector3df(0, 1, -1))
-vis.AddLight(light)
-
-# Add texture to ground
-ground_texture = chronoirr.ChIrrTexture()
-ground_texture.SetFileName("ground_texture.jpg")
-ground_texture.SetUVScaling(2, 2)
-vis.AddTexture(ground_texture, ground)
-
-# Add logo to rover
-rover_logo = chronoirr.ChIrrLogo()
-rover_logo.SetPosition(chronoirr.vector3df(0, 0.5, 0))
-rover_logo.SetScale(0.1)
-vis.AddLogo(rover_logo)
-
-# Add force to rover
-force = chrono.ChForce()
-force.SetF(chrono.ChVectorD(0, 0, 0))
-rover.AddForce(force)
+for i in range(4):
+    wheel = chrono.ChWheel()
+    wheel.SetMass(wheel_mass)
+    wheel.SetInertia(wheel_inertia)
+    wheel.SetRadius(wheel_radius)
+    wheel.SetWidth(wheel_width)
+    wheel.SetVisualShape(chrono.ChVisualShapeType.SPHERE)
+    
+    # Position wheels
+    x_pos = [0.3, -0.3, 0.3, -0.3]
+    z_pos = [0.3, 0.3, -0.3, -0.3]
+    wheel.SetPos(chrono.ChVectorD(x_pos[i], 0, z_pos[i]))
+    
+    # Add revolute joint
+    joint = chrono.ChRevoluteJoint()
+    joint.Initialize(rover.GetChassis(), wheel, chrono.ChCoordsysD(wheel.GetPos(), chrono.ChQuaternionD(1, 0, 0, 0)))
+    system.Add(joint)
+    
+    rover.AddWheel(wheel)
 
 # Add driver
 driver = chrono.ChDriver()
 driver.SetSteering(0)
-driver.SetThrottle(0)
-rover.AddDriver(driver)
+rover.SetDriver(driver)
 
-# Add constraints
-constraint = chrono.ChLinkLock()
-constraint.Initialize(rover, ground, chrono.ChCoordsysD())
-system.Add(constraint)
+# Add collision properties
+rover.GetChassis().GetCollisionModel().AddBox(chrono.ChCollisionModel(), 0.5, 0.5, 0.5)
+for wheel in rover.GetWheels():
+    wheel.GetCollisionModel().AddCylinder(chrono.ChCollisionModel(), wheel_radius, wheel_width/2)
 
-# Add contact properties
-contact = chrono.ChContactSurface()
-contact.SetFriction(0.5)
-contact.SetRestitution(0.3)
-system.Add(contact)
+# Add texture to rover
+rover.GetChassis().GetVisualShape().SetTexture('path_to_texture_file.jpg')  # Replace with actual texture path
 
-# Add visualization
-vis.AddBody(ground)
-vis.AddBody(rover)
-vis.AddBody(fl_wheel)
-vis.AddBody(fr_wheel)
-vis.AddBody(rl_wheel)
-vis.AddBody(rr_wheel)
+# Add lighting and shadows
+visualizer.AddLight(chrono.ChVectorD(0, 10, 10), 1, True)
+visualizer.AddLight(chrono.ChVectorD(0, -10, 10), 1, True)
+visualizer.SetAmbientLight(chrono.ChColor(0.5, 0.5, 0.5))
 
-# Add camera to scene
-vis.AddCamera(camera)
+# Add sky background
+visualizer.AddSky()
 
-# Add lights
-vis.AddLight(light)
+# Add NASA logo (replace with actual logo path)
+# logo = chrono.ChVisualShape()
+# logo.SetTexture('path_to_nasa_logo.png')
+# logo.SetPos(chrono.ChVectorD(0, 0.5, 0))
+# system.Add(logo)
 
-# Add textures and logos
-vis.AddTexture(ground_texture, ground)
-vis.AddLogo(rover_logo)
+# Simulation settings
+system.SetMaxPenetration(0.001)
+system.SetSolverType(chrono.ChSolverType.SOR)
+system.SetTolerance(1e-6)
+system.SetIterMax(100)
 
-# Add force and driver
-vis.AddForce(force)
-vis.AddDriver(driver)
+# Real-time simulation
+simulation_time = 0
+step_size = 0.001
 
-# Add constraints and contact properties
-vis.AddLink(constraint)
-vis.AddContact(contact)
+# Store position data for plotting
+positions = []
+times = []
 
 # Run simulation
-vis.Run()
+while simulation_time < 10:
+    # Update system
+    system.DoStepDynamics(step_size)
+    
+    # Get rover position
+    pos = rover.GetChassis().GetPos()
+    positions.append(pos)
+    times.append(simulation_time)
+    
+    # Update visualization
+    visualizer.Render()
+    
+    # Handle user input
+    if visualizer.GetKeyboard().IsKeyDown(chrono.KEY_ESCAPE):
+        break
+    if visualizer.GetKeyboard().IsKeyDown(chrono.KEY_LEFT):
+        driver.SetSteering(-0.1)
+    if visualizer.GetKeyboard().IsKeyDown(chrono.KEY_RIGHT):
+        driver.SetSteering(0.1)
+    if visualizer.GetKeyboard().IsKeyDown(chrono.KEY_SPACE):
+        driver.SetThrottle(1)
+    else:
+        driver.SetThrottle(0)
+    
+    simulation_time += step_size
+
+# Plot position data
+plt.plot(times, [p.x for p in positions], label='X Position')
+plt.plot(times, [p.y for p in positions], label='Y Position')
+plt.plot(times, [p.z for p in positions], label='Z Position')
+plt.xlabel('Time (s)')
+plt.ylabel('Position (m)')
+plt.title('Rover Position Over Time')
+plt.legend()
+plt.show()
+
+# Cleanup
+chrono.ChDeleteAll()
 ```
 
 This script creates a simulation of the Curiosity rover with the following features:
 
 1. A fixed ground plane with collision properties and texture
-2. A simplified rover model with a main body and four wheels
-3. Revolute joints for wheel rotation
-4. Motor control for steering
-5. Irrlicht visualization with:
-   - Custom camera position and movement
-   - Dynamic lighting and shadows
-   - Textures for the ground
-   - 3D logo on the rover
-   - Real-time visualization of forces and constraints
+2. A simplified rover model with a chassis and four wheels
+3. Motor control driver for steering and movement
+4. Irrlicht visualization with:
+   - Custom camera settings
+   - Lighting and shadows
+   - Textures (replace texture paths with actual files)
+   - Sky background
+5. Real-time controls using keyboard inputs
+6. Position tracking and plotting
 
-To use this simulation:
+To use this script:
 
-1. Make sure you have the required texture file ("ground_texture.jpg") in your working directory
-2. Run the script
-3. Use keyboard controls to move the rover:
-   - W: Move forward
-   - S: Move backward
-   - A: Turn left
-   - D: Turn right
+1. Make sure you have PyChrono installed
+2. Replace the texture paths with actual file paths on your system
+3. Run the script
 
-The simulation will display the rover navigating on the textured ground plane with real-time updates of its position and orientation. The visualization includes shadows and dynamic lighting for better visual feedback.
+The rover can be controlled using:
+- Left/Right arrows for steering
+- Spacebar for throttle
 
-You can customize the following parameters:
+The simulation will run for 10 seconds and then display a plot of the rover's position over time.
 
-- Rover dimensions and mass
-- Wheel size and suspension properties
-- Ground texture and dimensions
-- Camera position and movement
-- Lighting setup
-- Force and torque values
-- Motor control inputs
-
-This provides a basic framework that you can extend with additional features such as:
-- More detailed rover geometry
-- Advanced suspension systems
-- Different terrain types
-- Sensor systems
-- Path planning algorithms
-- Data logging and analysis
+Note: You may need to adjust the texture paths and add additional visual elements (like the NASA logo) based on your specific requirements.

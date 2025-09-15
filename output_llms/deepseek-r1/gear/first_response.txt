@@ -1,99 +1,131 @@
 
+To create a simulation of an epicyclic gear system in PyChrono, we'll set up a fixed sun gear, a rotating carrier arm, and a planetary gear meshed with the sun gear. A motor drives the carrier arm at a constant speed. Here's the complete solution:
 
 ```python
 import pychrono as chrono
 import pychrono.irrlicht as irr
 
-# Create the Chrono system
-system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, 0, 0))  # Disable gravity
+def main():
+    # 1. Initialize system
+    system = chrono.ChSystemNSC()
+    system.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
 
-# 1. Initialize core components
-# -----------------------------
+    # Create materials for visualization
+    red_material = chrono.ChVisualMaterial()
+    red_material.SetDiffuseColor(chrono.ChColor(0.8, 0.2, 0.2))
+    blue_material = chrono.ChVisualMaterial()
+    blue_material.SetDiffuseColor(chrono.ChColor(0.2, 0.2, 0.8))
+    green_material = chrono.ChVisualMaterial()
+    green_material.SetDiffuseColor(chrono.ChColor(0.2, 0.8, 0.2))
 
-# Create a fixed truss
-truss = chrono.ChBody()
-truss.SetBodyFixed(True)
-system.Add(truss)
+    # 2. Create ground body
+    ground = chrono.ChBody()
+    ground.SetBodyFixed(True)
+    system.Add(ground)
 
-# 2. Create physical systems
-# --------------------------
+    # 3. Create sun gear (fixed to ground)
+    sun_radius = 0.5
+    sun = chrono.ChBody()
+    sun.SetPos(chrono.ChVectorD(0, 0, 0))
+    sun_shape = chrono.ChCylinderShape()
+    sun_shape.GetCylinderGeometry().rad = sun_radius
+    sun_shape.GetCylinderGeometry().p1 = chrono.ChVectorD(0, 0, -0.2)
+    sun_shape.GetCylinderGeometry().p2 = chrono.ChVectorD(0, 0, 0.2)
+    sun.AddVisualShape(sun_shape)
+    sun.GetVisualShape(0).SetMaterial(0, red_material)
+    system.Add(sun)
 
-# Parameters
-sun_radius = 0.5
-planet_radius = 0.3
-bar_length = 1.5
-gear_height = 0.2
+    # Fix sun gear to ground
+    sun_to_ground = chrono.ChLinkLockRevolute()
+    sun_to_ground.Initialize(sun, ground, chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0)))
+    system.AddLink(sun_to_ground)
 
-# Create rotating bar (carrier)
-bar = chrono.ChBody()
-bar.SetPos(chrono.ChVectorD(0, 0, 0))
-system.Add(bar)
+    # 4. Create carrier arm
+    arm_length = sun_radius * 1.8
+    arm = chrono.ChBody()
+    arm.SetPos(chrono.ChVectorD(0, 0, 0))
+    arm_shape = chrono.ChBoxShape()
+    arm_shape.GetBoxGeometry().Size = chrono.ChVectorD(arm_length/2, 0.05, 0.05)
+    arm.AddVisualShape(arm_shape, chrono.ChFrameD(chrono.ChVectorD(arm_length/2, 0, 0)))
+    arm.GetVisualShape(0).SetMaterial(0, green_material)
+    system.Add(arm)
 
-# Connect bar to truss with revolute joint
-revolute_bar = chrono.ChLinkRevolute()
-revolute_bar.Initialize(truss, bar, 
-                       chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), 
-                                         chrono.Q_from_AngY(chrono.CH_C_PI_2)))
-system.Add(revolute_bar)
+    # Connect arm to ground with motor
+    motor = chrono.ChLinkMotorRotationAngle()
+    motor.Initialize(arm, ground, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)))
+    motor_func = chrono.ChFunction_Ramp(0, chrono.CH_C_PI / 4)  # 45 deg/s rotation
+    motor.SetAngleFunction(motor_func)
+    system.AddLink(motor)
 
-# Create sun gear (fixed to truss)
-sun_gear = chrono.ChBody()
-sun_gear.SetBodyFixed(True)
-sun_gear.SetPos(chrono.ChVectorD(0, 0, 0))
-sun_shape = chrono.ChCylinderShape(sun_radius, gear_height)
-sun_shape.SetColor(chrono.ChColor(0.8, 0.2, 0.0))
-sun_gear.AddAsset(sun_shape)
-system.Add(sun_gear)
+    # 5. Create planetary gear
+    planet_radius = sun_radius * 0.4
+    planet = chrono.ChBody()
+    planet.SetPos(chrono.ChVectorD(arm_length, 0, 0))
+    planet_shape = chrono.ChCylinderShape()
+    planet_shape.GetCylinderGeometry().rad = planet_radius
+    planet_shape.GetCylinderGeometry().p1 = chrono.ChVectorD(0, 0, -0.2)
+    planet_shape.GetCylinderGeometry().p2 = chrono.ChVectorD(0, 0, 0.2)
+    planet.AddVisualShape(planet_shape)
+    planet.GetVisualShape(0).SetMaterial(0, blue_material)
+    system.Add(planet)
 
-# Create planet gear
-planet_gear = chrono.ChBody()
-planet_gear.SetPos(chrono.ChVectorD(bar_length, 0, 0))
-planet_shape = chrono.ChCylinderShape(planet_radius, gear_height)
-planet_shape.SetColor(chrono.ChColor(0.2, 0.8, 0.0))
-planet_gear.AddAsset(planet_shape)
-system.Add(planet_gear)
+    # Connect planetary gear to arm
+    planet_to_arm = chrono.ChLinkLockRevolute()
+    planet_to_arm.Initialize(planet, arm, 
+                            chrono.ChCoordsysD(chrono.ChVectorD(arm_length, 0, 0)))
+    system.AddLink(planet_to_arm)
 
-# Connect planet gear to bar with revolute joint
-revolute_planet = chrono.ChLinkRevolute()
-revolute_planet.Initialize(bar, planet_gear,
-                          chrono.ChCoordsysD(chrono.ChVectorD(bar_length, 0, 0),
-                                           chrono.Q_from_AngY(chrono.CH_C_PI_2)))
-system.Add(revolute_planet)
+    # 6. Create gear constraint between sun and planet
+    gear_train = chrono.ChLinkGear()
+    gear_train.Initialize(sun, planet, ground, 
+                         chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)),
+                         chrono.ChFrameD(chrono.ChVectorD(arm_length, 0, 0)))
+    ratio = planet_radius / sun_radius  # Negative ratio for external gears
+    gear_train.SetTransmissionRatio(-ratio)
+    system.AddLink(gear_train)
 
-# 3. Set up gear constraints and motor
-# ------------------------------------
+    # 7. Set up Irrlicht visualization
+    vis = irr.ChVisualSystemIrrlicht()
+    vis.AttachSystem(system)
+    vis.SetWindowSize(1024, 768)
+    vis.SetWindowTitle('Epicyclic Gear System')
+    vis.Initialize()
+    vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+    vis.AddSkyBox()
+    vis.AddCamera(chrono.ChVectorD(2, 1.5, 1))
+    vis.AddTypicalLights()
 
-# Create gear constraint between sun and planet
-gear_ratio = -(sun_radius/planet_radius)  # External gear ratio
-gear_constraint = chrono.ChLinkLockGear()
-gear_constraint.Initialize(sun_gear, planet_gear,
-                          chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0)),
-                          chrono.ChCoordsysD(chrono.ChVectorD(bar_length, 0, 0)))
-gear_constraint.SetRatio(gear_ratio)
-system.Add(gear_constraint)
+    # 8. Run simulation
+    time_step = 0.01
+    while vis.Run():
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+        system.DoStepDynamics(time_step)
 
-# Create rotation motor to drive the carrier
-motor = chrono.ChLinkMotorRotationSpeed()
-motor.Initialize(truss, bar, 
-                chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)))
-motor.SetSpeedFunction(chrono.ChFunction_Const(chrono.CH_C_PI / 3))  # 60 deg/s
-system.Add(motor)
-
-# 4. Visualization setup
-# ----------------------
-vis = irr.ChIrrApp(system, "Epicyclic Gear System", irr.dimension2du(1024, 768))
-vis.AddTypicalLights(irr.vector3df(30, 100, 30), irr.vector3df(-30, -100, -30), 500, 500)
-vis.AddCamera(chrono.ChVectorD(3, 1.5, 3), chrono.ChVectorD(0, 0, 0))
-vis.AssetBindAll()
-vis.AssetUpdateAll()
-
-# Simulation loop
-vis.Run()
-
-while vis.GetDevice().run():
-    vis.BeginScene()
-    vis.DrawAll()
-    vis.DoStepDynamics(1e-3)
-    vis.EndScene()
+if __name__ == '__main__':
+    main()
 ```
+
+Key components of this simulation:
+1. **System Setup**: Uses NSC (Non-Smooth Contacts) solver for mechanical simulation
+2. **Gear System**:
+   - Fixed red sun gear at origin
+   - Green rotating carrier arm driven by a motor
+   - Blue planetary gear attached to the arm's end
+3. **Mechanical Constraints**:
+   - Revolute joints for rotational connections
+   - Gear constraint to enforce meshing between sun and planetary gears
+   - Motor with constant angular speed (45 deg/s) driving the arm
+4. **Visualization**:
+   - Color-coded materials for clear differentiation
+   - Camera positioned for optimal viewing
+   - Skybox and lighting for enhanced visuals
+
+The simulation demonstrates fundamental epicyclic gear behavior where:
+- The motor rotates the carrier arm
+- The planetary gear orbits around the sun gear
+- The gear constraint maintains proper meshing between gears
+- Rotation speeds follow the gear ratio (sun_radius/planet_radius)
+
+To run this, ensure you have PyChrono installed. The simulation will show the gear system in action with the planetary gear both rotating and revolving around the sun gear.

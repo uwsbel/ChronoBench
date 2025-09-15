@@ -1,84 +1,118 @@
-# Import required modules
-from pychrono import *
-from pychrono.gear import *
-from pychrono.vis import *
+import pychrono as pc
+import numpy as np
+import matplotlib.pyplot as plt
 
-# Initialize the simulation
-chrono = Ch chrono()
-chrono.setgravity([0, -9.81, 0])  # Set gravity along y-axis
-chrono.set_unit_length(1)  # Set unit length to 1 meter
-chrono.set_time_unit(chrono.DYNAMIC)  # Set time unit to dynamic
-chrono.set_step(0.01)  # Set timestep
+# Initialize PyChrono environment
+pc.init()
 
-# Define simulation time
-T_total = 5.0  # Total simulation time in seconds
-n_steps = int(T_total / chrono.get_step())  # Number of steps
+# Create a coordinate system
+s = pc.SimulationSetup()
+s.set_gd(1, 1, 1)
 
-# Define coordinate system
-origin = chrono.Point()
-beam_center = origin.translate([0, 0, 0])
-beam_end1 = beam_center.translate([0.5, 0, 0])
-beam_end2 = beam_center.translate([-0.5, 0, 0])
+# Create the beam
+beam = pc.IGABeam(s, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+L = 4  # Length of the beam
+A = 0.2  # Cross-sectional area
+I_beam = 1/12 * A * L**4  # Moment of inertia of the beam
+beam.set_properties(
+    length=L,
+    cross_section_area=A,
+    material_name="Steel",
+    young_modulus=200000,
+    poisson_ratio=0.2,
+    density=7850,
+    moment_inertia=I_beam,
+    shear_inertia=0.1*A*L**3
+)
 
-# Create the beam using IGA
-beam = chrono.Beams()
-beam.set_name("IGA Beam")
-beam.set_origin(beam_center)
-beam.set_length(1.0)  # Length of the beam
-beam.set_cross_section_type(chrono.Beams.CROSS_SECTION_TYPE_RECTANGULAR)  # Rectangular cross-section
-beam.set_width(0.02)  # Width of the beam
-beam.set_height(0.02)  # Height of the beam
-beam.set_order(4)  # Set IGA order for higher accuracy
-beam.set_material(chrono.Materials.NEW_MATERIAL)
-beam.set_young_modulus(200e9)  # Young's modulus for carbon steel
-beam.set_density(7850)  # Density of carbon steel
+# Attach the flywheel
+flywheel = pc.DiskFlywheel(beam, beam.get_point(beam.size))
+R_fly = 0.5  # Radius of the flywheel
+thickness_fly = 0.1  # Thickness of the flywheel
+density_fly = 7850  # Density of the flywheel
+mass_fly = (np.pi * R_fly**2 * thickness_fly) * density_fly
+flywheel.set_properties(
+    radius=R_fly,
+    thickness=thickness_fly,
+    material_name="Steel",
+    density=density_fly,
+    mass=mass_fly,
+    moment_inertia=mass_fly * R_fly**2
+)
 
-# Create the flywheel (rigid disk)
-flywheel = chrono.RigidDisk()
-flywheel.set_name("Flywheel")
-flywheel.set_origin(beam_center)
-flywheel.set_mass(1)  # Mass of the flywheel
-flywheel.set_radius(0.5)  # Radius of the flywheel
-flywheel.set_moment_inertia(chrono.MomentOfInertia.DISC, flywheel.get_mass(), flywheel.get_radius())
+# Attach the motor
+motor = pc.RevoluteMotor(flywheel, flywheel.get_point(pc.vector3(0, 1, 0)))
+motor.set_properties(
+    inertia=motor.get_point(pc.vector3(0, 1, 0)).length()**2 * 1e-4,
+    damping=0.1,
+    initial_torque=0
+)
 
-# Create the motor
-motor = chrono.RotationalMotor()
-motor.set_name("Motor")
-motor.set_origin(beam_end1)
-motor.set_torque(10)  # Torque applied by the motor
-motor.set_rotation_axis(chrono.Axis.X)  # Rotation axis along x-axis
-
-# Add the motor to the beam end
-beam_end1.attach(motor)
+# Define the system
+system = pc.System(s)
+system.add(beam)
+system.add(flywheel)
+system.add(motor)
 
 # Add forces and interactions
-motor.set_torque_enabled(True)
-chrono.add_force(motor, beam_end1)
+# Elastic forces in the beam
+spring = pc.Spring(beam, beam.get_point(pc.vector3(-1, 0, 0)), 0.1, 1e8)
+system.add(spring)
 
-# Add the flywheel to the simulation
-beam_center.attach(flywheel)
+# Rotational inertia of the flywheel
+system.add(pc.Damping(flywheel, flywheel.get_point(pc.vector3(0, 1, 0)), 0.1))
 
-# Add the beam to the simulation
-beam.add()
+# Motor torque
+def motor_torque(t):
+    return 0.5 * (1 - np.exp(-t/0.1))  # Linear acceleration to speed up
 
-# Set up visualization
-vis = chrono.Vis()
-vis.set_window_size(800, 600)
-vis.set_window_pos(0, 0, 0)
-vis.add_object(beam)
-vis.add_object(flywheel)
-vis.add_object(motor)
-vis.set_window_enabled(True)
+system.add(pc.Torque(motor, motor.get_point(pc.vector3(0, 1, 0)), motor_torque))
+
+# Visualization setup
+window = pc.IrrlichtWindow(800, 600, 0, 0, 0, False)
+window.add(beam)
+window.add(flywheel)
+window.add(pc.StressVisualizer(beam, 0, 0, 0, "Stress", 0.5, 0, 0, 0, 0, 0))
+window.add(pc.DeformationVisualizer(beam, 0, 0, 0, "Deformation", 0.5, 0, 0, 0, 0, 0))
+
+# Simulation setup
+sim = pc.Simulation(s, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+sim.set_contact=False
+sim.set_gravity=False
+
+# Add damping forces
+damping = pc.DampingForces()
+damping.add(pc.DampingForce(beam, beam.get_point(pc.vector3(0, -1, 0)), 0.1, 0.5))
+system.add(damping)
+
+# Add gravity
+g = pc.GravityEngine(s, pc.vector3(0, -9.81, 0))
+system.add(g)
+
+# Add simulation steps
+t_final = 5
+dt = 0.01
+n_steps = int((t_final / dt) + 1)
+sim.set_timestep(dt)
+sim.set_max_steps(n_steps)
+
+# Add motor torque as a function of time
+def update_torque(t):
+    return motor_torque(t)
+sim.add_user_function(update_torque)
 
 # Run the simulation
-chrono.initialize()
-chrono.start()
+sim.run()
 
-# Display the simulation
-while chrono.get_step() <= n_steps:
-    chrono.step()
-    vis.update()
+# Animate the results
+plt.figure(figsize=(10, 8))
+t = np.linspace(0, t_final, n_steps)
+plt.plot(t, np.array([sim.get_tip_deflection(0, 0, 0)[0] for t in t]))
+plt.title('Tip Deflection vs Time')
+plt.xlabel('Time (s)')
+plt.ylabel('Deflection (m)')
+plt.colorbar()
+plt.show()
 
-# Cleanup
-chrono.stop()
-chrono finalized
+window.close()
+pc.finalize()

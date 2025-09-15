@@ -1,79 +1,45 @@
 import PyChrono as pc
-import numpy as np
-
-
-pc.init()
-
-
-ground = pc.Ground()
-ground.size = np.array([10.0, 10.0, 10.0])
-ground.position = np.array([0.0, 0.0, 0.0])
-
-
-mass = pc.Mass()
-mass.position = np.array([0.0, 1.0, 0.0])
-mass.shape = pc.Sphere(radius=0.5)
-
-spring = pc.Cylinder()
-spring.position = np.array([0.0, 0.0, -0.5])
-spring.length = 1.0
-spring.radius = 0.05
-
-
-spring_damper = pc.ChLinkTSDA()
-spring_damper.parent = mass
-spring_damper.child = spring
-spring_damper.type = pc.SpringDamper
-spring_damper.k = 1000.0  
-spring_damper.c_damping = 10.0  
-spring_damper.r = 0.0  
-
-
-renderer = pc.Irrlicht()
-renderer.background = np.array([0.1, 0.1, 0.1])
-renderer.add_light(pc.AmbientLight())
-renderer.add_light(pc.DirectionalLight(position=np.array([10.0, 10.0, 10.0])))
-renderer.camera.position = np.array([5.0, 5.0, 5.0])
-renderer.camera.look = np.array([0.0, 0.0, -1.0])
 
 
 simulation = pc.Simulation()
-simulation.timestep = 0.001
-simulation.add_object(mass)
-simulation.add_object(spring)
-simulation.add_constraint(spring_damper)
-simulation.add_ground(ground)
+simulation.set_physics_solver(pc.TSDA())
+simulation.set_time_step(0.01)
+simulation.set_VisualStyleDefaults()
 
 
-mass.add_shape(pc.SphereVisual())
-spring.add_shape(pc.CylinderVisual())
+mass = pc.Body()
+mass.set_shape(pc.Sphere(0.05, 0.05, 0.05))
+mass.set_density(1)
+mass.set_position(pc.Vec3(0, 0, 0))
 
 
-mass.position_target = np.array([0.0, 1.0, 0.0])
+ground = pc.Body()
+ground.set_shape(pc.Box(10, 10, 0.1))
+ground.set_position(pc.Vec3(0, 0, -0.5))
 
 
-gravity = pc.Force()
-gravity.type = pc.WeightForce
-gravity.force = np.array([0.0, -9.81, 0.0])
-mass.add_force(gravity)
+spring = pc.ChLinkTSDA(mass, ground)
+spring.set_spring_constant(1000)
+spring.set_damping_ratio(0.5)
+spring.set_equilibrium_position(mass.get_position())
 
 
-pc.add_hook("SimulationStep", "PhysicsStep", "RendererStep")
-def PhysicsStep():
-    simulation.step()
-    renderer.update()
-
-pc.add_hook("SimulationStep", "VisualizationUpdate")
-def VisualizationUpdate():
-    mass.shape.mesh.color = np.array([1.0, 0.0, 0.0])
-    spring.shape.mesh.color = np.array([0.0, 1.0, 0.0])
-
-pc.add_hook("SimulationStep", "CameraUpdate")
-def CameraUpdate():
-    simulation.time += 0.01
-    renderer.camera.position = np.array([5.0, 5.0, 5.0 + simulation.time*0.5])
-    renderer.camera.look = np.array([0.0, 0.0, -1.0])
-    renderer.camera.fov = 45.0 + simulation.time*0.5
+simulation.set_visualize_irenderer_enabled(True)
+simulation.set_lighting(pc.DirectionalLight(pc.Vec3(0, 0, 5), 5.0))
+simulation.set_camera(pc.Camera(pc.Vec3(5, 5, 10), pc.Vec3(0, 0, 0), 1000))
 
 
-simulation.run()
+mass.add_shape(pc.SphereVisual(0.05, 0.05, 0.05, pc.Color(1, 0, 0)))
+spring.add_shape(pc.ConeVisual(0.1, 0.2, 0.1, pc.Color(0, 1, 0)))
+
+
+simulation.set_gravity(pc.Vec3(0, 0, -9.81))
+
+
+simulation.add_solver(pc.TSDA.SolverConfig()
+                 .set_max_iterations(10)
+                 .set_tolerance(1e-6)
+                 .set_time_step(0.01))
+
+
+simulation.start()

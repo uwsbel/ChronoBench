@@ -1,103 +1,90 @@
+import pychrono as chrono
+import pychrono.sensor as sens
+import numpy as np
 import os
 import math
-import chrono.chrono as chrono
-import chrono.chrono_irrlicht as chronoirr
-import chrono.chrono_sensor as sens
 
 def main():
     
+    chrono.SetChronoDataPath(os.path.join(os.environ.get('CHRONO_DATA_DIR', ''), 'data/'))
     system = chrono.ChSystemNSC()
-    system.Set_G_acc(chrono.ChVectorD(0, 0, 0))  
+    system.SetGravity(chrono.ChVectorD(0, 0, 0))
 
     
-    mesh_body = chrono.ChBodyEasyMesh(
-        os.path.join(chrono.GetChronoDataPath(), "models", "cube.obj"),  
-        1000,  
-        True,  
-        True   
-    )
-    mesh_body.SetFixed(True)
+    mesh_body = chrono.ChBody()
+    mesh_body.SetBodyFixed(True)
+    mesh_body.SetPos(chrono.ChVectorD(0, 0, 0))
+    
+    
+    mesh = chrono.ChTriangleMeshConnected()
+    mesh.LoadWavefrontMesh(chrono.GetChronoDataFile("models/cube.obj"))  
+    mesh_shape = chrono.ChTriangleMeshShape(mesh)
+    mesh_shape.SetStatic(True)
+    mesh_body.AddAsset(mesh_shape)
     system.Add(mesh_body)
 
     
     manager = sens.ChSensorManager(system)
-    manager.scene.AddPointLight(chrono.ChVectorD(2, 2.5, 0), chrono.ChColor(1, 1, 1), 500)
+    manager.scene.AddPointLight(chrono.ChVectorF(2, 2, 2), chrono.ChColor(1, 1, 1), 100)
 
     
-    orbit_radius = 5.0
-    orbit_speed = 0.5  
-    lidar_params = sens.LidarModelParams(
-        horz_res=360,    
-        vert_res=180,    
-        hfov=2*math.pi,  
-        vfov=math.pi,    
-        max_distance=100,
-        lag=0.0,
-        angle_lag=0.0
-    )
-    noise_model = sens.ChNoiseNormal(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0.05, 0.05, 0.05))
+    lidar_offset = chrono.ChVectorD(0, 0.5, 0)  
+    lidar_pos = chrono.ChFrameD(lidar_offset)    
+    lidar_update_rate = 5                        
+    lidar_hres = 90                              
+    lidar_vres = 45                              
+    lidar_hfov = 180                             
+    lidar_vfov = 30                              
 
     
-    parent_body = chrono.ChBody()
-    parent_body.SetBodyFixed(False)
-    parent_body.SetPos(chrono.ChVectorD(orbit_radius, 0, 0))
-    system.Add(parent_body)
-
-    
+    noise_model = sens.ChNoiseNormal(chrono.ChVectorD(0, 0, 0.01), chrono.ChVectorD(0, 0, 0.001))
     lidar = sens.ChLidarSensor(
-        parent_body,             
-        30,                      
-        chrono.ChFrameD(),       
-        lidar_params             
+        mesh_body,                
+        lidar_update_rate,        
+        lidar_pos,                
+        lidar_hres,               
+        lidar_vres,               
+        math.radians(lidar_hfov), 
+        math.radians(lidar_vfov), 
+        0.1,                      
+        sens.ClipFrustum()        
     )
-    lidar.SetName("Orbiting Lidar")
-    lidar.SetNoiseModel(noise_model)
-    lidar.PushFilter(sens.ChFilterVisualize(640, 480, "Lidar Data"))
+    lidar.SetName("Rotating Lidar")
+    lidar.SetLag(0.1)
+    lidar.SetCollectionWindow(0.02)
     lidar.PushFilter(sens.ChFilterPCfromDepth())
-    lidar.PushFilter(sens.ChFilterXYZIAccess())
-    lidar.PushFilter(sens.ChFilterSavePtCloud("lidar_data/"))
+    lidar.PushFilter(sens.ChFilterAccess())
+    lidar.PushFilter(sens.ChFilterVisualize(lidar_hres, lidar_vres, "Lidar Data"))
+    lidar.PushFilter(sens.ChFilterSave("lidar_data/"))
+    lidar.PushFilter(sens.ChFilterNoise(noise_model))
     manager.AddSensor(lidar)
 
     
-    vis = chronoirr.ChVisualSystemIrrlicht()
-    vis.AttachSystem(system)
-    vis.SetWindowSize(1024, 768)
-    vis.SetWindowTitle('Lidar Orbit Simulation')
-    vis.Initialize()
-    vis.AddCamera(chrono.ChVectorD(0, 3, -5), chrono.ChVectorD(0, 0, 0))
-    vis.AddTypicalLights()
-
-    
+    orbit_radius = 3.0
+    orbit_height = 1.0
+    orbit_speed = 0.1  
     time_step = 0.01
-    time = 0.0
-    while vis.Run():
-        vis.BeginScene()
-        vis.Render()
-        vis.EndScene()
+    total_time = 10.0
 
+    for t in np.arange(0, total_time, time_step):
         
-        theta = orbit_speed * time
-        new_pos = chrono.ChVectorD(
-            orbit_radius * math.cos(theta),
-            0,
-            orbit_radius * math.sin(theta)
-        )
-        parent_body.SetPos(new_pos)
-        parent_body.SetRot(chrono.Q_from_AngAxis(theta + math.pi/2, chrono.ChVectorD(0, 1, 0)))
+        angle = orbit_speed * t
+        new_x = orbit_radius * math.cos(angle)
+        new_z = orbit_radius * math.sin(angle)
+        lidar_offset = chrono.ChVectorD(new_x, orbit_height, new_z)
+        lidar.SetOffsetPose(chrono.ChFrameD(lidar_offset))
 
         
         manager.Update()
+        system.DoStepDynamics(time_step)
 
         
         buffer = lidar.GetMostRecentBuffer()
-        if buffer and buffer.HasData():
-            print(f"Time: {time:.2f} | Points captured: {buffer.GetXYZ().shape[0]}")
-            if buffer.GetXYZ().shape[0] > 0:
-                print(f"Sample point: {buffer.GetXYZ()[0]}")
-
-        
-        system.DoStepDynamics(time_step)
-        time += time_step
+        if buffer.HasData():
+            data = buffer.GetDepthData()
+            print(f"Time: {t:.2f}s | Points: {len(data)}")
+            if len(data) > 0:
+                print(f"First point: Pos={data[0]} | Intensity={data[0].intensity}")
 
 if __name__ == "__main__":
     main()

@@ -65,8 +65,8 @@ patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-patch = terrain.AddPatch(patch_mat,
-                         chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
+patch = terrain.AddPatch(patch_mat, 
+                         chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
                          terrainLength, terrainWidth)
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
@@ -100,7 +100,7 @@ manager = sens.ChSensorManager(vehicle.GetSystem())
 
 
 offset_pose = chrono.ChFramed(chrono.ChVector3d(-8, 0, 1), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0)))
-imu = sens.ChAccelerometerSensor(vehicle.GetChassisBody(),
+imu = sens.ChAccelerometerSensor(vehicle.GetChassisBody(),                     
                                  10,        
                                  offset_pose,          
                                  sens.ChNoiseNone())   
@@ -113,7 +113,7 @@ imu.PushFilter(sens.ChFilterAccelAccess())
 manager.AddSensor(imu)
 
 
-gps = sens.ChGPSSensor(vehicle.GetChassisBody(),
+gps = sens.ChGPSSensor(vehicle.GetChassisBody(),                     
                        10,        
                        offset_pose,          
                        chrono.ChVector3d(-89.400, 43.070, 260.0),  
@@ -127,12 +127,27 @@ gps.PushFilter(sens.ChFilterGPSAccess())
 manager.AddSensor(gps)
 
 
-log_step_size = 10  
-gps_data = []      
+gps_data = []
 
 
+log_steps = 10  
+log_step = 0
 
 
+def get_driver_inputs(time):
+    inputs = driver.GetInputs()
+    
+    current_time = time
+    
+    if current_time - inputs.last_time > 0:
+        if current_time < 6.0:  
+            inputs.throttle = 0.0
+            inputs.braking = 1.0
+        else:
+            inputs.braking = 0.0
+        inputs.throttle = max(0.0, min(1.0, (current_time - inputs.last_time) / render_step_size))
+        inputs.steering = max(-1.0, min(1.0, (current_time - inputs.last_time) / render_step_size))
+    return inputs
 
 
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
@@ -157,7 +172,7 @@ while vis.Run():
         render_frame += 1
 
     
-    driver_inputs = driver.GetInputs()
+    driver_inputs = get_driver_inputs(time)
 
     
     driver.Synchronize(time)
@@ -175,21 +190,25 @@ while vis.Run():
     manager.Update()
     
     
+    if log_step % log_steps == 0:
+        gps_data_point = gps.GetMostRecentGPSBuffer().GetGPSData()
+        if gps_data_point is not None:
+            
+            gps_data.append((
+                gps_data_point.latitude,
+                gps_data_point.longitude,
+                gps_data_point.altitude,
+                gps_data_point.speed,
+                gps_data_point.direction,
+                gps_data_pointpitch
+            ))
+            log_step += 1
+
+    
     step_number += 1
 
     
     realtime_timer.Spin(step_size)
 
-    
-    if step_number % log_step_size == 0:
-        gps_data.append(gps.GetMostRecentGPSBuffer().GetGPSData())
 
-
-print("GPS Data: ")
-for data in gps_data:
-    print(f"Time: {data.GetTimestamp()}")
-    print(f"Latitude: {data.GetLatitude():.4f}")
-    print(f"Longitude: {data.GetLongitude():.4f}")
-    print(f"Altitude: {data.GetAltitude():.4f}")
-    print(f"Speed: {data.GetSpeed():.4f}")
-    print("-------------------")
+print("GPS Data: ", gps_data)

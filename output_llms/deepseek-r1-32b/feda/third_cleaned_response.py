@@ -1,8 +1,8 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
+import pychrono.sensor as sens
 import math
-
 
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
@@ -79,26 +79,41 @@ vis.SetWindowSize(1280, 1024)
 vis.SetChaseCamera(trackPoint, 6.0, 0.5)
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddLightDirectional()
+vis.AddSkyBox()
+vis.AttachVehicle(vehicle.GetVehicle())
 
 
-vis.AddLightPoint(chrono.ChVector3d(0, 0, 10), 100000)
-vis.AddLightPoint(chrono.ChVector3d(10, 0, 10), 100000)
+sensor_manager = veh.ChSensorManager(vehicle.GetSystem())
+vehicle.AttachSensorManager(sensor_manager)
 
 
-sensor_manager = veh.ChSensorManager()
-sensor_manager.AttachTo_vehicle(vehicle.GetVehicle().GetChassisBody())
+light1 = irr.ChLightPoint()
+light1.SetIntensity(200)
+light1.SetPos(chrono.ChVector3d(5, 5, 10))
+vis.GetSystem().AddLight(light1)
+
+light2 = irr.ChLightPoint()
+light2.SetIntensity(200)
+light2.SetPos(chrono.ChVector3d(-5, -5, 10))
+vis.GetSystem().AddLight(light2)
 
 
-camera_sensor = veh.ChCameraSensor(sensor_manager, 
-                                  1920, 1080,  
-                                  90)         
-camera_sensor.SetPosition(chrono.ChVector3d(0, 0, 1.5))  
+camera = sens.ChCameraSensor()
+camera.SetResolution(1920, 1080)
+camera.SetFieldOfView(90)
+camera.SetPosition(chrono.ChVector3d(0, 0, 1.5))  
+camera.SetRotation(chrono.ChQuaterniond(1, 0, 0, 0))
 
 
-camera_filter = irr.ChCameraFilter(sensor_manager)
-camera_filter.SetWindowTitle('Camera View')
-camera_filter.SetWindowSize(800, 600)
-vis.AddSensorFilter(camera_filter)
+renderer = sens.ChRendererSensor()
+renderer.SetCamera(camera)
+renderer.SetUpdateRate(render_step_size)
+sensor_manager.AddSensor(renderer)
+
+
+chassis = vehicle.GetChassis()
+chassis.AttachSensor(camera)
 
 
 driver = veh.ChInteractiveDriverIRR(vis)
@@ -114,7 +129,7 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 
-print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
+print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 
 
 render_steps = math.ceil(render_step_size / step_size)
@@ -124,11 +139,15 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-while vis.Run():
+while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
 
     
-    if (step_number % render_steps == 0):
+    sensor_manager.Synchronize()
+    sensor_manager.Update()
+
+    
+    if (step_number % render_steps == 0) :
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
@@ -142,9 +161,6 @@ while vis.Run():
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
-    
-    
-    sensor_manager.Update()
 
     
     driver.Advance(step_size)

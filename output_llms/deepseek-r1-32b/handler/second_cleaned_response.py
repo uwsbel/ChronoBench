@@ -7,6 +7,7 @@ from std_msgs.msg import String
 
 class MyCustomHandler(chros.ChROSHandler):
     
+    message = "Hello, world! At time: "  
 
     def __init__(self, topic):
         super().__init__(1)  
@@ -14,7 +15,6 @@ class MyCustomHandler(chros.ChROSHandler):
         self.topic = topic
         self.publisher: rclpy.publisher.Publisher = None
         self.ticker = 0  
-        self.message = "Hello, world! At time: "  
 
     def Initialize(self, interface: chros.ChROSPythonInterface) -> bool:
         
@@ -27,7 +27,7 @@ class MyCustomHandler(chros.ChROSHandler):
         
         print(f"Publishing {self.message}{self.ticker} ...")
         msg = String()  
-        msg.data = self.message + str(self.ticker)  
+        msg.data = f"{self.message}{self.ticker}"  
         self.publisher.publish(msg)  
         self.ticker += 1  
 
@@ -50,7 +50,7 @@ def main():
     
     box = ch.ChBodyEasyBox(1, 1, 1, 1000, True, True, phys_mat)
     box.SetPos(ch.ChVector3d(0, 0, 5))  
-    box.SetRot(ch.QuatFromAngleAxis(0.2, ch.ChVector3d(1, 0, 0)))  
+    box.SetRot(ch.QuatFromAngleAxis(.2, ch.ChVector3d(1, 0, 0)))  
     box.SetName("box")  
     sys.Add(box)  
 

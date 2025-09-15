@@ -14,7 +14,7 @@ initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 vis_type = veh.VisualizationType_PRIMITIVES  # Changed from MESH to PRIMITIVES
 
 # Collision type for chassis (PRIMITIVES, MESH, or NONE)
-chassis_collision_type = veh.CollisionType_PRIMITIVES  # Added collision with primitives
+chassis_collision_type = veh.CollisionType_PRIMITIVES  # Added primitive collision
 
 # Type of tire model (RIGID, TMEASY)
 tire_model = veh.TireModelType_TMEASY
@@ -42,7 +42,7 @@ render_step_size = 1.0 / 50  # FPS = 50
 # Create the Gator vehicle, set parameters, and initialize
 vehicle = veh.Gator()
 vehicle.SetContactMethod(contact_method)
-vehicle.SetChassisCollisionType(chassis_collision_type)
+vehicle.SetChassisCollisionType(chassis_collision_type)  # Now using primitive collision
 vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
@@ -50,7 +50,7 @@ vehicle.SetTireStepSize(tire_step_size)
 
 vehicle.Initialize()
 
-vehicle.SetChassisVisualizationType(vis_type)
+vehicle.SetChassisVisualizationType(vis_type)  # Visualization now uses primitives
 vehicle.SetSuspensionVisualizationType(vis_type)
 vehicle.SetSteeringVisualizationType(vis_type)
 vehicle.SetWheelVisualizationType(vis_type)
@@ -71,7 +71,6 @@ patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
-
 # -------------------------------------
 # Create the vehicle Irrlicht interface
 # Create the driver system
@@ -87,15 +86,13 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
-
 # Create the driver system
 driver = veh.ChInteractiveDriverIRR(vis)
 
-# Set the time response for steering and throttle keyboard inputs.
-# Increased times to make driver less responsive
+# Make driver less responsive by increasing time constants
 steering_time = 2.0  # Increased from 1.0
 throttle_time = 2.0  # Increased from 1.0
-braking_time = 0.6   # Increased from 0.3
+braking_time = 0.5   # Increased from 0.3
 
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)

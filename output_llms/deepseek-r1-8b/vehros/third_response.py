@@ -3,6 +3,7 @@ import pychrono.vehicle as veh
 import pychrono.ros as chros
 from pychrono import irrlicht as chronoirr
 import math
+import pychrono.sensor as sens  # Added import for sensor functionalities
 
 def main():
     veh.SetDataPath(ch.GetChronoDataPath() + 'vehicle/')
@@ -25,34 +26,38 @@ def main():
     hmmwv.SetWheelVisualizationType(veh.VisualizationType_MESH)
     hmmwv.SetTireVisualizationType(veh.VisualizationType_MESH)
     
-    # Create and configure additional sensors
-    sens_manager = ch.ChSensorManager()
-    box = ch.ChBodyEasyBox()
-    box.Attach(hmmwv.GetChassisBody())
-    box.SetSize(ch.ChVector3d(0.5, 0.5, 0.5))
-    box.SetColor(ch.ChColor(1, 0, 0))  # Set box color to red for visibility
+    # Create and configure the sensor manager
+    sens_manager = sens.ChSensorManager()
+    # Add a lidar sensor with configuration
+    lidar_sensor = sens.ChLidarSensor(
+        sens.ChSensorConfig(
+            frequency=10,  # Data update frequency
+            angular_resolution=0.1,  # Degrees per measurement
+            range_min=0.5,  # Minimum range
+            range_max=8.0,  # Maximum range
+            field_of_view=90,  # Field of view
+        ),
+        hmmwv.GetVehicle().GetSystem()
+    )
+    sens_manager.AddSensor(lidar_sensor)
     
-    lidar = ch.ChLidarSensor()
-    lidar.SetMaxDistance(10)  # Set maximum lidar distance
-    lidar.SetResolution(0.01)  # Set lidar resolution
-    lidar.SetLaserColor(ch.ChColor(0, 1, 1))  # Set laser color to cyan
-    lidar.SetFOV(45)  # Set field of view
-    lidar.SetAccuracy(0.1)  # Set accuracy
-    lidar.SetAngularResolution(0.1)  # Set angular resolution
+    # Register ROS handler for lidar data
+    ros_manager = chros.ChROSPythonManager()
+    ros_manager.RegisterHandler(chros.ChROSLidarHandler(25, lidar_sensor, "~/output/lidar/data"))
     
     # Create run-time visualization
     vis = chronoirr.ChVisualSystemIrrlicht()
     vis.AttachSystem(hmmwv.GetSystem())
     vis.SetCameraVertical(ch.CameraVerticalDir_Z)
     vis.SetWindowSize(1280, 720)
-    vis.SetWindowTitle('Viper rover - Rigid terrain with sensors')
+    vis.SetWindowTitle('Viper rover - Rigid terrain with Lidar')
     vis.Initialize()
     vis.AddLogo(ch.GetChronoDataFile('logo_pychrono_alpha.png'))
     vis.AddSkyBox()
-    vis.AddCamera(ch.ChVector3d(-5, 2.5, 1.5))  # Updated camera position
+    vis.AddCamera(ch.ChVector3d(-5, 2.5, 1.5), ch.ChVector3d(0, 0, 1))
     vis.AddTypicalLights()
     vis.AddLightWithShadow(ch.ChVector3d(1.5, -2.5, 5.5), ch.ChVector3d(0, 0, 0.5), 3, 4, 10, 40, 512)
-    vis.AddBody(box)
+    vis.AddChBodyEasyBox(hmmwv.GetChassisBody(), 1, 1, 1, ch.VisualizationColor_Cyan)
     
     # Create and initialize the driver system.
     driver = veh.ChDriver(hmmwv.GetVehicle())
@@ -65,15 +70,15 @@ def main():
     ros_manager.RegisterHandler(chros.ChROSDriverInputsHandler(25, driver, "~/input/driver_inputs"))
     # Register the vehicle state handler to publish vehicle state to ROS topic '~/output/hmmwv/state'.
     ros_manager.RegisterHandler(chros.ChROSBodyHandler(25, hmmwv.GetChassisBody(), "~/output/hmmwv/state"))
-    # Register the lidar handler to publish lidar data to ROS
-    ros_manager.RegisterHandler(chros.ChROSLidarHandler(10, lidar, "~/output/lidar/data"))
+    # Register the lidar data handler to publish lidar data to ROS topic '~/output/lidar/data'.
+    ros_manager.RegisterHandler(chros.ChROSLidarHandler(25, lidar_sensor, "~/output/lidar/data"))
     ros_manager.Initialize()  # Initialize the ROS manager.
 
     # Start the simulation loop.
     time = 0
     time_step = 1e-3  # Define the simulation time step.
     time_end = 30  # Set the total duration of the simulation.
-    # setup render related variables
+    # Setup render related variables
     # Set the simulation time step
     time_step = 1e-3
     step_number = 0
@@ -81,6 +86,7 @@ def main():
     render_step_size = 1.0 / 25  # FPS = 25
     render_steps = math.ceil(render_step_size / time_step)
     hmmwv.GetVehicle().EnableRealtime(True)  # Enable real-time simulation for the vehicle.
+    
     while vis.Run():  # Run the simulation loop.
         time = hmmwv.GetSystem().GetChTime()  # Update simulation time.
         # Render the scene
@@ -102,8 +108,9 @@ def main():
         # Update the ROS manager to handle data publishing.
         if not ros_manager.Update(time, time_step):
             break  # Exit loop if ROS manager update fails.
-        sens_manager.Update(time, time_step)  # Update sensor manager
         step_number += 1
+        # Update the sensor manager
+        sens_manager.Update()
 
 if __name__ == "__main__":
     main()

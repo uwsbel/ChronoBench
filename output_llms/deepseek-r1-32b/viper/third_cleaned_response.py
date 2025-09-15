@@ -14,23 +14,19 @@ chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.0025)
 chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
 
 
-terrain_length = 20.0  
-terrain_width = 20.0   
-mesh_res = 0.2         
+soil_mat = veh.ChSoilMaterialNSC()
+soil_mat.SetYoungModulus(1e7)
+soil_mat.SetPoissonRatio(0.3)
+soil_mat.SetFriction(0.5)
+soil_mat.SetRestitution(0.1)
 
-
-shear_modulus = 100000  
-damping = 0.1          
-cohesion = 1000        
-
-
-soil = veh.ChSoil()
-soil.SetShearModulus(shear_modulus)
-soil.SetDamping(damping)
-soil.SetCohesion(cohesion)
-
-
-terrain = veh.ChDeformableTerrainPlane(system, soil, terrain_length, terrain_width, mesh_res)
+terrain = veh.ChDeformableTerrain()
+terrain.SetPlane(chrono.ChVector3d(0, 0, -1),  
+                100,  
+                100,  
+                0.1,  
+                soil_mat)
+terrain.Initialize()
 system.Add(terrain)
 
 

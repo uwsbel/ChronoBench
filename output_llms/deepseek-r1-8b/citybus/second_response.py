@@ -83,17 +83,12 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 # Create the data-driven driver system
-driver = veh.ChDataDriver()
-# Define the driver input sequence
-driver_input = []
-# At time 0.0: Initial state
-driver_input.append(veh.DataDriverEntry(0.0, 0.0, 0.0, 0.0))
-# At time 0.1: Accelerate
-driver_input.append(veh.DataDriverEntry(0.1, 1.0, 0.0, 0.0))
-# At time 0.5: Steer and maintain acceleration
-driver_input.append(veh.DataDriverEntry(0.5, 1.0, 0.7, 0.0))
-driver.SetDriverInputs(driver_input)
-driver.Initialize()
+driver_inputs = [
+    veh.DataDriverEntry(0.0, 0.0, 0.0, 0.0),  # Time: 0.0, Throttle: 0, Steering: 0, Braking: 0
+    veh.DataDriverEntry(0.1, 1.0, 0.0, 0.0),  # Time: 0.1, Throttle: 1, Steering: 0, Braking: 0
+    veh.DataDriverEntry(0.5, 1.0, 0.7, 0.0)   # Time: 0.5, Throttle: 1, Steering: 0.7, Braking: 0
+]
+driver = veh.ChDataDriver(driver_inputs)
 
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)

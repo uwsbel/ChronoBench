@@ -1,89 +1,66 @@
-import PyChrono as pc
-import OpenCV as cv
-import Irrlicht as irt
-from math import sqrt
+import pychrono as pychrono
+from pychrono import VehicleChassis, Driver, Suspension, Accessory, IMU, GPS, Terrain, IrrlichtRenderer
 
 
-pc.init()
-irt.init()
+sim = pychrono.Simulation()
+sim.set_time_step(0.01)  
 
 
-chassis = pc.VehicleChassis("HMMWV", 4, 8, [0, 0, 0])  
-chassis.set_name("HMMWV")
-chassis.set_mass(2000)  
+vehicle = VehicleChassis("HMMWV", mass=1500)  
+sim.add_vehicle(vehicle)
 
 
-for i in range(4):
-    wheel = pc.Wheel(chassis, "wheel", 0.5, 0.5, 0.2, 0.3)  
-    wheel.set_position([0, 0, 0.3])  
-    chassis.add_wheel(wheel, i)
+driver = Driver(name="Driver", vehicle=vehicle)
+sim.add_driver(driver)
 
 
-terrain = pc.Terrain("ground", pc.Plane([0, 0, 0], 0, 10, 0.1))  
-
-obstacles = []
-for _ in range(10):
-    obj = pc.Sphere(0.5, "rocks", 10, 1, 1, 0, 0, 0)  
-    obstacles.append(obj)
-    obj.set_position([pc.get_random_value(-10, 10), pc.get_random_value(-10, 10), 0])
-terrain.add_objects(obstacles)
+gun_accessory = Accessory(name="Gun", mass=50, dimensions=(0.5, 0.5, 1.5))
+vehicle.add_accessory(gun_accessory)
 
 
-imu = pc.IMUSensor(chassis, "IMU", 0.1, 0.01)  
-imu.set_position([0, 0, 0.3])  
-imu.set_gravity(pc.Vector3(0, 0, -9.81))  
+suspension = Suspension(name="HMMWV_Suspension", vehicle=vehicle, spring_rate=100000, damping=100)
+vehicle.add_physical(suspension)
 
 
-gps = pc.GPSSensor(chassis, "GPS", 0.1)  
-gps.set_position([0, 0, 0.3])  
+imu = IMU(name="IMU", vehicle=vehicle)
+gps = GPS(name="GPS", vehicle=vehicle)
+vehicle.add_sensor(imu)
+vehicle.add_sensor(gps)
 
 
-driver = pc.DriverInputSystem(chassis, "HMMWV", 0.1)  
-driver.set_control_mode(pc.DriverControlMode.AUTOMATIC)  
-driver.set_acceleration_limit(0.5)  
+terrain = Terrain(name="Terrain", dimensions=(100, 100, 1))
+sim.add_terrain(terrain)
 
 
-camera = pc.Camera("main_camera", 640, 480, 0, 0, 0, 0, 0)  
-renderer = pc.Renderer("renderer", 640, 480, 0, 0, 0, 0, 0)  
-renderer.set_lighting(True)  
-renderer.set_skybox(True)  
-renderer.set_fov(45)  
-renderer.set_color(True, True, True)  
-renderer.update()
+renderer = IrrlichtRenderer(sim, camera_position=(0, 5, 5), camera_rotation=(0, 0, 0))
+renderer.set_light_source(position=(10, 10, 10), color=(1, 1, 1), intensity=1)
+renderer.set_up_direction(0, 0, 1)
+sim.add_visual_renderer(renderer)
 
 
-chassis.set_mass(2000)  
-moments = [0, 0, 0]
-for wheel in chassis.get_wheels():
-    pos = wheel.get_position()  
-    moments += [0] * 3  
-    moments += [pos[0], pos[1], pos[2]]  
-chassis.set_inertia(pc.Vector3(moments[0], moments[1], moments[2]))
-
-
-running = True
-while running:
+while True:
+    
+    driver_input = driver.get_input()
+    
+    
+    vehicle.update()
+    vehicle.apply_forces()
+    vehicle.update_position()
+    vehicle.check_collisions()
+    
     
     imu.update()
     gps.update()
     
     
-    driver.update()
-    
-    
-    pc.step_simulation()
-    
-    
     renderer.update()
-    cv.imshow("Simulation", renderer.get_frame())
     
     
-    print(f"Vehicle Mass: {chassis.get_mass()}")
+    print(f"Vehicle Mass: {vehicle.get_mass()}")
     
     
-    if cv.waitKey(1) & 0x27:
-        running = False
-
-
-pc.shutdown()
-cv.destroyAllWindows()
+    sim.step()
+    
+    
+    if sim.get_time() > 1000:
+        break

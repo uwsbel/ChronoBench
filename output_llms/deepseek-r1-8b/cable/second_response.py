@@ -79,16 +79,17 @@ vis.AddCamera(chrono.ChVector3d(0, 0.6, -1))  # Add a camera with specific posit
 vis.AddTypicalLights()  # Add typical lights for better illumination
 
 # Set solver type and settings
-solver = chrono.ChSolverMINRES()  # Choose MINRES solver
+solver = chrono.ChSolverMINRES()
 if solver.GetType() == chrono.ChSolver.Type_MINRES:
     print("Using MINRES solver")
+sys.SetSolver(solver)
 solver.SetMaxIterations(200)  # Set maximum number of iterations
 solver.SetTolerance(1e-10)  # Set solver tolerance
 solver.EnableDiagonalPreconditioner(True)  # Enable diagonal preconditioner
 solver.EnableWarmStart(True)  # Enable warm start
 solver.SetVerbose(False)  # Disable verbose output
 
-# Set timestepper for the simulation
+# Set the timestepper for the simulation
 ts = chrono.ChTimestepperEulerImplicitLinearized(sys)
 sys.SetTimestepper(ts)
 
@@ -98,18 +99,3 @@ while vis.Run():
     vis.Render()  # Render the scene
     vis.EndScene()  # End scene rendering
     sys.DoStepDynamics(0.01)  # Advance the simulation by one step with a time step of 0.01 seconds
-
-msection_cable2.SetRayleighDamping(0.0001)
-
-builder.GetLastBeamNodes().front().SetForce(chrono.ChVector3d(0, -0.7, 0))
-
-if solver.GetType() == chrono.ChSolver.Type_MINRES:
-         print("Using MINRES solver")
-     solver.SetMaxIterations(200)
-     solver.SetTolerance(1e-10)
-     solver.EnableDiagonalPreconditioner(True)
-     solver.EnableWarmStart(True)
-     solver.SetVerbose(False)
-
-mesh.AddVisualShapeFEA(visualizebeamA)
-     mesh.AddVisualShapeFEA(visualizebeamB)

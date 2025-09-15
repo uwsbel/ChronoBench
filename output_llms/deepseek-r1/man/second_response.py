@@ -3,7 +3,6 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
-
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
@@ -20,7 +19,7 @@ chassis_collision_type = veh.CollisionType_NONE
 # Type of tire model (RIGID, TMEASY)
 tire_model = veh.TireModelType_TMEASY
 
-# Terrain parameters
+# Terrain dimensions
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
 
@@ -57,22 +56,22 @@ vehicle.SetTireVisualizationType(vis_type)
 
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
-# Create the terrain with heightmap
+# Create the terrain with height map
 patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 
-# Add heightfield patch with hills
+# Add height field terrain with hills
+heightfield_file = chrono.GetChronoDataFile("height_maps/bump64.png")  # Height map for hills
 patch = terrain.AddHeightfield(
-    patch_mat,
-    chrono.GetChronoDataFile("heightmaps/bump.jpg"),  # Example heightmap
-    terrainLength,
-    terrainWidth,
-    0.0,  # Minimum height
-    5.0,  # Maximum height
-    chrono.ChVector3d(0, 0, 0),  # Center position
-    chrono.ChVector3d(0, 0, 0)  # Rotation (no rotation)
+    patch_mat, 
+    heightfield_file, 
+    terrainLength, 
+    terrainWidth, 
+    0,       # min height
+    3.0,     # max height (creates hills)
+    chrono.ChVector3d(0, 0, 0)  # center
 )
 patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)  # Changed texture
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
@@ -80,7 +79,7 @@ terrain.Initialize()
 
 # Create the vehicle Irrlicht interface
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
-vis.SetWindowTitle('MAN 5t Demo')  # Updated window title
+vis.SetWindowTitle('MAN 5t Demo')  # Updated title
 vis.SetWindowSize(1280, 1024)
 vis.SetChaseCamera(trackPoint, 15.0, 0.5)
 vis.Initialize()
@@ -102,7 +101,8 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 
 driver.Initialize()
 
-print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
+# output vehicle mass
+print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
@@ -112,30 +112,31 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-while vis.Run():
+while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
-    
-    # Render scene
-    if step_number % render_steps == 0:
+    # Render scene and output POV-Ray data
+    if (step_number % render_steps == 0) :
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
         render_frame += 1
-    
     # Get driver inputs
     driver_inputs = driver.GetInputs()
 
-    # Update modules
+    # Update modules (process inputs from other modules)
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
 
-    # Advance simulation
+    # Advance simulation for one timestep for all modules
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
 
+    # Increment frame number
     step_number += 1
+
+    # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
