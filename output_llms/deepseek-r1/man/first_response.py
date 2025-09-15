@@ -1,86 +1,92 @@
 import os
+import math
 import pychrono as chrono
 import pychrono.vehicle as veh
 import pychrono.irrlicht as irr
 
-# 1. Initialize PyChrono environment
-chrono.SetChronoDataPath(os.path.join(os.environ['CHRONO_DATA_DIR'], 'data/'))
-system = chrono.ChSystemSMC()
+# ----------------------------
+# Initialize PyChrono system
+# ----------------------------
+system = chrono.ChSystemNSC()
 system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
+system.SetSolverMaxIterations(50)
 
-# 2. Create vehicle system
-vehicle = veh.MAN_5t_Vehicle()
-vehicle.SetContactMethod(chrono.ChContactMethod_SMC)
-vehicle.SetChassisFixed(False)
-vehicle.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0.5), chrono.QUNIT))
-vehicle.SetTireType(veh.TireModelType_TMEASY)
-vehicle.Initialize()
+# ----------------------------
+# Create vehicle system
+# ----------------------------
+# Set data path for vehicle models
+veh.SetDataPath(chrono.GetChronoDataPath() + "vehicle/")
 
-# Configure visualization
-vehicle.SetChassisVisualizationType(veh.VisualizationType_PRIMITIVES)
-vehicle.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
-vehicle.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
-vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
+# Initialize MAN 10t truck
+man = veh.MAN_5t_Vehicle(system)
+man.SetContactMethod(chrono.ChContactMethod_NSC)
+man.SetChassisCollision(True)
+man.SetChassisFixed(False)
+man.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 1.0), chrono.QUNIT))
+man.SetTireType(veh.TireModelType_TMEASY)
+man.Initialize()
 
-# Configure TMEASY tires
-tire_pressure = 100000  # Pa
-for axle in vehicle.GetAxles():
-    tire_l = axle.m_wheels[0].GetTire()
-    tire_r = axle.m_wheels[1].GetTire()
-    tire_l.SetVisualizationType(veh.VisualizationType_MESH)
-    tire_r.SetVisualizationType(veh.VisualizationType_MESH)
-    tire_l.SetPressure(tire_pressure)
-    tire_r.SetPressure(tire_pressure)
+man.SetChassisVisualizationType(veh.VisualizationType_PRIMITIVES)
+man.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
+man.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
+man.SetWheelVisualizationType(veh.VisualizationType_MESH)
+man.SetTireVisualizationType(veh.VisualizationType_MESH)
 
-# 3. Create and configure rigid terrain
+# ----------------------------
+# Create rigid terrain
+# ----------------------------
 terrain = veh.RigidTerrain(system)
-patch = terrain.AddPatch(chrono.ChCoordsysD(), 
-                        chrono.ChVectorD(100, 100, 1), 
-                        chrono.ChVectorD(0, 0, 1))
-patch.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 100, 100)
-patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+patch_mat = chrono.ChMaterialSurfaceNSC()
+patch_mat.SetFriction(0.9)
+patch_mat.SetDampingF(0.2)
+patch = terrain.AddPatch(patch_mat, 
+                        chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT), 
+                        100, 100)
+patch.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 200, 200)
 terrain.Initialize()
 
-# 4. Set up Irrlicht visualization
+# ----------------------------
+# Create Irrlicht visualization
+# ----------------------------
 vis = irr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
+vis.SetWindowTitle("MAN Truck Simulation")
 vis.SetWindowSize(1280, 720)
-vis.SetWindowTitle('MAN 10t Truck Simulation')
 vis.Initialize()
-vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))
 vis.AddSkyBox()
-vis.AddCamera(chrono.ChVectorD(-5, 0, 2), chrono.ChVectorD(0, 0, 0.5))
-vis.AddLightWithShadow(chrono.ChVectorD(-10, 10, 10), chrono.ChVectorD(0, 0, 0), 50, 10, 50, 8192)
+vis.AddCamera(chrono.ChVectorD(6, 6, 2), chrono.ChVectorD(0, 0, 1))
+vis.AddTypicalLights()
 
-# 5. Create interactive driver
-driver = veh.InteractiveDriver(vis)
-driver.SetSteeringDelta(0.02)
-driver.SetThrottleDelta(0.02)
-driver.SetBrakingDelta(0.06)
+# ----------------------------
+# Real-time driver controls
+# ----------------------------
+driver = veh.ChInteractiveDriverIRR(vis)
+steering_controller = veh.ChSteeringControllerSMC()
+driver.SetSteeringController(steering_controller)
 driver.Initialize()
 
-# Simulation loop parameters
-time_step = 0.002
-real_time_step = 0.02
-time = 0.0
+# ----------------------------
+# Simulation loop
+# ----------------------------
+step_size = 0.005
+realtime_timer = chrono.ChRealtimeStepTimer()
 
 while vis.Run():
     time = system.GetChTime()
-    
-    # Update driver inputs
-    driver.Synchronize(time)
-    
-    # Advance simulation
-    vehicle.Synchronize(time, driver.GetInputs(), terrain)
-    terrain.Synchronize(time)
-    vis.Synchronize(time, driver.GetInputs())
-    
-    # Advance dynamics
-    system.DoStepDynamics(time_step)
     
     # Update visualization
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
     
-    time += real_time_step
+    # Driver inputs
+    driver_inputs = driver.GetInputs()
+    man.DriverInputs(driver_inputs)
+    
+    # Simulation step
+    man.Synchronize(time, driver_inputs, terrain)
+    terrain.Synchronize(time)
+    system.DoStepDynamics(step_size)
+    
+    realtime_timer.Spin(step_size)

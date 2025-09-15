@@ -1,63 +1,50 @@
-import pychrono as chrono
-import pychrono.irrlicht as chronoirr
+import chrono
+from chrono import ChSystemNSC, ChBodyEasyBox, ChLinkTSDA, ChVector3d, ChColor
+from chrono.irrlicht import ChVisualSystemIrrlicht
 
-def main():
-    
-    system = chrono.ChSystemNSC()
-    system.SetGravitationalAcceleration(chrono.ChVector3d(0, -9.81, 0))
 
-    
-    
-    ground = chrono.ChBody()
-    ground.SetFixed(True)
-    ground.SetPos(chrono.ChVector3d(0, 0, 0))
-    ground_box = chrono.ChBoxShape(chrono.ChVector3d(1, 0.5, 1))
-    ground_box.SetColor(chrono.ChColor(0.2, 0.6, 0.2))
-    ground.AddVisualShape(ground_box)
-    system.Add(ground)
+system = ChSystemNSC()
 
-    
-    mass = chrono.ChBody()
-    mass.SetPos(chrono.ChVector3d(0, 2, 0))
-    mass.SetMass(1.0)
-    mass_sphere = chrono.ChSphereShape(0.2)
-    mass_sphere.SetColor(chrono.ChColor(0.8, 0.2, 0.2))
-    mass.AddVisualShape(mass_sphere)
-    system.Add(mass)
 
-    
-    spring = chrono.ChLinkTSDA()
-    spring.Initialize(ground, mass, 
-                     chrono.ChVector3d(0, 0, 0),  
-                     chrono.ChVector3d(0, 0, 0))   
-    spring.SetSpringCoefficient(100)  
-    spring.SetDampingCoefficient(5)   
-    system.Add(spring)
+ground = chrono.ChBody()
+ground.SetFixed(True)
+system.Add(ground)
 
-    
-    spring_shape = chrono.ChSpringShape()
-    spring_shape.SetSpringRadius(0.1)
-    spring_shape.SetNumCoils(8)
-    spring_shape.SetColor(chrono.ChColor(0.2, 0.2, 0.8))
-    spring.AddVisualShape(spring_shape)
 
-    
-    vis = chronoirr.ChVisualSystemIrrlicht()
-    vis.AttachSystem(system)
-    vis.SetWindowSize(1024, 768)
-    vis.SetWindowTitle('Mass-Spring-Damper System')
-    vis.Initialize()
-    vis.AddCamera(chrono.ChVector3d(0, 3, 6), chrono.ChVector3d(0, 0, 0))
-    vis.AddTypicalLights()
-    vis.AddSkyBox()
+mass = ChBodyEasyBox(0.2, 0.2, 0.2, 1000)  
+mass.SetPos(ChVector3d(0, 0, 2))          
+mass.GetVisualShape(0).SetColor(ChColor(1, 0, 0))  
+system.Add(mass)
 
-    
-    time_step = 0.001
-    while vis.Run():
-        vis.BeginScene()
-        vis.Render()
-        vis.EndScene()
-        system.DoStepDynamics(time_step)
 
-if __name__ == '__main__':
-    main()
+spring = ChLinkTSDA()
+spring.Initialize(ground, mass, 
+                  ChVector3d(0, 0, 0),   
+                  ChVector3d(0, 0, 0))   
+spring.SetSpringCoefficient(100)        
+spring.SetDampingCoefficient(5)         
+spring.SetRestLength(2)                 
+system.Add(spring)
+
+
+spring_shape = chrono.ChSpringShape(0.05, 80, 15)  
+spring.AddVisualShape(spring_shape)
+
+
+vis = ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle('Mass-Spring-Damper System')
+vis.Initialize()
+vis.AddCamera(ChVector3d(0, -3, 2), ChVector3d(0, 0, 2))  
+vis.AddTypicalLights()  
+
+
+time_step = 0.001
+
+
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    system.DoStepDynamics(time_step)

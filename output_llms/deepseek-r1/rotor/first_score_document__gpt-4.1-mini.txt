@@ -4,150 +4,128 @@
 
 ### 1. Completeness (40 points)
 
-- **System Initialization:** Present and correct (`chrono.ChSystemNSC()`), with gravity set to zero. No deduction.
-- **Body Creation:** 
-  - Beam mesh and beam section created properly.
-  - Flywheel created with `ChBodyEasyCylinder` and added to system.
-  - Motor body and fixed bodies created and added.
-  - Nodes and links between beam and flywheel, motor, and fixed bodies are created.
-- **Visualization:** 
-  - Visualization system (`ChVisualSystemIrrlicht`) created and attached.
-  - Camera and lights added.
-  - Beam visualization added.
-  - Flywheel visual shape added.
+- **System Initialization:** Present and correctly done with `chrono.ChSystemNSC()`.  
+- **Gravity Setting:** Present but set to zero vector `Set_G_acc(chrono.ChVectorD(0, 0, 0))`. This is unusual for a rotor simulation, but not necessarily incorrect. No deduction here as it might be intentional.  
+- **Beam Creation:** Uses `fea.ChBuilderBeamIGA()` to build the beam, which is appropriate.  
+- **Beam Section:** Properly defined with density, Young's modulus, Poisson ratio, and circular section.  
+- **Body Creation:** Flywheel and motor bodies are created and added to the system.  
+- **Joints:** Uses `ChLinkPointFrame` to connect nodes to bodies. However, `ChLinkPointFrame` is a very generic link that constrains a point on a body to a frame on another body. For a rotor or beam with rotational DOFs, more appropriate joints (like revolute or spherical) might be expected. No explicit revolute joint is used for the motor or flywheel connection. This is a **missing essential component** for correct rotor simulation.  
+- **Motor:** Properly created with `ChLinkMotorRotationSpeed` and initialized.  
+- **Visualization:** Uses `chronoirr.ChIrrApp` with lights, camera, and visualization of beam mesh.  
 - **Simulation Loop:** Present and correctly structured.
 
-**Minor omissions or slight deviations:**
+**Deductions:**  
+- Missing appropriate joint type (e.g., revolute joint) for flywheel and motor connections: **-15 points** (essential component missing for correct mechanical behavior).  
+- Minor omission: The motor anchor body is created but not positioned explicitly; it defaults to origin, which is acceptable but could be clearer. No deduction here.  
+- Minor omission: No collision or contact materials are defined, but since this is a rotor simulation without contact, this is acceptable.  
+- Minor omission: No damping or other beam properties like Rayleigh damping are set, which could be important for realistic simulation but not strictly essential. No deduction.
 
-- The flywheel visual shape is created with `ChVisualShapeCylinder(flywheel_radius, flywheel_thick/2)`. According to the documentation, `ChVisualShapeCylinder(radius, height)` expects height as the second parameter. The flywheel thickness is halved here, which may be intentional for visualization, but it is not explained or commented. This is a minor omission in clarity/documentation, not completeness.
-
-- The motor body is created with `SetBodyFixed(False)` but no mass or inertia is set. This is incomplete because a dynamic body should have mass and inertia defined for proper simulation behavior.
-
-- The motor link is initialized between `motor_body` and `chrono.ChBody()`. The second body is a default-constructed `ChBody()` which is not added to the system and has no properties set. This is a significant omission and likely incorrect usage.
-
-- The flywheel is linked to the beam node with `ChLinkNodeBodyPositionRotation(node_center, flywheel)`. This is correct usage.
-
-- The fixed bodies at the beam ends are created and linked properly.
-
-**Deductions:**
-
-- Missing mass/inertia for `motor_body`: **-15 points** (essential component detail missing).
-- Incorrect or incomplete motor link initialization (second body is default and not added): **-15 points** (essential component incorrectly configured).
-- Minor omission in flywheel visual shape explanation/documentation: **-5 points**.
-
-**Subtotal Completeness: 40 - 15 - 15 - 5 = 5 points**
+**Completeness score:** 40 - 15 = **25**
 
 ---
 
 ### 2. Correctness (30 points)
 
-- **System and mesh setup:** Correct.
-- **Beam builder usage:** Correct.
-- **Flywheel creation:** Correct.
-- **Linking flywheel to beam node:** Correct.
-- **Motor body:** Created but no mass/inertia set, which will cause simulation errors or unexpected behavior.
-- **Motor link:** Initialized with `motor_body` and a default `ChBody()` not added to system. This is incorrect and will cause simulation errors.
-- **Fixed bodies:** Properly fixed and linked.
-- **Visualization:** Correct.
-- **Simulation loop:** Correct.
+- **API usage:**  
+  - `system.Set_G_acc` is incorrectly named; the correct method is `Set_G_acc` or `Set_G_acceleration`? According to the documentation, the method to set gravity is `Set_G_acc`. The code uses `Set_G_acc`, which is correct. No deduction.  
+  - `beam_section.SetGwithPoissonRatio(nu)` is used. According to the API, `SetGwithPoissonRatio` is a valid method to set shear modulus from Poisson ratio. Correct usage.  
+  - `chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, 0.2, 0.05, density)` is used to create the flywheel. The API documentation shows `ChBodyEasyCylinder(radius, height, density, visualize, collision, material)`. The first argument should be radius, not an axis. The constructor signature is:  
+    `ChBodyEasyCylinder(radius, height, density, visualize=True, collision=True, material=None)`  
+    The code passes `chrono.ChAxis_Y` as the first argument, which is incorrect. This is a **significant API misuse** that will cause the flywheel to be created incorrectly or raise an error.  
+  - `link.Initialize(center_node, flywheel)` is used. According to the documentation, `ChLinkPointFrame.Initialize` expects `(body1, body2)`. `center_node` is a FEA node, not a body. This is a **logical error** because nodes are not bodies and cannot be linked directly with `ChLinkPointFrame`. The correct approach is to link bodies, not nodes to bodies.  
+  - Similarly, `link_motor.Initialize(motor_node, motor_body)` has the same issue.  
+  - `motor.Initialize(motor_anchor, motor_body, chrono.ChFrameD(motor_body.GetPos(), chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0))))` is mostly correct, but `chrono.Q_from_AngAxis(0, ...)` is a zero rotation quaternion, which is fine but redundant. No deduction here.  
+  - Visualization uses `chronoirr.ChIrrApp` instead of `chronoirr.ChVisualSystemIrrlicht()`. The documentation shows `ChVisualSystemIrrlicht` as the visualization system, but `ChIrrApp` is a higher-level wrapper that simplifies setup. This is acceptable and common practice. No deduction.  
+  - The simulation loop uses `app.GetDevice().run()` which is correct for Irrlicht apps.
 
-**Deductions:**
+**Deductions:**  
+- Incorrect use of `ChBodyEasyCylinder` constructor: **-15 points** (significant API misuse).  
+- Logical error linking FEA nodes directly with `ChLinkPointFrame`: **-10 points** (logical error).  
+- Minor redundancy in motor initialization quaternion: no deduction.  
 
-- Incorrect motor link initialization: **-15 points** (significant API misuse affecting simulation behavior).
-- Missing mass/inertia on motor body: **-10 points** (logical error affecting dynamics).
-- Minor: `system.Set_G_acc(chrono.ChVectorD(0, 0, 0))` disables gravity, which may be intentional but is unusual for a beam simulation. No deduction since it might be by design.
-
-**Subtotal Correctness: 30 - 15 - 10 = 5 points**
+**Correctness score:** 30 - 15 - 10 = **5**
 
 ---
 
 ### 3. Code Quality (10 points)
 
-- Variable names are meaningful (`L`, `radius`, `flywheel_radius`, etc.).
-- Code is mostly well structured.
-- Lack of comments explaining key steps, especially for complex parts like motor link initialization and flywheel linking.
-- Some inconsistent spacing (e.g., blank lines missing between logical blocks).
-- No docstrings or inline comments.
+- The code is mostly readable with meaningful variable names (`system`, `builder`, `nodes`, `flywheel`, `motor_body`, etc.).  
+- However, there are no comments explaining the purpose of code blocks or parameters, which is important for maintainability and clarity.  
+- The code formatting is acceptable but could be improved with blank lines separating logical blocks.  
+- The use of magic numbers (e.g., `0.001` timestep) without explanation is a minor issue.
 
-**Deductions:**
+**Deductions:**  
+- Lack of comments: **-5 points**  
+- Minor formatting/readability issues: **-2 points**
 
-- Lack of comments/documentation: **-5 points**.
-- Minor readability issues (spacing, no docstrings): **-3 points**.
-
-**Subtotal Code Quality: 10 - 5 - 3 = 2 points**
+**Code Quality score:** 10 - 5 - 2 = **3**
 
 ---
 
 ### 4. Efficiency (10 points)
 
-- No obvious redundant calculations.
-- The motor body is created but not properly initialized, which could cause unnecessary computations or simulation instability.
-- The flywheel visual shape is created with half thickness, which might be a minor optimization or a mistake.
-- No obvious inefficiencies in the simulation loop.
+- No obvious redundant calculations or inefficient API usage.  
+- The use of `int(n_elements/2)` is fine but could use `n_elements // 2` for integer division in Python. Minor optimization opportunity.  
+- The motor speed function is constant, which is efficient.  
+- Visualization assets are added once and updated properly.
 
-**Deductions:**
+**Deductions:**  
+- Minor optimization opportunity in integer division: **-3 points**
 
-- Inefficient motor body setup (missing mass/inertia): **-5 points**.
-- Minor optimization opportunity: adding `SetWindowSize` and `SetWindowTitle` to visualization for better control (not critical): **-3 points**.
-
-**Subtotal Efficiency: 10 - 5 - 3 = 2 points**
+**Efficiency score:** 10 - 3 = **7**
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- No error handling or checks for node existence or mesh validity.
-- No try-except blocks or validation of inputs.
-- No handling of edge cases (e.g., zero elements, invalid parameters).
-- This is common in simulation scripts but still a best practice.
+- No error handling or checks for invalid inputs or states.  
+- No try-except blocks or validation of node indices before accessing them.  
+- No handling of possible failures in visualization initialization or system setup.
 
-**Deductions:**
+**Deductions:**  
+- Lack of basic error handling: **-5 points**
 
-- Lack of basic error handling: **-5 points**.
-
-**Subtotal Error Handling: 0 points**
+**Error Handling score:** 0
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
-- Visualization system created and attached correctly.
-- Camera and lights added.
-- No `SetWindowSize` or `SetWindowTitle` calls (minor).
-- No skybox or logo added (optional).
-- Flywheel visual shape added but no color set; texture is set, which is good.
-- Beam visualization uses color scale and smooth faces.
+- Visualization setup uses `ChIrrApp` which is acceptable and simplifies the process.  
+- Adds typical lights and camera, but no skybox or logo, which are optional but recommended for better visualization.  
+- Visualization of beam mesh is done with appropriate data type and color scale.  
+- The camera position is reasonable.  
+- Minor issue: `chronoirr.vector3df` is used instead of `chrono.ChVector3d` for camera positioning, which is correct since Irrlicht uses its own vector type. No deduction.  
+- No explicit call to `app.Initialize()` or `app.AssetBindAll()` before the loop, but `AssetBindAll()` and `AssetUpdateAll()` are called.  
+- The simulation loop uses `app.GetDevice().run()` which is correct.
 
-**Deductions:**
+**Deductions:**  
+- Minor visualization issue: no skybox or logo: **-2 points**
 
-- Minor visualization issues (missing window size/title): **-2 points**.
-
-**Subtotal Visualization: 5 - 2 = 3 points**
-
----
-
-### **Final Score Calculation**
-
-| Category                  | Points | Deductions | Score |
-|---------------------------|--------|------------|-------|
-| Completeness              | 40     | 35         | 5     |
-| Correctness               | 30     | 25         | 5     |
-| Code Quality              | 10     | 8          | 2     |
-| Efficiency                | 10     | 8          | 2     |
-| Error Handling & Robustness | 5      | 5          | 0     |
-| Visualization             | 5      | 2          | 3     |
-| **Total**                 | 100    | 83         | **17**|
+**Visualization score:** 5 - 2 = **3**
 
 ---
 
-### Summary of Major Issues:
+### **Summary of deductions:**
 
-- Motor link initialized incorrectly with a default `ChBody()` not added to the system.
-- Motor body lacks mass and inertia, which is critical for dynamic simulation.
-- No error handling or input validation.
-- Lack of comments/documentation.
-- Minor visualization setup omissions.
+| Criterion                  | Max Points | Deductions | Score |
+|----------------------------|------------|------------|-------|
+| Completeness               | 40         | 15         | 25    |
+| Correctness                | 30         | 25         | 5     |
+| Code Quality               | 10         | 7          | 3     |
+| Efficiency                 | 10         | 3          | 7     |
+| Error Handling & Robustness| 5          | 5          | 0     |
+| Visualization              | 5          | 2          | 3     |
+| **Total**                 | **100**    | **57**     | **43**|
 
 ---
 
-[[17]]
+### **Final score:**
+
+[[43]]
+
+---
+
+### **Explanation:**
+
+The script includes most essential components but misses correct joint types for the rotor assembly, which is critical for accurate simulation. The incorrect constructor usage for the flywheel cylinder is a major API misuse that would break or misrepresent the model. Logical errors in linking FEA nodes directly to bodies with `ChLinkPointFrame` further degrade correctness. The code lacks comments and error handling, reducing maintainability and robustness. Visualization is mostly adequate but could be improved with additional elements like skybox or logos. Minor efficiency and code quality issues also contribute to deductions. Overall, the script needs significant corrections to be fully functional and robust.

@@ -1,48 +1,36 @@
+import os
+import math
 import pychrono as chrono
 import pychrono.vehicle as veh
 import pychrono.irrlicht as irr
-import os
-import math
+from pychrono import ChVector, ChCoordsys
 
 
 
 
-STEP_SIZE = 0.005  
-VISUALIZATION_FPS = 60  
 
-
-
-
+chrono.SetChronoDataPath(os.path.join(os.path.dirname(__file__), 'data/'))
 system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))  
+system.Set_G_acc(ChVector(0, -9.81, 0))
 
 
 
 
 
-init_pos = chrono.ChVectorD(0, 0, 0.5)
-init_rot = chrono.ChQuaternionD(1, 0, 0, 0)
+
+vehicle = veh.HMMWV_Vehicle("HMMWV", veh.ChContactMethod_NSC)
+vehicle.Initialize(ChCoordsys(ChVector(0, 0.5, 0), chrono.QUNIT))
+vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
+vehicle.SetSuspensionVisualizationType(veh.VisualizationType_MESH)
+vehicle.SetSteeringVisualizationType(veh.VisualizationType_MESH)
+vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
 
 
-hmmwv = veh.HMMWV_Full(system)
-hmmwv.SetInitPosition(chrono.ChCoordsysD(init_pos, init_rot))
-hmmwv.SetEngineType(veh.EngineModelType_SHAFTS)  
-hmmwv.SetTransmissionType(veh.TransmissionModelType_AUTOMATIC_SHAFTS)  
-hmmwv.SetDriveType(veh.DrivelineTypeWV_AWD)  
-hmmwv.SetTireType(veh.TireModelType_RIGID)  
+engine = veh.SetEngineTypeSHAFTS(vehicle.GetVehicle(), veh.EngineModelType_SHAFTS)
+transmission = veh.SetDrivelineTypeRWD(vehicle.GetVehicle(), veh.DrivelineTypeWV_SHAFTS)
+vehicle.GetVehicle().InitializePowertrain(engine, transmission)
 
 
-hmmwv.Initialize()
-hmmwv.SetChassisVisualizationType(veh.VisualizationType_MESH)  
-hmmwv.SetSuspensionVisualizationType(veh.VisualizationType_MESH)
-hmmwv.SetSteeringVisualizationType(veh.VisualizationType_MESH)
-hmmwv.SetWheelVisualizationType(veh.VisualizationType_MESH)
-hmmwv.SetTireVisualizationType(veh.VisualizationType_MESH)
-
-
-driver_data = veh.VehicleDriverData()
-driver_data.m_delay = 0.4
-vehicle = hmmwv.GetVehicle()
 
 
 
@@ -50,45 +38,40 @@ vehicle = hmmwv.GetVehicle()
 terrain = veh.RigidTerrain(system)
 
 
-patch1 = terrain.AddPatch(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT),
-                          chrono.ChVectorD(50, 50, 1))
-patch1.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 50, 50)
-patch1.SetColor(chrono.ChColor(0.8, 0.8, 0.8))
+patch1 = terrain.AddPatch(chrono.ChCoordsys(ChVector(-10, 0, 0), chrono.QUNIT), 
+                        chrono.ChVector(20, 1, 10))
+patch1.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 20, 10)
+patch1.SetFriction(0.8)
 
 
-patch2 = terrain.AddPatch(chrono.ChCoordsysD(chrono.ChVectorD(30, 0, 0.1), chrono.QUNIT),
-                          chrono.ChVectorD(20, 30, 1))
-patch2.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 20, 30)
-patch2.SetColor(chrono.ChColor(0.5, 0.4, 0.3))
+patch2 = terrain.AddPatch(chrono.ChCoordsys(ChVector(10, 0, 0), chrono.QUNIT), 
+                        chrono.ChVector(20, 1, 10))
+patch2.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 20, 10)
+patch2.SetFriction(0.6)
 
 
-mesh = chrono.ChTriangleMeshConnected()
-mesh.LoadWavefrontMesh(chrono.GetChronoDataFile("models/bump.obj"))
-bump = chrono.ChBody()
-bump.SetPos(chrono.ChVectorD(15, 0, 0))
-bump.AddAsset(chrono.ChTriangleMeshShape(mesh))
-bump.GetCollisionModel().ClearModel()
-bump.GetCollisionModel().AddTriangleMesh(mesh, False, False)
-bump.GetCollisionModel().BuildModel()
-bump.SetCollide(True)
-system.Add(bump)
+bump_mesh = chrono.ChTriangleMeshConnected()
+bump_mesh.LoadWavefrontMesh(chrono.GetChronoDataFile("models/bump.obj"))
+bump_body = chrono.ChBody()
+bump_body.SetPos(ChVector(5, 0.2, 0))
+bump_shape = chrono.ChTriangleMeshShape(bump_mesh)
+bump_body.AddAsset(bump_shape)
+bump_body.SetBodyFixed(True)
+system.Add(bump_body)
 
 
-heightmap = terrain.AddPatch(chrono.ChCoordsysD(chrono.ChVectorD(0, -20, 0), chrono.QUNIT),
-                            veh.GetDataFile("terrain/height_maps/test64.bmp"), 
-                            "test64", 64, 64, 0, 10)
-heightmap.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 64, 64)
+heightmap = chrono.ChBodyEasyHeightMap(
+    chrono.GetChronoDataFile("heightmaps/bump64.png"),
+    64, 64,  
+    20, 10,   
+    0,        
+    True, True
+)
+heightmap.SetPos(ChVector(0, 0, -15))
+system.Add(heightmap)
 
 terrain.Initialize()
 
-
-
-
-driver = veh.InteractiveDriverIRR(vehicle, "Terrain Test")
-driver.SetSteeringDelta(0.02)
-driver.SetThrottleDelta(0.02)
-driver.SetBrakingDelta(0.06)
-driver.Initialize()
 
 
 
@@ -96,46 +79,42 @@ driver.Initialize()
 vis = irr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
 vis.SetWindowSize(1280, 720)
-vis.SetWindowTitle('HMMWV on Complex Terrain')
+vis.SetWindowTitle('HMMWV Complex Terrain')
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()
-vis.AddCamera(chrono.ChVectorD(10, -10, 2), chrono.ChVectorD(0, 0, 0))
+vis.AddCamera(ChVector(0, 3, -6))
 vis.AddTypicalLights()
 
 
-terrain.AddVisualizationAssets(irr.VISUALIZATION_TYPE_PRIMITIVES, True)
+
+
+
+driver = veh.ChIrrGuiDriver(vis)
+driver.SetSteeringDelta(0.02)
+driver.SetThrottleDelta(0.02)
+driver.SetBrakingDelta(0.02)
+driver.Initialize()
 
 
 
 
-realtime_timer = chrono.ChRealtimeStepTimer()
-frame_interval = 1.0 / VISUALIZATION_FPS
-next_frame_time = 0
 
+time_step = 0.02
 while vis.Run():
     time = system.GetChTime()
     
     
-    driver.Synchronize(time)
+    driver_inputs = driver.GetInputs()
+    vehicle.GetVehicle().Synchronize(time, driver_inputs)
     
     
-    hmmwv.Synchronize(time, driver.GetInputs(), terrain)
-    terrain.Synchronize(time)
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    system.DoStepDynamics(time_step)
     
     
-    system.DoStepDynamics(STEP_SIZE)
-    
-    
-    if time >= next_frame_time:
-        vis.BeginScene()
-        vis.Render()
-        vis.EndScene()
-        next_frame_time += frame_interval
-    
-    
-    driver.Advance(STEP_SIZE)
-    hmmwv.Advance(STEP_SIZE)
-    vis.Synchronize(driver.GetInputModeAsString(), driver.GetInputs())
-    
-    realtime_timer.Spin(STEP_SIZE)
+    vehicle.GetVehicle().Advance(time_step)
+    vis.Synchronize(time, driver_inputs)
+    vis.Advance(time_step)

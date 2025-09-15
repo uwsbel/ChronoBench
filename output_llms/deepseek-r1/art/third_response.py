@@ -40,8 +40,8 @@ render_step_size = 1.0 / 50  # FPS = 50
 
 # Create systems
 
-# Create the vehicle, set parameters, and initialize
-vehicle = veh.Sedan()  # Corrected vehicle type
+# Create the ART vehicle, set parameters, and initialize
+vehicle = veh.ART_Vehicle()  # Corrected vehicle class name
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
@@ -49,9 +49,9 @@ vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 # Modified parameters for increased speed
-vehicle.SetMaxMotorVoltageRatio(0.26)    # Increased from 0.16
-vehicle.SetStallTorque(0.4)              # Increased from 0.3
-vehicle.SetTireRollingResistance(0.03)   # Decreased from 0.06
+vehicle.SetMaxMotorVoltageRatio(0.26)  # Updated from 0.16
+vehicle.SetStallTorque(0.4)            # Updated from 0.3
+vehicle.SetTireRollingResistance(0.03) # Updated from 0.06
 
 vehicle.Initialize()
 
@@ -78,7 +78,7 @@ terrain.Initialize()
 
 # Create the vehicle Irrlicht interface
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
-vis.SetWindowTitle('High-Speed Vehicle Demo')
+vis.SetWindowTitle('ART Vehicle Simulation')
 vis.SetWindowSize(1280, 1024)
 vis.SetChaseCamera(trackPoint, 6.0, 0.5)
 vis.Initialize()
@@ -88,7 +88,7 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 # Create the driver system
-driver = veh.ChIrrGuiDriver(vis)  # Corrected driver class
+driver = veh.ChInteractiveDriverIRR(vis)
 
 # Set the time response for steering and throttle keyboard inputs.
 steering_time = 1.0  # time to go from 0 to +1 (or from 0 to -1)
@@ -103,7 +103,6 @@ driver.Initialize()
 # ---------------
 # Simulation loop
 # ---------------
-
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 render_steps = math.ceil(render_step_size / step_size)

@@ -2,16 +2,15 @@ import pychrono as chrono
 import pychrono.vehicle as veh
 import pychrono.irrlicht as irr
 
-def main():
-    # Simulation step sizes (moved inside main to fix scope error)
-    step_size = 2e-3
-    tire_step_size = 1e-3
+# Simulation step sizes
+step_size = 2e-3
+tire_step_size = 1e-3
 
+def main():
     # Create the HMMWV vehicle, set parameters, and initialize
     hmmwv = veh.HMMWV_Full()
     hmmwv.SetContactMethod(chrono.ChContactMethod_NSC)
     hmmwv.SetChassisFixed(False)
-    # Updated initial position as requested
     hmmwv.SetInitPosition(chrono.ChCoordsysd(chrono.ChVector3d(6, -70, 0.5), chrono.ChQuaterniond(1, 0, 0, 0)))
     hmmwv.SetEngineType(veh.EngineModelType_SIMPLE)
     hmmwv.SetTransmissionType(veh.TransmissionModelType_AUTOMATIC_SIMPLE_MAP)
@@ -28,39 +27,36 @@ def main():
 
     hmmwv.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
-    # Create simplified terrain with single mesh patch
+    # Create simplified terrain with single collision mesh
     terrain = veh.RigidTerrain(hmmwv.GetSystem())
     
-    # Create shared contact material
-    terrain_mat = chrono.ChContactMaterialNSC()
-    terrain_mat.SetFriction(0.9)
-    terrain_mat.SetRestitution(0.01)
+    patch_mat = chrono.ChContactMaterialNSC()
+    patch_mat.SetFriction(0.9)
+    patch_mat.SetRestitution(0.01)
     
-    # Add collision mesh patch
-    patch = terrain.AddPatch(
-        terrain_mat,
-        chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
-        veh.GetDataFile("terrain/meshes/Highway_col.obj")
-    )
-    
-    # Set collision envelope thickness
-    ground_body = terrain.GetGroundBody()
-    ground_body.GetCollisionModel().SetEnvelope(0.01)
-    
-    # Remove default visualization from collision mesh
-    ground_body.GetVisualShapes().clear()
-    
-    # Add custom visual mesh
-    vis_mesh = chrono.ChVisualShapeTriangleMesh()
-    vis_mesh.SetMesh(chrono.ChTriangleMeshConnected())
-    vis_mesh.GetMesh().LoadWavefrontMesh(veh.GetDataFile("terrain/meshes/Highway_vis.obj"))
-    ground_body.AddVisualShape(vis_mesh)
+    # Add collision mesh patch with specified thickness
+    terrain.AddPatch(patch_mat,
+                    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
+                    veh.GetDataFile("terrain/meshes/Highway_col.obj"),
+                    0.0,  # sweep sphere radius
+                    True,  # is static
+                    True,  # collision enabled
+                    0.01)  # contact material thickness
     
     terrain.Initialize()
 
+    # Add visual mesh to terrain
+    ground_body = terrain.GetGroundBody()
+    vis_mesh = chrono.ChTriangleMeshConnected()
+    vis_mesh.LoadWavefrontMesh(veh.GetDataFile("terrain/meshes/Highway_vis.obj"))
+    visual_shape = chrono.ChVisualShapeTriangleMesh()
+    visual_shape.SetMesh(vis_mesh)
+    visual_shape.SetMutable(False)
+    ground_body.AddVisualShape(visual_shape)
+
     # Create the vehicle Irrlicht interface
     vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
-    vis.SetWindowTitle('HMMWV Rigid Terrain Demo')
+    vis.SetWindowTitle('HMMWV Simplified Terrain Demo')
     vis.SetWindowSize(1280, 1024)
     vis.SetChaseCamera(chrono.ChVector3d(0.0, 0.0, 0.75), 6.0, 0.5)
     vis.Initialize()
@@ -103,9 +99,5 @@ def main():
 
     return 0
 
-# Set data path before execution
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
-
-# Execute main function safely
-if __name__ == "__main__":
-    main()
+main()

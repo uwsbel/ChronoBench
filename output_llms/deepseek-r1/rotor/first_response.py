@@ -1,118 +1,87 @@
-import chrono
-import chrono_irrlicht as chronoirr
+import pychrono as chrono
+import pychrono.fea as fea
+import pychrono.irrlicht as chronoirr
 
-# Parameters
-L = 2.0           # Beam length
-radius = 0.05     # Beam cross-sectional radius
-flywheel_radius = 0.3
-flywheel_thick = 0.1
-density = 7850    # Steel density (kg/m³)
-E = 2e11          # Young's modulus (Pa)
-G = 8e10          # Shear modulus (Pa)
-omega = 5.0       # Angular speed (rad/s)
-n_elements = 10   # Number of beam elements
-
-# Create system
+# System setup
 system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, 0, 0))  # No gravity
+system.Set_G_acc(chrono.ChVectorD(0, 0, 0))  # Zero gravity
 
-# Create FEM mesh
-mesh = chrono.ChMesh()
-system.Add(mesh)
+# Beam parameters
+L = 2.0          # Beam length
+n_elements = 10  # Number of finite elements
+beam_diameter = 0.1
+density = 7800   # Material density (kg/m³)
+E = 2e11         # Young's modulus (Pa)
+nu = 0.3         # Poisson's ratio
 
-# Create beam section
-section = chrono.ChBeamSectionEulerAdvanced()
-section.SetAsCircularSection(radius)
-section.SetYoungModulus(E)
-section.SetGshearModulus(G)
-section.SetDensity(density)
-section.SetRayleighDamping(0.01)
+# Create Euler-Bernoulli beam section
+beam_section = fea.ChBeamSectionEuler()
+beam_section.SetDensity(density)
+beam_section.SetYoungModulus(E)
+beam_section.SetGwithPoissonRatio(nu)
+beam_section.SetAsCircularSection(beam_diameter / 2)
 
-# Build IGA beam
-builder = chrono.ChBuilderBeamIGA()
-start_point = chrono.ChVectorD(0, 0, 0)
-end_point = chrono.ChVectorD(0, L, 0)
-builder.BuildBeam(mesh,                  # Mesh to store elements
-                  section,               # Beam section
-                  n_elements,            # Number of elements
-                  start_point,           # Start point
-                  end_point,             # End point
-                  chrono.ChVectorD(1, 0, 0))  # Section direction
+# Build IGA beam using builder
+builder = fea.ChBuilderBeamIGA()
+builder.BuildBeam(system, beam_section, n_elements, 
+                 chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, L, 0))
+nodes = builder.GetLastBeamNodes()
 
-nodes = mesh.GetNodes()
-node_first = nodes[0]
-node_center = nodes[n_elements//2]
-node_last = nodes[-1]
-
-# Create and attach flywheel
-flywheel = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, 
-                                    flywheel_radius, 
-                                    flywheel_thick, 
-                                    density, 
-                                    True)
-flywheel.SetPos(node_center.GetPos())
+# Create flywheel at beam center
+center_node = nodes[int(n_elements/2)]
+flywheel = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, 0.2, 0.05, density)
+flywheel.SetPos(center_node.GetPos())
 system.Add(flywheel)
 
 # Connect flywheel to center node
-link_flywheel = chrono.ChLinkNodeBodyPositionRotation(node_center, flywheel)
-system.Add(link_flywheel)
+link = chrono.ChLinkPointFrame()
+link.Initialize(center_node, flywheel)
+system.Add(link)
 
-# Create rotational motor setup
+# Motor setup (left end)
+motor_node = nodes[0]
 motor_body = chrono.ChBody()
-motor_body.SetBodyFixed(False)
+motor_body.SetPos(motor_node.GetPos())
 system.Add(motor_body)
 
-# Connect motor to ground with rotation constraint
-motor_link = chrono.ChLinkMotorRotationSpeed()
-motor_link.Initialize(motor_body, 
-                     chrono.ChBody(),  # Ground body
-                     chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), 
-                                    chrono.Q_from_AngY(0)))
-motor_link.SetSpeedFunction(chrono.ChFunction_Const(omega))
-system.Add(motor_link)
+# Connect motor body to first node
+link_motor = chrono.ChLinkPointFrame()
+link_motor.Initialize(motor_node, motor_body)
+system.Add(link_motor)
 
-# Fix first node's position
-fixed_body = chrono.ChBody()
-fixed_body.SetBodyFixed(True)
-system.Add(fixed_body)
-link_pos = chrono.ChLinkNodeFrame(node_first, fixed_body)
-system.Add(link_pos)
+# Create and configure rotational motor
+motor_anchor = chrono.ChBody()
+motor_anchor.SetBodyFixed(True)
+system.Add(motor_anchor)
 
-# Connect motor rotation to first node
-link_rot = chrono.ChLinkNodeSlopeFrame(node_first, motor_body)
-system.Add(link_rot)
-
-# Fix last node's position
-fixed_body_end = chrono.ChBody()
-fixed_body_end.SetBodyFixed(True)
-system.Add(fixed_body_end)
-link_pos_end = chrono.ChLinkNodeFrame(node_last, fixed_body_end)
-system.Add(link_pos_end)
+motor = chrono.ChLinkMotorRotationSpeed()
+motor.Initialize(motor_anchor, motor_body, 
+                chrono.ChFrameD(motor_body.GetPos(), 
+                               chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0))))
+motor.SetSpeedFunction(chrono.ChFunction_Const(chrono.CH_C_PI))  # π rad/s
+system.Add(motor)
 
 # Visualization setup
-viz = chronoirr.ChVisualSystemIrrlicht()
-viz.AttachSystem(system)
-viz.Initialize()
-viz.AddCamera(chrono.ChVectorD(0, -L*2, L), chrono.ChVectorD(0, L/2, 0))
-viz.AddTypicalLights()
+app = chronoirr.ChIrrApp(system, "Jeffcott Rotor", 800, 600)
+app.AddTypicalLights()
+app.AddTypicalCamera(chronoirr.vector3df(0, L/2, 1.5), chronoirr.vector3df(0, L/2, 0))
 
 # FEM visualization
-beam_viz = chronoirr.ChVisualizationFEAmesh(mesh)
-beam_viz.SetFEMdataType(chronoirr.ChVisualizationFEAmesh.E_PLOT_ELEM_BEAM_MZ)
-beam_viz.SetColorscaleMinMax(-1000, 1000)
-beam_viz.SetSmoothFaces(True)
-system.Add(beam_viz)
+beam_mesh = builder.GetBeamMesh()
+vis_mesh = fea.ChVisualizationFEAmesh(beam_mesh)
+vis_mesh.SetFEMdataType(fea.ChVisualizationFEAmesh.E_PLOT_ELEM_BEAM_MX)
+vis_mesh.SetColorscaleMinMax(-100, 100)
+beam_mesh.AddAsset(vis_mesh)
 
-# Flywheel visualization
-flywheel_shape = chrono.ChVisualShapeCylinder(flywheel_radius, flywheel_thick/2)
-flywheel_shape.SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
-flywheel.AddVisualShape(flywheel_shape, chrono.ChFrameD(chrono.ChVectorD(0,0,0), 
-                                                       chrono.Q_from_AngX(chrono.CH_C_PI_2)))
+app.AssetBindAll()
+app.AssetUpdateAll()
 
 # Simulation loop
-timestep = 0.001
-while viz.Run():
-    viz.BeginScene()
-    viz.Render()
-    viz.EndScene()
-    system.DoStepDynamics(timestep)
+app.SetTimestep(0.001)
+app.SetTryRealtime(True)
+
+while app.GetDevice().run():
+    app.BeginScene()
+    app.DrawAll()
+    app.DoStepDynamics(0.001)
+    app.EndScene()

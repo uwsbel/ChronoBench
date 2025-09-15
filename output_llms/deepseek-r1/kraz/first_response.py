@@ -1,68 +1,67 @@
+import chrono.vehicle as veh
 import pychrono as chrono
-import pychrono.vehicle as veh
 import pychrono.irrlicht as irr
 
 def main():
-    # Set path to Chrono data directory
-    chrono.SetChronoDataPath("D:/path/to/chrono/data/")  # Update this path
-    
-    # Create Chrono system
+    # Initialize core system
+    chrono.SetChronoDataPath("path/to/data/")  # Set appropriate data path
     system = chrono.ChSystemNSC()
-    system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
+    system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
-    # Initialize Kraz vehicle
-    kraz = veh.Kraz()
-    initial_pos = chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0.5), chrono.QUNIT)
-    kraz.Initialize(system, initial_pos)
-    kraz.GetVehicle().SetChassisVisualizationType(veh.VisualizationType_PRIMITIVES)
-    kraz.GetVehicle().SetWheelVisualizationType(veh.VisualizationType_MESH)
+    # Create Kraz vehicle
+    vehicle = veh.Kraz()
+    vehicle.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 1, 0), chrono.QUNIT))
+    vehicle.SetChassisVisualizationType(veh.VisualizationType_PRIMITIVES)
+    vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
+    vehicle.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
+    vehicle.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
+    system.Add(vehicle.GetSystem())
 
     # Create rigid terrain
     terrain = veh.RigidTerrain(system)
     patch_mat = chrono.ChMaterialSurfaceNSC()
-    patch_mat.SetFriction(0.8)
-    patch_mat.SetRestitution(0.1)
-    terrain.AddPatch(patch_mat, chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(100, 100, 1))
-    terrain.Initialize()
+    patch_mat.SetFriction(0.9)
+    patch_mat.SetRestitution(0.01)
+    terrain.Initialize(chrono.ChVectorD(0, 0, 0), patch_mat)
+    system.Add(terrain.GetGroundBody())
 
-    # Set up Irrlicht visualization
-    app = veh.ChWheeledVehicleIrrApp(kraz.GetVehicle(), "Kraz Simulation")
-    app.AddTypicalLights()
-    app.AddSkyBox()
-    app.SetChaseCamera(chrono.ChVectorD(0, 0, 2), 6, 0.5)
-    app.AssetBindAll()
-    app.AssetUpdateAll()
-
-    # Initialize interactive driver
-    driver = veh.ChIrrGuiDriver(app)
-    driver.SetSteeringDelta(0.02)
-    driver.SetThrottleDelta(0.02)
-    driver.SetBrakingDelta(0.02)
+    # Initialize driver system
+    driver = veh.ChInteractiveDriverIRR(vehicle)
+    driver.SetTimestep(0.005)
     driver.Initialize()
 
-    # Simulation loop parameters
-    time_step = 0.01
-    realtime_timer = chrono.ChRealtimeStepTimer()
+    # Set up Irrlicht visualization
+    vis = irr.ChVisualSystemIrrlicht()
+    vis.AttachSystem(system)
+    vis.SetWindowTitle('Kraz Vehicle Simulation')
+    vis.SetWindowSize(1280, 720)
+    vis.Initialize()
+    vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+    vis.AddSkyBox()
+    vis.AddCamera(chrono.ChVectorD(-5, 2, 5), chrono.ChVectorD(0, 0, 0))
+    vis.AddLightWithShadow(chrono.ChVectorD(-5, 8, 5), chrono.ChVectorD(0, 0, 0), 50, 1, 35, 85, 512)
+    vis.AddTypicalLights()
+    vis.EnableShadows()
 
-    while app.GetDevice().run():
-        time = system.GetChTime()
+    # Simulation loop
+    time_step = 0.005
+    while vis.Run():
+        # Update visualization and inputs
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
         
-        # Collect driver inputs
+        # Get driver inputs
         driver_inputs = driver.GetInputs()
-        
-        # Update systems
-        kraz.GetVehicle().Synchronize(time, driver_inputs)
-        terrain.Synchronize(time)
-        app.Synchronize("", driver_inputs)
+        driver.Synchronize(time_step)
         
         # Advance simulation
+        vehicle.Synchronize(time_step, driver_inputs, terrain)
+        terrain.Synchronize(time_step)
         system.DoStepDynamics(time_step)
         
-        # Update visualization
-        app.Advance(time_step)
-        
-        # Maintain real-time pacing
-        realtime_timer.Spin(time_step)
+        # Maintain real-time execution
+        chrono.ChRealtimeStep(time_step)
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

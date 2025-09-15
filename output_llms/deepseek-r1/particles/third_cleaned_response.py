@@ -53,7 +53,7 @@ emitter.SetParticleReservoirAmount(200)
 
 
 emitter_positions = chrono.ChRandomParticlePositionOnGeometry()
-emitter_positions.SetGeometry(chrono.ChBox(50, 50, 50), chrono.ChFramed())
+emitter_positions.SetGeometry(chrono.ChBox(50, 50, 50), chrono.ChFrameD())  
 emitter.SetParticlePositioner(emitter_positions)
 
 emitter_rotations = chrono.ChRandomParticleAlignmentUniform()
@@ -63,7 +63,7 @@ mvelo = chrono.ChRandomParticleVelocityAnyDirection()
 mvelo.SetModulusDistribution(chrono.ChUniformDistribution(0.0, 0.5))
 emitter.SetParticleVelocity(mvelo)
 
-mangvelo = chrono.ChRandomParticleRotationUniform()
+mangvelo = chrono.ChRandomParticleAngularVelocityAnyAxis()  
 mangvelo.SetModulusDistribution(chrono.ChUniformDistribution(0.0, 0.2))
 emitter.SetParticleAngularVelocity(mangvelo)
 
@@ -107,27 +107,28 @@ while vis.Run():
 
     
     kinetic_energy = 0
-    for body in sys.GetBodies():
-        mass = body.GetMass()
-        velocity = body.GetPosDt()
-        kinetic_energy += 0.5 * mass * velocity.Length2()
-
     potential_energy = 0
-    for abodyA, abodyB in combinations(sys.GetBodies(), 2):
-        D_attract = abodyB.GetPos() - abodyA.GetPos()
-        r_attract = D_attract.Length()
-        potential_energy += -G_constant * (abodyA.GetMass() * abodyB.GetMass()) / r_attract
-
-    
     mlist = list(combinations(sys.GetBodies(), 2))
+    
     for abodyA, abodyB in mlist:
+        
         D_attract = abodyB.GetPos() - abodyA.GetPos()
         r_attract = D_attract.Length()
         f_attract = G_constant * (abodyA.GetMass() * abodyB.GetMass()) / (r_attract ** 2)
         F_attract = (D_attract / r_attract) * f_attract
         abodyA.AccumulateForce(F_attract, abodyA.GetPos(), False)
         abodyB.AccumulateForce(-F_attract, abodyB.GetPos(), False)
+        
+        
+        potential_energy += -G_constant * (abodyA.GetMass() * abodyB.GetMass()) / r_attract
 
-    print(f"Kinetic: {kinetic_energy:.6f}, Potential: {potential_energy:.6f}, Total: {kinetic_energy + potential_energy:.6f}")
+    
+    for body in sys.GetBodies():
+        kinetic_energy += 0.5 * body.GetMass() * body.GetPosDt().Length2()
+
+    total_energy = kinetic_energy + potential_energy
+
+    
+    print(f"Kinetic: {kinetic_energy:.2f}, Potential: {potential_energy:.2f}, Total: {total_energy:.2f}")
 
     sys.DoStepDynamics(stepsize)

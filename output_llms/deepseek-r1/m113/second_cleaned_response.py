@@ -17,9 +17,9 @@ vis_type = veh.VisualizationType_MESH
 chassis_collision_type = veh.CollisionType_NONE
 
 
-terrainHeight = 0      
-terrainLength = 100.0  
-terrainWidth = 100.0   
+terrainHeight = 0
+terrainLength = 100.0
+terrainWidth = 100.0
 
 
 trackPoint = chrono.ChVector3d(0.0, 0.0, 0.1)
@@ -58,24 +58,13 @@ vehicle.SetTrackShoeVisualizationType(vis_type)
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
-terrain = veh.SCMTerrain(vehicle.GetSystem())
+terrain = veh.SCMDeformableTerrain(vehicle.GetSystem())
+terrain.SetSoilParameters(2e6, 0, 1.1, 0.5e4, 30, 0.01, 2e7)  
+terrain.Initialize(terrainLength, terrainWidth, 0.04)  
 
-Kphi = 2e6    
-Kc = 3e4      
-n = 1.2       
-coh = 5e3     
-phi = 30      
-K = 1e4       
-terrain.SetSoilParameters(Kphi, Kc, n, coh, phi, K)
 
-terrain.Initialize(terrainLength, terrainWidth, 0.2)  
-for ix in range(terrain.GetNumPointsX()):
-    for iy in range(terrain.GetNumPointsY()):
-        terrain.SetHeight(ix, iy, 0.0)
-terrain.SetModified()
-
-terrain.GetMesh().SetColor(chrono.ChColor(0.8, 0.4, 0.3))  
-terrain.GetMesh().SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"))  
+terrain.GetMesh().SetColor(chrono.ChColor(0.61, 0.45, 0.33))  
+terrain.SetPlotType(veh.SCMDeformableTerrain.PLOT_PRESSURE, 0, 30000)
 
 
 vis = veh.ChTrackedVehicleVisualSystemIrrlicht()
@@ -92,9 +81,9 @@ vis.AttachVehicle(vehicle.GetVehicle())
 driver = veh.ChInteractiveDriverIRR(vis)
 
 
-steering_time = 1.0  
-throttle_time = 1.0  
-braking_time = 0.3   
+steering_time = 1.0
+throttle_time = 1.0
+braking_time = 0.3
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
@@ -123,17 +112,17 @@ while vis.Run():
     
     driver_inputs = driver.GetInputs()
     driver_inputs.m_throttle = 0.8  
-    
+
     
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs)
     vis.Synchronize(time, driver_inputs)
-    
+
     
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
-    
+
     step_number += 1

@@ -1,8 +1,8 @@
 import pychrono as ch
-import pychrono.ros as chros
 import pychrono.irrlicht as ch_irr
+import pychrono.ros as chros
+
 import rclpy.publisher
-import rclpy.qos
 from std_msgs.msg import Int64
 
 
@@ -16,12 +16,13 @@ class MyCustomHandler(chros.ChROSHandler):
         self.ticker = 0
 
     def Initialize(self, interface: chros.ChROSPythonInterface) -> bool:
+        
         print(f"Creating publisher for topic {self.topic} ...")
-        qos_profile = rclpy.qos.QoSProfile(depth=1)
-        self.publisher = interface.GetNode().create_publisher(Int64, self.topic, qos_profile)
+        self.publisher = interface.GetNode().create_publisher(Int64, self.topic, 1)
         return True
 
     def Tick(self, time: float):
+        
         print(f"Publishing {self.ticker} ...")
         msg = Int64()
         msg.data = self.ticker
@@ -29,18 +30,20 @@ class MyCustomHandler(chros.ChROSHandler):
         self.ticker += 1
 
 def main():
+    
     sys = ch.ChSystemNSC()
     sys.SetGravitationalAcceleration(ch.ChVector3d(0, 0, -9.81))
 
     
     vis = ch_irr.ChVisualSystemIrrlicht()
     vis.AttachSystem(sys)
-    vis.SetWindowSize(1280, 720)
-    vis.SetWindowTitle('PyChrono Simulation')
+    vis.SetWindowSize(1024, 768)
+    vis.SetWindowTitle('Controlled Rendering Demo')
     vis.Initialize()
-    vis.AddCamera(ch.ChVector3d(0, -3, 2), ch.ChVector3d(0, 0, 0))
+    vis.AddCamera(ch.ChVector3d(3, 3, 3), ch.ChVector3d(0, 0, 0))
     vis.AddTypicalLights()
 
+    
     phys_mat = ch.ChContactMaterialNSC()
     phys_mat.SetFriction(0.5)
 
@@ -57,35 +60,40 @@ def main():
     box.SetPos(ch.ChVector3d(0, 0, 5))
     box.SetRot(ch.QuatFromAngleAxis(.2, ch.ChVector3d(1, 0, 0)))
     box.SetName("box")
-    box.GetVisualShape(0).SetTexture(ch.GetChronoDataFile("textures/blue.png"))
+    box.GetVisualShape(0).SetTexture(ch.GetChronoDataFile("textures/cubetexture.png"))
     sys.Add(box)
 
     
     ros_manager = chros.ChROSPythonManager()
+    
+    
     ros_manager.RegisterHandler(chros.ChROSClockHandler(10))
     ros_manager.RegisterHandler(chros.ChROSBodyHandler(10, box, "~/box"))
     
+    
     tf_handler = chros.ChROSTFHandler(10)
-    tf_handler.AddTransform(floor, floor.GetName(), box, box.GetName())
+    tf_handler.AddTransform(floor, box, floor.GetName(), box.GetName())
     ros_manager.RegisterHandler(tf_handler)
+    
     
     custom_handler = MyCustomHandler("~/my_topic")
     ros_manager.RegisterPythonHandler(custom_handler)
+
     ros_manager.Initialize()
 
     
     time_step = 1e-3
     time_end = 30
-    time = 0
-    step_number = 0
     render_step_size = 1/60  
-    render_steps = max(1, int(render_step_size / time_step))
+    render_steps = int(render_step_size / time_step)
+    step_number = 0
 
     realtime_timer = ch.ChRealtimeStepTimer()
-    while time < time_end:
+    while (time := sys.GetChTime()) < time_end:
+        
         sys.DoStepDynamics(time_step)
-        time = sys.GetChTime()
 
+        
         if not ros_manager.Update(time, time_step):
             break
 
@@ -94,7 +102,9 @@ def main():
             vis.BeginScene()
             vis.Render()
             vis.EndScene()
+        vis.Update()
 
+        
         realtime_timer.Spin(time_step)
         step_number += 1
 

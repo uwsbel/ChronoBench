@@ -1,85 +1,106 @@
 
 
 ```python
+import os
 import pychrono as chrono
 import pychrono.vehicle as veh
 import pychrono.irrlicht as irr
 
-def main():
-    # 1. Initialize Chrono system and core components
-    chrono.SetChronoDataPath("path/to/chrono/data/")  # Update with actual path
-    system = chrono.ChSystemNSC()
-    system.SetSolverMaxIterations(150)
-    system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
+# ----------------------------
+# Initialize Chrono system
+# ----------------------------
+chrono.SetChronoDataPath(os.path.join(os.environ['CHRONO_DATA_DIR'], 'data/'))
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
 
-    # 2. Create BMW E90 Sedan vehicle
-    vehicle = veh.Sedan()
-    vehicle.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0.5), chrono.QUNIT))
-    vehicle.SetChassisVisualizationType(veh.VisualizationType_PRIMITIVES)
-    vehicle.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
-    vehicle.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
-    vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
+# ----------------------------
+# Create vehicle system
+# ----------------------------
+vehicle = veh.SedanVehicle()
+vehicle.SetContactMethod(chrono.ChContactMethod_NSC)
+vehicle.SetChassisCollisionType(veh.CollisionType_MESH)
+vehicle.SetChassisFixed(False)
+vehicle.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0.5), chrono.QUNIT))
+vehicle.Initialize()
 
-    # 3. Create and configure TMeasy tires
-    tire_l = veh.TMeasyTire("LeftTire")
-    tire_r = veh.TMeasyTire("RightTire")
-    for tire in [tire_l, tire_r]:
-        tire.SetTireParams(veh.TMparams())
-        tire.Initialize(vehicle.GetVehicle().GetWheelBody(veh.LEFT), veh.LEFT)
-        tire.Initialize(vehicle.GetVehicle().GetWheelBody(veh.RIGHT), veh.RIGHT)
-        system.Add(tire)
+# Set vehicle visualization
+vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
+vehicle.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
+vehicle.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
+vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
 
-    # 4. Create rigid terrain with textures
-    terrain = veh.RigidTerrain(system)
-    patch_mat = chrono.ChMaterialSurfaceNSC()
-    patch = terrain.AddPatch(patch_mat, chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 1), 200, 200)
-    patch.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 200, 200)
-    terrain.Initialize()
+# ----------------------------
+# Create TMEASY tires
+# ----------------------------
+tire_l = veh.TMeasyTire("FrontLeft")
+tire_r = veh.TMeasyTire("FrontRight")
+tire_parameters = {
+    "mass": 15.0,
+    "width": 0.235,
+    "rolling_resistance": 0.015,
+    "stiffness": 182000,
+    "damping": 300
+}
 
-    # 5. Set up Irrlicht visualization
-    vis = irr.ChVisualSystemIrrlicht()
-    vis.AttachSystem(system)
-    vis.SetWindowSize(1280, 720)
-    vis.SetWindowTitle("BMW E90 Dynamics Simulation")
-    vis.Initialize()
-    vis.AddLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))
-    vis.AddSkyBox()
-    vis.AddCamera(chrono.ChVectorD(8, 8, 1.5), chrono.ChVectorD(0, 0, 1.5))
-    vis.AddTypicalLights()
-    vis.AddLightWithShadow(chrono.ChVectorD(-5, 0, 8), chrono.ChVectorD(0, 0, 2.5), 50, 2, 30, 50, 512)
+for tire in [tire_l, tire_r]:
+    tire.SetParameters(tire_parameters)
+    tire.Initialize(vehicle.GetVehicle().GetAxle(0).m_wheels[0].spindle, veh.LEFT)
+    tire.Initialize(vehicle.GetVehicle().GetAxle(0).m_wheels[1].spindle, veh.RIGHT)
+    system.Add(tire)
 
-    # 6. Create interactive driver system
-    driver = veh.ChInteractiveDriverIRR(vis)
-    driver.SetSteeringDelta(0.02)
-    driver.SetThrottleDelta(0.02)
-    driver.SetBrakingDelta(0.06)
-    driver.Initialize()
+# ----------------------------
+# Create and configure terrain
+# ----------------------------
+terrain = veh.RigidTerrain(system)
+patch_mat = chrono.ChMaterialSurfaceNSC()
+patch_mat.SetFriction(0.9)
+patch_mat.SetRestitution(0.01)
+patch = terrain.AddPatch(patch_mat, 
+                        chrono.ChVectorD(0, 0, 0), 
+                        chrono.ChVectorD(0, 0, 1), 
+                        200, 100)
+patch.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 200, 200)
+terrain.Initialize()
 
-    # 7. Simulation loop
-    while vis.Run():
-        vis.BeginScene()
-        vis.Render()
-        vis.EndScene()
-        
-        # Get driver inputs
-        driver_inputs = driver.GetInputs()
-        vehicle.GetVehicle().Synchronize(chrono.ChTime, driver_inputs, terrain)
-        terrain.Synchronize(chrono.ChTime)
-        vis.Synchronize(chrono.ChTime, driver_inputs)
-        
-        # Advance simulation
-        system.DoStepDynamics(1e-3)
+# ----------------------------
+# Set up Irrlicht visualization
+# ----------------------------
+vis = irr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetWindowSize(1280, 720)
+vis.SetWindowTitle("BMW E90 Dynamics Simulation")
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVectorD(6, -10, 1.5), chrono.ChVectorD(0, 0, 1))
+vis.AddTypicalLights()
 
-if __name__ == "__main__":
-    main()
+# Chase camera settings
+tracker = irr.ChChaseCamera(chrono.ChVectorD(0, 0, 0), 6.0, 0.5)
+tracker.AttachVehicle(vehicle.GetVehicle())
+vis.AddChaseCamera(tracker)
+
+# ----------------------------
+# Create interactive driver
+# ----------------------------
+driver = veh.ChInteractiveDriverIRR(vis)
+steering_controller = veh.ChSteeringControllerSMC()
+driver.SetSteeringController(steering_controller)
+driver.SetInputDataFile("")
+driver.SetInputMode(veh.InputMode_DATAFILE)
+driver.Initialize()
+
+# ----------------------------
+# Simulation loop
+# ----------------------------
+while vis.Run():
+    time = system.GetChTime()
+    vis.BeginScene()
+    vis.Render()
+    driver.Synchronize(time)
+    vehicle.Synchronize(time, driver.GetInputs(), terrain)
+    terrain.Synchronize(time)
+    vis.Synchronize("", driver.GetInputs())
+    system.DoStepDynamics(1e-3)
+    vis.EndScene()
 ```
-
-Key features:
-- Uses Chrono's built-in Sedan model with TMeasy tires
-- Implements interactive driver controls (arrow keys + WSAD)
-- Features Irrlicht visualization with chase camera and shadows
-- Includes textured terrain and skybox
-- Proper physics setup with NSC contact system
-- Real-time simulation with vehicle-terrain interaction
-
-Note: Requires Chrono::Vehicle module and proper data path configuration. Adjust paths to match your Chrono installation.

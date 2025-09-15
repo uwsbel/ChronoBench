@@ -14,7 +14,7 @@ class Model1:
         msection_cable2 = fea.ChBeamSectionCable()
         msection_cable2.SetDiameter(0.015)  # Set the diameter of the cable section to 15 mm
         msection_cable2.SetYoungModulus(0.01e9)  # Set the Young's modulus of the cable section (0.01 GPa)
-        msection_cable2.SetRayleighDamping(0.0001)  # Modified Rayleigh damping
+        msection_cable2.SetRayleighDamping(0.0001)  # Adjusted Rayleigh damping
 
         # Create a ChBuilderCableANCF helper object to facilitate the creation of ANCF beams
         builder = fea.ChBuilderCableANCF()
@@ -30,7 +30,7 @@ class Model1:
 
         # Apply boundary conditions and loads:
         # Retrieve the end nodes of the beam and apply load/constraints
-        builder.GetLastBeamNodes().front().SetForce(chrono.ChVector3d(0, -0.7, 0))  # Modified applied force
+        builder.GetLastBeamNodes()[0].SetForce(chrono.ChVector3d(0, -0.7, 0))  # Modified force applied to front node
 
         # Create a truss body (a fixed reference frame in the simulation)
         mtruss = chrono.ChBody()
@@ -38,7 +38,7 @@ class Model1:
 
         # Create and initialize a hinge constraint to fix beam's end point to the truss
         constraint_hinge = fea.ChLinkNodeFrame()
-        constraint_hinge.Initialize(builder.GetLastBeamNodes().back(), mtruss)
+        constraint_hinge.Initialize(builder.GetLastBeamNodes()[-1], mtruss)
         system.Add(constraint_hinge)  # Add the constraint to the system
 
 # Initialize the physical system and mesh container:
@@ -83,7 +83,7 @@ solver = chrono.ChSolverMINRES()  # Changed to MINRES solver
 if solver.GetType() == chrono.ChSolver.Type_MINRES:
     print("Using MINRES solver")
 sys.SetSolver(solver)
-solver.SetMaxIterations(200)  # Set max iterations
+solver.SetMaxIterations(200)  # Set maximum iterations
 solver.SetTolerance(1e-10)  # Set solver tolerance
 solver.EnableDiagonalPreconditioner(True)  # Enable diagonal preconditioner
 solver.EnableWarmStart(True)  # Enable warm start

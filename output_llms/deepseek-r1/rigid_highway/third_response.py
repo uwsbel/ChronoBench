@@ -65,18 +65,14 @@ vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 # Create the terrain
 patch_mat = chrono.ChContactMaterialNSC()
-patch_mat.SetFriction(0.4)  # Updated from 0.9 to 0.4
-patch_mat.SetRestitution(0.05)  # Updated from 0.01 to 0.05
+patch_mat.SetFriction(0.4)  # Updated friction
+patch_mat.SetRestitution(0.05)  # Updated restitution
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-
-# Create rotation quaternion for -90 degrees about Z-axis
-rotation_quat = chrono.QuatFromAngleZ(-chrono.CH_PI_2)  # -90 degrees rotation
-
 patch = terrain.AddPatch(patch_mat, 
-    chrono.ChCoordsysd(chrono.ChVector3d(6, -70, 0), rotation_quat),  # Updated position and rotation
+    chrono.ChCoordsysd(chrono.ChVector3d(6, -70, 0), chrono.QuatFromAngleZ(-math.pi/2)),  # Updated position and orientation
     chrono.GetChronoDataFile('vehicle/terrain/meshes/Highway_col.obj'),
     True, 0.01, False)
-vis_mesh = chrono.ChTriangleMeshConnected().CreateFromWavefrontFile(chrono.GetChronoDataFile("vehicle/terrain/meshes/Highway_vis.obj"), True, True)  # Fixed path
+vis_mesh = chrono.ChTriangleMeshConnected().CreateFromWavefrontFile(veh.GetDataFile("terrain/meshes/Highway_vis.obj"), True, True)
 tri_mesh_shape = chrono.ChVisualShapeTriangleMesh()
 tri_mesh_shape.SetMesh(vis_mesh)
 tri_mesh_shape.SetMutable(False)

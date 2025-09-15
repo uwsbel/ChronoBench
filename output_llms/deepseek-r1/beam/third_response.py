@@ -20,15 +20,12 @@ msection.SetShearModulus(0.01e9 * 0.3)
 msection.SetRayleighDamping(0.000)
 msection.SetCentroid(0, 0.02)
 msection.SetShearCenter(0, 0.1)
-msection.SetSectionRotation(45 * chrono.CH_DEG_TO_RAD)  # Corrected rotation
+msection.SetSectionRotation(45 * chrono.CH_DEG_TO_RAD)  # Corrected rotation calculation
 
-# Add EULER-BERNOULLI BEAMS
-beam_L = 0.1
-
+# Add Euler-Bernoulli beams with manual node creation
 hnode1 = fea.ChNodeFEAxyzrot(chrono.ChFramed(chrono.ChVector3d(0, 0, 0)))
-hnode2 = fea.ChNodeFEAxyzrot(chrono.ChFramed(chrono.ChVector3d(beam_L, 0, 0)))
-hnode3 = fea.ChNodeFEAxyzrot(chrono.ChFramed(chrono.ChVector3d(beam_L * 2, 0, 0)))
-
+hnode2 = fea.ChNodeFEAxyzrot(chrono.ChFramed(chrono.ChVector3d(0.1, 0, 0)))
+hnode3 = fea.ChNodeFEAxyzrot(chrono.ChFramed(chrono.ChVector3d(0.2, 0, 0)))
 mesh.AddNode(hnode1)
 mesh.AddNode(hnode2)
 mesh.AddNode(hnode3)
@@ -51,6 +48,7 @@ mtruss = chrono.ChBody()
 mtruss.SetFixed(True)
 sys.Add(mtruss)
 
+# Constraints corrected to use proper frames
 constr_bc = chrono.ChLinkMateGeneric()
 constr_bc.Initialize(hnode3, mtruss, False, hnode3.Frame(), hnode3.Frame())
 sys.Add(constr_bc)
@@ -61,29 +59,31 @@ constr_d.Initialize(hnode1, mtruss, False, hnode1.Frame(), hnode1.Frame())
 sys.Add(constr_d)
 constr_d.SetConstrainedCoords(False, True, True, False, False, False)
 
-# Builder section
+# Beam builder section
 builder = fea.ChBuilderBeamEuler()
 
-# First builder beam
+# First built beam
 builder.BuildBeam(mesh, msection, 5,
                   chrono.ChVector3d(0, 0, -0.1),
                   chrono.ChVector3d(0.2, 0, -0.1),
                   chrono.ChVector3d(0, 1, 0))
 
-# Corrected constraints on builder beam
-builder.GetLastBeamNodes().front().SetFixed(True)  # Fix A end
-builder.GetLastBeamNodes().back().SetForce(chrono.ChVector3d(0, -1, 0))  # Force on B end
+# Corrected node access using indices
+if builder.GetLastBeamNodes():
+    builder.GetLastBeamNodes()[-1].SetFixed(True)  # Fix last node of first built beam
+    builder.GetLastBeamNodes()[0].SetForce(chrono.ChVector3d(0, -1, 0))  # Force on first node
 
-# New beam segment added here
+# New beam segment added as per instructions
 builder.BuildBeam(mesh, msection, 5,
-                  chrono.ChVector3d(0.2, 0, -0.1),  # Start from previous beam's endpoint
-                  chrono.ChVector3d(0.2, 0.1, -0.1), # New endpoint
-                  chrono.ChVector3d(0, 1, 0))
+                  chrono.ChVector3d(0.2, 0, -0.1),  # Start from previous beam's end
+                  chrono.ChVector3d(0.2, 0.1, -0.1),  # New endpoint
+                  chrono.ChVector3d(0, 1, 0))  # Y-up direction
 
+# Disable gravity
 mesh.SetAutomaticGravity(False)
 sys.Add(mesh)
 
-# Visualization assets
+# Visualization setup
 visualizebeamA = chrono.ChVisualShapeFEA(mesh)
 visualizebeamA.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_ELEM_BEAM_MZ)
 visualizebeamA.SetColorscaleMinMax(-0.4, 0.4)

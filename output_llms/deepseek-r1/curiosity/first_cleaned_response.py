@@ -1,97 +1,70 @@
 import os
-import math
 import pychrono as chrono
 import pychrono.vehicle as veh
 import pychrono.irrlicht as irr
-from pychrono.robot import curiosity
 
 
 system = chrono.ChSystemNSC()
 system.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+system.SetSolverType(chrono.ChSolver.Type_PSOR)
+system.SetSolverMaxIterations(100)
 
 
-terrain = chrono.ChBody()
-terrain.SetBodyFixed(True)
-terrain.SetPos(chrono.ChVectorD(0, -0.2, 0))
+terrain = veh.RigidTerrain(system)
+patch_mat = chrono.ChMaterialSurfaceNSC()
+patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysD(), 200, 100)
+patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
+terrain.Initialize()
 
 
-terrain_shape = chrono.ChBoxShape()
-terrain_shape.GetBoxGeometry().Size = chrono.ChVectorD(10, 0.2, 10)
-terrain.AddVisualShape(terrain_shape)
-
-terrain_collision = chrono.ChCollisionModelBullet()
-terrain_collision.AddBox(0.5, 0.1, 0.5, chrono.ChVectorD(0, -0.2, 0))  
-terrain.SetCollisionModel(terrain_collision)
-terrain.SetCollide(True)
+rover = veh.Viper(system)
+rover.SetDriverCollision(True)
+rover.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 1, 0), chrono.QUNIT))
+rover.SetChassisVisualizationType(veh.VisualizationType_MESH)
+rover.SetWheelVisualizationType(veh.VisualizationType_MESH)
 
 
-vis_mat = chrono.ChVisualMaterial()
-vis_mat.SetKdTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
-terrain_shape.AddMaterial(vis_mat)
-system.Add(terrain)
-
-
-rover = curiosity.Curiosity(system, chrono.ChContactMethod_NSC)
-rover.Initialize(chrono.ChFrameD(chrono.ChVectorD(0, 0.2, 0), chrono.QUNIT))
-rover.SetTireCollisionType(veh.ChTire.CollisionType_SINGLE_POINT)
+driver = veh.InteractiveDriver(rover.GetVehicle())
+driver.SetSteeringDelta(0.02)
+driver.SetThrottleDelta(0.02)
+driver.Initialize()
 
 
 vis = irr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
 vis.SetWindowSize(1280, 720)
-vis.SetWindowTitle('Curiosity Rover Simulation')
+vis.SetWindowTitle("Curiosity Rover Simulation")
 vis.Initialize()
-vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))
 vis.AddSkyBox()
-vis.AddCamera(chrono.ChVectorD(3, 3, 3), chrono.ChVectorD(0, 0, 0))
-vis.AddLightWithShadow(chrono.ChVectorD(5, 8, -5), chrono.ChVectorD(0, 0, 0), 50, 5, 50, 35, 512)
+vis.AddCamera(chrono.ChVectorD(5, 3, -5))
+vis.AddLightWithShadow(chrono.ChVectorD(10, 10, -5), chrono.ChVectorD(0, 0, 0), 50, 5, 50, 512)
 
 
-class RoverDriver(chrono.ChDriver):
-    def __init__(self, rover):
-        super().__init__(*rover.GetChassisBody())
-        self.speed = 0.0
-        self.steering = 0.0
-        
-    def ProcessInputs(self, time):
-        self.SetThrottle(min(max(self.speed, -1.0), 1.0))
-        self.SetSteering(min(max(self.steering, -1.0), 1.0))
-
-driver = RoverDriver(rover)
-rover.SetDriver(driver)
+vis.EnableShadows(True)
+vis.EnableAntiAliasing(True)
+vis.EnableGrid(False)
+rover.GetVehicle().GetChassis().GetBody().GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/rover_body.png"))
 
 
 time_step = 0.005
-realtime_step = True
-frame = 0
-
 while vis.Run():
-    
-    if vis.GetDevice().KeyDown(irr.KEY_KEY_W):
-        driver.speed += 0.1 * time_step
-    elif vis.GetDevice().KeyDown(irr.KEY_KEY_S):
-        driver.speed -= 0.1 * time_step
-    if vis.GetDevice().KeyDown(irr.KEY_KEY_A):
-        driver.steering += 0.5 * time_step
-    elif vis.GetDevice().KeyDown(irr.KEY_KEY_D):
-        driver.steering -= 0.5 * time_step
-
-    
     vis.BeginScene()
     vis.Render()
-    vis.EndScene()
     
     
-    driver.ProcessInputs(system.GetChTime())
-    rover.Update()
-    
-    
+    driver.Synchronize(time_step)
+    rover.Synchronize(time_step, driver.GetInputs())
+    system.Synchronize(time_step)
     system.DoStepDynamics(time_step)
     
     
-    if frame % 10 == 0:
-        chassis_pos = rover.GetChassis().GetPos()
-        vis.GetActiveCamera().setTarget(irr.vector3df(chassis_pos.x, chassis_pos.y, chassis_pos.z))
+    cam_pos = rover.GetChassisPos() + chrono.ChVectorD(-5, 2, -5)
+    vis.GetActiveCamera().setTarget(irr.vector3df(rover.GetChassisPos().x, rover.GetChassisPos().y, rover.GetChassisPos().z))
     
-    frame += 1
+    
+    vis.GetGUIEnvironment().addStaticText(
+        "NASA/JPL - Curiosity Rover Simulation\nUse Arrow Keys to Drive\nW/S - Throttle\nA/D - Steer",
+        irr.recti(10, 10, 400, 80), True, False)
+    
+    vis.EndScene()

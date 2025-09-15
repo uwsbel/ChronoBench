@@ -7,37 +7,65 @@ import pychrono as chrono
 import pychrono.vehicle as veh
 import pychrono.irrlicht as irr
 
-# Initialize Chrono system and set collision type
-chrono.SetChronoDataPath(os.path.join(os.environ['CHRONO_DATA_DIR'], 'data/'))
+# =============================================================================
+# Initialize simulation environment
+# =============================================================================
+
+# Set path to Chrono data directory
+chrono.SetChronoDataPath(os.path.join(os.environ['CHRONO_DATA_DIR'], ''))
+
+# Create Chrono system
 system = chrono.ChSystemSMC()
 system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
 
-# Create the Gator vehicle
-gator = veh.Gator(system)
+# =============================================================================
+# Create Gator vehicle
+# =============================================================================
+
+# Initialize vehicle parameters
+init_loc = chrono.ChVectorD(0, 0.5, 0)
+init_rot = chrono.ChQuaternionD(1, 0, 0, 0)
+tire_type = veh.TMeasyTire
+step_size = 0.002
+
+# Create and initialize vehicle
+gator = veh.Gator()
 gator.SetContactMethod(chrono.ChContactMethod_SMC)
-gator.SetChassisFixed(False)
-gator.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0.5, 0), chrono.QUNIT))
-gator.SetTireType(veh.TireModelType_TMEASY)
+gator.SetInitPosition(chrono.ChCoordsysD(init_loc, init_rot))
+gator.SetTireType(tire_type)
 gator.Initialize()
 
-# Set visualization parameters
+# Set visualization modes
 gator.SetChassisVisualizationType(veh.VisualizationType_MESH)
-gator.SetSuspensionVisualizationType(veh.VisualizationType_MESH)
-gator.SetSteeringVisualizationType(veh.VisualizationType_MESH)
+gator.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
+gator.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
 gator.SetWheelVisualizationType(veh.VisualizationType_MESH)
-gator.SetTireVisualizationType(veh.VisualizationType_MESH)
+
+# =============================================================================
+# Create and configure terrain
+# =============================================================================
+
+# Rigid terrain parameters
+terrain_length = 200.0
+terrain_width = 200.0
+terrain_thickness = 0.2
 
 # Create rigid terrain
 terrain = veh.RigidTerrain(system)
 patch_mat = chrono.ChMaterialSurfaceSMC()
 patch = terrain.AddPatch(patch_mat, 
-                       chrono.ChVectorD(0, 0, 0), 
-                       chrono.ChVectorD(0, 0, 1), 
-                       100.0, 100.0)
-patch.SetTexture(veh.GetDataFile("terrain/textures/terrain_texture.jpg"), 100, 100)
+                        chrono.ChVectorD(0, 0, 0), 
+                        chrono.ChVectorD(0, 0, 1),
+                        terrain_length, terrain_width)
+patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)
+patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
-# Create Irrlicht visualization
+# =============================================================================
+# Set up Irrlicht visualization
+# =============================================================================
+
+# Create Irrlicht application
 vis = irr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
 vis.SetWindowSize(1280, 720)
@@ -45,55 +73,56 @@ vis.SetWindowTitle('Gator Vehicle Simulation')
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()
-vis.AddCamera(chrono.ChVectorD(3, 3, 1.5))
+vis.AddCamera(chrono.ChVectorD(6, 6, 1.5))
 vis.AddTypicalLights()
 
+# Add vehicle visualization
+gator.AddVisualizationAssets(irr.VISUALIZE_MESH)
+
+# =============================================================================
 # Create interactive driver system
+# =============================================================================
+
+# Set up driver inputs
 driver = veh.ChIrrGuiDriver(vis)
-steering_axis = chrono.ChVectorD(0, 0, 0.6)
-driver.SetSteeringAxis(steering_axis)
+
+# Initialize driver system
 driver.Initialize()
+driver.SetDesiredSpeed(5.0)  # Initial target speed
 
-# Simulation parameters
-step_size = 0.02
-render_step = 1.0 / 50  # 50 FPS
-
+# =============================================================================
 # Simulation loop
+# =============================================================================
+
+# Real-time simulation settings
+realtime_step = 0.02  # 50 FPS
+render_step = 1.0 / 50.0  # 50 Hz rendering
 time = 0.0
+
 while vis.Run():
-    time = system.GetChTime()
-    
-    # Update visualization and driver inputs
+    # Update visualization
     vis.BeginScene()
-    vis.DrawAll()
-    driver.Synchronize(time)
-    
-    # Advance simulation
-    gator.Synchronize(time, driver.GetInputs(), terrain)
-    terrain.Synchronize(time)
-    system.DoStepDynamics(step_size)
-    
-    # Update Irrlicht visualization
-    vis.Synchronize(time, driver.GetInputs())
+    vis.Render()
     vis.EndScene()
     
-    # Maintain real-time simulation rate
-    chrono.ChRealtimeStep(render_step)
-
-print("Simulation completed.")
-``` 
-
-This script:
-1. Creates a physical simulation environment with SMC contact method
-2. Initializes a Gator vehicle with TMEASY tires at specified location
-3. Sets up a 100x100 rigid terrain with custom texture
-4. Implements Irrlicht visualization with camera and lighting
-5. Uses ChIrrGuiDriver for interactive controls (arrow keys/WASD)
-6. Maintains real-time simulation at 50 FPS
-7. Uses mesh visualization for all vehicle components
-
-The driver controls are:
-- Left/Right arrows or A/D for steering
-- Up arrow or W for throttle
-- Down arrow or S for braking
-- Space for handbrake
+    # Get current simulation time
+    time = system.GetChTime()
+    
+    # Update driver inputs
+    driver_inputs = driver.GetInputs()
+    gator.DriverInputs = driver_inputs
+    
+    # Update vehicle systems
+    gator.Synchronize(time, driver_inputs, terrain)
+    terrain.Synchronize(time)
+    
+    # Advance simulation
+    system.DoStepDynamics(step_size)
+    
+    # Maintain real-time synchronization
+    chrono.ChRealtimeStepTimer.Sleep(realtime_step)
+    
+    # Output runtime information
+    if math.fmod(time, 1.0) < step_size:
+        print(f"Time: {time:.2f}s Speed: {gator.GetVehicle().GetSpeed():.2f} m/s")
+```

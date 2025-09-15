@@ -2,106 +2,92 @@
 
 ```python
 import os
-import math
-import time
-import pychrono as chrono
-import pychrono.vehicle as veh
-import pychrono.irrlicht as irr
+import math as m
+import chrono
+from chrono import ChCoordsysD, ChVectorD, QUNIT
+import chrono.vehicle as veh
+import chrono.irrlicht as irr
 
-# ----------------------------
-# Simulation Initialization
-# ----------------------------
+# Initialize Chrono system
 system = chrono.ChSystemNSC()
-system.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+system.Set_G_acc(ChVectorD(0, 0, -9.81))
 
-# ----------------------------
-# HMMWV Vehicle Setup
-# ----------------------------
-hmmwv = veh.HMMWV_Full(system)
-hmmwv.SetContactMethod(chrono.ChContactMethod_NSC)
-hmmwv.SetChassisFixed(False)
-hmmwv.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 1, 0), chrono.QUNIT))
-hmmwv.SetTireStepSize(0.002)
+# Create HMMWV vehicle
+hmmwv = veh.HMMWV_Full()
+hmmwv.SetInitPosition(ChCoordsysD(ChVectorD(0, 0, 0.5), QUNIT))
 hmmwv.Initialize()
-
-# Set visualization parameters
 hmmwv.SetChassisVisualizationType(veh.VisualizationType_PRIMITIVES)
 hmmwv.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
 hmmwv.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
 hmmwv.SetWheelVisualizationType(veh.VisualizationType_NONE)
-hmmwv.SetTireVisualizationType(veh.VisualizationType_MESH)
+hmmwv.SetTireVisualizationType(veh.VisualizationType_PRIMITIVES)
 
-# ----------------------------
-# Deformable Terrain Setup
-# ----------------------------
+# Create and configure SCM terrain
 terrain = veh.SCMDeformableTerrain(system)
-terrain.SetPlane(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT))
+terrain.SetPlane(chrono.ChCoordsysD(ChVectorD(0, 0, 0), QUNIT))
 
-# Soil parameters
-terrain.SetSoilParameters(
-    Bekker_Kphi=1.209e6,
-    Bekker_Kc=0.999e4,
-    Bekker_n=1.01,
-    Mohr_cohesion=3.96e4,
-    Mohr_friction=31.1,
-    Janosi_shear=0.0178
-)
+# Soil parameters (loose sand example)
+soil_params = veh.SoilParametersCallback()
+soil_params.Kphi = 5301e3
+soil_params.Kc = 102e3
+soil_params.n = 0.7
+soil_params.cohesion = 1.38e3
+soil_params.shear_angle = 31.1 * m.pi / 180
+soil_params.mu = 0.8
+soil_params.Ce = 1.5e-3
+terrain.SetSoilParameters(soil_params)
 
-# Terrain visualization
-terrain.Initialize(800, 400, 0.05)
-terrain.SetPlotType(veh.SCMDeformableTerrain.PlotType_PRESSURE_YELD, 0, 30000)
+# Initialize terrain with height map
+terrain.InitializeFromHeightMap("heightmap.png",  # Replace with actual heightmap file
+                                20.0, 10.0,       # Terrain length and width (m)
+                                0.0, 0.5,         # Height range (min, max)
+                                0.05)             # Resolution (m)
 
-# ----------------------------
-# Driver System Setup
-# ----------------------------
-driver = veh.ChIrrGuiDriver(irr.ChVisualSystemIrrlicht())
-driver.SetSteeringDelta(0.02)
-driver.SetThrottleDelta(0.02)
-driver.SetBrakingDelta(0.02)
-hmmwv.GetVehicle().SetDriver(driver)
+terrain.SetPlotType(veh.SCMDeformableTerrain.PlotType_PRESSURE_YIELD, 0, 30000)
 
-# ----------------------------
-# Visualization System Setup
-# ----------------------------
-vis = irr.ChVisualSystemIrrlicht()
-vis.AttachSystem(system)
-vis.SetWindowSize(1280, 720)
-vis.SetWindowTitle('HMMWV on Deformable Terrain')
-vis.Initialize()
-vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
-vis.AddSkyBox()
-vis.AddCamera(chrono.ChVectorD(-5, 2, -5), chrono.ChVectorD(0, 0, 0))
-vis.AddLightWithShadow(chrono.ChVectorD(2,4,2), chrono.ChVectorD(0,0,0), 10, 2, 10, 40, 512)
-vis.EnableShadows()
+# Set up Irrlicht visualization
+app = irr.ChIrrApp(system, "HMMWV on Deformable Terrain", irr.dimension2du(1280, 720))
+app.AddTypicalLights()
+app.AddCamera(ChVectorD(3, 3, 1.5), ChVectorD(0, 0, 0))
+app.AssetBindAll()
+app.AssetUpdateAll()
 
-# ----------------------------
-# Simulation Loop
-# ----------------------------
-time_step = 0.002
-realtime_step = 0.02
+# Initialize interactive driver
+driver = veh.ChIrrGuiDriver(app)
+driver.Initialize()
 
-while vis.Run():
+# Simulation parameters
+time_step = 0.001
+app.SetTimestep(time_step)
+
+# Main simulation loop
+while app.GetDevice().run():
     time = system.GetChTime()
     
-    # Update driver inputs
-    driver.Synchronize(time)
+    # Update visualization and inputs
+    app.BeginScene()
+    app.DrawAll()
     
-    # Update vehicle and terrain
-    hmmwv.Synchronize(time, driver.GetInputs(), terrain)
+    # Synchronize systems
+    driver_inputs = driver.GetInputs()
+    hmmwv.Synchronize(time, driver_inputs, terrain)
     terrain.Synchronize(time)
+    app.Synchronize("", driver_inputs)
     
     # Advance simulation
+    app.Advance(time_step)
     system.DoStepDynamics(time_step)
     
-    # Update visualization
-    vis.BeginScene()
-    vis.Render()
-    vis.EndScene()
-    
-    # Maintain real-time pacing
-    pause_time = system.GetChTime() - time
-    if pause_time < realtime_step:
-        time.sleep(realtime_step - pause_time)
+    app.EndScene()
 
+    # Maintain real-time synchronization
+    if real_time_step:
+        chrono.ChRealtimeStepTimer.Spin(time_step)
 ```
+
+**Important Notes:**
+1. Requires a heightmap image file named "heightmap.png" in the working directory
+2. Soil parameters are example values - adjust based on required soil characteristics
+3. Camera position and visualization settings can be modified in the app configuration
+4. Vehicle control inputs can be adjusted through the interactive GUI driver
+5. For proper execution, ensure Chrono::Vehicle and Chrono::Irrlicht modules are enabled in your Chrono build

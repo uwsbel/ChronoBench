@@ -4,136 +4,146 @@
 
 ### 1. Completeness (40 points)
 
-- **System Initialization:** Present and correctly done with `chrono.ChSystemNSC()`.  
-- **Body Creation:** All bodies (truss, sun_gear, bar, planet_gear) are created and added to the system.  
-- **Visualization:** Visualization is set up using `irrlicht.ChIrrApp`, with lights, camera, asset binding, and update.  
-- **Joints and Motors:** Motor and revolute joint are created and initialized properly.  
-- **Gear Link:** Gear link is created and added.  
+- **System Initialization:**  
+  The system is initialized correctly with `chrono.ChSystemNSC()`. However, the gravity vector is set to zero with `system.Set_G_acc(chrono.ChVectorD(0, 0, 0))`. This is acceptable if the simulation is intended to be gravity-free (e.g., gears in space), so no deduction here.
 
-**Minor issues:**  
-- The `bar_length` is defined as `sun_radius + planet_radius`, which is fine, but no comments or explanation are given.  
-- The `bar` inertia is set as `(1,1,1)` without explanation or calculation; this is acceptable but could be improved.  
-- The motor speed is set as `chrono.CH_C_PI` (pi), which is fine but no comment on units or rationale.  
-- The visualization setup uses `irrlicht.ChIrrApp` which is a higher-level wrapper, but the API documentation suggests using `chronoirr.ChVisualSystemIrrlicht()` and attaching the system. The chosen approach is valid but slightly less flexible.  
-- The visualization does not add a skybox or logo, which are typical but not essential.  
+- **Body Creation:**  
+  Bodies (`truss`, `bar`, `sun_gear`, `planet_gear`) are created and added to the system. However, the bodies lack mass and inertia properties. According to best practices and the API, bodies should have mass and inertia set unless they are fixed.  
+  - `truss` and `sun_gear` are fixed bodies, so no mass needed.  
+  - `bar` and `planet_gear` are dynamic but have no mass or inertia set, which is essential for correct dynamics. This is a significant omission.  
+  **Deduction:** 15 points for missing mass and inertia on dynamic bodies.
 
-**Deduction:** Minor omissions in comments and slight deviation in visualization setup (using `ChIrrApp` instead of `ChVisualSystemIrrlicht` + `AttachSystem`).  
-**Deduct 5 points** for minor omissions/slight deviations.
+- **Collision and Contact:**  
+  No collision models or materials are defined or enabled. For a gear simulation, collision may not be necessary if constraints are used, but enabling collision or at least disabling it explicitly is a good practice. The code does not call `EnableCollision()` on any body, so default collision state is unclear.  
+  **Minor omission:** 5 points deduction for missing explicit collision settings.
+
+- **Joints and Links:**  
+  Revolute joints (`ChLinkRevolute`) are used correctly to connect `truss` to `bar` and `bar` to `planet_gear`. The gear constraint (`ChLinkLockGear`) is properly initialized and added. The motor (`ChLinkMotorRotationSpeed`) is also correctly set up.  
+  However, the API documentation indicates the revolute joint class is `ChLinkLockRevolute()`, but the code uses `ChLinkRevolute()`. This is a significant API misuse (see correctness below).  
+  **No deduction here for completeness**, but will address in correctness.
+
+- **Visualization:**  
+  Visualization is set up using `irr.ChIrrApp`, with lights and camera added. However, the API documentation recommends using `chronoirr.ChVisualSystemIrrlicht()` and attaching the system to it, then calling `Initialize()`. The code uses `irr.ChIrrApp` directly, which is a higher-level helper class and acceptable.  
+  The code calls `AssetBindAll()` and `AssetUpdateAll()`, which is correct.  
+  The simulation loop is properly structured with `BeginScene()`, `DrawAll()`, `DoStepDynamics()`, and `EndScene()`.  
+  **No deduction here.**
+
+**Total Completeness deduction: 15 + 5 = 20 points**
 
 ---
 
 ### 2. Correctness (30 points)
 
-- **API usage:**  
-  - `SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)` is correct and valid.  
-  - `ChBody()` creation and properties are set correctly.  
-  - `SetBodyFixed(True)` is used correctly (note: API uses `SetFixed(True)`; `SetBodyFixed` is an alias or older name but still valid).  
-  - Collision is disabled correctly with `SetCollide(False)`.  
-  - Visual assets are added properly, but the code uses `ChCylinderShape()` and `ChBoxShape()` which are deprecated or less common compared to `ChVisualShapeCylinder` or `ChVisualShapeBox` in the documentation. The documentation recommends `ChVisualShapeCylinder` and `ChVisualShapeBox` for visualization assets.  
-  - The motor is initialized correctly with `ChLinkMotorRotationSpeed()`.  
-  - The revolute joint is created with `ChLinkRevolute()` and initialized correctly.  
-  - The gear link is initialized with the motor and revolute joint; however, the API documentation for `ChLinkGear` indicates it should be initialized with two joints, which is done correctly.  
-  - `SetTau` is used with a negative ratio, which is acceptable depending on gear direction.  
-  - The simulation loop uses `vis.GetDevice().run()` which is consistent with Irrlicht usage.  
-  - The rendering calls use `BeginScene()`, `DrawAll()`, `DoStepDynamics()`, and `EndScene()`. The documentation suggests `Render()` instead of `DrawAll()`, but `DrawAll()` is a valid method in `ChIrrApp`.  
+- **Incorrect API usage of joints:**  
+  The code uses `chrono.ChLinkRevolute()`, but the documentation specifies `ChLinkLockRevolute()` for revolute joints. `ChLinkRevolute` is not documented and likely incorrect or deprecated. This will cause the joints not to behave as intended.  
+  **Deduct 15 points** for incorrect API usage.
 
-**Issues:**  
-- The use of `SetBodyFixed` instead of `SetFixed` is not standard per the documentation, but it is likely an alias.  
-- The use of `ChCylinderShape` and `ChBoxShape` for visualization assets is not aligned with the documented best practice of `ChVisualShapeCylinder` and `ChVisualShapeBox`. This could lead to visualization issues or less optimal rendering.  
-- The motor speed function uses `chrono.ChFunction_Const(chrono.CH_C_PI)` which is correct.  
-- The gear link `SetTau` parameter is negative, which is acceptable but no comment explaining the sign or ratio.  
-- No collision model or material is assigned, but since collision is disabled, this is acceptable.  
+- **Joint initialization frames:**  
+  The revolute joints are initialized with `chrono.ChCoordsysD` frames using `chrono.Q_from_AngY(chrono.CH_C_PI_2)`. This is acceptable and aligns with the API. No deduction.
 
-**Deduct 10 points** for using deprecated or less appropriate visualization asset classes (`ChCylinderShape` and `ChBoxShape`) instead of recommended `ChVisualShapeCylinder` and `ChVisualShapeBox`.  
-**No major logical errors found.**
+- **Gear constraint initialization:**  
+  The gear constraint is initialized with correct frames and ratio. The negative ratio is consistent with gear direction. No deduction.
+
+- **Motor initialization:**  
+  Motor is initialized correctly with a constant speed function. No deduction.
+
+- **Body fixed setting:**  
+  `SetBodyFixed(True)` is used on `truss` and `sun_gear`. The API uses `SetFixed(True)`. This is an API misuse.  
+  **Deduct 15 points** for incorrect method name usage on body fixed setting.
+
+- **Use of `Set_G_acc`:**  
+  The method `Set_G_acc` is used, but the API documentation shows `Set_G_acc` is not the standard method; the correct method is `Set_G_acc` or `Set_G_acceleration`? The API documentation does not mention `Set_G_acc`. The standard method is `Set_G_acceleration` or `Set_G_acc`.  
+  Actually, in PyChrono, the method is `Set_G_acc` or `Set_G_acceleration`? The official API uses `Set_G_acc` in C++ but in Python it is `Set_G_acceleration` or `Set_G_acc`? The documentation shows no such method explicitly.  
+  The standard method is `Set_G_acc` in C++ but in Python it is `Set_G_acceleration`. The code uses `Set_G_acc`, which may not exist in Python API.  
+  **Deduct 10 points** for incorrect method name for gravity setting.
+
+- **Use of `chrono.Q_from_AngY`:**  
+  The code uses `chrono.Q_from_AngY(chrono.CH_C_PI_2)`. The API documentation shows `chrono.QuatFromAngleX` but no mention of `Q_from_AngY`. This may be a valid helper function, but it is not documented here.  
+  This is a minor issue but could cause errors if the function does not exist.  
+  **Deduct 5 points** for minor API uncertainty.
+
+**Total Correctness deduction: 15 + 15 + 10 + 5 = 45 points**
+
+Since the total correctness points are 30, and deductions exceed that, the minimum score is zero for correctness.
 
 ---
 
 ### 3. Code Quality (10 points)
 
-- The code is mostly readable with meaningful variable names (`sun_gear`, `planet_gear`, `bar`, `motor`, etc.).  
-- The code lacks comments explaining the purpose of key steps, parameters, or the overall simulation setup.  
-- Formatting is consistent and PEP8 compliant.  
-- No docstrings or inline comments to aid understanding.  
+- **Readability and structure:**  
+  The code is mostly readable with reasonable variable names (`truss`, `bar`, `sun_gear`, `planet_gear`).  
+  However, there are excessive blank lines and inconsistent spacing (e.g., multiple blank lines between code blocks).  
+  No comments are present to explain the purpose of blocks or parameters.  
+  **Deduct 5 points** for lack of comments.  
+  **Deduct 3 points** for inconsistent formatting and spacing.
 
-**Deduct 5 points** for insufficient comments/documentation.  
-**No deduction for readability or structure.**
+**Total Code Quality deduction: 8 points**
 
 ---
 
 ### 4. Efficiency (10 points)
 
 - No obvious redundant calculations or repeated code.  
-- The motor speed function is created inline and reused correctly.  
-- The visualization setup is straightforward and efficient.  
-- The inertia values are hardcoded and not computed from geometry or mass properties, which is acceptable for a simple example but could be improved.  
-- No unnecessary API calls detected.  
-
-**No deductions.**
+- The motor speed function is constant, which is efficient.  
+- The visualization loop is standard.  
+- However, the code creates `sun_shape` and `planet_shape` as `ChCylinderShape` but the API documentation shows `ChVisualShapeCylinder`. The difference may cause inefficiency or errors in rendering.  
+- Also, the code does not enable collision explicitly, which might be inefficient if collisions are not needed.  
+- Minor optimization opportunity: setting collision explicitly to False on fixed bodies to avoid unnecessary collision checks.  
+**Deduct 3 points** for minor optimization opportunities.
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- No error handling is present (e.g., try-except blocks, checks for system initialization).  
-- For a simple simulation script, this is common, but best practices recommend at least minimal error handling or assertions.  
-- No handling of edge cases or input validation.  
-
-**Deduct 5 points** for lack of basic error handling or robustness considerations.
+- No error handling or checks are present.  
+- No try-except blocks or validation of inputs.  
+- While not always required, basic error handling or at least comments about assumptions would improve robustness.  
+**Deduct 5 points** for lack of error handling.
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
-- Visualization is set up with `irrlicht.ChIrrApp`, which is a valid high-level wrapper.  
-- Typical lights and camera are added.  
-- No skybox or logo added, which is common but not mandatory.  
-- The camera position is reasonable.  
-- The rendering loop uses `DrawAll()` instead of `Render()`, which is acceptable for `ChIrrApp`.  
-- Lighting parameters are explicitly set, which is good.  
-
-**No significant issues, but minor improvements possible.**  
-**Deduct 2 points** for minor visualization issues (no skybox, no logo, no comments on visualization choices).
+- Visualization is set up and running.  
+- However, the code uses `vis.Run()` once before the loop, then uses `vis.GetDevice().run()` in the loop condition. The API documentation shows usage of `vis.Run()` in the loop condition.  
+- This inconsistency could cause issues or confusion.  
+- Lighting is added with specific vectors, which is acceptable but no skybox or logo is added.  
+- Minor visualization issue: no skybox or environment setup, which is common for better visualization.  
+**Deduct 2 points** for minor visualization issues.  
+**Deduct 3 points** for inconsistent loop condition usage.
 
 ---
 
-### Summary of Deductions:
+### Summary of deductions:
 
-| Criterion                   | Deduction | Reason                                                                                  |
-|-----------------------------|-----------|-----------------------------------------------------------------------------------------|
-| Completeness                | 5         | Minor omissions/slight deviations in visualization setup and lack of comments.          |
-| Correctness                | 10        | Use of deprecated visualization asset classes instead of recommended ones.              |
-| Code Quality               | 5         | Lack of comments/documentation.                                                        |
-| Efficiency                 | 0         | No inefficiencies detected.                                                            |
-| Error Handling and Robustness | 5         | No error handling or robustness considerations.                                        |
-| Visualization Tools        | 2         | Minor visualization omissions (no skybox/logo).                                        |
-
-**Total deductions: 5 + 10 + 5 + 0 + 5 + 2 = 27**
-
----
-
-### Final Score:
-
-40 (Completeness)  
-- 5 = 35  
-30 (Correctness)  
-- 10 = 20  
-10 (Code Quality)  
-- 5 = 5  
-10 (Efficiency)  
-- 0 = 10  
-5 (Error Handling)  
-- 5 = 0  
-5 (Visualization)  
-- 2 = 3  
-
-**Sum: 35 + 20 + 5 + 10 + 0 + 3 = 73**
+| Criterion                  | Deduction (points) |
+|----------------------------|-------------------|
+| Completeness               | 20                |
+| Correctness                | 30 (max)          |
+| Code Quality               | 8                 |
+| Efficiency                 | 3                 |
+| Error Handling             | 5                 |
+| Visualization             | 5                 |
+| **Total Deductions**       | 71                |
 
 ---
 
-[[73]]
+### Final score:
+
+Starting from 100 points:
+
+100 - 71 = 29 points
 
 ---
 
-**Explanation:**  
-The script is mostly complete and correct in terms of simulation setup and API usage. The main issues are the use of deprecated visualization asset classes instead of the recommended ones, lack of comments/documentation, no error handling, and minor visualization omissions. The code is readable and efficient but could be improved in robustness and clarity.
+### Explanation:
+
+- Major deductions come from incorrect API usage (`ChLinkRevolute` vs `ChLinkLockRevolute`, `SetBodyFixed` vs `SetFixed`, and gravity method name), which can cause the simulation to fail or behave incorrectly.  
+- Missing mass and inertia on dynamic bodies is a critical omission.  
+- Lack of comments and inconsistent formatting reduce code quality.  
+- Minor issues in visualization setup and error handling further reduce the score.
+
+---
+
+**Final score:**  
+[[29]]

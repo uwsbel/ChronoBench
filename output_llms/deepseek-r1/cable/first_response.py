@@ -1,74 +1,72 @@
 import chrono
-import chrono_irrlicht as irr
 import chrono.fea as fea
+import chrono.irrlicht as irr
+import math
 
-# Parameters
-beam_length = 2.0
-num_elements = 10
-node_spacing = beam_length / num_elements
-density = 1000.0  # kg/m^3
-youngs_modulus = 1e9  # Pa
-cross_section = 0.01 ** 2  # m^2 (10x10mm square)
-damping_alpha = 0.02
-damping_beta = 0.02
-
-# Create system and set gravity
+# System setup
 system = chrono.ChSystemSMC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Gravity in -Y direction
 
 # Create FEA mesh
 mesh = fea.ChMesh()
 system.Add(mesh)
 
-# Create material for ANCF cables
-material = fea.ChMaterialCableANCF(density, youngs_modulus, cross_section)
+# Beam parameters
+length = 2.0
+n_elements = 10
+radius = 0.05
+area = math.pi * radius**2
+I_yy = math.pi * radius**4 / 4  # Second moment of area
+E = 1e7                         # Young's modulus
+density = 1000                  # Material density
+damping = 0.01                  # Rayleigh damping
+
+# Create cable section
+section = fea.ChBeamSectionCable()
+section.SetArea(area)
+section.SetI(I_yy)
+section.SetYoungModulus(E)
+section.SetDensity(density)
+section.SetRayleighDamping(damping)
 
 # Create nodes
 nodes = []
-for i in range(num_elements + 1):
-    position = chrono.ChVectorD(i * node_spacing, 0, 0)
-    slope = chrono.ChVectorD(1, 0, 0)  # Initial slope (aligned with X-axis)
-    node = fea.ChNodeCableANCF(position, slope)
-    nodes.append(node)
+for i in range(n_elements + 1):
+    x = i * (length / n_elements)
+    pos = chrono.ChVectorD(x, 0, 0)
+    dir = chrono.ChVectorD(1, 0, 0)  # Initial direction vector
+    node = fea.ChNodeFEAxyzD(pos, dir)
+    node.SetMass(0)
+    if i == 0:
+        node.SetFixed(True)  # Fix first node (hinged support)
     mesh.AddNode(node)
+    nodes.append(node)
 
-# Create cable elements
-for i in range(num_elements):
+# Create ANCF cable elements
+for i in range(n_elements):
     element = fea.ChElementCableANCF()
     element.SetNodes(nodes[i], nodes[i + 1])
-    element.SetMaterial(material)
-    element.SetAlpha(damping_alpha)
-    element.SetBeta(damping_beta)
+    element.SetSection(section)
+    element.SetVisualize(True)
+    element.SetColor(chrono.ChColor(0.9, 0.9, 0.9))
     mesh.AddElement(element)
 
-# Fix first node to ground
-ground = chrono.ChBody()
-ground.SetBodyFixed(True)
-system.Add(ground)
-lock = chrono.ChLinkPointFrame()
-lock.Initialize(nodes[0], ground)
-system.Add(lock)
+# Create Irrlicht visualization
+application = irr.ChIrrApp(system, "ANCF Cable Beam", irr.dimension2du(1024, 768))
+application.AddTypicalSky()
+application.AddTypicalLights(irr.vector3df(30, 100, 100), irr.vector3df(30, -100, 80), 200, 130)
+application.AddTypicalCamera(irr.vector3df(1.5, 0.5, -2), irr.vector3df(1.5, 0.5, 0))
 
-# Configure Irrlicht visualization
-application = irr.ChIrrApp(system, "ANCF Cable Beam Simulation", 800, 600)
-application.AddTypicalCamera(chrono.ChVectorD(1, 0.5, 1))
-application.AddTypicalLights()
 application.AssetBindAll()
 application.AssetUpdateAll()
 
-# Set solver parameters
-system.SetSolverType(chrono.ChSolver.Type_MINRES)
-system.SetSolverMaxIterations(100)
-system.SetSolverTolerance(1e-10)
-system.SetSolverVerbose(False)
+# Simulation loop settings
+application.SetTimestep(0.001)
+application.SetTryRealtime(True)
 
-# Simulation loop parameters
-time_step = 1e-4
-application.SetTimestep(time_step)
-
-# Run simulation
+# Simulation loop
 while application.GetDevice().run():
     application.BeginScene()
     application.DrawAll()
-    application.DoStepDynamics(time_step)
+    application.DoStep()
     application.EndScene()

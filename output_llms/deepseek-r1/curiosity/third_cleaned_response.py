@@ -32,57 +32,50 @@ system.Add(box)
 rover = robot.Curiosity(system)
 
 
-driver = robot.CuriosityDCMotorControl()
-rover.SetDriver(driver)
-
-
 init_pos = chrono.ChVector3d(-5, 0.0, 0)
 init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
-rover.Initialize(chrono.ChFrameD(init_pos, init_rot))  
+rover.Initialize(chrono.ChFrameD(init_pos, init_rot))
 
 
-manager = sens.ChSensorManager(system)  
+manager = sens.ChSensorManager(system)
 
 
-lidar_body = rover.GetChassisBody()  
 lidar_offset = chrono.ChVector3d(0.5, 0, 0.2)  
-lidar_pose = chrono.ChFrameD(lidar_offset, chrono.Q_from_AngZ(0))
+lidar_rot = chrono.ChQuaterniond(1, 0, 0, 0)
+lidar_update_rate = 10
+lidar_hor_samples = 450
+lidar_ver_samples = 45
+lidar_hor_fov = 2 * chrono.CH_PI  
+lidar_ver_fov = chrono.CH_PI / 6  
+lidar_max_dist = 20.0
 
 
-update_rate = 10
-horizontal_samples = 4500
-vertical_samples = 32
-horizontal_fov = chrono.CH_PI  
-vertical_fov = chrono.CH_PI / 6  
-max_vert_angle = vertical_fov / 2
-min_vert_angle = -vertical_fov / 2
-lag = 0
-exposure_time = 0.1
-
-
+chassis = rover.GetChassis()
 lidar = sens.ChLidarSensor(
-    lidar_body,
-    update_rate,
-    lidar_pose,
-    horizontal_samples,
-    vertical_samples,
-    horizontal_fov,
-    max_vert_angle,
-    min_vert_angle,
-    lag,
-    exposure_time,
-    sens.LensModelType_PINHOLE,
-    False
+    chassis,             
+    lidar_update_rate,   
+    chrono.ChFrameD(lidar_offset, lidar_rot),  
+    lidar_hor_samples,   
+    lidar_ver_samples,   
+    lidar_hor_fov,       
+    lidar_ver_fov,       
+    lidar_max_dist       
 )
 
 
-lidar.PushFilter(sens.FilterDIAccess())  
-lidar.PushFilter(sens.FilterXYZIAccess())  
-lidar.SetName("Rover Lidar")
-lidar.SetDescription("Custom Lidar Sensor")
+lidar.SetName("Lidar Sensor")
+lidar.SetLag(0.0)
+lidar.SetCollectionWindow(0.0)
 
 
-manager.AddSensor(lidar)  
+noise_model = sens.ChNoiseNormal(0.0, 0.1)
+lidar.AddNoiseModel(noise_model)
+
+
+lidar.PushFilter(sens.ChFilterVisualize(lidar_hor_samples, lidar_ver_samples, "Lidar Data"))
+
+
+manager.AddSensor(lidar)
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
@@ -101,6 +94,10 @@ vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0
 time_step = 1e-3
 
 
+driver = robot.CuriosityDCMotorControl()
+rover.SetDriver(driver)
+
+
 time = 0
 while vis.Run():
     time += time_step
@@ -112,7 +109,7 @@ while vis.Run():
     rover.Update()
 
     
-    manager.Update()  
+    manager.Update()
 
     
     vis.BeginScene()

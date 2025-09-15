@@ -3,21 +3,21 @@
 ```python
 import pychrono as chrono
 import pychrono.ros as chrono_ros
+import time
 import rospy
 from std_msgs.msg import Int32
 
 class CustomHandler(chrono_ros.ChROSHandler):
-    def __init__(self, topic_name):
+    def __init__(self):
         super().__init__()
-        self.topic_name = topic_name
         self.publisher = None
         self.counter = 0
 
-    def Initialize(self, ros_manager):
-        self.publisher = ros_manager.GetNode().advertise(self.topic_name, Int32, 10)
+    def Initialize(self):
+        self.publisher = rospy.Publisher("/custom_data", Int32, queue_size=10)
         return True
 
-    def Tick(self, time):
+    def Tick(self, sim_time):
         msg = Int32()
         msg.data = self.counter
         self.publisher.publish(msg)
@@ -26,51 +26,48 @@ class CustomHandler(chrono_ros.ChROSHandler):
 
 # Initialize Chrono system
 system = chrono.ChSystemNSC()
-system.SetGravitationalAcceleration(chrono.ChVectorD(0, 0, -9.81))
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
 # Create materials
 material = chrono.ChMaterialSurfaceNSC()
 material.SetFriction(0.5)
-material.SetRestitution(0.1)
+material.SetDampingF(0.2)
 
 # Create floor
-floor = chrono.ChBodyEasyBox(10, 10, 0.1, 1000, True, True, material)
-floor.SetPos(chrono.ChVectorD(0, 0, -0.1))
+floor = chrono.ChBodyEasyBox(10, 0.5, 10, 1000, True, True, material)
+floor.SetPos(chrono.ChVectorD(0, -0.25, 0))
 floor.SetBodyFixed(True)
 system.Add(floor)
 
 # Create box
-box = chrono.ChBodyEasyBox(0.5, 0.5, 0.5, 1000, True, True, material)
-box.SetPos(chrono.ChVectorD(0, 0, 2))
+box = chrono.ChBodyEasyBox(1, 1, 1, 1000, True, True, material)
+box.SetPos(chrono.ChVectorD(0, 1, 0))
 system.Add(box)
 
 # Initialize ROS manager
-manager = chrono_ros.ChROSManager()
-manager.AttachSystem(system)
+ros_manager = chrono_ros.ChROSPythonManager(system)
+ros_manager.AddHandler(chrono_ros.ChROSClockHandler())
+ros_manager.AddHandler(chrono_ros.ChROSBodyHandler(box, "/box_state"))
+ros_manager.AddHandler(chrono_ros.ChROSTFHandler())
+ros_manager.AddHandler(CustomHandler())
 
-# Add default handlers
-manager.AddHandler(chrono_ros.ChROSClockHandler())
-manager.AddHandler(chrono_ros.ChROSBodyHandler())
-manager.AddHandler(chrono_ros.ChROSTransformHandler())
+# Simulation parameters
+time_step = 0.01
+simulation_duration = 10.0
+real_time_start = time.time()
 
-# Add custom handler
-custom_handler = CustomHandler("/chrono/counter")
-manager.AddHandler(custom_handler)
-
-# Initialize ROS
-manager.Initialize()
-
-# Simulation loop parameters
-step_size = 0.01
-realtime_step = True
-
-while manager.IsOk():
+# Main simulation loop
+while system.GetChTime() < simulation_duration:
     # Advance simulation
-    system.DoStepDynamics(step_size)
+    system.DoStepDynamics(time_step)
     
     # Update ROS communications
-    manager.Advance(step_size, realtime_step)
-
-# Finalize ROS
-manager.Finalize()
+    ros_manager.Update(system.GetChTime(), time_step)
+    
+    # Real-time synchronization
+    real_time_elapsed = time.time() - real_time_start
+    desired_real_time = system.GetChTime()
+    sleep_time = desired_real_time - real_time_elapsed
+    if sleep_time > 0:
+        time.sleep(sleep_time)
 ```

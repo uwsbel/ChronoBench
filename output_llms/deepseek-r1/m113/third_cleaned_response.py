@@ -17,9 +17,9 @@ vis_type = veh.VisualizationType_MESH
 chassis_collision_type = veh.CollisionType_NONE
 
 
-terrainHeight = 0
-terrainLength = 100.0
-terrainWidth = 100.0
+terrainHeight = 0      
+terrainLength = 100.0  
+terrainWidth = 100.0   
 
 
 trackPoint = chrono.ChVector3d(0.0, 0.0, 0.1)
@@ -31,6 +31,8 @@ contact_vis = False
 
 step_size = 5e-4
 tire_step_size = step_size
+
+
 render_step_size = 1.0 / 50  
 
 
@@ -44,7 +46,6 @@ vehicle.SetBrakeType(veh.BrakeType_SIMPLE)
 
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.Initialize()
-
 
 vehicle.SetChassisVisualizationType(vis_type)
 vehicle.SetSprocketVisualizationType(vis_type)
@@ -70,16 +71,14 @@ patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 
-box_mat = chrono.ChContactMaterialSMC()
-box_mat.SetFriction(0.9)
-box_mat.SetRestitution(0.01)
-box = chrono.ChBodyEasyBox(20, 2, 0.5,  
-                           1000,        
-                           True,        
-                           True,        
-                           box_mat)     
-box.SetPos(chrono.ChVector3d(10, 0, 0.25))  
-box.SetFixed(True)  
+box = chrono.ChBodyEasyBox(20.0, 2.0, 0.5,  
+                           1000,  
+                           True,  
+                           True,  
+                           patch_mat)  
+box.SetPos(chrono.ChVector3d(20.0, 0, 0.25))  
+box.SetBodyFixed(True)
+box.SetColor(chrono.ChColor(0.5, 0.3, 0.2))
 vehicle.GetSystem().Add(box)
 
 
@@ -95,6 +94,8 @@ vis.AttachVehicle(vehicle.GetVehicle())
 
 
 driver = veh.ChInteractiveDriverIRR(vis)
+
+
 steering_time = 1.0
 throttle_time = 1.0
 braking_time = 0.3
@@ -105,6 +106,7 @@ driver.Initialize()
 
 
 vehicle.GetSystem().SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
+
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 render_steps = math.ceil(render_step_size / step_size)
@@ -115,8 +117,7 @@ vehicle.GetVehicle().EnableRealtime(True)
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
     
-    
-    if step_number % render_steps == 0:
+    if (step_number % render_steps == 0):
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
@@ -124,7 +125,7 @@ while vis.Run():
 
     
     driver_inputs = driver.GetInputs()
-    driver_inputs.m_throttle = 0.8  
+    driver_inputs.throttle = 0.8  
     
     
     driver.Synchronize(time)

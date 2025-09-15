@@ -1,32 +1,31 @@
 import pychrono as ch
 import pychrono.vehicle as veh
 import pychrono.ros as chros
-import pychrono.irrlicht as chronoirr  
+from pychrono import irrlicht as chronoirr  
 
 def main():
-    
-    veh.SetDataPath(ch.GetChronoDataPath() + 'vehicle/')
-    
+    veh.SetDataPath(ch.GetChronoDataPath() + 'vehicle/')  
+
     
     hmmwv = veh.HMMWV_Full()
     hmmwv.SetContactMethod(ch.ChContactMethod_NSC)
     hmmwv.SetChassisCollisionType(veh.CollisionType_NONE)
     hmmwv.SetChassisFixed(False)
     hmmwv.SetInitPosition(ch.ChCoordsysd(ch.ChVector3d(0, 0, 1.6), ch.ChQuaterniond(1, 0, 0, 0)))
+    
+    
+    hmmwv.SetChassisVisualizationType(veh.VisualizationType_PRIMITIVES)
+    hmmwv.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
+    hmmwv.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
+    hmmwv.SetWheelVisualizationType(veh.VisualizationType_PRIMITIVES)
+    hmmwv.SetTireVisualizationType(veh.VisualizationType_PRIMITIVES)
+    
     hmmwv.SetEngineType(veh.EngineModelType_SHAFTS)
     hmmwv.SetTransmissionType(veh.TransmissionModelType_AUTOMATIC_SHAFTS)
     hmmwv.SetDriveType(veh.DrivelineTypeWV_AWD)
     hmmwv.SetSteeringType(veh.SteeringTypeWV_PITMAN_ARM)
     hmmwv.SetTireType(veh.TireModelType_TMEASY)
     hmmwv.SetTireStepSize(1e-3)
-    
-    
-    hmmwv.SetChassisVisualizationType(veh.VisualizationType_MESH)
-    hmmwv.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
-    hmmwv.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
-    hmmwv.SetWheelVisualizationType(veh.VisualizationType_MESH)
-    hmmwv.SetTireVisualizationType(veh.VisualizationType_MESH)
-    
     hmmwv.Initialize()
 
     
@@ -35,10 +34,7 @@ def main():
     patch_mat.SetFriction(0.9)
     patch_mat.SetRestitution(0.01)
     patch = terrain.AddPatch(patch_mat, ch.CSYSNORM, 100.0, 100.0)
-    
-    
-    patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 100, 100)
-    
+    patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 100, 100)  
     terrain.Initialize()
 
     
@@ -55,42 +51,43 @@ def main():
     
     vis = chronoirr.ChVisualSystemIrrlicht()
     vis.AttachSystem(hmmwv.GetSystem())
-    vis.SetWindowSize(1280, 720)
+    vis.SetWindowSize(1024, 768)
     vis.SetWindowTitle('HMMWV Simulation')
     vis.Initialize()
-    vis.AddLogo()
+    vis.AddLogo(ch.GetChronoDataFile('logo_pychrono_irrlicht.png'))
     vis.AddSkyBox()
-    vis.AddCamera(ch.ChVector3d(8, -6, 1.5), ch.ChVector3d(0, 0, 1.0))
+    vis.AddCamera(ch.ChVector3d(3, 3, 2))
     vis.AddTypicalLights()
 
     
     time = 0
     time_step = 1e-3
     time_end = 30
-
     hmmwv.GetVehicle().EnableRealtime(True)
-    while time < time_end:
+
+    
+    while vis.Run() and time < time_end:
         time = hmmwv.GetSystem().GetChTime()
-
         
-        if not vis.Run():
-            break
-        vis.BeginScene()
-        vis.Render()
-        vis.EndScene()
-
         
         driver_inputs = driver.GetInputs()
         driver.Synchronize(time)
         terrain.Synchronize(time)
         hmmwv.Synchronize(time, driver_inputs, terrain)
         
+        
         driver.Advance(time_step)
         terrain.Advance(time_step)
         hmmwv.Advance(time_step)
         
+        
         if not ros_manager.Update(time, time_step):
             break
+        
+        
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
 
 if __name__ == "__main__":
     main()

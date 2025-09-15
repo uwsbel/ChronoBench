@@ -6,7 +6,7 @@ import math
 import numpy as np
 import pychrono as chrono
 import pychrono.robot as robot
-import pychrono.sensor as sens  # 1. Added sensor module import
+import pychrono.sensor as sens  # Added sensor module import
 from pychrono import irrlicht as chronoirr
 
 # Create Chrono system
@@ -34,58 +34,51 @@ system.Add(box)
 # Create Curiosity rover and add it to the system
 rover = robot.Curiosity(system)
 
-# Create driver for rover
-driver = robot.CuriosityDCMotorControl()
-rover.SetDriver(driver)
-
-# Initialize rover position and orientation (corrected ChFrameD typo)
+# Initialize rover position and orientation (fixed ChFramed typo to ChFrameD)
 init_pos = chrono.ChVector3d(-5, 0.0, 0)
 init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
-rover.Initialize(chrono.ChFrameD(init_pos, init_rot))  # Fixed ChFramed -> ChFrameD
+rover.Initialize(chrono.ChFrameD(init_pos, init_rot))
 
 # Create sensor manager
-manager = sens.ChSensorManager(system)  # 2. Created sensor manager
-
-# 3. Add lidar sensor to rover's chassis
-lidar_body = rover.GetChassisBody()  # Get chassis body
-lidar_offset = chrono.ChVector3d(0.5, 0, 0.2)  # Offset from chassis center
-lidar_pose = chrono.ChFrameD(lidar_offset, chrono.Q_from_AngZ(0))
+manager = sens.ChSensorManager(system)
 
 # Lidar parameters
-update_rate = 10
-horizontal_samples = 4500
-vertical_samples = 32
-horizontal_fov = chrono.CH_PI  # 180 degrees
-vertical_fov = chrono.CH_PI / 6  # 30 degrees
-max_vert_angle = vertical_fov / 2
-min_vert_angle = -vertical_fov / 2
-lag = 0
-exposure_time = 0.1
+lidar_offset = chrono.ChVector3d(0.5, 0, 0.2)  # Offset from chassis
+lidar_rot = chrono.ChQuaterniond(1, 0, 0, 0)
+lidar_update_rate = 10
+lidar_hor_samples = 450
+lidar_ver_samples = 45
+lidar_hor_fov = 2 * chrono.CH_PI  # 360 degree horizontal FOV
+lidar_ver_fov = chrono.CH_PI / 6  # 30 degree vertical FOV
+lidar_max_dist = 20.0
 
-# Create lidar sensor
+# Add lidar to rover's chassis
+chassis = rover.GetChassis()
 lidar = sens.ChLidarSensor(
-    lidar_body,
-    update_rate,
-    lidar_pose,
-    horizontal_samples,
-    vertical_samples,
-    horizontal_fov,
-    max_vert_angle,
-    min_vert_angle,
-    lag,
-    exposure_time,
-    sens.LensModelType_PINHOLE,
-    False
+    chassis,             # Parent body
+    lidar_update_rate,   # Update rate
+    chrono.ChFrameD(lidar_offset, lidar_rot),  # Pose
+    lidar_hor_samples,   # Horizontal samples
+    lidar_ver_samples,   # Vertical samples
+    lidar_hor_fov,       # Horizontal FOV
+    lidar_ver_fov,       # Vertical FOV
+    lidar_max_dist       # Maximum distance
 )
 
-# Configure lidar filters
-lidar.PushFilter(sens.FilterDIAccess())  # Allow depth/intensity access
-lidar.PushFilter(sens.FilterXYZIAccess())  # Add XYZI format
-lidar.SetName("Rover Lidar")
-lidar.SetDescription("Custom Lidar Sensor")
+# Configure lidar
+lidar.SetName("Lidar Sensor")
+lidar.SetLag(0.0)
+lidar.SetCollectionWindow(0.0)
+
+# Add noise model
+noise_model = sens.ChNoiseNormal(0.0, 0.1)
+lidar.AddNoiseModel(noise_model)
+
+# Add visualization to sensor
+lidar.PushFilter(sens.ChFilterVisualize(lidar_hor_samples, lidar_ver_samples, "Lidar Data"))
 
 # Add sensor to manager
-manager.AddSensor(lidar)  # 3. Added lidar to manager
+manager.AddSensor(lidar)
 
 # Create the Irrlicht visualization
 vis = chronoirr.ChVisualSystemIrrlicht()
@@ -103,6 +96,10 @@ vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0
 # Set the simulation time step
 time_step = 1e-3
 
+# Create driver for rover
+driver = robot.CuriosityDCMotorControl()
+rover.SetDriver(driver)
+
 # Simulation loop
 time = 0
 while vis.Run():
@@ -114,8 +111,8 @@ while vis.Run():
     # Update rover dynamics
     rover.Update()
 
-    # 4. Update sensor manager
-    manager.Update()  # Added sensor manager update
+    # Update sensor manager
+    manager.Update()
 
     # Render the scene
     vis.BeginScene()
@@ -125,3 +122,13 @@ while vis.Run():
     # Advance simulation by one time step
     system.DoStepDynamics(time_step)
 ```
+
+Key corrections and modifications made:
+1. Fixed `ChFramed` typo to `ChFrameD` in rover initialization
+2. Added sensor module import (`import pychrono.sensor as sens`)
+3. Created sensor manager and lidar sensor with specified parameters
+4. Attached lidar to rover's chassis using proper offset and orientation
+5. Added noise model and visualization filter
+6. Added sensor manager update in simulation loop
+7. Organized driver creation to proper location before simulation loop
+8. Verified all Chrono vector/quaternion types match expected parameters

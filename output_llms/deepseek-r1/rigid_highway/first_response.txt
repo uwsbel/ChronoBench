@@ -2,115 +2,92 @@
 
 ```python
 import os
+import math
 import pychrono as chrono
 import pychrono.vehicle as veh
 import pychrono.irrlicht as irr
 
-# Initialize core parameters
-def main():
-    # 1. Create Chrono system and set contact method
-    system = chrono.ChSystemNSC()
-    system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
-    contact_method = chrono.ChContactMethod_NSC
-    system.SetContactMethod(contact_method)
+# Initialize PyChrono system
+chrono.SetChronoDataPath(os.path.join(os.getenv('CHRONO_DATA_DIR'), 'data/'))
+system = chrono.ChSystemSMC()
+system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
 
-    # 2. Create HMMWV vehicle with mesh visualization
-    vehicle = veh.HMMWV_Vehicle(False, veh.ChMaterialSurface.NSC, veh.DRIVELINE_4WD, veh.BRAKES_4WD, veh.STEERING_PITMAN_ARM)
-    vehicle.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0.5), chrono.Q_ROTATE_Y_TO_X))
-    vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
-    vehicle.SetSuspensionVisualizationType(veh.VisualizationType_MESH)
-    vehicle.SetSteeringVisualizationType(veh.VisualizationType_MESH)
-    vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
+# Create HMMWV vehicle
+vehicle = veh.HMMWV_Full(system)
+vehicle.SetContactMethod(chrono.ChContactMethod_SMC)
+vehicle.SetChassisFixed(False)
+vehicle.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0.5), chrono.QUNIT))
+vehicle.SetTireType(veh.TireModelType_TMEASY)
+vehicle.SetTireStepSize(0.001)
+vehicle.Initialize()
 
-    # 3. Create custom mesh terrain
-    ground = chrono.ChBody()
-    ground.SetPos(chrono.ChVectorD(0, 0, 0))
-    ground.SetBodyFixed(True)
+# Set vehicle visualization to meshes
+vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
+vehicle.SetSuspensionVisualizationType(veh.VisualizationType_MESH)
+vehicle.SetSteeringVisualizationType(veh.VisualizationType_MESH)
+vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
+vehicle.SetTireVisualizationType(veh.VisualizationType_MESH)
+
+# Create custom terrain
+ground = chrono.ChBody()
+ground.SetPos(chrono.ChVectorD(0, 0, 0))
+ground.SetBodyFixed(True)
+
+# Add collision mesh
+collision_mesh = chrono.ChTriangleMeshConnected()
+collision_mesh.LoadWavefrontMesh(chrono.GetChronoDataFile('Highway_col.obj'))
+ground.GetCollisionModel().ClearModel()
+ground.GetCollisionModel().AddTriangleMesh(collision_mesh, True, False, chrono.ChVectorD(0,0,0))
+ground.GetCollisionModel().BuildModel()
+ground.SetCollide(True)
+
+# Add visual mesh
+visual_mesh = chrono.ChObjFileShape()
+visual_mesh.SetFilename(chrono.GetChronoDataFile('Highway_vis.obj'))
+ground.AddVisualShape(visual_mesh)
+system.Add(ground)
+
+# Create Irrlicht visualization
+vis = irr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetWindowSize(1280, 720)
+vis.SetWindowTitle('HMMWV on Custom Terrain')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVectorD(0, 10, 2))
+vis.AddTypicalLights()
+
+# Create interactive driver
+driver = veh.ChInteractiveDriverIRR(vis)
+steering_controller = veh.ChSteeringControllerSMC()
+driver.SetSteeringController(steering_controller)
+driver.SetInputDataFile(veh.GetDataFile("MDF/driver/Accelerations.txt"))
+driver.SetInputMode(veh.InputMode_DATAFILE)
+driver.Initialize()
+
+# Simulation loop parameters
+time_step = 0.002
+real_time_frame = 0.02  # Target 50 FPS (1/50 = 0.02)
+time = 0
+
+while vis.Run():
+    time = system.GetChTime()
     
-    # Collision mesh
-    collision_mesh = chrono.ChTriangleMeshConnected()
-    collision_mesh.LoadWavefrontMesh("Highway_col.obj")
-    collision_shape = chrono.ChTriangleMeshShape()
-    collision_shape.SetMesh(collision_mesh)
-    collision_shape.SetName("collision_mesh")
-    ground.AddAsset(collision_shape)
+    # Update visualization and driver inputs
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
     
-    # Visual mesh
-    visual_mesh = chrono.ChObjFileShape()
-    visual_mesh.SetFilename("Highway_vis.obj")
-    ground.AddAsset(visual_mesh)
+    # Get driver inputs
+    driver_inputs = driver.GetInputs()
+    vehicle.GetDriver().SetInputs(driver_inputs)
     
-    material = chrono.ChMaterialSurfaceNSC()
-    material.SetFriction(0.9)
-    ground.GetCollisionModel().AddTriangleMesh(material, collision_mesh, False, False)
-    ground.SetCollide(True)
-    system.Add(ground)
-
-    # 4. Initialize TMEASY tires
-    tire_params = veh.TMeasyParams()
-    tire_params.mass = 37.6
-    tire_params.width = 0.305
-    tire_params.diameter = 0.9398
+    # Advance simulation
+    driver.Synchronize(time)
+    vehicle.Synchronize(time, driver_inputs, terrain)
+    system.DoStepDynamics(time_step)
     
-    for axle in [veh.LEFT, veh.RIGHT]:
-        vehicle.InitializeTire(veh.TMeasyTire(tire_params), vehicle.GetAxle(axle, 0), veh.VisualizationType_MESH)
-        vehicle.InitializeTire(veh.TMeasyTire(tire_params), vehicle.GetAxle(axle, 1), veh.VisualizationType_MESH)
-
-    # 5. Set up Irrlicht visualization
-    app = irr.ChIrrApp(system, "HMMWV Simulation", irr.dimension2du(1280, 720))
-    app.AddTypicalLights()
-    app.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
-    app.AssetBindAll()
-    app.AssetUpdateAll()
-    
-    # 6. Create interactive driver
-    driver = veh.ChIrrGuiDriver(app)
-    driver.SetSteeringDelta(0.02)
-    driver.SetThrottleDelta(0.02)
-    driver.SetBrakingDelta(0.06)
-    driver.Initialize()
-
-    # 7. Configure real-time simulation
-    time_step = 0.02  # 50 FPS
-    realtime_timer = chrono.ChRealtimeStepTimer()
-    system.SetSolverMaxIterations(100)
-
-    # Main simulation loop
-    while app.GetDevice().run():
-        time = system.GetChTime()
-        
-        # Update driver inputs
-        driver_inputs = driver.GetInputs()
-        vehicle.GetDriverController().SetInputs(driver_inputs)
-        
-        # Render scene
-        app.BeginScene(True, True, irr.SColor(255, 140, 161, 192))
-        app.DrawAll()
-        app.EndScene()
-        
-        # Advance simulation
-        vehicle.Synchronize(time)
-        driver.Synchronize(time)
-        system.DoStepDynamics(time_step)
-        app.Advance(time_step)
-        
-        # Maintain real-time
-        realtime_timer.Spin(time_step)
-
-if __name__ == "__main__":
-    main()
+    # Maintain real-time simulation
+    chrono.ChRealtimeStep(real_time_frame)
 ```
-
-This implementation:
-- Creates a full HMMWV vehicle with mesh visualization for all components
-- Uses custom OBJ meshes for collision and visualization of terrain
-- Implements TMEASY tire model with proper initialization
-- Sets up real-time simulation at 50 FPS with Irrlicht visualization
-- Includes interactive driver controls (arrow keys for steering/throttle/braking)
-- Properly handles physics synchronization and real-time pacing
-
-Make sure to:
-1. Place Highway_col.obj and Highway_vis.obj in your working directory
-2. Adjust mesh paths if needed
-3. Install required Chrono data files
-4. Use appropriate Irrlicht driver inputs for your control scheme

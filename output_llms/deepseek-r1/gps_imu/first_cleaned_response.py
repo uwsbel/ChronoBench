@@ -1,96 +1,97 @@
-import os
-import math
 import pychrono as chrono
 import pychrono.vehicle as veh
-import pychrono.sensor as sens
 import pychrono.irrlicht as irr
+import pychrono.sensor as sens
 
-
-chrono.SetChronoDataPath(os.path.join(os.getenv("CHRONO_DATA_DIR"), "vehicle/"))
-system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
-
-
-vehicle = veh.HMMWV_Full(system)
-vehicle.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0.5), chrono.QUNIT))
-vehicle.SetChassisVisualizationType(veh.VisualizationType_PRIMITIVES)
-vehicle.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
-vehicle.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
-vehicle.SetWheelVisualizationType(veh.VisualizationType_NONE)
-
-
-terrain = veh.RigidTerrain(system)
-patch_mat = chrono.ChMaterialSurfaceNSC()
-patch_mat.SetFriction(0.9)
-patch_mat.SetRestitution(0.01)
-patch = terrain.AddPatch(patch_mat, chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 1), 100, 100)
-patch.SetTexture(veh.GetDataFile("terrain/texture/tile4.jpg"), 200, 200)
-terrain.Initialize()
-
-
-app = irr.ChIrrApp(system, "HMMWV Simulation", irr.dimension2du(800, 600))
-app.AddTypicalLights()
-app.AddTypicalCamera(irr.vector3df(0, 0, 1))
-app.AssetBindAll()
-app.AssetUpdateAll()
-
-
-manager = sens.ChSensorManager(system)
-manager.scene.AddPointLight(chrono.ChVectorD(0, 0, 100), chrono.ChColor(1, 1, 1), 5000)
-
-
-imu_offset = chrono.ChVectorD(0, 0, 0.5)
-imu_noise = sens.NoiseNormal(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0.001, 0.001, 0.001))
-imu = sens.ChIMUSensor(vehicle.GetChassisBody(), 100, chrono.ChFrameD(imu_offset), manager)
-imu.SetNoiseModel(imu_noise)
-imu.PushFilter(sens.SensorFilterIIR())
-
-
-gps_offset = chrono.ChVectorD(0, 0, 0.5)
-gps_noise = sens.NoiseNormal(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0.1, 0.1, 0.1))
-gps = sens.ChGPSSensor(vehicle.GetChassisBody(), 10, chrono.ChFrameD(gps_offset), 
-                      chrono.ChVectorD(-100, -100, -100), chrono.ChVectorD(100, 100, 100), manager)
-gps.SetNoiseModel(gps_noise)
-gps.PushFilter(sens.SensorFilterIIR())
-
-
-driver = veh.ChInteractiveDriverIRR(app)
-driver.SetSteeringDelta(0.02)
-driver.SetThrottleDelta(0.02)
-driver.SetBrakingDelta(0.02)
-driver.Initialize()
-
-
-time_step = 0.002
-while app.GetDevice().run():
-    time = system.GetChTime()
+def main():
     
+    chrono.SetChronoDataPath(chrono.GetChronoDataPath())
+    veh.SetDataPath(chrono.GetChronoDataPath() + "vehicle/")
     
-    manager.Update()
+    system = chrono.ChSystemNSC()
+    system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+
     
+    vehicle = veh.HMMWV_Reduced()
+    vehicle.SetContactMethod(chrono.ChContactMethod_NSC)
+    vehicle.SetChassisCollisionType(veh.CollisionType_MESH)
+    vehicle.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0.5, 0)))
+    vehicle.Initialize()
+    vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
+    vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
+
     
-    if imu.GetMostRecentFrame():
-        imu_data = imu.GetMostRecentFrame().GetIMUData()
-    if gps.GetMostRecentFrame():
-        gps_data = gps.GetMostRecentFrame().GetGPSData()
+    terrain = veh.RigidTerrain(system)
+    patch = terrain.AddPatch(chrono.ChCoordsysD(), 200, 100, 0.1)
+    patch.SetTexture(veh.TerrainTextureType_GRADED, 200, 100)
+    terrain.Initialize()
+
     
+    app = irr.ChIrrApp(vehicle.GetSystem(), "HMMWV Simulation", irr.dimension2d(1280, 720))
+    app.AddTypicalLights()
+    app.AddTypicalCamera(irr.vector3df(0, 2, -5))
+    app.AssetBindAll()
+    app.AssetUpdateAll()
+
     
-    driver.Synchronize(time)
-    vehicle.Synchronize(time, driver.GetInputs(), terrain)
-    terrain.Synchronize(time)
-    app.Synchronize("", driver.GetInputs())
+    manager = sens.ChSensorManager(system)
+    manager.scene.AddPointLight(chrono.ChVectorD(0, 100, 0), chrono.ChColor(1,1,1), 1000)
+
     
+    imu = sens.ChIMUSensor(
+        vehicle.GetChassisBody(),             
+        50,                                   
+        chrono.ChFrameD(chrono.ChVectorD(0, 0.5, 0)),  
+        sens.NoiseNormal(chrono.ChVectorD(0.001,0.001,0.001), chrono.ChVectorD(0.001,0.001,0.001))
+    )
+    manager.AddSensor(imu)
+
     
-    driver.Advance(time_step)
-    terrain.Advance(time_step)
-    vehicle.Advance(time_step)
-    app.Advance(time_step)
+    gps = sens.ChGPSSensor(
+        vehicle.GetChassisBody(),             
+        50,                                   
+        chrono.ChFrameD(chrono.ChVectorD(0, 0.5, 0)),  
+        chrono.ChVectorD(0, 0, 0),            
+        sens.NoiseNormal(chrono.ChVectorD(0.1,0.1,0.1))
+    )
+    manager.AddSensor(gps)
+
     
+    driver = veh.ChInteractiveDriverIRR(app.GetDevice())
+    driver.SetSteeringDelta(0.02)
+    driver.SetThrottleDelta(0.02)
+    driver.SetBrakingDelta(0.06)
+    vehicle.GetVehicle().SetDriver(driver)
+
     
-    if math.fmod(time, 1.0) < time_step:
-        print(f"Vehicle mass: {vehicle.GetVehicleMass()} kg")
+    print(f"Vehicle mass: {vehicle.GetVehicle().GetMass()} kg")
+
     
-    
-    app.BeginScene(True, True, irr.SColor(255, 140, 161, 192))
-    app.DrawAll()
-    app.EndScene()
+    time_step = 0.02
+    while app.GetDevice().run():
+        time = system.GetChTime()
+        
+        
+        app.BeginScene()
+        app.DrawAll()
+        app.EndScene()
+        
+        
+        driver.Synchronize(time)
+        vehicle.Synchronize(time, driver.GetInputs(), terrain)
+        terrain.Synchronize(time)
+        app.Synchronize()
+        app.Advance(time_step)
+        
+        
+        system.DoStepDynamics(time_step)
+        manager.Update()
+
+        
+        if imu.GetMostRecentFrame():
+            print(f"IMU Accel: {imu.GetMostRecentFrame().Acceleration}")
+        if gps.GetMostRecentFrame():
+            print(f"GPS Position: {gps.GetMostRecentFrame().Position}")
+
+if __name__ == "__main__":
+    main()

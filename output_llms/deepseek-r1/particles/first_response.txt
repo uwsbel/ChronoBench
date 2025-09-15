@@ -1,115 +1,85 @@
 
 
 ```python
-import pychrono as chrono
-import pychrono.irrlicht as irr
-import pychrono.particles as particles
 import math
 import random
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
 
-# Custom gravitational force calculator
-class GravitationalForces(chrono.ChPhysicsItem):
-    def __init__(self, particle_cloud):
-        super().__init__()
-        self.particle_cloud = particle_cloud
-        self.G = 5e-3  # Adjusted gravitational constant for visible effects
-        
-    def Update(self, time, update_assets=True):
-        n = self.particle_cloud.GetNumParticles()
-        for i in range(n):
-            body_i = self.particle_cloud.GetParticle(i).GetBody()
+def compute_gravitational_forces(particles, G):
+    for i in range(len(particles)):
+        body_i = particles[i]
+        for j in range(i + 1, len(particles)):
+            body_j = particles[j]
             pos_i = body_i.GetPos()
-            mass_i = body_i.GetMass()
-            force_total = chrono.ChVectorD(0, 0, 0)
+            pos_j = body_j.GetPos()
+            delta = pos_j - pos_i
+            r = delta.Length()
+            if r < 1e-6:
+                continue
+            force_magnitude = G * body_i.GetMass() * body_j.GetMass() / (r**2)
+            force_dir = delta / r
+            force_i = force_dir * force_magnitude
+            force_j = -force_dir * force_magnitude
+            body_i.AddForce(force_i)
+            body_j.AddForce(force_j)
+
+class ParticleEmitter:
+    def __init__(self, system):
+        self.system = system
+        self.time_since_last_emission = 0
+        self.particles = []
+    
+    def emit_particle(self, dt):
+        self.time_since_last_emission += dt
+        emission_interval = 0.1
+        if self.time_since_last_emission >= emission_interval:
+            shape_type = random.choice(['sphere', 'box', 'cylinder'])
+            density = 1000
             
-            for j in range(n):
-                if i == j:
-                    continue
-                body_j = self.particle_cloud.GetParticle(j).GetBody()
-                pos_j = body_j.GetPos()
-                mass_j = body_j.GetMass()
-                
-                delta = pos_j - pos_i
-                r = delta.Length()
-                if r < 1e-6:
-                    continue
-                
-                force = self.G * mass_i * mass_j / (r**2)
-                force_total += delta.GetNormalized() * force
+            if shape_type == 'sphere':
+                radius = random.uniform(0.2, 0.5)
+                body = chrono.ChBodyEasySphere(radius, density, True, True)
+            elif shape_type == 'box':
+                sx, sy, sz = [random.uniform(0.2, 0.5) for _ in range(3)]
+                body = chrono.ChBodyEasyBox(sx, sy, sz, density, True, True)
+            elif shape_type == 'cylinder':
+                radius = random.uniform(0.2, 0.5)
+                height = random.uniform(0.4, 1.0)
+                body = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, radius, height, density, True, True)
             
-            body_i.AccumulateForce(force_total, False)
+            pos = chrono.ChVectorD(*[random.uniform(-2, 2) for _ in range(3)])
+            body.SetPos(pos)
+            
+            vel = chrono.ChVectorD(*[random.uniform(-0.5, 0.5) for _ in range(3)])
+            body.SetPos_dt(vel)
+            
+            euler = chrono.ChVectorD(*[random.uniform(0, 2 * math.pi) for _ in range(3)])
+            body.SetRot(chrono.Q_from_Euler123(euler))
+            
+            self.system.Add(body)
+            self.particles.append(body)
+            self.time_since_last_emission = 0
 
-# Create physical system
-system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, 0, 0))  # Disable default gravity
+sys = chrono.ChSystemNSC()
+sys.Set_G_acc(chrono.ChVectorD(0, 0, 0))
 
-# Create particle cloud with material
-particle_cloud = particles.ChParticleCloud()
-material = chrono.ChMaterialSurfaceNSC()
-particle_cloud.SetMaterialSurface(material)
-system.Add(particle_cloud)
+emitter = ParticleEmitter(sys)
 
-# Create particle emitter
-emitter = particles.ChParticleEmitter()
-emitter.SetParticleContainer(particle_cloud)
+app = chronoirr.ChIrrApp(sys, "Particle Gravity Simulation", 800, 600)
+app.AddTypicalCamera(chronoirr.vector3df(0, 14, -20))
+app.AddTypicalLights()
+app.AssetBindAll()
+app.AssetUpdateAll()
 
-# Shape creator with random geometries
-shape_creator = particles.ChRandomShapeCreator()
-shape_creator.SetDensity(1000)  # kg/m³
+G = 1e-3
+time_step = 0.01
 
-# Add sphere shape
-sphere_shape = particles.ChSphereShape()
-sphere_shape.GetSphereGeometry().rad = 0.08
-shape_creator.AddShapeCreator(sphere_shape, 0.6)
-
-# Add box shape
-box_shape = particles.ChBoxShape()
-box_shape.GetBoxGeometry().Size = chrono.ChVectorD(0.1, 0.1, 0.1)
-shape_creator.AddShapeCreator(box_shape, 0.4)
-
-emitter.SetShapeCreator(shape_creator)
-
-# Position generator (uniform in 3D space)
-pos_gen = particles.ChRandomParticlePositionUniformOutlet()
-pos_gen.Center = chrono.ChVectorD(0, 0, 0)
-pos_gen.HalfWidth = chrono.ChVectorD(2, 2, 2)
-emitter.SetParticlePositioner(pos_gen)
-
-# Velocity generator (random directions)
-vel_gen = particles.ChRandomParticleVelocityUniform()
-vel_gen.SetVelocityRange(chrono.ChVectorD(-0.2, -0.2, -0.2), 
-                        chrono.ChVectorD(0.2, 0.2, 0.2))
-emitter.SetParticleVelocityGenerator(vel_gen)
-
-# Rotation generator (random angles)
-rot_gen = particles.ChRandomParticleRotationUniform()
-rot_gen.SetAngleRange(0, 2 * math.pi)
-emitter.SetParticleRotationGenerator(rot_gen)
-
-# Emission parameters
-emitter.SetParticlesPerSecond(20)
-emitter.SetEmitRadius(0.5)
-system.Add(emitter)
-
-# Add gravitational forces calculator
-grav_forces = GravitationalForces(particle_cloud)
-system.Add(grav_forces)
-
-# Create Irrlicht visualization
-vis = irr.ChIrrApp(system, "Gravitational Particle System", irr.dimension2du(1280, 720))
-vis.AddTypicalCamera(irr.vector3df(0, 3, -4))
-vis.AddTypicalLights()
-vis.AddSkyBox()
-vis.AssetBindAll()
-vis.AssetUpdateAll()
-
-# Simulation loop
-timestep = 0.01
-vis.Initialize()
-
-while vis.GetDevice().run():
-    vis.BeginScene()
-    vis.DrawAll()
-    vis.DoStepDynamics(timestep)
-    vis.EndScene()
+while app.GetDevice().run():
+    app.BeginScene()
+    app.DrawAll()
+    emitter.emit_particle(time_step)
+    compute_gravitational_forces(emitter.particles, G)
+    app.DoStep(time_step)
+    app.EndScene()
 ```

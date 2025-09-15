@@ -241,8 +241,8 @@ MODEL_REGISTRY: Dict[str, Tuple[str, str]] = {
 # === Student LLMs to be scored by the 3 judge LLMs ===
 ALL_MODELS = [
     # DeepSeek Models
-    "deepseek-r1",
-    # "deepseek-r1-8b",
+    #"deepseek-r1",
+    "deepseek-r1-8b",
     # "deepseek-r1-32b",
     
     # # Meta/Llama Models

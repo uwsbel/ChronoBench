@@ -10,30 +10,27 @@ veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 class MyDriver(veh.ChDriver):
     def __init__(self, delay):
         super().__init__()
-        self.delay = delay
-        
+        self.delay = delay  
+
     def Synchronize(self, time):
         if time < self.delay:
-            self.SetThrottle(0.0)
-            self.SetSteering(0.0)
-            self.SetBraking(0.0)
+            
+            self.m_throttle = 0.0
+            self.m_steering = 0.0
+            self.m_braking = 0.0
         else:
             
             elapsed_throttle = time - self.delay
-            if elapsed_throttle < 0.2:
-                self.SetThrottle(min(0.7, 0.7 * (elapsed_throttle / 0.2)))
-            else:
-                self.SetThrottle(0.7)
-            
+            self.m_throttle = min(elapsed_throttle / 0.2, 1.0) * 0.7 if elapsed_throttle <= 0.2 else 0.7
+
             
             if time >= 2.0:
-                steering = 0.8 * math.sin(2 * math.pi * (time - 2.0))
-                self.SetSteering(steering)
+                self.m_steering = 0.5 * math.sin(2.0 * math.pi * (time - 2.0))
             else:
-                self.SetSteering(0.0)
+                self.m_steering = 0.0
+
             
-            
-            self.SetBraking(0.0)
+            self.m_braking = 0.0
 
 
 initLoc = chrono.ChVector3d(0, 0, 0.5)
@@ -49,9 +46,9 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 
-terrainHeight = 0
-terrainLength = 100.0
-terrainWidth = 100.0
+terrainHeight = 0      
+terrainLength = 100.0  
+terrainWidth = 100.0   
 
 
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
@@ -75,7 +72,7 @@ vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
-
+vehicle.Initialize()
 
 vehicle.SetChassisVisualizationType(vis_type)
 vehicle.SetSuspensionVisualizationType(vis_type)
@@ -83,7 +80,6 @@ vehicle.SetSteeringVisualizationType(vis_type)
 vehicle.SetWheelVisualizationType(vis_type)
 vehicle.SetTireVisualizationType(vis_type)
 
-vehicle.Initialize()
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
@@ -91,7 +87,10 @@ patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), terrainLength, terrainWidth)
+
+patch = terrain.AddPatch(patch_mat, 
+                        chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
+                        terrainLength, terrainWidth, 1.0)  
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
@@ -127,28 +126,31 @@ while vis.Run():
     
     if time >= 4.0:
         break
-    
+
     
     if step_number % render_steps == 0:
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
         render_frame += 1
+
     
+    driver_inputs = veh.DriverInputs()
+    driver_inputs.m_throttle = driver.GetThrottle()
+    driver_inputs.m_steering = driver.GetSteering()
+    driver_inputs.m_braking = driver.GetBraking()
+
     
     driver.Synchronize(time)
-    driver_inputs = driver.GetInputs()
-    
-    
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
-    
+
     
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
-    
+
     step_number += 1
     realtime_timer.Spin(step_size)

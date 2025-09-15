@@ -37,10 +37,12 @@ contact_vis = False
 step_size = 1e-3
 tire_step_size = step_size
 
-# Time intervals for different operations
+# Time interval between two render frames
 render_step_size = 1.0 / 50  # FPS = 50
-log_step_size = 0.1          # Log every 0.1 seconds
-log_steps = int(log_step_size / step_size)
+
+# Logging step size and calculation
+log_step_size = 0.1  # Log data every 0.1 seconds
+log_steps = math.ceil(log_step_size / step_size)
 
 # Create the HMMWV vehicle, set parameters, and initialize
 vehicle = veh.HMMWV_Full()
@@ -85,42 +87,35 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
-# Create and initialize the driver system
-driver = veh.ChDriver()
+# Create and initialize external driver
+driver = veh.ChExternalDriver()
 driver.Initialize()
 
 # Initialize sensor manager
 manager = sens.ChSensorManager(vehicle.GetSystem())
 
-# Create an IMU sensor and add it to the manager
-offset_pose = chrono.ChFrame(chrono.ChVector3d(-8, 0, 1), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0)))
-imu = sens.ChIMUSensor(vehicle.GetChassisBody(),  # Body IMU is attached to
-                       10,        # Update rate in Hz
-                       offset_pose, 
-                       sens.ChNoiseNone())
+# Create an IMU sensor
+offset_pose = chrono.ChFrameD(chrono.ChVector3d(-8, 0, 1), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0)))
+imu = sens.ChAccelerometerSensor(vehicle.GetChassisBody(), 10, offset_pose, sens.ChNoiseNone())
 imu.SetName("IMU Sensor")
-imu.PushFilter(sens.ChFilterIMUAccess())
+imu.PushFilter(sens.ChFilterAccelAccess())
 manager.AddSensor(imu)
 
-# Create a GPS sensor and add it to the manager
-gps = sens.ChGPSSensor(vehicle.GetChassisBody(), 
-                       10, 
-                       offset_pose, 
-                       chrono.ChVector3d(-89.400, 43.070, 260.0),
-                       sens.ChNoiseNone())
+# Create a GPS sensor
+gps = sens.ChGPSSensor(vehicle.GetChassisBody(), 10, offset_pose, 
+                       chrono.ChVector3d(-89.400, 43.070, 260.0), sens.ChNoiseNone())
 gps.SetName("GPS Sensor")
 gps.PushFilter(sens.ChFilterGPSAccess())
 manager.AddSensor(gps)
 
-# Initialize data logging
+# Initialize GPS data list
 gps_data = []
 
-# Simulation loop counters
-render_steps = math.ceil(render_step_size / step_size)
+# Simulation loop setup
+realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
-
-print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
+render_steps = math.ceil(render_step_size / step_size)
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
@@ -130,26 +125,25 @@ while vis.Run():
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
+        render_frame += 1
 
-    # Program driver inputs based on time
-    if time < 6.0:
-        driver.SetThrottle(0.7)
-        driver.SetSteering(0.2)
-        driver.SetBraking(0.0)
-    else:
-        driver.SetThrottle(0.0)
-        driver.SetBraking(0.5)
-
-    # Log GPS data at specified intervals
+    # Log GPS data
     if step_number % log_steps == 0:
-        gps_data_entry = gps.GetMostRecentGPSBuffer().GetGPSData()
-        gps_data.append((gps_data_entry.Latitude, gps_data_entry.Longitude, gps_data_entry.Altitude))
+        gps_data.append(gps.GetMostRecentGPSBuffer().GetGPSData())
+
+    # Create driver inputs with time-based controls
+    driver_inputs = veh.VehicleInputs()
+    driver_inputs.throttle = 0.5
+    driver_inputs.steering = 0.2 * math.sin(time)
+    if time >= 6:
+        driver_inputs.braking = 0.7
+        driver_inputs.throttle = 0.0
 
     # Update modules
     driver.Synchronize(time)
     terrain.Synchronize(time)
-    vehicle.Synchronize(time, driver.GetInputs(), terrain)
-    vis.Synchronize(time, driver.GetInputs())
+    vehicle.Synchronize(time, driver_inputs, terrain)
+    vis.Synchronize(time, driver_inputs)
 
     # Advance simulation
     driver.Advance(step_size)
@@ -159,6 +153,7 @@ while vis.Run():
     manager.Update()
 
     step_number += 1
+    realtime_timer.Spin(step_size)
 
-# Output logged GPS data
+# Output collected GPS data
 print("GPS Data: ", gps_data)

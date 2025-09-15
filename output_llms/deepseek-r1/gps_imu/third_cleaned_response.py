@@ -43,7 +43,7 @@ render_step_size = 1.0 / 50
 log_step_size = 1.0 / 20    
 
 
-vehicle = veh.HMMWV_Full() 
+vehicle = veh.HMMWV_Full()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
@@ -101,33 +101,24 @@ driver.Initialize()
 manager = sens.ChSensorManager(vehicle.GetSystem())
 
 
-offset_pose = chrono.ChFramed(chrono.ChVector3d(0, 0, 1), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0)))
-imu = sens.ChIMUSensor(vehicle.GetChassisBody(),                     
+offset_pose = chrono.ChFrame(chrono.ChVector3d(0, 0, 1), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0)))
+imu = sens.ChIMUSensor(vehicle.GetChassisBody(),  
                        10,        
                        offset_pose,          
                        sens.ChNoiseNone())   
 imu.SetName("IMU Sensor")
-imu.SetLag(0)
-imu.SetCollectionWindow(0)
-
-imu.PushFilter(sens.ChFilterIMUAccess())
-
+imu.PushFilter(sens.ChFilterIMUAccess())  
 manager.AddSensor(imu)
 
 
-gps = sens.ChGPSSensor(vehicle.GetChassisBody(),                     
+gps = sens.ChGPSSensor(vehicle.GetChassisBody(),  
                        10,        
                        offset_pose,          
                        chrono.ChVector3d(-89.400, 43.070, 260.0),  
                        sens.ChNoiseNone())   
 gps.SetName("GPS Sensor")
-gps.SetLag(0)
-gps.SetCollectionWindow(0)
-
 gps.PushFilter(sens.ChFilterGPSAccess())
-
 manager.AddSensor(gps)
-
 
 
 
@@ -135,30 +126,26 @@ manager.AddSensor(gps)
 
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
-
 render_steps = math.ceil(render_step_size / step_size)
 log_steps = math.ceil(log_step_size / step_size)
-
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
-
 gps_data = []
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
-    
     if step_number % render_steps == 0:
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
         render_frame += 1
-    if step_number % log_steps == 0:
         
+    if step_number % log_steps == 0:
         gps_coor = gps.GetMostRecentGPSBuffer().GetGPSData()
         gps_data.append([gps_coor[0], gps_coor[1], gps_coor[2]])
-    
+
     
     driver.SetThrottle(0.5)
     driver.SetSteering(0.6)
@@ -166,25 +153,18 @@ while vis.Run():
     
     driver_inputs = driver.GetInputs()
     
-    
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
 
-    
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
 
-    
     manager.Update()
-    
-    
     step_number += 1
-
-    
     realtime_timer.Spin(step_size)
 
 
@@ -192,12 +172,11 @@ lat = [point[0] for point in gps_data]
 lon = [point[1] for point in gps_data]
 
 plt.figure(figsize=(8, 6))
-plt.plot(lon, lat, 'b-', linewidth=2)
-plt.xlabel('Longitude', fontsize=12)
-plt.ylabel('Latitude', fontsize=12)
-plt.title('Vehicle GPS Trajectory', fontsize=14)
+plt.plot(lon, lat, 'b-')
+plt.xlabel('Longitude (degrees)')
+plt.ylabel('Latitude (degrees)')
+plt.title('Vehicle GPS Trajectory')
 plt.grid(True)
-plt.tight_layout()
 plt.show()
 
 print("GPS Data: ", gps_data)

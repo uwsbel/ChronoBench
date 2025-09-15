@@ -3,7 +3,7 @@ import pychrono.irrlicht as chronoirr
 from itertools import combinations
 
 
-class MyCreatorForAll(chrono.ChRandomShapeCreator_AddBodyCallback):
+class MyCreatorForAll(chrono.ChRandomShapeCreator.AddBodyCallback):
     def __init__(self, vis, coll):
         super().__init__()
         self.vis = vis
@@ -37,7 +37,7 @@ emitter.SetParticleReservoirAmount(200)
 
 # Randomizers for particle properties
 emitter_positions = chrono.ChRandomParticlePositionOnGeometry()
-emitter_positions.SetGeometry(chrono.ChBox(50, 50, 50), chrono.ChFrameD())  # Fixed frame parameter
+emitter_positions.SetGeometry(chrono.ChBox(50, 50, 50), chrono.ChFramed())
 emitter.SetParticlePositioner(emitter_positions)
 
 emitter_rotations = chrono.ChRandomParticleAlignmentUniform()
@@ -47,11 +47,11 @@ mvelo = chrono.ChRandomParticleVelocityAnyDirection()
 mvelo.SetModulusDistribution(chrono.ChUniformDistribution(0.0, 0.5))
 emitter.SetParticleVelocity(mvelo)
 
-mangvelo = chrono.ChRandomParticleVelocityAnyDirection()
+mangvelo = chrono.ChRandomParticleAngularVelocityAnyDirection()
 mangvelo.SetModulusDistribution(chrono.ChUniformDistribution(0.0, 0.2))
 emitter.SetParticleAngularVelocity(mangvelo)
 
-# Changed to sphere creator with proper distributions
+# Create sphere particle creator
 mcreator_spheres = chrono.ChRandomShapeCreatorSpheres()
 mcreator_spheres.SetDiameterDistribution(chrono.ChZhangDistribution(0.6, 0.23))
 mcreator_spheres.SetDensityDistribution(chrono.ChConstantDistribution(1600))
@@ -90,27 +90,10 @@ while vis.Run():
     for body in sys.GetBodies():
         body.EmptyAccumulators()
 
-    # Moved G_constant inside loop
-    G_constant = 6.674e-3  # Modified gravitational constant
-
-    # Calculate kinetic energy
-    kinetic_energy = 0.0
-    for body in sys.GetBodies():
-        kinetic_energy += 0.5 * body.GetMass() * body.GetPos_dt().Length2()
-
-    # Calculate gravitational potential energy
-    potential_energy = 0.0
-    body_list = sys.GetBodies()
-    for abodyA, abodyB in combinations(body_list, 2):
-        D_attract = abodyB.GetPos() - abodyA.GetPos()
-        r_attract = D_attract.Length()
-        potential_energy += -G_constant * (abodyA.GetMass() * abodyB.GetMass()) / r_attract
-
-    total_energy = kinetic_energy + potential_energy
-    print(f"Kinetic: {kinetic_energy:.2f}, Potential: {potential_energy:.2f}, Total: {total_energy:.2f}")
-
-    # Calculate and apply gravitational forces
-    for abodyA, abodyB in combinations(body_list, 2):
+    # Force calculation
+    G_constant = 6.674e-3  # Moved inside loop before energy calculations
+    mlist = list(combinations(sys.GetBodies(), 2))
+    for abodyA, abodyB in mlist:
         D_attract = abodyB.GetPos() - abodyA.GetPos()
         r_attract = D_attract.Length()
         f_attract = G_constant * (abodyA.GetMass() * abodyB.GetMass()) / (r_attract ** 2)
@@ -119,3 +102,22 @@ while vis.Run():
         abodyB.AccumulateForce(-F_attract, abodyB.GetPos(), False)
 
     sys.DoStepDynamics(stepsize)
+
+    # Energy calculations
+    kinetic_energy = 0.0
+    potential_energy = 0.0
+    
+    # Calculate kinetic energy
+    for body in sys.GetBodies():
+        vel = body.GetPosDt()
+        kinetic_energy += 0.5 * body.GetMass() * vel.Length2()
+    
+    # Calculate potential energy
+    bodies = list(sys.GetBodies())
+    for a, b in combinations(bodies, 2):
+        delta = b.GetPos() - a.GetPos()
+        r = delta.Length()
+        potential_energy += -G_constant * a.GetMass() * b.GetMass() / r
+    
+    total_energy = kinetic_energy + potential_energy
+    print(f"Kinetic: {kinetic_energy:.2f}, Potential: {potential_energy:.2f}, Total: {total_energy:.2f}")

@@ -41,7 +41,7 @@ render_step_size = 1.0 / 50
 
 
 
-vehicle = veh.Sedan()  
+vehicle = veh.ART_Vehicle()  
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
@@ -49,9 +49,9 @@ vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 
-vehicle.SetMaxMotorVoltageRatio(0.26)    
-vehicle.SetStallTorque(0.4)              
-vehicle.SetTireRollingResistance(0.03)   
+vehicle.SetMaxMotorVoltageRatio(0.26)  
+vehicle.SetStallTorque(0.4)            
+vehicle.SetTireRollingResistance(0.03) 
 
 vehicle.Initialize()
 
@@ -78,7 +78,7 @@ terrain.Initialize()
 
 
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
-vis.SetWindowTitle('High-Speed Vehicle Demo')
+vis.SetWindowTitle('ART Vehicle Simulation')
 vis.SetWindowSize(1280, 1024)
 vis.SetChaseCamera(trackPoint, 6.0, 0.5)
 vis.Initialize()
@@ -88,7 +88,7 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 
-driver = veh.ChIrrGuiDriver(vis)  
+driver = veh.ChInteractiveDriverIRR(vis)
 
 
 steering_time = 1.0  
@@ -99,7 +99,6 @@ driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
 
 driver.Initialize()
-
 
 
 

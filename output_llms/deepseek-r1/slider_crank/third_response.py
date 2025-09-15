@@ -20,10 +20,11 @@ mfloor = chrono.ChBodyEasyBox(3, 1, 3, 1000)
 mfloor.SetPos(chrono.ChVector3d(0, -0.5, 0))
 mfloor.SetFixed(True)
 sys.Add(mfloor)
+
 # Create the flywheel crank
 mcrank = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, crank_rad, crank_thick, 1000)
 mcrank.SetPos(crank_center + chrono.ChVector3d(0, 0, -0.1))
-# Since ChBodyEasyCylinder creates a vertical (y up) cylinder, here rotate it:
+# Rotate cylinder from Y to Z axis
 mcrank.SetRot(chrono.Q_ROTATE_Y_TO_Z)
 sys.Add(mcrank)
 
@@ -47,21 +48,21 @@ my_angularspeed = chrono.ChFunctionConst(chrono.CH_PI)  # ang.speed: 180°/s
 my_motor.SetMotorFunction(my_angularspeed)
 sys.Add(my_motor)
 
-# Create crank-rod joint (SPHERICAL)
+# Create crank-rod joint (spherical)
 mjointA = chrono.ChLinkLockSpherical()
 mjointA.Initialize(mrod,
                    mcrank,
                    chrono.ChFramed(crank_center + chrono.ChVector3d(crank_rad, 0, 0)))
 sys.Add(mjointA)
 
-# Create rod-piston joint (SPHERICAL)
+# Create rod-piston joint (spherical)
 mjointB = chrono.ChLinkLockSpherical()
 mjointB.Initialize(mpiston,
                    mrod,
                    chrono.ChFramed(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0)))
 sys.Add(mjointB)
 
-# Create piston-truss joint (PLANE-PLANE)
+# Create piston-truss joint (planar)
 mjointC = chrono.ChLinkLockPlanePlane()
 mjointC.Initialize(mpiston,
                    mfloor,
@@ -91,13 +92,14 @@ while vis.Run():
     array_angle.append(my_motor.GetMotorAngle())
     array_pos.append(mpiston.GetPos().x)
     array_speed.append(mpiston.GetPosDt().x)
+    
     # here happens the visualization and step time integration
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
     sys.DoStepDynamics(1e-3)
 
-    # stop simulation after 2 seconds (corrected from 20s)
+    # stop simulation after 2 seconds
     if sys.GetChTime() > 2:
         vis.GetDevice().closeDevice()
 
@@ -109,10 +111,10 @@ ax1.set(ylabel='position [m]')
 ax1.grid()
 
 ax2.plot(array_angle, array_speed, 'r--')
-ax2.set(ylabel='speed [m/s]', xlabel='angle [rad]')  # Corrected unit label
+ax2.set(ylabel='speed [m/s]', xlabel='angle [rad]')
 ax2.grid()
 
-# Format x-axis with pi labels
+# Format x-axis with pi multiples
 plt.xticks(np.linspace(0, 2 * np.pi, 5), ['0', r'$\pi/2$', r'$\pi$', r'$3\pi/2$', r'$2\pi$'])
 
-plt.show()  # Added to display plots
+plt.show()

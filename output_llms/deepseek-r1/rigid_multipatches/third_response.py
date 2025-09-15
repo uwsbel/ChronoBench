@@ -3,7 +3,7 @@ import pychrono.vehicle as veh
 import pychrono.irrlicht as irr
 
 def main():
-    # Create the HMMWV vehicle, set parameters, and initialize
+    #  Create the HMMWV vehicle, set parameters, and initialize
     hmmwv = veh.HMMWV_Full()
     hmmwv.SetContactMethod(chrono.ChContactMethod_NSC)
     hmmwv.SetChassisFixed(False)
@@ -75,10 +75,9 @@ def main():
     driver.SetBrakingDelta(0.06)
     driver.Initialize()
 
-    # CORRECTED: Enable realtime for the system, not the vehicle
-    hmmwv.GetSystem().EnableRealtime(True)
+    hmmwv.GetVehicle().EnableRealtime(True)
 
-    while vis.Run():
+    while vis.Run() :
         time = hmmwv.GetSystem().GetChTime()
 
         # Draw scene

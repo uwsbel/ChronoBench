@@ -1,82 +1,88 @@
-import pychrono as chrono
-import pychrono.irrlicht as chrono_irrlicht
-import pychrono.fea as fea
+import chrono as ch
+import chrono.fea as fea
+import chrono.irrlicht as irr
 
 
-system = chrono.ChSystemNSC()
-system.SetGravitationalAcceleration(chrono.ChVector3d(0, -9.81, 0))
+system = ch.ChSystemNSC()
+system.Set_G_acc(ch.ChVectorD(0, 0, 0))
 
 
-mesh = chrono.ChMesh()
+solver = ch.ChSolverMINRES()
+system.SetSolver(solver)
+solver.SetMaxIterations(200)
+solver.SetTolerance(1e-12)
+solver.EnableDiagonalPreconditioner(True)
+
+
+mesh = fea.ChMesh()
 system.Add(mesh)
 
 
-beam_material = chrono.ChBeamMaterialEuler()
-beam_material.SetDensity(1000)        
-beam_material.SetYoungModulus(1e7)    
-beam_material.SetShearModulus(beam_material.GetYoungModulus()/(2*(1+0.3)))  
-beam_material.SetRayleighDampingBeta(0.01)
+E = 2e11    
+nu = 0.3    
+rho = 7800  
+damping = 0.01
+beam_material = fea.ChMaterialBeamEuler(E, E/(2*(1+nu)), nu, rho)
 
-beam_section = chrono.ChBeamSectionEuler()
-beam_section.SetAsCircularSection(0.05)  
-beam_section.SetMaterial(beam_material)
+
+section = fea.ChBeamSectionEulerAdvanced()
+section.SetAsRectangularSection(0.1, 0.02)
+section.SetMaterial(beam_material)
+section.SetRayleighDamping(damping)
 
 
 num_elements = 10
-length = 5.0  
+length = 5.0
 node_spacing = length / num_elements
-
 nodes = []
+
 for i in range(num_elements + 1):
-    position = chrono.ChVector3d(i * node_spacing, 0, 0)
-    node = fea.ChNodeFEAxyzrot(chrono.ChFrame(position))
-    node.SetMass(0)
+    pos = ch.ChVectorD(i * node_spacing, 0, 0)
+    node = fea.ChNodeFEAxyzrot()
+    node.SetPos(pos)
+    node.SetRot(ch.ChQuaternionD(1, 0, 0, 0))
+    if i == 0:
+        node.SetFixed(True)  
     mesh.AddNode(node)
     nodes.append(node)
 
 
-nodes[0].SetFixed(True)
-
-
 for i in range(num_elements):
-    beam_element = fea.ChElementBeamEuler()
-    beam_element.SetNodes(nodes[i], nodes[i+1])
-    beam_element.SetSection(beam_section)
-    mesh.AddElement(beam_element)
+    beam = fea.ChElementBeamEuler()
+    beam.SetNodes(nodes[i], nodes[i+1])
+    beam.SetSection(section)
+    mesh.AddElement(beam)
 
 
-vmesh = chrono.ChVisualShapeFEA(mesh)
-vmesh.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NONE)
-vmesh.SetBeamResolution(chrono.ChVisualShapeFEA.BeamResolution_High)
-vmesh.SetBeamWidth(0.02)
-vmesh.SetColor(chrono.ChColor(0.9, 0.7, 0.3))
-mesh.AddVisualShapeFEA(vmesh)
+force = ch.ChVectorD(0, -1000, 0)  
+load_container = ch.ChLoadContainer()
+load = fea.ChLoadNodeForce(nodes[-1], force)
+load_container.Add(load)
+system.Add(load_container)
 
 
-system.SetSolverType(chrono.ChSolver.Type_MINRES)
-system.GetSolverAsIterative().SetMaxIterations(100)
-system.GetSolverAsIterative().SetTolerance(1e-10)
-system.SetTimestepperType(chrono.ChTimestepper.Type_HHT)
-integrator = system.GetTimestepper().AsTimestepperHHT()
-integrator.SetAlpha(-0.2)
-integrator.SetMaxIters(5)
-integrator.SetAbsTolerances(1e-5)
+vis_mesh = fea.ChVisualizationFEAmesh(mesh)
+vis_mesh.SetFEMglyphType(fea.ChVisualizationFEAmesh.E_GLYPH_BEAM)
+vis_mesh.SetFEMdataType(fea.ChVisualizationFEAmesh.E_PLOT_NONE)
+vis_mesh.SetBeamResolution(5)
+vis_mesh.SetBeamWidth(0.02)
+mesh.AddAsset(vis_mesh)
 
 
-app = chrono_irrlicht.ChIrrApp(system, "Beam FEM Demo", chrono_irrlicht.dimension2du(1280, 720))
-app.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
-app.AddSkyBox()
-app.AddTypicalLights()
-app.AddCamera(chrono.ChVector3d(-1, 0.5, 3), chrono.ChVector3d(3, 0, 0))
-app.AssetBindAll()
-app.AssetUpdateAll()
+application = irr.ChIrrApp(system, "Beam FEM Demonstration", irr.dimension2du(1280, 720))
+application.AddTypicalCamera(irr.vector3df(5, 3, 0), irr.vector3df(2.5, 0, 0))
+application.AddTypicalLights()
+application.AssetBindAll()
+application.AssetUpdateAll()
 
 
 time_step = 0.001
-app.SetTimestep(time_step)
+application.SetTimestep(time_step)
+application.SetTryRealtime(True)
 
-while app.GetDevice().run():
-    app.BeginScene()
-    app.DrawAll()
-    app.DoStep()
-    app.EndScene()
+
+while application.GetDevice().run():
+    application.BeginScene()
+    application.DrawAll()
+    application.DoStepDynamics(time_step)
+    application.EndScene()

@@ -20,25 +20,26 @@ ground.SetFixed(True)  # Fix the ground in place
 ground.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
 system.Add(ground)
 
-# Create obstacle box
+# Create long box obstacle
 obstacle_mat = chrono.ChContactMaterialNSC()
-obstacle = chrono.ChBodyEasyBox(4.0, 0.5, 0.2, 2000, True, True, obstacle_mat)
-obstacle.SetPos(chrono.ChVector3d(0, 0, 0.1))  # Position obstacle above ground
+obstacle = chrono.ChBodyEasyBox(10, 1, 0.5, 1000, True, True, obstacle_mat)
+obstacle.SetPos(chrono.ChVector3d(0, 0, 0.25))
 obstacle.SetFixed(True)
 obstacle.GetVisualShape(0).SetColor(chrono.ChColor(0.8, 0.2, 0.2))
 system.Add(obstacle)
 
 # Create Curiosity rover and add it to the system
-rover = robot.Curiosity(system, robot.CuriosityWheelType_RealWheel)
+rover = robot.Curiosity(system)
 
-# Create driver for rover
+# Create driver for rover and set motor speeds
 driver = robot.CuriosityDCMotorControl()
+driver.SetMotorSpeeds(0.3, 0.3)  # Set forward speed for both motors
 rover.SetDriver(driver)
 
 # Initialize rover position and orientation
 init_pos = chrono.ChVector3d(-5, 0.0, 0)  # Modified initial position
 init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
-rover.Initialize(chrono.ChFrameD(init_pos, init_rot))  # Fixed ChFrameD typo
+rover.Initialize(chrono.ChFrameD(init_pos, init_rot))  # Corrected initialization
 
 # Create the Irrlicht visualization
 vis = chronoirr.ChVisualSystemIrrlicht()
@@ -57,13 +58,9 @@ vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0
 time_step = 1e-3
 
 # Simulation loop
-time = 0
 while vis.Run():
-    time += time_step
-
-    # Set constant forward motion with zero steering
+    # Set zero steering input
     driver.SetSteering(0)
-    driver.SetSpeed(0.5)  # Set constant forward speed
 
     # Update rover dynamics
     rover.Update()

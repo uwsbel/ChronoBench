@@ -15,49 +15,52 @@ ground.SetFixed(True)  # The ground is fixed and does not move
 ground.EnableCollision(False)  # Disable collision detection for the ground
 
 # Add a visualization cylinder to the ground
-cyl_ground = chrono.ChVisualShapeCylinder(0.2, 0.4)
-ground.AddVisualShape(cyl_ground, chrono.ChFrameD(chrono.ChVector3d(0, 0, 1)))
+cyl_1 = chrono.ChVisualShapeCylinder(0.2, 0.4)  # Cylinder with radius 0.2 and height 0.4
+ground.AddVisualShape(cyl_1, chrono.ChFrameD(chrono.ChVector3d(0, 0, 1)))
 
-# Create first pendulum body
-pend1 = chrono.ChBody()
-sys.AddBody(pend1)
-pend1.SetFixed(False)
-pend1.EnableCollision(False)
-pend1.SetMass(1)
-# Corrected inertia for cylinder (radius 0.2, height 2)
-pend1.SetInertiaXX(chrono.ChVector3d(0.02, 0.3433, 0.3433))
+# Create first pendulum body and add it to the simulation
+pend_1 = chrono.ChBody()
+sys.AddBody(pend_1)
+pend_1.SetFixed(False)  # The pendulum can move
+pend_1.EnableCollision(False)  # Disable collision detection for the pendulum
+pend_1.SetMass(1)  # Set the mass of the pendulum (in kg)
+pend_1.SetInertiaXX(chrono.ChVector3d(0.02, 0.3433, 0.3433))  # Corrected inertia tensor
 
-# Add visualization to first pendulum
-cyl1 = chrono.ChVisualShapeCylinder(0.2, 2)
-cyl1.SetColor(chrono.ChColor(0.6, 0, 0))
-pend1.AddVisualShape(cyl1, chrono.ChFrameD(chrono.VNULL, chrono.QuatFromAngleY(chrono.CH_PI_2)))
-pend1.SetPos(chrono.ChVector3d(1, 0, 1))  # Center of mass position
+# Add a visualization cylinder to the first pendulum
+cyl_1 = chrono.ChVisualShapeCylinder(0.2, 2)  # Cylinder with radius 0.2 and height 2
+cyl_1.SetColor(chrono.ChColor(0.6, 0, 0))  # Set the color of the cylinder (RGB)
+pend_1.AddVisualShape(cyl_1, chrono.ChFrameD(chrono.VNULL, chrono.QuatFromAngleY(chrono.CH_PI_2)))
 
-# Create revolute joint between ground and first pendulum
-rev1 = chrono.ChLinkLockRevolute()
-rev1.Initialize(ground, pend1, chrono.ChFrameD(chrono.ChVector3d(0, 0, 1)))
-sys.AddLink(rev1)
+# Set the initial position of the first pendulum (center of mass)
+pend_1.SetPos(chrono.ChVector3d(1, 0, 1))
 
-# Create second pendulum body
-pend2 = chrono.ChBody()
-sys.AddBody(pend2)
-pend2.SetFixed(False)
-pend2.EnableCollision(False)
-pend2.SetMass(1)
-pend2.SetInertiaXX(chrono.ChVector3d(0.02, 0.3433, 0.3433))  # Same corrected inertia
+# Create a revolute joint to connect the first pendulum to the ground
+rev_1 = chrono.ChLinkLockRevolute()
+rev_1.Initialize(ground, pend_1, chrono.ChFrameD(chrono.ChVector3d(0, 0, 1), chrono.ChQuaterniond(1, 0, 0, 0)))
+sys.AddLink(rev_1)
 
-# Add visualization to second pendulum
-cyl2 = chrono.ChVisualShapeCylinder(0.2, 2)
-cyl2.SetColor(chrono.ChColor(0, 0.6, 0))
-pend2.AddVisualShape(cyl2, chrono.ChFrameD(chrono.VNULL, chrono.QuatFromAngleY(chrono.CH_PI_2)))
-pend2.SetPos(chrono.ChVector3d(3, 0, 1))  # Center of mass position
+# Create second pendulum body and add it to the simulation
+pend_2 = chrono.ChBody()
+sys.AddBody(pend_2)
+pend_2.SetFixed(False)
+pend_2.EnableCollision(False)
+pend_2.SetMass(1)
+pend_2.SetInertiaXX(chrono.ChVector3d(0.02, 0.3433, 0.3433))  # Corrected inertia tensor
 
-# Create revolute joint between pendulums
-rev2 = chrono.ChLinkLockRevolute()
-rev2.Initialize(pend1, pend2, chrono.ChFrameD(chrono.ChVector3d(2, 0, 1)))
-sys.AddLink(rev2)
+# Add a visualization cylinder to the second pendulum
+cyl_2 = chrono.ChVisualShapeCylinder(0.2, 2)
+cyl_2.SetColor(chrono.ChColor(0, 0.6, 0))  # Green color for distinction
+pend_2.AddVisualShape(cyl_2, chrono.ChFrameD(chrono.VNULL, chrono.QuatFromAngleY(chrono.CH_PI_2)))
 
-# Create visualization system
+# Set the initial position of the second pendulum (center of mass)
+pend_2.SetPos(chrono.ChVector3d(3, 0, 1))
+
+# Create a revolute joint to connect the two pendulums
+rev_2 = chrono.ChLinkLockRevolute()
+rev_2.Initialize(pend_1, pend_2, chrono.ChFrameD(chrono.ChVector3d(2, 0, 1), chrono.ChQuaterniond(1, 0, 0, 0)))
+sys.AddLink(rev_2)
+
+# Create the Irrlicht visualization system
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(sys)
 vis.SetWindowSize(1024, 768)
@@ -76,8 +79,11 @@ while vis.Run():
     vis.EndScene()
     sys.DoStepDynamics(1e-3)
 
+    # Log information after 1 second of simulation time
     if log_info and sys.GetChTime() > 1:
-        print("t = {0:.3f}".format(sys.GetChTime()))
-        print("Pendulum 1 position:", pend1.GetPos())
-        print("Pendulum 2 position:", pend2.GetPos())
+        pos_1 = pend_1.GetPos()
+        pos_2 = pend_2.GetPos()
+        print("t = ", sys.GetChTime())
+        print("Pendulum 1 position:", pos_1.x, pos_1.y)
+        print("Pendulum 2 position:", pos_2.x, pos_2.y)
         log_info = False

@@ -16,10 +16,10 @@ vis_type = veh.VisualizationType_MESH
 # Collision type for chassis (PRIMITIVES, MESH, or NONE)
 chassis_collision_type = veh.CollisionType_NONE
 
-# Terrain parameters
-terrainHeight = 0      
-terrainLength = 100.0  
-terrainWidth = 100.0   
+# Deformable terrain parameters
+terrainHeight = 0
+terrainLength = 100.0
+terrainWidth = 100.0
 
 # Poon chassis tracked by the camera
 trackPoint = chrono.ChVector3d(0.0, 0.0, 0.1)
@@ -58,24 +58,13 @@ vehicle.SetTrackShoeVisualizationType(vis_type)
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 # Create SCM deformable terrain
-terrain = veh.SCMTerrain(vehicle.GetSystem())
-# Set soil parameters (typical dirt parameters)
-Kphi = 2e6    # Shear modulus
-Kc = 3e4      # Cohesive modulus
-n = 1.2       # Exponent
-coh = 5e3     # Cohesion
-phi = 30      # Friction angle
-K = 1e4       # Damping
-terrain.SetSoilParameters(Kphi, Kc, n, coh, phi, K)
-# Initialize with flat terrain
-terrain.Initialize(terrainLength, terrainWidth, 0.2)  # 0.2m grid spacing
-for ix in range(terrain.GetNumPointsX()):
-    for iy in range(terrain.GetNumPointsY()):
-        terrain.SetHeight(ix, iy, 0.0)
-terrain.SetModified()
-# Set terrain visualization
-terrain.GetMesh().SetColor(chrono.ChColor(0.8, 0.4, 0.3))  # Dirt color
-terrain.GetMesh().SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"))  # Dirt texture
+terrain = veh.SCMDeformableTerrain(vehicle.GetSystem())
+terrain.SetSoilParameters(2e6, 0, 1.1, 0.5e4, 30, 0.01, 2e7)  # SCM parameters
+terrain.Initialize(terrainLength, terrainWidth, 0.04)  # Initialize with grid resolution
+
+# Set terrain visualization properties
+terrain.GetMesh().SetColor(chrono.ChColor(0.61, 0.45, 0.33))  # Dirt color
+terrain.SetPlotType(veh.SCMDeformableTerrain.PLOT_PRESSURE, 0, 30000)
 
 # Create the vehicle Irrlicht interface
 vis = veh.ChTrackedVehicleVisualSystemIrrlicht()
@@ -92,9 +81,9 @@ vis.AttachVehicle(vehicle.GetVehicle())
 driver = veh.ChInteractiveDriverIRR(vis)
 
 # Set the time response for steering and throttle keyboard inputs
-steering_time = 1.0  
-throttle_time = 1.0  
-braking_time = 0.3   
+steering_time = 1.0
+throttle_time = 1.0
+braking_time = 0.3
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
@@ -120,20 +109,20 @@ while vis.Run():
         vis.EndScene()
         render_frame += 1
 
-    # Get and override driver inputs
+    # Get driver inputs and override throttle
     driver_inputs = driver.GetInputs()
     driver_inputs.m_throttle = 0.8  # Hard-coded throttle
-    
+
     # Update modules
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs)
     vis.Synchronize(time, driver_inputs)
-    
+
     # Advance simulation
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
-    
+
     step_number += 1

@@ -6,78 +6,74 @@ import math
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
-# Initial vehicle location and orientation (Modified Instruction 1)
-initLoc = chrono.ChVector3d(1, 0, 0.5)  # Changed X-coordinate from 0 to 1
+# Initial vehicle location and orientation (modified)
+initLoc = chrono.ChVector3d(1, 0, 0.5)  # Changed x-coordinate from 0 to 1
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
-# Visualization type for vehicle parts (Modified Instruction 2)
+# Visualization type for vehicle parts (modified)
 vis_type = veh.VisualizationType_PRIMITIVES  # Changed from MESH to PRIMITIVES
 
-# Collision type for chassis (Modified Instruction 3)
+# Collision type for chassis (modified)
 chassis_collision_type = veh.CollisionType_MESH  # Changed from NONE to MESH
 
-# Type of tire model (Modified Instruction 4)
+# Type of tire model (modified)
 tire_model = veh.TireModelType_FIALA  # Changed from TMEASY to FIALA
 
-# Rigid terrain
-terrainHeight = 0      
-terrainLength = 100.0  
-terrainWidth = 100.0   
+# Rigid terrain parameters
+terrainHeight = 0
+terrainLength = 100.0
+terrainWidth = 100.0
 
-# Poon chassis tracked by the camera
+# Camera tracking point
 trackPoint = chrono.ChVector3d(0.0, 0.0, 0.2)
 
 # Contact method
 contact_method = chrono.ChContactMethod_NSC
 contact_vis = False
 
-# Simulation step sizes
+# Simulation parameters
 step_size = 1e-3
 tire_step_size = step_size
-
-# Time interval between two render frames
 render_step_size = 1.0 / 50  # FPS = 50
 
-# Create systems
+# Create vehicle system (corrected vehicle type)
+vehicle = veh.Sedan()  # Changed from ARTcar() to Sedan()
 
-# Corrected vehicle type from ARTcar to Sedan (original error fix)
-vehicle = veh.Sedan()  # Changed from non-existent ARTcar to valid Sedan
+# Configure vehicle
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
-vehicle.SetMaxMotorVoltageRatio(0.16)
-vehicle.SetStallTorque(0.3)
-vehicle.SetTireRollingResistance(0.06)
 
-vehicle.Initialize()
-
+# Set visualization types BEFORE initialization (corrected order)
 vehicle.SetChassisVisualizationType(vis_type)
 vehicle.SetSuspensionVisualizationType(vis_type)
 vehicle.SetSteeringVisualizationType(vis_type)
 vehicle.SetWheelVisualizationType(vis_type)
 vehicle.SetTireVisualizationType(vis_type)
 
-vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+vehicle.Initialize()
 
-# Create the terrain
+# Create terrain system
 patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-patch = terrain.AddPatch(patch_mat, 
-    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
-    terrainLength, terrainWidth)
-
+patch = terrain.AddPatch(
+    patch_mat,
+    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
+    terrainLength,
+    terrainWidth
+)
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
-# Create the vehicle Irrlicht interface
+# Create Irrlicht visualization system
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
-vis.SetWindowTitle('Sedan Demo')
+vis.SetWindowTitle('Vehicle Simulation')
 vis.SetWindowSize(1280, 1024)
 vis.SetChaseCamera(trackPoint, 6.0, 0.5)
 vis.Initialize()
@@ -86,44 +82,42 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
-# Create the driver system
+# Create driver system
 driver = veh.ChInteractiveDriverIRR(vis)
-
-# Set the time response for steering and throttle keyboard inputs.
-steering_time = 1.0  
-throttle_time = 1.0  
-braking_time = 0.3   
+steering_time = 1.0
+throttle_time = 1.0
+braking_time = 0.3
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
-
 driver.Initialize()
 
-# ---------------
-# Simulation loop
-# ---------------
-print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
-
+# Simulation loop parameters
 render_steps = math.ceil(render_step_size / step_size)
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
-render_frame = 0
+
+print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
-    if (step_number % render_steps == 0):
+    # Render scene
+    if step_number % render_steps == 0:
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
-        render_frame += 1
 
+    # Get driver inputs
     driver_inputs = driver.GetInputs()
+
+    # Synchronize systems
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
 
+    # Advance systems
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)

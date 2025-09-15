@@ -21,7 +21,7 @@ tire_model = veh.TireModelType_TMEASY
 
 
 terrainHeight = 0
-terrainLength = 200.0
+terrainLength = 200.0  
 terrainWidth = 100.0
 
 
@@ -29,6 +29,7 @@ trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
 
 
 contact_method = chrono.ChContactMethod_NSC
+contact_vis = False
 
 
 step_size = 1e-3
@@ -50,8 +51,8 @@ vehicle.SetSuspensionVisualizationType(vis_type)
 vehicle.SetSteeringVisualizationType(vis_type)
 vehicle.SetWheelVisualizationType(vis_type)
 vehicle.SetTireVisualizationType(vis_type)
-vehicle.Initialize()
 
+vehicle.Initialize()
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
@@ -59,10 +60,9 @@ patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-patch = terrain.AddPatch(patch_mat, 
-    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
+patch = terrain.AddPatch(patch_mat,
+    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
     terrainLength, terrainWidth)
-
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
@@ -79,25 +79,18 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 
-path_points = [
-    chrono.ChVector3d(-50.0, 0.0, 0.5),
-    chrono.ChVector3d(-25.0, 0.0, 0.5),
-    chrono.ChVector3d(  0.0, 3.5, 0.5),
-    chrono.ChVector3d( 25.0, 3.5, 0.5),
-    chrono.ChVector3d( 50.0, 0.0, 0.5),
-    chrono.ChVector3d( 75.0, 0.0, 0.5),
-    chrono.ChVector3d(100.0, 0.0, 0.5),
-    chrono.ChVector3d(125.0, 0.0, 0.5),
-    chrono.ChVector3d(150.0, 0.0, 0.5)
-]
-path = chrono.ChBezierCurve(path_points)
 
-
+path = veh.DoubleLaneChangePath(chrono.ChVector3d(-50, 0, 0.5), 30.0, 3.5, 25.0, 50.0)
 driver = veh.ChPathFollowerDriver(vehicle.GetVehicle(), path, "my_path", 10.0)
-driver.GetSteeringController().SetLookAheadDistance(5.0)
-driver.GetSteeringController().SetGains(0.5, 0.0, 0.1)
-driver.GetSpeedController().SetGains(0.4, 0.0, 0.2)
+steering_controller = driver.GetSteeringController()
+steering_controller.SetLookAheadDistance(5.0)
+steering_controller.SetGains(0.5, 0, 0)  
+
+speed_controller = driver.GetSpeedController()
+speed_controller.SetGains(0.4, 0.1, 0.0)  
+
 driver.Initialize()
+
 
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
@@ -119,8 +112,6 @@ while vis.Run():
 
     
     driver_inputs = driver.GetInputs()
-
-    
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)

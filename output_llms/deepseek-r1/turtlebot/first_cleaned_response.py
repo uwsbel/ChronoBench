@@ -1,69 +1,57 @@
 import pychrono as chrono
-import pychrono.robot as robot
 import pychrono.irrlicht as chronoirr
-import math
-
-
-
-
+from pychrono import ChCoordsysD, ChVectorD, Q_from_AngZ
 
 
 system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+system.Set_GravitationalAcceleration(ChVectorD(0, -9.81, 0))
 
 
-ground_mat = chrono.ChMaterialSurfaceNSC()
-ground = chrono.ChBodyEasyBox(20, 0.1, 20, 1000, True, True, ground_mat)
-ground.SetPos(chrono.ChVectorD(0, -0.05, 0))
+ground = chrono.ChBody()
 ground.SetBodyFixed(True)
-ground.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
+ground.GetCollisionModel().ClearModel()
+ground.GetCollisionModel().AddBox(10, 0.1, 10)  
+ground.GetCollisionModel().BuildModel()
+ground.SetCollide(True)
+
+
+ground_vis = chrono.ChBoxShape()
+ground_vis.GetBoxGeometry().Size = ChVectorD(10, 0.1, 10)
+ground.AddAsset(ground_vis)
 system.Add(ground)
 
 
-init_pos = chrono.ChVectorD(0, 0.1, 0)
-init_rot = chrono.Q_from_AngZ(math.pi / 4)  
-turtlebot = robot.TurtleBot()
-turtlebot.SetInitPosition(chrono.ChCoordsysD(init_pos, init_rot))
-turtlebot.Initialize(system)
+init_pos = ChVectorD(0, 0.2, 0)  
+init_rot = Q_from_AngZ(0)        
+turtlebot = chrono.ChTurtleBot(system)
+turtlebot.Initialize(ChCoordsysD(init_pos, init_rot))
 
 
-application = chronoirr.ChIrrApp(system, "TurtleBot Simulation", chronoirr.dimension2du(1280, 720))
-application.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
-application.AddSkyBox()
-application.AddTypicalLights()
+app = chronoirr.ChIrrApp(system, "Turtlebot Simulation", 800, 600)
+app.AddTypicalCamera(chronoirr.vector3df(0, 2, -3))  
+app.AddTypicalLights()
+app.AddShadowAll()
+app.AssetBindAll()
+app.AssetUpdateAll()
 
 
-camera_pos = chrono.ChVectorD(3, 2, 3)
-camera_target = init_pos
-application.AddTypicalCamera(chronoirr.vector3df(camera_pos.x, camera_pos.y, camera_pos.z),
-                             chronoirr.vector3df(camera_target.x, camera_target.y, camera_target.z))
-
-application.AssetBindAll()
-application.AssetUpdateAll()
+driver = turtlebot.GetDriver()
+time_step = 0.01
 
 
-application.SetTimestep(0.01)
-time = 0
-
-while application.GetDevice().run():
-    time = system.GetChTime()
+while app.GetDevice().run():
+    app.BeginScene()
+    app.DrawAll()
+    app.EndScene()
+    
+    current_time = system.GetChTime()
     
     
-    if time < 2.0:
-        
-        turtlebot.SetMotorSpeeds(1.0, 1.0)
-    elif time < 4.0:
-        
-        turtlebot.SetMotorSpeeds(0.5, 1.5)
-    elif time < 6.0:
-        
-        turtlebot.SetMotorSpeeds(1.5, 0.5)
-    else:
-        
-        turtlebot.SetMotorSpeeds(0, 0)
+    if current_time >= 2.0 and current_time < 4.0:
+        driver.SetSpeeds(5, 3)  
+    elif current_time >= 4.0:
+        driver.SetSpeeds(5, 5)  
     
     
-    application.BeginScene(True, True, chronoirr.SColor(255, 140, 161, 192))
-    application.DrawAll()
-    application.DoStep()
-    application.EndScene()
+    turtlebot.Update()
+    system.DoStepDynamics(time_step)

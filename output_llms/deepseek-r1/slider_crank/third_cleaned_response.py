@@ -21,6 +21,7 @@ mfloor.SetPos(chrono.ChVector3d(0, -0.5, 0))
 mfloor.SetFixed(True)
 sys.Add(mfloor)
 
+
 mcrank = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, crank_rad, crank_thick, 1000)
 mcrank.SetPos(crank_center + chrono.ChVector3d(0, 0, -0.1))
 
@@ -92,6 +93,7 @@ while vis.Run():
     array_pos.append(mpiston.GetPos().x)
     array_speed.append(mpiston.GetPosDt().x)
     
+    
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
@@ -109,7 +111,7 @@ ax1.set(ylabel='position [m]')
 ax1.grid()
 
 ax2.plot(array_angle, array_speed, 'r--')
-ax2.set(ylabel='speed [m/s]', xlabel='angle [rad]')  
+ax2.set(ylabel='speed [m/s]', xlabel='angle [rad]')
 ax2.grid()
 
 

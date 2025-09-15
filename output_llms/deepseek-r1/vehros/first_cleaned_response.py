@@ -1,64 +1,88 @@
+import os
+import time
+import numpy as np
 import pychrono as chrono
 import pychrono.vehicle as veh
 import pychrono.ros as chros
-import numpy as np
 
 def main():
     
-    chrono.SetChronoDataPath("path/to/chrono/data/")  
+    chrono.SetChronoDataPath(os.path.join(os.environ['CHRONO_DATA_DIR'], 'data/'))
     system = chrono.ChSystemSMC()
-    system.SetGravity(chrono.ChVectorD(0, 0, -9.81))
-    system.SetSolverMaxIterations(50)
+    system.SetSolverMaxIterations(100)
+    system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
+
+    
+    contact_method = chrono.ChContactMethod_SMC
+    engine_type = veh.EngineModelType_SHAFTS
+    tire_type = veh.TireModelType_TMEASY
+    steering_type = veh.SteeringTypeWV_PITMAN_ARM
+
+    vehicle = veh.HMMWV_Full()
+    vehicle.SetContactMethod(contact_method)
+    vehicle.SetChassisFixed(False)
+    vehicle.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0.5), chrono.QUNIT))
+    vehicle.SetEngineType(engine_type)
+    vehicle.SetTransmissionType(veh.TransmissionModelType_SHAFTS)
+    vehicle.SetTireType(tire_type)
+    vehicle.SetSteeringType(steering_type)
+    vehicle.Initialize()
+
+    vehicle.SetChassisVisualizationType(veh.VisualizationType_PRIMITIVES)
+    vehicle.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
+    vehicle.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
+    vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
+    vehicle.SetTireVisualizationType(veh.VisualizationType_MESH)
 
     
     terrain = veh.RigidTerrain(system)
     patch_mat = chrono.ChMaterialSurfaceSMC()
-    patch_mat.SetFriction(0.8)
+    patch_mat.SetFriction(0.9)
     patch_mat.SetRestitution(0.01)
-    terrain.Initialize(chrono.ChVectorD(0, 0, 0), patch_mat)
+    patch = terrain.AddPatch(patch_mat, chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 1), 100, 100)
+    patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
+    terrain.Initialize()
 
     
-    hmmwv = veh.HMMWV_Full(system)
-    hmmwv.SetContactMethod(chrono.ChContactMethod_SMC)
-    hmmwv.SetChassisFixed(False)
-    hmmwv.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0.5), chrono.QUNIT))
-    hmmwv.SetEngineType(veh.EngineModelType_SIMPLE_MAP)
-    hmmwv.SetTransmissionType(veh.TransmissionModelType_SIMPLE_MAP)
-    hmmwv.SetDriveType(veh.DrivelineTypeWV_RWD)
-    hmmwv.SetTireType(veh.TireModelType_TMEASY)
-    hmmwv.Initialize()
+    ros_manager = chros.ChROSManager()
+    node = chros.ChROSInterface("chrono_sim")
 
     
-    ros_manager = chros.ChROSPublisherManager()
-    ros_manager.RegisterHandler(chros.ROSCollisionHandler(terrain.GetGroundBody(), "ground"))
-    ros_manager.RegisterHandler(chros.ROSClockHandler())
-    ros_manager.RegisterHandler(chros.ROSDriverInputsHandler(hmmwv.GetDriver(), "driver_inputs"))
-    ros_manager.RegisterHandler(chros.ROSVehicleStateHandler(hmmwv.GetVehicle(), "vehicle_state"))
+    clock_handler = chros.ChROSClockHandler()
+    ros_manager.RegisterHandler(clock_handler)
+
+    
+    driver_inputs = veh.DriverInputs()
+    driver_handler = chros.ChROSTopicHandlerDriverInputs(
+        "/input/driver_controls", driver_inputs, node)
+    ros_manager.RegisterHandler(driver_handler)
+
+    
+    vehicle_handler = chros.ChROSTopicHandlerVehicleState(
+        "/state/vehicle", vehicle.GetVehicle(), node)
+    ros_manager.RegisterHandler(vehicle_handler)
+
     ros_manager.Initialize()
 
     
-    driver = veh.ChInteractiveDriverIRR(hmmwv.GetVehicle())
-    driver.SetSteeringDelta(0.02)
-    driver.SetThrottleDelta(0.02)
-    driver.SetBrakingDelta(0.06)
-    driver.Initialize()
-
-    
-    time_step = 0.002
-    time_end = 1000
-    time = 0
-
-    while time < time_end:
+    step_size = 0.02
+    realtime_timer = chrono.ChRealtimeStepTimer()
+    while ros_manager.Update(step_size, system.GetChTime()):
         
-        driver.Synchronize(time)
+        time = system.GetChTime()
+        driver_inputs = driver_handler.GetInputs()
+        
+        
+        vehicle.Synchronize(time, driver_inputs, terrain)
         terrain.Synchronize(time)
-        hmmwv.Synchronize(time, driver.GetInputs(), terrain)
-        system.DoStepDynamics(time_step)
         
         
-        ros_manager.Update(time, system)
+        system.DoStepDynamics(step_size)
         
-        time += time_step
+        
+        ros_manager.Advance(step_size)
+        
+        realtime_timer.Spin(step_size)
 
 if __name__ == "__main__":
     main()
