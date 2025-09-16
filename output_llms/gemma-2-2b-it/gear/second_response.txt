@@ -14,8 +14,9 @@ radA = 1.5                                          # Defining radius for first 
 radB = 3.5                                          # Defining radius for second gear
 
 # Create the truss
-mbody_truss = chrono.ChBodyEasyBox(15, 8, 2, 1000, True, False, mat)  # Modified dimensions
+mbody_truss = chrono.ChBodyEasyBox(15, 8, 2, 1000, True, False, mat)
 sys.Add(mbody_truss)                              # Adding the truss to the physical system
+mbody_truss.SetFixed(True)                        # Making the truss fixed (immovable)
 mbody_truss.SetPos(chrono.ChVector3d(0, 0, 3))    # Setting the position of the truss to (0, 0, 3)
 
 # Shared visualization material for enhanced aesthetics
@@ -62,6 +63,4 @@ sys.AddLink(link_motor)                                             # Adding the
 
 # Create the second gear
 interaxis12 = radA + radB                                           # Calculating distance between the centers of two gears
-mbody_gearB = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y,            # Creating second gear with cylinder shape
-                                        radB, 0.4,                  # Setting radius and height
-                                        1000, True, False, mat)     # Setting mass,
+mbody_gearB = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y,            # Creating second gear with cylinder

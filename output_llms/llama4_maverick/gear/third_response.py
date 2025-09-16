@@ -11,6 +11,8 @@ mat = chrono.ChContactMaterialNSC()
 # Create all rigid bodies with specific dimensions
 radA = 1.5
 radB = 3.5
+radD = 5
+radE = 2
 
 # Create the truss
 mbody_truss = chrono.ChBodyEasyBox(15, 8, 2, 1000, True, False, mat)
@@ -22,7 +24,7 @@ mbody_truss.SetPos(chrono.ChVector3d(0, 0, 3))
 vis_mat = chrono.ChVisualMaterial()
 vis_mat.SetKdTexture(chrono.GetChronoDataFile('textures/pinkwhite.png'))
 
-# Create the rotating bar support
+# Create the rotating bar support for the two epicycloidal wheels
 mbody_train = chrono.ChBodyEasyBox(8, 1.5, 1.0, 1000, True, False, mat)
 sys.Add(mbody_train)
 mbody_train.SetPos(chrono.ChVector3d(3, 0, 0))
@@ -39,11 +41,11 @@ mbody_gearA.SetPos(chrono.ChVector3d(0, 0, -1))
 mbody_gearA.SetRot(chrono.QuatFromAngleX(m.pi / 2))
 mbody_gearA.GetVisualShape(0).SetMaterial(0, vis_mat)
 
-# Adding a thin cylinder for visualization
+# Adding a thin cylinder only for visualization purpose
 mshaft_shape = chrono.ChVisualShapeCylinder(radA * 0.3, 10)
 mbody_gearA.AddVisualShape(mshaft_shape, chrono.ChFramed(chrono.ChVector3d(0, 3.5, 0), chrono.QuatFromAngleX(chrono.CH_PI_2)))
 
-# Impose rotation speed on the first gear
+# Impose rotation speed on the first gear relative to the fixed truss
 link_motor = chrono.ChLinkMotorRotationSpeed()
 link_motor.Initialize(mbody_gearA, mbody_truss, chrono.ChFramed(chrono.ChVector3d(0, 0, 0), chrono.QUNIT))
 link_motor.SetSpeedFunction(chrono.ChFunctionConst(3))
@@ -57,12 +59,12 @@ mbody_gearB.SetPos(chrono.ChVector3d(interaxis12, 0, -2))
 mbody_gearB.SetRot(chrono.QuatFromAngleX(m.pi / 2))
 mbody_gearB.GetVisualShape(0).SetMaterial(0, vis_mat)
 
-# Fix second gear to the rotating bar
+# Fix second gear to the rotating bar with a revolute joint
 link_revolute = chrono.ChLinkLockRevolute()
 link_revolute.Initialize(mbody_gearB, mbody_train, chrono.ChFramed(chrono.ChVector3d(interaxis12, 0, 0), chrono.QUNIT))
 sys.AddLink(link_revolute)
 
-# Create the gear constraint between gear A and B
+# Create the gear constraint between the two gears, A and B
 link_gearAB = chrono.ChLinkLockGear()
 link_gearAB.Initialize(mbody_gearA, mbody_gearB, chrono.ChFramed())
 link_gearAB.SetFrameShaft1(chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleX(-m.pi / 2)))
@@ -71,7 +73,7 @@ link_gearAB.SetTransmissionRatio(radA / radB)
 link_gearAB.SetEnforcePhase(True)
 sys.AddLink(link_gearAB)
 
-# Create the gear constraint between gear B and truss (large wheel C)
+# Create the gear constraint between second gear B and a large wheel C with inner teeth
 radC = 2 * radB + radA
 link_gearBC = chrono.ChLinkLockGear()
 link_gearBC.Initialize(mbody_gearB, mbody_truss, chrono.ChFramed())
@@ -81,50 +83,44 @@ link_gearBC.SetTransmissionRatio(radB / radC)
 link_gearBC.SetEpicyclic(True)
 sys.AddLink(link_gearBC)
 
-# Add bevel gear D
-radD = 5
-mbody_gearD = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, radD, 0.5, 1000, True, False, mat)
+# Create the bevel gear D
+mbody_gearD = chrono.ChBodyEasyCylinder(chrono.ChAxis_Z, radD, 0.5, 1000, True, False, mat)
 sys.Add(mbody_gearD)
 mbody_gearD.SetPos(chrono.ChVector3d(-10, 0, -9))
 mbody_gearD.SetRot(chrono.QuatFromAngleZ(m.pi / 2))
 mbody_gearD.GetVisualShape(0).SetMaterial(0, vis_mat)
 
-# Link gear D to truss with revolute joint
+# Link gear D to truss with a revolute joint
 link_revoluteTD = chrono.ChLinkLockRevolute()
-link_revoluteTD.Initialize(mbody_truss, mbody_gearD, chrono.ChFramed(chrono.ChVector3d(-10, 0, -9), chrono.QUNIT))
+link_revoluteTD.Initialize(mbody_truss, mbody_gearD, chrono.ChFramed(chrono.ChVector3d(-10,0,-9), chrono.QuatFromAngleX(m.pi/2)))
 sys.AddLink(link_revoluteTD)
 
-# Create gear constraint between gear A and gear D
+# Create the gear constraint between gear A and gear D
 link_gearAD = chrono.ChLinkLockGear()
 link_gearAD.Initialize(mbody_gearA, mbody_gearD, chrono.ChFramed())
 link_gearAD.SetFrameShaft1(chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleX(-m.pi / 2)))
-link_gearAD.SetFrameShaft2(chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleY(-m.pi / 2)))
+link_gearAD.SetFrameShaft2(chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleZ(-m.pi / 2)))
 link_gearAD.SetTransmissionRatio(radA / radD)
 sys.AddLink(link_gearAD)
 
-# Add pulley E
-radE = 2
-mbody_pulleyE = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, radE, 0.5, 1000, True, False, mat)
+# Create the pulley E
+mbody_pulleyE = chrono.ChBodyEasyCylinder(chrono.ChAxis_Z, radE, 0.5, 1000, True, False, mat)
 sys.Add(mbody_pulleyE)
 mbody_pulleyE.SetPos(chrono.ChVector3d(-10, -11, -9))
 mbody_pulleyE.SetRot(chrono.QuatFromAngleZ(m.pi / 2))
 mbody_pulleyE.GetVisualShape(0).SetMaterial(0, vis_mat)
 
-# Link pulley E to truss with revolute joint
+# Link pulley E to truss with a revolute joint
 link_revoluteTE = chrono.ChLinkLockRevolute()
-link_revoluteTE.Initialize(mbody_truss, mbody_pulleyE, chrono.ChFramed(chrono.ChVector3d(-10, -11, -9), chrono.QUNIT))
+link_revoluteTE.Initialize(mbody_truss, mbody_pulleyE, chrono.ChFramed(chrono.ChVector3d(-10,-11,-9), chrono.QuatFromAngleX(m.pi/2)))
 sys.AddLink(link_revoluteTE)
 
-# Create synchro belt constraint between gear D and pulley E
+# Create the synchro belt constraint between gear D and pulley E
 link_beltDE = chrono.ChLinkPulley()
-link_beltDE.Initialize(mbody_gearD, mbody_pulleyE, chrono.ChFramed(chrono.ChVector3d(-10, -5.5, -9), chrono.QUNIT))
+link_beltDE.Initialize(mbody_gearD, mbody_pulleyE, chrono.ChFramed(chrono.ChVector3d(-10,0,-9), chrono.ChVector3d(-10,-11,-9), chrono.VECT_Z))
 link_beltDE.SetR1(radD)
 link_beltDE.SetR2(radE)
 sys.AddLink(link_beltDE)
-
-# Simplified visual representation of the belt
-mshaft_belt = chrono.ChVisualShapeCylinder(0.1, 10)
-mbody_gearD.AddVisualShape(mshaft_belt, chrono.ChFramed(chrono.ChVector3d(0, -5.5, 0), chrono.QuatFromAngleX(chrono.CH_PI_2)))
 
 # Create the Irrlicht visualization
 vis = chronoirr.ChVisualSystemIrrlicht()
@@ -144,5 +140,16 @@ sys.SetTimestepperType(chrono.ChTimestepper.Type_EULER_IMPLICIT_PROJECTED)
 while vis.Run():
     vis.BeginScene()
     vis.Render()
+    
+    # Simplified belt visualization
+    p1 = mbody_gearD.GetPos() + mbody_gearD.GetRot().Rotate(chrono.ChVector3d(0, radD, 0))
+    p2 = mbody_pulleyE.GetPos() + mbody_pulleyE.GetRot().Rotate(chrono.ChVector3d(0, radE, 0))
+    dir = (p2 - p1).GetNormalized()
+    p1 = p1 + dir * 0.5
+    p2 = p2 - dir * 0.5
+    vis.DrawLine(p1, p2, chrono.ChColor(1,1,1))
+    vis.DrawLine(p1 + dir * 0.1, p1 + dir * 0.1 + chrono.ChVector3d(-dir.y, dir.x, 0) * 0.1, chrono.ChColor(1,1,1))
+    vis.DrawLine(p2 - dir * 0.1, p2 - dir * 0.1 + chrono.ChVector3d(-dir.y, dir.x, 0) * 0.1, chrono.ChColor(1,1,1))
+    
     vis.EndScene()
     sys.DoStepDynamics(1e-3)

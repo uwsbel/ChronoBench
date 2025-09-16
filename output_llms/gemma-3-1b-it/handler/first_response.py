@@ -1,81 +1,66 @@
 import time
-import pychrono
+import numpy as np
+from pychrono import Chrono, System
+from pychrono.utils import get_time_unit
 import rospy
-from pychrono.system import Chrono
-from pychrono.system.system import System
-
-# --- 1. Initialization & Core Components ---
+from std_msgs.msg import Float64
 
 # Define system parameters
-system = System()
-system.name = "BoxSimulation"
-system.description = "A simple simulation of a box moving on a floor with gravity."
-system.update_time_step = 1.0  # Update frequency - adjust for desired simulation speed
-system.update_time_step_interval = 1.0 # Interval for updating time step
-system.update_time_step_interval_interval = 1.0 # Interval for updating time step interval
-system.gravity = 9.81  # Acceleration due to gravity (m/s^2)
-system.material_density = 0.8 # Density of the box (kg/m^3) - adjust for realistic behavior
-system.box_mass = 10.0 # Mass of the box (kg) - adjust for realistic behavior
-system.box_size = 0.2 # Size of the box (m) - adjust for realistic behavior
+gravity = 9.81  # m/s^2
+floor_mass = 1000  # kg
+box_mass = 200  # kg
+box_size = 1.0  # m
+box_position = [0, 0]  # m
+box_velocity = [0, 0]  # m/s
+simulation_duration = 10  # seconds
+timestep = 0.01  # seconds
 
-# --- 2. Physical Systems & Objects ---
+# Create the Chrono system
+system = Chrono(
+    system_name="MySimulation",
+    gravity=gravity,
+    material_properties={"density": 2700, "elastic_modulus": 2.1e9},  # Example material properties
+    body_type="box",
+    body_position=[box_position],
+    body_velocity=[box_velocity],
+    simulation_duration=simulation_duration,
+    # You can add more system parameters here if needed
+)
 
-# Define the box
-box = rospy.Action("box_move",
-                    paramet=rospy.Parameter("x", type=float, default=0.0),
-                    paramet=rospy.Parameter("y", type=float, default=0.0),
-                    paramet=rospy.Parameter("z", type=float, default=0.0),
-                    paramet=rospy.Parameter("mass", type=float, default=10.0),
-                    paramet=rospy.Parameter("size", type=float, default=0.2),
-                    reconnect=True)
+# Define the physical system
+# This is a simplified example.  A more sophisticated system would include
+# collision detection, friction, etc.
+# This example assumes a simple rigid body interaction.
+# Consider using a more robust physics engine for realistic simulations.
 
-# Define the floor
-floor = rospy.Action("floor_move",
-                    paramet=rospy.Parameter("x", type=float, default=0.0),
-                    paramet=rospy.Parameter("y", type=float, default=0.0),
-                    paramet=rospy.Parameter("z", type=float, default=0.0),
-                    paramet=rospy.Parameter("mass", type=float, default=10.0),
-                    paramet=rospy.Parameter("size", type=float, default=0.2),
-                    reconnect=True)
+# Create a fixed floor
+floor = System()
+floor.add_object(system)
+floor.set_position([0, 0, 0])
 
-# --- 3. ROS Handler ---
-
-# Define the ROS handler
-handler = rospy.Action("publish_message",
-                         paramet=rospy.ActionParameters("message_topic", "box_movement_message"),
-                         reconnect=True)
-
-# --- 4. Simulation Loop ---
-
-def run_simulation():
-    rospy.init_node('box_simulation')
-    system.subscribe(handler)
-    system.wait_for_condition(system.gravity)  # Wait for gravity to be active
-
-    try:
-        while True:
-            # Simulate movement
-            system.update_time_step()
-            system.move_box(x=system.box.x, y=system.box.y, z=system.box.z)
-            system.update_time_step()
-            # Simulate the floor moving
-            floor.update_time_step()
-            floor.move_box(x=floor.x, y=floor.y, z=floor.z)
-            system.update_time_step()
-
-            # Publish the message
-            handler.publish(system.message)
-
-            # Wait for a short period to control the simulation speed
-            time.sleep(0.1)  # Adjust for desired simulation speed
-
-    except rospy.EventRobotException:
-        print("Robot exception occurred.  Stopping simulation.")
-    except rospy.ROSInterruptException:
-        print("Simulation interrupted.")
-    finally:
-        system.shutdown()
+# Create a movable box
+box = System()
+box.add_object(system)
+box.set_position([box_position[0], box_position[1], box_position[2]])
+box.set_velocity([0, 0])
 
 
-if __name__ == '__main__':
-    run_simulation()
+# Create a ROS message handler
+def publish_message(message):
+    rospy.loginfo("Publishing message: %s", message)
+    rospy.message_path("MySimulation_Update") # Assign a unique message path
+
+# ROS Manager Setup
+rospy.init_node('MySimulation')
+rospy.loginfo("ROS Manager initialized.")
+
+# Main Simulation Loop
+while True:
+    # Simulate the system
+    system.update()
+
+    # Publish the update message
+    publish_message(system.update())
+
+    # Delay for simulation duration
+    time.sleep(timestep)

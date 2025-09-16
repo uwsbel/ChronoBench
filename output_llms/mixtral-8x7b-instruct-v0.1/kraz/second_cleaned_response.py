@@ -8,7 +8,7 @@ veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 
 initLoc = chrono.ChVector3d(-15, 0, 0.5)
-initRot = chrono.ChQuaterniond(0.707, 0, 0, 0.707) 
+initRot = chrono.ChQuaterniond(0.707, 0, 0, -0.707)  
 
 
 vis_type = veh.VisualizationType_MESH
@@ -26,7 +26,7 @@ terrainLength = 100.0
 terrainWidth = 100.0   
 
 
-trackPoint = chrono.ChVector3d(3,0, 2.1)
+trackPoint = chrono.ChVector3d(3, 0, 2.1)  
 
 
 contact_method = chrono.ChContactMethod_NSC
@@ -73,12 +73,13 @@ terrain.Initialize()
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('Kraz Demo')
 vis.SetWindowSize(1280, 1024)
-vis.SetChaseCamera(trackPoint, 25.0, 10.5) 
+vis.SetChaseCamera(trackPoint, 25.0, 10.5)  
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetTractor())
+
 
 
 driver = veh.ChInteractiveDriverIRR(vis)
@@ -104,7 +105,7 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-double_lane_change_time = 5.0 
+double_lane_change_time = 5.0  
 double_lane_change_completed = False
 
 while vis.Run() :
@@ -133,15 +134,16 @@ while vis.Run() :
     vis.Advance(step_size)
 
     
-    if not double_lane_change_completed and time > double_lane_change_time:
-        driver.SetSteer(-1.0) 
-        if time > 2.0 * double_lane_change_time:
-            driver.SetSteer(1.0) 
-            if time > 3.0 * double_lane_change_time:
-                double_lane_change_completed = True
-
-    
     step_number += 1
 
     
     realtime_timer.Spin(step_size)
+
+    
+    if not double_lane_change_completed and time > double_lane_change_time:
+        driver.SetSteering(1.0)  
+        if time > double_lane_change_time * 2:
+            driver.SetSteering(-1.0)  
+            if time > double_lane_change_time * 3:
+                driver.SetSteering(0.0)  
+                double_lane_change_completed = True

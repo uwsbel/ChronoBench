@@ -6,8 +6,8 @@ import sys
 
 print("Example: PyChrono using beam finite elements")
 
-# Create a system
-system = chrono.ChSystemSMC()
+# Create the system
+sys = chrono.ChSystemSMC()
 
 # Create a mesh
 mesh = fea.ChMesh()
@@ -15,6 +15,7 @@ mesh = fea.ChMesh()
 # Create a section
 msection = fea.ChBeamSectionEulerAdvanced()
 
+# Set beam properties
 beam_wy = 0.012
 beam_wz = 0.025
 msection.SetAsRectangularSection(beam_wy, beam_wz)
@@ -46,23 +47,24 @@ belement2.SetNodes(hnode2, hnode3)
 belement2.SetSection(msection)
 mesh.AddElement(belement2)
 
-# Apply forces and constraints
+# Apply forces and torques
 hnode2.SetForce(chrono.ChVector3d(4, 2, 0))
 hnode3.SetTorque(chrono.ChVector3d(0, -0.04, 0))
 
+# Fix nodes to ground
 mtruss = chrono.ChBody()
 mtruss.SetFixed(True)
-system.Add(mtruss)
+sys.Add(mtruss)
 
 constr_bc = chrono.ChLinkMateGeneric()
 constr_bc.Initialize(hnode3, mtruss, False, hnode3.Frame(), hnode3.Frame())
-system.Add(constr_bc)
+sys.Add(constr_bc)
 constr_bc.SetConstrainedCoords(True, True, True,  # x, y, z
                                True, True, True)  # Rx, Ry, Rz
 
 constr_d = chrono.ChLinkMateGeneric()
 constr_d.Initialize(hnode1, mtruss, False, hnode1.Frame(), hnode1.Frame())
-system.Add(constr_d)
+sys.Add(constr_d)
 constr_d.SetConstrainedCoords(False, True, True,  # x, y, z
                               False, False, False)  # Rx, Ry, Rz
 
@@ -70,32 +72,25 @@ constr_d.SetConstrainedCoords(False, True, True,  # x, y, z
 builder = fea.ChBuilderBeamEuler()
 
 # Build a beam segment
-builder.BuildBeam(mesh,  # the mesh where to put the created nodes and elements
-                  msection,  # the ChBeamSectionEulerAdvanced to use for the ChElementBeamEuler elements
-                  5,  # the number of ChElementBeamEuler to create
-                  chrono.ChVector3d(0, 0, -0.1),  # the 'A' point in space (beginning of beam)
-                  chrono.ChVector3d(0.2, 0, -0.1),  # the 'B' point in space (end of beam)
-                  chrono.ChVector3d(0, 1, 0))  # the 'Y' up direction of the section for the beam
+builder.BuildBeam(mesh, msection, 5, chrono.ChVector3d(0, 0, -0.1), chrono.ChVector3d(0.2, 0, -0.1), chrono.ChVector3d(0, 1, 0))
+
+# Get the last beam nodes
+last_beam_nodes = builder.GetLastBeamNodes()
+
+# Fix the A end and apply a force to the B end
+last_beam_nodes.back().SetFixed(True)
+last_beam_nodes.front().SetForce(chrono.ChVector3d(0, -1, 0))
 
 # Build another beam segment
-builder.BuildBeam(mesh,  # the mesh where to put the created nodes and elements
-                  msection,  # the ChBeamSectionEulerAdvanced to use for the ChElementBeamEuler elements
-                  5,  # the number of ChElementBeamEuler to create
-                  builder.GetLastBeamNodes().back().GetFrame().GetPos(),  # the 'A' point in space (beginning of beam)
-                  chrono.ChVector3d(0.2, 0.1, -0.1),  # the 'B' point in space (end of beam)
-                  chrono.ChVector3d(0, 1, 0))  # the 'Y' up direction of the section for the beam
-
-# Retrieve nodes and apply forces
-builder.GetLastBeamNodes().back().SetFixed(True)
-builder.GetLastBeamNodes().front().SetForce(chrono.ChVector3d(0, -1, 0))
-
-# Add the mesh to the system
-system.Add(mesh)
+builder.BuildBeam(mesh, msection, 5, last_beam_nodes.front().GetFrame().GetPos(), chrono.ChVector3d(0.2, 0.1, -0.1), chrono.ChVector3d(0, 1, 0))
 
 # Set automatic gravity to False
 mesh.SetAutomaticGravity(False)
 
-# Visualize the FEM mesh
+# Add the mesh to the system
+sys.Add(mesh)
+
+# Create a visualization of the FEM mesh
 visualizebeamA = chrono.ChVisualShapeFEA(mesh)
 visualizebeamA.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_ELEM_BEAM_MZ)
 visualizebeamA.SetColorscaleMinMax(-0.4, 0.4)
@@ -113,7 +108,7 @@ mesh.AddVisualShapeFEA(visualizebeamC)
 
 # Create the Irrlicht visualization
 vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(system)
+vis.AttachSystem(sys)
 vis.SetWindowSize(1024, 768)
 vis.SetWindowTitle('FEA beams')
 vis.Initialize()
@@ -122,13 +117,13 @@ vis.AddSkyBox()
 vis.AddCamera(chrono.ChVector3d(0.1, 0.1, 0.2))
 vis.AddTypicalLights()
 
-# Change the solver to the MKL Pardiso solver
+# Change the solver to the MKL Pardiso
 msolver = mkl.ChSolverPardisoMKL()
-system.SetSolver(msolver)
+sys.SetSolver(msolver)
 
 # Simulation loop
 while vis.Run():
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
-    system.DoStepDynamics(0.001)
+    sys.DoStepDynamics(0.001)

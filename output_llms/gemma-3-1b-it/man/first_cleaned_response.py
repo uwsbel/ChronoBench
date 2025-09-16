@@ -1,126 +1,51 @@
 import pychrono
-import pychrono.core as pc
-import pychrono.visuals as v
-import pychrono.physics as ph
-import pychrono.utils as uc
 import numpy as np
-import matplotlib.pyplot as plt  
+from pychrono.core import System, Object
+from pychrono.visuals import Irrlicht
+import matplotlib.pyplot as plt
+from matplotlib.colors import Listed
 
 
+TERRAIN_WIDTH = 100
+TERRAIN_HEIGHT = 50
+TERRAIN_SCALE = 10  
+TERRAIN_TEXTURE_NAME = "terrain.png" 
+DRIVER_SPEED = 5  
+DRIVER_BRAKING_FORCE = 10  
+DRIVER_STEERING_FORCE = 2  
+INITIAL_POSITION = [0, 0, 0]  
+INITIAL_SPEED = 0  
+INITIAL_BRAKING_FORCE = 0  
+INITIAL_STEERING_FORCE = 0  
+INITIAL_TIME = 0.0
 
 
-terrain = pc.Terrain(
-    width=100,  
-    height=50,  
-    terrain_type="grass", 
-    
-    roughness=0.5
-)
-
-
-ground = pc.Ground(
-    width=terrain.width,
-    height=terrain.height,
-    ground_type="dirt",
-    
-    roughness=0.3
-)
-
-
-vehicle = pc.Vehicle(
-    model_id="MAN10t",  
-    speed=20, 
-    acceleration=10, 
-    brake_rate=5, 
-    max_speed=30, 
-    
-    position=(0, 0, 0),
-    orientation=(0, 0, 0)
-)
-
-
-
-
-tire_radius = 0.5  
-tire_mass = 1000 
-tire_friction = 0.8 
-
-
-tmeasy_tire = pc.TMEASY(
-    radius=tire_radius,
-    mass=tire_mass,
-    friction=tire_friction,
-    
-    damping=0.1
-)
-
-
-
-
-steering_rate = 5  
-steering_control = pc.SteeringControl(
-    speed=vehicle.speed,
-    steering_rate=steering_rate,
-    
-    steering_function = lambda x: x * steering_rate
-)
-
-
-
-throttle_rate = 10 
-throttle_control = pc.ThrottleControl(
-    speed=vehicle.speed,
-    throttle_rate=throttle_rate,
+system = System(
+    name="truck_simulation",
+    time_step=0.1,
+    time_limit=10.0,
+    physics_system=True,
+    visual_system=True,
+    visual_settings=True,
+    visualization_settings=True,
     
 )
 
 
-braking_rate = 15 
-braking_control = pc.BrakingControl(
-    speed=vehicle.speed,
-    braking_rate=braking_rate,
+vehicle = Object(
+    name="truck",
+    model="man10t",
+    position=[INITIAL_POSITION[0], INITIAL_POSITION[1], INITIAL_POSITION[2]],
+    speed=INITIAL_SPEED,
+    steering=INITIAL_STEERING_FORCE,
+    braking=INITIAL_BRAKING_FORCE,
     
 )
 
 
-
-
-simulation_time = 60  
-time_step = 0.1 
-
-
-
-
-fig = v.Figure(
-    width=800,
-    height=600,
-    title="MAN 10t Truck Simulation",
-    
-    background_color="white",
-    
-    skybox="sky",
-    
-    terrain_color="lightgray",
-    
-    logo_color="red",
-    logo_x=100,
-    logo_y=100,
-    logo_size=20,
-    
-    camera_x=100,
-    camera_y=100,
-    camera_z=100,
-    camera_fov=60,
-    camera_aspect_ratio=1
-)
-
-
-
-chase_camera = v.Camera(
-    x=100,
-    y=100,
-    z=100,
-    fov=60,
+tmeier = TMEASY(
+    name="tmeier",
+    model="tmeier",
     
     
     
@@ -128,63 +53,42 @@ chase_camera = v.Camera(
 )
 
 
-v.Draw(fig,
-    terrain,
-    
-    terrain_texture="grass_texture.png",
-    
-    terrain_color="lightgray",
-    
-    roughness=0.3,
-    
-    draw_color="white",
-    draw_opacity=0.5,
-    
-    ground_color="dirt",
-    ground_width=terrain.width,
-    ground_height=terrain.height,
-    ground_opacity=0.5
-)
+terrain = np.zeros((TERRAIN_WIDTH, TERRAIN_HEIGHT))
+terrain[TERRAIN_WIDTH // 2:TERRAIN_WIDTH // 2 + TERRAIN_HEIGHT, :] = 1.0  
 
 
+irrlicht = Irrlicht()
+irrlicht.initialize_figure()
+irrlicht.rotate_figure(np.pi / 2) 
+irrlicht.set_camera(Irrlicht.Camera(position=[0, 0, 0]))
+irrlicht.set_background_color(np.array([0.2, 0.2, 0.2])) 
 
-v.Draw(fig,
-    vehicle,
+
+camera = Irrlicht.Camera(position=[0, 0, 0])
+camera.set_color(np.array([0.5, 0.5, 0.5]))
+camera.set_rotation(np.pi / 2)
+
+
+camera.set_camera_type(Irrlicht.ChaseCamera)
+camera.set_color(np.array([0.7, 0.7, 0.7]))
+camera.set_position([0, 0, 0])
+camera.set_rotation(np.pi / 2)
+
+
+while True:
     
-    vehicle_color="red",
+    system.update()
+
     
-    position=(0, 0, 0),
+    irrlicht.clear()
+    irrlicht.set_camera(camera)
+    irrlicht.set_background_color(np.array([0.2, 0.2, 0.2]))
+    irrlicht.draw_voronoi(vehicle.position)
+    irrlicht.draw_polygon(vehicle.position)
+
     
-    orientation=(0, 0, 0),
+    irrlicht.display()
+
     
-    draw_color="white",
-    draw_opacity=0.5
-)
-
-
-v.Draw(fig,
-    tmeasy_tire,
-    
-    tire_color="blue",
-    
-    position=(0, 0, 0),
-    
-    orientation=(0, 0, 0),
-    draw_color="white",
-    draw_opacity=0.5
-)
-
-
-
-v.Draw(fig,
-    skybox,
-    
-    skybox_color="white",
-)
-
-
-
-chase_camera.set_position(fig.get_camera().position)
-
-
-v.Show(fig)
+    import time
+    time.sleep(1/system.time_step)

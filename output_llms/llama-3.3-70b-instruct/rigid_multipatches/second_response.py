@@ -2,15 +2,15 @@ import pychrono as chrono
 import pychrono.vehicle as veh
 import pychrono.irrlicht as irr
 
-# Set data path for vehicle
-veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
-
-# Simulation step sizes
-step_size = 2e-3
-tire_step_size = 1e-3
-
 def main():
-    # Create the HMMWV vehicle, set parameters, and initialize
+    # Set data path
+    veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
+
+    # Simulation step sizes
+    step_size = 2e-3
+    tire_step_size = 1e-3
+
+    #  Create the HMMWV vehicle, set parameters, and initialize
     hmmwv = veh.HMMWV_Full()
     hmmwv.SetContactMethod(chrono.ChContactMethod_NSC)
     hmmwv.SetChassisFixed(False)
@@ -33,24 +33,29 @@ def main():
     # Create the terrain with a single patch
     terrain = veh.RigidTerrain(hmmwv.GetSystem())
 
-    # Create a contact material for the terrain
-    terrain_mat = chrono.ChContactMaterialNSC()
-    terrain_mat.SetFriction(0.9)
-    terrain_mat.SetRestitution(0.01)
+    # Define contact material
+    contact_material = chrono.ChContactMaterialNSC()
+    contact_material.SetFriction(0.9)
+    contact_material.SetRestitution(0.01)
 
-    # Create a mesh for the terrain
-    mesh = chrono.ChTriangleMesh()
-    mesh.LoadWavefrontMesh(veh.GetDataFile("terrain/meshes/Highway_col.obj"))
-
-    # Add the mesh to the terrain
-    terrain.AddTriangleMesh(terrain_mat, mesh, chrono.ChVector3d(0, 0, 0), chrono.QUNIT, 0.01, True)
+    # Create a collision mesh for the terrain
+    collision_mesh = chrono.ChTriangleMesh()
+    collision_mesh.LoadWavefrontMesh(veh.GetDataFile("terrain/meshes/Highway_col.obj"))
+    collision_mesh.Transform(chrono.ChVector3d(0, 0, 0), chrono.QUNIT)
 
     # Create a visual mesh for the terrain
-    vis_mesh = chrono.ChTriangleMesh()
-    vis_mesh.LoadWavefrontMesh(veh.GetDataFile("terrain/meshes/Highway_vis.obj"))
-    vis_shape = chrono.ChVisualShapeTriangleMesh(vis_mesh)
-    vis_shape.SetColor(chrono.ChColor(0.5, 0.5, 0.8))
-    terrain.GetGroundBody().AddVisualShape(vis_shape)
+    visual_mesh = chrono.ChTriangleMesh()
+    visual_mesh.LoadWavefrontMesh(veh.GetDataFile("terrain/meshes/Highway_vis.obj"))
+    visual_mesh.Transform(chrono.ChVector3d(0, 0, 0), chrono.QUNIT)
+
+    # Add the collision mesh to the terrain
+    terrain.AddCollisionMesh(collision_mesh, contact_material, 0.01)
+
+    # Add the visual mesh to the terrain's ground body
+    visual_shape = chrono.ChVisualShapeTriangleMesh()
+    visual_shape.SetMesh(visual_mesh)
+    visual_shape.SetColor(chrono.ChColor(0.5, 0.5, 0.8))
+    terrain.GetGroundBody().AddVisualShape(visual_shape)
 
     terrain.Initialize()
 

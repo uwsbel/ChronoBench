@@ -8,58 +8,44 @@ sys = chrono.ChSystemNSC()
 
 # Create the UAZBUS vehicle
 ua_zbus = veh.UAZBUS()
-ua_zbus.Initialize(sys)
-ua_zbus.SetChassisFixed(False)
-ua_zbus.SetChassisMass(1500)
-ua_zbus.SetChassisInertia(chrono.ChVectorD(1000, 1000, 1000))
-ua_zbus.SetEngineType(veh.UAZBUS.EngineType.INTERNAL_COMBUSTION)
-ua_zbus.SetEnginePower(100000)
-ua_zbus.SetTransmissionType(veh.UAZBUS.TransmissionType.AUTOMATIC)
-ua_zbus.SetBrakeType(veh.UAZBUS.BrakeType.HYDRUALIC)
-ua_zbus.SetSteeringType(veh.UAZBUS.SteeringType.RACK_PINION)
-ua_zbus.SetSuspensionType(veh.UAZBUS.SuspensionType.COIL_SPRING)
-ua_zbus.SetWheelType(veh.UAZBUS.WheelType.RIGID)
-ua_zbus.SetTireType(veh.UAZBUS.TireType.RIGID)
-ua_zbus.SetBodyFixed(False)
-ua_zbus.AddToSystem(sys)
+ua_zbus.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.Q_from_AngX(chrono.CH_C_PI_2)))
+ua_zbus.Suspend(0.1)
+ua_zbus.AddDriver()
+sys.Add(ua_zbus)
 
-# Create the terrain
-terrain = chrono.ChBodyEasyBox(sys, 100, 100, 1, 1000, True)
-terrain.SetPos(chrono.ChVectorD(0, -5, 0))
+# Create the rigid terrain
+terrain = chrono.ChBodyEasyBox(sys, 10, 1, 10, 1000, True, True)
+terrain.SetPos(chrono.ChVectorD(0, -1, 0))
 terrain.SetMaterial(chrono.ChMaterialSurfaceNSC())
-terrain.GetMaterial().SetFriction(0.8)
-terrain.GetMaterial().SetRestitution(0.5)
-terrain.AddToSystem(sys)
+terrain.GetMaterial().SetFriction(0.9)
+terrain.GetMaterial().SetRestitution(0.1)
+sys.Add(terrain)
+
+# Set default parameters
+ua_zbus.SetChassisFixed(False)
+ua_zbus.SetSuspensionHeight(0.5)
+ua_zbus.SetTireFriction(0.8)
+ua_zbus.SetTireRestitution(0.1)
 
 # Create the driver system
-driver = veh.ChIrrVehicleDriver()
-driver.SetVehicle(ua_zbus)
-driver.SetSteeringGain(0.1)
-driver.SetThrottleGain(0.1)
-driver.SetBrakingGain(0.1)
-driver.AddToSystem(sys)
+driver = veh.ChIrrVehicleDriver(ua_zbus.GetPart(0))
+driver.Set SteeringGain(2)
+driver.SetThrottleGain(2)
+sys.Add(driver)
 
 # Create the Irrlicht visualization
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AddSkyBox()
 vis.AddTypicalLights()
-vis.AddCamera(chrono.ChVectorD(0, 10, -10))
-vis.AddCamera(chrono.ChVectorD(0, 10, 10))
+vis.AddCamera(chrono.ChVectorD(0, 5, 10))
 vis.AddTypicalLights()
 vis.SetWindowSize(1024, 768)
-vis.SetWindowTitle("UAZBUS Simulation")
-vis.AddToSystem(sys)
+vis.SetCameraDistance(10)
 
-# Set up the simulation loop
+# Simulation loop
 time = 0
 dt = 0.01
 while time < 10:
-    # Synchronize the vehicle, terrain, driver, and visual system
-    ua_zbus.Synchronize(time, dt)
-    terrain.Synchronize(time, dt)
-    driver.Synchronize(time, dt)
-    vis.Synchronize(time, dt)
-    
     # Advance the simulation
     sys.DoStepDynamics(dt)
     
@@ -68,8 +54,14 @@ while time < 10:
     vis.DrawAll()
     vis.EndScene()
     
-    # Increment the time
+    # Update the driver system
+    driver.Synchronize(time)
+    
+    # Advance time
     time += dt
 
-# Finalize the simulation
-sys.Finalize()
+    # Synchronize with real-time
+    chrono.ChRealtimeStep(sys)
+
+# Clean up
+sys.Delete()

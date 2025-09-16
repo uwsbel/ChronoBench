@@ -1,64 +1,59 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
-import numpy as np
+import pychrono.vehicle as veh
 
 
-system = chrono.ChSystemNSC()
+sys = chrono.ChSystemNSC()
 
 
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+sys.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  
 
 
-ground_body = chrono.ChBodyEasyBox(system, 10, 1, 10, 1000, True, False)
-ground_body.SetPos(chrono.ChVectorD(0, -1, 0))
-ground_body.SetBodyFixed(True)
+ground = chrono.ChBodyEasyBox(sys, 10, 1, 10, 1000, True, True)
+ground.SetPos(chrono.ChVectorD(0, -1, 0))
+ground.SetBodyFixed(True)
 
 
-viper_rover = chrono.ChBodyEasyBox(system, 1, 0.5, 1, 10, False, True)
-viper_rover.SetPos(chrono.ChVectorD(0, 1, 0))
-
-
-driver = chrono.ChDriver(system, viper_rover)
+viper = veh.Viper()
+viper.Initialize(sys)
+viper.SetChassisPos(chrono.ChVectorD(0, 1, 0))
+viper.SetChassisRot(chrono.ChQuaternionD(1, 0, 0, 0))
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AddSkyBox()
 vis.AddTypicalLights()
-vis.AddCamera(chrono.ChVectorD(0, 5, -10))
-vis.AddCameraGimbal(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 1))
+vis.AddCamera(chrono.ChVectorD(0, 10, -20))
+vis.AddTypicalLights(chrono.ChVectorD(10, 10, 10), chrono.ChVectorD(10, -10, 10), 100, 100)
 
 
-vis.GetCamera().SetFov(45)
-vis.GetCamera().SetFocalLength(1000)
+vis.GetCamera().SetFocalLength(50)
+vis.GetCamera().SetPosition(chrono.ChVectorD(0, 10, -20))
+vis.GetCamera().SetLookAt(chrono.ChVectorD(0, 0, 0))
 
 
-vis.GetLight(0).SetDiffuseColor(chrono.ChVectorF(1, 1, 1))
-vis.GetLight(0).SetSpecularColor(chrono.ChVectorF(1, 1, 1))
-
-
-dt = 0.01  
-t_end = 10  
-t = 0  
-
-
-while t < t_end:
+time_step = 0.01
+steering_time = 10
+end_time = 20
+time = 0
+while time < end_time:
     
-    steering_angle = np.sin(t)
-    driver.SetSteeringAngle(steering_angle)
-
-    
-    system.DoStepDynamics(dt)
+    if time < steering_time:
+        steering = time / steering_time * chrono.CH_C_PI_4
+    else:
+        steering = chrono.CH_C_PI_4
+    viper.SetSteering(steering)
 
     
-    vis.BeginScene()
-    vis.DrawAll()
-    vis.EndScene()
+    sys.DoStepDynamics(time_step)
+    vis.Render()
 
     
-    t += dt
+    time += time_step
 
     
-    print(f"Time: {t:.2f}")
+    if vis.GetDevice().GetKeyboard().KeyPressed(chrono.ChKeyboard::KEY_ESCAPE):
+        break
 
 
-del vis
+vis.GetDevice().WaitForExit()

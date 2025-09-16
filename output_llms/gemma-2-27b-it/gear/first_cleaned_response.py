@@ -2,81 +2,131 @@ import pychrono as chrono
 import pychrono.irrlicht as chronoirr
 
 
-my_system = chrono.ChSystemNSC()
-my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
-my_system.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
 
 
 
+
+
+mysystem = chrono.ChSystemNSC()
+mysystem.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+my_time_step = 0.01
+
+
+
+
+
+
+
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(mysystem)
+vis.SetWindowSize(800, 600)
+vis.SetWindowTitle("Epicyclic Gears")
+vis.Initialize()
+vis.AddCameraLight()
+vis.AddSkyBox()
+
+
+
+
+
+
+
+ground = chrono.ChBodyEasyBox(10, 0.2, 10, 1000, True, True)
+ground.SetPos(chrono.ChVectorD(0, -1, 0))
+mysystem.AddBody(ground)
+
+
+
+
+
+
+
+truss_material = chrono.ChMaterialSurfaceNSC()
+truss_material.SetFriction(0.3)
+truss_material.SetRestitution(0.2)
 
 truss = chrono.ChBody()
 truss.SetBodyFixed(True)
-truss.SetPos(chrono.ChVectorD(0, 0, 0))
-my_system.Add(truss)
+mysystem.AddBody(truss)
 
 
-bar = chrono.ChBody()
-bar.SetMass(1)
-bar.SetInertiaXX(chrono.ChVectorD(0.1, 0.1, 0.1))
-bar.SetPos(chrono.ChVectorD(0, 1, 0))
-my_system.Add(bar)
 
 
-gear1 = chrono.ChBodyEasyCylinder(0.5, 0.1, 1000, True, True)
-gear1.SetPos(chrono.ChVectorD(1, 1, 0))
-my_system.Add(gear1)
 
-gear2 = chrono.ChBodyEasyCylinder(0.3, 0.1, 1000, True, True)
-gear2.SetPos(chrono.ChVectorD(2, 1, 0))
-my_system.Add(gear2)
+
+
+
+
+
+bar = chrono.ChBodyEasyBox(1, 0.1, 0.1, 100, True, True)
+bar.SetPos(chrono.ChVectorD(0, 0.5, 0))
+bar.SetRot(chrono.Q_from_AngAxis(chrono.CH_C_PI / 2, chrono.ChVectorD(0, 0, 1)))
+mysystem.AddBody(bar)
+
+
+bar_joint = chrono.ChLinkRevolute()
+bar_joint.Initialize(truss, bar, chrono.ChVectorD(0, 0.5, 0))
+mysystem.AddLink(bar_joint)
+
+
+
+
+
+
+
+
+gear1_radius = 0.5
+gear2_radius = 0.25
+
+
+gear1 = chrono.ChBodyEasyCylinder(gear1_radius, 0.1, 100, True, True)
+gear1.SetPos(chrono.ChVectorD(gear1_radius, 0.5, 0))
+mysystem.AddBody(gear1)
+
+
+gear2 = chrono.ChBodyEasyCylinder(gear2_radius, 0.1, 100, True, True)
+gear2.SetPos(chrono.ChVectorD(gear1_radius + gear2_radius, 0.5, 0))
+mysystem.AddBody(gear2)
+
+
+gear1_joint = chrono.ChLinkRevolute()
+gear1_joint.Initialize(bar, gear1, chrono.ChVectorD(gear1_radius, 0, 0))
+mysystem.AddLink(gear1_joint)
+
+gear2_joint = chrono.ChLinkRevolute()
+gear2_joint.Initialize(gear1, gear2, chrono.ChVectorD(gear1_radius + gear2_radius, 0, 0))
+mysystem.AddLink(gear2_joint)
 
 
 motor = chrono.ChLinkMotorRotationSpeed()
-motor.SetBody1(bar)
-motor.SetBody2(gear1)
-motor.SetTargetSpeed(10)
-my_system.Add(motor)
+motor.Initialize(gear1, chrono.ChVectorD(0, 0, 0))
+motor.SetSpeedFunction(chrono.ChFunction_Const(10)) 
+mysystem.AddLink(motor)
 
 
 
 
-material = chrono.ChMaterialSurfaceNSC()
-material.SetFriction(0.3)
-material.SetRestitution(0.2)
 
 
-truss_bar_contact = chrono.ChContactSurfaceNodeNSC()
-truss_bar_contact.SetMaterialSurface(material)
-truss_bar_contact.AddBody(truss)
-truss_bar_contact.AddBody(bar)
-my_system.AddContactSurface(truss_bar_contact)
 
-gear1_bar_contact = chrono.ChContactSurfaceNodeNSC()
-gear1_bar_contact.SetMaterialSurface(material)
-gear1_bar_contact.AddBody(gear1)
-gear1_bar_contact.AddBody(bar)
-my_system.AddContactSurface(gear1_bar_contact)
+ground.AddAsset(chrono.ChAssetShape(chrono.ChSphereShape(0.5)))
+ground.AddAsset(chrono.ChAssetMaterial(chrono.ChColorAsset(0.5, 0.5, 0.5)))
 
-gear1_gear2_contact = chrono.ChContactSurfaceNodeNSC()
-gear1_gear2_contact.SetMaterialSurface(material)
-gear1_gear2_contact.AddBody(gear1)
-gear1_gear2_contact.AddBody(gear2)
-my_system.AddContactSurface(gear1_gear2_contact)
+bar.AddAsset(chrono.ChAssetShape(chrono.ChBoxShape(0.5, 0.05, 0.05)))
+bar.AddAsset(chrono.ChAssetMaterial(chrono.ChColorAsset(1, 0, 0)))
+
+gear1.AddAsset(chrono.ChAssetShape(chrono.ChCylinderShape(gear1_radius, 0.1)))
+gear1.AddAsset(chrono.ChAssetMaterial(chrono.ChColorAsset(0, 1, 0)))
+
+gear2.AddAsset(chrono.ChAssetShape(chrono.ChCylinderShape(gear2_radius, 0.1)))
+gear2.AddAsset(chrono.ChAssetMaterial(chrono.ChColorAsset(0, 0, 1)))
 
 
 
 
-vis = chronoirr.ChIrrApp(my_system, "Epicyclic Gears", chrono.ChVectorD(0, 0, 10))
-vis.AddTypicalSky()
-vis.AddTypicalLights()
-vis.SetWindowSize(800, 600)
-vis.SetStep(0.01)
 
 
-truss.AddAsset(chronoirr.ChColorAsset(1, 0, 0))
-bar.AddAsset(chronoirr.ChColorAsset(0, 1, 0))
-gear1.AddAsset(chronoirr.ChColorAsset(0, 0, 1))
-gear2.AddAsset(chronoirr.ChColorAsset(1, 1, 0))
 
-
-vis.Run()
+while vis.Run():
+    mysystem.DoStepDynamics(my_time_step)
+    vis.Render()

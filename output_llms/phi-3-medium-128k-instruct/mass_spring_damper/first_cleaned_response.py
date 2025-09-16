@@ -1,544 +1,89 @@
-```python
-
-import chrono
-
-import chrono.irrlicht
-
-import chrono_impact
-
-from chrono_irrlicht_sscs import ChIrrApp, ChSscsDisplay
+from pychrono import ChSystem, ChSystemNSC, ChLinkTSDA, ChBody, ChCoordsys, ChCoordSysD, ChVec3D, ChFrame, ChRigidBody, ChSphereShape, ChMaterialSurface, ChVisualStyle, ChVisuals
+import pychrono.pychrono as pch
 
 
 
-
-chrono.init()
-
+system = ChSystemNSC()
 
 
 
-ground = chrono.ChBody()
-
-ground.SetBodyFixed(True)
-
-
-
-
-mass = chrono.ChBody()
-
-mass.SetBodyFixed(False)
-
-mass.SetMass(1.0)
-
-
-
-
-spring_damper = chrono.ChLinkTSDA(ground, mass, chrono.ChLinkTSDA.LOCAL_TREE)
-
-spring_damper.SetStiffness(1000.0)
-
-spring_damper.SetDamping(20.0)
-
-
-
-
-system = chrono.ChSystemNSC()
-
+ground = ChBody()
+ground.SetMass(0)
+ground.SetStatic()
 system.AddBody(ground)
 
+
+
+mass = ChBody()
+mass.SetMass(1.0)
 system.AddBody(mass)
 
-system.AddLink(spring_damper)
 
 
+spring = ChLinkTSDA(mass, ground)
+spring.Initialize(ChCoordsysD(ChFrame(ChCoordSysD(ChBody(), ChVec3D(0, 0, 0)))
+spring.Initialize(ChCoordsysD(ground))
+spring.Initialize(ChCoordsysD(mass))
+spring.Initialize(ChCoordsysD(ground))
 
 
-mass.SetPos(chrono.ChVector(0, 0, 0.1))
 
+spring.InitializeDamper(1.0)
+spring.InitializeSpring(1.0, 0.05)
 
 
 
-options = chrono.ChIrrApp.Options()
+massShape = ChSphereShape(0.1)
+mass.AddAsset(massShape)
 
-options.SetUse3DEnvironment(0)
 
-options.SetUseFog(0)
 
-options.SetUseLighting(1)
+visualStyle = ChVisualStyle()
+visualStyle.SetTexture("mass_texture.png")
+mass.AddAsset(visualStyle)
 
-options.SetUseAutomaticLights(1)
 
-options.SetUseFloor(1)
 
-options.SetUseWalls(1)
+mass.AddAsset(massShape)
 
-options.SetUseCeilings(1)
 
-options.SetUseAutomaticLights(1)
 
-options.SetUseAutomaticFloor(1)
+system.SetVisuals(ChVisuals())
 
-options.SetUseAutomaticWalls(1)
 
-options.SetUseAutomaticCeilings(1)
 
-options.SetUseAutomaticShadows(1)
+irrlicht_settings = system.GetIrrlichtSettings()
+irrlicht_settings.SetLighting(True)
+irrlicht_settings.SetCamera(ChCamera(ChCoordSys(ChFrame(ChVec3D(0, 0, 0), ChVec3D(0, 0, 0)))
 
-options.SetUseAutomaticShadowCasters(1)
 
-options.SetUseAutomaticLightCasters(1)
 
-options.SetUseAutomaticLightCasters(1)
+material = ChMaterialSurface()
+material.SetAmbientColor(ChColor(0.7, 0.7, 0.7))
+massShape.SetMaterial(material)
 
-options.SetUseAutomaticLightCasters(1)
 
-options.SetUseAutomaticLightCasters(1)
 
-options.SetUseAutomaticLightCasters(1)
+mass.AddAsset(material)
 
-options.SetUseAutomaticLightCasters(1)
 
-options.SetUseAutomaticLightCasters(1)
 
-options.SetUseAutomaticLightCasters(1)
+system.SetSolverIterations(10)
+system.SetSolverTolerance(1e-6)
+system.SetSolverIterationLimit(100)
+system.SetSolverMaxSpeed(100)
 
-options.SetUseAutomaticLightCasters(1)
+system.SetGravity(ChVector3D(0, 0, -9.81))
 
-options.SetUseAutomaticLightCasters(1)
 
-options.SetUseAutomaticLightCasters(1)
 
-options.SetUseAutomaticLightCasters(1)
+sim_time = 10
+dt = 0.01
 
-options.SetUseAutomaticLightCasters(1)
+for t in pch.interval(0, sim_time, dt):
 
-options.SetUseAutomaticLightCasters(1)
+    system.DoStepDynamics(dt)
 
-options.SetUseAutomaticLightCasters(1)
 
-options.SetUseAutomaticLightCasters(1)
 
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLightCasters(1)
-
-options.SetUseAutomaticLighting(1)
+print(f"Time: {t:.2f}s, Position: {mass.p()}")

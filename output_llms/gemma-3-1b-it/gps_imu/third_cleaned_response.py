@@ -9,7 +9,7 @@ chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 
-initLoc = chrono.ChCoordsysd(0, 0, 0.5)
+initLoc = chrono.ChVector3d(0, 0, 0.5)
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 
@@ -86,7 +86,6 @@ vis.AttachVehicle(vehicle.GetVehicle())
 
 
 driver = veh.ChInteractiveDriverIRR(vis)
-
 
 steering_time = 1.0  
 throttle_time = 1.0  
@@ -170,10 +169,10 @@ while vis.Run():
 
     
     manager.Update()
-
+    
     
     realtime_timer.Spin(step_size)
-
+    
 
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
@@ -254,6 +253,6 @@ while vis.Run():
 
     
     manager.Update()
-
+    
     
     realtime_timer.Spin(step_size)

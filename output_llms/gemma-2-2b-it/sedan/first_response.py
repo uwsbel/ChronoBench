@@ -1,42 +1,66 @@
-import pychrono as chrono
-import pychrono.core as core
-import pychrono.dynamics as dynamics
-import pychrono.collision as collision
-import pychrono.materials as materials
-import pychrono.geometry as geometry
+from pychrono import *
+from pychrono.core import *
+from pychrono.collision import *
+from pychrono.physics import *
+from pychrono.visual import *
+from pychrono.irrlicht import *
 
-# Initialize PyChrono environment
-app = chrono.Application()
+# Initialize PyChrono
+chrono::init();
 
-# Create a world
-world = app.create_world("MyWorld")
+# Set the simulation time step
+chrono::timeStep = 0.01;
 
-# Create a ground plane
-ground = geometry.Plane(world, 10, 10, 0.1)
+# Create the world
+world = chrono::World();
 
-# Create a rigid body for the car
-car = dynamics.RigidBody(world, "Car", 100, 100)
+# Create the terrain
+terrain = chrono::Terrain(chrono::Vector3D(0, 0, 0), chrono::Vector3D(100, 100, 100));
+terrain.setMaterial(chrono::Material(chrono::Color(1, 0, 0)));
 
-# Set initial position and velocity
-car.set_position(chrono.Vector3(0, 0, 0))
-car.set_velocity(chrono.Vector3(0, 0, 0))
+# Create the BMW E90 Sedan
+car = chrono::Car();
+car.setVisual(chrono::Visual(chrono::Texture("bmw.png"), chrono::Logo("bmw.png")));
+car.setPosition(chrono::Vector3D(0, 0, 0));
+car.setMass(1000);
 
-# Set material properties
-car_material = materials.Material(world, "CarMaterial", 0.1, 0.2, 0.3)
+# Create the TMEASY tire model
+tire = chrono::Tire(chrono::TMEASY());
+tire.setPressure(10);
 
-# Set collision properties
-car.set_collision_shape(collision.Sphere(world, 0.5))
-car.set_collision_material(car_material)
+# Add the tire to the car
+car.addTire(tire);
 
-# Add the ground plane to the world
-world.add_object(ground)
+# Create the driver system
+driver = chrono::Driver();
+driver.setSteering(chrono::Steering(chrono::Vector3D(0, 0, 0)));
+driver.setThrottle(chrono::Throttle(chrono::Vector3D(0, 0, 0)));
+driver.setBraking(chrono::Braking(chrono::Vector3D(0, 0, 0)));
 
-# Add the car to the world
-world.add_object(car)
+# Connect the driver system to the car
+car.connectDriver(driver);
 
-# Set up the simulation parameters
-dt = 0.01  # Time step
-iterations = 1000  # Number of simulation iterations
+# Set the initial state of the car
+car.setPosition(chrono::Vector3D(0, 0, 0));
+car.setVelocity(chrono::Vector3D(0, 0, 0));
+
+# Set the simulation time
+chrono::time = 0;
+
+# Create the Irrlicht engine
+irrlicht = chrono::IrrlichtEngine();
+irrlicht.setCamera(chrono::Camera(chrono::Vector3D(0, 0, 100)));
+
+# Create the Irrlicht scene
+scene = chrono::IrrlichtScene();
+scene.setCamera(irrlicht.getCamera());
+
+# Add the terrain to the scene
+scene.addTerrain(terrain);
+scene.addCar(car);
+
+# Set the Irrlicht lighting
+scene.setLighting(chrono::DirectionalLight(chrono::Vector3D(0, 1, 0)));
 
 # Start the simulation
-app.run(dt, iterations)
+chrono::run();

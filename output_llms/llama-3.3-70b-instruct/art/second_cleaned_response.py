@@ -10,8 +10,8 @@ chrono.SetChronoDataPath("/path/to/chrono/data")
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 
-initLoc = chrono.ChVector3d(1, 0, 0.5)  
-initRot = chrono.ChQuaterniond(1, 0, 0, 0)
+initLoc = chrono.ChVectorD(1, 0, 0.5)  
+initRot = chrono.ChQuaternionD(1, 0, 0, 0)
 
 
 vis_type = veh.VisualizationType_PRIMITIVES  
@@ -28,7 +28,7 @@ terrainLength = 100.0
 terrainWidth = 100.0   
 
 
-trackPoint = chrono.ChVector3d(0.0, 0.0, 0.2)
+trackPoint = chrono.ChVectorD(0.0, 0.0, 0.2)
 
 
 contact_method = chrono.ChContactMethod_NSC
@@ -42,14 +42,13 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  
 
 
-mysystem = chrono.ChSystemNSC()
 
 
 vehicle = veh.ARTcar()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
-vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
+vehicle.SetInitPosition(chrono.ChCoordsysD(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 vehicle.SetMaxMotorVoltageRatio(0.16)
@@ -70,14 +69,15 @@ vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
-terrain = veh.RigidTerrain(mysystem)
+terrain = veh.RigidTerrain(vehicle.GetSystem())
 patch = terrain.AddPatch(patch_mat, 
-    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
+    chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT), 
     terrainLength, terrainWidth)
 
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
+
 
 
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()

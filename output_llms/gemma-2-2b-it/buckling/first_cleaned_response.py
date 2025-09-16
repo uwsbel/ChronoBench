@@ -1,6 +1,6 @@
 import pychrono as chrono
-import pychrono.physics as physics
-import pychrono.visualization as visualization
+import pychrono.chrono as chrono
+import pychrono.irrlicht as irrlicht
 import pychrono.FEA as FEA
 
 
@@ -10,66 +10,46 @@ chrono.init()
 world = chrono.World()
 
 
-beam_length = 1.0  
-beam_width = 0.1  
-beam_height = 0.05  
-beam_material = "Steel"  
+beam_length = 1.0
+beam_width = 0.1
+beam_height = 0.05
+beam_material = chrono.Material("Steel", 1000.0)  
 
-
-beam_element = chrono.BeamElement(
-    length=beam_length,
-    width=beam_width,
-    height=beam_height,
-    material=beam_material,
-)
+beam_element = chrono.BeamElement(beam_length, beam_width, beam_height, beam_material)
 
 
 motor = chrono.Motor(
-    name="Motor",
-    position=(0.0, 0.0, 0.0),
-    force=(0.0, 0.0, 0.0),
-    torque=(0.0, 0.0, 0.0),
+    chrono.Point(0.0, 0.0, 0.0),
+    chrono.Vector(0.0, 1.0, 0.0),
+    chrono.Vector(0.0, 0.0, 1.0),
+    chrono.Vector(0.0, 0.0, 0.0),
+    chrono.Vector(1.0, 0.0, 0.0),
 )
 
 
-beam_constraint = chrono.Constraint(
-    name="Beam Constraint",
-    type="Fixed",
-    position=(0.0, 0.0, 0.0),
-    axis=(0.0, 0.0, 1.0),
-)
+constraint = chrono.Constraint(beam_element, motor)
 
 
-world.add_object(beam_element)
-
-
-world.add_object(motor)
-
-
-world.add_object(beam_constraint)
-
-
-solver = chrono.FEA.Solver(
-    name="FEA Solver",
-    type="Newton-Raphson",
-    tolerance=1e-6,
-    iterations=100,
-)
+FEA_solver = chrono.FEA.FEA()
+FEA_solver.set_material(beam_material)
 
 
 timestepper = chrono.Timestepper(
-    name="Timestepper",
-    step_size=0.01,
-    solver=solver,
+    FEA_solver,
+    world,
+    chrono.EulerIntegration(),
+    chrono.NewtonianIntegration(),
 )
 
 
-visualizer = visualization.IrrlichtVisualizer()
-visualizer.add_object(world)
-visualizer.run()
+irrlicht_visualizer = irrlicht.IrrlichtVisualizer()
 
 
-timestepper.run()
+world.add_object(beam_element)
+world.add_object(motor)
 
 
-print("Simulation complete.")
+chrono.run(timestepper, world)
+
+
+irrlicht_visualizer.run()

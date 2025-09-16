@@ -10,8 +10,8 @@ chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 # Initial vehicle location and orientation
-initLoc = chrono.ChVector3d(-15, 0, 1.2)
-initRot = chrono.ChQuaterniond(1, 0, 0, 0)
+initLoc = chrono.ChVectorD(-15, 0, 1.2)
+initRot = chrono.ChQuaternionD(1, 0, 0, 0)
 
 # Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
 vis_type = veh.VisualizationType_MESH
@@ -28,7 +28,7 @@ terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
 
 # Poon chassis tracked by the camera
-trackPoint = chrono.ChVector3d(0.0, 0.0, 1.71)
+trackPoint = chrono.ChVectorD(0.0, 0.0, 1.71)
 
 # Contact method
 contact_method = chrono.ChContactMethod_NSC
@@ -42,11 +42,11 @@ tire_step_size = step_size
 render_step_size = 1.0 / 20  # FPS = 50
 
 # Create the HMMWV vehicle, set parameters, and initialize
-vehicle = veh.HMMWV_Full() 
+vehicle = veh.HMMWV_Full() # veh.HMMWV_Reduced()  could be another choice here
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
-vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
+vehicle.SetInitPosition(chrono.ChCoordsysD(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 
@@ -62,14 +62,11 @@ vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 # Create the rigid terrain
 terrain = veh.RigidTerrain()
-terrain.SetTerrainFile(veh.GetDataFile("terrain/height_maps/bump64.bmp"))
-terrain.SetPlotType(veh.RigidTerrain.PLOT_HEIGHT)
+terrain.SetPlane(chrono.ChCoordsysD(chrono.ChVectorD(0, -terrainHeight, 0), chrono.Q_from_AngX(chrono.CH_C_PI_2)))
+terrain.SetBox(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(terrainLength, terrainWidth, 1), chrono.ChMaterialSurfaceNSC())
 
 # Initialize the terrain
-terrain.Initialize(terrainLength, terrainWidth, 0.02)
-
-# Set texture
-terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
+terrain.Initialize()
 
 # Create the vehicle Irrlicht interface
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
@@ -100,7 +97,7 @@ driver.Initialize()
 # ---------------
 
 # output vehicle mass
-print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+print("VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
@@ -125,13 +122,11 @@ while vis.Run() :
 
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
-    terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
 
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)
-    terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
 

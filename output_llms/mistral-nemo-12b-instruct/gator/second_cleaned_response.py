@@ -14,18 +14,11 @@ initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 vis_type = veh.VisualizationType_MESH
 
 
-chassis_collision_type = veh.CollisionType_MESH
+chassis_collision_type = veh.CollisionType_NONE
 
 
 tire_model = veh.TireModelType_TMEASY
 
-
-terrain_patches = [
-    {"name": "patch1", "texture": "terrain/textures/tile1.jpg", "height_map": "", "bump": 0.0},
-    {"name": "patch2", "texture": "terrain/textures/tile2.jpg", "height_map": "", "bump": 0.0},
-    {"name": "patch3", "texture": "terrain/textures/tile3.jpg", "height_map": "", "bump": 0.0},
-    {"name": "patch4", "texture": "terrain/textures/tile4.jpg", "height_map": "terrain/heightmaps/heightmap1.png", "bump": 0.5}
-]
 
 terrainHeight = 0      
 terrainLength = 100.0  
@@ -68,14 +61,21 @@ vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
+
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 
-for patch in terrain_patches:
-    coordsys = chrono.ChCoordsysd(chrono.ChVector3d(0, 0, patch['bump']), chrono.QUNIT)
-    patch_obj = terrain.AddPatch(patch_mat, coordsys, terrainLength, terrainWidth)
-    patch_obj.SetTexture(veh.GetDataFile(patch['texture']), 200, 200)
-    patch_obj.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
-    if patch['height_map']:
-        patch_obj.SetHeightMap(veh.GetDataFile(patch['height_map']))
+
+patches = [
+    (chrono.ChVector3d(0, 0, 0), terrainLength, terrainWidth, veh.GetDataFile("terrain/textures/tile1.jpg"), 200, 200, chrono.ChColor(0.8, 0.8, 0.5), 0),
+    (chrono.ChVector3d(terrainLength, 0, 0), terrainLength, terrainWidth, veh.GetDataFile("terrain/textures/tile2.jpg"), 200, 200, chrono.ChColor(0.6, 0.6, 0.4), 0),
+    (chrono.ChVector3d(0, terrainWidth, 0), terrainLength, terrainWidth, veh.GetDataFile("terrain/textures/tile3.jpg"), 200, 200, chrono.ChColor(0.4, 0.4, 0.3), 0),
+    (chrono.ChVector3d(terrainLength, terrainWidth, 0), terrainLength, terrainWidth, veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200, chrono.ChColor(0.2, 0.2, 0.1), 0.5)  
+]
+
+for patch_data in patches:
+    patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(patch_data[0], chrono.QUNIT), patch_data[1], patch_data[2])
+    patch.SetTexture(patch_data[3], patch_data[4], patch_data[5])
+    patch.SetColor(patch_data[6])
+    patch.SetHeightMap(veh.GetDataFile("terrain/heightmaps/heightmap1.png"), patch_data[7])
 
 terrain.Initialize()

@@ -14,8 +14,8 @@ def main():
     # -----------------------------------
     # Add a box to be sensed by a camera
     # -----------------------------------
-    # Create a box object with dimensions specified by side and set its position and texture
-    side = 1  # Set the side length of the box
+    # Create a box object with dimensions specified by side
+    side = 1
     box = chrono.ChBodyEasyBox(side, side, side, 1000)
     box.SetPos(chrono.ChVector3d(0, 0, 0))  # Set the position of the box
     box.SetBodyFixed(True)  # Fix the box in space
@@ -44,11 +44,11 @@ def main():
     # Initialize the camera sensor
     cam = sens.ChCameraSensor(
         box,              # Body the camera is attached to
-        update_rate,      # Camera update rate in Hz
-        offset_pose,      # Offset pose of the camera
-        image_width,      # Image width in pixels
-        image_height,     # Image height in pixels
-        fov               # Camera's horizontal field of view in radians
+        update_rate,            # Camera update rate in Hz
+        offset_pose,            # Offset pose of the camera
+        image_width,            # Image width in pixels
+        image_height,           # Image height in pixels
+        fov                     # Camera's horizontal field of view in radians
     )
     cam.SetName("Camera Sensor")
     cam.SetLag(lag)  # Set the lag between sensing and data accessibility
@@ -137,7 +137,10 @@ def main():
 # Noise model attached to the sensor
 noise_model = "CONST_NORMAL"  # Constant normal noise model
 
-# Camera update rate in Hz
+# Camera lens model
+# lens_model = sens.PINHOLE  # Pinhole lens model
+
+# Update rate in Hz
 update_rate = 30
 
 # Image width and height

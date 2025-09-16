@@ -1,58 +1,63 @@
 import pychrono as chrono
 import pychrono.core as core
-import pychrono.physics as physics
+import pychrono.materials as materials
+import pychrono.dynamics as dynamics
 import pychrono.visualization as visualization
-import pychrono.solver as solver
+import pychrono.solvers as solvers
 
 # Initialize PyChrono
 chrono.init()
 
-# Create the simulation environment
-env = chrono.Simulation()
+# Create a new Chrono application
+app = chrono.Application()
 
-# Create the core components
-core.create_core(env)
+# Create a world
+world = chrono.World()
 
-# Create the material
-material = chrono.Material()
-material.set_name("Isotropic Kirchhoff")
-material.set_density(1.0)
-material.set_elasticity(1.0)
-material.set_poisson_ratio(0.3)
+# Create a material
+material = materials.IsotropicKirchhoff(
+    density=1000.0,  # kg/m^3
+    elasticity=100.0,  # Pa
+    PoissonRatio=0.3,  #
+)
 
-# Create the mesh grid
-mesh = chrono.Mesh()
-mesh.set_name("Tablecloth")
-mesh.set_material(material)
+# Create a mesh grid for the tablecloth
+mesh = chrono.MeshGenerator.create_triangle_mesh(
+    size=0.1,  # mesh cell size
+    n_vertices=1000,  # number of vertices
+    n_elements=1000,  # number of elements
+)
 
-# Generate the mesh grid
-mesh.generate_mesh(100, 100)
+# Create a shell element
+shell = chrono.ShellElement(
+    material=material,
+    mesh=mesh,
+    name="TableclothShell",
+)
 
-# Create the nodes and elements
-nodes = mesh.get_nodes()
-elements = mesh.get_elements()
+# Create a set of nodes
+nodes = chrono.NodeSet()
+nodes.add_node(mesh.get_vertices())
 
-# Create the physics system
-physics_system = physics.System()
-physics_system.set_material(material)
-physics_system.set_nodes(nodes)
-physics_system.set_elements(elements)
+# Create a set of elements
+elements = chrono.ElementSet()
+elements.add_element(shell)
 
-# Add the physics system to the simulation
-env.add_system(physics_system)
+# Create a simulation system
+system = chrono.SimulationSystem(
+    world=world,
+    elements=elements,
+    nodes=nodes,
+    solver=solvers.PardisoMKL(),
+)
 
-# Set the initial conditions
-# ... (Define initial positions, forces, and interactions)
+# Set up the visualization system
+vis = visualization.IrrlichtVisualization(app)
+vis.add_mesh(mesh)
+vis.add_system(system)
 
-# Set up the Irrlicht visualization system
-vis = visualization.IrrlichtVisualization()
-vis.set_scene(env)
-
-# Set up the PardisoMKL solver
-solver = solver.PardisoMKL()
-solver.set_system(physics_system)
+# Add forces and interactions
+# ... (Add forces, constraints, and interactions)
 
 # Run the simulation
-env.run()
-
-# ... (Add any post-processing or analysis code)
+app.run()

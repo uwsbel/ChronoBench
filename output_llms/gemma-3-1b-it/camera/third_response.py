@@ -114,7 +114,7 @@ def main():
 
     # ---------------------
     # Simulate system
-    # -----------------------
+    # ---------------------
     orbit_radius = 10  # Radius of the camera orbit
     orbit_rate = 0.5   # Rate of the camera orbit in radians per second
     ch_time = 0.0      # Initialize simulation time
@@ -167,7 +167,7 @@ exposure_time = 0
 
 # -----------------------------------
 # Simulation parameters
-# ---------------------
+# -----------------------------------
 
 # Simulation step size
 step_size = 1e-3

@@ -48,9 +48,14 @@ for iz in range(nsections_z + 1):
 nodePlotA = mynodes[0]
 nodePlotB = mynodes[-1]
 nodesLoad = [mynodes[i] for i in range(nsections_x + 1)]
-def ref_X(t): return 0.1 * t
-def ref_Y(t): return 0.2 * t
-load_force = chrono.ChVectorD(10, 0, 0)
+
+def ref_X(t):
+    return 0.1 * t
+
+def ref_Y(t):
+    return 0.1 * t
+
+load_force = chrono.ChVector3d(1, 0, 0)
 
 
 for iz in range(nsections_z):
@@ -112,11 +117,11 @@ vis.AddTypicalLights()
 
 
 mkl_solver = mkl.ChSolverPardisoMKL()
-mkl_solver.LockSparsityPattern(True)  
+mkl_solver.LockSparsityPattern(True)
 sys.SetSolver(mkl_solver)
 
 
-timestep = 0.005  
+timestep = 0.005
 
 
 sys.Setup()

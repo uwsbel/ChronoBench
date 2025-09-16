@@ -3,33 +3,53 @@ import chrono.irrlicht as chronoirr
 import chrono.vehicle as veh
 
 
+
+
+
+
 system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  
 
 
-body_ground = chrono.ChBodyEasy()
-body_ground.SetBodyFixed(True)
-body_ground.SetMass(1000)
-body_ground.SetShape(chrono.ChBoxShape())
-body_ground.SetPos(chrono.ChVectorD(0, -0.1, 0))
-body_ground.SetTransform(chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)))
-system.Add(body_ground)
+
+
+
+
+body_floor = chrono.ChBodyEasy()
+body_floor.SetBodyFixed(True)
+body_floor.SetMass(1000)
+body_floor.SetPos(chrono.ChVectorD(0, -0.1, 0))
+body_floor.SetShapeBoxes(0.5, 0.1, 1)
+system.Add(body_floor)
 
 
 viper = veh.Viper()
-viper.SetVehicleModelPath("path/to/viper_model.py")  
+viper.SetVehicleModelPath("./viper/viper.py")
 viper.Initialize(system)
-viper.SetContactSurfaceCoefficient(0.8)
+viper.SetPos(chrono.ChVectorD(0, 0.5, 0))
+viper.SetForwardSpeed(0)
 
 
 driver = veh.ViperDriver()
-driver.SetVehicle(viper)
-driver.SetInput(veh.ViperDriver.INPUT_STEERING, 0.0)
-driver.SetInput(veh.ViperDriver.INPUT_THROTTLE, 0.0)
-driver.SetInput(veh.ViperDriver.INPUT_BRAKE, 0.0)
+driver.SetSteeringDelta(0.1)
+driver.SetMaxSteeringAngle(0.5)  
+driver.SetThrottleDelta(0.1)
+driver.SetMaxThrottle(1.0)
+driver.SetBrakeDelta(0.1)
+driver.SetMaxBrake(1.0)
+viper.SetDriver(driver)
 
 
-viper.SetPos(chrono.ChVectorD(0, 0.5, 0))
+
+
+
+
+initial_steering = 0.0
+driver.SetSteering(initial_steering)
+
+
+
+
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
@@ -41,39 +61,38 @@ vis.AddCamera(chrono.ChVectorD(0, 1, -2))
 vis.AddTypicalLights()
 
 
-time_step = 0.005
+
+
+
+
+
+time_step = 0.01
 simulation_time = 10.0
-current_time = 0.0
-steering_target = 0.5  
-steering_rate = 0.1  
-steering_direction = 1 
+steering_change_duration = 5.0
+final_steering_angle = 0.5
 
-while vis.Run() and current_time < simulation_time:
-    
-    driver.SetInput(veh.ViperDriver.INPUT_THROTTLE, 0.5)  
-    
-    
-    driver.SetInput(veh.ViperDriver.INPUT_STEERING, driver.GetInput(veh.ViperDriver.INPUT_STEERING) + steering_rate * steering_direction)
 
-    
-    steering_angle = driver.GetInput(veh.ViperDriver.INPUT_STEERING)
-    steering_angle = max(-1.0, min(1.0, steering_angle))
-    driver.SetInput(veh.ViperDriver.INPUT_STEERING, steering_angle)
-    
-    
-    if steering_angle >= steering_target and steering_direction == 1:
-        steering_direction = -1
-    elif steering_angle <= -steering_target and steering_direction == -1:
-        steering_direction = 1
+time = 0.0
+steering_start_time = 0.0
+steering_changed = False
 
-    
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+
     system.DoStepDynamics(time_step)
 
     
-    vis.Render()
-    vis.GetIrrlichtDevice().SceneManager().DrawAll()
+    if time > steering_start_time and not steering_changed:
+        steering_angle = initial_steering + (time - steering_start_time) * (final_steering_angle - initial_steering) / steering_change_duration
+        steering_angle = min(steering_angle, final_steering_angle) 
 
-    current_time += time_step
+        driver.SetSteering(steering_angle)
 
-
-vis.Close()
+        if time >= steering_start_time + steering_change_duration:
+            steering_changed = True
+            
+    time += time_step
+    if time > simulation_time:
+        break

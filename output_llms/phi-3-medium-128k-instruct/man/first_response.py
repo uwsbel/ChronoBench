@@ -1,106 +1,121 @@
-# Import the PyChrono library
+from pychron.core import *
 
-import pychrono
+from pychron.systems import *
 
-import pychrono.ChSystemNSC as ChSystemNSC
+from pychron.vehicle import Vehicle
 
+from pychron.visualization import *
 
-# Initialize the PyChrono environment and core components
+from pychron.tire import TMEASY
 
-ch = ChSystemNSC()
-
-
-# Add required physical systems and objects
-
-# Create a ground object
-
-ground = pychrono.ChBody()
-
-ground.SetStaticMass(1.0)
-
-ground.SetName("Ground")
-
-ch.AddBody(ground)
+import numpy as np
 
 
-# Create a ball object
+# Initialize PyChrono environment
 
-ball = pychrono.ChBody()
-
-ball.SetMass(1.0)
-
-ball.SetName("Ball")
-
-ch.AddBody(ball)
+chrono = Chrono()
 
 
-# Set initial position and velocity of the ball
+# Add a rigid terrain
 
-ball.SetPos(pychrono.ChVector(0, 0, 10)
-
-ball.SetLinearVel(pychrono.ChVector(0, 0, 0))
+terrain = RigidTerrain()
 
 
-# Set the gravitational force
+# Create a MAN 10t truck vehicle model
 
-ch.SetGravity(pychrono.ChVector(0, 0, -9.81))
+vehicle = Vehicle(name="MAN10t")
 
+vehicle.add_tire(TMEASY())
 
-# Set the interaction between the ball and the ground
+vehicle.add_visualization(
 
-ball.SetFriction(0.5)
+    visualization=True,
 
-ground.SetFriction(0.5)
+    collision=True,
 
+    visualization_model="vehicles/MAN10t.vrml",
 
-# Set the contact properties
+    visualization_scale=1.0
 
-contact = pychrono.ChContactGeometry()
-
-contact.SetFriction(0.5)
-
-contact.SetRestitution(0.8)
+)
 
 
-# Add the contact between the ball and the ground
+# Set the vehicle position and orientation
 
-ch.AddContact(ball, ground, contact)
+vehicle.set_position(np.array([0.0, 0.0, 0.0]))
+
+vehicle.set_orientation(np.array([0.0, 0.0, 0.0, 1.0]))
 
 
-# Simulation parameters
+# Add the vehicle to the system
 
-sim_time = 5.0
+system = System(chrono)
 
-time_step = 0.01
+system.add(vehicle)
+
+system.add(terrain)
+
+
+# Add a chase camera
+
+camera = ChaseCamera(
+
+    camera_model="cameras/chase.vrml",
+
+    camera_scale=1.0
+
+)
+
+system.add(camera)
+
+
+# Set visualization settings
+
+visualization = Visualization(
+
+    visualization_model="vehicles/MAN10t.vrml",
+
+    visualization_scale=1.0,
+
+    skybox=True,
+
+    skybox_texture="skyscapes/skybox.jpg",
+
+    directional_light=True,
+
+    directional_light_texture="lights/directional.jpg",
+
+    terrain_texture="terrains/rigid.jpg",
+
+    terrain_logo=True,
+
+    terrain_logo_texture="logos/MAN10t.png"
+
+)
+
+system.add(visualization)
+
+
+# Set real-time driver controls for steering, throttle, and braking
+
+driver = Driver(
+
+    throttle_gain=1.0,
+
+    brake_gain=1.0,
+
+    steering_gain=1.0
+
+)
+
+system.add(driver)
+
+
+# Set the system
+
+system.set(chrono)
 
 
 # Run the simulation
 
-ch.SetSolverIterations(10)
-
-ch.SetSolverIterations(10)
-
-ch.SetSolverTolerance(1e-6)
-
-ch.SetSolverTolerance(1e-6)
-
-ch.SetSolverMaxIterations(100)
-
-ch.SetSolverMaxTimeStep(0.01)
-
-
-# Start the simulation
-
-ch.DoStepDynamics(time_step)
-
-
-# Simulate the system
-
-while ch.GetChTime() < sim_time:
-
-    ch.DoStepDynamics(time_step)
-
-
-# Print the final position of the ball
-
-print("Final position of the ball:", ball.GetPos())
+chrono.run()

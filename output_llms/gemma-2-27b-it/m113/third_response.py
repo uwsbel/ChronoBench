@@ -7,7 +7,7 @@ chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 # Initial vehicle location and orientation
-initLoc = chrono.ChVector3d(-5, 0, 0.5)  # Changed initial location
+initLoc = chrono.ChVector3d(-5, 0, 0.5)
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 # Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
@@ -73,9 +73,14 @@ patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 # Create a long box obstacle
-box = chrono.ChBodyEasyBox(20, 1, 1, 1000, True, True)
-box.SetPos(chrono.ChVector3d(20, 0, 0))
-vehicle.GetSystem().Add(box)
+box = chrono.ChBody()
+box.SetPos(chrono.ChVector3d(20, 0, 0.5))
+box.SetBodyFixed(True)
+box.SetCollide(True)
+box_shape = chrono.ChBoxShape()
+box_shape.SetLengths(chrono.ChVector3d(10, 2, 1))
+box.AddShape(box_shape)
+vehicle.GetSystem().AddBody(box)
 
 # Create the vehicle Irrlicht interface
 
@@ -126,10 +131,8 @@ while vis.Run() :
         vis.EndScene()
         render_frame += 1
 
-    # Hard-coded throttle value
+    # Get driver inputs
     driver_inputs = driver.GetInputs()
-    driver_inputs.throttle = 0.8
-
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
     terrain.Synchronize(time)
@@ -140,5 +143,7 @@ while vis.Run() :
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
+    # Hard-coded throttle value
+    vehicle.GetVehicle().SetThrottle(0.8)
     # Increment frame number
     step_number += 1

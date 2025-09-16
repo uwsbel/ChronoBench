@@ -1,85 +1,68 @@
 import chrono as ch
-import chrono.irrlicht as chirr
-import chrono.vehicle as chv
+import chrono.irrlicht as irr
+import chrono.vehicle as veh
 
 
-ch.ChEngine.Initialize()
+ch.set_default_G_acc(9.81)
 
 
-app = chirr.ChIrrApp()
+system = ch.ChSystemEulerImplicit()
 
 
-step_size = 0.01
-frame_rate = 60
+app = irr.ChIrrApp(system, "BMW E90 Sedan Simulation", irr.IrrlichtInfo())
 
 
-system = ch.ChSystem()
-system.SetGravitationalAcceleration(ch.ChVector3d(0, 0, -9.81))
-system.SetTimeStep(step_size)
+terrain = veh.ChTerrain()
+terrain.SetSystem(system)
+terrain.Initialize(0.0, 0.0, 0.0)
 
 
-vehicle = chv.ChBMW_E90()
+terrain.SetVisualize(enable=True)
+terrain.SetCollide(enable=True)
 
 
-vehicle.SetVisualizationType(chv.ChVehicle.VisualizationType.VIZ_MESH)
-vehicle.SetCollisionSystemType(chv.ChVehicle.CollisionSystemType.COLLISION_BULLET)
+vehicle = veh.ChBMW_E90()
+vehicle.Initialize(system, terrain.GetGroundBody(), ch.ChCoordsysD(0, 1.0, 0.5, ch.ChQuaternionD(0, 0, 0, 1)))
 
 
-tire_model = chv.ChTMEASY()
+vehicle.SetVisualize(enable=True)
+vehicle.SetCollide(enable=True)
+
+
+tire_model = veh.ChTMEASY()
 vehicle.SetTireModel(tire_model)
 
 
-driver = chv.ChInteractiveDriver()
-vehicle.SetDriver(driver)
+driver = veh.ChInteractiveDriver()
+driver.Initialize(vehicle)
 
 
-terrain = chv.ChTerrainRigid()
-terrain.SetSurfaceMaterial(ch.ChMaterialSurfaceNSC())
-terrain.SetFrictionCoefficient(0.8)
-terrain.SetRestitutionCoefficient(0.2)
+driver.SetThrottle(0.5)
+driver.SetSteering(0.0)
+driver.SetBraking(0.0)
 
 
-terrain.SetVisualizationType(chv.ChTerrain.VisualizationType.VIZ_TEXTURED_MESH)
+vehicle_node = app.AddChronoVehicle(vehicle, "vehicle")
 
 
-texture = chirr.ChIrrTexture()
-texture.LoadFromFile("path/to/terrain_texture.jpg")
-terrain.SetTexture(texture)
+camera = irr.ChChaseCamera()
+camera.Initialize(vehicle_node, vehicle.GetChassisBody(), ch.ChVectorD(0, -10, 5))
 
 
-logo = chirr.ChIrrTexture()
-logo.LoadFromFile("path/to/terrain_logo.png")
-terrain.SetLogo(logo)
-
-
-system.Add(vehicle.GetChassisBody())
-system.Add(terrain.GetGroundBody())
-
-
-vehicle.SetChassisPos(ch.ChVector3d(0, 0, 1))
-
-
-system.SetSolverType(ch.ChSolver.Type.SOLVER_PCG)
-system.SetSolverIterations(100)
-
-
-camera = chirr.ChIrrCamera()
-camera.SetPosition(ch.ChVector3d(0, -10, 5))
-camera.SetTarget(vehicle.GetChassisBody().GetPos())
-app.SetCamera(camera)
-
-
-light = chirr.ChIrrLight()
-light.SetPosition(ch.ChVector3d(10, 10, 10))
-light.SetDirection(ch.ChVector3d(-1, -1, -1))
+light = irr.ChDirectionalLight()
+light.SetDirection(ch.ChVectorD(1, -1, -1))
 app.AddLight(light)
 
 
-skybox = chirr.ChIrrSkyBox()
-skybox.LoadFromFile("path/to/skybox_texture.jpg")
-app.SetSkyBox(skybox)
+skybox = irr.ChSkyBox()
+app.AddSkyBox(skybox)
+
+
+terrain.SetTexture(irr.ChTexture("terrain.jpg"))
+terrain.SetLogo(irr.ChLogo("logo.png"))
 
 
 while app.Run():
-    system.DoStepDynamics(step_size)
-    app.Render()
+    system.DoStepDynamics(1e-3)
+    app.Synchronize("", 1e-3)
+    app.Advance(1e-3)

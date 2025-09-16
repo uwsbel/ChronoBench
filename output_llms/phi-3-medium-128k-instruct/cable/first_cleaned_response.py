@@ -1,101 +1,122 @@
-import pychrono
+from pychrono import ChSystem, ChBodyA, ChQuaternionA, ChVectorA, ChCableA
 
-import pychrono
+import irrlicht
 
-import pychrono.Irrlicht
+from pychrono.modelling import ChBeamA
 
-import pychrono.ANCF
 
 
 
+system = ChSystemNSC()
 
-chrono = pychrono.ChSystemNSC()
 
-irr = pychrono.Irrlicht()
 
 
+beam = ChBeamA(system)
 
+beam.SetBodyFixed(True)
 
-chrono.AddGravity(chrono.Vector(0, -9.81, 0))
+beam.SetMass(1.0)
 
+beam.SetLength(1.0)
 
+beam.SetWidth(0.1)
 
+beam.SetHeight(0.1)
 
-beam_length = 1.0
 
-num_elements = 10
 
-element_length = beam_length / num_elements
 
-beam = pychrono.ANCF.CableBeam(chrono)
+cable = ChCableA(system)
 
-beam.SetTotalLength(beam_length)
+cable.SetLength(1.0)
 
-beam.SetNumElements(num_elements)
+cable.SetMass(0.1)
 
-beam.SetElementLength(element_length)
+cable.SetDensity(1000.0)
 
-beam.SetEA(1000.0)  
+cable.SetStiffness(10000.0)
 
-beam.SetMassPerUnitLength(1.0)  
 
 
 
+hinge = ChRigidBodyA(system)
 
-beam.AddRigidBody(chrono)
+hinge.SetMass(0.0)
 
+hinge.SetPosition(ChVectorA(0.0, 0.0, 0.0))
 
+hinge.SetRotation(ChQuaternionA(1.0, 0.0, 0.0, 0.0))
 
 
-hinge = pychrono.RevoluteJoint(chrono)
 
-hinge.SetAnchor(chrono.ChVector(0, 0, 0))
 
-hinge.body = beam
+cable.Attach(hinge, ChVectorA(0.0, 0.0, 0.0), ChVectorA(0.0, 0.0, 0.0), ChVectorA(0.0, 0.0, 0.0))
 
-hinge.axis = chrono.ChVector(0, 1, 0)
 
-beam.AddJoint(hinge)
 
 
+system.SetGravity(ChVectorA(0.0, 0.0, -9.81))
 
 
-irr.SetGravity(chrono.ChVector(0, -9.81, 0))
 
-irr.SetWindowTitle("ANCF Beam Simulation")
 
-irr.SetCamera(chrono.ChCameraPos(chrono.ChVector(0, 0, 10), chrono.ChQuaternion(0, 0, 0, 1)))
+cable.SetInitialPosition(ChVectorA(0.0, 0.0, 0.0))
 
-irr.SetTargetFrameRate(60)
 
 
 
+cable.SetInitialVelocity(ChVectorA(0.0, 0.0, 0.0))
 
-def visualize(body, time):
 
-    if body == beam:
 
-        for i in range(num_elements):
 
-            pos = beam.GetPosition(i)
+beam.SetPosition(ChVectorA(0.0, 0.0, 0.0))
 
-            print(f"Node {i}: {pos}")
 
-            irr.AddSphere(pos, 0.05, 0, 0, 0)
 
 
-irr.SetVisualizationCallback(visualize)
+beam.SetRotation(ChQuaternionA(1.0, 0.0, 0.0, 0.0))
 
 
 
 
-while(1):
+beam.SetVelocity(ChVectorA(0.0, 0.0, 0.0))
 
-    chrono.DoStepDynamics(0.01)
 
-    irr.DoStepIrr(0.01)
 
 
+irr = irrlicht.IrrEngine()
 
+driver = irr.createDevice()
 
-irr.Run()
+driver.initialize(core.get_option("irrlicht.core.path"))
+
+sceneManager = driver.getSceneManager()
+
+rMaterial = sceneManager.createMaterial("rMaterial")
+
+rMaterial.setColor(irr.video.SColor(255, 0, 0, 255))
+
+
+
+
+while driver.run() == irrlicht.core.ESEL_CONTINUE:
+
+    system.DoStepDynamics(0.01)
+
+    beam.SetPosition(ChVectorA(0.0, 0.0, 0.0))
+
+    beam.SetRotation(ChQuaternionA(1.0, 0.0, 0.0, 0.0))
+
+
+    
+
+    beam.Draw(rMaterial)
+
+    cable.Draw(rMaterial)
+
+
+
+
+driver.drop()

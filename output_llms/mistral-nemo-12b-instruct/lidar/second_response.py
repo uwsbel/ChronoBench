@@ -11,17 +11,14 @@ def main():
     # -----------------
     mphysicalSystem = chrono.ChSystemNSC()
 
-    # --------------------------
-    # Add a box to be sensed by lidar
-    # --------------------------
-    side = 2.0
+    # ----------------------------------
+    # Add a box to be sensed by a lidar
+    # ----------------------------------
+    side = 1.0
     box_shape = chrono.ChBoxShape(side, side, side)
-    box_visual = chrono.ChVisualShape(box_shape)
-    box_visual.SetTexture(chrono.GetChronoDataFile("textures/grid.png"), chrono.ChColor(0.3, 0.3, 0.3, 0.5))
-
-    box_body = chrono.ChBody()
+    box_body = chrono.ChBodyEasyBox(side, side, side, 1000)
     box_body.SetPos(chrono.ChVector3d(0, 0, 0))
-    box_body.AddVisualShape(box_visual)
+    box_body.AddShape(box_shape)
     box_body.SetFixed(True)
     mphysicalSystem.Add(box_body)
 
@@ -85,21 +82,21 @@ def main():
     # Add the lidar to the sensor manager
     manager.AddSensor(lidar)
 
-    # --------------------------
+    # ----------------------
     # Create a 2D lidar sensor
-    # --------------------------
+    # ----------------------
     offset_pose_2d = chrono.ChFramed(
-        chrono.ChVector3d(-12, 0, 0.5), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
+        chrono.ChVector3d(-12, 0, 0), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
     )
     lidar_2d = sens.ChLidarSensor(
         box_body,              # Body lidar is attached to
         update_rate,            # Scanning rate in Hz
         offset_pose_2d,         # Offset pose
-        1,                     # Number of horizontal samples (1 for 2D)
-        1,                     # Number of vertical channels (1 for 2D)
+        horizontal_samples,     # Number of horizontal samples
+        1,                     # Number of vertical channels
         horizontal_fov,         # Horizontal field of view
-        0,                     # Maximum vertical field of view (not used for 2D)
-        0,                     # Minimum vertical field of view (not used for 2D)
+        0,                     # Maximum vertical field of view
+        -chrono.CH_PI / 2,      # Minimum vertical field of view
         100.0,                  # Maximum lidar range
         sens.LidarBeamShape_RECTANGULAR,  # Shape of the lidar beam
         sample_radius,          # Sample radius
@@ -111,11 +108,30 @@ def main():
     lidar_2d.SetLag(lag)
     lidar_2d.SetCollectionWindow(collection_time)
 
-    # Add filters and visualizations for the 2D lidar
-    lidar_2d.PushFilter(sens.ChFilterDIAccess())
-    lidar_2d.PushFilter(sens.ChFilterPCfromDepth())
+    # -----------------------------------------------------------------
+    # Create a filter graph for post-processing the data from the 2D lidar
+    # -----------------------------------------------------------------
+    if noise_model == "CONST_NORMAL_XYZI":
+        lidar_2d.PushFilter(sens.ChFilterLidarNoiseXYZI(0.01, 0.001, 0.001, 0.01))
+    elif noise_model == "NONE":
+        # Don't add any noise models
+        pass
+
     if vis:
+        # Visualize the raw lidar data
+        lidar_2d.PushFilter(sens.ChFilterVisualize(horizontal_samples, 1, "Raw 2D Lidar Depth Data"))
+
+    # Provides the host access to the Depth, Intensity data
+    lidar_2d.PushFilter(sens.ChFilterDIAccess())
+
+    # Convert Depth, Intensity data to XYZI point cloud data
+    lidar_2d.PushFilter(sens.ChFilterPCfromDepth())
+
+    if vis:
+        # Visualize the point cloud
         lidar_2d.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "2D Lidar Point Cloud"))
+
+    # Provides the host access to the XYZI data
     lidar_2d.PushFilter(sens.ChFilterXYZIAccess())
 
     # Add the 2D lidar to the sensor manager
@@ -148,7 +164,7 @@ def main():
                 chrono.ChVector3d(
                     -orbit_radius * math.cos(ch_time * orbit_rate),
                     -orbit_radius * math.sin(ch_time * orbit_rate),
-                    0.5
+                    0
                 ),
                 chrono.QuatFromAngleAxis(ch_time * orbit_rate, chrono.ChVector3d(0, 0, 1))
             )

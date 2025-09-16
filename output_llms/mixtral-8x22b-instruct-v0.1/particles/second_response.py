@@ -89,20 +89,20 @@ while vis.Run():
 
     G_constant = 6.674e-3  # Modified gravitational constant
 
+    # Energy calculations
     kinetic_energy = 0
     potential_energy = 0
 
     for body in sys.GetBodies():
         kinetic_energy += 0.5 * body.GetMass() * body.GetPos_dt().Length2()
 
-    mlist = list(combinations(sys.GetBodies(), 2))
-    for abodyA, abodyB in mlist:
+    for abodyA, abodyB in combinations(sys.GetBodies(), 2):
         D_attract = abodyB.GetPos() - abodyA.GetPos()
         r_attract = D_attract.Length()
         potential_energy += -G_constant * (abodyA.GetMass() * abodyB.GetMass()) / r_attract
 
     total_energy = kinetic_energy + potential_energy
 
-    print(f"Kinetic Energy: {kinetic_energy}, Potential Energy: {potential_energy}, Total Energy: {total_energy}")
+    print(f"Kinetic energy: {kinetic_energy:.2f}, Potential energy: {potential_energy:.2f}, Total energy: {total_energy:.2f}")
 
     sys.DoStepDynamics(stepsize)

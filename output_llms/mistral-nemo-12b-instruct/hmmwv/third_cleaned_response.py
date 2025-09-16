@@ -9,17 +9,16 @@ veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 
 initLoc = chrono.ChVector3d(0, 0, 0.5)
-initRot = chrono.ChQuaterniond(1, 0, 0, 0)
+initRot = chrono.Quaterniond(1, 0, 0, 0)
 
 
-vis_type = veh.VisualizationType_PRIMITIVES
+vis_type = veh.VisualizationType.PRIMITIVES
 
 
-chassis_collision_type = veh.CollisionType_NONE
+chassis_collision_type = veh.CollisionType.NONE
 
 
-tire_model = veh.TireModelType_TMEASY
-
+tire_model = veh.TireModelType.TMEASY
 
 
 terrainHeight = 0      
@@ -30,7 +29,7 @@ terrainWidth = 100.0
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
 
 
-contact_method = chrono.ChContactMethod_NSC
+contact_method = chrono.ContactMethod.NSC
 contact_vis = False
 
 
@@ -41,7 +40,7 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  
 
 
-vehicle = veh.HMMWV_Full()
+vehicle = veh.HMMWV_Full() 
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
@@ -57,10 +56,10 @@ vehicle.SetSteeringVisualizationType(vis_type)
 vehicle.SetWheelVisualizationType(vis_type)
 vehicle.SetTireVisualizationType(vis_type)
 
-vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+vehicle.GetSystem().SetCollisionSystemType(chrono.CollisionSystem.Type.BULLET)
 
 
-patch_mat = chrono.ChContactMaterialNSC()
+patch_mat = chrono.ContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
@@ -91,17 +90,26 @@ class MyDriver(veh.ChDriver):
         self.time = 0
 
     def Synchronize(self, time):
-        self.time += time
+        self.time += render_step_size
         if self.time > self.delay:
             if self.time < self.delay + 0.2:
                 self.throttle = (self.time - self.delay) / 0.2
             elif self.time > 2:
-                self.steering = math.sin((self.time - 2) * 2 * math.pi)
+                self.steering = 0.5 * math.sin((self.time - 2) * 2 * math.pi)
             self.SetThrottle(self.throttle)
             self.SetSteering(self.steering)
             self.SetBraking(self.braking)
 
-driver = MyDriver(vis, 0.5)
+driver = MyDriver(vis)
+
+
+steering_time = 1.0  
+throttle_time = 1.0  
+braking_time = 0.3   
+driver.SetSteeringDelta(render_step_size / steering_time)
+driver.SetThrottleDelta(render_step_size / throttle_time)
+driver.SetBrakingDelta(render_step_size / braking_time)
+
 driver.Initialize()
 
 
@@ -111,13 +119,12 @@ print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 render_steps = math.ceil(render_step_size / step_size)
 
 
-realtime_timer = chrono.ChRealtimeStepTimer()
+realtime_timer = chrono.RealtimeStepTimer()
 step_number = 0
 render_frame = 0
-simulation_time = 0
 
 while vis.Run():
-    simulation_time = vehicle.GetSystem().GetChTime()
+    time = vehicle.GetSystem().GetChTime()
 
     
     if step_number % render_steps == 0:
@@ -130,10 +137,10 @@ while vis.Run():
     driver_inputs = driver.GetInputs()
 
     
-    driver.Synchronize(simulation_time)
-    terrain.Synchronize(simulation_time)
-    vehicle.Synchronize(simulation_time, driver_inputs, terrain)
-    vis.Synchronize(simulation_time, driver_inputs)
+    driver.Synchronize(time)
+    terrain.Synchronize(time)
+    vehicle.Synchronize(time, driver_inputs, terrain)
+    vis.Synchronize(time, driver_inputs)
 
     
     driver.Advance(step_size)
@@ -148,5 +155,5 @@ while vis.Run():
     realtime_timer.Spin(step_size)
 
     
-    if simulation_time >= 4:
+    if time > 4:
         break

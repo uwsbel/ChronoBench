@@ -1,75 +1,51 @@
 import pychrono as chrono
-import numpy as np
+import pyirrlicht as irl
+
+
+chrono.SetChronoDataPath('path/to/chrono/data')
+irr = irl.createIrrlicht(version=irr.Version.v2_1, windowSize=(800, 600), flags=irr.EENGINE_OPTIMIZATIONS_ENABLED)
+if not irr:
+    raise ValueError("Could not create Irrlicht device.")
 
 
 sim = chrono.ChSimulation()
-sim.SetTimestep(0.01)  
-sim.SetMaxSteps(1000)  
+scene = chrono.ChScene()
+sim.SetScene(scene)
 
 
-sys = chrono.ChSystemSMC()
-sim.AddSystem(sys)
+terrain = chrono.ChTerrain()
+terrain.SetTexture(chrono.ChTexture("path/to/texture.png"))
+terrain.SetLogo(chrono.ChLogo("path/to/logo.png"))
+scene.Add(terrain)
 
 
-mat_ground = chrono.ChMaterialSurfaceNSC()
-mat_ground.SetFriction(0.6)  
-mat_ground.SetYoungModulus(2e7)  
-mat_ground.SetYieldStrength(2e6)  
+vehicle = chrono.ChVehicle()
+vehicle.SetChassisBody(chrono.ChBodyEasyBox(1.5, 0.5, 2.5, 1000, True))
+vehicle.SetChassisVisualization(chrono.ChVisualShapeBox(1.5, 0.5, 2.5))
+vehicle.SetWheelVisualization(chrono.ChVisualShapeCylinder(0.2, 0.5, chrono.ChColor(0.2, 0.2, 0.2)))
+vehicle.SetTireModel(chrono.ChTireMeasy())
+vehicle.SetSteeringSystem(chrono.ChSteeringSystem())
+vehicle.SetThrottleSystem(chrono.ChThrottleSystem())
+vehicle.SetBrakeSystem(chrono.ChBrakeSystem())
+vehicle.Initialize()
 
 
-
-ground = chrono.ChBodyEasyBox(10, 10, 0.1, mat_ground, True, True)
-ground.SetPos(chrono.ChVectorD(0, 0, -0.05))  
-sys.Add(ground)
+scene.Add(vehicle)
 
 
-box_mat = chrono.ChMaterialSurfaceNSC()
-box_mat.SetFriction(0.4)  
-box_mat.SetYoungModulus(1e7)  
-box_mat.SetYieldStrength(1e6)  
-
-box = chrono.ChBodyEasyBox(0.5, 0.5, 0.5, box_mat, True, True)
-box.SetPos(chrono.ChVectorD(1, 0, 0.25))  
-box.SetRot(chrono.Q_from_AngX(chrono.CH_C_PI / 4))  
-sys.Add(box)
+irr_app = irr.GetIrrlichtDevice().getVideoDriver()
+irr_scene = irr.GetIrrlichtDevice().getSceneManager()
+irr_camera = irr_scene.addCameraSceneNode(0, chrono.ChVectorD(0, 5, -10), chrono.ChVectorD(0, 0, 0))
+irr_light = irr_scene.addLightSceneNode(0, chrono.ChVectorD(0, 5, 0), chrono.ChVectorD(1, 1, 1))
+irr_scene.addSkyBox(irr.SKYBOX_BLUE)
 
 
-sphere_mat = chrono.ChMaterialSurfaceNSC()
-sphere_mat.SetFriction(0.8)  
-sphere_mat.SetYoungModulus(2e7)  
-sphere_mat.SetYieldStrength(2e6)  
+while irr.Run():
+    
+    sim.Advance()
 
-sphere = chrono.ChBodyEasySphere(0.25, sphere_mat, True, True)
-sphere.SetPos(chrono.ChVectorD(0, 1, 0.5))  
-sys.Add(sphere)
-
-
-force = chrono.ChForce()
-force.SetMode(chrono.ChForce.FORCE)
-force.SetDir(chrono.VECT_X)
-force.SetMagnitude(5)
-force.SetPos(chrono.ChVectorD(0, 1, 0.5))
-sphere.AddForce(force)
-
-
-
-contact = chrono.ChLinkMateContact()
-contact.Initialize(box, sphere)
-sys.Add(contact)
-
-
-contact = chrono.ChLinkMateContact()
-contact.Initialize(ground, sphere)
-sys.Add(contact)
-
-
-contact = chrono.ChLinkMateContact()
-contact.Initialize(ground, box)
-sys.Add(contact)
-
-
-sim.Run()
-
-
-print("Final position of the box:", box.GetPos())
-print("Final position of the sphere:", sphere.GetPos())
+    
+    irr_scene.setActiveCamera(irr_camera)
+    irr_app.beginScene(True, True, chrono.ChColor(0.3, 0.3, 0.3))
+    irr_scene.drawAll()
+    irr_app.endScene()

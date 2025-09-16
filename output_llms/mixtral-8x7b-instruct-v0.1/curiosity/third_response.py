@@ -6,98 +6,76 @@ import pychrono.robot as robot
 import pychrono.sensor as sens
 from pychrono import irrlicht as chronoirr
 
-Create Chrono system
-===================
-
+# Create Chrono system
 system = chrono.ChSystemNSC()
-system.SetCollisionSystemType(chrono.ChCollisionSystem.Type\_BULLET)
+system.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 system.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, -9.81))
 chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.0025)
 chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
 
-Create ground body with contact material and add it to the system
-=================================================================
-
-ground\_mat = chrono.ChContactMaterialNSC()
-ground = chrono.ChBodyEasyBox(20, 20, 1, 1000, True, True, ground\_mat)
-ground.SetPos(chrono.ChVector3d(0, 0, -0.5)) # Position the ground slightly below the origin
-ground.SetFixed(True) # Fix the ground in place
+# Create ground body with contact material and add it to the system
+ground_mat = chrono.ChContactMaterialNSC()
+ground = chrono.ChBodyEasyBox(20, 20, 1, 1000, True, True, ground_mat)
+ground.SetPos(chrono.ChVector3d(0, 0, -0.5))  # Position the ground slightly below the origin
+ground.SetFixed(True)  # Fix the ground in place
 ground.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
 system.Add(ground)
 
-create a long box for rover to cross
-=====================================
-
-box = chrono.ChBodyEasyBox(0.25, 5, 0.25, 1000, True, True, ground\_mat)
+# Create a long box for rover to cross
+box = chrono.ChBodyEasyBox(0.25, 5, 0.25, 1000, True, True, ground_mat)
 box.SetPos(chrono.ChVector3d(0, 0, 0.0))
 box.SetFixed(True)
 box.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/blue.png"))
 system.Add(box)
 
-Create Curiosity rover and add it to the system
-==============================================
-
+# Create Curiosity rover and add it to the system
 rover = robot.Curiosity(system)
 
-Create sensor manager and add it to the system
-=============================================
+# Create sensor manager
+sens_manager = sens.ChSensorManager(system)
 
-manager = sens.ChSensorManager(system)
+# Create Lidar sensor parameters
+lidar_update_rate = 10  # Hz
+lidar_horizontal_samples = 180
+lidar_vertical_samples = 1
+lidar_range = 5  # meters
+lidar_fov = math.radians(180)
+lidar_noise = 0.001
+lidar_min_range = 0.1
 
-Create driver for rover
-======================
+# Create Lidar sensor
+lidar_sensor = sens.ChLidarSensor()
+lidar_sensor.SetUpdateRate(lidar_update_rate)
+lidar_sensor.SetHorizontalSamples(lidar_horizontal_samples)
+lidar_sensor.SetVerticalSamples(lidar_vertical_samples)
+lidar_sensor.SetRange(lidar_range)
+lidar_sensor.SetFOV(lidar_fov)
+lidar_sensor.SetNoise(lidar_noise)
+lidar_sensor.SetMinRange(lidar_min_range)
 
+# Attach Lidar sensor to rover's chassis
+lidar_sensor.Initialize(rover.GetChassisBody(), chrono.ChVector3d(0.5, 0.2, 0.5))
+
+# Add Lidar sensor to sensor manager
+sens_manager.Add(lidar_sensor)
+
+# Create driver for rover
 driver = robot.CuriosityDCMotorControl()
 rover.SetDriver(driver)
 
-Create Lidar sensor for the rover
-================================
+# Initialize rover position and orientation
+init_pos = chrono.ChVector3d(-5, 0.0, 0)
+init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
+rover.Initialize(chrono.ChFramed(init_pos, init_rot))
 
-lidar\_update\_rate = 20 # Hz
-lidar\_horizontal\_samples = 360
-lidar\_vertical\_samples = 1
-lidar\_range = 10 # meters
-lidar\_fov = math.radians(360)
-lidar\_cone\_angle = math.radians(25)
-lidar\_cone\_axis = chrono.ChVector3d(0, 0, 1)
-lidar\_offset = chrono.ChVector3d(0, 0, 0.25) # 25 cm above the ground
-
-lidar = sens.ChLidarSensor()
-lidar.SetUpdateRate(1 / lidar\_update\_rate)
-lidar.SetHorizontalResolution(lidar\_horizontal\_samples)
-lidar.SetVerticalResolution(lidar\_vertical\_samples)
-lidar.SetRange(lidar\_range)
-lidar.SetFieldOfView(lidar\_fov)
-lidar.SetConeAngle(lidar\_cone\_angle)
-lidar.SetConeAxis(lidar\_cone\_axis)
-lidar.SetOffset(lidar\_offset)
-
-# Attach the Lidar sensor to the rover's chassis
-lidar.AttachToBody(rover.GetChassisBody())
-
-# Set up filters for the lidar data
-lidar.SetDataFilter(sens.ChDataFilter_Mean(10))
-
-# Add the lidar sensor to the sensor manager
-manager.Add(lidar)
-
-Initialize rover position and orientation
-===========================================
-
-init\_pos = chrono.ChVector3d(-5, 0.0, 0)
-init\_rot = chrono.ChQuaterniond(1, 0, 0, 0)
-rover.Initialize(chrono.ChFramed(init\_pos, init\_rot))
-
-Create the Irrlicht visualization
-================================
-
+# Create the Irrlicht visualization
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
-vis.SetCameraVertical(chrono.CameraVerticalDir\_Z)
+vis.SetCameraVertical(chrono.CameraVerticalDir_Z)
 vis.SetWindowSize(1280, 720)
 vis.SetWindowTitle('Curiosity rover - Rigid terrain')
 vis.Initialize()
-vis.AddLogo(chrono.GetChronoDataFile('logo\_pychrono\_alpha.png'))
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()
 vis.AddCamera(chrono.ChVector3d(0, 3, 3), chrono.ChVector3d(0, 0, 0))
 vis.AddTypicalLights()
@@ -107,28 +85,26 @@ vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0
 # vis.EnableShadows()
 
 # Set the simulation time step
-time\_step = 1e-3
+time_step = 1e-3
 
-Simulation loop
-==============
-
+# Simulation loop
 time = 0
 while vis.Run():
-time += time\_step
+    time += time_step
 
-# ask rover to move forward
-driver.SetSteering(0.0)
+    # ask rover to move forward
+    driver.SetSteering(0.0)
 
-# Update rover dynamics
-rover.Update()
+    # Update sensor manager
+    sens_manager.Update()
 
-# Update sensor manager
-manager.Update()
+    # Update rover dynamics
+    rover.Update()
 
-# Render the scene
-vis.BeginScene()
-vis.Render()
-vis.EndScene()
+    # Render the scene
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
 
-# Advance simulation by one time step
-system.DoStepDynamics(time\_step)
+    # Advance simulation by one time step
+    system.DoStepDynamics(time_step)

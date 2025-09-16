@@ -12,13 +12,14 @@ initLoc = chrono.ChVector3d(6, -70, 0.5)
 initRot = chrono.QuatFromAngleZ(1.57)
 
 
-vis_type = veh.VisualizationType.MESH
+vis_type = veh.VisualizationType_MESH
 
 
-chassis_collision_type = veh.CollisionType.NONE
+chassis_collision_type = veh.CollisionType_NONE
 
 
-tire_model = veh.TireModelType.TMEASY
+tire_model = veh.TireModelType_TMEASY
+
 
 
 terrainHeight = 0      
@@ -29,7 +30,7 @@ terrainWidth = 100.0
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
 
 
-contact_method = chrono.ChContactMethod.NSC
+contact_method = chrono.ChContactMethod_NSC
 contact_vis = False
 
 
@@ -67,20 +68,6 @@ patch = terrain.AddPatch(patch_mat,
     chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
     chrono.GetChronoDataFile('vehicle/terrain/meshes/Highway_col.obj'),
     True, 0.01, False)
-
-
-new_patch_mat = chrono.ChContactMaterialNSC()
-new_patch_mat.SetFriction(0.9)
-new_patch_mat.SetRestitution(0.01)
-new_patch = terrain.AddPatch(new_patch_mat,
-    chrono.ChCoordsysd(chrono.ChVector3d(0, -42, 0), chrono.QUNIT),
-    chrono.GetChronoDataFile('vehicle/terrain/meshes/bump.obj'),
-    True, 0.01, False)
-
-
-new_patch.GetGroundBody().SetColor(chrono.ChColor(0.5, 0.5, 0.8))
-new_patch.SetTexture(chrono.GetChronoDataFile('vehicle/textures/dirt.jpg'), 6.0, 6.0)
-
 vis_mesh = chrono.ChTriangleMeshConnected().CreateFromWavefrontFile(veh.GetDataFile("terrain/meshes/Highway_vis.obj"), True, True)
 tri_mesh_shape = chrono.ChVisualShapeTriangleMesh()
 tri_mesh_shape.SetMesh(vis_mesh)
@@ -117,7 +104,7 @@ driver.Initialize()
 
 
 
-print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
+print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 
 
 render_steps = math.ceil(render_step_size / step_size)
@@ -127,11 +114,27 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-while vis.Run():
+
+bump_mat = chrono.ChContactMaterialNSC()
+bump_mat.SetFriction(0.9)
+bump_mat.SetRestitution(0.01)
+bump_patch = terrain.AddPatch(bump_mat,
+    chrono.ChCoordsysd(chrono.ChVector3d(0, -42, 0), chrono.QUNIT),
+    chrono.GetChronoDataFile('vehicle/terrain/meshes/bump.obj'),
+    True, 0.01, False)
+bump_vis_mesh = chrono.ChTriangleMeshConnected().CreateFromWavefrontFile(veh.GetDataFile("terrain/meshes/bump_vis.obj"), True, True)
+bump_tri_mesh_shape = chrono.ChVisualShapeTriangleMesh()
+bump_tri_mesh_shape.SetMesh(bump_vis_mesh)
+bump_tri_mesh_shape.SetMutable(False)
+bump_patch.GetGroundBody().AddVisualShape(bump_tri_mesh_shape)
+bump_patch.GetGroundBody().SetColor(chrono.ChColor(0.5, 0.5, 0.8))
+bump_patch.GetGroundBody().SetTexture(chrono.GetChronoDataFile('vehicle/textures/dirt.jpg'), 6.0, 6.0)
+
+while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
 
     
-    if (step_number % render_steps == 0):
+    if (step_number % render_steps == 0) :
         vis.BeginScene()
         vis.Render()
         vis.EndScene()

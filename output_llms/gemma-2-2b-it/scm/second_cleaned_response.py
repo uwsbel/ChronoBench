@@ -16,32 +16,78 @@ class SCMTerrainParameters:
         self.soil_parameters_8 = soil_parameters_8
 
 
-def initialize_terrain_parameters(terrain_type):
+def InitializeTerrainParameters(terrain_type):
     if terrain_type == "soft":
-        soil_parameters = (2e6, 0, 1.1, 0, 30, 0.01, 2e8, 3e4)
+        soil_parameters = (2e6, 0, 1.1, 0, 30, 0.01, 2e8, 3e4)  
     elif terrain_type == "mid":
-        soil_parameters = (1e6, 0, 1.5, 0, 45, 0.02, 1e7, 5e4)
+        soil_parameters = (1e6, 0, 1.5, 0, 40, 0.02, 1e7, 5e4)
     elif terrain_type == "hard":
-        soil_parameters = (5e6, 0, 2.0, 0, 60, 0.03, 1e8, 1e5)
+        soil_parameters = (5e6, 0, 1.9, 0, 50, 0.05, 3e8, 7e4)
     else:
-        raise ValueError("Invalid terrain type.")
-    return soil_parameters
+        raise ValueError("Invalid terrain type. Choose from 'soft', 'mid', or 'hard'.")
+
+    return SCMTerrainParameters(soil_parameters)
 
 
-vehicle = veh.HMMWV_Full()
-vehicle.SetContactMethod(chrono.ChContactMethod_SMC)
-vehicle.SetChassisCollisionType(chrono.ChCollisionType_NONE)
+initLoc = chrono.ChVector3d(-8, 0, 0.6)
+initRot = chrono.ChQuaterniond(1, 0, 0, 0)
+
+
+vis_type = veh.VisualizationType_MESH
+
+
+chassis_collision_type = veh.CollisionType_NONE
+
+
+tire_model = veh.TireModelType_RIGID
+
+
+
+terrainHeight = 0      
+terrainLength = 100.0  
+terrainWidth = 100.0   
+
+
+trackPoint = chrono.ChVector3d(0.0, 0.0, 1.71)
+
+
+contact_method = chrono.ChContactMethod_SMC
+contact_vis = False
+
+
+step_size = 1e-3
+tire_step_size = step_size
+
+
+render_step_size = 1.0 / 50  
+
+
+
+vehicle = veh.HMMWV_Full() 
+vehicle.SetContactMethod(contact_method)
+vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
-vehicle.SetInitPosition(chrono.ChCoordsysd(chrono.ChVector3d(-8, 0, 0.6), chrono.ChQuaterniond(1, 0, 0, 0)))
-vehicle.SetTireType(veh.TireModelType_RIGID)
-vehicle.SetTireStepSize(step_size)
+vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
+vehicle.SetTireType(tire_model)
+vehicle.SetTireStepSize(tire_step_size)
 
 vehicle.Initialize()
 
 
 terrain = veh.SCMTerrain(vehicle.GetSystem())
-terrain.SetSoilParameters(initialize_terrain_parameters("soft"))
+terrain.SetSoilParameters(InitializeTerrainParameters("soft"))
+
+
+
+
+terrain.AddMovingPatch(vehicle.GetChassisBody(), chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(5, 3, 1))
+
+
+terrain.SetPlotType(veh.SCMTerrain.PLOT_SINKAGE, 0, 0.1)
+
+
 terrain.Initialize(20, 20, 0.02)
+
 
 
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
@@ -53,6 +99,7 @@ vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
+
 
 
 driver = veh.ChInteractiveDriverIRR(vis)
@@ -82,11 +129,11 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-while vis.Run():
+while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
 
     
-    if (step_number % render_steps == 0):
+    if (step_number % render_steps == 0) :
         vis.BeginScene()
         vis.Render()
         vis.EndScene()

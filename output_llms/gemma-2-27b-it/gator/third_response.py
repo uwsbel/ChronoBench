@@ -11,10 +11,10 @@ initLoc = chrono.ChVector3d(0, 0, 0.5)
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 # Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
-vis_type = veh.VisualizationType_PRIMITIVES  # Changed to PRIMITIVES
+vis_type = veh.VisualizationType_PRIMITIVES
 
 # Collision type for chassis (PRIMITIVES, MESH, or NONE)
-chassis_collision_type = veh.CollisionType_PRIMITIVES  # Changed to PRIMITIVES
+chassis_collision_type = veh.CollisionType_PRIMITIVES
 
 # Type of tire model (RIGID, TMEASY)
 tire_model = veh.TireModelType_TMEASY
@@ -83,7 +83,7 @@ vis.SetWindowTitle('Gator vehicle')
 vis.SetWindowSize(1280, 1024)
 vis.SetChaseCamera(trackPoint, 6.0, 0.5)
 vis.Initialize()
-vis.AddLogo(chrono.GetChronoDataPath('logo_pychrono_alpha.png'))
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
@@ -93,9 +93,9 @@ vis.AttachVehicle(vehicle.GetVehicle())
 driver = veh.ChInteractiveDriverIRR(vis)
 
 # Set the time response for steering and throttle keyboard inputs.
-steering_time = 3.0  # Increased time for less responsiveness
-throttle_time = 3.0  # Increased time for less responsiveness
-braking_time = 1.0   
+steering_time = 5.0  # time to go from 0 to +1 (or from 0 to -1)
+throttle_time = 5.0  # time to go from 0 to +1
+braking_time = 2.0   # time to go from 0 to +1
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)

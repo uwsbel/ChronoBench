@@ -36,7 +36,7 @@ contact_vis = False
 # Simulation step sizes
 step_size = 1e-3
 tire_step_size = step_size
-log_step_size = 10  # Added: Logging step size
+log_step_size = 10  # Added: Data logging step size
 
 # Time interval between two render frames
 render_step_size = 1.0 / 50  # FPS = 50
@@ -124,7 +124,7 @@ gps.PushFilter(sens.ChFilterGPSAccess())
 manager.AddSensor(gps)
 
 # Initialize GPS data list
-gps_data = []  # Added: Initialized GPS data list
+gps_data = []  # Added: List to store GPS data
 
 # ---------------
 # Simulation loop
@@ -153,18 +153,10 @@ while vis.Run():
         render_frame += 1
 
     # Get driver inputs
-    throttle = 0
-    steering = 0
-    braking = 0
-
-    if time < 6:
-        throttle = 1
-    elif 6 <= time < 12:
-        steering = 1
-    else:
-        braking = 1
-
-    driver_inputs = chrono.ChVector3d(steering, throttle, braking)
+    throttle = 0.5 * math.sin(time * 2 * math.pi)
+    steering = 0.5 * math.sin(time * 0.5 * math.pi)
+    braking = 0 if time < 6 else 1  # Added: Braking after 6 seconds
+    driver_inputs = (throttle, steering, braking)
 
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
@@ -183,7 +175,7 @@ while vis.Run():
 
     # Log GPS data at intervals defined by log_steps
     if step_number % log_step_size == 0:
-        gps_data.append(gps.GetMostRecentGPSBuffer().GetGPSData())
+        gps_data.append(gps.GetMostRecentGPSBuffer().GetGPSData())  # Added: Log GPS data
 
     # Increment frame number
     step_number += 1
@@ -191,5 +183,5 @@ while vis.Run():
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
 
-# Print logged GPS data
-print("GPS Data: ", gps_data)
+# Print GPS data at the end of the simulation loop
+print("GPS Data: ", gps_data)  # Added: Print GPS data

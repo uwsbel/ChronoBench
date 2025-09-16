@@ -94,38 +94,29 @@ patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 50, 50)
 terrain.Initialize()
 
 # ------------------
-# Add a box object
+# Create the box
 # ------------------
 box = chrono.ChBodyEasy()
 box.SetBodyFixed(False)
 box.SetPos(chrono.ChVector3d(0, 0, 0.5))
 box.SetSize(chrono.ChVector3d(1, 1, 1))
 box.SetMass(1)
-box.GetCollisionModel().ClearModel()
-box.GetCollisionModel().AddBox(0.5, 0.5, 0.5)
-box.GetMaterialSurfaceNSC().SetFriction(0.5)
-box.GetMaterialSurfaceNSC().SetRestitution(0.2)
-box.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), True)
+box.SetCollide(True)
+box.SetMaterialOverride(patch_mat)
 gator.GetSystem().Add(box)
 
 # ------------------
-# Add a cylinder object
+# Create the cylinder
 # ------------------
 cylinder = chrono.ChBodyEasy()
 cylinder.SetBodyFixed(False)
 cylinder.SetPos(chrono.ChVector3d(0, 0, 1.5))
-cylinder.SetSize(chrono.ChVector3d(0.5, 0.5, 1))
+cylinder.SetRadius(0.5)
+cylinder.SetHeight(1)
 cylinder.SetMass(1)
-cylinder.GetCollisionModel().ClearModel()
-cylinder.GetCollisionModel().AddCylinder(0.5, 1)
-cylinder.GetMaterialSurfaceNSC().SetFriction(0.5)
-cylinder.GetMaterialSurfaceNSC().SetRestitution(0.2)
-cylinder.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), True)
+cylinder.SetCollide(True)
+cylinder.SetMaterialOverride(patch_mat)
 gator.GetSystem().Add(cylinder)
-
-# Create the interactive driver system
-driver = veh.ChDriver(gator.GetVehicle())
-driver.Initialize()
 
 # -----------------------
 # Create a sensor manager
@@ -139,7 +130,8 @@ offset_pose = chrono.ChFramed(chrono.ChVector3d(-8.0, 0, 1.45), chrono.QuatFromA
 cam = sens.ChCameraSensor(
     gator.GetChassisBody(), update_rate, offset_pose, image_width, image_height, fov
 )
-cam.SetName("Third Person POV")  # Renders the image at current point in the filter graph
+cam.SetName("Third Person POV")
+# Renders the image at current point in the filter graph
 cam.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Gator Camera"))
 manager.AddSensor(cam)
 
@@ -156,11 +148,12 @@ lidar = sens.ChLidarSensor(
     chrono.CH_PI / 12,
     -chrono.CH_PI / 6,
     100.0,
-    sens.ChLidarSensor.Shape.RECTANGULAR,
+    sens.BeamShape_RECT,
     2,
     0.003,
-    sens.ChLidarSensor.ReturnMode.STRONGEST
+    sens.ReturnMode_STRONGEST
 )
+
 lidar.PushFilter(sens.ChFilterDepth())
 lidar.PushFilter(sens.ChFilterIntensity())
 lidar.PushFilter(sens.ChFilterXYZI())
@@ -177,6 +170,8 @@ while time < end_time:
     time = gator.GetSystem().GetChTime()
 
     # set driver inputs
+    driver = veh.ChDriver(gator.GetVehicle())
+    driver.Initialize()
     driver.SetSteering(0.5)
     driver.SetThrottle(0.2)
 

@@ -1,12 +1,10 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
-import pychrono.scm as scm
 import math
 
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
-scm.SetDataPath(chrono.GetChronoDataPath() + 'scm/')
 
 # Initial vehicle location and orientation
 initLoc = chrono.ChVector3d(-15, 0, 0.0)
@@ -18,18 +16,24 @@ vis_type = veh.VisualizationType_MESH
 # Collision type for chassis (PRIMITIVES, MESH, or NONE)
 chassis_collision_type = veh.CollisionType_NONE
 
-# SCM deformable terrain
+# Deformable terrain using SCM
+terrain_model = veh.SCM_Terrain()
 terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
-soil_model = scm.SoilModelType_VAN_GENNIP
-soil_density = 1800.0  # kg/m3
-soil_friction = 0.4
-soil_damping = 0.1
-soil_poisson_ratio = 0.3
-soil_yield_stress = 1000.0  # Pa
-soil_elastic_modulus = 100000.0  # Pa
-terrain_texture = scm.GetDataFile("textures/dirt.jpg")
+
+# SCM soil parameters
+soil_density = 1.7     # kg/m3
+soil_friction = 0.7    # friction
+soil_damping = 0.1     # damping
+soil_yield_stress = 0.1 # yield stress (Pa)
+
+# Initialize SCM terrain using a height map
+terrain = terrain_model(vehicle.GetSystem())
+terrain.SetSoilParameters(soil_density, soil_friction, soil_damping, soil_yield_stress)
+terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 200, 200)
+terrain.SetColor(chrono.ChColor(0.8, 0.4, 0.2))
+terrain.Initialize()
 
 # Poon chassis tracked by the camera
 trackPoint = chrono.ChVector3d(0.0, 0.0, 0.1)
@@ -66,20 +70,6 @@ vehicle.SetRoadWheelVisualizationType(vis_type)
 vehicle.SetTrackShoeVisualizationType(vis_type)
 
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
-
-# Create the SCM terrain
-terrain = scm.SCM(vehicle.GetSystem())
-terrain.SetSoilModel(soil_model)
-terrain.SetSoilDensity(soil_density)
-terrain.SetSoilFriction(soil_friction)
-terrain.SetSoilDamping(soil_damping)
-terrain.SetSoilPoissonRatio(soil_poisson_ratio)
-terrain.SetSoilYieldStress(soil_yield_stress)
-terrain.SetSoilElasticModulus(soil_elastic_modulus)
-patch = terrain.AddPatch(chrono.ChVector3d(0, 0, 0), terrainLength, terrainWidth)
-patch.SetTexture(terrain_texture, 200, 200)
-patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
-terrain.Initialize()
 
 # Create the vehicle Irrlicht interface
 vis = veh.ChTrackedVehicleVisualSystemIrrlicht()
@@ -143,5 +133,5 @@ while vis.Run() :
     # Increment frame number
     step_number += 1
 
-    # Hard-coded throttle value to 0.8 during the simulation loop
+    # Hard-coded throttle value
     driver_inputs.throttle = 0.8

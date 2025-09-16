@@ -1,67 +1,79 @@
-import pychrono as chrono
-import pychrono.irrlicht as chronoirr
+import PyChrono as chrono
+import PyChrono.Irrlicht as chronoirr
+import PyChrono.Vehicle as veh
 import numpy as np
 
-# Create a Chrono::Engine instance
-my_application = chronoirr.ChIrrApp(chronoirr.NullMaterial(), chronoirr.COREDLL_AUTODETECT, "CityBus Simulation")
+# 1. Initialize PyChrono environment and core components
+chrono.SetChronoDataPath("path/to/chrono/data")  # Replace with your Chrono data path
+chrono.SetChronoDataPath("path/to/irrlicht/data")  # Replace with your Irrlicht data path
 
-# Set the window size and position
-my_application.SetWindowSize(800, 600)
-my_application.SetWindowPosition(50, 50)
+my_application = chronoirr.ChIrrApp(veh.VehicleApplicationType.VAN, "CityBus", chronoirr.Dimensions(1280, 720))
 
-# Create a Chrono::Engine instance
-my_system = chrono.ChSystemNSC()
+# 2. Add the required physical systems and objects
+my_application.AddTypicalLogo(chronoirr.GetChronoDataFile("logo_pychrono_alpha.png"))
+my_application.AddSkyBox()
+my_application.AddLogo(chronoirr.GetChronoDataFile("logo_pychrono_alpha.png"))
+my_application.AddTypicalCamera(chronoirr.Vector3(0, 0, -10))
+
+# Create a rigid terrain
+terrain = chrono.ChTerrain()
+terrain.SetTexture(chrono.GetChronoDataFile("terrain_snow.png"), 200, 200)
+terrain.Initialize(150, 150, 1)
 
 # Create a CityBus vehicle
-bus = chrono.ChBodyEasyCylinder(1.5, 3, 1000, True, True)
-bus.SetPos(chrono.ChVectorD(0, 0, 1))
-bus.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
-my_system.Add(bus)
+vehicle = veh.ChVehicle()
+vehicle.SetChassisFixed(False)
+vehicle.SetChassisCollisionType(chrono.ChCollisionModel.Type_TRIANGLE)
+vehicle.SetChassisVisualizationType(chrono.ChVisualizationType.MESH)
+vehicle.SetChassisMesh(chrono.GetChronoDataFile("vehicle/vehicle_chassis.obj"))
+vehicle.SetChassisMeshScale(chrono.Vector3(0.02))
+vehicle.SetChassisPosition(chrono.Vector3(0, 0, 0.5))
+vehicle.SetChassisOrientation(chrono.Q_from_AngZ(np.radians(90)))
 
-# Create a tire model
-tire = chrono.ChTire()
-tire.SetTireType(chrono.ChTire::Type::CYLINDER)
-tire.SetTireRadius(0.5)
-tire.SetTireWidth(0.2)
-tire.SetTireSteering(0)
-tire.SetTireFriction(0.9)
-tire.SetTireGrip(0.9)
-tire.SetTireDamping(0.1)
-tire.SetTireStiffness(10000)
+# Add a tire model
+tire_model = veh.ChTMeasyTire()
+tire_model.Set_mu_x(0.9)
+tire_model.Set_mu_y(0.8)
+tire_model.Set_radius(0.5)
+tire_model.Set_width(0.4)
 
-# Create a RigidTerrain with a custom texture
-terrain = chrono.ChRigidTerrain(my_system.GetGroundBody())
-terrain.SetTexture(chrono.GetChronoDataFile("terrain/textures/grass.png"))
-terrain.Add(chrono.ChBoxShape(chrono.ChVectorD(10, 10, 1), chrono.ChVectorD(0, 0, 0)))
-terrain.Initialize()
+# Add wheels and tires
+for i in range(4):
+    wheel = veh.ChWheel()
+    wheel.SetTireModel(tire_model)
+    wheel.SetSuspensionStiffness(30000)
+    wheel.SetSuspensionDamping(2000)
+    wheel.SetRadius(0.5)
+    wheel.SetSteeringOffset(0.5)
+    wheel.SetSteeringValue(0)
+    wheel.SetWheelCompliance(0.01)
+    wheel.SetMaxSteering(np.radians(30))
+    wheel.SetMaxSuspensionTravelCm(10)
+    wheel.SetSuspensionRestLength(0.5)
+    wheel.SetSuspensionMaxTravel(0.1)
+    wheel.SetSuspensionForceAppPoint(chrono.Vector3(0, 0, 0))
+    wheel.SetVisualizationType(chrono.ChVisualizationType.PRIMITIVES)
+    wheel.SetSpindleOffset(chrono.Vector3(0, 0, 0))
+    vehicle.AddWheel(wheel)
 
-# Add the tire to the vehicle
-bus.AddAsset(tire)
+# Add the vehicle to the terrain
+terrain.Add(vehicle)
+my_application.AddAsset(terrain)
 
-# Set the camera to follow the vehicle
-my_application.AddTypicalCamera(chronoirr.Vec(0, 0, 5), chronoirr.Vec(0, 0, 0))
+# 3. Set necessary default parameters such as positions, forces, and interactions
+my_application.AssetBindAll()
+my_application.AssetUpdateAll()
 
 # Create an interactive driver system
-driver = chrono.ChDriver::Inputs()
-driver.SetSteeringDelay(0.1)
-driver.SetThrottle(0.5)
-driver.SetBraking(0)
+my_application.SetInteractiveDriver(vehicle)
 
-# Set the simulation step size
-my_system.SetTimestep(0.01)
+# Set the camera to follow the vehicle
+my_application.SetCameraVertical(chrono.CameraVerticalDir.Y)
+my_application.SetCameraType(chronoirr.CameraType.CV_CUSTOM)
+my_application.SetCameraPosition(chrono.Vector3(0, 0, -10))
+my_application.SetCameraLookAt(chrono.Vector3(0, 0, 0))
 
-# Run the simulation loop at 50 frames per second
-while my_application.GetDevice().run():
-    # Update the vehicle dynamics
-    my_system.DoStepDynamics(0.02)
-
-    # Update the driver inputs
-    driver.SetSteering(my_application.GetKeyboard().GetKeyState(chronoirr.KEY_KEY_A) - my_application.GetKeyboard().GetKeyState(chronoirr.KEY_KEY_D))
-    driver.SetThrottle(my_application.GetKeyboard().GetKeyState(chronoirr.KEY_KEY_W))
-    driver.SetBraking(my_application.GetKeyboard().GetKeyState(chronoirr.KEY_KEY_S))
-
-    # Render the scene in real time
-    my_application.BeginScene()
-    my_application.DrawAll()
-    my_application.DoStep()
-    my_application.EndScene()
+# 4. Simulation loop
+my_application.SetTimestep(0.02)
+my_application.SetFPS(50)
+my_application.Run()

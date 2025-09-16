@@ -1,167 +1,76 @@
 import pychrono.core as chrono
-import pychrono.fea as fea
 import pychrono.irrlicht as chronoirr
+import pychrono.fea as fea
 import numpy as np
 
 
 sys = chrono.ChSystemNSC()
 
 
-contact_material = chrono.ChMaterialSurfaceNSC()
-contact_material.SetFriction(0.5)
-contact_material.SetDampingF(0.5)
-contact_material.SetCompliance(1e-9)
-contact_material.SetComplianceT(1e-9)
+sys.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  
 
 
-sys.SetDefaultContactMaterial(contact_material)
-
-
-beam_length = 10  
-beam_width = 1    
-beam_height = 1   
-beam_density = 7850  
-beam_young_modulus = 2.1e11  
-beam_poisson_ratio = 0.3
+ground = chrono.ChBodyEasyBox(sys, 10, 1, 10, 1000, True, False)
+ground.SetPos(chrono.ChVectorD(0, -5, 0))
+ground.SetBodyFixed(True)
 
 
 beam = fea.ChBeamSectionEuler()
-beam.SetDensity(beam_density)
-beam.SetYoungModulus(beam_young_modulus)
-beam.SetPoissonRatio(beam_poisson_ratio)
-beam.SetWidth(beam_width)
-beam.SetHeight(beam_height)
+beam.SetA(0.01)  
+beam.SetIxx(1e-5)  
+beam.SetIyy(1e-5)  
+beam.SetJ(1e-6)  
+beam.SetYoungModulus(2e11)  
+beam.SetPoissonRatio(0.3)  
+beam.SetDensity(7850)  
 
 
-beam_body = chrono.ChBodyEasyBox(sys, beam_length, beam_width, beam_height, beam_density)
-beam_body.SetBodyFixed(True)
+mesh = fea.ChBeamMesh(beam, 10, 0.1, 0.1, 0.1)
+mesh.SetNodesPerElement(2)
 
 
-def apply_force(beam_body, force):
-    beam_body.AddForce(force)
+beam_body = fea.ChBodyBeamMesh(mesh)
+beam_body.SetPos(chrono.ChVectorD(0, 0, 0))
+beam_body.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
 
 
-force = chrono.ChVectorD(0, 0, -1000)  
-apply_force(beam_body, force)
+def custom_motor(t):
+    return 10 * np.sin(t)
 
 
-constraint = chrono.ChLinkLock()
-constraint.Initialize(beam_body, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.Q_from_AngX(0)))
-sys.Add(constraint)
+motor = chrono.ChLinkMotorLinearSpeed()
+motor.Initialize(beam_body, ground, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)))
+motor.SetSpeedFunction(custom_motor)
 
 
-constraint = chrono.ChLinkLock()
-constraint.Initialize(beam_body, chrono.ChFrameD(chrono.ChVectorD(beam_length, 0, 0), chrono.Q_from_AngX(0)))
-sys.Add(constraint)
-
-
-solver = chrono.ChSolverNSC()
-solver.SetMaxIters(100)
-solver.SetTol(1e-9)
-sys.SetSolver(solver)
-
-
-timestepper = chrono.ChTimestepperEuler()
-timestepper.SetStepSize(1e-3)
-sys.SetTimestepper(timestepper)
+sys.Add(beam_body)
+sys.Add(ground)
+sys.Add(motor)
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AddSkyBox()
 vis.AddTypicalLights()
+vis.AddCamera(chrono.ChVectorD(0, 0, 5))
+vis.AddCamera(chrono.ChVectorD(0, 5, 0))
+vis.AddTypicalLights()
 
 
-vis.Add(beam_body)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle("PyChrono Simulation")
+vis.SetLogo("")
+
+
+solver = chrono.ChSolverNSC()
+timestepper = chrono.ChTimestepperEuler()
+
+
+sys.SetSolver(solver)
+sys.SetTimestepper(timestepper)
 
 
 while vis.Run():
-    sys.DoStepDynamics(1e-3)
+    sys.DoStepDynamics(0.01)
     vis.BeginScene()
     vis.DrawAll()
     vis.EndScene()
-
-import pychrono.core as chrono
-import pychrono.fea as fea
-import pychrono.irrlicht as chronoirr
-import numpy as np
-
-def main():
-    
-    sys = chrono.ChSystemNSC()
-
-    
-    contact_material = chrono.ChMaterialSurfaceNSC()
-    contact_material.SetFriction(0.5)
-    contact_material.SetDampingF(0.5)
-    contact_material.SetCompliance(1e-9)
-    contact_material.SetComplianceT(1e-9)
-
-    
-    sys.SetDefaultContactMaterial(contact_material)
-
-    
-    beam_length = 10  
-    beam_width = 1    
-    beam_height = 1   
-    beam_density = 7850  
-    beam_young_modulus = 2.1e11  
-    beam_poisson_ratio = 0.3
-
-    
-    beam = fea.ChBeamSectionEuler()
-    beam.SetDensity(beam_density)
-    beam.SetYoungModulus(beam_young_modulus)
-    beam.SetPoissonRatio(beam_poisson_ratio)
-    beam.SetWidth(beam_width)
-    beam.SetHeight(beam_height)
-
-    
-    beam_body = chrono.ChBodyEasyBox(sys, beam_length, beam_width, beam_height, beam_density)
-    beam_body.SetBodyFixed(True)
-
-    
-    def apply_force(beam_body, force):
-        beam_body.AddForce(force)
-
-    
-    force = chrono.ChVectorD(0, 0, -1000)  
-    apply_force(beam_body, force)
-
-    
-    constraint = chrono.ChLinkLock()
-    constraint.Initialize(beam_body, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.Q_from_AngX(0)))
-    sys.Add(constraint)
-
-    
-    constraint = chrono.ChLinkLock()
-    constraint.Initialize(beam_body, chrono.ChFrameD(chrono.ChVectorD(beam_length, 0, 0), chrono.Q_from_AngX(0)))
-    sys.Add(constraint)
-
-    
-    solver = chrono.ChSolverNSC()
-    solver.SetMaxIters(100)
-    solver.SetTol(1e-9)
-    sys.SetSolver(solver)
-
-    
-    timestepper = chrono.ChTimestepperEuler()
-    timestepper.SetStepSize(1e-3)
-    sys.SetTimestepper(timestepper)
-
-    
-    vis = chronoirr.ChVisualSystemIrrlicht()
-    vis.AddSkyBox()
-    vis.AddTypicalLights()
-
-    
-    vis.Add(beam_body)
-
-    
-    while vis.Run():
-        sys.DoStepDynamics(1e-3)
-        vis.BeginScene()
-        vis.DrawAll()
-        vis.EndScene()
-
-if __name__ == "__main__":
-    main()

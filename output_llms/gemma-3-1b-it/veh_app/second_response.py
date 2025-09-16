@@ -151,6 +151,4 @@ while time < end_time:
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
 
-# ------------------
-# Simulation loop
-# ------------------
+print("Simulation complete.")

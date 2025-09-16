@@ -24,9 +24,7 @@ def main():
     mesh_body.AddVisualShape(trimesh_shape)
     mesh_body.SetFixed(False)  
     mesh_body.SetMass(0)  
-
-    
-    sys.Add(mesh_body)
+    sys.Add(mesh_body)  
 
     
     ground_body = ch.ChBodyEasyBox(1, 1, 1, 1000, False, False)
@@ -137,8 +135,10 @@ def main():
         time = sys.GetChTime()  
 
         
-        if not sens_manager.Update():
-            print("Sensor manager update failed. Exiting simulation loop.")
+        sens_manager.Update()
+
+        if not ros_manager.Update():  
+            print("ROS manager update failed. Exiting simulation loop.")
             break
 
         sys.DoStepDynamics(time_step)  

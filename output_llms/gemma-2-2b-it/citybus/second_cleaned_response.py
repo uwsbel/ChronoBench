@@ -83,14 +83,13 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 
-driver = veh.ChDataDriver(vis)
+driver = veh.ChDataDriver(vis)  
 
 
-driver_inputs = [
-    veh.vector_Entry(0.0, 0.0, 0.0),  
-    veh.vector_Entry(0.1, 0.0, 0.0),  
-    veh.vector_Entry(0.5, 0.7, 0.0),  
-]
+driver_inputs = veh.vector_Entry()
+driver_inputs.append(veh.DataDriverEntry(0.0, 0.0, 0.0))  
+driver_inputs.append(veh.DataDriverEntry(0.1, 0.0, 0.0))  
+driver_inputs.append(veh.DataDriverEntry(0.5, 0.7, 0.0))  
 
 
 driver.SetInputs(driver_inputs)

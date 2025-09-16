@@ -121,7 +121,7 @@ while vis.Run() :
 
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
-    terrain.Synchronize(time)
+    terrain.Synchronize(time, driver_inputs, terrain)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
 
@@ -139,9 +139,7 @@ while vis.Run() :
 
 
 
-
-# Example:  Adding a simple visual effect (optional)
-#  This is just an example and can be removed.
-if (step_number % 10 == 0):
-    vis.AddSphere(chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 0.2, 0.2)
-    vis.SetColor(chrono.ChColor(1.0, 0.0, 0.0))
+# Example:  Add a simple visual effect (e.g., a small trail)
+# This is a placeholder, you'll need to implement a proper trail effect.
+# For simplicity, we'll just print a message.
+print("Simulation running...")

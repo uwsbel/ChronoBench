@@ -43,7 +43,7 @@ render_step_size = 1.0 / 50  # FPS = 50
 log_step_size = 1.0 / 20    # Frequency of data logging
 
 # Create the HMMWV vehicle, set parameters, and initialize
-vehicle = veh.HMMWV_Full() 
+vehicle = veh.HMMWV_Full() # veh.HMMWV_Reduced() could be another choice
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
@@ -186,11 +186,9 @@ while vis.Run():
 print("GPS Data: ", gps_data)
 
 # Plot GPS data
-gps_data = np.array(gps_data)
 plt.figure(figsize=(10, 8))
-plt.plot(gps_data[:, 1], gps_data[:, 0], label='GPS Trajectory')
-plt.xlabel('Longitude')
-plt.ylabel('Latitude')
+plt.plot([x[0] for x in gps_data], [x[1] for x in gps_data])
+plt.xlabel('Latitude')
+plt.ylabel('Longitude')
 plt.title('GPS Trajectory')
-plt.legend()
 plt.show()

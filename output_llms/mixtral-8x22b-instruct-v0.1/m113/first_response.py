@@ -2,70 +2,45 @@ import pychrono as chrono
 import pychrono.irrlicht as chronoirr
 import pychrono.vehicle as veh
 
-# Create the Chrono::Engine physical system
-physics_system = chrono.ChSystemNSC()
+# 1. Initialize the PyChrono environment and core components
+chrono.SetChronoDataPath("/path/to/chrono/data")  # Replace with the actual path
+chrono.SetChronoDataPath("/path/to/vehicle/data")  # Replace with the actual path
 
-# Create the Irrlicht visualization system
-visualization_system = chronoirr.ChIrrApp(physics_system, 'PyChrono Vehicle Simulation', chronoirr.Dim3d(800, 600))
+chrono.Init_ChronoEngine()
 
-# Enable contact visualization
-visualization_system.AddTypicalLogo(chronoirr.GetChronoDataFile('logo_pychrono_alpha.png'))
-visualization_system.AddTypicalSky(chronoirr.GetChronoDataFile('skybox/dawnmountain_ft.jpg'))
-visualization_system.AddTypicalLights()
-visualization_system.AddTypicalCamera(chronoirr.vector3df(0, 10, -20))
-visualization_system.SetChaseCamera(chronoirr.vector3df(0, 0, 0), 10, 0.1)
-visualization_system.SetTryRealtime(True)
+# 2. Add the required physical systems and objects
+# Create a new M113 vehicle
+vehicle = veh.M113()
 
-# Create the M113 vehicle
-vehicle = veh.ChVehicleM113()
+# Set initial conditions
+vehicle.SetChassisPos(chrono.ChVectorD(0, 0, 0.5))
+vehicle.SetInitChassisVel(chrono.ChVectorD(0, 0, 0))
+vehicle.SetInitChassisRot(chrono.ChQuaternionD(1, 0, 0, 0))
 
-# Set the initial position and orientation of the vehicle
-vehicle.SetPos(chrono.ChVectorD(0, 0, 0))
-vehicle.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
+# Create a rigid terrain
+terrain = veh.RigidTerrain(vehicle.GetSystem())
+terrain.SetContactFrictionCoefficient(0.9)
+terrain.SetContactRestitutionCoefficient(0.01)
+terrain.AddLayer(veh.TerrainLayer(30, 0.5, 2000))
 
-# Add the vehicle to the physical system
-physics_system.Add(vehicle)
+# 3. Set necessary default parameters such as positions, forces, and interactions
+# Create a driver system for vehicle control
+driver = veh.ChIrrGuiDriver(vehicle.GetSystem(), chronoirr.ChIrrApp(vehicle.GetSystem(), "M113 Vehicle", chronoirr.Dimensions(800, 600)))
+driver.SetChaseCamera(chrono.ChVectorD(0, -30, 1), chrono.ChVectorD(0, 0, 1), 5)
+driver.SetLight(chrono.ChVectorD(-30, 30, 100), chrono.ChVectorD(1, -1, -1), chrono.ChColor(0.7, 0.7, 0.7))
 
-# Create the rigid terrain
-terrain = veh.ChVehicleTerrain()
-terrain.SetContactFriction(0.9)
-terrain.SetContactRestitution(0.01)
-terrain.SetPlane(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 1))
+# Implement a simulation loop that synchronizes and advances the vehicle, terrain, driver, and visual system at each timestep
+# Maintain real-time execution
+while chrono.GetSystem()->GetChTime() < 10:  # Simulate for 10 seconds
+    driver.BeginScene()
+    driver.DrawAll()
+    driver.EndScene()
 
-# Add the terrain to the physical system
-physics_system.Add(terrain)
+    vehicle.Synchronize(chrono.GetSystem()->GetChTime())
+    terrain.Synchronize(chrono.GetSystem()->GetChTime())
+    driver.Synchronize(chrono.GetSystem()->GetChTime())
 
-# Create the driver system
-driver = veh.ChVehicleDriver()
+    chrono.GetSystem()->DoStepDynamics(0.01)
 
-# Set the driver's initial steering and throttle values
-driver.SetSteering(0)
-driver.SetThrottle(0)
-
-# Add the driver to the vehicle
-vehicle.AddDriver(driver)
-
-# Set the initial position and orientation of the vehicle
-vehicle.SetPos(chrono.ChVectorD(0, 0, 0))
-vehicle.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
-
-# Set the initial steering and throttle values for the driver
-driver.SetSteering(0)
-driver.SetThrottle(0)
-
-# Set the simulation step size
-step_size = 0.01
-
-# Run the simulation loop
-while visualization_system.Run():
-    # Advance the physical system
-    physics_system.DoStepDynamics(step_size)
-
-    # Update the visualization system
-    visualization_system.BeginScene()
-    visualization_system.DrawAll()
-    visualization_system.EndScene()
-
-    # Update the driver's steering and throttle values
-    driver.SetSteering(0.5 * chronoirr.GetAsyncKeyState('A') - 0.5 * chronoirr.GetAsyncKeyState('D'))
-    driver.SetThrottle(0.5 * chronoirr.GetAsyncKeyState('W') - 0.5 * chronoirr.GetAsyncKeyState('S'))
+chrono.GetSystem()->Clear()
+chrono.Finalize_ChronoEngine()

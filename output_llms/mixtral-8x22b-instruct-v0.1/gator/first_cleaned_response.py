@@ -1,70 +1,52 @@
-import pychrono as chrono
+import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
 import pychrono.vehicle as veh
-import numpy as np
 
 
 chrono.SetChronoDataPath("/path/to/chrono/data")
 chrono.SetChronoDataPath("/path/to/irrlicht/data")
 
-chrono.SetChronoDataPath("/path/to/vehicle/data")
-chrono.SetChronoDataPath("/path/to/terrain/data")
-
-chrono.SetChronoDataPath("/path/to/hmmwv/data")
-
-chrono.SetChronoDataPath("/path/to/tmeasy/data")
-
-chrono.SetChronoDataPath("/path/to/tmeasy/data/tires")
-
-chrono.SetChronoDataPath("/path/to/tmeasy/data/tires/meshes")
 
 
 my_system = chrono.ChSystemNSC()
 
 
-my_vehicle = veh.ChVehicle("Gator", veh.ChVehicleType.TERRAIN_VEHICLE)
+my_application = chronoirr.ChIrrApp(my_system, "Gator Vehicle Simulation", chronoirr.Dimensions(800, 600))
 
 
-my_vehicle.SetPos(chrono.ChVectorD(0, 0, 0))
+my_vehicle = veh.ChVehicleIrrApp(my_system, "GatorVehicle", chronoirr.GetAssetPath("vehicle/gator/"))
+
+
+my_vehicle.SetPos(chrono.ChVectorD(0, 0, 1))
 my_vehicle.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
+my_vehicle.SetContactMethod(veh.ChVehicle::CONTACT_METHOD_LINEAR)
 
 
-my_vehicle.SetContactMethod(chrono.ChContactMethod.NSC)
-my_vehicle.SetTireType(veh.ChVehicleTire.TMEASY)
+my_vehicle.SetTireType(veh.ChVehicle::TMEASY_Tire)
 
 
-my_system.Add(my_vehicle)
+my_vehicle.SetChassisFixed(False)
+my_vehicle.SetChassisVisualizationType(veh.ChVehicleVisualizationType::MESH)
+my_vehicle.SetSuspensionVisualizationType(veh.ChVehicleVisualizationType::MESH)
+my_vehicle.SetSteeringVisualizationType(veh.ChVehicleVisualizationType::MESH)
+my_vehicle.SetWheelVisualizationType(veh.ChVehicleVisualizationType::MESH)
 
 
-my_terrain = veh.ChRigidTerrain("terrain")
+my_terrain = veh.ChVehicleIrrApp::AddRigidTerrain(my_system, my_application, chronoirr.GetAssetPath("terrain/"), 100, 100, 0.1)
+my_terrain.SetTexture(chronoirr.GetAssetPath("terrain/textures/grass.jpg"))
 
 
-my_terrain.SetTexture(chrono.ChTexture(chrono.GetChronoDataFile("terrain/textures/tile4.jpg")))
-my_terrain.SetContactMaterial(3e7, 0.4)
-my_terrain.Initialize(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 1), 100, 100, 100)
+
+my_driver = veh.ChIrrGuiDriver(my_application)
+my_vehicle.SetDriver(my_driver)
 
 
-my_system.Add(my_terrain)
-
-
-my_vehicle.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.ChQuaternionD(1, 0, 0, 0)))
-
-
-my_driver = veh.ChIrrGuiDriver(my_vehicle, my_terrain)
-
-
-my_application = chronoirr.ChIrrApp(my_system, "Gator Vehicle", chronoirr.Dim(800, 600), "data/irrlicht/")
-
-my_application.AddTypicalSky()
-my_application.AddTypicalLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))
-my_application.AddTypicalCamera(chrono.ChVectorD(0, 0, 10))
-my_application.AddTypicalLights()
-my_application.AddLightWithShadow(chrono.ChVectorD(10, 10, 10), 0.5, 1, 20, 20, 50, 512, 2048)
-
+my_application.SetStepManage(True)
 my_application.SetTimestep(0.02)
 
-my_application.AssetBindAll()
-my_application.AssetUpdateAll()
 
-
+my_application.AddLogo(chronoirr.GetChronoDataFile("logo_pychrono_alpha.png"))
+my_application.AddTypicalSky(chronoirr.GetAssetPath("skybox/"))
+my_application.AddTypicalLights(chronoirr.GetAssetPath("lights_sunset/"))
+my_application.AddCamera(chrono.ChVectorD(0, 10, -10))
 my_application.Run()

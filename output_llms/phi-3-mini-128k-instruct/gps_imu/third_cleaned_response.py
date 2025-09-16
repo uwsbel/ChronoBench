@@ -88,19 +88,18 @@ vis.AttachVehicle(vehicle.GetVehicle())
 driver = veh.ChInteractiveDriverIRR(vis)
 
 
-steering_time = 1.0  
-throttle_time = 1.0  
-braking_time = 0.3   
-driver.SetSteeringDelta(0.0)  
-driver.SetThrottleDelta(0.5)  
-driver.SetBrakingDelta(0.0)  
+
+driver.SetSteering(0.6)
+driver.SetThrottle(0.5)
+driver.SetBraking(0.0)  
 driver.Initialize()
 
 
 manager = sens.ChSensorManager(vehicle.GetSystem())
 
 
-offset_pose = chrono.ChFramed(chrono.ChVector3d(0, 0, 1), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0)))  
+
+offset_pose = chrono.ChFramed(chrono.ChVector3d(0, 0, 1), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0)))
 imu = sens.ChAccelerometerSensor(vehicle.GetChassisBody(),                     
                                  10,        
                                  offset_pose,          
@@ -141,8 +140,8 @@ log_steps = math.ceil(log_step_size / step_size)
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
-
 gps_data = []
+
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
@@ -156,9 +155,11 @@ while vis.Run():
     if step_number % log_steps == 0:
         
         gps_coor = gps.GetMostRecentGPSBuffer().GetGPSData()
-        gps_data.append([gps_coor[0], gps_coor[1]])  
+        gps_data.append([gps_coor[0], gps_coor[1], gps_coor[2]])
+
     
-    driver_inputs = [0.6, 0.5]  
+    
+    driver_inputs = (0.6, 0.5, 0.0)  
     
     
     driver.Synchronize(time)
@@ -184,7 +185,7 @@ while vis.Run():
 
 plt.figure()
 plt.plot(gps_data, 'r-')
-plt.xlabel('Frame')
-plt.ylabel('Latitude')
+plt.xlabel('Step Number')
+plt.ylabel('GPS Coordinates')
 plt.title('GPS Trajectory')
 plt.show()

@@ -47,6 +47,7 @@ vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 
+
 vehicle.Initialize()
 
 vehicle.SetChassisVisualizationType(vis_type)
@@ -64,34 +65,35 @@ patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 
 
+
+
 patch1 = terrain.AddPatch(patch_mat, 
-    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
-    terrainLength / 2, terrainWidth / 2)
-patch1.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
-patch1.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+    chrono.ChCoordsysd(chrono.ChVector3d(-50, -50, 0), chrono.QUNIT), 
+    50, 50)
+patch1.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)
+patch1.SetColor(chrono.ChColor(0.5, 1.0, 0.5))
 
 
 patch2 = terrain.AddPatch(patch_mat, 
-    chrono.ChCoordsysd(chrono.ChVector3d(terrainLength / 2, 0, 0), chrono.QUNIT), 
-    terrainLength / 2, terrainWidth / 2)
-patch2.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)
-patch2.SetColor(chrono.ChColor(0.5, 0.8, 0.5))
+    chrono.ChCoordsysd(chrono.ChVector3d(0, -50, 0), chrono.QUNIT), 
+    50, 50)
+patch2.SetTexture(veh.GetDataFile("terrain/textures/sand.jpg"), 200, 200)
+patch2.SetColor(chrono.ChColor(0.8, 0.8, 0.4))
 
 
 patch3 = terrain.AddPatch(patch_mat, 
-    chrono.ChCoordsysd(chrono.ChVector3d(0, terrainWidth / 2, 0), chrono.QUNIT), 
-    terrainLength / 2, terrainWidth / 2)
-patch3.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
-patch3.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+    chrono.ChCoordsysd(chrono.ChVector3d(-50, 0, 0), chrono.QUNIT), 
+    50, 50)
+patch3.SetTexture(veh.GetDataFile("terrain/textures/rock.jpg"), 200, 200)
+patch3.SetColor(chrono.ChColor(0.6, 0.6, 0.6))
 patch3.SetHeightMap(veh.GetDataFile("terrain/heightmaps/bump.png"), 10, 10)
 
 
 patch4 = terrain.AddPatch(patch_mat, 
-    chrono.ChCoordsysd(chrono.ChVector3d(terrainLength / 2, terrainWidth / 2, 0), chrono.QUNIT), 
-    terrainLength / 2, terrainWidth / 2)
-patch4.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)
-patch4.SetColor(chrono.ChColor(0.5, 0.8, 0.5))
-patch4.AddBump(chrono.ChVector3d(20, 20, 0.5), 5)
+    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
+    50, 50)
+patch4.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 200, 200)
+patch4.SetColor(chrono.ChColor(0.8, 0.6, 0.4))
 
 terrain.Initialize()
 
@@ -109,6 +111,7 @@ vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
+
 
 
 driver = veh.ChInteractiveDriverIRR(vis)

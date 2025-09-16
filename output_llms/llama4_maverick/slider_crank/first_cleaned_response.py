@@ -1,65 +1,71 @@
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
-import numpy as np
+
+
+chrono.SetChronoDataPath("/path/to/chrono/data/")
 
 
 sys = chrono.ChSystemNSC()
 
 
-ground = chrono.ChBodyEasyBox(10, 0.5, 10, 1000)
-ground.SetBodyFixed(True)
-ground.SetPos(chrono.ChVectorD(0, -2.5, 0))
-sys.Add(ground)
+floor_mat = chrono.ChMaterialSurfaceNSC()
+floor = chrono.ChBodyEasyBox(10, 0.2, 10, 1000, True, True, floor_mat)
+floor.SetPos(chrono.ChVectorD(0, -1, 0))
+floor.SetBodyFixed(True)
+sys.Add(floor)
 
 
-crankshaft = chrono.ChBodyEasyCylinder(chrono.ChCoordsysD(chrono.ChVectorD(-2, 0, 0), chrono.Q_from_AngAxis(chrono.CH_C_PI_2, chrono.VECT_X)), 0.1, 0.5, 1000)
-sys.Add(crankshaft)
+crank_mat = chrono.ChMaterialSurfaceNSC()
+crank = chrono.ChBodyEasyCylinder(0.1, 0.5, 1000, True, True, crank_mat)
+crank.SetPos(chrono.ChVectorD(0, 0, 0))
+sys.Add(crank)
 
 
-connecting_rod = chrono.ChBodyEasyBox(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0)), 2, 0.1, 0.1, 1000)
-connecting_rod.SetPos(chrono.ChVectorD(0, 0, 0))
-sys.Add(connecting_rod)
+rod_mat = chrono.ChMaterialSurfaceNSC()
+rod = chrono.ChBodyEasyBox(1, 0.1, 0.1, 1000, True, True, rod_mat)
+rod.SetPos(chrono.ChVectorD(0.5, 0, 0))
+sys.Add(rod)
 
 
-piston = chrono.ChBodyEasyCylinder(chrono.ChCoordsysD(chrono.ChVectorD(2, 0, 0), chrono.Q_from_AngAxis(chrono.CH_C_PI_2, chrono.VECT_X)), 0.1, 0.2, 1000)
+piston_mat = chrono.ChMaterialSurfaceNSC()
+piston = chrono.ChBodyEasyCylinder(0.1, 0.2, 1000, True, True, piston_mat)
+piston.SetPos(chrono.ChVectorD(1.5, 0, 0))
 sys.Add(piston)
 
 
-rev_ground_crank = chrono.ChLinkRevolute()
-rev_ground_crank.Initialize(ground, crankshaft, chrono.ChCoordsysD(chrono.ChVectorD(-2, 0, 0)))
-sys.Add(rev_ground_crank)
+crank_ground = chrono.ChLinkRevolute()
+crank_ground.Initialize(crank, floor, chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.Q_ROTATE_Z_TO_Y))
+sys.AddLink(crank_ground)
 
+rod_crank = chrono.ChLinkRevolute()
+rod_crank.Initialize(rod, crank, chrono.ChCoordsysD(chrono.ChVectorD(0.25, 0, 0), chrono.Q_ROTATE_Z_TO_Y))
+sys.AddLink(rod_crank)
 
-rev_crank_conn = chrono.ChLinkRevolute()
-rev_crank_conn.Initialize(crankshaft, connecting_rod, chrono.ChCoordsysD(chrono.ChVectorD(-1, 0, 0)))
-sys.Add(rev_crank_conn)
+piston_rod = chrono.ChLinkRevolute()
+piston_rod.Initialize(piston, rod, chrono.ChCoordsysD(chrono.ChVectorD(1.25, 0, 0), chrono.Q_ROTATE_Z_TO_Y))
+sys.AddLink(piston_rod)
 
-
-rev_prism_conn_piston = chrono.ChLinkRevoluteSpherical()
-rev_prism_conn_piston.Initialize(connecting_rod, piston, chrono.ChCoordsysD(chrono.ChVectorD(1, 0, 0)))
-sys.Add(rev_prism_conn_piston)
-
-
-prism_piston_ground = chrono.ChLinkPrismatic()
-prism_piston_ground.Initialize(piston, ground, chrono.ChCoordsysD(chrono.ChVectorD(2, 0, 0), chrono.Q_from_AngAxis(chrono.CH_C_PI_2, chrono.VECT_Y)))
-sys.Add(prism_piston_ground)
+piston_guide = chrono.ChLinkSlider()
+piston_guide.Initialize(piston, floor, chrono.ChCoordsysD(chrono.ChVectorD(1.5, 0, 0), chrono.Q_ROTATE_Z_TO_X))
+sys.AddLink(piston_guide)
 
 
 motor = chrono.ChLinkMotorRotationSpeed()
-motor.Initialize(ground, crankshaft, chrono.ChFrameD(chrono.ChVectorD(-2, 0, 0)))
-motor.SetSpeedFunction(chrono.ChFunction_Const(chrono.CH_C_PI))  
-sys.Add(motor)
+motor.Initialize(crank, floor, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.Q_ROTATE_Z_TO_Y))
+motor.SetSpeedFunction(chrono.ChFunction_Const(chrono.CH_C_PI))
+sys.AddLink(motor)
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(sys)
-vis.SetWindowSize(1024, 768)
+vis.SetWindowSize(800, 600)
 vis.SetWindowTitle('Crank-Slider Mechanism')
-vis.Initialize()
-vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
-vis.AddSkyBox()
-vis.AddCamera(chrono.ChVectorD(-4, 3, -4), chrono.ChVectorD(0, 0, 0))
-vis.AddTypicalLights()
+vis.SetCameraProperties(chrono.ChVectorD(0, 2, -3), chrono.ChVectorD(0, 0, 0))
+vis.SetCameraVertical(chrono.CameraVerticalDir_Z)
+
+
+vis.GetSceneManager().getRootSceneNode().addLightWithShadow(chrono.ChVectorD(2, 4, 2), chrono.ChVectorD(0, 0, 0), 10)
+vis.GetSceneManager().getRootSceneNode().addLightWithShadow(chrono.ChVectorD(-2, 4, 2), chrono.ChVectorD(0, 0, 0), 10)
 
 
 while vis.Run():

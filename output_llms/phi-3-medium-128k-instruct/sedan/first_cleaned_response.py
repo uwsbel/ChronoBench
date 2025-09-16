@@ -1,55 +1,107 @@
-import pychrono
+import pychron
+
+import pychron.vehicle as vehicle
+
+import pychron.terrain as terrain
+
+import pychron.tire as tire
+
+import pychron.camera as camera
+
+import pychron.renderer as renderer
+
+import pychron.materials as materials
 
 
 
 
-chrono = pychrono.ChSystemNSC()
+chrono = pychron.Chrono()
 
 
 
 
-gravity = pychrono.ChBody()
+car = vehicle.Car()
 
-chrono.Add(gravity)
+car.set_name("BMW E90 Sedan")
 
-chrono.SetGravity(pychrono.ChVectorD(0, -9.81, 0))
+car.set_visualization(True)
 
-
-
-
-sphere = pychrono.ChBody()
-
-sphere.SetMass(1.0)
-
-sphere.SetPos(pychrono.ChVectorD(0, 10, 0))
-
-sphere.SetRot(pychrono.ChVectorD(0, 0, 0))
-
-chrono.Add(sphere)
+car.set_collision(True)
 
 
 
 
-ground = pychrono.ChBody()
+tire_model = tire.TMEASY()
 
-ground.SetStatic(True)
-
-ground.SetMass(0)
-
-ground.SetPos(pychrono.ChVectorD(0, 0, 0))
-
-ground.SetGeomFixes(pychrono.ChEntityIndexSet(sphere.index))
-
-chrono.Add(ground)
+car.set_tire_model(tire_model)
 
 
 
 
-sim_time = 10.0  
+car.set_position([0, 0, 0])
 
-time_step = 0.01  
+car.set_mass(1500)
+
+car.set_steering_max_angle(30)
+
+car.set_throttle_max(1.0)
+
+car.set_brake_max(1.0)
 
 
 
 
-chrono.DoSteps(int(sim_time / time_step))
+terrain_surface = terrain.RigidSurface()
+
+terrain_surface.set_texture("terrain_texture.jpg")
+
+terrain_surface.set_logo("terrain_logo.png")
+
+
+
+
+terrain_surface.set_size([100, 100])
+
+terrain_surface.set_friction(0.9)
+
+
+
+
+chase_camera = camera.ChaseCamera()
+
+chase_camera.set_follow(car)
+
+chase_camera.set_distance(10)
+
+directional_light = renderer.DirectionalLight()
+
+directional_light.set_direction([1, 1, 1])
+
+skybox = renderer.Skybox("skybox.jpg")
+
+
+
+
+simulation = pychron.Simulation()
+
+simulation.add_object(car)
+
+simulation.add_object(terrain_surface)
+
+simulation.set_camera(chase_camera)
+
+simulation.set_light(directional_light)
+
+simulation.set_skybox(skybox)
+
+
+
+
+driver_system = pychron.DriverSystem()
+
+simulation.set_driver_system(driver_system)
+
+
+
+
+simulation.start()

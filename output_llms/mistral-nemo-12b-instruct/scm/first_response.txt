@@ -1,63 +1,68 @@
-Here's a Python script using PyChrono to simulate a full HMMWV on SCM deformable terrain with Irrlicht visualization. This script assumes you have the necessary models and textures for the HMMWV and terrain.
-
 ```python
-import chrono
-from chrono import *
-import chrono.irrlicht as ci
+import pychrono as chrono
+import pyirrlicht as irr
 
-# Initialize PyChrono and Irrlicht
-irr = ci.ChIrrApp(chrono.GetChronoDataPath(), "HMMWV on SCM Terrain")
-irr.AddTypicalSky()
-irr.AddTypicalLogo(chrono.GetChronoDataPath())
-irr.SetCamera(ChVectorD(10, 10, 10), ChVectorD(0, 0, 0))
-irr.SetTimestep(0.005)  # Set timestep to achieve 200 FPS (1/0.005)
+# Initialize PyChrono environment
+chrono.Initialize()
 
-# Create a new system
-my_system = chrono.System()
-my_system.Set_Gravity(ChVectorD(0, -9.81, 0))
+# Set up Irrlicht visualization
+driver = irr.createIrrlichtDevice(irr.EDT_OPENGL, 0, 0, 0, 0)
+scene = driver.getSceneManager()
+environment = scene.addEmptySceneNode()
 
-# Add HMMWV vehicle
-hmmwv = chrono.vehicle.GetVehicle("HMMWV")
-hmmwv.SetChassisVisualizationType(chrono.vehicle.GetVehicle().VISUALIZATION_MESH)
-hmmwv.SetChassisPos(ChVectorD(0, 0.5, 0))
-hmmwv.SetChassisBody(my_system.Get_bodylist().Append(hmmwv.GetChassisBody()))
-my_system.Add(hmmwv)
+# Create and add HMMWV vehicle
+vehicle = chrono.ChVehicle()
+vehicle.SetChassisBody(chrono.ChBodyEasyBox(1.5, 2.5, 1.2, 1000, True))
+vehicle.SetChassisVisualization(chrono.ChVisualShapeBox(1.5, 2.5, 1.2))
+vehicle.SetChassisPos(chrono.ChVectorD(0, 0, 0.5))
+vehicle.SetChassisRot(chrono.ChQuaternionD(1, 0, 0, 0))
+environment.add(vehicle.GetSystem())
 
-# Add SCM terrain
-terrain = chrono.terrain.SCMTerrain()
-terrain.SetAssetPath(chrono.GetChronoDataPath())
-terrain.SetName("terrain")
-terrain.SetSize(100, 100)
+# Add rigid tire model to the vehicle
+tire = chrono.ChTire()
+tire.SetTireType(chrono.ChTire.TIRE_TYPE_RIGID)
+vehicle.Attach(tire, 0, chrono.ChVectorD(0.75, 1.25, 0.25), chrono.ChQuaternionD(0, 0, 0, 1))
+vehicle.Attach(tire, 1, chrono.ChVectorD(0.75, -1.25, 0.25), chrono.ChQuaternionD(0, 0, 0, 1))
+
+# Set up SCM deformable terrain with custom soil parameters
+terrain = chrono.ChTerrainSCM()
+terrain.SetSoilModel(chrono.ChTerrainSCM.SOIL_MODEL_SPRING)
+terrain.SetSoilParams(chrono.ChTerrainSCM.SOIL_PARAMS_DEFAULT)
 terrain.SetMovingPatch(True)
-terrain.SetMovingPatchRadius(5)
-terrain.SetMovingPatchOffset(ChVectorD(0, 0, 0))
-terrain.SetMovingPatchFollowBody(hmmwv.GetChassisBody())
-terrain.SetSoilParams(1.8e6, 0.3, 0.1, 0.05, 0.01)
-terrain.SetVisualizationType(chrono.terrain.SCMTerrain.VISUALIZATION_FALSCOLOR)
-my_system.Add(terrain)
+terrain.SetMovingPatchFollowVehicle(vehicle.GetChassis())
+terrain.SetMovingPatchSize(2, 2)
+terrain.SetMovingPatchUpdateDistance(1)
+environment.add(terrain)
 
-# Add interactive driver system
-driver = chrono.vehicle.GetVehicleDriver("HMMWV")
+# Set up false color plotting for terrain sinkage
+terrain.SetVisualization(chrono.ChVisualShapeTerrainSCM(chrono.ChColor(1, 0, 0), False))
+
+# Set up interactive driver system for steering, throttle, and braking
+driver = chrono.ChVehicleDriver()
 driver.SetSteering(0.5)
 driver.SetThrottle(0.5)
 driver.SetBrake(0)
-my_system.Add(driver)
+vehicle.SetDriver(driver)
 
-# Simulation loop
-while irr.GetDevice().run():
-    my_system.DoStepDynamics(0.005)
-    my_system.DoStepGraphics(0.005)
-    irr.DrawAll()
-    irr.GetDevice().driver.wait()
-    irr.GetDevice().swapBuffers()
+# Set up real-time simulation and rendering
+system = chrono.ChSystemNSC()
+system.SetSolverType(chrono.ChSolver.Type_SOR)
+system.SetSolverSOR(0.5, 1.01)
+system.SetTimestepperType(chrono.ChTimestepper.Type_Euler)
+system.SetTimestepperEuler(0.01)
+system.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BVH)
+system.SetCollisionSystemBVH(chrono.ChCollisionModel.Neptune)
+system.SetMaxPenetrationRecoverySpeed(100)
+system.SetMaxPenetrationRecoveryTime(0.1)
+
+system.Add(vehicle.GetSystem())
+system.Add(terrain)
+
+# Main simulation loop
+while driver.Run():
+    system.DoStepDynamics(0.01)
+    system.DoStepGraphics(0.01)
+    driver.PumpMessages()
+
+chrono.Terminate()
 ```
-
-This script initializes the PyChrono environment and core components, adds the required physical systems and objects, and sets necessary default parameters. Make sure to replace `"HMMWV"` with the actual path to your HMMWV model and textures.
-
-To run the script, save it as `hmmwv_on_scm_terrain.py` and execute it using Python:
-
-```bash
-python hmmwv_on_scm_terrain.py
-```
-
-The script will open an Irrlicht window displaying the HMMWV on the SCM terrain. The vehicle will be controlled by the interactive driver system, and the simulation will run in real-time at 50 frames per second.

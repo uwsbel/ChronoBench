@@ -4,155 +4,128 @@
 
 ### 1. Completeness (40 points)
 
-- **System Initialization:**  
-  The script uses `veh.HMMWV_Full()` which internally creates and manages its own `ChSystem` instance. However, the script never explicitly creates or references a `chrono.ChSystemNSC()` or `chrono.ChSystemSMC()` object. According to the documentation and best practices, the system should be explicitly created and managed, especially since terrain and visualization need to be attached to the same system.  
-  **Deduction: 15 points** (missing explicit system initialization)
+- **System Initialization Missing (Deduct 15 points):**  
+  The script creates a vehicle (`veh.HMMWV_Full()`) and terrain, but **does not explicitly create or initialize the underlying Chrono physical system** (`chrono.ChSystemSMC()` or `chrono.ChSystemNSC()`). The vehicle internally creates a system, but best practice and clarity require explicit system creation and passing it to components or at least attaching visualization to the system. This is essential for clarity and control.
 
-- **Body Creation:**  
-  The vehicle is created via `veh.HMMWV_Full()`, which is appropriate and standard for vehicle simulations. The terrain is created and initialized properly.  
-  No deduction here.
+- **Visualization Initialization Missing (Deduct 10 points):**  
+  The visualization system (`irr.ChVisualSystemIrrlicht()`) is created and configured, but **`vis.Initialize()` is never called**, which is necessary to prepare the visualization window and rendering context before entering the simulation loop.
 
-- **Visualization:**  
-  The visualization system is created via `veh.ChWheeledVehicleVisualSystemIrrlicht()`, which is a specialized visualization system for wheeled vehicles. It is initialized and attached to the vehicle. However, it is not attached to the system explicitly (which is usually done with `vis.AttachSystem(sys)`), but the vehicle's system is implicitly used. This is acceptable given the vehicle visualization system's design.  
-  Minor omission: The script does not add typical lights or a skybox, which are recommended for better visualization.  
-  **Deduction: 2 points** (minor visualization issue)
+- **Simulation Loop Incomplete (Deduct 5 points):**  
+  The simulation loop calls `vis.Run()` twice per iteration (once in the `while` condition and again at the end of the loop), which is redundant and likely a mistake. Also, the loop does not include calls to `vis.BeginScene()`, `vis.Render()`, and `vis.EndScene()`, which are standard for proper rendering in Irrlicht visualization.
 
-- **Terrain Height Map Setup:**  
-  The script loads a height map from a file and sets terrain heights in a nested loop. This is correct, but the terrain is initialized before setting the heights. According to best practices, terrain height data should be set before calling `terrain.Initialize()`.  
-  **Deduction: 10 points** (terrain initialization order incorrect)
+- **Terrain Initialization Parameters (No deduction):**  
+  The terrain is initialized with a heightmap and parameters, which seems correct.
 
-- **Driver Initialization:**  
-  The driver is created and initialized properly.
+- **Driver Initialization (No deduction):**  
+  The driver is initialized properly.
 
-- **Simulation Loop:**  
-  The loop calls `vis.Run()` and advances all modules properly. However, it lacks calls to `vis.BeginScene()`, `vis.Render()`, and `vis.EndScene()`, which are standard for Irrlicht visualization loops to render frames correctly.  
-  **Deduction: 10 points** (missing visualization rendering calls)
-
-**Total Completeness Deduction: 15 + 10 + 10 + 2 = 37 points**  
-**Remaining: 3 points**
+**Total Completeness deduction: 15 + 10 + 5 = 30 points**
 
 ---
 
 ### 2. Correctness (30 points)
 
-- **Use of Vehicle API:**  
-  The vehicle is configured with powertrain, drive type, and tire type before initialization, which is correct.
+- **Vehicle Initialization and Contact Method (No deduction):**  
+  The vehicle is set to use SMC contact method, which matches the terrain's deformable soil model (SMC). This is correct.
 
-- **Terrain Parameters:**  
-  The soil parameters are set with zeros for some parameters (e.g., damping and cohesion), which might be acceptable but could be improved by setting realistic values. This is not a correctness error but a minor issue.
+- **Chassis Collision Type (No deduction):**  
+  Setting chassis collision type to `CollisionType_NONE` is acceptable if no chassis collision is desired.
 
-- **Terrain Height Setting:**  
-  The terrain height is set after initialization, which is incorrect and can cause the terrain to ignore the height map. This is a significant correctness issue.  
-  **Deduction: 15 points**
+- **Visualization Attachment (Incorrect API usage, Deduct 15 points):**  
+  The code calls `vis.AttachVehicle(vehicle.GetVehicle())`. According to the documentation, the visualization system should be attached to the **system** via `vis.AttachSystem(sys)` or to the vehicle's system, not directly to the vehicle object. There is no documented method `AttachVehicle()` in `ChVisualSystemIrrlicht`. This is a significant API misuse and will likely cause runtime errors or no visualization.
 
-- **Visualization Synchronization:**  
-  The call `vis.Synchronize(driver.GetInputModeAsString(), driver_inputs)` is incorrect. According to the PyChrono vehicle visualization API, `Synchronize` expects the current time and driver inputs, not the input mode string. This could cause runtime errors or incorrect visualization behavior.  
-  **Deduction: 15 points**
+- **Light Setup (Minor issue, Deduct 2 points):**  
+  The light is created with `irr.ChLight(irr.ChLight_Type(0))` and then `SetLightType(irr.LIGHT_DIRECTIONAL)`. The constructor argument is unclear or redundant because `irr.LIGHT_DIRECTIONAL` is set later. This is minor but unnecessary complexity.
 
-- **Advancing Simulation:**  
-  The script advances driver, vehicle, terrain, and visualization with the timestep, which is correct.
+- **Simulation Step Advancement (Incorrect method, Deduct 15 points):**  
+  The simulation advances vehicle, terrain, and visualization by calling `Advance(1e-3)` on each. However, the **correct way to advance the simulation is to call `sys.DoStepDynamics(time_step)` on the physical system**. The vehicle and terrain are wrappers around the system, but advancing them individually is not standard and may cause synchronization issues. The documentation shows `sys.DoStepDynamics()` as the standard method.
 
-**Total Correctness Deduction: 15 + 15 = 30 points**  
-**Remaining: 0 points**
+- **Driver Inputs (No deduction):**  
+  Driver inputs are fetched and passed correctly.
+
+**Total Correctness deduction: 15 + 2 + 15 = 32 points (cap at 30 points max)**
 
 ---
 
 ### 3. Code Quality (10 points)
 
-- The code is generally readable with meaningful variable names.
+- **Lack of Comments (Deduct 5 points):**  
+  The code has no comments explaining the purpose of key steps, which reduces readability and maintainability.
 
-- However, there are no comments explaining the purpose of key blocks, which is important for maintainability and clarity.
+- **Variable Naming and Structure (No deduction):**  
+  Variable names are meaningful (`vehicle`, `terrain`, `driver`, `vis`), and the structure is straightforward.
 
-- The nested loops for terrain height setting could be optimized or at least commented.
+- **Formatting (No deduction):**  
+  The code is well formatted.
 
-- The use of hardcoded file paths and parameters without explanation reduces clarity.
-
-**Deduction: 5 points** (lack of comments/documentation)  
-**Remaining: 5 points**
+**Total Code Quality deduction: 5 points**
 
 ---
 
 ### 4. Efficiency (10 points)
 
-- The nested loops for setting terrain heights call `terrain.SetHeight()` repeatedly, which might be inefficient if the API supports batch loading or setting the height map directly.
+- **Redundant `vis.Run()` call inside loop (Deduct 5 points):**  
+  Calling `vis.Run()` twice per loop iteration is unnecessary and inefficient.
 
-- The terrain height map is loaded with `np.loadtxt()` without error checking or caching.
+- **No use of `sys.DoStepDynamics()` (Deduct 3 points):**  
+  Missing the standard system step call is both correctness and efficiency issue, but already deducted under correctness. Still, missing this is an efficiency loss.
 
-- The visualization loop does not use `vis.BeginScene()` and `vis.EndScene()`, which could affect rendering efficiency.
-
-- Minor inefficiency in calling `chrono.ChVectorD(i * 0.05, j * 0.05, terrain_height[i, j])` inside the loop repeatedly without caching step size.
-
-**Deduction: 5 points** (inefficient terrain height setting and visualization calls)  
-**Remaining: 5 points**
+**Total Efficiency deduction: 5 + 3 = 8 points**
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- No error handling for file loading (`terrain_height.dat`), which could cause the script to crash if the file is missing or malformed.
+- **No error handling or checks (Deduct 5 points):**  
+  The code does not check if the data path exists, if the heightmap file is loaded correctly, or if the visualization system initializes successfully. No try-except blocks or validation.
 
-- No checks for valid initialization of vehicle, terrain, or visualization.
-
-- No try-except blocks or warnings.
-
-**Deduction: 5 points** (lack of basic error handling)  
-**Remaining: 0 points**
+**Total Error Handling deduction: 5 points**
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
-- Visualization system is created and initialized properly.
+- **Missing `vis.Initialize()` (Deduct 3 points):**  
+  Visualization system is not initialized.
 
-- Missing calls to `vis.BeginScene()`, `vis.Render()`, and `vis.EndScene()` in the simulation loop, which are essential for proper rendering.
+- **No calls to `vis.BeginScene()`, `vis.Render()`, `vis.EndScene()` (Deduct 3 points):**  
+  These calls are essential for proper rendering each frame.
 
-- Lighting setup is minimal: only `vis.AddLightDirectional()` is called, but no skybox or typical lights.
+- **Light setup is minimal but acceptable (No deduction).**
 
-- The logo is added, but the path concatenation is manual and could be replaced with `chrono.GetChronoDataFile()` for robustness.
-
-**Deduction: 4 points** (missing rendering calls and suboptimal lighting setup)  
-**Remaining: 1 point**
-
----
-
-### Summary of Deductions
-
-| Criterion                     | Points | Deduction | Remaining |
-|-------------------------------|--------|-----------|-----------|
-| Completeness                  | 40     | 37        | 3         |
-| Correctness                  | 30     | 30        | 0         |
-| Code Quality                 | 10     | 5         | 5         |
-| Efficiency                  | 10     | 5         | 5         |
-| Error Handling and Robustness | 5      | 5         | 0         |
-| Visualization Tools          | 5      | 4         | 1         |
-| **Total**                   | 100    | 86        | **14**    |
+**Total Visualization deduction: 3 + 3 = 6 points (cap at 5 points max)**
 
 ---
 
-### Final score: [[14]]
+### Summary of deductions:
+
+| Criterion                  | Points | Deduction | Notes                                      |
+|----------------------------|--------|-----------|--------------------------------------------|
+| Completeness               | 40     | 30        | Missing system init, vis init, loop issues |
+| Correctness               | 30     | 30        | Wrong API calls for visualization and stepping |
+| Code Quality              | 10     | 5         | No comments                                |
+| Efficiency                | 10     | 8         | Redundant calls, missing standard step    |
+| Error Handling & Robustness| 5      | 5         | No error handling                          |
+| Visualization             | 5      | 5         | Missing init and rendering calls           |
+
+**Total deductions: 30 + 30 + 5 + 8 + 5 + 5 = 83 points**
+
+---
+
+### Final score:
+
+40 + 0 + 5 + 2 + 0 + 0 = 47 points
+
+But since total is 100 points, and deductions are 83, score = 100 - 83 = 17 points.
 
 ---
 
 ### Explanation:
 
-The script demonstrates a reasonable attempt at setting up a vehicle simulation with terrain and visualization using PyChrono. However, it misses critical components such as explicit system initialization, correct terrain height map setup order, and proper visualization rendering calls. The incorrect use of the visualization `Synchronize` method is a significant correctness error that could break the simulation. The lack of error handling and minimal comments reduce robustness and maintainability. Minor inefficiencies and visualization setup issues further reduce the score.
+The script shows a reasonable attempt to set up a vehicle simulation with terrain and visualization. However, it misses critical components such as explicit system initialization, proper visualization initialization, and correct simulation stepping. The visualization setup misuses the API by attaching a vehicle instead of the system, and the simulation loop lacks proper rendering calls. The code also lacks comments and error handling, which are important for robustness and maintainability. Redundant calls and missing standard API usage reduce efficiency.
 
-To improve, the script should:
+---
 
-- Explicitly create and manage a `ChSystemNSC` or `ChSystemSMC` and attach all components to it.
+**Final score:**
 
-- Set terrain heights before calling `terrain.Initialize()`.
-
-- Use `vis.BeginScene()`, `vis.Render()`, and `vis.EndScene()` inside the simulation loop.
-
-- Correct the arguments passed to `vis.Synchronize()`.
-
-- Add error handling for file loading.
-
-- Add comments explaining key steps.
-
-- Improve visualization lighting and environment setup.
-
-- Use `chrono.GetChronoDataFile()` for resource paths.
-
-These changes would significantly improve completeness, correctness, and overall quality.
+[[17]]

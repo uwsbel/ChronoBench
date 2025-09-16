@@ -1,66 +1,62 @@
 import chrono
-import irrlicht
+from chrono import ChVector, ChQuaternion, ChCoordsys, ChBody, ChLinkMate, ChLinkMotorRotationAxis, ChLinkEngine
+from chrono.irrlicht import IrrApp
 
 
-chrono.SetChronoDataPath('path/to/chrono/data/')
-my_ ChronoEngine = chrono.ChronoEngine()
-my_ ChronoSystem = my_ ChronoEngine.GetChronoSystem()
-
-
-
-ground = my_ ChronoSystem.AddBody(chrono.Body(my_ ChronoSystem.GetCollisionSystem()))
-ground_shape = ground.AddShape(chrono.BoxShape(100, 0.1, 100))
-
-
-truss = my_ ChronoSystem.AddBody(chrono.Body(my_ ChronoSystem.GetCollisionSystem()))
-truss_shape = truss.AddShape(chrono.TrussShape(
-    [chrono.ChVector3(0, 0, 0), chrono.ChVector3(5, 5, 0), chrono.ChVector3(5, -5, 0)],  
-    [chrono.ChVector3(0, 0, 0), chrono.ChVector3(5, 5, 0), chrono.ChVector3(5, -5, 0)],  
-    1,  
-    0.1  
-))
-
-
-bar = my_ ChronoSystem.AddBody(chrono.Body(my_ ChronoSystem.GetCollisionSystem()))
-bar_shape = bar.AddShape(chrono.CylinderShape(0.2, 1, chrono.ChCoordsys(0, 0, 0)))
-bar_joint = my_ ChronoSystem.AddJoint(chrono.RevoluteJoint(ground, chrono.ChCoordsys(0, 0, 0)))
-bar_joint.AddBody(bar)
-
-
-gear1 = my_ ChronoSystem.AddBody(chrono.Body(my_ ChronoSystem.GetCollisionSystem()))
-gear1_shape = gear1.AddShape(chrono.CylinderShape(0.2, 0.5, chrono.ChCoordsys(0, 0, 0)))
-gear2 = my_ ChronoSystem.AddBody(chrono.Body(my_ ChronoSystem.GetCollisionSystem()))
-gear2_shape = gear2.AddShape(chrono.CylinderShape(0.2, 0.5, chrono.ChCoordsys(0, 0, 0)))
-
-
-gear_motor = my_ ChronoSystem.AddJoint(chrono.GearJoint(gear1, gear2, 20, 1))
+chrono.SetChDir('path/to/your/chrono/data/folder')
+my_irr_app = IrrApp(window_size=(800, 600), irr_driver_type=chrono.ChDriverType.IrrDriverTypeOpenGL)
+my_system = chrono.ChSystemSMC()
 
 
 
-ground.SetPos(chrono.ChVector3(0, 0, 0))
-truss.SetPos(chrono.ChVector3(0, 0, 0))
-bar.SetPos(chrono.ChVector3(0, 2, 0))
-gear1.SetPos(chrono.ChVector3(3, 0, 0))
-gear2.SetPos(chrono.ChVector3(7, 0, 0))
+truss_body = ChBody(mass=0, ChVector(0, 0, 0))
+my_system.AddBody(truss_body)
+truss_shape = chrono.ChBoxShape(half_extents=ChVector(0.1, 0.1, 0.1))
+truss_body.AddShape(truss_shape)
 
 
-bar_joint.SetMotorSpeed(10)
+bar_body = ChBody(mass=1, ChVector(0, 0, 0))
+my_system.AddBody(bar_body)
+bar_shape = chrono.ChCylinderShape(radius=0.05, length=1)
+bar_body.AddShape(bar_shape)
+bar_body.SetPos(ChVector(0, 0.5, 0))
+bar_body.SetBodyFixed(True)
 
 
-my_ ChronoEngine.SetVisualizationType(chrono.VISUALIZATION_TYPE_IRRLICHT)
-my_ ChronoEngine.InitIrrlicht()
+gear1_body = ChBody(mass=1, ChVector(0, 0, 0))
+my_system.AddBody(gear1_body)
+gear1_shape = chrono.ChCylinderShape(radius=0.1, length=0.2)
+gear1_body.AddShape(gear1_shape)
+gear1_body.SetPos(ChVector(1.2, 0.5, 0))
 
 
-device = my_ ChronoEngine.GetIrrlichtDevice()
-driver = device.get_driver()
-scene = device.get_scene_manager()
-smgr = scene.get_scene_node_from_id(0)
-smgr.set_material_type(irrlicht.EMT_SOLID)
-smgr.set_material_flag(irrlicht.EMF_LIGHTING, False)
-
-ambient_light = irrlicht.vector3df(0.2, 0.2, 0.2)
-device.get_scene_manager().set_ambient_light(ambient_light)
+gear2_body = ChBody(mass=1, ChVector(0, 0, 0))
+my_system.AddBody(gear2_body)
+gear2_shape = chrono.ChCylinderShape(radius=0.1, length=0.2)
+gear2_body.AddShape(gear2_shape)
+gear2_body.SetPos(ChVector(2.2, 0.5, 0))
 
 
-my_ ChronoSystem.DoStepDynamics(1 / 60.0)
-device.get_video_driver().run()
+gear_motor = ChLinkMotorRotationAxis()
+gear_motor.Initialize(gear1_body, gear2_body, chrono.ChFrame(ChVector(1.2, 0.5, 0), ChVector(0, 0, 1)))
+gear_motor.SetMotorSpeeds(10, 10)  
+my_system.AddLink(gear_motor)
+
+
+my_system.Set_G_acc(ChVector(0, 0, -9.81))
+
+
+my_irr_app.AssetList.Add(truss_shape.GetIRRShape())
+my_irr_app.AssetList.Add(bar_shape.GetIRRShape())
+my_irr_app.AssetList.Add(gear1_shape.GetIRRShape())
+my_irr_app.AssetList.Add(gear2_shape.GetIRRShape())
+
+my_irr_app.AddLightWithShadow(chrono.ChVector(0, 10, 0), chrono.ChVector(0, -1, 0), 500)
+my_irr_app.AddCamera(chrono.ChVector(0, 10, -10), chrono.ChVector(0, 0, 0))
+
+
+while my_irr_app.GetDevice().Run():
+    my_irr_app.BeginScene()
+    my_system.DoStepDynamics(my_irr_app.GetTimeStep())
+    my_irr_app.DrawAll()
+    my_irr_app.EndScene()

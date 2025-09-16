@@ -3,12 +3,13 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
+# Set the path to the Chrono data directory
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 # Initial vehicle location and orientation
-initLoc = chrono.ChVector3d(0, 0, 0.5)
-initRot = chrono.ChQuaterniond(1, 0, 0, 0)
+initLoc = chrono.ChVectorD(0, 0, 0.5)
+initRot = chrono.ChQuaternionD(1, 0, 0, 0)
 
 # Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
 vis_type = veh.VisualizationType_MESH
@@ -17,16 +18,15 @@ vis_type = veh.VisualizationType_MESH
 chassis_collision_type = veh.CollisionType_NONE
 
 # Type of tire model (RIGID, TMEASY)
-tire_model = veh.TireModelType_RIGID  # Changed tire model to RIGID
+tire_model = veh.TireModelType_RIGID  # Changed from TMEASY to RIGID
 
 # Rigid terrain
-# terrain_model = veh.RigidTerrain.BOX
 terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
 
-# Poon chassis tracked by the camera
-trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
+# Point on the vehicle chassis tracked by the camera
+trackPoint = chrono.ChVectorD(-3.0, 0.0, 1.1)
 
 # Contact method
 contact_method = chrono.ChContactMethod_NSC
@@ -44,7 +44,7 @@ vehicle = veh.UAZBUS()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
-vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
+vehicle.SetInitPosition(chrono.ChCoordsysD(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 
@@ -64,7 +64,7 @@ patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 patch = terrain.AddPatch(patch_mat, 
-    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
+    chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT), 
     terrainLength, terrainWidth)
 
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
@@ -76,7 +76,7 @@ box_mat = chrono.ChMaterialSurfaceNSC()
 box_mat.SetFriction(0.9)
 box_mat.SetRestitution(0.01)
 box = chrono.ChBodyEasyBox(vehicle.GetSystem(), 0.5, 5, 0.2, 1000, True, box_mat)
-box.SetPos(chrono.ChVector3d(5, 0, 0.1))
+box.SetPos(chrono.ChVectorD(5, 0, 0.1))
 box.SetBodyFixed(True)
 
 # Create the vehicle Irrlicht interface
@@ -103,16 +103,13 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 
 driver.Initialize()
 
-# Set a constant throttle value to move the vehicle forward
-driver.SetThrottle(0.5)
-
-# output vehicle mass
-print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+# Output vehicle mass
+print("VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
 
-# Initialize simulation frame counter s
+# Initialize simulation frame counter
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
@@ -128,6 +125,9 @@ while vis.Run() :
 
     # Get driver inputs
     driver_inputs = driver.GetInputs()
+
+    # Set a constant throttle value of 0.5
+    driver_inputs.m_throttle = 0.5
 
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)

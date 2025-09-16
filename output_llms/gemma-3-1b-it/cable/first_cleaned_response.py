@@ -1,83 +1,54 @@
 import pychrono
 import pychrono.core as pc
+import pychrono.visual as cv
 import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib.animation as animation
+from mpl_toolkits.mplot3d import Axes3D
 
-
-try:
+def simulate_beam(num_elements=100, gravity=9.81, initial_position=(0, 0, 0)):
     
-    chrono = pc.Chrono()
 
     
-    system_params = {
-        "name": "Beam",
-        "type": "ANCF",
-        "num_elements": 10,  
-        "cable_length": 1.0, 
-        "cable_radius": 0.1, 
-        "gravity_magnitude": 9.81, 
-        "gravity_direction": (0, 0, -1) 
-    }
+    env = pc.Environment()
 
     
     
-    elements = [
-        pc.Element("cable",  
-                 cable_length=system_params["cable_length"],
-                 cable_radius=system_params["cable_radius"],
-                 gravity_direction=system_params["gravity_direction"],
-                 mass=1000.0, 
-                 num_segments=5) 
-
-    ]
-
+    elements = []
+    for i in range(num_elements):
+        
+        x, y, z = initial_position
+        elements.append(pc.Point(x, y, z))
 
     
-    
-    simulation_time = 10.0  
-    chrono.set_simulation_time(simulation_time)
+    env.set_physics_system(pc.System(elements))
+    env.set_gravity(gravity)
+    env.set_time(pc.Time(0)) 
 
     
-    fig, ax = plt.subplots()
-    ax.set_xlim(-1.5, 1.5)  
-    ax.set_ylim(-1.5, 1.5)
-    ax.set_aspect('equal')
-    ax.set_title("Beam Simulation")
-    ax.set_xlabel("X")
-    ax.set_ylabel("Y")
-    ax.grid(True)
+    for t in range(pc.Time(0), pc.Time(pc.Time(0) + 10)):  
+        
+        env.update_physics()
 
-    def animate(i):
-        
-        element = elements[i]
-        x = element.x
-        y = element.y
         
         
-        element.x += element.gravity_direction[0] * simulation_time
-        element.y += element.gravity_direction[1] * simulation_time
-        
-        
-        ax.clear() 
-        ax.set_xlim(-1.5, 1.5)
-        ax.set_ylim(-1.5, 1.5)
-        ax.set_aspect('equal')
-        ax.set_title("Beam Simulation")
-        ax.set_xlabel("X")
-        ax.set_ylabel("Y")
-        ax.grid(True)
-        
-        
-        element.x = x
-        element.y = y
-        
-        return ax
+        fig = cv.figure()
+        ax = fig.add_subplot(111, projection='3d')
 
-    ani = animation.FuncAnimation(fig, animate, frames=len(elements), blit=True, repeat=False)
-    plt.show()
+        
+        for element in elements:
+            
+            deformation = np.array([element.x, element.y, element.z])
+            ax.plot(deformation, color='blue')  
+        
+        
+        ax.set_xlim([-1.5, 1.5])
+        ax.set_ylim([-1.5, 1.5])
+        ax.set_zlim([-1.5, 1.5])
+        
+        
+        cv.show()
 
-except Exception as e:
-    print(f"Error initializing Chrono: {e}")
-    print("Please ensure PyChrono is installed correctly and that your system has the necessary dependencies.")
-    print("Consider installing 'pychrono-dependencies' if you encounter issues.")
+    env.close()
+
+if __name__ == '__main__':
+    simulate_beam(num_elements=100, gravity=9.81, initial_position=(0, 0, 0))

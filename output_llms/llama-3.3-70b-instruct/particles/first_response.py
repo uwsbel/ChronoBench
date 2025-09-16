@@ -1,101 +1,83 @@
+# Import necessary modules
 import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
+import pychrono.pardisomkl as chronopardisomkl
 import numpy as np
 
-# Create the simulation system
-sys = chrono.ChSystem()
+# Initialize the PyChrono environment and core components
+sys = chrono.ChSystemNSC()
 
-# Set the gravity vector
-sys.Set_G_acc(chrono.ChVectorD(0, 0, 0))  # No gravity in this simulation
+# Set the default contact material properties
+contact_material = chrono.ChMaterialSurfaceNSC()
+contact_material.SetFriction(0.5)
+contact_material.SetRestitution(0.5)
+contact_material.SetYoungModulus(1e6)
+
+# Create the particle emitter
+class ParticleEmitter:
+    def __init__(self, sys):
+        self.sys = sys
+        self.particles = []
+
+    def emit_particle(self):
+        # Generate random shape, position, velocity, and orientation
+        shape = np.random.choice(['sphere', 'box', 'cylinder'])
+        pos = chrono.ChVectorD(np.random.uniform(-10, 10), np.random.uniform(-10, 10), np.random.uniform(-10, 10))
+        vel = chrono.ChVectorD(np.random.uniform(-1, 1), np.random.uniform(-1, 1), np.random.uniform(-1, 1))
+        rot = chrono.Q_from_AngXAxis(np.random.uniform(0, np.pi))
+
+        # Create the particle
+        if shape == 'sphere':
+            particle = chrono.ChBodyEasySphere(self.sys, 1, 1000, contact_material)
+        elif shape == 'box':
+            particle = chrono.ChBodyEasyBox(self.sys, 1, 1, 1, 1000, contact_material)
+        elif shape == 'cylinder':
+            particle = chrono.ChBodyEasyCylinder(self.sys, 1, 1, 1000, contact_material)
+
+        # Set the particle's position, velocity, and orientation
+        particle.SetPos(pos)
+        particle.SetPos_dt(vel)
+        particle.SetRot(rot)
+
+        # Add the particle to the system
+        self.sys.Add(particle)
+        self.particles.append(particle)
+
+# Create the particle emitter and emit particles
+emitter = ParticleEmitter(sys)
+for _ in range(100):
+    emitter.emit_particle()
+
+# Create the custom gravitational force
+class CustomGravitationalForce(chrono.ChForce):
+    def __init__(self):
+        super().__init__()
+
+    def ComputeF(self, x, v, m):
+        force = chrono.ChVectorD(0, 0, 0)
+        for particle in emitter.particles:
+            if particle != self.GetBody():
+                distance = (particle.GetPos() - self.GetBody().GetPos()).Length()
+                force += (particle.GetPos() - self.GetBody().GetPos()) / distance * 0.1
+        return force
+
+# Apply the custom gravitational force to each particle
+for particle in emitter.particles:
+    force = CustomGravitationalForce()
+    particle.AddForce(force)
 
 # Create the Irrlicht visualization
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AddSkyBox()
 vis.AddTypicalLights()
-vis.AddCamera(chrono.ChVectorD(0, 0, 5))
-vis.AddCamera(chrono.ChVectorD(0, 0, -5))
-vis.SetWindowSize(800, 600)
-vis.SetWindowTitle("Gravitational Attraction between Particles")
-
-class ParticleEmitter:
-    def __init__(self, num_particles):
-        self.num_particles = num_particles
-        self.particles = []
-
-    def emit_particles(self):
-        for _ in range(self.num_particles):
-            # Random shape (sphere, box, or cylinder)
-            shape_type = np.random.choice(["sphere", "box", "cylinder"])
-
-            # Random position
-            x = np.random.uniform(-5, 5)
-            y = np.random.uniform(-5, 5)
-            z = np.random.uniform(-5, 5)
-            position = chrono.ChVectorD(x, y, z)
-
-            # Random velocity
-            vx = np.random.uniform(-1, 1)
-            vy = np.random.uniform(-1, 1)
-            vz = np.random.uniform(-1, 1)
-            velocity = chrono.ChVectorD(vx, vy, vz)
-
-            # Random orientation
-            rx = np.random.uniform(0, np.pi)
-            ry = np.random.uniform(0, np.pi)
-            rz = np.random.uniform(0, np.pi)
-            rotation = chrono.ChQuaternionD(rx, ry, rz)
-
-            # Create the particle
-            if shape_type == "sphere":
-                particle = chrono.ChBodyEasySphere(sys, 0.1, 1000, True)
-            elif shape_type == "box":
-                particle = chrono.ChBodyEasyBox(sys, chrono.ChVectorD(0.1, 0.1, 0.1), 1000, True)
-            elif shape_type == "cylinder":
-                particle = chrono.ChBodyEasyCylinder(sys, chrono.ChVectorD(0.1, 0.1, 0.1), 1000, True)
-
-            # Set the particle's position, velocity, and orientation
-            particle.SetPos(position)
-            particle.SetPos_dt(velocity)
-            particle.SetRot(rotation)
-
-            # Add the particle to the system
-            sys.Add(particle)
-
-            # Add the particle to the list
-            self.particles.append(particle)
-
-# Create the particle emitter
-emitter = ParticleEmitter(100)
-emitter.emit_particles()
-
-class CustomGravitationalForce(chrono.ChForce):
-    def __init__(self, particle):
-        super().__init__()
-        self.particle = particle
-        self.G = 0.1  # Gravitational constant
-
-    def ComputeF(self, xnew, vnew, xold, vold, time):
-        force = chrono.ChVectorD(0, 0, 0)
-        for other_particle in emitter.particles:
-            if other_particle != self.particle:
-                distance = (other_particle.GetPos() - self.particle.GetPos()).Length()
-                if distance > 0:
-                    force += (other_particle.GetPos() - self.particle.GetPos()) / distance * self.G / distance**2
-        return force
-
-# Add the custom gravitational force to each particle
-for particle in emitter.particles:
-    force = CustomGravitationalForce(particle)
-    particle.AddForce(force)
-
-# Set the time step and the total simulation time
-time_step = 0.01
-total_time = 10
+vis.AddCamera(chrono.ChVectorD(0, 0, 20))
+vis.AddTypicalCameraTracks()
+vis.SetWindowSize(1024, 768)
+vis.SetLogo("")
 
 # Run the simulation
-while sys.GetChTime() < total_time:
-    sys.DoStepDynamics(time_step)
+while vis.Run():
+    sys.DoStepDynamics(0.01)
     vis.BeginScene()
     vis.DrawAll()
     vis.EndScene()
-    vis.Run()

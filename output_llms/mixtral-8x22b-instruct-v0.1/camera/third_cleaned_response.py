@@ -15,7 +15,7 @@ def main():
     
     
     
-    side = 1  
+    side = 1
     box = chrono.ChBodyEasyBox(side, side, side, 1000)
     box.SetPos(chrono.ChVector3d(0, 0, 0))  
     box.SetBodyFixed(True)  
@@ -44,11 +44,11 @@ def main():
     
     cam = sens.ChCameraSensor(
         box,              
-        update_rate,      
-        offset_pose,      
-        image_width,      
-        image_height,     
-        fov               
+        update_rate,            
+        offset_pose,            
+        image_width,            
+        image_height,           
+        fov                     
     )
     cam.SetName("Camera Sensor")
     cam.SetLag(lag)  
@@ -136,6 +136,9 @@ def main():
 
 
 noise_model = "CONST_NORMAL"  
+
+
+
 
 
 update_rate = 30

@@ -1,25 +1,26 @@
 import pychrono as ch
 import pychrono.vehicle as veh
 import pychrono.ros as chros
-import pychrono.sensor as sens
 from pychrono import irrlicht as chronoirr
+import pychrono.sensor as sens
 import math
 
 def main():
-    veh.SetDataPath(ch.GetChronoDataPath() + 'vehicle/')
     
+    veh.SetDataPath(ch.GetChronoDataPath() + 'vehicle/')
     hmmwv = veh.HMMWV_Full()
-    hmmwv.SetContactMethod(ch.ChContactMethod_NSC)  
-    hmmwv.SetChassisCollisionType(veh.CollisionType_NONE)  
-    hmmwv.SetChassisFixed(False)  
-    hmmwv.SetInitPosition(ch.ChCoordsysd(ch.ChVector3d(0, 0, 1.6), ch.ChQuaterniond(1, 0, 0, 0)))  
-    hmmwv.SetEngineType(veh.EngineModelType_SHAFTS)  
-    hmmwv.SetTransmissionType(veh.TransmissionModelType_AUTOMATIC_SHAFTS)  
-    hmmwv.SetDriveType(veh.DrivelineTypeWV_AWD)  
-    hmmwv.SetSteeringType(veh.SteeringTypeWV_PITMAN_ARM)  
-    hmmwv.SetTireType(veh.TireModelType_TMEASY)  
-    hmmwv.SetTireStepSize(1e-3)  
-    hmmwv.Initialize()  
+    hmmwv.SetContactMethod(ch.ChContactMethod_NSC)
+    hmmwv.SetChassisCollisionType(veh.CollisionType_NONE)
+    hmmwv.SetChassisFixed(False)
+    hmmwv.SetInitPosition(ch.ChCoordsysd(ch.ChVector3d(0, 0, 1.6), ch.ChQuaterniond(1, 0, 0, 0)))
+    hmmwv.SetEngineType(veh.EngineModelType_SHAFTS)
+    hmmwv.SetTransmissionType(veh.TransmissionModelType_AUTOMATIC_SHAFTS)
+    hmmwv.SetDriveType(veh.DrivelineTypeWV_AWD)
+    hmmwv.SetSteeringType(veh.SteeringTypeWV_PITMAN_ARM)
+    hmmwv.SetTireType(veh.TireModelType_TMEASY)
+    hmmwv.SetTireStepSize(1e-3)
+    hmmwv.Initialize()
+
     hmmwv.SetChassisVisualizationType(veh.VisualizationType_MESH)
     hmmwv.SetSuspensionVisualizationType(veh.VisualizationType_MESH)
     hmmwv.SetSteeringVisualizationType(veh.VisualizationType_MESH)
@@ -28,16 +29,16 @@ def main():
 
     
     terrain = veh.RigidTerrain(hmmwv.GetSystem())
-    patch_mat = ch.ChContactMaterialNSC()  
-    patch_mat.SetFriction(0.9)  
-    patch_mat.SetRestitution(0.01)  
-    patch = terrain.AddPatch(patch_mat, ch.CSYSNORM, 100.0, 100.0)  
+    patch_mat = ch.ChContactMaterialNSC()
+    patch_mat.SetFriction(0.9)
+    patch_mat.SetRestitution(0.01)
+    patch = terrain.AddPatch(patch_mat, ch.CSYSNORM, 100.0, 100.0)
     patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 100, 100)
-    terrain.Initialize()  
+    terrain.Initialize()
 
     
-    box_body = ch.ChBodyEasyBox(2, 2, 2, 1000, True, True)
-    box_body.SetPos(ch.ChVector3d(0, 0, 2))
+    box_body = ch.ChBodyEasyBox(1, 1, 1, 1000, True, True)
+    box_body.SetPos(ch.ChVector3d(10, 0, 0.5))
     hmmwv.GetSystem().Add(box_body)
 
     
@@ -49,60 +50,77 @@ def main():
     vis.Initialize()
     vis.AddLogo(ch.GetChronoDataFile('logo_pychrono_alpha.png'))
     vis.AddSkyBox()
-    vis.AddCamera(ch.ChVector3d(-5, 2.5, 1.5), ch.ChVector3d(0, 0, 1))  
+    vis.AddCamera(ch.ChVector3d(-5, 2.5, 1.5), ch.ChVector3d(0, 0, 1))
     vis.AddTypicalLights()
     vis.AddLightWithShadow(ch.ChVector3d(1.5, -2.5, 5.5), ch.ChVector3d(0, 0, 0.5), 3, 4, 10, 40, 512)
 
     
     driver = veh.ChDriver(hmmwv.GetVehicle())
-    driver.Initialize()  
+    driver.Initialize()
 
     
     ros_manager = chros.ChROSPythonManager()
-    ros_manager.RegisterHandler(chros.ChROSClockHandler())  
+    ros_manager.RegisterHandler(chros.ChROSClockHandler())
     ros_manager.RegisterHandler(chros.ChROSDriverInputsHandler(25, driver, "~/input/driver_inputs"))
     ros_manager.RegisterHandler(chros.ChROSBodyHandler(25, hmmwv.GetChassisBody(), "~/output/hmmwv/state"))
 
     
-    sens_manager = sens.ChSensorManager(hmmwv.GetSystem())
+    if not ros_manager.Initialize():
+        return
+
     
-    lidar = sens.ChLidarSensor(box_body, 10, ch.ChFrame(ch.ChVector3d(0, 0, 0), ch.Q_from_AngAxis(0, ch.ChVector3d(0, 1, 0))), 100, ch.ChVector3d(0, 0, 1), 10, -45, 45, 200)
-    lidar.PushFilter(sens.ChFilterDIAccess())
-    lidar.PushFilter(sens.ChFilterPCfromDepth())
-    lidar.PushFilter(sens.ChFilterVisualize(800, 600, "Lidar Depth Data"))
+    sens_manager = sens.ChSensorManager(hmmwv.GetSystem())
+
+    
+    lidar = sens.ChLidarSensor(hmmwv.GetChassisBody(), 10, ch.ChFrame(ch.ChVector3d(0, 0, 1), ch.Q_from_AngZ(0)), 900, 30, ch.ChVector3d(0.5, 0, 0.2), ch.ChVector3d(3, 3, 0.1))
+    lidar.SetName("Lidar")
+    lidar.PushFilter(sens.ChFilterDIArea())
+    lidar.PushFilter(sens.ChFilterVisualize(256, 256, 1))
+    lidar.PushFilter(sens.ChFilterLidarReduce(4))
+    lidar.PushFilter(sens.ChFilterLidarIntensityNormalize(100))
+    lidar.PushFilter(sens.ChFilterLidarRangeClip(10, 50))
+    lidar.PushFilter(sens.ChFilterXYZReturn(0))
     sens_manager.AddSensor(lidar)
+
     
     ros_manager.RegisterHandler(chros.ChROSLidarHandler(25, lidar, "~/output/lidar"))
 
-    ros_manager.Initialize()  
-
     
     time = 0
-    time_step = 1e-3  
-    time_end = 30  
-    step_number = 0
-    render_step_size = 1.0 / 25  
+    time_step = 1e-3
+    time_end = 30
+    render_step_size = 1.0 / 25
     render_steps = math.ceil(render_step_size / time_step)
-    hmmwv.GetVehicle().EnableRealtime(True)  
-    while vis.Run():  
-        time = hmmwv.GetSystem().GetChTime()  
+    step_number = 0
+    hmmwv.GetVehicle().EnableRealtime(True)
+
+    while vis.Run():
+        time = hmmwv.GetSystem().GetChTime()
+
+        
         if (step_number % render_steps == 0):
             vis.BeginScene()
             vis.Render()
             vis.EndScene()
-        driver_inputs = driver.GetInputs()
-        driver.Synchronize(time)  
-        terrain.Synchronize(time)  
-        hmmwv.Synchronize(time, driver_inputs, terrain)  
 
+        
+        driver_inputs = driver.GetInputs()
+        driver.Synchronize(time)
+        terrain.Synchronize(time)
+        hmmwv.Synchronize(time, driver_inputs, terrain)
+
+        
         driver.Advance(time_step)
         terrain.Advance(time_step)
         hmmwv.Advance(time_step)
 
-        sens_manager.Update()  
+        
+        sens_manager.Update()
 
+        
         if not ros_manager.Update(time, time_step):
-            break  
+            break
+
         step_number += 1
 
 if __name__ == "__main__":

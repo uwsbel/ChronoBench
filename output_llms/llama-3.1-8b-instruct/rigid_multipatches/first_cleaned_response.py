@@ -1,104 +1,73 @@
 import chrono as ch
-import chrono.iron as ir
-import chrono.terrain as tr
-import chrono.utils as utils
-import chrono.irrlicht as irr
+import chrono_irrlicht as chirr
 
 
-ch.init()
-ir.init()
-tr.init()
-irr.init()
+ch.InitChrono()
 
 
-vehicle = ch.ChBody()
-vehicle.SetName("HMMWV")
-vehicle.SetMass(1500.0)
-vehicle.SetDensity(8000.0)
+sim = ch.Simulation()
+env = chirr.IrrlichtEnvironment(sim)
+vis = chirr.IrrlichtVisualizer(sim)
 
 
-vehicle.SetPos(0, 0, 0)
+vehicle_pos = ch.Vec3(0, 0, 0)
+vehicle_eng = ch.EngineType.Hydrogen
+vehicle_dt = ch.DrivetrainType.RearWheelDrive
 
 
-vehicle.SetEngineType(ch.ChEngineType.VEHICLE_ENGINE)
-vehicle.SetDrivetrainType(ch.ChDrivetrainType.VEHICLE_DRIVETRAIN)
+vehicle = ch.Body()
+vehicle.SetPos(vehicle_pos)
+vehicle.SetEngineType(vehicle_eng)
+vehicle.SetDrivetrainType(vehicle_dt)
+vehicle.AddMesh(chirr.LoadMesh('path/to/hmmwv_mesh.obj'))
+sim.Add(vehicle)
 
 
-wheel1 = ch.ChBody()
-wheel1.SetName("Wheel1")
-wheel1.SetMass(50.0)
-wheel1.SetDensity(5000.0)
-wheel1.SetPos(0, 1, 0)
-vehicle.AddAttachPoint(wheel1, "wheel1")
-wheel2 = ch.ChBody()
-wheel2.SetName("Wheel2")
-wheel2.SetMass(50.0)
-wheel2.SetDensity(5000.0)
-wheel2.SetPos(0, -1, 0)
-vehicle.AddAttachPoint(wheel2, "wheel2")
-wheel3 = ch.ChBody()
-wheel3.SetName("Wheel3")
-wheel3.SetMass(50.0)
-wheel3.SetDensity(5000.0)
-wheel3.SetPos(1, 0, 0)
-vehicle.AddAttachPoint(wheel3, "wheel3")
-wheel4 = ch.ChBody()
-wheel4.SetName("Wheel4")
-wheel4.SetMass(50.0)
-wheel4.SetDensity(5000.0)
-wheel4.SetPos(-1, 0, 0)
-vehicle.AddAttachPoint(wheel4, "wheel4")
+terrain_patches = [
+    ch.Patch(chirr.LoadTexture('path/to/patch1_texture.png'), ch.Vec3(0, 0, 0), ch.Vec3(10, 10, 0)),
+    ch.Patch(chirr.LoadTexture('path/to/patch2_texture.png'), ch.Vec3(10, 0, 0), ch.Vec3(10, 10, 0)),
+    ch.Patch(chirr.LoadMesh('path/to/bump_mesh.obj'), ch.Vec3(0, 0, 10), ch.Vec3(10, 10, 10)),
+    ch.Patch(chirr.LoadHeightmap('path/to/heightmap.dat'), ch.Vec3(10, 0, 10), ch.Vec3(10, 10, 10))
+]
 
 
-vehicle.SetMesh(irr.MeshCreateFromFile("hmmwv.obj"))
+terrain = ch.Terrain()
+terrain.AddPatch(terrain_patches[0])
+terrain.AddPatch(terrain_patches[1])
+terrain.AddPatch(terrain_patches[2])
+terrain.AddPatch(terrain_patches[3])
+sim.Add(terrain)
 
 
-terrain = tr.ChTerrain()
-terrain.SetName("Terrain")
-terrain.SetSize(10, 10)
+driver = ch.Driver()
+driver.SetSteeringGain(1.0)
+driver.SetThrottleGain(1.0)
+driver.SetBrakingGain(1.0)
+sim.Add(driver)
 
 
-flat_patch1 = tr.ChTerrainPatch()
-flat_patch1.SetName("Flat Patch 1")
-flat_patch1.SetTexture("flat_texture1.png")
-flat_patch1.SetPosition(0, 0, 0)
-terrain.AddPatch(flat_patch1)
-
-flat_patch2 = tr.ChTerrainPatch()
-flat_patch2.SetName("Flat Patch 2")
-flat_patch2.SetTexture("flat_texture2.png")
-flat_patch2.SetPosition(5, 0, 0)
-terrain.AddPatch(flat_patch2)
-
-bump_patch = tr.ChTerrainPatch()
-bump_patch.SetName("Bump Patch")
-bump_patch.SetMesh(irr.MeshCreateFromFile("bump.obj"))
-bump_patch.SetPosition(2, 0, 0)
-terrain.AddPatch(bump_patch)
-
-heightmap_patch = tr.ChTerrainPatch()
-heightmap_patch.SetName("Heightmap Patch")
-heightmap_patch.SetHeightmap("heightmap.png")
-heightmap_patch.SetPosition(3, 0, 0)
-terrain.AddPatch(heightmap_patch)
+sim.SetTimestep(1/60.0)
+sim.SetMaxSteps(1000)
 
 
-terrain.SetGravity(0, 0, -9.81)
-terrain.SetTimeStep(0.01)
-terrain.SetTimestep(0.01)
+sim.Start()
 
 
-driver = ch.ChDriver()
-driver.SetName("Driver")
-driver.SetSteeringSensitivity(0.1)
-driver.SetThrottleSensitivity(0.1)
-driver.SetBrakingSensitivity(0.1)
+while True:
+    
+    sim.Update()
+    
+    
+    vis.Render()
+    
+    
+    if driver.GetSteering() != 0 or driver.GetThrottle() != 0 or driver.GetBraking() != 0:
+        
+        driver.Update()
+        
+    
+    if sim.GetStep() >= sim.GetMaxSteps():
+        break
 
 
-sim = ch.ChSimulation()
-sim.AddVehicle(vehicle)
-sim.AddTerrain(terrain)
-sim.AddDriver(driver)
-
-
-sim.Run()
+ch.FinalizeChrono()

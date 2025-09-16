@@ -82,15 +82,13 @@ terrain.Initialize(20, 20, 0.02)
 
 # Add randomly positioned boxes to the scene
 system = vehicle.GetSystem()
-box_size = 1.0
+box_size = 1
 for _ in range(10):
     x = random.uniform(-terrainLength / 2, terrainLength / 2)
     y = random.uniform(-terrainWidth / 2, terrainWidth / 2)
-    while math.hypot(x - initLoc.x, y - initLoc.y) < 5:  # Ensure box is not initialized within the vehicle
-        x = random.uniform(-terrainLength / 2, terrainLength / 2)
-        y = random.uniform(-terrainWidth / 2, terrainWidth / 2)
+    z = terrainHeight + box_size / 2
     body = chrono.ChBodyEasyBox(box_size, box_size, box_size, 1000, True, True)
-    body.SetPos(chrono.ChVector3d(x, y, terrainHeight + box_size / 2))
+    body.SetPos(chrono.ChVector3d(x, y, z))
     system.Add(body)
 
 # Create the vehicle Irrlicht interface
@@ -104,30 +102,6 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
-# Create a sensor manager and add point lights
-sensor_manager = veh.ChSensorManager()
-for i in range(5):
-    light_pos = chrono.ChVector3d(random.uniform(-terrainLength / 2, terrainLength / 2),
-                                 random.uniform(-terrainWidth / 2, terrainWidth / 2),
-                                 terrainHeight + 2)
-    point_light = chrono.ChLightPoint(light_pos, chrono.ChColor(1, 1, 1))
-    sensor_manager.AddPointLight(point_light)
-
-# Create a camera sensor and add it to the sensor manager
-camera_sensor = chrono.ChCameraSensor()
-camera_sensor.SetResolution(640, 480)
-camera_sensor.SetFieldOfView(90)
-camera_sensor.SetPos(chrono.ChVector3d(0, 0, 1.71))
-camera_sensor.SetDir(chrono.ChVector3d(0, 0, -1))
-sensor_manager.AddCamera(camera_sensor)
-
-# Create a filter to visualize the camera feed
-filter = veh.ChSensorFilter()
-filter.SetCameraSensor(camera_sensor)
-filter.SetWindowTitle('Camera Feed')
-filter.SetWindowSize(640, 480)
-filter.Initialize()
-
 # Create the driver system
 driver = veh.ChInteractiveDriverIRR(vis)
 
@@ -140,6 +114,35 @@ driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
 
 driver.Initialize()
+
+# Create a sensor manager
+sensor_manager = veh.ChSensorManager()
+
+# Add point lights at various positions in the scene
+light_positions = [
+    chrono.ChVector3d(-50, 50, 10),
+    chrono.ChVector3d(50, -50, 5),
+    chrono.ChVector3d(0, 0, 20)
+]
+for pos in light_positions:
+    light = chrono.ChDirectionalLight()
+    light.SetDirection(chrono.ChVector3d(0, 0, -1))
+    light.SetColor(chrono.ChColor(1, 1, 1))
+    light.SetPos(pos)
+    sensor_manager.AddLight(light)
+
+# Create a camera sensor attached to the vehicle chassis
+camera_sensor = veh.ChCameraSensor()
+camera_sensor.SetResolution(640, 480)
+camera_sensor.SetFieldOfView(90)
+camera_sensor.SetChassisBody(vehicle.GetChassisBody())
+sensor_manager.AddSensor(camera_sensor)
+
+# Create a filter to visualize the camera feed during the simulation
+filter = veh.ChSensorFilter()
+filter.SetSensor(camera_sensor)
+filter.SetVisualization(True)
+sensor_manager.AddFilter(filter)
 
 # ---------------
 # Simulation loop
@@ -163,7 +166,6 @@ while vis.Run():
     if (step_number % render_steps == 0):
         vis.BeginScene()
         vis.Render()
-        filter.Render()  # Render camera feed
         vis.EndScene()
         render_frame += 1
 
@@ -174,15 +176,15 @@ while vis.Run():
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
-    sensor_manager.Synchronize(time)  # Synchronize sensor manager
     vis.Synchronize(time, driver_inputs)
+    sensor_manager.Synchronize(time)
 
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
-    sensor_manager.Advance(step_size)  # Advance sensor manager
     vis.Advance(step_size)
+    sensor_manager.Advance(step_size)
 
     # Increment frame number
     step_number += 1

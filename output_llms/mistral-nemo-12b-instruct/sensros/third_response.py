@@ -24,9 +24,7 @@ def main():
     mesh_body.AddVisualShape(trimesh_shape)
     mesh_body.SetFixed(False)  # Make the body movable.
     mesh_body.SetMass(0)  # Set mass to 0 (static object).
-
-    # Add the mesh body to the simulation system.
-    sys.Add(mesh_body)
+    sys.Add(mesh_body)  # Add the mesh body to the simulation system.
 
     # Create a ground body to attach sensors.
     ground_body = ch.ChBodyEasyBox(1, 1, 1, 1000, False, False)
@@ -137,8 +135,10 @@ def main():
         time = sys.GetChTime()  # Update simulation time.
 
         # Update sensors and ROS data.
-        if not sens_manager.Update():
-            print("Sensor manager update failed. Exiting simulation loop.")
+        sens_manager.Update()
+
+        if not ros_manager.Update():  # Check if ROS manager update failed
+            print("ROS manager update failed. Exiting simulation loop.")
             break
 
         sys.DoStepDynamics(time_step)  # Advance the simulation by one time step.

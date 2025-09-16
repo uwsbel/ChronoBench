@@ -83,7 +83,6 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
-
 # Create the driver system
 driver = veh.ChInteractiveDriverIRR(vis)
 
@@ -139,14 +138,16 @@ while vis.Run() :
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
 
-    # Add camera sensor
-    camera = veh.ChCamera()
+    # Add camera sensor to vehicle
+    sensor_manager = veh.ChSensorManager()
+    camera = veh.ChCameraSensor()
     camera.SetResolution(1920, 1080)
     camera.SetFieldOfView(60.0)
-    camera.SetPosition(chrono.ChVector3d(0, 0, 0))
-    camera.SetRotation(chrono.ChQuaterniond(0, 0, 0, 1))
-    camera.SetSensorType(chrono.ChSensorType_CAMERA)
-    vis.AddCamera(camera)
+    camera.SetFocalLength(50.0)
+    sensor_manager.AddSensor(camera)
 
-    # Update camera sensor in simulation loop
-    vis.UpdateCamera(time)
+    # Add visualization filter for camera sensor
+    vis.AddCameraSensor(camera)
+
+    # Update camera sensor in the simulation loop
+    vis.UpdateSensor(time, sensor_manager)

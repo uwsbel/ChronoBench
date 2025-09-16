@@ -57,15 +57,15 @@ def main():
     lidar.PushFilter(sens.ChFilterDIAccess())  
     lidar.PushFilter(sens.ChFilterPCfromDepth())  
     lidar.PushFilter(sens.ChFilterXYZIAccess())  
-    lidar.PushFilter(sens.ChFilterVisualizePointCloud(1280, 720, 1, "3D Lidar Point Cloud"))  
+    lidar.PushFilter(sens.ChFilterVisualizePointCloud(1280, 720, 1, "3D Lidar"))  
     lidar.SetName("lidar")
     sens_manager.AddSensor(lidar)
 
     
-    lidar2d = sens.ChLidarSensor(ground_body, 5., offset_pose, 90, 300, ch.CH_PI / 2, ch.CH_PI / 12, -ch.CH_PI / 6, 100., 0)
+    lidar2d = sens.ChLidarSensor(ground_body, 5., offset_pose, 90, 300, ch.CH_PI/2, ch.CH_PI / 12, -ch.CH_PI / 6, 100., 0)
     lidar2d.PushFilter(sens.ChFilterDIAccess())  
     lidar2d.PushFilter(sens.ChFilterScanFromDepth())  
-    lidar2d.PushFilter(sens.ChFilterVisualizeScan(1280, 720, 1, "2D Lidar Scan"))  
+    lidar2d.PushFilter(sens.ChFilterVisualizeScan(1280, 720, 1, "2D Lidar"))  
     lidar2d.SetName("lidar2d")
     sens_manager.AddSensor(lidar2d)
 
@@ -103,4 +103,4 @@ def main():
     ros_manager.RegisterHandler(chros.ChROSClockHandler())  
 
     
-    ros_manager.RegisterHandler(chros.ChROSCameraHandler(cam.GetUpdate
+    ros_manager.Register

@@ -54,6 +54,10 @@ def retry_until_success(func):
                     print(f"503 Service Unavailable on attempt {attempt}, retrying in {delay:.1f}s...", flush=True)
                 elif '502' in error_str:
                     print(f"502 Bad Gateway on attempt {attempt}, retrying in {delay:.1f}s...", flush=True)
+                elif '422' in error_str:
+                    print(f"422 Unprocessable Entity on attempt {attempt} - likely invalid parameters, retrying in {delay:.1f}s...", flush=True)
+                elif '429' in error_str:
+                    print(f"429 Rate Limit on attempt {attempt}, retrying in {delay:.1f}s...", flush=True)
                 else:
                     print(f"Error on attempt {attempt}: {error_str[:100]}, retrying in {delay:.1f}s...", flush=True)
 
@@ -245,23 +249,23 @@ MODEL_REGISTRY: Dict[str, Tuple[str, str]] = {
 
 # === Student LLMs to be scored by the 3 judge LLMs ===
 ALL_MODELS = [
-    # DeepSeek Models (3)
-    "deepseek-r1",
-    "deepseek-r1-8b",
-    "deepseek-r1-32b",
+    # # DeepSeek Models (3)
+    # "deepseek-r1",
+    # "deepseek-r1-8b",
+    # "deepseek-r1-32b",
 
-    # Meta/Llama Models (6)
-    "llama-3.1-405b-instruct",
-    "llama-3.1-70b-instruct",
-    "llama-3.1-8b-instruct",
-    "llama-3.3-70b-instruct",
-    "llama4_maverick",
-    "llama4_scout",
+    # # Meta/Llama Models (6)
+    # "llama-3.1-405b-instruct",
+    # "llama-3.1-70b-instruct",
+    # "llama-3.1-8b-instruct",
+    # "llama-3.3-70b-instruct",
+    # "llama4_maverick",
+    # "llama4_scout",
 
-    # Microsoft Phi Models (4)
-    "phi-3-mini-128k-instruct",
-    "phi-3-medium-128k-instruct",
-    "phi-4-mini-instruct",
+    # # Microsoft Phi Models (4)
+    # "phi-3-mini-128k-instruct",
+    # "phi-3-medium-128k-instruct",
+    # "phi-4-mini-instruct",
 
     # Google Gemma Models (5)
     "gemma-2-9b-it",
@@ -280,7 +284,7 @@ ALL_MODELS = [
     "mistral-medium-3-instruct",
 
     # Qwen Models (2)
-    # "qwen3-235b-a22b",  # Temporarily disabled - returns invalid response structure
+    "qwen3-235b-a22b",  # Temporarily disabled - returns invalid response structure
     "qwq-32b",
     "qwen3-7b-instuct",
 ]
@@ -293,24 +297,51 @@ SYSTEM_PREAMBLE = (
     "Follow instructions carefully and return Python code inside triple backticks."
 )
 
+# Models that only support max_tokens up to 4096
+MODELS_WITH_4096_LIMIT = {
+    "google/gemma-2-27b-it",
+    "google/gemma-2-9b-it",
+    "google/gemma-2-2b-it",
+    "google/gemma-3-1b-it",
+    "google/gemma-3-27b-it"
+}
+
 @retry_until_success
-def call_provider(provider: str, model_id: str, prompt: str, max_tokens: int = 4096) -> str:
+def call_provider(provider: str, model_id: str, prompt: str, max_tokens: int = 4096*4) -> str:
     """
     Normalized call for chat-style models across providers.
     Returns the generated text (not just code).
     Now with continuous retry until successful response.
     """
+    # Check if this model has a lower token limit
+    if provider == "nvidia" and model_id in MODELS_WITH_4096_LIMIT:
+        max_tokens = min(max_tokens, 4096)
+        print(f"  Note: Using max_tokens=4096 for {model_id} (model limit)")
     if provider == "openai":
         if not OPENAI_API_KEY:
             raise RuntimeError("Missing OPENAI_API_KEY for model: " + model_id)
         client = get_openai()
-        resp = client.chat.completions.create(
-            model=model_id,
-            messages=[{"role":"user","content": f"{SYSTEM_PREAMBLE}\n\n{prompt}"}],
-            max_completion_tokens=max_tokens,
-            temperature=0.6,
-            top_p=0.9,
-        )
+        # Try with max_completion_tokens first (newer models), fall back to max_tokens if 422 error
+        try:
+            resp = client.chat.completions.create(
+                model=model_id,
+                messages=[{"role":"user","content": f"{SYSTEM_PREAMBLE}\n\n{prompt}"}],
+                max_completion_tokens=max_tokens,
+                temperature=0.6,
+                top_p=0.9,
+            )
+        except Exception as e:
+            if "422" in str(e) or "max_completion_tokens" in str(e):
+                # Fallback to max_tokens for older models
+                resp = client.chat.completions.create(
+                    model=model_id,
+                    messages=[{"role":"user","content": f"{SYSTEM_PREAMBLE}\n\n{prompt}"}],
+                    max_tokens=max_tokens,
+                    temperature=0.6,
+                    top_p=0.9,
+                )
+            else:
+                raise  # Re-raise if not a parameter issue
         return resp.choices[0].message.content
 
     elif provider == "nvidia":
@@ -329,8 +360,15 @@ def call_provider(provider: str, model_id: str, prompt: str, max_tokens: int = 4
         # Collect streamed response
         response_content = ""
         for chunk in resp:
-            if chunk.choices[0].delta.content is not None:
-                response_content += chunk.choices[0].delta.content
+            if chunk.choices and len(chunk.choices) > 0:
+                delta = chunk.choices[0].delta
+                if hasattr(delta, 'content') and delta.content is not None:
+                    response_content += delta.content
+
+        # Check if we got any content
+        if not response_content:
+            raise RuntimeError(f"Model {model_id} returned empty response (all chunks were None)")
+
         return response_content
 
     else:

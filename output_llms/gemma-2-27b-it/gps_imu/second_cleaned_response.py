@@ -130,9 +130,6 @@ gps.PushFilter(sens.ChFilterGPSAccess())
 manager.AddSensor(gps)
 
 
-gps_data = []
-
-
 
 
 
@@ -149,6 +146,9 @@ step_number = 0
 render_frame = 0
 
 
+gps_data = []
+
+
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
@@ -161,9 +161,9 @@ while vis.Run():
 
     
     if time < 6:
-        driver_inputs = chrono.ChVectorD(0.5, 0, 0) 
+        driver_inputs = chrono.ChVectorD(0.5, 0, 0)  
     else:
-        driver_inputs = chrono.ChVectorD(-0.5, 0, 1) 
+        driver_inputs = chrono.ChVectorD(-0.5, 0, 1)  
 
     
     driver.Synchronize(time)

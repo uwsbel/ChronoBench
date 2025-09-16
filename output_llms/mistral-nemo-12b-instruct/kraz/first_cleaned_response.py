@@ -1,47 +1,60 @@
-import pychrono as pc
-import pychrono.vehicle as pcv
-import pychrono.terrain as pct
-import pychrono.driver as pcd
-import pychrono.visualization as pcviz
+import pychrono as chrono
+from pychrono.irrlicht import *
 
 
-pc.init()
+physics = chrono.ChPhysicsEngine()
+physics.SetIntegrationType(chrono.ChIntegrationType.SYSTEM)
+physics.Set_G global_SolverType(chrono.ChSolverType.SOR)
+physics.Set_G global_SolverPrecision(1e-3)
+physics.Set_G global_MaxIters(100)
 
 
-terrain = pct.RigidTerrain()
-terrain.set_friction(0.8)
-terrain.set_restitution(0.5)
-terrain.set_terrain_height(0, 0, 0, 0, 0, 0, 0, 0)
+terrain = chrono.ChTerrain()
+terrain.SetMaterial(chrono.ChMaterialSurfaceNSC())
+terrain.GetMaterial().SetFriction(0.6)
+terrain.GetMaterial().SetRestitution(0.3)
+terrain.SetColor(chrono.ChColor(0.8, 0.8, 0.8))
+physics.Add(terrain)
 
 
-vehicle = pcv.Kraz()
-vehicle.set_position([0, 0, 0.5])
-vehicle.set_velocity([0, 0, 0])
+vehicle = chrono.ChBodyEasyBox(1, 1, 1, 1000, True)
+vehicle.SetPos(chrono.ChVectorD(0, 0, 0.5))
+vehicle.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
+vehicle.SetMass(1000)
+physics.Add(vehicle)
 
 
-driver = pcd.Driver(vehicle)
-driver.set_control_mode(pcd.DriverControlMode.VELOCITY)
-driver.set_velocity(10)
+driver = chrono.ChVehicle()
+driver.Initialize(vehicle)
+driver.SetChassisBody(vehicle)
+driver.SetChassisFixed(False)
+driver.SetChassisVisualizationType(chrono.ChVehicle.ChVehicleVisualizationType.VISUALIZATION_TYPE_MESH)
+driver.SetChassisFileName("kraz_vehicle.dae")
+driver.SetWheelFileName("wheel.dae")
+driver.InitializeWheels(4)
+driver.SetWheelSteeringLimits(chrono.ChVectorD(0, 0, -0.3, 0.3))
+driver.SetWheelDriveLimits(chrono.ChVectorD(0, 0, -1, 1))
+driver.SetWheelFriction(chrono.ChVectorD(10, 10, 10, 10))
+driver.SetWheelSuspensionRestLength(chrono.ChVectorD(0.3, 0.3, 0.3, 0.3))
+driver.SetWheelSuspensionStiffness(chrono.ChVectorD(20000, 20000, 20000, 20000))
+driver.SetWheelSuspensionDamping(chrono.ChVectorD(200, 200, 200, 200))
+driver.SetWheelRadius(0.2)
+driver.SetWheelWidth(0.2)
+driver.SetWheelToChassisConnection_DOF(chrono.ChVectorD(chrono.ChFunction_Time(chrono.ChFunction_Time.Step, 0, 0, 0, 0), chrono.ChFunction_Time(chrono.ChFunction_Time.Step, 0, 0, 0, 0), chrono.ChFunction_Time(chrono.ChFunction_Time.Step, 0, 0, 0, 0), chrono.ChFunction_Time(chrono.ChFunction_Time.Step, 0, 0, 0, 0)))
+driver.SetSteering(chrono.ChVectorD(0, 0, 0, 0))
+driver.SetDrive(chrono.ChVectorD(0, 0, 0, 0))
+physics.Add(driver)
 
 
-viz = pcviz.Irlicht()
-viz.set_camera_position([0, -20, 5])
-viz.set_camera_lookat([0, 0, 0])
-viz.set_lighting(True)
+application = IrrlichtApplication(chrono.GetChronoDataPath() + "models/kraz_vehicle.dae")
+application.SetWindowSize(800, 600)
+application.AddLight(chrono.ChVectorD(10, 10, 10), chrono.ChColor(1, 1, 1))
+application.AddCamera(chrono.ChVectorD(0, -5, 3), chrono.ChVectorD(0, 0, 0))
+application.Attach(physics.GetSystem())
 
 
-while viz.is_running():
-    
-    pc.synchronize()
-    terrain.advance()
-    vehicle.advance()
-    driver.advance()
-    viz.advance()
-
-    
-    if viz.get_key_pressed(pc.KeyCode.ESCAPE):
-        break
-
-
-viz.close()
-pc.quit()
+while application.GetDevice().run():
+    application.BeginScene(True, True, chrono.ChColor(0.3, 0.3, 0.3))
+    application.DrawAll()
+    physics.DoStepDynamics(0.01)
+    application.EndScene()

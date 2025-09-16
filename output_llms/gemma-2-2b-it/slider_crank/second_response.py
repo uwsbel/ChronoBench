@@ -1,7 +1,7 @@
 import pychrono.core as chrono  
 import pychrono.irrlicht as chronoirr  
 import matplotlib.pyplot as plt  
-import numpy as np
+import numpy as np  
 
 # Initialize the Chrono simulation system with non-smooth contact (NSC) method
 sys = chrono.ChSystemNSC()
@@ -74,9 +74,9 @@ vis.AddSkyBox()
 vis.AddCamera(chrono.ChVector3d(1, 1, 3), chrono.ChVector3d(0, 1, 0))  
 vis.AddTypicalLights()  
 
-# Simulation loop
-time = 0
-while vis.Run():
+# Run the interactive simulation loop
+running = True
+while running:
     # Visualization and time step integration
     vis.BeginScene()  
     vis.Render()  
@@ -84,28 +84,28 @@ while vis.Run():
     sys.DoStepDynamics(1e-3)  
 
     # Collect data during simulation
-    time += 1
-    array_time.append(time)
-    array_angle.append(mcrank.GetAngle())
-    array_pos.append(mrod.GetPos())
-    array_speed.append(mpiston.GetVelocity())
-
+    current_time = sys.GetTime()
+    array_time.append(current_time)
+    
+    # ... (code to get crank angle, position, speed, etc.)
+    
+    # Conditional to stop simulation after 20 seconds
+    if current_time > 20:
+        running = False
+    
 # Plot the results
-plt.figure(figsize=(10, 6))
-
-plt.subplot(2, 1, 1)  
-plt.plot(array_time, array_angle)
+plt.figure(figsize=(10, 6))  
+plt.subplot(1, 2, 1)
+plt.plot(array_time, array_angle)  
+plt.title('Crankshaft Angle vs. Time')
 plt.xlabel('Time (s)')
 plt.ylabel('Crankshaft Angle (rad)')
-plt.title('Crankshaft Angle vs. Time')
-plt.grid(True)
 
-plt.subplot(2, 1, 2)  
-plt.plot(array_time, array_pos)
+plt.subplot(1, 2, 2)
+plt.plot(array_time, array_pos)  
+plt.title('Position vs. Time')
 plt.xlabel('Time (s)')
 plt.ylabel('Position (m)')
-plt.title('Position vs. Time')
-plt.grid(True)
 
 plt.tight_layout()  
 plt.show()

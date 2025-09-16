@@ -1,44 +1,83 @@
-import pychrono as chrono
-import pychrono.core as core
-import pychrono.physics as physics
-import pychrono.dynamics as dynamics
+from pychrono import *
+from pychrono.irrlicht import IrrlichtRenderer
+from pychrono.irrlicht import IrrlichtDevice
 
-# Initialize PyChrono environment
-app = chrono.Application()
+# Initialize PyChrono
+chrono.Init()
 
-# Create a world
-world = app.create_world()
+# Create the Irrlicht renderer
+renderer = IrrlichtRenderer()
+device = IrrlichtDevice(renderer)
 
-# Create a ground plane
-ground = world.create_plane(
-    position=(0, 0, 0),
-    size=(10, 10, 0.1),
-    material=chrono.Material(
-        density=1000,
-        friction=0.5,
-        elasticity=0.5
+# Create the terrain
+ground = Ground(
+    pos=(0, 0, 0),
+    size=(100, 100, 100),
+    material=Material(
+        color=(1, 0, 0),  # Red
+        diffuse=true,
+        specular=false,
+        shininess=10.0
+    ),
+    collision_properties=CollisionProperties(
+        elasticity=0.5,
+        friction=0.1,
+        density=1000.0
     )
 )
 
-# Create a car object
-car = world.create_rigid_body(
-    position=(0, 0, 0),
-    mass=1000,
-    inertia=core.Inertia(mass=1000),
-    material=chrono.Material(
-        density=1000,
-        friction=0.5,
-        elasticity=0.5
+# Create the rover
+rover = Vehicle(
+    pos=(0, 0, 0),
+    size=(0.5, 0.5, 0.5),
+    material=Material(
+        color=(0, 1, 0),  # Green
+        diffuse=true,
+        specular=false,
+        shininess=10.0
+    ),
+    collision_properties=CollisionProperties(
+        elasticity=0.5,
+        friction=0.1,
+        density=1000.0
     )
 )
 
-# Set initial position and velocity
-car.set_position(chrono.Vector3(0, 0, 0))
-car.set_velocity(chrono.Vector3(0, 10, 0))
+# Set the rover's motor control driver
+rover.motor_control_driver = MotorControlDriver(
+    max_torque=100.0,
+    max_speed=10.0
+)
 
-# Add a force to the car
-force = chrono.Vector3(0, 100, 0)
-car.add_force(force)
+# Set the rover's wheels
+rover.wheels = [Wheel(
+    pos=(0, 0, 0),
+    size=(0.2, 0.2, 0.2),
+    material=Material(
+        color=(0, 0, 1),  # Blue
+        diffuse=true,
+        specular=false,
+        shininess=10.0
+    )
+) for _ in range(4)]
 
-# Set up the simulation
-app.run()
+# Add the rover to the ground
+ground.add_object(rover)
+
+# Set camera parameters
+camera = Camera(
+    pos=(0, 0, 5),
+    target=(0, 0, 0),
+    fov=45.0,
+    zoom=1.0
+)
+
+# Run the simulation
+chrono.Run()
+
+# Save the simulation
+renderer.save_image("curiosity_rover.png")
+
+# Clean up
+renderer.destroy()
+device.destroy()

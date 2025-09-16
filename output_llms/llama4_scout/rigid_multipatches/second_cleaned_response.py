@@ -4,6 +4,9 @@ import pychrono.irrlicht as irr
 
 def main():
     
+    veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
+
+    
     hmmwv = veh.HMMWV_Full()
     hmmwv.SetContactMethod(chrono.ChContactMethod_NSC)
     hmmwv.SetChassisFixed(False)
@@ -12,31 +15,29 @@ def main():
     hmmwv.SetTransmissionType(veh.TransmissionModelType_AUTOMATIC_SIMPLE_MAP)
     hmmwv.SetDriveType(veh.DrivelineTypeWV_AWD)
     hmmwv.SetTireType(veh.TireModelType_TMEASY)
-    hmmwv.SetTireStepSize(1e-3)
+    tire_step_size = 1e-3  
+    hmmwv.SetTireStepSize(tire_step_size)
     hmmwv.Initialize()
-
     hmmwv.SetChassisVisualizationType(veh.VisualizationType_MESH)
     hmmwv.SetSuspensionVisualizationType(veh.VisualizationType_MESH)
     hmmwv.SetSteeringVisualizationType(veh.VisualizationType_MESH)
     hmmwv.SetWheelVisualizationType(veh.VisualizationType_MESH)
     hmmwv.SetTireVisualizationType(veh.VisualizationType_MESH)
-
     hmmwv.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
     
     terrain = veh.RigidTerrain(hmmwv.GetSystem())
-
     terrain_mat = chrono.ChContactMaterialNSC()
     terrain_mat.SetFriction(0.9)
     terrain_mat.SetRestitution(0.01)
-
-    terrain.AddPatch(terrain_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
-                      veh.GetDataFile("vehicle/terrain/meshes/Highway_col.obj"), 0.01)
-
+    terrain.AddPatch(terrain_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
+                     veh.GetDataFile("vehicle/terrain/meshes/Highway_col.obj"), 
+                     0.01, True)
+    
     
     vis_mesh = chrono.ChVisualShapeTriangleMesh()
     vis_mesh.SetMesh(veh.GetDataFile("terrain/meshes/Highway_vis.obj"))
-    vis_mesh.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+    vis_mesh.SetColor(chrono.ChColor(0.8, 0.8, 0.8))
     terrain.GetGroundBody().AddVisualShape(vis_mesh)
 
     terrain.Initialize()
@@ -58,28 +59,26 @@ def main():
     driver.SetThrottleDelta(0.02)
     driver.SetBrakingDelta(0.06)
     driver.Initialize()
-
     hmmwv.GetVehicle().EnableRealtime(True)
 
-    step_size = 2e-3
-
-    while vis.Run() :
+    step_size = 2e-3  
+    while vis.Run():
         time = hmmwv.GetSystem().GetChTime()
-
+        
         
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
-
+        
         
         driver_inputs = driver.GetInputs()
-
+        
         
         driver.Synchronize(time)
         terrain.Synchronize(time)
         hmmwv.Synchronize(time, driver_inputs, terrain)
         vis.Synchronize(time, driver_inputs)
-
+        
         
         driver.Advance(step_size)
         terrain.Advance(step_size)
@@ -88,6 +87,5 @@ def main():
 
     return 0
 
-veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
-
-main()
+if __name__ == "__main__":
+    main()

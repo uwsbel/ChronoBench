@@ -1,51 +1,60 @@
-import pychrono as pc
+import pychrono as chrono
 import numpy as np
 
 
-pc.Initialize()
+chrono.Initialize()
 
 
-scene = pc.Scene()
+simulation = chrono.ChSystemNSC()
 
 
-tablecloth = pc.Shell()
-tablecloth.SetMaterial(pc.IsotropicKirchhoffMaterial(1.0, 0.3, 0.01))  
-tablecloth.SetThickness(0.01)  
+solver = chrono.ChSolverPardisoMKL()
+solver.SetMaxIterations(1000)
+solver.SetTolerance(1e-6)
+simulation.SetSolver(solver)
 
 
-num_segments_u = 10
-num_segments_v = 10
-tablecloth.GenerateMesh(num_segments_u, num_segments_v)
+tablecloth = chrono.ChShell()
+tablecloth.SetMaterial(chrono.ChMaterialSurfaceNSC())
+tablecloth.GetMaterial().SetYoungModulus(1e6)
+tablecloth.GetMaterial().SetPoissonRatio(0.3)
+tablecloth.GetMaterial().SetThickness(0.01)
 
 
-nodes = tablecloth.GetNodes()
-elements = tablecloth.GetElements()
+num_nodes_x = 10
+num_nodes_y = 10
+nodes = []
+elements = []
+for i in range(num_nodes_x):
+    for j in range(num_nodes_y):
+        node = chrono.ChNodeShell()
+        node.SetPos(chrono.ChVectorD(i * 0.1, j * 0.1, 0))
+        nodes.append(node)
+        tablecloth.AddNode(node)
+
+        
+        element = chrono.ChElementShell()
+        element.SetNodes(nodes[i * num_nodes_y + j], nodes[(i + 1) * num_nodes_y + j], nodes[i * num_nodes_y + j + 1], nodes[(i + 1) * num_nodes_y + j + 1])
+        elements.append(element)
+        tablecloth.AddElement(element)
 
 
-for i, node in enumerate(nodes):
-    u = i % num_segments_u
-    v = i // num_segments_u
-    node.SetPosition([u * 0.1, v * 0.1, 0.0])  
+simulation.Add(tablecloth)
 
 
-scene.Add(tablecloth)
+visualization = chrono.ChVisualSystemIrrlicht()
+visualization.Attach(simulation)
+visualization.Initialize()
+visualization.AddLogo(chrono.ChVectorD(0, 0, 0))
+visualization.AddSkyBox()
+visualization.AddCamera(chrono.ChVectorD(1, 1, 1), chrono.ChVectorD(0, 0, 0))
 
 
-irrlicht = pc.Irrlicht()
-irrlicht.SetScene(scene)
-irrlicht.Start()
+while visualization.Run():
+    simulation.DoStepDynamics(0.01)
+    visualization.Render()
+    visualization.ApproveDriver()
 
 
-solver = pc.PardisoMKL()
-scene.SetSolver(solver)
-
-
-scene.SetGravity([0.0, 0.0, -9.81])  
-scene.SetTimeStep(0.01)  
-scene.SetMaxSteps(1000)  
-
-
-scene.Step()
-
-
-pc.Finalize()
+visualization.Clear()
+chrono.Terminate()

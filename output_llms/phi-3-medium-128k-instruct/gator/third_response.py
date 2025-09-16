@@ -11,16 +11,17 @@ initLoc = chrono.ChVector3d(0, 0, 0.5)
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 # Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
-vis_type = veh.VisualizationType_PRIMITIVES
+vis_type = veh.VisualizationType_PRIMITIVES  # Changed from MESH to PRIMITIVES
 
 # Collision type for chassis (PRIMITIVES, MESH, or NONE)
-chassis_collision_type = veh.CollisionType_PRIMITIVES
+chassis_collision_type = veh.CollisionType_PRIMITIVES  # Changed from NONE to PRIMITIVES
 
 # Type of tire model (RIGID, TMEASY)
 tire_model = veh.TireModelType_TMEASY
 
 # Rigid terrain
-terrainHeight = 0      # terrain height
+terrain_model = veh.RigidTerrain.BOX
+terrainHeight = 0
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
 
@@ -43,7 +44,6 @@ vehicle = veh.Gator()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
-vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 
@@ -54,7 +54,6 @@ vehicle.SetSuspensionVisualizationType(vis_type)
 vehicle.SetSteeringVisualizationType(vis_type)
 vehicle.SetWheelVisualizationType(vis_type)
 vehicle.SetTireVisualizationType(vis_type)
-
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 # Create the terrain
@@ -89,12 +88,12 @@ vis.AttachVehicle(vehicle.GetVehicle())
 driver = veh.ChInteractiveDriverIRR(vis)
 
 # Set the time response for steering and throttle keyboard inputs.
-steering_time = 2.0  # time to go from 0 to +1 (or from 0 to -1)
-throttle_time = 2.0  # time to go from 0 to +1
-braking_time = 0.6   # time to go from 0 to +1
-driver.SetSteeringDelta(render_step_size / steering_time)
-driver.SetThrottleDelta(render_step_size / throttle_time)
-driver.SetBrakingDelta(render_step_size / braking_time)
+steering_time = 2.0  # Increased time to make the driver less responsive
+throttle_time = 2.0  # Increased time to make the driver less responsive
+braking_time = 0.6   # Increased time to make the driver less responsive
+driver.SetSteeringDelta(render_step_size / steering_time)  # Adjusted for less responsive steering
+driver.SetThrottleDelta(render_step_size / throttle_time)  # Adjusted for less responsive throttle
+driver.SetBrakingDelta(render_step_size / braking_time)  # Adjusted for less responsive braking
 
 driver.Initialize()
 
@@ -143,5 +142,3 @@ while vis.Run() :
 
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
-
-# End of the modified script

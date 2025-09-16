@@ -35,22 +35,62 @@ melasticity.SetIzz((CH_PI / 4.0) * (pow(beam_ro, 4) - pow(beam_ri, 4)));
 melasticity.SetJ((CH_PI / 2.0) * (pow(beam_ro, 4) - pow(beam_ri, 4)))
 
 
-class ChFunctionMyFun(chrono.ChFunction):
-    def __init__(self):
-        chrono.ChFunction.__init__(self)
-        self.A1 = 0.0
-        self.A2 = 0.0
-        self.T1 = 0.0
-        self.T2 = 0.0
-        self.T3 = 0.0
-        self.w = 0.0
+def my_motor(x, y, z):
+    
+    
+    A1 = 0.1
+    A2 = 0.2
+    T1 = 0.05
+    T2 = 0.1
+    T3 = 0.02
+    W = 0.01
 
-    def Get(self, x):
-        
-        return 0.1 * (x / beam_L)
+    
+    speed = A1 * x + A2 * y + T1 * z + T2 * x + T3 * y + W * z
+
+    
+    speed = max(min(speed, 100), 0)
+
+    return speed
 
 
-mbodyflywheel = chrono.ChBody()
+
+
+minertia = fea.ChInertiaCosseratSimple()
+minertia.SetDensity(7800);
+minertia.SetArea(CH_PI * (pow(beam_ro, 2) - pow(beam_ri, 2)));
+minertia.SetIyy((CH_PI / 4.0) * (pow(beam_ro, 4) - pow(beam_ri, 4)));
+minertia.SetIzz((CH_PI / 4.0) * (pow(beam_ro, 4) - pow(beam_ri, 4)));
+
+melasticity = fea.ChElasticityCosseratSimple()
+melasticity.SetYoungModulus(210e9)
+melasticity.SetShearModulusFromPoisson(0.3)
+melasticity.SetIyy((CH_PI / 4.0) * (pow(beam_ro, 4) - pow(beam_ri, 4)));
+melasticity.SetIzz((CH_PI / 4.0) * (pow(beam_ro, 4) - pow(beam_ri, 4)));
+melasticity.SetJ((CH_PI / 2.0) * (pow(beam_ro, 4) - pow(beam_ri, 4)))
+
+msection = fea.ChBeamSectionCosserat(minertia, melasticity)
+
+msection.SetCircular(True)
+msection.SetDrawCircularRadius(beam_ro)  
+
+
+
+
+builder = fea.ChBuilderBeamIGA()
+builder.BuildBeam(mesh,  
+                  msection,  
+                  20,  
+                  chrono.ChVector3d(0, 0, 0),  
+                  chrono.ChVector3d(beam_L, 0, 0),  
+                  chrono.VECT_Y,  
+                  1)  
+
+node_mid = builder.GetLastBeamNodes()[m.floor(builder.GetLastBeamNodes().size() / 2.0)]
+
+
+
+mbodyflywheel = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, 0.24, 0.1, 7800)  
 mbodyflywheel.SetCoordsys(
     chrono.ChCoordsysd(node_mid.GetPos() + chrono.ChVector3d(0, 0.05, 0),  
                        chrono.QuatFromAngleAxis(CH_PI / 2.0, chrono.VECT_Z))
@@ -118,7 +158,6 @@ vis.AddTypicalLights()
 
 msolver = mkl.ChSolverPardisoMKL()
 sys.SetSolver(msolver)
-
 sys.DoStaticLinear()
 
 while vis.Run():

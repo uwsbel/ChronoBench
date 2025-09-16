@@ -12,8 +12,8 @@ mat = chrono.ChContactMaterialNSC()
 
 radA = 1.5                                        
 radB = 3.5                                        
-radD = 5                         
-radE = 2                         
+radD = 5                
+radE = 2
 
 
 mbody_truss = chrono.ChBodyEasyBox(15, 8, 2,      

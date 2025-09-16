@@ -1,83 +1,61 @@
 import pychrono
 import pychrono.core as pc
+import pychrono.visual as cv
 import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib.animation as animation
+from mpl_toolkits.mplot3d import Axes3D
 
-# --- 1. Initialization & Core Components ---
-try:
-    # Initialize PyChrono
-    chrono = pc.Chrono()
+def simulate_beam(num_elements=100, gravity=9.81, initial_position=(0, 0, 0)):
+    """
+    Simulates a beam composed of ANCF cable elements using PyChrono.
 
-    # Define System Parameters
-    system_params = {
-        "name": "Beam",
-        "type": "ANCF",
-        "num_elements": 10,  # Number of cable elements
-        "cable_length": 1.0, # Length of each cable segment
-        "cable_radius": 0.1, # Radius of the cable segments
-        "gravity_magnitude": 9.81, # Gravity acceleration
-        "gravity_direction": (0, 0, -1) # Gravity vector (pointing downwards)
-    }
+    Args:
+        num_elements (int): The number of cable elements in the beam.
+        gravity (float): The acceleration due to gravity.
+        initial_position (tuple): The initial position of the beam's center.
+    """
 
-    # --- 2.  Physical Systems & Objects ---
-    # Define the beam elements (cable segments)
-    elements = [
-        pc.Element("cable",  # Element type: cable
-                 cable_length=system_params["cable_length"],
-                 cable_radius=system_params["cable_radius"],
-                 gravity_direction=system_params["gravity_direction"],
-                 mass=1000.0, # Approximate mass of a cable segment (adjust as needed)
-                 num_segments=5) # Number of segments per cable element
+    # 1. Initialize PyChrono environment
+    env = pc.Environment()
 
-    ]
+    # 2. Define physical systems and objects
+    #   - Cable elements:  Each element is a point in 3D space.
+    elements = []
+    for i in range(num_elements):
+        # Create a point representing the cable element
+        x, y, z = initial_position
+        elements.append(pc.Point(x, y, z))
 
+    # 3. Set default parameters
+    env.set_physics_system(pc.System(elements))
+    env.set_gravity(gravity)
+    env.set_time(pc.Time(0)) # Start simulation at t=0
 
-    # --- 3.  Simulation Setup ---
-    # Define the simulation time
-    simulation_time = 10.0  # Simulation duration (seconds)
-    chrono.set_simulation_time(simulation_time)
+    # 4. Simulation loop
+    for t in range(pc.Time(0), pc.Time(pc.Time(0) + 10)):  # Simulate for 10 time steps
+        # 5. Perform physics calculations
+        env.update_physics()
 
-    # --- 4.  Visualization (Irrlicht) ---
-    fig, ax = plt.subplots()
-    ax.set_xlim(-1.5, 1.5)  # Adjust limits as needed
-    ax.set_ylim(-1.5, 1.5)
-    ax.set_aspect('equal')
-    ax.set_title("Beam Simulation")
-    ax.set_xlabel("X")
-    ax.set_ylabel("Y")
-    ax.grid(True)
+        # 6. Visualize the beam's deformation
+        #   - Create a 3D plot
+        fig = cv.figure()
+        ax = fig.add_subplot(111, projection='3d')
 
-    def animate(i):
-        #  Create a single element for animation
-        element = elements[i]
-        x = element.x
-        y = element.y
+        # 7. Plot the beam's deformation
+        for element in elements:
+            # Calculate the deformation based on the cable element's position
+            deformation = np.array([element.x, element.y, element.z])
+            ax.plot(deformation, color='blue')  # Plot deformation
         
-        # Update the element's position based on gravity
-        element.x += element.gravity_direction[0] * simulation_time
-        element.y += element.gravity_direction[1] * simulation_time
+        # 8.  Set axis limits for better visualization
+        ax.set_xlim([-1.5, 1.5])
+        ax.set_ylim([-1.5, 1.5])
+        ax.set_zlim([-1.5, 1.5])
         
-        # Update the animation
-        ax.clear() # Clear the previous frame
-        ax.set_xlim(-1.5, 1.5)
-        ax.set_ylim(-1.5, 1.5)
-        ax.set_aspect('equal')
-        ax.set_title("Beam Simulation")
-        ax.set_xlabel("X")
-        ax.set_ylabel("Y")
-        ax.grid(True)
-        
-        # Update the element's position
-        element.x = x
-        element.y = y
-        
-        return ax
+        # 9.  Display the plot
+        cv.show()
 
-    ani = animation.FuncAnimation(fig, animate, frames=len(elements), blit=True, repeat=False)
-    plt.show()
+    env.close()
 
-except Exception as e:
-    print(f"Error initializing Chrono: {e}")
-    print("Please ensure PyChrono is installed correctly and that your system has the necessary dependencies.")
-    print("Consider installing 'pychrono-dependencies' if you encounter issues.")
+if __name__ == '__main__':
+    simulate_beam(num_elements=100, gravity=9.81, initial_position=(0, 0, 0))

@@ -4,7 +4,7 @@ import numpy as np
 import pychrono as chrono
 import pychrono.robot as robot
 from pychrono import irrlicht as chronoirr
-from pychrono.sensor import *  # Added sensor module import
+import pychrono.sensor as sens  # Added import for sensor module
 
 # Create Chrono system
 system = chrono.ChSystemNSC()
@@ -40,30 +40,12 @@ init_pos = chrono.ChVector3d(-5, 0.0, 0)
 init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
 rover.Initialize(chrono.ChFramed(init_pos, init_rot))
 
-# Create sensor manager
-manager = ChSensorManager(system)
-
-# Add lidar sensor to the rover
-lidar_params = ChLidarSensor.ChLidarSensorParams()
-lidar_params.update_rate = 10  # Hz
-lidar_params.hor_samples = 360
-lidar_params.ver_samples = 3
-lidar_params.field_of_view = 30  # degrees
-lidar_params.min_range = 0.1
-lidar_params.max_range = 100
-lidar_params.angle_resolution = 0.5  # degrees
-lidar_params.range_resolution = 0.1  # meters
-
-lidar = ChLidarSensor(rover.GetChassis(), lidar_params)
-lidar.SetFilters([ChLidarSensor.ChFilterType.GroundFilter, ChLidarSensor.ChFilterType.OcclusionFilter])
-manager.AddSensor(lidar)
-
 # Create the Irrlicht visualization
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
 vis.SetCameraVertical(chrono.CameraVerticalDir_Z)
 vis.SetWindowSize(1280, 720)
-vis.SetWindowTitle('Curiosity rover - Rigid terrain with Lidar')
+vis.SetWindowTitle('Curiosity rover - Rigid terrain')
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()
@@ -76,6 +58,24 @@ vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0
 
 # Set the simulation time step
 time_step = 1e-3
+
+# Create sensor manager
+manager = sens.ChSensorManager(system)
+
+# Add lidar sensor to the rover
+lidar_params = {
+    'update_rate': 10,
+    'horizontal_samples': 360,
+    'vertical_samples': 1,
+    'field_of_view': math.pi,
+    'min_range': 0.1,
+    'max_range': 100.0,
+    'angle_resolution': math.pi / 180.0,
+    'range_resolution': 0.1
+}
+lidar = sens.ChLidarSensor(rover.GetChassis(), lidar_params)
+lidar.SetFilters([sens.ChLidarFilter.RANGE])
+manager.AddSensor(lidar)
 
 # Simulation loop
 time = 0

@@ -44,7 +44,6 @@ vehicle = veh.CityBus()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
-vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 
@@ -52,10 +51,9 @@ vehicle.Initialize()
 
 vehicle.SetChassisVisualizationType(vis_type_mesh)
 vehicle.SetSuspensionVisualizationType(vis_type)
-vehicle.SetSteeringVisualizationType(vis_type)
+vehicle.SetSteeringVisualizationType(vis_type_mesh)
 vehicle.SetWheelVisualizationType(vis_type_mesh)
 vehicle.SetTireVisualizationType(vis_type_mesh)
-
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
@@ -72,6 +70,7 @@ patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 
+
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('City Bus Demo')
 vis.SetWindowSize(1280, 1024)
@@ -84,17 +83,9 @@ vis.AttachVehicle(vehicle.GetVehicle())
 
 
 driver = veh.ChDataDriver()
-
-
-driver_inputs = [
-    veh.vector_Entry(chrono.ChVector3d(0.0, 0.0, 0.0), 0.0),
-    veh.vector_Entry(chrono.ChVector3d(1.0, 0.0, 0.0), 0.1),
-    veh.vector_Entry(chrono.ChVector3d(1.0, 0.7, 0.0), 0.5)
-]
-
-
-for entry in driver_inputs:
-    driver.SetEntry(entry)
+driver.SetSteering(veh.vector_Entry(0.0, 0.0, 0.0, 0.1))
+driver.SetThrottle(veh.vector_Entry(0.0, 1.0, 0.0, 0.5))
+driver.SetBraking(veh.vector_Entry(0.0, 0.0, 0.0, 0.5))
 
 
 driver.Initialize()

@@ -1,99 +1,59 @@
 import pychrono as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
-import numpy as np
 
 
 chrono.ChEngine.Initialize()
 
 
-SIMULATION_TIME = 10.0  
-TIME_STEP = 0.01  
+veh_system = veh.ChHMMWV()
 
 
-system = chrono.ChSystem()
+veh_system.SetChassisPos(chrono.ChVector3d(0, 0, 1))
 
 
-system.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, -9.81))
+terrain = veh.ChTerrain()
+terrain.SetGridSize(200, 200)
+terrain.SetPlane(chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(0, 0, 1))
+terrain.SetKSoil(1e4)
+terrain.SetDampingSoil(0)
 
 
-app = irr.ChIrrApp(system, "HMMWV Vehicle Simulation")
+driver = veh.ChDriver(veh_system.GetVehicle())
+driver.SetSpeed(10)
 
 
-app.SetVerbose(True)
-app.SetWindowSize(chrono.ChVector2i(800, 600))
-app.SetWindowTitle("HMMWV Vehicle Simulation")
-app.ShowLogo()
+app = irr.ChIrrApp(veh_system.GetSystem(), "HMMWV Simulation", irr.DIM_800x600)
 
 
-vehicle = veh.ChHMMWV()
+app.SetCameraMoveSpeed(5)
 
 
-vehicle.SetMass(3000)
+imu = veh.ChIMU(veh_system.GetChassisBody())
+gps = veh.ChGPS(veh_system.GetChassisBody())
 
 
-system.Add(vehicle.GetChassisBody())
-system.Add(vehicle.GetEngine())
-system.Add(vehicle.GetTransmission())
-system.Add(vehicle.GetDrivetrain())
-system.Add(vehicle.GetBrake())
-system.Add(vehicle.GetSteering())
+def UpdateSensorData(vehicle, imu, gps, time):
+    imu.Update(time)
+    gps.Update(time)
 
 
-vehicle.Initialize()
-
-
-terrain = chrono.ChTerrain()
-
-
-terrain.SetSize(chrono.ChVector3d(100, 100, 10))
-
-
-system.Add(terrain.GetGroundBody())
-
-
-driver = veh.ChDriver(vehicle)
-
-
-driver.SetThrottle(0.5)
-driver.SetSteering(0.1)
-
-
-system.Add(driver.GetThrottleBody())
-system.Add(driver.GetSteeringBody())
-
-
-imu_sensor = veh.ChIMUSensor(vehicle.GetChassisBody())
-
-
-gps_sensor = veh.ChGPSSensor(vehicle.GetChassisBody())
-
-
-system.Add(imu_sensor.GetSensorBody())
-system.Add(gps_sensor.GetSensorBody())
-
-
-imu_sensor.SetUpdateRate(100)
-gps_sensor.SetUpdateRate(10)
-
-
-while app.Run() and system.GetChTime() < SIMULATION_TIME:
+while app.Run():
     
-    vehicle.Synchronize(TIME_STEP)
-    terrain.Synchronize(TIME_STEP)
-    driver.Synchronize(TIME_STEP)
-    app.Synchronize("", TIME_STEP)
+    driver.Advance(0.02)
+    terrain.Advance(0.02)
+    veh_system.Update(0.02)
 
     
-    imu_sensor.Update()
-    gps_sensor.Update()
+    time = veh_system.GetSystem().GetChTime()
+    UpdateSensorData(veh_system.GetVehicle(), imu, gps, time)
 
     
-    print("Vehicle Mass: ", vehicle.GetMass())
+    print("Vehicle Mass: ", veh_system.GetVehicle().GetMass())
 
     
-    app.Render()
+    app.BeginScene()
+    app.SetCameraPosition(chrono.ChVector3d(0, -5, 2))
+    app.EndScene()
 
-
-app.EndScene()
 chrono.ChEngine.Finalize()

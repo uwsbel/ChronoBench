@@ -15,7 +15,7 @@ chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
 # Create ground body as terrain plane that robot will drive on
 ground_mat = chrono.ChContactMaterialNSC()
 ground = chrono.ChBodyEasyBox(20, 20, 1, 1000, True, True, ground_mat)
-ground.SetPos(chrono.ChVector3d(0, 0, -0.6))  # Adjusted ground position
+ground.SetPos(chrono.ChVector3d(0, 0, -0.6))  # Position the ground slightly below the origin
 ground.SetFixed(True)  # Fix the ground in place
 ground.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
 system.Add(ground)
@@ -42,43 +42,38 @@ vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0
 # Enable shadows
 vis.EnableShadows()
 
+# Set the simulation time step
+time_step = 2e-3
+
 # Define WheelID enum values for motor control
 LEFT_DRIVE_WHEEL = 0
 RIGHT_DRIVE_WHEEL = 1
 
-# New function to control the robot's movement
 def move(mode):
-    if mode == "straight":
+    if mode == 'straight':
         robot.SetMotorSpeed(math.pi, LEFT_DRIVE_WHEEL)
         robot.SetMotorSpeed(math.pi, RIGHT_DRIVE_WHEEL)
-    elif mode == "left":
+    elif mode == 'left':
         robot.SetMotorSpeed(0, LEFT_DRIVE_WHEEL)
         robot.SetMotorSpeed(-math.pi, RIGHT_DRIVE_WHEEL)
-    elif mode == "right":
+    elif mode == 'right':
         robot.SetMotorSpeed(-math.pi, LEFT_DRIVE_WHEEL)
         robot.SetMotorSpeed(0, RIGHT_DRIVE_WHEEL)
     else:
         raise ValueError("Invalid mode. Choose from 'straight', 'left', or 'right'.")
 
-# Set the simulation time step
-time_step = 2e-3
-
 # Simulation loop
 time = 0
-mode = "straight"
 while vis.Run():
-    # Update robot movement based on time
     if time < 5:
-        mode = "straight"
-        print("Moving straight")
+        print("Moving straight...")
+        move('straight')
     elif time < 10:
-        mode = "left"
-        print("Turning left")
+        print("Turning left...")
+        move('left')
     else:
-        mode = "right"
-        print("Turning right")
-
-    move(mode)
+        print("Turning right...")
+        move('right')
 
     # Increment time counter
     time += time_step

@@ -1,61 +1,64 @@
 import pychrono as chrono
-import numpy as np
+from pychrono.irrlicht import ChIrrApp
+from pychrono.vehicle import ChVehicle, ChArticulatedVehicle, ChArticulatedVehicleDriven, ChArticulatedVehicleDriver
 
-# Initialize PyChrono environment and core components
+# Initialize PyChrono environment
+chrono.SetChronoDataPath("path/to/chrono_data")
+
+# Create a new simulation
 sim = chrono.ChSimulation()
-sim.SetTimestep(0.01)  # Set timestep to 0.01 seconds for 100 Hz simulation
-sim.SetMaxPenetrationDepth(1e-3)  # Set maximum penetration depth
+sim.SetMaxStepSize(0.05)
+sim.SetSolverType(chrono.ChSolverType_SOR)
 
-# Create a RigidTerrain with defined dimensions and add a custom texture
+# Create a new Irrlicht application for visualization
+app = ChIrrApp(sim, "ARTcar Simulation", chrono.GetChronoDataPath() + "media/")
+app.SetCamera(chrono.Camera(chrono.Vector3d(1.5, 1.5, 1.5), chrono.Vector3d(0, 0, 0)))
+app.AddTypicalSky()
+app.AddTypicalLights()
+app.AddShadowAll()
+
+# Create a rigid terrain
 terrain = chrono.ChTerrain()
-terrain.SetPlane(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 1, 0))  # Set terrain plane
-terrain.SetMaterial(chrono.ChMaterialSurfaceNSC())  # Set terrain material
-terrain.SetTexture(chrono.ChTexture("path/to/terrain_texture.png"))  # Set terrain texture
+terrain.SetMaterial(chrono.ChMaterialSurfaceNSC())
+terrain.GetMaterial().SetFriction(0.6)
+terrain.SetColor(chrono.ChColor(0.3, 0.3, 0.3))
+terrain.AddBox(chrono.ChVectorD(10, 0, 10), chrono.ChVectorD(1, 0, 1))
+terrain.AddTexture(chrono.ChTexture(chrono.GetChronoDataPath() + "textures/grass.png"))
 sim.Add(terrain)
 
-# Initialize the ARTcar vehicle with specific parameters
-vehicle = chrono.ArticulatedVehicle()
-vehicle.SetChassisBody(chrono.ChBodyEasyBox(1, 2, 3, 100, chrono.ChMaterialSurfaceNSC()))  # Set chassis body
-vehicle.SetChassisLocation(chrono.ChVectorD(0, 1, 0))  # Set chassis location
-vehicle.SetChassisOrientation(chrono.Q_from_AngX(chrono.CH_C_PI / 2))  # Set chassis orientation
-vehicle.SetContactMethod(chrono.ChContactMethod_NSC)  # Set contact method
-vehicle.SetVisualizationType(chrono.ChVisualizationType_MESH)  # Set visualization type
+# Initialize ARTcar vehicle
+vehicle = ChArticulatedVehicle()
+vehicle.SetChassisBodyName("chassis")
+vehicle.SetChassisVisualName("chassis")
+vehicle.SetChassisPosition(chrono.ChVectorD(0, 0.5, 0))
+vehicle.SetChassisRotation(chrono.Q_from_AngX(chrono.CH_C_PI_2))
+vehicle.SetContactMethod(chrono.ChVehicleContactMethod_SIMPLE)
+vehicle.SetVisualizationType(chrono.ChVehicleVisualizationType::CH_VIS_VEHICLE_ALL)
 
 # Add wheels to the vehicle
-wheel = chrono.ChWheel()
-wheel.SetSpokeRadius(0.2)
-wheel.SetTireRadius(0.3)
-wheel.SetTireWidth(0.2)
-wheel.SetSuspensionRestLength(0.5)
-wheel.SetSuspensionStiffness(20000)
-wheel.SetSuspensionDamping(2000)
-vehicle.AddWheel(wheel, chrono.ChVectorD(1, 1, 1), chrono.ChVectorD(0, -1, 0), True)  # Front left wheel
-vehicle.AddWheel(wheel, chrono.ChVectorD(-1, 1, 1), chrono.ChVectorD(0, -1, 0), True)  # Front right wheel
-vehicle.AddWheel(wheel, chrono.ChVectorD(1, 1, -1), chrono.ChVectorD(0, -1, 0), False)  # Rear left wheel
-vehicle.AddWheel(wheel, chrono.ChVectorD(-1, 1, -1), chrono.ChVectorD(0, -1, 0), False)  # Rear right wheel
+vehicle.AddSteeringWheel("front_left", chrono.ChVectorD(0.5, 0.3, 0.7), -0.5)
+vehicle.AddSteeringWheel("front_right", chrono.ChVectorD(0.5, 0.3, -0.7), -0.5)
+vehicle.AddWheel("front_left", "front_left_wheel", chrono.ChVectorD(0.5, 0.3, 0.7), chrono.ChVectorD(0, 0, -0.3), 0.3, 0.6, 0.5, chrono.ChMaterialSurfaceNSC())
+vehicle.AddWheel("front_right", "front_right_wheel", chrono.ChVectorD(0.5, 0.3, -0.7), chrono.ChVectorD(0, 0, -0.3), 0.3, 0.6, 0.5, chrono.ChMaterialSurfaceNSC())
+vehicle.AddWheel("rear_left", "rear_left_wheel", chrono.ChVectorD(-0.5, 0.3, 0.7), chrono.ChVectorD(0, 0, -0.3), 0.3, 0.6, 0.5, chrono.ChMaterialSurfaceNSC())
+vehicle.AddWheel("rear_right", "rear_right_wheel", chrono.ChVectorD(-0.5, 0.3, -0.7), chrono.ChVectorD(0, 0, -0.3), 0.3, 0.6, 0.5, chrono.ChMaterialSurfaceNSC())
 
-# Set up an interactive driver system to control the vehicle's steering, throttle, and braking
-driver = chrono.ChVehicleDriver()
-driver.SetSteering(0.5)  # Set initial steering value (between -1 and 1)
-driver.SetThrottle(0.5)  # Set initial throttle value (between 0 and 1)
-driver.SetBrake(0)  # Set initial brake value (between 0 and 1)
-
-# Add the vehicle and driver to the simulation
+# Add the vehicle to the simulation
 sim.Add(vehicle)
+
+# Initialize the driver system
+driver = ChArticulatedVehicleDriver(vehicle)
+driver.SetSteering(0)
+driver.SetThrottle(0)
+driver.SetBrake(0)
 sim.Add(driver)
 
-# Set up Irrlicht for visualization
-app = chrono.ChIrrApp(sim, "ARTcar Simulation")
-app.SetTimestep(0.01)  # Set timestep to 0.01 seconds for 50 FPS simulation
-app.AddTypicalSky(chrono.ChColor(0.6, 0.6, 0.6))  # Add typical sky for visualization
-app.AddTypicalLights(chrono.ChVectorD(4, 4, 4))  # Add typical lights for visualization
-app.Add(terrain)  # Add terrain to the visualization
-app.Add(vehicle)  # Add vehicle to the visualization
-
-# Simulation loop that updates vehicle dynamics and visualization in real time
+# Simulation loop
 while app.GetDevice().run():
     sim.DoStep()
-    app.BeginScene(True, True, chrono.ChColor(0.9, 0.9, 0.9))  # Begin scene for visualization
-    app.DrawAll()  # Draw all objects in the scene
-    app.EndScene()  # End scene for visualization
-    app.GetDevice().driver.sleep(1)  # Sleep for a short period to limit FPS
+    app.BeginScene(True, True, chrono.ChColor(0.3, 0.3, 0.3))
+    app.DrawAll()
+    app.EndScene()
+    app.GetDevice().sleep(0.016666666666666666)
+
+app.GetDevice().closeDevice()

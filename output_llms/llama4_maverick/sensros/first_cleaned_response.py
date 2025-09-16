@@ -1,129 +1,122 @@
 import pychrono as chrono
 import pychrono.sensor as sens
-import pychrono.irrlicht as chronoirr
+import pychrono.vehicle as vehicle
+import pychrono.irrlicht as irr
 import numpy as np
 
 
-chrono_system = chrono.ChSystemNSC()
+chrono.SetChronoDataPath("/path/to/chrono/data/")
+
+
+sys = chrono.ChSystemNSC()
+
+
+mesh = chrono.ChTriangleMeshConnected()
+mesh.LoadWavefrontMesh(chrono.GetChronoDataPath() + "sensor/offroad/mesh.obj")
 
 
 ground_body = chrono.ChBody()
 ground_body.SetBodyFixed(False)  
 ground_body.SetPos(chrono.ChVectorD(0, 0, 0))
-chrono_system.Add(ground_body)
+ground_body.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
 
 
-mesh = chrono.ChTriangleMeshConnected()
-mesh.LoadWavefrontMesh('mesh.obj')
-mesh.Transform(chrono.ChVectorD(0, 0, 0), chrono.ChMatrix33D(1))
+mesh_visual = chrono.ChVisualShapeTriangleMesh()
+mesh_visual.SetMesh(mesh)
+ground_body.AddVisualShape(mesh_visual)
 
 
-mesh_asset = chrono.ChTriangleMeshShape()
-mesh_asset.SetMesh(mesh)
-ground_body.AddAsset(mesh_asset)
+sys.Add(ground_body)
 
 
-sensor_manager = sens.ChSensorManager(chrono_system)
+manager = sens.ChSensorManager(sys)
 
 
 camera = sens.ChCameraSensor(
-    ground_body, 
+    ground_body,  
     30,  
-    chrono.ChFrameD(chrono.ChVectorD(0, 0, 2), chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0))), 
+    chrono.ChFrameD(chrono.ChVectorD(-5, 0, 2), chrono.Q_from_AngAxis(chrono.CH_C_PI / 20, chrono.VECT_Y)),  
     640,  
     480,  
-    90  
+    chrono.CH_C_PI / 3  
 )
-sensor_manager.AddSensor(camera)
+manager.AddSensor(camera)
 
 
 lidar = sens.ChLidarSensor(
-    ground_body, 
-    10,  
-    chrono.ChFrameD(chrono.ChVectorD(0, 0, 2), chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0))), 
+    ground_body,
+    30,
+    chrono.ChFrameD(chrono.ChVectorD(0, 0, 1), chrono.Q_from_AngAxis(chrono.CH_C_PI / 20, chrono.VECT_Y)),
     1000,  
     100,  
-    chrono.ChVectorD(-1, 1, -1),  
-    chrono.ChVectorD(-0.1, 0.1, -0.1)  
+    chrono.CH_C_PI,  
+    chrono.CH_C_PI / 8  
 )
-sensor_manager.AddSensor(lidar)
+manager.AddSensor(lidar)
 
 
 gps = sens.ChGPSSensor(
-    ground_body, 
+    ground_body,
     10,  
-    chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0)))
+    chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT)  
 )
-sensor_manager.AddSensor(gps)
+manager.AddSensor(gps)
 
 
-accelerometer = sens.ChAccelerometerSensor(
-    ground_body, 
+accel = sens.ChAccelerometerSensor(
+    ground_body,
     100,  
-    chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0)))
+    chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT)  
 )
-sensor_manager.AddSensor(accelerometer)
+manager.AddSensor(accel)
 
 
-gyroscope = sens.ChGyroscopeSensor(
-    ground_body, 
+gyro = sens.ChGyroscopeSensor(
+    ground_body,
     100,  
-    chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0)))
+    chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT)  
 )
-sensor_manager.AddSensor(gyroscope)
+manager.AddSensor(gyro)
 
 
-magnetometer = sens.ChMagnetometerSensor(
-    ground_body, 
+magnet = sens.ChMagnetometerSensor(
+    ground_body,
     100,  
-    chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0)))
+    chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT),  
+    chrono.ChVectorD(0, 0, 1)  
 )
-sensor_manager.AddSensor(magnetometer)
+manager.AddSensor(magnet)
 
 
-import rospy
-from sensor_msgs.msg import Image, LaserScan, NavSatFix, Imu, MagneticField
-
-class ROSManager:
-    def __init__(self):
-        self.camera_pub = rospy.Publisher('/camera/image', Image, queue_size=10)
-        self.lidar_pub = rospy.Publisher('/lidar/scan', LaserScan, queue_size=10)
-        self.gps_pub = rospy.Publisher('/gps/fix', NavSatFix, queue_size=10)
-        self.imu_pub = rospy.Publisher('/imu/data', Imu, queue_size=10)
-        self.magnetometer_pub = rospy.Publisher('/magnetometer/data', MagneticField, queue_size=10)
-
-    def publish_data(self, camera_data, lidar_data, gps_data, accelerometer_data, gyroscope_data, magnetometer_data):
-        
-        
-        self.camera_pub.publish(camera_data)
-        self.lidar_pub.publish(lidar_data)
-        self.gps_pub.publish(gps_data)
-        imu_data = Imu()
-        imu_data.linear_acceleration.x = accelerometer_data[0]
-        imu_data.angular_velocity.x = gyroscope_data[0]
-        self.imu_pub.publish(imu_data)
-        magnetometer_msg = MagneticField()
-        magnetometer_msg.magnetic_field.x = magnetometer_data[0]
-        self.magnetometer_pub.publish(magnetometer_msg)
-
-ros_manager = ROSManager()
-rospy.init_node('pychrono_sensor_node', anonymous=True)
+ros_manager = sens.ChROSPackageManager(manager)
+ros_manager.AddCameraSensor(camera, "/camera")
+ros_manager.AddLidarSensor(lidar, "/lidar")
+ros_manager.AddGPSSensor(gps, "/gps")
+ros_manager.AddAccelerometerSensor(accel, "/accelerometer")
+ros_manager.AddGyroscopeSensor(gyro, "/gyroscope")
+ros_manager.AddMagnetometerSensor(magnet, "/magnetometer")
 
 
-while chrono_system.GetChTime() < 10:  
+vis = irr.ChVisualSystemIrrlicht()
+vis.AttachSystem(sys)
+vis.SetWindowSize(800, 600)
+vis.SetWindowTitle('Sensor Simulation')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataPath() + 'logo_pychrono_alpha.png')
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVectorD(0, -8, 2), chrono.ChVectorD(0, 0, 0))
+vis.AddTypicalLights()
+
+while vis.Run():
+    time = sys.GetChTime()
     
-    sensor_manager.Update()
-
+    manager.Update()
     
-    camera_data = camera.GetMostRecentBuffer()
-    lidar_data = lidar.GetMostRecentBuffer()
-    gps_data = gps.GetMostRecentBuffer()
-    accelerometer_data = accelerometer.GetMostRecentBuffer()
-    gyroscope_data = gyroscope.GetMostRecentBuffer()
-    magnetometer_data = magnetometer.GetMostRecentBuffer()
-
+    ros_manager.Update()
     
-    ros_manager.publish_data(camera_data, lidar_data, gps_data, accelerometer_data, gyroscope_data, magnetometer_data)
-
+    sys.DoStepDynamics(0.01)
     
-    chrono_system.DoStepDynamics(0.01)
+    vis.Run()
+    vis.BeginScene(True, True, irr.SColor(255, 140, 161, 192))
+    vis.Render()
+    vis.EndScene()

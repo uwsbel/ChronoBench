@@ -21,11 +21,11 @@ def main():
     hmmwv.SetTireStepSize(1e-3)  
 
     
-    hmmwv.SetChassisVisualizationType(veh.VisualizationType_MESH)
-    hmmwv.SetSuspensionVisualizationType(veh.VisualizationType_MESH)
-    hmmwv.SetSteeringVisualizationType(veh.VisualizationType_MESH)
-    hmmwv.SetWheelVisualizationType(veh.VisualizationType_MESH)
-    hmmwv.SetTireVisualizationType(veh.VisualizationType_MESH)
+    hmmwv.SetChassisVisualizationType(veh.ChassisVisualizationType_MESH)
+    hmmwv.SetSuspensionVisualizationType(veh.SuspensionVisualizationType_MESH)
+    hmmwv.SetSteeringVisualizationType(veh.SteeringVisualizationType_MESH)
+    hmmwv.SetWheelVisualizationType(veh.WheelVisualizationType_MESH)
+    hmmwv.SetTireVisualizationType(veh.TireVisualizationType_MESH)
 
     hmmwv.Initialize()  
 
@@ -52,40 +52,39 @@ def main():
     ros_manager.Initialize()  
 
     
+    vis = chronoirr.ChVisualSystemIrrlicht()
+    vis.AttachSystem(hmmwv.GetSystem())
+    vis.SetWindowSize(800, 600)
+    vis.SetWindowTitle('HMMWV Simulation')
+    vis.EnableEnhancedShadows()
+    vis.Initialize()
+
+    
     time = 0
     time_step = 1e-3  
     time_end = 30  
-
     hmmwv.GetVehicle().EnableRealtime(True)  
-
-    
-    vis = chronoirr.ChVisualSystemIrrlicht()
-    vis.AttachSystem(hmmwv.GetSystem())
-    vis.SetCameraPosition(ch.ChVector3d(0, -10, 5))
-    vis.EnableStats(vis.STATS_FPS)
 
     while time < time_end:
         time = hmmwv.GetSystem().GetChTime()  
-
         
         driver_inputs = driver.GetInputs()
         driver.Synchronize(time)  
         terrain.Synchronize(time)  
         hmmwv.Synchronize(time, driver_inputs, terrain)  
-
         
         driver.Advance(time_step)
         terrain.Advance(time_step)
         hmmwv.Advance(time_step)
 
         
-        if not ros_manager.Update(time, time_step):
-            break  
-
-        
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
+
+        
+        if not ros_manager.Update(time, time_step):
+            break  
 
 if __name__ == "__main__":
     main()

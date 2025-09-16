@@ -98,6 +98,12 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 
+time_intervals = [(0, 10), (10, 20), (20, 30), (30, 40), (40, 50)]
+steering_adjustments = [0.5, -0.5, 0.5, -0.5, 0]
+throttle_adjustments = [0.8, 0.8, 0.8, 0.8, 0]
+braking_adjustments = [0, 0, 0, 0, 1]
+
+
 print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 
 
@@ -107,10 +113,6 @@ render_steps = math.ceil(render_step_size / step_size)
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
-
-
-lane_change_time = 5.0  
-brake_time = 10.0  
 
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
@@ -131,19 +133,11 @@ while vis.Run() :
     vis.Synchronize(time, driver_inputs)
 
     
-    if time < lane_change_time:
-        driver_inputs.m_steering = -1.0
-        driver_inputs.m_throttle = 1.0
-    elif time < 2 * lane_change_time:
-        driver_inputs.m_steering = 1.0
-        driver_inputs.m_throttle = 1.0
-    elif time < brake_time:
-        driver_inputs.m_steering = 0.0
-        driver_inputs.m_throttle = 1.0
-    else:
-        driver_inputs.m_steering = 0.0
-        driver_inputs.m_throttle = 0.0
-        driver_inputs.m_braking = 1.0
+    for i, (start, end) in enumerate(time_intervals):
+        if start <= time < end:
+            driver_inputs.m_steering = steering_adjustments[i]
+            driver_inputs.m_throttle = throttle_adjustments[i]
+            driver_inputs.m_braking = braking_adjustments[i]
 
     
     driver.Advance(step_size)

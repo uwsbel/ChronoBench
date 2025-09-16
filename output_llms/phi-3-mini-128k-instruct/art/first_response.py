@@ -1,91 +1,101 @@
-import pychronoid as pc
+import pychrono as chrono
 
-import irrlicht as ir
+import pychrono.visualization as visual
 
-import numpy as np
+import pychrono.core as core
 
+import pychrono.vehicle as vehicle
 
-# Initialize PyChrono environment
+import pychrono.collision as collision
 
-pc.init()
-
-
-# Create a RigidTerrain
-
-terrain = pc.RigidTerrain(pc.Vector3(0, 0, 0), pc.Vector3(100, 0, 0), 10, 10)
-
-terrain.setTexture(ir.core.IrrlichtDevice.getDevice().getFontTexture(ir.core.IrrlichtDevice.getDevice().getFontName()))
+import pychrono.irrlicht as irrlicht
 
 
-# Create an ARTcar vehicle
+# Initialize the PyChrono environment
 
-car = pc.ARTcar(pc.Vector3(0, 0, 0), pc.Quaternion(0, 0, 0, 1), pc.ContactMethod.Penetration, pc.VisualizationType.Solid)
-
-car.setMass(1000)
-
-car.setMaxForce(1000)
-
-car.setMaxVelocity(50)
-
-car.setMaxAngularVelocity(np.pi / 4)
+core.Initialize()
 
 
-# Add the vehicle and terrain to the simulation
+# Create the Irrlicht application
 
-simulation = pc.Simulation()
-
-simulation.addRigidTerrain(terrain)
-
-simulation.addArtcar(car)
+app = core.IrrlichtApplication(core.Dimension(640, 480), "Vehicle Simulation")
 
 
-# Set up the driver system
+# Create a RigidTerrain and set its properties
 
-driver = pc.DriverSystem(car, pc.DriverInputType.Keyboard)
+terrain = collision.RigidTerrain()
 
+terrain.SetWidth(1000)
 
-# Set up the simulation loop
+terrain.SetHeight(200)
 
-device = ir.core.IrrlichtDevice()
+terrain.SetMaterial(collision.RigidBodyMaterialSurface())
 
-device.setWindowTitle("ARTcar Simulation")
-
-device.setWindowSize(1280, 720)
-
-device.setAllowWindowAutoResize(True)
-
-device.setAllowWindowAutoMovement(True)
-
-device.setClearColor(ir.vector3df(0.5, 0.5, 0.5))
+app.AddScene(terrain)
 
 
-# Main simulation loop
+# Add a custom texture to the terrain
 
-while device.getDevice()->run():
+terrain_texture = visual.Texture2D()
 
-    simulation.update()
+terrain_texture.SetTextureFilename(core.GetResourcePath("textures/terrain.jpg"))
 
-    car.update(simulation)
-
-    driver.update(simulation)
-
-    device.beginScene(True, True, ir.color.White)
-
-    device.drawAll()
-
-    device.endScene()
-
-    device.swapBuffers()
-
-    device.sleep(pc.Timestep.getTimestep())
+terrain.SetTexture(terrain_texture)
 
 
-# Clean up
+# Create the ARTcar vehicle
 
-simulation.removeRigidTerrain(terrain)
+artcar = vehicle.ArtCarVehicle()
 
-simulation.removeArtcar(car)
+artcar.SetLocation(chrono.Vector3d(0, 0, 10))
 
-device.destroyWindow()
+artcar.SetOrientation(chrono.Quaterniond(0, 0, 0, 1))
 
-pc.shutdown()
+artcar.SetContactMethod(vehicle.ContactMethod_Mesh)
+
+artcar.SetVisualizationType(vehicle.VisualizationType_Color)
+
+artcar.SetSteeringLimit(0.5)
+
+artcar.SetThrottleLimit(1.0)
+
+artcar.SetBrakeLimit(0.5)
+
+app.AddScene(artcar)
+
+
+# Add the vehicle to the terrain collision system
+
+collision_system = collision.CollisionSystem(core.ProcessF64)
+
+terrain.Add(collision_system)
+
+artcar.Add(collision_system)
+
+
+# Define the simulation loop
+
+while not app.WindowShouldClose():
+
+    core.WaitAnyEvent()
+
+    collision_system.SolveManifoldCollisions()
+
+    artcar.SolveForces()
+
+    artcar.UpdateVelocity()
+
+    artcar.UpdatePosition()
+
+    app.BeginScene()
+
+    app.DrawAll()
+
+    app.EndScene()
+
+    app.Present()
+
+
+# Run the simulation at 50 frames per second
+
+app.Run(True, 50)

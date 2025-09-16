@@ -2,126 +2,50 @@ import chrono as ch
 import chrono.irrlicht as irr
 
 # Initialize PyChrono environment
-ch.ChEngine.Initialize()
+ch.CH_INIT()
 
-# Create the Irrlicht application
-app = irr.IrrlichtApp()
-app.Create IrrlichtDevice()
-
-# Set the simulation step and end time
-step_size = 0.01
-end_time = 10.0
-
-# Create the physical system
-system = ch.ChSystemNSC()
+# Create the Chrono systems
+sys = ch.ChSystemNSC()
 
 # Create the ground body
 ground = ch.ChBody()
-ground.SetBodyFixed(True)
-system.Add(ground)
+ground.SetPos(ch.ChVector3d(0, 0, 0))
+sys.Add(ground)
 
 # Create the mass body
 mass = ch.ChBody()
 mass.SetMass(1.0)
-mass.SetPos(ch.ChVectorD(0, 1, 0))
-system.Add(mass)
+mass.SetInertiaXX(ch.ChVector3d(0.1, 0.1, 0.1))
+mass.SetPos(ch.ChVector3d(0, 5, 0))
+sys.Add(mass)
 
-# Create a sphere shape for the mass
+# Create a Link_TSD_A (mass-spring-damper) between mass and ground
+link_tsda = ch.ChLinkTSDA()
+link_tsda.SetPoints(ch.ChVector3d(0, 0, 0), ch.ChVector3d(0, 5, 0))
+link_tsda.SetRestLength(5)
+link_tsda.SetSpringConstant(1000)
+link_tsda.SetDampingCoefficient(20)
+link_tsda.SetMinDistance(0.1)
+sys.Add(link_tsda)
+
+# Create visual shapes for the mass and spring
 mass_shape = ch.ChSphereShape(0.2)
 mass.AddVisualShape(mass_shape)
 
-# Create the spring-damper connection
-spring_damper = ch.ChLinkTSDA()
-spring_damper.SetPoints(ch.ChVectorD(0, 0, 0), ch.ChVectorD(0, 1, 0))
-spring_damper.SetRestLength(1.0)
-spring_damper.SetSpringConstant(10.0)  # default: 10 N/m
-spring_damper.SetDampingCoefficient(2.0)  # default: 2 Ns/m
-system.Add(spring_damper)
+spring_shape = ch.ChLineShape()
+spring_shape.SetNumSegments(10)
+spring_shape.SetSegmentPoints(link_tsda.GetPointA(), link_tsda.GetPointB())
+link_tsda.AddVisualShape(spring_shape)
 
-# Connect the spring-damper to the ground and mass
-spring_damper.Connect(ground, mass)
+# Irrlicht application
+app = irr.ChIrrApp(sys, 'Mass-Spring-Damper System', 800, 600)
 
-# Set gravity
-system.SetGravitationalAcceleration(ch.ChVectorD(0, -9.81, 0))
+# Set up camera
+app.SetCameraPos(ch.ChVector3d(0, 10, 10))
+app.SetCameraTarget(ch.ChVector3d(0, 0, 0))
 
-# Set the simulation to use the default integrator
-system.SetIntegrator(ch.ChTimestepperEulerImplicitLinear)
+# Enable default Irrlicht lighting
+app.EnableDefaultLights()
 
-# Create the Irrlicht scene node for the ground
-ground_shape = ch.ChBoxShape(10, 0.1, 10)
-ground.AddVisualShape(ground_shape)
-
-# Create the Irrlicht scene node for the mass-spring-damper system
-app.AddCamera(ch.ChVectorD(0, 2, 3), ch.ChVectorD(0, 0, 0))
-app.SetLightPosition(ch.ChVectorD(5, 5, 5))
-app.ShowInfos(True)
-
-# Run the simulation
-while app.Run(step_size):
-    system.DoStepDynamics(step_size)
-
-import chrono as ch
-import chrono.irrlicht as irr
-
-def main():
-    # Initialize PyChrono environment
-    ch.ChEngine.Initialize()
-
-    # Create the Irrlicht application
-    app = irr.IrrlichtApp()
-    app.CreateIrrlichtDevice()
-
-    # Set the simulation step and end time
-    step_size = 0.01
-    end_time = 10.0
-
-    # Create the physical system
-    system = ch.ChSystemNSC()
-
-    # Create the ground body
-    ground = ch.ChBody()
-    ground.SetBodyFixed(True)
-    system.Add(ground)
-
-    # Create the mass body
-    mass = ch.ChBody()
-    mass.SetMass(1.0)
-    mass.SetPos(ch.ChVectorD(0, 1, 0))
-    system.Add(mass)
-
-    # Create a sphere shape for the mass
-    mass_shape = ch.ChSphereShape(0.2)
-    mass.AddVisualShape(mass_shape)
-
-    # Create the spring-damper connection
-    spring_damper = ch.ChLinkTSDA()
-    spring_damper.SetPoints(ch.ChVectorD(0, 0, 0), ch.ChVectorD(0, 1, 0))
-    spring_damper.SetRestLength(1.0)
-    spring_damper.SetSpringConstant(10.0)  
-    spring_damper.SetDampingCoefficient(2.0)  
-    system.Add(spring_damper)
-
-    # Connect the spring-damper to the ground and mass
-    spring_damper.Connect(ground, mass)
-
-    # Set gravity
-    system.SetGravitationalAcceleration(ch.ChVectorD(0, -9.81, 0))
-
-    # Set the simulation to use the default integrator
-    system.SetIntegrator(ch.ChTimestepperEulerImplicitLinear)
-
-    # Create the Irrlicht scene node for the ground
-    ground_shape = ch.ChBoxShape(10, 0.1, 10)
-    ground.AddVisualShape(ground_shape)
-
-    # Create the Irrlicht scene node for the mass-spring-damper system
-    app.AddCamera(ch.ChVectorD(0, 2, 3), ch.ChVectorD(0, 0, 0))
-    app.SetLightPosition(ch.ChVectorD(5, 5, 5))
-    app.ShowInfos(True)
-
-    # Run the simulation
-    while app.Run(step_size):
-        system.DoStepDynamics(step_size)
-
-if __name__ == "__main__":
-    main()
+# Run simulation
+app.Run()

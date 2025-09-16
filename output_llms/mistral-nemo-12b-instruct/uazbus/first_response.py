@@ -1,52 +1,49 @@
-import pychrono as pc
-import pychrono.vehicle as vehicle
-import pychrono.terrain as terrain
-import pychrono.driver as driver
-import pychrono.visualization as vis
+import pychrono as chrono
+from pychrono.irrlicht import *
+from pychrono.drivers import *
 
-# 1. Initialize the PyChrono environment and core components.
-pc.init()
+# Initialize PyChrono environment and core components
+chrono.SetChronoDataPath("path_to_chrono_data")
+physics = chrono.ChPhysicsEngine()
+my_system = chrono.ChSystemNSC(physics)
+my_system.Set_Gravity(chrono.ChVectorD(0, -9.81, 0))
 
-# 2. Add the required physical systems and objects.
+# Add physical systems and objects
+# Create a rigid terrain
+terrain = chrono.ChTerrain()
+terrain.SetMaterial(chrono.ChMaterialSurfaceNSC())
+terrain.GetMaterial().SetFriction(0.6)
+terrain.GetMaterial().SetRestitution(0.3)
+terrain.AddBox(100, 100, 1, chrono.ChVectorD(0, -50, 0))
+my_system.Add(terrain)
 
 # Create a UAZBUS vehicle
-uazbus = vehicle.UAZBUS()
-uazbus.set_position([0, 0, 0.5])  # Set initial position
-uazbus.set_velocity([0, 0, 0])  # Set initial velocity
+vehicle = chrono.ChVehicle()
+vehicle.SetChassisBody(chrono.ChBodyEasyBox(2.5, 5, 4, 1000, True, True, True))
+vehicle.SetChassisBodyMaterial(chrono.ChMaterialSurfaceNSC())
+vehicle.SetChassisBodyMaterial().SetFriction(0.9)
+vehicle.SetChassisBodyMaterial().SetRestitution(0.0)
+vehicle.SetChassisBodyInitialPosition(chrono.ChVectorD(0, 1, 0))
+my_system.Add(vehicle)
 
-# Create a rigid terrain with defined friction and restitution
-terrain = terrain.RigidPlane()
-terrain.set_friction(0.9)  # Friction coefficient
-terrain.set_restitution(0.5)  # Restitution coefficient
+# Initialize driver system for vehicle control
+driver = ChVehicleDriver()
+driver.SetSteering(0.5)
+driver.SetAcceleration(1)
+driver.SetBrake(0)
+vehicle.Initialize(driver, my_system)
 
-# Create a driver system for vehicle control
-driver = driver.VehicleDriver(uazbus)
-driver.set_control('throttle', 0.5)  # Set initial throttle control
+# Create real-time visualization using Irrlicht with camera settings and lighting
+application = chrono.ChIrrApp(my_system, "PyChrono Simulation", chrono.irr.GetIrrlichtDeviceFlags())
+application.AddTypicalSky(chrono.ChVectorD(0, 0, 0))
+application.AddTypicalCamera(chrono.ChVectorD(1, 1.4, -3.9), chrono.ChVectorD(0, 0, 0))
+application.AddLights(chrono.ChVectorD(0, 30, 0), chrono.ChColor(0.8, 0.8, 0.8), 1000, 40)
+application.AssetAdd(chrono.ChModelAsset("path_to_uazbus_model", False))
+application.AssetCombine()
+application.AssetBind(vehicle)
 
-# 3. Set necessary default parameters.
-
-# Create a real-time visualization using Irrlicht with camera settings and lighting
-vis.add_vehicle(uazbus)
-vis.add_terrain(terrain)
-vis.set_camera_position([5, 5, 3])  # Set camera position
-vis.set_camera_lookat([0, 0, 0])  # Set camera look-at point
-vis.set_lighting([1, 1, 1])  # Set ambient light
-
-# Simulation loop
-while True:
-    # Synchronize and advance the vehicle, terrain, driver, and visual system at each timestep
-    pc.synchronize()
-    pc.advance()
-
-    # Maintain real-time execution
-    pc.sleep(0.01)  # Sleep for 10 ms to maintain real-time execution
-
-    # Update driver control (e.g., based on sensor data or user input)
-    # driver.set_control('throttle', ...)
-
-    # Break the loop when a certain condition is met (e.g., simulation time)
-    if pc.get_time() > 10:
-        break
-
-# Clean up and close the simulation
-pc.close()
+# Implement simulation loop that synchronizes and advances the vehicle, terrain, driver, and visual system at each timestep
+while application.GetDevice().run():
+    my_system.DoStepDynamics(0.01)
+    vehicle.Synchronize()
+    application.Run()

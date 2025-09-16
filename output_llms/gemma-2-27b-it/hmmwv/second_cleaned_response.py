@@ -39,22 +39,15 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  
 
 
-path_radius = 20.0  
-target_speed = 5.0  
 
-
-Kp = 1.0  
-Ki = 0.1  
-Kd = 0.01  
-
-
-vehicle = veh.HMMWV_Full()
+vehicle = veh.HMMWV_Full() 
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
+
 vehicle.Initialize()
 
 vehicle.SetChassisVisualizationType(vis_type)
@@ -76,6 +69,7 @@ patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 
+
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('HMMWV Demo')
 vis.SetWindowSize(1280, 1024)
@@ -87,63 +81,76 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 
-sentinel_sphere = irr.ChIrrNodeSphere(0.5, vis.GetSceneManager())
-sentinel_sphere.SetPos(chrono.ChVector3d(path_radius, 0, 0))
-vis.AddNode(sentinel_sphere)
+radius = 20.0  
+path_points = []
+for i in range(360):
+    angle = i * math.pi / 180
+    x = radius * math.cos(angle)
+    y = radius * math.sin(angle)
+    path_points.append(chrono.ChVector3d(x, y, 0))
 
-target_sphere = irr.ChIrrNodeSphere(0.5, vis.GetSceneManager())
-target_sphere.SetPos(chrono.ChVector3d(path_radius, 0, 0))
-vis.AddNode(target_sphere)
+sentinel_point = path_points[0]
+target_point = path_points[1]
 
 
+sentinel_sphere = irr.ChSphereShape()
+sentinel_sphere.GetMaterial().SetDiffuseColor(chrono.ChColor(1, 0, 0))
+sentinel_sphere.GetMaterial().SetSpecularColor(chrono.ChColor(1, 0, 0))
+sentinel_sphere.SetRadius(0.2)
+sentinel_vis = irr.ChBodyEasyBox(1, 1, 1, 1000)
+sentinel_vis.AddShape(sentinel_sphere)
+vis.GetSystem().Add(sentinel_vis)
+sentinel_vis.SetPos(sentinel_point)
+
+target_sphere = irr.ChSphereShape()
+target_sphere.GetMaterial().SetDiffuseColor(chrono.ChColor(0, 0, 1))
+target_sphere.GetMaterial().SetSpecularColor(chrono.ChColor(0, 0, 1))
+target_sphere.SetRadius(0.2)
+target_vis = irr.ChBodyEasyBox(1, 1, 1, 1000)
+target_vis.AddShape(target_sphere)
+vis.GetSystem().Add(target_vis)
+target_vis.SetPos(target_point)
+
+
+Kp = 1.0
+Ki = 0.1
+Kd = 0.01
+
+integral = 0.0
 previous_error = 0.0
-integral_error = 0.0
 
 
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-while vis.Run():
+while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
 
     
-    if (step_number % math.ceil(render_step_size / step_size) == 0):
+    if (step_number % math.ceil(render_step_size / step_size) == 0) :
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
         render_frame += 1
 
     
-    
-    angle = vehicle.GetVehicle().GetPos().x() / path_radius
-    target_x = path_radius * math.cos(angle)
-    target_y = path_radius * math.sin(angle)
-    target_point = chrono.ChVector3d(target_x, target_y, 0)
+    current_pos = vehicle.GetVehicle().GetPos()
+    error = (target_point - current_pos).Length()
+    integral += error * step_size
+    derivative = (error - previous_error) / step_size
+    steering = Kp * error + Ki * integral + Kd * derivative
+    vehicle.GetVehicle().SetSteeringAngle(steering)
 
     
-    target_sphere.SetPos(target_point)
-
-    
-    error = (target_point - vehicle.GetVehicle().GetPos()).Length()
-
-    
-    integral_error += error * step_size
-    derivative_error = (error - previous_error) / step_size
-    steering_input = Kp * error + Ki * integral_error + Kd * derivative_error
-
-    
-    vehicle.GetVehicle().SetSteeringAngle(steering_input)
-
-    
-    vehicle.GetVehicle().SetThrottle(0.3)
-
-    
-    previous_error = error
+    sentinel_point = target_point
+    target_point = path_points[(path_points.index(target_point) + 1) % len(path_points)]
+    sentinel_vis.SetPos(sentinel_point)
+    target_vis.SetPos(target_point)
 
     
     terrain.Synchronize(time)
-    vehicle.Synchronize(time)
+    vehicle.Synchronize(time, chrono.ChVector3d(0.3, 0, 0), terrain)
     vis.Synchronize(time)
 
     

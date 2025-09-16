@@ -17,7 +17,7 @@ vis_type = veh.VisualizationType_MESH
 chassis_collision_type = veh.CollisionType_NONE
 
 
-tire_model = veh.TireModelType_RIGID  
+tire_model = veh.TireModelType_RIGID
 
 
 
@@ -38,6 +38,16 @@ tire_step_size = step_size
 
 
 render_step_size = 1.0 / 50  
+
+
+box_mat = chrono.ChMaterialSurfaceNSC()
+box_mat.SetFriction(0.6)
+box_mat.SetRestitution(0.01)
+box_shape = chrono.ChBoxShape(0.5, 5, 0.2)
+box_body = chrono.ChBodyEasyBox(0.5, 5, 0.2, box_mat, box_shape)
+box_body.SetPos(chrono.ChVector3d(5, 0, 0.1))
+box_body.SetBodyFixed(True)
+vehicle.GetSystem().Add(box_body)
 
 
 vehicle = veh.UAZBUS()
@@ -72,14 +82,6 @@ patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 
-obstacle = chrono.ChBoxShape(0.5, 5, 0.2)
-obstacle_body = chrono.ChBodyEasyBox(0.5, 5, 0.2, 1000, True, True)
-obstacle_body.SetPos(chrono.ChVector3d(5, 0, 0.1))
-obstacle_body.SetBodyFixed(True)
-obstacle_body.AddAsset(obstacle)
-vehicle.GetSystem().Add(obstacle_body)
-
-
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('UAZBUS Demo')
 vis.SetWindowSize(1280, 1024)
@@ -104,10 +106,7 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 
-driver.SetThrottle(0.5)
-
-
-print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
+print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 
 
 render_steps = math.ceil(render_step_size / step_size)
@@ -117,10 +116,10 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-while vis.Run():
+while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
     
-    if (step_number % render_steps == 0):
+    if (step_number % render_steps == 0) :
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
@@ -128,6 +127,9 @@ while vis.Run():
 
     
     driver_inputs = driver.GetInputs()
+
+    
+    driver_inputs.throttle = 0.5
 
     
     driver.Synchronize(time)

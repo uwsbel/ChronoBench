@@ -21,9 +21,9 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 
-terrainHeight = 0      
+terrainHeight = 0  
 terrainLength = 100.0  
-terrainWidth = 100.0   
+terrainWidth = 100.0  
 
 
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
@@ -40,7 +40,8 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  
 
 
-vehicle = veh.HMMWV_Full() 
+vehicle = veh.HMMWV_Full()
+
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
@@ -66,15 +67,17 @@ terrain = veh.RigidTerrain(vehicle.GetSystem())
 
 
 patch = terrain.AddPatch(patch_mat, 
-    chrono.ChCoordsysd(chrono.ChVector3d(6, -70, 0), chrono.QuatFromAngleZ(-1.57 * 2)),  
-    chrono.GetChronoDataFile('vehicle/terrain/meshes/Highway_col.obj'),
-    True, 0.01, False)
+                         chrono.ChCoordsysd(chrono.ChVector3d(6, -70, 0), 
+                                            chrono.QuatFromAngleZ(-1.57)),  
+                         chrono.GetChronoDataFile('vehicle/terrain/meshes/Highway_col.obj'), 
+                         True, 0.01, False)
 
 vis_mesh = chrono.ChTriangleMeshConnected().CreateFromWavefrontFile(veh.GetDataFile("terrain/meshes/Highway_vis.obj"), True, True)
 tri_mesh_shape = chrono.ChVisualShapeTriangleMesh()
 tri_mesh_shape.SetMesh(vis_mesh)
 tri_mesh_shape.SetMutable(False)
 patch.GetGroundBody().AddVisualShape(tri_mesh_shape)
+
 terrain.Initialize()
 
 
@@ -94,19 +97,17 @@ driver = veh.ChInteractiveDriverIRR(vis)
 
 steering_time = 1.0  
 throttle_time = 1.0  
-braking_time = 0.3   
+braking_time = 0.3  
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
-
 driver.Initialize()
 
 
 
 
 
-
-print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 
 render_steps = math.ceil(render_step_size / step_size)
@@ -116,11 +117,11 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-while vis.Run() :
+while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
     
-    if (step_number % render_steps == 0) :
+    if (step_number % render_steps == 0):
         vis.BeginScene()
         vis.Render()
         vis.EndScene()

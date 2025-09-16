@@ -14,21 +14,11 @@ chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.0025)
 chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
 
 
-plane_length = 20
-plane_width = 20
-mesh_resolution = 100
-soil_parameters = chrono.ChSoilParameters(
-    density=1000,  
-    friction=0.5,  
-    viscosity=0.01,  
-)
-
-terrain = chrono.ChSCMDeformableTerrain(
-    plane_length,
-    plane_width,
-    mesh_resolution,
-    soil_parameters,
-)
+plane = chrono.ChPlane(chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(1, 0, 0))
+plane.SetMeshResolution(100)
+terrain = chrono.ChSCMDeformableTerrain(plane, 100, 100, 100, 100, 0.01)
+terrain.SetSoilParameters(chrono.ChVector3d(1.0, 1.0, 1.0), chrono.ChVector3d(0.0, 0.0, 0.0), chrono.ChVector3d(0.0, 0.0, 0.0))
+system.Add(terrain)
 
 
 rover = viper.Viper(system)  
@@ -65,9 +55,6 @@ while vis.Run():
     time += time_step  
     steering = 0.0  
     
-    
-    rover.Update()  
-
     
     vis.BeginScene()
     vis.Render()

@@ -2,14 +2,14 @@ import pychrono as chrono
 import pychrono.vehicle as veh
 import pychrono.irrlicht as irr
 
-
-veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
-
-
-step_size = 2e-3
-tire_step_size = 1e-3
-
 def main():
+    
+    veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
+
+    
+    step_size = 2e-3
+    tire_step_size = 1e-3
+
     
     hmmwv = veh.HMMWV_Full()
     hmmwv.SetContactMethod(chrono.ChContactMethod_NSC)
@@ -34,23 +34,28 @@ def main():
     terrain = veh.RigidTerrain(hmmwv.GetSystem())
 
     
-    terrain_mat = chrono.ChContactMaterialNSC()
-    terrain_mat.SetFriction(0.9)
-    terrain_mat.SetRestitution(0.01)
+    contact_material = chrono.ChContactMaterialNSC()
+    contact_material.SetFriction(0.9)
+    contact_material.SetRestitution(0.01)
 
     
-    mesh = chrono.ChTriangleMesh()
-    mesh.LoadWavefrontMesh(veh.GetDataFile("terrain/meshes/Highway_col.obj"))
+    collision_mesh = chrono.ChTriangleMesh()
+    collision_mesh.LoadWavefrontMesh(veh.GetDataFile("terrain/meshes/Highway_col.obj"))
+    collision_mesh.Transform(chrono.ChVector3d(0, 0, 0), chrono.QUNIT)
 
     
-    terrain.AddTriangleMesh(terrain_mat, mesh, chrono.ChVector3d(0, 0, 0), chrono.QUNIT, 0.01, True)
+    visual_mesh = chrono.ChTriangleMesh()
+    visual_mesh.LoadWavefrontMesh(veh.GetDataFile("terrain/meshes/Highway_vis.obj"))
+    visual_mesh.Transform(chrono.ChVector3d(0, 0, 0), chrono.QUNIT)
 
     
-    vis_mesh = chrono.ChTriangleMesh()
-    vis_mesh.LoadWavefrontMesh(veh.GetDataFile("terrain/meshes/Highway_vis.obj"))
-    vis_shape = chrono.ChVisualShapeTriangleMesh(vis_mesh)
-    vis_shape.SetColor(chrono.ChColor(0.5, 0.5, 0.8))
-    terrain.GetGroundBody().AddVisualShape(vis_shape)
+    terrain.AddCollisionMesh(collision_mesh, contact_material, 0.01)
+
+    
+    visual_shape = chrono.ChVisualShapeTriangleMesh()
+    visual_shape.SetMesh(visual_mesh)
+    visual_shape.SetColor(chrono.ChColor(0.5, 0.5, 0.8))
+    terrain.GetGroundBody().AddVisualShape(visual_shape)
 
     terrain.Initialize()
 

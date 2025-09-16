@@ -1,105 +1,65 @@
-import pychrono as chrono
-import pychrono.vehicle as vehicle
-import pychrono.irrlicht as irr
+import chrono as ch
+import chrono_vehicle as chv
+import chrono_ros as chr
 import rospy
-from rospy_message_converter import message_converter
-from std_msgs.msg import Float64
-from geometry_msgs.msg import PoseStamped
 
 
-chrono.ChEngine.Initialize()
+ch.Initialize()
 
 
-SIMULATION_NAME = "HMMWV_Simulation"
-TIME_STEP = 0.01  
+system = ch.ChronoSystemMultibody()
 
 
-system = chrono.ChSystem()
+vehicle_file = "path/to/hmmwv/vehicle_hmmwv.json"
+vehicle = chv.ChronoVehicle(system, vehicle_file)
 
 
-system.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, -9.81))
+vehicle.SetContactMethod(ch.ContactMethod_NSC)
+vehicle.SetEngineType(ch.EngineType_SHAFTS)
+vehicle.SetTireModel(ch.TireModel_FM)
 
 
-irr_app = irr.IrrlichtApplication(system)
-irr_app.SetTimestep(TIME_STEP)
-
-
-terrain = vehicle.ChTerrain()
-terrain.SetSystem(system)
-
-
+terrain_file = "path/to/terrain/terrain_irregular.json"
+terrain = chv.ChronoTerrain(system, terrain_file)
 terrain.SetFrictionCoefficient(0.8)
-terrain.SetRestitutionCoefficient(0.3)
+terrain.SetRestitutionCoefficient(0.7)
 
 
-plane = chrono.ChPlane()
-plane.SetPos(chrono.ChVector3d(0, 0, 0))
-plane.SetRot(chrono.ChQuaterniond(1, 0, 0, 0))
-terrain.AddPlane(plane)
+driver = chv.ChronoDriver(vehicle)
+driver.SetSteeringType(chv.SteeringType_PURE_PURSUIT)
 
 
-hmmwv = vehicle.ChHMMWV()
+chr.ChronoRosManager(system)
 
 
-hmmwv.SetContactMethod(vehicle.ChContactMethod_SMC)
-hmmwv.SetEngineType(vehicle.ChEngineType_SHAFTS)
-hmmwv.SetTireModel(vehicle.ChTireModel_PACEjka)
+def clock_cb(time):
+    system.Update()
+
+def driver_inputs_cb(inputs):
+    driver.SetInputs(inputs)
+
+def vehicle_state_cb(state):
+    vehicle.SetState(state)
 
 
-hmmwv.Initialize(system, chrono.ChVector3d(0, 0, 1), chrono.QuatFromAngleZ(0))
+chr.RegisterClockCallback(clock_cb)
+chr.RegisterDriverInputsCallback(driver_inputs_cb)
+chr.RegisterVehicleStateCallback(vehicle_state_cb)
 
 
-hmmwv.SetChassisBodyFixed(False)
-hmmwv.SetChassisCollisionShape(chrono.ChCollisionShape_Box(chrono.ChVector3d(2.5, 1.5, 0.5)))
-
-
-driver = vehicle.ChDriver(hmmwv.GetVehicle())
-
-
-driver.SetSteeringType(vehicle.ChSteeringType_PID)
-driver.SetThrottleType(vehicle.ChThrottleType_PID)
-
-
-driver.Initialize()
-
-
-rospy.init_node(SIMULATION_NAME)
-
-
-ros_manager = vehicle.ChROSManager(hmmwv.GetVehicle(), driver)
-ros_manager.Initialize(chrono.ChVector3d(0, 0, 0), chrono.QuatFromAngleZ(0))
-
-
-rospy.Subscriber("chrono/steering_cmd", Float64, ros_manager.OnSteeringCmd)
-rospy.Subscriber("chrono/throttle_cmd", Float64, ros_manager.OnThrottleCmd)
-rospy.Subscriber("chrono/brake_cmd", Float64, ros_manager.OnBrakeCmd)
-
-rospy.Publisher("chrono/vehicle_pose", PoseStamped, queue_size=10)
-
-def Simulate():
+def simulate():
+    rate = rospy.Rate(100)  
     while not rospy.is_shutdown():
         
-        system.DoStepDynamics(TIME_STEP)
-
+        system.Advance(0.01)  
+        driver.Advance(0.01)
+        terrain.Advance(0.01)
         
-        ros_manager.Update()
-
         
-        if irr_app:
-            irr_app.DoStep()
+        chr.UpdateRosManager()
+        
+        rate.sleep()
 
 if __name__ == "__main__":
-    Simulate()
-
-import pychrono as chrono
-import pychrono.vehicle as vehicle
-import pychrono.irrlicht as irr
-import rospy
-from rospy_message_converter import message_converter
-from std_msgs.msg import Float64
-from geometry_msgs.msg import PoseStamped
-
-
-
-if __name__ == "__main__":
-    Simulate()
+    rospy.init_node("hmmwv_simulation")
+    simulate()

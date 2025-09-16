@@ -79,32 +79,40 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 
+
 class MyDriver(veh.ChDriver):
-    def __init__(self, delay):
+    def __init__(self, delay=0.5):
         super().__init__()
         self.delay = delay
-        self.delay_counter = 0
+        self.time = 0.0
 
     def Synchronize(self, time):
-        super().Synchronize(time)
-        if self.delay_counter < self.delay * 50:  
-            return  
-        else:
-            throttle = min(0.7, 0.7 * (time - 0.2) / (4 - 0.2)) if time > 0.2 else 0.0
-            steering = 0.5 * math.sin(2 * math.pi * (time - 2) / 4) if time > 2 else 0.0
-            braking = 0.0
-            self.SetSteering(steering)
-            self.SetThrottle(throttle)
-            self.SetBraking(braking)
-        self.delay_counter += 1
+        self.time = time
+        throttle = 0.0
+        steering = 0.0
+        braking = 0.0
 
+        if self.time > 0.2:
+            throttle = min(0.7, self.time * 0.7 / 0.2)  
 
-driver = MyDriver(0.5)
+        if self.time > 2.0:
+            steering = math.sin(self.time * 2) * 0.2  
 
-
+        self.SetThrottle(throttle)
+        self.SetSteering(steering)
+        self.SetBraking(braking)
 
 
 
+driver = MyDriver(delay=0.5)
+
+
+steering_time = 1.0  
+throttle_time = 1.0  
+braking_time = 0.3  
+driver.SetSteeringDelta(render_step_size / steering_time)
+driver.SetThrottleDelta(render_step_size / throttle_time)
+driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 

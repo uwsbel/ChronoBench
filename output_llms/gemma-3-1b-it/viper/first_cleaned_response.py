@@ -1,89 +1,62 @@
 import pychrono
-import pychrono.core as chrono
-import pychrono.visuals as visual
-import pyrr
-import time
-import random
+import pychrono.core as pc
+import irlicht as il
+import numpy as np
 
 
+time_step = 0.1
+simulation_duration = 10  
 gravity = 9.81  
 ground_body_mass = 1000  
-ground_body_radius = 1.0  
-rover_mass = 150  
-rover_speed = 0.5  
-simulation_duration = 60  
-time_step = 0.1  
-simulation_rate = 10  
+ground_body_radius = 1.0 
+vibration_frequency = 1.0  
+vibration_amplitude = 0.5 
+vibration_speed = 0.2 
 
 
-chrono.init()
+chrono = pc.Chrono()
 
 
-
-terrain_width = 10
-terrain_height = 10
-terrain_x = 0
-terrain_y = 0
-terrain_z = 0
+terrain_heightmap = np.zeros((100, 100))
+terrain_heightmap[50:95, 50:95] = 1.0  
 
 
-terrain = chrono.Terrain(
-    x=terrain_x,
-    y=terrain_y,
-    z=terrain_z,
-    width=terrain_width,
-    height=terrain_height,
-    density=0.5,  
-    
-    
-    
+rover = pc.Rover()
+rover.name = "Viper"
+rover.position = np.array([0, 0, 0])
+rover.gravity = gravity
+rover.ground_body_mass = ground_body_mass
+rover.ground_body_radius = ground_body_radius
+rover.vibration_frequency = vibration_frequency
+rover.vibration_amplitude = vibration_amplitude
+rover.vibration_speed = vibration_speed
+
+
+camera = il.Camera(
+    width=800,
+    height=600,
+    camera_type='perspective',
+    camera_position = (0, 0, 10),
+    camera_tilt = 30,
+    camera_zoom = 1.0,
+    camera_rotation = np.array([0, 0, 0])
 )
 
 
-rover = chrono.Rover(
-    mass=rover_mass,
-    position= pyrr.Vector(terrain_x, terrain_y, terrain_z),
-    speed=rover_speed,
-    orientation=chrono.Orientation(angle=0,  
-                             axis= pyrr.Vector(0, 0, 0))
-)
-
-
-camera_resolution = 800
-camera_fov = 60  
-camera_aspect_ratio = 1.0  
-camera_z_offset = 0.0  
-
-
-visual.init(camera_resolution=camera_resolution,
-            camera_aspect_ratio=camera_aspect_ratio,
-            camera_z_offset=camera_z_offset)
-
-
-for i in range(simulation_rate):
-    
-    rover.move(i * time_step)
+def update_simulation():
+    global rover
 
     
-    ground_body_position = rover.position.copy()
-    ground_body_position.x += random.uniform(-0.1, 0.1)  
-    ground_body_position.y += random.uniform(-0.1, 0.1)
-    ground_body_position.z += random.uniform(-0.1, 0.1)
+    rover.position = rover.position + rover.vibration_speed * time_step
 
     
-    
-    
-    force_magnitude = 0.1
-    force_direction = ground_body_position.z - rover.position.z
-    
-    
-    rover.apply_force(force_magnitude * force_direction * time_step)
-
+    terrain_heightmap[rover.position[0], rover.position[1]] = 0.0
 
     
-    visual.render(terrain, rover, camera)
+    camera.render(terrain_heightmap, camera_position, camera_tilt, camera_zoom, camera_rotation)
 
     
-    time.sleep(time_step)
+    chrono.update()
 
-print("Simulation complete.")
+
+update_simulation()

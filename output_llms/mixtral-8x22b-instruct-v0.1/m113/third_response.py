@@ -59,6 +59,16 @@ vehicle.SetTrackShoeVisualizationType(vis_type)
 
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
+# Create a long box to test vehicle mobility
+box_length = 20.0
+box_width = 2.0
+box_height = 0.5
+box_material = chrono.ChMaterialSurfaceNSC()
+box = chrono.ChBodyEasyBox(box_material, box_length, box_width, box_height, True, True)
+box.SetPos(chrono.ChVectorD(0, 0, box_height / 2))
+box.SetBodyFixed(True)
+vehicle.GetSystem().AddBody(box)
+
 # Create the terrain
 patch_mat = chrono.ChContactMaterialSMC()
 patch_mat.SetFriction(0.9)
@@ -122,6 +132,8 @@ while vis.Run() :
 
     # Get driver inputs
     driver_inputs = driver.GetInputs()
+    # Hard-coded the throttle value to 0.8
+    driver_inputs.m_throttle = 0.8
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
     terrain.Synchronize(time)
@@ -134,5 +146,3 @@ while vis.Run() :
     vis.Advance(step_size)
     # Increment frame number
     step_number += 1
-    # Hard-coded the throttle value to 0.8 during the simulation loop.
-    driver_inputs.m_throttle = 0.8

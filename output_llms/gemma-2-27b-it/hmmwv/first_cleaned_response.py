@@ -1,6 +1,6 @@
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
-import pychrono.vehicle as chronovehicle
+import numpy as np
 
 
 
@@ -8,41 +8,10 @@ import pychrono.vehicle as chronovehicle
 
 
 
-system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+mysystem = chrono.ChSystemNSC()
 
 
-system.SetTimestepperType(chrono.ChTimestepperType.CHRONO_TS_FIXED_STEP)
-system.SetStep(1.0 / 50.0)
-
-
-vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(system)
-vis.SetWindowSize(800, 600)
-vis.SetWindowTitle("HMMWV Simulation")
-vis.Initialize()
-vis.AddCamera(chrono.ChVectorD(0, 2, -5))
-vis.AddLight(chrono.ChVectorD(0, 5, 0), chrono.ChColor(1, 1, 1))
-
-
-ground = chrono.ChRigidBody()
-ground.SetBodyFixed(True)
-ground.SetPos(chrono.ChVectorD(0, 0, 0))
-ground.SetCollide(True)
-system.Add(ground)
-
-
-material = chrono.ChMaterialSurfaceNSC()
-material.SetFriction(0.8)
-material.SetRestitution(0.2)
-
-
-terrain = chrono.ChTerrain(ground, material)
-terrain.SetSize(chrono.ChVectorD(100, 100, 1))
-terrain.Initialize()
-
-
-terrain.SetTexture(chrono.GetChronoDataPath() + "terrain/textures/grass.png")
+mysystem.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
 
 
@@ -50,20 +19,14 @@ terrain.SetTexture(chrono.GetChronoDataPath() + "terrain/textures/grass.png")
 
 
 
-vehicle = chronovehicle.ChVehicle("HMMWV")
-
-
-vehicle.SetChassisInitialPosition(chrono.ChVectorD(0, 1, 0))
-vehicle.SetChassisInitialRotation(chrono.Q_from_AngAxis(chrono.CH_C_PI / 4, chrono.ChVectorD(0, 1, 0)))
-
-
-vehicle.SetSuspensionContactMethod(chronovehicle.ChSuspension::ContactMethod::NSC)
-
-
-vehicle.SetTireModel(chronovehicle.ChTireModelTMeasy())
-
-
-system.Add(vehicle)
+terrain = chrono.ChRigidTerrain(mysystem, True, True)
+patch_size = 100
+terrain.AddHeightPatch(chrono.ChVectorD(-patch_size, -patch_size, 0),
+                       chrono.ChVectorD(patch_size, -patch_size, 0),
+                       chrono.ChVectorD(patch_size, patch_size, 0),
+                       chrono.ChVectorD(-patch_size, patch_size, 0),
+                       chrono.ChVectorD(0, 0, 0))
+terrain.SetTexture(chrono.GetChronoDataPath() + 'terrain/textures/grass.png', 200, 200)
 
 
 
@@ -71,12 +34,32 @@ system.Add(vehicle)
 
 
 
-driver = chronovehicle.ChDriver(vehicle)
+vehicle = chrono.ChVehicleModel()
+vehicle.SetSystem(mysystem)
 
 
-driver.SetSteeringControl(chronovehicle.ChDriver::SteeringControlType::KEYBOARD)
-driver.SetThrottleControl(chronovehicle.ChDriver::ThrottleControlType::KEYBOARD)
-driver.SetBrakingControl(chronovehicle.ChDriver::BrakingControlType::KEYBOARD)
+chassis = chrono.ChBodyEasyBox(2.5, 1.2, 0.8, 1000)
+chassis.SetPos(chrono.ChVectorD(0, 1.2, 0))
+vehicle.AddChassis(chassis)
+
+
+susp_pos = [chrono.ChVectorD(-1.2, -0.6, 0.5), chrono.ChVectorD(1.2, -0.6, 0.5),
+            chrono.ChVectorD(-1.2, -0.6, -0.5), chrono.ChVectorD(1.2, -0.6, -0.5)]
+for pos in susp_pos:
+    susp = chrono.ChDoubleWishbone(vehicle.GetChassisBody(), pos, chrono.ChVectorD(0, -1, 0),
+                                   chrono.ChVectorD(0, 1, 0), chrono.ChVectorD(1, 0, 0),
+                                   chrono.ChVectorD(0, 0, 1), 100, 50, 0.2)
+    vehicle.AddSuspension(susp)
+
+
+wheel_pos = [chrono.ChVectorD(-1.2, -0.6, 0.8), chrono.ChVectorD(1.2, -0.6, 0.8),
+             chrono.ChVectorD(-1.2, -0.6, -0.8), chrono.ChVectorD(1.2, -0.6, -0.8)]
+for pos in wheel_pos:
+    wheel = chrono.ChWheel(vehicle.GetChassisBody(), chrono.ChVectorD(0, -1, 0),
+                          chrono.ChVectorD(0, 1, 0), chrono.ChVectorD(1, 0, 0),
+                          chrono.ChVectorD(0, 0, 1), pos, 0.3, 0.1, 100)
+    wheel.SetTMEasyTire(chrono.ChTMEasyTire(0.8, 0.8, 0.5, 0.5, 0.2, 0.1))
+    vehicle.AddWheel(wheel)
 
 
 
@@ -84,12 +67,36 @@ driver.SetBrakingControl(chronovehicle.ChDriver::BrakingControlType::KEYBOARD)
 
 
 
-while vis.Run():
-    
-    driver.Synchronize(vis.GetTime())
+driver = chrono.ChDriverSteering(vehicle)
 
-    
-    system.DoStepDynamics(vis.GetTimeStep())
 
-    
+
+
+
+
+
+vis = chronoirr.ChIrrApp(mysystem, "HMMWV Simulation", chronoirr.dimension2du(1280, 720))
+vis.AddTypicalLights()
+vis.AddSkyBox()
+vis.SetCameraPosition(chrono.ChVectorD(0, 5, -10))
+vis.SetCameraLookAt(chrono.ChVectorD(0, 1.2, 0))
+
+
+
+
+
+
+
+while vis.GetDevice().run():
+    vis.BeginScene()
     vis.Render()
+    mysystem.DoStepDynamics(0.02)
+
+    
+    driver.SetSteeringAngle(vis.GetDevice().GetKeyboard()->GetDirKeyState(chrono.ChIrrApp::KEY_LEFT) -
+                           vis.GetDevice().GetKeyboard()->GetDirKeyState(chrono.ChIrrApp::KEY_RIGHT))
+    driver.SetThrottle(vis.GetDevice().GetKeyboard()->GetDirKeyState(chrono.ChIrrApp::KEY_UP) -
+                      vis.GetDevice().GetKeyboard()->GetDirKeyState(chrono.ChIrrApp::KEY_DOWN))
+    driver.SetBraking(vis.GetDevice().GetKeyboard()->GetDirKeyState(chrono.ChIrrApp::KEY_SPACE))
+
+    vis.EndScene()

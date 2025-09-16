@@ -1,151 +1,70 @@
-import pychrono as chrono
+import pychrono as pc
 
-import pychrono.visual
+import irrlicht as ir
 
-import pychrono.core
+from irrlicht import scene_io
 
-import pychrono.compiler
 
 
 
+pc.initialize()
 
-chrono.ChPrint("PyChrono epicyclic gears simulation\n")
 
 
 
+scene = pc.Scene()
 
-my_chrono_instance = pychrono.ChSystem()
 
 
 
+truss = pc.Truss()
 
-truss = chrono.ChBody()
+truss.setPosition(pc.Vector3r(0, 0, 0))
 
-truss.SetName('Fixed Truss')
+scene.add(truss)
 
-truss.SetPos(chrono.ChVectorD(0, 0, 0))
 
-truss.SetBodyFixed(True)
 
-my_chrono_instance.Add(truss)
 
+bar = pc.Bar()
 
+bar.setPosition(pc.Vector3r(0, 1, 0))
 
+bar.setLength(2)
 
-bar = chrono.ChBody()
+bar.setRotation(pc.Quaternionr(0, 0, 0, 1))
 
-bar.SetName('Rotating Bar')
+scene.add(bar)
 
-bar.SetPos(chrono.ChVectorD(0, 1, 0))
 
-bar.SetBodyFixed(False)
 
-bar.AddRotationalDof(chrono.ChLinkWeldJoint())
 
-bar.AddRotationalDof(chrono.ChLinkWeldJoint())
+gear1 = pc.Gear()
 
-bar.AddRotationalDof(chrono.ChLinkWeldJoint())
+gear2 = pc.Gear()
 
-my_chrono_instance.Add(bar)
+gear1.setPosition(pc.Vector3r(0, 2, 0))
 
+gear2.setPosition(pc.Vector3r(0, 4, 0))
 
+gear1.setMotor(True)
 
+gear2.setMotor(True)
 
-gear1 = chrono.ChBody()
+gear1.setMotorSpeed(1.0)  
 
-gear1.SetName('Gear 1')
+scene.add(gear1)
 
-gear1.SetPos(chrono.ChVectorD(1, 1, 0))
+scene.add(gear2)
 
-gear1.SetBodyFixed(False)
 
-gear1.AddShape(chrono.ChBox(0.1, 0.1, 0.1))
 
-my_chrono_instance.Add(gear1)
 
+window = ir.IrrlichtGraphicsDevice(400, 400, 24, ir.Dimension.COLOR)
 
-gear2 = chrono.ChBody()
+scene_io.writeI3DFile(scene, "epicyclic_gears_scene.i3d", window)
 
-gear2.SetName('Gear 2')
 
-gear2.SetPos(chrono.ChVectorD(-1, 1, 0))
 
-gear2.SetBodyFixed(False)
 
-gear2.AddShape(chrono.ChBox(0.1, 0.1, 0.1))
-
-my_chrono_instance.Add(gear2)
-
-
-gear_motor = chrono.ChLinkWeldJoint()
-
-gear_motor.Initialize(bar, gear1)
-
-gear_motor.AddConstraint(chrono.ChLinkWeldJoint())
-
-gear_motor.AddConstraint(chrono.ChLinkWeldJoint())
-
-gear_motor.AddConstraint(chrono.ChLinkWeldJoint())
-
-
-
-
-bar.SetRotationalDofVelocityLimit(100, chrono.ChPosDeg())
-
-gear1.SetRotationalDofVelocityLimit(100, chrono.ChPosDeg())
-
-gear2.SetRotationalDofVelocityLimit(100, chrono.ChPosDeg())
-
-
-
-
-vis = pychrono.visual.ChVisualizer()
-
-vis.SetWindowSize(1024, 768)
-
-vis.SetWindowTitle('Epicyclic Gears Simulation')
-
-vis.AddScene(my_chrono_instance)
-
-
-
-
-material_brick = chrono.ChMaterialSurface('brick', 0.9, 0.05, 0.2, 0.2)
-
-material_brick.SetColor(0.6, 0.6, 0.6)
-
-
-material_gear = chrono.ChMaterialSurface('gear', 0.9, 0.05, 0.2, 0.2)
-
-material_gear.SetColor(0.8, 0.8, 0.8)
-
-
-vis.AddMaterial(material_brick)
-
-vis.AddMaterial(material_gear)
-
-
-vis.AddLight(chrono.ChLight())
-
-vis.AddLight(chrono.ChLight())
-
-
-
-
-compiler = pychrono.compiler.ChCompilator()
-
-compiler.SetChronoFilesDirectory('chrono_data')
-
-compiler.SetOutputDirectory('chrono_data')
-
-compiler.Compile(my_chrono_instance, 'epicyclic_gears_simulation')
-
-
-
-
-my_chrono_instance.DoStep(1, 1e-3)
-
-
-
-
-vis.CloseWindow()
+pc.run()

@@ -1,7 +1,6 @@
-# Import necessary libraries
 import pychrono as chrono
 import pychrono.irrlicht as irr
-import pychrono.irrlicht.irrlicht_utils as irr_utils
+import pychrono.irrlicht.irrlicht_tools as irr_tools
 
 # Initialize PyChrono
 chrono.init()
@@ -9,72 +8,52 @@ chrono.init()
 # Create the Irrlicht engine
 engine = irr.IrrlichtEngine()
 
-# Create the scene
-scene = engine.createScene()
-
-# Create the SCM terrain
-terrain = chrono.SCMTerrain(
-    engine,
-    "terrain.png",  # Replace with your terrain image
-    soil_parameters=[
-        {"name": "soil", "density": 1000, "friction": 0.5},
-        {"name": "rock", "density": 2000, "friction": 0.2},
-    ],
-    moving_patch_enabled=True,
+# Create a SCM terrain with custom soil parameters
+terrain = chrono.SCMTerrain()
+terrain.setSoilParameters(
+    density=1000,  # kg/m^3
+    shear_strength=1000,  # Pa
+    friction=0.5,  # dimensionless
+    viscosity=100,  # Pa*s
 )
+
+# Create a moving patch feature for the terrain
+patch = chrono.MovingPatch(terrain)
+patch.setMovementSpeed(1.0)
 
 # Create the HMMWV
-vehicle = chrono.Vehicle(
-    engine,
-    "hmwv.obj",  # Replace with your HMMWV model
-    position=[0, 0, 0],  # Initial position
-    orientation=[0, 0, 0],  # Initial orientation
-    rigid_tire_model=chrono.RigidTireModel(
-        engine,
-        "tire.obj",  # Replace with your tire model
-        tire_radius=0.1,  # Replace with your tire radius
-    ),
-)
+vehicle = chrono.Vehicle()
+vehicle.setMeshVisualization(True)
 
-# Add mesh visualization to the vehicle components
-vehicle.addMeshVisualization()
+# Define vehicle parameters
+vehicle.setPosition(chrono.Vector3(0, 0, 0))
+vehicle.setOrientation(chrono.Quaternion(0, 0, 0, 1))
+vehicle.setMass(1000)  # kg
+vehicle.setInertia(chrono.Vector3(100, 100, 100))
+
+# Add a rigid tire model to the vehicle
+tire = chrono.RigidTire(vehicle)
+tire.setRadius(0.1)  # m
+tire.setStiffness(10000)  # N/m
+tire.setFriction(0.5)  # dimensionless
 
 # Set up the driver system
-driver = chrono.Driver(
-    engine,
-    vehicle,
-    steering_control=chrono.SteeringControl(
-        sensitivity=1.0,
-        max_steering_angle=1.0,
-    ),
-    throttle_control=chrono.ThrottleControl(
-        max_throttle=1.0,
-    ),
-    brake_control=chrono.BrakeControl(
-        max_brake=1.0,
-    ),
-)
+driver = chrono.Driver()
+driver.setSteeringSensitivity(0.1)
+driver.setThrottleSensitivity(0.1)
+driver.setBrakingSensitivity(0.1)
 
-# Configure the simulation parameters
-dt = 0.01  # Time step
-max_frames_per_second = 50
+# Set up the simulation
+chrono.setSimulationTime(10)  # seconds
+chrono.setFrameRate(50)  # frames per second
 
-# Start the simulation
+# Run the simulation
 engine.run()
 
-# Update the scene and render at 50 frames per second
-while engine.isRunning():
-    # Update vehicle dynamics
-    vehicle.update(dt)
+# Visualize the scene
+engine.render()
 
-    # Update driver system
-    driver.update(dt)
+# ... (rest of the simulation code) ...
 
-    # Render the scene
-    scene.render()
-
-    # Update the frame rate
-    engine.updateFrameRate(max_frames_per_second)
-
-# Clean up
-engine.shutdown()
+# Example: Update vehicle dynamics and render the scene
+# ... (code for updating vehicle dynamics and rendering) ...

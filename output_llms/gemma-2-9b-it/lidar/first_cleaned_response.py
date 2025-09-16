@@ -1,5 +1,6 @@
 import pychrono as chrono
 import pychrono.postprocess as postprocess
+import numpy as np
 
 
 chrono.SetChronoDataPath("path/to/chrono/data")  
@@ -9,49 +10,53 @@ system = chrono.ChSystemNSC()
 mesh_file = "path/to/your/mesh.obj"  
 mesh = chrono.ChTriangleMeshConnected()
 mesh.LoadWavefront(mesh_file)
-body = chrono.ChBodyEasyBox(1, 1, 1)  
-body.SetBodyFixed(True)  
+
+
+body = chrono.ChBodyEasyBox(1.0, 1.0, 1.0)  
+body.SetBodyFixed(True)
+body.SetMaterialSurface(chrono.ChMaterialSurface())
 body.SetCollide(True)
-body.GetCollisionModel().AddChild(mesh)
+body.GetCollisionModel().AddChildShape(chrono.ChTriangleMeshShape(mesh))
 system.Add(body)
 
 
-sensor_manager = chrono.ChSensorManager()
 lidar = chrono.ChLidarSensor()
-lidar.SetSensorType(chrono.ChLidarSensor.SENSOR_TYPE_LASER)
-lidar.SetRange(10)  
-lidar.SetAngleStep(0.1)  
-lidar.SetNoiseLevel(0.1)  
-sensor_manager.AddSensor(lidar)
+lidar.SetSensorSize(0.1)  
+lidar.SetMaxRange(10.0)  
+lidar.SetScanAngle(np.pi)  
+lidar.SetScanFrequency(100)  
+lidar.SetNoiseSigma(0.1)  
 
 
-lidar_body = chrono.ChBodyEasySphere(0.1, 0.1)
+lidar_body = chrono.ChBodyEasySphere(0.1)  
 lidar_body.SetPos(chrono.ChVectorD(0, 0, 0.5))  
-lidar_body.SetBodyFixed(True)
-lidar_body.GetCollisionModel().AddChild(lidar)
 system.Add(lidar_body)
+lidar_body.AddChild(lidar)
 
 
-orbit_radius = 1
-orbit_speed = 0.1
-lidar_body.SetPos(chrono.ChVectorD(orbit_radius, 0, 0))
+sensor_manager = chrono.ChSensorManager()
+sensor_manager.AddSensor(lidar)
+sensor_manager.SetVisualization(True)
 
 
-system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
-system.Set_Speed_limit(10)
-system.Set_Damping_factor(0.1)
-system.Set_Time_step(0.01)
+orbit_radius = 1.0
+orbit_speed = 0.5
 
+
+time_step = 0.01
 for i in range(1000):
-    system.DoStepDynamics()
-    
     
     angle = i * orbit_speed
-    lidar_body.SetPos(chrono.ChVectorD(orbit_radius * chrono.cos(angle), orbit_radius * chrono.sin(angle), 0.5))
+    lidar_body.SetPos(chrono.ChVectorD(orbit_radius * np.cos(angle), orbit_radius * np.sin(angle), 0.5))
 
     
-    lidar_data = lidar.GetLidarBuffer()
-    print(f"Lidar data at step {i}: {lidar_data}")
+    system.DoStepDynamics(time_step)
+
+    
+    lidar_data = sensor_manager.GetSensorData(lidar)
+
+    
+    print(f"Lidar Buffer Data: {lidar_data}")
 
 
-postprocess.SaveData(system, "lidar_data.txt")
+postprocess.SaveSensorData(sensor_manager, "lidar_data.txt")

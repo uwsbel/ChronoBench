@@ -1,84 +1,84 @@
 import pychrono
 import pychrono.core as pc
-import pychrono.visuals as v
-import pychrono.physics as ph
-import pychrono.utils as u
+import pychrono.visual as pv
 import numpy as np
-import matplotlib.pyplot as plt  
+import matplotlib.pyplot as plt
+from pychrono.visual.mesh import Mesh
+from pychrono.visual.rigid_terrain import RigidTerrain
+from pychrono.visual.texture import Texture
+import time
 
 
-terrain_width = 10.0
-terrain_height = 5.0
-terrain_depth = 2.0
-terrain_scale = 10.0
-vehicle_width = 2.0
-vehicle_length = 3.0
-vehicle_mass = 100.0
-vehicle_friction = 0.8
-vehicle_tire_radius = 0.5
-vehicle_tire_pressure = 0.7  
-vehicle_tmeasy_model = "tmeasy_model_2" 
-
-
-chrono = pc.Chronos()
-
-
-terrain = u.Terrain(
-    width=terrain_width,
-    height=terrain_height,
-    depth=terrain_depth,
-    scale=terrain_scale,
-    texture="grass.png" 
-)
-
-
-vehicle = pc.Vehicle(
-    width=vehicle_width,
-    length=vehicle_length,
-    mass=vehicle_mass,
-    friction=vehicle_friction,
-    tmeasy_model=vehicle_tmeasy_model,
-    position=(0, 0, 0) 
-)
-
-
-
-rigid_terrain = pc.RigidTerrain(
-    width=terrain_width,
-    height=terrain_height,
-    depth=terrain_depth,
-    scale=terrain_scale,
-    texture="grass.png",
-    
-)
-
+simulation_duration = 60  
+frames_per_second = 50
+time_step = 0.01
+gravity = 9.81
 
 
 try:
-    
-    chrono.init(chrono)
+    chrono = pc.chrono.Chrono(
+        simulation_duration=simulation_duration,
+        frames_per_second=frames_per_second,
+        time_step=time_step,
+        gravity=gravity,
+        display_mode='interactive' 
+    )
+except Exception as e:
+    print(f"Error initializing Chrono: {e}")
+    exit()
 
+
+
+vehicle = pc.Vehicle(
+    position=(0, 0, 0),  
+    orientation=(0, 0, 0),  
+    contact_method='tire_model', 
+    tme_asyi_tire_model='rigid_terrain_model', 
     
+)
+
+
+terrain = RigidTerrain(
+    width=10,  
+    height=5,  
+    texture='terrain.png',  
+    
+)
+
+
+
+mesh = Mesh(vehicle)
+
+
+rigid_terrain = RigidTerrain(
+    width=10,
+    height=5,
+    texture='terrain.png',
+    
+)
+
+
+try:
     while True:
         
         vehicle.update_dynamics()
+        vehicle.update_orientation() 
 
         
-        rigid_terrain.update_terrain()
+        terrain.update()
 
         
-        v.render(vehicle, rigid_terrain,  ) 
+        pv.render(mesh, terrain,  
+                   fov=60,  
+                   num_buffers=1)
 
         
-        print(f"Time: {chrono.time()}")
+        print(f"Frame: {time.time()}")
 
         
-        chrono.wait(1)  
+        vehicle.steer(0, 0, 0) 
 
-except Exception as e:
-    print(f"An error occurred: {e}")
+        time.sleep(0.01)  
 
-finally:
-    
-    chrono.cleanup()
-    print("Simulation finished.")
+except KeyboardInterrupt:
+    print("Simulation stopped.")

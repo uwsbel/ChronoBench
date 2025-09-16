@@ -1,3 +1,4 @@
+```python
 import pychrono as ch
 import pychrono.sensor as sens
 import pychrono.ros as chros
@@ -60,50 +61,45 @@ def main():
     lidar.SetName("lidar")
     sens_manager.AddSensor(lidar)
 
+    # Create and configure a GPS sensor.
+    noise_model_none = sens.ChNoiseNone()
+    gps_reference = ch.ChVector3d(-89.4, 433.07, 260.)
+    gps = sens.ChGPSSensor(ground_body, 10, offset_pose, gps_reference, noise_model_none)
+    gps.PushFilter(sens.ChFilterGPSAccess())  # Access GPS data.
+    gps.SetName("gps")
+    sens_manager.AddSensor(gps)
+
+    # Create and configure an accelerometer sensor.
+    acc = sens.ChAccelerometerSensor(ground_body, 100, offset_pose, noise_model_none)
+    acc.PushFilter(sens.ChFilterAccelAccess())  # Access accelerometer data.
+    acc.SetName("accelerometer")
+    sens_manager.AddSensor(acc)
+
+    # Create and configure a gyroscope sensor.
+    gyro = sens.ChGyroscopeSensor(ground_body, 100, offset_pose, noise_model_none)
+    gyro.PushFilter(sens.ChFilterGyroAccess())  # Access gyroscope data.
+    gyro.SetName("gyroscope")
+    sens_manager.AddSensor(gyro)
+
+    # Create and configure a magnetometer sensor.
+    mag = sens.ChMagnetometerSensor(ground_body, 100, offset_pose, noise_model_none, gps_reference)
+    mag.PushFilter(sens.ChFilterMagnetAccess())  # Access magnetometer data.
+    mag.SetName("magnetometer")
+    sens_manager.AddSensor(mag)
+
     # Create and configure a 2D lidar sensor.
-    # 2D Lidar sensor settings
+    # Create a 2D lidar sensor
     lidar2d = sens.ChLidarSensor(ground_body, 5., offset_pose, 90, 300, 2*ch.CH_PI, ch.CH_PI / 12, -ch.CH_PI / 6, 100., 0)
+    lidar2d.PushFilter(sens.ChFilterDIAccess())  # Access raw lidar data.
+    lidar2d.PushFilter(sens.ChFilterPCfromDepth())  # Convert depth data to point cloud.
+    lidar2d.PushFilter(sens.ChFilterXYZIAccess())  # Access point cloud data.
+    lidar2d.PushFilter(sens.ChFilterVisualizePointCloud(1280, 720, 1))  # Visualize the point cloud.
     lidar2d.SetName("lidar2d")
     sens_manager.AddSensor(lidar2d)
 
-    # Register a new ROS handler for the 2D Lidar sensor to publish data to `~/output/lidar2d/data/scan`.
+    # Update the sensor manager to initialize sensors.
+    sens_manager.Update()
+
+    # Create the ROS manager and register handlers for the sensors.
     ros_manager = chros.ChROSPythonManager()
-    ros_manager.RegisterHandler(chros.ChROSCameraHandler(cam.GetUpdateRate() / 4, cam, "~/output/camera/data/image"))
-    ros_manager.RegisterHandler(chros.ChROSLidarHandler(lidar, "~/output/lidar2d/data/scan"))
-    ros_manager.RegisterHandler(chros.ChROSGPSHandler(gps, "~/output/gps/data"))
-    acc_handler = chros.ChROSAccelerometerHandler(acc, "~/output/accelerometer/data")
-    ros_manager.RegisterHandler(acc_handler)
-    gyro_handler = chros.ChROSGyroscopeHandler(gyro, "~/output/gyroscope/data")
-    ros_manager.RegisterHandler(gyro_handler)
-    mag_handler = chros.ChROSMagnetometerHandler(mag, "~/output/magnetometer/data")
-    ros_manager.RegisterHandler(mag_handler)
-
-    # Create and configure an IMU handler.
-    imu_handler = chros.ChROSIMUHandler(100, "~/output/imu/data")
-    imu_handler.SetAccelerometerHandler(acc_handler)
-    imu_handler.SetGyroscopeHandler(gyro_handler)
-    imu_handler.SetMagnetometerHandler(mag_handler)
-    ros_manager.RegisterHandler(imu_handler)
-
-    ros_manager.Initialize()  # Initialize the ROS manager.
-
-    # Run the simulation loop.
-    time = 0
-    time_step = 1e-3  # Define the simulation time step.
-    time_end = 100  # Set the duration of the simulation.
-
-    # Apply rotational velocity to the ground body for sensor motion.
-    ground_body.SetAngVelParent(ch.ChVector3d(0, 0, 0.1))
-
-    while time < time_end:
-        time = sys.GetChTime()  # Update simulation time.
-
-        # Update sensors and ROS data.
-        sens_manager.Update()
-        if not ros_manager.Update(time, time_step):
-            break  # Exit loop if ROS manager update fails.
-
-        sys.DoStepDynamics(time_step)  # Advance the simulation by one time step.
-
-if __name__ == "__main__":
-    main()
+    ros_manager.RegisterHandler(chros.ChROSClockHandler())  # Register the clock handler

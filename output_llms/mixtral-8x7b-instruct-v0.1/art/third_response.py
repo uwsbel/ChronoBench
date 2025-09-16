@@ -7,8 +7,8 @@ chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 # Initial vehicle location and orientation
-initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 initLoc = chrono.ChVector3d(0, 0, 0.5)
+initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 # Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
 vis_type = veh.VisualizationType_MESH
@@ -49,9 +49,9 @@ vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
-vehicle.SetMaxMotorVoltageRatio(0.26)  # Updated
-vehicle.SetStallTorque(0.4)           # Updated
-vehicle.SetTireRollingResistance(0.03)  # Updated
+vehicle.SetMaxMotorVoltageRatio(0.26)  # adjusted
+vehicle.SetStallTorque(0.4)            # adjusted
+vehicle.SetTireRollingResistance(0.03)   # adjusted
 
 vehicle.Initialize()
 

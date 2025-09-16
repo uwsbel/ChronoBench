@@ -1,66 +1,56 @@
 import pychrono as chrono
-import pychrono.irrlicht as irr
-import pychrono.vehicle as vehicle
-import pychrono.terrain as terrain
+from pychrono.irrlicht import IrrlichtVisualizer
+from pychrono.terrain import RigidTerrain
+from pychrono.vehicle import GatorVehicle
+from pychrono.tire import TMEASYTireModel
+from pychrono.driver import DriverSystem
 
 
-sim = chrono.ChSimulation()
-sim.SetTimestepper(chrono.ChTimestepper.Type_BDF, 1e-5)
-sim.SetMaxPenetrationDepth(1e-3)
+chrono.SetChronoDataPath("path/to/chrono_data")
+chrono.Initialize()
 
 
-app = irr.ChIrrApp(sim, 'Gator Vehicle Simulation', irr.vector2i(800, 600))
-app.SetTimestep(0.01)  
+visualizer = IrrlichtVisualizer(chrono.GetChronoDataPath() + "/media/irrlicht/")
+visualizer.SetWindowSize(800, 600)
+visualizer.SetTitle("Gator Vehicle Simulation")
+visualizer.MakeCurrent()
 
 
-terrain_size = 100
-terrain = terrain.ChTerrain(terrain_size, terrain_size, 1)
-terrain.SetTexture(chrono.GetChronoDataFile('textures/grass.jpg'))
-terrain.SetMaterial(chrono.ChMaterialSurfaceNSC())
-sim.Add(terrain)
+terrain = RigidTerrain(100, 100, 10)
+terrain.SetTexture(chrono.GetChronoDataPath() + "/media/textures/grass.png")
+chrono.GetSystem().Add(terrain)
 
 
-gator = vehicle.ChGator()
-gator.SetChassisLocation(chrono.ChVectorD(0, 0.5, 0))
-gator.SetChassisOrientation(chrono.Q_from_AngX(chrono.CH_C_PI / 2))
-gator.SetContactMethod(vehicle.ChGator.ContactMethod_BULLET)
-gator.SetTireModel(vehicle.ChGator.TireModel_TMEASY)
-gator.SetChassisBodyVisualizationType(vehicle.ChGator.ChassisBodyVisualizationType_MESH)
-gator.SetWheelVisualizationType(vehicle.ChGator.WheelVisualizationType_MESH)
-sim.Add(gator)
+vehicle = GatorVehicle()
+vehicle.SetTireModel(TMEASYTireModel())
+vehicle.SetChassisLocation([0, 0, 0.2])
+vehicle.SetChassisOrientation([0, 0, 0])
+vehicle.SetContactMethod(chrono.ContactMethod.VERTEX)
+chrono.GetSystem().Add(vehicle)
 
 
-driver = vehicle.ChGatorDriver(gator)
+vehicle.SetMeshVisualization(True)
+
+
+driver = DriverSystem()
 driver.SetSteering(0)
 driver.SetThrottle(0)
 driver.SetBrake(0)
+driver.SetVehicle(vehicle)
 
 
-while app.GetDevice().run():
+while not visualizer.IsQuit():
     
-    sim.DoStepDynamics(0.01)
-    sim.DoStepGraphics(0.01)
-
-    
-    if app.GetDevice().isKeyPressed(irr.irrKI_KEY_W):
-        driver.SetThrottle(1)
-    elif app.GetDevice().isKeyPressed(irr.irrKI_KEY_S):
-        driver.SetBrake(1)
-    else:
-        driver.SetThrottle(0)
-        driver.SetBrake(0)
-
-    if app.GetDevice().isKeyPressed(irr.irrKI_KEY_A):
-        driver.SetSteering(-1)
-    elif app.GetDevice().isKeyPressed(irr.irrKI_KEY_D):
-        driver.SetSteering(1)
-    else:
-        driver.SetSteering(0)
+    driver.Update()
 
     
-    app.BeginScene(True, True, chrono.ChColor(0.3, 0.3, 0.3))
-    app.DrawAll()
-    app.EndScene()
+    vehicle.Chassis().Advance(chrono.TIME_STEP)
+
+    
+    visualizer.Update()
+
+    
+    chrono.Wait(chrono.TIME_STEP * 20)
 
 
-app.GetDevice().drop()
+chrono.Finalize()

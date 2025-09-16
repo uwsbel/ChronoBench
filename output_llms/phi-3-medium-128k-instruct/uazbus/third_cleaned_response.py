@@ -1,4 +1,3 @@
-```python
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
@@ -9,7 +8,7 @@ veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 
 initLoc = chrono.ChVector3d(0, 0, 0.5)
-initRot = chrono.ChQuaterniond(1, 0, 0, 0)
+initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 
 vis_type = veh.VisualizationType_MESH
@@ -18,10 +17,11 @@ vis_type = veh.VisualizationType_MESH
 chassis_collision_type = veh.CollisionType_NONE
 
 
+
 tire_model = veh.TireModelType_RIGID  
 
 
-terrainHeight = 0      
+terrainHeight = 0
 terrainLength = 100.0  
 terrainWidth = 100.0   
 
@@ -41,1027 +41,103 @@ render_step_size = 1.0 / 50
 
 
 
-vehicle = veh.UAZBUS()  
+vehicle = veh.UAZBUS() 
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
-vehicle.SetInitPosition(chrono.ChCoordsysd(chrono.ChVector3d(initLoc, initRot)
+vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
+vehicle.SetTireType(tire_model)  
+vehicle.SetTireStepSize(tire_step_size)
 
+vehicle.Initialize()
 
-veh.SetTireType(tire_model)
+vehicle.SetChassisVisualizationType(vis_type)
+vehicle.SetSuspensionVisualizationType(vis_type)
+vehicle.SetSteeringVisualizationType(vis_type)
+vehicle.SetWheelVisualizationType(vis_type)
+vehicle.SetTireVisualizationType(vis_type)
+vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
-veh.SetTireStepSize(step_size)
+patch_mat = chrono.ChContactMaterialNSC()
+patch_mat.SetFriction(0.9)
+patch_mat.SetRestitution(0.01)
+terrain = veh.RigidTerrain(vehicle.GetSystem())
+patch = terrain.AddPatch(patch_mat, 
+    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
+    terrainLength, terrainWidth)
 
+patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
+patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+terrain.Initialize()
 
 
 
+vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
+vis.SetWindowTitle('UAZBUS Demo')
+vis.SetWindowSize(1280, 1024)
+vis.SetChaseCamera(trackPoint, 6.0, 0.5)
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddLightDirectional()
+vis.AddSkyBox()
+vis.AttachVehicle(vehicle.GetVehicle())
 
 
+driver = veh.ChInteractiveDriverIRR(vis)
 
 
+steering_time = 1.0  
 
+driver.SetThrottleDelta(render_step_size / throttle_time)
+driver.SetSteeringDelta(render_step_size / steering_time)
+driver.SetBrakingDelta(render_step_size / braking_time)
+driver.Initialize()
 
 
+print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 
 
+render_steps = math.ceil(render_step_size / step_size)
 
 
+realtime_timer = chrono.ChRealtimeStepTimer()
+step_number = 0
+render_frame = 0
 
 
+box_obstacle = chrono.ChBox(chrono.ChVector3d(0.5, 5, 0.2))
+box_obstacle.SetPosition(chrono.ChVector3d(5, 0, 0.1))
+box_obstacle.SetFixed(True)  
 
 
-SetStepSize
+obstacle = vehicle.GetSystem().AddRigidBody(box_obstacle)
 
-SetStepSize
+while vis.Run() :
+    time = vehicle.GetSystem().GetChTime()
+    
+    if (step_number % render_steps == 0) :
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+        render_frame += 1
 
-Set
+    
+    driver_inputs = driver.GetInputs()
 
+    
+    driver.Synchronize(time)
+    terrain.Synchronize(time)
+    vehicle.Synchronize(time, driver_inputs, terrain)
+    vis.Synchronize(time, driver_inputs)
 
+    
+    driver.Advance(step_size)
+    terrain.Advance(step_size)
+    vehicle.Advance(step_size)
+    vis.Advance(step_size)
 
-SetStep
-
-
-SetStep
-
-
-SetStep
-
-Set
-
-
-
-
-
-
-Set
-
-
-
-Set
-
-
-
-
-Set
-
-Set
-
-Set
-
-Set
-
-Set
-
-Set
-
-SetStep
- Set
-
-SetChrono
-
-Set
-
-SetChrono
-
-Set
-
-SetChrono
-Set
-SetChrono
-Set
-Set
-SetChrono
-Chrono
-
-Set
-
-SetChrono
-
-Set
-Set
-
-Set
-
-SetChrono
-SetChrono
-SetChrono
-
-Set
-Set
-Set
-Set
-Set
-Set
-SetChrono
-
-Chrono
-
-Set
-
-Set
-Set
-
-
-SetChrono
-
-
-
-SetChrono
-
-
-Set
-
-
-
-
-
-Set
-
-
-
-
-SetChrono
-
-
-
-
-
-
-
-
-
-
-
-    the chrono
-
-
-
-Set
-SetChrono
-
-
-   Set
-
-Set
-
-
-
-
-
-
-    SetChrono
-
-
-
-
-
-Chrono
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Set
-Chrono
-
-
-Chrono
-
-
-chrono
-Chrono
-
-   SetChrono
-sSetChrono
-
-Chrono
-
-
-
-
-
-
-
-
-
-
-chrono
-
-
-   Chrono.
-SetChrono.
-
-
-
-chrono
-
-
-
-
-
-chrono
-
-
-chrono:SetChrono
-
-   
-
-
-
-Chrono
-
-
-chrono, and chrono
-
-
-
-
-
-
-
-
-
-
-
-
-   chrono, PyCherno
-
-    the PyT.setChrono, which is a
-
-
-
-    chrono:
-chrono, which
-
-
-chrono chrono:
-
-s Chrono chrono, which
-
-chrono, whichChrono
-
-
-
-chrono, which
-
-chrono chrono
-
-chrono chrono
-
-chrono chrono
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-chronic.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-   3D:,
-
-
-
-
-
-
-
-
-    the given the Pythink the given the following the chronology.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-   3D:
-
-
-
-   
-
-
-
-
-   1.
-
-
-
-
-   
-
-
-
-   
-
-
-
-   pys
-
-   011, and modify the chrono.
-
-
-
-
-   s:
-
-   
-   s
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-   
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-   10,0, and the 
-   
-   0,00000,
-
-
-
-
-
-
-   1, which is not
-   
-
-
-
-
-
-
-
-   20.
-
-   
-
-
-
-
-
-
-
-
-
-
-
-
-
-   0.
-
-   
-
-
-
-   
-
-   
-   
-   0.0.0,0.0.
-
-
-
-
-   3D.
-   20,000.
-
-
-
-
-
-   0,0.
-
-
-
-
-
-
-
-
-
-   10,
-   
-
-
-   
-
-
-
-
-   
-   
-   
-   
-   
-
-
-
-   
-
-
-
-
-
-   
-   100
-
-
-
-
-   
-   
-
-
-
-
-
-
-
-
-
-   
-
-   0.00
-
-
-
-
-
-
-   0.
-
-
-
-
-
-
-
-
-   
-
-
-
-
-
-   
-   0.
-
-
-
-
-   2
-
-
-0.
-
-   2.
-
-
-
-
-
-
-
-   
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-0.0.0,
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-20,
-
-
-00
-
-
-,20,
-
-
-
-
-
-
-
-.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-0.
-
-0:
-:
-0.
-,0.
-0,0.
-
-
-
-
-
-
-0, and the
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-0.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
- 0,0 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-.
-0.
-
-
-
-
-reM0,
-
-
-
-
-
-
-
-S.
-
-
-
-0.
-
-
-
-
-
-5,0,0
-
-
-
-[Sphere.
-
-,
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-init
-
-
- 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-SAF
-
-0
-
-
-
-
-
-
-
-S10,0
-
-
-
-
-
-S
-5,
-
-
-
-
-
-0.
-
-
-
-
-,0
-0
-, 
-A
-
-
-
-,
-R
-0_000,
-10, 
-
-
-
-
-
-
-
-0
-
-
-
-
-
-
-
-
-
-
-9
-0.0
-
-
-.
-,
-5
-
-0,0
-
-
-0
-
-0
-
-
-0
-
-
-0.
-0.0
-0
-
-
-0
-0.0.
-
-
-0.
-
-
-
-
-00
-
-.
-.
-0.
-5
-,00,
-0,
+    
+    step_number += 1
+    
+    realtime_timer.Spin(step_size)

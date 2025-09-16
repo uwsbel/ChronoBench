@@ -1,100 +1,120 @@
 import pychrono
 
-import pychrono.vehicle as vehicle
+import pychrono_gui
 
 import rospy
 
-from std_msgs.msg import String
+from pychrono import ChSystems
+
+from pychrono import ch
+
+from pychrono import frc
+
+from pychrono import load_models
+
+from pychrono import ch_frc
+
+from pychrono import ch_model
+
+from pychrono import ch_vehicle
+
+from pychrono import ch_trajectory
+
+from pychrono import ch_iterate
+
+import numpy as np
 
 
 
 
-chrono = pychrono.Chrono()
+chsys = ch.ChSystemNSC()
 
 
 
 
-terrain = chrono.CreateTerrain("Terrain", chrono.ChBodyEasyInertia(1.0, 1.0, 1.0))
-
-terrain.SetFriction(0.5)
-
-terrain.SetRestitution(0.3)
+hmmwv = load_models.vehicle_hmmwv()
 
 
 
 
-hmmwv = vehicle.CreateHMMWV("HMMWV", chrono)
-
-hmmwv.SetContactMethod(vehicle.ContactMethod.kDynamicFriction)
-
-hmmwv.SetEngineType(vehicle.EngineType.kGasoline)
-
-hmmwv.SetTireModel(vehicle.TireModel.kPacejka)
+ch_vehicle.init(chsys, hmmwv)
 
 
 
 
-driver = vehicle.CreateDriver("Driver", chrono)
+terrain = ch.ChTerrain()
 
-driver.SetControlMethod(vehicle.ControlMethod.kPID)
+terrain.set_friction_model(ch_frc.ChCoeffFriction([0.5, 0.5, 0.5])
 
-
-
-
-rospy.init_node('hmmwv_simulation')
-
-pub_state = rospy.Publisher('vehicle_state', String, queue_size=10)
+terrain.set_restitution_model(ch_frc.ChRestitution([0.1, 0.1, 0.1]))
 
 
 
 
-def clock_handler():
-
-    chrono.SetTimeStep(0.01)
-
-
-def driver_input_handler():
-
-    
-
-    pass
-
-
-def vehicle_state_handler():
-
-    
-
-    state_message = "Vehicle state data"
-
-    pub_state.publish(state_message)
+chsys.add(terrain)
 
 
 
 
-chrono.RegisterClockHandler(clock_handler)
+hmmwv.engine_type = 'diesel'
 
-chrono.RegisterDriverInputHandler(driver_input_handler)
-
-chrono.RegisterVehicleStateHandler(vehicle_state_handler)
+hmmwv.tire_model = 'hmmwv_tire_model'
 
 
 
 
-while chrono.Ok():
+driver = ch.ChDriver_serial()
 
-    chrono.Advance()
+driver.compute_command = lambda t: [0, 0, 0, 0]  
 
-    chrono.Synchronize()
+
+
+
+ch_driver.init(chsys, driver)
+
+
+
+
+rospy.init_node('hmmwv_simulation_node')
+
+
+
+
+def update_simulation(chsys):
 
     
 
-    hmmwv.Update(chrono.Time())
-
-    driver.Update(chrono.Time())
-
-    terrain.Update(chrono.Time())
+    driver.update()
 
 
     
 
-    rospy.spin()
+    chsys.doMotion(1)
+
+
+    
+
+    
+
+    
+
+
+
+
+sim_time = 10.0  
+
+dt = 0.01  
+
+for t in np.arange(0, sim_time, dt):
+
+    update_simulation(chsys)
+
+
+
+
+ch_iterate.doMotion(chsys, sim_time, dt)
+
+
+
+
+pychrono_gui.main()

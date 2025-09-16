@@ -1,3 +1,4 @@
+```python
 import math as m
 import pychrono as chrno
 import pychrono.fea as fea
@@ -95,7 +96,7 @@ sphereconstr3 = chrono.ChVisualShapeSphere(0.01)
 constr_bc.AddVisualShape(sphereconstr3)
 
 # Create a crank beam
-section3 = fea.ChBeamSectionEuler()
+section3 = fea.ChBeamSectionEulerAdvanced()
 crankbeam_d = 0.06
 section3.SetDensity(2800)
 section3.SetYoungModulus(75.0e9)
@@ -119,34 +120,228 @@ constr_bc.SetConstrainedCoords(True, True, False, True, True, False)
 
 # Create a constraint between the vertical beam and the crank beam
 constr_bc = chrono.ChLinkMateParallel()
-constr_bc.Initialize(node_crankB, node_crnkG, False, node_crankB.Frame(), node_crankB.Frame())
+constr_bc.Initialize(node_crankB, node_crankG, False, node_crankB.Frame(), node_crankB.Frame())
 sys.Add(constr_bc)
 constr_bc.SetConstrainedCoords(True, True, True, True, True, True)
 
-# Attach a visualization shape for the constraint
-sphereconstr3 = chrono.ChVisualShapeSphere(0.01)
-constr_bc.AddVisualShape(sphereconstr3)
+# Create a rotational motor
+motor = chrono.ChLinkMotorRotationSpeed()
+motor.Initialize(body_truss, body_crank, chrono.VECT_X)
 
-# Final touches:
-mesh.SetAutomaticGravity(True)
-sys.SetTimestepperEulerExplicit(sys)
-ts = chrono.ChTimestepperEulerExplicit(sys)
-ts.SetStepControl(True)
-sys.SetTimestepper(ts)
+# Create a FEM mesh container:
+mesh = fea.ChMesh()
 
-# Use a solver that can handle stiffness matrices
-custom_solver = mklsolver.ChSolverPardisoMKL()
-sys.SetSolver(custom_solver)
+# Define horizontal beam parameters
+beam_wy = 0.12
+beam_wz = 0.15
 
-# Use the HHT timestepper for less numerical damping and higher accuracy
-ts = chrono.ChTimestepperEulerExplicit(sys)
-ts.SetStepControl(True)
-sys.SetTimestepper(ts)
+# Create section properties for the IGA beam
+minertia = fea.ChIneritaCosseratSimple()
+minertia.SetAsRectangularSection(beam_wy, beam_wz, 2700)
+melasticity = fea.ChElasticityCosseratSimple()
+melasticity.SetYoungModulus(72.0e9)
+melasticity.SetShearModulusFromPoisson(0.35)
+melasticity.SetAsRectangularSection(beam_wy, beam_wz)
+msection1 = fea.ChMassSectionCosserat(minertia, melasticity)
+msection1.SetDrawThickness(beam_wy * 0.5, beam_wz)
 
-# Main simulation loop
-while vis.Run():
-    vis.BeginScene()
-    vis.Render()
-    chronicls.drawGrid(vis, 0.1, 0.01, 10, 10, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT))
-    vis.EndScene()
-    sys.DoStepDynamics(0.002)
+# Build the IGA beam
+builder_iga = fea.ChBuilderBeamIGA()
+builder_iga.BuildBeam(mesh, msection1, 30, vA + vd, vC + vd, chrono.ChVector3d(1, 0, 0), 3)
+
+# Create a truss body
+body_trss = chrono.ChBody()
+body_trss.SetFixed(True)
+sys.AddBody(body_trss)
+
+# Attach a visualization shape to the truss
+boxtruss = chrono.ChVisualShapeBox(0.03, 0.25, 0.15)
+body_trss.AddVisualShape(boxtruss, chrono.QUNIT)
+
+# Create a crank body
+body_crank = chrono.ChBody()
+body_crank.SetPos((vC + vG) * 0.5)
+sys.AddBody(body_crank)
+
+# Attach a visualization shape to the crank
+boxcrank = chrono.ChVisualShapeBox(K, 0.05, 0.03)
+body_crank.AddVisualShape(boxcrank)
+
+# Create a rotational motor
+motor = chrono.ChLinkMotorRotationSpeed()
+motor.Initialize(body_truss, body_crank, chrono.VECT_X)
+
+# Create a FEM mesh container:
+mesh = fea.ChMesh()
+
+# Define horizontal beam parameters
+beam_wy = 0.12
+beam_wz = 0.15
+
+# Create section properties for the IGA beam
+minertia = fea.ChIneritaCosseratSimple()
+minertia.SetAsRectangularSection(beam_wy, beam_wz, 2700)
+melasticity = fea.ChElasticityCosseratSimple()
+melasticity.SetYoungModulus(72.0e9)
+melasticity.SetShearModulusFromPoisson(0.35)
+melasticity.SetAsRectangularSection(beam_wy, beam_wz)
+msection1 = fea.ChMassSectionCosserat(minertia, melasticity)
+msection1.SetDrawThickness(beam_wy * 0.5, beam_wz)
+
+# Build the IGA beam
+builder_iga = fea.ChBuilderBeamIGA()
+builder_iga.BuildBeam(mesh, msection1, 30, vA + vd, vC + vd, chrono.ChVector3d(1, 0, 0), 3)
+
+# Create a truss body
+body_trss = chrono.ChBody()
+body_trss.SetFixed(True)
+sys.AddBody(body_trss)
+
+# Attach a visualization shape to the truss
+boxtruss = chrono.ChVisualShapeBox(0.03, 0.25, 0.15)
+body_trss.AddVisualShape(boxtruss, chrono.QUNIT)
+
+# Create a crank body
+body_crank = chrono.ChBody()
+body_crank.SetPos((vC + vG) * 0.5)
+sys.AddBody(body_crank)
+
+# Attach a visualization shape to the crank
+boxcrank = chrono.ChVisualShapeBox(K, 0.05, 0.03)
+body_crank.AddVisualShape(boxcrank)
+
+# Create a rotational motor
+motor = chrono.ChLinkMotorRotationSpeed()
+motor.Initialize(body_truss, body_crank, chrono.VECT_X)
+
+# Create a FEM mesh container:
+mesh = fea.ChMesh()
+
+# Define horizontal beam parameters
+beam_wy = 0.12
+beam_wz = 0.15
+
+# Create section properties for the IGA beam
+minertia = fea.ChIneritaCosseratSimple()
+minertia.SetAsRectangularSection(beam_wy, beam_wz, 2700)
+melasticity = fea.ChElasticityCosseratSimple()
+melasticity.SetYoungModulus(72.0e9)
+melasticity.SetShearModulusFromPoisson(0.35)
+melasticity.SetAsRectangularSection(beam_wy, beam_wz)
+msection1 = fea.ChMassSectionCosserat(minertia, melasticity)
+msection1.SetDrawThickness(beam_wy * 0.5, beam_wz)
+
+# Build the IGA beam
+builder_iga = fea.ChBuilderBeamIGA()
+builder_iga.BuildBeam(mesh, msection1, 30, vA + vd, vC + vd, chrono.ChVector3d(1, 0, 0), 3)
+
+# Create a truss body
+body_trss = chrono.ChBody()
+body_trss.SetFixed(True)
+sys.AddBody(body_trss)
+
+# Attach a visualization shape to the truss
+boxtruss = chrono.ChVisualShapeBox(0.03, 0.25, 0.15)
+body_trss.AddVisualShape(boxtruss, chrono.QUNIT)
+
+# Create a crank body
+body_crank = chrono.ChBody()
+body_crank.SetPos((vC + vG) * 0.5)
+sys.AddBody(body_crank)
+
+# Attach a visualization shape to the crank
+boxcrank = chrono.ChVisualShapeBox(K, 0.05, 0.03)
+body_crank.AddVisualShape(boxcrank)
+
+# Create a rotational motor
+motor = chrono.ChLinkMotorRotationSpeed()
+motor.Initialize(body_truss, body_crank, chrono.VECT_X)
+
+# Create a FEM mesh container:
+mesh = fea.ChMesh()
+
+# Define horizontal beam parameters
+beam_wy = 0.12
+beam_wz = 0.15
+
+# Create section properties for the IGA beam
+minertia = fea.ChIneritaCosseratSimple()
+minertia.SetAsRectangularSection(beam_wy, beam_wz, 2700)
+melasticity = fea.ChElasticityCosseratSimple()
+melasticity.SetYoungModulus(72.0e9)
+melasticity.SetShearModulusFromPoisson(0.35)
+melasticity.SetAsRectangularSection(beam_wy, beam_wz)
+msection1 = fea.ChMassSectionCosserat(minertia, melasticity)
+msection1.SetDrawThickness(beam_wy * 0.5, beam_wz)
+
+# Build the IGA beam
+builder_iga = fea.ChBuilderBeamIGA()
+builder_iga.BuildBeam(mesh, msection1, 30, vA + vd, vC + vd, chrono.ChVector3d(1, 0, 0), 3)
+
+# Create a truss body
+body_trss = chrono.ChBody()
+body_trss.SetFixed(True)
+sys.AddBody(body_trss)
+
+# Attach a visualization shape to the truss
+boxtruss = chrono.ChVisualShapeBox(0.03, 0.25, 0.15)
+body_trss.AddVisualShape(boxtruss, chrono.QUNIT)
+
+# Create a crank body
+body_crank = chrono.ChBody()
+body_crank.SetPos((vC + vG) * 0.5)
+sys.AddBody(body_crank)
+
+# Attach a visualization shape to the crank
+boxcrank = chrono.ChVisualShapeBox(K, 0.05, 0.03)
+body_crank.AddVisualShape(boxcrank)
+
+# Create a rotational motor
+motor = chrono.ChLinkMotorRotationSpeed()
+motor.Initialize(body_truss, body_crank, chrono.VECT_X)
+
+# Create a FEM mesh container:
+mesh = fea.ChMesh()
+
+# Define horizontal beam parameters
+beam_wy = 0.12
+beam_wz = 0.15
+
+# Create section properties for the IGA beam
+minertia = fea.ChIneritaCosseratSimple()
+minertia.SetAsRectangularSection(beam_wy, beam_wz, 2700)
+melasticity = fea.ChElasticityCosseratSimple()
+melasticity.SetYoungModulus(72.0e9)
+melasticity.SetShearModulusFromPoisson(0.35)
+melasticity.SetAsRectangularSection(beam_wy, beam_wz)
+msection1 = fea.ChMassSectionCosserat(minertia, melasticity)
+msection1.SetDrawThickness(beam_wy * 0.5, beam_wz)
+
+# Build the IGA beam
+builder_iga = fea.ChBuilderBeamIGA()
+builder_iga.BuildBeam(mesh, msection1, 30, vA + vd, vC + vd, chrono.ChVector3d(1, 0, 0), 3)
+
+# Create a truss body
+body_trss = chrono.ChBody()
+body_trss.SetFixed(True)
+sys.AddBody(body_trss)
+
+# Attach a visualization shape to the truss
+boxtruss = chrono.ChVisualShapeBox(0.03, 0.25, 0.15)
+body_trss.AddVisualShape(boxtruss, chrono.QUNIT)
+
+# Create a crank body
+body_crank = chrono.ChBody()
+body_crank.SetPos((vC + vG) * 0.5)
+sys.AddBody(body_crank)
+
+# Attach a visualization shape to the crank
+boxcrank = chrono.ChVisualShapeBox(K, 0.05, 0.03)
+body_crank.AddVisualShape(boxcrank)
+
+# Create a rotational motor
+motor = chrono.ChLinkMotorRotationSpeed()
+motor.Initialize(body_truss, body_crank, chrono.VECT_X)
+
+# Create a FEM mesh container:
+mesh =

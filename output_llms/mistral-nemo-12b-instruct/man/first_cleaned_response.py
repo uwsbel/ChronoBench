@@ -1,75 +1,76 @@
 import pychrono as chrono
+import pychrono.irrlicht as irl
 import numpy as np
 
 
-sim = chrono.ChSimulation()
-sim.SetTimestep(0.01)  
-sim.SetMaxSteps(1000)  
+chrono.SetChronoDataPath("path/to/chrono_data")
+physics = chrono.ChPhysicsEngine()
+physics.SetIntegrationType(chrono.ChIntegrationType_SPH)
+physics.SetSolverType(chrono.ChSolverType_BARZILLA)
+physics.SetSolverIterations(50)
+physics.SetMaxPenetrationRecoverySpeed(1.0)
+physics.SetMaxPenetrationRecoveryTime(0.5)
+physics.SetTolerance(1e-4)
+physics.SetCollisionMargin(0.01)
+physics.SetFastMemory(0, 1)
 
 
-sys = chrono.ChSystemSMC()
-sim.AddSystem(sys)
+system = chrono.ChSystemNSC()
+system.SetPhysicsEngine(physics)
 
 
-mat_ground = chrono.ChMaterialSurfaceNSC()
-mat_ground.SetFriction(0.6)  
-mat_ground.SetYoungModulus(2e7)  
-mat_ground.SetYieldStrength(2e6)  
+vehicle = chrono.ChBody()
+vehicle.SetPos(chrono.ChVectorD(0, 0.5, 0))
+vehicle.SetMass(10000)
+vehicle.SetInertiaXX(chrono.ChVectorD(2500, 10000, 2500))
+vehicle.SetBuoyancyForce(chrono.ChVectorD(0, -10000, 0))
+system.Add(vehicle)
 
 
-
-ground = chrono.ChBodyEasyBox(10, 10, 0.1, mat_ground, True, True)
-ground.SetPos(chrono.ChVectorD(0, 0, -0.05))  
-sys.Add(ground)
-
-
-box_mat = chrono.ChMaterialSurfaceNSC()
-box_mat.SetFriction(0.4)  
-box_mat.SetYoungModulus(1e7)  
-box_mat.SetYieldStrength(1e6)  
-
-box = chrono.ChBodyEasyBox(0.5, 0.5, 0.5, box_mat, True, True)
-box.SetPos(chrono.ChVectorD(1, 0, 0.25))  
-box.SetRot(chrono.Q_from_AngX(chrono.CH_C_PI / 4))  
-sys.Add(box)
+tire = chrono.ChTire()
+tire.SetPos(chrono.ChVectorD(0, -0.5, 0))
+tire.SetRadius(0.5)
+tire.SetWidth(0.2)
+tire.SetTireModelType(chrono.ChTireModelType_TMEASY)
+tire.SetTireModelParameters(chrono.ChTireModelParameters_TMEASY(0.8, 0.8, 0.8, 0.8))
+vehicle.Add(tire)
 
 
-sphere_mat = chrono.ChMaterialSurfaceNSC()
-sphere_mat.SetFriction(0.8)  
-sphere_mat.SetYoungModulus(2e7)  
-sphere_mat.SetYieldStrength(2e6)  
-
-sphere = chrono.ChBodyEasySphere(0.25, sphere_mat, True, True)
-sphere.SetPos(chrono.ChVectorD(0, 1, 0.5))  
-sys.Add(sphere)
+steering = chrono.ChFunction_Const(0)
+throttle = chrono.ChFunction_Const(0)
+brake = chrono.ChFunction_Const(0)
 
 
-force = chrono.ChForce()
-force.SetMode(chrono.ChForce.FORCE)
-force.SetDir(chrono.VECT_X)
-force.SetMagnitude(5)
-force.SetPos(chrono.ChVectorD(0, 1, 0.5))
-sphere.AddForce(force)
+app = irl.ChIrrApp(system, "PyChrono Simulation")
+app.SetTimestep(0.01)
+app.SetWindowSize(800, 600)
+app.AddTypicalSky(chrono.ChColor(0.8, 0.8, 1.0))
+app.AddTypicalLogo(chrono.ChVectorD(0, 0, 0))
+app.AddTypicalCamera(chrono.ChVectorD(0, 1, -5), chrono.ChVectorD(0, 0, 0))
+app.AddTypicalLights(chrono.ChVectorD(0, 10, 0), chrono.ChVectorD(0, 0, 0))
 
 
-
-contact = chrono.ChLinkMateContact()
-contact.Initialize(box, sphere)
-sys.Add(contact)
-
-
-contact = chrono.ChLinkMateContact()
-contact.Initialize(ground, sphere)
-sys.Add(contact)
+terrain = chrono.ChTerrain()
+terrain.SetTexture(chrono.ChTexture("path/to/terrain_texture.png"))
+terrain.SetLogoTexture(chrono.ChTexture("path/to/logo_texture.png"))
+terrain.SetHeightMap("path/to/height_map.png")
+system.Add(terrain)
 
 
-contact = chrono.ChLinkMateContact()
-contact.Initialize(ground, box)
-sys.Add(contact)
+while app.GetDevice().run():
+    app.BeginScene(True, True, chrono.ChColor(0.9, 0.9, 0.9))
+    app.DrawAll()
+    app.EndScene()
 
+    
+    steering.SetValue(app.GetDevice().getKeyState('a') - app.GetDevice().getKeyState('d'))
+    throttle.SetValue(app.GetDevice().getKeyState('w'))
+    brake.SetValue(app.GetDevice().getKeyState('s'))
 
-sim.Run()
+    
+    vehicle.SetSteeringAngle(steering.GetValue())
+    vehicle.SetThrottle(throttle.GetValue())
+    vehicle.SetBrake(brake.GetValue())
 
-
-print("Final position of the box:", box.GetPos())
-print("Final position of the sphere:", sphere.GetPos())
+    system.DoStepDynamics(chrono.GetChronoDataManager().GetTimestep())
+    app.PumpEvents()

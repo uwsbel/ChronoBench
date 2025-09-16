@@ -2,8 +2,8 @@ import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
-import pychrono.sensor as sensor
 import numpy as np
+import pychrono.sensor as sensor
 
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
@@ -20,6 +20,7 @@ chassis_collision_type = veh.CollisionType_NONE
 
 
 tire_model = veh.TireModelType_TMEASY
+
 
 
 terrainHeight = 0      
@@ -113,22 +114,16 @@ render_frame = 0
 
 
 sensor_manager = sensor.ChSensorManager()
-vehicle.GetSystem().Add(sensor_manager)
-
-
-lidar = sensor.ChLidarSensor()
-lidar.SetRange(10)
-lidar.SetAngleStep(0.1)
-lidar.SetNumAngles(360)
+lidar = sensor.ChLidar(vehicle.GetVehicle().GetSystem())
 sensor_manager.AddSensor(lidar)
 
 
 for i in range(10):
     box = chrono.ChBoxShape(chrono.ChVector3d(0.5, 0.5, 0.5))
-    box_body = chrono.ChBodyEasy(1.0, box)
-    box_body.SetPos(chrono.ChVector3d(np.random.uniform(-50, 50), np.random.uniform(-50, 50), np.random.uniform(1, 2)))
-    box_body.SetRot(chrono.QUNIT)
-    vehicle.GetSystem().Add(box_body)
+    body = chrono.ChBodyEasy(1.0, box)
+    body.SetPos(chrono.ChVector3d(np.random.uniform(-50, 50), np.random.uniform(-50, 50), 1))
+    body.SetRot(chrono.ChQuaterniond(1, 0, 0, 0))
+    vehicle.GetSystem().Add(body)
 
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()

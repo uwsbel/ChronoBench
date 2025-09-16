@@ -1,71 +1,58 @@
 import pychrono as chrono
 import pychrono.irrlicht as irrlicht
-import numpy as np
+import pychrono.imu as imu
+import pychrono.gps as gps
+import pychrono.vehicle as vehicle
 
 
 chrono.init()
 
 
-engine = irrlicht.IrrlichtEngine()
+irr_win = irrlicht.IrrlichtEngine()
+irr_win.createWindow("HMMWV Simulation")
 
 
-world = chrono.World()
+vehicle_model = vehicle.Vehicle()
+vehicle_model.setMass(1000)  
+vehicle_model.setDimensions(1.5, 3, 1)  
 
 
-vehicle = chrono.Vehicle(world)
-vehicle.set_mass(1500)  
-vehicle.set_length(4.5)  
-vehicle.set_width(2.0)  
-vehicle.set_height(1.8)  
+driver_model = vehicle.Driver()
+driver_model.setVehicle(vehicle_model)
 
 
-vehicle.add_wheel(chrono.Wheel(vehicle, 0.5, 0.5))
-vehicle.add_wheel(chrono.Wheel(vehicle, 0.5, 0.5))
-vehicle.add_wheel(chrono.Wheel(vehicle, 0.5, 0.5))
-vehicle.add_wheel(chrono.Wheel(vehicle, 0.5, 0.5))
+imu_sensor = imu.IMU()
+imu_sensor.setVehicle(vehicle_model)
 
 
-terrain = chrono.Terrain(world)
-terrain.set_height(0.5)  
-terrain.set_width(10)  
-terrain.set_length(10)  
+gps_sensor = gps.GPS()
+gps_sensor.setVehicle(vehicle_model)
 
 
-driver = chrono.Driver(vehicle)
+vehicle_model.setPosition(chrono.Vector3(0, 0, 0))
+vehicle_model.setVelocity(chrono.Vector3(0, 0, 0))
 
 
-imu = chrono.IMU(vehicle)
-gps = chrono.GPS(vehicle)
+terrain = chrono.Terrain()
+terrain.setDimensions(10, 10)
 
 
-vehicle.set_position(chrono.Vector3(0, 0, 0))
-vehicle.set_velocity(chrono.Vector3(0, 0, 0))
-vehicle.set_orientation(chrono.Quaternion(1, 0, 0, 0))
+chrono.run()
 
 
-imu.set_acceleration(chrono.Vector3(0, 0, 0))
-imu.set_gyro(chrono.Vector3(0, 0, 0))
-gps.set_position(chrono.Vector3(0, 0, 0))
-
-
-dt = 0.01  
-iterations = 1000
-
-
-for i in range(iterations):
+while True:
     
-    imu.update(dt)
-    gps.update(dt)
+    imu_sensor.update()
+    gps_sensor.update()
 
     
-    vehicle.update(dt)
+    driver_model.update()
 
     
-    engine.render()
+    vehicle_model.update()
 
     
-    print("Vehicle mass:", vehicle.get_mass())
+    irr_win.render()
 
-
-engine.shutdown()
-chrono.shutdown()
+    
+    print("Vehicle mass:", vehicle_model.getMass())

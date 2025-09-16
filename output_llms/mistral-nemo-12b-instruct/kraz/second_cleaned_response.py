@@ -26,7 +26,7 @@ terrainLength = 100.0
 terrainWidth = 100.0   
 
 
-trackPoint = chrono.ChVector3d(3, 0, 2.1)
+trackPoint = chrono.ChVector3d(3,0, 2.1)  
 
 
 contact_method = chrono.ChContactMethod_NSC
@@ -93,7 +93,7 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 
-print("VEHICLE MASS: ", vehicle.GetTractor().GetMass())
+print( "VEHICLE MASS: ",  vehicle.GetTractor().GetMass())
 
 
 render_steps = math.ceil(render_step_size / step_size)
@@ -127,12 +127,17 @@ while vis.Run():
     vis.Synchronize(time, driver_inputs)
 
     
-    if time >= lane_change_start_time and time < lane_change_start_time + lane_change_time:
-        
-        driver_inputs.steering = math.sin((time - lane_change_start_time) / lane_change_time * math.pi)
-    elif time >= lane_change_start_time + 2 * lane_change_time and time < lane_change_start_time + 3 * lane_change_time:
-        
-        driver_inputs.steering = -math.sin((time - lane_change_start_time - 2 * lane_change_time) / lane_change_time * math.pi)
+    if time >= lane_change_start_time:
+        if time < lane_change_start_time + lane_change_time:
+            
+            driver_inputs.steering = -1.0
+        elif time < lane_change_start_time + 2 * lane_change_time:
+            
+            driver_inputs.steering = 1.0
+        else:
+            
+            driver_inputs.steering = 0.0
+            lane_change_start_time += 2 * lane_change_time
 
     
     driver.Advance(step_size)

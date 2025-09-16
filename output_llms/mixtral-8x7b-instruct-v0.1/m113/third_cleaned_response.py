@@ -36,7 +36,6 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  
 
 
-
 vehicle = veh.M113()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetTrackShoeType(veh.TrackShoeType_SINGLE_PIN)
@@ -59,6 +58,16 @@ vehicle.SetTrackShoeVisualizationType(vis_type)
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
+box_size = chrono.ChVector3d(10, 0.5, 1)
+box_pos = chrono.ChVector3d(-4, 0, 0)
+box_rot = chrono.ChQuaterniond(1, 0, 0, 0)
+box_body = chrono.ChBodyEasyBox(1, box_size, 1000, True, True)
+box_body.SetPos(box_pos)
+box_body.SetRot(box_rot)
+box_body.SetCollide(True)
+vehicle.GetSystem().AddBody(box_body)
+
+
 patch_mat = chrono.ChContactMaterialSMC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
@@ -72,17 +81,6 @@ patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 
-box_shape = chrono.ChBoxShape()
-box_shape.GetBoxGeometry().Size = chrono.ChVectorD(10, 1, 1)
-box_body = chrono.ChBody()
-box_body.AddShape(box_shape)
-box_body.SetPos(chrono.ChVectorD(-20, 0, 0))
-box_body.SetMass(100)
-box_body.SetCollide(True)
-vehicle.GetSystem().AddBody(box_body)
-
-
-
 vis = veh.ChTrackedVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('M113 Demo')
 vis.SetWindowSize(1280, 1024)
@@ -92,6 +90,7 @@ vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
+
 
 
 driver = veh.ChInteractiveDriverIRR(vis)

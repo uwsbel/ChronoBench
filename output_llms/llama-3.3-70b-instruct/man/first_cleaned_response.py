@@ -1,98 +1,70 @@
-from pychrono.core import GetChronoPath
-from pychrono.irrlicht import ChVisualSystemIrrlicht
-from pychrono import ChSystemSMC
-from pychrono import ChBodyEasy
-from pychrono import ChBody
-from pychrono import ChLinkTMEasy
-from pychrono import ChTire
-from pychrono import ChContactMaterialSurface
-from pychrono import ChMaterialSurfaceSMC
-from pychrono import ChVectorD
-from pychrono import ChQuaternionD
-from pychrono import ChForce
-from pychrono import ChLinkLockLock
-from pychrono import ChLinkLockRot
-from pychrono import ChLinkTMEasy
-from pychrono import ChTMEasy
-from pychrono import ChContactMaterial
+import pychrono.core as chrono
+import pychrono.irrlicht as chronoirr
+import pychrono.vehicle as veh
 
 
-chrono_path = GetChronoPath()
+sys = chrono.ChSystemNSC()
 
 
-system = ChSystemSMC()
+truck = veh.ChVehicle()
 
 
-system.SetStep(0.01)
-system.SetMaxTime(100)
+truck.SetContactMaterial(chrono.ChMaterialSurfaceNSC())
+truck.SetChassisFixed(False)
+truck.SetSuspensionEnabled(True)
+truck.SetTireType(veh.ChTireType.TMEASY)
+truck.SetTireProperties(veh.ChTirePropertiesTMEASY())
 
 
-vehicle_body = ChBodyEasy(system, 
-                          ChVectorD(0, 1.5, 0),  
-                          ChQuaternionD(1, 0, 0, 0),  
-                          10000,  
-                          ChVectorD(1, 1, 1),  
-                          ChContactMaterialSurface(0.5, 0.5, 0.5))  
+sys.Add(truck)
 
 
-tire_model = ChTMEasy(ChVectorD(0, 0, 0),  
-                      ChQuaternionD(1, 0, 0, 0),  
-                      100,  
-                      0.5,  
-                      0.1,  
-                      0.1,  
-                      1000,  
-                      0.5,  
-                      ChContactMaterialSurface(0.5, 0.5, 0.5))  
+terrain = chrono.ChBodyEasyBox(sys, 100, 10, 1000, 1000, chrono.ChVectorD(0, -10, 0))
+terrain.SetBodyFixed(True)
+terrain.SetMaterial(chrono.ChMaterialSurfaceNSC())
+terrain.SetVisualizationMode(chrono.ChVisualizationMode.VISUALIZATION_WIREFRAME)
 
 
-vehicle = ChBodyEasy(system, 
-                    ChVectorD(0, 1.5, 0),  
-                    ChQuaternionD(1, 0, 0, 0),  
-                    10000,  
-                    ChVectorD(1, 1, 1),  
-                    ChContactMaterialSurface(0.5, 0.5, 0.5))  
+sys.Add(terrain)
 
 
-vehicle.Add(tire_model)
+driver = veh.ChIrrlichtDriver()
 
 
-terrain = ChBodyEasy(system, 
-                     ChVectorD(0, 0, 0),  
-                     ChQuaternionD(1, 0, 0, 0),  
-                     1000000,  
-                     ChVectorD(100, 1, 100),  
-                     ChContactMaterialSurface(0.5, 0.5, 0.5))  
+driver.SetVehicle(truck)
+driver.SetSteeringMode(veh.ChSteeringMode.STEERING_WHEEL)
+driver.SetThrottleMode(veh.ChThrottleMode.THROTTLE_PEDAL)
+driver.SetBrakingMode(veh.ChBrakingMode.BRAKING_PEDAL)
 
 
-system.Set_G(ChVectorD(0, -9.81, 0))
+vis = chronoirr.ChVisualSystemIrrlicht()
 
 
-vis = ChVisualSystemIrrlicht()
+vis.SetWindowSize(1024, 768)
+vis.SetCamera(chronoirr.ChCamera())
+vis.AddSkyBox()
+vis.AddTypicalLights()
+vis.AddLogo()
+vis.SetLogoPosition(chronoirr.ChVectorD(0.7, 0.1, 0))
+vis.SetLogoSize(0.1)
 
 
-vis.SetCamera(ChVectorD(0, 10, -10), 
-              ChVectorD(0, 0, 0))
+camera = chronoirr.ChCamera()
+camera.SetPosition(chronoirr.ChVectorD(0, 10, -20))
+camera.SetLookAt(chronoirr.ChVectorD(0, 0, 0))
 
 
-vis.SetSkyBox("skybox.png")
+vis.AddCamera(camera)
 
 
-vis.SetLightDirection(ChVectorD(1, 1, 1))
+sys.SetVisualizationSystem(vis)
 
 
-vis.SetTerrainTexture("terrain.png")
+sys.SetTimeStep(0.01)
 
 
-vis.SetLogo("logo.png")
-
-
-vis.Add(vehicle)
-vis.Add(terrain)
-
-
-while system.GetChTime() < 100:
-    system.DoStepDynamics(0.01)
+while sys.GetChTime() < 100:
+    sys.DoStepDynamics(0.01)
     vis.BeginScene()
     vis.DrawAll()
     vis.EndScene()

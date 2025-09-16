@@ -79,7 +79,6 @@ sys.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, 0))
 
 
 stepsize = 1e-2
-
 while vis.Run():
     vis.BeginScene()
     vis.Render()

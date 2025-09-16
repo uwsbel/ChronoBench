@@ -9,17 +9,17 @@ sys = chrono.ChSystemNSC()
 sys.SetGravitationalAcceleration(chrono.ChVector3d(0, -1.62, 0))  # g = 1.62 m/s^2 (moon's gravity)
 
 # Create the ground body and add it to the simulation
-ground = chrono.ChBody()
+ground = chrono.ChBodyEasyBox(1, 1, 1, 1000)  # Create a box for the ground
 sys.Add(ground)
 ground.SetFixed(True)  # The ground is fixed and does not move
 ground.EnableCollision(False)  # Disable collision detection for the ground
 
 # Add a visualization cylinder to the ground
 cyl_1 = chrono.ChVisualShapeCylinder(0.2, 0.4)  # Cylinder with radius 0.2 and height 0.4
-ground.AddVisualShape(cyl_1, chrono.ChFramed(chrono.ChVector3d(0, 0, 0), chrono.ChQuaterniond(1, 0, 0, 0)))
+ground.AddVisualShape(cyl_1, chrono.ChFramed(chrono.ChVector3d(0, 0, +1)))
 
 # Create a pendulum body and add it to the simulation
-pend_1 = chrono.ChBody()
+pend_1 = chrono.ChBodyEasyCylinder(0.1, 1.5, 2, 90)  # Create a cylinder for the pendulum
 sys.AddBody(pend_1)
 pend_1.SetFixed(False)  # The pendulum can move
 pend_1.EnableCollision(False)  # Disable collision detection for the pendulum
@@ -29,7 +29,7 @@ pend_1.SetInertiaXX(chrono.ChVector3d(0.4, 1.5, 1.5))  # Set the inertia tensor 
 # Add a visualization cylinder to the pendulum
 cyl_1 = chrono.ChVisualShapeCylinder(0.1, 1.5)  # Cylinder with radius 0.1 and height 1.5
 cyl_1.SetColor(chrono.ChColor(0.6, 0, 0))  # Set the color of the cylinder (RGB)
-pend_1.AddVisualShape(cyl_1, chrono.ChFramed(chrono.ChVector3d(0, 0, 0), chrono.QuatFromAngleY(chrono.CH_PI_2)))
+pend_1.AddVisualShape(cyl_1, chrono.ChFramed(chrono.ChVector3d(0, 0, 0), chrono.ChQuaterniond(1, 0, 0, 0)))
 
 # Set the initial position of the pendulum (center of mass) in the absolute frame
 # The pendulum is initially horizontal, pointing towards the positive X direction
@@ -39,14 +39,14 @@ pend_1.SetPos(chrono.ChVector3d(1, 0, 1))
 pend_1.SetWvel(chrono.ChVector3d(0, 0, 1))  # Set the angular velocity (in rad/s)
 
 # Create a spherical joint to connect the pendulum to the ground
-# The spherical joint allows rotation around all three axes
-sph_1 = chrono.ChLinkSpherical()
+# The spherical joint allows rotation around all axes
+sph_1 = chrono.ChLinkLockSpherical()
 sph_1.Initialize(ground, pend_1, chrono.ChFramed(chrono.ChVector3d(0, 0, 1), chrono.ChQuaterniond(1, 0, 0, 0)))
 sys.AddLink(sph_1)
 
 # Add a visualization sphere to the joint
-sph_vis = chrono.ChVisualShapeSphere(2)  # Sphere with radius 2
-sph_vis.SetColor(chrono.ChColor(0, 1, 0))  # Set the color of the sphere (RGB)
+sph_vis = chrono.ChVisualShapeSphere(0.2)  # Sphere with radius 0.2
+sph_vis.SetColor(chrono.ChColor(0, 0, 1))  # Set the color of the sphere (RGB)
 sph_1.AddVisualShape(sph_vis, chrono.ChFramed(chrono.ChVector3d(0, 0, 0), chrono.ChQuaterniond(1, 0, 0, 0)))
 
 # Create the Irrlicht visualization system

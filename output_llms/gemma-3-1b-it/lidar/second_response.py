@@ -90,12 +90,13 @@ def main():
     # Provides the host access to the XYZI data
     lidar.PushFilter(sens.ChFilterXYZIAccess())
 
-    # Add the lidar to the sensor manager
-    manager.AddSensor(lidar)
+    if vis:
+        # Visualize the depth map
+        lidar.PushFilter(sens.ChFilterVisualizeDepthMap(100, 100))
 
-    # ---------------
+    # ---------------------
     # Simulate system
-    # ---------------
+    # ---------------------
     orbit_radius = 10
     orbit_rate = 0.1
     ch_time = 0.0
@@ -142,13 +143,15 @@ def main():
 # Noise model attached to the sensor
 # TODO: Noise models haven't been implemented in python
 # noise_model = "CONST_NORMAL_XYZI"  # Gaussian noise with constant mean and standard deviation
-noise_model = "NONE"  # No noise model
+# noise_model = "NONE"  # No noise model
 
 # Lidar return mode
-return_mode = sens.LidarReturnMode_STRONGEST_RETURN
-# return_mode = sens.MEAN_RETURN
-# return_mode = sens.FIRST_RETURN
-# return_mode = sens.LAST_RETURN
+# TODO: Noise models haven't been implemented in python
+# return_mode = "STRONGEST_RETURN"
+# return_mode = "MEAN_RETURN"
+# return_mode = "FIRST_RETURN"
+# return_mode = "LAST_RETURN"
+# return_mode = "NONE"
 
 # Update rate in Hz
 update_rate = 5.0
@@ -197,3 +200,5 @@ out_dir = "SENSOR_OUTPUT/"
 # is automatically set, relative to the default location of this demo.
 # If running from a different directory, you must change the path to the data directory with:
 # chrono.SetChronoDataPath('path/to/data')
+
+main()

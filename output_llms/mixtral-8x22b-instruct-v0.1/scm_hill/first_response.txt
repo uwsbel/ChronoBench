@@ -1,67 +1,76 @@
-To create a PyChrono simulation with the specified requirements, you can use the following script as a starting point. Make sure to install the required packages and dependencies before running the script.
-
 ```python
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
+import pychrono.vehicle as veh
 import numpy as np
 
-# Initialize PyChrono environment and core components
-chrono.SetChronoDataPath("/path/to/chrono/data")
-chrono.SetChronoDataPath("/path/to/irrlicht/data")
-
+# 1. Initialize the PyChrono environment and core components
 my_system = chrono.ChSystemNSC()
+my_vehicle = veh.ChVehicle()
+my_vehicle.Initialize(my_system)
 
-# Add HMMWV vehicle with initial conditions
-vehicle = chrono.HMMWV()
-vehicle.SetContactMethod(chrono.ChContactMethod_NSC)
-vehicle.SetPos(chrono.ChVectorD(0, 0, 0.5))
-vehicle.SetWheelMass(150)
-vehicle.SetSuspensionStiffness(30000)
-vehicle.SetSuspensionDamping(2000)
-vehicle.Initialize(my_system)
+# 2. Add the required physical systems and objects
+vehicle_model = veh.HMMWV()
+vehicle_model.SetContactMaterial(veh.ChMaterialSurfaceNSC(0.9, 0.9, 0.0005))
+vehicle_model.SetChassisCollisionType(veh.ChVehicle.CollisionType.NONE)
+vehicle_model.SetTireType(veh.ChVehicle.TireType.RIGID)
+vehicle_model.SetTireStepSize(0.01)
 
-# Add SCM deformable terrain with soil parameters and height map
-terrain = chrono.ChTerrain()
-terrain.SetContactMaterial(3e7, 0.4)  # Young's modulus and Poisson's ratio
-terrain.SetPlasticFoundation(0.01)
-terrain.SetScaling(1)
-terrain.SetTexture(chrono.GetChronoDataFile("terrain/textures/snow.png"))
-terrain.SetContactMaterial(3e7, 0.4)
-terrain.Initialize(129, 129)
+my_vehicle.AddVehicle(vehicle_model)
 
-# Load height map
-height_map = np.loadtxt("/path/to/heightmap.txt")
-terrain.SetHeightfield(height_map, True, True)
-terrain.SetTexture(chrono.GetChronoDataFile("terrain/textures/grass.png"))
-terrain.SetContactMaterial(3e7, 0.4)
-terrain.Initialize(129, 129)
+# Set initial conditions
+my_vehicle.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 1), chrono.Q_from_AngZ(chrono.CH_C_PI_2)))
+my_vehicle.SetInitVelocity(chrono.ChVectorD(0, 0, 0))
 
-# Add terrain to the system
-my_system.Add(terrain)
+# 3. Set necessary default parameters
+# Define soil parameters
+soil_properties = veh.ChMaterialSurfaceNSC()
+soil_properties.SetFriction(0.9)
+soil_properties.SetRestitution(0.01)
+soil_properties.SetYoungModulus(2e7)
+soil_properties.SetPlasticityDepth(0.001)
 
-# Initialize driver system for vehicle control
-driver = chrono.ChIrrGuiDriver(my_system, chronoirr.GetAssetPath("irrlicht.conf"))
-driver.SetSkin(chrono.GetChronoDataFile("skins/hmmwv.png"))
+# Initialize SCM deformable terrain with height map
+terrain = veh.ChTerrain()
+terrain.SetSCMFriction(0.9, 0.9, 0.0005)
+terrain.SetPlasticity(0.2)
+terrain.SetPlasticityDepth(0.001)
+terrain.SetSCMCohesion(100000)
+terrain.SetSCMFriction(0.9, 0.9, 0.0005)
+
+# Set height map
+height_map = np.loadtxt("height_map.txt")
+terrain.SetTexture(veh.LoadTexture("terrain.png"))
+terrain.SetContactMaterial(soil_properties)
+terrain.Initialize(height_map)
+
+# Initialize driver system
+driver = veh.ChIrrGuiDriver()
+driver.SetChaseCamera(chrono.ChVectorD(0, -30, 1), 20, 0.05)
+driver.SetChaseCameraOffset(chrono.ChVectorD(0, 0, 0))
+driver.SetLightDirection(chrono.ChVectorD(0, -1, -1))
+driver.SetLightPosition(chrono.ChVectorD(0, 10, -10))
+driver.SetLightAmbient(chrono.ChVectorD(0.3, 0.3, 0.3))
+driver.SetLightDiffuse(chrono.ChVectorD(0.7, 0.7, 0.7))
+driver.SetLightSpecular(chrono.ChVectorD(0.5, 0.5, 0.5))
+
+# 4. Implement a simulation loop
+driver.SetTimestep(0.01)
 driver.Initialize()
-driver.AddTypicalSky()
-driver.AddTypicalLogo()
-driver.AddTypicalCamera(chrono.ChVectorD(0, -30, 5))
-driver.AddTypicalLights()
-driver.SetChaseCamera(chrono.ChVectorD(0, 0, 1.5), 5, 0.5)
 
-# Set up real-time visualization using Irrlicht
-driver.SetWindowSize(800, 600)
-driver.SetWindowTitle("HMMWV on Deformable Terrain")
-
-# Simulation loop
 while driver.Run():
-    my_system.DoStepDynamics(0.01)
+    # Synchronize and advance the vehicle, terrain, driver, and visual system
+    my_system.DoStepDynamics(driver.GetTimestep())
+    my_vehicle.Synchronize(driver.GetTimestep())
     driver.BeginScene()
     driver.DrawAll()
     driver.EndScene()
 
-# Clean up
-driver.Stop()
+    # Maintain real-time execution
+    driver.WaitForRetrace()
+
+# Finalize the driver
+driver.Finish()
 ```
 
-This script initializes the PyChrono environment, adds an HMMWV vehicle with specific initial conditions, sets up an SCM deformable terrain with soil parameters and a height map, initializes a driver system for vehicle control, and creates a real-time visualization using Irrlicht with camera settings and lighting. The simulation loop synchronizes and advances the vehicle, terrain, driver, and visual system at each timestep, maintaining real-time execution.
+This script initializes a PyChrono environment, adds an HMMWV vehicle with specific initial conditions, sets up an SCM deformable terrain with soil parameters and a height map, initializes a driver system for vehicle control, and creates a real-time visualization using Irrlicht with camera settings and lighting. It then implements a simulation loop that synchronizes and advances the vehicle, terrain, driver, and visual system at each timestep, maintaining real-time execution.

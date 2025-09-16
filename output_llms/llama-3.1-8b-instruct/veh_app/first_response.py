@@ -1,123 +1,103 @@
 import chrono as ch
-import numpy as np
+from chrono import ChSystem, ChBody, ChVisualization, ChBodyLoadMesh, ChPointLight, ChCamera
 
-# Initialize the PyChrono environment
-ch.InitChWorld()
+# Step 1: Initialize the PyChrono environment and core components
+ch.InitChSystem()
 
-# Create a Gator vehicle
-vehicle = ch.ChBody()
-vehicle.SetName('Gator')
-vehicle.SetPos(ch.Vec3(0, 0, 0))
-vehicle.SetRot(ch.Vec3(0, 0, 0))
-vehicle.SetMass(1000)  # mass in kg
-vehicle.SetBodyFixed(True)
-vehicle.SetBodyType(ch.CH_BODY_TYPE_DYNAMIC)
+# Step 2: Create a Gator vehicle
+gator_vehicle = ChSystem()
+gator_vehicle.Set_G(9.81)
 
-# Add vehicle parts
-chassis = ch.ChBody()
-chassis.SetName('Chassis')
+# Step 3: Create the chassis
+chassis = ChBody()
 chassis.SetPos(ch.Vec3(0, 0, 0))
 chassis.SetRot(ch.Vec3(0, 0, 0))
-chassis.SetMass(500)  # mass in kg
-chassis.SetBodyType(ch.CH_BODY_TYPE_DYNAMIC)
-vehicle.AddAsset(chassis)
+gator_vehicle.AddBody(chassis)
 
-wheel1 = ch.ChBody()
-wheel1.SetName('Wheel1')
-wheel1.SetPos(ch.Vec3(-1, 0, 0))
+# Step 4: Create the wheels
+wheel1 = ChBody()
+wheel1.SetPos(ch.Vec3(-1.5, -1.5, 0))
 wheel1.SetRot(ch.Vec3(0, 0, 0))
-wheel1.SetMass(100)  # mass in kg
-wheel1.SetBodyType(ch.CH_BODY_TYPE_DYNAMIC)
-vehicle.AddAsset(wheel1)
+gator_vehicle.AddBody(wheel1)
 
-wheel2 = ch.ChBody()
-wheel2.SetName('Wheel2')
-wheel2.SetPos(ch.Vec3(1, 0, 0))
+wheel2 = ChBody()
+wheel2.SetPos(ch.Vec3(1.5, -1.5, 0))
 wheel2.SetRot(ch.Vec3(0, 0, 0))
-wheel2.SetMass(100)  # mass in kg
-wheel2.SetBodyType(ch.CH_BODY_TYPE_DYNAMIC)
-vehicle.AddAsset(wheel2)
+gator_vehicle.AddBody(wheel2)
 
-# Set visualization types for vehicle parts
-chassis.SetVizType(ch.CH_VIZ_TYPE_WIRE)
-wheel1.SetVizType(ch.CH_VIZ_TYPE_WIRE)
-wheel2.SetVizType(ch.CH_VIZ_TYPE_WIRE)
+wheel3 = ChBody()
+wheel3.SetPos(ch.Vec3(-1.5, 1.5, 0))
+wheel3.SetRot(ch.Vec3(0, 0, 0))
+gator_vehicle.AddBody(wheel3)
 
-# Create a rigid terrain
-terrain = ch.ChBody()
-terrain.SetName('Terrain')
-terrain.SetPos(ch.Vec3(0, 0, 0))
+wheel4 = ChBody()
+wheel4.SetPos(ch.Vec3(1.5, 1.5, 0))
+wheel4.SetRot(ch.Vec3(0, 0, 0))
+gator_vehicle.AddBody(wheel4)
+
+# Step 5: Set up the vehicle's visualization
+chassis.SetObjectVisualization(ChVisualization.SOLID)
+wheel1.SetObjectVisualization(ChVisualization.WIRE)
+wheel2.SetObjectVisualization(ChVisualization.WIRE)
+wheel3.SetObjectVisualization(ChVisualization.WIRE)
+wheel4.SetObjectVisualization(ChVisualization.WIRE)
+
+# Step 6: Create a rigid terrain
+terrain = ChBody()
+terrain.SetPos(ch.Vec3(0, 0, -5))
 terrain.SetRot(ch.Vec3(0, 0, 0))
-terrain.SetMass(100000)  # mass in kg
-terrain.SetBodyType(ch.CH_BODY_TYPE_RIGID)
-terrain.SetBodyFixed(True)
+gator_vehicle.AddBody(terrain)
 
-# Set up an interactive driver system
-driver = ch.ChDriver()
-driver.SetName('Driver')
-driver.SetPos(ch.Vec3(0, 0, 0))
+# Step 7: Set up the terrain's visualization
+terrain.SetObjectVisualization(ChVisualization.SOLID)
+
+# Step 8: Create an interactive driver system
+driver = ChBody()
+driver.SetPos(ch.Vec3(0, 0, 2))
 driver.SetRot(ch.Vec3(0, 0, 0))
-driver.SetMass(50)  # mass in kg
-driver.SetBodyType(ch.CH_BODY_TYPE_DYNAMIC)
-vehicle.AddAsset(driver)
+gator_vehicle.AddBody(driver)
 
-# Set up a sensor manager
-sensor_manager = ch.ChSensorManager()
-sensor_manager.SetName('SensorManager')
-sensor_manager.SetPos(ch.Vec3(0, 0, 0))
-sensor_manager.SetRot(ch.Vec3(0, 0, 0))
+# Step 9: Set up the driver's visualization
+driver.SetObjectVisualization(ChVisualization.SOLID)
 
-# Add point lights
-light1 = ch.ChPointLight()
-light1.SetName('Light1')
-light1.SetPos(ch.Vec3(0, 0, 0))
-light1.SetIntensity(10)  # intensity
-sensor_manager.AddAsset(light1)
+# Step 10: Create a sensor manager
+sensor_manager = ChSensorManager()
+gator_vehicle.AddSensorManager(sensor_manager)
 
-light2 = ch.ChPointLight()
-light2.SetName('Light2')
-light2.SetPos(ch.Vec3(0, 0, 0))
-light2.SetIntensity(10)  # intensity
-sensor_manager.AddAsset(light2)
+# Step 11: Add point lights to the sensor manager
+point_light1 = ChPointLight()
+point_light1.SetPos(ch.Vec3(0, 0, 3))
+point_light1.SetIntensity(1)
+sensor_manager.AddPointLight(point_light1)
 
-# Add a camera
-camera = ch.ChCamera()
-camera.SetName('Camera')
-camera.SetPos(ch.Vec3(0, 0, 0))
+point_light2 = ChPointLight()
+point_light2.SetPos(ch.Vec3(0, 0, -3))
+point_light2.SetIntensity(1)
+sensor_manager.AddPointLight(point_light2)
+
+# Step 12: Create a camera and attach it to the vehicle's chassis
+camera = ChCamera()
+camera.SetPos(ch.Vec3(0, 0, 2))
 camera.SetRot(ch.Vec3(0, 0, 0))
-camera.SetResolution(800, 600)  # resolution
-camera.SetFov(60)  # field of view
-sensor_manager.AddAsset(camera)
+chassis.AddCamera(camera)
 
-# Add the vehicle, terrain, and sensor manager to the world
-ch.World.Add(vehicle)
-ch.World.Add(terrain)
-ch.World.Add(sensor_manager)
-
-# Run the simulation loop
-dt = 0.01  # time step
-t = 0
-while t < 10:
+# Step 13: Run the simulation loop
+while True:
     # Update the driver
-    driver.Update(dt)
-
+    driver.SetForce(ch.Vec3(0, 0, 10))
+    
     # Update the terrain
-    terrain.Update(dt)
-
+    terrain.SetForce(ch.Vec3(0, 0, 0))
+    
     # Update the vehicle
-    vehicle.Update(dt)
-
+    gator_vehicle.Update()
+    
     # Update the sensor manager
-    sensor_manager.Update(dt)
-
+    sensor_manager.Update()
+    
+    # Synchronize and advance the simulation modules
+    ch.SimSync()
+    ch.SimAdvance()
+    
     # Render the camera images
     camera.Render()
-
-    # Synchronize and advance the simulation modules
-    ch.World.Synchro()
-    ch.World.Advance()
-
-    t += dt
-
-# Clean up
-ch.DestroyChWorld()

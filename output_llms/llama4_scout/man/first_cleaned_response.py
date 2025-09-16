@@ -3,159 +3,85 @@ import chrono.irrlicht as irr
 import chrono.vehicle as veh
 
 
-ch.set_default_contact_material(ch.ContactMaterialType(1))
+ch.set_default_G_acc(9.81)
 
 
-system = ch.ChSystemEulerImplicit()
+system = ch.ChSystem_EulerImplicit()
 
 
-system.SetGravitationalAcceleration(ch.ChVector3d(0, 0, -9.81))
+app = irr.ChIrrApp(system, 'MAN 10t Truck Simulation', irr.IrrlichtInfo())
 
 
-system.SetTimeStep(0.01)
-system.SetEndTime(10.0)
+terrain = veh.ChTerrain()
+terrain.SetSystem(system)
+terrain.SetType(veh.TerrainType.RIGID)
+terrain.SetRigidTerrainMeshFilename('terrain.obj')  
+terrain.Initialize()
 
 
 vehicle = veh.ChVehicle()
+vehicle.SetSystem(system)
 
 
-vehicle.SetPos(ch.ChVector3d(0, 0, 1.0))
+chassis = veh.ChVehicleChassis()
+chassis.SetMass(10000)  
+chassis.SetInertiaMoments(1000, 1000, 1000)
+chassis.SetCOMOffset(0, 0, 0.5)
+vehicle.SetChassis(chassis)
 
 
-tire_model = veh.ChTMEasyTire()
+engine = veh.ChEngineSimple()
+engine.SetMaxPower(200)  
+engine.SetMaxTorque(500)  
+vehicle.SetEngine(engine)
 
 
-chassis = veh.ChVehicleChassisSimple()
+transmission = veh.ChTransmissionSimple()
+transmission.SetGearRatio(10)
+vehicle.SetTransmission(transmission)
 
 
-vehicle_body = veh.ChVehicleBody(chassis)
+driveline = veh.ChDrivelineRWD()
+driveline.SetFrictionCoefficient(0.9)
+vehicle.SetDriveline(driveline)
 
 
-vehicle.AddBody(vehicle_body)
-
-
-num_wheels = 4
-for i in range(num_wheels):
-    wheel = veh.ChVehicleWheel(ch.ChVector3d(0, 0, 0))
+for i in range(4):
+    wheel = veh.ChWheel()
+    wheel.SetRadius(0.5)  
+    wheel.SetWidth(0.2)  
     vehicle.AddWheel(wheel)
-    tire = tire_model
-    vehicle.AddTire(tire)
 
 
-vehicle.SetMass(10000.0)  
-vehicle.SetInertia(ch.ChMatrix33d(1000, 1000, 1000))
-
-
-system.Add(vehicle.GetBody())
-
-
-terrain = veh.ChTerrainRigid()
-
-
-terrain.SetPos(ch.ChVector3d(0, 0, 0))
-
-
-terrain.SetSize(ch.ChVector3d(100, 100, 1))
-
-
-system.Add(terrain.GetGroundBody())
+tire = veh.ChTireTM_easy()
+tire.SetTireMass(50)  
+tire.SetTireRadius(0.5)  
+for i in range(4):
+    vehicle.SetTire(tire, i)
 
 
 driver = veh.ChDriver()
+driver.SetSteeringDelta(0.1)
+driver.SetThrottleDelta(0.1)
+driver.SetBrakingDelta(0.1)
+vehicle.SetDriver(driver)
 
 
-driver.SetSteering(0.0)
-driver.SetThrottle(0.5)
-driver.SetBraking(0.0)
+vehicle.SetVisualization(enable_collision=True, enable_shadows=True)
 
 
-system.Add(driver)
+app.SetTimestep(0.01)
+app.SetCollisionSystem(system.GetCollisionSystem())
+app.AddCamera(irr.ChVector3(0, -10, 5), irr.ChVector3(0, 0, 0))
 
 
-app = irr.ChIrrApp()
+app.AddLight(irr.ChVector3(10, 10, 10), irr.ChVector3(1, 1, 1), 100)
+app.AddSkyBox('skybox.jpg')  
 
 
-app.SetSystem(system)
-
-
-app.SetCameraPos(ch.ChVector3d(0, -10, 5))
-app.SetCameraDir(ch.ChVector3d(0, 1, -0.5))
-
-
-app.EnableDirectionalLights()
-
-
-app.EnableSkyBox()
-
-
-app.SetTerrainTexture("terrain_texture.jpg")
-app.SetLogo("chrono_logo.png")
-
-
-chase_camera = irr.ChChaseCamera()
-chase_camera.SetVehicle(vehicle)
-app.SetChaseCamera(chase_camera)
-
-
-app.Run()
-
-import chrono as ch
-import chrono.irrlicht as irr
-import chrono.vehicle as veh
-
-def main():
-    
-    ch.set_default_contact_material(ch.ContactMaterialType(1))
-    system = ch.ChSystemEulerImplicit()
-    system.SetGravitationalAcceleration(ch.ChVector3d(0, 0, -9.81))
-    system.SetTimeStep(0.01)
-    system.SetEndTime(10.0)
+while app.Run():
+    system.DoStepDynamics(0.01)
 
     
-    vehicle = veh.ChVehicle()
-    vehicle.SetPos(ch.ChVector3d(0, 0, 1.0))
-    tire_model = veh.ChTMEasyTire()
-    chassis = veh.ChVehicleChassisSimple()
-    vehicle_body = veh.ChVehicleBody(chassis)
-    vehicle.AddBody(vehicle_body)
-    num_wheels = 4
-    for i in range(num_wheels):
-        wheel = veh.ChVehicleWheel(ch.ChVector3d(0, 0, 0))
-        vehicle.AddWheel(wheel)
-        tire = tire_model
-        vehicle.AddTire(tire)
-    vehicle.SetMass(10000.0)  
-    vehicle.SetInertia(ch.ChMatrix33d(1000, 1000, 1000))
-    system.Add(vehicle.GetBody())
-
-    
-    terrain = veh.ChTerrainRigid()
-    terrain.SetPos(ch.ChVector3d(0, 0, 0))
-    terrain.SetSize(ch.ChVector3d(100, 100, 1))
-    system.Add(terrain.GetGroundBody())
-
-    
-    driver = veh.ChDriver()
-    driver.SetSteering(0.0)
-    driver.SetThrottle(0.5)
-    driver.SetBraking(0.0)
-    system.Add(driver)
-
-    
-    app = irr.ChIrrApp()
-    app.SetSystem(system)
-    app.SetCameraPos(ch.ChVector3d(0, -10, 5))
-    app.SetCameraDir(ch.ChVector3d(0, 1, -0.5))
-    app.EnableDirectionalLights()
-    app.EnableSkyBox()
-    app.SetTerrainTexture("terrain_texture.jpg")
-    app.SetLogo("chrono_logo.png")
-    chase_camera = irr.ChChaseCamera()
-    chase_camera.SetVehicle(vehicle)
-    app.SetChaseCamera(chase_camera)
-
-    
-    app.Run()
-
-if __name__ == "__main__":
-    main()
+    app.Synchronize('', 0)
+    app.PostStep()

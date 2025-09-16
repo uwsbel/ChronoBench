@@ -25,15 +25,6 @@ terrainLength = 200.0
 terrainWidth = 100.0   
 
 
-path_radius = 50.0
-path_center = chrono.ChVector3d(terrainLength / 2, 0, 0)
-path = veh.CircularPath(path_center, path_radius)
-
-
-path_vis = veh.ChCircularPathVisualizer(path)
-path_vis.SetColor(chrono.ChColor(1, 0, 0))  
-
-
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
 
 
@@ -86,12 +77,19 @@ vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
-vis.AddPathVisualizer(path_vis)
 
 
-driver = veh.ChPathFollowerDriver(vehicle.GetVehicle(), path)
-driver.SetThrottle(0.3)  
-driver.SetSteeringGains(0.5, 0.1, 0.01)  
+driver = veh.ChPathFollower(vehicle.GetVehicle(), chrono.ChVector3d(0, 0, 0), 50.0, 0.3)  
+
+
+steering_time = 1.0
+throttle_time = 1.0
+braking_time = 0.3
+driver.SetSteeringDelta(render_step_size / steering_time)
+driver.SetThrottleDelta(render_step_size / throttle_time)
+driver.SetBrakingDelta(render_step_size / braking_time)
+
+driver.Initialize()
 
 
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
@@ -103,6 +101,15 @@ render_steps = math.ceil(render_step_size / step_size)
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
+
+
+path_ball1 = chrono.ChBodyEasySphere(0.5, chrono.ChMaterialSurfaceNSC(), chrono.ChColor(1, 0, 0))
+path_ball1.SetPos(chrono.ChVector3d(0, 0, 0))
+vehicle.GetSystem().AddBody(path_ball1)
+
+path_ball2 = chrono.ChBodyEasySphere(0.5, chrono.ChMaterialSurfaceNSC(), chrono.ChColor(0, 1, 0))
+path_ball2.SetPos(chrono.ChVector3d(50, 0, 0))
+vehicle.GetSystem().AddBody(path_ball2)
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()

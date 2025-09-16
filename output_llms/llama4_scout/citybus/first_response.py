@@ -1,79 +1,81 @@
-import pychrono as chrono
-import pychrono.irrlicht as irr
-import pychrono.vehicle as veh
+import chrono as ch
+import chrono.irrlicht as irr
+import math
 
 # Initialize PyChrono environment
-chrono.ChEngine.Initialize()
+ch.CHORKB.Enable(True)
 
-# Set simulation parameters
-SIMULATION_FPS = 50
-TIME_STEP = 1.0 / SIMULATION_FPS
+# Create the simulation system
+system = ch.ChSystem()
 
 # Create the Irrlicht application
-app = irr.IrrlichtApplication()
-app.SetSimulationFPS(SIMULATION_FPS)
+app = irr.IrrlichtApplication(system)
 
-# Create the simulation
-simulation = chrono.ChSimulation()
-simulation.SetTimestep(TIME_STEP)
+# Create a rigid terrain
+terrain = ch.ChTerrain()
+terrain.SetGridSize(100, 100)
+terrain.SetPos(ch.ChVector3d(0, 0, 0))
+terrain.SetTexture(ch.ChVector3d(10, 10), "chrono_textures/sand.jpg")
+
+# Add terrain to the system
+system.Add(terrain.GetGroundBody())
 
 # Create the CityBus vehicle
-citybus = veh.CityBus(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 1), chrono.ChQuaternionD(1, 0, 0, 0)))
+citybus = ch.ChVehicle()
 
-# Set vehicle parameters
-citybus.SetChassisVisualizationType(veh.ChassisVisualizationType.MESH)
-citybus.SetWheelVisualizationType(veh.WheelVisualizationType.PRIMITIVE)
-citybus.SetTireModel(veh.TireModel.TME)
+# Define vehicle parameters
+vehicle_mass = 15000  # kg
+vehicle_CG = ch.ChVector3d(0, 0, 1.5)  # m
 
-# Initialize the vehicle
-citybus.Initialize(simulation.GetPhysicsSystem())
+# Create vehicle chassis
+chassis = ch.ChBody()
+chassis.SetMass(vehicle_mass)
+chassis.SetPos(ch.ChVector3d(0, 0, 1.5))
+chassis.SetRot(ch.ChQuaternion(1, 0, 0, 0))
 
-# Set location and orientation
-citybus.SetPos(chrono.ChVectorD(0, 0, 1))
-citybus.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
+# Add chassis to the vehicle and system
+citybus.SetChassisBody(chassis)
+system.Add(chassis)
 
-# Add the vehicle to the simulation
-simulation.Add(citybus.GetChassisBody())
+# Create and add wheels and axles
+# Assume 4 wheels for simplicity
+for i in range(4):
+    wheel = ch.ChBody()
+    wheel.SetPos(ch.ChVector3d(2 - i % 2 * 4, 0, 0.5))
+    wheel.SetRot(ch.ChQuaternion(1, 0, 0, 0))
+    system.Add(wheel)
+    citybus.AddWheel(wheel)
 
-# Create the rigid terrain
-terrain = chrono.ChTerrain()
-terrain.SetGridSize(100, 100)
-terrain.SetLocation(chrono.ChVectorD(0, 0, -0.5))
-terrain.SetTexture(chrono.ChTexture("textures/terrain.jpg"))
+# Create and add a simple tire model
+tire = ch.ChTire()
+tire.SetTireMass(50)
+tire.SetTireRadius(0.5)
+citybus.SetTire(tire)
 
-# Add the terrain to the simulation
-simulation.Add(terrain.GetGroundBody())
+# Set vehicle visualization
+chassis_vis = ch.ChVisualShape()
+chassis_vis.SetShapeType(ch.ChVisualShape.eMesh)
+chassis_vis.SetMeshFile("chrono_models/vehicle/citybus/chassis.obj")
+chassis.AddVisualShape(chassis_vis)
 
-# Create the interactive driver system
-driver = veh.Driver()
-driver.Initialize(citybus)
+wheel_vis = ch.ChVisualShape()
+wheel_vis.SetShapeType(ch.ChVisualShape.eCylinder)
+wheel_vis.SetCylinderGeometry(0.5, 0.2)
+for wheel in citybus.GetWheels():
+    wheel.AddVisualShape(wheel_vis)
 
-# Set the steering, throttle, and braking inputs
-driver.SetSteering(chrono.ChFunction_Constant(0))
-driver.SetThrottle(chrono.ChFunction_Constant(0.5))
-driver.SetBraking(chrono.ChFunction_Constant(0))
+# Create interactive driver system
+driver = ch.ChDriver()
+driver.SetThrottle(0.5)
+driver.SetSteering(0.2)
+citybus.SetDriver(driver)
 
-# Add the driver to the simulation
-simulation.Add(driver)
+# Set camera
+camera = app.GetCamera()
+camera.SetPosition(ch.ChVector3d(0, -10, 5))
+camera.LookAt(ch.ChVector3d(0, 0, 0))
 
-# Create the Irrlicht scene node
-scene_node = app.AddChronoSimulation(simulation, "CityBus Simulation")
-
-# Set up the camera
-camera = scene_node.GetSceneManager().getActiveCamera()
-camera.setPosition(irr.core.vector3df(10, 10, 10))
-camera.setTarget(irr.core.vector3df(0, 0, 0))
-
-# Set the camera to follow the vehicle
-def FollowVehicle():
-    pos = citybus.GetChassisBody().GetPos()
-    camera.setPosition(irr.core.vector3df(pos.x() + 10, pos.y() + 10, pos.z() + 10))
-    camera.setTarget(irr.core.vector3df(pos.x(), pos.y(), pos.z()))
-
-# Run the simulation loop
+# Simulation loop
 while app.Run():
-    simulation.DoStepDynamics(TIME_STEP)
-    FollowVehicle()
-
-app.Close()
-chrono.ChEngine.Finalize()
+    system.Update(1 / 50)
+    app.Render()

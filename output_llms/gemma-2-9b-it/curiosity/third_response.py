@@ -27,7 +27,6 @@ box.SetPos(chrono.ChVector3d(0, 0, 0.0))
 box.SetFixed(True)
 box.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/blue.png"))
 system.Add(box)
-
 # Create Curiosity rover and add it to the system
 rover = robot.Curiosity(system)
 
@@ -63,19 +62,17 @@ time_step = 1e-3
 sens = ChSensorManager(system)
 
 # Create lidar sensor
-lidar = ChLidarSensor(
-    update_rate=100,  # Update rate in Hz
-    horizontal_samples=360,  # Number of horizontal samples
-    vertical_samples=64,  # Number of vertical samples
-    field_of_view=np.pi / 2,  # Field of view in radians
-)
-# Attach lidar to rover's chassis
-rover.AddSensor(lidar)
+lidar = ChLidarSensor()
+lidar.SetUpdateRate(100)  # Update rate in Hz
+lidar.SetHorizontalSamples(360)  # Number of horizontal samples
+lidar.SetVerticalSamples(30)  # Number of vertical samples
+lidar.SetFieldOfView(np.pi / 2)  # Field of view in radians
+lidar.AttachToBody(rover.GetChassis())  # Attach to rover's chassis
 
-# Set up filters for lidar data (optional)
-# ...
+# Set up filters for lidar data (example)
+lidar.SetFilter(ChGaussianFilter(stdDev=0.1))
 
-# Add lidar sensor to sensor manager
+# Add lidar sensor to the sensor manager
 sens.AddSensor(lidar)
 
 # Simulation loop

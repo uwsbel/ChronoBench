@@ -3,44 +3,6 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
-class SCMTerrainParameters:
-    def __init__(self, config="soft"):
-        self.config = config
-        self.params = {
-            "soft": {
-                "Kphi": 2e6,
-                "Kc": 0,
-                "n": 1.1,
-                "cohesive_limit": 0,
-                "friction_limit": 30,
-                "shear_coefficient": 0.01,
-                "elastic_stiffness": 2e8,
-                "damping": 3e4
-            },
-            "mid": {
-                "Kphi": 1e6,
-                "Kc": 0,
-                "n": 1.0,
-                "cohesive_limit": 0,
-                "friction_limit": 20,
-                "shear_coefficient": 0.005,
-                "elastic_stiffness": 1e8,
-                "damping": 2e4
-            },
-            "hard": {
-                "Kphi": 5e5,
-                "Kc": 0,
-                "n": 0.9,
-                "cohesive_limit": 0,
-                "friction_limit": 10,
-                "shear_coefficient": 0.001,
-                "elastic_stiffness": 5e7,
-                "damping": 1e4
-            }
-        }
-
-    def get_parameters(self):
-        return self.params.get(self.config, self.params["soft"])
 
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
@@ -98,9 +60,60 @@ vehicle.SetTireVisualizationType(vis_type)
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
-terrain_params = SCMTerrainParameters("soft")
+class SCMTerrainParams:
+    def __init__(self, config):
+        self.config = config
+        self.params = {
+            "soft": {
+                "Kphi": 2e6,
+                "Kc": 0,
+                "n": 1.1,
+                "cohesive_limit": 0,
+                "friction_limit": 30,
+                "shear_coefficient": 0.01,
+                "elastic_stiffness": 2e8,
+                "damping": 3e4
+            },
+            "mid": {
+                "Kphi": 5e6,
+                "Kc": 0,
+                "n": 1.2,
+                "cohesive_limit": 0,
+                "friction_limit": 35,
+                "shear_coefficient": 0.02,
+                "elastic_stiffness": 5e8,
+                "damping": 5e4
+            },
+            "hard": {
+                "Kphi": 1e7,
+                "Kc": 0,
+                "n": 1.3,
+                "cohesive_limit": 0,
+                "friction_limit": 40,
+                "shear_coefficient": 0.03,
+                "elastic_stiffness": 1e9,
+                "damping": 1e5
+            }
+        }
+
+    def get_params(self):
+        return self.params[self.config]
+
+
+terrain_config = "soft"
+terrain_params = SCMTerrainParams(terrain_config)
+
+
 terrain = veh.SCMTerrain(vehicle.GetSystem())
-terrain.SetSoilParameters(*terrain_params.get_parameters().values())
+params = terrain_params.get_params()
+terrain.SetSoilParameters(params["Kphi"], 
+                          params["Kc"], 
+                          params["n"], 
+                          params["cohesive_limit"], 
+                          params["friction_limit"], 
+                          params["shear_coefficient"], 
+                          params["elastic_stiffness"], 
+                          params["damping"])
 
 
 terrain.AddMovingPatch(vehicle.GetChassisBody(), chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(5, 3, 1))
@@ -140,7 +153,7 @@ driver.Initialize()
 
 
 
-print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
+print("VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 
 
 render_steps = math.ceil(render_step_size / step_size)
@@ -150,11 +163,11 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-while vis.Run():
+while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
 
     
-    if (step_number % render_steps == 0):
+    if (step_number % render_steps == 0) :
         vis.BeginScene()
         vis.Render()
         vis.EndScene()

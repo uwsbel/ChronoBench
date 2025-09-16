@@ -58,23 +58,21 @@ def main():
     ros_manager.RegisterHandler(chros.ChROSBodyHandler(25, hmmwv.GetChassisBody(), "~/output/hmmwv/state"))
     ros_manager.Initialize()  # Initialize the ROS manager.
 
-    # Create a sensor manager
+    # Create and initialize the sensor manager.
     sens_manager = ch.ChSensorManager()
-    
-    # Create a lidar sensor
-    lidar = sens.ChLidarSensor(hmmwv.GetSystem(), ch.ChVector3d(0, 0, 10), ch.ChVector3d(0, 0, 0), 100, 100)
-    
-    # Configure lidar filters
-    lidar.SetFilterType(ch.ChLidarFilterType_NONE)
-    lidar.SetFilterRange(10)
-    lidar.SetFilterAngle(10)
-    
-    # Register the lidar sensor to the sensor manager
-    sens_manager.RegisterSensor(lidar)
-    
-    # Update the sensor manager within the simulation loop
-    sens_manager.Update()
-    
+
+    # Create a lidar sensor.
+    lidar = ch.ChLidarSensor(sens_manager, ch.ChSensorType_LIDAR)
+    # Configure the lidar sensor.
+    lidar.SetResolution(0.1)  # Set the lidar resolution in meters.
+    lidar.SetDistanceThreshold(0.5)  # Set the distance threshold in meters.
+    lidar.SetAngleThreshold(0.1)  # Set the angle threshold in degrees.
+    lidar.SetFilter(ch.ChLidarFilterType_NONE)  # Set the filter to None.
+    lidar.Initialize()  # Initialize the lidar sensor.
+
+    # Register the lidar sensor to the ROS manager.
+    ros_manager.RegisterSensor(lidar)
+
     # Start the simulation loop.
     time = 0
     time_step = 1e-3  # Define the simulation time step.

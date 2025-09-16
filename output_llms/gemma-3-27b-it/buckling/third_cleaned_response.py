@@ -1,9 +1,9 @@
-import math as m
-import pychrono as chrno
-import pychrono.fea as fea
-import pychrono.pardisomkl as mklsolver
-import pychrono.irrlicht as chronicls
-import os
+import math as m  
+import pychrono as chrno  
+import pychrono.fea as fea  
+import pychrono.pardisomkl as mklsolver  
+import pychrono.irrlicht as chronicls  
+import os  
 
 
 class ChFunctionMyFun(chrno.ChFunction):
@@ -67,12 +67,10 @@ beam_wz = 0.15
 
 minertia = fea.ChIneritaCosseratSimple()
 minertia.SetAsRectangularSection(beam_wy, beam_wz, 2700)
-
 melasticity = fea.ChElasticityCosseratSimple()
 melasticity.SetYoungModulus(72.0e9)
 melasticity.SetShearModulusFromPoisson(0.35)
 melasticity.SetAsRectangularSection(beam_wy, beam_wz)
-
 msection1 = fea.ChMassSectionCosserat(minertia, melasticity)
 msection1.SetDrawThickness(beam_wy * 0.5, beam_wz)
 
@@ -87,11 +85,12 @@ node_mid = builder_iga.GetLastBeamNodes()[32]
 
 
 section2 = fea.ChBeamSectionAdvancedEuler()
+hbeam_d = 0.05
 section2.SetDensity(2500)
 section2.SetYoungModulus(75.0e9)
 section2.SetShearModulusFromPoisson(0.25)
 section2.SetRayleighDamping(0.000)
-section2.SetAsCircularSection(0.05)
+section2.SetAsCircularSection(hbeam_d)
 
 
 builderA = fea.ChBuilderBeamEuler()
@@ -113,11 +112,12 @@ constr_bb.AddVisualShape(sphereconstr2)
 
 
 section3 = fea.ChBeamSectionEulerAdvanced()
+crankbeam_d = 0.06
 section3.SetDensity(2800)
 section3.SetYoungModulus(75.0e9)
 section3.SetShearModulusFromPoisson(0.25)
 section3.SetRayleighDamping(0.000)
-section3.SetAsCircularSection(0.06)
+section3.SetAsCircularSection(crankbeam_d)
 
 
 builderB = fea.ChBuilderBeamEuler()

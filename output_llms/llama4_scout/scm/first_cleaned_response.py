@@ -1,141 +1,75 @@
-import chrono as ch
-import chrono.irrlicht as irr
-import chrono.vehicle as veh
+import pychrono as chrono
+import pychrono.irrlicht as irr
+import pychrono.vehicle as veh
 
 
-ch.CH_init()
+chrono.ChEngine.Initialize()
 
 
-app = irr.IrrlichtApp()
-app.setWindowSize(800, 600)
-app.setWindowTitle("HMMWV on SCM Deformable Terrain")
-
-
-ch.visualization.mesh_visualization(True)
+application = irr.IrrlichtApplication()
 
 
 vehicle = veh.HMMWV()
 
 
-vehicle.setChassisPos(ch.ChVector3d(0, 0, 1.0))
-vehicle.setChassisRot(ch.ChQuaterniond(0, 0, 0, 1))
+vehicle.SetChassisBodyFixed(False)
+vehicle.SetChassisPos(chrono.ChVector3d(0, 0, 1.0))
+vehicle.SetChassisRot(chrono.ChQuaterniond(1, 0, 0, 0))
 
 
-vehicle.setTireModel(veh.TireModel.Rigid)
+vehicle.SetTireModel(veh.TireModel.Rigid)
 
 
-vehicle.setVisualization(True)
+vehicle.EnableVisualization(True)
 
 
-terrain = veh.SCMTerrain()
+terrain = veh.SCMTerrain(vehicle)
 
 
-soil_params = terrain.SoilParameters()
+soil_params = terrain.GetSoilParameters()
 soil_params.k1 = 700000  
-soil_params.k2 = 7000000  
-soil_params.n = 0.7
-soil_params.c = 3000  
-soil_params.phi = 30  
-soil_params.s cohesion = 10  
-soil_params.friction = 0.9
-
-terrain.setSoilParameters(soil_params)
+soil_params.k2 = 2100000  
+soil_params.n = 1.0
+soil_params.c = 0.0
+soil_params.friction = 0.8
+soil_params.damping = 0.5
+terrain.SetSoilParameters(soil_params)
 
 
-terrain.setMovingPatch(True)
+terrain.EnableMovingPatch(True)
+terrain.SetMovingPatchThreshold(0.5)
 
 
-terrain.setVisualizeSinkage(True)
+terrain.EnableColorPlot(True)
 
 
 driver = veh.Driver(vehicle)
 
 
-driver.setThrottleInput(0.5)
-driver.setSteeringInput(0.0)
-driver.setBrakingInput(0.0)
+driver.SetSteering(chrono.ChFunction_Constant(0))
+driver.SetThrottle(chrono.ChFunction_Constant(0.5))
+driver.SetBraking(chrono.ChFunction_Constant(0))
 
 
-step_size = 0.02  
-fps = 50
+simulation = chrono.ChSimulation(vehicle)
 
 
-while app.run(step_size):
-    
-    vehicle.update(step_size)
+simulation.SetTimestep(0.02)
+simulation.SetMaxSteps(100000)
 
-    
-    app.render(vehicle, terrain)
 
-import chrono as ch
-import chrono.irrlicht as irr
-import chrono.vehicle as veh
+simulation.AddTerrain(terrain)
 
-def main():
-    
-    ch.CH_init()
 
-    
-    app = irr.IrrlichtApp()
-    app.setWindowSize(800, 600)
-    app.setWindowTitle("HMMWV on SCM Deformable Terrain")
+simulation.AddDriver(driver)
 
-    
-    ch.visualization.mesh_visualization(True)
 
-    
-    vehicle = veh.HMMWV()
+while simulation.GetChTime() < 10 and application.GetDevice().run():
+    simulation.Step(0.02)
+    application.BeginScene()
+    application.RenderItem(vehicle)
+    application.RenderItem(terrain)
+    application.EndScene()
 
-    
-    vehicle.setChassisPos(ch.ChVector3d(0, 0, 1.0))
-    vehicle.setChassisRot(ch.ChQuaterniond(0, 0, 0, 1))
-
-    
-    vehicle.setTireModel(veh.TireModel.Rigid)
-
-    
-    vehicle.setVisualization(True)
-
-    
-    terrain = veh.SCMTerrain()
-
-    
-    soil_params = terrain.SoilParameters()
-    soil_params.k1 = 700000  
-    soil_params.k2 = 7000000  
-    soil_params.n = 0.7
-    soil_params.c = 3000  
-    soil_params.phi = 30  
-    soil_params.s = 10  
-    soil_params.friction = 0.9
-
-    terrain.setSoilParameters(soil_params)
-
-    
-    terrain.setMovingPatch(True)
-
-    
-    terrain.setVisualizeSinkage(True)
-
-    
-    driver = veh.Driver(vehicle)
-
-    
-    driver.setThrottleInput(0.5)
-    driver.setSteeringInput(0.0)
-    driver.setBrakingInput(0.0)
-
-    
-    step_size = 0.02  
-    fps = 50
-
-    
-    while app.run(step_size):
-        
-        vehicle.update(step_size)
-
-        
-        app.render(vehicle, terrain)
-
-if __name__ == "__main__":
-    main()
+application.GetDevice().close()
+chrono.ChEngine.Finalize()

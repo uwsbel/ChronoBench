@@ -20,6 +20,7 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 # Rigid terrain
+# terrain_model = veh.RigidTerrain.BOX
 terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
@@ -45,15 +46,11 @@ vehicle = veh.ARTcar()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
-vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
-
-# Adjust Vehicle Parameters:
-vehicle.SetMaxMotorVoltageRatio(0.26)  # Updated from 0.16 to 0.26
-vehicle.SetStallTorque(0.4)  # Updated from 0.3 to 0.4
-vehicle.SetTireRollingResistance(0.03)  # Updated from 0.06 to 0.03
-
+vehicle.SetMaxMotorVoltageRatio(0.26)  # Updated MaxMotorVoltageRatio
+vehicle.SetStallTorque(0.4)  # Updated StallTorque
+vehicle.SetTireRollingResistance(0.03)  # Updated TireRollingResistance
 vehicle.Initialize()
 
 vehicle.SetChassisVisualizationType(vis_type)
@@ -147,5 +144,3 @@ while vis.Run() :
 
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
-
-# End of the modified script

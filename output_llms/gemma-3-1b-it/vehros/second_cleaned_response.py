@@ -1,93 +1,74 @@
 import pychrono as ch
 import pychrono.vehicle as veh
 import pychrono.ros as chros
-from pychrono.irrlicht as chronoirr
-from pychrono.vehicle.vehicle import HMMWV
-from pychrono.vehicle.vehicle import ChContactMaterial
-from pychrono.vehicle.vehicle import ChCoordsysd
-from pychrono.vehicle.vehicle import ChQuaternD
-from pychrono.vehicle.vehicle import ChVector3d
-from pychrono.vehicle.vehicle import ChQuaterniond
-from pychrono.vehicle.vehicle import ChRSYSNORM
-from pychrono.vehicle.vehicle import ChCollisionType
-from pychrono.vehicle.vehicle import ChFriction
-from pychrono.vehicle.vehicle import ChRestitution
-from pychrono.vehicle.vehicle import ChTireModelType
-from pychrono.vehicle.vehicle import ChTireStepSize
-from pychrono.vehicle.vehicle import ChDriveType
-from pychrono.vehicle.vehicle import ChSteeringType
-from pychrono.vehicle.vehicle import ChWheelModelType
-from pychrono.vehicle.vehicle import ChWheelTireStepSize
-from pychrono.vehicle.vehicle import ChContactMaterialNSC
-from pychrono.vehicle.vehicle import ChCSYSNORM
-from pychrono.vehicle.vehicle import ChCSYSNORM
-from pychrono.vehicle.vehicle import ChCSYSNORM
-from pychrono.vehicle.vehicle import ChCSYSNORM
-from pychrono.vehicle.vehicle import ChCSYSNORM
-from pychrono.vehicle.vehicle import ChCSYSNORM
-from pychrono.vehicle.vehicle import ChCSYSNORM
-from pychrono.vehicle.vehicle import ChCSYSNORM
-from pychrono.vehicle.vehicle import ChCSYSNORM
+from pychrono.irrlicht import irrlicht
+from pychrono.data import ch.ChDataPath
+from pychrono.data import ch.ChCoordsysd
+from pychrono.data import ch.ChVector3d
+from pychrono.data import ch.ChQuaterniond
+from pychrono.data import ch.ChContactMaterialNSC
+from pychrono.data import ch.ChContactMethod_NSC
+from pychrono.data import ch.ChAISDFG
+from pychrono.data import ch.ChVector3d
 
-def main():
-    
-    hmmwv = veh.HMMWV_Full()
-    hmmwv.SetContactMethod(ch.ChContactMethod_NSC)  
-    hmmwv.SetChassisCollisionType(veh.CollisionType_NONE)  
-    hmmwv.SetChassisFixed(False)  
-    hmmwv.SetInitPosition(ch.ChCoordsysd(ch.ChVector3d(0, 0, 1.6), ch.ChQuaterniond(1, 0, 0, 0)))  
-    hmmwv.SetEngineType(veh.EngineModelType_SHAFTS)  
-    hmmwv.SetTransmissionType(veh.TransmissionModelType_AUTOMATIC_SHAFTS)  
-    hmmwv.SetDriveType(veh.DrivelineTypeWV_AWD)  
-    hmmwv.SetSteeringType(veh.SteeringTypeWV_PITMAN_ARM)  
-    hmmwv.SetTireType(veh.TireModelType_TMEASY)  
-    hmmwv.SetTireStepSize(1e-3)  
-    hmmwv.Initialize()  
 
-    
-    terrain = veh.RigidTerrain(hmmwv.GetSystem())
-    patch_mat = ch.ChContactMaterialNSC()  
-    patch_mat.SetFriction(0.9)  
-    patch_mat.SetRestitution(0.01)  
-    terrain.AddPatch(patch_mat, ch.CSYSNORM, 100.0, 100.0)  
-    terrain.Initialize()  
+hmmwv = veh.HMMWV_Full()
+hmmwv.SetContactMethod(ch.ChContactMethod_NSC)  
+hmmwv.SetChassisCollisionType(veh.CollisionType_NONE)  
+hmmwv.SetChassisFixed(False)  
+hmmwv.SetInitPosition(ch.ChCoordsysd(ch.ChVector3d(0, 0, 1.6), ch.ChQuaterniond(1, 0, 0, 0)))  
+hmmwv.SetEngineType(veh.EngineModelType_SHAFTS)  
+hmmwv.SetTransmissionType(veh.TransmissionModelType_AUTOMATIC_SHAFTS)  
+hmmwv.SetDriveType(veh.DrivelineTypeWV_AWD)  
+hmmwv.SetSteeringType(veh.SteeringTypeWV_PITMAN_ARM)  
+hmmwv.SetTireType(veh.TireModelType_TMEASY)  
+hmmwv.SetTireStepSize(1e-3)  
+hmmwv.Initialize()  
 
-    
-    driver = veh.ChDriver(hmmwv.GetVehicle())
-    driver.Initialize()  
 
-    
-    ros_manager = chros.ChROSPythonManager()
-    ros_manager.RegisterHandler(chros.ChROSClockHandler())  
-    
-    ros_manager.RegisterHandler(chros.ChROSDriverInputsHandler(25, driver, "~/input/driver_inputs"))
-    
-    ros_manager.RegisterHandler(chros.ChROSBodyHandler(25, hmmwv.GetChassisBody(), "~/output/hmmwv/state"))
-    ros_manager.Initialize()  
+terrain = veh.RigidTerrain(hmmwv.GetSystem())
+patch_mat = ch.ChContactMaterialNSC()  
+patch_mat.SetFriction(0.9)  
+patch_mat.SetRestitution(0.01)  
+terrain.AddPatch(patch_mat, ch.CSYSNORM, 100.0, 100.0)  
+terrain.Initialize()  
+
+
+driver = veh.ChDriver(hmmwv.GetVehicle())
+driver.Initialize()  
+
+
+ros_manager = chros.ChROSPythonManager()
+ros_manager.RegisterHandler(chros.ChROSClockHandler())  
+
+ros_manager.RegisterHandler(chros.ChROSDriverInputsHandler(25, driver, "~/input/driver_inputs"))
+
+ros_manager.RegisterHandler(chros.ChROSBodyHandler(25, hmmwv.GetChassisBody(), "~/output/hmmwv/state"))
+ros_manager.Initialize()  
+
+
+time = 0
+time_step = 1e-3  
+time_end = 30  
+
+hmmwv.GetVehicle().EnableRealtime(True)  
+while time < time_end:
+    time = hmmwv.GetSystem().GetChTime()  
 
     
-    time = 0
-    time_step = 1e-3  
-    time_end = 30  
+    driver_inputs = driver.GetInputs()
+    driver.Synchronize(time)  
+    terrain.Synchronize(time)  
+    hmmwv.Synchronize(time, driver_inputs, terrain)  
 
-    hmmwv.GetVehicle().EnableRealtime(True)  
-    while time < time_end:
-        time = hmmwv.GetSystem().GetChTime()  
+    
+    driver.Advance(time_step)
+    terrain.Advance(time_step)
+    hmmwv.Advance(time_step)
 
-        
-        driver_inputs = driver.GetInputs()
-        driver.Synchronize(time)  
-        terrain.Synchronize(time)  
-        hmmwv.Synchronize(time, driver_inputs, terrain)  
-
-        
-        driver.Advance(time_step)
-        terrain.Advance(time_step)
-        hmmwv.Advance(time_step)
-
-        
-        if not ros_manager.Update(time, time_step):
-            break  
+    
+    if not ros_manager.Update(time, time_step):
+        break  
 
 if __name__ == "__main__":
     main()

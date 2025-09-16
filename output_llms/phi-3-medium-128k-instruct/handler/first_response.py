@@ -1,58 +1,75 @@
 import chrono
-import chrono.synchronization as cs
-import chrono.utils as cu
-import chrono.irrlicht as irr
+import chrono.ir_obs as ir_obs
+import chrono.ir_obs_manager as ir_obs_manager
+import chrono.ir_obs_handlers as ir_obs_handlers
+import chrono.synchronization as sync
 import rospy
 from std_msgs.msg import Int32
+import rospkg
 
-# Initialize PyChrono environment and core components
-chrono.synchronization.register_default_handlers()
+# Initialize PyChrono
+chrono.init()
 
-# Set up a Chrono system with gravitational acceleration and physical material properties
+# Set up the gravitational acceleration and material properties
+g = 9.81
+chrono.ChSystemNSC.Set_G_acc(chrono.ChVectorD(0, 0, -g))
+
+# Create the system
 system = chrono.ChSystemNSC()
-system.Set_G_acc(9.81)
-system.Set_material_properties(1000, 0.3)
 
-# Add a fixed floor to the system
-floor = chrono.ChBody()
-floor.SetPos(chrono.ChVector(0, 0, 0))
+# Add a fixed floor
+floor = chrono.ChBodyEasySFEM(chrono.ChBodyTypes.CONSTROYER, 1, chrono.ChVectorD(0, 0, 0))
 system.AddBody(floor)
 
-# Add a movable box to the system
-box = chrono.ChBody(1, chrono.ChBodyFSCreator("box", 1, 1, 1))
+# Add a movable box
+box = chrono.ChBodyEasySFEM(chrono.ChBodyTypes.BOX, 1, 1, 1)
 system.AddBody(box)
 
-# Set the initial position and orientation of the box
-box.SetPos(chrono.ChVector(0, 0, 1))
-box.SetQuat(chrono.ChQuaternion(1, 0, 0, 0))
+# Set the position of the box
+box.SetPos(chrono.ChVectorD(0, 1, 0))
 
-# Create a custom ROS handler to publish integer messages to a specified topic
-class CustomROSHandler:
-    def __init__(self, topic_name):
-        self.topic_name = topic_name
-        rospy.init_node('custom_ros_handler', anonymous=True)
-        self.publisher = rospy.Publisher(topic_name, Int32, queue_size=10)
+# Define the physical properties of the box
+box.SetMass(1)
+box.SetInertia(chrono.ChVectorD(1, 1, 1))
 
-    def publish_message(self, message):
-        self.publisher.publish(message)
+# Add the box to the system
+system.AddBody(box)
 
-# Create an instance of the custom ROS handler
-custom_ros_handler = CustomROSHandler('/custom_topic')
+# Create a custom ROS handler to publish integer messages
+class IntegerMessageHandler(ir_obs_handlers.IRROS_Handler):
+    def __init__(self, topic_name, topic_type):
+        super().__init__(topic_name, topic_type)
 
-# Configure the ROS manager with clock, body, and transform handlers
-ros_manager = chrono.ChManager()
-ros_manager.Set_Clock_Handler(cs.ChClockHandler())
-ros_manager.Set_Body_Handler(cs.ChBodyHandler())
-ros_manager.Set_Transform_Handler(cs.ChTransformHandler())
-ros_manager.Register_Handler(custom_ros_handler)
+    def Update(self, data):
+        rospy.loginfo(f"Received message: {data.data}")
+        self.publisher.publish(data)
 
-# Run a simulation loop, advancing the system and updating ROS communication at each timestep
+# Initialize ROS node
+rospy.init_node('pychrono_ros_handler', anonymous=True)
+
+# Set up the ROS manager with necessary handlers
+ros_manager = chrono.IRROS_Manager()
+ros_manager.AddClock(chrono.IRROS_Clock())
+ros_manager.AddBody(system)
+ros_manager.AddTransform(chrono.IRROS_Transform())
+ros_manager.AddBody(box)
+ros_manager.AddHandler(IntegerMessageHandler('my_topic', rospy.Int32))
+
+# Register the custom handler
+ros_manager.RegisterHandler(IntegerMessageHandler('my_topic', rospy.Int32))
+
+# Run the simulation loop
 while not rospy.is_shutdown():
-    # Advance the system
-    system.DoStep(1.0 / 60.0)
+    # Advance the simulation
+    system.DoStepDynamics(1.0/60.0)
+    ros_manager.Update()
 
-    # Update ROS communication
-    custom_ros_handler.publish_message(1)
+    # Publish a message every second
+    if rospy.Time.now().to_sec() % 1 < 0.01:
+        ros_manager.Publish(chrono.ChTime(), rospy.Int32(42))
 
     # Maintain real-time execution
-    rospy.Rate(60).sleep()
+    rospy.sleep(0.01)
+
+# Clean up
+chrono.reset()

@@ -20,6 +20,7 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 # Rigid terrain
+# terrain_model = veh.RigidTerrain.BOX
 terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
@@ -56,8 +57,6 @@ vehicle.SetChassisVisualizationType(vis_type)
 vehicle.SetSuspensionVisualizationType(vis_type)
 vehicle.SetSteeringVisualizationType(vis_type)
 vehicle.SetWheelVisualizationType(vis_type)
-vehicle.SetTireVisualizationType(vis_type)
-
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 # Create the terrain
@@ -69,7 +68,7 @@ patch = terrain.AddPatch(patch_mat,
     chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
     terrainLength, terrainWidth)
 
-patch.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 200, 200)
+patch.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 200, 200)  # Changed texture from tile4.jpg to concrete.jpg
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
@@ -98,8 +97,8 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 
 driver.Initialize()
 
-# output vehicle mass
-print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+# Output vehicle mass
+print("VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
@@ -109,7 +108,7 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-while vis.Run() :
+while vis.Run():
     time = vehicle.GetSystem().GetChTime()
     # Render scene and output POV-Ray data
     if (step_number % render_steps == 0) :
@@ -138,20 +137,16 @@ while vis.Run() :
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
 
-# Double lane change maneuver logic
-# Assuming the double lane change maneuver is triggered by a specific input or condition
-# This is a simplified example and would need to be integrated with the driver system
-if driver_inputs.GetSteering() > 0.5:  # Example condition for lane change
-    # Adjust steering and throttle for lane change
-    driver.SetSteeringDelta(render_step_size / (steering_time / 2))  # Double steering speed
-    driver.SetThrottleDelta(render_step_size / (throttle_time / 2))  # Double throttle speed
-    # Additional logic for braking before lane change
-    if time > some_time_condition:  # Example time condition for braking
-        driver.SetBrakingDelta(render_step_size / braking_time)
-    # Logic for continuing the maneuver
-    # ...
-
-# Note: The above code assumes the existence of a 'GetInputs' method in the driver system
-# and a 'SetSteeringDelta' method to adjust the steering speed.
-# The actual implementation of the double lane change maneuver would depend on
-# the specific requirements and the available methods in the PyChrono library.
+    # Add logic for double lane change maneuver
+    if driver_inputs['steering'] > 0.5:  # Assuming steering input > 0.5 indicates a lane change
+        # Simulate lane change
+        # Logic for lane change maneuver (simplified for demonstration)
+        if time > 5:  # Start of lane change
+            driver.SetSteeringDelta(render_step_size / steering_time * 2)
+            driver.SetThrottleDelta(render_step_size / throttle_time * 2)
+            # Simulate lane change
+            if time > 10:  # End of lane change
+                driver.SetSteeringDelta(0)
+                driver.SetThrottleDelta(0)
+                # Logic for braking after lane change
+                driver.SetBrakingDelta(render_step_size / braking_time)

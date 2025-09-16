@@ -1,110 +1,58 @@
-import pychrono as chrono
-
-import pychrono.openvr as vr
-
-import pychrono.visual as vis
-
-import pychrono.analytic_motion as am
-
-import pychrono.analytic_force as af
-
-import numpy as np
-
-import random
-
-import irrlicht as ir
-
-import irrlicht.keyboard as keyboard
+from pychrono.pychrono import *
+from pychrono.irrlicht import *
 
 
+chrono_arena = ChronoArena()
+chrono_arena.SetGravity(chrono_arena.GetGravity())
 
 
-chrono.ChSystemContext().SetGravity(chrono.ChVectorD(0, -9.81, 0))
+application = Application(chrono_arena, True, 'ParticleSimulation')
+application.SetWindowSize(800, 600)
+application.SetGamma(0.25)
+application.SetGammaBlack()
 
 
+particle_emitter = ParticleEmitter()
 
 
-particle_emitter = chrono.ChParticleEmitter()
-
-particle_emitter.SetShape(chrono.ChSphereShape(1.0))
-
-particle_emitter.SetPosition(chrono.ChVectorD(0, 100, 0))
-
-particle_emitter.SetVelocity(chrono.ChVectorD(random.uniform(-10, 10), random.uniform(-10, 10), random.uniform(-10, 10)))
-
-particle_emitter.SetOrientation(chrono.ChQuaternionD(random.uniform(0, 2*np.pi), random.uniform(0, np.pi), random.uniform(0, 2*np.pi)))
+particle_system = chrono_arena.GetParticleSystem()
+particle_system.SetEmitter(particle_emitter)
 
 
+def custom_gravitational_force(particle, acceleration):
+    
+    G = 6.67430e-11
+    mass = 1.0  
+    acceleration = G * mass / (particle.GetPosition().LengthSquared() * 1e-3)  
+    return chrono_arena.GetGravityAcceleration(acceleration)
 
 
-system = chrono.ChSystemContext()
-
-system.AddParticleEmitter(particle_emitter)
+particle_system.SetGravityFunction(custom_gravitational_force)
 
 
+default_particle_parameters = {
+    'shape': ChronoVector3d(1.0, 1.0, 1.0),  
+    'velocity': ChronoVector3d(0.0, 0.0, 0.0),  
+    'position': ChronoVector3d(0.0, 0.0, 10.0),  
+    'orientation': ChronoQuaterniond(1.0, 0.0, 0.0, 0.0)  
+}
 
 
-def custom_gravitational_force(particle, system):
-
-    for other_particle in system.GetParticles():
-
-        if particle is not other_particle:
-
-            distance = particle.GetPosition() - other_particle.GetPosition()
-
-            force_magnitude = chrono.ChVectorD(distance.x, distance.y, distance.z) * chrono.ChVectorD(0, -1, 0).Length()
-
-            force = force_magnitude * chrono.ChVectorD(0, 1, 0)
-
-            particle.AddForce(force)
-
-            other_particle.AddForce(-force)
+for _ in range(100):  
+    shape = particle_system.AddParticle(
+        default_particle_parameters['shape'],
+        default_particle_parameters['position'],
+        default_particle_parameters['velocity'],
+        default_particle_parameters['orientation']
+    )
 
 
+while application.IsRunning():
+    application.DoStep(chrono_arena, 1e-3, 1)
 
-
-scene = vis.ChVisualScene()
-
-scene.AddActor(vis.ChActor(system.GetParticles()[0].GetShape()))
-
-
-
-
-application = vr.ChApplicationVR_Full(chrono.ChSystemContext())
-
-application.SetWindowTitle("Particle Simulation")
-
-application.SetWindowSize(1024, 768)
-
-application.AddScene(scene)
-
-application.AddTimer(1/60.0)
-
-
-
-
-while application.GetDevice().IsOpened():
-
+    
     application.BeginScene()
-
     application.DrawAll()
-
+    application.RenderState().SetCameraHorizontalFOV(45.0)
+    application.RenderAll()
     application.EndScene()
-
-    application.Update()
-
-
-    
-
-    for particle in system.GetParticles():
-
-        custom_gravitational_force(particle, system)
-
-
-    
-
-    keyboard.wait_for_key(application)
-
-    if keyboard.is_pressed('q'):
-
-        application.Close()

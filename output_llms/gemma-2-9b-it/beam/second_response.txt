@@ -65,35 +65,37 @@ mtruss.SetFixed(True)  # Fix the truss so it won't move.
 sys.Add(mtruss)  # Add the truss to the physical system.
 
 # **Euler-Bernoulli Beam Setup**
-# Create a beam builder object
+# Create a builder object for Euler-Bernoulli beams
 builder = fea.ChBuilderBeamEuler()
 
-# Set beam properties
-builder.SetMaterial(msection)
-builder.SetNumElements(5)
-builder.SetStartNode(chrono.ChVector3d(0, 0, -0.1))
-builder.SetEndNode(chrono.ChVector3d(0.2, 0, -0.1))
-builder.SetYUp(True)  # Set Y-direction as up
-
-# Build the beam
-beam = builder.BuildBeam()
-
-# Add the beam to the mesh
-mesh.AddElement(beam)
+# Build a beam from (0, 0, -0.1) to (0.2, 0, -0.1) with 5 elements
+# Y up direction
+builder.BuildBeam(
+    start_node=chrono.ChVector3d(0, 0, -0.1),
+    end_node=chrono.ChVector3d(0.2, 0, -0.1),
+    section=msection,
+    num_elements=5,
+    y_up=True
+)
 
 # Fix the last node of the created beam
 builder.GetLastBeamNodes().back().SetFixed(True)
 
-# Apply a force to the first node of the created beam section
+# Apply a force to the first node of the created beam
 builder.GetFirstBeamNodes().front().SetForce(chrono.ChVector3d(0, -1, 0))
 
-# **Modify Node-Fixing Approach**
+# Add the beam to the mesh
+mesh.AddBeam(builder.GetBeam())
+
+# **Constraint for Node 1**
 # Create a constraint to fix node 1
-constr_bc = chrono.ChLinkMateGeneric()
-constr_bc.Initialize(hnode1, mtruss, False, hnode1.Frame(), hnode1.Frame())
-sys.Add(constr_bc)
-constr_bc.SetConstrainedCoords(True, True, True,  # Constrain x, y, z translations.
-                            True, True, True)  # Constrain Rx, Ry, Rz rotations.
+constr_a = chrono.ChLinkMateGeneric()
+constr_a.Initialize(hnode1, mtruss, False, hnode1.Frame(), hnode1.Frame())
+sys.Add(constr_a)
+constr_a.SetConstrainedCoords(False, True, True,  # Constrain only y, z translations.
+                              False, False, False)  # Do not constrain any rotations.
+
+
 
 # Disable the automatic gravity for FEA elements in this demonstration.
 mesh.SetAutomaticGravity(False)
@@ -123,6 +125,4 @@ vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(sys)  # Attach the simulation system to the visual system.
 vis.SetWindowSize(1024, 768)  # Set the window size.
 vis.SetWindowTitle('FEA beams')  # Set the window title.
-vis.Initialize()  # Initialize the visual system.
-vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))  # Add the Chrono logo.
-vis.AddSkyBox()  # Add a
+vis.Initialize()  # Initialize the visual

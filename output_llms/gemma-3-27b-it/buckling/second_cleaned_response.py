@@ -157,7 +157,6 @@ mvisualizebeamA.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_ELEM_BEAM_MX)
 mvisualizebeamA.SetColorscaleMinMax(-500, 500)  
 mvisualizebeamA.SetSmoothFaces(True)  
 mvisualizebeamA.SetWireframe(False)  
-
 mesh.AddVisualShapeFEA(mvisualizebeamA)  
 
 mvisualizebeamC = chrono.ChVisualShapeFEA(mesh)
@@ -166,7 +165,6 @@ mvisualizebeamC.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NONE)
 mvisualizebeamC.SetSymbolsThickness(0.006)  
 mvisualizebeamC.SetSymbolsScale(0.015)  
 mvisualizebeamC.SetZbufferHide(False)  
-
 mesh.AddVisualShapeFEA(mvisualizebeamC)  
 
 

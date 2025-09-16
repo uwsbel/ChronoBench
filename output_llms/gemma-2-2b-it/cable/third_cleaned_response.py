@@ -29,56 +29,37 @@ class Model1:
             constraint_hinge = fea.ChLinkNodeFrame()
             constraint_hinge.Initialize(builder.GetLastBeamNodes().back(), mtruss)
             system.Add(constraint_hinge)  
-
             
             
-            start_point = chrono.ChVector3d(0, 0, -0.1)
-            end_point = chrono.ChVector3d(0.5, 0, -0.1)
-            
-            
-            builder.BuildBeam(
-                mesh,  
-                msection_cable2,  
-                10,  
-                start_point,  
-                end_point  
-            )
+            for j in range(10):  
+                
+                builder.BuildBeam(
+                    mesh,  
+                    msection_cable2, 
+                    10,  
+                    chrono.ChVector3d(0, 0, -0.1), 
+                    chrono.ChVector3d(0.5, 0, -0.1)
+                )
             
             
             
             builder.GetLastBeamNodes().front().SetForce(chrono.ChVector3d(0, -0.7, 0))  
 
-            
-            visualizebeamA = chrono.ChVisualShapeFEA(mesh)
-            visualizebeamA.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_ELEM_BEAM_MZ)  
-            visualizebeamA.SetColorscaleMinMax(-0.4, 0.4)  
-            visualizebeamA.SetSmoothFaces(True)  
-            visualizebeamA.SetWireframe(False)  
-            mesh.AddVisualShapeFEA(visualizebeamA)  
+        
+        mtruss = chrono.ChBody()
+        mtruss.SetFixed(True)  
 
-            
-            visualizebeamB = chrono.ChVisualShapeFEA(mesh)
-            visualizebeamB.SetFEMglyphType(chrono.ChVisualShapeFEA.GlyphType_NODE_DOT_POS)  
-            visualizebeamB.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NONE)  
-            visualizebeamB.SetSymbolsThickness(0.006)  
-            visualizebeamB.SetSymbolsScale(0.01)  
-            visualizebeamB.SetZbufferHide(False)  
-            mesh.AddVisualShapeFEA(visualizebeamB)  
-
-    
-    def PrintBodyPositions(self):
-        for i in range(n_chains):
-            print(f"Chain {i+1}:")
-            for j in range(len(self.system.GetBodies())):
-                body = self.system.GetBodies()[j]
-                print(f"  Body {j}: {body.GetPosition()}")
+        
+        constraint_hinge = fea.ChLinkNodeFrame()
+        constraint_hinge.Initialize(builder.GetLastBeamNodes().back(), mtruss)
+        system.Add(constraint_hinge)  
 
 
 sys = chrono.ChSystemSMC()
 mesh = fea.ChMesh()
 
 
-model = Model1(sys, mesh, n_chains=6)
+model = Model1(sys, mesh, n_chains)
 sys.Add(mesh)  
 
 
@@ -130,6 +111,8 @@ while vis.Run():
     vis.Render()  
     vis.EndScene()  
     sys.DoStepDynamics(0.01)  
-    
-    
-    model.PrintBodyPositions()
+
+
+def PrintBodyPositions(system):
+    for body in system.GetBodies():
+        print(f"Body Position: {body.GetPosition()}")

@@ -5,7 +5,7 @@ import pychrono.sensor as sens
 import math
 
 
-chrono.SetChronoDataPath("/path/to/chrono/data")  
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 
@@ -39,9 +39,6 @@ tire_step_size = step_size
 
 
 render_step_size = 1.0 / 50  
-
-
-log_step_size = 0.1  
 
 
 vehicle = veh.HMMWV_Full() 
@@ -130,18 +127,27 @@ gps.PushFilter(sens.ChFilterGPSAccess())
 manager.AddSensor(gps)
 
 
-gps_data = []
+log_step_size = 0.1  
 
 
-render_steps = math.ceil(render_step_size / step_size)
-log_steps = math.ceil(log_step_size / step_size)
-realtime_timer = chrono.ChRealtimeStepTimer()
-step_number = 0
-render_frame = 0
-log_frame = 0
+gps_data = []  
+
+
+
+
 
 
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
+
+
+render_steps = math.ceil(render_step_size / step_size)
+
+
+realtime_timer = chrono.ChRealtimeStepTimer()
+step_number = 0
+render_frame = 0
+log_step_counter = 0  
+
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
@@ -158,12 +164,12 @@ while vis.Run():
 
     
     if time < 6.0:
-        driver_inputs.m_throttle = 0.5
-        driver_inputs.m_steering = 0.2
+        driver_inputs.m_throttle = 0.5  
+        driver_inputs.m_steering = 0.2  
     else:
-        driver_inputs.m_throttle = 0.0
-        driver_inputs.m_steering = 0.0
-        driver_inputs.m_braking = 0.5
+        driver_inputs.m_throttle = 0.0  
+        driver_inputs.m_steering = 0.0  
+        driver_inputs.m_braking = 0.5  
 
     
     driver.Synchronize(time)
@@ -181,9 +187,10 @@ while vis.Run():
     manager.Update()
 
     
-    if step_number % log_steps == 0:
-        gps_data.append(gps.GetMostRecentGPSBuffer().GetGPSData())
-        log_frame += 1
+    log_step_counter += step_size
+    if log_step_counter >= log_step_size:
+        log_step_counter = 0
+        gps_data.append(gps.GetMostRecentGPSBuffer().GetGPSData())  
 
     
     step_number += 1

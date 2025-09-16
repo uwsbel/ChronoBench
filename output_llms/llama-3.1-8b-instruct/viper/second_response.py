@@ -41,11 +41,11 @@ manager.scene.AddPointLight(chrono.ChVector3f(2, 2.5, 100), chrono.ChColor(inten
 offset_pose = chrono.ChFramed(chrono.ChVector3d(1.0, 0, 1.45), chrono.QuatFromAngleAxis(.2, chrono.ChVector3d(0, 1, 0)))
 cam = sens.ChCameraSensor(
     rover.GetChassis().GetBody(),
-    15, # update rate
+    15,  # update rate
     offset_pose,
-    720, # image width
-    480, # image height
-    1.408 # field of view
+    720,  # image width
+    480,  # image height
+    1.408  # field of view
 )
 cam.SetName("Third Person POV")
 cam.PushFilter(sens.ChFilterVisualize(720, 480, "Viper Front Camera"))
@@ -74,7 +74,7 @@ while vis.Run():
 
     rover.Update()  # Update the rover's state
 
-    # Update sensor manager
+    # Update the sensor manager
     manager.Update()
 
     # Render the scene at specific intervals

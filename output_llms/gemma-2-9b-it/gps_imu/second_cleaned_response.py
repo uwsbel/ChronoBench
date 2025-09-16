@@ -130,9 +130,6 @@ gps.PushFilter(sens.ChFilterGPSAccess())
 manager.AddSensor(gps)
 
 
-gps_data = []
-
-
 
 
 
@@ -146,6 +143,7 @@ render_steps = math.ceil(render_step_size / step_size)
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
+gps_data = []  
 
 
 while vis.Run():
@@ -159,7 +157,11 @@ while vis.Run():
         render_frame += 1
 
     
-    driver_inputs = driver.GetInputs()
+    
+    throttle = math.sin(time)  
+    steering = time * 0.1
+    brake = 1.0 if time > 6.0 else 0.0
+    driver_inputs = {'throttle': throttle, 'steering': steering, 'brake': brake}
 
     
     driver.Synchronize(time)
@@ -177,7 +179,7 @@ while vis.Run():
     manager.Update()
 
     
-    if time >= log_step_size * step_number:
+    if step_number % math.ceil(log_step_size / step_size) == 0:
         gps_data.append(gps.GetMostRecentGPSBuffer().GetGPSData())
 
     

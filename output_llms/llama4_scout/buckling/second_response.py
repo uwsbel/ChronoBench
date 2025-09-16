@@ -1,10 +1,9 @@
 import math as m  # Import the math library for trigonometric functions, constants, etc.
 import pychrono as chrono  # Import the main PyChrono library
 import pychrono.fea as fea  # Import the finite element analysis module from PyChrono
-import pychrono.pardisomkl as pardiso  # Import the Pardiso solver module from PyChrono
-import pychrono.irrlicht as chronoirr  # Import the Irrlicht visualization module from PyChrono
+from pychrono import pychrono.pardisomkl as pardiso  # Import the Pardiso solver module from PyChrono
+from pychrono import pychrono.irrlicht as chronoirr  # Import the Irrlicht visualization module from PyChrono
 import os  # Import the OS library for file and directory operations
-
 
 # Custom function class for motor angle:
 class ChFunctionMyFun(chrono.ChFunction):
@@ -18,7 +17,6 @@ class ChFunctionMyFun(chrono.ChFunction):
             return chrono.CH_PI
         else:
             return -chrono.CH_PI * (1.0 - m.cos(chrono.CH_PI * x / 0.4)) / 2.0
-
 
 # Define the output directory path
 out_dir = chrono.GetChronoOutputPath() + "BEAM_BUCKLING"
@@ -56,7 +54,8 @@ body_crank.AddVisualShape(boxcrank)
 
 # Create a rotational motor
 motor = chrono.ChLinkMotorRotationAngle()
-motor.Initialize(body_truss, body_crank, chrono.ChFramed(vG))  # Initialize motor between truss and crank
+motor.Initialize(body_truss, body_crank, chrono.ChFramed(vG))
+# Initialize motor between truss and crank
 myfun = ChFunctionMyFun()  # Create an instance of the custom function
 motor.SetAngleFunction(myfun)  # Set the angle function for the motor
 sys.Add(motor)  # Add the motor to the system
@@ -86,6 +85,7 @@ builder_iga.BuildBeam(mesh, msection1, 32, vA, vC, chrono.VECT_Y, 3)  # Add IGA 
 
 # Fix the first node of the horizontal beam
 builder_iga.GetLastBeamNodes().front().SetFixed(True)
+
 node_tip = builder_iga.GetLastBeamNodes()[-1]  # Get the node at the tip
 node_mid = builder_iga.GetLastBeamNodes()[17]  # Get a node in the middle
 
@@ -116,7 +116,7 @@ constr_bb.SetConstrainedCoords(True, True, True, False, False, False)  # Constra
 sphereconstr2 = chrono.ChVisualShapeSphere(0.012)
 constr_bb.AddVisualShape(sphereconstr2)
 
-# Create a crank beam
+# Create a crank beam section
 section3 = fea.ChBeamSectionEulerAdvanced()
 crankbeam_d = 0.054  # Diameter of circular section
 section3.SetDensity(2700)  # Set density
@@ -157,16 +157,14 @@ sys.Add(mesh)
 
 # Create visualization for the FEM mesh:
 mvisualizebeamA = chrono.ChVisualShapeFEA(mesh)
-mvisualizebeamA.SetFEMdataType(
-    chrono.ChVisualShapeFEA.DataType_ELEM_BEAM_MX)  # Set data type for visualizing beam moments
+mvisualizebeamA.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_ELEM_BEAM_MX)  # Set data type for visualizing beam moments
 mvisualizebeamA.SetColorscaleMinMax(-500, 500)  # Set color scale limits
 mvisualizebeamA.SetSmoothFaces(True)  # Enable smooth faces for visualization
 mvisualizebeamA.SetWireframe(False)  # Disable wireframe
 mesh.AddVisualShapeFEA(mvisualizebeamA)  # Add visualization shape to mesh
 
 mvisualizebeamC = chrono.ChVisualShapeFEA(mesh)
-mvisualizebeamC.SetFEMglyphType(
-    chrono.ChVisualShapeFEA.GlyphType_NODE_CSYS)  # Set glyph type for node coordinate systems
+mvisualizebeamC.SetFEMglyphType(chrono.ChVisualShapeFEA.GlyphType_NODE_CSYS)  # Set glyph type for node coordinate systems
 mvisualizebeamC.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NONE)  # Disable additional data visualization
 mvisualizebeamC.SetSymbolsThickness(0.006)  # Set thickness for glyphs
 mvisualizebeamC.SetSymbolsScale(0.015)  # Set scale for glyphs
@@ -197,7 +195,6 @@ sys.SetTimestepper(ts)  # Set the timestepper to the system
 while vis.Run():
     vis.BeginScene()  # Begin rendering the scene
     vis.Render()  # Render the scene
-    chronoirr.drawGrid(vis, 0.05, 0.05, 20, 20,
-                       chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT))  # Draw a grid
+    chronoirr.drawGrid(vis, 0.05, 0.05, 20, 20, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT))  # Draw a grid
     vis.EndScene()  # End rendering the scene
     sys.DoStepDynamics(0.001)  # Perform a simulation step with a timestep of 0.001 seconds

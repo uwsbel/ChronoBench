@@ -62,8 +62,7 @@ patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), terrainLength,
-                         terrainWidth)
+patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), terrainLength, terrainWidth)
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
@@ -83,9 +82,9 @@ vis.AttachVehicle(vehicle.GetVehicle())
 driver_inputs = veh.vector_Entry()
 
 
-driver_inputs.append(veh.DataDriverEntry(0.0, 0.0, 0.0))  
-driver_inputs.append(veh.DataDriverEntry(0.1, 1.0, 0.0))  
-driver_inputs.append(veh.DataDriverEntry(0.5, 1.0, 0.7))  
+driver_inputs.append(veh.DataDriverEntry(0.0, 0.0, 0.0, 0.0))  
+driver_inputs.append(veh.DataDriverEntry(0.1, 1.0, 0.0, 0.0))
+driver_inputs.append(veh.DataDriverEntry(0.5, 1.0, 0.7, 0.0))
 
 driver = veh.ChDataDriver(vehicle.GetVehicle(), driver_inputs)
 driver.Initialize()

@@ -28,17 +28,17 @@ robot.Initialize()  # Initialize the robot
 
 # Define a function to control the robot's movement
 def move(mode):
-    if mode == "straight":
+    if mode not in ['straight', 'left', 'right']:
+        raise ValueError('Invalid mode. Choose from: straight, left, right')
+    if mode == 'straight':
         robot.SetMotorSpeed(0, 0)
         robot.SetMotorSpeed(0, 1)
-    elif mode == "left":
+    elif mode == 'left':
         robot.SetMotorSpeed(-math.pi, 0)
         robot.SetMotorSpeed(0, 1)
-    elif mode == "right":
+    elif mode == 'right':
         robot.SetMotorSpeed(0, 0)
         robot.SetMotorSpeed(math.pi, 1)
-    else:
-        raise ValueError("Invalid mode. Choose 'straight', 'left', or 'right'.")
 
 # Create run-time visualization
 vis = chronoirr.ChVisualSystemIrrlicht()
@@ -65,16 +65,16 @@ while vis.Run():
     # Move the robot straight for the first 5 seconds
     if time < 5:
         print("Moving straight...")
-        move("straight")
+        move('straight')
     # Turn the robot left for the next 5 seconds
     elif time < 10:
         print("Turning left...")
-        move("left")
+        move('left')
     # Turn the robot right thereafter
     else:
         print("Turning right...")
-        move("right")
-
+        move('right')
+        
     # Increment time counter
     time += time_step
 

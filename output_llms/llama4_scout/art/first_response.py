@@ -2,156 +2,56 @@ import chrono as ch
 import chrono.irrlicht as irr
 import chrono.vehicle as veh
 
-# Initialize PyChrono environment
+# 1. Initialize the PyChrono environment and core components
 ch.ChEngine.Initialize()
 
-# Create the Irrlicht application
-app = irr.IrrlichtApplication()
+# 2. Create the Irrlicht application
+app = irr.ChIrrApp()
 
-# Set the simulation step and frame rate
-step_size = 0.02
-frame_rate = 50
+# 3. Create the vehicle
+vehicle = veh.ChARTcar()
 
-# Create a Chrono engine
-engine = ch.ChEngine()
+# 4. Set vehicle parameters
+vehicle.SetLocation(ch.ChVector3d(0, 0, 1))
+vehicle.SetOrientation(ch.ChQuaterniond(1, 0, 0, 0))
 
-# Set the Irrlicht application as the visualization tool
-engine.SetCollisionSystemType(ch.ChCollisionSystem.Type.BULLET)
-engine.SetVisualSystem(app)
-engine.SetThreading(1)
-
-# Create an ARTcar vehicle
-vehicle = veh.ARTcar()
-
-# Set vehicle location and orientation
-vehicle.SetChassisBodyFixed(False)
-vehicle.SetChassisBodyPos(ch.ChVector3d(0, 0, 1))
-vehicle.SetChassisBodyRot(ch.ChQuaterniond(0, 0, 0, 1))
-
-# Set contact method and visualization type
-vehicle.SetContactMethod(ch.ChContactMethod.SMC)
-vehicle.SetVisualizationType(veh.ChVehicle.Visualization.VIS_BODY)
-
-# Initialize the vehicle
-vehicle.Initialize()
-
-# Create a rigid terrain
+# 5. Create the terrain
 terrain = ch.ChTerrain()
 
-# Set terrain dimensions
-terrain.SetSize(ch.ChVector3d(100, 100, 10))
+# 6. Set terrain parameters
+terrain.SetType(terrain.RIGID)
+terrain.SetDimensions(100, 100)
+terrain.SetContactMethod(terrain.E_CONTACT_METHOD_NODES)
+terrain.SetVisualizationType(terrain.E_VISUALIZATION_TEXTURE)
 
-# Add a custom texture
-texture = irr.SITexture("terrain.jpg")
-terrain.SetTexture(texture)
+# 7. Add a custom texture to the terrain
+texture = irr.ChIrrTexture()
+texture.LoadFromFile("path_to_your_texture.jpg")  # Replace with your texture path
+terrain.AddVisualizationTexture(texture)
 
-# Initialize the terrain
-terrain.Initialize()
-
-# Create an interactive driver system
+# 8. Create the driver system
 driver = veh.ChInteractiveDriver()
 
-# Set the vehicle and terrain for the driver
-driver.SetVehicle(vehicle)
-driver.SetTerrain(terrain)
+# 9. Set up the driver inputs
+driver.SetSteeringFunction(veh.ChDriverSteeringFunction(driver.E_STEERING_FUNCTION_LINEAR))
+driver.SetThrottleFunction(veh.ChDriverThrottleFunction(driver.E_THROTTLE_FUNCTION_LINEAR))
+driver.SetBrakingFunction(veh.ChDriverBrakingFunction(driver.E_BRAKING_FUNCTION_LINEAR))
 
-# Initialize the driver
-driver.Initialize()
+# 10. Initialize the simulation
+vehicle.Initialize(terrain)
+driver.Initialize(vehicle)
 
-# Simulation loop
-while app.Run() and not engine.GetStopSimulationFlag():
-    # Update the vehicle dynamics
-    vehicle.Update(step_size)
+# 11. Create the simulation loop
+def Simulate():
+    step_size = 0.02  # 50 Hz
+    time = 0
 
-    # Update the visualization
-    app.BeginScene()
-    terrain.Visualize()
-    vehicle.Visualize()
-    app.EndScene()
-
-    # Increment time
-    engine.GetSystem().DoStepDynamics(step_size)
-
-# Clean up
-app.Exit()
-
-import chrono as ch
-import chrono.irrlicht as irr
-import chrono.vehicle as veh
-
-def main():
-    # Initialize PyChrono environment
-    ch.ChEngine.Initialize()
-
-    # Create the Irrlicht application
-    app = irr.IrrlichtApplication()
-
-    # Set the simulation step and frame rate
-    step_size = 0.02
-    frame_rate = 50
-
-    # Create a Chrono engine
-    engine = ch.ChEngine()
-
-    # Set the Irrlicht application as the visualization tool
-    engine.SetCollisionSystemType(ch.ChCollisionSystem.Type.BULLET)
-    engine.SetVisualSystem(app)
-    engine.SetThreading(1)
-
-    # Create an ARTcar vehicle
-    vehicle = veh.ARTcar()
-
-    # Set vehicle location and orientation
-    vehicle.SetChassisBodyFixed(False)
-    vehicle.SetChassisBodyPos(ch.ChVector3d(0, 0, 1))
-    vehicle.SetChassisBodyRot(ch.ChQuaterniond(0, 0, 0, 1))
-
-    # Set contact method and visualization type
-    vehicle.SetContactMethod(ch.ChContactMethod.SMC)
-    vehicle.SetVisualizationType(veh.ChVehicle.Visualization.VIS_BODY)
-
-    # Initialize the vehicle
-    vehicle.Initialize()
-
-    # Create a rigid terrain
-    terrain = ch.ChTerrain()
-
-    # Set terrain dimensions
-    terrain.SetSize(ch.ChVector3d(100, 100, 10))
-
-    # Add a custom texture
-    texture = irr.SITexture("terrain.jpg")
-    terrain.SetTexture(texture)
-
-    # Initialize the terrain
-    terrain.Initialize()
-
-    # Create an interactive driver system
-    driver = veh.ChInteractiveDriver()
-
-    # Set the vehicle and terrain for the driver
-    driver.SetVehicle(vehicle)
-    driver.SetTerrain(terrain)
-
-    # Initialize the driver
-    driver.Initialize()
-
-    # Simulation loop
-    while app.Run() and not engine.GetStopSimulationFlag():
-        # Update the vehicle dynamics
+    while app.Run():
         vehicle.Update(step_size)
+        driver.Update(step_size)
+        app.Render()
 
-        # Update the visualization
-        app.BeginScene()
-        terrain.Visualize()
-        vehicle.Visualize()
-        app.EndScene()
+        time += step_size
 
-        # Increment time
-        engine.GetSystem().DoStepDynamics(step_size)
-
-    # Clean up
-    app.Exit()
-
-if __name__ == "__main__":
-    main()
+# Run the simulation
+Simulate()

@@ -3,7 +3,7 @@ import pychrono.fea as fea
 import pychrono.irrlicht as chronoirr
 
 # ----------------------------------------------------------------------------
-# Model1: Multiple chains of ANCF cable elements, with connected bodies.
+# Model1: Multiple chains of ANCF cable elements, each with a connected body
 # ----------------------------------------------------------------------------
 
 class Model1:
@@ -20,8 +20,8 @@ class Model1:
             builder = fea.ChBuilderCableANCF()
 
             # Use BuildBeam to create a beam structure consisting of ANCF elements:
-            # Adjust the number of elements and positions for each chain
-            num_elements = i * 2 + 10  
+            # Adjust the number of elements based on chain index
+            num_elements = i * 2 + 10 
             builder.BuildBeam(
                 mesh,  # The mesh to which the created nodes and elements will be added
                 msection_cable2,  # The beam section properties to use
@@ -43,21 +43,21 @@ class Model1:
             constraint_hinge.Initialize(builder.GetLastBeamNodes().back(), mtruss)
             system.Add(constraint_hinge)  # Add the constraint to the system
 
-            # Create a box body and connect it to the beam's endpoint
-            box_body = chrono.ChBodyEasyBox(0.1, 0.1, 0.1)
-            box_body.SetPos(builder.GetLastBeamNodes().back().GetPos())
-            system.Add(box_body)
+            # Create a box body
+            box = chrono.ChBodyEasyBox(0.1, 0.1, 0.1)
+            box.SetPos(builder.GetLastBeamNodes().back().GetPos())
+            system.Add(box)
 
-            # Create a constraint between the beam endpoint and the box body
-            constraint_body = fea.ChLinkPointPoint()
-            constraint_body.Initialize(builder.GetLastBeamNodes().back(), box_body.GetPos())
-            system.Add(constraint_body)
+            # Create a constraint between the beam endpoint and the box
+            constraint_hinge_box = fea.ChLinkNodeFrame()
+            constraint_hinge_box.Initialize(builder.GetLastBeamNodes().back(), box)
+            system.Add(constraint_hinge_box)
 
     def PrintBodyPositions(self, system):
         for i in range(self.n_chains):
-            # Get the position of the box body for each chain
-            box_body = system.GetBody(i * 2 + 10)  # Assuming box bodies are added sequentially
-            print(f"Chain {i+1} - Box Body Position: {box_body.GetPos()}")
+            # Get the position of the box body connected to chain i
+            box = system.GetBody(i * 2 + 10)  
+            print(f"Chain {i+1} Box Position: {box.GetPos()}")
 
 # Initialize the physical system and mesh container:
 sys = chrono.ChSystemSMC()
@@ -116,4 +116,4 @@ while vis.Run():
     vis.Render()  # Render the scene
     vis.EndScene()  # End scene rendering
     sys.DoStepDynamics(0.01)  # Advance the simulation by one step with a time step of 0.01 seconds
-    model.PrintBodyPositions(sys)  # Print the positions of the end bodies at each step
+    model.PrintBodyPositions(sys)  # Print the positions of the end bodies

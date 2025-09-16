@@ -20,56 +20,62 @@ c.AddGround(ground)
 robot = c.ChBody()
 robot.SetBodyType(c.CH_BODY_TYPE_BOX)
 robot.SetPosition(c.ve(0, 1, 0))
-robot.SetOrientation(c.Mat33().FromEulerAngles(c.PI/2, 0, 0))
+robot.SetOrientation(c.ve(0, 0, 0))
 robot.SetMass(1)
 robot.SetFriction(1)
 robot.SetRestitution(0)
-c.AddRobot(robot)
+c.AddBody(robot)
 
-# Set up Turtlebot's motors
-motor_left = c.ChMotor()
-motor_left.SetAxis(c.ve(0, 0, 1))
-motor_left.SetMaxForce(1)
-c.AddMotor(motor_left, robot)
-motor_right = c.ChMotor()
-motor_right.SetAxis(c.ve(0, 0, 1))
-motor_right.SetMaxForce(1)
-c.AddMotor(motor_right, robot)
+# Create motors for left and right turns
+motor1 = c.ChMotor()
+motor1.SetMaxForce(10)
+motor1.SetPosition(0)
+robot.AddMotor(motor1)
 
-# Set up physical interactions
-c.AddLink(robot, motor_left)
-c.AddLink(robot, motor_right)
-c.AddLink(robot, ground)
+motor2 = c.ChMotor()
+motor2.SetMaxForce(10)
+motor2.SetPosition(0)
+robot.AddMotor(motor2)
 
-# Set up camera and lighting for real-time visualization
-irrlicht.init()
-camera = irrlicht.Camera()
-camera.SetLookAt(c.ve(0, 2, 10), c.ve(0, 1, 0), c.ve(0, 0, 1))
-camera.SetTarget(c.ve(0, 2, 10))
-irrlicht.set_camera(camera)
-irrlicht.set_light(c.ve(0, 0, 10), c.ve(1, 1, 1))
+# Set default parameters
+robot.SetName("Turtlebot")
+ground.SetName("Ground")
 
-# Define simulation loop
-def simulation_loop():
-    t = 0
-    while True:
-        # Update robot at each timestep
-        robot.SetPosition(c.ve(0, 1, 0) + c.ve(0, 0, t))
-        robot.SetOrientation(c.Mat33().FromEulerAngles(c.PI/2, 0, 0) + c.Mat33().FromEulerAngles(0, t, 0))
-        # Update motors at specified times
-        if t > 2 and t < 5:
-            motor_left.SetTorque(1)
-            motor_right.SetTorque(-1)
-        else:
-            motor_left.SetTorque(0)
-            motor_right.SetTorque(0)
-        # Render and update visualization
-        irrlicht.update()
-        irrlicht.render()
-        # Increment time
-        t += 0.01
-        # Cap framerate
-        time.sleep(1/60)
+# Create a real-time visualization using Irrlicht
+device = c.CreateIrrlichtDevice(irrlicht.VideoMode(800, 600), irrlicht.E_DRIVER_TYPE_OPENGL3)
+view = device.GetViewport(0)
+view.SetTargetFrameRate(60)
+view.SetAspectRatioConstraint(irrlicht.SCA_FIT)
 
-# Run simulation loop
-simulation_loop()
+# Set camera settings and lighting
+camera = device.GetCameraSceneNode()
+camera.SetPosition(c.ve(0, 10, 10))
+camera.SetTarget(c.ve(0, 0, 0))
+light = device.GetLightSceneNode()
+light.SetPosition(c.ve(0, 10, 10))
+light.SetDiffuseColor(c.ve(1, 1, 1))
+light.SetSpecularColor(c.ve(1, 1, 1))
+light.SetIntensity(1)
+
+# Implement a simulation loop
+t = 0
+while t < 10:
+    # Update the robot's motors
+    if t >= 1 and t < 3:
+        motor1.SetTorque(10)
+        motor2.SetTorque(-10)
+    else:
+        motor1.SetTorque(0)
+        motor2.SetTorque(0)
+
+    # Update and render the robot at each timestep
+    c.Update()
+    c.Render()
+
+    # Increment time
+    t += 0.1
+    time.sleep(0.1)
+
+# Clean up
+c.DeleteDevice(device)
+c.shutdown()

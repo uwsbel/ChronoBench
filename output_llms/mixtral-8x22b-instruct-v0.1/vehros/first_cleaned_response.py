@@ -1,86 +1,69 @@
-import pychrono as chrono
-import pychrono.irrlicht as chronoirr
+import pychrono.core as chrono
 import pychrono.vehicle as veh
+import pychrono.irrlicht as irr
+import pychrono.postprocess as postprocess
 import pychrono.robot as robot
 import rospy
-import tf
-import numpy as np
+import rospkg
+import os
 
 
-chrono.SetChronoDataPath("path/to/chrono/data")
-chrono.Init_Chrono()
-rospy.init_node("pychrono_simulation")
+chrono.SetChronoDataPath(os.path.dirname(os.path.abspath(__file__)) + '/chrono_data/')
 
 
-system = chrono.ChSystemNSC()
+sys = chrono.ChSystemNSC()
 
 
-visualization = chronoirr.ChVisualSystemIrrlicht()
-visualization.SetWindowSize(800, 600)
-visualization.SetWindowTitle("PyChrono Simulation")
-visualization.Initialize()
-visualization.AddLogo(chronoirr.GetChronoDataFile("logo_pychrono_alpha.png"))
-visualization.AddSkyBox()
-visualization.AddTypicalLights()
-visualization.AddCamera(chrono.ChVectorD(0, 5, -10))
-
-
-system.SetVisualSystem(visualization)
+sys.SetContactMethod(chrono.ChContactMethod_NSC)
 
 
 vehicle = veh.HMMWV()
-vehicle.SetContactMethod(veh.ChContactMethod_NSC)
-vehicle.SetTireType(veh.ChVehicleTire_Magic)
-vehicle.SetEngineType(veh.ChVehicleEngine_Simple)
 
 
-terrain = veh.Terrain()
+vehicle.SetEngineType(veh.HMMWV::EngineType::ENGINE_GM12V71)
+
+
+vehicle.SetTireType(veh.HMMWV::TireType::TIRE_PIRELLI_SCANIA)
+
+
+vehicle.SetChassisFixed(False)
+vehicle.SetInitPosition(chrono.ChVectorD(0, 0, 1.5))
+vehicle.SetChassisVisualizationType(veh.HMMWV::VisualizationType::MESH)
+vehicle.SetSuspensionVisualizationType(veh.HMMWV::VisualizationType::PRIMITIVES)
+vehicle.SetSteeringVisualizationType(veh.HMMWV::VisualizationType::PRIMITIVES)
+vehicle.SetWheelVisualizationType(veh.HMMWV::VisualizationType::MESH)
+
+
+sys.Add(vehicle)
+
+
+terrain = veh.RigidTerrain(sys.GetContactMethod())
+
+
 terrain.SetContactFriction(0.9)
 terrain.SetContactRestitution(0.01)
-terrain.SetPlane(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 1, 0))
+terrain.SetPlane(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 1))
+terrain.Initialize(sys)
 
 
-system.Add(vehicle.GetChassis())
-system.Add(terrain)
+driver = veh.ChIrrGuiDriver(sys, irr. irrlicht.GUI_BIG)
 
 
-driver = veh.ChIrrGuiDriver(visualization, vehicle)
+rospy.init_node('pychrono_node')
+ros_manager = robot.ChRosManager(sys)
 
 
-vehicle.SetChassisPosition(chrono.ChVectorD(0, 0, 0.5))
-vehicle.SetChassisOrientation(chrono.ChQuaternionD(1, 0, 0, 0))
+ros_manager.RegisterClockSynchronizer()
+ros_manager.RegisterVehicleSystem(vehicle)
+ros_manager.RegisterDriverInputs(driver)
 
 
-driver.SetSteering(0)
-driver.SetThrottle(0)
-driver.SetBraking(0)
-
-
-def clock_synchronization_handler(event):
+while rospy.ok():
     
-    rospy.Rate(1 / system.GetTimestep()).sleep()
-
-def driver_inputs_handler(event):
-    
-    pass
-
-def vehicle_state_handler(event):
-    
-    pass
-
-
-rospy.Timer(rospy.Duration(system.GetTimestep()), clock_synchronization_handler)
-rospy.Subscriber("driver_inputs", DriverInputs, driver_inputs_handler)
-rospy.Publisher("vehicle_state", VehicleState, vehicle_state_handler)
-
-
-while visualization.Run():
-    
-    system.DoStepDynamics(system.GetTimestep())
+    sys.DoStepDynamics(0.01)
+    driver.BeginScene()
+    driver.Render()
+    driver.EndScene()
 
     
-    rospy.spin()
-
-
-rospy.signal_shutdown("Simulation ended")
-chrono.End_Chrono()
+    ros_manager.Update()

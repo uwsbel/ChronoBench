@@ -124,9 +124,9 @@ while vis.Run() :
 
     
     driver.Synchronize(time)
-    terrain.Synchronize(time)
+    terrain.Synchronize(time, driver_inputs, terrain)
     vehicle.Synchronize(time, driver_inputs, terrain)
-    vis.Synchronize(time)
+    vis.Synchronize(time, driver_inputs)
 
     
     driver.Advance(step_size)
@@ -138,15 +138,3 @@ while vis.Run() :
     step_number += 1
     
     realtime_timer.Spin(step_size)
-
-
-
-print("VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
-
-
-
-
-if (step_number % 2 == 0):
-    vehicle.SetSteeringDelta(render_step_size / 2)
-    vehicle.SetThrottleDelta(render_step_size / 2)
-    vehicle.SetBrakingDelta(render_step_size / 2)

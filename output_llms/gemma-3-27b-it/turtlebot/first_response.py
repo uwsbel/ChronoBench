@@ -1,37 +1,49 @@
 import chrono
 import chrono.irrlicht as chronoirr
-import chrono.robotics as chronorobotics
+import chrono.vehicle as chronoveh
 
 # ---
 # Initialize the PyChrono environment and core components
 # ---
 
 system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
 # ---
-# Add the ground body
+# Add the required physical systems and objects
 # ---
 
-body_floor = chrono.ChBodyEasy()
-body_floor.SetBodyFixed(True)
-body_floor.SetMass(1000)
-body_floor.SetPos(chrono.ChVectorD(0, -0.1, 0))
-body_floor.SetShapeBoxes(0.5, 0.1, 0.5)
-system.Add(body_floor)
+# Create the ground body
+body_ground = chrono.ChBodyEasy()
+body_ground.SetBodyFixed(True)
+body_ground.SetPos(chrono.ChVectorD(0, -0.1, 0))
+body_ground.SetShapeBoxes(0.5, 0.1, 1)
+body_ground.SetCollide(True)
+system.Add(body_ground)
 
-# ---
-# Initialize the Turtlebot robot
-# ---
-
-# Load the Turtlebot URDF file
-turtlebot = chronorobotics.ChTurtlebot()
-turtlebot.SetPos(chrono.ChVectorD(0, 0.2, 0))
-turtlebot.SetTransform(chrono.ChQuaternionD(0, 0, 0, 1))
+# Initialize the Turtlebot
+# Use the Turtlebot vehicle model from Chrono::Vehicle
+turtlebot = chronoveh.ChTurtlebot()
+turtlebot.SetVehicleModel(chronoveh.ChTurtlebot.Model.WHEEL_DIFF)  # Use differential drive
+turtlebot.SetPos(chrono.ChVectorD(0, 0.1, 0))
+turtlebot.SetYaw(chrono.ChVectorD(0, 0, 0))  # Set initial orientation
 system.Add(turtlebot)
 
 # ---
-# Set up real-time visualization using Irrlicht
+# Set necessary default parameters
+# ---
+
+# Simulation parameters
+time_step = 0.01
+simulation_time = 10
+
+# Motor control parameters
+turn_left_time = 3
+turn_right_time = 7
+turn_speed = 0.5  # Radians per second
+
+# ---
+# Create a real-time visualization using Irrlicht
 # ---
 
 vis = chronoirr.ChVisualSystemIrrlicht()
@@ -43,32 +55,23 @@ vis.AddCamera(chrono.ChVectorD(2, 1.5, -3))
 vis.AddTypicalLights()
 
 # ---
-# Simulation loop with motor control
+# Implement a simulation loop
 # ---
 
-simulation_time = 10  # seconds
-time_step = 0.01  # seconds
 current_time = 0
-
-turn_left_time = 2.0
-turn_right_time = 6.0
-turn_duration = 2.0
-turn_speed = 0.5  # radians per second
-
 while current_time < simulation_time:
-    # Control the Turtlebot's motors
-    if current_time >= turn_left_time and current_time < turn_left_time + turn_duration:
-        turtlebot.SetLeftWheelSpeed(turn_speed)
-        turtlebot.SetRightWheelSpeed(-turn_speed)
-    elif current_time >= turn_right_time and current_time < turn_right_time + turn_duration:
-        turtlebot.SetLeftWheelSpeed(-turn_speed)
-        turtlebot.SetRightWheelSpeed(turn_speed)
-    else:
-        turtlebot.SetLeftWheelSpeed(0)
-        turtlebot.SetRightWheelSpeed(0)
-
-    # Update and render the simulation
+    # Update the simulation
     system.DoStepDynamics(time_step)
+
+    # Motor control
+    if current_time > turn_left_time:
+        turtlebot.Steer(turn_speed)
+    elif current_time > turn_right_time:
+        turtlebot.Steer(-turn_speed)
+    else:
+        turtlebot.Steer(0)
+
+    # Render the scene
     vis.BeginScene()
     vis.Render()
     vis.EndScene()

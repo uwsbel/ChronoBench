@@ -65,5 +65,4 @@ link_motor.Initialize(mbody_gearA, mbody_truss,                     # Initializi
 link_motor.SetSpeedFunction(chrono.ChFunctionConst(3))              # Setting constant rotation speed to 3 rad/s
 sys.AddLink(link_motor)                                             # Adding the motor link to the system
 
-# Create the second gear
-interaxis12 = radA + radB                                           # Calculating
+#

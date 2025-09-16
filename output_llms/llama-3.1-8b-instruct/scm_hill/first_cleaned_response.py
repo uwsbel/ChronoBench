@@ -1,59 +1,57 @@
-import chrono as ch
-import chrono irrlicht as ir
-import numpy as np
+import chrono as chrono
+from chrono import irrklang
+from chrono import irrlicht
+from chrono import utils
 
 
-ch.InitChronic()
+chrono.Initialize()
+irrklang.Initialize()
 
 
-dt = 1e-3  
-t_max = 10  
+terrain = chrono.CreateScmTerrain()
+terrain.SetDimensions(100, 100, 10)
+terrain.SetSoilParameters(0.5, 0.1, 0.1, 0.1, 0.1)
+terrain.SetHeightMap([[0.0, 0.0, 0.0, 0.0],
+                      [0.0, 1.0, 1.0, 0.0],
+                      [0.0, 1.0, 1.0, 0.0],
+                      [0.0, 0.0, 0.0, 0.0]])
 
 
-sim = ch.Simulation()
-scene = ir.Scene()
-sim.Add(ir.Renderer(scene))
+vehicle = chrono.CreateVehicle()
+vehicle.SetPosition(0, 0, 0)
+vehicle.SetOrientation(0, 0, 0, 1)
+vehicle.SetVelocity(0, 0, 0)
+vehicle.SetAngularVelocity(0, 0, 0)
 
 
-soil_density = 1800  
-soil_young_modulus = 1e6  
-soil_poisson_ratio = 0.3
+driver = chrono.CreateDriver()
+driver.SetVehicle(vehicle)
+driver.SetSteeringGain(0.1)
+driver.SetThrottleGain(0.1)
 
 
-terrain = ch.SCMDeformableTerrain(sim, 
-                                 soil_density, 
-                                 soil_young_modulus, 
-                                 soil_poisson_ratio, 
-                                 width=100, 
-                                 height=100)
+visual = irrlicht.CreateDevice(irrlicht.EDT_OPENGL, irrlicht.EE_WINDOWED, 800, 600)
+visual.AddCamera(0, 0, 0, 0, 0, 0, 1)
+visual.AddLight(0, 0, 1, 1, 1, 1)
 
 
-height_map = np.random.rand(100, 100) * 10  
-terrain.SetHeightMap(height_map)
-
-
-vehicle = ch.HMMWV(sim, 
-                   mass=1500, 
-                   position=[0, 0, 0], 
-                   orientation=[0, 0, 0])
-
-
-driver = ch.Driver(sim, 
-                   vehicle, 
-                   steering_gain=0.1, 
-                   acceleration_gain=0.5)
-
-
-scene.SetCameraPosition([0, 0, 10])
-scene.SetCameraTarget([0, 0, 0])
-scene.SetLighting(ir.LightingType.LIGHTING_DIRECTIONAL)
-
-
-while sim.GetTime() < t_max:
+while True:
     
-    sim.Step(dt)
-    scene.Render()
+    vehicle.Simulate(chrono.GetTimeStep())
+    terrain.Simulate(chrono.GetTimeStep())
+    driver.Simulate(chrono.GetTimeStep())
+    visual.Simulate(chrono.GetTimeStep())
+
+    
+    visual.BeginScene()
+    visual.DrawAll()
+    visual.EndScene()
+
+    
+    if chrono.GetStopFlag():
+        break
 
 
-sim.DetachAll()
-ch.CloseChronic()
+chrono.Destroy()
+irrklang.Destroy()
+visual.Drop()

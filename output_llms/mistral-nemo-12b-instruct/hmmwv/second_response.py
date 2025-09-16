@@ -21,17 +21,8 @@ tire_model = veh.TireModelType_TMEASY
 
 # Rigid terrain
 terrainHeight = 0      # terrain height
-terrainLength = 200.0  # size in X direction, increased from 100.0
+terrainLength = 200.0  # size in X direction (increased from 100.0)
 terrainWidth = 100.0   # size in Y direction
-
-# Path implementation
-path_radius = 50.0
-path_center = chrono.ChVector3d(terrainLength / 2, 0, 0)
-path = veh.CircularPath(path_center, path_radius)
-
-# Visualize the path using two balls
-path_vis = veh.ChCircularPathVisualizer(path)
-path_vis.SetColor(chrono.ChColor(1, 0, 0))  # Red color for the path visualization
 
 # Poon chassis tracked by the camera
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
@@ -86,12 +77,19 @@ vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
-vis.AddPathVisualizer(path_vis)
 
-# Create the path follower driver system
-driver = veh.ChPathFollowerDriver(vehicle.GetVehicle(), path)
-driver.SetThrottle(0.3)  # Constant throttle value of 0.3
-driver.SetSteeringGains(0.5, 0.1, 0.01)  # PID gains for steering control
+# Create the driver system
+driver = veh.ChPathFollower(vehicle.GetVehicle(), chrono.ChVector3d(0, 0, 0), 50.0, 0.3)  # Constant throttle 0.3, path radius 50.0
+
+# Set the time response for steering and throttle keyboard inputs.
+steering_time = 1.0
+throttle_time = 1.0
+braking_time = 0.3
+driver.SetSteeringDelta(render_step_size / steering_time)
+driver.SetThrottleDelta(render_step_size / throttle_time)
+driver.SetBrakingDelta(render_step_size / braking_time)
+
+driver.Initialize()
 
 # output vehicle mass
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
@@ -103,6 +101,15 @@ render_steps = math.ceil(render_step_size / step_size)
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
+
+# Visualize path using two balls
+path_ball1 = chrono.ChBodyEasySphere(0.5, chrono.ChMaterialSurfaceNSC(), chrono.ChColor(1, 0, 0))
+path_ball1.SetPos(chrono.ChVector3d(0, 0, 0))
+vehicle.GetSystem().AddBody(path_ball1)
+
+path_ball2 = chrono.ChBodyEasySphere(0.5, chrono.ChMaterialSurfaceNSC(), chrono.ChColor(0, 1, 0))
+path_ball2.SetPos(chrono.ChVector3d(50, 0, 0))
+vehicle.GetSystem().AddBody(path_ball2)
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()

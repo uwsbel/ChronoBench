@@ -49,7 +49,7 @@ vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
-vehicle.SetThrottle(0.5)  # Add logic to move the vehicle forward
+vehicle.SetThrottle(0.5)  # Add constant throttle value
 
 vehicle.Initialize()
 
@@ -75,15 +75,11 @@ patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 # Create a box obstacle
-box_mat = chrono.ChContactMaterialNSC()
-box_mat.SetFriction(0.9)
-box_mat.SetRestitution(0.01)
-box = veh.RigidBox(vehicle.GetSystem())
-box.SetMass(100)
-box.SetPosition(chrono.ChVector3d(5, 0, 0.1))
-box.SetFixed(True)
-box.SetMaterial(box_mat)
-box.Initialize()
+obstacle = chrono.ChBody()
+obstacle.SetBodyFixed(True)
+obstacle.SetCollisionShape(chrono.ChBoxShape(chrono.ChVector3d(0.5, 5, 0.2)))
+obstacle.SetPos(chrono.ChVector3d(5, 0, 0.1))
+vehicle.GetSystem().Add(chrono.ChLinkBaseCFrame(obstacle, vehicle.GetVehicle()))
 
 # Create the vehicle Irrlicht interface
 

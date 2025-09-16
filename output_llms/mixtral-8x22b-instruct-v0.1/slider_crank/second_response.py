@@ -75,7 +75,7 @@ vis.AddCamera(chrono.ChVector3d(1, 1, 3), chrono.ChVector3d(0, 1, 0))  # Add a c
 vis.AddTypicalLights()  # Add typical lights for better visualization
 
 # Run the interactive simulation loop
-sim_time = 0
+simulation_time = 0
 while vis.Run():
     # Visualization and time step integration
     vis.BeginScene()  # Begin the visualization scene
@@ -84,32 +84,35 @@ while vis.Run():
     sys.DoStepDynamics(1e-3)  # Advance the simulation by a time step of 0.001 seconds (1 ms)
 
     # Collect data during simulation
-    sim_time += 1e-3
-    array_time.append(sim_time)
-    array_angle.append(my_motor.GetMotorFunction().Get_y(sim_time))
+    array_time.append(simulation_time)
+    array_angle.append(my_motor.GetMotorFunction().Get_y(simulation_time))
     array_pos.append(mpiston.GetPos().x)
     array_speed.append(mpiston.GetPos_dt().x)
 
+    simulation_time += 1e-3
+
     # Conditional to stop simulation
-    if sim_time >= 20:
+    if simulation_time > 20:
         break
 
 # Matplotlib plotting
-fig, axs = plt.subplots(2)
-fig.suptitle('Crank Demo')
+plt.figure(figsize=(10, 5))
 
 # First subplot: Plot position [m] versus the crank angle [rad]
-axs[0].plot(array_angle, array_pos)
-axs[0].set_xlabel('Crank Angle [rad]')
-axs[0].set_ylabel('Position [m]')
-axs[0].set_xticks(np.linspace(0, 2*np.pi, 5))
-axs[0].set_xticklabels(['0', 'π/2', 'π', '3π/2', '2π'])
+plt.subplot(1, 2, 1)
+plt.plot(array_angle, array_pos, label='Position [m]')
+plt.xlabel('Crank Angle [rad]')
+plt.ylabel('Position [m]')
+plt.xticks(np.arange(0, 2 * np.pi + 1, np.pi / 2), ['0', 'π/2', 'π', '3π/2', '2π'])
+plt.legend()
 
 # Second subplot: Plot speed [m/s] versus the crank angle [rad]
-axs[1].plot(array_angle, array_speed)
-axs[1].set_xlabel('Crank Angle [rad]')
-axs[1].set_ylabel('Speed [m/s]')
-axs[1].set_xticks(np.linspace(0, 2*np.pi, 5))
-axs[1].set_xticklabels(['0', 'π/2', 'π', '3π/2', '2π'])
+plt.subplot(1, 2, 2)
+plt.plot(array_angle, array_speed, label='Speed [m/s]')
+plt.xlabel('Crank Angle [rad]')
+plt.ylabel('Speed [m/s]')
+plt.xticks(np.arange(0, 2 * np.pi + 1, np.pi / 2), ['0', 'π/2', 'π', '3π/2', '2π'])
+plt.legend()
 
+plt.tight_layout()
 plt.show()

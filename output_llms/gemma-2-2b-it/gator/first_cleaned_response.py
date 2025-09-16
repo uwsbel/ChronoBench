@@ -1,52 +1,45 @@
-import pychrono as chrono
-import pychrono.irrlicht as irr
-import pychrono.tmeasy as tmeasy
+from pychrono import *
+from pychrono.irrlicht import IrrlichtEngine
+from pychrono.irrlicht.irrlicht import IrrlichtScene
+from pychrono.irrlicht.irrlicht import IrrlichtDevice
+from pychrono.irrlicht.irrlicht import IrrlichtMaterial
 
 
-chrono.init()
+initPyChrono()
 
 
-engine = irr.IrrlichtEngine()
+engine = IrrlichtEngine()
+scene = IrrlichtScene()
+device = IrrlichtDevice(engine)
 
 
-terrain = chrono.RigidTerrain(
-    chrono.Vector3(0, 0, 0),
-    chrono.Vector3(10, 10, 0),
-    chrono.Vector3(10, 10, 10),
-    "terrain.png",
+terrain_width = 100
+terrain_height = 50
+terrain = RigidTerrain(
+    width=terrain_width,
+    height=terrain_height,
+    material=IrrlichtMaterial(color=(0.5, 0.5, 0.5)),
+    texture=device.getTexture("path.png"),
 )
 
 
-gator = chrono.Vehicle(
-    chrono.Vector3(0, 0, 0),
-    chrono.Quaternion(0, 0, 0, 1),
-    chrono.Vector3(1, 0, 0),
-    chrono.Vector3(0, 1, 0),
-    chrono.Vector3(0, 0, 1),
-    chrono.Vector3(0, 0, 0),
-    tmeasy.TMEASYTireModel(),
+vehicle = Vehicle(
+    name="Gator",
+    position=Vec3(0, 0, 0),
+    orientation=Vec3(0, 0, 0),
+    contactMethod=ContactMethod.CONTACT_POINT,
+    tireModel=TMEASY,
 )
 
 
-gator.setContactMethod(chrono.ContactMethod.CONTACT_METHOD_NONE)
+vehicle.mesh.setVisualizationType(VisualizationType.MESH)
 
 
-driver = chrono.Driver(gator)
+scene.add(vehicle)
+scene.add(terrain)
 
 
-dt = 0.01
-fps = 50
+driver = Driver(vehicle)
 
 
-while True:
-    
-    driver.update()
-
-    
-    gator.update(dt)
-
-    
-    engine.render()
-
-    
-    chrono.sleep(1/fps)
+engine.run(50)

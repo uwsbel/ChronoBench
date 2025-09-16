@@ -1,773 +1,133 @@
-import math
+import math as m
+import pychrono as chrono
+import pychrono.fea as fea
+import pychrono.pardisomkl as mkl
+import pychrono.irrlicht as chronoirr
 
-import pychrono
+sys = chrono.ChSystemSMC()
 
-import pychrono
+mesh = fea.ChMesh()
+sys.Add(mesh)
 
-import pychrono
+mesh.SetAutomaticGravity(True,
+                         2)  
+sys.SetGravitationalAcceleration(chrono.ChVector3d(0, -3.71, 0))  
 
-import pychro
+beam_L = 10  
+beam_ro = 0.060  
+beam_ri = 0.055  
+CH_PI = 3.1456
 
-from pychro
 
-import pych
 
-import pychro
 
-import pychro
+minertia = fea.ChInertiaCosseratSimple()
+minertia.SetDensity(7800);
+minertia.SetArea(CH_PI * (pow(beam_ro, 2) - pow(beam_ri, 2)));
+minertia.SetIyy((CH_PI / 4.0) * (pow(beam_ro, 4) - pow(beam_ri, 4)));
+minertia.SetIzz((CH_PI / 4.0) * (pow(beam_ro, 4) - pow(beam_ri, 4)));
 
-import pychro
+melasticity = fea.ChElasticityCosseratSimple()
+melasticity.SetYoungModulus(210e9)
+melasticity.SetShearModulusFromPoisson(0.3)
+melasticity.SetIyy((CH_PI / 4.0) * (pow(beam_ro, 4) - pow(beam_ri, 4)))
+melasticity.SetIzz((CH_PI / 4.0) * (pow(beam_ro, 4) - pow(beam_ri, 4)))
+melasticity.SetJ((CH_PI / 2.0) * (pow(beam_ro, 4) - pow(beam_ri, 4)))
 
-import pychro
+msection = fea.ChBeamSectionCosserat(minertia, melasticity)
 
-import pych
+msection.SetCircular(True)
+msection.SetDrawCircularRadius(beam_ro)  
 
-import pychro
 
-import pychro
 
-import pychor
 
-import pychro
+builder = fea.ChBuilderBeamIGA()
+builder.BuildBeam(mesh,  
+                  msection,  
+                  20,  
+                  chrono.ChVector3d(0, 0, 0),  
+                  chrono.ChVector3d(beam_L, 0, 0),  
+                  chrono.VECT_Y,  
+                  1)  
 
-import pychro
+node_mid = builder.GetLastBeamNodes()[m.floor(builder.GetLastBeamNodes().size() / 2.0)]
 
-import pychro
 
-import pychorochron
 
-import pychro
-
-import pychro
-
-import pychro
-
-import pych
-
-import pychro
-
-
-
-
-import pychro
-
-import pychro
-
-import pych
-
-import pych
-
-import pych
-
-import pych
-
-
-import pych
-
-
-import pych
-
-import pychro
-
-import pych
-
-
-
-new
-
-import pych
-
-
-
-
-
-
-
-
-
-
-
-
-
-import pychrono
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-from
-
-
-
-
-
-
-   
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-s the given pychron
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-   0py
-
-
-
-   
-
-
-
-
-
-
-
-
-
-
-   
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-   co/1py.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-   
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
- 
-
-
-
-
-
-
- 4
-
-
-
-
-
-
-
-21
-
-
-   14.
-
-
-
-
-
-4,
-m000.py15
-
-   20.
-
-0.
-
-
-
-
-
-
-
-
-
-
-
-
-
-   4
-
-
-
-   1
-
-
-
-
-
-  4.
-
-
-
-
-   0:08.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
- 
-
- 20,00,0:
-20.
-
-
-
-00000000,0, *
-
-
-   1,0010.
-  10.0.0,
-
-
-
-1.
-    1000.
-
-
-120009.
-
-  
-
-
-2.
-4.
-   4,000,04,
-
-
-  20,
-
-
-
-
-  
-
-  
-  1111,
-
-1,
-
-
-
-
-
-  2,0,050,00,8.2,2,000,04,002000,1,0,0222,20,1,1,0,5,0,1,04,0,0,0,0,0,0,0,0,
-
-
-
-  4, 
-
- 
-
-
-
-
-
- 
-   5.
-
-
-
-
- 
-
-
-
-
-
-
-4,4.0,0,0.00,4,0,0,00,0,0,0,0,0,2,0,0,4,0,2,20.04,0,10.0,0,14.0,0,0.0,0,200,00,12,14400014,
-,2,44,0:00,00,000,202004,12, 
-44,4,0.1.
-
-4.40,0204,0,044.4,1,4.10000.0444.0,0.0.0,4, 20.4.4,4.00, 4.
-4.
-,00,0.000000004.4e,0004.4, 4,0,
-4.0000,0.0.
-2,0.
-
-4.00, 20
-5.0.4,0.
-
-4,0.
-4.
-
-
-
-
-
-
-
-
-
-
-
-
-
-4.0,
-
-4,0040,
-
+mbodyflywheel = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, 0.30, 0.1, 7800)  
+mbodyflywheel.SetCoordsys(
+    chrono.ChCoordsysd(node_mid.GetPos() + chrono.ChVector3d(0, 0.05, 0),  
+                       chrono.QuatFromAngleAxis(CH_PI / 2.0, chrono.VECT_Z))
+    
 )
-,
+sys.Add(mbodyflywheel)
+
+myjoint = chrono.ChLinkMateFix()
+myjoint.Initialize(node_mid, mbodyflywheel)
+sys.Add(myjoint)
+
+
+truss = chrono.ChBody()
+truss.SetFixed(True)
+sys.Add(truss)
+
+
+bearing = chrono.ChLinkMateGeneric(False, True, True, False, True, True)
+bearing.Initialize(builder.GetLastBeamNodes().back(),
+                   truss,
+                   chrono.ChFramed(builder.GetLastBeamNodes().back().GetPos())
+                   )
+sys.Add(bearing)
+
+
+rotmotor1 = chrono.ChLinkMotorRotationSpeed()
+
+
+rotmotor1.Initialize(builder.GetLastBeamNodes().front(),  
+                     truss,  
+                     chrono.ChFramed(builder.GetLastBeamNodes().front().GetPos(),
+                                     chrono.QuatFromAngleAxis(CH_PI / 2.0, chrono.VECT_Y))
+                     
+                     )
+sys.Add(rotmotor1)
+
+f_ramp = chrono.ChFunctionSine(60, 0.1)  
+rotmotor1.SetMotorFunction(f_ramp)
 
 
 
-14,
+mvisualizebeamA = chrono.ChVisualShapeFEA(mesh)
+mvisualizebeamA.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_SURFACE)
+mvisualizebeamA.SetSmoothFaces(True)
+mesh.AddVisualShapeFEA(mvisualizebeamA)
+
+mvisualizebeamC = chrono.ChVisualShapeFEA(mesh)
+mvisualizebeamC.SetFEMglyphType(chrono.ChVisualShapeFEA.GlyphType_NODE_CSYS)
+mvisualizebeamC.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NONE)
+mvisualizebeamC.SetSymbolsThickness(0.006)
+mvisualizebeamC.SetSymbolsScale(0.01)
+mvisualizebeamC.SetZbufferHide(False)
+mesh.AddVisualShapeFEA(mvisualizebeamC)
 
 
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(sys)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle('Test FEA: the Jeffcott rotor with IGA beams')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVector3d(0, 2, 8))  
+vis.AddTypicalLights()
 
+msolver = mkl.ChSolverPardisoMKL()
+sys.SetSolver(msolver)
 
+sys.DoStaticLinear()
 
-
-
-,
-,
-,0,
-,
-,0,0,4, 
-
-
-
-
-
-
-2,0,0,00000,
-
-4,4,
-
-,0,0,
-,
-,
-0,
-,0,0,0,
-,0,0,0,0,4,00,00,0.
-4,
-,
-,
-,
-,
-, 
-,2, 2 *0004,
-2,0,
-4,00000000000, 000.0,
-4,0.04,0,0,0,0,4000
-0, 
-04,0000.0000.0
-2.
-000004)
-20.0.
-,4.
-0200,4
-0,000000,0
-,0,0,0,0.30
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    sys.DoStepDynamics(0.002)

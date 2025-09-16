@@ -1,64 +1,45 @@
 import chrono
-from chrono import ChBody, ChSystem, ChBeamSection, ChLinkMate, ChLinkLockRevolute
+from chrono import ChBody, ChSystem, ChBeam, ChLinkMotorRotation, ChLinkDirConnection, ChLinkEngine
 from chrono.irrlicht import ChIrrApp
 
 
 my_system = ChSystem()
 
 
-my_system.set_gravity(chrono.ChVectorD(0, -9.81, 0))
+beam1 = ChBeam()
+beam1.SetFixedBase(True)
+beam1.SetBodyFixed(True)
+beam1.SetMesh("path/to/your/beam1_mesh.obj")
+beam1.SetCollide(True)
+my_system.AddBody(beam1)
+
+beam2 = ChBeam()
+beam2.SetMesh("path/to/your/beam2_mesh.obj")
+beam2.SetCollide(True)
+my_system.AddBody(beam2)
 
 
-beam_section = ChBeamSection()
-beam_section.Set(0.1, 0.1, 0.01)  
-beam_young_modulus = 210e9  
-beam_density = 7800  
-beam_material = chrono.ChMaterialSurfaceNSC()
-beam_material.SetYoungModulus(beam_young_modulus)
-beam_material.SetFriction(0.3)
+beam1.SetPos(chrono.ChVectorD(0, 0, 0))
+beam2.SetPos(chrono.ChVectorD(2, 0, 0))
 
 
-beam_nodes = []
-beam_nodes.append(my_system.NewNodalPointBody(chrono.ChVectorD(0, 0, 0)))
-beam_nodes.append(my_system.NewNodalPointBody(chrono.ChVectorD(1, 0, 0)))
-beam_nodes.append(my_system.NewNodalPointBody(chrono.ChVectorD(2, 0, 0)))
-beam_nodes.append(my_system.NewNodalPointBody(chrono.ChVectorD(3, 0, 0)))
-beam_nodes.append(my_system.NewNodalPointBody(chrono.ChVectorD(4, 0, 0)))
+motor = ChLinkMotorRotation()
+motor.Initialize(beam1, beam2, chrono.ChFrameD(chrono.ChVectorD(1, 0, 0)))
+my_system.AddLink(motor)
 
-beam_elements = []
-for i in range(len(beam_nodes) - 1):
-    beam_elements.append(my_system.NewBeam(beam_nodes[i], beam_nodes[i + 1], beam_section))
-    beam_elements[-1].SetMaterial(beam_material)
-    beam_elements[-1].SetFixedBase(True)
-    beam_elements[-1].SetVisualizationType(chrono.ChBeamVisualizationType.BAR)
+dir_conn = ChLinkDirConnection()
+dir_conn.Initialize(beam1, beam2, chrono.ChFrameD(chrono.ChVectorD(1, 0, 0)))
+my_system.AddLink(dir_conn)
 
 
-joint = ChLinkLockRevolute()
-joint.Initialize(beam_nodes[0], beam_nodes[-1], chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.Q_from_AngZ(chrono.CH_C_PI / 2)))
-my_system.Add(joint)
+my_application = ChIrrApp(my_system)
+my_application.AddLogo("path/to/your/logo.bmp")
+my_application.AddTypicalSky()
+my_application.AddCamera(chrono.ChVectorD(5, 5, 5), chrono.ChVectorD(0, 0, 0))
+my_application.SetTimestep(1e-3)
+my_application.SetTryRealtime(True)
 
-
-for node in beam_nodes:
-    node.SetPos(node.GetPos())
-    node.SetWvel(chrono.ChVectorD(0, 0, 0))
-
-
-for element in beam_elements:
-    element.SetForce(chrono.ChVectorD(0, 0, 0))
-    element.SetTorque(chrono.ChVectorD(0, 0, 0))
-
-
-my_application = ChIrrApp(my_system, 'Beam_Simulation', 800, 600, False)
-my_application.AddTypicalLogo()
-my_application.AddTypicalSkyBox()
-my_application.AddTypicalCamera(chrono.ChVectorD(3, 3, 3))
-
-
-for node in beam_nodes:
-    my_application.AssetBrowser.AddAsset(node.GetChBody().GetCollisionModel(), 'mesh.obj')
-
-
-while my_application.GetDevice().Run():
-    my_system.DoStepDynamics(my_application.GetTimeStep())
+while (my_application.GetDevice().run()):
+    my_system.DoStepDynamics(my_application.GetTimestep())
     my_application.DrawAll()
-    my_application.GetDevice().Render()
+    my_application.DoStepGraphics()

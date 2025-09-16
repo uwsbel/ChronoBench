@@ -18,56 +18,17 @@ chassis_collision_type = veh.CollisionType_NONE
 
 
 
-scm_soil_params = veh.SCMSoilParams()
-scm_soil_params.SetDensity(1000.0)
-scm_soil_params.SetElasticModulus(1e6)
-scm_soil_params.SetPoissonRatio(0.3)
-scm_soil_params.SetFrictionCoefficient(0.6)
+soil_density = 1600  
+soil_friction = 0.6   
+soil_stiffness = 1000  
+soil_damping = 100    
 
 
-terrain_height_map = veh.ChHeightMap()
-terrain_height_map.SetFileName(chrono.GetChronoDataFile('terrain/height_map.txt'))
-terrain_height_map.Initialize()
+terrain = veh.ChSCMDeformableTerrain(vehicle.GetSystem())
+terrain.SetSoilParameters(soil_density, soil_friction, soil_stiffness, soil_damping)
 
 
-terrain = veh.SCMTerrain(vehicle.GetSystem(), scm_soil_params, terrain_height_map)
-
-
-trackPoint = chrono.ChVector3d(0.0, 0.0, 0.1)
-
-
-contact_method = chrono.ChContactMethod_SMC
-contact_vis = False
-
-
-step_size = 5e-4
-tire_step_size = step_size
-
-
-render_step_size = 1.0 / 50  
-
-
-
-vehicle = veh.M113()
-vehicle.SetContactMethod(contact_method)
-vehicle.SetTrackShoeType(veh.TrackShoeType_SINGLE_PIN)
-vehicle.SetDrivelineType(veh.DrivelineTypeTV_BDS)
-vehicle.SetEngineType(veh.EngineModelType_SHAFTS)
-vehicle.SetTransmissionType(veh.TransmissionModelType_AUTOMATIC_SHAFTS)
-vehicle.SetBrakeType(veh.BrakeType_SIMPLE)
-
-vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
-vehicle.Initialize()
-
-vehicle.SetChassisVisualizationType(vis_type)
-vehicle.SetSprocketVisualizationType(vis_type)
-vehicle.SetIdlerVisualizationType(vis_type)
-vehicle.SetIdlerWheelVisualizationType(vis_type)
-vehicle.SetSuspensionVisualizationType(vis_type)
-vehicle.SetRoadWheelVisualizationType(vis_type)
-vehicle.SetTrackShoeVisualizationType(vis_type)
-
-vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 200, 200)
 
 
 
@@ -82,7 +43,6 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 
-
 driver = veh.ChInteractiveDriverIRR(vis)
 
 
@@ -92,7 +52,7 @@ braking_time = 0.3
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
-
+driver.SetThrottle(0.8)  
 driver.Initialize()
 
 
@@ -117,10 +77,6 @@ while vis.Run() :
         vis.Render()
         vis.EndScene()
         render_frame += 1
-
-    
-    driver_inputs = driver.GetInputs()
-    driver_inputs.SetThrottle(0.8)
 
     
     driver_inputs = driver.GetInputs()

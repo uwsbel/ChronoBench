@@ -1,76 +1,64 @@
 import pychrono
 import pychrono.core as pc
-import pychrono.scenes as sc
-import irlicht as lr
+import pychrono.visual as v
 import numpy as np
+import matplotlib.pyplot as plt
+from pychrono.visual import Scene
+from pychrono.visual.mesh import Mesh
 
 # --- Simulation Parameters ---
-vehicle_id = 1  # Unique identifier for the vehicle
-vehicle_type = "HMMWV"
-terrain_type = "SCM"
-terrain_parameters = {
-    "soil_density": 0.8,  # Adjust for desired sinking rate
-    "soil_friction": 0.5,
-    "soil_slope": 0.01, # Adjust for slope
-    "soil_color": "gray"
-}
-simulation_time = 60  # Simulation duration in seconds
-frame_rate = 50
+vehicle_id = 1
+terrain_height = 1.0  # meters
+terrain_slope = 0.01 # meters per second^2
+terrain_density = 0.5 # Density of soil patches
+terrain_patch_size = 1.0 # Size of the terrain patch
+vehicle_speed = 1.0 # m/s
+simulation_rate = 50.0 # Frames per second
 
-# --- Vehicle Setup ---
-vehicle = pc.Vehicle(
-    vehicle_id,
-    vehicle_type,
-    vehicle_parameters=pc.VehicleParameters(
-        terrain=terrain_parameters,
-        tire_model="rigid",
-        max_speed=5, # Adjust speed as needed
-        max_acceleration=1,
-        max_deceleration=0.5
-    ),
-    collision_threshold=0.1 # Adjust for collision detection sensitivity
+# --- SCM Terrain Setup ---
+terrain_data = np.zeros((terrain_height, 10), dtype=np.float32)
+terrain_data[0:5, 0] = 0.0  # Start with a flat ground
+terrain_data[5:10, 0] = 0.0  # Slightly slope down
+
+# --- Vehicle Parameters ---
+vehicle_x = 0.0
+vehicle_y = 0.0
+vehicle_z = 0.0
+vehicle_orientation = 0.0
+vehicle_radius = 0.2
+vehicle_mass = 100.0
+vehicle_type = "HMMWV"
+
+# --- Initial Terrain Setup ---
+terrain_patch = v.Patch(
+    v.Color(0.5, 0.5, 0.5),
+    v.Mesh(
+        v.Plane(
+            v.Vector(0, 0),
+            v.Vector(vehicle_radius, vehicle_radius)
+        ),
+        v.Texture(
+            v.Color(0.8, 0.8, 0.8),
+            v.Uniform(0.0, 1.0, 0.0)
+        )
+    )
 )
 
-# --- Terrain Setup ---
-terrain = sc.Terrain(
-    terrain_id=1,
-    terrain_type=terrain_type,
-    terrain_parameters=terrain_parameters,
-    # Add a simple "moving patch" feature - this is a placeholder - a more complex system would be needed for realistic terrain movement
-    # This is a placeholder to demonstrate the concept.  A real implementation would involve a
-    #  terrain patch system.
-    # For now, just a simple, static patch.
-    #  Consider using a more sophisticated method for terrain movement (e.g., a moving mesh).
-    #  For example, you could use a separate patch object and position it on the terrain.
+# --- PyChrono Setup ---
+scene = Scene(
+    vehicle_id,
+    terrain_data,
+    vehicle_type,
+    terrain_patch,
+    vehicle_x,
+    vehicle_y,
+    vehicle_z,
+    vehicle_orientation,
+    vehicle_radius,
+    simulation_rate,
+    v.Color(0.5, 0.5, 0.5)
 )
 
 # --- Visualization ---
-lr.Scene(
-    scene_id=1,
-    vehicle=vehicle,
-    terrain=terrain,
-    # Add a simple background color for better visualization
-    background_color="white",
-    # Set up a simple camera (adjust position and rotation as needed)
-    camera_position=(0, 0, 5),
-    camera_rotation=(np.pi / 2, 0, 0)
-)
-
-
-# --- Main Simulation Loop ---
-print("Starting simulation...")
-simulation_loop = pc.SimulationLoop(
-    simulation_time,
-    frame_rate,
-    vehicle
-)
-
-simulation_loop.start()
-
-# ---  Optional:  Add a simple event loop for monitoring and control ---
-#  This is just a placeholder - you'd want a more robust event loop for real-time control.
-#  The current loop simply updates the vehicle's position and orientation.
-#  A more sophisticated system would use events to control steering, throttle, and braking.
-#  This is a minimal example.
-
-print("Simulation finished.")
+v.draw(scene)
+v.show(scene)

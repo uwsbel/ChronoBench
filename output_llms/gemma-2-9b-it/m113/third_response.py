@@ -135,6 +135,12 @@ while vis.Run() :
     vis.Advance(step_size)
     # Increment frame number
     step_number += 1
-    
+
     # Hard-coded throttle value
-    driver_inputs.throttle = 0.8
+    driver_inputs.SetThrottle(0.8)
+
+# Create a long box
+   box = chrono.ChBoxShape(chrono.ChVector3d(10, 0.5, 2))  # Dimensions (length, width, height)
+   box_body = chrono.ChBodyEasy(100, box)  # Mass, shape
+   box_body.SetPos(chrono.ChVector3d(0, 0, 1))  # Position the box
+   vehicle.GetSystem().Add(box_body)

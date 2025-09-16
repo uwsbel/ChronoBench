@@ -20,9 +20,9 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 # Rigid terrain
-terrainHeight = 0      
-terrainLength = 100.0  
-terrainWidth = 100.0   
+terrainHeight = 0      # terrain height
+terrainLength = 100.0  # size in X direction
+terrainWidth = 100.0   # size in Y direction
 
 # Poon chassis tracked by the camera
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
@@ -68,7 +68,7 @@ patch = terrain.AddPatch(patch_mat,
     terrainLength, terrainWidth)
 
 # Change terrain texture to grass
-patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200) 
+patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
@@ -83,22 +83,37 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
-# Add point lights
-light1 = chrono.ChLightPoint(chrono.ChColor(1, 1, 1), 1000)
-light1.SetPos(chrono.ChVector3d(50, 50, 50))
-vis.AddLight(light1)
+# Create sensor manager
+sensor_manager = chrono.ChSensorManager()
+vehicle.GetSystem().AddSensor(sensor_manager)
 
-light2 = chrono.ChLightPoint(chrono.ChColor(1, 1, 1), 1000)
-light2.SetPos(chrono.ChVector3d(-50, -50, 50))
-vis.AddLight(light2)
+# Add point lights
+light1 = chrono.ChPointLight(chrono.ChColor(1, 1, 1), chrono.ChVector3d(5, 5, 5))
+light1.SetIntensity(0.5)
+vehicle.GetSystem().AddLight(light1)
+
+light2 = chrono.ChPointLight(chrono.ChColor(1, 1, 1), chrono.ChVector3d(-5, -5, 5))
+light2.SetIntensity(0.5)
+vehicle.GetSystem().AddLight(light2)
+
+# Add camera sensor
+camera = chrono.ChCamera()
+camera.SetResolution(1280, 720)
+camera.SetFieldOfView(90)
+camera.SetSensorType(chrono.ChCamera.SensorType_RGB)
+vehicle.GetChassisBody().AddSensor(camera)
+
+# Add visualization filter
+camera_filter = irr.ChCameraVisualizationFilter(camera)
+sensor_manager.AddFilter(camera_filter)
 
 # Create the driver system
 driver = veh.ChInteractiveDriverIRR(vis)
 
 # Set the time response for steering and throttle keyboard inputs.
-steering_time = 1.0  
-throttle_time = 1.0  
-braking_time = 0.3   
+steering_time = 1.0  # time to go from 0 to +1 (or from 0 to -1)
+throttle_time = 1.0  # time to go from 0 to +1
+braking_time = 0.3   # time to go from 0 to +1
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
@@ -115,23 +130,6 @@ render_steps = math.ceil(render_step_size / step_size)
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
-
-# Create sensor manager
-sensor_manager = veh.ChSensorManager()
-vehicle.GetVehicle().GetSensorManager()
-
-# Add camera sensor
-camera_sensor = veh.ChCameraSensor()
-camera_sensor.SetResolution(1280, 720)  
-camera_sensor.SetFieldOfView(chrono.deg2rad(60))  
-camera_sensor.SetPos(chrono.ChVector3d(0, 0, 1))  
-camera_sensor.SetTarget(chrono.ChVector3d(0, 0, 0))
-vehicle.GetVehicle().GetChassisBody().AddSensor(camera_sensor)
-
-# Add visualization filter
-camera_filter = irr.ChCameraVisualizationFilter()
-camera_filter.SetSensor(camera_sensor)
-vis.AddVisualizationFilter(camera_filter)
 
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
@@ -157,9 +155,6 @@ while vis.Run() :
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
-
-    # Update sensor manager
-    sensor_manager.Update(time)
 
     # Increment frame number
     step_number += 1

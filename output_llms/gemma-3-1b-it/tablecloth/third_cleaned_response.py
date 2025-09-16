@@ -121,14 +121,9 @@ if (True):
             melementB.AddLayer(thickness, 0 * chrono.CH_DEG_TO_RAD, material)
 
     
-    for j in range(30):
-        for k in range(30):
-            mynodes[j * (nsections_x + 1) + k].SetFixed(True)
-
-    
     mvisualizeshellA = chrono.ChVisualShapeFEA(mesh)
     
-    
+    mvisualizeshellA.SetWireframe(True)  
     mvisualizeshellA.SetShellResolution(2)  
     
     mesh.AddVisualShapeFEA(mvisualizeshellA)  
@@ -140,13 +135,24 @@ if (True):
     mvisualizeshellB.SetSymbolsThickness(0.006)  
     mesh.AddVisualShapeFEA(mvisualizeshellB)  
 
-    
-    mkl_solver = mkl.ChSolverPardisoMKL()  
-    mkl_solver.LockSparsityPattern(True)  
-    sys.SetSolver(mkl_solver)  
 
-    
-    timestep = 0.005
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(sys)  
+vis.SetWindowSize(1024, 768)  
+vis.SetWindowTitle('Shells FEA test: triangle BST elements')  
+vis.Initialize()  
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))  
+vis.AddSkyBox()  
+vis.AddCamera(chrono.ChVector3d(1, .3, 1.3), chrono.ChVector3d(.5, -.3, .5))  
+vis.AddTypicalLights()  
+
+
+mkl_solver = mkl.ChSolverPardisoMKL()  
+mkl_solver.LockSparsityPattern(True)  
+sys.SetSolver(mkl_solver)  
+
+
+timestep = 0.005
 
 
 sys.Setup()  

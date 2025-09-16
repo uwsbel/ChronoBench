@@ -1,79 +1,92 @@
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
-import pychrono.particlefactory as chrono_particlefactory
 import random
 
-# Initialize the PyChrono environment
-chrono.SetChronoDataPath("/path/to/chrono/data/")
+# 1. Initialize the PyChrono environment and core components.
+chrono.SetChronoDataPath("/path/to/chrono/data/")  # Update this path
 
-# Create a PyChrono system
+# 2. Create the system and add the required physical systems and objects.
 sys = chrono.ChSystemSMC()
+sys.Set_G_acc(chrono.ChVectorD(0, 0, 0))  # We'll handle gravity manually
 
-# Create a particle factory
-factory = chrono_particlefactory.ChParticleFactory()
+# Create a particle container
+particle_container = chrono.ChBody()
+particle_container.SetBodyFixed(True)
+sys.Add(particle_container)
 
-# Create a particle emitter
-emitter = chrono_particlefactory.ChParticleEmitter()
+# 3. Implement a particle emitter.
+class ParticleEmitter:
+    def __init__(self, system):
+        self.system = system
 
-# Set the particle factory's particle type to be random
-factory.SetParticleCreator(chrono_particlefactory.ChRandomParticleCreator(
-    chrono_particlefactory.ChRandomShapeCreator(
-        chrono_particlefactory.ChRandomParticleCreator.ParticleType(chrono_particlefactory.ChRandomParticleCreator.ParticleType_SPHERE, 
-                                                                    chrono_particlefactory.ChRandomParticleCreator.ParticleType_BOX, 
-                                                                    chrono_particlefactory.ChRandomParticleCreator.ParticleType_ELLIPSOID),
-        [0.4, 0.2, 0.1],  # scale
-        chrono.ChVector3(0.2, 0.2, 0.2),  # min size
-        chrono.ChVector3(0.5, 0.5, 0.5)   # max size
-    ),
-    chrono_particlefactory.ChRandomPositionCreator(
-        chrono.ChCoordsys(chrono.ChVector3(0, 0, 0), chrono.QUNIT),
-        chrono.ChCoordsys(chrono.ChVector3(1, 1, 1), chrono.QUNIT)
-    ),
-    chrono_particlefactory.ChRandomVelocityCreator(
-        chrono.ChVector3(-0.5, -0.5, -0.5),
-        chrono.ChVector3(0.5, 0.5, 0.5)
-    )
-))
+    def EmitParticle(self):
+        # Random shape (sphere or cube)
+        if random.random() < 0.5:
+            shape = chrono.ChSphereShape()
+            shape.GetSphereGeometry().rad = random.uniform(0.1, 0.5)
+        else:
+            shape = chrono.ChBoxShape()
+            shape.GetBoxGeometry().Size = chrono.ChVectorD(random.uniform(0.1, 0.5), random.uniform(0.1, 0.5), random.uniform(0.1, 0.5))
 
-# Set the emitter's particle factory
-emitter.SetParticleFactory(factory)
+        body = chrono.ChBody()
+        body.SetMass(1)
+        body.SetInertiaXX(chrono.ChVectorD(1, 1, 1))
+        body.SetPos(chrono.ChVectorD(random.uniform(-5, 5), random.uniform(-5, 5), random.uniform(-5, 5)))
+        body.SetPos_dt(chrono.ChVectorD(random.uniform(-1, 1), random.uniform(-1, 1), random.uniform(-1, 1)))
+        body.SetRot(chrono.Q_from_Euler123(chrono.ChVectorD(random.uniform(-chrono.CH_C_PI, chrono.CH_C_PI), random.uniform(-chrono.CH_C_PI, chrono.CH_C_PI), random.uniform(-chrono.CH_C_PI, chrono.CH_C_PI))))
+        body.AddAsset(shape)
 
-# Add the emitter to the system
-sys.Add(emitter)
+        self.system.Add(body)
 
-# Create a custom gravitational force
-class CustomGravity(chrono.ChForce):
-    def __init__(self):
-        super().__init__()
+        return body
 
-    def Update(self, time):
-        for body in sys.Get_bodylist():
-            if isinstance(body, chrono.ChBody):
-                # Apply a gravitational force towards the origin
-                force = -body.GetPos() * 0.1
-                body.AddForce(force)
+emitter = ParticleEmitter(sys)
 
-# Create an instance of the custom gravitational force
-custom_gravity = CustomGravity()
+# Create a few initial particles
+for _ in range(10):
+    emitter.EmitParticle()
 
-# Add the custom gravitational force to the system
-sys.AddForce(custom_gravity)
+# 4. Set necessary default parameters such as positions, forces, and interactions.
+def ApplyCustomGravity(sys):
+    bodies = sys.Get_bodylist()
+    for i in range(len(bodies)):
+        for j in range(i+1, len(bodies)):
+            body_i = bodies[i]
+            body_j = bodies[j]
+            dist_vec = body_j.GetPos() - body_i.GetPos()
+            dist = dist_vec.Length()
+            if dist > 0:
+                force = 0.1 * body_i.GetMass() * body_j.GetMass() / (dist * dist)
+                force_vec = dist_vec * (force / dist)
+                body_i.AddForce(force_vec)
+                body_j.AddForce(-force_vec)
 
-# Create an Irrlicht application
+# 5. Visualize the simulation using Irrlicht.
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(sys)
 vis.SetWindowSize(1024, 768)
-vis.SetWindowTitle('Particle Emitter Simulation')
+vis.SetWindowTitle('Particle Gravity Simulation')
 vis.Initialize()
-vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddLogo(chrono.GetChronoDataPath() + 'logo_pychrono_alpha.png')
 vis.AddSkyBox()
-vis.AddCamera(chrono.ChVector3(0, 2, -4))
+vis.AddCamera(chrono.ChVectorD(0, 0, -10))
 vis.AddTypicalLights()
 
 # Simulation loop
 while vis.Run():
     vis.BeginScene()
     vis.Render()
-    vis.EndScene()
+    
+    # Emit a new particle occasionally
+    if random.random() < 0.05:
+        emitter.EmitParticle()
+    
+    # Apply custom gravity
+    ApplyCustomGravity(sys)
+    
+    # Step the simulation
     sys.DoStepDynamics(0.01)
-    emitter.EmitParticles(0.01)
+    
+    vis.EndScene()
+
+# No code is needed outside the triple backticks.

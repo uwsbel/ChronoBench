@@ -136,12 +136,9 @@ def main():
 
         # Update sensors and ROS data.
         sens_manager.Update()
-
-        sys.DoStepDynamics(time_step)  # Advance the simulation by one time step.
-
-        # Check for ROS manager update status and exit the loop if the update fails
-        if not ros_manager.Update():
+        if not ros_manager.Update():  # Check ROS manager update status
             break
+        sys.DoStepDynamics(time_step)  # Advance the simulation by one time step.
 
 if __name__ == "__main__":
     main()

@@ -1,5 +1,3 @@
-Here's the corrected and modified PyChrono script based on the given instructions:
-
 ```python
 import math as m
 import pychrono as chrono
@@ -7,7 +5,7 @@ import pychrono.fea as fea
 import pychrono.pardisomkl as mkl
 import pychrono.irrlicht as chronoirr
 
-# Define the custom motor function class
+# Define a custom motor function class
 class ChFunctionMyFun(chrono.ChFunction):
     def __init__(self, A1, A2, T1, T2, T3, w):
         self.A1 = A1
@@ -21,26 +19,28 @@ class ChFunctionMyFun(chrono.ChFunction):
         if x < self.T1:
             return self.A1 * m.sin(self.w * x)
         elif x < self.T2:
-            return self.A2 * m.sin(self.w * (x - self.T1))
+            return self.A2 * m.sin(self.w * (x - self.T1) + m.pi/2)
         else:
             return self.A1 * m.sin(self.w * (x - self.T2))
 
-# Initialize the system and add the mesh
+# Set up the simulation system
 sys = chrono.ChSystemSMC()
+
+# Add a mesh to the system
 mesh = fea.ChMesh()
 sys.Add(mesh)
 
-# Set gravity and automatic gravity for FE
-sys.SetAutomaticGravity(True, 2)
+# Set automatic gravity and gravitational acceleration
+mesh.SetAutomaticGravity(True, 2)
 sys.SetGravitationalAcceleration(chrono.ChVector3d(0, -9.81, 0))
 
-# Beam parameters
+# Define beam parameters
 beam_L = 6
 beam_ro = 0.050
 beam_ri = 0.045
 CH_PI = 3.14159
 
-# Create section, inertia, and elasticity properties for beams
+# Create a section for beams
 minertia = fea.ChInertiaCosseratSimple()
 minertia.SetDensity(7800)
 minertia.SetArea(CH_PI * (pow(beam_ro, 2) - pow(beam_ri, 2)))
@@ -58,18 +58,16 @@ msection = fea.ChBeamSectionCosserat(minertia, melasticity)
 msection.SetCircular(True)
 msection.SetDrawCircularRadius(beam_ro)
 
-# Build the beam using IGA
+# Build a straight rod using IGA
 builder = fea.ChBuilderBeamIGA()
 builder.BuildBeam(mesh, msection, 20, chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(beam_L, 0, 0), chrono.VECT_Y, 1)
 
+# Get the middle node of the beam
 node_mid = builder.GetLastBeamNodes()[m.floor(builder.GetLastBeamNodes().size() / 2.0)]
 
 # Create and attach the flywheel to the beam
 mbodyflywheel = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, 0.24, 0.1, 7800)
-mbodyflywheel.SetCoordsys(
-    chrono.ChCoordsysd(node_mid.GetPos() + chrono.ChVector3d(0, 0.05, 0),
-                       chrono.QuatFromAngleAxis(CH_PI / 2.0, chrono.VECT_Z))
-)
+mbodyflywheel.SetCoordsys(chrono.ChCoordsysd(node_mid.GetPos() + chrono.ChVector3d(0, 0.05, 0), chrono.QuatFromAngleAxis(CH_PI / 2.0, chrono.VECT_Z)))
 sys.Add(mbodyflywheel)
 
 myjoint = chrono.ChLinkMateFix()
@@ -85,16 +83,16 @@ bearing = chrono.ChLinkMateGeneric(False, True, True, False, True, True)
 bearing.Initialize(builder.GetLastBeamNodes().back(), truss, chrono.ChFramed(builder.GetLastBeamNodes().back().GetPos()))
 sys.Add(bearing)
 
-# Create the motor with the custom function
+# Create the motor that rotates the beam using the custom motor function
 rotmotor1 = chrono.ChLinkMotorRotationSpeed()
 rotmotor1.Initialize(builder.GetLastBeamNodes().front(), truss, chrono.ChFramed(builder.GetLastBeamNodes().front().GetPos(), chrono.QuatFromAngleAxis(CH_PI / 2.0, chrono.VECT_Y)))
 sys.Add(rotmotor1)
 
 # Set the custom motor function
-f_myfun = ChFunctionMyFun(1, 2, 1, 2, 3, 40)
-rotmotor1.SetMotorFunction(f_myfun)
+f_ramp = ChFunctionMyFun(A1=1, A2=0.5, T1=1, T2=2, T3=3, w=40)
+rotmotor1.SetMotorFunction(f_ramp)
 
-# Add visualizations for the FEM mesh
+# Visualize the FEM mesh
 mvisualizebeamA = chrono.ChVisualShapeFEA(mesh)
 mvisualizebeamA.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_SURFACE)
 mvisualizebeamA.SetSmoothFaces(True)
@@ -108,7 +106,7 @@ mvisualizebeamC.SetSymbolsScale(0.01)
 mvisualizebeamC.SetZbufferHide(False)
 mesh.AddVisualShapeFEA(mvisualizebeamC)
 
-# Create the Irrlicht visualization
+# Set up the Irrlicht visualization
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(sys)
 vis.SetWindowSize(1024, 768)
@@ -119,20 +117,18 @@ vis.AddSkyBox()
 vis.AddCamera(chrono.ChVector3d(0, 1, 4), chrono.ChVector3d(beam_L / 2, 0, 0))
 vis.AddTypicalLights()
 
-# Set the solver and perform static linear analysis
+# Set up the solver and timestepper
 msolver = mkl.ChSolverPardisoMKL()
 sys.SetSolver(msolver)
+
+# Uncomment the following line for a more precise HHT timestepper
+# sys.SetTimestepper(chrono.ChTimestepperHHT())
+
 sys.DoStaticLinear()
 
-# Set up a more precise HHT timestepper (uncomment the following line if needed)
-# sys.SetTimestepperType(chrono.ChTimestepper.HHT)
-
-# Simulation loop
 while vis.Run():
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
     sys.DoStepDynamics(0.002)
 ```
-
-This script includes the custom `ChFunctionMyFun` class for the motor function, as well as the requested visualizations and additional settings. I've also corrected some minor issues in the original script, such as inconsistent variable names and incorrect method calls.

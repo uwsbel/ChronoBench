@@ -1,67 +1,48 @@
 import pychrono
 import irlayout
 import numpy as np
-import time
+from pychrono.simulation import Simulation
+from pychrono.simulation.vehicle import Vehicle
+from pychrono.simulation.camera import Camera
+from pychrono.simulation.rigid_terrain import RigidTerrain
+from pychrono.simulation.physics import Physics
 
 
-simulation_duration = 50  
-frames_per_second = 50
-time_step = 0.01  
-gravity = 9.81
-vehicle_mass = 1000  
-tire_radius = 0.2  
-vehicle_position = np.array([0.0, 0.0, 0.0])  
-vehicle_orientation = np.array([0.0, 0.0, 0.0])  
-vehicle_model = "simple_tire"  
+simulation_name = "CityBusSimulation"
+simulation_time = 50  
+frame_rate = 50
+vehicle_name = "CityBus"
+vehicle_position = [0, 0, 5]  
+vehicle_orientation = [0, 0, 0]  
+tire_model = "Standard"  
+terrain_texture = "grass_terrain.png"  
 
 
-pychrono.init()
+terrain = RigidTerrain(texture=terrain_texture,
+                       scale=10)
 
 
-terrain = irlayout.Ir রহমান()
-terrain.set_width(100)
-terrain.set_height(100)
-terrain.set_color("lightgray")
-terrain.set_texture("texture_road")  
-terrain.set_thickness(1)
+vehicle = Vehicle(name=vehicle_name,
+                 position=vehicle_position,
+                 orientation=vehicle_orientation,
+                 tire_model=tire_model)
 
 
-vehicle_mesh = pychrono.Mesh(
-    "vehicle_mesh",
-    "triangle",
-    "simple_tire",  
-    radius=tire_radius,
-    scale=1.0
-)
+camera = Camera(name=vehicle_name,
+                position=[0, 0, 0],
+                orientation=vehicle_orientation,
+                texture=None) 
 
 
-driver = pychrono.Driver(
-    "driver_system",
-    "rigid_terrain",
-    vehicle_mesh,
-    terrain,
-    vehicle_position,
-    vehicle_orientation,
-    vehicle_mass,
-    gravity,
-    time_step
-)
+physics = Physics(vehicle)
 
 
+simulation = Simulation(physics, vehicle)
 
-try:
-    while True:
-        
-        vehicle_position += vehicle_mass * time_step
-        vehicle_orientation += vehicle_mass * time_step * 0.5 
 
-        
-        driver.render()
+simulation.run()
 
-        
-        time.sleep(time_step)
 
-except KeyboardInterrupt:
-    print("Simulation stopped.")
-    driver.render() 
-    pychrono.end()
+simulation.save_simulation(simulation_name)
+
+print(f"Simulation complete.  Saved to {simulation_name}")

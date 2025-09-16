@@ -4,7 +4,6 @@ import pychrono.vehicle as veh
 import pychrono.sensor as sens
 import math
 import matplotlib.pyplot as plt
-import numpy as np
 
 
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
@@ -161,7 +160,7 @@ while vis.Run():
         gps_data.append([gps_coor[0], gps_coor[1], gps_coor[2]])
     
     driver.SetThrottle(0.6)
-    driver.SetSteering(0.6)
+    driver.SetSteering(0.5)
 
     
     driver.Synchronize(time)
@@ -188,8 +187,8 @@ while vis.Run():
 print("GPS Data: ", gps_data)
 
 
-gps_data = np.array(gps_data)
-plt.plot(gps_data[:, 0], gps_data[:, 1])
+plt.figure()
+plt.plot([x[0] for x in gps_data], [x[1] for x in gps_data])
 plt.xlabel('Latitude')
 plt.ylabel('Longitude')
 plt.title('GPS Trajectory')

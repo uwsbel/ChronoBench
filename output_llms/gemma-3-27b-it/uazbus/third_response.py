@@ -17,7 +17,7 @@ vis_type = veh.VisualizationType_MESH
 chassis_collision_type = veh.CollisionType_NONE
 
 # Type of tire model (RIGID, TMEASY)
-tire_model = veh.TireModelType_RIGID
+tire_model = veh.TireModelType_RIGID  # Changed to RIGID
 
 # Rigid terrain
 # terrain_model = veh.RigidTerrain.BOX
@@ -99,7 +99,7 @@ s = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-# Add obstacle
+# Add a box obstacle
 obstacle = chrono.ChBodyEasy()
 obstacle.SetBodyFixed(True)
 obstacle.SetShape(chrono.ChBoxShape())
@@ -108,7 +108,6 @@ obstacle.SetSize(chrono.ChVector3d(0.5, 5, 0.2))
 vehicle.GetSystem().Add(obstacle)
 obstacle.SetCollide(True)
 
-# Main simulation loop
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 

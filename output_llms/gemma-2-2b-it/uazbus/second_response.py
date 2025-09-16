@@ -50,7 +50,6 @@ vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 
-
 vehicle.Initialize()
 
 vehicle.SetChassisVisualizationType(vis_type)
@@ -136,5 +135,16 @@ while vis.Run() :
 
     # Increment frame number
     step_number += 1
+
+    # Add lane change logic
+    if step_number % 100 == 0:
+        # Simulate a lane change maneuver
+        # Example: 
+        # - Adjust steering input to initiate a turn towards the right
+        # - Gradually decrease throttle input
+        # - Adjust braking input based on speed and terrain conditions
+        # ...
+        print("Lane Change Initiated")
+    
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)

@@ -51,7 +51,7 @@ vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 
 
-vehicle.SetMaxMotorVoltageRatio(0.26)  
+vehicle.SetMaxMotorVoltageRatio(0.26) 
 vehicle.SetStallTorque(0.4)
 vehicle.SetTireRollingResistance(0.03)
 
@@ -85,7 +85,7 @@ vis.SetWindowTitle('dart')
 vis.SetWindowSize(1280, 1024)
 vis.SetChaseCamera(trackPoint, 6.0, 0.5)
 vis.Initialize()
-vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddLogo(chrono.GetChronoDataPath('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())

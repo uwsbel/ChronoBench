@@ -1,12 +1,13 @@
 import pychrono as chrono
-import pychrono_ros  
+import pychrono_ros as ros_chrono
+import rospy
 
 
-chrono.SetChronoData(chrono.ChSystemNSC)  
+rospy.init_node('pychrono_ros_example')
+
+
 system = chrono.ChSystemNSC()
-
-
-system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  
 
 
 material = chrono.ChMaterialSurfaceNSC()
@@ -15,39 +16,36 @@ material.SetRestitution(0.2)
 
 
 floor = chrono.ChBodyEasyBox(10, 10, 0.1, material)
-floor.SetPos(chrono.ChVectorD(0, 0, -0.1))
+floor.SetPos(chrono.ChVectorD(0, -0.5, 0))
 floor.SetBodyFixed(True)
 system.Add(floor)
 
 
 box = chrono.ChBodyEasyBox(1, 1, 1, material)
-box.SetPos(chrono.ChVectorD(0, 0, 1))
+box.SetPos(chrono.ChVectorD(0, 1, 0))
 system.Add(box)
 
 
-ros_manager = pychrono_ros.RosManager()
-ros_manager.SetChronoSystem(system)
+ros_manager = ros_chrono.RosManager(system)
 
 
-class MyRosHandler(pychrono_ros.RosHandler):
-    def __init__(self, topic_name):
-        super().__init__()
-        self.topic_name = topic_name
+class MyRosHandler(ros_chrono.RosBodyHandler):
+    def __init__(self, body):
+        super().__init__(body)
+        self.topic = rospy.Publisher('my_topic', rospy.Int32, queue_size=10)
 
-    def Update(self, time_step):
-        
-        message = {"data": int(time_step * 10)}  
-        self.publisher.publish(message)
+    def update(self):
+        self.topic.publish(int(self.body.GetPos().y))
 
 
-ros_manager.RegisterHandler(MyRosHandler("my_topic"))
+ros_manager.RegisterHandler(MyRosHandler(box))
 
 
-ros_manager.SetClockHandler(pychrono_ros.RosClockHandler())
-ros_manager.SetBodyHandler(pychrono_ros.RosBodyHandler())
-ros_manager.SetTransformHandler(pychrono_ros.RosTransformHandler())
+ros_manager.AddClockHandler()
+ros_manager.AddBodyHandler(box)
+ros_manager.AddTransformHandler(box)
 
 
-while True:
-    system.DoStepDynamics(0.01)  
-    ros_manager.Update()
+while not rospy.is_shutdown():
+    system.DoStepDynamics(chrono.ChTime(0.01))  
+    ros_manager.RosUpdate()

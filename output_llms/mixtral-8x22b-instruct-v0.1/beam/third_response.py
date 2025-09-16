@@ -3,7 +3,7 @@ import pychrono.fea as fea
 import pychrono.pardisomkl as mkl
 import pychrono.irrlicht as chronoirr
 
-print ("Example: PyChrono using  beam finite elements");
+print("Example: PyChrono using  beam finite elements");
 
 sys = chrono.ChSystemSMC()
 
@@ -77,10 +77,20 @@ constr_d.SetConstrainedCoords(False, True, True,     # x, y, z
                               False, False,False)    # Rx, Ry, Rz
 
 # Add another beam segment using `builder.BuildBeam()`.
+# Make sure this new beam segment uses the last node created by the previous beam as its starting point (`'A' node`)
+# and the point `(0.2, 0.1, -0.1)` as its endpoint (`'B' point`), with the 'Y' up direction as `(0, 1, 0)`.
+
 builder = fea.ChBuilderBeamEuler()
 
-# This new beam segment uses the last node created by the previous beam as its starting point (`'A' node`)
-# and the point `(0.2, 0.1, -0.1)` as its endpoint (`'B' point`), with the 'Y' up direction as `(0, 1, 0)`.
+# Build the first beam
+builder.BuildBeam(mesh,                   # the mesh where to put the created nodes and elements
+                    msection,                  # the ChBeamSectionEulerAdvanced to use for the ChElementBeamEuler elements
+                    5,                         # the number of ChElementBeamEuler to create
+                    chrono.ChVector3d(0, 0, -0.1),   # the 'A' point in space (beginning of beam)
+                    chrono.ChVector3d(0.2, 0, -0.1), # the 'B' point in space (end of beam)
+                    chrono.ChVector3d(0, 1, 0))      # the 'Y' up direction of the section for the beam
+
+# Build the second beam using the last node created by the previous beam as its starting point
 builder.BuildBeam(mesh,                   # the mesh where to put the created nodes and elements
                     msection,                  # the ChBeamSectionEulerAdvanced to use for the ChElementBeamEuler elements
                     5,                         # the number of ChElementBeamEuler to create

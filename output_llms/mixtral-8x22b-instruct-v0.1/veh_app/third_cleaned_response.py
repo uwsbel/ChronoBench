@@ -8,6 +8,8 @@ import os
 
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
+print(chrono.GetChronoDataPath() + 'vehicle/')
+
 
 initLoc = chrono.ChVector3d(0, -5, 0.4)
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
@@ -142,14 +144,26 @@ depth_cam = sens.ChDepthCameraSensor(
     gator.GetChassisBody(),              
     update_rate,            
     offset_pose,            
-    image_width,
-    image_height,
-    fov,
+    1280,     
+    720,       
+    1.408,         
     30,                  
+    sens.DepthCameraBeamShape_RECTANGULAR,  
+    0.003,       
+    0.003,       
+    sens.DepthCameraReturnMode_STRONGEST_RETURN             
 )
-depth_cam.SetName("Depth Camera")
+depth_cam.SetName("Depth Camera Sensor")
+depth_cam.SetLag(lag)
+depth_cam.SetCollectionWindow(1/update_rate)
 
-depth_cam.PushFilter(sens.ChFilterVisualizeDepthMap(image_width, image_height, "Depth Camera"))
+depth_cam.PushFilter(sens.ChFilterDIAccess())
+
+depth_cam.PushFilter(sens.ChFilterPCfromDepth())
+
+depth_cam.PushFilter(sens.ChFilterXYZIAccess())
+depth_cam.PushFilter(sens.ChFilterVisualizeDepthMap(640, 480, 1.0, "Depth Map"))
+
 manager.AddSensor(depth_cam)
 
 
@@ -188,7 +202,6 @@ manager.AddSensor(lidar)
 
 
 
-
 realtime_timer = chrono.ChRealtimeStepTimer()
 time = 0
 end_time = 30
@@ -208,8 +221,7 @@ while time < end_time:
     manager.Update()
 
     
-    print("Vehicle position: ", gator.GetVehicle().GetPos())
-    print("Vehicle heading: ", gator.GetVehicle().GetRot().GetEulerAngles())
+    print(f"Time: {time:.2f}, Position: {gator.GetVehicle().GetPos().x:.2f}, {gator.GetVehicle().GetPos().y:.2f}, {gator.GetVehicle().GetPos().z:.2f}, Heading: {gator.GetVehicle().GetRot().GetEuler1().z:.2f}")
 
     
     driver.Advance(step_size)

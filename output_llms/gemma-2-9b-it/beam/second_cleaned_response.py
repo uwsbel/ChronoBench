@@ -69,17 +69,14 @@ sys.Add(mtruss)
 builder = fea.ChBuilderBeamEuler()
 
 
-builder.SetMaterial(msection)
-builder.SetNumElements(5)
-builder.SetStartNode(chrono.ChVector3d(0, 0, -0.1))
-builder.SetEndNode(chrono.ChVector3d(0.2, 0, -0.1))
-builder.SetYUp(True)  
 
-
-beam = builder.BuildBeam()
-
-
-mesh.AddElement(beam)
+builder.BuildBeam(
+    start_node=chrono.ChVector3d(0, 0, -0.1),
+    end_node=chrono.ChVector3d(0.2, 0, -0.1),
+    section=msection,
+    num_elements=5,
+    y_up=True
+)
 
 
 builder.GetLastBeamNodes().back().SetFixed(True)
@@ -88,12 +85,17 @@ builder.GetLastBeamNodes().back().SetFixed(True)
 builder.GetFirstBeamNodes().front().SetForce(chrono.ChVector3d(0, -1, 0))
 
 
+mesh.AddBeam(builder.GetBeam())
 
-constr_bc = chrono.ChLinkMateGeneric()
-constr_bc.Initialize(hnode1, mtruss, False, hnode1.Frame(), hnode1.Frame())
-sys.Add(constr_bc)
-constr_bc.SetConstrainedCoords(True, True, True,  
-                            True, True, True)  
+
+
+constr_a = chrono.ChLinkMateGeneric()
+constr_a.Initialize(hnode1, mtruss, False, hnode1.Frame(), hnode1.Frame())
+sys.Add(constr_a)
+constr_a.SetConstrainedCoords(False, True, True,  
+                              False, False, False)  
+
+
 
 
 mesh.SetAutomaticGravity(False)
@@ -123,6 +125,4 @@ vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(sys)  
 vis.SetWindowSize(1024, 768)  
 vis.SetWindowTitle('FEA beams')  
-vis.Initialize()  
-vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))  
-vis.AddSkyBox()
+vis.Initialize()

@@ -1,63 +1,63 @@
 import pychrono as chrono
 import pychrono.visualization as vis
-import pychrono.sensor_manager as sensor_manager
-import numpy as np
+import pychrono.sensors as sensors
+import pychrono.core as core
 
 
-chrono.init()
+chrono.Init()
 
 
-scene = chrono.Scene()
+world = chrono.World()
 
 
 mesh_file = "your_mesh.obj"  
-mesh = chrono.Mesh.from_file(mesh_file)
+mesh = chrono.Mesh.LoadMesh(mesh_file)
 
 
-body = chrono.Body(mesh)
-body.set_mass(1.0)  
-body.set_inertia(chrono.Inertia(mesh.get_vertices(), mesh.get_faces()))
+mesh_body = chrono.Body(mesh)
+mesh_body.SetFixed()
 
 
-scene.add_body(body)
+lidar = sensors.Lidar()
+lidar_manager = sensors.SensorManager(lidar)
 
 
-lidar = sensor_manager.LidarSensor(
-    sensor_manager.LidarSensorType.LIDAR_TYPE_SCANNER,
+lidar_manager.SetNoiseFilter(sensors.GaussianFilter())
+lidar_manager.SetVisualization(vis.PointCloudVisualizer())
+lidar_manager.SetSaveOptions(sensors.SaveOptions(filename="lidar_data.csv"))
+
+
+mesh_body.AddSensor(lidar_manager)
+
+
+orbit_radius = 1.0
+orbit_angle = 0.0
+lidar_position = chrono.Vector3(0.0, 0.0, 0.0)  
+lidar_velocity = chrono.Vector3(0.0, 0.0, 0.0)  
+
+
+dt = 0.01  
+simulation_duration = 1000  
+
+
+world.SetSimulationTime(0)
+world.SetSimulationDuration(simulation_duration)
+
+
+for step in range(int(simulation_duration / dt)):
     
-    
-)
-
-
-scene.add_sensor(lidar)
-
-
-lidar.set_position(chrono.Vector3(0, 0, 0))  
-lidar.set_orientation(chrono.Quaternion(0, 0, 0, 1))  
-
-
-orbit_radius = 1.0  
-orbit_altitude = 1.0  
-
-
-for step in range(1000):
-    
-    lidar.set_position(chrono.Vector3(
-        orbit_radius * np.cos(step * 2 * np.pi / 1000),
-        orbit_altitude,
-        orbit_radius * np.sin(step * 2 * np.pi / 1000),
-    ))
+    lidar_position = chrono.Vector3(
+        lidar_position.x + lidar_velocity.x * dt,
+        lidar_position.y + lidar_velocity.y * dt,
+        lidar_position.z + lidar_velocity.z * dt,
+    )
 
     
-    print(lidar.get_buffer())
+    lidar_data = lidar_manager.GetSensorData()
+    print(lidar_data)
 
     
-    scene.update()
+    world.Update()
 
 
-vis.render(scene)
-
-
-scene.clear()
-vis.clear()
-chrono.shutdown()
+world.Shutdown()

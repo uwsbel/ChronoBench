@@ -1,6 +1,7 @@
 import chrono
 import chrono.irrlicht as chronoirr
 import chrono.vehicle as chronoveh
+import math
 
 
 
@@ -17,14 +18,14 @@ system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 terrain = chrono.ChRigidBody()
 terrain.SetBodyFixed(True)
 terrain.SetMass(0)
-terrain.SetPos(chrono.ChVectorD(0, -0.1, 0))  
-terrain.SetShape(chrono.ChBoxShape())
-terrain.SetBox(100, 0.1, 100)  
+terrain.SetPos(chrono.ChVectorD(0, -0.1, 0))
+terrain.SetShapeType(chrono.ChShapeType.BOX)
+terrain.SetShapeDimensions(chrono.ChVectorD(100, 0.2, 100))
 system.Add(terrain)
 
 
-terrain_texture = chronoirr.ChTexture()
-terrain_texture.SetFilename(chrono.GetChronoDataPath() + "terrain/grass.png")
+terrain_texture = chrono.ChTexture()
+terrain_texture.SetFilename("textures/terrain.png")  
 terrain.SetTexture(terrain_texture)
 
 
@@ -38,86 +39,59 @@ vehicle_height = 1.0
 vehicle_mass = 500.0
 
 
-chassis = chronoveh.ChVehicle()
-chassis.SetBodyFixed(False)
-chassis.SetMass(vehicle_mass)
-chassis.SetPos(chrono.ChVectorD(0, vehicle_height, 0))
-chassis.SetTransform(chrono.ChQuaternionD().Get_EulerXYZ(0, 0, 0))
-system.Add(chassis)
-
-
-mesh_file = chrono.GetChronoDataPath() + "vehicle/gator/gator.obj"
-mesh = chrono.ChTriangleMeshConnected()
-mesh.LoadFromFile(mesh_file)
-mesh.SetAutomaticUpdate(True)
-
-chassis.AddAsset(mesh)
-chassis.SetCollide(True)
-chassis.SetVisualizationType(chrono.ChVehicle.VISUALIZATION_MESH)
-
-
-
-
-
-
-tire_model = chronoveh.ChTireTMeasy()
-tire_model.SetVisualizationType(chronoveh.ChTire.VISUALIZATION_MESH)
-
-
-
+body = chrono.ChRigidBody()
+body.SetBodyFixed(False)
+body.SetMass(vehicle_mass)
+body.SetPos(chrono.ChVectorD(0, vehicle_height, 0))
+body.SetShapeType(chrono.ChShapeType.BOX)
+body.SetShapeDimensions(chrono.ChVectorD(vehicle_length, vehicle_height, vehicle_width))
+system.Add(body)
 
 
 wheel_radius = 0.3
 wheel_width = 0.2
-wheel_offset_front = vehicle_length / 2 - 0.5
-wheel_offset_rear = -vehicle_length / 2 + 0.5
-wheel_offset_side = vehicle_width / 2 + 0.1
+wheel_y = vehicle_height / 2
+wheel_front_x = vehicle_length / 2 - wheel_radius
+wheel_rear_x = -vehicle_length / 2 + wheel_radius
+wheel_side_x = vehicle_width / 2 - wheel_width / 2
 
 
-wheel_FL = chronoveh.ChWheel()
-wheel_FL.SetTire(tire_model)
-wheel_FL.SetRadius(wheel_radius)
-wheel_FL.SetWidth(wheel_width)
-wheel_FL.SetPos(chrono.ChVectorD(wheel_offset_front, wheel_radius, wheel_offset_side))
-wheel_FL.SetTransform(chrono.ChQuaternionD().Get_EulerXYZ(0, chrono.CH_C_PI / 2, 0))
-chassis.AddWheel(wheel_FL)
+wheel_fl = chronoveh.ChWheel()
+wheel_fl.Initialize(wheel_radius, wheel_width, True, False)
+wheel_fl.SetPos(chrono.ChVectorD(wheel_front_x, wheel_y, wheel_side_x))
+wheel_fl.SetBody(body)
+system.Add(wheel_fl)
 
 
-wheel_FR = chronoveh.ChWheel()
-wheel_FR.SetTire(tire_model)
-wheel_FR.SetRadius(wheel_radius)
-wheel_FR.SetWidth(wheel_width)
-wheel_FR.SetPos(chrono.ChVectorD(wheel_offset_front, wheel_radius, -wheel_offset_side))
-wheel_FR.SetTransform(chrono.ChQuaternionD().Get_EulerXYZ(0, chrono.CH_C_PI / 2, 0))
-chassis.AddWheel(wheel_FR)
+wheel_fr = chronoveh.ChWheel()
+wheel_fr.Initialize(wheel_radius, wheel_width, True, False)
+wheel_fr.SetPos(chrono.ChVectorD(wheel_front_x, wheel_y, -wheel_side_x))
+wheel_fr.SetBody(body)
+system.Add(wheel_fr)
 
 
-wheel_RL = chronoveh.ChWheel()
-wheel_RL.SetTire(tire_model)
-wheel_RL.SetRadius(wheel_radius)
-wheel_RL.SetWidth(wheel_width)
-wheel_RL.SetPos(chrono.ChVectorD(wheel_offset_rear, wheel_radius, wheel_offset_side))
-wheel_RL.SetTransform(chrono.ChQuaternionD().Get_EulerXYZ(0, chrono.CH_C_PI / 2, 0))
-chassis.AddWheel(wheel_RL)
+wheel_rl = chronoveh.ChWheel()
+wheel_rl.Initialize(wheel_radius, wheel_width, True, False)
+wheel_rl.SetPos(chrono.ChVectorD(wheel_rear_x, wheel_y, wheel_side_x))
+wheel_rl.SetBody(body)
+system.Add(wheel_rl)
 
 
-wheel_RR = chronoveh.ChWheel()
-wheel_RR.SetTire(tire_model)
-wheel_RR.SetRadius(wheel_radius)
-wheel_RR.SetWidth(wheel_width)
-wheel_RR.SetPos(chrono.ChVectorD(wheel_offset_rear, wheel_radius, -wheel_offset_side))
-wheel_RR.SetTransform(chrono.ChQuaternionD().Get_EulerXYZ(0, chrono.CH_C_PI / 2, 0))
-chassis.AddWheel(wheel_RR)
+wheel_rr = chronoveh.ChWheel()
+wheel_rr.Initialize(wheel_radius, wheel_width, True, False)
+wheel_rr.SetPos(chrono.ChVectorD(wheel_rear_x, wheel_y, -wheel_side_x))
+wheel_rr.SetBody(body)
+system.Add(wheel_rr)
 
 
 
 
 
-driver = chronoveh.ChIrrAppDriver()
-driver.SetVehicle(chassis)
-driver.SetSteeringDelta(0.05)
+driver = chronoveh.ChSimpleDriver()
+driver.SetSteeringDelta(10.0)
 driver.SetThrottleDelta(0.1)
 driver.SetBrakingDelta(0.1)
+driver.ConnectToVehicle(body, wheel_fl, wheel_fr, wheel_rl, wheel_rr)
 
 
 
@@ -135,11 +109,32 @@ vis.AddTypicalLights()
 
 
 
-timestep = 1.0 / 50.0  
+time_step = 0.005
+vis.SetFPS(50)
+
 while vis.Run():
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
 
-    driver.Synchronize(timestep)
-    system.DoStepDynamics(timestep)
+    
+    if vis.GetKeyboard().GetKeyDown(chronoirr.irr::KEY_KEY_W):
+        driver.SetThrottle(1.0)
+    elif vis.GetKeyboard().GetKeyDown(chronoirr.irr::KEY_KEY_S):
+        driver.SetThrottle(-1.0)
+    else:
+        driver.SetThrottle(0.0)
+
+    if vis.GetKeyboard().GetKeyDown(chronoirr.irr::KEY_KEY_A):
+        driver.SetSteering(1.0)
+    elif vis.GetKeyboard().GetKeyDown(chronoirr.irr::KEY_KEY_D):
+        driver.SetSteering(-1.0)
+    else:
+        driver.SetSteering(0.0)
+
+    if vis.GetKeyboard().GetKeyDown(chronoirr.irr::KEY_KEY_SPACE):
+        driver.SetBraking(1.0)
+    else:
+        driver.SetBraking(0.0)
+
+    system.DoStepDynamics(time_step)

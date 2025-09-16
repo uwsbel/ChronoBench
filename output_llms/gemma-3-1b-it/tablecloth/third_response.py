@@ -120,15 +120,10 @@ if (True):  # Block to execute the following setup
             # Add layer to the element
             melementB.AddLayer(thickness, 0 * chrono.CH_DEG_TO_RAD, material)
 
-    # Fix upper nodes of the mesh
-    for j in range(30):
-        for k in range(30):
-            mynodes[j * (nsections_x + 1) + k].SetFixed(True)
-
-    # Create visualizations for shell elements
+    # Create visualization for shell elements
     mvisualizeshellA = chrono.ChVisualShapeFEA(mesh)
     # mvisualizeshellA.SetSmoothFaces(True)  # Enable smooth faces (optional)
-    # mvisualizeshellA.SetWireframe(True)  # Enable wireframe mode (optional)
+    mvisualizeshellA.SetWireframe(True)  # Enable wireframe mode (optional)
     mvisualizeshellA.SetShellResolution(2)  # Set resolution for shell visualization
     # mvisualizeshellA.SetBackfaceCull(True)  # Enable backface culling (optional)
     mesh.AddVisualShapeFEA(mvisualizeshellA)  # Add visual shape to mesh
@@ -140,13 +135,24 @@ if (True):  # Block to execute the following setup
     mvisualizeshellB.SetSymbolsThickness(0.006)  # Set thickness of symbols
     mesh.AddVisualShapeFEA(mvisualizeshellB)  # Add visual shape to mesh
 
-    # Change solver to PardisoMKL
-    mkl_solver = mkl.ChSolverPardisoMKL()  # Instantiate PardisoMKL solver
-    mkl_solver.LockSparsityPattern(True)  # Locks sparsity pattern of the matrix for optimization
-    sys.SetSolver(mkl_solver)  # Set the solver in the system
+# Create Irrlicht visualization system
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(sys)  # Attach the physical system to the visualization
+vis.SetWindowSize(1024, 768)  # Set window size
+vis.SetWindowTitle('Shells FEA test: triangle BST elements')  # Set window title
+vis.Initialize()  # Initialize the visualization window
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))  # Add logo to the window
+vis.AddSkyBox()  # Add a skybox for background
+vis.AddCamera(chrono.ChVector3d(1, .3, 1.3), chrono.ChVector3d(.5, -.3, .5))  # Add and position the camera
+vis.AddTypicalLights()  # Add typical lights to the scene
 
-    # Define time step for simulation
-    timestep = 0.005
+# Change solver to PardisoMKL
+mkl_solver = mkl.ChSolverPardisoMKL()  # Instantiate PardisoMKL solver
+mkl_solver.LockSparsityPattern(True)  # Locks sparsity pattern of the matrix for optimization
+sys.SetSolver(mkl_solver)  # Set the solver in the system
+
+# Define time step for simulation
+timestep = 0.005
 
 # Final setup and system updates
 sys.Setup()  # Prepare the system for simulation

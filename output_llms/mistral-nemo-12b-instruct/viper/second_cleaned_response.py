@@ -33,25 +33,6 @@ init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
 rover.Initialize(chrono.ChFramed(init_pos, init_rot))
 
 
-manager = sens.ChSensorManager(system)
-intensity = 1.0
-manager.scene.AddPointLight(chrono.ChVector3f(2, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
-
-
-offset_pose = chrono.ChFramed(chrono.ChVector3d(1.0, 0, 1.45), chrono.QuatFromAngleAxis(.2, chrono.ChVector3d(0, 1, 0)))
-cam = sens.ChCameraSensor(
-    rover.GetChassis().GetBody(),
-    15, 
-    offset_pose,
-    720, 
-    480, 
-    1.408 
-)
-cam.SetName("Third Person POV")
-cam.PushFilter(sens.ChFilterVisualize(720, 480, "Viper Front Camera"))
-manager.AddSensor(cam)
-
-
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
 vis.SetCameraVertical(chrono.CameraVerticalDir_Z)
@@ -66,6 +47,25 @@ vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0
 
 
 
+
+
+manager = sens.ChSensorManager(system)
+intensity = 1.0
+manager.scene.AddPointLight(chrono.ChVector3f(2, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
+
+
+offset_pose = chrono.ChFramed(chrono.ChVector3d(1.0, 0, 1.45), chrono.QuatFromAngleAxis(.2, chrono.ChVector3d(0, 1, 0)))
+cam = sens.ChCameraSensor(
+    rover.GetChassis().GetBody(),
+    15,  
+    offset_pose,
+    720,  
+    480,  
+    1.408  
+)
+cam.SetName("Third Person POV")
+cam.PushFilter(sens.ChFilterVisualize(720, 480, "Viper Front Camera"))
+manager.AddSensor(cam)
 
 
 time_step = 1e-3

@@ -1,41 +1,91 @@
 import pychrono as chrono
-import pychrono.core as core
-import pychrono.physics as physics
+import pychrono.irrlicht as irrlicht
+import pychrono.vehicle as vehicle
+import pychrono.tmeasy as tmeasy
+import pychrono.collision as collision
 
-# Initialize PyChrono environment
-app = chrono.Application()
+# Initialize PyChrono
+chrono.init()
 
-# Create a world
-world = chrono.World()
-app.add_world(world)
+# Create the scene
+scene = chrono.Scene()
 
-# Create a ground plane
-ground = chrono.Plane(
-    chrono.Vector3(0, 0, 0),
-    chrono.Vector3(10, 10, 0),
-    chrono.Vector3(0, 0, 10),
-    chrono.Vector3(0, 0, 0),
+# Create the terrain
+terrain = chrono.Terrain(
+    chrono.Shape(chrono.Cylinder(2, 10, 1)),
+    chrono.Material(chrono.Color(1, 1, 1, 1)),
+    chrono.Position(0, 0, 0),
 )
-world.add_object(ground)
 
-# Create a rigid body for the car
-car = chrono.RigidBody(
-    chrono.Vector3(0, 0, 0),
-    chrono.Vector3(1, 0, 0),
-    chrono.Vector3(0, 1, 0),
-    chrono.Vector3(0, 0, 0),
+# Create the vehicle
+truck = vehicle.Vehicle(
+    chrono.Model("truck"),
+    chrono.Position(0, 0, 0),
+    chrono.Rotation(0, 0, 0),
+    chrono.Scale(1, 1, 1),
+    chrono.Visualize(
+        chrono.Visualization(
+            chrono.Material(chrono.Color(1, 0, 0, 1)),
+            chrono.Shape(chrono.Cylinder(2, 10, 1)),
+            chrono.Position(0, 0, 0),
+        )
+    ),
 )
-world.add_object(car)
 
 # Set default parameters
-car.set_mass(100)
-car.set_inertia(chrono.Vector3(0, 0, 0))
-car.set_position(chrono.Vector3(0, 0, 0))
-car.set_velocity(chrono.Vector3(0, 0, 0))
+truck.set_position(chrono.Position(0, 0, 0))
+truck.set_rotation(chrono.Rotation(0, 0, 0))
+truck.set_scale(chrono.Scale(1, 1, 1))
 
-# Add a force to the car
-force = chrono.Force(chrono.Vector3(0, 10, 0))
-car.add_force(force)
+# Create the tire model
+tire = tmeasy.Tire(
+    chrono.Model("tire"),
+    chrono.Position(0, 0, 0),
+    chrono.Rotation(0, 0, 0),
+    chrono.Scale(1, 1, 1),
+)
 
-# Set up the simulation
-app.run()
+# Create the driver controls
+driver_controls = chrono.DriverControls(
+    chrono.Throttle(0, 100),
+    chrono.Brake(0, 100),
+    chrono.Steering(0, 100),
+)
+
+# Add the tire model to the vehicle
+truck.add_tire(tire)
+
+# Add the driver controls to the vehicle
+truck.add_controls(driver_controls)
+
+# Add the terrain to the scene
+scene.add_object(terrain)
+
+# Add the vehicle to the scene
+scene.add_object(truck)
+
+# Create the Irrlicht engine
+irrlicht_engine = irrlicht.IrrlichtEngine()
+
+# Set up the Irrlicht visualization
+irrlicht_engine.set_fullscreen(True)
+irrlicht_engine.set_window_title("MAN 10t Truck Simulation")
+
+# Set up the camera
+camera = irrlicht_engine.create_camera()
+camera.setPosition(chrono.Position(0, 0, 10))
+camera.setRotation(chrono.Rotation(0, 0, 0))
+
+# Set up the lighting
+irrlicht_engine.set_directional_light(chrono.Position(0, 1, 0))
+irrlicht_engine.set_skybox(chrono.Skybox(chrono.Color(0, 0, 0, 1)))
+
+# Set up the visualization
+irrlicht_engine.set_visualization(irrlicht.Visualization(
+    irrlicht.Material(chrono.Color(1, 1, 1, 1)),
+    irrlicht.Shape(chrono.Cylinder(2, 10, 1)),
+    chrono.Position(0, 0, 0),
+))
+
+# Start the simulation
+irrlicht_engine.run()

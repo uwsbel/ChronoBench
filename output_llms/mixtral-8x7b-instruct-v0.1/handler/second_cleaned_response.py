@@ -56,18 +56,18 @@ def main():
 
     
     ros_manager = chros.ChROSPythonManager()
-
+    
     
     ros_manager.RegisterHandler(chros.ChROSClockHandler())
-
+    
     
     ros_manager.RegisterHandler(chros.ChROSBodyHandler(25, box, "~/box"))
-
+    
     
     tf_handler = chros.ChROSTFHandler(30)
     tf_handler.AddTransform(floor, floor.GetName(), box, box.GetName())
     ros_manager.RegisterHandler(tf_handler)
-
+    
     
     custom_handler = MyCustomHandler("~/my_topic")
     ros_manager.RegisterPythonHandler(custom_handler)

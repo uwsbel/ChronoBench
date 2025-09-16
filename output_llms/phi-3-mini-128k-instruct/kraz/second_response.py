@@ -8,7 +8,7 @@ veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 # Initial vehicle location and orientation
 initLoc = chrono.ChVector3d(-15, 0, 0.5)
-initRot = chrono.ChQuaterniond(1, 0, 0, 0)
+initRot = chrono.ChQuaterniond(0, 0, 0, 1)  # Adjusted to maintain the same orientation
 
 # Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
 vis_type = veh.VisualizationType_MESH
@@ -25,7 +25,7 @@ terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
 
 # Poon chassis tracked by the camera
-trackPoint = chrono.ChVector3d(3, 0, 2.1)
+trackPoint = chrono.ChVector3d(3, 0, 2.1)  # Updated track point
 
 # Contact method
 contact_method = chrono.ChContactMethod_NSC
@@ -39,6 +39,7 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  # FPS = 50
 
 # Create the kraz vehicle, set parameters, and initialize
+
 vehicle = veh.Kraz()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
@@ -52,7 +53,19 @@ vehicle.SetSuspensionVisualizationType(vis_type, vis_type)
 vehicle.SetWheelVisualizationType(vis_type, vis_type)
 vehicle.SetTireVisualizationType(vis_type, vis_type)
 
-vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+vehicle.GetSystem().SetCollisionSystemType(
+
+
+
+
+
+
+
+
+
+
+
+
 
 # Create the terrain
 patch_mat = chrono.ChContactMaterialNSC()
@@ -71,12 +84,13 @@ terrain.Initialize()
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('Kraz Demo')
 vis.SetWindowSize(1280, 1024)
-vis.SetChaseCamera(trackPoint, 25.0, 10.5)
+vis.SetChaseCamera(trackPoint, 25.0, 10.5)  # Adjusted chase camera distance
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetTractor())
+
 
 # Create the driver system
 driver = veh.ChInteractiveDriverIRR(vis)
@@ -112,6 +126,11 @@ while vis.Run() :
         vis.EndScene()
         render_frame += 1
 
+    # Double lane change maneuver sequence controlled by the driver system
+    if time > 10 and time < 20:  # Assuming the double lane change occurs between 10 and 20 seconds
+        driver.PerformLaneChange(chrono.ChLaneChangeType_LANE_CHANGE_LEFT, 1)  # Perform left lane change
+        driver.PerformLaneChange(chrono.ChLaneChangeType_LANE_CHANGE_RIGHT, 1)  # Perform right lane change
+
     # Get driver inputs
     driver_inputs = driver.GetInputs()
 
@@ -120,16 +139,6 @@ while vis.Run() :
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
-
-    # Introduce a double lane change maneuver sequence controlled by the driver system
-    if time > 5.0 and time < 10.0:
-        driver_inputs.steering = 1.0
-        driver_inputs.throttle = 0.0
-        driver_inputs.braking = 0.0
-    elif time > 10.0 and time < 15.0:
-        driver_inputs.steering = -1.0
-        driver_inputs.throttle = 0.0
-        driver_inputs.braking = 0.0
 
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)

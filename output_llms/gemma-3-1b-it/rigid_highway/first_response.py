@@ -1,93 +1,53 @@
 import pychrono
 import pychrono.core as pc
-import pychrono.objects as pco
-import pychrono.scenes as sc
-import pychrono.visuals as v
-import pychrono.physics as pphysics
-import pychrono.utils as pcu
+import pychrono.visual as pv
 import numpy as np
+import matplotlib.pyplot as plt
+from pychrono.visual import MeshVisualizer
+from pychrono.core import Simulation
+from pychrono.visual.mesh import MeshVisualizer
+from pychrono.visual.render import Render
+from pychrono.visual.ui import UI
+import random
 
-# --- 1. Environment Setup ---
-# Define the terrain mesh
-highway_col = pco.Mesh("Highway_col.obj")
-highway_vis = pco.Mesh("Highway_vis.obj")
+# --- Simulation Parameters ---
+terrain_height = 10.0  # Meters
+terrain_width = 10.0
+terrain_scale = 1.0  # Meters
+terrain_density = 0.5  # Density of terrain (0.0 - 1.0)
+terrain_color = np.random.rand(terrain_width, terrain_height)
+terrain_color = np.clip(terrain_color, 0.0, 1.0)
 
-# Define the vehicle's initial position and orientation
-vehicle_location = (0, 0, 0)  # Example: Starting position
-vehicle_orientation = (0, 0, 0) # Example: Initial orientation
-vehicle_contact_method = pc.ContactMethod.CONTACT_METHOD_NO_CONTACT # Start with no contact
-vehicle_tmeasy_model = pc.TMEASY_MODEL_1  # Example:  TMEASY model
-vehicle_mass = 1000  # Example: Vehicle mass (kg)
-vehicle_radius = 0.5  # Example: Vehicle radius (m)
+# Vehicle Parameters
+vehicle_x = 0.0
+vehicle_y = 0.0
+vehicle_z = 0.0
+vehicle_orientation = 0.0  # Radians
+vehicle_speed = 0.0
+vehicle_throttle = 0.0
+vehicle_brake = 0.0
+vehicle_contact_method = 'contact_method'  # 'contact_method' or 'static'
+vehicle_tire_model = 'Irrlicht_Tire'  # Specify tire model
+vehicle_mass = 100.0  # kg
+vehicle_radius = 0.5  # meters
 
+# --- Terrain Setup ---
+highway_col = 'Highway_col.obj'
+highway_vis = 'Highway_vis.obj'
 
-# --- 2. HMMWV Parameters ---
-# Define HMMWV parameters
-hmmwv_type = pc.HMMWV_TYPE_ADVANCED
-hmmwv_speed = 1.0  # m/s
-hmmwv_acceleration = 0.1 # m/s^2
-hmmwv_turning_speed = 0.05 # m/s
-hmmwv_vehicle_radius = 0.3 # meters
+# --- Simulation Setup ---
+simulation = Simulation()
+simulation.set_vehicle(vehicle_x, vehicle_y, vehicle_z, vehicle_orientation, vehicle_speed, vehicle_throttle, vehicle_brake, vehicle_contact_method, vehicle_tire_model, vehicle_mass, vehicle_radius)
+simulation.set_terrain(terrain_height, terrain_width, terrain_scale, terrain_density)
+simulation.set_visual(MeshVisualizer(terrain_color))
+simulation.set_ui(UI(vehicle_x, vehicle_y, vehicle_z, vehicle_orientation, vehicle_speed, vehicle_throttle, vehicle_brake, vehicle_contact_method, vehicle_tire_model, vehicle_mass, vehicle_radius))
 
-# --- 3. PyChrono Core Initialization ---
-# Create a PyChrono scene
-scene = sc.Scene()
+# --- Rendering ---
+render = Render()
+render.render(simulation)
 
-# Create the vehicle object
-vehicle = pco.Vehicle(
-    vehicle_location,
-    vehicle_orientation,
-    vehicle_contact_method,
-    vehicle_tmeasy_model,
-    vehicle_mass,
-    vehicle_radius,
-    vehicle_id = "vehicle"
-)
+# --- Main Loop ---
+simulation.run()
+simulation.wait()
 
-# --- 4. Physics Simulation ---
-# Configure the physics system
-physics = pphysics.Physics(
-    scene,
-    vehicle,
-    vehicle_mass,
-    vehicle_radius,
-    hmmwv_speed,
-    hmmwv_acceleration,
-    hmmwv_turning_speed,
-    hmmwv_vehicle_radius,
-    hmmwv_vehicle_radius,
-    hmmwv_vehicle_radius,
-    hmmwv_vehicle_radius,
-    hmmwv_vehicle_radius,
-    hmmwv_vehicle_radius,
-    hmmwv_vehicle_radius,
-    hmmwv_vehicle_radius
-)
-
-
-# --- 5. Visualization ---
-# Set up visualization
-v.Visualization(scene, vehicle)
-
-# --- 6. Driver System (Simplified) ---
-# This is a placeholder for a more complex driver system.
-# In a real simulation, this would involve steering, throttle, and braking control.
-driver_system = pc.Driver(
-    scene,
-    vehicle
-)
-
-# --- 7.  Main Simulation Loop ---
-# Run the simulation
-print("Simulation started.  Running at 50 frames/second.")
-scene.run()
-
-#  Consider adding a timer to stop the simulation after a certain time.
-#  This is crucial for realistic simulations.
-#  For example:
-#  time_limit = 60  # seconds
-#  time_limit_callback = pcu.Timer(time_limit,  # function to be called after time_limit
-#                                   lambda: scene.stop_simulation())
-#  time_limit_callback.start()
-#  scene.run_simulation(time_limit_callback)
-#  print("Simulation finished.")
+print("Simulation complete.")

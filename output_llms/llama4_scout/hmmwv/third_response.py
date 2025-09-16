@@ -21,9 +21,9 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 # Rigid terrain
-terrainHeight = 0      # terrain height
+terrainHeight = 0  # terrain height
 terrainLength = 100.0  # size in X direction
-terrainWidth = 100.0   # size in Y direction
+terrainWidth = 100.0  # size in Y direction
 
 # Poon chassis tracked by the camera
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
@@ -40,7 +40,7 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  # FPS = 50
 
 # Create the HMMWV vehicle, set parameters, and initialize
-vehicle = veh.HMMWV_Full() 
+vehicle = veh.HMMWV_Full()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
@@ -61,8 +61,9 @@ vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
+
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-patch = terrain.AddPatch(patch_mat,chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),terrainLength, terrainWidth)
+patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), terrainLength, terrainWidth)
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
@@ -78,7 +79,7 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
-# Custom driver class implementation
+# Custom Driver Class Implementation
 class MyDriver(veh.ChDriver):
     def __init__(self, vehicle, delay):
         super(MyDriver, self).__init__(vehicle)
@@ -98,25 +99,26 @@ class MyDriver(veh.ChDriver):
         self.SetSteering(steering)
         self.SetBraking(braking)
 
-# Create the driver system
+# Create the driver system with a delay of 0.5 seconds
 driver = MyDriver(vehicle.GetVehicle(), 0.5)
 driver.Initialize()
 
 # output vehicle mass
-print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
 
-# Initialize simulation frame counter 
+# Initialize simulation frame counter
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
-time = 0
 
-while vis.Run() and time < 4:
+while vis.Run() and vehicle.GetSystem().GetChTime() < 4:
+    time = vehicle.GetSystem().GetChTime()
+
     # Render scene and output POV-Ray data
-    if (step_number % render_steps == 0) :
+    if (step_number % render_steps == 0):
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
@@ -137,9 +139,8 @@ while vis.Run() and time < 4:
     vehicle.Advance(step_size)
     vis.Advance(step_size)
 
-    # Increment frame number and time
+    # Increment frame number
     step_number += 1
-    time = vehicle.GetSystem().GetChTime()
 
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)

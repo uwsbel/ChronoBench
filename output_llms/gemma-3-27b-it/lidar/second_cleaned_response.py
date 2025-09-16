@@ -13,19 +13,12 @@ def main():
     
     
     
-    side = 2.0
+    side = 2  
     mbody = chrono.ChBodyEasyBox(side, side, side, 1000)
     mbody.SetPos(chrono.ChVector3d(0, 0, 0))
     mbody.SetMass(100)
     mbody.SetFixed(True)
     mphysicalSystem.Add(mbody)
-
-    
-    body_shape = chrono.ChVisualShapeBox()
-    body_shape.SetBox(side, side, side)
-    body_shape.SetName("Box Shape")
-    body_shape.SetMutable(False)
-    mbody.AddVisualShape(body_shape)
 
     
     
@@ -107,18 +100,9 @@ def main():
         chrono.ChVector3d(-1.5, 0, 0.5),
         chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
     )
+    horizontal_samples_2d = 360
+    vertical_samples_2d = 1
     update_rate_2d = 5.0
-    horizontal_samples_2d = 800
-    vertical_samples_2d = 1  
-    horizontal_fov_2d = chrono.CH_PI  
-    max_vert_angle_2d = 0.0
-    min_vert_angle_2d = 0.0
-    max_range_2d = 100.0
-    sample_radius_2d = 2
-    divergence_angle_2d = 0.003
-    return_mode_2d = sens.LidarReturnMode_STRONGEST_RETURN
-    lag_2d = 0
-    collection_time_2d = 1. / update_rate_2d
 
     lidar_2d = sens.ChLidarSensor(
         mbody,  
@@ -126,19 +110,19 @@ def main():
         offset_pose_2d,  
         horizontal_samples_2d,  
         vertical_samples_2d,  
-        horizontal_fov_2d,  
-        max_vert_angle_2d,  
-        min_vert_angle_2d,  
-        max_range_2d,  
+        horizontal_fov,  
+        max_vert_angle,  
+        min_vert_angle,  
+        max_range,  
         sens.LidarBeamShape_RECTANGULAR,  
-        sample_radius_2d,  
-        divergence_angle_2d,  
-        divergence_angle_2d,  
-        return_mode_2d  
+        sample_radius,  
+        divergence_angle,  
+        divergence_angle,  
+        return_mode  
     )
     lidar_2d.SetName("Lidar 2D Sensor")
-    lidar_2d.SetLag(lag_2d)
-    lidar_2d.SetCollectionWindow(collection_time_2d)
+    lidar_2d.SetLag(lag)
+    lidar_2d.SetCollectionWindow(collection_time)
 
     
     
@@ -168,33 +152,30 @@ def main():
     ch_time = 0.0
     render_time = 0
     t1 = time.time()
+    end_time = 40.0
+    step_size = 1e-3
+
     while ch_time < end_time:
         
         lidar.SetOffsetPose(
             chrono.ChFramed(
-                chrono.ChVector3d(
-                    -orbit_radius * math.cos(ch_time * orbit_rate),
-                    -orbit_radius * math.sin(ch_time * orbit_rate),
-                    1
-                ),
+                chrono.ChVector3d(-orbit_radius * math.cos(ch_time * orbit_rate), -orbit_radius * math.sin(ch_time * orbit_rate), 1),
                 chrono.QuatFromAngleAxis(ch_time * orbit_rate, chrono.ChVector3d(0, 0, 1))
             )
         )
+        lidar_2d.SetOffsetPose(
+            chrono.ChFramed(
+                chrono.ChVector3d(-orbit_radius * math.cos(ch_time * orbit_rate), -orbit_radius * math.sin(ch_time * orbit_rate), 0.5),
+                chrono.QuatFromAngleAxis(ch_time * orbit_rate, chrono.ChVector3d(0, 0, 1))
+            )
+        )
+
         
         xyzi_buffer = lidar.GetMostRecentXYZIBuffer()
         if xyzi_buffer.HasData():
             xyzi_data = xyzi_buffer.GetXYZIData()
-            print('XYZI buffer received from lidar. Lidar resolution: {0}x{1}'.format(xyzi_buffer.Width,
-                                                                                        xyzi_buffer.Height))
+            print('XYZI buffer received from lidar. Lidar resolution: {0}x{1}'.format(xyzi_buffer.Width, xyzi_buffer.Height))
             print('Max Value: {0}'.format(np.max(xyzi_data)))
-
-        
-        xyzi_buffer_2d = lidar_2d.GetMostRecentXYZIBuffer()
-        if xyzi_buffer_2d.HasData():
-            xyzi_data_2d = xyzi_buffer_2d.GetXYZIData()
-            print('XYZI buffer received from lidar_2d. Lidar resolution: {0}x{1}'.format(xyzi_buffer_2d.Width,
-                                                                                          xyzi_buffer_2d.Height))
-            print('Max Value: {0}'.format(np.max(xyzi_data_2d)))
 
         
         manager.Update()
@@ -204,7 +185,7 @@ def main():
 
         
         ch_time = mphysicalSystem.GetChTime()
-        print("Sim time:", end_time, "Wall time:", time.time() - t1)
+        print("Sim time:", ch_time, "Wall time:", time.time() - t1)
 
     
     
@@ -212,59 +193,13 @@ def main():
     
     
     
-    noise_model = "NONE"  
-
-    
-    return_mode = sens.LidarReturnMode_STRONGEST_RETURN
-    
-    
     
 
     
-    update_rate = 5.0
-
-    
-    horizontal_samples = 800
-    vertical_samples = 300
-
-    
-    horizontal_fov = 2 * chrono.CH_PI  
-    max_vert_angle = chrono.CH_PI / 12
-    min_vert_angle = -chrono.CH_PI / 6
-
-    
-    lag = 0
-
-    
-    collection_time = 1. / update_rate  
-
-    
-    sample_radius = 2  
-
-    
-    divergence_angle = 0.003
-
-    
-    
-    
-    
-    step_size = 1e-3
-
-    
-    end_time = 40.0
-
-    
-    save = False
-
-    
-    vis = True
-
-    
-    out_dir = "SENSOR_OUTPUT/"
-
     
     
     
     
 
-main()
+if __name__ == "__main__":
+    main()

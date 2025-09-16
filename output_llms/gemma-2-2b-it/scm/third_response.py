@@ -3,6 +3,7 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
+
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
@@ -41,7 +42,7 @@ render_step_size = 1.0 / 50  # FPS = 50
 
 # Create the HMMWV vehicle, set parameters, and initialize
 
-vehicle = veh.HMMWV_Full()  # veh.HMMWV_Reduced()  could be another choice here
+vehicle = veh.HMMWV_Full() # veh.HMMWV_Reduced()  could be another choice here
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
@@ -154,59 +155,9 @@ while vis.Run() :
 
     # Add random boxes to the scene
     for i in range(10):
-        box = veh.ChBodyEasyBox(chrono.ChVector3d(
-            chrono.ChRandom.Uniform(-10, 10),
-            chrono.ChRandom.Uniform(-10, 10),
-            chrono.ChRandom.Uniform(-10, 10)
-        ))
+        box = veh.ChBodyEasyBox(chrono.ChVector3d(chrono.ChRandom.Uniform(-100, 100), 
+                                                    chrono.ChRandom.Uniform(-100, 100), 
+                                                    chrono.ChRandom.Uniform(-100, 100)),
+                                  chrono.ChVector3d(0, 0, 0), 
+                                  chrono.ChVector3d(1, 1, 1))
         vehicle.GetSystem().AddBody(box)
-
-    # Add a sensor manager
-    sensor_manager = veh.ChSensorManager()
-    sensor_manager.AddSensor(chrono.ChPointLight(chrono.ChVector3d(0, 0, 10), 100))
-    sensor_manager.AddSensor(chrono.ChPointLight(chrono.ChVector3d(10, 0, 10), 100))
-    sensor_manager.AddSensor(chrono.ChPointLight(chrono.ChVector3d(0, 10, 10), 100))
-    sensor_manager.AddSensor(chrono.ChPointLight(chrono.ChVector3d(10, 10, 10), 100))
-    sensor_manager.AddSensor(chrono.ChPointLight(chrono.ChVector3d(0, 0, 0), 100))
-    sensor_manager.AddSensor(chrono.ChPointLight(chrono.ChVector3d(10, 0, 0), 100))
-    sensor_manager.AddSensor(chrono.ChPointLight(chrono.ChVector3d(0, 10, 0), 100))
-    sensor_manager.AddSensor(chrono.ChPointLight(chrono.ChVector3d(10, 10, 0), 100))
-
-    # Attach the sensor manager to the vehicle
-    vehicle.GetSystem().SetSensorManager(sensor_manager)
-
-    # Add a camera sensor
-    camera_sensor = veh.ChCameraSensor(chrono.ChVector3d(0, 0, 0), 
-                                       chrono.ChVector3d(10, 10, 10), 
-                                       chrono.ChVector3d(0, 0, 0))
-    vehicle.GetSystem().AddSensor(camera_sensor)
-
-    # Attach the camera sensor to the vehicle
-    vehicle.GetSystem().SetCameraSensor(camera_sensor)
-
-    # Filter the camera feed
-    vis.AddFilter(camera_sensor)
-
-    # Update the sensor manager
-    sensor_manager.Update()
-
-    # Update the vehicle
-    vehicle.Update()
-
-    # Update the terrain
-    terrain.Update()
-
-    # Update the driver
-    driver.Update()
-
-    # Update the visual system
-    vis.Update()
-
-    # Update the simulation
-    vehicle.Update()
-    terrain.Update()
-    driver.Update()
-    vis.Update()
-
-    # Spin in place for real time to catch up
-    realtime_timer.Spin(step_size)

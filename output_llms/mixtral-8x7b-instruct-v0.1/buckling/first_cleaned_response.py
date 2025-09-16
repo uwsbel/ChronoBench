@@ -1,48 +1,72 @@
-from chrono import ChronoEngine, ChronoPy
-from chrono.fea.beam import ChBeamFEA
-from chrono.fea.mesh import ChMeshFile
-from chrono.irrlicht import ChirrApp
-from chrono.collision import ChCollisionModel
-from chrono.vehicle import ChChassis, ChTSDAxle, ChTSAntenna, ChTyre
-from chrono.solver import ChIterativeSolverLS, ChSolverBayes
+import chrono
+from chrono import ChVector, ChFrame, ChCoordsys
+from chrono.fea import ChFeaBody, ChFeaMesh
+from chrono.fea.hybrid_mesh import ChHybridMesh
+from chrono.vehicle import ChLinkMotorRotation
+from chrono.irrlicht import Chi irrlichtInitialize, ChiIrrApp
 
 
-my_engine = ChronoEngine()
-my_fea_engine = my_engine.GetFEAEngine()
-my_system = my_engine.GetSystem()
+chrono.SetChronoDataPath('path/to/chrono/data')
+my_application = ChiIrrApp('Beam Buckling Simulation')
 
 
-my_app = ChirrApp('Beam Buckling Simulation')
-my_app.SetChrono(my_system, 'mesh/beam.obj', 20)
+system = chrono.ChSystem()
 
 
-beam_mesh = ChMeshFile('mesh/beam.obj')
-beam_fea = ChBeamFEA(beam_mesh, 1, 1, 1)
-beam_fea.SetRigidBodyInertia(ChVectorD(1, 1, 1))
-beam_fea.SetCollide(True)
-my_system.Add(beam_fea)
+beam_length = 10.0
+beam_width = 0.5
+beam_height = 0.5
+beam_mesh = ChFeaMesh()
+beam_mesh.AddBox(ChVector(0, 0, 0), ChVector(beam_width, beam_height, beam_length))
+beam_mesh.SetElementType(ChFeaMesh.E_TRI3)
+beam_mesh.SetMatTag(0, 'mat_tag')
 
 
-motor_body = ChBodyEasyMesh(my_fea_engine, 'mesh/motor.obj', 1000, True, True)
-motor_body.SetPos(ChVectorD(0, 5, 0))
-my_system.Add(motor_body)
-
-def custom_motor_function(body, time):
-    
-    pass
-
-my_system.AddForce(ChFunction_Constant(custom_motor_function, motor_body, my_system.GetChTime()))
+beam_body = ChFeaBody(system, beam_mesh)
+system.AddBody(beam_body)
 
 
-constraints = ChLinkMateSpring::Factory0()
-constraints.Initialize(beam_fea, motor_body, ChCoordsysD(ChVectorD(0, 5, 0), QUNIT))
-constraints.SetStiffness(1e6)
-constraints.SetDamping(100)
-my_system.Add(constraints)
+beam_body.SetPos(ChVector(0, 0, 0))
+beam_body.SetBodyFixed(True)
 
 
-my_system.SetSolver(ChSolverBayes())
-my_system.SetTimestepper(ChIterativeSolverLS())
+class MyMotor:
+    def __init__(self, system, body1, body2, axis):
+        self.motor = ChLinkMotorRotation(system, body1, body2, axis)
+        system.AddLink(self.motor)
+
+    def SetAngle(self, angle):
+        self.motor.SetAngle(angle)
+
+    def SetVelocity(self, velocity):
+        self.motor.SetVelocity(velocity)
 
 
-my_app.Run()
+motor = MyMotor(system, beam_body, beam_body, ChVector(0, 1, 0))
+
+
+
+
+
+driver = irrlicht.createDevice(irrlicht.EDT_OGLES2, irrlicht.SIZE(800, 600))
+my_application.SetDevice(driver)
+my_application.AddTypicalSky()
+my_application.AddTypicalLogo()
+my_application.AddTypicalCamera(ChVector(0, 5, -10))
+
+
+system.SetSolverType(chrono.ChSolver.Type_PGS)
+system.SetSolverMaxIterations(100)
+system.SetTimestepperType(chrono.ChTimestepper.Type_EULER_IMPLICIT_LINEARIZED)
+
+
+while my_application.GetDevice().run():
+    my_application.BeginScene()
+    my_application.DrawAll()
+    my_application.EndScene()
+
+    system.DoStepDynamics(1e-3)
+
+    motor.SetAngle(0.1 * chrono.ChFunction_Sine(system.GetChTime()))
+
+irrlicht.irrlichtExit()

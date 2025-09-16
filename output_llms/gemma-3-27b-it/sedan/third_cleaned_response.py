@@ -10,7 +10,7 @@ chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 
-initLoc = chrono.ChVector3d(0, 0, 1.0)
+initLoc = chrono.ChVector3d(0, 0, 1)
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 
@@ -66,12 +66,14 @@ vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
+
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-
-
-patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), terrainLength, terrainWidth)
-patch.SetTexture(veh.GetDataFile("terrain/textures/highway.jpg"), 200, 200)  
-patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+if terrain_model == veh.RigidTerrain.MESH:
+    patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), terrainLength, terrainWidth)
+    patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
+    patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+else:
+    patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, terrainHeight), chrono.QUNIT), terrainLength, terrainWidth)
 terrain.Initialize()
 
 
@@ -134,21 +136,6 @@ while vis.Run():
     driver_inputs = driver.GetInputs()
 
     
-    current_speed = vehicle.GetVehicle().GetSpeed()
-    error = reference_speed - current_speed
-
-    
-    integral += error * step_size
-    derivative = (error - previous_error) / step_size
-    throttle_input = kp * error + ki * integral + kd * derivative
-    throttle_input = max(0.0, min(1.0, throttle_input))  
-
-    previous_error = error
-
-    
-    driver_inputs.throttle = throttle_input
-
-    
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
@@ -162,6 +149,16 @@ while vis.Run():
 
     
     step_number += 1
+
+    
+    current_speed = vehicle.GetVehicle().GetSpeed()
+    error = reference_speed - current_speed
+    integral += error * step_size
+    derivative = (error - previous_error) / step_size
+    throttle_input = kp * error + ki * integral + kd * derivative
+    throttle_input = max(0.0, min(1.0, throttle_input))  
+    driver_inputs.throttle = throttle_input
+    previous_error = error
 
     
     s.Spin(step_size)

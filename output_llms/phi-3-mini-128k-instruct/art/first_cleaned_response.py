@@ -1,91 +1,101 @@
-import pychronoid as pc
+import pychrono as chrono
 
-import irrlicht as ir
+import pychrono.visualization as visual
 
-import numpy as np
+import pychrono.core as core
 
+import pychrono.vehicle as vehicle
 
+import pychrono.collision as collision
 
-
-pc.init()
-
-
-
-
-terrain = pc.RigidTerrain(pc.Vector3(0, 0, 0), pc.Vector3(100, 0, 0), 10, 10)
-
-terrain.setTexture(ir.core.IrrlichtDevice.getDevice().getFontTexture(ir.core.IrrlichtDevice.getDevice().getFontName()))
+import pychrono.irrlicht as irrlicht
 
 
 
 
-car = pc.ARTcar(pc.Vector3(0, 0, 0), pc.Quaternion(0, 0, 0, 1), pc.ContactMethod.Penetration, pc.VisualizationType.Solid)
-
-car.setMass(1000)
-
-car.setMaxForce(1000)
-
-car.setMaxVelocity(50)
-
-car.setMaxAngularVelocity(np.pi / 4)
+core.Initialize()
 
 
 
 
-simulation = pc.Simulation()
-
-simulation.addRigidTerrain(terrain)
-
-simulation.addArtcar(car)
+app = core.IrrlichtApplication(core.Dimension(640, 480), "Vehicle Simulation")
 
 
 
 
-driver = pc.DriverSystem(car, pc.DriverInputType.Keyboard)
+terrain = collision.RigidTerrain()
+
+terrain.SetWidth(1000)
+
+terrain.SetHeight(200)
+
+terrain.SetMaterial(collision.RigidBodyMaterialSurface())
+
+app.AddScene(terrain)
 
 
 
 
-device = ir.core.IrrlichtDevice()
+terrain_texture = visual.Texture2D()
 
-device.setWindowTitle("ARTcar Simulation")
+terrain_texture.SetTextureFilename(core.GetResourcePath("textures/terrain.jpg"))
 
-device.setWindowSize(1280, 720)
-
-device.setAllowWindowAutoResize(True)
-
-device.setAllowWindowAutoMovement(True)
-
-device.setClearColor(ir.vector3df(0.5, 0.5, 0.5))
+terrain.SetTexture(terrain_texture)
 
 
 
 
-while device.getDevice()->run():
+artcar = vehicle.ArtCarVehicle()
 
-    simulation.update()
+artcar.SetLocation(chrono.Vector3d(0, 0, 10))
 
-    car.update(simulation)
+artcar.SetOrientation(chrono.Quaterniond(0, 0, 0, 1))
 
-    driver.update(simulation)
+artcar.SetContactMethod(vehicle.ContactMethod_Mesh)
 
-    device.beginScene(True, True, ir.color.White)
+artcar.SetVisualizationType(vehicle.VisualizationType_Color)
 
-    device.drawAll()
+artcar.SetSteeringLimit(0.5)
 
-    device.endScene()
+artcar.SetThrottleLimit(1.0)
 
-    device.swapBuffers()
+artcar.SetBrakeLimit(0.5)
 
-    device.sleep(pc.Timestep.getTimestep())
-
-
+app.AddScene(artcar)
 
 
-simulation.removeRigidTerrain(terrain)
 
-simulation.removeArtcar(car)
 
-device.destroyWindow()
+collision_system = collision.CollisionSystem(core.ProcessF64)
 
-pc.shutdown()
+terrain.Add(collision_system)
+
+artcar.Add(collision_system)
+
+
+
+
+while not app.WindowShouldClose():
+
+    core.WaitAnyEvent()
+
+    collision_system.SolveManifoldCollisions()
+
+    artcar.SolveForces()
+
+    artcar.UpdateVelocity()
+
+    artcar.UpdatePosition()
+
+    app.BeginScene()
+
+    app.DrawAll()
+
+    app.EndScene()
+
+    app.Present()
+
+
+
+
+app.Run(True, 50)

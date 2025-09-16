@@ -3,9 +3,6 @@ import pychrono.vehicle as veh
 import pychrono.ros as chros
 from pychrono import irrlicht as chronoirr
 
-
-veh.SetDataPath(ch.GetChronoDataPath() + 'vehicle/')
-
 def main():
     
     hmmwv = veh.HMMWV_Full()
@@ -65,12 +62,18 @@ def main():
         
         if not ros_manager.Update(time, time_step):
             break  
-            
+
     
     chronoirr.ChVisualSystemIrrlicht()
+    
+    
+    chronoirr.SetRenderMode(chronoirr.RenderMode_OPENGL)
+    chronoirr.SetRenderResolution(1280, 720)  
+    chronoirr.SetRenderFrameRate(60)  
+    chronoirr.SetRenderBackgroundColor(ch.ColorRGBA(0, 0, 0, 1))  
 
     
-    chronoirr.ChRenderLoop()
-
+    chronoirr.Render()  
+    
 if __name__ == "__main__":
     main()

@@ -1,161 +1,79 @@
 import chrono as ch
 import chrono.sensor as chs
-import chrono.postprocess as chpp
+import math
 
 # Initialize PyChrono environment
-ch.ChronoEnvironment.set_G(9.81)
+ch.ChEngine.Initialize()
 
 # Create a Chrono system
-system = ch.ChSystemNSC()
+system = ch.ChSystem()
 
-# Set the gravitational acceleration (already set by default)
-system.Set_G_acceleration(ch.ChVector3d(0, 0, -9.81))
+# Create a mesh body from a Wavefront .obj file
+mesh_body = ch.ChBodyAuxRef()
+mesh_body.SetFixed(True)
 
-# Load the triangular mesh from a Wavefront .obj file
+# Load the mesh from the .obj file
 mesh = ch.ChTriangleMeshConnected()
+mesh.LoadWavefrontMesh("path/to/your/mesh.obj")
 
-# Replace 'mesh.obj' with your actual file path
-mesh.LoadWavefrontMesh('path/to/mesh.obj')
+# Add the mesh to the body
+mesh_body.AddCollisionShape(mesh)
+mesh_body.AddVisualShape(mesh)
 
-# Create a Chrono body for the mesh
-body = ch.ChBody()
+# Set the initial position of the mesh body
+mesh_body.SetPos(ch.ChVector3d(0, 0, 0))
 
-# Set the mesh as the shape of the body
-body.SetShape(mesh)
-
-# Fix the body in place (not moving)
-body.SetPos(ch.ChVector3d(0, 0, 0))
-body.SetRot(ch.ChQuaterniond(1, 0, 0, 0))
-body.SetBodyFixed(True)
-
-# Add the body to the system
-system.AddBody(body)
+# Add the mesh body to the system
+system.AddBody(mesh_body)
 
 # Create a sensor manager
 sensor_manager = chs.ChSensorManager(system)
 
 # Create a lidar sensor
-lidar = chs.ChLidarSensor(body)
+lidar_sensor = chs.ChLidarSensor(
+    mesh_body, 
+    ch.ChFrame3d(ch.ChVector3d(0, 0, 5), ch.ChQuaterniond(1, 0, 0, 0)), 
+    10,  # horizontal resolution
+    10,  # vertical resolution
+    10,  # horizontal FOV
+    10,  # vertical FOV
+    0.1,  # point cloud resolution
+    100  # max points per step
+)
 
-# Set lidar parameters
-lidar.SetName('Lidar Sensor')
-lidar.SetPosition(ch.ChVector3d(0, 0, 1))
-lidar.SetDirection(ch.ChVector3d(0, 0, -1))
-lidar.SetRanges(0.1, 10)  # minimum and maximum ranges
-lidar.SetResolution(1024, 1024)  # horizontal and vertical resolution
-lidar.SetFOV(ch.ChVector2d(30, 30))  # field of view
-
-# Add noise filter to lidar data
-noise = chs.ChNoiseLidarGaussian()
-noise.SetParameters(0.01, 0.1)  # Set noise parameters (stddev, mean)
-lidar.AddFilter(noise)
+# Add noise filter to the lidar sensor
+noise_filter = chs.ChNoiseLidarFilter(0.1,  # noise std dev
+                                      0.01)  # bias
+lidar_sensor.AddFilter(noise_filter)
 
 # Enable lidar visualization
-lidar.EnableVisualization(True)
+lidar_sensor.EnableVisualization(True)
 
-# Add lidar sensor to sensor manager
-sensor_manager.AddSensor(lidar)
+# Set lidar save options
+lidar_sensor.SetSaveAs("lidar_data", ".csv")
 
-# Set the simulation time step
-system.SetTimestep(0.01)
+# Add the lidar sensor to the sensor manager
+sensor_manager.AddSensor(lidar_sensor)
 
-# Set the total simulation time
-t_end = 10.0
+# Simulation parameters
+stepsize = 0.01
+end_time = 10
 
-# Create a timer for simulation
-timer = ch.ChTimer()
-
-# Start the simulation timer
-timer.Start()
-
-# Define a callback function to update lidar position
-def UpdateLidarPosition(step):
-    # Update lidar position in an orbit around the mesh
-    radius = 5.0
+# Simulation loop
+for step in range(int(end_time / stepsize)):
+    # Update the lidar position in an orbit around the mesh
     angle = step * 0.1
-    lidar.SetPosition(ch.ChVector3d(radius * ch.cos(angle), radius * ch.sin(angle), 1))
-
-# Simulate the system
-for step in range(int(t_end / system.GetTimestep())):
-    # Update lidar position
-    UpdateLidarPosition(step * system.GetTimestep())
+    lidar_sensor.SetPos(ch.ChVector3d(5 * math.cos(angle), 5 * math.sin(angle), 5))
 
     # Advance the simulation
-    system.DoStepDynamics(system.GetTimestep())
+    system.DoStepDynamics(stepsize)
 
     # Print lidar buffer data
-    lidar_data = lidar.GetMostRecentBuffer()
-    if lidar_data is not None:
-        print(f"Step {step}: Lidar buffer data - points: {len(lidar_data.GetPoints())}")
+    lidar_data = lidar_sensor.GetBufferData()
+    print("Lidar Buffer Data:")
+    for point in lidar_data:
+        print(point)
 
-# Save lidar data to a file
-if lidar.GetSaveFile():
-    lidar.SaveFile('lidar_data.dat')
-
-import chrono as ch
-import chrono.sensor as chs
-import chrono.postprocess as chpp
-
-def main():
-    # Initialize PyChrono environment
-    ch.ChronoEnvironment.set_G(9.81)
-
-    # Create a Chrono system
-    system = ch.ChSystemNSC()
-
-    # Load triangular mesh from Wavefront .obj file
-    mesh = ch.ChTriangleMeshConnected()
-    mesh.LoadWavefrontMesh('path/to/mesh.obj')
-
-    # Create a Chrono body for the mesh
-    body = ch.ChBody()
-    body.SetShape(mesh)
-    body.SetPos(ch.ChVector3d(0, 0, 0))
-    body.SetRot(ch.ChQuaterniond(1, 0, 0, 0))
-    body.SetBodyFixed(True)
-
-    # Add the body to the system
-    system.AddBody(body)
-
-    # Create a sensor manager
-    sensor_manager = chs.ChSensorManager(system)
-
-    # Create a lidar sensor
-    lidar = chs.ChLidarSensor(body)
-    lidar.SetName('Lidar Sensor')
-    lidar.SetPosition(ch.ChVector3d(0, 0, 1))
-    lidar.SetDirection(ch.ChVector3d(0, 0, -1))
-    lidar.SetRanges(0.1, 10)  
-    lidar.SetResolution(1024, 1024)  
-    lidar.SetFOV(ch.ChVector2d(30, 30))  
-
-    noise = chs.ChNoiseLidarGaussian()
-    noise.SetParameters(0.01, 0.1)  
-    lidar.AddFilter(noise)
-
-    lidar.EnableVisualization(True)
-
-    sensor_manager.AddSensor(lidar)
-
-    system.SetTimestep(0.01)
-    t_end = 10.0
-
-    timer = ch.ChTimer()
-    timer.Start()
-
-    for step in range(int(t_end / system.GetTimestep())):
-        radius = 5.0
-        angle = step * system.GetTimestep() * 0.1
-        lidar.SetPosition(ch.ChVector3d(radius * ch.cos(angle), radius * ch.sin(angle), 1))
-
-        system.DoStepDynamics(system.GetTimestep())
-
-        lidar_data = lidar.GetMostRecentBuffer()
-        if lidar_data is not None:
-            print(f"Step {step}: Lidar buffer data - points: {len(lidar_data.GetPoints())}")
-
-    if lidar.GetSaveFile():
-        lidar.SaveFile('lidar_data.dat')
-
-if __name__ == "__main__":
-    main()
+    # Save lidar data
+    sensor_manager.Update()
+    sensor_manager.SaveData()

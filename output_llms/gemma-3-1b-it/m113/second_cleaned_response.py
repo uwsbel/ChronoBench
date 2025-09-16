@@ -7,7 +7,7 @@ chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 
-initLoc = chrono.ChVector3d(15, 0, 0)  
+initLoc = chrono.ChVector3d(-15.0, 0.0, 0.0)
 initRot = chrono.ChQuaterniond(0, 0, 0, 0)
 
 

@@ -1,7 +1,7 @@
 import pychrono as ch
 import pychrono.vehicle as veh
 import pychrono.ros as chros
-from pychrono import irrlicht as chronoirr
+from pychrono import irrlicht as chronoirr  
 
 def main():
     
@@ -19,14 +19,11 @@ def main():
     hmmwv.Initialize()  
 
     
-    veh.SetDataPath(ch.GetChronoDataPath() + 'vehicle/')
-
-    
-    hmmwv.SetChassisVisualizationType(veh.ChVisualType_CONVENTIONAL)
-    hmmwv.SetSuspensionVisualizationType(veh.ChVisualType_CONVENTIONAL)
-    hmmwv.SetSteeringVisualizationType(veh.ChVisualType_CONVENTIONAL)
-    hmmwv.SetWheelVisualizationType(veh.ChVisualType_CONVENTIONAL)
-    hmmwv.SetTireVisualizationType(veh.ChVisualType_CONVENTIONAL)
+    hmmwv.SetChassisVisualizationType(veh.ChVehicleVisualizationType_ALL)
+    hmmwv.SetSuspensionVisualizationType(veh.ChVehicleVisualizationType_ALL)
+    hmmwv.SetSteeringVisualizationType(veh.ChVehicleVisualizationType_ALL)
+    hmmwv.SetWheelVisualizationType(veh.ChVehicleVisualizationType_ALL)
+    hmmwv.SetTireVisualizationType(veh.ChVehicleVisualizationType_ALL)
 
     
     terrain = veh.RigidTerrain(hmmwv.GetSystem())
@@ -37,275 +34,52 @@ def main():
     terrain.Initialize()  
 
     
-    driver = veh.ChDriver(hmmwv. GetVehicle()
+    patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 100, 100)
+
+    
+    driver = veh.ChDriver(hmmwv.GetVehicle())
     driver.Initialize()  
 
     
-    ros_manager = chros.ChROSPyChrono
+    ros_manager = chros.ChROSPythonManager()
+    ros_manager.RegisterHandler(chros.ChROSClockHandler())  
+    ros_manager.RegisterHandler(chros.ChROSDriverInputsHandler(25, driver, "~/input/driver_inputs"))
+    ros_manager.RegisterHandler(chros.ChROSBodyHandler(25, hmmwv.GetChassisBody(), "~/output/hmmwv/state"))
+    ros_manager.Initialize()  
 
     
-    ros_manager = chros.ChROSP()
+    veh.SetDataPath(ch.GetChronoDataPath() + 'vehicle/')
 
     
+    vis = chronoirr.ChVisualSystemIrrlicht()
+    vis.Initialize()
 
     
-
-    
-
-    
-
-    
-
-    
-
-    rosManager.
-
-    rosManager.
-
-    
-
-    rosManager.
-
-    
-
-Create the ROSManager.
-
-Create the ROSManager.
-s:
-
-pychrono.
-
-Create the ROSManager.
-
-Create the ROSManager.
-
-
-
-
-
-
-
-
-
-Create the ROSManager.
-
-from pychrono.
-
- Create.
-
- the ROSManager.
-
-Create the ROSManager.
-
-the ROSManager.
-s.
-
- Create. Create.
-
-Initialize the ROSManager.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-   .. ROSManager.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-   
-
-
-
-
-
-
-
-
-
-
-   ..
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-   ...Initialize the ROS.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-   ..
-
-   ..py
-
-
-
-
-
-
-
-
-
-
-
-
-
-   .Manager.
-
-
-
-
-
-
-
-
-   ..s.
-
-
-
-   
-
-
-
-
-
-
-   
-
-
-
-
-
-
-
-
-
-
-   
-    PyChrono:
-..
-
-   chore.
-
-   
-
-   
-
-
-
-
-
-    py:
-   3.
-
-
-
-
-   3D:
-   
-   
-
-   0.
-
-   
-
-
-   3D, which
-   
-   
-   
-
-
-
-   0.
+    time = 0
+    time_step = 1e-3  
+    time_end = 30  
+
+    hmmwv.GetVehicle().EnableRealtime(True)  
+    while time < time_end:
+        time = hmmwv.GetSystem().GetChTime()  
+
+        
+        driver_inputs = driver.GetInputs()
+        driver.Synchronize(time)  
+        terrain.Synchronize(time)  
+        hmmwv.Synchronize(time, driver_inputs, terrain)  
+
+        
+        driver.Advance(time_step)
+        terrain.Advance(time_step)
+        hmmwv.Advance(time_step)
+
+        
+        if not ros_manager.Update(time, time_step):
+            break  
+
+        
+        vis.Render()
+
+if __name__ == "__main__":
+    main()

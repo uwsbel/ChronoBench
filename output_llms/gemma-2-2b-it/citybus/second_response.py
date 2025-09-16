@@ -82,15 +82,14 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
-# Create the data-driven driver
-driver = veh.ChDataDriver(vis)
+# Create the driver system
+driver = veh.ChDataDriver(vis)  
 
 # Define driver inputs
-driver_inputs = [
-    veh.vector_Entry(0.0, 0.0, 0.0),  # Throttle at 0.0
-    veh.vector_Entry(0.1, 0.0, 0.0),  # Throttle at 1.0
-    veh.vector_Entry(0.5, 0.7, 0.0),  # Throttle at 1.0, steering at 0.7
-]
+driver_inputs = veh.vector_Entry()
+driver_inputs.append(veh.DataDriverEntry(0.0, 0.0, 0.0))  # Initial throttle
+driver_inputs.append(veh.DataDriverEntry(0.1, 0.0, 0.0))  # Throttle at 0.1 seconds
+driver_inputs.append(veh.DataDriverEntry(0.5, 0.7, 0.0))  # Throttle at 0.5 seconds
 
 # Set the driver inputs
 driver.SetInputs(driver_inputs)

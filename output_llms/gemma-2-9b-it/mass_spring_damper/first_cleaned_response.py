@@ -2,37 +2,50 @@ import pychrono as chrono
 import pychrono.irrlicht as vis
 
 
-chrono.SetChronoDataPath("..")  
 system = chrono.ChSystemNSC()
+
+
+vis.ChVisualSystemIrrlicht.SetWindowSize(800, 600)
+vis.ChVisualSystemIrrlicht.SetWindowTitle("Mass-Spring-Damper")
+vis.ChVisualSystemIrrlicht.Initialize()
+vis.ChVisualSystemIrrlicht.AddCamera(
+    pos=chrono.ChVectorD(0, 0, 1),
+    lookat=chrono.ChVectorD(0, 0, 0),
+    up=chrono.ChVectorD(0, 1, 0),
+)
+vis.ChVisualSystemIrrlicht.SetAmbientLight(chrono.ChColor(0.1, 0.1, 0.1))
+vis.ChVisualSystemIrrlicht.SetLight(
+    chrono.ChVectorD(1, 1, 1), chrono.ChVectorD(0, 0, 0), chrono.ChColor(1, 1, 1)
+)
 
 
 ground = chrono.ChBodyEasyBox(10, 10, 1, 1000)
 ground.SetPos(chrono.ChVectorD(0, 0, 0))
-system.Add(ground)
+system.AddBody(ground)
 
 
-mass = chrono.ChBodyEasySphere(0.5, 1)
-mass.SetPos(chrono.ChVectorD(0, 1, 0))
-system.Add(mass)
+mass = chrono.ChBodyEasySphere(1, 10)
+mass.SetPos(chrono.ChVectorD(0, 0, 1))
+system.AddBody(mass)
 
 
 link = chrono.ChLinkTSDA(mass, ground)
-link.SetSpringStiffness(1000)  
-link.SetDampingCoefficient(100)  
+link.SetSpringParam(100, 10)  
+system.AddLink(link)
 
 
-system.Add(link)
+mass_shape = chrono.ChShapeSphere(1)
+ground_shape = chrono.ChShapeBox(5, 5, 0.5)
+link_shape = chrono.ChShapeCylinder(0.1, 1)
+
+mass.GetAssets().push_back(chrono.ChVisualShapeData(mass_shape))
+ground.GetAssets().push_back(chrono.ChVisualShapeData(ground_shape))
+link.GetAssets().push_back(chrono.ChVisualShapeData(link_shape))
 
 
-vis.Add(system)
-vis.SetCamera(chrono.ChVectorD(5, 5, 5), chrono.ChVectorD(0, 0, 0))
-vis.SetAmbientLight(chrono.ChColor(0.5, 0.5, 0.5))
-vis.SetDirectionalLight(chrono.ChColor(1, 1, 1), chrono.ChVectorD(1, 1, 1))
+system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
+for i in range(1000):
+    system.DoStepDynamics(0.01)
+    vis.ChVisualSystemIrrlicht.Render()
 
-
-mass.GetVisualShape().SetMaterial(chrono.ChMaterialSurface(chrono.ChColor(1, 0, 0)))  
-link.GetVisualShape().SetMaterial(chrono.ChMaterialSurface(chrono.ChColor(0, 1, 0)))  
-
-
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
-vis.Run()
+vis.ChVisualSystemIrrlicht.Close()

@@ -19,7 +19,7 @@ def main():
     side = 2
     box = chrono.ChBodyEasyBox(side, side, side, 1000)
     box.SetPos(chrono.ChVector3d(0, 0, 0))
-    box.SetBodyFixed(True)  
+    box.SetBodyFixed(True)
     mphysicalSystem.Add(box)
 
     
@@ -110,7 +110,31 @@ def main():
 
     
     
+    
+    if noise_model == "CONST_NORMAL_XYZI":
+        lidar_2d.PushFilter(sens.ChFilterLidarNoiseXYZI(0.01, 0.001, 0.001, 0.01))
+    elif noise_model == "NONE":
+        
+        pass
 
+    if vis:
+        
+        lidar_2d.PushFilter(sens.ChFilterVisualize(horizontal_samples, 1, "Raw 2D Lidar Depth Data"))
+
+    
+    lidar_2d.PushFilter(sens.ChFilterDIAccess())
+
+    
+    lidar_2d.PushFilter(sens.ChFilterPCfromDepth())
+
+    if vis:
+        
+        lidar_2d.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "2D Lidar Point Cloud"))
+
+    
+    lidar_2d.PushFilter(sens.ChFilterXYZIAccess())
+
+    
     manager.AddSensor(lidar_2d)
 
     
@@ -144,49 +168,7 @@ def main():
             print('Max Value: {0}'.format(np.max(xyzi_data)))
 
         
-        manager.Update()
-
-        
-        mphysicalSystem.DoStepDynamics(step_size)
-
-        
-        ch_time = mphysicalSystem.GetChTime()
-
-    print("Sim time:", end_time, "Wall time:", time.time() - t1)
-
-
-
-
-
-
-
-
-
-noise_model = "NONE"  
-
-
-return_mode = sens.LidarReturnMode_STRONGEST_RETURN
-
-
-
-
-
-update_rate = 5.0
-
-
-horizontal_samples = 800
-vertical_samples = 300
-
-
-horizontal_fov = 2 * chrono.CH_PI  
-max_vert_angle = chrono.CH_PI / 12
-min_vert_angle = -chrono.CH_PI / 6
-
-
-lag = 0
-
-
-collection_time = 1. / update_rate  
-
-
-sample_radius = 2
+        xyzi_buffer_2d = lidar_2d.GetMostRecentXYZIBuffer()
+        if xyzi_buffer_2d.HasData():
+            xyzi_data_2d = xyzi_buffer_2d.GetXYZIData()
+            print('XYZI buffer received from 2D lidar. Lidar resolution: {0

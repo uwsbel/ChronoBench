@@ -70,6 +70,7 @@ patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 # Create the vehicle Irrlicht interface
+
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('HMMWV Demo')
 vis.SetWindowSize(1280, 1024)
@@ -81,7 +82,7 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 # Create the driver system
-driver = veh.ChPathFollowerDriver(vehicle, 0.3, 1.0, 0.3, 0.1, 0.0, 0.0)
+driver = veh.ChPathFollowerDriver(vehicle.GetVehicle(), 0.3, 1.0, 0.3)  # constant throttle value of 0.3
 
 # Set the time response for steering and throttle keyboard inputs.
 steering_time = 1.0  # time to go from 0 to +1 (or from 0 to -1)
@@ -92,6 +93,30 @@ driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
 
 driver.Initialize()
+
+# Define the circular path
+radius = 50.0
+center = chrono.ChVector3d(0, 0, 0)
+path = []
+for angle in np.linspace(0, 2 * np.pi, 100):
+    x = center.x + radius * np.cos(angle)
+    y = center.y + radius * np.sin(angle)
+    path.append(chrono.ChVector3d(x, y, 0))
+
+# Add visualization for the sentinel and target points using spheres
+sentinel_sphere = chrono.ChSphereShape()
+sentinel_sphere.GetSphereGeometry().rad = 1.0
+sentinel_sphere.Pos = path[0]
+sentinel_body = chrono.ChBody()
+sentinel_body.AddAsset(sentinel_sphere)
+vis.AddAsset(sentinel_body)
+
+target_sphere = chrono.ChSphereShape()
+target_sphere.GetSphereGeometry().rad = 1.0
+target_sphere.Pos = path[-1]
+target_body = chrono.ChBody()
+target_body.AddAsset(target_sphere)
+vis.AddAsset(target_body)
 
 # output vehicle mass
 print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
@@ -104,23 +129,6 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-# Circular path
-radius = 50
-center = chrono.ChVector3d(0, 0, 0)
-num_points = 100
-theta = np.linspace(0, 2 * np.pi, num_points)
-path_x = center.x + radius * np.cos(theta)
-path_y = center.y + radius * np.sin(theta)
-
-# Visualize the path using two balls
-ball1 = chrono.ChBodyEasySphere(vehicle.GetSystem(), 0.5, 1000, True, True)
-ball1.SetPos(chrono.ChVector3d(path_x[0], path_y[0], 1))
-ball1.SetBodyFixed(True)
-
-ball2 = chrono.ChBodyEasySphere(vehicle.GetSystem(), 0.5, 1000, True, True)
-ball2.SetPos(chrono.ChVector3d(path_x[-1], path_y[-1], 1))
-ball2.SetBodyFixed(True)
-
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
 
@@ -132,7 +140,7 @@ while vis.Run() :
         render_frame += 1
 
     # Get driver inputs
-    driver_inputs = driver.GetInputs()
+    driver_inputs = driver.GetInputs(path)
 
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)

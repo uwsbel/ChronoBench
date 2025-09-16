@@ -61,53 +61,49 @@ vehicle.SetTireVisualizationType(vis_type)
 
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
-# --- Encapsulated SCM Terrain Parameters ---
+# --- New SCM Terrain Parameter Class ---
 class SCMTerrainParameters:
     def __init__(self, config="mid"):
         if config == "soft":
-            self.BekkerKphi = 2e6
-            self.BekkerKc = 0
-            self.BekkerN = 1.1
-            self.MohrCohesive = 0
-            self.MohrFriction = 30
-            self.JanosiShear = 0.01
-            self.ElasticStiffness = 2e8
-            self.Damping = 3e4
+            self.Kphi = 1e6
+            self.Kc = 0
+            self.n = 1.2
+            self.cohesion = 0
+            self.friction = 25
+            self.shear_coeff = 0.015
+            self.elastic_stiffness = 1e8
+            self.damping = 2e4
         elif config == "mid":
-            self.BekkerKphi = 5e6
-            self.BekkerKc = 0
-            self.BekkerN = 1.2
-            self.MohrCohesive = 0
-            self.MohrFriction = 35
-            self.JanosiShear = 0.02
-            self.ElasticStiffness = 1e9
-            self.Damping = 5e4
+            self.Kphi = 2e6
+            self.Kc = 0
+            self.n = 1.1
+            self.cohesion = 0
+            self.friction = 30
+            self.shear_coeff = 0.01
+            self.elastic_stiffness = 2e8
+            self.damping = 3e4
         elif config == "hard":
-            self.BekkerKphi = 1e7
-            self.BekkerKc = 0
-            self.BekkerN = 1.3
-            self.MohrCohesive = 0
-            self.MohrFriction = 40
-            self.JanosiShear = 0.03
-            self.ElasticStiffness = 2e9
-            self.Damping = 1e5
+            self.Kphi = 5e6
+            self.Kc = 0
+            self.n = 1.0
+            self.cohesion = 0
+            self.friction = 35
+            self.shear_coeff = 0.005
+            self.elastic_stiffness = 5e8
+            self.damping = 1e5
         else:
             raise ValueError("Invalid terrain configuration.")
 
     def get_params(self):
-        return (self.BekkerKphi, self.BekkerKc, self.BekkerN,
-                self.MohrCohesive, self.MohrFriction, self.JanosiShear,
-                self.ElasticStiffness, self.Damping)
+        return self.Kphi, self.Kc, self.n, self.cohesion, self.friction, self.shear_coeff, self.elastic_stiffness, self.damping
 
-# Initialize terrain parameters using the new class
-terrain_params = SCMTerrainParameters(config="mid")  # Choose desired configuration
-BekkerKphi, BekkerKc, BekkerN, MohrCohesive, MohrFriction, JanosiShear, ElasticStiffness, Damping = terrain_params.get_params()
+# --- Initialize Terrain with Parameters ---
+terrain_params = SCMTerrainParameters(config="mid")
+Kphi, Kc, n, cohesion, friction, shear_coeff, elastic_stiffness, damping = terrain_params.get_params()
 
 # Create the SCM deformable terrain patch
 terrain = veh.SCMTerrain(vehicle.GetSystem())
-terrain.SetSoilParameters(BekkerKphi, BekkerKc, BekkerN,
-                            MohrCohesive, MohrFriction, JanosiShear,
-                            ElasticStiffness, Damping)
+terrain.SetSoilParameters(Kphi, Kc, n, cohesion, friction, shear_coeff, elastic_stiffness, damping)
 
 # Optionally, enable moving patch feature (single patch around vehicle chassis)
 terrain.AddMovingPatch(vehicle.GetChassisBody(), chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(5, 3, 1))

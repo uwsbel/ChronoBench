@@ -23,6 +23,7 @@ sys.Add(mfloor)
 
 mcrank = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, crank_rad, crank_thick, 1000)
 mcrank.SetPos(crank_center + chrono.ChVector3d(0, 0, -0.1))
+
 mcrank.SetRot(chrono.Q_ROTATE_Y_TO_Z)
 sys.Add(mcrank)
 
@@ -39,25 +40,34 @@ sys.Add(mpiston)
 
 
 my_motor = chrono.ChLinkMotorRotationSpeed()
-my_motor.Initialize(mcrank, mfloor, chrono.ChFramed(crank_center))  
+my_motor.Initialize(mcrank,  
+                    mfloor,  
+                    chrono.ChFramed(crank_center))  
 my_angularspeed = chrono.ChFunctionConst(chrono.CH_PI)  
 my_motor.SetMotorFunction(my_angularspeed)
 sys.Add(my_motor)
 
 
-mjointA = chrono.ChLinkSpherical()
-mjointA.Initialize(mrod, mcrank, chrono.ChFramed(crank_center + chrono.ChVector3d(crank_rad, 0, 0)))
+mjointA = chrono.ChLinkLockRevolute()
+mjointA.Initialize(mrod,
+                   mcrank,
+                   chrono.ChFramed(crank_center + chrono.ChVector3d(crank_rad, 0, 0)))
 sys.Add(mjointA)
 
 
-mjointB = chrono.ChLinkSpherical()
-mjointB.Initialize(mpiston, mrod, chrono.ChFramed(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0)))
+mjointB = chrono.ChLinkLockRevolute()
+mjointB.Initialize(mpiston,
+                   mrod,
+                   chrono.ChFramed(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0)))
 sys.Add(mjointB)
 
 
-mjointC = chrono.ChLinkPlanar()
-mjointC.Initialize(mpiston, mfloor, chrono.ChFramed(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0),
-                                                   chrono.Q_ROTATE_Z_TO_X))
+mjointC = chrono.ChLinkPlanePlane()
+mjointC.Initialize(mpiston,
+                   mfloor,
+                   chrono.ChFramed(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0),
+                                   chrono.Q_ROTATE_Z_TO_X)
+                   )
 sys.Add(mjointC)
 
 vis = chronoirr.ChVisualSystemIrrlicht()
@@ -106,5 +116,3 @@ ax2.grid()
 
 
 plt.xticks(np.linspace(0, 2 * np.pi, 5), ['0', r'$\pi/2$', r'$\pi$', r'$3\pi/2$', r'$2\pi$'])
-
-“”"

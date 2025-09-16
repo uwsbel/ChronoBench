@@ -1,70 +1,70 @@
 import pychrono.core as chrono
-import pychrono.sensor as sens
+import pychrono.sensor as sensor
 import pychrono.irrlicht as chronoirr
 import numpy as np
 
-# Initialize the PyChrono environment
+# Initialize the PyChrono environment and core components
 sys = chrono.ChSystemNSC()
 
-# Create the Irrlicht visualization window
-vis = chronoirr.ChVisualSystem()
-vis.AddSkyBox()
-vis.AddTypicalLights()
-vis.AddCamera(chrono.ChVectorD(0, 0, 3))
-vis.SetWindowSize(800, 600)
-vis.SetWindowTitle("PyChrono Simulation")
+# Create the Irrlicht visualization
+vis = chronoirr.ChVisualSystemIrrlicht()
+
+# Set up the simulation parameters
+chrono.ChCollisionSystem.SetDefaultSuggestedEnvelope(0.001)
+chrono.ChCollisionSystem.SetDefaultSuggestedRadius(0.001)
 
 # Load the triangular mesh from a Wavefront .obj file
 mesh = chrono.ChTriangleMesh()
 mesh.LoadWavefrontMesh("mesh.obj")
 
-# Create a fixed body and add the mesh to it
-body = chrono.ChBodyEasyMesh(sys, mesh, True, False)
+# Create a fixed body in the scene
+body = chrono.ChBodyEasyMesh(mesh, 1000, True, True)
 body.SetPos(chrono.ChVectorD(0, 0, 0))
-body.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
+body.SetRot(chrono.Q_from_AngX(0))
 sys.Add(body)
 
 # Create a camera sensor
-cam = sens.ChCameraSensor(sys)
+cam = sensor.ChCameraSensor()
+cam.SetName("camera")
+cam.SetImageSize(640, 480)
+cam.SetFocalLength(10)
+cam.SetPosition(chrono.ChVectorD(0, 0, 5))
+cam.SetLookAt(chrono.ChVectorD(0, 0, 0))
 
 # Create a sensor manager
-sens_man = sens.ChSensorManager(sys)
-sens_man.AddSensor(cam)
+sensor_manager = sensor.ChSensorManager()
+sensor_manager.AddSensor(cam)
 
 # Add noise filters and visualizations to the camera images
-cam.AddFilter(sens.ChGaussianNoiseFilter(0.1))
-cam.AddFilter(sens.ChSaltAndPepperNoiseFilter(0.05))
-cam.AddVisualization(sens.ChImageDisplay())
+noise_filter = sensor.ChNoiseFilterGaussian(0.1, 0.01)
+cam.AddFilter(noise_filter)
+vis.AddTypicalLights()
+vis.AddCamera(cam)
 
-# Set the simulation time step and duration
-dt = 0.01
-t_end = 10.0
-
-# Initialize the simulation time
-t = 0.0
-
-# Create a list to store the camera buffer data
-cam_buffer_data = []
-
+# Simulate the system
+time_step = 0.01
+t_end = 10
+t = 0
 while t < t_end:
-    # Update the camera's position in an orbit around the mesh
-    radius = 2.0
-    angle = t * 0.1
-    cam_pos = chrono.ChVectorD(radius * np.cos(angle), radius * np.sin(angle), 1.0)
-    cam.SetPos(cam_pos)
+    # Dynamically update the camera's position in an orbit around the mesh
+    theta = t * np.pi / 180
+    cam.SetPosition(chrono.ChVectorD(5 * np.cos(theta), 0, 5 * np.sin(theta)))
+    cam.SetLookAt(chrono.ChVectorD(0, 0, 0))
 
-    # Simulate the system for one time step
-    sys.DoStepDynamics(dt)
+    # Update the simulation
+    sys.DoStepDynamics(time_step)
 
-    # Get the camera buffer data
-    buffer_data = cam.GetBuffer()
-    cam_buffer_data.append(buffer_data)
+    # Print out camera buffer data at each step
+    buffer = cam.GetImageBuffer()
+    print(buffer)
 
-    # Print the camera buffer data
-    print(f"Time: {t:.2f}, Camera Buffer Data: {buffer_data}")
+    # Update the visualization
+    vis.BeginScene()
+    vis.DrawAll()
+    vis.EndScene()
 
-    # Update the simulation time
-    t += dt
+    # Increment the time
+    t += time_step
 
-# Visualize the simulation
-vis.Run()
+    # Wait for a short period of time
+    chrono.ChSleep(0.01)

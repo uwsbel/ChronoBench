@@ -3,87 +3,61 @@ import pychrono.irrlicht as chronoirr
 import pychrono.fea as fea
 import numpy as np
 
-# Create a Chrono::Engine physical system
+# Initialize PyChrono environment and core components
 my_system = chrono.ChSystemNSC()
+my_system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
 
-# Create an Irrlicht application
-my_application = chronoirr.ChIrrApp(my_system, 'Jeffcott Rotor Simulation', chronoirr.Dim3d(800, 600))
+# Create the Irrlicht application
+myapplication = chronoirr.ChIrrApp(my_system, 'Jeffcott Rotor Simulation', chronoirr.dimension2du(1024, 768))
 
-# Set the camera position and orientation
-my_application.Camera.SetPos(chrono.ChVectorD(0, 0, -2))
-my_application.Camera.SetFocal(chrono.ChVectorD(0, 0, 0))
+# Create the beam using IGA
+num_elem = 10
+num_nodes = num_elem + 1
+length = 1.0
+width = 0.1
+height = 0.1
+E = 200e9
+nu = 0.3
+density = 7850
 
-# Create a beam using IGA
-beam_length = 1.0
-beam_radius = 0.05
-beam_density = 7850
-beam_young_modulus = 210e9
-beam_poisson_ratio = 0.3
-beam_num_control_points = 10
-beam_num_elements = 1
+# Create the beam
+beam = fea.ChBeamSectionEulerAdvanced(E, nu, density, width, height)
+beam_material = fea.ChMaterialShellANCF(E, nu, density)
+beam_mesh = fea.ChMesh()
+beam_mesh.SetAutomaticAllocation(True)
+beam_mesh.AddElementNodal(fea.ChElementBeamTaperedANCF_3)
+beam_mesh.SetupInitial(num_nodes, beam_material)
 
-beam_material = fea.ChMaterialShellANCF(beam_density, beam_young_modulus, beam_poisson_ratio)
-beam_geometry = fea.ChLineBeamANCF(beam_length, beam_radius, beam_num_control_points, beam_num_elements)
-beam = fea.ChElementBeamANCF(beam_geometry, beam_material)
+# Set the geometry and material properties
+for i in range(num_nodes):
+    node = beam_mesh.Node(i)
+    node.SetPos(chrono.ChVectorD(i * length / num_nodes, 0, 0))
+    node.SetPos_dt(chrono.ChVectorD(0, 0, 0))
+    node.SetPos_dtdt(chrono.ChVectorD(0, 0, 0))
 
-# Create a flywheel
-flywheel_radius = 0.1
-flywheel_thickness = 0.02
-flywheel_density = 7850
-flywheel_inertia = 0.5 * flywheel_density * np.pi * (flywheel_radius**4 - (flywheel_radius - flywheel_thickness)**4)
-flywheel_mass = flywheel_density * np.pi * flywheel_radius**2 * flywheel_thickness
+# Create the flywheel
+flywheel_mass = 10
+flywheel_radius = 0.2
+flywheel = chrono.ChBodyEasyCylinder(flywheel_radius, flywheel_mass, True, True)
+flywheel.SetPos(chrono.ChVectorD(length / 2, 0, 0))
+my_system.Add(flywheel)
 
-flywheel_body = chrono.ChBodyEasyCylinder(flywheel_radius, flywheel_thickness, flywheel_density)
-flywheel_body.SetPos(chrono.ChVectorD(0, 0, 0))
-flywheel_body.SetInertiaXX(chrono.ChVectorD(flywheel_inertia, flywheel_inertia, flywheel_inertia))
-flywheel_body.SetMass(flywheel_mass)
-
-# Attach the flywheel to the beam
-beam.AddNode(0, flywheel_body)
-
-# Create a rotational motor
-motor_torque = 10
-motor_body = chrono.ChBody()
-motor_body.SetPos(chrono.ChVectorD(0, 0, 0))
-motor_body.SetFixed(True)
-
-motor = chrono.ChLinkMotorRotation()
-motor.Initialize(motor_body, flywheel_body, chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 0))
+# Create the rotational motor
+motor_torque = 100
+motor = chrono.ChLinkMotorRotationSpeed()
+motor.Initialize(beam_mesh.Node(0).GetNodeCoord().node, flywheel, chrono.ChVectorD(0, 0, 1))
+motor.Set_speed_dt(chrono.CH_C_PI / 2)
 motor.Set_motor_torque(motor_torque)
-
-# Add the beam, flywheel, and motor to the physical system
-my_system.Add(beam)
-my_system.Add(flywheel_body)
-my_system.Add(motor_body)
 my_system.Add(motor)
 
-# Set the initial angular velocity of the flywheel
-flywheel_body.SetWvel_loc(chrono.ChVectorD(0, 0, 10))
+# Add the beam to the system
+my_system.Add(beam_mesh)
 
-# Set the visual setup
-my_application.AssetBindAll()
-my_application.AddAsset(beam)
-my_application.AddAsset(flywheel_body)
-my_application.AddAsset(motor_body)
-my_application.AddAsset(motor)
-my_application.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
-my_application.AddSkyBox()
-my_application.AddTypicalLights()
-my_application.AddCamera(chrono.ChVectorD(0, 0, -2))
-my_application.AddShadowAll()
-
-# Set the simulation time and time step
-simulation_time = 10
-time_step = 0.01
+# Enable FEM visualization
+beam_mesh.SetFEMdataType(fea.ChVisualizationFEAtype.NODE_SPEED)
+beam_mesh.SetFEMdataType(fea.ChVisualizationFEAtype.NODE_X)
+beam_mesh.SetFEMdataType(fea.ChVisualizationFEAtype.NODE_Y)
+beam_mesh.SetFEMdataType(fea.ChVisualizationFEAtype.NODE_Z)
 
 # Run the simulation
-while my_application.GetDevice().run():
-    my_application.BeginScene()
-    my_application.DrawAll()
-    my_application.DoStepDynamics(time_step)
-    my_application.EndScene()
-
-    if my_application.GetDevice().getTimer().getTime() > simulation_time:
-        break
-
-my_application.GetSystem().Clear()
+myapplication.Run()

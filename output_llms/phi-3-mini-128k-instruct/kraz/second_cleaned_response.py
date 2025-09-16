@@ -8,7 +8,7 @@ veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 
 initLoc = chrono.ChVector3d(-15, 0, 0.5)
-initRot = chrono.ChQuaterniond(1, 0, 0, 0)
+initRot = chrono.ChQuaterniond(0, 0, 0, 1)  
 
 
 vis_type = veh.VisualizationType_MESH
@@ -25,7 +25,7 @@ terrainLength = 100.0
 terrainWidth = 100.0   
 
 
-trackPoint = chrono.ChVector3d(3, 0, 2.1)
+trackPoint = chrono.ChVector3d(3, 0, 2.1)  
 
 
 contact_method = chrono.ChContactMethod_NSC
@@ -37,6 +37,7 @@ tire_step_size = step_size
 
 
 render_step_size = 1.0 / 50  
+
 
 
 vehicle = veh.Kraz()
@@ -52,7 +53,19 @@ vehicle.SetSuspensionVisualizationType(vis_type, vis_type)
 vehicle.SetWheelVisualizationType(vis_type, vis_type)
 vehicle.SetTireVisualizationType(vis_type, vis_type)
 
-vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+vehicle.GetSystem().SetCollisionSystemType(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 patch_mat = chrono.ChContactMaterialNSC()
@@ -71,12 +84,13 @@ terrain.Initialize()
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('Kraz Demo')
 vis.SetWindowSize(1280, 1024)
-vis.SetChaseCamera(trackPoint, 25.0, 10.5)
+vis.SetChaseCamera(trackPoint, 25.0, 10.5)  
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetTractor())
+
 
 
 driver = veh.ChInteractiveDriverIRR(vis)
@@ -113,6 +127,11 @@ while vis.Run() :
         render_frame += 1
 
     
+    if time > 10 and time < 20:  
+        driver.PerformLaneChange(chrono.ChLaneChangeType_LANE_CHANGE_LEFT, 1)  
+        driver.PerformLaneChange(chrono.ChLaneChangeType_LANE_CHANGE_RIGHT, 1)  
+
+    
     driver_inputs = driver.GetInputs()
 
     
@@ -120,16 +139,6 @@ while vis.Run() :
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
-
-    
-    if time > 5.0 and time < 10.0:
-        driver_inputs.steering = 1.0
-        driver_inputs.throttle = 0.0
-        driver_inputs.braking = 0.0
-    elif time > 10.0 and time < 15.0:
-        driver_inputs.steering = -1.0
-        driver_inputs.throttle = 0.0
-        driver_inputs.braking = 0.0
 
     
     driver.Advance(step_size)

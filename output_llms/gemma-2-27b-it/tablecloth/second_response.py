@@ -44,21 +44,23 @@ for iz in range(nsections_z + 1):
         mesh.AddNode(mnode)
         mynodes.append(mnode)
 
-# Node Monitoring and Loading Setup
-nodePlotA = mynodes[0]
-nodePlotB = mynodes[-1]
-nodesLoad = [mynodes[i * (nsections_x + 1) + nsections_x // 2] for i in range(nsections_z)]
-load_force = chrono.ChVectorD(0, -10, 0)
+# Define node variables for plotting and loading
+nodePlotA = mynodes[int(nsections_x / 2) * (nsections_x + 1) + int(nsections_z / 2)]
+nodePlotB = mynodes[int(nsections_x / 4) * (nsections_x + 1) + int(nsections_z / 4)]
+nodesLoad = [mynodes[i * (nsections_x + 1) + int(nsections_x / 2)] for i in range(int(nsections_z / 2), int(nsections_z / 2) + 5)]
 
 # Interpolation functions for reference tracking
 def ref_X(t):
-    return 0
+    return 0.01 * chrono.ChMath.Sin(t)
 
 def ref_Y(t):
-    return 0
+    return 0.01 * chrono.ChMath.Cos(t)
+
+# Load force vector
+load_force = chrono.ChVectorD(0, -100, 0)
 
 # Monitoring nodes and elements
-mnodemonitor = mynodes[10]
+mnodemonitor = mynodes[0]
 melementmonitor = None
 
 # Create elements
@@ -66,8 +68,8 @@ for iz in range(nsections_z):
     for ix in range(nsections_x):
         melementA = fea.ChElementShellBST()
         boundary_1 = mynodes[(iz + 1) * (nsections_x + 1) + ix + 1] if ix < nsections_x else None
-        boundary_2 = mynodes[(iz + 1) * (nsections_x + 1) + ix - 1] if ix > 0 else None
-        boundary_3 = mynodes[(iz - 1) * (nsections_x + 1) + ix + 1] if iz > 0 else None
+        boundary_2 = mynodes[(iz + 1) * (nsections_x + 1) + ix - 1] if (ix > 0) else None
+        boundary_3 = mynodes[(iz - 1) * (nsections_x + 1) + ix + 1] if (iz > 0) else None
 
         melementA.SetNodes(mynodes[iz * (nsections_x + 1) + ix], mynodes[iz * (nsections_x + 1) + ix + 1],
                            mynodes[(iz + 1) * (nsections_x + 1) + ix], boundary_1, boundary_2, boundary_3)
@@ -84,11 +86,10 @@ for iz in range(nsections_z):
         melementB.AddLayer(thickness, 0, material)
         mesh.AddElement(melementB)
 
-        # Element Monitoring
-        if iz == 0 and ix == 1:
+        if (iz == 0 and ix == 1):
             melementmonitor = melementA
 
-# Fix Upper Nodes
+# Fix upper nodes
 for j in range(30):
     for k in range(30):
         mynodes[j * (nsections_x + 1) + k].SetFixed(True)
@@ -96,9 +97,9 @@ for j in range(30):
 # Create visualizations for shell elements
 mvisualizeshellA = chrono.ChVisualShapeFEA(mesh)
 mvisualizeshellA.SetShellResolution(2)
-# mvisualizeshellA.SetSmoothFaces(True)
-# mvisualizeshellA.SetWireframe(True)
-# mvisualizeshellA.SetBackfaceCull(True)
+# mvisualizeshellA.SetSmoothFaces(True)  # Optional
+# mvisualizeshellA.SetWireframe(True)  # Optional
+# mvisualizeshellA.SetBackfaceCull(True)  # Optional
 mesh.AddVisualShapeFEA(mvisualizeshellA)
 
 mvisualizeshellB = chrono.ChVisualShapeFEA(mesh)
@@ -136,7 +137,3 @@ while vis.Run():
     vis.Render()
     vis.EndScene()
     sys.DoStepDynamics(timestep)
-
-    # Apply load
-    for node in nodesLoad:
-        node.SetForce(load_force)

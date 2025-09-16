@@ -1,141 +1,51 @@
-import pychrono as chrono
-import pychrono.irrlicht as irr
 import numpy as np
+from chrono import chrono_types
+from chrono import ChronoEngine
+from chrono import Irrlicht
+from chrono import ChBeam
 
-# Initialize PyChrono environment
-chrono.ChEngine.Initialize()
+# Initialize PyChrono environment and core components
+chrono_types.InitChrono()
 
-# Create a Chrono system
-system = chrono.ChSystem()
+# Create the simulation system
+system = chrono_types.ChSystem()
 
-# Set gravity
-system.Set_G_acc(chrono.ChVectorDbl(0, -9.81, 0))
+# Create the Irrlicht application
+app = Irrlicht.ChIrrApp(system, "ANCF Beam Simulation")
 
-# Create an Irrlicht application for visualization
-app = irr.ChIrrApp(system, "ANCF Cable Beam Simulation", chrono.IrrlichtInfo())
+# Set the gravity
+system.Set_G_acc(chrono_types.ChVectorD(0, -9.81, 0))
 
-# Set Irrlicht application parameters
-app.SetTimestep(0.01)
-app.SetRenderMode(irr.RenderMode.SolidWIREFRAME)
+# Create the ground body
+ground = chrono_types.ChBody()
+ground.SetFixed(True)
+system.AddBody(ground)
 
-# Define beam properties
-beam_length = 10.0  # meters
-beam_diameter = 0.1  # meters
-num_elements = 10
-young_modulus = 200e9  # Pa
-density = 7850  # kg/m^3
+# Create the ANCF beam
+beam = ChBeam.ChBeam()
+beam.SetBeamLength(10.0)  # Length of the beam
+beam.SetNumElements(10)   # Number of beam elements
+beam.SetNumSections(1)    # Number of sections
+beam.SetSectionRadius(0.1) # Radius of the beam section
+beam.SetYoungModulus(2e6)  # Young's modulus
+beam.SetDensity(7850)      # Density of the beam material
 
-# Create a cable section
-cable_section = chrono.ChCableSectionA()
-cable_section.SetYoungModulus(young_modulus)
-cable_section.SetDensity(density)
-cable_section.SetDiameter(beam_diameter)
+# Initialize the beam with default parameters
+beam.Initialize(ground, chrono_types.ChVectorD(0, 0, 0), chrono_types.ChQuaternionD(1, 0, 0, 0))
 
-# Create ANCF cable elements
-cable_elements = []
-for i in range(num_elements):
-    cable_element = chrono.ChCableANCF()
-    cable_element.SetCableSection(cable_section)
-    cable_element.SetLength(beam_length / num_elements)
-    cable_elements.append(cable_element)
+# Add the beam to the system
+system.Add(beam)
 
-    # Add cable element to the system
-    system.Add(cable_element)
+# Add Irrlicht visualization
+viz = Irrlicht.ChIrrVisualization(beam)
+app.Add(viz)
 
-# Connect cable elements
-for i in range(num_elements - 1):
-    cable_elements[i].Connect(cable_elements[i + 1])
+# Set simulation parameters
+system.Set_Timestep(0.01)
+system.Set_StopTime(10.0)
 
-# Fix one end of the beam
-cable_elements[0].SetFixedFrame(chrono.ChFrameDbl(chrono.ChVectorDbl(0, 0, 0), chrono.ChQuaternionDbl(1, 0, 0, 0)))
+# Start the simulation
+app.Run()
 
-# Create Irrlicht visual shapes for cable elements
-for cable_element in cable_elements:
-    visual_shape = chrono.ChVisualShapeCable()
-    visual_shape.SetCableSection(cable_section)
-    cable_element.AddVisualShape(visual_shape)
-
-# Run simulation
-while app.GetDevice().run():
-    # Update the system
-    system.DoStepDynamics(app.GetTimestep())
-
-    # Render the scene
-    app.Render()
-    app.UpdateCamera()
-
-# Close Irrlicht device
-app.GetDevice().close()
-
-import pychrono as chrono
-import pychrono.irrlicht as irr
-import numpy as np
-
-def main():
-    # Initialize PyChrono environment
-    chrono.ChEngine.Initialize()
-
-    # Create a Chrono system
-    system = chrono.ChSystem()
-
-    # Set gravity
-    system.Set_G_acc(chrono.ChVectorDbl(0, -9.81, 0))
-
-    # Create an Irrlicht application for visualization
-    app = irr.ChIrrApp(system, "ANCF Cable Beam Simulation", chrono.IrrlichtInfo())
-
-    # Set Irrlicht application parameters
-    app.SetTimestep(0.01)
-    app.SetRenderMode(irr.RenderMode.SolidWIREFRAME)
-
-    # Define beam properties
-    beam_length = 10.0  # meters
-    beam_diameter = 0.1  # meters
-    num_elements = 10
-    young_modulus = 200e9  # Pa
-    density = 7850  # kg/m^3
-
-    # Create a cable section
-    cable_section = chrono.ChCableSectionA()
-    cable_section.SetYoungModulus(young_modulus)
-    cable_section.SetDensity(density)
-    cable_section.SetDiameter(beam_diameter)
-
-    # Create ANCF cable elements
-    cable_elements = []
-    for i in range(num_elements):
-        cable_element = chrono.ChCableANCF()
-        cable_element.SetCableSection(cable_section)
-        cable_element.SetLength(beam_length / num_elements)
-        cable_elements.append(cable_element)
-
-        # Add cable element to the system
-        system.Add(cable_element)
-
-    # Connect cable elements
-    for i in range(num_elements - 1):
-        cable_elements[i].Connect(cable_elements[i + 1])
-
-    # Fix one end of the beam
-    cable_elements[0].SetFixedFrame(chrono.ChFrameDbl(chrono.ChVectorDbl(0, 0, 0), chrono.ChQuaternionDbl(1, 0, 0, 0)))
-
-    # Create Irrlicht visual shapes for cable elements
-    for cable_element in cable_elements:
-        visual_shape = chrono.ChVisualShapeCable()
-        visual_shape.SetCableSection(cable_section)
-        cable_element.AddVisualShape(visual_shape)
-
-    # Run simulation
-    while app.GetDevice().run():
-        # Update the system
-        system.DoStepDynamics(app.GetTimestep())
-
-        # Render the scene
-        app.Render()
-        app.UpdateCamera()
-
-    # Close Irrlicht device
-    app.GetDevice().close()
-
-if __name__ == "__main__":
-    main()
+# Clean up
+chrono_types.ChronoEngine.Finalize()

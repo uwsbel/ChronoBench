@@ -25,7 +25,7 @@ class MyCustomHandler(chros.ChROSHandler):
 
     def Tick(self, time: float):
         
-        print(f"Publishing {self.ticker} ...")
+        print(f"Publishing {self.message + str(self.ticker)} ...")
         msg = String()  
         msg.data = self.message + str(self.ticker)  
         self.publisher.publish(msg)  
@@ -93,5 +93,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-The given PyChrono script has been modified according to the provided instructions. The ROS message type has been changed from `Int64` to `String`, a `message` attribute has been added to the `MyCustomHandler` class with the value `"Hello, world! At time: "`, and the `Tick` method has been updated to publish the concatenated string message: `"Hello, world! At time: " + str(self.ticker)`.

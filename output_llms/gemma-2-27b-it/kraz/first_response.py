@@ -1,84 +1,96 @@
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
-import pychrono.vehicle as chronovehicle
+import math
 
 # ---------------------------------------------------------------------
 #
-#  Simulation setup
+#  Create the simulation system
 #
+# ---------------------------------------------------------------------
 
-# Create the simulation system
-my_system = chrono.ChSystemNSC()
-
-# Set gravitational acceleration
-my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
-
-# Create the Irrlicht visualization system
-vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(my_system)
-vis.SetWindowSize(800, 600)
-vis.SetWindowTitle("Kraz Vehicle Simulation")
-vis.Initialize()
-vis.AddCamera(chrono.ChVectorD(0, 2, -5))
-vis.AddLight(chrono.ChVectorD(5, 5, 5), chrono.ChColor(1, 1, 1))
+mysystem = chrono.ChSystemNSC()
+mysystem.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
 # ---------------------------------------------------------------------
 #
-#  Terrain
+# Create the terrain
 #
+# ---------------------------------------------------------------------
 
-# Create a rigid terrain
-terrain = chrono.ChBodyEasyBox(
-    20, 20, 0.2, 1000, True, True, chrono.ChMaterialSurfaceNSC()
-)
-terrain.SetPos(chrono.ChVectorD(0, -0.1, 0))
+terrain = chrono.ChBodyEasyBox(100, 1, 100, 1000, True, True)
 terrain.SetBodyFixed(True)
-my_system.Add(terrain)
-
-# Set terrain friction and restitution
-terrain.GetMaterialSurfaceNSC().SetFriction(0.8)
-terrain.GetMaterialSurfaceNSC().SetRestitution(0.2)
+terrain.SetPos(chrono.ChVectorD(0, -1, 0))
+terrain.SetMaterialSurface(chrono.ChMaterialSurfaceNSC(0.8, 0.2))
+mysystem.Add(terrain)
 
 # ---------------------------------------------------------------------
 #
-#  Vehicle
+# Create the Kraz vehicle
 #
+# ---------------------------------------------------------------------
 
-# Create a Kraz vehicle
-vehicle = chronovehicle.ChVehicle("kraz/kraz.json")
-vehicle.SetSystem(my_system)
+kraz = chrono.ChVehicle("Kraz")
 
-# Set initial position and orientation
-vehicle.SetPos(chrono.ChVectorD(0, 0.5, 0))
-vehicle.SetRot(chrono.Q_from_AngAxis(chrono.CH_C_PI / 4, chrono.ChVectorD(0, 1, 0)))
+# Chassis
+kraz_chassis = chrono.ChBodyEasyBox(3, 1, 5, 1000)
+kraz_chassis.SetPos(chrono.ChVectorD(0, 1, 0))
+kraz.SetChassisBody(kraz_chassis)
+mysystem.Add(kraz_chassis)
+
+# Wheels
+wheel_radius = 0.5
+wheel_width = 0.2
+for i in range(4):
+    wheel = chrono.ChWheel4(chrono.ChCoordsysD(
+        chrono.ChVectorD(
+            (i % 2) * 2.5 - 1.5, -wheel_radius, (i // 2) * 2.5 - 1.5
+        )
+    ))
+    wheel.SetRadius(wheel_radius)
+    wheel.SetWidth(wheel_width)
+    wheel.SetFriction(0.8)
+    wheel.SetMaterial(chrono.ChMaterialSurfaceNSC(0.8, 0.2))
+    kraz.AddWheel(wheel)
+
+mysystem.Add(kraz)
 
 # ---------------------------------------------------------------------
 #
-#  Driver
+# Create the driver system
 #
+# ---------------------------------------------------------------------
 
-# Create a simple driver system
-driver = chronovehicle.ChDriver(vehicle)
-driver.SetSteeringGain(0.5)
-driver.SetThrottleGain(0.5)
-driver.SetBrakingGain(0.5)
+driver = chrono.ChDriver(kraz)
+driver.SetSteeringGain(1.0)
+driver.SetThrottleGain(1.0)
+driver.SetBrakingGain(1.0)
 
 # ---------------------------------------------------------------------
 #
-#  Simulation loop
+# Create the Irrlicht visualization system
 #
+# ---------------------------------------------------------------------
 
-# Simulation step size
-dt = 0.01
+vis = chronoirr.ChIrrApp(mysystem, "Kraz Simulation")
+vis.SetWindowSize(1200, 800)
+vis.AddTypicalSky()
+vis.AddTypicalLights()
+vis.SetCameraPosition(chrono.ChVectorD(5, 5, 5))
+vis.SetCameraLookAt(chrono.ChVectorD(0, 1, 0))
 
-while vis.Run():
-    # Advance the simulation
-    my_system.DoStepDynamics(dt)
+# ---------------------------------------------------------------------
+#
+# Simulation loop
+#
+# ---------------------------------------------------------------------
 
-    # Update the driver
-    driver.Synchronize(dt)
-
-    # Update the visualization
+while vis.GetDevice().run():
     vis.BeginScene()
     vis.Render()
+    mysystem.DoStepDynamics(0.01)
+
+    # Driver control
+    driver.SetSteering(math.sin(vis.GetChTime()))
+    driver.SetThrottle(0.5)
+
     vis.EndScene()

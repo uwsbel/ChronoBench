@@ -73,19 +73,15 @@ while vis.Run():
     
     driver.SetSteering(steering)  
 
-    rover.Update()  
+    manager.Update()  
 
-    
-    manager.Update()
+    rover.Update()  
 
     
     if (step_number % render_steps == 0):
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
-    
-    
-    system.DoStepDynamics(time_step)
-
-    
     step_number += 1
+
+    system.DoStepDynamics(time_step)

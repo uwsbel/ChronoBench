@@ -1,57 +1,63 @@
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
-import numpy as np
+import math
+import time
 
-# Create a Chrono::Engine physical system
-chrono.SetChronoDataPath("/path/to/chrono/data")  # Replace with the actual path
+# 1. Initialize the PyChrono environment and core components
+chrono.SetChronoDataPath("/path/to/chrono/data")  # Replace with your Chrono data path
+chrono.SetChronoDataPath("/path/to/irrlicht/data")  # Replace with your Irrlicht data path
+
 my_system = chrono.ChSystemNSC()
+my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
 
-# Set gravity
-my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+# 2. Add the required physical systems and objects
 
-# Create a ground body
-ground = chrono.ChBodyEasyBox(20, 0.1, 20, 1000, True, True)
-ground.SetPos(chrono.ChVectorD(0, -0.1, 0))
+# Create ground body
+ground = chrono.ChBodyEasyBox(20, 1, 20, 1000, True, True)
 ground.SetBodyFixed(True)
 my_system.Add(ground)
 
-# Initialize the Viper rover
-viper = chrono.ChBodyEasyBox(1, 0.2, 2, 10, True, True)
-viper.SetPos(chrono.ChVectorD(0, 0.1, 0))
+# Create Viper rover
+viper = chrono.ChBodyEasyCylinder(0.2, 0.5, 1000, True, True)
+viper.SetPos(chrono.ChVectorD(0, 0.5, 0))
+viper.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
 my_system.Add(viper)
 
-# Initialize the Viper rover's driver
-driver = chrono.ChIrrGuiDriver(my_system, chronoirr.ChIrrApp(my_system, "Viper Rover Simulation", chronoirr.dimension2du(800, 600), False, False))
+# 3. Set necessary default parameters such as positions, forces, and interactions
 
-# Set the initial steering angle
-steering_angle = 0
+# Create a driver for the Viper rover
+viper_driver = chrono.ChDriverUTest(viper)
+viper_driver.Set_dt(0.01)
+viper_driver.Set_initial_speed(0)
+viper_driver.Set_final_speed(10)
+viper_driver.Set_initial_steering(0)
+viper_driver.Set_final_steering(math.pi / 4)  # Gradually change steering over 10 seconds
+viper_driver.Set_steering_time(10)
+viper_driver.Set_speed_time(0)
+viper_driver.Set_acceleration(0)
+viper_driver.Set_braking(0)
+viper_driver.Initialize()
 
-# Set the time period for the steering angle change
-time_period = 10  # in seconds
-
-# Set the steering angle change rate
-steering_change_rate = np.pi / (2 * time_period)
-
-# Set camera position and target
-driver.GetCameraSystem().SetFar(100)
-driver.GetCameraSystem().SetPos(chrono.ChVectorD(0, 5, -10))
-driver.GetCameraSystem().SetTarget(chrono.ChVectorD(0, 0, 0))
-
-# Set lighting
-driver.GetLightSystem().SetLightDirection(chrono.ChVectorD(1, -1, -1))
-driver.GetLightSystem().SetLightIntensity(1.5)
+# Create Irrlicht application
+application = chronoirr.ChIrrApp(my_system, "Viper Rover Simulation", chronoirr.dimension2du(800, 600), False, True)
+application.AddTypicalSky()
+application.AddTypicalLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))
+application.AddTypicalCamera(chrono.ChVectorD(0, 1, -5))
+application.AddLightWithShadow(chrono.ChVectorD(2, 4, -2), chrono.ChVectorD(0, -1, 0), 1, 10, 50, 512, 2048)
 
 # Simulation loop
-while driver.Run():
-    # Update the steering angle
-    steering_angle += steering_change_rate * driver.GetTimestep()
+application.SetTimestep(0.01)
+application.SetTryRealtime(True)
 
-    # Apply the steering angle to the rover
-    # (Assuming you have a function to apply the steering angle to the rover)
-    apply_steering_angle(viper, steering_angle)
+while application.GetDevice().run():
+    application.BeginScene()
+    application.DrawAll()
+    application.DoStep()
+    application.EndScene()
 
-    # Update and render the rover
-    my_system.DoStepDynamics(driver.GetTimestep())
-    driver.BeginScene()
-    driver.DrawAll()
-    driver.EndScene()
+    # Update Viper rover driver
+    viper_driver.Update(application.GetTimestep())
+
+    time.sleep(application.GetTimestep())
+
+application.Close()

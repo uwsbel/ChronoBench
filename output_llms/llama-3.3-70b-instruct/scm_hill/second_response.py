@@ -3,17 +3,17 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 import numpy as np
-from pychrono.sensor import ChSensorManager
+from pychrono.sensor import ChSensorManager, ChLidarSensor
 
 """
 !!!! Set this path before running the demo!
 """
-chrono.SetChronoDataPath("/path/to/chrono/data")  # Replace with the correct path
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 # Initial vehicle location and orientation
-initLoc = chrono.ChVector3d(-15, 0, 1.2)
-initRot = chrono.ChQuaterniond(1, 0, 0, 0)
+initLoc = chrono.ChVectorD(-15, 0, 1.2)
+initRot = chrono.ChQuaternionD(1, 0, 0, 0)
 
 # Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
 vis_type = veh.VisualizationType_MESH
@@ -31,7 +31,7 @@ terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
 
 # Poon chassis tracked by the camera
-trackPoint = chrono.ChVector3d(0.0, 0.0, 1.71)
+trackPoint = chrono.ChVectorD(0.0, 0.0, 1.71)
 
 # Contact method
 contact_method = chrono.ChContactMethod_SMC
@@ -50,7 +50,7 @@ vehicle = veh.HMMWV_Full() # veh.HMMWV_Reduced()  could be another choice here
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
-vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
+vehicle.SetInitPosition(chrono.ChCoordsysD(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 
@@ -77,7 +77,7 @@ terrain.SetSoilParameters(2e6,   # Bekker Kphi
 )
 
 # Optionally, enable moving patch feature (single patch around vehicle chassis)
-terrain.AddMovingPatch(vehicle.GetChassisBody(), chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(5, 3, 1))
+terrain.AddMovingPatch(vehicle.GetChassisBody(), chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(5, 3, 1))
 
 # Set plot type for SCM (false color plotting)
 terrain.SetPlotType(veh.SCMTerrain.PLOT_SINKAGE, 0, 0.1)
@@ -86,13 +86,6 @@ terrain.SetPlotType(veh.SCMTerrain.PLOT_SINKAGE, 0, 0.1)
 terrain.Initialize(veh.GetDataFile("terrain/height_maps/bump64.bmp"),40, 40, -1,1, 0.02)
 
 terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
-
-# Create obstacles
-obstacles = []
-for i in range(5):
-    obstacle = chrono.ChBodyEasyBox(vehicle.GetSystem(), 1, 1, 1, 1000, True, True)
-    obstacle.SetPos(chrono.ChVector3D(np.random.uniform(-10, 10), np.random.uniform(-10, 10), 0.5))
-    obstacles.append(obstacle)
 
 # Create the vehicle Irrlicht interface
 
@@ -105,6 +98,13 @@ vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
+
+# Create obstacles
+obstacles = []
+for _ in range(5):
+    obstacle = chrono.ChBodyEasyBox(vehicle.GetSystem(), 1, 1, 1, 1000, True, True)
+    obstacle.SetPos(chrono.ChVectorD(np.random.uniform(-10, 10), np.random.uniform(-10, 10), 0.5))
+    obstacles.append(obstacle)
 
 # Create the driver system
 driver = veh.ChInteractiveDriverIRR(vis)
@@ -121,14 +121,21 @@ driver.Initialize()
 
 # Create sensor manager
 manager = ChSensorManager()
-manager.AddSensor(chrono.ChVector3D(0, 0, 1.5), chrono.ChQuaternionD(1, 0, 0, 0), vehicle.GetChassisBody())
-
-# Add lidar sensor
-lidar = manager.AddLidarSensor(chrono.ChVector3D(0, 0, 1.5), chrono.ChQuaternionD(1, 0, 0, 0), vehicle.GetChassisBody())
-lidar.SetRange(10)
-lidar.SetResolution(0.1)
-lidar.SetFrequency(10)
-lidar.SetVisualization(True)
+manager.AddSensor(ChLidarSensor(vehicle.GetChassisBody(), 
+                                chrono.ChVectorD(0, 0, 1.5), 
+                                chrono.ChVectorD(0, 0, 0), 
+                                10, 
+                                0.1, 
+                                10, 
+                                0.1, 
+                                0.1, 
+                                0.1, 
+                                0.1, 
+                                0.1, 
+                                0.1, 
+                                True, 
+                                True, 
+                                True))
 
 # ---------------
 # Simulation loop

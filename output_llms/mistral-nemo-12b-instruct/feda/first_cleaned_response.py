@@ -1,77 +1,70 @@
-import pychrono as pc
-import pychrono.irrlicht as irr
-import pychrono.vehicle as vehicle
-import pychrono.terrain as terrain
-import numpy as np
+import pychrono as chrono
+from pychrono.irrlicht import *
+from pychrono.vehicle import *
+from pychrono.terrain import *
+from pychrono.driver import *
 
 
-sim = pc.Simulation()
-renderer = irr.Renderer(sim)
-sim.setRenderer(renderer)
+sim = chrono.ChSimulation()
+sim.SetTimestepper(chrono.ChTimestepper.Type_PPM, 50)  
 
 
+irr = chrono.ChIrrApp(sim, 'PyChrono FEDA Vehicle Simulation', chrono.ChVectorD(200, 100), False)
+irr.AddTypicalSky(chrono.ChColor(0.698, 0.769, 0.875))
+irr.SetCamera(chrono.ChVectorD(0, 2, -10), chrono.ChVectorD(0, 0, 0))  
 
 
-terrain_file = "path/to/your/terrain_heightmap.png"
-terrain_texture = "path/to/your/terrain_texture.png"
-terrain = terrain.RigidTerrain(terrain_file, terrain_texture)
-sim.add(terrain)
+terrain = chrono.ChTerrainRigid()
+terrain.SetTexture(irr.GetTexture("textures/grass.png"))
+terrain.SetColor(chrono.ChColor(0.3, 0.4, 0.3))
+terrain.AddBox(chrono.ChVectorD(0, 0, 0), 100, 100, 100, chrono.ChMaterialSurface(MaterialSurface.NSCONCRETE))
+sim.Add(terrain)
 
 
-vehicle_file = "path/to/your/feda_vehicle.urdf"
-vehicle = vehicle.Vehicle(vehicle_file)
-vehicle.setChassisLocation([0, 0, 0.5])
-vehicle.setChassisOrientation([0, 0, 0])
-vehicle.setContactMethod(pc.ContactMethod.TRIANGLE)
-vehicle.setTireModel(pc.TireModel.FUEDT)
+vehicle = chrono.ChVehicle()
+vehicle.SetChassisBody(chrono.ChBodyEasyBox(0.5, 1, 1, 1000, True, True, material=chrono.ChMaterialSurface(MaterialSurface.METAL)))
+vehicle.SetChassisLocation(chrono.ChVectorD(0, 0.5, 0))
+vehicle.SetChassisOrientation(chrono.ChQuaternionD(1, 0, 0, 0))
+vehicle.SetContactMethod(chrono.ChVehicle.ContactMethod.CONTACT)
+vehicle.SetTireModel(chrono.ChVehicle.TireModel.FD)
 
 
-sim.add(vehicle)
+vehicle.AddChassis(chrono.ChBodyEasyBox(0.5, 1, 1, 1000, True, True, material=chrono.ChMaterialSurface(MaterialSurface.METAL)))
+vehicle.AddWheel(chrono.ChBodyEasyCylinder(0.2, 0.2, 0.2, 1000, True, True, material=chrono.ChMaterialSurface(MaterialSurface.METAL)))
+vehicle.AddWheel(chrono.ChBodyEasyCylinder(0.2, 0.2, 0.2, 1000, True, True, material=chrono.ChMaterialSurface(MaterialSurface.METAL)))
+vehicle.AddWheel(chrono.ChBodyEasyCylinder(0.2, 0.2, 0.2, 1000, True, True, material=chrono.ChMaterialSurface(MaterialSurface.METAL)))
+vehicle.AddWheel(chrono.ChBodyEasyCylinder(0.2, 0.2, 0.2, 1000, True, True, material=chrono.ChMaterialSurface(MaterialSurface.METAL)))
 
 
-camera = renderer.getCamera()
-camera.setFollow(vehicle.getChassisNode(), 0.5, 0.5, -1)
+vehicle.SetSteeringAngle(0)
+vehicle.SetThrottle(0)
+vehicle.SetBrake(0)
 
 
-vehicle.setVisualizationType(pc.VisualizationType.MESH)
+driver = chrono.ChDriver()
+driver.SetVehicle(vehicle)
+driver.SetSteeringSensitivity(1)
+driver.SetThrottleSensitivity(1)
+driver.SetBrakeSensitivity(1)
 
 
-driver = vehicle.Driver()
-driver.setSteering(0)
-driver.setThrottle(0)
-driver.setBrake(0)
+sim.Add(vehicle)
 
 
-
-
-sim.setTimestep(0.02)  
-
-
-while not sim.isStopped():
+while True:
     
-    vehicle.update(driver)
-
-    
-    sim.render()
-
-    
-    if sim.getKeyboard().isKeyDown(pc.Keyboard.Key.W):
-        driver.setThrottle(1)
-    elif sim.getKeyboard().isKeyDown(pc.Keyboard.Key.S):
-        driver.setBrake(1)
-    else:
-        driver.setThrottle(0)
-        driver.setBrake(0)
-
-    if sim.getKeyboard().isKeyDown(pc.Keyboard.Key.A):
-        driver.setSteering(-1)
-    elif sim.getKeyboard().isKeyDown(pc.Keyboard.Key.D):
-        driver.setSteering(1)
-    else:
-        driver.setSteering(0)
+    driver.Update()
+    vehicle.Update(0.01)
 
     
-    sim.step()
+    irr.DoStep()
+
+    
+    if irr.GetDevice().run():
+        break
 
 
-sim.stop()
+sim.Remove(vehicle)
+sim.Remove(terrain)
+sim.Clear()
+irr.Close()

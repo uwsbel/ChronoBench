@@ -13,10 +13,7 @@ try:
     os.mkdir(out_dir)  
 except OSError as exc:
     if exc.errno != errno.EEXIST:  
-        print(f"Error creating output directory: {exc}")
-
-
-VNULL = chrono.ChVector3d(0, 0, 0)  
+        print("Error creating output directory ")
 
 
 sys = chrono.ChSystemSMC()  
@@ -25,7 +22,7 @@ sys = chrono.ChSystemSMC()
 mesh = fea.ChMesh()  
 
 
-sys.Add(mesh)
+sys.Add(mesh)  
 
 
 
@@ -44,14 +41,14 @@ ref_Y = chrono.ChFunctionInterp()
 load_force = chrono.ChVector3d()
 
 
-mnodemonitor = fea.ChNodeFEAxyz()  
+m nodemonitor = fea.ChNodeFEAxyz()  
 melementmonitor = fea.ChElementShellBST()  
 
 if True:  
     
     density = 100  
     E = 6e4  
-    nu = 0.0  
+    nu = 0.3  
     thickness = 0.01  
 
     
@@ -66,10 +63,6 @@ if True:
     nsections_x = 40  
     L_z = 1  
     nsections_z = 40  
-
-    
-    if nsections_x < 1 or nsections_z < 1:
-        raise ValueError("Number of sections must be greater than 0")
 
     
     mynodes = []
@@ -88,7 +81,6 @@ if True:
             
             melementA = fea.ChElementShellBST()
             mesh.AddElement(melementA)
-
             if iz == 0 and ix == 1:
                 melementmonitor = melementA  
 
@@ -99,10 +91,12 @@ if True:
 
             
             melementA.SetNodes(
-                mynodes[iz * (nsections_x + 1) + ix],
-                mynodes[iz * (nsections_x + 1) + ix + 1],
+                mynodes[(iz) * (nsections_x + 1) + ix],
+                mynodes[(iz) * (nsections_x + 1) + ix + 1],
                 mynodes[(iz + 1) * (nsections_x + 1) + ix],
-                boundary_1, boundary_2, boundary_3
+                boundary_1,
+                boundary_2,
+                boundary_3,
             )
 
             
@@ -113,16 +107,18 @@ if True:
             mesh.AddElement(melementB)
 
             
-            boundary_1 = mynodes[iz * (nsections_x + 1) + ix]
-            boundary_2 = mynodes[iz * (nsections_x + 1) + ix + 2] if ix < nsections_x - 1 else None
+            boundary_1 = mynodes[(iz) * (nsections_x + 1) + ix]
+            boundary_2 = mynodes[(iz) * (nsections_x + 1) + ix + 2] if ix < nsections_x - 1 else None
             boundary_3 = mynodes[(iz + 2) * (nsections_x + 1) + ix] if iz < nsections_z - 1 else None
 
             
             melementB.SetNodes(
                 mynodes[(iz + 1) * (nsections_x + 1) + ix + 1],
                 mynodes[(iz + 1) * (nsections_x + 1) + ix],
-                mynodes[iz * (nsections_x + 1) + ix + 1],
-                boundary_1, boundary_2, boundary_3
+                mynodes[(iz) * (nsections_x + 1) + ix + 1],
+                boundary_1,
+                boundary_2,
+                boundary_3,
             )
 
             
@@ -137,8 +133,8 @@ if True:
     mvisualizeshellA = chrono.ChVisualShapeFEA(mesh)
     mvisualizeshellA.SetSmoothFaces(True)  
     mvisualizeshellA.SetWireframe(True)  
-    mvisualizeshellA.SetBackfaceCull(True)  
     mvisualizeshellA.SetShellResolution(2)  
+    mvisualizeshellA.SetBackfaceCull(True)  
     mesh.AddVisualShapeFEA(mvisualizeshellA)  
 
     
@@ -148,37 +144,36 @@ if True:
     mvisualizeshellB.SetSymbolsThickness(0.006)  
     mesh.AddVisualShapeFEA(mvisualizeshellB)  
 
+    
+    vis = chronoirr.ChVisualSystemIrrlicht()
+    vis.AttachSystem(sys)  
+    vis.SetWindowSize(1024, 768)  
+    vis.SetWindowTitle("Shells FEA test: triangle BST elements")  
+    vis.Initialize()  
+    vis.AddLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))  
+    vis.AddSkyBox()  
+    vis.AddCamera(chrono.ChVector3d(1, 0.3, 1.3), chrono.ChVector3d(0.5, -0.3, 0.5))  
+    vis.AddTypicalLights()  
 
-vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(sys)  
-vis.SetWindowSize(1024, 768)  
-vis.SetWindowTitle('Shells FEA test: triangle BST elements')  
-vis.Initialize()  
-vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))  
-vis.AddSkyBox()  
-vis.AddCamera(chrono.ChVector3d(1, .3, 1.3), chrono.ChVector3d(.5, -.3, .5))  
-vis.AddTypicalLights()  
+    
+    mkl_solver = mkl.ChSolverPardisoMKL()  
+    mkl_solver.LockSparsityPattern(True)  
+    sys.SetSolver(mkl_solver)  
 
+    
+    timestep = 0.005
 
-mkl_solver = mkl.ChSolverPardisoMKL()  
-mkl_solver.LockSparsityPattern(True)  
-sys.SetSolver(mkl_solver)  
+    
+    sys.Setup()  
+    sys.Update()  
 
+    
+    rec_X = chrono.ChFunctionInterp()
+    rec_Y = chrono.ChFunctionInterp()
 
-timestep = 0.005
-
-
-sys.Setup()  
-sys.Update()  
-
-
-rec_X = chrono.ChFunctionInterp()
-rec_Y = chrono.ChFunctionInterp()
-
-
-while vis.Run():
-    vis.BeginScene()  
-    vis.Render()  
-    vis.EndScene()  
-
-    sys.DoStepDynamics(timestep)
+    
+    while vis.Run():
+        vis.BeginScene()  
+        vis.Render()  
+        vis.EndScene()  
+        sys.DoStepDynamics(timestep)

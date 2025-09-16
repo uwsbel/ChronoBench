@@ -7,7 +7,6 @@ import pychrono.irrlicht as chronoirr
 # ground, moving under gravity alone.
 # This model demonstrates the use of the utility class ChBuilderCableANCF.
 # ----------------------------------------------------------------------------
-
 class Model1:
     def __init__(self, system, mesh):
         # Create a section, i.e. define thickness and material properties for the cable beam

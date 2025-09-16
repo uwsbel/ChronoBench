@@ -4,145 +4,163 @@
 
 ### 1. Completeness (40 points)
 
-- **System Initialization:**  
-  The script uses `sim = pc.Simulation()`. According to the documentation, the system should be initialized as either `chrono.ChSystemNSC()` or `chrono.ChSystemSMC()`. There is no `Simulation()` class in PyChrono. This is a **major missing essential component**.  
-  **Deduct 15 points**
+- **System Initialization:**
+  - The script incorrectly initializes the physics system:
+    ```python
+    physics = chrono.ChPhysicsEngine()
+    physics.Set_Gravity(chrono.ChVectorD(0, -9.81, 0))
+    integrator = chrono.ChIntegration_BasicEuler()
+    physics.SetIntegrator(integrator)
+    my_system = chrono.ChSystemNSC(physics)
+    ```
+    According to the documentation, the system should be created simply as:
+    ```python
+    my_system = chrono.ChSystemNSC()
+    ```
+    There is no `ChPhysicsEngine()` class in PyChrono, nor is there a `Set_Gravity` or `SetIntegrator` method on it. Gravity is set on the system object itself, e.g. `my_system.Set_G_acc(chrono.ChVector3d(0, -9.81, 0))`.  
+    **Deduct 15 points** for missing correct system initialization.
 
-- **Body Creation:**  
-  The script creates a `vehicle = pc.CityBus()` and a `terrain = pc.RigidTerrain()`. However, from the documentation, vehicle and terrain classes are under `pychrono.vehicle` (or `veh`), and require initialization steps such as `Initialize()` calls, setting contact methods, and proper system association. The script does not call `Initialize()` on the vehicle or terrain, nor does it associate them with the system. This is a **missing important detail**.  
-  **Deduct 10 points**
+- **Body Creation:**
+  - The bus body is created using `ChBodyEasyBox`, which is correct in principle, but the constructor is called with 5 arguments instead of 6 (missing the `material` argument). The documentation shows the signature as:
+    ```python
+    ChBodyEasyBox(lengthX, lengthY, lengthZ, density, visualize, collision, material=None)
+    ```
+    The script uses:
+    ```python
+    bus = chrono.ChBodyEasyBox(0.5, 1.5, 2, 1000, True, True)
+    ```
+    which is missing the `material` argument. This is allowed if `material` is optional, but the documentation suggests it is optional and defaults to None, so this is acceptable.
 
-- **Visualization:**  
-  The script attempts to use `pychrono.irrlicht` and creates a `camera = irc.Camera()`. The documentation specifies that visualization is done via `chronoirr.ChVisualSystemIrrlicht()`, which is attached to the system, and then cameras and lights are added to the visual system, not directly to the system. The script does not create or initialize a visual system, nor does it add typical lights or skybox. This is a **missing essential component**.  
-  **Deduct 15 points**
+  - The bus is rotated using a quaternion constructed from a matrix of vectors, which is unusual but not incorrect.
 
-- **Vehicle Control:**  
-  The script calls `vehicle.setTireModel()`, `setSteeringAngle()`, `setThrottle()`, and `setBrake()`. These methods are not standard in the documented vehicle API. Usually, vehicle control is done via a driver class or direct actuator commands after initialization. This is a **minor omission or deviation** but mostly a correctness issue (see below).  
-  **Deduct 5 points**
+  - The tire is created as `chrono.ChTire()`, but this class is not documented in the provided API. Tires in PyChrono vehicle module are usually created differently. Also, the tire is added to the bus body via `bus.Add(tire)`, which is not a documented method. Bodies do not have an `Add()` method for adding tires.  
+  **Deduct 15 points** for missing or incorrect body and tire creation.
 
-- **Simulation Loop:**  
-  The loop uses `sim.getTime()`, `sim.step()`, and `sim.getIrrlichtScene().renderOnce()`. The documentation specifies using `sys.DoStepDynamics(time_step)` and visualization calls like `vis.BeginScene()`, `vis.Render()`, `vis.EndScene()`. This is a **missing important detail**.  
-  **Deduct 10 points**
+- **Joints and Links:**
+  - The revolute joint `steering` is created and initialized with `bus` and a `ChFrameD`. However, the documentation specifies that joints connect two bodies, but here only one body (`bus`) is provided. The second body is missing.  
+  - Similarly, the prismatic joints `throttle` and `brake` are initialized with only one body (`bus`) and a frame.  
+  **Deduct 15 points** for incorrect joint initialization (missing second body).
 
-**Total Completeness deduction: 15 + 10 + 15 + 5 + 10 = 55 points**  
-But max deduction is 40, so capped at **40 points deducted**.
+- **Visualization:**
+  - The visualization is created using `ir.ChIrrApp(my_system, physics, ir.CH_RTT_OPENGL)`. The documentation shows the visualization system is created as `chrono.irrlicht.ChVisualSystemIrrlicht()` and attached to the system.  
+  - The `ChIrrApp` class is not documented in the provided API.  
+  - The visualization setup uses `irr.irrlicht.COLOR_SKY_BLUE1`, but `irr` is not imported or defined anywhere.  
+  - The bus mesh and wheel visuals are added to the visualization app using `asset.Add()`, but bodies should be added to the system, and visual assets attached to bodies or the visualization system.  
+  **Deduct 15 points** for incorrect visualization setup.
+
+- **Simulation Loop:**
+  - The loop uses `asset.GetDevice().run()` which is consistent with Irrlicht usage, but since the visualization system is incorrectly created, this is questionable.
+  - The loop updates joint angles and positions using sine functions, which is acceptable.
+  - The simulation step uses `my_system.DoStepDynamics(0.01)` and `asset.DoStepRealTime(0.01)`. The latter is not documented; the visualization system usually uses `BeginScene()`, `DrawAll()`, `EndScene()`.
+  - The rendering calls are consistent with the documented visualization calls.
+  - Overall, the simulation loop is mostly complete but depends on the visualization system being correct.
+  - **Deduct 5 points** for minor omissions in simulation loop integration.
+
+**Total Completeness deduction: 15 + 15 + 15 + 15 + 5 = 65 points (over max 40, so capped at 40 points deducted).**
 
 ---
 
 ### 2. Correctness (30 points)
 
-- **Incorrect system initialization:**  
-  Using `pc.Simulation()` instead of `chrono.ChSystemNSC()` or `chrono.ChSystemSMC()` is a **significant API misuse** that will prevent the simulation from running correctly.  
-  **Deduct 15 points**
+- **Incorrect API usage:**
+  - `chrono.ChPhysicsEngine()` does not exist.
+  - `physics.Set_Gravity()` is not a method; gravity is set on the system.
+  - `my_system = chrono.ChSystemNSC(physics)` is invalid; `ChSystemNSC` does not take arguments.
+  - `bus.Add(tire)` is invalid; bodies do not have an `Add()` method for adding tires.
+  - Joints initialized with only one body instead of two.
+  - Visualization system `ChIrrApp` is not a documented class.
+  - Use of `irr.irrlicht.COLOR_SKY_BLUE1` without import.
+  - `asset.DoStepRealTime()` is not documented.
+  
+  **Deduct 15 points** for each major incorrect API usage. There are multiple, but we apply 15 points once for the major system initialization error, and 15 points for joints and tire addition misuse.  
+  **Deduct 15 + 15 = 30 points** (max for correctness).
 
-- **Vehicle and terrain initialization:**  
-  Missing `Initialize()` calls and system association for vehicle and terrain will cause the simulation to fail or behave incorrectly.  
-  **Deduct 15 points**
+- **Logical errors:**
+  - Joints connecting only one body.
+  - Adding tires directly to bodies.
+  - Visualization setup inconsistent with documented approach.
+  - **Deduct 10 points** for logical errors.
 
-- **Use of `setTireModel`, `setSteeringAngle`, etc.:**  
-  These methods are not part of the documented vehicle API; vehicle control is usually done via driver classes or direct actuator commands. This is a **logical error**.  
-  **Deduct 10 points**
+- **Minor inaccuracies:**
+  - Quaternion construction is unusual but not incorrect.
+  - Use of `np.sin()` is acceptable.
+  - **No deduction here.**
 
-- **Visualization API misuse:**  
-  Directly adding a camera to the system's Irrlicht scene is not per the documented API. The visual system should be created and attached to the system, and cameras added to the visual system. This is a **significant API misuse**.  
-  **Deduct 15 points**
-
-- **Simulation stepping:**  
-  Using `sim.step()` instead of `sys.DoStepDynamics(time_step)` is incorrect.  
-  **Deduct 15 points**
-
-- **Use of `pc.wait(0.02)`:**  
-  There is no such function in PyChrono; this is likely an error or undefined.  
-  **Deduct 5 points**
-
-Total deductions here exceed the 30-point maximum, so capped at **30 points deducted**.
+**Total Correctness deduction: 30 + 10 = 40 points (max 30, so capped at 30 points).**
 
 ---
 
 ### 3. Code Quality (10 points)
 
-- **Readability and structure:**  
-  The code is short and somewhat readable but lacks comments and meaningful variable names beyond `sim` and `vehicle`.  
-  **Deduct 3 points**
+- The code lacks comments explaining the purpose of blocks or variables.
+- Variable names are mostly meaningful (`bus`, `tire`, `steering`, `throttle`, `brake`).
+- Formatting is acceptable but inconsistent spacing in some places.
+- Imports include `numpy` but only used for `np.sin()`; acceptable.
+- No docstrings or inline comments.
+- **Deduct 5 points** for lack of comments.
+- **Deduct 3 points** for minor readability issues and inconsistent formatting.
 
-- **Lack of comments:**  
-  No comments explaining the purpose of code blocks or parameters.  
-  **Deduct 5 points**
-
-Total deduction: 8 points
+**Total Code Quality deduction: 8 points.**
 
 ---
 
 ### 4. Efficiency (10 points)
 
-- **Unnecessary imports:**  
-  `numpy` is imported but only used once for `np.sin(sim.getTime())`. This is acceptable.  
-  No major inefficiencies.
-
-- **Visualization calls:**  
-  The rendering call `sim.getIrrlichtScene().renderOnce()` is not the recommended approach and may be inefficient or incomplete.
-
-- **No time step specified in `sim.step()`:**  
-  The time step is not explicitly passed, which may cause default or inconsistent stepping.
-
-- **Use of `pc.wait(0.02)`:**  
-  This is undefined and may cause errors or inefficiency.
-
-- **No use of `vis.BeginScene()` and `vis.EndScene()`** as recommended.
-
-Overall, some inefficiencies and missing best practices but no egregious inefficiency.
-
-**Deduct 3 points** for missing obvious optimization and 5 points for inefficient visualization usage.
-
-Total: 8 points
+- No obvious redundant calculations.
+- The sine functions are recalculated every loop iteration, which is necessary.
+- Visualization calls are standard.
+- However, the creation of multiple quaternion matrices from vectors repeatedly is inefficient; could be simplified.
+- The `bus_shape` and `wheel_visual` are separate bodies added to visualization but not linked to physics bodies, which is inefficient and inconsistent.
+- **Deduct 3 points** for minor inefficiencies in quaternion construction and visualization setup.
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- No error handling or checks for file paths (e.g., terrain texture path), initialization success, or simulation state.
-
-- No handling of edge cases like simulation termination conditions or exceptions.
-
-**Deduct 5 points** for lack of basic error handling.
+- No error handling or checks for file existence (`"path/to/terrain_texture.png"`, `"path/to/bus_mesh.obj"`).
+- No try-except blocks or validation of inputs.
+- No handling of simulation exceptions or device failures.
+- **Deduct 5 points** for lack of basic error handling.
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
-- Visualization setup is incorrect: no visual system created, no lights, no skybox, no proper camera setup.
-
-- Adding camera directly to system's Irrlicht scene is not per API.
-
-- No window size or title set.
-
-**Deduct 5 points** for incorrect visualization setup.
+- Visualization system is incorrectly created (`ChIrrApp` instead of `ChVisualSystemIrrlicht`).
+- Use of `irr.irrlicht.COLOR_SKY_BLUE1` without import.
+- Adding visual bodies separately instead of attaching visual assets to physics bodies.
+- Camera setup uses a 2-argument `AddCamera` instead of documented single vector argument.
+- Lighting and sky setup are incomplete or inconsistent.
+- **Deduct 5 points** for incorrect visualization setup.
 
 ---
 
 ### Summary of deductions:
 
-| Criterion                 | Max Points | Deducted | Notes                                  |
-|---------------------------|------------|----------|----------------------------------------|
-| Completeness              | 40         | 40       | Missing system init, visualization, etc. |
-| Correctness               | 30         | 30       | Wrong system class, missing init, API misuse |
-| Code Quality              | 10         | 8        | Lack of comments, minor readability issues |
-| Efficiency                | 10         | 8        | Inefficient visualization, missing time step |
-| Error Handling & Robustness | 5          | 5        | No error handling                      |
-| Visualization Tools       | 5          | 5        | Incorrect visualization setup          |
-
-Total deductions = 40 + 30 + 8 + 8 + 5 + 5 = 96 points
-
-Starting from 100 points, final score = 4 points.
+| Criterion                    | Max Points | Deduction | Notes                                    |
+|-----------------------------|------------|-----------|------------------------------------------|
+| Completeness                | 40         | 40        | Major missing/incorrect components       |
+| Correctness                | 30         | 30        | Incorrect API usage and logical errors   |
+| Code Quality               | 10         | 8         | Lack of comments, minor readability      |
+| Efficiency                 | 10         | 3         | Minor inefficiencies                      |
+| Error Handling and Robustness | 5          | 5         | No error handling                        |
+| Visualization Tools        | 5          | 5         | Incorrect visualization setup             |
+| **Total Deduction**         |            | 91        | Over max 100, so total score is 9        |
 
 ---
 
-### Final score:
+### Final Score:
 
-[[4]]
+Starting from 100 points, deduct 91 points → **9 points**
 
 ---
 
 ### Explanation:
 
-The script fundamentally misuses the PyChrono API by using a non-existent `Simulation()` class instead of the required `ChSystemNSC()` or `ChSystemSMC()`. It fails to properly initialize vehicle and terrain objects, missing critical `Initialize()` calls and system associations. Visualization is incorrectly set up by directly adding a camera to the system's Irrlicht scene without creating a visual system, adding lights, or handling rendering properly. The simulation loop does not use the documented stepping functions, and the use of `pc.wait()` is undefined. The code lacks comments and error handling, and the visualization setup is incomplete and incorrect. These issues severely impact the correctness, completeness, and usability of the simulation script.
+The script fundamentally misuses PyChrono API in system initialization, body and joint creation, and visualization setup. These are critical errors that would prevent the simulation from running correctly. The code also lacks comments and error handling, reducing maintainability and robustness. Minor inefficiencies and visualization issues further degrade the quality. Overall, the script requires significant revision to conform to PyChrono best practices and API usage.
+
+---
+
+**Final score:**
+
+[[9]]

@@ -3,7 +3,6 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
-
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
@@ -19,6 +18,7 @@ chassis_collision_type = veh.CollisionType_NONE
 
 
 tire_model = veh.TireModelType_TMEASY
+
 
 
 terrainHeight = 0      
@@ -48,14 +48,13 @@ vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 
+
 vehicle.Initialize()
 
 vehicle.SetChassisVisualizationType(vis_type)
 vehicle.SetSuspensionVisualizationType(vis_type)
 vehicle.SetSteeringVisualizationType(vis_type)
 vehicle.SetWheelVisualizationType(vis_type)
-vehicle.SetTireVisualizationType(vis_type)
-
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
@@ -67,32 +66,37 @@ patch = terrain.AddPatch(patch_mat,
     chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
     terrainLength, terrainWidth)
 
-
-patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)
+patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 256, 256)  
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 
 
 
-sensor_manager = veh.ChSensorManager()
-
-
 camera_sensor = veh.ChCameraSensor()
-camera_sensor.SetChassisBody(vehicle.GetChassisBody())
-camera_sensor.SetResolution(1920, 1080)
-camera_sensor.SetFieldOfView(60)
+camera_sensor.SetResolution(1280, 720)  
+camera_sensor.SetFOV(60)  
+
+
+camera_filter = veh.ChCameraFilterIrrlicht()
+camera_filter.SetFOV(camera_sensor.GetFOV())
+camera_filter.SetPosition(trackPoint)
+
+
+sensor_manager = veh.ChSensorManager()
 sensor_manager.AddSensor(camera_sensor)
+sensor_manager.AddFilter(camera_filter)
 
-
-light_manager = veh.ChLightManager()
-light_manager.AddLight(chrono.ChLight(chrono.ChVector3d(0, 10, 0), chrono.ChColor(1, 1, 1)))
-light_manager.AddLight(chrono.ChLight(chrono.ChVector3d(0, -10, 0), chrono.ChColor(1, 1, 1)))
-light_manager.AddLight(chrono.ChLight(chrono.ChVector3d(10, 0, 0), chrono.ChColor(1, 1, 1)))
-light_manager.AddLight(chrono.ChLight(chrono.ChVector3d(-10, 0, 0), chrono.ChColor(1, 1, 1)))
-
-
-vehicle.SetSensorManager(sensor_manager)
+vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
+vis.SetWindowTitle('FEDA vehicle')
+vis.SetWindowSize(1280, 1024)
+vis.SetChaseCamera(trackPoint, 6.0, 0.5)
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddLightDirectional()
+vis.AddSkyBox()
+vis.AttachVehicle(vehicle.GetVehicle())
+vis.AddSensorManager(sensor_manager)  
 
 
 driver = veh.ChInteractiveDriverIRR(vis)
@@ -138,17 +142,13 @@ while vis.Run() :
     vis.Synchronize(time, driver_inputs)
 
     
+    sensor_manager.Update()  
+
+    
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
 
     
-    step_number += 1
-
-    
     realtime_timer.Spin(step_size)
-
-    
-    sensor_manager.Update(time)
-    vis.UpdateCameraSensor(camera_sensor)

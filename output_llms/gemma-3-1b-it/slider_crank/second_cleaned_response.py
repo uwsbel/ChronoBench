@@ -36,6 +36,13 @@ mpiston.SetRot(chrono.Q_ROTATE_Y_TO_X)
 sys.Add(mpiston)  
 
 
+my_motor = chrono.ChLinkMotorRotationSpeed()  
+my_motor.Initialize(mcrank, mfloor, chrono.ChFramed(crank_center))  
+my_angularspeed = chrono.ChFunctionConst(chrono.CH_PI)  
+my_motor.SetMotorFunction(my_angularspeed)  
+sys.Add(my_motor)  
+
+
 mjointA = chrono.ChLinkLockRevolute()  
 mjointA.Initialize(mrod, mcrank, chrono.ChFramed(crank_center + chrono.ChVector3d(crank_rad, 0, 0)))  
 sys.Add(mjointA)  
@@ -59,12 +66,4 @@ vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))  
 vis.AddSkyBox()  
 vis.AddCamera(chrono.ChVector3d(1, 1, 3), chrono.ChVector3d(0, 1, 0))  
-vis.AddTypicalLights()  
-
-
-while vis.Run():
-    
-    vis.BeginScene()  
-    vis.Render()  
-    vis.EndScene()  
-    sys.DoStepDynamics(1e-3)
+vis.AddTypicalLights()

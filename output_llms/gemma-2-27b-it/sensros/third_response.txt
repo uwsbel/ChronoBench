@@ -25,7 +25,7 @@ def main():
     mesh_body.AddVisualShape(trimesh_shape)
     mesh_body.SetFixed(False)  # Make the body movable.
     mesh_body.SetMass(0)  # Set mass to 0 (static object).
-    sys.Add(mesh_body)  # Add the mesh body to the simulation
+    sys.Add(mesh_body) # Add the mesh body to the simulation
 
     # Create a ground body to attach sensors.
     ground_body = ch.ChBodyEasyBox(1, 1, 1, 1000, False, False)
@@ -82,7 +82,4 @@ def main():
     # Create and configure an accelerometer sensor.
     acc = sens.ChAccelerometerSensor(ground_body, 100, offset_pose, noise_model_none)
     acc.PushFilter(sens.ChFilterAccelAccess())  # Access accelerometer data.
-    acc.SetName("accelerometer")
-    sens_manager.AddSensor(acc)
-
-    # Create and configure
+    acc.SetName("accelerometer

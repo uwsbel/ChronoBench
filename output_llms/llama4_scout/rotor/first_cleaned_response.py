@@ -1,80 +1,51 @@
-import pychrono as chrono
-import pychrono.irrlicht as irr
-import pychrono.fea as fea
-import numpy as np
+import chrono as ch
+import chrono.irrlicht as irr
+import chrono.fem as fem
+import math
 
 
-chrono.ChEngine.Initialize()
+ch.CH_init()
 
 
-system = chrono.ChSystem()
+system = ch.ChSystem()
 
 
-system.SetGravitationalAcceleration(chrono.ChVectorD(0, 0, -9.81))
-
-
-app = irr.ChIrrApp(system, "Jeffcott Rotor Simulation", chrono.ChVectorD(800, 600))
-app.SetTimestep(0.01)
-app.SetTryRewind(True)
-
-
-beam = fea.ChIGAbeam()
-beam.SetLength(1.0)  
-beam.SetSectionWidth(0.05)  
-beam.SetSectionHeight(0.05)  
-beam.SetNg(4)  
-beam.SetNurbsOrder(3)  
-beam.SetMaterial(chrono.ChMaterialShellGiant(200e9, 0.3, 7850))  
-
-
-beam.SetStartPoint(chrono.ChVectorD(0, 0, 0))
-beam.SetEndPoint(chrono.ChVectorD(1, 0, 0))
-
-
+beam = fem.ChBeamIGA()
+beam.SetNodesSpacing(0.1)  
+beam.SetLength(1.0)      
+beam.SetSection(fem.ChBeamSectionIGA(0.05, 0.01, 0.01))  
+beam.SetMaterial(fem.ChFEMMaterial(200e9, 0.3, 7850))  
 system.Add(beam)
 
 
-flywheel = chrono.ChBody()
-flywheel.SetMass(10)  
-flywheel.SetInertia(chrono.ChMatrix33D(1, 0, 0, 0, 1, 0, 0, 0, 1))  
-
-
-flywheel.SetPos(chrono.ChVectorD(0.5, 0, 0))
-flywheel.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
-
-
+flywheel = ch.ChBodyEasyBody(1.0,  
+                              0.5,  
+                              ch.ChFrame(ch.Vector(0, 0, 0.5), ch.Quaternion(1, 0, 0, 0)))
+flywheel.SetPos(ch.Vector(0.5, 0, 0.5))  
 system.Add(flywheel)
 
 
-constraint = chrono.ChLinkLockPointLine(flywheel, beam)
-constraint.SetPointA(chrono.ChVectorD(0, 0, 0))
-constraint.SetPointB(chrono.ChVectorD(0.5, 0, 0))
-system.Add(constraint)
+ch.ChLinkMateFix().Connect(beam, flywheel)
 
 
-motor = chrono.ChLinkMotorRotationAngle()
-motor.SetMotorFunction(chrono.ChFunction_Sine(0, 1, 0))  
-
-
-motor.SetPointA(chrono.ChVectorD(0, 0, 0))
-motor.SetPointB(chrono.ChVectorD(0, 0, 0))
-
-
+motor = ch.ChLinkMotorRotation()
+motor.Init(beam, 
+           ch.Frame(ch.Vector(0, 0, 0), ch.Quaternion(1, 0, 0, 0)), 
+           ch.Frame(ch.Vector(0, 0, 0), ch.Quaternion(1, 0, 0, 0)))
+motor.SetMotorFunction(ch.ChFunction_Sine(0, 1, 0))  
 system.Add(motor)
 
 
-motor.Connect(beam, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.ChQuaternionD(1, 0, 0, 0)))
+app = irr.ChIrrApp(system, 'Jeffcott Rotor Simulation', 800, 600)
 
 
-fem_vis = fea.ChFEMvisualization(beam)
-fem_vis.SetFEMdata(beam.GetNodes(), beam.GetElements())
-app.Add(fem_vis)
+fem_vis = ch.ChFEMVisualization(beam)
+fem_vis.SetFEMdataResolution(4)
+app.AddVisualization(fem_vis)
 
 
-irr_window = irr.ChIrrlicht irr_window(app)
-irr_window.AddCamera(chrono.ChVectorD(2, 2, 2), chrono.ChVectorD(0, 0, 0))
+app.SetTimestep(0.01)
+app.SetCollision(True)
 
 
-while app.GetShouldKeepRunning():
-    app.DoStep()
-    irr_window.Update()
+app.Run()

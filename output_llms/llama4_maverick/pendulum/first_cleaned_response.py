@@ -1,52 +1,105 @@
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
-import numpy as np
+import math
 
-def main():
+
+chrono.SetChronoDataPath("/path/to/chrono/data/")  
+
+
+sys = chrono.ChSystemNSC()
+
+
+ground = chrono.ChBody()
+ground.SetBodyFixed(True)
+sys.Add(ground)
+
+
+pendulum = chrono.ChBody()
+pendulum.SetMass(1.0)
+pendulum.SetInertiaXX(chrono.ChVectorD(0.1, 0.1, 0.1))
+pendulum.SetPos(chrono.ChVectorD(0, -1, 0))
+sys.Add(pendulum)
+
+
+rev_joint = chrono.ChLinkRevolute()
+rev_joint.Initialize(ground, pendulum, chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.Q_from_AngY(math.pi/2)))
+sys.Add(rev_joint)
+
+
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(sys)
+vis.SetWindowSize(800, 600)
+vis.SetWindowTitle('Simple Pendulum Simulation')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataPath() + 'logo_pychrono_alpha.png')
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVectorD(0, 0, 3))
+vis.AddTypicalLights()
+
+
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
     
-    sys = chrono.ChSystemNSC()
-
     
-    ground = chrono.ChBody()
-    ground.SetBodyFixed(True)
-    sys.Add(ground)
-
+    if sys.GetChTime() % 0.1 < 0.01:
+        print(f"Time: {sys.GetChTime():.2f}, Pendulum Position: {pendulum.GetPos().x:.2f}, {pendulum.GetPos().y:.2f}, Pendulum Velocity: {pendulum.GetPos_dt().x:.2f}, {pendulum.GetPos_dt().y:.2f}")
     
-    pendulum = chrono.ChBody()
-    pendulum.SetMass(1.0)  
-    pendulum.SetInertiaXX(chrono.ChVectorD(0.1, 0.1, 0.1))  
-    pendulum.SetPos(chrono.ChVectorD(0, -1, 0))  
-    pendulum.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))  
-    sys.Add(pendulum)
-
     
-    rev_joint = chrono.ChLinkRevolute()
-    rev_joint.Initialize(ground, pendulum, chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.Q_ROTATE_Z_TO_Y))
-    sys.Add(rev_joint)
+    sys.DoStepDynamics(0.01)
 
+
+
+
+
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
+import math
+
+
+chrono.SetChronoDataPath("/path/to/chrono/data/")  
+
+
+sys = chrono.ChSystemNSC()
+
+
+ground = chrono.ChBody()
+ground.SetBodyFixed(True)
+sys.Add(ground)
+
+
+pendulum = chrono.ChBody()
+pendulum.SetMass(1.0)
+pendulum.SetInertiaXX(chrono.ChVectorD(0.1, 0.1, 0.1))
+pendulum.SetPos(chrono.ChVectorD(0, -1, 0))
+sys.Add(pendulum)
+
+
+rev_joint = chrono.ChLinkRevolute()
+rev_joint.Initialize(ground, pendulum, chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.Q_from_AngY(math.pi/2)))
+sys.Add(rev_joint)
+
+
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(sys)
+vis.SetWindowSize(800, 600)
+vis.SetWindowTitle('Simple Pendulum Simulation')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataPath() + 'logo_pychrono_alpha.png')
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVectorD(0, 0, 3))
+vis.AddTypicalLights()
+
+
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
     
-    app = chronoirr.ChIrrApp(sys, 'Simple Pendulum', chronoirr.dimension2du(800, 600))
-    app.AddTypicalSky()
-    app.AddTypicalCamera(chronoirr.vector3df(0, 0, 3))
-    app.AddTypicalLights()
-    app.AssetBindAll()
-    app.AssetUpdateAll()
-
     
-    timestep = 0.01
-    while app.GetDevice().run():
-        app.BeginScene()
-        app.DrawAll()
-        sys.DoStepDynamics(timestep)
-        app.EndScene()
-
-        
-        if sys.GetChTime() % 0.1 < timestep:
-            pos = pendulum.GetPos()
-            vel = pendulum.GetPos_dt()
-            print(f'Time: {sys.GetChTime():.2f}, Position: ({pos.x:.2f}, {pos.y:.2f}, {pos.z:.2f}), Velocity: ({vel.x:.2f}, {vel.y:.2f}, {vel.z:.2f})')
-
-    return 0
-
-if __name__ == '__main__':
-    main()
+    if sys.GetChTime() % 0.1 < 0.01:
+        print(f"Time: {sys.GetChTime():.2f}, Pendulum Position: {pendulum.GetPos().x:.2f}, {pendulum.GetPos().y:.2f}, Pendulum Velocity: {pendulum.GetPos_dt().x:.2f}, {pendulum.GetPos_dt().y:.2f}")
+    
+    
+    sys.DoStepDynamics(0.01)

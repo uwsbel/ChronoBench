@@ -10,61 +10,47 @@ my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 # 2. Create the beam using FEA
 beam_material = fea.ChMaterialShellANCF(rho=7850, E=200e9, nu=0.3)
 beam_section = fea.ChSectionShellParametric(
-    radius=0.05, thickness=0.01, material=beam_material
+    type=fea.ChSectionShellParametric.PARABOLIC, thickness=0.01
 )
+
 beam_length = 1.0
-beam = fea.ChBeamSectionCable(beam_section, beam_length)
+beam_nodes = 10
+beam = fea.ChBeamIGA(beam_nodes, beam_length, beam_material, beam_section)
 
-# 3. Add beam to the system
-beam_body = chrono.ChBody()
-beam_body.SetBodyFixed(False)
-beam_body.SetPos(chrono.ChVectorD(0, 0, 0))
-my_system.Add(beam_body)
+# 3. Set beam initial position and fix one end
+beam.SetPos(chrono.ChVectorD(0, 0, 0))
+beam.SetFixed(True)
 
-# 4. Create FEA mesh for the beam
-mesh = fea.ChMesh()
-nodes = []
-for i in range(10):
-    nodes.append(fea.ChNodeFEAxyz(chrono.ChVectorD(i * beam_length / 9, 0, 0)))
-mesh.AddNodes(nodes)
-elements = []
-for i in range(9):
-    elements.append(fea.ChElementBeamANCF(nodes[i], nodes[i + 1], beam))
-mesh.AddElements(elements)
+# 4. Define a custom motor function for the other end of the beam
+class MyMotorFunction(chrono.ChFunction):
+    def __init__(self, amplitude, frequency):
+        chrono.ChFunction.__init__(self)
+        self.amplitude = amplitude
+        self.frequency = frequency
 
-# 5. Attach the FEA mesh to the beam body
-fea.ChMeshExporter.ExportToChrono(mesh, beam_body)
+    def Get_y(self, x):
+        return self.amplitude * chrono.ChMath.Sin(self.frequency * x)
 
-# 6. Define custom motor function for applying load
-def apply_load(time):
-    return 1000 * time  # Example: linearly increasing load
+motor_function = MyMotorFunction(amplitude=0.01, frequency=2 * chrono.CH_C_PI)
 
-# 7. Create a force element and apply the custom load
-force_element = chrono.ChForce()
-force_element.SetMode(chrono.ChForce.FORCE)
-force_element.SetDir(chrono.ChVectorD(0, 1, 0))
-force_element.SetVpoint(chrono.ChVectorD(beam_length, 0, 0))
-force_element.SetMforce(apply_load)
-beam_body.AddForce(force_element)
+# 5. Add a motor to apply a force at the free end of the beam
+motor = chrono.ChLinkMotorRotationSpeed()
+motor.SetTargetFunction(motor_function)
+motor.Attach(beam.GetNode(beam_nodes - 1))
 
-# 8. Set up constraints (example: fixed end)
-fixed_constraint = chrono.ChLinkLockRevolute()
-fixed_constraint.Initialize(beam_body, chrono.ChBody(), chrono.ChVectorD(0, 0, 0))
-my_system.Add(fixed_constraint)
+# 6. Set up the solver and timestepper
+my_system.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
+my_system.SetTimestepperType(chrono.ChTimestepper.Type_EULER_IMPLICIT_LINEARIZED)
+my_system.SetStep(0.001)
 
-# 9. Visualization using Irrlicht
+# 7. Visualize the simulation using Irrlicht
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(my_system)
 vis.SetWindowSize(800, 600)
 vis.SetWindowTitle("Beam Buckling Simulation")
 vis.Initialize()
 
-# 10. Solver and timestepper
-my_system.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
-my_system.SetTimestepperType(chrono.ChTimestepper.Type_EULER_IMPLICIT_LINEARIZED)
-my_system.SetStep(0.001)
-
-# 11. Simulation loop
+# 8. Run the simulation loop
 while vis.Run():
     my_system.DoStepDynamics(0.001)
     vis.Render()
@@ -73,20 +59,16 @@ while vis.Run():
 
 **Explanation:**
 
-1. **Initialization:** Sets up the Chrono system, gravity, and defines the material and section properties for the beam.
-2. **Beam Creation:** Creates a beam object using FEA, defining its geometry and material properties.
-3. **Adding to System:** Adds the beam to the Chrono system as a rigid body.
-4. **FEA Mesh:** Creates a mesh for the beam using nodes and elements, representing its discretization for FEA.
-5. **Mesh Attachment:** Attaches the FEA mesh to the beam body, allowing for deformation simulation.
-6. **Custom Load:** Defines a custom function `apply_load` to control the force applied to the beam over time.
-7. **Force Application:** Creates a force element and applies the custom load to the beam using the defined function.
-8. **Constraints:** Adds a fixed constraint to one end of the beam, preventing its movement.
-9. **Visualization:** Initializes the Irrlicht visualization module to render the simulation.
-10. **Solver and Timestepper:** Sets the solver and timestepper types for accurate dynamics simulation.
-11. **Simulation Loop:** Runs the simulation loop, updating the system dynamics and rendering the visualization.
+1. **Initialization:** Sets up the Chrono system, gravity, and initializes a new Irrlicht visualization window.
+2. **Beam Creation:** Defines the material properties, cross-section, and length of the beam using FEA components.
+3. **Initial Conditions:** Positions the beam and fixes one end to prevent movement.
+4. **Motor Function:** Creates a custom sinusoidal function to control the displacement at the free end of the beam.
+5. **Motor Application:** Attaches a motor to the free end of the beam and sets its target function to the custom sinusoidal function.
+6. **Solver and Timestepper:** Configures the solver and timestepper for accurate dynamics simulation.
+7. **Visualization:** Initializes the Irrlicht visualization system and attaches it to the Chrono system.
+8. **Simulation Loop:** Runs the simulation loop, performing dynamics calculations and rendering the scene using Irrlicht.
 
-**Remember:**
+**Notes:**
 
-* This is a basic example and can be further customized by adding more complex geometries, loading conditions, constraints, and visualization options.
-* You can adjust the parameters (material properties, load function, timestep, etc.) to explore different buckling scenarios.
-* Refer to the PyChrono documentation for more detailed information on the available features and functionalities.
+* This script provides a basic framework for simulating beam buckling. You can modify parameters like beam length, material properties, motor function, and solver settings to explore different scenarios.
+* The Irrlicht visualization module allows you to interactively view the simulation and observe the buckling behavior of the beam.

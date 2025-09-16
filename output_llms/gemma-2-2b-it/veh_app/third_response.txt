@@ -137,29 +137,28 @@ cam.SetName("Third Person POV")
 cam.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Gator Camera"))
 manager.AddSensor(cam)
 
-# Create a depth camera
-depth_cam = sens.ChDepthCameraSensor(
+# Depth Camera
+depth_camera = sens.ChDepthCameraSensor(
     gator.GetChassisBody(),
     update_rate,
-    chrono.ChVector3d(-5.0, 0, 2),
-    image_width,
-    image_height,
-    fov,
-    30,
-    sens.DepthCameraReturnMode_DEPTH
+    offset_pose,
+    1280,
+    720,
+    1.408,
+    30
 )
-depth_cam.SetName("Depth Camera")
-depth_cam.SetLag(lag)
-depth_cam.SetCollectionWindow(1/update_rate)
+depth_camera.SetName("Depth Camera")
+depth_camera.SetLag(lag)
+depth_camera.SetCollectionWindow(1/update_rate)
 # Provides the host access to the Depth, Intensity data
-depth_cam.PushFilter(sens.ChFilterDIAccess())
+depth_camera.PushFilter(sens.ChFilterDIAccess())
 # Convert Depth, Intensity data to XYZI point cloud data
-depth_cam.PushFilter(sens.ChFilterPCfromDepth())
+depth_camera.PushFilter(sens.ChFilterPCfromDepth())
 # Provides the host access to the XYZI data
-depth_cam.PushFilter(sens.ChFilterXYZIAccess())
-depth_cam.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "Depth Map"))
+depth_camera.PushFilter(sens.ChFilterXYZIAccess())
+depth_camera.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "Depth Map"))
 # Add the depth camera to the sensor manager
-manager.AddSensor(depth_cam)
+manager.AddSensor(depth_camera)
 
 # ---------------
 # Simulation loop
@@ -170,4 +169,4 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 time = 0
 end_time = 30
 while time < end_time:
-    time = gator.GetSystem
+    time = gator.GetSystem().Get

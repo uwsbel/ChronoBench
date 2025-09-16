@@ -1,42 +1,50 @@
-import chrono
+import chrono as chrono
 import irrlicht
 
 
-chrono.ChSystem.SetDefaultSolver(chrono.ChSolverLS)
-chrono.ChSystem.SetDefaultCollisionModel(chrono.ChCollisionModel.Type_RIGID)
+chrono.SetChronoDataPath('path/to/chrono/data')
+my_system = chrono.ChSystemSolverSH()
 
 
+terrain = chrono.ChBodyEasyBox(100, 0.1, 100, 1000, True, True)
+terrain.SetPos(chrono.ChVectorD(0, -5, 0))
+terrain.SetBodyFixed(True)
+my_system.AddBody(terrain)
 
-terrain = create_terrain(width=100, depth=100, height=5)
-terrain.SetFriction(0.8)
-terrain.SetRestitution(0.2)
-system.AddBody(terrain)
-
-
-kraz_vehicle = create_kraz_vehicle()
-system.AddBody(kraz_vehicle)
-
-
-driver = create_driver(kraz_vehicle)
-system.Add(driver)
-
-
-kraz_vehicle.SetPos(chrono.ChVectorD(0, 5, 0))
+vehicle = chrono.ChVehicleModelKraz()
+vehicle.SetChassisVisualizationType(chrono.ChVehicleModelKraz.VISUALIZATION_TYPE_BODY)
+vehicle.SetSuspensionVisualizationType(chrono.ChVehicleModelKraz.VISUALIZATION_TYPE_LINE)
+vehicle.SetTireVisualizationType(chrono.ChVehicleModelKraz.VISUALIZATION_TYPE_BOX)
+vehicle.SetChassisMass(3000)
+vehicle.SetChassisFriction(0.5)
+vehicle.SetChassisRestitution(0.1)
+vehicle.Initialize(my_system)
+my_system.Add(vehicle)
 
 
-vis = create_visualization(system, window_width=800, window_height=600)
+vehicle.SetChassisPos(chrono.ChVectorD(0, 0, 0))
+vehicle.SetChassisWrench(chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)), chrono.ChVectorD(0, 0, 0))
 
 
-vis.AddCamera(chrono.ChVectorD(30, 30, 30), chrono.ChVectorD(0, 5, 0))
+driver = chrono.ChVehicleDriver()
+vehicle.SetDriver(driver)
 
 
-vis.AddLight(chrono.ChVectorD(30, 30, 30), 0.5, 0.5, 0.5)
+vis = irrlicht.ChVisualSystemIrrlicht()
+vis.SetChronoSystem(my_system)
+vis.Initialize()
+vis.AddLogo()
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVectorD(50, 25, 50), chrono.ChVectorD(0, 0, 0))
+vis.SetWindowSize(800, 600)
+vis.SetWindowTitle('PyChrono Kraz Simulation')
+vis.BeginScene()
 
 
 while vis.Run():
-    system.DoStepDynamics(chrono.ChTime(1.0/60.0))  
-    vis.WaitForNextFrame()
-    vis.Render()
+    my_system.DoStepDynamics(1.0 / 60.0)
+    vehicle.Synchronize(my_system.GetStep(), my_system.GetCurrentDt())
+    vis.DrawAll()
+    vis.EndScene()
 
-
-system.SaveCSV("output.csv")
+vis.Finalize()

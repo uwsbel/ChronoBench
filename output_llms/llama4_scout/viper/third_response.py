@@ -3,20 +3,38 @@ import math
 import numpy as np
 import pychrono as chrono
 import pychrono.robot as viper
-from pychrono import irrlicht as chronoirr
 import pychrono.vehicle as veh
+from pychrono import irrlicht as chronoirr
 
 # Create Chrono system
 system = chrono.ChSystemNSC()
 system.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 system.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, -9.81))  # Set gravity in the negative Z direction
+
 chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.0025)
 chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
 
 # Create SCM deformable terrain
-terrain = veh.TerrainSCM(system)
-terrain.Initialize(chrono.ChVector3d(0, 0, 0), 20, 20, 0.1, 0.1)
-terrain.SetSoilParameters(200000, 0.8, 0.3, 30, 0.01, 5, 0.5)
+terrain = veh.ChTerrain(system)
+terrain.Initialize(chrono.ChVector3d(0, 0, 0))  # plane origin
+terrain.SetPlane(chrono.ChVector3d(0, 0, 1), 0)  # plane equation
+terrain.SetLength(20)  # terrain length
+terrain.SetWidth(20)  # terrain width
+terrain.SetMeshResolution(1)  # mesh resolution
+
+# SCM soil parameters
+soil = veh.ChSoilSCM()
+soil.SetFriction(0.9)  # friction coefficient
+soil.SetRestitution(0.3)  # restitution coefficient
+soil.SetDamping(0.5)  # damping coefficient
+soil.SetCohesion(1e4)  # cohesion
+soil.SetFrictionAngle(math.pi / 4)  # friction angle
+soil.SetDilationAngle(math.pi / 6)  # dilation angle
+soil.SetErodibility(0.01)  # erodibility
+
+terrain.SetSoil(soil)
+
+system.Add(terrain.GetGroundBody())  # add terrain ground body to the system
 
 # Create Viper rover
 rover = viper.Viper(system)  # Instantiate the Viper rover
@@ -49,18 +67,18 @@ time_step = 1e-3
 
 # Simulation loop
 time = 0
+steering = 0.0  # constant steering value
+
 while vis.Run():
     time += time_step  # Increment the simulation time
-    steering = 0.0  # Constant steering value
-    
-    driver.SetSteering(steering)  # Set the steering for the rover
 
+    driver.SetSteering(steering)  # Set the steering for the rover
     rover.Update()  # Update the rover's state
 
     # Render the scene
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
-    
+
     # Advance the simulation by one time step
     system.DoStepDynamics(time_step)

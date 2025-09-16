@@ -1,75 +1,58 @@
-import pychrono as chrono
-import pychrono.vehicle as vehicle
-import pychrono.irrlicht as irr
+import chrono as ch
+import chrono.irrlicht as irr
 
 
-chrono.ChEngine.Initialize()
+ch.CH_Environment().Set_G_acc(ch.ChVector3d(0, 0, -9.81))
 
 
-SIMULATION_TIME = 10.0  
-TIME_STEP = 0.01  
+vehicle = ch.ChVehicle()
 
 
-vehicle_asset_file = "M113/Ch_M113_Vehicle.json"
-m113_vehicle = vehicle.ChM113(vehicle_asset_file)
+chassis = ch.ChBody()
+chassis.SetName('chassis')
+chassis.SetPos(ch.ChVector3d(0, 0, 1))
+vehicle.SetChassis(chassis)
 
 
-m113_vehicle.SetInitialPosition(chrono.ChVector3d(0, 0, 1.0))
-m113_vehicle.SetInitialVelocity(chrono.ChVector3d(0, 0, 0))
 
 
-terrain = vehicle.ChRigidTerrain()
 
-
+terrain = ch.ChTerrain()
+terrain.SetName('terrain')
 terrain.SetFrictionCoefficient(0.8)
 terrain.SetRestitutionCoefficient(0.3)
+terrain.SetDimensions(100, 100)
 
 
-terrain.SetSize(chrono.ChVector3d(100, 100, 10))
-
-
-terrain.SetInitialPosition(chrono.ChVector3d(0, 0, 0))
-
-
-driver = vehicle.ChDriver(m113_vehicle)
-
-
-driver.SetSpeed(10.0)  
-driver.SetSteering(0.0)  
+driver = ch.ChDriver()
+driver.SetVehicle(vehicle)
+driver.SetMode(ch.DriverMode_Autonomous())
 
 
 vis = irr.ChVisualSystemIrrlicht()
+vis.AttachVehicle(vehicle)
+vis.SetCameraVerticalDir(ch.ChVector3d(0, 0, 1))
+vis.SetCameraPos(ch.ChVector3d(0, -10, 5))
+vis.EnableStatsDisplay()
+vis.EnableRealTime(False)
 
 
-vis.AttachVehicle(m113_vehicle)
-vis.AttachTerrain(terrain)
+vis.SetLight(0, ch.ChVector3d(10, 10, 10), ch.ChColor(1, 1, 1), True)
 
 
-vis.SetCameraDistance(10)
-vis.SetCameraAzimuthAngle(chrono.ChRadians(45))
-vis.SetCameraElevationAngle(chrono.ChRadians(30))
+step_size = 0.01
+end_time = 10.0
 
 
-vis.EnableSunlight()
-
-
-timer = chrono.ChRealtimeStepTimer(chrono.ChTimeStep(TIME_STEP))
-
-while vis.Run() and timer.ElapsedTime() < SIMULATION_TIME:
+while vis.GetChTime() < end_time:
     
-    m113_vehicle.Synchronize(chrono.GetChTime())
-    terrain.Synchronize(chrono.GetChTime())
-    driver.Synchronize(chrono.GetChTime())
-    vis.Synchronize(chrono.GetChTime())
-
+    vehicle.Advance(step_size)
+    terrain.Advance(step_size)
+    driver.Advance(step_size)
     
-    m113_vehicle.Advance(TIME_STEP)
-    terrain.Advance(TIME_STEP)
-    driver.Advance(TIME_STEP)
-    vis.Advance(TIME_STEP)
+    
+    vis.Synchronize('', vehicle.GetChTime())
+    vis.Render()
 
     
-    timer.Step()
-
-
-chrono.ChEngine.Finalize()
+    vis.SpinEventLoop()

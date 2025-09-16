@@ -1,83 +1,90 @@
 import pychrono as chrono
 import pychrono.vehicle as veh
-import pychrono.irrlicht as chronoirr
+import pychrono.irrlicht as irr
 import rospy
 from std_msgs.msg import Float64
+from geometry_msgs.msg import Twist
 
-# Initialize PyChrono
-chrono.Init()
+# Initialize the PyChrono environment
+chrono.SetChronoDataPath("/path/to/chrono/data")
 
-# Create a Chrono system
-sys = chrono.ChSystemNSC()
+def main():
+    # Create the HMMWV vehicle
+    vehicle = veh.HMMWV_Full()
+    vehicle.SetContactMethod(chrono.ChContactMethod_SMC)
+    vehicle.SetChassisFixed(False)
+    vehicle.SetInitPosition(chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 1), chrono.ChQuaterniond(1, 0, 0, 0)))
+    vehicle.SetEngineType(veh.EngineModelType_SIMPLE)
+    vehicle.SetTireType(veh.TireModelType_TMEASY)
+    vehicle.Initialize()
 
-# Initialize the HMMWV vehicle
-init_file = "hmmwv/vehicle/HMMWV_Vehicle.json"
-vehicle = veh.HMMWV_Vehicle(sys, init_file=init_file)
+    # Create the terrain
+    terrain = veh.RigidTerrain(vehicle.GetSystem())
+    patch = terrain.AddPatch(chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.Q_from_AngX(-chrono.CH_C_PI_2)), chrono.ChVector3d(100, 100, 1), 0.01)
+    patch.SetContactFrictionCoefficient(0.9)
+    patch.SetContactRestitutionCoefficient(0.01)
+    terrain.Initialize()
 
-# Set the contact method, engine type, and tire model as per the JSON file or manually
-# For demonstration, assuming these are set via the JSON file
+    # Create the driver system
+    driver = veh.ChDriver(vehicle)
 
-# Initialize the vehicle's position and other parameters
-vehicle.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 1.0), chrono.Q_from_AngZ(0)))
+    # Initialize ROS node
+    rospy.init_node('hmmwv_simulation', anonymous=True)
 
-# Set up the terrain
-terrain = veh.RigidTerrain(sys)
-patch_mat = chrono.ChMaterialSurfaceNSC()
-patch_mat.SetFriction(0.9)
-patch_mat.SetRestitution(0.01)
-terrain.AddPatch(patch_mat, chrono.CSYSNORM, 100, 100)
-terrain.Initialize()
+    # ROS publishers and subscribers
+    pub_clock = rospy.Publisher('/clock', Float64, queue_size=10)
+    pub_vehicle_state = rospy.Publisher('/vehicle_state', Twist, queue_size=10)
+    sub_driver_inputs = rospy.Subscriber('/driver_inputs', Twist, lambda msg: driver_inputs_callback(msg, driver))
 
-# Create a driver system
-driver = veh.ChDriver(vehicle.GetVehicle())
+    # Simulation loop parameters
+    step_size = 2e-3
+    time = 0
 
-# For simplicity, using a basic driver input. In a real scenario, this would be more complex.
-driver_inputs = veh.DriverInputs()
-driver_inputs.m_steering = 0
-driver_inputs.m_throttle = 0
-driver_inputs.m_braking = 0
+    while not rospy.is_shutdown():
+        # Synchronize and advance the vehicle, terrain, and driver systems
+        driver_inputs = driver.GetInputs()
+        vehicle.Synchronize(time, driver_inputs, terrain)
+        terrain.Synchronize(time)
+        driver.Synchronize(time)
 
-# Initialize ROS node
-rospy.init_node('hmmwv_simulator', anonymous=True)
+        # Advance the simulation
+        vehicle.Advance(step_size)
+        terrain.Advance(step_size)
+        driver.Advance(step_size)
 
-# Create ROS publishers and subscribers
-pub_vehicle_state = rospy.Publisher('/vehicle_state', Float64, queue_size=10)
+        # Update ROS manager
+        pub_clock.publish(Float64(time))
+        vehicle_state = Twist()
+        vehicle_state.linear.x = vehicle.GetPos().x
+        vehicle_state.linear.y = vehicle.GetPos().y
+        vehicle_state.linear.z = vehicle.GetPos().z
+        pub_vehicle_state.publish(vehicle_state)
 
-def clock_sync_callback(msg):
-    # Handle clock synchronization
-    pass
+        # Increment time
+        time += step_size
 
-def driver_inputs_callback(msg):
+def driver_inputs_callback(msg, driver):
     # Update driver inputs based on ROS message
-    driver_inputs.m_steering = msg.data  # Example; actual implementation depends on msg structure
-    driver.SetInputs(driver_inputs)
+    driver.SetThrottle(msg.linear.x)
+    driver.SetSteering(msg.angular.z)
+    driver.SetBraking(msg.linear.y)
 
-rospy.Subscriber("/clock", Float64, clock_sync_callback)
-rospy.Subscriber("/driver_inputs", Float64, driver_inputs_callback)  # Adjust type as necessary
+if __name__ == "__main__":
+    main()
 
-# Simulation parameters
-step_size = 2e-3
-time_end = 100
+# To run this script, ensure you have PyChrono and ROS installed.
+# Adjust "/path/to/chrono/data" to the actual path where Chrono data is located.
+# You might need to modify the script to fit your specific ROS environment and version.
 
-# Simulation loop
-realtime_timer = chrono.ChRealtimeStepTimer()
-while sys.GetChTime() < time_end:
-    time = sys.GetChTime()
-    driver_inputs.m_throttle = 0.5  # Example; adjust based on driver or control inputs
-    
-    # Synchronize and advance the vehicle, terrain, and driver systems
-    driver.Synchronize(time)
-    vehicle.Synchronize(time, driver_inputs, terrain)
-    terrain.Synchronize(time)
-    
-    # Advance the simulation
-    sys.DoStepDynamics(step_size)
-    
-    # Update ROS manager and publish data
-    pub_vehicle_state.publish(Float64(vehicle.GetSpeed()))  # Example; publish relevant state
-    
-    # Spin ROS to handle callbacks
-    rospy.rostime.wallsleep(0.01)
-    
-    # Limit the simulation step to maintain real-time (if needed)
-    realtime_timer.Spin(step_size)
+# Make sure to run `roscore` before executing this script.
+# You can send driver inputs to the '/driver_inputs' topic using `rostopic pub` or other ROS tools.
+
+# Example usage:
+# rostopic pub /driver_inputs geometry_msgs/Twist "linear:
+#   x: 0.5
+#   y: 0.0
+#   z: 0.0
+# angular:
+#   x: 0.0
+#   y: 0.0
+#   z: 0.2" -r 10

@@ -2,12 +2,16 @@ import pychrono.core as chrono
 import pychrono.fea as fea
 import pychrono.irrlicht as chronoirr
 
+# ----------------------------------------------------------------------------
+# Model1: Multiple chains of beam composed of ANCF cable elements, with one end hinged to
+# ground, moving under gravity alone.
+# This model demonstrates the use of the utility class ChBuilderCableANCF.
+# ----------------------------------------------------------------------------
+
 class Model1:
     def __init__(self, system, mesh, n_chains=6):
         self.n_chains = n_chains
         self.bodies = []
-        self.constraints = []
-
         for i in range(n_chains):
             # Create a section, i.e. define thickness and material properties for the cable beam
             msection_cable2 = fea.ChBeamSectionCable()
@@ -20,9 +24,9 @@ class Model1:
             builder.BuildBeam(
                 mesh,  # The mesh to which the created nodes and elements will be added
                 msection_cable2,  # The beam section properties to use
-                10 + i * 5,  # Number of ANCF elements to create along the beam, increasing with each chain
-                chrono.ChVector3d(0, 0, -0.1 + i * 0.1),  # Starting point ('A' point) of the beam
-                chrono.ChVector3d(0.5, 0, -0.1 + i * 0.1)  # Ending point ('B' point) of the beam
+                i+10,  # Number of ANCF elements to create along the beam
+                chrono.ChVector3d(0, 0, -0.1),  # Starting point ('A' point) of the beam
+                chrono.ChVector3d(0.5, 0, -0.1)  # Ending point ('B' point) of the beam
             )
 
             # Apply boundary conditions and loads:
@@ -37,26 +41,25 @@ class Model1:
             constraint_hinge = fea.ChLinkNodeFrame()
             constraint_hinge.Initialize(builder.GetLastBeamNodes().back(), mtruss)
             system.Add(constraint_hinge)  # Add the constraint to the system
-            self.constraints.append(constraint_hinge)
 
-            # Create a box body
-            box = chrono.ChBody()
-            box.SetBodyFixed(False)
-            box.SetMass(1)
-            box.SetInertiaXX(chrono.ChVector3d(1, 1, 1))
-            box.SetPos(builder.GetLastBeamNodes().back().GetPos())
-            system.Add(box)
-            self.bodies.append(box)
+            # Create a chrono body (box)
+            body = chrono.ChBody()
+            body.SetBodyFixed(False)
+            body.SetPos(chrono.ChVector3d(0.5, 0, -0.1))
+            body.SetMass(1)
+            body.SetInertiaXX(chrono.ChVector3d(0.1, 0.1, 0.1))
+            system.Add(body)
 
-            # Create and initialize a ball constraint between the beam endpoint and the box
-            constraint_ball = chrono.ChLinkLockBall()
-            constraint_ball.Initialize(builder.GetLastBeamNodes().back(), box)
-            system.Add(constraint_ball)
-            self.constraints.append(constraint_ball)
+            # Create and initialize a hinge constraint to connect the beam's end point to the box
+            constraint_hinge_box = fea.ChLinkLockPrismatic()
+            constraint_hinge_box.Initialize(builder.GetLastBeamNodes().back(), body)
+            system.Add(constraint_hinge_box)  # Add the constraint to the system
+
+            self.bodies.append(body)
 
     def PrintBodyPositions(self):
         for i, body in enumerate(self.bodies):
-            print(f"Body {i} position: {body.GetPos()}")
+            print(f"Position of body {i}: {body.GetPos()}")
 
 # Initialize the physical system and mesh container:
 sys = chrono.ChSystemSMC()

@@ -1,4 +1,3 @@
-```python
 import os
 import math
 import numpy as np
@@ -28,6 +27,14 @@ init_rot = chrono.ChQuaterniond(1, 0, 0, 0)  # Initial orientation of the robot
 robot = turtlebot.TurtleBot(system, init_pos, init_rot)  # Create Turtlebot instance
 robot.Initialize()  # Initialize the robot
 
+# Create sensor manager
+sensor_manager = sens.SensorManager()
+
+# Create lidar sensor
+lidar_sensor = sens.LidarSensor(system, 10, 180, 0.01, 0.01, 10, 0.5, 0.001)
+lidar_sensor.AddFilter(0.01, 100)
+sensor_manager.AddSensor(lidar_sensor)
+
 # Create run-time visualization
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
@@ -37,318 +44,61 @@ vis.SetWindowTitle('Turtlebot Robot - Rigid terrain')
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()
-vis.AddCamera(chrono.ChVector3d(0, 1.5, 0.2), chrono.ChVector3d(0, 0, 0.2))
 vis.AddTypicalLights()
 vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0, 0.5), 3, 4, 10, 40, 512)
 
 # Enable shadows (commented out to improve performance)
 # vis.EnableShadows()
 
-# Create and configure sensor manager
-sensor_manager = sens.ChSensorManager(system)
-
-# Configure and add lidar sensor
-lidar_sensor = sens.ChLidarSensor(sensor_manager)
-lidar_sensor.SetRange(10)
-lidar_sensor.SetNumBeams(360)
-lidar_sensor.SetBeamSpacing(math.pi * 2 / 360)
-lidar_sensor.SetSensorPos(chrono.ChVector3d(0, 0, 0.5))
-lidar_sensor.SetRotation(chrono.ChVector3d(0, 0, 0))
-lidar_sensor.SetSensorModel(sens.ChSensorModelLidar)
-sensor_manager.AddSensor(lidar_sensor)
-
-# Create and add 5 randomly placed boxes
-box_positions = [
-    chrono.ChVector3d(0, 0)
-    for i in range(5):
-box_positions = [
-    chrono.ChVector3d(0)
-    for i in range(5)
-    box_positions = [
-    for i in range(5)
-    for i in range(5)
-    for i in range(5)
-    for i in
-    for i
-    for i
-    for i
-    for i
-        # Create a box
-        box_positions
-        for i
-        # Create a
-        # Create a
-        for i
-            box_positions
-            box
-            box
-            # Create a
-            # Create a
-            # Create a
-            # Create a
-            # Create a
-            # Create a
-            # Create a
-            chrono
-            for i
-            for i
-            box
-            for i
-            box
-            for i
-            for i
-            for i
-            for i
-            for i
-chrono
-            for i
-a
-            for i
-            for i
-            for i
-            for i
-            for i
-            for i
-            for i
-            for i
-    for i
-            for i
-            for i
-            for i
-
-s
-            for i
-            for i
-            for i
-            for i
-            for i
-            for i
-            for i
-
-chrono
-            from datetime.py
-.
-
-for i
-            for i
-            for i
-
-
-
-
-
-    for i
-
-
-
-
-for
-
-
-
-   
-
-
-
-
-   
-
-    from
-
-
-
-
-
-
-
-
-
-
-
-
-from
-
-
-for i
-
-
-
-
-   
-
-
-
-
-
-
-
-
-
-
-
-
-
-from
-
-   
-   
-
-
-
-
-
-
-
-    from
-
-
-
-
-
-
-
-
-chrono
-   
-   
-
-   
-   
-
-
-
-
-   
-
-a chrono
-   
-
-with chronologic.
-   1.
-
-
-
-
-
-   ndarray
-
-    from
-    py
-   
-   
-A:
-
-
-
-for
-
-    -1
-
-    from
-    if any
-    chrono
-   nd
-    py
-   12
-
-   
-    #1
-    #1
-
-
-def
-   1
-
-
-    -1
-
-   0
-
-    py
-
-    -1
-
-
-
-
-
-
-   
-   
-
-
-   
-
-
-
-
-   1:
-s
-
-
-
-   1.
-
-
-   
-
-
-   1
-
-
-
-
-   1
-   2
-    main()
-   1.
-   1.
-
-
-   1.
-
-   1.
-   10
-
-
-
-   1.
-   12.
-
-   0.
-   1.
-
-
-   2Dense.
-   2D:
-s.
-
-   1.
-   3Docker.
-    -12.
-
-   snp
-
-
-
-
-   10, and modify.
-
-
-
-
-
-
-
-
-
-
-
-
-
-    -initially.
-
-
-
-
-   1.py.py, a
+# Set the simulation time step
+time_step = 2e-3
+
+# Simulation loop
+time = 0
+while vis.Run():
+    # Define WheelID enum values for motor control
+    LEFT_DRIVE_WHEEL = 0
+    RIGHT_DRIVE_WHEEL = 1
+    
+    # Add randomly placed boxes
+    for _ in range(5):
+        box = chrono.ChBodyEasyBox(1, 1, 1, 10, True, True, chrono.ChContactMaterialNSC())
+        box.SetPos(chrono.ChVector3d(np.random.uniform(-5, 5), np.random.uniform(-5, 5), 0.6))
+        system.Add(box)
+    
+    # Define motion control function for Turtlebot
+    def move(mode):
+        if mode == 'straight':
+            robot.SetMotorSpeed(0.5, LEFT_DRIVE_WHEEL)
+            robot.SetMotorSpeed(0.5, RIGHT_DRIVE_WHEEL)
+        elif mode == 'left':
+            robot.SetMotorSpeed(0.5, LEFT_DRIVE_WHEEL)
+            robot.SetMotorSpeed(-0.5, RIGHT_DRIVE_WHEEL)
+        elif mode == 'right':
+            robot.SetMotorSpeed(-0.5, LEFT_DRIVE_WHEEL)
+            robot.SetMotorSpeed(0.5, RIGHT_DRIVE_WHEEL)
+
+    # At time = 1 s, start left turn
+    if abs(time - 1.0) < 1e-4:
+        robot.SetMotorSpeed(-math.pi, LEFT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(0, RIGHT_DRIVE_WHEEL)
+
+    # At time = 2 s, start right turn
+    if abs(time - 2.0) < 1e-4:
+        robot.SetMotorSpeed(math.pi, LEFT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(0, RIGHT_DRIVE_WHEEL)
+
+    # Update sensor manager
+    sensor_manager.Update()
+
+    # Render the scene
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+
+    # Advance the simulation by one time step
+    system.DoStepDynamics(time_step)
+    time += time_step
+
+    # Use move function for Turtlebot's movement
+    move('straight')

@@ -8,7 +8,7 @@ veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 # Initial vehicle location and orientation
 initLoc = chrono.ChVector3d(-15, 0, 0.5)
-initRot = chrono.ChQuaterniond(0.707, 0, 0, 0.707) # adjusted for the new initial location
+initRot = chrono.ChQuaterniond(0.707, 0, 0, -0.707)  # Adjusted initial rotation
 
 # Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
 vis_type = veh.VisualizationType_MESH
@@ -26,7 +26,7 @@ terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
 
 # Poon chassis tracked by the camera
-trackPoint = chrono.ChVector3d(3,0, 2.1)
+trackPoint = chrono.ChVector3d(3, 0, 2.1)  # Updated track point
 
 # Contact method
 contact_method = chrono.ChContactMethod_NSC
@@ -73,12 +73,13 @@ terrain.Initialize()
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('Kraz Demo')
 vis.SetWindowSize(1280, 1024)
-vis.SetChaseCamera(trackPoint, 25.0, 10.5) # adjusted for the new track point
+vis.SetChaseCamera(trackPoint, 25.0, 10.5)  # Adjusted chase camera distance
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetTractor())
+
 
 # Create the driver system
 driver = veh.ChInteractiveDriverIRR(vis)
@@ -104,7 +105,7 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-double_lane_change_time = 5.0 # time for double lane change maneuver
+double_lane_change_time = 5.0  # Time for double lane change maneuver
 double_lane_change_completed = False
 
 while vis.Run() :
@@ -132,16 +133,17 @@ while vis.Run() :
     vehicle.Advance(step_size)
     vis.Advance(step_size)
 
-    # Check if it's time to start/complete the double lane change maneuver
-    if not double_lane_change_completed and time > double_lane_change_time:
-        driver.SetSteer(-1.0) # turn left
-        if time > 2.0 * double_lane_change_time:
-            driver.SetSteer(1.0) # turn right
-            if time > 3.0 * double_lane_change_time:
-                double_lane_change_completed = True
-
     # Increment frame number
     step_number += 1
 
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
+
+    # Double lane change maneuver
+    if not double_lane_change_completed and time > double_lane_change_time:
+        driver.SetSteering(1.0)  # Full right steering
+        if time > double_lane_change_time * 2:
+            driver.SetSteering(-1.0)  # Full left steering
+            if time > double_lane_change_time * 3:
+                driver.SetSteering(0.0)  # No steering
+                double_lane_change_completed = True

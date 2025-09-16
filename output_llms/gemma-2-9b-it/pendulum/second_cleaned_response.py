@@ -36,8 +36,7 @@ pend_1.AddVisualShape(cyl_1, chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleY
 pend_1.SetPos(chrono.ChVector3d(1, 0, 1))
 
 
-pend_1.SetRot(chrono.ChQuaterniond(1, 0, 0, 0))
-pend_1.SetRotSpeed(chrono.ChVector3d(0, 0, 0.5))  
+pend_1.SetAngularVelocity(chrono.ChVector3d(0, 0, 1.0))
 
 
 sph_1 = chrono.ChLinkTSpherical()
@@ -68,6 +67,4 @@ while vis.Run():
         pos_1 = pend_1.GetPos()  
         print("t = ", sys.GetChTime())
         print("     ", pos_1.x, "  ", pos_1.y)
-        lin_vel_1 = pend_1.GetPosDt()  
-        print("     ", lin_vel_1.x, "  ", lin_vel_1.y)
         log_info = False

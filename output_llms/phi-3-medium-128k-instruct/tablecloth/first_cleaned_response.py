@@ -1,72 +1,95 @@
-import Chrono
-
-import chrono
-
 import pychrono
 
-import pychrono.fea as fea
+import pychrono.irrlicht
 
-import pychrono.irrlicht as irr
+import pychrono.pardiso
+
+import numpy as np
 
 
 
+
+chrono = pychrono.ChLink_DenDenovo()
 
 chrono.Init()
 
 
 
 
-system = chrono.ChSystemNSC()
+tablecloth = pychrono.ChMaterialSurfaceIsotropicKirchhoff(1.0, 1.0e5, 0.3)
 
 
 
 
-material = fea.ChMaterialShellIsoKirchhoff(E=1000, rho=1.2, mu=0.3)
+num_nodes = 100
+
+mesh_size = 10
+
+nodes = np.zeros((num_nodes, 3))
+
+for i in range(num_nodes):
+
+    nodes[i, 0] = i % mesh_size * mesh_size
+
+    nodes[i, 1] = i // mesh_size * mesh_size
+
+    nodes[i, 2] = 0.0
+
+
+elements = []
+
+for i in range(num_nodes - 1):
+
+    elements.append(pychrono.ChElementShellIsotropicKirchhoff(tablecloth, 0.1))
 
 
 
 
-mesh = fea.ChMshShellGrid()
-
-
-
-mesh.AddRect(0.5, 0.5)
+irr = pychrono.irrlicht.ChIrrApp("TableclothFolding", 800, 600)
 
 
 
 
-mesh.Generate(system)
+visualizer = pychrono.irrlicht.ChVisualizer()
 
 
 
 
-mesh.SetMaterial(material)
+solver = pychrono.pardiso.ChSolverPardisoMKL()
 
 
 
 
-system.Add(mesh, chrono.ChBodyGroup())
+tablecloth_body = pychrono.ChBody(chrono)
+
+tablecloth_body.SetName("Tablecloth")
+
+tablecloth_body.SetMass(1.0)
+
+tablecloth_body.SetStaticForce(chrono.ChVector(0, 0, -1000))
+
+tablecloth_body.AddAsset(visualizer)
 
 
 
 
-vis = irr.ChIrrApp(&system, "Tablecloth Folding Simulation", chrono.COORDTYPE_DYNAMIC, "", chrono.SColor(0, 255, 0))
+for i, node in enumerate(nodes):
+
+    tablecloth_body.AddNode(node)
+
+    tablecloth_body.AddAsset(elements[i])
 
 
 
 
-system.SetSolver(chrono.ChSolverPardisoMKL())
+visualizer.SetModel(tablecloth_body)
 
 
 
 
-while (vis.GetDevice()->UserQuit() == False):
-
-    system.DoStepDynamics(0.01)
-
-    vis.Render()
+chrono.SetSolver(solver)
 
 
 
 
-chrono.destroy([system, mesh, vis])
+chrono.DoStep(1.0)

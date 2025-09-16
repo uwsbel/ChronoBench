@@ -11,85 +11,80 @@ soil_params = chrono.SoilParams()
 soil_params.density = 1800.0  
 soil_params.elasticity = 1.0e9  
 soil_params.poisson_ratio = 0.3
-soil_params.stiffness = 1.0e6  
-soil_params.viscosity = 1.0e4  
+soil_params.viscosity = 1.0e5  
 
 
-hmmwv_params = chrono.RigidBodyParams()
-hmmwv_params.mass = 5000.0  
-hmmwv_params.elasticity = 1.0e9  
-hmmwv_params.poisson_ratio = 0.3
-hmmwv_params.stiffness = 1.0e6  
-hmmwv_params.viscosity = 1.0e4  
+terrain = chrono.ChScmTerrain()
+terrain.SetParams(soil_params)
+terrain.SetSize(100, 100, 0.1)  
+terrain.SetPatchSpeed(1.0)  
+terrain.SetPatchSize(10, 10)  
+terrain.SetPatchDelay(0.1)  
+terrain.SetTerrainType(chrono.ChScmTerrainType.CUSTOM)
 
 
-terrain_params = chrono.SCMParams()
-terrain_params.width = 100.0  
-terrain_params.length = 100.0  
-terrain_params.soil_density = 1800.0  
-terrain_params.soil_elasticity = 1.0e9  
-terrain_params.soil_poisson_ratio = 0.3
-terrain_params.soil_stiffness = 1.0e6  
-terrain_params.soil_viscosity = 1.0e4  
+vehicle = chrono.ChBody()
+vehicle.SetName("HMMWV")
+vehicle.SetPos(chrono.ChVectorD(0, 0, 0))
+vehicle.SetRot(chrono.ChQuaternionD(0, 0, 0, 1))
+vehicle.SetCollide(True)
+vehicle.SetMass(2500)  
+vehicle.SetInertia(chrono.ChVectorD(1000, 1000, 1000))  
 
 
-terrain = chrono.CreateSCM(terrain_params)
-terrain.SetName('Terrain')
+vehicle.SetBodyFixed(True)
+vehicle.SetBodyInertiaFrame(True)
+vehicle.SetBodyViscosity(0.0)
 
 
-hmmwv = chrono.CreateRigidBody(hmmwv_params)
-hmmwv.SetName('HMMWV')
-hmmwv.SetPosition(np.array([0.0, 0.0, 0.0]))  
-hmmwv.SetOrientation(np.array([0.0, 0.0, 0.0]))  
-hmmwv.SetMass(5000.0)  
+tire = chrono.ChBody()
+tire.SetName("Tire")
+tire.SetPos(chrono.ChVectorD(0, 0, 0))
+tire.SetRot(chrono.ChQuaternionD(0, 0, 0, 1))
+tire.SetCollide(True)
+tire.SetMass(50)  
+tire.SetInertia(chrono.ChVectorD(10, 10, 10))  
+tire.SetBodyFixed(True)
+tire.SetBodyInertiaFrame(True)
+tire.SetBodyViscosity(0.0)
 
 
-terrain.Add(hmmwv)
+vehicle.AddAsset(tire)
 
 
-tire_params = chrono.RigidBodyParams()
-tire_params.mass = 100.0  
-tire_params.elasticity = 1.0e9  
-tire_params.poisson_ratio = 0.3
-tire_params.stiffness = 1.0e6  
-tire_params.viscosity = 1.0e4  
-
-tire = chrono.CreateRigidBody(tire_params)
-tire.SetName('Tire')
-tire.SetPosition(np.array([0.0, 0.0, 0.0]))  
-tire.SetOrientation(np.array([0.0, 0.0, 0.0]))  
-tire.SetMass(100.0)  
+driver = chrono.ChDriver()
+driver.SetName("Driver")
+driver.SetControlType(chrono.ChDriverControlType.INTERACTIVE)
+driver.SetControlType(chrono.ChDriverControlType.STEERING)
+driver.SetControlType(chrono.ChDriverControlType.THROTTLE)
+driver.SetControlType(chrono.ChDriverControlType.BRAKING)
 
 
-hmmwv.Add(tire)
+sim = chrono.ChSystem()
+sim.SetSolverType(chrono.ChSolver.Type.SIMPACK)
+sim.SetRealTimeSimulation(True)
+sim.SetTimestep(0.02)  
+sim.SetMaxSteps(50)  
 
 
-hmmwv.SetMeshFilename('hmmwv.stl')
-terrain.SetMeshFilename('terrain.stl')
-tire.SetMeshFilename('tire.stl')
+sim.Add(vehicle)
+sim.Add(terrain)
 
 
-terrain.EnableMovingPatch()
+device = irrlicht.createDevice(irrlicht.VideoMode(800, 600, irrlicht.EVFT_S3TC_DXT1))
+view = irrlicht.IViewport()
+view.SetSize(irrlicht.dimension2du(800, 600))
+view.SetViewport(device.GetRenderContext())
+device.SetWindowCaption("HMMWV Simulation")
+device.SetScreenSize(irrlicht.dimension2du(800, 600))
+device.SetCurrentResolution(irrlicht.dimension2du(800, 600))
 
 
-driver = chrono.CreateInteractiveDriver()
-driver.SetName('Driver')
-driver.SetSteeringGain(0.1)
-driver.SetThrottleGain(0.1)
-driver.SetBrakeGain(0.1)
-
-
-irrlicht.set_window_title("HMMWV on SCM Terrain")
-irrlicht.set_target_fps(50)
-
-
-while True:
-    chrono.StepSimulation(0.01)
-    irrlicht.draw()
-    irrlicht.update()
-    if irrlicht.is_key_pressed(irrlicht.KEY_ESCAPE):
-        break
-
-
-chrono.Close()
-irrlicht.shutdown()
+while device.Run():
+    sim.DoStep()
+    view.begin()
+    terrain.Draw(view)
+    vehicle.Draw(view)
+    view.end()
+    device.UpdateDevice()
+    device.Render()

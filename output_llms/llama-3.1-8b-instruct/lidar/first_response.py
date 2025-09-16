@@ -10,41 +10,48 @@ space.Set_G(0, 0, 0)
 mesh = chrono.ChTriangleMesh()
 mesh.Load('path_to_your_mesh.obj')
 
-# Create a fixed body from the loaded mesh
+# Create a fixed body from the mesh
 body = chrono.ChBody()
 body.SetBodyFixed(True)
-body.SetMass(1.0)
-body.SetBodyInertia(1.0, 1.0, 1.0)
+body.SetCollisionShape(mesh)
 body.SetPos(ChVector(0, 0, 0))
-body.SetRot(ChVector(0, 0, 0))
-body.SetBodyMaterial(0.5, 0.5, 0.5)
 space.Add(body)
-body.AddAsset(mesh)
 
-# Add a lidar sensor to the body
-sensor = chrono.ChSensor()
-sensor.SetBody(body)
-sensor.SetSensorType(chrono.SensorType.SENSOR_TYPE_LIDAR)
-sensor.SetSensorRange(10.0)
-sensor.SetSensorAngularResolution(1.0)
-sensor.SetSensorAngularRange(360.0)
-space.Add(sensor)
+# Create a lidar sensor
+lidar = chrono.ChSensor()
+lidar.SetSensorType(chrono.ChSensor.SENSOR_TYPE_LIDAR)
+lidar.SetSensorType(chrono.ChSensor.SENSOR_TYPE_LIDAR)
+lidar.SetPos(ChVector(0, 0, 0))
+lidar.SetOrientation(ChVector(0, 0, 0))
+lidar.SetSamplingPeriod(0.01)
+lidar.SetBufferSize(1000)
+lidar.SetBufferSizeMax(1000)
+lidar.SetSaveToFile(True)
+lidar.SetSaveToCSV(True)
+lidar.SetSaveToCSVPeriod(1)
+lidar.SetSaveToCSVName('lidar_data.csv')
+lidar.SetFilterNoise(True)
+lidar.SetFilterNoiseValue(0.1)
+lidar.SetFilterVisual(True)
+lidar.SetFilterVisualValue(0.1)
+lidar.SetSensorManager(space)
 
-# Set the sensor manager
-sensor_manager = chrono.ChSensorManager()
-sensor_manager.AddSensor(sensor)
-sensor_manager.SetVisualization(True)
-sensor_manager.SetNoiseFilter(True)
-sensor_manager.SetSaveData(True)
+# Add the lidar sensor to the body
+body.AddSensor(lidar)
+
+# Set the lidar's position in an orbit around the mesh
+lidar.SetPos(ChVector(1, 0, 0))
+lidar.SetOrientation(ChVector(0, 0, 0))
+
+# Set the simulation parameters
+t = 0
+dt = 0.01
+nsteps = 1000
+space.Set_TMax(nsteps * dt)
+space.Set_Dt(dt)
 
 # Simulate the system
-dt = 0.01
-t = 0.0
-while t < 10.0:
-    space.DoStepDynamics(dt)
-    lidar_data = sensor_manager.GetLidarData()
-    print(lidar_data)
+for i in range(nsteps):
+    space.DoStepDynamics(t)
     t += dt
-
-# Clean up
-chrono.finalize()
+    print(lidar.GetBufferData())

@@ -16,23 +16,23 @@ sys.SetGravitationalAcceleration(chrono.ChVector3d(0, -3.71, 0));  # changed gra
 beam_L = 10  # changed beam length
 beam_ro = 0.060  # changed outer radius
 beam_ri = 0.055  # changed inner radius
-CH_PI = 3.1416  # changed PI value
+CH_PI = 3.14159  # changed pi value to a more precise one
 
 # Create a section, i.e. thickness and material properties
 # for beams. This will be shared among some beams.
 
 minertia = fea.ChInertiaCosseratSimple()
 minertia.SetDensity(7800);
-minertia.SetArea(m.PI * (pow(beam_ro, 2) - pow(beam_ri, 2)));
-minertia.SetIyy((m.PI / 4.0) * (pow(beam_ro, 4) - pow(beam_ri, 4)));
-minertia.SetIzz((m.PI / 4.0) * (pow(beam_ro, 4) - pow(beam_ri, 4)));
+minertia.SetArea(CH_PI * (pow(beam_ro, 2) - pow(beam_ri, 2)));
+minertia.SetIyy((CH_PI / 4.0) * (pow(beam_ro, 4) - pow(beam_ri, 4)));
+minertia.SetIzz((CH_PI / 4.0) * (pow(beam_ro, 4) - pow(beam_ri, 4)));
 
 melasticity = fea.ChElasticityCosseratSimple()
 melasticity.SetYoungModulus(210e9)
 melasticity.SetShearModulusFromPoisson(0.3)
-melasticity.SetIyy((m.PI / 4.0) * (pow(beam_ro, 4) - pow(beam_ri, 4)))
-melasticity.SetIzz((m.PI / 4.0) * (pow(beam_ro, 4) - pow(beam_ri, 4)))
-melasticity.SetJ((m.PI / 2.0) * (pow(beam_ro, 4) - pow(beam_ri, 4)))
+melasticity.SetIyy((CH_PI / 4.0) * (pow(beam_ro, 4) - pow(beam_ri, 4)))
+melasticity.SetIzz((CH_PI / 4.0) * (pow(beam_ro, 4) - pow(beam_ri, 4)))
+melasticity.SetJ((CH_PI / 2.0) * (pow(beam_ro, 4) - pow(beam_ri, 4)))
 
 msection = fea.ChBeamSectionCosserat(minertia, melasticity)
 
@@ -58,7 +58,7 @@ node_mid = builder.GetLastBeamNodes()[m.floor(builder.GetLastBeamNodes().size() 
 mbodyflywheel = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, 0.30, 0.1, 7800)  # changed flywheel radius
 mbodyflywheel.SetCoordsys(
     chrono.ChCoordsysd(node_mid.GetPos() + chrono.ChVector3d(0, 0.05, 0),  # flywheel initial center (plus Y offset)
-                       chrono.QuatFromAngleAxis(m.PI / 2.0, chrono.VECT_Z))
+                       chrono.QuatFromAngleAxis(CH_PI / 2.0, chrono.VECT_Z))
     # flywheel initial alignment (rotate 90° so cylinder axis is on X)
 )
 sys.Add(mbodyflywheel)
@@ -87,7 +87,7 @@ rotmotor1 = chrono.ChLinkMotorRotationSpeed()
 rotmotor1.Initialize(builder.GetLastBeamNodes().front(),  # body A (slave)
                      truss,  # body B (master)
                      chrono.ChFramed(builder.GetLastBeamNodes().front().GetPos(),
-                                     chrono.QuatFromAngleAxis(m.PI / 2.0, chrono.VECT_Y))
+                                     chrono.QuatFromAngleAxis(CH_PI / 2.0, chrono.VECT_Y))
                      # motor frame, in abs. coords
                      )
 sys.Add(rotmotor1)

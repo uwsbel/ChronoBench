@@ -25,18 +25,20 @@ sphere_mat.SetFriction(0.2)
 
 msphereBody1 = chrono.ChBodyEasySphere(2.1, 1800, True, True, sphere_mat)
 msphereBody1.SetPos(chrono.ChVector3d(1, 1, 0))
-msphereBody1.SetPos_dt(chrono.ChVector3d(0.5, 0, 0.1)) # Initial velocity for sphere 1
+msphereBody1.SetPos_dt(chrono.ChVector3d(0.5, 0, 0.1)) # Initial velocity
 msphereBody1.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
 sys.Add(msphereBody1)
 
 msphereBody2 = chrono.ChBodyEasySphere(2.1, 1800, True, True, sphere_mat)
 msphereBody2.SetPos(chrono.ChVector3d(-10, -10, 0))
-msphereBody2.SetPos_dt(chrono.ChVector3d(-0.5, 0, -0.1)) # Initial velocity for sphere 2
+msphereBody2.SetPos_dt(chrono.ChVector3d(-0.5, 0, -0.1)) # Initial velocity
+msphereBody2.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
 sys.Add(msphereBody2)
 
 msphereBody3 = chrono.ChBodyEasySphere(2.1, 1800, True, True, sphere_mat)
 msphereBody3.SetPos(chrono.ChVector3d(0, 20, 0))
-msphereBody3.SetPos_dt(chrono.ChVector3d(0, -0.5, 0.2)) # Initial velocity for sphere 3
+msphereBody3.SetPos_dt(chrono.ChVector3d(0, -0.5, 0.2)) # Initial velocity
+msphereBody3.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
 sys.Add(msphereBody3)
 
 # Create the Irrlicht visualization
@@ -51,6 +53,7 @@ vis.AddCamera(chrono.ChVector3d(0, 14, -20))
 vis.AddTypicalLights()
 
 mcreation_callback = MyCreatorForAll(vis, coll)
+# emitter.RegisterAddBodyCallback(mcreation_callback) # Commented out as we don't use the emitter
 
 sys.SetSolverType(chrono.ChSolver.Type_PSOR)
 sys.GetSolver().AsIterative().SetMaxIterations(40)
@@ -63,6 +66,8 @@ while vis.Run():
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
+
+    # emitter.EmitParticles(sys, stepsize) # Commented out as we don't use the emitter
 
     for body in sys.GetBodies():
         body.EmptyAccumulators()

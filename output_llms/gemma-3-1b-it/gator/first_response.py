@@ -1,84 +1,86 @@
 import pychrono
 import pychrono.core as pc
-import pychrono.visuals as v
-import pychrono.physics as ph
-import pychrono.utils as u
+import pychrono.visual as pv
 import numpy as np
-import matplotlib.pyplot as plt  # For visualization (optional, but recommended)
+import matplotlib.pyplot as plt
+from pychrono.visual.mesh import Mesh
+from pychrono.visual.rigid_terrain import RigidTerrain
+from pychrono.visual.texture import Texture
+import time
 
-# --- Simulation Parameters ---
-terrain_width = 10.0
-terrain_height = 5.0
-terrain_depth = 2.0
-terrain_scale = 10.0
-vehicle_width = 2.0
-vehicle_length = 3.0
-vehicle_mass = 100.0
-vehicle_friction = 0.8
-vehicle_tire_radius = 0.5
-vehicle_tire_pressure = 0.7  # PSI
-vehicle_tmeasy_model = "tmeasy_model_2" # Adjust as needed
-# --- Initial Setup ---
-# 1. Initialize PyChrono
-chrono = pc.Chronos()
+# Simulation Parameters
+simulation_duration = 60  # seconds
+frames_per_second = 50
+time_step = 0.01
+gravity = 9.81
 
-# 2. Create Terrain
-terrain = u.Terrain(
-    width=terrain_width,
-    height=terrain_height,
-    depth=terrain_depth,
-    scale=terrain_scale,
-    texture="grass.png" # Replace with your terrain texture
-)
-
-# 3. Create Vehicle
-vehicle = pc.Vehicle(
-    width=vehicle_width,
-    length=vehicle_length,
-    mass=vehicle_mass,
-    friction=vehicle_friction,
-    tmeasy_model=vehicle_tmeasy_model,
-    position=(0, 0, 0) # Initial position
-)
-
-# 4. Set Initial Forces & Interactions
-# 5.  RigidTerrain Setup
-rigid_terrain = pc.RigidTerrain(
-    width=terrain_width,
-    height=terrain_height,
-    depth=terrain_depth,
-    scale=terrain_scale,
-    texture="grass.png",
-    # Add any other terrain properties here (e.g., slope, elevation)
-)
-
-
-# --- Simulation Loop ---
+# 1. Initialize PyChrono Environment
 try:
-    # 6.  Initialize Chrono for Simulation
-    chrono.init(chrono)
-
-    # 7.  Simulation Loop (50 FPS)
-    while True:
-        # 8.  Update Vehicle Dynamics
-        vehicle.update_dynamics()
-
-        # 9.  Update Terrain
-        rigid_terrain.update_terrain()
-
-        # 10.  Render
-        v.render(vehicle, rigid_terrain,  ) # Use v.render for better rendering
-
-        # 11.  Print Status (optional - for debugging)
-        print(f"Time: {chrono.time()}")
-
-        # 12.  Wait for a short time to allow rendering
-        chrono.wait(1)  # Short delay to allow rendering
-
+    chrono = pc.chrono.Chrono(
+        simulation_duration=simulation_duration,
+        frames_per_second=frames_per_second,
+        time_step=time_step,
+        gravity=gravity,
+        display_mode='interactive' # Enable interactive visualization
+    )
 except Exception as e:
-    print(f"An error occurred: {e}")
+    print(f"Error initializing Chrono: {e}")
+    exit()
 
-finally:
-    # 13. Clean Up
-    chrono.cleanup()
-    print("Simulation finished.")
+# 2. Define Physical Systems and Objects
+# Gator Vehicle
+vehicle = pc.Vehicle(
+    position=(0, 0, 0),  # x, y, z
+    orientation=(0, 0, 0),  # Euler angles (for simplicity, assuming a straight path)
+    contact_method='tire_model', # 'tire_model' for more detailed contact simulation
+    tme_asyi_tire_model='rigid_terrain_model', # Using a rigid terrain model
+    # Add other relevant parameters here - e.g., speed, acceleration, etc.
+)
+
+# Terrain
+terrain = RigidTerrain(
+    width=10,  # meters
+    height=5,  # meters
+    texture='terrain.png',  # Replace with your terrain texture file
+    # Add other terrain properties here
+)
+
+# 3.  Visualization Setup
+# Create Mesh for Vehicle
+mesh = Mesh(vehicle)
+
+# Create RigidTerrain
+rigid_terrain = RigidTerrain(
+    width=10,
+    height=5,
+    texture='terrain.png',
+    # Add other terrain properties here
+)
+
+# 4. Simulation Loop
+try:
+    while True:
+        # Update Vehicle Dynamics
+        vehicle.update_dynamics()
+        vehicle.update_orientation() # Update orientation based on the vehicle's state
+
+        # Update Terrain
+        terrain.update()
+
+        # Render the Simulation
+        pv.render(mesh, terrain,  # Render both mesh and terrain
+                   fov=60,  # Field of View
+                   num_buffers=1)
+
+        # Print some information (optional)
+        print(f"Frame: {time.time()}")
+
+        # Control the Vehicle (example - simple steering)
+        vehicle.steer(0, 0, 0) # Example steering command
+
+        time.sleep(0.01)  # Small delay for visualization speed
+
+except KeyboardInterrupt:
+    print("Simulation stopped.")
+    # Optionally, save the simulation data here
+    # chrono.save_data()

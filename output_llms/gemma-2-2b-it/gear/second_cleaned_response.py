@@ -14,8 +14,9 @@ radA = 1.5
 radB = 3.5                                          
 
 
-mbody_truss = chrono.ChBodyEasyBox(15, 8, 2, 1000, True, False, mat)  
+mbody_truss = chrono.ChBodyEasyBox(15, 8, 2, 1000, True, False, mat)
 sys.Add(mbody_truss)                              
+mbody_truss.SetFixed(True)                        
 mbody_truss.SetPos(chrono.ChVector3d(0, 0, 3))    
 
 
@@ -62,6 +63,4 @@ sys.AddLink(link_motor)
 
 
 interaxis12 = radA + radB                                           
-mbody_gearB = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y,            
-                                        radB, 0.4,                  
-                                        1000, True, False, mat)
+mbody_gearB = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y,

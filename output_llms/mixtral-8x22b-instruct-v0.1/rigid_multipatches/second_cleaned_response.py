@@ -34,13 +34,12 @@ def main():
     patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 
     
-    mesh = chrono.ChTriangleMeshConnected()
-    mesh.LoadWavefrontMesh(veh.GetDataFile("terrain/meshes/Highway_vis.obj"))
-    mesh.Transform(chrono.ChVector3d(0, 0, 0), chrono.QUNIT)
+    terrain_vis = chrono.ChVisualShapeTriangleMesh()
+    terrain_vis.SetMesh(veh.GetDataFile("terrain/meshes/Highway_vis.obj"))
+    terrain_vis.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 
     
-    ground_body = terrain.GetGroundBody()
-    ground_body.AddAsset(chrono.ChVisualShapeTriangleMesh(mesh, 0.01))
+    terrain.GetGroundBody().AddVisualShape(terrain_vis)
 
     terrain.Initialize()
 

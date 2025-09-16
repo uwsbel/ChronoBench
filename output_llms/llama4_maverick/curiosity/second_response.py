@@ -9,6 +9,7 @@ from pychrono import irrlicht as chronoirr
 system = chrono.ChSystemNSC()
 system.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 system.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, -9.81))
+
 chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.0025)
 chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
 
@@ -25,7 +26,7 @@ obstacle_mat = chrono.ChContactMaterialNSC()
 obstacle = chrono.ChBodyEasyBox(5, 0.5, 0.2, 1000, True, True, obstacle_mat)
 obstacle.SetPos(chrono.ChVector3d(0, 0, 0))  # Position the obstacle at the origin
 obstacle.SetFixed(True)  # Fix the obstacle in place
-obstacle.GetVisualShape(0).SetColor(chrono.ChColor(1, 0, 0))  # Red color for the obstacle
+obstacle.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
 system.Add(obstacle)
 
 # Create Curiosity rover and add it to the system
@@ -36,7 +37,7 @@ driver = robot.CuriosityDCMotorControl()
 rover.SetDriver(driver)
 
 # Initialize rover position and orientation
-init_pos = chrono.ChVector3d(-5, 0.0, 0)  # New initial position
+init_pos = chrono.ChVector3d(-5, 0.0, 0)  # Changed initial position
 init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
 rover.Initialize(chrono.ChFramed(init_pos, init_rot))
 
@@ -47,17 +48,11 @@ vis.SetCameraVertical(chrono.CameraVerticalDir_Z)
 vis.SetWindowSize(1280, 720)
 vis.SetWindowTitle('Curiosity rover - Rigid terrain')
 vis.Initialize()
-if not vis.Initialize():
-    print("Failed to initialize Irrlicht visualization")
-    exit(1)
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()
 vis.AddCamera(chrono.ChVector3d(0, 3, 3), chrono.ChVector3d(0, 0, 0))
 vis.AddTypicalLights()
 vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0, 0), 3, 4, 10, 40, 512)
-
-# Enable shadows (commented out to improve performance)
-# vis.EnableShadows()
 
 # Set the simulation time step
 time_step = 1e-3
@@ -66,19 +61,22 @@ time_step = 1e-3
 time = 0
 while vis.Run():
     time += time_step
-
-    # Set steering and motor speed for the rover
-    steering = 0  # Zero steering input
-    driver.SetSteering(steering)
-    driver.SetMotorSpeed(0.5)  # Set motor speed to make the rover move forward
-
+    
+    # Set steering input for the rover (zero steering input)
+    driver.SetSteering(0)
+    
+    # Set speed for the rover (move forward)
+    driver.SetSpeed(0.5)
+    
     # Update rover dynamics
     rover.Update()
-
+    
     # Render the scene
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
-
+    
     # Advance simulation by one time step
     system.DoStepDynamics(time_step)
+
+# Code is already provided above

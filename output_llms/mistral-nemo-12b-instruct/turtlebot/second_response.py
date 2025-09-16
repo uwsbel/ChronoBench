@@ -15,7 +15,7 @@ chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
 # Create ground body as terrain plane that robot will drive on
 ground_mat = chrono.ChContactMaterialNSC()
 ground = chrono.ChBodyEasyBox(20, 20, 1, 1000, True, True, ground_mat)
-ground.SetPos(chrono.ChVector3d(0, 0, -0.6))  # Position the ground slightly below the origin and adjusted as per instruction
+ground.SetPos(chrono.ChVector3d(0, 0, -0.6))  # Position the ground slightly below the origin
 ground.SetFixed(True)  # Fix the ground in place
 ground.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
 system.Add(ground)
@@ -43,7 +43,9 @@ vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0
 LEFT_DRIVE_WHEEL = 0
 RIGHT_DRIVE_WHEEL = 1
 
-# Add a new function to control the robot's movement
+# Set the simulation time step
+time_step = 2e-3
+
 def move(mode):
     if mode == 'straight':
         robot.SetMotorSpeed(0, LEFT_DRIVE_WHEEL)
@@ -58,10 +60,7 @@ def move(mode):
         robot.SetMotorSpeed(-math.pi, RIGHT_DRIVE_WHEEL)
         print("Turning right")
     else:
-        raise ValueError(f"Invalid mode: {mode}. Valid modes are 'straight', 'left', 'right'")
-
-# Set the simulation time step
-time_step = 2e-3
+        raise ValueError(f"Invalid mode: {mode}")
 
 # Simulation loop
 time = 0

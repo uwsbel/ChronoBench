@@ -93,7 +93,7 @@ section2.SetRayleighDamping(0.000)
 section2.SetAsCircularSection(hbeam_d)
 
 
-builderA = fea.ChBuilderBeamEuler()  
+builderA = fea.ChBuilderBeamEuler()
 builderA.BuildBeam(mesh, section2, 10, vC + vd, vB + vd, chrono.ChVector3d(1, 0, 0))
 
 
@@ -125,4 +125,4 @@ builderB.BuildBeam(mesh, section3, 4, vG + vd, vB + vd, chrono.ChVector3d(0, 1, 
 
 
 node_crnkG = builderB.GetLastBeamNodes()[0]
-node_crankB = builderB.GetLastBeamNodes()[-1]
+node_crankB = builderB.Get

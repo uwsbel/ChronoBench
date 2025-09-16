@@ -1,69 +1,66 @@
-# Import necessary libraries
+# Import necessary modules
 import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
-import numpy as np
+import pychrono.postprocess as postprocess
 
-# Initialize the PyChrono environment
+# Initialize the PyChrono environment and core components
 sys = chrono.ChSystemNSC()
 
 # Set the default contact material properties
 contact_material = chrono.ChMaterialSurfaceNSC()
 contact_material.SetFriction(0.5)
-contact_material.SetDampingF(0.1)
-contact_material.SetCompliance(0.0001)
-contact_material.SetComplianceT(0.0001)
+contact_material.SetDampingF(0.2)
+contact_material.SetCompliance(1e-6)
+contact_material.SetComplianceT(1e-6)
 
-# Set the default collision margins
-sys.SetTol(1e-6)
-sys.SetMaxIters(100)
-
-# Create a ground body
-ground = chrono.ChBodyEasyBox(sys, 10, 1, 10, 1000, True, contact_material)
+# Create the ground body
+ground = chrono.ChBodyEasyBox(sys, 10, 1, 10, 1000, True, True, contact_material)
 ground.SetPos(chrono.ChVectorD(0, -5, 0))
 ground.SetBodyFixed(True)
+sys.Add(ground)
 
-# Create a pendulum body
-pendulum = chrono.ChBodyEasyCylinder(sys, 1, 0.1, 1000, True, contact_material)
+# Create the pendulum body
+pendulum = chrono.ChBodyEasySphere(sys, 1, 10, contact_material)
 pendulum.SetPos(chrono.ChVectorD(0, 5, 0))
-pendulum.SetRot(chrono.Q_from_AngX(chrono.CH_C_PI_4))
+sys.Add(pendulum)
 
-# Create a revolute joint between the ground and pendulum
+# Create a revolute joint to connect the pendulum to the ground
 revolute_joint = chrono.ChLinkRevolute()
 revolute_joint.Initialize(ground, pendulum, chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 1, 0))
 sys.Add(revolute_joint)
 
-# Create an Irrlicht visualization system
+# Create the Irrlicht visualization system
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AddSkyBox()
 vis.AddTypicalLights()
-vis.AddCamera(chrono.ChVectorD(0, 10, -10))
-vis.AddCamera(chrono.ChVectorD(0, 10, 10))
-vis.SetWindowSize(1024, 768)
-vis.SetWindowTitle("Simple Pendulum Simulation")
-vis.AddTypicalLogo()
-vis.SetLogoPosition(chrono.ChVectorD(10, 10, 0))
-vis.SetLogoScale(0.5)
+vis.AddCamera(chrono.ChVectorD(0, 0, 10))
+vis.AddTypicalLights()
 
-# Set the time step and total simulation time
-dt = 0.01
-t_end = 10
+# Create a post-process reporter to log the pendulum's position and velocity
+class PendulumReporter(postprocess.ChReporter):
+    def __init__(self, pendulum):
+        super().__init__()
+        self.pendulum = pendulum
 
-# Initialize the simulation time
-t = 0
+    def Report(self, frame):
+        pos = self.pendulum.GetPos()
+        vel = self.pendulum.GetPos_D()
+        print(f"Frame {frame}: Position = ({pos.x():.2f}, {pos.y():.2f}, {pos.z():.2f}), Velocity = ({vel.x():.2f}, {vel.y():.2f}, {vel.z():.2f})")
 
-# Simulation loop
-while t < t_end:
-    # Update the simulation
-    sys.DoStepDynamics(dt)
-    
-    # Log the pendulum's position and velocity
-    if t % 0.1 < dt:
-        print(f"Time: {t:.2f}, Position: {pendulum.GetPos().x():.2f}, {pendulum.GetPos().y():.2f}, {pendulum.GetPos().z():.2f}, Velocity: {pendulum.GetPos_dt().x():.2f}, {pendulum.GetPos_dt().y():.2f}, {pendulum.GetPos_dt().z():.2f}")
-    
-    # Update the visualization
+reporter = PendulumReporter(pendulum)
+sys.GetReportCallback().AddReporter(reporter)
+
+# Set the simulation time step and duration
+time_step = 0.01
+duration = 10
+
+# Run the simulation
+for frame in range(int(duration / time_step)):
+    sys.DoStepDynamics(time_step)
     vis.BeginScene()
     vis.DrawAll()
     vis.EndScene()
-    
-    # Increment the simulation time
-    t += dt
+
+    # Log the pendulum's position and velocity every 10 frames
+    if frame % 10 == 0:
+        reporter.Report(frame)

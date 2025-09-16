@@ -5,7 +5,7 @@ import pychrono.sensor as sens
 import math
 
 
-chrono.SetChronoDataPath('/path/to/chrono/data')  
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 
@@ -22,9 +22,9 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 
-terrainHeight = 0      
-terrainLength = 100.0  
-terrainWidth = 100.0   
+terrainHeight = 0     
+terrainLength = 100.0 
+terrainWidth = 100.0  
 
 
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
@@ -38,13 +38,13 @@ step_size = 1e-3
 tire_step_size = step_size
 
 
-render_step_size = 1.0 / 50  
+render_step_size = 1.0 / 50 
 
 
 log_step_size = 0.1
 
 
-vehicle = veh.HMMWV_Full() 
+vehicle = veh.HMMWV_Full()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
@@ -68,9 +68,7 @@ patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-patch = terrain.AddPatch(patch_mat, 
-                         chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
-                         terrainLength, terrainWidth)
+patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), terrainLength, terrainWidth)
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
@@ -102,20 +100,27 @@ driver.Initialize()
 manager = sens.ChSensorManager(vehicle.GetSystem())
 
 
-offset_pose = chrono.ChFrame<double>(chrono.ChVector3d(-8, 0, 1), chrono.Q_from_AngAxis(0, chrono.ChVector3d(0, 1, 0)))
-imu = sens.ChAccelerometerSensor(vehicle.GetChassisBody(), 10, offset_pose, sens.ChNoiseNone())
+offset_pose = chrono.ChFramed(chrono.ChVector3d(-8, 0, 1), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0)))
+imu = sens.ChAccelerometerSensor(vehicle.GetChassisBody(),  
+                                  10,  
+                                  offset_pose,  
+                                  sens.ChNoiseNone())  
 imu.SetName("IMU Sensor")
 imu.SetLag(0)
 imu.SetCollectionWindow(0)
-imu.PushFilter(sens.ChFilterAccelAccess())
+imu.PushFilter(sens.ChFilterAccelAccess())  
 manager.AddSensor(imu)
 
 
-gps = sens.ChGPSSensor(vehicle.GetChassisBody(), 10, offset_pose, chrono.ChVector3d(-89.400, 43.070, 260.0), sens.ChNoiseNone())
+gps = sens.ChGPSSensor(vehicle.GetChassisBody(),  
+                       10,  
+                       offset_pose,  
+                       chrono.ChVector3d(-89.400, 43.070, 260.0),  
+                       sens.ChNoiseNone())  
 gps.SetName("GPS Sensor")
 gps.SetLag(0)
 gps.SetCollectionWindow(0)
-gps.PushFilter(sens.ChFilterGPSAccess())
+gps.PushFilter(sens.ChFilterGPSAccess())  
 manager.AddSensor(gps)
 
 
@@ -173,7 +178,7 @@ while vis.Run():
     
     if step_number % log_steps == 0:
         gps_buffer = gps.GetMostRecentGPSBuffer()
-        if gps_buffer:
+        if gps_buffer is not None:
             gps_data.append(gps_buffer.GetGPSData())
 
     
@@ -184,3 +189,12 @@ while vis.Run():
 
 
 print("GPS Data: ", gps_data)
+
+
+*   **`log_step_size` is defined**: The frequency of data logging is controlled by `log_step_size`.
+*   **`gps_data` list is initialized**: To store GPS coordinates.
+*   **GPS data logging is implemented**: GPS data is logged at intervals defined by `log_steps` and stored in `gps_data`.
+*   **Driver inputs are modified**: Specific throttle and steering commands are applied based on simulation time, and braking is introduced after 6 seconds.
+*   **GPS data is printed**: The logged GPS data is printed at the end of the simulation.
+
+The modified code now meets the specified requirements. It includes data logging at a specified frequency and modified driver inputs. The GPS data is stored and printed at the end of the simulation.

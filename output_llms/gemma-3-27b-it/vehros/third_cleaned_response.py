@@ -62,10 +62,10 @@ def main():
     ros_manager.Initialize()
 
     
-    box = ch.ChBodyEasyBox(2, 1, 0.5, 1000, True, True)
-    box.SetPos(ch.ChVector3d(5, 1, 0))
+    box = ch.ChBodyEasyBox(1, 1, 1, 1000, True, True)
+    box.SetPos(ch.ChVector3d(5, 1, 1))
     box.SetBodyFixed(True)
-    box.SetColor(ch.ChColor(0.8, 0.2, 0.2))
+    box.SetColor(ch.ChColor(0, 1, 0))
     hmmwv.GetSystem().Add(box)
     box.SetVisualizationType(ch.VisualizationType_SOLID)
 
@@ -74,12 +74,12 @@ def main():
 
     
     lidar = sens.ChLidarSensor()
-    lidar.SetSensorMode(sens.ChLidarSensorMode.DISTANCE)
+    lidar.SetSensorLocation(ch.ChVector3d(0, 0, 2))
+    lidar.SetScanAngle(math.pi / 2)
     lidar.SetRange(50)
-    lidar.SetResolution(180)
+    lidar.SetResolution(0.1)
+    lidar.SetNoise(0.01)
     lidar.SetFOV(60)
-    lidar.SetPos(ch.ChVector3d(0, 0, 2))
-    lidar.SetAngle(ch.ChVector3d(0, 0, 0))
     sens_manager.AddSensor(lidar)
 
     
@@ -118,5 +118,5 @@ def main():
 
         step_number += 1
 
-    if __name__ == "__main__":
-        main()
+if __name__ == "__main__":
+    main()

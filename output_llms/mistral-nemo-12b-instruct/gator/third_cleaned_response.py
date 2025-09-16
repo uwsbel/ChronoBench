@@ -90,7 +90,6 @@ vis.AttachVehicle(vehicle.GetVehicle())
 driver = veh.ChInteractiveDriverIRR(vis)
 
 
-
 steering_time = 2.0  
 throttle_time = 2.0  
 braking_time = 0.6   

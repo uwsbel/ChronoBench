@@ -1,75 +1,174 @@
 import pychrono
 
-import pychrono.fea as fea
+import pychrono.irrlicht
 
-import pychrono.irrlicht as irr
-
-
-
-
-chrono = pychrono.ChSystemNSC()
+from pychrono.IrrIterator import IrrIterator
 
 
 
 
-beam = fea.ChBeamRodNSC()
+chrono = pychrono.ChLink_Denge()
 
-beam.SetDensity(1000.0)
-
-beam.SetE(2.1e7)
-
-beam.SetEA(2.1e7 / 0.01)
-
-beam.SetG(2.1e7 / (2 * (0.01 ** 2)))
-
-beam.SetIA(2.1e7 / (0.01 ** 4))
-
-beam.SetL(1.0)
-
-beam.SetRho(0.01)
-
-beam.SetA(pychrono.ChAxial(0.01, 0.01))
+chrono.Init()
 
 
 
 
-node = chrono.sampleNodes(1)[0]
-
-beam.SetNode(node)
+system = pychrono.ChSystemNSC()
 
 
 
 
-chrono.AddBody(beam)
+visualization = pychrono.irrlicht.ChIrrApp("Beam Finite Elements Simulation", 1280, 720)
+
+visualization.AddTypicalLogo()
+
+visualization.AddTypicalConfiguration()
+
+visualization.AddPlane(pychrono.irrlicht.EbBox(0, 0, 0, 0, 100, 100, 100, 100), 1)
+
+visualization.AddLight(pychrono.irrlicht.EbBox(0, 0, 0, 0, 100, 100, 100, 100), 1)
 
 
 
 
-irr.initialize()
+beam = pychrono.ChBeamNSC()
 
-window = irr.createWindow()
+node1 = pychrono.ChBodyNSC()
 
-
-
-
-scene_manager = irr.createScenemanager()
-
-scene_manager.AddBody(beam)
+node2 = pychrono.ChBodyNSC()
 
 
 
 
-while chrono.t < 10.0:
+beam.SetMaterial(pychrono.ChMaterialNSC())
 
-    chrono.DoStepDynamics(0.01)
+beam.SetWireframe(True)
 
-    scene_manager.drawAll()
-
-    irr.endScene()
+beam.SetColor(pychrono.irrlicht.EColor(255, 0, 0, 255))
 
 
 
 
-irr.endWindow()
+node1.SetMaterial(pychrono.ChMaterialNSC())
 
-chrono.destroy()
+node1.SetWireframe(True)
+
+node1.SetColor(pychrono.irrlicht.EColor(255, 0, 255, 255))
+
+
+node2.SetMaterial(pychrono.ChMaterialNSC())
+
+node2.SetWireframe(True)
+
+node2.SetColor(pychrono.irrlicht.EColor(0, 255, 0, 255))
+
+
+
+
+beam.AddBeam(node1.GetPos(), node1.GetPos() + pychrono.ChVectorD(10, 0, 0), 1, 1, 1, 1)
+
+beam.AddBeam(node1.GetPos() + pychrono.ChVectorD(10, 0, 0), node2.GetPos(), 1, 1, 1, 1)
+
+
+
+
+system.Add(beam)
+
+system.Add(node1)
+
+system.Add(node2)
+
+
+
+
+system.SetGravity(pychrono.ChVectorD(0, -9.81, 0))
+
+
+
+
+beam.SetNode1(node1)
+
+beam.SetNode2(node2)
+
+
+
+
+system.AddConstraint(pychrono.ChLinkNSC())
+
+
+
+
+node1.SetPos(pychrono.ChVectorD(0, 0, 0))
+
+node2.SetPos(pychrono.ChVectorD(10, 0, 0))
+
+
+
+
+visualization.AddIterator(IrrIterator(beam, visualization))
+
+visualization.AddIterator(IrrIterator(node1, visualization))
+
+visualization.AddIterator(IrrIterator(node2, visualization))
+
+
+
+
+while(visualization.GetDevice().run()):
+
+    system.DoStepDynamics(0.01)
+
+    visualization.BeginScene()
+
+    visualization.DoCollision(system)
+
+
+
+
+
+beam.SetName("Beam")
+
+beam.SetPos(pychrono.ChBody(node1)
+
+node1.SetName("Node1")
+
+node2.SetName("Node2")
+
+
+
+
+
+node1.SetPos(pychrono.ChBody(node1)
+
+node2.SetPos(node2)
+
+
+
+
+
+node1.SetPos(node1)
+
+node2.SetPos(node2)
+
+
+
+
+
+node1.SetPos(node1)
+
+node2.SetPos(node2)
+
+
+
+
+
+while(visualization.GetDevice().SetPos(node1)
+
+node2.SetPos(node2)
+
+
+
+
+
+visualization.DoFrame()

@@ -56,9 +56,10 @@ def main():
     vis.SetWindowSize(800, 600)
     vis.SetWindowTitle('HMMWV Simulation')
     vis.Initialize()
-    vis.AddLogo(chronoirr.GetChronoDataFile('logo_pychrono_alpha.png'))
+    vis.AddLogo(chronoirr.ChLogo::Type_Chrono, chronoirr.ChLogo::Location_TopLeft)
+    vis.AddLogo(chronoirr.ChLogo::Type_Irrlicht, chronoirr.ChLogo::Location_TopRight)
     vis.AddSkyBox()
-    vis.AddCamera(ch.ChVector3d(0, 0, 10))
+    vis.AddCamera(ch.ChVector3d(0, 0, 1.6))
     vis.AddTypicalLights()
     vis.AttachSystem(hmmwv.GetSystem())
 

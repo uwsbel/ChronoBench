@@ -47,6 +47,7 @@ vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 
+
 vehicle.Initialize()
 
 vehicle.SetChassisVisualizationType(vis_type)
@@ -63,35 +64,36 @@ patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 
-# Patch 1: Normal terrain
+# Create four terrain patches with different textures and a bump
+
+# Patch 1: Grass texture
 patch1 = terrain.AddPatch(patch_mat, 
-    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
-    terrainLength / 2, terrainWidth / 2)
-patch1.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
-patch1.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+    chrono.ChCoordsysd(chrono.ChVector3d(-50, -50, 0), chrono.QUNIT), 
+    50, 50)
+patch1.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)
+patch1.SetColor(chrono.ChColor(0.5, 1.0, 0.5))
 
-# Patch 2: Different texture
+# Patch 2: Sand texture
 patch2 = terrain.AddPatch(patch_mat, 
-    chrono.ChCoordsysd(chrono.ChVector3d(terrainLength / 2, 0, 0), chrono.QUNIT), 
-    terrainLength / 2, terrainWidth / 2)
-patch2.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)
-patch2.SetColor(chrono.ChColor(0.5, 0.8, 0.5))
+    chrono.ChCoordsysd(chrono.ChVector3d(0, -50, 0), chrono.QUNIT), 
+    50, 50)
+patch2.SetTexture(veh.GetDataFile("terrain/textures/sand.jpg"), 200, 200)
+patch2.SetColor(chrono.ChColor(0.8, 0.8, 0.4))
 
-# Patch 3: Height map terrain
+# Patch 3: Rock texture with height map
 patch3 = terrain.AddPatch(patch_mat, 
-    chrono.ChCoordsysd(chrono.ChVector3d(0, terrainWidth / 2, 0), chrono.QUNIT), 
-    terrainLength / 2, terrainWidth / 2)
-patch3.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
-patch3.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+    chrono.ChCoordsysd(chrono.ChVector3d(-50, 0, 0), chrono.QUNIT), 
+    50, 50)
+patch3.SetTexture(veh.GetDataFile("terrain/textures/rock.jpg"), 200, 200)
+patch3.SetColor(chrono.ChColor(0.6, 0.6, 0.6))
 patch3.SetHeightMap(veh.GetDataFile("terrain/heightmaps/bump.png"), 10, 10)
 
-# Patch 4: Bumped terrain
+# Patch 4: Dirt texture
 patch4 = terrain.AddPatch(patch_mat, 
-    chrono.ChCoordsysd(chrono.ChVector3d(terrainLength / 2, terrainWidth / 2, 0), chrono.QUNIT), 
-    terrainLength / 2, terrainWidth / 2)
-patch4.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)
-patch4.SetColor(chrono.ChColor(0.5, 0.8, 0.5))
-patch4.AddBump(chrono.ChVector3d(20, 20, 0.5), 5)
+    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
+    50, 50)
+patch4.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 200, 200)
+patch4.SetColor(chrono.ChColor(0.8, 0.6, 0.4))
 
 terrain.Initialize()
 
@@ -109,6 +111,7 @@ vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
+
 
 # Create the driver system
 driver = veh.ChInteractiveDriverIRR(vis)
@@ -133,7 +136,7 @@ print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
 
-# Initialize simulation frame counter
+# Initialize simulation frame counter s
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0

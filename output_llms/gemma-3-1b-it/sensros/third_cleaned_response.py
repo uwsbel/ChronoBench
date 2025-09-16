@@ -89,20 +89,7 @@ def main():
     imu_handler.SetAccelerometerHandler(acc_handler)
     imu_handler.SetGyroscopeHandler(gyro_handler)
     imu_handler.SetMagnetometerHandler(mag_handler)
-    ros_manager.AddHandler(imu_handler)
-
-    
-    ros_manager = chros.ChROSPythonManager()
-    ros_manager.RegisterHandler(chros.ChROSClockHandler())  
-
-    
-    ros_manager.RegisterHandler(chros.ChROSCameraHandler(cam.GetUpdateRate() / 4, cam, "~/output/camera/data/image"))
-    ros_manager.RegisterHandler(chros.ChROSLidarHandler(lidar, "~/output/lidar/data/pointcloud"))
-    ros_manager.RegisterHandler(chros.ChROSLidarHandler(lidar2d, "~/output/lidar2d/data/scan",chros.ChROSLidarHandlerMessageType_LASER_SCAN))
-    ros_manager.RegisterHandler(chros.ChROSGPSHandler(gps, "~/output/gps/data"))
-    ros_manager.RegisterHandler(chros.ChROSGPSHandler(gyro, "~/output/accelerometer/data"))
-    ros_manager.RegisterHandler(chros.ChROSGPSHandler(mag, "~/output/magnetometer/data"))
-    ros_manager.RegisterHandler(chros.ChROSGPSHandler(imu, "~/output/imu/data"))
+    ros_manager.RegisterHandler(imu_handler)
 
     ros_manager.Initialize()  
 
@@ -115,13 +102,9 @@ def main():
     ground_body.SetAngVelParent(ch.ChVector3d(0, 0, 0.1))
 
     
-    while time < time_end:
-        time = sys.GetChTime()  
+    sens_manager.Update()
 
-        
-        sens_manager.Update()
-
-        sys.DoStepDynamics(time_step)  
+    sys.DoStepDynamics(time_step)  
 
 if __name__ == "__main__":
     main()

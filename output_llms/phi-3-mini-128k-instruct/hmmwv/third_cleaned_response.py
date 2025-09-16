@@ -20,6 +20,7 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 
+
 terrainHeight = 0      
 terrainLength = 100.0  
 terrainWidth = 100.0   
@@ -46,15 +47,12 @@ vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
-
 vehicle.Initialize()
 
 vehicle.SetChassisVisualizationType(vis_type)
 vehicle.SetSuspensionVisualizationType(vis_type)
 vehicle.SetSteeringVisualizationType(vis_type)
 vehicle.SetWheelVisualizationType(vis_type)
-vehicle.SetTireVisualizationType(vis_type)
-
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
@@ -66,6 +64,7 @@ patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
+
 
 
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
@@ -80,33 +79,26 @@ vis.AttachVehicle(vehicle.GetVehicle())
 
 
 class MyDriver(veh.ChDriver):
-    def __init__(self, delay):
-        super().__init__()
+    def __init__(self, delay=0.5):
         self.delay = delay
 
     def Synchronize(self, time):
-        super().Synchronize(time)
-        
-        if time > self.delay:
-            self.throttle = 0.7
-            self.steering = math.sin(time - self.delay) * 2
-            self.braking = 0
+        time.sleep(self.delay)  
+        steering_input = math.sin(2 * math.pi * time.GetChTime().sec / 2)  
+        throttle_input = 0.7 if time.GetChTime().sec > 0.2 else 0.0  
+        braking_input = 0.0 if time.GetChTime().sec > 4 else 1.0  
+        return steering_input, throttle_input, braking_input
+
+    def GetInputs(self):
+        return self.Synchronize(time)
 
 
-driver = MyDriver(0.5)
+driver = MyDriver()
 
 
 steering_time = 1.0  
 throttle_time = 1.0  
 braking_time = 0.3   
-driver.SetSteeringDelta(render_step_size / steering_time)
-driver.SetThrottleDelta(render_step_size / throttle_time)
-driver.SetBrakingDelta(render_step_size / braking_time)
-
-driver.Initialize()
-
-
-print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 
 render_steps = math.ceil(render_step_size / step_size)
@@ -148,5 +140,6 @@ while vis.Run() :
     realtime_timer.Spin(step_size)
 
     
-    if time >= 4.0:
+    if time.GetChTime().sec > 4:
+        print("Simulation ended at", time.GetChTime().sec)
         break

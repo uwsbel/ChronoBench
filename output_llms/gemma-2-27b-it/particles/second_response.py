@@ -89,13 +89,13 @@ while vis.Run():
     for body in sys.GetBodies():
         body.EmptyAccumulators()
 
-    # Energy calculations
+    # Energy Calculations
     kinetic_energy = 0
     potential_energy = 0
-    G_constant = 6.674e-3  # Modified gravitational constant
+    G_constant = 6.674e-3  
 
     for body in sys.GetBodies():
-        kinetic_energy += 0.5 * body.GetMass() * body.GetLinVel().Length2()
+        kinetic_energy += 0.5 * body.GetMass() * body.GetPos_dt().Length2()
 
     mlist = list(combinations(sys.GetBodies(), 2))
     for abodyA, abodyB in mlist:

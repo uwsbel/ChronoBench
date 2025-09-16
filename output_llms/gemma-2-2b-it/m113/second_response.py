@@ -17,17 +17,63 @@ vis_type = veh.VisualizationType_MESH
 chassis_collision_type = veh.CollisionType_NONE
 
 # SCM deformable terrain
-# SCM soil parameters
-soil_friction = 0.8
-soil_restitution = 0.1
-soil_damping = 0.5
+# terrain_model = veh.RigidTerrain.BOX
+terrainHeight = 0      # terrain height
+terrainLength = 100.0  # size in X direction
+terrainWidth = 100.0   # size in Y direction
 
-# Initialize SCM terrain
-terrain = veh.SCMTerrain(vehicle.GetSystem())
-terrain.SetSoilParameters(soil_friction, soil_restitution, soil_damping)
+# Poon chassis tracked by the camera
+trackPoint = chrono.ChVector3d(0.0, 0.0, 0.1)
+
+# Contact method
+contact_method = chrono.ChContactMethod_SMC
+contact_vis = False
+
+# Simulation step sizes
+step_size = 5e-4
+tire_step_size = step_size
+
+# Time interval between two render frames
+render_step_size = 1.0 / 50  # FPS = 50
+
+# Create the MAN vehicle, set parameters, and initialize
+
+vehicle = veh.M113()
+vehicle.SetContactMethod(contact_method)
+vehicle.SetTrackShoeType(veh.TrackShoeType_SINGLE_PIN)
+vehicle.SetDrivelineType(veh.DrivelineTypeTV_BDS)
+vehicle.SetEngineType(veh.EngineModelType_SHAFTS)
+vehicle.SetTransmissionType(veh.TransmissionModelType_AUTOMATIC_SHAFTS)
+vehicle.SetBrakeType(veh.BrakeType_SIMPLE)
+
+vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
+vehicle.Initialize()
+
+vehicle.SetChassisVisualizationType(vis_type)
+vehicle.SetSprocketVisualizationType(vis_type)
+vehicle.SetIdlerVisualizationType(vis_type)
+vehicle.SetIdlerWheelVisualizationType(vis_type)
+vehicle.SetSuspensionVisualizationType(vis_type)
+vehicle.SetRoadWheelVisualizationType(vis_type)
+vehicle.SetTrackShoeVisualizationType(vis_type)
+
+vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+
+# Create the SCM terrain
+patch_mat = chrono.ChContactMaterialSMC()
+patch_mat.SetFriction(0.9)
+patch_mat.SetRestitution(0.01)
+terrain = veh.RigidTerrain(vehicle.GetSystem())
+patch = terrain.AddPatch(patch_mat, 
+    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
+    terrainLength, terrainWidth)
+
+patch.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 200, 200)
+patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 # Create the vehicle Irrlicht interface
+
 vis = veh.ChTrackedVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('M113 Demo')
 vis.SetWindowSize(1280, 1024)
@@ -38,13 +84,17 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
+
 # Create the driver system
 driver = veh.ChInteractiveDriverIRR(vis)
 
+# Set the throttle value
+driver.SetThrottle(0.8)
+
 # Set the time response for steering and throttle keyboard inputs.
-steering_time = 1.0  
-throttle_time = 0.8  
-braking_time = 0.3   
+steering_time = 1.0  # time to go from 0 to +1 (or from 0 to -1)
+throttle_time = 1.0  # time to go from 0 to +1
+braking_time = 0.3   # time to go from 0 to +1
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)

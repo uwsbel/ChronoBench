@@ -93,7 +93,7 @@ section2.SetRayleighDamping(0.000)
 section2.SetAsCircularSection(hbeam_d)
 
 # Build the vertical beam with Euler elements
-builderA = fea.ChBuilderBeamEuler()  # Corrected typo: 'fe' to 'fea'
+builderA = fea.ChBuilderBeamEuler()
 builderA.BuildBeam(mesh, section2, 10, vC + vd, vB + vd, chrono.ChVector3d(1, 0, 0))
 
 # Define nodes at the top and bottom of the vertical beam
@@ -125,6 +125,4 @@ builderB.BuildBeam(mesh, section3, 4, vG + vd, vB + vd, chrono.ChVector3d(0, 1, 
 
 # Define nodes at the ends of the crank beam
 node_crnkG = builderB.GetLastBeamNodes()[0]
-node_crankB = builderB.GetLastBeamNodes()[-1]
-
-# Create a constraint between
+node_crankB = builderB.Get

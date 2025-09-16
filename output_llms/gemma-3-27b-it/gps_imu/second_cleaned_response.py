@@ -99,9 +99,9 @@ manager = sens.ChSensorManager(vehicle.GetSystem())
 
 offset_pose = chrono.ChFramed(chrono.ChVector3d(-8, 0, 1), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0)))
 imu = sens.ChAccelerometerSensor(vehicle.GetChassisBody(),  
-                                10,  
-                                offset_pose,  
-                                sens.ChNoiseNone())  
+                                 10,  
+                                 offset_pose,  
+                                 sens.ChNoiseNone())  
 imu.SetName("IMU Sensor")
 imu.SetLag(0)
 imu.SetCollectionWindow(0)  
@@ -110,10 +110,10 @@ manager.AddSensor(imu)
 
 
 gps = sens.ChGPSSensor(vehicle.GetChassisBody(),  
-                       10,  
-                       offset_pose,  
-                       chrono.ChVector3d(-89.400, 43.070, 260.0),  
-                       sens.ChNoiseNone())  
+                        10,  
+                        offset_pose,  
+                        chrono.ChVector3d(-89.400, 43.070, 260.0),  
+                        sens.ChNoiseNone())  
 gps.SetName("GPS Sensor")
 gps.SetLag(0)
 gps.SetCollectionWindow(0)  
@@ -154,12 +154,18 @@ while vis.Run():
     
     if time < 6:
         driver_inputs = driver.GetInputs()
-        driver_inputs.throttle = 0.5
-        driver_inputs.steering = 0.2
+        throttle = 0.5
+        steering = 0.1
     else:
         driver_inputs = driver.GetInputs()
+        throttle = 0.0
+        steering = 0.0
+        driver_inputs.throttle = throttle
+        driver_inputs.steering = steering
         driver_inputs.braking = 1.0
 
+    driver_inputs.throttle = throttle
+    driver_inputs.steering = steering
     
     driver.Synchronize(time)
     terrain.Synchronize(time)

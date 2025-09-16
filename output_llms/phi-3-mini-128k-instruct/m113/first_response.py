@@ -1,96 +1,53 @@
-import pychrono as chrono
+# Import necessary PyChrono and Irrlicht libraries
+from pychrono.core import *
+from pychrono.vehicle import *
+from pychrono.vehicle_dynamics import *
+from pychrono.irrlicht_utils import *
 
-from pychron.core.helpers import system_lock
+# Initialize the PyChrono environment
+chrono_init()
 
+# Create a rigid terrain with friction and restitution properties
+terrain = create_rigid_terrain()
+terrain.set_friction(0.7)  # Set the friction coefficient
+terrain.set_restitution(0.2)  # Set the restitution coefficient
 
-# Initialize PyChrono
+# Create an M113 vehicle with initial position, velocity, and orientation
+m113_vehicle = create_vehicle_m113()
+m113_vehicle.set_position(0, 0, 0.5)
+m113_vehicle.set_velocity(0, 0, 0)
+m113_vehicle.set_orientation(0, 0, 0, 1)
 
-chrono.ChSystemSimulation.Initialize()
+# Create a driver system for the vehicle
+driver_system = create_driver_system()
 
+# Set up the Irrlicht visualization
+application = create_application()
+application.add_render_device(create_irrlicht_device())
+application.add_render_view("main_viewport")
+application.add_effect("ground_lighting")
 
-# Create a rigid terrain
+# Set camera settings for the Irrlicht visualization
+camera = application.add_camera("main_camera")
+camera.set_position(0, 0, 5)
+camera.set_fov(70)
+camera.set_look_at(0, 0, 0)
 
-terrain = chrono.ChRigidBody('terrain')
+# Create a simulation loop
+while application.is_running():
+    # Update the simulation
+    chrono_step(1.0 / 60.0)  # Simulate at 60Hz
 
-terrain.SetMaterialType_Solid(chrono.ChMaterialSurfaceSliding)
+    # Update vehicle dynamics
+    m113_vehicle.apply_dynamics(chrono_integrator)
 
-terrain.SetRestitution(0.0)
+    # Update the terrain and driver system
+    terrain.apply_dynamics(chrono_integrator)
+    driver_system.update(m113_vehicle)
 
-terrain.SetFriction(0.5)
+    # Update the Irrlicht visualization
+    application.draw_frame()
+    application.update_render_device()
 
-terrain.SetShape(chrono.ChBoxShape(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(10, 1, 1)))
-
-chrono.AddToSystem(chrono.GetSystem(), terrain)
-
-
-# Create an M113 vehicle
-
-vehicle = chrono.ChRigidBody('vehicle')
-
-vehicle.SetMaterialType_Solid(chrono.ChMaterialSurfaceSliding)
-
-vehicle.SetRestitution(0.0)
-
-vehicle.SetFriction(0.5)
-
-vehicle.SetShape(chrono.ChBoxShape(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(2, 1, 1)))
-
-vehicle.SetPos(chrono.ChVectorD(0, 0, 0))
-
-vehicle.SetVel(chrono.ChVectorD(0, 0, 0))
-
-chrono.AddToSystem(chrono.GetSystem(), vehicle)
-
-
-# Initialize a driver system
-
-driver = chrono.ChDriver('driver')
-
-driver.SetVehicle(vehicle)
-
-chrono.AddToSystem(chrono.GetSystem(), driver)
-
-
-# Set up visualization with Irrlicht
-
-irrlicht_scene = chrono.ChVisualDebugIrrlichtScene()
-
-irrlicht_scene.SetCameraMode(chrono.VEHICLE_CAMERA_MODE)
-
-irrlicht_scene.SetCameraTarget(vehicle)
-
-irrlicht_scene.SetCameraPosition(chrono.ChVectorD(5, 5, 5))
-
-irrlicht_scene.SetCameraUp(chrono.ChVectorD(0, 1, 0))
-
-irrlicht_scene.SetLightPosition(chrono.ChVectorD(0, 10, 0))
-
-chrono.AddToSystem(chrono.GetSystem(), irrlicht_scene)
-
-
-# Simulation loop
-
-while True:
-
-    with system_lock:
-
-        # Update the driver system
-
-        driver.Update()
-
-
-        # Advance the simulation
-
-        chrono.DoFiStep(1e-3, 100)
-
-
-        # Update the visualization
-
-        irrlicht_scene.Update()
-
-
-        # Break the loop if needed (e.g., for testing purposes)
-
-        # if some_condition:
-
-        #     break
+    # Wait for the next frame
+    application.sleep(chrono_sleep_time)

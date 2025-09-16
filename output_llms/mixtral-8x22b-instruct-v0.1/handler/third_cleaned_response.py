@@ -1,7 +1,5 @@
 import pychrono as ch
-import pychrono.irrlicht as chronoirr
 import pychrono.ros as chros
-
 import rclpy.publisher
 from std_msgs.msg import Int64
 
@@ -9,8 +7,8 @@ from std_msgs.msg import Int64
 class MyCustomHandler(chros.ChROSHandler):
     
 
-    def __init__(self, topic, publish_rate):
-        super().__init__(publish_rate)  
+    def __init__(self, topic):
+        super().__init__(10)  
 
         self.topic = topic
         self.publisher: rclpy.publisher.Publisher = None
@@ -45,7 +43,7 @@ def main():
     floor.SetPos(ch.ChVector3d(0, 0, -1))  
     floor.SetFixed(True)  
     floor.SetName("base_link")  
-    floor.SetTexture(chronoirr.GetChronoDataFile("textures/concrete.jpg"))  
+    floor.SetTexture(ch.ChTexture.LoadFromFile("path/to/floor_texture.png"))  
     sys.Add(floor)  
 
     
@@ -53,7 +51,7 @@ def main():
     box.SetPos(ch.ChVector3d(0, 0, 5))  
     box.SetRot(ch.QuatFromAngleAxis(.2, ch.ChVector3d(1, 0, 0)))  
     box.SetName("box")  
-    box.SetTexture(chronoirr.GetChronoDataFile("textures/brick.jpg"))  
+    box.SetTexture(ch.ChTexture.LoadFromFile("path/to/box_texture.png"))  
     sys.Add(box)  
 
     
@@ -71,24 +69,26 @@ def main():
     ros_manager.RegisterHandler(tf_handler)
 
     
-    custom_handler = MyCustomHandler("~/my_topic", 10)  
+    custom_handler = MyCustomHandler("~/my_topic")
     ros_manager.RegisterPythonHandler(custom_handler)
 
     
     ros_manager.Initialize()
 
     
-    vis = chronoirr.ChIrrApp(sys, "PyChrono ROS Example", chronoirr.dimension2du(800, 600))
-    vis.AddTypicalSky()
-    vis.AddTypicalLogo()
-    vis.AddTypicalCamera(ch.ChVector3d(0, 0, 5))
-    vis.AddLightWithShadow(ch.ChVector3d(0, 0, 5), 0.5, 10, 50, 20, 50, 200, ch.ChColor(0.8, 0.8, 0.8))
-    vis.AddLightWithShadow(ch.ChVector3d(-5, 5, 5), 0.5, 10, 50, 20, 50, 200, ch.ChColor(0.8, 0.8, 0.8))
+    vis = ch.ChVisualSystemIrrlicht()
+    vis.SetWindowTitle("PyChrono Simulation")
+    vis.SetWindowSize(800, 600)
+    vis.SetCameraVertical(ch.CameraVerticalType_FIX_UP)
+    vis.SetCameraPosition(ch.ChVector3d(0, 0, 5))
+    vis.SetCameraDirection(ch.ChVector3d(0, 0, -1))
+    vis.SetLightDirection(ch.ChVector3d(0, 0, -1))
+    sys.AddVisualSystem(vis)
 
     
     step_number = 0
-    render_step_size = 5
-    render_steps = 10
+    render_step_size = 10
+    render_steps = 5
 
     
     time = 0
@@ -105,11 +105,11 @@ def main():
 
         if step_number % render_step_size == 0:  
             vis.BeginScene()
-            vis.DrawAll()
+            vis.Render()
             vis.EndScene()
 
-        step_number += 1
         realtime_timer.Spin(time_step)  
+        step_number += 1
 
 
 if __name__ == "__main__":

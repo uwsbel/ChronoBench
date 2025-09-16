@@ -1,56 +1,64 @@
-import chrono as chrono
-import chrono.irrlicht as irrl
-import chrono.collision as coll
-import chrono.vehicle as vehicle
+import chrono
+from chrono import chrono_irrlicht as irrl
+from chrono import chrono_vehicle as veh
 
 
-my_irr_driver = irrl.IrrlichtDriver(512, 512, false, 50.0)
-my_system = chrono.ChSystemSolverSH(my_irr_driver.get_device())
+chrono.Chrono::SetDefaultOptions(chrono.ChR_IRRLICHT_WITH_PYOPENGL)
+my_system = chrono.ChSystemSMC()
 
 
-vehicle_model = vehicle.ChVehicleModelARTCAR()
-vehicle_model.SetChassisCollisionType(coll.COLGROUP_VEHICLE)
-vehicle_model.SetSuspensionType(vehicle.CHASSIS_BOX_BEAM)
-vehicle_model.SetNumWheels(4)
-vehicle_model.SetWheelRadius(0.35)
-vehicle_model.SetWheelWidth(0.15)
-vehicle_model.SetWheelMass(30)
-vehicle_model.SetWheelSpringStiffness(200000)
-vehicle_model.SetWheelSpringDamping(5000)
-vehicle_model.SetWheelAntiRollStiffness(100000)
-vehicle_model.SetWheelAntiRollDamping(500)
-vehicle_model.SetWheelMaxSuspensionTravelCm(15)
-vehicle_model.SetWheelBrakeForce(10000)
-vehicle_model.SetWheelSteerAngle(35 * chrono.CH_C_DEG_TO_RAD)
-vehicle_model.SetChassisMass(1500)
-vehicle_model.SetChassisBox(1.5, 0.6, 0.4)
-vehicle_model.SetChassisVisualizationType(vehicle.VISUALIZATION_TYPE_PRIMITIVES)
-vehicle_model.SetContactMethod(coll.CONTACT_METHOD_SMC)
-
-vehicle_model.Initialize(my_system)
-vehicle_model.SetChassisPos(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0.5)))
-vehicle_model.SetChassisRot(chrono.ChQuaternionD(1, 0, 0, 0))
-
-terrain = chrono.ChHeightfield()
-terrain.SetHeightfieldPath("path/to/heightfield/file.txt")
-terrain.SetMaterialSurface(coll.SURF_ROUGH_PLASTIC)
-terrain.SetHeightfieldTexture(my_irr_driver.get_device(), "path/to/texture/file.png")
-terrain_shape = coll.ChHeightfieldShape(terrain)
-terrain_body = chrono.ChBodyEasyBox(10, 10, 0.1, 1000, True, True)
-terrain_body.AddAsset(terrain_shape)
-terrain_body.SetPos(chrono.ChVectorD(0, 0, -0.05))
-my_system.AddBody(terrain_body)
+device = irrl.createDevice(irrl.video_mode(1280, 720), 16, false, false, false)
+driver = irrl.createIrrlichtDriver(device)
 
 
-driver = vehicle.ChVehicleDriver()
-driver.Initialize(vehicle_model, my_system)
+vehicle = veh.ChVehicle()
+terrain = chrono.ChTerrain()
 
 
-while my_irr_driver.run():
-    my_system.DoStepDynamics(1 / 50.0)
-    driver.Synchronize(1 / 50.0)
-    my_irr_driver.update_dynamics(my_system)
-    my_irr_driver.render()
+location = chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0))
+vehicle.SetChassisBody(my_system.NewBody())
+vehicle.GetChassisBody().SetPos(location.pos)
+vehicle.GetChassisBody().SetRot(location.rot)
+vehicle.SetContactMethod(veh.ChVehicleContactMethod::SMC)
+vehicle.SetVisualizationType(veh.ChVehicleVisualizationType::MESH)
 
 
-my_irr_driver.finalize()
+tex_path = 'path/to/your/texture.bmp'
+terrain_texture = device.getVideoDriver().getTexture(tex_path)
+
+
+terrain_size = 50.0
+terrain.SetSize(chrono.ChVectorD(terrain_size, terrain_size, 0))
+terrain.SetTexture(terrain_texture)
+terrain.SetMaterial(chrono.ChMaterialSurface::BoxFriction, 0.5, 0.5)
+terrain.Update()
+my_system.Add(terrain)
+
+
+driver_params = veh.ChDriver::UserInputs()
+driver_params.throttle = 0.0
+driver_params.brake = 0.0
+driver_params.steer = 0.0
+vehicle.SetDriver(veh.ChVehicleDriver(driver_params))
+
+
+my_system.Add(vehicle)
+
+
+while device.run():
+    
+    my_system.DoStepDynamics(1.0 / 50.0)
+
+    
+    vehicle.GetDriver().UpdateInputs(1.0 / 50.0)
+
+    
+    device.getVideoDriver().beginScene(True, True, chrono.SColor(255, 100, 149, 237))
+    my_system.GetCollisionSystem().ClearContactPoints()
+    my_system.GetCollisionSystem().VisualizeContactPoints(device.getVideoDriver(), chrono.SColor(255, 255, 0, 0))
+    vehicle.Visualize(device)
+    terrain.Visualize(device)
+    device.getVideoDriver().endScene()
+
+
+device.drop()

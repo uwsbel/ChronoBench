@@ -1,10 +1,9 @@
 import math as m  
 import pychrono as chrono  
 import pychrono.fea as fea  
-import pychrono.pardisomkl as pardiso  
-import pychrono.irrlicht as chronoirr  
+from pychrono import pychrono.pardisomkl as pardiso  
+from pychrono import pychrono.irrlicht as chronoirr  
 import os  
-
 
 
 class ChFunctionMyFun(chrono.ChFunction):
@@ -18,7 +17,6 @@ class ChFunctionMyFun(chrono.ChFunction):
             return chrono.CH_PI
         else:
             return -chrono.CH_PI * (1.0 - m.cos(chrono.CH_PI * x / 0.4)) / 2.0
-
 
 
 out_dir = chrono.GetChronoOutputPath() + "BEAM_BUCKLING"
@@ -56,7 +54,8 @@ body_crank.AddVisualShape(boxcrank)
 
 
 motor = chrono.ChLinkMotorRotationAngle()
-motor.Initialize(body_truss, body_crank, chrono.ChFramed(vG))  
+motor.Initialize(body_truss, body_crank, chrono.ChFramed(vG))
+
 myfun = ChFunctionMyFun()  
 motor.SetAngleFunction(myfun)  
 sys.Add(motor)  
@@ -86,6 +85,7 @@ builder_iga.BuildBeam(mesh, msection1, 32, vA, vC, chrono.VECT_Y, 3)
 
 
 builder_iga.GetLastBeamNodes().front().SetFixed(True)
+
 node_tip = builder_iga.GetLastBeamNodes()[-1]  
 node_mid = builder_iga.GetLastBeamNodes()[17]  
 
@@ -157,16 +157,14 @@ sys.Add(mesh)
 
 
 mvisualizebeamA = chrono.ChVisualShapeFEA(mesh)
-mvisualizebeamA.SetFEMdataType(
-    chrono.ChVisualShapeFEA.DataType_ELEM_BEAM_MX)  
+mvisualizebeamA.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_ELEM_BEAM_MX)  
 mvisualizebeamA.SetColorscaleMinMax(-500, 500)  
 mvisualizebeamA.SetSmoothFaces(True)  
 mvisualizebeamA.SetWireframe(False)  
 mesh.AddVisualShapeFEA(mvisualizebeamA)  
 
 mvisualizebeamC = chrono.ChVisualShapeFEA(mesh)
-mvisualizebeamC.SetFEMglyphType(
-    chrono.ChVisualShapeFEA.GlyphType_NODE_CSYS)  
+mvisualizebeamC.SetFEMglyphType(chrono.ChVisualShapeFEA.GlyphType_NODE_CSYS)  
 mvisualizebeamC.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NONE)  
 mvisualizebeamC.SetSymbolsThickness(0.006)  
 mvisualizebeamC.SetSymbolsScale(0.015)  
@@ -197,7 +195,6 @@ sys.SetTimestepper(ts)
 while vis.Run():
     vis.BeginScene()  
     vis.Render()  
-    chronoirr.drawGrid(vis, 0.05, 0.05, 20, 20,
-                       chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT))  
+    chronoirr.drawGrid(vis, 0.05, 0.05, 20, 20, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT))  
     vis.EndScene()  
     sys.DoStepDynamics(0.001)

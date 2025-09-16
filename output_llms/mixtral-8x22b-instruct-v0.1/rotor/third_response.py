@@ -16,7 +16,7 @@ sys.SetGravitationalAcceleration(chrono.ChVector3d(0, -9.81, 0));
 beam_L = 6
 beam_ro = 0.050
 beam_ri = 0.045
-CH_PI = m.pi  # corrected value of PI
+CH_PI = 3.1456
 
 # Create a section, i.e. thickness and material properties
 # for beams. This will be shared among some beams.
@@ -112,7 +112,7 @@ class ChFunctionMyFun(chrono.ChFunction):
         else:
             return self.A2 * m.sin(self.w * (self.T3 - self.T2))
 
-f_ramp = ChFunctionMyFun(40, 20, 0.2, 0.4, 0.6, 10)
+f_ramp = ChFunctionMyFun(40, 0.2, 1, 2, 3, 2 * CH_PI)
 rotmotor1.SetMotorFunction(f_ramp)
 
 # Attach a visualization of the FEM mesh.

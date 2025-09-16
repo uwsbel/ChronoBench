@@ -7,7 +7,6 @@ import os
 
 
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
-
 print(chrono.GetChronoDataPath() + 'vehicle/')
 
 
@@ -74,10 +73,10 @@ gator.SetWheelVisualizationType(wheel_vis_type)
 gator.SetTireVisualizationType(tire_vis_type)
 
 
-print("Vehicle mass:   " + str(gator.GetVehicle().GetMass()))
+print("Vehicle mass: " + str(gator.GetVehicle().GetMass()))
 print("Driveline type: " + gator.GetVehicle().GetDriveline().GetTemplateName())
-print("Brake type:     " + gator.GetVehicle().GetBrake(1, veh.LEFT).GetTemplateName())
-print("Tire type:      " + gator.GetVehicle().GetTire(1, veh.LEFT).GetTemplateName())
+print("Brake type: " + gator.GetVehicle().GetBrake(1, veh.LEFT).GetTemplateName())
+print("Tire type: " + gator.GetVehicle().GetTire(1, veh.LEFT).GetTemplateName())
 print("\n")
 
 
@@ -96,30 +95,7 @@ patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 50, 50)
 terrain.Initialize()
 
 
-box_body = chrono.ChBodyEasyBox(1, 1, 1, 1000, False, False, False)
-box_body.SetPos(chrono.ChVector3d(0, 0, 0.5))
-box_mat = chrono.ChContactMaterialNSC()
-box_mat.SetFriction(0.9)
-box_mat.SetRestitution(0.01)
-box_body.AddContactMaterial(box_mat)
-box_body.SetVisualMaterial(chrono.ChVisualMaterial(chrono.ChColor(0, 0, 1)))
-box_body.SetVisualTexture(veh.GetDataFile("terrain/textures/tile4.jpg"))
-gator.GetSystem().AddBody(box_body)
-
-
-cyl_body = chrono.ChBodyEasyCylinder(0.5, 1, 1000, False, False, False)
-cyl_body.SetPos(chrono.ChVector3d(0, 0, 1.5))
-cyl_mat = chrono.ChContactMaterialNSC()
-cyl_mat.SetFriction(0.9)
-cyl_mat.SetRestitution(0.01)
-cyl_body.AddContactMaterial(cyl_mat)
-cyl_body.SetVisualMaterial(chrono.ChVisualMaterial(chrono.ChColor(0, 0, 1)))
-cyl_body.SetVisualTexture(veh.GetDataFile("terrain/textures/tile4.jpg"))
-gator.GetSystem().AddBody(cyl_body)
-
-
 driver = veh.ChDriver(gator.GetVehicle())
-
 driver.Initialize()
 
 
@@ -145,6 +121,28 @@ cam.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Gator Camera")
 manager.AddSensor(cam)
 
 
+box_body = chrono.ChBodyEasyBox(1, 1, 1, 1000, True, True, True)
+box_body.SetPos(chrono.ChVector3d(0, 0, 0.5))
+box_mat = chrono.ChContactMaterialNSC()
+box_mat.SetFriction(0.9)
+box_mat.SetRestitution(0.01)
+box_body.AddContactMaterial(box_mat)
+box_body.AddVisualizationAsset(chrono.ChVisualShapeBox(1, 1, 1))
+box_body.GetVisualizationShape(0).SetTexture(veh.GetDataFile("textures/blue.png"), 1, 1)
+gator.GetSystem().AddBody(box_body)
+
+
+cyl_body = chrono.ChBodyEasyCylinder(0.5, 1, 1000, True, True, True)
+cyl_body.SetPos(chrono.ChVector3d(0, 0, 1.5))
+cyl_mat = chrono.ChContactMaterialNSC()
+cyl_mat.SetFriction(0.9)
+cyl_mat.SetRestitution(0.01)
+cyl_body.AddContactMaterial(cyl_mat)
+cyl_body.AddVisualizationAsset(chrono.ChVisualShapeCylinder(0.5, 1))
+cyl_body.GetVisualizationShape(0).SetTexture(veh.GetDataFile("textures/blue.png"), 1, 1)
+gator.GetSystem().AddBody(cyl_body)
+
+
 lidar_offset_pose = chrono.ChFramed(chrono.ChVector3d(0.0, 0, 2), chrono.ChQuaterniond(1, 0, 0, 0))
 lidar = sens.ChLidarSensor(
     gator.GetChassisBody(),
@@ -156,19 +154,16 @@ lidar = sens.ChLidarSensor(
     chrono.CH_PI / 12,
     -chrono.CH_PI / 6,
     100.0,
-    sens.BeamShape_Rectangular,
+    sens.ChLidarBeamShape_RECTANGULAR,
     2,
     0.003,
-    sens.LidarReturnMode_Strongest
+    sens.ChLidarReturnMode_STRONGEST
 )
 lidar.SetName("Lidar Sensor")
-lidar.PushFilter(sens.ChFilterVisualize(800, 300, "Lidar Points"))
-lidar.PushFilter(sens.ChFilterDepth())
-lidar.PushFilter(sens.ChFilterIntensity())
-lidar.PushFilter(sens.ChFilterXYZI())
+lidar.PushFilter(sens.ChFilterLidarToPointCloud())
+lidar.PushFilter(sens.ChFilterXYZIToIntensity())
+lidar.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Lidar Data"))
 manager.AddSensor(lidar)
-
-
 
 
 
@@ -181,6 +176,7 @@ while time < end_time:
     
     driver.SetSteering(0.5)
     driver.SetThrottle(0.2)
+
     
     driver_inputs = driver.GetInputs()
 
@@ -188,7 +184,6 @@ while time < end_time:
     driver.Synchronize(time)
     terrain.Synchronize(time)
     gator.Synchronize(time, driver_inputs, terrain)
-
     manager.Update()
 
     

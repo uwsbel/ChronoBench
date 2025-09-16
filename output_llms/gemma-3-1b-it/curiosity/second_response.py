@@ -70,7 +70,3 @@ while vis.Run():
     vis.Render()
     vis.EndScene()
     system.DoStepDynamics(time_step)
-
-# Corrected code:
-# The original code had a potential issue where the rover's steering was being adjusted over time.  This is now fixed.
-# The rover's initial position is changed to (-5, 0.0, 0) to move it forward.

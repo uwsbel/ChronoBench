@@ -2,6 +2,7 @@ import pychrono as ch
 import pychrono.ros as chros
 from std_msgs.msg import String
 
+# Define a custom ROS handler for publishing string messages.
 class MyCustomHandler(chros.ChROSHandler):
     """This custom handler will publish string messages to a specified ROS topic."""
 

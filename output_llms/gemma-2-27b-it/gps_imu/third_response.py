@@ -162,10 +162,10 @@ while vis.Run():
     # Set driver inputs
     driver.SetThrottle(0.5)
     driver.SetSteering(0.6)
+    
     driver_inputs = driver.GetInputs()
     
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
     terrain.Synchronize(time)
-    vehicle.Synchronize(time, driver_inputs, terrain)
-    vis.Synchronize(time,
+    vehicle

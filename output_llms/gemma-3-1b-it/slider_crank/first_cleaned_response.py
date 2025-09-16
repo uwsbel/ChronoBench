@@ -1,181 +1,130 @@
 import pychrono
-import pychrono.visuals as visuals
-import pychrono.physics as physics
-import pychrono.objects as objects
-import math
+import pychrono.objects as o
+import pychrono.visuals as v
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.colors import ListedColormap
 
 
+class CrankAndSlider(o.Object):
+    def __init__(self, mass=1.0, length=1.0, radius=0.5, angle=0.0):
+        super().__init__()
+        self.mass = mass
+        self.length = length
+        self.radius = radius
+        self.angle = angle
+        self.rotation_speed = 0.0  
+        self.current_angle = 0.0
+        self.dynamic_force = 0.0
+        self.is_active = False
 
-system = objects.System()
-system.add_object(objects.CrankSlider(
-    x=0.0,
-    y=0.0,
-    z=0.0,
-    rotation=0.0,  
-    name="CrankSlider",
-    force_applied=0.0, 
-    mass=1.0,
-    friction=0.0
-))
+    def update(self, dt):
+        self.current_angle += self.angle * dt
+        self.dynamic_force = self.mass * self.length * self.angle * 3.14159 * np.sin(self.current_angle)
+        self.rotation_speed = 60 * np.sin(self.current_angle)  
+        self.is_active = True
 
+    def get_position(self):
+        return self.rotation_speed * self.length
 
-floor = objects.Floor()
-floor.name = "Floor"
-floor.add_object(objects.CrankSlider(
-    x=0.0,
-    y=0.0,
-    z=0.0,
-    rotation=0.0,
-    name="Floor",
-    force_applied=0.0,
-    mass=1.0,
-    friction=0.0
-))
+    def set_position(self, position):
+        self.rotation_speed = position
 
+    def get_force(self):
+        return self.dynamic_force
 
-crank = objects.Crank(
-    name="Crank",
-    x=0.0,
-    y=0.0,
-    z=0.0,
-    rotation=0.0,
-    force_applied=0.0,
-    mass=1.0,
-    friction=0.0
-)
+    def set_force(self, force):
+        self.dynamic_force = force
 
 
-rod = objects.Rod(
-    name="ConnectingRod",
-    x=0.0,
-    y=0.0,
-    z=0.0,
-    rotation=0.0,
-    force_applied=0.0,
-    mass=1.0,
-    friction=0.0
-)
+class Motor(o.Object):
+    def __init__(self, speed=50.0):
+        super().__init__()
+        self.speed = speed
+
+    def update(self, dt):
+        self.rotation_speed = self.speed * dt
 
 
-piston = objects.Piston(
-    name="Piston",
-    x=0.0,
-    y=0.0,
-    z=0.0,
-    rotation=0.0,
-    force_applied=0.0,
-    mass=1.0,
-    friction=0.0
-)
+class Floor(o.Object):
+    def __init__(self, length=1.0, width=0.5, height=0.2):
+        super().__init__()
+        self.length = length
+        self.width = width
+        self.height = height
+
+    def get_position(self):
+        return self.length * 0.5  
 
 
+class Crankshaft(o.Object):
+    def __init__(self, length=1.0, radius=0.5):
+        super().__init__()
+        self.length = length
+        self.radius = radius
 
-system.set_default_forces(0.0)  
-system.set_default_friction(0.0) 
-system.set_default_angle(0.0) 
-
-
-
-simulation_time = 10.0  
-time_step = 0.01 
-
+    def get_position(self):
+        return self.length * 0.5
 
 
-visuals.create_scene(
-    title="Crank-Slider Simulation",
-    width=800,
-    height=600,
-    background="black")
+class ConnectingRod(o.Object):
+    def __init__(self, length=1.0):
+        super().__init__()
+        self.length = length
+
+    def get_position(self):
+        return self.length
 
 
-floor_object = visuals.Plane(
-    name="Floor",
-    x=0.0,
-    y=0.0,
-    z=0.0,
-    width=100.0,
-    height=100.0,
-    color="white"
-)
-visuals.add_object(floor_object)
+class Piston(o.Object):
+    def __init__(self, length=1.0, radius=0.5):
+        super().__init__()
+        self.length = length
+        self.radius = radius
+
+    def get_position(self):
+        return self.length * 0.5
 
 
-crank_object = visuals.Cube(
-    name="Crank",
-    x=0.0,
-    y=0.0,
-    z=0.0,
-    width=50.0,
-    height=50.0,
-    color="red"
-)
-visuals.add_object(crank_object)
+system = CrankAndSlider()
 
 
-rod_object = visuals.Cube(
-    name="ConnectingRod",
-    x=0.0,
-    y=0.0,
-    z=0.0,
-    width=50.0,
-    height=50.0,
-    color="blue"
-)
-visuals.add_object(rod_object)
+floor = Floor()
+system.add_object(floor)
 
 
-piston_object = visuals.Cube(
-    name="Piston",
-    x=0.0,
-    y=0.0,
-    z=0.0,
-    width=50.0,
-    height=50.0,
-    color="green"
-)
-visuals.add_object(piston_object)
+crankshaft = Crankshaft()
+system.add_object(crankshaft)
 
 
-
-physics.set_physics_system(system)
-
-
-
-try:
-    while True:
-        
-        system.update()
-
-        
-        
-        torque = (crank.force_applied * rod.mass) / rod.friction
-
-        
-        piston.force_applied = torque
-
-        
-        angular_velocity = crank.rotation
-
-        
-        crank.rotation = angular_velocity
-
-        
-        crank.force_applied = torque
-        rod.force_applied = torque
-        piston.force_applied = torque
-
-        
-        floor.x = floor.x + 0.1
-        floor.y = floor.y + 0.1
-        floor.z = floor.z + 0.1
+connecting_rod = ConnectingRod()
+system.add_object(connecting_rod)
 
 
-        
-        visuals.render(visuals.get_scene())
+piston = Piston()
+system.add_object(piston)
 
-        
-        time.sleep(time_step)
 
-except KeyboardInterrupt:
-    print("Simulation stopped.")
-    break
+system.set_position(floor.get_position())
+crankshaft.set_position(crankshaft.get_position())
+connecting_rod.set_position(connecting_rod.get_position())
+piston.set_position(piston.get_position())
+
+
+system.set_force(motor.get_force())
+
+
+v.Simulation(system,  
+            title="Simple Crank-Slider Simulation",
+            camera_settings={"camera_position": (0, 0, 0)},
+            
+            
+            
+            
+            
+            
+            
+            )
+
+
+v.wait_for_simulation()

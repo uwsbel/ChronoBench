@@ -83,11 +83,34 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 
-driver_data = veh.vector_Entry()
-driver_data.append(veh.DataDriverEntry(0.0, 0.0, 0.0, 0.0))  
-driver_data.append(veh.DataDriverEntry(0.1, 1.0, 0.0, 0.0))
-driver_data.append(veh.DataDriverEntry(0.5, 1.0, 0.7, 0.0))
-driver = veh.ChDataDriver(vehicle.GetVehicle(), driver_data)
+driver_data = veh.DataDriverEntry()
+driver_data.SetTime(0.0)
+driver_data.SetThrottle(0.0)
+driver_data.SetSteering(0.0)
+driver_data.SetBraking(0.0)
+
+driver_data2 = veh.DataDriverEntry()
+driver_data2.SetTime(0.1)
+driver_data2.SetThrottle(1.0)
+driver_data2.SetSteering(0.0)
+driver_data2.SetBraking(0.0)
+
+driver_data3 = veh.DataDriverEntry()
+driver_data3.SetTime(0.5)
+driver_data3.SetThrottle(1.0)
+driver_data3.SetSteering(0.7)
+driver_data3.SetBraking(0.0)
+
+driver_data_list = veh.vector_Entry(driver_data, driver_data2, driver_data3)
+driver = veh.ChDataDriver(driver_data_list)
+driver.Initialize()
+driver.AttachVehicle(vehicle.GetVehicle())
+
+
+print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+
+
+render_steps = math.ceil(render_step_size / step_size)
 
 
 realtime_timer = chrono.ChRealtimeStepTimer()

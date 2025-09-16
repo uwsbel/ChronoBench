@@ -11,16 +11,17 @@ initLoc = chrono.ChVector3d(0, 0, 0.5)
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 
-vis_type = veh.VisualizationType_PRIMITIVES
+vis_type = veh.VisualizationType_PRIMITIVES  
 
 
-chassis_collision_type = veh.CollisionType_PRIMITIVES
+chassis_collision_type = veh.CollisionType_PRIMITIVES  
 
 
 tire_model = veh.TireModelType_TMEASY
 
 
-terrainHeight = 0      
+terrain_model = veh.RigidTerrain.BOX
+terrainHeight = 0
 terrainLength = 100.0  
 terrainWidth = 100.0   
 
@@ -43,7 +44,6 @@ vehicle = veh.Gator()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
-vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 
@@ -54,7 +54,6 @@ vehicle.SetSuspensionVisualizationType(vis_type)
 vehicle.SetSteeringVisualizationType(vis_type)
 vehicle.SetWheelVisualizationType(vis_type)
 vehicle.SetTireVisualizationType(vis_type)
-
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
@@ -92,9 +91,9 @@ driver = veh.ChInteractiveDriverIRR(vis)
 steering_time = 2.0  
 throttle_time = 2.0  
 braking_time = 0.6   
-driver.SetSteeringDelta(render_step_size / steering_time)
-driver.SetThrottleDelta(render_step_size / throttle_time)
-driver.SetBrakingDelta(render_step_size / braking_time)
+driver.SetSteeringDelta(render_step_size / steering_time)  
+driver.SetThrottleDelta(render_step_size / throttle_time)  
+driver.SetBrakingDelta(render_step_size / braking_time)  
 
 driver.Initialize()
 

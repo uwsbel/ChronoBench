@@ -121,7 +121,7 @@ while vis.Run() :
 
     
     driver.Synchronize(time)
-    terrain.Synchronize(time)
+    terrain.Synchronize(time, driver_inputs, terrain)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
 
@@ -142,6 +142,4 @@ while vis.Run() :
 
 
 
-if (step_number % 10 == 0):
-    vis.AddSphere(chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 0.2, 0.2)
-    vis.SetColor(chrono.ChColor(1.0, 0.0, 0.0))
+print("Simulation running...")

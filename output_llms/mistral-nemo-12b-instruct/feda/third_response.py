@@ -74,18 +74,31 @@ terrain.Initialize()
 
 # Create point lights for better illumination
 light1 = chrono.ChLightWithShadow()
-light1.SetType(chrono.ChLight.Type_DIR)
 light1.SetDirection(chrono.ChVector3d(1, -1, 1).GetNormalized())
 light1.SetColor(chrono.ChColor(1, 1, 1))
-light1.SetDirection(chrono.ChVector3d(1, -1, 1).GetNormalized())
-vehicle.GetSystem().Add(light1)
+light1.SetShadowType(chrono.ChLightShadowType_DYNAMIC)
+light1.SetShadowResolution(1024, 1024)
+vehicle.GetSystem().AddLight(light1)
 
 light2 = chrono.ChLightWithShadow()
-light2.SetType(chrono.ChLight.Type_DIR)
 light2.SetDirection(chrono.ChVector3d(-1, 1, -1).GetNormalized())
 light2.SetColor(chrono.ChColor(1, 1, 1))
-light2.SetDirection(chrono.ChVector3d(-1, 1, -1).GetNormalized())
-vehicle.GetSystem().Add(light2)
+light2.SetShadowType(chrono.ChLightShadowType_DYNAMIC)
+light2.SetShadowResolution(1024, 1024)
+vehicle.GetSystem().AddLight(light2)
+
+# Create a sensor manager for the camera
+sensor_manager = veh.ChSensorManager()
+camera = veh.ChCameraSensor()
+camera.SetResolution(800, 600)  # Set high resolution
+camera.SetFieldOfView(90)  # Set appropriate Field Of View
+camera.SetPosition(chrono.ChVector3d(0, 0, 0.5))  # Set camera position relative to chassis
+camera.SetDirection(chrono.ChVector3d(0, 0, -1))  # Set camera direction
+vehicle.AttachSensor(camera, vehicle.GetChassis())  # Attach camera to chassis body
+
+filter = veh.ChSensorFilter()
+filter.SetCamera(camera)
+sensor_manager.AddFilter(filter)
 
 # Create the vehicle Irrlicht interface
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
@@ -97,6 +110,7 @@ vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
+vis.AddSensorManager(sensor_manager)  # Add sensor manager to visualization
 
 # Create the driver system
 driver = veh.ChInteractiveDriverIRR(vis)
@@ -122,17 +136,6 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-# Create sensor manager and add camera sensor
-sensor_manager = veh.ChSensorManager()
-camera_sensor = veh.ChCameraSensor()
-camera_sensor.SetResolution(1920, 1080)
-camera_sensor.SetFieldOfView(90)
-camera_sensor.SetParentBody(vehicle.GetChassisBody())
-camera_filter = veh.ChCameraFilter()
-camera_filter.SetSensor(camera_sensor)
-sensor_manager.Add(camera_filter)
-vis.AddSensorManager(sensor_manager)
-
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
 
@@ -151,14 +154,14 @@ while vis.Run() :
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
-    sensor_manager.Synchronize(time)  # Add sensor manager synchronization
+    sensor_manager.Synchronize(time)  # Update sensor manager
 
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
-    sensor_manager.Advance(step_size)  # Add sensor manager advancement
+    sensor_manager.Advance(step_size)  # Advance sensor manager
 
     # Increment frame number
     step_number += 1

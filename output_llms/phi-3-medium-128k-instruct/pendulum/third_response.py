@@ -19,7 +19,7 @@ cyl_1 = chrono.ChVisualShapeCylinder(0.2, 0.4)  # Cylinder with radius 0.2 and h
 ground.AddVisualShape(cyl_1, chrono.ChFramed(chrono.ChVector3d(0, 0, +1)))
 
 # Create the first pendulum body and add it to the simulation
-pend_1 = chrono.ChBodyAuxRef(chrono.ChVector3d(1, 0, 1), chrono.ChBody())
+pend_1 = chrono.ChBody()
 sys.AddBody(pend_1)
 pend_1.SetFixed(False)  # The first pendulum can move
 pend_1.EnableCollision(False)  # Disable collision detection for the first pendulum
@@ -31,8 +31,18 @@ cyl_1 = chrono.ChVisualShapeCylinder(0.2, 2)  # Cylinder with radius 0.2 and hei
 cyl_1.SetColor(chrono.ChColor(0.6, 0, 0))  # Set the color of the cylinder (RGB)
 pend_1.AddVisualShape(cyl_1, chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleY(chrono.CH_PI_2)))
 
+# Set the initial position of the first pendulum (center of mass) in the absolute frame
+# The first pendulum is initially horizontal, pointing towards the positive X direction
+pend_1.SetPos(chrono.ChVector3d(1, 0, 1))
+
+# Create a revolute joint to connect the first pendulum to the ground
+# The revolute joint allows rotation around a single axis (the Z-axis in this case)
+rev_1 = chrono.ChLinkLockRevolute()
+rev_1.Initialize(ground, pend_1, chrono.ChFramed(chrono.ChVector3d(0, 0, 1), chrono.ChQuaterniond(1, 0, 0, 0)))
+sys.AddLink(rev_1)
+
 # Create the second pendulum body and add it to the simulation
-pend_2 = chrono.ChBodyAuxRef(chrono.ChVector3d(1, 0, 1), chrono.ChBody())
+pend_2 = chrono.ChBody()
 sys.AddBody(pend_2)
 pend_2.SetFixed(False)  # The second pendulum can move
 pend_2.EnableCollision(False)  # Disable collision detection for the second pendulum
@@ -41,17 +51,17 @@ pend_2.SetInertiaXX(chrono.ChVector3d(0.2, 1, 1))  # Set the inertia tensor (in 
 
 # Add a visualization cylinder to the second pendulum
 cyl_2 = chrono.ChVisualShapeCylinder(0.2, 2)  # Cylinder with radius 0.2 and height 2
-cyl_2.SetColor(chrono.ChColor(0, 0.6, 0))  # Set the color of the cylinder (RGB)
+cyl_2.SetColor(chrono.ChColor(0.6, 0, 0))  # Set the color of the cylinder (RGB)
 pend_2.AddVisualShape(cyl_2, chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleY(chrono.CH_PI_2)))
 
-# Create a revolute joint to connect the first pendulum to the ground
-rev_1 = chrono.ChLinkLockRevolute()
-rev_1.Initialize(ground, pend_1, chrono.ChFrameD::Identity())
-sys.AddLink(rev_1)
+# Set the initial position of the second pendulum (center of mass) in the absolute frame
+# The second pendulum is initially horizontal, pointing towards the positive X direction
+pend_2.SetPos(chrono.ChVector3d(pend_1.Pos() + chrono.ChVector3d(0, 0, 2))
 
-# Create a revolute joint to connect the first pendulum to the second pendulum
+# Create a revolute joint to connect the second pendulum to the first one
+# The revolute joint allows rotation around a single axis (the Z-axis in this case)
 rev_2 = chrono.ChLinkLockRevolute()
-rev_2.Initialize(pend_1, pend_2, chrono.ChFrameD::Identity())
+rev_2.Initialize(pend_1, pend_2, chrono.ChFramed(pend_1.Pos(), chrono.ChQuaterniond(1, 0, 0, 0)))
 sys.AddLink(rev_2)
 
 # Create the Irrlicht visualization system
@@ -76,8 +86,12 @@ while vis.Run():
     # Log information after 1 second of simulation time
     if log_info and sys.GetChTime() > 1:
         pos_1 = pend_1.GetPos()  # Get the position of the first pendulum
+        pos_2 = pend_2.GetPos()  # Get the position of the second pendulum
         print("t = ", sys.GetChTime())
         print("     ", pos_1.x, "  ", pos_1.y)
         lin_vel_1 = pend_1.GetPosDt()  # Get the linear velocity of the first pendulum
         print("     ", lin_vel_1.x, "  ", lin_vel_1.y)
+        print("     ", pos_2.x, "  ", pos_2.y)
+        lin_vel_2 = pend_2.GetPosDt()  # Get the linear velocity of the second pendulum
+        print("     ", lin_vel_2.x, "  ", lin_vel_2.y)
         log_info = False  # Disable further logging

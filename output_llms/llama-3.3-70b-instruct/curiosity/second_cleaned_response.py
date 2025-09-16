@@ -7,7 +7,7 @@ from pychrono import irrlicht as chronoirr
 
 
 system = chrono.ChSystemNSC()
-system.SetCollisionSystemType(chrono.ChCollisionSystem.Type_NSC)
+system.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 system.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, -9.81))
 chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.0025)
 chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
@@ -23,8 +23,9 @@ system.Add(ground)
 
 obstacle_mat = chrono.ChContactMaterialNSC()
 obstacle = chrono.ChBodyEasyBox(5, 1, 1, 1000, True, True, obstacle_mat)
-obstacle.SetPos(chrono.ChVector3d(0, 0.5, 0))  
+obstacle.SetPos(chrono.ChVector3d(2, 0.5, 0))  
 obstacle.SetFixed(True)  
+obstacle.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
 system.Add(obstacle)
 
 
@@ -35,13 +36,9 @@ driver = robot.CuriosityDCMotorControl()
 rover.SetDriver(driver)
 
 
-init_pos = chrono.ChVector3d(-5, 0.0, 0)
+init_pos = chrono.ChVector3d(-5, 0.0, 0)  
 init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
 rover.Initialize(chrono.ChFramed(init_pos, init_rot))
-
-
-driver.SetSpeed(1.0)
-driver.SetSteering(0.0)
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
@@ -66,6 +63,10 @@ time_step = 1e-3
 time = 0
 while vis.Run():
     time += time_step
+
+    
+    driver.SetSteering(0)
+    driver.SetSpeed(1)  
 
     
     rover.Update()

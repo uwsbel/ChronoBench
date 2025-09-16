@@ -49,19 +49,20 @@ sensor_manager.AddSensor(robot)
 
 lidar = sens.ChLidarSensor()
 lidar.SetSensorMode(sens.ChLidarSensor.Mode_RANGE)
-lidar.SetRangeMin(0.1)
-lidar.SetRangeMax(10.0)
-lidar.SetResolution(0.1)
-lidar.SetFOV(math.pi / 2)
+lidar.SetResolution(180)
+lidar.SetRange(5.0)
 lidar.SetNoise(0.01)
-lidar.SetSensorPosition(chrono.ChVector3d(0, 0, 0.1))
-lidar.SetSensorRotation(chrono.ChQuaterniond(1, 0, 0, 0))
+lidar.SetFilter(sens.ChLidarSensor.Filter_MEDIAN)
+lidar.SetFilterSize(3)
+lidar.Attach(robot, chrono.ChVector3d(0, 0, 0.1))
 sensor_manager.AddSensor(lidar)
 
 
 for i in range(5):
-    box = chrono.ChBodyEasyBox(0.5, 0.5, 0.5, 1000, True, True)
-    box.SetPos(chrono.ChVector3d(np.random.uniform(-5, 5), np.random.uniform(-5, 5), 0.5))
+    box_size = 0.5
+    box_mat = chrono.ChContactMaterialNSC()
+    box = chrono.ChBodyEasyBox(box_size, box_size, box_size, 1000, True, True, box_mat)
+    box.SetPos(chrono.ChVector3d(np.random.uniform(-5, 5), np.random.uniform(-5, 5), np.random.uniform(0, 1)))
     system.Add(box)
 
 
@@ -75,6 +76,9 @@ def move(mode):
     elif mode == 'right':
         robot.SetMotorSpeed(0.5, 0)
         robot.SetMotorSpeed(-0.5, 1)
+    else:
+        robot.SetMotorSpeed(0, 0)
+        robot.SetMotorSpeed(0, 1)
 
 
 time_step = 2e-3

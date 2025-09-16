@@ -1,54 +1,50 @@
-import pychrono as chrono
-import pychrono.irr as irr
-import pychrono.irr.core as core
-import pychrono.irr.scene as scene
+from pychrono import *
+from pychrono.irrlicht import *
 
 
-chrono.init()
+init_chrono()
 
 
-scene_manager = irr.SceneManager()
-scene_manager.setCamera(core.Camera(
-    position=(0, 0, 5),
-    target=(0, 0, 0),
-    up=(0, 1, 0),
-    fov=45
-))
+scene = Scene()
 
 
-world = scene_manager.createWorld()
+ground = ChBody(ChBodyType.GROUND)
+ground.setPosition(0, 0, 0)
+ground.setInertiaTensor(ChVector3(0.0, 0.0, 0.0))
+scene.addBody(ground)
 
 
-mass = chrono.ChBody(
-    mass=1.0,
-    position=(0, 0, 0),
-    name="Mass"
-)
+mass = ChBody(ChBodyType.SOLID)
+mass.setPosition(0, 1, 0)
+mass.setInertiaTensor(ChVector3(1.0, 1.0, 1.0))
+mass.setMass(1.0)
 
 
-spring = chrono.ChLinkTSDA(
-    mass=mass,
-    position=(0, 0, 0),
-    name="Spring"
-)
+spring = ChLinkTSDA(mass, ground, ChLinkTSDA.LINEAR, 10.0, 10.0)
 
 
-chrono.ChLinkTSDA.connect(mass, spring, 
-    damping=0.1,
-    stiffness=1000.0,
-    length=1.0
-)
+mass.setPosition(0, 1, 0)
+ground.setPosition(0, 0, 0)
+spring.setPosition(0, 0, 0)
 
 
-world.addBody(mass)
-world.addLink(spring)
+spring.setLinearStiffness(1000.0)
+spring.setDamping(0.1)
 
 
-irr_scene = scene.IrrScene(world)
+irrlicht_scene = IrrlichtScene()
+irrlicht_scene.setCameraPosition(ChVector3(0, 0, 5))
+irrlicht_scene.setCameraRotation(ChVector3(0, 0, 0))
+irrlicht_scene.setAmbientLight(ChVector3(0.2, 0.2, 0.2))
+irrlicht_scene.setDirectionalLight(ChVector3(1, 1, 1), ChVector3(0, 0, 1))
 
 
-irr_scene.setAmbientLight(irr.core.irr_color.Color(0.2, 0.2, 0.2))
-irr_scene.setDirectionalLight(irr.core.irr_color.Color(1, 1, 1), irr.core.irr_vector.Vector3(0, 1, 0))
+irrlicht_scene.addBody(ground)
+irrlicht_scene.addBody(mass)
+irrlicht_scene.addBody(spring)
 
 
-irr_scene.render()
+irrlicht_scene.render()
+
+
+run_chrono()

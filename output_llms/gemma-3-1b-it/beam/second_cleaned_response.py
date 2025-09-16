@@ -68,7 +68,7 @@ constr_bc = chrono.ChLinkMateGeneric()
 constr_bc.Initialize(hnode3, mtruss, False, hnode3.Frame(), hnode3.Frame())
 sys.Add(constr_bc) 
 constr_bc.SetConstrainedCoords(True, True, True, 
-                              True, True, True) 
+                                True, True, True) 
 
 
 constr_d = chrono.ChLinkMateGeneric()

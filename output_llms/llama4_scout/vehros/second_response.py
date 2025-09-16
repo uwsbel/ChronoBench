@@ -4,7 +4,7 @@ import pychrono.ros as chros
 from pychrono import irrlicht as chronoirr
 
 def main():
-    # Set the Chrono data path for vehicle data.
+    # Set the Chrono data path for vehicle data
     veh.SetDataPath(ch.GetChronoDataPath() + 'vehicle/')
 
     # Create the HMMWV vehicle and set its parameters.
@@ -20,12 +20,12 @@ def main():
     hmmwv.SetTireType(veh.TireModelType_TMEASY)  # Set tire model.
     hmmwv.SetTireStepSize(1e-3)  # Set the tire simulation step size.
 
-    # Enhanced visualization settings for HMMWV vehicle.
-    hmmwv.SetChassisVisualizationType(veh.VisualizationType_MESH)
-    hmmwv.SetSuspensionVisualizationType(veh.VisualizationType_MESH)
-    hmmwv.SetSteeringVisualizationType(veh.VisualizationType_MESH)
-    hmmwv.SetWheelVisualizationType(veh.VisualizationType_MESH)
-    hmmwv.SetTireVisualizationType(veh.VisualizationType_MESH)
+    # Enhanced visualization settings for HMMWV vehicle
+    hmmwv.SetChassisVisualizationType(veh.ChassisVisualizationType_MESH)
+    hmmwv.SetSuspensionVisualizationType(veh.SuspensionVisualizationType_MESH)
+    hmmwv.SetSteeringVisualizationType(veh.SteeringVisualizationType_MESH)
+    hmmwv.SetWheelVisualizationType(veh.WheelVisualizationType_MESH)
+    hmmwv.SetTireVisualizationType(veh.TireVisualizationType_MESH)
 
     hmmwv.Initialize()  # Initialize the vehicle.
 
@@ -35,7 +35,7 @@ def main():
     patch_mat.SetFriction(0.9)  # Set friction for the terrain.
     patch_mat.SetRestitution(0.01)  # Set restitution (bounciness) for the terrain.
     patch = terrain.AddPatch(patch_mat, ch.CSYSNORM, 100.0, 100.0)  # Add a patch to the terrain.
-    patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 100, 100)  # Set texture for the terrain patch.
+    patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 100, 100)  # Set the texture for the terrain patch.
     terrain.Initialize()  # Initialize the terrain.
 
     # Create and initialize the driver system.
@@ -51,41 +51,40 @@ def main():
     ros_manager.RegisterHandler(chros.ChROSBodyHandler(25, hmmwv.GetChassisBody(), "~/output/hmmwv/state"))
     ros_manager.Initialize()  # Initialize the ROS manager.
 
+    # Runtime visualization setup using Irrlicht
+    vis = chronoirr.ChVisualSystemIrrlicht()
+    vis.AttachSystem(hmmwv.GetSystem())
+    vis.SetWindowSize(800, 600)
+    vis.SetWindowTitle('HMMWV Simulation')
+    vis.EnableEnhancedShadows()
+    vis.Initialize()
+
     # Start the simulation loop.
     time = 0
     time_step = 1e-3  # Define the simulation time step.
     time_end = 30  # Set the total duration of the simulation.
-
     hmmwv.GetVehicle().EnableRealtime(True)  # Enable real-time simulation for the vehicle.
-
-    # Setup runtime visualization using Irrlicht.
-    vis = chronoirr.ChVisualSystemIrrlicht()
-    vis.AttachSystem(hmmwv.GetSystem())
-    vis.SetCameraPosition(ch.ChVector3d(0, -10, 5))
-    vis.EnableStats(vis.STATS_FPS)
 
     while time < time_end:
         time = hmmwv.GetSystem().GetChTime()  # Update simulation time.
-
         # Get driver inputs and synchronize the vehicle, terrain, and driver systems.
         driver_inputs = driver.GetInputs()
         driver.Synchronize(time)  # Synchronize the driver system.
         terrain.Synchronize(time)  # Synchronize the terrain.
         hmmwv.Synchronize(time, driver_inputs, terrain)  # Synchronize the vehicle with inputs and terrain.
-
         # Advance the simulation for all modules by one timestep.
         driver.Advance(time_step)
         terrain.Advance(time_step)
         hmmwv.Advance(time_step)
 
-        # Update the ROS manager to handle data publishing.
-        if not ros_manager.Update(time, time_step):
-            break  # Exit loop if ROS manager update fails.
-
-        # Render the visualization.
+        # Render the visualization
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
+
+        # Update the ROS manager to handle data publishing.
+        if not ros_manager.Update(time, time_step):
+            break  # Exit loop if ROS manager update fails.
 
 if __name__ == "__main__":
     main()

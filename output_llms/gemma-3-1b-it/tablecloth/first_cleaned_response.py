@@ -1,76 +1,90 @@
 import pychrono
-import pychrono.physics.shell as ps
-import pychrono.physics.shell.objects as ps_obj
-import pychrono.physics.shell.objects.mesh as ps_mesh
-import pychrono.physics.shell.objects.forces as ps_forces
-import pychrono.physics.shell.objects.materials as ps_materials
-import pychrono.physics.shell.objects.integrators as ps_integrators
-import pychrono.physics.shell.objects.nodes as ps_nodes
-import pychrono.physics.shell.objects.elements as ps_elements
-import pychrono.physics.shell.objects.forces.shell_elements as ps_shell_elements
+import pychrono.core as pc
+import pychrono.objects as pco
+import pychrono.physics as pcp
+import pychrono.physics.mesh as pcm
+import pychrono.physics.forces as pcf
+import pychrono.physics.materials as pcmm
+import pychrono.physics.integrators as pci
+import pychrono.physics.objects as pcoo
 
 
-try:
-    
-    chrono = pychrono.core.core.Core()
+tablecloth_width = 10.0
+tablecloth_height = 10.0
+tablecloth_thickness = 0.5
+tablecloth_material = pcmm.Material("Cloth", 1.0)  
 
-    
-    
-    tablecloth = ps_elements.Tablecloth(
-        mass=10.0, 
-        dimensions=(1.0, 1.0), 
-        material=ps_materials.Cloth, 
-        
+
+shell_element_radius = 0.5
+shell_element_length = 1.0
+shell_element_mass = 1.0
+
+
+mesh = pcmm.Mesh(
+    tablecloth_width,
+    tablecloth_height,
+    tablecloth_thickness,
+    pcoo.Mesh.MeshType.ALL_ELEMENTS,
+    pcoo.Mesh.MeshType.ALL_NODES,
+    pcoo.Mesh.MeshType.ALL_ELEMENTS,
+    pcoo.Mesh.MeshType.ALL_NODES,
+)
+
+
+shell_elements = [
+    pcoo.Element(
+        pcoo.Position(0, 0, 0),
+        pcoo.Length(shell_element_length),
+        pcoo.Mass(shell_element_mass),
+        pcoo.Material(tablecloth_material),
     )
-
-    
-    mesh = ps_mesh.Mesh(tablecloth)
-
-    
-    try:
-        import pychrono.physics.shell.objects.irrlicht as irrlight
-        irrlight.init() 
-    except ImportError:
-        print("Irrlicht not found.  Please install it: pip install pychrono-irrlicht")
-        irrlight.init() 
-
-    
-    try:
-        
-        solver = ps_obj.PardisoMKL(mesh, tablecloth)
-    except Exception as e:
-        print(f"PardisoMKL Solver Error: {e}")
-        print("Ensure the mesh is properly defined and the solver is compatible.")
-        return 
-
-    
-    simulation_params = {
-        'time_step': 0.01, 
-        'total_time': 10.0, 
-        'force_magnitude': 1.0, 
-        'force_direction': (0, 0, 1), 
-        'coupling_mode': 'symmetric', 
-        'coupling_factor': 0.5, 
-        'simulation_type': 'shell'
-    }
+]
 
 
-    
-    simulation = ps.Simulation(solver, simulation_params)
-    simulation.start()
+forces = pcf.Forces(
+    shell_elements,
+    tablecloth_material,
+    pcoo.ForceType.NEWTON,
+    pcoo.ForceMagnitudeScale(1.0)
+)
 
-    print("Simulation started.  Press Ctrl+C to stop.")
 
-    
-    
-    
-    
+solver = pci.Solver(
+    pcf.SolverType.NEWTON,
+    pcoo.SolverType.ALL_ELEMENTS,
+    pcoo.SolverType.ALL_NODES,
+    pcoo.SolverType.ALL_ELEMENTS,
+    pcoo.SolverType.ALL_NODES,
+    pcoo.SolverType.ALL_ELEMENTS,
+    pcoo.SolverType.ALL_NODES,
+    pcoo.SolverType.ALL_ELEMENTS,
+    pcoo.SolverType.ALL_NODES,
+    pcoo.SolverType.ALL_ELEMENTS,
+    pcoo.SolverType.ALL_NODES,
+    pcoo.SolverType.ALL_ELEMENTS,
+    pcoo.SolverType.ALL_NODES
+)
 
-    
-    simulation.wait()
 
-    print("Simulation finished.")
+simulation_time = 10.0
+simulation_step = 0.01
 
-except Exception as e:
-    print(f"An error occurred: {e}")
-    print("Please check the mesh definition and solver setup.")
+
+simulation = pchrono.Simulation(
+    mesh,
+    forces,
+    solver,
+    simulation_time,
+    simulation_step,
+    tablecloth_material,
+    shell_elements,
+)
+
+
+pchrono.visualize(simulation, "Tablecloth Folding")
+
+
+simulation.stop()
+
+
+print(f"Simulation completed.  Time: {simulation.time}")

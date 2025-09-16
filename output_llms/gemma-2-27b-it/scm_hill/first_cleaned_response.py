@@ -5,17 +5,11 @@ import numpy as np
 
 
 
+chrono.SetChronoDataPath("data/")
 
 
-system = chrono.ChSystemNSC()
-
-
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
-
-
-material = chrono.ChMaterialSurfaceNSC()
-material.SetFriction(0.8)
-material.SetRestitution(0.2)
+sys = chrono.ChSystemNSC()
+sys.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
 
 
@@ -23,39 +17,29 @@ material.SetRestitution(0.2)
 
 
 vehicle = chrono.ChBodyEasyBox(
-    1000,  
-    chrono.ChVectorD(2.5, 1.5, 1.0),  
-    material
+    2.5, 1.5, 0.8, 1000, True, True, chrono.ChVectorD(0, 1, 0)
 )
-vehicle.SetPos(chrono.ChVectorD(0, 1.5, 0))  
+vehicle.SetPos(chrono.ChVectorD(0, 1, 0))
+sys.Add(vehicle)
 
 
-system.Add(vehicle)
+terrain = chrono.ChTerrainSCM()
+terrain.SetSize(chrono.ChVectorD(100, 100, 1))
 
 
-terrain = chrono.ChTerrainSCM(system)
+height_map = np.loadtxt("height_map.txt")
+terrain.Initialize(height_map, 1.0)
 
 
-terrain.SetYoungModulus(1e7)
-terrain.SetPoissonRatio(0.3)
 terrain.SetFriction(0.5)
+terrain.SetRestitution(0.2)
+terrain.SetSpringStiffness(1000)
+terrain.SetDamping(10)
 
-
-terrain.LoadHeightMap("heightmap.png")
-
-
-system.Add(terrain)
-
-
-
-
+sys.Add(terrain)
 
 
 driver = chrono.ChDriver(vehicle)
-
-
-vehicle.SetBodyFixed(False)
-vehicle.SetPos_dt(chrono.ChVectorD(5, 0, 0))
 
 
 
@@ -63,31 +47,31 @@ vehicle.SetPos_dt(chrono.ChVectorD(5, 0, 0))
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(system)
+vis.AttachSystem(sys)
 vis.SetWindowSize(800, 600)
 vis.SetWindowTitle("HMMWV Simulation")
 
 
 camera = vis.GetCamera()
 camera.SetLocation(chrono.ChVectorD(10, 5, 5))
-camera.SetLookAt(chrono.ChVectorD(0, 1.5, 0))
+camera.SetTarget(chrono.ChVectorD(0, 1, 0))
 
-
-vis.AddLight(chrono.ChLight(chrono.ChVectorD(5, 5, 5), chrono.ChColor(0.8, 0.8, 0.8)))
-
-
-
+vis.SetAmbientLight(chrono.ChColor(0.5, 0.5, 0.5))
+vis.SetDirectionalLight(chrono.ChVectorD(1, -1, 0), chrono.ChColor(1, 1, 1))
 
 
 
-timestep = 0.01
+
+
+
+dt = 0.01
 
 while vis.Run():
     
-    driver.Update(timestep)
+    sys.DoStepDynamics(dt)
 
     
-    system.DoStepDynamics(timestep)
+    driver.Update(dt)
 
     
     vis.BeginScene()

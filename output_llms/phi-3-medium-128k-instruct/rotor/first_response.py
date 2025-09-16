@@ -1,108 +1,128 @@
 import Chrono
 
-import chrono
+import irrlicht
 
-import pychrono
+from chrono import irr
 
-import pychrono.Isocurve
+from chrono.irrlicht import ChIrrApp, ChVector, ChBodySphere, ChBodyEasy
 
-import pychrono.ChLinkFast
+from chrono.lidar import ChArcLengthTorqueMotor
 
-import pychrono.ChSystemSparse
+from chrono.bodies import ChBeam3D
 
-import pychrono.ChSystemNSC
+from chrono.bodies import ChBeamIGA
 
-import pychrono.ChIr
+from chrono.synchronization import ChTimeStepperUNumerical
 
-import pychrono.fea
-
-
-# Initialize PyChrono environment
-
-chrono.ChSystemNSC()
+import numpy as np
 
 
-# Create an Isogeometric Analysis (IGA) beam
+def main():
 
-beam = pychrono.Isocurve.CreateCircle(1.0)
+    # Initialize PyChrono
 
-beam.SetDensity(1.0)
+    chrono = Chrono.chrono
 
-beam.SetYoungsModulus(210e9)
-
-beam.SetPoissonsRatio(0.3)
+    irrlicht = irr.IrrLicht()
 
 
-# Create a flywheel and attach it to the center of the beam
+    # Create the Irrlicht application
 
-flywheel = pychrono.ChBody()
-
-flywheel.SetMass(10.0)
-
-flywheel.SetInertiaXXY(pychrono.ChVectorD(&0.0, &0.0, &0.0))
-
-flywheel.SetPos(pychrono.ChVectorD(0.0, 0.0, 0.0))
-
-beam.AddRigidBody(flywheel)
+    app = ChIrrApp(chrono, irrlicht)
 
 
-# Create a motor and attach it to one end of the beam
+    # Create a beam using Isogeometric Analysis (IGA)
 
-motor = pychrono.ChBody()
+    beam = ChBeamIGA(chrono)
 
-motor.SetMass(5.0)
+    beam.SetLength(1.0)
 
-motor.SetInertiaXXY(pychrono.ChVectorD(&0.0, &0.0, &0.0))
+    beam.SetNBeams(1)
 
-motor.SetPos(pychrono.ChVectorD(0.0, 0.0, -1.0))
-
-beam.AddRigidBody(motor)
+    beam.SetBeamWidth(0.1)
 
 
-# Set up the motor's rotational force
+    # Create a flywheel
 
-motor.AddForce(pychrono.ChVectorD(0.0, 0.0, 100.0))
+    flywheel = ChBodySphere(chrono, 0.1, 0.05)
 
+    flywheel.SetPos(ChVector(0, 0, 0.5))
 
-# Create the system and add the beam
-
-system = pychrono.ChSystemSparse()
-
-system.AddBody(beam)
+    flywheel.SetMass(0.5)
 
 
-# Set up the Irrlicht visualization
+    # Create a motor to drive one end of the beam
 
-irr_options = pychrono.ChIr.Options()
+    motor = ChArcLengthTorqueMotor(chrono, 0.05)
 
-irr_options.SetUseBumpMapping(True)
+    motor.SetTorque(10.0)
 
-irr_window = pychrono.ChIr.CreateIrrlichtWindow(irr_options, 800, 600)
+    motor.SetArcLength(1.0)
 
-
-# Set up the FEM visualization
-
-fem_visualizer = pychrono.fea.ChFemVisualizer(irr_window)
-
-fem_visualizer.AddBody(beam)
+    motor.SetMaxAngularVelocity(10.0)
 
 
-# Run the simulation
+    # Attach the flywheel to the center of the beam
 
-system.Set_Frozen(False)
-
-system.DoStep(0.01)
+    beam.Attach(flywheel, ChVector(0, 0, 0.5))
 
 
-# Main loop
+    # Add the beam and motor to the simulation
 
-while irr_window.GetDevice()->UserHasQuit() == False:
+    chrono.AddBody(beam)
 
-    irr_window.DoStep()
-
-    system.DoStep(0.01)
+    chrono.AddBody(motor)
 
 
-# Clean up
+    # Set up the visualization
 
-irr_window.Close()
+    beam.SetColor(irr.E_RED)
+
+    flywheel.SetColor(irr.E_BLUE)
+
+    motor.SetColor(irr.E_GREEN)
+
+
+    # Set up the time stepper
+
+    time_step = 0.01
+
+    time_stepper = ChTimeStepperUNumerical(chrono, time_step)
+
+
+    # Main simulation loop
+
+    while chrono.IsTimeStepAvailable():
+
+        # Update the motor
+
+        motor.Update(time_step)
+
+
+        # Update the bodies
+
+        chrono.DoStepDynamics(time_step)
+
+        chrono.DoStepMathematics(time_step)
+
+        app.BeginScene()
+
+        app.DrawModel(beam)
+
+        app.DrawModel(flywheel)
+        app.DrawModel(motor)
+        app.EndScene()
+
+
+    # Finalize the simulation
+
+    chrono.PrintVersion()
+
+    chrono.ShutDown()
+
+    app.Run()
+
+
+if __name__ == "__main__":
+
+    main()

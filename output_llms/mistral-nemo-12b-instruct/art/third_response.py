@@ -49,9 +49,9 @@ vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
-vehicle.SetMaxMotorVoltageRatio(0.26)  # Updated from 0.16
-vehicle.SetStallTorque(0.4)  # Updated from 0.3
-vehicle.SetTireRollingResistance(0.03)  # Updated from 0.06
+vehicle.SetMaxMotorVoltageRatio(0.26)  # Update max motor voltage ratio
+vehicle.SetStallTorque(0.4)  # Update stall torque
+vehicle.SetTireRollingResistance(0.03)  # Update tire rolling resistance
 
 vehicle.Initialize()
 

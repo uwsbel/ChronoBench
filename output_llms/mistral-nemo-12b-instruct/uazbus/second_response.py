@@ -7,7 +7,7 @@ chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 # Initial vehicle location and orientation
-initLoc = chrono.ChVector3d(-40, 0, 0.5)  # Changed initial X position to -40
+initLoc = chrono.ChVector3d(-40, 0, 0.5)
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 # Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
@@ -67,7 +67,7 @@ patch = terrain.AddPatch(patch_mat,
     chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
     terrainLength, terrainWidth)
 
-patch.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 200, 200)  # Changed terrain texture to concrete.jpg
+patch.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
@@ -106,10 +106,9 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-# Added logic for a double lane change maneuver
-lane_change_time = 5.0  # Time interval for lane change maneuver
-lane_change_steps = lane_change_time / render_step_size
-lane_change_counter = 0
+# Logic for double lane change maneuver
+lane_change_time = 5.0  # Time interval for lane change
+braking_time = 2.0  # Time interval for braking
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
@@ -133,7 +132,24 @@ while vis.Run():
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)
     terrain.Advance(step_size)
-    vehicle.Advance(step_size)
+
+    # Logic for double lane change maneuver
+    if step_number < lane_change_time * render_steps:
+        # Steer left for lane change
+        driver_inputs.steering = 0.5
+    elif lane_change_time * render_steps <= step_number < (lane_change_time + braking_time) * render_steps:
+        # Steer right for lane change
+        driver_inputs.steering = -0.5
+    elif (lane_change_time + braking_time) * render_steps <= step_number < (lane_change_time + 2 * braking_time) * render_steps:
+        # Brake after lane change
+        driver_inputs.throttle = 0
+        driver_inputs.braking = 1
+    else:
+        # Normal driving after maneuver
+        driver_inputs.steering = 0
+        driver_inputs.throttle = 0.5
+
+    vehicle.Advance(step_size, driver_inputs)
     vis.Advance(step_size)
 
     # Increment frame number
@@ -141,28 +157,3 @@ while vis.Run():
 
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
-
-    # Lane change maneuver logic
-    if lane_change_counter < lane_change_steps:
-        # Steer left for the first lane change
-        driver_inputs.steering = 0.5
-        if lane_change_counter == lane_change_steps // 2:
-            # Throttle down for the first lane change
-            driver_inputs.throttle = 0.0
-    elif lane_change_counter < 2 * lane_change_steps:
-        # Steer right for the second lane change
-        driver_inputs.steering = -0.5
-        if lane_change_counter == 2 * lane_change_steps // 2:
-            # Throttle down for the second lane change
-            driver_inputs.throttle = 0.0
-    elif lane_change_counter < 3 * lane_change_steps:
-        # Brake after completing the lane change maneuver
-        driver_inputs.braking = 1.0
-    else:
-        # Reset lane change counter
-        lane_change_counter = 0
-
-    lane_change_counter += 1
-
-# Spin in place for real time to catch up
-realtime_timer.Spin(step_size)

@@ -14,21 +14,16 @@ def main():
     
     
     
+    
     side = 2.0  
-    box_body = chrono.ChBodyEasyBox(side, side, side, 1000, True, True, chrono.ChVector3d(0, 0, 0))
-    box_body.SetPos(chrono.ChVector3d(0, 0, 0))
-    box_body.SetPose(chrono.ChQuaternion(1, 0, 0, 0), chrono.ChVector3d(0, 0, 0))
-    box_body.SetCollide(True)
-    box_body.SetMaterialSurface(chrono.ChMaterialSurface.MakeDefault())
-    mphysicalSystem.Add(box_body)
+    box_shape = chrono.ChBox(side, side, side, 1000)
 
     
-    box_shape = chrono.ChBoxShape()
-    box_shape.SetSize(chrono.ChVectorD(side, side, side))
-    box_shape.SetTexture(chrono.GetChronoDataFile("textures/checker.png"))
-
-    
-    box_body.AddVisualShape(box_shape)
+    box_body = chrono.ChBodyEasyBox(side, side, side, 1000, True, True)  
+    box_body.SetPos(chrono.ChVector3d(0, 0, 0))  
+    box_body.AddVisualShape(box_shape)  
+    box_body.SetFixed(True)  
+    mphysicalSystem.Add(box_body)  
 
     
     
@@ -129,7 +124,7 @@ def main():
             print('First Pixel: {0}'.format(rgba8_data[0, 0, :]))
 
         
-        manager.Update(step_size)
+        manager.Update()
 
         
         mphysicalSystem.DoStepDynamics(step_size)
@@ -147,14 +142,14 @@ def main():
 noise_model = "CONST_NORMAL"  
 
 
+fov = 1.408  
+
+
 update_rate = 30
 
 
 image_width = 1280
 image_height = 720
-
-
-fov = 1.408  
 
 
 lag = 0

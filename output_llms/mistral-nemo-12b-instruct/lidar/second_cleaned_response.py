@@ -14,14 +14,11 @@ def main():
     
     
     
-    side = 2.0
+    side = 1.0
     box_shape = chrono.ChBoxShape(side, side, side)
-    box_visual = chrono.ChVisualShape(box_shape)
-    box_visual.SetTexture(chrono.GetChronoDataFile("textures/grid.png"), chrono.ChColor(0.3, 0.3, 0.3, 0.5))
-
-    box_body = chrono.ChBody()
+    box_body = chrono.ChBodyEasyBox(side, side, side, 1000)
     box_body.SetPos(chrono.ChVector3d(0, 0, 0))
-    box_body.AddVisualShape(box_visual)
+    box_body.AddShape(box_shape)
     box_body.SetFixed(True)
     mphysicalSystem.Add(box_body)
 
@@ -89,17 +86,17 @@ def main():
     
     
     offset_pose_2d = chrono.ChFramed(
-        chrono.ChVector3d(-12, 0, 0.5), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
+        chrono.ChVector3d(-12, 0, 0), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
     )
     lidar_2d = sens.ChLidarSensor(
         box_body,              
         update_rate,            
         offset_pose_2d,         
-        1,                     
+        horizontal_samples,     
         1,                     
         horizontal_fov,         
         0,                     
-        0,                     
+        -chrono.CH_PI / 2,      
         100.0,                  
         sens.LidarBeamShape_RECTANGULAR,  
         sample_radius,          
@@ -112,10 +109,29 @@ def main():
     lidar_2d.SetCollectionWindow(collection_time)
 
     
-    lidar_2d.PushFilter(sens.ChFilterDIAccess())
-    lidar_2d.PushFilter(sens.ChFilterPCfromDepth())
+    
+    
+    if noise_model == "CONST_NORMAL_XYZI":
+        lidar_2d.PushFilter(sens.ChFilterLidarNoiseXYZI(0.01, 0.001, 0.001, 0.01))
+    elif noise_model == "NONE":
+        
+        pass
+
     if vis:
+        
+        lidar_2d.PushFilter(sens.ChFilterVisualize(horizontal_samples, 1, "Raw 2D Lidar Depth Data"))
+
+    
+    lidar_2d.PushFilter(sens.ChFilterDIAccess())
+
+    
+    lidar_2d.PushFilter(sens.ChFilterPCfromDepth())
+
+    if vis:
+        
         lidar_2d.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "2D Lidar Point Cloud"))
+
+    
     lidar_2d.PushFilter(sens.ChFilterXYZIAccess())
 
     
@@ -148,7 +164,7 @@ def main():
                 chrono.ChVector3d(
                     -orbit_radius * math.cos(ch_time * orbit_rate),
                     -orbit_radius * math.sin(ch_time * orbit_rate),
-                    0.5
+                    0
                 ),
                 chrono.QuatFromAngleAxis(ch_time * orbit_rate, chrono.ChVector3d(0, 0, 1))
             )

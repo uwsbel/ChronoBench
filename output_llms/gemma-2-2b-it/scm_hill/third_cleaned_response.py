@@ -50,7 +50,6 @@ vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 
-
 vehicle.Initialize()
 
 vehicle.SetChassisVisualizationType(vis_type)
@@ -74,10 +73,7 @@ terrain.SetSoilParameters(2e6,
 )
 
 
-terrain.SetHeightMap(chrono.GetChronoDataFile("terrain/height_maps/bump64.bmp"))
-
-
-terrain.SetTexture(chrono.GetChronoDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
+terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
 
 
 

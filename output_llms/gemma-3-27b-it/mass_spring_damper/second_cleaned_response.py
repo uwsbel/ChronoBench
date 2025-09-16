@@ -6,27 +6,34 @@ spring_coef = 50
 damping_coef = 1
 
 class MySpringForce(chrono.ForceFunctor):
-    def __init__(self, spring_coef, damping_coef):
+    def __init__(self, spring_k, damping_c):
         super().__init__()
-        self.spring_coef = spring_coef
-        self.damping_coef = damping_coef
+        self.spring_k = spring_k
+        self.damping_c = damping_c
 
-    def Evaluate(self, time, body, link, state):
+    def Evaluate(self, time, body, link_num, state):
         
         
-        current_length = link.GetLength()
-
-        
-        spring_force = self.spring_coef * (current_length - rest_length)
-
-        
-        damping_force = self.damping_coef * link.GetVelocity()
+        link = body.GetLink(link_num)
+        if link is None:
+            return chrono.ChVector3d(0, 0, 0)
 
         
-        total_force = spring_force + damping_force
+        point1 = link.GetAttachPointA()
+        point2 = link.GetAttachPointB()
 
         
-        return chrono.ChVector3d(total_force, 0, 0)  
+        direction = point2 - point1
+        distance = direction.Norm()
+
+        
+        spring_force = -self.spring_k * (distance - rest_length) * direction.Normalize()
+
+        
+        damping_force = -self.damping_c * direction.Normalize() * (point2.GetBody().GetVelocity() - point1.GetBody().GetVelocity()).Dot(direction.Normalize())
+
+        
+        return spring_force + damping_force
 
 
 sys = chrono.ChSystemNSC()
@@ -42,6 +49,7 @@ ground.AddVisualShape(sph_1, chrono.ChFramed(chrono.ChVector3d(-1, 0, 0)))
 
 sph_2 = chrono.ChVisualShapeSphere(0.1)
 ground.AddVisualShape(sph_2, chrono.ChFramed(chrono.ChVector3d(1, 0, 0)))
+
 
 body_1 = chrono.ChBody()
 sys.AddBody(body_1)
@@ -78,8 +86,10 @@ spring_1.AddVisualShape(chrono.ChVisualShapeSpring(0.05, 80, 15))
 spring_2 = chrono.ChLinkTSDA()
 spring_2.Initialize(body_2, ground, True, chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(1, 0, 0))
 spring_2.SetRestLength(rest_length)
+
 my_spring_force = MySpringForce(spring_coef, damping_coef)
 spring_2.SetForceFunctor(my_spring_force)
+
 sys.AddLink(spring_2)
 spring_2.AddVisualShape(chrono.ChVisualShapeSpring(0.05, 80, 15))
 

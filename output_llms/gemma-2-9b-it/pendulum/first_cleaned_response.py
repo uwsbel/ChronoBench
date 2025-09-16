@@ -2,42 +2,42 @@ import pychrono as chrono
 import pychrono.irrlicht as vis
 
 
-chrono.SetChronoDataPath("path/to/chrono/data")  
-system = chrono.ChSystemNSC()
+chrono.SetChronoDataPath("data/")  
 
 
-ground = chrono.ChBodyEasyBox(10, 10, 1, 1000)
+world = chrono.ChSystemNSC()
+
+
+ground = chrono.ChBodyEasySphere(1.0, 100.0)
 ground.SetPos(chrono.ChVectorD(0, 0, 0))
-system.Add(ground)
+world.AddBody(ground)
 
 
 pendulum_mass = 1.0
-pendulum_length = 1.0
-pendulum_inertia = chrono.ChVectorD(0.1, 0.1, 0.1)  
-pendulum = chrono.ChBodyEasySphere(pendulum_mass, pendulum_inertia)
-pendulum.SetPos(chrono.ChVectorD(0, pendulum_length, 0))
-system.Add(pendulum)
+pendulum_radius = 0.1
+pendulum_inertia = chrono.ChVectorD(pendulum_mass * pendulum_radius**2, 0, 0)
+pendulum = chrono.ChBodyEasyCylinder(pendulum_mass, pendulum_radius, 0.5)
+pendulum.SetPos(chrono.ChVectorD(0, 0.5, 0))
+pendulum.SetInertiaXX(pendulum_inertia)
+world.AddBody(pendulum)
 
 
-joint = chrono.ChLinkLockRevolute(ground, pendulum,
-                                  chrono.ChVectorD(0, 0, 0),
-                                  chrono.ChVectorD(0, 0, 1))
-system.Add(joint)
+joint = chrono.ChLinkRevolute(ground, pendulum,
+                            chrono.ChVectorD(0, 0.5, 0),
+                            chrono.ChVectorD(0, 0, 1))
+world.AddLink(joint)
 
 
-vis.Initialize(chrono.ChVectorD(800, 600, 0))
-vis.Add(ground)
-vis.Add(pendulum)
-vis.SetCamera(chrono.ChVectorD(0, 0, 5), chrono.ChVectorD(0, 0, 0))
+vis.Initialize(chrono.GetChWorld(), "Simple Pendulum")
 
 
 dt = 0.01
 while True:
-    system.DoStepDynamics(dt)
-
+    world.DoStepDynamics(dt)
+    
     
     pendulum_pos = pendulum.GetPos()
-    pendulum_vel = pendulum.GetRotSpeed()
+    pendulum_vel = pendulum.GetRotVel()
     print(f"Position: {pendulum_pos}, Velocity: {pendulum_vel}")
-
+    
     vis.Render()

@@ -36,7 +36,7 @@ pend_1.AddVisualShape(cyl_1, chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleY
 pend_1.SetPos(chrono.ChVector3d(1, 0, 1))
 
 
-pend_1.SetRotAngVel(chrono.ChVector3d(0, 0, 1))  
+pend_1.SetAngVel(chrono.ChVector3d(0, 0, 1))  
 
 
 
@@ -48,7 +48,7 @@ sys.AddLink(sph_1)
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(sys)  
 vis.SetWindowSize(1024, 768)  
-vis.SetWindowTitle('ChBodyAuxRef demo')  
+vis.SetWindowTitle('Spherical Joint demo')  
 vis.Initialize()  
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))  
 vis.AddSkyBox()  

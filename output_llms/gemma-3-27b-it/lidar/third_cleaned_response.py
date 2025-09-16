@@ -13,36 +13,12 @@ def main():
     
     
     
-    artcar = chrono.ARTCar()
-    artcar.SetChassisHeight(0.5)
-    artcar.SetWheelRadius(0.2)
-    artcar.SetWheelOffset(0.6)
-    artcar.SetVehicleMass(200)
-    artcar.SetEngineForce(2000)
-    artcar.SetMaxSteeringAngle(0.3)
-    artcar.SetDifferentialLock(True)
-    mphysicalSystem.Add(artcar)
-
-    
-    
-    
-    driver = chrono.ChDriver(artcar)
-    driver.SetInput(chrono.ChDriver.INPUT_AUTO)  
-    mphysicalSystem.Add(driver)
-
-    
-    
-    
-    terrain = chrono.ChTerrain()
-    terrain.Create(mphysicalSystem,
-                   chrono.ChTerrain.TYPE_GRID,
-                   200, 200, 10, 10)
-    terrain.SetTexture(chrono.GetChronoDataFile("textures/terrain.jpg"))
-    terrain.SetMaterial(chrono.ChMaterialSurfaceNSC())
-    terrain.GetMaterial().SetFriction(0.8)
-    terrain.GetMaterial().SetRestitution(0.1)
-    terrain.SetColor(chrono.ChColor(0.8, 0.7, 0.5))
-    mphysicalSystem.Add(terrain)
+    artcar = chrono.ARTcar(mphysicalSystem)
+    artcar.SetVehicleModel("ARTCAR_SIMPLE")
+    artcar.SetTireModel("RIGID")
+    artcar.SetEngineType(chrono.ARTcar.EngineType.ELECTRIC)
+    artcar.SetInitialPosition(chrono.ChVector3d(0, 0, 0.5))
+    artcar.SetInitialVelocity(chrono.ChVector3d(0, 0, 0))
 
     
     
@@ -134,11 +110,33 @@ def main():
     
     
     
+    terrain = chrono.ChTerrain()
+    terrain.Create(mphysicalSystem, "terrain", chrono.ChVector3d(0, 0, -1), chrono.ChVector3d(50, 50, 0), 5, 5)
+    terrain.SetTexture(chrono.GetChronoDataFile("textures/grass.jpg"), 20, 20)
+    terrain.SetMaterialProperties(0.5, 0.8, 1.0)
+
+    
+    
+    
+    camera = sens.ChThirdPersonCamera()
+    camera.Attach(artcar.GetChassis())
+    camera.SetOffset(chrono.ChVector3d(0, 0, 2))
+    camera.SetAimPoint(chrono.ChVector3d(0, 0, 0.5))
+    camera.SetVerticalAngle(0.3)
+    manager.AddSensor(camera)
+
+    
+    
+    
     orbit_radius = 10
     orbit_rate = 0.1
     ch_time = 0.0
     render_time = 0
     t1 = time.time()
+
+    driver = chrono.ARTcarDriver(artcar)
+    driver.SetThrottle(0.5)
+
     while ch_time < end_time:
         
         
@@ -164,15 +162,13 @@ def main():
 
         
         mphysicalSystem.DoStepDynamics(step_size)
+        artcar.Synchronize()
+        driver.Synchronize()
+        terrain.Synchronize()
 
         
         ch_time = mphysicalSystem.GetChTime()
         print("Sim time:", end_time, "Wall time:", time.time() - t1)
-
-        
-        artcar.Synchronize(step_size)
-        driver.Synchronize(step_size)
-        terrain.Synchronize(step_size)
 
     
     

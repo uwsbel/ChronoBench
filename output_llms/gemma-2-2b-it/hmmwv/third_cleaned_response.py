@@ -85,37 +85,19 @@ vis.AttachVehicle(vehicle.GetVehicle())
 
 
 class MyDriver(veh.ChDriver):
-    def __init__(self, vehicle):
+    def __init__(self, vehicle, delay):
         super().__init__(vehicle)
-        self.delay = 0.5
+        self.delay = delay
+        self.throttle = 0.0
+        self.steering = 0.0
+        self.braking = 0.0
 
     def Synchronize(self, time):
-        
-        if time > 0.2:
-            self.throttle = 0.7
-        else:
-            self.throttle = 0
+        self.throttle += (0.7 - self.throttle) * time / self.delay
+        self.steering += (2.0 * math.sin(time / 2.0)) * time / self.delay
+        self.braking += (0.0 - self.braking) * time / self.delay
 
-        
-        if time > 2:
-            self.steering = 2 * math.sin(time - 2)
-        else:
-            self.steering = 0
-
-        
-        self.ApplyInputs()
-
-
-driver = MyDriver(vehicle)
-
-
-steering_time = 1.0  
-throttle_time = 1.0  
-braking_time = 0.3   
-driver.SetSteeringDelta(render_step_size / steering_time)
-driver.SetThrottleDelta(render_step_size / throttle_time)
-driver.SetBrakingDelta(render_step_size / braking_time)
-
+driver = MyDriver(vehicle, 0.5)  
 driver.Initialize()
 
 

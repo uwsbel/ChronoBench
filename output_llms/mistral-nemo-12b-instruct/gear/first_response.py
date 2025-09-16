@@ -1,64 +1,59 @@
-import pychrono as pc
-import pychrono.visualization.irrlicht as irr
-import pychrono.physics as ph
-import pychrono.materials as mat
-import numpy as np
+import pychrono as chrono
+import pychrono.irrlicht as irr
 
-# Initialize PyChrono environment
-pc.init()
+# Initialize PyChrono environment and core components
+physics = chrono.ChPhysicsEngine()
+physics.Set_Gravity(chrono.ChVectorD(0, -9.81, 0))
+my_system = chrono.ChSystemNSC(physics)
+collision_system = chrono.ChCollisionSystem()
 
-# Create a simulation scene
-scene = pc.Scene()
+# Create and add physical systems and objects
+# Fixed truss
+truss = chrono.ChBodyEasyBox(0.5, 1, 0.5, 1000, True, True, material=chrono.ChMaterialSurfaceNSC())
+truss.SetPos(chrono.ChVectorD(0, 0.5, 0))
+truss.SetBodyFixed(True)
+my_system.Add(truss)
 
-# Set gravity
-scene.set_gravity([0, -9.81, 0])
+# Rotating bar
+bar = chrono.ChBodyEasyBox(0.1, 1, 0.1, 10, True, True, material=chrono.ChMaterialSurfaceNSC())
+bar.SetPos(chrono.ChVectorD(0, 1, 0))
+bar.SetRot(chrono.Q_from_AngX(chrono.CH_C_PI / 2))
+bar.SetBodyFixed(False)
+my_system.Add(bar)
 
-# Create a fixed truss (static body)
-truss_shape = ph.BoxShape([1, 1, 0.1])
-truss_material = mat.Material("truss_material", density=1000, young_modulus=1e7, poisson_ratio=0.3)
-truss_body = ph.Body(truss_shape, truss_material, mass=0, fixed=True)
-truss_body.set_position([0, 0, 0])
-scene.add(truss_body)
+# Gears
+gear1 = chrono.ChBodyEasyCylinder(0.1, 0.5, 10, True, True, material=chrono.ChMaterialSurfaceNSC())
+gear1.SetPos(chrono.ChVectorD(-0.3, 1, 0))
+gear1.SetRot(chrono.Q_from_AngX(chrono.CH_C_PI / 2))
+gear1.SetBodyFixed(False)
+my_system.Add(gear1)
 
-# Create a rotating bar (kinematic body)
-bar_shape = ph.BoxShape([0.5, 0.1, 0.1])
-bar_material = mat.Material("bar_material", density=1000, young_modulus=1e7, poisson_ratio=0.3)
-bar_body = ph.Body(bar_shape, bar_material, mass=1)
-bar_body.set_position([0, 0.5, 0])
-bar_body.set_kinematic(True)
-scene.add(bar_body)
+gear2 = chrono.ChBodyEasyCylinder(0.1, 0.5, 10, True, True, material=chrono.ChMaterialSurfaceNSC())
+gear2.SetPos(chrono.ChVectorD(0.3, 1, 0))
+gear2.SetRot(chrono.Q_from_AngX(chrono.CH_C_PI / 2))
+gear2.SetBodyFixed(False)
+my_system.Add(gear2)
 
-# Create two gears (dynamic bodies)
-gear1_shape = ph.CylinderShape(radius=0.2, height=0.1)
-gear1_material = mat.Material("gear1_material", density=1000, young_modulus=1e7, poisson_ratio=0.3)
-gear1_body = ph.Body(gear1_shape, gear1_material, mass=0.1)
-gear1_body.set_position([-0.2, 0.5, 0])
-scene.add(gear1_body)
+# Gear motor
+motor = chrono.ChLinkMotor AngularMotor(gear1, gear2, chrono.ChVectorD(0, 1, 0), 1000, True)
+my_system.Add(motor)
 
-gear2_shape = ph.CylinderShape(radius=0.1, height=0.1)
-gear2_material = mat.Material("gear2_material", density=1000, young_modulus=1e7, poisson_ratio=0.3)
-gear2_body = ph.Body(gear2_shape, gear2_material, mass=0.05)
-gear2_body.set_position([0.2, 0.5, 0])
-scene.add(gear2_body)
+# Set up Irrlicht visualization system
+application = irr.ChIrrApp(my_system, physics, collision_system, irr.CH_HAS_GUI)
+application.AddBody(irr.ChIrrNodeBody(application.GetSystem(), truss))
+application.AddBody(irr.ChIrrNodeBody(application.GetSystem(), bar))
+application.AddBody(irr.ChIrrNodeBody(application.GetSystem(), gear1))
+application.AddBody(irr.ChIrrNodeBody(application.GetSystem(), gear2))
 
-# Create a gear motor to drive the first gear
-motor = ph.GearMotor(gear1_body, gear2_body, ratio=2)
-motor.set_motor_speed(10)
-scene.add(motor)
+# Set up lighting and materials
+light = irr.ChIrrLightApplication(application.GetVideoDriver(), application.GetSceneManager())
+light.AddDirectionalLight(irr.SColorf(1, 1, 1, 1), chrono.ChVectorD(1, 1, -1))
+application.SetLightSettings(light)
 
-# Create a visualization system
-vis = irr.IrrlichtVisualizer(scene)
-vis.set_background_color([0.8, 0.8, 0.8])
-vis.set_ambient_light([0.5, 0.5, 0.5])
-vis.set_directional_light([1, 1, -1], [0.5, 0.5, 0.5])
-
-# Set materials for visualization
-truss_body.set_visual_material(mat.Material("truss_vis", diffuse_color=[0.5, 0.3, 0.2]))
-bar_body.set_visual_material(mat.Material("bar_vis", diffuse_color=[0.2, 0.5, 0.3]))
-gear1_body.set_visual_material(mat.Material("gear1_vis", diffuse_color=[0.3, 0.2, 0.5]))
-gear2_body.set_visual_material(mat.Material("gear2_vis", diffuse_color=[0.2, 0.3, 0.5]))
+material = irr.ChIrrMaterial()
+material.SetTexture(irr.ChStr("metal.jpg"))
+application.GetSystem().SetMaterialAsset(material)
 
 # Run the simulation
-for i in range(100):
-    scene.step(0.01)
-    vis.render()
+application.SetTimestep(0.01)
+application.Run()

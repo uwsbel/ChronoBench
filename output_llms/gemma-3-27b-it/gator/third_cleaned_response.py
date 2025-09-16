@@ -21,9 +21,9 @@ tire_model = veh.TireModelType_TMEASY
 
 
 
-terrainHeight = 0
-terrainLength = 100.0
-terrainWidth = 100.0
+terrainHeight = 0  
+terrainLength = 100.0  
+terrainWidth = 100.0  
 
 
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)

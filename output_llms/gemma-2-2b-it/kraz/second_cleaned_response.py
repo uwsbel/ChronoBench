@@ -81,7 +81,6 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetTractor())
 
 
-
 driver = veh.ChInteractiveDriverIRR(vis)
 
 
@@ -134,10 +133,9 @@ while vis.Run() :
     step_number += 1
 
     
-    if time > 0.5:
-        driver.ExecuteLaneChange(chrono.ChVector3d(0, 0, 0), 
-                                 chrono.ChVector3d(0, 1, 0), 
-                                 chrono.ChVector3d(0, 0, 0))
+    realtime_timer.Spin(step_size)
 
     
-    realtime_timer.Spin(step_size)
+    if time > 1.0:
+        
+        pass

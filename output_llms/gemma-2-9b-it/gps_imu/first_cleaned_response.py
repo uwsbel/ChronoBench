@@ -3,51 +3,54 @@ import pychrono.irrlicht as irrlicht
 
 
 chrono.SetChronoDataPath("path/to/chrono/data")  
-app = irrlicht.IrrlichtApp()
-world = chrono.ChSystemNSC()
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))  
 
 
 
-vehicle = chrono.ChBodyEasy(1000, chrono.ChVectorD(0.5, 0.5, 0.5), chrono.ChVectorD(0, 0, 0))  
-vehicle.SetPos(chrono.ChVectorD(0, 0, 0))
-world.Add(vehicle)
+hmmwv = chrono.ChBodyEasy(chrono.ChVectorD(0, 0, 0), 1000, chrono.ChVectorD(0, 0, 0), 
+                          chrono.ChVectorD(0.5, 0.5, 0.5))  
+system.Add(hmmwv)
 
 
-terrain = chrono.ChBodyEasy(1e6, chrono.ChVectorD(10, 10, 10), chrono.ChVectorD(0, 0, 0))  
-terrain.SetPos(chrono.ChVectorD(0, 0, -0.5))
-world.Add(terrain)
+terrain = chrono.ChBodyEasy(chrono.ChVectorD(0, 0, 0), 10000, chrono.ChVectorD(0, 0, 0),
+                          chrono.ChVectorD(10, 10, 1))  
+system.Add(terrain)
 
 
-imu = chrono.ChSensor_IMU(vehicle)
-gps = chrono.ChSensor_GPS(vehicle)
-world.Add(imu)
-world.Add(gps)
+imu = chrono.ChSensor_IMU(hmmwv)
+system.Add(imu)
 
 
-
-driver_input = chrono.ChVectorD(0, 0, 0)  
-
+gps = chrono.ChSensor_GPS(hmmwv)
+system.Add(gps)
 
 
 
+hmmwv.SetPos(chrono.ChVectorD(0, 0, 0.5))  
 
-while app.run():
+
+
+
+
+
+app = irrlicht.IrrlichtApp(system)
+app.Run()
+
+
+while True:
+    system.DoStepDynamics(0.01)  
     
     
+    imu_data = imu.Get_data()
+    gps_data = gps.Get_data()
+    print(f"IMU Data: {imu_data}")
+    print(f"GPS Data: {gps_data}")
+    
+    
+    
+    
+    app.Render()
 
     
-    world.Step(1/60)  
-
-    
-    imu_data = imu.GetSensorData()
-    gps_data = gps.GetSensorData()
-    
-
-    
-    app.render(vehicle, terrain)
-
-    
-    print(f"Vehicle mass: {vehicle.GetMass()}")
-
-
-app.close()
+    print(f"Vehicle Mass: {hmmwv.GetMass()}")

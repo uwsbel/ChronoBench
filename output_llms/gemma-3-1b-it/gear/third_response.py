@@ -98,9 +98,12 @@ mbody_wheelA = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y,             # Creating
                                         1000, True, False, mat)     # Setting mass, visualization, collision, and material
 sys.Add(mbody_wheelA)                                                # Adding the wheel to the system
 mbody_wheelA.SetPos(chrono.ChVector3d(0, 0, 0))                     # Positioning the wheel at (0, 0, 0)
-mbody_wheelA.SetRot(chrono.QuatFromAngleX(chrono.CH_PI_2))                 # Rotating the wheel by 270 degrees around X-axis
-mbody_wheelA.GetVisualShape(0).SetMaterial(0, vis_mat)               # Applying the visual material to the wheel
 
+mbody_wheelB = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y,             # Creating a cylindrical wheel with Y axis as the central axis
+                                        radB, 0.5,                  # Setting radius and height
+                                        1000, True, False, mat)     # Setting mass, visualization, collision, and material
+sys.Add(mbody_wheelB)                                                # Adding the wheel to the system
+mbody_wheelB.SetPos(chrono.ChVector3d(0, 0, 0))                     # Positioning the wheel at (0, 0, 0)
 
 # Create the first gear
 mbody_gearA = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y,             # Creating a cylindrical gear with Y axis as the central axis
@@ -129,11 +132,11 @@ link_motor.Initialize(mbody_gearA, mbody_truss,                     # Initializi
 link_motor.SetSpeedFunction(chrono.ChFunctionConst(3))              # Modified constant rotation speed to 3 rad/s
 sys.AddLink(link_motor)                                                  # Adding the motor link to the system
 
-# Create the revolute joint between truss and rotating bar
+# Create the revolute joint between truss and rotating bar, allowing rotation along the Z-axis
 link_revolute = chrono.ChLinkLockRevolute()                         # Creating a revolute joint
 link_revolute.Initialize(mbody_gearA, mbody_train,                  # Initializing the joint with truss and rotating bar
                            chrono.ChFramed(chrono.ChVector3d(0, 0, 0),    # Positioning the joint at origin
-                                           chrono.QUNIT))                # No initial rotation
+                                           chrono.QUNIT))  # No initial rotation
 sys.AddLink(link_revolute)                                          # Adding the joint to the system
 
 # Create the first gear
@@ -145,7 +148,12 @@ mbody_gearA.SetPos(chrono.ChVector3d(0, 0, -1))                     # Positionin
 mbody_gearA.SetRot(chrono.QuatFromAngleX(m.pi / 2))                 # Rotating the gear by 90 degrees around X-axis
 mbody_gearA.GetVisualShape(0).SetMaterial(0, vis_mat)               # Applying the visual material to the gear
 
-# Add a thin cylinder only for visualization purpose
-mshaft_shape = chrono.ChVisualShapeCylinder(radA * 0.3, 10)                                # Modified thin cylinder for visualization
-mbody_gearA.AddVisualShape(mshaft_shape, chrono.ChFramed(chrono.ChVector3d(0, 3.5, 0),     # Adding the visual shape to the gear
-                                                          chrono.QUNIT))  # No initial rotation
+# Create the second gear
+interaxis12 = radA + radB                                           # Calculating distance between the centers of two gears
+mbody_gearB = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y,             # Creating second gear with cylinder shape
+                                        radB, 0.4,                  # Setting radius and height
+                                        1000, True, False, mat)     # Setting mass, visualization, collision, and material
+sys.Add(mbody_gearB)                                                # Adding the second gear to the system
+mbody_gearB.SetPos(chrono.ChVector3d(interaxis12, 0, -2))           # Modified position of the second gear to (interaxis12, 0, -2)
+mbody_gearB.SetRot(chrono.QuatFromAngleX(m.pi / 2))                 # Rotating the second gear by 90 degrees around X-axis
+mbody_gearB.GetVisualShape(0).SetMaterial(0, vis_mat)               # Applying the visual material to the gear

@@ -35,9 +35,8 @@ pend_1.AddVisualShape(cyl_1, chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleY
 # The pendulum is initially horizontal, pointing towards the positive X direction
 pend_1.SetPos(chrono.ChVector3d(1, 0, 1))
 
-# Set an initial angular velocity for the pendulum
-pend_1.SetRot(chrono.ChQuaterniond(1, 0, 0, 0))
-pend_1.SetRotSpeed(chrono.ChVector3d(0, 0, 0.5))  # Initial angular velocity around Z-axis
+# Set initial angular velocity
+pend_1.SetAngularVelocity(chrono.ChVector3d(0, 0, 1.0))
 
 # Create a spherical joint to connect the pendulum to the ground
 sph_1 = chrono.ChLinkTSpherical()
@@ -68,6 +67,4 @@ while vis.Run():
         pos_1 = pend_1.GetPos()  # Get the position of the pendulum
         print("t = ", sys.GetChTime())
         print("     ", pos_1.x, "  ", pos_1.y)
-        lin_vel_1 = pend_1.GetPosDt()  # Get the linear velocity of the pendulum
-        print("     ", lin_vel_1.x, "  ", lin_vel_1.y)
         log_info = False  # Disable further logging

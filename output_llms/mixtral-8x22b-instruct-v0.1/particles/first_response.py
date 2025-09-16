@@ -2,57 +2,55 @@ import pychrono as chrono
 import pychrono.irrlicht as chronoirr
 import numpy as np
 
-# Step 1: Initialize the PyChrono environment and core components
-chrono.SetChronoDataPath("/path/to/chrono/data")  # Replace with the path to your Chrono data directory
-chrono.SetChronoDataPath("/path/to/irrlicht/data")  # Replace with the path to your Irrlicht data directory
-
+# Initialize the PyChrono environment and core components
 my_system = chrono.ChSystemNSC()
+my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
 
-# Step 2: Create a particle emitter
+# Create the particle emitter
 class ParticleEmitter:
     def __init__(self):
-        self.shapes = [chrono.ChBodyEasySphere(1), chrono.ChBodyEasyBox(1, 1, 1), chrono.ChBodyEasyCylinder(1, 1)]
+        self.shapes = [chrono.ChBodyEasySphere(1, 1000), chrono.ChBodyEasyCylinder(1, 1, 1000), chrono.ChBodyEasyBox(1, 1, 1, 1000)]
 
     def emit_particle(self):
-        shape = np.random.choice(self.shapes)
-        shape.SetPos(chrono.ChVectorD(np.random.uniform(-10, 10), np.random.uniform(-10, 10), np.random.uniform(-10, 10)))
-        shape.SetPos_dt(chrono.ChVectorD(np.random.uniform(-1, 1), np.random.uniform(-1, 1), np.random.uniform(-1, 1)))
-        shape.SetWvel_par(chrono.ChVectorD(np.random.uniform(-10, 10), np.random.uniform(-10, 10), np.random.uniform(-10, 10)))
-        my_system.Add(shape)
+        particle = self.shapes[np.random.randint(0, len(self.shapes))].copy()
+        particle.SetPos(chrono.ChVectorD(np.random.uniform(-5, 5), 10, np.random.uniform(-5, 5)))
+        particle.SetRot(chrono.ChQuaternionD(np.random.uniform(-1, 1), np.random.uniform(-1, 1), np.random.uniform(-1, 1), np.random.uniform(-1, 1)).GetNormalized())
+        particle.SetPos_dt(chrono.ChVectorD(np.random.uniform(-1, 1), np.random.uniform(-1, 0), np.random.uniform(-1, 1)))
+        particle.SetWvel_loc(chrono.ChVectorD(np.random.uniform(-1, 1), np.random.uniform(-1, 1), np.random.uniform(-1, 1)))
+        my_system.Add(particle)
 
+# Create the particle emitter
 emitter = ParticleEmitter()
 
-# Step 3: Implement custom gravitational forces
-def apply_gravitational_forces(my_system):
-    for body in my_system.Get_bodylist():
-        for other_body in my_system.Get_bodylist():
-            if body != other_body:
-                force = chrono.ChVectorD(0, 0, 0)
-                distance = body.GetPos() - other_body.GetPos()
-                force_magnitude = 10 * body.GetMass() * other_body.GetMass() / np.linalg.norm(distance) ** 2
-                force = force_magnitude * distance.GetNormalized()
-                body.Accumulate_force(force, body.GetPos(), False)
+# Set custom gravitational forces
+def custom_gravitational_force(body1, body2):
+    force = chrono.ChVectorD(0, -6.67430e-11 * body1.GetMass() * body2.GetMass() / (body1.GetPos() - body2.GetPos()).LengthSquared(), 0)
+    body1.Accumulate_force(force, body1.GetPos(), True)
+    body2.Accumulate_force(-force, body2.GetPos(), True)
 
-# Step 4: Visualize the simulation using Irrlicht
-application = chronoirr.ChIrrApp(my_system, "PyChrono Particle Simulation", chronoirr.dimension2du(800, 600))
-application.AddTypicalSky()
-application.AddTypicalLogo()
-application.AddTypicalCamera(chronoirr.vector3df(0, 0, -10))
-application.AddLightWithShadow(chronoirr.vector3df(10, 10, 10), chronoirr.vector3df(0, 0, 0), 1, 10, 50, 32)
+# Visualize the simulation using Irrlicht
+visualizer = chronoirr.ChIrrApp(my_system, 'PyChrono Simulation', chronoirr.dimension2du(800, 600))
+visualizer.AddTypicalSky()
+visualizer.AddTypicalLogo()
+visualizer.AddTypicalCamera(chronoirr.vector3df(0, 4, -3))
+visualizer.AddLightWithShadow(chronoirr.vector3df(2, 4, -2), chronoirr.vector3df(2, 2, -2), 3, 2, 20, 50, 100)
 
-while application.GetDevice().run():
-    application.BeginScene()
-    application.DrawAll()
-
-    # Emit a new particle every second
-    if application.GetTimer() > 1:
-        emitter.emit_particle()
-        application.GetTimer() = 0
-
-    # Apply gravitational forces
-    apply_gravitational_forces(my_system)
-
+# Main simulation loop
+while visualizer.Run():
     my_system.DoStepDynamics(0.01)
-    application.EndScene()
+    visualizer.BeginScene()
+    visualizer.DrawAll()
+    visualizer.EndScene()
 
-chrono.ChEnd()
+    # Emit particles
+    if np.random.rand() < 0.01:
+        emitter.emit_particle()
+
+    # Apply custom gravitational forces
+    for body1 in my_system.Get_bodylist():
+        for body2 in my_system.Get_bodylist():
+            if body1 != body2:
+                custom_gravitational_force(body1, body2)
+
+# Cleanup
+visualizer.Close()

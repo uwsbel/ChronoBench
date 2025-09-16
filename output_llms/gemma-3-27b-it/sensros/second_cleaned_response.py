@@ -11,11 +11,13 @@ def main():
     
     mmesh.LoadWavefrontMesh(ch.GetChronoDataFile("vehicle/hmmwv/hmmwv_chassis.obj"), False, True)
     mmesh.Transform(ch.ChVector3d(0, 0, 0), ch.ChMatrix33d(1))
+
     
     trimesh_shape = ch.ChVisualShapeTriangleMesh()
     trimesh_shape.SetMesh(mmesh)
     trimesh_shape.SetName("HMMWV Chassis Mesh")
     trimesh_shape.SetMutable(False)
+
     
     mesh_body = ch.ChBody()
     mesh_body.SetPos(ch.ChVector3d(0, 0, 0))
@@ -60,7 +62,7 @@ def main():
     sens_manager.AddSensor(lidar)
 
     
-    lidar2d = sens.ChLidar2DSensor(ground_body, 5., offset_pose, 180, 300, 0.1, 100.)
+    lidar2d = sens.ChLidar2DSensor(ground_body, 5., offset_pose, 180, 1000, 0.1, 0.01)
     lidar2d.PushFilter(sens.ChFilterScanAccess())
     lidar2d.PushFilter(sens.ChFilterVisualizeScan(1280, 720, 1))
     lidar2d.SetName("lidar2d")

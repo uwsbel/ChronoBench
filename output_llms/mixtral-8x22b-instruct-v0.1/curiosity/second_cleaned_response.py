@@ -22,8 +22,8 @@ system.Add(ground)
 
 
 obstacle_mat = chrono.ChContactMaterialNSC()
-obstacle = chrono.ChBodyEasyBox(1, 1, 5, 1000, True, True, obstacle_mat)
-obstacle.SetPos(chrono.ChVector3d(0, 0, 0.5))  
+obstacle = chrono.ChBodyEasyBox(1, 1, 0.5, 1000, True, True, obstacle_mat)
+obstacle.SetPos(chrono.ChVector3d(0, 0, 0.25))  
 system.Add(obstacle)
 
 
@@ -64,6 +64,8 @@ while vis.Run():
 
     
     steering = 0
+    if time >= 1:
+        steering = 0  
     driver.SetSteering(steering)
 
     

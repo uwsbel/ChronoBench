@@ -17,12 +17,19 @@ vis_type = veh.VisualizationType_MESH
 chassis_collision_type = veh.CollisionType_NONE
 
 
+
 terrainHeight = 0      
 terrainLength = 100.0  
 terrainWidth = 100.0   
 
 
-trackPoint = chrono.ChVector3d(0.0, 0.0, 0.1)
+box_length = 10.0
+box_width = 5.0
+box_height = 2.0
+box_center = chrono.ChVector3d(0, 0, 0.5)
+box = veh.RigidBox(chrono.ChFramed(), box_length, box_width, box_height)
+box.SetPosition(box_center)
+terrain.AddPatch(box, chrono.ChQuaterniond(0, 0, 0, 0), 0, 0, 0, box_length, box_width, box_height)
 
 
 contact_method = chrono.ChContactMethod_SMC
@@ -36,14 +43,13 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  
 
 
+
 vehicle = veh.M113()
 vehicle.SetContactMethod(contact_method)
-vehicle.SetTrackShoeType(veh.TrackShoeType_SINGLE_PIN)
 vehicle.SetDrivelineType(veh.DrivelineTypeTV_BDS)
 vehicle.SetEngineType(veh.EngineModelType_SHAFTS)
 vehicle.SetTransmissionType(veh.TransmissionModelType_AUTOMATIC_SHAFTS)
 vehicle.SetBrakeType(veh.BrakeType_SIMPLE)
-
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.Initialize()
 
@@ -71,6 +77,7 @@ patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 
+
 vis = veh.ChTrackedVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('M113 Demo')
 vis.SetWindowSize(1280, 1024)
@@ -89,7 +96,7 @@ steering_time = 1.0
 throttle_time = 1.0  
 braking_time = 0.3   
 driver.SetSteeringDelta(render_step_size / steering_time)
-driver.SetThrottleDelta(render_step_size / throttle_time)
+driver.SetThrottleDelta(0.8)  
 driver.SetBrakingDelta(render_step_size / braking_time)
 
 driver.Initialize()
@@ -116,10 +123,6 @@ while vis.Run() :
         vis.Render()
         vis.EndScene()
         render_frame += 1
-
-    
-    driver_inputs = driver.GetInputs()
-    driver_inputs.throttle = 0.8
 
     
     driver_inputs = driver.GetInputs()

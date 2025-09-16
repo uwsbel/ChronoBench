@@ -13,38 +13,45 @@ mesh.Load('path_to_your_mesh.obj')
 
 body = chrono.ChBody()
 body.SetBodyFixed(True)
-body.SetMass(1.0)
-body.SetBodyInertia(1.0, 1.0, 1.0)
+body.SetCollisionShape(mesh)
 body.SetPos(ChVector(0, 0, 0))
-body.SetRot(ChVector(0, 0, 0))
-body.SetBodyMaterial(0.5, 0.5, 0.5)
 space.Add(body)
-body.AddAsset(mesh)
 
 
-sensor = chrono.ChSensor()
-sensor.SetBody(body)
-sensor.SetSensorType(chrono.SensorType.SENSOR_TYPE_LIDAR)
-sensor.SetSensorRange(10.0)
-sensor.SetSensorAngularResolution(1.0)
-sensor.SetSensorAngularRange(360.0)
-space.Add(sensor)
+lidar = chrono.ChSensor()
+lidar.SetSensorType(chrono.ChSensor.SENSOR_TYPE_LIDAR)
+lidar.SetSensorType(chrono.ChSensor.SENSOR_TYPE_LIDAR)
+lidar.SetPos(ChVector(0, 0, 0))
+lidar.SetOrientation(ChVector(0, 0, 0))
+lidar.SetSamplingPeriod(0.01)
+lidar.SetBufferSize(1000)
+lidar.SetBufferSizeMax(1000)
+lidar.SetSaveToFile(True)
+lidar.SetSaveToCSV(True)
+lidar.SetSaveToCSVPeriod(1)
+lidar.SetSaveToCSVName('lidar_data.csv')
+lidar.SetFilterNoise(True)
+lidar.SetFilterNoiseValue(0.1)
+lidar.SetFilterVisual(True)
+lidar.SetFilterVisualValue(0.1)
+lidar.SetSensorManager(space)
 
 
-sensor_manager = chrono.ChSensorManager()
-sensor_manager.AddSensor(sensor)
-sensor_manager.SetVisualization(True)
-sensor_manager.SetNoiseFilter(True)
-sensor_manager.SetSaveData(True)
+body.AddSensor(lidar)
 
 
+lidar.SetPos(ChVector(1, 0, 0))
+lidar.SetOrientation(ChVector(0, 0, 0))
+
+
+t = 0
 dt = 0.01
-t = 0.0
-while t < 10.0:
-    space.DoStepDynamics(dt)
-    lidar_data = sensor_manager.GetLidarData()
-    print(lidar_data)
+nsteps = 1000
+space.Set_TMax(nsteps * dt)
+space.Set_Dt(dt)
+
+
+for i in range(nsteps):
+    space.DoStepDynamics(t)
     t += dt
-
-
-chrono.finalize()
+    print(lidar.GetBufferData())

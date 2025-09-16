@@ -22,9 +22,9 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 
-terrainHeight = 0      
+terrainHeight = 0  
 terrainLength = 100.0  
-terrainWidth = 100.0   
+terrainWidth = 100.0  
 
 
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
@@ -44,7 +44,7 @@ render_step_size = 1.0 / 50
 log_step_size = 0.1  
 
 
-vehicle = veh.HMMWV_Full() 
+vehicle = veh.HMMWV_Full()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
@@ -68,9 +68,7 @@ patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-patch = terrain.AddPatch(patch_mat, 
-                         chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
-                         terrainLength, terrainWidth)
+patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), terrainLength, terrainWidth)
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
@@ -92,7 +90,7 @@ driver = veh.ChInteractiveDriverIRR(vis)
 
 steering_time = 1.0  
 throttle_time = 1.0  
-braking_time = 0.3   
+braking_time = 0.3  
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
@@ -103,31 +101,34 @@ manager = sens.ChSensorManager(vehicle.GetSystem())
 
 
 offset_pose = chrono.ChFramed(chrono.ChVector3d(-8, 0, 1), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0)))
-imu = sens.ChAccelerometerSensor(vehicle.GetChassisBody(),                     
-                                 10,        
-                                 offset_pose,          
-                                 sens.ChNoiseNone())   
+imu = sens.ChAccelerometerSensor(vehicle.GetChassisBody(),  
+                                  10,  
+                                  offset_pose,  
+                                  sens.ChNoiseNone())  
 imu.SetName("IMU Sensor")
 imu.SetLag(0)
 imu.SetCollectionWindow(0)
+
 imu.PushFilter(sens.ChFilterAccelAccess())
+
 manager.AddSensor(imu)
 
 
-gps = sens.ChGPSSensor(vehicle.GetChassisBody(),                     
-                       10,        
-                       offset_pose,          
+gps = sens.ChGPSSensor(vehicle.GetChassisBody(),  
+                       10,  
+                       offset_pose,  
                        chrono.ChVector3d(-89.400, 43.070, 260.0),  
-                       sens.ChNoiseNone())   
+                       sens.ChNoiseNone())  
 gps.SetName("GPS Sensor")
 gps.SetLag(0)
 gps.SetCollectionWindow(0)
+
 gps.PushFilter(sens.ChFilterGPSAccess())
+
 manager.AddSensor(gps)
 
 
 gps_data = []
-
 
 
 
@@ -142,7 +143,8 @@ render_steps = math.ceil(render_step_size / step_size)
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
-log_step = 0
+log_steps = math.ceil(log_step_size / step_size)
+log_step_number = 0
 
 
 while vis.Run():
@@ -159,14 +161,16 @@ while vis.Run():
     driver_inputs = driver.GetInputs()
 
     
-    if time < 6:
+    if time < 3:
         driver_inputs.throttle = 0.5
         driver_inputs.steering = 0.2
-        driver_inputs.braking = 0
+    elif time < 6:
+        driver_inputs.throttle = 0.5
+        driver_inputs.steering = -0.2
     else:
         driver_inputs.throttle = 0
         driver_inputs.steering = 0
-        driver_inputs.braking = 1
+        driver_inputs.braking = 1.0
 
     
     driver.Synchronize(time)
@@ -184,12 +188,11 @@ while vis.Run():
     manager.Update()
 
     
-    if time - log_step >= log_step_size:
+    log_step_number += 1
+    if log_step_number % log_steps == 0:
         gps_buffer = gps.GetMostRecentGPSBuffer()
         if gps_buffer.IsValid():
-            gps_info = gps_buffer.GetGPSData()
-            gps_data.append([gps_info.latitude, gps_info.longitude, gps_info.altitude])
-        log_step = time
+            gps_data.append(gps_buffer.GetGPSData())
 
     
     step_number += 1

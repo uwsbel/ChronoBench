@@ -25,6 +25,7 @@ def main():
     hmmwv.SetSteeringVisualizationType(veh.VisualizationType_MESH)
     hmmwv.SetWheelVisualizationType(veh.VisualizationType_MESH)
     hmmwv.SetTireVisualizationType(veh.VisualizationType_MESH)
+
     
     terrain = veh.RigidTerrain(hmmwv.GetSystem())
     patch_mat = ch.ChContactMaterialNSC()  
@@ -33,6 +34,13 @@ def main():
     patch = terrain.AddPatch(patch_mat, ch.CSYSNORM, 100.0, 100.0)  
     patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 100, 100)
     terrain.Initialize()  
+
+    
+    vis_box = ch.ChBodyEasyBox(1, 1, 1, ch.ChCoordsysd(ch.ChVector3d(0, 0, 0), ch.ChQuaterniond(1, 0, 0, 0)))
+    vis_box.SetBodyFixed(True)
+    vis_box.SetInertiaFromBox(1, 1, 1)
+    hmmwv.GetSystem().AddBody(vis_box)
+
     
     vis = chronoirr.ChVisualSystemIrrlicht()
     vis.AttachSystem(hmmwv.GetSystem())
@@ -57,35 +65,32 @@ def main():
     ros_manager.RegisterHandler(chros.ChROSDriverInputsHandler(25, driver, "~/input/driver_inputs"))
     
     ros_manager.RegisterHandler(chros.ChROSBodyHandler(25, hmmwv.GetChassisBody(), "~/output/hmmwv/state"))
-    ros_manager.Initialize()  
 
     
-    box = ch.ChBodyEasyBox(1.0, 1.0, 1.0, ch.ChCoordsysd(ch.ChVector3d(0, 0, 0), ch.ChQuaterniond(1, 0, 0, 0)))
-    box.SetBodyFixed(True)
-    hmmwv.GetSystem().AddBody(box)
-
-    
-    sens_manager = sens.ChSensorManager(hmmwv.GetSystem())
-    sens_manager.Initialize()
+    sens_manager = sens.ChSensorManager()
+    hmmwv.GetSystem().AddSensorManager(sens_manager)
 
     
     lidar = sens.ChLidarSensor()
-    lidar.SetSensorId(0)
-    lidar.SetSensorName("LidarSensor")
-    lidar.SetSensorType(sens.ChSensorType_LIDAR)
-    lidar.SetSensorPosition(ch.ChVector3d(0, 1.5, 0))
-    lidar.SetSensorOrientation(ch.ChQuaterniond(1, 0, 0, 0))
-    lidar.SetSensorRange(10)
-    lidar.SetSensorResolution(0.1)
-    lidar.SetSensorRate(100)
-    lidar.SetSensorFilters(sens.ChSensorFilter_TYPE, sens.ChSensorFilter_PASS)
-    lidar.SetSensorFilters(sens.ChSensorFilter_DISTANCE, sens.ChSensorFilter_PASS)
-    lidar.SetSensorFilters(sens.ChSensorFilter_INTENSITY, sens.ChSensorFilter_PASS)
-    lidar.SetSensorFilters(sens.ChSensorFilter_COLOR, sens.ChSensorFilter_PASS)
+    lidar.SetName("LidarSensor")
+    lidar.SetType(sens.LidarSensorType_2D)
+    lidar.SetPosition(ch.ChVector3d(0, 1, 1))
+    lidar.SetDirection(ch.ChVector3d(0, 0, 1))
+    lidar.SetResolution(0.1)
+    lidar.SetMaxDistance(10)
+    lidar.SetMinAngle(-1.57)
+    lidar.SetMaxAngle(1.57)
+    lidar.SetFilterRange(0.1, 10)
+    lidar.SetFilterAngle(0.1, 1.57)
+    lidar.SetFilterRate(10)
+    lidar.SetOutputRate(25)
+    lidar.SetOutputType(sens.LidarOutputType_PCL)
     sens_manager.AddSensor(lidar)
 
     
-    ros_manager.RegisterHandler(chros.ChROSLidarHandler(25, lidar, "~/output/lidar/data"))
+    ros_manager.RegisterHandler(chros.ChROSLidarHandler(25, lidar, "~/output/hmmwv/lidar"))
+
+    ros_manager.Initialize()  
 
     
     time = 0
@@ -116,11 +121,11 @@ def main():
         driver.Advance(time_step)
         terrain.Advance(time_step)
         hmmwv.Advance(time_step)
-        sens_manager.Update()  
 
         
         if not ros_manager.Update(time, time_step):
             break  
+        sens_manager.Update()  
         step_number += 1
 
 if __name__ == "__main__":

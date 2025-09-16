@@ -9,7 +9,7 @@ import pychrono.vehicle as veh
 # Create Chrono system
 system = chrono.ChSystemNSC()
 system.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
-system.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, -9.81))  
+system.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, -9.81))
 chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.0025)
 chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
 
@@ -19,17 +19,15 @@ terrain.SetPlane(chrono.ChPlane(chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(0,
 terrain.SetLength(20)
 terrain.SetWidth(20)
 terrain.SetMeshResolution(100)
-terrain.SetSoilParameters(
-    veh.SCMDeformableTerrain.SoilParameters(
-        friction=0.5,
-        restitution=0.2,
-        young_modulus=1e7,
-        poisson_ratio=0.3,
-        density=1500,
-        yield_stress=1e5,
-        plastic_strain_limit=0.1,
-    )
-)
+terrain.SetSoilParameters(veh.SCMDeformableTerrain.SoilParameters(
+    friction=0.5,
+    restitution=0.2,
+    cohesion=1000,
+    damping=0.1,
+    yield_stress=10000,
+    young_modulus=1e7,
+    poisson_ratio=0.3
+))
 
 # Create Viper rover
 rover = viper.Viper(system)
@@ -64,8 +62,9 @@ time_step = 1e-3
 time = 0
 while vis.Run():
     time += time_step
-    steering = 0.0  # Set steering to a constant value
-
+    
+    # Set constant steering
+    steering = 0.0 
     driver.SetSteering(steering)
 
     rover.Update()
@@ -73,5 +72,5 @@ while vis.Run():
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
-
+    
     system.DoStepDynamics(time_step)

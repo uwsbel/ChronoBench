@@ -1,58 +1,75 @@
 import chrono
-import chrono.synchronization as cs
-import chrono.utils as cu
-import chrono.irrlicht as irr
+import chrono.ir_obs as ir_obs
+import chrono.ir_obs_manager as ir_obs_manager
+import chrono.ir_obs_handlers as ir_obs_handlers
+import chrono.synchronization as sync
 import rospy
 from std_msgs.msg import Int32
+import rospkg
 
 
-chrono.synchronization.register_default_handlers()
+chrono.init()
+
+
+g = 9.81
+chrono.ChSystemNSC.Set_G_acc(chrono.ChVectorD(0, 0, -g))
 
 
 system = chrono.ChSystemNSC()
-system.Set_G_acc(9.81)
-system.Set_material_properties(1000, 0.3)
 
 
-floor = chrono.ChBody()
-floor.SetPos(chrono.ChVector(0, 0, 0))
+floor = chrono.ChBodyEasySFEM(chrono.ChBodyTypes.CONSTROYER, 1, chrono.ChVectorD(0, 0, 0))
 system.AddBody(floor)
 
 
-box = chrono.ChBody(1, chrono.ChBodyFSCreator("box", 1, 1, 1))
+box = chrono.ChBodyEasySFEM(chrono.ChBodyTypes.BOX, 1, 1, 1)
 system.AddBody(box)
 
 
-box.SetPos(chrono.ChVector(0, 0, 1))
-box.SetQuat(chrono.ChQuaternion(1, 0, 0, 0))
+box.SetPos(chrono.ChVectorD(0, 1, 0))
 
 
-class CustomROSHandler:
-    def __init__(self, topic_name):
-        self.topic_name = topic_name
-        rospy.init_node('custom_ros_handler', anonymous=True)
-        self.publisher = rospy.Publisher(topic_name, Int32, queue_size=10)
-
-    def publish_message(self, message):
-        self.publisher.publish(message)
+box.SetMass(1)
+box.SetInertia(chrono.ChVectorD(1, 1, 1))
 
 
-custom_ros_handler = CustomROSHandler('/custom_topic')
+system.AddBody(box)
 
 
-ros_manager = chrono.ChManager()
-ros_manager.Set_Clock_Handler(cs.ChClockHandler())
-ros_manager.Set_Body_Handler(cs.ChBodyHandler())
-ros_manager.Set_Transform_Handler(cs.ChTransformHandler())
-ros_manager.Register_Handler(custom_ros_handler)
+class IntegerMessageHandler(ir_obs_handlers.IRROS_Handler):
+    def __init__(self, topic_name, topic_type):
+        super().__init__(topic_name, topic_type)
+
+    def Update(self, data):
+        rospy.loginfo(f"Received message: {data.data}")
+        self.publisher.publish(data)
+
+
+rospy.init_node('pychrono_ros_handler', anonymous=True)
+
+
+ros_manager = chrono.IRROS_Manager()
+ros_manager.AddClock(chrono.IRROS_Clock())
+ros_manager.AddBody(system)
+ros_manager.AddTransform(chrono.IRROS_Transform())
+ros_manager.AddBody(box)
+ros_manager.AddHandler(IntegerMessageHandler('my_topic', rospy.Int32))
+
+
+ros_manager.RegisterHandler(IntegerMessageHandler('my_topic', rospy.Int32))
 
 
 while not rospy.is_shutdown():
     
-    system.DoStep(1.0 / 60.0)
+    system.DoStepDynamics(1.0/60.0)
+    ros_manager.Update()
 
     
-    custom_ros_handler.publish_message(1)
+    if rospy.Time.now().to_sec() % 1 < 0.01:
+        ros_manager.Publish(chrono.ChTime(), rospy.Int32(42))
 
     
-    rospy.Rate(60).sleep()
+    rospy.sleep(0.01)
+
+
+chrono.reset()

@@ -3,7 +3,7 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 import numpy as np
-import pychrono.sensor as sen
+import pychrono.sensor as sens
 
 
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
@@ -98,7 +98,38 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 
+obstacles = []
+for i in range(5):
+    obstacle = chrono.ChBodyEasyBox(0.5, 0.5, 0.5, 1000, True, True)
+    obstacle.SetPos(np.random.uniform(-5, 5, 3))
+    vis.Add(obstacle)
+    obstacles.append(obstacle)
+
+
 driver = veh.ChInteractiveDriverIRR(vis)
+
+
+manager = sens.ChSensorManager()
+
+
+lidar = sens.ChLidar()
+lidar.SetName("Lidar")
+lidar.SetRaysNumber(180)
+lidar.SetRayPitch(2)
+lidar.SetRayMaxLength(10)
+lidar.SetRayMinLength(0.1)
+lidar.SetRayMinIntensity(0.01)
+lidar.SetRayMaxIntensity(1)
+lidar.SetFilterMinIntensity(0.01)
+lidar.SetFilterMaxIntensity(1)
+lidar.SetFilterMinDistance(0.1)
+lidar.SetFilterMaxDistance(10)
+
+
+vehicle.GetVehicle().AddSensor(lidar)
+
+
+manager.AddSensor(lidar)
 
 
 steering_time = 1.0  
@@ -109,16 +140,6 @@ driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
 
 driver.Initialize()
-
-
-manager = sen.SensorManager(vehicle.GetSystem())
-
-
-lidar = sen.LidarSensor(vehicle.GetChassisBody(), 100, 0.01, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0)
-lidar.SetFilter(sen.SensorFilter_Gaussian, 0.1)
-lidar.SetFilter(sen.SensorFilter_Median, 5)
-lidar.SetFilter(sen.SensorFilter_Average, 5)
-manager.AddSensor(lidar)
 
 
 
@@ -153,13 +174,15 @@ while vis.Run() :
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
-    manager.Update()
 
     
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
+
+    
+    manager.Update()
 
     
     step_number += 1

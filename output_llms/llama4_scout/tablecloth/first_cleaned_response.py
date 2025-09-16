@@ -1,175 +1,64 @@
 import chrono as ch
 import chrono.irrlicht as irr
+import numpy as np
 
 
 ch.ChEngine.Initialize()
 
 
-app = irr.IrrlichtApplication()
+system = ch.ChSystem_EulerImplicit()
 
 
-step_size = 0.01
-frame_rate = 60
+system.SetSolverType(ch.ChSolver.PARDISO_MKL)
+system.SetSolverVerbose(True)
 
 
-solver = ch.ChSolverPardisoMKL()
+mat = ch.ChMaterialShellKirchhoff()
+mat.SetThickness(0.001)  
+mat.SetYoungModulus(100e3)  
+mat.SetPoissonRatio(0.3)  
+mat.SetDensity(1000)  
 
 
-E = 100000  
-nu = 0.3    
-rho = 1000  
 
-
-material = ch.ChKirchhoffMaterial(E, nu, rho)
-
-
-nx = 20
-ny = 20
-Lx = 2.0  
-Ly = 2.0  
+nx, ny = 20, 20
+Lx, Ly = 1.0, 1.0  
 
 
 mesh = ch.ChMesh()
 
 
 for i in range(nx + 1):
+    x = Lx * i / nx
     for j in range(ny + 1):
-        x = Lx * i / nx
         y = Ly * j / ny
-        z = 0.0
-        node = ch.ChNodexyz(x, y, z)
+        node = ch.ChNodeFEAxyzP(x, y, 0)
+        node.SetMass(0)  
         mesh.AddNode(node)
 
 
 for i in range(nx):
     for j in range(ny):
-        node1 = mesh.GetNode(i * (ny + 1) + j)
-        node2 = mesh.GetNode((i + 1) * (ny + 1) + j)
-        node3 = mesh.GetNode((i + 1) * (ny + 1) + j + 1)
-        node4 = mesh.GetNode(i * (ny + 1) + j + 1)
-
+        n1 = mesh.GetNodeByIndex(i * (ny + 1) + j)
+        n2 = mesh.GetNodeByIndex((i + 1) * (ny + 1) + j)
+        n3 = mesh.GetNodeByIndex((i + 1) * (ny + 1) + (j + 1))
+        n4 = mesh.GetNodeByIndex(i * (ny + 1) + (j + 1))
         
-        element = ch.ChElementShellKirchhoff(material, [node1, node2, node3, node4])
-        mesh.AddElement(element)
-
-
-for i in range(nx + 1):
-    node = mesh.GetNode(i * (ny + 1))
-    node.SetFixed(True)
-
-
-folding_force = ch.ChForce()
-folding_force.SetForce(1000, 0, 0)  
-mesh.GetNode(nx // 2 * (ny + 1) + ny // 2).AddForce(folding_force)
-
-
-system = ch.ChSystem()
+        
+        elem = ch.ChElementShellQuadrilateral()
+        elem.SetNodes(n1, n2, n3, n4)
+        elem.SetMaterial(mat)
+        mesh.AddElement(elem)
 
 
 system.Add(mesh)
 
 
-system.SetSolver(solver)
+viz = irr.ChIrrApp(system, 'Folding Tablecloth Simulation', 800, 600)
+viz.AttachSystem()
 
 
-vis = irr.IrrlichtVis()
-vis.AttachSystem(system)
-vis.SetWindowSize(800, 600)
-vis.SetTitle("Folding Tablecloth Simulation")
+viz.Run()
 
 
-while vis.Run() and not app.HasToClose():
-    system.DoStepDynamics(step_size)
-
-
-app.Close()
-
-import chrono as ch
-import chrono.irrlicht as irr
-
-def main():
-    
-    ch.ChEngine.Initialize()
-
-    
-    app = irr.IrrlichtApplication()
-
-    
-    step_size = 0.01
-    frame_rate = 60
-
-    
-    solver = ch.ChSolverPardisoMKL()
-
-    
-    E = 100000  
-    nu = 0.3    
-    rho = 1000  
-
-    
-    material = ch.ChKirchhoffMaterial(E, nu, rho)
-
-    
-    nx = 20
-    ny = 20
-    Lx = 2.0  
-    Ly = 2.0  
-
-    
-    mesh = ch.ChMesh()
-
-    
-    for i in range(nx + 1):
-        for j in range(ny + 1):
-            x = Lx * i / nx
-            y = Ly * j / ny
-            z = 0.0
-            node = ch.ChNodexyz(x, y, z)
-            mesh.AddNode(node)
-
-    
-    for i in range(nx):
-        for j in range(ny):
-            node1 = mesh.GetNode(i * (ny + 1) + j)
-            node2 = mesh.GetNode((i + 1) * (ny + 1) + j)
-            node3 = mesh.GetNode((i + 1) * (ny + 1) + j + 1)
-            node4 = mesh.GetNode(i * (ny + 1) + j + 1)
-
-            
-            element = ch.ChElementShellKirchhoff(material, [node1, node2, node3, node4])
-            mesh.AddElement(element)
-
-    
-    for i in range(nx + 1):
-        node = mesh.GetNode(i * (ny + 1))
-        node.SetFixed(True)
-
-    
-    folding_force = ch.ChForce()
-    folding_force.SetForce(1000, 0, 0)  
-    mesh.GetNode(nx // 2 * (ny + 1) + ny // 2).AddForce(folding_force)
-
-    
-    system = ch.ChSystem()
-
-    
-    system.Add(mesh)
-
-    
-    system.SetSolver(solver)
-
-    
-    vis = irr.IrrlichtVis()
-    vis.AttachSystem(system)
-    vis.SetWindowSize(800, 600)
-    vis.SetTitle("Folding Tablecloth Simulation")
-
-    
-    while vis.Run() and not app.HasToClose():
-        system.DoStepDynamics(step_size)
-
-    
-    app.Close()
-
-if __name__ == "__main__":
-    main()
+ch.ChEngine.Finalize()

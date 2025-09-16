@@ -5,92 +5,98 @@
 ### 1. Completeness (40 points)
 
 - **System Initialization:**  
-  The script does not explicitly create a `ChSystemNSC()` or `ChSystemSMC()` object. Instead, it relies on `veh.HMMWV_Full()` which internally creates and manages its own system. This is acceptable and common practice in vehicle simulations using PyChrono Vehicle module.  
+  The script does not explicitly create a `ChSystemNSC()` or `ChSystemSMC()` system object. Instead, it relies on the vehicle model's internal system via `hmmwv.GetSystem()`. This is acceptable and common in vehicle simulations, as the vehicle internally manages the system.  
   **No deduction.**
 
-- **Body Creation:**  
-  The HMMWV vehicle is properly created and initialized with detailed configuration. A rigid terrain patch is created and initialized correctly. A box body is created and added to the system.  
+- **Vehicle Setup:**  
+  The vehicle is fully configured with contact method, chassis collision type, engine, transmission, drive, steering, tire type, tire step size, and visualization types. The initialization is called properly.  
+  **No deduction.**
+
+- **Terrain Setup:**  
+  Terrain is created with a patch, material properties set (friction, restitution), texture applied, and initialized.  
+  **No deduction.**
+
+- **Additional Body Creation:**  
+  A box body is created and added to the system, with position set. However, the box is created with `ChBodyEasyBox(1, 1, 1, 1000, True, True)` but no material is specified. According to the documentation, `ChBodyEasyBox` optionally accepts a material parameter; if omitted, it uses a default. This is acceptable.  
   **No deduction.**
 
 - **Visualization:**  
-  Visualization is set up with Irrlicht, including window size, title, camera, lighting, skybox, and logo.  
+  Visualization system is created and attached to the system. Window size, title, camera, lights, skybox, and logo are set.  
   **No deduction.**
 
-- **Sensors:**  
-  A Lidar sensor is created, configured, and added to the sensor manager.  
+- **Driver:**  
+  Driver is created and initialized.  
   **No deduction.**
 
-- **Driver and ROS Integration:**  
-  Driver is created and initialized. ROS handlers are registered and initialized.  
+- **Sensor Manager and Lidar Sensor:**  
+  Sensor manager is created, lidar sensor is configured with position, rotation, frequency, scan angle, range, and filters. Sensor is added to the manager.  
+  **No deduction.**
+
+- **ROS Manager:**  
+  ROS manager is created, handlers registered, and initialized.  
   **No deduction.**
 
 - **Simulation Loop:**  
-  The loop includes synchronization and advancement of vehicle, terrain, driver, sensors, and ROS manager. Rendering is done at a fixed rate.  
+  Loop runs while visualization is active, rendering at 25 Hz, synchronizing driver, terrain, vehicle, advancing all, updating sensors, and updating ROS manager.  
   **No deduction.**
 
-- **Minor omissions:**  
-  - The terrain patch is created with `ch.CSYSNORM` as coordinate system, but the documentation example uses `chrono.ChCoordsysd(chrono.ChVector3d(0,0,0), chrono.QUNIT)`. `ch.CSYSNORM` is presumably a shortcut for a normalized coordinate system, but this is not standard in the documentation. This might cause confusion or errors if `ch.CSYSNORM` is not defined or is not the expected coordinate system object.  
-  - The `lidar.SetVerticalAngle(ch.ChAngleD(0))` and `lidar.SetHorizontalAngle(ch.ChAngleD(0))` are set to zero, which effectively means no scanning angle vertically or horizontally. This is likely incorrect or at least not useful for a lidar sensor. Usually, these angles define the vertical and horizontal field of view (e.g., vertical from -15 to +15 degrees). Setting both to zero means no scan volume.  
-  **Deduct 15 points for missing or incorrect essential component: lidar vertical and horizontal angles are incorrectly configured, which is essential for sensor functionality.**
+- **Minor omission:**  
+  The code does not explicitly set collision envelope or margin globally, which can help with collision stability. This is a minor omission but not essential.  
+  **Deduct 5 points.**
 
-**Completeness deduction: 15 points**
+**Completeness deduction: 5 points**
 
 ---
 
 ### 2. Correctness (30 points)
 
 - **Vehicle Initialization:**  
-  The vehicle is configured correctly with contact method, chassis collision, engine, transmission, drive, steering, tire types, and visualization types.  
+  The order of calls is correct. However, visualization types are set **after** `Initialize()`. According to best practices, visualization types should be set **before** calling `Initialize()`, because `Initialize()` sets up the vehicle and its components, including visualization assets. Setting visualization types after initialization may not have the intended effect.  
+  **Deduct 10 points.**
+
+- **Chassis Collision Type:**  
+  Set to `CollisionType_NONE`. This disables chassis collision. This is acceptable if the chassis is not intended to collide. No error.  
   **No deduction.**
 
-- **Terrain Material:**  
-  Contact material is created and friction and restitution are set properly.  
+- **Box Body Creation:**  
+  The box is created with `ChBodyEasyBox(1,1,1,1000,True,True)`, which creates a box with visualization and collision enabled. The box is positioned at (5,0,1) and added to the system. This is correct.  
   **No deduction.**
 
-- **Box Body:**  
-  Created with `ChBodyEasyBox` with size, density, visualization, and collision enabled. Position is set and added to the system.  
+- **Visualization Camera Setup:**  
+  The camera is added with position `(-5, 2.5, 1.5)` looking at `(0,0,1)`. This is reasonable.  
   **No deduction.**
-
-- **Sensor Setup:**  
-  Lidar sensor is created but the vertical and horizontal angles are set to zero, which is incorrect and will cause the sensor to not scan any area. This is a significant API misuse.  
-  **Deduct 15 points for incorrect use of PyChrono API that affects simulation behavior.**
 
 - **Driver Initialization:**  
-  Driver is created and initialized properly.  
+  The driver is created with `veh.ChDriver(hmmwv.GetVehicle())` and initialized. This is correct.  
   **No deduction.**
 
-- **ROS Manager:**  
-  ROS handlers are registered with appropriate topics and rates.  
-  **No deduction.**
+- **Lidar Sensor Filters:**  
+  Multiple filters are set via repeated calls to `SetFilter()`. According to typical API usage, `SetFilter()` replaces the filter, so calling it multiple times will overwrite previous filters. The correct approach is to chain filters or add multiple filters via a filter chain or composite filter. This is a significant API misuse that will cause only the last filter (`ChLidarFilterPointHeight`) to be active, ignoring the others.  
+  **Deduct 15 points.**
 
-- **Visualization:**  
-  Camera and lighting are set up properly.  
+- **ROS Manager Handlers:**  
+  Handlers are registered with appropriate topics and frequencies.  
   **No deduction.**
 
 - **Simulation Loop:**  
-  Synchronization and advancement calls are in correct order.  
+  The loop uses `hmmwv.GetSystem().GetChTime()` for time, and advances driver, terrain, vehicle, sensor manager, and ROS manager properly.  
   **No deduction.**
 
-- **Minor logical issue:**  
-  The `time` variable is updated from `hmmwv.GetSystem().GetChTime()` inside the loop, but the loop termination depends on `ros_manager.Update(time, time_step)` returning False. This is acceptable, but no explicit check for `vis.Run()` is done after the loop, which is fine.  
-  **No deduction.**
-
-**Correctness deduction: 15 points**
+**Correctness deduction: 25 points (10 for visualization order + 15 for lidar filter misuse)**
 
 ---
 
 ### 3. Code Quality (10 points)
 
 - **Readability:**  
-  The code is well structured with clear variable names.  
-  **No deduction.**
-
-- **Comments:**  
-  There are no comments explaining the purpose of code blocks or parameters. Given the complexity of the simulation, some comments would improve maintainability and clarity.  
-  **Deduct 5 points for insufficient comments.**
+  The code is mostly readable, with meaningful variable names (`hmmwv`, `terrain`, `box`, `vis`, `driver`, `sens_manager`, `lidar`, `ros_manager`).  
+  However, the code lacks comments explaining the purpose of major blocks or parameters.  
+  Also, the visualization setup is somewhat verbose but clear.  
+  The code structure is acceptable but could be improved by grouping related calls and adding comments.  
+  **Deduct 5 points for lack of comments and minor structure improvements.**
 
 - **Formatting:**  
-  The code is properly indented and formatted.  
+  The code formatting is consistent and PEP8 compliant.  
   **No deduction.**
 
 **Code Quality deduction: 5 points**
@@ -99,65 +105,75 @@
 
 ### 4. Efficiency (10 points)
 
-- **Unnecessary calculations or redundant code:**  
-  - The `time` variable is updated from the system time each loop iteration, which is standard.  
-  - The `step_number` is incremented each loop and used to control rendering frequency, which is efficient.  
-  - The `render_steps` is precomputed using `math.ceil(render_step_size / time_step)`, which is good practice.  
-  - The vehicle is set to realtime mode, which is appropriate.  
-  - No redundant or unnecessary API calls detected.  
+- **Repeated calls to `SetFilter()` on lidar:**  
+  As noted, this is inefficient and incorrect. Filters should be combined properly.  
+  **Deduct 5 points.**
+
+- **Rendering every `render_steps` steps:**  
+  This is efficient and standard practice.  
   **No deduction.**
 
-- **Optimization opportunities:**  
-  - The lidar sensor's filters are added, but since the scanning angles are zero, the sensor is effectively useless. Fixing the angles would improve efficiency by producing meaningful data.  
-  - The box body is created with default collision and visualization, which is fine.  
+- **No redundant calculations or unnecessary API calls detected.**  
   **No deduction.**
 
-**Efficiency deduction: 0 points**
+**Efficiency deduction: 5 points**
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- No try-except blocks or error handling for potential failures (e.g., ROS connection issues, sensor initialization failures).  
-- No checks for valid data paths or file existence.  
-- While not always required in example scripts, basic error handling is recommended for robustness.  
-**Deduct 5 points for lack of basic error handling.**
+- **No try-except blocks or error handling:**  
+  While PyChrono scripts often omit explicit error handling, best practices recommend at least minimal checks or exception handling for file loading, sensor initialization, or ROS connections.  
+  **Deduct 5 points.**
+
+- **Edge cases:**  
+  The code does not check if the visualization system or ROS manager initializes successfully or handle the case where the ROS manager update fails gracefully beyond breaking the loop.  
+  **No additional deduction (already covered).**
+
+**Error Handling deduction: 5 points**
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
-- Visualization system is properly initialized and attached to the system.  
-- Window size and title are set.  
-- Logo, skybox, camera, typical lights, and shadowed light are added.  
-- Camera vertical direction is set to Z, which is standard.  
-- Minor issue: The window title is `'Viper rover - Rigid terrain'` but the vehicle is an HMMWV. This is a minor inconsistency but does not affect visualization correctness.  
-- No obvious visualization misconfigurations.  
-**Deduct 2 points for minor visualization issue (window title mismatch).**
+- **Visualization setup is mostly complete:**  
+  Window size, title, camera, skybox, lights, and logo are set.  
+  **No deduction.**
+
+- **Minor issue:**  
+  The camera vertical direction is set to `ch.CameraVerticalDir_Z`, which is standard.  
+  The light with shadow is added with reasonable parameters.  
+  No obvious visualization misconfigurations.  
+  **No deduction.**
 
 ---
 
-### **Summary of deductions:**
+### Summary of Deductions:
 
-| Criterion                     | Deduction Points |
-|-------------------------------|------------------|
-| Completeness                  | 15               |
-| Correctness                  | 15               |
-| Code Quality                 | 5                |
-| Efficiency                  | 0                |
-| Error Handling and Robustness | 5                |
-| Visualization Tools          | 2                |
-| **Total Deduction**           | **42**           |
-
----
-
-### Final score: 100 - 42 = 58
+| Criterion                  | Deduction (points) |
+|----------------------------|--------------------|
+| Completeness               | 5                  |
+| Correctness               | 25                 |
+| Code Quality              | 5                  |
+| Efficiency                | 5                  |
+| Error Handling & Robustness| 5                  |
+| Visualization Tools       | 0                  |
+| **Total Deduction**        | **45**             |
 
 ---
 
-**Final score:** [[58]]
+### Final Score:
+
+100 - 45 = 55
 
 ---
 
-**Explanation:**  
-The script is mostly complete and correctly structured, with proper vehicle, terrain, sensor, driver, ROS, and visualization setup. However, the critical error in the lidar sensor configuration (zero vertical and horizontal angles) severely impacts the simulation's correctness and completeness, as the sensor will not function as intended. Additionally, the lack of any error handling and insufficient comments reduce code robustness and maintainability. Minor issues with visualization window title and missing comments also contribute to deductions. Overall, the script is functional but requires important fixes and improvements to be considered high quality and fully correct.
+**Explanation:**
+
+- The main issues are the incorrect order of setting visualization types (after initialization) and the misuse of the lidar sensor filters (overwriting instead of chaining), which are significant API misuses affecting simulation behavior.  
+- Minor omissions in completeness (collision envelope/margin), lack of comments, and no error handling reduce the score further.  
+- Visualization setup is solid, and the rest of the simulation loop and vehicle setup are correct.
+
+---
+
+[[55]]

@@ -3,13 +3,13 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
-# Set Chrono data path
+# Set the path to the Chrono data directory
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 # Initial vehicle location and orientation
-initLoc = chrono.ChVector3d(-20, 0, 1.5)  # Changed initial location
-initRot = chrono.ChQuaterniond(1, 0, 0, 0)
+initLoc = chrono.ChVectorD(-20, 0, 1.5)  # Changed initial location
+initRot = chrono.ChQuaternionD(1, 0, 0, 0)
 
 # Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
 vis_type = veh.VisualizationType_MESH
@@ -21,13 +21,12 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 # Rigid terrain
-# terrain_model = veh.RigidTerrain.BOX
 terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
 
-# Poon chassis tracked by the camera
-trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
+# Point on the chassis tracked by the camera
+trackPoint = chrono.ChVectorD(-3.0, 0.0, 1.1)
 
 # Contact method
 contact_method = chrono.ChContactMethod_NSC
@@ -41,11 +40,11 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  # FPS = 50
 
 # Create the MAN vehicle, set parameters, and initialize
-vehicle = veh.MAN_5t()  # Changed vehicle type
+vehicle = veh.MAN_5t()  # Changed vehicle type to MAN_5t
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
-vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
+vehicle.SetInitPosition(chrono.ChCoordsysD(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 
@@ -63,15 +62,19 @@ vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
-# Create a height map terrain
-terrain = veh.HeightMapTerrain(vehicle.GetSystem())
-terrain.SetHeightMap(veh.GetDataFile("terrain/heightmaps/hm_01_256x256.txt"), 256, 256, 100, 100, 10)
-terrain.Initialize()
+terrain = veh.RigidTerrain(vehicle.GetSystem())
+# Create a height map for the terrain
+height_map = veh.HeightMap(terrainLength, terrainWidth, 1.0, 1.0)
+height_map.SetHeight(0, 0, 0.5)
+height_map.SetHeight(10, 10, 1.0)
+height_map.SetHeight(20, 20, 0.5)
+patch = terrain.AddHeightMap(patch_mat, 
+    chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT), 
+    height_map)
 
-# Create the terrain visualization
-patch = terrain.GetVisualization()
 patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)  # Changed terrain texture
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+terrain.Initialize()
 
 # Create the vehicle Irrlicht interface
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
@@ -98,7 +101,7 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 # Output vehicle mass
-print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
+print("VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
@@ -108,10 +111,10 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-while vis.Run():
+while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
     # Render scene and output POV-Ray data
-    if (step_number % render_steps == 0):
+    if (step_number % render_steps == 0) :
         vis.BeginScene()
         vis.Render()
         vis.EndScene()

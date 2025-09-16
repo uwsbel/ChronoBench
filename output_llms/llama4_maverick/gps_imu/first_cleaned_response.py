@@ -1,83 +1,83 @@
 import pychrono as chrono
 import pychrono.vehicle as veh
-import pychrono.irrlicht as chronoirr
-import numpy as np
+import pychrono.irrlicht as irr
+import pychrono.sensor as sens
 
 
-def main():
-    
-    veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
-    my_hmmwv = veh.HMMWV_Full()
-    my_hmmwv.SetContactMethod(chrono.ChContactMethod_SMC)
-    my_hmmwv.SetChassisFixed(False) 
-    my_hmmwv.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(-5, -5, 0.5), chrono.ChQuaternionD(1, 0, 0, 0)))
-    my_hmmwv.SetPowertrainType(veh.PowertrainModelType_SHAFTS)
-    my_hmmwv.SetDriveType(veh.DrivelineTypeWV_AWD)
-    my_hmmwv.SetSteeringType(veh.SteeringTypeWV_PITMAN_ARM)
-    my_hmmwv.SetTireType(veh.TireModelType_TMEASY)
-    my_hmmwv.Initialize()
+print('Initialize PyChrono environment')
 
-    
-    terrain = veh.RigidTerrain(my_hmmwv.GetSystem())
-    patch_mat = chrono.ChMaterialSurfaceSMC()
-    patch_mat.SetFriction(0.9)
-    patch_mat.SetRestitution(0.01)
-    patch = terrain.AddPatch(patch_mat, chrono.CSYSNORM, 100, 100)
-    patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
-    patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
-    terrain.Initialize()
 
-    
-    driver = veh.ChDriver(my_hmmwv.GetVehicle())
-    driver.Initialize()
+print('Create the HMMWV vehicle')
+veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
+my_hmmwv = veh.HMMWV_Full()
+my_hmmwv.SetContactMethod(chrono.ChContactMethod_SMC)
+my_hmmwv.SetChassisFixed(False)
+my_hmmwv.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(-5, -5, 0.6), chrono.ChQuaternionD(1, 0, 0, 0)))
+my_hmmwv.SetPowertrainType(veh.PowertrainModelType_SHAFTS)
+my_hmmwv.SetDriveType(veh.DrivelineTypeWV_AWD)
+my_hmmwv.SetTireType(veh.TireModelType_TMEASY)
+my_hmmwv.Initialize()
 
-    
-    vis = chronoirr.ChVisualSystemIrrlicht()
-    vis.AttachSystem(my_hmmwv.GetSystem())
-    vis.SetWindowSize(800, 600)
-    vis.SetWindowTitle('HMMWV Simulation')
-    vis.Initialize()
-    vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
-    vis.AddSkyBox()
-    vis.AddCamera(chrono.ChVectorD(1.0, 1.4, 1.2), chrono.ChVectorD(0, 0, 0))
-    vis.AddTypicalLights()
 
-    
-    imu = veh.ChIMUSensor(my_hmmwv.GetChassisBody(), 100, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT))
-    imu.PushUpdate()
-    my_hmmwv.GetSystem().AddSensor(imu)
+print('Create the terrain')
+patch_mat = chrono.ChMaterialSurface.SMC()
+patch_mat.SetFriction(0.9)
+patch_mat.SetRestitution(0.01)
+patch_mat.SetYoungModulus(2e7)
+patch_mat.SetPoissonRatio(0.3)
+terrain = veh.RigidTerrain(my_hmmwv.GetSystem())
+patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.ChQuaternionD(1, 0, 0, 0)), 100, 100)
+terrain.Initialize()
 
-    gps = veh.ChGPSSensor(my_hmmwv.GetChassisBody(), 100, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT), chrono.ChVectorD(0, 0, 0), 0.01, 0.01)
-    gps.PushUpdate()
-    my_hmmwv.GetSystem().AddSensor(gps)
 
-    
-    realtime_timer = chrono.ChRealtimeStepTimer()
-    while vis.Run():
-        time = my_hmmwv.GetSystem().GetChTime()
+print('Create the driver system')
+driver = veh.ChDriver(my_hmmwv.GetVehicle())
 
-        
-        driver_inputs = driver.GetInputs()
-        my_hmmwv.Synchronize(time, driver_inputs, terrain)
-        terrain.Synchronize(time)
-        vis.Synchronize("HMMWV", driver_inputs)
 
-        
-        my_hmmwv.Advance(0.01)
-        terrain.Advance(0.01)
-        vis.Advance(0.01)
+print('Create the Irrlicht visualization')
+vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
+vis.SetWindowTitle('HMMWV Simulation')
+vis.SetWindowSize(1280, 720)
+vis.SetChaseCamera(chrono.ChVectorD(0.0, 0.0, 1.75), 6.0, 0.5)
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataPath() + 'logo_pychrono_alpha.png')
+vis.AddLightDirectional()
+vis.AttachVehicle(my_hmmwv.GetVehicle())
 
-        
-        imu.PushUpdate()
-        gps.PushUpdate()
 
-        
-        print(f"Vehicle mass: {my_hmmwv.GetVehicle().GetMass()}")
+print('Add IMU and GPS sensors')
+manager = sens.ChSensorManager(my_hmmwv.GetSystem())
+noise_none = sens.ChNoiseNone()
+imu = sens.ChSensorIMU(chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.ChQuaternionD(1, 0, 0, 0)), 100, chrono.ChFrameD())
+imu.SetNoiseModel(noise_none)
+imu.SetLag(0)
+imu.SetLeaseTime(0)
+gps = sens.ChSensorGPS(chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.ChQuaternionD(1, 0, 0, 0)), 100, chrono.ChFrameD())
+gps.SetNoiseModel(noise_none)
+gps.SetLag(0)
+gps.SetLeaseTime(0)
+manager.AddSensor(imu)
+manager.AddSensor(gps)
+my_hmmwv.GetChassis().AddSensor(imu, chrono.ChFrameD())
+my_hmmwv.GetChassis().AddSensor(gps, chrono.ChFrameD())
 
-        
-        realtime_timer.Spin(0.01)
 
-    return 0
-
-if __name__ == "__main__":
-    main()
+print('Start simulation loop')
+realtime_timer = chrono.ChRealtimeStepTimer()
+while vis.Run():
+    time = my_hmmwv.GetSystem().GetChTime()
+    driver_inputs = driver.GetInputs()
+    driver_inputs.m_throttle = 0.4
+    driver_inputs.m_steering = 0.2
+    driver_inputs.m_braking = 0.0
+    my_hmmwv.Synchronize(time, driver_inputs, terrain)
+    terrain.Synchronize(time)
+    vis.Synchronize('', driver_inputs)
+    manager.Update()
+    imu_data = imu.GetMostRecentBuffer()
+    gps_data = gps.GetMostRecentBuffer()
+    print('Vehicle mass: ', my_hmmwv.GetVehicle().GetMass())
+    my_hmmwv.Advance(0.01)
+    terrain.Advance(0.01)
+    vis.Advance(0.01)
+    realtime_timer.Spin(0.01)

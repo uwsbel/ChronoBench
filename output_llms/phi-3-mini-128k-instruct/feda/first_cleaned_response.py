@@ -1,103 +1,85 @@
-import pychronoid as pc
+import pychrono as chrono
 
-import irrlicht as ir
+import pychrono.vehicle as vehicle
 
-import numpy as np
+import pychrono.core as chrono_core
 
+import pychrono.io as chrono_io
 
+import pychrono.sensor as chrono_sensor
 
+import pychrono.visualization as chrono_visualization
 
-pc.init()
+import pychrono.driver as chrono_driver
 
+import pychrono.irrlicht as chrono_irrlicht
 
 
 
-terrain = pc.RigidTerrain()
 
-terrain.setTexture(ir.core.StringV("path/to/texture.jpg"))
+chrono_core.Initialize()
 
 
 
 
-vehicle = pc.FEDAVehicle()
+terrain = vehicle.RigidTerrain()
 
-vehicle.setLocation(np.array([0, 0, 0.5]))
+terrain.Initialize(chrono_core.GetChronoDataFile("terrain.obj"), True)
 
-vehicle.setOrientation(np.array([0, 0, np.pi/4]))
+terrain.SetTexture(chrono_core.GetChronoDataFile("terrain_texture.jpg"))
 
-vehicle.setContactMethod(pc.ContactMethod.ContactMethod_Contact)
 
-vehicle.setTireModel(pc.TireModel.TireModel_MagicClaw)
 
 
+vehicle_model = vehicle.FedA_VehicleModel()
 
+vehicle_model.Initialize(chrono_core.GetChronoDataFile("feda_vehicle.obj"), 1.0, 0.0, chrono_core.ChVectorD(0.0, 0.0, 0.0), chrono_core.ChQuaternionD(1.0, 0.0, 0.0, 0.0), chrono_core.ChVectorD(0.0, 0.0, 0.0), chrono_core.ChVectorD(0.0, 0.0, 0.0))
 
-camera = pc.Camera()
 
-camera.setPosition(np.array([0, 0, 10]))
 
-camera.setTarget(vehicle.getLocation())
 
-camera.setFieldOfView(45)
+camera_driver = chrono_driver.CameraDriver(chrono_core.GetChronoDataFile("camera_params.xml"))
 
+camera_driver.SetVehicle(vehicle_model)
 
+camera_driver.SetVehicleModel(vehicle_model)
 
 
-driver = pc.DriverSystem()
 
-driver.setSteering(0.1)
 
-driver.setThrottle(0.5)
+visualization = chrono_visualization.VisualizationDriver(chrono_core.GetChronoDataFile("vehicle_visualization.xml"), camera_driver)
 
-driver.setBrake(0.2)
+visualization.SetVehicleModel(vehicle_model)
 
 
 
 
-simulation = pc.Simulation()
+driver = chrono_driver.VehicleDriver()
 
-simulation.addPhysicsSystem(terrain)
 
-simulation.addPhysicsSystem(vehicle)
 
-simulation.addDriverSystem(driver)
 
-simulation.setTimestep(1/50)
+while (chrono_core.GetChronoData().GetChTime() < 10.0):
 
+    
 
+    vehicle_model.SetVehicleDynamics(chrono_core.GetVehicleDynamics())
 
+    vehicle_model.ComputeVehicleDynamics()
 
-scene = pc.Scene()
 
-scene.addBillboard(terrain)
+    
 
-scene.addMesh(vehicle, ir.core.StringV("path/to/vehicle_mesh.obj"), ir.core.StringV("MeshVisualization"))
+    camera_driver.Update()
 
+    visualization.Update()
 
 
+    
 
-camera_visual = pc.CameraVisual()
+    chrono_core.DoStepDynamics(1.0 / 50.0)
 
-camera_visual.setScene(scene)
 
-camera_visual.setCamera(camera)
 
 
-
-
-while pc.simulation.getSimulationStatus() == pc.SimulationStatus.SimulationStatus_NotFinished:
-
-    simulation.update()
-
-    scene.update()
-
-    camera_visual.update()
-
-    ir.core.Application.instance().drawAll()
-
-    ir.core.Application.instance().run()
-
-
-
-
-pc.shutdown()
+chrono_core.End()

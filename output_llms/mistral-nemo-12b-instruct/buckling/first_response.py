@@ -1,52 +1,62 @@
 import pychrono as chrono
 import numpy as np
 
-# Initialize PyChrono environment and core components
-sim = chrono.ChSimulation()
-sys = chrono.ChSystemSMC()
-sys.Set_Gravity(chrono.ChVectorD(0, -9.81, 0))
-sim.AddSystem(sys)
+# Initialize PyChrono environment
+chrono.setChronoDataPath("path/to/chrono_data")  # Set the path to the Chrono Data folder
+chrono.setChronoLogLevel(chrono.LOG_LEVEL_WARNING)  # Set the log level
 
-# Create a beam using FEA
-beam = chrono.ChBeam()
-beam.SetMaterial(chrono.ChMaterialSurfaceNSC())
-beam.SetSection(chrono.ChBeamSectionFrame(chrono.ChFrame(), 0.01, 0.01))
-beam.SetLength(1)
-beam.SetYieldStrength(1e6)
-beam.SetYoungModulus(2e11)
-beam.SetPoissonRatio(0.3)
-beam.SetNumberOfElements(10)
-beam.Set_Frame_Follower(True)
-sys.Add(beam)
+# Create the simulation system and solver
+simulation = chrono.ChSystemSMC()
+solver = chrono.ChSolverSD()
+solver.SetMaxIters(50)
+solver.SetTol(1e-3)
+simulation.SetSolver(solver)
 
-# Add a motor to apply a force at the end of the beam
-motor = chrono.ChLinkMotor()
-motor.Initialize(beam, chrono.ChFrameD(chrono.ChVectorD(1, 0, 0), chrono.ChQuaternionD(1, 0, 0, 0)), chrono.ChVectorD(1, 0, 0))
-motor.SetPos(0)
-motor.SetForce(100)
-sys.Add(motor)
+# Create the timestepper
+timestepper = chrono.ChTimestepperHHT()
+simulation.SetTimestepper(timestepper)
 
-# Add a constraint to fix the other end of the beam
-fixed = chrono.ChLinkLock()
-fixed.Initialize(beam, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.ChQuaternionD(1, 0, 0, 0)))
-sys.Add(fixed)
-
-# Set up the solver and timestepper
-sys.SetSolver(chrono.ChSolverSMC())
-sys.SetTimestepper(chrono.ChTimestepperHHT())
-sys.SetSolverMaxIterations(100)
-sys.SetSolverTolerance(1e-6)
-
-# Visualize the simulation using Irrlicht
+# Create the Irrlicht visualization module
 vis = chrono.ChVisualSystemIrrlicht()
-vis.AttachSystem(sys)
-vis.SetWindowSize(800, 600)
+vis.Attach(simulation)
 vis.Initialize()
-vis.AddLogo(chrono.ChVectorD(0, 0, 0))
+vis.SetWindowTitle("Beam Buckling Simulation")
+vis.SetWindowSize(800, 600)
 
-# Simulation loop
+# Create the beam using finite element analysis (FEA)
+beam = chrono.ChBeam()
+beam.SetMaterial(chrono.MaterialSurfaceNSC())
+beam.SetSection(chrono.ChBeamSectionEuler(1.0, 0.1))  # Set beam section properties (cross-sectional area, moment of inertia)
+beam.SetLength(1.0)  # Set beam length
+beam.SetNumberOfElements(10)  # Set number of finite elements
+beam.SetInitialPosition(chrono.ChVectorD(0, 0, 0))  # Set initial position
+beam.SetInitialRotation(chrono.ChQuaternionD(1, 0, 0, 0))  # Set initial rotation
+beam.SetFiniteElementType(chrono.ChBeamElementTypeHEXA)  # Set finite element type
+
+# Add the beam to the simulation system
+simulation.Add(beam)
+
+# Create a custom motor function to apply a force at the tip of the beam
+class CustomMotor(chrono.ChFunction):
+    def __call__(self, t):
+        return chrono.ChVectorD(0, 0, 100 * np.sin(t))
+
+motor = CustomMotor()
+force = chrono.ChForce()
+force.SetForceFunction(motor)
+force.SetPoint(chrono.ChVectorD(0, 0, 1))  # Apply force at the tip of the beam
+beam.AddForce(force)
+
+# Create constraints between different parts of the system (e.g., fix the base of the beam)
+constraint = chrono.ChConstraint()
+constraint.SetBody(beam)
+constraint.SetPoint(chrono.ChVectorD(0, 0, 0))
+constraint.SetScrew(chrono.ChMatrix33D().Get_identity())
+simulation.Add(constraint)
+
+# Set up the simulation loop
 while vis.Run():
-    sys.DoStepDynamics(0.01)
-    vis.BeginScene()
-    vis.DrawAll()
-    vis.EndScene()
+    simulation.DoStepDynamics(0.01)  # Perform one simulation step with a fixed timestep of 0.01 seconds
+    vis.Render()  # Render the simulation
+
+vis.Detach()

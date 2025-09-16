@@ -66,8 +66,7 @@ patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-
-patch1 = terrain.AddPatch(patch_mat, 
+patch = terrain.AddPatch(patch_mat, 
     chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
     chrono.GetChronoDataFile('vehicle/terrain/meshes/Highway_col.obj'),
     True, 0.01, False)
@@ -75,17 +74,17 @@ vis_mesh = chrono.ChTriangleMeshConnected().CreateFromWavefrontFile(veh.GetDataF
 tri_mesh_shape = chrono.ChVisualShapeTriangleMesh()
 tri_mesh_shape.SetMesh(vis_mesh)
 tri_mesh_shape.SetMutable(False)
-patch1.GetGroundBody().AddVisualShape(tri_mesh_shape)
+patch.GetGroundBody().AddVisualShape(tri_mesh_shape)
 
 
-patch2 = terrain.AddPatch(patch_mat,
-    chrono.ChCoordsysd(chrono.ChVector3d(0, -42, 0), chrono.QUNIT),
-    chrono.GetChronoDataFile('vehicle/terrain/meshes/bump.obj'),
-    True, 0.01, False)
-patch2.GetGroundBody().SetBodyFixed(True)
-patch2.GetGroundBody().AddVisualShape(chrono.ChVisualShapeBox(chrono.ChVector3d(10, 10, 0.1)))
-patch2.GetGroundBody().GetVisualShape(0).SetColor(chrono.ChColor(0.5, 0.5, 0.8))
-patch2.GetGroundBody().GetVisualShape(0).SetTexture(chrono.GetChronoDataFile('vehicle/terrain/textures/dirt.jpg'), 6.0, 6.0)
+new_patch = terrain.AddPatch(patch_mat,
+                             chrono.ChCoordsysd(chrono.ChVector3d(0, -42, 0), chrono.QUNIT),
+                             chrono.GetChronoDataFile('vehicle/terrain/meshes/bump.obj'),
+                             True, 0.01, False)
+new_patch.GetGroundBody().SetBodyFixed(True)
+new_patch.GetGroundBody().AddVisualShape(chrono.ChVisualShapeBox(chrono.ChVector3d(50, 50, 0.1)))
+new_patch.GetGroundBody().GetVisualShape(0).SetColor(chrono.ChColor(0.5, 0.5, 0.8))
+new_patch.GetGroundBody().GetVisualShape(0).SetTexture(chrono.GetChronoDataFile('vehicle/terrain/textures/dirt.jpg'), 6.0, 6.0)
 
 terrain.Initialize()
 

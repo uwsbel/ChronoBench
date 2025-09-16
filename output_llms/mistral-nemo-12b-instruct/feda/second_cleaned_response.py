@@ -2,13 +2,12 @@ import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
-import numpy as np
 
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 
-initLoc = chrono.ChVector3d(-50, 0, 0.5)
+initLoc = chrono.ChVector3d(-50, 0, 0.5)  
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 
@@ -21,7 +20,7 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 
-
+terrain_model = veh.RigidTerrain.BOX
 terrainHeight = 0      
 terrainLength = 200.0  
 terrainWidth = 100.0   
@@ -85,7 +84,10 @@ vis.AttachVehicle(vehicle.GetVehicle())
 
 
 driver = veh.ChPathFollowerDriver()
-driver.SetTargetSpeed(10.0)
+driver.SetSteeringLookAheadDistance(5)  
+driver.SetSteeringGains(0.5, 0.1, 0.01)  
+driver.SetSpeedGains(0.2, 0.05)  
+driver.SetTargetSpeed(10.0)  
 
 
 path = veh.ChBezierPath()
@@ -100,18 +102,9 @@ path.AddPoint(chrono.ChVector3d(30, 5, 0))
 path.AddPoint(chrono.ChVector3d(30, -5, 0))
 path.AddPoint(chrono.ChVector3d(50, -5, 0))
 
-
-driver.SetSteeringLookAheadDistance(5)
-driver.SetSteeringKp(1.2)
-driver.SetSteeringKi(0.5)
-driver.SetSteeringKd(0.1)
-
-
-driver.SetSpeedKp(0.8)
-driver.SetSpeedKi(0.2)
-driver.SetSpeedKd(0.1)
-
 driver.SetPath(path)
+
+
 driver.Initialize()
 
 

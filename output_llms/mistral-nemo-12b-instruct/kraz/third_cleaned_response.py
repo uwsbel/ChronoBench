@@ -13,20 +13,22 @@ sedan_initLoc = chrono.ChVector3d(10, 0, 0.5)
 sedan_initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 
-vis_type = veh.VisualizationType_MESH
+truck_vis_type = veh.VisualizationType_MESH
+sedan_vis_type = veh.VisualizationType_MESH
 
 
-chassis_collision_type = veh.CollisionType_NONE
+truck_chassis_collision_type = veh.CollisionType_MESH
+sedan_chassis_collision_type = veh.CollisionType_MESH
 
 
 truck_tire_model = veh.TireModelType_RIGID
 sedan_tire_model = veh.TireModelType_TMEASY
 
 
+terrain_model = veh.PredefinedTerrain.HIGHWAY
 terrainHeight = 0      
 terrainLength = 100.0  
 terrainWidth = 100.0   
-terrain_mesh = veh.GetDataFile("terrain/meshes/highway.obj")
 
 
 truck_trackPoint = chrono.ChVector3d(0,0, 2.1)
@@ -46,32 +48,32 @@ render_step_size = 1.0 / 50
 
 truck = veh.Kraz()
 truck.SetContactMethod(contact_method)
-truck.SetChassisCollisionType(chassis_collision_type)
+truck.SetChassisCollisionType(truck_chassis_collision_type)
 truck.SetChassisFixed(False)
 truck.SetInitPosition(chrono.ChCoordsysd(truck_initLoc, truck_initRot))
 truck.Initialize()
 
-truck.SetChassisVisualizationType(vis_type, vis_type)
-truck.SetSteeringVisualizationType(vis_type)
-truck.SetSuspensionVisualizationType(vis_type, vis_type)
-truck.SetWheelVisualizationType(vis_type, vis_type)
-truck.SetTireVisualizationType(vis_type, vis_type)
+truck.SetChassisVisualizationType(truck_vis_type, truck_vis_type)
+truck.SetSteeringVisualizationType(truck_vis_type)
+truck.SetSuspensionVisualizationType(truck_vis_type, truck_vis_type)
+truck.SetWheelVisualizationType(truck_vis_type, truck_vis_type)
+truck.SetTireVisualizationType(truck_vis_type, truck_vis_type)
 
 truck.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
 sedan = veh.Sedan()
 sedan.SetContactMethod(contact_method)
-sedan.SetChassisCollisionType(chassis_collision_type)
+sedan.SetChassisCollisionType(sedan_chassis_collision_type)
 sedan.SetChassisFixed(False)
 sedan.SetInitPosition(chrono.ChCoordsysd(sedan_initLoc, sedan_initRot))
 sedan.Initialize()
 
-sedan.SetChassisVisualizationType(vis_type, vis_type)
-sedan.SetSteeringVisualizationType(vis_type)
-sedan.SetSuspensionVisualizationType(vis_type, vis_type)
-sedan.SetWheelVisualizationType(vis_type, vis_type)
-sedan.SetTireVisualizationType(vis_type, vis_type)
+sedan.SetChassisVisualizationType(sedan_vis_type, sedan_vis_type)
+sedan.SetSteeringVisualizationType(sedan_vis_type)
+sedan.SetSuspensionVisualizationType(sedan_vis_type, sedan_vis_type)
+sedan.SetWheelVisualizationType(sedan_vis_type, sedan_vis_type)
+sedan.SetTireVisualizationType(sedan_vis_type, sedan_vis_type)
 
 sedan.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
@@ -79,13 +81,7 @@ sedan.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
-terrain = veh.RigidTerrain(truck.GetSystem())
-patch = terrain.AddPatch(patch_mat,
-    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
-    terrainLength, terrainWidth, terrain_mesh)
-
-patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
-patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+terrain = veh.PredefinedTerrain(sedan.GetSystem(), terrain_model)
 terrain.Initialize()
 
 
@@ -120,10 +116,9 @@ braking_time = 0.3
 truck_driver.SetSteeringDelta(render_step_size / steering_time)
 truck_driver.SetThrottleDelta(render_step_size / throttle_time)
 truck_driver.SetBrakingDelta(render_step_size / braking_time)
-
-
-sedan_driver.SetThrottle(0.5)
-sedan_driver.SetSteering(0.2)
+sedan_driver.SetSteeringDelta(render_step_size / steering_time)
+sedan_driver.SetThrottleDelta(render_step_size / throttle_time)
+sedan_driver.SetBrakingDelta(render_step_size / braking_time)
 
 truck_driver.Initialize()
 sedan_driver.Initialize()
@@ -139,10 +134,6 @@ render_steps = math.ceil(render_step_size / step_size)
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
-
-
-truck_initial_state = truck.GetTractor().GetPos()
-truck_initial_rot = truck.GetTractor().GetRot()
 
 while truck_vis.Run() and sedan_vis.Run() :
     time = truck.GetSystem().GetChTime()
@@ -186,5 +177,7 @@ while truck_vis.Run() and sedan_vis.Run() :
     realtime_timer.Spin(step_size)
 
 
-print("TRUCK FINAL POSITION: ", truck.GetTractor().GetPos())
-print("TRUCK FINAL ROTATION: ", truck.GetTractor().GetRot())
+truck_state = truck.GetTractor().GetState()
+truck_trailer_state = truck.GetTrailer().GetState()
+print("TRUCK TRACTOR STATE: ", truck_state)
+print("TRUCK TRAILER STATE: ", truck_trailer_state)

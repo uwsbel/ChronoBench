@@ -9,17 +9,17 @@ def main():
     veh.SetDataPath(ch.GetChronoDataPath() + 'vehicle/')
     # Create the HMMWV vehicle and set its parameters.
     hmmwv = veh.HMMWV_Full()
-    hmmwv.SetContactMethod(ch.ChContactMethod_NSC)
-    hmmwv.SetChassisCollisionType(veh.CollisionType_NONE)
-    hmmwv.SetChassisFixed(False)
-    hmmwv.SetInitPosition(ch.ChCoordsysd(ch.ChVector3d(0, 0, 1.6), ch.ChQuaterniond(1, 0, 0, 0)))
-    hmmwv.SetEngineType(veh.EngineModelType_SHAFTS)
-    hmmwv.SetTransmissionType(veh.TransmissionModelType_AUTOMATIC_SHAFTS)
-    hmmwv.SetDriveType(veh.DrivelineTypeWV_AWD)
-    hmmwv.SetSteeringType(veh.SteeringTypeWV_PITMAN_ARM)
-    hmmwv.SetTireType(veh.TireModelType_TMEASY)
-    hmmwv.SetTireStepSize(1e-3)
-    hmmwv.Initialize()
+    hmmwv.SetContactMethod(ch.ChContactMethod_NSC)  
+    hmmwv.SetChassisCollisionType(veh.CollisionType_NONE) 
+    hmmwv.SetChassisFixed(False) 
+    hmmwv.SetInitPosition(ch.ChCoordsysd(ch.ChVector3d(0, 0, 1.6), ch.ChQuaterniond(1, 0, 0, 0))) 
+    hmmwv.SetEngineType(veh.EngineModelType_SHAFTS)  
+    hmmwv.SetTransmissionType(veh.TransmissionModelType_AUTOMATIC_SHAFTS)  
+    hmmwv.SetDriveType(veh.DrivelineTypeWV_AWD)  
+    hmmwv.SetSteeringType(veh.SteeringTypeWV_PITMAN_ARM)  
+    hmmwv.SetTireType(veh.TireModelType_TMEASY) 
+    hmmwv.SetTireStepSize(1e-3) 
+    hmmwv.Initialize() 
     hmmwv.SetChassisVisualizationType(veh.VisualizationType_MESH)
     hmmwv.SetSuspensionVisualizationType(veh.VisualizationType_MESH)
     hmmwv.SetSteeringVisualizationType(veh.VisualizationType_MESH)
@@ -27,47 +27,17 @@ def main():
     hmmwv.SetTireVisualizationType(veh.VisualizationType_MESH)
     # Create the terrain for the vehicle to interact with.
     terrain = veh.RigidTerrain(hmmwv.GetSystem())
-    patch_mat = ch.ChContactMaterialNSC()
-    patch_mat.SetFriction(0.9)
-    patch_mat.SetRestitution(0.01)
-    patch = terrain.AddPatch(patch_mat, ch.CSYSNORM, 100.0, 100.0)
+    patch_mat = ch.ChContactMaterialNSC() 
+    patch_mat.SetFriction(0.9) 
+    patch_mat.SetRestitution(0.01) 
+    patch = terrain.AddPatch(patch_mat, ch.CSYSNORM, 100.0, 100.0) 
     patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 100, 100)
-    terrain.Initialize()
+    terrain.Initialize() 
 
     # Create visualization box
     box = ch.ChBodyEasyBox(1, 1, 1, 1000, True, True)
-    box.SetPos(ch.ChVector3d(5, 0, 1.6))
-    hmmwv.GetSystem().Add(box)
-
-    # Create sensor manager
-    sens_manager = sens.ChSensorManager(hmmwv.GetSystem())
-
-    # Create lidar sensor
-    lidar = sens.ChLidarSensor()
-    lidar.SetName("lidar")
-    lidar.SetCollisionEnvelope(0.5)
-    lidar.SetMaxDistance(50)
-    lidar.SetVerticalAngle(ch.ChAngleD(0))
-    lidar.SetHorizontalAngle(ch.ChAngleD(0))
-    lidar.SetAngularResolution(ch.ChAngleD(1))
-    lidar.SetSensorPosition(ch.ChVector3d(0, 0, 2))
-    lidar.SetSensorDirection(ch.ChVector3d(0, 0, -1))
-    lidar.AddFilter(sens.ChFilterLidarGroundPlane())
-    lidar.AddFilter(sens.ChFilterLidarDistance())
-    lidar.AddFilter(sens.ChFilterLidarIntensity())
-    sens_manager.AddSensor(lidar)
-
-    # Create and initialize the driver system.
-    driver = veh.ChDriver(hmmwv.GetVehicle())
-    driver.Initialize()
-
-    # Create the ROS manager and register handlers for communication.
-    ros_manager = chros.ChROSPythonManager()
-    ros_manager.RegisterHandler(chros.ChROSClockHandler())
-    ros_manager.RegisterHandler(chros.ChROSDriverInputsHandler(25, driver, "~/input/driver_inputs"))
-    ros_manager.RegisterHandler(chros.ChROSBodyHandler(25, hmmwv.GetChassisBody(), "~/output/hmmwv/state"))
-    ros_manager.RegisterHandler(chros.ChROSLidarHandler(lidar, "~/output/lidar"))
-    ros_manager.Initialize()
+    box.SetPos(ch.ChVector3d(5, 0, 1))
+    hmmwv.GetSystem().AddBody(box)
 
     # Create run-time visualization
     vis = chronoirr.ChVisualSystemIrrlicht()
@@ -82,33 +52,62 @@ def main():
     vis.AddTypicalLights()
     vis.AddLightWithShadow(ch.ChVector3d(1.5, -2.5, 5.5), ch.ChVector3d(0, 0, 0.5), 3, 4, 10, 40, 512)
 
+    # Create and initialize the driver system.
+    driver = veh.ChDriver(hmmwv.GetVehicle())
+    driver.Initialize() 
+
+    # Create sensor manager
+    sens_manager = sens.ChSensorManager(hmmwv.GetSystem())
+
+    # Create lidar sensor
+    lidar = sens.ChLidarSensor()
+    lidar.SetName("my_lidar")
+    lidar.SetPos(ch.ChVector3d(0, 0, 2))
+    lidar.SetRot(ch.ChQuaterniond(1, 0, 0, 0))
+    lidar.SetFrequency(10)
+    lidar.SetScanAngle(ch.ChRadians(180))
+    lidar.SetRange(50)
+    lidar.SetFilter(sens.ChLidarFilterPointDistance(1.0))
+    lidar.SetFilter(sens.ChLidarFilterPointIntensity(0.5))
+    lidar.SetFilter(sens.ChLidarFilterPointHeight(0.1, 2.0))
+    sens_manager.AddSensor(lidar)
+
+    # Create ROS manager and register handlers
+    ros_manager = chros.ChROSPythonManager()
+    ros_manager.RegisterHandler(chros.ChROSClockHandler())
+    ros_manager.RegisterHandler(chros.ChROSDriverInputsHandler(25, driver, "~/input/driver_inputs"))
+    ros_manager.RegisterHandler(chros.ChROSBodyHandler(25, hmmwv.GetChassisBody(), "~/output/hmmwv/state"))
+    ros_manager.RegisterHandler(chros.ChROSLidarHandler(lidar, "~/output/lidar/points"))
+    ros_manager.Initialize()
+
     # Start the simulation loop.
     time = 0
-    time_step = 1e-3
-    time_end = 30
+    time_step = 1e-3 
+    time_end = 30 
     step_number = 0
-    render_step_size = 1.0 / 25
+    render_step_size = 1.0 / 25 
     render_steps = math.ceil(render_step_size / time_step)
-    hmmwv.GetVehicle().EnableRealtime(True)
-    while vis.Run():
-        time = hmmwv.GetSystem().GetChTime()
+    hmmwv.GetVehicle().EnableRealtime(True) 
+    while vis.Run(): 
+        time = hmmwv.GetSystem().GetChTime() 
         if (step_number % render_steps == 0):
             vis.BeginScene()
             vis.Render()
             vis.EndScene()
+
         driver_inputs = driver.GetInputs()
-        driver.Synchronize(time)
-        terrain.Synchronize(time)
-        hmmwv.Synchronize(time, driver_inputs, terrain)
+        driver.Synchronize(time) 
+        terrain.Synchronize(time) 
+        hmmwv.Synchronize(time, driver_inputs, terrain) 
 
         driver.Advance(time_step)
         terrain.Advance(time_step)
         hmmwv.Advance(time_step)
 
-        sens_manager.Update()  # Update sensor manager
+        sens_manager.Update()
 
         if not ros_manager.Update(time, time_step):
-            break
+            break 
         step_number += 1
 
 if __name__ == "__main__":

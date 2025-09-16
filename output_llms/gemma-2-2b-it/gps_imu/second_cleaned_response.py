@@ -41,9 +41,6 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  
 
 
-log_step_size = 1.0 / 100  
-
-
 vehicle = veh.HMMWV_Full() 
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
@@ -145,9 +142,6 @@ step_number = 0
 render_frame = 0
 
 
-gps_data = []
-
-
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
@@ -181,10 +175,11 @@ while vis.Run():
 
     
     if step_number % log_step_size == 0:
-        gps_data.append(gps.GetMostRecentGPSBuffer().GetGPSData())
+        gps_data = gps.GetMostRecentGPSBuffer().GetGPSData()
+        gps_data_list.append(gps_data)
+
+    
+    print("GPS Data: ", gps_data_list)
 
     
     realtime_timer.Spin(step_size)
-
-
-print("GPS Data: ", gps_data)

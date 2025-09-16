@@ -2,77 +2,113 @@ import pychrono as chrono
 import pychrono.irrlicht as chronoirr
 import pychrono.vehicle as chronovehicle
 
-# 1. Initialize PyChrono environment and core components
-chrono.SetChronoDataPath("data/")  # Set path to Chrono data files
+# ---------------------------------------------------------------------
+#
+#  Create the simulation system and add items
+#
+# ---------------------------------------------------------------------
 
 # Create the physical system
 system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
 
-# 2. Add physical systems and objects
+# Set the default material properties
+material = chrono.ChMaterialSurfaceNSC()
+material.SetFriction(0.9f)
+material.SetRestitution(0.1f)
 
-# a. Terrain
-terrain = chrono.ChTerrainModel(system)
-terrain.SetTexture("data/textures/grass.png")
-terrain.SetSize(200, 200)
-terrain.SetHeight(0.0)
+# Create the ground
+ground = chrono.ChBodyEasyBox(100, 100, 1, 1000, True, True, material)
+ground.SetPos(chrono.ChVectorD(0, -0.5, 0))
+system.Add(ground)
 
-# b. HMMWV Vehicle
-vehicle = chronovehicle.ChVehicle(system)
-vehicle.SetChassis(chronovehicle.ChChassis(system))
-vehicle.SetSuspension(chronovehicle.ChSuspensionDoubleWishbone(system))
-vehicle.SetSteering(chronovehicle.ChSteering(system))
-vehicle.SetWheels(chronovehicle.ChWheel(system))
+# Create the vehicle
+vehicle = chronovehicle.ChVehicle("HMMWV")
+vehicle.SetSystem(system)
 
-# Load vehicle model (replace with your HMMWV model file)
-vehicle.SetVehicleModel("data/hmmwv/hmmwv.json")
+# Add chassis
+vehicle.AddChassis(chrono.ChChassis(chrono.ChBodyEasyBox(3, 1.5, 1, 1000, True, True, material)))
 
-# c. Driver Inputs
-driver = chronovehicle.ChDriver(vehicle)
-driver.SetSteeringInput(0.0)
-driver.SetThrottleInput(0.0)
-driver.SetBrakingInput(0.0)
+# Add wheels
+vehicle.AddWheel(chrono.ChWheel(chrono.ChBodyEasyCylinder(0.4, 0.6, 1000, True, True, material)))
+vehicle.AddWheel(chrono.ChWheel(chrono.ChBodyEasyCylinder(0.4, 0.6, 1000, True, True, material)))
+vehicle.AddWheel(chrono.ChWheel(chrono.ChBodyEasyCylinder(0.4, 0.6, 1000, True, True, material)))
+vehicle.AddWheel(chrono.ChWheel(chrono.ChBodyEasyCylinder(0.4, 0.6, 1000, True, True, material)))
 
-# d. IMU and GPS Sensors
-imu = chrono.ChIMU(vehicle.GetChassis().GetBody())
-gps = chrono.ChGPS(vehicle.GetChassis().GetBody())
+# Set initial position and orientation
+vehicle.SetPos(chrono.ChVectorD(0, 1, 0))
+vehicle.SetRot(chrono.Q_from_AngAxis(chrono.CH_C_PI / 4, chrono.ChVectorD(0, 0, 1)))
 
-# 3. Set default parameters
+# ---------------------------------------------------------------------
+#
+#  Create the Irrlicht visualization system
+#
+# ---------------------------------------------------------------------
 
-# Vehicle initial position
-vehicle.GetChassis().SetPos(chrono.ChVectorD(0, 1, 0))
-
-# Sensor update rate
-imu_update_rate = 100  # Hz
-gps_update_rate = 10  # Hz
-
-# 4. Visual Interface using Irrlicht
+# Create the Irrlicht application
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
 vis.SetWindowSize(800, 600)
 vis.SetWindowTitle("HMMWV Simulation")
 vis.Initialize()
 
-# 5. Simulation Loop
+# Add vehicle visualization
+vis.AddVehicle(vehicle)
+
+# Add ground visualization
+vis.AddChBody(ground)
+
+# ---------------------------------------------------------------------
+#
+#  Create the driver system
+#
+# ---------------------------------------------------------------------
+
+# Create the driver
+driver = chronovehicle.ChDriver(vehicle)
+
+# Set initial driver inputs
+driver.SetSteeringAngle(0)
+driver.SetThrottle(0)
+driver.SetBraking(0)
+
+# ---------------------------------------------------------------------
+#
+#  Create IMU and GPS sensors
+#
+# ---------------------------------------------------------------------
+
+# Create IMU sensor
+imu = chrono.ChSensorIMU(vehicle.GetChassis().GetBody())
+imu.SetNoise(0.01, 0.01, 0.01)
+system.AddSensor(imu)
+
+# Create GPS sensor
+gps = chrono.ChSensorGPS(vehicle.GetChassis().GetBody())
+gps.SetNoise(1, 1, 1)
+system.AddSensor(gps)
+
+# ---------------------------------------------------------------------
+#
+#  Simulation loop
+#
+# ---------------------------------------------------------------------
+
 while vis.Run():
-    # Update driver inputs (replace with your control logic)
-    driver.SetSteeringInput(0.1)  # Example: slight steering
-    driver.SetThrottleInput(0.5)  # Example: moderate throttle
+    # Update driver inputs
+    driver.Update(vis.GetTimeStep())
 
-    # Update IMU and GPS data
-    if system.GetChTime() % (1.0 / imu_update_rate) < 1e-3:
-        imu.Update()
-    if system.GetChTime() % (1.0 / gps_update_rate) < 1e-3:
-        gps.Update()
+    # Update vehicle
+    vehicle.Synchronize(vis.GetTimeStep())
 
-    # Advance the simulation
-    system.DoStepDynamics(0.01)
+    # Update IMU and GPS sensor data
+    imu_data = imu.GetOutput()
+    gps_data = gps.GetOutput()
 
-    # Output vehicle mass
-    print("Vehicle Mass:", vehicle.GetChassis().GetMass())
+    # Print vehicle mass
+    print("Vehicle mass:", vehicle.GetChassis().GetBody().GetMass())
 
     # Render the scene
     vis.Render()
 
-# Cleanup
-vis.Shutdown()
+    # Advance the simulation
+    system.DoStepDynamics(vis.GetTimeStep())

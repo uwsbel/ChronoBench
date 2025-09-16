@@ -92,10 +92,9 @@ rotmotor1.Initialize(builder.GetLastBeamNodes().front(),
                      )
 sys.Add(rotmotor1)
 
-
 class ChFunctionMyFun(chrono.ChFunction):
     def __init__(self, A1, A2, T1, T2, T3, w):
-        super().__init__()
+        chrono.ChFunction.__init__(self)
         self.A1 = A1
         self.A2 = A2
         self.T1 = T1
@@ -105,27 +104,17 @@ class ChFunctionMyFun(chrono.ChFunction):
 
     def GetVal(self, x):
         if x < self.T1:
-            return self.A1 * x
+            return self.A1
         elif x < self.T2:
-            return self.A1 * self.T1 + self.A2 * (x - self.T1)
+            return self.A1 + (self.A2 - self.A1) * (x - self.T1) / (self.T2 - self.T1)
         elif x < self.T3:
-            return self.A1 * self.T1 + self.A2 * (self.T2 - self.T1) + self.w * (x - self.T2)
+            return self.A2
         else:
-            return self.A1 * self.T1 + self.A2 * (self.T2 - self.T1) + self.w * (self.T3 - self.T2)
+            return self.A2 * m.exp(-self.w * (x - self.T3))
 
 
-A1 = 0
-A2 = 10
-T1 = 1
-T2 = 3
-T3 = 5
-w = 5
-
-
-my_motor_function = ChFunctionMyFun(A1, A2, T1, T2, T3, w)
-
-
-rotmotor1.SetMotorFunction(my_motor_function)
+f_motor = ChFunctionMyFun(A1=0, A2=100, T1=1, T2=2, T3=3, w=0.5)
+rotmotor1.SetMotorFunction(f_motor)
 
 
 
@@ -156,10 +145,9 @@ vis.AddTypicalLights()
 msolver = mkl.ChSolverPardisoMKL()
 sys.SetSolver(msolver)
 
-
-
-
 sys.DoStaticLinear()
+
+
 
 while vis.Run():
     vis.BeginScene()

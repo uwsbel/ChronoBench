@@ -2,148 +2,54 @@ import pychrono as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 
-# Initialize PyChrono environment
+# 1. Initialize the PyChrono environment and core components
 chrono.ChEngine.Initialize()
 
-# Set up the Irrlicht application
-app = irr.IrrlichtApplication()
+# 2. Set up the Irrlicht application for visualization
+vis = irr.ChIrrApp()
+vis.SetWindowSize(chrono.ChVector2i(800, 600))
+vis.SetWindowTitle("HMMWV on Rigid Terrain")
+vis.UseZoomBar(True)
+vis.ShowLogo(False)
 
-# Create a Chrono system
-system = chrono.ChSystem()
-
-# Set the contact method and add a contact material
-system.SetContactMethod(chrono.ChContactMethod_NECTAR)
-mat = chrono.ChContactMaterial()
-mat.SetFriction(0.9)
-mat.SetRestitution(0.3)
-system.AddContactMaterial(mat)
-
-# Set the time step and solver
-system.SetTimeStep(0.02)
-system.SetSolver(chrono.ChSolver_PCG)
-
-# Create a HMMWV vehicle
+# 3. Create the HMMWV vehicle
 vehicle = veh.ChHMMWV()
 
-# Set the vehicle location and orientation
-vehicle.SetPos(chrono.ChVector3d(0, 0, 0.5))
-vehicle.SetRot(chrono.ChQuaterniond(1, 0, 0, 0))
+# 4. Set vehicle parameters
+vehicle.SetContactMethod(veh.ChContactMethod_TM)
+vehicle.SetTireModel(veh.ChTireModel_TMEASY)
+vehicle.SetTireStepSize(0.01)
 
-# Set the contact method and TMEASY tire model
-vehicle.SetContactMethod(chrono.ChContactMethod_NECTAR)
-vehicle.SetTireModel(veh.ChTire_Model_TMEASY)
+# 5. Initialize the vehicle at a specified location and orientation
+vehicle.SetChassisBodyFixed(False)
+vehicle.SetChassisInitialPosition(chrono.ChVector3d(0, 0, 1))
+vehicle.SetChassisInitialRotation(chrono.ChQuaterniond(1, 0, 0, 0))
 
-# Enable primitive visualization for vehicle components
-vehicle.EnableVisualizationAssets(chrono.ChVisualAssetLevel_PRIMITIVES)
+# 6. Create and set up the terrain
+terrain = veh.ChRigidTerrain(vehicle.GetSystem())
+terrain.SetTerrainDimensions(chrono.ChVector3d(10, 10, 0))
+terrain.SetTexture(chrono.ChVector2d(10, 10), "chrono_textures/checker1.jpg")
 
-# Add the vehicle to the system
-system.Add(vehicle)
+# 7. Add vehicle and terrain to the system
+vehicle.Initialize(terrain)
+system = vehicle.GetSystem()
 
-# Create a rigid terrain
-terrain = veh.ChRigidTerrain()
+# 8. Set up the interactive driver system
+driver = veh.ChInteractiveDriverIRR(vis)
+driver.SetVehicle(vehicle)
+driver.SetChaseCamDistance(10)
+driver.SetChaseCamLag(0.5)
+driver.SetChaseCamHeight(2)
 
-# Set the terrain dimensions and texture
-terrain.SetTerrainDimensions(chrono.ChVector3d(-10, -10, 0), chrono.ChVector3d(10, 10, 0))
-terrain.SetTexture(chrono.ChTexture(chrono.ChVector2d(1, 1), "terrain.jpg"))
+# 9. Configure simulation parameters
+system.SetTimestep(0.02)
+system.SetCollisionSystem(chrono.ChCollisionSystemBruteForce())
 
-# Add the terrain to the system
-system.Add(terrain)
-
-# Create a driver system
-driver = veh.ChInteractiveDriverIRR()
-
-# Set up the driver inputs
-driver.SetThrottle(0.5)
-driver.SetSteering(0.2)
-driver.SetBraking(0.1)
-
-# Add the driver to the vehicle
-vehicle.SetDriver(driver)
-
-# Set the simulation loop to run at 50 FPS
-app.SetSimulationFPS(50)
-
-# Run the simulation loop
-while app.Run():
-    # Update the vehicle dynamics
+# 10. Simulation loop
+while vis.Run() and not vis.WasKeyPressed(irr.KEY_ESCAPE):
+    vis.BeginScene()
+    vis.RenderItem(terrain)
+    vis.RenderItem(vehicle)
+    vis.EndScene()
     system.DoStepDynamics(0.02)
-
-    # Render the scene
-    app.Render()
-
-import pychrono as chrono
-import pychrono.irrlicht as irr
-import pychrono.vehicle as veh
-
-def main():
-    # Initialize PyChrono environment
-    chrono.ChEngine.Initialize()
-
-    # Set up the Irrlicht application
-    app = irr.IrrlichtApplication()
-
-    # Create a Chrono system
-    system = chrono.ChSystem()
-
-    # Set the contact method and add a contact material
-    system.SetContactMethod(chrono.ChContactMethod_NECTAR)
-    mat = chrono.ChContactMaterial()
-    mat.SetFriction(0.9)
-    mat.SetRestitution(0.3)
-    system.AddContactMaterial(mat)
-
-    # Set the time step and solver
-    system.SetTimeStep(0.02)
-    system.SetSolver(chrono.ChSolver_PCG)
-
-    # Create a HMMWV vehicle
-    vehicle = veh.ChHMMWV()
-
-    # Set the vehicle location and orientation
-    vehicle.SetPos(chrono.ChVector3d(0, 0, 0.5))
-    vehicle.SetRot(chrono.ChQuaterniond(1, 0, 0, 0))
-
-    # Set the contact method and TMEASY tire model
-    vehicle.SetContactMethod(chrono.ChContactMethod_NECTAR)
-    vehicle.SetTireModel(veh.ChTire_Model_TMEASY)
-
-    # Enable primitive visualization for vehicle components
-    vehicle.EnableVisualizationAssets(chrono.ChVisualAssetLevel_PRIMITIVES)
-
-    # Add the vehicle to the system
-    system.Add(vehicle)
-
-    # Create a rigid terrain
-    terrain = veh.ChRigidTerrain()
-
-    # Set the terrain dimensions and texture
-    terrain.SetTerrainDimensions(chrono.ChVector3d(-10, -10, 0), chrono.ChVector3d(10, 10, 0))
-    terrain.SetTexture(chrono.ChTexture(chrono.ChVector2d(1, 1), "terrain.jpg"))
-
-    # Add the terrain to the system
-    system.Add(terrain)
-
-    # Create a driver system
-    driver = veh.ChInteractiveDriverIRR()
-
-    # Set up the driver inputs
-    driver.SetThrottle(0.5)
-    driver.SetSteering(0.2)
-    driver.SetBraking(0.1)
-
-    # Add the driver to the vehicle
-    vehicle.SetDriver(driver)
-
-    # Set the simulation loop to run at 50 FPS
-    app.SetSimulationFPS(50)
-
-    # Run the simulation loop
-    while app.Run():
-        # Update the vehicle dynamics
-        system.DoStepDynamics(0.02)
-
-        # Render the scene
-        app.Render()
-
-if __name__ == "__main__":
-    main()
+    driver.Update()

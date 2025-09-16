@@ -5,45 +5,43 @@ import numpy as np
 # Initialize Chrono environment
 chrono.SetChronoDataPath("path/to/chrono/data")  # Replace with your Chrono data path
 system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
 
-# Create RigidTerrain with custom texture
+# Create RigidTerrain
 terrain = chrono.ChBodyEasyBox(10, 10, 0.5)
 terrain.SetPos(chrono.ChVectorD(0, 0, 0))
 terrain.SetBodyFixed(True)
-terrain.SetMaterialSurface(chrono.ChMaterialSurface(0.8, 0.2, 0.1))  # Adjust friction and restitution
-terrain.SetTexture("path/to/terrain/texture.png")  # Replace with your texture path
+terrain.SetMaterialSurface(chrono.ChMaterialSurface(chrono.ChMaterialSurface.SMC_RUBBER))
+terrain.GetMaterialSurface().SetTexture(chrono.ChTexture("path/to/terrain_texture.jpg"))  # Replace with your texture path
 system.Add(terrain)
 
 # Create FEDA vehicle
-vehicle = chrono.ChBodyEasyBox(1, 1, 0.5)  # Replace with vehicle dimensions
-vehicle.SetPos(chrono.ChVectorD(0, 0, 0.5))
-vehicle.SetRot(chrono.Q_from_Euler(0, 0, 0))
+vehicle = chrono.ChBodyEasyCylinder(0.5, 1, 100)  # Adjust dimensions as needed
+vehicle.SetPos(chrono.ChVectorD(0, 0, 1))
 vehicle.SetBodyFixed(False)
+vehicle.SetMaterialSurface(chrono.ChMaterialSurface(chrono.ChMaterialSurface.SMC_RUBBER))
 system.Add(vehicle)
 
-# Add wheels to the vehicle
-wheel_radius = 0.2
-wheel_width = 0.1
+# Add wheels
 for i in range(4):
-    wheel = chrono.ChWheelEasy(wheel_radius, wheel_width)
-    wheel.SetPos(chrono.ChVectorD(0, 0, 0))
-    wheel.SetBody(vehicle)
-    wheel.SetContactMethod(chrono.ChWheelEasy.CM_CYLINDER)  # Adjust contact method as needed
-    wheel.SetTireModel(chrono.ChTireModel(0.5, 0.1, 0.01))  # Adjust tire model parameters
+    wheel = chrono.ChWheelEasy(vehicle, 0.2, 0.1)  # Adjust dimensions as needed
+    wheel.SetPos(chrono.ChVectorD(0, 0, 0))  # Adjust wheel positions as needed
+    wheel.SetContactMethod(chrono.ChWheelEasy.CONTACT_METHOD_AUTO)
+    wheel.SetTireModel(chrono.ChTireModel.TIRE_MODEL_PASTERNAK)  # Adjust tire model as needed
     system.Add(wheel)
 
-# Set up visualization
-vis_app = vis.ChIrrApp(system, "FEDA Vehicle Simulation")
-vis_app.AddCamera(
-    chrono.ChVectorD(5, 5, 2), chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 1, 0)
-)  # Set camera position and target
-vis_app.SetCamera(0)
-vis_app.SetTimestep(1.0 / 50)  # Set simulation frame rate
+# Camera setup
+vis.Init(chrono.ChVectorD(0, 0, 5), chrono.ChVectorD(0, 0, 0), 1000)
+camera = vis.GetCamera()
+camera.SetTarget(vehicle.GetPos())
 
-# Implement interactive driver system
-# (This part requires additional code for handling user input and applying forces to the vehicle)
+# Interactive driver system
+# ... (Implementation details for steering, throttle, and braking)
 
 # Simulation loop
-while vis_app.Run():
-    system.DoStepDynamics(vis_app.GetTimestep())
-    vis_app.Render()
+dt = 1.0 / 50
+while True:
+    system.DoStepDynamics(dt)
+    vis.BeginScene()
+    vis.DrawWorld()
+    vis.EndScene()

@@ -14,21 +14,16 @@ def main():
     # -----------------------------------
     # Add a box to be sensed by a camera
     # -----------------------------------
+    # Create a box shape
     side = 2.0  # Set the side length of the box
-    box_body = chrono.ChBodyEasyBox(side, side, side, 1000, True, True, chrono.ChVector3d(0, 0, 0))
-    box_body.SetPos(chrono.ChVector3d(0, 0, 0))
-    box_body.SetPose(chrono.ChQuaternion(1, 0, 0, 0), chrono.ChVector3d(0, 0, 0))
-    box_body.SetCollide(True)
-    box_body.SetMaterialSurface(chrono.ChMaterialSurface.MakeDefault())
-    mphysicalSystem.Add(box_body)
-
-    # Create a visual representation of the box
-    box_shape = chrono.ChBoxShape()
-    box_shape.SetSize(chrono.ChVectorD(side, side, side))
-    box_shape.SetTexture(chrono.GetChronoDataFile("textures/checker.png"))
+    box_shape = chrono.ChBox(side, side, side, 1000)
 
     # Create a body to which the visual shape will be attached
-    box_body.AddVisualShape(box_shape)
+    box_body = chrono.ChBodyEasyBox(side, side, side, 1000, True, True)  # Set the box body with texture
+    box_body.SetPos(chrono.ChVector3d(0, 0, 0))  # Set the position of the box body
+    box_body.AddVisualShape(box_shape)  # Attach the visual shape to the box body
+    box_body.SetFixed(True)  # Fix the box body in space
+    mphysicalSystem.Add(box_body)  # Add the box body to the physical system
 
     # -----------------------
     # Create a sensor manager
@@ -47,7 +42,7 @@ def main():
     # ------------------------------------------------
     # Create a camera and add it to the sensor manager
     # ------------------------------------------------
-    # Define the camera offset pose relative to the box it is attached to
+    # Define the camera offset pose relative to the box body
     offset_pose = chrono.ChFramed(chrono.ChVector3d(-7, 0, 3), chrono.QuatFromAngleAxis(2, chrono.ChVector3d(0, 1, 0)))
 
     # Initialize the camera sensor
@@ -129,7 +124,7 @@ def main():
             print('First Pixel: {0}'.format(rgba8_data[0, 0, :]))
 
         # Update the sensor manager (render/save/filter data automatically)
-        manager.Update(step_size)
+        manager.Update()
 
         # Perform a step of dynamics simulation
         mphysicalSystem.DoStepDynamics(step_size)
@@ -146,15 +141,15 @@ def main():
 # Noise model attached to the sensor
 noise_model = "CONST_NORMAL"  # Constant normal noise model
 
+# Camera's horizontal field of view
+fov = 1.408  # Horizontal field of view in radians
+
 # Update rate in Hz
 update_rate = 30
 
 # Image width and height
 image_width = 1280
 image_height = 720
-
-# Camera's horizontal field of view
-fov = 1.408  # Horizontal field of view in radians
 
 # Lag (in seconds) between sensing and when data becomes accessible
 lag = 0

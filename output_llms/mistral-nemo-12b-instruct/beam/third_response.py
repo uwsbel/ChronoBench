@@ -3,14 +3,16 @@ import pychrono.fea as fea
 import pychrono.pardisomkl as mkl
 import pychrono.irrlicht as chronoirr
 
-print("Example: PyChrono using beam finite elements")
+print("Example: PyChrono using beam finite elements");
 
 sys = chrono.ChSystemSMC()
 
-# Create a mesh, that is a container for groups of elements and their referenced nodes.
-mesh = fea.ChMesh()
+# Create a mesh, that is a container for groups
+# of elements and their referenced nodes.
+mesh = fea.ChMesh();
 
-# Create a section, i.e. thickness and material properties for beams. This will be shared among some beams.
+# Create a section, i.e. thickness and material properties
+# for beams. This will be shared among some beams.
 msection = fea.ChBeamSectionEulerAdvanced()
 
 beam_wy = 0.012
@@ -36,14 +38,18 @@ mesh.AddNode(hnode2)
 mesh.AddNode(hnode3)
 
 belement1 = fea.ChElementBeamEuler()
+
 belement1.SetNodes(hnode1, hnode2)
 belement1.SetSection(msection)
+
 mesh.AddElement(belement1)
 
 belement2 = fea.ChElementBeamEuler()
+
 belement2.SetNodes(hnode2, hnode3)
 belement2.SetSection(msection)
-mesh.AddElement(belement2)
+
+mesh.AddElement(belement2);
 
 # Apply a force or a torque to a node:
 hnode2.SetForce(chrono.ChVector3d(4, 2, 0))
@@ -66,8 +72,8 @@ constr_bc.SetConstrainedCoords(True, True, True,  # x, y, z
 constr_d = chrono.ChLinkMateGeneric()
 constr_d.Initialize(hnode1, mtruss, False, hnode1.Frame(), hnode1.Frame())
 sys.Add(constr_d)
-constr_d.SetConstrainedCoords(False, True, True,  # x, y, z
-                              False, False, False)  # Rx, Ry, Rz
+constr_d.SetConstrainedCoords(False, True, True,     # x, y, z
+                              False, False, False)    # Rx, Ry, Rz
 
 # Add some EULER-BERNOULLI BEAMS (the fast way!)
 
@@ -80,18 +86,25 @@ constr_d.SetConstrainedCoords(False, True, True,  # x, y, z
 builder = fea.ChBuilderBeamEuler()
 
 # Now, simply use BuildBeam to create a beam from a point to another:
-builder.BuildBeam(mesh, msection, 5, chrono.ChVector3d(0, 0, -0.1), chrono.ChVector3d(0.2, 0, -0.1), chrono.ChVector3d(0, 1, 0))
+builder.BuildBeam(mesh,                   # the mesh where to put the created nodes and elements
+                    msection,                  # the ChBeamSectionEulerAdvanced to use for the ChElementBeamEuler elements
+                    5,                         # the number of ChElementBeamEuler to create
+                    chrono.ChVector3d(0, 0, -0.1),   # the 'A' point in space (beginning of beam)
+                    chrono.ChVector3d(0.2, 0, -0.1), # the 'B' point in space (end of beam)
+                    chrono.ChVector3d(0, 1, 0))      # the 'Y' up direction of the section for the beam
 
-# Add another beam segment using builder.BuildBeam()
-builder.BuildBeam(mesh, msection, 5, chrono.ChVector3d(0.2, 0, -0.1), chrono.ChVector3d(0.4, 0.1, -0.1), chrono.ChVector3d(0, 1, 0))
-
-# After having used BuildBeam(), you can retrieve the nodes used for the beam,
-# For example say you want to fix the A end and apply a force to the B end:
-builder.GetLastBeamNodes().back().SetFixed(True)
-builder.GetLastBeamNodes().front().SetForce(chrono.ChVector3d(0, -1, 0))
+# Add another beam segment using `builder.BuildBeam()`.
+# This new beam segment uses the last node created by the previous beam as its starting point ('A' node)
+# and the point (0.2, 0.1, -0.1) as its endpoint ('B' point), with the 'Y' up direction as (0, 1, 0).
+builder.BuildBeam(mesh,                   # the mesh where to put the created nodes and elements
+                    msection,                  # the ChBeamSectionEulerAdvanced to use for the ChElementBeamEuler elements
+                    5,                         # the number of ChElementBeamEuler to create
+                    builder.GetLastBeamNodes().back().GetPos(),   # the 'A' point in space (beginning of beam)
+                    chrono.ChVector3d(0.2, 0.1, -0.1), # the 'B' point in space (end of beam)
+                    chrono.ChVector3d(0, 1, 0))      # the 'Y' up direction of the section for the beam
 
 # We do not want gravity effect on FEA elements in this demo
-mesh.SetAutomaticGravity(False)
+mesh.SetAutomaticGravity(False);
 
 # Remember to add the mesh to the system!
 sys.Add(mesh)

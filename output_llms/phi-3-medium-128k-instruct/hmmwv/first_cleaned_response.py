@@ -1,94 +1,131 @@
-import pychrono
+from chrono import ChBodyA, chrono
+from chrono.synchronization import SyncModel
+from chrono.modelling import makeRevoluteJoint
+from chrono.modelling import makeContact
+from chrono.modelling import makeHingeJoint
+from chrono.modelling import makeSliderJoint
+from chrono.modelling import makeTerrain
+from chrono.modelling import makeGround
+from chrono.modelling import makeCircle
+from chrono.modelling import makeTire
+from chrono.modelling import makeInertia
+from chrono.modelling import makeRevoluteJoint
+from chrono.synchronization import SyncModel
+import chrono
+import irrlicht
 
-import pychrono.Irrlicht
 
-import pychrono.vehicle
 
-import pychrono.tire as tire
+chrono.Init()
 
 
 
+ground = makeGround()
 
-chrono = pychrono.ChRono()
 
 
+terrain = makeTerrain(chrono.ChTerrain()
 
+terrain.SetMaterial("rough_dirt")
 
+terrain.SetWidth(50)
 
+terrain.SetLength(50)
 
-hmmwv = pychrono.Vehicle("HMMWV", chrono)
 
 
+terrain.SetPos(chrono.ChVector(0, 0, 0))
 
 
-hmmwv.SetVehicleType(pychrono.VehicleType.HMMWV)
 
-hmmwv.SetVehicleMass(3500.0)  
+world.AddBody(ground)
 
-hmmwv.SetVehicleInertia(pychrono.ChVector(1000.0, 1000.0, 1000.0))  
 
 
+vehicle = chrono.ChBodyA()
 
+vehicle.SetPos(chrono.ChVector(0, 0, 0))
 
-hmmwv.SetTireModel(tire.TireModel.TMEASY)
+vehicle.SetMass(3000)
 
+vehicle.SetInertia(makeInertia(1000, 2000, 1000))
 
 
 
-hmmwv.SetContactMethod(pychrono.VehicleContactMethod.CONTACT_6DOF)
+chassis = makeHingeJoint(chrono.ChVector(0, 0, 0), vehicle)
 
 
 
+front_left_tire = makeTire(chrono.ChTire(1, 0.3, 0.1, chrono.ChTire.TMEASY)
 
-hmmwv.SetVehicleLocation(pychrono.ChVector(0.0, 0.0, 0.0))
+front_right_tire = makeTire(chrono.ChTire(1, 0.3, 0.1, chrono.ChTire.TMEASY)
 
-hmmwv.SetVehicleOrientation(pychrono.ChQuaternion(1.0, 0.0, 0.0, 0.0))
+rear_left_tire = makeTire(chrono.ChTire(1, 0.3, 0.1, chrono.ChTire.TMEASY)
 
+rear_right_tire = makeTire(chrono.ChTire(1, 0.3, 0.1, chrono.ChTire.TMEASY)
 
 
 
-hmmwv.AddPrimitiveVisualization()
+vehicle.AddJoint(front_left_tire, chassis, "front_left_tire_joint")
 
+vehicle.AddJoint(front_right_tire, chassis, "front_right_tire_joint")
 
+vehicle.AddJoint(rear_left_tire, chassis, "rear_left_tire_joint")
 
+vehicle.AddJoint(rear_right_tire, chassis, "rear_right_tire_joint")
 
-terrain = pychrono.RigidTerrain("Terrain", chrono)
 
-terrain.SetDimensions(pychrono.ChVector(100.0, 100.0, 0.0))  
 
-terrain.SetTexture("terrain_texture.jpg")  
+front_left_tire.SetContactMethod(makeContact(chrono.ChContactMethod.STIFF_NO_SPRINGS))
 
+front_right_tire.SetContactMethod(makeContact(chrono.ChContactMethod.STIFF_NO_SPRINGS))
 
+rear_left_tire.SetContactMethod(makeContact(chrono.ChContactMethod.STIFF_NO_SPRINGS))
 
+rear_right_tire.SetContactMethod(makeContact(chrono.ChContactMethod.STIFF_NO_SPRINGS))
 
-driver = pychrono.Driver("Driver", chrono)
 
-driver.SetSteeringGain(0.1)
 
-driver.SetThrottleGain(0.1)
+world.AddBody(vehicle)
 
-driver.SetBrakingGain(0.1)
 
 
+vehicle.SetVisual(irrlicht.ChVisuals.PRIMITIVES)
 
 
-def simulation_loop(chrono):
 
-    while chrono.IsTimeStepAvailable():
+driver = chrono.ChDriver()
 
-        chrono.DoTimeStep()
+driver.SetSteering(chrono.ChDriver.SteerLeft)
 
-        driver.Update(chrono.Time())
+driver.SetThrottle(1.0)
 
-        hmmwv.Update(chrono.Time())
+driver.SetBrake(0.0)
 
-        terrain.Update(chrono.Time())
 
-        pychrono.Irrlicht.Render(chrono)
 
+chrono.SetDoStep(chrono.CH_SIM_STEP_FORWARD)
 
+chrono.SetModel(world)
 
+chrono.SetDriver(driver)
 
-chrono.SetRealTimeStep(1.0 / 50.0)
+chrono.SetSolver(chrono.ChSolverEuler)
 
-simulation_loop(chrono)
+chrono.SetIntegrator(chrono.ChIntegratorRungeKutta)
+
+chrono.SetVisualization(irrlicht.ChIrrApp.IrrApp.COLLAO)
+
+chrono.SetVisualization(irrlicht.ChIrrApp.IrrApp.COLLAO)
+
+chrono.SetRealTime(50)
+
+while(chrono.IsTimeStep()):
+
+    
+
+    chrono.DoStep()
+
+    
+
+    irrlicht.Draw(chrono.ChIrrApp.IrrApp.COLLAO)

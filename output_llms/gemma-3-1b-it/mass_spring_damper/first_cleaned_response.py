@@ -1,69 +1,51 @@
-```python
 import pychrono
-import pychrono.core as chrono
-import pychrono.visual as visual
+import pychrono.core as pc
+import pychrono.visual as v
 import numpy as np
 import matplotlib.pyplot as plt
-from pychrono.visual.camera import Camera
-from pychrono.visual.scene import Scene
+from pychrono.visual import Visual
 
+def simulate_mass_spring_damper(dt=0.01):
+    
 
-try:
-    chrono.initialize()
-except Exception as e:
-    print(f"Error initializing PyChrono: {e}")
-    exit()
+    
+    chrono = pc.Chchrono()
+    chrono.set_environment(pc.Environment(
+        time_step=dt,
+        gravity=0.0,  
+        mass=1.0,
+        spring_constant=0.5,
+        damping_coefficient=0.1
+    ))
 
+    
+    mass = pc.Mass(0.1, 1.0)  
+    spring = pc.Spring(0.2, 0.5)  
+    ground = pc.Ground(0.0, 1.0)  
 
+    
+    chrono.set_default_parameters(
+        mass=mass,
+        spring_constant=spring.constant,
+        damping_coefficient=damping_coefficient
+    )
 
-m = 1.0  
+    
+    visual = v.Visual(
+        title="Mass-Spring-Damper Simulation",
+        camera_settings={"width": 640, "height": 480},
+        
+        lighting={"color": "white"}
+    )
 
+    
+    chrono.create_link(mass, ground)
 
-k = 10.0  
+    
+    chrono.run(visual)
 
+    
+    
 
-
-
-
-x = 0.0
-y = 0.0
-z = 0.0
-
-
-v = 0.0
-
-
-scene = Scene()
-
-
-
-
-
-
-scene.add_object(m, "mass")
-scene.add_object(x, "ground")
-scene.add_object(y, "ground")
-scene.add_object(z, "ground")
-
-
-camera = Camera(x=x, y=y, z=z,  
-                  width=800, height=600,  
-                  distance=10.0,  
-                  rotation=0.0) 
-
-
-
-scene.add_background(color=chrono.Color(red=0.8, green=0.8, blue=0.8))
-
-
-scene.add_light(color=chrono.Color(red=0.8, green=0.8, blue=0.8))
-
-
-
-circle = visual.Circle(x=x, y=y, radius=0.5, color=chrono.Color(red=0.5, green=0.5, blue=0.5))
-scene.add_object(circle)
-
-
-
-try:
-    chrono.run(scene,
+if __name__ == '__main__':
+    simulate_mass_spring_damper()

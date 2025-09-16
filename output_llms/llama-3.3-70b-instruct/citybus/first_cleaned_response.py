@@ -6,63 +6,65 @@ import pychrono.vehicle as veh
 sys = chrono.ChSystemNSC()
 
 
-vis = chronoirr.ChVisualSystem()
-vis.SetWindowSize(800, 600)
-vis.SetWindowTitle("CityBus Simulation")
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.SetWindowSize(1024, 768)
 vis.AddSkyBox()
 vis.AddTypicalLights()
 
 
-terrain = veh.RigidTerrain(sys)
-terrain.SetTexture(chrono.GetChronoDataFile("asphalt.jpg"))
-terrain.SetFriction(0.8)
+vehicle = veh.ChVehicle()
 
 
-vehicle = veh.CityBus(sys)
+vehicle.SetContactMaterial(chrono.ChMaterialSurfaceNSC())
+vehicle.SetChassisFixed(False)
+vehicle.SetChassisMass(5000)
+vehicle.SetChassisInertia(chrono.ChVectorD(1000, 1000, 1000))
 
 
-vehicle.SetChassisPosition(chrono.ChVectorD(0, 0, 0.5))
-vehicle.SetChassisOrientation(chrono.ChQuaternionD(1, 0, 0, 0))
+vehicle.SetSuspensionSpringStiffness(50000)
+vehicle.SetSuspensionDamping(5000)
 
 
-vehicle.SetTireModel(veh.TireModelType.TM_RIGID)
+vehicle.SetSteeringMaxAngle(30 * chrono.CH_C_PI / 180)
+
+
+tire = veh.ChTireFiala()
+tire.SetRimRadius(0.3)
+tire.SetTreadWidth(0.2)
+vehicle.SetTire(tire)
 
 
 sys.Add(vehicle.GetChassisBody())
-sys.Add(terrain.GetGroundBody())
 
 
-chassis_vis = chronoirr.ChMesh(chrono.GetChronoDataFile("citybus_chassis.obj"))
-chassis_vis.SetColor(chrono.ChColor(0.8, 0.2, 0.2))
-vehicle.GetChassisBody().AddVisualShape(chassis_vis)
+vehicle.GetChassisBody().SetPos(chrono.ChVectorD(0, 0, 1))
+vehicle.GetChassisBody().SetRot(chrono.Q_from_AngX(chrono.CH_C_PI / 4))
 
 
-for wheel in vehicle.GetWheels():
-    wheel_vis = chronoirr.ChSphere(0.2)
-    wheel_vis.SetColor(chrono.ChColor(0.2, 0.2, 0.8))
-    wheel.AddVisualShape(wheel_vis)
+terrain = chrono.ChBodyEasyBox(sys, 100, 100, 1, 1000, True, True)
+terrain.SetPos(chrono.ChVectorD(0, -1, 0))
+terrain.SetMaterial(chrono.ChMaterialSurfaceNSC())
 
 
-camera = vis.AddCamera(chrono.ChVectorD(0, 0, 5))
-camera.SetFollow(vehicle.GetChassisBody())
-camera.SetLookAt(vehicle.GetChassisBody())
+sys.Add(terrain)
 
 
-driver = veh.InteractiveDriver(vehicle)
+vis.AddTexture(terrain, "terrain_texture.png")
 
 
-driver.SetSteeringControl(chrono.ChVectorD(0, 0, 1))
-driver.SetThrottleControl(chrono.ChVectorD(0, 1, 0))
-driver.SetBrakingControl(chrono.ChVectorD(1, 0, 0))
+driver = veh.ChDriver()
+driver.SetVehicle(vehicle)
+driver.SetSteeringMaxAngle(30 * chrono.CH_C_PI / 180)
+driver.SetThrottleMaxValue(1000)
+driver.SetBrakingMaxValue(1000)
 
 
-dt = 0.02
-fps = 50
+vis.SetCamera(chrono.ChVectorD(0, 0, 5), chrono.ChVectorD(0, 0, 0), 1000)
 
 
 while vis.Run():
     
-    sys.DoStepDynamics(dt)
+    sys.DoStepDynamics(0.02)
 
     
     vis.BeginScene()
@@ -70,4 +72,4 @@ while vis.Run():
     vis.EndScene()
 
     
-    chrono.ChSleep(1.0 / fps)
+    chrono.ChSleep(0.02)

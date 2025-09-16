@@ -89,20 +89,7 @@ def main():
     imu_handler.SetAccelerometerHandler(acc_handler)
     imu_handler.SetGyroscopeHandler(gyro_handler)
     imu_handler.SetMagnetometerHandler(mag_handler)
-    ros_manager.AddHandler(imu_handler)
-
-    # Create and configure a ROS manager and register handlers for the sensors.
-    ros_manager = chros.ChROSPythonManager()
-    ros_manager.RegisterHandler(chros.ChROSClockHandler())  # Register the clock handler.
-
-    # Register handlers for each sensor, specifying ROS topics for output.
-    ros_manager.RegisterHandler(chros.ChROSCameraHandler(cam.GetUpdateRate() / 4, cam, "~/output/camera/data/image"))
-    ros_manager.RegisterHandler(chros.ChROSLidarHandler(lidar, "~/output/lidar/data/pointcloud"))
-    ros_manager.RegisterHandler(chros.ChROSLidarHandler(lidar2d, "~/output/lidar2d/data/scan",chros.ChROSLidarHandlerMessageType_LASER_SCAN))
-    ros_manager.RegisterHandler(chros.ChROSGPSHandler(gps, "~/output/gps/data"))
-    ros_manager.RegisterHandler(chros.ChROSGPSHandler(gyro, "~/output/accelerometer/data"))
-    ros_manager.RegisterHandler(chros.ChROSGPSHandler(mag, "~/output/magnetometer/data"))
-    ros_manager.RegisterHandler(chros.ChROSGPSHandler(imu, "~/output/imu/data"))
+    ros_manager.RegisterHandler(imu_handler)
 
     ros_manager.Initialize()  # Initialize the ROS manager.
 
@@ -114,14 +101,10 @@ def main():
     # Apply rotational velocity to the ground body for sensor motion.
     ground_body.SetAngVelParent(ch.ChVector3d(0, 0, 0.1))
 
-    # Run the simulation.
-    while time < time_end:
-        time = sys.GetChTime()  # Update simulation time.
+    # Update sensors and ROS data.
+    sens_manager.Update()
 
-        # Update sensors and ROS data.
-        sens_manager.Update()
-
-        sys.DoStepDynamics(time_step)  # Advance the simulation by one time step.
+    sys.DoStepDynamics(time_step)  # Advance the simulation by one time step.
 
 if __name__ == "__main__":
     main()

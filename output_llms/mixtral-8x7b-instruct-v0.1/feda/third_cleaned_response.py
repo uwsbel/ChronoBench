@@ -1,41 +1,6 @@
-manager = sens.ChSensorManager(vehicle.GetSystem())
-
-
-intensity = 0.1
-manager.scene.AddPointLight(chrono.ChVector3f(2, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
-manager.scene.AddPointLight(chrono.ChVector3f(9, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
-manager.scene.AddPointLight(chrono.ChVector3f(16, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
-manager.scene.AddPointLight(chrono.ChVector3f(23, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
-
-
-offset_pose = chrono.ChFramed(chrono.ChVector3d(.1, 0, 1.45), chrono.QuatFromAngleAxis(.2, chrono.ChVector3d(0, 1, 0)))
-update_rate = 30
-image_width = 1280
-image_height = 720
-fov = 1.047
-cam = sens.ChCameraSensor(
-    vehicle.GetChassisBody(),
-    update_rate,
-    offset_pose,
-    image_width,
-    image_height,
-    fov
-)
-cam.SetName("First Person POV")
-
-
-if vis:
-    cam.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Before Grayscale Filter"))
-
-
-manager.AddSensor(cam)
-
-manager.Update()
-
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
-import pychrono.sensor as sens
 import math
 
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
@@ -107,49 +72,47 @@ patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 
+smgr = irr.ChIrrlichtSceneManager()
+smgr.addLightSceneNode(0, chrono.ChVector3d(100, 100, 100), 500, 
+                        irr.video.SColorf(1.0, 1.0, 1.0, 1.0))
+smgr.addLightSceneNode(0, chrono.ChVector3d(-100, -100, -100), 500, 
+                        irr.video.SColorf(1.0, 1.0, 1.0, 1.0))
 
-vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
+
+vis = veh.ChWheeledVehicleVisualSystemIrrlicht(smgr)
 vis.SetWindowTitle('FEDA vehicle')
 vis.SetWindowSize(1280, 1024)
 vis.SetChaseCamera(trackPoint, 6.0, 0.5)
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
-vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 
-manager = sens.ChSensorManager(vehicle.GetSystem())
+driver = veh.ChInteractiveDriverIRR(vis)
 
 
-intensity = 0.1
-manager.scene.AddPointLight(chrono.ChVector3f(2, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
-manager.scene.AddPointLight(chrono.ChVector3f(9, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
-manager.scene.AddPointLight(chrono.ChVector3f(16, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
-manager.scene.AddPointLight(chrono.ChVector3f(23, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
+steering_time = 1.0  
+throttle_time = 1.0  
+braking_time = 0.3   
+driver.SetSteeringDelta(render_step_size / steering_time)
+driver.SetThrottleDelta(render_step_size / throttle_time)
+driver.SetBrakingDelta(render_step_size / braking_time)
 
 
-offset_pose = chrono.ChFramed(chrono.ChVector3d(.1, 0, 1.45), chrono.QuatFromAngleAxis(.2, chrono.ChVector3d(0, 1, 0)))
-update_rate = 30
-image_width = 1280
-image_height = 720
-fov = 1.047
-cam = sens.ChCameraSensor(
-    vehicle.GetChassisBody(),
-    update_rate,
-    offset_pose,
-    image_width,
-    image_height,
-    fov
-)
-cam.SetName("First Person POV")
+camera_pos = chrono.ChVector3d(0, 0, 1.5)
+camera_rot = chrono.ChQuaterniond(0, 0, 0, 1)
+camera_sensor = irr.ChCameraSensor(vis.GetDevice(), vis.GetSceneManager(), 
+                                   vehicle.GetChassisBody(), camera_pos, camera_rot)
+camera_sensor.SetResolution(1920, 1080)
+camera_sensor.SetFieldOfView(60)
 
 
-if vis:
-    cam.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Before Grayscale Filter"))
+camera_filter = irr.ChVisualizationFilters()
+camera_filter.AddFilter(camera_sensor)
+smgr.AddCameraSensor(camera_filter)
 
-
-manager.AddSensor(cam)
+driver.Initialize()
 
 
 print("VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
@@ -162,31 +125,30 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-while vis.Run():
+while vis.Run() and step_number < 10000:
     time = vehicle.GetSystem().GetChTime()
 
     
-    if (step_number % render_steps == 0):
+    if (step_number % render_steps == 0) :
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
         render_frame += 1
 
     
-    driver_inputs = driver.GetInputs()
-
-    
     driver.Synchronize(time)
     terrain.Synchronize(time)
-    vehicle.Synchronize(time, driver_inputs, terrain)
-    vis.Synchronize(time, driver_inputs)
-    manager.Update()  
+    vehicle.Synchronize(time, driver.GetInputs(), terrain)
+    vis.Synchronize(time, driver.GetInputs())
 
     
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
+
+    
+    camera_sensor.Update()
 
     
     step_number += 1

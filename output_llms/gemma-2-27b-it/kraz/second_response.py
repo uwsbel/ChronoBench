@@ -7,8 +7,8 @@ chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 # Initial vehicle location and orientation
-initLoc = chrono.ChVector3d(-15, 0, 0.5)  # Changed initial location
-initRot = chrono.ChQuaterniond(1, 0, 0, 0)  
+initLoc = chrono.ChVector3d(-15, 0, 0.5)
+initRot = chrono.ChQuaterniond(0.7071, 0, 0, 0.7071)  # Adjusted rotation
 
 # Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
 vis_type = veh.VisualizationType_MESH
@@ -26,7 +26,7 @@ terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
 
 # Poon chassis tracked by the camera
-trackPoint = chrono.ChVector3d(3,0, 2.1)  # Changed track point
+trackPoint = chrono.ChVector3d(3, 0, 2.1)  # Adjusted track point
 
 # Contact method
 contact_method = chrono.ChContactMethod_NSC
@@ -75,7 +75,7 @@ vis.SetWindowTitle('Kraz Demo')
 vis.SetWindowSize(1280, 1024)
 vis.SetChaseCamera(trackPoint, 25.0, 10.5)  # Adjusted chase camera distance
 vis.Initialize()
-vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddLogo(chrono.GetChronoDataPath('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetTractor())
@@ -105,10 +105,10 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-# Double lane change maneuver parameters
+# Double lane change maneuver sequence
 lane_change_start_time = 5.0
-lane_change_duration = 3.0
-target_lane_offset = 5.0
+lane_change_duration = 5.0
+target_lane_offset = 3.0
 
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
@@ -120,14 +120,17 @@ while vis.Run() :
         vis.EndScene()
         render_frame += 1
 
-    # Double lane change maneuver logic
+    # Double lane change maneuver
     if time > lane_change_start_time and time < lane_change_start_time + lane_change_duration:
-        # Calculate steering angle based on time and target lane offset
-        steering_angle = target_lane_offset * (time - lane_change_start_time) / lane_change_duration
-        driver.SetSteeringAngle(steering_angle)
+        lane_change_progress = (time - lane_change_start_time) / lane_change_duration
+        steering_input = lane_change_progress * 2 * target_lane_offset - target_lane_offset
+
+    else:
+        steering_input = 0
 
     # Get driver inputs
     driver_inputs = driver.GetInputs()
+    driver_inputs.steering = steering_input
 
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)

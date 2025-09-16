@@ -3,70 +3,86 @@ import pychrono.irrlicht as chronoirr
 import pychrono.postprocess as postprocess
 
 # --- Simulation setup ---
-chrono.SetChronoDataPath("../chrono/data/")  # Adjust path if needed
+chrono.SetChronoDataPath("./")  # Replace with the path to your Chrono data directory
 
-# Create a Chrono physical system
+# Create a physical system
 system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Gravity
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
 # --- Create the IGA beam ---
 # Define beam parameters
 beam_length = 1.0
 beam_radius = 0.02
-num_segments = 20
-beam_young = 2.0e11  # Young's modulus
-beam_density = 7850  # Density
+beam_segments = 20
+beam_order = 3  # Cubic NURBS
 
-# Create an IGA beam
-beam = chrono.ChBodyEasy()
+# Create the IGA beam object
+beam = chrono.ChBodyEasy.New()
 beam.SetBodyFixed(False)
-beam.SetCollide(True)
-beam.SetMaterialDensity(beam_density)
-beam.SetMass(1.0) # Initial mass estimate, will be updated by IGA
-beam.SetPos(chrono.ChVectorD(0, 0, 0))
+beam.SetMass(1.0)
+beam.SetInertia(1.0)
 
-# Create the IGA shape
-iga_beam = chrono.ChIGABeamSection()
-iga_beam.SetDimensions(beam_length, beam_radius)
-iga_beam.SetYoungModulus(beam_young)
-iga_beam.Generate(num_segments)
+# Create a NURBS section
+section = chrono.ChNurbsSection()
+section.SetShapeType(chrono.ChNurbsShape.CIRCLE)
+section.SetRadius(beam_radius)
+section.SetSegments(beam_segments)
 
+# Create the IGA beam mesh
+iga_beam = chrono.ChIGABeam.New()
+iga_beam.SetSection(section)
+iga_beam.SetLength(beam_length)
+iga_beam.SetOrder(beam_order)
+iga_beam.BuildMesh()
+
+# Attach the IGA beam mesh to the body
 beam.AddAsset(iga_beam)
+beam.SetCollide(True)
+beam.SetVisualizationType(chrono.ChVisualizationType.MESH)
 
+# Add the beam to the system
 system.Add(beam)
 
 # --- Create the flywheel ---
 flywheel_radius = 0.05
 flywheel_mass = 0.5
-flywheel = chrono.ChBodyEasy()
+flywheel = chrono.ChBodyEasy.New()
 flywheel.SetBodyFixed(False)
-flywheel.SetCollide(True)
-flywheel.SetMaterialDensity(beam_density)
 flywheel.SetMass(flywheel_mass)
-flywheel.SetInertia(chrono.ChVectorD(1,1,1) * flywheel_mass * flywheel_radius * flywheel_radius)
-flywheel.SetPos(chrono.ChVectorD(beam_length / 2, 0, 0))
-flywheel.SetShape(chrono.ChSphereShape())
-flywheel.SetShapeRadius(flywheel_radius)
+flywheel.SetInertia(chrono.ChVectorD(flywheel_mass * flywheel_radius * flywheel_radius,
+                                     flywheel_mass * flywheel_radius * flywheel_radius,
+                                     flywheel_mass * flywheel_radius * flywheel_radius))
+flywheel.SetShape(chrono.ChSphereShape(flywheel_radius))
+flywheel.SetCollide(True)
+flywheel.SetVisualizationType(chrono.ChVisualizationType.MESH)
 
+# Position the flywheel at the center of the beam
+flywheel_pos = chrono.ChVectorD(beam_length / 2.0, 0, 0)
+flywheel.SetPos(flywheel_pos)
+
+# Add the flywheel to the system
 system.Add(flywheel)
 
-# --- Connect the flywheel to the beam ---
-# Create a revolute joint
-joint = chrono.ChLinkRevolute()
-joint.Initialize(beam, flywheel, chrono.ChCoordsys(chrono.ChVectorD(beam_length / 2, 0, 0)))
+# Create a revolute joint to connect the flywheel to the beam
+joint = chrono.ChLinkRevolute.New()
+joint.Initialize(beam, flywheel, chrono.ChCoordsys(flywheel_pos))
 system.Add(joint)
 
-
-# --- Create the rotational motor ---
+# --- Create the motor ---
 motor_torque = 1.0
-motor = chrono.ChMotorRotationSpeed()
+motor = chrono.ChMotorLinearSpring.New()
+motor.Set_SpringRestLength(0.0)
+motor.Set_SpringK(0.0)
+motor.Set_SpringR(0.0)
 motor.Set_Torque(motor_torque)
-motor.Set_Speed(10.0)  # rad/s
-motor.Attach(beam)
+motor.Set_Mode(chrono.ChMotorMode.TORQUE_CONTROL)
+
+# Attach the motor to the beam
+motor.Initialize(beam, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)))
 system.Add(motor)
 
 # --- Visualization ---
-# Create an Irrlicht application to visualize the system
+# Create an Irrlicht application
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
 vis.SetWindowSize(1024, 768)
@@ -75,7 +91,6 @@ vis.Initialize()
 vis.AddCamera(chrono.ChVectorD(2, 2, -2))
 vis.AddTypicalLights()
 
-
 # --- Simulation loop ---
 time_step = 0.001
 time_end = 10.0
@@ -83,9 +98,8 @@ while vis.Run():
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
+
     system.DoStepDynamics(time_step)
 
     if system.GetChTime() > time_end:
-        break
-
-print("Simulation finished.")
+        vis.GetIrrlichtApplication().Close()

@@ -11,7 +11,7 @@ chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 # Initial vehicle location and orientation adjusted
-initLoc = chrono.ChVector3d(0, 0, 1.0)
+initLoc = chrono.ChVector3d(0, 0, 1)
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 # Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
@@ -36,11 +36,11 @@ trackPoint = chrono.ChVector3d(-5.0, 0.0, 1.8)
 contact_method = chrono.ChContactMethod_NSC
 contact_vis = False
 
-# Simulation step sizes decreased for finer control
+# Simulation step sizes - Decreased for finer control
 step_size = 1e-4
 tire_step_size = step_size
 
-# Render step size decreased for finer control
+# Render step size - Decreased for finer control
 render_step_size = 1.0 / 60  # FPS = 60
 
 # --------------
@@ -67,12 +67,14 @@ vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
-terrain = veh.RigidTerrain(vehicle.GetSystem())
 
-# Use a highway mesh for the terrain
-patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), terrainLength, terrainWidth)
-patch.SetTexture(veh.GetDataFile("terrain/textures/highway.jpg"), 200, 200)  # Assuming highway.jpg exists
-patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+terrain = veh.RigidTerrain(vehicle.GetSystem())
+if terrain_model == veh.RigidTerrain.MESH:
+    patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), terrainLength, terrainWidth)
+    patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
+    patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+else:
+    patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, terrainHeight), chrono.QUNIT), terrainLength, terrainWidth)
 terrain.Initialize()
 
 # Create the vehicle Irrlicht interface
@@ -134,21 +136,6 @@ while vis.Run():
     # Get driver inputs
     driver_inputs = driver.GetInputs()
 
-    # Calculate speed error
-    current_speed = vehicle.GetVehicle().GetSpeed()
-    error = reference_speed - current_speed
-
-    # PID controller
-    integral += error * step_size
-    derivative = (error - previous_error) / step_size
-    throttle_input = kp * error + ki * integral + kd * derivative
-    throttle_input = max(0.0, min(1.0, throttle_input))  # Clamp between 0 and 1
-
-    previous_error = error
-
-    # Update driver inputs with PID control
-    driver_inputs.throttle = throttle_input
-
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
     terrain.Synchronize(time)
@@ -163,6 +150,16 @@ while vis.Run():
 
     # Increment frame number
     step_number += 1
+
+    # PID controller for throttle control
+    current_speed = vehicle.GetVehicle().GetSpeed()
+    error = reference_speed - current_speed
+    integral += error * step_size
+    derivative = (error - previous_error) / step_size
+    throttle_input = kp * error + ki * integral + kd * derivative
+    throttle_input = max(0.0, min(1.0, throttle_input))  # Clamp between 0 and 1
+    driver_inputs.throttle = throttle_input
+    previous_error = error
 
     # Spin in place for real time to catch up
     s.Spin(step_size)

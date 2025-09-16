@@ -25,8 +25,8 @@ terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
 
-# Point tracked by the camera
-trackPoint = chrono.ChVector3d(3, 0, 2.1)
+# Poon chassis tracked by the camera
+trackPoint = chrono.ChVector3d(3,0, 2.1)  # Updated track point
 
 # Contact method
 contact_method = chrono.ChContactMethod_NSC
@@ -39,7 +39,7 @@ tire_step_size = step_size
 # Time interval between two render frames
 render_step_size = 1.0 / 50  # FPS = 50
 
-# Create the Kraz vehicle, set parameters, and initialize
+# Create the kraz vehicle, set parameters, and initialize
 vehicle = veh.Kraz()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
@@ -72,7 +72,7 @@ terrain.Initialize()
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('Kraz Demo')
 vis.SetWindowSize(1280, 1024)
-vis.SetChaseCamera(trackPoint, 25.0, 10.5)  # Adjusted chase camera distance
+vis.SetChaseCamera(trackPoint, 25.0, 10.5)  # Updated chase camera distance
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
@@ -92,20 +92,20 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 
 driver.Initialize()
 
-# Output vehicle mass
-print("VEHICLE MASS: ", vehicle.GetTractor().GetMass())
+# output vehicle mass
+print( "VEHICLE MASS: ",  vehicle.GetTractor().GetMass())
 
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
 
-# Initialize simulation frame counter
+# Initialize simulation frame counter s
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
 # Double lane change maneuver sequence
-lane_change_time = 5.0  # Time to complete one lane change maneuver (seconds)
-lane_change_start_time = 10.0  # Time when the first lane change maneuver starts (seconds)
+lane_change_time = 5.0  # Time to complete one lane change maneuver
+lane_change_start_time = 10.0  # Time when the first lane change maneuver starts
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
@@ -127,12 +127,17 @@ while vis.Run():
     vis.Synchronize(time, driver_inputs)
 
     # Double lane change maneuver sequence
-    if time >= lane_change_start_time and time < lane_change_start_time + lane_change_time:
-        # First lane change maneuver
-        driver_inputs.steering = math.sin((time - lane_change_start_time) / lane_change_time * math.pi)
-    elif time >= lane_change_start_time + 2 * lane_change_time and time < lane_change_start_time + 3 * lane_change_time:
-        # Second lane change maneuver
-        driver_inputs.steering = -math.sin((time - lane_change_start_time - 2 * lane_change_time) / lane_change_time * math.pi)
+    if time >= lane_change_start_time:
+        if time < lane_change_start_time + lane_change_time:
+            # Steer left for a lane change
+            driver_inputs.steering = -1.0
+        elif time < lane_change_start_time + 2 * lane_change_time:
+            # Steer right to return to the original lane
+            driver_inputs.steering = 1.0
+        else:
+            # Reset steering input for the next lane change maneuver
+            driver_inputs.steering = 0.0
+            lane_change_start_time += 2 * lane_change_time
 
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)

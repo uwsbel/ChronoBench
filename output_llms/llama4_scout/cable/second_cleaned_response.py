@@ -7,7 +7,6 @@ import pychrono.irrlicht as chronoirr
 
 
 
-
 class Model1:
     def __init__(self, system, mesh):
         

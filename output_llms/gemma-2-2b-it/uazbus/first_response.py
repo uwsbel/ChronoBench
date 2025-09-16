@@ -2,48 +2,56 @@ import pychrono as chrono
 import pychrono.irrlicht as irrlicht
 import pychrono.irrlicht.irrlicht_utils as irr_utils
 
-# Initialize PyChrono
-chrono.init()
+# --- PyChrono Environment Initialization ---
+chrono.initialize()
 
+# --- Physical System Setup ---
 # Create the world
 world = chrono.World()
-
-# Create the terrain
-terrain = chrono.Terrain(
-    chrono.Material("terrain_material"),
-    chrono.Shape("terrain_shape"),
-    chrono.Friction(0.5),
-    chrono.Restitution(0.5),
-)
+# Add a terrain
+terrain = chrono.Terrain(chrono.Material("Grass", 0.1, 0.8, 0.2))
 world.add(terrain)
 
-# Create the UAZBUS vehicle
-vehicle = chrono.Vehicle(
-    chrono.Shape("uazbus_shape"),
-    chrono.Material("vehicle_material"),
-    chrono.Position(chrono.Vector3(0, 0, 0)),
-    chrono.Velocity(chrono.Vector3(0, 0, 0)),
-)
+# Add a UAZBUS vehicle
+vehicle = chrono.Vehicle("UAZBUS", 
+                        chrono.VehicleParams(
+                            position=[0, 0, 0], 
+                            orientation=[0, 0, 0], 
+                            mass=1000, 
+                            length=4.0, 
+                            width=2.0, 
+                            height=1.5, 
+                            wheel_radius=0.5, 
+                            wheel_count=4,
+                            friction=0.7, 
+                            restitution=0.8
+                        ))
 world.add(vehicle)
 
-# Create the driver system
+# --- Driver System Setup ---
 driver = chrono.Driver(vehicle)
+driver.set_control_mode(chrono.DriverControlMode.MANUAL)
+driver.set_steering_response(0.5)
 
-# Set up Irrlicht visualization
-irr = irrlicht.Irrlicht()
-irr.init()
-camera = irr.createCamera()
-camera.setPosition(chrono.Vector3(0, 0, 10))
-camera.setLookAt(chrono.Vector3(0, 0, 0))
-irr_utils.setIrrlichtLighting(irr)
+# --- Irrlicht Visualization Setup ---
+# Create Irrlicht Engine and scene
+engine = irrlicht.IrrlichtEngine()
+engine.createWindow("UAZBUS Simulation", 800, 600)
+engine.setFullscreen(True)
+scene = engine.getScene()
 
-# Simulation loop
+# Camera and Lighting
+camera = irr_utils.IrrlichtCamera(engine, 
+                                  position=[0, 0, 5], 
+                                  rotation=[0, 0, 0])
+scene.addCamera(camera)
+engine.addLight(irrlicht.IrrlichtLight(engine, "light", irrlicht.IrrlichtLightType.POINT))
+
+# --- Simulation Loop ---
 while True:
-    # Update the simulation
-    world.update()
-
-    # Render the scene
-    irr.render()
-
-    # Sleep for a short time
-    chrono.sleep(1 / 60)
+    # --- Update Simulation ---
+    # Simulate vehicle movement, terrain interaction, and driver control
+    # ...
+    
+    # --- Render Scene ---
+    engine.run()

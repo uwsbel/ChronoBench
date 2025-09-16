@@ -1,32 +1,54 @@
 import pychrono as chrono
+import pychrono.irrlicht as chronoirr
 
 
 chrono.SetChronoDataPath("path/to/chrono/data")  
-system = chrono.ChSystemNSC()
+app = chronoirr.Application(chrono.GetChronoDataPath())
+world = chrono.World()
 
 
 
-sphere = chrono.ChBodyEasySphere(1.0, 1.0)  
-sphere.SetPos(chrono.ChVectorD(0, 0, 1))  
-system.Add(sphere)
-
-
-box = chrono.ChBodyEasyBox(0.5, 0.5, 1.0, 2.0)  
-box.SetPos(chrono.ChVectorD(0, 0, 0))  
-system.Add(box)
-
-
-
-force = chrono.ChVectorD(0, 0, -10)  
-sphere.AddForce(force)
-
-
-sphere.SetFriction(0.5, 0.5)  
+vehicle = chrono.ChBodyEasy.CreateVehicle(10000,  
+                                        chrono.ChVectorD(0, 0, 0),  
+                                        chrono.ChQuaternionD(1, 0, 0, 0),  
+                                        "MAN_Truck.urdf")  
+world.Add(vehicle)
 
 
 
 
+tire_models = [
+    chrono.ChTireEasy.Create(vehicle.GetJoint("front_left_tire"), 0.5, 0.3, 0.2),
+    chrono.ChTireEasy.Create(vehicle.GetJoint("front_right_tire"), 0.5, 0.3, 0.2),
+    chrono.ChTireEasy.Create(vehicle.GetJoint("rear_left_tire"), 0.5, 0.3, 0.2),
+    chrono.ChTireEasy.Create(vehicle.GetJoint("rear_right_tire"), 0.5, 0.3, 0.2),
+]
+for tire in tire_models:
+    world.Add(tire)
 
 
-system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))  
-system.DoStepDynamics(0.01)
+terrain = chrono.ChBodyEasy.Create(1e6, chrono.ChVectorD(0, -0.5, 0), chrono.ChQuaternionD(1, 0, 0, 0), "plane.urdf")
+terrain.SetBodyFixed(True)
+world.Add(terrain)
+
+
+vehicle.SetPos(chrono.ChVectorD(0, 0, 0))
+vehicle.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
+
+
+
+
+
+
+
+vis = chronoirr.Vis(app, world)
+vis.SetCamera(chrono.ChVectorD(5, 5, 5), chrono.ChVectorD(0, 0, 0))
+vis.SetSkybox("path/to/skybox/textures")  
+vis.SetDirectionalLight(chrono.ChVectorD(1, 1, 1), chrono.ChVectorD(0, 0, -1))
+
+
+
+
+
+
+app.Run()

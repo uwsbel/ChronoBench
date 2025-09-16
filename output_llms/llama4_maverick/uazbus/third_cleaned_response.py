@@ -1,10 +1,6 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
-import math
-
-
-veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 
 initLoc = chrono.ChVector3d(0, 0, 0.5)
@@ -20,9 +16,9 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_RIGID  
 
 
-terrainHeight = 0      
+terrainHeight = 0  
 terrainLength = 100.0  
-terrainWidth = 100.0   
+terrainWidth = 100.0  
 
 
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
@@ -46,15 +42,12 @@ vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
-
 vehicle.Initialize()
-
 vehicle.SetChassisVisualizationType(vis_type)
 vehicle.SetSuspensionVisualizationType(vis_type)
 vehicle.SetSteeringVisualizationType(vis_type)
 vehicle.SetWheelVisualizationType(vis_type)
 vehicle.SetTireVisualizationType(vis_type)
-
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
@@ -62,21 +55,27 @@ patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-patch = terrain.AddPatch(patch_mat, 
-                         chrono.ChCoordsysd(chrono.ChVector3d(0, 0, terrainHeight), chrono.QUNIT), 
-                         terrainLength, terrainWidth)
+patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), terrainLength, terrainWidth)
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 
+obstacle_mat = chrono.ChContactMaterialNSC()
+obstacle_mat.SetFriction(0.9)
+obstacle_mat.SetRestitution(0.01)
 obstacle_body = chrono.ChBody()
+obstacle_body.SetMass(100)  
 obstacle_body.SetBodyFixed(True)  
+obstacle_body.SetCollide(True)
 obstacle_body.SetPos(chrono.ChVector3d(5, 0, 0.1))
-box_shape = chrono.ChBoxShape()
-box_shape.GetBoxGeometry().Size = chrono.ChVector3d(0.25, 2.5, 0.1)  
-obstacle_body.AddVisualShape(box_shape)
-vehicle.GetSystem().AddBody(obstacle_body)
+obstacle_box = chrono.ChBoxShape()
+obstacle_box.GetBoxGeometry().Size = chrono.ChVector3d(0.25, 2.5, 0.1)  
+obstacle_body.AddVisualShape(obstacle_box)
+obstacle_body.GetCollisionModel().ClearModel()
+obstacle_body.GetCollisionModel().AddBox(obstacle_mat, 0.25, 2.5, 0.1, chrono.ChVector3d(0, 0, 0))
+obstacle_body.GetCollisionModel().BuildModel()
+vehicle.GetSystem().Add(obstacle_body)
 
 
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
@@ -95,18 +94,17 @@ driver = veh.ChInteractiveDriverIRR(vis)
 
 steering_time = 1.0  
 throttle_time = 1.0  
-braking_time = 0.3   
+braking_time = 0.3  
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
-
 driver.Initialize()
 
 
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 
-render_steps = math.ceil(render_step_size / step_size)
+render_steps = round(render_step_size / step_size)
 
 
 realtime_timer = chrono.ChRealtimeStepTimer()
@@ -117,18 +115,15 @@ while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
     
-    if (step_number % render_steps == 0):
+    if step_number % render_steps == 0:
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
         render_frame += 1
 
     
-    
-    driver_inputs = veh.Inputs()  
-    driver_inputs.m_throttle = 0.5  
-    driver_inputs.m_steering = driver.GetInputs().m_steering  
-    driver_inputs.m_braking = driver.GetInputs().m_braking  
+    driver_inputs = driver.GetInputs()
+    driver_inputs.throttle = 0.5  
 
     
     driver.Synchronize(time)
@@ -144,5 +139,6 @@ while vis.Run():
 
     
     step_number += 1
+
     
     realtime_timer.Spin(step_size)

@@ -7,7 +7,7 @@ chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 
-initLoc = chrono.ChVector3d(-40, 0, 0.5)  
+initLoc = chrono.ChVector3d(-40, 0, 0.5)
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 
@@ -67,7 +67,7 @@ patch = terrain.AddPatch(patch_mat,
     chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
     terrainLength, terrainWidth)
 
-patch.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 200, 200)  
+patch.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
@@ -108,8 +108,7 @@ render_frame = 0
 
 
 lane_change_time = 5.0  
-lane_change_steps = lane_change_time / render_step_size
-lane_change_counter = 0
+braking_time = 2.0  
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
@@ -133,7 +132,24 @@ while vis.Run():
     
     driver.Advance(step_size)
     terrain.Advance(step_size)
-    vehicle.Advance(step_size)
+
+    
+    if step_number < lane_change_time * render_steps:
+        
+        driver_inputs.steering = 0.5
+    elif lane_change_time * render_steps <= step_number < (lane_change_time + braking_time) * render_steps:
+        
+        driver_inputs.steering = -0.5
+    elif (lane_change_time + braking_time) * render_steps <= step_number < (lane_change_time + 2 * braking_time) * render_steps:
+        
+        driver_inputs.throttle = 0
+        driver_inputs.braking = 1
+    else:
+        
+        driver_inputs.steering = 0
+        driver_inputs.throttle = 0.5
+
+    vehicle.Advance(step_size, driver_inputs)
     vis.Advance(step_size)
 
     
@@ -141,28 +157,3 @@ while vis.Run():
 
     
     realtime_timer.Spin(step_size)
-
-    
-    if lane_change_counter < lane_change_steps:
-        
-        driver_inputs.steering = 0.5
-        if lane_change_counter == lane_change_steps // 2:
-            
-            driver_inputs.throttle = 0.0
-    elif lane_change_counter < 2 * lane_change_steps:
-        
-        driver_inputs.steering = -0.5
-        if lane_change_counter == 2 * lane_change_steps // 2:
-            
-            driver_inputs.throttle = 0.0
-    elif lane_change_counter < 3 * lane_change_steps:
-        
-        driver_inputs.braking = 1.0
-    else:
-        
-        lane_change_counter = 0
-
-    lane_change_counter += 1
-
-
-realtime_timer.Spin(step_size)

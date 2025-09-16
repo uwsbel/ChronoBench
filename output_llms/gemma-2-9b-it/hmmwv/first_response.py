@@ -2,53 +2,58 @@ import pychrono as chrono
 import pychrono.irrlicht as vis
 import numpy as np
 
-# Initialize Chrono environment
-chrono.SetChronoDataPath("path/to/chrono/data")  # Replace with your Chrono data path
-system = chrono.ChSystemNSC()
+# Initialize PyChrono environment
+chrono.SetChronoDataPath("path/to/chrono/data")  # Replace with actual path
+physics = chrono.ChSystemNSC()
 
-# Create Irrlicht visualization
-vis_app = vis.ChIrrApp(system, 'HMMWV Simulation')
-vis_app.AddTypicalSky()
-vis_app.AddTypicalLights()
+# Create the terrain
+terrain = chrono.RigidTerrain(np.array([10, 10, 0]), 
+                             np.array([10, 10, 0]), 
+                             np.array([0, 0, 1]))
+terrain.SetTexture("path/to/terrain/texture.jpg")  # Replace with actual path
+physics.Add(terrain)
 
-# Define terrain
-terrain_width = 10
-terrain_length = 10
-terrain = chrono.ChBodyEasyBox(terrain_width, terrain_length, 0.1)
-terrain.SetPos(chrono.ChVectorD(0, 0, -0.05))  # Slightly below ground level
-terrain.SetBodyFixed(True)
-system.Add(terrain)
+# Create the HMMWV
+# (Note: This is a simplified representation. 
+#  You'll need to define the HMMWV's geometry and mass properties 
+#  using Chrono's shape and body classes)
+vehicle = chrono.ChBodyEasy(1000, 
+                            chrono.ChVectorD(0, 0, 0), 
+                            chrono.ChQuaternionD(1, 0, 0, 0)) 
+vehicle.SetPos(chrono.ChVectorD(0, 0, 0.5))  # Adjust initial position
+vehicle.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))  # Adjust initial orientation
+vehicle.SetMaterialSurface(chrono.ChMaterialSurface(0.8, 0.2, 0.1))  # Adjust friction
 
-# Load HMMWV model (replace with your actual model path)
-vehicle = chrono.ChBodyEasySphere(0.5, 100)  # Placeholder, replace with actual HMMWV model
-vehicle.SetPos(chrono.ChVectorD(0, 0, 0))
-vehicle.SetRot(chrono.Q_from_Euler(chrono.CH_C_DEG2RAD(0), chrono.CH_C_DEG2RAD(0), chrono.CH_C_DEG2RAD(0)))
-system.Add(vehicle)
-
-# Add wheels (replace with actual HMMWV wheel model)
+# Add wheels (replace with actual wheel geometry and parameters)
 for i in range(4):
-    wheel = chrono.ChBodyEasySphere(0.2, 10)
-    wheel.SetPos(vehicle.GetPos() + chrono.ChVectorD(0, 0, 0.1))  # Adjust position as needed
-    wheel.SetRot(chrono.Q_from_Euler(chrono.CH_C_DEG2RAD(0), chrono.CH_C_DEG2RAD(0), chrono.CH_C_DEG2RAD(0)))
-    system.Add(wheel)
+    wheel = chrono.ChBodyEasy(50, 
+                              chrono.ChVectorD(0, 0, 0), 
+                              chrono.ChQuaternionD(1, 0, 0, 0))
+    wheel.SetPos(chrono.ChVectorD(0, 0, 0))  # Adjust wheel position
+    vehicle.Add(wheel)
 
-# Set contact method and tire model
-vehicle.SetCollide(True)
-vehicle.SetMaterialSurface(chrono.ChMaterialSurface())
-vehicle.SetMaterialSurface(chrono.ChMaterialSurface(0.5, 0.5, 0.5))  # Adjust friction coefficients
+# Configure TMEASY tire model
+# (You'll need to adjust tire parameters based on your HMMWV model)
+tire_model = chrono.ChTireEasyModelTMEasy()
+for wheel in vehicle.GetComponents():
+    wheel.SetTireModel(tire_model)
 
-# Interactive driver system (placeholder)
-def update_vehicle(dt):
-    # Get input from user (keyboard, mouse, etc.)
-    # Update vehicle's steering angle, throttle, and brake based on input
-    # Apply forces and torques to the vehicle
+# Add interactive driver system
+# (This is a placeholder; you'll need to implement the actual driver logic)
+driver = chrono.ChDriver()
+driver.SetSteering(vehicle)
+driver.SetThrottle(vehicle)
+driver.SetBrake(vehicle)
+
+# Set up visualization
+vis_app = vis.ChIrrApp(physics, 'HMMWV Simulation', 
+                      chrono.ChVectorD(10, 10, 10), 
+                      vis.VIS_WITH_SHADOWS)
+vis_app.AddCamera(vehicle, 10)  # Adjust camera position
 
 # Simulation loop
-vis_app.SetTargetFPS(50)
-while vis_app.Run():
-    system.DoStepDynamics(1/50.0)  # Update simulation at 50 FPS
-    update_vehicle(1/50.0)  # Update vehicle based on user input
-    vis_app.Render()
-
-# Clean up
-vis_app.Close()
+while vis_app.GetDevice().run():
+    vis_app.BeginScene()
+    physics.DoStepDynamics(1/50.0)  # 50 frames per second
+    vis_app.DrawAll()
+    vis_app.EndScene()

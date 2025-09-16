@@ -1,60 +1,85 @@
 import chrono as chrono
-from chrono import irrlight as irrlight
-from chrono import irrpython import vector3 as v3
+from chrono import irrlicht as irrlicht
+from chrono import irrlicht import c_visual_material
 
 
 chrono.Initialize()
 
 
-terrain = chrono.CreateGroundBody()
-terrain.SetBodyFixed(True)
-terrain.SetMaterial(chrono.ChColor(0.5, 0.5, 0.5))  
-terrain.SetTexture('/path/to/terrain/texture.png')  
+world = chrono.ChWorld()
 
 
-vehicle = chrono.CreateVehicleBody()
-vehicle.SetName('BMW E90 Sedan')
-vehicle.SetMass(1800)  
-vehicle.SetPosition(v3(0, 0, 0))
-vehicle.SetOrientation(v3(0, 0, 0))
+terrain = chrono.ChTerrain()
+terrain.SetName("terrain")
+terrain.SetDensity(1000)
+terrain.SetFriction(0.9)
+terrain.SetRestitution(0.5)
+world.Add(terrain)
 
 
-tire = chrono.CreateTireModel()
-tire.SetName('TMEASY')
-tire.SetRadius(0.5)  
-tire.SetInertia(10, 10, 10)  
-tire.SetStiffness(1000000)  
-tire.SetDamping(1000)  
-tire.SetPosition(v3(0, 0, 0))
-tire.SetOrientation(v3(0, 0, 0))
+vehicle = chrono.ChBody()
+vehicle.SetName("vehicle")
+vehicle.SetMass(1500)
+vehicle.SetInertiaXX([1000, 1000, 1000])
+vehicle.SetCollide(True)
+vehicle.SetBodyFixed(False)
+world.Add(vehicle)
 
 
-vehicle.AddWheel(tire)
+driver = chrono.ChDriver()
+driver.SetName("driver")
+driver.SetSteeringGain(0.1)
+driver.SetThrottleGain(0.1)
+driver.SetBrakeGain(0.1)
+vehicle.Add(driver)
 
 
-driver = chrono.CreateDriverSystem()
-driver.SetName('Driver')
-driver.SetPosition(v3(0, 0, 0))
-driver.SetOrientation(v3(0, 0, 0))
+tire = chrono.ChTire()
+tire.SetName("tire")
+tire.SetRadius(0.25)
+tire.SetDiameter(0.5)
+tire.SetWidth(0.2)
+tire.SetTreadDepth(0.01)
+tire.SetInflationPressure(250)
+vehicle.Add(tire)
+
+
+rigid_terrain = chrono.ChBody()
+rigid_terrain.SetName("rigid_terrain")
+rigid_terrain.SetMass(10000)
+rigid_terrain.SetInertiaXX([10000, 10000, 10000])
+rigid_terrain.SetCollide(True)
+rigid_terrain.SetBodyFixed(True)
+world.Add(rigid_terrain)
+
+
+vehicle_visual = chrono.ChVisual()
+vehicle_visual.SetName("vehicle_visual")
+vehicle_visual.SetMaterial(c_visual_material(chrono.CH_COLOR_WHITE))
+vehicle_visual.SetShape(chrono.ChShapeBox([0.5, 0.2, 0.2]))
+vehicle.AddVisual(vehicle_visual)
+
+tire_visual = chrono.ChVisual()
+tire_visual.SetName("tire_visual")
+tire_visual.SetMaterial(c_visual_material(chrono.CH_COLOR_WHITE))
+tire_visual.SetShape(chrono.ChShapeSphere([0.1, 0.1, 0.1]))
+tire.AddVisual(tire_visual)
+
+
+irrlicht.Initialize()
+irrlicht.SetTargetWindow(irrlicht.IrrlichtWindow.Create(800, 600, "BMW E90 Sedan Simulation"))
+irrlicht.SetCamera(irrlicht.IrrlichtCamera.Create(irrlicht.IrrlichtCamera.CHASE_CAMERA))
+irrlicht.SetLighting(irrlicht.IrrlichtLighting.Create(irrlicht.IrrlichtLighting.DIRECTIONAL_LIGHT))
+irrlicht.SetSkybox(irrlicht.IrrlichtSkybox.Create(irrlicht.IrrlichtSkybox.SKYBOX_CLOUDS))
+irrlicht.SetTexture(irrlicht.IrrlichtTexture.Create("path/to/texture.png"))
 
 
 driver.SetSteeringGain(0.1)
 driver.SetThrottleGain(0.1)
-driver.SetBrakingGain(0.1)
+driver.SetBrakeGain(0.1)
 
 
-vehicle.AddDriver(driver)
-
-
-irrlight.Init(1024, 768)
-irrlight.AddCamera(v3(0, 0, 0), v3(0, 0, 0))
-irrlight.AddLight(v3(0, 0, 0), v3(0, 0, 1), 1.0, 0.5, 0.5)
-irrlight.AddSkybox('/path/to/skybox.png')  
-irrlight.AddTerrain(terrain)
-
-
-terrain.SetTexture('/path/to/terrain/texture.png')  
-terrain.SetLogo('/path/to/logo.png')  
-
-
-chrono.Run()
+while True:
+    world.DoStep()
+    irrlicht.Draw()
+    irrlicht.Update()

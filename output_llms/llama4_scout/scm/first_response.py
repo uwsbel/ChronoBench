@@ -1,141 +1,75 @@
-import chrono as ch
-import chrono.irrlicht as irr
-import chrono.vehicle as veh
+import pychrono as chrono
+import pychrono.irrlicht as irr
+import pychrono.vehicle as veh
 
-# Initialize PyChrono environment
-ch.CH_init()
+# 1. Initialize the PyChrono environment and core components
+chrono.ChEngine.Initialize()
 
-# Set up the Irrlicht application
-app = irr.IrrlichtApp()
-app.setWindowSize(800, 600)
-app.setWindowTitle("HMMWV on SCM Deformable Terrain")
+# 2. Create the Irrlicht application
+application = irr.IrrlichtApplication()
 
-# Enable mesh visualization
-ch.visualization.mesh_visualization(True)
-
-# Create the HMMWV vehicle
+# 3. Create the HMMWV vehicle
 vehicle = veh.HMMWV()
 
 # Set vehicle location and orientation
-vehicle.setChassisPos(ch.ChVector3d(0, 0, 1.0))
-vehicle.setChassisRot(ch.ChQuaterniond(0, 0, 0, 1))
+vehicle.SetChassisBodyFixed(False)
+vehicle.SetChassisPos(chrono.ChVector3d(0, 0, 1.0))
+vehicle.SetChassisRot(chrono.ChQuaterniond(1, 0, 0, 0))
 
 # Use rigid tire model
-vehicle.setTireModel(veh.TireModel.Rigid)
+vehicle.SetTireModel(veh.TireModel.Rigid)
 
 # Enable mesh visualization for all vehicle components
-vehicle.setVisualization(True)
+vehicle.EnableVisualization(True)
 
-# Create the SCM terrain
-terrain = veh.SCMTerrain()
+# 4. Create SCM terrain
+terrain = veh.SCMTerrain(vehicle)
 
-# Set custom soil parameters
-soil_params = terrain.SoilParameters()
+# Custom soil parameters
+soil_params = terrain.GetSoilParameters()
 soil_params.k1 = 700000  # [Pa/m]
-soil_params.k2 = 7000000  # [Pa/m^2]
-soil_params.n = 0.7
-soil_params.c = 3000  # [Pa]
-soil_params.phi = 30  # [degrees]
-soil_params.s cohesion = 10  # [Pa]
-soil_params.friction = 0.9
+soil_params.k2 = 2100000  # [Pa/m^2]
+soil_params.n = 1.0
+soil_params.c = 0.0
+soil_params.friction = 0.8
+soil_params.damping = 0.5
+terrain.SetSoilParameters(soil_params)
 
-terrain.setSoilParameters(soil_params)
-
-# Enable moving patch feature
-terrain.setMovingPatch(True)
+# Enable moving patch
+terrain.EnableMovingPatch(True)
+terrain.SetMovingPatchThreshold(0.5)
 
 # Visualize sinkage with false color plotting
-terrain.setVisualizeSinkage(True)
+terrain.EnableColorPlot(True)
 
-# Create an interactive driver system
+# 5. Create interactive driver system
 driver = veh.Driver(vehicle)
 
-# Set up driver inputs
-driver.setThrottleInput(0.5)
-driver.setSteeringInput(0.0)
-driver.setBrakingInput(0.0)
+# Set up interactive controls
+driver.SetSteering(chrono.ChFunction_Constant(0))
+driver.SetThrottle(chrono.ChFunction_Constant(0.5))
+driver.SetBraking(chrono.ChFunction_Constant(0))
+
+# 6. Set up the simulation
+simulation = chrono.ChSimulation(vehicle)
 
 # Set simulation parameters
-step_size = 0.02  # [s]
-fps = 50
+simulation.SetTimestep(0.02)
+simulation.SetMaxSteps(100000)
 
-# Run simulation
-while app.run(step_size):
-    # Update vehicle dynamics
-    vehicle.update(step_size)
+# Add terrain to simulation
+simulation.AddTerrain(terrain)
 
-    # Render the scene
-    app.render(vehicle, terrain)
+# Add driver to simulation
+simulation.AddDriver(driver)
 
-import chrono as ch
-import chrono.irrlicht as irr
-import chrono.vehicle as veh
+# 7. Run the simulation
+while simulation.GetChTime() < 10 and application.GetDevice().run():
+    simulation.Step(0.02)
+    application.BeginScene()
+    application.RenderItem(vehicle)
+    application.RenderItem(terrain)
+    application.EndScene()
 
-def main():
-    # Initialize PyChrono environment
-    ch.CH_init()
-
-    # Set up the Irrlicht application
-    app = irr.IrrlichtApp()
-    app.setWindowSize(800, 600)
-    app.setWindowTitle("HMMWV on SCM Deformable Terrain")
-
-    # Enable mesh visualization
-    ch.visualization.mesh_visualization(True)
-
-    # Create the HMMWV vehicle
-    vehicle = veh.HMMWV()
-
-    # Set vehicle location and orientation
-    vehicle.setChassisPos(ch.ChVector3d(0, 0, 1.0))
-    vehicle.setChassisRot(ch.ChQuaterniond(0, 0, 0, 1))
-
-    # Use rigid tire model
-    vehicle.setTireModel(veh.TireModel.Rigid)
-
-    # Enable mesh visualization for all vehicle components
-    vehicle.setVisualization(True)
-
-    # Create the SCM terrain
-    terrain = veh.SCMTerrain()
-
-    # Set custom soil parameters
-    soil_params = terrain.SoilParameters()
-    soil_params.k1 = 700000  # [Pa/m]
-    soil_params.k2 = 7000000  # [Pa/m^2]
-    soil_params.n = 0.7
-    soil_params.c = 3000  # [Pa]
-    soil_params.phi = 30  # [degrees]
-    soil_params.s = 10  # [Pa]
-    soil_params.friction = 0.9
-
-    terrain.setSoilParameters(soil_params)
-
-    # Enable moving patch feature
-    terrain.setMovingPatch(True)
-
-    # Visualize sinkage with false color plotting
-    terrain.setVisualizeSinkage(True)
-
-    # Create an interactive driver system
-    driver = veh.Driver(vehicle)
-
-    # Set up driver inputs
-    driver.setThrottleInput(0.5)
-    driver.setSteeringInput(0.0)
-    driver.setBrakingInput(0.0)
-
-    # Set simulation parameters
-    step_size = 0.02  # [s]
-    fps = 50
-
-    # Run simulation
-    while app.run(step_size):
-        # Update vehicle dynamics
-        vehicle.update(step_size)
-
-        # Render the scene
-        app.render(vehicle, terrain)
-
-if __name__ == "__main__":
-    main()
+application.GetDevice().close()
+chrono.ChEngine.Finalize()

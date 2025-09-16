@@ -1,111 +1,78 @@
 import pychrono as chrono
 
-import pychrono.visualization as visual
+import pychrono.visualization as pv
 
-import pychrono.core as core
-
-import pychrono.fea as fea
-
-import pychrono.analyses as analyses
+import pychrono.core as chrono
 
 import pychrono.irrlicht as irrlicht
 
 
 
 
-core.Initialize()
+my_app = chrono.ChApplication()
 
+my_app.SetRealization(chrono.ChRealization.ANCF)
 
 
 
-my_chrono_instance = core.ChromeCore()
 
+ground = chrono.ChBodyEarth()
 
+my_app.AddBody(ground)
 
 
-beam = fea.Beam(my_chrono_instance, length=10.0, height=0.1, width=0.01)
 
-beam.AddANCFCableElement(num_elements=10, element_length=beam.Length / 10)
 
+beam = chrono.ChBody(1.0, chrono.ChVectorD(0, 0, 0), chrono.ChAffineDecomposition())
 
+beam.SetPos(chrono.ChVectorD(0, 0, 5))
 
+ground.AddBody(beam)
 
-ground = fea.StaticBody(my_chrono_instance, name='ground')
 
-ground.SetPosition(chrono.Vector3d(0, 0, 0))
 
 
+my_app.SetGravity(chrono.ChVectorD(0, -9.81, 0))
 
 
-my_chrono_instance.Add(beam)
 
-my_chrono_instance.Add(ground)
 
+cable = chrono.ChCable(beam, chrono.ChVectorD(0, 0, 0))
 
+cable.SetLength(5)
 
 
-my_chrono_instance.SetGravity(chrono.Vector3d(0, -9.81, 0))
 
 
+beam.SetInertiaXX(100)
 
+beam.SetInertiaXY(10)
 
-for element in beam.GetANCFCableElements():
+beam.SetInertiaXYZ(1)
 
-    element.SetInitialDisplacement(chrono.Vector3d(0, 0, 0))
 
-    element.SetInitialVelocity(chrono.Vector3d(0, 0, 0))
 
 
+vis = pv.ChVisualizerIrrlicht(my_app, create_window=True)
 
+vis.AddShape(cable.GetShape())
 
-vis = visual.ChromeVisualizer(my_chrono_instance)
 
 
 
+while my_app.GetEventStatus():
 
-scene = irrlicht.SpatialScene()
+    my_app.StepManual(1e-3, 100)
 
+    vis.BeginFrame()
 
+    vis.DrawAll()
 
+    vis.EndFrame()
 
-for node in beam.GetNodes():
 
-    scene.AddBillboard(node.GetPosition(), node.GetColor(), node.GetName())
 
 
+vis.DestroyWindow()
 
-
-while my_chrono_instance.GetSimulationStatus() == core.SimulationStatus.RUNNING:
-
-    
-
-    my_chrono_instance.DoStep(0.001, True, True)
-
-
-    
-
-    vis.SetRequestedCameraPosition(chrono.ChVectorD(0, 5, 0), chrono.ChVectorD(0, 0, -1))
-
-    vis.SetWindowTitle('Beam ANCF Simulation')
-
-    vis.SetFilePath('chrono_irrlicht_example.viz')
-
-    vis.Draw()
-
-
-    
-
-    scene.Clear()
-
-    for node in beam.GetNodes():
-
-        scene.AddBillboard(node.GetPosition(), node.GetColor(), node.GetName())
-
-    irrlicht.draw_scene(scene)
-
-
-
-
-vis.Close()
-
-core.Shutdown()
+my_app.Destroy()

@@ -1,90 +1,95 @@
 import pychrono
-import pychrono.core as chrono
-import irlicht as il
 import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation
+import time
 
-# --- 1. Environment Setup ---
-# Define the terrain (a simple grid for demonstration)
-terrain_width = 100
-terrain_height = 50
-terrain_resolution = 20  # Number of grid cells
+# Simulation Parameters
+simulation_time = 60  # Simulation duration in seconds
+dt = 0.1  # Time step in seconds
+gravity = 9.81
+ground_body_x = 0
+ground_body_y = 0
+turtlebot_x = 0
+turtlebot_y = 0
+velocity_x = 0
+velocity_y = 0
+angle_x = 0
+angle_y = 0
+rotation_speed = 0.5  # Rotation speed in degrees per second
 
-# Create a simple terrain grid
-terrain = np.zeros((terrain_width, terrain_height), dtype=bool)
-for i in range(terrain_width):
-    for j in range(terrain_height):
-        if (i + j) % 2 == 0:
-            terrain[i, j] = True  # Create a grid pattern
+# Initialize PyChrono environment
+chrono = pychrono.Chrono()
 
-# --- 2. Turtlebot Configuration ---
-# Turtlebot parameters
-turtlebot_x = 50
-turtlebot_y = 50
-turtlebot_z = 20
-turtlebot_orientation = 0  # 0 = facing right, 1 = facing up, 2 = facing forward
-turtlebot_speed = 0.5
-turtlebot_turn_rate = 0.1  # Turn rate in degrees per timestep
+# Create a Turtlebot object
+turtlebot = chrono.Turtlebot(
+    x=turtlebot_x,
+    y=turtlebot_y,
+    radius=0.5,
+    speed=1,
+    orientation=chrono.Orientation.RIGHT,
+    color="white",
+    texture="white"
+)
 
-# --- 3. Chrono System Initialization ---
-try:
-    chrono.init()
-except Exception as e:
-    print(f"Error initializing Chrono: {e}")
-    exit()
+# Set initial position and orientation
+turtlebot.set_position(ground_body_x, ground_body_y)
+turtlebot.set_orientation(chrono.Orientation.RIGHT)
+turtlebot.set_translation(ground_body_x, ground_body_y, 0)
 
-
-# --- 4. Physics & Ground Body ---
-# Define the ground body (a simple sphere)
+# Create a simple ground body
 ground_body = chrono.GroundBody(
     x=0,
     y=0,
-    z=0,
-    radius=10,
-    mass=1000, # Adjust mass for different behavior
-    # Add forces to simulate gravity
-    gravity_x = -9.81,
-    gravity_y = 0,
-    gravity_z = 0
+    radius=0.5,
+    color="brown",
+    texture="brown"
 )
 
-# --- 5. Simulation Loop ---
-def simulate_step():
-    """Simulates a single timestep of the simulation."""
-    global turtlebot_x, turtlebot_y, turtlebot_z, turtlebot_orientation
+# Create a camera object
+camera = chrono.Camera(
+    x=0,
+    y=0,
+    width=50,
+    height=50,
+    color="white",
+    texture="white"
+)
 
-    # Update the Turtlebot's position
-    turtlebot_x += turtlebot_speed * np.sin(turtlebot_orientation)
-    turtlebot_y += turtlebot_speed * np.cos(turtlebot_orientation)
-    turtlebot_z += turtlebot_speed * np.sin(turtlebot_orientation)
+# Animation setup
+def update_animation(frame_num):
+    """Updates the animation frame."""
+    global turtlebot, ground_body, camera
 
-    # Apply forces to move the Turtlebot
-    turtlebot_orientation += turtlebot_speed * np.sin(turtlebot_orientation)
+    # Update turtlebot's position and orientation
+    turtlebot.set_position(turtlebot.position[0], turtlebot.position[1], 0)
+    turtlebot.set_orientation(chrono.Orientation.RIGHT)
+    turtlebot.set_translation(turtlebot.position[0], turtlebot.position[1], 0)
 
-    # Check for collisions with the terrain
-    if (turtlebot_x - 10 < 0 or turtlebot_x + 10 > terrain_width) or \
-       (turtlebot_y - 10 < 0 or turtlebot_y + 10 > terrain_height) or \
-       (turtlebot_z - 10 < 0 or turtlebot_z + 10 > terrain_height):
-        print("Collision detected!")
-        turtlebot_orientation = 0 # Reset orientation
-        turtlebot_x = 50 # Reset position
-        turtlebot_y = 50
-        turtlebot_z = 20
-        turtlebot_orientation = 0 # Reset orientation
+    # Update the camera
+    camera.set_position(turtlebot.position[0], turtlebot.position[1], 0)
 
-    # Update the Chrono system
-    chrono.update()
+    # Update the frame
+    plt.clf()  # Clear the previous frame
+    plt.imshow(camera.image, cmap='gray')
+    plt.pause(0.01)
 
-    # Render the simulation (using Irrlicht)
-    # This is a placeholder - you'll need to integrate Irrlicht
-    # for real visualization.
-    # Example:  You'd likely use a camera and a rendering loop.
-    # Il.render(terrain, turtlebot_x, turtlebot_y, turtlebot_z,  # Render the terrain
-    #               turtlebot_orientation,  # Turtlebot orientation
-    #               camera_x=0, camera_y=0, camera_z=0,
-    #               camera_angle=0)
+    return camera
 
+# Simulation loop
+for frame_num in range(simulation_time):
+    update_animation(frame_num)
+    time.sleep(dt)  # Delay for simulation time
 
-# --- Main Simulation ---
-if __name__ == "__main__":
-    simulate_step()
-    print("Simulation complete.")
+# Clean up
+turtlebot.set_translation(0, 0, 0)
+turtlebot.set_orientation(chrono.Orientation.RIGHT)
+turtlebot.set_position(0, 0)
+turtlebot.set_translation(0, 0, 0)
+turtlebot.set_orientation(chrono.Orientation.RIGHT)
+turtlebot.set_translation(0, 0, 0)
+turtlebot.set_position(0, 0, 0)
+turtlebot.set_orientation(chrono.Orientation.RIGHT)
+turtlebot.set_translation(0, 0, 0)
+turtlebot.set_rotation(chrono.Rotation.NONE) # Reset rotation
+plt.close()  # Close the plot to free memory

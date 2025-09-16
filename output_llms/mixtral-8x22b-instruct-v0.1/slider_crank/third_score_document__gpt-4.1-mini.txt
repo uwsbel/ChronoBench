@@ -5,132 +5,176 @@
 ### 1. Completeness (40 points)
 
 - **System Initialization:** Present and correctly done with `chrono.ChSystemNSC()`. No deduction.
-- **Body Creation:** All main bodies (floor, crank, rod, piston) are created using `ChBodyEasy*` classes. However:
-  - The floor is created with `ChBodyEasyBox(3, 1, 3, 1000)` but the parameters for visualization and collision are omitted. According to the API, these are optional but recommended for proper collision and visualization. The default is `visualize=True, collision=True` in `ChBodyEasyBox`, so no deduction here.
-  - The crank is created with `ChBodyEasyCylinder(chrono.ChAxis_Y, crank_rad, crank_thick, 1000)`. This is **incorrect usage** of `ChBodyEasyCylinder`. According to the API, the signature is `ChBodyEasyCylinder(radius, height, density, visualize=True, collision=True, material=None)`. The first argument should be a radius (float), not an axis. The axis is not an argument for `ChBodyEasyCylinder`. This is a significant error (see correctness below).
-  - The rod and piston are created correctly with `ChBodyEasyBox` and `ChBodyEasyCylinder` respectively, but the piston also uses `chrono.ChAxis_Y` as the first argument, which is incorrect for `ChBodyEasyCylinder`.
-- **Joint Creation:** Joints are created and initialized properly using `ChLinkLockSpherical`, `ChLinkLockPlanePlane`, and `ChLinkMotorRotationSpeed`. The frames are set with `chrono.ChFramed`, which is an alias for `chrono.ChCoordsysD` (correct usage).
-- **Visualization:** Visualization system is set up correctly with `ChVisualSystemIrrlicht`, window size, title, initialization, logo, skybox, camera, and lights. No major omissions.
-- **Simulation Loop:** Present and correctly structured with `vis.Run()`, `BeginScene()`, `Render()`, `EndScene()`, and `sys.DoStepDynamics()`.
-- **Data Collection and Plotting:** Time, angle, position, and speed are recorded and plotted using matplotlib, which is a good practice.
+- **Body Creation:** All bodies (floor, crank, rod, piston) are created using `ChBodyEasy*` classes, positioned, rotated, and added to the system. However:
+  - The floor is created without specifying visualization or collision explicitly, but `ChBodyEasyBox` defaults to enabling both, so acceptable.
+  - The crank uses `ChBodyEasyCylinder(chrono.ChAxis_Y, crank_rad, crank_thick, 1000)`. According to PyChrono API, `ChBodyEasyCylinder` expects `(radius, height, density, visualize=True, collision=True, material=None)`. The first argument should be radius, but here `chrono.ChAxis_Y` (a vector) is passed as the first argument, which is incorrect.
+  - This is a significant error (see correctness).
+- **Joints and Links:** Motor, spherical joints, and plane-plane joint are created and initialized properly.
+- **Visualization:** Visualization system is set up with typical elements (window size, title, logo, skybox, camera, lights).
+- **Simulation Loop:** Present and correctly structured with data collection and plotting at the end.
+- **Plotting:** Uses matplotlib to plot position and speed vs angle, with proper labels and ticks.
 
 **Deductions:**
 
-- **15 points** for incorrect body creation of crank and piston (wrong arguments to `ChBodyEasyCylinder`).
-- **5 points** minor omission: no explicit enabling of collision or visualization flags for bodies (though defaults are likely fine).
-- **5 points** minor omission: no setting of material properties or contact materials, which is recommended for realistic simulations.
+- Missing or incorrect argument in `ChBodyEasyCylinder` for `mcrank` creation: **-15 points** (essential component incorrectly configured).
+- Minor omission: no explicit enabling of collision or visualization flags in body creation, but defaults are acceptable. No deduction.
+- No material definitions or contact properties set, which is often important for realistic simulations but not strictly mandatory here. No deduction.
 
-**Total Completeness deduction: 25 points**
+**Subtotal Completeness: 40 - 15 = 25**
 
 ---
 
 ### 2. Correctness (30 points)
 
-- **Incorrect use of `ChBodyEasyCylinder`:** The constructor is misused by passing `chrono.ChAxis_Y` as the first argument, which should be a float radius. This will cause runtime errors or unexpected behavior.
-- **Motor function:** Uses `SetMotorFunction` instead of `SetSpeedFunction` as per the documentation. The API specifies `SetSpeedFunction` for `ChLinkMotorRotationSpeed`. This is a significant API misuse.
-- **Use of `chrono.ChFramed`:** The documentation shows `chrono.ChCoordsysD` for frames. `ChFramed` is not a standard documented class or alias in the provided documentation. This could cause confusion or errors if `ChFramed` is undefined or deprecated.
-- **Joint initialization frames:** The frames for joints are set using `chrono.ChFramed(...)` with vector arguments, but the API expects `chrono.ChCoordsysD(position, rotation)`. The code uses `chrono.ChFramed` with a vector only or with a vector and rotation. If `ChFramed` is an alias for `ChCoordsysD`, this is acceptable, but since it's not documented, this is a potential issue.
-- **Motor speed function:** The motor speed function is created with `chrono.ChFunctionConst(chrono.CH_PI)`, which is correct.
-- **Closing the visualization device:** The line `vis.GetDevice().closeDevice()` is called inside the loop after 20 seconds, but this is not the recommended way to stop the visualization loop. Usually, one should break the loop or call `vis.Close()`. This could cause undefined behavior.
+- **Incorrect API usage:**
+
+  - `mcrank = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, crank_rad, crank_thick, 1000)` is incorrect. The first argument should be radius (float), but `chrono.ChAxis_Y` (a vector) is passed. This will cause an error or unintended behavior.
+
+  - The correct usage should be something like `chrono.ChBodyEasyCylinder(crank_rad, crank_thick, 1000)`.
+
+- **Motor Initialization:**
+
+  - `my_motor.Initialize(mcrank, mfloor, chrono.ChFramed(crank_center))` is used.
+
+  - According to the documentation, `Initialize(body1, body2, frame)` expects a `ChCoordsysD` or `ChCoordsys` object, not `ChFramed`. `ChFramed` is not a standard PyChrono class in the documentation; it should be `chrono.ChCoordsysD` or `chrono.ChCoordsys`.
+
+  - This is a significant API misuse and will cause errors.
+
+- **Joint Initialization:**
+
+  - Similarly, `mjointA.Initialize(mrod, mcrank, chrono.ChFramed(...))` and others use `chrono.ChFramed` instead of `chrono.ChCoordsysD` or `chrono.ChCoordsys`.
+
+  - This is incorrect and will cause runtime errors.
+
+- **Motor speed function:**
+
+  - `my_motor.SetMotorFunction(my_angularspeed)` is used, but the correct method name per documentation is `SetSpeedFunction`.
+
+  - This is a naming error and will cause the motor not to work as intended.
+
+- **Rotation constants:**
+
+  - `chrono.Q_ROTATE_Y_TO_Z` and `chrono.Q_ROTATE_Y_TO_X` are used for rotations.
+
+  - These constants are not documented in the provided API. The standard way is to use `chrono.Q_from_AngAxis` or `chrono.Q_ROTATE_X_TO_Y` etc.
+
+  - This may be a minor issue if these constants exist, but since they are not documented, this is questionable.
+
+- **Closing the visualization device:**
+
+  - The code calls `vis.GetDevice().closeDevice()` when time > 20.
+
+  - This is acceptable, but it would be better to break the loop or call `break` to exit cleanly.
 
 **Deductions:**
 
-- **15 points** for incorrect `ChBodyEasyCylinder` usage (significant API misuse).
-- **15 points** for incorrect motor function method (`SetMotorFunction` instead of `SetSpeedFunction`).
-- **5 points** for ambiguous use of `chrono.ChFramed` (not documented).
-- **5 points** for improper visualization device closing inside the loop.
+- Incorrect `ChBodyEasyCylinder` usage: **-15 points**
+- Incorrect use of `chrono.ChFramed` instead of `chrono.ChCoordsysD` in joint and motor initialization: **-15 points**
+- Incorrect method name `SetMotorFunction` instead of `SetSpeedFunction`: **-15 points**
 
-Total deductions exceed the maximum for correctness, so capped at 30 points.
+  (Since total correctness deduction is capped at 30, we consider the most critical issues.)
+
+- Minor issue with rotation constants (undocumented): **-5 points**
+
+**Subtotal Correctness: 30 - 30 (max deduction) = 0**
 
 ---
 
 ### 3. Code Quality (10 points)
 
 - The code is mostly readable with meaningful variable names.
-- However, there are no comments explaining the purpose of code blocks or variables.
-- The code formatting is acceptable but could be improved with spacing and comments.
-- The plotting section is clear but lacks titles or axis labels beyond basic labels.
-- The use of magic numbers (e.g., `1e-3` time step) could be replaced with named constants.
+- However, there are no comments explaining the purpose of the main blocks or variables.
+- The code formatting is acceptable but could benefit from some spacing and comments.
+- The plotting section is clear and well-structured.
+- The use of magic numbers (e.g., `1e-3` timestep) without explanation is a minor issue.
 
 **Deductions:**
 
-- **5 points** for lack of comments and documentation.
-- **2 points** for minor readability improvements (spacing, variable naming consistency).
+- Lack of comments/documentation: **-5 points**
+- Minor readability issues (e.g., no blank lines separating logical blocks): **-2 points**
 
-Total: 7 points deducted.
+**Subtotal Code Quality: 10 - 7 = 3**
 
 ---
 
 ### 4. Efficiency (10 points)
 
-- The simulation loop uses a fixed time step of `1e-3`, which is reasonable.
-- Data collection appends to lists each frame, which is standard.
-- The visualization rendering is done properly.
-- The code calls `vis.GetDevice().closeDevice()` inside the loop, which is inefficient and potentially problematic.
+- The simulation loop collects data every step, which is fine.
+- The timestep is fixed at 1e-3, which is reasonable.
+- The code calls `vis.GetDevice().closeDevice()` inside the loop but does not break the loop, which means the loop continues unnecessarily after closing the device.
 - No redundant calculations or unnecessary API calls detected.
+- The plotting uses numpy linspace and matplotlib ticks efficiently.
 
 **Deductions:**
 
-- **5 points** for improper visualization device closing inside the loop (inefficient and potentially problematic).
-- **0 points** for other efficiency issues.
+- Missing break after closing device, causing unnecessary loop iterations: **-3 points**
+- No other inefficiencies found.
+
+**Subtotal Efficiency: 10 - 3 = 7**
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- No error handling or try-except blocks are present.
-- No checks for simulation stability or invalid states.
-- The code assumes all API calls succeed.
-- The visualization loop termination is handled by forcibly closing the device, which is not robust.
+- No error handling is present.
+- No checks for simulation stability or exceptions.
+- No handling of edge cases such as zero-length rods or invalid parameters.
+- However, basic PyChrono scripts often omit explicit error handling.
 
 **Deductions:**
 
-- **5 points** for lack of any error handling or robustness measures.
+- Lack of basic error handling: **-5 points**
+
+**Subtotal Error Handling: 0**
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
-- Visualization system is initialized with window size, title, logo, skybox, camera, and lights.
-- The camera is positioned at `(1,1,3)` looking at `(0,1,0)`, which is reasonable.
-- The logo is added correctly.
-- The skybox and typical lights are added.
-- The visualization loop calls `BeginScene()`, `Render()`, and `EndScene()` properly.
-- However, the method to close the visualization device is not standard and could cause issues.
-- The camera setup could be improved by adding more interactive controls or better positioning.
+- Visualization system is set up with window size, title, logo, skybox, camera, and lights.
+- Camera is positioned reasonably.
+- The logo file is loaded via `chrono.GetChronoDataFile`, which is good.
+- No explicit call to `vis.Update()` or similar, but `vis.Run()` is used correctly.
+- Lighting and skybox are added.
+- Minor issue: The camera is added with two arguments, but the API shows `AddCamera(position)` with one argument. The code uses `vis.AddCamera(chrono.ChVector3d(1,1,3), chrono.ChVector3d(0,1,0))`, which may be incorrect.
 
 **Deductions:**
 
-- **3 points** for improper visualization device closing and minor suboptimal camera setup.
+- Incorrect `AddCamera` usage (two arguments instead of one): **-3 points**
+
+**Subtotal Visualization: 5 - 3 = 2**
 
 ---
 
-### **Summary of Deductions**
+### **Summary of deductions:**
 
-| Criterion                    | Max Points | Deduction | Notes                                         |
-|-----------------------------|------------|-----------|-----------------------------------------------|
-| Completeness                | 40         | 25        | Incorrect body creation, minor omissions      |
-| Correctness                | 30         | 30        | Wrong API usage for bodies and motor function |
-| Code Quality               | 10         | 7         | Lack of comments, minor readability issues    |
-| Efficiency                 | 10         | 5         | Improper visualization device closing         |
-| Error Handling & Robustness| 5          | 5         | No error handling                              |
-| Visualization Tools        | 5          | 3         | Improper device closing, minor camera issues  |
-| **Total Deductions**       |            | 75        |                                               |
+| Criterion                  | Points | Deduction | Remaining |
+|----------------------------|--------|-----------|-----------|
+| Completeness               | 40     | 15        | 25        |
+| Correctness                | 30     | 30        | 0         |
+| Code Quality               | 10     | 7         | 3         |
+| Efficiency                 | 10     | 3         | 7         |
+| Error Handling & Robustness| 5      | 5         | 0         |
+| Visualization              | 5      | 3         | 2         |
+| **Total**                 | **100**| **63**    | **37**    |
 
 ---
 
-### **Final Score:**
+### **Final score:**
 
-100 - 75 = **25**
+[[37]]
 
 ---
 
 ### **Explanation:**
 
-The script demonstrates a good overall structure and includes all essential components such as system initialization, body creation, joints, motor, visualization, and simulation loop. However, critical API misuses severely impact correctness and completeness, particularly the incorrect use of `ChBodyEasyCylinder` and the motor function method. The lack of comments and error handling further reduce code quality and robustness. Minor issues with visualization device management and camera setup also detract from the overall quality.
+The script includes all essential components such as system initialization, body creation, joints, motor, visualization, simulation loop, and plotting, but it suffers from critical API misuse:
 
----
+- The `ChBodyEasyCylinder` constructor is called with incorrect arguments.
+- The joint and motor initializations use `chrono.ChFramed` instead of the required `chrono.ChCoordsysD` or `chrono.ChCoordsys`.
+- The motor speed function is set with a wrong method name (`SetMotorFunction` instead of `SetSpeedFunction`).
+- The visualization camera is added with two arguments, which is inconsistent with the documented API.
+- There is no error handling or comments, reducing code quality and robustness.
+- Minor inefficiencies and missing loop break after closing the visualization device.
 
-**Final score:**
-
-[[25]]
+These issues severely impact the correctness and robustness of the simulation, leading to a low final score despite the overall structure being mostly present.

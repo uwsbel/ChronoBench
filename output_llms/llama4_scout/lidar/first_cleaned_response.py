@@ -1,161 +1,79 @@
 import chrono as ch
 import chrono.sensor as chs
-import chrono.postprocess as chpp
+import math
 
 
-ch.ChronoEnvironment.set_G(9.81)
+ch.ChEngine.Initialize()
 
 
-system = ch.ChSystemNSC()
+system = ch.ChSystem()
 
 
-system.Set_G_acceleration(ch.ChVector3d(0, 0, -9.81))
+mesh_body = ch.ChBodyAuxRef()
+mesh_body.SetFixed(True)
 
 
 mesh = ch.ChTriangleMeshConnected()
+mesh.LoadWavefrontMesh("path/to/your/mesh.obj")
 
 
-mesh.LoadWavefrontMesh('path/to/mesh.obj')
+mesh_body.AddCollisionShape(mesh)
+mesh_body.AddVisualShape(mesh)
 
 
-body = ch.ChBody()
+mesh_body.SetPos(ch.ChVector3d(0, 0, 0))
 
 
-body.SetShape(mesh)
-
-
-body.SetPos(ch.ChVector3d(0, 0, 0))
-body.SetRot(ch.ChQuaterniond(1, 0, 0, 0))
-body.SetBodyFixed(True)
-
-
-system.AddBody(body)
+system.AddBody(mesh_body)
 
 
 sensor_manager = chs.ChSensorManager(system)
 
 
-lidar = chs.ChLidarSensor(body)
+lidar_sensor = chs.ChLidarSensor(
+    mesh_body, 
+    ch.ChFrame3d(ch.ChVector3d(0, 0, 5), ch.ChQuaterniond(1, 0, 0, 0)), 
+    10,  
+    10,  
+    10,  
+    10,  
+    0.1,  
+    100  
+)
 
 
-lidar.SetName('Lidar Sensor')
-lidar.SetPosition(ch.ChVector3d(0, 0, 1))
-lidar.SetDirection(ch.ChVector3d(0, 0, -1))
-lidar.SetRanges(0.1, 10)  
-lidar.SetResolution(1024, 1024)  
-lidar.SetFOV(ch.ChVector2d(30, 30))  
+noise_filter = chs.ChNoiseLidarFilter(0.1,  
+                                      0.01)  
+lidar_sensor.AddFilter(noise_filter)
 
 
-noise = chs.ChNoiseLidarGaussian()
-noise.SetParameters(0.01, 0.1)  
-lidar.AddFilter(noise)
+lidar_sensor.EnableVisualization(True)
 
 
-lidar.EnableVisualization(True)
+lidar_sensor.SetSaveAs("lidar_data", ".csv")
 
 
-sensor_manager.AddSensor(lidar)
+sensor_manager.AddSensor(lidar_sensor)
 
 
-system.SetTimestep(0.01)
+stepsize = 0.01
+end_time = 10
 
 
-t_end = 10.0
-
-
-timer = ch.ChTimer()
-
-
-timer.Start()
-
-
-def UpdateLidarPosition(step):
+for step in range(int(end_time / stepsize)):
     
-    radius = 5.0
     angle = step * 0.1
-    lidar.SetPosition(ch.ChVector3d(radius * ch.cos(angle), radius * ch.sin(angle), 1))
-
-
-for step in range(int(t_end / system.GetTimestep())):
-    
-    UpdateLidarPosition(step * system.GetTimestep())
+    lidar_sensor.SetPos(ch.ChVector3d(5 * math.cos(angle), 5 * math.sin(angle), 5))
 
     
-    system.DoStepDynamics(system.GetTimestep())
+    system.DoStepDynamics(stepsize)
 
     
-    lidar_data = lidar.GetMostRecentBuffer()
-    if lidar_data is not None:
-        print(f"Step {step}: Lidar buffer data - points: {len(lidar_data.GetPoints())}")
-
-
-if lidar.GetSaveFile():
-    lidar.SaveFile('lidar_data.dat')
-
-import chrono as ch
-import chrono.sensor as chs
-import chrono.postprocess as chpp
-
-def main():
-    
-    ch.ChronoEnvironment.set_G(9.81)
+    lidar_data = lidar_sensor.GetBufferData()
+    print("Lidar Buffer Data:")
+    for point in lidar_data:
+        print(point)
 
     
-    system = ch.ChSystemNSC()
-
-    
-    mesh = ch.ChTriangleMeshConnected()
-    mesh.LoadWavefrontMesh('path/to/mesh.obj')
-
-    
-    body = ch.ChBody()
-    body.SetShape(mesh)
-    body.SetPos(ch.ChVector3d(0, 0, 0))
-    body.SetRot(ch.ChQuaterniond(1, 0, 0, 0))
-    body.SetBodyFixed(True)
-
-    
-    system.AddBody(body)
-
-    
-    sensor_manager = chs.ChSensorManager(system)
-
-    
-    lidar = chs.ChLidarSensor(body)
-    lidar.SetName('Lidar Sensor')
-    lidar.SetPosition(ch.ChVector3d(0, 0, 1))
-    lidar.SetDirection(ch.ChVector3d(0, 0, -1))
-    lidar.SetRanges(0.1, 10)  
-    lidar.SetResolution(1024, 1024)  
-    lidar.SetFOV(ch.ChVector2d(30, 30))  
-
-    noise = chs.ChNoiseLidarGaussian()
-    noise.SetParameters(0.01, 0.1)  
-    lidar.AddFilter(noise)
-
-    lidar.EnableVisualization(True)
-
-    sensor_manager.AddSensor(lidar)
-
-    system.SetTimestep(0.01)
-    t_end = 10.0
-
-    timer = ch.ChTimer()
-    timer.Start()
-
-    for step in range(int(t_end / system.GetTimestep())):
-        radius = 5.0
-        angle = step * system.GetTimestep() * 0.1
-        lidar.SetPosition(ch.ChVector3d(radius * ch.cos(angle), radius * ch.sin(angle), 1))
-
-        system.DoStepDynamics(system.GetTimestep())
-
-        lidar_data = lidar.GetMostRecentBuffer()
-        if lidar_data is not None:
-            print(f"Step {step}: Lidar buffer data - points: {len(lidar_data.GetPoints())}")
-
-    if lidar.GetSaveFile():
-        lidar.SaveFile('lidar_data.dat')
-
-if __name__ == "__main__":
-    main()
+    sensor_manager.Update()
+    sensor_manager.SaveData()

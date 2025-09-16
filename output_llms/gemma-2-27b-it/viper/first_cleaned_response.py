@@ -21,29 +21,20 @@ ground.SetBodyFixed(True)
 system.Add(ground)
 
 
-
-
-
-
-
-
-rover = chrono.ChWheeledVehicle("viper_rover.obj")
-
-
-rover.SetPos(chrono.ChVectorD(0, 1, 0))
-rover.SetRot(chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 0, 1)))
-
-
+rover = chrono.ChChassis(
+    "Viper", chrono.ChVectorD(0, 0.5, 0), chrono.ChQuaternionD(1, 0, 0, 0),
+    chrono.ChChassis.Type_VEHICLES, 1000
+)
 system.Add(rover)
 
 
+driver = chrono.ChBodyEasySphere(0.2, 1000)
+driver.SetPos(chrono.ChVectorD(0, 0.8, 0))
+driver.SetBodyFixed(True)
+system.Add(driver)
 
 
-
-
-
-
-
+rover.AddSensor(driver)
 
 
 
@@ -56,12 +47,14 @@ vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
 vis.SetWindowSize(800, 600)
 vis.SetWindowTitle("Viper Rover Simulation")
+vis.Initialize()
 
 
-camera = vis.GetCamera()
-camera.SetLocation(chrono.ChVectorD(5, 5, 3))
-camera.SetLookAt(chrono.ChVectorD(0, 1, 0))
-vis.AddLight(chrono.ChLightPoint(chrono.ChVectorD(5, 5, 5)))
+vis.GetCamera().SetTarget(chrono.ChVectorD(0, 0.5, 0))
+vis.GetCamera().SetPosition(chrono.ChVectorD(5, 2, 5))
+
+
+vis.AddLightWithShadow(chrono.ChVectorD(2, 5, 2), chrono.ChVectorD(0.8, 0.8, 0.8), 10)
 
 
 
@@ -71,31 +64,27 @@ vis.AddLight(chrono.ChLightPoint(chrono.ChVectorD(5, 5, 5)))
 
 
 timestep = 0.01
-simulation_time = 10
 
 
-initial_steering = 0
-final_steering = math.pi / 4  
-steering_change_time = 5
+steering_start = 0
+steering_end = math.pi / 4
+steering_duration = 5
 
 
-for i in range(int(simulation_time / timestep)):
-    time = i * timestep
+while vis.Run():
+    
+    simulation_time = system.GetChTime()
+    steering_angle = chrono.ChInterp.Linear(
+        steering_start, steering_end, simulation_time / steering_duration
+    )
 
     
-    if time <= steering_change_time:
-        steering_angle = initial_steering + (final_steering - initial_steering) * time / steering_change_time
-    else:
-        steering_angle = final_steering
-
     
-    rover.SetSteeringAngle(steering_angle)
 
     
     system.DoStepDynamics(timestep)
 
     
+    vis.BeginScene()
     vis.Render()
-
-
-vis.GetDevice().close()
+    vis.EndScene()

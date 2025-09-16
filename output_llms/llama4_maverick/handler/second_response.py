@@ -1,38 +1,35 @@
 import pychrono as ch
 import pychrono.ros as chros
-import rclpy
+from rclpy.publisher import Publisher
 from std_msgs.msg import String
 
 # Define a custom ROS handler for publishing string messages.
 class MyCustomHandler(chros.ChROSHandler):
     """This custom handler will publish string messages to a specified ROS topic."""
-
+    
     def __init__(self, topic):
         super().__init__(1)  # Initialize the handler with a 1 Hz publishing rate.
-
         self.topic = topic
-        self.publisher: rclpy.publisher.Publisher = None
+        self.publisher: Publisher = None
         self.ticker = 0  # Initialize a counter for published messages.
-        self.message = "Hello, world! At time: "  # Attribute to hold the base message.
+        self.message = "Hello, world! At time: "
 
     def Initialize(self, interface: chros.ChROSPythonInterface) -> bool:
         """Initialize the ROS publisher."""
         print(f"Creating publisher for topic {self.topic} ...")
-        # Create a ROS publisher for the specified topic with String message type.
+        # Create a ROS publisher for the specified topic.
         self.publisher = interface.GetNode().create_publisher(String, self.topic, 1)
         return True  # Return True to indicate successful initialization.
 
     def Tick(self, time: float):
         """Publish a string message to the ROS topic."""
+        print(f"Publishing {self.ticker} ...")
         msg = String()  # Create a message object of type String.
-        msg.data = self.message + str(time)  # Concatenate the message with the current time.
-        print(f"Publishing {msg.data} ...")
+        msg.data = self.message + str(self.ticker)  # Set the message data to the concatenated string.
         self.publisher.publish(msg)  # Publish the message to the ROS topic.
+        self.ticker += 1  # Increment the ticker for the next message.
 
 def main():
-    # Initialize rclpy
-    rclpy.init()
-
     # Create the Chrono simulation system.
     sys = ch.ChSystemNSC()
     sys.SetGravitationalAcceleration(ch.ChVector3d(0, 0, -9.81))  # Set gravitational acceleration.
@@ -57,42 +54,38 @@ def main():
 
     # Create and configure the ROS manager.
     ros_manager = chros.ChROSPythonManager()
-    
     # Register a clock handler for the simulation time.
     ros_manager.RegisterHandler(chros.ChROSClockHandler())
-    
     # Register a body handler to communicate the box's state.
     ros_manager.RegisterHandler(chros.ChROSBodyHandler(25, box, "~/box"))
-    
     # Create and register a transform handler for coordinate transformations.
     tf_handler = chros.ChROSTFHandler(30)
     tf_handler.AddTransform(floor, floor.GetName(), box, box.GetName())
     ros_manager.RegisterHandler(tf_handler)
-    
     # Register the custom handler to publish messages.
     custom_handler = MyCustomHandler("~/my_topic")
     ros_manager.RegisterPythonHandler(custom_handler)
 
     # Initialize the ROS manager.
-    ros_manager.Initialize()
+    if not ros_manager.Initialize():
+        print("Failed to initialize ROS manager.")
+        return
 
     # Run the simulation loop.
     time = 0
     time_step = 1e-3  # Define the simulation time step.
     time_end = 30  # Set the duration for the simulation.
-
     realtime_timer = ch.ChRealtimeStepTimer()  # Create a real-time step timer.
+
     while time < time_end:
         sys.DoStepDynamics(time_step)  # Advance the simulation by one time step.
         time = sys.GetChTime()  # Update the simulation time.
-
         if not ros_manager.Update(time, time_step):  # Update ROS communication.
             break  # Exit the loop if the ROS manager indicates a problem.
-
         realtime_timer.Spin(time_step)  # Maintain real-time step execution.
 
-    # Shutdown rclpy
-    rclpy.shutdown()
+    # Clean up
+    ros_manager.Shutdown()
 
 # Entry point of the script.
 if __name__ == "__main__":

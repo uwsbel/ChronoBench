@@ -2,8 +2,8 @@ import os
 import math
 import numpy as np
 import pychrono as chrono
+import pychrono.vehicle as veh
 import pychrono.robot as viper
-import pychrono.vehicle as veh  
 from pychrono import irrlicht as chronoirr
 
 
@@ -14,12 +14,12 @@ chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.0025)
 chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
 
 
-terrain = veh.ChSCMDeformableTerrain()
-terrain.SetPlane(chrono.ChVector3d(0, 0, 1), chrono.ChVector3d(0, 0, 0))  
-terrain.SetLength(20)  
-terrain.SetWidth(20)  
-terrain.SetMeshResolution(10, 10)  
-terrain.SetSoilParameters(1e6, 0.3, 0.2)  
+terrain = chrono.ChSCMDeformableTerrain()
+terrain.SetPlane(chrono.ChVector3d(0, 0, 1), chrono.ChVector3d(0, 0, 0))
+terrain.SetLength(20)
+terrain.SetWidth(20)
+terrain.SetMeshResolution(100, 100)
+terrain.SetSoilParameters(0.001, 0.001, 0.001, 0.001, 0.001, 0.001)
 system.Add(terrain)
 
 
@@ -37,7 +37,7 @@ vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
 vis.SetCameraVertical(chrono.CameraVerticalDir_Z)
 vis.SetWindowSize(1280, 720)
-vis.SetWindowTitle('Viper rover - SCM terrain')
+vis.SetWindowTitle('Viper rover - Rigid terrain')
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()

@@ -64,13 +64,8 @@ patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-patch = terrain.AddPatch(patch_mat,
-    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
-    terrainLength, terrainWidth)
-
-
-height_map = veh.LoadHeightmap('terrain/heightmap_hills.txt', terrainLength, terrainWidth, 1)
-patch.SetHeightmap(height_map)
+terrain.SetHeightfield(veh.GetDataFile("terrain/heightmap_hills.csv"), 1, 1, 1, 0, terrainLength, terrainWidth, terrainHeight)
+patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), terrainLength, terrainWidth)
 
 patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))

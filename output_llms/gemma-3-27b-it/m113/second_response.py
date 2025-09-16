@@ -33,7 +33,7 @@ step_size = 5e-4
 tire_step_size = step_size
 
 # Time interval between two render frames
-render_step_size = 1.0 / 50
+render_step_size = 1.0 / 50  # FPS = 50
 
 # Create the MAN vehicle, set parameters, and initialize
 vehicle = veh.M113()
@@ -45,6 +45,7 @@ vehicle.SetTransmissionType(veh.TransmissionModelType_AUTOMATIC_SHAFTS)
 vehicle.SetBrakeType(veh.BrakeType_SIMPLE)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.Initialize()
+
 vehicle.SetChassisVisualizationType(vis_type)
 vehicle.SetSprocketVisualizationType(vis_type)
 vehicle.SetIdlerVisualizationType(vis_type)
@@ -52,18 +53,16 @@ vehicle.SetIdlerWheelVisualizationType(vis_type)
 vehicle.SetSuspensionVisualizationType(vis_type)
 vehicle.SetRoadWheelVisualizationType(vis_type)
 vehicle.SetTrackShoeVisualizationType(vis_type)
+
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 # Create the SCM terrain
-terrain = veh.SCMTerrain(vehicle.GetSystem())
+terrain = veh.SCMDeformableTerrain(vehicle.GetSystem())
 terrain.SetTerrainSize(terrain_length, terrain_width)
-terrain.SetHeightMap(veh.GetDataFile("terrain/heightmaps/dirt_heightmap.png"))  # Use a heightmap
-terrain.SetSoilParameters(0.8, 0.2, 1.0, 0.8, 0.5)  # Set soil parameters
+terrain.SetHeightMap(veh.GetDataFile("terrain/height_map.png"))  # Replace with your height map
+terrain.SetQuadResolution(64, 64)
+terrain.SetSoilProperties(chrono.ChMaterialSurfaceSMC(), 0.9, 0.01, 1000, 100, 0.5)
 terrain.Initialize()
-
-# Set terrain texture
-terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 200, 200)
-terrain.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 
 # Create the vehicle Irrlicht interface
 vis = veh.ChTrackedVehicleVisualSystemIrrlicht()
@@ -80,15 +79,16 @@ vis.AttachVehicle(vehicle.GetVehicle())
 driver = veh.ChInteractiveDriverIRR(vis)
 
 # Set the time response for steering and throttle keyboard inputs.
-steering_time = 1.0
-throttle_time = 1.0
-braking_time = 0.3
+steering_time = 1.0  # time to go from 0 to +1 (or from 0 to -1)
+throttle_time = 1.0  # time to go from 0 to +1
+braking_time = 0.3  # time to go from 0 to +1
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 # Solver and integrator settings
+# ------------------------------
 vehicle.GetSystem().SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
 
 # output vehicle mass
@@ -106,18 +106,11 @@ while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
     # Hard-coded throttle value
-    throttle_value = 0.8
-    driver.SetThrottle(throttle_value)
-
-    # Render scene and output POV-Ray data
-    if (step_number % render_steps == 0):
-        vis.BeginScene()
-        vis.Render()
-        vis.EndScene()
-        render_frame += 1
+    throttle_input = 0.8
 
     # Get driver inputs
     driver_inputs = driver.GetInputs()
+    driver_inputs.throttle = throttle_input
 
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)

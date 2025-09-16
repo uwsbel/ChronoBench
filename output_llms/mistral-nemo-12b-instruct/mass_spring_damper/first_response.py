@@ -1,48 +1,49 @@
 import pychrono as chrono
-import pychrono.irrlicht as irr
+import pyirrlicht as ir
 
-# Initialize PyChrono environment
+# Initialize PyChrono environment and core components
 physics = chrono.ChPhysicsEngine()
-physics.SetIntegrationType(chrono.ChIntegrationType_SPH)
+physics.Set_Gravity(chrono.ChVectorD(0, -9.81, 0))
+chrono.ChSystem().SetPhysicsEngine(physics)
 
-# Create a new Irrlicht visualization
-app = irr.ChIrrApp(physics, "Mass-Spring-Damper System", chrono.ChVectorD(1000, 1000))
-app.SetTimestep(0.005)
-app.AddTypicalSky(chrono.ChColor(0.698, 0.769, 0.871))
-app.AddTypicalCamera(chrono.ChVectorD(1, 1, -5), chrono.ChVectorD(0, 0, 0))
+# Create the simulation system
+system = chrono.ChSystemSMC()
+system.Set_Gravity(chrono.ChVectorD(0, -9.81, 0))
+system.Set_SolverType(chrono.ChSolverType_SOR)
 
-# Create a system and add it to the physics engine
-system = chrono.ChSystemNSC()
-physics.AddSystem(system)
-
-# Create a ground plane
-ground = chrono.ChBodyEasyBox(10, 10, 0.1, 999999, True)
-ground.SetPos(chrono.ChVectorD(0, 0, -0.05))
+# Add the required physical systems and objects
+ground = chrono.ChBodyEasyBox(10, 10, 10, 1000, False)
+ground.SetPos(chrono.ChVectorD(0, -5, 0))
 system.Add(ground)
 
-# Create a mass (sphere)
-mass = chrono.ChBodyEasySphere(0.2, 1000, True)
-mass.SetPos(chrono.ChVectorD(0, 0, 0.5))
+mass = chrono.ChBodyEasyBox(0.5, 0.5, 0.5, 1, True)
+mass.SetPos(chrono.ChVectorD(0, 2, 0))
 system.Add(mass)
 
-# Create a spring-damper connection
-link = chrono.ChLinkTSDA()
-link.Initialize(mass, ground, chrono.ChVectorD(0, 0, 0.5), chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 1))
-link.SetRestLength(0.5)
-link.SetStiffness(chrono.ChLinkTSDA.StiffnessDefault())
-link.SetDamping(chrono.ChLinkTSDA.DampingDefault())
-system.Add(link)
+spring_damper = chrono.ChLinkTSDA()
+spring_damper.Initialize(mass, ground, chrono.ChVectorD(0, 1, 0), chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, -1, 0), chrono.ChVectorD(0, 0, 0))
+spring_damper.Set_Spring_Coef(chrono.ChVectorD(100, 0, 0))
+spring_damper.Set_Damper_Coef(chrono.ChVectorD(2, 0, 0))
+system.AddLink(spring_damper)
 
-# Add visual shapes for the mass and spring
-mass.AddVisualShape(chrono.ChSphereShape(0.2), chrono.ChColor(0.2, 0.8, 0.2))
-spring_visual = chrono.ChVisualShape()
-spring_visual.SetCylinder(chrono.ChVectorD(0.05, 0.05, 0.5), chrono.ChColor(0.8, 0.2, 0.2))
-spring_visual.SetPos(chrono.ChVectorD(0, 0, 0.25))
-link.AddVisualShape(spring_visual)
+# Set up Irrlicht visualization
+app = ir.CIrrlichtApplication(irrlicht.C IrrlichtDevice(irrlicht.C IrrlichtDevice_GL), 800, 600, 16, False, True, "PyChrono Irrlicht Example")
+app.setGravity(chrono.ChVectorD(0, -9.81, 0))
+app.AddLight(chrono.ChVectorD(0, 10, 0), chrono.ChColor(0.8, 0.8, 0.8))
+app.SetCamera(chrono.ChVectorD(1, 3, -5), chrono.ChVectorD(0, 0, 0))
 
-# Run the simulation
+# Add visual shapes for the mass and spring in the scene
+mass_shape = chrono.ChBoxShape(0.5, 0.5, 0.5)
+mass_shape.SetMaterial(chrono.ChMaterialSurface().DefaultMaterial(chrono.ChColor(0.8, 0.2, 0.2)))
+mass.AddAsset(mass_shape)
+
+spring_shape = chrono.ChCylinderShape(0.1, 2)
+spring_shape.SetMaterial(chrono.ChMaterialSurface().DefaultMaterial(chrono.ChColor(0.2, 0.8, 0.2)))
+spring_damper.AddAsset(spring_shape)
+
+# Simulation loop
 while app.GetDevice().run():
+    system.DoStepDynamics(0.01)
     app.BeginScene(True, True, chrono.ChColor(0.9, 0.9, 0.9))
     app.DrawAll()
     app.EndScene()
-    app.AdvanceRealtime()

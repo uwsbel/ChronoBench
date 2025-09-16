@@ -18,17 +18,19 @@ class ChFunctionMyFun(chrono.ChFunction):
         if x < self.T1:
             return self.A1 * m.sin(self.w * x)
         elif x < self.T2:
-            return self.A2 * m.sin(self.w * (x - self.T1))
+            return self.A2 * m.sin(self.w * (x - self.T1) + m.pi/2)
         else:
             return self.A1 * m.sin(self.w * (x - self.T2))
 
 
 sys = chrono.ChSystemSMC()
+
+
 mesh = fea.ChMesh()
 sys.Add(mesh)
 
 
-sys.SetAutomaticGravity(True, 2)
+mesh.SetAutomaticGravity(True, 2)
 sys.SetGravitationalAcceleration(chrono.ChVector3d(0, -9.81, 0))
 
 
@@ -59,14 +61,12 @@ msection.SetDrawCircularRadius(beam_ro)
 builder = fea.ChBuilderBeamIGA()
 builder.BuildBeam(mesh, msection, 20, chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(beam_L, 0, 0), chrono.VECT_Y, 1)
 
+
 node_mid = builder.GetLastBeamNodes()[m.floor(builder.GetLastBeamNodes().size() / 2.0)]
 
 
 mbodyflywheel = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, 0.24, 0.1, 7800)
-mbodyflywheel.SetCoordsys(
-    chrono.ChCoordsysd(node_mid.GetPos() + chrono.ChVector3d(0, 0.05, 0),
-                       chrono.QuatFromAngleAxis(CH_PI / 2.0, chrono.VECT_Z))
-)
+mbodyflywheel.SetCoordsys(chrono.ChCoordsysd(node_mid.GetPos() + chrono.ChVector3d(0, 0.05, 0), chrono.QuatFromAngleAxis(CH_PI / 2.0, chrono.VECT_Z)))
 sys.Add(mbodyflywheel)
 
 myjoint = chrono.ChLinkMateFix()
@@ -88,8 +88,8 @@ rotmotor1.Initialize(builder.GetLastBeamNodes().front(), truss, chrono.ChFramed(
 sys.Add(rotmotor1)
 
 
-f_myfun = ChFunctionMyFun(1, 2, 1, 2, 3, 40)
-rotmotor1.SetMotorFunction(f_myfun)
+f_ramp = ChFunctionMyFun(A1=1, A2=0.5, T1=1, T2=2, T3=3, w=40)
+rotmotor1.SetMotorFunction(f_ramp)
 
 
 mvisualizebeamA = chrono.ChVisualShapeFEA(mesh)
@@ -119,11 +119,11 @@ vis.AddTypicalLights()
 
 msolver = mkl.ChSolverPardisoMKL()
 sys.SetSolver(msolver)
+
+
+
+
 sys.DoStaticLinear()
-
-
-
-
 
 while vis.Run():
     vis.BeginScene()

@@ -68,7 +68,7 @@ patch = terrain.AddPatch(patch_mat,
     terrainLength, terrainWidth)
 
 
-patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200) 
+patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
@@ -84,13 +84,28 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 
-light1 = chrono.ChLightPoint(chrono.ChColor(1, 1, 1), 1000)
-light1.SetPos(chrono.ChVector3d(50, 50, 50))
-vis.AddLight(light1)
+sensor_manager = chrono.ChSensorManager()
+vehicle.GetSystem().AddSensor(sensor_manager)
 
-light2 = chrono.ChLightPoint(chrono.ChColor(1, 1, 1), 1000)
-light2.SetPos(chrono.ChVector3d(-50, -50, 50))
-vis.AddLight(light2)
+
+light1 = chrono.ChPointLight(chrono.ChColor(1, 1, 1), chrono.ChVector3d(5, 5, 5))
+light1.SetIntensity(0.5)
+vehicle.GetSystem().AddLight(light1)
+
+light2 = chrono.ChPointLight(chrono.ChColor(1, 1, 1), chrono.ChVector3d(-5, -5, 5))
+light2.SetIntensity(0.5)
+vehicle.GetSystem().AddLight(light2)
+
+
+camera = chrono.ChCamera()
+camera.SetResolution(1280, 720)
+camera.SetFieldOfView(90)
+camera.SetSensorType(chrono.ChCamera.SensorType_RGB)
+vehicle.GetChassisBody().AddSensor(camera)
+
+
+camera_filter = irr.ChCameraVisualizationFilter(camera)
+sensor_manager.AddFilter(camera_filter)
 
 
 driver = veh.ChInteractiveDriverIRR(vis)
@@ -116,23 +131,6 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-
-sensor_manager = veh.ChSensorManager()
-vehicle.GetVehicle().GetSensorManager()
-
-
-camera_sensor = veh.ChCameraSensor()
-camera_sensor.SetResolution(1280, 720)  
-camera_sensor.SetFieldOfView(chrono.deg2rad(60))  
-camera_sensor.SetPos(chrono.ChVector3d(0, 0, 1))  
-camera_sensor.SetTarget(chrono.ChVector3d(0, 0, 0))
-vehicle.GetVehicle().GetChassisBody().AddSensor(camera_sensor)
-
-
-camera_filter = irr.ChCameraVisualizationFilter()
-camera_filter.SetSensor(camera_sensor)
-vis.AddVisualizationFilter(camera_filter)
-
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
 
@@ -157,9 +155,6 @@ while vis.Run() :
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
-
-    
-    sensor_manager.Update(time)
 
     
     step_number += 1

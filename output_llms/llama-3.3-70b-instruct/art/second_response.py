@@ -10,17 +10,17 @@ chrono.SetChronoDataPath("/path/to/chrono/data")
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 # Initial vehicle location and orientation
-initLoc = chrono.ChVector3d(1, 0, 0.5)  # Modified initial location
-initRot = chrono.ChQuaterniond(1, 0, 0, 0)
+initLoc = chrono.ChVectorD(1, 0, 0.5)  # Changed initial location to (1, 0, 0.5)
+initRot = chrono.ChQuaternionD(1, 0, 0, 0)
 
 # Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
-vis_type = veh.VisualizationType_PRIMITIVES  # Modified visualization type
+vis_type = veh.VisualizationType_PRIMITIVES  # Changed visualization type to PRIMITIVES
 
 # Collision type for chassis (PRIMITIVES, MESH, or NONE)
-chassis_collision_type = veh.CollisionType_MESH  # Modified collision type
+chassis_collision_type = veh.CollisionType_MESH  # Changed collision type to MESH
 
 # Type of tire model (RIGID, TMEASY, FIALA)
-tire_model = veh.TireModelType_FIALA  # Modified tire model type
+tire_model = veh.TireModelType_FIALA  # Changed tire model type to FIALA
 
 # Rigid terrain
 terrainHeight = 0      # terrain height
@@ -28,7 +28,7 @@ terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
 
 # Point on the chassis tracked by the camera
-trackPoint = chrono.ChVector3d(0.0, 0.0, 0.2)
+trackPoint = chrono.ChVectorD(0.0, 0.0, 0.2)
 
 # Contact method
 contact_method = chrono.ChContactMethod_NSC
@@ -41,15 +41,14 @@ tire_step_size = step_size
 # Time interval between two render frames
 render_step_size = 1.0 / 50  # FPS = 50
 
-# Create the system
-mysystem = chrono.ChSystemNSC()
+# Create systems
 
 # Create the ARTcar vehicle, set parameters, and initialize
 vehicle = veh.ARTcar()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
-vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
+vehicle.SetInitPosition(chrono.ChCoordsysD(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 vehicle.SetMaxMotorVoltageRatio(0.16)
@@ -70,9 +69,9 @@ vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
-terrain = veh.RigidTerrain(mysystem)
+terrain = veh.RigidTerrain(vehicle.GetSystem())
 patch = terrain.AddPatch(patch_mat, 
-    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
+    chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT), 
     terrainLength, terrainWidth)
 
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
@@ -80,6 +79,7 @@ patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 # Create the vehicle Irrlicht interface
+
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('dart')
 vis.SetWindowSize(1280, 1024)

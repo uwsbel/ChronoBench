@@ -67,9 +67,12 @@ terrain.SetSoilParameters(2e6,
                           2e8,  
                           3e4)  
 
-terrain.AddMovingPatch(vehicle.GetChassisBody(), chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(5, 3, 1))
+terrain.AddMovingPatch(vehicle.GetChassisBody(), chrono.ChVector3d(0, 0, 0),
+                       chrono.ChVector3d(5, 3, 1))
+
 
 terrain.SetPlotType(veh.SCMTerrain.PLOT_SINKAGE, 0, 0.1)
+
 
 terrain.Initialize(20, 20, 0.02)
 
@@ -87,6 +90,7 @@ vis.AttachVehicle(vehicle.GetVehicle())
 
 driver = veh.ChInteractiveDriverIRR(vis)
 
+
 steering_time = 1.0  
 throttle_time = 1.0  
 braking_time = 0.3  
@@ -100,16 +104,23 @@ driver.Initialize()
 
 num_boxes = 10
 for i in range(num_boxes):
-    box_size = chrono.ChVector3d(random.uniform(0.5, 1.5), random.uniform(0.5, 1.5), random.uniform(0.5, 1.5))
-    box_pos = chrono.ChVector3d(random.uniform(-20, 20), random.uniform(-20, 20), random.uniform(0, 2))
     
-    while (abs(box_pos.x - initLoc.x) < 3 and abs(box_pos.y - initLoc.y) < 3 and box_pos.z < 2):
-        box_pos = chrono.ChVector3d(random.uniform(-20, 20), random.uniform(-20, 20), random.uniform(0, 2))
-    box = chrono.ChBodyEasyBox(box_size.x, box_size.y, box_size.z, 1000, True, True)
-    box.SetPos(box_pos)
-    box.SetMass(10)
+    x = random.uniform(-20, 20)
+    y = random.uniform(-20, 20)
+    z = random.uniform(0, 2)
+
+    
+    while (x > -3 and x < 3 and y > -3 and y < 3 and z < 2):
+        x = random.uniform(-20, 20)
+        y = random.uniform(-20, 20)
+        z = random.uniform(0, 2)
+
+    
+    box = chrono.ChBodyEasyBox(1, 1, 1, 1000, True, True)
+    box.SetPos(chrono.ChVector3d(x, y, z))
+    box.SetBodyFixed(True)
     vehicle.GetSystem().Add(box)
-    box.SetBodyFixed(False)
+    vis.AddBox(x, y, z, 1, 1, 1, chrono.ChColor(random.random(), random.random(), random.random()))
 
 
 
@@ -124,8 +135,8 @@ num_lights = 3
 for i in range(num_lights):
     light = chrono.ChPointLight()
     light.SetPos(chrono.ChVector3d(random.uniform(-10, 10), random.uniform(-10, 10), random.uniform(2, 5)))
-    light.SetColor(chrono.ChColor(random.uniform(0, 1), random.uniform(0, 1), random.uniform(0, 1)))
-    light.SetIntensity(random.uniform(1, 5))
+    light.SetColor(chrono.ChColor(random.random(), random.random(), random.random()))
+    light.SetIntensity(1.0)
     vis.AddLight(light)
 
 
@@ -137,7 +148,7 @@ camera.SetOffset(chrono.ChVector3d(0, 0, 1.5))
 sensor_manager.AddSensor(camera)
 
 
-camera_filter = chrono.ChFilterVisualize()
+camera_filter = chrono.ChFilterCamera()
 camera_filter.SetSensor(camera)
 vis.AddFilter(camera_filter)
 

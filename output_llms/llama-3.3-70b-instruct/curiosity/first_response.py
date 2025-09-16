@@ -2,67 +2,59 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
 import pychrono.mkl as chronomkl
+import numpy as np
 
-# Initialize the PyChrono environment
-system = chrono.ChSystemNSC()
+# Initialize the PyChrono environment and core components
+sys = chrono.ChSystemNSC()
 
 # Set the default contact material properties
 contact_material = chrono.ChMaterialSurfaceNSC()
 contact_material.SetFriction(0.5)
-contact_material.SetRestitution(0.5)
-contact_material.SetCompliance(0.01)
-contact_material.SetDampingF(0.1)
-system.SetDefaultContactMaterial(contact_material)
+contact_material.SetDampingF(0.5)
+contact_material.SetCompliance(1e-6)
+contact_material.SetComplianceT(1e-6)
 
-# Create a fixed ground with collision properties
-ground = chrono.ChBodyEasyBox(system, 10, 1, 10, 1000, True, False)
+# Create the ground body
+ground = chrono.ChBodyEasyBox(sys, 10, 1, 10, 1000, True, True, contact_material)
 ground.SetPos(chrono.ChVectorD(0, -1, 0))
 ground.SetBodyFixed(True)
-ground.AddCollide(chrono.ChCollisionModel())
-ground.GetCollisionModel().SetBox(chrono.ChVectorD(5, 0.5, 5))
-ground.GetCollisionModel().SetContactMaterial(contact_material)
-system.Add(ground)
 
 # Create the rover model
-rover = chrono.ChBodyEasyBox(system, 2, 1, 2, 500, True, False)
+rover = chrono.ChBodyEasyBox(sys, 1, 1, 2, 100, True, True, contact_material)
 rover.SetPos(chrono.ChVectorD(0, 1, 0))
-rover.AddCollide(chrono.ChCollisionModel())
-rover.GetCollisionModel().SetBox(chrono.ChVectorD(1, 0.5, 1))
-rover.GetCollisionModel().SetContactMaterial(contact_material)
-system.Add(rover)
+rover.SetMass(100)
 
-# Add a motor control driver for real-time steering inputs
-motor_driver = chrono.ChLinkMotorRotation()
-motor_driver.Initialize(chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)), 
-                        chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)))
-rover.AddLink(motor_driver)
+# Add a motor control driver to the rover
+motor = chrono.ChLinkMotorRotationSpeed()
+motor.Initialize(rover, sys.GetGroundBody(), chrono.ChCoordsysD(chrono.ChVectorD(0, 1, 0), chrono.Q_from_AngX(0)))
+motor.SetSpeed(1)
 
-# Create an Irrlicht visualization system
+# Add the physical systems and objects to the simulation
+sys.Add(ground)
+sys.Add(rover)
+sys.Add(motor)
+
+# Set up the Irrlicht visualization system
 vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AddSkyBox()
+vis.AddTypicalLights()
+vis.AddCamera(chrono.ChVectorD(0, 5, -10))
+vis.AddCamera(chrono.ChVectorD(0, 5, 10))
+vis.SetWindowSize(1024, 768)
+vis.SetLogo("")
 
-# Set the camera settings
-vis.AddCamera(chronoirr.ChCamera())
-vis.GetCamera().SetPos(chrono.ChVectorD(0, 5, -10))
-vis.GetCamera().SetLookAt(chrono.ChVectorD(0, 0, 0))
+# Set up the visualization for the ground and rover
+vis.AddTypicalGround(chrono.ChVectorD(0, -1, 0))
+vis.AddTypicalGroundLogo()
 
-# Set the lighting and shadows
-vis.AddLight(chronoirr.ChLightDirectional(chrono.ChVectorD(1, 1, 1), 
-                                          chrono.ChVectorD(0.5, 0.5, 0.5), 
-                                          100))
-vis.AddLight(chronoirr.ChLightPoint(chrono.ChVectorD(0, 5, 0), 
-                                    chrono.ChVectorD(1, 1, 1), 
-                                    100))
-
-# Add textures and logos
-vis.AddTexture(chronoirr.ChTexture("ground_texture.jpg"))
-vis.AddLogo(chronoirr.ChLogo("NASA_logo.png"))
-
-# Start the simulation
-vis.Start()
-
-# Run the simulation
-while vis.Run():
-    system.DoStepDynamics(0.01)
+# Set up the simulation loop
+time_step = 0.01
+while sys.GetChTime() < 10:
+    sys.DoStepDynamics(time_step)
     vis.BeginScene()
     vis.DrawAll()
     vis.EndScene()
+    vis.DoStep()
+
+# Clean up
+vis.CloseWindow()

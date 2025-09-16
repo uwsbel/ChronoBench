@@ -6,7 +6,6 @@ import math
 import matplotlib.pyplot as plt
 
 
-chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 
@@ -23,7 +22,7 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 
-terrainHeight = 0      
+terrainHeight = 0     
 terrainLength = 100.0  
 terrainWidth = 100.0   
 
@@ -43,7 +42,7 @@ render_step_size = 1.0 / 50
 log_step_size = 1.0 / 20    
 
 
-vehicle = veh.HMMWV_Full() 
+vehicle = veh.HMMWV_Full()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
@@ -67,9 +66,7 @@ patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-patch = terrain.AddPatch(patch_mat, 
-                         chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
-                         terrainLength, terrainWidth)
+patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), terrainLength, terrainWidth)
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
@@ -91,7 +88,7 @@ driver = veh.ChInteractiveDriverIRR(vis)
 
 steering_time = 1.0  
 throttle_time = 1.0  
-braking_time = 0.3   
+braking_time = 0.3  
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
@@ -102,38 +99,27 @@ manager = sens.ChSensorManager(vehicle.GetSystem())
 
 
 offset_pose = chrono.ChFrame(chrono.ChVector3d(0, 0, 1), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0)))
-imu = sens.ChAccelerometerSensor(vehicle.GetChassisBody(),                     
-                                 10,        
-                                 offset_pose,          
-                                 sens.ChNoiseNone())   
+imu = sens.ChAccelerometerSensor(vehicle.GetChassisBody(),  
+                                  10,  
+                                  offset_pose,  
+                                  sens.ChNoiseNone())  
 imu.SetName("IMU Sensor")
 imu.SetLag(0)
 imu.SetCollectionWindow(0)
-
-imu.PushFilter(sens.ChFilterAccelAccess())
-
+imu.PushFilter(sens.ChFilterAccelAccess())  
 manager.AddSensor(imu)
 
 
-gps = sens.ChGPSSensor(vehicle.GetChassisBody(),                     
-                       10,        
-                       offset_pose,          
+gps = sens.ChGPSSensor(vehicle.GetChassisBody(),  
+                       10,  
+                       offset_pose,  
                        chrono.ChVector3d(-89.400, 43.070, 260.0),  
-                       sens.ChNoiseNone())   
+                       sens.ChNoiseNone())  
 gps.SetName("GPS Sensor")
 gps.SetLag(0)
 gps.SetCollectionWindow(0)
-
-gps.PushFilter(sens.ChFilterGPSAccess())
-
+gps.PushFilter(sens.ChFilterGPSAccess())  
 manager.AddSensor(gps)
-
-
-
-
-
-
-print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 
 render_steps = math.ceil(render_step_size / step_size)
@@ -142,7 +128,6 @@ log_steps = math.ceil(log_step_size / step_size)
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
-
 gps_data = []
 
 while vis.Run():
@@ -154,17 +139,17 @@ while vis.Run():
         vis.Render()
         vis.EndScene()
         render_frame += 1
+
     if step_number % log_steps == 0:
-        
         gps_coor = gps.GetMostRecentGPSBuffer().GetGPSData()
-        gps_data.append([gps_coor[0], gps_coor[1], gps_coor[2]])
+        if gps_coor is not None and len(gps_coor) > 0:
+            gps_data.append([gps_coor[0], gps_coor[1]])
+
     
-    driver.SetThrottle(0.5)
     driver.SetSteering(0.6)
-    driver.SetBraking(0.0)
+    driver.SetThrottle(0.5)
     driver_inputs = driver.GetInputs()
-    
-    
+
     
     driver.Synchronize(time)
     terrain.Synchronize(time)
@@ -179,7 +164,7 @@ while vis.Run():
 
     
     manager.Update()
-    
+
     
     step_number += 1
 
@@ -187,14 +172,14 @@ while vis.Run():
     realtime_timer.Spin(step_size)
 
 
-gps_longitude = [data[0] for data in gps_data]
-gps_latitude = [data[1] for data in gps_data]
-plt.figure(figsize=(10, 6))
-plt.plot(gps_longitude, gps_latitude)
-plt.xlabel('Longitude')
-plt.ylabel('Latitude')
-plt.title('GPS Trajectory')
-plt.grid(True)
-plt.show()
+if gps_data:
+    gps_data = list(zip(*gps_data))
+    plt.figure(figsize=(10, 6))
+    plt.plot(gps_data[1], gps_data[0], label='GPS Trajectory')
+    plt.xlabel('Longitude')
+    plt.ylabel('Latitude')
+    plt.title('GPS Trajectory')
+    plt.legend()
+    plt.show()
 
 print("GPS Data: ", gps_data)

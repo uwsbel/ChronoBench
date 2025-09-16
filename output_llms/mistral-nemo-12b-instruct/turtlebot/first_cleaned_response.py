@@ -1,69 +1,71 @@
-import pychrono as pc
+import pychrono as chrono
+import pychrono.irrlicht as irrlicht
 import numpy as np
 
 
-chrono = pc.ChSystemNSC()
-assert chrono.Get_Gravity_x() == 0
-assert chrono.Get_Gravity_y() == 0
-assert chrono.Get_Gravity_z() == -9.81
+chrono.setChronoDataPath("path/to/chrono_data")  
+chrono.init()
 
 
-
-ground = chrono.AddBody(pc.ChBodyEasyBox(10, 10, 0.1, 1000, 1000, 1000, True, True, True))
-ground.SetPos(pc.ChVectorD(0, 0, -0.05))
-
-
-turtlebot = chrono.AddBody(pc.ChBodyEasyCylinder(0.1, 0.15, 1000, 1000, 1000, True, True, True))
-turtlebot.SetPos(pc.ChVectorD(0, 0, 0.075))
-turtlebot.SetRot(pc.ChQuaternionD(1, 0, 0, 0))  
+system = chrono.ChSystemNSC()
+system.Set_Gravity(chrono.ChVectorD(0, -9.81, 0))
 
 
-wheel1 = chrono.AddBody(pc.ChBodyEasyCylinder(0.02, 0.05, 1000, 1000, 1000, True, True, True))
-wheel1.SetPos(pc.ChVectorD(0.075, 0.075, 0.075))
-wheel1.SetRot(pc.ChQuaternionD(0, 0, 1, 0))  
-wheel2 = chrono.AddBody(pc.ChBodyEasyCylinder(0.02, 0.05, 1000, 1000, 1000, True, True, True))
-wheel2.SetPos(pc.ChVectorD(-0.075, 0.075, 0.075))
-wheel2.SetRot(pc.ChQuaternionD(0, 0, 1, 0))  
+ground = chrono.ChBodyEasyBox(10, 10, 0.1, 1000, True, True, material=chrono.ChMaterialSurfaceNSC())
+ground.SetPos(chrono.ChVectorD(0, -5, 0))
+system.Add(ground)
 
 
-chrono.AddJoint(pc.ChLinkRevolute(wheel1, turtlebot, pc.ChVectorD(0, 0, 0), pc.ChVectorD(0, 1, 0)))
-chrono.AddJoint(pc.ChLinkRevolute(wheel2, turtlebot, pc.ChVectorD(0, 0, 0), pc.ChVectorD(0, 1, 0)))
+turtlebot = chrono.ChBodyEasyCylinder(0.1, 0.15, 1000, True, True, material=chrono.ChMaterialSurfaceNSC())
+turtlebot.SetPos(chrono.ChVectorD(0, 0.5, 0))
+turtlebot.SetRot(chrono.Q_from_AngX(chrono.CH_C_PI / 2))
+system.Add(turtlebot)
 
 
-motor1 = pc.ChLinkMotor(wheel1, True)
-motor2 = pc.ChLinkMotor(wheel2, True)
-chrono.AddLink(motor1)
-chrono.AddLink(motor2)
+wheel_radius = 0.05
+wheel_width = 0.1
+wheel_separation = 0.2
+left_wheel = chrono.ChBodyEasyCylinder(wheel_radius, wheel_width, 1000, True, True, material=chrono.ChMaterialSurfaceNSC())
+left_wheel.SetPos(chrono.ChVectorD(-wheel_separation / 2, 0, 0))
+left_wheel.SetRot(chrono.Q_from_AngX(chrono.CH_C_PI / 2))
+turtlebot.AddLink(left_wheel, chrono.ChFrameD(chrono.ChVectorD(-wheel_separation / 2, 0, 0), chrono.Q_from_AngX(chrono.CH_C_PI / 2)))
+
+right_wheel = chrono.ChBodyEasyCylinder(wheel_radius, wheel_width, 1000, True, True, material=chrono.ChMaterialSurfaceNSC())
+right_wheel.SetPos(chrono.ChVectorD(wheel_separation / 2, 0, 0))
+right_wheel.SetRot(chrono.Q_from_AngX(chrono.CH_C_PI / 2))
+turtlebot.AddLink(right_wheel, chrono.ChFrameD(chrono.ChVectorD(wheel_separation / 2, 0, 0), chrono.Q_from_AngX(chrono.CH_C_PI / 2)))
 
 
-chrono.Set_Gravity(pc.ChVectorD(0, 0, -9.81))
+application = irrlicht.ChIrrApp(system, "Turtlebot Simulation", irrlicht.COGL_RENDERER, 800, 600)
+application.AddLight(chrono.ChVectorD(1, 1, 1), chrono.ChColor(1, 1, 1), 1000000)
+application.AddCamera(chrono.ChVectorD(1, 1, -5), chrono.ChVectorD(0, 0, 0))
 
 
-vis = pc.ChVisualSystemIrrlicht()
-vis.Attach(chrono.GetSystem())
-vis.SetWindowSize(800, 600)
-vis.Initialize()
-vis.AddCamera(pc.ChVectorD(1, 1, 1), pc.ChVectorD(0, 0, 0))
-vis.AddLight(pc.ChVectorD(2, 2, 2), pc.ChColor(1, 1, 1), 10)
+turn_time = 2.0  
+turn_angle = chrono.CH_C_PI / 2  
+current_time = 0.0
+turn_start_time = 0.0
 
+while application.GetDevice().run():
+    application.BeginScene(True, True, chrono.ChColor(0.3, 0.3, 0.3))
 
-t = 0
-dt = 0.01
-while t < 10:
     
-    if t > 1 and t < 3:
-        motor1.SetTargetSpeed(1)
-        motor2.SetTargetSpeed(-1)
-    elif t > 5 and t < 7:
-        motor1.SetTargetSpeed(-1)
-        motor2.SetTargetSpeed(1)
+    if current_time - turn_start_time > turn_time:
+        turn_start_time = current_time
+        left_wheel.SetW(0)
+        right_wheel.SetW(0)
     else:
-        motor1.SetTargetSpeed(0)
-        motor2.SetTargetSpeed(0)
+        left_wheel.SetW(-np.sin((current_time - turn_start_time) / turn_time * turn_angle))
+        right_wheel.SetW(np.sin((current_time - turn_start_time) / turn_time * turn_angle))
 
     
-    chrono.DoStepDt(dt)
-    vis.Render()
-    t += dt
+    system.DoStepDynamics(0.01)
+    application.DrawAll()
+    application.EndScene()
 
-vis.GetDevice().closeDevice()
+    current_time += 0.01
+
+    if application.GetDevice().isKeyPressed(irrlicht.VK_ESCAPE):
+        break
+
+application.GetDevice().drop()

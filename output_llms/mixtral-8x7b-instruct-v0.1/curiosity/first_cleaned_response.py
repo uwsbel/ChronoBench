@@ -1,45 +1,54 @@
 import chrono
-from chrono import chrono_python as cp
+from chrono.collision import collision as col
+from chrono.irrlicht import irrlicht as il
+from chrono.vehicle import vehicle as veh
 
 
-my_chrono = cp.ChronoEngine()
+chrono.SetChronoDataPath('path/to/chrono/data')
+my_system = chrono.ChSystemSMC()
 
 
-my_chrono.Initialize(cp.ChronoSystemSolver.SIMULATION)
-my_chrono.Set_G_acc(cp.Vector3d(0, -9.81, 0))
+
+ground = my_system.AddBody(chrono.ChBodyEasyBox(100, 1, 100, 1000, True, 0.1))
+ground.SetPos(chrono.ChVectorD(0, -1, 0))
+ground_shape = col.ChCollisionModelNarrowPhase()
+ground_shape.AddBox(ground.GetChbox(), chrono.ChVectorD(0.5, 0, 0.5))
+ground.SetCollisionModel(ground_shape)
+ground.SetCollide(True)
 
 
-ground = my_chrono.AddBody(cp.RigidBody())
-ground_shape = cp.BoxShape(ground, 10, 0.1, 10)
-ground.AddAsset(ground_shape)
+rover_file = 'path/to/curiosity_rover.obj'
+rover_mesh = chrono.ChTriangleMeshShape()
+rover_mesh.LoadMesh(il.IrrMesh, rover_file)
+
+rover_body = veh.ChRigidBodyVehicle(chrono.ChVectorD(0, 0.5, 0))
+rover_body.AddMesh(rover_mesh)
+rover_body.SetPos(chrono.ChVectorD(0, 1, 0))
+my_system.AddBody(rover_body)
 
 
-box = my_chrono.AddBody(cp.RigidBody())
-box_shape = cp.BoxShape(box, 1, 1, 1)
-box.AddAsset(box_shape)
-box.SetPos(cp.ChVectorD(0, 0.5, 0))
-box.SetRot(cp.ChQuaternionD(1, 0, 0, 0))
+motor_file = 'path/to/curiosity_rover_motor.json'
+rover_driver = veh.ChSteeringMotor(motor_file)
+rover_body.AddVehicle(rover_driver)
 
 
-sphere = my_chrono.AddBody(cp.RigidBody())
-sphere_shape = cp.SphereShape(sphere, 0.5)
-sphere.AddAsset(sphere_shape)
-sphere.SetPos(cp.ChVectorD(0, 1.5, 0))
-sphere.SetRot(cp.ChQuaternionD(1, 0, 0, 0))
 
 
-force_maker = cp.UniformForce(my_chrono.GetSystem())
-force_maker.Set_force(cp.ChVectorD(0, -10, 0))
-sphere.AddAsset(force_maker)
-sphere.AddForce(force_maker)
+
+my_app = il.ChIrrApp(my_system, 'Curiosity Rover Navigation', 800, 600, False)
+my_app.AddTypicalLogo()
+my_app.AddTypicalSky()
+my_app.AddTypicalCamera(chrono.ChVectorD(10, 10, 10), chrono.ChVectorD(0, 0, 0))
+my_app.AddLightWithShadow(chrono.ChVectorD(30, 60, 0), chrono.ChVectorD(0, 0, 0), 120, 120, 120, 0.5, 100)
 
 
-my_chrono.Set_timestep(1e-4)
-my_chrono.Set_playercollision(True)
+rover_vis = veh.ChVisualizationRigidBody(rover_body)
+rover_vis.SetColor(chrono.ChColor(0.5, 0.5, 0.5))
+my_app.AddVisualShape(rover_vis.GetMesh())
 
 
-my_chrono.DoSimulation(10, 1e-4)
+ground_vis = col.ChVisualizationShape(ground, col.ChVisualizationType.VISUALIZATION_TYPE_MESH)
+ground_vis.SetColor(chrono.ChColor(0.1, 0.1, 0.1))
+my_app.AddVisualShape(ground_vis)
 
-
-print("Final position of the box: ", box.GetPos())
-print("Final position of the sphere: ", sphere.GetPos())
+my_app.Run()

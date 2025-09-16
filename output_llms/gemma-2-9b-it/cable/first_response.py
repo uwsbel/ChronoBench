@@ -1,53 +1,45 @@
-import pychrono as chrono
-import pychrono.irrlicht as chronoirr
+from pychrono import ChSystem, ChBody, ChLinkLock, ChMaterialSurface, ChCoordsys, ChFunction
+from pychrono.irrlicht import ChIrrApp
 
 # Initialize Chrono environment
-chrono.SetChronoDataPath("path/to/chrono/data")  # Replace with your Chrono data path
-system = chrono.ChSystemNSC()
+system = ChSystem()
+app = ChIrrApp(system, 'Beam Simulation', 'data/media')
 
-# Create ground
-ground = chrono.ChBodyEasyBox(10, 10, 1, 1000)
-ground.SetPos(chrono.ChVectorD(0, 0, 0))
-system.Add(ground)
+# Create beam material
+beam_material = ChMaterialSurface(0.5, 0.5, 0.5)
 
-# Define beam parameters
-beam_length = 5
+# Define beam geometry and properties
+beam_length = 1.0
 beam_width = 0.1
-beam_nodes = 5  # Number of nodes along the beam
+beam_height = 0.1
+
+# Create beam nodes
+node1 = ChCoordsys(ChVectorD(0, 0, 0))
+node2 = ChCoordsys(ChVectorD(beam_length, 0, 0))
 
 # Create ANCF cable elements
-cable_elements = []
-for i in range(beam_nodes - 1):
-    node1 = chrono.ChBodyEasySphere(0.05, 1)
-    node1.SetPos(chrono.ChVectorD(i * beam_length / (beam_nodes - 1), 0, 0))
-    system.Add(node1)
+cable_element = ChFunction.CreateANCF(beam_material, node1, node2)
+cable_element.SetRestLength(beam_length)
 
-    node2 = chrono.ChBodyEasySphere(0.05, 1)
-    node2.SetPos(chrono.ChVectorD((i + 1) * beam_length / (beam_nodes - 1), 0, 0))
-    system.Add(node2)
+# Create beam body
+beam_body = ChBody(beam_material)
+beam_body.SetPos(node1.pos)
+beam_body.SetRot(node1.rot)
+beam_body.SetMass(1.0)  # Adjust mass as needed
 
-    cable = chrono.ChLinkCable(node1, node2, beam_width)
-    cable.SetMaterial(chrono.ChMaterialSurfaceNSC())
-    cable.SetRestLength(beam_length / (beam_nodes - 1))
-    cable_elements.append(cable)
+# Create hinge constraint
+hinge_constraint = ChLinkLock(beam_body, system.GetGround(), ChCoordsys(ChVectorD(0, 0, 0)))
+hinge_constraint.SetLockType(ChLinkLock.LOCK_XYZ)
 
-# Hinge the first node to the ground
-hinge = chrono.ChLinkLockUniversal(ground, cable_elements[0].GetNode1())
-hinge.SetPos(chrono.ChVectorD(0, 0, 0))
-system.Add(hinge)
-
-# Apply gravity
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
-
-# Create Irrlicht visualization
-vis = chronoirr.ChIrrApp(system, 'Beam Simulation')
-vis.AddCamera(chrono.ChVectorD(5, 5, 5))
-vis.AddLight(chrono.ChVectorD(5, 5, 5))
+# Add beam to the system
+system.Add(beam_body)
+system.Add(cable_element)
+system.Add(hinge_constraint)
 
 # Simulation loop
-while vis.Run():
+while app.GetTimer() < 10:
+    app.DrawAll()
     system.DoStepDynamics(0.01)
-    vis.Render()
 
-# Cleanup
-vis.GetDevice().drop()
+# Terminate application
+app.Close()

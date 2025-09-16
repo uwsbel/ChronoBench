@@ -1,13 +1,11 @@
 import pychrono as ch
 import pychrono.vehicle as veh
-from pychrono import irrlicht as chronoirr
 import pychrono.ros as chros
+from pychrono import irrlicht as chronoirr
 
 def main():
     
     veh.SetDataPath(ch.GetChronoDataPath() + 'vehicle/')
-
-    
     hmmwv = veh.HMMWV_Full()
     hmmwv.SetContactMethod(ch.ChContactMethod_NSC)  
     hmmwv.SetChassisCollisionType(veh.CollisionType_NONE)  
@@ -19,14 +17,11 @@ def main():
     hmmwv.SetSteeringType(veh.SteeringTypeWV_PITMAN_ARM)  
     hmmwv.SetTireType(veh.TireModelType_TMEASY)  
     hmmwv.SetTireStepSize(1e-3)  
-
-    
-    hmmwv.SetChassisVisualizationType(veh.VisualizationType_MESH)
-    hmmwv.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
-    hmmwv.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
-    hmmwv.SetWheelVisualizationType(veh.VisualizationType_MESH)
-    hmmwv.SetTireVisualizationType(veh.VisualizationType_MESH)
-
+    hmmwv.SetChassisVisualizationType(veh.VisualizationType_MESH)  
+    hmmwv.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)  
+    hmmwv.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)  
+    hmmwv.SetWheelVisualizationType(veh.VisualizationType_MESH)  
+    hmmwv.SetTireVisualizationType(veh.VisualizationType_MESH)  
     hmmwv.Initialize()  
 
     
@@ -53,11 +48,13 @@ def main():
 
     
     vis = chronoirr.ChVisualSystemIrrlicht()
+    vis.AddTypicalLights()
     vis.AddSkyBox()
-    vis.AddTypicalLights()
     vis.AddCamera(ch.ChVectorD(0, 0, 10))
-    vis.AddCamera(ch.ChVectorD(0, 10, 0))
-    vis.AddTypicalLights()
+    vis.AddTypicalGround(100)
+    vis.SetWindowSize(1024, 768)
+    vis.SetWindowTitle("HMMWV Simulation")
+    vis.SetLogo("")
 
     
     time = 0
@@ -87,6 +84,7 @@ def main():
         vis.BeginScene()
         vis.DrawAll()
         vis.EndScene()
+        vis.Render()
 
 if __name__ == "__main__":
     main()

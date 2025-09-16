@@ -63,7 +63,4 @@ link_motor.Initialize(mbody_gearA, mbody_truss,
                       chrono.ChFramed(chrono.ChVector3d(0, 0, 0),   
                                       chrono.QUNIT))                
 link_motor.SetSpeedFunction(chrono.ChFunctionConst(3))              
-sys.AddLink(link_motor)                                             
-
-
-interaxis12 = radA + radB
+sys.AddLink(link_motor)

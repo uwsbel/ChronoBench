@@ -4,12 +4,19 @@
 import os
 from openai import OpenAI
 import time
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Get API key
 nvidia_api_key = os.getenv("NVIDIA_API_KEY")
 if not nvidia_api_key:
-    print("❌ NVIDIA_API_KEY not set")
+    print("❌ NVIDIA_API_KEY not set in .env file or environment")
+    print("Please create a .env file with: NVIDIA_API_KEY=your_key_here")
     exit(1)
+else:
+    print(f"✅ NVIDIA_API_KEY loaded from .env (length: {len(nvidia_api_key)})")
 
 # Model registry from full_pipeline_parallel.py (with fixes for 404 errors)
 MODEL_REGISTRY = {
@@ -81,6 +88,50 @@ def test_model(model_name, model_path):
         else:
             return False, f"Error: {error_msg[:50]}"
 
+def test_token_limit(model_name, model_path):
+    """Test token limits for the model - both 4096 and 16384."""
+    client = OpenAI(
+        base_url="https://integrate.api.nvidia.com/v1",
+        api_key=nvidia_api_key,
+        timeout=10.0
+    )
+
+    # First try with 16384 tokens (4096*4)
+    try:
+        completion = client.chat.completions.create(
+            model=model_path,
+            messages=[{"role": "user", "content": "Say 'OK'"}],
+            temperature=0.1,
+            max_tokens=16384,  # 4096*4
+            stream=False
+        )
+        return "16384", "Supports 16384 tokens (4096*4)"
+    except Exception as e:
+        error_msg = str(e)
+
+    # If 16384 failed, try with 4096 tokens
+    try:
+        completion = client.chat.completions.create(
+            model=model_path,
+            messages=[{"role": "user", "content": "Say 'OK'"}],
+            temperature=0.1,
+            max_tokens=4096,
+            stream=False
+        )
+        return "4096", "Limited to 4096 tokens"
+    except Exception as e:
+        error_msg = str(e)
+        if "422" in error_msg:
+            # Extract the actual limit from error message if possible
+            import re
+            match = re.search(r'less than or equal to (\d+)', error_msg)
+            if match:
+                limit = match.group(1)
+                return limit, f"Limited to {limit} tokens (from error)"
+            return "unknown", f"422 Error: {error_msg[:50]}"
+        else:
+            return "error", f"Error: {error_msg[:50]}"
+
 def main():
     print("Testing NVIDIA MODEL_REGISTRY entries...")
     print("=" * 60)
@@ -125,6 +176,60 @@ def main():
     print("\nAll models:")
     for name, status in results:
         print(f"  {name}: {status}")
+
+    # Test token limits
+    print("\n" + "=" * 60)
+    print("TOKEN LIMIT TESTING:")
+    print("=" * 60)
+    print("Testing token limits (4096 and 16384) for all working models...")
+
+    token_limits = []
+    for i, (model_name, model_path) in enumerate(nvidia_models, 1):
+        # Only test working models
+        if any(model_name in str(r) and "✅" in str(r) for r in results):
+            print(f"\n[{i}/{len(nvidia_models)}] Testing token limit: {model_name}")
+
+            limit, limit_msg = test_token_limit(model_name, model_path)
+
+            if limit == "16384":
+                print(f"    ✅ {limit_msg}")
+            elif limit == "4096":
+                print(f"    ⚠️  {limit_msg}")
+            else:
+                print(f"    ❌ {limit_msg}")
+
+            token_limits.append((model_name, model_path, limit))
+            time.sleep(2)  # Rate limit protection
+
+    # Summary of models by token limit
+    print("\n" + "=" * 60)
+    print("TOKEN LIMIT SUMMARY:")
+    print("=" * 60)
+
+    # Models with 4096 limit
+    limited_4096 = [(m, p) for m, p, limit in token_limits if limit == "4096"]
+    if limited_4096:
+        print("\nMODELS WITH 4096 TOKEN LIMIT:")
+        for model, _ in limited_4096:
+            print(f"  - {model}")
+
+        print("\nAdd these to MODELS_WITH_4096_LIMIT in full_pipeline_parallel.py:")
+        for _, path in limited_4096:
+            print(f'    "{path}",')
+
+    # Models with 16384 limit
+    supports_16384 = [(m, p) for m, p, limit in token_limits if limit == "16384"]
+    if supports_16384:
+        print("\nMODELS SUPPORTING 16384 TOKENS (4096*4):")
+        for model, _ in supports_16384:
+            print(f"  - {model}")
+
+    # Models with other/unknown limits
+    other_limits = [(m, p, limit) for m, p, limit in token_limits if limit not in ["4096", "16384"]]
+    if other_limits:
+        print("\nMODELS WITH OTHER/UNKNOWN LIMITS:")
+        for model, _, limit in other_limits:
+            print(f"  - {model}: {limit}")
 
 if __name__ == "__main__":
     main()

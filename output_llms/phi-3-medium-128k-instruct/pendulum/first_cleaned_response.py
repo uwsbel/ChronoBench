@@ -1,83 +1,62 @@
-import pychrono
-
-import pychrono.Irrlicht
-
-import pychrono.utils as utils
-
-
-
-
-chrono = pychrono.ChSystemNSC()
-
-
-
-
-ground = pychrono.ChBodyAO(pychrono.Vec3(0, 0, 0), pychrono.ChVectorD(0, 0, 0), pychrono.ChBodyTypes.STATIC_SPHERE)
-
-ground.SetMass(1e6)  
-
-ground.SetInertia(pychrono.ChVectorD(0, 0, 0))
-
-chrono.AddBody(ground)
+from pychron.pychron import ChSystemNSC
+from pychron.pychron_irrlicht_plugin import ChIrrApp
+from pychron.pychron_irrlicht_plugin import ChIrrApp
+from pychron.pychron_irrlicht_plugin import ChIrrVis
+from pychron.pychron_irrlicht_plugin import ChIrrGeomSphere
+from pychron.pychron_irrlicht_plugin import ChIrrLight
+from pychron.pychron_irrlicht_plugin import ChIrrGeomBox
+from pychron.pychron_irrlicht_plugin import ChIrrGeomRevoluteJoint
+import pychron.pychron_irrlicht_plugin as irr
+import pychron.pychron_irrlicht_plugin as irrlicht
 
 
 
-
-pendulum = pychrono.ChBodyAO(pychrono.ChVectorD(0, 0, 0), pychrono.ChVectorD(0, 0, 0), pychrono.ChBodyTypes.DYNAMIC_SPHERE)
-
-pendulum.SetMass(1)  
-
-pendulum.SetInertia(pychrono.ChVectorD(0, 0, 0))
-
-pendulum.SetPosition(pychrono.ChVectorD(0, 0, 1))  
-
-pendulum.SetVelocity(pychrono.ChVectorD(0, 0, 0))  
-
-chrono.AddBody(pendulum)
+chsystem = ChSystemNSC()
 
 
 
-
-joint = pychrono.ChRevoluteJoint(pendulum, ground, pychrono.ChVectorD(0, 0, 1), pychrono.ChVectorD(0, 0, 0))
-
-joint.SetMaxForce(1e5)  
-
-chrono.AddJoint(joint)
+ground = ChIrrGeomBox(chsystem, name="Ground", pos=[0, 0, 0], size=[10, 1, 1], color=[0, 0, 0])
 
 
 
-
-irrlicht = pychrono.IrrlichtVisualizer(chrono)
-
+pendulum_body = ChIrrGeomSphere(chsystem, name="Pendulum", pos=[0, 0, 1], radius=1, mass=1, color=[1, 0, 0])
 
 
 
-log = pychrono.ChLog(pychrono.ChLogLevel.LOG_ALL)
-
-log.AddSystem(chrono)
+joint = ChIrrGeomRevoluteJoint(chsystem, name="PendulumJoint", bodyA=ground, bodyB=pendulum_body, axis=[0, 0, 0], pos=[0, 0, 0], axisP=pendulum_body.pos, axisQ=ground.pos)
 
 
 
+pendulum_body.pos[1] = 2
 
-while chrono.GetChTime() < 10:  
 
-    chrono.DoStepDynamics(0.01)  
 
-    irrlicht.Draw()  
+chsystem.gravity[2] = -9.81
 
-    log.Print(chrono.GetChTime())  
+
+
+chsystem.set_time_step(0.01)
+
+
+
+app = ChIrrApp(chsystem)
+app.set_visualization(ChIrrVis(chsystem))
+app.set_light(ChIrrLight(chsystem, name="Sun", color=[1, 1, 1], pos=[0, 10, 10], direction=[0, 0, -1])
+
+
+
+app.start()
+
+
+
+while app.is_running():
+
+    pendulum_body.apply_impulse([0, -pendulum_body.mass * chsystem.gravity[2], 0, 0])
+
+    chsystem.step()
 
     
 
-    position = pendulum.GetPos()
+    print(f"Position: {pendulum_body.pos}, Velocity: {pendulum_body.velocity}")
 
-    velocity = pendulum.GetLinearVel()
-
-    print(f"Time: {chrono.GetChTime():.2f}, Position: {position}, Velocity: {velocity}")
-
-
-
-
-irrlicht.End()
-
-chrono.Destroy()
+    app.render()

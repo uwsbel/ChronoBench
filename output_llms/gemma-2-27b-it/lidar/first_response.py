@@ -1,64 +1,54 @@
 import pychrono as chrono
 import pychrono.postprocess as postprocess
-import pychrono.irrlicht as chronoirr
-import numpy as np
+import pychrono.irrlicht as irr
 
 # 1. Initialize the PyChrono environment and core components
 my_system = chrono.ChSystemNSC()
 my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+my_system.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
 
 # 2. Add the triangular mesh as a fixed body
-mesh_file = "your_mesh.obj"  # Replace with your .obj file path
+mesh_path = "your_mesh.obj"  # Replace with your .obj file path
 mesh = chrono.ChTriangleMeshConnected()
-mesh.LoadWavefrontMesh(mesh_file)
+mesh.LoadWavefrontMesh(mesh_path)
 body = chrono.ChBody()
-body.SetBodyFixed(True)
 body.SetMesh(mesh)
+body.SetBodyFixed(True)
 my_system.Add(body)
 
-# 3. Add a lidar sensor to the body
+# 3. Add lidar sensor
 sensor_manager = chrono.ChSensorManager(my_system)
 lidar = chrono.ChLidarSensor()
-lidar.SetCollisionEnvelope(0.1)  # Adjust collision envelope as needed
+lidar.SetCollisionEnvelope(0.1)
+lidar.SetVerticalFOV(chrono.CH_C_PI / 4)
+lidar.SetHorizontalFOV(chrono.CH_C_PI / 2)
+lidar.SetScanFrequency(20)
+lidar.SetMaxDistance(50)
 
-# Noise filters, visualizations, and saving options
-lidar.SetNoise(0.01)  # Add noise to lidar readings
-lidar.SetVisualization(True)  # Visualize lidar points in the simulation
-lidar.SetSaveData(True, "lidar_data.txt")  # Save lidar data to a file
+# Add noise filters
+lidar.AddNoiseFilter(chrono.ChLidarSensor.FilterType_GAUSSIAN, 0.05)
 
-# Attach lidar to the body
-body.AddSensor(lidar)
+# Add visualization
+lidar.SetVisualizationType(chrono.ChLidarSensor.VisualizationType_POINTS)
+
+# Add saving options
+lidar.SetSaveData(True)
+lidar.SetSaveFilename("lidar_data.txt")
+
+sensor_manager.AddSensor(lidar)
+lidar.AttachToBody(body)
 
 # Simulation loop
-timestep = 0.01
-simulation_time = 10.0
+time_step = 0.01
+simulation_time = 10
 
-# Initialize lidar position
-radius = 5.0  # Radius of the orbit
-angle = 0.0
-
-# Create Irrlicht visualization (optional)
-vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(my_system)
-vis.SetWindowSize(800, 600)
-vis.SetWindowTitle("Lidar Simulation")
-vis.Initialize()
-
-while my_system.GetChTime() < simulation_time:
-    # Update lidar position in an orbit
-    angle += 0.1
-    x = radius * np.cos(angle)
-    y = radius * np.sin(angle)
-    lidar.SetPos(chrono.ChVectorD(x, 0, y))
-
-    # Simulate one timestep
-    my_system.DoStepDynamics(timestep)
+for i in range(int(simulation_time / time_step)):
+    # Dynamically update lidar position in an orbit
+    radius = 5
+    angle = i * time_step * 2  # Orbit speed
+    lidar.SetPos(chrono.ChVectorD(radius * chrono.ChCos(angle), 0, radius * chrono.ChSin(angle)))
 
     # Print lidar buffer data
-    print(lidar.GetBuffer())
+    print(lidar.GetLidarData())
 
-    # Update visualization (optional)
-    vis.Render()
-
-# Save the simulation data (optional)
-postprocess.ChPostProcess(my_system).ExportData("simulation_data.dat")
+    my_system.DoStepDynamics(time_step)

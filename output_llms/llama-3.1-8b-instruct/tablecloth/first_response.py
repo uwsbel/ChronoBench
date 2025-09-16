@@ -14,50 +14,51 @@ solver = chrono.ChSolverPardisoMKL()
 # Create an isotropic Kirchhoff material
 material = chrono.ChMaterialTool.IsotropicElastoplastic(1e9, 0.4, 1e-6)
 
-# Define the tablecloth's dimensions and mesh grid
-tablecloth_length = 2.0
-tablecloth_width = 1.0
-num_nodes_x = 20
-num_nodes_y = 10
-node_spacing_x = tablecloth_length / (num_nodes_x - 1)
-node_spacing_y = tablecloth_width / (num_nodes_y - 1)
+# Define the tablecloth dimensions
+L = 2.0
+W = 1.0
+H = 0.1
+
+# Generate a mesh grid for the tablecloth
+n_x = 10
+n_y = 10
+dx = L / (n_x - 1)
+dy = W / (n_y - 1)
 
 # Create nodes and elements for the tablecloth
 nodes = []
 elements = []
-for i in range(num_nodes_x):
-    for j in range(num_nodes_y):
-        node_x = i * node_spacing_x
-        node_y = j * node_spacing_y
-        node = chrono.ChBodyEasyBox(node_x, node_y, 0.01, 0.01, 0.01)
-        node.SetMass(1.0)
-        node.SetInertia(0.01)
-        node.SetPos(chrono.ChVector(node_x, node_y, 0))
-        node.SetMaterialFlag(material)
-        node.SetBodyFixed(False)
-        world.Add(node)
+for i in range(n_x):
+    for j in range(n_y):
+        x = i * dx
+        y = j * dy
+        node = chrono.ChNodeShell(x, y, 0, H)
         nodes.append(node)
-
-        # Create elements between adjacent nodes
-        if i < num_nodes_x - 1 and j < num_nodes_y - 1:
-            element = chrono.ChShellEasyBox(node_x, node_y, 0.01, 0.01, 0.01)
-            element.SetMaterialFlag(material)
-            element.SetBody(node)
+        if i < n_x - 1 and j < n_y - 1:
+            element = chrono.ChShellTriangle(node, nodes[(i + 1) * n_y + j], nodes[i * n_y + j + 1])
             elements.append(element)
 
-# Add elements to the world
+# Add nodes and elements to the world
+for node in nodes:
+    world.Add(node)
 for element in elements:
     world.Add(element)
 
 # Set up the visualization system
 visualizer = IrrlichtVisualizer(world)
+visualizer.SetAmbientLight(0.5, 0.5, 0.5)
+visualizer.SetCameraPosition(0, 0, 10)
+visualizer.SetCameraTarget(0, 0, 0)
 
-# Set the solver
-world.SetSolver(solver)
+# Set default parameters for the simulation
+world.SetGravity(0, 0, -9.81)
+solver.SetMaxIterations(1000)
+solver.SetTolerance(1e-6)
 
 # Run the simulation
-t_end = 10.0
-dt = 0.01
-for t in np.arange(0, t_end, dt):
-    world.DoStepDynamics(dt)
+for i in range(100):
+    world.DoStep()
     visualizer.Render()
+
+# Clean up
+chrono FINALIZE()

@@ -7,84 +7,74 @@ import numpy as np
 sys = chrono.ChSystemNSC()
 
 
-scene = chrono.ChScene()
-scene.SetDefaultContactMaterial(chrono.ChMaterialSurfaceNSC())
-
-
-vis = chronoirr.ChVisualSystem()
-vis.SetWindowSize(1024, 768)
+vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AddSkyBox()
 vis.AddTypicalLights()
 vis.AddCamera(chrono.ChVectorD(0, 0, 5))
-vis.SetCameraAZEL(chrono.ChVectorD(0, 0, 0))
-vis.SetCameraUp(chrono.ChVectorD(0, 1, 0))
-vis.SetCameraLookAt(chrono.ChVectorD(0, 0, 0))
+vis.AddTypicalLogo()
+vis.SetWindowSize(800, 600)
+vis.SetWindowTitle("PyChrono Simulation")
 
 
 mesh = chrono.ChTriangleMesh()
 mesh.LoadWavefrontMesh("mesh.obj")
 
 
-body = chrono.ChBodyEasyMesh(mesh)
+body = chrono.ChBodyEasyMesh(sys, mesh, False, True)
 body.SetPos(chrono.ChVectorD(0, 0, 0))
 body.SetRot(chrono.Q_from_AngX(0))
-body.SetBodyFixed(True)
+sys.Add(body)
 
 
-scene.Add(body)
-
-
-sensor_manager = sensor.ChSensorManager()
-
-
-lidar = sensor.ChLidarSensor()
-lidar.SetName("Lidar")
-lidar.SetRange(0, 10)
+lidar = sensor.ChLidarSensor(sys)
+lidar.SetName("LidarSensor")
 lidar.SetFrequency(10)
+lidar.SetRange(0.1, 10)
+lidar.SetBeamCount(64)
 lidar.SetHorizontalFOV(np.pi / 2)
-lidar.SetVerticalFOV(np.pi / 2)
-lidar.SetNumberOfRays(100)
-lidar.SetNoiseType(sensor.ChLidarSensor.eGAUSSIAN)
-lidar.SetNoiseParams(0.1, 0.01)
+lidar.SetVerticalFOV(np.pi / 4)
+lidar.SetNoiseModel(sensor.ChLidarNoiseModel.GAUSSIAN)
+lidar.SetVisualizationMode(sensor.ChLidarVisualizationMode.POINT_CLOUD)
 
 
+sensor_manager = sensor.ChSensorManager(sys)
 sensor_manager.AddSensor(lidar)
 
 
-body.AddSensorManager(sensor_manager)
+body.AddSensor(lidar)
 
 
-chrono.ChTimeStepper.GetDefault().SetTimeStep(0.01)
+orbit_radius = 2
+orbit_speed = 1
 
 
-simulation_duration = 10
-
-
-time = 0
-
-
-lidar_pos = chrono.ChVectorD(0, 0, 5)
-
-
-while time < simulation_duration:
+time_step = 0.01
+simulation_time = 10
+while sys.GetChTime() < simulation_time:
     
-    lidar_pos = chrono.ChVectorD(5 * np.cos(time), 5 * np.sin(time), 5)
-    sensor_manager.SetSensorPosition(lidar_pos)
+    angle = sys.GetChTime() * orbit_speed
+    lidar_pos = chrono.ChVectorD(orbit_radius * np.cos(angle), orbit_radius * np.sin(angle), 0)
+    body.SetPos(lidar_pos)
 
     
-    scene.DoStepDynamics(chrono.ChTimeStepper.GetDefault().GetTimeStep())
+    sys.DoStepDynamics(time_step)
 
     
-    print(lidar.GetBuffer())
+    buffer = lidar.GetBuffer()
+    print("Lidar Buffer Data:")
+    print(buffer)
 
     
-    time += chrono.ChTimeStepper.GetDefault().GetTimeStep()
+    
 
     
     vis.BeginScene()
     vis.DrawAll()
     vis.EndScene()
-    vis.Run()
+
+    
+    
 
 
-lidar.SaveBuffer("lidar_data.txt")
+sys = None
+vis = None

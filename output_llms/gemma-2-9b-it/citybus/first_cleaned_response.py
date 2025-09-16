@@ -1,67 +1,50 @@
-import pychrono as chrono
-import pychrono.irrlicht as vis
-import numpy as np
+from pychrono import *
+from pychrono.irrlicht import *
 
 
-chrono.SetChronoDataPath("path/to/chrono/data")  
-system = chrono.ChSystemNSC()
+chrono.SetThreadStackSize(chrono.GetThreadId(), 1024 * 1024)  
+system = ChronoSystem()
 
 
-terrain = chrono.ChBodyEasyBox(10, 10, 0.1, 1000)
-terrain.SetPos(chrono.ChVectorD(0, 0, 0))
-terrain.SetBodyFixed(True)
-system.Add(terrain)
+terrain = RigidTerrain(system)
+terrain.SetTexture("path/to/terrain.jpg")  
+terrain.SetPos(ChVectorD(0, 0, 0))
+terrain.SetSize(ChVectorD(10, 10, 1))  
 
 
-texture = vis.IrrlichtTexture("path/to/terrain/texture.png")  
-terrain.GetVisualShape().SetTexture(texture)
-
-
-bus = chrono.ChBodyEasyCylinder(0.5, 2, 1000)
-bus.SetPos(chrono.ChVectorD(0, 0, 0.5))
-bus.SetRot(chrono.Q_from_Euler(chrono.CH_C_DEG2RAD(0), chrono.CH_C_DEG2RAD(0), chrono.CH_C_DEG2RAD(0)))
-system.Add(bus)
+bus = ChBodyEasyBox(system, 10, 2.5, 4, 1000)  
+bus.SetPos(ChVectorD(0, 0, 0.5))
+bus.SetRot(ChQuaternionD(1, 0, 0, 0))  
 
 
 for i in range(4):
-    wheel = chrono.ChBodyEasyCylinder(0.1, 0.2, 100)
-    wheel.SetPos(bus.GetPos() + chrono.ChVectorD(0, 0, 0.1) + chrono.ChVectorD(0.5 * np.cos(np.pi * i / 2), 0.5 * np.sin(np.pi * i / 2), 0))
-    wheel.SetRot(chrono.Q_from_Euler(chrono.CH_C_DEG2RAD(0), chrono.CH_C_DEG2RAD(0), chrono.CH_C_DEG2RAD(0)))
-    wheel.SetBodyFixed(True)
-    system.Add(wheel)
+    wheel = ChWheel(system, bus, ChVectorD(0, 0, 0), 0.5)  
+    wheel.SetPos(ChVectorD(i * 2.5, 0, 0))  
+    wheel.SetMaterial(ChMaterialSurfaceNSClass())  
 
 
-tire_model = chrono.ChTireModel(0.1, 0.2, 1000)  
-for wheel in system.Get_bodylist():
-    if wheel.GetName() == "wheel":
-        wheel.SetWheelModel(tire_model)
+vis = IrrlichtVisualizer(system)
+vis.SetCameraPos(ChVectorD(10, 5, 5))  
+vis.SetCameraTarget(bus.GetPos())  
 
 
-vis_app = vis.ChIrrApp(system, "CityBus Simulation")
-vis_app.AddCamera(chrono.ChVectorD(5, 5, 2), chrono.ChVectorD(0, 0, 0))
-vis_app.SetCamera(vis_app.GetCamera(0))
+throttle = 0
+brake = 0
+steering = 0
+
+def update_driver_input():
+    
+    global throttle, brake, steering
+    
 
 
-def on_key_pressed(key):
-    if key == chr(27):  
-        vis_app.SetRunning(False)
-    elif key == "w":
-        bus.ApplyTorque(chrono.ChVectorD(0, 0, 100))
-    elif key == "s":
-        bus.ApplyTorque(chrono.ChVectorD(0, 0, -100))
-    elif key == "a":
-        bus.ApplyTorque(chrono.ChVectorD(-100, 0, 0))
-    elif key == "d":
-        bus.ApplyTorque(chrono.ChVectorD(100, 0, 0))
+while True:
+    update_driver_input()
+    
+    
+    bus.AddTorque(ChVectorD(steering, 0, 0))  
+    bus.AddForce(ChVectorD(throttle, 0, 0))  
+    bus.AddForce(ChVectorD(0, 0, brake))  
 
-vis_app.SetKeyCallback(on_key_pressed)
-
-
-vis_app.SetTimestep(1/50)
-while vis_app.GetRunning():
-    vis_app.BeginScene()
-    system.DoStepDynamics(vis_app.GetTimestep())
-    vis_app.DrawAll()
-    vis_app.EndScene()
-
-vis_app.Close()
+    system.DoStepDynamics(1/50.0)  
+    vis.Render()

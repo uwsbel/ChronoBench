@@ -13,7 +13,7 @@ radA = 1.5
 radB = 3.5                                          
 
 
-mbody_truss = chrono.ChBodyEasyBox(15, 8, 2,     
+mbody_truss = chrono.ChBodyEasyBox(15, 8, 2,       
                                    1000,          
                                    True,          
                                    False,         

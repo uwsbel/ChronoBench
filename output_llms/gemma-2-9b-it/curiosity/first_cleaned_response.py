@@ -1,36 +1,40 @@
-import pychrono as chrono
+from pychrono import ChSystem, ChBody, ChCollisionShape, ChMaterialSurface, ChVectorD, ChQuaternionD, ChContact
+from pychrono.irrlicht import IrrlichtVisualizer
 
 
-chrono.SetChronoDataPath("path/to/chrono/data")  
-system = chrono.ChSystemNSC()
+system = ChSystem()
 
 
-
-sphere = chrono.ChBodyEasySphere(1.0, 1.0)  
-sphere.SetPos(chrono.ChVectorD(0, 0, 1))  
-system.Add(sphere)
-
-
-box = chrono.ChBodyEasyBox(0.5, 0.5, 1.0, 2.0)  
-box.SetPos(chrono.ChVectorD(0, 0, 0))  
-system.Add(box)
+ground = ChBody(system)
+ground.SetPos(ChVectorD(0, 0, 0))
+ground_shape = ChCollisionShape()
+ground_shape.SetBox(ChVectorD(10, 10, 1))  
+ground.AddCollisionShape(ground_shape)
+ground.SetBodyFixed(True)
 
 
-
-system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
-
-
-contact_mat = chrono.ChMaterialSurfaceNSC()
-contact_mat.SetFriction(0.5)
-contact_mat.SetRestitution(0.1)
-
-
-sphere.GetMaterialSurface().SetMaterial(contact_mat)
-box.GetMaterialSurface().SetMaterial(contact_mat)
+rover = ChBody(system)
+rover.SetPos(ChVectorD(0, 0, 1))
+rover_shape = ChCollisionShape()
+rover_shape.SetSphere(0.5)  
+rover.AddCollisionShape(rover_shape)
 
 
 
 
 
 
-system.DoStepDynamics(0.01)
+visualizer = IrrlichtVisualizer(system)
+visualizer.SetCamera(ChVectorD(5, 5, 5), ChVectorD(0, 0, 0))  
+visualizer.SetAmbientLight(ChVectorD(0.5, 0.5, 0.5))
+visualizer.SetDirectionalLight(ChVectorD(1, 1, 1), ChVectorD(0, 0, -1))
+visualizer.SetShadowMapEnabled(True)
+
+
+
+
+
+
+while True:
+    system.DoStepDynamics(0.01)
+    visualizer.Render()

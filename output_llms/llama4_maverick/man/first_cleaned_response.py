@@ -1,62 +1,69 @@
 import pychrono as chrono
 import pychrono.vehicle as veh
 import pychrono.irrlicht as irr
-import math
 
 
-print("Copyright (c) 2023 Project Chrono")
+print("Copyright (c) 2023 ProjectChrono")
 
 
-veh_sys = veh.ChWheeledVehicle("MAN_10t", chrono.ChContactMethod_SMC)
+out_dir = chrono.GetChronoOutputPath() + "MAN_10T_TRUCK_DEMO"
+chrono.SetChronoOutputPath(out_dir)
 
 
-veh_sys.SetChassisFixed(False)
+veh_sys = veh.ChVehicleSystem(veh.ChVehicleSystem.Severity::WARNING)
 
 
-powertrain_model = veh.SimplePowertrain("SimplePowertrain")
-veh_sys.InitializePowertrain(powertrain_model)
-
-tire_model = veh.TMeasyTire("TMeasyTire")
-veh_sys.InitializeTire(tire_model, veh.ChWheelId(0), veh.ChWheelId(1))
-veh_sys.InitializeTire(tire_model, veh.ChWheelId(2), veh.ChWheelId(3))
+truck = veh.MAN_10t(veh_sys)
 
 
-terrain = veh.RigidTerrain(veh_sys.GetSystem())
-patch_mat = chrono.ChMaterialSurfaceSMC()
-patch_mat.SetFriction(0.9)
-patch_mat.SetRestitution(0.01)
-patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 100.0, 100.0)
-patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)
-patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+truck.SetContactMethod(chrono.ChContactMethod::SMC)
+truck.SetChassisCollisionType(veh.CollisionType::NONE)
+truck.SetChassisFixed(False)
+truck.SetInitPosition(chrono.ChCoordsysd(chrono.ChVector3d(-50, 0, 1), chrono.ChQuaterniond(1, 0, 0, 0)))
+truck.SetTireType(veh.TireType::TMEASY)
+truck.SetTireStepSize(1e-3)
+truck.Initialize()
+
+
+terrain = veh.RigidTerrain(truck.GetSystem())
+patch = terrain.AddPatch(chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), chrono.ChVector3d(200, 200, 0))
+patch.SetContactFrictionCoefficient(0.9)
+patch.SetContactRestitutionCoefficient(0.01)
+patch.SetContactMaterialProperties(2e7, 0.3)
+patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 400, 400)
+terrain.Initialize()
+
+
+road = veh.RigidTerrain(truck.GetSystem())
+road.AddPatch(chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), chrono.ChVector3d(200, 200, 0))
 
 
 vis = irr.ChVisualSystemIrrlicht()
-vis.SetWindowSize(1024, 768)
-vis.SetWindowTitle("MAN 10t Truck Simulation")
+vis.AttachVehicleSystem(truck.GetSystem())
+vis.SetWindowSize(1280, 720)
+vis.SetWindowTitle("MAN 10t Truck Demo")
+vis.SetChaseCamera(chrono.ChVector3d(0.0, 0.0, 1.75), 6.0, 0.5)
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))
 vis.AddSkyBox()
-vis.AddCamera(chrono.ChVector3d(0, 4, -6), chrono.ChVector3d(0, 0, 0))
-vis.AttachVehicle(veh_sys)
+vis.AddDirectionalLight(chrono.ChVector3d(-1, -1, -1), 1.1)
+vis.AddTypicalLights()
 
-
-step_size = 2e-3
-tire_step_size = 1e-3
-
-
-time = 0
-driver = veh.ChIrrGuiDriver(vis, veh_sys, 0.5)
-driver.Initialize()
 
 while vis.Run():
-    time = veh_sys.GetChTime()
-    driver_inputs = driver.GetInputs()
-    veh_sys.DoStepDynamics(step_size)
-    vis.BeginScene(True, True, irr.SColor(255, 140, 161, 192))
+    time = truck.GetSystem().GetChTime()
+    driver_inputs = veh.DriverInputs()
+    
+    driver_inputs.m_steering = 0.0
+    driver_inputs.m_throttle = 0.5
+    driver_inputs.m_braking = 0.0
+
+    
+    truck.GetSystem().Update(time, driver_inputs)
+    terrain.Synchronize(time)
+    vis.Synchronize("MAN 10t Truck Demo", driver_inputs)
+
+    
+    truck.GetSystem().Advance(1e-3)
+    vis.Advance(1e-3)
     vis.Render()
-    vis.EndScene()
-    driver.Synchronize(time, driver_inputs)
-    driver.Advance(step_size)
-
-
-vis.GetDevice().drop()

@@ -3,12 +3,13 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
+print(veh)
 
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 
-initLoc = chrono.ChVector3d(0, -5, 0.5)
+initLoc = chrono.ChVector3d(0, 0, 0.5)
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 
@@ -21,10 +22,10 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 
-terrain_model = veh.RigidTerrain.HIGHWAY
-terrainHeight = 0
-terrainLength = 100.0
-terrainWidth = 100.0
+terrain_model = veh.RigidTerrain.HIGHWAY_MESH
+terrainHeight = 0      
+terrainLength = 100.0  
+terrainWidth = 100.0   
 
 
 trackPoint = chrono.ChVector3d(-5.0, 0.0, 1.8)
@@ -34,14 +35,11 @@ contact_method = chrono.ChContactMethod_NSC
 contact_vis = False
 
 
-step_size = 1e-4
+step_size = 1e-4  
 tire_step_size = step_size
 
 
-render_step_size = 1.0 / 100  
-
-
-steering_time = 5.0
+render_step_size = 1.0 / 120  
 
 
 
@@ -75,7 +73,7 @@ patch = terrain.AddPatch(patch_mat,
     chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
     terrainLength, terrainWidth)
 
-patch.SetTexture(veh.GetDataFile("terrain/textures/highway.jpg"), 200, 200)
+patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
@@ -92,17 +90,24 @@ vis.AttachVehicle(vehicle.GetVehicle())
 
 
 driver = veh.ChInteractiveDriverIRR(vis)
-reference_speed = 20.0  
 
 
+steering_time = 5.0  
+throttle_time = 1.0  
+braking_time = 0.3   
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
 
-driver.SetSpeedReference(reference_speed)
-driver.SetThrottlePID(0.5, 0.0, 0.1)  
-
 driver.Initialize()
+
+
+reference_speed = 20.0  
+
+
+kp = 1.0
+ki = 0.1
+kd = 0.01
 
 
 
@@ -118,6 +123,7 @@ render_steps = math.ceil(render_step_size / step_size)
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
+speed_error_sum = 0.0
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
@@ -133,9 +139,18 @@ while vis.Run():
     driver_inputs = driver.GetInputs()
 
     
+    current_speed = vehicle.GetVehicle().GetWheelSpeed(0)  
+    speed_error = reference_speed - current_speed
+    speed_error_sum += speed_error * step_size
+
+    
+    throttle = kp * speed_error + ki * speed_error_sum + kd * (speed_error - prev_speed_error) / step_size
+    prev_speed_error = speed_error
+
+    
     driver.Synchronize(time)
     terrain.Synchronize(time)
-    vehicle.Synchronize(time, driver_inputs, terrain)
+    vehicle.Synchronize(time, driver_inputs, terrain, throttle)  
     vis.Synchronize(time, driver_inputs)
 
     
@@ -143,7 +158,6 @@ while vis.Run():
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
-
     
     step_number += 1
 

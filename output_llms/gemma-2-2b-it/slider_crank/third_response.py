@@ -48,21 +48,21 @@ my_motor.SetMotorFunction(my_angularspeed)
 sys.Add(my_motor)
 
 # Create crank-rod joint
-mjointA = chrono.ChLinkBallSocket()
+mjointA = chrono.ChLinkSpherical()  # Change from revolute to spherical
 mjointA.Initialize(mrod,
                    mcrank,
                    chrono.ChFramed(crank_center + chrono.ChVector3d(crank_rad, 0, 0)))
 sys.Add(mjointA)
 
 # Create rod-piston joint
-mjointB = chrono.ChLinkBallSocket()
+mjointB = chrono.ChLinkSpherical()  # Change from revolute to spherical
 mjointB.Initialize(mpiston,
                    mrod,
                    chrono.ChFramed(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0)))
 sys.Add(mjointB)
 
 # Create piston-truss joint
-mjointC = chrono.ChLinkPlanePlane()
+mjointC = chrono.ChLinkPlane()  # Change from prismatic to planar
 mjointC.Initialize(mpiston,
                    mfloor,
                    chrono.ChFramed(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0),

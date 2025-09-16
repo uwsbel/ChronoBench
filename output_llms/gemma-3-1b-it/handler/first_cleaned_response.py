@@ -1,81 +1,66 @@
 import time
-import pychrono
+import numpy as np
+from pychrono import Chrono, System
+from pychrono.utils import get_time_unit
 import rospy
-from pychrono.system import Chrono
-from pychrono.system.system import System
+from std_msgs.msg import Float64
+
+
+gravity = 9.81  
+floor_mass = 1000  
+box_mass = 200  
+box_size = 1.0  
+box_position = [0, 0]  
+box_velocity = [0, 0]  
+simulation_duration = 10  
+timestep = 0.01  
+
+
+system = Chrono(
+    system_name="MySimulation",
+    gravity=gravity,
+    material_properties={"density": 2700, "elastic_modulus": 2.1e9},  
+    body_type="box",
+    body_position=[box_position],
+    body_velocity=[box_velocity],
+    simulation_duration=simulation_duration,
+    
+)
 
 
 
 
-system = System()
-system.name = "BoxSimulation"
-system.description = "A simple simulation of a box moving on a floor with gravity."
-system.update_time_step = 1.0  
-system.update_time_step_interval = 1.0 
-system.update_time_step_interval_interval = 1.0 
-system.gravity = 9.81  
-system.material_density = 0.8 
-system.box_mass = 10.0 
-system.box_size = 0.2 
 
 
 
 
-box = rospy.Action("box_move",
-                    paramet=rospy.Parameter("x", type=float, default=0.0),
-                    paramet=rospy.Parameter("y", type=float, default=0.0),
-                    paramet=rospy.Parameter("z", type=float, default=0.0),
-                    paramet=rospy.Parameter("mass", type=float, default=10.0),
-                    paramet=rospy.Parameter("size", type=float, default=0.2),
-                    reconnect=True)
+floor = System()
+floor.add_object(system)
+floor.set_position([0, 0, 0])
 
 
-floor = rospy.Action("floor_move",
-                    paramet=rospy.Parameter("x", type=float, default=0.0),
-                    paramet=rospy.Parameter("y", type=float, default=0.0),
-                    paramet=rospy.Parameter("z", type=float, default=0.0),
-                    paramet=rospy.Parameter("mass", type=float, default=10.0),
-                    paramet=rospy.Parameter("size", type=float, default=0.2),
-                    reconnect=True)
+box = System()
+box.add_object(system)
+box.set_position([box_position[0], box_position[1], box_position[2]])
+box.set_velocity([0, 0])
 
 
 
-
-handler = rospy.Action("publish_message",
-                         paramet=rospy.ActionParameters("message_topic", "box_movement_message"),
-                         reconnect=True)
-
+def publish_message(message):
+    rospy.loginfo("Publishing message: %s", message)
+    rospy.message_path("MySimulation_Update") 
 
 
-def run_simulation():
-    rospy.init_node('box_simulation')
-    system.subscribe(handler)
-    system.wait_for_condition(system.gravity)  
-
-    try:
-        while True:
-            
-            system.update_time_step()
-            system.move_box(x=system.box.x, y=system.box.y, z=system.box.z)
-            system.update_time_step()
-            
-            floor.update_time_step()
-            floor.move_box(x=floor.x, y=floor.y, z=floor.z)
-            system.update_time_step()
-
-            
-            handler.publish(system.message)
-
-            
-            time.sleep(0.1)  
-
-    except rospy.EventRobotException:
-        print("Robot exception occurred.  Stopping simulation.")
-    except rospy.ROSInterruptException:
-        print("Simulation interrupted.")
-    finally:
-        system.shutdown()
+rospy.init_node('MySimulation')
+rospy.loginfo("ROS Manager initialized.")
 
 
-if __name__ == '__main__':
-    run_simulation()
+while True:
+    
+    system.update()
+
+    
+    publish_message(system.update())
+
+    
+    time.sleep(timestep)

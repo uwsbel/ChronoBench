@@ -4,18 +4,20 @@
 
 ### 1. Completeness (40 points)
 
-- **System Initialization:** Present and correct (`chrono.ChSystemSMC()`), no deduction.
-- **Mesh and FEA Setup:** The mesh is created and added to the system. Beam section properties are defined with inertia and elasticity, and the beam is built with `ChBuilderBeamIGA`. This is complete.
-- **Body Creation:** The flywheel body is created using `ChBodyEasyCylinder` and added to the system. The truss body is created and fixed. Both are added to the system. Complete.
-- **Joints and Links:** The fixed joint between the flywheel and beam node, the bearing joint at the beam end, and the motor joint at the beam start are all created and added. Complete.
-- **Visualization:** The Irrlicht visualization system is set up with window size, title, logo, skybox, camera, and lights. Visual shapes for the beam are added. Complete.
-- **Solver:** Pardiso MKL solver is created and set for the system. Present.
-- **Simulation Loop:** The loop runs with visualization and dynamics stepping.
+- **System Initialization:** Present and correct (`sys = chrono.ChSystemSMC()`). No deduction.
+- **Body Creation:** The beam mesh is created and added; flywheel body and truss body are created and added. No missing essential bodies. No deduction.
+- **Visualization:** Visualization system is created, attached, configured, and used properly. Visual shapes for the FEA mesh are added. No deduction.
+- **Joints and Motors:** Joints and motor are created and added. No missing components.
+- **Simulation Loop:** Present and correctly structured.
 
-**Minor issue:**  
-- `mesh.SetAutomaticGravity(True, 2)` is called, but `ChMesh` does not have a documented method `SetAutomaticGravity`. Gravity is set on the system correctly afterward. This is a minor deviation (likely harmless but unnecessary or incorrect API usage).
+**Minor issues:**
 
-**Deduction:** -5 points for minor omission/slight deviation.
+- `mesh.SetAutomaticGravity(True, 2)` is used, but the second argument is undocumented in the provided API docs and seems unusual. The standard way is to set gravity on the system, which is done correctly with `sys.SetGravitationalAcceleration(...)`. The use of `SetAutomaticGravity` with a second argument `2` is suspicious and undocumented. This could be a minor deviation or misuse.
+
+- The beam section uses `fea.ChBeamSectionCosserat` with inertia and elasticity set manually, which is acceptable but could be more clearly documented or use predefined section types for clarity.
+
+**Deduction:**  
+- Minor deviation for `SetAutomaticGravity(True, 2)` usage: **-5 points**
 
 **Total Completeness deduction:** 5 points
 
@@ -23,41 +25,51 @@
 
 ### 2. Correctness (30 points)
 
-- **Use of `SetAutomaticGravity(True, 2)` on `mesh`:** This method is not documented for `ChMesh`. Gravity should be set on the system, which is done correctly with `sys.SetGravitationalAcceleration`. This call is likely ineffective or incorrect.
+- **Use of `SetAutomaticGravity(True, 2)`:** This method is not documented in the provided API docs, and the second argument `2` is unclear. This could cause unexpected behavior or be ignored. The system gravity is set correctly afterward. This is a questionable API usage.
 
-- **Joint Initialization:**  
-  - `myjoint.Initialize(node_mid, mbodyflywheel)` is called with a node and a body. According to PyChrono API, joints are initialized between bodies, or between bodies and frames. Nodes are FEA nodes, not bodies. This is a logical error. The joint should be initialized between bodies or between a body and a frame, not a node and a body. This could cause runtime errors or incorrect behavior.
+- **Joint Initialization:**
 
-- **Bearing joint:** `chrono.ChLinkMateGeneric(False, True, True, False, True, True)` is created and initialized between the last beam node and the truss. Again, the joint is initialized with a node and a body, which is inconsistent with the API that expects bodies. This is a logical error.
+  - `myjoint.Initialize(node_mid, mbodyflywheel)` — `ChLinkMateFix.Initialize` expects two bodies and a frame (`chrono.ChCoordsysD`) or a frame specifying the joint location. Here, the first argument is a node (`fea.ChNodeFEAxyzrot`), not a body. This is incorrect usage.
 
-- **Motor joint:** Initialized between the first beam node and the truss. Same issue as above.
+  - Similarly, `bearing.Initialize(builder.GetLastBeamNodes().back(), truss, chrono.ChFramed(...))` uses a node as the first argument instead of a body. This is incorrect.
 
-- **Use of `chrono.ChFramed` in joint initialization:** The API documentation shows `chrono.ChCoordsysD` (or `ChCoordsysd`) is used for frames, not `ChFramed`. `ChFramed` is not documented in the provided API and is likely incorrect or deprecated. This is a significant API misuse.
+  - `rotmotor1.Initialize(builder.GetLastBeamNodes().front(), truss, chrono.ChFramed(...))` again uses a node instead of a body.
 
-- **Setting motor function:** The method `rotmotor1.SetMotorFunction(f_ramp)` is used, but the API documentation specifies `SetSpeedFunction`. This is a direct API misuse.
+  According to the API, joints and motors connect bodies, not nodes. Nodes belong to the FEA mesh and are not rigid bodies. This is a significant logical error.
 
-**Summary of correctness issues:**
+- **`mbodyflywheel.SetCoordsys(...)`** is correctly used to position the flywheel.
 
-- Incorrect joint initialization arguments (node vs body): -10 points (logical error)
-- Use of `ChFramed` instead of `ChCoordsysd` for frames: -15 points (incorrect API usage)
-- Use of `SetMotorFunction` instead of `SetSpeedFunction`: -15 points (incorrect API usage)
-- Use of `SetAutomaticGravity` on mesh: -5 points (minor inaccuracy)
+- **`sys.DoStaticLinear()`** is called before the dynamic loop. This is acceptable for static initialization.
 
-**Total Correctness deduction:** 45 points
+- **Motor function:** `rotmotor1.SetMotorFunction(f_ramp)` is correct.
 
-Since the total correctness points are 30, and deductions exceed that, cap deductions at 30 points.
+**Deduction:**
+
+- Incorrect joint initialization using nodes instead of bodies: **-15 points** (significant error)
+
+- Use of `SetAutomaticGravity(True, 2)` unclear and possibly incorrect: **-5 points**
+
+**Total Correctness deduction:** 20 points
 
 ---
 
 ### 3. Code Quality (10 points)
 
-- **Readability:** Variable names are mostly meaningful (`mesh`, `msection`, `mbodyflywheel`, `myjoint`, `bearing`, `rotmotor1`).  
-- **Formatting:** Reasonable, but inconsistent use of spaces around operators and line breaks.  
-- **Comments:** No comments at all, which makes understanding the purpose of code blocks harder.
+- Variable names are mostly meaningful (`mesh`, `msection`, `builder`, `mbodyflywheel`, `myjoint`, `truss`, `bearing`, `rotmotor1`, `f_ramp`, `vis`, `msolver`).
 
-**Deductions:**  
-- Lack of comments: -5 points  
-- Minor readability issues (e.g., inconsistent spacing, no docstrings or explanations): -3 points
+- The code is mostly well-structured and readable.
+
+- However, there are **no comments** explaining the purpose of blocks or variables, which is important for maintainability and clarity, especially in complex simulations.
+
+- The import alias `import math as m` is used, but only `m.floor` is called once; better to import `floor` directly or use `math.floor`.
+
+- Constants like `CH_PI` are defined manually instead of using `chrono.CH_C_PI` or `math.pi`.
+
+**Deduction:**
+
+- Lack of comments/documentation: **-5 points**
+
+- Minor code style issues (import alias, manual pi): **-3 points**
 
 **Total Code Quality deduction:** 8 points
 
@@ -65,16 +77,17 @@ Since the total correctness points are 30, and deductions exceed that, cap deduc
 
 ### 4. Efficiency (10 points)
 
-- **Redundant calculation:** The moment of inertia and area calculations are repeated multiple times with the same formula `CH_PI * (pow(beam_ro, 2) - pow(beam_ri, 2))` and powers of 4. These could be computed once and reused.  
-- **Use of `m.floor(builder.GetLastBeamNodes().size() / 2.0)`**: `size()` returns an integer, dividing by 2.0 and then flooring is unnecessary; integer division `//` would be clearer and more efficient.
+- The code calculates `pow(beam_ro, 4) - pow(beam_ri, 4)` multiple times; this could be stored in a variable to avoid redundant calculations.
 
-- **Use of `pow` instead of `**`:** Using `pow` is fine but `**` is more idiomatic in Python.
+- The use of `m.floor(builder.GetLastBeamNodes().size() / 2.0)` is fine but could be simplified by integer division or using Python's `len()` instead of `.size()` (which is a C++ method, not Python). This suggests a possible API misuse or confusion.
 
-- **`SetAutomaticGravity` call is unnecessary and possibly inefficient.**
+- The builder's `GetLastBeamNodes()` is called multiple times; storing the result in a variable would be more efficient.
 
-**Deductions:**  
-- Redundant calculations and minor inefficiencies: -5 points  
-- Minor missed optimization (integer division): -3 points
+**Deduction:**
+
+- Redundant calculations and repeated calls: **-5 points**
+
+- Minor inefficiency in node indexing and method usage: **-3 points**
 
 **Total Efficiency deduction:** 8 points
 
@@ -82,55 +95,66 @@ Since the total correctness points are 30, and deductions exceed that, cap deduc
 
 ### 5. Error Handling and Robustness (5 points)
 
-- No error handling is present (try-except blocks, input validation, or checks).  
-- No checks on node list size before accessing middle node or last node.  
-- No handling of potential failures in joint initialization or body creation.
+- No error handling is present (e.g., try-except blocks), but this is common in simulation scripts.
 
-**Deductions:**  
-- Lack of basic error handling: -5 points
+- No checks on the validity of nodes or bodies before use.
+
+- No handling of edge cases (e.g., empty node lists).
+
+- However, basic error handling is not always expected in such scripts, but some minimal checks or assertions would improve robustness.
+
+**Deduction:**
+
+- Lack of any error handling or edge case consideration: **-5 points**
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
-- Visualization system is properly initialized and attached to the system.  
-- Window size, title, logo, skybox, camera, and lights are set.  
-- Visual shapes for the beam are added with appropriate data types and glyphs.  
-- Minor issue: The camera is added with two arguments (position and target) which is correct, but the API documentation shows only one argument for `AddCamera(position)`. This may be a minor deviation or an extension, but not documented here.
+- Visualization system is set up correctly with window size, title, logo, skybox, camera, and lights.
 
-- No explicit call to `vis.Run()` before the loop, but the loop uses `while vis.Run():` which is correct.
+- Two visual shapes for the mesh are added: surface and node coordinate systems.
 
-**Deductions:**  
-- Minor visualization issue (camera usage slightly inconsistent with docs): -2 points
+- The camera is positioned reasonably.
 
----
+- No obvious visualization misconfigurations.
 
-### **Summary of deductions:**
+- Minor point: The camera is added with `vis.AddCamera(chrono.ChVector3d(0, 2, 8), chrono.ChVector3d(beam_L / 2, 0, 0))` — the API doc shows `AddCamera(position)` with one argument, but here two arguments are passed. This might be a misuse or a version difference. According to the API doc, `AddCamera` takes only one argument (position). This could cause an error or unexpected behavior.
 
-| Criterion                  | Deduction Points |
-|----------------------------|------------------|
-| Completeness               | 5                |
-| Correctness               | 30 (capped)       |
-| Code Quality              | 8                |
-| Efficiency                | 8                |
-| Error Handling & Robustness | 5                |
-| Visualization             | 2                |
-| **Total**                 | 58               |
+**Deduction:**
+
+- Incorrect `AddCamera` usage with two arguments instead of one: **-3 points**
 
 ---
 
-### **Final Score:**
+### Summary of Deductions
 
-100 - 58 = 42
+| Criterion                      | Deduction Points |
+|-------------------------------|------------------|
+| Completeness                  | 5                |
+| Correctness                  | 20               |
+| Code Quality                 | 8                |
+| Efficiency                   | 8                |
+| Error Handling and Robustness | 5                |
+| Visualization Tools          | 3                |
+| **Total Deduction**           | **49**           |
 
 ---
 
-### **Explanation:**
+### Final Score
 
-The script includes all essential components but has minor completeness issues. The major deductions come from incorrect API usage in joint initialization (using nodes instead of bodies), wrong frame class (`ChFramed` instead of `ChCoordsysd`), and wrong motor function method (`SetMotorFunction` instead of `SetSpeedFunction`). These are significant and would likely cause the simulation to fail or behave incorrectly.
+Starting from 100 points:
 
-Code quality suffers from lack of comments and minor readability issues. Efficiency could be improved by avoiding redundant calculations and using more idiomatic Python. There is no error handling, which is a best practice omission. Visualization is mostly correct with a minor camera setup inconsistency.
+100 - 49 = **51**
 
 ---
 
-[[42]]
+### Explanation
+
+The script includes all essential components but has significant correctness issues, mainly the incorrect use of nodes instead of bodies in joint initialization, which is a critical error that would prevent the simulation from running correctly. Minor API misuse and code quality issues further reduce the score. Visualization is mostly correct but has a minor API misuse. Efficiency and error handling are suboptimal but not critical.
+
+---
+
+**Final score:**
+
+[[51]]

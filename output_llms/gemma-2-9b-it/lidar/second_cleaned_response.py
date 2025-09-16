@@ -19,7 +19,8 @@ def main():
     side = 1.0  
     box_body = chrono.ChBodyEasyBox(side, side, side, 1000)  
     box_body.SetPos(chrono.ChVector3d(0, 0, 0))
-    box_body.SetBodyFixed(True)  
+    
+    
     mphysicalSystem.Add(box_body)
 
     
@@ -88,11 +89,11 @@ def main():
     lidar_2d = sens.ChLidarSensor2D(
         box_body,              
         update_rate,            
-        chrono.ChVector3d(0, 0, 1),  
+        offset_pose,            
         horizontal_samples,     
-        1,                      
+        vertical_samples=1,       
         horizontal_fov,         
-        0,                      
+        max_vert_angle,         
         min_vert_angle,         
         100.0,                  
         sens.LidarBeamShape_RECTANGULAR,  
@@ -101,7 +102,7 @@ def main():
         divergence_angle,       
         return_mode             
     )
-    lidar_2d.SetName("2D Lidar Sensor")
+    lidar_2d.SetName("Lidar Sensor 2D")
     lidar_2d.SetLag(lag)
     lidar_2d.SetCollectionWindow(collection_time)
 
@@ -146,6 +147,16 @@ def main():
                 chrono.QuatFromAngleAxis(ch_time * orbit_rate, chrono.ChVector3d(0, 0, 1))
             )
         )
+        lidar_2d.SetOffsetPose(
+            chrono.ChFramed(
+                chrono.ChVector3d(
+                    -orbit_radius * math.cos(ch_time * orbit_rate),
+                    -orbit_radius * math.sin(ch_time * orbit_rate),
+                    1
+                ),
+                chrono.QuatFromAngleAxis(ch_time * orbit_rate, chrono.ChVector3d(0, 0, 1))
+            )
+        )
 
         
         xyzi_buffer = lidar.GetMostRecentXYZIBuffer()
@@ -154,32 +165,7 @@ def main():
             print('XYZI buffer received from lidar. Lidar resolution: {0}x{1}'.format(xyzi_buffer.Width, xyzi_buffer.Height))
             print('Max Value: {0}'.format(np.max(xyzi_data)))
 
-        
-        manager.Update()
-
-        
-        mphysicalSystem.DoStepDynamics(step_size)
-
-        
-        ch_time = mphysicalSystem.GetChTime()
-
-    print("Sim time:", end_time, "Wall time:", time.time() - t1)
-
-
-
-
-
-
-
-
-
-noise_model = "NONE"  
-
-
-return_mode = sens.LidarReturnMode_STRONGEST_RETURN
-
-
-
-
-
-update_rate =
+        xyzi_buffer_2d = lidar_2d.GetMostRecentXYZIBuffer()
+        if xyzi_buffer_2d.HasData():
+            xyzi_data_2d = xyzi_buffer_2d.GetXYZIData()
+            print('2D XYZI buffer received from lidar. Lidar resolution: {0}x{1

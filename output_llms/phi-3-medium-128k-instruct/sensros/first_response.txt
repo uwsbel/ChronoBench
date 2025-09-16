@@ -1,107 +1,140 @@
- ```python
+```python
 
 import chrono
 
-import chrono_sensor
+import chrono.sensor as csensor
 
-import ros_manager
+import chrono.irig as cri
+
+import chrono.irig.ros as ros
 
 import numpy as np
 
 
-# Initialize PyChrono environment
+# Initialize the PyChrono environment
 
-chrono.Init()
+# Create the Chrono system
+
+chrono = chrono.ChSystemNSC()
 
 
-# Create the ground body
+# Add a ground body
 
-ground_body = chrono.ChBodyAux()
+ground = chrono.ChBody()
 
-ground_body.SetPos(chrono.ChVectorD(0, 0, 0))
+ground.SetName("Ground")
 
-ground_body.SetMass(1000)
+ground.SetMass(1000.0)
+
+ground.SetInertiaTensor(chrono.ChBox(1.0, 1.0, 0.1))
+
+ground.SetStatic()
 
 
 # Add the ground body to the system
 
-ground_system = chrono.ChSystemNSC()
-
-ground_system.AddBody(ground_body)
+chrono.ChSystemNSC.CreateBody(ground)
 
 
-# Create a mesh object for visualization
+# Add a mesh object for visualization
 
-mesh_file = "path/to/mesh/file.stl"
+mesh = chrono.ChMeshSphere(1.0)
 
-mesh = chrono.ChTriangleMeshStlFile(mesh_file)
+mesh.SetName("Mesh")
 
-visual_body = chrono.ChBodySurfaceAddAsTriangleMesh(ground_body, mesh, chrono.ChVectorD(0, 0, 0))
+mesh.SetPosition(chrono.ChVector(0, 0, 0))
 
-visual_body.SetColor(chrono.ChColor(0.5, 0.5, 0.5))
+chrono.ChBodyVehicleAABB(ground, mesh)
 
-
-# Configure the ground body to move
-
-ground_body.SetLinearVel(chrono.ChVectorD(0, 0, 0))
+chrono.ChSystemNSC.CreateBody(mesh)
 
 
-# Create a sensor manager
+# Set up the ground body to move
 
-sensor_manager = chrono_sensor.ChSensorManager()
+ground.SetTranslation(chrono.ChVector(0, 0, -0.1))
+
+ground.SetVel(chrono.ChVector(0, 0, 0.01))
+
+
+# Initialize the sensor manager
+
+sensor_manager = csensor.ChSensorManager(chrono)
 
 
 # Add sensors to the sensor manager
 
-camera = chrono_sensor.ChCameraSensor(ground_system, "CameraSensor", "Camera", chrono.ChVectorD(0, 0, 1), chrono.ChVectorD(0, 0, 0), 640, 480)
+camera = csensor.ChCameraSensor(chrono, "Camera", 60, 30, 1000, 320, 240, 30)
 
-lidar = chrono_sensor.ChLidarSensor(ground_system, "LidarSensor", "Lidar", chrono.ChVectorD(0, 0, 1), chrono.ChVectorD(0, 0, 0), 360, 10)
+lidar = csensor.ChLidarSensor(chrono, "Lidar", 360, 1)
 
-gps = chrono_sensor.ChGpsSensor(ground_system, "GpsSensor", "GPS", chrono.ChVectorD(0, 0, 1), chrono.ChVectorD(0, 0, 0))
+gps = csensor.ChGPSSensor(chrono, 1000)
 
-accelerometer = chrono_sensor.ChAccelerometerSensor(ground_system, "AccelerometerSensor", "Accel", chrono.ChVectorD(0, 0, 1), chrono.ChVectorD(0, 0, 0))
+accelerometer = csensor.ChAccelerometerSensor(chrono, "Accelerometer", 3)
 
-gyroscope = chrono_sensor.ChGyroscopeSensor(ground_system, "GyroscopeSensor", "Gyro", chrono.ChVectorD(0, 0, 1), chrono.ChVectorD(0, 0, 0))
+gyroscope = csensor.ChGyroscopeSensor(chrono, 3)
 
-magnetometer = chrono_sensor.ChMagnetometerSensor(ground_system, "MagnetometerSensor", "Magneto", chrono.ChVectorD(0, 0, 1), chrono.ChVectorD(0, 0, 0))
+magnetometer = csensor.ChMagnetometerSensor(chrono, 3)
 
 
-# Register sensors with the ROS manager
+# Register sensors with ROS topics
 
-ros_manager.RegisterSensor(camera, "camera_topic")
+ros.register_sensor(camera, "camera_data")
 
-ros_manager.RegisterSensor(lidar, "lidar_topic")
+ros.register_sensor(lidar, "lidar_data")
 
-ros_manager.RegisterSensor(gps, "gps_topic")
+ros.register_sensor(gps, "gps_data")
 
-ros_manager.RegisterSensor(accelerometer, "accel_topic")
+ros.register_sensor(accelerometer, "accelerometer_data")
 
-ros_manager.RegisterSensor(gyroscope, "gyro_topic")
+ros.register_sensor(gyroscope, "gyroscope_data")
 
-ros_manager.RegisterSensor(magnetometer, "magneto_topic")
+ros.register_sensor(magnetometer, "magnetometer_data")
+
+
+# Add sensors to the sensor manager
+
+sensor_manager.AddSensor(camera)
+
+sensor_manager.AddSensor(lidar)
+
+sensor_manager.AddSensor(gps)
+
+sensor_manager.AddSensor(accelerometer)
+
+sensor_manager.AddSensor(gyroscope)
+
+sensor_manager.AddSensor(magnetometer)
 
 
 # Main simulation loop
 
-while chrono.ChSystemNSC::GetChSystem().GetChTime() < 10:
+while True:
 
     # Update sensors
 
     sensor_manager.UpdateSensors()
 
 
-    # Publish sensor data to ROS topics
-
-    ros_manager.PublishSensorData()
-
-
     # Advance the simulation
 
-    ground_system.DoStepDynamics(0.01)
+    chrono.ChSystemNSC.DoStepDynamics(chrono, 1.0 / 60.0)
+
+    chrono.ChSystemNSC.DoStep(chrono, 1.0 / 60.0)
 
 
-# Clean up
+    # Publish sensor data to ROS topics
 
-chrono.FREE()
+    ros.publish_sensor_data(sensor_manager)
+
+
+    # Check for real-time execution
+
+    if chrono.ChSystemNSC.GetChTime() % 1.0 < 1.0 / 60.0:
+
+        continue
+
+    # Stop the simulation
+
+    break
 
 ```

@@ -3,17 +3,16 @@ import pychrono.vehicle as veh
 import pychrono.irrlicht as irr
 
 def main():
-    # Set the data path
-    veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
-
     # Simulation step sizes
     step_size = 2e-3
     tire_step_size = 1e-3
+    veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
     # Create the HMMWV vehicle, set parameters, and initialize
     hmmwv = veh.HMMWV_Full()
     hmmwv.SetContactMethod(chrono.ChContactMethod_NSC)
     hmmwv.SetChassisFixed(False)
+    # Update initial position
     hmmwv.SetInitPosition(chrono.ChCoordsysd(chrono.ChVector3d(6, -70, 0.5), chrono.ChQuaterniond(1, 0, 0, 0)))
     hmmwv.SetEngineType(veh.EngineModelType_SIMPLE)
     hmmwv.SetTransmissionType(veh.TransmissionModelType_AUTOMATIC_SIMPLE_MAP)
@@ -21,39 +20,30 @@ def main():
     hmmwv.SetTireType(veh.TireModelType_TMEASY)
     hmmwv.SetTireStepSize(tire_step_size)
     hmmwv.Initialize()
-
     hmmwv.SetChassisVisualizationType(veh.VisualizationType_MESH)
     hmmwv.SetSuspensionVisualizationType(veh.VisualizationType_MESH)
     hmmwv.SetSteeringVisualizationType(veh.VisualizationType_MESH)
     hmmwv.SetWheelVisualizationType(veh.VisualizationType_MESH)
     hmmwv.SetTireVisualizationType(veh.VisualizationType_MESH)
-
     hmmwv.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
-    # Create the terrain with a single patch using a mesh
+    # Create the terrain with a single patch
     terrain = veh.RigidTerrain(hmmwv.GetSystem())
     patch_mat = chrono.ChContactMaterialNSC()
     patch_mat.SetFriction(0.9)
     patch_mat.SetRestitution(0.01)
-
-    # Load the mesh for collision
-    patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.ChQuaterniond(1, 0, 0, 0)),
-                             veh.GetDataFile("terrain/meshes/Highway_col.obj"))
-    patch.SetCollision(True)
-    patch.SetContactSurfaceType(chrono.ChContactSurface.NSC)
-    patch.SetContactMaterial(patch_mat)
-    patch.GetContactSurface().SetMaterial(patch_mat)
-    patch.GetContactSurface().SetThickness(0.01)
+    # Use a mesh for the terrain patch
+    patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.ChQuaterniond(1, 0, 0, 0)), veh.GetDataFile("terrain/meshes/Highway_col.obj"), 0.01)
+    patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 
     # Create a visual mesh for the terrain
-    trimesh = chrono.ChTriangleMeshConnected()
-    trimesh.LoadWavefrontMesh(veh.GetDataFile("terrain/meshes/Highway_vis.obj"), False, True)
-    trimesh.Transform(chrono.ChVector3d(0, 0, 0), chrono.ChMatrix33d(1))
-
-    # Add the visual mesh to the terrain's ground body
-    visual_shape = chrono.ChVisualShapeTriangleMesh()
-    visual_shape.SetMesh(trimesh)
-    patch.GetGroundBody().AddVisualShape(visual_shape)
+    mesh = chrono.ChTriangleMeshConnected()
+    mesh.LoadWavefrontMesh(veh.GetDataFile("terrain/meshes/Highway_vis.obj"), True, True)
+    mesh.Transform(chrono.ChVector3d(0, 0, 0), chrono.ChMatrix33d(1))
+    trimesh_shape = chrono.ChVisualShapeTriangleMesh()
+    trimesh_shape.SetMesh(mesh)
+    trimesh_shape.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 10, 10)
+    patch.GetGroundBody().AddVisualShape(trimesh_shape)
 
     terrain.Initialize()
 
@@ -103,3 +93,5 @@ def main():
     return 0
 
 main()
+
+# The corrected and modified code is provided above.

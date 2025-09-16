@@ -4,54 +4,52 @@ import numpy as np
 
 
 system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
 
 terrain = chrono.ChRigidBody()
 terrain.SetBodyFixed(True)
 terrain.SetMass(0)
 terrain.SetCollide(True)
-terrain.SetVisualizationType(chrono.ChVisualizationType.MESH)
-terrain.SetMesh(chrono.ChTriangleMeshConnected())
-
-
-terrain_mesh = chrono.ChTriangleMeshConnected()
-terrain_width = 20
-terrain_depth = 20
-terrain_height = 0.1
-terrain_mesh.CreateBox(terrain_width, terrain_height, terrain_depth)
-
-terrain.SetMesh(terrain_mesh)
+terrain.SetCollisionShape(chrono.ChCollisionBox(100, 1, 100))
 terrain.SetPos(chrono.ChVectorD(0, -0.1, 0))
 system.Add(terrain)
 
 
-texture = chrono.ChTexture()
-texture.SetFilename("textures/grass.jpg")  
-texture.SetTextureType(chrono.ChTextureType.TEXTURE_FROM_FILE)
-terrain.SetTexture(texture)
+terrain_texture = chrono.ChTexture()
+terrain_texture.SetFilename("terrain.png")  
+terrain.SetTexture(terrain_texture)
 
 
-artcar = chrono.ARTcar(system)
+
+artcar = chrono.ChVehicleARTCar()
+artcar.SetVehicleMass(150.0)
+artcar.SetEngineType(chrono.ChEngineModelType.ENGINE_ELECTRIC)
+artcar.SetMaxMotorTorque(500.0)
+artcar.SetWheelRadius(0.3)
+artcar.SetWheelMass(10.0)
+artcar.SetBodyLength(2.0)
+artcar.SetBodyWidth(1.0)
+artcar.SetBodyHeight(0.7)
 
 
-artcar.SetPos(chrono.ChVectorD(0, 0.5, 0))
+artcar.SetPos(chrono.ChVectorD(0, 1.0, 0))
 artcar.SetTransform(chrono.ChQuaternionD(0, 0, 0))
+
+
+artcar.SetBodyCollisionShape(chrono.ChCollisionBox(artcar.GetBodyLength(), artcar.GetBodyHeight(), artcar.GetBodyWidth()))
 
 
 artcar.SetContactMethod(chrono.ChContactMethod.SMC)
 
 
-artcar.SetVisualizationType(chrono.ChVisualizationType.MESH)
+system.Add(artcar)
 
 
-driver = chrono.ChWheeledVehicleDynamicCast(artcar)
-if driver:
-    driver.SetSteeringAngle(0.0)
-    driver.SetThrottle(0.0)
-    driver.SetBraking(0.0)
-else:
-    print("Error: Could not cast ARTcar to ChWheeledVehicleDynamicCast.")
+driver = chrono.ChWheeledVehicleDriver(artcar)
+driver.SetSteeringDelta(20.0)
+driver.SetThrottleDelta(0.1)
+driver.SetBrakingDelta(0.1)
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
@@ -63,15 +61,21 @@ vis.AddCamera(chrono.ChVectorD(0, 2, -5))
 vis.AddTypicalLights()
 
 
-time_step = 0.005  
-simulation_fps = 50
-max_simulation_time = 60  
-
-simulation_time = 0.0
-while vis.Run() and simulation_time < max_simulation_time:
-    system.DoStepDynamics(time_step)
+timestep = 0.005
+time = 0.0
+while vis.Run():
+    vis.BeginScene()
     vis.Render()
-    vis.GetIrrlichtScene().GetDevice().WaitForVerticalSync(True)
-    simulation_time += time_step
+    vis.EndScene()
 
-print("Simulation finished.")
+    
+    throttle = 0.5
+    steering = 0.0
+    braking = 0.0
+
+    driver.SetThrottle(throttle)
+    driver.SetSteering(steering)
+    driver.SetBraking(braking)
+
+    system.DoStepDynamics(timestep)
+    time += timestep

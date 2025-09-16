@@ -4,7 +4,6 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import pychrono.sensor as sens
 import math
-import matplotlib.pyplot as plt
 
 
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
@@ -166,5 +165,4 @@ while vis.Run():
     elif time < 4.0 and time > 2.0:
         driver.SetThrottle(0.6)
         driver.SetSteering(0.5)
-    elif time < 6.0 and time > 4.0:
-        driver.
+    elif time < 6.0

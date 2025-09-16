@@ -135,13 +135,10 @@ def main():
         time = sys.GetChTime()  # Update simulation time.
 
         # Update sensors and ROS data.
-        try:
-            sens_manager.Update()
-        except Exception as e:
-            print(f"Error updating sensor manager: {e}")
-            break
+        sens_manager.Update()
 
-        ros_manager.Update()  # Update the ROS manager.
+        if not ros_manager.Update():  # Check if the ROS manager update fails
+            break
 
         sys.DoStepDynamics(time_step)  # Advance the simulation by one time step.
 

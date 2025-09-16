@@ -45,9 +45,8 @@ def main():
     floor.SetPos(ch.ChVector3d(0, 0, -1))  
     floor.SetFixed(True)  
     floor.SetName("base_link")  
-    floor.SetTexture(ch.ChTexture(
-        filename="path/to/floor_texture.png"  
-    ))
+    floor.SetTexture(ch.ChTexture())
+    floor.GetTexture().SetFilename("floor_texture.jpg")
     sys.Add(floor)  
 
     
@@ -55,21 +54,22 @@ def main():
     box.SetPos(ch.ChVector3d(0, 0, 5))  
     box.SetRot(ch.QuatFromAngleAxis(.2, ch.ChVector3d(1, 0, 0)))  
     box.SetName("box")  
-    box.SetTexture(ch.ChTexture(
-        filename="path/to/box_texture.png"  
-    ))
+    box.SetTexture(ch.ChTexture())
+    box.GetTexture().SetFilename("box_texture.jpg")
     sys.Add(box)  
 
     
-    vis = chronoirr.ChIrrApp(sys, "My Simulation", chronoirr.dimension2du(800, 600))
+    vis = chronoirr.ChIrrlichtApplication()
+    vis.SetWindowSize(1280, 720)
+    vis.SetStep(1e-3)
     vis.AddTypicalCamera(ch.ChVector3d(5, 5, 5), ch.ChVector3d(0, 0, 0))
     vis.AddLight(ch.ChVector3d(5, 5, 5), ch.ChVector3d(1, 1, 1), 255)
-    vis.SetWindowSize(800, 600)
+    vis.AddSkyBox()
     vis.Initialize()
 
     
     ros_manager = chros.ChROSPythonManager()
-    publish_rate = 10  
+    publish_rate = 10
 
     
     ros_manager.RegisterHandler(chros.ChROSClockHandler())
@@ -90,31 +90,28 @@ def main():
     ros_manager.Initialize()
 
     
-    step_number = 0
-    render_step_size = 10  
-    render_steps = render_step_size
-
-    
     time = 0
     time_step = 1e-3  
     time_end = 30  
+
+    step_number = 0
+    render_step_size = 10
+    render_steps = render_step_size
 
     realtime_timer = ch.ChRealtimeStepTimer()  
     while time < time_end:
         sys.DoStepDynamics(time_step)  
         time = sys.GetChTime()  
 
-        
+        if not ros_manager.Update(time, time_step):  
+            break  
+
         step_number += 1
         if step_number >= render_steps:
             vis.BeginScene()
             vis.Render()
             vis.EndScene()
-            step_number = 0
-            render_steps = render_step_size
-
-        if not ros_manager.Update(time, time_step):  
-            break  
+            render_steps += render_step_size
 
         realtime_timer.Spin(time_step)  
 

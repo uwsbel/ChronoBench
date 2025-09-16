@@ -134,6 +134,4 @@ if (True):
     mvisualizeshellA.SetShellResolution(2)  
     mvisualizeshellA.SetBackfaceCull(True)  
 
-    mesh.AddVisualShapeFEA(mvisualizeshellA)  
-
-    mvisualizeshellB =
+    mesh.AddVisualShapeFEA(mvisual

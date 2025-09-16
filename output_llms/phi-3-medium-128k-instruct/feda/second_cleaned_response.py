@@ -4,7 +4,7 @@ import pychrono.vehicle as veh
 import math
 
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
-veh.SetDataPath(chronoGetChronoDataPath() + 'vehicle/')
+veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 
 initLoc = chrono.ChVector3d(-50, 0, 0.5)  
@@ -20,9 +20,10 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 
-terrainHeight = 0      
+terrain_model = veh.RigidTerrain.BOX
+terrainHeight = 0  
 terrainLength = 200.0  
-terrainWidth = 100.0   
+terrainWidth = 100.0  
 
 
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
@@ -43,7 +44,6 @@ vehicle = veh.FEDA()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
-vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 
@@ -54,7 +54,6 @@ vehicle.SetSuspensionVisualizationType(vis_type)
 vehicle.SetSteeringVisualizationType(vis_type)
 vehicle.SetWheelVisualizationType(vis_type)
 vehicle.SetTireVisualizationType(vis_type)
-
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
@@ -84,26 +83,13 @@ vis.AttachVehicle(vehicle.GetVehicle())
 
 
 driver = veh.ChPathFollowerDriverIRR(vis)
-
-
-driver.SetTargetSpeed(10.0)
-
-
-
-driver.SetSteeringGain(0.1)
-driver.SetLookAheadDistance(5.0)
-
-
-
-driver.SetSpeedGain(0.1)
-
+driver.SetTargetSpeed(10.0)  
+driver.SetLookAheadDistance(5.0)  
+driver.SetSteeringGain(0.5)  
+driver.SetSteeringTime(1.0)  
+driver.SetThrottleGain(0.5)  
+driver.SetBrakingGain(0.5)  
 driver.Initialize()
-
-
-print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
-
-
-render_steps = math.ceil(render_step_size / step_size)
 
 
 realtime_timer = chrono.ChRealtimeStepTimer()

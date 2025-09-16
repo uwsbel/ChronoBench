@@ -1,73 +1,50 @@
-from chrono import ChronoEngine, ChronoPy
-from chrono.collision import collision
-from chrono.sensor import SensorManager, LidarSensor, LidarNoiseFilter
-from chrono.postprocess import Visualization, Exporter
+import chrono
+import chrono.collision as col
+import chrono.sensor as sens
+import chrono.visualization as vis
+import math
 
 
-myChrono = ChronoEngine()
-mySim = myChrono.NewSimulation()
+chrono.SetChronoDataPath('path/to/chrono/data')
+my_sim = chrono.ChSystemSMC()
 
 
-mySim.SetDeltaTime(1e-4)
-mySim.SetTimeStep(1e-4)
-mySim.SetEndTime(10)
+mesh_path = 'path/to/triangular_mesh.obj'
+my_body = my_sim.AddBody(chrono.ChBodyEasyMesh(mesh_path, chrono.ChMaterialSurfaceSMC()))
+my_body.SetPos(chrono.ChVectorD(0, 0, 0))
+my_body.SetFixed(True)
 
 
-myTerrain = myChrono.NewTerrain()
+my_lidar = sens.ChLidarSensor()
+my_lidar.SetRange(10)
+my_lidar.SetResolution(0.1)
+my_lidar.SetNoiseStdDev(0.01)
+my_lidar.SetNoiseFilter(sens.ChLidarSensor.NoiseFilterType.GAUSSIAN)
+my_lidar.SetVisualization(True)
+my_lidar.SetDataFilename('lidar_data.csv')
+my_body.AddSensor(my_lidar)
 
 
-myTerrain.LoadTriangleMesh('path/to/your/mesh.obj')
+my_sensor_manager = my_sim.AddSensorManager()
+my_sensor_manager.AddSensor(my_lidar)
 
 
-mySim.Add(myTerrain)
-
-
-myBody = myChrono.NewRigidBody()
-
-
-myBody.SetVisualType(ChronoPy.VisualizationTypes.MESH)
-myBody.SetColor(ChronoPy.ChColor(0.5, 0.5, 0.5))
-
-
-mySim.Add(myBody)
-
-
-mySensorManager = SensorManager()
-myBody.AddSensorManager(mySensorManager)
-
-
-lidarSensor = LidarSensor('lidar', myBody)
-mySensorManager.Add(lidarSensor)
-
-
-lidarSensor.AddNoiseFilter(LidarNoiseFilter('gaussian', 0.01))
-lidarSensor.SetVisualization(True)
-lidarSensor.SetDataFileName('lidar_data.csv')
-
-
-lidarSensor.SetRelativePosition(ChronoPy.ChVectorD(0, 0.1, 0.5))
-
-
-lidarSensor.SetLaserBeams(32, 0.0, 3.14159265358979323846)
-
-
-myVis = Visualization()
-myVis.SetChronoDataPath('path/to/your/output/directory')
-
-
-myExporter = Exporter('path/to/your/output/directory')
-myExporter.AddSensor(lidarSensor)
-
-
-while mySim.GetChronoRunner().IsRunning():
-    mySim.DoStepDynamics()
+time_step = 0.01
+num_steps = 100
+for i in range(num_steps):
+    
+    angle = 2 * math.pi * i / num_steps
+    x = 5 * math.cos(angle)
+    y = 5 * math.sin(angle)
+    my_lidar.SetPos(chrono.ChVectorD(x, y, 1))
 
     
-    if lidarSensor.IsDataReady():
-        buffer_data = lidarSensor.GetBufferData()
-        print(buffer_data)
+    my_sim.DoStepDynamics(time_step)
+
+    
+    buffer_data = my_lidar.GetBufferData()
+    print(buffer_data)
 
 
-mySim.DoStepDynamics()
-myVis.Write(mySim.GetSystem())
-myExporter.Export(mySim.GetSystem())
+my_sim.DumpState('simulation_state.dat')
+my_sensor_manager.DumpData()

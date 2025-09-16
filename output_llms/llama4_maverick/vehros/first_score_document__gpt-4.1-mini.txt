@@ -4,112 +4,132 @@
 
 ### 1. Completeness (40 points)
 
-- **System Initialization:** Present and correct (`sys = chrono.ChSystemNSC()`). No deduction.
-- **Vehicle Creation:** Present, using `veh.HMMWV_Vehicle(sys, init_file=init_file)`. However, the constructor for `HMMWV_Vehicle` typically does not take an `init_file` argument directly; instead, the vehicle is usually constructed and then initialized with position and orientation. The code uses `vehicle.Initialize(...)` correctly, but passing `init_file` to the constructor is not standard per API examples.  
-  **Deduct 10 points** for incorrect or incomplete vehicle initialization.
-- **Terrain Creation:** Present and mostly correct. Uses `veh.RigidTerrain(sys)` and adds a patch with material. However, the patch is added with `chrono.CSYSNORM` as coordinate system, which is not defined in the provided code or documentation. The documentation shows `chrono.ChCoordsysD` or `chrono.ChCoordsysd` for coordinate systems. `chrono.CSYSNORM` is not a standard PyChrono constant.  
-  **Deduct 15 points** for missing or incorrect terrain patch coordinate system.
-- **Driver Setup:** Present, but the driver is created with `veh.ChDriver(vehicle.GetVehicle())`. The `GetVehicle()` method is not standard; the vehicle object itself is used directly with `ChDriver`. This is likely a logical error.  
-  **Deduct 10 points** for logical error in driver initialization.
-- **Driver Inputs:** Present and initialized correctly.
-- **ROS Integration:** Present with publishers and subscribers, but the `/clock` subscriber callback is empty (`pass`), meaning no synchronization is done. This is a missing essential component for ROS time sync.  
-  **Deduct 15 points** for missing implementation of clock synchronization.
-- **Simulation Loop:** Present, but no visualization system is created or used. The documentation and best practices recommend visualization for vehicle simulations, especially with Irrlicht (`chronoirr.ChVisualSystemIrrlicht()`).  
-  **Deduct 15 points** for missing visualization setup.
-- **Vehicle Initialization Position:** The vehicle is initialized at `(0,0,1.0)` with zero rotation, which is acceptable.
-- **Publishing Vehicle State:** Present and correct.
-- **Use of `chrono.Init()`:** This function does not exist in the PyChrono API documentation and is unnecessary.  
-  **Deduct 5 points** for unnecessary or incorrect API call.
+- **System Initialization Missing (Deduct 15 points):**  
+  The script creates a vehicle (`veh.HMMWV_Full()`) and terrain, but **does not explicitly create or initialize the underlying Chrono physical system** (`chrono.ChSystemSMC()` or `chrono.ChSystemNSC()`). According to the API documentation and best practices, the system must be explicitly created and passed to vehicle and terrain constructors or accessed via `vehicle.GetSystem()`. While `vehicle.GetSystem()` is used for terrain, the system itself is never explicitly created or configured by the user, which is an essential step.
 
-**Total Completeness deduction: 10 + 15 + 10 + 15 + 15 + 5 = 70 points**  
-Since completeness max is 40 points, deductions capped at 40 points.
+- **Visualization Missing (Deduct 15 points):**  
+  The script imports `pychrono.irrlicht` but **does not set up any visualization system** (e.g., `irr.ChVisualSystemIrrlicht()`) or render loop. Visualization is an essential component for vehicle simulations to observe behavior and debug.
+
+- **Driver Setup Incomplete (Deduct 5 points):**  
+  The driver is created as `veh.ChDriver(vehicle)`, which is a base driver class. Typically, vehicle simulations use a more specialized driver class (e.g., `ChPathFollowerDriver` or a custom driver) that can handle inputs properly. Also, the driver is not connected to any input source except via a ROS subscriber callback, but the driver itself does not have a method to update inputs externally in this way. This is a minor omission but worth noting.
+
+- **ROS Integration (No deduction):**  
+  The ROS node, publishers, and subscriber are properly initialized, which is good.
+
+**Total Completeness Deduction:** 15 + 15 + 5 = 35 points deducted  
+**Remaining Completeness:** 40 - 35 = 5 points
 
 ---
 
 ### 2. Correctness (30 points)
 
-- **Use of `chrono.Init()`:** Not a valid PyChrono function, could cause runtime error.  
-  **Deduct 15 points** for incorrect API usage.
-- **`veh.HMMWV_Vehicle(sys, init_file=init_file)`:** The constructor does not accept `init_file` argument; this is a misuse.  
-  **Deduct 15 points** for incorrect API usage.
-- **`chrono.CSYSNORM`:** Not defined in PyChrono API, likely causes error or unexpected behavior.  
-  **Deduct 15 points** for incorrect API usage.
-- **Driver initialization with `vehicle.GetVehicle()`:** `HMMWV_Vehicle` does not have `GetVehicle()` method; driver should be initialized with the vehicle object itself.  
-  **Deduct 10 points** for logical error.
-- **ROS callback `driver_inputs_callback`:** Sets only steering input and calls `driver.SetInputs(driver_inputs)`. However, throttle and braking inputs are set in the loop, not updated from ROS messages. This is inconsistent but not necessarily incorrect. Minor issue.  
-  **Deduct 5 points** for minor logical inconsistency.
-- **Use of `rospy.rostime.wallsleep(0.01)`:** This is a valid ROS function, but better practice is to use `rospy.Rate.sleep()` for loop rate control. Minor issue.  
-  **Deduct 3 points** for minor inefficiency.
-- **No error handling or checks on ROS messages:** Could cause issues if messages are malformed.  
-  Minor but not correctness issue.
+- **Incorrect Vehicle Initialization Order (Deduct 10 points):**  
+  The vehicle is created before setting the contact method. According to best practices, the contact method should be specified **before** vehicle creation or at least before initialization. However, in the code, `vehicle = veh.HMMWV_Full()` is called first, then `vehicle.SetContactMethod(...)`. This may cause the vehicle to be created with default contact method, and changing it afterward might not have the intended effect.
 
-**Total Correctness deductions: 15 + 15 + 15 + 10 + 5 + 3 = 63 points**  
-Max correctness is 30 points, so capped at 30 points deduction.
+- **Incorrect Use of `vehicle.Initialize()` (No deduction):**  
+  The vehicle is initialized with no arguments, which is acceptable since the initial position is set before.
+
+- **Incorrect Terrain Patch Orientation (Deduct 5 points):**  
+  The patch is added with a rotation `chrono.Q_from_AngX(-chrono.CH_C_PI_2)`. According to the API, the terrain patch is usually aligned with the XY plane, and the rotation should be identity or carefully set. Using `Q_from_AngX(-PI/2)` rotates the patch to the XZ plane, which is unusual and likely incorrect for terrain. This could cause the terrain to be vertical rather than horizontal.
+
+- **Driver Input Handling (No deduction):**  
+  The callback correctly sets throttle, steering, and braking from the ROS message.
+
+- **Advancing Objects in Wrong Order (No deduction):**  
+  The order of `vehicle.Advance()`, `terrain.Advance()`, and `driver.Advance()` is acceptable.
+
+- **Use of `driver.GetInputs()` (No deduction):**  
+  This is correct usage to get current driver inputs.
+
+- **Use of `vehicle.GetPos()` (No deduction):**  
+  Correct to get vehicle position for publishing.
+
+**Total Correctness Deduction:** 10 + 5 = 15 points  
+**Remaining Correctness:** 30 - 15 = 15 points
 
 ---
 
 ### 3. Code Quality (10 points)
 
-- **Readability:** Variable names are reasonable (`sys`, `vehicle`, `terrain`, `driver`, `driver_inputs`).  
-- **Formatting:** Some extra blank lines, but acceptable.  
-- **Comments:** No comments at all explaining the code steps, which is poor practice especially for complex simulation code.  
-  **Deduct 5 points** for insufficient comments.
-- **Structure:** The ROS callbacks are defined but one is empty (`clock_sync_callback`), which is confusing.  
-  **Deduct 3 points** for incomplete function implementation and lack of clarity.
+- **Lack of Comments (Deduct 5 points):**  
+  The code has no comments explaining the purpose of blocks or functions, which reduces readability and maintainability.
 
-**Total Code Quality deduction: 8 points**
+- **Variable Naming and Structure (No deduction):**  
+  Variable names are meaningful (`vehicle`, `terrain`, `driver`, `pub_clock`, etc.). The structure is clear with a `main()` function and a callback function.
+
+- **Lambda in Subscriber (No deduction):**  
+  Using a lambda to pass the driver to the callback is acceptable.
+
+**Total Code Quality Deduction:** 5 points  
+**Remaining Code Quality:** 10 - 5 = 5 points
 
 ---
 
 ### 4. Efficiency (10 points)
 
-- **Unnecessary `chrono.Init()` call:** Inefficient and unnecessary.  
-  **Deduct 5 points**
-- **In simulation loop, `driver_inputs.m_throttle` is set to 0.5 every iteration regardless of ROS input:** This could be optimized by updating only when input changes or from ROS messages.  
-  **Deduct 3 points** for missing optimization.
-- **No visualization means no rendering overhead, but also no feedback.** Not an efficiency issue per se.
-- **ROS sleep usage is acceptable but not optimal.**
+- **Redundant Calls to `terrain.Advance()` and `driver.Advance()` (No deduction):**  
+  Advancing all simulation components is necessary.
 
-**Total Efficiency deduction: 8 points**
+- **No Use of `sys.DoStepDynamics()` (No deduction):**  
+  The vehicle and terrain are advanced individually, which is typical for vehicle simulations.
+
+- **No Obvious Inefficiencies or Redundancies (No deduction):**  
+  The code is straightforward.
+
+**Total Efficiency Deduction:** 0 points  
+**Remaining Efficiency:** 10 points
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- **No error handling for ROS message callbacks:** Could cause crashes if messages are invalid.  
-  **Deduct 5 points** for lack of error handling.
-- **No checks on vehicle or terrain initialization success:** Minor but no explicit error handling.  
-  No further deduction.
+- **No Error Handling (Deduct 5 points):**  
+  The code lacks any try-except blocks or checks for ROS initialization failure, invalid inputs, or simulation errors.
+
+- **No Edge Case Handling (No deduction):**  
+  The code assumes all inputs are valid and the simulation runs smoothly.
+
+**Total Error Handling Deduction:** 5 points  
+**Remaining Error Handling:** 0 points
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
-- **No visualization system created or used:** For vehicle simulations, visualization is strongly recommended and standard practice.  
-  **Deduct 5 points** for missing visualization setup.
+- **No Visualization Setup (Deduct 5 points):**  
+  The code imports `pychrono.irrlicht` but does not create or initialize any visualization system, nor does it render the simulation.
+
+**Total Visualization Deduction:** 5 points  
+**Remaining Visualization:** 0 points
 
 ---
 
-### Summary of deductions:
+### **Summary of Deductions**
 
-| Criterion                     | Max Points | Deduction | Points Awarded |
-|-------------------------------|------------|-----------|---------------|
-| Completeness                  | 40         | 40        | 0             |
-| Correctness                  | 30         | 30        | 0             |
-| Code Quality                 | 10         | 8         | 2             |
-| Efficiency                  | 10         | 8         | 2             |
-| Error Handling and Robustness | 5          | 5         | 0             |
-| Visualization Tools          | 5          | 5         | 0             |
-| **Total**                   | **100**    | **96**    | **4**         |
+| Criterion                  | Max Points | Deducted | Remaining |
+|----------------------------|------------|----------|-----------|
+| Completeness               | 40         | 35       | 5         |
+| Correctness               | 30         | 15       | 15        |
+| Code Quality              | 10         | 5        | 5         |
+| Efficiency                | 10         | 0        | 10        |
+| Error Handling & Robustness | 5          | 5        | 0         |
+| Visualization             | 5          | 5        | 0         |
+| **Total**                 | **100**    | **65**   | **35**    |
 
 ---
 
-### Final Score: [[4]]
+### Final Score:  
+[[35]]
 
 ---
 
 ### Explanation:
 
-The script misses several essential components, including proper vehicle initialization, terrain patch coordinate system, and visualization setup, leading to full deductions in completeness and visualization categories. It uses incorrect or undefined API calls (`chrono.Init()`, `chrono.CSYSNORM`, `vehicle.GetVehicle()`), causing major correctness issues. The lack of comments and incomplete ROS callback reduce code quality. Efficiency is impacted by unnecessary calls and suboptimal input handling. There is no error handling for ROS messages, and visualization is completely missing, which is critical for vehicle simulations.
-
-Overall, the script is incomplete and incorrect for a functional PyChrono vehicle simulation integrated with ROS, resulting in a very low score.
+- The script misses **explicit system initialization**, which is fundamental for any PyChrono simulation.  
+- It lacks **visualization setup**, which is crucial for vehicle simulations to observe and debug behavior.  
+- The **vehicle contact method is set after vehicle creation**, which is not the recommended practice and may cause incorrect behavior.  
+- The **terrain patch rotation is likely incorrect**, which could cause the terrain to be oriented vertically instead of horizontally.  
+- There is **no error handling** or robustness measures.  
+- The code lacks **comments**, reducing readability.  
+- Efficiency is acceptable, and the ROS integration is correctly done.  
+- Overall, the script is incomplete and partially incorrect, resulting in a low score.

@@ -3,9 +3,7 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
-"""
-!!!! Set this path before running the demo!
-"""
+# Set the path for the demo data
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
@@ -23,6 +21,7 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 # Rigid terrain
+# terrain_model = veh.RigidTerrain.BOX
 terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
@@ -43,7 +42,7 @@ render_step_size = 1.0 / 50  # FPS = 50
 
 # Create the HMMWV vehicle, set parameters, and initialize
 
-vehicle = veh.HMMWV_Full()  # veh.HMMWV_Reduced() could be another choice here
+vehicle = veh.HMMWV_Full()  # veh.HMMWV_Reduced() could also be used
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
@@ -57,8 +56,6 @@ vehicle.SetChassisVisualizationType(vis_type)
 vehicle.SetSuspensionVisualizationType(vis_type)
 vehicle.SetSteeringVisualizationType(vis_type)
 vehicle.SetWheelVisualizationType(vis_type)
-vehicle.SetTireVisualizationType(vis_type)
-
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 # Create the terrain
@@ -67,16 +64,12 @@ patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 patch = terrain.AddPatch(patch_mat, 
-    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
+    chrono.ChCoordsysd(chrono.ChVector3d(0, -42, 0), chrono.QUNIT),
     chrono.GetChronoDataFile('vehicle/terrain/meshes/Highway_col.obj'),
     True, 0.01, False)
-
-# Additional Terrain Patch Creation
-vis_mesh = chrono.ChTriangleMeshConnected().CreateFromWavefrontFile(veh.GetDataFile("terrain/meshes/bump.obj"), True, True)
+vis_mesh = chrono.ChTriangleMeshConnected().CreateFromWavefrontFile(veh.GetDataFile("terrain/meshes/Highway_vis.obj"), True, True)
 tri_mesh_shape = chrono.ChVisualShapeTriangleMesh()
 tri_mesh_shape.SetMesh(vis_mesh)
-tri_mesh_shape.SetColor(chrono.Color(0.5, 0.5, 0.8))
-tri_mesh_shape.SetTexture(chrono.Texture(chrono.GetChronoDataFile('textures/dirt.jpg'), 6.0, 6.0))
 tri_mesh_shape.SetMutable(False)
 patch.GetGroundBody().AddVisualShape(tri_mesh_shape)
 terrain.Initialize()
@@ -111,43 +104,49 @@ driver.Initialize()
 # ---------------
 
 # output vehicle mass
-print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
+@classmethod
+def load(cls, filename):
+    # Load the model from a file
+    pass
 
-# Initialize simulation frame counter s
-realtime_timer = chrono.ChRealtimeStepTimer()
-step_number = 0
-render_frame = 0
+class Mesh:
+    # Existing methods...
 
-while vis.Run() :
-    time = vehicle.GetSystem().GetChTime()
+    def calculate_surface_area(self):
+        # Placeholder for actual surface area calculation
+        # You would need to implement the logic to calculate the area
+        # of each triangle and sum them up.
+        total_area = 0
+        for i in range(len(self.triangles)):
+            # Calculate the area of the i-th triangle
+            # and add it to the total area
+            area = self.calculate_triangle_area(self.triangles[i])
+            total_area += area
+        return total_area
 
-    # Render scene and output POV-Ray data
-    if (step_number % render_steps == 0) :
-        vis.BeginScene()
-        vis.Render()
-        vis.EndScene()
-        render_frame += 1
+    def calculate_triangle_area(self, triangle):
+        # Calculate the area of a triangle given its vertices
+        # This is a placeholder for the actual implementation
+        pass
 
-    # Get driver inputs
-    driver_inputs = driver.GetInputs()
+import numpy as np
 
-    # Update modules (process inputs from other modules)
-    driver.Synchronize(time)
-    terrain.Synchronize(time)
-    vehicle.Synchronize(time, driver_inputs, terrain)
-    vis.Synchronize(time, driver_inputs)
+class Mesh:
+    # Existing methods...
 
-    # Advance simulation for one timestep for all modules
-    driver.Advance(step_size)
-    terrain.Advance(step_size)
-    vehicle.Advance(step_size)
-    vis.Advance(step_size)
+    def apply_transformation(self, transformation_matrix):
+        # Apply the transformation matrix to all vertices
+        for i, vertex in enumerate(self.vertices):
+            self.vertices[i] = np.dot(transformation_matrix, np.append(vertex, 1))[:3]
 
-    # Increment frame number
-    step_number += 1
+class Mesh:
+    # Existing methods...
 
-    # Spin in place for real time to catch up
-    realtime_timer.Spin(step_size)
+    def save(self, filename):
+        with open(filename, 'w') as file:
+            for vertex in self.vertices:
+                file.write('{} {} {}\n'.format(vertex[0], vertex[1], vertex[2]))

@@ -4,7 +4,9 @@ import numpy as np
 import pychrono as chrono
 import pychrono.robot as turtlebot
 from pychrono import irrlicht as chronoirr
-from pychrono.sensor import sens
+from pychrono.sensor import Sens
+from pychrono.sensor import SensorManager
+from pychrono.sensor import LidarSensor
 
 # Create Chrono system
 system = chrono.ChSystemNSC()
@@ -16,7 +18,7 @@ chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
 # Create ground body as terrain plane that robot will drive on
 ground_mat = chrono.ChContactMaterialNSC()
 ground = chrono.ChBodyEasyBox(20, 20, 1, 1000, True, True, ground_mat)
-ground.SetPos(chrono.ChVector3d(0, 0, -0.6))  # Adjusted ground position
+ground.SetPos(chrono.ChVector3d(0, 0, -0.6))  # Position the ground slightly below the origin
 ground.SetFixed(True)  # Fix the ground in place
 ground.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
 system.Add(ground)
@@ -28,16 +30,14 @@ robot = turtlebot.TurtleBot(system, init_pos, init_rot)  # Create Turtlebot inst
 robot.Initialize()  # Initialize the robot
 
 # Create sensor manager
-sensor_manager = sens.ChSensorManager()
+sens = Sens()
+sens.SetSensorType(Sens.Type_LIDAR)
+sens.SetSensorResolution(0.1)
+sens.SetSensorRange(5)
 
-# Create lidar sensor
-lidar = sens.ChLidarSensor(sensor_manager, 
-                           range=10,  # Range of the lidar sensor
-                           resolution=0.1,  # Resolution of the lidar sensor
-                           filter_type=sens.ChLidarFilterType.FILTER_GAUSSIAN)  # Gaussian filter for the lidar sensor
-
-# Add the lidar sensor to the sensor manager
-sensor_manager.AddSensor(lidar)
+# Create Lidar sensor
+lidar = LidarSensor(sens, 0.1, 5, 0.01, 0.01)  # Adjust parameters as needed
+sens.AddSensor(lidar)
 
 # Create run-time visualization
 vis = chronoirr.ChVisualSystemIrrlicht()
@@ -87,8 +87,7 @@ while vis.Run():
     system.DoStepDynamics(time_step)
 
     # Update sensor manager
-    sensor_manager.Update()
+    sens.Update()
 
-    # Move the robot
-    if time >= 1.0:
-        robot.move('straight')
+    # Example: check sensor data
+    # print(sens.GetLidarData())  # Print Lidar sensor data

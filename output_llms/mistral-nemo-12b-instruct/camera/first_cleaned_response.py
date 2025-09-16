@@ -1,61 +1,49 @@
-import pychrono as pc
+import pychrono as chrono
 import numpy as np
-import time
 
 
-sim = pc.Simulation()
-scene = sim.scene
-sim.set_gravity([0, 0, -9.81])
+chrono.Initialize()
 
 
-
-mesh = pc.Mesh.from_obj("path/to/your/mesh.obj")
-body = pc.Body(mesh)
-body.set_position([0, 0, 0])
-body.set_velocity([0, 0, 0])
-body.set_angular_velocity([0, 0, 0])
-body.set_fixed(True)
-scene.add(body)
+scene = chrono.Scene()
 
 
-camera = pc.CameraSensor()
-camera.set_position([0, 0, 1])
-camera.set_orientation(pc.Quaternion.from_euler_angles(0, 0, 0))
-body.add_sensor(camera)
+mesh = chrono.Mesh('mesh.obj')
+mesh.SetMaterial(chrono.Material('Red', chrono.Color(1, 0, 0)))
+body = chrono.Body()
+body.AddMesh(mesh)
+body.SetPos([0, 0, 0])
+body.SetFixed(True)
+scene.Add(body)
 
 
-sensor_manager = pc.SensorManager()
-sensor_manager.add_sensor(camera)
-sim.add_sensor_manager(sensor_manager)
+camera = chrono.CameraSensor()
+camera.SetPos([1, 1, 1])
+camera.SetDir([-1, -1, -1])
+body.Add(camera)
 
 
-noise_filter = pc.NoiseFilter()
-camera.add_noise_filter(noise_filter)
-
-visualization = pc.CameraImageVisualization()
-camera.add_visualization(visualization)
+sensor_manager = chrono.SensorManager()
+sensor_manager.Add(camera)
+scene.Add(sensor_manager)
 
 
+noise_filter = chrono.NoiseFilter()
+camera.AddNoiseFilter(noise_filter)
+visualization = chrono.Visualization()
+camera.AddVisualization(visualization)
 
-orbit_radius = 1.0
-orbit_speed = 0.1
-orbit_angle = 0.0
 
-while sim.is_running():
+for i in range(100):
     
-    orbit_angle += orbit_speed
-    camera.set_position([orbit_radius * np.cos(orbit_angle), orbit_radius * np.sin(orbit_angle), 1])
+    camera.SetPos([np.sin(i * 0.1) * 2, np.cos(i * 0.1) * 2, 1])
 
     
-    sim.step()
+    scene.Simulate(chrono.Timestep(0.1))
 
     
-    image = camera.get_image()
-    print(f"Camera image shape: {image.shape}")
-    print(f"Camera image data:\n{image}")
-
-    
-    time.sleep(0.01)
+    buffer = sensor_manager.GetBuffer()
+    print(f"Camera buffer data at step {i}: {buffer}")
 
 
-sim.run()
+chrono.Finalize()

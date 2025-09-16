@@ -50,7 +50,6 @@ melementmonitor = fea.ChElementShellBST()
 
 if (True):
     
-
     
     density = 100
     E = 6e4
@@ -96,7 +95,14 @@ if (True):
             boundary_3 = mynodes[(iz - 1) * (nsections_x + 1) + ix + 1] if (iz > 0) else None
 
             
-            melementA.SetNodes(mynodes[(iz) * (nsections_x + 1) + ix], mynodes[(iz) * (nsections_x + 1) + ix + 1], mynodes[(iz + 1) * (nsections_x + 1) + ix], boundary_1, boundary_2, boundary_3)
+            melementA.SetNodes(
+                mynodes[(iz) * (nsections_x + 1) + ix],
+                mynodes[(iz) * (nsections_x + 1) + ix + 1],
+                mynodes[(iz + 1) * (nsections_x + 1) + ix],
+                boundary_1,
+                boundary_2,
+                boundary_3
+            )
 
             
             melementA.AddLayer(thickness, 0 * chrono.CH_DEG_TO_RAD, material)
@@ -111,14 +117,21 @@ if (True):
             boundary_3 = mynodes[(iz + 2) * (nsections_x + 1) + ix] if (iz < nsections_z - 1) else None
 
             
-            melementB.SetNodes(mynodes[(iz + 1) * (nsections_x + 1) + ix + 1], mynodes[(iz + 1) * (nsections_x + 1) + ix], mynodes[(iz) * (nsections_x + 1) + ix + 1], boundary_1, boundary_2, boundary_3)
+            melementB.SetNodes(
+                mynodes[(iz + 1) * (nsections_x + 1) + ix + 1],
+                mynodes[(iz + 1) * (nsections_x + 1) + ix],
+                mynodes[(iz) * (nsections_x + 1) + ix + 1],
+                boundary_1,
+                boundary_2,
+                boundary_3
+            )
 
             
             melementB.AddLayer(thickness, 0 * chrono.CH_DEG_TO_RAD, material)
 
     
-    for j in range(30):
-        for k in range(30):
+    for j in range(nsections_z):
+        for k in range(nsections_x):
             mynodes[j * (nsections_x + 1) + k].SetFixed(True)
 
     
@@ -136,36 +149,36 @@ if (True):
     mvisualizeshellB.SetSymbolsThickness(0.006)
     mesh.AddVisualShapeFEA(mvisualizeshellB)
 
+    
+    vis = chronoirr.ChVisualSystemIrrlicht()
+    vis.AttachSystem(sys)
+    vis.SetWindowSize(1024, 768)
+    vis.SetWindowTitle('Shells FEA test: triangle BST elements')
+    vis.Initialize()
+    vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+    vis.AddSkyBox()
+    vis.AddCamera(chrono.ChVector3d(1, .3, 1.3), chrono.ChVector3d(.5, -.3, .5))
+    vis.AddTypicalLights()
 
-vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(sys)
-vis.SetWindowSize(1024, 768)
-vis.SetWindowTitle('Shells FEA test: triangle BST elements')
-vis.Initialize()
-vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
-vis.AddSkyBox()
-vis.AddCamera(chrono.ChVector3d(1, .3, 1.3), chrono.ChVector3d(.5, -.3, .5))
-vis.AddTypicalLights()
+    
+    mkl_solver = mkl.ChSolverPardisoMKL()
+    mkl_solver.LockSparsityPattern(True)
+    sys.SetSolver(mkl_solver)
 
+    
+    timestep = 0.005
 
-mkl_solver = mkl.ChSolverPardisoMKL()
-mkl_solver.LockSparsityPattern(True)
-sys.SetSolver(mkl_solver)
+    
+    sys.Setup()
+    sys.Update()
 
+    
+    rec_X = chrono.ChFunctionInterp()
+    rec_Y = chrono.ChFunctionInterp()
 
-timestep = 0.005
-
-
-sys.Setup()
-sys.Update()
-
-
-rec_X = chrono.ChFunctionInterp()
-rec_Y = chrono.ChFunctionInterp()
-
-
-while vis.Run():
-    vis.BeginScene()
-    vis.Render()
-    vis.EndScene()
-    sys.DoStepDynamics(timestep)
+    
+    while vis.Run():
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+        sys.DoStepDynamics(timestep)

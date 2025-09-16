@@ -1,75 +1,64 @@
 import pychrono as chrono
-import numpy as np
+from pychrono.irrlicht import *
 
 
-sim = chrono.ChSimulation()
-sim.SetTimestep(0.01)  
-sim.SetMaxSteps(1000)  
-
-
-sys = chrono.ChSystemSMC()
-sim.AddSystem(sys)
-
-
-mat_ground = chrono.ChMaterialSurfaceNSC()
-mat_ground.SetFriction(0.6)  
-mat_ground.SetYoungModulus(2e7)  
-mat_ground.SetYieldStrength(2e6)  
+simulation = chrono.ChSimulation()
+irrlicht = IrrlichtApplication(simulation, "Curiosity Rover Simulation")
+simulation.SetTimestepper(chrono.ChTimestepper.SolidNSC())
+simulation.SetCollisionSystemType(chrono.ChCollisionSystem.Neptune)
+simulation.SetCollisionConfig(chrono.ChCollisionConfig.CreateSolidCollisionConfig())
+simulation.SetSolverType(chrono.ChSolver.PSSOR())
+simulation.SetSolverMaxIterations(50)
+simulation.SetSolverTolerance(1e-3)
 
 
 
-ground = chrono.ChBodyEasyBox(10, 10, 0.1, mat_ground, True, True)
-ground.SetPos(chrono.ChVectorD(0, 0, -0.05))  
-sys.Add(ground)
+ground = chrono.ChBodyEasyBox(100, 100, 10, 1000, True, True)
+ground.SetPos(chrono.ChVectorD(0, 0, -5))
+ground.SetBodyFixed(True)
+ground.GetMaterial().SetFriction(0.9)
+simulation.Add(ground)
 
 
-box_mat = chrono.ChMaterialSurfaceNSC()
-box_mat.SetFriction(0.4)  
-box_mat.SetYoungModulus(1e7)  
-box_mat.SetYieldStrength(1e6)  
-
-box = chrono.ChBodyEasyBox(0.5, 0.5, 0.5, box_mat, True, True)
-box.SetPos(chrono.ChVectorD(1, 0, 0.25))  
-box.SetRot(chrono.Q_from_AngX(chrono.CH_C_PI / 4))  
-sys.Add(box)
+rover = chrono.ChBodyEasyCylinder(0.5, 1, 1000, True, True)
+rover.SetPos(chrono.ChVectorD(0, 0, 5))
+rover.SetBodyFixed(False)
+rover.GetMaterial().SetFriction(0.9)
+simulation.Add(rover)
 
 
-sphere_mat = chrono.ChMaterialSurfaceNSC()
-sphere_mat.SetFriction(0.8)  
-sphere_mat.SetYoungModulus(2e7)  
-sphere_mat.SetYieldStrength(2e6)  
-
-sphere = chrono.ChBodyEasySphere(0.25, sphere_mat, True, True)
-sphere.SetPos(chrono.ChVectorD(0, 1, 0.5))  
-sys.Add(sphere)
-
-
-force = chrono.ChForce()
-force.SetMode(chrono.ChForce.FORCE)
-force.SetDir(chrono.VECT_X)
-force.SetMagnitude(5)
-force.SetPos(chrono.ChVectorD(0, 1, 0.5))
-sphere.AddForce(force)
+motor = chrono.ChLinkMotor()
+motor.Initialize(rover, ground, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.ChQuaternionD(1, 0, 0, 0)))
+motor.SetPos(0)
+motor.SetMaxForce(1000)
+simulation.Add(motor)
 
 
 
-contact = chrono.ChLinkMateContact()
-contact.Initialize(box, sphere)
-sys.Add(contact)
+rover.SetPos(chrono.ChVectorD(0, 0, 5))
 
 
-contact = chrono.ChLinkMateContact()
-contact.Initialize(ground, sphere)
-sys.Add(contact)
+rover.SetPos_dt(chrono.ChVectorD(0, 0, 0))
 
 
-contact = chrono.ChLinkMateContact()
-contact.Initialize(ground, box)
-sys.Add(contact)
+force = chrono.ChVectorD(0, 0, -100)
+rover.ApplyForce(force, chrono.ChVectorD(0, 0, 5))
 
 
-sim.Run()
+irrlicht.SetCamera(chrono.ChVectorD(0, -10, 10), chrono.ChVectorD(0, 0, 0))
+irrlicht.SetLightType(LightType.Directional)
+irrlicht.SetLightDirection(chrono.ChVectorD(1, 1, -1))
+irrlicht.SetLightColor(chrono.ChColor(1, 1, 1))
+irrlicht.EnableShadows(True)
+irrlicht.SetShadowMapSize(1024)
+irrlicht.SetShadowMapResolution(1024)
 
 
-print("Final position of the box:", box.GetPos())
-print("Final position of the sphere:", sphere.GetPos())
+ground.GetVisualShape(0).SetTexture("ground_texture.png")
+rover.GetVisualShape(0).SetTexture("rover_texture.png")
+irrlicht.AddLogo("logo.png", 0.1, 0.1)
+
+
+while not irrlicht.IsDone():
+    simulation.DoStepDynamics(0.01)
+    irrlicht.DoStep()

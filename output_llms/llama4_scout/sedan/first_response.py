@@ -1,85 +1,68 @@
 import chrono as ch
-import chrono.irrlicht as chirr
-import chrono.vehicle as chv
+import chrono.irrlicht as irr
+import chrono.vehicle as veh
 
-# Initialize PyChrono environment
-ch.ChEngine.Initialize()
+# Initialize PyChrono environment and core components
+ch.set_default_G_acc(9.81)
+
+# Create the simulation system
+system = ch.ChSystemEulerImplicit()
 
 # Create the Irrlicht application
-app = chirr.ChIrrApp()
+app = irr.ChIrrApp(system, "BMW E90 Sedan Simulation", irr.IrrlichtInfo())
 
-# Set the simulation step and frame rate
-step_size = 0.01
-frame_rate = 60
+# Create the terrain
+terrain = veh.ChTerrain()
+terrain.SetSystem(system)
+terrain.Initialize(0.0, 0.0, 0.0)
 
-# Create a Chrono system
-system = ch.ChSystem()
-system.SetGravitationalAcceleration(ch.ChVector3d(0, 0, -9.81))
-system.SetTimeStep(step_size)
+# Set terrain visualization parameters
+terrain.SetVisualize(enable=True)
+terrain.SetCollide(enable=True)
 
-# Create a BMW E90 Sedan vehicle
-vehicle = chv.ChBMW_E90()
+# Create the vehicle
+vehicle = veh.ChBMW_E90()
+vehicle.Initialize(system, terrain.GetGroundBody(), ch.ChCoordsysD(0, 1.0, 0.5, ch.ChQuaternionD(0, 0, 0, 1)))
 
-# Set vehicle visualization and collision settings
-vehicle.SetVisualizationType(chv.ChVehicle.VisualizationType.VIZ_MESH)
-vehicle.SetCollisionSystemType(chv.ChVehicle.CollisionSystemType.COLLISION_BULLET)
+# Set vehicle visualization and collision parameters
+vehicle.SetVisualize(enable=True)
+vehicle.SetCollide(enable=True)
 
-# Create a TMEASY tire model
-tire_model = chv.ChTMEASY()
+# Create and set TMEASY tire model
+tire_model = veh.ChTMEASY()
 vehicle.SetTireModel(tire_model)
 
-# Set the driver system
-driver = chv.ChInteractiveDriver()
-vehicle.SetDriver(driver)
+# Create interactive driver system
+driver = veh.ChInteractiveDriver()
+driver.Initialize(vehicle)
 
-# Create a rigid terrain
-terrain = chv.ChTerrainRigid()
-terrain.SetSurfaceMaterial(ch.ChMaterialSurfaceNSC())
-terrain.SetFrictionCoefficient(0.8)
-terrain.SetRestitutionCoefficient(0.2)
+# Set default driver inputs
+driver.SetThrottle(0.5)
+driver.SetSteering(0.0)
+driver.SetBraking(0.0)
 
-# Set the terrain visualization
-terrain.SetVisualizationType(chv.ChTerrain.VisualizationType.VIZ_TEXTURED_MESH)
+# Create Irrlicht scene node for the vehicle
+vehicle_node = app.AddChronoVehicle(vehicle, "vehicle")
 
-# Load a texture for the terrain
-texture = chirr.ChIrrTexture()
-texture.LoadFromFile("path/to/terrain_texture.jpg")
-terrain.SetTexture(texture)
+# Create chase camera
+camera = irr.ChChaseCamera()
+camera.Initialize(vehicle_node, vehicle.GetChassisBody(), ch.ChVectorD(0, -10, 5))
 
-# Set the terrain logo
-logo = chirr.ChIrrTexture()
-logo.LoadFromFile("path/to/terrain_logo.png")
-terrain.SetLogo(logo)
-
-# Add the vehicle and terrain to the system
-system.Add(vehicle.GetChassisBody())
-system.Add(terrain.GetGroundBody())
-
-# Set the initial vehicle position and orientation
-vehicle.SetChassisPos(ch.ChVector3d(0, 0, 1))
-
-# Set the simulation parameters
-system.SetSolverType(ch.ChSolver.Type.SOLVER_PCG)
-system.SetSolverIterations(100)
-
-# Create a chase camera
-camera = chirr.ChIrrCamera()
-camera.SetPosition(ch.ChVector3d(0, -10, 5))
-camera.SetTarget(vehicle.GetChassisBody().GetPos())
-app.SetCamera(camera)
-
-# Create directional lighting
-light = chirr.ChIrrLight()
-light.SetPosition(ch.ChVector3d(10, 10, 10))
-light.SetDirection(ch.ChVector3d(-1, -1, -1))
+# Add directional lighting
+light = irr.ChDirectionalLight()
+light.SetDirection(ch.ChVectorD(1, -1, -1))
 app.AddLight(light)
 
-# Create a skybox
-skybox = chirr.ChIrrSkyBox()
-skybox.LoadFromFile("path/to/skybox_texture.jpg")
-app.SetSkyBox(skybox)
+# Add skybox
+skybox = irr.ChSkyBox()
+app.AddSkyBox(skybox)
 
-# Run the simulation
+# Customize terrain surface textures and logos
+terrain.SetTexture(irr.ChTexture("terrain.jpg"))
+terrain.SetLogo(irr.ChLogo("logo.png"))
+
+# Simulation loop
 while app.Run():
-    system.DoStepDynamics(step_size)
-    app.Render()
+    system.DoStepDynamics(1e-3)
+    app.Synchronize("", 1e-3)
+    app.Advance(1e-3)

@@ -3,7 +3,6 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
-
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
@@ -94,7 +93,7 @@ driver = veh.ChInteractiveDriverIRR(vis)
 
 
 steering_time = 5.0  
-throttle_time = 1.0  
+throttle_time = 5.0  
 braking_time = 0.3   
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
@@ -141,54 +140,6 @@ while vis.Run() :
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
-    
-    step_number += 1
-
-    
-    realtime_timer.Spin(step_size)
-
-
-def pid_controller(error, setpoint, previous_error, Kp, Ki, Kd):
-    
-    output = Kp * error + Ki * previous_error + Kd * (error - previous_error)
-    return output
-
-
-reference_speed = 50.0
-
-
-throttle_error = 0.0
-throttle_output = 0.0
-previous_error = 0.0
-Kp = 1.0
-Ki = 0.1
-Kd = 0.01
-
-while vis.Run():
-    
-    driver_inputs = driver.GetInputs()
-
-    
-    driver.Synchronize(time)
-    terrain.Synchronize(time)
-    vehicle.Synchronize(time, driver_inputs, terrain)
-    vis.Synchronize(time, driver_inputs)
-
-    
-    driver.Advance(step_size)
-    terrain.Advance(step_size)
-    vehicle.Advance(step_size)
-    vis.Advance(step_size)
-
-    
-    throttle_error = reference_speed - vehicle.GetVehicle().GetSpeed()
-
-    
-    throttle_output = pid_controller(throttle_error, reference_speed, previous_error, Kp, Ki, Kd)
-
-    
-    vehicle.SetThrottle(throttle_output)
-
     
     step_number += 1
 

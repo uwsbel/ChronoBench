@@ -1,104 +1,121 @@
-import pychrono
+from pychron.core import *
 
-import pychrono.ChSystemNSC as ChSystemNSC
+from pychron.systems import *
 
+from pychron.vehicle import Vehicle
 
+from pychron.visualization import *
 
+from pychron.tire import TMEASY
 
-ch = ChSystemNSC()
+import numpy as np
 
 
 
 
+chrono = Chrono()
 
 
-ground = pychrono.ChBody()
 
-ground.SetStaticMass(1.0)
 
-ground.SetName("Ground")
+terrain = RigidTerrain()
 
-ch.AddBody(ground)
 
 
 
+vehicle = Vehicle(name="MAN10t")
 
-ball = pychrono.ChBody()
+vehicle.add_tire(TMEASY())
 
-ball.SetMass(1.0)
+vehicle.add_visualization(
 
-ball.SetName("Ball")
+    visualization=True,
 
-ch.AddBody(ball)
+    collision=True,
 
+    visualization_model="vehicles/MAN10t.vrml",
 
+    visualization_scale=1.0
 
+)
 
-ball.SetPos(pychrono.ChVector(0, 0, 10)
 
-ball.SetLinearVel(pychrono.ChVector(0, 0, 0))
 
 
+vehicle.set_position(np.array([0.0, 0.0, 0.0]))
 
+vehicle.set_orientation(np.array([0.0, 0.0, 0.0, 1.0]))
 
-ch.SetGravity(pychrono.ChVector(0, 0, -9.81))
 
 
 
+system = System(chrono)
 
-ball.SetFriction(0.5)
+system.add(vehicle)
 
-ground.SetFriction(0.5)
+system.add(terrain)
 
 
 
 
-contact = pychrono.ChContactGeometry()
+camera = ChaseCamera(
 
-contact.SetFriction(0.5)
+    camera_model="cameras/chase.vrml",
 
-contact.SetRestitution(0.8)
+    camera_scale=1.0
 
+)
 
+system.add(camera)
 
 
-ch.AddContact(ball, ground, contact)
 
 
+visualization = Visualization(
 
+    visualization_model="vehicles/MAN10t.vrml",
 
-sim_time = 5.0
+    visualization_scale=1.0,
 
-time_step = 0.01
+    skybox=True,
 
+    skybox_texture="skyscapes/skybox.jpg",
 
+    directional_light=True,
 
+    directional_light_texture="lights/directional.jpg",
 
-ch.SetSolverIterations(10)
+    terrain_texture="terrains/rigid.jpg",
 
-ch.SetSolverIterations(10)
+    terrain_logo=True,
 
-ch.SetSolverTolerance(1e-6)
+    terrain_logo_texture="logos/MAN10t.png"
 
-ch.SetSolverTolerance(1e-6)
+)
 
-ch.SetSolverMaxIterations(100)
+system.add(visualization)
 
-ch.SetSolverMaxTimeStep(0.01)
 
 
 
+driver = Driver(
 
-ch.DoStepDynamics(time_step)
+    throttle_gain=1.0,
 
+    brake_gain=1.0,
 
+    steering_gain=1.0
 
+)
 
-while ch.GetChTime() < sim_time:
+system.add(driver)
 
-    ch.DoStepDynamics(time_step)
 
 
 
+system.set(chrono)
 
-print("Final position of the ball:", ball.GetPos())
+
+
+
+chrono.run()

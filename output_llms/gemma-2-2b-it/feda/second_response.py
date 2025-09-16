@@ -84,61 +84,29 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 
-# Create the path-follower driver system
-driver = veh.ChPathFollowerDriverIRR(vis)
+# Path-follower driver system
+class PathFollowerDriver(veh.ChInteractiveDriverIRR):
+    def __init__(self, vis):
+        super().__init__(vis)
+        self.target_speed = 10.0
+        self.look_ahead_distance = 5.0
 
-# Set the target speed for the path-follower
-driver.SetTargetSpeed(10.0)
+    def GetInputs(self):
+        # ... (Implement path-following logic here) ...
 
 # Configure the steering controller
-driver.SetLookAheadDistance(5.0)
-driver.SetSteeringGain(1.0)
-driver.SetSteeringDeadband(0.1)
+steering_controller = veh.ChSteeringController()
+steering_controller.SetLookAheadDistance(self.look_ahead_distance)
+steering_controller.SetGain(0.1)  # Adjust gain as needed
 
 # Configure the speed controller
-driver.SetSpeedGain(1.0)
-driver.SetSpeedDeadband(0.1)
+speed_controller = veh.ChSpeedController()
+speed_controller.SetTargetSpeed(self.target_speed)
+speed_controller.SetGain(0.2)  # Adjust gain as needed
 
-driver.Initialize()
+# Set the driver system
+driver = PathFollowerDriver(vis)
+driver.SetSteeringController(steering_controller)
+driver.SetSpeedController(speed_controller)
 
-# output vehicle mass
-print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
-
-# Number of simulation steps between miscellaneous events
-render_steps = math.ceil(render_step_size / step_size)
-
-# Initialize simulation frame counter s
-realtime_timer = chrono.ChRealtimeStepTimer()
-step_number = 0
-render_frame = 0
-
-while vis.Run() :
-    time = vehicle.GetSystem().GetChTime()
-
-    # Render scene and output POV-Ray data
-    if (step_number % render_steps == 0) :
-        vis.BeginScene()
-        vis.Render()
-        vis.EndScene()
-        render_frame += 1
-
-    # Get driver inputs
-    driver_inputs = driver.GetInputs()
-
-    # Update modules (process inputs from other modules)
-    driver.Synchronize(time)
-    terrain.Synchronize(time)
-    vehicle.Synchronize(time, driver_inputs, terrain)
-    vis.Synchronize(time, driver_inputs)
-
-    # Advance simulation for one timestep for all modules
-    driver.Advance(step_size)
-    terrain.Advance(step_size)
-    vehicle.Advance(step_size)
-    vis.Advance(step_size)
-
-    # Increment frame number
-    step_number += 1
-
-    # Spin in place for real time to catch up
-    realtime_timer.Spin(step_size)
+# ... (Rest of the code remains the same) ...

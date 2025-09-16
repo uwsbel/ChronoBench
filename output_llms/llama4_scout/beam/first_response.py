@@ -1,145 +1,38 @@
-import pychrono as chrono
-import pychrono.irrlicht as irr
+import chrono as ch
+import chrono.irrlicht as irr
 
-# Initialize PyChrono environment
-chrono.ChEngine.Initialize()
+# 1. Initialize the PyChrono environment and core components
+ch.ChEngine.Initialize()
 
-# Create a physical system
-system = chrono.ChSystem()
+# 2. Create the physical system
+system = ch.ChSystem()
 
-# Create a mesh
-mesh = chrono.ChMesh()
+# 3. Create a mesh with beam finite elements
+mesh = ch.ChBeamBodyEasy()
 
-# Define node properties
-node_A = chrono.ChNodeFEA(0, 0, 0)
-node_B = chrono.ChNodeFEA(1, 0, 0)
-node_C = chrono.ChNodeFEA(1, 1, 0)
-node_D = chrono.ChNodeFEA(0, 1, 0)
+# Define the beam properties
+beam_section = ch.ChBeamSectionEuler()
+beam_section.SetYoungModulus(2e9)  # Young's modulus (Pa)
+beam_section.SetArea(0.01)  # Cross-sectional area (m^2)
+beam_section.SetInertiaY(0.0001)  # Moment of inertia about y-axis (m^4)
+beam_section.SetInertiaZ(0.0001)  # Moment of inertia about z-axis (m^4)
 
-# Add nodes to the mesh
-mesh.AddNode(node_A)
-mesh.AddNode(node_B)
-mesh.AddNode(node_C)
-mesh.AddNode(node_D)
+# Create nodes
+node_A = ch.ChNodeBase(beam_section)
+node_A.SetPos([0, 0, 0])
+node_B = ch.ChNodeBase(beam_section)
+node_B.SetPos([1, 0, 0])
 
-# Define beam properties
-beam_AB = chrono.ChElementBeamTimoshenko(0, 1, 0.1, 0.01, 0.01)
-beam_BC = chrono.ChElementBeamTimoshenko(1, 2, 0.1, 0.01, 0.01)
-beam_CD = chrono.ChElementBeamTimoshenko(2, 3, 0.1, 0.01, 0.01)
-beam_DA = chrono.ChElementBeamTimoshenko(3, 0, 0.1, 0.01, 0.01)
+# Add nodes to the system
+system.Add(node_A)
+system.Add(node_B)
 
-# Add beams to the mesh
-mesh.AddElement(beam_AB)
-mesh.AddElement(beam_BC)
-mesh.AddElement(beam_CD)
-mesh.AddElement(beam_DA)
+# Create beam element
+beam = ch.ChBeamEuler(beam_section, node_A, node_B)
+beam.SetLength(1.0)
 
-# Set material properties
-mat = chrono.ChMaterialShellEAS(0, 200e9, 0.3, 7850)
+# Add beam to the system
+system.Add(beam)
 
-# Set section properties
-section = chrono.ChSectionEASBeam(0.01, 0.01, mat)
-
-# Set beam sections
-beam_AB.SetSection(section)
-beam_BC.SetSection(section)
-beam_CD.SetSection(section)
-beam_DA.SetSection(section)
-
-# Fix nodes A and C
-node_A.SetFixed(True)
-node_C.SetFixed(True)
-
-# Apply a force to node B
-force = chrono.ChForce().SetMode(chrono.ChForce.MODES.LOCAL_FRAME)
-force.SetIntensity(1000)
-force.SetPoint(chrono.ChVectorD(0.5, 0, 0))
-node_B.AddForce(force)
-
-# Add mesh to the physical system
-system.Add(mesh)
-
-# Create an Irrlicht application
-app = irr.IrrlichtApplication(system)
-
-# Set visualization parameters
-app.SetCameraPosition(chrono.ChVectorD(0, -5, 5))
-app.SetCameraTarget(chrono.ChVectorD(0, 0, 0))
-
-# Run the simulation loop
-app.Run()
-
-import pychrono as chrono
-import pychrono.irrlicht as irr
-
-def main():
-    # Initialize PyChrono environment
-    chrono.ChEngine.Initialize()
-
-    # Create a physical system
-    system = chrono.ChSystem()
-
-    # Create a mesh
-    mesh = chrono.ChMesh()
-
-    # Define node properties
-    node_A = chrono.ChNodeFEA(0, 0, 0)
-    node_B = chrono.ChNodeFEA(1, 0, 0)
-    node_C = chrono.ChNodeFEA(1, 1, 0)
-    node_D = chrono.ChNodeFEA(0, 1, 0)
-
-    # Add nodes to the mesh
-    mesh.AddNode(node_A)
-    mesh.AddNode(node_B)
-    mesh.AddNode(node_C)
-    mesh.AddNode(node_D)
-
-    # Define beam properties
-    beam_AB = chrono.ChElementBeamTimoshenko(0, 1, 0.1, 0.01, 0.01)
-    beam_BC = chrono.ChElementBeamTimoshenko(1, 2, 0.1, 0.01, 0.01)
-    beam_CD = chrono.ChElementBeamTimoshenko(2, 3, 0.1, 0.01, 0.01)
-    beam_DA = chrono.ChElementBeamTimoshenko(3, 0, 0.1, 0.01, 0.01)
-
-    # Add beams to the mesh
-    mesh.AddElement(beam_AB)
-    mesh.AddElement(beam_BC)
-    mesh.AddElement(beam_CD)
-    mesh.AddElement(beam_DA)
-
-    # Set material properties
-    mat = chrono.ChMaterialShellEAS(0, 200e9, 0.3, 7850)
-
-    # Set section properties
-    section = chrono.ChSectionEASBeam(0.01, 0.01, mat)
-
-    # Set beam sections
-    beam_AB.SetSection(section)
-    beam_BC.SetSection(section)
-    beam_CD.SetSection(section)
-    beam_DA.SetSection(section)
-
-    # Fix nodes A and C
-    node_A.SetFixed(True)
-    node_C.SetFixed(True)
-
-    # Apply a force to node B
-    force = chrono.ChForce().SetMode(chrono.ChForce.MODES.LOCAL_FRAME)
-    force.SetIntensity(1000)
-    force.SetPoint(chrono.ChVectorD(0.5, 0, 0))
-    node_B.AddForce(force)
-
-    # Add mesh to the physical system
-    system.Add(mesh)
-
-    # Create an Irrlicht application
-    app = irr.IrrlichtApplication(system)
-
-    # Set visualization parameters
-    app.SetCameraPosition(chrono.ChVectorD(0, -5, 5))
-    app.SetCameraTarget(chrono.ChVectorD(0, 0, 0))
-
-    # Run the simulation loop
-    app.Run()
-
-if __name__ == "__main__":
-    main()
+# 4. Add visualization and run the simulation loop
+irr.ChIrrApp(system, 'Beam Finite Element Simulation').Run()

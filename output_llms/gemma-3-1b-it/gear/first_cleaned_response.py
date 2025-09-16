@@ -1,171 +1,89 @@
 import pychrono
-import pychrono.core
-import pychrono.visuals
-import pychrono.visuals.materials
-import pychrono.visuals.lights
-import pychrono.visuals.colors
-import pychrono.visuals.objects
-import pychrono.visuals.visuals_utils
-import pychrono.visuals.visuals
-import pychrono.visuals.camera
-import pychrono.visuals.perspective
-import pychrono.visuals.rotation_control
-import pychrono.visuals.rotation_control.rotation_control
-import pychrono.visuals.rotation_control.rotation_control_utils
-import pychrono.visuals.rotation_control.rotation_control_utils.rotation_control_utils
-import pychrono.visuals.rotation_control.rotation_control_utils.rotation_control_utils
+import pychrono.visuals as v
+import numpy as np
+import matplotlib.pyplot as plt
+from pychrono.visuals import Frame
+from pychrono.visuals import Color
 
 
-simulation_name = "Epicyclic Gears"
-simulation_time = 10  
-simulation_speed = 1.0  
-num_gear_motors = 2
-gear_ratio = 1.0  
-truss_radius = 0.5
-bar_radius = 0.3
-gear_motor_speed = 1.0  
-truss_force = 1000.0  
-bar_force = 1000.0 
+num_steps = 1000
+gear_ratio = 2.0  
+fixed_truss_length = 1.0
+rotating_bar_radius = 0.5
+gear_motor_speed = 10.0  
+truss_mass = 1.0
+bar_mass = 1.0
+gear_motor_weight = 0.1
 
 
+simulation = pychrono.simulation.Simulation()
 
-fixed_truss = pychrono.visuals.objects.Truss(
-    radius=truss_radius,
-    height=0.1,
-    color="lightgray",
-    material=pychrono.visuals.materials.Material(
-        name="Steel",
-        color=(0.8, 0.8, 0.8),
-        roughness=0.5
-    )
+
+frame = Frame(
+    name="epicyclic_gears",
+    num_steps=num_steps,
+    fixed_truss_length=fixed_truss_length,
+    rotating_bar_radius=rotating_bar_radius,
+    gear_motor_speed=gear_motor_speed,
+    gear_ratio=gear_ratio,
+    bar_mass=bar_mass,
+    gear_motor_weight=gear_motor_weight
 )
 
 
-rotating_bar = pychrono.visuals.objects.Bar(
-    radius=bar_radius,
-    height=0.1,
-    color="red",
-    material=pychrono.visuals.materials.Material(
-        name="Steel",
-        color=(0.8, 0.8, 0.8),
-        roughness=0.5
-    )
-)
+frame.add_object("fixed_truss",
+                name="fixed_truss",
+                type="frame",
+                mass=truss_mass,
+                position=(0, 0, 0),
+                color=Color("gray"))
 
 
-gear1_motor = pychrono.visuals.objects.Gear(
-    radius=gear_motor_speed,
-    height=0.1,
-    color="blue",
-    material=pychrono.visuals.materials.Material(
-        name="Steel",
-        color=(0.8, 0.8, 0.8),
-        roughness=0.5
-    )
-)
-gear2_motor = pychrono.visuals.objects.Gear(
-    radius=gear_motor_speed,
-    height=0.1,
-    color="green",
-    material=pychrono.visuals.materials.Material(
-        name="Steel",
-        color=(0.8, 0.8, 0.8),
-        roughness=0.5
-    )
-)
+frame.add_object("rotating_bar",
+                name="rotating_bar",
+                type="frame",
+                mass=bar_mass,
+                position=(0, 0, rotating_bar_radius),
+                color=Color("blue"))
 
 
-
-camera = pychrono.visuals.camera.Camera(
-    width=100,
-    height=100,
-    perspective=pychrono.visuals.perspective.Perspective(
-        camera_angle=0,
-        camera_offset=0,
-        camera_scale=1.0
-    )
-)
-
-
-visual = pychrono.visuals.visuals.Visual(
-    camera=camera,
-    width=1000,
-    height=1000,
-    color=pychrono.visuals.colors.Color(0.8, 0.8, 0.8),
-    background=pychrono.visuals.colors.Color(0.5, 0.5, 0.5),
-    light=pychrono.visuals.lights.Light(
-        color=pychrono.visuals.colors.Color(0.5, 0.5, 0.5),
-        intensity=1.0
-    ),
-    material=pychrono.visuals.materials.Material(
-        name="Steel",
-        color=(0.8, 0.8, 0.8),
-        roughness=0.5
-    )
-)
+frame.add_object("gear_1",
+                name="gear_1",
+                type="frame",
+                mass=gear_motor_weight,
+                position=(0, 0, 0),
+                color=Color("red"))
+frame.add_object("gear_2",
+                name="gear_2",
+                type="frame",
+                mass=gear_motor_weight,
+                position=(0, 0, 0),
+                color=Color("green"))
 
 
+simulation.set_physics(frame)
+simulation.set_simulation_mode(pychrono.simulation.SimulationMode.REALTIME)
 
 
-fixed_truss.position = (0, 0, 0)
-rotating_bar.position = (0, 0, 0)
-gear1_motor.position = (0, 0, 0)
-gear2_motor.position = (0, 0, 0)
+v.plot(simulation,
+       "fixed_truss",
+       color="gray",
+       linewidth=1,
+       label="Fixed Truss")
+v.plot(simulation,
+       "rotating_bar",
+       color="blue",
+       linewidth=1,
+       label="Rotating Bar")
+v.plot(simulation,
+       "gear_1",
+       color="red",
+       linewidth=1,
+       label="Gear 1")
+v.plot(simulation,
+       "gear_2",
+       color="green",
+       linewidth=1,
+       label="Gear 2")
 
-
-gear1_motor.velocity = (0, 0, 0)
-gear2_motor.velocity = (0, 0, 0)
-
-
-for i in range(simulation_time):
-    
-    fixed_truss.position = (0, 0, 0)
-    rotating_bar.position = (0, 0, 0)
-    gear1_motor.position = (0, 0, 0)
-    gear2_motor.position = (0, 0, 0)
-
-    
-    gear1_motor.velocity = (0, 0, 0)
-    gear2_motor.velocity = (0, 0, 0)
-
-    
-    visual.add(fixed_truss)
-    visual.add(rotating_bar)
-    visual.add(gear1_motor)
-    visual.add(gear2_motor)
-
-    
-    if i % 30 == 0:
-        visual.rotate(gear1_motor, 1.0)
-        visual.rotate(gear2_motor, 1.0)
-
-    
-    visual.add(fixed_truss,  color=pychrono.visuals.colors.Color(0.5, 0.5, 0.5),  material=pychrono.visuals.materials.Material(
-        name="Steel",
-        color=(0.8, 0.8, 0.8),
-        roughness=0.5
-    ))
-    visual.add(rotating_bar, color=pychrono.visuals.colors.Color(0.8, 0.8, 0.8), material=pychrono.visuals.materials.Material(
-        name="Steel",
-        color=(0.8, 0.8, 0.8),
-        roughness=0.5
-    ))
-    visual.add(gear1_motor, color=pychrono.visuals.colors.Color(0.8, 0.8, 0.8), material=pychrono.visuals.materials.Material(
-        name="Steel",
-        color=(0.8, 0.8, 0.8),
-        roughness=0.5
-    ))
-    visual.add(gear2_motor, color=pychrono.visuals.colors.Color(0.8, 0.8, 0.8), material=pychrono.visuals.materials.Material(
-        name="Steel",
-        color=(0.8, 0.8, 0.8),
-        roughness=0.5
-    ))
-
-    
-    simulation_time += 1
-    
-    
-    
-    
-
-print("Simulation complete.")
+v.show(simulation)

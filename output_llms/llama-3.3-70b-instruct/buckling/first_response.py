@@ -1,167 +1,77 @@
+# Import necessary modules
 import pychrono.core as chrono
-import pychrono.fea as fea
 import pychrono.irrlicht as chronoirr
+import pychrono.fea as fea
 import numpy as np
 
-# Create the simulation system
+# Initialize the PyChrono environment and core components
 sys = chrono.ChSystemNSC()
 
-# Set the default contact material properties
-contact_material = chrono.ChMaterialSurfaceNSC()
-contact_material.SetFriction(0.5)
-contact_material.SetDampingF(0.5)
-contact_material.SetCompliance(1e-9)
-contact_material.SetComplianceT(1e-9)
+# Set default parameters
+sys.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # gravity
 
-# Create the default contact material
-sys.SetDefaultContactMaterial(contact_material)
+# Create the ground body
+ground = chrono.ChBodyEasyBox(sys, 10, 1, 10, 1000, True, False)
+ground.SetPos(chrono.ChVectorD(0, -5, 0))
+ground.SetBodyFixed(True)
 
-# Define the beam properties
-beam_length = 10  # meters
-beam_width = 1    # meters
-beam_height = 1   # meters
-beam_density = 7850  # kg/m^3
-beam_young_modulus = 2.1e11  # Pa
-beam_poisson_ratio = 0.3
-
-# Create the beam as a finite element
+# Create the beam
 beam = fea.ChBeamSectionEuler()
-beam.SetDensity(beam_density)
-beam.SetYoungModulus(beam_young_modulus)
-beam.SetPoissonRatio(beam_poisson_ratio)
-beam.SetWidth(beam_width)
-beam.SetHeight(beam_height)
+beam.SetA(0.01)  # cross-sectional area
+beam.SetIxx(1e-5)  # moment of inertia about x-axis
+beam.SetIyy(1e-5)  # moment of inertia about y-axis
+beam.SetJ(1e-6)  # polar moment of inertia
+beam.SetYoungModulus(2e11)  # Young's modulus
+beam.SetPoissonRatio(0.3)  # Poisson's ratio
+beam.SetDensity(7850)  # density
+
+# Create the beam FEA mesh
+mesh = fea.ChBeamMesh(beam, 10, 0.1, 0.1, 0.1)
+mesh.SetNodesPerElement(2)
 
 # Create the beam body
-beam_body = chrono.ChBodyEasyBox(sys, beam_length, beam_width, beam_height, beam_density)
-beam_body.SetBodyFixed(True)
+beam_body = fea.ChBodyBeamMesh(mesh)
+beam_body.SetPos(chrono.ChVectorD(0, 0, 0))
+beam_body.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
 
-# Define a custom motor function to apply a force to the beam
-def apply_force(beam_body, force):
-    beam_body.AddForce(force)
+# Define custom motor function
+def custom_motor(t):
+    return 10 * np.sin(t)
 
-# Apply a force to the beam
-force = chrono.ChVectorD(0, 0, -1000)  # Newtons
-apply_force(beam_body, force)
+# Create the motor
+motor = chrono.ChLinkMotorLinearSpeed()
+motor.Initialize(beam_body, ground, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)))
+motor.SetSpeedFunction(custom_motor)
 
-# Create a constraint to fix one end of the beam
-constraint = chrono.ChLinkLock()
-constraint.Initialize(beam_body, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.Q_from_AngX(0)))
-sys.Add(constraint)
+# Add constraints between different parts of the system
+sys.Add(beam_body)
+sys.Add(ground)
+sys.Add(motor)
 
-# Create a constraint to apply a force to the other end of the beam
-constraint = chrono.ChLinkLock()
-constraint.Initialize(beam_body, chrono.ChFrameD(chrono.ChVectorD(beam_length, 0, 0), chrono.Q_from_AngX(0)))
-sys.Add(constraint)
-
-# Create a solver
-solver = chrono.ChSolverNSC()
-solver.SetMaxIters(100)
-solver.SetTol(1e-9)
-sys.SetSolver(solver)
-
-# Create a timestepper
-timestepper = chrono.ChTimestepperEuler()
-timestepper.SetStepSize(1e-3)
-sys.SetTimestepper(timestepper)
-
-# Create an Irrlicht visualization module
+# Create the Irrlicht visualization module
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AddSkyBox()
 vis.AddTypicalLights()
+vis.AddCamera(chrono.ChVectorD(0, 0, 5))
+vis.AddCamera(chrono.ChVectorD(0, 5, 0))
+vis.AddTypicalLights()
 
-# Add the beam body to the visualization
-vis.Add(beam_body)
+# Set the visualization module
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle("PyChrono Simulation")
+vis.SetLogo("")
 
-# Run the simulation
+# Create the solver and timestepper
+solver = chrono.ChSolverNSC()
+timestepper = chrono.ChTimestepperEuler()
+
+# Set the solver and timestepper
+sys.SetSolver(solver)
+sys.SetTimestepper(timestepper)
+
+# Simulate the system
 while vis.Run():
-    sys.DoStepDynamics(1e-3)
+    sys.DoStepDynamics(0.01)
     vis.BeginScene()
     vis.DrawAll()
     vis.EndScene()
-
-import pychrono.core as chrono
-import pychrono.fea as fea
-import pychrono.irrlicht as chronoirr
-import numpy as np
-
-def main():
-    # Create the simulation system
-    sys = chrono.ChSystemNSC()
-
-    # Set the default contact material properties
-    contact_material = chrono.ChMaterialSurfaceNSC()
-    contact_material.SetFriction(0.5)
-    contact_material.SetDampingF(0.5)
-    contact_material.SetCompliance(1e-9)
-    contact_material.SetComplianceT(1e-9)
-
-    # Create the default contact material
-    sys.SetDefaultContactMaterial(contact_material)
-
-    # Define the beam properties
-    beam_length = 10  # meters
-    beam_width = 1    # meters
-    beam_height = 1   # meters
-    beam_density = 7850  # kg/m^3
-    beam_young_modulus = 2.1e11  # Pa
-    beam_poisson_ratio = 0.3
-
-    # Create the beam as a finite element
-    beam = fea.ChBeamSectionEuler()
-    beam.SetDensity(beam_density)
-    beam.SetYoungModulus(beam_young_modulus)
-    beam.SetPoissonRatio(beam_poisson_ratio)
-    beam.SetWidth(beam_width)
-    beam.SetHeight(beam_height)
-
-    # Create the beam body
-    beam_body = chrono.ChBodyEasyBox(sys, beam_length, beam_width, beam_height, beam_density)
-    beam_body.SetBodyFixed(True)
-
-    # Define a custom motor function to apply a force to the beam
-    def apply_force(beam_body, force):
-        beam_body.AddForce(force)
-
-    # Apply a force to the beam
-    force = chrono.ChVectorD(0, 0, -1000)  # Newtons
-    apply_force(beam_body, force)
-
-    # Create a constraint to fix one end of the beam
-    constraint = chrono.ChLinkLock()
-    constraint.Initialize(beam_body, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.Q_from_AngX(0)))
-    sys.Add(constraint)
-
-    # Create a constraint to apply a force to the other end of the beam
-    constraint = chrono.ChLinkLock()
-    constraint.Initialize(beam_body, chrono.ChFrameD(chrono.ChVectorD(beam_length, 0, 0), chrono.Q_from_AngX(0)))
-    sys.Add(constraint)
-
-    # Create a solver
-    solver = chrono.ChSolverNSC()
-    solver.SetMaxIters(100)
-    solver.SetTol(1e-9)
-    sys.SetSolver(solver)
-
-    # Create a timestepper
-    timestepper = chrono.ChTimestepperEuler()
-    timestepper.SetStepSize(1e-3)
-    sys.SetTimestepper(timestepper)
-
-    # Create an Irrlicht visualization module
-    vis = chronoirr.ChVisualSystemIrrlicht()
-    vis.AddSkyBox()
-    vis.AddTypicalLights()
-
-    # Add the beam body to the visualization
-    vis.Add(beam_body)
-
-    # Run the simulation
-    while vis.Run():
-        sys.DoStepDynamics(1e-3)
-        vis.BeginScene()
-        vis.DrawAll()
-        vis.EndScene()
-
-if __name__ == "__main__":
-    main()

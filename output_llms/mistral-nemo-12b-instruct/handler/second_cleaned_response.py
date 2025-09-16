@@ -34,11 +34,5 @@ class MyCustomHandler(chros.ChROSHandler):
 def main():
     
 
-    
-    custom_handler = MyCustomHandler("~/my_topic")
-    ros_manager.RegisterPythonHandler(custom_handler)
-
-    
-
 if __name__ == "__main__":
     main()

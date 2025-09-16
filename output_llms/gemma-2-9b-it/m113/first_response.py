@@ -2,41 +2,44 @@ import pychrono as chrono
 import pychrono.irrlicht as vis
 
 # 1. Initialize PyChrono environment and core components
-chrono.SetChronoDataPath("path/to/chrono/data")  # Replace with your Chrono data path
+chrono.SetChronoDataPath("path/to/your/chrono/data")  # Replace with your Chrono data path
 system = chrono.ChSystemNSC()
 
 # 2. Add physical systems and objects
-#  - M113 Vehicle
-m113 = chrono.ChBodyEasyBox(10, 5, 3, 1000)  # Replace with actual dimensions and mass
-m113.SetPos(chrono.ChVectorD(0, 0, 0))
-system.Add(m113)
+#   - M113 vehicle (replace with actual model path)
+m113_vehicle = chrono.ChBodyEasyCylinder(mass=10000, radius=2.5, height=3)
+m113_vehicle.SetPos(chrono.ChVectorD(0, 0, 0.5))
+system.Add(m113_vehicle)
 
-#  - Terrain
-terrain = chrono.ChBodyEasyBox(100, 100, 1, 10000)  # Replace with desired terrain size and mass
-terrain.SetPos(chrono.ChVectorD(0, -1, 0))
-terrain.SetMaterialSurface(chrono.ChMaterialSurface(chrono.ChMaterialSurface.SurfaceType.RUBBER))
-terrain.GetMaterialSurface().SetFriction(0.8)  # Adjust friction coefficient
-terrain.GetMaterialSurface().SetRestitution(0.2)  # Adjust restitution coefficient
+#   - Rigid terrain
+terrain = chrono.ChBodyEasyBox(mass=1e6, size=chrono.ChVectorD(10, 10, 1))
+terrain.SetPos(chrono.ChVectorD(0, 0, 0))
+terrain.SetBodyFixed(True)  # Fix terrain in place
 system.Add(terrain)
 
 # 3. Set default parameters
-#  - Driver System (placeholder)
-driver = chrono.ChDriver()  # Replace with actual driver implementation
+#   - Friction and restitution for terrain
+terrain.SetFriction(0.8, 0.6)  # Adjust as needed
+terrain.SetRestitution(0.2)
 
-# 4. Real-time visualization using Irrlicht
-vis_app = vis.ChIrrApp(system, 'M113 Simulation')
+#   - Driver system (example)
+driver = chrono.ChDriver()
+driver.SetVehicle(m113_vehicle)
+driver.SetSteering(0.5)  # Initial steering angle
+
+# 4. Create real-time visualization
+vis_app = vis.ChIrrApp(system, 'M113 Simulation', windowSize=(1024, 768))
 vis_app.AddCamera(
-    vis.IrrlichtCamera(
-        pos=chrono.ChVectorD(10, 5, 10),
-        target=chrono.ChVectorD(0, 0, 0),
-        up=chrono.ChVectorD(0, 1, 0)
-    )
+    position=chrono.ChVectorD(10, 5, 10),
+    target=chrono.ChVectorD(0, 0, 0),
+    up=chrono.ChVectorD(0, 1, 0)
 )
-vis_app.SetAmbientLight(chrono.ChColor(0.2, 0.2, 0.2))
-vis_app.SetSunLight(chrono.ChColor(0.8, 0.8, 0.8), chrono.ChVectorD(1, 1, -1))
+vis_app.AddLight(chrono.ChVectorD(10, 10, 10))
 
 # 5. Simulation loop
 while vis_app.Run():
-    system.DoStepDynamics(1/60.0)  # Adjust timestep for desired simulation speed
+    system.DoStepDynamics(chrono.ChTime(0.01))  # Timestep of 0.01 seconds
     vis_app.Render()
-    driver.Update()  # Update driver system based on user input
+    driver.Update()  # Update driver input
+
+    # Add any other logic or calculations here

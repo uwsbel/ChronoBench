@@ -1,9 +1,9 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
-import pychrono.sensor as sensor
-import numpy as np
 import math
+import pychrono.sensor as sen
+import numpy as np
 
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
@@ -62,6 +62,17 @@ vehicle.SetTireVisualizationType(vis_type)
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
+sensor_manager = sen.ChSensorManager()
+
+
+lidar_sensor = sen.ChLidarSensor(vehicle.GetVehicle(), 50, 0.001, 0.01, 0.001, 0.01, 0.001, 0.01)
+lidar_sensor.SetName("Lidar")
+lidar_sensor.SetUpdateRate(100)
+
+
+sensor_manager.AddSensor(lidar_sensor)
+
+
 patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
@@ -109,32 +120,6 @@ render_steps = math.ceil(render_step_size / step_size)
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
-
-
-sensor_manager = sensor.ChSensorManager()
-
-
-lidar = sensor.ChLidar()
-lidar.SetName("Lidar")
-lidar.SetNrays(100)
-lidar.SetRange(10)
-lidar.SetVerticalFOV(10)
-lidar.SetHorizontalFOV(360)
-lidar.SetUpdateRate(100)
-
-
-sensor_manager.AddSensor(lidar)
-
-
-lidar.SetPos(chrono.ChVectorD(0, 0, 1.5))
-lidar.SetTarget(chrono.ChVectorD(0, 0, 0))
-vehicle.GetVehicle().GetChassis().AddAsset(lidar)
-
-
-for i in range(10):
-    box = chrono.ChBodyEasyBox(2, 2, 2, 1000, True, True)
-    box.SetPos(chrono.ChVectorD(np.random.uniform(-50, 50), np.random.uniform(-50, 50), 2))
-    vehicle.GetSystem().AddBody(box)
 
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()

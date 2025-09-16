@@ -1,96 +1,143 @@
-import pychrono as chrono
+from chrono import ChBodyA, makeRevoluteJoint, makeRay, Chrono
+from chrono.vehicle import ch_vehicle
+from chrono.synchrony import ch_synchrony
+from chrono.modelling import ch_material
+import irrlicht
+from chrono.synchrony import ch_synchrony
+from chrono.synchrony.ch_synchrony import ChVehicle
+from irrlicht.irr import *
+from irrlicht.scene import ISceneManager, ICamera, IGUIEnvironment
+from chrono.synchrony.ch_synchrony import ChVehicle
+from chrono.synchrony.ch_synchrony import ChVehicle
+import numpy as np
 
-import pychrono.irrlicht as chrono_irrlicht
+# Initialize PyChrono environment and core components
 
-import pychrono.svea as svea
+chrono = Chrono(0)
 
-import pychrono.svea_terrain as svea_terrain
+# Create the vehicle body
 
+hmmwv = ChBodyA()
+hmmwv.SetName('HMMWV')
+hmmwv.SetMass(22000)  # Approximate mass of HMMWV in kg
+hmmwv.SetInertiaTensor(np.diag([1000000, 1000000, 1000000])
+hmmwv.SetPos(0, 0, 0)
+hmmwv.SetRot(0, 0, 0)
 
-# Initialize PyChrono environment
+# Create a revolute joint to simulate the wheel rotation
 
-chrono.Init()
+wheel_joint = makeRevoluteJoint(chrono.bodyManager, hmmwv, ChBodyA())
+wheel_joint.SetName('WheelJoint')
+wheel_joint.SetAnchor(hmmwv.GetPos())
+wheel_joint.SetAnchor2(hmmwv.GetPos())
+wheel_joint.SetMaxDegree(360)
 
+# Create a rigid tire model
 
-# Create the Irrlicht visualization system
+tire = ch_vehicle.Tire(chrono.bodyManager, wheel_joint)
+tire.SetName('Tire')
+tire.SetWidth(0.3)
+tire.SetAspectRatio(0.5)
+tire.SetPressure(0.1)
+tire.SetFriction(0.8)
+tire.SetSteer(0)
 
-visualization = chrono_irrlicht.ChIrRr()
+# Add tire to the HMMWV
 
+hmmwv.AddJoint(wheel_joint)
 
-# Define the HMMWV vehicle parameters
+# Add the tire to the vehicle's body manager
 
-hmmwv = chrono.ChBody()
+chrono.bodyManager.AddBody(tire)
 
-hmmwv.SetPos(chrono.ChVectorD(0, 0, 0))
+# Set up the SCM terrain with custom soil parameters
 
-hmmwv.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
+soil = ch_material.Soil(chrono.materialManager)
+soil.SetCohesion(1000)
+soil.SetFriction(0.7)
+soil.SetDilationAngle(30)
+soil.SetDilation(0.01)
+soil.SetFriction(0.6)
+soil.SetAngle(20)
+soil.SetDilation(0.001)
+soil.SetStiffness(1000)
 
-hmmwv.SetMass(2000)
+# Create a moving patch for the SCM terrain
 
+moving_patch = ch_material.MovingPatch(chrono.materialManager, soil)
+moving_patch.SetName('MovingPatch')
+moving_patch.SetSpeed(1)
 
-# Add rigid tire model and mesh visualization
+# Set up the visualization
 
-# ... (code to add tire model and mesh visualization)
+scene_mgr = irrlicht.SceneManager()
+scene_mgr.SetName('HMMWV_SCM_Terrain')
+scene_mgr.SetCamera(0, 0, 10)
+scene_mgr.SetGUIEnvironment(irrlicht.GUIEnvironment())
 
+# Add the vehicle to the scene manager
 
-# Configure the SCM terrain
-
-terrain = svea_terrain.ChSveaTerrain()
-
-terrain.SetSoilParameters(svea.ChSoilParameters(100, 100, 100, 100, 100, 100))
-
-terrain.EnableMovingPatch(True)
-
-terrain.SetPatchFollowing(hmmwv)
-
-
-# Visualize sinkage with false color plotting
-
-terrain.EnableSinkageVisualization(True)
-
+scene_mgr.AddEntity(hmmwv)
 
 # Set up the interactive driver system
 
-driver = chrono.ChDriverUNICO()
-
-driver.SetMax(1)
-
-driver.SetStep(0.01)
-
+driver = ch_synchrony.Driver()
+driver.SetMaxSteer(30)
+driver.SetMaxThrottle(1)
+driver.SetMaxBrake(1)
 
 # Set up the vehicle dynamics
 
-# ... (code to set up vehicle dynamics)
+vehicle = ChVehicle(chrono.vehicleManager, hmmwv, driver)
+vehicle.SetMaxSpeed(30)
+vehicle.SetSteerControl(driver)
+vehicle.SetThrottleControl(driver)
+vehicle.SetBrakeControl(driver)
 
+# Set up the simulation parameters
 
-# Main simulation loop
+chrono.SetSolverType(0)
+chrono.SetSolverTolerance(1e-5)
+chrono.SetSolverIterationLimit(100)
+chrono.SetSolverMaxTimeStep(0.01)
 
-while chrono.futureTime(0.02) < chrono.ChSystemDynamics().GetTolerance() / 1000:
+# Set up the visualization
 
-    visualization.BeginScene()
+scene_mgr.AddEntity(moving_patch)
+scene_mgr.SetColor(irrlicht.E_COLOR_RED)
+scene_mgr.SetVisibility(irrlicht.E_VISIBILITY_VISIBLE)
 
-    visualization.DrawModel(hmmwv, chrono.DARK_GREEN)
+# Start the simulation
 
-    visualization.DrawModel(terrain, chrono.DARK_GREEN)
+chrono.Start()
 
-    visualization.EndScene()
+# Main loop
 
-    chrono.DoStepDynamics(driver)
+while chrono.IsRunning():
 
+    # Update the driver
 
-# Run the simulation at 50 frames per second
+    driver.Update()
 
-chrono.Set_AutoDeltaTimestep(False)
+    # Update the vehicle
 
-chrono.Set_RealTimeSimulation(True)
+    vehicle.Update()
 
-while chrono.futureTime(1.0 / 50.0) < chrono.ChSystemDynamics().GetTolerance() / 1000:
+    # Update the SCM terrain
 
-    # ... (code to update vehicle dynamics and rendering)
+    moving_patch.Update()
 
-    chrono.DoStepDynamics(driver)
+    # Render the scene
 
+    scene_mgr.BeginScene()
+    scene_mgr.DrawAllEntities()
+    scene_mgr.EndScene()
 
-# Clean up
+    chrono.DoStepDynamics(0.01)
 
-chrono.uninitialize()
+    # Wait for 1/50 second to achieve 50 frames per second
+
+    chrono.DoStep()
+    chrono.Sleep(1/50)
+
+chrono.Stop()

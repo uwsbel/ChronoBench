@@ -17,7 +17,7 @@ vis_type = veh.VisualizationType_PRIMITIVES
 chassis_collision_type = veh.CollisionType_PRIMITIVES
 
 # Type of tire model (RIGID, TMEASY)
-tire_model = veh.TireModelType_RIGID
+tire_model = veh.TireModelType_TMEASY
 
 # Rigid terrain
 # terrain_model = veh.RigidTerrain.BOX
@@ -47,6 +47,7 @@ vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
+
 
 vehicle.Initialize()
 

@@ -1,61 +1,64 @@
 import pychrono as chrono
-import numpy as np
+from pychrono.irrlicht import ChIrrApp
+from pychrono.vehicle import ChVehicle, ChArticulatedVehicle, ChArticulatedVehicleDriven, ChArticulatedVehicleDriver
+
+
+chrono.SetChronoDataPath("path/to/chrono_data")
 
 
 sim = chrono.ChSimulation()
-sim.SetTimestep(0.01)  
-sim.SetMaxPenetrationDepth(1e-3)  
+sim.SetMaxStepSize(0.05)
+sim.SetSolverType(chrono.ChSolverType_SOR)
+
+
+app = ChIrrApp(sim, "ARTcar Simulation", chrono.GetChronoDataPath() + "media/")
+app.SetCamera(chrono.Camera(chrono.Vector3d(1.5, 1.5, 1.5), chrono.Vector3d(0, 0, 0)))
+app.AddTypicalSky()
+app.AddTypicalLights()
+app.AddShadowAll()
 
 
 terrain = chrono.ChTerrain()
-terrain.SetPlane(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 1, 0))  
-terrain.SetMaterial(chrono.ChMaterialSurfaceNSC())  
-terrain.SetTexture(chrono.ChTexture("path/to/terrain_texture.png"))  
+terrain.SetMaterial(chrono.ChMaterialSurfaceNSC())
+terrain.GetMaterial().SetFriction(0.6)
+terrain.SetColor(chrono.ChColor(0.3, 0.3, 0.3))
+terrain.AddBox(chrono.ChVectorD(10, 0, 10), chrono.ChVectorD(1, 0, 1))
+terrain.AddTexture(chrono.ChTexture(chrono.GetChronoDataPath() + "textures/grass.png"))
 sim.Add(terrain)
 
 
-vehicle = chrono.ArticulatedVehicle()
-vehicle.SetChassisBody(chrono.ChBodyEasyBox(1, 2, 3, 100, chrono.ChMaterialSurfaceNSC()))  
-vehicle.SetChassisLocation(chrono.ChVectorD(0, 1, 0))  
-vehicle.SetChassisOrientation(chrono.Q_from_AngX(chrono.CH_C_PI / 2))  
-vehicle.SetContactMethod(chrono.ChContactMethod_NSC)  
-vehicle.SetVisualizationType(chrono.ChVisualizationType_MESH)  
+vehicle = ChArticulatedVehicle()
+vehicle.SetChassisBodyName("chassis")
+vehicle.SetChassisVisualName("chassis")
+vehicle.SetChassisPosition(chrono.ChVectorD(0, 0.5, 0))
+vehicle.SetChassisRotation(chrono.Q_from_AngX(chrono.CH_C_PI_2))
+vehicle.SetContactMethod(chrono.ChVehicleContactMethod_SIMPLE)
+vehicle.SetVisualizationType(chrono.ChVehicleVisualizationType::CH_VIS_VEHICLE_ALL)
 
 
-wheel = chrono.ChWheel()
-wheel.SetSpokeRadius(0.2)
-wheel.SetTireRadius(0.3)
-wheel.SetTireWidth(0.2)
-wheel.SetSuspensionRestLength(0.5)
-wheel.SetSuspensionStiffness(20000)
-wheel.SetSuspensionDamping(2000)
-vehicle.AddWheel(wheel, chrono.ChVectorD(1, 1, 1), chrono.ChVectorD(0, -1, 0), True)  
-vehicle.AddWheel(wheel, chrono.ChVectorD(-1, 1, 1), chrono.ChVectorD(0, -1, 0), True)  
-vehicle.AddWheel(wheel, chrono.ChVectorD(1, 1, -1), chrono.ChVectorD(0, -1, 0), False)  
-vehicle.AddWheel(wheel, chrono.ChVectorD(-1, 1, -1), chrono.ChVectorD(0, -1, 0), False)  
-
-
-driver = chrono.ChVehicleDriver()
-driver.SetSteering(0.5)  
-driver.SetThrottle(0.5)  
-driver.SetBrake(0)  
+vehicle.AddSteeringWheel("front_left", chrono.ChVectorD(0.5, 0.3, 0.7), -0.5)
+vehicle.AddSteeringWheel("front_right", chrono.ChVectorD(0.5, 0.3, -0.7), -0.5)
+vehicle.AddWheel("front_left", "front_left_wheel", chrono.ChVectorD(0.5, 0.3, 0.7), chrono.ChVectorD(0, 0, -0.3), 0.3, 0.6, 0.5, chrono.ChMaterialSurfaceNSC())
+vehicle.AddWheel("front_right", "front_right_wheel", chrono.ChVectorD(0.5, 0.3, -0.7), chrono.ChVectorD(0, 0, -0.3), 0.3, 0.6, 0.5, chrono.ChMaterialSurfaceNSC())
+vehicle.AddWheel("rear_left", "rear_left_wheel", chrono.ChVectorD(-0.5, 0.3, 0.7), chrono.ChVectorD(0, 0, -0.3), 0.3, 0.6, 0.5, chrono.ChMaterialSurfaceNSC())
+vehicle.AddWheel("rear_right", "rear_right_wheel", chrono.ChVectorD(-0.5, 0.3, -0.7), chrono.ChVectorD(0, 0, -0.3), 0.3, 0.6, 0.5, chrono.ChMaterialSurfaceNSC())
 
 
 sim.Add(vehicle)
+
+
+driver = ChArticulatedVehicleDriver(vehicle)
+driver.SetSteering(0)
+driver.SetThrottle(0)
+driver.SetBrake(0)
 sim.Add(driver)
-
-
-app = chrono.ChIrrApp(sim, "ARTcar Simulation")
-app.SetTimestep(0.01)  
-app.AddTypicalSky(chrono.ChColor(0.6, 0.6, 0.6))  
-app.AddTypicalLights(chrono.ChVectorD(4, 4, 4))  
-app.Add(terrain)  
-app.Add(vehicle)  
 
 
 while app.GetDevice().run():
     sim.DoStep()
-    app.BeginScene(True, True, chrono.ChColor(0.9, 0.9, 0.9))  
-    app.DrawAll()  
-    app.EndScene()  
-    app.GetDevice().driver.sleep(1)
+    app.BeginScene(True, True, chrono.ChColor(0.3, 0.3, 0.3))
+    app.DrawAll()
+    app.EndScene()
+    app.GetDevice().sleep(0.016666666666666666)
+
+app.GetDevice().closeDevice()

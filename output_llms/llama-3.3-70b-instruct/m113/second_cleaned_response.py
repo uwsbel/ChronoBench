@@ -3,6 +3,7 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
+
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
@@ -63,15 +64,21 @@ patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 
 
-scm_terrain = veh.SCMDeformableTerrain(vehicle.GetSystem())
-scm_terrain.SetSoilParameters(0.01, 0.01, 0.01, 0.01, 0.01, 0.01)
+soilParams = veh.SCMSoilParameters()
+soilParams.k_a = 200e3  
+soilParams.k_s = 1.5e4  
+soilParams.R = 0.2      
+soilParams.c = 2e3      
+soilParams.phi = 35     
+soilParams.psi = 30     
 
 
-scm_terrain.Initialize(terrainLength, terrainWidth, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1)
+terrain = veh.SCMDeformableTerrain(vehicle.GetSystem())
+terrain.Initialize(terrainLength, terrainWidth, 100, 100, soilParams)
 
 
-scm_terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 200, 200)
-scm_terrain.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 200, 200)
+terrain.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 
 
 vis = veh.ChTrackedVehicleVisualSystemIrrlicht()
@@ -114,6 +121,7 @@ vehicle.GetVehicle().EnableRealtime(True)
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
     
+    
     if (step_number % render_steps == 0):
         vis.BeginScene()
         vis.Render()
@@ -123,17 +131,20 @@ while vis.Run():
     
     driver_inputs = driver.GetInputs()
     
+    
     driver_inputs.m_throttle = 0.8
-
+    
     
     driver.Synchronize(time)
-    scm_terrain.Synchronize(time)
+    terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs)
     vis.Synchronize(time, driver_inputs)
     
+    
     driver.Advance(step_size)
-    scm_terrain.Advance(step_size)
+    terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
+    
     
     step_number += 1

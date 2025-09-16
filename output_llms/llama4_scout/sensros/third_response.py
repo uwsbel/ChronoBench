@@ -24,7 +24,7 @@ def main():
     mesh_body.AddVisualShape(trimesh_shape)
     mesh_body.SetFixed(False)  # Make the body movable.
     mesh_body.SetMass(0)  # Set mass to 0 (static object).
-    sys.Add(mesh_body)  # Add mesh body to the simulation system.
+    sys.Add(mesh_body)  # Add the mesh body to the simulation system.
 
     # Create a ground body to attach sensors.
     ground_body = ch.ChBodyEasyBox(1, 1, 1, 1000, False, False)
@@ -59,16 +59,16 @@ def main():
     lidar.PushFilter(sens.ChFilterVisualizePointCloud(1280, 720, 1,"Lidar PC data"))  # Visualize the point cloud.
     lidar.SetName("lidar")
     sens_manager.AddSensor(lidar)
-    
+
     # Create 2d lidar
     offset_pose_2dlidar = ch.ChFramed(ch.ChVector3d(-8, 0, 0), ch.QuatFromAngleAxis(.2, ch.ChVector3d(0, 1, 0)))
     lidar2d = sens.ChLidarSensor(ground_body, 5, offset_pose_2dlidar, 480, 1, 2 * ch.CH_PI, ch.CH_PI / 12, -ch.CH_PI / 6, 100.0)
     lidar2d.PushFilter(sens.ChFilterDIAccess())  # Access raw lidar data.
     lidar2d.PushFilter(sens.ChFilterPCfromDepth())  # Convert depth data to point cloud.
     lidar2d.PushFilter(sens.ChFilterXYZIAccess())  # Access point cloud data.
-    lidar2d.PushFilter(sens.ChFilterVisualizePointCloud(1280, 720, 1,"2D Lidar Scan Data"))
+    lidar2d.PushFilter(sens.ChFilterVisualizePointCloud(1280, 720, 1,"2D Lidar PC data"))  # Visualize the point cloud.
     sens_manager.AddSensor(lidar2d)
-    
+
     # Create and configure a GPS sensor.
     noise_model_none = sens.ChNoiseNone()
     gps_reference = ch.ChVector3d(-89.4, 433.07, 260.)
@@ -105,7 +105,7 @@ def main():
     # Register handlers for each sensor, specifying ROS topics for output.
     ros_manager.RegisterHandler(chros.ChROSCameraHandler(cam.GetUpdateRate() / 4, cam, "~/output/camera/data/image"))
     ros_manager.RegisterHandler(chros.ChROSLidarHandler(lidar, "~/output/lidar/data/pointcloud"))
-    ros_manager.RegisterHandler(chros.ChROSLidarHandler(lidar2d, "~/output/lidar2d/data/scan",chros.ChROSLidarHandlerMessageType_LASER_SCAN))
+    ros_manager.RegisterHandler(chros.ChROSLidarHandler(lidar2d, "~/output/lidar2d/data/scan", chros.ChROSLidarHandlerMessageType_LASER_SCAN))
     ros_manager.RegisterHandler(chros.ChROSGPSHandler(gps, "~/output/gps/data"))
     acc_handler = chros.ChROSAccelerometerHandler(acc, "~/output/accelerometer/data")
     ros_manager.RegisterHandler(acc_handler)
@@ -121,7 +121,9 @@ def main():
     imu_handler.SetMagnetometerHandler(mag_handler)
     ros_manager.RegisterHandler(imu_handler)
 
-    ros_manager.Initialize()  # Initialize the ROS manager.
+    if not ros_manager.Initialize():  # Initialize the ROS manager.
+        print("Failed to initialize ROS manager.")
+        return
 
     # Run the simulation loop.
     time = 0
@@ -137,7 +139,8 @@ def main():
         # Update sensors and ROS data.
         sens_manager.Update()
 
-        if not ros_manager.Update():  # Check ROS manager update status
+        if not ros_manager.Update():  # Update the ROS manager.
+            print("Failed to update ROS manager. Exiting simulation loop.")
             break
 
         sys.DoStepDynamics(time_step)  # Advance the simulation by one time step.

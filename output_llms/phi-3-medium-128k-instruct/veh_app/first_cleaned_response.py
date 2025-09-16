@@ -1,118 +1,233 @@
 import pychrono
 
-import pychrono.vehicle as vehicle
+import pychrono.Vehicle as Vehicle
 
-import pychrono.sensor as sensor
+import pychrono.VehicleSim as VehicleSim
 
-import pychrono.utils as utils
+import pychrono.ChFrame as ChFrame
 
+import pychrono.ChColor as ChColor
 
+import pychrono.ChVector as ChVector
 
+import pychrono.ChBody as ChBody
 
-chrono = pychrono.ChBody()
+import pychrono.ChBodyAux as ChBodyAux
 
-chrono.Set_gravity(pychrono.ChVectorD(0, -9.81, 0))
+import pychrono.ChCoordsysD as ChCoordsysD
 
+import pychrono.ChColorStyle as ChColorStyle
 
+import pychrono.ChMaterialSurface as ChMaterialSurface
 
+import pychrono.ChTerrain as ChTerrain
 
-terrain = pychrono.RigidTerrain()
+import pychrono.ChTerrainP as ChTerrainP
 
-terrain.Set_friction(0.5)
+import pychrono.ChCamera as ChCamera
 
-terrain.Set_roughness(0.1)
+import pychrono.ChTimer as ChTimer
 
+import pychrono.ChFilter as ChFilter
 
+import pychrono.ChRigidBody as ChRigidBody
 
+import pychrono.ChRigidBodyAux as ChRigidBodyAux
 
-gator = vehicle.Gator()
+import pychrono.ChContact as ChContact
 
-gator.Set_vehicle_type(vehicle.Gator.Type.TREAD)
+import pychrono.ChVideo as ChVideo
 
-gator.Set_vehicle_mass(1000)
-
-
-
-
-gator.Set_visualization_type(vehicle.Gator.Part.FRONT_LEFT_WHEEL, vehicle.VisualizationType.SPHERES)
-
-gator.Set_visualization_type(vehicle.Gator.Part.FRONT_RIGHT_WHEEL, vehicle.VisualizationType.SPHERES)
-
-gator.Set_visualization_type(vehicle.Gator.Part.REAR_LEFT_WHEEL, vehicle.VisualizationType.SPHERES)
-
-gator.Set_visualization_type(vehicle.Gator.Part.REAR_RIGHT_WHEEL, vehicle.VisualizationType.SPHERES)
-
-gator.Set_visualization_type(vehicle.Gator.Part.CHASSIS, vehicle.VisualizationType.BOX)
+import pychrono.ChVideoWriter as ChVideoWriter
 
 
 
 
-driver = vehicle.Driver()
-
-driver.Set_max_steering_angle(0.5)
-
-driver.Set_max_acceleration(10)
-
-driver.Set_max_velocity(20)
+chrono = pychrono.ChSystemNSC()
 
 
 
 
-sensor_manager = sensor.SensorManager()
+terrain = ChTerrain.CreateTerrain(chrono)
 
-point_light = sensor.PointLight()
+terrain.SetName("RigidTerrain")
 
-point_light.Set_position(pychrono.ChVectorD(0, 10, 10))
+terrain.SetTerrainType(ChTerrainP.TerrainType_Rigid)
 
-point_light.Set_intensity(1000)
+terrain.SetName("RigidTerrain")
 
-sensor_manager.Add_point_light(point_light)
-
-
-camera = sensor.Camera()
-
-camera.Set_position(pychrono.ChVectorD(0, 0, 0))
-
-camera.Set_look_at(pychrono.ChVectorD(0, 0, 0))
-
-camera.Set_up(pychrono.ChVectorD(0, 1, 0))
-
-camera.Set_fov(90)
-
-sensor_manager.Add_camera(camera)
+terrain.SetCoeffFriction(0.5)
 
 
 
 
-sim_time = 10
+gator = Vehicle.CreateVehicle(chrono, "Gator")
 
-time_step = 0.01
+gator.SetName("Gator")
 
-for t in range(int(sim_time / time_step)):
+gator.SetTrackWidth(0.4)
+
+gator.SetWheelRadius(0.1)
+
+gator.SetWheelCount(4)
+
+gator.SetSteerMax(10.0)
+
+gator.SetSteerStiffness(100.0)
+
+gator.SetMaxSpeed(10.0)
+
+gator.SetMaxSteerRate(30.0)
+
+gator.SetSteerRate(0.0)
+
+gator.SetSuspensionStiffness(1000.0)
+
+gator.SetSuspensionDamping(100.0)
+
+gator.SetSuspensionHeight(0.1)
+
+
+
+
+gator.SetBody(0, ChBody(chrono))
+
+gator.SetBody(1, ChBody(chrono))
+
+gator.SetBody(2, ChBody(chrono))
+
+gator.SetBody(3, ChBody(chrono))
+
+gator.SetBody(4, ChBody(chrono))
+
+gator.SetBody(5, ChBody(chrono))
+
+
+
+
+gator.SetBody(0, ChBodyAux(chrono))
+
+gator.SetBody(1, ChBodyAux(chrono))
+
+gator.SetBody(2, ChBodyAux(chrono))
+
+gator.SetBody(3, ChBodyAux(chrono))
+
+gator.SetBody(4, ChBodyAux(chrono))
+
+gator.SetBody(5, ChBodyAux(chrono))
+
+
+gator.SetBody(0, ChColorStyle(ChColor(1.0, 0.0, 0.0))
+
+gator.SetBody(1, ChColorStyle(ChColor(0.0, 1.0, 0.0))
+
+gator.SetBody(2, ChColorStyle(ChColor(0.0, 0.0, 1.0)))
+
+gator.SetBody(3, ChColorStyle(ChColor(1.0, 1.0, 0.0)))
+
+gator.SetBody(4, ChColorStyle(ChColor(0.0, 1.0, 1.0)))
+
+gator.SetBody(5, ChColorStyle(ChColor(1.0, 1.0, 1.0)))
+
+
+
+
+gator.SetGround(terrain)
+
+
+
+
+driver = VehicleSim.CreateDriver(chrono, "GatorDriver")
+
+driver.SetName("GatorDriver")
+
+driver.SetMaxSteerRate(30.0)
+
+driver.SetSteerRate(0.0)
+
+gator.SetDriver(driver)
+
+
+
+
+sensor_manager = ChSensorManager(chrono)
+
+sensor_manager.SetName("SensorManager")
+
+
+
+
+point_light = chrono.ChPointLight(chrono)
+
+point_light.SetName("PointLight")
+
+point_light.SetPosition(ChVector(0.0, 10.0, 10.0))
+
+point_light.SetColor(ChColor(1.0, 1.0, 1.0))
+
+point_light.SetIntensity(100.0)
+
+sensor_manager.AddPointLight(point_light)
+
+
+
+
+camera = ChCamera(chrono)
+
+camera.SetName("Camera")
+
+camera.SetPosition(ChVector(0.0, 10.0, 10.0))
+
+camera.SetTarget(gator.GetChFrame().GetPos())
+
+camera.SetName("Camera")
+
+sensor_manager.AddCamera(camera)
+
+
+
+
+gator.AddSensor(sensor_manager)
+
+
+
+
+video_writer = ChVideoWriter(chrono, "GatorSimulation.mp4", "GatorSimulation")
+
+
+
+
+for i in range(1000):
 
     
 
-    driver.Update(time_step)
-
-    terrain.Update(time_step)
-
-    gator.Update(time_step)
-
-    sensor_manager.Update(time_step)
-
+    driver.Update(chrono)
 
     
 
-    chrono.Advance(time_step)
-
+    gator.Update(chrono)
 
     
 
-    if t % 1 == 0:
+    terrain.Update(chrono)
 
-        image = camera.Render()
+    
 
-        utils.SaveImage(image, f"gator_simulation_{t:03d}.png")
+    sensor_manager.Update(chrono)
+
+    
+
+    chrono.DoStepDynamics(0.01)
+
+    
+
+    sensor_manager.Render(chrono)
+
+    
+
+    video_writer.WriteFrame(chrono)
 
 
-print("Simulation completed.")
+
+chrono.DoFinalize()

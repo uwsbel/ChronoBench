@@ -26,11 +26,6 @@ def main():
     
     hmmwv.SetTireStepSize(1e-3)
     
-    hmmwv.Initialize()
-    
-
-    
-    veh.SetDataPath(ch.GetChronoDataPath() + 'vehicle/')
 
     
     hmmwv.SetChassisVisualizationType(veh.ChVisualizationType_MESH)
@@ -38,6 +33,12 @@ def main():
     hmmwv.SetSteeringVisualizationType(veh.ChVisualizationType_MESH)
     hmmwv.SetWheelVisualizationType(veh.ChVisualizationType_MESH)
     hmmwv.SetTireVisualizationType(veh.ChVisualizationType_MESH)
+
+    hmmwv.Initialize()
+    
+
+    
+    veh.SetDataPath(ch.GetChronoDataPath() + 'vehicle/')
 
     
     terrain = veh.RigidTerrain(hmmwv.GetSystem())
@@ -48,7 +49,6 @@ def main():
     patch_mat.SetRestitution(0.01)
     
     patch = terrain.AddPatch(patch_mat, ch.CSYSNORM, 100.0, 100.0)
-    
     patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 100, 100)
     terrain.Initialize()
     
@@ -80,7 +80,7 @@ def main():
 
     
     vis = chronoirr.ChVisualSystemIrrlicht()
-    vis.AttachVehicle(hmmwv.GetVehicle())
+    vis.AttachSystem(hmmwv.GetSystem())
     vis.SetWindowSize(1024, 768)
     vis.SetWindowTitle('HMMWV Simulation')
     vis.Initialize()
@@ -90,6 +90,7 @@ def main():
     while time < time_end:
         time = hmmwv.GetSystem().GetChTime()
         
+
         
         driver_inputs = driver.GetInputs()
         driver.Synchronize(time)
@@ -98,17 +99,19 @@ def main():
         
         hmmwv.Synchronize(time, driver_inputs, terrain)
         
+
         
         driver.Advance(time_step)
         terrain.Advance(time_step)
         hmmwv.Advance(time_step)
+
         
         if not ros_manager.Update(time, time_step):
             break
         
 
         
-        vis.BeginScene(True, True, ch.ChColor(0.2, 0.2, 0.3))
+        vis.BeginScene()
         vis.Render()
         vis.EndScene()
 

@@ -12,66 +12,58 @@ except Exception as e:
 
 
 
-particle_type = "sphere"
-particle_radius = 0.1
-particle_mass = 1.0  
-particle_velocity = np.array([1.0, 0.5, 0.0])  
-particle_orientation = np.array([0.0, 0.0, 1.0])  
-particle_color = "red"
+particles = []
+num_particles = 100
 
-
-gravitational_source_mass = 10.0  
-gravitational_source_position = np.array([0.0, 0.0, 0.0])
-gravitational_source_force = 0.0  
-
-
-simulation.set_default_parameters()
-simulation.set_particle_type(particle_type)
-simulation.set_particle_mass(particle_mass)
-simulation.set_particle_velocity(particle_velocity)
-simulation.set_particle_orientation(particle_orientation)
-simulation.set_particle_color(particle_color)
-simulation.set_gravitational_source_mass(gravitational_source_mass)
-simulation.set_gravitational_source_position(gravitational_source_position)
-simulation.set_gravitational_source_force(gravitational_source_force)
-
-
-
-for i in range(100):  
+for i in range(num_particles):
+    position = np.random.rand(3) * 10  
+    velocity = np.random.rand(3) * 5  
+    orientation = np.random.rand(3) * 2 * np.pi  
     
-    position = np.random.rand(3) * simulation.get_range_min() + simulation.get_range_min()
-    orientation = np.random.rand(3) * simulation.get_range_min() + simulation.get_range_min()
+    particles.append({
+        'position': position,
+        'velocity': velocity,
+        'orientation': orientation
+    })
 
+
+gravity_strength = 10  
+gravity_radius = 1.0  
+
+for particle in particles:
     
-    particle = Simulation.Particle(
-        particle_type=particle_type,
-        particle_radius=particle_radius,
-        particle_mass=particle_mass,
-        particle_velocity=particle_velocity,
-        particle_orientation=particle_orientation,
-        particle_color=particle_color
-    )
-
+    force = np.array([0.0, 0.0, gravity_strength])
     
-    simulation.add_particle(particle)
+    
+    particle['force'] = force
+    
+    
+    particle['position'] = particle['position'] + particle['force'] * particle['velocity']
+    
+    
+    particle['orientation'] = particle['orientation'] + particle['force'] * particle['velocity']
+    
+    
+    particle['acceleration'] = -gravity_strength * particle['position']
+    
+
+fig, ax = plt.subplots()
+ax.set_xlim(-10, 10)
+ax.set_ylim(-10, 10)
+ax.set_aspect('equal')
+ax.set_title('Particle Attraction Simulation')
+
+for particle in particles:
+    particle['color'] = 'blue'
+    ax.plot(particle['position'], particle['orientation'], 'r-', lw=2)  
+    
+
+for i in range(len(particles)):
+    ax.scatter(particles[i]['position'], particles[i]['orientation'], color='gray', s=50)
+
+plt.show()
 
 
+simulation.run(num_particles)
 
-try:
-    plt.ion()  
-    fig, ax = plt.subplots()
-    ax.set_aspect('equal')
-    ax.set_xlabel("X")
-    ax.set_ylabel("Y")
-    ax.set_title("Particle Simulation")
-
-    for particle in simulation.particles:
-        ax.plot(particle.position[0], particle.position[1], 'b-', linewidth=0.5)  
-        ax.text(particle.position[0] + particle.radius / 2, particle.position[1] + particle.radius / 2,
-                f"{particle.color} ({particle.mass:.2f})", size=10) 
-
-    plt.show()
-except Exception as e:
-    print(f"Error during visualization: {e}")
-finally:
-    simulation.stop()
+print("Simulation complete.")

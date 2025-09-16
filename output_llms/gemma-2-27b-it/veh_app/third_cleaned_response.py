@@ -157,6 +157,4 @@ lidar = sens.ChLidarSensor(
     0.003,       
     sens.LidarReturnMode_STRONGEST_RETURN             
 )
-lidar.SetName("Lidar Sensor")
-lidar.SetLag(lag)
-lidar.Set
+lidar.SetName

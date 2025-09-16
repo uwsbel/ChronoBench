@@ -14,11 +14,11 @@ def main():
     
     
     
-    side = 1  
-    box = chrono.ChBodyEasyBox(side, side, side, 1000)  
-    box.SetPos(chrono.ChVector3d(0, 0, 0))  
-    box.SetBodyFixed(True)  
-    mphysicalSystem.Add(box)  
+    side = 1.0  
+    box = chrono.ChBodyEasyBox(side, side, side, 1000)
+    box.SetPos(chrono.ChVector3d(0, 0, 0))
+    box.SetBodyFixed(True)
+    mphysicalSystem.Add(box)
 
     
     
@@ -36,7 +36,7 @@ def main():
         update_rate,            
         offset_pose,            
         horizontal_samples,     
-        vertical_samples,       
+        1,                      
         horizontal_fov,         
         max_vert_angle,         
         min_vert_angle,         
@@ -62,7 +62,7 @@ def main():
 
     if vis:
         
-        lidar.PushFilter(sens.ChFilterVisualize(horizontal_samples, vertical_samples, "Raw Lidar Depth Data"))
+        lidar.PushFilter(sens.ChFilterVisualize(horizontal_samples, 1, "Raw Lidar Depth Data"))
 
     
     lidar.PushFilter(sens.ChFilterDIAccess())
@@ -83,11 +83,14 @@ def main():
     
     
     
+    offset_pose_2d = chrono.ChFramed(
+        chrono.ChVector3d(-12, 0, 1), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
+    )
     lidar_2d = sens.ChLidarSensor(
         box,              
         update_rate,            
-        offset_pose,            
-        1,                      
+        offset_pose_2d,            
+        horizontal_samples,     
         1,                      
         horizontal_fov,         
         max_vert_angle,         
@@ -114,7 +117,7 @@ def main():
 
     if vis:
         
-        lidar_2d.PushFilter(sens.ChFilterVisualize(1, 1, "Raw 2D Lidar Depth Data"))
+        lidar_2d.PushFilter(sens.ChFilterVisualize(horizontal_samples, 1, "Raw 2D Lidar Depth Data"))
 
     
     lidar_2d.PushFilter(sens.ChFilterDIAccess())
@@ -188,7 +191,7 @@ update_rate = 5.0
 
 
 horizontal_samples = 800
-vertical_samples = 300
+vertical_samples = 1  
 
 
 horizontal_fov = 2 * chrono.CH_PI  

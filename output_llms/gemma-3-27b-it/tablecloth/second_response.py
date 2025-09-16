@@ -50,7 +50,7 @@ nodePlotB = mynodes[-1]
 nodesLoad = []
 
 def ref_X(time):
-    return 0.5 + 0.1 * chrono.ChMath.sin(time)
+    return 0.5
 
 def ref_Y(time):
     return 0.0
@@ -65,17 +65,19 @@ for iz in range(nsections_z):
         boundary_1 = mynodes[(iz + 1) * (nsections_x + 1) + ix + 1] if ix < nsections_x else None
         boundary_2 = mynodes[(iz + 1) * (nsections_x + 1) + ix - 1] if ix > 0 else None
         boundary_3 = mynodes[(iz - 1) * (nsections_x + 1) + ix + 1] if iz > 0 else None
+
         melementA.SetNodes(mynodes[iz * (nsections_x + 1) + ix], mynodes[iz * (nsections_x + 1) + ix + 1], mynodes[(iz + 1) * (nsections_x + 1) + ix], boundary_1, boundary_2, boundary_3)
         melementA.AddLayer(thickness, 0, material)
         mesh.AddElement(melementA)
 
-        if (iz == 0 and ix == 1):
+        if iz == 0 and ix == 1:
             melementmonitor = melementA
 
         melementB = fea.ChElementShellBST()
         boundary_1 = mynodes[iz * (nsections_x + 1) + ix]
         boundary_2 = mynodes[iz * (nsections_x + 1) + ix + 2] if ix < nsections_x - 1 else None
         boundary_3 = mynodes[(iz + 2) * (nsections_x + 1) + ix] if iz < nsections_z - 1 else None
+
         melementB.SetNodes(mynodes[(iz + 1) * (nsections_x + 1) + ix + 1], mynodes[(iz + 1) * (nsections_x + 1) + ix], mynodes[iz * (nsections_x + 1) + ix + 1], boundary_1, boundary_2, boundary_3)
         melementB.AddLayer(thickness, 0, material)
         mesh.AddElement(melementB)
@@ -87,9 +89,9 @@ for j in range(nsections_z):
 
 # Create visualizations for shell elements
 mvisualizeshellA = chrono.ChVisualShapeFEA(mesh)
-# mvisualizeshellA.SetSmoothFaces(True)  # Optional: smooth faces
-# mvisualizeshellA.SetWireframe(True)  # Optional: wireframe mode
-# mvisualizeshellA.SetBackfaceCulling(True)  # Optional: backface culling
+# mvisualizeshellA.SetSmoothFaces(True) # Optional: Smooth faces
+# mvisualizeshellA.SetWireframe(True)  # Optional: Wireframe mode
+# mvisualizeshellA.SetBackfaceCulling(True)  # Optional: Backface culling
 mvisualizeshellA.SetShellResolution(2)
 mesh.AddVisualShapeFEA(mvisualizeshellA)
 

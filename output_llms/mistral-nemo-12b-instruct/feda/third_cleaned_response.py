@@ -74,18 +74,31 @@ terrain.Initialize()
 
 
 light1 = chrono.ChLightWithShadow()
-light1.SetType(chrono.ChLight.Type_DIR)
 light1.SetDirection(chrono.ChVector3d(1, -1, 1).GetNormalized())
 light1.SetColor(chrono.ChColor(1, 1, 1))
-light1.SetDirection(chrono.ChVector3d(1, -1, 1).GetNormalized())
-vehicle.GetSystem().Add(light1)
+light1.SetShadowType(chrono.ChLightShadowType_DYNAMIC)
+light1.SetShadowResolution(1024, 1024)
+vehicle.GetSystem().AddLight(light1)
 
 light2 = chrono.ChLightWithShadow()
-light2.SetType(chrono.ChLight.Type_DIR)
 light2.SetDirection(chrono.ChVector3d(-1, 1, -1).GetNormalized())
 light2.SetColor(chrono.ChColor(1, 1, 1))
-light2.SetDirection(chrono.ChVector3d(-1, 1, -1).GetNormalized())
-vehicle.GetSystem().Add(light2)
+light2.SetShadowType(chrono.ChLightShadowType_DYNAMIC)
+light2.SetShadowResolution(1024, 1024)
+vehicle.GetSystem().AddLight(light2)
+
+
+sensor_manager = veh.ChSensorManager()
+camera = veh.ChCameraSensor()
+camera.SetResolution(800, 600)  
+camera.SetFieldOfView(90)  
+camera.SetPosition(chrono.ChVector3d(0, 0, 0.5))  
+camera.SetDirection(chrono.ChVector3d(0, 0, -1))  
+vehicle.AttachSensor(camera, vehicle.GetChassis())  
+
+filter = veh.ChSensorFilter()
+filter.SetCamera(camera)
+sensor_manager.AddFilter(filter)
 
 
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
@@ -97,6 +110,7 @@ vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
+vis.AddSensorManager(sensor_manager)  
 
 
 driver = veh.ChInteractiveDriverIRR(vis)
@@ -121,17 +135,6 @@ render_steps = math.ceil(render_step_size / step_size)
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
-
-
-sensor_manager = veh.ChSensorManager()
-camera_sensor = veh.ChCameraSensor()
-camera_sensor.SetResolution(1920, 1080)
-camera_sensor.SetFieldOfView(90)
-camera_sensor.SetParentBody(vehicle.GetChassisBody())
-camera_filter = veh.ChCameraFilter()
-camera_filter.SetSensor(camera_sensor)
-sensor_manager.Add(camera_filter)
-vis.AddSensorManager(sensor_manager)
 
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()

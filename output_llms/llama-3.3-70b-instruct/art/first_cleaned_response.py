@@ -6,48 +6,55 @@ import pychrono.vehicle as veh
 sys = chrono.ChSystemNSC()
 
 
-vehicle = veh.ChVehicle(sys)
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.SetWindowSize(1024, 768)
+vis.SetTitle("ARTcar Simulation")
+vis.AddSkyBox()
+vis.AddTypicalLights()
 
 
-vehicle.SetLocation(chrono.ChVectorD(0, 0, 0))  
-vehicle.SetOrientation(chrono.Q_from_AngX(chrono.CH_C_PI_2))  
-vehicle.SetContactMethod(chrono.ChContactMethod_NSC)  
-vehicle.SetVisualizationType(chrono.ChVisualizationType_PRIMITIVES)  
+vehicle = veh.ChVehicle()
 
 
-terrain = veh.RigidTerrain(sys)
-terrain.SetDimensions(chrono.ChVectorD(100, 100, 1))  
-terrain.SetTexture(chrono.ChTexture("terrain_texture.jpg"))  
+vehicle_pos = chrono.ChVectorD(0, 0, 1.5)  
+vehicle_rot = chrono.ChQuaternionD(1, 0, 0, 0)  
+contact_material = chrono.ChMaterialSurfaceNSC()
+vehicle.SetContactMaterial(contact_material)
+vehicle.SetVisualizationType(veh.VisualizationType_PRIMITIVES)
 
 
 sys.Add(vehicle)
+
+
+terrain = veh.ChRigidTerrain()
+terrain.SetPlane(chrono.ChVectorD(0, 1, 0), 0)  
+terrain.SetTexture(chrono.GetChronoDataFile("terrain.txt"), 10, 10)
 sys.Add(terrain)
 
 
 driver = veh.ChIrrlichtDriver()
 driver.SetVehicle(vehicle)
-driver.SetSteering(-0.5)  
-driver.SetThrottle(0.5)  
-driver.SetBraking(0)  
+driver.SetSteeringDelta(0.1)
+driver.SetThrottleDelta(0.1)
+driver.SetBrakingDelta(0.1)
 
 
-vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AddSkyBox()
-vis.AddTypicalLights()
-vis.AddCamera(chrono.ChVectorD(0, 0, 10))
+sys.Add(driver)
+
+
+time_step = 0.01
+vis.SetCamera(chrono.ChVectorD(0, 5, -10), chrono.ChVectorD(0, 0, 0))
+vis.SetCameraUp(chrono.ChVectorD(0, 1, 0))
 
 
 while vis.Run():
     
-    sys.DoStepDynamics(0.02)
-
+    sys.DoStepDynamics(time_step)
+    
     
     vis.BeginScene()
     vis.DrawAll()
     vis.EndScene()
-
     
-    vis.SetFrameRate(50)
-
-
-sys.Finalize()
+    
+    chrono.ChSleep(1 / 50)

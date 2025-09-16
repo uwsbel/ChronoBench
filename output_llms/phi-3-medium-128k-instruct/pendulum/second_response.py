@@ -19,44 +19,33 @@ sphere_1 = chrono.ChVisualShapeSphere(0.2)  # Sphere with radius 0.2
 ground.AddVisualShape(sphere_1, chrono.ChFramed(chrono.ChVector3d(0, 0, +1)))
 
 # Create a pendulum body and add it to the simulation
-pend_1 = chrono.ChBodyAuxRef()
+pend_1 = chrono.ChBody()
 sys.AddBody(pend_1)
 pend_1.SetFixed(False)  # The pendulum can move
 pend_1.EnableCollision(False)  # Disable collision detection for the pendulum
 pend_1.SetMass(2)  # Set the mass of the pendulum (in kg)
 pend_1.SetInertiaXX(chrono.ChVector3d(0.4, 1.5, 1.5))  # Set the inertia tensor (in kg·m^2)
 
-# Add a visualization cylinder to the pendulum
-cyl_1 = chrono.ChVisualShapeCylinder(0.1, 1.5)  # Cylinder with radius 0.1 and height 1.5
-cyl_1.SetColor(chrono.ChColor(0.6, 0, 0))  # Set the color of the cylinder (RGB)
-pend_1.AddVisualShape(cyl_1, chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleY(chrono.CH_PI_2)))
+# Add a visualization sphere to the pendulum
+sphere_1 = chrono.ChVisualShapeSphere(0.1, 1.5)  # Sphere with radius 0.1 and height 1.5
+sphere_1.SetColor(chrono.ChColor(0.6, 0, 0))  # Set the color of the sphere (RGB)
+pend_1.AddVisualShape(sphere_1, chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleY(chrono.CH_PI_2)))
 
 # Set the initial position of the pendulum (center of mass) in the absolute frame
 # The pendulum is initially horizontal, pointing towards the positive X direction
 pend_1.SetPos(chrono.ChVector3d(1, 0, 1))
 
-# Set the initial angular velocity for the pendulum
-pend_1.SetAngularVelocity(chrono.ChVector3d(0, 1, 0))  # Set the angular velocity (in rad/s)
-
 # Create a spherical joint to connect the pendulum to the ground
-# The spherical joint allows rotation around all axes
-sph_1 = chrono.ChLinkSpherical()
-sph_1.Initialize(ground, pend_1, chrono.ChVector3d(0, 0, 1))
-sys.AddLink(sph_1)
-
-# Create the Irrlicht visualization system
-vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(sys)  # Attach the Chrono system to the visualization
-vis.SetWindowSize(1024, 768)  # Set the window size for the visualization
-vis.SetWindowTitle('ChBodyAuxRef demo')  # Set the window title
-vis.Initialize()  # Initialize the visualization system
-vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))  # Add a logo to the visualization
-vis.AddSkyBox()  # Add a skybox for better visual appearance
-vis.AddCamera(chrono.ChVector3d(0, 3, 6))  # Add a camera to the visualization
-vis.AddTypicalLights()  # Add typical lights for better visualization
+# The spherical joint allows rotation around multiple axes
+sph_joint_1 = chrono.ChLinkSpherical()
+sph_joint_1.Initialize(ground, pend_1, chrono.ChVector3d(0, 0, 1), chrono.ChVector3d(0, 0, 1), chrono.ChVector3d(0, 0, 1))
+sys.AddLink(sph_joint_1)
 
 # Simulation loop
 log_info = True  # Flag to control logging
+initial_angular_velocity = chrono.ChVector3d(0, 0.1, 0)  # Set the initial angular velocity (rad/s)
+pend_1.SetVel(initial_angular_velocity)  # Set the initial angular velocity of the pendulum
+
 while vis.Run():
     vis.BeginScene()  # Begin the scene for rendering
     vis.Render()  # Render the scene
@@ -67,7 +56,8 @@ while vis.Run():
     if log_info and sys.GetChTime() > 1:
         pos_1 = pend_1.GetPos()  # Get the position of the pendulum
         print("t = ", sys.GetChTime())
-        print("     ", pos_1.x, "  ", pos_1.y)
         lin_vel_1 = pend_1.GetPosDt()  # Get the linear velocity of the pendulum
-        print("     ", lin_vel_1.x, "  ", lin_vel_1.y)
+        print("     ", pos_1.x, "  ", pos_1.y)
+        ang_vel_1 = pend_1.GetVel()  # Get the angular velocity of the pendulum
+        print("     ", ang_vel_1.x, "  ", ang_vel_1.y, "  ", ang_vel_1.z)
         log_info = False  # Disable further logging

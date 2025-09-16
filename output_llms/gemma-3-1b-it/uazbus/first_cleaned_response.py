@@ -1,66 +1,80 @@
 import pychrono
-import pychrono.physics
-import pychrono.visuals
-import pychrono.visuals.irrlicht as irrlicht
+import pychrono.core as chrono
+import pychrono.visual as visual
 import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation
 
 
-class UAZBUSSimulation:
-    def __init__(self, initial_position=0, initial_velocity=0, friction=0.8, restitution=0.7):
-        
-        self.position = initial_position
-        self.velocity = initial_velocity
-        self.friction = friction
-        self.restitution = restitution
-        self.terrain_friction = 0.8  
-        self.terrain_restitution = 0.7 
+initial_position = [0, 0, 0]
+initial_velocity = [10, 0, 0]
+friction = 0.8
+restitution = 0.7
+terrain_height = 5
+terrain_scale = 10
+time_step = 0.1
+simulation_duration = 60  
 
-        
-        self.terrain_width = 10
-        self.terrain_height = 5
-        self.terrain_depth = 2
 
-        
-        self.terrain_surface = np.zeros((self.terrain_width, self.terrain_height, self.terrain_depth))
-        self.terrain_surface[0:self.terrain_width//2, 0:self.terrain_height//2] = 1.0  
+vehicle = chrono.Vehicle(
+    initial_position,
+    initial_velocity,
+    friction=friction,
+    restitution=restitution,
+    mass=100, 
+    vehicle_type="UAZBUS"
+)
 
-    def update(self, timestep):
-        
-        self.velocity += self.velocity * timestep  
-        self.position += self.velocity * timestep
-        self.position = max(0, min(self.position, self.terrain_width))  
 
-        
-        self.terrain_surface += self.terrain_friction * timestep
-        self.terrain_surface = np.clip(self.terrain_surface, 0, 1) 
+terrain = chrono.Terrain(
+    height=terrain_height,
+    scale=terrain_scale,
+    friction=0.5,  
+    restitution=0.6, 
+    
+)
 
-        
-        self.velocity = self.velocity * 0.5 
 
-        
-        
-        
-        self.driver_control(self.velocity)  
-
-    def driver_control(self, velocity):
-        
-        print(f"Driver Control: Velocity = {velocity}")
-        
-        
-        
-        pass
-
-    def visualize(self):
-        
-        irrlicht.init(title="UAZBUS Simulation")
-        irrlicht.plot(self.terrain_surface, color="blue", alpha=0.5) 
-        irrlicht.rect(0, 0, 10, 10, color="red") 
-        irrlicht.close()
+driver = chrono.Driver(
+    vehicle,
+    initial_position,
+    initial_velocity,
+    
+)
 
 
 
-if __name__ == "__main__":
-    simulation = UAZBUSSimulation(initial_position=0, initial_velocity=0, friction=0.8, restitution=0.7)
-    simulation.update(10) 
-    simulation.visualize()
-    print("Simulation complete.")
+fig, ax = visual.figure(figsize=(8, 6))
+camera = visual.Camera(
+    center=(0, 0),
+    farce=0.5,
+    zoom=1.0,
+    alpha=0.5,
+    width=800,
+    height=600
+)
+
+def update(frame):
+    
+    vehicle.position = np.array(vehicle.position)
+    vehicle.velocity = np.array(vehicle.velocity)
+
+    
+    terrain.update()
+
+    
+    driver.update()
+
+    
+    camera.update()
+
+    return fig, ax, camera
+
+
+ani = visual.FuncAnimation(fig, update, frames=simulation_duration, interval=10, blit=True)
+
+
+ani.save("simulation.mp4", fps=30, extra_args=['-movaprefetch'])
+
+
+plt.show()

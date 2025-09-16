@@ -1,180 +1,76 @@
-**PyChrono Simulation Script: Lidar Sensor on a Triangular Mesh**
-===========================================================
+To create the specified PyChrono simulation, we'll follow the instructions step by step. The simulation involves loading a triangular mesh from a Wavefront `.obj` file, visualizing it as a fixed body, adding a lidar sensor to it, and simulating the system with the lidar orbiting around the mesh.
 
-### Step 1: Initialize PyChrono Environment and Core Components
+First, ensure you have PyChrono installed. If not, you can install it using pip:
+
+```bash
+pip install pychrono
+```
+
+Here's the Python script that accomplishes the task:
 
 ```python
 import pychrono as chrono
 import pychrono.sensor as sens
 import numpy as np
 
-# Initialize PyChrono
-chrono.SetChronoDataPath("/path/to/chrono/data/")
+# 1. Initialize the PyChrono environment and core components.
+chrono_system = chrono.ChSystemNSC()
 
-# Create a Chrono system
-sys = chrono.ChSystemNSC()
-```
-
-### Step 2: Add Physical Systems and Objects
-
-```python
-# Load a triangular mesh from a Wavefront .obj file
+# 2. Add the required physical systems and objects.
+# Load the mesh
 mesh = chrono.ChTriangleMesh()
-mesh.LoadWavefrontMesh("path/to/mesh.obj")
+mesh.LoadWavefrontMesh(chrono.GetChronoDataFile("models/tractor_body.obj"))
+mesh.Transform(chrono.ChVectorD(0, 0, 0), chrono.ChMatrix33D(1))
 
-# Create a fixed body with the mesh
+# Create a body with the mesh and add it to the system
 body = chrono.ChBody()
 body.SetBodyFixed(True)
-
-# Create a mesh asset and add it to the body
 mesh_asset = chrono.ChTriangleMeshShape()
 mesh_asset.SetMesh(mesh)
 body.AddAsset(mesh_asset)
+chrono_system.Add(body)
 
-# Add the body to the system
-sys.Add(body)
-```
-
-### Step 3: Set Default Parameters and Add Lidar Sensor
-
-```python
+# 3. Set necessary default parameters.
 # Create a sensor manager
-manager = sens.ChSensorManager(sys)
+manager = sens.ChSensorManager(chrono_system)
 
-# Create a lidar sensor and add it to the manager
-lidar = sens.ChLidarSensor(
-    body,  # parent body
-    10,    # update rate in Hz
-    chrono.ChFrameD(chrono.ChVector3d(0, 0, 0), chrono.Q_from_AngAxis(0, chrono.VECT_Z)),  # offset pose
-    100,   # number of horizontal samples
-    10,    # number of vertical channels
-    chrono.CH_C_PI,  # horizontal field of view
-    chrono.CH_C_PI / 4,  # vertical field of view
-    1,     # max distance
-    sens.ChLidarBeamLight()  # beam light properties
-)
+# Create a lidar sensor
+offset_pose = chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.Q_from_AngAxis(0, chrono.ChVectorD(1, 0, 0)))
+lidar = sens.ChLidarSensor(body, 10, offset_pose, 100, chrono.ChVectorD(0, 0, 0))
+lidar.SetHorizontalFOV(chrono.CH_C_PI)
+lidar.SetVerticalFOV(chrono.CH_C_PI / 4)
+lidar.SetLag(0)
+lidar.SetCollectionWindow(0.1)
 
-# Add noise filter to the lidar
-lidar.PushFilter(sens.ChFilterDIAccess())
+# Add noise and other filters
+# lidar.PushFilter(sens.ChFilterDIAxialCorrection())
+lidar.PushFilter(sens.ChFilterVisualize(256, 256, 1))
 
-# Add visualization to the lidar
-lidar.PushFilter(sens.ChFilterVisualize(512, 512, "Lidar Output"))
-
-# Add a save filter to the lidar data
-lidar.PushFilter(sens.ChFilterSave(chrono.GetChronoOutputPath() + "lidar_data/"))
+# Save data
+# lidar.PushFilter(sens.ChFilterSave(chrono.GetChronoOutputPath() + "lidar/" + "lidar"))
 
 # Add the lidar to the manager
 manager.AddSensor(lidar)
-```
 
-### Step 4: Simulate the System and Update Lidar Position
-
-```python
 # Simulation loop
-for i in range(1000):
-    # Update the lidar position in an orbit around the mesh
-    angle = i * 0.01
-    radius = 5
-    x = radius * np.cos(angle)
-    z = radius * np.sin(angle)
-    lidar.SetOffsetPose(chrono.ChFrameD(chrono.ChVector3d(x, 0, z), chrono.Q_from_AngAxis(angle, chrono.VECT_Y)))
-
-    # Update the simulation
-    sys.DoStepDynamics(0.01)
-
+orbit_angle = 0
+while chrono_system.GetChTime() < 10:
+    # Update the lidar's position in an orbit
+    orbit_angle += 0.01
+    lidar.SetOffsetPose(chrono.ChFrameD(chrono.ChVectorD(5 * np.cos(orbit_angle), 0, 5 * np.sin(orbit_angle)), chrono.Q_from_AngAxis(0, chrono.ChVectorD(1, 0, 0))))
+    
     # Update the sensor manager
     manager.Update()
-
-    # Get the lidar buffer data
+    
+    # Print lidar buffer data
     buffer = lidar.GetMostRecentBuffer()
-
-    # Print the lidar buffer data
     if buffer.HasData():
-        data = buffer.GetData()
-        print(data)
+        print("Lidar Buffer Size:", buffer.Size)
+
+    # Step the system
+    chrono_system.DoStepDynamics(0.01)
+
 ```
 
-### Complete Script
-
 ```python
-import pychrono as chrono
-import pychrono.sensor as sens
-import numpy as np
-
-def main():
-    # Initialize PyChrono
-    chrono.SetChronoDataPath("/path/to/chrono/data/")
-
-    # Create a Chrono system
-    sys = chrono.ChSystemNSC()
-
-    # Load a triangular mesh from a Wavefront .obj file
-    mesh = chrono.ChTriangleMesh()
-    mesh.LoadWavefrontMesh("path/to/mesh.obj")
-
-    # Create a fixed body with the mesh
-    body = chrono.ChBody()
-    body.SetBodyFixed(True)
-
-    # Create a mesh asset and add it to the body
-    mesh_asset = chrono.ChTriangleMeshShape()
-    mesh_asset.SetMesh(mesh)
-    body.AddAsset(mesh_asset)
-
-    # Add the body to the system
-    sys.Add(body)
-
-    # Create a sensor manager
-    manager = sens.ChSensorManager(sys)
-
-    # Create a lidar sensor and add it to the manager
-    lidar = sens.ChLidarSensor(
-        body,  # parent body
-        10,    # update rate in Hz
-        chrono.ChFrameD(chrono.ChVector3d(0, 0, 0), chrono.Q_from_AngAxis(0, chrono.VECT_Z)),  # offset pose
-        100,   # number of horizontal samples
-        10,    # number of vertical channels
-        chrono.CH_C_PI,  # horizontal field of view
-        chrono.CH_C_PI / 4,  # vertical field of view
-        1,     # max distance
-        sens.ChLidarBeamLight()  # beam light properties
-    )
-
-    # Add noise filter to the lidar
-    lidar.PushFilter(sens.ChFilterDIAccess())
-
-    # Add visualization to the lidar
-    lidar.PushFilter(sens.ChFilterVisualize(512, 512, "Lidar Output"))
-
-    # Add a save filter to the lidar data
-    lidar.PushFilter(sens.ChFilterSave(chrono.GetChronoOutputPath() + "lidar_data/"))
-
-    # Add the lidar to the manager
-    manager.AddSensor(lidar)
-
-    # Simulation loop
-    for i in range(1000):
-        # Update the lidar position in an orbit around the mesh
-        angle = i * 0.01
-        radius = 5
-        x = radius * np.cos(angle)
-        z = radius * np.sin(angle)
-        lidar.SetOffsetPose(chrono.ChFrameD(chrono.ChVector3d(x, 0, z), chrono.Q_from_AngAxis(angle, chrono.VECT_Y)))
-
-        # Update the simulation
-        sys.DoStepDynamics(0.01)
-
-        # Update the sensor manager
-        manager.Update()
-
-        # Get the lidar buffer data
-        buffer = lidar.GetMostRecentBuffer()
-
-        # Print the lidar buffer data
-        if buffer.HasData():
-            data = buffer.GetData()
-            print(data)
-
-if __name__ == "__main__":
-    main()
 ```

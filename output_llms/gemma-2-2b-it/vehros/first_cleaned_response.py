@@ -1,93 +1,58 @@
 import pychrono as chrono
-import pychrono.physics as physics
+import pychrono.physics as phys
 import pychrono.ros as ros
-import pychrono.vehicle as vehicle
-import pychrono.terrain as terrain
-import pychrono.driver as driver
 
 
-chrono.init()
+app = chrono.Application()
 
 
 world = chrono.World()
+world.set_gravity(chrono.Vector3(0, -9.81, 0))
 
 
-vehicle_model = vehicle.HMMWV(
-    
-    contact_method=chrono.ContactMethod.CONTACT_POINT,
-    
-    engine_type=chrono.EngineType.GASOLINE,
-    
-    tire_model=chrono.TireModel.TIRE_MODEL_HYBRID
+terrain = chrono.Terrain(
+    chrono.Material("terrain_material"),
+    chrono.Friction(0.2),
+    chrono.Restitution(0.5),
 )
+world.add(terrain)
 
 
-terrain_model = terrain.Terrain(
+vehicle = chrono.Vehicle(
+    "HMMWV",
+    chrono.ContactMethod("Wheel-Ground"),
+    engine_type="Internal Combustion",
+    tire_model="Michelin",
+)
+vehicle.set_mass(1000)
+vehicle.set_wheel_radius(0.2)
+vehicle.set_wheel_base(2.5)
+vehicle.set_center_of_mass(chrono.Vector3(0, 0.5, 0))
+
+
+world.add(vehicle)
+
+
+driver = chrono.Driver()
+driver.set_control_mode("Manual")
+
+
+ros_manager = ros.ROSManager(app, "vehicle_state_publisher")
+ros_manager.register_handler(chrono.ClockSynchronization)
+ros_manager.register_handler(driver.get_inputs)
+ros_manager.register_handler(vehicle.get_state)
+
+
+while True:
     
-    friction=0.5,
-    
-    restitution=0.8
-)
-
-
-driver_system = driver.DriverSystem(
-    
-    control_method=driver.ControlMethod.JOYSTICK
-)
-
-
-ros_manager = ros.ROSManager(
-    
-    node_name="HMMWV_Simulation"
-)
-
-
-ros_manager.register_handler(
-    chrono.ClockSynchronizationHandler(
-        
-        frequency=100
-    )
-)
-ros_manager.register_handler(
-    chrono.DriverInputHandler(
-        
-        source=driver_system
-    )
-)
-ros_manager.register_handler(
-    chrono.VehicleStateHandler(
-        
-        data=vehicle_model.get_state()
-    )
-)
-
-
-def simulation_loop():
-    
-    time = 0
+    app.update_clock()
 
     
-    while True:
-        
-        vehicle_model.update_state(time)
+    vehicle.update(app.get_time())
+    driver.update(app.get_time())
 
-        
-        terrain_model.update_state(time)
+    
+    ros_manager.publish_data()
 
-        
-        driver_system.update_state(time)
-
-        
-        world.update(time)
-
-        
-        ros_manager.publish_data()
-
-        
-        time += 1 / 100
-
-
-simulation_loop()
-
-
-chrono.finalize()
+    
+    app.sleep(0.1)

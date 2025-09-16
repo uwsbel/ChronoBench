@@ -135,13 +135,10 @@ def main():
         time = sys.GetChTime()  
 
         
-        try:
-            sens_manager.Update()
-        except Exception as e:
-            print(f"Error updating sensor manager: {e}")
-            break
+        sens_manager.Update()
 
-        ros_manager.Update()  
+        if not ros_manager.Update():  
+            break
 
         sys.DoStepDynamics(time_step)  
 

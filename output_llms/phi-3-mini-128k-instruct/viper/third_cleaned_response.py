@@ -3,8 +3,8 @@ import math
 import numpy as np
 import pychrono as chrono
 import pychrono.robot as viper
-from pychrono import irrlicht as chronoirr
 import pychrono.vehicle as veh
+from pychrono import irrlicht as chronoirr
 
 
 system = chrono.ChSystemNSC()
@@ -14,13 +14,15 @@ chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.0025)
 chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
 
 
-terrain_plane = chrono.ChPlane(chrono.ChVector3d(0, 0, -1), chrono.ChVector3d(0, 0, 0))
+terrain_plane = chrono.ChVector3d(0, 0, -1)  
 terrain_length = 20
 terrain_width = 20
-mesh_resolution = 10
-soil_friction = 0.5
-soil_density = 1500
-terrain = chrono.ChDeformableTerrain(terrain_plane, terrain_length, terrain_width, mesh_resolution, soil_friction, soil_density)
+mesh_resolution = 100  
+soil_density = 1600  
+soil_friction = 0.6  
+soil_restitution = 0.3  
+
+terrain = chrono.ChDeformableTerrain(terrain_plane, terrain_length, terrain_width, mesh_resolution, soil_density, soil_friction, soil_restitution)
 system.Add(terrain)
 
 
@@ -42,25 +44,4 @@ vis.SetWindowTitle('Viper rover - Rigid terrain')
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()
-vis.AddCamera(chrono.ChVector3d(0, 2.5, 1.5), chrono.ChVector3d(0, 0, 1))
-vis.AddTypicalLights()
-vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0, 0.5), 3, 4, 10, 40, 512)
-
-
-time_step = 1e-3
-
-
-time = 0
-while vis.Run():
-    time += time_step  
-    driver.SetSteering(0.0)  
-
-    rover.Update()  
-
-    
-    vis.BeginScene()
-    vis.Render()
-    vis.EndScene()
-    
-    
-    system.DoStepDynamics(time_step)
+vis.AddCamera(chrono.

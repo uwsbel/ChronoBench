@@ -94,7 +94,7 @@ sys.AddLink(link_gearAB)
 
 
 mbody_gearD = chrono.ChBodyEasyCylinder(chrono.ChCoordsysD(chrono.ChVectorD(-10, 0, -9), chrono.QUNIT),  
-                                        radD, 0.5,                  
+                                        radD, 0.4,                  
                                         1000, True, False, mat)     
 sys.Add(mbody_gearD)                                                
 mbody_gearD.SetRot(chrono.QuatFromAngleZ(m.pi / 2))                 
@@ -102,23 +102,14 @@ mbody_gearD.GetVisualShape(0).SetMaterial(0, vis_mat)
 
 
 link_revoluteTD = chrono.ChLinkLockRevolute()                         
-link_revoluteTD.Initialize(mbody_truss, mbody_gearD,                  
-                           chrono.ChFramed(chrono.ChVectorD(-10, 0, -9), chrono.QUNIT))  
+link_revoluteTD.Initialize(mbody_truss, mbody_gearD,                     
+                          chrono.ChFramed(chrono.ChVectorD(-10, 0, -9), chrono.QUNIT))  
 sys.AddLink(link_revoluteTD)                                          
 
 
-link_gearAD = chrono.ChLinkLockGear()                                     
-link_gearAD.Initialize(mbody_gearA, mbody_gearD, chrono.ChFramed())       
-link_gearAD.SetFrameShaft1(chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleX(-m.pi / 2)))    
-link_gearAD.SetFrameShaft2(chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleX(-m.pi / 2)))    
-link_gearAD.SetTransmissionRatio(1)                                      
-link_gearAD.SetEnforcePhase(True)                                         
-sys.AddLink(link_gearAD)                                                  
-
-
 mbody_pulleyE = chrono.ChBodyEasyCylinder(chrono.ChCoordsysD(chrono.ChVectorD(-10, -11, -9), chrono.QUNIT),  
-                                           radE, 0.5,                  
-                                           1000, True, False, mat)     
+                                         radE, 0.4,                  
+                                         1000, True, False, mat)     
 sys.Add(mbody_pulleyE)                                                
 mbody_pulleyE.SetRot(chrono.QuatFromAngleZ(m.pi / 2))                 
 mbody_pulleyE.GetVisualShape(0).SetMaterial(0, vis_mat)               
@@ -126,43 +117,47 @@ mbody_pulleyE.GetVisualShape(0).SetMaterial(0, vis_mat)
 
 link_revoluteTE = chrono.ChLinkLockRevolute()                         
 link_revoluteTE.Initialize(mbody_truss, mbody_pulleyE,                  
-                           chrono.ChFramed(chrono.ChVectorD(-10, -11, -9), chrono.QUNIT))  
+                          chrono.ChFramed(chrono.ChVectorD(-10, -11, -9), chrono.QUNIT))  
 sys.AddLink(link_revoluteTE)                                          
 
 
-link_synchroDE = chrono.ChLinkSynchroBelt()                               
-link_synchroDE.Initialize(mbody_gearD, mbody_pulleyE,                    
-                          chrono.ChFrameD(chrono.ChVectorD(0, 0, 0),     
-                                           chrono.QUNIT))                 
-sys.AddLink(link_synchroDE)                                              
+link_synchro = chrono.ChLinkSynchro()                                    
+link_synchro.Initialize(mbody_gearD, mbody_pulleyE,                       
+                        chrono.ChFrameD(chrono.ChVectorD(-10, 0, -9), chrono.QUNIT),  
+                        chrono.ChFrameD(chrono.ChVectorD(-10, -11, -9), chrono.QUNIT))  
+link_synchro.SetTransmissionRatio(1)                                      
+sys.AddLink(link_synchro)                                                 
 
 
+mshaft_shape = chrono.ChVisualShapeCylinder(radD * 0.3, 10)                            
+mbody_gearD.AddVisualShape(mshaft_shape, chrono.ChFramed(chrono.ChVectorD(0, 3.5, 0),     
+                                                      chrono.QUNIT))                        
 
-mvis_gearD = chrono.ChVisualShapeCylinder(radD * 0.3, 10)                                
-mbody_gearD.AddVisualShape(mvis_gearD, chrono.ChFrameD(chrono.ChVectorD(-10, 3.5, -9),     
-                                                      chrono.QUNIT))                      
-
-mvis_pulleyE = chrono.ChVisualShapeCylinder(radE * 0.3, 10)                                
-mbody_pulleyE.AddVisualShape(mvis_pulleyE, chrono.ChFrameD(chrono.ChVectorD(-10, -11.5, -9), 
-                                                          chrono.QUNIT))                      
+mshaft_shape = chrono.ChVisualShapeCylinder(radE * 0.3, 10)                            
+mbody_pulleyE.AddVisualShape(mshaft_shape, chrono.ChFramed(chrono.ChVectorD(0, 3.5, 0),  
+                                                       chrono.QUNIT))                      
 
 
-mbody_belt = chrono.ChBody()                                                              
-mbody_belt.SetPos(chrono.ChVectorD(-10, -10.5, -9))                                       
-mbody_belt.SetMass(0)                                                                       
-mbody_belt.SetCollide(False)                                                                
-mbody_belt.SetBodyFixed(True)                                                                
-sys.Add(mbody_belt)                                                                          
+mline_shape = chrono.ChVisualShapeLine(chrono.ChVectorD(-10, 0, -9), chrono.ChVectorD(-10, -11, -9))  
+mbody_truss.AddVisualShape(mline_shape, chrono.ChFrameD(chrono.ChVectorD(-10, 0, -9), chrono.QUNIT))  
 
-mbelt_shape = chrono.ChVisualShapeLine(chrono.ChVectorD(-10, -10.5, -9), chrono.ChVectorD(-10, -10.5, -8))  
-mbody_belt.AddVisualShape(mbelt_shape)                                                       
+
+vis = chronoirr.ChVisualSystemIrrlicht()                        
+vis.AttachSystem(sys)                                           
+vis.SetWindowSize(1024, 768)                                    
+vis.SetWindowTitle('Gears and pulleys')                         
+vis.Initialize()                                                
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png')) 
+vis.AddSkyBox()                                                 
+vis.AddCamera(chrono.ChVector3d(12, 15, -20))                   
+vis.AddTypicalLights()                                          
+
+
+sys.SetTimestepperType(chrono.ChTimestepper.Type_EULER_IMPLICIT_PROJECTED) 
 
 
 while vis.Run():                                    
     vis.BeginScene()                                
     vis.Render()                                    
     vis.EndScene()                                  
-    sys.DoStepDynamics(1e-3)                        
-
-
-The script has been corrected and modified according to the provided instructions. The new bevel gear D and pulley E have been added, along with their respective revolute joints, gear constraints, and visual shapes. A synchro belt constraint has also been created between gear D and pulley E. Additionally, a simplified visual representation of the belt has been included during the scene rendering.
+    sys.DoStepDynamics(1e-3)

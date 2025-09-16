@@ -2,12 +2,13 @@ import pychrono.core as chrono
 import pychrono.fea as fea
 import pychrono.irrlicht as chronoirr
 
-
-
-
-
 class Model1:
     def __init__(self, system, mesh, n_chains=6):
+        
+        self.system = system
+        self.mesh = mesh
+        self.n_chains = n_chains
+
         
         msection_cable2 = fea.ChBeamSectionCable()
         msection_cable2.SetDiameter(0.015)  
@@ -20,10 +21,14 @@ class Model1:
         
         for i in range(n_chains):
             
+            mtruss = chrono.ChBody()
+            mtruss.SetFixed(True)  
+
+            
             builder.BuildBeam(
                 mesh,  
                 msection_cable2,  
-                i + 10,  
+                i + 2,  
                 chrono.ChVector3d(i * 0.5, 0, -0.1),  
                 chrono.ChVector3d((i + 1) * 0.5, 0, -0.1)  
             )
@@ -33,10 +38,6 @@ class Model1:
             builder.GetLastBeamNodes().front().SetForce(chrono.ChVector3d(0, -0.7, 0))  
 
             
-            mtruss = chrono.ChBody()
-            mtruss.SetFixed(True)  
-
-            
             constraint_hinge = fea.ChLinkNodeFrame()
             constraint_hinge.Initialize(builder.GetLastBeamNodes().back(), mtruss)
             system.Add(constraint_hinge)  
@@ -44,6 +45,10 @@ class Model1:
             
             mbox = chrono.ChBody()
             mbox.SetBodyFixed(True)
+            mbox.SetPos(chrono.ChVector3d((i + 1) * 0.5, 0, -0.1))
+            system.Add(mbox)
+
+            
             constraint_box = fea.ChLinkNodeBody()
             constraint_box.Initialize(builder.GetLastBeamNodes().back(), mbox)
             system.Add(constraint_box)
@@ -69,15 +74,15 @@ class Model1:
     def PrintBodyPositions(self):
         
         for i in range(self.n_chains):
-            mbox = self.system.Get_body(i)
-            print(f"Chain {i + 1} end body position: {mbox.GetPos()}")
+            mbox = self.system.GetBody(i + 1)
+            print(f"Position of chain {i + 1}: {mbox.GetPos()}")
 
 
 sys = chrono.ChSystemSMC()
 mesh = fea.ChMesh()
 
 
-model = Model1(sys, mesh, n_chains=6)
+model = Model1(sys, mesh)
 sys.Add(mesh)  
 
 
@@ -110,15 +115,16 @@ vis.AddCamera(chrono.ChVector3d(0, 0.6, -1))
 vis.AddTypicalLights()  
 
 
-solver = chrono.ChSolverMINRES() 
-if solver.GetType()== chrono.ChSolver.Type_MINRES :
-    print( "Using MINRES solver" )
+solver = chrono.ChSolverMINRES()  
+if solver.GetType() == chrono.ChSolver.Type_MINRES:
+    print("Using MINRES solver")
     sys.SetSolver(solver)
     solver.SetMaxIterations(200)
     solver.SetTolerance(1e-10)
     solver.EnableDiagonalPreconditioner(True)
     solver.EnableWarmStart(True)  
     solver.SetVerbose(False)
+
 
 ts = chrono.ChTimestepperEulerImplicitLinearized(sys)
 sys.SetTimestepper(ts)

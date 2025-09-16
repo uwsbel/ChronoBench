@@ -1,59 +1,72 @@
 import pychrono
-import pychrono.physics as ph
-import pychrono.visuals as v
-import pychrono.widgets as wg
-import matplotlib.pyplot as plt
 import numpy as np
+import matplotlib.pyplot as plt
+from pychrono.physics import BeamFiniteElement
+from pychrono.visualize import visualize
 
 
-num_nodes = 100  
-beam_length = 1.0  
-beam_thickness = 0.01  
-num_beams = 5  
-material_density = 1.0  
-material_viscosity = 0.01 
+num_nodes = 100
+beam_length = 1.0
+beam_width = 0.1
+beam_thickness = 0.05
+num_beams = 5
+num_nodes_per_beam = 2
 
-initial_position = [0.0, 0.0, 0.0]  
-initial_velocity = [1.0, 0.0, 0.0]  
-initial_force = [0.0, 0.0, 0.0]  
-initial_time = 0.0 
-
-
-chrono = pychrono.chrono.Chrono()
-chrono.set_physics_system(ph.BeamSystem(num_nodes, beam_length, beam_thickness))
-chrono.set_physics_mode(ph.StaticMode()) 
+material_density = 1.0
+material_viscosity = 0.01
+material_conductivity = 100.0
 
 
-v_init = v.Plotter()
-v_init.set_title("Beam Finite Element Simulation")
-v_init.set_zoom(1.0)
-v_init.set_view_mode("3D")  
-v_init.set_background_color("white")
+mesh = BeamFiniteElement(
+    num_nodes,
+    beam_length,
+    beam_width,
+    beam_thickness,
+    num_beams,
+    num_nodes_per_beam,
+    material_density,
+    material_viscosity,
+    material_conductivity,
+    
+)
 
 
-try:
-    while True:
+initial_positions = np.random.rand(num_nodes, 2) * beam_length
+initial_velocities = np.random.rand(num_nodes, 2) * 1.0
+
+
+simulation_time = 10.0
+time_step = 0.01
+simulation_duration = 10.0
+
+
+simulation = simulation_time
+while simulation > 0:
+    
+    for i in range(num_nodes):
         
-        chrono.update_physics(chrono.physics_mode(), chrono.physics_system(), chrono.physics_mode())
+        force = np.zeros(2)
+        for j in range(num_beams):
+            
+            force[j] = material_density * material_viscosity * material_conductivity * initial_positions[i, j] * (1.0 - initial_velocities[i, j])
 
         
-        v_init.draw_mesh(chrono.physics_system(), chrono.physics_mode())
-        v_init.draw_lines(chrono.physics_system(), chrono.physics_mode()) 
-        v_init.draw_text(f"Time: {chrono.time_since_epoch()}", 0.05, v.Text.AlignHCenter)
-        v_init.draw_text(f"Position: {chrono.physics_system()[0]}", 0.05, v.Text.AlignLCenter)
-        v_init.draw_text(f"Velocity: {chrono.physics_system()[1]}", 0.05, v.Text.AlignLCenter)
-        v_init.draw_text(f"Force: {chrono.physics_system()[2]}", 0.05, v.Text.AlignRCenter)
+        mesh.apply_force(force)
 
         
-        v_init.update()
+        initial_positions[i, :] = initial_positions[i, :] + initial_velocities[i, :] * time_step
+        initial_velocities[i, :] = initial_velocities[i, :] + initial_velocities[i, :] * time_step
 
-        
-        wg.show_simulation(v_init)
+    
+    simulation += time_step
 
-        
-        plt.pause(0.01)  
+    
+    visualize(mesh, time=simulation, title="Beam Simulation")
 
-except KeyboardInterrupt:
-    print("Simulation interrupted.")
-    plt.close(v_init)
-    chrono.stop()
+    
+    plt.pause(0.01)
+
+
+simulation = simulation.stop()
+
+print("Simulation complete.")

@@ -4,170 +4,160 @@
 
 ### 1. Completeness (40 points)
 
-- **System Initialization**:  
-  The script creates a vehicle (`veh.HMMWV_Full()`) but does not explicitly create or initialize a `ChSystemNSC` or `ChSystemSMC` object. According to the API, vehicle models internally manage their own system, so this is acceptable.  
+- **System Initialization:**  
+  The script does not explicitly create or initialize a `ChSystemNSC` or `ChSystemSMC` system object. Instead, it relies on the vehicle model's internal system (`hmmwv.GetSystem()`). While this is common in vehicle simulations (the vehicle internally manages the system), the API documentation and best practices recommend explicitly creating and managing the system for clarity and control.  
+  **Deduction:** 5 points (minor omission, since vehicle internally manages system but explicit system creation is clearer).
+
+- **Body Creation:**  
+  The vehicle (`veh.HMMWV_Full()`) is instantiated and initialized properly with all necessary parameters set before calling `Initialize()`. The terrain is created and initialized correctly.  
   **No deduction.**
 
-- **Vehicle Setup**:  
-  The vehicle is configured with data path, contact method, chassis collision type, engine, transmission, drive, steering, tire type, and tire step size, then initialized. This is complete and correct.  
+- **Visualization:**  
+  The script uses `pychrono.irrlicht` but does not use the recommended `ChVisualSystemIrrlicht` in the typical way. Instead, it manually creates a `ChScene`, adds lights, cameras, and static meshes, then creates a `ChVisualSystemIrrlicht` with many parameters and calls `BeginScene()`, `DrawAll()`, `EndScene()`, and `Render()` manually.  
+  According to the documentation, the typical usage is to create `ChVisualSystemIrrlicht()`, attach the system, initialize it, and then run a loop with `vis.Run()`. The current approach is unusual and may cause issues with synchronization and rendering.  
+  **Deduction:** 10 points (component present but lacks important details and deviates from best practice).
+
+- **Driver and ROS Integration:**  
+  The driver and ROS manager are created and initialized properly. The ROS handlers are registered correctly.  
   **No deduction.**
 
-- **Terrain Setup**:  
-  Terrain is created with `veh.RigidTerrain(hmmwv.GetSystem())`, a patch is added with contact material, and terrain is initialized. This is complete.  
+- **Simulation Loop:**  
+  The loop uses manual time stepping and synchronization calls, which is consistent with vehicle simulation best practices.  
   **No deduction.**
 
-- **Driver Setup**:  
-  A `veh.ChDriver` is created and initialized.  
-  **No deduction.**
-
-- **ROS Manager Setup**:  
-  ROS handlers are registered and initialized. This is a good inclusion for interfacing with ROS.  
-  **No deduction.**
-
-- **Visualization Setup**:  
-  The visualization system is created with `chronoirr.ChVisualSystemIrrlicht()`, window size and title are set, multiple cameras and lights are added, and visualization is initialized. However, there are issues here (see correctness).  
-  **No deduction here yet; see correctness.**
-
-- **Simulation Loop**:  
-  The loop synchronizes driver, terrain, and vehicle, advances them, updates ROS, and renders the scene. This is the expected structure.  
-  **No deduction.**
-
-**Summary**: All essential components are present: vehicle, terrain, driver, ROS, visualization, and simulation loop.  
-**Completeness score: 40/40**
+**Total Completeness Deduction:** 5 + 10 = 15 points  
+**Remaining Completeness:** 25/40
 
 ---
 
 ### 2. Correctness (30 points)
 
-- **Vehicle Initialization Order**:  
-  The vehicle is created before setting the data path. According to best practice, the data path should be set before vehicle creation to ensure proper resource loading. Here, `hmmwv = veh.HMMWV_Full()` is called before `hmmwv.SetDataPath(...)`. This can cause missing resource errors.  
-  **Deduct 10 points (logical error).**
+- **Contact Method Setting:**  
+  The vehicle is set with `veh.ChContactMethod_NSC` which is consistent with the terrain material being `ChContactMaterialNSC()`. This is correct.
 
-- **Visualization Initialization**:  
-  The script calls `chronoirr.Initialize()` before creating the visualization system, which is unnecessary and not part of the documented API. The correct method is to create `ChVisualSystemIrrlicht()` and then call `vis.Initialize()`. The script calls `vis.Initialize()` only indirectly (not explicitly shown). Also, the script calls `vis.AddLogo()`, `vis.AddFileSystem()`, `vis.AddChassis()`, and `vis.AddTerrain()` multiple times redundantly before and after adding cameras and lights. This is redundant and may cause unexpected behavior or performance issues.  
-  **Deduct 15 points (incorrect API usage and redundancy).**
+- **Chassis Collision Type:**  
+  Set to `CollisionType_NONE`, which disables chassis collision. This is acceptable if the chassis collision is not needed, but generally, for realistic simulation, chassis collision is enabled. This might be intentional but could affect simulation realism.  
+  **No deduction** (acceptable choice).
 
-- **Visualization Setup Details**:  
-  The script adds many lights with identical parameters at the same position `(1,1,1)` and color `(1,1,1)`. This is redundant and does not improve lighting; better practice is to use `vis.AddTypicalLights()` or distribute lights meaningfully.  
-  **Deduct 5 points (minor inefficiency and suboptimal visualization).**
+- **Visualization Setup:**  
+  The visualization system is not attached to the system (`visual_system.AttachSystem(hmmwv.GetSystem())` is missing). Without attaching, the visualization system may not correctly track the simulation state.  
+  **Deduction:** 15 points (incorrect use of PyChrono API that could significantly affect visualization and simulation behavior).
 
-- **Use of `AddFileSystem("~/output/hmmwv/state")`**:  
-  This method is not documented in the API and seems incorrectly used. The path `"~/output/hmmwv/state"` is likely not expanded to an absolute path, which can cause failures in locating files.  
-  **Deduct 5 points (incorrect or undocumented API usage).**
+- **Use of `chronoirr.Init()` and `chronoirr.Shutdown()`:**  
+  These calls are not standard in the documented API for visualization setup. The documentation does not mention these functions. Their use is unusual and may be unnecessary or incorrect.  
+  **Deduction:** 5 points (minor incorrect API usage).
 
-- **Driver Initialization**:  
-  The driver is created with `veh.ChDriver(hmmwv.GetVehicle())` and then `driver.Initialize()`. This is correct, but the driver inputs handler is registered with a fixed rate of 25 Hz, which may not match the simulation time step of 1 ms (1000 Hz). This mismatch can cause synchronization issues.  
-  **Deduct 5 points (logical inconsistency).**
+- **Time Update in Loop:**  
+  The time variable is updated from `hmmwv.GetSystem().GetChTime()`, but the system is never explicitly stepped with `DoStepDynamics(time_step)`. Instead, the vehicle, terrain, and driver are advanced manually. This is consistent with vehicle simulation best practices, so no deduction.
 
-- **Simulation Loop Time Update**:  
-  The loop updates `time = hmmwv.GetSystem().GetChTime()` but does not explicitly call `sys.DoStepDynamics(time_step)` or equivalent. Instead, it calls `Advance(time_step)` on driver, terrain, and vehicle. This is acceptable in vehicle simulations, but the system's dynamics step is not explicitly called, which may cause issues if other bodies are added.  
-  **No deduction (acceptable for vehicle module).**
+- **ROS Manager Update:**  
+  The `ros_manager.Update(time, time_step)` call is correctly used.
 
-- **Use of `hmmwv.GetVehicle().EnableRealtime(True)`**:  
-  This is correct to enable real-time simulation.  
-  **No deduction.**
+- **Visualization Loop:**  
+  The loop does not check for window closure or user input to exit visualization, which is standard with `vis.Run()`. This could cause the visualization window to become unresponsive or not close properly.  
+  **Deduction:** 10 points (logical error in visualization loop control).
 
-- **Chassis Collision Type**:  
-  Set to `veh.CollisionType_NONE`, meaning no collision for chassis. This is acceptable but may limit collision detection for the chassis. Usually, a collision type is set unless specifically desired.  
-  **No deduction (acceptable choice).**
-
-**Summary**:  
-- Deduct 10 points for data path set after vehicle creation.  
-- Deduct 15 points for incorrect visualization initialization and redundant calls.  
-- Deduct 5 points for redundant/poor lighting setup.  
-- Deduct 5 points for incorrect use of `AddFileSystem` and path handling.  
-- Deduct 5 points for driver input frequency mismatch.
-
-**Correctness score: 30 - (10+15+5+5+5) =  -10 → minimum 0 (cannot be negative, so 0/30)**
+**Total Correctness Deduction:** 15 + 5 + 10 = 30 points  
+**Remaining Correctness:** 0/30
 
 ---
 
 ### 3. Code Quality (10 points)
 
-- **Readability and Structure**:  
-  The code is mostly readable, with meaningful variable names (`hmmwv`, `terrain`, `driver`, `ros_manager`, `vis`). However, the visualization setup is cluttered with repeated calls and inconsistent formatting.  
-  **Deduct 3 points (moderate readability issues).**
+- **Readability and Structure:**  
+  The code is reasonably structured with a main function and a clear flow. Variable names are meaningful (e.g., `hmmwv`, `terrain`, `driver`, `ros_manager`, `visual_system`).  
+  However, the visualization setup is verbose and somewhat convoluted, lacking comments explaining the purpose of each step.  
+  **Deduction:** 3 points (minor readability issues due to visualization complexity).
 
-- **Comments**:  
-  The code has minimal comments, only section separators (e.g., `# Terrain Setup`). No detailed explanations or docstrings.  
-  **Deduct 5 points (insufficient comments).**
+- **Comments:**  
+  The code has no comments explaining the purpose of blocks or key steps. For a complex simulation script, this is a significant omission.  
+  **Deduction:** 5 points (insufficient comments).
 
-- **Formatting**:  
-  The code formatting is mostly consistent, but the large block of repeated visualization calls reduces clarity.  
-  **No further deduction.**
-
-**Code Quality score: 10 - 3 - 5 = 2/10**
+**Total Code Quality Deduction:** 3 + 5 = 8 points  
+**Remaining Code Quality:** 2/10
 
 ---
 
 ### 4. Efficiency (10 points)
 
-- **Redundant Visualization Calls**:  
-  Multiple calls to `AddLogo()`, `AddFileSystem()`, `AddChassis()`, and `AddTerrain()` are repeated unnecessarily. This is inefficient and could be optimized by calling once.  
-  **Deduct 5 points.**
+- **Redundant or Unnecessary Calls:**  
+  The visualization setup manually adds lights, cameras, and static meshes, then creates a `ChVisualSystemIrrlicht` with many parameters. This is more complex than necessary; the typical approach is to create the visual system, attach the system, initialize, and add typical lights and cameras.  
+  This complexity may reduce efficiency and maintainability.  
+  **Deduction:** 5 points (unnecessary complexity and inefficient visualization setup).
 
-- **Multiple Identical Lights**:  
-  Adding many identical lights at the same position is inefficient. Using `AddTypicalLights()` or fewer lights would be better.  
-  **Deduct 3 points.**
+- **Time Step Handling:**  
+  The time step is consistent and small (`1e-3`), which is appropriate for vehicle simulation. No inefficiency here.
 
-- **Driver Input Handler Frequency**:  
-  The driver input handler is set at 25 Hz while simulation runs at 1 kHz, causing unnecessary overhead or synchronization issues.  
-  **Deduct 3 points.**
+- **Driver, Terrain, Vehicle Advance Calls:**  
+  These are necessary and correctly used.
 
-**Efficiency score: 10 - 5 - 3 - 3 = -1 → minimum 0 (cannot be negative, so 0/10)**
+**Total Efficiency Deduction:** 5 points  
+**Remaining Efficiency:** 5/10
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- **No Error Handling**:  
-  The script does not include any try-except blocks or checks for file paths, ROS initialization, or visualization setup failures.  
-  **Deduct 5 points.**
+- **Error Handling:**  
+  There is no error handling or try-except blocks to catch exceptions during initialization or simulation.  
+  **Deduction:** 5 points (lack of basic error handling).
 
-- **Edge Cases**:  
-  No handling of simulation termination conditions other than ROS manager update failure. No checks for visualization window closure or system errors.  
-  **Deduct 3 points.**
+- **Edge Cases:**  
+  No checks for ROS connection failures, visualization window status, or driver input validity.  
+  **Deduction:** 3 points (inadequate handling of edge cases).
 
-**Error Handling score: 5 - 5 - 3 = -3 → minimum 0 (cannot be negative, so 0/5)**
+**Total Error Handling Deduction:** 5 + 3 = 8 points (cap at 5 points max as per guidelines)  
+**Remaining Error Handling:** 0/5
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
-- **Incorrect Initialization**:  
-  Calling `chronoirr.Initialize()` is not part of the documented API and may cause issues.  
-  **Deduct 3 points.**
+- **Incorrect Visualization Setup:**  
+  The visualization system is not attached to the system, which is critical for correct rendering.  
+  **Deduction:** 5 points (incorrect visualization setup).
 
-- **Redundant Calls and Suboptimal Lighting**:  
-  Multiple repeated calls and poor lighting setup reduce visualization quality.  
-  **Deduct 2 points.**
+- **Lighting and Camera:**  
+  The script manually adds lights and cameras, but does not add typical lights or skybox, which are recommended for better visualization.  
+  **Deduction:** 2 points (minor visualization issues).
 
-**Visualization score: 5 - 3 - 2 = 0/5**
-
----
-
-### **Final Score Calculation**
-
-| Criterion                 | Points | Deduction | Score |
-|---------------------------|--------|-----------|-------|
-| Completeness              | 40     | 0         | 40    |
-| Correctness               | 30     | 30        | 0     |
-| Code Quality              | 10     | 8         | 2     |
-| Efficiency                | 10     | 10        | 0     |
-| Error Handling & Robustness | 5      | 5         | 0     |
-| Visualization             | 5      | 5         | 0     |
-| **Total**                 | **100**| **58**    | **42**|
+**Total Visualization Deduction:** 5 + 2 = 7 points (cap at 5 points max)  
+**Remaining Visualization:** 0/5
 
 ---
 
-### **Summary of Major Issues**
+### **Summary of Deductions**
 
-- Setting data path after vehicle creation can cause resource loading failures.  
-- Visualization setup is incorrect, redundant, and inefficient (multiple repeated calls, unnecessary initialization, poor lighting).  
-- Driver input frequency mismatch with simulation time step.  
-- No error handling or robustness measures.  
-- Minimal comments and moderate readability issues.
+| Criterion                  | Points | Deduction | Remaining |
+|----------------------------|--------|-----------|-----------|
+| Completeness               | 40     | 15        | 25        |
+| Correctness                | 30     | 30        | 0         |
+| Code Quality               | 10     | 8         | 2         |
+| Efficiency                 | 10     | 5         | 5         |
+| Error Handling & Robustness| 5      | 5         | 0         |
+| Visualization Tools        | 5      | 5         | 0         |
+| **Total**                 | **100**| **68**    | **32**    |
 
 ---
 
-[[42]]
+### **Final Score:**
+
+[[32]]
+
+---
+
+### **Explanation of Deductions:**
+
+- The script is mostly complete in terms of vehicle, terrain, driver, and ROS setup, but lacks explicit system initialization and uses a non-standard visualization setup, leading to deductions in completeness and visualization.
+
+- The visualization system is not attached to the simulation system, which is a critical API misuse that can cause the visualization to malfunction, resulting in a full deduction of correctness points.
+
+- The visualization loop does not check for window closure, which is a logical error.
+
+- The code lacks comments and error handling, reducing code quality and robustness.
+
+- The visualization setup is more complex than necessary and misses typical lighting and skybox, reducing efficiency and visualization quality.
+
+- No error handling is present, which is important for robust simulation scripts.
+
+Overall, the script demonstrates a reasonable attempt but has significant issues in visualization setup and robustness that severely impact correctness and usability.

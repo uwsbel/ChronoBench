@@ -136,9 +136,12 @@ while vis.Run() :
 
     # Increment frame number
     step_number += 1
-
-    # Move the vehicle forward
-    vehicle.SetThrottle(0.5)
-
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
+
+    # Create a box obstacle
+    obstacle = veh.Box(chrono.ChVector3d(5, 0, 0.1), 0.5, 5, 0.2)
+    obstacle.SetFixed(True)
+    obstacle.SetCollisionType(chrono.CollisionType_NONE)
+    obstacle.SetMaterial(patch_mat)
+    vehicle.AddObstacle(obstacle)

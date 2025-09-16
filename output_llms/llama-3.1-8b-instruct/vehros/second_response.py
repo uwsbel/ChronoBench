@@ -17,11 +17,11 @@ def main():
     hmmwv.SetSteeringType(veh.SteeringTypeWV_PITMAN_ARM)  # Use pitman arm steering.
     hmmwv.SetTireType(veh.TireModelType_TMEASY)  # Set tire model.
     hmmwv.SetTireStepSize(1e-3)  # Set the tire simulation step size.
-    hmmwv.SetChassisVisualizationType(veh.VisualizationType_WIREFRAME)  # Enhanced visualization settings for HMMWV vehicle.
-    hmmwv.SetSuspensionVisualizationType(veh.VisualizationType_WIREFRAME)
-    hmmwv.SetSteeringVisualizationType(veh.VisualizationType_WIREFRAME)
-    hmmwv.SetWheelVisualizationType(veh.VisualizationType_WIREFRAME)
-    hmmwv.SetTireVisualizationType(veh.VisualizationType_WIREFRAME)
+    hmmwv.SetChassisVisualizationType(veh.ChVisualizationType_WIREFRAME)  # Set chassis visualization type.
+    hmmwv.SetSuspensionVisualizationType(veh.ChVisualizationType_WIREFRAME)  # Set suspension visualization type.
+    hmmwv.SetSteeringVisualizationType(veh.ChVisualizationType_WIREFRAME)  # Set steering visualization type.
+    hmmwv.SetWheelVisualizationType(veh.ChVisualizationType_WIREFRAME)  # Set wheel visualization type.
+    hmmwv.SetTireVisualizationType(veh.ChVisualizationType_WIREFRAME)  # Set tire visualization type.
     hmmwv.Initialize()  # Initialize the vehicle.
 
     # Create the terrain for the vehicle to interact with.
@@ -29,7 +29,9 @@ def main():
     patch_mat = ch.ChContactMaterialNSC()  # Create a contact material for the terrain.
     patch_mat.SetFriction(0.9)  # Set friction for the terrain.
     patch_mat.SetRestitution(0.01)  # Set restitution (bounciness) for the terrain.
-    patch_mat.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 100, 100)  # Set the texture for the terrain patch.
+    patch = ch.ChTriangleMeshPatch()
+    patch_mat.SetTriangleMesh(patch)
+    patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 100, 100)  # Set the texture for the terrain patch.
     terrain.AddPatch(patch_mat, ch.CSYSNORM, 100.0, 100.0)  # Add a patch to the terrain.
     terrain.Initialize()  # Initialize the terrain.
 
@@ -46,11 +48,13 @@ def main():
     ros_manager.RegisterHandler(chros.ChROSBodyHandler(25, hmmwv.GetChassisBody(), "~/output/hmmwv/state"))
     ros_manager.Initialize()  # Initialize the ROS manager.
 
-    # Create a visual system for visualization.
-    visual_system = chronoirr.ChVisualSystemIrrlicht()
-    visual_system.SetCameraPosition(ch.ChVector3d(0, 5, 5))  # Set camera position for visualization.
-    visual_system.SetCameraTarget(ch.ChVector3d(0, 0, 0))  # Set camera target for visualization.
-    visual_system.Initialize(hmmwv.GetVehicle())  # Initialize the visual system.
+    # Set up runtime visualization using Irrlicht.
+    vis_system = chronoirr.ChVisualSystemIrrlicht()
+    vis_system.SetVehicle(hmmwv.GetVehicle())
+    vis_system.SetTerrain(terrain)
+    vis_system.SetCameraPosition(ch.ChVector3d(0, 10, 5))
+    vis_system.SetCameraTarget(ch.ChVector3d(0, 0, 0))
+    vis_system.SetCameraUp(ch.ChVector3d(0, 1, 0))
 
     # Start the simulation loop.
     time = 0
@@ -76,14 +80,10 @@ def main():
         if not ros_manager.Update(time, time_step):
             break  # Exit loop if ROS manager update fails.
 
-        # Render the scene.
-        visual_system.Render()
-
-        # Set rendering steps.
-        visual_system.SetRenderingSteps(100)
-
-        # Render the frame.
-        visual_system.RenderFrame()
+        # Render the scene using Irrlicht.
+        vis_system.Render()
+        vis_system.StepRender()
+        vis_system.FrameRender()
 
 if __name__ == "__main__":
     main()

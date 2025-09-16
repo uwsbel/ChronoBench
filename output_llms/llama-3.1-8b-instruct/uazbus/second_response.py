@@ -111,13 +111,35 @@ step_number = 0
 render_frame = 0
 
 # Double lane change maneuver
-lane_change_time = 5.0  # time for lane change
-steering_interval = lane_change_time / 2.0  # time for steering
-throttle_interval = lane_change_time / 2.0  # time for throttle
-braking_interval = lane_change_time / 2.0  # time for braking
+lane_change_time = 5.0  # time for one lane change
+lane_change_steering = 0.5  # steering angle for lane change
+lane_change_throttle = 0.5  # throttle for lane change
+lane_change_braking = 0.5  # braking for lane change
 
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
+    
+    # Double lane change maneuver
+    if time < lane_change_time:
+        driver.SetSteeringDelta(lane_change_steering)
+        driver.SetThrottleDelta(lane_change_throttle)
+    elif time < 2 * lane_change_time:
+        driver.SetSteeringDelta(-lane_change_steering)
+        driver.SetThrottleDelta(lane_change_throttle)
+    elif time < 3 * lane_change_time:
+        driver.SetSteeringDelta(lane_change_steering)
+        driver.SetThrottleDelta(lane_change_throttle)
+    elif time < 4 * lane_change_time:
+        driver.SetSteeringDelta(-lane_change_steering)
+        driver.SetThrottleDelta(lane_change_throttle)
+    elif time < 5 * lane_change_time:
+        driver.SetSteeringDelta(lane_change_steering)
+        driver.SetThrottleDelta(lane_change_throttle)
+    else:
+        driver.SetSteeringDelta(0.0)
+        driver.SetThrottleDelta(0.0)
+        driver.SetBrakingDelta(lane_change_braking)
+
     # Render scene and output POV-Ray data
     if (step_number % render_steps == 0) :
         vis.BeginScene()
@@ -138,18 +160,7 @@ while vis.Run() :
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
-
-    # Double lane change maneuver
-    if time < lane_change_time:
-        # Steering
-        if time < steering_interval:
-            driver.SetSteeringDelta(render_step_size / steering_time)
-        # Throttle
-        elif time < steering_interval + throttle_interval:
-            driver.SetThrottleDelta(render_step_size / throttle_time)
-        # Braking
-        else:
-            driver.SetBrakingDelta(render_step_size / braking_time)
+    vis.Advance(step_size)
 
     # Increment frame number
     step_number += 1

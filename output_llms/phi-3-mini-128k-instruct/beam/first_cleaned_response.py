@@ -1,104 +1,54 @@
-import pychrono as chrono
+from pychoro import *
 
-import pychrono.visualization as visual
+import irrlicht as irr
 
-import pychrono.core as core
 
-import pychrono.fea as fea
 
-import pychrono.analytical_solvers as analytical
 
-import pychrono.compiler as compiler
+init(6)
 
-import pychrono.compiler.gmsh as gmsh
 
-import pychrono.compiler.irrlicht as irrlicht
 
 
+mesh = Mesh()
 
+mesh.addBeam(2, 10, 1000, 100, 1000, 0, 0, 0, 0, 0)
 
-core.Initialize()
 
 
 
+system = System()
 
-my_system = core.System_Create()
+system.addMesh(mesh)
 
 
 
 
+system.setGravity([0, -9.81, 0])
 
 
-beam_props = fea.Beam_Create()
 
-beam_props.SetElasticModulus(210e9)  
 
-beam_props.SetPoissonsRatio(0.3)     
+scene = Scene()
 
-beam_props.SetDensity(7800)          
+camera = scene.addCamera("Main Camera", 5.0, 5.0, 5.0, 0.0, 0.0, 0.0, 0.0, 1.0)
 
-beam_props.SetLength(2.0)            
+renderer = scene.addRenderer("Main Renderer")
 
-beam_props.SetMassPerLength(100)     
 
 
 
+while not system.isStopped():
 
-node_props = fea.Node_Create()
+    system.advance()
 
-node_props.SetPosition(chrono.ChVectorD(0, 0, 0))  
+    scene.drawAll()
 
-node_props.SetMass(10)                           
+    system.waitEvent()
 
 
 
 
-beam1 = fea.Beam_Create()
+scene.removeAll()
 
-beam1.SetProperties(beam_props)
-
-node1 = fea.Node_Create()
-
-node1.SetProperties(node_props)
-
-beam1.SetNodes(node1)
-
-
-
-
-my_system.Add(beam1)
-
-
-
-
-
-
-force = chrono.ChVectorD(0, 0, -1000)  
-
-beam1.AddForce(force)
-
-
-
-
-vis = visual.Visualization_Create()
-
-vis.SetGlOptions("-w 1280 -h 720 -t 2")
-
-
-
-
-compiler.Compile(my_system, "beam_simulation", "irrlicht")
-
-
-
-
-while core.GetCondition() == core.Conditions.ITERATIVE:
-
-    core.DoStep(1e-3, 1e-3)
-
-    vis.Draw()
-
-
-
-
-core.End()
+system.removeAll()

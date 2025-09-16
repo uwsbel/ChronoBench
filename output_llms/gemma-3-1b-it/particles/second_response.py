@@ -101,5 +101,3 @@ while vis.Run():
         abodyB.AccumulateForce(-F_att, abodyB.GetPos(), False)
 
     sys.DoStepDynamics(stepsize)
-
-print("Simulation completed.")

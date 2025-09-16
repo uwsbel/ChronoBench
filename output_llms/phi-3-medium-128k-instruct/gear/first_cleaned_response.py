@@ -1,487 +1,223 @@
-```python
+from pychrono import *
 
-from pychrono import Chrono, Erl, SimTK, ChSystemNSC
-from pychrono.modelling import ChAssumeMass, ChLink6D
-from pychrono.irrlicht import IriVisualSystem, IriMaterial
+from pychrono.Irrlicht import *
 
 
+def create_epicyclic_gears_simulation():
 
-chrono = Chrono(0, 0, 0)
+    
 
+    sim = ChSystemNSC()
 
 
-system = ChSystemNSC()
+    
 
+    truss = ChBody()
 
+    truss.SetBodyFixed(True)
 
-truss = Erl::Truss(system)
+    truss.SetMass(1000.0)
 
 
+    
 
-bar = Erl::Bar(system)
+    bar = ChBody()
 
+    
 
+    ground = ChBody()
 
-gear1 = Erl::Gear(system)
+    ground.SetPos(ChVectorD(0, 0, 0)
 
-gear2 = Erl::Gear(system)
+    ground.SetBodyFixed(True)
 
 
+    
 
-motor = Erl::Motor(system)
+    bar = ChBody()
 
+    bar.SetMass(1000.0)
 
+    bar.SetPos(ChVectorD(0, 0, 0)
 
+    bar.SetMass(10.0)
 
+    bar.SetPos(ChVectorD(0, 0, 0)
 
-truss.setPosition(Erl::Vector3(0, 0, 0))
+    bar.SetInertiaXX(ChVectorD(1, 1, 1)
 
-bar.setPosition(Erl::Vector3(0, 0, 0))
+    bar.SetPos(ChVectorD(0, 0, 0)
 
-gear1.setPosition(Erl::Vector3(0, 0, 0))
+    bar.SetInertiaXX(ChVectorD(1, 1, 1)
 
-gear2.setPosition(Erl::Vector3(0, 0, 0))
 
+    
 
+    gear1 = ChBody()
 
+    gear1.SetMass(10.0)
 
+    gear1.SetPos(ChVectorD(0, 0, 0)
 
+    gear1.SetPos(ChVectorD(0, 0, 0)
 
+    gear1.SetMass(10.0)
 
-visual_system = IriVisualSystem()
+    gear1.SetPos(ChVectorD(0, 0, 0)
 
-material = IriMaterial()
+    gear1.SetInertiaXX(ChVectorD(1, 1, 1))
 
-material.setName("GearMaterial")
 
-material.setColor(IriMaterial.RGBColor(0.5, 0.5, 0.5))
+    
 
+    gear1.SetPos(ChVectorD(0, 0, 0))
 
+    gear1.SetInertiaXX(ChVectorD(1, 1, 1))
 
 
+    
 
-system.SetSolver(Erl::NewtonSolver(100))
+    gear2 = ChBody()
 
-system.SetSolverIterationLimits(1000, 1000)
+    gear2.SetPos(ChVectorD(0, 0, 0))
 
-system.SetSolverTolerance(1e-6)
+    gear2.SetMass(10.0)
 
-system.SetSolverIterationLimit(1000)
+    gear2.SetPos(ChVectorD(0, 0, 0))
 
-system.SetSolverTolerance(1e-6)
+    gear2.SetInertiaXX(ChVectorD(1, 1, 1))
 
-system.SetSolverIterationLimit(1000)
 
-system.SetSolverTolerance(1e-6)
+    
 
-system.SetSolverIterationLimit(1000)
+    motor = ChBody()
 
-system.SetSolverTolerance(1e-6)
+    motor.SetPos(ChVectorD(0, 0, 0))
 
-system.SetSolverIterationLimit(1000)
+    motor.SetInertiaXX(ChVectorD(1, 1, 1))
 
-system.SetSolverTolerance(1e-6)
+    motor.SetMass(10.0)
 
-system.SetSolverIterationLimit(1000)
+    motor.SetPos(ChVectorD(0, 0, 0))
 
-system.SetSolverTolerance(1e-6)
+    motor.SetInertiaXX(ChVectorD(1, 1, 1))
 
-system.SetSolverIterationLimit(1000)
+    motor.SetMass(10.0)
 
-system.SetSolverTolerance(1e-6)
+    motor.SetPos(ChVectorD(0, 0, 0))
 
-system.SetSolverIterationLimit(1000)
 
-system.SetSolverTolerance(1e-6)
+    
 
-system.SetSolverIterationLimit(1000)
+    gear_motor = ChGear(gear1, gear2)
 
-system.SetSolverTolerance(1e-6)
+    gear_motor.SetGearRatio(1.0)
 
-system.SetSolverIterationLimit(1000)
+    gear_motor.SetPower(10.0)
 
-system.SetSolverTolerance(1e-6)
+    motor.SetPos(ChVectorD(0, 0, 0))
 
-system.SetSolverIterationLimit(1000)
 
-system.SetSolverTolerance(1e-6)
+    
 
-system.SetSolverIterationLimit(1000)
+    sim.AddBody(ground)
 
-system.SetSolverTolerance(1e-6)
+    sim.AddBody(bar)
 
-system.SetSolverIterationLimit(1000)
+    sim.AddBody(gear1)
 
-system.SetSolverTolerance(1e-6)
+    sim.AddBody(gear2)
 
-system.SetSolverIterationLimit(1000)
+    sim.AddBody(motor)
 
-system.SetSolverTolerance(1e-6)
 
-system.SetSolverIterationLimit(1000)
+    
 
-system.SetSolverTolerance(1e-6)
+    gear1.SetGear(gear2, 1.0)
 
-system.SetSolverIterationLimit(1000)
 
-system.SetSolverTolerance(1e-6)
+    
 
-system.SetSolverIterationLimit(1000)
+    motor.SetAngularVel(ChVectorD(0, 10, 0))
 
-system.SetSolverTolerance(1e-6)
 
-system.SetSolverIterationLimit(1000)
+    
 
-system.SetSolverTolerance(1e-6)
+    sim.SetVisualization(ChSystemNSCVisualization(IrrlichtVisualization(sim)))
 
-system.SetSolverIterationLimit(1000)
+    sim.SetColor(ChColor(1, 0, 0))
 
-system.SetSolverTolerance(1e-6)
+    gear1.SetColor(ChColor(1, 0, 0))
 
-system.SetSolverIterationLimit(1000)
+    gear2.SetColor(ChColor(0, 1, 0))
 
-system.SetSolverTolerance(1e-6)
+    motor.SetColor(ChColor(0, 0, 1))
 
-system.SetSolverIterationLimit(1000)
+    ground.SetColor(ChColor(0, 0, 0))
 
-system.SetSolverTolerance(1e-6)
 
-system.SetSolverIterationLimit(1000)
+    
 
-system.SetSolverTolerance(1e-6)
+    sim.AddToIrrlichtVisualization(ground)
 
-system.SetSolverIterationLimit(1000)
+    sim.AddToIrrlichtVisualization(bar)
 
-system.SetSolverTolerance(1e-6)
+    sim.AddToIrrlichtVisualization(gear1)
 
-system.SetSolverIterationLimit(1000)
+    sim.AddToIrrlichtVisualization(gear2)
 
-system.SetSolverTolerance(1e-6)
+    sim.AddToIrrlichtVisualization(motor)
 
-system.SetSolverIterationLimit(1000)
 
-system.SetSolverTolerance(1e-6)
+    
 
-system.SetSolverIterationLimit(1000)
+    irr = IrrlichtVisualSystem()
 
-system.SetSolverTolerance(1e-6)
+    irr.SetCamera(ChVectorD(0, 0, 10), ChVectorD(0, 0, 0), ChVectorD(0, 0, 0))
 
-system.SetSolverIterationLimit(1000)
+    irr.SetAmbientLight(ChColor(0.3, 0.3, 0.3))
 
-system.SetSolverTolerance(1e-6)
+    irr.SetBackground(ChColor(0.0, 0.0, 0.0))
 
-system.SetSolverIterationLimit(1000)
+    irr.SetLight(ChColor(1, 1, 1))
 
-system.SetSolverTolerance(1e-6)
+    irr.SetLightPos(ChVectorD(0, 0, 10))
 
-system.SetSolverIterationLimit(1000)
 
-system.SetSolverTolerance(1e-6)
+    
 
-system.SetSolverIterationLimit(1000)
+    sim.SetGravity(ChVectorD(0, -9.81, 0))
 
-system.SetSolverTolerance(1e-6)
 
-system.SetSolverIterationLimit(1000)
+    
 
-system.SetSolverTolerance(1e-6)
+    sim.SetSolverIterations(10)
 
-system.SetSolverIterationLimit(1000)
+    sim.SetSolverIterationsForConvergence(100)
 
-system.SetSolverTolerance(1e-6)
+    sim.SetSolverTolerance(1e-6)
 
-system.SetSolverIterationLimit(1000)
+    sim.SetSolverToleranceForConvergence(1e-6)
 
-system.SetSolverTolerance(1e-6)
+    sim.SetSolverIterationTime(0.001)
 
-system.SetSolverIterationLimit(1000)
+    sim.SetSolverErrorTolerance(1e-6)
 
-system.SetSolverTolerance(1e-6)
+    sim.SetSolverErrorToleranceForConvergence(1e-6)
 
-system.SetSolverIterationLimit(1000)
+    sim.SetSolverMethod(ChSolverIterative)
 
-system.SetSolverTolerance(1e-6)
 
-system.SetSolverIterationLimit(1000)
+    
 
-system.SetSolverTolerance(1e-6)
+    sim.DoStep(10.0)
 
-system.SetSolverIterationLimit(1000)
 
-system.SetSolverTolerance(1e-6)
+    
 
-system.SetSolverIterationLimit(1000)
+    irr.Render()
 
-system.SetSolverTolerance(1e-6)
 
-system.SetSolverIterationLimit(1000)
 
-system.SetSolverTolerance(1e-6)
 
-system.SetSolverIterationLimit(1000)
-
-system.SetSolverTolerance(1e-6)
-
-system.SetSolverIterationLimit(1000)
-
-system.SetSolverTolerance(1e-6)
-
-system.SetSolverIterationLimit(1000)
-
-system.SetSolverTolerance(1e-6)
-
-system.SetSolverIterationLimit(1000)
-
-system.SetSolverTolerance(1e-6)
-
-system.SetSolverIterationLimit(1000)
-
-system.SetSolverTolerance(1e-6)
-
-system.SetSolverIterationLimit(1000)
-
-system.SetSolverTolerance(1e-6)
-
-system.SetSolverIterationLimit(1000)
-
-system.SetSolverTolerance(1e-6)
-
-system.SetSolverIterationLimit(1000)
-
-system.SetSolverTolerance(1e-6)
-
-system.SetSolverIterationLimit(1000)
-
-system.SetSolverTolerance(1e-6)
-
-system.SetSolverIterationLimit(1000)
-
-system.SetSolverTolerance(1e-6)
-
-system.SetSolverIterationLimit(1000)
-
-system.SetSolverTolerance(1e-6)
-
-system.SetSolverIterationLimit(1000)
-
-system.SetSolverTolerance(1e-6)
-
-system.SetSolverIterationLimit(1000)
-
-system.SetSolverTolerance(1e-6)
-
-system.SetSolverIterationLimit(1000)
-
-system.SetSolverTolerance(1e-6)
-
-system.SetSolverIterationLimit(1000)
-
-system.SetSolverTolerance(1e-6)
-
-system.SetSolverIterationLimit(1000)
-
-system.SetSolverTolerance(1e-6)
-
-system.SetSolverIterationLimit(1000)
-
-system.SetSolverTolerance(1e-6)
-
-system.SetSolverIterationLimit(1000)
-
-system.SetSolverTolerance(1e-6)
-
-system.SetSolverIterationLimit(1000)
-
-system.SetSolverTolerance(1e-6)
-
-system.SetSolverIterationLimit(1000)
-
-system.SetSolverTolerance(1e-6)
-
-system.SetSolverIterationLimit(1000)
-
-system.SetSolverTolerance(1e-6)
-
-system.SetSolverIterationLimit(1000)
-
-system.SetSolverTolerance(1e-6)
-
-system.SetSolverIterationLimit(1000)
-
-system.SetSolverTolerance(1e-6)
-
-system.SetSolverIterationLimit(1000)
-
-system.SetSolverTolerance(1e-6)
-
-system.SetSolverIterationLimit(1000)
-
-system.SetSolverTolerance(1e-6)
-
-system.SetSolverIterationLimit(1000)
-
-system.SetSolverTolerance(1e-6)
-
-system.SetSolverIterationLimit(1000)
-
-system.SetSolverTolerance(1e-6)
-
-system.SetSolverIterationLimit(1000)
-
-system.SetSolverTolerance(1e-6)
-
-system.SetSolverIterationLimit(1000)
-
-system.SetSolverTolerance(1e-6)
-
-system.SetSolverIterationLimit(1000)
-
-system.SetSolverTolerance(1e-6)
-
-system.SetSolverIterationLimit(1000)
-
-system.SetSolverTolerance(1e-6)
-
-system.SetSolverIterationLimit(1000)
-
-system.SetSolverTolerance(1e-6)
-
-system.SetSolverIterationLimit(1000)
-
-system.SetSolverTolerance(1e-6)
-
-system.SetSolverIterationLimit(1000)
-
-system.SetSolverTolerance(1e-6)
-
-system.SetSolverIterationLimit(1000)
-
-system.SetSolverTolerance(1e-6)
-
-system.SetSolverIterationLimit(1000)
-
-system.SetSolverTolerance(1e-6)
-
-system.SetSolverIterationLimit(1000)
-
-system.SetSolverTolerance(1e-6)
-
-system.SetSolverIterationLimit(1000)
-
-system.SetSolverTolerance(1e-6)
-
-system.SetSolverIterationLimit(1000)
-
-system.SetSolverTolerance(1e-6)
-
-system.SetSolverIterationLimit(1000)
-
-system.SetSolverTolerance(1e-6)
-
-system.SetSolverIterationLimit(1000)
-
-system.SetSolverTolerance(1e-6)
-
-system.SetSolverIterationLimit(1000)
-
-system.SetSolverTolerance(1e-6)
-
-system.SetSolverIterationLimit(1000)
-
-system.SetSolverTolerance(1e-6)
-
-system.SetSolverIterationLimit(1000)
-
-system.SetSolverTolerance(1e-6)
-
-system.SetSolverIterationLimit(1000)
-
-system.SetSolverTolerance(1e-6)
-
-system.SetSolverIterationLimit(1000)
-
-system.SetSolverTolerance(1e-6)
-
-system.SetSolverIterationLimit(1000)
-
-system.SetSolverTolerance(1e-6)
-
-system.SetSolverIterationLimit(1000)
-
-system.SetSolverTolerance(1e-6)
-
-system.SetSolverIterationLimit(1000)
-
-system.SetSolverTolerance(1e-6)
-
-system.SetSolverIterationLimit(1000)
-
-system.SetSolverTolerance(1e-6)
-
-system.SetSolverIterationLimit(1000)
-
-system.SetSolverTolerance(1e-6)
-
-system.SetSolverIterationLimit(1000)
-
-system.SetSolverTolerance(1e-6)
-
-system.SetSolverIterationLimit(1000)
-
-system.SetSolverTolerance(1e-6)
-
-system.SetSolverIterationLimit(1000)
-
-system.SetSolverTolerance(1e-6)
-
-system.SetSolverIterationLimit(1000)
-
-system.SetSolverTolerance(1e-6)
-
-system.SetSolverIterationLimit(1000)
-
-system.SetSolverTolerance(1e-6)
-
-system.SetSolverIterationLimit(1000)
-
-system.SetSolverTolerance(1e-6)
-
-system.SetSolverIterationLimit(1000)
-
-system.SetSolverTolerance(1e-6)
-
-system.SetSolverIterationLimit(1000)
-
-system.SetSolverTolerance(1e-6)
-
-system.SetSolverIterationLimit(1000)
-
-system.SetSolverTolerance(1e-6)
-
-system.SetSolverIterationLimit(1000)
-
-system.SetSolverTolerance(1e-6)
-
-system.SetSolverIterationLimit(1000)
-
-system.SetSolverTolerance(1e-6)
-
-system.SetSolverIterationLimit(1000)
-
-system.SetSolverTolerance(1e-6)
-
-system.SetSolverIterationLimit(1000)
-
-system.SetSolverTolerance(1e-6)
-
-system.SetSolverIterationLimit(1000)
-
-system.SetSolverTolerance(1e-6)
-
-system.SetSolverIterationLimit(1000)
-
-system.SetSolverTolerance(1e-6)
-
-system.SetSolverIterationLimit(1000)
-
-system.SetSolverTolerance.setSolver.SetSolver.SetSolver.SetSolver.SetSolverance.SetSolver.SetSolverance.SetSolverance.SetSolverance.SetSolverance.SetSolverance.SetSolverance.SetSolverance.SetSolverance.SetSolverance.SetSolverance.SetSolverance.SetSolverance.SetSolverance.SetSolverance.SetSolverance.SetSolverance.SetSolverance.SetSolverance.SetSolverance.SetSolverance.SetSolverance.SetSolverance.SetSolverance.SetSolverance.SetSolverance.SetSolverance.SetSol
+create_epicyclic_gears_simulation()

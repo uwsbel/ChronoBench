@@ -95,7 +95,7 @@ while vis.Run():
     G_constant = 6.674e-3  
 
     for body in sys.GetBodies():
-        kinetic_energy += 0.5 * body.GetMass() * body.GetLinVel().Length2()
+        kinetic_energy += 0.5 * body.GetMass() * body.GetPos_dt().Length2()
 
     mlist = list(combinations(sys.GetBodies(), 2))
     for abodyA, abodyB in mlist:

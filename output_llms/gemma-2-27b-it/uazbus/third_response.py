@@ -17,7 +17,7 @@ vis_type = veh.VisualizationType_MESH
 chassis_collision_type = veh.CollisionType_NONE
 
 # Type of tire model (RIGID, TMEASY)
-tire_model = veh.TireModelType_RIGID  # Changed to RIGID
+tire_model = veh.TireModelType_RIGID
 
 # Rigid terrain
 # terrain_model = veh.RigidTerrain.BOX
@@ -74,15 +74,11 @@ patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
-# Create the box obstacle
-obstacle_mat = chrono.ChContactMaterialNSC()
-obstacle_mat.SetFriction(0.9)
-obstacle_mat.SetRestitution(0.01)
-obstacle = chrono.ChBodyEasyBox(
-    0.5, 5, 0.2, 1000, True, True, obstacle_mat
-)
-obstacle.SetPos(chrono.ChVector3d(5, 0, 0.1))
-vehicle.GetSystem().Add(obstacle)
+# Create a box obstacle
+box = chrono.ChBodyEasyBox(0.5, 5, 0.2, 1000)
+box.SetPos(chrono.ChVector3d(5, 0, 0.1))
+box.SetBodyFixed(True)
+vehicle.GetSystem().Add(box)
 
 # Create the vehicle Irrlicht interface
 
@@ -115,7 +111,7 @@ print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
 
-# Initialize simulation frame counter 
+# Initialize simulation frame counter s
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0

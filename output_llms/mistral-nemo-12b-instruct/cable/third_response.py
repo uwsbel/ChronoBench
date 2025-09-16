@@ -2,12 +2,13 @@ import pychrono.core as chrono
 import pychrono.fea as fea
 import pychrono.irrlicht as chronoirr
 
-# ----------------------------------------------------------------------------
-# Model1: Multiple chains of beam elements with connected bodies, moving under gravity alone.
-# ----------------------------------------------------------------------------
-
 class Model1:
     def __init__(self, system, mesh, n_chains=6):
+        # Initialize the system and mesh
+        self.system = system
+        self.mesh = mesh
+        self.n_chains = n_chains
+
         # Create a section, i.e. define thickness and material properties for the cable beam
         msection_cable2 = fea.ChBeamSectionCable()
         msection_cable2.SetDiameter(0.015)  # Set the diameter of the cable section to 15 mm
@@ -17,13 +18,17 @@ class Model1:
         # Create a ChBuilderCableANCF helper object to facilitate the creation of ANCF beams
         builder = fea.ChBuilderCableANCF()
 
-        # Create multiple chains of beam elements with connected bodies
+        # Loop to generate multiple chains of beam elements with connected bodies
         for i in range(n_chains):
-            # Create a beam structure consisting of ANCF elements:
+            # Create a truss body (a fixed reference frame in the simulation)
+            mtruss = chrono.ChBody()
+            mtruss.SetFixed(True)  # Fix the truss body
+
+            # Use BuildBeam to create a beam structure consisting of ANCF elements:
             builder.BuildBeam(
                 mesh,  # The mesh to which the created nodes and elements will be added
                 msection_cable2,  # The beam section properties to use
-                i + 10,  # Number of ANCF elements to create along the beam, increasing with each chain
+                i + 2,  # Number of ANCF elements to create along the beam, increasing with each chain
                 chrono.ChVector3d(i * 0.5, 0, -0.1),  # Starting point ('A' point) of the beam
                 chrono.ChVector3d((i + 1) * 0.5, 0, -0.1)  # Ending point ('B' point) of the beam
             )
@@ -31,10 +36,6 @@ class Model1:
             # Apply boundary conditions and loads:
             # Retrieve the end nodes of the beam and apply load/constraints
             builder.GetLastBeamNodes().front().SetForce(chrono.ChVector3d(0, -0.7, 0))  # Apply forces to the front node
-
-            # Create a truss body (a fixed reference frame in the simulation)
-            mtruss = chrono.ChBody()
-            mtruss.SetFixed(True)  # Fix the truss body
 
             # Create and initialize a hinge constraint to fix beam's end point to the truss
             constraint_hinge = fea.ChLinkNodeFrame()
@@ -44,6 +45,10 @@ class Model1:
             # Create a chrono body (box) and establish further constraints between the beam endpoint and the box
             mbox = chrono.ChBody()
             mbox.SetBodyFixed(True)
+            mbox.SetPos(chrono.ChVector3d((i + 1) * 0.5, 0, -0.1))
+            system.Add(mbox)
+
+            # Connect each beam's endpoint to the box
             constraint_box = fea.ChLinkNodeBody()
             constraint_box.Initialize(builder.GetLastBeamNodes().back(), mbox)
             system.Add(constraint_box)
@@ -69,15 +74,15 @@ class Model1:
     def PrintBodyPositions(self):
         # Print the positions of the end bodies of each chain at each step of the simulation
         for i in range(self.n_chains):
-            mbox = self.system.Get_body(i)
-            print(f"Chain {i + 1} end body position: {mbox.GetPos()}")
+            mbox = self.system.GetBody(i + 1)
+            print(f"Position of chain {i + 1}: {mbox.GetPos()}")
 
 # Initialize the physical system and mesh container:
 sys = chrono.ChSystemSMC()
 mesh = fea.ChMesh()
 
 # Create the model and add the mesh to the system
-model = Model1(sys, mesh, n_chains=6)
+model = Model1(sys, mesh)
 sys.Add(mesh)  # Remember to add the mesh to the physical system
 
 # Add visualization for the FEM mesh:
@@ -110,15 +115,16 @@ vis.AddCamera(chrono.ChVector3d(0, 0.6, -1))  # Add a camera with specific posit
 vis.AddTypicalLights()  # Add typical lights for better illumination
 
 # Set solver type and settings
-solver = chrono.ChSolverMINRES() # Choose SparseQR solver
-if solver.GetType()== chrono.ChSolver.Type_MINRES :
-    print( "Using MINRES solver" )
+solver = chrono.ChSolverMINRES()  # Choose SparseQR solver
+if solver.GetType() == chrono.ChSolver.Type_MINRES:
+    print("Using MINRES solver")
     sys.SetSolver(solver)
     solver.SetMaxIterations(200)
     solver.SetTolerance(1e-10)
     solver.EnableDiagonalPreconditioner(True)
     solver.EnableWarmStart(True)  # IMPORTANT for convergence when using EULER_IMPLICIT_LINEARIZED
     solver.SetVerbose(False)
+
 # Set the timestepper for the simulation
 ts = chrono.ChTimestepperEulerImplicitLinearized(sys)
 sys.SetTimestepper(ts)

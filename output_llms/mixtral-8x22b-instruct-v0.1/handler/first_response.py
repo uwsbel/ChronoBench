@@ -1,84 +1,77 @@
-import pychrono as chrono
-import pychrono.robot as robot
+import pychrono.core as chrono
+import pychrono.irrlicht as chronoirr
 import rospy
-import tf
+from std_msgs.msg import Int32
 
-# Initialize PyChrono
-chrono.SetChronoDataPath("/path/to/chrono/data")
-chrono.SetChronoDataPath("/path/to/chrono/data")
-
-# Initialize ROS node
-rospy.init_node("pychrono_ros_node")
-
-# Create Chrono system
+# Initialize PyChrono environment and core components
 my_system = chrono.ChSystemNSC()
+my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravitational acceleration
 
-# Set gravitational acceleration
-my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
-
-# Define physical material properties
+# Set physical material properties
 my_material = chrono.ChMaterialSurfaceNSC()
-my_material.SetFriction(0.5)
-my_material.SetRestitution(0.1)
+my_material.SetFriction(0.4)
+my_material.SetRestitution(0.01)
+my_material.SetAdhesion(0)
 
-# Add a fixed floor
-floor_geometry = chrono.ChBoxGeometry(chrono.ChVectorD(5, 5, 0.1))
-floor_body = chrono.ChBodyEasyBox(5, 5, 0.1, 1000, True, True, my_material)
-floor_body.SetPos(chrono.ChVectorD(0, 0, -0.05))
+# Add a fixed floor to the system
+floor_geometry = chrono.ChBoxGeometry(chrono.ChVectorD(10, 1, 10))
+floor_body = chrono.ChBodyEasyBox(1, 0.05, 1, 100, True, True, my_material)
 floor_body.SetBodyFixed(True)
+floor_body.SetPos(chrono.ChVectorD(0, -0.05, 0))
 my_system.Add(floor_body)
 
-# Add a movable box
+# Add a movable box to the system
 box_geometry = chrono.ChBoxGeometry(chrono.ChVectorD(0.5, 0.5, 0.5))
-box_body = chrono.ChBodyEasyBox(0.5, 0.5, 0.5, 10, True, True, my_material)
-box_body.SetPos(chrono.ChVectorD(0, 0, 1))
+box_body = chrono.ChBodyEasyBox(1, 1, 1, 10, True, True, my_material)
+box_body.SetPos(chrono.ChVectorD(0, 2, 0))
+box_body.SetPos_dt(chrono.ChVectorD(0, -1, 0))
+box_body.SetWvel_loc(chrono.ChVectorD(0.1, 0.1, 0.1))
 my_system.Add(box_body)
 
-# Set initial velocities or forces if needed
-box_body.SetPos_dt(chrono.ChVectorD(0, 0, -1))
+# Create a custom ROS handler to publish integer messages to a specified topic
+class CustomROSHandler(object):
+    def __init__(self):
+        self.publisher = rospy.Publisher('/my_topic', Int32, queue_size=10)
 
-# Add contact material between the floor and the box
-my_system.AddContactMaterial(my_material, my_material, 0.5, 0.1)
+    def publish(self, msg):
+        self.publisher.publish(msg)
 
-class CustomROSHandler:
-    def __init__(self, topic_name):
-        self.publisher = rospy.Publisher(topic_name, Int32, queue_size=10)
+# Configure the ROS manager with clock, body, and transform handlers, and register the custom handler
+ros_manager = chrono.ChRosSystem(my_system)
+ros_manager.Initialize(rospy.get_name())
+ros_manager.AddHandler(chrono.ChRosClock(ros_manager))
+ros_manager.AddHandler(chrono.ChRosBody(ros_manager, box_body))
+ros_manager.AddHandler(chrono.ChRosTransform(ros_manager, box_body))
+custom_handler = CustomROSHandler()
+ros_manager.AddHandler(custom_handler)
 
-    def publish_message(self, message):
-        self.publisher.publish(message)
+# Run a simulation loop, advancing the system and updating ROS communication at each timestep, while maintaining real-time execution
+my_system.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
+my_system.SetSolverMaxIterations(100)
+my_system.SetTimestepperType(chrono.ChTimestepper.Type_EULER_IMPLICIT_LINEARIZED)
+my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
-# Create ROS manager
-my_ros_manager = robot.ChRosManager(my_system)
+irrlicht_application = chronoirr.ChIrrApp(my_system, 'PyChrono ROS Integration', chronoirr.dimension_t(800, 600), False, False)
+irrlicht_application.AddTypicalLogo(chronoirr.GetChronoDataFile('logo_pychrono_alpha.png'))
+irrlicht_application.AddTypicalSky()
+irrlicht_application.AddTypicalLights()
+irrlicht_application.AddTypicalCamera(chronoirr.vector3df(0, 4, -5))
 
-# Add clock handler
-my_ros_manager.AddHandler(robot.ChRosClockHandler())
+ros_manager.SetIrrlichtApplication(irrlicht_application)
 
-# Add body handler
-my_ros_manager.AddHandler(robot.ChRosBodyHandler(my_system))
+while irrlicht_application.GetDevice().run():
+    irrlicht_application.BeginScene()
+    irrlicht_application.DrawAll()
+    irrlicht_application.DoStep()
+    irrlicht_application.EndScene()
 
-# Add transform handler
-my_ros_manager.AddHandler(robot.ChRosTransformHandler(my_system))
+    ros_manager.Update()
 
-# Register custom handler
-custom_handler = CustomROSHandler("/my_custom_topic")
-my_ros_manager.AddHandler(custom_handler)
+    custom_handler.publish(Int32(1))  # Publish an integer message to the topic
 
-# Set simulation timestep
-timestep = 0.01
+    chrono.ChCollisionSystemBullet.CollideAll()
+    my_system.DoFrameDynamics(0.01)
 
-# Set simulation duration
-simulation_duration = 10
+    irrlicht_application.SynchronizePhysicsToGUI()
 
-# Run simulation loop
-while rospy.Time.now().to_sec() < simulation_duration:
-    # Advance the system
-    my_system.DoStepDynamics(timestep)
-
-    # Update ROS communication
-    my_ros_manager.Update()
-
-    # Publish custom message
-    custom_handler.publish_message(Int32(data=123))
-
-    # Sleep to maintain real-time execution
-    rospy.sleep(timestep)
+irrlicht_application.GetDevice().closeDevice()

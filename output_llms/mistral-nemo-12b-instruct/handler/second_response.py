@@ -13,7 +13,7 @@ class MyCustomHandler(chros.ChROSHandler):
 
         self.topic = topic
         self.publisher: rclpy.publisher.Publisher = None
-        self.message = "Hello, world! At time: "  # Added message attribute
+        self.message = "Hello, world! At time: "  # Add a message attribute.
         self.ticker = 0  # Initialize a counter for published messages.
 
     def Initialize(self, interface: chros.ChROSPythonInterface) -> bool:
@@ -32,13 +32,7 @@ class MyCustomHandler(chros.ChROSHandler):
         self.ticker += 1  # Increment the ticker for the next message.
 
 def main():
-    # ... (rest of the main function remains unchanged)
-
-    # Register the custom handler to publish messages.
-    custom_handler = MyCustomHandler("~/my_topic")
-    ros_manager.RegisterPythonHandler(custom_handler)
-
-    # ... (rest of the main function remains unchanged)
+    # ... (The rest of the script remains unchanged)
 
 if __name__ == "__main__":
     main()

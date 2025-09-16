@@ -1,68 +1,67 @@
-import pychrono as pc
+import pychrono as chrono
 import numpy as np
 
-# 1. Initialize the PyChrono environment and core components.
-sim = pc.Simulation()
-renderer = pc.OglRenderer()
-sim.set_renderer(renderer)
+# Initialize PyChrono environment
+chrono.setChronoDataPath('path/to/chrono_data')
 
-# 2. Add the required physical systems and objects.
+# Initialize core components
+simulation = chrono.ChSimulation()
+system = chrono.ChSystemSMC()
+collision_system = chrono.ChCollisionSystem()
+contact_manager = chrono.ChContactContainer()
+collision_system.SetContactContainer(contact_manager)
+system.AddContactSystem(collision_system, contact_manager)
 
-# Gator vehicle
-gator = pc.Gator()
-gator.set_position([0, 0, 0.5])
-sim.add(gator)
+# Create and add physical systems and objects
+vehicle = chrono.ChBodyEasyBox(0.5, 1, 0.2, 1000, True, True)
+vehicle.SetPos(chrono.ChVectorD(0, 0, 0.5))
+vehicle.SetName('Gator')
+system.Add(vehicle)
 
-# Rigid terrain
-terrain = pc.Plane()
-terrain.set_position([0, 0, -0.5])
-sim.add(terrain)
+terrain = chrono.ChBodyEasyBox(10, 0.1, 10, 100, True, True)
+terrain.SetPos(chrono.ChVectorD(0, 0, -0.5))
+terrain.SetName('Terrain')
+system.Add(terrain)
 
-# Interactive driver system
-driver = pc.Driver()
-driver.set_position([0, 0, 1])
-driver.set_vehicle(gator)
-sim.add(driver)
+driver = chrono.ChDriver()
+driver.Initialize(vehicle)
+system.Add(driver)
 
-# Sensor manager with point lights and a camera
-sensor_manager = pc.SensorManager()
-point_light = pc.PointLight()
-point_light.set_position([0, 0, 2])
-sensor_manager.add_light(point_light)
+# Set default parameters
+vehicle.SetMass(1000)
+vehicle.SetInertiaXX(chrono.ChVectorD(100, 200, 300))
+vehicle.SetBuoyancyForce(chrono.ChVectorD(0, 0, -100))
+vehicle.SetSpatialForce(chrono.ChVectorD(0, 0, 100))
 
-camera = pc.Camera()
-camera.set_position([0, 0, 1])
-camera.set_lookat([0, 0, 0])
-sensor_manager.add_camera(camera)
+# Set up visualization
+vehicle.SetBodyFixed(False)
+vehicle.SetCollide(True)
+vehicle.SetCollideBody(True)
 
-gator.add_sensor_manager(sensor_manager)
+# Set up sensor manager with point lights and camera
+sensor_manager = chrono.ChSensorManager()
+system.Add(sensor_manager)
 
-# Set necessary default parameters.
+point_light = chrono.ChLightPoint()
+point_light.SetPos(chrono.ChVectorD(0, 0, 2))
+sensor_manager.Add(point_light)
 
-# Set vehicle parts visualization types
-gator.set_part_visualization_type("chassis", pc.VISUALIZATION_TYPE.MESH)
-gator.set_part_visualization_type("wheel", pc.VISUALIZATION_TYPE.MESH)
-gator.set_part_visualization_type("tire", pc.VISUALIZATION_TYPE.MESH)
+camera = chrono.ChCamera()
+camera.SetPos(chrono.ChVectorD(0, 0, 1))
+camera.SetDir(chrono.ChVectorD(0, 0, -1))
+camera.SetFov(90)
+sensor_manager.Add(camera)
 
-# Set forces and interactions
-gator.set_throttle(0.5)
-gator.set_steering(0)
-
-# 3. Simulation loop
-while not sim.is_finished():
-    # Update driver, terrain, vehicle, and sensor manager
-    driver.update()
-    terrain.update()
-    gator.update()
-    sensor_manager.update()
-
-    # Render camera images
-    image = sensor_manager.get_camera_image()
-    renderer.render(image)
-
-    # Synchronize and advance the simulation modules
-    sim.synchronize()
-    sim.advance()
-
-# Finalize the simulation
-sim.finalize()
+# Run simulation loop
+dt = 0.01
+simulation.SetTimestep(dt)
+for i in range(1000):
+    simulation.DoStep()
+    driver.DoStep()
+    terrain.DoStep()
+    sensor_manager.DoStep()
+    system.DoStep()
+    simulation.Advance()
+    if i % 100 == 0:
+        image = sensor_manager.GetImage()
+        # Process or save the image as needed

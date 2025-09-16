@@ -1,122 +1,85 @@
-import pychronoid as pc
+import pychrono as chrono
 
-import irrlicht as ir
-
-import numpy as np
+from pychron.core.helpers.environment import Environment
 
 
-# Initialize PyChrono environment
+# Initialize the PyChrono environment
 
-pc.init()
+env = Environment()
+
+chrono.SetPhysicsEngine(chrono.ChSystemSMC())
 
 
 # Create a RigidTerrain
 
-terrain = pc.RigidTerrain(width=100, height=10, texture=pc.Texture('textures/terrain.png'))
+terrain_size = chrono.ChVectorD(1000, 0, 0)
+
+terrain = chrono.ChRigidBody('terrain')
+
+terrain.SetBodyFixed(True)
+
+terrain.SetSolidAlgorithm(chrono.ChSolidAlgorithm_Concave)
+
+terrain.SetMaterial(chrono.ChMaterialSurface_Stone)
+
+terrain.SetTexture('stone_texture.png')
+
+terrain.SetShape(chrono.ChBoxShapeD(chrono.ChVectorD(0, 0, 0), terrain_size))
+
+chrono.AddVisualizationObject(terrain, env.GetRenderer())
 
 
-# Define the Gator vehicle parameters
+# Create a vehicle
 
-vehicle_params = {
+gator_vehicle = chrono.ChVehicle('gator_vehicle')
 
-    'location': np.array([0, 0, 0.5]),
+gator_vehicle.SetMass(1000)
 
-    'orientation': np.array([0, 0, 0]),
+gator_vehicle.SetBodyFixed(False)
 
-    'contact_method': 'contact_point',
+gator_vehicle.SetSolidAlgorithm(chrono.ChSolidAlgorithm_Concave)
 
-    'tmeasy_tire_model': True,
+gator_vehicle.SetMaterial(chrono.ChMaterialSurface_Rubber)
 
-    'mesh_visualization': True
+gator_vehicle.SetTMEASYTireModel(chrono.ChTMEASYTireModel_Flat)
 
-}
+gator_vehicle.SetContactMethod(chrono.ChContactMethod_Contact)
 
+gator_vehicle.SetPosition(chrono.ChVectorD(0, 0, 0))
 
-# Create the Gator vehicle
-
-gator_vehicle = pc.Vehicle(
-
-    name='Gator',
-
-    params=vehicle_params,
-
-    mesh_file='models/gator.obj',
-
-    terrain=terrain
-
-)
+gator_vehicle.SetOrientation(chrono.ChQuaternionD(1, 0, 0, 0))
 
 
-# Set up the driver system
+# Add meshes for visualization
 
-driver_system = pc.DriverSystem(
+gator_vehicle.AddVisualizationObject(chrono.ChMeshVisualization('body', 'gator_body.obj'))
 
-    steering_range=(-np.pi/4, np.pi/4),
+gator_vehicle.AddVisualizationObject(chrono.ChMeshVisualization('wheels', 'gator_wheels.obj'))
 
-    throttle_range=(0, 1),
 
-    brake_range=(0, 1)
+# Set up the interactive driver system
 
-)
+gator_driver = chrono.ChDriver()
+
+gator_driver.SetVehicle(gator_vehicle)
+
+gator_driver.SetSteering(chrono.ChSteeringD(0.1, 0.0))
+
+gator_driver.SetThrottle(0.5)
+
+gator_driver.SetBrake(0.0)
 
 
 # Set up the simulation loop
 
-simulation = pc.Simulation(
+chrono.SetRealTimeSimulation(False)
 
-    vehicle=gator_vehicle,
+while True:
 
-    driver_system=driver_system,
+    env.DoStepDynamics(1/50.0, True)
 
-    frame_rate=50
+    env.GetRenderer().DrawScene()
 
-)
+    gator_driver.Step(1/50.0)
 
-
-# Initialize Irrlicht for visualization
-
-scene = ir.CreateScene()
-
-gltf_scene = ir.GLTFScene()
-
-gltf_scene.addMesh(gator_vehicle.mesh)
-
-gltf_scene.addMesh(terrain.mesh)
-
-
-# Set up the camera
-
-camera = ir.IrrlichtDevice.getDefaultVideoDriver().getCamera()
-
-camera.setPosition(np.array([0, 5, 10]))
-
-camera.setTarget(np.array([0, 0, 0]))
-
-camera.setFieldOfView(45)
-
-
-# Set up the scene
-
-scene.addLightByName('sunlight', ir.vector3df(0, 100, 100))
-
-scene.addCameraByName('camera', camera)
-
-scene.addStaticByName('gltf_scene', gltf_scene)
-
-
-# Run the simulation loop
-
-while not pc.simulation.is_finished():
-
-    simulation.update()
-
-    scene.drawAll()
-
-    ir.Application.instance.drawAll()
-
-    ir.Application.instance.getDevice().updateCamera()
-
-
-# Clean up
-
-pc.cleanup()
+    env.DoStep()

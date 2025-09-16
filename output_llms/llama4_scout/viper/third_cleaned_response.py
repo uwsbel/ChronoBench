@@ -3,20 +3,38 @@ import math
 import numpy as np
 import pychrono as chrono
 import pychrono.robot as viper
-from pychrono import irrlicht as chronoirr
 import pychrono.vehicle as veh
+from pychrono import irrlicht as chronoirr
 
 
 system = chrono.ChSystemNSC()
 system.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 system.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, -9.81))  
+
 chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.0025)
 chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
 
 
-terrain = veh.TerrainSCM(system)
-terrain.Initialize(chrono.ChVector3d(0, 0, 0), 20, 20, 0.1, 0.1)
-terrain.SetSoilParameters(200000, 0.8, 0.3, 30, 0.01, 5, 0.5)
+terrain = veh.ChTerrain(system)
+terrain.Initialize(chrono.ChVector3d(0, 0, 0))  
+terrain.SetPlane(chrono.ChVector3d(0, 0, 1), 0)  
+terrain.SetLength(20)  
+terrain.SetWidth(20)  
+terrain.SetMeshResolution(1)  
+
+
+soil = veh.ChSoilSCM()
+soil.SetFriction(0.9)  
+soil.SetRestitution(0.3)  
+soil.SetDamping(0.5)  
+soil.SetCohesion(1e4)  
+soil.SetFrictionAngle(math.pi / 4)  
+soil.SetDilationAngle(math.pi / 6)  
+soil.SetErodibility(0.01)  
+
+terrain.SetSoil(soil)
+
+system.Add(terrain.GetGroundBody())  
 
 
 rover = viper.Viper(system)  
@@ -49,18 +67,18 @@ time_step = 1e-3
 
 
 time = 0
+steering = 0.0  
+
 while vis.Run():
     time += time_step  
-    steering = 0.0  
-    
-    driver.SetSteering(steering)  
 
+    driver.SetSteering(steering)  
     rover.Update()  
 
     
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
-    
+
     
     system.DoStepDynamics(time_step)

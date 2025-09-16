@@ -24,9 +24,8 @@ tire_model = veh.TireModelType_TMEASY
 
 
 terrainHeight = 0      
-terrainLength = 1000.0  
-terrainWidth = 10.0   
-terrain_mesh = veh.RigidTerrainMesh(vehicle.GetSystem())
+terrainLength = 100.0  
+terrainWidth = 100.0   
 
 
 trackPoint = chrono.ChVector3d(-5.0, 0.0, 1.8)
@@ -66,10 +65,18 @@ vehicle.SetTireVisualizationType(vis_type)
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
-terrain_mesh.AddMesh(veh.GetDataFile("terrain/mesh/highway.obj"))
-terrain_mesh.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
-terrain_mesh.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
-terrain_mesh.Initialize()
+patch_mat = chrono.ChContactMaterialNSC()
+patch_mat.SetFriction(0.9)
+patch_mat.SetRestitution(0.01)
+terrain = veh.RigidTerrain(vehicle.GetSystem())
+terrain.SetMeshFile(veh.GetDataFile("terrain/highway.obj"))  
+patch = terrain.AddPatch(patch_mat, 
+    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
+    terrainLength, terrainWidth)
+
+patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
+patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+terrain.Initialize()
 
 
 
@@ -97,8 +104,13 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 
-pid_controller = veh.PIDController(0.1, 0.0, 0.0)
-pid_controller.SetTargetSpeed(50.0)  
+pid_controller = veh.PIDController()
+pid_controller.SetKp(0.1)
+pid_controller.SetKi(0.01)
+pid_controller.SetKd(0.001)
+
+
+ref_speed = 50.0  
 
 
 
@@ -130,22 +142,20 @@ while vis.Run() :
 
     
     driver.Synchronize(time)
-    terrain_mesh.Synchronize(time)
-    vehicle.Synchronize(time, driver_inputs, terrain_mesh)
+    terrain.Synchronize(time)
+    vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
 
     
     driver.Advance(step_size)
-    terrain_mesh.Advance(step_size)
+    terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
 
     
-    speed_error = 50.0 - vehicle.GetVehicle().GetSpeed()
+    speed_error = ref_speed - vehicle.GetVehicle().GetSpeed()
     pid_controller.Update(speed_error)
-    throttle_input = pid_controller.GetThrottle()
-
-    
+    throttle_input = pid_controller.GetOutput()
     driver_inputs.throttle = throttle_input
 
     

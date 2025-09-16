@@ -1,61 +1,60 @@
 import pychrono as chrono
-import pychrono.irrlicht as irr
-import pychrono.irrlicht.irrlicht_utils as irr_utils
+import pychrono.irrlicht as irrlicht
+import pychrono.irrlicht.irrlicht_utils as irrutils
 
 # Initialize PyChrono
 chrono.init()
 
 # Create Irrlicht engine
-engine = irr.IrrlichtEngine()
+engine = irrlicht.IrrlichtEngine()
 
 # Create a scene
 scene = engine.createScene()
 
 # Create a terrain
-terrain = chrono.Terrain(
-    "terrain.obj",  # Path to the terrain mesh
-    "terrain_material.png",  # Path to the terrain texture
-    "terrain_heightmap.png",  # Path to the terrain heightmap
-    "terrain_bump.obj",  # Path to the bump mesh
-)
+terrain = irrutils.createTerrain(scene, "terrain.irr", "heightmap.png")
+terrain.setSurfaceType("grass")
+
+# Create a patch for the bump
+bump_patch = irrutils.createPatch(scene, "bump.irr", "bump.png")
+bump_patch.setSurfaceType("dirt")
+bump_patch.setElevation(0.5)
+
+# Create a patch for the flat area
+flat_patch = irrutils.createPatch(scene, "flat.irr", "flat.png")
+flat_patch.setSurfaceType("sand")
 
 # Create the HMMWV
-hmwv = chrono.Vehicle(
-    "hmwv.obj",  # Path to the HMMWV mesh
-    "hmwv_material.png",  # Path to the HMMWV texture
-)
+vehicle = chrono.Vehicle(scene)
+vehicle.setMass(1000)
+vehicle.setEngineType("diesel")
+vehicle.setDrivetrainType("4x4")
 
-# Set HMMWV parameters
-hmwv.engine_type = chrono.EngineType.GAS
-hmwv.drivetrain_type = chrono.DrivetrainType.FOUR_WHEEL
-hmwv.position = chrono.Vector3(0, 0, 0)  # Initial position
-hmwv.velocity = chrono.Vector3(0, 0, 0)  # Initial velocity
+# Set initial vehicle position
+vehicle.setPosition(chrono.Vector3(0, 0, 0))
 
-# Set up Irrlicht visualization
-hmwv.mesh_visualization = irr_utils.IrrlichtMeshVisualization(scene)
+# Add vehicle components
+vehicle.addComponent(chrono.Wheel(vehicle, 0, chrono.WheelType.FrontLeft))
+vehicle.addComponent(chrono.Wheel(vehicle, 1, chrono.WheelType.FrontRight))
+vehicle.addComponent(chrono.Wheel(vehicle, 2, chrono.WheelType.RearLeft))
+vehicle.addComponent(chrono.Wheel(vehicle, 3, chrono.WheelType.RearRight))
 
-# Add the HMMWV to the scene
-scene.add(hmwv)
+# Set mesh visualization for vehicle components
+vehicle.meshVisualization = True
 
-# Add the terrain to the scene
-scene.add(terrain)
+# Set rendering parameters
+engine.setRenderMode(chrono.RenderMode.REALTIME)
 
-# Set up the simulation
-simulation = chrono.Simulation()
-simulation.add(scene)
+# Create an interactive driver system
+driver = chrono.Driver(vehicle)
 
-# Set the timestep
-simulation.timestep = 0.01  # Adjust as needed
+# Set initial driver state
+driver.setThrottle(0.5)
+driver.setBrake(0.0)
 
-# Create a driver system
-driver = chrono.Driver(hmwv)
+# Set simulation parameters
+dt = 0.01  # Timestep
+fps = 60  # Frames per second
 
-# Set up the driver system
-driver.set_throttle(0.5)  # Set initial throttle
-driver.set_brake(0)  # Set initial brake
-
-# Run the simulation
-simulation.run()
-
-# Render the scene
+# Start the simulation
 engine.run()

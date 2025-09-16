@@ -1,151 +1,66 @@
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
+import pychrono.postprocess as chronopost
 import numpy as np
+import os
 
 # Initialize PyChrono environment and core components
-chrono.SetChronoDataPath("/path/to/chrono/data")  # Replace with the path to your Chrono data directory
-chrono.SetChronoDataPath("/path/to/irrlicht/data")  # Replace with the path to your Irrlicht data directory
+chrono.SetChronoDataPath(os.path.join(os.path.dirname(__file__), 'chrono_data'))
+chrono.SetChronoVisualization(chronoirr.ChVisualizationIRRLICHT)
 
-# Create a Chrono::Engine physical system
-physics = chrono.ChSystemNSC()
-
-# Create an Irrlicht visualization system
-visualization = chronoirr.ChVisualSystemIrrlicht()
-
-# Attach the visualization system to the physical system
-physics.SetVisualSystem(visualization)
+# Create a Chrono system
+my_system = chrono.ChSystemNSC()
 
 # Create a triangular mesh from a Wavefront .obj file
 mesh = chrono.ChTriangleMeshConnected()
-mesh.LoadWavefront(chrono.GetChronoDataFile("feathers/feathers.obj"))  # Replace with the path to your .obj file
+vertices = np.array([[0, 0, 0], [1, 0, 0], [0, 1, 0], [0, 0, 1]], dtype=np.float64)
+indices = np.array([[0, 1, 2], [0, 1, 3], [0, 2, 3], [1, 2, 3]], dtype=np.uint32)
+mesh.LoadWavefront(vertices, indices)
 
-# Create a fixed body with the mesh
-body = chrono.ChBodyEasyBox(1, 1, 1, 1000, True, True)
+# Create a fixed body with the triangular mesh
+body = chrono.ChBodyEasyBox(2, 2, 2, 1000, True, True)
+body.SetPos(chrono.ChVectorD(0, 0, 0))
 body.AddAsset(chrono.ChTriangleMeshShape(mesh))
-body.SetBodyFixed(True)
-physics.AddBody(body)
+my_system.Add(body)
 
 # Create a camera sensor
-camera = chronoirr.ChIrrCameraSensor(visualization.GetDevice())
-camera.SetName("camera")
-camera.SetFar(100)
-camera.SetNear(0.1)
-camera.SetAspect(1.6)
-camera.SetFov(chronoirr.PI / 4)
-camera.SetPosition(chrono.ChVectorD(0, 0, 5))
-camera.SetTarget(chrono.ChVectorD(0, 0, 0))
+camera_sensor = chrono.ChCameraSensor(chrono.ChVectorD(2, 0, 0), chrono.ChVectorD(0, 0, 0), 45, 1, 100)
+camera_sensor.SetName("Camera Sensor")
 
-# Create a sensor manager
+# Create a sensor manager and add the camera sensor
 sensor_manager = chrono.ChSensorManager()
-sensor_manager.AddSensor(camera)
+sensor_manager.AddSensor(camera_sensor)
 
 # Add noise filters and visualizations to the camera images
-noise_filter = chrono.ChFilterAccessCamera()
-noise_filter.SetName("noise_filter")
-noise_filter.Set_filter_type(chrono.ChFilterAccessCamera.FILTER_NOISE)
-noise_filter.Set_noise_intensity(0.01)
-sensor_manager.AddFilter(noise_filter)
+noise_filter = chrono.ChFilterAccessSensor(camera_sensor)
+noise_filter.Set_noise_type(chrono.ChFilterAccessSensor.FILTER_NOISE_GAUSSIAN)
+noise_filter.Set_noise_value(0.01)
+visualization = chrono.ChVisualizationSensor(camera_sensor)
 
-visualization_filter = chrono.ChFilterAccessCamera()
-visualization_filter.SetName("visualization_filter")
-visualization_filter.Set_filter_type(chrono.ChFilterAccessCamera.FILTER_VISUALIZE)
-visualization_filter.Set_visualize_type(chrono.ChFilterAccessCamera.VISUALIZE_COLOR)
-sensor_manager.AddFilter(visualization_filter)
+# Add the sensor manager to the system
+my_system.Add(sensor_manager)
 
-# Simulate the system
-visualization.Initialize()
-visualization.AddLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))
-visualization.AddSkyBox()
-visualization.AddTypicalLights()
-visualization.AddCamera(camera)
+# Set the camera's initial position and orientation
+camera_sensor.SetPos(chrono.ChVectorD(2, 0, 0))
+camera_sensor.SetDir(chrono.ChVectorD(0, 0, 0))
 
-while visualization.Run():
-    physics.DoStepDynamics(0.01)
-    sensor_manager.Update()
-
-    # Dynamically update the camera's position in an orbit around the mesh
-    angle = np.radians(visualization.GetTimer() * 30)
-    camera.SetPosition(chrono.ChVectorD(5 * np.cos(angle), 5 * np.sin(angle), 5))
-    camera.SetTarget(chrono.ChVectorD(0, 0, 0))
-
-    # Print out camera buffer data at each step
-    buffer = sensor_manager.GetSensorBuffer("camera")
-    print(buffer)
-
-visualization.Close()
-
-import pychrono as chrono
-import pychrono.irrlicht as chronoirr
-import numpy as np
-
-# Initialize PyChrono environment and core components
-chrono.SetChronoDataPath("/path/to/chrono/data")  # Replace with the path to your Chrono data directory
-chrono.SetChronoDataPath("/path/to/irrlicht/data")  # Replace with the path to your Irrlicht data directory
-
-# Create a Chrono::Engine physical system
-physics = chrono.ChSystemNSC()
-
-# Create an Irrlicht visualization system
-visualization = chronoirr.ChVisualSystemIrrlicht()
-
-# Attach the visualization system to the physical system
-physics.SetVisualSystem(visualization)
-
-# Create a triangular mesh from a Wavefront .obj file
-mesh = chrono.ChTriangleMeshConnected()
-mesh.LoadWavefront(chrono.GetChronoDataFile("feathers/feathers.obj"))  # Replace with the path to your .obj file
-
-# Create a fixed body with the mesh
-body = chrono.ChBodyEasyBox(1, 1, 1, 1000, True, True)
-body.AddAsset(chrono.ChTriangleMeshShape(mesh))
-body.SetBodyFixed(True)
-physics.AddBody(body)
-
-# Create a camera sensor
-camera = chronoirr.ChIrrCameraSensor(visualization.GetDevice())
-camera.SetName("camera")
-camera.SetFar(100)
-camera.SetNear(0.1)
-camera.SetAspect(1.6)
-camera.SetFov(chronoirr.PI / 4)
-camera.SetPosition(chrono.ChVectorD(0, 0, 5))
-camera.SetTarget(chrono.ChVectorD(0, 0, 0))
-
-# Create a sensor manager
-sensor_manager = chrono.ChSensorManager()
-sensor_manager.AddSensor(camera)
-
-# Add noise filters and visualizations to the camera images
-noise_filter = chrono.ChFilterAccessCamera()
-noise_filter.SetName("noise_filter")
-noise_filter.Set_filter_type(chrono.ChFilterAccessCamera.FILTER_NOISE)
-noise_filter.Set_noise_intensity(0.01)
-sensor_manager.AddFilter(noise_filter)
-
-visualization_filter = chrono.ChFilterAccessCamera()
-visualization_filter.SetName("visualization_filter")
-visualization_filter.Set_filter_type(chrono.ChFilterAccessCamera.FILTER_VISUALIZE)
-visualization_filter.Set_visualize_type(chrono.ChFilterAccessCamera.VISUALIZE_COLOR)
-sensor_manager.AddFilter(visualization_filter)
+# Set the camera's orbit around the mesh
+camera_orbit_radius = 3
+camera_orbit_speed = 0.01
+camera_orbit_angle = 0
 
 # Simulate the system
-visualization.Initialize()
-visualization.AddLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))
-visualization.AddSkyBox()
-visualization.AddTypicalLights()
-visualization.AddCamera(camera)
+for step in range(1000):
+    # Update the camera's position in an orbit around the mesh
+    camera_orbit_angle += camera_orbit_speed
+    camera_sensor.SetPos(chrono.ChVectorD(camera_orbit_radius * np.cos(camera_orbit_angle),
+                                          camera_orbit_radius * np.sin(camera_orbit_angle),
+                                          0))
+    camera_sensor.SetDir(chrono.ChVectorD(0, 0, 0))
 
-while visualization.Run():
-    physics.DoStepDynamics(0.01)
-    sensor_manager.Update()
+    # Update the system
+    my_system.DoStepDynamics(0.01)
 
-    # Dynamically update the camera's position in an orbit around the mesh
-    angle = np.radians(visualization.GetTimer() * 30)
-    camera.SetPosition(chrono.ChVectorD(5 * np.cos(angle), 5 * np.sin(angle), 5))
-    camera.SetTarget(chrono.ChVectorD(0, 0, 0))
-
-    # Print out camera buffer data at each step
-    buffer = sensor_manager.GetSensorBuffer("camera")
-    print(buffer)
-
-visualization.Close()
+    # Print out camera buffer data
+    print(f"Step: {step}")
+    print(f"Camera Buffer Data: {camera_sensor.GetBufferData()}")

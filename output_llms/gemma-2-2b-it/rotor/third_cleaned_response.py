@@ -95,13 +95,13 @@ sys.Add(rotmotor1)
 
 class ChFunctionMyFun(chrono.ChFunction):
     def GetVal(self, x):
-        A1 = 1.0  
-        A2 = 0.5  
-        T1 = 0.1  
-        T2 = 0.2  
-        T3 = 0.3  
-        w = 0.0  
-        return A1 * (1 - m.exp(-x * T1)) + A2 * (1 - m.exp(-x * T2)) + T3 * m.sin(x * T3) * w
+        A1 = 1.0
+        A2 = 0.5
+        T1 = 0.1
+        T2 = 0.2
+        T3 = 0.3
+        w = 0.1
+        return A1 * (1 - (x / T1)) * (1 - (x / T2)) * (1 - (x / T3)) * w
 
 rotmotor1.SetMotorFunction(ChFunctionMyFun())
 

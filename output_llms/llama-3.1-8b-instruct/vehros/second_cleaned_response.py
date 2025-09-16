@@ -17,11 +17,11 @@ def main():
     hmmwv.SetSteeringType(veh.SteeringTypeWV_PITMAN_ARM)  
     hmmwv.SetTireType(veh.TireModelType_TMEASY)  
     hmmwv.SetTireStepSize(1e-3)  
-    hmmwv.SetChassisVisualizationType(veh.VisualizationType_WIREFRAME)  
-    hmmwv.SetSuspensionVisualizationType(veh.VisualizationType_WIREFRAME)
-    hmmwv.SetSteeringVisualizationType(veh.VisualizationType_WIREFRAME)
-    hmmwv.SetWheelVisualizationType(veh.VisualizationType_WIREFRAME)
-    hmmwv.SetTireVisualizationType(veh.VisualizationType_WIREFRAME)
+    hmmwv.SetChassisVisualizationType(veh.ChVisualizationType_WIREFRAME)  
+    hmmwv.SetSuspensionVisualizationType(veh.ChVisualizationType_WIREFRAME)  
+    hmmwv.SetSteeringVisualizationType(veh.ChVisualizationType_WIREFRAME)  
+    hmmwv.SetWheelVisualizationType(veh.ChVisualizationType_WIREFRAME)  
+    hmmwv.SetTireVisualizationType(veh.ChVisualizationType_WIREFRAME)  
     hmmwv.Initialize()  
 
     
@@ -29,7 +29,9 @@ def main():
     patch_mat = ch.ChContactMaterialNSC()  
     patch_mat.SetFriction(0.9)  
     patch_mat.SetRestitution(0.01)  
-    patch_mat.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 100, 100)  
+    patch = ch.ChTriangleMeshPatch()
+    patch_mat.SetTriangleMesh(patch)
+    patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 100, 100)  
     terrain.AddPatch(patch_mat, ch.CSYSNORM, 100.0, 100.0)  
     terrain.Initialize()  
 
@@ -47,10 +49,12 @@ def main():
     ros_manager.Initialize()  
 
     
-    visual_system = chronoirr.ChVisualSystemIrrlicht()
-    visual_system.SetCameraPosition(ch.ChVector3d(0, 5, 5))  
-    visual_system.SetCameraTarget(ch.ChVector3d(0, 0, 0))  
-    visual_system.Initialize(hmmwv.GetVehicle())  
+    vis_system = chronoirr.ChVisualSystemIrrlicht()
+    vis_system.SetVehicle(hmmwv.GetVehicle())
+    vis_system.SetTerrain(terrain)
+    vis_system.SetCameraPosition(ch.ChVector3d(0, 10, 5))
+    vis_system.SetCameraTarget(ch.ChVector3d(0, 0, 0))
+    vis_system.SetCameraUp(ch.ChVector3d(0, 1, 0))
 
     
     time = 0
@@ -77,13 +81,9 @@ def main():
             break  
 
         
-        visual_system.Render()
-
-        
-        visual_system.SetRenderingSteps(100)
-
-        
-        visual_system.RenderFrame()
+        vis_system.Render()
+        vis_system.StepRender()
+        vis_system.FrameRender()
 
 if __name__ == "__main__":
     main()

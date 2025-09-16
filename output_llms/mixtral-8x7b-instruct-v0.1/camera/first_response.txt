@@ -1,7 +1,5 @@
-To create the requested PyChrono simulation, follow the steps below to generate a Python script.
-
-1. Initialize the PyChrono environment and core components:
-
 ```python
 import chrono
-from chrono import ChronoEngine, ChronoPy
+import chrono.sensor as sensor
+import chrono.collision as collision
+import chrono.postprocess as postprocess

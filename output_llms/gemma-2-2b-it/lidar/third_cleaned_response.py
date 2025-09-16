@@ -8,45 +8,43 @@ import math
 
 
 mphysicalSystem = chrono.ChSystemNSC()
+vehicle = chrono.ChARTCar(mphysicalSystem)
+vehicle.SetPos(chrono.ChVector3d(0, 0, 0))
+vehicle.SetFixed(True)
+mphysicalSystem.Add(vehicle)
 
 
-car_mass = 1000.0  
-car_length = 4.0  
-car_width = 1.5  
-car_height = 1.0  
-car_center_of_mass = chrono.ChVector3d(0.0, 0.5, 0.0)  
-car_wheel_base = 2.0  
+driver = chrono.ChDriver(mphysicalSystem)
+driver.SetMaxSpeed(10.0)  
+driver.SetAcceleration(1.0)  
 
 
-terrain_material = chrono.ChMaterial("terrain", 
-                                     density=1000.0, 
-                                     friction=0.5, 
-                                     restitution=0.0)
-terrain_texture = chrono.GetChronoDataFile("textures/terrain.png")
-terrain = chrono.ChRigidBody(chrono.ChVector3d(0, 0, 0), terrain_material, terrain_texture)
-terrain.SetPos(chrono.ChVector3d(0, 0, 0))
-terrain.SetFixed(True)
+terrain = chrono.ChTerrain(mphysicalSystem)
+terrain.SetHeight(10.0)
+terrain.SetMaterial("Grass")  
+terrain.SetTexture("textures/grass.png")  
+terrain.SetColor(chrono.ChVector3d(0.2, 0.2, 0.2))  
 
 
 
 lidar_3d = sens.ChLidarSensor(
-    terrain,  
-    update_rate,            
+    vehicle.GetChassis(),
+    update_rate,
     chrono.ChFramed(
         chrono.ChVector3d(1.0, 0, 1),
         chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
     ),
-    horizontal_samples,     
-    vertical_samples,       
-    horizontal_fov,         
-    max_vert_angle,         
-    min_vert_angle,         
-    100.0,                  
-    sens.LidarBeamShape_RECTANGULAR,  
-    sample_radius,          
-    divergence_angle,       
-    divergence_angle,       
-    return_mode             
+    horizontal_samples,
+    vertical_samples,
+    horizontal_fov,
+    max_vert_angle,
+    min_vert_angle,
+    100.0,
+    sens.LidarBeamShape_RECTANGULAR,
+    sample_radius,
+    divergence_angle,
+    divergence_angle,
+    sens.LidarReturnMode_STRONGEST_RETURN
 )
 lidar_3d.SetName("3D Lidar Sensor")
 lidar_3d.SetLag(lag)
@@ -54,58 +52,53 @@ lidar_3d.SetCollectionWindow(collection_time)
 
 
 lidar_2d = sens.ChLidarSensor(
-    terrain,  
-    update_rate,            
+    vehicle.GetChassis(),
+    update_rate,
     chrono.ChFramed(
         chrono.ChVector3d(1.0, 0, 1),
         chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
     ),
-    1,                      
-    horizontal_fov,         
-    0.0,                    
-    0.0,                    
-    100.0,                  
-    sens.LidarBeamShape_RECTANGULAR,  
-    sample_radius,          
-    divergence_angle,       
-    divergence_angle,       
-    return_mode             
+    horizontal_samples,
+    1,  
+    horizontal_fov,
+    max_vert_angle,
+    min_vert_angle,
+    100.0,
+    sens.LidarBeamShape_RECTANGULAR,
+    sample_radius,
+    divergence_angle,
+    divergence_angle,
+    sens.LidarReturnMode_STRONGEST_RETURN
 )
 lidar_2d.SetName("2D Lidar Sensor")
 lidar_2d.SetLag(lag)
 lidar_2d.SetCollectionWindow(collection_time)
 
 
-driver = chrono.ChVehicleDriver(mphysicalSystem, car_mass, car_length, car_width, car_height, car_center_of_mass, car_wheel_base)
-driver.SetSpeed(10.0)  
+manager = sens.ChSensorManager(mphysicalSystem)
+manager.AddSensor(lidar_3d)
+manager.AddSensor(lidar_2d)
 
 
-camera = sens.ChCameraSensor(
-    mphysicalSystem,
-    chrono.ChVector3d(0, 0, 1),
-    chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
-)
-camera.SetName("Third Person Camera")
-camera.SetLag(lag)
-camera.SetCollectionWindow(collection_time)
-
-
-t1 = time.time()
+orbit_radius = 10
+orbit_rate = 0.1
 ch_time = 0.0
+
+render_time = 0
+t1 = time.time()
+
 while ch_time < end_time:
     
-    driver.Update()
-    mphysicalSystem.DoStepDynamics(step_size)
-
-    
-    manager.Update()
-
-    
-    camera.Update()
-
-    
-    lidar_3d.Update()
-    lidar_2d.Update()
+    lidar_3d.SetOffsetPose(
+        chrono.ChFramed(
+            chrono.ChVector3d(
+                -orbit_radius * math.cos(ch_time * orbit_rate),
+                -orbit_radius * math.sin(ch_time * orbit_rate),
+                1
+            ),
+            chrono.QuatFromAngleAxis(ch_time * orbit_rate, chrono.ChVector3d(0, 0, 1))
+        )
+    )
 
     
     xyzi_buffer = lidar_3d.GetMostRecentXYZIBuffer()
@@ -115,8 +108,7 @@ while ch_time < end_time:
         print('Max Value: {0}'.format(np.max(xyzi_data)))
 
     
-    if vis:
-        camera.Render()
+    manager.Update()
 
     
     mphysicalSystem.DoStepDynamics(step_size)
@@ -125,4 +117,26 @@ while ch_time < end_time:
     ch_time = mphysicalSystem.GetChTime()
 
     
-    print("Sim time:", end_time, "Wall time:", time.time() - t1)
+    driver.Update(mphysicalSystem.GetChTime())
+
+    
+    if vis:
+        
+        pass
+
+    
+    terrain.Update(mphysicalSystem.GetChTime())
+
+    
+    vehicle.Update(mphysicalSystem.GetChTime())
+
+    
+    camera.Update(mphysicalSystem.GetChTime())
+
+    
+    if save:
+        
+        pass
+
+
+print("Sim time:", end_time, "Wall time:", time.time() - t1)

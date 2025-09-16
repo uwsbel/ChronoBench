@@ -68,7 +68,7 @@ constr_bc = chrono.ChLinkMateGeneric()
 constr_bc.Initialize(hnode3, mtruss, False, hnode3.Frame(), hnode3.Frame())
 sys.Add(constr_bc) # Add the constraint to the system.
 constr_bc.SetConstrainedCoords(True, True, True, # Constrain x, y, z translations.
-                              True, True, True) # Constrain Rx, Ry, Rz rotations.
+                                True, True, True) # Constrain Rx, Ry, Rz rotations.
 
 # Create and initialize a constraint that connects node 1 to the fixed truss.
 constr_d = chrono.ChLinkMateGeneric()

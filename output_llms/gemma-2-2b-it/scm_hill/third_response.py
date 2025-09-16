@@ -52,7 +52,6 @@ vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 
-
 vehicle.Initialize()
 
 vehicle.SetChassisVisualizationType(vis_type)
@@ -75,11 +74,8 @@ terrain.SetSoilParameters(2e6,   # Bekker Kphi
                             3e4    # Damping (Pa s/m), proportional to negative vertical speed (optional)
 )
 
-# Set terrain height map
-terrain.SetHeightMap(chrono.GetChronoDataFile("terrain/height_maps/bump64.bmp"))
-
-# Set terrain texture
-terrain.SetTexture(chrono.GetChronoDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
+# Set the terrain texture
+terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
 
 # Create the vehicle Irrlicht interface
 

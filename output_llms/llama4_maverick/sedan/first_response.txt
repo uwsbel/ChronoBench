@@ -1,79 +1,115 @@
-To create the specified PyChrono simulation, we'll follow the instructions step-by-step. Below is a Python script that accomplishes the task. This script will initialize the PyChrono environment, set up a BMW E90 Sedan vehicle with the TMEASY tire model on a rigid terrain, and utilize the Irrlicht visualization system with the described settings.
+Here's a Python script that fulfills your requirements using PyChrono. This script creates a simulation of a BMW E90 Sedan driving on a rigid terrain with the specified features.
 
 ```python
 import pychrono as chrono
 import pychrono.vehicle as veh
 import pychrono.irrlicht as irr
-import math
 
-# Initialize PyChrono environment
-print("Copyright (c) 2023 Project Chrono")
-
+# =============================================================================
 # Create the vehicle system
-vehicle = veh.WheeledVehicle(chrono.GetChOutputPath() + "BMW_E90_sedan", veh.ChContactMethod_SMC)
+# =============================================================================
 
-# Set the terrain
+# Create the BMW E90 sedan vehicle
+vehicle = veh.ChVehicle("BMW_E90")
+vehicle.SetContactMethod(chrono.ChContactMethod_SMC)
+vehicle.SetChassisCollisionType(veh.CollisionType_NONE)
+vehicle.SetChassisFixed(False)
+vehicle.SetInitPosition(chrono.ChCoordsysD(chrono.ChVector3d(0, 0.5, 1.0), chrono.ChQuaterniond(1, 0, 0, 0)))
+vehicle.SetInitFwdVel(0)
+vehicle.SetInitWheelAngVel(chrono.ChVector3d(0, 0, 0))
+vehicle.SetTireStepSize(1e-3)
+
+# Create the powertrain and driveline
+powertrain = veh.ChSimplePowertrain("Powertrain")
+vehicle.InitializePowertrain(powertrain)
+
+driveline = veh.ChShaftsDriveline2WD("Driveline")
+vehicle.InitializeDriveline(driveline)
+
+# Create the tires
+tire_front_left = veh.ChTMeasyTire("TireFL")
+tire_front_right = veh.ChTMeasyTire("TireFR")
+tire_rear_left = veh.ChTMeasyTire("TireRL")
+tire_rear_right = veh.ChTMeasyTire("TireRR")
+
+vehicle.InitializeTire(tire_front_left, vehicle.GetChassisBody(), veh.LEFT, veh.FRONT)
+vehicle.InitializeTire(tire_front_right, vehicle.GetChassisBody(), veh.RIGHT, veh.FRONT)
+vehicle.InitializeTire(tire_rear_left, vehicle.GetChassisBody(), veh.LEFT, veh.REAR)
+vehicle.InitializeTire(tire_rear_right, vehicle.GetChassisBody(), veh.RIGHT, veh.REAR)
+
+# =============================================================================
+# Create the terrain
+# =============================================================================
+
+# Create the terrain
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-patch_mat = chrono.ChMaterialSurfaceSMC()
-patch_mat.SetFriction(0.9)
-patch_mat.SetRestitution(0.01)
-patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.Q_from_AngX(-math.pi / 2)), 100, 100)
+patch = terrain.AddPatch(chrono.ChCoordsysD(chrono.ChVector3d(0, 0, 0), chrono.ChQuaterniond(1, 0, 0, 0)), 100, 100)
+patch.SetContactFrictionCoefficient(0.9)
+patch.SetContactRestitutionCoefficient(0.01)
+patch.SetContactMaterial(chrono.ChMaterialSurfaceSMC())
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
-patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+patch.SetNormalMap(veh.GetDataFile("terrain/textures/normal_map.jpg"), 200, 200)
 
-# Initialize the vehicle
-vehicle.SetInitPosition(chrono.ChCoordsysd(chrono.ChVector3d(0, 1, 0), chrono.QUNIT))
-vehicle.Initialize()
+terrain.Initialize()
 
-# Set the tire model to TMEASY
-tireParams = veh.TMeasyTire::GetTMeasyParams(28 * 0.9)
-left_front_tire = veh.TMeasyTire(vehicle.GetLeftFrontWheel(), tireParams)
-right_front_tire = veh.TMeasyTire(vehicle.GetRightFrontWheel(), tireParams)
-left_rear_tire = veh.TMeasyTire(vehicle.GetLeftRearWheel(), tireParams)
-right_rear_tire = veh.TMeasyTire(vehicle.GetRightRearWheel(), tireParams)
-vehicle.GetLeftFrontWheel().SetTire(left_front_tire)
-vehicle.GetRightFrontWheel().SetTire(right_front_tire)
-vehicle.GetLeftRearWheel().SetTire(left_rear_tire)
-vehicle.GetRightRearWheel().SetTire(right_rear_tire)
+# =============================================================================
+# Create the visualization
+# =============================================================================
 
-# Create the Irrlicht visualization
-vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
+# Create the Irrlicht application
+vis = irr.ChVisualSystemIrrlicht()
+vis.SetWindowSize(800, 600)
 vis.SetWindowTitle('BMW E90 Sedan Simulation')
-vis.SetWindowSize(1280, 720)
 vis.SetChaseCamera(chrono.ChVector3d(0.0, 0.0, 1.75), 6.0, 0.5)
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
-vis.AddLightDirectional()
 vis.AddSkyBox()
-vis.AttachVehicle(vehicle)
+vis.AddCamera(chrono.ChVector3d(0, 4, 4), chrono.ChVector3d(0, 0, 0))
+vis.AddTypicalLights()
+vis.AddLightWithShadow(chrono.ChVector3d(2, 5, 2), chrono.ChVector3d(0, 0, 0), 10, 2, 10, 120)
+
+# =============================================================================
+# Create the driver system
+# =============================================================================
 
 # Create the interactive driver system
-driver = veh.ChIrrGuiDriver(vis)
-driver.SetSteeringDelta(0.02)
-driver.SetThrottleDelta(0.02)
-driver.SetBrakingDelta(0.06)
+driver = veh.ChIrrGuiDriver(vis, vehicle)
+
+# Set the initial driver inputs
+driver.SetSteering(0)
+driver.SetThrottle(0.3)
+driver.SetBraking(0)
+
+# =============================================================================
+# Simulation loop
+# =============================================================================
 
 # Simulation loop
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
-    driver_inputs = driver.GetInputs()
-    vehicle.DoStepDynamics(1e-3)
+
+    # Get driver inputs
+    steering = driver.GetSteering()
+    throttle = driver.GetThrottle()
+    braking = driver.GetBraking()
+
+    # Update the vehicle
+    driver_inputs = veh.Inputs(steering, throttle, braking)
+    vehicle.Advance(driver_inputs)
+
+    # Update the terrain
+    terrain.Advance(time)
+
+    # Update the visualization
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
-    driver.Synchronize(time)
-    driver.Advance(1e-3)
 
-# Cleanup
-vis.Destroy()
+    # Synchronize the Irrlicht clock with the simulation clock
+    vis.Synchronize("BMW E90 Sedan Simulation", driver_inputs)
 ```
 
-This script does the following:
-1. Initializes the PyChrono environment and sets up a `WheeledVehicle` object representing a BMW E90 Sedan.
-2. Configures a rigid terrain with a specified texture.
-3. Initializes the vehicle on the terrain and sets up the TMEASY tire model for all wheels.
-4. Creates an Irrlicht visualization with a chase camera, directional lighting, and a skybox.
-5. Implements an interactive driver system for real-time control.
-6. Runs the simulation in a loop, updating the vehicle dynamics and visualization.
-
-To run this script, ensure you have PyChrono installed and properly configured on your system. The script uses relative paths for data files (like tire parameters and textures), so it assumes that the PyChrono data directory is correctly set up in your environment.
+```python
+# To run this code, ensure you have PyChrono and its dependencies installed.
+# You can install PyChrono via pip or conda.
+```

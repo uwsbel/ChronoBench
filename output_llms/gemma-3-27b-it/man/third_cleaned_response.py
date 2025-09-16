@@ -101,21 +101,21 @@ render_frame = 0
 
 
 sensor_manager = sensor.ChSensorManager(vehicle.GetSystem())
-
-
 lidar = sensor.ChLidarSensor()
-lidar.SetScanAngle(np.pi / 4)
-lidar.SetRange(50.0)
-lidar.SetResolution(100)
-lidar.SetSensorLocation(chrono.ChVector3d(0, 0, 2.0))
+lidar.SetScanAngleRange(-math.pi/4, math.pi/4)
+lidar.SetScanResolution(0.1)
+lidar.SetMaxDistance(50)
+lidar.SetSensorLocation(chrono.ChVector3d(0, 0, 2))
+lidar.SetSensorRotation(chrono.Q_from_AngAxis(0, chrono.ChVector3d(0, 1, 0)))
 sensor_manager.AddSensor(lidar)
 
 
-for i in range(10):
+num_boxes = 10
+for i in range(num_boxes):
     box = chrono.ChBodyEasy()
     box.SetBodyFixed(False)
-    box.SetPos(chrono.ChVector3d(np.random.uniform(-40, 40), np.random.uniform(-40, 40), np.random.uniform(0, 5)))
-    box.SetMass(10)
+    box.SetMass(1)
+    box.SetPos(chrono.ChVector3d(np.random.uniform(-20, 20), np.random.uniform(-20, 20), np.random.uniform(0, 5)))
     box.SetShape(chrono.ChBoxShape())
     box.SetCollide(True)
     vehicle.GetSystem().Add(box)
@@ -124,7 +124,7 @@ while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
     
-    if step_number % render_steps == 0:
+    if (step_number % render_steps == 0):
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
@@ -146,7 +146,7 @@ while vis.Run():
     vis.Advance(step_size)
 
     
-    sensor_manager.Update()
+    sensor_manager.Update(time, step_size)
 
     
     step_number += 1

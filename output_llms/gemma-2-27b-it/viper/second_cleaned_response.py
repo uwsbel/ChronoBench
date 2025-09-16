@@ -4,7 +4,7 @@ import numpy as np
 import pychrono as chrono
 import pychrono.robot as viper
 from pychrono import irrlicht as chronoirr
-import pychrono.sensor as sens  
+import pychrono.sensor as sens
 
 
 system = chrono.ChSystemNSC()
@@ -71,11 +71,11 @@ manager.AddSensor(cam)
 time_step = 1e-3
 
 
+time = 0
 step_number = 0
 render_step_size = 1.0 / 25  
 render_steps = math.ceil(render_step_size / time_step)
 
-time = 0
 while vis.Run():
     time += time_step  
     steering = 0
@@ -91,7 +91,6 @@ while vis.Run():
 
     rover.Update()  
 
-    
     manager.Update()
 
     

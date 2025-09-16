@@ -4,108 +4,139 @@
 
 ### 1. Completeness (40 points)
 
-- **System Initialization:** Present and correct (`sys = chrono.ChSystemSMC()`). No deduction.
-- **Particle Factory and Emitter Setup:** Present and mostly correct, but the emitter is added to the system via `sys.Add(emitter)`. According to PyChrono API and typical usage, emitters are not bodies and usually not added directly to the system with `sys.Add()`. Instead, emitters are typically managed separately or attached to bodies. This is a **minor deviation** or misuse of API. Deduct 10 points.
-- **Body Creation:** No rigid bodies or collision bodies are created. The simulation only has the particle emitter and custom gravity force. Usually, a simulation should have at least some bodies or environment objects to interact with particles. Deduct 15 points for missing essential component (body creation).
-- **Visualization:** Visualization system is set up correctly with window size, title, logo, skybox, camera, and lights. No deduction.
-- **Simulation Loop:** Present and correct, including rendering and stepping dynamics. No deduction.
-- **Custom Force:** Custom gravity force is implemented and added to the system. However, the force is applied to all bodies in the system, but since no bodies are added except the emitter (which is not a body), this force will have no effect. The force class inherits from `chrono.ChForce` but does not override the correct method signature for force application. According to PyChrono, custom forces usually override `Update()` or `UpdateForces()` with specific parameters. The method `Update(self, time)` is used, but PyChrono expects `Update(time, update_assets=True)` or similar. This is a **minor deviation** but could cause the force not to be applied correctly. Deduct 5 points.
-- **Particle Emission:** The emitter emits particles every step with `emitter.EmitParticles(0.01)`. This is correct usage.
+- **System Initialization:** Present and correct (`sys = chrono.ChSystemSMC()`), with data path set. ✔️  
+- **Body Creation:** Particle bodies are created dynamically with shapes and added to the system. A fixed container body is created and added. ✔️  
+- **Visualization:** Visualization system is set up with window size, title, initialization, logo, skybox, camera, and lights. ✔️  
+- **Simulation Loop:** Present with rendering, particle emission, custom gravity application, and stepping dynamics. ✔️  
 
-**Total Completeness deduction: 15 (missing bodies) + 10 (incorrect emitter addition) + 5 (custom force method) = 30 points deducted**
+**Minor omissions / deviations:**  
+- The fixed container body (`particle_container`) is created but never used as a parent or reference frame for particles; it is added to the system but does not serve a clear purpose. This is a minor design oddity but not a missing component.  
+- No contact materials or collision models are explicitly created or assigned to bodies. While not strictly mandatory, it is a best practice to define materials for realistic contact behavior, especially with `ChSystemSMC`. This is a minor omission.  
+- Gravity is set to zero globally, which is intentional due to custom gravity, so no deduction here.  
+
+**Deductions:**  
+- Minor omission for lack of contact materials and collision setup: **-5 points**
+
+**Subtotal:** 40 - 5 = **35 points**
 
 ---
 
 ### 2. Correctness (30 points)
 
-- **Use of `sys.Add(emitter)`:** Emitters are not bodies and should not be added to the system with `sys.Add()`. This is a misuse of the API and could cause errors or undefined behavior. Deduct 15 points.
-- **CustomGravity class:** The `Update` method is overridden but does not call the base class `Update` or follow the expected signature. Also, iterating over `sys.Get_bodylist()` is correct, but since no bodies exist, it does nothing. This is a **minor logical error** but not critical. Deduct 5 points.
-- **Particle Factory Setup:** The nested use of `ChRandomParticleCreator.ParticleType` is incorrect. According to the API, `ParticleType` is an enum or a single type, not a constructor accepting multiple types. The code tries to pass multiple types at once:
+- **API Usage:**  
+  - `sys.Set_G_acc(chrono.ChVectorD(0, 0, 0))` is correct to disable default gravity. ✔️  
+  - Particle shapes are created using `chrono.ChSphereShape()` and `chrono.ChBoxShape()`. However, these are **visual assets**, not collision shapes or body shapes. The code adds these shapes as assets (`AddAsset`) but does not define collision shapes or enable collision on bodies. This means particles will not collide or interact physically, which is likely unintended. This is a **significant correctness issue**.  
+  - The bodies are created with mass and inertia but no collision model is defined or enabled (`EnableCollision(True)` is missing). Without collision shapes and collision enabled, the simulation will not handle contacts properly.  
+  - The `SetInertiaXX` is set to (1,1,1) for all particles regardless of shape or size, which is a simplification but acceptable for a demo.  
+  - The custom gravity function applies forces between all pairs of bodies, including the fixed container (which has infinite mass). This could cause issues or unexpected behavior since the container is fixed and has no mass set explicitly.  
+  - The use of `body.SetPos_dt()` to set initial velocity is correct.  
+  - The rotation is set using `chrono.Q_from_Euler123`, which is correct.  
+  - Visualization setup uses `chrono.ChVectorD` for camera position, but the API documentation uses `chrono.ChVector3d`. This is a minor inconsistency but likely acceptable since `ChVectorD` is an alias for double precision vector.  
+  - The logo path is constructed manually using string concatenation instead of `chrono.GetChronoDataFile()`, which is the recommended way. This is a minor correctness issue.  
+  - The simulation loop calls `ApplyCustomGravity(sys)` every frame, which is logically correct but inefficient (see efficiency).  
+  - The `sys.DoStepDynamics(0.01)` call is correct.  
 
-  ```python
-  chrono_particlefactory.ChRandomParticleCreator.ParticleType(
-      chrono_particlefactory.ChRandomParticleCreator.ParticleType_SPHERE, 
-      chrono_particlefactory.ChRandomParticleCreator.ParticleType_BOX, 
-      chrono_particlefactory.ChRandomParticleCreator.ParticleType_ELLIPSOID)
-  ```
+**Deductions:**  
+- Major correctness issue: missing collision shapes and collision enabling on bodies → **-15 points**  
+- Minor correctness issue: logo path not using `GetChronoDataFile()` → **-5 points**  
 
-  This is incorrect usage. The API expects a single particle type per creator. To create random shapes, one would use `ChRandomShapeCreator` with a list or a method to randomly select types, but not by passing multiple types as arguments to `ParticleType`. Deduct 15 points for incorrect API usage.
-
-- **Use of `chrono.ChVector3` instead of `chrono.ChVector3d`:** The API documentation examples use `ChVector3d` (double precision). Using `ChVector3` (which may be a float or alias) is not necessarily incorrect but deviates from best practice. Minor deduction of 3 points.
-
-**Total Correctness deduction: 15 (emitter addition) + 15 (ParticleType misuse) + 5 (CustomGravity logic) + 3 (ChVector3 vs ChVector3d) = 38 points deducted**
-
-Since the total correctness points are 30, maximum deduction is capped at 30.
+**Subtotal:** 30 - 15 - 5 = **10 points**
 
 ---
 
 ### 3. Code Quality (10 points)
 
-- **Readability:** Variable names like `sys`, `factory`, `emitter`, and `custom_gravity` are meaningful. The code is reasonably structured.
-- **Comments:** No comments are present to explain the purpose of code blocks or classes. This reduces understandability.
-- **Formatting:** The code is formatted well with consistent indentation.
-- **Class Definition:** The `CustomGravity` class lacks docstrings or comments explaining its purpose.
+- The code is mostly readable with meaningful variable names (`particle_container`, `emitter`, `ApplyCustomGravity`).  
+- The class `ParticleEmitter` encapsulates particle creation, which is good structure.  
+- However, there are **no comments** explaining the purpose of key sections, functions, or parameters.  
+- The code formatting is acceptable but could benefit from spacing and comments for clarity.  
+- The use of magic numbers (e.g., 0.5 probability, ranges for position and velocity) is not explained.  
+- The function `ApplyCustomGravity` is a bit inefficient and could be better documented.  
 
-Deduct 5 points for lack of comments/documentation.
+**Deductions:**  
+- Lack of comments/documentation: **-5 points**  
+- Minor readability issues (lack of spacing, some variable names could be clearer): **-3 points**  
 
-No deduction for readability or structure.
+**Subtotal:** 10 - 5 - 3 = **2 points**
 
 ---
 
 ### 4. Efficiency (10 points)
 
-- **CustomGravity force:** The force is recalculated every update by iterating over all bodies. Since no bodies exist, this is wasted computation, but minor.
-- **Emitter.EmitParticles(0.01) called every step:** This is appropriate.
-- **No redundant or unnecessary API calls detected.**
+- The `ApplyCustomGravity` function computes pairwise forces between all bodies every frame with a nested loop of O(n²). For 10-20 particles this is acceptable, but for larger numbers this is inefficient.  
+- The function is called every frame without any optimization or caching.  
+- The random emission of particles inside the loop is probabilistic, which is fine.  
+- The creation of shapes inside `EmitParticle` creates new shape objects every time, which is necessary.  
+- The bodies do not enable collision, so the physics engine does not perform collision detection, which is efficient but incorrect (see correctness).  
+- The visualization loop is standard.  
 
-No significant inefficiencies.
+**Deductions:**  
+- Missing optimization for pairwise force calculation (e.g., spatial partitioning, early exit) → **-3 points**  
+- No major redundant or unnecessary API calls found.  
 
-No deduction.
+**Subtotal:** 10 - 3 = **7 points**
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- No error handling is present.
-- No checks for valid paths or existence of data files.
-- No handling of edge cases (e.g., empty body list).
-- However, PyChrono examples rarely include explicit error handling in simple scripts.
+- There is **no error handling** for file paths, system initialization, or particle creation.  
+- The data path is hardcoded and may not exist, no check or fallback is implemented.  
+- The `ApplyCustomGravity` function does not handle zero-distance or overlapping bodies robustly (it skips zero distance but no epsilon threshold).  
+- The fixed container body is added but not used meaningfully; no checks for mass or collision.  
+- No try-except blocks or validation of inputs.  
 
-Deduct 5 points for lack of basic error handling or robustness.
+**Deductions:**  
+- Lack of basic error handling: **-5 points**  
+- Minor edge case handling (zero distance) is done, so no deduction here.  
+
+**Subtotal:** 0 points
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
-- Visualization is set up correctly with window size, title, logo, skybox, camera, and lights.
-- Camera position is `(0, 2, -4)`, which is reasonable.
-- No obvious visualization issues.
+- Visualization is set up correctly with window size, title, initialization, skybox, camera, and typical lights.  
+- The logo is added but the path is constructed manually instead of using `GetChronoDataFile()`.  
+- Camera position is at (0,0,-10), which may be suboptimal for viewing particles scattered in a cube from -5 to 5 in all axes. A better camera position might be (0,0,10) or offset to see the scene better. Minor issue.  
+- Lighting and skybox are added, which is good.  
 
-No deduction.
+**Deductions:**  
+- Minor visualization issue with logo path: **-2 points**  
+- Minor suboptimal camera position: **-2 points**  
+
+**Subtotal:** 5 - 2 - 2 = **1 point**
 
 ---
 
-### Summary of deductions:
+### **Final Score Calculation**
 
-| Criterion                  | Points | Deduction | Notes                                      |
-|----------------------------|--------|-----------|--------------------------------------------|
-| Completeness               | 40     | 30        | Missing bodies, incorrect emitter addition, custom force method |
-| Correctness               | 30     | 30        | Emitter addition, ParticleType misuse, custom force logic, minor vector type |
-| Code Quality              | 10     | 5         | Lack of comments/documentation             |
-| Efficiency                | 10     | 0         | No significant inefficiencies              |
-| Error Handling & Robustness| 5      | 5         | No error handling                          |
-| Visualization             | 5      | 0         | Correct visualization setup                 |
+| Category                   | Points | Deductions | Score |
+|----------------------------|--------|------------|-------|
+| Completeness               | 40     | 5          | 35    |
+| Correctness               | 30     | 20         | 10    |
+| Code Quality              | 10     | 8          | 2     |
+| Efficiency                | 10     | 3          | 7     |
+| Error Handling & Robustness| 5      | 5          | 0     |
+| Visualization             | 5      | 4          | 1     |
+| **Total**                 | 100    | 45         | **55**|
 
-**Total score = 40 + 0 + 5 + 10 + 0 + 5 = 60 points**
+---
+
+### Summary of Major Issues:
+
+- **Missing collision shapes and enabling collision on particles** is the most critical correctness flaw, as it fundamentally changes simulation behavior (no collisions).  
+- **No error handling** and hardcoded paths reduce robustness.  
+- **Lack of comments/documentation** reduces code quality.  
+- Minor inefficiencies and visualization suboptimalities.
 
 ---
 
 **Final score:**
 
-[[60]]
+[[55]]
 
 ---
 
-**Explanation:**
-
-The script correctly initializes the system and visualization and sets up a particle factory and emitter. However, it misses essential components like adding bodies to the system, misuses the emitter by adding it directly to the system, and incorrectly constructs the particle type list, which is a significant API misuse. The custom gravity force is implemented but may not function as intended due to method signature and lack of bodies. The code lacks comments and error handling, which reduces maintainability and robustness. Visualization is properly configured. Overall, the script demonstrates a basic understanding of PyChrono but has critical issues that would prevent it from running correctly or producing meaningful simulation results.
+**Explanation:**  
+The script covers all essential components but misses critical correctness aspects like collision setup, which is fundamental for physical simulations. Code quality and error handling are weak due to lack of comments and robustness. Visualization is mostly correct but has minor issues. Efficiency could be improved for scalability. Overall, the script is functional but incomplete and incorrect in key simulation behaviors.

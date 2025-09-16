@@ -10,14 +10,9 @@ import pychrono.irrlicht as chronoirr
 class Model1:
     def __init__(self, system, mesh, n_chains=6):
         self.n_chains = n_chains
-        self.chain_bodies = []  
+        self.chains = []  
 
-        for i in range(n_chains):
-            
-            mtruss = chrono.ChBody()
-            mtruss.SetFixed(True)
-            system.Add(mtruss)
-
+        for i in range(self.n_chains):
             
             msection_cable2 = fea.ChBeamSectionCable()
             msection_cable2.SetDiameter(0.015)  
@@ -45,30 +40,31 @@ class Model1:
             builder.GetLastBeamNodes().front().SetForce(chrono.ChVector3d(0, -0.7, 0))  
 
             
+            mtruss = chrono.ChBody()
+            mtruss.SetFixed(True)  
+
+            
             constraint_hinge = fea.ChLinkNodeFrame()
             constraint_hinge.Initialize(builder.GetLastBeamNodes().back(), mtruss)
             system.Add(constraint_hinge)  
 
             
             mbody = chrono.ChBody()
-            mbody.SetBodyFixed(False)
             mbody.SetMass(1.0)
             mbody.SetPos(chrono.ChVector3d(end_x, 0, 0))
-            mbody.SetCollide(True)
+            mbody.SetBodyFixed(False)
             system.Add(mbody)
 
             
-            joint = chrono.ChLinkRevolute()
-            joint.Initialize(builder.GetLastBeamNodes().back(), mbody, chrono.ChCoordsys(chrono.ChVector3d(0, 0, 0)))
-            system.Add(joint)
+            constraint_body = fea.ChLinkNodeFrame()
+            constraint_body.Initialize(builder.GetLastBeamNodes().back(), mbody)
+            system.Add(constraint_body)
 
-            self.chain_bodies.append(mbody)  
+            self.chains.append((mbody, builder.GetLastBeamNodes().back()))  
 
     def PrintBodyPositions(self):
-        
-        for i, body in enumerate(self.chain_bodies):
-            pos = body.GetPos()
-            print(f"Chain {i + 1} end body position: x={pos.x:.2f}, y={pos.y:.2f}, z={pos.z:.2f}")
+        for body, _ in self.chains:
+            print("Body position:", body.GetPos())
 
 
 
@@ -129,6 +125,5 @@ while vis.Run():
     vis.BeginScene()  
     vis.Render()  
     vis.EndScene()  
-
     sys.DoStepDynamics(0.01)  
     model.PrintBodyPositions()

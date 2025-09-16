@@ -1,80 +1,50 @@
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
-import numpy as np
+import math
 
 
-chrono.SetChronoDataPath("/path/to/chrono/data")
-my_system = chrono.ChSystemNSC()
+chrono.SetChronoDataPath("/path/to/chrono/data")  
+chrono.InitChrono()
 
 
-my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
 
-ground = chrono.ChBodyEasyBox(20, 1, 20, 1000, True, True)
+ground = chrono.ChBodyEasyBox(20, 1, 20, 1000, False, True)
 ground.SetPos(chrono.ChVectorD(0, -1, 0))
-ground.SetBodyFixed(True)
-my_system.Add(ground)
+system.AddBody(ground)
 
 
-turtlebot = chrono.ChBodyEasyBox(0.2, 0.1, 0.2, 10, True, True)
+turtlebot = chrono.ChBodyEasyBox(0.2, 0.1, 0.2, 1, True, True)
 turtlebot.SetPos(chrono.ChVectorD(0, 0, 0))
 turtlebot.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
-my_system.Add(turtlebot)
+system.AddBody(turtlebot)
 
 
-turtlebot.SetPos(chrono.ChVectorD(0, 0, 0))
-turtlebot.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
+visualizer = chronoirr.ChIrrApp(system, "Turtlebot Simulation", chronoirr.dimension2d(800, 600))
+visualizer.AddTypicalSky()
+visualizer.AddTypicalLogo()
+visualizer.AddTypicalCamera(chronoirr.vector3df(0, 0, -5))
+visualizer.AddLightWithShadow(chronoirr.vector3df(2, 2, 2), chronoirr.vector3df(0.5, 0.5, 0.5), 10)
 
 
-left_motor = chrono.ChLinkMotorRotationSpeed()
-right_motor = chrono.ChLinkMotorRotationSpeed()
+t = 0
+while visualizer.Run():
+    visualizer.BeginScene()
+    visualizer.DrawAll()
+    visualizer.EndScene()
 
+    
+    system.DoStepDynamics(1/60)
+    t += 1/60
 
-left_motor.Initialize(turtlebot, None, chrono.ChVectorD(0.1, 0, 0), chrono.ChVectorD(0, 1, 0))
-right_motor.Initialize(turtlebot, None, chrono.ChVectorD(-0.1, 0, 0), chrono.ChVectorD(0, 1, 0))
+    
+    if t >= 5 and t <= 10:
+        turtlebot.SetWvel_loc(chrono.ChVectorD(0, 0, -1))
+    elif t >= 15 and t <= 20:
+        turtlebot.SetWvel_loc(chrono.ChVectorD(0, 0, 1))
+    else:
+        turtlebot.SetWvel_loc(chrono.ChVectorD(0, 0, 0))
 
-my_system.Add(left_motor)
-my_system.Add(right_motor)
-
-
-application = chronoirr.ChIrrApp(my_system, "Turtlebot Simulation", chronoirr.dimension2du(800, 600), False, True)
-
-
-application.GetCamera()->SetPosition(chrono.ChVectorD(0, 5, -5))
-application.GetCamera()->SetFocalPoint(chrono.ChVectorD(0, 0, 0))
-
-
-application.AddLightWithShadow(chrono.ChVectorD(5, 5, -5), chrono.ChVectorD(0, -1, 0), 10, 50, 50, 512, 2048)
-application.AddTypicalLights()
-
-
-timestep = 0.01
-
-
-left_speed = 10
-right_speed = 10
-
-
-turn_start = 2
-turn_end = 4
-
-
-while application.GetDevice().run():
-    if application.GetDevice().isWindowActive():
-        
-        if application.GetSystem()->GetChTime() >= turn_start and application.GetSystem()->GetChTime() <= turn_end:
-            left_speed = 10
-            right_speed = -10
-        else:
-            left_speed = 10
-            right_speed = 10
-
-        
-        left_motor.Set_speed_dt(left_speed * timestep)
-        right_motor.Set_speed_dt(right_speed * timestep)
-
-        
-        my_system.DoStepDynamics(timestep)
-        application.BeginScene()
-        application.DrawAll()
-        application.EndScene()
+chrono.ChEnd()

@@ -1,56 +1,64 @@
 import pychrono as chrono
-import pychrono.ros as chronoros
-import pychrono.irrlicht as chronoirr
-import pyrosbag as rosbag
-import pyrosplan as rospr
-import time
-import math
+import pychrono.irrlicht as irrl
+import pychrono.ros as roschrono
+import numpy as np
+from irrlicht import IrrlichtDevice
+from std_msgs.msg import Int32
+import rospy
 
+def ros_handler(data):
+    print(f"Received ROS message: {data.data}")
 
-chrono.SetChronoDataPath('path/to/chrono/data')
-my_engine = chrono.ChSystemSolverAE()
+def main():
+    
+    chrono.SetChronoDataPath('path/to/chrono/data/folder')
 
+    
+    device = IrrlichtDevice(irrl.dimension2d<irr::u32>(800, 600))
 
-my_engine.Set_G_acc(chrono.ChVector(0, -9.81, 0))
-my_material = chrono.ChMaterialSurfaceNSC()
-my_material.SetFriction(0.5)
-my_material.SetRestitution(0.1)
+    
+    rospy.init_node('pychrono_ros_node')
 
+    
+    my_system = chrono.ChSystemSolverPy(chrono.ChSystemSolver_MLS)
+    my_system.Set_G_acc(chrono.ChVector(0, -9.81, 0))
+    my_system.SetSolverType(chrono.ChSolver.Type_PGS_D)
+    my_system.SetSolverMaxIterations(100)
 
-floor = chrono.ChBodyEasyBox(10, 0.1, 10, 1000, my_material, chrono.ChFrame(chrono.ChVector(0, -5, 0)))
-my_engine.AddBody(floor)
+    
+    floor_shape = chrono.ChBoxShape()
+    floor_shape.SetBox(chrono.ChVector(5, 0.1, 5))
+    floor_body = chrono.ChBodyEasyCreateBox(floor_shape, 1000, chrono.ChVector(0, -0.05, 0), chrono.ChFrame(chrono.ChVector(0, 0, 0)))
+    floor_body.SetPos(chrono.ChVector(0, -1, 0))
+    floor_body.SetBodyFixed(True)
+    my_system.AddBody(floor_body)
 
+    
+    box_shape = chrono.ChBoxShape()
+    box_shape.SetBox(chrono.ChVector(0.5, 0.5, 0.5))
+    box_body = chrono.ChBodyEasyCreateBox(box_shape, 100, chrono.ChVector(0, 0.5, 0), chrono.ChFrame(chrono.ChVector(0, 0, 0)))
+    my_system.AddBody(box_body)
 
-box_shape = chrono.ChBox(1, 1, 1, chrono.ChVector(0, 1, 0))
-box_body = chrono.ChBodyEasyBox(1, 1, 1, 500, my_material, chrono.ChFrame(chrono.ChVector(0, 5, 0)))
-my_engine.AddBody(box_body)
+    
+    ros_manager = roschrono.ChRosManagerPy()
+    ros_manager.Initialize(my_system)
 
+    
+    ros_handler_id = ros_manager.CreateCustomHandler(ros_handler)
 
-class IntPublisher:
-    def __init__(self, topic, rate):
-        self.pub = rosbag.Publisher(topic, 'std_msgs/Int32', rate)
-        self.counter = 0
+    
+    ros_manager.AddRosTopic(chrono.ChRosTopicDataImage("camera_feed", 800, 600, 32))
+    ros_manager.AddRosTopic(chrono.ChRosTopicDataInt32("custom_int_topic", 1))
 
-    def next(self):
-        self.counter += 1
-        msg = std_msgs.msg.Int32()
-        msg.data = self.counter
-        self.pub.publish(msg)
+    
+    while device.run():
+        my_system.DoStepDynamics(1.0 / 60.0)
 
+        
+        ros_manager.Synchronize()
 
-ros_manager = chronoros.ChRosManager()
-ros_manager.Initialize(my_engine)
-ros_manager.AddClockHandler(chronoros.ChRosClock())
-ros_manager.AddBodyHandler(chronoros.ChRosBody())
-ros_manager.AddTransformHandler(chronoros.ChRosTransform())
+        
+        ros_manager.TriggerCustomHandler(ros_handler_id)
 
-
-ros_manager.AddCustomHandler(IntPublisher('topic_name', 100))
-
-
-start_time = time.time()
-while True:
-    dt = min(0.01, time.time() - start_time)
-    my_engine.DoStepDynamics(dt)
-    ros_manager.Synchronize()
-    start_time = time.time()
+if __name__ == '__main__':
+    main()

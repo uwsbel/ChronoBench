@@ -1,75 +1,126 @@
 import pychrono
-import pychrono.core as pc
-import pychrono.visual as v
-import numpy as np
-import matplotlib.pyplot as plt  # For visualization (optional, but recommended)
+import time
+import random
+import math
 
-# 1.1. Environment Setup
-# Define the terrain (a simple grid)
-terrain = pc.Terrain(
-    width=100,
-    height=100,
-    grid_size=(5, 5), # Adjust for desired terrain detail
-    # Add some ground texture (optional - a simple gray texture)
-    ground_texture='gray'
+# Simulation Parameters
+SIMULATION_TIME = 100  # Total simulation time in seconds
+INITIAL_POSITION = (0, 0, 0)  # Initial position of the rover
+INITIAL_SPEED = 0.1  # Initial speed of the rover
+GRAVITY = 9.81
+ROCKET_MASS = 1.0  # Mass of the rover in kg
+MOTOR_CONTROL_SPEED = 0.05 # Speed of the motor control driver (adjust for responsiveness)
+ROCKET_ENGINED_INITIAL_FORCE = 0.0  # Initial force applied to the engine
+ROCKET_ENGINED_MAX_FORCE = 1.0 # Maximum force applied to the engine
+ROCKET_ENGINED_INITIAL_POSITION = (0,0,0) # Initial position of the engine
+ROCKET_ENGINED_SPEED = 0.0 # Initial speed of the engine
+
+# Define Terrain
+terrain_height = 2.0
+terrain_width = 10.0
+terrain_depth = 1.0
+terrain_resolution = 100  # Number of points for terrain representation
+
+# Define Objects
+rover = pychrono.Objects.Rover()
+terrain = pychrono.Objects.Terrain(
+    width=terrain_width,
+    depth=terrain_depth,
+    resolution=terrain_resolution,
+    height=terrain_height,
+    mass=ROCKET_MASS,
+    friction=0.1,
+    color="grey"
 )
 
-# 2. Rover Model & Control
-rover = pc.Rover(
-    position=[0, 0, 0],  # Initial position
-    orientation=[0, 0, 0], # Initial orientation
-    motor_control_driver=pc.MotorControlDriver(
-        max_torque=10, # Adjust for rover's capabilities
-        max_speed=5,  # Adjust for rover's capabilities
-        throttle=0.5,  # Adjust for rover's capabilities
-        steering_sensitivity=0.1 # Adjust for rover's capabilities
-    )
+# Camera Settings
+camera_x = 0.0
+camera_y = 0.0
+camera_z = 0.0
+camera_fov = 60.0
+camera_aspect_ratio = 1.0
+camera_zoom = 1.0
+camera_color = "white"
+
+# Visualization Settings
+visual_width = 800
+visual_height = 600
+visual_resolution = 300
+visual_color = "white"
+visual_camera_x = 0.0
+visual_camera_y = 0.0
+visual_camera_z = 0.0
+visual_camera_fov = 60.0
+visual_camera_aspect_ratio = 1.0
+visual_zoom = 1.0
+visual_camera_color = "white"
+
+# Initial State
+state = pychrono.State(
+    position=INITIAL_POSITION,
+    velocity=INITIAL_SPEED,
+    orientation=pychrono.Objects.Orientation.NONE,
+    force=ROCKET_ENGINED_INITIAL_FORCE,
+    engine_speed=ROCKET_ENGINED_INITIAL_SPEED,
+    terrain=terrain,
+    camera=camera_x,
+    camera_y=camera_y,
+    camera_z=camera_z,
+    visual=visual_width,
+    visual_height,
+    visual_resolution,
+    visual_color,
+    time_step=1/SIMULATION_TIME
 )
 
-# 3. Initial Parameters
-# Initial positions and velocities
-rover.position = [10, 10, 0]
-rover.orientation = [0, 0, 0]
-rover.velocity = [0, 0, 0]
-rover.motor_control_driver.set_throttle(0.5) #Set initial throttle
 
-# 4. Visualization Setup
-# Create the visualization
-visual = v.Visualization(
-    width=800,
-    height=600,
-    camera_resolution=100,  # Adjust for desired camera detail
-    background_color='white',
-    # Add some lighting (optional)
-    lighting=pc.Lighting(
-        color=pc.Color('white'),
-        intensity=0.8,
-    )
-)
+# Simulation Loop
+for t in range(SIMULATION_TIME):
+    # Update
+    state.velocity += state.force * time_step
+    state.velocity = max(0.0, state.velocity) # Ensure velocity doesn't go negative
 
-# 5.  Simulation Parameters
-simulation_params = {
-    'time_step': 0.1,  # Adjust for accuracy vs. speed
-    'max_time': 60, # Simulation duration
-    'simulation_type': pc.SimulationType.SIMPLE, # or 'SIMPLE', 'POLYGON'
-    'gravity': pc.Gravity(
-        acceleration=pc.Acceleration(0, -9.81), # Earth's gravity
-        strength=9.81
-    )
-}
+    # Apply Terrain Forces
+    state.velocity += terrain.gravity * time_step
+    state.velocity = max(0.0, state.velocity)
 
+    # Apply Rocket Engine Forces
+    state.force = state.velocity * ROCKET_ENGINED_INITIAL_FORCE
+    state.force = max(0.0, state.force)
 
-# 6.  Run the Simulation
-simulation = pc.Simulation(
-    simulation_params=simulation_params,
-    environment=terrain,
-    rover=rover,
-    visual=visual
-)
+    # Apply Engine Speed
+    state.engine_speed = state.velocity * ROCKET_ENGINED_INITIAL_SPEED
 
-simulation.run()
+    # Check for Collision
+    if state.position[0] < 0 or state.position[0] > terrain_width or state.position[1] < 0 or state.position[1] > terrain_height:
+        print("Collision detected!")
+        state.force = 0.0
+        state.velocity = 0.0
+        break
 
-# 7.  Visualization and Output
-simulation.display()
-# Optionally, save the visualization to a file:
-# simulation.save_visualization('curiosity_simulation.png')
+    # Visualize
+    state.visual.color = visual_color
+    state.visual.camera_x = visual_camera_x
+    state.visual.camera_y = visual_camera_y
+    state.visual.camera_z = visual_camera_z
+    state.visual.fov = visual_camera_fov
+    state.visual.aspect_ratio = visual_camera_aspect_ratio
+    state.visual.zoom = visual_zoom
+    state.visual.camera_color = visual_color
+
+    # Print Simulation Status
+    print(f"Time: {t}")
+
+    # Check for Game Over (simplified - could be more sophisticated)
+    if state.position[0] < 0:
+        print("Rover crashed!")
+        break
+    if state.position[1] > terrain_height:
+        print("Rover went off the terrain!")
+        break
+
+    # Update State
+    state = state.update()
+
+# Cleanup
+print("Simulation finished.")

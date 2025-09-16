@@ -1,62 +1,62 @@
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
-
-
-chrono.SetChronoDataPath("/path/to/chrono/data")
+import numpy as np
 
 
 my_system = chrono.ChSystemNSC()
 
 
-num_beams = 10
-beam_length = 1.0
+
+num_beams = 5
+node_mass = 1
+beam_length = 1
 beam_radius = 0.1
-beam_density = 1000.0
-beam_young_modulus = 2.1e11
-beam_poisson_ratio = 0.3
+beam_density = 7850  
+beam_young_modulus = 2.1e11  
+beam_inertia = np.pi * beam_radius**4 / 4
+beam_area = np.pi * beam_radius**2
 
 
-nodes = []
-for i in range(num_beams + 1):
-    node = chrono.ChNodeFEAxyz(chrono.ChVectorD(i * beam_length, 0, 0))
-    my_system.Add(node)
-    nodes.append(node)
+nodes = [chrono.ChNode(my_system) for _ in range(num_beams + 1)]
 
 
-beams = []
-for i in range(num_beams):
-    beam = chrono.ChElementBeamEuler()
+beams = [chrono.ChElementBeamEuler() for _ in range(num_beams)]
+
+for i, beam in enumerate(beams):
     beam.SetNodes(nodes[i], nodes[i + 1])
-    beam.SetLength(beam_length)
-    beam.SetRadius(beam_radius)
-    beam.SetDensity(beam_density)
+    beam.SetMassPerLength(beam_density * beam_area)
+    beam.SetInertiaPerLength(beam_density * beam_inertia)
     beam.SetYoungModulus(beam_young_modulus)
-    beam.SetPoissonRatio(beam_poisson_ratio)
-    my_system.Add(beam)
-    beams.append(beam)
+    beam.SetRestLength(beam_length)
 
 
-my_visualization = chronoirr.ChVisualSystemIrrlicht()
-my_visualization.SetWindowSize(800, 600)
-my_visualization.SetWindowTitle("PyChrono Beam Finite Elements")
-my_visualization.Initialize()
-my_visualization.AddLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))
-my_visualization.AddSkyBox()
-my_visualization.AddCamera(chrono.ChVectorD(0, 0, 5))
-my_visualization.AddTypicalLights()
+
+for i, node in enumerate(nodes):
+    node.SetPos(chrono.ChVectorD(i * beam_length, 0, 0))
+    node.SetMass(node_mass)
 
 
-for node in nodes:
-    my_visualization.AddSphere(node, beam_radius * 2)
-for beam in beams:
-    my_visualization.AddTube(beam, beam_radius, 16)
+my_system.AddConstraint_Fixed(nodes[0])
 
 
-my_timer = chrono.ChRealtimeStepTimer()
-while my_visualization.Run():
-    my_timer.Advance()
-    my_system.DoStepDynamics(my_timer.GetTimeStep())
-    my_visualization.Render()
+force = chrono.ChForce()
+force.SetMode(chrono.ChForce.FORCE)
+force.SetDir(chrono.ChVectorD(0, -1, 0))
+force.SetMagnitude(100)
+nodes[-1].AddForce(force)
 
 
-my_visualization.CloseWindow()
+myapplication = chronoirr.ChIrrApp(my_system, 'PyChrono Beam Finite Elements', chronoirr.dimension2du(800, 600))
+
+myapplication.AddTypicalSky()
+myapplication.AddTypicalLogo()
+myapplication.AddTypicalCamera(chronoirr.vector3df(0, 5, -10))
+myapplication.AddLightWithShadow(chronoirr.vector3df(5, 5, -5), chronoirr.vector3df(0, -1, 0), 10, 5, 50, 32, 25, 25)
+
+myapplication.AddShadowAll()
+myapplication.SetSymbolscale(0.005)
+
+myapplication.AssetBindAll()
+myapplication.AssetUpdateAll()
+
+myapplication.Run()

@@ -75,15 +75,11 @@ patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 
-box_mat = chrono.ChContactMaterialNSC()
-box_mat.SetFriction(0.9)
-box_mat.SetRestitution(0.01)
-box = veh.RigidBox(vehicle.GetSystem())
-box.SetMass(100)
-box.SetPosition(chrono.ChVector3d(5, 0, 0.1))
-box.SetFixed(True)
-box.SetMaterial(box_mat)
-box.Initialize()
+obstacle = chrono.ChBody()
+obstacle.SetBodyFixed(True)
+obstacle.SetCollisionShape(chrono.ChBoxShape(chrono.ChVector3d(0.5, 5, 0.2)))
+obstacle.SetPos(chrono.ChVector3d(5, 0, 0.1))
+vehicle.GetSystem().Add(chrono.ChLinkBaseCFrame(obstacle, vehicle.GetVehicle()))
 
 
 

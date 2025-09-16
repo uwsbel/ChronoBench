@@ -1,9 +1,10 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
-import math
+import numpy as np
 
 # Set data paths
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 # Initial vehicle location and orientation
@@ -19,12 +20,12 @@ chassis_collision_type = veh.CollisionType_NONE
 # Type of tire model (RIGID, TMEASY)
 tire_model = veh.TireModelType_TMEASY
 
-# Rigid terrain
-terrainHeight = 0      # terrain height
-terrainLength = 100.0  # size in X direction
-terrainWidth = 100.0   # size in Y direction
+# Rigid terrain parameters
+terrainHeight = 0 
+terrainLength = 100.0 
+terrainWidth = 100.0 
 
-# Poon chassis tracked by the camera
+# Camera tracking point
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
 
 # Contact method
@@ -36,7 +37,7 @@ step_size = 1e-3
 tire_step_size = step_size
 
 # Time interval between two render frames
-render_step_size = 1.0 / 50  # FPS = 50
+render_step_size = 1.0 / 50 
 
 # Create the HMMWV vehicle, set parameters, and initialize
 vehicle = veh.HMMWV_Full()
@@ -60,10 +61,12 @@ vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
+
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-patch = terrain.AddPatch(patch_mat,chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),terrainLength, terrainWidth)
+patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, terrainHeight), chrono.QUNIT), terrainLength, terrainWidth)
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+
 terrain.Initialize()
 
 # Create the vehicle Irrlicht interface
@@ -82,45 +85,36 @@ class MyDriver(veh.ChDriver):
     def __init__(self, delay):
         super().__init__()
         self.delay = delay
-        self.start_time = 0
 
     def Synchronize(self, time):
-        if self.start_time == 0:
-            self.start_time = time
-        throttle = 0
-        steering = 0
-        braking = 0
+        throttle = 0.0
+        steering = 0.0
+        braking = 0.0
 
-        if time - self.start_time > self.delay:
-            if time - self.start_time > 0.2:
-                throttle = min((time - self.start_time - 0.2) / 1.0, 0.7)
-            if time - self.start_time > 2:
-                steering = 0.5 * math.sin(2 * math.pi * (time - self.start_time - 2))
+        if time > self.delay + 0.2:
+            throttle = min((time - self.delay - 0.2) / 1.0, 0.7)
+
+        if time > self.delay + 2.0:
+            steering = 0.5 * np.sin(2 * np.pi * (time - self.delay - 2.0))
 
         self.SetThrottle(throttle)
         self.SetSteering(steering)
         self.SetBraking(braking)
 
-# Create the custom driver system
+# Create the custom driver
 driver = MyDriver(0.5)
-driver.Initialize()
 
-# output vehicle mass
-print("VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
-
-# Number of simulation steps between miscellaneous events
-render_steps = math.ceil(render_step_size / step_size)
-
-# Initialize simulation frame counter
+# Simulation loop
+render_steps = int(render_step_size / step_size)
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-while vis.Run() and vehicle.GetSystem().GetChTime() < 4:
+while vis.Run() and vehicle.GetSystem().GetChTime() < 4.0:
     time = vehicle.GetSystem().GetChTime()
 
-    # Render scene and output POV-Ray data
-    if (step_number % render_steps == 0) :
+    # Render scene 
+    if step_number % render_steps == 0:
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
@@ -130,19 +124,20 @@ while vis.Run() and vehicle.GetSystem().GetChTime() < 4:
     driver.Synchronize(time)
     driver_inputs = driver.GetInputs()
 
-    # Update modules (process inputs from other modules)
+    # Update modules
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
 
-    # Advance simulation for one timestep for all modules
+    # Advance simulation
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
 
-    # Increment frame number
+    # Increment step number
     step_number += 1
 
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
+

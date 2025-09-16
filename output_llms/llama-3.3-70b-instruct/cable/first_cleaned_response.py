@@ -1,113 +1,73 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
-import numpy as np
+import pychrono.analytical_functions as chronoaf
 
 
-system = chrono.ChSystemNSC()
+sys = chrono.ChSystemNSC()
 
 
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+contact_material = chrono.ChMaterialSurfaceNSC()
+contact_material.SetFriction(0.5)
+contact_material.SetRestitution(0.1)
+contact_material.SetCompliance(1e-6)
 
 
-vis = chronoirr.ChVisualSystemIrrlicht()
-
-
-beam_length = 10.0  
-beam_density = 7850.0  
-beam_youngs_modulus = 2.1e11  
-beam_cross_sectional_area = 0.01  
-beam_moment_of_inertia = 1e-5  
+beam_length = 10  
 num_elements = 10  
+density = 7850  
+youngs_modulus = 2e11  
+poissons_ratio = 0.3  
 
 
-beam = chrono.ChBodyEasyBox(system, beam_length, beam_cross_sectional_area, beam_density)
+ground = chrono.ChBodyEasyBox(sys, 10, 1, 10, 1000, True, contact_material)
+ground.SetPos(chrono.ChVectorD(0, -5, 0))
+ground.SetBodyFixed(True)
 
 
-cable_elements = []
+beam = chrono.ChBody()
+beam.SetMass(1)
+beam.SetInertiaXX(chrono.ChVectorD(1, 1, 1))
+beam.SetInertiaXY(chrono.ChVectorD(0, 0, 0))
+beam.SetInertiaXZ(chrono.ChVectorD(0, 0, 0))
+beam.SetInertiaYY(chrono.ChVectorD(1, 1, 1))
+beam.SetInertiaYZ(chrono.ChVectorD(0, 0, 0))
+beam.SetInertiaZZ(chrono.ChVectorD(1, 1, 1))
+
+
+ancf_elements = []
 for i in range(num_elements):
-    node1 = chrono.ChNodeFEAxyz(beam)
-    node2 = chrono.ChNodeFEAxyz(beam)
-    node1.SetPos(chrono.ChVectorD(i * beam_length / num_elements, 0, 0))
-    node2.SetPos(chrono.ChVectorD((i + 1) * beam_length / num_elements, 0, 0))
-    cable_element = chrono.ChElementCableANCF(node1, node2, beam_youngs_modulus, beam_cross_sectional_area, beam_moment_of_inertia)
-    cable_elements.append(cable_element)
-    beam.Add(cable_element)
+    ancf_element = chrono.ChElementCableANCF(beam_length / num_elements, density, youngs_modulus, poissons_ratio)
+    ancf_elements.append(ancf_element)
+    beam.Add(ancf_element)
 
 
 hinge = chrono.ChLinkMateGeneric()
 hinge.SetName("hinge")
-hinge.Initialize(beam, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.Q_from_AngX(0)))
-system.Add(hinge)
+hinge.Initialize(beam, ground, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.Q_from_AngX(0)))
 
 
-dt = 0.01
+sys.Add(hinge)
 
 
-t_end = 10.0
+sys.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
 
+vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AddSkyBox()
-vis.AddCamera(chrono.ChVectorD(0, 0, 10), chrono.ChVectorD(0, 0, 0))
+vis.AddTypicalLights()
+vis.AddCamera(chrono.ChVectorD(0, 0, 10))
+vis.AddTypicalLights()
 
 
-t = 0.0
-while t < t_end:
-    
-    system.DoStepDynamics(dt)
-
-    
+time_step = 0.01
+end_time = 10
+while sys.GetChTime() < end_time:
+    sys.DoStepDynamics(time_step)
     vis.BeginScene()
     vis.DrawAll()
     vis.EndScene()
+    vis.Run()
 
     
-    t += dt
-
-def main():
-    
-    system = chrono.ChSystemNSC()
-    vis = chronoirr.ChVisualSystemIrrlicht()
-
-    
-    beam_length = 10.0
-    beam_density = 7850.0
-    beam_youngs_modulus = 2.1e11
-    beam_cross_sectional_area = 0.01
-    beam_moment_of_inertia = 1e-5
-    num_elements = 10
-
-    
-    beam = chrono.ChBodyEasyBox(system, beam_length, beam_cross_sectional_area, beam_density)
-    cable_elements = []
-    for i in range(num_elements):
-        node1 = chrono.ChNodeFEAxyz(beam)
-        node2 = chrono.ChNodeFEAxyz(beam)
-        node1.SetPos(chrono.ChVectorD(i * beam_length / num_elements, 0, 0))
-        node2.SetPos(chrono.ChVectorD((i + 1) * beam_length / num_elements, 0, 0))
-        cable_element = chrono.ChElementCableANCF(node1, node2, beam_youngs_modulus, beam_cross_sectional_area, beam_moment_of_inertia)
-        cable_elements.append(cable_element)
-        beam.Add(cable_element)
-
-    
-    hinge = chrono.ChLinkMateGeneric()
-    hinge.SetName("hinge")
-    hinge.Initialize(beam, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.Q_from_AngX(0)))
-    system.Add(hinge)
-
-    
-    dt = 0.01
-    t_end = 10.0
-    vis.AddSkyBox()
-    vis.AddCamera(chrono.ChVectorD(0, 0, 10), chrono.ChVectorD(0, 0, 0))
-
-    
-    t = 0.0
-    while t < t_end:
-        system.DoStepDynamics(dt)
-        vis.BeginScene()
-        vis.DrawAll()
-        vis.EndScene()
-        t += dt
-
-if __name__ == "__main__":
-    main()
+    for i, ancf_element in enumerate(ancf_elements):
+        print(f"Node {i+1} position: {ancf_element.GetNode().GetPos()}")

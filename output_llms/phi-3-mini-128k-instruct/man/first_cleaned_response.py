@@ -1,84 +1,104 @@
-import pychrono as chrono
-
-import numpy as np
-
-
-
-
-chrono.ChSystemAtom()
+from pychrono.core import *
+from pychrono.vehicle import *
+from pychrono.vehicle_dynamic_problem import *
+from pychrono import visualization
+from pychrono.irrlicht_utils import *
 
 
+chrono_init()
 
 
-satellite = chrono.ChBody()
-
-satellite.SetName('Satellite')
-
-satellite.SetPos(chrono.ChVectorD(0, 0, 1000))  
-
-satellite.SetMass(1000)  
-
-satellite.SetInertiaXX(100)  
-
-satellite.SetInertiaXY(10)  
-
-satellite.SetInertiaXYZ(1)  
+man_truck = Vehicle()
+man_truck.set_vehicle_type(Vehicle::Truck)
+man_truck.set_vehicle_mass(20000.0)
+man_truck.set_vehicle_length(5.5)
+man_truck.set_vehicle_width(2.0)
+man_truck.set_vehicle_height(1.5)
+man_truck.set_vehicle_wheelbase(3.0)
+man_truck.set_vehicle_tyres_count(4)
+man_truck.set_vehicle_tyres_diameter(0.9)
+man_truck.set_vehicle_tyres_pressure(2.5)
+man_truck.set_vehicle_tyres_coefficient_of_friction(0.8)
 
 
+tire_model = TireModel()
+tire_model.set_type(TireModel::TMEASY)
+man_truck.add_tire_model(tire_model)
 
 
-earth = chrono.ChBody()
-
-earth.SetName('Earth')
-
-earth.SetPos(chrono.ChVectorD(0, 0, 0))  
-
-earth.SetMass(5.972e24)  
-
-earth.SetInertiaXX(0.33011)  
-
-earth.SetInertiaXY(2.557e38)  
-
-earth.SetInertiaXYZ(1.309e38)  
+man_truck.set_default_parameters()
 
 
+vehicle_dynamics_problem = VehicleDynamicProblem()
+vehicle_dynamics_problem.set_vehicle(man_truck)
+vehicle_dynamics_problem.set_gravity(chrono_gravity())
+vehicle_dynamics_problem.set_time_step(0.01)
+vehicle_dynamics_problem.set_collision_settings(CollisionSettings())
 
 
-earth_grav_force = chrono.ChVectorD(0, 0, -6.67430e-11 * earth.GetMass() * satellite.GetMass() / (satellite.GetPos().Length() ** 2))
-
-satellite.AddForce(earth_grav_force)
-
-
+terrain = create_rigid_terrain()
+terrain.set_name("Rigid Terrain")
+terrain.set_material_properties(0.5, 0.5, 0.5)
 
 
-chrono.ChCollisionAlgorithmLCG(12345)
-
-chrono.ChCollisionFrequencyAlgorithmDefault()
-
-chrono.ChCollisionDispatchAlgorithmQuick()
+visualization_manager = visualization.VVisualizationManager()
+irrlicht_application = visualization.IrrlichtApplication(width=800, height=600, fullscreen=False)
 
 
+camera = camera_manager.add_camera(irrlicht_application, "Chase Camera")
+camera.set_position(camera_position)
+camera.set_lookat(camera_lookat)
+camera.set_fov(45.0)
+camera.set_field_of_view(110.0)
 
 
-earth.AddCollisionAlgorithm(chrono.ChCollisionAlgorithm(chrono.ChCollisionAlgorithmLCG(12345)))
-
-satellite.AddCollisionAlgorithm(chrono.ChCollisionAlgorithm(chrono.ChCollisionAlgorithmLCG(12345)))
-
-
+skybox = visualization.add_skybox(irrlicht_application, "Skybox")
+directional_light = visualization.add_directional_light(irrlicht_application, "Directional Light")
+directional_light.set_direction(visualization.Vector3D(0.0, -1.0, -0.5))
 
 
-integrator = chrono.ChIntegrator_New(chrono.ChIntegration_New(chrono.ChIntegration_LeapFrog, 1e-3))
-
-chrono.ChSystem_AddIntegrator(chrono.ChSystem(), integrator)
-
+terrain.set_texture(visualization.Texture("terrain_texture.jpg"))
+terrain.set_logo(visualization.Logo("truck_logo.png"))
 
 
-
-for step in range(1000):
-
-    chrono.ChStepManager.Update()
+irrlicht_application.add_scene_graph_node(terrain)
 
 
+solver = vehicle_dynamics_problem.get_solver()
 
 
-print('Final position of the satellite:', satellite.GetPos())
+steering_control = vehicle_dynamics_problem.get_steering_control()
+throttle_control = vehicle_dynamics_problem.get_throttle_control()
+brake_control = vehicle_dynamics_problem.get_brake_control()
+
+
+while irrlicht_application.run():
+    
+    vehicle_dynamics_problem.update()
+    
+    
+    irrlicht_application.draw_frame()
+    
+    
+    if irrlicht_application.get_input_controller().is_key_pressed(irrlicht_application.buttons.KEY_W):
+        steering_control.set_steering_angle(0.1)
+    elif irrlicht_application.get_input_controller().is_key_pressed(irrlicht_application.buttons.KEY_S):
+        steering_control.set_steering_angle(-0.1)
+    if irrlicht_application.get_input_controller().is_key_pressed(irrlicht_application.buttons.KEY_A):
+        throttle_control.set_throttle(0.1)
+    elif irrlicht_application.get_input_controller().is_key_pressed(irrlicht_application.buttons.KEY_D):
+        throttle_control.set_throttle(-0.1)
+    if irrlicht_application.get_input_controller().is_key_pressed(irrlicht_application.buttons.KEY_SPACE):
+        brake_control.set_brake(0.5)
+    
+    
+    solver.update_controls(steering_control, throttle_control, brake_control)
+    
+    
+    vehicle_dynamics_problem.update_solver(solver)
+    
+    
+    camera.set_position(man_truck.get_position() + visualization.Vector3D(0, 0, 5))
+
+
+irrlicht_application.start_application()

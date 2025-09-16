@@ -138,8 +138,7 @@ def main():
         # Update sensors and ROS data.
         sens_manager.Update()
         if not ros_manager.Update():
-            print("ROS manager update failed. Exiting simulation loop.")
-            break
+            break  # Exit the loop if the ROS manager update fails.
 
         sys.DoStepDynamics(time_step)  # Advance the simulation by one time step.
 

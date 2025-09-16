@@ -3,7 +3,6 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
-
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
@@ -21,6 +20,8 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 
+terrain_model = veh.RigidTerrain.MESH
+
 terrainHeight = 0
 terrainLength = 100.0
 terrainWidth = 100.0
@@ -37,8 +38,7 @@ step_size = 1e-4
 tire_step_size = step_size
 
 
-render_step_size = 1.0 / 100  
-
+render_step_size = 1.0 / 60  
 
 
 
@@ -66,10 +66,9 @@ patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-patch = terrain.AddPatch(patch_mat,
-                         chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
-                         terrainLength, terrainWidth)
 
+
+patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), terrainLength, terrainWidth, terrain_model)
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
@@ -103,27 +102,31 @@ driver.Initialize()
 
 
 
-Kp = 1.0
-Ki = 0.1
-Kd = 0.01
+print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 
-prev_error = 0.0
-integral = 0.0
-
-
-ref_speed = 20.0  
+render_steps = math.ceil(render_step_size / step_size)
 
 
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
+
+Kp = 1.0
+Ki = 0.1
+Kd = 0.01
+integral = 0.0
+previous_error = 0.0
+
+
+reference_speed = 20.0  
+
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
     
-    if (step_number % math.ceil(render_step_size / step_size) == 0):
+    if (step_number % render_steps == 0):
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
@@ -133,14 +136,20 @@ while vis.Run():
     driver_inputs = driver.GetInputs()
 
     
-    current_speed = vehicle.GetVehicle().GetSpeed()
-    error = ref_speed - current_speed
+    current_speed = vehicle.GetVehicle().GetChassisBody().GetLinearVelocity().Length()
+    error = reference_speed - current_speed
 
     
     integral += error * step_size
-    derivative = (error - prev_error) / step_size
-    throttle = Kp * error + Ki * integral + Kd * derivative
-    throttle = max(0, min(throttle, 1))  
+    derivative = (error - previous_error) / step_size
+    throttle_input = Kp * error + Ki * integral + Kd * derivative
+    previous_error = error
+
+    
+    throttle_input = max(0.0, min(throttle_input, 1.0))
+
+    
+    driver_inputs.m_throttle = throttle_input
 
     
     driver.Synchronize(time)
@@ -159,6 +168,3 @@ while vis.Run():
 
     
     realtime_timer.Spin(step_size)
-
-    
-    prev_error = error

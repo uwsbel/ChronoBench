@@ -1,119 +1,79 @@
 import chrono as ch
-import chrono.irrlicht as irr
+import chrono.irrlicht as chirr
 
 
 ch.ChEngine.Initialize()
 
 
-app = irr.ChIrrApp()
+app = chirr.ChIrrApp()
 
 
-app.SetTitle("Curiosity Rover on Rigid Terrain")
+ground = ch.ChBodyEasyTerrain(
+    "ground",
+    1000,  
+    1000,  
+    10,    
+    20,    
+    20,    
+    ch.ChVector3d(0, 0, -5)  
+)
 
 
-terrain = ch.ChBodyEasyTerrain(500, 500, 20, 20, "terrain/terrain.obj")
-terrain.SetPos(ch.ChVector3d(0, 0, -5))
-terrain.SetBodyFixed(True)
+ground.GetCollisionModel().SetContactMaterialProperties(0.9, 0.9, 0.9)
+ground.GetCollisionModel().SetContactShapeType(ch.ChContactShapeType.SPHERE)
 
 
-terrain_collision = ch.ChCollisionShape(terrain, False)
-terrain_collision.SetShapeType(ch.ChCollisionShape.ELLIPSOID)
-terrain_collision.SetDimensions(ch.ChVector3d(250, 250, 5))
+ground.SetPos(ch.ChVector3d(0, 0, -5))
+ground.SetFixed(True)
+
+system = ch.ChSystemNSC()
+system.Add(ground)
 
 
-ch.ChSystemGlobals.GetActiveSystem().Add(terrain)
-ch.ChSystemGlobals.GetActiveSystem().Add(terrain_collision)
+rover = ch.ChBodyEasyMesh(
+    "path/to/curiosity_rover.obj",  
+    1000,  
+    False,  
+    True,   
+    ch.ChVector3d(0, 0, 0)  
+)
 
 
-rover = ch.ChBodyEasyMesh("models/curiosity.obj", 1000)
+system.Add(rover)
 
 
-rover.SetPos(ch.ChVector3d(0, 0, 0.5))
+steering_motor = ch.ChMotor(
+    ch.ChFrame3d(ch.ChVector3d(0, 0, 0), ch.ChQuaterniond(0, 0, 0, 1)),
+    ch.ChFrame3d(ch.ChVector3d(1, 0, 0), ch.ChQuaterniond(0, 0, 0, 1))
+)
 
 
-ch.ChSystemGlobals.GetActiveSystem().Add(rover)
+steering_driver = ch.ChFunction_Const(0)  
 
 
-motor_driver = ch.ChMotorControlDriver(rover)
+system.Add(steering_motor)
+steering_motor.SetControlFunction(steering_driver)
 
 
-motor_driver.SetTorqueLimit(100)
-motor_driver.SetSpeedLimit(10)
+irrlicht_renderer = chirr.ChIrrlichtRenderer(system)
+irrlicht_renderer.SetWindowSize(chirr.ChVector2di(800, 600))
+irrlicht_renderer.SetWindowTitle("Curiosity Rover Simulation")
+irrlicht_renderer.UseCameraSettings(chirr.ChCameraSettings())
 
 
-ch.ChSystemGlobals.GetActiveSystem().Add(motor_driver)
+camera = irrlicht_renderer.GetCamera()
+camera.SetPosition(ch.ChVector3d(0, -10, 5))
+camera.LookAt(ch.ChVector3d(0, 0, 0))
 
 
-ch.ChSystemGlobals.GetActiveSystem().SetCollisionSystem(ch.ChCollisionSystem.Type.BULLET)
-ch.ChSystemGlobals.GetActiveSystem().SetContactMaterial(ch.ChContactMaterial.Type.ANISOTROPIC_ROUGH)
+irrlicht_renderer.EnableSunlight(True)
+irrlicht_renderer.EnableShadows(True)
 
 
-app.SetCameraDistance(10)
-app.SetCameraPos(ch.ChVector3d(0, -10, 5))
-app.SetLightDirection(ch.ChVector3d(1, 1, 1))
-app.EnableShadows(True)
+irrlicht_renderer.EnableTextures(True)
+irrlicht_renderer.LoadTexture("path/to/texture.jpg")  
+irrlicht_renderer.SetLogo("path/to/logo.png")  
 
 
-app.Run()
-
-import chrono as ch
-import chrono.irrlicht as irr
-
-def main():
-    
-    ch.ChEngine.Initialize()
-
-    
-    app = irr.ChIrrApp()
-
-    
-    app.SetTitle("Curiosity Rover on Rigid Terrain")
-
-    
-    terrain = ch.ChBodyEasyTerrain(500, 500, 20, 20, "terrain/terrain.obj")
-    terrain.SetPos(ch.ChVector3d(0, 0, -5))
-    terrain.SetBodyFixed(True)
-
-    
-    terrain_collision = ch.ChCollisionShape(terrain, False)
-    terrain_collision.SetShapeType(ch.ChCollisionShape.ELLIPSOID)
-    terrain_collision.SetDimensions(ch.ChVector3d(250, 250, 5))
-
-    
-    ch.ChSystemGlobals.GetActiveSystem().Add(terrain)
-    ch.ChSystemGlobals.GetActiveSystem().Add(terrain_collision)
-
-    
-    rover = ch.ChBodyEasyMesh("models/curiosity.obj", 1000)
-
-    
-    rover.SetPos(ch.ChVector3d(0, 0, 0.5))
-
-    
-    ch.ChSystemGlobals.GetActiveSystem().Add(rover)
-
-    
-    motor_driver = ch.ChMotorControlDriver(rover)
-
-    
-    motor_driver.SetTorqueLimit(100)
-    motor_driver.SetSpeedLimit(10)
-
-    
-    ch.ChSystemGlobals.GetActiveSystem().Add(motor_driver)
-
-    
-    ch.ChSystemGlobals.GetActiveSystem().SetCollisionSystem(ch.ChCollisionSystem.Type.BULLET)
-    ch.ChSystemGlobals.GetActiveSystem().SetContactMaterial(ch.ChContactMaterial.Type.ANISOTROPIC_ROUGH)
-
-    
-    app.SetCameraDistance(10)
-    app.SetCameraPos(ch.ChVector3d(0, -10, 5))
-    app.SetLightDirection(ch.ChVector3d(1, 1, 1))
-    app.EnableShadows(True)
-
-    
-    app.Run()
-
-if __name__ == "__main__":
-    main()
+while irrlicht_renderer.Run():
+    system.Update(1 / 60.0)

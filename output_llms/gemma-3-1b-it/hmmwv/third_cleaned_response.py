@@ -121,7 +121,7 @@ while vis.Run() :
 
     
     driver.Synchronize(time)
-    terrain.Synchronize(time)
+    terrain.Synchronize(time, driver_inputs, terrain)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
 
@@ -139,5 +139,4 @@ while vis.Run() :
 
 
 
-
-print("Simulation completed.")
+print("VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())

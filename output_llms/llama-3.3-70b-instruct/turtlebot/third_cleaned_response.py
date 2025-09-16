@@ -31,15 +31,26 @@ robot.Initialize()
 sensor_manager = sens.ChSensorManager(system)
 
 
-lidar_sensor = sens.ChLidarSensor(system, robot.GetChassisBody(), 10, 0.1, 0.5, 10, 360, 0.1, 0.1, 0.1)
-lidar_sensor.AddFilter(sens.ChFilterBox(0.1, 0.5, 0.1, 0.1, 0.1, 0.1))
+lidar_sensor = sens.ChLidarSensor()
+lidar_sensor.SetName("LidarSensor")
+lidar_sensor.SetFrequency(10)
+lidar_sensor.SetRange(0, 10)
+lidar_sensor.SetHorizontalFOV(math.pi / 2)
+lidar_sensor.SetVerticalFOV(math.pi / 4)
+lidar_sensor.SetHorizontalResolution(180)
+lidar_sensor.SetVerticalResolution(60)
+lidar_sensor.SetNoiseLevel(0.01)
+lidar_sensor.SetMinDistance(0.1)
+lidar_sensor.SetMaxDistance(10)
+lidar_sensor.AddFilter(sens.ChFilterPassThrough("pass_through_filter", 0.5, 10))
 sensor_manager.AddSensor(lidar_sensor)
 
 
 for _ in range(5):
     box_mat = chrono.ChContactMaterialNSC()
-    box = chrono.ChBodyEasyBox(1, 1, 1, 1000, True, True, box_mat)
+    box = chrono.ChBodyEasyBox(1, 1, 1, 100, True, True, box_mat)
     box.SetPos(chrono.ChVector3d(np.random.uniform(-5, 5), np.random.uniform(-5, 5), 0.5))
+    box.SetFixed(False)
     system.Add(box)
 
 
@@ -60,6 +71,7 @@ vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0
 
 
 time_step = 2e-3
+
 
 def move(mode):
     if mode == 'straight':

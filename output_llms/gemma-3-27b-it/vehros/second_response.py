@@ -26,18 +26,19 @@ def main():
     # Set tire model.
     hmmwv.SetTireStepSize(1e-3)
     # Set the tire simulation step size.
-    hmmwv.Initialize()
-    # Initialize the vehicle.
 
-    # Set the data path for vehicle data
-    veh.SetDataPath(ch.GetChronoDataPath() + 'vehicle/')
-
-    # Enhanced visualization settings
+    # Visualization settings
     hmmwv.SetChassisVisualizationType(veh.ChVisualizationType_MESH)
     hmmwv.SetSuspensionVisualizationType(veh.ChVisualizationType_MESH)
     hmmwv.SetSteeringVisualizationType(veh.ChVisualizationType_MESH)
     hmmwv.SetWheelVisualizationType(veh.ChVisualizationType_MESH)
     hmmwv.SetTireVisualizationType(veh.ChVisualizationType_MESH)
+
+    hmmwv.Initialize()
+    # Initialize the vehicle.
+
+    # Set the Chrono data path for vehicle data.
+    veh.SetDataPath(ch.GetChronoDataPath() + 'vehicle/')
 
     # Create the terrain for the vehicle to interact with.
     terrain = veh.RigidTerrain(hmmwv.GetSystem())
@@ -48,7 +49,6 @@ def main():
     patch_mat.SetRestitution(0.01)
     # Set restitution (bounciness) for the terrain.
     patch = terrain.AddPatch(patch_mat, ch.CSYSNORM, 100.0, 100.0)
-    # Add a patch to the terrain.
     patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 100, 100)
     terrain.Initialize()
     # Initialize the terrain.
@@ -80,7 +80,7 @@ def main():
 
     # Runtime visualization setup
     vis = chronoirr.ChVisualSystemIrrlicht()
-    vis.AttachVehicle(hmmwv.GetVehicle())
+    vis.AttachSystem(hmmwv.GetSystem())
     vis.SetWindowSize(1024, 768)
     vis.SetWindowTitle('HMMWV Simulation')
     vis.Initialize()
@@ -90,6 +90,7 @@ def main():
     while time < time_end:
         time = hmmwv.GetSystem().GetChTime()
         # Update simulation time.
+
         # Get driver inputs and synchronize the vehicle, terrain, and driver systems.
         driver_inputs = driver.GetInputs()
         driver.Synchronize(time)
@@ -98,17 +99,19 @@ def main():
         # Synchronize the terrain.
         hmmwv.Synchronize(time, driver_inputs, terrain)
         # Synchronize the vehicle with inputs and terrain.
+
         # Advance the simulation for all modules by one timestep.
         driver.Advance(time_step)
         terrain.Advance(time_step)
         hmmwv.Advance(time_step)
+
         # Update the ROS manager to handle data publishing.
         if not ros_manager.Update(time, time_step):
             break
         # Exit loop if ROS manager update fails.
 
         # Render loop
-        vis.BeginScene(True, True, ch.ChColor(0.2, 0.2, 0.3))
+        vis.BeginScene()
         vis.Render()
         vis.EndScene()
 

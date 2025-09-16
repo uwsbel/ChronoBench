@@ -2,63 +2,65 @@ import pychrono as chrono
 import pychrono.irrlicht as chronoirr
 import numpy as np
 
-# 1. Initialize the PyChrono environment and core components.
-print("Copyright (c) 2023 Project PyChrono")
-
-# Create a Chrono physical system
+# Create a physical system
 sys = chrono.ChSystemSMC()
 
-# 2. Add the required physical systems and objects as specified.
-# Create a mesh composed of beams and nodes
+# Create a mesh
+mesh = chrono.ChMesh()
+
+# Define the material properties
+mat = chrono.ChMaterialSurfaceSMC()
+mat.E = 2.1e11  # Young's modulus (Pa)
+mat.nu = 0.3   # Poisson's ratio
+mat.rho = 7850  # Density (kg/m^3)
+
+# Define the beam section
+beam_section = chrono.ChBeamSectionEulerAdvanced()
+beam_section.SetAsRectangularSection(0.1, 0.2)
+beam_section.SetYoungModulus(2.1e11)
+beam_section.SetGshearModulus(8.0769e10)
+beam_section.SetBeamRho(7850)
+
+# Create nodes and elements
 num_nodes = 10
-length = 10.0
-nodes = []
-beams = []
+num_elements = num_nodes - 1
+node_pos = np.linspace(0, 1, num_nodes)
 
-# Create nodes
 for i in range(num_nodes):
-    node = chrono.ChNodeFEAxyz(chrono.ChVectorD(i * length / (num_nodes - 1), 0, 0))
+    node = chrono.ChNodeFEAxyzrot(chrono.ChFrameD(chrono.ChVectorD(node_pos[i], 0, 0)))
     node.SetMass(0.1)
-    sys.Add(node)
-    nodes.append(node)
+    mesh.AddNode(node)
 
-# Create beam elements
-for i in range(num_nodes - 1):
-    beam = chrono.ChElementBeamEuler(
-        nodes[i], nodes[i + 1], 10, chrono.ChVectorD(0.1, 0.1, 0.1), chrono.ChVectorD(0.1, 0.1, 0.1)
-    )
-    beam.SetYoungModulus(0.01e9)
-    beam.SetGshearModulus(0.01e9 / (2 * 0.3 + 2))
-    beam.SetBeamRaleyghDamping(0.01)
-    sys.Add(beam)
-    beams.append(beam)
+for i in range(num_elements):
+    element = chrono.ChElementBeamEuler()
+    element.SetNodes(mesh.GetNode(i), mesh.GetNode(i+1))
+    element.SetSection(beam_section)
+    mesh.AddElement(element)
 
-# 3. Set necessary default parameters such as positions, forces, and interactions.
-# Constrain the first node
-nodes[0].SetFixed(True)
+# Add the mesh to the system
+sys.Add(mesh)
 
-# Apply a force to the last node
-force = chrono.ChForce()
-force.SetDir(chrono.VECT_Y)
-nodes[-1].AddForce(force)
-force.SetModulus(100)
-
-# Create the Irrlicht visualization
+# Create a visualization application
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(sys)
 vis.SetWindowSize(1024, 768)
-vis.SetWindowTitle('Beams FEA')
+vis.SetWindowTitle('Beam Finite Elements')
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()
-vis.AddCamera(chrono.ChVectorD(0, 1, -3))
+vis.AddCamera(chrono.ChVectorD(0.5, -1, 0.5), chrono.ChVectorD(0.5, 0, 0.5))
 vis.AddTypicalLights()
 
-# Run the simulation loop
+# Set constraints
+node0 = mesh.GetNode(0)
+node0.SetFixed(True)
+
+# Simulation loop
 while vis.Run():
     vis.BeginScene()
     vis.Render()
-    chronoirr.drawAllCOGs(vis, 2)
-    chronoirr.drawAllLinkframes(vis, 1)
     vis.EndScene()
-    sys.DoStepDynamics(0.001)
+    sys.DoStepDynamics(0.01)
+
+# No code needs to be returned outside the code block.
+

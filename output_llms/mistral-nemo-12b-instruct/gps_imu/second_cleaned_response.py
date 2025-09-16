@@ -153,18 +153,10 @@ while vis.Run():
         render_frame += 1
 
     
-    throttle = 0
-    steering = 0
-    braking = 0
-
-    if time < 6:
-        throttle = 1
-    elif 6 <= time < 12:
-        steering = 1
-    else:
-        braking = 1
-
-    driver_inputs = chrono.ChVector3d(steering, throttle, braking)
+    throttle = 0.5 * math.sin(time * 2 * math.pi)
+    steering = 0.5 * math.sin(time * 0.5 * math.pi)
+    braking = 0 if time < 6 else 1  
+    driver_inputs = (throttle, steering, braking)
 
     
     driver.Synchronize(time)
@@ -183,7 +175,7 @@ while vis.Run():
 
     
     if step_number % log_step_size == 0:
-        gps_data.append(gps.GetMostRecentGPSBuffer().GetGPSData())
+        gps_data.append(gps.GetMostRecentGPSBuffer().GetGPSData())  
 
     
     step_number += 1

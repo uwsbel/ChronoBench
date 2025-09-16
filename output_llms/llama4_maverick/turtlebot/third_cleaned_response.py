@@ -10,6 +10,7 @@ import pychrono.sensor as sens
 system = chrono.ChSystemNSC()
 system.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 system.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, -9.81))  
+
 chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.0025)
 chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
 
@@ -41,46 +42,43 @@ vis.AddTypicalLights()
 vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0, 0.5), 3, 4, 10, 40, 512)
 
 
+sensor_manager = sens.ChSensorManager(system)
+sensor_manager.scene.Add(ground)
 
 
-
-manager = sens.ChSensorManager(system)
-
-
-lidar = sens.ChLidarSensor(
-    robot.GetChassisBody(),  
-    10,  
-    chrono.ChFrame(chrono.ChVector3d(0, 0, .5), chrono.Q_from_AngAxis(0, chrono.ChVector3d(0, 1, 0))),  
-    100,  
-    30,  
-    chrono.CH_C_PI,  
-    chrono.CH_C_PI / 6.,  
-    0.1,  
-    100  
-)
+lidar = sens.ChLidarSensor(robot.GetChassisBody(),  
+                           10,  
+                           chrono.ChFrame(chrono.ChVector3d(0, 0, .5), chrono.Q_from_AngAxis(chrono.CH_C_PI / 2, chrono.VECT_X)),  
+                           100,  
+                           1,  
+                           chrono.CH_C_PI,  
+                           chrono.CH_C_PI / 16.)  
 lidar.SetName("Lidar Sensor")
-lidar.PushFilter(sens.ChFilterDIAccess())
-lidar.PushFilter(sens.ChFilterVisualize(256, 256, "Lidar Depth Data"))
-manager.AddSensor(lidar)
+
+lidar.PushFilter(sens.ChFilterVisualize(512, 256, 1))
+lidar.PushFilter(sens.ChFilterPCfromDepth())
+lidar.PushFilter(sens.ChFilterVisualizePoints(640, 480, 1))
+sensor_manager.AddSensor(lidar)
 
 
 for _ in range(5):
     box_mat = chrono.ChContactMaterialNSC()
-    box = chrono.ChBodyEasyBox(0.1, 0.1, 0.1, 100, True, True, box_mat)
-    box.SetPos(chrono.ChVector3d(np.random.uniform(-5, 5), np.random.uniform(-5, 5), 0.5))
+    box = chrono.ChBodyEasyBox(np.random.uniform(0.1, 0.5), np.random.uniform(0.1, 0.5), np.random.uniform(0.1, 0.5), 1000, True, True, box_mat)
+    box.SetPos(chrono.ChVector3d(np.random.uniform(-5, 5), np.random.uniform(-5, 5), np.random.uniform(0, 2)))
     system.Add(box)
+    sensor_manager.scene.Add(box)
 
 
 def move(mode):
     if mode == 'straight':
-        robot.SetMotorSpeed(math.pi / 2, 0)  
-        robot.SetMotorSpeed(math.pi / 2, 1)  
+        robot.SetMotorSpeed(1, 0)  
+        robot.SetMotorSpeed(1, 1)
     elif mode == 'left':
-        robot.SetMotorSpeed(0, 0)  
-        robot.SetMotorSpeed(math.pi, 1)  
+        robot.SetMotorSpeed(-1, 0)
+        robot.SetMotorSpeed(1, 1)
     elif mode == 'right':
-        robot.SetMotorSpeed(math.pi, 0)  
-        robot.SetMotorSpeed(0, 1)  
+        robot.SetMotorSpeed(1, 0)
+        robot.SetMotorSpeed(-1, 1)
 
 
 time_step = 2e-3
@@ -88,24 +86,18 @@ time_step = 2e-3
 
 time = 0
 while vis.Run():
+    move('straight')  
     
-    if time < 1.0:
-        move('straight')
-    elif abs(time - 1.0) < 1e-4:
-        move('left')
-    elif abs(time - 2.0) < 1e-4:
-        move('right')
-
+    
+    sensor_manager.Update()
+    
     
     time += time_step
-
     
-    manager.Update()
-
     
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
-
+    
     
     system.DoStepDynamics(time_step)

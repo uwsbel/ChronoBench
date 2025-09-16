@@ -1,62 +1,53 @@
-import chrono as c
+import pychrono as chrono
 import rospy
-from geometry_msgs.msg import Twist
-from nav_msgs.msg import Odometry
+from geometry_msgs.msg import Vector3
 
-# Initialize PyChrono environment
-c.ChSystem.SetChronoDataPath("path_to_chrono_data")
-my_system = c.ChSystem_SI()
-my_system.Set_Gravity(c.ChVectorD(0, 0, -9.81))
+# Initialize PyChrono environment and core components
+chrono.SetChronoDataPath("path/to/chrono_data")  # Set path to Chrono data
+simulation = chrono.ChSimulation()
+simulation.SetMaxStepSize(0.05)
+simulation.SetMinStepSize(0.01)
+simulation.SetSolverType(chrono.ChSolver.Type_BARZILLA)
+simulation.SetSolverMaxIterations(50)
 
-# Add terrain
-terrain = c.ChTerrain()
-terrain.SetMaterial(c.ChMaterialSurfaceSMC(0.9, 0.0, 0.0))  # friction, restitution
-terrain.AddBox(100, 100, 0.1, c.ChVectorD(0, 0, -0.1))  # size, position
-my_system.Add(terrain)
+# Add physical systems and objects
+terrain = chrono.ChTerrain()
+terrain.SetFriction(0.6)
+terrain.SetRestitution(0.3)
+terrain.AddBox(10, 10, 0.1, chrono.ChVectorD(0, 0, -0.1))
+simulation.Add(terrain)
 
-# Add HMMWV vehicle
-hmmwv = c.ChBodyEasyBox(0.5, 2, 1.8, 1000, True)  # size, mass
-hmmwv.SetPos(c.ChVectorD(0, 0, 0.9))  # position
-my_system.Add(hmmwv)
+hmmwv = chrono.ChVehicle()
+hmmwv.SetContactMethod(chrono.ChVehicle.ContactMethod_HF)
+hmmwv.SetEngineType(chrono.ChVehicle.EngineType_IC)
+hmmwv.SetTireModel(chrono.ChVehicle.TireModel_PAC89)
+hmmwv.SetChassisBody(chrono.ChBodyEasyBox(3, 2, 1, 1000, True))
+hmmwv.SetChassisPosition(chrono.ChVectorD(0, 0, 1))
+simulation.Add(hmmwv)
 
-# Add engine and tires
-engine = c.ChTruckEngine()
-tire = c.ChTire()
-hmmwv.AddEngine(engine)
-hmmwv.AddTire(tire)
+driver = chrono.ChDriver()
+driver.SetVehicle(hmmwv)
+driver.SetSteering(0)
+driver.SetThrottle(0)
+driver.SetBrake(0)
+simulation.Add(driver)
 
-# Set default parameters
-engine.SetPower(100)  # power in W
-tire.SetContactMethod(c.CONTACT_METHOD_PATCH)  # contact method
-tire.SetTireModel(c.TIRE_MODEL_FLEXIBLE)  # tire model
-
-# Initialize ROS
-rospy.init_node('hmmwv_simulation', anonymous=True)
-pub = rospy.Publisher('/cmd_vel', Twist, queue_size=10)
-odom_pub = rospy.Publisher('/odom', Odometry, queue_size=10)
-
-# Initialize driver system
-driver = c.ChTruckDriver()
-driver.SetSteeringInput(0)  # initial steering angle
-driver.SetThrottleInput(0)  # initial throttle
+# Initialize ROS for communication
+rospy.init_node('pychrono_ros', anonymous=True)
+clock_pub = rospy.Publisher('/clock', chrono.ChClock, queue_size=10)
+driver_inputs_pub = rospy.Publisher('/driver_inputs', Vector3, queue_size=10)
+vehicle_state_pub = rospy.Publisher('/vehicle_state', chrono.ChVehicle, queue_size=10)
 
 # Simulation loop
-rate = rospy.Rate(10)  # 10 Hz
 while not rospy.is_shutdown():
-    # Synchronize and advance systems
-    my_system.DoStepDynamics(0.01)  # timestep in seconds
+    # Synchronize and advance vehicle, terrain, and driver systems
+    simulation.DoStepDynamics(0.05)
 
     # Update ROS manager for data publishing
-    twist = Twist()
-    twist.linear.x = driver.GetThrottleInput()
-    twist.angular.z = driver.GetSteeringInput()
-    pub.publish(twist)
+    clock_pub.publish(simulation.GetChTime())
+    driver_inputs = chrono.ChVectorD(driver.GetSteering(), driver.GetThrottle(), driver.GetBrake())
+    driver_inputs_pub.publish(Vector3(driver_inputs.x, driver_inputs.y, driver_inputs.z))
+    vehicle_state_pub.publish(hmmwv)
 
-    odom = Odometry()
-    odom.header.stamp = rospy.Time.now()
-    odom.header.frame_id = "odom"
-    odom.pose.pose.position.x = hmmwv.GetPos()[0]
-    odom.pose.pose.position.y = hmmwv.GetPos()[1]
-    odom_pub.publish(odom)
-
-    rate.sleep()
+    # Process ROS messages (e.g., driver inputs)
+    rospy.spinOnce()

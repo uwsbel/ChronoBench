@@ -7,21 +7,21 @@ import pychrono.irrlicht as chronoirr
 # Create the system
 sys = chrono.ChSystemSMC()
 
-# Create a mesh and add it to the system
+# Create a mesh
 mesh = fea.ChMesh()
 sys.Add(mesh)
 
-# Set gravity and automatic gravity for the mesh
+# Set gravity
 mesh.SetAutomaticGravity(True, 2)  
 sys.SetGravitationalAcceleration(chrono.ChVector3d(0, -9.81, 0))
 
-# Beam properties
+# Beam parameters
 beam_L = 6
 beam_ro = 0.050
 beam_ri = 0.045
-CH_PI = chrono.CH_C_PI  # Use the more precise value from pychrono
+CH_PI = 3.14159  # More precise value of PI
 
-# Create a section for the beams
+# Create a section 
 minertia = fea.ChInertiaCosseratSimple()
 minertia.SetDensity(7800)
 minertia.SetArea(CH_PI * (pow(beam_ro, 2) - pow(beam_ri, 2)))
@@ -39,16 +39,24 @@ msection = fea.ChBeamSectionCosserat(minertia, melasticity)
 msection.SetCircular(True)
 msection.SetDrawCircularRadius(beam_ro)
 
-# Create the beam using ChBuilderBeamIGA
+# Use the ChBuilderBeamIGA tool for creating a straight rod
 builder = fea.ChBuilderBeamIGA()
-builder.BuildBeam(mesh, msection, 20, chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(beam_L, 0, 0), chrono.VECT_Y, 3)
+builder.BuildBeam(mesh, 
+                 msection, 
+                 20, 
+                 chrono.ChVector3d(0, 0, 0), 
+                 chrono.ChVector3d(beam_L, 0, 0), 
+                 chrono.VECT_Y, 
+                 3)  # Using cubic IGA
 
 node_mid = builder.GetLastBeamNodes()[m.floor(builder.GetLastBeamNodes().size() / 2.0)]
 
-# Create the flywheel and attach it to the beam
-mbodyflywheel = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, 0.24, 0.1, 7800)
-mbodyflywheel.SetCoordsys(chrono.ChCoordsysd(node_mid.GetPos() + chrono.ChVector3d(0, 0.05, 0), 
-                                               chrono.QuatFromAngleAxis(CH_PI / 2.0, chrono.VECT_Z)))
+# Create the flywheel and attach it to the center of the beam
+mbodyflywheel = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, 0.24, 0.1, 7800) 
+mbodyflywheel.SetCoordsys(
+    chrono.ChCoordsysd(node_mid.GetPos() + chrono.ChVector3d(0, 0.05, 0), 
+                       chrono.QuatFromAngleAxis(CH_PI / 2.0, chrono.VECT_Z))
+)
 sys.Add(mbodyflywheel)
 
 myjoint = chrono.ChLinkMateFix()
@@ -62,7 +70,8 @@ sys.Add(truss)
 
 # Create the end bearing
 bearing = chrono.ChLinkMateGeneric(False, True, True, False, True, True)
-bearing.Initialize(builder.GetLastBeamNodes().back(), truss, chrono.ChFramed(builder.GetLastBeamNodes().back().GetPos()))
+bearing.Initialize(builder.GetLastBeamNodes().back(), truss, 
+                  chrono.ChFramed(builder.GetLastBeamNodes().back().GetPos()))
 sys.Add(bearing)
 
 # Custom motor function class
@@ -86,21 +95,20 @@ class ChFunctionMyFun(chrono.ChFunction):
         else:
             return self.A2
 
-# Create the motor
+# Create the motor that rotates the beam
 rotmotor1 = chrono.ChLinkMotorRotationSpeed()
-
-# Initialize the motor
-rotmotor1.Initialize(builder.GetLastBeamNodes().front(), truss, 
+rotmotor1.Initialize(builder.GetLastBeamNodes().front(), 
+                     truss, 
                      chrono.ChFramed(builder.GetLastBeamNodes().front().GetPos(), 
-                                     chrono.QuatFromAngleAxis(CH_PI / 2.0, chrono.VECT_Y)))
-
+                                    chrono.QuatFromAngleAxis(CH_PI / 2.0, chrono.VECT_Y))
+)
 sys.Add(rotmotor1)
 
 # Set the custom motor function
-f_ramp = ChFunctionMyFun(0, 100, 0, 1, 2, 50)
+f_ramp = ChFunctionMyFun(A1=0, A2=100, T1=0, T2=0.5, T3=1.0, w=50)
 rotmotor1.SetMotorFunction(f_ramp)
 
-# Visualization for the FEM mesh
+# Attach a visualization of the FEM mesh.
 mvisualizebeamA = chrono.ChVisualShapeFEA(mesh)
 mvisualizebeamA.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_SURFACE)
 mvisualizebeamA.SetSmoothFaces(True)
@@ -129,12 +137,10 @@ vis.AddTypicalLights()
 msolver = mkl.ChSolverPardisoMKL()
 sys.SetSolver(msolver)
 
-# Uncomment for HHT timestepper
-# sys.SetTimestepper(chrono.ChTimestepperHHT())
+# For more precise HHT timestepper, uncomment the following line
+# sys.SetTimestepper(chrono.ChTimestepperHHT(), True)
 
-# Static and dynamic simulation
-sys.DoStaticLinear()
-
+# Run the simulation
 while vis.Run():
     vis.BeginScene()
     vis.Render()

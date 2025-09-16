@@ -12,38 +12,14 @@ def main():
     mphysicalSystem = chrono.ChSystemNSC()
 
     # ----------------------------------
-    # Create an ART car
+    # Create an ARTcar vehicle
     # ----------------------------------
-    artcar = chrono.ARTCar()
-    artcar.SetChassisHeight(0.5)
-    artcar.SetWheelRadius(0.2)
-    artcar.SetWheelOffset(0.6)
-    artcar.SetVehicleMass(200)
-    artcar.SetEngineForce(2000)
-    artcar.SetMaxSteeringAngle(0.3)
-    artcar.SetDifferentialLock(True)
-    mphysicalSystem.Add(artcar)
-
-    # ----------------------------------
-    # Create a driver for the vehicle
-    # ----------------------------------
-    driver = chrono.ChDriver(artcar)
-    driver.SetInput(chrono.ChDriver.INPUT_AUTO)  # Use automatic driving
-    mphysicalSystem.Add(driver)
-
-    # ----------------------------------
-    # Create a rigid terrain
-    # ----------------------------------
-    terrain = chrono.ChTerrain()
-    terrain.Create(mphysicalSystem,
-                   chrono.ChTerrain.TYPE_GRID,
-                   200, 200, 10, 10)
-    terrain.SetTexture(chrono.GetChronoDataFile("textures/terrain.jpg"))
-    terrain.SetMaterial(chrono.ChMaterialSurfaceNSC())
-    terrain.GetMaterial().SetFriction(0.8)
-    terrain.GetMaterial().SetRestitution(0.1)
-    terrain.SetColor(chrono.ChColor(0.8, 0.7, 0.5))
-    mphysicalSystem.Add(terrain)
+    artcar = chrono.ARTcar(mphysicalSystem)
+    artcar.SetVehicleModel("ARTCAR_SIMPLE")
+    artcar.SetTireModel("RIGID")
+    artcar.SetEngineType(chrono.ARTcar.EngineType.ELECTRIC)
+    artcar.SetInitialPosition(chrono.ChVector3d(0, 0, 0.5))
+    artcar.SetInitialVelocity(chrono.ChVector3d(0, 0, 0))
 
     # -----------------------
     # Create a sensor manager
@@ -133,6 +109,24 @@ def main():
     manager.AddSensor(lidar_2d)
 
     # ---------------
+    # Create terrain
+    # ---------------
+    terrain = chrono.ChTerrain()
+    terrain.Create(mphysicalSystem, "terrain", chrono.ChVector3d(0, 0, -1), chrono.ChVector3d(50, 50, 0), 5, 5)
+    terrain.SetTexture(chrono.GetChronoDataFile("textures/grass.jpg"), 20, 20)
+    terrain.SetMaterialProperties(0.5, 0.8, 1.0)
+
+    # ---------------
+    # Create a third-person camera
+    # ---------------
+    camera = sens.ChThirdPersonCamera()
+    camera.Attach(artcar.GetChassis())
+    camera.SetOffset(chrono.ChVector3d(0, 0, 2))
+    camera.SetAimPoint(chrono.ChVector3d(0, 0, 0.5))
+    camera.SetVerticalAngle(0.3)
+    manager.AddSensor(camera)
+
+    # ---------------
     # Simulate system
     # ---------------
     orbit_radius = 10
@@ -140,6 +134,10 @@ def main():
     ch_time = 0.0
     render_time = 0
     t1 = time.time()
+
+    driver = chrono.ARTcarDriver(artcar)
+    driver.SetThrottle(0.5)
+
     while ch_time < end_time:
         # Set lidar to orbit around the mesh body
         # lidar.SetOffsetPose(
@@ -165,15 +163,13 @@ def main():
 
         # Perform step of dynamics
         mphysicalSystem.DoStepDynamics(step_size)
+        artcar.Synchronize()
+        driver.Synchronize()
+        terrain.Synchronize()
 
         # Get the current time of the simulation
         ch_time = mphysicalSystem.GetChTime()
         print("Sim time:", end_time, "Wall time:", time.time() - t1)
-
-        # Update vehicle, driver, and terrain
-        artcar.Synchronize(step_size)
-        driver.Synchronize(step_size)
-        terrain.Synchronize(step_size)
 
     # -----------------
     # Lidar parameters

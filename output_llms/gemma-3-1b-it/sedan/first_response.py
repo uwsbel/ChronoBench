@@ -1,128 +1,118 @@
-Okay, let's craft a PyChrono simulation script to model a BMW E90 Sedan driving on a rigid terrain. This will be a detailed breakdown, incorporating the core elements you've outlined.  I'll prioritize clarity and modularity, making it easy to expand and customize.
-
-```python
 import pychrono
-import pychrono.core as chrono
-import pychrono.visuals as visuals
-import pychrono.physics as physics
+import pychrono.core as pc
+import pychrono.visuals as v
+import pychrono.physics as pcf
 import pychrono.ui as ui
+import math
 import numpy as np
-import matplotlib.pyplot as plt  # For visualization (optional, but helpful)
 
+# --- Configuration ---
+terrain_size = 100  # meters
+vehicle_mass = 1500  # kg
+vehicle_center_x = 0
+vehicle_center_y = 0
+vehicle_center_z = 0
+vehicle_velocity = 2.0  # m/s
+vehicle_acceleration = 0.2  # m/s^2
+tire_radius = 0.4  # meters
+tire_mass = 0.15  # kg
+tire_radius_offset = 0.05  # meters
+tire_velocity = 1.0  # m/s
+tire_acceleration = 0.1  # m/s^2
+driving_speed = 1.0 # m/s
 
-# 1. Environment Setup & Core Components
+# --- Initial Setup ---
+# Initialize PyChrono environment
+pc.init()
 
-# Define Terrain Parameters
-terrain_height = 0.05  # Meters -  Adjust for desired slope
-terrain_width = 10.0  # Meters - Adjust for desired width
-terrain_length = 20.0 # Meters - Adjust for desired length
-terrain_slope = 0.01 # Degrees - Adjust for desired slope.  Smaller = steeper.
+# --- Physical System Setup ---
+# Vehicle
+vehicle = pc.Vehicle(
+    center_x=vehicle_center_x,
+    center_y=vehicle_center_y,
+    center_z=vehicle_center_z,
+    mass=vehicle_mass,
+    velocity=vehicle_velocity,
+    acceleration=vehicle_acceleration
+)
 
-# Define Vehicle Parameters
-vehicle_id = 1  # Unique identifier for the vehicle
-vehicle_mass = 1500.0  # kg - Adjust based on vehicle weight
-vehicle_position = (0.0, 0.0, 0.0)  # Initial position (meters)
-vehicle_velocity = (0.0, 0.0, 0.0) # Initial velocity (m/s)
-vehicle_acceleration = (0.0, 0.0, 0.0) # Initial acceleration (m/s^2)
-vehicle_brake = (0.0, 0.0, 0.0) # Initial braking force (N)
+# Terrain
+terrain = pc.Terrain(
+    size=terrain_size,
+    heightmap=pc.HeightMap(
+        resolution=10,
+        height_scale=1.0,
+        z_scale=0.5
+    )
+)
 
-# 2.  Physical Systems & Objects
+# --- Tire Model ---
+tire = pc.Tire(
+    radius=tire_radius,
+    mass=tire_mass,
+    velocity=tire_velocity,
+    acceleration=tire_acceleration
+)
 
-# Tire Model (TMEASY)
-tire_model = "TMEASY"
-tire_radius = 0.3 # Meters - Adjust for tire size
-tire_height = 0.05 # Meters - Adjust for tire height.
+# --- Driver System ---
+driver = pc.Driver(
+    control_inputs=pc.ControlInput(
+        steering=pc.ControlInput.Steering,
+        throttle=pc.ControlInput.Throttle,
+        brake=pc.ControlInput.Brake
+    ),
+    simulation_time=pc.SimulationTime(100)  # Simulate for 100 seconds
+)
 
-# Collision Settings (Simplified - expand for more realistic collision)
-collision_threshold = 0.1 # Meters - Adjust for collision distance.
-collision_radius = 0.1 # Meters - Adjust for collision radius.
+# --- Visualization ---
+# Create Irrlicht scene
+scene = ui.Scene(
+    background_color="white",
+    camera_position=pc.Vector(0, 0, 0),
+    camera_fov=90,
+    camera_aspect_ratio=1.0,
+    camera_distance=pc.Vector(0, 0, 10),
+    camera_rotation=pc.Vector(0, 0, 0)
+)
 
-# 3.  Simulation Parameters
+# Create chase camera
+chase_camera = v.ChaseCamera(
+    camera_position=pc.Vector(0, 0, 0),
+    camera_fov=90,
+    camera_aspect_ratio=1.0,
+    camera_distance=pc.Vector(0, 0, 10),
+    camera_rotation=pc.Vector(0, 0, 0)
+)
 
-# Default Simulation Settings
-simulation_time = 60.0  # Seconds
-simulation_steps = 100
-simulation_rate = 1.0 # Hz (adjust for smoothness)
+# Create skybox
+skybox = v.Skybox(
+    name="Skybox",
+    # You can customize the skybox here, e.g.,
+    # skybox_color="blue",
+    # skybox_texture="skybox.png"
+)
 
-# 4.  Visualization
+# Create terrain texture
+terrain_texture = v.Texture(
+    name="Terrain",
+    texture="terrain.png"
+)
 
-# Create a Visualization
-visuals.create_visual(
-    "BMW_E90_Simulation",
-    # Use a chase camera
-    #  - 'camera_position':  (x, y, z) -  The camera's location in the simulation
-    #  - 'camera_rotation':  (x, y, z) -  Rotation of the camera (degrees)
-    #  - 'camera_scale':  (x, y, z) - Scale of the camera
-    #  - 'camera_color':  Color of the camera
-    #  - 'camera_frame':  The frame to use for the camera
-    #  - 'camera_light':  The light source
-    #  - 'camera_shadows':  Shadows
-    #  - 'camera_texture':  Texture for the camera
-    #  - 'camera_logo':  Logo for the camera
-    #  - 'camera_rotation_offset': Offset to rotate the camera
-    #  - 'camera_scale_offset': Offset to scale the camera
-    #  - 'camera_color_offset': Offset to change the camera color
-    #  - 'camera_shadow_offset': Offset to change the shadow
-    #  - 'camera_frame_offset': Offset to change the frame
-    #  - 'camera_light_offset': Offset to change the light
-    #  - 'camera_shadow_offset_light': Offset to change the shadow
-    #  - 'camera_light_offset_color': Offset to change the light color
-    #  - 'camera_shadow_offset_color': Offset to change the shadow color
-    #  - 'camera_rotation_offset_light': Offset to change the light rotation
-    #  - 'camera_scale_offset_light': Offset to change the light scale
-    #  - 'camera_rotation_offset_color_light': Offset to change the light color
-    #  - 'camera_scale_offset_color_light': Offset to change the light scale
-    #  - 'camera_shadow_offset_color_light': Offset to change the shadow
-    #  - 'camera_light_offset_color_light': Offset to change the light color
-    #  - 'camera_shadow_offset_color_light_color': Offset to change the shadow color
-    #  - 'camera_rotation_offset_color_light_color': Offset to change the light color
-    #  - 'camera_scale_offset_color_light_color': Offset to change the light scale
-    #  - 'camera_rotation_offset_color_light_color_light': Offset to change the light color
-    #  - 'camera_shadow_offset_color_light_color_light': Offset to change the shadow
-    #  - 'camera_light_offset_color_light_color_light': Offset to change the light color
-    #  - 'camera_shadow_offset_color_light_color_light_color': Offset to change the shadow
-    #  - 'camera_rotation_offset_color_light_color_light_color': Offset to change the light color
-    #  - 'camera_scale_offset_color_light_color_light_color': Offset to change the light scale
-    #  - 'camera_rotation_offset_light_color_light_color': Offset to change the light rotation
-    #  - 'camera_scale_offset_light_color_light_color': Offset to change the light scale
-    #  - 'camera_rotation_offset_color_light_color_light_color': Offset to change the light rotation
-    #  - 'camera_light_offset_color_light_color_light_color': Offset to change the light color
-    #  - 'camera_shadow_offset_color_light_color_light_color': Offset to change the shadow
-    #  - 'camera_light_offset_color_light_color_light_color': Offset to change the shadow
-    #  - 'camera_shadow_offset_color_light_color_light_color_light': Offset to change the shadow
-    #  - 'camera_rotation_offset_color_light_color_light_color_light': Offset to change the shadow
-    #  - 'camera_scale_offset_color_light_color_light_color_light_color': Offset to change the shadow
-    #  - 'camera_rotation_offset_color_light_color_light_color_light_color': Offset to change the shadow
-    #  - 'camera_scale_offset_color_light_color_light_color_light_color': Offset to change the shadow
-    #  - 'camera_rotation_offset_color_light_color_light_color_light_color_light': Offset to change the shadow
-    #  - 'camera_scale_offset_color_light_color_light_color_light_color_light_color': Offset to change the shadow
-    #  - 'camera_rotation_offset_color_light_color_light_color_light_color_light_color': Offset to change the shadow
-    #  - 'camera_scale_offset_color_light_color_light_color_light_color_light_color': Offset to change the shadow
-    #  - 'camera_rotation_offset_color_light_color_light_color_light_color_light_color_light_color': Offset to change the shadow
-    #  - 'camera_scale_offset_color_light_color_light_color_light_color_light_color_light_color': Offset to change the shadow
-    #  - 'camera_rotation_offset_color_light_color_light_color_light_color_light_color_light_color_light_color': Offset to change the shadow
-    #  - 'camera_scale_offset_color_light_color_light_color_light_color_light_color_light_color_light_color': Offset to change the shadow
-    #  - 'camera_rotation_offset_color_light_color_light_color_light_color_light_color_light_color_light_color': Offset to change the shadow
-    #  - 'camera_scale_offset_color_light_color_light_color_light_color_light_color_light_color_light_color': Offset to change the shadow
-    #  - 'camera_rotation_offset_color_light_color_light_color_light_color_light_color_light_color_light_color': Offset to change the shadow
-    #  - 'camera_scale_offset_color_light_color_light_color_light_color_light_color_light_color_light_color': Offset to change the shadow
-    #  - 'camera_rotation_offset_color_light_color_light_color_light_color_light_color_light_color_light_color': Offset to change the shadow
-    #  - 'camera_scale_offset_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color': Offset to change the shadow
-    #  - 'camera_rotation_offset_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color': Offset to change the shadow
-    #  - 'camera_scale_offset_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color': Offset to change the shadow
-    #  - 'camera_rotation_offset_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color': Offset to change the shadow
-    #  - 'camera_scale_offset_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color': Offset to change the shadow
-    #  - 'camera_rotation_offset_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color': Offset to change the shadow
-    #  - 'camera_scale_offset_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color': Offset to change the shadow
-    #  - 'camera_rotation_offset_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color': Offset to change the shadow
-    #  - 'camera_scale_offset_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color': Offset to change the shadow
-    #  - 'camera_rotation_offset_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color': Offset to change the shadow
-    #  - 'camera_scale_offset_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color': Offset to change the shadow
-    #  - 'camera_rotation_offset_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color': Offset to change the shadow
-    #  - 'camera_scale_offset_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color': Offset to change the shadow
-    #  - 'camera_rotation_offset_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color': Offset to change the shadow
-    #  - 'camera_scale_offset_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color': Offset to change the shadow
-    #  - 'camera_rotation_offset_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color': Offset to change the shadow
-    #  - 'camera_scale_offset_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color': Offset to change the shadow
-    #  - 'camera_rotation_offset_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color': Offset to change the shadow
-    #  - 'camera_scale_offset_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color_light_color
+# Create custom logo (example - replace with your logo)
+logo = v.Logo(
+    name="BMW Logo",
+    # You can customize the logo here
+    # logo_texture="logo.png"
+)
+
+# Create a custom scene
+scene.add(chase_camera)
+scene.add(skybox)
+scene.add(terrain_texture)
+scene.add(logo)
+scene.add(terrain)
+scene.add(vehicle)
+scene.add(tire)
+
+# --- Simulation ---
+pc.run(vehicle, terrain, tire, driver, scene)

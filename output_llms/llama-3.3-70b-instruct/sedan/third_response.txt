@@ -1,20 +1,19 @@
-# Step-by-step analysis of the problem:
-1. **Initial vehicle location and orientation**: The initial location and orientation of the vehicle are set to `(0, 0, 0.5)` and `(1, 0, 0, 0)` respectively. This seems correct.
-2. **Steering response time**: The steering response time is currently set to `1.0` second. This needs to be increased to `5.0` seconds.
-3. **Simulation step size and render step size**: The simulation step size is currently set to `1e-3` and the render step size is set to `1.0 / 50`. These need to be decreased for finer control.
-4. **Terrain initialization**: The terrain is currently initialized with a rigid terrain. This needs to be changed to a highway mesh.
-5. **Reference speed input**: A reference speed input needs to be added for controlling the vehicle's speed.
-6. **PID controller for throttle control**: A PID controller needs to be implemented for throttle control based on speed error.
-
-# Fixed solution:
 ```python
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
-# Initial vehicle location and orientation adjusted
-initLoc = chrono.ChVector3d(0, 0, 1.0)  # Increased z-coordinate
+print(veh)
+
+# Set the path to the Chrono data directory
+chrono.SetChronoDataPath("/path/to/chrono/data")
+
+# Set the path to the vehicle data directory
+veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
+
+# Initial vehicle location and orientation
+initLoc = chrono.ChVector3d(0, 0, 1.0)  # Adjusted initial location
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 # Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
@@ -26,13 +25,13 @@ chassis_collision_type = veh.CollisionType_NONE
 # Type of tire model (RIGID, TMEASY)
 tire_model = veh.TireModelType_TMEASY
 
-# Highway terrain
-terrain_model = veh.TerrainType_HIGHWAY
+# Rigid terrain
+terrain_model = veh.RigidTerrain.HIGHWAY  # Highway mesh
 terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
 
-# Poon chassis tracked by the camera
+# Point on the chassis tracked by the camera
 trackPoint = chrono.ChVector3d(-5.0, 0.0, 1.8)
 
 # Contact method
@@ -80,7 +79,7 @@ patch = terrain.AddPatch(patch_mat,
 
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
-terrain.Initialize()
+terrain.Initialize(terrain_model)  # Initialize with highway mesh
 
 # Create the vehicle Irrlicht interface
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
@@ -97,25 +96,33 @@ vis.AttachVehicle(vehicle.GetVehicle())
 driver = veh.ChInteractiveDriverIRR(vis)
 
 # Set the time response for steering and throttle keyboard inputs.
-steering_time = 5.0  # Increased steering response time
-throttle_time = 1.0  # Time to go from 0 to +1
-braking_time = 0.3   # Time to go from 0 to +1
+steering_time = 5.0  # Increased steering response time to 5 seconds
+throttle_time = 1.0  # time to go from 0 to +1
+braking_time = 0.3   # time to go from 0 to +1
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
 
 driver.Initialize()
 
-# Reference speed input
-reference_speed = 50.0  # km/h
-
 # PID controller for throttle control
-pid_kp = 1.0
-pid_ki = 0.1
-pid_kd = 0.1
-pid_error = 0.0
-pid_integral = 0.0
-pid_derivative = 0.0
+class PIDController:
+    def __init__(self, kp, ki, kd, target_speed):
+        self.kp = kp
+        self.ki = ki
+        self.kd = kd
+        self.target_speed = target_speed
+        self.error_sum = 0
+        self.prev_error = 0
+
+    def update(self, current_speed):
+        error = self.target_speed - current_speed
+        self.error_sum += error * step_size
+        derivative = (error - self.prev_error) / step_size
+        self.prev_error = error
+        return self.kp * error + self.ki * self.error_sum + self.kd * derivative
+
+pid_controller = PIDController(1.0, 0.1, 0.0, 10.0)  # Example PID gains and target speed
 
 # ---------------
 # Simulation loop
@@ -145,20 +152,19 @@ while vis.Run():
     # Get driver inputs
     driver_inputs = driver.GetInputs()
 
-    # Calculate speed error
-    speed_error = reference_speed - vehicle.GetVehicle().GetSpeed()
-
-    # Update PID controller
-    pid_error = speed_error
-    pid_integral += pid_error * step_size
-    pid_derivative = (pid_error - pid_derivative) / step_size
-    throttle_input = pid_kp * pid_error + pid_ki * pid_integral + pid_kd * pid_derivative
-
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
+
+    # Reference speed input
+    reference_speed = 10.0  # Example reference speed
+
+    # Update PID controller
+    current_speed = vehicle.GetVehicle().GetSpeed()
+    throttle_input = pid_controller.update(current_speed)
+    driver_inputs.throttle = throttle_input
 
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)
@@ -172,16 +178,3 @@ while vis.Run():
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
 ```
-
-# Explanation of changes:
-* **Initial vehicle location and orientation**: The initial location and orientation of the vehicle have been adjusted to `(0, 0, 1.0)` and `(1, 0, 0, 0)` respectively.
-* **Steering response time**: The steering response time has been increased to `5.0` seconds.
-* **Simulation step size and render step size**: The simulation step size has been decreased to `1e-4` and the render step size has been decreased to `1.0 / 100` (FPS = 100).
-* **Terrain initialization**: The terrain has been initialized with a highway mesh.
-* **Reference speed input**: A reference speed input has been added for controlling the vehicle's speed.
-* **PID controller for throttle control**: A PID controller has been implemented for throttle control based on speed error.
-
-# Tests and example uses:
-* Run the simulation and observe the vehicle's behavior.
-* Adjust the reference speed input and observe the vehicle's response.
-* Adjust the PID controller gains and observe the vehicle's response.

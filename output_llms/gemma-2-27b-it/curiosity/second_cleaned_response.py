@@ -21,11 +21,9 @@ ground.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.
 system.Add(ground)
 
 
-obstacle_mat = chrono.ChContactMaterialNSC()
-obstacle = chrono.ChBodyEasyBox(5, 1, 0.5, 1000, True, True, obstacle_mat)
-obstacle.SetPos(chrono.ChVector3d(0, 0, 0.25))  
-obstacle.SetFixed(True)
-obstacle.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/metal.jpg"))
+obstacle = chrono.ChBodyEasyBox(5, 1, 0.5, 1000, True, True, ground_mat)
+obstacle.SetPos(chrono.ChVector3d(0, 5, 0.25))  
+obstacle.SetFixed(True) 
 system.Add(obstacle)
 
 
@@ -65,10 +63,9 @@ while vis.Run():
     time += time_step
 
     
-    steering = 0  
-
+    steering = 0
     driver.SetSteering(steering)
-    driver.SetThrottle(0.5) 
+    driver.SetThrottle(0.5)  
 
     
     rover.Update()

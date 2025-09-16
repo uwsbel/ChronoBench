@@ -41,7 +41,7 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  # FPS = 50
 
 # Added Logging Step Size
-log_step_size = 1.0 / 10  # Log every 10 seconds
+log_step_size = 1.0 / 10  # Log GPS data every 10 seconds
 
 # Initialize GPS Data List
 gps_data = []
@@ -158,23 +158,35 @@ while vis.Run():
         vis.EndScene()
         render_frame += 1
 
-    # Modified Driver Inputs
+    # Get driver inputs
     if time < 6:
-        driver_inputs = veh.ChDriverInputs(throttle=0.5, steering=0.0)
+        driver_inputs = driver.GetInputs()
+        driver_inputs.m_throttle = 0.5
+        driver_inputs.m_steering = 0.2
     elif time < 10:
-        driver_inputs = veh.ChDriverInputs(throttle=0.0, steering=0.0, braking=1.0)
+        driver_inputs = driver.GetInputs()
+        driver_inputs.m_throttle = 0.5
+        driver_inputs.m_steering = 0
     else:
-        driver_inputs = veh.ChDriverInputs(throttle=0.0, steering=0.0, braking=0.0)
+        driver_inputs = driver.GetInputs()
+        driver_inputs.m_throttle = 0
+        driver_inputs.m_steering = 0
+        driver_inputs.m_braking = 1
+
+    # Updated Driver Inputs
+    #driver_inputs = driver.GetInputs()
+    #driver_inputs.m_throttle = 0.5
+    #driver_inputs.m_steering = 0.2
+
+    # Added GPS Data Logging
+    if time % log_step_size == 0:
+        gps_data.append(gps.GetMostRecentGPSBuffer().GetGPSData())
 
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
-
-    # Added GPS Data Logging
-    if time % log_step_size < step_size:
-        gps_data.append(gps.GetMostRecentGPSBuffer().GetGPSData())
 
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)

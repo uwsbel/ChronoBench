@@ -1,175 +1,64 @@
 import chrono as ch
 import chrono.irrlicht as irr
+import numpy as np
 
-# Initialize PyChrono environment
+# 1. Initialize the PyChrono environment and core components
 ch.ChEngine.Initialize()
 
-# Create the Irrlicht application
-app = irr.IrrlichtApplication()
+# 2. Create the main simulation system
+system = ch.ChSystem_EulerImplicit()
 
-# Set the simulation step and frame rate
-step_size = 0.01
-frame_rate = 60
+# Use the PardisoMKL solver for efficient dynamics handling
+system.SetSolverType(ch.ChSolver.PARDISO_MKL)
+system.SetSolverVerbose(True)
 
-# Create a PardisoMKL solver
-solver = ch.ChSolverPardisoMKL()
+# 3. Define an isotropic Kirchhoff material for the tablecloth
+mat = ch.ChMaterialShellKirchhoff()
+mat.SetThickness(0.001)  # Thickness of the shell
+mat.SetYoungModulus(100e3)  # Young's modulus
+mat.SetPoissonRatio(0.3)  # Poisson's ratio
+mat.SetDensity(1000)  # Density
 
-# Define isotropic Kirchhoff material properties
-E = 100000  # Young's modulus (Pa)
-nu = 0.3    # Poisson's ratio
-rho = 1000  # density (kg/m^3)
+# 4. Generate a mesh grid for the tablecloth
+# Define the grid dimensions
+nx, ny = 20, 20
+Lx, Ly = 1.0, 1.0  # Length and width of the tablecloth
 
-# Create an isotropic Kirchhoff material
-material = ch.ChKirchhoffMaterial(E, nu, rho)
-
-# Define mesh grid dimensions
-nx = 20
-ny = 20
-Lx = 2.0  # length in x-direction (m)
-Ly = 2.0  # length in y-direction (m)
-
-# Create a mesh grid
+# Create a ChMesh object
 mesh = ch.ChMesh()
 
-# Add nodes to the mesh grid
+# Add nodes
 for i in range(nx + 1):
+    x = Lx * i / nx
     for j in range(ny + 1):
-        x = Lx * i / nx
         y = Ly * j / ny
-        z = 0.0
-        node = ch.ChNodexyz(x, y, z)
+        node = ch.ChNodeFEAxyzP(x, y, 0)
+        node.SetMass(0)  # No mass for nodes, will be automatically computed
         mesh.AddNode(node)
 
-# Add elements to the mesh grid
+# Add elements (shell quadrilateral elements)
 for i in range(nx):
     for j in range(ny):
-        node1 = mesh.GetNode(i * (ny + 1) + j)
-        node2 = mesh.GetNode((i + 1) * (ny + 1) + j)
-        node3 = mesh.GetNode((i + 1) * (ny + 1) + j + 1)
-        node4 = mesh.GetNode(i * (ny + 1) + j + 1)
-
-        # Create a shell element
-        element = ch.ChElementShellKirchhoff(material, [node1, node2, node3, node4])
-        mesh.AddElement(element)
-
-# Fix boundary nodes
-for i in range(nx + 1):
-    node = mesh.GetNode(i * (ny + 1))
-    node.SetFixed(True)
-
-# Apply a folding force
-folding_force = ch.ChForce()
-folding_force.SetForce(1000, 0, 0)  # 1000 N in x-direction
-mesh.GetNode(nx // 2 * (ny + 1) + ny // 2).AddForce(folding_force)
-
-# Create a system
-system = ch.ChSystem()
+        n1 = mesh.GetNodeByIndex(i * (ny + 1) + j)
+        n2 = mesh.GetNodeByIndex((i + 1) * (ny + 1) + j)
+        n3 = mesh.GetNodeByIndex((i + 1) * (ny + 1) + (j + 1))
+        n4 = mesh.GetNodeByIndex(i * (ny + 1) + (j + 1))
+        
+        # Create a ChElementShellQuadrilateral
+        elem = ch.ChElementShellQuadrilateral()
+        elem.SetNodes(n1, n2, n3, n4)
+        elem.SetMaterial(mat)
+        mesh.AddElement(elem)
 
 # Add the mesh to the system
 system.Add(mesh)
 
-# Set the solver
-system.SetSolver(solver)
+# 5. Set up Irrlicht visualization
+viz = irr.ChIrrApp(system, 'Folding Tablecloth Simulation', 800, 600)
+viz.AttachSystem()
 
-# Add the Irrlicht visualization
-vis = irr.IrrlichtVis()
-vis.AttachSystem(system)
-vis.SetWindowSize(800, 600)
-vis.SetTitle("Folding Tablecloth Simulation")
+# Show the simulation
+viz.Run()
 
-# Run the simulation
-while vis.Run() and not app.HasToClose():
-    system.DoStepDynamics(step_size)
-
-# Close the Irrlicht application
-app.Close()
-
-import chrono as ch
-import chrono.irrlicht as irr
-
-def main():
-    # Initialize PyChrono environment
-    ch.ChEngine.Initialize()
-
-    # Create the Irrlicht application
-    app = irr.IrrlichtApplication()
-
-    # Set the simulation step and frame rate
-    step_size = 0.01
-    frame_rate = 60
-
-    # Create a PardisoMKL solver
-    solver = ch.ChSolverPardisoMKL()
-
-    # Define isotropic Kirchhoff material properties
-    E = 100000  # Young's modulus (Pa)
-    nu = 0.3    # Poisson's ratio
-    rho = 1000  # density (kg/m^3)
-
-    # Create an isotropic Kirchhoff material
-    material = ch.ChKirchhoffMaterial(E, nu, rho)
-
-    # Define mesh grid dimensions
-    nx = 20
-    ny = 20
-    Lx = 2.0  # length in x-direction (m)
-    Ly = 2.0  # length in y-direction (m)
-
-    # Create a mesh grid
-    mesh = ch.ChMesh()
-
-    # Add nodes to the mesh grid
-    for i in range(nx + 1):
-        for j in range(ny + 1):
-            x = Lx * i / nx
-            y = Ly * j / ny
-            z = 0.0
-            node = ch.ChNodexyz(x, y, z)
-            mesh.AddNode(node)
-
-    # Add elements to the mesh grid
-    for i in range(nx):
-        for j in range(ny):
-            node1 = mesh.GetNode(i * (ny + 1) + j)
-            node2 = mesh.GetNode((i + 1) * (ny + 1) + j)
-            node3 = mesh.GetNode((i + 1) * (ny + 1) + j + 1)
-            node4 = mesh.GetNode(i * (ny + 1) + j + 1)
-
-            # Create a shell element
-            element = ch.ChElementShellKirchhoff(material, [node1, node2, node3, node4])
-            mesh.AddElement(element)
-
-    # Fix boundary nodes
-    for i in range(nx + 1):
-        node = mesh.GetNode(i * (ny + 1))
-        node.SetFixed(True)
-
-    # Apply a folding force
-    folding_force = ch.ChForce()
-    folding_force.SetForce(1000, 0, 0)  # 1000 N in x-direction
-    mesh.GetNode(nx // 2 * (ny + 1) + ny // 2).AddForce(folding_force)
-
-    # Create a system
-    system = ch.ChSystem()
-
-    # Add the mesh to the system
-    system.Add(mesh)
-
-    # Set the solver
-    system.SetSolver(solver)
-
-    # Add the Irrlicht visualization
-    vis = irr.IrrlichtVis()
-    vis.AttachSystem(system)
-    vis.SetWindowSize(800, 600)
-    vis.SetTitle("Folding Tablecloth Simulation")
-
-    # Run the simulation
-    while vis.Run() and not app.HasToClose():
-        system.DoStepDynamics(step_size)
-
-    # Close the Irrlicht application
-    app.Close()
-
-if __name__ == "__main__":
-    main()
+# Clean up
+ch.ChEngine.Finalize()

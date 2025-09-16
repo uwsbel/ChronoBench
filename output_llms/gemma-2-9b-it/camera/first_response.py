@@ -1,61 +1,57 @@
 import pychrono as chrono
-import pychrono.postprocess as postprocess
+import numpy as np
 
-# 1. Initialize PyChrono environment
+# Initialize PyChrono
 chrono.SetChronoDataPath("path/to/chrono/data")  # Replace with your Chrono data path
 system = chrono.ChSystemNSC()
 
-# 2. Add the triangular mesh
-mesh_filename = "path/to/your/mesh.obj"  # Replace with your .obj file path
+# Load triangular mesh from .obj file
+mesh_file = "path/to/mesh.obj"  # Replace with your .obj file path
 mesh = chrono.ChTriangleMeshConnected()
-mesh.LoadWavefront(mesh_filename)
-body = chrono.ChBodyEasyBox(1, 1, 1)  # Create a box body for demonstration
-body.SetBodyFixed(True)  # Fix the body in place
-body.SetCollide(True)
-body.SetMaterialSurface(chrono.ChMaterialSurface())
-body.AddAsset(chrono.ChTriangleMeshShape(mesh))
+if not mesh.LoadWavefront(mesh_file):
+    raise RuntimeError(f"Failed to load mesh from {mesh_file}")
 
+# Create fixed body from mesh
+body = chrono.ChBodyEasy(mesh)
+body.SetBodyFixed(True)
 system.Add(body)
 
-# 3. Add camera sensor and sensor manager
-sensor_manager = chrono.ChSensorManager()
+# Create camera sensor
 camera = chrono.ChCamera()
-camera.SetSensorType(chrono.ChCamera.SENSOR_TYPE_RGB)
-camera.SetSensorWidth(640)
-camera.SetSensorHeight(480)
-camera.SetSensorFocalLength(1)
-camera.SetSensorPosition(chrono.ChVectorD(0, 0, 1))  # Initial camera position
-sensor_manager.AddSensor(camera)
-
-# Noise filters and visualizations
-camera.SetNoiseFilter(chrono.ChNoiseFilter(chrono.ChNoiseFilter.FILTER_GAUSSIAN, 0.01))
-camera.SetVisualization(chrono.ChCamera.VISUALIZATION_COLOR)
-
-# Attach camera to the body
+camera.SetSensorType(chrono.ChCamera.SENSOR_TYPE_COLOR)
+camera.SetResolution(640, 480)
+camera.SetLens(50)  # Focal length in mm
+camera.SetSensorNoise(0.01)  # Add some noise to the image
 body.AddSensor(camera)
 
-# 4. Set up simulation and camera orbit
-system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
-system.Set_Speed_scale(0.01)  # Adjust simulation speed
+# Create sensor manager and apply filters
+sensor_manager = chrono.ChSensorManager()
+sensor_manager.AddSensor(camera)
+sensor_manager.SetVisualization(True)  # Enable visualization of sensor data
+sensor_manager.SetNoiseFilter(chrono.ChNoiseFilter.FILTER_GAUSSIAN)  # Apply Gaussian noise filter
 
-# Camera orbit parameters
-orbit_radius = 2
-orbit_period = 10
+# Define camera orbit parameters
+orbit_radius = 1.0
+orbit_period = 2.0
+camera_rotation_speed = 0.1
 
 # Simulation loop
+time_step = 0.01
 for i in range(1000):
-    # Update camera position for orbit
-    camera_angle = 2 * chrono.CH_C_PI * i / orbit_period
-    camera_position = chrono.ChVectorD(orbit_radius * chrono.cos(camera_angle),
-                                       orbit_radius * chrono.sin(camera_angle), 1)
-    camera.SetSensorPosition(camera_position)
+    # Update camera position in orbit
+    camera_angle = 2 * np.pi * i / orbit_period
+    camera_x = orbit_radius * np.cos(camera_angle)
+    camera_y = orbit_radius * np.sin(camera_angle)
+    camera.SetPos(chrono.ChVectorD(camera_x, camera_y, 0))
+    camera.SetRot(chrono.ChQuaternionD(np.cos(camera_rotation_speed * i),
+                                      np.sin(camera_rotation_speed * i), 0, 0))
 
-    # Simulate one step
-    system.DoStepDynamics(chrono.ChTime(0.01))
+    # Update simulation
+    system.DoStepDynamics(time_step)
 
     # Print camera buffer data
-    camera_buffer = camera.GetImageBuffer()
+    camera_buffer = sensor_manager.GetSensorData(camera)
     print(f"Camera buffer data at step {i}: {camera_buffer}")
 
-# 5. Post-processing (optional)
-postprocess.SaveCameraImage(camera, "camera_image.png")
+# Visualization (optional)
+chrono.ChVisualSystem_rt_Thread()

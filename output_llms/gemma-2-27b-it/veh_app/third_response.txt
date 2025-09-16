@@ -157,6 +157,4 @@ lidar = sens.ChLidarSensor(
     0.003,       # Divergence angle (again, typically same value)
     sens.LidarReturnMode_STRONGEST_RETURN             # Return mode for the lidar
 )
-lidar.SetName("Lidar Sensor")
-lidar.SetLag(lag)
-lidar.Set
+lidar.SetName

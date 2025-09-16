@@ -20,56 +20,62 @@ c.AddGround(ground)
 robot = c.ChBody()
 robot.SetBodyType(c.CH_BODY_TYPE_BOX)
 robot.SetPosition(c.ve(0, 1, 0))
-robot.SetOrientation(c.Mat33().FromEulerAngles(c.PI/2, 0, 0))
+robot.SetOrientation(c.ve(0, 0, 0))
 robot.SetMass(1)
 robot.SetFriction(1)
 robot.SetRestitution(0)
-c.AddRobot(robot)
+c.AddBody(robot)
 
 
-motor_left = c.ChMotor()
-motor_left.SetAxis(c.ve(0, 0, 1))
-motor_left.SetMaxForce(1)
-c.AddMotor(motor_left, robot)
-motor_right = c.ChMotor()
-motor_right.SetAxis(c.ve(0, 0, 1))
-motor_right.SetMaxForce(1)
-c.AddMotor(motor_right, robot)
+motor1 = c.ChMotor()
+motor1.SetMaxForce(10)
+motor1.SetPosition(0)
+robot.AddMotor(motor1)
+
+motor2 = c.ChMotor()
+motor2.SetMaxForce(10)
+motor2.SetPosition(0)
+robot.AddMotor(motor2)
 
 
-c.AddLink(robot, motor_left)
-c.AddLink(robot, motor_right)
-c.AddLink(robot, ground)
+robot.SetName("Turtlebot")
+ground.SetName("Ground")
 
 
-irrlicht.init()
-camera = irrlicht.Camera()
-camera.SetLookAt(c.ve(0, 2, 10), c.ve(0, 1, 0), c.ve(0, 0, 1))
-camera.SetTarget(c.ve(0, 2, 10))
-irrlicht.set_camera(camera)
-irrlicht.set_light(c.ve(0, 0, 10), c.ve(1, 1, 1))
+device = c.CreateIrrlichtDevice(irrlicht.VideoMode(800, 600), irrlicht.E_DRIVER_TYPE_OPENGL3)
+view = device.GetViewport(0)
+view.SetTargetFrameRate(60)
+view.SetAspectRatioConstraint(irrlicht.SCA_FIT)
 
 
-def simulation_loop():
-    t = 0
-    while True:
-        
-        robot.SetPosition(c.ve(0, 1, 0) + c.ve(0, 0, t))
-        robot.SetOrientation(c.Mat33().FromEulerAngles(c.PI/2, 0, 0) + c.Mat33().FromEulerAngles(0, t, 0))
-        
-        if t > 2 and t < 5:
-            motor_left.SetTorque(1)
-            motor_right.SetTorque(-1)
-        else:
-            motor_left.SetTorque(0)
-            motor_right.SetTorque(0)
-        
-        irrlicht.update()
-        irrlicht.render()
-        
-        t += 0.01
-        
-        time.sleep(1/60)
+camera = device.GetCameraSceneNode()
+camera.SetPosition(c.ve(0, 10, 10))
+camera.SetTarget(c.ve(0, 0, 0))
+light = device.GetLightSceneNode()
+light.SetPosition(c.ve(0, 10, 10))
+light.SetDiffuseColor(c.ve(1, 1, 1))
+light.SetSpecularColor(c.ve(1, 1, 1))
+light.SetIntensity(1)
 
 
-simulation_loop()
+t = 0
+while t < 10:
+    
+    if t >= 1 and t < 3:
+        motor1.SetTorque(10)
+        motor2.SetTorque(-10)
+    else:
+        motor1.SetTorque(0)
+        motor2.SetTorque(0)
+
+    
+    c.Update()
+    c.Render()
+
+    
+    t += 0.1
+    time.sleep(0.1)
+
+
+c.DeleteDevice(device)
+c.shutdown()

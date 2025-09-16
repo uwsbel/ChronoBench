@@ -1,105 +1,117 @@
-import pychrono
+from pychrono import *
 
-import pychrono.fea as fea
+from pychrono.fea import *
 
-import pychrono.irrlicht as irr
-
-import pychrono.solver as solver
-
-import pychrono.rigidbody as rb
-
-import pychrono.sparse as sp
-
-import pychrono.contact as contact
+from pychrono.irrlicht import *
 
 
-# Initialize PyChrono environment
+# Initialize the PyChrono environment
 
-chrono = pychrono.ChLinkCreateStatic()
+chrono = Chrono()
 
+chrono_assets = Chrono_Assets()
 
-# Define beam properties
-
-length = 2.0
-
-width = 0.1
-
-thickness = 0.1
-
-E = 210e9  # Young's modulus for steel in Pascals
-
-I = (width * thickness**3) / 12  # Moment of inertia
+chrono.SetAssets(chrono_assets)
 
 
-# Create beam element using FEA
+# Add the Irrlicht visualization module
 
-beam = fea.ChBeam(chrono, length, width, thickness, E, I)
+irr = Irrlicht()
 
+irr.SetUse3D(True)
 
-# Define motor function for the beam
-
-def motor_function(time):
-
-    # Simple harmonic motion for demonstration
-
-    return 1000 * pychrono.sin(2 * pychrono.pi * time)
+irr.SetUse3DProjection(True)
 
 
-# Add motor to the beam
+# Define the beam properties
 
-motor = chrono.ChLinkCreatePrismatic(chrono)
+beam_length = 2.0
 
-motor.SetMotorFunction(motor_function)
+beam_width = 0.1
 
-beam.AddLink(motor)
+beam_height = 0.1
 
+beam_material = IrMaterial_Dominant_Diffuse(Color(0.5, 0.5, 0.5))
 
-# Set up the simulation
+beam_mesh = ChBody_Mesh()
 
-solver = solver.ChSolver64()
+beam_mesh.SetScale(Vector(beam_width, beam_height, beam_length))
 
-timestepper = solver.ChSolver64(chrono, 0.001, 0.0001)
+beam_mesh.SetMaterial(beam_material)
 
+beam_body = ChBody(1.0, beam_mesh)
 
-# Set up visualization
-
-irr.initialize(chrono)
-
-
-# Add beam to the Irrlicht visualization
-
-irr.AddModel(beam)
+beam_body.SetPos(Vector(0.0, 0.0, beam_length / 2))
 
 
-# Set up constraints
+# Add the beam to the system
 
-# Assuming we have a fixed end constraint at one end of the beam
+system = ChSystemNSC()
 
-fixed_end = chrono.ChBody(chrono)
+system.SetSolver(ChSolver_Newton())
 
-fixed_end.SetMass(0)
+system.SetSolverIterationLimit(100)
 
-fixed_end.SetPosition(0, 0, 0)
+system.SetMaxLinearSolveIterations(100)
 
-fixed_end.SetBody(beam)
+system.SetMaxNonlinearSolveIterations(100)
+
+system.SetLinearSolverMethod(ChSolver_Type_Newton_Linear_Full)
+
+system.SetNonlinearSolverMethod(ChSolver_Type_Newton_Nonlinear_Full)
+
+system.AddBody(beam_body)
 
 
-# Set up the simulation
+# Define the motor and constraints
 
-chrono.SetSolver(solver)
+motor = ChBody_Motor(1.0, Vector(0.0, 0.0, 1.0))
 
-chrono.SetTimestepper(timestepper)
+motor.SetVel(Vector(0.0, 0.0, 10.0))
+
+system.AddJoint(motor)
+
+
+# Add the FEA beam elements
+
+beam_elements = FEA_Beam_Mesh()
+
+beam_elements.SetScale(Vector(beam_width, beam_height, beam_length))
+
+beam_elements.SetMaterial(ChMaterial_Iron)
+
+beam_elements.SetElasticModulus(210e9)
+
+beam_elements.SetPoissonsRatio(0.3)
+
+beam_elements.SetDensity(7850.0)
+
+beam_elements.SetMass(0.0)
+
+
+# Add the beam elements to the beam body
+
+beam_body.AddMesh(beam_elements)
+
+
+# Set up the visualization
+
+irr.AddBody(beam_body)
+
+irr.SetUse3DProjection(True)
 
 
 # Run the simulation
 
-while chrono.GetTimestep() < 10:
+system.SetDataStepper(ChTimeStepper_Z_Euler(1.0/100.0, 1.0/100.0))
 
-    chrono.DoStepDynamics(1)
+while chrono.IsTimeStepAvailable():
 
-    irr.render()
+    system.DoStepDynamics()
+
+    irr.UpdateScene()
 
 
 # Clean up
 
-irr.end()
+chrono.Free()

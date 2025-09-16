@@ -75,29 +75,30 @@ vis.AddCamera(chrono.ChVector3d(1, 1, 3), chrono.ChVector3d(0, 1, 0))
 vis.AddTypicalLights()  
 
 
-time = 0
-while time < 20 and vis.Run():
+time_step = 0
+while vis.Run() and time_step < 20:
     
     vis.BeginScene()  
     vis.Render()  
     vis.EndScene()  
     sys.DoStepDynamics(1e-3)  
-    time += 1e-3
     
-    array_time.append(time)
-    array_angle.append(mcrank.GetRot().s[1])  
-    array_pos.append(crank_center + chrono.ChVector3d(crank_rad * np.cos(mcrank.GetRot().s[1]), crank_rad * np.sin(mcrank.GetRot().s[1]), 0).Magnitude())  
-    array_speed.append(mcrank.GetSpeed().Magnitude())  
+    
+    time_step += 1
+    array_time.append(time_step * 1e-3)
+    array_angle.append(mcrank.GetRot().GetAngleX())
+    array_pos.append(mcrank.GetPos().x)
+    array_speed.append(mcrank.GetAngularVel().x)
 
 
 plt.figure(figsize=(10, 5))
+
 plt.subplot(1, 2, 1)
 plt.plot(array_angle, array_pos)
 plt.xlabel('Crank Angle [rad]')
 plt.ylabel('Position [m]')
 plt.title('Position vs. Crank Angle')
 plt.xticks(np.linspace(0, 2 * np.pi, 5))
-plt.grid(True)
 
 plt.subplot(1, 2, 2)
 plt.plot(array_angle, array_speed)
@@ -105,7 +106,6 @@ plt.xlabel('Crank Angle [rad]')
 plt.ylabel('Speed [m/s]')
 plt.title('Speed vs. Crank Angle')
 plt.xticks(np.linspace(0, 2 * np.pi, 5))
-plt.grid(True)
 
 plt.tight_layout()
 plt.show()

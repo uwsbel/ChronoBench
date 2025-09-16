@@ -22,7 +22,7 @@ tire_model = veh.TireModelType_TMEASY
 # Rigid terrain
 # terrain_model = veh.RigidTerrain.BOX
 terrainHeight = 0      # terrain height
-terrainLength = 200.0  # Increased terrain length
+terrainLength = 200.0  # Increased terrain size in X direction
 terrainWidth = 100.0   # size in Y direction
 
 # Poon chassis tracked by the camera
@@ -72,9 +72,17 @@ patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 # Create the path-follower driver system
-driver = veh.ChPathFollowerDriver(vehicle, 10.0, 5)  # Set target speed and look-ahead distance
-driver.SetGains(0.5, 0.02, 0.01)  # Set steering controller gains
-driver.SetSpeedGains(0.5, 0.02, 0.01)  # Set speed controller gains
+path = veh.Path()
+path.AddPoint(-50, 0, 0.5)
+path.AddPoint(-25, 2.5, 0.5)
+path.AddPoint(0, 0, 0.5)
+path.AddPoint(25, -2.5, 0.5)
+path.AddPoint(50, 0, 0.5)
+
+driver = veh.ChPathFollowerDriver(vehicle.GetVehicle(), path, 10.0)  # Set target speed
+driver.SetLookAheadDistance(5)
+driver.SetGains(0.1, 0.01, 0.0)  # Set steering controller gains
+driver.SetSpeedGains(0.2, 0.01, 0.0)  # Set speed controller gains
 
 # Create the vehicle Irrlicht interface
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
@@ -86,21 +94,6 @@ vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
-
-# Create the path for the double lane change maneuver
-path = veh.ChPath()
-path.AddPoint(-50, 0, 0, 0)
-path.AddPoint(-25, 2.5, 0, 0)
-path.AddPoint(0, 5, 0, 0)
-path.AddPoint(25, 2.5, 0, 0)
-path.AddPoint(50, 0, 0, 0)
-path.Initialize()
-
-# Set the path for the driver
-driver.SetPath(path)
-
-# output vehicle mass
-print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)

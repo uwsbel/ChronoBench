@@ -108,6 +108,7 @@ driver2 = veh.ChInteractiveDriverIRR(vis)
 steering_time = 1.0
 throttle_time = 1.0
 braking_time = 0.3
+
 driver1.SetSteeringDelta(render_step_size / steering_time)
 driver1.SetThrottleDelta(render_step_size / throttle_time)
 driver1.SetBrakingDelta(render_step_size / braking_time)
@@ -137,7 +138,7 @@ while vis.Run():
     time = vehicle1.GetSystem().GetChTime()
 
     
-    if (step_number % render_steps == 0):
+    if step_number % render_steps == 0:
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
@@ -148,8 +149,21 @@ while vis.Run():
     driver_inputs2 = driver2.GetInputs()
 
     
-    driver_inputs1.steering = 0.5 * math.sin(time)
-    driver_inputs2.steering = -0.5 * math.sin(time)
+    steering_input1 = 0.5 * math.sin(time)
+    throttle_input1 = 0.5
+    braking_input1 = 0.0
+
+    steering_input2 = 0.5 * math.sin(time + 2)
+    throttle_input2 = 0.5
+    braking_input2 = 0.0
+
+    driver_inputs1.steering = steering_input1
+    driver_inputs1.throttle = throttle_input1
+    driver_inputs1.braking = braking_input1
+
+    driver_inputs2.steering = steering_input2
+    driver_inputs2.throttle = throttle_input2
+    driver_inputs2.braking = braking_input2
 
     
     driver1.Synchronize(time)

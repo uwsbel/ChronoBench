@@ -52,8 +52,7 @@ mangvelo.SetModulusDistribution(chrono.ChUniformDistribution(0.0, 0.2))
 emitter.SetParticleAngularVelocity(mangvelo)
 
 mcreator_spheres = chrono.ChRandomShapeCreatorSpheres()
-mcreator_spheres.SetNpoints(15)
-mcreator_spheres.SetChordDistribution(chrono.ChZhangDistribution(0.6, 0.23))
+mcreator_spheres.SetDiameterDistribution(chrono.ChZhangDistribution(0.6, 0.23))
 mcreator_spheres.SetDensityDistribution(chrono.ChConstantDistribution(1600))
 emitter.SetParticleCreator(mcreator_spheres)
 
@@ -105,19 +104,15 @@ while vis.Run():
         abodyA.AccumulateForce(F_attract, abodyA.GetPos(), False)
         abodyB.AccumulateForce(-F_attract, abodyB.GetPos(), False)
 
-    sys.DoStepDynamics(stepsize)
-
     
-    kinetic_energy = 0
     for body in sys.GetBodies():
         kinetic_energy += 0.5 * body.GetMass() * body.GetVelocity().Length2()
-    
-    potential_energy = 0
-    for abodyA, abodyB in combinations(sys.GetBodies(), 2):
-        D_attract = abodyB.GetPos() - abodyA.GetPos()
-        r_attract = D_attract.Length()
-        potential_energy += -G_constant * (abodyA.GetMass() * abodyB.GetMass()) / r_attract
-    
+    for bodyA, bodyB in combinations(sys.GetBodies(), 2):
+        potential_energy += -G_constant * (bodyA.GetMass() * bodyB.GetMass()) / bodyA.GetPos().Distance(bodyB.GetPos())
     total_energy = kinetic_energy + potential_energy
 
-    print(f"Kinetic Energy: {kinetic_energy:.2f}, Potential Energy: {potential_energy:.2f}, Total Energy: {total_energy:.2f}")
+    print("Kinetic energy: {:.2f}".format(kinetic_energy))
+    print("Potential energy: {:.2f}".format(potential_energy))
+    print("Total energy: {:.2f}".format(total_energy))
+
+    sys.DoStepDynamics(stepsize)

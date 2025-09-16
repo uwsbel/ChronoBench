@@ -138,6 +138,30 @@ manager.AddSensor(cam)
 
 
 offset_pose = chrono.ChFramed(
+        chrono.ChVector3d(-5.0, 0, 2), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
+    )
+depth_cam = sens.ChDepthCameraSensor(
+    gator.GetChassisBody(),              
+    update_rate,            
+    offset_pose,            
+    image_width,     
+    image_height,       
+    fov,         
+    30,       
+    sens.DepthCameraFilterType_DEPTH_MAP          
+)
+depth_cam.SetName("Depth Camera")
+depth_cam.SetLag(lag)
+depth_cam.SetCollectionWindow(1/update_rate)
+
+depth_cam.PushFilter(sens.ChFilterDepthAccess())
+
+depth_cam.PushFilter(sens.ChFilterDepthMap(640, 480, 1.0, "Depth Map"))
+
+manager.AddSensor(depth_cam)
+
+
+offset_pose = chrono.ChFramed(
         chrono.ChVector3d(0.0, 0, 2), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
     )
 lidar = sens.ChLidarSensor(
@@ -170,18 +194,12 @@ lidar.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "Lidar Point Cl
 manager.AddSensor(lidar)
 
 
-depth_offset_pose = chrono.ChFramed(chrono.ChVector3d(-5.0, 0, 2), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0)))
-depth_cam = sens.ChCameraSensor(
-    gator.GetChassisBody(),
-    update_rate,
-    depth_offset_pose,
-    image_width,
-    image_height,
-    fov
-)
-depth_cam.SetName("Depth Camera")
-depth_cam.PushFilter(sens.ChFilterVisualizeDepthMap(image_width, image_height, "Depth Map"))
-manager.AddSensor(depth_cam)
+logger = sens.ChLogger()
+logger.SetName("Vehicle State Logger")
+logger.SetCollectionWindow(1/update_rate)
+
+manager.AddSensor(logger)
+
 
 
 
@@ -189,7 +207,6 @@ manager.AddSensor(depth_cam)
 realtime_timer = chrono.ChRealtimeStepTimer()
 time = 0
 end_time = 30
-log_file = open('vehicle_state.log', 'w')
 while time < end_time:
     time = gator.GetSystem().GetChTime()
     
@@ -214,9 +231,7 @@ while time < end_time:
     realtime_timer.Spin(step_size)
 
     
-    log_file.write(f'Time: {time}\n')
-    log_file.write(f'Position: {gator.GetChassisBody().GetPos()}\n')
-    log_file.write(f'Heading: {gator.GetChassisBody().GetRot().GetAngleX()}\n')
-    log_file.write('\n')
-
-log_file.close()
+    logger.Log(time, 
+              gator.GetVehicle().GetChassisBody().GetPos(), 
+              gator.GetVehicle().GetChassisBody().GetOrientation(), 
+              gator.GetVehicle().GetChassisBody().GetHeading())

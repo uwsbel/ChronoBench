@@ -1,119 +1,79 @@
 import chrono as ch
-import chrono.irrlicht as irr
+import chrono.irrlicht as chirr
 
 # Initialize PyChrono environment
 ch.ChEngine.Initialize()
 
 # Create the Irrlicht application
-app = irr.ChIrrApp()
+app = chirr.ChIrrApp()
 
-# Set the simulation title
-app.SetTitle("Curiosity Rover on Rigid Terrain")
+# Create the ground body
+ground = ch.ChBodyEasyTerrain(
+    "ground",
+    1000,  # x-size
+    1000,  # y-size
+    10,    # z-size (height)
+    20,    # x-steps
+    20,    # y-steps
+    ch.ChVector3d(0, 0, -5)  # position
+)
 
-# Create a rigid terrain
-terrain = ch.ChBodyEasyTerrain(500, 500, 20, 20, "terrain/terrain.obj")
-terrain.SetPos(ch.ChVector3d(0, 0, -5))
-terrain.SetBodyFixed(True)
+# Set ground collision properties
+ground.GetCollisionModel().SetContactMaterialProperties(0.9, 0.9, 0.9)
+ground.GetCollisionModel().SetContactShapeType(ch.ChContactShapeType.SPHERE)
 
-# Add collision shape to the terrain
-terrain_collision = ch.ChCollisionShape(terrain, False)
-terrain_collision.SetShapeType(ch.ChCollisionShape.ELLIPSOID)
-terrain_collision.SetDimensions(ch.ChVector3d(250, 250, 5))
+# Add ground to the system
+ground.SetPos(ch.ChVector3d(0, 0, -5))
+ground.SetFixed(True)
 
-# Add the terrain to the simulation
-ch.ChSystemGlobals.GetActiveSystem().Add(terrain)
-ch.ChSystemGlobals.GetActiveSystem().Add(terrain_collision)
+system = ch.ChSystemNSC()
+system.Add(ground)
 
-# Create a Curiosity rover model
-rover = ch.ChBodyEasyMesh("models/curiosity.obj", 1000)
+# Load the Curiosity rover model
+rover = ch.ChBodyEasyMesh(
+    "path/to/curiosity_rover.obj",  # replace with actual path
+    1000,  # scale
+    False,  # is convex
+    True,   # collision
+    ch.ChVector3d(0, 0, 0)  # position
+)
 
-# Set the rover's initial position and orientation
-rover.SetPos(ch.ChVector3d(0, 0, 0.5))
+# Add rover to the system
+system.Add(rover)
 
-# Add the rover to the simulation
-ch.ChSystemGlobals.GetActiveSystem().Add(rover)
+# Create a motor for steering
+steering_motor = ch.ChMotor(
+    ch.ChFrame3d(ch.ChVector3d(0, 0, 0), ch.ChQuaterniond(0, 0, 0, 1)),
+    ch.ChFrame3d(ch.ChVector3d(1, 0, 0), ch.ChQuaterniond(0, 0, 0, 1))
+)
 
-# Create a motor control driver for the rover's wheels
-motor_driver = ch.ChMotorControlDriver(rover)
+# Set up motor control driver for real-time steering inputs
+steering_driver = ch.ChFunction_Const(0)  # placeholder constant function
 
-# Set the motor's torque and speed limits
-motor_driver.SetTorqueLimit(100)
-motor_driver.SetSpeedLimit(10)
+# Add steering motor and driver to the system
+system.Add(steering_motor)
+steering_motor.SetControlFunction(steering_driver)
 
-# Add the motor driver to the simulation
-ch.ChSystemGlobals.GetActiveSystem().Add(motor_driver)
+# Visualization settings
+irrlicht_renderer = chirr.ChIrrlichtRenderer(system)
+irrlicht_renderer.SetWindowSize(chirr.ChVector2di(800, 600))
+irrlicht_renderer.SetWindowTitle("Curiosity Rover Simulation")
+irrlicht_renderer.UseCameraSettings(chirr.ChCameraSettings())
 
-# Set collision properties for the terrain and rover
-ch.ChSystemGlobals.GetActiveSystem().SetCollisionSystem(ch.ChCollisionSystem.Type.BULLET)
-ch.ChSystemGlobals.GetActiveSystem().SetContactMaterial(ch.ChContactMaterial.Type.ANISOTROPIC_ROUGH)
+# Camera settings
+camera = irrlicht_renderer.GetCamera()
+camera.SetPosition(ch.ChVector3d(0, -10, 5))
+camera.LookAt(ch.ChVector3d(0, 0, 0))
 
-# Set visualization parameters for the Irrlicht application
-app.SetCameraDistance(10)
-app.SetCameraPos(ch.ChVector3d(0, -10, 5))
-app.SetLightDirection(ch.ChVector3d(1, 1, 1))
-app.EnableShadows(True)
+# Lighting and shadows
+irrlicht_renderer.EnableSunlight(True)
+irrlicht_renderer.EnableShadows(True)
 
-# Run the simulation
-app.Run()
+# Texture and logo
+irrlicht_renderer.EnableTextures(True)
+irrlicht_renderer.LoadTexture("path/to/texture.jpg")  # replace with actual path
+irrlicht_renderer.SetLogo("path/to/logo.png")  # replace with actual path
 
-import chrono as ch
-import chrono.irrlicht as irr
-
-def main():
-    # Initialize PyChrono environment
-    ch.ChEngine.Initialize()
-
-    # Create the Irrlicht application
-    app = irr.ChIrrApp()
-
-    # Set the simulation title
-    app.SetTitle("Curiosity Rover on Rigid Terrain")
-
-    # Create a rigid terrain
-    terrain = ch.ChBodyEasyTerrain(500, 500, 20, 20, "terrain/terrain.obj")
-    terrain.SetPos(ch.ChVector3d(0, 0, -5))
-    terrain.SetBodyFixed(True)
-
-    # Add collision shape to the terrain
-    terrain_collision = ch.ChCollisionShape(terrain, False)
-    terrain_collision.SetShapeType(ch.ChCollisionShape.ELLIPSOID)
-    terrain_collision.SetDimensions(ch.ChVector3d(250, 250, 5))
-
-    # Add the terrain to the simulation
-    ch.ChSystemGlobals.GetActiveSystem().Add(terrain)
-    ch.ChSystemGlobals.GetActiveSystem().Add(terrain_collision)
-
-    # Create a Curiosity rover model
-    rover = ch.ChBodyEasyMesh("models/curiosity.obj", 1000)
-
-    # Set the rover's initial position and orientation
-    rover.SetPos(ch.ChVector3d(0, 0, 0.5))
-
-    # Add the rover to the simulation
-    ch.ChSystemGlobals.GetActiveSystem().Add(rover)
-
-    # Create a motor control driver for the rover's wheels
-    motor_driver = ch.ChMotorControlDriver(rover)
-
-    # Set the motor's torque and speed limits
-    motor_driver.SetTorqueLimit(100)
-    motor_driver.SetSpeedLimit(10)
-
-    # Add the motor driver to the simulation
-    ch.ChSystemGlobals.GetActiveSystem().Add(motor_driver)
-
-    # Set collision properties for the terrain and rover
-    ch.ChSystemGlobals.GetActiveSystem().SetCollisionSystem(ch.ChCollisionSystem.Type.BULLET)
-    ch.ChSystemGlobals.GetActiveSystem().SetContactMaterial(ch.ChContactMaterial.Type.ANISOTROPIC_ROUGH)
-
-    # Set visualization parameters for the Irrlicht application
-    app.SetCameraDistance(10)
-    app.SetCameraPos(ch.ChVector3d(0, -10, 5))
-    app.SetLightDirection(ch.ChVector3d(1, 1, 1))
-    app.EnableShadows(True)
-
-    # Run the simulation
-    app.Run()
-
-if __name__ == "__main__":
-    main()
+# Simulation loop
+while irrlicht_renderer.Run():
+    system.Update(1 / 60.0)  # 1/60 s time step

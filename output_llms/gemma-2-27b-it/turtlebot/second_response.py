@@ -75,6 +75,7 @@ while vis.Run():
         move('right')
         print("Turning right")
 
+    # Increment time counter
     time += time_step
 
     # Render the scene

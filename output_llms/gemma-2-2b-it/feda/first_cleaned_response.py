@@ -1,39 +1,52 @@
 import pychrono as chrono
 import pychrono.irrlicht as irr
-import pychrono.irrlicht.irrlicht_utils as irr_utils
+import pychrono.irrlicht.core as core
+import pychrono.irrlicht.physics as physics
+import pychrono.irrlicht.scene as scene
 
 
 chrono.init()
 
 
-irr_env = irr.IrrlichtEnvironment("irrlicht_window")
+env = chrono.Environment(irr.IrrlichtEnvironment())
 
 
 terrain = chrono.RigidTerrain(
-    chrono.Vector3(0, 0, 0),
-    chrono.Vector3(10, 10, 10),
-    chrono.Vector3(0, 0, 0),
-    chrono.Vector3(1, 1, 1),
-    chrono.Vector3(0, 0, 0),
-    chrono.Vector3(1, 1, 1),
-    "custom_texture.png",
+    name="Terrain",
+    pos=chrono.Vec3(0, 0, 0),
+    size=chrono.Vec3(10, 10, 10),
+    texture=irr.IrrlichtTexture("terrain.png"),
 )
+
+
+env.add(terrain)
 
 
 vehicle = chrono.Vehicle(
-    chrono.Vector3(0, 0, 0),
-    chrono.Vector3(1, 1, 1),
-    chrono.Vector3(0, 0, 0),
-    chrono.Vector3(1, 1, 1),
-    chrono.Vector3(0, 0, 0),
-    chrono.Vector3(1, 1, 1),
-    "vehicle.obj",
-    chrono.ContactMethod.CONTACT_METHOD_NONE,
-    chrono.TireModel.TIRE_MODEL_STANDARD,
+    name="FEDA Vehicle",
+    pos=chrono.Vec3(5, 0, 0),
+    orientation=chrono.Vec3(0, 0, 0),
+    contactMethod=chrono.ContactMethod.STATIC,
+    tireModel=chrono.TireModel.RUBBER,
 )
 
 
-camera = irr_utils.createCamera(irr_env, irr.Vector3(0, 0, 10))
+env.add(vehicle)
+
+
+camera = chrono.Camera(
+    name="Camera",
+    pos=chrono.Vec3(0, 5, 5),
+    lookAt=chrono.Vec3(0, 0, 0),
+)
+
+
+env.add(camera)
+
+
+driver = chrono.Driver()
+driver.add_input_method("keyboard")
+driver.add_input_method("mouse")
 
 
 dt = 0.01
@@ -42,16 +55,16 @@ fps = 50
 
 while True:
     
+    driver.update()
+
+    
     vehicle.update(dt)
 
     
-    irr_env.render()
+    env.render()
 
     
-    irr_env.update()
+    env.update()
 
     
-    
-
-    
-    chrono.sleep(1/fps)
+    core.sleep(1 / fps)

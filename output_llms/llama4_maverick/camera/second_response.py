@@ -1,52 +1,49 @@
 import pychrono.core as chrono
 import pychrono.sensor as sens
-
 import math
 import time
 
-# -----------------
-# Camera parameters
-# -----------------
-
-# Noise model attached to the sensor
-noise_model = "CONST_NORMAL"  # Constant normal noise model
-
-# Update rate in Hz
-update_rate = 30
-
-# Image width and height
-image_width = 960
-image_height = 480
-
-# Camera's horizontal field of view
-fov = 1.408  # Horizontal field of view in radians
-
-# Lag (in seconds) between sensing and when data becomes accessible
-lag = 0
-
-# Exposure (in seconds) of each image
-exposure_time = 0
-
-# ---------------------
-# Simulation parameters
-# ---------------------
-
-# Simulation step size
-step_size = 1e-3
-
-# Simulation end time
-end_time = 20.0
-
-# Save camera images
-save = True
-
-# Render camera images
-vis = True
-
-# Output directory
-out_dir = "SENSOR_OUTPUT/"
-
 def main():
+    # ---------------------
+    # Simulation parameters
+    # ---------------------
+    # Simulation step size
+    step_size = 1e-3
+    
+    # Simulation end time
+    end_time = 20.0
+
+    # -----------------
+    # Camera parameters
+    # -----------------
+    # Noise model attached to the sensor
+    noise_model = "CONST_NORMAL"  # Constant normal noise model
+    
+    # Update rate in Hz
+    update_rate = 30
+    
+    # Image width and height
+    image_width = 960  # Changed from 1280 to 960
+    image_height = 480  # Changed from 720 to 480
+    
+    # Camera's horizontal field of view
+    fov = 1.408  # Horizontal field of view in radians
+    
+    # Lag (in seconds) between sensing and when data becomes accessible
+    lag = 0
+    
+    # Exposure (in seconds) of each image
+    exposure_time = 0
+    
+    # Save camera images
+    save = True  # Changed from False to True
+    
+    # Render camera images
+    vis = True
+    
+    # Output directory
+    out_dir = "SENSOR_OUTPUT/"
+
     # -----------------
     # Create the system
     # -----------------
@@ -59,16 +56,16 @@ def main():
     # Load a triangular mesh from a Wavefront .obj file
     mmesh = chrono.ChTriangleMeshConnected()
     mmesh.LoadWavefrontMesh(chrono.GetChronoDataFile("vehicle/hmmwv/hmmwv_chassis.obj"), False, True)
+    
     # Scale the mesh uniformly by a factor of 2
-    scale = 2
-    mmesh.Transform(chrono.ChVector3d(0, 0, 0), chrono.ChMatrix33d(scale))
-
+    mmesh.Transform(chrono.ChVector3d(0, 0, 0), chrono.ChMatrix33d(2))
+    
     # Create a visual representation of the mesh
     trimesh_shape = chrono.ChVisualShapeTriangleMesh()
     trimesh_shape.SetMesh(mmesh)
     trimesh_shape.SetName("HMMWV Chassis Mesh")
     trimesh_shape.SetMutable(False)  # Set the mesh to be immutable
-
+    
     # Create a body to which the visual shape will be attached
     mesh_body = chrono.ChBody()
     mesh_body.SetPos(chrono.ChVector3d(0, 0, 0))  # Set the position of the body
@@ -81,7 +78,7 @@ def main():
     # -----------------------
     # Initialize the sensor manager to manage all sensors in the simulation
     manager = sens.ChSensorManager(mphysicalSystem)
-
+    
     # Add point lights to the scene for illumination
     intensity = 1.0  # Set the light intensity
     manager.scene.AddPointLight(chrono.ChVector3f(2, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
@@ -91,16 +88,16 @@ def main():
     # Create a camera and add it to the sensor manager
     # ------------------------------------------------
     # Define the camera offset pose relative to the body it is attached to
-    offset_pose = chrono.ChFrame(chrono.ChVector3d(-7, 0, 2), chrono.QuatFromAngleAxis(2, chrono.ChVector3d(0, 1, 0)))
-
+    offset_pose = chrono.ChFrame(chrono.ChVector3d(-7, 0, 2), chrono.QuatFromAngleAxis(2, chrono.ChVector3d(0, 1, 0)))  # Changed from -5 to -7
+    
     # Initialize the camera sensor
     cam = sens.ChCameraSensor(
-        mesh_body,              # Body the camera is attached to
-        update_rate,            # Camera update rate in Hz
-        offset_pose,            # Offset pose of the camera
-        image_width,            # Image width in pixels
-        image_height,           # Image height in pixels
-        fov                     # Camera's horizontal field of view in radians
+        mesh_body,  # Body the camera is attached to
+        update_rate,  # Camera update rate in Hz
+        offset_pose,  # Offset pose of the camera
+        image_width,  # Image width in pixels
+        image_height,  # Image height in pixels
+        fov  # Camera's horizontal field of view in radians
     )
     cam.SetName("Camera Sensor")
     cam.SetLag(lag)  # Set the lag between sensing and data accessibility
@@ -117,35 +114,35 @@ def main():
     elif noise_model == "NONE":
         # No noise model applied
         pass
-
+    
     # Visualize the image before applying grayscale filter
     if vis:
         cam.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Before Grayscale Filter"))
-
+    
     # Provide host access to the RGBA8 buffer from the camera
     cam.PushFilter(sens.ChFilterRGBA8Access())
-
+    
     # Save the current image to a PNG file at the specified path
     if save:
         cam.PushFilter(sens.ChFilterSave(out_dir + "rgb/"))
-
+    
     # Convert the camera image to grayscale
     cam.PushFilter(sens.ChFilterGrayscale())
-
+    
     # Visualize the grayscaled image
     if vis:
         cam.PushFilter(sens.ChFilterVisualize(int(image_width / 2), int(image_height / 2), "Grayscale Image"))
-
+    
     # Save the grayscaled image to a PNG file at the specified path
     if save:
         cam.PushFilter(sens.ChFilterSave(out_dir + "gray/"))
-
+    
     # Resize the image to the specified width and height
     cam.PushFilter(sens.ChFilterImageResize(int(image_width / 2), int(image_height / 2)))
-
+    
     # Access the grayscaled image buffer as R8 pixels
     cam.PushFilter(sens.ChFilterR8Access())
-
+    
     # Add the camera sensor to the manager
     manager.AddSensor(cam)
 
@@ -153,34 +150,35 @@ def main():
     # Simulate system
     # ---------------
     orbit_radius = 10  # Radius of the camera orbit
-    orbit_rate = 0.1   # Rate of the camera orbit in radians per second
-    ch_time = 0.0      # Initialize simulation time
-
+    orbit_rate = 0.1  # Changed from 0.5 to 0.1 radians per second
+    ch_time = 0.0  # Initialize simulation time
     t1 = time.time()  # Record the start time of the simulation
-
+    
     while ch_time < end_time:
         # Dynamically set the camera's position around the orbit
         cam.SetOffsetPose(chrono.ChFrame(
             chrono.ChVector3d(-orbit_radius * math.cos(ch_time * orbit_rate), -orbit_radius * math.sin(ch_time * orbit_rate), 1),
             chrono.QuatFromAngleAxis(ch_time * orbit_rate, chrono.ChVector3d(0, 0, 1))))
-
+        
         # Access the RGBA8 buffer from the camera
         rgba8_buffer = cam.GetMostRecentRGBA8Buffer()
         if rgba8_buffer.HasData():
             rgba8_data = rgba8_buffer.GetRGBA8Data()
             print('RGBA8 buffer received from cam. Camera resolution: {0}x{1}'.format(rgba8_buffer.Width, rgba8_buffer.Height))
             print('First Pixel: {0}'.format(rgba8_data[0, 0, :]))
-
+        
         # Update the sensor manager (render/save/filter data automatically)
         manager.Update()
-
+        
         # Perform a step of dynamics simulation
         mphysicalSystem.DoStepDynamics(step_size)
-
+        
         # Update the current simulation time
         ch_time = mphysicalSystem.GetChTime()
-
-    print("Sim time:", end_time, "Wall time:", time.time() - t1)
+        print("Sim time:", ch_time, "Wall time:", time.time() - t1)
 
 # Main function entry point
-main()
+if __name__ == "__main__":
+    main()
+
+# To execute the code, you can simply run the python script.

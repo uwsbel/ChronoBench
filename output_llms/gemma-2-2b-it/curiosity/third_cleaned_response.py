@@ -59,23 +59,14 @@ vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0
 sens = ChSensorManager(system)
 
 
-lidar_update_rate = 100  
-lidar_horizontal_samples = 100
-lidar_vertical_samples = 100
-lidar_fov = 60  
-
-
-lidar = ChLidarSensor(
-    system,
-    update_rate=lidar_update_rate,
-    horizontal_samples=lidar_horizontal_samples,
-    vertical_samples=lidar_vertical_samples,
-    fov=lidar_fov,
+lidar_sensor = ChLidarSensor(
+    update_rate=10,  
+    horizontal_samples=1024,  
+    vertical_samples=512,  
+    fov=50.0  
 )
-sens.AddSensor(lidar)
-
-
-manager.Update()
+lidar_sensor.AttachToChassis(rover)  
+sens.AddSensor(lidar_sensor)
 
 
 time_step = 1e-3
@@ -98,3 +89,6 @@ while vis.Run():
 
     
     system.DoStepDynamics(time_step)
+
+    
+    sens.Update()

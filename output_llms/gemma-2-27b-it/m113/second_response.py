@@ -17,19 +17,15 @@ vis_type = veh.VisualizationType_MESH
 chassis_collision_type = veh.CollisionType_NONE
 
 # SCM deformable terrain
-terrainHeightMap = chrono.GetChronoDataFile('terrain/height_map.png')
-terrainLength = 100.0  # size in X direction
-terrainWidth = 100.0   # size in Y direction
+terrainHeightMap = chrono.GetChronoDataFile('terrain/height_map.png')  # Assuming height map exists
+terrain_model = veh.SCMTerrain(vehicle.GetSystem())
+terrain_model.SetHeightmap(terrainHeightMap, 100, 100)  # Adjust scale if needed
 
-# Soil parameters
-soil_params = veh.SCMDeformableTerrain.SoilParameters()
-soil_params.SetFriction(0.8)
-soil_params.SetRestitution(0.1)
-soil_params.SetCohesion(1000)
-soil_params.SetAdhesion(0.5)
-soil_params.SetYoungModulus(1e7)
-soil_params.SetPoissonRatio(0.3)
-soil_params.SetDensity(1500)
+# SCM soil parameters
+terrain_model.SetFriction(0.8)
+terrain_model.SetRestitution(0.01)
+terrain_model.SetYoungModulus(1e7)
+terrain_model.SetPoissonRatio(0.3)
 
 # Poon chassis tracked by the camera
 trackPoint = chrono.ChVector3d(0.0, 0.0, 0.1)
@@ -68,10 +64,8 @@ vehicle.SetTrackShoeVisualizationType(vis_type)
 
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
-# Create the SCM terrain
-terrain = veh.SCMDeformableTerrain(vehicle.GetSystem(), soil_params)
-terrain.Initialize(terrainHeightMap, terrainLength, terrainWidth)
-terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"))
+# Set SCM terrain texture
+terrain_model.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 200, 200)
 
 # Create the vehicle Irrlicht interface
 
@@ -126,15 +120,16 @@ while vis.Run() :
     driver_inputs = driver.GetInputs()
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
-    terrain.Synchronize(time)
+    terrain_model.Synchronize(time)  # Synchronize SCM terrain
     vehicle.Synchronize(time, driver_inputs)
     vis.Synchronize(time, driver_inputs)
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)
-    terrain.Advance(step_size)
+    terrain_model.Advance(step_size)  # Advance SCM terrain
     vehicle.Advance(step_size)
     vis.Advance(step_size)
     # Hard-coded throttle value
-    vehicle.GetVehicle().SetThrottle(0.8)
+    vehicle.GetVehicle().SetThrottle(0.8) 
+
     # Increment frame number
     step_number += 1

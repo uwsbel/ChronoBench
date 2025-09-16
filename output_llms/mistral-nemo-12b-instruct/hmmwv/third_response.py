@@ -9,19 +9,18 @@ veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 # Initial vehicle location and orientation
 initLoc = chrono.ChVector3d(0, 0, 0.5)
-initRot = chrono.ChQuaterniond(1, 0, 0, 0)
+initRot = chrono.Quaterniond(1, 0, 0, 0)
 
 # Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
-vis_type = veh.VisualizationType_PRIMITIVES
+vis_type = veh.VisualizationType.PRIMITIVES
 
 # Collision type for chassis (PRIMITIVES, MESH, or NONE)
-chassis_collision_type = veh.CollisionType_NONE
+chassis_collision_type = veh.CollisionType.NONE
 
 # Type of tire model (RIGID, TMEASY)
-tire_model = veh.TireModelType_TMEASY
+tire_model = veh.TireModelType.TMEASY
 
 # Rigid terrain
-# terrain_model = veh.RigidTerrain.BOX
 terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
@@ -30,7 +29,7 @@ terrainWidth = 100.0   # size in Y direction
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
 
 # Contact method
-contact_method = chrono.ChContactMethod_NSC
+contact_method = chrono.ContactMethod.NSC
 contact_vis = False
 
 # Simulation step sizes
@@ -41,7 +40,7 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  # FPS = 50
 
 # Create the HMMWV vehicle, set parameters, and initialize
-vehicle = veh.HMMWV_Full()
+vehicle = veh.HMMWV_Full() # veh.HMMWV_Reduced()  could be another choice here
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
@@ -57,10 +56,10 @@ vehicle.SetSteeringVisualizationType(vis_type)
 vehicle.SetWheelVisualizationType(vis_type)
 vehicle.SetTireVisualizationType(vis_type)
 
-vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+vehicle.GetSystem().SetCollisionSystemType(chrono.CollisionSystem.Type.BULLET)
 
 # Create the terrain
-patch_mat = chrono.ChContactMaterialNSC()
+patch_mat = chrono.ContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
@@ -80,7 +79,7 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
-# Create the custom driver system with a delay parameter of 0.5
+# Create the custom driver system with delay parameter of 0.5
 class MyDriver(veh.ChDriver):
     def __init__(self, vis, delay=0.5):
         super().__init__(vis)
@@ -91,17 +90,26 @@ class MyDriver(veh.ChDriver):
         self.time = 0
 
     def Synchronize(self, time):
-        self.time += time
+        self.time += render_step_size
         if self.time > self.delay:
             if self.time < self.delay + 0.2:
                 self.throttle = (self.time - self.delay) / 0.2
             elif self.time > 2:
-                self.steering = math.sin((self.time - 2) * 2 * math.pi)
+                self.steering = 0.5 * math.sin((self.time - 2) * 2 * math.pi)
             self.SetThrottle(self.throttle)
             self.SetSteering(self.steering)
             self.SetBraking(self.braking)
 
-driver = MyDriver(vis, 0.5)
+driver = MyDriver(vis)
+
+# Set the time response for steering and throttle keyboard inputs.
+steering_time = 1.0  # time to go from 0 to +1 (or from 0 to -1)
+throttle_time = 1.0  # time to go from 0 to +1
+braking_time = 0.3   # time to go from 0 to +1
+driver.SetSteeringDelta(render_step_size / steering_time)
+driver.SetThrottleDelta(render_step_size / throttle_time)
+driver.SetBrakingDelta(render_step_size / braking_time)
+
 driver.Initialize()
 
 # output vehicle mass
@@ -110,14 +118,13 @@ print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
 
-# Initialize simulation frame counter
-realtime_timer = chrono.ChRealtimeStepTimer()
+# Initialize simulation frame counter s
+realtime_timer = chrono.RealtimeStepTimer()
 step_number = 0
 render_frame = 0
-simulation_time = 0
 
 while vis.Run():
-    simulation_time = vehicle.GetSystem().GetChTime()
+    time = vehicle.GetSystem().GetChTime()
 
     # Render scene and output POV-Ray data
     if step_number % render_steps == 0:
@@ -130,10 +137,10 @@ while vis.Run():
     driver_inputs = driver.GetInputs()
 
     # Update modules (process inputs from other modules)
-    driver.Synchronize(simulation_time)
-    terrain.Synchronize(simulation_time)
-    vehicle.Synchronize(simulation_time, driver_inputs, terrain)
-    vis.Synchronize(simulation_time, driver_inputs)
+    driver.Synchronize(time)
+    terrain.Synchronize(time)
+    vehicle.Synchronize(time, driver_inputs, terrain)
+    vis.Synchronize(time, driver_inputs)
 
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)
@@ -148,5 +155,5 @@ while vis.Run():
     realtime_timer.Spin(step_size)
 
     # End simulation when time reaches 4 seconds
-    if simulation_time >= 4:
+    if time > 4:
         break

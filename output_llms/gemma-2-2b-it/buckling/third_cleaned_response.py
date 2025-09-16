@@ -7,20 +7,20 @@ import pychrono.irrlicht as chronicls
 import os  
 
 
-class ChFunctionMyFun(chrno.ChFunction):
+class ChFunctionMyFun(chrono.ChFunction):
     def __init__(self):
-        chrno.ChFunction.__init__(self)
+        chrono.ChFunction.__init__(self)
     def GetVal(self, x):
         if x > 0.5:
-            return chrno.CH_PI
+            return chrono.CH_PI
         else:
-            return -chrno.CH_PI * (1.0 - m.cos(chrno.CH_PI * x / 0.3)) / 2.0
+            return -chrono.CH_PI * (1.0 - m.cos(chrono.CH_PI * x / 0.3)) / 2.0
 
 
 out_dir = chrno.GetChronoOutputPath() + "BEAM_FAILED"
 
 
-sys = chrno.ChSystemSMC()
+sys = chrno.ChSytemSMC()
 
 
 L = 1.2
@@ -52,7 +52,7 @@ body_crank.AddVisualShape(boxcrank)
 
 
 motor = chrno.ChLinkMotorRotationSpeed()
-motor.Initialize(body_trss, body_crank, chrno.ChFramed(vG))
+motor.Initialize(body_truss, body_crank, chrno.ChFramed(vG))
 myfun = ChFunctionMyFun()
 motor.SetTorqueFunction(myfun)
 sys.Add(motor)
@@ -124,9 +124,4 @@ builderB = fea.ChBuilderBeamEuler()
 builderB.BuildBeam(mesh, section3, 4, vG + vd, vB + vd, chrno.ChVector3d(0, 1, 0))
 
 
-node_crnkG = builderB.GetLastBeamNodes()[0]
-node_crankB = builderB.GetLastBeamNodes()[-1]
-
-
-constr_cbd = chrno.ChLinkMatePrismatic()
-constr_cbd.Initialize(node_crnkG, body_crank, False, node_crnkG.
+node_crnk

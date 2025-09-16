@@ -4,6 +4,7 @@ import pychrono.vehicle as veh
 import math
 
 
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 
@@ -20,9 +21,9 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 
-terrainHeight = 0      
-terrainLength = 50.0  
-terrainWidth = 50.0   
+terrainHeight = 0
+terrainLength = 100.0
+terrainWidth = 100.0
 
 
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
@@ -46,7 +47,6 @@ vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
-
 vehicle.Initialize()
 
 vehicle.SetChassisVisualizationType(vis_type)
@@ -58,44 +58,36 @@ vehicle.SetTireVisualizationType(vis_type)
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
-terrain = veh.RigidTerrain(vehicle.GetSystem())
-
-
 patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 
+terrain = veh.RigidTerrain(vehicle.GetSystem())
 
-patch1 = terrain.AddPatch(patch_mat, 
-    chrono.ChCoordsysd(chrono.ChVector3d(-terrainLength, -terrainWidth, terrainHeight), chrono.QUNIT), 
-    terrainLength, terrainWidth)
-patch1.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
+
+
+patch1 = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(-50, -50, 0), chrono.QUNIT), 50, 50)
+patch1.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 50, 50)
 patch1.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 
 
-patch2 = terrain.AddPatch(patch_mat, 
-    chrono.ChCoordsysd(chrono.ChVector3d(0, -terrainWidth, terrainHeight), chrono.QUNIT), 
-    terrainLength, terrainWidth)
-patch2.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)
+patch2 = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, -50, 0), chrono.QUNIT), 50, 50)
+patch2.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 50, 50)
 patch2.SetColor(chrono.ChColor(0.5, 0.8, 0.5))
-patch2.SetHeightMap(veh.GetDataFile("terrain/height_maps/test64.bmp"), 2.0, 0.0, 2.0)
+patch2.SetHeightMap(veh.GetDataFile("terrain/height_maps/test_height.bmp"), 0, 5)
 
 
-patch3 = terrain.AddPatch(patch_mat, 
-    chrono.ChCoordsysd(chrono.ChVector3d(-terrainLength, 0, terrainHeight), chrono.QUNIT), 
-    terrainLength, terrainWidth)
-patch3.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 200, 200)
+patch3 = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(-50, 0, 0), chrono.QUNIT), 50, 50)
+patch3.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 50, 50)
 patch3.SetColor(chrono.ChColor(0.8, 0.5, 0.5))
 
-bump = chrono.ChVector3d(5, 5, 1)
-patch3.AddBox(bump, chrono.ChVector3d(10, 10, 1))
 
-
-patch4 = terrain.AddPatch(patch_mat, 
-    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, terrainHeight), chrono.QUNIT), 
-    terrainLength, terrainWidth)
-patch4.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 200, 200)
+patch4 = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 50, 50)
+patch4.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 50, 50)
 patch4.SetColor(chrono.ChColor(0.5, 0.5, 0.8))
+
+
+patch4.SetBump(chrono.ChVector3d(10, 10, 2), 5)
 
 terrain.Initialize()
 
@@ -116,7 +108,8 @@ driver = veh.ChInteractiveDriverIRR(vis)
 
 steering_time = 1.0  
 throttle_time = 1.0  
-braking_time = 0.3   
+braking_time = 0.3  
+
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
@@ -124,16 +117,23 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 
+output = True
+if output:
+    print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
+
+
 render_steps = math.ceil(render_step_size / step_size)
+
+
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-while vis.Run() :
+while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
     
-    if (step_number % render_steps == 0) :
+    if (step_number % render_steps == 0):
         vis.BeginScene()
         vis.Render()
         vis.EndScene()

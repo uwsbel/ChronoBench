@@ -1,84 +1,89 @@
-import pychrono as chrono
-
-import numpy as np
-
-
+from pychrono.core import *
+from pychrono.visualization import *
+from pychrono.irrlicht_utils import *
 
 
-chrono.ChSystemAtom()
+chrono_conf = ChronoConfigure()
+chrono_conf.verbose_build = False
+chrono_conf.enable_chrono_demos = True
+chrono_conf.motion_state_graph_enable = True
+chrono_conf.enable_physics_visualization = True
+chrono_conf.enable_irrlicht_visualization = True
+chrono_conf.enable_physics_simulation = True
+chrono_conf.enable_collision_detection = True
+chrono_conf.enable_collision_detection_debug = False
+chrono_conf.enable_contact_detection = True
+chrono_conf.enable_contact_detection_debug = False
+chrono_conf.enable_contact_detection_log = False
+chrono_conf.enable_contact_detection_log_verbose = False
+chrono_conf.enable_contact_detection_log_gui = False
+chrono_conf.enable_contact_detection_gui = False
+chrono_conf.enable_contact_detection_gui_control = False
+chrono_conf.enable_contact_detection_gui_control_debug = False
+chrono_conf.enable_contact_detection_gui_control_verbose = False
+chrono_conf.enable_contact_detection_gui_control_log = False
 
 
+chrono_conf.initialize_chrono_globals()
+chrono_conf.initialize_chrono()
 
 
-satellite = chrono.ChBody()
-
-satellite.SetName('Satellite')
-
-satellite.SetPos(chrono.ChVectorD(0, 0, 1000))  
-
-satellite.SetMass(1000)  
-
-satellite.SetInertiaXX(100)  
-
-satellite.SetInertiaXY(10)  
-
-satellite.SetInertiaXYZ(1)  
+vehicle = Vehicle()
+vehicle.set_name("BMW E90 Sedan")
+vehicle.set_mass(1500.0)  
+vehicle.set_inertia(0.1, 0.2, 0.1)  
+vehicle.set_position(0.0, 0.0, 0.5)  
+vehicle.set_orientation(0.0, 0.0, 0.0, 1.0)  
+vehicle.set_velocity(0.0, 0.0, 0.0)  
 
 
+terrain = Terrain()
+terrain.set_position(0.0, 0.0, 0.0)
+terrain.set_dimensions(100.0, 20.0, 100.0)  
+terrain.set_color(0.5, 0.5, 0.5, 1.0)  
 
 
-earth = chrono.ChBody()
-
-earth.SetName('Earth')
-
-earth.SetPos(chrono.ChVectorD(0, 0, 0))  
-
-earth.SetMass(5.972e24)  
-
-earth.SetInertiaXX(0.33011)  
-
-earth.SetInertiaXY(2.557e38)  
-
-earth.SetInertiaXYZ(1.309e38)  
+tire = TmeasyTire()
+tire.set_pressure(22.0)  
+tire.set_radial_stiffness(2.0e6)  
+tire.set_tread_width(25.0)  
+tire.set_tread_depth(3.0)  
+tire.set_slip_angle(0.0)  
 
 
+vehicle.set_terrain(terrain)
 
 
-earth_grav_force = chrono.ChVectorD(0, 0, -6.67430e-11 * earth.GetMass() * satellite.GetMass() / (satellite.GetPos().Length() ** 2))
-
-satellite.AddForce(earth_grav_force)
-
-
-
-
-chrono.ChCollisionAlgorithmLCG(12345)
-
-chrono.ChCollisionFrequencyAlgorithmDefault()
-
-chrono.ChCollisionDispatchAlgorithmQuick()
+irrlicht_conf = IrrlichtVisualizationConfig()
+irrlicht_conf.set_camera_mode(CM_FIRSTPERSON)
+irrlicht_conf.set_chase_camera(True)
+irrlicht_conf.set_directional_lighting(True)
+irrlicht_conf.set_skybox_enabled(True)
+irrlicht_conf.set_skybox_color(clr_SkyDome)
+irrlicht_conf.set_texture_folder("textures")
+irrlicht_conf.set_logo_folder("logos")
 
 
+vehicle_visualization = VehicleVisualization()
+vehicle_visualization.set_vehicle(vehicle)
 
 
-earth.AddCollisionAlgorithm(chrono.ChCollisionAlgorithm(chrono.ChCollisionAlgorithmLCG(12345)))
-
-satellite.AddCollisionAlgorithm(chrono.ChCollisionAlgorithm(chrono.ChCollisionAlgorithmLCG(12345)))
+driver_system = InteractiveDriverSystem()
 
 
+simulation = Chrono(chrono_conf)
+simulation.add_object(vehicle)
+simulation.add_object(terrain)
 
 
-integrator = chrono.ChIntegrator_New(chrono.ChIntegration_New(chrono.ChIntegration_LeapFrog, 1e-3))
-
-chrono.ChSystem_AddIntegrator(chrono.ChSystem(), integrator)
-
+simulation.set_gravity(0.0, -9.81, 0.0)  
+simulation.set_time_step(0.01)  
 
 
+while irrlicht_utils.application_is_running():
+    simulation.do_simulation_step(1.0/60.0)  
+    irrlicht_utils.draw_irrlicht_scene()  
+    driver_system.update_control_input()  
 
-for step in range(1000):
-
-    chrono.ChStepManager.Update()
-
-
-
-
-print('Final position of the satellite:', satellite.GetPos())
+    
+    irrlicht_utils.draw_irrlicht_scene()

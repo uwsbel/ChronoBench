@@ -44,13 +44,18 @@ for iz in range(nsections_z + 1):
         mesh.AddNode(mnode)
         mynodes.append(mnode)
 
-# Node monitoring and loading setup
+# Node Monitoring and Loading Setup
 nodePlotA = mynodes[0]
 nodePlotB = mynodes[-1]
 nodesLoad = [mynodes[i] for i in range(nsections_x + 1)]
-def ref_X(t): return 0.1 * t
-def ref_Y(t): return 0.2 * t
-load_force = chrono.ChVectorD(10, 0, 0)
+
+def ref_X(t):
+    return 0.1 * t
+
+def ref_Y(t):
+    return 0.1 * t
+
+load_force = chrono.ChVector3d(1, 0, 0)
 
 # Create elements
 for iz in range(nsections_z):
@@ -75,12 +80,12 @@ for iz in range(nsections_z):
         melementB.AddLayer(thickness, 0, material)
         mesh.AddElement(melementB)
 
-        # Element monitoring
+        # Element Monitoring
         if iz == 0 and ix == 1:
             melementmonitor = melementA
             mnodemonitor = mynodes[iz * (nsections_x + 1) + ix]
 
-# Fix upper nodes
+# Fix Upper Nodes
 for j in range(30):
     for k in range(30):
         mynodes[j * (nsections_x + 1) + k].SetFixed(True)
@@ -112,11 +117,11 @@ vis.AddTypicalLights()
 
 # Change solver to PardisoMKL
 mkl_solver = mkl.ChSolverPardisoMKL()
-mkl_solver.LockSparsityPattern(True)  # Adjusted to True
+mkl_solver.LockSparsityPattern(True)
 sys.SetSolver(mkl_solver)
 
 # Define time step for simulation
-timestep = 0.005  # Adjusted time step
+timestep = 0.005
 
 # Final setup and system updates
 sys.Setup()

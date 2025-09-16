@@ -2,166 +2,115 @@ import pychrono
 
 import pychrono.irrlicht
 
-import pychrono.vehicle_drivetrain
+import pychrono.vehicle as vehicle
 
-import pychrono.vehicle_driver
+import pychrono.vehicle.vehicle_dynamics as vd
 
-import pychrono.vehicle_visualizer
+import pychrono.vehicle.vehicle_dynamics_vehicle as vd_vehicle
 
-import pychrono.vehicle_terrain
+import pychrono.vehicle.vehicle_dynamics_terrain as vd_terrain
 
-import pychrono.vehicle_terrain_friction
+import pychrono.vehicle.vehicle_dynamics_driver as vd_driver
 
-import pychrono.vehicle_terrain_restitution
+import pychrono.vehicle.vehicle_dynamics_visual as vd_visual
 
-import pychrono.vehicle_visualizer
+import pychrono.vehicle.vehicle_dynamics_terrain_visual as vd_terrain_visual
 
-import pychrono.irrlicht_visualizer
+import pychrono.irrlicht as irr
 
+import pychrono.irrlicht.irrlicht as irr
 
-# Initialize PyChrono environment
-
-chrono = pychrono.ChSystemNSC()
-
-
-# Add a rigid terrain with friction and restitution
-
-terrain = pychrono.ChBody()
-
-terrain.SetName("Terrain")
-
-terrain.SetMass(1e6)
-
-terrain.SetInertia(pychrono.ChBoxInertia(1e6, 1e6, 1e6, pychrono.ChVector(0, 0, 0))
-
-terrain.SetPos(pychrono.ChVector(0, 0, 0))
-
-terrain.SetStatic()
-
-terrain.SetStaticForce(pychrono.ChVector(0, 0, -1e6))
-
-terrain.SetRestitution(0.5)
-
-terrain.SetFriction(0.8)
-
-chrono.AddBody(terrain)
+import pychrono.irrlicht.irrlicht_visualizer as iv
 
 
-# Add a vehicle (M113)
+# Initialize the PyChrono world
 
-vehicle = pychrono.ChVehicleDrivetrain()
+world = pychrono.ChWorld()
 
-vehicle.SetName("M113")
 
-vehicle.SetMass(10000)
+# Set up the rigid terrain
 
-vehicle.SetInertia(pychrono.ChBoxInertia(1000, 1000, 1000, pychrono.ChVector(0, 0, 0))
+terrain = vd_terrain.RigidTerrain(world)
 
-vehicle.SetPos(pychrono.ChVector(0, 0, 0))
+terrain.SetFriction(0.5)
 
-vehicle.SetStaticForce(pychrono.ChVector(0, 0, -1e6))
+terrain.SetRestitution(0.2)
 
-chrono.AddBody(vehicle)
+
+# Create the M113 vehicle
+
+m113 = vd_vehicle.VehicleDynamicsVehicle(world)
+
+m113.SetVehicleType(pychrono.vehicle.VehicleType.M113)
+
+m113.SetMass(15000.0)
+
+m113.SetLength(5.0)
+
+m113.SetWidth(2.5)
+
+m113.SetWheelRadius(0.3)
+
+m113.SetTrackWidth(1.5)
+
+m113.SetWheelBase(2.7)
+
+m113.SetCenterOfMass([0.0, 0.0, 0.0])
 
 
 # Set up the driver system
 
-driver = pychrono.vehicle_driver.ChVehicleDriver()
+driver = vd_driver.Driver(world)
 
-driver.SetName("Driver")
-
-driver.SetMaxSteer(30)
-
-driver.SetMaxBrake(1000)
-
-driver.SetMaxAccel(10)
-
-chrono.AddBody(driver)
+driver.SetVehicle(m113)
 
 
 # Set up the visualization system
 
-irrlicht = pychrono.irrlicht_visualizer.ChIrrApp()
+visualizer = iv.IrrlichtVisualizer(world)
 
-irrlicht.SetName("Visualizer")
+visualizer.SetCameraPosition(0, 0, 10)
 
-irrlicht.SetWindowTitle("PyChrono Simulation")
-
-irrlicht.SetWindowSize(800, 600)
-
-irrlicht.SetCamera(pychrono.ChVector(0, 0, 10), pychrono.ChVector(0, 0, 0), pychrono.ChVector(0, 1, 0))
-
-irrlicht.SetLighting(True)
-
-irrlicht.AddBody(terrain)
-
-irrlicht.AddBody(vehicle)
-
-irrlicht.AddBody(driver)
+visualizer.SetLightPosition(0, 0, 10)
 
 
-# Set up the vehicle visualizer
+# Set up the Irrlicht visualization
 
-visualizer = pychrono.vehicle_visualizer.ChVehicleVisualizer()
+irrlicht = irr.IrrLicht()
 
-visualizer.SetName("Visualizer")
+irrlicht.SetWindowTitle("PyChrono M113 Simulation")
 
-visualizer.SetBody(vehicle)
-
-irrlicht.AddVisualizer(visualizer)
+irrlicht.SetMainLightPosition(0, 0, 10)
 
 
-# Set up the terrain visualizer
+# Main simulation loop
 
-terrain_visualizer = pychrono.vehicle_terrain_friction.ChVehicleTerrainFrictionVisualizer()
+while True:
 
-terrain_visualizer.SetName("Terrain Visualizer")
+    # Advance the simulation by one timestep
 
-terrain_visualizer.SetBody(terrain)
-
-irrlicht.AddVisualizer(terrain_visualizer)
+    world.Advance(0.01)
 
 
-# Set up the terrain restitution visualizer
+    # Update the driver system
 
-terrain_restitution_visualizer = pychrono.vehicle_terrain_restitution.ChVehicleTerrainRestitutionVisualizer()
-
-terrain_restitution_visualizer.SetName("Terrain Restitution Visualizer")
-
-terrain_restitution_visualizer.SetBody(terrain)
-
-irrlicht.AddVisualizer(terrain_restitution_visualizer)
-
-
-# Set up the driver visualizer
-
-driver_visualizer = pychrono.vehicle_driver.ChVehicleDriverVisualizer()
-
-driver_visualizer.SetName("Driver Visualizer")
-
-driver_visualizer.SetBody(driver)
-
-irrlicht.AddVisualizer(driver_visualizer)
-
-
-# Set up the vehicle visualizer
-
-# Set up the simulation loop
-
-while irrlicht.GetDevice().run():
-
-    # Synchronize the simulation
-
-    chrono.DoStepDynamics(0.01)
+    driver.Update(0.01)
 
 
     # Update the visualization
 
-    irrlicht.UpdateScene()
+    visualizer.Update(0.01)
 
+    irrlicht.BeginScene()
 
-    # Check for user input
+    irrlicht.DrawAll()
 
-    if irrlicht.IsKeyDown(pychrono.irrlicht_visualizer.ET_KEY_ESCAPE):
+    irrlicht.EndScene()
 
-        irrlicht.Exit()
+    irrlicht.Finish()
+
+    # Check for exit condition
+
+    if irrlicht.IsCancelKeyHit():
+
+        break

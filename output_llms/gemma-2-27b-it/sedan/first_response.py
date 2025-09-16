@@ -1,49 +1,91 @@
 import pychrono as chrono
-import pychrono.postprocess as postprocess
 import pychrono.irrlicht as chronoirr
+import pychrono.vehicle as chronovehicle
 
-# 1. Initialize the PyChrono environment and core components
-my_system = chrono.ChSystemNSC()
-my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
+# ---------------------------------------------------------------------
+#
+#  Create the simulation system and add the vehicle
+#
+# ---------------------------------------------------------------------
 
-# Create a material for the objects
-material = chrono.ChMaterialSurfaceNSC()
-material.SetFriction(0.3)
-material.SetRestitution(0.2)
+system = chrono.ChSystemNSC()
 
-# 2. Add the required physical systems and objects
-# Example: Create a ground body
-ground = chrono.ChBodyEasyBox(10, 1, 10, 1000, True, True, material)
-ground.SetPos(chrono.ChVectorD(0, -1, 0))
-my_system.Add(ground)
+# Set gravitational acceleration
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
-# Example: Create a sphere
-sphere = chrono.ChBodyEasySphere(1, 100, True, True, material)
-sphere.SetPos(chrono.ChVectorD(0, 2, 0))
-my_system.Add(sphere)
+# Create the vehicle
+vehicle = chronovehicle.ChVehicle("BMW E90", system)
 
-# 3. Set necessary default parameters
-# Example: Apply a force to the sphere
-force = chrono.ChForce(chrono.ChForceType.FORCE)
-force.SetDir(chrono.ChVectorD(0, -1, 0))
-force.SetMforce(10)
-sphere.AddForce(force)
+# Set vehicle visualization parameters
+vehicle.SetChassisVisualizationType(chronovehicle.VisualizationType_MESH)
+vehicle.SetChassisCollide(True)
+vehicle.SetSuspensionVisualizationType(chronovehicle.VisualizationType_PRIMITIVES)
+vehicle.SetWheelVisualizationType(chronovehicle.VisualizationType_MESH)
 
-# Example: Set a contact method for collisions
-my_system.SetContactMethod(chrono.ChContactMethod.NSC)
+# Load vehicle model and set initial position
+vehicle.SetVehicleModel(chronovehicle.VehicleModelData("E90.json"))
+vehicle.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 1.0, 0)))
 
-# 4. Visualization (optional)
-# Create an Irrlicht visualization system
-vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(my_system)
-vis.SetWindowSize(800, 600)
-vis.SetWindowTitle('PyChrono Simulation')
-vis.Initialize()
+# Add TMEASY tire model
+tire_model = chronovehicle.TMeasyTire()
+vehicle.SetTireModel(tire_model)
 
-# Simulation loop
-while vis.Run():
-    my_system.DoStepDynamics(0.01)
+# ---------------------------------------------------------------------
+#
+#  Create the terrain
+#
+# ---------------------------------------------------------------------
+
+terrain = chrono.ChRigidBody()
+terrain.SetBodyFixed(True)
+terrain.SetPos(chrono.ChVectorD(0, 0, 0))
+terrain.SetCollide(True)
+
+# Load terrain mesh and set collision shape
+terrain.GetCollisionModel().ClearModel()
+terrain.GetCollisionModel().AddMesh(chrono.ChTriangleMeshSoup(), False, False)
+terrain.GetCollisionModel().BuildModel()
+
+# Add ground texture and logo
+terrain.AddAsset(chronoirr.ChIrrAssetType_TEXTURE, "ground_texture.jpg")
+terrain.AddAsset(chronoirr.ChIrrAssetType_LOGO, "logo.png")
+
+# ---------------------------------------------------------------------
+#
+#  Create the driver system
+#
+# ---------------------------------------------------------------------
+
+driver = chronovehicle.ChInteractiveDriver(vehicle)
+
+# Set driver controls
+driver.SetSteeringControl(chrono.ChFunction_Const(0))
+driver.SetThrottleControl(chrono.ChFunction_Const(0))
+driver.SetBrakingControl(chrono.ChFunction_Const(0))
+
+# ---------------------------------------------------------------------
+#
+#  Create the Irrlicht visualization system
+#
+# ---------------------------------------------------------------------
+
+vis = chronoirr.ChIrrApp(system, "BMW E90 Simulation", chronoirr.dimension2du(1280, 720))
+vis.AddTypicalSky()
+vis.AddTypicalLights()
+vis.SetChaseCamera(chrono.ChVectorD(0, 2.0, 5.0), chrono.ChVectorD(0, 1.0, 0))
+
+# Add vehicle and terrain to the visualization
+vis.AddAsset(vehicle, True)
+vis.AddAsset(terrain, True)
+
+# ---------------------------------------------------------------------
+#
+#  Simulation loop
+#
+# ---------------------------------------------------------------------
+
+while vis.GetDevice().run():
+    vis.BeginScene()
     vis.Render()
-
-# Save the simulation data (optional)
-postprocess.ChPostProcess.ExportData(my_system, "simulation_data.dat")
+    system.DoStepDynamics(0.01)
+    vis.EndScene()

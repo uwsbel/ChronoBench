@@ -1,82 +1,60 @@
-import pychrono as chrono
-import pychrono.irrlicht as irr
-from pychrono.vehicle import HMMWV, SCMDeformableTerrain
+import chrono as ch
+import chrono.vehicle as veh
+import chrono.irrlicht as irr
 
 
-chrono.ChEngine.Initialize()
+ch.ChEngine.Initialize()
 
 
-SIMULATION_NAME = "HMMWV on SCM Deformable Terrain"
-TIME_STEP = 0.01  
-TOTAL_TIME = 10.0  
+system = ch.ChSystem_EulerImplicit()
 
 
-system = chrono.ChSystemNSC()
-system.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, -9.81))
+vehicle = veh.ChHMMWV(system)
 
 
-system.SetCollisionSystem(chrono.ChCollisionSystemBruteForce())
-system.GetCollisionSystem().SetBroadphaseMethod(chrono.ChCollisionSystem.BroadphaseMethod.SweepAndPrune)
+vehicle.SetPos(ch.ChVector3d(0, 0, 1.0))
+vehicle.SetRot(ch.ChQuaterniond(1, 0, 0, 0))
 
 
-hmmwv = HMMWV(system)
+terrain = veh.ChSCMTerrain(system)
 
 
-hmmwv.SetInitialPosition(chrono.ChVector3d(0, 0, 1.0))
-hmmwv.SetInitialVelocity(chrono.ChVector3d(0, 0, 0))
-
-
-hmmwv.EnableVisualization(True)
-
-
-terrain = SCMDeformableTerrain(system)
-
-
-soil_params = chrono.ChSoilParams()
-soil_params.SetFrictionAngle(30.0)  
-soil_params.SetCohesion(10.0)  
-soil_params.SetDensity(1500.0)  
-terrain.SetSoilParams(soil_params)
+soil = terrain.GetSoilModel()
+soil.SetFriction(0.8)
+soil.SetRestitution(0.2)
+soil.SetDamping(0.5)
 
 
 height_map = []
-for i in range(100):
+for x in range(-100, 101):
     row = []
-    for j in range(100):
-        row.append(0.5 * (1.0 + chrono.ChMath.cos(2 * chrono.ChMath.pi * i / 100.0)) * (1.0 + 0.1 * j / 100.0))
+    for y in range(-100, 101):
+        row.append(0.5)  
     height_map.append(row)
 terrain.Initialize(height_map)
 
 
-driver = chrono.ChVehicleDriver(hmmwv.GetChassisBody())
+driver = veh.ChDriver(system, vehicle.GetChassisBody())
+driver.SetThrottle(0.5)
+driver.SetSteering(0.2)
 
 
-driver.SetThrottleInput(0.5)
-driver.SetSteeringInput(0.0)
+vis = irr.ChIrrApp(system, 'HMMWV SCM Terrain Simulation', 800, 600)
 
 
-app = irr.ChIrrApp(system, SIMULATION_NAME, 800, 600)
+vis.SetCameraPosition(ch.ChVector3d(0, -5, 1))
+vis.SetCameraTarget(ch.ChVector3d(0, 0, 0))
+vis.EnableSun()
 
 
-app.SetCameraPosition(chrono.ChVector3d(5.0, -5.0, 2.0))
-app.SetCameraTarget(chrono.ChVector3d(0.0, 0.0, 0.5))
-app.EnableSunlight(True)
-
-
-app.Show()
-
-
-while (app.GetSimulationTime() < TOTAL_TIME) and (not app.IsStopped()):
-    
-    hmmwv.Synchronize(TIME_STEP)
-    terrain.Synchronize(TIME_STEP)
-    driver.Synchronize(TIME_STEP)
-    app.Synchronize("", TIME_STEP)
-    app.Advance(TIME_STEP)
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
 
     
-    app.SpinEventLoop()
+    system.DoStepDynamics(0.01)  
+    driver.Update(0.01)
+    vis.Synchronize(0.01)
 
-
-app.EndSimulation()
-chrono.ChEngine.Finalize()
+vis.Exit()

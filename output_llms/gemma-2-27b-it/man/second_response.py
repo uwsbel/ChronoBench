@@ -3,6 +3,7 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
+
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
@@ -19,7 +20,7 @@ chassis_collision_type = veh.CollisionType_NONE
 # Type of tire model (RIGID, TMEASY)
 tire_model = veh.TireModelType_TMEASY
 
-# Terrain - Rigid hills with height map
+# Terrain with height map
 terrainHeight = 0      
 terrainLength = 100.0  
 terrainWidth = 100.0   
@@ -39,6 +40,7 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  # FPS = 50
 
 # Create the MAN vehicle, set parameters, and initialize
+
 vehicle = veh.MAN_5t()  # Changed vehicle type to MAN_5t
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
@@ -46,6 +48,7 @@ vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
+
 
 vehicle.Initialize()
 
@@ -57,18 +60,20 @@ vehicle.SetTireVisualizationType(vis_type)
 
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
-# Create the terrain
+# Create the terrain with height map
 patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
-terrain = veh.RigidTerrain(vehicle.GetSystem())
+
+# Load height map (replace "height_map.txt" with your actual file)
+height_map = chrono.ChHeightMap(chrono.GetChronoDataFile("height_map.txt")) 
+
+terrain = veh.RigidTerrain(vehicle.GetSystem(), height_map) 
 patch = terrain.AddPatch(patch_mat, 
     chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
     terrainLength, terrainWidth)
 
-# Load height map for terrain
-patch.SetHeightMap("terrain/heightmaps/heightmap.png", 10, 10) # Replace with your heightmap file
-patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200) # Changed texture
+patch.SetTexture(veh.GetDataFile("grass.jpg"), 200, 200)  # Changed texture
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
@@ -83,6 +88,7 @@ vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
+
 
 # Create the driver system
 driver = veh.ChInteractiveDriverIRR(vis)

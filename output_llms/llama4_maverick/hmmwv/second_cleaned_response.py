@@ -1,10 +1,10 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
-import math
+import numpy as np
 
 
-chrono.SetChronoDataPath('/path/to/chrono/data/')  
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 
@@ -21,9 +21,9 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 
-terrainHeight = 0      
-terrainLength = 200.0  
-terrainWidth = 200.0   
+terrainHeight = 0 
+terrainLength = 200.0 
+terrainWidth = 200.0 
 
 
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
@@ -37,7 +37,7 @@ step_size = 1e-3
 tire_step_size = step_size
 
 
-render_step_size = 1.0 / 50  
+render_step_size = 1.0 / 50 
 
 
 vehicle = veh.HMMWV_Full()
@@ -48,13 +48,11 @@ vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 vehicle.Initialize()
-
 vehicle.SetChassisVisualizationType(vis_type)
 vehicle.SetSuspensionVisualizationType(vis_type)
 vehicle.SetSteeringVisualizationType(vis_type)
 vehicle.SetWheelVisualizationType(vis_type)
 vehicle.SetTireVisualizationType(vis_type)
-
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
@@ -62,7 +60,7 @@ patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), terrainLength, terrainWidth)
+patch = terrain.AddPatch(patch_mat,chrono.ChCoordsysd(chrono.ChVector3d(0, 0, terrainHeight), chrono.QUNIT),terrainLength, terrainWidth)
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
@@ -79,56 +77,51 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 
-path_radius = 30.0
+path_radius = 30
 path_center = chrono.ChVector3d(0, 0, 0)
 num_path_points = 100
-path_points = []
+path = []
 for i in range(num_path_points):
-    angle = 2 * math.pi * i / num_path_points
-    point = path_center + chrono.ChVector3d(path_radius * math.cos(angle), path_radius * math.sin(angle), 0)
-    path_points.append(point)
+    angle = 2 * np.pi * i / num_path_points
+    point = path_center + chrono.ChVector3d(path_radius * np.cos(angle), path_radius * np.sin(angle), 0)
+    path.append(point)
 
 
-path_ball1 = irr.ChIrrNodeSphere(vis.GetSceneManager(), 1.0)
-path_ball1.setPosition(irr.vector3df(path_points[0].x, path_points[0].y, path_points[0].z))
-vis.GetSceneManager().getRootSceneNode().addChild(path_ball1)
+ball1 = chrono.ChBodyEasySphere(1, 1000, True, False)
+ball1.SetBodyFixed(True)
+ball1.SetPos(path[0])
+vis.GetSceneManager().getActiveCamera().addChild(ball1)
 
-path_ball2 = irr.ChIrrNodeSphere(vis.GetSceneManager(), 1.0)
-path_ball2.setPosition(irr.vector3df(path_points[num_path_points//2].x, path_points[num_path_points//2].y, path_points[num_path_points//2].z))
-vis.GetSceneManager().getRootSceneNode().addChild(path_ball2)
-
-
-driver = veh.ChPathFollowerDriver(vehicle.GetVehicle(), path_points, 'my_path', 30.0)
-driver.GetSteeringController().SetLookAheadDistance(5.0)
-driver.GetSteeringController().SetGains(0.5, 0, 0)
-driver.GetSpeedController().SetGains(0.4, 0, 0)
-driver.SetDesiredSpeed(10.0)
+ball2 = chrono.ChBodyEasySphere(1, 1000, True, False)
+ball2.SetBodyFixed(True)
+ball2.SetPos(path[num_path_points//2])
+vis.GetSceneManager().getActiveCamera().addChild(ball2)
 
 
-driver.Initialize()
+Kp = 0.5
+Ki = 0.0
+Kd = 0.0
+
+driver = veh.ChPathFollowerDriver(vehicle.GetVehicle(), path, 'my_path', 8.0, True, Kp, Ki, Kd)
+driver.SetSteeringDelta(0.02)
+driver.SetThrottle(0.3)
 
 
-sentinel_node = irr.ChIrrNodeSphere(vis.GetSceneManager(), 0.5)
-target_node = irr.ChIrrNodeSphere(vis.GetSceneManager(), 0.5)
-vis.GetSceneManager().getRootSceneNode().addChild(sentinel_node)
-vis.GetSceneManager().getRootSceneNode().addChild(target_node)
+print( "VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 
-print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
-
-
-render_steps = math.ceil(render_step_size / step_size)
+render_steps = int(render_step_size / step_size)
 
 
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-while vis.Run():
+while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
 
     
-    if (step_number % render_steps == 0):
+    if (step_number % render_steps == 0) :
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
@@ -136,12 +129,6 @@ while vis.Run():
 
     
     driver_inputs = driver.GetInputs()
-
-    
-    sentinel_pos = driver.GetSteeringController().GetSentinelLocation()
-    target_pos = driver.GetSteeringController().GetTargetLocation()
-    sentinel_node.setPosition(irr.vector3df(sentinel_pos.x, sentinel_pos.y, sentinel_pos.z))
-    target_node.setPosition(irr.vector3df(target_pos.x, target_pos.y, target_pos.z))
 
     
     driver.Synchronize(time)
@@ -154,6 +141,18 @@ while vis.Run():
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
+
+    
+    sentinel = driver.GetSentinelLocation()
+    target = driver.GetTargetLocation()
+    sentinel_ball = chrono.ChBodyEasySphere(0.5, 1000, True, False)
+    sentinel_ball.SetBodyFixed(True)
+    sentinel_ball.SetPos(sentinel)
+    vis.GetSceneManager().getActiveCamera().addChild(sentinel_ball)
+    target_ball = chrono.ChBodyEasySphere(0.5, 1000, True, False)
+    target_ball.SetBodyFixed(True)
+    target_ball.SetPos(target)
+    vis.GetSceneManager().getActiveCamera().addChild(target_ball)
 
     
     step_number += 1

@@ -22,8 +22,8 @@ def main():
 
     
     hmmwv.SetChassisVisualizationType(veh.VisualizationType_MESH)
-    hmmwv.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
-    hmmwv.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
+    hmmwv.SetSuspensionVisualizationType(veh.VisualizationType_MESH)
+    hmmwv.SetSteeringVisualizationType(veh.VisualizationType_MESH)
     hmmwv.SetWheelVisualizationType(veh.VisualizationType_MESH)
     hmmwv.SetTireVisualizationType(veh.VisualizationType_MESH)
 
@@ -53,20 +53,21 @@ def main():
 
     
     vis = chronoirr.ChVisualSystemIrrlicht()
+    vis.AttachSystem(hmmwv.GetSystem())
     vis.SetWindowSize(1280, 720)
     vis.SetWindowTitle('HMMWV Simulation')
     vis.Initialize()
     vis.AddLogo()
     vis.AddSkyBox()
-    vis.AddCamera(ch.ChVector3d(10, 10, 5), ch.ChVector3d(0, 0, 0))
-    vis.AttachSystem(hmmwv.GetSystem())
+    vis.AddCamera(ch.ChVector3d(10, 10, 5))
+    vis.AddTypicalLights()
 
     
     time = 0
     time_step = 1e-3  
     time_end = 30  
-
     hmmwv.GetVehicle().EnableRealtime(True)  
+
     while time < time_end:
         time = hmmwv.GetSystem().GetChTime()  
 
@@ -86,9 +87,8 @@ def main():
             break  
 
         
-        vis.BeginScene()
+        vis.Run()
         vis.Render()
-        vis.EndScene()
 
 if __name__ == "__main__":
     main()

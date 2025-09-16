@@ -4,161 +4,190 @@
 
 ### 1. Completeness (40 points)
 
-- **System Initialization:**  
-  The system is initialized correctly with `chrono.ChSystemNSC()` and collision system set to BULLET. ✔️
+- **System Initialization:** Present and correctly done with `chrono.ChSystemNSC()` and setting collision system type to BULLET. **No deduction.**
 
-- **Body Creation:**  
-  A single sphere body (`msphereBody`) is created with `ChBodyEasySphere`, positioned, textured, and added to the system. ✔️  
-  However, only one static sphere body is added manually; the rest of the particles are emitted dynamically. This is acceptable given the particle emitter usage.
+- **Body Creation:** A sphere body is created with `ChBodyEasySphere` and added to the system. **No deduction.**
 
-- **Particle Emitter Setup:**  
-  The emitter is configured with particle rate, reservoir, positioner, aligner, velocity, angular velocity, and particle creator. ✔️  
-  The emitter positioner uses `ChBox(50,50,50)` with a default `ChFramed()`. This is valid.
+- **Visualization Setup:** Visualization system is properly initialized with Irrlicht, window size, title, camera, lights, skybox, and logo. **No deduction.**
 
-- **Visualization Setup:**  
-  Visualization is set up with Irrlicht, window size, title, initialization, logo, skybox, camera, and lights. ✔️
+- **Particle Emitter Setup:** The emitter is created and configured with particle positioner, aligner, velocity, angular velocity, and shape creator. **No deduction.**
 
-- **Simulation Loop:**  
-  The loop runs while `vis.Run()`, with proper scene begin/render/end calls, particle emission, force accumulation, energy calculation, and system step. ✔️
+- **Simulation Loop:** Present, with visualization rendering, particle emission, force accumulation, and system stepping. **No deduction.**
 
-- **Energy Calculation:**  
-  The script calculates kinetic and potential energy using pairwise combinations of bodies and applies gravitational-like forces manually. This is a custom force application outside of PyChrono's built-in gravity. The approach is logically consistent but has some issues (see correctness).
+- **Energy Calculation:** Kinetic and potential energy are computed. However, potential energy calculation uses undefined variables `G_constant` and `D_attract` before they are assigned (see correctness). Also, `D_attract` is never defined anywhere in the script. This is a missing essential component for correct force calculation. **Deduct 15 points for missing definition of `D_attract`.**
 
-- **Missing Components:**  
-  - No explicit setting of collision margins or envelopes (minor omission).  
-  - No error handling or checks on particle emission or system stability.  
-  - No comments explaining the code steps (minor omission).  
+- **Force Application:** Gravitational-like attraction forces are applied between bodies, but the force vector `F_attract` is computed incorrectly (see correctness). **Deduct 10 points for incorrect force calculation and missing variable.**
 
-**Deductions:**  
-- Minor omission for lack of comments and collision margin settings: **-5 points**
+- **Material Setup:** Contact material is created and friction set, but no damping or compliance is set. This is not essential but a minor omission. **Deduct 5 points for minor omission of damping/compliance settings.**
 
-**Subtotal:** 35/40
+- **Adding Bodies to System:** The sphere body is added to the system. However, the emitted particles created by the emitter are not explicitly added to the system in the code snippet. The emitter's `EmitParticles` method is called with the system and timestep, which should handle adding particles internally. This is acceptable. **No deduction.**
+
+- **Callback Registration:** The custom callback `MyCreatorForAll` is registered correctly. **No deduction.**
+
+- **Solver Setup:** Solver type and max iterations are set. **No deduction.**
+
+- **Gravity:** Gravity is set to zero vector. This is acceptable if intentional. **No deduction.**
+
+**Total Completeness deduction: 15 + 10 + 5 = 30 points**
 
 ---
 
 ### 2. Correctness (30 points)
 
-- **Use of PyChrono API:**  
-  - `ChSystemNSC()` and collision system type set correctly.  
-  - `ChContactMaterialNSC()` used correctly for sphere material.  
-  - `ChBodyEasySphere` usage is correct.  
-  - Visualization setup follows API guidelines.
+- **Force Calculation:**
 
-- **Custom Force Application:**  
-  - The gravitational constant `G_constant` is used but **never defined** in the script. This will cause a runtime error. **Major correctness issue: -15 points**  
-  - The force calculation uses `(r_attract ** 2)` in denominator, which is correct for gravity.  
-  - Forces are accumulated on both bodies correctly with opposite signs.  
-  - However, the kinetic energy calculation sums kinetic energy of both bodies inside the loop over pairs, causing **double counting** of kinetic energy for each body multiple times (once per pair it belongs to). This is a **logical error**: kinetic energy should be summed once per body, not per pair. **-10 points**
+  - `G_constant` is assigned **after** it is used in the force and potential energy calculations. This is a logical error. The constant should be defined before use. **Deduct 10 points for logical error.**
 
-- **Use of `body.EmptyAccumulators()`:**  
-  This is called before force accumulation, which is correct.
+  - `D_attract` is used but never defined anywhere. This will cause a runtime error. **Deduct 15 points for incorrect API usage / missing variable.**
 
-- **Particle Emitter:**  
-  The particle creator callback `MyCreatorForSpheres` binds visual and collision items and disables gyro torque, which is valid.
+  - The force vector `F_attract` is computed as `(D_attract / r_attract) * f_attract`, but `f_attract` is a scalar magnitude. Multiplying a scalar by a scalar does not produce a vector force. The force vector should be along the direction vector `(abodyB.GetPos() - abodyA.GetPos())` normalized. This is a significant error in physics force application. **Deduct 15 points for incorrect force vector calculation.**
 
-- **Solver Setup:**  
-  Solver type set to PSOR with max iterations 40 is appropriate.
+- **Kinetic Energy Calculation:**
 
-- **Gravity:**  
-  The system gravity is set to zero, which is consistent with the manual gravitational force application.
+  - Uses `body.GetLinearVelocity().Length2()`, which returns the squared length of velocity vector, so kinetic energy is `0.5 * m * v^2`. This is correct. **No deduction.**
 
-- **Other minor issues:**  
-  - The `msphereBody` is created with a material passed as the last argument, but `ChBodyEasySphere` expects a material pointer or None. The code passes `sphere_mat` which is a `ChContactMaterialNSC()`. According to the API, `ChBodyEasySphere` expects a `ChMaterialSurface` or None. `ChContactMaterialNSC` is a contact material, not a surface material. This is a **misuse** of API and could cause unexpected behavior. **-15 points**
+- **Use of `SetUseGyroTorque(False)` in callback:**
 
-**Deductions:**  
-- Undefined `G_constant`: -15  
-- Double counting kinetic energy: -10  
-- Incorrect material type passed to `ChBodyEasySphere`: -15  
+  - This disables gyroscopic torque, which is acceptable depending on simulation needs. **No deduction.**
 
-Total deductions exceed 30 points, but max deduction is 30.
+- **Emitter Setup:**
 
-**Subtotal:** 0/30
+  - The emitter is configured with distributions and particle creators correctly. **No deduction.**
+
+- **Visualization:**
+
+  - The visual system is properly attached and initialized. **No deduction.**
+
+- **Solver Setup:**
+
+  - Using PSOR solver with 40 max iterations is acceptable. **No deduction.**
+
+- **Use of `sys.DoStepDynamics(stepsize)` at the end of the loop:**
+
+  - Correct usage to advance simulation. **No deduction.**
+
+- **Use of `vis.Run()` as loop condition:**
+
+  - Correct usage. **No deduction.**
+
+**Total Correctness deduction: 10 + 15 + 15 = 40 points**
 
 ---
 
 ### 3. Code Quality (10 points)
 
-- **Readability:**  
-  - Variable names are mostly meaningful (`msphereBody`, `emitter`, `mvelo`, `mangvelo`, `mcreator_spheres`).  
-  - The class `MyCreatorForSpheres` is well named and structured.  
-  - The code is mostly well formatted.
+- **Readability:**
 
-- **Comments:**  
-  - No comments at all explaining the purpose of blocks or key steps. This reduces understandability. **-5 points**
+  - Variable names are mostly meaningful (`sys`, `coll`, `emitter`, `vis`, `mcreator_spheres`).
 
-- **Structure:**  
-  - The main loop is clear and logically ordered.  
-  - The use of `combinations` for pairwise interactions is clear but inefficient (see efficiency).
+  - The code is structured logically.
 
-**Deductions:**  
-- Lack of comments: -5  
-- Minor readability issues: 0
+  - However, the code lacks comments explaining key steps, especially the physics calculations and the purpose of the callback class.
 
-**Subtotal:** 5/10
+  - The spacing and formatting are acceptable.
+
+- **Documentation:**
+
+  - No inline comments or docstrings are present.
+
+- **Deduction:**
+
+  - Deduct 5 points for lack of comments/documentation.
+
+  - No deduction for readability beyond that.
+
+**Total Code Quality deduction: 5 points**
 
 ---
 
 ### 4. Efficiency (10 points)
 
-- **Force Calculation:**  
-  - Using `combinations(sys.GetBodies(), 2)` to compute pairwise forces is O(n²), which is expected for N-body gravitational simulations but can be inefficient for large numbers of bodies.  
-  - The kinetic energy calculation is done inside the pairwise loop, causing repeated calculations. It would be more efficient to sum kinetic energy in a separate loop over bodies. **-3 points**
+- **Force Calculation Loop:**
 
-- **Particle Emission:**  
-  - No obvious inefficiencies.
+  - Uses `combinations(sys.GetBodies(), 2)` to iterate over all body pairs, which is O(n²). For large numbers of bodies, this is inefficient.
 
-- **Visualization:**  
-  - No inefficiencies noted.
+  - However, since this is a demo with presumably few bodies, this is acceptable.
 
-**Deductions:**  
-- Kinetic energy calculation inside pairwise loop: -3
+- **Energy Calculation Loop:**
 
-**Subtotal:** 7/10
+  - Iterates over all bodies once, which is efficient.
+
+- **Emitter Usage:**
+
+  - The emitter uses particle reservoir and emits 2000 particles per second, which could be heavy but is acceptable.
+
+- **Repeated Computation of `G_constant` inside loop:**
+
+  - `G_constant` is assigned inside the loop, but it is a constant and should be assigned once outside the loop. Minor inefficiency.
+
+- **Deduction:**
+
+  - Deduct 3 points for missing obvious optimization (assigning constants outside loop).
+
+- **No other significant inefficiencies.**
+
+**Total Efficiency deduction: 3 points**
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- No error handling for undefined variables (e.g., `G_constant`).  
-- No checks for division by zero in force calculation (if two bodies occupy the same position, `r_attract` could be zero). This is a robustness issue. **-5 points**
+- No error handling is present.
 
-**Subtotal:** 0/5
+- No checks for division by zero in force calculation (distance `r_attract` could be zero if two bodies overlap).
+
+- No try-except blocks or validation of inputs.
+
+- Deduct 5 points for lack of basic error handling and edge case handling.
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
-- Visualization is set up correctly with window size, title, initialization, logo, skybox, camera, and typical lights.  
-- The camera position is set at `(0,14,-20)`, which seems reasonable.  
-- No obvious issues with visualization setup.
+- Visualization is set up correctly with window size, title, camera, skybox, lights, and logo.
 
-**Subtotal:** 5/5
+- No obvious errors.
 
----
+- Minor issue: The camera is placed at `(0,14,-20)` which is quite far; depending on the scene scale, this may or may not be optimal, but this is subjective.
 
-### **Final Score Calculation**
-
-| Category                      | Points | Deductions | Score |
-|-------------------------------|--------|------------|-------|
-| Completeness                  | 40     | 5          | 35    |
-| Correctness                  | 30     | 30         | 0     |
-| Code Quality                 | 10     | 5          | 5     |
-| Efficiency                  | 10     | 3          | 7     |
-| Error Handling and Robustness | 5      | 5          | 0     |
-| Visualization Tools          | 5      | 0          | 5     |
-| **Total**                   | **100**| **48**     | **52**|
+- No deduction.
 
 ---
 
-### **Summary of Major Issues:**
+### Summary of Deductions
 
-- **Critical:** `G_constant` undefined → code will not run.  
-- **Critical:** Passing `ChContactMaterialNSC` to `ChBodyEasySphere` instead of a surface material → incorrect API usage.  
-- **Logical error:** Double counting kinetic energy inside pairwise loop.  
-- **No error handling:** No checks for zero distance in force calculation → potential division by zero.  
-- **No comments:** Reduces code clarity.  
-- **Minor inefficiency:** Kinetic energy calculation inside pairwise loop.
+| Criterion                     | Points | Deduction Reason                                   |
+|-------------------------------|--------|---------------------------------------------------|
+| Completeness                  | 40     | -15 (missing D_attract), -10 (force calc), -5 (material damping) |
+| Correctness                  | 30     | -10 (G_constant used before assignment), -15 (missing D_attract), -15 (force vector incorrect) |
+| Code Quality                 | 10     | -5 (lack of comments/documentation)               |
+| Efficiency                  | 10     | -3 (constant assigned inside loop)                 |
+| Error Handling and Robustness | 5      | -5 (no error handling, no division by zero check) |
+| Visualization Tools          | 5      | 0                                                 |
+
+Total deductions:  
+Completeness: 30  
+Correctness: 40  
+Code Quality: 5  
+Efficiency: 3  
+Error Handling: 5  
+Visualization: 0  
+**Total deductions = 83**
+
+Final score = 100 - 83 = 17
 
 ---
 
-[[52]]
+### Additional Notes
+
+- The script has critical errors in force calculation and variable initialization order that would prevent correct simulation behavior.
+
+- Lack of comments and error handling reduces maintainability and robustness.
+
+- Minor omissions in material properties and efficiency could be improved.
+
+---
+
+**Final score:**
+
+[[17]]

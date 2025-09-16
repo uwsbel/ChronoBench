@@ -103,54 +103,65 @@ link_gearBC.SetEpicyclic(True)                                            # Enab
 sys.AddLink(link_gearBC)                                                  # Adding the gear constraint to the system
 
 # Create the bevel gear
-mbody_gearD = chrono.ChBodyEasyCylinder(chrono.ChAxis_X,            # Creating a cylindrical bevel gear with X axis as the central axis
-                                        radD, 0.4,                  # Setting radius and height
+mbody_gearD = chrono.ChBodyEasyCylinder(chrono.ChAxis_X,             # Creating a cylindrical gear with X axis as the central axis
+                                        radD, 0.5,                  # Setting radius and height
                                         1000, True, False, mat)     # Setting mass, visualization, collision, and material
-sys.Add(mbody_gearD)                                                # Adding the bevel gear to the system
-mbody_gearD.SetPos(chrono.ChVector3d(-10, 0, -9))                     # Positioning the bevel gear at (-10, 0, -9)
-mbody_gearD.SetRot(chrono.QuatFromAngleZ(m.pi / 2))                 # Rotating the bevel gear by 90 degrees around Z-axis
-mbody_gearD.GetVisualShape(0).SetMaterial(0, vis_mat)               # Applying the visual material to the bevel gear
+sys.Add(mbody_gearD)                                                # Adding the gear to the system
+mbody_gearD.SetPos(chrono.ChVector3d(-10, 0, -9))                     # Positioning the gear at (-10, 0, -9)
+mbody_gearD.SetRot(chrono.QuatFromAngleZ(m.pi / 2))                 # Rotating the gear by 90 degrees around Z-axis
+mbody_gearD.GetVisualShape(0).SetMaterial(0, vis_mat)               # Applying the visual material to the gear
+
+# Adding a thin cylinder only for visualization purpose
+mshaft_shape = chrono.ChVisualShapeCylinder(radD * 0.3, 10)                                # Modified thin cylinder for visualization
+mbody_gearD.AddVisualShape(mshaft_shape, chrono.ChFramed(chrono.ChVector3d(-10, 3.5, -9),     # Adding the visual shape to the gear body
+                                                          chrono.QuatFromAngleZ(chrono.CH_PI_2)))  # Positioning and rotating the visual cylinder
 
 # Create a revolute joint between truss and bevel gear, allowing rotation along the X-axis
 link_revoluteDD = chrono.ChLinkLockRevolute()                         # Creating a revolute joint
-link_revoluteDD.Initialize(mbody_truss, mbody_gearD,                  # Initializing the joint with truss and bevel gear
-                           chrono.ChFramed(chrono.ChVector3d(-10, 0, 0),  # Positioning the joint at the appropriate position
+link_revoluteDD.Initialize(mbody_gearD, mbody_truss,                  # Initializing the joint with bevel gear and truss
+                           chrono.ChFramed(chrono.ChVector3d(-10, 0, -9),  # Positioning the joint at the appropriate position
                                            chrono.QUNIT))             # No initial rotation
 sys.AddLink(link_revoluteDD)                                          # Adding the joint to the system
 
-# Create a gear constraint between gear A and bevel gear D with a 1:1 gear ratio
+# Create a gear constraint between the first gear and the bevel gear
 link_gearAD = chrono.ChLinkLockGear()                                     # Creating a gear constraint link
 link_gearAD.Initialize(mbody_gearA, mbody_gearD, chrono.ChFramed())       # Initializing the gear link between gear A & D
 link_gearAD.SetFrameShaft1(chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleX(-m.pi / 2)))    # Setting frame for shaft1
 link_gearAD.SetFrameShaft2(chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleX(-m.pi / 2)))    # Setting frame for shaft2
-link_gearAD.SetTransmissionRatio(1)                                     # Setting transmission ratio as 1:1
+link_gearAD.SetTransmissionRatio(radA / radD)                             # Setting transmission ratio as radA/radD
 link_gearAD.SetEnforcePhase(True)                                         # Enforcing phase matching between gears
 sys.AddLink(link_gearAD)                                                  # Adding the gear constraint to the system
 
 # Create the pulley
-mpulley_E = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y,            # Creating a cylindrical pulley with Y axis as the central axis
-                                        2, 0.2,                  # Setting radius and height
-                                        1000, True, False, mat)     # Setting mass, visualization, collision, and material
+mpulley_E = chrono.ChBodyEasyCylinder(chrono.ChAxis_X,             # Creating a cylindrical pulley with X axis as the central axis
+                                       2, 0.5,                  # Setting radius and height
+                                       1000, True, False, mat)     # Setting mass, visualization, collision, and material
 sys.Add(mpulley_E)                                                # Adding the pulley to the system
 mpulley_E.SetPos(chrono.ChVector3d(-10, -11, -9))                     # Positioning the pulley at (-10, -11, -9)
 mpulley_E.SetRot(chrono.QuatFromAngleZ(m.pi / 2))                 # Rotating the pulley by 90 degrees around Z-axis
 mpulley_E.GetVisualShape(0).SetMaterial(0, vis_mat)               # Applying the visual material to the pulley
 
+# Adding a thin cylinder only for visualization purpose
+mshaft_shape = chrono.ChVisualShapeCylinder(2 * 0.3, 10)                                # Modified thin cylinder for visualization
+mpulley_E.AddVisualShape(mshaft_shape, chrono.ChFramed(chrono.ChVector3d(-10, -11, -9),     # Adding the visual shape to the pulley body
+                                                          chrono.QuatFromAngleZ(chrono.CH_PI_2)))  # Positioning and rotating the visual cylinder
+
 # Create a revolute joint between truss and pulley, allowing rotation along the X-axis
 link_revoluteEE = chrono.ChLinkLockRevolute()                         # Creating a revolute joint
-link_revoluteEE.Initialize(mbody_truss, mpulley_E,                  # Initializing the joint with truss and pulley
-                           chrono.ChFramed(chrono.ChVector3d(-10, -11, 0),  # Positioning the joint at the appropriate position
+link_revoluteEE.Initialize(mpulley_E, mbody_truss,                  # Initializing the joint with pulley and truss
+                           chrono.ChFramed(chrono.ChVector3d(-10, -11, -9),  # Positioning the joint at the appropriate position
                                            chrono.QUNIT))             # No initial rotation
 sys.AddLink(link_revoluteEE)                                          # Adding the joint to the system
 
-# Create a synchro belt constraint between bevel gear D and pulley E
-link_synchroDE = chrono.ChLinkSynchroBelt()                                     # Creating a synchro belt link
-link_synchroDE.Initialize(mbody_gearD, mpulley_E, chrono.ChFramed())       # Initializing the synchro belt link between bevel gear D & pulley E
-link_synchroDE.SetFrameShaft1(chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleX(-m.pi / 2)))    # Setting frame for shaft1
-link_synchroDE.SetFrameShaft2(chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleX(-m.pi / 2)))    # Setting frame for shaft2
-link_synchroDE.SetRadiusBelt(0.5)                                         # Setting radius of the belt
-link_synchroDE.SetEnforcePhase(True)                                         # Enforcing phase matching between bevel gear D and pulley E
-sys.AddLink(link_synchroDE)                                                  # Adding the synchro belt constraint to the system
+# Create a synchro belt constraint between the bevel gear and the pulley
+link_beltDE = chrono.ChLinkLockSynchroBelt()                                     # Creating a synchro belt constraint link
+link_beltDE.Initialize(mbody_gearD, mpulley_E, chrono.ChFramed())       # Initializing the synchro belt link between gear D & E
+link_beltDE.SetFrameShaft1(chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleX(-m.pi / 2)))    # Setting frame for shaft1
+link_beltDE.SetFrameShaft2(chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleX(-m.pi / 2)))    # Setting frame for shaft2
+link_beltDE.SetRadius(2)                                                  # Setting radius for the belt
+link_beltDE.SetMass(0.01)                                                 # Setting mass for the belt
+link_beltDE.SetEnforcePhase(True)                                         # Enforcing phase matching between gears
+sys.AddLink(link_beltDE)                                                  # Adding the gear constraint to the system
 
 # Create the Irrlicht visualization
 vis = chronoirr.ChVisualSystemIrrlicht()                        # Initializing the Irrlicht visualization system

@@ -15,11 +15,11 @@ chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
 
 # Create SCM deformable terrain
 terrain = veh.SCMDeformableTerrain(system)
-terrain.SetPlane(chrono.ChVector3d(0, 0, 1), chrono.ChVector3d(0, 0, 0))
+terrain.SetPlane(chrono.ChVector3d(0, 0, 1), -1)
 terrain.SetLength(20)
 terrain.SetWidth(20)
-terrain.SetMeshResolution(100)
-terrain.SetSoilParameters(1000, 0.3, 0.5, 0.01, 0.01)
+terrain.SetMeshResolution(50)
+terrain.SetSoilParameters(1500, 1000, 0.8, 0.5, 1.5, 0.5)
 
 # Create Viper rover
 rover = viper.Viper(system)  # Instantiate the Viper rover
@@ -52,7 +52,7 @@ time_step = 1e-3
 
 # Simulation loop
 time = 0
-steering = 0  # Set steering to a constant value of 0.0
+steering = 0
 while vis.Run():
     time += time_step  # Increment the simulation time
 

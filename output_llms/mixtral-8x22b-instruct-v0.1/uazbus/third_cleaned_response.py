@@ -40,7 +40,6 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  
 
 
-
 vehicle = veh.UAZBUS()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
@@ -73,14 +72,10 @@ patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 
-box_shape = chrono.ChBoxShape()
-box_shape.GetBoxGeometry().SetLengths(chrono.ChVector3d(0.5, 5, 0.2))
-box_body = chrono.ChBody()
-box_body.SetBodyFixed(True)
-box_body.SetPos(chrono.ChVector3d(5, 0, 0.1))
-box_body.AddAsset(chrono.ChBoxShape())
-vehicle.GetSystem().AddBody(box_body)
-
+box = chrono.ChBodyEasyBox(5, 0.5, 0.2, 1000, False, False)
+box.SetPos(chrono.ChVector3d(5, 0, 0.1))
+box.SetBodyFixed(True)
+vehicle.GetSystem().Add(box)
 
 
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
@@ -128,13 +123,15 @@ while vis.Run() :
 
     
     driver_inputs = driver.GetInputs()
-    driver_inputs.m_throttle = 0.5  
 
     
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
+
+    
+    driver_inputs.m_throttle = 0.5
 
     
     driver.Advance(step_size)

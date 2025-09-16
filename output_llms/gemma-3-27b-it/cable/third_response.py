@@ -10,14 +10,9 @@ import pychrono.irrlicht as chronoirr
 class Model1:
     def __init__(self, system, mesh, n_chains=6):
         self.n_chains = n_chains
-        self.chain_bodies = []  # Store the end bodies of each chain
+        self.chains = []  # Store chain data for later access
 
-        for i in range(n_chains):
-            # Create a truss body (a fixed reference frame in the simulation)
-            mtruss = chrono.ChBody()
-            mtruss.SetFixed(True)
-            system.Add(mtruss)
-
+        for i in range(self.n_chains):
             # Create a section, i.e. define thickness and material properties for the cable beam
             msection_cable2 = fea.ChBeamSectionCable()
             msection_cable2.SetDiameter(0.015)  # Set the diameter of the cable section to 15 mm
@@ -28,7 +23,7 @@ class Model1:
             builder = fea.ChBuilderCableANCF()
 
             # Use BuildBeam to create a beam structure consisting of ANCF elements:
-            num_elements = 10 + i * 2  # Vary the number of elements per chain
+            num_elements = 10 + i * 2  # Increase elements per chain
             start_x = -0.2 * i
             end_x = 0.5 + 0.2 * i
 
@@ -44,31 +39,32 @@ class Model1:
             # Retrieve the end nodes of the beam and apply load/constraints
             builder.GetLastBeamNodes().front().SetForce(chrono.ChVector3d(0, -0.7, 0))  # Apply forces to the front node
 
-            # Create a hinge constraint to fix beam's end point to the truss
+            # Create a truss body (a fixed reference frame in the simulation)
+            mtruss = chrono.ChBody()
+            mtruss.SetFixed(True)  # Fix the truss body
+
+            # Create and initialize a hinge constraint to fix beam's end point to the truss
             constraint_hinge = fea.ChLinkNodeFrame()
             constraint_hinge.Initialize(builder.GetLastBeamNodes().back(), mtruss)
             system.Add(constraint_hinge)  # Add the constraint to the system
 
-            # Create a box body to connect to the beam's end
+            # Connect beam endpoint to a box body
             mbody = chrono.ChBody()
-            mbody.SetBodyFixed(False)
             mbody.SetMass(1.0)
             mbody.SetPos(chrono.ChVector3d(end_x, 0, 0))
-            mbody.SetCollide(True)
+            mbody.SetBodyFixed(False)
             system.Add(mbody)
 
-            # Add a revolute joint to connect the beam's end to the box
-            joint = chrono.ChLinkRevolute()
-            joint.Initialize(builder.GetLastBeamNodes().back(), mbody, chrono.ChCoordsys(chrono.ChVector3d(0, 0, 0)))
-            system.Add(joint)
+            # Constraint between beam endpoint and box
+            constraint_body = fea.ChLinkNodeFrame()
+            constraint_body.Initialize(builder.GetLastBeamNodes().back(), mbody)
+            system.Add(constraint_body)
 
-            self.chain_bodies.append(mbody)  # Store the end body for printing positions
+            self.chains.append((mbody, builder.GetLastBeamNodes().back()))  # Store body and node
 
     def PrintBodyPositions(self):
-        """Prints the positions of the end bodies of each chain."""
-        for i, body in enumerate(self.chain_bodies):
-            pos = body.GetPos()
-            print(f"Chain {i + 1} end body position: x={pos.x:.2f}, y={pos.y:.2f}, z={pos.z:.2f}")
+        for body, _ in self.chains:
+            print("Body position:", body.GetPos())
 
 
 # Initialize the physical system and mesh container:
@@ -129,6 +125,5 @@ while vis.Run():
     vis.BeginScene()  # Begin scene rendering
     vis.Render()  # Render the scene
     vis.EndScene()  # End scene rendering
-
     sys.DoStepDynamics(0.01)  # Advance the simulation by one step with a time step of 0.01 seconds
-    model.PrintBodyPositions()  # Print the positions of the end bodies
+    model.PrintBodyPositions()  # Print body positions at each step

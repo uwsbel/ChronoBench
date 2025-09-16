@@ -1,118 +1,68 @@
 import pychrono as chrono
 import pychrono.vehicle as veh
 import pychrono.irrlicht as irr
-import numpy as np
 
 
+print('Copyright (c) 2023')
 
 
+veh_sys = veh.ChVehicleSystem(veh.ChVehicleSystemType_VEHICLE_HMMWV)
 
 
-chrono.SetChronoDataPath('/path/to/chrono/data/')
+chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.01)
+chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.005)
 
 
-vehicle = veh.HMMWV_Full()
-vehicle.SetContactMethod(chrono.ChContactMethod_SMC)
-vehicle.SetChassisFixed(False)
-vehicle.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(-100, 0, 1), chrono.ChQuaternionD(1, 0, 0, 0)))
-vehicle.SetPowertrainType(veh.PowertrainModelType_SHAFTS)
-vehicle.SetDriveType(veh.DrivelineTypeWV_AWD)
-vehicle.SetTireType(veh.TireModelType_TMEASY)
+hmmwv = veh.HMMWV_Full()
+hmmwv.SetContactMethod(chrono.ChContactMethod_SMC)
+hmmwv.SetChassisFixed(False)
+hmmwv.SetInitPosition(chrono.ChCoordsysD(chrono.ChVector3d(-5, -5, 0.5), chrono.Q_from_AngZ(0)))
+hmmwv.SetTireType(veh.TireType_TMEASY)
+hmmwv.SetTireStepSize(1e-3)
+hmmwv.Initialize()
 
 
-tire_params = veh.TMeasyTire::GetTMeasyParams(28 * chrono.CH_IN2M)
-vehicle.SetTireParams(0, 0, tire_params)  
-vehicle.SetTireParams(0, 1, tire_params)  
-vehicle.SetTireParams(1, 0, tire_params)  
-vehicle.SetTireParams(1, 1, tire_params)  
+hmmwv.SetChassisVisualizationType(veh.VisualizationType_MESH)
+hmmwv.SetSuspensionVisualizationType(veh.VisualizationType_MESH)
+hmmwv.SetSteeringVisualizationType(veh.VisualizationType_MESH)
+hmmwv.SetWheelVisualizationType(veh.VisualizationType_MESH)
+hmmwv.SetTireVisualizationType(veh.VisualizationType_MESH)
 
 
-vehicle.Initialize()
-
-
-vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
-vehicle.SetSuspensionVisualizationType(veh.VisualizationType_MESH)
-vehicle.SetSteeringVisualizationType(veh.VisualizationType_MESH)
-vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
-vehicle.SetTireVisualizationType(veh.VisualizationType_MESH)
-
-
-
-
-
-
-terrain = veh.MeshTerrain()
-terrain.SetContactMeshFilename(chrono.GetChronoDataPath() + 'vehicle/terrain/meshes/Highway_col.obj')
-terrain.SetVisualMeshFilename(chrono.GetChronoDataPath() + 'vehicle/terrain/meshes/Highway_vis.obj')
-
-
+terrain = veh.RigidTerrain(hmmwv.GetSystem())
+mesh_file = chrono.GetChronoDataFile("models/Highway/Highway_col.obj")
+mesh = terrain.AddMesh(chrono.ChVector3d(0, 0, 0), chrono.ChQuaterniond(1, 0, 0, 0), mesh_file)
+assert mesh
+mesh->SetTexture(chrono.GetChronoDataFile("models/Highway/texture.png"), 100, 100)
+mesh->SetContactSurfaceType(veh.ContactSurfaceType_FRICTION)
+mesh->SetContactFrictionCoefficient(0.9)
+mesh->SetContactRestitutionCoefficient(0.01)
+mesh->SetContactMaterial(chrono.ChMaterialSurfaceSMC(0.9, 0.01, 0.0001, 2e8))
 terrain.Initialize()
 
 
-
-
-
-
-vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
-vis.SetWindowTitle('HMMWV on Custom Mesh Terrain')
-vis.SetWindowSize(1280, 720)
-vis.SetChaseCamera(chrono.ChVectorD(0, -6, 2), chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 1), 1.0)
-vis.Initialize()
-vis.AddLogo(chrono.GetChronoDataPath() + 'logo_pychrono_alpha.png')
+vis = irr.ChVisualSystemIrrlicht()
+vis.AttachVehicle(hmmwv.GetVehicle())
+vis.AddLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))
 vis.AddSkyBox()
-vis.AttachVehicle(vehicle.GetVehicle())
-
-
-
-
+vis.AddCamera(chrono.ChVector3d(10, 10, 5), chrono.ChVector3d(0, 0, 1))
+vis.AddTypicalLights()
+vis.AddLightWithShadow(chrono.ChVector3d(10, 20, 10), chrono.ChVector3d(0, 0, 0), 100, 10, 100, 120)
+vis.EnableShadows()
 
 
 driver = veh.ChIrrGuiDriver(vis)
-
-
 driver.SetSteeringDelta(0.02)
 driver.SetThrottleDelta(0.02)
 driver.SetBrakingDelta(0.06)
-
-
 driver.Initialize()
 
 
-
-
-
-
-step_size = 2e-3
-
-
-realtime_target = 1 / 50.0
-
-
-while vis.Run() :
-    time = vehicle.GetSystem().GetChTime()
-
-    
-    vis.BeginScene()
-    vis.Render()
-    vis.EndScene()
-
-    
+while vis.Run():
+    time = hmmwv.GetSystem().GetChTime()
     driver_inputs = driver.GetInputs()
-
-    
-    vehicle.Update(time, driver_inputs)
-
-    
-    terrain.Synchronize(time)
-
-    
-    vis.Synchronize("HMMWV simulation", driver_inputs)
-
-    
-    vehicle.Advance(step_size)
-
-    
-    vis.Advance(step_size)
-
-    
-    chrono.ChRealtimeStepTimer().Spin(realtime_target)
+    hmmwv.Synchronize(time, driver_inputs, terrain)
+    vis.Synchronize("", terrain)
+    hmmwv.Advance(0.02)
+    vis.Advance(0.02)
+    vis.Render()

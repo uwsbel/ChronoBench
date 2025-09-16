@@ -1,59 +1,59 @@
 import pychrono as chrono
+import pychrono.irrlicht as chronoirr
 import pychrono.vehicle as veh
-import pychrono.irrlicht as irr
-import numpy as np
+import pychrono.sensor as sensor
 
 
-chrono.SetChronoDataPath("./chrono_data/")  
+chrono.SetChronoDataPath("./")  
 
 
 system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  
 
 
 terrain = chrono.ChTerrain()
-terrain.Create(system, "terrain", 100, 100, 1, 1)
-terrain.SetTexture(chrono.ChTexture("textures/terrain.png"))
-terrain.SetHeightDistribution("hill", 10, 0.2)
-terrain.SetRoughness(0.1)
+terrain.Create(system, "terrain", 100, 100, 10, 10)
+terrain.SetTexture(chrono.GetChronoDataPath() + "textures/terrain/grass.png", 0)
+terrain.SetHeightFunction(chrono.ChFunctionToboggan())
 
 
 hmmwv = veh.HMMWV(system)
 hmmwv.SetVehicleModel("hmmwv")
-hmmwv.SetTireModel("Michelin_XCL_80R20")
-hmmwv.SetEngineModel("GenericEngine")
-hmmwv.SetTransmissionModel("GenericTransmission")
-hmmwv.SetDifferentialModel("GenericDifferential")
-hmmwv.SetChassisMass(1500)  
-hmmwv.Initialize()
+hmmwv.SetTerrain(terrain)
+hmmwv.SetTireForceModel(veh.TireForceModelType.MTM)
+hmmwv.SetTireRadius(0.4)
+hmmwv.SetTireWidth(0.3)
+hmmwv.SetTirePressure(1.2)
+hmmwv.SetEngineType(veh.EngineModelType.SIMPLE)
+hmmwv.SetTransmissionType(veh.TransmissionModelType.SIMPLE)
+hmmwv.SetDifferentialType(veh.DifferentialModelType.SIMPLE)
+hmmwv.SetChassisHeight(0.7)
+hmmwv.SetInitialPosition(chrono.ChVectorD(0, 2, 0))
+hmmwv.SetInitialVelocity(chrono.ChVectorD(0, 0, 0))
 
 
-imu = chrono.ChIMU()
-imu.SetBody(hmmwv.GetChassis())
-imu.SetUpdateRate(100)  
-imu.SetPosition(chrono.ChVectorD(0, 0.5, 0))  
+driver = veh.SimpleDriver(hmmwv)
+driver.SetInput(veh.DriverInputs())
+driver.SetTargetSpeed(20)
+driver.SetTargetDirection(0)
+
+
+
+imu = sensor.ChIMUSensor()
+imu.Attach(hmmwv.GetChassis())
+imu.SetFrequency(60)  
+imu.SetPosition(chrono.ChVectorD(0, 0.5, 0))
 imu.SetRotation(chrono.ChQuaternionD(1, 0, 0, 0))
 
 
-gps = chrono.ChGPS()
-gps.SetBody(hmmwv.GetChassis())
-gps.SetUpdateRate(10)  
-gps.SetPosition(chrono.ChVectorD(0, 1.5, 0))  
+gps = sensor.ChGPSSensor()
+gps.Attach(hmmwv.GetChassis())
+gps.SetFrequency(1)  
+gps.SetPosition(chrono.ChVectorD(0, 0.5, 0))
 gps.SetRotation(chrono.ChQuaternionD(1, 0, 0, 0))
 
 
-driver = veh.ChDriver(hmmwv)
-driver.SetSteeringDelta(10)
-driver.SetThrottleDelta(0.1)
-driver.SetBrakingDelta(0.1)
-driver.SetGearChangeDelta(1)
-
-
-hmmwv.GetChassis().SetPos(chrono.ChVectorD(0, 1, 0))
-hmmwv.GetChassis().SetRotation(chrono.ChQuaternionD(1, 0, 0, 0))
-
-
-vis = irr.ChVisualSystemIrrlicht()
+vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
 vis.SetWindowSize(1024, 768)
 vis.SetWindowTitle('HMMWV Simulation')
@@ -62,8 +62,8 @@ vis.AddCamera(chrono.ChVectorD(0, 10, -10))
 vis.AddTypicalLights()
 
 
-time_step = 0.005
-simulation_time = 20
+time_step = 0.01
+total_time = 60
 
 while vis.Run():
     vis.BeginScene()
@@ -71,15 +71,7 @@ while vis.Run():
     vis.EndScene()
 
     
-    throttle = 0.5
-    steering = 0.2
-    braking = 0.0
-    gear = 1
-
-    driver.SetThrottle(throttle)
-    driver.SetSteering(steering)
-    driver.SetBraking(braking)
-    driver.SetGear(gear)
+    driver.Update(time_step)
 
     
     system.DoStepDynamics(time_step)
@@ -89,15 +81,14 @@ while vis.Run():
     gps.Update()
 
     
-    vehicle_mass = hmmwv.GetChassis().GetMass()
-    print(f"Vehicle Mass: {vehicle_mass}")
+    vehicle_mass = hmmwv.GetVehicleMass()
+    print(f"Vehicle Mass: {vehicle_mass:.2f} kg")
 
     
-    if (int(system.GetChTime() / time_step) % 10 == 0):  
-        print("IMU Data:")
-        print(f"  Acceleration: {imu.GetAcc().tolist()}")
-        print(f"  Angular Velocity: {imu.GetAngVel().tolist()}")
-        print("GPS Data:")
-        print(f"  Latitude: {gps.GetLatitude()}")
-        print(f"  Longitude: {gps.GetLongitude()}")
-        print(f"  Altitude: {gps.GetAltitude()}")
+    if imu.HasNewData():
+        imu_data = imu.GetLatestData()
+        
+
+    
+    if gps.HasNewData():
+        gps_data = gps.GetLatestData()

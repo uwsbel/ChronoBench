@@ -43,32 +43,32 @@ render_step_size = 1.0 / 50
 class SCMTerrainParams:
     def __init__(self, config="mid"):
         if config == "soft":
+            self.Kphi = 2e5
+            self.Kc = 0
+            self.n_exponent = 1.1
+            self.cohesion = 0
+            self.friction = 30
+            self.shear_coefficient = 0.01
+            self.elastic_stiffness = 2e7
+            self.damping = 3e4
+        elif config == "mid":
             self.Kphi = 2e6
             self.Kc = 0
             self.n_exponent = 1.1
             self.cohesion = 0
             self.friction = 30
-            self.Janosi = 0.01
+            self.shear_coefficient = 0.01
             self.elastic_stiffness = 2e8
             self.damping = 3e4
-        elif config == "mid":
-            self.Kphi = 5e6
-            self.Kc = 0
-            self.n_exponent = 1.1
-            self.cohesion = 0
-            self.friction = 30
-            self.Janosi = 0.01
-            self.elastic_stiffness = 5e8
-            self.damping = 3e4
         elif config == "hard":
-            self.Kphi = 1e7
+            self.Kphi = 3e6
             self.Kc = 0
             self.n_exponent = 1.1
             self.cohesion = 0
-            self.friction = 30
-            self.Janosi = 0.01
-            self.elastic_stiffness = 1e9
-            self.damping = 3e4
+            self.friction = 40
+            self.shear_coefficient = 0.005
+            self.elastic_stiffness = 3e8
+            self.damping = 2e4
         else:
             raise ValueError("Invalid terrain configuration. Choose 'soft', 'mid', or 'hard'.")
 
@@ -101,9 +101,9 @@ terrain.SetSoilParameters(
     terrain_params.n_exponent,
     terrain_params.cohesion,
     terrain_params.friction,
-    terrain_params.Janosi,
+    terrain_params.shear_coefficient,
     terrain_params.elastic_stiffness,
-    terrain_params.damping
+    terrain_params.damping,
 )
 
 

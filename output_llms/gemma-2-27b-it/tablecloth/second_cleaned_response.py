@@ -45,20 +45,22 @@ for iz in range(nsections_z + 1):
         mynodes.append(mnode)
 
 
-nodePlotA = mynodes[0]
-nodePlotB = mynodes[-1]
-nodesLoad = [mynodes[i * (nsections_x + 1) + nsections_x // 2] for i in range(nsections_z)]
-load_force = chrono.ChVectorD(0, -10, 0)
+nodePlotA = mynodes[int(nsections_x / 2) * (nsections_x + 1) + int(nsections_z / 2)]
+nodePlotB = mynodes[int(nsections_x / 4) * (nsections_x + 1) + int(nsections_z / 4)]
+nodesLoad = [mynodes[i * (nsections_x + 1) + int(nsections_x / 2)] for i in range(int(nsections_z / 2), int(nsections_z / 2) + 5)]
 
 
 def ref_X(t):
-    return 0
+    return 0.01 * chrono.ChMath.Sin(t)
 
 def ref_Y(t):
-    return 0
+    return 0.01 * chrono.ChMath.Cos(t)
 
 
-mnodemonitor = mynodes[10]
+load_force = chrono.ChVectorD(0, -100, 0)
+
+
+mnodemonitor = mynodes[0]
 melementmonitor = None
 
 
@@ -66,8 +68,8 @@ for iz in range(nsections_z):
     for ix in range(nsections_x):
         melementA = fea.ChElementShellBST()
         boundary_1 = mynodes[(iz + 1) * (nsections_x + 1) + ix + 1] if ix < nsections_x else None
-        boundary_2 = mynodes[(iz + 1) * (nsections_x + 1) + ix - 1] if ix > 0 else None
-        boundary_3 = mynodes[(iz - 1) * (nsections_x + 1) + ix + 1] if iz > 0 else None
+        boundary_2 = mynodes[(iz + 1) * (nsections_x + 1) + ix - 1] if (ix > 0) else None
+        boundary_3 = mynodes[(iz - 1) * (nsections_x + 1) + ix + 1] if (iz > 0) else None
 
         melementA.SetNodes(mynodes[iz * (nsections_x + 1) + ix], mynodes[iz * (nsections_x + 1) + ix + 1],
                            mynodes[(iz + 1) * (nsections_x + 1) + ix], boundary_1, boundary_2, boundary_3)
@@ -84,8 +86,7 @@ for iz in range(nsections_z):
         melementB.AddLayer(thickness, 0, material)
         mesh.AddElement(melementB)
 
-        
-        if iz == 0 and ix == 1:
+        if (iz == 0 and ix == 1):
             melementmonitor = melementA
 
 
@@ -136,7 +137,3 @@ while vis.Run():
     vis.Render()
     vis.EndScene()
     sys.DoStepDynamics(timestep)
-
-    
-    for node in nodesLoad:
-        node.SetForce(load_force)

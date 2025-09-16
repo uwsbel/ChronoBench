@@ -1,87 +1,112 @@
 import chrono
 
-import chrono_sensor
+import chrono.sensor as csensor
 
-import ros_manager
+import chrono.irig as cri
+
+import chrono.irig.ros as ros
 
 import numpy as np
 
 
 
 
-chrono.Init()
+
+
+chrono = chrono.ChSystemNSC()
 
 
 
 
-ground_body = chrono.ChBodyAux()
+ground = chrono.ChBody()
 
-ground_body.SetPos(chrono.ChVectorD(0, 0, 0))
+ground.SetName("Ground")
 
-ground_body.SetMass(1000)
+ground.SetMass(1000.0)
 
+ground.SetInertiaTensor(chrono.ChBox(1.0, 1.0, 0.1))
 
-
-
-ground_system = chrono.ChSystemNSC()
-
-ground_system.AddBody(ground_body)
+ground.SetStatic()
 
 
 
 
-mesh_file = "path/to/mesh/file.stl"
-
-mesh = chrono.ChTriangleMeshStlFile(mesh_file)
-
-visual_body = chrono.ChBodySurfaceAddAsTriangleMesh(ground_body, mesh, chrono.ChVectorD(0, 0, 0))
-
-visual_body.SetColor(chrono.ChColor(0.5, 0.5, 0.5))
+chrono.ChSystemNSC.CreateBody(ground)
 
 
 
 
-ground_body.SetLinearVel(chrono.ChVectorD(0, 0, 0))
+mesh = chrono.ChMeshSphere(1.0)
+
+mesh.SetName("Mesh")
+
+mesh.SetPosition(chrono.ChVector(0, 0, 0))
+
+chrono.ChBodyVehicleAABB(ground, mesh)
+
+chrono.ChSystemNSC.CreateBody(mesh)
 
 
 
 
-sensor_manager = chrono_sensor.ChSensorManager()
+ground.SetTranslation(chrono.ChVector(0, 0, -0.1))
+
+ground.SetVel(chrono.ChVector(0, 0, 0.01))
 
 
 
 
-camera = chrono_sensor.ChCameraSensor(ground_system, "CameraSensor", "Camera", chrono.ChVectorD(0, 0, 1), chrono.ChVectorD(0, 0, 0), 640, 480)
-
-lidar = chrono_sensor.ChLidarSensor(ground_system, "LidarSensor", "Lidar", chrono.ChVectorD(0, 0, 1), chrono.ChVectorD(0, 0, 0), 360, 10)
-
-gps = chrono_sensor.ChGpsSensor(ground_system, "GpsSensor", "GPS", chrono.ChVectorD(0, 0, 1), chrono.ChVectorD(0, 0, 0))
-
-accelerometer = chrono_sensor.ChAccelerometerSensor(ground_system, "AccelerometerSensor", "Accel", chrono.ChVectorD(0, 0, 1), chrono.ChVectorD(0, 0, 0))
-
-gyroscope = chrono_sensor.ChGyroscopeSensor(ground_system, "GyroscopeSensor", "Gyro", chrono.ChVectorD(0, 0, 1), chrono.ChVectorD(0, 0, 0))
-
-magnetometer = chrono_sensor.ChMagnetometerSensor(ground_system, "MagnetometerSensor", "Magneto", chrono.ChVectorD(0, 0, 1), chrono.ChVectorD(0, 0, 0))
+sensor_manager = csensor.ChSensorManager(chrono)
 
 
 
 
-ros_manager.RegisterSensor(camera, "camera_topic")
+camera = csensor.ChCameraSensor(chrono, "Camera", 60, 30, 1000, 320, 240, 30)
 
-ros_manager.RegisterSensor(lidar, "lidar_topic")
+lidar = csensor.ChLidarSensor(chrono, "Lidar", 360, 1)
 
-ros_manager.RegisterSensor(gps, "gps_topic")
+gps = csensor.ChGPSSensor(chrono, 1000)
 
-ros_manager.RegisterSensor(accelerometer, "accel_topic")
+accelerometer = csensor.ChAccelerometerSensor(chrono, "Accelerometer", 3)
 
-ros_manager.RegisterSensor(gyroscope, "gyro_topic")
+gyroscope = csensor.ChGyroscopeSensor(chrono, 3)
 
-ros_manager.RegisterSensor(magnetometer, "magneto_topic")
-
-
+magnetometer = csensor.ChMagnetometerSensor(chrono, 3)
 
 
-while chrono.ChSystemNSC::GetChSystem().GetChTime() < 10:
+
+
+ros.register_sensor(camera, "camera_data")
+
+ros.register_sensor(lidar, "lidar_data")
+
+ros.register_sensor(gps, "gps_data")
+
+ros.register_sensor(accelerometer, "accelerometer_data")
+
+ros.register_sensor(gyroscope, "gyroscope_data")
+
+ros.register_sensor(magnetometer, "magnetometer_data")
+
+
+
+
+sensor_manager.AddSensor(camera)
+
+sensor_manager.AddSensor(lidar)
+
+sensor_manager.AddSensor(gps)
+
+sensor_manager.AddSensor(accelerometer)
+
+sensor_manager.AddSensor(gyroscope)
+
+sensor_manager.AddSensor(magnetometer)
+
+
+
+
+while True:
 
     
 
@@ -90,14 +115,22 @@ while chrono.ChSystemNSC::GetChSystem().GetChTime() < 10:
 
     
 
-    ros_manager.PublishSensorData()
+    chrono.ChSystemNSC.DoStepDynamics(chrono, 1.0 / 60.0)
+
+    chrono.ChSystemNSC.DoStep(chrono, 1.0 / 60.0)
 
 
     
 
-    ground_system.DoStepDynamics(0.01)
+    ros.publish_sensor_data(sensor_manager)
 
 
+    
 
+    if chrono.ChSystemNSC.GetChTime() % 1.0 < 1.0 / 60.0:
 
-chrono.FREE()
+        continue
+
+    
+
+    break

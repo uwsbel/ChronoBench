@@ -65,6 +65,9 @@ patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
+patch = terrain.AddPatch(patch_mat,
+                         chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
+                         terrainLength, terrainWidth)
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
@@ -100,8 +103,7 @@ offset_pose = chrono.ChFramed(chrono.ChVector3d(-8, 0, 1), chrono.QUNIT)
 imu = sens.ChAccelerometerSensor(vehicle.GetChassisBody(),                     
                                  10,        
                                  offset_pose,          
-                                 chrono.ChVector3d(-89.400, 43.070, 260.0),  
-                                 chrono.ChVector3d(-8, 0, 1))   
+                                 sens.ChNoiseNone())   
 imu.SetName("IMU Sensor")
 imu.SetLag(0)
 imu.SetCollectionWindow(0)
@@ -115,7 +117,7 @@ gps = sens.ChGPSSensor(vehicle.GetChassisBody(),
                        10,        
                        offset_pose,          
                        chrono.ChVector3d(-89.400, 43.070, 260.0),  
-                       chrono.ChVector3d(-8, 0, 1))   
+                       sens.ChNoiseNone())   
 gps.SetName("GPS Sensor")
 gps.SetLag(0)
 gps.SetCollectionWindow(0)

@@ -1,53 +1,61 @@
 import pychrono as chrono
-import pychrono.postprocess as postprocess
 import pychrono.irrlicht as chronoirr
 
-# 1. Initialize the PyChrono environment and core components
+# 1. Initialize PyChrono environment and core components
 my_system = chrono.ChSystemNSC()
-my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
+my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+my_system.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
 
-# Create a material for the objects
-material = chrono.ChMaterialSurfaceNSC()
-material.SetFriction(0.3)
-material.SetRestitution(0.2)
-
-# 2. Add the required physical systems and objects
-
-# Create a ground body
-ground = chrono.ChBodyEasyBox(10, 1, 10, 1000, True, True, material)
-ground.SetPos(chrono.ChVectorD(0, -1, 0))
+# 2. Add physical systems and objects
+# a. Fixed ground
+ground = chrono.ChBodyEasyBox(100, 1, 100, 1000, True, True)
+ground.SetPos(chrono.ChVectorD(0, -0.5, 0))
+ground.SetBodyFixed(True)
 my_system.Add(ground)
 
-# Create a sphere
-sphere = chrono.ChBodyEasySphere(1, 100, True, True, material)
-sphere.SetPos(chrono.ChVectorD(0, 2, 0))
-my_system.Add(sphere)
+# b. Curiosity rover
+rover = chrono.ChWheeledVehicle()
+rover.SetSystem(my_system)
 
-# 3. Set necessary default parameters
+# Add rover chassis
+chassis = chrono.ChBodyEasyBox(2, 1, 3, 1000, True, True)
+chassis.SetPos(chrono.ChVectorD(0, 1, 0))
+rover.AddChassis(chassis)
 
-# Apply a force to the sphere
-force = chrono.ChForce()
-force.SetMode(chrono.ChForce.FORCE)
-force.SetDir(chrono.ChVectorD(0, -1, 0))
-force.SetV(chrono.ChVectorD(0, -10, 0))
-sphere.AddForce(force)
+# Add rover wheels
+wheel_radius = 0.3
+wheel_width = 0.2
+for i in range(6):
+    wheel = chrono.ChWheel(chrono.ChVectorD(0, 0, 0), wheel_radius, wheel_width)
+    wheel.SetFrictionCoefficient(0.8)
+    wheel.SetSuspensionForce(1000)
+    wheel.SetSpringCoefficient(1000)
+    wheel.SetDampingCoefficient(100)
+    rover.AddWheel(wheel)
 
-# Set simulation parameters
-my_system.SetTimestep(0.01)
-my_system.SetMaxItersSolverSpeed(100)
+# 3. Set default parameters
 
-# 4. Visualization (optional)
+# Motor control driver for steering
+motor_driver = chrono.ChMotorDriver()
+motor_driver.SetTargetSpeed(1)
+rover.SetMotorDriver(motor_driver)
 
-# Create an Irrlicht visualization system
-vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(my_system)
-vis.SetWindowSize(800, 600)
-vis.SetWindowTitle("PyChrono Simulation")
-vis.Initialize()
-vis.Run()
+# 4. Visualization with Irrlicht
+vis = chronoirr.ChIrrApp(my_system, 'Curiosity Rover Simulation')
+vis.SetWindowSize(1280, 720)
+vis.AddTypicalSky()
+vis.AddTypicalLights()
+vis.AddCamera(chrono.ChVectorD(5, 5, 5), chrono.ChVectorD(0, 0, 0))
 
-# 5. Simulation loop
+# Customize camera settings, lighting, shadows, textures, logos, etc.
 
+vis.AssetBindAll()
+vis.SetShowInfos(True)
+vis.SetPaused(False)
+
+# Run the simulation
 while vis.Run():
-    my_system.DoStepDynamics(0.01)
+    vis.BeginScene()
     vis.Render()
+    vis.DoStep()
+    vis.EndScene()

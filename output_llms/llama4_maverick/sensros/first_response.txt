@@ -1,174 +1,130 @@
-To create the PyChrono simulation as per the given instructions, we will follow the steps outlined below. The code will be written in Python, utilizing the PyChrono library.
-
-### Step 1: Initialize PyChrono Environment and Core Components
-
-First, we need to import the necessary modules and initialize the PyChrono environment.
+To create the PyChrono simulation as described, we'll follow the instructions step by step. The simulation involves setting up a Chrono system, adding a visualization mesh, configuring a ground body, attaching various sensors to it, and managing these sensors with a sensor manager. We will also use a ROS (Robot Operating System) manager to publish sensor data to ROS topics. Below is the Python code that accomplishes this task.
 
 ```python
 import pychrono as chrono
 import pychrono.sensor as sens
-import pychrono.irrlicht as chronoirr
+import pychrono.vehicle as vehicle
+import pychrono.irrlicht as irr
 import numpy as np
 
-# Initialize the Chrono system
-chrono_system = chrono.ChSystemNSC()
-```
+# Initialize the PyChrono environment
+chrono.SetChronoDataPath("/path/to/chrono/data/")
 
-### Step 2: Add Required Physical Systems and Objects
+# Create the Chrono system
+sys = chrono.ChSystemNSC()
 
-Next, we add a ground body and a mesh for visualization. We also configure the ground body to move.
-
-```python
-# Create a ground body
-ground_body = chrono.ChBody()
-ground_body.SetBodyFixed(False)  # Make it movable
-ground_body.SetPos(chrono.ChVectorD(0, 0, 0))
-chrono_system.Add(ground_body)
-
-# Load a mesh for visualization (assuming 'mesh.obj' is available)
+# Create a mesh for visualization
 mesh = chrono.ChTriangleMeshConnected()
-mesh.LoadWavefrontMesh('mesh.obj')
-mesh.Transform(chrono.ChVectorD(0, 0, 0), chrono.ChMatrix33D(1))
+mesh.LoadWavefrontMesh(chrono.GetChronoDataPath() + "sensor/offroad/mesh.obj")
 
-# Create a visual asset for the mesh
-mesh_asset = chrono.ChTriangleMeshShape()
-mesh_asset.SetMesh(mesh)
-ground_body.AddAsset(mesh_asset)
-```
+# Create a body and attach the mesh to it
+ground_body = chrono.ChBody()
+ground_body.SetBodyFixed(False)  # Make it movable for demonstration
+ground_body.SetPos(chrono.ChVectorD(0, 0, 0))
+ground_body.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
 
-### Step 3: Configure Sensors and Sensor Manager
+# Add the mesh to the body
+mesh_visual = chrono.ChVisualShapeTriangleMesh()
+mesh_visual.SetMesh(mesh)
+ground_body.AddVisualShape(mesh_visual)
 
-Now, we integrate multiple sensors (camera, lidar, GPS, accelerometer, gyroscope, magnetometer) using a sensor manager.
+# Add the ground body to the system
+sys.Add(ground_body)
 
-```python
 # Create a sensor manager
-sensor_manager = sens.ChSensorManager(chrono_system)
+manager = sens.ChSensorManager(sys)
 
 # Camera sensor
 camera = sens.ChCameraSensor(
-    ground_body, 
-    30,  # update rate
-    chrono.ChFrameD(chrono.ChVectorD(0, 0, 2), chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0))), 
+    ground_body,  # body camera is attached to
+    30,  # update rate in Hz
+    chrono.ChFrameD(chrono.ChVectorD(-5, 0, 2), chrono.Q_from_AngAxis(chrono.CH_C_PI / 20, chrono.VECT_Y)),  # offset pose
     640,  # image width
     480,  # image height
-    90  # FOV
+    chrono.CH_C_PI / 3  # FOV
 )
-sensor_manager.AddSensor(camera)
+manager.AddSensor(camera)
 
 # Lidar sensor
 lidar = sens.ChLidarSensor(
-    ground_body, 
-    10,  # update rate
-    chrono.ChFrameD(chrono.ChVectorD(0, 0, 2), chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0))), 
-    1000,  # number of horizontal samples
-    100,  # number of vertical channels
-    chrono.ChVectorD(-1, 1, -1),  # horizontal field of view
-    chrono.ChVectorD(-0.1, 0.1, -0.1)  # vertical field of view
+    ground_body,
+    30,
+    chrono.ChFrameD(chrono.ChVectorD(0, 0, 1), chrono.Q_from_AngAxis(chrono.CH_C_PI / 20, chrono.VECT_Y)),
+    1000,  # horizontal samples
+    100,  # vertical samples
+    chrono.CH_C_PI,  # horizontal FOV
+    chrono.CH_C_PI / 8  # vertical FOV
 )
-sensor_manager.AddSensor(lidar)
+manager.AddSensor(lidar)
 
 # GPS sensor
 gps = sens.ChGPSSensor(
-    ground_body, 
+    ground_body,
     10,  # update rate
-    chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0)))
+    chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT)  # offset pose
 )
-sensor_manager.AddSensor(gps)
+manager.AddSensor(gps)
 
 # Accelerometer sensor
-accelerometer = sens.ChAccelerometerSensor(
-    ground_body, 
+accel = sens.ChAccelerometerSensor(
+    ground_body,
     100,  # update rate
-    chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0)))
+    chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT)  # offset pose
 )
-sensor_manager.AddSensor(accelerometer)
+manager.AddSensor(accel)
 
 # Gyroscope sensor
-gyroscope = sens.ChGyroscopeSensor(
-    ground_body, 
+gyro = sens.ChGyroscopeSensor(
+    ground_body,
     100,  # update rate
-    chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0)))
+    chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT)  # offset pose
 )
-sensor_manager.AddSensor(gyroscope)
+manager.AddSensor(gyro)
 
 # Magnetometer sensor
-magnetometer = sens.ChMagnetometerSensor(
-    ground_body, 
+magnet = sens.ChMagnetometerSensor(
+    ground_body,
     100,  # update rate
-    chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0)))
+    chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT),  # offset pose
+    chrono.ChVectorD(0, 0, 1)  # magnetic field
 )
-sensor_manager.AddSensor(magnetometer)
-```
+manager.AddSensor(magnet)
 
-### Step 4: Register Sensors with ROS Manager
+# Create a ROS manager and register sensors
+ros_manager = sens.ChROSPackageManager(manager)
+ros_manager.AddCameraSensor(camera, "/camera")
+ros_manager.AddLidarSensor(lidar, "/lidar")
+ros_manager.AddGPSSensor(gps, "/gps")
+ros_manager.AddAccelerometerSensor(accel, "/accelerometer")
+ros_manager.AddGyroscopeSensor(gyro, "/gyroscope")
+ros_manager.AddMagnetometerSensor(magnet, "/magnetometer")
 
-To publish sensor data to ROS topics, we need to integrate with ROS. This step assumes you have a ROS environment set up.
-
-```python
-# Create a ROS manager (assuming ROS is installed and sourced)
-import rospy
-from sensor_msgs.msg import Image, LaserScan, NavSatFix, Imu, MagneticField
-
-class ROSManager:
-    def __init__(self):
-        self.camera_pub = rospy.Publisher('/camera/image', Image, queue_size=10)
-        self.lidar_pub = rospy.Publisher('/lidar/scan', LaserScan, queue_size=10)
-        self.gps_pub = rospy.Publisher('/gps/fix', NavSatFix, queue_size=10)
-        self.imu_pub = rospy.Publisher('/imu/data', Imu, queue_size=10)
-        self.magnetometer_pub = rospy.Publisher('/magnetometer/data', MagneticField, queue_size=10)
-
-    def publish_data(self, camera_data, lidar_data, gps_data, accelerometer_data, gyroscope_data, magnetometer_data):
-        # Convert and publish data to ROS topics
-        # This part is simplified and actual conversion depends on the data types
-        self.camera_pub.publish(camera_data)
-        self.lidar_pub.publish(lidar_data)
-        self.gps_pub.publish(gps_data)
-        imu_data = Imu()
-        imu_data.linear_acceleration.x = accelerometer_data[0]
-        imu_data.angular_velocity.x = gyroscope_data[0]
-        self.imu_pub.publish(imu_data)
-        magnetometer_msg = MagneticField()
-        magnetometer_msg.magnetic_field.x = magnetometer_data[0]
-        self.magnetometer_pub.publish(magnetometer_msg)
-
-ros_manager = ROSManager()
-rospy.init_node('pychrono_sensor_node', anonymous=True)
-```
-
-### Step 5: Simulation Loop
-
-Finally, implement a simulation loop that updates the sensors, advances the simulation, and maintains real-time execution.
-
-```python
 # Simulation loop
-while chrono_system.GetChTime() < 10:  # Run for 10 seconds
-    # Update sensors
-    sensor_manager.Update()
+vis = irr.ChVisualSystemIrrlicht()
+vis.AttachSystem(sys)
+vis.SetWindowSize(800, 600)
+vis.SetWindowTitle('Sensor Simulation')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataPath() + 'logo_pychrono_alpha.png')
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVectorD(0, -8, 2), chrono.ChVectorD(0, 0, 0))
+vis.AddTypicalLights()
 
-    # Get sensor data
-    camera_data = camera.GetMostRecentBuffer()
-    lidar_data = lidar.GetMostRecentBuffer()
-    gps_data = gps.GetMostRecentBuffer()
-    accelerometer_data = accelerometer.GetMostRecentBuffer()
-    gyroscope_data = gyroscope.GetMostRecentBuffer()
-    magnetometer_data = magnetometer.GetMostRecentBuffer()
-
-    # Publish data to ROS topics
-    ros_manager.publish_data(camera_data, lidar_data, gps_data, accelerometer_data, gyroscope_data, magnetometer_data)
-
-    # Advance simulation
-    chrono_system.DoStepDynamics(0.01)  # Step size
-
-    # Maintain real-time execution
-    # This might involve sleeping or other synchronization mechanisms
-
-    # Optional: Visualize using Irrlicht
-    # vis = chronoirr.ChVisualSystemIrrlicht()
-    # vis.AttachSystem(chrono_system)
-    # vis.SetWindowSize(1024, 768)
-    # vis.SetWindowTitle('PyChrono Simulation')
-    # vis.Initialize()
-    # vis.Run()
+while vis.Run():
+    time = sys.GetChTime()
+    # Update the sensor manager
+    manager.Update()
+    # Update the ROS manager
+    ros_manager.Update()
+    # Step the system
+    sys.DoStepDynamics(0.01)
+    # Update the visualization
+    vis.Run()
+    vis.BeginScene(True, True, irr.SColor(255, 140, 161, 192))
+    vis.Render()
+    vis.EndScene()
 ```
 
-This code provides a basic structure for creating a PyChrono simulation with various sensors and publishing their data to ROS topics. You will need to adapt it to your specific requirements and ensure that all dependencies (like ROS and PyChrono) are correctly installed and configured.
+```python
+# Ensure you replace "/path/to/chrono/data/" with the actual path to your Chrono data directory.
+```

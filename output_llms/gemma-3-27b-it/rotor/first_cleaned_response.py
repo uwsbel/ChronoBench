@@ -3,66 +3,82 @@ import pychrono.irrlicht as chronoirr
 import pychrono.postprocess as postprocess
 
 
-chrono.SetChronoDataPath("../chrono/data/")  
+chrono.SetChronoDataPath("./")  
 
 
 system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
 
 
 beam_length = 1.0
 beam_radius = 0.02
-num_segments = 20
-beam_young = 2.0e11  
-beam_density = 7850  
+beam_segments = 20
+beam_order = 3  
 
 
-beam = chrono.ChBodyEasy()
+beam = chrono.ChBodyEasy.New()
 beam.SetBodyFixed(False)
-beam.SetCollide(True)
-beam.SetMaterialDensity(beam_density)
-beam.SetMass(1.0) 
-beam.SetPos(chrono.ChVectorD(0, 0, 0))
+beam.SetMass(1.0)
+beam.SetInertia(1.0)
 
 
-iga_beam = chrono.ChIGABeamSection()
-iga_beam.SetDimensions(beam_length, beam_radius)
-iga_beam.SetYoungModulus(beam_young)
-iga_beam.Generate(num_segments)
+section = chrono.ChNurbsSection()
+section.SetShapeType(chrono.ChNurbsShape.CIRCLE)
+section.SetRadius(beam_radius)
+section.SetSegments(beam_segments)
+
+
+iga_beam = chrono.ChIGABeam.New()
+iga_beam.SetSection(section)
+iga_beam.SetLength(beam_length)
+iga_beam.SetOrder(beam_order)
+iga_beam.BuildMesh()
+
 
 beam.AddAsset(iga_beam)
+beam.SetCollide(True)
+beam.SetVisualizationType(chrono.ChVisualizationType.MESH)
+
 
 system.Add(beam)
 
 
 flywheel_radius = 0.05
 flywheel_mass = 0.5
-flywheel = chrono.ChBodyEasy()
+flywheel = chrono.ChBodyEasy.New()
 flywheel.SetBodyFixed(False)
-flywheel.SetCollide(True)
-flywheel.SetMaterialDensity(beam_density)
 flywheel.SetMass(flywheel_mass)
-flywheel.SetInertia(chrono.ChVectorD(1,1,1) * flywheel_mass * flywheel_radius * flywheel_radius)
-flywheel.SetPos(chrono.ChVectorD(beam_length / 2, 0, 0))
-flywheel.SetShape(chrono.ChSphereShape())
-flywheel.SetShapeRadius(flywheel_radius)
+flywheel.SetInertia(chrono.ChVectorD(flywheel_mass * flywheel_radius * flywheel_radius,
+                                     flywheel_mass * flywheel_radius * flywheel_radius,
+                                     flywheel_mass * flywheel_radius * flywheel_radius))
+flywheel.SetShape(chrono.ChSphereShape(flywheel_radius))
+flywheel.SetCollide(True)
+flywheel.SetVisualizationType(chrono.ChVisualizationType.MESH)
+
+
+flywheel_pos = chrono.ChVectorD(beam_length / 2.0, 0, 0)
+flywheel.SetPos(flywheel_pos)
+
 
 system.Add(flywheel)
 
 
-
-joint = chrono.ChLinkRevolute()
-joint.Initialize(beam, flywheel, chrono.ChCoordsys(chrono.ChVectorD(beam_length / 2, 0, 0)))
+joint = chrono.ChLinkRevolute.New()
+joint.Initialize(beam, flywheel, chrono.ChCoordsys(flywheel_pos))
 system.Add(joint)
 
 
-
 motor_torque = 1.0
-motor = chrono.ChMotorRotationSpeed()
+motor = chrono.ChMotorLinearSpring.New()
+motor.Set_SpringRestLength(0.0)
+motor.Set_SpringK(0.0)
+motor.Set_SpringR(0.0)
 motor.Set_Torque(motor_torque)
-motor.Set_Speed(10.0)  
-motor.Attach(beam)
+motor.Set_Mode(chrono.ChMotorMode.TORQUE_CONTROL)
+
+
+motor.Initialize(beam, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)))
 system.Add(motor)
 
 
@@ -76,16 +92,14 @@ vis.AddCamera(chrono.ChVectorD(2, 2, -2))
 vis.AddTypicalLights()
 
 
-
 time_step = 0.001
 time_end = 10.0
 while vis.Run():
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
+
     system.DoStepDynamics(time_step)
 
     if system.GetChTime() > time_end:
-        break
-
-print("Simulation finished.")
+        vis.GetIrrlichtApplication().Close()

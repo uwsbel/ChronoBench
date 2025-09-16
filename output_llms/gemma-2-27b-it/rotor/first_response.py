@@ -1,66 +1,59 @@
 import pychrono as chrono
 import pychrono.fea as fea
-import pychrono.irrlicht as chronoirr
+import pychrono.irrlicht as irr
 
-# 1. Initialize PyChrono environment and core components
+# 1. Initialize PyChrono environment
 my_system = chrono.ChSystemNSC()
 my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
 # 2. Create IGA beam
-# Define beam geometry and material properties
 beam_length = 1.0
 beam_radius = 0.05
-beam_material = fea.ChMaterialShellANCF(rho=7850, E=200e9, nu=0.3)
+beam_nodes = 10  # Number of nodes for IGA
 
-# Create NURBS curve for beam geometry
-# (Replace with your desired NURBS curve definition)
-nurbs_curve = ...
+# Define NURBS curve for the beam
+knots = [0.0, 0.0, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.0, 1.0]
+control_points = [chrono.ChVectorD(i * beam_length / (beam_nodes - 1), 0, 0) for i in range(beam_nodes)]
+nurbs_curve = fea.ChBSplineCurve(knots, control_points, 3)  # Cubic NURBS
 
-# Create IGA beam object
-beam = fea.ChBeamIGA(nurbs_curve, beam_material)
+# Create IGA beam element
+beam_section = fea.ChBeamSectionIGA(nurbs_curve, beam_radius)
+beam_element = fea.ChElementBeamIGA(beam_section)
 
-# Add beam to the system
-my_system.Add(beam)
-
-# 3. Attach flywheel at the center of the beam
-# Define flywheel properties
+# 3. Attach flywheel at center
 flywheel_radius = 0.2
 flywheel_mass = 10.0
+flywheel_inertia = 0.5 * flywheel_mass * flywheel_radius**2
 
-# Create flywheel as a ChBody
-flywheel = chrono.ChBody()
+flywheel = chrono.ChBodyEasyBox(flywheel_radius * 2, flywheel_radius * 2, 0.1, 1000)
+flywheel.SetPos(chrono.ChVectorD(beam_length / 2, 0, 0))
 flywheel.SetMass(flywheel_mass)
-flywheel.SetInertiaXX(chrono.ChVectorD(0.5 * flywheel_mass * flywheel_radius**2, 0.5 * flywheel_mass * flywheel_radius**2, 0.5 * flywheel_mass * flywheel_radius**2))
+flywheel.SetInertiaXX(chrono.ChVectorD(flywheel_inertia, flywheel_inertia, flywheel_inertia))
 
-# Attach flywheel to the beam at its center
-# (Replace with appropriate attachment method based on your beam model)
-beam.AttachFlywheel(flywheel, chrono.ChVectorD(beam_length / 2, 0, 0))
+# Connect flywheel to beam
+constraint = chrono.ChLinkLockRevolute(beam_element.GetNode(beam_nodes // 2), flywheel)
+my_system.Add(constraint)
 
-# 4. Add rotational motor to drive one end of the beam
-# Create motor as a ChLinkMotorRotationSpeed
-motor = chrono.ChLinkMotorRotationSpeed()
+# 4. Add rotational motor
+motor_speed = 100.0  # rad/s
 
-# Connect motor to the beam end
-motor.Initialize(beam.GetNode(0), chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)))
-
-# Set motor speed
-motor.SetSpeedFunction(chrono.ChFunction_Const(100))
-
-# Add motor to the system
+motor = chrono.ChLinkMotorRotationSpeed(beam_element.GetNode(0))
+motor.SetTargetSpeed(motor_speed)
 my_system.Add(motor)
 
 # 5. Visual setup
-# Create Irrlicht visualization
-vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(my_system)
-vis.SetWindowSize(800, 600)
-vis.SetWindowTitle("Jeffcott Rotor Simulation")
-vis.Initialize()
+viz = irr.ChIrrApp(my_system, "Jeffcott Rotor IGA Simulation", irr.dimension2du(800, 600))
+viz.AddTypicalSky()
+viz.AddTypicalLights()
+viz.AddCamera(chrono.ChVectorD(2, 1, 1))
 
-# Enable FEM visualization
-fea.ChVisualizationFEA::ShowDeformedMesh(beam, True)
+# FEM visualization
+fea.ChVisualizationFEA(my_system)
 
-# 6. Simulation loop
-while vis.Run():
-    my_system.DoStepDynamics(0.01)
-    vis.Render()
+# Run simulation
+viz.SetTimestep(0.001)
+while viz.GetDevice().run():
+    viz.BeginScene()
+    viz.Render()
+    viz.DoStep()
+    viz.EndScene()

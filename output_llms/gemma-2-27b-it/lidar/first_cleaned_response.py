@@ -1,64 +1,54 @@
 import pychrono as chrono
 import pychrono.postprocess as postprocess
-import pychrono.irrlicht as chronoirr
-import numpy as np
+import pychrono.irrlicht as irr
 
 
 my_system = chrono.ChSystemNSC()
 my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+my_system.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
 
 
-mesh_file = "your_mesh.obj"  
+mesh_path = "your_mesh.obj"  
 mesh = chrono.ChTriangleMeshConnected()
-mesh.LoadWavefrontMesh(mesh_file)
+mesh.LoadWavefrontMesh(mesh_path)
 body = chrono.ChBody()
-body.SetBodyFixed(True)
 body.SetMesh(mesh)
+body.SetBodyFixed(True)
 my_system.Add(body)
 
 
 sensor_manager = chrono.ChSensorManager(my_system)
 lidar = chrono.ChLidarSensor()
-lidar.SetCollisionEnvelope(0.1)  
+lidar.SetCollisionEnvelope(0.1)
+lidar.SetVerticalFOV(chrono.CH_C_PI / 4)
+lidar.SetHorizontalFOV(chrono.CH_C_PI / 2)
+lidar.SetScanFrequency(20)
+lidar.SetMaxDistance(50)
 
 
-lidar.SetNoise(0.01)  
-lidar.SetVisualization(True)  
-lidar.SetSaveData(True, "lidar_data.txt")  
+lidar.AddNoiseFilter(chrono.ChLidarSensor.FilterType_GAUSSIAN, 0.05)
 
 
-body.AddSensor(lidar)
+lidar.SetVisualizationType(chrono.ChLidarSensor.VisualizationType_POINTS)
 
 
-timestep = 0.01
-simulation_time = 10.0
+lidar.SetSaveData(True)
+lidar.SetSaveFilename("lidar_data.txt")
+
+sensor_manager.AddSensor(lidar)
+lidar.AttachToBody(body)
 
 
-radius = 5.0  
-angle = 0.0
+time_step = 0.01
+simulation_time = 10
 
-
-vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(my_system)
-vis.SetWindowSize(800, 600)
-vis.SetWindowTitle("Lidar Simulation")
-vis.Initialize()
-
-while my_system.GetChTime() < simulation_time:
+for i in range(int(simulation_time / time_step)):
     
-    angle += 0.1
-    x = radius * np.cos(angle)
-    y = radius * np.sin(angle)
-    lidar.SetPos(chrono.ChVectorD(x, 0, y))
+    radius = 5
+    angle = i * time_step * 2  
+    lidar.SetPos(chrono.ChVectorD(radius * chrono.ChCos(angle), 0, radius * chrono.ChSin(angle)))
 
     
-    my_system.DoStepDynamics(timestep)
+    print(lidar.GetLidarData())
 
-    
-    print(lidar.GetBuffer())
-
-    
-    vis.Render()
-
-
-postprocess.ChPostProcess(my_system).ExportData("simulation_data.dat")
+    my_system.DoStepDynamics(time_step)

@@ -1,96 +1,60 @@
-import pychrono as chrono
-
-from pychron.core.helpers import system_lock
-
-
-
-
-chrono.SetChronoDataPath('path_to_chrono_data_folder')
-
-chrono.SetSolverType('SICONOS_PRESOLVER', 'SICONOS_SOLVER')
+from pychrono.core import *
+from pychrono.vehicle import *
+from pychrono.vehicle_dynamics import *
+from pychrono import visualization
+from pychrono.irrlicht_utils import *
 
 
+chrono_init()
 
 
-my_chrono_system = chrono.ChSystemNSC()
+uavbus = UAVBus()
+uavbus.SetPos(Vec3(0, 0, 10))
+uavbus.SetVehicleType(VEHICLE_TYPE_UAV)
+uavbus.SetDamping(0.2)
+uavbus.SetMass(1000)
+uavbus.SetInertia(InertiaXXL(1000000, 1000000, 100000)
+uavbus.SetFriction(0.5)
+uavbus.SetRestitution(0.1)
 
 
-
-
-terrain = chrono.ChRigidBody('terrain')
-
-terrain.SetName('terrain')
-
-terrain.SetSolidAlgorithm(chrono.SOLID_AUTOMATIC)
-
+terrain = Terrain()
+terrain.SetPos(Vec3(0, 0, 0))
 terrain.SetFriction(0.6)
-
 terrain.SetRestitution(0.0)
 
-my_chrono_system.Add(terrain)
+
+driver = Driver()
+driver.SetVehicle(uavbus)
 
 
+irrlicht_application = create_default_application(True)
+irrlicht_application.SetWindowSize(800, 600)
+irrlicht_application.AddTypicalLights()
+irrlicht_application.AddTypicalLens()
+irrlicht_application.AddTypicalCamera()
+irrlicht_application.AddTypicalViewport()
 
 
-ua_bus = chrono.ChBodyEarthSurface('ua_bus', 4.0, 2.0, 0.0, 0.0)
-
-ua_bus.SetPos(chrono.ChVectorD(0, 0, 0))
-
-ua_bus.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
-
-ua_bus.SetMass(1500)
-
-ua_bus.SetInertiaXX(chrono.ChVectorD(1000, 1000, 1000))
-
-ua_bus.AddVisualization('mesh')
-
-my_chrono_system.Add(ua_bus)
+scene_graph = irrlicht_application.getSceneGraph()
 
 
+scene_graph.AddElement(uavbus)
+scene_graph.AddElement(terrain)
 
 
-driver = chrono.ChDriver('driver')
-
-driver.SetVehicle(ua_bus)
-
-driver.SetControlMode(chrono.DRIVER_CONTROL_MODE_AUTOMATIC)
-
-
-
-
-irrlicht_system = chrono.ChVisualSystemIrrlicht('irrlicht')
-
-irrlicht_system.SetViewportSize(800, 600)
-
-irrlicht_system.SetCameraPos(chrono.ChVectorD(0, 5, 10))
-
-irrlicht_system.SetCameraTarget(ua_bus)
-
-irrlicht_system.SetLightPosition(chrono.ChVectorD(0, 10, 10))
-
-irrlicht_system.SetAmbientLight(chrono.ChColor(0.1, 0.1, 0.1))
-
-irrlicht_system.SetDiffuseColor(chrono.ChColor(1, 1, 1))
-
-my_chrono_system.Add(irrlicht_system)
-
-
-
-
-while my_chrono_system.DoStep(chrono.CH_TIME_STEP) == True:
+while irrlicht_application.GetApplication()->run():
+    
+    chrono_step(1.0/60.0, 10)
 
     
-
-    driver.Update()
-
+    irrlicht_application.SetSceneGraph(scene_graph)
 
     
-
-    irrlicht_system.Draw()
-
+    irrlicht_application.GetDevice()->SetViewport(irr.core.vector3df(0, 0, 0, 1, 1, 1))
 
     
+    irrlicht_application.drawScene()
 
-    with system_lock:
-
-        pass
+    
+    irrlicht_application.GetDevice()->Step()

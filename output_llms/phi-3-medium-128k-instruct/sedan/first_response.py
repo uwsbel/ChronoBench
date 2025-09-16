@@ -1,57 +1,107 @@
-# Import the PyChrono library
+import pychron
 
-import pychrono
+import pychron.vehicle as vehicle
 
+import pychron.terrain as terrain
 
-# Initialize the PyChrono environment
+import pychron.tire as tire
 
-chrono = pychrono.ChSystemNSC()
+import pychron.camera as camera
 
+import pychron.renderer as renderer
 
-# Add a gravity source to the system
-
-gravity = pychrono.ChBody()
-
-chrono.Add(gravity)
-
-chrono.SetGravity(pychrono.ChVectorD(0, -9.81, 0))
+import pychron.materials as materials
 
 
-# Add a physical object (e.g., a sphere)
+# Initialize PyChrono environment
 
-sphere = pychrono.ChBody()
-
-sphere.SetMass(1.0)
-
-sphere.SetPos(pychrono.ChVectorD(0, 10, 0))
-
-sphere.SetRot(pychrono.ChVectorD(0, 0, 0))
-
-chrono.Add(sphere)
+chrono = pychron.Chrono()
 
 
-# Define a ground plane
+# Add a BMW E90 Sedan
 
-ground = pychrono.ChBody()
+car = vehicle.Car()
 
-ground.SetStatic(True)
+car.set_name("BMW E90 Sedan")
 
-ground.SetMass(0)
+car.set_visualization(True)
 
-ground.SetPos(pychrono.ChVectorD(0, 0, 0))
-
-ground.SetGeomFixes(pychrono.ChEntityIndexSet(sphere.index))
-
-chrono.Add(ground)
+car.set_collision(True)
 
 
-# Set up the simulation parameters
+# Add TMEASY tire model
 
-sim_time = 10.0  # Simulation time in seconds
+tire_model = tire.TMEASY()
 
-time_step = 0.01  # Time step in seconds
+car.set_tire_model(tire_model)
 
 
-# Run the simulation
+# Set vehicle parameters
 
-chrono.DoSteps(int(sim_time / time_step))
+car.set_position([0, 0, 0])
+
+car.set_mass(1500)
+
+car.set_steering_max_angle(30)
+
+car.set_throttle_max(1.0)
+
+car.set_brake_max(1.0)
+
+
+# Add rigid terrain
+
+terrain_surface = terrain.RigidSurface()
+
+terrain_surface.set_texture("terrain_texture.jpg")
+
+terrain_surface.set_logo("terrain_logo.png")
+
+
+# Set the terrain
+
+terrain_surface.set_size([100, 100])
+
+terrain_surface.set_friction(0.9)
+
+
+# Set camera and lighting
+
+chase_camera = camera.ChaseCamera()
+
+chase_camera.set_follow(car)
+
+chase_camera.set_distance(10)
+
+directional_light = renderer.DirectionalLight()
+
+directional_light.set_direction([1, 1, 1])
+
+skybox = renderer.Skybox("skybox.jpg")
+
+
+# Create the simulation
+
+simulation = pychron.Simulation()
+
+simulation.add_object(car)
+
+simulation.add_object(terrain_surface)
+
+simulation.set_camera(chase_camera)
+
+simulation.set_light(directional_light)
+
+simulation.set_skybox(skybox)
+
+
+# Set interactive driver system
+
+driver_system = pychron.DriverSystem()
+
+simulation.set_driver_system(driver_system)
+
+
+# Start the simulation
+
+simulation.start()

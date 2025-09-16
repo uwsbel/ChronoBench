@@ -1,58 +1,48 @@
-import pychrono as pc
-import pychrono.beams as pb
-import pychrono.visualization as pviz
+import pychrono as chrono
+from pychrono.irrlicht import *
 
-# Initialize PyChrono environment
-pc.Initialize()
+# Initialize PyChrono environment and core components
+simulation = chrono.ChSimulation()
+system = chrono.ChSystemSMC()
+system.Set_Gravity(chrono.ChVectorD(0, -9.81, 0))
+simulation.AddSystem(system)
 
-# Create a physical system
-system = pc.PhysicalSystem()
+# Create a physical system with a mesh composed of beams and nodes
+mesh = chrono.ChMesh()
+beam = chrono.ChBeam()
+beam.SetMaterial(chrono.ChMaterialSurfaceNSC())
+beam.SetSection(chrono.ChBeamSectionEmpty())
+beam.SetLength(1.0)
+beam.SetRadius(0.05)
+beam.SetYoungModulus(2e7)
+beam.SetGursonModel(chrono.ChGursonModel())
+beam.SetYieldStrength(350e6)
+beam.SetPoissonRatio(0.3)
+mesh.Add(beam)
 
-# Define beam properties
-beam_length = 1.0
-beam_width = 0.1
-beam_height = 0.05
-beam_material = pb.Material(YoungModulus=1e7, PoissonRatio=0.3, Density=1000)
+node = chrono.ChNodeFEAxyzD()
+node.SetPos(chrono.ChVectorD(0, 0, 0))
+mesh.AddNode(node)
 
-# Create beam finite element mesh
-beam_mesh = pb.BeamMesh.CreateUniform(beam_length, beam_width, beam_height, 10)
-beam_body = pb.BeamBody(beam_mesh, beam_material)
-system.Add(beam_body)
+node = chrono.ChNodeFEAxyzD()
+node.SetPos(chrono.ChVectorD(1, 0, 0))
+mesh.AddNode(node)
 
-# Set initial position and orientation of the beam
-beam_body.SetPos(pc.Vec3(0, 0, 0))
-beam_body.SetRot(pc.Quat.FromEulerAngles(pc.Vec3(0, 0, pc.DegToRad(90))))
+system.Add(mesh)
 
-# Define node properties
-node_mass = 1.0
-node_inertia = pc.Matrix33.Identity() * node_mass / 3.0
-node_body = pc.Body(node_mass, node_inertia)
-system.Add(node_body)
+# Set necessary default parameters
+system.SetSolverType(chrono.ChSolverType.Solver_BDF)
+system.SetSolverMaxIterations(100)
+system.SetSolverTolerance(1e-3)
 
-# Set initial position of the node
-node_body.SetPos(pc.Vec3(beam_length / 2, 0, 0))
+# Add visualization
+visualization = IrrlichtApplication(system, chrono.ChVectorD(0, 0, -10))
+visualization.AddTypicalCamera()
+visualization.AddTypicalLights()
+visualization.AttachSystem(system)
+visualization.SetWindowSize(800, 600)
 
-# Connect node to the beam using a joint
-joint = pc.JointRevolute(node_body, beam_body, pc.Vec3(beam_length / 2, 0, 0), pc.Vec3(0, 0, 1))
-system.Add(joint)
-
-# Set up visualization
-viz = pviz.IrrlichtVisualizer(system)
-viz.CreateWindow(800, 600, "PyChrono Beam Simulation")
-viz.SetCameraPos(pc.Vec3(2, 2, 2))
-
-# Set up simulation loop
-simulation_time = 5.0
-time_step = 0.01
-for t in pc.range(simulation_time, time_step):
-    # Apply force to the node
-    node_body.ApplyForce(pc.Vec3(0, 0, -1.0), pc.Vec3(0, 0, 0))
-
-    # Update the physical system
-    system.Step(time_step)
-
-    # Update visualization
-    viz.Update()
-
-# Clean up PyChrono environment
-pc.Finalize()
+# Run the simulation loop using the Irrlicht engine for real-time rendering
+while visualization.GetDevice().run():
+    simulation.DoStepDynamics(0.01)
+    visualization.DoStep()

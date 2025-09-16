@@ -136,6 +136,30 @@ cam.SetName("Third Person POV")
 cam.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Gator Camera"))
 manager.AddSensor(cam)
 
+# create depth camera
+offset_pose = chrono.ChFramed(
+        chrono.ChVector3d(-5.0, 0, 2), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
+    )
+depth_cam = sens.ChDepthCameraSensor(
+    gator.GetChassisBody(),              # Body depth camera is attached to
+    update_rate,            # Scanning rate in Hz
+    offset_pose,            # Offset pose
+    image_width,     # Image width
+    image_height,       # Image height
+    fov,         # Horizontal field of view
+    30,       # Maximum depth
+    sens.DepthCameraFilterType_DEPTH_MAP          # Depth map filter type
+)
+depth_cam.SetName("Depth Camera")
+depth_cam.SetLag(lag)
+depth_cam.SetCollectionWindow(1/update_rate)
+# Provides the host access to the Depth data
+depth_cam.PushFilter(sens.ChFilterDepthAccess())
+# Convert Depth data to a Depth Map
+depth_cam.PushFilter(sens.ChFilterDepthMap(640, 480, 1.0, "Depth Map"))
+# Add the depth camera to the sensor manager
+manager.AddSensor(depth_cam)
+
 # create lidar sensor
 offset_pose = chrono.ChFramed(
         chrono.ChVector3d(0.0, 0, 2), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
@@ -169,27 +193,20 @@ lidar.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "Lidar Point Cl
 # Add the lidar to the sensor manager
 manager.AddSensor(lidar)
 
-# Create depth camera
-depth_offset_pose = chrono.ChFramed(chrono.ChVector3d(-5.0, 0, 2), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0)))
-depth_cam = sens.ChCameraSensor(
-    gator.GetChassisBody(),
-    update_rate,
-    depth_offset_pose,
-    image_width,
-    image_height,
-    fov
-)
-depth_cam.SetName("Depth Camera")
-depth_cam.PushFilter(sens.ChFilterVisualizeDepthMap(image_width, image_height, "Depth Map"))
-manager.AddSensor(depth_cam)
+# Create a logger
+logger = sens.ChLogger()
+logger.SetName("Vehicle State Logger")
+logger.SetCollectionWindow(1/update_rate)
+# Add logger to the sensor manager
+manager.AddSensor(logger)
 
 # ---------------
 # Simulation loop
 # ---------------
+
 realtime_timer = chrono.ChRealtimeStepTimer()
 time = 0
 end_time = 30
-log_file = open('vehicle_state.log', 'w')
 while time < end_time:
     time = gator.GetSystem().GetChTime()
     # set driver inputs
@@ -214,9 +231,7 @@ while time < end_time:
     realtime_timer.Spin(step_size)
 
     # Log vehicle state
-    log_file.write(f'Time: {time}\n')
-    log_file.write(f'Position: {gator.GetChassisBody().GetPos()}\n')
-    log_file.write(f'Heading: {gator.GetChassisBody().GetRot().GetAngleX()}\n')
-    log_file.write('\n')
-
-log_file.close()
+    logger.Log(time, 
+              gator.GetVehicle().GetChassisBody().GetPos(), 
+              gator.GetVehicle().GetChassisBody().GetOrientation(), 
+              gator.GetVehicle().GetChassisBody().GetHeading())

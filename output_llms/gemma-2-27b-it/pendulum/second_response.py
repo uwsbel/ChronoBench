@@ -35,13 +35,13 @@ pend_1.AddVisualShape(cyl_1, chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleY
 # The pendulum is initially horizontal, pointing towards the positive X direction
 pend_1.SetPos(chrono.ChVector3d(1, 0, 1))
 
-# Set initial angular velocity
-pend_1.SetWvel_par(chrono.ChVector3d(0, 0, 1))  # Rotate around Z-axis
+# Set an initial angular velocity for the pendulum
+pend_1.SetWvel(chrono.ChVector3d(0, 0, 1)) # Example: initial rotation around Z-axis
 
 # Create a spherical joint to connect the pendulum to the ground
-sph_1 = chrono.ChLinkLockSpherical()
-sph_1.Initialize(ground, pend_1, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 1)))
-sys.AddLink(sph_1)
+spherical_joint = chrono.ChLinkLockSpherical()
+spherical_joint.Initialize(ground, pend_1, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 1))) 
+sys.AddLink(spherical_joint)
 
 # Create the Irrlicht visualization system
 vis = chronoirr.ChVisualSystemIrrlicht()

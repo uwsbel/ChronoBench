@@ -136,8 +136,7 @@ while vis.Run() :
 
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
-    terrain.Synchronize(time)
-    vehicle.Synchronize(time, driver_inputs, terrain)
+    terrain.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
 
     # Advance simulation for one timestep for all modules
@@ -151,3 +150,9 @@ while vis.Run() :
 
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
+
+
+
+# ---------------
+# Simulation loop
+# ---------------

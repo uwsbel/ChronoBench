@@ -107,32 +107,37 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 
-for _ in range(10):
-    box_size = random.uniform(0.1, 1)
-    box_pos = chrono.ChVector3d(random.uniform(-5, 5), random.uniform(-5, 5), box_size / 2)
-    if (box_pos - initLoc).Length() > 2:
-        box = chrono.ChBodyEasyBox(box_size, box_size, box_size, 1000, True, True)
-        box.SetPos(box_pos)
-        vehicle.GetSystem().Add(box)
+for i in range(10):
+    x = random.uniform(-10, 10)
+    y = random.uniform(-10, 10)
+    z = random.uniform(0, 1)
+    box = chrono.ChBodyEasyBox(2, 2, 2, 1000, True, True)
+    box.SetPos(chrono.ChVectorD(x, y, z))
+    vehicle.GetSystem().Add(box)
 
 
 sensor_manager = veh.ChSensorManager(vehicle.GetSystem())
 
 
-for _ in range(5):
-    light_pos = chrono.ChVector3d(random.uniform(-5, 5), random.uniform(-5, 5), 5)
-    sensor_manager.AddLight(light_pos, 1, 1, 1, 1)
-
-
 camera_sensor = veh.ChCameraSensor(vehicle.GetChassisBody(), 640, 480, 60)
-camera_sensor.SetLocalPos(chrono.ChVector3d(0, 0, 1))
-camera_sensor.SetLocalRot(chrono.ChQuaterniond(1, 0, 0, 0))
+camera_sensor.SetImagePlaneNormal(chrono.ChVectorD(0, 0, 1))
+camera_sensor.SetImagePlaneDistance(1)
+camera_sensor.SetImagePlaneWidth(10)
+camera_sensor.SetImagePlaneHeight(10)
+camera_sensor.SetNearPlane(0.1)
+camera_sensor.SetFarPlane(100)
+camera_sensor.SetFieldOfView(chrono.ChFOV(60))
 
 
 sensor_manager.AddSensor(camera_sensor)
 
 
-camera_filter = veh.ChFilterAccess(camera_sensor)
+camera_filter = veh.ChFilterVisualizeCamera(camera_sensor)
+camera_filter.SetName("Camera Feed")
+camera_filter.SetEnabled(True)
+
+
+sensor_manager.AddFilter(camera_filter)
 
 
 

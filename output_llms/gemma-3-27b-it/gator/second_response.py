@@ -82,9 +82,15 @@ patch4 = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(terrai
 patch4.SetTexture(veh.GetDataFile("terrain/textures/tile7.jpg"), 200, 200)
 patch4.SetColor(chrono.ChColor(0.5, 0.5, 0.2))
 
-heightmap = veh.GetDataFile("terrain/heightmaps/bump.png")
-patch4.SetHeightmap(heightmap)
-patch4.SetHeightmapScale(0.1)
+# Create heightmap data (example bump)
+heightmap_data = chrono.ChVector3d[256][256]
+for i in range(256):
+    for j in range(256):
+        heightmap_data[i][j] = 0.0
+        if 100 < i < 150 and 100 < j < 150:
+            heightmap_data[i][j].z = 2.0  # Create a bump
+
+patch4.SetHeightmap(heightmap_data)
 
 terrain.Initialize()
 
@@ -128,6 +134,7 @@ render_steps = math.ceil(render_step_size / step_size)
 s = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
+
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 

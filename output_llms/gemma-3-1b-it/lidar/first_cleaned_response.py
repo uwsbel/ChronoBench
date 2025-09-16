@@ -1,81 +1,64 @@
 import pychrono
-import pychrono.objects
-import pychrono.physics
-import pychrono.sensors
-import pychrono.visuals
-import pychrono.sensors.lidar
-import pychrono.visuals.lidar_visuals
-import pychrono.sensors.lidar.noise_filters
-import pychrono.visuals.lidar_data
+import pychrono.core as pc
+import pychrono.objects as o
+import pychrono.utils as uc
 import numpy as np
 import matplotlib.pyplot as plt
+from pychrono.utils import visualize
 
+def simulate_orbit(mesh_path, sensor_manager, simulation_time, lidar_resolution=100):
+    
 
-
-
-mesh_file = "path/to/your/mesh.obj"  
-try:
-    mesh = pychrono.objects.Mesh.from_obj(mesh_file)
-except Exception as e:
-    print(f"Error loading mesh: {e}")
-    return  
-
-
-body_type = "triangular"
-body_position = [0, 0, 1]  
-body_velocity = [0, 0, 1] 
-body_force = [0, 0, 1] 
-
-
-
-
-sensor_manager = pychrono.sensors.sensor_manager.SensorManager()
-sensor_manager.add_sensor(pychrono.sensors.Lidar(mesh=mesh, position=body_position, velocity=body_velocity, force=body_force))
-
-
-noise_filter = pychrono.visuals.lidar_visuals.NoiseFilter(
-    noise_type="gaussian",
-    sigma=1.0
-)
-lidar_data = sensor_manager.lidar_data
-
-
-
-simulation_time = 10  
-simulation_steps = 100
-simulation_step_interval = 1.0 / simulation_time  
-
-
-
-def run_simulation():
-    print("Starting simulation...")
     try:
-        
-        pychrono.init()
+        mesh = pc.Mesh.from_obj(mesh_path)
+        print(f"Mesh loaded: {mesh_path}")
 
         
-        for i in range(simulation_steps):
+        sensor_manager = sensor_manager.create_sensor_manager()
+
+        
+        orbit_radius = 10  
+        orbit_speed = 0.1  
+        simulation_steps = int(simulation_time / orbit_speed)
+
+        
+        lidar_sensor = pc.Lidar(sensor_manager, resolution=lidar_resolution)
+
+        
+        for step in range(simulation_steps):
+            print(f"Step: {step + 1}/{simulation_steps}")
             
-            lidar_data = sensor_manager.lidar_data
-            lidar_buffer = lidar_data.get_buffer()
+            
+            lidar_position = mesh.position()
+            lidar_position = pc.Vector(lidar_position)
+            
+            
+            lidar_data = lidar_sensor.get_data()
+            lidar_data = uc.noise_filter(lidar_data, sigma=10)  
 
             
-            visual = pychrono.visuals.lidar_visuals.LidarVisual(lidar_buffer)
-            visual.set_position(lidar_buffer.position)
-            visual.set_scale(1.0)  
+            visualize(lidar_data,  
+                      title="Lidar Data",
+                      x_label="X",
+                      y_label="Y",
+                      color="blue",
+                      opacity=0.7)
 
             
-            print(f"Step {i+1}: Lidar Buffer Data")
-            print(lidar_buffer.buffer)
+            
 
             
-            pychrono.update_step()
+            time.sleep(1)
+
+        print("Simulation complete.")
 
     except Exception as e:
-        print(f"Error during simulation: {e}")
+        print(f"An error occurred: {e}")
 
-    finally:
-        pychrono.cleanup()  
 
-if __name__ == "__main__":
-    run_simulation()
+if __name__ == '__main__':
+    
+    mesh_file = "path/to/your/mesh.obj"  
+    sensor_manager = pychrono.core.SensorManager()
+    simulation_time = 5  
+    simulate_orbit(mesh_file, sensor_manager, simulation_time)

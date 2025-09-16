@@ -150,3 +150,5 @@ while time < end_time:
 
     
     realtime_timer.Spin(step_size)
+
+print("Simulation complete.")

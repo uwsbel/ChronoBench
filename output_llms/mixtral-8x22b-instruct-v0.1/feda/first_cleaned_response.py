@@ -1,67 +1,45 @@
-import pychrono as chrono
-import pychrono.irrlicht as chronoirr
-import pychrono.vehicle as veh
+import PyChrono as chrono
+import PyChrono.Irrlicht as chronoirr
+import PyChrono.Vehicle as chronovehicle
+import PyChrono.Postprocess as chronopost
 import numpy as np
 
 
-chrono.SetChronoDataPath("/path/to/chrono/data")
-chrono.SetChronoDataPath("/path/to/irrlicht/data")
-
-chrono.SetChronoDataPath("/path/to/vehicle/data")
-chrono.SetChronoDataPath("/path/to/feda/data")
-
-chrono.SetChronoDataPath("/path/to/terrain/data")
-
-chrono.SetChronoDataPath("/path/to/hdf5/data")
-
-chrono.SetChronoDataPath("/path/to/mesh/data")
-
-chrono.SetChronoDataPath("/path/to/driver/data")
+chrono.InitChrono()
+my_application = chronoirr.ChIrrApp(chronoirr.NullSceneManager(), 'FEDA Vehicle Simulation', chronoirr.dimension2d(800, 600))
 
 
-my_system = chrono.ChSystemNSC()
+terrain = chrono.ChTerrain()
+terrain.SetTexture(chrono.LoadTexture(chrono.GetChronoDataFile('terrain/textures/tarmac.jpg')))
+terrain.SetContactMaterial(3e7, 0.4)
+terrain.Initialize(100, 100, 1)
 
 
-my_vehicle = veh.ChVehicle()
+vehicle = chronovehicle.ChVehicle()
+vehicle.SetChassis(chronovehicle.ChChassis())
+vehicle.Initialize(chrono.ChCoordsysD(np.array([0, 0, 0]), chrono.Q_from_AngY(0)))
+vehicle.SetContactMethod(chronovehicle.ChContactMethod_FEA)
+vehicle.SetTireType(chronovehicle.ChVehicleTire_Type_FEDA)
 
 
-my_vehicle.SetContactMethod(veh.ChVehicle::CONTACT_METHOD_FEA)
-my_vehicle.SetTireType(veh.ChVehicle::TireType::FEDA)
-my_vehicle.SetChassisFixed(False)
-my_vehicle.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0.5), chrono.Q_from_AngX(chrono.CH_C_PI_2)))
+my_application.AddTypicalCamera(chronoirr.vec(0, 0, 10), chronoirr.vec(0, 0, 0))
+my_application.AddTypicalLights()
 
 
-my_system.Add(my_vehicle)
+vehicle.SetAllVisualizationType(chronovehicle.ChVisualizationType_MESH)
 
 
-my_terrain = veh.ChRigidTerrain(my_system)
+driver = chronovehicle.ChIrrGuiDriver(my_application)
+vehicle.AddDriver(driver)
 
 
-my_terrain.SetTexture(chrono.GetChronoDataFile("terrain/textures/tile4.jpg"), 200, 200)
+my_application.AssetBindAll()
+my_application.AssetUpdateAll()
 
+while my_application.GetDevice().run():
+    my_application.BeginScene()
+    my_application.DrawAll()
+    my_application.DoStepDynamics(0.02)
+    my_application.EndScene()
 
-my_system.Add(my_terrain)
-
-
-
-my_visualization = chronoirr.ChIrrApp(my_system, "Vehicle Demo", chronoirr.dimension2du(800, 600), False, True)
-my_visualization.AddTypicalSky()
-my_visualization.AddTypicalLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))
-my_visualization.AddTypicalCamera(chrono.ChVectorD(0, -30, 1.5), chrono.ChVectorD(0, 0, 0))
-my_visualization.AddTypicalLights()
-
-
-my_vehicle.SetVisualizationType(veh.VisualizationType::MESH)
-
-
-my_driver = veh.ChIrrGuiDriver(my_visualization, my_vehicle)
-
-
-my_visualization.SetTimestep(0.02)
-my_visualization.SetTryRealtime(True)
-
-while my_visualization.Run():
-    my_system.DoStepDynamics(my_visualization.GetTimestep())
-    my_visualization.BeginScene()
-    my_visualization.DrawAll()
-    my_visualization.EndScene()
+chrono.Ch chrono.Chrono_shutdown()

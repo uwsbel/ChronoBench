@@ -7,13 +7,14 @@ import sys
 print("Example: PyChrono using beam finite elements")
 
 
-system = chrono.ChSystemSMC()
+sys = chrono.ChSystemSMC()
 
 
 mesh = fea.ChMesh()
 
 
 msection = fea.ChBeamSectionEulerAdvanced()
+
 
 beam_wy = 0.012
 beam_wz = 0.025
@@ -50,19 +51,20 @@ mesh.AddElement(belement2)
 hnode2.SetForce(chrono.ChVector3d(4, 2, 0))
 hnode3.SetTorque(chrono.ChVector3d(0, -0.04, 0))
 
+
 mtruss = chrono.ChBody()
 mtruss.SetFixed(True)
-system.Add(mtruss)
+sys.Add(mtruss)
 
 constr_bc = chrono.ChLinkMateGeneric()
 constr_bc.Initialize(hnode3, mtruss, False, hnode3.Frame(), hnode3.Frame())
-system.Add(constr_bc)
+sys.Add(constr_bc)
 constr_bc.SetConstrainedCoords(True, True, True,  
                                True, True, True)  
 
 constr_d = chrono.ChLinkMateGeneric()
 constr_d.Initialize(hnode1, mtruss, False, hnode1.Frame(), hnode1.Frame())
-system.Add(constr_d)
+sys.Add(constr_d)
 constr_d.SetConstrainedCoords(False, True, True,  
                               False, False, False)  
 
@@ -70,30 +72,23 @@ constr_d.SetConstrainedCoords(False, True, True,
 builder = fea.ChBuilderBeamEuler()
 
 
-builder.BuildBeam(mesh,  
-                  msection,  
-                  5,  
-                  chrono.ChVector3d(0, 0, -0.1),  
-                  chrono.ChVector3d(0.2, 0, -0.1),  
-                  chrono.ChVector3d(0, 1, 0))  
+builder.BuildBeam(mesh, msection, 5, chrono.ChVector3d(0, 0, -0.1), chrono.ChVector3d(0.2, 0, -0.1), chrono.ChVector3d(0, 1, 0))
 
 
-builder.BuildBeam(mesh,  
-                  msection,  
-                  5,  
-                  builder.GetLastBeamNodes().back().GetFrame().GetPos(),  
-                  chrono.ChVector3d(0.2, 0.1, -0.1),  
-                  chrono.ChVector3d(0, 1, 0))  
+last_beam_nodes = builder.GetLastBeamNodes()
 
 
-builder.GetLastBeamNodes().back().SetFixed(True)
-builder.GetLastBeamNodes().front().SetForce(chrono.ChVector3d(0, -1, 0))
+last_beam_nodes.back().SetFixed(True)
+last_beam_nodes.front().SetForce(chrono.ChVector3d(0, -1, 0))
 
 
-system.Add(mesh)
+builder.BuildBeam(mesh, msection, 5, last_beam_nodes.front().GetFrame().GetPos(), chrono.ChVector3d(0.2, 0.1, -0.1), chrono.ChVector3d(0, 1, 0))
 
 
 mesh.SetAutomaticGravity(False)
+
+
+sys.Add(mesh)
 
 
 visualizebeamA = chrono.ChVisualShapeFEA(mesh)
@@ -113,7 +108,7 @@ mesh.AddVisualShapeFEA(visualizebeamC)
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(system)
+vis.AttachSystem(sys)
 vis.SetWindowSize(1024, 768)
 vis.SetWindowTitle('FEA beams')
 vis.Initialize()
@@ -124,11 +119,11 @@ vis.AddTypicalLights()
 
 
 msolver = mkl.ChSolverPardisoMKL()
-system.SetSolver(msolver)
+sys.SetSolver(msolver)
 
 
 while vis.Run():
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
-    system.DoStepDynamics(0.001)
+    sys.DoStepDynamics(0.001)

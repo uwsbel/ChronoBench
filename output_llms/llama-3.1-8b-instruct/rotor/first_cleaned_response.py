@@ -25,44 +25,44 @@ flywheel.SetDensity(1.0)
 flywheel.SetMass(1.0)
 flywheel.SetInertia(0.5, 0.5, 0.5)
 flywheel.SetPos(ch.Vec(0, 0, 0.5))
-flywheel.SetAng(ch.Vec(0, 0, 0))
+flywheel.SetAng(0, 0, 0)
 world.Add(flywheel)
-
-
-flywheel.SetPos(ch.Vec(0, 0, 0.5))
-flywheel.SetAng(ch.Vec(0, 0, 0))
-beam.SetPos(ch.Vec(0, 0, 0))
-beam.SetAng(ch.Vec(0, 0, 0))
-ch.ChAttachCollide(flywheel, beam, ch.Vec(0, 0, 0), ch.Vec(0, 0, 0))
 
 
 motor = ch.ChMotor()
 motor.SetName("Motor")
 motor.SetType(ch.ChMotorType.ROTATIONAL)
-motor.SetMaxTorque(10.0)
+motor.SetAxis(ch.Vec(1, 0, 0))
+motor.SetSpeed(100)
+motor.SetMaxForce(100)
 motor.SetPos(ch.Vec(0, 0, 0))
-motor.SetAng(ch.Vec(0, 0, 0))
-motor.SetAxis(ch.Vec(0, 0, 1))
-beam.SetPos(ch.Vec(0, 0, 0))
-beam.SetAng(ch.Vec(0, 0, 0))
-ch.ChAttachCollide(motor, beam, ch.Vec(0, 0, 0), ch.Vec(0, 0, 0))
+motor.SetAng(0, 0, 0)
+world.Add(motor)
 
 
-beam.SetPos(ch.Vec(0, 0, 0))
-beam.SetAng(ch.Vec(0, 0, 0))
-flywheel.SetPos(ch.Vec(0, 0, 0.5))
-flywheel.SetAng(ch.Vec(0, 0, 0))
-motor.SetPos(ch.Vec(0, 0, 0))
-motor.SetAng(ch.Vec(0, 0, 0))
+flywheelAttach = ch.ChAttachMode()
+flywheelAttach.SetBodyA(beam)
+flywheelAttach.SetBodyB(flywheel)
+flywheelAttach.SetPos(ch.Vec(0, 0, 0))
+flywheelAttach.SetAng(0, 0, 0)
+flywheelAttach.SetType(ch.ChAttachMode.FIXED)
+world.Add(flywheelAttach)
 
 
-t = 0
-dt = 0.001
-t_end = 10
-while t < t_end:
-    world.DoStepDynamics(dt)
-    t += dt
+beam.SetFemVisualization(True)
+beam.SetFemColor(ch.ChColor(1, 0, 0))
 
 
-ch.ChFemVisualize(world, 1)
-ch.ChIrrVisualize(world, 1)
+irrlicht = ch.ChIrrAppSimple(world, "Jeffcott Rotor Simulation", ch.dimension2du(800, 600))
+irrlicht.AddFrameScene(world)
+
+
+while not irrlicht.KeyCloseDown():
+    world.DoStep()
+    irrlicht.BeginScene()
+    irrlicht.DrawAll()
+    irrlicht.EndScene()
+    irrlicht.ShowImage()
+
+
+ch.FinalCleanUp()

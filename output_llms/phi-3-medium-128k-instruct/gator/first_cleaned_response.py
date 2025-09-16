@@ -1,178 +1,1839 @@
-import pychrono
+```python
 
-import pychrono.irrlicht
+from pychrono import ChBody, ChVector, ChQuaternion, ChSystem, ChSystemNSC, ChSystemNSC::Dynamics, ChTire, ChRigidTerrain, ChMeshVisual, ChTextureVisual
+from pychrono.utils import *
+import irrlicht
 
-import pychrono.contact as contact
 
-import pychrono.tire as tire
 
-import pychrono.vehicle as vehicle
+system = ChSystemNSC()
 
-import pychrono.rigid_body as rb
 
-import pychrono.sphere as sphere
 
-import pychrono.tire_model as tire_model
+vehicle_mass = 1000.0  
 
+vehicle_inertia = ChVector(1000.0, 1000.0, 1000.0)  
 
+vehicle_position = ChVector(0.0, 0.0, 0.0)  
 
+vehicle_orientation = ChQuaternion(1.0, 0.0, 0.0, 0.0)  
 
-chrono = pychrono.ChRono()
+vehicle_steering_angle = 0.0  
 
-irr = pychrono.irrlicht.ChIrrApp()
+vehicle_throttle = 0.0  
 
+vehicle_brake = 0.0  
 
 
 
-irr.SetWindowSize(1280, 720)
 
-irr.SetFov(60)
+vehicle_body = ChBody(vehicle_mass, vehicle_inertia = ChVector(1000.0, 1000.0, 1000.0)
 
+vehicle_inertia
 
 
 
-terrain = contact.RigidTerrain(chrono)
 
-terrain.SetDimensions(10, 10)
+vehicle_body = ChBody(vehicle_inertia)
 
-terrain.SetTexture("custom_terrain_texture.jpg")
+vehicle_body.SetPosition(ChVector(0, 0, 0)
 
+vehicle_body.SetRotation(ChQuaternion(1.0, 0.0, 0.0, 0.0)
 
+vehicle_body.SetPosition(ChVector(0, 0, 0)
 
+vehicle_body.SetQuaternion(1.0, 0.0, 0.0, 0.0)
 
-gator = vehicle.Vehicle(chrono)
+vehicle_body.SetInertia(vehicle_inertia)
 
-gator.SetMass(1000)
 
-gator.SetLength(3)
 
-gator.SetWidth(2)
 
+vehicle_body.SetContactMethod(ChBody.EnergyLimitedFrictionBall()
 
+vehicle_body.SetFriction(vehicle_body, vehicle_body.GetMass(), vehicle_body.GetInertia(), vehicle_inertia)
 
 
-gator.AddRigidBody(chrono)
 
 
+vehicle = ChBody(vehicle_mass, vehicle_inertia)
 
+vehicle.SetPosition(ChVector(0, 0, 0)
 
-tire_model = tire.TireModel(chrono)
+vehicle.SetRotation(ChQuaternion(1.0, 0.0, 0.0, 0.0)
 
-tire_model.SetName("TMEASY")
+vehicle.SetLinearDamping(0.0)
 
-tire_model.SetFrictionCoefficient(0.8)
+vehicle.SetAngularDamping(0.0)
 
-tire_model.SetStiffness(10000)
 
-tire_model.SetDamping(100)
 
 
+vehicle_body.SetMass(vehicle_mass)
 
+vehicle_body.SetInertia(vehicle_inertia)
 
-front_left_tire = tire.Tire(chrono, tire_model)
+vehicle_body.SetPosition(ChVector(0, 0, 0)
 
-front_right_tire = tire.Tire(chrono, tire_model)
+vehicle_body.SetRotation(ChQuaternion(1.0, 0.0, 0.0, 0.0)
 
-rear_left_tire = tire.Tire(chrono, tire_model)
+vehicle_body.SetPosition(ChVector(0, 0, 0)
 
-rear_right_tire = tire.Tire(chrono, tire_model)
+vehicle_body.SetRotation(ChQuaternion(1.0, 0.0, 0.0, 0.0)
 
 
 
 
-front_left_tire.SetPosition(sphere.Sphere(chrono, gator.GetBody().GetPos() + pychrono.ChVectorD(0.5, 0.5, 0)))
+vehicle_body.SetPosition(ChVector(0, 0, 0)
 
-front_left_tire.SetOrientation(pychrono.ChQuaternionD(0, 0, 0, 1))
+vehicle_body.SetRotation(ChQuaternion(1.0, 0.0, 0.0, 0.0)
 
+tire_radius = 0.3  
 
-front_right_tire.SetPosition(sphere.Sphere(chrono, gator.GetBody().GetPos() + pychrono.ChVectorD(-0.5, 0.5, 0)))
+tire_width = 0.2  
 
-front_right_tires.SetOrientation(pychrono.ChQuaternionD(0, 0, 0, 1))
+tire_force_limit = 10000.0  
 
+tire = ChTire(vehicle_body, vehicle_body.GetPosition(), tire_radius, tire_width, tire_force_limit)
 
-rear_left_tire.SetPosition(sphere.Sphere(chrono, gator.GetBody().GetPos() + pychrono.ChVectorD(-0.5, -0.5, 0)))
+vehicle_body.AddTire(tire)
 
-rear_left_tire.SetOrientation(pychrono.ChQuaternionD(0, 0, 0, 1))
 
 
-rear_right_tire.SetPosition(sphere.Sphere(chrono, gator.GetBody().GetPos() + pychrono.ChVectorD(0.5, -0.5, 0)))
 
-rear_right_tire.SetOrientation(pychrono.ChQuaternionD(0, 0, 0, 1))
+system.AddBody(vehicle_body)
 
 
 
 
-gator.AddTire(front_left_tire)
+vehicle_mesh = ChMeshVisual(vehicle_body)
 
-gator.AddTire(front_right_tire)
+vehicle_mesh.SetMesh("vehicle_mesh.obj")
 
-gator.AddTire(rear_left_tire)
+vehicle_body.AddVisual(vehicle_mesh)
 
-gator.AddTire(rear_right_tire)
 
 
 
+tire_visual = ChTextureVisual(vehicle_body)
 
-driver = vehicle.Driver(chrono)
+tire_visual.SetTexture("tire_texture.png")
 
-driver.SetSteeringGain(1.0)
+vehicle_body.AddVisual(tire_visual)
 
-driver.SetThrottleGain(1.0)
 
-driver.SetBrakeGain(1.0)
 
 
+system.AddBody(vehicle_body)
 
 
-gator.SetDriver(driver)
 
-gator.SetContactMethod(contact.ContactMethod.STRICT_CONTACT)
 
-gator.SetTireModel(tire_model)
+terrain = ChRigidTerrain(vehid)
 
+terrain.SetDimensions(100.0, 100.0, 10.0)
 
+terrain.SetPosition(ChVector(0, 0, 0))
 
+terrain.SetFriction(0.5)
 
-def update_simulation(time_step):
+system.AddBody(terrain)
 
-    
 
-    gator.Update(time_step)
 
 
-    
+driver = ChSystemNSC::Dynamics(system)
 
-    irr.BeginScene()
+steering_wheel = ChBody(1.0)
 
-    irr.DrawModel(gator.GetBody().GetModel())
+steering_wheel.SetPosition(ChVector(0, 0, 0))
 
-    irr.DrawModel(terrain.GetModel())
+steering_wheel.SetRotation(ChQuaternion(1.0, 0.0, 0.0, 0.0))
 
-    irr.EndScene()
+steering_wheel.SetMass(1.0)
 
+steering_wheel.SetLinearDamping(0.0)
 
+steering_wheel.SetAngularDamping(0.0)
 
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
 
-time_step = 1.0 / 50.0
+driver.AddBody(steering_wheel)
 
 
 
 
-while irr.GetDevice().poll() == pychrono.irrlicht.etShutdownRequested:
+steering_wheel.SetForce(ChVector(0, 0, 0))
 
-    irr.BeginScene()
+steering_wheel.SetAngularDamping(0.0)
 
-    irr.DrawModel(terrain.GetModel())
 
-    irr.EndScene()
+steering_wheel.SetLinearDamping(0.0)
 
-    update_simulation(time_step)
+steering_wheel.SetAngularDamping(0.0)
 
-    chrono.DoStepDynamics(time_step)
 
-    irr.DoStepIrr(time_step)
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
 
+driver.AddBody(steering_wheel)
 
 
 
-irr.EndApp()
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetInertia(ChVector(1.0, 1.0, 1.0))
+
+driver.AddBody(steering_wheel)
+
+
+
+
+steering_wheel.SetForce(ChVector(0, 0, 0))
+
+steering_wheel.SetAngularDamping(0.0)
+
+steering_wheel.SetLinearDamping(0.0)
+
+steering_wheel.SetAngularDamping(0.0)

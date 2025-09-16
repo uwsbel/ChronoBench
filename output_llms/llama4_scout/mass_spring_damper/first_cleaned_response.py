@@ -2,126 +2,50 @@ import chrono as ch
 import chrono.irrlicht as irr
 
 
-ch.ChEngine.Initialize()
+ch.CH_INIT()
 
 
-app = irr.IrrlichtApp()
-app.Create IrrlichtDevice()
-
-
-step_size = 0.01
-end_time = 10.0
-
-
-system = ch.ChSystemNSC()
+sys = ch.ChSystemNSC()
 
 
 ground = ch.ChBody()
-ground.SetBodyFixed(True)
-system.Add(ground)
+ground.SetPos(ch.ChVector3d(0, 0, 0))
+sys.Add(ground)
 
 
 mass = ch.ChBody()
 mass.SetMass(1.0)
-mass.SetPos(ch.ChVectorD(0, 1, 0))
-system.Add(mass)
+mass.SetInertiaXX(ch.ChVector3d(0.1, 0.1, 0.1))
+mass.SetPos(ch.ChVector3d(0, 5, 0))
+sys.Add(mass)
+
+
+link_tsda = ch.ChLinkTSDA()
+link_tsda.SetPoints(ch.ChVector3d(0, 0, 0), ch.ChVector3d(0, 5, 0))
+link_tsda.SetRestLength(5)
+link_tsda.SetSpringConstant(1000)
+link_tsda.SetDampingCoefficient(20)
+link_tsda.SetMinDistance(0.1)
+sys.Add(link_tsda)
 
 
 mass_shape = ch.ChSphereShape(0.2)
 mass.AddVisualShape(mass_shape)
 
-
-spring_damper = ch.ChLinkTSDA()
-spring_damper.SetPoints(ch.ChVectorD(0, 0, 0), ch.ChVectorD(0, 1, 0))
-spring_damper.SetRestLength(1.0)
-spring_damper.SetSpringConstant(10.0)  
-spring_damper.SetDampingCoefficient(2.0)  
-system.Add(spring_damper)
+spring_shape = ch.ChLineShape()
+spring_shape.SetNumSegments(10)
+spring_shape.SetSegmentPoints(link_tsda.GetPointA(), link_tsda.GetPointB())
+link_tsda.AddVisualShape(spring_shape)
 
 
-spring_damper.Connect(ground, mass)
+app = irr.ChIrrApp(sys, 'Mass-Spring-Damper System', 800, 600)
 
 
-system.SetGravitationalAcceleration(ch.ChVectorD(0, -9.81, 0))
+app.SetCameraPos(ch.ChVector3d(0, 10, 10))
+app.SetCameraTarget(ch.ChVector3d(0, 0, 0))
 
 
-system.SetIntegrator(ch.ChTimestepperEulerImplicitLinear)
+app.EnableDefaultLights()
 
 
-ground_shape = ch.ChBoxShape(10, 0.1, 10)
-ground.AddVisualShape(ground_shape)
-
-
-app.AddCamera(ch.ChVectorD(0, 2, 3), ch.ChVectorD(0, 0, 0))
-app.SetLightPosition(ch.ChVectorD(5, 5, 5))
-app.ShowInfos(True)
-
-
-while app.Run(step_size):
-    system.DoStepDynamics(step_size)
-
-import chrono as ch
-import chrono.irrlicht as irr
-
-def main():
-    
-    ch.ChEngine.Initialize()
-
-    
-    app = irr.IrrlichtApp()
-    app.CreateIrrlichtDevice()
-
-    
-    step_size = 0.01
-    end_time = 10.0
-
-    
-    system = ch.ChSystemNSC()
-
-    
-    ground = ch.ChBody()
-    ground.SetBodyFixed(True)
-    system.Add(ground)
-
-    
-    mass = ch.ChBody()
-    mass.SetMass(1.0)
-    mass.SetPos(ch.ChVectorD(0, 1, 0))
-    system.Add(mass)
-
-    
-    mass_shape = ch.ChSphereShape(0.2)
-    mass.AddVisualShape(mass_shape)
-
-    
-    spring_damper = ch.ChLinkTSDA()
-    spring_damper.SetPoints(ch.ChVectorD(0, 0, 0), ch.ChVectorD(0, 1, 0))
-    spring_damper.SetRestLength(1.0)
-    spring_damper.SetSpringConstant(10.0)  
-    spring_damper.SetDampingCoefficient(2.0)  
-    system.Add(spring_damper)
-
-    
-    spring_damper.Connect(ground, mass)
-
-    
-    system.SetGravitationalAcceleration(ch.ChVectorD(0, -9.81, 0))
-
-    
-    system.SetIntegrator(ch.ChTimestepperEulerImplicitLinear)
-
-    
-    ground_shape = ch.ChBoxShape(10, 0.1, 10)
-    ground.AddVisualShape(ground_shape)
-
-    
-    app.AddCamera(ch.ChVectorD(0, 2, 3), ch.ChVectorD(0, 0, 0))
-    app.SetLightPosition(ch.ChVectorD(5, 5, 5))
-    app.ShowInfos(True)
-
-    
-    while app.Run(step_size):
-        system.DoStepDynamics(step_size)
-
-if __name__ == "__main__":
-    main()
+app.Run()

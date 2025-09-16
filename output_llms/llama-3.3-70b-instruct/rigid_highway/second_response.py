@@ -6,7 +6,7 @@ import math
 """
 !!!! Set this path before running the demo!
 """
-chrono.SetChronoDataPath('/path/to/chrono/data')  # Replace with the actual path
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 # Initial vehicle location and orientation
@@ -87,13 +87,13 @@ new_patch = terrain.AddPatch(new_patch_mat,
     chrono.ChCoordsysd(chrono.ChVector3d(0, -42, 0), chrono.QUNIT),
     chrono.GetChronoDataFile('vehicle/terrain/meshes/bump.obj'),
     True, 0.01, False)
-new_vis_mesh = chrono.ChTriangleMeshConnected().CreateFromWavefrontFile(veh.GetDataFile("terrain/meshes/bump.obj"), True, True)
+new_vis_mesh = chrono.ChTriangleMeshConnected().CreateFromWavefrontFile(chrono.GetChronoDataFile('vehicle/terrain/meshes/bump.obj'), True, True)
 new_tri_mesh_shape = chrono.ChVisualShapeTriangleMesh()
 new_tri_mesh_shape.SetMesh(new_vis_mesh)
+new_tri_mesh_shape.SetColor(chrono.ChVectorD(0.5, 0.5, 0.8))
+new_tri_mesh_shape.SetTexture(chrono.GetChronoDataFile('vehicle/terrain/textures/dirt.jpg'), 6.0, 6.0)
 new_tri_mesh_shape.SetMutable(False)
 new_patch.GetGroundBody().AddVisualShape(new_tri_mesh_shape)
-new_patch.GetGroundBody().AddVisualShape(chrono.ChVisualShapeDiffuseMesh(new_vis_mesh, chrono.ChVectorF(0.5, 0.5, 0.8)))
-new_patch.GetGroundBody().AddVisualShape(chrono.ChVisualShapeTexture(new_vis_mesh, veh.GetDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0))
 
 # Create the vehicle Irrlicht interface
 

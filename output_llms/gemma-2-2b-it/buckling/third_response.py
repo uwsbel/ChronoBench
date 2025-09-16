@@ -1,26 +1,26 @@
 ```python
-import math as m  
-import pychrono as chrno  
-import pychrono.fea as fea  
-import pychrono.pardisomkl as mklsolver  
-import pychrono.irrlicht as chronicls  
-import os  
+import math as m  # Import the math library for trigonometric functions, constants, etc.
+import pychrono as chrno  # Import the main PyChrono library
+import pychrono.fea as fea  # Import the finite element analysis module from PyChrono
+import pychrono.pardisomkl as mklsolver  # Import the Pardiso solver module from PyChrono
+import pychrono.irrlicht as chronicls  # Import the Irrlicht visualization module from PyChrono
+import os  # Import the OS library for file and directory operations
 
 # Custom function class for motor angle:
-class ChFunctionMyFun(chrno.ChFunction):
+class ChFunctionMyFun(chrono.ChFunction):
     def __init__(self):
-        chrno.ChFunction.__init__(self)
+        chrono.ChFunction.__init__(self)
     def GetVal(self, x):
         if x > 0.5:
-            return chrno.CH_PI
+            return chrono.CH_PI
         else:
-            return -chrno.CH_PI * (1.0 - m.cos(chrno.CH_PI * x / 0.3)) / 2.0
+            return -chrono.CH_PI * (1.0 - m.cos(chrono.CH_PI * x / 0.3)) / 2.0
 
 # Define the output directory path
 out_dir = chrno.GetChronoOutputPath() + "BEAM_FAILED"
 
 # Create a Chrono::Engine physical system
-sys = chrno.ChSystemSMC()
+sys = chrno.ChSytemSMC()
 
 # Define key geometrical parameters
 L = 1.2
@@ -52,7 +52,7 @@ body_crank.AddVisualShape(boxcrank)
 
 # Create a rotational motor
 motor = chrno.ChLinkMotorRotationSpeed()
-motor.Initialize(body_trss, body_crank, chrno.ChFramed(vG))
+motor.Initialize(body_truss, body_crank, chrno.ChFramed(vG))
 myfun = ChFunctionMyFun()
 motor.SetTorqueFunction(myfun)
 sys.Add(motor)
@@ -124,9 +124,4 @@ builderB = fea.ChBuilderBeamEuler()
 builderB.BuildBeam(mesh, section3, 4, vG + vd, vB + vd, chrno.ChVector3d(0, 1, 0))
 
 # Define nodes at the ends of the crank beam
-node_crnkG = builderB.GetLastBeamNodes()[0]
-node_crankB = builderB.GetLastBeamNodes()[-1]
-
-# Create a constraint between the crank beam and the body crank
-constr_cbd = chrno.ChLinkMatePrismatic()
-constr_cbd.Initialize(node_crnkG, body_crank, False, node_crnkG.
+node_crnk

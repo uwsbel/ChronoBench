@@ -30,21 +30,33 @@ robot.Initialize()
 
 sensor_manager = sens.ChSensorManager(system)
 lidar = sens.ChLidarSensor()
-lidar.SetName("my_lidar")
-lidar.SetCollisionEnvelope(0.01)
-lidar.SetMaxDistance(10)
-lidar.SetHorizontalFOV(math.pi / 2)
-lidar.SetVerticalFOV(math.pi / 4)
-lidar.SetScanFrequency(10)
-lidar.SetFilter(sens.ChLidarFilterGaussian(0.05))
+lidar.SetCollisionEnvelope(0.05)
+lidar.SetRays(64)
+lidar.SetAngle(chrono.ChRadToDeg(math.pi / 2))
+lidar.SetRange(5)
+lidar.SetFrequency(10)
+lidar.SetYawFilter(sens.ChLidarSensor.FILTER_NONE)
+lidar.SetPitchFilter(sens.ChLidarSensor.FILTER_NONE)
 lidar.AttachToBody(robot.GetChassisBody())
 sensor_manager.AddSensor(lidar)
 
 
 for i in range(5):
-    box = chrono.ChBodyEasyBox(0.2, 0.2, 0.2, 10, True, True)
+    box = chrono.ChBodyEasyBox(0.2, 0.2, 0.2, 100, True, True)
     box.SetPos(chrono.ChVector3d(np.random.uniform(-5, 5), np.random.uniform(-5, 5), 0.1))
     system.Add(box)
+
+
+def move(mode):
+    if mode == 'straight':
+        robot.SetMotorSpeed(math.pi, 0)
+        robot.SetMotorSpeed(math.pi, 1)
+    elif mode == 'left':
+        robot.SetMotorSpeed(math.pi, 0)
+        robot.SetMotorSpeed(0, 1)
+    elif mode == 'right':
+        robot.SetMotorSpeed(0, 0)
+        robot.SetMotorSpeed(math.pi, 1)
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
@@ -66,21 +78,10 @@ vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0
 time_step = 2e-3
 
 
-def move(mode):
-    if mode == 'straight':
-        robot.SetMotorSpeed(math.pi, 0)
-        robot.SetMotorSpeed(math.pi, 1)
-    elif mode == 'left':
-        robot.SetMotorSpeed(math.pi, 0)
-        robot.SetMotorSpeed(0, 1)
-    elif mode == 'right':
-        robot.SetMotorSpeed(0, 0)
-        robot.SetMotorSpeed(math.pi, 1)
-
-
 time = 0
 while vis.Run():
-    move('straight')  
+    
+    move('straight')
 
     
     sensor_manager.Update()

@@ -5,149 +5,164 @@
 ### 1. Completeness (40 points)
 
 - **System Initialization:**  
-  The script uses `veh.Kraz()` which internally creates and manages its own system (`vehicle.GetSystem()`). However, the script never explicitly creates a `chrono.ChSystemNSC()` or `chrono.ChSystemSMC()` instance. According to the API documentation and best practices, the system should be explicitly created and passed or at least clearly referenced. The vehicle internally creates the system, but this is implicit and might confuse readers or limit flexibility.  
-  **Deduction: 5 points** (minor omission, since `veh.Kraz()` internally manages the system, but explicit system creation is clearer and recommended).
+  The script uses `veh.Kraz()` which internally creates and manages its own system. However, the script does not explicitly create or expose the `chrono.ChSystemNSC()` or `chrono.ChSystemSMC()` system object. This is acceptable because `veh.Kraz()` internally manages the system, but it is somewhat implicit. No explicit system initialization is shown or documented, which might be confusing for clarity and debugging.  
+  **Deduction:** 5 points (minor omission/slight deviation from best practice to explicitly show system creation or retrieval).
 
 - **Body Creation:**  
-  The vehicle and terrain bodies are created properly via the vehicle and terrain classes. Terrain patch is added with material and initialized.  
+  The vehicle is created properly with `veh.Kraz()`. The terrain is created with `veh.RigidTerrain()`. Both are initialized properly.  
   **No deduction.**
 
 - **Visualization:**  
-  The visualization system is created using `veh.ChWheeledVehicleVisualSystemIrrlicht()`, which is appropriate for vehicle simulations. The window is set up with title, size, camera, logo, directional light, and skybox. However, the script uses `vis.AttachVehicle(vehicle.GetTractor())` instead of `vis.AttachVehicle(vehicle)`. The vehicle object is `veh.Kraz()`, which is a subclass of `veh.WheeledVehicle`. The API documentation and examples typically attach the vehicle object itself, not `GetTractor()`. This is a subtle but important detail.  
-  **Deduction: 10 points** (incorrect or incomplete visualization setup due to attaching `GetTractor()` instead of the vehicle).
+  Visualization is set up with `veh.ChWheeledVehicleVisualSystemIrrlicht()`, window size, title, camera, logo, lighting, and skybox are added. However, the script uses `vis.AttachVehicle(vehicle.GetTractor())` which is correct since `vehicle.GetTractor()` returns the underlying vehicle object for visualization.  
+  **No deduction.**
 
 - **Driver Setup:**  
-  The interactive driver is created and initialized properly. Steering, throttle, and braking deltas are set based on render step size.  
+  The interactive driver is created and initialized properly.  
+  **No deduction.**
+
+- **Terrain Setup:**  
+  Terrain patch is created with material and texture, and initialized.  
   **No deduction.**
 
 - **Simulation Loop:**  
-  The loop runs while `vis.Run()` is true, rendering every `render_steps` steps, synchronizing all components, advancing them, and spinning the realtime timer. This is consistent with best practices.  
+  The loop runs while `vis.Run()`. Synchronization and advancement calls are made for driver, terrain, vehicle, and visualization.  
   **No deduction.**
 
 - **Lane Change Logic:**  
-  The code includes placeholders for lane change logic but does not implement any behavior. While this is not strictly required, leaving empty `pass` blocks without comments or TODOs is a minor omission.  
-  **Deduction: 5 points** (minor omission for incomplete lane change implementation or at least comments).
+  The lane change logic attempts to modify steering delta every `lane_change_time` seconds, but the condition `if (time % lane_change_time == 0)` is problematic because `time` is a floating-point value and exact equality with zero modulo is unlikely. This will almost never trigger. This is a correctness issue but also completeness since the lane change behavior is intended but not effectively implemented.  
+  **Deduction:** 15 points (missing essential correct implementation of lane change behavior).
 
-**Total Completeness Deduction: 5 + 10 + 5 = 20 points**  
-**Remaining Completeness: 40 - 20 = 20 points**
+**Total Completeness Deduction:** 5 + 15 = 20 points
 
 ---
 
 ### 2. Correctness (30 points)
 
-- **Quaternion Initialization:**  
-  `initRot = chrono.ChQuaterniond(0, 0, 1, 0)` is suspicious. Quaternions are usually normalized and represent rotation as (w, x, y, z). The constructor is `(w, x, y, z)`. Here, `w=0`, `x=0`, `y=1`, `z=0`. This quaternion represents a 180-degree rotation around the Y-axis, which might be intentional but is unusual. The documentation examples often use `chrono.QUNIT` or `chrono.ChQuaterniond(1,0,0,0)` for identity.  
-  This could cause unexpected initial orientation.  
-  **Deduction: 10 points** (logical error or at least questionable initialization of rotation).
+- **Use of `veh.Kraz()` and vehicle initialization:** Correct.
 
-- **Visualization Attach Vehicle:**  
-  As noted, attaching `vehicle.GetTractor()` instead of `vehicle` is incorrect and could cause visualization issues or missing vehicle parts.  
-  **Deduction: 15 points** (incorrect API usage affecting simulation behavior).
+- **Setting visualization types:** The calls to `SetChassisVisualizationType(vis_type, vis_type)` and similar for steering, suspension, wheels, tires are correct.
 
-- **Contact Material:**  
-  The contact material is created as `chrono.ChContactMaterialNSC()` and friction and restitution are set. This is correct for NSC contact method.  
-  **No deduction.**
+- **Collision system type set to BULLET:** Correct.
 
-- **Collision System Type:**  
-  The system collision type is set to `chrono.ChCollisionSystem.Type_BULLET`, which is appropriate and consistent with the vehicle and terrain setup.  
-  **No deduction.**
+- **Material for terrain patch:** Uses `ChContactMaterialNSC()` with friction and restitution set, which is appropriate for NSC contact method.
 
-- **Step Sizes:**  
-  Step sizes for simulation and rendering are consistent and used properly.  
-  **No deduction.**
+- **Driver inputs and synchronization:** Correct.
 
-- **Driver Inputs:**  
-  Driver inputs are obtained and used correctly.  
-  **No deduction.**
+- **Advancement calls:** Correct.
 
-- **Use of `continue` at the end of the loop:**  
-  The `continue` statement at the end of the `while` loop is unnecessary since it's the last statement in the loop. This is a minor inefficiency but not incorrect.  
-  **Deduction: 0 points here (minor inefficiency, handled below).**
+- **Incorrect lane change condition:**  
+  The condition `if (time % lane_change_time == 0):` is almost never true due to floating-point precision. This is a logical error that prevents the lane change behavior from executing.  
+  **Deduction:** 10 points (logical error).
 
-**Total Correctness Deduction: 10 + 15 = 25 points**  
-**Remaining Correctness: 30 - 25 = 5 points**
+- **Duplicate call inside lane change block:**  
+  Inside the lane change block, `driver.SetSteeringDelta(render_step_size / steering_time)` is called twice consecutively with no change in between. This is redundant and unnecessary.  
+  **Deduction:** 5 points (minor inaccuracy/unnecessary API call).
+
+- **Use of `vehicle.GetTractor()` vs `vehicle`:**  
+  The code uses `vehicle.GetTractor()` in visualization and printing mass, which is correct since `veh.Kraz()` is a wrapper and `GetTractor()` returns the underlying vehicle object.
+
+- **Use of `driver.Advance(step_size)` inside lane change while loop and again after:**  
+  The lane change inner while loop advances driver, vehicle, vis, and timer, then after the lane change block, the same advance calls are made again. This causes double advancement in the same time step during lane change, which is incorrect and can cause simulation instability or incorrect timing.  
+  **Deduction:** 10 points (logical error).
+
+**Total Correctness Deduction:** 10 + 5 + 10 = 25 points
 
 ---
 
 ### 3. Code Quality (10 points)
 
-- **Readability and Structure:**  
-  The code is mostly readable with meaningful variable names. However, there is inconsistent spacing (e.g., spaces before parentheses in some places), and the lane change logic is left empty without comments explaining the intention.  
-  **Deduction: 3 points** (minor readability and structure issues).
+- **Readability:**  
+  Variable names are mostly meaningful (`initLoc`, `vis_type`, `step_size`, etc.). The code is structured in logical blocks (initialization, visualization, driver, loop).  
+  However, the lane change logic is confusing and lacks comments explaining the intent. The double call to `SetSteeringDelta` and the modulo condition are not explained.  
+  **Deduction:** 3 points (somewhat unclear lane change logic and redundant calls).
 
 - **Comments:**  
-  The code has very few comments. Only one print statement is present, and no explanation of key steps or parameters is given. Best practices recommend at least brief comments explaining major blocks (initialization, simulation loop, etc.).  
-  **Deduction: 5 points** (insufficient comments).
+  The code has almost no comments except for a single print statement. Important sections like lane change logic, driver setup, and synchronization are not commented.  
+  **Deduction:** 5 points (insufficient comments).
 
-**Total Code Quality Deduction: 3 + 5 = 8 points**  
-**Remaining Code Quality: 10 - 8 = 2 points**
+**Total Code Quality Deduction:** 3 + 5 = 8 points
 
 ---
 
 ### 4. Efficiency (10 points)
 
-- **Unnecessary Calculations:**  
-  The `continue` at the end of the loop is redundant and can be removed.  
-  **Deduction: 5 points** (unnecessary code).
+- **Redundant `SetSteeringDelta` calls:**  
+  Called twice consecutively with the same argument.  
+  **Deduction:** 5 points (unnecessary redundant calls).
 
-- **Repeated Calls:**  
-  The `chrono.SetChronoDataPath(chrono.GetChronoDataPath())` is redundant if the path is already set; however, this is minor and often used to ensure path correctness.  
-  **No deduction.**
+- **Use of modulo with floating point:**  
+  The modulo operation on floating-point time is inefficient and unreliable for triggering events. A better approach would be to track elapsed time or use a tolerance.  
+  **Deduction:** 3 points (missed optimization opportunity).
 
-- **Use of `vehicle.GetTractor()` multiple times:**  
-  The code calls `vehicle.GetTractor()` twice (once for visualization attach and once for mass print). This is minor but could be stored in a variable for efficiency.  
-  **Deduction: 3 points** (missed optimization).
+- **Advancing simulation twice in lane change:**  
+  Causes unnecessary computation and potential errors.  
+  Already deducted under correctness, no double deduction here.
 
-**Total Efficiency Deduction: 5 + 3 = 8 points**  
-**Remaining Efficiency: 10 - 8 = 2 points**
+**Total Efficiency Deduction:** 5 + 3 = 8 points
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- The script lacks any error handling (try-except blocks) or checks for file existence (e.g., texture files, logo).  
-- No handling of simulation exceptions or invalid states.  
-- No checks on driver inputs or system state.  
-- While error handling is often minimal in example scripts, best practices recommend at least minimal robustness.  
-**Deduction: 5 points** (lack of basic error handling).
+- **No error handling:**  
+  The script does not include any try-except blocks or checks for initialization failures, file loading errors, or invalid inputs. While PyChrono scripts often omit explicit error handling for brevity, best practices recommend at least minimal checks or exception handling especially for file paths and initialization.  
+  **Deduction:** 5 points (lack of basic error handling).
+
+- **Edge cases:**  
+  The lane change logic does not handle the edge case of floating point comparison for modulo zero, which is a robustness issue. Already deducted under correctness.
+
+**Total Error Handling Deduction:** 5 points
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
-- The visualization setup includes window title, size, chase camera, logo, directional light, and skybox, which is good.  
-- However, the directional light is added via `vis.AddLightDirectional()` which is not documented in the provided API; the documented method is `AddTypicalLights()`. This might be a valid method but is not confirmed in the docs.  
-- The camera is set with `SetChaseCamera(trackPoint, 25.0, 10.5)`, which is appropriate.  
-- The visualization attaches the wrong vehicle object (`GetTractor()`), which affects visualization correctness.  
-- No addition of typical lights or ambient lighting beyond directional light.  
-**Deduction: 3 points** (minor visualization issues and incomplete lighting setup).
+- **Visualization setup:**  
+  Window title, size, chase camera, logo, directional light, skybox are set up properly.
+
+- **Lighting:**  
+  Uses `AddLightDirectional()` but does not use `AddTypicalLights()`, which is recommended for better lighting coverage. This is a minor visualization issue.
+
+- **Camera:**  
+  Chase camera is set properly.
+
+- **Visualization attachment:**  
+  Correctly attaches vehicle.
+
+- **No explicit call to `vis.Initialize()` before adding lights and skybox:**  
+  The code calls `vis.Initialize()` before adding logo, light, skybox, which is correct.
+
+- **Minor visualization issue:**  
+  Using only directional light may cause some shadows or visibility issues. Adding typical lights is generally better.
+
+**Deduction:** 2 points (minor visualization issue).
 
 ---
 
-### **Summary of Deductions**
+### Summary of Deductions
 
-| Criterion                   | Points | Deduction | Remaining |
-|-----------------------------|--------|-----------|-----------|
-| Completeness                | 40     | 20        | 20        |
-| Correctness                | 30     | 25        | 5         |
-| Code Quality               | 10     | 8         | 2         |
-| Efficiency                 | 10     | 8         | 2         |
-| Error Handling & Robustness| 5      | 5         | 0         |
-| Visualization Tools        | 5      | 3         | 2         |
-| **Total**                  | 100    | 69        | **31**    |
+| Criterion                  | Max Points | Deduction | Points Awarded |
+|----------------------------|------------|-----------|---------------|
+| Completeness               | 40         | 20        | 20            |
+| Correctness                | 30         | 25        | 5             |
+| Code Quality               | 10         | 8         | 2             |
+| Efficiency                 | 10         | 8         | 2             |
+| Error Handling & Robustness| 5          | 5         | 0             |
+| Visualization Tools        | 5          | 2         | 3             |
+| **Total**                 | **100**    | **68**    | **32**        |
 
 ---
 
-### Final Score: [[31]]
+### Final Score:  
+[[32]]
 
 ---
 
 ### Explanation of Deductions:
 
-- **Major deductions** were due to incorrect visualization attachment (`vehicle.GetTractor()` instead of `vehicle`), questionable quaternion initialization, and lack of error handling.  
-- **Completeness** suffered from missing explicit system initialization and incomplete lane change logic.  
-- **Code quality** was reduced due to lack of comments and minor readability issues.  
-- **Efficiency** was impacted by redundant `continue` and repeated calls.  
-- **Visualization** was mostly adequate but had minor issues with lighting and attaching the correct vehicle object.  
-
-Overall, the script demonstrates a reasonable structure and usage of PyChrono vehicle APIs but has significant issues that could affect simulation correctness and clarity.
+- The script misses a reliable lane change implementation due to incorrect floating-point modulo condition, which is a major logical error affecting completeness and correctness.  
+- Redundant API calls and double advancement of simulation steps during lane change reduce correctness and efficiency.  
+- Lack of comments and unclear lane change logic reduce code quality.  
+- No error handling is present, which is a robustness concern.  
+- Minor visualization improvements could be made by adding typical lights.  
+- Overall, the script sets up the vehicle, terrain, driver, and visualization correctly but suffers from critical logical and code quality issues that significantly impact the simulation's intended behavior and maintainability.

@@ -3,39 +3,64 @@ import pychrono.postprocess as postprocess
 import pychrono.irrlicht as chronoirr
 
 
+
+
+
+
+
 my_system = chrono.ChSystemNSC()
 my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
 
-mesh_file = "your_mesh.obj"  
+
+
+
+
+
+body_mesh = chrono.ChBody()
+body_mesh.SetBodyFixed(True)
+
+
 mesh = chrono.ChTriangleMeshConnected()
-mesh.LoadWavefrontMesh(mesh_file)
-body = chrono.ChBody()
-body.SetBodyFixed(True)
-body.SetCollide(True)
-body.SetMesh(mesh)
-my_system.Add(body)
+mesh.LoadWavefrontMesh("your_mesh.obj")
 
 
-body.SetPos(chrono.ChVectorD(0, 0, 0))
+col_model = chrono.ChCollisionModelConnected()
+col_model.SetMesh(mesh)
+col_model.SetFamily(1)
+col_model.SetFamilyMaskNoCollisionWithFamily(1)
+body_mesh.AddCollisionModel(col_model)
 
 
-camera = postprocess.ChCameraSensor()
-camera.SetTarget(body)  
-camera.SetLens(postprocess.ChLens.ORTHOGRAPHIC)
-camera.SetWidth(640)
-camera.SetHeight(480)
+my_system.Add(body_mesh)
 
-sensor_manager = postprocess.ChSensorManager(my_system)
+
+
+
+
+
+
+camera = chrono.ChCameraSensor()
+camera.SetSensorPosition(chrono.ChVectorD(2, 2, 2))
+camera.SetSensorDirection(chrono.ChVectorD(-1, -1, -1))
+camera.SetImageSize(640, 480)
+
+
+camera.AddNoiseFilter(chrono.ChGaussianNoiseFilter(0.01))
+camera.SetVisualizationType(chrono.ChCameraSensor.VisualizationType_COLOR)
+
+
+sensor_manager = chrono.ChSensorManager()
 sensor_manager.AddSensor(camera)
 
 
-camera.AddFilter(postprocess.ChGaussianNoiseFilter(0.01))
-camera.AddVisualization(postprocess.ChImageVisualization())
+body_mesh.AddSensor(camera)
 
 
-timestep = 0.01
-simulation_time = 10
+
+
+
+
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
@@ -44,20 +69,19 @@ vis.SetWindowSize(800, 600)
 vis.SetWindowTitle("PyChrono Mesh Visualization")
 vis.Initialize()
 
-while my_system.GetChTime() < simulation_time:
+
+time_step = 0.01
+simulation_time = 10
+
+while vis.Run():
     
     angle = my_system.GetChTime() * 2  
-    radius = 5
-    camera.SetPos(chrono.ChVectorD(radius * chrono.ChCos(angle), 0, radius * chrono.ChSin(angle)))
+    camera.SetSensorPosition(chrono.ChVectorD(2 * chrono.ChMath.Sin(angle), 2, 2 * chrono.ChMath.Cos(angle)))
 
     
-    my_system.DoStepDynamics(timestep)
+    my_system.DoStepDynamics(time_step)
 
     
-    print(camera.GetBuffer())
+    print(camera.GetBufferData())
 
-    
-    vis.Render()
-
-
-vis.Shutdown()
+vis.Deinitialize()

@@ -1,179 +1,73 @@
 import chrono as ch
-import chrono.irrlicht as chirr
+import chrono.irrlicht as irr
 
 # Initialize PyChrono environment
 ch.ChEngine.Initialize()
 
 # Create the Irrlicht application
-app = chirr.ChIrrApp()
+app = irr.IrrlichtApplication()
 
-# Set the title of the application window
-app.SetWindowTitle('Epicyclic Gear Simulation')
-
-# Enable shadows
-app.EnableShadows()
+# Create the physical system
+system = ch.ChSystem()
 
 # Create a fixed truss
 truss_body = ch.ChBody()
 truss_body.SetBodyFixed(True)
-
-# Set the position of the truss
+truss_shape = ch.ChBox(0.1, 0.1, 0.5)
+truss_body.AddCollisionShape(truss_shape)
 truss_body.SetPos(ch.ChVector3d(0, 0, 0))
-
-# Add the truss to the system
-app.GetSystem().Add(truss_body)
+system.AddBody(truss_body)
 
 # Create a rotating bar
 bar_body = ch.ChBody()
-bar_body.SetMass(1)
-
-# Set the position and inertia of the bar
-bar_body.SetPos(ch.ChVector3d(1, 0, 0))
-bar_body.SetInertiaXX(ch.ChVector3d(1, 1, 1))
-
-# Add the bar to the system
-app.GetSystem().Add(bar_body)
-
-# Create a revolute joint for the bar
-bar_joint = ch.ChRevoluteJoint(bar_body, truss_body, ch.ChVector3d(1, 0, 0), ch.ChVector3d(0, 0, 0), ch.ChVector3d(0, 0, 1))
-app.GetSystem().Add(bar_joint)
+bar_shape = ch.ChBox(0.05, 0.05, 1.0)
+bar_body.AddCollisionShape(bar_shape)
+bar_body.SetPos(ch.ChVector3d(0, 0, 1.5))
+bar_body.SetRot(ch.ChQuaterniond(0, 0, 0, 1))
+bar_motor = ch.ChLinkMotorRotationSpeed()
+bar_motor.Initialize(truss_body, bar_body, ch.ChFrame3d(0, 0, 0), ch.ChFrame3d(0, 0, 1.5))
+bar_motor.SetSpeed(1)
+system.AddBody(bar_body)
+system.AddLink(bar_motor)
 
 # Create two gears
 gear1_body = ch.ChBody()
-gear1_body.SetMass(5)
+gear1_shape = ch.ChCylinder(0.2, 0.05)
+gear1_body.AddCollisionShape(gear1_shape)
+gear1_body.SetPos(ch.ChVector3d(0.5, 0, 1.0))
+gear1_body.SetRot(ch.ChQuaterniond(0, 0, 0, 1))
+system.AddBody(gear1_body)
 
 gear2_body = ch.ChBody()
-gear2_body.SetMass(10)
-
-# Set the positions and inertia of the gears
-gear1_body.SetPos(ch.ChVector3d(0.5, 0.5, 0))
-gear1_body.SetInertiaXX(ch.ChVector3d(1, 1, 1))
-
-gear2_body.SetPos(ch.ChVector3d(0.5, -0.5, 0))
-gear2_body.SetInertiaXX(ch.ChVector3d(1, 1, 1))
-
-# Add the gears to the system
-app.GetSystem().Add(gear1_body)
-app.GetSystem().Add(gear2_body)
+gear2_shape = ch.ChCylinder(0.1, 0.05)
+gear2_body.AddCollisionShape(gear2_shape)
+gear2_body.SetPos(ch.ChVector3d(-0.5, 0, 1.0))
+gear2_body.SetRot(ch.ChQuaterniond(0, 0, 0, 1))
+system.AddBody(gear2_body)
 
 # Create a gear motor for gear1
-gear_motor = ch.ChGearMotor(gear1_body, ch.ChVector3d(0, 0, 1), 10)
-app.GetSystem().Add(gear_motor)
+gear1_motor = ch.ChLinkMotorRotationSpeed()
+gear1_motor.Initialize(truss_body, gear1_body, ch.ChFrame3d(0, 0, 0), ch.ChFrame3d(0.5, 0, 1.0))
+gear1_motor.SetSpeed(2)
+system.AddLink(gear1_motor)
 
-# Create a gear interaction between gear1 and gear2
-gear_interaction = ch.ChGear(gear1_body, gear2_body, 2, 1)
-app.GetSystem().Add(gear_interaction)
+# Create a contact between gears
+gear_contact = ch.ChLinkContact()
+gear_contact.Initialize(gear1_body, gear2_body, ch.ChFrame3d(0, 0, 0), ch.ChFrame3d(0, 0, 0))
+gear_contact.SetRestitutionCoeff(0.9)
+gear_contact.SetFrictionCoeff(0.5)
+system.AddLink(gear_contact)
 
-# Create a default material
-material = ch.ChVisualMaterial()
-material.SetDiffuseColor(ch.ChColor(1, 0, 0))
+# Visualization
+vis = irr.IrrlichtVisualSystem()
+vis.AttachSystem(system)
+vis.SetWindowSize(800, 600)
+vis.SetWindowTitle('Epicyclic Gear Simulation')
+vis.EnableShadows()
+vis.EnableContactDrawing(True)
 
-# Set the material for the truss, bar, and gears
-truss_body.GetVisualShape().SetMaterial(material)
-bar_body.GetVisualShape().SetMaterial(material)
-gear1_body.GetVisualShape().SetMaterial(material)
-gear2_body.GetVisualShape().SetMaterial(material)
+# Main loop
+while vis.Run() and not vis.WasUserQuit():
+    system.DoStepDynamics(0.02)
 
-# Enable lighting
-app.EnableLighting()
-
-# Set the simulation time step
-app.GetSystem().SetTimeStep(0.01)
-
-# Set the end time of the simulation
-app.GetSystem().SetEndTime(10)
-
-# Run the simulation
-app.Run()
-
-import chrono as ch
-import chrono.irrlicht as chirr
-
-def main():
-    # Initialize PyChrono environment
-    ch.ChEngine.Initialize()
-
-    # Create the Irrlicht application
-    app = chirr.ChIrrApp()
-
-    # Set the title of the application window
-    app.SetWindowTitle('Epicyclic Gear Simulation')
-
-    # Enable shadows
-    app.EnableShadows()
-
-    # Create a fixed truss
-    truss_body = ch.ChBody()
-    truss_body.SetBodyFixed(True)
-
-    # Set the position of the truss
-    truss_body.SetPos(ch.ChVector3d(0, 0, 0))
-
-    # Add the truss to the system
-    app.GetSystem().Add(truss_body)
-
-    # Create a rotating bar
-    bar_body = ch.ChBody()
-    bar_body.SetMass(1)
-
-    # Set the position and inertia of the bar
-    bar_body.SetPos(ch.ChVector3d(1, 0, 0))
-    bar_body.SetInertiaXX(ch.ChVector3d(1, 1, 1))
-
-    # Add the bar to the system
-    app.GetSystem().Add(bar_body)
-
-    # Create a revolute joint for the bar
-    bar_joint = ch.ChRevoluteJoint(bar_body, truss_body, ch.ChVector3d(1, 0, 0), ch.ChVector3d(0, 0, 0), ch.ChVector3d(0, 0, 1))
-    app.GetSystem().Add(bar_joint)
-
-    # Create two gears
-    gear1_body = ch.ChBody()
-    gear1_body.SetMass(5)
-
-    gear2_body = ch.ChBody()
-    gear2_body.SetMass(10)
-
-    # Set the positions and inertia of the gears
-    gear1_body.SetPos(ch.ChVector3d(0.5, 0.5, 0))
-    gear1_body.SetInertiaXX(ch.ChVector3d(1, 1, 1))
-
-    gear2_body.SetPos(ch.ChVector3d(0.5, -0.5, 0))
-    gear2_body.SetInertiaXX(ch.ChVector3d(1, 1, 1))
-
-    # Add the gears to the system
-    app.GetSystem().Add(gear1_body)
-    app.GetSystem().Add(gear2_body)
-
-    # Create a gear motor for gear1
-    gear_motor = ch.ChGearMotor(gear1_body, ch.ChVector3d(0, 0, 1), 10)
-    app.GetSystem().Add(gear_motor)
-
-    # Create a gear interaction between gear1 and gear2
-    gear_interaction = ch.ChGear(gear1_body, gear2_body, 2, 1)
-    app.GetSystem().Add(gear_interaction)
-
-    # Create a default material
-    material = ch.ChVisualMaterial()
-    material.SetDiffuseColor(ch.ChColor(1, 0, 0))
-
-    # Set the material for the truss, bar, and gears
-    truss_body.GetVisualShape().SetMaterial(material)
-    bar_body.GetVisualShape().SetMaterial(material)
-    gear1_body.GetVisualShape().SetMaterial(material)
-    gear2_body.GetVisualShape().SetMaterial(material)
-
-    # Enable lighting
-    app.EnableLighting()
-
-    # Set the simulation time step
-    app.GetSystem().SetTimeStep(0.01)
-
-    # Set the end time of the simulation
-    app.GetSystem().SetEndTime(10)
-
-    # Run the simulation
-    app.Run()
-
-if __name__ == '__main__':
-    main()
+vis.Exit()

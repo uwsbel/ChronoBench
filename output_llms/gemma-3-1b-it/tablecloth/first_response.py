@@ -1,77 +1,90 @@
 import pychrono
-import pychrono.physics.shell as ps
-import pychrono.physics.shell.objects as ps_obj
-import pychrono.physics.shell.objects.mesh as ps_mesh
-import pychrono.physics.shell.objects.forces as ps_forces
-import pychrono.physics.shell.objects.materials as ps_materials
-import pychrono.physics.shell.objects.integrators as ps_integrators
-import pychrono.physics.shell.objects.nodes as ps_nodes
-import pychrono.physics.shell.objects.elements as ps_elements
-import pychrono.physics.shell.objects.forces.shell_elements as ps_shell_elements
+import pychrono.core as pc
+import pychrono.objects as pco
+import pychrono.physics as pcp
+import pychrono.physics.mesh as pcm
+import pychrono.physics.forces as pcf
+import pychrono.physics.materials as pcmm
+import pychrono.physics.integrators as pci
+import pychrono.physics.objects as pcoo
 
-# 1. Initialization & Core Components
-try:
-    # Initialize PyChrono
-    chrono = pychrono.core.core.Core()
+# Define the tablecloth parameters
+tablecloth_width = 10.0
+tablecloth_height = 10.0
+tablecloth_thickness = 0.5
+tablecloth_material = pcmm.Material("Cloth", 1.0)  # Material properties
 
-    # 2. Physical Systems & Objects
-    # Tablecloth - Simple shape
-    tablecloth = ps_elements.Tablecloth(
-        mass=10.0, # Mass of the tablecloth (kg) - adjust as needed
-        dimensions=(1.0, 1.0), # Dimensions of the tablecloth (m) - adjust as needed
-        material=ps_materials.Cloth, # Material for the tablecloth
-        # Add other relevant properties here, e.g., stiffness, etc.
+# Define the shell elements
+shell_element_radius = 0.5
+shell_element_length = 1.0
+shell_element_mass = 1.0
+
+# Create the mesh grid
+mesh = pcmm.Mesh(
+    tablecloth_width,
+    tablecloth_height,
+    tablecloth_thickness,
+    pcoo.Mesh.MeshType.ALL_ELEMENTS,
+    pcoo.Mesh.MeshType.ALL_NODES,
+    pcoo.Mesh.MeshType.ALL_ELEMENTS,
+    pcoo.Mesh.MeshType.ALL_NODES,
+)
+
+# Set the initial positions of the shell elements
+shell_elements = [
+    pcoo.Element(
+        pcoo.Position(0, 0, 0),
+        pcoo.Length(shell_element_length),
+        pcoo.Mass(shell_element_mass),
+        pcoo.Material(tablecloth_material),
     )
+]
 
-    # 3. Mesh Generation
-    mesh = ps_mesh.Mesh(tablecloth)
+# Set the initial forces
+forces = pcf.Forces(
+    shell_elements,
+    tablecloth_material,
+    pcoo.ForceType.NEWTON,
+    pcoo.ForceMagnitudeScale(1.0)
+)
 
-    # 4.  Irrlicht Visualization
-    try:
-        import pychrono.physics.shell.objects.irrlicht as irrlight
-        irrlight.init() # Initialize Irrlicht
-    except ImportError:
-        print("Irrlicht not found.  Please install it: pip install pychrono-irrlicht")
-        irrlight.init() # Attempt to initialize, but handle the error gracefully.
+# Set the solver parameters
+solver = pci.Solver(
+    pcf.SolverType.NEWTON,
+    pcoo.SolverType.ALL_ELEMENTS,
+    pcoo.SolverType.ALL_NODES,
+    pcoo.SolverType.ALL_ELEMENTS,
+    pcoo.SolverType.ALL_NODES,
+    pcoo.SolverType.ALL_ELEMENTS,
+    pcoo.SolverType.ALL_NODES,
+    pcoo.SolverType.ALL_ELEMENTS,
+    pcoo.SolverType.ALL_NODES,
+    pcoo.SolverType.ALL_ELEMENTS,
+    pcoo.SolverType.ALL_NODES,
+    pcoo.SolverType.ALL_ELEMENTS,
+    pcoo.SolverType.ALL_NODES
+)
 
-    # 5.  PardisoMKL Solver
-    try:
-        #  Create a PardisoMKL solver object
-        solver = ps_obj.PardisoMKL(mesh, tablecloth)
-    except Exception as e:
-        print(f"PardisoMKL Solver Error: {e}")
-        print("Ensure the mesh is properly defined and the solver is compatible.")
-        return # Exit if solver fails
+# Set the simulation parameters
+simulation_time = 10.0
+simulation_step = 0.01
 
-    # 6. Simulation Parameters
-    simulation_params = {
-        'time_step': 0.01, # Time step for the simulation
-        'total_time': 10.0, # Total simulation time (seconds)
-        'force_magnitude': 1.0, # Force magnitude (N) - adjust as needed
-        'force_direction': (0, 0, 1), # Force direction (x, y, z) - adjust as needed
-        'coupling_mode': 'symmetric', #  'symmetric' or 'asymmetric'
-        'coupling_factor': 0.5, # Adjust for coupling strength
-        'simulation_type': 'shell'
-    }
+# Start the simulation
+simulation = pchrono.Simulation(
+    mesh,
+    forces,
+    solver,
+    simulation_time,
+    simulation_step,
+    tablecloth_material,
+    shell_elements,
+)
 
+# Visualize the simulation
+pchrono.visualize(simulation, "Tablecloth Folding")
 
-    # 7. Simulation Loop
-    simulation = ps.Simulation(solver, simulation_params)
-    simulation.start()
+# Stop the simulation
+simulation.stop()
 
-    print("Simulation started.  Press Ctrl+C to stop.")
-
-    #  (Optional)  Monitor the simulation progress
-    #  You can add a print statement to track the simulation's state.
-    #  For example:
-    #  print(f"Simulation progress: {simulation.progress}")
-
-    #  Keep the simulation running until it's stopped
-    simulation.wait()
-
-    print("Simulation finished.")
-
-except Exception as e:
-    print(f"An error occurred: {e}")
-    print("Please check the mesh definition and solver setup.")
-    #Consider adding a mechanism to gracefully exit the simulation if a critical error occurs.
+# Print the simulation status
+print(f"Simulation completed.  Time: {simulation.time}")

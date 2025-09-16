@@ -4,51 +4,56 @@ import numpy as np
 
 
 chrono.SetChronoDataPath("path/to/chrono/data")  
-system = chrono.ChSystemNSC()
+physics = chrono.ChSystemNSC()
 
 
-vis_app = vis.ChIrrApp(system, 'HMMWV Simulation')
-vis_app.AddTypicalSky()
-vis_app.AddTypicalLights()
+terrain = chrono.RigidTerrain(np.array([10, 10, 0]), 
+                             np.array([10, 10, 0]), 
+                             np.array([0, 0, 1]))
+terrain.SetTexture("path/to/terrain/texture.jpg")  
+physics.Add(terrain)
 
 
-terrain_width = 10
-terrain_length = 10
-terrain = chrono.ChBodyEasyBox(terrain_width, terrain_length, 0.1)
-terrain.SetPos(chrono.ChVectorD(0, 0, -0.05))  
-terrain.SetBodyFixed(True)
-system.Add(terrain)
 
 
-vehicle = chrono.ChBodyEasySphere(0.5, 100)  
-vehicle.SetPos(chrono.ChVectorD(0, 0, 0))
-vehicle.SetRot(chrono.Q_from_Euler(chrono.CH_C_DEG2RAD(0), chrono.CH_C_DEG2RAD(0), chrono.CH_C_DEG2RAD(0)))
-system.Add(vehicle)
+
+vehicle = chrono.ChBodyEasy(1000, 
+                            chrono.ChVectorD(0, 0, 0), 
+                            chrono.ChQuaternionD(1, 0, 0, 0)) 
+vehicle.SetPos(chrono.ChVectorD(0, 0, 0.5))  
+vehicle.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))  
+vehicle.SetMaterialSurface(chrono.ChMaterialSurface(0.8, 0.2, 0.1))  
 
 
 for i in range(4):
-    wheel = chrono.ChBodyEasySphere(0.2, 10)
-    wheel.SetPos(vehicle.GetPos() + chrono.ChVectorD(0, 0, 0.1))  
-    wheel.SetRot(chrono.Q_from_Euler(chrono.CH_C_DEG2RAD(0), chrono.CH_C_DEG2RAD(0), chrono.CH_C_DEG2RAD(0)))
-    system.Add(wheel)
+    wheel = chrono.ChBodyEasy(50, 
+                              chrono.ChVectorD(0, 0, 0), 
+                              chrono.ChQuaternionD(1, 0, 0, 0))
+    wheel.SetPos(chrono.ChVectorD(0, 0, 0))  
+    vehicle.Add(wheel)
 
 
-vehicle.SetCollide(True)
-vehicle.SetMaterialSurface(chrono.ChMaterialSurface())
-vehicle.SetMaterialSurface(chrono.ChMaterialSurface(0.5, 0.5, 0.5))  
+
+tire_model = chrono.ChTireEasyModelTMEasy()
+for wheel in vehicle.GetComponents():
+    wheel.SetTireModel(tire_model)
 
 
-def update_vehicle(dt):
-    
-    
-    
+
+driver = chrono.ChDriver()
+driver.SetSteering(vehicle)
+driver.SetThrottle(vehicle)
+driver.SetBrake(vehicle)
 
 
-vis_app.SetTargetFPS(50)
-while vis_app.Run():
-    system.DoStepDynamics(1/50.0)  
-    update_vehicle(1/50.0)  
-    vis_app.Render()
+vis_app = vis.ChIrrApp(physics, 'HMMWV Simulation', 
+                      chrono.ChVectorD(10, 10, 10), 
+                      vis.VIS_WITH_SHADOWS)
+vis_app.AddCamera(vehicle, 10)  
 
 
-vis_app.Close()
+while vis_app.GetDevice().run():
+    vis_app.BeginScene()
+    physics.DoStepDynamics(1/50.0)  
+    vis_app.DrawAll()
+    vis_app.EndScene()

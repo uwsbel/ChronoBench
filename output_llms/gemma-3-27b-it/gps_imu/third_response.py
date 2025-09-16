@@ -37,7 +37,7 @@ contact_vis = False
 # Simulation step sizes
 step_size = 1e-3
 tire_step_size = step_size
-render_step_size = 1.0 / 50
+render_step_size = 1.0 / 50  # FPS = 50
 log_step_size = 1.0 / 20
 
 # Create the HMMWV vehicle, set parameters, and initialize
@@ -177,7 +177,6 @@ while vis.Run():
 if gps_data:
     latitudes = [data[0] for data in gps_data]
     longitudes = [data[1] for data in gps_data]
-    altitudes = [data[2] for data in gps_data]
 
     plt.figure(figsize=(8, 6))
     plt.plot(longitudes, latitudes, marker='o', linestyle='-')
@@ -186,5 +185,7 @@ if gps_data:
     plt.title("GPS Trajectory")
     plt.grid(True)
     plt.show()
+else:
+    print("No GPS data available to plot.")
 
 print("GPS Data: ", gps_data)

@@ -7,8 +7,8 @@ chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 
-initLoc = chrono.ChVector3d(-5, 0, 0.5)  
-initRot = chrono.ChQuaterniond(1, 0, 0, 0)
+initLoc = chrono.ChVector3d(-5, 0, 0.5)
+initRot = chrono.Quaterniond(1, 0, 0, 0)
 
 
 vis_type = veh.VisualizationType_MESH
@@ -20,17 +20,6 @@ chassis_collision_type = veh.CollisionType_NONE
 terrainHeight = 0      
 terrainLength = 100.0  
 terrainWidth = 100.0   
-
-
-box_size = 50.0
-box_mat = chrono.ChMaterialSurfaceSMC()
-box_mat.SetFriction(0.6)
-box_mat.SetRestitution(0.01)
-box = chrono.ChBoxShape(box_size, box_size, box_size)
-box_body = chrono.ChBodyEasyBox(box_size, box_size, box_size, box_mat)
-box_body.SetPos(chrono.ChVector3d(0, 0, -box_size / 2))
-box_body.SetName("Long Box")
-vehicle.GetSystem().Add(box_body)
 
 
 trackPoint = chrono.ChVector3d(0.0, 0.0, 0.1)
@@ -67,6 +56,20 @@ vehicle.SetRoadWheelVisualizationType(vis_type)
 vehicle.SetTrackShoeVisualizationType(vis_type)
 
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+
+
+box_mat = chrono.ChMaterialSurfaceSMC()
+box_mat.SetFriction(0.6)
+box_mat.SetRestitution(0.01)
+box_size = chrono.ChVector3d(10, 1, 1)
+box_pos = chrono.ChVector3d(50, 0, 0.5)
+box_rot = chrono.ChQuaterniond(1, 0, 0, 0)
+box = chrono.ChBoxShape(box_size, box_mat)
+box_body = chrono.ChBodyEasyBox(box_size, 1000, box_mat)
+box_body.SetPos(box_pos)
+box_body.SetRot(box_rot)
+box_body.AddShape(box, chrono.ChFrameD(box_pos, box_rot))
+vehicle.GetSystem().Add(box_body)
 
 
 patch_mat = chrono.ChContactMaterialSMC()
@@ -110,7 +113,7 @@ driver.Initialize()
 vehicle.GetSystem().SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
 
 
-print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 
 render_steps = math.ceil(render_step_size / step_size)
@@ -119,10 +122,10 @@ render_steps = math.ceil(render_step_size / step_size)
 step_number = 0
 render_frame = 0
 vehicle.GetVehicle().EnableRealtime(True)
-while vis.Run() :
+while vis.Run():
     time = vehicle.GetSystem().GetChTime()
     
-    if (step_number % render_steps == 0) :
+    if (step_number % render_steps == 0):
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
@@ -144,4 +147,4 @@ while vis.Run() :
     step_number += 1
 
     
-    driver_inputs.throttle = 0.8
+    driver_inputs[1] = 0.8

@@ -10,7 +10,7 @@ import os  # Import the OS library for file and directory operations
 class ChFunctionMyFun(chrno.ChFunction):
     def __init__(self):
         chrno.ChFunction.__init__(self)
-    def GetVal(self, x):
+    def Get_y(self, x):
         if x > 0.5:
             return chrno.CH_PI
         else:
@@ -124,5 +124,3 @@ builderB = fea.ChBuilderBeamEuler()
 builderB.BuildBeam(mesh, section3, 4, vG + vd, vB + vd, chrno.ChVector3d(0, 1, 0))
 
 # Define nodes at the ends of the crank beam
-node_crnkG = builderB.GetLastBeamNodes()[0]
-node_

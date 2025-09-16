@@ -1,68 +1,85 @@
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
+import pychrono.postprocess as postprocess
 import numpy as np
 
 
-chrono.SetChronoDataPath("/path/to/chrono/data")
-chrono.SetChronoDataPath("/path/to/irrlicht/data")
+chrono.SetChronoDataPath("/path/to/your/chrono/data")  
+chrono.SetChronoVisualization(chronoirr.ChVisualizationIrrlicht())
+
 
 
 my_system = chrono.ChSystemNSC()
 
 
-my_visualization = chronoirr.ChVisualSystemIrrlicht()
-my_visualization.SetWindowSize(800, 600)
-my_visualization.SetWindowTitle("Tablecloth Folding Simulation")
-my_system.SetVisualSystem(my_visualization)
-
-
-tablecloth_length = 1.0  
-tablecloth_width = 1.0  
-num_elements_x = 10
-num_elements_y = 10
+tablecloth_length = 1.0
+tablecloth_width = 1.0
+num_length_divisions = 10
+num_width_divisions = 10
 
 
 nodes = []
-elements = []
-for i in range(num_elements_x + 1):
-    for j in range(num_elements_y + 1):
-        node_position = chrono.ChVectorD(
-            i * tablecloth_length / num_elements_x,
-            j * tablecloth_width / num_elements_y,
-            0.0
-        )
-        node = chrono.ChNodeFEAxyzD(node_position)
+for i in range(num_length_divisions + 1):
+    for j in range(num_width_divisions + 1):
+        x = i * tablecloth_length / num_length_divisions
+        y = j * tablecloth_width / num_width_divisions
+        z = 0.0
+        node = chrono.ChNodeFEAxyzD(chrono.ChVectorD(x, y, z))
         nodes.append(node)
 
-for i in range(num_elements_x):
-    for j in range(num_elements_y):
-        node_indices = [
-            i * (num_elements_y + 1) + j,
-            i * (num_elements_y + 1) + j + 1,
-            (i + 1) * (num_elements_y + 1) + j + 1,
-            (i + 1) * (num_elements_y + 1) + j
-        ]
-        element = chrono.ChElementShellKirchhoffIsotropic(
-            nodes[node_indices[0]],
-            nodes[node_indices[1]],
-            nodes[node_indices[2]],
-            nodes[node_indices[3]],
-            thickness=0.001,  
-            young_modulus=1e7,  
-            poisson_ratio=0.3
+
+elements = []
+for i in range(num_length_divisions):
+    for j in range(num_width_divisions):
+        element = chrono.ChElementShellANCF_3423(
+            nodes[i + j * (num_length_divisions + 1)],
+            nodes[i + 1 + j * (num_length_divisions + 1)],
+            nodes[i + 1 + (j + 1) * (num_length_divisions + 1)],
+            nodes[i + (j + 1) * (num_length_divisions + 1)],
+            0.001,  
+            1.0,  
+            0.3,  
+            1.0,  
         )
         elements.append(element)
-        my_system.Add(element)
 
 
-my_solver = chrono.ChSolverPardisoMKL()
-my_solver.SetVerbose(False)
-my_system.SetSolver(my_solver)
+for node in nodes:
+    my_system.Add(node)
+for element in elements:
+    my_system.Add(element)
 
 
-my_system.DoStaticLinear()
+
+initial_positions = np.array([node.GetPos() for node in nodes])
+initial_positions[:, 2] = np.sin(initial_positions[:, 0]) * np.sin(initial_positions[:, 1]) * 0.1
+for i, node in enumerate(nodes):
+    node.SetPos(initial_positions[i])
 
 
-while my_visualization.Run():
-    my_system.DoStepDynamics(0.01)
-    my_visualization.Render()
+my_system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
+
+
+my_system.SetSolverType(chrono.ChSolver.Type_PardisoMKL)
+
+
+my_system.DoFrameDynamics(1000)
+
+
+visualizer = chronoirr.ChVisualizationIrrlicht()
+visualizer.SetWindowSize(800, 600)
+visualizer.SetWindowTitle("Tablecloth Folding Simulation")
+visualizer.Initialize()
+visualizer.AddLogo(chrono.GetChronoDataPath() + "logo_pychrono_alpha.png")
+visualizer.AddSkyBox()
+visualizer.AddCamera(chrono.ChVectorD(0, 0, 2))
+visualizer.AddLightWithShadow(chrono.ChVectorD(2, 2, 2), 0.4, 0.4, 0.4, 2, 100, 50)
+visualizer.AttachSystem(my_system)
+
+
+while visualizer.Run():
+    my_system.DoFrameDynamics(0.01)
+    visualizer.Render()
+
+
+visualizer.CloseWindow()

@@ -3,91 +3,78 @@ import pychrono.irrlicht as chronoirr
 import pychrono.vehicle as veh
 
 
-sys = chrono.ChSystem()
-
-
-contact_material = chrono.ChMaterialSurfaceNSC()
-contact_material.SetFriction(0.9)
-contact_material.SetDampingF(0.5)
-contact_material.SetCompliance(0.0001)
-contact_material.SetCoulombFriction(0.9)
-sys.SetDefaultContactMaterial(contact_material)
-
-
-veh_params = veh.HMMWV()
-veh_params.SetContactMaterial(contact_material)
-veh_params.SetChassisFixed(False)
-veh_params.SetEngineType(veh.HMMWV.EngineType.INTERNAL_COMBUSTION)
-veh_params.SetDrivetrainType(veh.HMMWV.DrivetrainType.ALL_WHEEL_DRIVE)
-veh_params.SetBrakeType(veh.HMMWV.BrakeType.HYDRAULIC)
-veh_params.SetSteeringType(veh.HMMWV.SteeringType.RACK_PINION)
-veh_params.SetSuspensionType(veh.HMMWV.SuspensionType.COIL_SPRING)
-veh_params.SetWheelType(veh.HMMWV.WheelType.RIGID)
-veh_params.SetMass(3000)  
-veh_params.SetPosition(chrono.ChVectorD(0, 1, 0))  
-
-
-vehicle = veh.HMMWV(veh_params)
-sys.Add(vehicle)
-
-
-terrain = chrono.ChBodyEasyBox(sys, 10, 1, 10, 1000, True, contact_material)
-terrain.SetPosition(chrono.ChVectorD(0, -1, 0))  
-sys.Add(terrain)
-
-
-bump_patch = chrono.ChBodyEasyBox(sys, 1, 0.5, 1, 1000, True, contact_material)
-bump_patch.SetPosition(chrono.ChVectorD(2, -0.5, 0))  
-sys.Add(bump_patch)
-
-
-heightmap_patch = chrono.ChBodyEasyHeightfield(sys, 5, 5, 1000, True, contact_material)
-heightmap_patch.SetPosition(chrono.ChVectorD(5, -1, 0))  
-sys.Add(heightmap_patch)
-
-
-driver = veh.ChDriverHMMWV(vehicle)
-sys.Add(driver)
-
-
-vis_params = veh.VisualizationParameters()
-vis_params.SetMeshVisualization(True)
-vis_params.SetContactVisualization(True)
-vis_params.SetCollisionVisualization(True)
-vehicle.SetVisualizationParameters(vis_params)
-
-
-sys.SetTimestep(0.01)  
-
-
-sim_duration = 100  
-
-
-update_freq = 100  
-
-
-render_freq = 60  
+sys = chrono.ChSystemNSC()
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AddSkyBox()
 vis.AddTypicalLights()
-vis.AddCamera(chrono.ChVectorD(0, 5, -10))
-vis.AddCamera(chrono.ChVectorD(0, 5, 10))
-vis.SetWindowSize(1024, 768)
-vis.SetWindowTitle("HMMWV on Complex Rigid Terrain")
-vis.SetLogo("PyChrono")
 
 
-while sys.GetChTime() < sim_duration:
+veh_hmmwv = veh.ChVehicleHMMWV()
+veh_hmmwv.SetContactMaterial(chrono.ChMaterialSurfaceNSC())
+veh_hmmwv.SetChassisFixed(False)
+veh_hmmwv.SetEngineType(veh.ChEngineType::INTERNAL_COMBUSTION)
+veh_hmmwv.SetDrivetrainType(veh.ChDrivetrainType::FOUR_WHEEL_DRIVE)
+veh_hmmwv.SetPosition(chrono.ChVectorD(0, 0, 1.5))
+veh_hmmwv.AddMeshVisual(chrono.ChVisualMaterial(), "HMMWV", 1.0)
+
+
+sys.Add(veh_hmmwv)
+
+
+terrain = chrono.ChTerrain()
+terrain.SetContactMaterial(chrono.ChMaterialSurfaceNSC())
+terrain.SetPlane(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 1))
+
+
+patch1 = chrono.ChTerrainPatch()
+patch1.SetTexture("flat1.jpg")
+patch1.SetPosition(chrono.ChVectorD(-10, 0, 0))
+patch1.SetSize(chrono.ChVectorD(10, 10, 1))
+terrain.AddPatch(patch1)
+
+patch2 = chrono.ChTerrainPatch()
+patch2.SetTexture("flat2.jpg")
+patch2.SetPosition(chrono.ChVectorD(10, 0, 0))
+patch2.SetSize(chrono.ChVectorD(10, 10, 1))
+terrain.AddPatch(patch2)
+
+
+bump_mesh = chrono.ChTriangleMesh()
+bump_mesh.LoadWavefrontMesh("bump.obj")
+bump_patch = chrono.ChTerrainPatch()
+bump_patch.SetMesh(bump_mesh)
+bump_patch.SetPosition(chrono.ChVectorD(0, 0, 2))
+bump_patch.SetSize(chrono.ChVectorD(5, 5, 2))
+terrain.AddPatch(bump_patch)
+
+
+heightmap = chrono.ChHeightfield()
+heightmap.LoadHeightfield("heightmap.png")
+heightmap_patch = chrono.ChTerrainPatch()
+heightmap_patch.SetHeightfield(heightmap)
+heightmap_patch.SetPosition(chrono.ChVectorD(20, 0, 0))
+heightmap_patch.SetSize(chrono.ChVectorD(20, 20, 5))
+terrain.AddPatch(heightmap_patch)
+
+
+sys.Add(terrain)
+
+
+driver = veh.ChIrrlichtDriver()
+driver.SetVehicle(veh_hmmwv)
+driver.SetSteeringGain(0.1)
+driver.SetThrottleGain(0.1)
+driver.SetBrakingGain(0.1)
+
+
+sys.SetTimestep(0.01)
+sys.SetMaxIters(10)
+
+
+while vis.Run():
     sys.DoStepDynamics(0.01)
     vis.BeginScene()
     vis.DrawAll()
     vis.EndScene()
-    vis.Render()
-    vis.Update()
-    sys.GetContactContainer().ReportAllContacts()
-    sys.GetCollisionSystem().ReportAllCollisions()
-    sys.GetCollisionSystem().ReportAllPenetrations()
-    sys.GetCollisionSystem().ReportAllSeparations()
-    sys.GetCollisionSystem().ReportAllOverlaps()

@@ -1,59 +1,59 @@
 import pychrono as chrono
+import pychrono.irrlicht as chronoirr
 import pychrono.vehicle as veh
-import pychrono.irrlicht as irr
-import numpy as np
+import pychrono.sensor as sensor
 
-# --- Initialize the PyChrono environment ---
-chrono.SetChronoDataPath("./chrono_data/")  # Adjust path if needed
+# --- Initialization ---
+chrono.SetChronoDataPath("./")  # Set the path to the Chrono data directory
 
-# --- Create a physical system ---
+# Create a Chrono system
 system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
 
-# --- Create the terrain ---
+# --- Terrain ---
 terrain = chrono.ChTerrain()
-terrain.Create(system, "terrain", 100, 100, 1, 1)
-terrain.SetTexture(chrono.ChTexture("textures/terrain.png"))
-terrain.SetHeightDistribution("hill", 10, 0.2)
-terrain.SetRoughness(0.1)
+terrain.Create(system, "terrain", 100, 100, 10, 10)
+terrain.SetTexture(chrono.GetChronoDataPath() + "textures/terrain/grass.png", 0)
+terrain.SetHeightFunction(chrono.ChFunctionToboggan())
 
-# --- Create the HMMWV vehicle ---
+# --- Vehicle Setup ---
 hmmwv = veh.HMMWV(system)
 hmmwv.SetVehicleModel("hmmwv")
-hmmwv.SetTireModel("Michelin_XCL_80R20")
-hmmwv.SetEngineModel("GenericEngine")
-hmmwv.SetTransmissionModel("GenericTransmission")
-hmmwv.SetDifferentialModel("GenericDifferential")
-hmmwv.SetChassisMass(1500)  # Example mass
-hmmwv.Initialize()
+hmmwv.SetTerrain(terrain)
+hmmwv.SetTireForceModel(veh.TireForceModelType.MTM)
+hmmwv.SetTireRadius(0.4)
+hmmwv.SetTireWidth(0.3)
+hmmwv.SetTirePressure(1.2)
+hmmwv.SetEngineType(veh.EngineModelType.SIMPLE)
+hmmwv.SetTransmissionType(veh.TransmissionModelType.SIMPLE)
+hmmwv.SetDifferentialType(veh.DifferentialModelType.SIMPLE)
+hmmwv.SetChassisHeight(0.7)
+hmmwv.SetInitialPosition(chrono.ChVectorD(0, 2, 0))
+hmmwv.SetInitialVelocity(chrono.ChVectorD(0, 0, 0))
 
-# --- Add IMU sensor ---
-imu = chrono.ChIMU()
-imu.SetBody(hmmwv.GetChassis())
-imu.SetUpdateRate(100)  # Hz
-imu.SetPosition(chrono.ChVectorD(0, 0.5, 0))  # Relative to chassis
+# --- Driver Input ---
+driver = veh.SimpleDriver(hmmwv)
+driver.SetInput(veh.DriverInputs())
+driver.SetTargetSpeed(20)
+driver.SetTargetDirection(0)
+
+# --- Sensors ---
+# IMU Sensor
+imu = sensor.ChIMUSensor()
+imu.Attach(hmmwv.GetChassis())
+imu.SetFrequency(60)  # Hz
+imu.SetPosition(chrono.ChVectorD(0, 0.5, 0))
 imu.SetRotation(chrono.ChQuaternionD(1, 0, 0, 0))
 
-# --- Add GPS sensor ---
-gps = chrono.ChGPS()
-gps.SetBody(hmmwv.GetChassis())
-gps.SetUpdateRate(10)  # Hz
-gps.SetPosition(chrono.ChVectorD(0, 1.5, 0))  # Relative to chassis
+# GPS Sensor
+gps = sensor.ChGPSSensor()
+gps.Attach(hmmwv.GetChassis())
+gps.SetFrequency(1)  # Hz
+gps.SetPosition(chrono.ChVectorD(0, 0.5, 0))
 gps.SetRotation(chrono.ChQuaternionD(1, 0, 0, 0))
 
-# --- Create the driver ---
-driver = veh.ChDriver(hmmwv)
-driver.SetSteeringDelta(10)
-driver.SetThrottleDelta(0.1)
-driver.SetBrakingDelta(0.1)
-driver.SetGearChangeDelta(1)
-
-# --- Set initial vehicle position ---
-hmmwv.GetChassis().SetPos(chrono.ChVectorD(0, 1, 0))
-hmmwv.GetChassis().SetRotation(chrono.ChQuaternionD(1, 0, 0, 0))
-
-# --- Create the Irrlicht visualizer ---
-vis = irr.ChVisualSystemIrrlicht()
+# --- Visual System ---
+vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
 vis.SetWindowSize(1024, 768)
 vis.SetWindowTitle('HMMWV Simulation')
@@ -61,43 +61,35 @@ vis.Initialize()
 vis.AddCamera(chrono.ChVectorD(0, 10, -10))
 vis.AddTypicalLights()
 
-# --- Simulation loop ---
-time_step = 0.005
-simulation_time = 20
+# --- Simulation Loop ---
+time_step = 0.01
+total_time = 60
 
 while vis.Run():
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
 
-    # --- Driver inputs ---
-    throttle = 0.5
-    steering = 0.2
-    braking = 0.0
-    gear = 1
+    # Update driver input
+    driver.Update(time_step)
 
-    driver.SetThrottle(throttle)
-    driver.SetSteering(steering)
-    driver.SetBraking(braking)
-    driver.SetGear(gear)
-
-    # --- Update the system ---
+    # Advance the system
     system.DoStepDynamics(time_step)
 
-    # --- Update sensor data ---
+    # Update sensor data
     imu.Update()
     gps.Update()
 
-    # --- Output vehicle mass ---
-    vehicle_mass = hmmwv.GetChassis().GetMass()
-    print(f"Vehicle Mass: {vehicle_mass}")
+    # Output vehicle mass
+    vehicle_mass = hmmwv.GetVehicleMass()
+    print(f"Vehicle Mass: {vehicle_mass:.2f} kg")
 
-    # --- Print IMU and GPS data (example) ---
-    if (int(system.GetChTime() / time_step) % 10 == 0):  # Print every 10 steps
-        print("IMU Data:")
-        print(f"  Acceleration: {imu.GetAcc().tolist()}")
-        print(f"  Angular Velocity: {imu.GetAngVel().tolist()}")
-        print("GPS Data:")
-        print(f"  Latitude: {gps.GetLatitude()}")
-        print(f"  Longitude: {gps.GetLongitude()}")
-        print(f"  Altitude: {gps.GetAltitude()}")
+    # Process IMU data (example)
+    if imu.HasNewData():
+        imu_data = imu.GetLatestData()
+        #print(f"IMU Data: Acceleration={imu_data.acceleration}, Angular Velocity={imu_data.angular_velocity}")
+
+    # Process GPS data (example)
+    if gps.HasNewData():
+        gps_data = gps.GetLatestData()
+        #print(f"GPS Data: Latitude={gps_data.latitude}, Longitude={gps_data.longitude}, Altitude={gps_data.altitude}")

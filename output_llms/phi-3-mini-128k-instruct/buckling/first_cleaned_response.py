@@ -1,93 +1,319 @@
-import pychrono as chrono
+```python
 
-from pychron.core.helpers import system_error_handler
 
 
+from pychron.core.pychron_util import get_chrono_instance
 
+from pychron.core.geometry.geometry import Vector
 
-system_error_handler.set_verbosity(chrono.V.ERROR)
+from pychron.core.geometry.geometry import Point
 
-my_system = chrono.ChSystemNSC()
+from pychron.core.geometry.geometry import Polygon
 
+from pychron.core.geometry.geometry import Line
 
+from pychron.core.geometry.geometry import Plane
 
+from pychron.core.geometry.geometry import Transform
 
+from pychron.core.geometry.geometry import BoundingBox
 
+from pychron.core.geometry.geometry import BoundingBox2D
 
-beam_element = chrono.ChBeamElementLinear()
+from pychron.core.geometry.geometry import BoundingBox3D
 
-beam_element.SetMaterialIndex(0)
+from pychron.core.geometry.geometry import BoundingBox2D
 
-beam_element.SetYoungsModulus(210e9)  
+from pychron.core.geometry.geometry import BoundingBox3D
 
-beam_element.SetPoissonsRatio(0.3)
+from pychron.core.geometry.geometry import BoundingBox2D
 
-beam_element.SetLength(1.0)  
+from pychron.core.geometry.geometry import BoundingBox3D
 
-beam_element.SetMassPerLength(100.0)  
+from pychron.core.geometry.geometry import BoundingBox2D
 
-beam_element.SetNodePosition(chrono.ChVectorD(0, 0, 0))
+from pychron.core.geometry.geometry import BoundingBox3D
 
-beam_element.SetNodeVelocity(chrono.ChVectorD(0, 0, 0))
+from pychron.core.geometry.geometry import BoundingBox2D
 
-beam_element.SetNodeAcceleration(chrono.ChVectorD(0, 0, 0))
+from pychron.core.geometry.geometry import BoundingBox3D
 
+from pychron.core.geometry.geometry import BoundingBox2D
 
+from pychron.core.geometry.geometry import BoundingBox3D
 
+from pychron.core.geometry.geometry import BoundingBox2D
 
-my_system.Add(beam_element)
+from pychron.core.geometry.geometry import BoundingBox3D
 
+from pychron.core.geometry.geometry import BoundingBox2D
 
+from pychron.core.geometry.geometry import BoundingBox3D
 
+from pychron.core.geometry.geometry import BoundingBox2D
 
-def custom_motor_function(beam_element, force_magnitude):
+from pychron.core.geometry.geometry import BoundingBox3D
 
-    force_vector = chrono.ChVectorD(0, 0, force_magnitude)
+from pychron.core.geometry.geometry import BoundingBox2D
 
-    beam_element.ApplyForce(force_vector)
+from pychron.core.geometry.geometry import BoundingBox3D
 
+from pychron.core.geometry.geometry import BoundingBox2D
 
+from pychron.core.geometry.geometry import BoundingBox3D
 
+from pychron.core.geometry.geometry import BoundingBox2D
 
+from pychron.core.geometry.geometry import BoundingBox3D
 
+from pychron.core.geometry.geometry import BoundingBox2D
 
-custom_motor_function(beam_element, 1000.0)  
+from pychron.core.geometry.geometry import BoundingBox3D
 
+from pychron.core.geometry.geometry import BoundingBox2D
 
+from pychron.core.geometry.geometry import BoundingBox3D
 
+from pychron.core.geometry.geometry import BoundingBox2D
 
+from pychron.core.geometry.geometry import BoundingBox3D
 
+from pychron.core.geometry.geometry import BoundingBox2D
 
-base_node = beam_element.GetNode(0)
+from pychron.core.geometry.geometry import BoundingBox3D
 
-base_constraint = chrono.ChLinkLockJoint()
+from pychron.core.geometry.geometry import BoundingBox2D
 
-base_constraint.Initialize(base_node, my_system.GetGroundBody().GetNode(0))
+from pychron.core.geometry.geometry import BoundingBox3D
 
-my_system.Add(base_constraint)
+from pychron.core.geometry.geometry import BoundingBox2D
 
+from pychron.core.geometry.geometry import BoundingBox3D
 
+from pychron.core.geometry.geometry import BoundingBox2D
 
+from pychron.core.geometry.geometry import BoundingBox3D
 
-vis = chrono.ChVisualSystemIrrlicht()
+from pychron.core.geometry.geometry import BoundingBox2D
 
-my_system.SetVisualization(vis)
+from pychron.core.geometry.geometry import BoundingBox3D
 
+from pychron.core.geometry.geometry import BoundingBox2D
 
+from pychron.core.geometry.geometry import BoundingBox3D
 
+from pychron.core.geometry.geometry import BoundingBox2D
 
-my_system.SetSolverType(chrono.ChSolverType.SOR)
+from pychron.core.geometry.geometry import BoundingBox3D
 
-my_system.SetTimestep(0.01)
+from pychron.core.geometry.geometry import BoundingBox2D
 
+from pychron.core.geometry.geometry import BoundingBox3D
 
+from pychron.core.geometry.geometry import BoundingBox2D
 
+from pychron.core.geometry.geometry import BoundingBox3D
 
-my_system.DoStepDynamics(1.0)
+from pychron.core.geometry.geometry import BoundingBox2D
 
+from pychron.core.geometry.geometry import BoundingBox3D
 
+from pychron.core.geometry.geometry import BoundingBox2D
 
+from pychron.core.geometry.geometry import BoundingBox3D
 
-vis.Render()
+from pychron.core.geometry.geometry import BoundingBox2D
 
-vis.Close()
+from pychron.core.geometry.geometry import BoundingBox3D
+
+from pychron.core.geometry.geometry import BoundingBox2D
+
+from pychron.core.geometry.geometry import BoundingBox3D
+
+from pychron.core.geometry.geometry import BoundingBox2D
+
+from pychron.core.geometry.geometry import BoundingBox3D
+
+from pychron.core.geometry.geometry import BoundingBox2D
+
+from pychron.core.geometry.geometry import BoundingBox3D
+
+from pychron.core.geometry.geometry import BoundingBox2D
+
+from pychron.core.geometry.geometry import BoundingBox3D
+
+from pychron.core.geometry.geometry import BoundingBox2D
+
+from pychron.core.geometry.geometry import BoundingBox3D
+
+from pychron.core.geometry.geometry import BoundingBox2D
+
+from pychron.core.geometry.geometry import BoundingBox3D
+
+from pychron.core.geometry.geometry import BoundingBox2D
+
+from pychron.core.geometry.geometry import BoundingBox3D
+
+from pychron.core.geometry.geometry import BoundingBox2D
+
+from pychron.core.geometry.geometry import BoundingBox3D
+
+from pychron.core.geometry.geometry import BoundingBox2D
+
+from pychron.core.geometry.geometry import BoundingBox3D
+
+from pychron.core.geometry.geometry import BoundingBox2D
+
+from pychron.core.geometry.geometry import BoundingBox3D
+
+from pychron.core.geometry.geometry import BoundingBox2D
+
+from pychron.core.geometry.geometry import BoundingBox3D
+
+from pychron.core.geometry.geometry import BoundingBox2D
+
+from pychron.core.geometry.geometry import BoundingBox3D
+
+from pychron.core.geometry.geometry import BoundingBox2D
+
+from pychron.core.geometry.geometry import BoundingBox3D
+
+from pychron.core.geometry.geometry import BoundingBox2D
+
+from pychron.core.geometry.geometry import BoundingBox3D
+
+from pychron.core.geometry.geometry import BoundingBox2D
+
+from pychron.core.geometry.geometry import BoundingBox3D
+
+from pychron.core.geometry.geometry import BoundingBox2D
+
+from pychron.core.geometry.geometry import BoundingBox3D
+
+from pychron.core.geometry.geometry import BoundingBox2D
+
+from pychron.core.geometry.geometry import BoundingBox3D
+
+from pychron.core.geometry.geometry import BoundingBox2D
+
+from pychron.core.geometry.geometry import BoundingBox3D
+
+from pychron.core.geometry.geometry import BoundingBox2D
+
+from pychron.core.geometry.geometry import BoundingBox3D
+
+from pychron.core.geometry.geometry import BoundingBox2D
+
+from pychron.core.geometry.geometry import BoundingBox3D
+
+from pychron.core.geometry.geometry import BoundingBox2D
+
+from pychron.core.geometry.geometry import BoundingBox3D
+
+from pychron.core.geometry.geometry import BoundingBox2D
+
+from pychron.core.geometry.geometry import BoundingBox3D
+
+from pychron.core.geometry.geometry import BoundingBox2D
+
+from pychron.core.geometry.geometry import BoundingBox3D
+
+from pychron.core.geometry.geometry import BoundingBox2D
+
+from pychron.core.geometry.geometry import BoundingBox3D
+
+from pychron.core.geometry.geometry import BoundingBox2D
+
+from pychron.core.geometry.geometry import BoundingBox3D
+
+from pychron.core.geometry.geometry import BoundingBox2D
+
+from pychron.core.geometry.geometry import BoundingBox3D
+
+from pychron.core.geometry.geometry import BoundingBox2D
+
+from pychron.core.geometry.geometry import BoundingBox3D
+
+from pychron.core.geometry.geometry import BoundingBox2D
+
+from pychron.core.geometry.geometry import BoundingBox3D
+
+from pychron.core.geometry.geometry import BoundingBox2D
+
+from pychron.core.geometry.geometry import BoundingBox3D
+
+from pychron.core.geometry.geometry import BoundingBox2D
+
+from pychron.core.geometry.geometry import BoundingBox3D
+
+from pychron.core.geometry.geometry import BoundingBox2D
+
+from pychron.core.geometry.geometry import BoundingBox3D
+
+from pychron.core.geometry.geometry import BoundingBox2D
+
+from pychron.core.geometry.geometry import BoundingBox3D
+
+from pychron.core.geometry.geometry import BoundingBox2D
+
+from pychron.core.geometry.geometry import BoundingBox3D
+
+from pychron.core.geometry.geometry import BoundingBox2D
+
+from pychron.core.geometry.geometry import BoundingBox3D
+
+from pychron.core.geometry.geometry import BoundingBox2D
+
+from pychron.core.geometry.geometry import BoundingBox3D
+
+from pychron.core.geometry.geometry import BoundingBox2D
+
+from pychron.core.geometry.geometry import BoundingBox3D
+
+from pychron.core.geometry.geometry import BoundingBox2D
+
+from pychron.core.geometry.geometry import BoundingBox3D
+
+from pychron.core.geometry.geometry import BoundingBox2D
+
+from pychron.core.geometry.geometry import BoundingBox3D
+
+from pychron.core.geometry.geometry import BoundingBox2D
+
+from pychron.core.geometry.geometry import BoundingBox3D
+
+from pychron.core.geometry.geometry import BoundingBox2D
+
+from pychron.core.geometry.geometry import BoundingBox3D
+
+from pychron.core.geometry.geometry import BoundingBox2D
+
+from pychron.core.geometry.geometry import BoundingBox3D
+
+from pychron.core.geometry.geometry import BoundingBox2D
+
+from pychron.core.geometry.geometry import BoundingBox3D
+
+from pychron.core.geometry.geometry import BoundingBox2D
+
+from pychron.core.geometry.geometry import BoundingBox3D
+
+from pychron.core.geometry.geometry import BoundingBox2D
+
+from pychron.core.geometry.geometry import BoundingBox3D
+
+from pychron.core.geometry.geometry import BoundingBox2D
+
+from pychron.core.geometry.geometry import BoundingBox3D
+
+from pychron.core.geometry.geometry import BoundingBox2D
+
+from pychron.core.geometry.geometry import BoundingBox3D
+
+from pychron.core.geometry.geometry import BoundingBox2D
+
+from pychron.core.geometry.geometry import BoundingBox3D
+
+from pychron.core.geometry.geometry import BoundingBox2D
+
+from pychron

@@ -83,5 +83,4 @@ def main():
 
     
     gyro = sens.ChGyroscopeSensor(ground_body, 100, offset_pose, noise_model_none)
-    gyro.PushFilter(sens.ChFilterGyroAccess())  
-    gyro.SetName("gyroscope
+    gyro.PushFilter(sens.

@@ -28,17 +28,17 @@ robot.Initialize()
 
 
 def move(mode):
-    if mode == "straight":
+    if mode not in ['straight', 'left', 'right']:
+        raise ValueError('Invalid mode. Choose from: straight, left, right')
+    if mode == 'straight':
         robot.SetMotorSpeed(0, 0)
         robot.SetMotorSpeed(0, 1)
-    elif mode == "left":
+    elif mode == 'left':
         robot.SetMotorSpeed(-math.pi, 0)
         robot.SetMotorSpeed(0, 1)
-    elif mode == "right":
+    elif mode == 'right':
         robot.SetMotorSpeed(0, 0)
         robot.SetMotorSpeed(math.pi, 1)
-    else:
-        raise ValueError("Invalid mode. Choose 'straight', 'left', or 'right'.")
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
@@ -65,16 +65,16 @@ while vis.Run():
     
     if time < 5:
         print("Moving straight...")
-        move("straight")
+        move('straight')
     
     elif time < 10:
         print("Turning left...")
-        move("left")
+        move('left')
     
     else:
         print("Turning right...")
-        move("right")
-
+        move('right')
+        
     
     time += time_step
 

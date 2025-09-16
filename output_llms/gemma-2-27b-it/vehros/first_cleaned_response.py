@@ -5,57 +5,52 @@ import chrono.ros as ros
 
 
 chrono.SetChronoDataPath("data/")
-system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+my_system = chrono.ChSystemNSC()
+my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+my_system.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
+
 
 
 terrain = chrono.ChBodyEasyBox(100, 100, 1, 1000, True, True)
 terrain.SetPos(chrono.ChVectorD(0, -1, 0))
 terrain.SetBodyFixed(True)
-system.Add(terrain)
+my_system.Add(terrain)
 terrain.GetMaterialSurfaceNSC().SetFriction(0.8)
 terrain.GetMaterialSurfaceNSC().SetRestitution(0.2)
 
 
 vehicle = veh.ChVehicle("HMMWV")
-vehicle.SetSystem(system)
+vehicle.SetChassisBody(chrono.ChBodyEasyBox(3, 1.5, 1, 1500, True, True))
+vehicle.GetChassisBody().SetPos(chrono.ChVectorD(0, 1, 0))
 
 
-vehicle.SetContactMethod(veh.ChContactMethod.NSC)
-vehicle.SetEngineType(veh.ChEngineType.SIMPLE)
-vehicle.SetTireModel(veh.ChTireModel.RIGID)
+vehicle.SetContactMethod(veh.ChContactMethod_NSC)
+vehicle.SetEngineType(veh.ChVehicleEngineType_SIMPLE)
+vehicle.SetTireModel(veh.ChTireModelNSC)
 
 
-vehicle.Initialize(chrono.GetChronoDataPath() + "vehicle/hmmwv/hmmwv.json")
 
 
 driver = veh.ChDriver(vehicle)
 
 
-ros_manager = ros.ChROSManager(system)
+ros_manager = ros.ChROSManager(my_system)
 
 
-ros_manager.RegisterClockSyncHandler()
+ros_manager.RegisterClockSynchronizationHandler()
 ros_manager.RegisterDriverInputHandler(driver)
 ros_manager.RegisterVehicleStatePublisher(vehicle)
 
 
 time_step = 0.01
-simulation_time = 10
-
-while system.GetChTime() < simulation_time:
-    
-    ros_manager.Update()
+while my_system.GetChTime() < 10:
+    ros_manager.Update()  
 
     
-    system.DoStepDynamics(time_step)
-
-    
-    driver.Update(time_step)
+    driver.Synchronize(time_step)
+    vehicle.Synchronize(time_step)
+    terrain.Synchronize(time_step)
+    my_system.DoStepDynamics(time_step)
 
     
     ros_manager.PublishVehicleState()
-
-
-ros_manager.Shutdown()
-system.Clear()

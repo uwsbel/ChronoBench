@@ -4,73 +4,78 @@
 
 ### 1. Completeness (40 points)
 
-- **System Initialization:** Present and correctly done with `chrono.ChSystemNSC()`. No deduction.
-- **Body Creation:** Two bodies created (`floor` and `box`) using `ChBodyEasyBox`, with material and collision enabled. Properly added to the system. No deduction.
-- **Gravity Setup:** Gravity is set correctly with `Set_G_acc`. No deduction.
-- **Material Setup:** Material created and friction set. No deduction.
-- **ROS Integration:** ROS node initialized, and handlers for clock, bodies, transforms, and a custom handler registered with `ChROSManager`. This is a good integration.
-- **Visualization:** **Missing.** The code imports `pychrono.irrlicht` but does not create or initialize any visualization system (`ChVisualSystemIrrlicht`), nor does it attach the system or run a visualization loop. This is a significant omission for a typical PyChrono simulation that expects visualization. Deduct **15 points**.
-- **Simulation Loop:** Present and correctly calls `DoStepDynamics`, `ros_manager.Update()`, and `ChRealtimeStep`. No deduction.
-- **Body Positioning:** The box is positioned at (0,5,0), which is appropriate. No deduction.
-- **Collision Settings:** No explicit collision envelope or margin set, but this is optional and not essential here. No deduction.
-- **Use of `SetBodyFixed`:** The floor is fixed using `SetBodyFixed(True)`, which is correct. No deduction.
-- **Custom ROS Handler:** Properly defined and registered. No deduction.
+- **System Initialization:** Present and correct (`chrono.ChSystemNSC()` used). No deduction.
+- **Body Creation:** Both floor and box bodies are created with mass, inertia, position, collision enabled, and shapes added. However:
+  - The floor is created as a `chrono.ChBody()` with a `ChBoxShape()` added as a shape. According to best practices and the API, collision shapes should be added via the collision model, not just visual shapes. The code uses `AddShape()` which is for visual shapes, but does not set up collision shapes properly (missing collision model setup and `SetCollide(True)` is called on the body but no collision model is built). This is a significant omission.
+  - The same applies to the box.
+  - The API documentation suggests using `EnableCollision(True)` instead of `SetCollide(True)` (the latter is deprecated or less preferred).
+  - Also, the code does not create or assign any contact materials, which is essential for realistic contact simulation.
+  - No collision model building calls (`body.GetCollisionModel().BuildModel()`) are present.
+  - No visualization system is created or attached, which is generally essential for simulation visualization.
+  
+  **Deduction:**  
+  - Missing proper collision model setup and contact materials: **-15 points** (essential component missing).  
+  - Missing visualization system setup: **-15 points** (essential component missing).
 
-**Total Completeness deduction: 15 points**
+- **ROS Integration:** Present and functional, though minimal. No deduction here since it's outside PyChrono scope.
+
+- **Simulation Loop:** Present and correct with `DoStepDynamics()` and ROS rate control. No deduction.
+
+**Total Completeness deduction: 30 points**
 
 ---
 
 ### 2. Correctness (30 points)
 
-- **API Usage:**
-  - `chrono_system.Set_G_acc(...)` is used instead of `Set_G_acc` or `Set_G_acceleration`. The PyChrono API uses `Set_G_acc` (underscore) or `Set_G_acceleration`?  
-    The documentation shows `Set_G_acc` is correct. So no deduction.
-  - `ChBodyEasyBox` constructor is called with 6 arguments: `(1,1,1,1000,True,material)`. According to the docs, the signature is:  
-    `ChBodyEasyBox(lengthX, lengthY, lengthZ, density, visualize, collision, material)`  
-    The code passes only 6 arguments, missing the `collision` boolean argument. The code passes `True` for visualize, but then passes `material` as the 6th argument. This is incorrect because the 6th argument should be `collision` (bool), and the 7th argument is `material`.  
-    So the call should be:  
-    `ChBodyEasyBox(1, 1, 1, 1000, True, True, material)`  
-    The code omits the `collision` argument, which likely defaults to `False` or causes an error. This is a **significant API misuse** that could cause the box to have no collision or unexpected behavior. Deduct **15 points**.
-  - Similarly for the floor: `floor = chrono.ChBodyEasyBox(10, 1, 10, 1000, True, material)` - same issue, missing the `collision` argument. Deduct **15 points**.
-- **`SetBodyFixed` vs `SetFixed`:** The code uses `SetBodyFixed(True)`. The API documentation shows `SetFixed(True)` is the method to fix a body. `SetBodyFixed` is not a documented method. This is an **incorrect API usage** that will cause an error or have no effect. Deduct **15 points**.
-- **`ros_manager.RegisterHandler(custom_handler)`:** The `custom_handler` is a user-defined class that does not inherit from any PyChrono handler base class. The PyChrono handlers are expected to have an `Update()` method, which `custom_handler` has. This is acceptable, but it is somewhat unusual and may cause issues if PyChrono expects specific handler interfaces. This is a minor issue. Deduct **5 points**.
-- **`chrono.ChRealtimeStep(...)`:** Correct usage to synchronize simulation with real time. No deduction.
-- **`ros_manager.Update()`:** Correct usage. No deduction.
-- **`rospy.is_shutdown()` loop:** Correct usage. No deduction.
+- **Use of `Set_G_acc`:** The method `Set_G_acc` is called on the system, but according to the PyChrono API, the correct method is `Set_G_acc` (underscore) or `Set_G_acceleration`? The API documentation shows `Set_G_acc` is correct (matches the code). No deduction.
 
-**Total Correctness deduction: 15 + 15 + 15 + 5 = 50 points**
+- **Use of `SetCollide(True)`:** According to the API, the preferred method is `EnableCollision(True)`. Using `SetCollide(True)` is either deprecated or incorrect. This could lead to bodies not colliding properly.
 
-Since the maximum correctness points are 30, the deduction exceeds the total points, so the correctness score is 0.
+- **Collision shapes:** Only visual shapes are added (`AddShape()` with `ChBoxShape()`), but collision shapes require adding to the collision model and building it. This is a significant correctness error that will cause the simulation to not detect collisions.
+
+- **Mass and inertia:** Set correctly.
+
+- **No joints or constraints:** Not necessarily an error, but no deduction since none are required here.
+
+- **ROS publishing:** Correct usage.
+
+**Deduction:**  
+- Incorrect collision enabling and missing collision model setup: **-15 points** (significant API misuse affecting simulation behavior).
+
+**Total Correctness deduction: 15 points**
 
 ---
 
 ### 3. Code Quality (10 points)
 
-- **Readability:**  
-  - Variable names are meaningful (`chrono_system`, `material`, `floor`, `box`, `ros_manager`, etc.).  
-  - Code is structured with a `main()` function and a class for the custom handler.  
-  - Indentation and formatting are good.  
-  - Minor inconsistency: the code uses `SetBodyFixed` (wrong method) which suggests a lack of attention to detail.  
-  - No docstrings or comments explaining the purpose of the code or steps.  
-- **Comments:**  
-  - The code has no comments at all, which is a **lack of documentation** and reduces maintainability.  
-- **Imports:**  
-  - Imports `pychrono.irrlicht` but does not use it. Minor inefficiency.  
-- **Overall:**  
-  Deduct **5 points** for lack of comments/documentation.  
-  Deduct **3 points** for minor inconsistency and unused imports.  
+- The code is mostly readable with meaningful variable names (`floor`, `box`, `custom_handler`).
 
-**Total Code Quality deduction: 8 points**
+- However, there are no comments explaining the purpose of code blocks or classes.
+
+- The code repeats the entire script twice (the entire code block is duplicated). This is redundant and reduces readability.
+
+- The class `CustomROSHandler` uses PascalCase for the method `Update()`, which is acceptable but Python convention prefers lowercase with underscores (`update()`).
+
+- No docstrings or inline comments.
+
+**Deduction:**  
+- Lack of comments/documentation: **-5 points**  
+- Code duplication and minor style issues: **-5 points**
+
+**Total Code Quality deduction: 10 points**
 
 ---
 
 ### 4. Efficiency (10 points)
 
-- **Unnecessary imports:** `pychrono.irrlicht` imported but not used. Deduct **5 points**.
-- **CustomROSHandler:** The `update()` method increments and publishes a counter every simulation step. This is fine, no inefficiency.
-- **No redundant calculations or API calls.**
-- **Simulation loop:** Properly uses `DoStepDynamics` and `ChRealtimeStep`. No inefficiency.
-- **No obvious missing optimizations.**
+- The code duplicates the entire script twice, which is unnecessary and inefficient.
+
+- No other obvious inefficiencies.
+
+**Deduction:**  
+- Duplicate code: **-5 points**
+
+- No other inefficiencies: no further deduction.
 
 **Total Efficiency deduction: 5 points**
 
@@ -78,58 +83,68 @@ Since the maximum correctness points are 30, the deduction exceeds the total poi
 
 ### 5. Error Handling and Robustness (5 points)
 
-- **No error handling:**  
-  - No try-except blocks around ROS initialization or simulation steps.  
-  - No checks for ROS publisher connection status or message queue overflow.  
-  - No handling of exceptions or edge cases in the simulation loop.  
-- **ROS node initialized with `anonymous=True`, which is good practice.**  
-- **Overall:** Deduct **5 points** for lack of basic error handling.
+- No error handling or try-except blocks.
+
+- No checks for ROS publisher connection or simulation errors.
+
+- No handling of edge cases.
+
+**Deduction:**  
+- Lack of basic error handling: **-5 points**
+
+**Total Error Handling deduction: 5 points**
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
-- **Visualization is completely missing:**  
-  - No `ChVisualSystemIrrlicht` created or initialized.  
-  - No rendering loop or calls to `BeginScene()`, `Render()`, `EndScene()`.  
-  - This is a significant omission for a PyChrono simulation that imports the visualization module.  
-- Deduct **5 points**.
+- No visualization system is created or used (`chronoirr.ChVisualSystemIrrlicht()` is imported but never instantiated or attached).
+
+- No rendering loop or calls to `vis.Run()`, `vis.BeginScene()`, `vis.Render()`, or `vis.EndScene()`.
+
+- This is a significant omission for a PyChrono simulation.
+
+**Deduction:**  
+- Missing visualization setup: **-5 points**
 
 ---
 
 ### Summary of deductions:
 
-| Criterion                     | Deduction Points |
-|-------------------------------|------------------|
-| Completeness                  | 15               |
-| Correctness                  | 30 (max)         |
-| Code Quality                 | 8                |
-| Efficiency                  | 5                |
-| Error Handling and Robustness | 5                |
-| Visualization Tools          | 5                |
-| **Total Deductions**          | **68**           |
-
----
-
-### Final score calculation:
-
-- Completeness: 40 - 15 = 25
-- Correctness: 30 - 30 = 0 (max deduction capped at 30)
-- Code Quality: 10 - 8 = 2
-- Efficiency: 10 - 5 = 5
-- Error Handling: 5 - 5 = 0
-- Visualization: 5 - 5 = 0
-
-Sum: 25 + 0 + 2 + 5 + 0 + 0 = 32 points
+| Criterion                  | Points | Deduction | Notes                                    |
+|----------------------------|--------|-----------|------------------------------------------|
+| Completeness               | 40     | -30       | Missing collision model and visualization |
+| Correctness                | 30     | -15       | Incorrect collision enabling and missing collision model build |
+| Code Quality               | 10     | -10       | No comments, duplicated code, minor style issues |
+| Efficiency                 | 10     | -5        | Duplicate code                           |
+| Error Handling & Robustness| 5      | -5        | No error handling                        |
+| Visualization Tools        | 5      | -5        | No visualization setup                   |
+| **Total**                  | 100    | **-70**   |                                          |
 
 ---
 
 ### Final score:
 
-[[32]]
+**100 - 70 = 30**
 
 ---
 
 ### Explanation:
 
-The script correctly initializes the system, creates bodies, sets gravity, and integrates with ROS. However, it has **critical API usage errors** such as incorrect arguments to `ChBodyEasyBox` and use of a non-existent `SetBodyFixed` method, which would cause runtime errors or incorrect simulation behavior. The **lack of visualization setup** is a major omission for a PyChrono simulation, especially since the visualization module is imported. The code lacks comments and error handling, and imports an unused module, reducing code quality and efficiency. These issues significantly reduce the overall score.
+The script correctly initializes the system and bodies in a minimal sense and integrates with ROS. However, it misses critical components for a proper PyChrono simulation:
+
+- Collision models are not properly set up, which will cause the simulation to ignore collisions.
+
+- The use of `SetCollide(True)` instead of `EnableCollision(True)` is incorrect or deprecated.
+
+- No contact materials are defined, which affects physical realism.
+
+- No visualization system is created or used, making it impossible to visually verify the simulation.
+
+- The code is duplicated unnecessarily, lacks comments, and has no error handling.
+
+- These issues significantly reduce the completeness, correctness, and usability of the simulation.
+
+---
+
+[[30]]

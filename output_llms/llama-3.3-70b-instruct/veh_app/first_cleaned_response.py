@@ -1,121 +1,69 @@
 import pychrono.core as chrono
-import pychrono.irrlicht as chronoirr
 import pychrono.vehicle as veh
-import numpy as np
+import pychrono.irrlicht as chronoirr
 
 
 sys = chrono.ChSystemNSC()
 
 
-contact_material = chrono.ChMaterialSurfaceNSC()
-contact_material.SetFriction(0.9)
-contact_material.SetDampingF(0.3)
-contact_material.SetCompliance(1e-6)
-contact_material.SetComplianceT(1e-6)
-sys.SetDefaultContactMaterial(contact_material)
+gator = veh.Gator()
+gator.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0.5), chrono.Q_from_AngX(chrono.CH_C_PI_2)))
+gator.SetChassisVisualization(chrono.ChVisualization.ChVIS_NONE)
+gator.SetSuspensionVisualization(chrono.ChVisualization.ChVIS_PRIMITIVES)
+gator.SetSteeringVisualization(chrono.ChVisualization.ChVIS_MESH)
+gator.SetWheelVisualization(chrono.ChVisualization.ChVIS_PRIMITIVES)
+sys.Add(gator)
 
 
-vehicle = veh.Gator()
+terrain = veh.RigidTerrain()
+terrain.Initialize(sys)
+sys.Add(terrain)
 
 
-vehicle.Initialize(sys)
-
-
-vehicle.SetChassisPosition(chrono.ChVectorD(0, 1, 0))
-vehicle.SetChassisOrientation(chrono.Q_from_AngX(chrono.CH_C_PI_2))
-
-
-terrain = veh.RigidTerrain(sys)
-
-
-sys.Add(terrain.GetGroundBody())
-
-
-sys.Add(vehicle.GetChassisBody())
-sys.Add(vehicle.GetBody(0))
-sys.Add(vehicle.GetBody(1))
-sys.Add(vehicle.GetBody(2))
-sys.Add(vehicle.GetBody(3))
-
-
-driver = veh.ChIrrlichtDriver()
-driver.SetVehicle(vehicle)
-driver.SetSteeringMin(-0.5)
-driver.SetSteeringMax(0.5)
-driver.SetThrottleMin(0)
-driver.SetThrottleMax(1)
-
-
-vehicle.GetChassisBody().SetCollide(True)
-vehicle.GetChassisBody().SetBodyFixed(False)
-
-
-for wheel in vehicle.GetWheels():
-    wheel.GetBody().SetCollide(True)
-    wheel.GetBody().SetBodyFixed(False)
+driver = veh.ChIrrNodeDriver()
+driver.Initialize(sys, gator.GetChassisBody(), 0.5)
+sys.Add(driver)
 
 
 sensor_manager = veh.SensorManager()
+sensor_manager.AddPointLight(chrono.ChVectorD(0, 0, 2), chrono.ChVectorF(1, 1, 1))
+sensor_manager.AddCamera(chrono.ChVectorD(0, 0, 1.5), gator.GetChassisBody())
+sys.Add(sensor_manager)
 
 
-point_light = chronoirr.ChLightDirectional()
-point_light.SetDirection(chrono.ChVectorD(-1, -1, -1))
-sensor_manager.AddSensor(point_light)
-
-
-camera = chronoirr.ChCamera()
-camera.SetPosition(chrono.ChVectorD(0, 2, -3))
-camera.SetLookAt(chrono.ChVectorD(0, 0, 0))
-sensor_manager.AddSensor(camera)
-
-
-camera.SetPosition(vehicle.GetChassisBody().GetPos() + chrono.ChVectorD(0, 2, -3))
-camera.SetLookAt(vehicle.GetChassisBody().GetPos())
-
-
-time_step = 1e-3
-
-
-simulation_duration = 10
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AddSkyBox()
+vis.AddTypicalLights()
+vis.AddCamera(chrono.ChVectorD(0, 0, 2))
+vis.AddCamera(chrono.ChVectorD(0, 0, 1.5), gator.GetChassisBody())
+vis.SetWindowSize(1024, 768)
+vis.SetLogo("")
 
 
 time = 0
-
-
-while time < simulation_duration:
+dt = 0.01
+while time < 10:
     
     driver.Synchronize(time)
-
+    
     
     terrain.Synchronize(time)
-
     
-    vehicle.Synchronize(time)
-
+    
+    gator.Synchronize(time)
+    gator.Advance(dt)
+    
     
     sensor_manager.Synchronize(time)
-
+    sensor_manager.Render()
     
-    sys.DoStepDynamics(time_step)
-
     
-    camera.Render()
-
+    sys.DoStepDynamics(dt)
     
-    time += time_step
-
-
-app = chronoirr.ChVisualSystemIrrlicht()
-
-
-app.AddSkyBox()
-app.AddTypicalLights()
-app.AddCamera(camera)
-app.AddCameraAxes()
-
-
-app.GetCamera().SetPosition(chrono.ChVectorD(0, 2, -3))
-app.GetCamera().SetLookAt(chrono.ChVectorD(0, 0, 0))
-
-
-app.Run()
+    
+    vis.BeginScene()
+    vis.DrawAll()
+    vis.EndScene()
+    
+    
+    time += dt

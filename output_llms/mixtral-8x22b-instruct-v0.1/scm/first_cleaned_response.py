@@ -1,62 +1,67 @@
-import pychrono as chrono
-import pychrono.irrlicht as chronoirr
-import pychrono.vehicle as veh
-import pychrono.scm as scm
+import PyChrono as chrono
+import PyChrono.Irrlicht as chronoirr
+import PyChrono.SCM as chronosc
+import PyChrono.SCM.Terrain as chronoterrain
+import PyChrono.SCM.Mesh as chronomesh
+import PyChrono.SCM.Tire as chronotire
+import PyChrono.SCM.Driver as chronodriver
 
 
-physics_system = chrono.ChSystemNSC()
+chrono.Init_ChronoEngine()
 
 
-visualization_system = chronoirr.ChIrrApp(physics_system, "HMMWV on SCM Terrain", chronoirr.Dim3d(800, 600))
+system = chrono.ChSystemNSC()
 
 
-visualization_system.SetFPS(50)
+application = chronoirr.ChIrrApp(system, "HMMWV on SCM Terrain", chronoirr.Dim(800, 600))
 
 
-vehicle = veh.HMMWV()
+vehicle = chronosc.ChHMMWV()
+vehicle.SetChassisFixed(False)
+vehicle.SetPos(chrono.ChVectorD(0, 0, 0.5))
+vehicle.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
 
 
-vehicle.SetChassisPosition(chrono.ChVectorD(0, 0, 0.5))
-vehicle.SetChassisOrientation(chrono.ChQuaternionD(1, 0, 0, 0))
+tire = chronotire.ChSCMTire()
+tire.SetTireType(chronotire.ChSCMTire::RIGID)
+vehicle.SetTire(0, tire)
+vehicle.SetTire(1, tire)
+vehicle.SetTire(2, tire)
+vehicle.SetTire(3, tire)
 
 
-physics_system.Add(vehicle)
+vehicle.AddVisualizationAssets(chrono.GetChronoDataFile("vehicle/hmmwv/hmmwv.obj"))
 
 
-terrain = scm.SCMDeformableTerrain()
+terrain = chronoterrain.ChSCMTerrain()
+terrain.SetSoilParameters(chronoterrain.ChSCMSoilParameters(1500, 100, 0.4, 5, 0.01, 0.005, 0.001))
+terrain.SetPlotType(chronoterrain.ChSCMTerrain::PLOT_SINKAGE, 0.01)
+terrain.Initialize(20, 20, 0.5)
 
 
-terrain.SetSoilParameters(...)
+terrain.SetMovingPatch(True)
+terrain.SetMovingPatchRadius(1.5)
+terrain.SetMovingPatchHeight(0.1)
+terrain.SetMovingPatchPosition(chrono.ChVectorD(0, 0, 0))
 
 
-terrain.EnableMovingPatch(True)
+system.Add(terrain)
 
 
-physics_system.Add(terrain)
+driver = chronodriver.ChIrrGuiDriver()
+driver.SetSteeringDelta(0.05)
+driver.SetThrottleDelta(0.1)
+driver.SetBrakingDelta(0.1)
+application.AddTypicalSuspensionDriver(driver, vehicle)
 
 
-vehicle.SetTireType(veh.TireType.RIGID)
+application.SetTimestep(0.02)
 
 
-vehicle.SetVisualizationType(veh.VisualizationType.MESH)
+while (application.GetDevice().run()):
+    application.BeginScene()
+    application.DrawAll()
+    application.DoStep()
+    application.EndScene()
 
-
-terrain.SetVisualizationType(scm.VisualizationType.SINKAGE_FALSE_COLOR)
-
-
-driver = veh.ChIrrGuiDriver(visualization_system, vehicle)
-
-
-driver.SetSteering(0)
-driver.SetThrottle(0)
-driver.SetBraking(0)
-
-
-while visualization_system.Run():
-    
-    physics_system.DoStepDynamics(0.01)
-
-    
-    visualization_system.BeginScene()
-    visualization_system.DrawAll()
-    visualization_system.EndScene()
+chrono.ChronoEngine_Terminate()

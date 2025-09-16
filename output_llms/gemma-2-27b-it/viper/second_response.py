@@ -4,7 +4,7 @@ import numpy as np
 import pychrono as chrono
 import pychrono.robot as viper
 from pychrono import irrlicht as chronoirr
-import pychrono.sensor as sens  # Import sensor module
+import pychrono.sensor as sens
 
 # Create Chrono system
 system = chrono.ChSystemNSC()
@@ -70,12 +70,12 @@ manager.AddSensor(cam)
 # Set the simulation time step
 time_step = 1e-3
 
-# Simulation loop variables
+# Simulation loop
+time = 0
 step_number = 0
 render_step_size = 1.0 / 25  # FPS = 25
 render_steps = math.ceil(render_step_size / time_step)
 
-time = 0
 while vis.Run():
     time += time_step  # Increment the simulation time
     steering = 0
@@ -91,7 +91,6 @@ while vis.Run():
 
     rover.Update()  # Update the rover's state
 
-    # Update sensor manager
     manager.Update()
 
     # Render the scene at specific intervals

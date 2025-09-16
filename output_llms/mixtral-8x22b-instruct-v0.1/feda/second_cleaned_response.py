@@ -72,9 +72,17 @@ patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 
-driver = veh.ChPathFollowerDriver(vehicle, 10.0, 5)  
-driver.SetGains(0.5, 0.02, 0.01)  
-driver.SetSpeedGains(0.5, 0.02, 0.01)  
+path = veh.Path()
+path.AddPoint(-50, 0, 0.5)
+path.AddPoint(-25, 2.5, 0.5)
+path.AddPoint(0, 0, 0.5)
+path.AddPoint(25, -2.5, 0.5)
+path.AddPoint(50, 0, 0.5)
+
+driver = veh.ChPathFollowerDriver(vehicle.GetVehicle(), path, 10.0)  
+driver.SetLookAheadDistance(5)
+driver.SetGains(0.1, 0.01, 0.0)  
+driver.SetSpeedGains(0.2, 0.01, 0.0)  
 
 
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
@@ -86,21 +94,6 @@ vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
-
-
-path = veh.ChPath()
-path.AddPoint(-50, 0, 0, 0)
-path.AddPoint(-25, 2.5, 0, 0)
-path.AddPoint(0, 5, 0, 0)
-path.AddPoint(25, 2.5, 0, 0)
-path.AddPoint(50, 0, 0, 0)
-path.Initialize()
-
-
-driver.SetPath(path)
-
-
-print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 
 
 render_steps = math.ceil(render_step_size / step_size)

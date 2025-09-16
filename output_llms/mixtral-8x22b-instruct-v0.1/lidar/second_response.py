@@ -14,11 +14,11 @@ def main():
     # ----------------------------------
     # Add a box to be sensed by a lidar
     # ----------------------------------
-    side = 1  # specify the side length of the box
-    box = chrono.ChBodyEasyBox(side, side, side, 1000)  # create a box
-    box.SetPos(chrono.ChVector3d(0, 0, 0))  # set the position of the box
-    box.SetBodyFixed(True)  # fix the box in place
-    mphysicalSystem.Add(box)  # add the box to the system
+    side = 1.0  # side length of the box
+    box = chrono.ChBodyEasyBox(side, side, side, 1000)
+    box.SetPos(chrono.ChVector3d(0, 0, 0))
+    box.SetBodyFixed(True)
+    mphysicalSystem.Add(box)
 
     # -----------------------
     # Create a sensor manager
@@ -36,7 +36,7 @@ def main():
         update_rate,            # Scanning rate in Hz
         offset_pose,            # Offset pose
         horizontal_samples,     # Number of horizontal samples
-        vertical_samples,       # Number of vertical channels
+        1,                      # Number of vertical channels (1 for 2D lidar)
         horizontal_fov,         # Horizontal field of view
         max_vert_angle,         # Maximum vertical field of view
         min_vert_angle,         # Minimum vertical field of view
@@ -62,7 +62,7 @@ def main():
 
     if vis:
         # Visualize the raw lidar data
-        lidar.PushFilter(sens.ChFilterVisualize(horizontal_samples, vertical_samples, "Raw Lidar Depth Data"))
+        lidar.PushFilter(sens.ChFilterVisualize(horizontal_samples, 1, "Raw Lidar Depth Data"))
 
     # Provides the host access to the Depth, Intensity data
     lidar.PushFilter(sens.ChFilterDIAccess())
@@ -83,12 +83,15 @@ def main():
     # ------------------------------------------------
     # Create a 2D lidar and add it to the sensor manager
     # ------------------------------------------------
+    offset_pose_2d = chrono.ChFramed(
+        chrono.ChVector3d(-12, 0, 1), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
+    )
     lidar_2d = sens.ChLidarSensor(
         box,              # Body lidar is attached to
         update_rate,            # Scanning rate in Hz
-        offset_pose,            # Offset pose
-        1,                      # Number of horizontal samples
-        1,                      # Number of vertical channels
+        offset_pose_2d,            # Offset pose
+        horizontal_samples,     # Number of horizontal samples
+        1,                      # Number of vertical channels (1 for 2D lidar)
         horizontal_fov,         # Horizontal field of view
         max_vert_angle,         # Maximum vertical field of view
         min_vert_angle,         # Minimum vertical field of view
@@ -114,7 +117,7 @@ def main():
 
     if vis:
         # Visualize the raw lidar data
-        lidar_2d.PushFilter(sens.ChFilterVisualize(1, 1, "Raw 2D Lidar Depth Data"))
+        lidar_2d.PushFilter(sens.ChFilterVisualize(horizontal_samples, 1, "Raw 2D Lidar Depth Data"))
 
     # Provides the host access to the Depth, Intensity data
     lidar_2d.PushFilter(sens.ChFilterDIAccess())
@@ -188,7 +191,7 @@ update_rate = 5.0
 
 # Number of horizontal and vertical samples
 horizontal_samples = 800
-vertical_samples = 300
+vertical_samples = 1  # 1 for 2D lidar
 
 # Horizontal and vertical field of view (radians)
 horizontal_fov = 2 * chrono.CH_PI  # 360 degrees

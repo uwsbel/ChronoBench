@@ -104,9 +104,9 @@ manager = sens.ChSensorManager(vehicle.GetSystem())
 
 offset_pose = chrono.ChFramed(chrono.ChVector3d(0, 0, 1), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0)))
 imu = sens.ChAccelerometerSensor(vehicle.GetChassisBody(),                     
-                10,        
-                offset_pose,          
-                sens.ChNoiseNone())   
+                                 10,        
+                                 offset_pose,          
+                                 sens.ChNoiseNone())   
 imu.SetName("IMU Sensor")
 imu.SetLag(0)
 imu.SetCollectionWindow(0)
@@ -159,10 +159,10 @@ while vis.Run():
         
         gps_coor = gps.GetMostRecentGPSBuffer().GetGPSData()
         gps_data.append([gps_coor[0], gps_coor[1], gps_coor[2]])
-
+    
     
     driver.SetThrottle(0.5)
-    driver.SetSteering(0.6) 
+    driver.SetSteering(0.6)
 
     driver_inputs = driver.GetInputs()
     
@@ -170,17 +170,3 @@ while vis.Run():
     
     driver.Synchronize(time)
     terrain.Synchronize(time)
-    vehicle.Synchronize(time, driver_inputs, terrain)
-    vis.Synchronize(time, driver_inputs)
-
-    
-    driver.Advance(step_size)
-    terrain.Advance(step_size)
-    vehicle.Advance(step_size)
-    vis.Advance(step_size)
-
-    
-    manager.Update()
-    
-    
-    step_number += 1

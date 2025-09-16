@@ -1,95 +1,56 @@
-import pychrono as chrono
-import pychrono.irrlicht as chronoirr
-import numpy as np
+import PyChrono as chrono
+import PyChrono.Irrlicht as chronoirr
+import PyChrono.Vehicle as vehicle
+import PyChrono.Postprocess as postprocess
 
 
-my_application = chronoirr.ChIrrApp(chronoirr.NullCamera(), "Chrono Example", chrono.Dimensions(800, 600))
+chrono.Init_Chrono()
 
 
-my_system = chrono.ChSystemNSC()
+vehicle_system = vehicle.ChVehicle()
+vehicle_system.Initialize(chrono.GetChronoDataFile('vehicle/hmmwv/hmmwv.tire'), chrono.GetChronoDataFile('vehicle/hmmwv/hmmwv.chassis'))
 
 
-my_asset = chronoirr.ChIrrNodeAsset()
+vehicle_system.SetChassisPosition(chrono.ChVectorD(0, 0, 0.5))
+vehicle_system.SetChassisOrientation(chrono.ChQuaternionD(1, 0, 0, 0))
 
 
-my_vehicle = chrono.vehicle.ChVehicle()
+vehicle_system.SetContactMethod(vehicle.ChContactMethod_FEA)
+vehicle_system.SetChassisVisualizationType(vehicle.ChVehicleVisualizationType_PRIMITIVES)
 
 
-my_wheeled_vehicle = chrono.vehicle.ChWheeledVehicle()
+terrain = chrono.ChTerrain()
+terrain.SetTexture(chrono.GetChronoDataFile('vehicle/textures/tile4.jpg'), 200, 200)
+terrain.Initialize(vehicle_system.GetSystem())
 
 
-my_vehicle_data = chrono.vehicle.ChVehicleModelData()
+terrain.Set_tx(200)
+terrain.Set_tz(200)
 
 
-my_vehicle_data.m_chassis_mass = 1000.0
-my_vehicle_data.m_chassis_inertia = chrono.ChVectorD(100, 100, 100)
-my_vehicle_data.m_chassis_COM = chrono.ChVectorD(0, 0, 0)
-my_vehicle_data.m_chassis_vis_shape = chrono.ChVectorD(1, 1, 1)
-my_vehicle_data.m_chassis_vis_material = chronoirr.ChIrrMaterial(chrono.ChColor(0.5, 0.5, 0.5))
+vehicle_system.AddAsset(terrain)
 
 
-my_tire = chrono.vehicle.ChWheeledVehicleTire()
+driver = vehicle.ChIrrGuiDriver(vehicle_system, 0.01)
+driver.SetSteeringDelta(0.04)
+driver.SetSteeringSpeed(1.0)
+driver.SetThrottleDelta(0.2)
+driver.SetBrakingDelta(0.3)
 
 
-my_tire.m_radius = 0.5
-my_tire.m_width = 0.3
-my_tire.m_mass = 10.0
-my_tire.m_vis_shape = chrono.ChVectorD(my_tire.m_radius, my_tire.m_width, 0.1)
-my_tire.m_vis_material = chronoirr.ChIrrMaterial(chrono.ChColor(0.5, 0.5, 0.5))
+visualization = chronoirr.ChIrrApp(vehicle_system, 'ARTcar Simulation', chronoirr.dimension2d(800, 600), True, True)
 
 
-my_wheel = chrono.vehicle.ChWheeledVehicleWheel()
+visualization.AddTypicalLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+visualization.AddTypicalSky(chrono.GetChronoDataFile('skybox/daewoo_512.jpg'))
+visualization.AddTypicalLights()
+visualization.AddTypicalCamera(chrono.ChVectorD(0.5, 0.5, -1.5))
+visualization.AddPostprocessor(postprocess.ChGlobalPostprocessor(vehicle_system.GetSystem()))
 
 
-my_wheel.m_radius = my_tire.m_radius
-my_wheel.m_width = my_tire.m_width
-my_wheel.m_mass = my_tire.m_mass
-my_wheel.m_vis_shape = my_tire.m_vis_shape
-my_wheel.m_vis_material = my_tire.m_vis_material
+visualization.SetTimestep(0.01)
+visualization.SetTryRealtime(True)
+visualization.SetFPS(50)
 
 
-my_wheeled_vehicle.AddWheel(my_wheel, chrono.ChVectorD(0.5, 0, 0), chrono.ChVectorD(0, 1, 0), chrono.ChVectorD(0, 0, 1))
-
-
-my_vehicle.SetChassis(my_vehicle_data.m_chassis_vis_shape, my_vehicle_data.m_chassis_vis_material)
-my_vehicle.SetWheel(0, my_wheel, my_tire)
-my_vehicle.SetContactMethod(chrono.vehicle.ChContactMethod.NSC)
-my_vehicle.SetVisualizationType(chrono.vehicle.ChVisualizationType.PRIMITIVES)
-
-
-my_terrain = chrono.terrain.RigidTerrain(my_system.GetContactMethod())
-
-
-my_terrain.SetTexture(chronoirr.ChIrrMaterial(chrono.ChColor(0.5, 0.5, 0.5)))
-my_terrain.Add(chrono.ChBoxShape(chrono.ChVectorD(10, 10, 0.1)))
-my_terrain.Initialize(my_system)
-
-
-my_system.Add(my_vehicle)
-my_system.Add(my_terrain)
-
-
-my_vehicle.SetChassisPose(chrono.ChVectorD(0, 0, 0.5), chrono.ChQuaternionD(1, 0, 0, 0))
-
-
-my_vehicle.SetSteeringValue(0, 0)
-my_vehicle.SetThrottleValue(0, 0)
-my_vehicle.SetBrakingValue(0, 0)
-
-
-my_system.SetTimestep(0.01)
-
-
-my_application.SetTimestep(0.01)
-
-
-my_application.SetFPS(50)
-
-
-while my_application.GetDevice().run():
-    my_application.BeginScene()
-    my_application.DrawAll()
-    my_application.DoStepDynamics()
-    my_application.EndScene()
-
-my_application.GetSystem().Finalize()
+visualization.Run()

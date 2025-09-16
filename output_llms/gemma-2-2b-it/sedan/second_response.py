@@ -2,16 +2,16 @@ import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
-
-# Set this path before running the demo!
+print(veh)
+"""
+!!!! Set this path before running the demo!
+"""
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 # Initial vehicle location and orientation
-initLoc1 = chrono.ChVector3d(0, 0, 0.5)
-initRot1 = chrono.ChQuaterniond(1, 0, 0, 0)
-initLoc2 = chrono.ChVector3d(5, 0, 0)
-initRot2 = chrono.ChQuaterniond(0, 1, 0, 0)
+initLoc = chrono.ChVector3d(0, 0, 0.5)
+initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 # Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
 vis_type = veh.VisualizationType_MESH
@@ -29,8 +29,7 @@ terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
 
 # Poon chassis tracked by the camera
-trackPoint1 = chrono.ChVector3d(-5.0, 0.0, 1.8)
-trackPoint2 = chrono.ChVector3d(5.0, 0.0, 1.8)
+trackPoint = chrono.ChVector3d(-5.0, 0.0, 1.8)
 
 # Contact method
 contact_method = chrono.ChContactMethod_NSC
@@ -52,7 +51,7 @@ vehicle1 = veh.BMW_E90()
 vehicle1.SetContactMethod(contact_method)
 vehicle1.SetChassisCollisionType(chassis_collision_type)
 vehicle1.SetChassisFixed(False)
-vehicle1.SetInitPosition(chrono.ChCoordsysd(initLoc1, initRot1))
+vehicle1.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle1.SetTireType(tire_model)
 vehicle1.SetTireStepSize(tire_step_size)
 vehicle1.Initialize()
@@ -74,7 +73,7 @@ patch = terrain.AddPatch(patch_mat,
     chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
     terrainLength, terrainWidth)
 
-patch.SetTexture(veh.GetDataFile("concrete.jpg"), 200, 200)
+patch.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
@@ -83,7 +82,7 @@ terrain.Initialize()
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('Sedan')
 vis.SetWindowSize(1280, 1024)
-vis.SetChaseCamera(trackPoint1, 6.0, 0.5)
+vis.SetChaseCamera(trackPoint, 6.0, 0.5)
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
@@ -109,7 +108,7 @@ vehicle2 = veh.BMW_E90()
 vehicle2.SetContactMethod(contact_method)
 vehicle2.SetChassisCollisionType(chassis_collision_type)
 vehicle2.SetChassisFixed(False)
-vehicle2.SetInitPosition(chrono.ChCoordsysd(initLoc2, initRot2))
+vehicle2.SetInitPosition(chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0.5), chrono.ChQuaterniond(1, 0, 0, 0)))
 vehicle2.SetTireType(tire_model)
 vehicle2.SetTireStepSize(tire_step_size)
 vehicle2.Initialize()
@@ -131,7 +130,7 @@ patch = terrain.AddPatch(patch_mat,
     chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
     terrainLength, terrainWidth)
 
-patch.SetTexture(veh.GetDataFile("concrete.jpg"), 200, 200)
+patch.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
@@ -140,7 +139,7 @@ terrain.Initialize()
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('Sedan')
 vis.SetWindowSize(1280, 1024)
-vis.SetChaseCamera(trackPoint2, 6.0, 0.5)
+vis.SetChaseCamera(trackPoint, 6.0, 0.5)
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()

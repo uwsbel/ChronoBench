@@ -6,89 +6,71 @@ import pychrono.vehicle as veh
 # Initialize the PyChrono environment and core components
 sys = chrono.ChSystemNSC()
 
-# Create the ground body
-ground = chrono.ChBodyEasyBox(sys, 100, 10, 100, 1000, True, True)
-ground.SetPos(chrono.ChVectorD(0, -10, 0))
-ground.SetMaterial(chrono.ChMaterialSurfaceNSC())
-sys.Add(ground)
-
 # Create the vehicle
-vehicle = veh.ChVehicle(sys, 
-                        veh.ChPartId(0, 0, 0),  # rear left wheel
-                        veh.ChPartId(0, 0, 1),  # rear right wheel
-                        veh.ChPartId(0, 1, 0),  # front left wheel
-                        veh.ChPartId(0, 1, 1))  # front right wheel
+vehicle = veh.ChVehicle()
 
-# Set vehicle properties
-vehicle.SetChassisMass(1500)
-vehicle.SetChassisInertiaXX(chrono.ChVectorD(1000, 1000, 1000))
-vehicle.SetChassisInertiaXY(chrono.ChVectorD(0, 0, 0))
-vehicle.SetChassisPosition(chrono.ChVectorD(0, 5, 0))
+# Set the vehicle's visualization and collision settings
+vehicle.SetVisualization(veh.VisualizationType.PRIMITIVES)
+vehicle.SetCollision(veh.CollisionType.BULLET)
 
-# Create the suspension subsystem
-suspension = veh.ChSuspensionTemplate()
-suspension.SetSpringCoefficient(3e5)
-suspension.SetDampingCoefficient(1e3)
-suspension.SetBumpStopStiffness(1e6)
-suspension.SetBumpStopDamping(1e3)
-suspension.SetAntirollStiffness(1e4)
-suspension.SetAntirollDamping(1e2)
-
-# Create the steering subsystem
-steering = veh.ChSteeringSystem()
-steering.SetMaxSteeringAngle(chrono.ChAngleD(45 * chrono.CH_C_DEG_TO_RAD))
-
-# Create the drivetrain subsystem
-drivetrain = veh.ChDrivetrain()
-drivetrain.SetDifferentialType(veh.ChDrivetrain.DIFF_TYPE_OPEN)
-drivetrain.SetEngineTorque(200)
-drivetrain.SetGearboxRatio(3.5)
-
-# Create the tire model
-tire = veh.ChTireEasyString()
-tire.SetTireModel(veh.ChTireModel.TMEASY)
-tire.SetTireRadius(0.5)
-tire.SetTireWidth(0.2)
+# Create the TMEASY tire model
+tire_model = veh.ChTmeTire()
 
 # Add the vehicle to the system
-sys.Add(vehicle.GetChassisBody())
-sys.Add(vehicle.GetSuspensionSubsystem())
-sys.Add(vehicle.GetSteeringSubsystem())
-sys.Add(vehicle.GetDrivetrainSubsystem())
-sys.Add(vehicle.GetTireModel())
+sys.Add(vehicle)
 
-# Create the driver system
-driver = veh.ChIrrlichtDriver()
-driver.SetVehicle(vehicle)
-driver.SetSteeringSensitivity(0.5)
-driver.SetThrottleSensitivity(0.5)
-driver.SetBrakingSensitivity(0.5)
+# Create the rigid terrain
+terrain = chrono.ChBodyEasyBox(sys, 10, 1, 10, 1000, True, True)
 
-# Create the visualization system
+# Set the terrain's position and material properties
+terrain.SetPos(chrono.ChVectorD(0, -1, 0))
+terrain.SetMaterial(chrono.ChMaterialSurfaceNSC())
+
+# Add the terrain to the system
+sys.Add(terrain)
+
+# Create the interactive driver system
+driver = veh.ChIrrDriver()
+
+# Set the driver's control parameters
+driver.SetSteeringGain(0.1)
+driver.SetThrottleGain(0.1)
+driver.SetBrakingGain(0.1)
+
+# Add the driver to the vehicle
+vehicle.AddDriver(driver)
+
+# Create the Irrlicht visualization system
 vis = chronoirr.ChVisualSystemIrrlicht()
+
+# Set the visualization parameters
+vis.SetWindowSize(1024, 768)
+vis.SetCamera(chronoirr.ChCamera())
 vis.AddSkyBox()
 vis.AddTypicalLights()
-vis.AddCamera(chrono.ChVectorD(0, 10, -10))
-vis.AddCamera(chrono.ChVectorD(0, 10, -10), chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 1, 0))
-vis.AddLogo(chrono.ChVectorD(0, 0, 0), "PyChrono", 1, 1, 1)
-vis.AddTexture(chrono.ChVectorD(0, 0, 0), "terrain.jpg")
 
-# Set the visualization system
-vis.SetWindowSize(1024, 768)
-vis.SetWindowTitle("PyChrono Simulation")
-vis.SetTypicalCameraVisualOptions()
+# Create a chase camera
+camera = chronoirr.ChCamera()
+camera.SetCameraType(chronoirr.ChCamera.CAMERA_CHASE)
+camera.SetTarget(vehicle.GetChassisBody())
+camera.SetDistance(5)
+camera.SetElevation(30)
 
-# Set the simulation time step and duration
-time_step = 0.01
-duration = 10
+# Add the camera to the visualization system
+vis.AddCamera(camera)
 
-# Run the simulation
-while sys.GetChTime() < duration:
-    sys.DoStepDynamics(time_step)
+# Set the terrain's texture and logo
+terrain_texture = chronoirr.ChTexture()
+terrain_texture.SetTextureFile("terrain_texture.png")
+terrain_logo = chronoirr.ChTexture()
+terrain_logo.SetTextureFile("terrain_logo.png")
+vis.AddTexture(terrain_texture)
+vis.AddLogo(terrain_logo)
+
+# Simulate the system
+sys.Solve(chrono.ChTime(0, 0, 0))
+while vis.Run():
+    sys.DoStepDynamics(0.01)
     vis.BeginScene()
     vis.DrawAll()
     vis.EndScene()
-    vis.DoStep()
-
-# Finalize the simulation
-sys.GetContactContainer().ReportAllContacts()

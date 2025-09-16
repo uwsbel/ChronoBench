@@ -2,13 +2,12 @@ import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
-import numpy as np
 
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 # Initial vehicle location and orientation
-initLoc = chrono.ChVector3d(-50, 0, 0.5)
+initLoc = chrono.ChVector3d(-50, 0, 0.5)  # Change initial location
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 # Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
@@ -21,9 +20,9 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 # Rigid terrain
-# terrain_model = veh.RigidTerrain.BOX
+terrain_model = veh.RigidTerrain.BOX
 terrainHeight = 0      # terrain height
-terrainLength = 200.0  # size in X direction
+terrainLength = 200.0  # Increase terrain length
 terrainWidth = 100.0   # size in Y direction
 
 # Poon chassis tracked by the camera
@@ -83,11 +82,14 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
-# Create the path-follower, cruise-control driver system
+# Create the path-follower driver system
 driver = veh.ChPathFollowerDriver()
-driver.SetTargetSpeed(10.0)
+driver.SetSteeringLookAheadDistance(5)  # Set look-ahead distance for steering controller
+driver.SetSteeringGains(0.5, 0.1, 0.01)  # Set steering controller gains
+driver.SetSpeedGains(0.2, 0.05)  # Set speed controller gains
+driver.SetTargetSpeed(10.0)  # Set target speed
 
-# Create the double lane change maneuver path
+# Create the path for the double lane change maneuver
 path = veh.ChBezierPath()
 path.AddPoint(chrono.ChVector3d(-50, -5, 0))
 path.AddPoint(chrono.ChVector3d(-30, -5, 0))
@@ -100,18 +102,9 @@ path.AddPoint(chrono.ChVector3d(30, 5, 0))
 path.AddPoint(chrono.ChVector3d(30, -5, 0))
 path.AddPoint(chrono.ChVector3d(50, -5, 0))
 
-# Configure the steering controller
-driver.SetSteeringLookAheadDistance(5)
-driver.SetSteeringKp(1.2)
-driver.SetSteeringKi(0.5)
-driver.SetSteeringKd(0.1)
-
-# Configure the speed controller
-driver.SetSpeedKp(0.8)
-driver.SetSpeedKi(0.2)
-driver.SetSpeedKd(0.1)
-
 driver.SetPath(path)
+
+# Initialize driver
 driver.Initialize()
 
 # output vehicle mass
@@ -120,7 +113,7 @@ print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
 
-# Initialize simulation frame counter s
+# Initialize simulation frame counter
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0

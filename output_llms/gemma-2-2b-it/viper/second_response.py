@@ -4,6 +4,7 @@ import numpy as np
 import pychrono as chrono
 import pychrono.robot as viper
 from pychrono import irrlicht as chronoirr
+from pychrono.sensor import ChSensorManager, ChCameraSensor, ChFilterVisualize
 
 # Create Chrono system
 system = chrono.ChSystemNSC()
@@ -32,7 +33,7 @@ init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
 rover.Initialize(chrono.ChFramed(init_pos, init_rot))
 
 # Create sensor manager
-manager = sens.ChSensorManager(system)
+manager = ChSensorManager(system)
 
 # Create a point light
 intensity = 1.0
@@ -40,7 +41,7 @@ manager.scene.AddPointLight(chrono.ChVector3f(2, 2.5, 100), chrono.ChColor(inten
 
 # Create a camera sensor
 offset_pose = chrono.ChFramed(chrono.ChVector3d(1.0, 0, 1.45), chrono.QuatFromAngleAxis(.2, chrono.ChVector3d(0, 1, 0)))
-cam = sens.ChCameraSensor(
+cam = ChCameraSensor(
     rover.GetChassis().GetBody(),
     15,  # update rate
     offset_pose,
@@ -74,12 +75,12 @@ while vis.Run():
 
     rover.Update()  # Update the rover's state
 
+    # Update the sensor manager
+    manager.Update()
+
     # Render the scene
     if (step_number % render_steps == 0):
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
     step_number += 1
-    
-    # Advance the simulation by one time step
-    system.DoStepDynamics(time_step)

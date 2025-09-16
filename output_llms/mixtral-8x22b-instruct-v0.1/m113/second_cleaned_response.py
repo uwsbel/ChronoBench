@@ -17,6 +17,7 @@ vis_type = veh.VisualizationType_MESH
 chassis_collision_type = veh.CollisionType_NONE
 
 
+terrain_model = veh.Terrain.DEFORMABLE_SCM
 terrainHeight = 0      
 terrainLength = 100.0  
 terrainWidth = 100.0   
@@ -59,14 +60,15 @@ vehicle.SetTrackShoeVisualizationType(vis_type)
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
-terrain = veh.SCMDeformableTerrain(vehicle.GetSystem())
-terrain.SetPlasticityModel(veh.SCMPlasticityModel_Rigid)
-terrain.SetFriction(0.9)
-terrain.SetRestitution(0.01)
-terrain.SetDampingF(0.2)
-terrain.SetDampingD(0.8)
-terrain.SetSoilParameters(1500, 0.3, 1000000, 0.5)
-terrain.Initialize(veh.GetDataFile("terrain/height_maps/height_map_100x100.txt"), terrainLength, terrainWidth)
+patch_mat = chrono.ChContactMaterialSMC()
+patch_mat.SetFriction(0.9)
+patch_mat.SetRestitution(0.01)
+terrain = veh.DeformableSCMTerrain(vehicle.GetSystem())
+terrain.SetPlotType(veh.DeformableSCMTerrain.PLOT_NONE)
+terrain.SetSoilParametersSCM(2000, 1000, 0.8, 2.0, 0.5, 0.01)
+terrain.SetPlasticThreshold(0.2)
+terrain.Initialize(terrainLength, terrainWidth)
+terrain.SetHeightfield(veh.GetDataFile("terrain/heightmap_257x257.raw"), 257, 257, 0, 1, True)
 terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 200, 200)
 
 
@@ -119,8 +121,7 @@ while vis.Run() :
 
     
     driver_inputs = driver.GetInputs()
-    
-    driver_inputs.m_throttle = 0.8
+    driver_inputs.m_throttle = 0.8  
     
     driver.Synchronize(time)
     terrain.Synchronize(time)

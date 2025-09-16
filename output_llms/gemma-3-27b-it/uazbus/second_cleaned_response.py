@@ -7,7 +7,7 @@ chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 
-initLoc = chrono.ChVector3d(-40, 0, 0.5)  
+initLoc = chrono.ChVector3d(-40, 0, 0.5)
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 
@@ -21,9 +21,9 @@ tire_model = veh.TireModelType_TMEASY
 
 
 
-terrainHeight = 0
-terrainLength = 100.0
-terrainWidth = 100.0
+terrainHeight = 0  
+terrainLength = 100.0  
+terrainWidth = 100.0  
 
 
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
@@ -61,7 +61,7 @@ patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), terrainLength, terrainWidth)
-patch.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 200, 200)  
+patch.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
@@ -80,9 +80,9 @@ vis.AttachVehicle(vehicle.GetVehicle())
 driver = veh.ChInteractiveDriverIRR(vis)
 
 
-steering_time = 1.0
-throttle_time = 1.0
-braking_time = 0.3
+steering_time = 1.0  
+throttle_time = 1.0  
+braking_time = 0.3  
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
@@ -102,17 +102,15 @@ render_frame = 0
 
 lane_change_start_time = 5.0
 lane_change_end_time = 15.0
-lane_change_steering = 0.5  
-lane_change_throttle = 0.5  
+steering_angle = 0.5  
+throttle_during_lane_change = 0.5
 braking_start_time = 20.0
-braking_end_time = 25.0
-braking_intensity = 1.0
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
     
-    if step_number % render_steps == 0:
+    if (step_number % render_steps == 0):
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
@@ -128,17 +126,6 @@ while vis.Run():
     vis.Synchronize(time, driver_inputs)
 
     
-    if lane_change_start_time <= time < lane_change_end_time:
-        driver_inputs.m_steering = lane_change_steering
-        driver_inputs.m_throttle = lane_change_throttle
-    elif braking_start_time <= time < braking_end_time:
-        driver_inputs.m_throttle = 0.0
-        driver_inputs.m_braking = braking_intensity
-    else:
-        driver_inputs.m_steering = 0.0
-        driver_inputs.m_throttle = 0.2  
-
-    
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
@@ -146,6 +133,21 @@ while vis.Run():
 
     
     step_number += 1
+
+    
+    if lane_change_start_time <= time < lane_change_end_time:
+        driver_inputs.m_steering = steering_angle
+        driver_inputs.m_throttle = throttle_during_lane_change
+        driver_inputs.m_braking = 0.0
+    elif time >= braking_start_time:
+        driver_inputs.m_braking = 1.0
+        driver_inputs.m_throttle = 0.0
+        driver_inputs.m_steering = 0.0
+    else:
+        
+        driver_inputs.m_steering = 0.0
+        driver_inputs.m_throttle = 0.2
+        driver_inputs.m_braking = 0.0
 
     
     s.Spin(step_size)

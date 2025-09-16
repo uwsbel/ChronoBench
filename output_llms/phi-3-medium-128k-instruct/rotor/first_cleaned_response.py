@@ -1,108 +1,128 @@
 import Chrono
 
-import chrono
+import irrlicht
 
-import pychrono
+from chrono import irr
 
-import pychrono.Isocurve
+from chrono.irrlicht import ChIrrApp, ChVector, ChBodySphere, ChBodyEasy
 
-import pychrono.ChLinkFast
+from chrono.lidar import ChArcLengthTorqueMotor
 
-import pychrono.ChSystemSparse
+from chrono.bodies import ChBeam3D
 
-import pychrono.ChSystemNSC
+from chrono.bodies import ChBeamIGA
 
-import pychrono.ChIr
+from chrono.synchronization import ChTimeStepperUNumerical
 
-import pychrono.fea
+import numpy as np
 
 
+def main():
 
+    
 
-chrono.ChSystemNSC()
+    chrono = Chrono.chrono
 
+    irrlicht = irr.IrrLicht()
 
 
+    
 
-beam = pychrono.Isocurve.CreateCircle(1.0)
+    app = ChIrrApp(chrono, irrlicht)
 
-beam.SetDensity(1.0)
 
-beam.SetYoungsModulus(210e9)
+    
 
-beam.SetPoissonsRatio(0.3)
+    beam = ChBeamIGA(chrono)
 
+    beam.SetLength(1.0)
 
+    beam.SetNBeams(1)
 
+    beam.SetBeamWidth(0.1)
 
-flywheel = pychrono.ChBody()
 
-flywheel.SetMass(10.0)
+    
 
-flywheel.SetInertiaXXY(pychrono.ChVectorD(&0.0, &0.0, &0.0))
+    flywheel = ChBodySphere(chrono, 0.1, 0.05)
 
-flywheel.SetPos(pychrono.ChVectorD(0.0, 0.0, 0.0))
+    flywheel.SetPos(ChVector(0, 0, 0.5))
 
-beam.AddRigidBody(flywheel)
+    flywheel.SetMass(0.5)
 
 
+    
 
+    motor = ChArcLengthTorqueMotor(chrono, 0.05)
 
-motor = pychrono.ChBody()
+    motor.SetTorque(10.0)
 
-motor.SetMass(5.0)
+    motor.SetArcLength(1.0)
 
-motor.SetInertiaXXY(pychrono.ChVectorD(&0.0, &0.0, &0.0))
+    motor.SetMaxAngularVelocity(10.0)
 
-motor.SetPos(pychrono.ChVectorD(0.0, 0.0, -1.0))
 
-beam.AddRigidBody(motor)
+    
 
+    beam.Attach(flywheel, ChVector(0, 0, 0.5))
 
 
+    
 
-motor.AddForce(pychrono.ChVectorD(0.0, 0.0, 100.0))
+    chrono.AddBody(beam)
 
+    chrono.AddBody(motor)
 
 
+    
 
-system = pychrono.ChSystemSparse()
+    beam.SetColor(irr.E_RED)
 
-system.AddBody(beam)
+    flywheel.SetColor(irr.E_BLUE)
 
+    motor.SetColor(irr.E_GREEN)
 
 
+    
 
-irr_options = pychrono.ChIr.Options()
+    time_step = 0.01
 
-irr_options.SetUseBumpMapping(True)
+    time_stepper = ChTimeStepperUNumerical(chrono, time_step)
 
-irr_window = pychrono.ChIr.CreateIrrlichtWindow(irr_options, 800, 600)
 
+    
 
+    while chrono.IsTimeStepAvailable():
 
+        
 
-fem_visualizer = pychrono.fea.ChFemVisualizer(irr_window)
+        motor.Update(time_step)
 
-fem_visualizer.AddBody(beam)
 
+        
 
+        chrono.DoStepDynamics(time_step)
 
+        chrono.DoStepMathematics(time_step)
 
-system.Set_Frozen(False)
+        app.BeginScene()
 
-system.DoStep(0.01)
+        app.DrawModel(beam)
 
+        app.DrawModel(flywheel)
+        app.DrawModel(motor)
+        app.EndScene()
 
 
+    
 
-while irr_window.GetDevice()->UserHasQuit() == False:
+    chrono.PrintVersion()
 
-    irr_window.DoStep()
+    chrono.ShutDown()
 
-    system.DoStep(0.01)
+    app.Run()
 
 
+if __name__ == "__main__":
 
-
-irr_window.Close()
+    main()

@@ -1,83 +1,44 @@
 import chrono as ch
-import chrono.irrlicht as chirr
-import chrono.vehicle as chvehicle
+import chrono.vehicle as veh
+import chrono.irrlicht as irr
 
-# Initialize PyChrono environment
-ch.chrono.ChEngine.Initialize()
+# 1. Initialize the PyChrono environment and core components
+ch.ChEngine.Initialize()
 
-# Set up the simulation parameters
-TIME_STEP = 0.1  # [s]
-END_TIME = 10.0   # [s]
+# 2. Create the simulation system
+system = ch.ChSystem_EulerImplicit()
 
-# Create the Irrlicht application
-app = chirr.ChIrrApp()
+# 3. Create a rigid terrain
+terrain = veh.ChTerrain(system)
+terrain.SetTerrainMass(1e12)  # Set a large mass to make it immovable
+terrain.SetFrictionCoefficient(0.8)  # Friction coefficient
+terrain.SetRestitutionCoefficient(0.3)  # Restitution coefficient
+terrain.EnableCollisionResponse(True)
 
-# Create the UAZBUS vehicle
-vehicle = chvehicle.ChVehicle()
+# 4. Create a UAZBUS vehicle
+vehicle = veh.ChVehicle(veh.VehicleType.Rigid, system, veh.ChContactMaterial())
+vehicle.Initialize(veh.ChCoordsys(ch.ChVectorD(0, 0, 1), ch.ChQuaternionD(1, 0, 0, 0)))
 
-# Set the vehicle initial conditions
-vehicle.SetPos(ch.ChVector3d(0, 0, 1.0))  # initial position
-vehicle.SetRot(ch.ChQuaterniond(0, 0, 0, 1))  # initial orientation
-
-# Add the vehicle to the simulation
-vehicle.Initialize()
-
-# Create the rigid terrain
-terrain = chvehicle.ChTerrain()
-
-# Set the terrain parameters
-terrain.SetType(chvehicle.TERRAIN_RIGID)
-terrain.SetFriction(0.8)
-terrain.SetRestitution(0.3)
-
-# Set the terrain size and position
-terrain.SetSize(ch.ChVector3d(100, 100, 10))
-terrain.SetPos(ch.ChVector3d(0, 0, 0))
-
-# Add the terrain to the simulation
-terrain.Initialize()
-
-# Create the driver system
-driver = chvehicle.ChDriver(vehicle)
-
-# Set the driver inputs
-driver.SetThrottleInput(0.5)
-driver.SetSteeringInput(0.0)
-driver.SetBrakeInput(0.0)
-
-# Add the driver to the simulation
+# 5. Initialize a driver system for vehicle control
+driver = veh.ChDriver(vehicle)
 driver.Initialize()
 
-# Create the Irrlicht scene node
-scene_node = app.AddVisualization(vehicle.GetChassisBody())
+# 6. Create a real-time visualization using Irrlicht
+vis = irr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetCameraVertical(0, -20, 5)
+vis.SetLight(0, ch.ChVectorD(10, 10, 10), ch.ChVectorD(-1, -1, -1), ch.ChColor(1, 1, 1))
 
-# Set up the camera
-camera = app.GetCamera()
-camera.SetPosition(ch.ChVector3d(0, -10, 5))
-camera.LookAt(ch.ChVector3d(0, 0, 0))
+# 7. Simulation loop
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
 
-# Set up the lighting
-app.SetLight(0, ch.ChVector3d(10, 10, 10), ch.ChColor(1, 1, 1))
+    # Advance the simulation
+    system.DoStepDynamics(0.02)
 
-while app.Run() and (vehicle.GetTime() < END_TIME):
-    # Synchronize the vehicle, terrain, and driver
-    vehicle.Synchronize(vehicle.GetTime() + TIME_STEP)
-    terrain.Synchronize(vehicle.GetTime() + TIME_STEP)
-    driver.Synchronize(vehicle.GetTime() + TIME_STEP)
-
-    # Advance the vehicle, terrain, and driver
-    vehicle.Advance(TIME_STEP)
-    terrain.Advance(TIME_STEP)
-    driver.Advance(TIME_STEP)
-
-    # Update the visual system
-    app.UpdateVisuals(vehicle)
-
-    # Maintain real-time execution
-    ch.ChEngine.Sleep(TIME_STEP)
-
-# Clean up the simulation
-vehicle.Delete()
-terrain.Delete()
-driver.Delete()
-app.Delete()
+    # Synchronize systems
+    driver.Synchronize(0.02)
+    terrain.Synchronize(0.02)
+    vis.Synchronize(0.02)

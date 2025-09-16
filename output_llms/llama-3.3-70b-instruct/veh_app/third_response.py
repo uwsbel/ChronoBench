@@ -29,7 +29,7 @@ step_size = 1e-3
 tire_step_size = step_size
 
 # Simulation end time
-tend = 30  # Changed to 30 to match the simulation loop
+tend = 1000
 
 # Time interval between two render frames
 render_step_size = 1.0 / 50  # FPS = 50
@@ -169,20 +169,19 @@ lidar.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "Lidar Point Cl
 # Add the lidar to the sensor manager
 manager.AddSensor(lidar)
 
-# Create a depth camera
-depth_cam_offset_pose = chrono.ChFramed(chrono.ChVector3d(-5.0, 0, 2), chrono.ChQuaterniond(1, 0, 0, 0))
+# create depth camera
+offset_pose = chrono.ChFramed(chrono.ChVector3d(-5.0, 0, 2), chrono.ChQuaterniond(1, 0, 0, 0))
 depth_cam = sens.ChDepthCameraSensor(
     gator.GetChassisBody(),
     update_rate,
-    depth_cam_offset_pose,
+    offset_pose,
     image_width,
     image_height,
     fov,
-    30.0
+    30
 )
 depth_cam.SetName("Depth Camera")
-# Apply visualization filter for depth map
-depth_cam.PushFilter(sens.ChFilterVisualizeDepth(image_width, image_height, "Depth Camera"))
+depth_cam.PushFilter(sens.ChFilterVisualizeDepth(image_width, image_height, "Depth Map"))
 manager.AddSensor(depth_cam)
 
 # ---------------
@@ -190,7 +189,7 @@ manager.AddSensor(depth_cam)
 # ---------------
 realtime_timer = chrono.ChRealtimeStepTimer()
 time = 0
-end_time = tend
+end_time = 30
 while time < end_time:
     time = gator.GetSystem().GetChTime()
     # set driver inputs
@@ -207,10 +206,9 @@ while time < end_time:
     manager.Update()
 
     # Log vehicle state
-    vehicle_state = gator.GetVehicle().GetChassisBody()
-    position = vehicle_state.GetPos()
-    heading = vehicle_state.GetRot().EulerAngles()[2]
-    print(f"Time: {time}, Position: ({position.x():.2f}, {position.y():.2f}, {position.z():.2f}), Heading: {heading:.2f}")
+    vehicle_pos = gator.GetChassisBody().GetPos()
+    vehicle_heading = gator.GetChassisBody().GetRot().EulerAngles().z
+    print(f"Time: {time}, Position: ({vehicle_pos.x():.2f}, {vehicle_pos.y():.2f}, {vehicle_pos.z():.2f}), Heading: {vehicle_heading:.2f}")
 
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)

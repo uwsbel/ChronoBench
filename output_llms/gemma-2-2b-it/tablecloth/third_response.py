@@ -134,6 +134,4 @@ if (True):  # Block to execute the following setup
     mvisualizeshellA.SetShellResolution(2)  # Set resolution for shell visualization
     mvisualizeshellA.SetBackfaceCull(True)  # Enable backface culling
 
-    mesh.AddVisualShapeFEA(mvisualizeshellA)  # Add visual shape to mesh
-
-    mvisualizeshellB =
+    mesh.AddVisualShapeFEA(mvisual

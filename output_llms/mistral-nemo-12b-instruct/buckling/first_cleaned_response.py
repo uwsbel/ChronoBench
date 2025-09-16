@@ -2,51 +2,61 @@ import pychrono as chrono
 import numpy as np
 
 
-sim = chrono.ChSimulation()
-sys = chrono.ChSystemSMC()
-sys.Set_Gravity(chrono.ChVectorD(0, -9.81, 0))
-sim.AddSystem(sys)
+chrono.setChronoDataPath("path/to/chrono_data")  
+chrono.setChronoLogLevel(chrono.LOG_LEVEL_WARNING)  
 
 
-beam = chrono.ChBeam()
-beam.SetMaterial(chrono.ChMaterialSurfaceNSC())
-beam.SetSection(chrono.ChBeamSectionFrame(chrono.ChFrame(), 0.01, 0.01))
-beam.SetLength(1)
-beam.SetYieldStrength(1e6)
-beam.SetYoungModulus(2e11)
-beam.SetPoissonRatio(0.3)
-beam.SetNumberOfElements(10)
-beam.Set_Frame_Follower(True)
-sys.Add(beam)
+simulation = chrono.ChSystemSMC()
+solver = chrono.ChSolverSD()
+solver.SetMaxIters(50)
+solver.SetTol(1e-3)
+simulation.SetSolver(solver)
 
 
-motor = chrono.ChLinkMotor()
-motor.Initialize(beam, chrono.ChFrameD(chrono.ChVectorD(1, 0, 0), chrono.ChQuaternionD(1, 0, 0, 0)), chrono.ChVectorD(1, 0, 0))
-motor.SetPos(0)
-motor.SetForce(100)
-sys.Add(motor)
-
-
-fixed = chrono.ChLinkLock()
-fixed.Initialize(beam, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.ChQuaternionD(1, 0, 0, 0)))
-sys.Add(fixed)
-
-
-sys.SetSolver(chrono.ChSolverSMC())
-sys.SetTimestepper(chrono.ChTimestepperHHT())
-sys.SetSolverMaxIterations(100)
-sys.SetSolverTolerance(1e-6)
+timestepper = chrono.ChTimestepperHHT()
+simulation.SetTimestepper(timestepper)
 
 
 vis = chrono.ChVisualSystemIrrlicht()
-vis.AttachSystem(sys)
-vis.SetWindowSize(800, 600)
+vis.Attach(simulation)
 vis.Initialize()
-vis.AddLogo(chrono.ChVectorD(0, 0, 0))
+vis.SetWindowTitle("Beam Buckling Simulation")
+vis.SetWindowSize(800, 600)
+
+
+beam = chrono.ChBeam()
+beam.SetMaterial(chrono.MaterialSurfaceNSC())
+beam.SetSection(chrono.ChBeamSectionEuler(1.0, 0.1))  
+beam.SetLength(1.0)  
+beam.SetNumberOfElements(10)  
+beam.SetInitialPosition(chrono.ChVectorD(0, 0, 0))  
+beam.SetInitialRotation(chrono.ChQuaternionD(1, 0, 0, 0))  
+beam.SetFiniteElementType(chrono.ChBeamElementTypeHEXA)  
+
+
+simulation.Add(beam)
+
+
+class CustomMotor(chrono.ChFunction):
+    def __call__(self, t):
+        return chrono.ChVectorD(0, 0, 100 * np.sin(t))
+
+motor = CustomMotor()
+force = chrono.ChForce()
+force.SetForceFunction(motor)
+force.SetPoint(chrono.ChVectorD(0, 0, 1))  
+beam.AddForce(force)
+
+
+constraint = chrono.ChConstraint()
+constraint.SetBody(beam)
+constraint.SetPoint(chrono.ChVectorD(0, 0, 0))
+constraint.SetScrew(chrono.ChMatrix33D().Get_identity())
+simulation.Add(constraint)
 
 
 while vis.Run():
-    sys.DoStepDynamics(0.01)
-    vis.BeginScene()
-    vis.DrawAll()
-    vis.EndScene()
+    simulation.DoStepDynamics(0.01)  
+    vis.Render()  
+
+vis.Detach()

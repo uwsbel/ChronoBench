@@ -1,460 +1,10599 @@
 ```python
 
+
+
 import pychrono as chrono
 
-from pychron.core.helpers.plotting_helper import Plotter
+from pychron.core.helpers import system_lock
 
-import irrlicht as ir
+import chronoirr
 
 
 
 
-chrono.ChSystemNSC()
+with system_lock:
 
+    
 
+    p = chrono.ChSystemBasicSetup()
 
 
-vehicle = chrono.ChBody()
+    
 
-vehicle.SetPos(chrono.ChVectorD(0, 0, 0.5))
+    driver = chronoirr.ChDirect3DRenderDriver()
 
-vehicle.SetBodyFixed(True)
+    scene = chronoirr.ChScene()
 
-vehicle.SetRot(chrono.ChQuaternionD(0, 0, 0, 1))
+    scene.add_render_driver(driver)
 
-vehicle.SetMass(2000)
+    app = chronoirr.ChIrrApp(scene, 'HMMWV Simulation', False, 50)
 
-vehicle.SetInertiaXX(chrono.ChVectorD(100, 100, 100))
+    app.begin_composition()
 
 
+    
 
+    scm_terrain = chrono.ChDeformableTerrain()
 
-tire = chrono.ChTire()
+    scm_terrain.set_type_name('SCM Deformable Terrain')
 
-tire.SetTireRadius(0.3)
+    p.add_rigid_body(scm_terrain)
 
-tire.SetTireWidth(0.15)
+    scm_terrain.set_mass_properties(10000, 1600, 1.2)  
 
-tire.SetTirePressure(2.2)
+    scm_terrain.set_visual_shape_type(chrono.ChVisualShapeType_Box)
 
-vehicle.AddTire(tire)
+    scm_terrain.set_collision_shape_type(chrono.ChCollisionShape_Box)
 
+    scm_terrain.set_collision_margin(0.1)
 
+    scm_terrain.set_position(chrono.ChVectorD(-50, 0, 0))
 
+    scm_terrain.set_orientation(chrono.ChQuaternionD(0, 0, 0, 1))
 
-vehicle.SetVisualizationEnabled(True)
+    p.add_rigid_body(scm_terrain)
 
-vehicle.SetColor(chrono.MaterialParams_DefaultMaterial)
 
+    
 
+    moving_patch = chrono.ChMovingPatch()
 
+    moving_patch.set_type_name('Moving Patch')
 
-terrain = chrono.ChDeformableTerrain()
+    moving_patch.set_position(chrono.ChVectorD(0, 0, 0))
 
-terrain.SetName('SCM_Terrain')
+    moving_patch.set_orientation(chrono.ChQuatern_0
 
-terrain.SetSoilType(chrono.ChSoilType_Sand)
 
-terrain.SetSoilDensity(1600)
 
-terrain.SetSoilFriction(0.6)
 
-terrain.SetSoilCohesion(0)
 
-terrain.SetSoilDamping(0.1)
 
-terrain.SetSoilStiffness(1e7)
 
-terrain.SetSoilDilatation(0.0)
 
-terrain.SetSoilSinkage(0.01)
 
-terrain.SetSoilSinkageColor(chrono.Color(1, 0, 0))
 
-terrain.SetSoilSinkagePlotting(True)
 
-terrain.SetSoilSinkagePlottingColor(chrono.Color(0, 1, 0))
 
-terrain.SetSoilSinkagePlottingAlpha(0.5)
 
-terrain.SetSoilSinkagePlottingLineWidth(2)
 
-terrain.SetSoilSinkagePlottingLineStyle(chrono.ChLineStyle_Solid)
 
-terrain.SetSoilSinkagePlottingPlotType(chrono.ChPlotType_FalseColor)
 
-terrain.SetSoilSinkagePlottingPlotColor(chrono.Color(0, 0, 1))
 
-terrain.SetSoilSinkagePlottingPlotAlpha(1.0)
 
-terrain.SetSoilSinkagePlottingPlotLineWidth(2)
 
-terrain.SetSoilSinkagePlottingPlotLineStyle(chrono.ChLineStyle_Solid)
 
-terrain.SetSoilSinkagePlottingPlotType(chrono.ChPlotType_FalseColor)
 
-terrain.SetSoilSinkagePlottingPlotColor(chrono.Color(0, 0, 1))
 
-terrain.SetSoilSinkagePlottingPlotAlpha(1.0)
 
-terrain.SetSoilSinkagePlottingPlotLineWidth(2)
 
-terrain.SetSoilSinkagePlottingPlotLineStyle(chrono.ChLineStyle_Solid)
 
-terrain.SetSoilSinkagePlottingPlotType(chrono.ChPlotType_FalseColor)
 
-terrain.SetSoilSinkagePlottingPlotColor(chrono.Color(0, 0, 1))
 
-terrain.SetSoilSinkagePlottingPlotAlpha(1.0)
 
-terrain.SetSoilSinkagePlottingPlotLineWidth(2)
 
-terrain.SetSoilSinkagePlottingPlotLineStyle(chrono.ChLineStyle_Solid)
 
-terrain.SetSoilSinkagePlottingPlotType(chrono.ChPlotType_FalseColor)
 
-terrain.SetSoilSinkagePlottingPlotColor(chrono.Color(0, 0, 1))
 
-terrain.SetSoilSinkagePlottingPlotAlpha(1.0)
 
-terrain.SetSoilSinkagePlottingPlotLineWidth(2)
 
-terrain.SetSoilSinkagePlottingPlotLineStyle(chrono.ChLineStyle_Solid)
 
-terrain.SetSoilSinkagePlottingPlotType(chrono.ChPlotType_FalseColor)
 
-terrain.SetSoilSinkagePlottingPlotColor(chrono.Color(0, 0, 1))
 
-terrain.SetSoilSinkagePlottingPlotAlpha(1.0)
 
-terrain.SetSoilSinkagePlottingPlotLineWidth(2)
 
-terrain.SetSoilSinkagePlottingPlotLineStyle(chrono.ChLineStyle_Solid)
 
-terrain.SetSoilSinkagePlottingPlotType(chrono.ChPlotType_FalseColor)
 
-terrain.SetSoilSinkagePlottingPlotColor(chrono.Color(0, 0, 1))
 
-terrain.SetSoilSinkagePlottingPlotAlpha(1.0)
 
-terrain.SetSoilSinkagePlottingPlotLineWidth(2)
 
-terrain.SetSoilSinkagePlottingPlotLineStyle(chrono.ChLineStyle_Solid)
 
-terrain.SetSoilSinkagePlottingPlotType(chrono.ChPlotType_FalseColor)
 
-terrain.SetSoilSinkagePlottingPlotColor(chrono.Color(0, 0, 1))
 
-terrain.SetSoilSinkagePlottingPlotAlpha(1.0)
 
-terrain.SetSoilSinkagePlottingPlotLineWidth(2)
 
-terrain.SetSoilSinkagePlottingPlotLineStyle(chrono.ChLineStyle_Solid)
 
-terrain.SetSoilSinkagePlottingPlotType(chrono.ChPlotType_FalseColor)
 
-terrain.SetSoilSinkagePlottingPlotColor(chrono.Color(0, 0, 1))
 
-terrain.SetSoilSinkagePlottingPlotAlpha(1.0)
 
-terrain.SetSoilSinkagePlottingPlotLineWidth(2)
 
-terrain.SetSoilSinkagePlottingPlotLineStyle(chrono.ChLineStyle_Solid)
 
-terrain.SetSoilSinkagePlottingPlotType(chrono.ChPlotType_FalseColor)
 
-terrain.SetSoilSinkagePlottingPlotColor(chrono.Color(0, 0, 1))
 
-terrain.SetSoilSinkagePlottingPlotAlpha(1.0)
 
-terrain.SetSoilSinkagePlottingPlotLineWidth(2)
 
-terrain.SetSoilSinkagePlottingPlotLineStyle(chrono.ChLineStyle_Solid)
 
-terrain.SetSoilSinkagePlottingPlotType(chrono.ChPlotType_FalseColor)
 
-terrain.SetSoilSinkagePlottingPlotColor(chrono.Color(0, 0, 1))
 
-terrain.SetSoilSinkagePlottingPlotAlpha(1.0)
 
-terrain.SetSoilSinkagePlottingPlotLineWidth(2)
 
-terrain.SetSoilSinkagePlottingPlotLineStyle(chrono.ChLineStyle_Solid)
 
-terrain.SetSoilSinkagePlottingPlotType(chrono.ChPlotType_FalseColor)
 
-terrain.SetSoilSinkagePlottingPlotColor(chrono.Color(0, 0, 1))
 
-terrain.SetSoilSinkagePlottingPlotAlpha(1.0)
 
-terrain.SetSoilSinkagePlottingPlotLineWidth(2)
 
-terrain.SetSoilSinkagePlottingPlotLineStyle(chrono.ChLineStyle_Solid)
 
-terrain.SetSoilSinkagePlottingPlotType(chrono.ChPlotType_FalseColor)
 
-terrain.SetSoilSinkagePlottingPlotColor(chrono.Color(0, 0, 1))
 
-terrain.SetSoilSinkagePlottingPlotAlpha(1.0)
 
-terrain.SetSoilSinkagePlottingPlotLineWidth(2)
 
-terrain.SetSoilSinkagePlottingPlotLineStyle(chrono.ChLineStyle_Solid)
 
-terrain.SetSoilSinkagePlottingPlotType(chrono.ChPlotType_FalseColor)
 
-terrain.SetSoilSinkagePlottingPlotColor(chrono.Color(0, 0, 1))
 
-terrain.SetSoilSinkagePlottingPlotAlpha(1.0)
 
-terrain.SetSoilSinkagePlottingPlotLineWidth(2)
 
-terrain.SetSoilSinkagePlottingPlotLineStyle(chrono.ChLineStyle_Solid)
 
-terrain.SetSoilSinkagePlottingPlotType(chrono.ChPlotType_FalseColor)
 
-terrain.SetSoilSinkagePlottingPlotColor(chrono.Color(0, 0, 1))
 
-terrain.SetSoilSinkagePlottingPlotAlpha(1.0)
 
-terrain.SetSoilSinkagePlottingPlotLineWidth(2)
 
-terrain.SetSoilSinkagePlottingPlotLineStyle(chrono.ChLineStyle_Solid)
 
-terrain.SetSoilSinkagePlottingPlotType(chrono.ChPlotType_FalseColor)
 
-terrain.SetSoilSinkagePlottingPlotColor(chrono.Color(0, 0, 1))
 
-terrain.SetSoilSinkagePlottingPlotAlpha(1.0)
 
-terrain.SetSoilSinkagePlottingPlotLineWidth(2)
 
-terrain.SetSoilSinkagePlottingPlotLineStyle(chrono.ChLineStyle_Solid)
 
-terrain.SetSoilSinkagePlottingPlotType(chrono.ChPlotType_FalseColor)
 
-terrain.SetSoilSinkagePlottingPlotColor(chrono.Color(0, 0, 1))
 
-terrain.SetSoilSinkagePlottingPlotAlpha(1.0)
 
-terrain.SetSoilSinkagePlottingPlotLineWidth(2)
 
-terrain.SetSoilSinkagePlottingPlotLineStyle(chrono.ChLineStyle_Solid)
 
-terrain.SetSoilSinkagePlottingPlotType(chrono.ChPlotType_FalseColor)
 
-terrain.SetSoilSinkagePlottingPlotColor(chrono.Color(0, 0, 1))
 
-terrain.SetSoilSinkagePlottingPlotAlpha(1.0)
 
-terrain.SetSoilSinkagePlottingPlotLineWidth(2)
 
-terrain.SetSoilSinkagePlottingPlotLineStyle(chrono.ChLineStyle_Solid)
 
-terrain.SetSoilSinkagePlottingPlotType(chrono.ChPlotType_FalseColor)
 
-terrain.SetSoilSinkagePlottingPlotColor(chrono.Color(0, 0, 1))
 
-terrain.SetSoilSinkagePlottingPlotAlpha(1.0)
 
-terrain.SetSoilSinkagePlottingPlotLineWidth(2)
 
-terrain.SetSoilSinkagePlottingPlotLineStyle(chrono.ChLineStyle_Solid)
 
-terrain.SetSoilSinkagePlottingPlotType(chrono.ChPlotType_FalseColor)
 
-terrain.SetSoilSinkagePlottingPlotColor(chrono.Color(0, 0, 1))
 
-terrain.SetSoilSinkagePlottingPlotAlpha(1.0)
 
-terrain.SetSoilSinkagePlottingPlotLineWidth(2)
 
-terrain.SetSoilSinkagePlottingPlotLineStyle(chrono.ChLineStyle_Solid)
 
-terrain.SetSoilSinkagePlottingPlotType(chrono.ChPlotType_FalseColor)
 
-terrain.SetSoilSinkagePlottingPlotColor(chrono.Color(0, 0, 1))
 
-terrain.SetSoilSinkagePlottingPlotAlpha(1.0)
 
-terrain.SetSoilSinkagePlottingPlotLineWidth(2)
 
-terrain.SetSoilSinkagePlottingPlotLineStyle(chrono.ChLineStyle_Solid)
 
-terrain.SetSoilSinkagePlottingPlotType(chrono.ChPlotType_FalseColor)
 
-terrain.SetSoilSinkagePlottingPlotColor(chrono.Color(0, 0, 1))
 
-terrain.SetSoilSinkagePlottingPlotAlpha(1.0)
 
-terrain.SetSoilSinkagePlottingPlotLineWidth(2)
 
-terrain.SetSoilSinkagePlottingPlotLineStyle(chrono.ChLineStyle_Solid)
 
-terrain.SetSoilSinkagePlottingPlotType(chrono.ChPlotType_FalseColor)
 
-terrain.SetSoilSinkagePlottingPlotColor(chrono.Color(0, 0, 1))
 
-terrain.SetSoilSinkagePlottingPlotAlpha(1.0)
 
-terrain.SetSoilSinkagePlottingPlotLineWidth(2)
 
-terrain.SetSoilSinkagePlottingPlotLineStyle(chrono.ChLineStyle_Solid)
 
-terrain.SetSoilSinkagePlottingPlotType(chrono.ChPlotType_FalseColor)
 
-terrain.SetSoilSinkagePlottingPlotColor(chrono.Color(0, 0, 1))
 
-terrain.SetSoilSinkagePlottingPlotAlpha(1.0)
 
-terrain.SetSoilSinkagePlottingPlotLineWidth(2)
 
-terrain.SetSoilSinkagePlottingPlotLineStyle(chrono.ChLineStyle_Solid)
 
-terrain.SetSoilSinkagePlottingPlotType(chrono.ChPlotType_FalseColor)
 
-terrain.SetSoilSinkagePlottingPlotColor(chrono.Color(0, 0, 1))
 
-terrain.SetSoilSinkagePlottingPlotAlpha(1.0)
 
-terrain.SetSoilSinkagePlottingPlotLineWidth(2)
 
-terrain.SetSoilSinkagePlottingPlotLineStyle(chrono.ChLineStyle_Solid)
 
-terrain.SetSoilSinkagePlottingPlotType(chrono.ChPlotType_FalseColor)
 
-terrain.SetSoilSinkagePlottingPlotColor(chrono.Color(0, 0, 1))
 
-terrain.SetSoilSinkagePlottingPlotAlpha(1.0)
 
-terrain.SetSoilSinkagePlottingPlotLineWidth(2)
 
-terrain.SetSoilSinkagePlottingPlotLineStyle(chrono.ChLineStyle_Solid)
 
-terrain.SetSoilSinkagePlottingPlotType(chrono.ChPlotType_FalseColor)
 
-terrain.SetSoilSinkagePlottingPlotColor(chrono.Color(0, 0, 1))
 
-terrain.SetSoilSinkagePlottingPlotAlpha(1.0)
 
-terrain.SetSoilSinkagePlottingPlotLineWidth(2)
 
-terrain.SetSoilSinkagePlottingPlotLineStyle(chrono.ChLineStyle_Solid)
 
-terrain.SetSoilSinkagePlottingPlotType(chrono.ChPlotType_FalseColor)
 
-terrain.SetSoilSinkagePlottingPlotColor(chrono.Color(0, 0, 1))
 
-terrain.SetSoilSinkagePlottingPlotAlpha(1.0)
 
-terrain.SetSoil))))
-)
-))
-)
-)))))
-)
-)))
 
-)
-)))
-)
-)
-)
-)
-)
-))
-)
-)
-)
-)
 
-)
-)
-)
-)
-)
-)
-)
 
-)
 
 
 
-)
-)
-)
-)
-)
-)
-)
-))
-)
-)
-)
-)
-)
-)
-)))
-)
-)
-)
-)
-)
-)
-)
-)
-)
-)
-)
-)
-)
-)
-)
-)
-)
 
-)
-)
-)
-)
-)
-)
-)
-))
-)
-)
-)
-)
-)
-)))
-)
-)
-)
-)
-)
-)))
-))))))
-)
-)
-)
-)
-)))
-)
-)))))
-)
-))
-)
-)
-)
-)
 
-)
-)
-)
-)
-)
-)
-)
-)
-)
-)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+   
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+   
+
+
+   
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+   
+
+
+
+
+
+
+
+
+
+
+
+   
+
+
+   
+
+
+
+
+
+
+   
+
+   
+
+   
+
+   
+
+
+   
+
+   
+
+   
+
+
+
+
+
+
+
+
+
+
+
+
+   
+
+   
+
+
+   
+
+   
+
+   
+
+   
+
+
+   
+
+   
+
+   
+
+   
+
+
+   
+
+   
+
+   
+
+   
+
+   
+
+   
+
+   
+
+   
+
+   
+
+   
+   
+
+   
+   
+   
+   
+
+   
+
+
+   
+
+
+   
+
+   
+
+   
+
+   
+
+   
+   
+   
+
+   
+   
+   
+   
+   
+
+   
+
+   
+
+   
+
+   
+
+   
+
+   
+
+   
+
+   
+
+   
+
+   
+   
+   
+
+   
+   
+   
+   
+   
+
+   
+   
+   
+   
+
+   
+   
+   
+   
+   
+   
+
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+
+   
+   
+   
+   
+   
+   
+   
+
+   
+   
+   
+   
+   
+   
+
+   
+   
+
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+    sc =
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+    sc_
+   
+   
+   
+   
+    sc
+   
+   
+   
+   
+   
+   
+   
+   
+   
+    sc
+    sc
+    sc
+    sc =
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+    sc_
+   
+   
+   
+   
+   
+    sc =
+   
+   
+   
+   
+   
+   
+   
+   
+    sc
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+    sc.
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+    sc =
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+    sc =
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+    sc =
+   
+   
+   
+   
+   
+   
+    sc =
+   
+   
+   
+    sc_
+   
+   
+    sc_
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+    sc_
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+    sc_
+    sc_
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+    sc_
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+    sc_
+   
+   
+   
+   
+   
+   
+   
+   
+    sc_
+   
+   
+   
+    sc_
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+    sc_
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+    sc_
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+    sc_
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+    sc_
+   
+   
+   
+   
+   
+   
+   
+   
+    sc_
+    sc
+   
+   
+   
+   
+    sc_
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+    sc_
+   
+   
+   
+   
+   
+   
+   
+   
+   
+    sc_
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+    sc_
+    sc_
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+    sc_
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+    sc_
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+    sc_
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+    sc_
+   
+   
+   
+   
+   
+   
+   
+   
+   
+    sc_
+    sc_
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+    sc_
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+    sc_
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+    sc_
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+    sc_
+   
+   
+   
+   
+   
+   
+   
+   
+    sc_
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+    sc_
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+    sc_
+   
+    sc_
+   
+   
+   
+    sc_
+   
+   
+    sc_
+   
+   
+   
+    sc_
+   
+    sc_
+   
+   
+    sc_
+    sc_
+   
+   
+    sc_
+    sc_
+   
+   
+   
+   
+   
+   
+   
+   
+   
+    sc_
+    sc_
+    sc_
+    sc_
+   
+   
+   
+    sc_
+    sc_
+    sc_
+    sc_
+   
+    sc_sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+   
+   
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+   
+   
+   
+   
+    sc_
+    sc_
+    sc_
+    sc_
+   
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+   
+    sc_
+    sc_
+    sc_
+   
+   
+   
+   
+    sc_
+   
+    sc_
+    sc_
+    sc_
+   
+   
+    sc_
+   
+    sc_
+   
+   
+    sc_
+    sc_
+   
+    sc_
+   
+   
+   
+   
+    sc_
+    sc_
+    sc_
+    sc_
+   
+   
+   
+    sc_
+   
+   
+   
+    sc_
+    sc_
+   
+    sc_
+    sc_
+    sc_
+   
+   
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+   
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+   
+   
+   
+   
+    sc_
+    sc_
+    sc_
+    sc_
+   
+    sc_
+   
+   
+    sc_
+   
+   
+   
+   
+   
+    sc_
+    sc_
+   
+   
+    sc_
+    sc_
+    sc_
+   
+    sc_
+    sc_
+   
+    sc_
+   
+   
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+   
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+   
+   
+    sc_
+   
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_ sc_ sc_sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_ sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_sc_sc_sc_sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+   
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+   
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_
+    sc_

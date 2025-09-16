@@ -116,9 +116,11 @@ link_revolute_E.Initialize(mbody_pulleyE, mbody_truss, chrono.ChFramed(chrono.Ch
 sys.AddLink(link_revolute_E)
 
 
-link_beltDE = chrono.ChLinkLockSynchronous()
-link_beltDE.Initialize(mbody_gearD, mbody_pulleyE, chrono.ChFramed())
-link_beltDE.Set_dist(radD)
+link_beltDE = chrono.ChLinkSpringCB()
+link_beltDE.Initialize(mbody_gearD, mbody_pulleyE, False, False, chrono.ChFramed(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), chrono.ChFramed(chrono.ChVector3d(0, 0, 0), chrono.QUNIT))
+link_beltDE.Set_SpringK(1000)
+link_beltDE.Set_SpringR(10)
+link_beltDE.Set_Rest_Length(m.sqrt((mbody_gearD.GetPos() - mbody_pulleyE.GetPos()).Length()))
 sys.AddLink(link_beltDE)
 
 

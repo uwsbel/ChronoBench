@@ -33,26 +33,26 @@ vG = chrono.ChVector3d(L - K, -H, 0)
 vd = chrono.ChVector3d(0, 0, 0.0001)
 
 
-body_truss = chrono.ChBody()
-body_truss.SetFixed(True)
-sys.AddBody(body_truss)
+body_trss = chrono.ChBody()
+body_trss.SetFixed(True)
+sys.Add(body_trss)
 
 
-box_truss = chrono.ChVisualShapeBox(0.03, 0.25, 0.15)
-body_truss.AddVisualShape(box_truss, chrono.ChFrame(chrono.ChVector3d(-0.01, 0, 0), chrono.QUNIT))
+boxtruss = chrono.ChVisualShapeBox(0.03, 0.25, 0.15)
+body_trss.AddVisualShape(boxtruss, chrono.ChFrameD(chrono.ChVectorD(-0.01, 0, 0), chrono.QUNIT))
 
 
 body_crank = chrono.ChBody()
 body_crank.SetPos((vC + vG) * 0.5)
-sys.AddBody(body_crank)
+sys.Add(body_crank)
 
 
-box_crank = chrono.ChVisualShapeBox(K, 0.05, 0.03)
-body_crank.AddVisualShape(box_crank)
+boxcrank = chrono.ChVisualShapeBox(K, 0.05, 0.03)
+body_crank.AddVisualShape(boxcrank)
 
 
 motor = chrono.ChLinkMotorRotationSpeed()
-motor.Initialize(body_truss, body_crank, chrono.ChFrame(vG))
+motor.Initialize(body_trss, body_crank, chrono.ChFrameD(vG, chrono.QUNIT))
 myfun = ChFunctionMyFun()
 motor.SetTorqueFunction(myfun)
 sys.Add(motor)
@@ -107,8 +107,8 @@ sys.Add(constr_bb)
 constr_bb.SetConstrainedCoords(True, False, True, False, False, False)
 
 
-sphere_constr2 = chrono.ChVisualShapeSphere(0.02)
-constr_bb.AddVisualShape(sphere_constr2)
+sphereconstr2 = chrono.ChVisualShapeSphere(0.02)
+constr_bb.AddVisualShape(sphereconstr2)
 
 
 section3 = fea.ChBeamSectionEulerAdvanced()
@@ -140,8 +140,8 @@ sys.Add(constr_bc)
 constr_bc.SetConstrainedCoords(True, True, False, True, True, False)
 
 
-sphere_constr3 = chrono.ChVisualShapeSphere(0.01)
-constr_bc.AddVisualShape(sphere_constr3)
+sphereconstr3 = chrono.ChVisualShapeSphere(0.01)
+constr_bc.AddVisualShape(sphereconstr3)
 
 
 mesh.SetAutomaticGravity(True)

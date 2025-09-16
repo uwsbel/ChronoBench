@@ -117,33 +117,40 @@ driver.Initialize()
 # ---------------
 # Obstacles
 # ---------------
-
-obstacles = []
-for i in range(5):
-    pos = chrono.ChVector3d(np.random.uniform(-50, 50), np.random.uniform(-50, 50), 0.5)
-    obstacle = chrono.ChBodyEasyBox(10, 10, 1, 1000)
-    obstacle.SetPos(pos)
+num_obstacles = 5
+obstacle_size = chrono.ChVector3d(2, 2, 2)
+for i in range(num_obstacles):
+    obstacle_pos = chrono.ChVector3d(np.random.uniform(-50, 50),
+                                    np.random.uniform(-50, 50),
+                                    obstacle_size.z / 2)
+    obstacle = chrono.ChBodyEasyBox(obstacle_size.x, obstacle_size.y, obstacle_size.z, 1000)
+    obstacle.SetPos(obstacle_pos)
     vehicle.GetSystem().Add(obstacle)
-    obstacles.append(obstacle)
 
 # ---------------
 # Sensor Manager and Lidar
 # ---------------
-
 manager = sensor.ChSensorManager(vehicle.GetSystem())
-lidar = sensor.ChLidarSensor(manager)
-
-lidar.SetCollisionSystem(vehicle.GetSystem().GetCollisionSystem())
-lidar.SetScanAngle(chrono.ChVector2d(-math.pi / 2, math.pi / 2))
-lidar.SetScanResolution(chrono.ChVector2d(0.01, 0.01))
-lidar.SetMaxDistance(50)
+lidar = sensor.ChLidarSensor()
+lidar.SetCollisionEnvelope(chrono.ChCollisionModelParallel())
+lidar.SetFrequency(10)
+lidar.SetAngularResolution(chrono.ChRadians(0.5))
 lidar.SetSensorPosition(chrono.ChVector3d(0, 0, 2))
 lidar.SetSensorDirection(chrono.ChVector3d(0, 0, -1))
+lidar.SetRange(50)
 
-lidar.AddFilter(sensor.ChFilterPointDistance(1))
-lidar.AddFilter(sensor.ChFilterPointColor(chrono.ChColor(1, 0, 0)))
+# Add lidar to the sensor manager
+manager.AddSensor(lidar)
 
-vis.AddSensor(lidar)
+# Create a visualization filter for the lidar points
+lidar_points = sensor.ChPointcloudVisualizer()
+lidar_points.SetSensor(lidar)
+lidar_points.SetScale(0.1)
+lidar_points.SetShowPoints(True)
+lidar_points.SetShowNormals(False)
+lidar_points.SetShowConnections(False)
+
+vis.AddVisualizer(lidar_points)
 
 # ---------------
 # Simulation loop
@@ -155,7 +162,7 @@ print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
 
-# Initialize simulation frame counter
+# Initialize simulation frame counter s
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
@@ -178,7 +185,9 @@ while vis.Run() :
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
-    manager.Update() # Update the sensor manager
+
+    # Update sensor manager
+    manager.Update()
 
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)

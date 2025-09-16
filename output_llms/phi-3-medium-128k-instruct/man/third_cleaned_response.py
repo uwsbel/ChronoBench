@@ -6,7 +6,7 @@ import numpy as np
 import pychrono.sensor as sensor
 
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
-veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
+veh.SetDataPath(chrono.__file__ + 'vehicle/')
 
 
 initLoc = chrono.ChVector3d(0, 0, 0.5)
@@ -57,7 +57,6 @@ vehicle.SetSuspensionVisualizationType(vis_type)
 vehicle.SetSteeringVisualizationType(vis_type)
 vehicle.SetWheelVisualizationType(vis_type)
 vehicle.SetTireVisualizationType(vis_type)
-
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
@@ -69,7 +68,7 @@ patch = terrain.AddPatch(patch_mat,
     chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
     terrainLength, terrainWidth)
 
-patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)
+patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)  
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
@@ -105,29 +104,20 @@ print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 render_steps = math.ceil(render_step_size / step_size)
 
 
-realtime_timer = chrono.ChRealtimeStepTimer()
-step_number = 0
-render_frame = 0
-
-
 sensor_manager = sensor.ChSensorManager()
-
-
-lidar_sensor = sensor.ChLidarSensor(vehicle.GetSystem(), 360, 10, 0.1, 100.0)
-
-
+lidar_sensor = sensor.ChLidarSensor()
 sensor_manager.AddSensor(lidar_sensor)
 
 
-box_list = []
-for i in range(10):
-    box_list.append(chrono.ChBox(chrono.ChVector3d(np.random.uniform(-5, 5), np.random.uniform(-5, 5), np.random.uniform(-5, 5)),
-                     chrono.ChVector3d(np.random.uniform(-1, 1), np.random.uniform(-1, 1), np.random.uniform(-1, 1)),
-                     chrono.ChVector3d(np.random.uniform(-1, 1), np.random.uniform(-1, 1), np.random.uniform(-1, 1))))
+box_position = np.random.rand(3) * 100
+box_size = np.random.rand(3) * 10
+box = chrono.ChBox(box_position, box_size)
+sensor_manager.AddBox(box)
 
 
-for box in box_list:
-    terrain.AddBox(box)
+realtime_timer = chrono.ChRealtimeStepTimer()
+step_number = 0
+render_frame = 0
 
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
@@ -144,10 +134,8 @@ while vis.Run() :
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
+    sensor_manager.Update()  
     vis.Synchronize(time, driver_inputs)
-
-    
-    sensor_manager.Update(time)
 
     
     driver.Advance(step_size)
@@ -160,23 +148,3 @@ while vis.Run() :
 
     
     realtime_timer.Spin(step_size)
-
-    
-    lidar_data = lidar_sensor.GetData()
-
-    
-    print(lidar_data)
-
-    
-    for i in range(10):
-        box_list.append(chrono.ChBox(chrono.ChVector3d(np.random.uniform(-5, 5), np.random.uniform(-5, 5), np.random.uniform(-5, 5)),
-                       chrono.ChVector3d(np.random.uniform(-1, 1), np.random.uniform(-1, 1), np.random.uniform(-1, 1)),
-                       chrono.ChVector3d(np.random.uniform(-1, 1), np.random.uniform(-1, 1), np.random.uniform(-1, 1))))
-
-        terrain.AddBox(box)
-
-    
-    box_list.pop(0)
-
-    
-    sensor_manager.Update(time)

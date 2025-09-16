@@ -1,155 +1,139 @@
 import chrono
 
-import irrlicht
+import chrono_irrlicht_sensor as irr
+
+import chrono_irrlicht_vis as chronovis
 
 import numpy as np
 
+import math
 
 
 
-chrono.Init()
 
+chrono.init()
 
 
 
-system = chrono.ChSystemNSC()
 
+ground_body = chrono.ChBodyAux()
 
+ground_body.SetName("Ground")
 
+ground_body.SetMass(0)
 
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+ground_body.SetDynamic(False)
 
+ground_body.SetInertiaTensor(chrono.ChVector3(0, 0, 0))
 
+ground_body.SetExtents(chrono.ChVector3(100, 100, 0.1))
 
+ground_body.SetPos(chrono.ChVector3(0, 0, 0))
 
-ground_shape = chrono.ChBodyDSG(chrono.ChEntityExt::CreateBox(system, 10, 1, 1))
+ground_body.SetCoM(chrono.ChVector3(0, 0, 0))
 
-ground_shape.SetPos(chrono.ChVectorD(0, -0.5, 0))
 
-system.AddBody(ground_shape)
 
 
+ground_body_module = chrono.ChBodyEasyRigidBodyModule(ground_body)
 
 
-viper_rover = chrono.ChViperRover(system)
 
-driver = chrono.ChDriverSeparate(system)
 
-driver.Set_Enabled(True)
+viper_rover = chrono.ChBodyAux()
 
+viper_rover.SetName("Viper Rover")
 
+viper_rover.SetMass(500)
 
+viper_rover.SetDynamic(True)
 
-viper_rover.SetPos(chrono.ChVectorD(0, 0, 0))
+viper_rover.SetInertiaTensor(chrono.ChVector3(1000, 1000, 1000))
 
-viper_rover.SetEulerRPY(0, 0, 0)
+viper_rover.SetCoM(chrono.ChVector3(0, 0, 0))
 
 
 
 
-vis = irr.application.IrrApp()
+viper_rover_module = chrono.ChBodyEasyRigidBodyModule(viper_rover)
 
-vis.SetWindowSize(1280, 720)
 
-vis.SetThemeFilePrefix("chrono_irrlicht")
 
-vis.AddWindowEvent(vis.E_WINDOWEVENT_CLOSED, 'onWindowClosed()')
 
-vis.AddWindowEvent(vis.E_WINDOWEVENT_RESIZED, 'onWindowResized()')
+driver = chrono.ChDriverUNB(viper_rover)
 
-vis.AddWindowEvent(vis.E_WINDOWEVENT_MOVED, 'onWindowMoved()')
+driver.SetName("Driver")
 
-vis.AddWindowEvent(vis.E_WINDOWEVENT_REBUILDWINDOW, 'onWindowRebuilt()')
+driver.SetUseZeroStep(False)
 
-vis.AddWindowEvent(vis.E_WINDOWEVENT_FOCUSED, 'onWindowFocused()')
 
-vis.AddWindowEvent(vis.E_WINDOWEVENT_UNFOCUSED, 'onWindowUnfocused()')
 
-vis.AddWindowEvent(vis.E_WINDOWEVENT_EXPOSED, 'onWindowExposed()')
 
-vis.AddWindowEvent(vis.E_WINDOWEVENT_MINIMIZED, 'onWindowMinimized()')
+steering_time = 10.0
 
-vis.AddWindowEvent(vis.E_WINDOWEVENT_MAXIMIZED, 'onWindowMaximized()')
+steering_angle = 0.0
 
-vis.AddWindowEvent(vis.E_WINDOWEVENT_RESTORE, 'onWindowRestored()')
+steering_rate = math.pi / steering_time
 
-vis.AddWindowEvent(vis.E_WINDOWEVENT_RESIZED, 'onWindowResized()')
 
-vis.AddWindowEvent(vis.E_WINDOWEVENT_MOVED, 'onWindowMoved()')
 
-vis.AddWindowEvent(vis.E_WINDOWEVENT_REBUILDWINDOW, 'onWindowRebuilt()')
 
-vis.AddWindowEvent(vis.E_WINDOWEVENT_FOCUSED, 'onWindowFocused()')
+vis = chronovis.ChIrrApp()
 
-vis.AddWindowEvent(vis.E_WINDOWEVENT_UNFOCUSED, 'onWindowUnfocused()')
+vis.SetUseZBuffer(1)
 
-vis.AddWindowEvent(vis.E_WINDOWEVENT_EXPOSED, 'onWindowExposed()')
+vis.SetUseGUI(1)
 
-vis.AddWindowEvent(vis.E_WINDOWEVENT_MINIMIZED, 'onWindowMinimized()')
+vis.SetUseFog(0)
 
-vis.AddWindowEvent(vis.E_WINDOWEVENT_MAXIMIZED, 'onWindowMaximized()')
+vis.SetUseLighting(1)
 
-vis.AddWindowEvent(vis.E_WINDOWEVENT_RESTORE, 'onWindowRestored()')
+vis.SetUsePerspectiveProjection(1)
 
+vis.SetCamera(chrono.ChVector3(0, 0, 10), chrono.ChVector3(0, 0, 0), chrono.ChVector3(0, 0, -1), 30, 90)
 
 
 
-camera = vis.CreateCamera(chrono.COROLLA)
 
-camera.SetFov(60)
+vis.AddBody(ground_body)
 
-camera.SetPosition(chrono.ChVectorD(0, 10, 10))
+vis.AddBody(viper_rover)
 
-camera.SetTarget(chrono.ChVectorD(0, 0, 0))
 
 
 
+module = chrono.ChSystemNSC()
 
-light = vis.CreateLight()
+module.Add(ground_body_module)
 
-light.SetType(irr.video.E_LIGHT_TYPE_PUNCUALR)
+module.Add(viper_rover_module)
 
-light.SetPosition(chrono.ChVectorD(0, 10, 10))
+module.Add(driver)
 
-light.SetRange(100)
 
 
 
-
-sim_time = 0
-
-sim_duration = 10
-
-while sim_time < sim_duration:
+while chrono.GetChTime() < steering_time:
 
     
 
-    steering_angle = np.sin(sim_time)
+    steering_angle += steering_rate
 
-    driver.SetSteering(steering_angle)
-
+    driver.Update(chrono.ChTime(0.01))
 
     
 
-    system.DoStepDynamics(0.01)
-
+    module.DoStepDynamics(chrono.ChTime(0.01))
 
     
 
     vis.BeginScene()
 
-    vis.DrawAll()
+    vis.DrawModels()
 
     vis.EndScene()
 
 
-    
-
-    sim_time += 0.01
 
 
-
-
-chrono.Free(system)
-
-vis.Run()
+chrono.reset()

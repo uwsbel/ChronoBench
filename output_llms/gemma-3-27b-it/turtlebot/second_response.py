@@ -47,6 +47,7 @@ time_step = 2e-3
 LEFT_DRIVE_WHEEL = 0
 RIGHT_DRIVE_WHEEL = 1
 
+
 def move(mode):
     """
     Controls the robot's movement based on the given mode.
@@ -55,18 +56,18 @@ def move(mode):
         mode (str): The movement mode ('straight', 'left', 'right').
 
     Raises:
-        ValueError: If an invalid mode is provided.
+        ValueError: If the mode is invalid.
     """
     if mode == 'straight':
-        robot.SetMotorSpeed(1.0, LEFT_DRIVE_WHEEL)
-        robot.SetMotorSpeed(1.0, RIGHT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(1 * math.pi, LEFT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(1 * math.pi, RIGHT_DRIVE_WHEEL)
         print("Moving straight")
     elif mode == 'left':
         robot.SetMotorSpeed(0, LEFT_DRIVE_WHEEL)
-        robot.SetMotorSpeed(-math.pi, RIGHT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(-1 * math.pi, RIGHT_DRIVE_WHEEL)
         print("Turning left")
     elif mode == 'right':
-        robot.SetMotorSpeed(-math.pi, LEFT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(-1 * math.pi, LEFT_DRIVE_WHEEL)
         robot.SetMotorSpeed(0, RIGHT_DRIVE_WHEEL)
         print("Turning right")
     else:
@@ -75,19 +76,16 @@ def move(mode):
 
 # Simulation loop
 time = 0
-current_mode = 'straight'
-straight_time = 5
-left_time = 5
+start_time_left = 5
+start_time_right = 10
 
 while vis.Run():
-    if time < straight_time:
-        move(current_mode)
-    elif straight_time <= time < straight_time + left_time:
-        current_mode = 'left'
-        move(current_mode)
+    if time < start_time_left:
+        move('straight')
+    elif time < start_time_right:
+        move('left')
     else:
-        current_mode = 'right'
-        move(current_mode)
+        move('right')
 
     # Increment time counter
     time += time_step

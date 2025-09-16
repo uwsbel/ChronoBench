@@ -1,101 +1,63 @@
-import pychrono as chrono
-
-from pychron.core.helpers import system_lock
-
-
-
-
-chrono.ChSystemSys.Init()
+from pychrono.core import *
+from pychrono.vehicle import *
+from pychrono.vehicle_dynamics import *
+from pychrono.irrlicht_utils import *
 
 
+chrono_init()
 
 
-vehicle = chrono.ChBody()
-
-vehicle.SetName('HMMWV')
-
-vehicle.SetPos(chrono.ChVectorD(0, 0, 0))
-
-vehicle.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
-
-vehicle.SetMass(1000)
-
-vehicle.SetInertiaXX(1000)
+terrain = create_deformable_terrain_scm()
+terrain.set_height_map("terrain_height_map.txt")
 
 
+vehicle = create_vehicle_hmwv()
+vehicle.set_mass(2000)
+vehicle.set_inertia_tensor(10000, 10000, 5000)
+vehicle.set_position(0, 0, 0)
+vehicle.set_velocity(0, 0, 0)
 
 
-chrono.ChSystemSys.Add(vehicle)
+driver_system = create_driver_system()
 
 
+irrlicht_init()
+scene = create_scene()
+camera = create_camera("Combined", irrlicht_utils.vector3df(2, 2, 2), irrlicht_utils.vector3df(0, 0, -10))
+render_window = create_render_window(scene, camera, irrlicht_utils.string_to_vector3df("Terrain Simulation"))
 
 
-terrain = chrono.ChDeformableSCM()
-
-terrain.SetName('DeformableTerrain')
-
-terrain.SetPos(chrono.ChVectorD(0, 0, 0))
-
-terrain.SetHeightMap(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(1, 1, 1), 100)
-
-terrain.SetSoilParameters(chrono.ChSoilParameters(0.5, 0.5, 0.5, 0.5))
+set_lighting()
 
 
+default_gravity = vector3df(0, -9.81, 0)
+default_time_step = 1e-3
+default_max_simulation_time = 10.0
 
 
-chrono.ChSystemSys.Add(terrain)
-
-
-
-
-driver = chrono.ChDriver()
-
-driver.SetVehicle(vehicle)
-
-
-
-
-vis = chrono.ChVisualizationDriver()
-
-vis.SetSystem(chrono.ChSystemSys())
-
-vis.SetViewportSize(1280, 720)
-
-vis.SetCameraPos(chrono.ChVectorD(0, 0, 10))
-
-vis.SetCameraTarget(chrono.ChVectorD(0, 0, 0))
-
-vis.SetLookat(chrono.ChVectorD(0, 0, -1))
-
-vis.SetLightPosition(chrono.ChVectorD(0, 10, 10))
-
-vis.SetAmbientLight(chrono.ChColor(0.1, 0.1, 0.1))
-
-vis.SetDiffuseLight(chrono.ChColor(0.5, 0.5, 0.5))
-
-vis.SetSpecularColor(chrono.ChColor(1, 1, 1))
-
-vis.SetShadows(True)
-
-
-
-
-while True:
-
-    with system_lock:
+def simulation_loop():
+    while irrlicht_app_is_running():
+        
+        chrono_step(default_time_step)
 
         
-
-        driver.Update()
-
-        vehicle.ApplyForces()
-
+        vehicle.set_position(vehicle.get_position())
+        vehicle.set_velocity(vehicle.get_velocity())
 
         
-
-        terrain.Update()
-
+        terrain.update()
 
         
+        
 
-        vis.Advance(chrono.ChTimestep(1e-3))
+        
+        irrlicht_render_frame()
+
+        
+        chrono_sync()
+
+
+simulation_loop()
+
+
+irrlicht_shutdown()

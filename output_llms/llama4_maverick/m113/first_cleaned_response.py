@@ -1,57 +1,62 @@
 import pychrono as chrono
 import pychrono.vehicle as veh
 import pychrono.irrlicht as irr
-import math
 
 
-print("Copyright (c) 2023 projectchrono.org")
+chrono.SetChronoDataPath('/path/to/chrono/data/')
 
 
-vehicle = veh.M113(chrono.ChContactMethod_SMC)
+sys = chrono.ChSystemSMC()
+
+
+sys.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
+chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.0025)
+chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
+
+
+terrain_mat = chrono.ChMaterialSurfaceSMC()
+terrain_mat.SetFriction(0.9)
+terrain_mat.SetRestitution(0.01)
+terrain = veh.RigidTerrain(sys)
+patch_mat = chrono.ChMaterialSurfaceSMC(terrain_mat)
+patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.Q_from_AngX(-chrono.CH_C_PI_2)), 100, 100)
+patch.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 100, 100)
+patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+
+
+vehicle = veh.M113(sys)
 vehicle.SetContactMethod(chrono.ChContactMethod_SMC)
+vehicle.SetChassisCollisionType(veh.CollisionType_NONE)
 vehicle.SetChassisFixed(False)
-vehicle.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(-5, 0, 0.5), chrono.ChQuaternionD(1, 0, 0, 0)))
-vehicle.SetInitFwdVel(0)
-vehicle.SetInitWheelAngVel(chrono.ChVectorD(0))
-vehicle.SetTireStepSize(1e-3)
+vehicle.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 1), chrono.Q_from_AngZ(0)))
+vehicle.SetInitFwdVel(5)
 vehicle.Initialize()
 
 
-terrain = veh.RigidTerrain(vehicle.GetSystem())
-patch_mat = chrono.ChMaterialSurfaceSMC()
-patch_mat.SetFriction(0.9)
-patch_mat.SetRestitution(0.01)
-patch = terrain.AddPatch(patch_mat, chrono.CSYSNORM, 100, 100)
-patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
-patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
-terrain.Initialize()
+driver = veh.ChDriver(vehicle.GetVehicle())
 
 
-driver = veh.ChIrrGuiDriver(vehicle.GetVehicle())
-driver.SetSteeringDelta(0.02)
-driver.SetThrottleDelta(0.02)
-driver.SetBrakingDelta(0.06)
-driver.Initialize()
-
-
-vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
-vis.SetWindowTitle('M113 Vehicle Demo')
+vis = irr.ChVisualSystemIrrlicht()
 vis.SetWindowSize(1280, 720)
-vis.SetChaseCamera(chrono.ChVectorD(0.0, 0.0, 1.75), 6.0, 0.5)
+vis.SetWindowTitle('M113 Vehicle Simulation')
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
-vis.AddLightDirectional()
 vis.AddSkyBox()
+vis.AddCamera(chrono.ChVectorD(-6, -6, 3), chrono.ChVectorD(0, 0, 0))
+vis.AddTypicalLights()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 
 realtime_timer = chrono.ChRealtimeStepTimer()
 while vis.Run():
-    time = vehicle.GetSystem().GetChTime()
+    time = sys.GetChTime()
     driver_inputs = driver.GetInputs()
-    vehicle.Advance(driver_inputs)
-    terrain.Advance(time)
-    driver.Advance(time)
-    vis.Advance(time)
+    driver_inputs.SetSteering(0.0)
+    driver_inputs.SetThrottle(0.5)
+    driver_inputs.SetBraking(0.0)
+    vehicle.Synchronize(time, driver_inputs, terrain)
+    terrain.Synchronize(time)
+    sys.DoStepDynamics(1e-3)
+    vis.Synchronize('', driver_inputs)
     vis.Render()
-    realtime_timer.Spin(1.0 / 60.0)
+    realtime_timer.Spin(1e-3)

@@ -1,65 +1,60 @@
 # Import necessary modules
 import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
-import numpy as np
+import pychrono.vehicle as veh
 
-# Initialize the Chrono system
-system = chrono.ChSystemNSC()
+# Initialize the PyChrono environment and core components
+sys = chrono.ChSystemNSC()
 
-# Set the gravity
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+# Set default parameters
+sys.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # gravity
 
 # Create the ground body
-ground_body = chrono.ChBodyEasyBox(system, 10, 1, 10, 1000, True, False)
-ground_body.SetPos(chrono.ChVectorD(0, -1, 0))
-ground_body.SetBodyFixed(True)
+ground = chrono.ChBodyEasyBox(sys, 10, 1, 10, 1000, True, True)
+ground.SetPos(chrono.ChVectorD(0, -1, 0))
+ground.SetBodyFixed(True)
 
-# Initialize the Viper rover
-viper_rover = chrono.ChBodyEasyBox(system, 1, 0.5, 1, 10, False, True)
-viper_rover.SetPos(chrono.ChVectorD(0, 1, 0))
+# Initialize the Viper rover and its driver
+viper = veh.Viper()
+viper.Initialize(sys)
+viper.SetChassisPos(chrono.ChVectorD(0, 1, 0))
+viper.SetChassisRot(chrono.ChQuaternionD(1, 0, 0, 0))
 
-# Create the driver for the Viper rover
-driver = chrono.ChDriver(system, viper_rover)
-
-# Create the Irrlicht visualization
+# Create a real-time visualization using Irrlicht
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AddSkyBox()
 vis.AddTypicalLights()
-vis.AddCamera(chrono.ChVectorD(0, 5, -10))
-vis.AddCameraGimbal(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 1))
+vis.AddCamera(chrono.ChVectorD(0, 10, -20))
+vis.AddTypicalLights(chrono.ChVectorD(10, 10, 10), chrono.ChVectorD(10, -10, 10), 100, 100)
 
-# Set the camera settings
-vis.GetCamera().SetFov(45)
-vis.GetCamera().SetFocalLength(1000)
+# Set camera settings
+vis.GetCamera().SetFocalLength(50)
+vis.GetCamera().SetPosition(chrono.ChVectorD(0, 10, -20))
+vis.GetCamera().SetLookAt(chrono.ChVectorD(0, 0, 0))
 
-# Set the lighting
-vis.GetLight(0).SetDiffuseColor(chrono.ChVectorF(1, 1, 1))
-vis.GetLight(0).SetSpecularColor(chrono.ChVectorF(1, 1, 1))
+# Implement a simulation loop
+time_step = 0.01
+steering_time = 10
+end_time = 20
+time = 0
+while time < end_time:
+    # Update the rover's steering
+    if time < steering_time:
+        steering = time / steering_time * chrono.CH_C_PI_4
+    else:
+        steering = chrono.CH_C_PI_4
+    viper.SetSteering(steering)
 
-# Set the simulation parameters
-dt = 0.01  # Timestep
-t_end = 10  # End time
-t = 0  # Current time
+    # Update and render the rover at each timestep
+    sys.DoStepDynamics(time_step)
+    vis.Render()
 
-# Simulation loop
-while t < t_end:
-    # Update the steering angle
-    steering_angle = np.sin(t)
-    driver.SetSteeringAngle(steering_angle)
+    # Increment time
+    time += time_step
 
-    # Update the simulation
-    system.DoStepDynamics(dt)
-
-    # Render the scene
-    vis.BeginScene()
-    vis.DrawAll()
-    vis.EndScene()
-
-    # Update the time
-    t += dt
-
-    # Print the current time
-    print(f"Time: {t:.2f}")
+    # Check for keyboard and mouse events
+    if vis.GetDevice().GetKeyboard().KeyPressed(chrono.ChKeyboard::KEY_ESCAPE):
+        break
 
 # Clean up
-del vis
+vis.GetDevice().WaitForExit()

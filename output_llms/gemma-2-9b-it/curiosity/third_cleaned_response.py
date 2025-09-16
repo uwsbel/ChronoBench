@@ -28,7 +28,6 @@ box.SetFixed(True)
 box.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/blue.png"))
 system.Add(box)
 
-
 rover = robot.Curiosity(system)
 
 
@@ -63,17 +62,15 @@ time_step = 1e-3
 sens = ChSensorManager(system)
 
 
-lidar = ChLidarSensor(
-    update_rate=100,  
-    horizontal_samples=360,  
-    vertical_samples=64,  
-    field_of_view=np.pi / 2,  
-)
-
-rover.AddSensor(lidar)
+lidar = ChLidarSensor()
+lidar.SetUpdateRate(100)  
+lidar.SetHorizontalSamples(360)  
+lidar.SetVerticalSamples(30)  
+lidar.SetFieldOfView(np.pi / 2)  
+lidar.AttachToBody(rover.GetChassis())  
 
 
-
+lidar.SetFilter(ChGaussianFilter(stdDev=0.1))
 
 
 sens.AddSensor(lidar)

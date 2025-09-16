@@ -1,87 +1,63 @@
-import pychrono as chrono
-import pychrono.irrlicht as chronoirr
+import PyChrono as chrono
+import PyChrono.Irrlicht as chronoirr
+import PyChrono.Vehicle as vehicle
+import PyChrono.Terrain as terrain
 
 
-physics = chrono.ChSystemNSC()
+chrono.SetChronoDataPath("path/to/chrono/data")
+chrono.Init_Chrono()
 
 
-visualization = chronoirr.ChVisualSystemIrrlicht()
+system = chrono.ChSystemNSC()
 
 
-physics.SetVisualSystem(visualization)
+application = chronoirr.ChIrrApp(system, "HMMWV on Complex Terrain", chronoirr.Dim(800, 600), False)
 
 
-visualization.SetWindowSize(800, 600)
-visualization.SetWindowTitle("HMMWV on Complex Terrain")
-visualization.Initialize()
-
-
-vehicle = chrono.ChVehicle()
+vehicle = vehicle.ChVehicle()
 
 
 vehicle.SetChassisPosition(chrono.ChVectorD(0, 0, 0))
-vehicle.SetEngineType(chrono.ChVehicle::EngineType::ENGINE_SIMPLE)
-vehicle.SetDrivetrainType(chrono.ChVehicle::DrivetrainType::DRIVETRAIN_SIMPLE)
+vehicle.SetEngineType(vehicle.VehicleEngineType_NA)
+vehicle.SetDrivetrainType(vehicle.VehicleDrivetrainType_AWD)
 
 
 vehicle.AddVisualizationAssets()
 
 
-physics.Add(vehicle)
+terrain = terrain.ChTerrain()
 
 
-vehicle.SetChassisPosition(chrono.ChVectorD(0, 0, 0))
+terrain.AddPatch(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(10, 0, 0), chrono.ChVectorD(0, 10, 0), "path/to/texture1.png")
+terrain.AddPatch(chrono.ChVectorD(10, 0, 0), chrono.ChVectorD(10, 0, 0), chrono.ChVectorD(0, 10, 0), "path/to/texture2.png")
 
 
-vehicle.SetChassisRotation(chrono.ChQuaternionD(1, 0, 0, 0))
+bump_mesh = chrono.ChTriangleMeshConnected()
+bump_mesh.LoadWavefrontMesh("path/to/bump.obj")
+terrain.AddPatch(chrono.ChVectorD(20, 0, 0), chrono.ChVectorD(10, 0, 0), chrono.ChVectorD(0, 10, 0), bump_mesh)
 
 
-vehicle.SetSteeringValue(0)
+heightmap = chrono.ChHeightmap()
+heightmap.LoadWavefrontMesh("path/to/heightmap.obj")
+terrain.AddPatch(chrono.ChVectorD(30, 0, 0), chrono.ChVectorD(10, 0, 0), chrono.ChVectorD(0, 10, 0), heightmap)
 
 
-vehicle.SetThrottleValue(0)
+system.Add(vehicle)
+system.Add(terrain)
 
 
-vehicle.SetBrakingValue(0)
+driver = vehicle.ChIrrGuiDriver(application, "My Vehicle")
+driver.Initialize()
 
 
-terrain = chrono.ChTerrain()
+system.SetTimestepperType(chrono.ChTimestepperType_EULER_IMPLICIT_LINEARIZED)
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
 
-flat_patch = chrono.ChTerrainPlane()
-flat_patch.SetTexture(chrono.GetChronoDataFile("terrain/textures/concrete.jpg"))
-terrain.AddPatch(flat_patch)
+while application.GetDevice().run():
+    system.DoStepDynamics(0.01)
+    application.BeginScene()
+    application.DrawAll()
+    application.EndScene()
 
-
-bump_patch = chrono.ChTerrainPlane()
-bump_patch.SetMesh(chrono.GetChronoDataFile("terrain/bump.obj"))
-terrain.AddPatch(bump_patch)
-
-
-heightmap_patch = chrono.ChTerrainPlane()
-heightmap_patch.SetHeightmap(chrono.GetChronoDataFile("terrain/heightmap.png"))
-terrain.AddPatch(heightmap_patch)
-
-
-physics.Add(terrain)
-
-
-driver = chrono.ChIrrGuiDriver()
-
-
-driver.SetSteeringFunction(lambda: vehicle.GetSteeringValue())
-driver.SetThrottleFunction(lambda: vehicle.GetThrottleValue())
-driver.SetBrakingFunction(lambda: vehicle.GetBrakingValue())
-
-
-driver.SetTimestep(0.01)
-
-
-driver.SetMode(chronoirr.ChIrrGuiDriver.Mode::DRIVE_REALTIME)
-
-
-while visualization.Run():
-    physics.DoStepDynamics(driver.GetTimestep())
-    visualization.BeginScene()
-    visualization.DrawAll()
-    visualization.EndScene()
+chrono.End_Chrono()

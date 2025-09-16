@@ -133,4 +133,4 @@ if (True):  # Block to execute the following setup
     mvisualizeshellA.SetWireframe(True)  # Enable wireframe mode
     mvisualizeshellA.SetShellResolution(2)  # Set resolution for shell visualization
     mvisualizeshellA.SetBackfaceCull(True)  # Enable backface culling
-    mesh.AddVisualShapeFEA(mvisualizeshellA)  # Add visual shape to mesh
+    mesh.Add

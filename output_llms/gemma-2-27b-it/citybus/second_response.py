@@ -87,12 +87,14 @@ driver = veh.ChDataDriver(vehicle.GetVehicle())
 
 # Define driver inputs
 driver_inputs = [
-    veh.DataDriverEntry(0.0, 0.0, 0.0, 0.0),  # Time, throttle, steering, braking
-    veh.DataDriverEntry(0.1, 1.0, 0.0, 0.0),
-    veh.DataDriverEntry(0.5, 1.0, 0.7, 0.0),
+    veh.DataDriverEntry(0.0, veh.vector_Entry(throttle=0.0, steering=0.0, braking=0.0)),
+    veh.DataDriverEntry(0.1, veh.vector_Entry(throttle=1.0, steering=0.0, braking=0.0)),
+    veh.DataDriverEntry(0.5, veh.vector_Entry(throttle=1.0, steering=0.7, braking=0.0)),
 ]
 
 driver.SetInputs(driver_inputs)
+
+driver.Initialize()
 
 # output vehicle mass
 print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
@@ -100,7 +102,7 @@ print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
 
-# Initialize simulation frame counter
+# Initialize simulation frame counter 
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0

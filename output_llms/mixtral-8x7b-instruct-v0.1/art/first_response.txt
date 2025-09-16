@@ -1,60 +1,68 @@
 ```python
-import chrono as chrono
-import chrono.irrlicht as irrl
-import chrono.collision as coll
-import chrono.vehicle as vehicle
+import chrono
+from chrono import chrono_irrlicht as irrl
+from chrono import chrono_vehicle as veh
 
-# Initialize PyChrono and Irrlicht
-my_irr_driver = irrl.IrrlichtDriver(512, 512, false, 50.0)
-my_system = chrono.ChSystemSolverSH(my_irr_driver.get_device())
+# Initialize the PyChrono environment
+chrono.Chrono::SetDefaultOptions(chrono.ChR_IRRLICHT_WITH_PYOPENGL)
+my_system = chrono.ChSystemSMC()
 
-# Initialize vehicle and terrain
-vehicle_model = vehicle.ChVehicleModelARTCAR()
-vehicle_model.SetChassisCollisionType(coll.COLGROUP_VEHICLE)
-vehicle_model.SetSuspensionType(vehicle.CHASSIS_BOX_BEAM)
-vehicle_model.SetNumWheels(4)
-vehicle_model.SetWheelRadius(0.35)
-vehicle_model.SetWheelWidth(0.15)
-vehicle_model.SetWheelMass(30)
-vehicle_model.SetWheelSpringStiffness(200000)
-vehicle_model.SetWheelSpringDamping(5000)
-vehicle_model.SetWheelAntiRollStiffness(100000)
-vehicle_model.SetWheelAntiRollDamping(500)
-vehicle_model.SetWheelMaxSuspensionTravelCm(15)
-vehicle_model.SetWheelBrakeForce(10000)
-vehicle_model.SetWheelSteerAngle(35 * chrono.CH_C_DEG_TO_RAD)
-vehicle_model.SetChassisMass(1500)
-vehicle_model.SetChassisBox(1.5, 0.6, 0.4)
-vehicle_model.SetChassisVisualizationType(vehicle.VISUALIZATION_TYPE_PRIMITIVES)
-vehicle_model.SetContactMethod(coll.CONTACT_METHOD_SMC)
+# Initialize Irrlicht visualization
+device = irrl.createDevice(irrl.video_mode(1280, 720), 16, false, false, false)
+driver = irrl.createIrrlichtDriver(device)
 
-vehicle_model.Initialize(my_system)
-vehicle_model.SetChassisPos(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0.5)))
-vehicle_model.SetChassisRot(chrono.ChQuaternionD(1, 0, 0, 0))
+# Initialize vehicle and systems
+vehicle = veh.ChVehicle()
+terrain = chrono.ChTerrain()
 
-terrain = chrono.ChHeightfield()
-terrain.SetHeightfieldPath("path/to/heightfield/file.txt")
-terrain.SetMaterialSurface(coll.SURF_ROUGH_PLASTIC)
-terrain.SetHeightfieldTexture(my_irr_driver.get_device(), "path/to/texture/file.png")
-terrain_shape = coll.ChHeightfieldShape(terrain)
-terrain_body = chrono.ChBodyEasyBox(10, 10, 0.1, 1000, True, True)
-terrain_body.AddAsset(terrain_shape)
-terrain_body.SetPos(chrono.ChVectorD(0, 0, -0.05))
-my_system.AddBody(terrain_body)
+# Set vehicle parameters
+location = chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0))
+vehicle.SetChassisBody(my_system.NewBody())
+vehicle.GetChassisBody().SetPos(location.pos)
+vehicle.GetChassisBody().SetRot(location.rot)
+vehicle.SetContactMethod(veh.ChVehicleContactMethod::SMC)
+vehicle.SetVisualizationType(veh.ChVehicleVisualizationType::MESH)
 
-# Initialize driver system
-driver = vehicle.ChVehicleDriver()
-driver.Initialize(vehicle_model, my_system)
+# Add custom texture for terrain
+tex_path = 'path/to/your/texture.bmp'
+terrain_texture = device.getVideoDriver().getTexture(tex_path)
+
+# Set terrain parameters
+terrain_size = 50.0
+terrain.SetSize(chrono.ChVectorD(terrain_size, terrain_size, 0))
+terrain.SetTexture(terrain_texture)
+terrain.SetMaterial(chrono.ChMaterialSurface::BoxFriction, 0.5, 0.5)
+terrain.Update()
+my_system.Add(terrain)
+
+# Add driver system
+driver_params = veh.ChDriver::UserInputs()
+driver_params.throttle = 0.0
+driver_params.brake = 0.0
+driver_params.steer = 0.0
+vehicle.SetDriver(veh.ChVehicleDriver(driver_params))
+
+# Add vehicle to the system
+my_system.Add(vehicle)
 
 # Simulation loop
-while my_irr_driver.run():
-    my_system.DoStepDynamics(1 / 50.0)
-    driver.Synchronize(1 / 50.0)
-    my_irr_driver.update_dynamics(my_system)
-    my_irr_driver.render()
+while device.run():
+    # Update simulation
+    my_system.DoStepDynamics(1.0 / 50.0)
+
+    # Update driver inputs
+    vehicle.GetDriver().UpdateInputs(1.0 / 50.0)
+
+    # Render scene
+    device.getVideoDriver().beginScene(True, True, chrono.SColor(255, 100, 149, 237))
+    my_system.GetCollisionSystem().ClearContactPoints()
+    my_system.GetCollisionSystem().VisualizeContactPoints(device.getVideoDriver(), chrono.SColor(255, 255, 0, 0))
+    vehicle.Visualize(device)
+    terrain.Visualize(device)
+    device.getVideoDriver().endScene()
 
 # Clean up
-my_irr_driver.finalize()
+device.drop()
 ```
 
-This script initializes the PyChrono environment and Irrlicht driver, creates an ARTcar vehicle with specified parameters, and sets up a RigidTerrain with a custom texture. The driver system is also implemented to control the vehicle's steering, throttle, and braking. The simulation loop updates the vehicle dynamics and visualization in real time at 50 frames per second.
+Replace `'path/to/your/texture.bmp'` with the actual path to your custom texture file. This script initializes the PyChrono environment, sets up a rigid terrain with a custom texture, and adds an ARTcar vehicle with a driver system to control the steering, throttle, and braking. The simulation loop runs at 50 FPS, updating the vehicle dynamics and visualization in real time.

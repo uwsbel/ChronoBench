@@ -67,7 +67,7 @@ patch = terrain.AddPatch(patch_mat,
     chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
     terrainLength, terrainWidth)
 
-patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)  # Change the terrain texture to a grass texture
+patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
@@ -82,23 +82,6 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
-# Create a sensor manager in preparation for adding a camera to the vehicle
-sensor_manager = vis.GetSceneManager().createSensorManager()
-
-# Add point lights to the scene and set an appropriate intensity so that the scene is well illuminated
-light = vis.GetSceneManager().addLightSceneNode(None, chrono.ChVector3d(0, 0, 10), chrono.ChVector3d(1, 1, 1), 100)
-
-# Add a camera sensor to the vehicle’s chassis body so as to get a First Person View from the camera
-camera_node = vis.GetSceneManager().addCameraSceneNode(None, chrono.ChVector3d(0, 0, 1.5), chrono.ChVector3d(0, 0, 0))
-camera_node.setFOV(chrono.ChRadian(75))  # Set a high resolution and an appropriate Field Of View
-camera_node.setAspectRatio(1280 / 1024)
-
-# Add a visualization filter to render the image and include it in the sensor manager
-camera_filter = vis.GetSceneManager().createTextureTargetRenderTarget(1280, 1024)
-camera_filter.setName("Camera Filter")
-camera_filter.addCameraSceneNode(camera_node)
-sensor_manager.add(camera_filter)
-
 # Create the driver system
 driver = veh.ChInteractiveDriverIRR(vis)
 
@@ -112,8 +95,32 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 
 driver.Initialize()
 
+# Create a sensor manager
+sensor_manager = vis.GetSceneManager().getSceneNode().getSceneManager().createSensorManager()
+
+# Add point lights to the scene
+light1 = vis.GetSceneManager().getSceneNode().getSceneManager().addLightSceneNode(0,
+                                                                                  chrono.ChVector3d(0, 10, 0),
+                                                                                  chrono.ChVector3d(1, 1, 1),
+                                                                                  -1)
+light1.setPosition(chrono.ChVector3d(0, 10, 0))
+light1.setRadius(50)
+
+# Add a camera sensor to the vehicle’s chassis body
+camera_sensor = vis.GetSceneManager().getSceneNode().getSceneManager().addCameraSceneNodeFPS(0, 100, 0.1)
+camera_sensor.setPosition(chrono.ChVector3d(0, 0, 1))
+camera_sensor.setTarget(chrono.ChVector3d(0, 0, 0))
+camera_sensor.setFarValue(1000)
+
+# Add a visualization filter to render the image
+camera_filter = vis.GetSceneManager().getSceneNode().getSceneManager().createTextureTargetRenderTarget(1280, 1024, irr.PIXEL_FORMAT_RGBA8888)
+camera_filter.addRenderTarget(camera_sensor)
+
+# Add the camera filter to the sensor manager
+sensor_manager.add(camera_filter)
+
 # output vehicle mass
-print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
+print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
@@ -123,11 +130,11 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-while vis.Run():
+while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
 
     # Render scene and output POV-Ray data
-    if (step_number % render_steps == 0):
+    if (step_number % render_steps == 0) :
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
@@ -148,12 +155,14 @@ while vis.Run():
     vehicle.Advance(step_size)
     vis.Advance(step_size)
 
-    # Update the camera sensor
-    camera_node.setPosition(vehicle.GetVehicle().GetChassisBody().GetPos())
-    camera_node.setTarget(vehicle.GetVehicle().GetChassisBody().GetPos() + vehicle.GetVehicle().GetChassisBody().GetRot().GetForwardVector())
-
     # Increment frame number
     step_number += 1
 
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
+
+    # Update the camera sensor
+    camera_sensor.OnAnimate(time)
+
+    # Update the sensor manager
+    sensor_manager.update()

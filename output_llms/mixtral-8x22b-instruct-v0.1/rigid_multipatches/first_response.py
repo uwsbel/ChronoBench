@@ -1,87 +1,63 @@
-import pychrono as chrono
-import pychrono.irrlicht as chronoirr
+import PyChrono as chrono
+import PyChrono.Irrlicht as chronoirr
+import PyChrono.Vehicle as vehicle
+import PyChrono.Terrain as terrain
 
-# Create the Chrono::Engine physical system
-physics = chrono.ChSystemNSC()
+# Initialize PyChrono environment and core components
+chrono.SetChronoDataPath("path/to/chrono/data")
+chrono.Init_Chrono()
 
-# Create the Irrlicht visualization system
-visualization = chronoirr.ChVisualSystemIrrlicht()
+# Create a Chrono system
+system = chrono.ChSystemNSC()
 
-# Attach the visualization system to the physical system
-physics.SetVisualSystem(visualization)
+# Create a Chrono Irrlicht application
+application = chronoirr.ChIrrApp(system, "HMMWV on Complex Terrain", chronoirr.Dim(800, 600), False)
 
-# Set the Irrlicht driver (e.g., OPENGL, DIRECT3D9, etc.)
-visualization.SetWindowSize(800, 600)
-visualization.SetWindowTitle("HMMWV on Complex Terrain")
-visualization.Initialize()
+# Create a vehicle
+vehicle = vehicle.ChVehicle()
 
-# Create the HMMWV vehicle
-vehicle = chrono.ChVehicle()
-
-# Set the vehicle parameters
+# Set vehicle parameters
 vehicle.SetChassisPosition(chrono.ChVectorD(0, 0, 0))
-vehicle.SetEngineType(chrono.ChVehicle::EngineType::ENGINE_SIMPLE)
-vehicle.SetDrivetrainType(chrono.ChVehicle::DrivetrainType::DRIVETRAIN_SIMPLE)
+vehicle.SetEngineType(vehicle.VehicleEngineType_NA)
+vehicle.SetDrivetrainType(vehicle.VehicleDrivetrainType_AWD)
 
-# Add mesh visualization to all vehicle components
+# Add mesh visualization to vehicle components
 vehicle.AddVisualizationAssets()
 
-# Add the vehicle to the physical system
-physics.Add(vehicle)
+# Create a terrain
+terrain = terrain.ChTerrain()
 
-# Set the initial position of the vehicle
-vehicle.SetChassisPosition(chrono.ChVectorD(0, 0, 0))
-
-# Set the initial orientation of the vehicle
-vehicle.SetChassisRotation(chrono.ChQuaternionD(1, 0, 0, 0))
-
-# Set the initial steering angle
-vehicle.SetSteeringValue(0)
-
-# Set the initial throttle value
-vehicle.SetThrottleValue(0)
-
-# Set the initial braking value
-vehicle.SetBrakingValue(0)
-
-# Create a terrain with multiple patches
-terrain = chrono.ChTerrain()
-
-# Add a flat patch with a specific texture
-flat_patch = chrono.ChTerrainPlane()
-flat_patch.SetTexture(chrono.GetChronoDataFile("terrain/textures/concrete.jpg"))
-terrain.AddPatch(flat_patch)
+# Add flat patches with different textures
+terrain.AddPatch(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(10, 0, 0), chrono.ChVectorD(0, 10, 0), "path/to/texture1.png")
+terrain.AddPatch(chrono.ChVectorD(10, 0, 0), chrono.ChVectorD(10, 0, 0), chrono.ChVectorD(0, 10, 0), "path/to/texture2.png")
 
 # Add a mesh-based patch for a bump
-bump_patch = chrono.ChTerrainPlane()
-bump_patch.SetMesh(chrono.GetChronoDataFile("terrain/bump.obj"))
-terrain.AddPatch(bump_patch)
+bump_mesh = chrono.ChTriangleMeshConnected()
+bump_mesh.LoadWavefrontMesh("path/to/bump.obj")
+terrain.AddPatch(chrono.ChVectorD(20, 0, 0), chrono.ChVectorD(10, 0, 0), chrono.ChVectorD(0, 10, 0), bump_mesh)
 
 # Add a heightmap-based patch for varying elevations
-heightmap_patch = chrono.ChTerrainPlane()
-heightmap_patch.SetHeightmap(chrono.GetChronoDataFile("terrain/heightmap.png"))
-terrain.AddPatch(heightmap_patch)
+heightmap = chrono.ChHeightmap()
+heightmap.LoadWavefrontMesh("path/to/heightmap.obj")
+terrain.AddPatch(chrono.ChVectorD(30, 0, 0), chrono.ChVectorD(10, 0, 0), chrono.ChVectorD(0, 10, 0), heightmap)
 
-# Add the terrain to the physical system
-physics.Add(terrain)
+# Add the vehicle and terrain to the system
+system.Add(vehicle)
+system.Add(terrain)
 
-# Create an interactive driver system
-driver = chrono.ChIrrGuiDriver()
+# Set up the interactive driver system
+driver = vehicle.ChIrrGuiDriver(application, "My Vehicle")
+driver.Initialize()
 
-# Set the driver to control steering, throttle, and braking
-driver.SetSteeringFunction(lambda: vehicle.GetSteeringValue())
-driver.SetThrottleFunction(lambda: vehicle.GetThrottleValue())
-driver.SetBrakingFunction(lambda: vehicle.GetBrakingValue())
-
-# Set the driver to update the simulation at a consistent timestep
-driver.SetTimestep(0.01)
-
-# Set the driver to render the scene in real time
-driver.SetMode(chronoirr.ChIrrGuiDriver.Mode::DRIVE_REALTIME)
+# Set the simulation timestep
+system.SetTimestepperType(chrono.ChTimestepperType_EULER_IMPLICIT_LINEARIZED)
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
 # Run the simulation
-while visualization.Run():
-    physics.DoStepDynamics(driver.GetTimestep())
-    visualization.BeginScene()
-    visualization.DrawAll()
-    visualization.EndScene()
+while application.GetDevice().run():
+    system.DoStepDynamics(0.01)
+    application.BeginScene()
+    application.DrawAll()
+    application.EndScene()
+
+chrono.End_Chrono()

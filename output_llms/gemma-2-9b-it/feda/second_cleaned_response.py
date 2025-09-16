@@ -20,6 +20,7 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 
+
 terrainHeight = 0      
 terrainLength = 200.0  
 terrainWidth = 100.0   
@@ -72,6 +73,7 @@ patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 
+
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('FEDA vehicle')
 vis.SetWindowSize(1280, 1024)
@@ -84,25 +86,19 @@ vis.AttachVehicle(vehicle.GetVehicle())
 
 
 path_follower = veh.ChPathFollower()
-path_follower.SetTargetSpeed(10.0)
-path_follower.SetLookaheadDistance(5.0)
-path_follower.SetSteeringController(veh.ChSteeringControllerPID(kp=1.0, ki=0.1, kd=0.01))
-path_follower.SetSpeedController(veh.ChSpeedControllerPID(kp=0.5, ki=0.01, kd=0.001))
+path_follower.SetLookAheadDistance(5.0)  
+path_follower.SetTargetSpeed(10.0)      
+path_follower.SetSteeringGain(0.5)     
+path_follower.SetSpeedGain(0.2)       
 
 
-path = [
-    chrono.ChVector3d(-50, 0, 0.5),
-    chrono.ChVector3d(-30, 0, 0.5),
-    chrono.ChVector3d(-10, 0, 0.5),
-    chrono.ChVector3d(10, 0, 0.5),
-    chrono.ChVector3d(30, 0, 0.5),
-    chrono.ChVector3d(50, 0, 0.5)
-]
+
+
 
 path_follower.SetPath(path)
 
 
-vehicle.SetDriver(path_follower)
+vehicle.AddDriver(path_follower)
 
 
 print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
@@ -126,15 +122,13 @@ while vis.Run() :
         render_frame += 1
 
     
-    path_follower.Synchronize(time)
+    vehicle.Synchronize(time)
     terrain.Synchronize(time)
-    vehicle.Synchronize(time, None, terrain)  
-    vis.Synchronize(time, None)  
+    vis.Synchronize(time)
 
     
-    path_follower.Advance(step_size)
-    terrain.Advance(step_size)
     vehicle.Advance(step_size)
+    terrain.Advance(step_size)
     vis.Advance(step_size)
 
     

@@ -1,80 +1,53 @@
-import pychoro as pc
-
-import irrlicht as ir
-
+from pychrono.core import *
+from pychrono.irrlicht_utils import *
 
 
-
-pc.init()
-
+chrono_init()
 
 
-
-scene = pc.SceneGraph()
-
+world = ChronoData.GetDefaultPhysicsWorld()
 
 
-
-ground = pc.Body(pc.WorldCoordinates, mass=0, friction=0.5, restitution=0.0)
-
-scene.addBody(ground)
+ground = create_ground_body(world)
 
 
+pendulum_mass = 1.0  
+pendulum_inertia = create_inertia(world, pendulum_mass, 0.1, 0.1, 0.1)
+pendulum_shape = create_sphere_shape(world, 0.1)
+pendulum_body = create_dynamic_body(world, pendulum_shape, pendulum_inertia)
 
 
-length = 1.0  
-
-mass = 1.0    
-
-inertia = pc.Inertia(mass * length**2 / 3)
-
-pendulum = pc.Body(pc.WorldCoordinates, mass, inertia, restitution=0.0)
-
-pendulum.setPosition(pc.Vector3(0, length, 0))
-
-pendulum.setLinearVelocity(pc.Vector3(0, 0, 0))
-
-pendulum.setAngularVelocity(pc.Vector3(0, 0, 0))
-
-scene.addBody(pendulum)
+pendulum_body.set_position(Vector3d(0.0, 0.0, 0.5))  
+pendulum_body.set_orientation(chrono_euler_to_quaternion(0, 0, 0, M_PI / 2))
 
 
+revolute_joint = create_revolute_joint(world, pendulum_body, ground, Vector3d(0, 0, 0), Vector3d(0, 0, 0), M_PI / 2)
 
 
-joint = pc.Joint(pc.WorldCoordinates, pc.JointType.REVOLUTE, ground, pendulum)
-
-scene.addJoint(joint)
+viewer = create_default_irrlicht_viewer(640, 480)
 
 
+chrono_video_renderer_add_to_viewer(viewer)
+chrono_video_renderer_set_background_color(viewer, 0.5, 0.5, 0.5)
 
 
-vis = pc.VisualSystem(scene)
+while irrlicht_application_run(viewer) and irrlicht_application_is_running():
+    world.Step(chrono_inv_real_time_step(1.0 / 60.0, true)  
 
-vis.setGlColor(1.0, 1.0, 1.0)
+    
+    for entity in world.GetEntities():
+        if is_a(entity, b2_dynamic_body):
+            
+            entity.Draw(viewer.get_render_device())
 
+    
+    pendulum = world.GetBody(pendulum_body)
+    position = pendulum.get_position()
+    velocity = pendulum.get_linear_velocity()
+    print(f"Pendulum position: {position}, Pendulum velocity: {velocity}")
 
-
-
-gravity = pc.Vector3(0, -9.81, 0)
-
-scene.setGravity(gravity)
-
-
-
-
-for i in range(1000):
-
-    scene.update()
-
-    vis.drawAll()
-
-    if i % 100 == 0:
-
-        print(f"Pendulum position: {pendulum.getPosition()}")
-
-        print(f"Pendulum velocity: {pendulum.getLinearVelocity()}")
+    
+    world.Step(chrono_inv_real_time_step(1.0 / 60.0, true)
 
 
-
-
-pc.quit()
+chrono_shutdown()

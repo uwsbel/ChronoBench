@@ -1,6 +1,7 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
+import pychrono.sensor as sensor
 import math
 import random
 
@@ -21,9 +22,9 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_RIGID
 
 # Rigid terrain
-terrainHeight = 0      # terrain height
+terrainHeight = 0  # terrain height
 terrainLength = 100.0  # size in X direction
-terrainWidth = 100.0   # size in Y direction
+terrainWidth = 100.0  # size in Y direction
 
 # Poon chassis tracked by the camera
 trackPoint = chrono.ChVector3d(0.0, 0.0, 1.71)
@@ -40,38 +41,32 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  # FPS = 50
 
 # Create the HMMWV vehicle, set parameters, and initialize
-vehicle = veh.HMMWV_Full() 
+vehicle = veh.HMMWV_Full()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
-
-try:
-    vehicle.Initialize()
-except Exception as e:
-    print(f"Error initializing vehicle: {e}")
-    exit()
-
+vehicle.Initialize()
 vehicle.SetChassisVisualizationType(vis_type)
 vehicle.SetSuspensionVisualizationType(vis_type)
 vehicle.SetSteeringVisualizationType(vis_type)
 vehicle.SetWheelVisualizationType(vis_type)
 vehicle.SetTireVisualizationType(vis_type)
-
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 # Create the SCM deformable terrain patch
 terrain = veh.SCMTerrain(vehicle.GetSystem())
-terrain.SetSoilParameters(2e6,   # Bekker Kphi
-                            0,     # Bekker Kc
-                            1.1,   # Bekker n exponent
-                            0,     # Mohr cohesive limit (Pa)
-                            30,    # Mohr friction limit (degrees)
-                            0.01,  # Janosi shear coefficient (m)
-                            2e8,   # Elastic stiffness (Pa/m), before plastic yield
-                            3e4    # Damping (Pa s/m), proportional to negative vertical speed (optional)
+terrain.SetSoilParameters(
+    2e6,  # Bekker Kphi
+    0,    # Bekker Kc
+    1.1,  # Bekker n exponent
+    0,    # Mohr cohesive limit (Pa)
+    30,   # Mohr friction limit (degrees)
+    0.01, # Janosi shear coefficient (m)
+    2e8,  # Elastic stiffness (Pa/m), before plastic yield
+    3e4   # Damping (Pa s/m), proportional to negative vertical speed (optional)
 )
 
 # Optionally, enable moving patch feature (single patch around vehicle chassis)
@@ -97,70 +92,72 @@ vis.AttachVehicle(vehicle.GetVehicle())
 # Create the driver system
 driver = veh.ChInteractiveDriverIRR(vis)
 
-# Validate and set the time response for steering and throttle keyboard inputs.
+# Set the time response for steering and throttle keyboard inputs.
 steering_time = 1.0  # time to go from 0 to +1 (or from 0 to -1)
 throttle_time = 1.0  # time to go from 0 to +1
-braking_time = 0.3   # time to go from 0 to +1
-if steering_time <= 0 or throttle_time <= 0 or braking_time <= 0:
-    print("Error: Steering, throttle, and braking times must be positive.")
-    exit()
+braking_time = 0.3  # time to go from 0 to +1
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
-
 driver.Initialize()
 
-# Add Objects to the Scene: Introduce randomly positioned boxes
-for _ in range(10):
-    box_body = chrono.ChBodyEasyBox(1, 1, 1, 1000)
-    box_body.SetPos(chrono.ChVector3d(random.uniform(-10, 10), random.uniform(-10, 10), 1))
-    box_body.SetRot(chrono.ChQuaterniond(1, 0, 0, 0))
-    vehicle.GetSystem().AddBody(box_body)
+# Create a sensor manager
+sensor_manager = sensor.SensorManager(vehicle.GetSystem())
 
-# Integrate a Sensor System: Add a sensor manager and point lights
-sensor_manager = veh.ChSensorManager(vehicle.GetSystem())
-point_light = chrono.ChLight()
-point_light.SetType(chrono.ChLight.Type_POINT)
-point_light.SetColor(chrono.ChColor(1, 1, 1))
-point_light.SetPosition(chrono.ChVector3d(0, 0, 5))
-vehicle.GetSystem().AddLight(point_light)
+# Add point lights at various positions
+light1 = irr.ChLight()
+light1.SetPosition(chrono.ChVector3d(10, 10, 10))
+light1.SetColor(chrono.ChColor(1, 1, 1))
+vis.AddLight(light1)
+
+light2 = irr.ChLight()
+light2.SetPosition(chrono.ChVector3d(-10, -10, 10))
+light2.SetColor(chrono.ChColor(1, 1, 1))
+vis.AddLight(light2)
 
 # Create a camera sensor attached to the vehicle chassis
-camera_sensor = veh.ChCameraSensor(vehicle.GetChassisBody(), 
-                                    640,  # width
-                                    480,  # height
-                                    60,   # fov
-                                    0.1,  # near clip
-                                    1000  # far clip
-)
-camera_sensor.SetPosition(chrono.ChVector3d(0, 0, 1))
-camera_sensor.SetRotation(chrono.ChQuaterniond(1, 0, 0, 0))
-sensor_manager.AddSensor(camera_sensor)
+camera = sensor.ChCameraSensor(vehicle.GetChassisBody(),  # body to attach to
+                              1,  # update rate
+                              chrono.ChVector3d(0, 0, 1),  # offset from parent body
+                              60,  # horizontal field of view
+                              640,  # resolution X
+                              480   # resolution Y
+                             )
 
-# Add a filter to visualize the camera feed
-vis_filter = veh.ChCameraSensorVisualize(vis, camera_sensor)
-sensor_manager.AddFilter(vis_filter)
+# Add a filter to visualize the camera feed during the simulation
+camera.SetPostProcessing(sensor.ChCameraSensorPostProcessing.AA)
 
+# Add the camera sensor to the sensor manager
+sensor_manager.AddSensor(camera)
+
+# Add randomly positioned boxes to the simulation environment
+for _ in range(10):
+    box_body = chrono.ChBodyEasyBox(chrono.ChVector3d(1, 1, 1),  # dimensions
+                                    1000,  # density
+                                    True,  # fixed
+                                    chrono.ChCoordsysd(chrono.ChVector3d(random.uniform(-10, 10), random.uniform(-10, 10), 1), chrono.QuatFromAngleZ(0)))
+    box_body.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+    vehicle.GetSystem().AddBody(box_body)
+
+# --------------- 
+# Simulation loop 
 # ---------------
-# Simulation loop
-# ---------------
-
 # output vehicle mass
-print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
 
-# Initialize simulation frame counter 
+# Initialize simulation frame counter
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-while vis.Run() :
+while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
     # Render scene and output POV-Ray data
-    if (step_number % render_steps == 0) :
+    if (step_number % render_steps == 0):
         vis.BeginScene()
         vis.Render()
         vis.EndScene()

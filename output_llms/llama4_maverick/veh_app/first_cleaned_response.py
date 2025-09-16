@@ -3,79 +3,68 @@ import pychrono.vehicle as veh
 import pychrono.sensor as sens
 import math
 
-def main():
-    
-    chrono.SetChronoDataPath(chrono.GetChronoDataPath())
+
+chrono.SetChronoDataPath("/path/to/chrono/data")
+
+
+gator = veh.Gator()
+gator.SetContactMethod(chrono.ChContactMethod_SMC)
+gator.SetChassisCollisionType(veh.CollisionType_NONE)
+gator.SetChassisFixed(False)
+gator.SetInitPosition(chrono.ChCoordsysD(chrono.ChVector3d(0, 0, 1.0), chrono.ChQuaterniond(1, 0, 0, 0)))
+gator.SetInitFwdVel(5.0)
+gator.SetTireCollisionType(veh.CollisionType_SINGLE_POINT)
+
+
+gator.Initialize()
+
+
+gator.SetChassisVisualizationType(veh.VisualizationType_MESH)
+gator.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
+gator.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
+gator.SetWheelVisualizationType(veh.VisualizationType_MESH)
+
+
+terrain = veh.RigidTerrain(gator.GetSystem())
+patch = terrain.AddPatch(chrono.ChCoordsysD(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), chrono.ChVector3d(100, 100, 0))
+terrain.Initialize()
+
+
+driver = veh.ChDriver(gator.GetVehicle())
+
+
+manager = sens.ChSensorManager(gater.GetSystem())
+camera = sens.ChCameraSensor(
+    gator.GetChassisBody(),
+    30,
+    chrono.ChFrame(chrono.ChVector3d(-8, 0, 3), chrono.Q_from_AngAxis(0, chrono.ChVector3d(0, 1, 0))),
+    1280,
+    720,
+    chrono.ChFrad(90 * chrono.CH_C_DEG_TO_RAD)
+)
+manager.AddSensor(camera)
+
+
+manager.scene.AddPointLight(chrono.ChVector3f(0, 0, 10), chrono.ChVector3f(2, 2, 2), 500)
+
+
+realtime_timer = chrono.ChRealtimeStepTimer()
+while True:
+    time = gator.GetSystem().GetChTime()
+    driver_inputs = driver.GetInputs()
+    gator.SetDriverInputs(driver_inputs)
 
     
-    
-    gator_vehicle = veh.Gator()
-    gator_vehicle.SetContactMethod(chrono.ChContactMethod_NSC)
-    gator_vehicle.SetChassisFixed(False)
-    gator_vehicle.SetInitPosition(chrono.ChCoordsysD(chrono.ChVector3d(0, 0, 1.0), chrono.ChQuaterniond(1, 0, 0, 0)))
-    gator_vehicle.SetPowertrainType(veh.PowertrainModelType_SHAFTS)
-    gator_vehicle.SetDriveType(veh.DrivelineTypeWV_AWD)
-    gator_vehicle.SetTireType(veh.TireModelType_TMEASY)
-    gator_vehicle.Initialize()
+    manager.Update()
 
     
-    gator_vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
-    gator_vehicle.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
-    gator_vehicle.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
-    gator_vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
+    gator.DoStepDynamics(1e-3)
+    terrain.Synchronize(time)
+    gator.Synchronize(time, driver_inputs)
+    manager.Synchronize(time)
 
     
-    terrain = veh.RigidTerrain(gator_vehicle.GetSystem())
-    patch = terrain.AddPatch(chrono.ChCoordsysD(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), chrono.ChVector3d(100, 100, 1))
-    patch.SetContactFrictionCoefficient(0.9)
-    patch.SetContactRestitutionCoefficient(0.01)
-    patch.SetContactMaterialProperties(1e7, 0.3)
-    patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
-    terrain.Initialize()
+    camera.GetMostRecentImage()
 
     
-    driver = veh.ChDriver(gator_vehicle.GetVehicle())
-
-    
-    manager = sens.ChSensorManager(gatar_vehicle.GetSystem())
-    
-    manager.scene.AddPointLight(chrono.ChVector3f(0, 0, 10), chrono.ChColor(1, 1, 1), 100)
-    
-    cam = sens.ChCameraSensor(
-        gator_vehicle.GetChassisBody(),
-        30,
-        chrono.ChFrameD(chrono.ChVector3d(-5, 0, 2), chrono.Q_from_AngAxis(0, chrono.ChVector3d(0, 1, 0))),
-        640,
-        480,
-        chrono.ChFrad(45)
-    )
-    cam.SetName("Camera Sensor")
-    cam.SetUpdateRate(30)
-    manager.AddSensor(cam)
-
-    
-    realtime_timer = chrono.ChRealtimeStepTimer()
-    while True:
-        time = gator_vehicle.GetSystem().GetChTime()
-        
-        driver_inputs = driver.GetInputs()
-        
-        driver.Synchronize(time)
-        
-        gator_vehicle.Synchronize(time, driver_inputs, terrain.GetHeightMap())
-        
-        terrain.Synchronize(time)
-        
-        manager.Synchronize()
-        
-        gator_vehicle.Advance(0.02)
-        terrain.Advance(0.02)
-        manager.Update()
-        
-        manager.ReconstructScenes()
-        
-        if not realtime_timer.Spin(0.02):
-            break
-
-if __name__ == "__main__":
-    main()
+    realtime_timer.Spin(1e-3)

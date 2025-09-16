@@ -40,7 +40,7 @@ tire_step_size = step_size
 # Time interval between two render frames
 render_step_size = 1.0 / 50  # FPS = 50
 
-# Logging step size
+# Data logging step size
 log_step_size = 0.1
 
 # Create the HMMWV vehicle, set parameters, and initialize
@@ -129,9 +129,6 @@ gps.PushFilter(sens.ChFilterGPSAccess())
 # Add the GPS to the sensor manager
 manager.AddSensor(gps)
 
-# Initialize GPS data list
-gps_data = []
-
 # ---------------
 # Simulation loop
 # ---------------
@@ -148,6 +145,9 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
+# Initialize GPS data list
+gps_data = []
+
 # Simulation loop
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
@@ -161,9 +161,9 @@ while vis.Run():
 
     # Get driver inputs
     if time < 6:
-        driver_inputs = chrono.ChVectorD(0.5, 0, 0) # Throttle
+        driver_inputs = chrono.ChVectorD(0.5, 0, 0)  # Throttle forward
     else:
-        driver_inputs = chrono.ChVectorD(-0.5, 0, 1) # Brake
+        driver_inputs = chrono.ChVectorD(-0.5, 0, 1)  # Brake
 
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)

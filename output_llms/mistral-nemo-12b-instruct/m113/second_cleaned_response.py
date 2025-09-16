@@ -1,12 +1,10 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
-import pychrono.scm as scm
 import math
 
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
-scm.SetDataPath(chrono.GetChronoDataPath() + 'scm/')
 
 
 initLoc = chrono.ChVector3d(-15, 0, 0.0)
@@ -19,17 +17,23 @@ vis_type = veh.VisualizationType_MESH
 chassis_collision_type = veh.CollisionType_NONE
 
 
+terrain_model = veh.SCM_Terrain()
 terrainHeight = 0      
 terrainLength = 100.0  
 terrainWidth = 100.0   
-soil_model = scm.SoilModelType_VAN_GENNIP
-soil_density = 1800.0  
-soil_friction = 0.4
-soil_damping = 0.1
-soil_poisson_ratio = 0.3
-soil_yield_stress = 1000.0  
-soil_elastic_modulus = 100000.0  
-terrain_texture = scm.GetDataFile("textures/dirt.jpg")
+
+
+soil_density = 1.7     
+soil_friction = 0.7    
+soil_damping = 0.1     
+soil_yield_stress = 0.1 
+
+
+terrain = terrain_model(vehicle.GetSystem())
+terrain.SetSoilParameters(soil_density, soil_friction, soil_damping, soil_yield_stress)
+terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 200, 200)
+terrain.SetColor(chrono.ChColor(0.8, 0.4, 0.2))
+terrain.Initialize()
 
 
 trackPoint = chrono.ChVector3d(0.0, 0.0, 0.1)
@@ -66,20 +70,6 @@ vehicle.SetRoadWheelVisualizationType(vis_type)
 vehicle.SetTrackShoeVisualizationType(vis_type)
 
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
-
-
-terrain = scm.SCM(vehicle.GetSystem())
-terrain.SetSoilModel(soil_model)
-terrain.SetSoilDensity(soil_density)
-terrain.SetSoilFriction(soil_friction)
-terrain.SetSoilDamping(soil_damping)
-terrain.SetSoilPoissonRatio(soil_poisson_ratio)
-terrain.SetSoilYieldStress(soil_yield_stress)
-terrain.SetSoilElasticModulus(soil_elastic_modulus)
-patch = terrain.AddPatch(chrono.ChVector3d(0, 0, 0), terrainLength, terrainWidth)
-patch.SetTexture(terrain_texture, 200, 200)
-patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
-terrain.Initialize()
 
 
 vis = veh.ChTrackedVehicleVisualSystemIrrlicht()

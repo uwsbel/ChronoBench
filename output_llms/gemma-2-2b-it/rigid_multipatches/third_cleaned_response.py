@@ -7,7 +7,7 @@ def main():
     hmmwv = veh.HMMWV_Full()
     hmmwv.SetContactMethod(chrono.ChContactMethod_NSC)
     hmmwv.SetChassisFixed(False)
-    hmmwv.SetInitPosition(chrono.ChCoordsysd(chrono.ChVector3d(-20, 5, 0.6), chrono.ChQuaterniond(1, 0, 0, 0)))  
+    hmmwv.SetInitPosition(chrono.ChCoordsysd(chrono.ChVector3d(-20, 5, 0.6), chrono.ChQuaterniond(1, 0, 0, 0)))
     hmmwv.SetEngineType(veh.EngineModelType_SIMPLE)
     hmmwv.SetTransmissionType(veh.TransmissionModelType_AUTOMATIC_SIMPLE_MAP)
     hmmwv.SetDriveType(veh.DrivelineTypeWV_AWD)
@@ -29,7 +29,7 @@ def main():
     patch1_mat = chrono.ChContactMaterialNSC()
     patch1_mat.SetFriction(0.9)
     patch1_mat.SetRestitution(0.01)
-    patch1 = terrain.AddPatch(patch1_mat, chrono.ChCoordsysd(chrono.ChVector3d(-16, 0, 0), chrono.QUNIT), 32, 20)
+    patch1 = terrain.AddPatch(patch1_mat, chrono.ChCoordsysd(chrono.ChVector3d(-20, 5, 0), chrono.QUNIT), 32, 20)
     patch1.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
     patch1.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 20, 20)
 
@@ -107,6 +107,3 @@ veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 step_size = 2e-3
 tire_step_size = 1e-3
-
-
-main()

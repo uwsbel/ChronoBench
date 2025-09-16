@@ -1,109 +1,115 @@
 ```python
-import pychrono as chrono
-import pychrono.irrlicht as chronoirr
-import pychrono.vehicle as chronovehicle
+import pychrono.core as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as irr
+import math
 
-# 1. Initialize PyChrono environment and core components
-chrono.SetChronoDataPath("data/")  # Set path to Chrono data files
+# ---------------------------------------------------------------------
+#
+#  Create the simulation system and add items
+#
+# ---------------------------------------------------------------------
 
-# Create the physical system
 system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
 
-# 2. Add physical systems and objects
-# Create terrain
-terrain = chrono.ChBodyEasyBox(
-    200, 200, 1, 1000, True, True, chrono.ChMaterialSurface.NSC
+# Set the default material properties
+material = chrono.ChMaterialSurfaceNSC()
+material.SetFriction(0.8)
+material.SetRestitution(0.2)
+
+# Create the terrain
+ground = chrono.ChBodyEasyBox(
+    200, 10, 200, 1000, True, True, material
 )
-terrain.SetPos(chrono.ChVectorD(0, -1, 0))
-terrain.SetBodyFixed(True)
-system.Add(terrain)
+ground.SetPos(chrono.ChVectorD(0, -1, 0))
+ground.SetBodyFixed(True)
+system.Add(ground)
 
-# Create M113 vehicle
-vehicle = chronovehicle.ChVehicle("M113", system)
-vehicle.SetChassis(chronovehicle.ChChassis(
-    "Chassis", 
-    chrono.ChVectorD(0, 0, 0), 
-    chrono.ChQuaternionD(1, 0, 0, 0),
-    chrono.ChVectorD(3.5, 1.5, 0.8),  # Chassis dimensions
-    2000  # Chassis mass
-))
+# Create the M113 vehicle
+vehicle = veh.ChVehicle(system)
+vehicle.SetChassis(
+    veh.ChChassis(
+        "M113 Chassis",
+        chrono.ChVectorD(0, 1, 0),
+        chrono.ChVectorD(1.5, 0.5, 3),
+        1500,
+        chrono.ChVectorD(0.4, 0.2, 0.3),
+        chrono.ChMatrix33D(1),
+        material,
+    )
+)
+vehicle.SetInitialSpeed(chrono.ChVectorD(0, 0, 0))
+vehicle.SetSteeringAngle(0)
 
-# Add wheels and suspension to the vehicle (details omitted for brevity)
-# ...
+# Add wheels to the vehicle
+wheel_radius = 0.4
+wheel_width = 0.2
+wheel_mass = 50
+for i in range(6):
+    wheel = veh.ChWheel(
+        "Wheel " + str(i),
+        chrono.ChVectorD(
+            (-1.5 + i * 0.8, -0.3, 1.5) if i < 3 else (-1.5 + (i - 3) * 0.8, -0.3, -1.5)
+        ),
+        wheel_radius,
+        wheel_width,
+        wheel_mass,
+        material,
+    )
+    vehicle.AddWheel(wheel)
 
-# 3. Set default parameters
-# Terrain properties
-terrain.GetMaterialSurfaceNSC().SetFriction(0.8)
-terrain.GetMaterialSurfaceNSC().SetRestitution(0.2)
+# Create the driver system
+driver = veh.ChDriver(vehicle)
 
-# Vehicle initial conditions
-vehicle.GetChassisBody().SetPos(chrono.ChVectorD(0, 1, 0))
-vehicle.GetChassisBody().SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
+# ---------------------------------------------------------------------
+#
+#  Set up Irrlicht visualization
+#
+# ---------------------------------------------------------------------
 
-# 4. Initialize driver system
-driver = chronovehicle.ChDriver(vehicle)
-# Configure driver behavior (steering, acceleration, etc.)
-# ...
-
-# 5. Create real-time visualization using Irrlicht
-vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(system)
+vis = irr.ChIrrApp(system, "M113 Simulation")
 vis.SetWindowSize(1280, 720)
-vis.SetWindowTitle("M113 Simulation")
+vis.SetCameraPosition(chrono.ChVectorD(5, 5, 5))
+vis.SetCameraLookAt(chrono.ChVectorD(0, 1, 0))
+vis.AddLight(irr.ChLight(chrono.ChVectorD(5, 5, 5)))
 vis.Initialize()
 
-# Camera settings
-camera = vis.GetCamera()
-camera.SetLocation(chrono.ChVectorD(10, 5, 5))
-camera.SetLookAt(chrono.ChVectorD(0, 1, 0))
+# ---------------------------------------------------------------------
+#
+#  Simulation loop
+#
+# ---------------------------------------------------------------------
 
-# Lighting
-vis.AddLight(chrono.ChLightPoint(chrono.ChVectorD(5, 5, 5)))
-
-# 6. Simulation loop
-while vis.Run():
-    # Update driver inputs
-    driver.Synchronize(vehicle.GetChTime())
-
-    # Advance the simulation
-    system.DoStepDynamics(0.01)
-
-    # Update visualization
+while vis.GetDevice().run():
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
+
+    # Driver control
+    driver.SetSteeringAngle(math.sin(vis.GetTime() * 2))
+    driver.SetThrottle(0.5)
+
+    # Advance the simulation
+    system.DoStepDynamics(vis.GetTimeStep())
+
+    # Synchronize the visualization with the simulation
+    vis.Synchronize(vis.GetTimeStep(), vis.GetTime())
 
 ```
 
 **Explanation:**
 
-1. **Initialization:**
-   - Sets the Chrono data path for loading assets.
-   - Creates a Chrono system with gravity.
+1. **Initialization:** The script starts by importing necessary Chrono libraries and initializing the simulation system (`chrono.ChSystemNSC`). It defines default material properties for friction and restitution.
+2. **Terrain:** A simple rectangular terrain is created using `chrono.ChBodyEasyBox` with specified dimensions and material. It is fixed in place.
+3. **Vehicle:** An M113 vehicle is instantiated using `veh.ChVehicle`. The chassis is defined with its dimensions, mass, and center of gravity. Six wheels are added to the vehicle with appropriate positions, radii, widths, and masses.
+4. **Driver:** A driver system (`veh.ChDriver`) is created to control the vehicle's steering and throttle.
+5. **Visualization:** Irrlicht visualization is set up using `irr.ChIrrApp`. The window size, camera position, and lighting are configured.
+6. **Simulation Loop:** The main loop runs as long as the Irrlicht window is open. Inside the loop:
+   - Visualization is updated using `vis.BeginScene()`, `vis.Render()`, and `vis.EndScene()`.
+   - The driver applies steering and throttle inputs based on the simulation time.
+   - The simulation is advanced one timestep using `system.DoStepDynamics()`.
+   - Visualization is synchronized with the simulation using `vis.Synchronize()`.
 
-2. **Objects:**
-   - Creates a simple box terrain with specified dimensions, mass, and material properties.
-   - Creates an M113 vehicle using the `chronovehicle` module. You'll need to add details for wheels, suspension, and other components.
 
-3. **Parameters:**
-   - Sets friction and restitution for the terrain.
-   - Defines initial position and rotation for the vehicle.
 
-4. **Driver:**
-   - Creates a `ChDriver` object to control the vehicle. You'll need to configure its behavior (steering, acceleration, etc.).
-
-5. **Visualization:**
-   - Initializes Irrlicht visualization with a window and camera settings.
-   - Adds a light source for better visibility.
-
-6. **Simulation Loop:**
-   - Continuously runs until the visualization window is closed.
-   - Updates driver inputs based on the current simulation time.
-   - Advances the physics simulation by one timestep.
-   - Renders the scene using Irrlicht.
-
-**Remember:**
-
-- This is a basic framework. You'll need to add more details for the M113 vehicle, driver behavior, and any other desired features.
-- Refer to the PyChrono and Chrono documentation for more information on available components and functionalities.
+This script provides a basic framework for simulating an M113 vehicle on a rigid terrain with visualization. You can further customize it by adding more complex terrain, vehicle models, sensors, and control systems.

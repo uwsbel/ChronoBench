@@ -20,13 +20,10 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 
-terrainHeight = 0      
+terrain_model = veh.RigidTerrain.HeightMap
+terrainHeight = 0
 terrainLength = 100.0  
-terrainWidth = 100.0   
-
-
-def height_map(x, y):
-    return 0.1 * math.sin(0.1 * x) + 0.2 * math.cos(0.2 * y)
+terrainWidth = 100.0  
 
 
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
@@ -50,7 +47,6 @@ vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
-
 vehicle.Initialize()
 
 vehicle.SetChassisVisualizationType(vis_type)
@@ -65,14 +61,18 @@ vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
-terrain = veh.RigidTerrain(vehicle.GetSystem(), height_map, terrainLength, terrainWidth)
 
-patch = terrain.AddPatch(patch_mat, 
-    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT))
+terrain = veh.RigidTerrain(vehicle.GetSystem())
 
-patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)  
-patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
-terrain.Initialize()
+
+def height_map(x, y):
+    return 0.5 * math.sin(2 * math.pi * x / 20) + 0.2 * math.sin(2 * math.pi * y / 20) + 0.5
+
+terrain.InitializeFromHeightMap(patch_mat, terrainLength, terrainWidth, height_map)
+
+
+terrain.GetTerrainRenderMesh().SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"))  
+terrain.GetTerrainRenderMesh().SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 
 
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
@@ -91,15 +91,14 @@ driver = veh.ChInteractiveDriverIRR(vis)
 
 steering_time = 1.0  
 throttle_time = 1.0  
-braking_time = 0.3   
+braking_time = 0.3  
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
-
 driver.Initialize()
 
 
-print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 
 render_steps = math.ceil(render_step_size / step_size)
@@ -109,14 +108,16 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-while vis.Run() :
+while vis.Run():
     time = vehicle.GetSystem().GetChTime()
+
     
-    if (step_number % render_steps == 0) :
+    if (step_number % render_steps == 0):
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
         render_frame += 1
+
     
     driver_inputs = driver.GetInputs()
 

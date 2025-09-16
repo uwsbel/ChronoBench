@@ -1,58 +1,51 @@
 import pychrono as chrono
 import pychrono.irrlicht as vis
 
-# 1. Initialize PyChrono environment and core components
+# Initialize Chrono
 chrono.SetChronoDataPath("path/to/chrono/data")  # Replace with your Chrono data path
-system = chrono.ChSystemNSC()
+chrono.SetUseRealTime(True)
 
-# 2. Add physical systems and objects
-# -------------------------------------
+# Create the world
+world = chrono.ChSystemNSC()
 
-# **Kraz Vehicle**
-# Load the Kraz vehicle model (replace with your actual model path)
-kraz_vehicle = chrono.ChBodyEasyBox(1.5, 2.0, 1.0, 1000)  # Example box shape, replace with actual model
-kraz_vehicle.SetPos(chrono.ChVectorD(0, 0, 0.5))  # Initial position
-kraz_vehicle.SetBodyFixed(True)  # Fix the vehicle to the ground
-system.Add(kraz_vehicle)
-
-# **Terrain**
-terrain = chrono.ChBodyEasyBox(10, 10, 0.1, 1000)  # Example terrain shape
+# Create the terrain
+terrain = chrono.ChBodyEasyBox(10, 10, 1, 1000)  # Adjust dimensions as needed
 terrain.SetPos(chrono.ChVectorD(0, 0, 0))
 terrain.SetBodyFixed(True)
-terrain.SetMaterialSurface(chrono.ChMaterialSurface(0.8, 0.2))  # Friction and restitution
-system.Add(terrain)
+terrain.SetMaterialSurface(chrono.ChMaterialSurface())
+terrain.GetMaterialSurface().SetFriction(0.8)  # Adjust friction as needed
+terrain.GetMaterialSurface().SetRestitution(0.2)  # Adjust restitution as needed
+world.AddBody(terrain)
 
-# **Driver System**
-# Implement your driver system logic here.
-# This could involve using a keyboard, joystick, or other input methods
-# to control the vehicle's steering, acceleration, and braking.
+# Create the Kraz vehicle
+# (You'll need to load the Kraz vehicle model from a .urdf or .step file)
+kraz = chrono.ChBodyEasyLoad("path/to/kraz/model.urdf")  # Replace with your Kraz model path
+kraz.SetPos(chrono.ChVectorD(0, 0, 1))
+world.AddBody(kraz)
 
-# 3. Set default parameters and interactions
-# -----------------------------------------
+# Initialize driver system
+# (You'll need to implement your own driver system based on user input)
+driver = chrono.ChDriver()  # Placeholder for your driver system
 
-# ... (Set any additional parameters for the vehicle, terrain, or driver system)
+# Create the Irrlicht visualization
+vis_app = vis.ChIrrApp(world, "Kraz Simulation")
+vis_app.AddCamera(
+    vis.IrrlichtCamera(
+        vis_app.GetSceneManager(),
+        vis_app.GetVideoDriver(),
+        pos=chrono.ChVectorD(5, 5, 5),
+        target=chrono.ChVectorD(0, 0, 0),
+    )
+)
+vis_app.AddLight(vis.IrrlichtDirectionalLight(vis_app.GetSceneManager()))
 
-# 4. Real-time visualization with Irrlicht
-# -----------------------------------------
+# Simulation loop
+while not vis_app.GetQuit():
+    # Update driver system
+    driver.Update()
 
-vis_app = vis.ChIrrApp(system, 'Kraz Vehicle Simulation')
-vis_app.AddTypicalSky()
-vis_app.AddTypicalLights()
+    # Advance the simulation
+    world.DoStepDynamics(chrono.ChTime(0.01))
 
-# Camera settings
-camera = vis_app.GetCamera()
-camera.SetPos(chrono.ChVectorD(5, 5, 2))
-camera.SetLookAt(chrono.ChVectorD(0, 0, 0))
-
-# 5. Simulation loop
-# ---------------------
-
-while vis_app.Run():
-    system.DoStepDynamics(1.0/60.0)  # Timestep for real-time execution
+    # Update visualization
     vis_app.Render()
-
-    # Update driver system based on input
-    # ...
-
-# Close the visualization application
-vis_app.Close()

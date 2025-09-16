@@ -2,7 +2,9 @@ import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
-import numpy as np
+
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())
+veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 
 initLoc = chrono.ChVector3d(0, 0, 0.5)
@@ -79,83 +81,63 @@ vis.AttachVehicle(vehicle.GetVehicle())
 
 path_radius = 20.0
 path_center = chrono.ChVector3d(0, 0, 0)
-num_points = 100
-path_points = []
-for i in range(num_points):
-    angle = 2 * math.pi * i / num_points
-    point = path_center + chrono.ChVector3d(path_radius * math.cos(angle), path_radius * math.sin(angle), 0)
-    path_points.append(point)
 
 
-ball1 = chrono.ChBodyEasySphere(0.5, 1000, True, True)
-ball1.SetPos(path_points[0])
-ball1.SetMaterial(chrono.ChMaterialSurfaceNSC())
-ball1.GetMaterialSurfaceNSC().SetFriction(0.9)
-ball1.GetMaterialSurfaceNSC().SetRestitution(0.01)
-ball1.AddCollide()
-vehicle.GetSystem().Add(ball1)
+path_ball1 = chrono.ChBodyEasySphere(vehicle.GetSystem(), 0.5, 1000, True)
+path_ball1.SetPos(chrono.ChVector3d(path_center.x + path_radius, path_center.y, path_center.z))
+path_ball1.SetBodyFixed(True)
+vehicle.GetSystem().Add(path_ball1)
 
-ball2 = chrono.ChBodyEasySphere(0.5, 1000, True, True)
-ball2.SetPos(path_points[-1])
-ball2.SetMaterial(chrono.ChMaterialSurfaceNSC())
-ball2.GetMaterialSurfaceNSC().SetFriction(0.9)
-ball2.GetMaterialSurfaceNSC().SetRestitution(0.01)
-ball2.AddCollide()
-vehicle.GetSystem().Add(ball2)
+path_ball2 = chrono.ChBodyEasySphere(vehicle.GetSystem(), 0.5, 1000, True)
+path_ball2.SetPos(chrono.ChVector3d(path_center.x - path_radius, path_center.y, path_center.z))
+path_ball2.SetBodyFixed(True)
+vehicle.GetSystem().Add(path_ball2)
 
 
-class PIDController:
-    def __init__(self, kp, ki, kd):
-        self.kp = kp
-        self.ki = ki
-        self.kd = kd
-        self.error_prev = 0
-        self.error_int = 0
+pid_gains = [0.1, 0.0, 0.0]  
+pid_controller = veh.ChPathFollowerPID(vehicle.GetVehicle(), pid_gains)
 
-    def update(self, error, dt):
-        error_dot = (error - self.error_prev) / dt
-        self.error_int += error * dt
-        self.error_prev = error
-        return self.kp * error + self.ki * self.error_int + self.kd * error_dot
 
-pid_controller = PIDController(1.0, 0.1, 0.1)
+target_point = chrono.ChVector3d(path_center.x + path_radius, path_center.y, path_center.z)
+sentinel_point = chrono.ChVector3d(path_center.x - path_radius, path_center.y, path_center.z)
+pid_controller.SetTargetPoint(target_point)
+pid_controller.SetSentinelPoint(sentinel_point)
+
+
+target_sphere = chrono.ChBodyEasySphere(vehicle.GetSystem(), 0.5, 1000, True)
+target_sphere.SetPos(target_point)
+target_sphere.SetBodyFixed(True)
+vehicle.GetSystem().Add(target_sphere)
+
+sentinel_sphere = chrono.ChBodyEasySphere(vehicle.GetSystem(), 0.5, 1000, True)
+sentinel_sphere.SetPos(sentinel_point)
+sentinel_sphere.SetBodyFixed(True)
+vehicle.GetSystem().Add(sentinel_sphere)
+
+
+throttle_value = 0.3
 
 
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
-target_point_index = 0
-while vis.Run():
+
+while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
 
     
-    if (step_number % int(render_step_size / step_size) == 0):
+    if (step_number % math.ceil(render_step_size / step_size) == 0) :
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
         render_frame += 1
 
     
-    vehicle_pos = vehicle.GetChassisBody().GetPos()
-    vehicle_rot = vehicle.GetChassisBody().GetRot()
+    pid_controller.Synchronize(time)
 
     
-    target_point = path_points[target_point_index]
-    if np.linalg.norm(np.array([vehicle_pos.x(), vehicle_pos.y()]) - np.array([target_point.x(), target_point.y()])) < 1.0:
-        target_point_index = (target_point_index + 1) % num_points
-
-    
-    error = np.arctan2(target_point.y() - vehicle_pos.y(), target_point.x() - vehicle_pos.x()) - vehicle_rot.EulerAngles().z()
-
-    
-    steering_input = pid_controller.update(error, step_size)
-
-    
-    throttle_input = 0.3
-    braking_input = 0.0
-    vehicle.GetPart(0).SetSteering(steering_input)
-    vehicle.GetPart(0).SetThrottle(throttle_input)
-    vehicle.GetPart(0).SetBraking(braking_input)
+    vehicle.Synchronize(time, pid_controller.GetSteeringInput(), terrain)
+    vehicle.SetThrottle(throttle_value)
 
     
     vehicle.Advance(step_size)

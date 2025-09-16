@@ -3,155 +3,58 @@ import pychrono.sensor as sens
 import numpy as np
 
 
-chrono.SetChronoDataPath("/path/to/chrono/data/")
+chrono_system = chrono.ChSystemNSC()
 
-
-sys = chrono.ChSystemNSC()
 
 
 mesh = chrono.ChTriangleMesh()
-mesh.LoadWavefrontMesh("path/to/mesh.obj")
+mesh.LoadWavefrontMesh(chrono.GetChronoDataFile("models/tractor_body.obj"))
+mesh.Transform(chrono.ChVectorD(0, 0, 0), chrono.ChMatrix33D(1))
 
 
 body = chrono.ChBody()
 body.SetBodyFixed(True)
-
-
 mesh_asset = chrono.ChTriangleMeshShape()
 mesh_asset.SetMesh(mesh)
 body.AddAsset(mesh_asset)
+chrono_system.Add(body)
 
 
-sys.Add(body)
+
+manager = sens.ChSensorManager(chrono_system)
 
 
-manager = sens.ChSensorManager(sys)
+offset_pose = chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.Q_from_AngAxis(0, chrono.ChVectorD(1, 0, 0)))
+lidar = sens.ChLidarSensor(body, 10, offset_pose, 100, chrono.ChVectorD(0, 0, 0))
+lidar.SetHorizontalFOV(chrono.CH_C_PI)
+lidar.SetVerticalFOV(chrono.CH_C_PI / 4)
+lidar.SetLag(0)
+lidar.SetCollectionWindow(0.1)
 
 
-lidar = sens.ChLidarSensor(
-    body,  
-    10,    
-    chrono.ChFrameD(chrono.ChVector3d(0, 0, 0), chrono.Q_from_AngAxis(0, chrono.VECT_Z)),  
-    100,   
-    10,    
-    chrono.CH_C_PI,  
-    chrono.CH_C_PI / 4,  
-    1,     
-    sens.ChLidarBeamLight()  
-)
+
+lidar.PushFilter(sens.ChFilterVisualize(256, 256, 1))
 
 
-lidar.PushFilter(sens.ChFilterDIAccess())
 
-
-lidar.PushFilter(sens.ChFilterVisualize(512, 512, "Lidar Output"))
-
-
-lidar.PushFilter(sens.ChFilterSave(chrono.GetChronoOutputPath() + "lidar_data/"))
 
 
 manager.AddSensor(lidar)
 
 
-for i in range(1000):
+orbit_angle = 0
+while chrono_system.GetChTime() < 10:
     
-    angle = i * 0.01
-    radius = 5
-    x = radius * np.cos(angle)
-    z = radius * np.sin(angle)
-    lidar.SetOffsetPose(chrono.ChFrameD(chrono.ChVector3d(x, 0, z), chrono.Q_from_AngAxis(angle, chrono.VECT_Y)))
-
+    orbit_angle += 0.01
+    lidar.SetOffsetPose(chrono.ChFrameD(chrono.ChVectorD(5 * np.cos(orbit_angle), 0, 5 * np.sin(orbit_angle)), chrono.Q_from_AngAxis(0, chrono.ChVectorD(1, 0, 0))))
     
-    sys.DoStepDynamics(0.01)
-
     
     manager.Update()
-
+    
     
     buffer = lidar.GetMostRecentBuffer()
-
-    
     if buffer.HasData():
-        data = buffer.GetData()
-        print(data)
-
-import pychrono as chrono
-import pychrono.sensor as sens
-import numpy as np
-
-def main():
-    
-    chrono.SetChronoDataPath("/path/to/chrono/data/")
+        print("Lidar Buffer Size:", buffer.Size)
 
     
-    sys = chrono.ChSystemNSC()
-
-    
-    mesh = chrono.ChTriangleMesh()
-    mesh.LoadWavefrontMesh("path/to/mesh.obj")
-
-    
-    body = chrono.ChBody()
-    body.SetBodyFixed(True)
-
-    
-    mesh_asset = chrono.ChTriangleMeshShape()
-    mesh_asset.SetMesh(mesh)
-    body.AddAsset(mesh_asset)
-
-    
-    sys.Add(body)
-
-    
-    manager = sens.ChSensorManager(sys)
-
-    
-    lidar = sens.ChLidarSensor(
-        body,  
-        10,    
-        chrono.ChFrameD(chrono.ChVector3d(0, 0, 0), chrono.Q_from_AngAxis(0, chrono.VECT_Z)),  
-        100,   
-        10,    
-        chrono.CH_C_PI,  
-        chrono.CH_C_PI / 4,  
-        1,     
-        sens.ChLidarBeamLight()  
-    )
-
-    
-    lidar.PushFilter(sens.ChFilterDIAccess())
-
-    
-    lidar.PushFilter(sens.ChFilterVisualize(512, 512, "Lidar Output"))
-
-    
-    lidar.PushFilter(sens.ChFilterSave(chrono.GetChronoOutputPath() + "lidar_data/"))
-
-    
-    manager.AddSensor(lidar)
-
-    
-    for i in range(1000):
-        
-        angle = i * 0.01
-        radius = 5
-        x = radius * np.cos(angle)
-        z = radius * np.sin(angle)
-        lidar.SetOffsetPose(chrono.ChFrameD(chrono.ChVector3d(x, 0, z), chrono.Q_from_AngAxis(angle, chrono.VECT_Y)))
-
-        
-        sys.DoStepDynamics(0.01)
-
-        
-        manager.Update()
-
-        
-        buffer = lidar.GetMostRecentBuffer()
-
-        
-        if buffer.HasData():
-            data = buffer.GetData()
-            print(data)
-
-if __name__ == "__main__":
-    main()
+    chrono_system.DoStepDynamics(0.01)

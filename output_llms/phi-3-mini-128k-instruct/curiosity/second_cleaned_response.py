@@ -1,9 +1,9 @@
 import os
 import math
 import numpy as np
-import pychrono as chrono
-import pychrono.robot as robot
-from pychrono import irrlicht as chronoirr
+import chrono
+import chrono.robot as robot
+import chrono.irrlicht as chronoirr
 
 
 system = chrono.ChSystemNSC()
@@ -21,13 +21,6 @@ ground.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.
 system.Add(ground)
 
 
-obstacle_mat = chrono.ChContactMaterialNSC()
-obstacle = chrono.ChBodyEasyBox(10, 1, 1, 1000, True, True, obstacle_mat)
-obstacle.SetPos(chrono.ChVector3d(-5, 0, 0))  
-obstacle.SetFixed(True)  
-system.Add(obstacle)
-
-
 rover = robot.Curiosity(system)
 
 
@@ -35,9 +28,14 @@ driver = robot.CuriosityDCMotorControl()
 rover.SetDriver(driver)
 
 
-init_pos = chrono.ChVector3d(-5, 0, 0)
+init_pos = chrono.ChVector3d(-5, 0.0, 0)  
 init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
 rover.Initialize(chrono.ChFramed(init_pos, init_rot))
+
+
+obstacle = chrono.ChBodyEasyBox(5, 2, 1, 1000, True, True, ground_mat)
+obstacle.SetPos(chrono.ChVector3d(2, 0, 0))  
+system.Add(obstacle)
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
@@ -62,6 +60,12 @@ time_step = 1e-3
 time = 0
 while vis.Run():
     time += time_step
+
+    
+    steering = 0
+    if time >= 1:
+        steering = 0
+    driver.SetSteering(steering)
 
     
     rover.Update()

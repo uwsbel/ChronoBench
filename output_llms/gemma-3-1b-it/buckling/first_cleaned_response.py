@@ -1,125 +1,91 @@
-import chronos
+import pychrono
 import numpy as np
 import matplotlib.pyplot as plt
-import time
+from pychrono.simulation import Simulation
 
 
-chrono = chronos.Chrono()
-
-
-
-beam_length = 1.0  
-beam_width = 0.1  
-beam_thickness = 0.01 
-support_location = (0, 0, 0)  
-support_radius = 0.05 
+try:
+    simulation = Simulation()
+except Exception as e:
+    print(f"Error initializing PyChrono: {e}")
+    exit()
 
 
 
+beam = Simulation.Beam(
+    length=1.0,  
+    cross_section='I'  
+)
 
 
-def motor_a(time, force):
-    
-    return force * 0.1  
-
-def motor_b(time, force):
-    
-    return force * 0.05 
-
-
-
-constraints = {
-    'beam_a': {'type': 'fixed', 'x': support_location[0], 'y': support_location[1], 'z': 0},
-    'beam_b': {'type': 'fixed', 'x': support_location[0], 'y': support_location[1], 'z': 0}
-}
+support1 = Simulation.Support(
+    position=[0, 0],  
+    type='fixed'
+)
+support2 = Simulation.Support(
+    position=[0, 0],  
+    type='fixed'
+)
 
 
-
-chrono.set_system('beam_buckling')
-chrono.set_parameters({
-    'beam_length': beam_length,
-    'beam_width': beam_width,
-    'beam_thickness': beam_thickness,
-    'support_location': support_location,
-    'support_radius': support_radius,
-    'motor_a_force': 100, 
-    'motor_b_force': 50, 
-    'motor_a_time_step': 0.01, 
-    'motor_b_time_step': 0.01
-})
+gravity = 9.81  
 
 
-chrono.run()
+simulation.set_default_parameters(
+    gravity=gravity,
+    beam_length=1.0,
+    support_positions=[0, 0],
+    support_types=['fixed'],
+    beam_type='rectangular'
+)
 
 
-def calculate_bending_moment(force, beam_length, beam_width, beam_thickness):
-    
-    
-    
-    return force * beam_width
+simulation.create_data(
+    beam,
+    support1,
+    support2,
+    gravity,
+    0.0,  
+    1.0,  
+    1000, 
+    1,  
+    10, 
+    1, 
+    0.01, 
+    100, 
+    1000 
+)
 
 
-def calculate_stress(force, beam_length, beam_width, beam_thickness):
+def apply_force(beam, force):
     
     
-    
-    return force * beam_thickness
+    print(f"Applying force: {force} N to beam")
+    return force
 
 
+try:
+    plt.figure(figsize=(10, 6))
+    plt.plot(simulation.time, simulation.beam.position, label='Beam Position')
+    plt.xlabel('Time (s)')
+    plt.ylabel('Position (m)')
+    plt.title('Beam Buckling Simulation')
+    plt.legend()
+    plt.grid(True)
+    plt.show()
 
-def simulate_beam_element(force, beam_length, beam_width, beam_thickness, material_properties):
-    
-    
-    stress = calculate_stress(force, beam_length, beam_width, beam_thickness)
-    strain = calculate_strain(force, beam_length, beam_width, beam_thickness)
-    return stress, strain
+except Exception as e:
+    print(f"Error creating visualization: {e}")
+    print("Ensure Irrlicht is installed and configured correctly.")
 
 
-material_properties = {
-    'material': 'Steel',
-    'young_modulus': 200000,
-    'tensile_modulus': 400000
-}
+try:
+    simulation.set_solver(Simulation.Solver.Euler)  
+    simulation.set_timestepper(100) 
+except Exception as e:
+    print(f"Error setting solver/timestepper: {e}")
+    exit()
 
-def motor_a_function(time, force):
-    return force * 0.1  
 
-def motor_b_function(time, force):
-    return force * 0.05  
-
-import irrlicht
-from irrlicht.graphics import *
-
-class BeamBucklingSimulation(object):
-    def __init__(self):
-        self.chrono = chrono.Chrono()
-        self.time_step = 0.01
-        self.beam_length = 1.0
-        self.beam_width = 0.1
-        self.beam_thickness = 0.01
-        self.support_location = (0, 0, 0)
-        self.support_radius = 0.05
-        self.motor_a_force = 100
-        self.motor_b_force = 50
-        self.motor_a_time_step = 0.01
-        self.motor_b_time_step = 0.01
-
-        self.chrono.set_system('beam_buckling')
-        self.chrono.set_parameters({
-            'beam_length': self.beam_length,
-            'beam_width': self.beam_width,
-            'beam_thickness': self.beam_thickness,
-            'support_location': self.support_location,
-            'support_radius': self.support_radius,
-            'motor_a_force': self.motor_a_force,
-            'motor_b_force': self.motor_b_force,
-            'motor_a_time_step': self.motor_a_time_step,
-            'motor_b_time_step': self.motor_b_time_step
-        })
-
-    def run(self):
-        self.chrono.run()
-
-if __name__ == '__main__':
-    simulation = BeamBucklingSimulation()
-    simulation.run()
+simulation.run()
+print("Simulation completed.")

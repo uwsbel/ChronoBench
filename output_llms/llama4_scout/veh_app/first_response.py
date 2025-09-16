@@ -1,109 +1,72 @@
-import pychrono as chrono
-import pychrono.vehicle as vehicle
-import pychrono.sensor as sensor
-import numpy as np
+import chrono as ch
+import chrono_vehicle as chv
+import chrono_sensor as chs
 
-# Initialize PyChrono environment
-chrono.ChronoEnvironment.set_G_acc(chrono.ChVector3d(0, 0, -9.81))
+# 1. Initialize the PyChrono environment and core components
+ch.ChEngine.Initialize()
 
-# Create a Chrono system
-system = chrono.ChSystemNSC()
+# 2. Create the simulation system
+system = ch.ChSystemDblBnd()
 
-# Set the gravitational acceleration
-system.Set_G_acc(chrono.ChVector3d(0, 0, -9.81))
+# 3. Add the Gator vehicle
+gator = chv.ChGator()
+gator.SetChassisVisualizationType(chv.ChPartViz.COLLISION)
+gator.SetBodyVisualizationType(chv.ChPartViz.SMOOTH)
+gator.SetWheelVisualizationType(chv.ChPartViz.SMOOTH)
+gator.SetTireVisualizationType(chv.ChPartViz.NONE)
+system.Add(gator.GetChassisBody())
+system.Add(gator.GetBody())
+system.Add(gator.GetWheels())
 
-# Create a collision system
-collision_system = chrono.ChCollisionSystemNSC(system)
-
-# Create a solver
-solver = chrono.ChSolverPardiso(system)
-
-# Create an integrator
-integrator = chrono.ChTimestepperHHT(system)
-
-# Create a Gator vehicle
-gator = vehicle.ChGator()
-
-# Initialize the vehicle
-gator.Initialize(system)
-
-# Set visualization types for vehicle parts
-gator.GetChassisBody().SetVisualModelFilename("gator_chassis.obj")
-gator.GetChassisBody().SetVisualizationType(chrono.ChVisualSystem.Type.VIZ_MESH)
-gator.GetLeftFrontWheel().SetVisualizationType(chrono.ChVisualSystem.Type.VIZ_SHAPE)
-gator.GetRightFrontWheel().SetVisualizationType(chrono.ChVisualSystem.Type.VIZ_SHAPE)
-gator.GetLeftRearWheel().SetVisualizationType(chrono.ChVisualSystem.Type.VIZ_SHAPE)
-gator.GetRightRearWheel().SetVisualizationType(chrono.ChVisualSystem.Type.VIZ_SHAPE)
-
-# Create a rigid terrain
-terrain = vehicle.ChTerrain()
-
-# Initialize the terrain
-terrain.Initialize(system, "terrain.jpg")
-
-# Set terrain properties
-terrain.SetPos(chrono.ChVector3d(0, 0, 0))
-terrain.SetSize(200, 200)
+# 4. Add a rigid terrain
+terrain = chv.ChTerrainRigid()
 terrain.SetKinematicMode(True)
+terrain.SetVisualizationType(chv.ChTerrainViz.WIREFRAME)
+terrain.SetCollideCallbackType(chv.ChTerrainCollideCallbackType.RAY_CAST)
+system.Add(terrain.GetGroundBody())
 
-# Create an interactive driver system
-driver = vehicle.ChInteractiveDriverGPS(gator)
+# 5. Add an interactive driver system
+driver = chv.ChDriverInteractive()
+driver.AttachVehicle(gator)
+system.Add(driver)
 
-# Initialize the driver
-driver.Initialize()
+# 6. Set up a sensor manager
+sensor_manager = chs.ChSensorManager(system)
+sensor_manager.SetVerbosity(True)
 
-# Set driver inputs
-driver.SetThrottle(0.5)
-driver.SetSteering(0.2)
+# 7. Add point lights
+light1 = chs.ChPointLight(ch.ChVector3d(0, 0, 10), ch.ChVector3d(1, 1, 1), 100)
+sensor_manager.Add(light1)
 
-# Create a sensor manager
-sensor_manager = sensor.ChSensorManager(system)
-
-# Create point lights
-light1 = sensor.ChPointLight(chrono.ChVector3d(0, 0, 10), chrono.ChVector3d(0, 0, -1), 1000)
-light2 = sensor.ChPointLight(chrono.ChVector3d(10, 0, 10), chrono.ChVector3d(-1, 0, -1), 1000)
-sensor_manager.AddPointLight(light1)
-sensor_manager.AddPointLight(light2)
-
-# Create a camera attached to the vehicle's chassis
-camera = sensor.ChCameraSensor(gator.GetChassisBody(), chrono.ChVector3d(0, 0, 1), chrono.ChVector3d(0, 0, -1), 60)
-
-# Set camera properties
-camera.SetImageSize(800, 600)
+# 8. Add a camera attached to the vehicle's chassis
+camera = chs.ChCameraSensor(gator.GetChassisBody(), ch.ChFrame3d(ch.ChVector3d(0, 0, 1.5)), ch.ChVector3d(0, 0, 0))
+camera.SetResolution(800, 600)
 camera.SetFOV(60)
+camera.SetNearPlaneDistance(0.01)
+camera.SetFarPlaneDistance(100)
+sensor_manager.Add(camera)
 
-# Add camera to sensor manager
-sensor_manager.AddSensor(camera)
+# 9. Set up camera image rendering
+renderer = chs.ChOpenGLRenderWindow()
+renderer.AttachSensor(camera)
+renderer.Initialize()
 
-# Set simulation parameters
-timestep = 0.01
-end_time = 10.0
+# 10. Simulation loop
+while True:
+    # Update the driver
+    driver.Update(0.01)
 
-# Initialize simulation time
-t = 0.0
+    # Update the terrain
+    terrain.Update(0.01)
 
-while t < end_time:
-    # Update driver
-    driver.Update(timestep)
+    # Update the vehicle
+    gator.Update(0.01)
 
-    # Update terrain
-    terrain.Update(timestep)
+    # Update the sensor manager
+    sensor_manager.Update(0.01)
 
-    # Update vehicle
-    gator.Update(timestep)
+    # Synchronize and advance the simulation modules
+    system.DoStepDynamics(0.01)
 
-    # Update sensor manager
-    sensor_manager.Update(timestep)
-
-    # Synchronize and advance simulation modules
-    system.DoStepSimulation(timestep)
-
-    # Increment simulation time
-    t += timestep
-
-    # Render camera images
-    if camera.GetRenderMode() == sensor.ChCameraSensor.RendMode.SAVE_VIDEO:
-        camera.SaveImage(t)
-
-# Finalize simulation
-system.DoStepSimulation(0)
+    # Render the camera images
+    renderer.Render()

@@ -7,7 +7,7 @@ chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 # Initial vehicle location and orientation
-initLoc = chrono.ChVector3d(-40, 0, 0.5)  # Changed initial position
+initLoc = chrono.ChVector3d(-40, 0, 0.5)  # Modified initial position
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 # Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
@@ -70,7 +70,7 @@ patch = terrain.AddPatch(patch_mat,
     chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
     terrainLength, terrainWidth)
 
-patch.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 200, 200) # Changed texture
+patch.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 200, 200)  # Changed texture
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
@@ -112,8 +112,8 @@ render_frame = 0
 
 # Double lane change maneuver parameters
 lane_change_duration = 5.0  # seconds
-lane_width = 3.7  # meters
-target_lane = 1  # 0 for left lane, 1 for right lane
+lane_width = 3.0  # meters
+steering_angle = 0.5  # radians
 
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
@@ -127,20 +127,15 @@ while vis.Run() :
 
     # Lane change logic
     if time < lane_change_duration:
-        # Calculate steering angle based on lane change progress
-        progress = time / lane_change_duration
-        if target_lane == 0:
-            steering_angle = -math.pi / 4 * progress
-        else:
-            steering_angle = math.pi / 4 * progress
-        driver.SetSteeringAngle(steering_angle)
-
-        # Apply throttle for acceleration
-        driver.SetThrottle(0.5)
+        # Calculate steering angle based on time and lane width
+        steering_input = steering_angle * math.sin(math.pi * time / lane_change_duration)
+        driver.SetSteeringInput(steering_input)
+        driver.SetThrottleInput(0.5)  # Maintain constant speed during lane change
     else:
         # After lane change, apply braking
-        driver.SetThrottle(0)
-        driver.SetBraking(1.0)
+        driver.SetSteeringInput(0)
+        driver.SetThrottleInput(0)
+        driver.SetBrakingInput(1)
 
     # Get driver inputs
     driver_inputs = driver.GetInputs()

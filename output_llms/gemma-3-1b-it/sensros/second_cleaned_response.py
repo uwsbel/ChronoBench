@@ -1,4 +1,3 @@
-```python
 import pychrono as ch
 import pychrono.sensor as sens
 import pychrono.ros as chros
@@ -77,4 +76,79 @@ def main():
 
     
     gyro = sens.ChGyroscopeSensor(ground_body, 100, offset_pose, noise_model_none)
-    gyro.PushFilter(sens.ChGyroscopeHandler(100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 10
+    gyro.PushFilter(sens.ChFilterGyroAccess())  
+    gyro.SetName("gyroscope")
+    sens_manager.AddSensor(gyro)
+
+    
+    mag = sens.ChMagnetometerSensor(ground_body, 100, offset_pose, noise_model_none, gps_reference)
+    mag.PushFilter(sens.ChFilterMagnetAccess())  
+    mag.SetName("magnetometer")
+    sens_manager.AddSensor(mag)
+
+    
+    imu_handler = ch.ChROSIMUHandler(100, "~/output/imu/data")
+    imu_handler.SetAccelerometerHandler(acc_handler)
+    imu_handler.SetGyroscopeHandler(gyro_handler)
+    imu_handler.SetMagnetometerHandler(mag_handler)
+    ros_manager.RegisterHandler(imu_handler)
+
+    
+    ros_manager = chros.ChROSPythonManager()
+    ros_manager.RegisterHandler(chros.ChROSClockHandler())  
+
+    
+    offset_pose = ch.ChFramed(ch.ChVector3d(-8, 0, 2), ch.QuatFromAngleAxis(.2, ch.ChVector3d(0, 1, 0)))
+    cam = sens.ChCameraSensor(ground_body, 30, offset_pose, 1280, 720, 1.408)
+    cam.PushFilter(sens.ChFilterVisualizeDIAccess())  
+    cam.PushFilter(sens.ChFilterRGBA8Access())  
+    cam.SetName("camera")
+    sens_manager.AddSensor(cam)
+
+    
+    lidar = sens.ChLidarSensor(ground_body, 5., offset_pose, noise_model_none, gps_reference)
+    lidar.PushFilter(sens.ChFilterDIAccess())  
+    lidar.PushFilter(sens.ChFilterPCfromDepth())  
+    lidar.PushFilter(sens.ChFilterXYZIAccess())  
+    lidar.PushFilter(sens.ChFilterVisualizePointCloud(1280, 720, 1))  
+    lidar.SetName("lidar")
+    sens_manager.AddSensor(lidar)
+
+    
+    noise_model_none = sens.ChNoiseNone()
+    gps_reference = ch.ChVector3d(-89.4, 433.07, 260.)
+    gps = sens.ChGPSSensor(ground_body, 10, offset_pose, gps_reference, noise_model_none, gps_reference)
+    gps.PushFilter(sens.ChFilterGPSAccess())  
+    gps.SetName("gps")
+    sens_manager.AddSensor(gps)
+
+    
+    imu_handler = ch.ChROSIMUHandler(100, "~/output/imu/data")
+    imu_handler.SetAccelerometerHandler(acc_handler)
+    imu_handler.SetGyroscopeHandler(gyro_handler)
+    imu_handler.SetMagnetometerHandler(mag_handler)
+    ros_manager.RegisterHandler(imu_handler)
+
+    ros_manager.Initialize()  
+
+    
+    time = 0
+    time_step = 1e-3  
+    time_end = 100  
+
+    
+    ground_body.SetAngVelParent(ch.ChVector3d(0, 0, 0.1))
+
+    
+    while time < time_end:
+        time = sys.GetChTime()  
+
+        
+        sens_manager.Update()
+        if not ros_manager.Update(time, time_step):
+            break  
+
+        sys.DoStepDynamics(time_step)  
+
+if __name__ == "__main__":
+    main()

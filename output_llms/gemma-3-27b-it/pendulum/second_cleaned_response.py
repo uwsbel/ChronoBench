@@ -35,16 +35,12 @@ pend_1.AddVisualShape(cyl_1, chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleY
 pend_1.SetPos(chrono.ChVector3d(1, 0, 0))
 
 
-pend_1.SetW(chrono.ChVector3d(0, 0, 1))  
+pend_1.SetWVel(chrono.ChVector3d(0, 0, 1))
 
 
-sph_1 = chrono.ChLinkSpherical()
-sph_1.Initialize(ground, pend_1, chrono.ChFramed(chrono.ChVector3d(0, 0, 0), chrono.ChQuaterniond(1, 0, 0, 0)), chrono.ChFramed(chrono.ChVector3d(0, 0, 0), chrono.ChQuaterniond(1, 0, 0, 0)))
-sys.AddLink(sph_1)
-
-
-sph_vis = chrono.ChVisualShapeSphere(0.02)
-sph_1.AddVisualShape(sph_vis)
+spherical_1 = chrono.ChLinkLockSpherical()
+spherical_1.Initialize(ground, pend_1, chrono.ChFramed(chrono.ChVector3d(0, 0, 0), chrono.ChQuaterniond(1, 0, 0, 0)), chrono.ChFramed(chrono.ChVector3d(0, 0, 0), chrono.ChQuaterniond(1, 0, 0, 0)))
+sys.AddLink(spherical_1)
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
@@ -54,8 +50,12 @@ vis.SetWindowTitle('Pendulum on the Moon')
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()
-vis.AddCamera(chrono.ChVector3d(0, 3, -5))
+vis.AddCamera(chrono.ChVector3d(0, 3, -6))
 vis.AddTypicalLights()
+
+
+sph_joint = chrono.ChVisualShapeSphere(0.02)
+spherical_1.GetLinkData().AddVisualShape(sph_joint)
 
 
 log_info = True
@@ -68,7 +68,7 @@ while vis.Run():
     if log_info and sys.GetChTime() > 1:
         pos_1 = pend_1.GetPos()
         print("t = ", sys.GetChTime())
-        print(" ", pos_1.x, " ", pos_1.y, " ", pos_1.z)
+        print(" ", pos_1.x, " ", pos_1.y)
         lin_vel_1 = pend_1.GetPosDt()
-        print(" ", lin_vel_1.x, " ", lin_vel_1.y, " ", lin_vel_1.z)
+        print(" ", lin_vel_1.x, " ", lin_vel_1.y)
         log_info = False

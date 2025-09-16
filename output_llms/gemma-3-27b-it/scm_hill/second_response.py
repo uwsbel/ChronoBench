@@ -70,8 +70,10 @@ terrain.SetSoilParameters(2e6,  # Bekker Kphi
                           3e4)  # Damping (Pa s/m), proportional to negative vertical speed (optional)
 # Optionally, enable moving patch feature (single patch around vehicle chassis)
 terrain.AddMovingPatch(vehicle.GetChassisBody(), chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(5, 3, 1))
+
 # Set plot type for SCM (false color plotting)
 terrain.SetPlotType(veh.SCMTerrain.PLOT_SINKAGE, 0, 0.1)
+
 # Initialize the SCM terrain (length, width, mesh resolution), specifying the initial mesh grid
 terrain.Initialize(veh.GetDataFile("terrain/height_maps/bump64.bmp"), 40, 40, -1, 1, 0.02)
 terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
@@ -89,6 +91,7 @@ vis.AttachVehicle(vehicle.GetVehicle())
 
 # Create the driver system
 driver = veh.ChInteractiveDriverIRR(vis)
+
 # Set the time response for steering and throttle keyboard inputs.
 steering_time = 1.0  # time to go from 0 to +1 (or from 0 to -1)
 throttle_time = 1.0  # time to go from 0 to +1
@@ -97,6 +100,33 @@ driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
+
+# ---------------
+# Add obstacles
+# ---------------
+num_obstacles = 5
+obstacle_size = chrono.ChVector3d(1, 1, 1)
+for i in range(num_obstacles):
+    obstacle = chrono.ChBodyEasy()
+    obstacle.SetBodyFixed(True)
+    obstacle.SetShape(chrono.ChBoxShape())
+    obstacle.SetPos(chrono.ChVector3d(np.random.uniform(-20, 20), np.random.uniform(-20, 20), 1))
+    obstacle.SetMass(100)
+    vehicle.GetSystem().Add(obstacle)
+
+# ---------------
+# Sensor Manager and Lidar
+# ---------------
+manager = sensor.SensorManager(vehicle.GetSystem())
+lidar = sensor.Lidar()
+lidar.SetSensorMode(sensor.SensorMode.RANGE)
+lidar.SetScanAngleRange(-math.pi / 4, math.pi / 4)
+lidar.SetResolution(100)
+lidar.SetMaxRange(50)
+lidar.SetNoise(0.1)
+lidar.SetPos(chrono.ChVector3d(0, 0, 2))
+lidar.SetBody(vehicle.GetChassisBody())
+manager.AddSensor(lidar)
 
 # ---------------
 # Simulation loop
@@ -112,34 +142,6 @@ render_steps = math.ceil(render_step_size / step_size)
 s = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
-
-# Create sensor manager
-manager = sensor.ChSensorManager(vehicle.GetSystem())
-
-# Create Lidar sensor
-lidar = sensor.ChLidarSensor()
-lidar.SetSensorMode(sensor.ChLidarSensor.SCAN_MODE_SPHERE)
-lidar.SetScanResolution(360, 1024)
-lidar.SetRange(100.0)
-lidar.SetNoise(0.01)
-lidar.SetVisualization(True)
-lidar.SetFilter(sensor.ChLidarSensor.FILTER_STATISTICAL)
-lidar.SetFilterParameters(5, 2.0)
-manager.AddSensor(lidar)
-lidar.Attach(vehicle.GetChassisBody())
-lidar.SetPos(chrono.ChVector3d(0.0, 0.0, 2.0))
-
-
-# Add obstacles
-for i in range(5):
-    obstacle = chrono.ChBodyEasy()
-    obstacle.SetBodyType(chrono.ChBody.TYPE_KINEMATIC)
-    obstacle.SetShape(chrono.ChBoxShape())
-    obstacle.SetPos(chrono.ChVector3d(np.random.uniform(-20, 20), np.random.uniform(-20, 20), np.random.uniform(0, 2)))
-    obstacle.SetMass(100)
-    vehicle.GetSystem().Add(obstacle)
-    obstacle.SetCollide(True)
-
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()

@@ -2,166 +2,115 @@ import pychrono
 
 import pychrono.irrlicht
 
-import pychrono.vehicle_drivetrain
+import pychrono.vehicle as vehicle
 
-import pychrono.vehicle_driver
+import pychrono.vehicle.vehicle_dynamics as vd
 
-import pychrono.vehicle_visualizer
+import pychrono.vehicle.vehicle_dynamics_vehicle as vd_vehicle
 
-import pychrono.vehicle_terrain
+import pychrono.vehicle.vehicle_dynamics_terrain as vd_terrain
 
-import pychrono.vehicle_terrain_friction
+import pychrono.vehicle.vehicle_dynamics_driver as vd_driver
 
-import pychrono.vehicle_terrain_restitution
+import pychrono.vehicle.vehicle_dynamics_visual as vd_visual
 
-import pychrono.vehicle_visualizer
+import pychrono.vehicle.vehicle_dynamics_terrain_visual as vd_terrain_visual
 
-import pychrono.irrlicht_visualizer
+import pychrono.irrlicht as irr
 
+import pychrono.irrlicht.irrlicht as irr
 
+import pychrono.irrlicht.irrlicht_visualizer as iv
 
 
-chrono = pychrono.ChSystemNSC()
 
 
+world = pychrono.ChWorld()
 
 
-terrain = pychrono.ChBody()
 
-terrain.SetName("Terrain")
 
-terrain.SetMass(1e6)
+terrain = vd_terrain.RigidTerrain(world)
 
-terrain.SetInertia(pychrono.ChBoxInertia(1e6, 1e6, 1e6, pychrono.ChVector(0, 0, 0))
+terrain.SetFriction(0.5)
 
-terrain.SetPos(pychrono.ChVector(0, 0, 0))
+terrain.SetRestitution(0.2)
 
-terrain.SetStatic()
 
-terrain.SetStaticForce(pychrono.ChVector(0, 0, -1e6))
 
-terrain.SetRestitution(0.5)
 
-terrain.SetFriction(0.8)
+m113 = vd_vehicle.VehicleDynamicsVehicle(world)
 
-chrono.AddBody(terrain)
+m113.SetVehicleType(pychrono.vehicle.VehicleType.M113)
 
+m113.SetMass(15000.0)
 
+m113.SetLength(5.0)
 
+m113.SetWidth(2.5)
 
-vehicle = pychrono.ChVehicleDrivetrain()
+m113.SetWheelRadius(0.3)
 
-vehicle.SetName("M113")
+m113.SetTrackWidth(1.5)
 
-vehicle.SetMass(10000)
+m113.SetWheelBase(2.7)
 
-vehicle.SetInertia(pychrono.ChBoxInertia(1000, 1000, 1000, pychrono.ChVector(0, 0, 0))
+m113.SetCenterOfMass([0.0, 0.0, 0.0])
 
-vehicle.SetPos(pychrono.ChVector(0, 0, 0))
 
-vehicle.SetStaticForce(pychrono.ChVector(0, 0, -1e6))
 
-chrono.AddBody(vehicle)
 
+driver = vd_driver.Driver(world)
 
+driver.SetVehicle(m113)
 
 
-driver = pychrono.vehicle_driver.ChVehicleDriver()
 
-driver.SetName("Driver")
 
-driver.SetMaxSteer(30)
+visualizer = iv.IrrlichtVisualizer(world)
 
-driver.SetMaxBrake(1000)
+visualizer.SetCameraPosition(0, 0, 10)
 
-driver.SetMaxAccel(10)
+visualizer.SetLightPosition(0, 0, 10)
 
-chrono.AddBody(driver)
 
 
 
+irrlicht = irr.IrrLicht()
 
-irrlicht = pychrono.irrlicht_visualizer.ChIrrApp()
+irrlicht.SetWindowTitle("PyChrono M113 Simulation")
 
-irrlicht.SetName("Visualizer")
+irrlicht.SetMainLightPosition(0, 0, 10)
 
-irrlicht.SetWindowTitle("PyChrono Simulation")
 
-irrlicht.SetWindowSize(800, 600)
 
-irrlicht.SetCamera(pychrono.ChVector(0, 0, 10), pychrono.ChVector(0, 0, 0), pychrono.ChVector(0, 1, 0))
 
-irrlicht.SetLighting(True)
-
-irrlicht.AddBody(terrain)
-
-irrlicht.AddBody(vehicle)
-
-irrlicht.AddBody(driver)
-
-
-
-
-visualizer = pychrono.vehicle_visualizer.ChVehicleVisualizer()
-
-visualizer.SetName("Visualizer")
-
-visualizer.SetBody(vehicle)
-
-irrlicht.AddVisualizer(visualizer)
-
-
-
-
-terrain_visualizer = pychrono.vehicle_terrain_friction.ChVehicleTerrainFrictionVisualizer()
-
-terrain_visualizer.SetName("Terrain Visualizer")
-
-terrain_visualizer.SetBody(terrain)
-
-irrlicht.AddVisualizer(terrain_visualizer)
-
-
-
-
-terrain_restitution_visualizer = pychrono.vehicle_terrain_restitution.ChVehicleTerrainRestitutionVisualizer()
-
-terrain_restitution_visualizer.SetName("Terrain Restitution Visualizer")
-
-terrain_restitution_visualizer.SetBody(terrain)
-
-irrlicht.AddVisualizer(terrain_restitution_visualizer)
-
-
-
-
-driver_visualizer = pychrono.vehicle_driver.ChVehicleDriverVisualizer()
-
-driver_visualizer.SetName("Driver Visualizer")
-
-driver_visualizer.SetBody(driver)
-
-irrlicht.AddVisualizer(driver_visualizer)
-
-
-
-
-
-
-while irrlicht.GetDevice().run():
+while True:
 
     
 
-    chrono.DoStepDynamics(0.01)
+    world.Advance(0.01)
 
 
     
 
-    irrlicht.UpdateScene()
+    driver.Update(0.01)
 
 
     
 
-    if irrlicht.IsKeyDown(pychrono.irrlicht_visualizer.ET_KEY_ESCAPE):
+    visualizer.Update(0.01)
 
-        irrlicht.Exit()
+    irrlicht.BeginScene()
+
+    irrlicht.DrawAll()
+
+    irrlicht.EndScene()
+
+    irrlicht.Finish()
+
+    
+
+    if irrlicht.IsCancelKeyHit():
+
+        break

@@ -11,13 +11,11 @@ def main():
     
     mmesh.LoadWavefrontMesh(ch.GetChronoDataFile("vehicle/hmmwv/hmmwv_chassis.obj"), False, True)
     mmesh.Transform(ch.ChVector3d(0, 0, 0), ch.ChMatrix33d(1))
-
     
     trimesh_shape = ch.ChVisualShapeTriangleMesh()
     trimesh_shape.SetMesh(mmesh)
     trimesh_shape.SetName("HMMWV Chassis Mesh")
     trimesh_shape.SetMutable(False)
-
     
     mesh_body = ch.ChBody()
     mesh_body.SetPos(ch.ChVector3d(0, 0, 0))
@@ -52,7 +50,7 @@ def main():
     sens_manager.AddSensor(cam)
 
     
-    lidar = sens.ChLidarSensor(ground_body, 5., offset_pose, 90, 300, 2*ch.pi, ch.pi / 12, -ch.pi / 6, 100., 0)
+    lidar = sens.ChLidarSensor(ground_body, 5., offset_pose, 90, 300, 2*ch.CH_PI, ch.CH_PI / 12, -ch.CH_PI / 6, 100., 0)
     lidar.PushFilter(sens.ChFilterDIAccess())  
     lidar.PushFilter(sens.ChFilterPCfromDepth())  
     lidar.PushFilter(sens.ChFilterXYZIAccess())  
@@ -61,9 +59,10 @@ def main():
     sens_manager.AddSensor(lidar)
 
     
-    lidar_2d = sens.ChLidarSensor(ground_body, 0.1, offset_pose, 0, 360, ch.pi / 180, ch.pi / 180, 0, 10., 0)
-    lidar_2d.PushFilter(sens.ChFilterScanAccess())  
-    lidar_2d.PushFilter(sens.ChFilterVisualizeScan(1280, 720, 1, "Lidar 2D Scan"))  
+    lidar_2d = sens.ChLidarSensor(ground_body, 5., offset_pose, 1, 360, 2*ch.CH_PI, ch.CH_PI / 180, 0, 10., 0)
+    lidar_2d.PushFilter(sens.ChFilterDIAccess())  
+    lidar_2d.PushFilter(sens.ChFilterScanlines())  
+    lidar_2d.PushFilter(sens.ChFilterVisualizeScanlines(1280, 720, 1, "Lidar 2D Scan"))  
     lidar_2d.SetName("lidar_2d")
     sens_manager.AddSensor(lidar_2d)
 
@@ -103,7 +102,7 @@ def main():
     
     ros_manager.RegisterHandler(chros.ChROSCameraHandler(cam.GetUpdateRate() / 4, cam, "~/output/camera/data/image"))
     ros_manager.RegisterHandler(chros.ChROSLidarHandler(lidar, "~/output/lidar/data/pointcloud"))
-    ros_manager.RegisterHandler(chros.ChROS2DLidarHandler(lidar_2d, "~/output/lidar2d/data/scan"))
+    ros_manager.RegisterHandler(chros.ChROSLidarHandler(lidar_2d, "~/output/lidar2d/data/scan"))  
     ros_manager.RegisterHandler(chros.ChROSGPSHandler(gps, "~/output/gps/data"))
     acc_handler = chros.ChROSAccelerometerHandler(acc, "~/output/accelerometer/data")
     ros_manager.RegisterHandler(acc_handler)
@@ -131,12 +130,10 @@ def main():
 
     while time < time_end:
         time = sys.GetChTime()  
-
         
         sens_manager.Update()
         if not ros_manager.Update(time, time_step):
             break  
-
         sys.DoStepDynamics(time_step)  
 
 if __name__ == "__main__":

@@ -25,7 +25,7 @@ def main():
     mesh_body.AddVisualShape(trimesh_shape)
     mesh_body.SetFixed(False)  
     mesh_body.SetMass(0)  
-    sys.Add(mesh_body)  
+    sys.Add(mesh_body) 
 
     
     ground_body = ch.ChBodyEasyBox(1, 1, 1, 1000, False, False)
@@ -82,5 +82,4 @@ def main():
     
     acc = sens.ChAccelerometerSensor(ground_body, 100, offset_pose, noise_model_none)
     acc.PushFilter(sens.ChFilterAccelAccess())  
-    acc.SetName("accelerometer")
-    sens_manager.AddSensor(acc)
+    acc.SetName("accelerometer

@@ -7,10 +7,8 @@ class MySpringForce(chrono.ForceFunctor):
         self.spring_coef = spring_coef
         self.damping_coef = damping_coef
 
-    def Force(self, time, pos, vel, force, torque):
-        rel_pos = pos[0] - pos[1]
-        force[0] = -self.spring_coef * rel_pos - self.damping_coef * (vel[0] - vel[1])
-        force[1] = -force[0]
+    def Functor(self, state, pos, speed, force):
+        force.x = -self.spring_coef * (pos.x - 1.5) - self.damping_coef * speed.x
 
 rest_length = 1.5
 spring_coef = 50
@@ -26,7 +24,6 @@ ground.EnableCollision(False)
 
 sph_1 = chrono.ChVisualShapeSphere(0.1)
 ground.AddVisualShape(sph_1, chrono.ChFramed(chrono.ChVector3d(-1, 0, 0)))
-
 sph_2 = chrono.ChVisualShapeSphere(0.1)
 ground.AddVisualShape(sph_2, chrono.ChFramed(chrono.ChVector3d(1, 0, 0)))
 
@@ -68,7 +65,6 @@ box_2 = chrono.ChVisualShapeBox(1, 1, 1)
 box_2.SetColor(chrono.ChColor(0, 0.6, 0))
 body_2.AddVisualShape(box_2)
 
-# Create the spring between body_2 and ground using custom force functor.
 spring_2 = chrono.ChLinkTSDA()
 spring_2.Initialize(body_2, ground, True, chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(1, 0, 0))
 spring_2.SetForceFunctor(MySpringForce(spring_coef, damping_coef))

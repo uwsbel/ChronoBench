@@ -4,7 +4,7 @@ import pychrono.vehicle as veh
 import math
 
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
-veh.SetDataPath(chronoGetChronoDataPath() + 'vehicle/')
+veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 # Initial vehicle location and orientation
 initLoc = chrono.ChVector3d(-50, 0, 0.5)  # Changed initial location
@@ -20,9 +20,10 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 # Rigid terrain
-terrainHeight = 0      # terrain height
-terrainLength = 200.0  # Changed terrain length
-terrainWidth = 100.0   # size in Y direction
+terrain_model = veh.RigidTerrain.BOX
+terrainHeight = 0  # terrain height
+terrainLength = 200.0  # Increased terrain length
+terrainWidth = 100.0  # size in Y direction
 
 # Poon chassis tracked by the camera
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
@@ -43,7 +44,6 @@ vehicle = veh.FEDA()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
-vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 
@@ -54,7 +54,6 @@ vehicle.SetSuspensionVisualizationType(vis_type)
 vehicle.SetSteeringVisualizationType(vis_type)
 vehicle.SetWheelVisualizationType(vis_type)
 vehicle.SetTireVisualizationType(vis_type)
-
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 # Create the terrain
@@ -84,26 +83,13 @@ vis.AttachVehicle(vehicle.GetVehicle())
 
 # Create the path-follower driver system
 driver = veh.ChPathFollowerDriverIRR(vis)
-
-# Set the target speed for the path-follower driver
-driver.SetTargetSpeed(10.0)
-
-# Configure the steering controller with a look-ahead distance of 5 and appropriate gains
-# Note: The actual gain values need to be determined based on the vehicle dynamics and desired performance
-driver.SetSteeringGain(0.1)
-driver.SetLookAheadDistance(5.0)
-
-# Configure the speed controller with appropriate gains
-# Note: The actual gain values need to be determined based on the vehicle dynamics and desired performance
-driver.SetSpeedGain(0.1)
-
+driver.SetTargetSpeed(10.0)  # Set target speed for path-follower
+driver.SetLookAheadDistance(5.0)  # Set look-ahead distance
+driver.SetSteeringGain(0.5)  # Set steering gain
+driver.SetSteeringTime(1.0)  # Set steering time
+driver.SetThrottleGain(0.5)  # Set throttle gain
+driver.SetBrakingGain(0.5)  # Set braking gain
 driver.Initialize()
-
-# output vehicle mass
-print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
-
-# Number of simulation steps between miscellaneous events
-render_steps = math.ceil(render_step_size / step_size)
 
 # Initialize simulation frame counter s
 realtime_timer = chrono.ChRealtimeStepTimer()
@@ -140,6 +126,3 @@ while vis.Run() :
 
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
-
-# Note: The ISO standard double lane change maneuver path needs to be created using the PyChrono API.
-# This part of the code is not provided here as it requires specific knowledge of the PyChrono API and the ISO standard maneuver.

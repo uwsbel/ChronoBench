@@ -1,74 +1,76 @@
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
-import pychrono.pardisomkl as mkl
 import numpy as np
 
-# 1. Initialize the PyChrono environment and core components.
-chrono.SetChronoDataPath("./chrono_data/")  # Set path to chrono data
-
-# 2. Create a physical system and set up the solver.
+# Create a Chrono physical system
 sys = chrono.ChSystemSMC()
-sys.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
 
-# Use PardisoMKL solver
-mkl_solver = mkl.ChSolverPardisoMKL()
-sys.SetSolver(mkl_solver)
+# Set the default contact material for the system
+contact_mat = chrono.ChMaterialSurfaceSMC()
+contact_mat.SetYoungModulus(1e7)
+contact_mat.SetFriction(0.3)
+sys.SetDefaultMaterial(contact_mat)
 
-# 3. Create a mesh grid for the tablecloth.
-# Define tablecloth dimensions and mesh resolution
-length = 2.0
-width = 1.5
-num_elements_x = 40
-num_elements_y = 30
+# Define the dimensions and discretization of the tablecloth
+length = 1.0  # Length of the tablecloth
+width = 1.0   # Width of the tablecloth
+num_elements_x = 20  # Number of elements along the X-axis
+num_elements_y = 20  # Number of elements along the Y-axis
 
-# Create nodes
+# Create a mesh grid for the tablecloth
 nodes = []
 for i in range(num_elements_y + 1):
     for j in range(num_elements_x + 1):
         x = j * (length / num_elements_x)
-        y = 0.5  # Initial height
-        z = i * (width / num_elements_y)
-        node = chrono.ChNodeFEAxyz(chrono.ChVectorD(x, y, z))
+        y = i * (width / num_elements_y)
+        node = chrono.ChNodeFEAxyz(chrono.ChVectorD(x, y, 0))
         sys.AddNode(node)
         nodes.append(node)
 
-# 4. Create shell elements with isotropic Kirchhoff material.
-# Material properties
-E = 1e7  # Young's modulus
+# Define the material properties for the tablecloth (isotropic Kirchhoff material)
+E = 1e6  # Young's modulus
 nu = 0.3  # Poisson's ratio
 rho = 1000  # Density
 thickness = 0.01  # Thickness of the shell
+mat = chrono.ChMaterialShellKirchhoff()
+mat.Set_E(E)
+mat.Set_nu(nu)
+mat.Set_Rho(rho)
 
-mat = chrono.ChMaterialShellKirchhoff(E, nu, rho, thickness)
-
+# Create the shell elements
+elements = []
 for i in range(num_elements_y):
     for j in range(num_elements_x):
-        # Node indices for the element
-        node1 = i * (num_elements_x + 1) + j
-        node2 = node1 + 1
-        node3 = (i + 1) * (num_elements_x + 1) + j + 1
-        node4 = node3 - 1
-        
-        # Create the shell element
-        element = chrono.ChElementShellKirchhoff4()
-        element.SetNodes(nodes[node1], nodes[node2], nodes[node3], nodes[node4])
+        node0 = nodes[i * (num_elements_x + 1) + j]
+        node1 = nodes[i * (num_elements_x + 1) + j + 1]
+        node2 = nodes[(i + 1) * (num_elements_x + 1) + j + 1]
+        node3 = nodes[(i + 1) * (num_elements_x + 1) + j]
+        element = chrono.ChElementShellANCF_3423()
+        element.SetNodes(node0, node1, node2, node3)
         element.SetMaterial(mat)
+        element.SetThickness(thickness)
         sys.AddElement(element)
+        elements.append(element)
 
-# 5. Set up Irrlicht visualization.
+# Set up the visualization
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(sys)
 vis.SetWindowSize(1024, 768)
 vis.SetWindowTitle('Tablecloth Simulation')
 vis.Initialize()
-vis.AddLogo(chrono.GetChronoDataPath() + 'logo_pychrono_alpha.png')
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()
-vis.AddCamera(chrono.ChVectorD(1, 1, -2))
+vis.AddCamera(chrono.ChVectorD(0.5, 0.5, 1.0))
 vis.AddTypicalLights()
+
+# Set the solver (PardisoMKL)
+sys.SetSolverType(chrono.ChSolver.Type_PARDISO_MKL)
 
 # Simulation loop
 while vis.Run():
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
-    sys.DoStepDynamics(0.001)
+    sys.DoStepDynamics(0.01)
+
+# No code needs to be returned outside the specified format.

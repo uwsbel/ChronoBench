@@ -3,7 +3,7 @@ import pychrono.fea as fea
 import pychrono.pardisomkl as mkl
 import pychrono.irrlicht as chronoirr
 
-print ("Example: PyChrono using  beam finite elements");
+print("Example: PyChrono using  beam finite elements");
 
 sys = chrono.ChSystemSMC()
 
@@ -77,8 +77,18 @@ constr_d.SetConstrainedCoords(False, True, True,
                               False, False,False)    
 
 
+
+
+
 builder = fea.ChBuilderBeamEuler()
 
+
+builder.BuildBeam(mesh,                   
+                    msection,                  
+                    5,                         
+                    chrono.ChVector3d(0, 0, -0.1),   
+                    chrono.ChVector3d(0.2, 0, -0.1), 
+                    chrono.ChVector3d(0, 1, 0))      
 
 
 builder.BuildBeam(mesh,                   

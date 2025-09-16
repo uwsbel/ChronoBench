@@ -4,115 +4,105 @@
 
 ### 1. Completeness (40 points)
 
-- **System Initialization:** Present and correct (`sys = ch.ChSystemNSC()`). No deduction.
-- **Body Creation:**
-  - Mesh body created with visual shape but **mass set to zero** (`SetMass(0)`) and **not fixed** (`SetFixed(False)`). This is unusual because a zero-mass body should typically be fixed or treated as static.  
-  - Ground body created using `ChBodyEasyBox` with mass 0 and **not fixed** (`SetFixed(False)`), which is incorrect. Ground should be fixed to avoid falling under gravity or moving.  
-  - **Deduct 15 points** for missing correct body setup for ground (should be fixed and mass zero or non-zero mass with fixed).  
-  - **Deduct 10 points** for mesh body mass and fixed state inconsistency.
-- **Visualization:**  
-  - Visual shape added to mesh body.  
-  - No use of Irrlicht or other visualization system for the overall simulation (only sensor visualization).  
-  - **Deduct 5 points** for missing general visualization system setup (e.g., Irrlicht), which is standard for PyChrono simulations.
-- **Sensors:**  
-  - Sensor manager created and multiple sensors added (camera, lidar, GPS, accelerometer, gyroscope).  
-  - However, `noise_model_none` and `gps_reference` are used before definition in the lidar sensor constructor, which is a logical error (see correctness).  
-  - **Deduct 5 points** for missing initialization order of variables used in sensor constructors.
-- **Simulation Loop:**  
-  - No simulation loop or stepping code present.  
-  - **Deduct 15 points** for missing simulation loop, which is essential for running the simulation.
-- **Summary Completeness Deduction:** 15 + 10 + 5 + 5 + 15 = **50 points deducted** (over max 40, so capped at 40).
+- **System Initialization:** Present (`sys = ch.ChSystemNSC()`) — correct. No deduction.
+- **Body Creation:** Two bodies created: `mesh_body` and `ground_body`. However:
+  - `mesh_body` has zero mass (`SetMass(0)`) but is not fixed (`SetFixed(False)`), which is physically inconsistent. Usually, zero mass bodies should be fixed or used as static objects.
+  - `ground_body` is created with `ChBodyEasyBox(1,1,1,1000, False, False)`, but then `SetFixed(False)` and `SetMass(0)` are called. This contradicts the `ChBodyEasyBox` parameters (which include density and collision/visualization flags). Also, a ground body should be fixed (`SetFixed(True)`) to act as a static ground.
+- **Visualization:** No Irrlicht or other visualization system is set up. The code uses sensor visualization filters (`ChFilterVisualize` etc.) but no general scene visualization (e.g., Irrlicht) is initialized or run. This is a major omission for typical simulation visualization.
+- **Sensors:** Multiple sensors are created (camera, lidar, GPS, accelerometer, gyro, magnetometer). However, the order of initialization is problematic (see correctness).
+- **ROS Integration:** `ros_manager` is used but initialized **after** its first use (handlers registered before `ros_manager = chros.ChROSPythonManager()`), which is incorrect.
+- **Simulation Loop:** Present and correctly structured.
+
+**Deductions:**
+
+- Missing proper visualization system setup (Irrlicht or equivalent): **-15 points**
+- Ground body incorrectly configured (should be fixed and mass non-zero or zero but fixed): **-10 points**
+- `mesh_body` zero mass but not fixed: **-10 points**
+- ROS manager used before initialization: **-15 points**
+
+Subtotal Completeness: 40 - 15 - 10 - 10 - 15 = **-10 (minimum 0)** → So 0 points here.
 
 ---
 
 ### 2. Correctness (30 points)
 
-- **Incorrect use of `SetMass(0)` with `SetFixed(False)` for both mesh_body and ground_body:**  
-  - Zero mass with non-fixed body is physically inconsistent and will cause simulation errors.  
-  - **Deduct 15 points** for this significant error.
-- **Use of `noise_model_none` and `gps_reference` before they are defined in the lidar sensor constructor:**  
-  - This will cause a runtime error.  
-  - **Deduct 15 points** for this critical logical error.
-- **Gyroscope filter usage:**  
-  - The code uses `sens.ChGyroscopeHandler` with an extremely long list of 100s (over 200 arguments), which is nonsensical and likely a copy-paste or typing error.  
-  - The API expects a noise model or filter, not a handler with hundreds of parameters.  
-  - **Deduct 15 points** for incorrect API usage here.
-- **Summary Correctness Deduction:** 15 + 15 + 15 = **45 points deducted** (over max 30, capped at 30).
+- **Incorrect use of `SetMass(0)` with `SetFixed(False)`** on `mesh_body` and `ground_body` — physically inconsistent and likely to cause simulation errors or warnings. Deduct **15 points**.
+- **ROS manager usage before initialization:** `imu_handler` registered to `ros_manager` before `ros_manager` is created. This will cause runtime errors. Deduct **15 points**.
+- **`noise_model_none` and `gps_reference` used before definition in lidar sensor constructor:** The code calls `sens.ChLidarSensor(ground_body, 5., offset_pose, noise_model_none, gps_reference)` before `noise_model_none` and `gps_reference` are defined. Deduct **15 points**.
+- **Duplicate sensor creation:** The camera and lidar sensors are created twice with the same names and added twice to the sensor manager. This is redundant and likely an error. Deduct **10 points**.
+- **`gps` sensor constructor called with extra `gps_reference` argument:** The first `gps` sensor is constructed with 5 arguments, the second with 6 arguments (extra `gps_reference`). According to the API, the constructor signature is `(body, update_rate, offset_pose, gps_reference, noise_model)`. Extra argument is incorrect. Deduct **10 points**.
+- **Handlers `acc_handler`, `gyro_handler`, `mag_handler` are used but never defined:** This will cause NameError. Deduct **15 points**.
+- **`ground_body.SetAngVelParent(ch.ChVector3d(0, 0, 0.1))`** is used to spin the ground body, but since the ground is not fixed, this will cause the ground to rotate, which is unusual. Usually, ground is fixed. Deduct **5 points**.
+- **`time` variable is set to 0 but immediately overwritten by `sys.GetChTime()` inside loop:** Minor inefficiency but no major issue. No deduction.
+
+Subtotal Correctness: 30 - 15 - 15 - 15 - 10 - 10 - 15 - 5 = -55 (minimum 0) → 0 points.
 
 ---
 
 ### 3. Code Quality (10 points)
 
-- **Readability:**  
-  - Variable names are mostly meaningful (e.g., `sys`, `mmesh`, `mesh_body`, `ground_body`, `sens_manager`).  
-  - However, the extremely long argument list in the gyroscope filter is unreadable and clearly an error.  
-  - Lack of comments explaining the purpose of code blocks or sensors.  
-  - No docstrings or inline comments.  
-  - **Deduct 5 points** for poor readability due to the gyroscope filter and lack of comments.
-- **Comments:**  
-  - No comments at all.  
-  - **Deduct 5 points** for insufficient comments/documentation.
-- **Summary Code Quality Deduction:** 5 + 5 = **10 points deducted**.
+- No comments explaining the code or the purpose of blocks. Deduct **5 points**.
+- Variable names are somewhat meaningful but inconsistent (e.g., `mmesh`, `mesh_body`, `acc`, `gyro`, `mag`, but handlers like `acc_handler` are undefined). Deduct **3 points**.
+- Code formatting is mostly okay but there are redundant repeated blocks (sensor creation repeated twice). Deduct **2 points**.
+
+Subtotal Code Quality: 10 - 5 - 3 - 2 = 0 points.
 
 ---
 
 ### 4. Efficiency (10 points)
 
-- **Redundant or unnecessary code:**  
-  - The mesh transform is identity (`Transform(ch.ChVector3d(0, 0, 0), ch.ChMatrix33d(1))`), which is unnecessary and can be omitted.  
-  - The gyroscope filter with hundreds of repeated parameters is inefficient and nonsensical.  
-  - Adding four point lights with similar parameters at different positions is acceptable but could be optimized by a loop. Minor issue.  
-  - **Deduct 5 points** for the gyroscope filter inefficiency and redundant transform call.
-- **Missing optimization:**  
-  - Could define `noise_model_none` and `gps_reference` before sensor creation to avoid errors and improve clarity.  
-  - Could use loops for adding lights.  
-  - **Deduct 3 points** for missing these obvious optimizations.
-- **Summary Efficiency Deduction:** 5 + 3 = **8 points deducted**.
+- Sensor creation code is duplicated unnecessarily (camera and lidar sensors created twice with same parameters). Deduct **5 points**.
+- `noise_model_none` and `gps_reference` are defined multiple times unnecessarily. Deduct **3 points**.
+- `time` variable initialization before loop is redundant. Deduct **0 points** (minor).
+  
+Subtotal Efficiency: 10 - 5 - 3 = 2 points.
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- No error handling or checks for file loading success (`mmesh.LoadWavefrontMesh`).  
-- No try-except blocks or validation of sensor creation.  
-- No checks for system or sensor initialization.  
-- **Deduct 5 points** for lack of basic error handling.
+- No error handling at all (try-except blocks, checks for file loading success, sensor initialization, etc.). Deduct **5 points**.
+- No checks for sensor or ROS manager initialization success. Deduct **0 points** (already covered).
+  
+Subtotal Error Handling: 0 points.
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
-- The code uses `sens.ChFilterVisualize` for the camera and `sens.ChFilterVisualizePointCloud` for lidar, which is good for sensor visualization.  
-- However, no general visualization system (e.g., Irrlicht) is set up to visualize the entire simulation scene.  
-- Lighting is added to the sensor scene, but the positions are quite far on the z-axis (100 units), which may be suboptimal.  
-- **Deduct 3 points** for incomplete visualization setup and suboptimal lighting configuration.
+- No general visualization system (e.g., Irrlicht) initialized or used.
+- Only sensor visualization filters are used, which is insufficient for general simulation visualization.
+- Lighting is added to the sensor scene, but no overall scene lighting or camera for visualization.
+- Deduct **5 points** for inadequate visualization setup.
+
+Subtotal Visualization: 0 points.
 
 ---
 
-### Summary of Deductions
+### **Final Score Calculation**
 
-| Criterion                    | Max Points | Deducted | Notes                                        |
-|-----------------------------|------------|----------|----------------------------------------------|
-| Completeness                | 40         | 40       | Missing simulation loop, incorrect body setup, missing visualization system |
-| Correctness                | 30         | 30       | Zero mass + non-fixed bodies, undefined vars, incorrect gyroscope filter usage |
-| Code Quality               | 10         | 10       | No comments, poor readability due to gyroscope filter |
-| Efficiency                 | 10         | 8        | Redundant transform, inefficient gyroscope filter, missing minor optimizations |
-| Error Handling and Robustness | 5          | 5        | No error handling at all                      |
-| Visualization Tools        | 5          | 3        | Missing general visualization system, suboptimal lighting |
-| **Total Deductions**        |            | **96**   |                                              |
-
----
-
-### Final Score Calculation
-
-- Total points = 100  
-- Deductions = 96  
-- **Final score = 100 - 96 = 4**
+| Category                  | Points | Deductions | Score |
+|---------------------------|--------|------------|-------|
+| Completeness              | 40     | 40         | 0     |
+| Correctness               | 30     | 30         | 0     |
+| Code Quality              | 10     | 10         | 0     |
+| Efficiency                | 10     | 8          | 2     |
+| Error Handling & Robustness| 5      | 5          | 0     |
+| Visualization             | 5      | 5          | 0     |
+| **Total**                 | 100    | 98         | **2** |
 
 ---
 
-### Final score and explanation:
+### **Summary of Major Issues:**
 
-[[4]]
+- Critical API misuse: sensors used before variables defined, ROS manager used before initialization.
+- Missing or incorrect body properties (mass/fixed).
+- Duplicate sensor creation.
+- Undefined variables (`acc_handler`, `gyro_handler`, `mag_handler`).
+- No visualization system initialized.
+- No error handling.
+- Poor code quality due to lack of comments and redundant code.
 
-The script demonstrates an attempt to set up a PyChrono simulation with multiple sensors and mesh visualization. However, it suffers from critical errors such as zero-mass bodies that are not fixed, undefined variables used before assignment, and an invalid gyroscope filter call with an absurd number of parameters. The absence of a simulation loop and a general visualization system further undermines the completeness and usability of the script. Additionally, the code lacks comments, error handling, and contains inefficient or redundant code segments. These issues collectively lead to a very low score.
+---
+
+[[2]]

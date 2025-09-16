@@ -67,7 +67,7 @@ patch = terrain.AddPatch(patch_mat,
     chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
     terrainLength, terrainWidth)
 
-patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)  
+patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
@@ -83,23 +83,6 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 
-sensor_manager = vis.GetSceneManager().createSensorManager()
-
-
-light = vis.GetSceneManager().addLightSceneNode(None, chrono.ChVector3d(0, 0, 10), chrono.ChVector3d(1, 1, 1), 100)
-
-
-camera_node = vis.GetSceneManager().addCameraSceneNode(None, chrono.ChVector3d(0, 0, 1.5), chrono.ChVector3d(0, 0, 0))
-camera_node.setFOV(chrono.ChRadian(75))  
-camera_node.setAspectRatio(1280 / 1024)
-
-
-camera_filter = vis.GetSceneManager().createTextureTargetRenderTarget(1280, 1024)
-camera_filter.setName("Camera Filter")
-camera_filter.addCameraSceneNode(camera_node)
-sensor_manager.add(camera_filter)
-
-
 driver = veh.ChInteractiveDriverIRR(vis)
 
 
@@ -113,7 +96,31 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 
-print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
+sensor_manager = vis.GetSceneManager().getSceneNode().getSceneManager().createSensorManager()
+
+
+light1 = vis.GetSceneManager().getSceneNode().getSceneManager().addLightSceneNode(0,
+                                                                                  chrono.ChVector3d(0, 10, 0),
+                                                                                  chrono.ChVector3d(1, 1, 1),
+                                                                                  -1)
+light1.setPosition(chrono.ChVector3d(0, 10, 0))
+light1.setRadius(50)
+
+
+camera_sensor = vis.GetSceneManager().getSceneNode().getSceneManager().addCameraSceneNodeFPS(0, 100, 0.1)
+camera_sensor.setPosition(chrono.ChVector3d(0, 0, 1))
+camera_sensor.setTarget(chrono.ChVector3d(0, 0, 0))
+camera_sensor.setFarValue(1000)
+
+
+camera_filter = vis.GetSceneManager().getSceneNode().getSceneManager().createTextureTargetRenderTarget(1280, 1024, irr.PIXEL_FORMAT_RGBA8888)
+camera_filter.addRenderTarget(camera_sensor)
+
+
+sensor_manager.add(camera_filter)
+
+
+print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 
 
 render_steps = math.ceil(render_step_size / step_size)
@@ -123,11 +130,11 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-while vis.Run():
+while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
 
     
-    if (step_number % render_steps == 0):
+    if (step_number % render_steps == 0) :
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
@@ -149,11 +156,13 @@ while vis.Run():
     vis.Advance(step_size)
 
     
-    camera_node.setPosition(vehicle.GetVehicle().GetChassisBody().GetPos())
-    camera_node.setTarget(vehicle.GetVehicle().GetChassisBody().GetPos() + vehicle.GetVehicle().GetChassisBody().GetRot().GetForwardVector())
-
-    
     step_number += 1
 
     
     realtime_timer.Spin(step_size)
+
+    
+    camera_sensor.OnAnimate(time)
+
+    
+    sensor_manager.update()

@@ -2,91 +2,90 @@ import pychrono as chrono
 import pychrono.irrlicht as chronoirr
 import numpy as np
 
-# --- Create the Chrono physical system
+# --- Create a Chrono physical system ---
 system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Gravity
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
 
-# --- Create the PardisoMKL solver
+# --- Create the PardisoMKL solver ---
 solver = chrono.ChSolverPardisoMKL()
 system.SetSolver(solver)
 
-# --- Tablecloth parameters
-tablecloth_length = 2.0
+# --- Tablecloth parameters ---
 tablecloth_width = 2.0
-num_x = 20  # Number of nodes along the length
-num_y = 20  # Number of nodes along the width
+tablecloth_length = 2.0
+num_width_nodes = 20
+num_length_nodes = 20
 thickness = 0.001
 
-# --- Create the mesh grid
+# --- Create the mesh grid ---
 nodes = []
 elements = []
 
-for i in range(num_x):
-    for j in range(num_y):
-        x = -tablecloth_length / 2 + i * (tablecloth_length / (num_x - 1))
-        y = -tablecloth_width / 2 + j * (tablecloth_width / (num_y - 1))
-        nodes.append(chrono.ChVectorD(x, y, 0))
+for i in range(num_width_nodes):
+    for j in range(num_length_nodes):
+        x = -tablecloth_width / 2 + i * (tablecloth_width / (num_width_nodes - 1))
+        y = -tablecloth_length / 2 + j * (tablecloth_length / (num_length_nodes - 1))
+        z = 0.0
+        nodes.append(chrono.ChVectorD(x, y, z))
 
-for i in range(num_x - 1):
-    for j in range(num_y - 1):
-        n1 = i * num_y + j
-        n2 = (i + 1) * num_y + j
-        n3 = (i + 1) * num_y + (j + 1)
-        n4 = i * num_y + (j + 1)
-        elements.append((n1, n2, n3, n4))
+for i in range(num_width_nodes - 1):
+    for j in range(num_length_nodes - 1):
+        node1 = i * num_length_nodes + j
+        node2 = i * num_length_nodes + j + 1
+        node3 = (i + 1) * num_length_nodes + j + 1
+        node4 = (i + 1) * num_length_nodes + j
+        elements.append([node1, node2, node3, node4])
 
-# --- Create the shell
-tablecloth = chrono.ChShell()
-tablecloth.Set_Size(num_x, num_y)
-tablecloth.Set_Thickness(thickness)
+# --- Create the shell ---
+shell = chrono.ChShell()
+shell.Set_Nodes(nodes)
+shell.Set_Elements(elements)
+shell.Set_Thickness(thickness)
 
-# Add nodes and elements to the shell
-for i, node in enumerate(nodes):
-    tablecloth.AddNode(node)
-
-for element in elements:
-    tablecloth.AddElement(*element)
-
-# --- Material properties (isotropic Kirchhoff)
-youngs_modulus = 1000.0
+# --- Material properties ---
+youngs_modulus = 1e7
 poissons_ratio = 0.3
-density = 1.0
+density = 1000
 
+# --- Create the isotropic Kirchhoff material ---
 material = chrono.ChMaterialSurfaceNSC()
-material.SetYoungModulus(youngs_modulus)
-material.SetPoissonRatio(poissons_ratio)
-material.SetDensity(density)
-tablecloth.SetMaterial(material)
+material.Set_YoungModulus(youngs_modulus)
+material.Set_PoissonRatio(poissons_ratio)
+material.Set_Density(density)
+shell.Set_Material(material)
 
-# --- Add the shell to the system
-system.Add(tablecloth)
+# --- Add the shell to the system ---
+system.Add(shell)
 
-# --- Fix the corners of the tablecloth (example)
-tablecloth.SetFixed(0, True)  # Fix node 0
-tablecloth.SetFixed(num_y - 1, True)  # Fix node num_y - 1
-tablecloth.SetFixed((num_x - 1) * num_y, True)  # Fix node (num_x - 1) * num_y
-tablecloth.SetFixed((num_x - 1) * num_y + (num_y - 1), True)  # Fix node (num_x - 1) * num_y + (num_y - 1)
+# --- Fix the edges of the tablecloth ---
+for i in range(num_width_nodes):
+    node_index = i * num_length_nodes
+    shell.Set_Node_Fixed(node_index, True)  # Fix left edge
+    node_index = i * num_length_nodes + num_length_nodes - 1
+    shell.Set_Node_Fixed(node_index, True)  # Fix right edge
 
+for j in range(num_length_nodes):
+    node_index = j
+    shell.Set_Node_Fixed(node_index, True)  # Fix bottom edge
+    node_index = (num_width_nodes - 1) * num_length_nodes + j
+    shell.Set_Node_Fixed(node_index, True)  # Fix top edge
 
-# --- Visualization
-vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(system)
-vis.SetWindowSize(1024, 768)
-vis.SetWindowTitle('Tablecloth Folding')
-vis.Initialize()
-vis.AddCamera(chrono.ChVectorD(0, 0, -2))
-vis.AddTypicalLights()
-
-# --- Simulation loop
+# --- Simulation parameters ---
 time_step = 0.001
 simulation_time = 5.0
 
+# --- Initialize the Irrlicht visualization ---
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle('Tablecloth Folding Simulation')
+vis.Initialize()
+vis.AddCamera(chrono.ChVectorD(0, -tablecloth_length/2, -tablecloth_width/2), chrono.ChVectorD(0, tablecloth_length/2, tablecloth_width/2))
+vis.AddTypicalLights()
+
+# --- Run the simulation ---
 while vis.Run():
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
-
     system.DoStepDynamics(time_step)
-
-    if system.GetChTime() > simulation_time:
-        break

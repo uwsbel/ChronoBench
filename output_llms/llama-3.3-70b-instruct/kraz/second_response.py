@@ -3,11 +3,8 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
-# Set the Chrono data path
-chrono.SetChronoDataPath("/path/to/chrono/data")
-
-# Set the vehicle data path
-veh.SetDataPath("/path/to/vehicle/data")
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())
+veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 # Initial vehicle location and orientation
 initLoc = chrono.ChVector3d(-15, 0, 0.5)
@@ -23,12 +20,11 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 # Rigid terrain
-# terrain_model = veh.RigidTerrain.BOX
 terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
 
-# Poon chassis tracked by the camera
+# Point tracked by the camera
 trackPoint = chrono.ChVector3d(3, 0, 2.1)
 
 # Contact method
@@ -96,7 +92,7 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 # Output vehicle mass
-print("VEHICLE MASS: ",  vehicle.GetTractor().GetMass())
+print("VEHICLE MASS: ", vehicle.GetTractor().GetMass())
 
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
@@ -107,15 +103,15 @@ step_number = 0
 render_frame = 0
 
 # Double lane change maneuver sequence
-lane_change_start_time = 2.0
-lane_change_duration = 4.0
-steering_input = 0.0
+lane_change_start_time = 2.0  # seconds
+lane_change_duration = 4.0  # seconds
+lane_change_direction = 1.0  # 1.0 for left, -1.0 for right
 
-while vis.Run() :
+while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
     # Render scene and output POV-Ray data
-    if (step_number % render_steps == 0) :
+    if (step_number % render_steps == 0):
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
@@ -126,14 +122,9 @@ while vis.Run() :
 
     # Double lane change maneuver sequence
     if time >= lane_change_start_time and time < lane_change_start_time + lane_change_duration:
-        if time < lane_change_start_time + lane_change_duration / 2:
-            steering_input = -0.5
-        else:
-            steering_input = 0.5
-    else:
-        steering_input = 0.0
-
-    driver_inputs.steering = steering_input
+        driver_inputs.steering = lane_change_direction * (time - lane_change_start_time) / lane_change_duration
+    elif time >= lane_change_start_time + lane_change_duration and time < lane_change_start_time + 2 * lane_change_duration:
+        driver_inputs.steering = -lane_change_direction * (time - lane_change_start_time - lane_change_duration) / lane_change_duration
 
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)

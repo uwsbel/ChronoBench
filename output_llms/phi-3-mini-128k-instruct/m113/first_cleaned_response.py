@@ -1,89 +1,52 @@
-import pychrono as chrono
-
-from pychron.core.helpers import system_lock
-
-
-
-
-chrono.ChSystemSimulation.Initialize()
+from pychrono.core import *
+from pychrono.vehicle import *
+from pychrono.vehicle_dynamics import *
+from pychrono.irrlicht_utils import *
 
 
+chrono_init()
 
 
-terrain = chrono.ChRigidBody('terrain')
-
-terrain.SetMaterialType_Solid(chrono.ChMaterialSurfaceSliding)
-
-terrain.SetRestitution(0.0)
-
-terrain.SetFriction(0.5)
-
-terrain.SetShape(chrono.ChBoxShape(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(10, 1, 1)))
-
-chrono.AddToSystem(chrono.GetSystem(), terrain)
+terrain = create_rigid_terrain()
+terrain.set_friction(0.7)  
+terrain.set_restitution(0.2)  
 
 
+m113_vehicle = create_vehicle_m113()
+m113_vehicle.set_position(0, 0, 0.5)
+m113_vehicle.set_velocity(0, 0, 0)
+m113_vehicle.set_orientation(0, 0, 0, 1)
 
 
-vehicle = chrono.ChRigidBody('vehicle')
-
-vehicle.SetMaterialType_Solid(chrono.ChMaterialSurfaceSliding)
-
-vehicle.SetRestitution(0.0)
-
-vehicle.SetFriction(0.5)
-
-vehicle.SetShape(chrono.ChBoxShape(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(2, 1, 1)))
-
-vehicle.SetPos(chrono.ChVectorD(0, 0, 0))
-
-vehicle.SetVel(chrono.ChVectorD(0, 0, 0))
-
-chrono.AddToSystem(chrono.GetSystem(), vehicle)
+driver_system = create_driver_system()
 
 
+application = create_application()
+application.add_render_device(create_irrlicht_device())
+application.add_render_view("main_viewport")
+application.add_effect("ground_lighting")
 
 
-driver = chrono.ChDriver('driver')
-
-driver.SetVehicle(vehicle)
-
-chrono.AddToSystem(chrono.GetSystem(), driver)
-
+camera = application.add_camera("main_camera")
+camera.set_position(0, 0, 5)
+camera.set_fov(70)
+camera.set_look_at(0, 0, 0)
 
 
+while application.is_running():
+    
+    chrono_step(1.0 / 60.0)  
 
-irrlicht_scene = chrono.ChVisualDebugIrrlichtScene()
+    
+    m113_vehicle.apply_dynamics(chrono_integrator)
 
-irrlicht_scene.SetCameraMode(chrono.VEHICLE_CAMERA_MODE)
+    
+    terrain.apply_dynamics(chrono_integrator)
+    driver_system.update(m113_vehicle)
 
-irrlicht_scene.SetCameraTarget(vehicle)
+    
+    application.draw_frame()
+    application.update_render_device()
 
-irrlicht_scene.SetCameraPosition(chrono.ChVectorD(5, 5, 5))
-
-irrlicht_scene.SetCameraUp(chrono.ChVectorD(0, 1, 0))
-
-irrlicht_scene.SetLightPosition(chrono.ChVectorD(0, 10, 0))
-
-chrono.AddToSystem(chrono.GetSystem(), irrlicht_scene)
-
-
-
-
-while True:
-
-    with system_lock:
-
-        
-
-        driver.Update()
-
-
-        
-
-        chrono.DoFiStep(1e-3, 100)
-
-
-        
-
-        irrlicht_scene.Update()
+    
+    application.sleep(chrono_sleep_time)

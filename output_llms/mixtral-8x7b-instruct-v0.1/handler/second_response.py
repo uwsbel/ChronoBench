@@ -14,7 +14,7 @@ class MyCustomHandler(chros.ChROSHandler):
         self.topic = topic
         self.publisher: rclpy.publisher.Publisher = None
         self.ticker = 0  # Initialize a counter for published messages.
-        self.message = "Hello, world! At time: "  # Initialize the message attribute.
+        self.message = "Hello, world! At time: "  # Initialize the message string.
 
     def Initialize(self, interface: chros.ChROSPythonInterface) -> bool:
         """Initialize the ROS publisher."""
@@ -56,18 +56,18 @@ def main():
 
     # Create and configure the ROS manager.
     ros_manager = chros.ChROSPythonManager()
-
+    
     # Register a clock handler for the simulation time.
     ros_manager.RegisterHandler(chros.ChROSClockHandler())
-
+    
     # Register a body handler to communicate the box's state.
     ros_manager.RegisterHandler(chros.ChROSBodyHandler(25, box, "~/box"))
-
+    
     # Create and register a transform handler for coordinate transformations.
     tf_handler = chros.ChROSTFHandler(30)
     tf_handler.AddTransform(floor, floor.GetName(), box, box.GetName())
     ros_manager.RegisterHandler(tf_handler)
-
+    
     # Register the custom handler to publish messages.
     custom_handler = MyCustomHandler("~/my_topic")
     ros_manager.RegisterPythonHandler(custom_handler)

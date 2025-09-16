@@ -3,12 +3,13 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
+
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 
-initLoc = chrono.ChVector3d(0, 0, 0.5)
-initRot = chrono.ChQuaterniond(1, 0, 0, 0)
+initLoc = chrono.ChVectorD(0, 0, 0.5)
+initRot = chrono.ChQuaternionD(1, 0, 0, 0)
 
 
 vis_type = veh.VisualizationType_MESH
@@ -20,13 +21,12 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_RIGID  
 
 
-
 terrainHeight = 0      
 terrainLength = 100.0  
 terrainWidth = 100.0   
 
 
-trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
+trackPoint = chrono.ChVectorD(-3.0, 0.0, 1.1)
 
 
 contact_method = chrono.ChContactMethod_NSC
@@ -44,7 +44,7 @@ vehicle = veh.UAZBUS()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
-vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
+vehicle.SetInitPosition(chrono.ChCoordsysD(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 
@@ -64,7 +64,7 @@ patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 patch = terrain.AddPatch(patch_mat, 
-    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
+    chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT), 
     terrainLength, terrainWidth)
 
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
@@ -76,7 +76,7 @@ box_mat = chrono.ChMaterialSurfaceNSC()
 box_mat.SetFriction(0.9)
 box_mat.SetRestitution(0.01)
 box = chrono.ChBodyEasyBox(vehicle.GetSystem(), 0.5, 5, 0.2, 1000, True, box_mat)
-box.SetPos(chrono.ChVector3d(5, 0, 0.1))
+box.SetPos(chrono.ChVectorD(5, 0, 0.1))
 box.SetBodyFixed(True)
 
 
@@ -104,10 +104,7 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 
-driver.SetThrottle(0.5)
-
-
-print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+print("VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 
 
 render_steps = math.ceil(render_step_size / step_size)
@@ -128,6 +125,9 @@ while vis.Run() :
 
     
     driver_inputs = driver.GetInputs()
+
+    
+    driver_inputs.m_throttle = 0.5
 
     
     driver.Synchronize(time)

@@ -20,6 +20,7 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 
+
 terrainHeight = 0      
 terrainLength = 100.0  
 terrainWidth = 100.0   
@@ -56,8 +57,6 @@ vehicle.SetChassisVisualizationType(vis_type)
 vehicle.SetSuspensionVisualizationType(vis_type)
 vehicle.SetSteeringVisualizationType(vis_type)
 vehicle.SetWheelVisualizationType(vis_type)
-vehicle.SetTireVisualizationType(vis_type)
-
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
@@ -69,7 +68,7 @@ patch = terrain.AddPatch(patch_mat,
     chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
     terrainLength, terrainWidth)
 
-patch.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 200, 200)
+patch.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 200, 200)  
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
@@ -99,7 +98,7 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 
-print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+print("VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 
 
 render_steps = math.ceil(render_step_size / step_size)
@@ -109,7 +108,7 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-while vis.Run() :
+while vis.Run():
     time = vehicle.GetSystem().GetChTime()
     
     if (step_number % render_steps == 0) :
@@ -138,13 +137,16 @@ while vis.Run() :
     
     realtime_timer.Spin(step_size)
 
-
-
-
-if driver_inputs.GetSteering() > 0.5:  
     
-    driver.SetSteeringDelta(render_step_size / (steering_time / 2))  
-    driver.SetThrottleDelta(render_step_size / (throttle_time / 2))  
-    
-    if time > some_time_condition:  
-        driver.SetBrakingDelta(render_step_size / braking_time)
+    if driver_inputs['steering'] > 0.5:  
+        
+        
+        if time > 5:  
+            driver.SetSteeringDelta(render_step_size / steering_time * 2)
+            driver.SetThrottleDelta(render_step_size / throttle_time * 2)
+            
+            if time > 10:  
+                driver.SetSteeringDelta(0)
+                driver.SetThrottleDelta(0)
+                
+                driver.SetBrakingDelta(render_step_size / braking_time)

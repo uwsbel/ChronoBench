@@ -1,105 +1,117 @@
-import pychrono
+from pychrono import *
 
-import pychrono.fea as fea
+from pychrono.fea import *
 
-import pychrono.irrlicht as irr
+from pychrono.irrlicht import *
 
-import pychrono.solver as solver
 
-import pychrono.rigidbody as rb
 
-import pychrono.sparse as sp
 
-import pychrono.contact as contact
+chrono = Chrono()
 
+chrono_assets = Chrono_Assets()
 
+chrono.SetAssets(chrono_assets)
 
 
-chrono = pychrono.ChLinkCreateStatic()
 
 
+irr = Irrlicht()
 
+irr.SetUse3D(True)
 
-length = 2.0
+irr.SetUse3DProjection(True)
 
-width = 0.1
 
-thickness = 0.1
 
-E = 210e9  
 
-I = (width * thickness**3) / 12  
+beam_length = 2.0
 
+beam_width = 0.1
 
+beam_height = 0.1
 
+beam_material = IrMaterial_Dominant_Diffuse(Color(0.5, 0.5, 0.5))
 
-beam = fea.ChBeam(chrono, length, width, thickness, E, I)
+beam_mesh = ChBody_Mesh()
 
+beam_mesh.SetScale(Vector(beam_width, beam_height, beam_length))
 
+beam_mesh.SetMaterial(beam_material)
 
+beam_body = ChBody(1.0, beam_mesh)
 
-def motor_function(time):
+beam_body.SetPos(Vector(0.0, 0.0, beam_length / 2))
 
-    
 
-    return 1000 * pychrono.sin(2 * pychrono.pi * time)
 
 
+system = ChSystemNSC()
 
+system.SetSolver(ChSolver_Newton())
 
-motor = chrono.ChLinkCreatePrismatic(chrono)
+system.SetSolverIterationLimit(100)
 
-motor.SetMotorFunction(motor_function)
+system.SetMaxLinearSolveIterations(100)
 
-beam.AddLink(motor)
+system.SetMaxNonlinearSolveIterations(100)
 
+system.SetLinearSolverMethod(ChSolver_Type_Newton_Linear_Full)
 
+system.SetNonlinearSolverMethod(ChSolver_Type_Newton_Nonlinear_Full)
 
+system.AddBody(beam_body)
 
-solver = solver.ChSolver64()
 
-timestepper = solver.ChSolver64(chrono, 0.001, 0.0001)
 
 
+motor = ChBody_Motor(1.0, Vector(0.0, 0.0, 1.0))
 
+motor.SetVel(Vector(0.0, 0.0, 10.0))
 
-irr.initialize(chrono)
+system.AddJoint(motor)
 
 
 
 
-irr.AddModel(beam)
+beam_elements = FEA_Beam_Mesh()
 
+beam_elements.SetScale(Vector(beam_width, beam_height, beam_length))
 
+beam_elements.SetMaterial(ChMaterial_Iron)
 
+beam_elements.SetElasticModulus(210e9)
 
+beam_elements.SetPoissonsRatio(0.3)
 
+beam_elements.SetDensity(7850.0)
 
-fixed_end = chrono.ChBody(chrono)
+beam_elements.SetMass(0.0)
 
-fixed_end.SetMass(0)
 
-fixed_end.SetPosition(0, 0, 0)
 
-fixed_end.SetBody(beam)
 
+beam_body.AddMesh(beam_elements)
 
 
 
-chrono.SetSolver(solver)
 
-chrono.SetTimestepper(timestepper)
+irr.AddBody(beam_body)
 
+irr.SetUse3DProjection(True)
 
 
 
-while chrono.GetTimestep() < 10:
 
-    chrono.DoStepDynamics(1)
+system.SetDataStepper(ChTimeStepper_Z_Euler(1.0/100.0, 1.0/100.0))
 
-    irr.render()
+while chrono.IsTimeStepAvailable():
 
+    system.DoStepDynamics()
 
+    irr.UpdateScene()
 
 
-irr.end()
+
+
+chrono.Free()

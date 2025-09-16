@@ -3,45 +3,43 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
-# Set data paths
+print(veh)
+
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
-# Initial vehicle location and orientation (adjusted)
-initLoc = chrono.ChVector3d(0, -5, 0.5)
+# Initial vehicle location and orientation
+initLoc = chrono.ChVector3d(0, 0, 0.5)
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
-# Visualization type for vehicle parts (MESH)
+# Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
 vis_type = veh.VisualizationType_MESH
 
-# Collision type for chassis (NONE)
+# Collision type for chassis (PRIMITIVES, MESH, or NONE)
 chassis_collision_type = veh.CollisionType_NONE
 
-# Type of tire model (TMEASY)
+# Type of tire model (RIGID, TMEASY)
 tire_model = veh.TireModelType_TMEASY
 
-# Rigid terrain with highway mesh
-terrain_model = veh.RigidTerrain.HIGHWAY
-terrainHeight = 0
-terrainLength = 100.0
-terrainWidth = 100.0
+# Rigid terrain
+terrain_model = veh.RigidTerrain.HIGHWAY_MESH
+terrainHeight = 0      # terrain height
+terrainLength = 100.0  # size in X direction
+terrainWidth = 100.0   # size in Y direction
 
-# Point tracked by the camera
+# Poon chassis tracked by the camera
 trackPoint = chrono.ChVector3d(-5.0, 0.0, 1.8)
 
-# Contact method and visualization
+# Contact method
 contact_method = chrono.ChContactMethod_NSC
 contact_vis = False
 
-# Simulation step sizes (decreased for finer control)
-step_size = 1e-4
+# Simulation step sizes
+step_size = 1e-4  # Decreased simulation step size for finer control
 tire_step_size = step_size
 
-# Time interval between two render frames (decreased for finer control)
-render_step_size = 1.0 / 100  # FPS = 100
-
-# Steering response time (increased to 5 seconds)
-steering_time = 5.0
+# Time interval between two render frames
+render_step_size = 1.0 / 120  # Decreased render step size for finer control, FPS = 120
 
 # --------------
 # Create systems
@@ -66,7 +64,7 @@ vehicle.SetTireVisualizationType(vis_type)
 
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
-# Create the terrain with highway mesh
+# Create the terrain
 patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
@@ -75,7 +73,7 @@ patch = terrain.AddPatch(patch_mat,
     chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
     terrainLength, terrainWidth)
 
-patch.SetTexture(veh.GetDataFile("terrain/textures/highway.jpg"), 200, 200)
+patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
@@ -90,34 +88,42 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
-# Create the driver system with reference speed input and PID controller
+# Create the driver system
 driver = veh.ChInteractiveDriverIRR(vis)
-reference_speed = 20.0  # Set your desired reference speed here (in m/s)
 
 # Set the time response for steering and throttle keyboard inputs.
+steering_time = 5.0  # Increased steering response time to 5 seconds
+throttle_time = 1.0  # time to go from 0 to +1
+braking_time = 0.3   # time to go from 0 to +1
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
 
-driver.SetSpeedReference(reference_speed)
-driver.SetThrottlePID(0.5, 0.0, 0.1)  # P, I, D gains for throttle control
-
 driver.Initialize()
+
+# Set reference speed input for controlling the vehicle's speed
+reference_speed = 20.0  # Set your desired speed in m/s
+
+# PID controller gains for throttle control based on speed error
+kp = 1.0
+ki = 0.1
+kd = 0.01
 
 # ---------------
 # Simulation loop
 # ---------------
 
-# Output vehicle mass
+# output vehicle mass
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
 
-# Initialize simulation frame counter
+# Initialize simulation frame counter s
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
+speed_error_sum = 0.0
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
@@ -132,10 +138,19 @@ while vis.Run():
     # Get driver inputs
     driver_inputs = driver.GetInputs()
 
+    # Calculate speed error for PID controller
+    current_speed = vehicle.GetVehicle().GetWheelSpeed(0)  # Assuming all wheels have the same speed
+    speed_error = reference_speed - current_speed
+    speed_error_sum += speed_error * step_size
+
+    # PID controller for throttle control based on speed error
+    throttle = kp * speed_error + ki * speed_error_sum + kd * (speed_error - prev_speed_error) / step_size
+    prev_speed_error = speed_error
+
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
     terrain.Synchronize(time)
-    vehicle.Synchronize(time, driver_inputs, terrain)
+    vehicle.Synchronize(time, driver_inputs, terrain, throttle)  # Added throttle input to vehicle synchronization
     vis.Synchronize(time, driver_inputs)
 
     # Advance simulation for one timestep for all modules
@@ -143,7 +158,6 @@ while vis.Run():
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
-
     # Increment frame number
     step_number += 1
 

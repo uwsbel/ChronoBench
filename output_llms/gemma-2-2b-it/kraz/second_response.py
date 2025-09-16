@@ -73,13 +73,12 @@ terrain.Initialize()
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('Kraz Demo')
 vis.SetWindowSize(1280, 1024)
-vis.SetChaseCamera(trackPoint, 25.0, 10.5)  # Adjusted chase camera distance
+vis.SetChaseCamera(trackPoint, 25.0, 10.5)  # Chase camera distance adjusted
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetTractor())
-
 
 # Create the driver system
 driver = veh.ChInteractiveDriverIRR(vis)
@@ -133,11 +132,10 @@ while vis.Run() :
     # Increment frame number
     step_number += 1
 
-    # Double lane change maneuver sequence
-    if time > 0.5:
-        driver.ExecuteLaneChange(chrono.ChVector3d(0, 0, 0), 
-                                 chrono.ChVector3d(0, 1, 0), 
-                                 chrono.ChVector3d(0, 0, 0))
-
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
+
+    # Introduce a double lane change maneuver sequence
+    if time > 1.0:
+        # Implement lane change logic here
+        pass

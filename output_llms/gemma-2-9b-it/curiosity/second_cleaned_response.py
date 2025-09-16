@@ -21,8 +21,8 @@ ground.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.
 system.Add(ground)
 
 
-obstacle = chrono.ChBodyEasyBox(5, 1, 0.5, 1000, True, True, ground_mat)
-obstacle.SetPos(chrono.ChVector3d(0, -0.25, 0))  
+obstacle = chrono.ChBodyEasyBox(5, 1, 1, 1000, True, True, ground_mat)
+obstacle.SetPos(chrono.ChVector3d(0, -0.5, 0))
 system.Add(obstacle)
 
 
@@ -63,6 +63,9 @@ while vis.Run():
 
     
     driver.SetSteering(0) 
+
+    
+    driver.SetThrottle(1) 
 
     
     rover.Update()

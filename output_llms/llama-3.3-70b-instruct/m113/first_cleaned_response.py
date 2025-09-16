@@ -3,63 +3,62 @@ import pychrono.irrlicht as chronoirr
 import pychrono.vehicle as veh
 
 
-system = chrono.ChSystemNSC()
+sys = chrono.ChSystemNSC()
 
 
-contact_material = chrono.ChMaterialSurfaceNSC()
-contact_material.SetFriction(0.9)
-contact_material.SetRestitution(0.8)
-contact_material.SetYoungModulus(1e8)
-system.SetDefaultContactMaterial(contact_material)
+
+m113 = veh.VehicleM113()
+m113.Initialize(sys)
+m113.SetChassisFixed(False)
+m113.SetChassisMass(15000)
+m113.SetChassisInertia(chrono.ChVectorD(1000, 1000, 1000))
+m113.SetEngineType(veh.EngineType.INTERNAL_COMBUSTION)
+m113.SetEnginePower(500e3)
+m113.SetTransmissionType(veh.TransmissionType.TORQUE_CONVERTER)
+m113.SetDrivelineType(veh.DrivelineType.ALL_WHEEL_DRIVE)
+m113.SetBrakeType(veh.BrakeType.HYDRAULIC_WHEEL)
+m113.SetSteeringType(veh.SteeringType.RACK_PINION)
+m113.SetSuspensionType(veh.SuspensionType.Independent)
+m113.AddVisualization(chrono.ChVisualSystem::Instance().GetAssetPath() + "/vehicles/M113")
 
 
-vehicle = veh.M113()
-vehicle.SetChassisFixed(False)
-vehicle.SetPosition(chrono.ChVectorD(0, 0, 1.5))
-vehicle.SetRotation(chrono.Q_from_AngX(chrono.CH_C_PI_2))
-system.Add(vehicle.GetChassisBody())
-
-
-terrain = veh.RigidTerrain(system)
-terrain.SetPlane(chrono.ChPlane(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 1)))
-system.Add(terrain.GetGroundBody())
-
-
-vehicle.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 1.5), chrono.Q_from_AngX(chrono.CH_C_PI_2)))
+terrain = chrono.ChBodyEasyBox(sys, 100, 10, 100, 1000, True, True)
+terrain.SetMaterial(chrono.ChMaterialSurfaceNSC())
+terrain.GetMaterial().SetFriction(0.8)
+terrain.GetMaterial().SetRestitution(0.5)
+terrain.SetPos(chrono.ChVectorD(0, -10, 0))
+terrain.SetBodyFixed(True)
 
 
 driver = veh.ChIrrlichtDriver()
-driver.SetVehicle(vehicle)
-driver.SetTerrain(terrain)
-driver.SetSteering(0)
-driver.SetThrottle(0)
+driver.SetVehicle(m113)
+driver.SetSteeringGain(0.5)
+driver.SetThrottleGain(0.5)
+driver.SetBrakingGain(0.5)
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
-vis.SetWindowSize(1024, 768)
 vis.AddSkyBox()
+vis.AddTypicalLights()
+vis.AddCamera(chrono.ChVectorD(0, 10, -20))
+vis.AddCamera(chrono.ChVectorD(0, 10, 20))
 vis.AddTypicalLights()
 
 
-camera = vis.AddCamera(chrono.ChVectorD(0, 0, 5))
-camera.SetLookAt(chrono.ChVectorD(0, 0, 0))
+m113.SetChassisPos(chrono.ChVectorD(0, 5, 0))
+m113.SetChassisRot(chrono.Q_from_AngX(chrono.CH_C_PI_2))
+m113.SetEngineOn()
 
 
-vis.SetLogo("PyChrono")
-vis.SetWindowTitle("M113 Vehicle Simulation")
-
-
-time_step = 0.01
-end_time = 10
-while system.GetChTime() < end_time:
+time = 0
+dt = 0.01
+while time < 10:
     
-    vehicle.Synchronize(time_step)
-    terrain.Synchronize(time_step)
-    driver.Synchronize(time_step)
-    vis.Synchronize(time_step)
+    sys.DoStepDynamics(dt)
+    time += dt
 
     
-    system.DoStepDynamics(time_step)
+    driver.Synchronize(time)
 
     
     vis.BeginScene()
@@ -67,11 +66,4 @@ while system.GetChTime() < end_time:
     vis.EndScene()
 
     
-    if vis.IsKeyboardHit():
-        key = vis.GetKeyboardChar()
-        if key == 'q':
-            break
-
-
-vis.GetDevice().run()
-vis.GetDevice().drop()
+    chrono.ChRealtimeStep(sys)

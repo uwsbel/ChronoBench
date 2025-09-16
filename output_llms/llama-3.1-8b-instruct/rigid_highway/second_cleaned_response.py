@@ -53,11 +53,13 @@ vehicle.SetTireStepSize(tire_step_size)
 
 vehicle.Initialize()
 
+
 vehicle.SetChassisVisualizationType(vis_type)
 vehicle.SetSuspensionVisualizationType(vis_type)
 vehicle.SetSteeringVisualizationType(vis_type)
 vehicle.SetWheelVisualizationType(vis_type)
 vehicle.SetTireVisualizationType(vis_type)
+
 
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
@@ -78,19 +80,18 @@ patch.GetGroundBody().AddVisualShape(tri_mesh_shape)
 terrain.Initialize()
 
 
-new_patch_mat = chrono.ChContactMaterialNSC()
-new_patch_mat.SetFriction(0.9)
-new_patch_mat.SetRestitution(0.01)
-new_patch = terrain.AddPatch(new_patch_mat, 
+patch_mat = chrono.ChContactMaterialNSC()
+patch_mat.SetFriction(0.9)
+patch_mat.SetRestitution(0.01)
+new_patch = terrain.AddPatch(patch_mat, 
     chrono.ChCoordsysd(chrono.ChVector3d(0, -42, 0), chrono.QUNIT),
-    chrono.GetChronoDataFile('vehicle/terrain/meshes/bump.obj'),
-    True, 0.5, 0.5, 0.8, 6.0, 6.0, chrono.GetChronoDataFile('vehicle/terrain/textures/dirt.jpg'))
-vis_mesh = chrono.ChTriangleMeshConnected().CreateFromWavefrontFile(veh.GetDataFile("terrain/meshes/bump_vis.obj"), True, True)
-tri_mesh_shape = chrono.ChVisualShapeTriangleMesh()
-tri_mesh_shape.SetMesh(vis_mesh)
-tri_mesh_shape.SetMutable(False)
-new_patch.GetGroundBody().AddVisualShape(tri_mesh_shape)
-terrain.AddPatch(new_patch)
+    chrono.GetChronoDataFile('vehicle/terrain/bump.obj'),
+    True, 0.5, 0.5, 0.8)
+texture = chrono.ChTexture2D()
+texture.SetFilename(veh.GetDataFile("terrain/textures/dirt.jpg"))
+texture.SetScalingFactors(6.0, 6.0)
+new_patch.GetGroundBody().AddTexture(texture)
+terrain.Initialize()
 
 
 
@@ -103,7 +104,6 @@ vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
-
 
 
 driver = veh.ChInteractiveDriverIRR(vis)

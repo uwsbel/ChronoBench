@@ -1,187 +1,77 @@
-import pychrono as chrono
-import pychrono.irrlicht as irr
-import pychrono.vehicle as veh
+import chrono as ch
+import chrono.irrlicht as irr
+import chrono.vehicle as veh
 
 
-chrono.ChEngine.Initialize()
+ch.set_default_contact_material(ch.ContactMaterial())
 
 
-app = irr.IrrlichtApplication()
-
-
-system = chrono.ChSystem()
-
-
-system.Set_G_acc(chrono.ChVector3d(0, -9.81, 0))
-
-
-system.SetSolverType(chrono.ChSolverType.PM)
-system.SetSolverMode(chrono.ChSolverMode.TOLERANCE)
-system.Set_Timestep(0.02)
+app = irr.ChIrrApp()
 
 
 vehicle = veh.ChHMMWV()
 
 
-vehicle.SetContactMethod(veh.ChContactMethod.TM_EASY)
-vehicle.SetTireModel(veh.ChTireModel.TMEASY)
+vehicle.SetChassisBodyFixed(False)
+vehicle.SetChassisPos(ch.ChVectorD(0, 0, 1))
+vehicle.SetChassisRot(ch.ChQuaternionD(0, 0, 0, 1))
 
 
-vehicle.SetPos(chrono.ChVector3d(0, 0, 1))
-vehicle.SetRot(chrono.ChQuaterniond(1, 0, 0, 0))
+vehicle.SetTireModel(veh.TireModel_TMEASY)
 
 
-vehicle.EnableMeshVisualization(True)
-
-
-system.Add(vehicle.GetChassisBody())
+vehicle.SetVisualization(veh.VisualizationMode_MESH)
 
 
 terrain = veh.ChTerrain()
+terrain_file_col = "path/to/Highway_col.obj"  
+terrain_file_vis = "path/to/Highway_vis.obj"  
+terrain.AddCollisionShape(terrain_file_col, False)
+terrain.AddVisualShape(terrain_file_vis)
 
 
-collision_mesh = chrono.ChTriangleMeshShape()
-collision_mesh.LoadWavefrontMesh("Highway_col.obj")
-visual_mesh = chrono.ChTriangleMeshShape()
-visual_mesh.LoadWavefrontMesh("Highway_vis.obj")
+terrain.SetPos(ch.ChVectorD(0, 0, 0))
 
 
-terrain.SetPos(chrono.ChVector3d(0, 0, 0))
-terrain.SetRot(chrono.ChQuaterniond(1, 0, 0, 0))
+driver = veh.ChInteractiveDriverIRR()
+driver.AttachVehicle(vehicle)
+driver.SetSteering(veh.DriverInputs_Float(0.0))
+driver.SetThrottle(veh.DriverInputs_Float(0.0))
+driver.SetBraking(veh.DriverInputs_Float(0.0))
 
 
-system.Add(terrain.GetGroundBody())
+sim_frame_rate = 50  
 
 
-terrain.EnableVisualization(True)
-terrain.SetCollisionMesh(collision_mesh)
-terrain.SetVisualMesh(visual_mesh)
-
-
-driver = veh.ChInteractiveDriver()
-
-
-driver.SetThrottleInput(0.5)
-driver.SetSteeringInput(0.2)
-driver.SetBrakingInput(0.0)
-
-
-system.Add(driver)
-
-
-scene = irr.IrrlichtSceneNode(app)
-
-
-scene.AddVehicle(vehicle)
-scene.AddTerrain(terrain)
-
-
-while True:
-    
-    system.Update(0.02)
+def simulate():
+    time_step = 1.0 / sim_frame_rate
+    scene = irr.ChIrrSceneNode(app.GetDevice())
 
     
-    scene.Render()
+    scene.Add(vehicle.GetChassisBody())
+    for wheel in vehicle.GetWheels():
+        scene.Add(wheel)
+    scene.Add(terrain.GetCollisionShape())
+    scene.Add(terrain.GetVisualShape())
 
-    
-    if not app.Run():
-        break
-
-
-app.Close()
-
-import pychrono as chrono
-import pychrono.irrlicht as irr
-import pychrono.vehicle as veh
-
-def main():
-    
-    chrono.ChEngine.Initialize()
-
-    
-    app = irr.IrrlichtApplication()
-
-    
-    system = chrono.ChSystem()
-
-    
-    system.Set_G_acc(chrono.ChVector3d(0, -9.81, 0))
-
-    
-    system.SetSolverType(chrono.ChSolverType.PM)
-    system.SetSolverMode(chrono.ChSolverMode.TOLERANCE)
-    system.Set_Timestep(0.02)
-
-    
-    vehicle = veh.ChHMMWV()
-
-    
-    vehicle.SetContactMethod(veh.ChContactMethod.TM_EASY)
-    vehicle.SetTireModel(veh.ChTireModel.TMEASY)
-
-    
-    vehicle.SetPos(chrono.ChVector3d(0, 0, 1))
-    vehicle.SetRot(chrono.ChQuaterniond(1, 0, 0, 0))
-
-    
-    vehicle.EnableMeshVisualization(True)
-
-    
-    system.Add(vehicle.GetChassisBody())
-
-    
-    terrain = veh.ChTerrain()
-
-    
-    collision_mesh = chrono.ChTriangleMeshShape()
-    collision_mesh.LoadWavefrontMesh("Highway_col.obj")
-    visual_mesh = chrono.ChTriangleMeshShape()
-    visual_mesh.LoadWavefrontMesh("Highway_vis.obj")
-
-    
-    terrain.SetPos(chrono.ChVector3d(0, 0, 0))
-    terrain.SetRot(chrono.ChQuaterniond(1, 0, 0, 0))
-
-    
-    system.Add(terrain.GetGroundBody())
-
-    
-    terrain.EnableVisualization(True)
-    terrain.SetCollisionMesh(collision_mesh)
-    terrain.SetVisualMesh(visual_mesh)
-
-    
-    driver = veh.ChInteractiveDriver()
-
-    
-    driver.SetThrottleInput(0.5)
-    driver.SetSteeringInput(0.2)
-    driver.SetBrakingInput(0.0)
-
-    
-    system.Add(driver)
-
-    
-    scene = irr.IrrlichtSceneNode(app)
-
-    
-    scene.AddVehicle(vehicle)
-    scene.AddTerrain(terrain)
-
-    
-    while True:
+    while app.Run():
         
-        system.Update(0.02)
+        vehicle.Update(time_step)
 
         
-        scene.Render()
+        driver.Update(time_step)
+        steering_input = 0.1
+        throttle_input = 0.5
+        braking_input = 0.0
+        driver.SetSteering(veh.DriverInputs_Float(steering_input))
+        driver.SetThrottle(veh.DriverInputs_Float(throttle_input))
+        driver.SetBraking(veh.DriverInputs_Float(braking_input))
 
         
-        if not app.Run():
-            break
+        scene.Update()
 
-    
-    app.Close()
+        
+        app.GetDevice().sleep(time_step)
 
-if __name__ == "__main__":
-    main()
+
+simulate()

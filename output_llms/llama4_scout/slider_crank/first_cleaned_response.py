@@ -1,85 +1,78 @@
-import pychrono as chrono
-import pychrono.irrlicht as irr
+import chrono as ch
+import chrono.irrlicht as irr
 
 
-chrono.ChEngine.Initialize()
+ch.ChEngine.Initialize()
 
 
-app = irr.IrrlichtApplication()
+app = irr.ChIrrApp()
 
 
-step_size = 0.01
-fps = 60
+app.SetWindowTitle('Crank-Slider Mechanism Simulation')
 
 
-floor_body = chrono.ChBodyStatic()
-floor_shape = chrono.ChBox(10, 0.1, 10)
-floor_body.AddShape(floor_shape)
-floor_body.SetPos(chrono.ChVector3d(0, -5, 0))
-floor_body.SetFixed(True)
+app.SetCameraController()
 
 
-app.GetSystem().Add(floor_body)
+system = ch.ChSystem()
 
 
-crankshaft_body = chrono.ChBody()
-crankshaft_shape = chrono.ChBox(0.5, 0.1, 0.1)
-crankshaft_body.AddShape(crankshaft_shape)
-crankshaft_body.SetPos(chrono.ChVector3d(0, 0, 0))
-crankshaft_body.SetMass(1.0)
+floor_body = ch.ChBodyEasyBox(100, 0.1, 100, 1000, False, False, False)
+floor_body.SetPos(ch.ChVector3d(0, -5, 0))
+floor_body.SetBodyFixed(True)
+system.Add(floor_body)
 
 
-app.GetSystem().Add(crankshaft_body)
+crankshaft_body = ch.ChBodyEasyCylinder(0.1, 1, 32, False, False, False)
+crankshaft_body.SetPos(ch.ChVector3d(0, 0, 0))
+crankshaft_body.SetRot(ch.ChQuaternion(0, 0, 0, 1))
+system.Add(crankshaft_body)
 
 
-connecting_rod_body = chrono.ChBody()
-connecting_rod_shape = chrono.ChBox(1.0, 0.1, 0.1)
-connecting_rod_body.AddShape(connecting_rod_shape)
-connecting_rod_body.SetPos(chrono.ChVector3d(2, 0, 0))
-connecting_rod_body.SetMass(0.5)
+connecting_rod_body = ch.ChBodyEasyCylinder(0.05, 2, 32, False, False, False)
+connecting_rod_body.SetPos(ch.ChVector3d(1, 0, 0))
+system.Add(connecting_rod_body)
 
 
-app.GetSystem().Add(connecting_rod_body)
+piston_body = ch.ChBodyEasyBox(0.2, 0.2, 0.2, 1000, False, False, False)
+piston_body.SetPos(ch.ChVector3d(2, 0, 0))
+system.Add(piston_body)
 
 
-piston_body = chrono.ChBody()
-piston_shape = chrono.ChBox(0.5, 0.1, 0.1)
-piston_body.AddShape(piston_shape)
-piston_body.SetPos(chrono.ChVector3d(4, 0, 0))
-piston_body.SetMass(0.2)
+crankshaft_joint = ch.ChLinkLockRevolute()
+crankshaft_joint.Initialize(crankshaft_body, floor_body, ch.ChFrame3d(ch.ChVector3d(0, 0, 0), ch.ChQuaternion(0, 0, 0, 1)))
+system.Add(crankshaft_joint)
+
+connecting_rod_joint1 = ch.ChLinkLockSpherical()
+connecting_rod_joint1.Initialize(connecting_rod_body, crankshaft_body, ch.ChFrame3d(ch.ChVector3d(0.5, 0, 0), ch.ChQuaternion(0, 0, 0, 1)))
+system.Add(connecting_rod_joint1)
+
+connecting_rod_joint2 = ch.ChLinkLockUniversal()
+connecting_rod_joint2.Initialize(connecting_rod_body, piston_body, ch.ChFrame3d(ch.ChVector3d(1, 0, 0), ch.ChQuaternion(0, 0, 0, 1)), ch.ChFrame3d(ch.ChVector3d(0, 0, 0), ch.ChQuaternion(0, 0, 0, 1)))
+system.Add(connecting_rod_joint2)
 
 
-app.GetSystem().Add(piston_body)
+motor = ch.ChLinkMotorRotationSpeed()
+motor.Initialize(crankshaft_body, floor_body, ch.ChFrame3d(ch.ChVector3d(0, 0, 0), ch.ChQuaternion(0, 0, 0, 1)))
+motor.SetSpeedFunction(ch.ChFunction_Const(1))  
+system.Add(motor)
 
 
-crankshaft_joint = chrono.ChLinkLockRevolute()
-crankshaft_joint.Init(floor_body, crankshaft_body, chrono.ChVector3d(0, 0, 0))
-app.GetSystem().Add(crankshaft_joint)
+irr.AddCameraSettings(app, ch.ChVector3d(0, -10, 5), ch.ChVector3d(0, 0, 0))
 
 
-connecting_rod_joint = chrono.ChLinkLockSpherical()
-connecting_rod_joint.Init(crankshaft_body, connecting_rod_body, chrono.ChVector3d(0.5, 0, 0))
-app.GetSystem().Add(connecting_rod_joint)
+ch.ChVisualShapeBox(floor_body, ch.ChFrame3d(ch.ChVector3d(0, -0.05, 0)), ch.ChVector3d(50, 0.1, 50), ch.ChColor(0.2, 0.4, 0.2)).SetTexture(ch.GetChronoDataFile('textures/brick1.jpg'))
+
+ch.ChVisualShapeCylinder(crankshaft_body, ch.ChFrame3d(ch.ChVector3d(0, 0, 0)), 0.1, 1, 32).SetColor(ch.ChColor(0.8, 0.2, 0.2))
+
+ch.ChVisualShapeCylinder(connecting_rod_body, ch.ChFrame3d(ch.ChVector3d(0, 0, 0)), 0.05, 2, 32).SetColor(ch.ChColor(0.2, 0.8, 0.2))
+
+ch.ChVisualShapeBox(piston_body, ch.ChFrame3d(ch.ChVector3d(0, 0, 0)), ch.ChVector3d(0.2, 0.2, 0.2), ch.ChColor(0.2, 0.2, 0.8)).SetTexture(ch.GetChronoDataFile('textures/white.jpg'))
 
 
-piston_joint = chrono.ChLinkLockPrismatic()
-piston_joint.Init(connecting_rod_body, piston_body, chrono.ChVector3d(1, 0, 0), chrono.ChVector3d(0, 1, 0))
-app.GetSystem().Add(piston_joint)
+app.SetSimulation(system)
+app.SetTimestep(0.01)
+app.DoRun()
 
 
-motor = chrono.ChLinkMotorRotationSpeed()
-motor.Init(floor_body, crankshaft_body, chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(0, 0, 1), 10)
-app.GetSystem().Add(motor)
-
-
-app.SetCamera(chrono.ChVector3d(10, 10, 10), chrono.ChVector3d(0, 0, 0))
-app.SetLight(chrono.ChVector3d(10, 10, 10))
-
-
-app.AddLogo(chrono.ChLogo('chrono_logo.png'))
-app.AddTexture('floor', chrono.ChTexture('floor.jpg'))
-
-while app.Run() and not app.WasKeyPressed(irr.KEY_ESCAPE):
-    app.GetSystem().DoStepDynamics(step_size)
-
-app.End()
+ch.ChEngine.Exit()

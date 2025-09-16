@@ -9,47 +9,38 @@ my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
 beam_material = fea.ChMaterialShellANCF(rho=7850, E=200e9, nu=0.3)
 beam_section = fea.ChSectionShellParametric(
-    radius=0.05, thickness=0.01, material=beam_material
+    type=fea.ChSectionShellParametric.PARABOLIC, thickness=0.01
 )
+
 beam_length = 1.0
-beam = fea.ChBeamSectionCable(beam_section, beam_length)
+beam_nodes = 10
+beam = fea.ChBeamIGA(beam_nodes, beam_length, beam_material, beam_section)
 
 
-beam_body = chrono.ChBody()
-beam_body.SetBodyFixed(False)
-beam_body.SetPos(chrono.ChVectorD(0, 0, 0))
-my_system.Add(beam_body)
+beam.SetPos(chrono.ChVectorD(0, 0, 0))
+beam.SetFixed(True)
 
 
-mesh = fea.ChMesh()
-nodes = []
-for i in range(10):
-    nodes.append(fea.ChNodeFEAxyz(chrono.ChVectorD(i * beam_length / 9, 0, 0)))
-mesh.AddNodes(nodes)
-elements = []
-for i in range(9):
-    elements.append(fea.ChElementBeamANCF(nodes[i], nodes[i + 1], beam))
-mesh.AddElements(elements)
+class MyMotorFunction(chrono.ChFunction):
+    def __init__(self, amplitude, frequency):
+        chrono.ChFunction.__init__(self)
+        self.amplitude = amplitude
+        self.frequency = frequency
+
+    def Get_y(self, x):
+        return self.amplitude * chrono.ChMath.Sin(self.frequency * x)
+
+motor_function = MyMotorFunction(amplitude=0.01, frequency=2 * chrono.CH_C_PI)
 
 
-fea.ChMeshExporter.ExportToChrono(mesh, beam_body)
+motor = chrono.ChLinkMotorRotationSpeed()
+motor.SetTargetFunction(motor_function)
+motor.Attach(beam.GetNode(beam_nodes - 1))
 
 
-def apply_load(time):
-    return 1000 * time  
-
-
-force_element = chrono.ChForce()
-force_element.SetMode(chrono.ChForce.FORCE)
-force_element.SetDir(chrono.ChVectorD(0, 1, 0))
-force_element.SetVpoint(chrono.ChVectorD(beam_length, 0, 0))
-force_element.SetMforce(apply_load)
-beam_body.AddForce(force_element)
-
-
-fixed_constraint = chrono.ChLinkLockRevolute()
-fixed_constraint.Initialize(beam_body, chrono.ChBody(), chrono.ChVectorD(0, 0, 0))
-my_system.Add(fixed_constraint)
+my_system.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
+my_system.SetTimestepperType(chrono.ChTimestepper.Type_EULER_IMPLICIT_LINEARIZED)
+my_system.SetStep(0.001)
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
@@ -57,11 +48,6 @@ vis.AttachSystem(my_system)
 vis.SetWindowSize(800, 600)
 vis.SetWindowTitle("Beam Buckling Simulation")
 vis.Initialize()
-
-
-my_system.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
-my_system.SetTimestepperType(chrono.ChTimestepper.Type_EULER_IMPLICIT_LINEARIZED)
-my_system.SetStep(0.001)
 
 
 while vis.Run():

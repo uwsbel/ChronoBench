@@ -26,19 +26,19 @@ def main():
     # Create the terrain with a single patch
     terrain = veh.RigidTerrain(hmmwv.GetSystem())
 
-    # Contact material for the terrain
+    # Define contact material
     terrain_mat = chrono.ChContactMaterialNSC()
     terrain_mat.SetFriction(0.9)
     terrain_mat.SetRestitution(0.01)
 
-    # Add the terrain patch
-    terrain_patch = terrain.AddPatch(terrain_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
-                                     veh.GetDataFile("vehicle/terrain/meshes/Highway_col.obj"),
-                                     thickness=0.01)
+    # Create terrain patch with mesh
+    terrain_patch = terrain.AddPatch(terrain_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
+                                    veh.GetDataFile("vehicle/terrain/meshes/Highway_col.obj"),
+                                    thickness=0.01)
 
-    # Add visual mesh to the terrain
-    terrain_vis = chrono.ChVisualShapeTriangleMesh(veh.GetDataFile("terrain/meshes/Highway_vis.obj"))
-    terrain_patch.GetBody().AddVisualShape(terrain_vis)
+    # Add visual mesh to terrain
+    visual_mesh = chrono.ChVisualShapeTriangleMesh(veh.GetDataFile("terrain/meshes/Highway_vis.obj"))
+    terrain_patch.AddVisualShape(visual_mesh)
 
     terrain.Initialize()
 

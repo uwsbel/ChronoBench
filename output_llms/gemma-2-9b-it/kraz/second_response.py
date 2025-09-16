@@ -8,7 +8,8 @@ veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 # Initial vehicle location and orientation
 initLoc = chrono.ChVector3d(-15, 0, 0.5)
-initRot = chrono.ChQuaterniond(1, 0, 0, 0)  # Adjust rotation as needed
+initRot = chrono.ChQuaterniond(1, 0, 0, 0)  
+# Adjust rotation to match the new location
 
 # Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
 vis_type = veh.VisualizationType_MESH
@@ -20,6 +21,7 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 # Rigid terrain
+# terrain_model = veh.RigidTerrain.BOX
 terrainHeight = 0      
 terrainLength = 100.0  
 terrainWidth = 100.0   
@@ -105,7 +107,7 @@ step_number = 0
 render_frame = 0
 
 # Double lane change maneuver
-lane_change_time = 10.0  # Time to complete a lane change
+lane_change_time = 10.0  # Time for a single lane change
 lane_change_direction = 1  # 1 for right, -1 for left
 
 while vis.Run() :
@@ -121,21 +123,21 @@ while vis.Run() :
     # Get driver inputs
     driver_inputs = driver.GetInputs()
 
+    # Double lane change logic
+    if time > lane_change_time:
+        lane_change_direction *= -1
+        lane_change_time += 10.0  # Reset time for next lane change
+
+    if lane_change_direction == 1:
+        driver_inputs.steering = 0.8
+    elif lane_change_direction == -1:
+        driver_inputs.steering = -0.8
+
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
-
-    # Double lane change logic
-    if time > lane_change_time:
-        lane_change_direction *= -1
-        lane_change_time += 10.0
-
-    if lane_change_direction == 1:
-        driver_inputs.steering = 0.5  
-    elif lane_change_direction == -1:
-        driver_inputs.steering = -0.5
 
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)

@@ -4,35 +4,34 @@ import pychrono.sensor as sens
 import math
 import time
 
-# Define camera parameters
-noise_model = "CONST_NORMAL"  # Constant normal noise model
-update_rate = 30
-image_width = 1280
-image_height = 720
-fov = 1.408  # Horizontal field of view in radians
-lag = 0
-exposure_time = 0
-
-# Define simulation parameters
-step_size = 1e-3
-end_time = 20.0
-save = False
-vis = True
-out_dir = "SENSOR_OUTPUT/"
-side = 1.0  # Side length of the box
-
 def main():
+    # -----------------
     # Create the system
+    # -----------------
+    # Initialize the Chrono physical system (non-smooth contact)
     mphysicalSystem = chrono.ChSystemNSC()
 
-    # Create a box object
+    # -----------------------------------
+    # Add a box to be sensed by a camera
+    # -----------------------------------
+    side = 1.0
+    # Create a box
     box_body = chrono.ChBodyEasyBox(side, side, side, 1000)
     box_body.SetPos(chrono.ChVector3d(0, 0, 0))  # Set the position of the box
-    box_body.SetName("Box Body")
-    box_body.SetFixed(True)  # Fix the box in space
+    box_body.SetBodyFixed(True)  # Fix the box in space
     mphysicalSystem.Add(box_body)  # Add the box to the physical system
 
+    # Create a visual representation of the box
+    box_shape = chrono.ChVisualShapeBox()
+    box_shape.SetBox(side, side, side)
+    box_shape.SetName("Box Shape")
+    box_shape.SetMutable(False)  # Set the shape to be immutable
+    box_body.AddVisualShape(box_shape)  # Attach the visual shape to the box
+
+    # -----------------------
     # Create a sensor manager
+    # -----------------------
+    # Initialize the sensor manager to manage all sensors in the simulation
     manager = sens.ChSensorManager(mphysicalSystem)
 
     # Add point lights to the scene for illumination
@@ -43,8 +42,17 @@ def main():
     manager.scene.AddPointLight(chrono.ChVector3f(23, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
     manager.scene.AddAreaLight(chrono.ChVector3f(0, 0, 4), chrono.ChColor(intensity, intensity, intensity), 500.0, chrono.ChVector3f(1, 0, 0), chrono.ChVector3f(0, -1, 0))
 
+    # ------------------------------------------------
     # Create a camera and add it to the sensor manager
+    # ------------------------------------------------
+    # Define the camera offset pose relative to the body it is attached to
     offset_pose = chrono.ChFramed(chrono.ChVector3d(-7, 0, 3), chrono.QuatFromAngleAxis(2, chrono.ChVector3d(0, 1, 0)))
+
+    # Initialize the camera sensor
+    update_rate = 30
+    image_width = 1280
+    image_height = 720
+    fov = 1.408  # Horizontal field of view in radians
     cam = sens.ChCameraSensor(
         box_body,              # Body the camera is attached to
         update_rate,            # Camera update rate in Hz
@@ -54,10 +62,16 @@ def main():
         fov                     # Camera's horizontal field of view in radians
     )
     cam.SetName("Camera Sensor")
+    lag = 0
     cam.SetLag(lag)  # Set the lag between sensing and data accessibility
+    exposure_time = 0
     cam.SetCollectionWindow(exposure_time)  # Set the exposure time for the camera
 
+    # ------------------------------------------------------------------
     # Create a filter graph for post-processing the data from the camera
+    # ------------------------------------------------------------------
+    # Apply noise model to the camera sensor based on the specified type
+    noise_model = "CONST_NORMAL"
     if noise_model == "CONST_NORMAL":
         cam.PushFilter(sens.ChFilterCameraNoiseConstNormal(0.0, 0.02))  # Add constant normal noise
     elif noise_model == "PIXEL_DEPENDENT":
@@ -67,6 +81,7 @@ def main():
         pass
 
     # Visualize the image before applying grayscale filter
+    vis = True
     if vis:
         cam.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Before Grayscale Filter"))
 
@@ -74,6 +89,8 @@ def main():
     cam.PushFilter(sens.ChFilterRGBA8Access())
 
     # Save the current image to a PNG file at the specified path
+    save = False
+    out_dir = "SENSOR_OUTPUT/"
     if save:
         cam.PushFilter(sens.ChFilterSave(out_dir + "rgb/"))
 
@@ -97,10 +114,14 @@ def main():
     # Add the camera sensor to the manager
     manager.AddSensor(cam)
 
+    # ---------------
     # Simulate system
+    # ---------------
     orbit_radius = 10  # Radius of the camera orbit
     orbit_rate = 0.5   # Rate of the camera orbit in radians per second
     ch_time = 0.0      # Initialize simulation time
+    step_size = 1e-3
+    end_time = 20.0
 
     t1 = time.time()  # Record the start time of the simulation
 

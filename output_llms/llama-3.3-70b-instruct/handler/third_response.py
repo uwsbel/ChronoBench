@@ -19,29 +19,22 @@ class MyCustomHandler(chros.ChROSHandler):
     def Initialize(self, interface: chros.ChROSPythonInterface) -> bool:
         """Initialize the ROS publisher."""
         print(f"Creating publisher for topic {self.topic} ...")
-        try:
-            # Create a ROS publisher for the specified topic.
-            self.publisher = interface.GetNode().create_publisher(Int64, self.topic, 1)
-            return True  # Return True to indicate successful initialization.
-        except Exception as e:
-            print(f"Error initializing ROS publisher: {e}")
-            return False
+        # Create a ROS publisher for the specified topic.
+        self.publisher = interface.GetNode().create_publisher(Int64, self.topic, 1)
+        return True  # Return True to indicate successful initialization.
 
     def Tick(self, time: float):
         """Publish an integer message to the ROS topic."""
-        try:
-            print(f"Publishing {self.ticker} ...")
-            msg = Int64()  # Create a message object of type Int64.
-            msg.data = self.ticker  # Set the message data to the current ticker value.
-            self.publisher.publish(msg)  # Publish the message to the ROS topic.
-            self.ticker += 1  # Increment the ticker for the next message.
-        except Exception as e:
-            print(f"Error publishing ROS message: {e}")
+        print(f"Publishing {self.ticker} ...")
+        msg = Int64()  # Create a message object of type Int64.
+        msg.data = self.ticker  # Set the message data to the current ticker value.
+        self.publisher.publish(msg)  # Publish the message to the ROS topic.
+        self.ticker += 1  # Increment the ticker for the next message.
 
 def main():
     # Create the Chrono simulation system.
     sys = ch.ChSystemNSC()
-    sys.SetGravitationalAcceleration(ch.ChVector3d(0, 0, -9.81))  # Set gravitational acceleration.
+    sys.SetGravitationalAcceleration(ch.ChVectorD(0, 0, -9.81))  # Set gravitational acceleration.
 
     # Define physical material properties for contact.
     phys_mat = ch.ChContactMaterialNSC()
@@ -49,53 +42,59 @@ def main():
 
     # Create a floor object.
     floor = ch.ChBodyEasyBox(10, 10, 1, 1000, True, True, phys_mat)
-    floor.SetPos(ch.ChVector3d(0, 0, -1))  # Position the floor.
+    floor.SetPos(ch.ChVectorD(0, 0, -1))  # Position the floor.
     floor.SetFixed(True)  # Fix the floor in place.
     floor.SetName("base_link")  # Set the name for ROS communication.
-    floor.SetTexture("floor_texture.jpg")  # Set texture for the floor.
     sys.Add(floor)  # Add the floor to the simulation system.
 
     # Create a box object.
     box = ch.ChBodyEasyBox(1, 1, 1, 1000, True, True, phys_mat)
-    box.SetPos(ch.ChVector3d(0, 0, 5))  # Position the box above the floor.
-    box.SetRot(ch.QuatFromAngleAxis(.2, ch.ChVector3d(1, 0, 0)))  # Rotate the box slightly.
+    box.SetPos(ch.ChVectorD(0, 0, 5))  # Position the box above the floor.
+    box.SetRot(ch.QuaternionD(.2, ch.ChVectorD(1, 0, 0)))  # Rotate the box slightly.
     box.SetName("box")  # Set the name for ROS communication.
-    box.SetTexture("box_texture.jpg")  # Set texture for the box.
     sys.Add(box)  # Add the box to the simulation system.
 
     # Create and configure the ROS manager.
     ros_manager = chros.ChROSPythonManager()
     
+    publish_rate = 10  # Set the publishing rate for ROS handlers.
     # Register a clock handler for the simulation time.
-    ros_manager.RegisterHandler(chros.ChROSClockHandler())
+    ros_manager.RegisterHandler(chros.ChROSClockHandler(publish_rate))
     
     # Register a body handler to communicate the box's state.
-    ros_manager.RegisterHandler(chros.ChROSBodyHandler(25, box, "~/box"))
+    ros_manager.RegisterHandler(chros.ChROSBodyHandler(publish_rate, box, "~/box"))
     
     # Create and register a transform handler for coordinate transformations.
-    tf_handler = chros.ChROSTFHandler(30)
+    tf_handler = chros.ChROSTFHandler(publish_rate)
     tf_handler.AddTransform(floor, floor.GetName(), box, box.GetName())
     ros_manager.RegisterHandler(tf_handler)
     
     # Register the custom handler to publish messages.
-    publish_rate = 10  # Set the publishing rate to 10 Hz.
     custom_handler = MyCustomHandler("~/my_topic", publish_rate)
     ros_manager.RegisterPythonHandler(custom_handler)
 
     # Initialize the ROS manager.
     ros_manager.Initialize()
 
-    # Set up visualization with Irrlicht.
+    # Create the Irrlicht visualization.
     vis = chirr.ChVisualSystemIrrlicht()
     vis.AddSkyBox()
     vis.AddTypicalLights()
-    vis.AddCamera(ch.ChVector3d(0, 0, 10))
+    vis.AddCamera(chirr.ChCamera())
     vis.SetWindowSize(1024, 768)
-    vis.SetWindowTitle("PyChrono Simulation")
-    vis.AddTypicalLogo()
-    vis.SetLogoPosition(chirr.ChIrrlichtLogoPosition.BottomLeft)
+    vis.SetWindowTitle("Chrono Simulation")
+    vis.AddTypicalLights()
 
-    # Run the simulation loop.
+    # Set textures for the floor and box.
+    floor.GetVisualShape().SetTexture(chirr.ChTexture(), "path_to_floor_texture.jpg")
+    box.GetVisualShape().SetTexture(chirr.ChTexture(), "path_to_box_texture.jpg")
+
+    # Initialize the visualization.
+    vis.Initialize()
+    vis.AddSkyBox()
+    vis.AddTypicalLights()
+
+    # Set up the simulation loop.
     time = 0
     time_step = 1e-3  # Define the simulation time step.
     time_end = 30  # Set the duration for the simulation.
@@ -103,6 +102,7 @@ def main():
     render_step_size = 10
     render_steps = 0
 
+    realtime_timer = ch.ChRealtimeStepTimer()  # Create a real-time step timer.
     while time < time_end:
         sys.DoStepDynamics(time_step)  # Advance the simulation by one time step.
         time = sys.GetChTime()  # Update the simulation time.
@@ -119,7 +119,7 @@ def main():
             vis.EndScene()
             render_steps = 0
 
-    vis.CloseWindow()
+        realtime_timer.Spin(time_step)  # Maintain real-time step execution.
 
 # Entry point of the script.
 if __name__ == "__main__":

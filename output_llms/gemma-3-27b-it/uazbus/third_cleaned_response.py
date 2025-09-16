@@ -17,7 +17,7 @@ vis_type = veh.VisualizationType_MESH
 chassis_collision_type = veh.CollisionType_NONE
 
 
-tire_model = veh.TireModelType_RIGID
+tire_model = veh.TireModelType_RIGID  
 
 
 
@@ -107,7 +107,6 @@ obstacle.SetPos(chrono.ChVector3d(5, 0, 0.1))
 obstacle.SetSize(chrono.ChVector3d(0.5, 5, 0.2))
 vehicle.GetSystem().Add(obstacle)
 obstacle.SetCollide(True)
-
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()

@@ -6,7 +6,7 @@ spring_coef = 50
 damping_coef = 1
 
 sys = chrono.ChSystemNSC()
-sys.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, -9.81))
+sys.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, -9.81))  
 
 ground = chrono.ChBody()
 sys.AddBody(ground)
@@ -24,9 +24,12 @@ body_1.EnableCollision(False)
 body_1.SetMass(1)
 body_1.SetInertiaXX(chrono.ChVector3d(1, 1, 1))
 
+
 box_1 = chrono.ChVisualShapeBox(1, 1, 1)
 box_1.SetColor(chrono.ChColor(0.6, 0, 0))
 body_1.AddVisualShape(box_1)
+
+
 
 spring_1 = chrono.ChLinkTSDA()
 spring_1.Initialize(body_1, ground, True, chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(-1, 0, 0))
@@ -34,6 +37,7 @@ spring_1.SetRestLength(rest_length)
 spring_1.SetSpringCoefficient(spring_coef)
 spring_1.SetDampingCoefficient(damping_coef)
 sys.AddLink(spring_1)
+
 
 spring_1.AddVisualShape(chrono.ChVisualShapeSpring(0.05, 80, 15))
 
@@ -84,7 +88,7 @@ spring_3.AddVisualShape(chrono.ChVisualShapeSpring(0.05, 80, 15))
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(sys)
 vis.SetWindowSize(1024, 768)
-vis.SetWindowTitle('ChLinkTSDA demo with new bodies and springs')
+vis.SetWindowTitle('ChLinkTSDA demo')
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()

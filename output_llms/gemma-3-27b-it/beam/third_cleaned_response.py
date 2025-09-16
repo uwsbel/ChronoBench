@@ -4,7 +4,7 @@ import pychrono.pardisomkl as mkl
 import pychrono.irrlicht as chronoirr
 import sys
 
-print ("Example: PyChrono using beam finite elements")
+print("Example: PyChrono using beam finite elements")
 
 sys = chrono.ChSystemSMC()
 
@@ -23,7 +23,7 @@ msection.SetShearModulus(0.81e11)
 msection.SetRayleighDamping(0.000)
 msection.SetCentroid(0, 0.0125)
 msection.SetShearCenter(0, 0.0125)
-msection.SetSectionRotation(45*chrono.CH_RAD_TO_DEG)
+msection.SetSectionRotation(45 * chrono.CH_RAD_TO_DEG)
 
 
 beam_L = 0.1
@@ -59,13 +59,13 @@ constr_bc = chrono.ChLinkMateGeneric()
 constr_bc.Initialize(hnode3, mtruss, False, hnode3.Frame(), hnode3.Frame())
 sys.Add(constr_bc)
 constr_bc.SetConstrainedCoords(True, True, True,  
-                                True, True, True)  
+                               True, True, True)  
 
 constr_d = chrono.ChLinkMateGeneric()
 constr_d.Initialize(hnode1, mtruss, False, hnode1.Frame(), hnode1.Frame())
 sys.Add(constr_d)
 constr_d.SetConstrainedCoords(False, True, True,  
-                                False, False, False)  
+                               False, False, False)  
 
 
 

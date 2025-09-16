@@ -40,7 +40,7 @@ tire_step_size = step_size
 # Time interval between two render frames
 render_step_size = 1.0 / 50  # FPS = 50
 
-# Data logging step size
+# Logging step size
 log_step_size = 1.0  # Log GPS data every log_step_size seconds
 
 # Create the HMMWV vehicle, set parameters, and initialize
@@ -129,9 +129,6 @@ gps.PushFilter(sens.ChFilterGPSAccess())
 # Add the GPS to the sensor manager
 manager.AddSensor(gps)
 
-# GPS data list
-gps_data = []
-
 # ---------------
 # Simulation loop
 # ---------------
@@ -146,6 +143,7 @@ render_steps = math.ceil(render_step_size / step_size)
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
+gps_data = []  # Initialize the list to store GPS data
 
 # Simulation loop
 while vis.Run():
@@ -159,7 +157,11 @@ while vis.Run():
         render_frame += 1
 
     # Get driver inputs
-    driver_inputs = driver.GetInputs()
+    # Modified driver inputs based on time
+    throttle = math.sin(time)  
+    steering = time * 0.1
+    brake = 1.0 if time > 6.0 else 0.0
+    driver_inputs = {'throttle': throttle, 'steering': steering, 'brake': brake}
 
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
@@ -176,8 +178,8 @@ while vis.Run():
     # Update sensor manager in each step
     manager.Update()
 
-    # Log GPS data at specified intervals
-    if time >= log_step_size * step_number:
+    # Log GPS data every log_step_size seconds
+    if step_number % math.ceil(log_step_size / step_size) == 0:
         gps_data.append(gps.GetMostRecentGPSBuffer().GetGPSData())
 
     # Increment frame number

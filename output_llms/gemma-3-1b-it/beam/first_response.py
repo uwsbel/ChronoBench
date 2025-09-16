@@ -1,59 +1,72 @@
 import pychrono
-import pychrono.physics as ph
-import pychrono.visuals as v
-import pychrono.widgets as wg
-import matplotlib.pyplot as plt
 import numpy as np
+import matplotlib.pyplot as plt
+from pychrono.physics import BeamFiniteElement
+from pychrono.visualize import visualize
 
-# --- Simulation Parameters ---
-num_nodes = 100  # Number of nodes in the mesh
-beam_length = 1.0  # Length of the beams
-beam_thickness = 0.01  # Thickness of the beams
-num_beams = 5  # Number of beams in the mesh
-material_density = 1.0  # Density of the material (adjust for different behaviors)
-material_viscosity = 0.01 #Viscosity value for fluid simulation
-# --- Initial Conditions ---
-initial_position = [0.0, 0.0, 0.0]  # Initial position of the beam
-initial_velocity = [1.0, 0.0, 0.0]  # Initial velocity of the beam
-initial_force = [0.0, 0.0, 0.0]  # Initial force applied to the beam
-initial_time = 0.0 # Start time of the simulation
+# Define physical system parameters
+num_nodes = 100
+beam_length = 1.0
+beam_width = 0.1
+beam_thickness = 0.05
+num_beams = 5
+num_nodes_per_beam = 2
+# Define material properties
+material_density = 1.0
+material_viscosity = 0.01
+material_conductivity = 100.0
 
-# --- PyChrono Setup ---
-chrono = pychrono.chrono.Chrono()
-chrono.set_physics_system(ph.BeamSystem(num_nodes, beam_length, beam_thickness))
-chrono.set_physics_mode(ph.StaticMode()) # Or 'DynamicMode' if you need dynamic behavior
+# Create the beam mesh
+mesh = BeamFiniteElement(
+    num_nodes,
+    beam_length,
+    beam_width,
+    beam_thickness,
+    num_beams,
+    num_nodes_per_beam,
+    material_density,
+    material_viscosity,
+    material_conductivity,
+    # Add more properties as needed for your specific simulation
+)
 
-# --- Visualization ---
-v_init = v.Plotter()
-v_init.set_title("Beam Finite Element Simulation")
-v_init.set_zoom(1.0)
-v_init.set_view_mode("3D")  # Set to 3D for better visualization
-v_init.set_background_color("white")
+# Set initial conditions
+initial_positions = np.random.rand(num_nodes, 2) * beam_length
+initial_velocities = np.random.rand(num_nodes, 2) * 1.0
 
-# --- Simulation Loop ---
-try:
-    while True:
-        # --- Update Physics ---
-        chrono.update_physics(chrono.physics_mode(), chrono.physics_system(), chrono.physics_mode())
+# Set simulation parameters
+simulation_time = 10.0
+time_step = 0.01
+simulation_duration = 10.0
 
-        # --- Rendering ---
-        v_init.draw_mesh(chrono.physics_system(), chrono.physics_mode())
-        v_init.draw_lines(chrono.physics_system(), chrono.physics_mode()) # Add lines for clarity
-        v_init.draw_text(f"Time: {chrono.time_since_epoch()}", 0.05, v.Text.AlignHCenter)
-        v_init.draw_text(f"Position: {chrono.physics_system()[0]}", 0.05, v.Text.AlignLCenter)
-        v_init.draw_text(f"Velocity: {chrono.physics_system()[1]}", 0.05, v.Text.AlignLCenter)
-        v_init.draw_text(f"Force: {chrono.physics_system()[2]}", 0.05, v.Text.AlignRCenter)
+# Run the simulation
+simulation = simulation_time
+while simulation > 0:
+    # Update the simulation
+    for i in range(num_nodes):
+        # Apply forces to the beam
+        force = np.zeros(2)
+        for j in range(num_beams):
+            # Calculate the force based on the beam's properties
+            force[j] = material_density * material_viscosity * material_conductivity * initial_positions[i, j] * (1.0 - initial_velocities[i, j])
 
-        # --- Visualization Update ---
-        v_init.update()
+        # Apply the force to the mesh
+        mesh.apply_force(force)
 
-        # ---  Display the simulation in a window ---
-        wg.show_simulation(v_init)
+        # Update the positions and velocities
+        initial_positions[i, :] = initial_positions[i, :] + initial_velocities[i, :] * time_step
+        initial_velocities[i, :] = initial_velocities[i, :] + initial_velocities[i, :] * time_step
 
-        # --- Wait for a short time ---
-        plt.pause(0.01)  # Adjust for desired simulation speed
+    # Advance the simulation
+    simulation += time_step
 
-except KeyboardInterrupt:
-    print("Simulation interrupted.")
-    plt.close(v_init)
-    chrono.stop()
+    # Visualize the simulation
+    visualize(mesh, time=simulation, title="Beam Simulation")
+
+    # Pause for a short time to observe the simulation
+    plt.pause(0.01)
+
+# Stop the simulation
+simulation = simulation.stop()
+
+print("Simulation complete.")

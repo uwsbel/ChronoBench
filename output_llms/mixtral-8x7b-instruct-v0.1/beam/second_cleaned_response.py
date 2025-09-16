@@ -36,17 +36,19 @@ hnode2 = fea.ChNodeFEAxyzrot(chrono.ChFramed(chrono.ChVector3d(0.2, 0, -0.1)))
 
 
 builder = fea.ChBuilderBeamEuler()
+builder.SetSection(msection)
+builder.SetUpVector(chrono.ChVector3d(0, 1, 0)) 
+builder.SetNelements(5)
 
 
-builder.SetUp(hnode1, hnode2, msection, 5)
-beam = builder.BuildBeam()
+beam = builder.BuildBeam(hnode1, hnode2)
 mesh.AddElement(beam)
 
 
 beam.GetLastBeamNodes().back().SetFixed(True)
 
 
-beam.GetNode(0).SetForce(chrono.ChVector3d(0, -1, 0))
+hnode1.SetForce(chrono.ChVector3d(0, -1, 0))
 
 
 mtruss = chrono.ChBody()
@@ -55,16 +57,16 @@ sys.Add(mtruss)
 
 
 constr_bc = chrono.ChLinkMateGeneric()
-constr_bc.Initialize(hnode2, mtruss, False, hnode2.Frame(), hnode2.Frame())
+constr_bc.Initialize(hnode1, mtruss, False, hnode1.Frame(), hnode1.Frame())
 sys.Add(constr_bc) 
 constr_bc.SetConstrainedCoords(True, True, True, 
                                 True, True, True) 
 
 
 constr_d = chrono.ChLinkMateGeneric()
-constr_d.Initialize(hnode1, mtruss, False, hnode1.Frame(), hnode1.Frame())
+constr_d.Initialize(hnode2, mtruss, False, hnode2.Frame(), hnode2.Frame())
 sys.Add(constr_d) 
-constr_d.SetConstrainedCoords(True, False, False, 
+constr_d.SetConstrainedCoords(False, True, True, 
                               False, False, False) 
 
 

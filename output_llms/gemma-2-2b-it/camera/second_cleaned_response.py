@@ -81,7 +81,7 @@ def main():
 
     
     if vis:
-        cam.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Before Grayscale Filter"))
+        cam.PushFilter(sens.ChFilterVisualize(int(image_width / 2), int(image_height / 2), "Before Grayscale Filter"))
 
     
     cam.PushFilter(sens.ChFilterRGBA8Access())
@@ -114,11 +114,7 @@ def main():
     
     
     orbit_radius = 10  
-    orbit_rate = 0.1  
+    orbit_rate = 0.1   
     ch_time = 0.0      
 
-    t1 = time.time()  
-
-    while ch_time < end_time:
-        
-        cam.
+    t1 = time.time()

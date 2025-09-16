@@ -1,85 +1,121 @@
 import pychrono
 
-import pychrono.vehicle_dynamics as vehicle_dynamics
+import pychrono.modia as modia
 
-import pychrono.irrlicht as irrlicht
+import pychrono.irrlicht as irr
 
 import numpy as np
 
 
 # Initialize PyChrono environment
 
-chrono = pychrono.ChBody()
+chrono = pychrono.ChLinkCreateFunicularBody()
 
-chrono.Set_default_properties(1.0, 1.0, 1.0)
-
-
-# Add HMMWV vehicle
-
-hmmwv = vehicle_dynamics.HMMWV()
-
-hmmwv.Set_vehicle_mass(2000.0)  # Mass in kg
-
-hmmwv.Set_vehicle_inertia(pychrono.ChBoxSGeom(0.5, 0.5, 0.5, 0.0))
+chrono.Init()
 
 
-# Add SCM deformable terrain
+# Define soil parameters for SCM deformable terrain
 
-terrain = pychrono.ChTerrainSCM()
+soil_density = 1800.0  # kg/m^3
 
-terrain.Set_soil_parameters(0.5, 0.3, 0.1)  # Example soil parameters
+soil_stiffness = 10000.0  # N/m^2
 
-terrain.Load_height_map("height_map.png")
-
-
-# Initialize driver system
-
-driver = pychrono.ChDriver_OpSpace()
-
-driver.Set_max_force(1000.0)
+soil_damping = 0.05
 
 
-# Set up visualization
+# Create SCM deformable terrain with height map
 
-visualization = irrlicht.ChIrrApp()
+terrain_size = 10.0  # meters
 
-visualization.Set_render_device(irrlicht.ChDeviceDIRECT(1280, 720))
+terrain_height_map = np.ones((10, 10)) * 0.5  # meters
 
-visualization.Set_used_base_tscale(1.0 / 60.0)
+terrain = modia.SCMDTerrain(terrain_size, terrain_size, chrono.ChBody())
 
-visualization.Set_used_scale_tscale(1.0 / 60.0)
+terrain.SetSoilProperties(soil_density, soil_stiffness, soil_damping)
 
-visualization.Set_up_default_camera(irrlicht.core.ki.E_DIRECTION)
-
-light = irrlicht.core.aabiv.AABivLightGenerator(irrlicht.core.aabiv.AABIV_SMOOTH)
-
-light.Set_type(irrlicht.core.aabiv.AABIV_SPECULAR)
-
-light.Set_diffuse_color(irrlicht.core.vector3df(1.0, 1.0, 1.0))
-
-light.Set_specular_color(irrlicht.core.vector3df(1.0, 1.0, 1.0))
-
-light.Set_ambient_light_intensity(0.5)
-
-light.Set_specular_exponent(128.0)
-
-visualization.Add_light(light)
+terrain.SetHeightField(terrain_height_map)
 
 
-# Simulation loop
+# Initialize HMMWV vehicle
 
-while visualization.Get_running():
+hmmwv = chrono.ChRigidBody(chrono.ChBodyTypes.KinematicBody, "HMMWV")
 
-    # Advance the vehicle, terrain, and driver
+hmmwv.SetMass(2000.0)  # kg
 
-    hmmwv.Advance_to(chrono.Time())
+hmmwv.SetInertia(chrono.ChVector(1000.0, 1000.0, 1000.0))
 
-    terrain.Advance_to(chrono.Time())
-
-    driver.Advance_to(chrono.Time())
+hmmwv.SetStaticForce(chrono.ChVector(0.0, 0.0, -9.81 * hmmwv.GetMass())
 
 
-    # Update visualization
+# Define vehicle's initial position and orientation
+
+hmmwv.SetPos(chrono.ChVector(0.0, 0.0, 0.0))
+
+hmmwv.SetRot(chrono.ChQuaternionD(1.0, 0.0, 0.0, 0.0))
+
+
+# Add vehicle to the simulation
+
+chrono.Add(hmmwv)
+
+
+# Initialize driver system for vehicle control
+
+driver = modia.Driver()
+
+driver.SetMaxVelocity(10.0)  # m/s
+
+driver.SetMaxSteeringAngle(30.0)  # degrees
+
+
+# Initialize visualization system
+
+visualization = irr.ChIrrApp()
+
+visualization.SetWindowSize(800, 600)
+
+visualization.SetName("PyChrono HMMWV Simulation")
+
+
+# Set camera settings and lighting
+
+camera = irr.ChCamera()
+
+camera.SetPos(chrono.ChVector(10.0, 10.0, 10.0))
+
+camera.SetTarget(hmmwv.GetPos())
+
+visualization.AddCamera(camera)
+
+
+# Add terrain and vehicle to the visualization
+
+visualization.AddBody(terrain.GetChLink())
+
+visualization.AddBody(hmmwv.GetChLink())
+
+
+# Start the simulation loop
+
+while chrono.GetChTime() < 10.0:  # Simulate for 10 seconds
+
+    # Synchronize the simulation
+
+    chrono.DoStepDynamics(0.01)
+
+
+    # Update the driver system
+
+    driver.Update(chrono.GetChTime())
+
+    hmmwv.SetForce(chrono.ChVector(0.0, 0.0, -9.81 * hmmwv.GetMass()))
+
+    hmmwv.SetLinearVel(chrono.ChVector(driver.GetVelocity(), 0.0, 0.0))
+
+    hmmwv.SetAngularVel(chrono.ChVector(0.0, 0.0, 0.0))
+
+
+    # Update the visualization
 
     visualization.BeginScene()
 
@@ -88,6 +124,6 @@ while visualization.Get_running():
     visualization.EndScene()
 
 
-    # Maintain real-time execution
+# Finalize the simulation
 
-    chrono.Set_real_time_factor(1.0)
+chrono.Fini()

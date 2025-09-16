@@ -7,7 +7,6 @@ import pychrono.irrlicht as chronoirr
 
 
 
-
 class Model1:
     def __init__(self, system, mesh, n_chains=6):
         self.n_chains = n_chains
@@ -21,20 +20,21 @@ class Model1:
 
             
             builder = fea.ChBuilderCableANCF()
-            num_elements = 10 + i  
+
             
+            num_elements = 10 + i * 2  
             builder.BuildBeam(
                 mesh,  
                 msection_cable2,  
                 num_elements,  
-                chrono.ChVector3d(0 + i * 0.1, 0, -0.1),  
-                chrono.ChVector3d(0.5 + i * 0.1, 0, -0.1)  
+                chrono.ChVector3d(0, -i * 0.2, -0.1),  
+                chrono.ChVector3d(0.5, -i * 0.2, -0.1)  
             )
 
             
             
-            last_node = builder.GetLastBeamNodes().front()
-            last_node.SetForce(chrono.ChVector3d(0, -0.7, 0))  
+            end_node = builder.GetLastBeamNodes().front()
+            end_node.SetForce(chrono.ChVector3d(0, -0.7, 0))  
 
             
             mtruss = chrono.ChBody()
@@ -48,13 +48,13 @@ class Model1:
 
             
             end_body = chrono.ChBody()
-            end_body.SetPos(last_node.GetPos())
+            end_body.SetPos(end_node.GetPos())
             system.Add(end_body)
             self.end_bodies.append(end_body)
 
             
             constraint = chrono.ChLinkLock()
-            constraint.Initialize(last_node, end_body)
+            constraint.Initialize(end_node, end_body)
             system.Add(constraint)
 
     def PrintBodyPositions(self):
@@ -68,6 +68,7 @@ mesh = fea.ChMesh()
 
 model = Model1(sys, mesh)
 sys.Add(mesh)  
+
 
 
 visualizebeamA = chrono.ChVisualShapeFEA(mesh)
@@ -98,16 +99,15 @@ vis.AddCamera(chrono.ChVector3d(0, 0.6, -1))
 vis.AddTypicalLights()  
 
 
-solver = chrono.ChSolverMINRES() 
-if solver.GetType()== chrono.ChSolver.Type_MINRES :
-	print( "Using MINRES solver" )
-	sys.SetSolver(solver)
-	solver.SetMaxIterations(200)
-	solver.SetTolerance(1e-10)
-	solver.EnableDiagonalPreconditioner(True)
-	solver.EnableWarmStart(True)  
-	solver.SetVerbose(False)
-
+solver = chrono.ChSolverMINRES()  
+if solver.GetType() == chrono.ChSolver.Type_MINRES:
+    print("Using MINRES solver")
+sys.SetSolver(solver)
+solver.SetMaxIterations(200)
+solver.SetTolerance(1e-10)
+solver.EnableDiagonalPreconditioner(True)
+solver.EnableWarmStart(True)  
+solver.SetVerbose(False)  
 
 ts = chrono.ChTimestepperEulerImplicitLinearized(sys)
 sys.SetTimestepper(ts)

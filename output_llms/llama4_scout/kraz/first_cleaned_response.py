@@ -1,72 +1,59 @@
-import pychrono as chrono
-import pychrono.irrlicht as irr
-from pychrono.vehicle import *
+import chrono as ch
+import chrono.irrlicht as irr
 
 
-chrono.ChEngine.Initialize()
+ch.ChEngine.Initialize()
 
 
-SIMULATION_TIME = 10.0  
-TIME_STEP = 0.01  
+system = ch.ChSystem()
 
 
-engine = chrono.ChEngine()
+terrain = ch.ChBodyEasyTerrain(
+    100, 100,  
+    20,  
+    ch.ChVector(0, 0, -9.81),  
+    "terrain.jpg",  
+    1,  
+    0.7  
+)
+terrain.SetPos(ch.ChVector(0, 0, 0))
+system.Add(terrain)
 
 
-engine.SetTimestep(TIME_STEP)
-engine.SetSimulationEndTime(SIMULATION_TIME)
+vehicle = ch.ChVehicle()
+vehicle.Initialize(ch.ChCoordsys(ch.ChVector(0, 0, 1), ch.ChQuaternion(1, 0, 0, 0)))
 
 
-kraz = chrono.vehicle.Kraz()
+system.Add(vehicle.GetChassisBody())
+for wheel in vehicle.GetWheels():
+    system.Add(wheel)
+for axle in vehicle.GetAxles():
+    system.Add(axle)
 
 
-kraz.SetInitialPosition(chrono.ChVector3d(0, 0, 1.0))
-kraz.SetInitialOrientation(chrono.Quat(1, 0, 0, 0))
+driver = ch.ChDriver()
+driver.Initialize(vehicle, ch.ChVehicle.DriverInputs())
 
 
-engine.AddSystem(kraz.GetChassisBody())
+vis = irr.ChIrrApp(system, "Kraz Vehicle Simulation", 800, 600)
+vis.SetCameraLinkType(irr.CameraLinkType.FOLLOW_BODY)
+vis.SetCameraTarget(vehicle.GetChassisBody().GetPos())
+vis.SetCameraPos(ch.ChVector(0, -10, 5))
+vis.EnableCollisionVisualization(True)
+vis.EnableRigidBodyVisualization(True)
 
 
-terrain = chrono.vehicle.RigidTerrain(engine)
+vis.GetSceneManager().GetParameters().setAmbientLight(ch.ChColor(0.2, 0.2, 0.2))
+vis.GetSceneManager().AddLight(irr.ChIrrLight(vehicle.GetChassisBody().GetPos(), ch.ChColor(1, 1, 1), 10))
 
 
-terrain.SetFriction(0.8)
-terrain.SetRestitution(0.3)
-
-
-engine.AddSystem(terrain.GetGroundBody())
-
-
-driver = chrono.vehicle.Driver(kraz)
-
-
-driver.SetThrottle(0.5)
-driver.SetSteering(0.2)
-
-
-vis = irr.ChIrrApp(engine, "Kraz Vehicle Simulation")
-
-
-vis.SetCamera(chrono.ChVector3d(0, -10, 2), chrono.ChVector3d(0, 0, 1))
-
-
-vis.SetLight(chrono.ChVector3d(10, -10, 10), chrono.ChVector3d(0, 0, 0), True)
-
-while engine.GetSimulationTime() < SIMULATION_TIME:
-    
-    kraz.Synchronize(engine.GetSimulationTime())
-    terrain.Synchronize(engine.GetSimulationTime())
-    driver.Synchronize(engine.GetSimulationTime())
-    vis.Synchronize(engine.GetSimulationTime())
-
-    
-    kraz.Advance(TIME_STEP)
-    terrain.Advance(TIME_STEP)
-    driver.Advance(TIME_STEP)
-    vis.Advance(TIME_STEP)
-
-    
+while vis.Run():
+    vis.BeginScene()
     vis.Render()
+    vis.EndScene()
 
-
-vis.Run()
+    
+    system.DoStepDynamics(0.02)  
+    driver.ComputeDriverInputs(0.02)
+    vehicle.Update(0.02)
+    vis.Synchronize(vehicle.GetChassisBody().GetPos())

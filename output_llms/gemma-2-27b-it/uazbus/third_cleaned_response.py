@@ -17,7 +17,7 @@ vis_type = veh.VisualizationType_MESH
 chassis_collision_type = veh.CollisionType_NONE
 
 
-tire_model = veh.TireModelType_RIGID  
+tire_model = veh.TireModelType_RIGID
 
 
 
@@ -75,14 +75,10 @@ patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 
-obstacle_mat = chrono.ChContactMaterialNSC()
-obstacle_mat.SetFriction(0.9)
-obstacle_mat.SetRestitution(0.01)
-obstacle = chrono.ChBodyEasyBox(
-    0.5, 5, 0.2, 1000, True, True, obstacle_mat
-)
-obstacle.SetPos(chrono.ChVector3d(5, 0, 0.1))
-vehicle.GetSystem().Add(obstacle)
+box = chrono.ChBodyEasyBox(0.5, 5, 0.2, 1000)
+box.SetPos(chrono.ChVector3d(5, 0, 0.1))
+box.SetBodyFixed(True)
+vehicle.GetSystem().Add(box)
 
 
 

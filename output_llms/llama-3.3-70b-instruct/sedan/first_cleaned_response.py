@@ -6,88 +6,70 @@ import pychrono.vehicle as veh
 sys = chrono.ChSystemNSC()
 
 
-ground = chrono.ChBodyEasyBox(sys, 100, 10, 100, 1000, True, True)
-ground.SetPos(chrono.ChVectorD(0, -10, 0))
-ground.SetMaterial(chrono.ChMaterialSurfaceNSC())
-sys.Add(ground)
+vehicle = veh.ChVehicle()
 
 
-vehicle = veh.ChVehicle(sys, 
-                        veh.ChPartId(0, 0, 0),  
-                        veh.ChPartId(0, 0, 1),  
-                        veh.ChPartId(0, 1, 0),  
-                        veh.ChPartId(0, 1, 1))  
+vehicle.SetVisualization(veh.VisualizationType.PRIMITIVES)
+vehicle.SetCollision(veh.CollisionType.BULLET)
 
 
-vehicle.SetChassisMass(1500)
-vehicle.SetChassisInertiaXX(chrono.ChVectorD(1000, 1000, 1000))
-vehicle.SetChassisInertiaXY(chrono.ChVectorD(0, 0, 0))
-vehicle.SetChassisPosition(chrono.ChVectorD(0, 5, 0))
+tire_model = veh.ChTmeTire()
 
 
-suspension = veh.ChSuspensionTemplate()
-suspension.SetSpringCoefficient(3e5)
-suspension.SetDampingCoefficient(1e3)
-suspension.SetBumpStopStiffness(1e6)
-suspension.SetBumpStopDamping(1e3)
-suspension.SetAntirollStiffness(1e4)
-suspension.SetAntirollDamping(1e2)
+sys.Add(vehicle)
 
 
-steering = veh.ChSteeringSystem()
-steering.SetMaxSteeringAngle(chrono.ChAngleD(45 * chrono.CH_C_DEG_TO_RAD))
+terrain = chrono.ChBodyEasyBox(sys, 10, 1, 10, 1000, True, True)
 
 
-drivetrain = veh.ChDrivetrain()
-drivetrain.SetDifferentialType(veh.ChDrivetrain.DIFF_TYPE_OPEN)
-drivetrain.SetEngineTorque(200)
-drivetrain.SetGearboxRatio(3.5)
+terrain.SetPos(chrono.ChVectorD(0, -1, 0))
+terrain.SetMaterial(chrono.ChMaterialSurfaceNSC())
 
 
-tire = veh.ChTireEasyString()
-tire.SetTireModel(veh.ChTireModel.TMEASY)
-tire.SetTireRadius(0.5)
-tire.SetTireWidth(0.2)
+sys.Add(terrain)
 
 
-sys.Add(vehicle.GetChassisBody())
-sys.Add(vehicle.GetSuspensionSubsystem())
-sys.Add(vehicle.GetSteeringSubsystem())
-sys.Add(vehicle.GetDrivetrainSubsystem())
-sys.Add(vehicle.GetTireModel())
+driver = veh.ChIrrDriver()
 
 
-driver = veh.ChIrrlichtDriver()
-driver.SetVehicle(vehicle)
-driver.SetSteeringSensitivity(0.5)
-driver.SetThrottleSensitivity(0.5)
-driver.SetBrakingSensitivity(0.5)
+driver.SetSteeringGain(0.1)
+driver.SetThrottleGain(0.1)
+driver.SetBrakingGain(0.1)
+
+
+vehicle.AddDriver(driver)
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AddSkyBox()
-vis.AddTypicalLights()
-vis.AddCamera(chrono.ChVectorD(0, 10, -10))
-vis.AddCamera(chrono.ChVectorD(0, 10, -10), chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 1, 0))
-vis.AddLogo(chrono.ChVectorD(0, 0, 0), "PyChrono", 1, 1, 1)
-vis.AddTexture(chrono.ChVectorD(0, 0, 0), "terrain.jpg")
 
 
 vis.SetWindowSize(1024, 768)
-vis.SetWindowTitle("PyChrono Simulation")
-vis.SetTypicalCameraVisualOptions()
+vis.SetCamera(chronoirr.ChCamera())
+vis.AddSkyBox()
+vis.AddTypicalLights()
 
 
-time_step = 0.01
-duration = 10
+camera = chronoirr.ChCamera()
+camera.SetCameraType(chronoirr.ChCamera.CAMERA_CHASE)
+camera.SetTarget(vehicle.GetChassisBody())
+camera.SetDistance(5)
+camera.SetElevation(30)
 
 
-while sys.GetChTime() < duration:
-    sys.DoStepDynamics(time_step)
+vis.AddCamera(camera)
+
+
+terrain_texture = chronoirr.ChTexture()
+terrain_texture.SetTextureFile("terrain_texture.png")
+terrain_logo = chronoirr.ChTexture()
+terrain_logo.SetTextureFile("terrain_logo.png")
+vis.AddTexture(terrain_texture)
+vis.AddLogo(terrain_logo)
+
+
+sys.Solve(chrono.ChTime(0, 0, 0))
+while vis.Run():
+    sys.DoStepDynamics(0.01)
     vis.BeginScene()
     vis.DrawAll()
     vis.EndScene()
-    vis.DoStep()
-
-
-sys.GetContactContainer().ReportAllContacts()

@@ -2,12 +2,11 @@ import pychrono as chrono
 import pychrono.vehicle as veh
 import pychrono.irrlicht as irr
 
-# Simulation step sizes
-step_size = 2e-3
-tire_step_size = 1e-3
-
 def main():
-    #  Create the HMMWV vehicle, set parameters, and initialize
+    # Set data path
+    veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
+
+    # Create the HMMWV vehicle, set parameters, and initialize
     hmmwv = veh.HMMWV_Full()
     hmmwv.SetContactMethod(chrono.ChContactMethod_NSC)
     hmmwv.SetChassisFixed(False)
@@ -16,7 +15,12 @@ def main():
     hmmwv.SetTransmissionType(veh.TransmissionModelType_AUTOMATIC_SIMPLE_MAP)
     hmmwv.SetDriveType(veh.DrivelineTypeWV_AWD)
     hmmwv.SetTireType(veh.TireModelType_TMEASY)
+
+    # Define step sizes
+    step_size = 2e-3
+    tire_step_size = 1e-3
     hmmwv.SetTireStepSize(tire_step_size)
+
     hmmwv.Initialize()
 
     hmmwv.SetChassisVisualizationType(veh.VisualizationType_MESH)
@@ -47,16 +51,14 @@ def main():
     patch3_mat = chrono.ChContactMaterialNSC()
     patch3_mat.SetFriction(0.9)
     patch3_mat.SetRestitution(0.01)
-    patch3 = terrain.AddPatch(patch3_mat, chrono.ChCoordsysd(chrono.ChVector3d(5, -45, 0), chrono.QUNIT),
-                              veh.GetDataFile("terrain/meshes/bump.obj"))
+    patch3 = terrain.AddPatch(patch3_mat, chrono.ChCoordsysd(chrono.ChVector3d(5, -45, 0), chrono.QUNIT), veh.GetDataFile("terrain/meshes/bump.obj"))
     patch3.SetColor(chrono.ChColor(0.5, 0.5, 0.8))
     patch3.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
 
     patch4_mat = chrono.ChContactMaterialNSC()
     patch4_mat.SetFriction(0.9)
     patch4_mat.SetRestitution(0.01)
-    patch4 = terrain.AddPatch(patch4_mat, chrono.ChCoordsysd(chrono.ChVector3d(10, 40, 0), chrono.QUNIT),
-                              veh.GetDataFile("terrain/height_maps/bump64.bmp"), 64.0, 64.0, 0.0, 3.0)
+    patch4 = terrain.AddPatch(patch4_mat, chrono.ChCoordsysd(chrono.ChVector3d(10, 40, 0), chrono.QUNIT), veh.GetDataFile("terrain/height_maps/bump64.bmp"), 64.0, 64.0, 0.0, 3.0)
     patch4.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 6.0, 6.0)
 
     terrain.Initialize()
@@ -81,7 +83,7 @@ def main():
 
     hmmwv.GetVehicle().EnableRealtime(True)
 
-    while vis.Run() :
+    while vis.Run():
         time = hmmwv.GetSystem().GetChTime()
 
         # Draw scene
@@ -105,8 +107,6 @@ def main():
         vis.Advance(step_size)
 
     return 0
-
-veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 if __name__ == "__main__":
     main()

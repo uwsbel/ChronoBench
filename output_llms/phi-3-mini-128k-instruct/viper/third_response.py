@@ -3,8 +3,8 @@ import math
 import numpy as np
 import pychrono as chrono
 import pychrono.robot as viper
-from pychrono import irrlicht as chronoirr
 import pychrono.vehicle as veh
+from pychrono import irrlicht as chronoirr
 
 # Create Chrono system
 system = chrono.ChSystemNSC()
@@ -14,13 +14,15 @@ chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.0025)
 chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
 
 # Create SCM deformable terrain
-terrain_plane = chrono.ChPlane(chrono.ChVector3d(0, 0, -1), chrono.ChVector3d(0, 0, 0))
+terrain_plane = chrono.ChVector3d(0, 0, -1)  # Plane for the terrain
 terrain_length = 20
 terrain_width = 20
-mesh_resolution = 10
-soil_friction = 0.5
-soil_density = 1500
-terrain = chrono.ChDeformableTerrain(terrain_plane, terrain_length, terrain_width, mesh_resolution, soil_friction, soil_density)
+mesh_resolution = 100  # Number of triangles along the length and width
+soil_density = 1600  # kg/m^3
+soil_friction = 0.6  # Friction coefficient
+soil_restitution = 0.3  # Restitution coefficient
+
+terrain = chrono.ChDeformableTerrain(terrain_plane, terrain_length, terrain_width, mesh_resolution, soil_density, soil_friction, soil_restitution)
 system.Add(terrain)
 
 # Create Viper rover
@@ -42,25 +44,4 @@ vis.SetWindowTitle('Viper rover - Rigid terrain')
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()
-vis.AddCamera(chrono.ChVector3d(0, 2.5, 1.5), chrono.ChVector3d(0, 0, 1))
-vis.AddTypicalLights()
-vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0, 0.5), 3, 4, 10, 40, 512)
-
-# Set the simulation time step
-time_step = 1e-3
-
-# Simulation loop
-time = 0
-while vis.Run():
-    time += time_step  # Increment the simulation time
-    driver.SetSteering(0.0)  # Set the steering to a constant value of 0.0
-
-    rover.Update()  # Update the rover's state
-
-    # Render the scene
-    vis.BeginScene()
-    vis.Render()
-    vis.EndScene()
-    
-    # Advance the simulation by one time step
-    system.DoStepDynamics(time_step)
+vis.AddCamera(chrono.

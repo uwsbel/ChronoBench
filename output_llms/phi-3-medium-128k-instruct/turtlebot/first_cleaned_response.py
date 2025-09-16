@@ -1,6 +1,10 @@
 import chrono
 
-import irrlicht
+import chrono_irrlicht_sensor as irr
+
+import chrono
+
+import chrono_impact_sensor as impact
 
 import numpy as np
 
@@ -12,108 +16,132 @@ chrono.Init()
 
 
 
-s = chrono.ChSystemNSC()
+ground = chrono.ChBodyAux()
+
+ground.SetName("Ground")
+
+ground.SetBodyType(chrono.ChBodyType.STATIC)
+
+ground.SetMass(0)
+
+ground.SetInertiaTensor(chrono.ChVector3(0, 0, 0))
+
+ground.SetStaticFriction(0.0)
+
+ground.SetDynamicFriction(0.0)
+
+ground.SetColor(chrono.ChColor(0, 0, 0))
 
 
 
 
-s.SetGravity(chrono.ChVectorD(0, -9.81, 0))
+turtlebot = chrono.ChBodyAux()
+
+turtlebot.SetName("Turtlebot")
+
+turtlebot.SetBodyType(chrono.ChBodyType.DYNAMIC)
+
+turtlebot.SetMass(10.0)
+
+turtlebot.SetInertiaTensor(chrono.ChVector3(0.1, 0.1, 0.1))
+
+turtlebot.SetColor(chrono.ChColor(1, 0, 0))
 
 
 
 
-ground_shape = chrono.ChBodyDSG(chrono.ChEntityExt::CreateBox(s, 10, 1, 1))
-
-ground_shape.SetBodyFixed(True)
-
-s.AddBody(ground_shape)
+chrono.ChSystem.CreateChBody(ground)
 
 
 
 
-turtlebot = chrono.ChBody(chrono.ChVectorD(0, 0, 0.1), chrono.ChQuaternionD(0, 0, 0, 1))
+turtlebot.SetPos(chrono.ChVector(0, 0, 0))
 
-turtlebot.SetMass(10)
-
-s.AddBody(turtlebot)
+turtlebot.SetRot(chrono.ChQuaternion(1, 0, 0, 0))
 
 
 
 
+chrono.ChSystem.CreateChBody(turtlebot)
 
 
 
 
+camera = irr.ChCamera()
 
-turtlebot.SetPos(chrono.ChVectorD(0, 0, 0))
+camera.SetName("Camera")
 
-turtlebot.SetRot(chrono.ChQuaternionD(0, 0, 0, 1))
+camera.SetCameraPos(chrono.ChVector(0, 0, 5))
 
+camera.SetLookAt(chrono.ChVector(0, 0, 0))
 
+camera.SetFOV(chrono.ChVector(60, 0, 0))
 
+camera.SetNearClip(0.1)
 
-irr = irrlicht.IrrEngine()
+camera.SetFarClip(100)
 
+camera.SetUpAxis(chrono.ChVector(0, 1, 0))
 
+camera.SetColor(chrono.ChColor(0, 0, 0))
 
+camera.SetNearClipColor(chrono.ChColor(0, 0, 0))
 
-camera = irr.getCamera()
+camera.SetFarClipColor(chrono.ChColor(0, 0, 0))
 
-camera.setPosition(chrono.ChVectorD(0, 0, 10))
+camera.SetAmbientColor(chrono.ChColor(0, 0, 0))
 
-camera.setTarget(chrono.ChVectorD(0, 0, 0))
-
-
-
-
-light = irr.getLightScene().createLight()
-
-light.setType(irrlicht.video.ETC_LIGHT_SPOT)
-
-light.setDirection(chrono.ChVectorD(0, 0, -1))
-
-light.setRange(1000)
+camera.SetBackgroundColor(chrono.ChColor(0, 0, 0))
 
 
 
 
-sim_time = 0
+chrono.ChSystem.CreateCamera(camera)
 
-while True:
+
+
+
+irr.ChSensor.CreateSensor(camera)
+
+
+
+
+chrono.ChSystem.SetGravity(chrono.ChVector(0, 0, -9.81))
+
+
+
+
+vis = irr.ChIrrApp()
+
+vis.SetWindowSize(800, 600)
+
+vis.SetTitle("PyChrono Turtlebot Simulation")
+
+vis.SetTargetFrameRate(30)
+
+vis.AddSensor(camera.GetSensor())
+
+
+
+
+vis.Run()
+
+
+
+
+while vis.GetDoEvents():
 
     
 
-    
+    turtlebot.SetMotorSpeed(chrono.ChVector(0.5, -0.5))
 
-
-    
-
-    s.DoStep()
-
+    chrono.ChSystem.DoStepDynamics(1.0 / 60.0)
 
     
 
-    irr.beginScene()
-
-    irr.drawAll()
-
-    irr.endScene()
-
-
-    
-
-    sim_time += 1e-3
-
-
-    
-
-    if sim_time > 10:
-
-        break
+    vis.Step()
 
 
 
 
-chrono.reset()
-
-irr.end()
+chrono.ChSystem.Destroy()

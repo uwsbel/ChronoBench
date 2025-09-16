@@ -34,11 +34,6 @@ def main():
     patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 100, 100)
     terrain.Initialize()  
     
-    
-    box = ch.ChBodyEasyBox(hmmwv.GetSystem(), 1, 1, 1, 1000, True)
-    box.SetPos(ch.ChVector3d(5, 0, 1))
-    
-    
     vis = chronoirr.ChVisualSystemIrrlicht()
     vis.AttachSystem(hmmwv.GetSystem())
     vis.SetCameraVertical(ch.CameraVerticalDir_Z)
@@ -47,9 +42,14 @@ def main():
     vis.Initialize()
     vis.AddLogo(ch.GetChronoDataFile('logo_pychrono_alpha.png'))
     vis.AddSkyBox()
-    vis.AddCamera(ch.ChVector3d(-5, 2.5, 1.5), ch.ChVector3d(0, 0, 1))
+    vis.AddCamera(ch.ChVector3d(-5, 2.5, 1.5), ch.ChVector3d(0, 0, 1))  
     vis.AddTypicalLights()
     vis.AddLightWithShadow(ch.ChVector3d(1.5, -2.5, 5.5), ch.ChVector3d(0, 0, 0.5), 3, 4, 10, 40, 512)
+
+    
+    box = ch.ChBodyEasyBox(hmmwv.GetSystem(), 1, 1, 1, 1000, True, True)
+    box.SetPos(ch.ChVector3d(0, 0, 2))
+    box.SetMaterialSurface(ch.ChMaterialSurfaceNSC())
 
     
     driver = veh.ChDriver(hmmwv.GetVehicle())
@@ -66,22 +66,24 @@ def main():
 
     
     sens_manager = sens.ChSensorManager()
+    sens_manager.SetSystem(hmmwv.GetSystem())
+
     
+    lidar_sensor = sens.ChLidarSensor()
+    lidar_sensor.SetName("Lidar")
+    lidar_sensor.SetPosition(ch.ChVector3d(0, 0, 2))
+    lidar_sensor.SetOrientation(ch.ChQuaterniond(1, 0, 0, 0))
+    lidar_sensor.SetRange(0, 100)
+    lidar_sensor.SetHorizontalFOV(360)
+    lidar_sensor.SetVerticalFOV(180)
+    lidar_sensor.SetFrequency(10)
+    lidar_sensor.SetPointDensity(0.1)
+    lidar_sensor.AddFilter(sens.ChLidarFilterDistance(0, 10))
+    lidar_sensor.AddFilter(sens.ChLidarFilterIntensity(0, 100))
+    sens_manager.AddSensor(lidar_sensor)
+
     
-    lidar = sens.ChLidarSensor(hmmwv.GetChassisBody())
-    lidar.SetName("Lidar")
-    lidar.SetPosition(ch.ChVector3d(0, 0, 2))
-    lidar.SetOrientation(ch.ChQuaterniond(1, 0, 0, 0))
-    lidar.SetRange(0, 100)
-    lidar.SetFOV(45)
-    lidar.SetFrequency(10)
-    lidar.SetResolution(1)
-    lidar.AddFilter(sens.ChLidarFilterRadius(0.1))
-    lidar.AddFilter(sens.ChLidarFilterAngle(0, 45))
-    sens_manager.AddSensor(lidar)
-    
-    
-    ros_manager.RegisterHandler(chros.ChROSLidarHandler(25, lidar, "~/output/lidar"))
+    ros_manager.RegisterHandler(chros.ChROSLidarHandler(25, lidar_sensor, "~/output/lidar"))
 
     
     time = 0

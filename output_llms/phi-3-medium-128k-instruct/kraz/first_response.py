@@ -1,392 +1,126 @@
-```python
-
 import pychrono
 
-import pychrono.irrlicht
+import pychrono.vehicle as vehicle
 
-import pychrono.vehicle
+import pychrono.irrlicht as chrono
 
-import pychrono.synchronizer
-
-import pychrono.synchronizer.irrlicht
+import pychrono.utils as utils
 
 
 # Initialize PyChrono environment
 
-chrono = pychrono.ChRono()
+chrono.Init()
 
 
-# Add a rigid terrain
+# Create a Kraz vehicle with specified initial conditions
 
-terrain = pychrono.ChTerrain()
+kraz_vehicle = vehicle.Kraz()
 
-terrain.SetFriction(0.5)
+kraz_vehicle.SetMass(1500)
 
-terrain.SetRestitution(0.3)
+kraz_vehicle.SetTerrain(0.05, 0.3)  # Friction and restitution for the terrain
 
+kraz_vehicle.SetPos(0, 0, 0)
 
-# Add a Kraz vehicle
+kraz_vehicle.SetVel(0, 0, 0)
 
-kraz = pychrono.ChKraz()
 
-kraz.SetMass(1500.0)
+# Set up the terrain
 
-kraz.SetWheelRadius(0.3)
+terrain = pychrono.ChBody()
 
-kraz.SetWheelWidth(0.15)
+terrain.SetBodyType(pychrono.ChBodyType.STATIC)
 
-kraz.SetWheelStiffness(20000.0)
+terrain.SetMass(1e6)
 
-kraz.SetWheelDamping(1000.0)
+terrain.SetPos(0, 0, 0)
 
-kraz.SetWheelFriction(0.8)
+terrain.SetBodyType(pychrono.ChBodyType.STATIC)
 
-kraz.SetWheelSlip(0.0)
+terrain.SetRestitution(0.05)
 
-kraz.SetWheelSlipDamping(100.0)
+terrain.SetFriction(0.1)
 
-kraz.SetWheelSlipMax(0.1)
 
-kraz.SetWheelSlipMin(0.0)
+# Initialize the driver system
 
-kraz.SetWheelSlipMaxDamping(100.0)
+driver = vehicle.Driver()
 
-kraz.SetWheelSlipMinDamping(100.0)
+driver.SetMaxSteer(30.0)
 
-kraz.SetWheelSlipMaxDamping(100.0)
+driver.SetMaxThrottle(1)
 
-kraz.SetWheelSlipMinDamping(100.0)
+driver.SetMaxBrake(1)
 
-kraz.SetWheelSlipMaxDamping(100.0)
 
-kraz.SetWheelSlipMinDamping(100.0)
+# Set up the visualization system
 
-kraz.SetWheelSlipMaxDamping(100.0)
+visualization = chrono.ChVisualSystem()
 
-kraz.SetWheelSlipMinDamping(100.0)
+visualization.SetRenderer(chrono.ChRenderer.IRRLICHT)
 
-kraz.SetWheelSlipMaxDamping(100.0)
+visualization.SetBackgroundColour(chrono.ChColor(0, 0, 0))
 
-kraz.SetWheelSlipMinDamping(100.0)
+visualization.SetQuality(chrono.ChRenderer.QUALITY_HIGH)
 
-kraz.SetWheelSlipMaxDamping(100.0)
+visualization.SetLightColor(chrono.ChColor(1, 1, 1))
 
-kraz.SetWheelSlipMinDamping(100.0)
 
-kraz.SetWheelSlipMaxDamping(100.0)
+# Create a camera for the visualization
 
-kraz.SetWheelSlipMinDamping(100.0)
+camera = chrono.ChCamera()
 
-kraz.SetWheelSlipMaxDamping(100.0)
+camera.SetPosition(chrono.ChVectorD(0, 10, 10))
 
-kraz.SetWheelSlipMinDamping(100.0)
+camera.SetTarget(terrain.GetPos())
 
-kraz.SetWheelSlipMaxDamping(100.0)
+camera.SetFOV(chrono.ChCamera.FOV_45)
 
-kraz.SetWheelSlipMinDamping(100.0)
 
-kraz.SetWheelSlipMaxDamping(100.0)
+# Create a scene and add all objects to it
 
-kraz.SetWheelSlipMinDamping(100.0)
+scene = chrono.ChScene()
 
-kraz.SetWheelSlipMaxDamping(100.0)
+scene.AddRigidBody(terrain)
 
-kraz.SetWheelSlipMinDamping(100.0)
+scene.AddRigidBody(kraz_vehicle)
 
-kraz.SetWheelSlipMaxDamping(100.0)
+scene.AddRigidBody(driver)
 
-kraz.SetWheelSlipMinDamping(100.0)
+scene.AddCamera(camera)
 
-kraz.SetWheelSlipMaxDamping(100.0)
 
-kraz.SetWheelSlipMinDamping(100.0)
+# Set up the Irrlicht visualization
 
-kraz.SetWheelSlipMaxDamping(100.0)
+irrlicht_options = chrono.ChIrrlichtOptions()
 
-kraz.SetWheelSlipMinDamping(100.0)
+irrlicht_options.SetVisualizer(visualization)
 
-kraz.SetWheelSlipMaxDamping(100.0)
+irrlicht_options.SetCamera(camera)
 
-kraz.SetWheelSlipMinDamping(100.0)
+irrlicht_options.SetScene(scene)
 
-kraz.SetWheelSlipMaxDamping(100.0)
 
-kraz.SetWheelSlipMinDamping(100.0)
+# Create an Irrlicht visualizer
 
-kraz.SetWheelSlipMaxDamping(100.0)
+irrlicht = chrono.ChIrrlichtVisualizer(irrlicht_options)
 
-kraz.SetWheelSlipMinDamping(100.0)
 
-kraz.SetWheelSlipMaxDamping(100.0)
+# Create a simulation loop
 
-kraz.SetWheelSlipMinDamping(100.0)
+while chrono.IsIrrlichtRunning():
 
-kraz.SetWheelSlipMaxDamping(100.0)
+    kraz_vehicle.Update(0.01)
 
-kraz.SetWheelSlipMinDamping(100.0)
+    driver.Update(0.01)
 
-kraz.SetWheelSlipMaxDamping(100.0)
+    scene.DoStepDynamics(0.01)
 
-kraz.SetWheelSlipMinDamping(100.0)
+    irrlicht.UpdateScene(0.01)
 
-kraz.SetWheelSlipMaxDamping(100.0)
+    irrlicht.Render()
 
-kraz.SetWheelSlipMinDamping(100.0)
 
-kraz.SetWheelSlipMaxDamping(100.0)
+# Clean up
 
-kraz.SetWheelSlipMinDamping(100.0)
-
-kraz.SetWheelSlipMaxDamping(100.0)
-
-kraz.SetWheelSlipMinDamping(100.0)
-
-kraz.SetWheelSlipMaxDamping(100.0)
-
-kraz.SetWheelSlipMinDamping(100.0)
-
-kraz.SetWheelSlipMaxDamping(100.0)
-
-kraz.SetWheelSlipMinDamping(100.0)
-
-kraz.SetWheelSlipMaxDamping(100.0)
-
-kraz.SetWheelSlipMinDamping(100.0)
-
-kraz.SetWheelSlipMaxDamping(100.0)
-
-kraz.SetWheelSlipMinDamping(100.0)
-
-kraz.SetWheelSlipMaxDamping(100.0)
-
-kraz.SetWheelSlipMinDamping(100.0)
-
-kraz.SetWheelSlipMaxDamping(100.0)
-
-kraz.SetWheelSlipMinDamping(100.0)
-
-kraz.SetWheelSlipMaxDamping(100.0)
-
-kraz.SetWheelSlipMinDamping(100.0)
-
-kraz.SetWheelSlipMaxDamping(100.0)
-
-kraz.SetWheelSlipMinDamping(100.0)
-
-kraz.SetWheelSlipMaxDamping(100.0)
-
-kraz.SetWheelSlipMinDamping(100.0)
-
-kraz.SetWheelSlipMaxDamping(100.0)
-
-kraz.SetWheelSlipMinDamping(100.0)
-
-kraz.SetWheelSlipMaxDamping(100.0)
-
-kraz.SetWheelSlipMinDamping(100.0)
-
-kraz.SetWheelSlipMaxDamping(100.0)
-
-kraz.SetWheelSlipMinDamping(100.0)
-
-kraz.SetWheelSlipMaxDamping(100.0)
-
-kraz.SetWheelSlipMinDamping(100.0)
-
-kraz.SetWheelSlipMaxDamping(100.0)
-
-kraz.SetWheelSlipMinDamping(100.0)
-
-kraz.SetWheelSlipMaxDamping(100.0)
-
-kraz.SetWheelSlipMinDamping(100.0)
-
-kraz.SetWheelSlipMaxDamping(100.0)
-
-kraz.SetWheelSlipMinDamping(100.0)
-
-kraz.SetWheelSlipMaxDamping(100.0)
-
-kraz.SetWheelSlipMinDamping(100.0)
-
-kraz.SetWheelSlipMaxDamping(100.0)
-
-kraz.SetWheelSlipMinDamping(100.0)
-
-kraz.SetWheelSlipMaxDamping(100.0)
-
-kraz.SetWheelSlipMinDamping(100.0)
-
-kraz.SetWheelSlipMaxDamping(100.0)
-
-kraz.SetWheelSlipMinDamping(100.0)
-
-kraz.SetWheelSlipMaxDamping(100.0)
-
-kraz.SetWheelSlipMinDamping(100.0)
-
-kraz.SetWheelSlipMaxDamping(100.0)
-
-kraz.SetWheelSlipMinDamping(100.0)
-
-kraz.SetWheelSlipMaxDamping(100.0)
-
-kraz.SetWheelSlipMinDamping(100.0)
-
-kraz.SetWheelSlipMaxDamping(100.0)
-
-kraz.SetWheelSlipMinDamping(100.0)
-
-kraz.SetWheelSlipMaxDamping(100.0)
-
-kraz.SetWheelSlipMinDamping(100.0)
-
-kraz.SetWheelSlipMaxDamping(100.0)
-
-kraz.SetWheelSlipMinDamping(100.0)
-
-kraz.SetWheelSlipMaxDamping(100.0)
-
-kraz.SetWheelSlipMinDamping(100.0)
-
-kraz.SetWheelSlipMaxDamping(100.0)
-
-kraz.SetWheelSlipMinDamping(100.0)
-
-kraz.SetWheelSlipMaxDamping(100.0)
-
-kraz.SetWheelSlipMinDamping(100.0)
-
-kraz.SetWheelSlipMaxDamping(100.0)
-
-kraz.SetWheelSlipMinDamping(100.0)
-
-kraz.SetWheelSlipMaxDamping(100.0)
-
-kraz.SetWheelSlipMinDamping(100.0)
-
-kraz.SetWheelSlipMaxDamping(100.0)
-
-kraz.SetWheelSlipMinDamping(100.0)
-
-kraz.SetWheelSlipMaxDamping(100.0)
-
-kraz.SetWheelSlipMinDamping(100.0)
-
-kraz.SetWheelSlipMaxDamping(100.0)
-
-kraz.SetWheelSlipMinDamping(100.0)
-
-kraz.SetWheelSlipMaxDamping(100.0)
-
-kraz.SetWheelSlipMinDamping(100.0)
-
-kraz.SetWheelSlipMaxDamping(100.0)
-
-kraz.SetWheelSlipMinDamping(100.0)
-
-kraz.SetWheelSlipMaxDamping(100.0)
-
-kraz.SetWheelSlipMinDamping(100.0)
-
-kraz.SetWheelSlipMaxDamping(100.0)
-
-kraz.SetWheelSlipMinDamping(100.0)
-
-kraz.SetWheelSlipMaxDamping(100.0)
-
-kraz.SetWheelSlipMinDamping(100.0)
-
-kraz.SetWheelSlipMaxDamping(100.0)
-
-kraz.SetWheelSlipMinDamping(100.0)
-
-kraz.SetWheelSlipMaxDamping(100.0)
-
-kraz.SetWheelSlipMinDamping(100.0)
-
-kraz.SetWheelSlipMaxDamping(100.0)
-
-kraz.SetWheelSlipMinDamping(100.0)
-
-kraz.SetWheelSlipMaxDamping(100.0)
-
-kraz.SetWheelSlipMinDamping(100.0)
-
-kraz.SetWheelSlipMaxDamping(100.0)
-
-kraz.SetWheelSlipMinDamping(100.0)
-
-kraz.SetWheelSlipMaxDamping(100.0)
-
-kraz.SetWheelSlipMinDamping(100.0)
-
-kraz.SetWheelSlipMaxDamping(100.0)
-
-kraz.SetWheelSlipMinDamping(100.0)
-
-kraz.SetWheelSlipMaxDamping(100.0)
-
-kraz.SetWheelSlipMinDamping(100.0)
-
-kraz.SetWheelSlipMaxDamping(100.0)
-
-kraz.SetWheelSlipMinDamping(100.0)
-
-kraz.SetWheelSlipMaxDamping(100.0)
-
-kraz.SetWheelSlipMinDamping(100.0)
-
-kraz.SetWheelSlipMaxDamping(100.0)
-
-kraz.SetWheelSlipMinDamping(100.0)
-
-kraz.SetWheelSlipMaxDamping(100.0)
-
-kraz.SetWheelSlipMinDamping(100.0)
-
-kraz.SetWheelSlipMaxDamping(100.0)
-
-kraz.SetWheelSlipMinDamping(100.0)
-
-kraz.SetWheelSlipMaxDamping(100.0)
-
-kraz.SetWheelSlipMinDamping(100.0)
-
-kraz.SetWheelSlipMaxDamping(100.0)
-
-kraz.SetWheelSlipMinDamping(100.0)
-
-kraz.SetWheelSlipMaxDamping(100.0)
-
-kraz.SetWheelSlipMinDamping(100.0)
-
-kraz.SetWheelSlipMaxDamping(100.0)
-
-kraz.SetWheelSlipMinDamping(100.0)
-
-kraz.SetWheelSlipMaxDamping(100.0)
-
-kraz.SetWheelSlipMinDamping(100.0)
-
-kraz.SetWheelSlipMaxDamping(100.0)
-
-kraz.SetWheelSlipMinDamping(100.0)
-
-kraz.SetWheelSlipMaxDamping(100.0)
-
-kraz.SetWheelSlipMinDamping(100.0)
-
-kraz.SetWheelSlipMaxDamping(100.0)
-
-kraz.SetWheelSlipMinDamping(100.0)
-
-kraz.SetWheelSlipMaxDamping(100.0)
-
-kraz.SetWheelSlipMinDamping(100.0)
-
-kraz.SetWheelSlipMaxDamping(100.0)
-
-kraz.SetWheelSlipMinDamping(100.0)
-
-kraz.SetWheelSlipMaxDamping(100.0)
+chrono.UnInit()

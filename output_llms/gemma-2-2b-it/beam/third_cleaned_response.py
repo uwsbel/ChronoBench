@@ -80,16 +80,7 @@ constr_d.SetConstrainedCoords(False, True, True,
 
 
 
-
-
-
-
-
-
-
 builder = fea.ChBuilderBeamEuler()
-
-
 builder.BuildBeam(mesh,                   
                     msection,                  
                     5,                         

@@ -1,63 +1,63 @@
 import pychrono as chrono
 import pychrono.visualization as vis
-import pychrono.sensor_manager as sensor_manager
-import numpy as np
+import pychrono.sensors as sensors
+import pychrono.core as core
 
 # Initialize PyChrono
-chrono.init()
+chrono.Init()
 
-# Create a new Chrono scene
-scene = chrono.Scene()
+# Create a new Chrono world
+world = chrono.World()
 
-# Load the triangular mesh
+# Load the triangular mesh from a Wavefront .obj file
 mesh_file = "your_mesh.obj"  # Replace with your mesh file path
-mesh = chrono.Mesh.from_file(mesh_file)
+mesh = chrono.Mesh.LoadMesh(mesh_file)
 
-# Create a fixed body
-body = chrono.Body(mesh)
-body.set_mass(1.0)  # Adjust mass as needed
-body.set_inertia(chrono.Inertia(mesh.get_vertices(), mesh.get_faces()))
-
-# Add the body to the scene
-scene.add_body(body)
+# Create a fixed body from the mesh
+mesh_body = chrono.Body(mesh)
+mesh_body.SetFixed()
 
 # Create a lidar sensor
-lidar = sensor_manager.LidarSensor(
-    sensor_manager.LidarSensorType.LIDAR_TYPE_SCANNER,
-    # Adjust sensor parameters as needed
-    # ...
-)
+lidar = sensors.Lidar()
+lidar_manager = sensors.SensorManager(lidar)
 
-# Add the lidar to the scene
-scene.add_sensor(lidar)
+# Set lidar parameters
+lidar_manager.SetNoiseFilter(sensors.GaussianFilter())
+lidar_manager.SetVisualization(vis.PointCloudVisualizer())
+lidar_manager.SetSaveOptions(sensors.SaveOptions(filename="lidar_data.csv"))
 
-# Set the lidar's initial position and orientation
-lidar.set_position(chrono.Vector3(0, 0, 0))  # Adjust position as needed
-lidar.set_orientation(chrono.Quaternion(0, 0, 0, 1))  # Adjust orientation as needed
+# Add the lidar sensor to the body
+mesh_body.AddSensor(lidar_manager)
 
-# Set the lidar's orbit parameters
-orbit_radius = 1.0  # Adjust orbit radius as needed
-orbit_altitude = 1.0  # Adjust orbit altitude as needed
+# Define the lidar's orbit around the mesh
+orbit_radius = 1.0
+orbit_angle = 0.0
+lidar_position = chrono.Vector3(0.0, 0.0, 0.0)  # Initial lidar position
+lidar_velocity = chrono.Vector3(0.0, 0.0, 0.0)  # Initial lidar velocity
 
-# Create a simulation loop
-for step in range(1000):
-    # Update the lidar's position in orbit
-    lidar.set_position(chrono.Vector3(
-        orbit_radius * np.cos(step * 2 * np.pi / 1000),
-        orbit_altitude,
-        orbit_radius * np.sin(step * 2 * np.pi / 1000),
-    ))
+# Define simulation parameters
+dt = 0.01  # Time step
+simulation_duration = 1000  # Simulation duration
 
-    # Print lidar buffer data
-    print(lidar.get_buffer())
+# Initialize the simulation
+world.SetSimulationTime(0)
+world.SetSimulationDuration(simulation_duration)
+
+# Main simulation loop
+for step in range(int(simulation_duration / dt)):
+    # Update the lidar's position
+    lidar_position = chrono.Vector3(
+        lidar_position.x + lidar_velocity.x * dt,
+        lidar_position.y + lidar_velocity.y * dt,
+        lidar_position.z + lidar_velocity.z * dt,
+    )
+
+    # Update the lidar sensor data
+    lidar_data = lidar_manager.GetSensorData()
+    print(lidar_data)
 
     # Update the simulation
-    scene.update()
-
-# Render the scene
-vis.render(scene)
+    world.Update()
 
 # Clean up
-scene.clear()
-vis.clear()
-chrono.shutdown()
+world.Shutdown()

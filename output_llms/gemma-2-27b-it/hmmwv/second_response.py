@@ -38,23 +38,16 @@ tire_step_size = step_size
 # Time interval between two render frames
 render_step_size = 1.0 / 50  # FPS = 50
 
-# --- Path Following Parameters ---
-path_radius = 20.0  # Radius of the circular path
-target_speed = 5.0  # Desired speed of the vehicle
-
-# --- PID Controller Gains ---
-Kp = 1.0  # Proportional gain
-Ki = 0.1  # Integral gain
-Kd = 0.01  # Derivative gain
 
 # Create the HMMWV vehicle, set parameters, and initialize
-vehicle = veh.HMMWV_Full()
+vehicle = veh.HMMWV_Full() # veh.HMMWV_Reduced()  could be another choice here
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
+
 vehicle.Initialize()
 
 vehicle.SetChassisVisualizationType(vis_type)
@@ -76,6 +69,7 @@ patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 # Create the vehicle Irrlicht interface
+
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('HMMWV Demo')
 vis.SetWindowSize(1280, 1024)
@@ -86,67 +80,80 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
-# --- Path Visualization ---
-sentinel_sphere = irr.ChIrrNodeSphere(0.5, vis.GetSceneManager())
-sentinel_sphere.SetPos(chrono.ChVector3d(path_radius, 0, 0))
-vis.AddNode(sentinel_sphere)
+# Path following
+radius = 20.0  # Radius of the circular path
+path_points = []
+for i in range(360):
+    angle = i * math.pi / 180
+    x = radius * math.cos(angle)
+    y = radius * math.sin(angle)
+    path_points.append(chrono.ChVector3d(x, y, 0))
 
-target_sphere = irr.ChIrrNodeSphere(0.5, vis.GetSceneManager())
-target_sphere.SetPos(chrono.ChVector3d(path_radius, 0, 0))
-vis.AddNode(target_sphere)
+sentinel_point = path_points[0]
+target_point = path_points[1]
 
-# --- PID Controller Initialization ---
+# Visualization of path points
+sentinel_sphere = irr.ChSphereShape()
+sentinel_sphere.GetMaterial().SetDiffuseColor(chrono.ChColor(1, 0, 0))
+sentinel_sphere.GetMaterial().SetSpecularColor(chrono.ChColor(1, 0, 0))
+sentinel_sphere.SetRadius(0.2)
+sentinel_vis = irr.ChBodyEasyBox(1, 1, 1, 1000)
+sentinel_vis.AddShape(sentinel_sphere)
+vis.GetSystem().Add(sentinel_vis)
+sentinel_vis.SetPos(sentinel_point)
+
+target_sphere = irr.ChSphereShape()
+target_sphere.GetMaterial().SetDiffuseColor(chrono.ChColor(0, 0, 1))
+target_sphere.GetMaterial().SetSpecularColor(chrono.ChColor(0, 0, 1))
+target_sphere.SetRadius(0.2)
+target_vis = irr.ChBodyEasyBox(1, 1, 1, 1000)
+target_vis.AddShape(target_sphere)
+vis.GetSystem().Add(target_vis)
+target_vis.SetPos(target_point)
+
+# PID controller parameters
+Kp = 1.0
+Ki = 0.1
+Kd = 0.01
+
+integral = 0.0
 previous_error = 0.0
-integral_error = 0.0
 
 # Simulation loop
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-while vis.Run():
+while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
 
     # Render scene and output POV-Ray data
-    if (step_number % math.ceil(render_step_size / step_size) == 0):
+    if (step_number % math.ceil(render_step_size / step_size) == 0) :
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
         render_frame += 1
 
-    # --- Path Following Logic ---
-    # Calculate target point on the circular path
-    angle = vehicle.GetVehicle().GetPos().x() / path_radius
-    target_x = path_radius * math.cos(angle)
-    target_y = path_radius * math.sin(angle)
-    target_point = chrono.ChVector3d(target_x, target_y, 0)
+    # Path following logic
+    current_pos = vehicle.GetVehicle().GetPos()
+    error = (target_point - current_pos).Length()
+    integral += error * step_size
+    derivative = (error - previous_error) / step_size
+    steering = Kp * error + Ki * integral + Kd * derivative
+    vehicle.GetVehicle().SetSteeringAngle(steering)
 
-    # Update target sphere position
-    target_sphere.SetPos(target_point)
+    # Update path points
+    sentinel_point = target_point
+    target_point = path_points[(path_points.index(target_point) + 1) % len(path_points)]
+    sentinel_vis.SetPos(sentinel_point)
+    target_vis.SetPos(target_point)
 
-    # Calculate error
-    error = (target_point - vehicle.GetVehicle().GetPos()).Length()
-
-    # PID control
-    integral_error += error * step_size
-    derivative_error = (error - previous_error) / step_size
-    steering_input = Kp * error + Ki * integral_error + Kd * derivative_error
-
-    # Apply steering input
-    vehicle.GetVehicle().SetSteeringAngle(steering_input)
-
-    # Apply constant throttle
-    vehicle.GetVehicle().SetThrottle(0.3)
-
-    # Update previous error
-    previous_error = error
-
-    # Update modules
+    # Update modules (process inputs from other modules)
     terrain.Synchronize(time)
-    vehicle.Synchronize(time)
+    vehicle.Synchronize(time, chrono.ChVector3d(0.3, 0, 0), terrain)
     vis.Synchronize(time)
 
-    # Advance simulation
+    # Advance simulation for one timestep for all modules
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)

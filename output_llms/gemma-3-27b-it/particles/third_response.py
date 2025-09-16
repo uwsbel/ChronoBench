@@ -42,6 +42,7 @@ msphereBody3.SetVel(chrono.ChVector3d(0, -0.5, 0.2))
 msphereBody3.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
 sys.Add(msphereBody3)
 
+
 # Create an emitter
 emitter = chrono.ChParticleEmitter()
 emitter.SetParticlesPerSecond(2000)
@@ -96,7 +97,6 @@ while vis.Run():
     emitter.EmitParticles(sys, stepsize)
     for body in sys.GetBodies():
         body.EmptyAccumulators()
-
     G_constant = 6.674e-11  # Corrected gravitational constant
 
     # Calculate the total kinetic energy of the system
@@ -115,7 +115,6 @@ while vis.Run():
 
     # Total energy of the system
     total_energy = kinetic_energy + potential_energy
-
     mlist = list(combinations(sys.GetBodies(), 2))
     for abodyA, abodyB in mlist:
         D_attract = abodyB.GetPos() - abodyA.GetPos()
@@ -127,5 +126,4 @@ while vis.Run():
 
     # Print the energy values
     print(f"Kinetic Energy: {kinetic_energy:.6f}, Potential Energy: {potential_energy:.6f}, Total Energy: {total_energy:.6f}")
-
     sys.DoStepDynamics(stepsize)

@@ -49,8 +49,8 @@ RIGHT_DRIVE_WHEEL = 1
 
 def move(mode):
     if mode == 'straight':
-        robot.SetMotorSpeed(1, LEFT_DRIVE_WHEEL)
-        robot.SetMotorSpeed(1, RIGHT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(0, LEFT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(0, RIGHT_DRIVE_WHEEL)
     elif mode == 'left':
         robot.SetMotorSpeed(0, LEFT_DRIVE_WHEEL)
         robot.SetMotorSpeed(-math.pi, RIGHT_DRIVE_WHEEL)
@@ -66,15 +66,15 @@ while vis.Run():
     
     if time < 5:
         move('straight')
-        print("Moving straight")
+        print("Robot is moving straight.")
     
     elif time < 10:
         move('left')
-        print("Turning left")
+        print("Robot is turning left.")
     
     else:
         move('right')
-        print("Turning right")
+        print("Robot is turning right.")
 
     
     time += time_step

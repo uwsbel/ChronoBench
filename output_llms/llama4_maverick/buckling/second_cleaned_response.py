@@ -1,22 +1,19 @@
-import math as m  
-import pychrono as chrono  
-import pychrono.fea as fea  
-import pychrono.pardisomkl as pardiso  
-import pychrono.irrlicht as chronoirr  
-import os  
-
+import math as m
+import pychrono as chrono
+import pychrono.fea as fea
+import pychrono.pardisomkl as pardiso
+import pychrono.irrlicht as chronoirr
 
 
 class ChFunctionMyFun(chrono.ChFunction):
     def __init__(self):
-        chrono.ChFunction.__init__(self)
+        super().__init__()
 
     def GetVal(self, x):
         if x > 0.4:
             return chrono.CH_PI
         else:
             return -chrono.CH_PI * (1.0 - m.cos(chrono.CH_PI * x / 0.4)) / 2.0
-
 
 
 out_dir = chrono.GetChronoOutputPath() + "BEAM_BUCKLING"
@@ -41,7 +38,7 @@ sys.AddBody(body_truss)
 
 
 boxtruss = chrono.ChVisualShapeBox(0.03, 0.25, 0.12)
-body_truss.AddVisualShape(boxtruss, chrono.ChFramed(chrono.ChVector3d(-0.01, 0, 0), chrono.QUNIT))
+body_truss.AddVisualShape(boxtruss, chrono.ChFrame(chrono.ChVector3d(-0.015, 0, 0), chrono.QUNIT))
 
 
 body_crank = chrono.ChBody()
@@ -54,7 +51,7 @@ body_crank.AddVisualShape(boxcrank)
 
 
 motor = chrono.ChLinkMotorRotationAngle()
-motor.Initialize(body_truss, body_crank, chrono.ChFramed(vG))  
+motor.Initialize(body_truss, body_crank, chrono.ChFrame(vG))  
 myfun = ChFunctionMyFun()  
 motor.SetAngleFunction(myfun)  
 sys.Add(motor)  
@@ -69,12 +66,10 @@ beam_wz = 0.012
 
 minertia = fea.ChInertiaCosseratSimple()
 minertia.SetAsRectangularSection(beam_wy, beam_wz, 2700)  
-
 melasticity = fea.ChElasticityCosseratSimple()
 melasticity.SetYoungModulus(73.0e9)  
 melasticity.SetShearModulusFromPoisson(0.3)  
 melasticity.SetAsRectangularSection(beam_wy, beam_wz)  
-
 msection1 = fea.ChBeamSectionCosserat(minertia, melasticity)  
 msection1.SetDrawThickness(beam_wy, beam_wz)  
 

@@ -3,7 +3,7 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
-# Encapsulate SCM Terrain Parameters
+
 class SCMTerrainParameters:
     def __init__(self, soil_parameters, soil_parameters_2, soil_parameters_3, soil_parameters_4, soil_parameters_5, soil_parameters_6, soil_parameters_7, soil_parameters_8):
         self.soil_parameters = soil_parameters
@@ -15,35 +15,81 @@ class SCMTerrainParameters:
         self.soil_parameters_7 = soil_parameters_7
         self.soil_parameters_8 = soil_parameters_8
 
-# Initialize Terrain Parameters
-def initialize_terrain_parameters(terrain_type):
+
+def InitializeTerrainParameters(terrain_type):
     if terrain_type == "soft":
-        soil_parameters = (2e6, 0, 1.1, 0, 30, 0.01, 2e8, 3e4)
+        soil_parameters = (2e6, 0, 1.1, 0, 30, 0.01, 2e8, 3e4)  
     elif terrain_type == "mid":
-        soil_parameters = (1e6, 0, 1.5, 0, 45, 0.02, 1e7, 5e4)
+        soil_parameters = (1e6, 0, 1.5, 0, 40, 0.02, 1e7, 5e4)
     elif terrain_type == "hard":
-        soil_parameters = (5e6, 0, 2.0, 0, 60, 0.03, 1e8, 1e5)
+        soil_parameters = (5e6, 0, 1.9, 0, 50, 0.05, 3e8, 7e4)
     else:
-        raise ValueError("Invalid terrain type.")
-    return soil_parameters
+        raise ValueError("Invalid terrain type. Choose from 'soft', 'mid', or 'hard'.")
+
+    return SCMTerrainParameters(soil_parameters)
+
+# Initial vehicle location and orientation
+initLoc = chrono.ChVector3d(-8, 0, 0.6)
+initRot = chrono.ChQuaterniond(1, 0, 0, 0)
+
+# Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
+vis_type = veh.VisualizationType_MESH
+
+# Collision type for chassis (PRIMITIVES, MESH, or NONE)
+chassis_collision_type = veh.CollisionType_NONE
+
+# Type of tire model (RIGID, TMEASY)
+tire_model = veh.TireModelType_RIGID
+
+# Rigid terrain
+# terrain_model = veh.RigidTerrain.BOX
+terrainHeight = 0      # terrain height
+terrainLength = 100.0  # size in X direction
+terrainWidth = 100.0   # size in Y direction
+
+# Poon chassis tracked by the camera
+trackPoint = chrono.ChVector3d(0.0, 0.0, 1.71)
+
+# Contact method
+contact_method = chrono.ChContactMethod_SMC
+contact_vis = False
+
+# Simulation step sizes
+step_size = 1e-3
+tire_step_size = step_size
+
+# Time interval between two render frames
+render_step_size = 1.0 / 50  # FPS = 50
 
 # Create the HMMWV vehicle, set parameters, and initialize
-vehicle = veh.HMMWV_Full()
-vehicle.SetContactMethod(chrono.ChContactMethod_SMC)
-vehicle.SetChassisCollisionType(chrono.ChCollisionType_NONE)
+
+vehicle = veh.HMMWV_Full() # veh.HMMWV_Reduced()  could be another choice here
+vehicle.SetContactMethod(contact_method)
+vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
-vehicle.SetInitPosition(chrono.ChCoordsysd(chrono.ChVector3d(-8, 0, 0.6), chrono.ChQuaterniond(1, 0, 0, 0)))
-vehicle.SetTireType(veh.TireModelType_RIGID)
-vehicle.SetTireStepSize(step_size)
+vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
+vehicle.SetTireType(tire_model)
+vehicle.SetTireStepSize(tire_step_size)
 
 vehicle.Initialize()
 
 # Create the SCM terrain patch
 terrain = veh.SCMTerrain(vehicle.GetSystem())
-terrain.SetSoilParameters(initialize_terrain_parameters("soft"))
+terrain.SetSoilParameters(InitializeTerrainParameters("soft"))
+#terrain.SetSoilParameters(InitializeTerrainParameters("mid"))
+#terrain.SetSoilParameters(InitializeTerrainParameters("hard"))
+
+# Optionally, enable moving patch feature (single patch around vehicle chassis)
+terrain.AddMovingPatch(vehicle.GetChassisBody(), chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(5, 3, 1))
+
+# Set plot type for SCM (false color plotting)
+terrain.SetPlotType(veh.SCMTerrain.PLOT_SINKAGE, 0, 0.1)
+
+# Initialize the SCM terrain (length, width, mesh resolution), specifying the initial mesh grid
 terrain.Initialize(20, 20, 0.02)
 
 # Create the vehicle Irrlicht interface
+
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('HMMWV Demo')
 vis.SetWindowSize(1280, 1024)
@@ -53,6 +99,7 @@ vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
+
 
 # Create the driver system
 driver = veh.ChInteractiveDriverIRR(vis)
@@ -82,11 +129,11 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-while vis.Run():
+while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
 
     # Render scene and output POV-Ray data
-    if (step_number % render_steps == 0):
+    if (step_number % render_steps == 0) :
         vis.BeginScene()
         vis.Render()
         vis.EndScene()

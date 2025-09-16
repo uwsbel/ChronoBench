@@ -51,7 +51,7 @@ mangvelo = chrono.ChRandomParticleVelocityAnyDirection()
 mangvelo.SetModulusDistribution(chrono.ChUniformDistribution(0.0, 0.2))
 emitter.SetParticleAngularVelocity(mangvelo)
 
-# Replace the particle shape creator
+# Replace ConvexHulls with Spheres
 mcreator_spheres = chrono.ChRandomShapeCreatorSpheres()
 mcreator_spheres.SetDiameterDistribution(chrono.ChZhangDistribution(0.6, 0.23))
 mcreator_spheres.SetDensityDistribution(chrono.ChConstantDistribution(1600))
@@ -79,7 +79,6 @@ sys.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, 0))
 
 # Simulation loop
 stepsize = 1e-2
-
 while vis.Run():
     vis.BeginScene()
     vis.Render()

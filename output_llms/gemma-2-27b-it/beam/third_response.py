@@ -99,7 +99,7 @@ builder.BuildBeam(mesh,                   # the mesh where to put the created no
 builder.BuildBeam(mesh,
                     msection,
                     5,
-                    builder.GetLastBeamNodes().back().GetPos(),  # Start from the last node of the previous beam
+                    builder.GetLastBeamNodes().back().GetPos(),  # Use the last node of the previous beam as the starting point
                     chrono.ChVector3d(0.2, 0.1, -0.1),
                     chrono.ChVector3d(0, 1, 0))
 

@@ -1,72 +1,95 @@
 import pychrono
 import numpy as np
-import rospy
-from std_msgs.msg import Float64
+import time
+import random
 
-# --- 1. Environment Setup ---
-# Define the HMMWV vehicle parameters
-vehicle_id = 1  # Unique ID for the vehicle
-vehicle_type = "M1"  # Example HMMWV type - adjust as needed
-contact_method = "Static"  # Static, Dynamic, or Hybrid
+# --- Simulation Parameters ---
+simulation_time = 100  # Simulation duration in seconds
+dt = 0.1  # Time step in seconds
+terrain_friction = 0.9  # Friction coefficient
+terrain_restitution = 0.8  # Rebound coefficient
+vehicle_type = "SUV"  # Vehicle type (e.g., SUV, truck)
+contact_method = "Contact"  # Contact method (e.g., "Contact", "Push")
 engine_type = "Diesel"
-tire_model = "200/70" # Example tire model - adjust as needed
-terrain_friction = 0.95  # Example friction coefficient - adjust as needed
-terrain_restitution = 0.85  # Example restitution coefficient - adjust as needed
+tire_model = "All-Terrain"
+initial_position = [0, 0, 0]
+initial_velocity = 10  # Initial velocity in m/s
+initial_acceleration = 0.1  # Initial acceleration in m/s^2
+initial_steering_angle = 0
+initial_throttle = 0
+initial_brake = 0
+initial_radius = 1.0 # Initial radius of the tire
 
+# --- PyChrono Setup ---
+pychrono.init()
 
-# Define the terrain
-terrain = np.zeros((10, 10))
-terrain[0:5, 0:5] = 1.0  # Simple terrain - adjust for more complex terrain
-terrain[5:10, 5:10] = 1.0
+# --- Physical Systems ---
+# Vehicle
+vehicle = pychrono.Vehicle(
+    id="vehicle",
+    type=vehicle_type,
+    position=initial_position,
+    velocity=initial_velocity,
+    acceleration=initial_acceleration,
+    steering_angle=initial_steering_angle,
+    throttle=initial_throttle,
+    brake=initial_brake,
+    radius=initial_radius
+)
 
-# --- 2. ROS Integration & Driver System ---
-rospy_client = rospy.Client()
-rospy_client.subscribe("vehicle_control", 1, callback=vehicle_control_callback)
-rospy_client.spin()  # Keep the ROS client running
+# Terrain
+terrain = pychrono.Terrain(
+    id="terrain",
+    type=terrain_friction,
+    friction=terrain_friction,
+    restitution=terrain_restitution,
+    heightmap=np.random.rand(100, 100)  # Simple heightmap for terrain
+)
 
+# --- ROS Integration ---
+ros_manager = pychrono.Manager()
+ros_manager.register_handlers(
+    "vehicle_handler",
+    lambda event: print(f"Vehicle Event: {event}")
+)
 
-# --- 3.  Simulation Loop ---
-def vehicle_control_callback(data):
-    """
-    Callback function for ROS communication.
-    """
-    try:
-        # Get vehicle state from ROS
-        vehicle_state = rospy.get_listener().get_vehicle_state()
-        print(f"Vehicle State: {vehicle_state}")
-
-        # Update the vehicle state (simplified - could be more sophisticated)
-        vehicle_state.update(data) # Pass data to update method
-
-        #  Simulate a simple control command (replace with actual control logic)
-        # This is a placeholder - you'd need to integrate with a real control system
-        if data.payload == "accelerate":
-            vehicle_state.update(np.array([1.0, 0.0, 0.0]))  # Accelerate
-        elif data.payload == "brake":
-            vehicle_state.update(np.array([0.0, -1.0, 0.0])) # Brake
-        elif data.payload == "turn":
-            vehicle_state.update(np.array([0.0, 0.0, 1.0])) # Turn
-        else:
-            vehicle_state.update(np.array([0.0, 0.0, 0.0])) # Idle
-
-    except rospy.ROSInterruptException:
-        pass # Handle ROS interrupt
-
-
-# --- 4.  Initial Setup ---
-rospy.init_node('hmmwvSimulation')
-# Initialize PyChrono
-simulation = pychrono.Simulation()
-simulation.add_system("vehicle")  # Add the vehicle system
-simulation.add_sensor("vehicle", "velocity") # Add a sensor for velocity
-simulation.add_actuator("vehicle", "engine") # Add an actuator for engine
-simulation.add_sensor("vehicle", "tire_pressure") # Add a sensor for tire pressure
-
-# --- 5.  Simulation Loop ---
+# --- Simulation Loop ---
 try:
-    while not rospy.is_shutdown():
-        vehicle_control_callback()
-        simulation.update() # Update the simulation state
+    while True:
+        # --- Update ---
+        # Vehicle Update
+        vehicle.update(dt)
 
-except rospy.ROSInterruptException:
-    pass
+        # Terrain Update
+        terrain.update(dt)
+
+        # Driver Input (Simplified - Placeholder)
+        # In a real simulation, this would be a more sophisticated driver model
+        #  (e.g., PID control, reinforcement learning)
+        driver_input = {
+            "throttle": initial_throttle,
+            "brake": initial_brake,
+            "steering_angle": initial_steering_angle
+        }
+        print(f"Driver Input: {driver_input}")
+
+        # --- ROS Publish ---
+        ros_manager.publish(
+            "vehicle_state",
+            {
+                "position": vehicle.position,
+                "velocity": vehicle.velocity,
+                "acceleration": vehicle.acceleration,
+                "steering_angle": vehicle.steering_angle,
+                "throttle": vehicle.throttle,
+                "brake": vehicle.brake
+            }
+        )
+
+        # --- Time Synchronization ---
+        time.sleep(dt)
+
+except KeyboardInterrupt:
+    print("Simulation interrupted.")
+    print("ROS Manager:  Data published successfully.")
+    # Optionally, clean up resources here if needed.

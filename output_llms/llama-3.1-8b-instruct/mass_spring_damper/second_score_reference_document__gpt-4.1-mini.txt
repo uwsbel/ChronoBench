@@ -4,163 +4,201 @@
 
 ### 1. Completeness (40 points)
 
-- **System Initialization:** Present and correct. (No deduction)
-- **Body Creation:** Both ground and two bodies are created, with positions, mass, inertia, and fixed/collision settings. (No deduction)
-- **Visualization Setup:** Visualization system is created, attached, window size and title set, initialized, logo, skybox, camera, and lights added. (No deduction)
-- **Spring/Damper Links:** Two `ChLinkTSDA` links created, one with default spring/damping coefficients, the other with a custom force functor. (No deduction)
-- **Visual Shapes:** Spheres added to ground, boxes added to bodies, springs visualized. (No deduction)
-- **Custom Force Functor:** Implemented, but differs in method signature and usage compared to reference. (See correctness)
+- **System Initialization:** Present and correct. (0 deduction)
+- **Body Creation:** Both ground and two bodies are created. However:
+  - The ground's visual spheres are added correctly.
+  - The two dynamic bodies are created with boxes as visual shapes.
+  - The second body’s box color is red `(0.6, 0, 0)` instead of blue `(0, 0, 0.6)` as in the reference. This is a minor deviation but not critical. (No deduction here, color is minor)
+- **Spring Links:**
+  - `spring_1` is created and configured with rest length, spring and damping coefficients, and visual shape. Correct.
+  - `spring_2` is created and configured with a custom force functor, rest length, and visual shape. However, the method used to set the force functor is `SetForceFunctor(my_spring_force)` instead of `RegisterForceFunctor(force)` as in the reference.
+  - Also, the custom force functor class is implemented differently and incorrectly (see correctness).
+- **Visualization Setup:** Present and mostly correct.
+- **Simulation Loop:** Present and correct.
 
-**No essential components are missing.**
+**Deductions:**
 
-**Completeness score: 40/40**
+- The custom force functor is present but incorrectly implemented (see correctness).
+- The use of `SetForceFunctor` instead of `RegisterForceFunctor` is a deviation from the reference and PyChrono API. This is a correctness issue but also relates to completeness of correct usage.
+- Minor omission: The second box color differs from the reference (red vs blue). This is minor, no deduction.
+- The custom force functor class is missing the proper constructor call to `super().__init__()`. Also, the force functor interface is not correctly implemented (see correctness).
+
+**Completeness deduction:**  
+No missing essential components, so no major deduction here.
+
+**Total Completeness deduction: 0**
 
 ---
 
 ### 2. Correctness (30 points)
 
-- **Custom Force Functor Implementation:**
+- **Custom ForceFunctor Implementation:**
 
   - The reference uses the `evaluate` method with signature:
+
     ```python
     def evaluate(self, time, rest_length, length, vel, link):
         ...
-        return force
     ```
-    This is the documented and expected interface for `ForceFunctor` in `ChLinkTSDA`.
 
-  - The provided code defines `Compute` with parameters:
+  - The provided code defines `GetForce(self, body, pos, normal)` which is not the correct interface for `chrono.ForceFunctor`. This will cause the force functor not to work as intended.
+
+  - The provided force calculation is:
+
     ```python
-    def Compute(self, point_on_body, normal_on_body, point_on_ground, normal_on_ground, m, force):
-        ...
+    spring_force = self.spring_coef * (self.rest_length - self.length)
+    damping_force = -self.damping_coef * self.velocity
+    return chrono.ChVectorD(spring_force, 0, 0) + chrono.ChVectorD(0, damping_force, 0)
     ```
-    This is **not** the correct method signature for `ForceFunctor` in `ChLinkTSDA`. Also, it attempts to set components of `force` directly, which is inconsistent with the documented API.
 
-  - The provided `Compute` method uses `point_on_body.GetV()` and `point_on_ground.GetV()`, but `ChVector` objects do not have a `GetV()` method; this will cause runtime errors.
+    This is incorrect because:
 
-  - The reference registers the force functor via `RegisterForceFunctor(force)`, while the provided code uses `SetForceFunctor(...)`. According to the PyChrono API, the correct method is `RegisterForceFunctor`.
+    - The spring force should be proportional to `(length - rest_length)`, not `(rest_length - length)`.
 
-- **Force Functor Usage:**
+    - The force should be scalar (a single value along the spring axis), not a vector sum of x and y components.
 
-  - The provided code sets spring coefficients and damping on `spring_1` but only sets the force functor on `spring_2` without setting rest length or coefficients explicitly on `spring_2`. The reference sets rest length on both springs.
+    - The force functor should return a scalar force magnitude, not a vector.
 
-- **Visual Shape Colors:**
+  - The properties `length`, `velocity`, `dt` rely on undefined variables like `self.rest_pos`, `self.prev_pos`, and `sys.GetTimestep()`. These are undefined or incorrectly used.
 
-  - The reference sets `box_2` color to blue `(0, 0, 0.6)`, while the provided code uses red `(0.6, 0, 0)` for both boxes. This is a minor detail but affects clarity.
+  - `sys` is a `ChSystemNSC` object, but `GetTimestep()` is not a method of `ChSystemNSC`. The timestep is usually passed or known externally.
 
-- **Force Functor Constructor:**
+- **Force Functor Registration:**
 
-  - The reference's `MySpringForce` constructor takes no parameters and uses global constants for spring and damping coefficients, which is cleaner and less error-prone.
+  - The code uses `spring_2.SetForceFunctor(my_spring_force)` which is not the documented method. The reference uses `RegisterForceFunctor(force)`.
+
+- **Body Visual Shape Colors:**
+
+  - The second box's color is red `(0.6, 0, 0)` instead of blue `(0, 0, 0.6)` as in the reference. This is a minor correctness issue.
+
+- **Use of `AddVisualShape`:**
+
+  - The code uses `AddVisualShape` with `chrono.ChFramed` for spheres on ground, which is correct.
+
+- **Other API uses:**
+
+  - `spring_1.Initialize(...)` and `spring_2.Initialize(...)` are correctly called.
+
+  - `sys.AddLink(spring_1)` and `sys.AddLink(spring_2)` are correct.
 
 - **Summary of correctness deductions:**
 
-  - Incorrect method signature and implementation of the force functor: **-15 points**
-  - Incorrect registration method for force functor (`SetForceFunctor` vs `RegisterForceFunctor`): **-10 points**
-  - Minor color inconsistency for `box_2`: no deduction (minor visual difference)
-  - Missing setting of rest length and coefficients on `spring_2` (only force functor set): **-10 points**
+  - Incorrect force functor interface and implementation: **15 points** (significant impact on simulation behavior).
 
-**Correctness score: 30 - 15 - 10 - 10 =  -5 → minimum 0**
+  - Incorrect method to register force functor (`SetForceFunctor` vs `RegisterForceFunctor`): **10 points** (logical error).
+
+  - Minor color difference in box_2: **5 points** (minor inaccuracy).
+
+**Total Correctness deduction: 30 points (maxed out)**
 
 ---
 
 ### 3. Code Quality (10 points)
 
-- The provided code lacks comments entirely, while the reference script includes descriptive comments explaining the purpose of blocks and classes.
+- The provided code lacks comments explaining the steps, unlike the reference which has descriptive comments.
 
-- The code formatting is acceptable, but variable naming is generic and lacks clarity (e.g., `sph_1`, `box_1`), though this is similar to the reference.
+- The custom force functor class is poorly structured:
 
-- The force functor class is not using `super().__init__()` in the constructor, which is recommended.
+  - No call to `super().__init__()` in constructor.
 
-- The code structure is linear and straightforward but could benefit from better documentation and explanation.
+  - Uses properties that rely on undefined variables.
+
+  - The method `GetForce` is not the documented method name.
+
+- Variable names are mostly clear, but the force functor implementation is confusing and not idiomatic.
+
+- Formatting is acceptable but could be improved with spacing and comments.
 
 **Deductions:**
 
-- Lack of comments/documentation: **-5 points**
+- Lack of comments/documentation: **5 points**
 
-- Minor issues in constructor usage and clarity: **-2 points**
+- Poor structure and unclear implementation of custom force functor: **5 points**
 
-**Code Quality score: 10 - 5 - 2 = 3**
+**Total Code Quality deduction: 10 points**
 
 ---
 
 ### 4. Efficiency (10 points)
 
-- The provided code redundantly computes force components manually in `Compute`, which is unnecessary given the proper `evaluate` interface.
+- The custom force functor calculates `length` and `velocity` using undefined variables and properties, which would cause runtime errors or inefficiencies.
 
-- The reference uses a concise formula returning a scalar force, which is more efficient and idiomatic.
+- The reference implementation is straightforward and efficient.
 
-- The provided code does not reuse constants or optimize calculations.
+- The provided code redundantly creates two `ChVectorD` objects and sums them, which is unnecessary.
 
-- No obvious redundant code or unnecessary API calls besides the force functor implementation.
+- No obvious optimization opportunities missed, but the incorrect implementation causes inefficiency.
 
 **Deductions:**
 
-- Inefficient and incorrect force functor implementation: **-5 points**
+- Unnecessary and incorrect calculations in force functor: **5 points**
 
-- Minor missed optimization in constructor and force calculation: **-3 points**
+- No other significant inefficiencies: 0 points
 
-**Efficiency score: 10 - 5 - 3 = 2**
+**Total Efficiency deduction: 5 points**
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- Neither script includes explicit error handling or edge case management.
+- Neither script includes explicit error handling.
 
-- The provided code's force functor will likely cause runtime errors due to incorrect method and attribute usage (`GetV()` on `ChVector`).
+- The provided code's force functor relies on undefined variables (`self.rest_pos`, `self.prev_pos`, `sys.GetTimestep()`), which will cause runtime errors.
 
-- The reference code avoids such issues by using the documented interface.
+- The reference script avoids these issues by using the correct interface.
+
+- No handling of edge cases or validation.
 
 **Deductions:**
 
-- Lack of basic robustness and potential runtime errors: **-5 points**
-
-**Error Handling score: 0**
+- Lack of robustness due to undefined variables and incorrect force functor implementation: **5 points**
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
-- Visualization setup is complete and matches the reference.
+- Visualization setup is mostly correct and matches the reference.
 
-- The provided code uses the same window size, title, logo, skybox, camera, and lights.
+- The camera position is the same.
 
-- Minor difference: the camera position and lighting are identical.
+- The second box's color is red instead of blue, which affects visual clarity.
 
-- The color of `box_2` is different (red vs blue), which affects visual clarity but is not a critical error.
+- The rest of the visualization (skybox, logo, lights) is correctly set.
 
 **Deductions:**
 
-- Minor visualization inconsistency in box color: **-2 points**
-
-**Visualization score: 5 - 2 = 3**
+- Minor visualization issue due to box color: **2 points**
 
 ---
 
-### **Summary of Scores:**
+### Summary of Deductions:
 
-| Criterion                  | Max Points | Deduction | Score |
-|----------------------------|------------|-----------|-------|
-| Completeness               | 40         | 0         | 40    |
-| Correctness               | 30         | 30        | 0     |
-| Code Quality              | 10         | 7         | 3     |
-| Efficiency                | 10         | 8         | 2     |
-| Error Handling & Robustness| 5          | 5         | 0     |
-| Visualization             | 5          | 2         | 3     |
-| **Total**                 | **100**    | **52**    | **48**|
+| Criterion                    | Deduction |
+|-----------------------------|-----------|
+| Completeness                | 0         |
+| Correctness                | 30        |
+| Code Quality               | 10        |
+| Efficiency                 | 5         |
+| Error Handling & Robustness| 5         |
+| Visualization Tools        | 2         |
+| **Total**                  | **52**    |
 
 ---
 
-**Final score: [[48]]**
+### Final Score:
+
+100 - 52 = 48
+
+---
+
+**Final score:** [[48]]
 
 ---
 
 **Explanation:**
 
-The provided code is mostly complete and sets up the simulation system, bodies, links, and visualization correctly. However, the critical issue lies in the incorrect implementation of the custom force functor: it uses a wrong method signature (`Compute` instead of `evaluate`), incorrect API calls (`GetV()` on `ChVector`), and incorrect registration (`SetForceFunctor` instead of `RegisterForceFunctor`). These errors would cause runtime failures and incorrect simulation behavior, warranting a full deduction in correctness and robustness.
+The provided code includes all major components but suffers from critical correctness issues, especially in the implementation and registration of the custom force functor. The force functor does not follow the PyChrono API, uses undefined variables, and returns a vector instead of a scalar force, which will break the simulation or produce incorrect results. The method to register the force functor is also incorrect.
 
-Additionally, the code lacks comments and documentation, reducing readability and maintainability. The force functor implementation is inefficient and unnecessarily complicated compared to the concise and correct reference implementation.
+Code quality is poor due to lack of comments and unclear structure in the force functor. Efficiency is reduced due to unnecessary calculations and incorrect logic. Error handling and robustness are lacking, with undefined variables likely causing runtime errors. Visualization is mostly correct but has minor color inconsistencies.
 
-Minor visualization differences and slight inefficiencies contribute to further deductions.
-
-Overall, the script needs correction in the force functor implementation and better documentation to meet best practices and ensure correct simulation behavior.
+Overall, the script is incomplete in correctness and quality, leading to a significant deduction.

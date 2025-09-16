@@ -1,1 +1,117 @@
-pys3D,3D,pythreshold
+import pychrono.core as chrono
+import pychrono.irrlicht as chronoirr
+import matplotlib.pyplot as plt
+import numpy as np
+
+# Initialize the Chrono simulation system with non-smooth contact (NSC) method
+sys = chrono.ChSystemNSC()
+
+# Define common parameters for the simulation
+crank_center = chrono.ChVector3d(-1, 0.5, 0)
+crank_rad = 0.4
+crank_thick = 0.1
+rod_length = 1.5
+
+# Create the floor (truss) body, which is a box
+mfloor = chrono.ChBodyEasyBox(3, 1, 3, 1000)
+mfloor.SetPos(chrono.ChVector3d(0, -0.5, 0))
+mfloor.SetFixed(True)
+sys.Add(mfloor)
+
+# Create the crank body, which is a cylinder
+mcrank = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, crank_rad, crank_thick, 1000)
+mcrank.SetPos(crank_center + chrono.ChVector3d(0, 0, -0.1))
+mcrank.SetRot(chrono.Q_ROTATE_Y_TO_Z)
+sys.Add(mcrank)
+
+# Create the connecting rod, which is a box
+mrod = chrono.ChBodyEasyBox(rod_length, 0.1, 0.1, 1000)
+mrod.SetPos(crank_center + chrono.ChVector3d(crank_rad + rod_length / 2, 0, 0))
+sys.Add(mrod)
+
+# Create the piston, which is a cylinder
+mpiston = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, 0.2, 0.3, 1000)
+mpiston.SetPos(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0))
+mpiston.SetRot(chrono.Q_ROTATE_Y_TO_X)
+sys.Add(mpiston)
+
+# Create a motor to spin the crankshaft
+my_motor = chrono.ChLinkMotorRotationSpeed()
+my_motor.Initialize(mcrank, mfloor, chrono.ChFramed(crank_center))
+my_angularspeed = chrono.ChFunctionConst(chrono.CH_PI)
+my_motor.SetMotorFunction(my_angularspeed)
+sys.Add(my_motor)
+
+# Create a revolute joint to connect the crank to the rod
+mjointA = chrono.ChLinkLockRevolute()
+mjointA.Initialize(mrod, mcrank, chrono.ChFramed(crank_center + chrono.ChVector3d(crank_rad, 0, 0)))
+sys.Add(mjointA)
+
+# Create a revolute joint to connect the rod to the piston
+mjointB = chrono.ChLinkLockRevolute()
+mjointB.Initialize(mpiston, mrod, chrono.ChFramed(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0)))
+sys.Add(mjointB)
+
+# Create a prismatic joint to connect the piston to the floor, allowing linear motion along the X-axis
+mjointC = chrono.ChLinkLockPrismatic()
+mjointC.Initialize(mpiston, mfloor, chrono.ChFramed(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0), chrono.Q_ROTATE_Z_TO_X))
+sys.Add(mjointC)
+
+# Set up the Irrlicht visualization system
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(sys)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle('Crank demo')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVector3d(1, 1, 3), chrono.ChVector3d(0, 1, 0))
+vis.AddTypicalLights()
+
+# Initialize arrays for storing values to be plotted
+array_time = []
+array_angle = []
+array_pos = []
+array_speed = []
+
+# Run the interactive simulation loop
+sim_time = 0
+sim_duration = 20  # Run the simulation for 20 seconds
+dt = 1e-3  # Time step of 0.001 seconds (1 ms)
+while vis.Run() and sim_time < sim_duration:
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    
+    # Advance the simulation by a time step
+    sys.DoStepDynamics(dt)
+    
+    # Collect data
+    sim_time += dt
+    array_time.append(sim_time)
+    mcrank.GetRot().GetAngle(chrono.ChVector3d(0, 0, 1))
+    array_angle.append(mcrank.GetRot().GetAngle(chrono.ChVector3d(0, 0, 1))
+    array_pos.append(mpiston.GetPos().x())
+    array_speed.append(my_motor.GetSpeed())
+
+# Plotting
+fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8))
+
+# First subplot: Plot position vs. crank angle
+ax1.plot(array_angle, array_pos, 'b-')
+ax1.set_xlabel('Crank angle [rad]')
+ax1.set_ylabel('Position [m]')
+ax1.set_title('Position vs. Crank Angle')
+
+# Second subplot: Plot speed vs. crank angle
+ax2.plot(array_angle, array_speed, 'r-')
+ax2.set_xlabel('Crank angle [rad]')
+ax2.set_ylabel('Speed [m/s]')
+ax2.set_title('Speed vs. Crank Angle')
+
+# Adjust the x-axis ticks to display π-based intervals
+ax1.set_xticks([0, np.pi/2, np.pi, 3*np.pi/2, 2*np.pi])
+ax2.set_xticks([0, np.pi/2, np.pi, 3*np.pi/2, 2*np.pi])
+
+plt.tight_layout()
+plt.show()

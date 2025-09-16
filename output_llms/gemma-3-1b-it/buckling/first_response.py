@@ -1,137 +1,91 @@
-import chronos
+import pychrono
 import numpy as np
 import matplotlib.pyplot as plt
-import time
+from pychrono.simulation import Simulation
 
-# 1. Initialize PyChrono
-chrono = chronos.Chrono()
+# 1. Initialize PyChrono Environment
+try:
+    simulation = Simulation()
+except Exception as e:
+    print(f"Error initializing PyChrono: {e}")
+    exit()
 
-# 2. Define System Parameters
-# Beam parameters (example - adjust for your specific beam)
-beam_length = 1.0  # meters
-beam_width = 0.1  # meters
-beam_thickness = 0.01 # meters
-support_location = (0, 0, 0)  # x, y, z coordinates
-support_radius = 0.05 # meters
-# 3. Define Physical Systems (Simplified)
-#   - Assume a simple beam with a single support.
-#   -  You'll need to add more complex elements (e.g., multiple supports, different material properties)
+# 2. Define Physical Systems and Objects
+# Beam
+beam = Simulation.Beam(
+    length=1.0,  # Beam length in meters
+    cross_section='I'  # Assuming a rectangular cross-section
+)
 
-# 4. Define Motor Functions (Illustrative - Replace with your FEA results)
-def motor_a(time, force):
-    # Simulate a simple motor force (replace with FEA results)
-    return force * 0.1  # Example:  Force increases linearly with time
+# Supports
+support1 = Simulation.Support(
+    position=[0, 0],  # Support 1 position
+    type='fixed'
+)
+support2 = Simulation.Support(
+    position=[0, 0],  # Support 2 position
+    type='fixed'
+)
 
-def motor_b(time, force):
-    # Simulate a simple motor force (replace with FEA results)
-    return force * 0.05 # Example: Force decreases linearly with time
+# Load external forces (example: gravity)
+gravity = 9.81  # m/s^2
 
-# 5.  Define Constraints (Illustrative - Adjust based on your problem)
-#   -  This is a VERY basic example - you'll need to define more robust constraints
-constraints = {
-    'beam_a': {'type': 'fixed', 'x': support_location[0], 'y': support_location[1], 'z': 0},
-    'beam_b': {'type': 'fixed', 'x': support_location[0], 'y': support_location[1], 'z': 0}
-}
+# 3. Set Default Parameters
+simulation.set_default_parameters(
+    gravity=gravity,
+    beam_length=1.0,
+    support_positions=[0, 0],
+    support_types=['fixed'],
+    beam_type='rectangular'
+)
 
+# 4. Create Simulation Data
+simulation.create_data(
+    beam,
+    support1,
+    support2,
+    gravity,
+    0.0,  # Initial time
+    1.0,  # Initial step size
+    1000, # Number of time steps
+    1,  # Number of iterations
+    10, # Number of force iterations
+    1, # Number of force iterations
+    0.01, # Time step size
+    100, # Max time step
+    1000 # Max simulation time
+)
 
-# 6.  Set Default Parameters
-chrono.set_system('beam_buckling')
-chrono.set_parameters({
-    'beam_length': beam_length,
-    'beam_width': beam_width,
-    'beam_thickness': beam_thickness,
-    'support_location': support_location,
-    'support_radius': support_radius,
-    'motor_a_force': 100, # Force for motor A
-    'motor_b_force': 50, # Force for motor B
-    'motor_a_time_step': 0.01, # Time step for motor A
-    'motor_b_time_step': 0.01
-})
+# 5. Implement Motor Functions (Example: Motor for Force Application)
+def apply_force(beam, force):
+    """Simulates applying a force to the beam."""
+    # This is a placeholder - replace with your actual motor function
+    print(f"Applying force: {force} N to beam")
+    return force
 
-# 7.  Start the Simulation
-chrono.run()
+# 6. Visualization (Using Irrlicht)
+try:
+    plt.figure(figsize=(10, 6))
+    plt.plot(simulation.time, simulation.beam.position, label='Beam Position')
+    plt.xlabel('Time (s)')
+    plt.ylabel('Position (m)')
+    plt.title('Beam Buckling Simulation')
+    plt.legend()
+    plt.grid(True)
+    plt.show()
 
-#Conceptual FEA Implementation (Replace with actual FEA code)
-def calculate_bending_moment(force, beam_length, beam_width, beam_thickness):
-    """
-    Calculates the bending moment at a point in the beam.
-    This is a placeholder - you'll need to implement a FEA solver.
-    """
-    # In a real FEA, this would involve solving a linear or nonlinear
-    # equation to determine the bending moment.
-    return force * beam_width
+except Exception as e:
+    print(f"Error creating visualization: {e}")
+    print("Ensure Irrlicht is installed and configured correctly.")
 
+# 7. Solver and Timestepper
+try:
+    simulation.set_solver(Simulation.Solver.Euler)  # Or another suitable solver
+    simulation.set_timestepper(100) # Set the number of timesteps
+except Exception as e:
+    print(f"Error setting solver/timestepper: {e}")
+    exit()
 
-def calculate_stress(force, beam_length, beam_width, beam_thickness):
-    """
-    Calculates the stress at a point in the beam.
-    This is a placeholder - you'll need to implement a FEA solver.
-    """
-    # In a real FEA, this would involve solving a linear or nonlinear
-    # equation to determine the stress.
-    return force * beam_thickness
-
-
-# Example:  Simulate a simple beam element
-def simulate_beam_element(force, beam_length, beam_width, beam_thickness, material_properties):
-    """
-    Simulates a single beam element using a simplified approach.
-    """
-    # Simplified stress and strain calculation
-    stress = calculate_stress(force, beam_length, beam_width, beam_thickness)
-    strain = calculate_strain(force, beam_length, beam_width, beam_thickness)
-    return stress, strain
-
-# Example Material Properties (Replace with actual material properties)
-material_properties = {
-    'material': 'Steel',
-    'young_modulus': 200000,
-    'tensile_modulus': 400000
-}
-
-def motor_a_function(time, force):
-    return force * 0.1  # Example: Force increases linearly with time
-
-def motor_b_function(time, force):
-    return force * 0.05  # Example: Force decreases linearly with time
-
-import irrlicht
-from irrlicht.graphics import *
-
-class BeamBucklingSimulation(object):
-    def __init__(self):
-        self.chrono = chrono.Chrono()
-        self.time_step = 0.01
-        self.beam_length = 1.0
-        self.beam_width = 0.1
-        self.beam_thickness = 0.01
-        self.support_location = (0, 0, 0)
-        self.support_radius = 0.05
-        self.motor_a_force = 100
-        self.motor_b_force = 50
-        self.motor_a_time_step = 0.01
-        self.motor_b_time_step = 0.01
-
-        self.chrono.set_system('beam_buckling')
-        self.chrono.set_parameters({
-            'beam_length': self.beam_length,
-            'beam_width': self.beam_width,
-            'beam_thickness': self.beam_thickness,
-            'support_location': self.support_location,
-            'support_radius': self.support_radius,
-            'motor_a_force': self.motor_a_force,
-            'motor_b_force': self.motor_b_force,
-            'motor_a_time_step': self.motor_a_time_step,
-            'motor_b_time_step': self.motor_b_time_step
-        })
-
-    def run(self):
-        self.chrono.run()
-
-if __name__ == '__main__':
-    simulation = BeamBucklingSimulation()
-    simulation.run()
-
-#  Implement a solver to run the simulation.  This is a placeholder.
-#  You'll need to integrate with a solver library (e.g., `pyfeast`).
-#  The solver will calculate the results of the simulation.
+# 8. Run Simulation
+simulation.run()
+print("Simulation completed.")

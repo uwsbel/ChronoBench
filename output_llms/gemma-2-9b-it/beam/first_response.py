@@ -1,48 +1,40 @@
 import pychrono as chrono
-import pychrono.irrlicht as vis
+import pychrono.irrlicht as chronoirr
 
 # Initialize Chrono
-chrono.SetChronoDataPath("path/to/chrono/data")  # Replace with your Chrono data path
+chrono.SetChronoDataPath("..")  # Set path to Chrono data files
+
+# Create a physical system
 system = chrono.ChSystemNSC()
 
-# Create a ground plane
-ground = chrono.ChBodyEasyBox(10, 10, 0.1)
-ground.SetPos(chrono.ChVectorD(0, 0, -0.1))
-ground.SetBodyFixed(True)
-system.Add(ground)
-
+# Create a mesh composed of beams and nodes
 # Define beam properties
 beam_material = chrono.ChMaterialSurfaceNSC()
 beam_material.SetFriction(0.5, 0.5)
 beam_material.SetRestitution(0.0)
-beam_material.SetYoungModulus(2e11)
-beam_material.SetDensity(7850)
+
+beam_cross_section = chrono.ChBeamSectionSolidCircle(0.05)  # Example: circular cross-section
 
 # Create nodes
-node1 = chrono.ChNodeBodyEasyPos(system)
-node1.SetName("Node1")
+node1 = chrono.ChNodeBodyEasyMotion(system)
 node1.SetPos(chrono.ChVectorD(0, 0, 0))
-system.Add(node1)
 
-node2 = chrono.ChNodeBodyEasyPos(system)
-node2.SetName("Node2")
+node2 = chrono.ChNodeBodyEasyMotion(system)
 node2.SetPos(chrono.ChVectorD(1, 0, 0))
-system.Add(node2)
 
-# Create beam element
-beam = chrono.ChBeamElement(beam_material, 0.1, 0.01)  # Length, cross-section
-beam.SetNodes(node1, node2)
-system.Add(beam)
+# Create beams connecting the nodes
+beam1 = chrono.ChBeam(beam_material, beam_cross_section)
+beam1.SetName("Beam1")
+beam1.SetBody(node1)
+beam1.SetOtherBody(node2)
 
-# Visualization setup
-vis.Init()
-vis.Add(ground)
-vis.Add(node1)
-vis.Add(node2)
-vis.Add(beam)
+# Add the beam to the system
+system.Add(beam1)
+
+# Create visualization using Irrlicht
+vis = chronoirr.ChIrrApp(system, 'Beam Simulation')
+vis.AddCamera(chrono.ChVectorD(2, 2, 2), chrono.ChVectorD(0, 0, 0))
+vis.AddTypicalLights()
+
+# Run the simulation loop
 vis.Run()
-
-# Simulation loop
-while True:
-    system.DoStepDynamics(0.01)
-    vis.Render()

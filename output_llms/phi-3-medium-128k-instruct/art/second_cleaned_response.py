@@ -7,22 +7,24 @@ chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 
-initLoc = chrono.ChVector3d(1, 0, 0.5)  
-initRot = chrono.ChQuaterniond(1, 0, 0, 0)
+initLoc = chrono.ChVector3d = chrono.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(vehicle.ChVector3d(1, 0, 0.5)))
+initLoc = chrono.ChVector3d(1, 0, 0.5)
+initRot = chrono.ChVector3d(1, 0, 0.5)
 
 
-vis_type = veh.VisualizationType_PRIMITIVES  
+vis_type = veh.VisualizationType_PRIMITIVES
 
 
-chassis_collision_type = veh.CollisionType_MESH  
+chassis_collision_type = veh.CollisionType_MESH
 
 
-tire_model = veh.TireModelType_FIALA  
+tire_model = veh.TireModelType_FIALA
 
 
-terrainHeight = 0      
-terrainLength = 100.0  
-terrainWidth = 100.0   
+
+terrainHeight = 0
+terrainLength = 100.0
+terrainWidth = 100.0
 
 
 trackPoint = chrono.ChVector3d(0.0, 0.0, 0.2)
@@ -36,7 +38,7 @@ step_size = 1e-3
 tire_step_size = step_size
 
 
-render_step_size = 1.0 / 50  
+render_step_size = 1.0 / 50
 
 
 
@@ -71,16 +73,16 @@ patch = terrain.AddPatch(patch_mat,
     chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
     terrainLength, terrainWidth)
 
-patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
+patch.SetTexture(vehicle.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 
 
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
-vis.SetWindowTitle('dart')
-vis.SetWindowSize(1280, 1024)
-vis.SetChaseCamera(trackPoint, 6.0, 0.5)
+vis.ChWindowTitle("dart")
+vis.ChWindowSize(1280, 1024)
+vis.ChaseCamera(trackPoint, 6.0, 0.5)
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
@@ -91,9 +93,9 @@ vis.AttachVehicle(vehicle.GetVehicle())
 driver = veh.ChInteractiveDriverIRR(vis)
 
 
-steering_time = 1.0  
-throttle_time = 1.0  
-braking_time = 0.3   
+steering_time = 1.0
+throttle_time = 1.0
+braking_time = 0.3
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)

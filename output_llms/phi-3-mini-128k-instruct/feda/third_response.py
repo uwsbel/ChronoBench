@@ -3,7 +3,6 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
-# Set the data path for the vehicle data
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
@@ -21,6 +20,7 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 # Rigid terrain
+# terrain_model = veh.RigidTerrain.BOX
 terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
@@ -48,14 +48,13 @@ vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 
+
 vehicle.Initialize()
 
 vehicle.SetChassisVisualizationType(vis_type)
 vehicle.SetSuspensionVisualizationType(vis_type)
 vehicle.SetSteeringVisualizationType(vis_type)
 vehicle.SetWheelVisualizationType(vis_type)
-vehicle.SetTireVisualizationType(vis_type)
-
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 # Create the terrain
@@ -67,32 +66,37 @@ patch = terrain.AddPatch(patch_mat,
     chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
     terrainLength, terrainWidth)
 
-# Change the terrain texture to a grass texture
-patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)
+patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 256, 256)  # Changed texture to grass
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 # Create the vehicle Irrlicht interface
 
-# Create a sensor manager for the camera sensor
-sensor_manager = veh.ChSensorManager()
-
-# Add a camera sensor to the vehicle's chassis body
+# Sensor manager for camera
 camera_sensor = veh.ChCameraSensor()
-camera_sensor.SetChassisBody(vehicle.GetChassisBody())
-camera_sensor.SetResolution(1920, 1080)
-camera_sensor.SetFieldOfView(60)
+camera_sensor.SetResolution(1280, 720)  # High resolution
+camera_sensor.SetFOV(60)  # Appropriate Field Of View
+
+# Create the camera sensor filter
+camera_filter = veh.ChCameraFilterIrrlicht()
+camera_filter.SetFOV(camera_sensor.GetFOV())
+camera_filter.SetPosition(trackPoint)
+
+# Add the camera sensor to the sensor manager
+sensor_manager = veh.ChSensorManager()
 sensor_manager.AddSensor(camera_sensor)
+sensor_manager.AddFilter(camera_filter)
 
-# Add point lights to the scene
-light_manager = veh.ChLightManager()
-light_manager.AddLight(chrono.ChLight(chrono.ChVector3d(0, 10, 0), chrono.ChColor(1, 1, 1)))
-light_manager.AddLight(chrono.ChLight(chrono.ChVector3d(0, -10, 0), chrono.ChColor(1, 1, 1)))
-light_manager.AddLight(chrono.ChLight(chrono.ChVector3d(10, 0, 0), chrono.ChColor(1, 1, 1)))
-light_manager.AddLight(chrono.ChLight(chrono.ChVector3d(-10, 0, 0), chrono.ChColor(1, 1, 1)))
-
-# Add the sensor manager to the vehicle
-vehicle.SetSensorManager(sensor_manager)
+vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
+vis.SetWindowTitle('FEDA vehicle')
+vis.SetWindowSize(1280, 1024)
+vis.SetChaseCamera(trackPoint, 6.0, 0.5)
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddLightDirectional()
+vis.AddSkyBox()
+vis.AttachVehicle(vehicle.GetVehicle())
+vis.AddSensorManager(sensor_manager)  # Add sensor manager to the visualization
 
 # Create the driver system
 driver = veh.ChInteractiveDriverIRR(vis)
@@ -137,18 +141,14 @@ while vis.Run() :
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
 
+    # Update the camera sensor filter in the sensor manager
+    sensor_manager.Update()  # Update the camera sensor filter in the sensor manager
+
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
 
-    # Increment frame number
-    step_number += 1
-
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
-
-    # Update the sensor manager and visualization filter
-    sensor_manager.Update(time)
-    vis.UpdateCameraSensor(camera_sensor)

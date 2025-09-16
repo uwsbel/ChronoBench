@@ -1,6 +1,5 @@
 import pychrono as chrono
 import pychrono.visualization as vis
-import pychrono.sensor as sensor
 
 # Initialize PyChrono
 chrono.init()
@@ -10,72 +9,39 @@ world = chrono.World()
 
 # Create the terrain
 terrain = chrono.Terrain(
-    chrono.Vector3(0, 0, 0),
-    chrono.Vector3(10, 10, 10),
-    chrono.Vector3(10, 10, 10),
-    chrono.Vector3(10, 10, 10),
+    chrono.Point(0, 0, 0),
+    chrono.Size(10, 10, 10),
+    chrono.Material(chrono.MaterialType.SOLID, 1.0),
 )
+world.add(terrain)
 
 # Create the Gator vehicle
 gator = chrono.Vehicle(
-    chrono.Vector3(0, 0, 0),
-    chrono.Vector3(10, 10, 10),
-    chrono.Vector3(10, 10, 10),
-    chrono.Vector3(10, 10, 10),
+    chrono.Point(0, 0, 0),
+    chrono.Size(5, 2, 2),
+    chrono.Material(chrono.MaterialType.SOLID, 1.0),
 )
+# Set visualization type for different vehicle parts
+gator.addVisual(vis.Sphere(chrono.Point(0, 0, 0), 0.5, color=(0, 0, 255)))  # Chassis
+gator.addVisual(vis.Box(chrono.Point(0, 0, 0), 1, 1, 1, color=(0, 255, 0)))  # Wheels
+gator.addVisual(vis.Cone(chrono.Point(0, 0, 0), 0.5, color=(255, 0, 0)))  # Front light
 
-# Add visualization types to vehicle parts
-gator.add_visual_part(
-    chrono.VisualPart(
-        chrono.Shape(chrono.ShapeType.BOX),
-        chrono.Color(1, 0, 0),
-        chrono.Position(0, 0, 0),
-    )
-)
-gator.add_visual_part(
-    chrono.VisualPart(
-        chrono.Shape(chrono.ShapeType.CYLINDER),
-        chrono.Color(0, 1, 0),
-        chrono.Position(0, 0, 0),
-    )
-)
-gator.add_visual_part(
-    chrono.VisualPart(
-        chrono.Shape(chrono.ShapeType.SPHERE),
-        chrono.Color(0, 0, 1),
-        chrono.Position(0, 0, 0),
-    )
-)
+# Create a sensor manager
+sensor_manager = chrono.SensorManager(world)
+sensor_manager.add(chrono.PointLight(chrono.Point(0, 0, 5)))  # Point light
+sensor_manager.add(chrono.Camera(chrono.Point(0, 0, 0), chrono.Size(10, 10, 10)))  # Camera
 
-# Add sensor manager
-sensor_manager = sensor.SensorManager(world)
-sensor_manager.add_sensor(sensor.PointLight(chrono.Vector3(0, 0, 0)))
-sensor_manager.add_sensor(sensor.Camera(chrono.Vector3(0, 0, 0)))
+# Create a driver system
+driver = chrono.Driver(gator)
 
 # Set default parameters
-gator.set_position(chrono.Vector3(0, 0, 0))
-gator.set_velocity(chrono.Vector3(0, 0, 0))
-gator.set_rotation(chrono.Quaternion(0, 0, 0, 1))
+gator.set_position(chrono.Point(0, 0, 0))
+gator.set_velocity(chrono.Vector(0, 0, 0))
+driver.set_position(chrono.Point(0, 0, 0))
+driver.set_velocity(chrono.Vector(0, 0, 0))
 
 # Set up the simulation loop
-for timestep in range(100):
-    # Update the driver
-    # ...
+chrono.Simulation(world, sensor_manager, driver)
 
-    # Update the terrain
-    # ...
-
-    # Update the vehicle
-    # ...
-
-    # Update the sensor manager
-    # ...
-
-    # Synchronize and advance the simulation modules
-    world.update()
-
-# Render the simulation
-vis.render(world)
-
-# Clean up
-chrono.finalize()
+# Run the simulation
+chrono.run()

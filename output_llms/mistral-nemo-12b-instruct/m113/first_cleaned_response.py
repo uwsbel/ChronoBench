@@ -1,57 +1,52 @@
-import pychrono as pc
-import pychrono.irrlicht as irr
-import pychrono.vehicle as vehicle
-import pychrono.terrain as terrain
-import pychrono.driver as driver
+import pychrono as chrono
+from pychrono.irrlicht import *
 
 
-pc.Initialize()
+chrono.SetChronoDataPath("path/to/chrono_data")  
+simulation = chrono.ChSimulation()
+simulation.SetTimestep(0.01)  
 
 
-terrain_size = 100
-terrain = terrain.RigidTerrain(terrain_size, terrain_size)
-terrain.SetFriction(0.8)
-terrain.SetRestitution(0.5)
-terrain.SetMaterial(pc.Material('grass', pc.Color(0.2, 0.8, 0.2)))
+
+vehicle = chrono.ChVehicle()
+vehicle.SetChassisBody(chrono.ChBodyEasyBox(0.5, 1, 0.3, 1000, True, True, False))
+vehicle.SetWheel(chrono.ChWheel(), chrono.ChVectorD(0.2, 0.3, 0.2), chrono.ChVectorD(0, 0, 0.3), chrono.ChVectorD(0, 1, 0), True, 0.3)
+vehicle.SetWheel(chrono.ChWheel(), chrono.ChVectorD(0.2, -0.3, 0.2), chrono.ChVectorD(0, 0, 0.3), chrono.ChVectorD(0, -1, 0), True, 0.3)
+vehicle.SetWheel(chrono.ChWheel(), chrono.ChVectorD(0.2, 0.3, -0.2), chrono.ChVectorD(0, 0, -0.3), chrono.ChVectorD(0, 1, 0), True, 0.3)
+vehicle.SetWheel(chrono.ChWheel(), chrono.ChVectorD(0.2, -0.3, -0.2), chrono.ChVectorD(0, 0, -0.3), chrono.ChVectorD(0, -1, 0), True, 0.3)
+vehicle.SetSteeringAngle(chrono.ChVectorD(0, 0, 0))  
+vehicle.SetWheelAngularSpeed(chrono.ChVectorD(0, 0, 0))  
+vehicle.SetWheelForce(chrono.ChVectorD(0, 0, 0))  
 
 
-pc.World.Add(terrain)
+terrain = chrono.ChTerrain()
+terrain.SetFriction(0.8)  
+terrain.SetRestitution(0.5)  
+terrain.AddBox(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(10, 10, 1), 1000, True, True, False)
 
 
-m113 = vehicle.M113()
-m113.SetPosition(0, 0, 0.5)
-m113.SetOrientation(pc.Quaternion.RotationY(pc.DegToRad(90)))
-m113.SetWheelFriction(0.5)
+driver = chrono.ChVehicleDriver()
+driver.SetSteeringMethod(chrono.CH_VEHICLE_STEERING_METHOD_PURE_PURSUIT)
+driver.SetSteeringWheelAngle(0)  
+driver.SetThrottle(0)  
+driver.SetBrake(0)  
 
 
-pc.World.Add(m113)
+vehicle.SetPos(chrono.ChVectorD(0, 0, 0.5))  
+vehicle.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))  
 
 
-driver_system = driver.Driver(m113)
-driver_system.SetThrottle(0.5)
-driver_system.SetSteering(0.0)
+application = IrrlichtApplication(simulation, chrono.CH_CAMERA_ORTHOGRAPHIC)
+camera = application.GetCamera()
+camera.SetPos(chrono.ChVectorD(0, -5, 5))  
+camera.SetDir(chrono.ChVectorD(0, 0, -1))  
+light = application.GetLight()
+light.SetPos(chrono.ChVectorD(10, 10, 10))  
 
 
-irr_app = irr.ChronoIrrApp()
-irr_app.SetCameraPosition(pc.Vector3d(0, -50, 50))
-irr_app.SetCameraRotation(pc.Vector3d(0, 0, 0))
-irr_app.SetLightDirection(pc.Vector3d(1, 1, 1))
-irr_app.SetLightColor(pc.Color(1, 1, 1))
-
-
-while not irr_app.Done():
-    
-    pc.World.Step()
-    driver_system.Advance()
-    irr_app.Update()
-
-    
-    irr_app.Draw()
-
-    
-    if irr_app.GetKeyDown(pc.Key.ESCAPE):
-        break
-
-
-pc.Finalize()
-irr_app.Close()
+while application.GetDevice().run():
+    simulation.DoStep()
+    vehicle.Synchronize()
+    terrain.Synchronize()
+    driver.Synchronize()
+    application.DoStep()

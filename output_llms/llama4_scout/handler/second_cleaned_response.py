@@ -1,16 +1,13 @@
 import pychrono as ch
 import pychrono.ros as chros
-
 import rclpy.publisher
 from std_msgs.msg import String  
 
 
 class MyCustomHandler(chros.ChROSHandler):
     
-
     def __init__(self, topic):
         super().__init__(1)  
-
         self.topic = topic
         self.publisher: rclpy.publisher.Publisher = None
         self.ticker = 0  
@@ -25,7 +22,7 @@ class MyCustomHandler(chros.ChROSHandler):
 
     def Tick(self, time: float):
         
-        print(f"Publishing {self.message}{self.ticker} ...")
+        print(f"Publishing {self.ticker} ...")
         msg = String()  
         msg.data = self.message + str(self.ticker)  
         self.publisher.publish(msg)  
@@ -56,18 +53,18 @@ def main():
 
     
     ros_manager = chros.ChROSPythonManager()
-    
+
     
     ros_manager.RegisterHandler(chros.ChROSClockHandler())
-    
+
     
     ros_manager.RegisterHandler(chros.ChROSBodyHandler(25, box, "~/box"))
-    
+
     
     tf_handler = chros.ChROSTFHandler(30)
     tf_handler.AddTransform(floor, floor.GetName(), box, box.GetName())
     ros_manager.RegisterHandler(tf_handler)
-    
+
     
     custom_handler = MyCustomHandler("~/my_topic")
     ros_manager.RegisterPythonHandler(custom_handler)
@@ -79,15 +76,13 @@ def main():
     time = 0
     time_step = 1e-3  
     time_end = 30  
-
     realtime_timer = ch.ChRealtimeStepTimer()  
+
     while time < time_end:
         sys.DoStepDynamics(time_step)  
         time = sys.GetChTime()  
-
         if not ros_manager.Update(time, time_step):  
             break  
-
         realtime_timer.Spin(time_step)  
 
 

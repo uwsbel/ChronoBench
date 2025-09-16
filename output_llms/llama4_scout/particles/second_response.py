@@ -14,7 +14,6 @@ class MyCreatorForAll(chrono.ChRandomShapeCreator_AddBodyCallback):
         self.coll.BindItem(body)
         body.SetUseGyroTorque(False)
 
-
 # Create a Chrono physical system
 sys = chrono.ChSystemNSC()
 sys.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
@@ -36,9 +35,8 @@ emitter.SetParticleReservoirAmount(200)
 
 # Randomizers for particle properties
 emitter_positions = chrono.ChRandomParticlePositionOnGeometry()
-emitter_positions.SetGeometry(chrono.ChBox(50, 50, 50), chrono.ChFramed())
+emitter_positions.SetGeometry(chrono.ChBox(50, 50, 50), chrono.ChFrame())
 emitter.SetParticlePositioner(emitter_positions)
-
 emitter_rotations = chrono.ChRandomParticleAlignmentUniform()
 emitter.SetParticleAligner(emitter_rotations)
 
@@ -50,7 +48,7 @@ mangvelo = chrono.ChRandomParticleVelocityAnyDirection()
 mangvelo.SetModulusDistribution(chrono.ChUniformDistribution(0.0, 0.2))
 emitter.SetParticleAngularVelocity(mangvelo)
 
-# Replace the Particle Creator
+# Replace the particle shape creator with ChRandomShapeCreatorSpheres
 mcreator_spheres = chrono.ChRandomShapeCreatorSpheres()
 mcreator_spheres.SetDiameterDistribution(chrono.ChZhangDistribution(0.6, 0.23))
 mcreator_spheres.SetDensityDistribution(chrono.ChConstantDistribution(1600))
@@ -74,27 +72,27 @@ emitter.RegisterAddBodyCallback(mcreation_callback)
 # Simulation settings
 sys.SetSolverType(chrono.ChSolver.Type_PSOR)
 sys.GetSolver().AsIterative().SetMaxIterations(40)
-sys.SetGravitationalAcceleration(chrono.ChVector3d(0, -9.81, 0))  # Set gravitational acceleration
+sys.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, 0))
 
 # Simulation loop
 stepsize = 1e-2
-
 while vis.Run():
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
-
+    
     emitter.EmitParticles(sys, stepsize)
-
+    
     for body in sys.GetBodies():
         body.EmptyAccumulators()
-
-    # Calculate energy
-    G_constant = 6.674e-3  # Modified gravitational constant
-    kinetic_energy = 0.0
-    potential_energy = 0.0
-
+        
+    G_constant = 6.674e-3  # Gravitational constant defined inside the loop
+    
+    # Calculate kinetic and potential energy
+    kinetic_energy = 0
+    potential_energy = 0
     mlist = list(combinations(sys.GetBodies(), 2))
+    
     for abodyA, abodyB in mlist:
         D_attract = abodyB.GetPos() - abodyA.GetPos()
         r_attract = D_attract.Length()
@@ -102,14 +100,15 @@ while vis.Run():
         F_attract = (D_attract / r_attract) * f_attract
         abodyA.AccumulateForce(F_attract, abodyA.GetPos(), False)
         abodyB.AccumulateForce(-F_attract, abodyB.GetPos(), False)
-
+        
+        # Contribution to potential energy
         potential_energy -= G_constant * (abodyA.GetMass() * abodyB.GetMass()) / r_attract
-
+    
     for body in sys.GetBodies():
         kinetic_energy += 0.5 * body.GetMass() * body.GetPosDt().Length2()
-
+    
     total_energy = kinetic_energy + potential_energy
-
+    
     print(f"Kinetic Energy: {kinetic_energy}, Potential Energy: {potential_energy}, Total Energy: {total_energy}")
-
+    
     sys.DoStepDynamics(stepsize)

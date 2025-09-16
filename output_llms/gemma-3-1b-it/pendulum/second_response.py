@@ -47,6 +47,7 @@ vis.AttachSystem(sys)  # Attach the Chrono system to the visualization
 vis.SetWindowSize(1024, 768)  # Set the window size for the visualization
 vis.SetWindowTitle('ChBodyAuxRef demo')  # Set the window title
 vis.Initialize()  # Initialize the visualization system
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))  # Add a logo to the visualization
 vis.AddSkyBox()  # Add a skybox for better visual appearance
 vis.AddCamera(chrono.ChVector3d(0, 3, 6))  # Add a camera to the visualization
 vis.AddTypicalLights()  # Add typical lights for better visualization

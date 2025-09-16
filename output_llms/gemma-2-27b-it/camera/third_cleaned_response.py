@@ -120,4 +120,4 @@ def main():
         if rgba8_buffer.HasData():
             rgba8_data = rgba8_buffer.GetRGBA8Data()
             print('RGBA8 buffer received from cam. Camera resolution: {0}x{1}'.format(rgba8_buffer.Width, rgba8_buffer.Height))
-            print('First Pixel: {0}'.format(rgba8_data[0, 0, :]))
+            print('First Pixel: {0}'.format(rgba8_data

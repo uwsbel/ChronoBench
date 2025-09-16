@@ -52,12 +52,12 @@ def main():
     
     
     
-    offset_pose = chrono.ChFramed(chrono.ChVector3d(-7, 0, 2), chrono.QuatFromAngleAxis(2, chrono.ChVector3d(0, 1, 0)))  
+    offset_pose = chrono.ChFramed(chrono.ChVector3d(-7, 0, 2), chrono.QuatFromAngleAxis(2, chrono.ChVector3d(0, 1, 0)))
 
     
     update_rate = 30
-    image_width = 960  
-    image_height = 480  
+    image_width = 960
+    image_height = 480
     fov = 1.408
     lag = 0
     exposure_time = 0
@@ -119,10 +119,10 @@ def main():
     
     
     
-    orbit_radius = 10
+    orbit_radius = 10  
     orbit_rate = 0.1  
-    ch_time = 0.0
-    t1 = time.time()
+    ch_time = 0.0  
+    t1 = time.time()  
 
     while ch_time < end_time:
         
@@ -160,11 +160,11 @@ def main():
     update_rate = 30
 
     
-    image_width = 960  
-    image_height = 480  
+    image_width = 960
+    image_height = 480
 
     
-    fov = 1.408
+    fov = 1.408  
 
     
     lag = 0
@@ -182,7 +182,7 @@ def main():
     end_time = 20.0
 
     
-    save = True  
+    save = True
 
     
     vis = True

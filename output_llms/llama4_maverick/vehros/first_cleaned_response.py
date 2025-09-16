@@ -1,83 +1,73 @@
 import pychrono as chrono
 import pychrono.vehicle as veh
-import pychrono.irrlicht as chronoirr
+import pychrono.irrlicht as irr
 import rospy
 from std_msgs.msg import Float64
+from geometry_msgs.msg import Twist
 
 
-chrono.Init()
+chrono.SetChronoDataPath("/path/to/chrono/data")
 
-
-sys = chrono.ChSystemNSC()
-
-
-init_file = "hmmwv/vehicle/HMMWV_Vehicle.json"
-vehicle = veh.HMMWV_Vehicle(sys, init_file=init_file)
-
-
-
-
-
-vehicle.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 1.0), chrono.Q_from_AngZ(0)))
-
-
-terrain = veh.RigidTerrain(sys)
-patch_mat = chrono.ChMaterialSurfaceNSC()
-patch_mat.SetFriction(0.9)
-patch_mat.SetRestitution(0.01)
-terrain.AddPatch(patch_mat, chrono.CSYSNORM, 100, 100)
-terrain.Initialize()
-
-
-driver = veh.ChDriver(vehicle.GetVehicle())
-
-
-driver_inputs = veh.DriverInputs()
-driver_inputs.m_steering = 0
-driver_inputs.m_throttle = 0
-driver_inputs.m_braking = 0
-
-
-rospy.init_node('hmmwv_simulator', anonymous=True)
-
-
-pub_vehicle_state = rospy.Publisher('/vehicle_state', Float64, queue_size=10)
-
-def clock_sync_callback(msg):
+def main():
     
-    pass
+    vehicle = veh.HMMWV_Full()
+    vehicle.SetContactMethod(chrono.ChContactMethod_SMC)
+    vehicle.SetChassisFixed(False)
+    vehicle.SetInitPosition(chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 1), chrono.ChQuaterniond(1, 0, 0, 0)))
+    vehicle.SetEngineType(veh.EngineModelType_SIMPLE)
+    vehicle.SetTireType(veh.TireModelType_TMEASY)
+    vehicle.Initialize()
 
-def driver_inputs_callback(msg):
     
-    driver_inputs.m_steering = msg.data  
-    driver.SetInputs(driver_inputs)
+    terrain = veh.RigidTerrain(vehicle.GetSystem())
+    patch = terrain.AddPatch(chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.Q_from_AngX(-chrono.CH_C_PI_2)), chrono.ChVector3d(100, 100, 1), 0.01)
+    patch.SetContactFrictionCoefficient(0.9)
+    patch.SetContactRestitutionCoefficient(0.01)
+    terrain.Initialize()
 
-rospy.Subscriber("/clock", Float64, clock_sync_callback)
-rospy.Subscriber("/driver_inputs", Float64, driver_inputs_callback)  
+    
+    driver = veh.ChDriver(vehicle)
 
+    
+    rospy.init_node('hmmwv_simulation', anonymous=True)
 
-step_size = 2e-3
-time_end = 100
+    
+    pub_clock = rospy.Publisher('/clock', Float64, queue_size=10)
+    pub_vehicle_state = rospy.Publisher('/vehicle_state', Twist, queue_size=10)
+    sub_driver_inputs = rospy.Subscriber('/driver_inputs', Twist, lambda msg: driver_inputs_callback(msg, driver))
 
+    
+    step_size = 2e-3
+    time = 0
 
-realtime_timer = chrono.ChRealtimeStepTimer()
-while sys.GetChTime() < time_end:
-    time = sys.GetChTime()
-    driver_inputs.m_throttle = 0.5  
+    while not rospy.is_shutdown():
+        
+        driver_inputs = driver.GetInputs()
+        vehicle.Synchronize(time, driver_inputs, terrain)
+        terrain.Synchronize(time)
+        driver.Synchronize(time)
+
+        
+        vehicle.Advance(step_size)
+        terrain.Advance(step_size)
+        driver.Advance(step_size)
+
+        
+        pub_clock.publish(Float64(time))
+        vehicle_state = Twist()
+        vehicle_state.linear.x = vehicle.GetPos().x
+        vehicle_state.linear.y = vehicle.GetPos().y
+        vehicle_state.linear.z = vehicle.GetPos().z
+        pub_vehicle_state.publish(vehicle_state)
+
+        
+        time += step_size
+
+def driver_inputs_callback(msg, driver):
     
-    
-    driver.Synchronize(time)
-    vehicle.Synchronize(time, driver_inputs, terrain)
-    terrain.Synchronize(time)
-    
-    
-    sys.DoStepDynamics(step_size)
-    
-    
-    pub_vehicle_state.publish(Float64(vehicle.GetSpeed()))  
-    
-    
-    rospy.rostime.wallsleep(0.01)
-    
-    
-    realtime_timer.Spin(step_size)
+    driver.SetThrottle(msg.linear.x)
+    driver.SetSteering(msg.angular.z)
+    driver.SetBraking(msg.linear.y)
+
+if __name__ == "__main__":
+    main()

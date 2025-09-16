@@ -1,181 +1,141 @@
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
-import pychrono.sensor as chrono_sensor
+import numpy as np
 import rospy
-import ros_numpy
-import sensor_msgs.msg
+from sensor_msgs.msg import Image, PointCloud2, NavSatFix, Imu
+from geometry_msgs.msg import Vector3Stamped
+from std_msgs.msg import Header
 
-# Initialize the Chrono system
-chrono.SetChronoDataPath("path/to/chrono/data")
-my_system = chrono.ChSystemNSC()
+# Initialize PyChrono environment and core components
+physics = chrono.ChSystemNSC()
+physics.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
 
-# Create a mesh object for visualization
-my_mesh = chrono.ChTriangleMeshConnected()
-my_mesh.LoadWavefrontMesh("path/to/mesh/file.obj")
+# Create ground body
+ground = chrono.ChBodyEasyBox(2, 2, 0.1, 1000, True, True)
+ground.SetPos(chrono.ChVectorD(0, 0, -0.1))
+physics.Add(ground)
 
-# Create a ground body and set its position
-my_ground = chrono.ChBodyEasyBox(2, 2, 0.1, 1000, True, True)
-my_ground.SetPos(chrono.ChVectorD(0, 0, -0.05))
-my_system.Add(my_ground)
+# Set ground body motion
+ground.SetPos_dt(chrono.ChVectorD(0, 0.1, 0))
 
-# Create a sensor manager
-my_sensor_manager = chrono_sensor.ChSensorManager()
-my_system.Add(my_sensor_manager)
+# Create sensor manager
+sensor_manager = chrono.ChSensorManager()
+physics.Add(sensor_manager)
 
-# Add the mesh object to the ground body
-my_ground.AddAsset(chrono.ChTriangleMeshShape(my_mesh))
+# Add camera sensor
+camera = chrono.ChCameraSensor(chrono.ChVectorD(0, 0, 0.5), chrono.ChVectorD(0, 0, -1))
+camera.SetName("camera")
+sensor_manager.AddSensor(camera)
 
-# Configure the ground body to move
-my_ground.SetBodyFixed(False)
-my_ground.SetPos_dt(chrono.ChVectorD(0.1, 0, 0))
+# Add lidar sensor
+lidar = chrono.ChLidarSensor(chrono.ChVectorD(0, 0, 0.5), 100, 1000, 45, 0.02)
+lidar.SetName("lidar")
+sensor_manager.AddSensor(lidar)
 
-# Set the initial position of the ground body
-my_ground.SetPos(chrono.ChVectorD(0, 0, 0))
+# Add GPS sensor
+gps = chrono.ChGPSSensor(chrono.ChVectorD(0, 0, 0.5))
+gps.SetName("gps")
+sensor_manager.AddSensor(gps)
 
-# Set the initial velocity of the ground body
-my_ground.SetPos_dt(chrono.ChVectorD(0.1, 0, 0))
+# Add accelerometer sensor
+accelerometer = chrono.ChAccelerometerSensor(chrono.ChVectorD(0, 0, 0.5))
+accelerometer.SetName("accelerometer")
+sensor_manager.AddSensor(accelerometer)
 
-# Create a camera sensor
-my_camera = chrono_sensor.ChCameraSensor(chrono_sensor.ChCameraSensorProperties())
-my_camera.SetName("camera")
-my_sensor_manager.AddSensor(my_camera)
+# Add gyroscope sensor
+gyroscope = chrono.ChGyroscopeSensor(chrono.ChVectorD(0, 0, 0.5))
+gyroscope.SetName("gyroscope")
+sensor_manager.AddSensor(gyroscope)
 
-# Create a lidar sensor
-my_lidar = chrono_sensor.ChLidarSensor(chrono_sensor.ChLidarSensorProperties())
-my_lidar.SetName("lidar")
-my_sensor_manager.AddSensor(my_lidar)
+# Add magnetometer sensor
+magnetometer = chrono.ChMagnetometerSensor(chrono.ChVectorD(0, 0, 0.5))
+magnetometer.SetName("magnetometer")
+sensor_manager.AddSensor(magnetometer)
 
-# Create a GPS sensor
-my_gps = chrono_sensor.ChGPSSensor(chrono_sensor.ChGPSSensorProperties())
-my_gps.SetName("gps")
-my_sensor_manager.AddSensor(my_gps)
+# Initialize ROS node and publishers
+rospy.init_node('pychrono_sensors')
+camera_pub = rospy.Publisher('/camera', Image, queue_size=10)
+lidar_pub = rospy.Publisher('/lidar', PointCloud2, queue_size=10)
+gps_pub = rospy.Publisher('/gps', NavSatFix, queue_size=10)
+accel_pub = rospy.Publisher('/accelerometer', Vector3Stamped, queue_size=10)
+gyro_pub = rospy.Publisher('/gyroscope', Vector3Stamped, queue_size=10)
+mag_pub = rospy.Publisher('/magnetometer', Vector3Stamped, queue_size=10)
 
-# Create an accelerometer sensor
-my_accelerometer = chrono_sensor.ChAccelerometerSensor(chrono_sensor.ChAccelerometerSensorProperties())
-my_accelerometer.SetName("accelerometer")
-my_sensor_manager.AddSensor(my_accelerometer)
+# Simulation loop
+application = chronoirr.ChIrrApp(physics, 'PyChrono Sensors', chronoirr.dimension2du(800, 600))
+application.AddTypicalSky()
+application.AddTypicalLogo()
+application.AddTypicalCamera(chrono.ChVectorD(0, -2, 0.5))
+application.AddLightWithShadow(chrono.ChVectorD(2, 2, 2), 0.4, 5, 5, 50, 128)
 
-# Create a gyroscope sensor
-my_gyroscope = chrono_sensor.ChGyroscopeSensor(chrono_sensor.ChGyroscopeSensorProperties())
-my_gyroscope.SetName("gyroscope")
-my_sensor_manager.AddSensor(my_gyroscope)
+while application.GetDevice().run():
+    application.BeginScene()
+    application.DrawAll()
+    application.DoStep()
 
-# Create a magnetometer sensor
-my_magnetometer = chrono_sensor.ChMagnetometerSensor(chrono_sensor.ChMagnetometerSensorProperties())
-my_magnetometer.SetName("magnetometer")
-my_sensor_manager.AddSensor(my_magnetometer)
+    # Update sensors
+    sensor_manager.Update()
 
-# Initialize the ROS node
-rospy.init_node("pychrono_simulation")
-
-# Register the camera sensor with ROS
-camera_publisher = rospy.Publisher("camera_data", sensor_msgs.msg.Image, queue_size=10)
-
-# Register the lidar sensor with ROS
-lidar_publisher = rospy.Publisher("lidar_data", sensor_msgs.msg.PointCloud2, queue_size=10)
-
-# Register the GPS sensor with ROS
-gps_publisher = rospy.Publisher("gps_data", sensor_msgs.msg.NavSatFix, queue_size=10)
-
-# Register the accelerometer sensor with ROS
-accelerometer_publisher = rospy.Publisher("accelerometer_data", sensor_msgs.msg.Imu, queue_size=10)
-
-# Register the gyroscope sensor with ROS
-gyroscope_publisher = rospy.Publisher("gyroscope_data", sensor_msgs.msg.Imu, queue_size=10)
-
-# Register the magnetometer sensor with ROS
-magnetometer_publisher = rospy.Publisher("magnetometer_data", sensor_msgs.msg.MagneticField, queue_size=10)
-
-# Create an Irrlicht application
-my_application = chronoirr.ChIrrApp(my_system, "PyChrono Simulation", chronoirr.dimension2du(800, 600))
-
-# Set the initial position of the camera
-my_application.GetView()->SetPos(chrono.ChVectorD(0, 0, 5))
-
-# Set the initial orientation of the camera
-my_application.GetView()->SetHpr(chrono.ChVectorD(0, chrono.CH_C_PI_2, 0))
-
-# Set the simulation step size
-my_system.SetTimestep(0.01)
-
-# Set the real-time factor
-my_application.SetTimestep(0.01)
-
-# Run the simulation loop
-while my_application.GetDevice().run():
-    # Update the sensors
-    my_sensor_manager.Update()
-
-    # Publish the camera data
-    camera_data = my_camera.GetSensorData()
-    camera_msg = sensor_msgs.msg.Image()
-    camera_msg.header.stamp = rospy.Time.now()
-    camera_msg.height = camera_data.height
-    camera_msg.width = camera_data.width
+    # Publish data to ROS topics
+    camera_data = sensor_manager.GetSensor("camera").Get_Data()
+    camera_msg = Image()
+    camera_msg.height = camera_data.GetHeight()
+    camera_msg.width = camera_data.GetWidth()
     camera_msg.encoding = "rgb8"
-    camera_msg.is_bigendian = 0
-    camera_msg.step = camera_data.width * 3
-    camera_msg.data = camera_data.data.flatten().tolist()
-    camera_publisher.publish(camera_msg)
+    camera_msg.is_bigendian = False
+    camera_msg.step = camera_data.GetWidth() * 3
+    camera_msg.data = np.array(camera_data.GetData(), dtype=np.uint8).flatten().tolist()
+    camera_pub.publish(camera_msg)
 
-    # Publish the lidar data
-    lidar_data = my_lidar.GetSensorData()
-    lidar_msg = sensor_msgs.msg.PointCloud2()
-    lidar_msg.header.stamp = rospy.Time.now()
+    lidar_data = sensor_manager.GetSensor("lidar").Get_Data()
+    lidar_msg = PointCloud2()
+    lidar_msg.header.frame_id = "lidar"
     lidar_msg.height = 1
-    lidar_msg.width = len(lidar_data.points)
-    lidar_msg.fields = [sensor_msgs.msg.PointField('x', 0, sensor_msgs.msg.PointField.FLOAT32, 1),
-                        sensor_msgs.msg.PointField('y', 4, sensor_msgs.msg.PointField.FLOAT32, 1),
-                        sensor_msgs.msg.PointField('z', 8, sensor_msgs.msg.PointField.FLOAT32, 1)]
+    lidar_msg.width = len(lidar_data)
+    lidar_msg.fields = [
+        PointField('x', 0, PointField.FLOAT32, 1),
+        PointField('y', 4, PointField.FLOAT32, 1),
+        PointField('z', 8, PointField.FLOAT32, 1),
+        PointField('intensity', 12, PointField.FLOAT32, 1)
+    ]
     lidar_msg.is_bigendian = False
-    lidar_msg.point_step = 12
-    lidar_msg.row_step = lidar_msg.point_step * lidar_msg.width
-    lidar_msg.data = ros_numpy.numpify(lidar_data.points).flatten().tolist()
-    lidar_publisher.publish(lidar_msg)
+    lidar_msg.point_step = 16
+    lidar_msg.row_step = lidar_msg.point_step * len(lidar_data)
+    lidar_msg.data = np.array(lidar_data, dtype=np.float32).flatten().tolist()
+    lidar_pub.publish(lidar_msg)
 
-    # Publish the GPS data
-    gps_data = my_gps.GetSensorData()
-    gps_msg = sensor_msgs.msg.NavSatFix()
-    gps_msg.header.stamp = rospy.Time.now()
-    gps_msg.latitude = gps_data.latitude
-    gps_msg.longitude = gps_data.longitude
-    gps_msg.altitude = gps_data.altitude
-    gps_publisher.publish(gps_msg)
+    gps_data = sensor_manager.GetSensor("gps").Get_Data()
+    gps_msg = NavSatFix()
+    gps_msg.header.frame_id = "gps"
+    gps_msg.latitude = gps_data.GetLatitude()
+    gps_msg.longitude = gps_data.GetLongitude()
+    gps_msg.altitude = gps_data.GetAltitude()
+    gps_pub.publish(gps_msg)
 
-    # Publish the accelerometer data
-    accelerometer_data = my_accelerometer.GetSensorData()
-    accelerometer_msg = sensor_msgs.msg.Imu()
-    accelerometer_msg.header.stamp = rospy.Time.now()
-    accelerometer_msg.linear_acceleration.x = accelerometer_data.linear_acceleration.x
-    accelerometer_msg.linear_acceleration.y = accelerometer_data.linear_acceleration.y
-    accelerometer_msg.linear_acceleration.z = accelerometer_data.linear_acceleration.z
-    accelerometer_publisher.publish(accelerometer_msg)
+    accelerometer_data = sensor_manager.GetSensor("accelerometer").Get_Data()
+    accelerometer_msg = Vector3Stamped()
+    accelerometer_msg.header.frame_id = "accelerometer"
+    accelerometer_msg.vector.x = accelerometer_data.GetAcceleration().x
+    accelerometer_msg.vector.y = accelerometer_data.GetAcceleration().y
+    accelerometer_msg.vector.z = accelerometer_data.GetAcceleration().z
+    accel_pub.publish(accelerometer_msg)
 
-    # Publish the gyroscope data
-    gyroscope_data = my_gyroscope.GetSensorData()
-    gyroscope_msg = sensor_msgs.msg.Imu()
-    gyroscope_msg.header.stamp = rospy.Time.now()
-    gyroscope_msg.angular_velocity.x = gyroscope_data.angular_velocity.x
-    gyroscope_msg.angular_velocity.y = gyroscope_data.angular_velocity.y
-    gyroscope_msg.angular_velocity.z = gyroscope_data.angular_velocity.z
-    gyroscope_publisher.publish(gyroscope_msg)
+    gyroscope_data = sensor_manager.GetSensor("gyroscope").Get_Data()
+    gyroscope_msg = Vector3Stamped()
+    gyroscope_msg.header.frame_id = "gyroscope"
+    gyroscope_msg.vector.x = gyroscope_data.GetAngularVelocity().x
+    gyroscope_msg.vector.y = gyroscope_data.GetAngularVelocity().y
+    gyroscope_msg.vector.z = gyroscope_data.GetAngularVelocity().z
+    gyro_pub.publish(gyroscope_msg)
 
-    # Publish the magnetometer data
-    magnetometer_data = my_magnetometer.GetSensorData()
-    magnetometer_msg = sensor_msgs.msg.MagneticField()
-    magnetometer_msg.header.stamp = rospy.Time.now()
-    magnetometer_msg.magnetic_field.x = magnetometer_data.magnetic_field.x
-    magnetometer_msg.magnetic_field.y = magnetometer_data.magnetic_field.y
-    magnetometer_msg.magnetic_field.z = magnetometer_data.magnetic_field.z
-    magnetometer_publisher.publish(magnetometer_msg)
+    magnetometer_data = sensor_manager.GetSensor("magnetometer").Get_Data()
+    magnetometer_msg = Vector3Stamped()
+    magnetometer_msg.header.frame_id = "magnetometer"
+    magnetometer_msg.vector.x = magnetometer_data.GetMagneticField().x
+    magnetometer_msg.vector.y = magnetometer_data.GetMagneticField().y
+    magnetometer_msg.vector.z = magnetometer_data.GetMagneticField().z
+    mag_pub.publish(magnetometer_msg)
 
-    # Advance the simulation
-    my_system.DoStepDynamics(my_application.GetTimestep())
+    application.EndScene()
 
-    # Update the Irrlicht application
-    my_application.BeginScene()
-    my_application.DrawAll()
-    my_application.EndScene()
-
-# Destroy the Irrlicht application
-my_application.GetDevice().closeDevice()
+application.Wait()

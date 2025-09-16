@@ -19,25 +19,33 @@ sys = chrono.ChSystemNSC()
 sys.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 coll = sys.GetCollisionSystem()
 
+# Create the Irrlicht visualization
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(sys)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle('Three-body simulation')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVector3d(0, 14, -20))
+vis.AddTypicalLights()
+
 # Create three sphere bodies
 sphere_mat = chrono.ChContactMaterialNSC()
 sphere_mat.SetFriction(0.2)
 
-# Sphere 1
 msphereBody1 = chrono.ChBodyEasySphere(2.1, 1800, True, True, sphere_mat)
 msphereBody1.SetPos(chrono.ChVector3d(1, 1, 0))
 msphereBody1.SetPosDt(chrono.ChVector3d(0.5, 0, 0.1))  # Set initial velocity
 msphereBody1.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
 sys.Add(msphereBody1)
 
-# Sphere 2
 msphereBody2 = chrono.ChBodyEasySphere(2.1, 1800, True, True, sphere_mat)
 msphereBody2.SetPos(chrono.ChVector3d(-10, -10, 0))
 msphereBody2.SetPosDt(chrono.ChVector3d(-0.5, 0, -0.1))  # Set initial velocity
 msphereBody2.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
 sys.Add(msphereBody2)
 
-# Sphere 3
 msphereBody3 = chrono.ChBodyEasySphere(2.1, 1800, True, True, sphere_mat)
 msphereBody3.SetPos(chrono.ChVector3d(0, 20, 0))
 msphereBody3.SetPosDt(chrono.ChVector3d(0, -0.5, 0.2))  # Set initial velocity
@@ -46,7 +54,7 @@ sys.Add(msphereBody3)
 
 # Create an emitter
 emitter = chrono.ChParticleEmitter()
-emitter.SetParticlesPerSecond(2000)
+emitter.SetParticlesPerSecond(0)  # Disable particle emission for three-body simulation
 emitter.SetUseParticleReservoir(True)
 emitter.SetParticleReservoirAmount(200)
 
@@ -71,26 +79,16 @@ mcreator_spheres.SetDiameterDistribution(chrono.ChZhangDistribution(0.6, 0.23))
 mcreator_spheres.SetDensityDistribution(chrono.ChConstantDistribution(1600))
 emitter.SetParticleCreator(mcreator_spheres)
 
-# Create the Irrlicht visualization
-vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(sys)
-vis.SetWindowSize(1024, 768)
-vis.SetWindowTitle('Particle emitter demo')
-vis.Initialize()
-vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
-vis.AddSkyBox()
-vis.AddCamera(chrono.ChVector3d(0, 14, -20))
-vis.AddTypicalLights()
-
 mcreation_callback = MyCreatorForAll(vis, coll)
 emitter.RegisterAddBodyCallback(mcreation_callback)
 
 sys.SetSolverType(chrono.ChSolver.Type_PSOR)
 sys.GetSolver().AsIterative().SetMaxIterations(40)
-sys.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, 0))  # Disable Chrono's gravity
+sys.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, 0))
 
 # Simulation loop
 stepsize = 1e-2
+G_constant = 6.674e-11  # Correct gravitational constant
 
 while vis.Run():
     vis.BeginScene()
@@ -101,8 +99,6 @@ while vis.Run():
 
     for body in sys.GetBodies():
         body.EmptyAccumulators()
-
-    G_constant = 6.674e-3  # Gravitational constant for simulation
 
     # Calculate the total kinetic energy of the system
     kinetic_energy = 0
@@ -121,6 +117,7 @@ while vis.Run():
 
     # Total energy of the system
     total_energy = kinetic_energy + potential_energy
+
     mlist = list(combinations(sys.GetBodies(), 2))
     for abodyA, abodyB in mlist:
         D_attract = abodyB.GetPos() - abodyA.GetPos()
@@ -132,7 +129,8 @@ while vis.Run():
             abodyB.AccumulateForce(-F_attract, abodyB.GetPos(), False)
 
     # Print the energy values
-    print(
-        f"Kinetic Energy: {kinetic_energy:.6f}, Potential Energy: {potential_energy:.6f}, Total Energy: {total_energy:.6f}")
+    print(f"Kinetic Energy: {kinetic_energy:.6f}, Potential Energy: {potential_energy:.6f}, Total Energy: {total_energy:.6f}")
 
     sys.DoStepDynamics(stepsize)
+
+# The corrected and modified script is above.

@@ -22,8 +22,8 @@ def main():
 
     # Enhance visualization settings for HMMWV vehicle
     hmmwv.SetChassisVisualizationType(veh.VisualizationType_MESH)
-    hmmwv.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
-    hmmwv.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
+    hmmwv.SetSuspensionVisualizationType(veh.VisualizationType_MESH)
+    hmmwv.SetSteeringVisualizationType(veh.VisualizationType_MESH)
     hmmwv.SetWheelVisualizationType(veh.VisualizationType_MESH)
     hmmwv.SetTireVisualizationType(veh.VisualizationType_MESH)
 
@@ -53,20 +53,21 @@ def main():
 
     # Create the Irrlicht visualization system
     vis = chronoirr.ChVisualSystemIrrlicht()
+    vis.AttachSystem(hmmwv.GetSystem())
     vis.SetWindowSize(1280, 720)
     vis.SetWindowTitle('HMMWV Simulation')
     vis.Initialize()
     vis.AddLogo()
     vis.AddSkyBox()
-    vis.AddCamera(ch.ChVector3d(10, 10, 5), ch.ChVector3d(0, 0, 0))
-    vis.AttachSystem(hmmwv.GetSystem())
+    vis.AddCamera(ch.ChVector3d(10, 10, 5))
+    vis.AddTypicalLights()
 
     # Start the simulation loop.
     time = 0
     time_step = 1e-3  # Define the simulation time step.
     time_end = 30  # Set the total duration of the simulation.
-
     hmmwv.GetVehicle().EnableRealtime(True)  # Enable real-time simulation for the vehicle.
+
     while time < time_end:
         time = hmmwv.GetSystem().GetChTime()  # Update simulation time.
 
@@ -85,10 +86,10 @@ def main():
         if not ros_manager.Update(time, time_step):
             break  # Exit loop if ROS manager update fails.
 
-        # Render the scene
-        vis.BeginScene()
+        # Render the current frame
+        vis.Run()
         vis.Render()
-        vis.EndScene()
 
 if __name__ == "__main__":
     main()
+

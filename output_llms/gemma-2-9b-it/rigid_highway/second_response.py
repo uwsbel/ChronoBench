@@ -87,14 +87,12 @@ new_patch = terrain.AddPatch(new_patch_mat,
     chrono.ChCoordsysd(chrono.ChVector3d(0, -42, 0), chrono.QUNIT),
     chrono.GetChronoDataFile('vehicle/terrain/meshes/bump.obj'),
     True, 0.01, False)
+
 vis_mesh = chrono.ChTriangleMeshConnected().CreateFromWavefrontFile(veh.GetDataFile("terrain/meshes/bump.obj"), True, True)
 tri_mesh_shape = chrono.ChVisualShapeTriangleMesh()
 tri_mesh_shape.SetMesh(vis_mesh)
 tri_mesh_shape.SetMutable(False)
 new_patch.GetGroundBody().AddVisualShape(tri_mesh_shape)
-new_patch.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
-new_patch.SetColor(chrono.ChColor(0.5, 0.5, 0.8))
-
 terrain.Initialize()
 
 # Create the vehicle Irrlicht interface

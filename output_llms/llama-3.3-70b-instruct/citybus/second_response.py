@@ -83,13 +83,13 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 # Create the driver system
-driver_inputs = []
-driver_inputs.append(veh.DataDriverEntry(0.0, 0.0, 0.0, 0.0))  # time, throttle, steering, braking
-driver_inputs.append(veh.DataDriverEntry(0.1, 1.0, 0.0, 0.0))
-driver_inputs.append(veh.DataDriverEntry(0.5, 1.0, 0.7, 0.0))
-
-driver = veh.ChDataDriver(vehicle.GetVehicle())
-driver.SetInputs(driver_inputs)
+driver_inputs = [
+    veh.DataDriverEntry(0.0, veh.vector_Entry(0.0, 0.0, 0.0)),
+    veh.DataDriverEntry(0.1, veh.vector_Entry(1.0, 0.0, 0.0)),
+    veh.DataDriverEntry(0.5, veh.vector_Entry(1.0, 0.7, 0.0)),
+]
+driver = veh.ChDataDriver(driver_inputs)
+driver.Initialize()
 
 # output vehicle mass
 print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
@@ -112,11 +112,14 @@ while vis.Run() :
         vis.EndScene()
         render_frame += 1
 
+    # Get driver inputs
+    driver_inputs = driver.GetInputs()
+
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
     terrain.Synchronize(time)
-    vehicle.Synchronize(time, driver.GetInputs(), terrain)
-    vis.Synchronize(time, driver.GetInputs())
+    vehicle.Synchronize(time, driver_inputs, terrain)
+    vis.Synchronize(time, driver_inputs)
 
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)

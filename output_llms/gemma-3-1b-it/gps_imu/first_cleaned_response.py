@@ -1,127 +1,90 @@
 import pychrono
-import time
-import random
-import math
-import irlayout as ir
+import pychrono.core as pc
+import pychrono.visual as v
+import numpy as np
+import matplotlib.pyplot as plt
+from pychrono.core import System
 
+class HMMWVSimulation:
+    def __init__(self, vehicle_mass, terrain_model, driver_inputs, visual_system):
+        
+        self.vehicle_mass = vehicle_mass
+        self.terrain_model = terrain_model
+        self.driver_inputs = driver_inputs
+        self.visual_system = visual_system
+        self.simulation_time = 10  
+        self.time_step = 0.1  
+        self.current_time = 0
+        self.vehicle_position = np.array([0, 0, 0])  
+        self.vehicle_velocity = np.array([0, 0, 0])
+        self.sensor_data = {}  
+        self.sensor_id = 0  
 
-simulation_time = 60  
-dt = 0.1  
-gravity = 9.81  
-terrain_heightmap = {
-    "forest": 0.1,
-    "mountain": 0.5,
-    "desert": 0.3,
-    "urban": 0.2
-}
-vehicle_mass = 1000  
-driver_speed = 2.0  
-driver_acceleration = 0.1 
-sensor_range = 10 
-sensor_accuracy = 0.01 
+    def update_sensor_data(self):
+        
+        for sensor_id, sensor in self.sensor_data.items():
+            try:
+                
+                
+                sensor_value = np.random.rand() * 10  
+                self.sensor_data[sensor_id] = sensor_value
+            except Exception as e:
+                print(f"Error updating sensor data for sensor {sensor_id}: {e}")
 
+    def update_vehicle_position(self):
+        
+        self.vehicle_position = self.vehicle_velocity * self.time_step
+        self.vehicle_velocity = self.vehicle_velocity - self.vehicle_mass * self.time_step
 
-simulation = pychrono.Simulation()
-simulation.set_time(0, simulation_time)  
-simulation.set_physics(True) 
+    def update_vehicle_velocity(self):
+        
+        self.vehicle_velocity = self.vehicle_mass * self.time_step
 
+    def run_simulation(self):
+        
+        self.simulation_time = self.time_step
+        while self.current_time < self.simulation_time:
+            self.update_sensor_data()
+            self.update_vehicle_position()
+            self.update_vehicle_velocity()
+            self.current_time += self.time_step
 
+        self.visual_system.render(self.vehicle_position, self.vehicle_velocity, self.sensor_data)
 
-vehicle = {
-    "chassis": {
-        "x": 0,
-        "y": 0,
-        "z": 0,
-        "mass": vehicle_mass,
-        "position": (0, 0, 0)
-    },
-    "orientation": {
-        "x": 0,
-        "y": 0,
-        "z": 0
+    def get_vehicle_mass(self):
+        
+        return self.vehicle_mass
+
+    def get_sensor_data(self):
+        
+        return self.sensor_data
+
+    def get_sensor_id(self):
+        
+        return self.sensor_id
+
+if __name__ == '__main__':
+    
+    vehicle_mass = 1000.0
+    terrain_model = {
+        "grass": {"slope": 0.0, "roughness": 0.5},
+        "dirt": {"slope": 0.0, "roughness": 0.2},
+        "snow": {"slope": 0.0, "roughness": 0.8}
     }
-}
-
-
-terrain = {
-    "forest": {
-        "heightmap": terrain_heightmap,
-        "heightmap_scale": 1.0
-    },
-    "mountain": {
-        "heightmap": terrain_heightmap,
-        "heightmap_scale": 0.8
-    },
-    "desert": {
-        "heightmap": terrain_heightmap,
-        "heightmap_scale": 0.5
-    },
-    "urban": {
-        "heightmap": terrain_heightmap,
-        "heightmap_scale": 0.2
+    driver_inputs = {
+        "acceleration": 1.0,
+        "steering_angle": 0.0
     }
-}
+    visual_system = v.Visual(
+        title="HMMWV Simulation",
+        width=800,
+        height=600,
+        background="white",
+        
+    )
 
-
-driver = {
-    "x": 0,
-    "y": 0,
-    "z": 0,
-    "speed": driver_speed,
-    "acceleration": driver_acceleration
-}
-
-
-imu = {
-    "x": 0,
-    "y": 0,
-    "z": 0
-}
-gps = {
-    "x": 0,
-    "y": 0,
-    "z": 0
-}
-
-
-simulation.add_system("vehicle")
-simulation.add_system("terrain")
-simulation.add_system("driver")
-simulation.add_system("imu")
-simulation.add_system("gps")
-
-
-for step in range(simulation.time):
-    
-    imu.update()
-    gps.update()
-    
-    
-    vehicle["orientation"].x += vehicle_mass * dt * math.cos(math.radians(vehicle["orientation"].z))
-    vehicle["orientation"].y += vehicle_mass * dt * math.sin(math.radians(vehicle["orientation"].z))
-    vehicle["position"] = (vehicle["x"], vehicle["y"], vehicle["z"])
-
-    
-    terrain["heightmap"][vehicle["position"][0]] += 0.01  
-    terrain["heightmap"][vehicle["position"][1]] += 0.01
-    terrain["heightmap"][vehicle["position"][2]] += 0.01
-
-    
-    if vehicle["orientation"].x > 0:
-        driver["acceleration"] = -0.5 * dt * math.sin(math.radians(vehicle["orientation"].z))
-    elif vehicle["orientation"].x < 0:
-        driver["acceleration"] = 0.5 * dt * math.sin(math.radians(vehicle["orientation"].z))
-    else:
-        driver["acceleration"] = 0.0
-
-    
-    print(f"Step: {step}, Time: {step * dt:.2f} s")
-    print(f"Vehicle Position: {vehicle['position']}")
-    print(f"Driver Acceleration: {driver['acceleration']}")
-
-    
-    simulation.update()
-
-
-simulation.stop()
-print("Simulation finished.")
+    simulation = HMMWVSimulation(vehicle_mass, terrain_model, driver_inputs, visual_system)
+    simulation.run_simulation()
+    print(f"Vehicle Mass: {simulation.get_vehicle_mass()}")
+    print(f"Sensor Data: {simulation.get_sensor_data()}")
+    print(f"Sensor ID: {simulation.get_sensor_id()}")

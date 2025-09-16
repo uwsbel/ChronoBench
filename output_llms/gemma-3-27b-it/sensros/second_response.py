@@ -11,11 +11,13 @@ def main():
     # Load and transform a 3D mesh of a vehicle chassis.
     mmesh.LoadWavefrontMesh(ch.GetChronoDataFile("vehicle/hmmwv/hmmwv_chassis.obj"), False, True)
     mmesh.Transform(ch.ChVector3d(0, 0, 0), ch.ChMatrix33d(1))
+
     # Create a visual shape from the mesh.
     trimesh_shape = ch.ChVisualShapeTriangleMesh()
     trimesh_shape.SetMesh(mmesh)
     trimesh_shape.SetName("HMMWV Chassis Mesh")
     trimesh_shape.SetMutable(False)
+
     # Create a body for the mesh and add it to the simulation.
     mesh_body = ch.ChBody()
     mesh_body.SetPos(ch.ChVector3d(0, 0, 0))
@@ -59,8 +61,8 @@ def main():
     lidar.SetName("lidar")
     sens_manager.AddSensor(lidar)
 
-    # Create and configure a 2D Lidar sensor.
-    lidar2d = sens.ChLidar2DSensor(ground_body, 5., offset_pose, 180, 300, 0.1, 100.)
+    # Create and configure a 2D Lidar sensor
+    lidar2d = sens.ChLidar2DSensor(ground_body, 5., offset_pose, 180, 1000, 0.1, 0.01)
     lidar2d.PushFilter(sens.ChFilterScanAccess())
     lidar2d.PushFilter(sens.ChFilterVisualizeScan(1280, 720, 1))
     lidar2d.SetName("lidar2d")
@@ -117,7 +119,7 @@ def main():
     imu_handler.SetMagnetometerHandler(mag_handler)
     ros_manager.RegisterHandler(imu_handler)
 
-    # Register handler for the 2D Lidar sensor
+    # Register handler for the 2D Lidar
     ros_manager.RegisterHandler(chros.ChROSLidar2DHandler(lidar2d, "~/output/lidar2d/data/scan"))
 
     ros_manager.Initialize()  # Initialize the ROS manager.

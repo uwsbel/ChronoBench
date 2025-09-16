@@ -1,12 +1,11 @@
 import pychrono as chrono
-import pychrono.sensor
-import pychrono.postprocess
-import pychrono.irrlicht
-import math
+import pychrono.sensor as sensor
+import pychrono.postprocess as postprocess
+import pychrono.irrlicht as chronoirr
 import numpy as np
 
 
-chrono.SetChronoDataPath("../data/")  
+chrono.SetChronoDataPath("./")  
 
 system = chrono.ChSystemNSC()
 system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  
@@ -14,96 +13,91 @@ system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
 body_ground = chrono.ChBodyEasy()
 body_ground.SetBodyFixed(True)
-body_ground.SetPos(chrono.ChVectorD(0, -0.5, 0))
-body_ground.SetShape(chrono.ChBoxShape())
-body_ground.SetMass(1000)  
+body_ground.SetPos(chrono.ChVectorD(0, -1, 0))
 system.Add(body_ground)
 
 
-mesh_ground = chrono.ChVisualShapeFile()
-mesh_ground.SetFile("ground.obj")  
-body_ground.AddVisualShape(mesh_ground)
-mesh_ground.SetLocalPos(chrono.ChVectorD(0, 0, 0))
-mesh_ground.SetLocalRot(chrono.Q_from_Ang3(0, 0, 0))
+box_shape = chrono.ChBoxShape()
+box_shape.GetBoxGeometry().SetMinMax(chrono.ChVectorD(-10, -1, -10), chrono.ChVectorD(10, 0, 10))
+body_ground.AddAsset(box_shape)
 
 
-body_platform = chrono.ChBodyEasy()
-body_platform.SetPos(chrono.ChVectorD(0, 1, 0))
-body_platform.SetShape(chrono.ChBoxShape())
-body_platform.SetMass(1)
-system.Add(body_platform)
+mesh_sphere = chrono.ChSphereShape()
+mesh_sphere.GetSphereGeometry().SetRadius(0.5)
+body_sphere = chrono.ChBodyEasy()
+body_sphere.SetPos(chrono.ChVectorD(0, 2, 0))
+body_sphere.AddAsset(mesh_sphere)
+body_sphere.SetMass(1.0)
+system.Add(body_sphere)
 
 
-joint = chrono.ChLinkRevolute()
-joint.Initialize(body_ground, body_platform, chrono.ChCoordsys(chrono.ChVectorD(0, 0, 0)))
-system.Add(joint)
+sensor_manager = sensor.ChSensorManager(system)
 
 
-sensor_manager = chrono.ChSensorManager()
-
-
-camera = chrono.ChSensorCamera()
-camera.Initialize(body_platform, chrono.ChVectorD(0, 0, 0), chrono.Q_from_Ang3(0, 0, 0))
-camera.SetResolution(640, 480)
+camera = sensor.ChCameraSensor()
+camera.Setup(body_sphere, chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 1), 60, 0.1, 100)
 sensor_manager.AddSensor(camera)
 
-lidar = chrono.ChSensorLidar()
-lidar.Initialize(body_platform, chrono.ChVectorD(0, 0, 0), chrono.Q_from_Ang3(0, 0, 0))
-lidar.SetScanAngle(math.pi / 4)
-lidar.SetRange(10)
+lidar = sensor.ChLidarSensor()
+lidar.Setup(body_sphere, chrono.ChVectorD(0, 0, 0), 360, 0.1, 10)
 sensor_manager.AddSensor(lidar)
 
-gps = chrono.ChSensorGPS()
-gps.Initialize(body_platform, chrono.ChVectorD(0, 0, 0), chrono.Q_from_Ang3(0, 0, 0))
+gps = sensor.ChGPSSensor()
+gps.Setup(body_sphere)
 sensor_manager.AddSensor(gps)
 
-accelerometer = chrono.ChSensorAccelerometer()
-accelerometer.Initialize(body_platform, chrono.ChVectorD(0, 0, 0), chrono.Q_from_Ang3(0, 0, 0))
+accelerometer = sensor.ChAccelerometerSensor()
+accelerometer.Setup(body_sphere, chrono.ChVectorD(0, 0, 0))
 sensor_manager.AddSensor(accelerometer)
 
-gyroscope = chrono.ChSensorGyroscope()
-gyroscope.Initialize(body_platform, chrono.ChVectorD(0, 0, 0), chrono.Q_from_Ang3(0, 0, 0))
+gyroscope = sensor.ChGyroscopeSensor()
+gyroscope.Setup(body_sphere, chrono.ChVectorD(0, 0, 0))
 sensor_manager.AddSensor(gyroscope)
 
-magnetometer = chrono.ChSensorMagnetometer()
-magnetometer.Initialize(body_platform, chrono.ChVectorD(0, 0, 0), chrono.Q_from_Ang3(0, 0, 0))
+magnetometer = sensor.ChMagnetometerSensor()
+magnetometer.Setup(body_sphere, chrono.ChVectorD(0, 0, 0))
 sensor_manager.AddSensor(magnetometer)
 
 
+
 try:
-    ros_manager = chrono.ChRosManager()
-    ros_manager.Initialize()
+    ros_manager = sensor.ChRosSensorManager()
+    ros_manager.Setup("chrono", "sensor_data")  
 
     
-    ros_manager.RegisterSensor(camera, "/chrono/camera")
-    ros_manager.RegisterSensor(lidar, "/chrono/lidar")
-    ros_manager.RegisterSensor(gps, "/chrono/gps")
-    ros_manager.RegisterSensor(accelerometer, "/chrono/accelerometer")
-    ros_manager.RegisterSensor(gyroscope, "/chrono/gyroscope")
-    ros_manager.RegisterSensor(magnetometer, "/chrono/magnetometer")
+    ros_manager.AddSensor(camera, "camera_data")
+    ros_manager.AddSensor(lidar, "lidar_data")
+    ros_manager.AddSensor(gps, "gps_data")
+    ros_manager.AddSensor(accelerometer, "accelerometer_data")
+    ros_manager.AddSensor(gyroscope, "gyroscope_data")
+    ros_manager.AddSensor(magnetometer, "magnetometer_data")
 
 except Exception as e:
-    print(f"ROS initialization failed: {e}.  ROS integration skipped.")
-    ros_manager = None
+    print(f"ROS integration failed: {e}.  Ensure ROS is installed and configured correctly.")
+    ros_manager = None 
 
 
 
-time_step = 0.01
+
+time_step = 0.005
 time_end = 10
 
 while system.GetChTime() < time_end:
+    
+    sensor_manager.Update()
+
+    
     system.DoStepDynamics(time_step)
 
     
-    sensor_manager.Update(system.GetChTime())
+    
+    
+    
 
     
-    if ros_manager:
-        ros_manager.PublishSensorData()
-
     
-    angle = system.GetChTime() * 2
-    body_platform.SetPos(chrono.ChVectorD(math.cos(angle), 1, math.sin(angle)))
+    
+    
 
 
 print("Simulation finished.")

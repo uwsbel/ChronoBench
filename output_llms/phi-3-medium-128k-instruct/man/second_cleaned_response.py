@@ -22,9 +22,6 @@ tire_model = veh.TireModelType_TMEASY
 
 
 
-terrainHeight = 0      
-terrainLength = 100.0  
-terrainWidth = 100.0   
 
 
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
@@ -41,43 +38,60 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  
 
 
-
 vehicle = veh.MAN_5t()  
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
-vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 
-
 vehicle.Initialize()
 
-vehicle.SetChassisVisualizationType(vis_type)
+vehicle.SetChassisVisualizationType(vis__type)
 vehicle.SetSuspensionVisualizationType(vis_type)
 vehicle.SetSteeringVisualizationType(vis_type)
 vehicle.SetWheelVisualizationType(vis_type)
 vehicle.SetTireVisualizationType(vis_type)
-
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
 patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
+
+
 terrain = veh.RigidTerrain(vehicle.GetSystem())
+height_map = [
+    [0, 0, 1],
+    [0, 1, 1],
+    [0, 2, 1],
+    [0, 3, 1],
+    [1, 0, 1],
+    [1, 1, 1],
+    [1, 2, 1],
+    [1, 3, 1],
+    [2, 0, 1],
+    [2, 1, 1],
+    [2, 2, 1],
+    [2, 3, 1],
+    [3, 0, 1],
+    [3, 1, 1],
+    [3, 2, 1],
+    [3, 3, 1]
+]
 patch = terrain.AddPatch(patch_mat, 
     chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
-    terrainLength, terrainWidth)
+    terrainLength=100.0, terrainWidth=100.0)
+
+patch.SetHeightMap(height_map)  
 
 patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)  
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 
-
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
-vis.SetWindowTitle('MAN 5t Demo')  
+vis.SetWindowTitle('MAN 5t Demo')
 vis.SetWindowSize(1280, 1024)
 vis.SetChaseCamera(trackPoint, 15.0, 0.5)
 vis.Initialize()
@@ -85,7 +99,6 @@ vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
-
 
 
 driver = veh.ChInteractiveDriverIRR(vis)

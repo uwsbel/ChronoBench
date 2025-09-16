@@ -3,69 +3,44 @@ import pychrono.irrlicht as chronoirr
 import pychrono.vehicle as veh
 
 
-physics_system = chrono.ChSystemNSC()
+chrono.SetChronoDataPath("/path/to/chrono/data")  
+chrono.SetChronoDataPath("/path/to/vehicle/data")  
+
+chrono.Init_ChronoEngine()
 
 
-visualization_system = chronoirr.ChIrrApp(physics_system, 'PyChrono Vehicle Simulation', chronoirr.Dim3d(800, 600))
+
+vehicle = veh.M113()
 
 
-visualization_system.AddTypicalLogo(chronoirr.GetChronoDataFile('logo_pychrono_alpha.png'))
-visualization_system.AddTypicalSky(chronoirr.GetChronoDataFile('skybox/dawnmountain_ft.jpg'))
-visualization_system.AddTypicalLights()
-visualization_system.AddTypicalCamera(chronoirr.vector3df(0, 10, -20))
-visualization_system.SetChaseCamera(chronoirr.vector3df(0, 0, 0), 10, 0.1)
-visualization_system.SetTryRealtime(True)
+vehicle.SetChassisPos(chrono.ChVectorD(0, 0, 0.5))
+vehicle.SetInitChassisVel(chrono.ChVectorD(0, 0, 0))
+vehicle.SetInitChassisRot(chrono.ChQuaternionD(1, 0, 0, 0))
 
 
-vehicle = veh.ChVehicleM113()
+terrain = veh.RigidTerrain(vehicle.GetSystem())
+terrain.SetContactFrictionCoefficient(0.9)
+terrain.SetContactRestitutionCoefficient(0.01)
+terrain.AddLayer(veh.TerrainLayer(30, 0.5, 2000))
 
 
-vehicle.SetPos(chrono.ChVectorD(0, 0, 0))
-vehicle.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
+
+driver = veh.ChIrrGuiDriver(vehicle.GetSystem(), chronoirr.ChIrrApp(vehicle.GetSystem(), "M113 Vehicle", chronoirr.Dimensions(800, 600)))
+driver.SetChaseCamera(chrono.ChVectorD(0, -30, 1), chrono.ChVectorD(0, 0, 1), 5)
+driver.SetLight(chrono.ChVectorD(-30, 30, 100), chrono.ChVectorD(1, -1, -1), chrono.ChColor(0.7, 0.7, 0.7))
 
 
-physics_system.Add(vehicle)
 
+while chrono.GetSystem()->GetChTime() < 10:  
+    driver.BeginScene()
+    driver.DrawAll()
+    driver.EndScene()
 
-terrain = veh.ChVehicleTerrain()
-terrain.SetContactFriction(0.9)
-terrain.SetContactRestitution(0.01)
-terrain.SetPlane(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 1))
+    vehicle.Synchronize(chrono.GetSystem()->GetChTime())
+    terrain.Synchronize(chrono.GetSystem()->GetChTime())
+    driver.Synchronize(chrono.GetSystem()->GetChTime())
 
+    chrono.GetSystem()->DoStepDynamics(0.01)
 
-physics_system.Add(terrain)
-
-
-driver = veh.ChVehicleDriver()
-
-
-driver.SetSteering(0)
-driver.SetThrottle(0)
-
-
-vehicle.AddDriver(driver)
-
-
-vehicle.SetPos(chrono.ChVectorD(0, 0, 0))
-vehicle.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
-
-
-driver.SetSteering(0)
-driver.SetThrottle(0)
-
-
-step_size = 0.01
-
-
-while visualization_system.Run():
-    
-    physics_system.DoStepDynamics(step_size)
-
-    
-    visualization_system.BeginScene()
-    visualization_system.DrawAll()
-    visualization_system.EndScene()
-
-    
-    driver.SetSteering(0.5 * chronoirr.GetAsyncKeyState('A') - 0.5 * chronoirr.GetAsyncKeyState('D'))
-    driver.SetThrottle(0.5 * chronoirr.GetAsyncKeyState('W') - 0.5 * chronoirr.GetAsyncKeyState('S'))
+chrono.GetSystem()->Clear()
+chrono.Finalize_ChronoEngine()

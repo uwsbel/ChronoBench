@@ -3,7 +3,6 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
-# !!!! Set this path before running the demo!
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
@@ -11,21 +10,23 @@ veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 initLoc = chrono.ChVector3d(0, 0, 1.0)  # Adjusted initial height
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
-# Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
+# Visualization type for vehicle parts
 vis_type = veh.VisualizationType_MESH
 
-# Collision type for chassis (PRIMITIVES, MESH, or NONE)
+# Collision type for chassis
 chassis_collision_type = veh.CollisionType_NONE
 
-# Type of tire model (RIGID, TMEASY)
+# Type of tire model
 tire_model = veh.TireModelType_TMEASY
 
-# Highway terrain
+# Terrain model - Highway mesh
+terrain_model = veh.RigidTerrain.MESH
+
 terrainHeight = 0
 terrainLength = 100.0
 terrainWidth = 100.0
 
-# Point tracked by the camera
+# Track point for camera
 trackPoint = chrono.ChVector3d(-5.0, 0.0, 1.8)
 
 # Contact method
@@ -33,17 +34,16 @@ contact_method = chrono.ChContactMethod_NSC
 contact_vis = False
 
 # Simulation step sizes
-step_size = 1e-4  # Decreased for finer control
+step_size = 1e-4  # Decreased step size
 tire_step_size = step_size
 
-# Time interval between two render frames
-render_step_size = 1.0 / 100  # Increased for smoother rendering
+# Render step size
+render_step_size = 1.0 / 60  # Increased render rate for smoother visualization
 
 # --------------
 # Create systems
 # --------------
 
-# Create the Sedan vehicle, set parameters, and initialize
 vehicle = veh.BMW_E90()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
@@ -66,10 +66,9 @@ patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-patch = terrain.AddPatch(patch_mat,
-                         chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
-                         terrainLength, terrainWidth)
 
+# Initialize terrain with highway mesh
+patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), terrainLength, terrainWidth, terrain_model)
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
@@ -99,31 +98,35 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 # ---------------
-# PID Controller for Throttle
+# Simulation loop
 # ---------------
 
-# PID parameters
-Kp = 1.0
-Ki = 0.1
-Kd = 0.01
+# Output vehicle mass
+print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
-# Error variables
-prev_error = 0.0
-integral = 0.0
+# Number of simulation steps between miscellaneous events
+render_steps = math.ceil(render_step_size / step_size)
 
-# Reference speed
-ref_speed = 20.0  # m/s
-
-# Simulation loop
+# Initialize simulation frame counter
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
+
+# PID controller parameters
+Kp = 1.0
+Ki = 0.1
+Kd = 0.01
+integral = 0.0
+previous_error = 0.0
+
+# Reference speed
+reference_speed = 20.0  # m/s
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
     # Render scene and output POV-Ray data
-    if (step_number % math.ceil(render_step_size / step_size) == 0):
+    if (step_number % render_steps == 0):
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
@@ -133,14 +136,20 @@ while vis.Run():
     driver_inputs = driver.GetInputs()
 
     # Calculate speed error
-    current_speed = vehicle.GetVehicle().GetSpeed()
-    error = ref_speed - current_speed
+    current_speed = vehicle.GetVehicle().GetChassisBody().GetLinearVelocity().Length()
+    error = reference_speed - current_speed
 
-    # PID control
+    # PID control for throttle
     integral += error * step_size
-    derivative = (error - prev_error) / step_size
-    throttle = Kp * error + Ki * integral + Kd * derivative
-    throttle = max(0, min(throttle, 1))  # Clamp throttle between 0 and 1
+    derivative = (error - previous_error) / step_size
+    throttle_input = Kp * error + Ki * integral + Kd * derivative
+    previous_error = error
+
+    # Clamp throttle input between 0 and 1
+    throttle_input = max(0.0, min(throttle_input, 1.0))
+
+    # Update driver inputs with PID controlled throttle
+    driver_inputs.m_throttle = throttle_input
 
     # Update modules
     driver.Synchronize(time)
@@ -159,6 +168,3 @@ while vis.Run():
 
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
-
-    # Update previous error
-    prev_error = error

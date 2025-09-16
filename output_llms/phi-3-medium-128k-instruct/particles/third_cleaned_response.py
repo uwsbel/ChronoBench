@@ -85,7 +85,7 @@ while vis.Run():
     for body in sys.GetBodies():
         body.EmptyAccumulators()
 
-    G_constant = 6.674e-3  
+    G_constant = 6.674e-11  
 
     
     kinetic_energy = 0
@@ -121,14 +121,10 @@ while vis.Run():
 
 msphereBody2 = chrono.ChBodyEasySphere(2.1, 1800, True, True, sphere_mat)
 msphereBody2.SetPos(chrono.ChVector3d(-10, -10, 0))
-msphereBody2.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
+msphereBody2.SetVel(chrono.ChVector3d(0.5, 0, 0.1))
 sys.Add(msphereBody2)
 
 msphereBody3 = chrono.ChBodyEasySphere(2.1, 1800, True, True, sphere_mat)
 msphereBody3.SetPos(chrono.ChVector3d(0, 20, 0))
-msphereBody3.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
+msphereBody3.SetVel(chrono.ChVector3d(-0.5, 0, -0.1))
 sys.Add(msphereBody3)
-
-
-msphereBody2.SetPosDt(chrono.ChVector3d(0.5, 0, 0.1))
-msphereBody3.SetPosDt(chrono.ChVector3d(0, -0.5, 0.2))

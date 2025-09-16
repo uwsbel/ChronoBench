@@ -40,8 +40,7 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  
 
 
-
-vehicle = veh.HMMWV_Full() 
+vehicle = veh.HMMWV_Full()  
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
@@ -61,39 +60,23 @@ vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
 class TerrainParameters:
-    def __init__(self, config):
-        if config == "soft":
-            self.Kphi = 2e6
-            self.Kc = 0
-            self.n = 1.1
-            self.cohesion = 0
-            self.friction = 30
-            self.shear = 0.01
-            self.stiffness = 2e8
-            self.damping = 3e4
-        elif config == "mid":
-            self.Kphi = 5e6
-            self.Kc = 0
-            self.n = 1.2
-            self.cohesion = 0
-            self.friction = 35
-            self.shear = 0.015
-            self.stiffness = 5e8
-            self.damping = 5e4
-        elif config == "hard":
-            self.Kphi = 1e7
-            self.Kc = 0
-            self.n = 1.3
-            self.cohesion = 0
-            self.friction = 40
-            self.shear = 0.02
-            self.stiffness = 1e9
-            self.damping = 1e5
-        else:
-            raise ValueError("Invalid terrain configuration")
+    def __init__(self, Kphi, Kc, n, cohesion, friction, shear, stiffness, damping):
+        self.Kphi = Kphi
+        self.Kc = Kc
+        self.n = n
+        self.cohesion = cohesion
+        self.friction = friction
+        self.shear = shear
+        self.stiffness = stiffness
+        self.damping = damping
 
 
-terrain_params = TerrainParameters("soft")
+soft_terrain = TerrainParameters(2e6, 0, 1.1, 0, 30, 0.01, 2e8, 3e4)
+mid_terrain = TerrainParameters(5e6, 0, 1.2, 0, 35, 0.015, 3e8, 4e4)
+hard_terrain = TerrainParameters(1e7, 0, 1.3, 0, 40, 0.02, 4e8, 5e4)
+
+
+terrain_params = soft_terrain
 
 
 terrain = veh.SCMTerrain(vehicle.GetSystem())
@@ -114,7 +97,6 @@ terrain.SetPlotType(veh.SCMTerrain.PLOT_SINKAGE, 0, 0.1)
 
 
 terrain.Initialize(20, 20, 0.02)
-
 
 
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
@@ -145,7 +127,7 @@ driver.Initialize()
 
 
 
-print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 
 render_steps = math.ceil(render_step_size / step_size)
@@ -155,11 +137,11 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-while vis.Run() :
+while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
     
-    if (step_number % render_steps == 0) :
+    if (step_number % render_steps == 0):
         vis.BeginScene()
         vis.Render()
         vis.EndScene()

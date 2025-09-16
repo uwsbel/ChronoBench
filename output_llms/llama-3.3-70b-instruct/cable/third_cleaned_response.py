@@ -2,6 +2,12 @@ import pychrono.core as chrono
 import pychrono.fea as fea
 import pychrono.irrlicht as chronoirr
 
+
+
+
+
+
+
 class Model1:
     def __init__(self, system, mesh, n_chains=6):
         self.system = system
@@ -9,13 +15,13 @@ class Model1:
         self.n_chains = n_chains
         self.end_bodies = []
 
-        for i in range(n_chains):
-            
-            msection_cable2 = fea.ChBeamSectionCable()
-            msection_cable2.SetDiameter(0.015)  
-            msection_cable2.SetYoungModulus(0.01e9)  
-            msection_cable2.SetRayleighDamping(0.0001)  
+        
+        msection_cable2 = fea.ChBeamSectionCable()
+        msection_cable2.SetDiameter(0.015)  
+        msection_cable2.SetYoungModulus(0.01e9)  
+        msection_cable2.SetRayleighDamping(0.0001)  
 
+        for i in range(n_chains):
             
             builder = fea.ChBuilderCableANCF()
 
@@ -35,7 +41,6 @@ class Model1:
             
             mtruss = chrono.ChBody()
             mtruss.SetFixed(True)  
-            system.Add(mtruss)
 
             
             constraint_hinge = fea.ChLinkNodeFrame()
@@ -45,36 +50,38 @@ class Model1:
             
             box_body = chrono.ChBodyEasyBox(0.1, 0.1, 0.1, 1000)
             box_body.SetPos(chrono.ChVector3d(i * 0.5 + 0.5, 0, -0.1))
-            system.Add(box_body)
 
             
-            constraint_beam_box = fea.ChLinkNodeFrame()
-            constraint_beam_box.Initialize(builder.GetLastBeamNodes().back(), box_body)
-            system.Add(constraint_beam_box)
+            constraint_box = fea.ChLinkNodeFrame()
+            constraint_box.Initialize(builder.GetLastBeamNodes().back(), box_body)
+            system.Add(constraint_box)  
 
             self.end_bodies.append(box_body)
 
             
-            
-            visualizebeamA = chrono.ChVisualShapeFEA(mesh)
-            visualizebeamA.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_ELEM_BEAM_MZ)  
-            visualizebeamA.SetColorscaleMinMax(-0.4, 0.4)  
-            visualizebeamA.SetSmoothFaces(True)  
-            visualizebeamA.SetWireframe(False)  
-            mesh.AddVisualShapeFEA(visualizebeamA)  
+            system.Add(box_body)
 
-            
-            visualizebeamB = chrono.ChVisualShapeFEA(mesh)
-            visualizebeamB.SetFEMglyphType(chrono.ChVisualShapeFEA.GlyphType_NODE_DOT_POS)  
-            visualizebeamB.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NONE)  
-            visualizebeamB.SetSymbolsThickness(0.006)  
-            visualizebeamB.SetSymbolsScale(0.01)  
-            visualizebeamB.SetZbufferHide(False)  
-            mesh.AddVisualShapeFEA(visualizebeamB)  
+        
+        
+        visualizebeamA = chrono.ChVisualShapeFEA(mesh)
+        visualizebeamA.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_ELEM_BEAM_MZ)  
+        visualizebeamA.SetColorscaleMinMax(-0.4, 0.4)  
+        visualizebeamA.SetSmoothFaces(True)  
+        visualizebeamA.SetWireframe(False)  
+        mesh.AddVisualShapeFEA(visualizebeamA)  
+
+        
+        visualizebeamB = chrono.ChVisualShapeFEA(mesh)
+        visualizebeamB.SetFEMglyphType(chrono.ChVisualShapeFEA.GlyphType_NODE_DOT_POS)  
+        visualizebeamB.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NONE)  
+        visualizebeamB.SetSymbolsThickness(0.006)  
+        visualizebeamB.SetSymbolsScale(0.01)  
+        visualizebeamB.SetZbufferHide(False)  
+        mesh.AddVisualShapeFEA(visualizebeamB)  
 
     def PrintBodyPositions(self):
         for i, body in enumerate(self.end_bodies):
-            print(f"Chain {i+1} end body position: {body.GetPos().x()} {body.GetPos().y()} {body.GetPos().z()}")
+            print(f"Chain {i+1} end body position: {body.GetPos()}")
 
 
 sys = chrono.ChSystemSMC()
@@ -98,13 +105,13 @@ vis.AddTypicalLights()
 
 solver = chrono.ChSolverMINRES() 
 if solver.GetType()== chrono.ChSolver.Type_MINRES :
-    print( "Using MINRES solver" )
-    sys.SetSolver(solver)
-    solver.SetMaxIterations(200)
-    solver.SetTolerance(1e-10)
-    solver.EnableDiagonalPreconditioner(True)
-    solver.EnableWarmStart(True)  
-    solver.SetVerbose(False)
+	print( "Using MINRES solver" )
+	sys.SetSolver(solver)
+	solver.SetMaxIterations(200)
+	solver.SetTolerance(1e-10)
+	solver.EnableDiagonalPreconditioner(True)
+	solver.EnableWarmStart(True)  
+	solver.SetVerbose(False)
 
 ts = chrono.ChTimestepperEulerImplicitLinearized(sys)
 sys.SetTimestepper(ts)

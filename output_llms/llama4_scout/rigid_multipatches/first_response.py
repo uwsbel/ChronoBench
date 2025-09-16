@@ -1,161 +1,77 @@
-import pychrono as chrono
-import pychrono.irrlicht as irr
-import pychrono.vehicle as veh
+import chrono as ch
+import chrono.irrlicht as irr
 
-# Initialize PyChrono environment
-chrono.ChEngine.Initialize()
+# 1. Initialize the PyChrono environment and core components
+ch.set_default_contact_material(ch.ContactMaterial())
+ch.set_gravity(0, 0, -9.81)
 
-# Set simulation parameters
-TIME_STEP = 0.01  # seconds
-GRAVITY = chrono.ChVector3d(0, -9.81, 0)  # m/s^2
+# 2. Create the Irrlicht application
+app = irr.IrrlichtApplication()
 
-# Create the Irrlicht application
-app = irr.ChIrrApp()
+# 3. Create the HMMWV vehicle
+vehicle = ch.Vehicle()
 
-# Create the HMMWV vehicle
-vehicle = veh.ChHMMWV()
+# Initialize HMMWV with specific parameters
+vehicle.Initialize(ch.Vector3d(0, 0, 1),  # position
+                  ch.EngineType_SHAFTS,
+                  ch.DrivetrainType_AWD)
 
-# Set vehicle parameters
-vehicle.SetPosition(chrono.ChVector3d(0, 0, 1))  # initial position
-vehicle.SetEngineType(veh.ChEngine::HMMWV_TurboDiesel)
-vehicle.SetDrivetrainType(veh.ChDrivetrain::HMMWV_AWD)
+# Add vehicle components with mesh visualization
+ch.ChVehicleGeometry(vehicle).CreateAndSetGeometryFile('path/to/hmmwv.obj')
+vehicle.SetChassisVisualizationType(ch.ChassisVisualizationType_MESH)
+vehicle.SetWheelVisualizationType(ch.WheelVisualizationType_MESH)
 
-# Enable mesh visualization for all vehicle components
-vehicle.EnableMeshVisualization(True)
+# 4. Construct the terrain
+terrain = ch.Terrain()
 
-# Add the vehicle to the simulation
-chrono.ChSystem.AddBody(vehicle.GetChassisBody())
+# Add flat patches with different textures
+patch1 = ch.TerrainPatch(terrain, ch.Vector3d(0, 0, 0), ch.Vector3d(10, 10, 0))
+patch1.SetTexture('path/to/texture1.jpg')
 
-# Create a terrain with multiple patches
-terrain = chrono.ChTerrain()
-
-# Add a flat patch with a grass texture
-flat_patch = terrain.AddPatch(chrono.ChVector3d(0, 0, 0),  # position
-                              chrono.ChVector3d(10, 0, 0),  # x direction
-                              chrono.ChVector3d(0, 10, 0),  # y direction
-                              "grass.jpg")
-flat_patch.SetMaterial(chrono.ChMaterial::Grass())
+patch2 = ch.TerrainPatch(terrain, ch.Vector3d(10, 0, 0), ch.Vector3d(10, 10, 0))
+patch2.SetTexture('path/to/texture2.jpg')
 
 # Add a mesh-based patch for a bump
-bump_mesh = chrono.ChTriangleMeshShape()
-bump_mesh.LoadWavefrontMesh("bump.obj")
-bump_patch = terrain.AddMeshPatch(bump_mesh, chrono.ChVector3d(5, 5, 0))
-bump_patch.SetMaterial(chrono.ChMaterial::Asphalt())
+bump_mesh = ch.ChTriangleMeshConnected()
+bump_mesh.LoadWavefrontMesh('path/to/bump.obj')
+bump_patch = ch.TerrainMeshPatch(terrain, bump_mesh, ch.Vector3d(0, 0, 0), ch.Vector3d(1, 1, 1))
+bump_patch.SetTexture('path/to/bump_texture.jpg')
 
 # Add a heightmap-based patch for varying elevations
-heightmap = chrono.ChHeightmap()
-heightmap.LoadHeightmap("heightmap.raw", 1.0)
-heightmap_patch = terrain.AddHeightmapPatch(heightmap, chrono.ChVector3d(-5, -5, 0))
-heightmap_patch.SetMaterial(chrono.ChMaterial::Dirt())
+heightmap = ch.TerrainHeightmap()
+heightmap.LoadHeightmap('path/to/heightmap.png')
+heightmap_patch = ch.TerrainHeightmapPatch(terrain, heightmap, ch.Vector3d(0, 0, 0), ch.Vector3d(10, 10, 10))
+heightmap_patch.SetTexture('path/to/heightmap_texture.jpg')
 
-# Add the terrain to the simulation
-chrono.ChSystem.AddBody(terrain.GetGroundBody())
+# 5. Add interactive driver system
+driver = ch.Driver()
+driver.Initialize(vehicle, app)
 
-# Create an interactive driver system
-driver = veh.ChInteractiveDriver()
+# Set steering, throttle, and braking
+driver.SetSteering(0.5)
+driver.SetThrottle(0.2)
+driver.SetBraking(0.1)
 
-# Set driver parameters
-driver.SetSteering(chrono.ChFunction::LinearRamp(0, 1, 0, 1))
-driver.SetThrottle(chrono.ChFunction::LinearRamp(0, 1, 0, 1))
-driver.SetBraking(chrono.ChFunction::LinearRamp(0, 1, 0, 1))
+# Simulation parameters
+step_size = 0.01
+end_time = 10.0
 
-# Add the driver to the simulation
-vehicle.SetDriver(driver)
+# Run simulation
+while app.GetDevice().run() and (driver.GetTime() < end_time):
+    # Update simulation
+    vehicle.Update(step_size)
+    terrain.Update(step_size)
+    driver.Update(step_size)
 
-# Set simulation parameters
-chrono.ChSystem.SetTimestep(TIME_STEP)
-chrono.ChSystem.SetGravity(GRAVITY)
+    # Render scene
+    app.BeginScene()
+    app.DrawTerrain(terrain)
+    app.DrawVehicle(vehicle)
+    app.EndScene()
 
-# Run the simulation
-while app.Run():
-    # Update the simulation
-    chrono.ChSystem.Update(TIME_STEP)
+    # Advance time
+    driver.Advance(step_size)
 
-    # Render the scene
-    app.RenderScene(chrono.ChSystem)
-
-    # Handle events
-    app.HandleEvents()
-
-import pychrono as chrono
-import pychrono.irrlicht as irr
-import pychrono.vehicle as veh
-
-def main():
-    # Initialize PyChrono environment
-    chrono.ChEngine.Initialize()
-
-    # Set simulation parameters
-    TIME_STEP = 0.01  # seconds
-    GRAVITY = chrono.ChVector3d(0, -9.81, 0)  # m/s^2
-
-    # Create the Irrlicht application
-    app = irr.ChIrrApp()
-
-    # Create the HMMWV vehicle
-    vehicle = veh.ChHMMWV()
-
-    # Set vehicle parameters
-    vehicle.SetPosition(chrono.ChVector3d(0, 0, 1))  # initial position
-    vehicle.SetEngineType(veh.ChEngine::HMMWV_TurboDiesel)
-    vehicle.SetDrivetrainType(veh.ChDrivetrain::HMMWV_AWD)
-
-    # Enable mesh visualization for all vehicle components
-    vehicle.EnableMeshVisualization(True)
-
-    # Add the vehicle to the simulation
-    chrono.ChSystem.AddBody(vehicle.GetChassisBody())
-
-    # Create a terrain with multiple patches
-    terrain = chrono.ChTerrain()
-
-    # Add a flat patch with a grass texture
-    flat_patch = terrain.AddPatch(chrono.ChVector3d(0, 0, 0),  # position
-                                  chrono.ChVector3d(10, 0, 0),  # x direction
-                                  chrono.ChVector3d(0, 10, 0),  # y direction
-                                  "grass.jpg")
-    flat_patch.SetMaterial(chrono.ChMaterial::Grass())
-
-    # Add a mesh-based patch for a bump
-    bump_mesh = chrono.ChTriangleMeshShape()
-    bump_mesh.LoadWavefrontMesh("bump.obj")
-    bump_patch = terrain.AddMeshPatch(bump_mesh, chrono.ChVector3d(5, 5, 0))
-    bump_patch.SetMaterial(chrono.ChMaterial::Asphalt())
-
-    # Add a heightmap-based patch for varying elevations
-    heightmap = chrono.ChHeightmap()
-    heightmap.LoadHeightmap("heightmap.raw", 1.0)
-    heightmap_patch = terrain.AddHeightmapPatch(heightmap, chrono.ChVector3d(-5, -5, 0))
-    heightmap_patch.SetMaterial(chrono.ChMaterial::Dirt())
-
-    # Add the terrain to the simulation
-    chrono.ChSystem.AddBody(terrain.GetGroundBody())
-
-    # Create an interactive driver system
-    driver = veh.ChInteractiveDriver()
-
-    # Set driver parameters
-    driver.SetSteering(chrono.ChFunction::LinearRamp(0, 1, 0, 1))
-    driver.SetThrottle(chrono.ChFunction::LinearRamp(0, 1, 0, 1))
-    driver.SetBraking(chrono.ChFunction::LinearRamp(0, 1, 0, 1))
-
-    # Add the driver to the simulation
-    vehicle.SetDriver(driver)
-
-    # Set simulation parameters
-    chrono.ChSystem.SetTimestep(TIME_STEP)
-    chrono.ChSystem.SetGravity(GRAVITY)
-
-    # Run the simulation
-    while app.Run():
-        # Update the simulation
-        chrono.ChSystem.Update(TIME_STEP)
-
-        # Render the scene
-        app.RenderScene(chrono.ChSystem)
-
-        # Handle events
-        app.HandleEvents()
-
-if __name__ == "__main__":
-    main()
+# Cleanup
+app.GetDevice().drop()
+del app

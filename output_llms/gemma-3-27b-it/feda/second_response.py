@@ -76,25 +76,28 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
-# Create the path for the path-follower driver
-path = veh.PathFollower.Path()
-path.AddSegment(chrono.ChVector3d(-50, 0, 0.5), chrono.ChVector3d(-20, 0, 0.5))
-path.AddSegment(chrono.ChVector3d(-20, 0, 0.5), chrono.ChVector3d(-20, 10, 0.5))
-path.AddSegment(chrono.ChVector3d(-20, 10, 0.5), chrono.ChVector3d(-50, 10, 0.5))
-path.AddSegment(chrono.ChVector3d(-50, 10, 0.5), chrono.ChVector3d(-50, 0, 0.5))
+# Create the path
+path = []
+# ISO Double Lane Change Maneuver
+path.append(chrono.ChVector3d(-50, 0, 0))
+path.append(chrono.ChVector3d(-30, 0, 0))
+path.append(chrono.ChVector3d(-10, 0, 0))
+path.append(chrono.ChVector3d(10, 0, 0))
+path.append(chrono.ChVector3d(30, 0, 0))
+path.append(chrono.ChVector3d(50, 0, 0))
 
 # Create the path-follower driver
 driver = veh.ChPathFollowerDriver(vehicle.GetVehicle(), path, 10.0)
 
 # Steering controller parameters
-driver.GetSteeringController().SetLookAheadDistance(5.0)
-driver.GetSteeringController().SetGain(0.5)
-driver.GetSteeringController().SetMaxSteeringAngle(0.5)
+driver.SetSteeringLookAheadDistance(5.0)
+driver.SetSteeringGain(1.0)
+driver.SetSteeringMaxAngle(chrono.CH_C_PI / 4.0)
 
 # Speed controller parameters
-driver.GetSpeedController().SetTargetSpeed(10.0)
-driver.GetSpeedController().SetGain(0.5)
-driver.GetSpeedController().SetMaxAcceleration(2.0)
+driver.SetSpeedGain(0.5)
+driver.SetSpeedMax(10.0)
+driver.SetSpeedMin(0.0)
 
 driver.Initialize()
 

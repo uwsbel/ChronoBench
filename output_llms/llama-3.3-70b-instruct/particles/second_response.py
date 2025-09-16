@@ -2,6 +2,7 @@ import pychrono as chrono
 import pychrono.irrlicht as chronoirr
 from itertools import combinations
 
+
 class MyCreatorForAll(chrono.ChRandomShapeCreator_AddBodyCallback):
     def __init__(self, vis, coll):
         super().__init__()
@@ -78,6 +79,7 @@ sys.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, 0))
 
 # Simulation loop
 stepsize = 1e-2
+
 while vis.Run():
     vis.BeginScene()
     vis.Render()
@@ -90,6 +92,7 @@ while vis.Run():
 
     mlist = list(combinations(sys.GetBodies(), 2))
     G_constant = 6.674e-3  # Modified gravitational constant
+
     kinetic_energy = 0
     potential_energy = 0
 
@@ -103,11 +106,10 @@ while vis.Run():
         potential_energy += -G_constant * (abodyA.GetMass() * abodyB.GetMass()) / r_attract
 
     for body in sys.GetBodies():
-        kinetic_energy += 0.5 * body.GetMass() * body.GetVelocity().Length2()
+        kinetic_energy += 0.5 * body.GetMass() * body.GetPos_dt().Length2()
 
     total_energy = kinetic_energy + potential_energy
-    print("Kinetic Energy: ", kinetic_energy)
-    print("Potential Energy: ", potential_energy)
-    print("Total Energy: ", total_energy)
+
+    print(f"Kinetic Energy: {kinetic_energy}, Potential Energy: {potential_energy}, Total Energy: {total_energy}")
 
     sys.DoStepDynamics(stepsize)

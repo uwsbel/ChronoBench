@@ -7,8 +7,8 @@ chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 
-initLoc = chrono.ChVector3d(-15, 0, 0.5)  
-initRot = chrono.ChQuaterniond(1, 0, 0, 0)  
+initLoc = chrono.ChVector3d(-15, 0, 0.5)
+initRot = chrono.ChQuaterniond(0.7071, 0, 0, 0.7071)  
 
 
 vis_type = veh.VisualizationType_MESH
@@ -26,7 +26,7 @@ terrainLength = 100.0
 terrainWidth = 100.0   
 
 
-trackPoint = chrono.ChVector3d(3,0, 2.1)  
+trackPoint = chrono.ChVector3d(3, 0, 2.1)  
 
 
 contact_method = chrono.ChContactMethod_NSC
@@ -75,7 +75,7 @@ vis.SetWindowTitle('Kraz Demo')
 vis.SetWindowSize(1280, 1024)
 vis.SetChaseCamera(trackPoint, 25.0, 10.5)  
 vis.Initialize()
-vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddLogo(chrono.GetChronoDataPath('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetTractor())
@@ -107,8 +107,8 @@ render_frame = 0
 
 
 lane_change_start_time = 5.0
-lane_change_duration = 3.0
-target_lane_offset = 5.0
+lane_change_duration = 5.0
+target_lane_offset = 3.0
 
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
@@ -122,12 +122,15 @@ while vis.Run() :
 
     
     if time > lane_change_start_time and time < lane_change_start_time + lane_change_duration:
-        
-        steering_angle = target_lane_offset * (time - lane_change_start_time) / lane_change_duration
-        driver.SetSteeringAngle(steering_angle)
+        lane_change_progress = (time - lane_change_start_time) / lane_change_duration
+        steering_input = lane_change_progress * 2 * target_lane_offset - target_lane_offset
+
+    else:
+        steering_input = 0
 
     
     driver_inputs = driver.GetInputs()
+    driver_inputs.steering = steering_input
 
     
     driver.Synchronize(time)

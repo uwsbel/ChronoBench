@@ -23,7 +23,7 @@ tire_model = veh.TireModelType_TMEASY
 
 terrainHeight = 0      
 terrainLength = 200.0  
-terrainWidth = 100.0   
+terrainWidth = 200.0   
 
 
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
@@ -136,3 +136,9 @@ while vis.Run() :
 
     
     realtime_timer.Spin(step_size)
+
+
+sentinel_point = chrono.ChVector3d(0, 0, 0)
+target_point = chrono.ChVector3d(0, 0, 0)
+vis.AddSphere(sentinel_point, 0.2, chrono.ChColor(1, 0, 0))
+vis.AddSphere(target_point, 0.2, chrono.ChColor(0, 1, 0))

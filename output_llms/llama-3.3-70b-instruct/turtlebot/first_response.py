@@ -1,63 +1,56 @@
-# Import necessary libraries
 import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
 import pychrono.vehicle as veh
 
-# Initialize the PyChrono environment
+# Initialize the PyChrono environment and core components
 sys = chrono.ChSystemNSC()
 
 # Set the gravity
 sys.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
 # Create the ground body
-ground = chrono.ChBodyEasyBox(sys, 10, 1, 10, 1000, True, False)
-ground.SetPos(chrono.ChVectorD(0, -1, 0))
+ground = chrono.ChBodyEasyBox(sys, 10, 1, 10, 1000, True, chrono.ChVectorD(0, -1, 0))
 ground.SetBodyFixed(True)
+sys.Add(ground)
 
-# Initialize the Turtlebot
-turtlebot = veh.Turtlebot(sys)
+# Initialize the Turtlebot with a specific position and orientation
+turtlebot = veh.TurtleBot(sys, chrono.ChVectorD(0, 1, 0), chrono.ChQuaternionD(1, 0, 0, 0))
+sys.Add(turtlebot)
 
-# Set the initial position and orientation of the Turtlebot
-turtlebot.SetPos(chrono.ChVectorD(0, 1, 0))
-turtlebot.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
-
-# Add the Turtlebot to the system
-sys.Add(turtlebot.GetChassisBody())
-sys.Add(turtlebot.GetLeftWheel())
-sys.Add(turtlebot.GetRightWheel())
-
-# Create the Irrlicht visualization
+# Create a real-time visualization using Irrlicht
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AddSkyBox()
 vis.AddTypicalLights()
-vis.AddCamera(chrono.ChVectorD(0, 5, -10))
-vis.AddCamera(chrono.ChVectorD(0, 5, -10), chrono.ChVectorD(0, 0, 0))
+vis.AddCamera(chrono.ChVectorD(0, 5, -10), chrono.ChVectorD(0, 0, 0), 35)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle("Turtlebot Simulation")
+vis.AddTypicalCameraMovements()
 
-# Create the simulation loop
+# Set the simulation time step and duration
+time_step = 0.01
+duration = 10
+
+# Simulation loop
 time = 0
-dt = 0.01
-while time < 10:
+while time < duration:
+    # Update the simulation
+    sys.DoStepDynamics(time_step)
+
     # Control the Turtlebot's motors
     if time < 2:
-        turtlebot.SetMotorTorque(10, 10)
+        turtlebot.SetMotorTorque(chrono.ChVectorD(10, 10))
     elif time < 4:
-        turtlebot.SetMotorTorque(-10, 10)
+        turtlebot.SetMotorTorque(chrono.ChVectorD(-10, 10))
     elif time < 6:
-        turtlebot.SetMotorTorque(10, -10)
+        turtlebot.SetMotorTorque(chrono.ChVectorD(10, -10))
     else:
-        turtlebot.SetMotorTorque(0, 0)
+        turtlebot.SetMotorTorque(chrono.ChVectorD(0, 0))
 
-    # Update the simulation
-    sys.DoStepDynamics(dt)
-
-    # Render the visualization
+    # Render the scene
     vis.DrawAll()
 
-    # Increment the time
-    time += dt
+    # Increment the simulation time
+    time += time_step
 
-    # Print the current time
-    print(f"Time: {time}")
-
-# Finalize the simulation
-sys.GetContactContainer().ReportAllContacts()
+    # Render the scene at 60 Hz
+    chronoirr.ChSleep(1 / 60)

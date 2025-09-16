@@ -98,9 +98,12 @@ mbody_wheelA = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y,
                                         1000, True, False, mat)     
 sys.Add(mbody_wheelA)                                                
 mbody_wheelA.SetPos(chrono.ChVector3d(0, 0, 0))                     
-mbody_wheelA.SetRot(chrono.QuatFromAngleX(chrono.CH_PI_2))                 
-mbody_wheelA.GetVisualShape(0).SetMaterial(0, vis_mat)               
 
+mbody_wheelB = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y,             
+                                        radB, 0.5,                  
+                                        1000, True, False, mat)     
+sys.Add(mbody_wheelB)                                                
+mbody_wheelB.SetPos(chrono.ChVector3d(0, 0, 0))                     
 
 
 mbody_gearA = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y,             
@@ -133,7 +136,7 @@ sys.AddLink(link_motor)
 link_revolute = chrono.ChLinkLockRevolute()                         
 link_revolute.Initialize(mbody_gearA, mbody_train,                  
                            chrono.ChFramed(chrono.ChVector3d(0, 0, 0),    
-                                           chrono.QUNIT))                
+                                           chrono.QUNIT))  
 sys.AddLink(link_revolute)                                          
 
 
@@ -146,6 +149,11 @@ mbody_gearA.SetRot(chrono.QuatFromAngleX(m.pi / 2))
 mbody_gearA.GetVisualShape(0).SetMaterial(0, vis_mat)               
 
 
-mshaft_shape = chrono.ChVisualShapeCylinder(radA * 0.3, 10)                                
-mbody_gearA.AddVisualShape(mshaft_shape, chrono.ChFramed(chrono.ChVector3d(0, 3.5, 0),     
-                                                          chrono.QUNIT))
+interaxis12 = radA + radB                                           
+mbody_gearB = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y,             
+                                        radB, 0.4,                  
+                                        1000, True, False, mat)     
+sys.Add(mbody_gearB)                                                
+mbody_gearB.SetPos(chrono.ChVector3d(interaxis12, 0, -2))           
+mbody_gearB.SetRot(chrono.QuatFromAngleX(m.pi / 2))                 
+mbody_gearB.GetVisualShape(0).SetMaterial(0, vis_mat)

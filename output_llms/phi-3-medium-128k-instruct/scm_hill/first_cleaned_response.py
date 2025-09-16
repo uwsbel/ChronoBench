@@ -1,82 +1,118 @@
 import pychrono
 
-import pychrono.vehicle_dynamics as vehicle_dynamics
+import pychrono.modia as modia
 
-import pychrono.irrlicht as irrlicht
+import pychrono.irrlicht as irr
 
 import numpy as np
 
 
 
 
-chrono = pychrono.ChBody()
+chrono = pychrono.ChLinkCreateFunicularBody()
 
-chrono.Set_default_properties(1.0, 1.0, 1.0)
-
-
-
-
-hmmwv = vehicle_dynamics.HMMWV()
-
-hmmwv.Set_vehicle_mass(2000.0)  
-
-hmmwv.Set_vehicle_inertia(pychrono.ChBoxSGeom(0.5, 0.5, 0.5, 0.0))
+chrono.Init()
 
 
 
 
-terrain = pychrono.ChTerrainSCM()
+soil_density = 1800.0  
 
-terrain.Set_soil_parameters(0.5, 0.3, 0.1)  
+soil_stiffness = 10000.0  
 
-terrain.Load_height_map("height_map.png")
-
-
-
-
-driver = pychrono.ChDriver_OpSpace()
-
-driver.Set_max_force(1000.0)
+soil_damping = 0.05
 
 
 
 
-visualization = irrlicht.ChIrrApp()
+terrain_size = 10.0  
 
-visualization.Set_render_device(irrlicht.ChDeviceDIRECT(1280, 720))
+terrain_height_map = np.ones((10, 10)) * 0.5  
 
-visualization.Set_used_base_tscale(1.0 / 60.0)
+terrain = modia.SCMDTerrain(terrain_size, terrain_size, chrono.ChBody())
 
-visualization.Set_used_scale_tscale(1.0 / 60.0)
+terrain.SetSoilProperties(soil_density, soil_stiffness, soil_damping)
 
-visualization.Set_up_default_camera(irrlicht.core.ki.E_DIRECTION)
-
-light = irrlicht.core.aabiv.AABivLightGenerator(irrlicht.core.aabiv.AABIV_SMOOTH)
-
-light.Set_type(irrlicht.core.aabiv.AABIV_SPECULAR)
-
-light.Set_diffuse_color(irrlicht.core.vector3df(1.0, 1.0, 1.0))
-
-light.Set_specular_color(irrlicht.core.vector3df(1.0, 1.0, 1.0))
-
-light.Set_ambient_light_intensity(0.5)
-
-light.Set_specular_exponent(128.0)
-
-visualization.Add_light(light)
+terrain.SetHeightField(terrain_height_map)
 
 
 
 
-while visualization.Get_running():
+hmmwv = chrono.ChRigidBody(chrono.ChBodyTypes.KinematicBody, "HMMWV")
+
+hmmwv.SetMass(2000.0)  
+
+hmmwv.SetInertia(chrono.ChVector(1000.0, 1000.0, 1000.0))
+
+hmmwv.SetStaticForce(chrono.ChVector(0.0, 0.0, -9.81 * hmmwv.GetMass())
+
+
+
+
+hmmwv.SetPos(chrono.ChVector(0.0, 0.0, 0.0))
+
+hmmwv.SetRot(chrono.ChQuaternionD(1.0, 0.0, 0.0, 0.0))
+
+
+
+
+chrono.Add(hmmwv)
+
+
+
+
+driver = modia.Driver()
+
+driver.SetMaxVelocity(10.0)  
+
+driver.SetMaxSteeringAngle(30.0)  
+
+
+
+
+visualization = irr.ChIrrApp()
+
+visualization.SetWindowSize(800, 600)
+
+visualization.SetName("PyChrono HMMWV Simulation")
+
+
+
+
+camera = irr.ChCamera()
+
+camera.SetPos(chrono.ChVector(10.0, 10.0, 10.0))
+
+camera.SetTarget(hmmwv.GetPos())
+
+visualization.AddCamera(camera)
+
+
+
+
+visualization.AddBody(terrain.GetChLink())
+
+visualization.AddBody(hmmwv.GetChLink())
+
+
+
+
+while chrono.GetChTime() < 10.0:  
 
     
 
-    hmmwv.Advance_to(chrono.Time())
+    chrono.DoStepDynamics(0.01)
 
-    terrain.Advance_to(chrono.Time())
 
-    driver.Advance_to(chrono.Time())
+    
+
+    driver.Update(chrono.GetChTime())
+
+    hmmwv.SetForce(chrono.ChVector(0.0, 0.0, -9.81 * hmmwv.GetMass()))
+
+    hmmwv.SetLinearVel(chrono.ChVector(driver.GetVelocity(), 0.0, 0.0))
+
+    hmmwv.SetAngularVel(chrono.ChVector(0.0, 0.0, 0.0))
 
 
     
@@ -88,6 +124,6 @@ while visualization.Get_running():
     visualization.EndScene()
 
 
-    
 
-    chrono.Set_real_time_factor(1.0)
+
+chrono.Fini()

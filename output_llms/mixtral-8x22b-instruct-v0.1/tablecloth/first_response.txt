@@ -1,75 +1,87 @@
-To create a PyChrono simulation for the folding of a tablecloth using shell elements, we will follow the given instructions and implement an isotropic Kirchhoff material, generate a mesh grid, add nodes and elements, set up an Irrlicht visualization system, and use the PardisoMKL solver. Here's the script:
-
 ```python
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
+import pychrono.postprocess as postprocess
 import numpy as np
 
-# Initialize PyChrono environment and core components
-chrono.SetChronoDataPath("/path/to/chrono/data")
-chrono.SetChronoDataPath("/path/to/irrlicht/data")
+# 1. Initialize the PyChrono environment and core components
+chrono.SetChronoDataPath("/path/to/your/chrono/data")  # Replace with your Chrono data path
+chrono.SetChronoVisualization(chronoirr.ChVisualizationIrrlicht())
 
-# Create a Chrono::Engine physical system
+# 2. Add the required physical systems and objects
+# Create a new ChSystem
 my_system = chrono.ChSystemNSC()
 
-# Create an Irrlicht visualization system
-my_visualization = chronoirr.ChVisualSystemIrrlicht()
-my_visualization.SetWindowSize(800, 600)
-my_visualization.SetWindowTitle("Tablecloth Folding Simulation")
-my_system.SetVisualSystem(my_visualization)
+# Create a tablecloth mesh grid
+tablecloth_length = 1.0
+tablecloth_width = 1.0
+num_length_divisions = 10
+num_width_divisions = 10
 
-# Set up the tablecloth dimensions and mesh grid
-tablecloth_length = 1.0  # in meters
-tablecloth_width = 1.0  # in meters
-num_elements_x = 10
-num_elements_y = 10
-
-# Generate nodes and elements for the tablecloth
+# Generate nodes
 nodes = []
-elements = []
-for i in range(num_elements_x + 1):
-    for j in range(num_elements_y + 1):
-        node_position = chrono.ChVectorD(
-            i * tablecloth_length / num_elements_x,
-            j * tablecloth_width / num_elements_y,
-            0.0
-        )
-        node = chrono.ChNodeFEAxyzD(node_position)
+for i in range(num_length_divisions + 1):
+    for j in range(num_width_divisions + 1):
+        x = i * tablecloth_length / num_length_divisions
+        y = j * tablecloth_width / num_width_divisions
+        z = 0.0
+        node = chrono.ChNodeFEAxyzD(chrono.ChVectorD(x, y, z))
         nodes.append(node)
 
-for i in range(num_elements_x):
-    for j in range(num_elements_y):
-        node_indices = [
-            i * (num_elements_y + 1) + j,
-            i * (num_elements_y + 1) + j + 1,
-            (i + 1) * (num_elements_y + 1) + j + 1,
-            (i + 1) * (num_elements_y + 1) + j
-        ]
-        element = chrono.ChElementShellKirchhoffIsotropic(
-            nodes[node_indices[0]],
-            nodes[node_indices[1]],
-            nodes[node_indices[2]],
-            nodes[node_indices[3]],
-            thickness=0.001,  # in meters
-            young_modulus=1e7,  # in Pa
-            poisson_ratio=0.3
+# Generate elements
+elements = []
+for i in range(num_length_divisions):
+    for j in range(num_width_divisions):
+        element = chrono.ChElementShellANCF_3423(
+            nodes[i + j * (num_length_divisions + 1)],
+            nodes[i + 1 + j * (num_length_divisions + 1)],
+            nodes[i + 1 + (j + 1) * (num_length_divisions + 1)],
+            nodes[i + (j + 1) * (num_length_divisions + 1)],
+            0.001,  # Thickness
+            1.0,  # Young's modulus
+            0.3,  # Poisson's ratio
+            1.0,  # Density
         )
         elements.append(element)
-        my_system.Add(element)
 
-# Set up the PardisoMKL solver
-my_solver = chrono.ChSolverPardisoMKL()
-my_solver.SetVerbose(False)
-my_system.SetSolver(my_solver)
+# Add nodes and elements to the system
+for node in nodes:
+    my_system.Add(node)
+for element in elements:
+    my_system.Add(element)
+
+# 3. Set necessary default parameters such as positions, forces, and interactions
+# Set initial positions
+initial_positions = np.array([node.GetPos() for node in nodes])
+initial_positions[:, 2] = np.sin(initial_positions[:, 0]) * np.sin(initial_positions[:, 1]) * 0.1
+for i, node in enumerate(nodes):
+    node.SetPos(initial_positions[i])
+
+# Set gravity
+my_system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
+
+# Set solver
+my_system.SetSolverType(chrono.ChSolver.Type_PardisoMKL)
 
 # Run the simulation
-my_system.DoStaticLinear()
+my_system.DoFrameDynamics(1000)
 
 # Visualize the simulation
-while my_visualization.Run():
-    my_system.DoStepDynamics(0.01)
-    my_visualization.Render()
+visualizer = chronoirr.ChVisualizationIrrlicht()
+visualizer.SetWindowSize(800, 600)
+visualizer.SetWindowTitle("Tablecloth Folding Simulation")
+visualizer.Initialize()
+visualizer.AddLogo(chrono.GetChronoDataPath() + "logo_pychrono_alpha.png")
+visualizer.AddSkyBox()
+visualizer.AddCamera(chrono.ChVectorD(0, 0, 2))
+visualizer.AddLightWithShadow(chrono.ChVectorD(2, 2, 2), 0.4, 0.4, 0.4, 2, 100, 50)
+visualizer.AttachSystem(my_system)
 
+# Run the visualization
+while visualizer.Run():
+    my_system.DoFrameDynamics(0.01)
+    visualizer.Render()
+
+# 4. Clean up
+visualizer.CloseWindow()
 ```
-
-This script initializes the PyChrono environment, sets up the tablecloth dimensions and mesh grid, generates nodes and elements for the tablecloth, sets up the PardisoMKL solver, and runs the simulation using the Irrlicht visualization system. Make sure to replace "/path/to/chrono/data" and "/path/to/irrlicht/data" with the actual paths to the Chrono and Irrlicht data directories on your system.

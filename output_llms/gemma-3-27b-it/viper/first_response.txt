@@ -3,36 +3,56 @@ import chrono
 import chrono.irrlicht as chronoirr
 import chrono.vehicle as veh
 
-# --- Create the simulation system ---
+# ---
+# Initialize the PyChrono environment and core components.
+# ---
+
+# Create a Chrono system
 system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
 
-# --- Create the ground ---
-body_ground = chrono.ChBodyEasy()
-body_ground.SetBodyFixed(True)
-body_ground.SetMass(1000)
-body_ground.SetShape(chrono.ChBoxShape())
-body_ground.SetPos(chrono.ChVectorD(0, -0.1, 0))
-body_ground.SetTransform(chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)))
-system.Add(body_ground)
+# ---
+# Add the required physical systems and objects as specified.
+# ---
 
-# --- Create the Viper rover ---
+# Create the ground body
+body_floor = chrono.ChBodyEasy()
+body_floor.SetBodyFixed(True)
+body_floor.SetMass(1000)
+body_floor.SetPos(chrono.ChVectorD(0, -0.1, 0))
+body_floor.SetShapeBoxes(0.5, 0.1, 1)
+system.Add(body_floor)
+
+# Create the Viper rover
 viper = veh.Viper()
-viper.SetVehicleModelPath("path/to/viper_model.py")  # Replace with the actual path to your Viper model file
+viper.SetVehicleModelPath("./viper/viper.py")
 viper.Initialize(system)
-viper.SetContactSurfaceCoefficient(0.8)
-
-# --- Create the driver ---
-driver = veh.ViperDriver()
-driver.SetVehicle(viper)
-driver.SetInput(veh.ViperDriver.INPUT_STEERING, 0.0)
-driver.SetInput(veh.ViperDriver.INPUT_THROTTLE, 0.0)
-driver.SetInput(veh.ViperDriver.INPUT_BRAKE, 0.0)
-
-# --- Set initial rover position ---
 viper.SetPos(chrono.ChVectorD(0, 0.5, 0))
+viper.SetForwardSpeed(0)
 
-# --- Real-time visualization ---
+# Create the driver
+driver = veh.ViperDriver()
+driver.SetSteeringDelta(0.1)
+driver.SetMaxSteeringAngle(0.5)  # Adjust as needed
+driver.SetThrottleDelta(0.1)
+driver.SetMaxThrottle(1.0)
+driver.SetBrakeDelta(0.1)
+driver.SetMaxBrake(1.0)
+viper.SetDriver(driver)
+
+# ---
+# Set necessary default parameters such as positions, forces, and interactions.
+# ---
+
+# Set initial steering angle
+initial_steering = 0.0
+driver.SetSteering(initial_steering)
+
+# ---
+# Create a real-time visualization using Irrlicht with camera settings and lighting.
+# ---
+
+# Create an Irrlicht application to visualize the system
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
 vis.SetWindowSize(1024, 768)
@@ -41,41 +61,40 @@ vis.Initialize()
 vis.AddCamera(chrono.ChVectorD(0, 1, -2))
 vis.AddTypicalLights()
 
-# --- Simulation loop ---
-time_step = 0.005
+# ---
+# Implement a simulation loop where the rover's steering gradually changes
+# over a specified time period, updating and rendering the rover at each timestep.
+# ---
+
+# Simulation parameters
+time_step = 0.01
 simulation_time = 10.0
-current_time = 0.0
-steering_target = 0.5  # Target steering angle
-steering_rate = 0.1  # Rate of steering change per time step
-steering_direction = 1 # 1 for increasing, -1 for decreasing
+steering_change_duration = 5.0
+final_steering_angle = 0.5
 
-while vis.Run() and current_time < simulation_time:
-    # --- Update driver inputs ---
-    driver.SetInput(veh.ViperDriver.INPUT_THROTTLE, 0.5)  # Constant throttle
-    
-    # Gradually change steering angle
-    driver.SetInput(veh.ViperDriver.INPUT_STEERING, driver.GetInput(veh.ViperDriver.INPUT_STEERING) + steering_rate * steering_direction)
+# Simulation loop
+time = 0.0
+steering_start_time = 0.0
+steering_changed = False
 
-    # Clamp steering angle between -1 and 1
-    steering_angle = driver.GetInput(veh.ViperDriver.INPUT_STEERING)
-    steering_angle = max(-1.0, min(1.0, steering_angle))
-    driver.SetInput(veh.ViperDriver.INPUT_STEERING, steering_angle)
-    
-    # Reverse steering direction when target is reached
-    if steering_angle >= steering_target and steering_direction == 1:
-        steering_direction = -1
-    elif steering_angle <= -steering_target and steering_direction == -1:
-        steering_direction = 1
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
 
-    # --- Update the simulation ---
     system.DoStepDynamics(time_step)
 
-    # --- Render the scene ---
-    vis.Render()
-    vis.GetIrrlichtDevice().SceneManager().DrawAll()
+    # Gradually change steering angle
+    if time > steering_start_time and not steering_changed:
+        steering_angle = initial_steering + (time - steering_start_time) * (final_steering_angle - initial_steering) / steering_change_duration
+        steering_angle = min(steering_angle, final_steering_angle) # Clamp steering angle
 
-    current_time += time_step
+        driver.SetSteering(steering_angle)
 
-# --- Clean up ---
-vis.Close()
+        if time >= steering_start_time + steering_change_duration:
+            steering_changed = True
+            
+    time += time_step
+    if time > simulation_time:
+        break
 ```

@@ -1,9 +1,31 @@
 import pychrono as ch
-import pychrono.irrlicht as chrono
 import pychrono.ros as chros
-
 import rclpy.publisher
 from std_msgs.msg import Int64
+
+
+class MyCustomHandler(chros.ChROSHandler):
+    
+
+    def __init__(self, topic):
+        super().__init__(10)  
+        self.topic = topic
+        self.publisher = None
+        self.ticker = 0  
+
+    def Initialize(self, interface: chros.ChROSPythonInterface) -> bool:
+        
+        print(f"Creating publisher for topic {self.topic} ...")
+        self.publisher = interface.GetNode().create_publisher(Int64, self.topic, 10)  
+        return True  
+
+    def Tick(self, time: float):
+        
+        print(f"Publishing {self.ticker} ...")
+        msg = Int64()  
+        msg.data = self.ticker  
+        self.publisher.publish(msg)  
+        self.ticker += 1  
 
 
 class MyCustomHandler(chros.ChROSHandler):
@@ -14,13 +36,12 @@ class MyCustomHandler(chros.ChROSHandler):
 
         self.topic = topic
         self.publisher: rclpy.publisher.Publisher = None
-        self.ticker = 0  
+        self.ticker = 0  
 
     def Initialize(self, interface: chros.ChROSPythonInterface) -> bool:
         
         print(f"Creating publisher for topic {self.topic} ...")
-        
-        self.publisher = interface.GetNode().create_publisher(Int64, self.topic, 10)
+        self.publisher = interface.GetNode().create_publisher(Int64, self.topic, 10)  
         return True  
 
     def Tick(self, time: float):
@@ -55,16 +76,8 @@ def main():
     sys.Add(box)  
 
     
-    irr = chrono.IrrlichtVisualizer(640, 480)
-    irr.SetWindowCaption("PyChrono Simulation")
-    irr.SetUpLights()
-    irr.SetUpCamera(ch.ChVector3d(0, 0, 10), ch.ChVector3d(0, -1, 0), ch.ChVector3d(0, 0, 0))
-
-    
-    floor_texture = chrono.IrrlichtTexture("floor_texture.jpg")
-    box_texture = chrono.IrrlichtTexture("box_texture.jpg")
-    floor.SetTexture(floor_texture)
-    box.SetTexture(box_texture)
+    floor.SetTexture("path/to/floor_texture.png")
+    box.SetTexture("path/to/box_texture.png")
 
     
     ros_manager = chros.ChROSPythonManager()
@@ -88,12 +101,33 @@ def main():
     ros_manager.Initialize()
 
     
+    irr_options = chros.ChIrrOptions()
+    irr_options.SetWindowTitle("Simulation")
+    irr_options.SetWindowSize(800, 600)
+    irr_options.SetCameraPosition(ch.ChVector3d(0, 0, 100))
+    irr_options.SetTextureFilenames(["path/to/floor_texture.png", "path/to/box_texture.png"])
+    irr_options.SetUp()
+    irr_options.SetTexture(floor, "path/to/floor_texture.png")
+    irr_options.SetTexture(box, "path/to/box_texture.png")
+    irr_options.SetUp()
+
+    
+    irr_visualizer = chros.ChIrrApp(irr_options)
+
+    
+    renderer = chros.ChIrrRenderer()
+    irr_visualizer.AddRenderer(renderer)
+    irr_visualizer.AddRenderer(renderer)
+
+    
+    step_number = 0
+    render_step_size = 10
+    render_steps = 100
+
+    
     time = 0
     time_step = 1e-3  
     time_end = 30  
-    step_number = 0
-    render_step_size = 5
-    render_steps = 10
 
     realtime_timer = ch.ChRealtimeStepTimer()  
     while time < time_end:
@@ -103,11 +137,11 @@ def main():
         if not ros_manager.Update(time, time_step):  
             break  
 
-        if step_number % render_step_size == 0:
-            irr.Render()  
+        if step_number % render_step_size == 0:  
+            irr_visualizer.Render()  
+            step_number += 1
 
         realtime_timer.Spin(time_step)  
-        step_number += 1
 
 
 if __name__ == "__main__":

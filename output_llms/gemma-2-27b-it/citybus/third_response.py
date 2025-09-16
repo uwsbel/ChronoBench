@@ -16,8 +16,8 @@ vis_type_mesh = veh.VisualizationType_MESH
 # Collision type for chassis (PRIMITIVES, MESH, or NONE)
 chassis_collision_type = veh.CollisionType_NONE
 
-# Type of tire model (RIGID, TMEASY, PACEJKA)
-tire_model = veh.TireModelType_PACEJKA
+# Type of tire model (RIGID, TMEASY, PACEJKA89)
+tire_model = veh.TireModelType_PACEJKA89
 
 # Rigid terrain
 # terrain_model = veh.RigidTerrain.BOX
@@ -67,10 +67,9 @@ patch = terrain.AddPatch(patch_mat,
     chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
     terrainLength, terrainWidth)
 
-patch.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 200, 200)  # Changed texture
+patch.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
-
 # Create the vehicle Irrlicht interface
 
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
@@ -102,7 +101,7 @@ print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
 
-# Initialize simulation frame counter 
+# Initialize simulation frame counter s
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0

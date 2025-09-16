@@ -1,40 +1,40 @@
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
-import pychrono.viper as viper
+import pychrono.vehicle as veh
 
 
-chrono.Init()
+chrono.SetChronoDataPath('/path/to/chrono/install/data/')
 
 
-system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
+sys = chrono.ChSystemSMC()
+sys.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
 
 
-ground_mat = chrono.ChMaterialSurfaceNSC()
-ground = chrono.ChBodyEasyBox(100, 100, 1, 1000, True, True, ground_mat)
+ground = chrono.ChBody()
 ground.SetBodyFixed(True)
-ground.SetPos(chrono.ChVectorD(0, 0, 0))
-system.Add(ground)
+sys.Add(ground)
 
 
-viper_rover = viper.ViperDCMotorControl(system)
-viper_rover.SetDriver(
-    viper.ViperDCMotorControlDriver(
-        steeringmode=viper.ViperSteeringMode_PID,
-        pid_steering=viper.ViperSteeringPID(0.5, 0, 0.0, 0.0, 0.0),
-    )
-)
+viper = veh.Viper(sys)
+viper.SetDriver(veh.ChDriver(viper.GetVehicle()))
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(system)
-vis.SetWindowSize(1024, 768)
+vis.AttachSystem(sys)
+vis.SetWindowSize(800, 600)
 vis.SetWindowTitle('Viper Rover Simulation')
 vis.Initialize()
-vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddLogo(chrono.GetChronoDataPath() + 'chrono_logo.png')
 vis.AddSkyBox()
-vis.AddCamera(chrono.ChVectorD(0, -5, 2), chrono.ChVectorD(0, 0, 0))
+vis.AddCamera(chrono.ChVectorD(5, 5, 5), chrono.ChVectorD(0, 0, 0))
 vis.AddTypicalLights()
+
+
+camera = vis.GetCamera()
+camera.SetFOV(chrono.CH_C_PI / 4)
+light = vis.GetLight()
+light.SetLightType(chronoirr.ELightType.Directional)
+light.SetDirection(chrono.ChVectorD(1, 1, -1))
 
 
 time_step = 1e-3
@@ -42,22 +42,23 @@ time_end = 10
 steering_time = 5
 
 
-while vis.Run() and system.GetChTime() < time_end:
-    time = system.GetChTime()
-    steering = 0.5 * (time / steering_time)  
-
+for time in chrono.ChTimer().step(time_step, time_end):
     
-    viper_rover.SetSteering(steering)
-    viper_rover.Update()
-
+    if time < steering_time:
+        steering = time / steering_time
+    else:
+        steering = 1
+    viper.GetDriver().SetSteering(steering)
     
-    system.DoStepDynamics(time_step)
-
     
+    viper.Update(time_step)
+    
+    
+    vis.Run()
     vis.Render()
-    vis.BeginScene(True, True, chrono.ChColor(0.1, 0.1, 0.1))
+    vis.BeginScene()
+    vis.RenderGrid(chrono.ChVectorD(0, 0, 0), 10, 1)
     vis.EndScene()
 
-
-vis.GetDevice().closeDevice()
-chrono.Finish()
+    
+    sys.DoStepDynamics(time_step)

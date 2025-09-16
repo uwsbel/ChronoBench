@@ -6,84 +6,81 @@ import math
 sys = chrono.ChSystemNSC()
 
 
-sys.Set_Gravitational_Acceleration(chrono.ChVector3d(0, -9.81, 0))  
+sys.Set_Gravity(chrono.ChVectorD(0, -9.81, 0))  
 
 
 ground = chrono.ChBody()
 sys.Add(ground)
-ground.SetFixed(True)  
-ground.Enable_Collision(False)  
+ground.SetBodyFixed(True)  
+ground.GetVisualShape().SetEnable(True)  
 
 
-cyl_ground = chrono.ChVisualShapeCylinder(0.2, 0.4)  
-ground.Add_Visual_Shape(cyl_ground, chrono.ChFramed(chrono.ChVector3d(0, 0, +1)))
+cyl_1 = chrono.ChVisualShapeCylinder(0.2, 0.4)  
+ground.AddVisualShape(cyl_1, chrono.ChFrameD(chrono.ChVectorD(0, 0, +1)))
 
 
 pend_1 = chrono.ChBody()
-sys.Add_Body(pend_1)
-pend_1.SetFixed(False)  
-pend_1.Enable_Collision(False)  
-pend_1.Set_Mass(1)  
-pend_1.Set_Inertia_XX(chrono.ChVector3d(0.2, 1, 1))  
+sys.AddBody(pend_1)
+pend_1.SetBodyFixed(False)  
+pend_1.SetMass(1)  
+pend_1.SetInertiaXX(chrono.ChVectorD(0.2, 1, 1))  
 
 
-cyl_pend_1 = chrono.ChVisualShapeCylinder(0.2, 2)  
-cyl_pend_1.Set_Color(chrono.ChColor(0.6, 0, 0))  
-pend_1.Add_Visual_Shape(cyl_pend_1, chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleY(chrono.CH_PI_2)))
+cyl_1 = chrono.ChVisualShapeCylinder(0.2, 2)  
+cyl_1.SetColor(chrono.ChColor(0.6, 0, 0))  
+pend_1.AddVisualShape(cyl_1, chrono.ChFrameD(chrono.VNULL, chrono.QFromAngleY(chrono.CH_PI_2)))
 
 
-pend_1.Set_Pos(chrono.ChVector3d(1, 0, 1))
+pend_1.SetPos(chrono.ChVectorD(1, 0, 1))
 
 
 rev_1 = chrono.ChLinkLockRevolute()
-rev_1.Initialize(ground, pend_1, chrono.ChFramed(chrono.ChVector3d(0, 0, 1), chrono.ChQuaterniond(1, 0, 0, 0)))
-sys.Add_Link(rev_1)
+rev_1.Initialize(ground, pend_1, chrono.ChFrameD(chrono.ChVectorD(0, 0, 1), chrono.ChQuaternionD(1, 0, 0, 0)))
+sys.AddLink(rev_1)
 
 
 pend_2 = chrono.ChBody()
-sys.Add_Body(pend_2)
-pend_2.SetFixed(False)  
-pend_2.Enable_Collision(False)  
-pend_2.Set_Mass(1)  
-pend_2.Set_Inertia_XX(chrono.ChVector3d(0.2, 1, 1))  
+sys.AddBody(pend_2)
+pend_2.SetBodyFixed(False)  
+pend_2.SetMass(1)  
+pend_2.SetInertiaXX(chrono.ChVectorD(0.2, 1, 1))  
 
 
-cyl_pend_2 = chrono.ChVisualShapeCylinder(0.2, 2)  
-cyl_pend_2.Set_Color(chrono.ChColor(0, 0, 0.6))  
-pend_2.Add_Visual_Shape(cyl_pend_2, chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleY(chrono.CH_PI_2)))
+cyl_2 = chrono.ChVisualShapeCylinder(0.2, 2)  
+cyl_2.SetColor(chrono.ChColor(0, 0.6, 0))  
+pend_2.AddVisualShape(cyl_2, chrono.ChFrameD(chrono.VNULL, chrono.QFromAngleY(chrono.CH_PI_2)))
 
 
-pend_2.Set_Pos(chrono.ChVector3d(2, 0, 1))
+pend_2.SetPos(chrono.ChVectorD(1, 0, 3))
 
 
 rev_2 = chrono.ChLinkLockRevolute()
-rev_2.Initialize(pend_1, pend_2, chrono.ChFramed(chrono.ChVector3d(0, 0, 1), chrono.ChQuaterniond(1, 0, 0, 0)))
-sys.Add_Link(rev_2)
+rev_2.Initialize(pend_1, pend_2, chrono.ChFrameD(chrono.ChVectorD(0, 0, 1), chrono.ChQuaternionD(1, 0, 0, 0)))
+sys.AddLink(rev_2)
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
-vis.Attach_System(sys)  
-vis.Set_Window_Size(1024, 768)  
-vis.Set_Window_Title('Double Pendulum demo')  
+vis.AttachSystem(sys)  
+vis.SetWindowSize(1024, 768)  
+vis.SetWindowTitle('Double Pendulum demo')  
 vis.Initialize()  
-vis.Add_Logo(chrono.Get_Chrono_Data_File('logo_pychrono_alpha.png'))  
-vis.Add_SkyBox()  
-vis.Add_Camera(chrono.ChVector3d(0, 3, 6))  
-vis.Add_Typical_Lights()  
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))  
+vis.AddSkyBox()  
+vis.AddCamera(chrono.ChVectorD(0, 3, 6))  
+vis.AddTypicalLights()  
 
 
 log_info = True  
 while vis.Run():
-    vis.Begin_Scene()  
+    vis.BeginScene()  
     vis.Render()  
-    vis.End_Scene()  
-    sys.Do_Step_Dynamics(1e-3)  
+    vis.EndScene()  
+    sys.DoStepDynamics(1e-3)  
 
     
-    if log_info and sys.Get_Ch_Time() > 1:
-        pos_1 = pend_1.Get_Pos()  
-        pos_2 = pend_2.Get_Pos()  
-        print("t = ", sys.Get_Ch_Time())
-        print("     ", pos_1.x, "  ", pos_1.y)
-        print("     ", pos_2.x, "  ", pos_2.y)
+    if log_info and sys.GetChTime() > 1:
+        pos_1 = pend_1.GetPos()  
+        pos_2 = pend_2.GetPos()  
+        print("t = ", sys.GetChTime())
+        print("     ", pos_1.x, "  ", pos_1.y, "  ", pos_2.x, "  ", pos_2.y)
         log_info = False

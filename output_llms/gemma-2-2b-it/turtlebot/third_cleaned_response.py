@@ -4,7 +4,9 @@ import numpy as np
 import pychrono as chrono
 import pychrono.robot as turtlebot
 from pychrono import irrlicht as chronoirr
-from pychrono.sensor import sens
+from pychrono.sensor import Sens
+from pychrono.sensor import SensorManager
+from pychrono.sensor import LidarSensor
 
 
 system = chrono.ChSystemNSC()
@@ -28,16 +30,14 @@ robot = turtlebot.TurtleBot(system, init_pos, init_rot)
 robot.Initialize()  
 
 
-sensor_manager = sens.ChSensorManager()
+sens = Sens()
+sens.SetSensorType(Sens.Type_LIDAR)
+sens.SetSensorResolution(0.1)
+sens.SetSensorRange(5)
 
 
-lidar = sens.ChLidarSensor(sensor_manager, 
-                           range=10,  
-                           resolution=0.1,  
-                           filter_type=sens.ChLidarFilterType.FILTER_GAUSSIAN)  
-
-
-sensor_manager.AddSensor(lidar)
+lidar = LidarSensor(sens, 0.1, 5, 0.01, 0.01)  
+sens.AddSensor(lidar)
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
@@ -87,8 +87,4 @@ while vis.Run():
     system.DoStepDynamics(time_step)
 
     
-    sensor_manager.Update()
-
-    
-    if time >= 1.0:
-        robot.move('straight')
+    sens.Update()

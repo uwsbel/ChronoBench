@@ -20,13 +20,13 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 # Rigid terrain with height map
-terrainHeight = 0      # terrain height
-terrainLength = 100.0  # size in X direction
-terrainWidth = 100.0   # size in Y direction
-height_map = veh.GetDataFile("terrain/heightmaps/hills_512.png")
+terrainHeight = 0.0
+terrainLength = 100.0
+terrainWidth = 100.0
+heightmap = veh.GetDataFile('terrain/heightmaps/heightmap16.png')
 
 # Poon chassis tracked by the camera
-trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
+trackPoint = chrono.ChVector3d(-17.0, 0.0, 3.1)
 
 # Contact method
 contact_method = chrono.ChContactMethod_NSC
@@ -65,10 +65,10 @@ patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 patch = terrain.AddPatch(patch_mat,
     chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
-    terrainLength, terrainWidth, height_map)
+    terrainLength, terrainWidth, heightmap)
 
 patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
-# ... (rest of the script remains the same)
+# ... rest of the code remains the same ...

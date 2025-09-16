@@ -97,7 +97,6 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 
-
 driver = veh.ChInteractiveDriverIRR(vis)
 
 
@@ -142,7 +141,7 @@ while vis.Run() :
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
-    vis.Synchronize(time, driver_inputs)
+    vis.Synchronize(time)
 
     
     driver.Advance(step_size)
@@ -155,6 +154,5 @@ while vis.Run() :
 
     
     realtime_timer.Spin(step_size)
-
 
 """

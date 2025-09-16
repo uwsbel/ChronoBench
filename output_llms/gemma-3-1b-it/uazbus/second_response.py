@@ -124,9 +124,9 @@ while vis.Run() :
 
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
-    terrain.Synchronize(time)
+    terrain.Synchronize(time, driver_inputs, terrain)
     vehicle.Synchronize(time, driver_inputs, terrain)
-    vis.Synchronize(time)
+    vis.Synchronize(time, driver_inputs)
 
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)
@@ -140,13 +140,5 @@ while vis.Run() :
     realtime_timer.Spin(step_size)
 
 
-
-print("VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
-
-# Example of adding a simple lane change maneuver
-# This is a placeholder - a real implementation would involve more complex calculations
-# and potentially a more sophisticated vehicle model.
-if (step_number % 2 == 0):
-    vehicle.SetSteeringDelta(render_step_size / 2)
-    vehicle.SetThrottleDelta(render_step_size / 2)
-    vehicle.SetBrakingDelta(render_step_size / 2)
+"""
+"""

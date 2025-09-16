@@ -26,13 +26,12 @@ def main():
     # Create the terrain with a single mesh
     terrain = veh.RigidTerrain(hmmwv.GetSystem())
     terrain.SetCollisionEnabled(True)
-    terrain.SetCollisionThickness(0.01)
-    terrain.SetCollisionMesh(chrono.GetDataFile("vehicle/terrain/meshes/Highway_col.obj"))
+    terrain.SetCollisionMaterial(chrono.ChContactMaterialNSC(
+        friction=0.9, restitution=0.01, thickness=0.01))
+    terrain.AddVisualShape(chrono.ChVisualShapeTriangleMesh(
+        chrono.GetChronoDataFile('vehicle/terrain/meshes/Highway_vis.obj')))
 
-    # Add visual mesh to terrain
-    terrain.AddVisualShape(chrono.ChVisualShapeTriangleMesh(chrono.GetDataFile("terrain/meshes/Highway_vis.obj")))
-
-    # Initialize terrain
+    # Initialize the terrain
     terrain.Initialize()
 
     # Create the vehicle Irrlicht interface

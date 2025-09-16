@@ -1,57 +1,85 @@
-import pychrono as chrono
-import pychrono.irrlicht as irr
-import pychrono.tmeasy as tmeasy
+# Import necessary libraries
+from pychrono import *
+from pychrono.irrlicht import IrrlichtApplication
+from pychrono.irrlicht.irrlicht import IrrlichtDevice
+from pychrono.irrlicht.irrlicht import IrrlichtEngine
+from pychrono.irrlicht.irrlicht import IrrlichtScene
+from pychrono.irrlicht.irrlicht import IrrlichtSceneNode
+from pychrono.irrlicht.irrlicht import IrrlichtMaterial
+from pychrono.irrlicht.irrlicht import IrrlichtMesh
+from pychrono.irrlicht.irrlicht import IrrlichtLight
 
 # Initialize PyChrono
-chrono.init()
+init_chrono()
+
+# Create Irrlicht application
+app = IrrlichtApplication(
+    "HMMWV Simulation",
+    None,
+    False,
+    None,
+    None
+)
+
+# Create Irrlicht device
+device = app.getIrrlichtDevice()
 
 # Create Irrlicht engine
-engine = irr.IrrlichtEngine()
+engine = app.getIrrlichtEngine()
 
-# Create a world
-world = chrono.World()
+# Create Irrlicht scene
+scene = app.getIrrlichtScene()
 
-# Create a terrain mesh
-terrain_mesh = chrono.Mesh()
-terrain_mesh.load_obj("Highway_col.obj")
-terrain_mesh.load_obj("Highway_vis.obj")
+# Create Irrlicht scene node for the HMMWV
+hmmwv_node = scene.addSceneNode("HMMWV")
 
-# Create a vehicle
-vehicle = chrono.Vehicle()
-vehicle.set_mesh(chrono.Mesh())
-vehicle.set_collision_mesh(chrono.Mesh())
-vehicle.set_collision_method(chrono.CollisionMethod.COLLISION_METHOD_NONE)
-vehicle.set_contact_method(chrono.ContactMethod.CONTACT_METHOD_NONE)
+# Create Irrlicht mesh for the HMMWV
+hmmwv_mesh = IrrlichtMesh.createMesh("HMMWV_mesh.obj")
+hmmwv_node.addMesh(hmmwv_mesh)
 
-# Set vehicle parameters
-vehicle.set_position(chrono.Vector3(0, 0, 0))
-vehicle.set_orientation(chrono.Quaternion(0, 0, 0, 1))
-vehicle.set_contact_method(chrono.ContactMethod.CONTACT_METHOD_NONE)
-vehicle.set_tire_model(tmeasy.TireModel.TMEASY_MODEL_STANDARD)
+# Create Irrlicht material for the HMMWV
+hmmwv_material = IrrlichtMaterial.createMaterial("HMMWV_material")
+hmmwv_material.setDiffuseColor(0.5, 0.5, 0.5)
+hmmwv_material.setSpecularColor(0.5, 0.5, 0.5)
+hmmwv_node.addMaterial(hmmwv_material)
 
-# Add the vehicle to the world
-world.add_object(vehicle)
+# Create Irrlicht light for the HMMWV
+hmmwv_light = IrrlichtLight.createLight("HMMWV_light")
+hmmwv_light.setPosition(0, 0, 0)
+hmmwv_light.setDirection(0, 0, 1)
+hmmwv_node.addLight(hmmwv_light)
 
-# Add the terrain to the world
-world.add_object(terrain_mesh)
+# Create Irrlicht mesh for the terrain
+terrain_mesh = IrrlichtMesh.createMesh("Highway_col.obj")
+terrain_node = scene.addSceneNode("Terrain")
+terrain_node.addMesh(terrain_mesh)
 
-# Set the simulation parameters
-world.set_time_step(0.01)
-world.set_frame_rate(50)
+# Create Irrlicht mesh for the terrain visualization
+terrain_vis_mesh = IrrlichtMesh.createMesh("Highway_vis.obj")
+terrain_vis_node = scene.addSceneNode("TerrainVisualization")
+terrain_vis_node.addMesh(terrain_vis_mesh)
 
-# Create a driver system
-driver = chrono.Driver()
-driver.set_steering_control(chrono.SteeringControl.STEERING_CONTROL_MANUAL)
-driver.set_throttle_control(chrono.ThrottleControl.THROTTLE_CONTROL_MANUAL)
-driver.set_braking_control(chrono.BrakingControl.BRAKING_CONTROL_MANUAL)
+# Create Irrlicht driver system
+driver_system = app.createDriverSystem()
 
-# Start the simulation loop
-while True:
-    # Update the simulation
-    world.update()
+# Configure driver system parameters
+driver_system.setSteeringControlType(DriverControlType.SteeringWheel)
+driver_system.setThrottleControlType(DriverControlType.Throttle)
+driver_system.setBrakingControlType(DriverControlType.Brakes)
 
-    # Render the scene
-    engine.render()
+# Set initial parameters for the HMMWV
+hmmwv_position = Vec3(0, 0, 0)
+hmmwv_orientation = Vec3(0, 0, 0)
+hmmwv_contact_method = ContactMethod.ContactSurface
 
-    # Wait for the next frame
-    chrono.sleep(1 / 50)
+# Initialize the HMMWV
+hmmwv_driver = driver_system.createDriver("HMMWV")
+hmmwv_driver.setVehiclePosition(hmmwv_position)
+hmmwv_driver.setVehicleOrientation(hmmwv_orientation)
+hmmwv_driver.setContactMethod(hmmwv_contact_method)
+
+# Set TMEASY tire model for the HMMWV
+hmmwv_tire = hmmwv_driver.createTire("TMEASY")
+
+# Configure the simulation loop
+app.run(50)

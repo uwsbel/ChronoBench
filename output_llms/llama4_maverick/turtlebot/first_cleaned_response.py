@@ -1,83 +1,76 @@
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
-import pychrono.vehicle as veh
+import math
 
 
-chrono.SetChronoDataPath('/path/to/chrono/data/')  
-veh.SetDataPath('/path/to/chrono/data/vehicle/')  
+chrono.SetChronoDataPath("/path/to/chrono/data/")
 
 
 sys = chrono.ChSystemNSC()
-sys.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))  
+sys.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
 
-ground_mat = chrono.ChMaterialSurfaceNSC()
-ground = chrono.ChBodyEasyBox(20, 20, 1, 1000, True, True, ground_mat)
+ground = chrono.ChBody()
 ground.SetBodyFixed(True)
-ground.SetPos(chrono.ChVectorD(0, 0, -0.5))
 sys.Add(ground)
 
 
-init_pos = chrono.ChVectorD(0, 0, 0.2)  
-init_rot = chrono.ChQuaternionD(1, 0, 0, 0)  
+turtlebot = chrono.ChBody()
+turtlebot.SetMass(10)
+turtlebot.SetInertiaXX(chrono.ChVectorD(1, 1, 1))
+turtlebot.SetPos(chrono.ChVectorD(0, 0.5, 0))
+turtlebot.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
+sys.Add(turtlebot)
 
 
-turtlebot_mat = chrono.ChMaterialSurfaceNSC()
-turtlebot_body = chrono.ChBodyEasyBox(0.3, 0.3, 0.1, 1000, True, True, turtlebot_mat)
-turtlebot_body.SetPos(init_pos)
-turtlebot_body.SetRot(init_rot)
-sys.Add(turtlebot_body)
+wheel1 = chrono.ChBody()
+wheel1.SetMass(1)
+wheel1.SetInertiaXX(chrono.ChVectorD(0.1, 0.1, 0.1))
+wheel1.SetPos(chrono.ChVectorD(-0.2, 0.25, 0))
+sys.Add(wheel1)
 
+wheel2 = chrono.ChBody()
+wheel2.SetMass(1)
+wheel2.SetInertiaXX(chrono.ChVectorD(0.1, 0.1, 0.1))
+wheel2.SetPos(chrono.ChVectorD(0.2, 0.25, 0))
+sys.Add(wheel2)
 
-wheel_mat = chrono.ChMaterialSurfaceNSC()
-left_wheel = chrono.ChBodyEasyCylinder(0.1, 0.05, 1000, True, True, wheel_mat)
-left_wheel.SetPos(init_pos + chrono.ChVectorD(-0.1, 0, -0.1))
-sys.Add(left_wheel)
+motor1 = chrono.ChLinkMotorRotation()
+motor1.Initialize(wheel1, turtlebot, chrono.ChFrameD(chrono.ChVectorD(-0.2, 0.25, 0)))
+sys.AddLink(motor1)
 
-right_wheel = chrono.ChBodyEasyCylinder(0.1, 0.05, 1000, True, True, wheel_mat)
-right_wheel.SetPos(init_pos + chrono.ChVectorD(0.1, 0, -0.1))
-sys.Add(right_wheel)
-
-
-
+motor2 = chrono.ChLinkMotorRotation()
+motor2.Initialize(wheel2, turtlebot, chrono.ChFrameD(chrono.ChVectorD(0.2, 0.25, 0)))
+sys.AddLink(motor2)
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(sys)
-vis.SetWindowSize(1024, 768)
+vis.SetWindowSize(800, 600)
 vis.SetWindowTitle('Turtlebot Simulation')
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataPath() + 'logo_pychrono_alpha.png')
 vis.AddSkyBox()
-vis.AddCamera(chrono.ChVectorD(1.5, 1.5, 1.5), chrono.ChVectorD(0, 0, 0))
+vis.AddCamera(chrono.ChVectorD(0, 2, -3))
 vis.AddTypicalLights()
-vis.AddLightWithShadow(chrono.ChVectorD(1.5, 1.5, 5.5), chrono.ChVectorD(0, 0, 0), 3, 2, 10, 40, 512)
+vis.AttachSystem(sys)
 
 
-time_step = 0.01
-time_end = 10
-motor_control_time = 0
-
-while vis.Run() and sys.GetChTime() < time_end:
-    sys.DoStepDynamics(time_step)
-    
-    
-    current_time = sys.GetChTime()
-    if current_time > motor_control_time:
-        motor_control_time += 1  
-        
-        
-        if int(current_time) % 2 == 0:
-            
-            left_wheel.SetPos_dt(chrono.ChVectorD(0, -1, 0))  
-            right_wheel.SetPos_dt(chrono.ChVectorD(0, 1, 0))
-        else:
-            
-            left_wheel.SetPos_dt(chrono.ChVectorD(0, 1, 0))
-            right_wheel.SetPos_dt(chrono.ChVectorD(0, -1, 0))
-    
+time = 0
+while vis.Run():
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
 
-vis.GetDevice().closeDevice()
+    
+    if time < 2:
+        motor1.SetTorque(1)
+        motor2.SetTorque(1)
+    elif time < 4:
+        motor1.SetTorque(-1)
+        motor2.SetTorque(1)
+    else:
+        motor1.SetTorque(1)
+        motor2.SetTorque(-1)
+
+    sys.DoStepDynamics(0.01)
+    time += 0.01

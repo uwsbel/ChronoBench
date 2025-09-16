@@ -1,165 +1,79 @@
-**PyChrono Simulation Script**
-=====================================
+### PyChrono Simulation Script
 
-### Import necessary modules
+Below is a Python script that utilizes the PyChrono library to create a simulation as per your instructions. This script initializes the PyChrono environment, loads a triangular mesh from a Wavefront .obj file as a fixed body, adds a camera sensor, and simulates the system.
 
 ```python
 import chrono as ch
 import chrono.sensor as chs
-import chrono.utils as ch_utils
-import numpy as np
-```
+import chrono.irr as chirr
 
-### Initialize PyChrono environment and core components
+# 1. Initialize the PyChrono environment and core components.
+ch.ChronoEngine.Initialize()
 
-```python
-# Initialize PyChrono environment
-ch.ChronoEnvironment.set_GeometryFileSearchPath("./")
+# Create the main application
+app = ch.ChIrrApp()
 
-# Create the simulation system
-system = ch.PhysicalSystem()
-
-# Create a sensor manager
-sensor_manager = chs.SensorManager(system)
-
-# Set the simulation step and end time
-system.SetTimestep(0.01)
-system.SetEndTime(10.0)
-```
-
-### Load triangular mesh and add as fixed body
-
-```python
+# 2. Add the required physical systems and objects.
 # Load the triangular mesh from a Wavefront .obj file
 mesh = ch.ChTriangleMeshConnected()
+mesh.LoadWavefrontMesh('path/to/your/mesh.obj')
 
-# Load the mesh
-mesh.LoadWavefrontMesh("path/to/mesh.obj")
-
-# Create a fixed body
+# Create a fixed body for the mesh
 body = ch.ChBody()
-
-# Set the body as fixed
-body.SetFixed(True)
-
-# Add the mesh to the body
-body.AddVisualizationShape(mesh)
+body.SetPos(ch.ChVectorD(0, 0, 0))
+body.SetBodyFixed(True)
+body.AddVisualShape(mesh)
 
 # Add the body to the system
+system = ch.ChSystemNSC()
 system.AddBody(body)
-```
 
-### Add camera sensor to the body
-
-```python
+# 3. Set necessary default parameters and add a camera sensor.
 # Create a camera sensor
-camera = chs.CameraSensor(body)
+camera = chs.ChCameraSensor(body, 
+                            chs.ChFrameD(ch.ChVectorD(0, 0, 2), ch.ChQuaternionD(1, 0, 0, 0)), 
+                            640, 480, 
+                            ch.ChVectorD(45, 45))
 
-# Set camera properties
-camera.SetPosition(ch.ChVector3d(0, 0, 1))
-camera.SetResolution(640, 480)
-camera.SetFOV(ch.CH_C_PI / 2)
+# Add noise filters and visualizations
+noise = chs.ChCameraNoiseModelGaussian()
+noise.SetParameters(0.1, 0.05)
+camera.SetNoiseModel(noise)
 
-# Add noise filters
-noise = chs.GaussianNoiseFilter(10)
-camera.AddFilter(noise)
-
-# Add the camera to the sensor manager
+# Create a sensor manager
+sensor_manager = chs.ChSensorManager(system)
 sensor_manager.AddSensor(camera)
-```
 
-### Add visualizations and set up sensor manager
+# Enable visualization of camera images
+sensor_manager.Visualize()
 
-```python
-# Create a render window for the camera images
-render_window = chs.RenderWindow(camera)
-
-# Set up the sensor manager
-sensor_manager.SetVerbose(True)
-sensor_manager.AttachRenderWindow(render_window)
-```
-
-### Simulate the system and update camera position
-
-```python
-# Create a time step counter
-time_step = 0
-
-while system.GetChTime() < system.GetEndTime():
+# Simulation loop
+while True:
     # Update the system
-    system.DoStepDynamics(system.GetTimestep())
+    system.Update(0.01)
 
-    # Update the camera position
-    camera_pos = ch.ChVector3d(np.cos(time_step) * 2, np.sin(time_step) * 2, 1)
-    camera.SetPosition(camera_pos)
+    # Dynamically update the camera's position in an orbit around the mesh
+    angle = system.GetChTime()
+    camera_pos = ch.ChVectorD(5 * ch.cos(angle), 5 * ch.sin(angle), 2)
+    camera_frame = ch.ChFrameD(camera_pos, ch.ChQuaternionD(1, 0, 0, 0))
+    camera.SetFrame(camera_frame)
 
-    # Print camera buffer data
-    print(camera.GetBuffer())
+    # Print out camera buffer data at each step
+    buffer = camera.GetBuffer()
+    if buffer.IsValid():
+        print(buffer)
 
-    # Increment time step
-    time_step += 0.1
+    # Render the scene
+    app.Render()
+    app.Update()
 ```
 
-### Full Code
+### Instructions for Use
 
-Here is the full code:
+1. **Replace `'path/to/your/mesh.obj'`** with the actual path to your Wavefront .obj file.
+2. Ensure you have PyChrono and its dependencies installed.
+3. Run the script.
 
-```python
-import chrono as ch
-import chrono.sensor as chs
-import chrono.utils as ch_utils
-import numpy as np
+### Note
 
-def main():
-    # Initialize PyChrono environment
-    ch.ChronoEnvironment.set_GeometryFileSearchPath("./")
-
-    # Create the simulation system
-    system = ch.PhysicalSystem()
-
-    # Create a sensor manager
-    sensor_manager = chs.SensorManager(system)
-
-    # Set the simulation step and end time
-    system.SetTimestep(0.01)
-    system.SetEndTime(10.0)
-
-    # Load triangular mesh and add as fixed body
-    mesh = ch.ChTriangleMeshConnected()
-    mesh.LoadWavefrontMesh("path/to/mesh.obj")
-
-    body = ch.ChBody()
-    body.SetFixed(True)
-    body.AddVisualizationShape(mesh)
-    system.AddBody(body)
-
-    # Add camera sensor to the body
-    camera = chs.CameraSensor(body)
-    camera.SetPosition(ch.ChVector3d(0, 0, 1))
-    camera.SetResolution(640, 480)
-    camera.SetFOV(ch.CH_C_PI / 2)
-
-    noise = chs.GaussianNoiseFilter(10)
-    camera.AddFilter(noise)
-
-    sensor_manager.AddSensor(camera)
-
-    # Add visualizations and set up sensor manager
-    render_window = chs.RenderWindow(camera)
-    sensor_manager.SetVerbose(True)
-    sensor_manager.AttachRenderWindow(render_window)
-
-    # Simulate the system and update camera position
-    time_step = 0
-    while system.GetChTime() < system.GetEndTime():
-        system.DoStepDynamics(system.GetTimestep())
-        camera_pos = ch.ChVector3d(np.cos(time_step) * 2, np.sin(time_step) * 2, 1)
-        camera.SetPosition(camera_pos)
-        print(camera.GetBuffer())
-        time_step += 0.1
-
-if __name__ == "__main__":
-    main()
-```
-
-Note that you need to replace `"path/to/mesh.obj"` with the actual path to your Wavefront .obj file. Also, make sure that the PyChrono environment is properly set up and the necessary dependencies are installed.
+This script assumes a basic understanding of PyChrono and Python. Adjustments might be necessary based on the specifics of your environment and the .obj file you're using. Make sure to check the PyChrono documentation for the most current API and best practices.

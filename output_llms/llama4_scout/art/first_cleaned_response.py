@@ -6,152 +6,52 @@ import chrono.vehicle as veh
 ch.ChEngine.Initialize()
 
 
-app = irr.IrrlichtApplication()
+app = irr.ChIrrApp()
 
 
-step_size = 0.02
-frame_rate = 50
+vehicle = veh.ChARTcar()
 
 
-engine = ch.ChEngine()
-
-
-engine.SetCollisionSystemType(ch.ChCollisionSystem.Type.BULLET)
-engine.SetVisualSystem(app)
-engine.SetThreading(1)
-
-
-vehicle = veh.ARTcar()
-
-
-vehicle.SetChassisBodyFixed(False)
-vehicle.SetChassisBodyPos(ch.ChVector3d(0, 0, 1))
-vehicle.SetChassisBodyRot(ch.ChQuaterniond(0, 0, 0, 1))
-
-
-vehicle.SetContactMethod(ch.ChContactMethod.SMC)
-vehicle.SetVisualizationType(veh.ChVehicle.Visualization.VIS_BODY)
-
-
-vehicle.Initialize()
+vehicle.SetLocation(ch.ChVector3d(0, 0, 1))
+vehicle.SetOrientation(ch.ChQuaterniond(1, 0, 0, 0))
 
 
 terrain = ch.ChTerrain()
 
 
-terrain.SetSize(ch.ChVector3d(100, 100, 10))
+terrain.SetType(terrain.RIGID)
+terrain.SetDimensions(100, 100)
+terrain.SetContactMethod(terrain.E_CONTACT_METHOD_NODES)
+terrain.SetVisualizationType(terrain.E_VISUALIZATION_TEXTURE)
 
 
-texture = irr.SITexture("terrain.jpg")
-terrain.SetTexture(texture)
-
-
-terrain.Initialize()
+texture = irr.ChIrrTexture()
+texture.LoadFromFile("path_to_your_texture.jpg")  
+terrain.AddVisualizationTexture(texture)
 
 
 driver = veh.ChInteractiveDriver()
 
 
-driver.SetVehicle(vehicle)
-driver.SetTerrain(terrain)
+driver.SetSteeringFunction(veh.ChDriverSteeringFunction(driver.E_STEERING_FUNCTION_LINEAR))
+driver.SetThrottleFunction(veh.ChDriverThrottleFunction(driver.E_THROTTLE_FUNCTION_LINEAR))
+driver.SetBrakingFunction(veh.ChDriverBrakingFunction(driver.E_BRAKING_FUNCTION_LINEAR))
 
 
-driver.Initialize()
+vehicle.Initialize(terrain)
+driver.Initialize(vehicle)
 
 
-while app.Run() and not engine.GetStopSimulationFlag():
-    
-    vehicle.Update(step_size)
+def Simulate():
+    step_size = 0.02  
+    time = 0
 
-    
-    app.BeginScene()
-    terrain.Visualize()
-    vehicle.Visualize()
-    app.EndScene()
-
-    
-    engine.GetSystem().DoStepDynamics(step_size)
-
-
-app.Exit()
-
-import chrono as ch
-import chrono.irrlicht as irr
-import chrono.vehicle as veh
-
-def main():
-    
-    ch.ChEngine.Initialize()
-
-    
-    app = irr.IrrlichtApplication()
-
-    
-    step_size = 0.02
-    frame_rate = 50
-
-    
-    engine = ch.ChEngine()
-
-    
-    engine.SetCollisionSystemType(ch.ChCollisionSystem.Type.BULLET)
-    engine.SetVisualSystem(app)
-    engine.SetThreading(1)
-
-    
-    vehicle = veh.ARTcar()
-
-    
-    vehicle.SetChassisBodyFixed(False)
-    vehicle.SetChassisBodyPos(ch.ChVector3d(0, 0, 1))
-    vehicle.SetChassisBodyRot(ch.ChQuaterniond(0, 0, 0, 1))
-
-    
-    vehicle.SetContactMethod(ch.ChContactMethod.SMC)
-    vehicle.SetVisualizationType(veh.ChVehicle.Visualization.VIS_BODY)
-
-    
-    vehicle.Initialize()
-
-    
-    terrain = ch.ChTerrain()
-
-    
-    terrain.SetSize(ch.ChVector3d(100, 100, 10))
-
-    
-    texture = irr.SITexture("terrain.jpg")
-    terrain.SetTexture(texture)
-
-    
-    terrain.Initialize()
-
-    
-    driver = veh.ChInteractiveDriver()
-
-    
-    driver.SetVehicle(vehicle)
-    driver.SetTerrain(terrain)
-
-    
-    driver.Initialize()
-
-    
-    while app.Run() and not engine.GetStopSimulationFlag():
-        
+    while app.Run():
         vehicle.Update(step_size)
+        driver.Update(step_size)
+        app.Render()
 
-        
-        app.BeginScene()
-        terrain.Visualize()
-        vehicle.Visualize()
-        app.EndScene()
+        time += step_size
 
-        
-        engine.GetSystem().DoStepDynamics(step_size)
 
-    
-    app.Exit()
-
-if __name__ == "__main__":
-    main()
+Simulate()

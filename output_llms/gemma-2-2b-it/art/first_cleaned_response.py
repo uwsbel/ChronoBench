@@ -1,55 +1,59 @@
 import pychrono as chrono
-import pychrono.irrlicht as irr
-import pychrono.irrlicht.irrlicht as irr
+import pychrono.irrlicht as irrlicht
+import pychrono.irrlicht.irrlicht_types as irrtypes
 
 
 chrono.init()
 
 
-engine = irr.IrrlichtEngine()
+engine = irrlicht.IrrlichtEngine()
+engine.createWindow("ARTcar Simulation", 800, 600)
 
 
-terrain = chrono.RigidTerrain(
-    chrono.Vector3(0, 0, 0),
-    chrono.Vector3(10, 10, 10),
-    chrono.Vector3(1, 1, 1),
-    "terrain.png",
-)
+terrain_width = 100
+terrain_height = 50
+terrain = chrono.RigidTerrain(chrono.Vector3(0, 0, 0),
+                             chrono.Vector3(terrain_width, terrain_height, 0),
+                             chrono.Vector3(0, 0, 0),
+                             chrono.Vector3(0, 0, 0))
 
 
-car = chrono.ARTcar(
-    chrono.Vector3(5, 5, 0),
-    chrono.Quaternion(0, 0, 0, 1),
-    chrono.ContactMethod.CONTACT_METHOD_NONE,
-    chrono.VisualizationType.VISUALIZATION_TYPE_SIMPLE,
-)
+terrain.setMaterialTexture("terrain_texture.png")
 
 
-car.set_mass(1000)
-car.set_friction(0.1)
-car.set_rolling_resistance(0.01)
+car = chrono.Vehicle(chrono.Vector3(0, 0, 0),
+                    chrono.Vector3(0, 0, 0),
+                    chrono.Vector3(0, 0, 0),
+                    chrono.VehicleType.ARTCAR)
 
 
-engine.add_object(car)
-engine.add_object(terrain)
+car.setContactMethod(chrono.ContactMethod.CONTACT)
+
+
+car.setVisualizationType(chrono.VisualizationType.VISUALIZE_WITH_TEXTURES)
+
+
+car.setSteeringAngle(0)
+car.setThrottle(0)
+car.setBrake(0)
+
+
+engine.run()
 
 
 driver = chrono.Driver(car)
 
 
-engine.set_frame_rate(50)
-
-
-while True:
+while engine.isRunning():
     
     driver.update()
 
     
-    car.update()
+    engine.update()
+    engine.render()
 
     
-    engine.render()
+    engine.updateFrameRate(50)
 
 
 engine.shutdown()
-chrono.shutdown()

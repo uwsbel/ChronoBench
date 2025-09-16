@@ -1,63 +1,75 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
 import pychrono.vehicle as veh
-import numpy as np
 
 
-sys = chrono.ChSystemNSC()
-
-
-veh_feda = veh.FEDA()
-veh_feda.Initialize(sys, 
-                    chrono.ChVectorD(0, 0, 1.2),  
-                    chrono.ChQuaternionD(1, 0, 0, 0),  
-                    0.5,  
-                    veh.TireModelType.TME_SIMPLE)
-
-
-sys.Add(veh_feda.GetChassisBody())
-sys.Add(veh_feda.GetWheel(0))
-sys.Add(veh_feda.GetWheel(1))
-sys.Add(veh_feda.GetWheel(2))
-sys.Add(veh_feda.GetWheel(3))
-
-
-terrain = veh.RigidTerrain(sys)
-terrain.SetTexture(chrono.GetChronoDataFile("asphalt.jpg"))
+sys = chrono.ChSystem()
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
-vis.SetWindowSize(1024, 768)
 vis.AddSkyBox()
 vis.AddTypicalLights()
 
 
-cam = vis.AddCamera(chrono.ChVectorD(0, 0, 1.5))
-cam.SetFollowNode(veh_feda.GetChassisBody())
-cam.SetLookAt(chrono.ChVectorD(0, 0, 0))
+vehicle = veh.ChVehicleFEDA()
+vehicle.SetContactMethod(chrono.ChContactMethod_NSC)
+vehicle.SetTireModel(veh.ChTireModel_PAC2002)
+vehicle.SetChassisFixed(False)
+vehicle.SetSuspensionEnabled(True)
+vehicle.SetSteeringEnabled(True)
+vehicle.SetBrakingEnabled(True)
 
 
-for part in veh_feda.GetParts():
-    vis.AssetCreateMeshVisualization(part, 
-                                    chrono.ChVisualMaterial(chrono.ChVectorD(0.8, 0.8, 0.8)), 
-                                    0.1)
+vehicle.Initialize(chrono.ChCoordsysD(0, 0, 0, chrono.Q_from_AngX(chrono.CH_C_PI_2)))
 
 
-driver = veh.InteractiveDriver(veh_feda)
+sys.Add(vehicle)
 
 
-time_step = 0.02
+terrain = chrono.ChBodyEasyBox(sys, 10, 1, 10, 1000, True, chrono.ChMaterialSurfaceNSC())
+terrain.SetPos(chrono.ChVectorD(0, -1, 0))
+terrain.SetMaterial(chrono.ChMaterialSurfaceNSC())
+terrain.AddAsset(chrono.ChBoxShape(chrono.ChVectorD(10, 1, 10)))
+terrain.AddAsset(chrono.ChTexture(chrono.GetChronoDataPath() + "terrain.png"))
+
+
+sys.Add(terrain)
+
+
+camera = vis.AddCamera(chrono.ChVectorD(0, 5, -10))
+camera.SetFollowVehicle(vehicle)
+
+
+step_size = 0.02
+vis.SetWindowSize(800, 600)
+vis.SetCamera(camera)
+vis.SetLogo("")
+
+
 while vis.Run():
     
-    sys.DoStepDynamics(time_step)
-    
+    vehicle.Steering(0.1)
+    vehicle.Throttle(0.5)
+    vehicle.Braking(0)
+    sys.DoStepDynamics(step_size)
+
     
     vis.BeginScene()
     vis.DrawAll()
     vis.EndScene()
+
     
+    vis.DrawAll()
+
     
-    driver.Update(time_step)
+    vis.SetSimulationSpeed(50)
+
     
-    
-    chrono.ChSleep(1/50)
+    if vis.IsKeyPressed(chrono.irr.KEY_KEY_Z):
+        vehicle.Steering(-0.1)
+    if vis.IsKeyPressed(chrono.irr.KEY_KEY_X):
+        vehicle.Steering(0.1)
+    if vis.IsKeyPressed(chrono.irr.KEY_KEY_UP):
+        vehicle.Throttle(0.5)
+    if vis.IsKeyPressed(chrono.irr.KEY_KEY_DOWN):
+        vehicle.Braking(0.5)

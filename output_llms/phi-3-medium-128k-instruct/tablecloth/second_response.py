@@ -28,7 +28,7 @@ thickness = 0.01
 
 # Create material
 melasticity = fea.ChElasticityKirchhoffIsothropic(E, nu)
-material = fea.ChMaterialShellKirchhoffIsothropic(E, nu)
+material = fea.ChMaterialShellKirchhoff(melasticity)
 material.SetDensity(density)
 
 # Mesh dimensions
@@ -37,364 +37,105 @@ nsections_x, nsections_z = 40, 40
 
 # Create nodes
 mynodes = []
-for iz in range(nsections_x + 1
-
-# Create nodes
-for iz in range(nsections_z + 1
-    for ix in range(nsections_x + 1
-        p = chrono.ChVector3d
-        p = chrono.ChVector3d
-
-# Create nodes
-        mynodes.append(mynodes.append(mynodes
+for iz in range(nsections_z + 1):
+    for ix in range(nsections_x + 1):
+        p = chrono.ChVector3d(ix * (L_x / nsections_x), 0, iz * (L_z / nsections_z))
+        mnode = fea.ChNodeFEAxyz(p)
+        mesh.AddNode(mnode)
+        mynodes.append(mnode)
 
 # Create elements
-        for iz in range(nsections_x
-            for ix in range(nsections_x
-                boundary_x
-                boundary_x
-                boundary_x
-                    # Create elements
-                    # Create nodes
-                    boundary_x
-                    # Create elements
-                    # Create elements
-                    if ix
-                    if ix
-                    ifix
-                    ifx
-                    ifx
-                    ifx
-
-# Create elements
-                    ifx
-                    ifx
-                    ifx
-                    if
-
-# Create elements
-
-fea
-                    if
-
-Create elements
-                    if
-
-Create elements
-                    if
-
-Create elements
-
-error
-
-Create elements
-
-    if
-
-Create
-        if
-        if
-        if
-        if
-
-
-Create if
-
-
-
-
-
-
-
-s
-
-Create if
-
- Create elements
-
-
-Create
-
-a
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-   
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-   
-
-from
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-s
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-response
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-   
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Bse
-
-
-
-
-
-   
-
-
-
-
-
-
-
-
-
-
-
-
-
-   py
-
-
-```python
-
-
-
-
-
-   
-
-
-
-
-
-
-
-
-    if
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-   
-   
-
-
-   get_
-
-
-
-
-
-
-
-    PyCall:
-:
-
-
-
-
-
-
-def:
-Chem.
-s
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  nd
+for iz in range(nsections_z):
+    for ix in range(nsections_x):
+        melementA = fea.ChElementShellBST()
+        boundary_1 = mynodes[(iz + 1) * (nsections_x + 1) + ix + 1] if ix > 0 else None
+        boundary_2 = mynodes[(iz + 1) * (nsections_x + 1) + ix - 1] if ix > 0 else None
+        boundary_3 = mynodes[(iz - 1) * (nsections_x + 1) + ix + 1] if iz > 0 else None
+
+        melementA.SetNodes(mynodes[iz * (nsections_x + 1) + ix], mynodes[iz * (nsections_x + 1) + ix + 1],
+                           mynodes[(iz + 1) * (nsections_x + 1) + ix], boundary_1, boundary_2, boundary_3)
+        melementA.AddLayer(thickness, 0, material)
+        mesh.AddElement(melementA)
+
+        melementB = fea.ChElementShellBST()
+        boundary_1 = mynodes[iz * (nsections_x + 1) + ix] if ix < nsections_x - 1 else None
+        boundary_2 = mynodes[(iz + 1) * (nsections_x + 1) + ix + 2] if ix < nsections_x - 1 else None
+        boundary_3 = mynodes[(iz + 2) * (nsections_x + 1) + ix] if iz < nsections_z - 1 else None
+
+        melementB.SetNodes(mynodes[(iz + 1) * (nsections_x + 1) + ix + 1], mynodes[(iz + 1) * (nsections_x + 1) + ix],
+                           mynodes[iz * (nsections_x + 1) + ix + 1], boundary_1, boundary_2, boundary_3)
+        melementB.AddLayer(thickness, 0, material)
+        mesh.AddElement(melementB)
+
+# Create visualizations for shell elements
+mvisualizeshellA = chrono.ChVisualShapeFEA(mesh)
+mvisualizeshellA.SetShellResolution(2)
+mesh.AddVisualShapeFEA(mvisualizeshellA)
+
+mvisualizeshellB = chrono.ChVisualShapeFEA(mesh)
+mvisualizeshellB.SetFEMglyphType(chrono.ChVisualShapeFEA.GlyphType_NODE_DOT_POS)
+mesh.AddVisualShapeFEA(mvisualizeshellB)
+mvisualizeshellB.SetSymbolsThickness(0.006)
+mesh.AddVisualShapeFEA(mvisualizeshellB)
+
+# Irrlicht visualization system setup
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(sys)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle('Shells FEA test: triangle BST elements')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVector3d(1, 0.3, 1.3), chrono.ChVector3d(0.5, -0.3, 0.5))
+vis.AddTypicalLights()
+
+# Change solver to PardisoMKL
+mkl_solver = mkl.ChSolverPardisoMKL()
+mkl_solver.LockSparsityPattern(True)  # Adjusted solver parameter
+sys.SetSolver(mkl_solver)
+
+# Define time step for simulation
+timestep = 0.005  # Adjusted time step
+
+# Final setup and system updates
+sys.Setup()
+sys.Update()
+
+# Simulation loop
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    sys.DoStepDynamics(timestep)
+
+# Node Monitoring and Loading Setup
+nodePlotA = []
+nodePlotB = []
+nodesLoad = []
+
+# Construct Boundary Nodes with Conditional Checks
+for iz in range(nsections_z + 1):
+    for ix in range(nsections_x + 1):
+        if ix > 0 and iz > 0:
+            nodePlotA.append(mynodes[iz * (nsections_x + 1) + ix])
+            nodePlotB.append(mynodes[(iz + 1) * (nsections_x + 1) + ix])
+            nodesLoad.append(mynodes[iz * (nsections_x + 1) + ix])
+
+# Element Monitoring
+ementmonitor = None
+if (iz == 0 and ix == 1):
+    ementmonitor = melementA
+
+# Fix Upper Nodes
+for j in range(30):
+    for k in range(30):
+        mynodes[j * (nsections_x + 1) + k].SetFixed(True)
+
+# Adjust Visualization Shapes
+mvisualizeshellA.SetSmoothFaces(True)
+mvisualizeshellA.SetWireMode(True)
+mvisualizeshellA.SetBackfaceCulling(False)  # Optional visualization adjustments
+
+# mvisualizeshellB.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NONE)  # Adjusted visualization data type
+
+# Time Step Adjustment

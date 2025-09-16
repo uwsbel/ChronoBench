@@ -1,11 +1,10 @@
 import pychrono as chrono
 import pychrono.vehicle as veh
 import pychrono.sensor as sensor
-import numpy as np
 
 
 system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  
 
 
 terrain = chrono.ChTerrain()
@@ -13,97 +12,82 @@ terrain.Create(system, "rigid_terrain", 100, 100, 10, 10)
 terrain.SetTexture(chrono.ChTexture("textures/terrain.png"))
 terrain.SetMaterial(chrono.ChMaterialSurfaceNSC())
 terrain.GetMaterial().SetFriction(0.5)
+terrain.GetMaterial().SetRestitution(0.1)
 
 
 gator = veh.Gator(system)
 gator.SetVehicleModel("Gator")
-gator.SetChassisHeight(0.3)
-gator.SetTireRadius(0.2)
-gator.SetTireWidth(0.15)
-gator.SetEngineType(veh.EngineModelType.SIMPLE)
-gator.SetTransmissionType(veh.TransmissionModelType.SIMPLE)
-gator.SetDifferentialType(veh.DifferentialModelType.SIMPLE)
+gator.SetEngineType(veh.Gator.EngineType.ELECTRIC)
+gator.SetTireType(veh.Gator.TireType.TAILOR)
+gator.SetTireRadius(0.3)
+gator.SetTireWidth(0.2)
+gator.SetTirePressure(1.2)
+gator.SetChassisHeight(0.5)
+gator.SetInitialPosition(chrono.ChVectorD(0, 1, 0))
+gator.SetInitialVelocity(chrono.ChVectorD(0, 0, 0))
 
 
-gator.GetChassis().SetVisualizationType(chrono.ChVisualizationType.MESH)
-gator.GetWheel(0).SetVisualizationType(chrono.ChVisualizationType.MESH)
-gator.GetWheel(1).SetVisualizationType(chrono.ChVisualizationType.MESH)
-gator.GetWheel(2).SetVisualizationType(chrono.ChVisualizationType.MESH)
-gator.GetWheel(3).SetVisualizationType(chrono.ChVisualizationType.MESH)
+gator.GetChassis().SetVisualizationType(chrono.ChVisualShape.SHAPE_BOX)
+gator.GetWheel(0).SetVisualizationType(chrono.ChVisualShape.SHAPE_CYLINDER)
+gator.GetWheel(1).SetVisualizationType(chrono.ChVisualShape.SHAPE_CYLINDER)
+gator.GetWheel(2).SetVisualizationType(chrono.ChVisualShape.SHAPE_CYLINDER)
+gator.GetWheel(3).SetVisualizationType(chrono.ChVisualShape.SHAPE_CYLINDER)
 
 
-driver = veh.ChIrrlichtDriver(system)
-driver.SetSteeringInput(chrono.ChDriver.SteeringInput.KEYBOARD)
-driver.SetThrottleInput(chrono.ChDriver.ThrottleInput.KEYBOARD)
-driver.SetBrakingInput(chrono.ChDriver.BrakingInput.KEYBOARD)
-driver.SetGearShiftingInput(chrono.ChDriver.GearShiftingInput.KEYBOARD)
-
-gator.SetDriver(driver)
-driver.SetVehicle(gator)
+driver = veh.ChIrrlichtDriver(gator)
+driver.SetSteeringDelta(0.1)
+driver.SetThrottleDelta(0.1)
+driver.SetBrakingDelta(0.1)
+driver.SetShowDebugInfo(True)
+driver.SetWindowSize(1024, 768)
+driver.AttachCamera(chrono.ChVectorD(0, 2, -5))
 
 
 sensor_manager = sensor.ChSensorManager(system)
 
 
-light1 = sensor_manager.AddPointLight()
-light1.SetPosition(chrono.ChVectorD(5, 2, 5))
-light1.SetIntensity(1.0)
-
-light2 = sensor_manager.AddPointLight()
-light2.SetPosition(chrono.ChVectorD(-5, 2, -5))
-light2.SetIntensity(0.5)
+light = sensor_manager.AddPointLight()
+light.SetPosition(chrono.ChVectorD(5, 5, 5))
+light.SetIntensity(1.0)
+light.SetColor(chrono.ChColor(1.0, 1.0, 1.0))
 
 
 camera = sensor_manager.AddCamera()
+camera.AttachTo(gator.GetChassis())
+camera.SetPosition(chrono.ChVectorD(0, 1.5, -2))
+camera.SetDirection(chrono.ChVectorD(0, 0, 1))
+camera.SetFieldOfView(45)
 camera.SetResolution(640, 480)
-camera.SetFOV(45)
-camera.SetNearClip(0.1)
-camera.SetFarClip(100)
-camera.AttachToBody(gator.GetChassis())
-camera.SetOffset(chrono.ChVectorD(0, 0.5, 0))
-camera.SetDirection(chrono.ChVectorD(1, -0.2, 0))
 
 
-time_step = 0.01
-simulation_time = 10
+timestep = 0.005
+time = 0.0
 
-
-vis = chrono.ChVisualSystemIrrlicht()
-vis.AttachSystem(system)
-vis.SetWindowSize(1024, 768)
-vis.SetWindowTitle('Gator Simulation')
-vis.Initialize()
-vis.AddCamera(camera)
-vis.AddTypicalLights()
-
-while system.GetChTime() < simulation_time:
+while time < 10:
     
-    driver.Synchronize(time_step)
+    driver.Synchronize(timestep)
+    driver.Update();
 
     
-    terrain.Update()
+    terrain.Update(timestep);
 
     
-    gator.Synchronize(time_step)
+    gator.Synchronize(timestep)
+    gator.Drive(driver.GetSteering(), driver.GetThrottle(), driver.GetBraking());
+    gator.Update();
 
     
-    sensor_manager.Update(time_step)
+    sensor_manager.Update(timestep)
+
+    
+    system.DoStepDynamics(timestep)
+    time += timestep
 
     
     image = camera.GetImage()
-    if image is not None:
+    if image:
         
         
-        
-        
-        pass
+        pass 
 
-    
-    system.DoStepDynamics(time_step)
-
-    
-    vis.Render()
-    vis.GetIrrlichtApplication().Sleep(10)  
-
-
-system.Clear()
+print("Simulation finished.")

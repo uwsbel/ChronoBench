@@ -1,82 +1,60 @@
-import pychrono as chrono
-import pychrono.irrlicht as irr
-from pychrono.vehicle import HMMWV, SCMDeformableTerrain
+import chrono as ch
+import chrono.vehicle as veh
+import chrono.irrlicht as irr
 
-# Initialize PyChrono environment
-chrono.ChEngine.Initialize()
+# 1. Initialize the PyChrono environment and core components
+ch.ChEngine.Initialize()
 
-# Set up the simulation parameters
-SIMULATION_NAME = "HMMWV on SCM Deformable Terrain"
-TIME_STEP = 0.01  # seconds
-TOTAL_TIME = 10.0  # seconds
+# 2. Create the simulation system
+system = ch.ChSystem_EulerImplicit()
 
-# Create the simulation system
-system = chrono.ChSystemNSC()
-system.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, -9.81))
-
-# Set up the collision detection and response
-system.SetCollisionSystem(chrono.ChCollisionSystemBruteForce())
-system.GetCollisionSystem().SetBroadphaseMethod(chrono.ChCollisionSystem.BroadphaseMethod.SweepAndPrune)
-
-# Create the HMMWV vehicle
-hmmwv = HMMWV(system)
+# 3. Create the HMMWV vehicle
+vehicle = veh.ChHMMWV(system)
 
 # Set initial conditions
-hmmwv.SetInitialPosition(chrono.ChVector3d(0, 0, 1.0))
-hmmwv.SetInitialVelocity(chrono.ChVector3d(0, 0, 0))
+vehicle.SetPos(ch.ChVector3d(0, 0, 1.0))
+vehicle.SetRot(ch.ChQuaterniond(1, 0, 0, 0))
 
-# Enable vehicle visualization
-hmmwv.EnableVisualization(True)
+# 4. Create the SCM deformable terrain
+terrain = veh.ChSCMTerrain(system)
 
-# Create the SCM deformable terrain
-terrain = SCMDeformableTerrain(system)
-
-# Set soil parameters
-soil_params = chrono.ChSoilParams()
-soil_params.SetFrictionAngle(30.0)  # degrees
-soil_params.SetCohesion(10.0)  # kPa
-soil_params.SetDensity(1500.0)  # kg/m^3
-terrain.SetSoilParams(soil_params)
+# Define soil parameters
+soil = terrain.GetSoilModel()
+soil.SetFriction(0.8)
+soil.SetRestitution(0.2)
+soil.SetDamping(0.5)
 
 # Initialize terrain with a height map
 height_map = []
-for i in range(100):
+for x in range(-100, 101):
     row = []
-    for j in range(100):
-        row.append(0.5 * (1.0 + chrono.ChMath.cos(2 * chrono.ChMath.pi * i / 100.0)) * (1.0 + 0.1 * j / 100.0))
+    for y in range(-100, 101):
+        row.append(0.5)  # constant height for simplicity
     height_map.append(row)
 terrain.Initialize(height_map)
 
-# Create a driver system for the HMMWV vehicle
-driver = chrono.ChVehicleDriver(hmmwv.GetChassisBody())
+# 5. Create a driver system for vehicle control
+driver = veh.ChDriver(system, vehicle.GetChassisBody())
+driver.SetThrottle(0.5)
+driver.SetSteering(0.2)
 
-# Set driver inputs
-driver.SetThrottleInput(0.5)
-driver.SetSteeringInput(0.0)
+# 6. Create a real-time visualization using Irrlicht
+vis = irr.ChIrrApp(system, 'HMMWV SCM Terrain Simulation', 800, 600)
 
-# Create the Irrlicht application
-app = irr.ChIrrApp(system, SIMULATION_NAME, 800, 600)
+# Set camera settings and lighting
+vis.SetCameraPosition(ch.ChVector3d(0, -5, 1))
+vis.SetCameraTarget(ch.ChVector3d(0, 0, 0))
+vis.EnableSun()
 
-# Set up camera and lighting
-app.SetCameraPosition(chrono.ChVector3d(5.0, -5.0, 2.0))
-app.SetCameraTarget(chrono.ChVector3d(0.0, 0.0, 0.5))
-app.EnableSunlight(True)
+# 7. Simulation loop
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
 
-# Show the simulation
-app.Show()
-
-# Simulation loop
-while (app.GetSimulationTime() < TOTAL_TIME) and (not app.IsStopped()):
     # Synchronize and advance the vehicle, terrain, driver, and visual system
-    hmmwv.Synchronize(TIME_STEP)
-    terrain.Synchronize(TIME_STEP)
-    driver.Synchronize(TIME_STEP)
-    app.Synchronize("", TIME_STEP)
-    app.Advance(TIME_STEP)
+    system.DoStepDynamics(0.01)  # 10ms timestep
+    driver.Update(0.01)
+    vis.Synchronize(0.01)
 
-    # Real-time execution
-    app.SpinEventLoop()
-
-# Finalize the simulation
-app.EndSimulation()
-chrono.ChEngine.Finalize()
+vis.Exit()

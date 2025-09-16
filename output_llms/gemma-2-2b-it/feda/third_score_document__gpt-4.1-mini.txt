@@ -5,149 +5,167 @@
 ### 1. Completeness (40 points)
 
 - **System Initialization:**  
-  The script uses `veh.FEDA()` which internally creates and manages its own system. This is typical for vehicle models in PyChrono vehicle module. The system is accessed via `vehicle.GetSystem()`. So explicit creation of `chrono.ChSystemNSC()` or `chrono.ChSystemSMC()` is not needed here.  
-  **No deduction.**
+  The script uses `veh.FEDA()` which internally creates and manages its own system. However, the script does **not explicitly create or expose the underlying `chrono.ChSystemNSC()` or `chrono.ChSystemSMC()` system object**. While this is typical for vehicle models in PyChrono vehicle module, it is important to confirm that the system is properly initialized and accessible. The script uses `vehicle.GetSystem()` to set collision system type, so the system is implicitly created.  
+  **No deduction here**.
 
 - **Body Creation:**  
-  The vehicle and terrain bodies are created properly using the vehicle module's classes (`veh.FEDA()` and `veh.RigidTerrain`). The terrain patch is added and initialized correctly.  
-  **No deduction.**
+  The vehicle is created via `veh.FEDA()`, which is a predefined vehicle model. This is acceptable and complete for vehicle simulations.  
+  **No deduction**.
 
-- **Visualization:**  
-  Visualization is set up using `veh.ChWheeledVehicleVisualSystemIrrlicht()`. The window is initialized, camera is set, lights and skybox are added, and the vehicle is attached.  
-  However, the script uses `vis.AddLightDirectional()` instead of the recommended `vis.AddTypicalLights()` from the documentation, which is a more standard and complete lighting setup. This is a minor deviation.  
-  Also, the script adds a camera inside the simulation loop every iteration, which is unusual and likely unnecessary (should be added once).  
-  **Deduct 5 points for minor omissions and slight deviations in visualization setup.**
+- **Terrain Creation:**  
+  The terrain is created using `veh.RigidTerrain(vehicle.GetSystem())` and a patch is added with material and texture. This is complete and correct.  
+  **No deduction**.
+
+- **Visualization Setup:**  
+  The visualization system is created with `veh.ChWheeledVehicleVisualSystemIrrlicht()`, window size, title, camera, logo, lighting, skybox, and vehicle attachment are all set. This is complete.  
+  **No deduction**.
 
 - **Driver Setup:**  
-  The interactive driver is created and configured with reasonable delta values.  
-  **No deduction.**
+  The interactive driver is created and initialized with appropriate delta values.  
+  **No deduction**.
 
 - **Simulation Loop:**  
-  The loop correctly checks `vis.Run()`, synchronizes all modules, advances them by the step size, and uses a realtime timer.  
-  **No deduction.**
+  The loop includes synchronization, advancing all components, rendering at correct intervals, and real-time stepping.  
+  **No deduction**.
 
-- **Additional Utilities:**  
-  No contact callbacks or error handling are implemented, but these are not strictly essential for a basic vehicle simulation.  
-  **No deduction.**
+- **Sensor Setup:**  
+  The sensor manager and camera sensor are created inside the simulation loop, which is unusual and likely incorrect (should be created once outside the loop). Also, the camera sensor is added to the visualization system inside the loop repeatedly. This is a **missing best practice** and can cause performance issues or incorrect behavior.  
+  **Deduct 15 points for missing proper sensor initialization and management (essential component misplacement).**
 
-**Total Completeness deduction: 5 points**
+- **Error Handling:**  
+  No error handling is present (covered later).
+
+**Completeness deduction: 15 points**
 
 ---
 
 ### 2. Correctness (30 points)
 
-- **API Usage:**  
-  The vehicle is initialized correctly with contact method, chassis collision type, tire model, and visualization types.  
-  The terrain patch is created with a non-smooth contact material and friction/restitution set properly.  
-  The collision system type is set to BULLET on the vehicle's system, which is appropriate.  
-  The driver inputs and synchronization calls follow the expected pattern.  
-  The time stepping and rendering steps are handled correctly.
+- **Use of `veh.FEDA()` and vehicle initialization:**  
+  Correct usage.
 
-- **Incorrect or problematic API usage:**  
-  - The line `chrono.SetChronoDataPath(chrono.GetChronoDataPath())` is redundant and unnecessary. It sets the data path to itself. This is harmless but unnecessary. Minor issue.  
-  - The camera creation and addition inside the simulation loop is incorrect and inefficient. Cameras should be added once during initialization, not every frame. This can cause performance degradation and possibly memory leaks or unexpected behavior. This is a **significant correctness issue**.  
-  - The camera is created with `SetRotation(chrono.ChQuaterniond(0, 0, 0, 1))` which is a valid identity quaternion, but the position is set to (0,0,0), which is inside the vehicle or terrain. Usually, the camera should be positioned to view the scene properly. This is a logical issue in visualization setup.  
-  - The `driver_inputs = driver.GetInputs()` is called but not used before `driver.Synchronize()`. This is not an error but redundant.  
-  - The `vehicle.GetVehicle().GetMass()` is printed, but the vehicle object is `veh.FEDA()`, which does not have a `GetVehicle()` method according to the documentation. The correct call should be `vehicle.GetMass()`. This is a **significant API misuse** and will cause an AttributeError at runtime.
+- **Setting contact method and chassis collision type:**  
+  Correct.
 
-**Deductions:**  
-- Camera addition inside loop: -15 points (significant API misuse affecting simulation behavior)  
-- Incorrect vehicle mass call: -15 points (significant API misuse causing runtime error)  
-- Minor redundancy in data path setting and driver inputs: -5 points (minor inaccuracies)
+- **Setting visualization types after `Initialize()`:**  
+  The script calls `vehicle.Initialize()` before setting visualization types. According to best practices and examples, visualization types should be set **before** initialization to ensure proper setup. Setting visualization types after initialization may not have effect or may cause inconsistencies.  
+  **Deduct 10 points for incorrect order of visualization type setting.**
 
-Total Correctness deduction: 15 + 15 + 5 = 35 points, but since max is 30, cap at 30.
+- **Collision system type:**  
+  The collision system is set to `chrono.ChCollisionSystem.Type_BULLET` on the system, which is correct.
+
+- **Terrain patch material:**  
+  Uses `chrono.ChContactMaterialNSC()` with friction and restitution set, which is appropriate for NSC contact method.
+
+- **Driver delta settings:**  
+  Correctly calculated based on render step size.
+
+- **Simulation loop:**  
+  The synchronization and advance calls are in correct order.
+
+- **Sensor management inside loop:**  
+  Creating `veh.ChSensorManager()` and `veh.ChCameraSensor()` inside the loop is incorrect and will cause repeated creation of sensors every time step, leading to resource leaks and incorrect simulation behavior.  
+  **Deduct 15 points for incorrect sensor management causing significant simulation behavior issues.**
+
+- **Adding camera sensor to visualization system inside loop:**  
+  This should be done once outside the loop.  
+  **Part of the above deduction.**
+
+- **Use of `vis.UpdateSensor(time, sensor_manager)` inside loop:**  
+  This is correct if sensors are properly managed.
+
+- **Use of `chrono.SetChronoDataPath(chrono.GetChronoDataPath())`:**  
+  This is redundant (setting data path to itself).  
+  **Deduct 5 points for minor unnecessary API call.**
+
+**Correctness deduction: 10 + 15 + 5 = 30 points**
 
 ---
 
 ### 3. Code Quality (10 points)
 
-- The code is mostly readable with meaningful variable names.  
-- However, there are no comments explaining the purpose of blocks or parameters, which is a best practice especially in simulation scripts.  
-- The code formatting is acceptable but could be improved with spacing and grouping related code blocks.  
-- The print statement uses Python 2 style without parentheses, but since the code uses Python 3 syntax elsewhere, this is inconsistent. Actually, the print statement is `print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())` which is Python 3 style, so no issue there.  
-- The code imports `math` but only uses `math.ceil`, which is fine.  
-- The camera setup inside the loop is a structural issue affecting code quality.
+- **Readability and structure:**  
+  The code is mostly readable with meaningful variable names. However, the sensor creation inside the loop is a major structural flaw.  
+  **Deduct 5 points for poor structure regarding sensor management.**
 
-**Deductions:**  
-- Lack of comments/documentation: -5 points  
-- Poor structure due to camera addition inside loop: -5 points
+- **Comments:**  
+  The code has **no comments** explaining the purpose of blocks or key steps, which is poor practice especially for complex simulations.  
+  **Deduct 5 points for insufficient comments.**
 
-Total Code Quality deduction: 10 points
+**Code Quality deduction: 10 points**
 
 ---
 
 ### 4. Efficiency (10 points)
 
-- Adding a camera every simulation step is highly inefficient and unnecessary. This causes redundant object creation and likely memory issues.  
-- The redundant setting of data path is minor inefficiency.  
-- The retrieval of driver inputs without use is minor inefficiency.  
-- The rendering is done only every `render_steps`, which is good practice.
+- **Sensor creation inside loop:**  
+  This is highly inefficient and unnecessary.  
+  **Deduct 5 points for inefficient sensor management.**
 
-**Deductions:**  
-- Camera addition inside loop: -5 points  
-- Minor inefficiencies (data path, unused driver inputs): -3 points
+- **Redundant call to `chrono.SetChronoDataPath(chrono.GetChronoDataPath())`:**  
+  Minor inefficiency.  
+  **Deduct 3 points.**
 
-Total Efficiency deduction: 8 points
+- **Other parts:**  
+  The rest of the code is reasonably efficient.
+
+**Efficiency deduction: 8 points**
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- No error handling is implemented.  
-- No checks on initialization success or exceptions.  
-- No handling of edge cases like invalid inputs or system failures.  
-- While not always mandatory, basic try-except or validation is recommended for robustness.
+- **No error handling:**  
+  The script does not check for exceptions or invalid states (e.g., failed initialization).  
+  **Deduct 5 points for lack of basic error handling.**
 
-**Deduction:** -5 points
+- **Edge cases:**  
+  No handling of edge cases such as simulation termination conditions beyond visualization window closing.  
+  **No additional deduction (covered in above).**
+
+**Error Handling deduction: 5 points**
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
-- Visualization system is initialized properly.  
-- The lighting setup uses `AddLightDirectional()` instead of `AddTypicalLights()`, which is less complete.  
-- The skybox and logo are added, which is good.  
-- The camera is set with `SetChaseCamera()` initially, which is good.  
-- The camera added inside the loop is incorrect and redundant.  
-- The camera position set to (0,0,0) is not ideal for viewing the vehicle.  
-- No use of `vis.AddTypicalLights()` which is recommended for better lighting.
+- **Visualization system setup:**  
+  Window size, title, camera, logo, lighting, skybox are all set properly.
 
-**Deductions:**  
-- Incorrect camera usage: -3 points  
-- Suboptimal lighting setup: -2 points
+- **Lighting:**  
+  Uses `vis.AddLightDirectional()` instead of `vis.AddTypicalLights()`. The documentation recommends `AddTypicalLights()` for standard lighting setup. Using directional light alone may result in suboptimal lighting.  
+  **Deduct 2 points for minor visualization issue.**
 
-Total Visualization deduction: 5 points
+- **Camera sensor added inside loop:**  
+  This is incorrect and can cause visualization issues.  
+  **Deduct 3 points for incorrect visualization sensor management.**
 
----
-
-### Summary of deductions:
-
-| Category                    | Points Deducted | Reason                                                                                   |
-|-----------------------------|----------------|------------------------------------------------------------------------------------------|
-| Completeness                | 5              | Minor visualization deviations                                                          |
-| Correctness                | 30             | Incorrect vehicle mass call, camera addition in loop, minor redundancies                 |
-| Code Quality               | 10             | Lack of comments, poor structure due to camera in loop                                  |
-| Efficiency                 | 8              | Camera addition in loop, minor redundancies                                             |
-| Error Handling and Robustness | 5              | No error handling implemented                                                           |
-| Visualization Tools        | 5              | Incorrect camera usage, suboptimal lighting                                             |
-| **Total Deductions**       | **63**         |                                                                                          |
+**Visualization deduction: 5 points**
 
 ---
 
-### Final score:
+### **Summary of deductions:**
 
-Starting from 100 points, subtract 63 points:
-
-**100 - 63 = 37**
+| Criterion                  | Points | Deduction | Notes                                      |
+|----------------------------|--------|-----------|--------------------------------------------|
+| Completeness               | 40     | 15        | Sensor management missing outside loop    |
+| Correctness               | 30     | 30        | Visualization type order, sensor misuse, redundant call |
+| Code Quality              | 10     | 10        | Poor structure and no comments             |
+| Efficiency                | 10     | 8         | Sensor creation in loop, redundant call    |
+| Error Handling & Robustness| 5      | 5         | No error handling                           |
+| Visualization Tools       | 5      | 5         | Lighting and sensor addition issues         |
+| **Total Deductions**       |        | 73        |                                            |
 
 ---
 
-### Final remarks:
+### **Final score:**
 
-The script demonstrates a mostly correct approach to setting up a vehicle simulation in PyChrono, including terrain, vehicle, driver, and visualization. However, critical errors such as adding cameras every frame and incorrect API calls for vehicle mass will cause runtime failures or performance issues. The lack of comments and error handling reduces maintainability and robustness. Minor visualization and efficiency issues further reduce the quality.
+40 + 0 + 0 + 2 + 0 + 0 = 40 (max 100 - 73 = 27)
+
+**[[27]]**
 
 ---
 
-**Final score:**
+### **Brief explanation:**
 
-[[37]]
+The script correctly sets up the vehicle, terrain, driver, and visualization system in general, but has critical flaws in sensor management by creating and adding sensors inside the simulation loop, which is a significant misuse of the API and will cause performance and correctness issues. Visualization types are set after vehicle initialization, which is against best practices. The code lacks comments and proper structure, and includes redundant API calls. There is no error handling, and lighting setup is suboptimal. These issues collectively lead to a substantial deduction in completeness, correctness, code quality, efficiency, error handling, and visualization setup.

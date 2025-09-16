@@ -62,13 +62,12 @@ mjointB.Initialize(mpiston,
 sys.Add(mjointB)
 
 # Create piston-truss joint
-mjointC = chrono.ChLinkLockPlaneToPlane()
+mjointC = chrono.ChLinkLockPlane()
 mjointC.Initialize(mpiston,
                    mfloor,
                    chrono.ChFramed(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0),
                                    chrono.Q_ROTATE_Z_TO_X),
-                   chrono.ChFrame(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0),
-                                   chrono.Q_ROTATE_Z_TO_X))
+                   chrono.ChVector3d(0, 0, 1))  # z axis normal to the plane
 sys.Add(mjointC)
 
 vis = chronoirr.ChVisualSystemIrrlicht()
@@ -117,3 +116,5 @@ ax2.grid()
 
 # trick to plot \pi on x axis of plots instead of 1 2 3 4 etc.
 plt.xticks(np.linspace(0, 2 * np.pi, 5), ['0', r'$\pi/2$', r'$\pi$', r'$3\pi/2$', r'$2\pi$'])
+
+plt.show()

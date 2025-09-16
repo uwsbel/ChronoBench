@@ -9,8 +9,8 @@ from std_msgs.msg import Int64
 class MyCustomHandler(chros.ChROSHandler):
     """This custom handler will publish integer messages to a specified ROS topic."""
 
-    def __init__(self, topic, publish_rate):
-        super().__init__(publish_rate)  # Initialize the handler with the specified publishing rate.
+    def __init__(self, topic, publish_rate=10):
+        super().__init__(publish_rate)  # Initialize the handler with a 10 Hz publishing rate.
 
         self.topic = topic
         self.publisher: rclpy.publisher.Publisher = None
@@ -45,7 +45,7 @@ def main():
     floor.SetPos(ch.ChVector3d(0, 0, -1))  # Position the floor.
     floor.SetFixed(True)  # Fix the floor in place.
     floor.SetName("base_link")  # Set the name for ROS communication.
-    floor.SetTexture("path/to/floor_texture.png")  # Set texture for the floor
+    floor.SetTexture(irr.IrrlichtTexture("path/to/floor_texture.png"))  # Set floor texture
     sys.Add(floor)  # Add the floor to the simulation system.
 
     # Create a box object.
@@ -53,7 +53,7 @@ def main():
     box.SetPos(ch.ChVector3d(0, 0, 5))  # Position the box above the floor.
     box.SetRot(ch.QuatFromAngleAxis(.2, ch.ChVector3d(1, 0, 0)))  # Rotate the box slightly.
     box.SetName("box")  # Set the name for ROS communication.
-    box.SetTexture("path/to/box_texture.png")  # Set texture for the box
+    box.SetTexture(irr.IrrlichtTexture("path/to/box_texture.png"))  # Set box texture
     sys.Add(box)  # Add the box to the simulation system.
 
     # Create and configure the ROS manager.
@@ -71,31 +71,27 @@ def main():
     ros_manager.RegisterHandler(tf_handler)
     
     # Register the custom handler to publish messages.
-    custom_handler = MyCustomHandler("~/my_topic", 10)  # Set publish rate to 10 Hz
+    custom_handler = MyCustomHandler("~/my_topic", publish_rate=10)
     ros_manager.RegisterPythonHandler(custom_handler)
 
     # Initialize the ROS manager.
     ros_manager.Initialize()
 
-    # Visualization setup
-    app = irr.IrrlichtDevice(irr.createIrrlichtDevice(
-        irr.dimension2d(800, 600), 
-        irr.videoMode(irr.driverType_OpenGL, 32, 0, 0), 
-        False, 
-        False, 
-        False, 
-        False
-    ))
-    
-    driver = app.getVideoDriver()
-    scene = app.getSceneManager()
-    camera = scene.addCameraSceneNode(0, irr.vector3df(0, 0, 10), irr.vector3df(0, 0, 0))
-    light = scene.addLightSceneNode(0, irr.vector3df(0, 0, 0), irr.SColorf(1, 1, 1, 1))
+    # Setup Irrlicht visualization
+    vis = irr.IrrlichtVisualizer(sys)
+    vis.SetCameraPosition(ch.ChVector3d(5, 5, 10))
+    vis.SetCameraTarget(ch.ChVector3d(0, 0, 0))
+    vis.SetAmbientLight(ch.ChColor(0.5, 0.5, 0.5))
+    vis.SetLightDirection(ch.ChVector3d(1, 1, 1))
+    vis.SetWindowSize(800, 600)
+    vis.setWindowTitle("PyChrono Simulation")
+    vis.SetFullScreen(False)
+    vis.Show()
 
     # Rendering parameters
     step_number = 0
-    render_step_size = 10
-    render_steps = 10
+    render_step_size = 10  # Render every 10 simulation steps
+    render_steps = 0
 
     # Run the simulation loop.
     time = 0
@@ -111,11 +107,10 @@ def main():
             break  # Exit the loop if the ROS manager indicates a problem.
 
         step_number += 1
-        if step_number % render_step_size == 0:
-            # Update the scene every few steps
-            driver.beginScene(True, True, irr.SColor(255, 140, 0, 0))
-            scene.drawAll()
-            driver.endScene()
+        render_steps += 1
+        if render_steps >= render_step_size:
+            vis.Render()  # Render the scene
+            render_steps = 0
 
         realtime_timer.Spin(time_step)  # Maintain real-time step execution.
 

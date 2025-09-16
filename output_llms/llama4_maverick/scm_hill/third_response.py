@@ -3,10 +3,10 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
-"""
-!!!! Set this path before running the demo!
-"""
-# chrono.SetChronoDataPath('/path/to/chrono/data')  # Uncomment and set the path if necessary
+# Set the Chrono data path
+chrono.SetChronoDataPath('/path/to/chrono/data')
+
+# Set the vehicle data path
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 # Initial vehicle location and orientation
@@ -22,17 +22,16 @@ chassis_collision_type = veh.CollisionType_NONE
 # Type of tire model (RIGID, TMEASY)
 tire_model = veh.TireModelType_RIGID
 
-# Rigid terrain
-terrainHeight = 0      # terrain height
+# Rigid terrain parameters
+terrainHeight = 0  # terrain height
 terrainLength = 100.0  # size in X direction
-terrainWidth = 100.0   # size in Y direction
+terrainWidth = 100.0  # size in Y direction
 
-# Poon chassis tracked by the camera
+# Point on chassis tracked by the camera
 trackPoint = chrono.ChVector3d(0.0, 0.0, 1.71)
 
 # Contact method
-contact_method = chrono.ChContactMethod_NSC  # Changed from SMC to NSC
-contact_vis = False
+contact_method = chrono.ChContactMethod_NSC
 
 # Simulation step sizes
 step_size = 1e-3
@@ -49,7 +48,6 @@ vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
-
 vehicle.Initialize()
 
 vehicle.SetChassisVisualizationType(vis_type)
@@ -60,11 +58,15 @@ vehicle.SetTireVisualizationType(vis_type)
 
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
-# Create the rigid terrain patch
+# Create the rigid terrain
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-patch = terrain.AddPatch(chrono.ChCoordsysd(chrono.ChVector3d(0, 0, terrainHeight), chrono.QUNIT), 
-                         veh.GetDataFile("terrain/height_maps/bump64.bmp"), 40, 40, 0, 1, 0.02)
+patch = terrain.AddPatch(chrono.ChCoordsysd(chrono.ChVector3d(0, 0, terrainHeight), chrono.QUNITERNION))
+patch.SetContactFrictionCoefficient(0.9)
+patch.SetContactRestitutionCoefficient(0.01)
+patch.SetContactMaterialProperties(1.7e7, 0.3)
 patch.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
+patch.SetVisualizationType(veh.VisualizationType_MESH)
+
 terrain.Initialize()
 
 # Create the vehicle Irrlicht interface
@@ -84,24 +86,14 @@ driver = veh.ChInteractiveDriverIRR(vis)
 # Set the time response for steering and throttle keyboard inputs.
 steering_time = 1.0  # time to go from 0 to +1 (or from 0 to -1)
 throttle_time = 1.0  # time to go from 0 to +1
-braking_time = 0.3   # time to go from 0 to +1
+braking_time = 0.3  # time to go from 0 to +1
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
-
 driver.Initialize()
 
-# ---------------
 # Simulation loop
-# ---------------
-
-# output vehicle mass
-print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
-
-# Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
-
-# Initialize simulation frame counter s
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0

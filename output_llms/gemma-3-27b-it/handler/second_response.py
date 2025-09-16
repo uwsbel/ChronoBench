@@ -25,7 +25,7 @@ class MyCustomHandler(chros.ChROSHandler):
         """Publish a string message to the ROS topic."""
         print(f"Publishing {self.ticker} ...")
         msg = String()  # Create a message object of type String.
-        msg.data = self.message + str(self.ticker)  # Concatenate the message
+        msg.data = self.message + str(self.ticker)  # Concatenate message and ticker
         self.publisher.publish(msg)  # Publish the message to the ROS topic.
         self.ticker += 1  # Increment the ticker for the next message.
 

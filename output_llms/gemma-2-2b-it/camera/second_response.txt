@@ -81,7 +81,7 @@ def main():
 
     # Visualize the image before applying grayscale filter
     if vis:
-        cam.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Before Grayscale Filter"))
+        cam.PushFilter(sens.ChFilterVisualize(int(image_width / 2), int(image_height / 2), "Before Grayscale Filter"))
 
     # Provide host access to the RGBA8 buffer from the camera
     cam.PushFilter(sens.ChFilterRGBA8Access())
@@ -114,11 +114,7 @@ def main():
     # Simulate system
     # ---------------
     orbit_radius = 10  # Radius of the camera orbit
-    orbit_rate = 0.1  # Rate of the camera orbit in radians per second
+    orbit_rate = 0.1   # Rate of the camera orbit in radians per second
     ch_time = 0.0      # Initialize simulation time
 
     t1 = time.time()  # Record the start time of the simulation
-
-    while ch_time < end_time:
-        # Dynamically set the camera's position around the orbit
-        cam.

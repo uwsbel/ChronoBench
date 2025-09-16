@@ -1,101 +1,122 @@
-import pychrono
+from pychrono import ChSystem, ChBodyA, ChQuaternionA, ChVectorA, ChCableA
 
-import pychrono
+import irrlicht
 
-import pychrono.Irrlicht
-
-import pychrono.ANCF
+from pychrono.modelling import ChBeamA
 
 
-# Initialize PyChrono and Irrlicht
+# Initialize the chrono system
 
-chrono = pychrono.ChSystemNSC()
-
-irr = pychrono.Irrlicht()
+system = ChSystemNSC()
 
 
-# Add gravity
+# Create the beam body
 
-chrono.AddGravity(chrono.Vector(0, -9.81, 0))
+beam = ChBeamA(system)
 
+beam.SetBodyFixed(True)
 
-# Create a beam with ANCF cable elements
+beam.SetMass(1.0)
 
-beam_length = 1.0
+beam.SetLength(1.0)
 
-num_elements = 10
+beam.SetWidth(0.1)
 
-element_length = beam_length / num_elements
-
-beam = pychrono.ANCF.CableBeam(chrono)
-
-beam.SetTotalLength(beam_length)
-
-beam.SetNumElements(num_elements)
-
-beam.SetElementLength(element_length)
-
-beam.SetEA(1000.0)  # Young's modulus times area
-
-beam.SetMassPerUnitLength(1.0)  # Mass per unit length
+beam.SetHeight(0.1)
 
 
-# Add the beam to the system
+# Create the cable element
 
-beam.AddRigidBody(chrono)
+cable = ChCableA(system)
 
+cable.SetLength(1.0)
 
-# Hinge one end of the beam to the ground
+cable.SetMass(0.1)
 
-hinge = pychrono.RevoluteJoint(chrono)
+cable.SetDensity(1000.0)
 
-hinge.SetAnchor(chrono.ChVector(0, 0, 0))
-
-hinge.body = beam
-
-hinge.axis = chrono.ChVector(0, 1, 0)
-
-beam.AddJoint(hinge)
+cable.SetStiffness(10000.0)
 
 
-# Set the visualization options
+# Create the hinge constraint
 
-irr.SetGravity(chrono.ChVector(0, -9.81, 0))
+hinge = ChRigidBodyA(system)
 
-irr.SetWindowTitle("ANCF Beam Simulation")
+hinge.SetMass(0.0)
 
-irr.SetCamera(chrono.ChCameraPos(chrono.ChVector(0, 0, 10), chrono.ChQuaternion(0, 0, 0, 1)))
+hinge.SetPosition(ChVectorA(0.0, 0.0, 0.0))
 
-irr.SetTargetFrameRate(60)
-
-
-# Visualization callback
-
-def visualize(body, time):
-
-    if body == beam:
-
-        for i in range(num_elements):
-
-            pos = beam.GetPosition(i)
-
-            print(f"Node {i}: {pos}")
-
-            irr.AddSphere(pos, 0.05, 0, 0, 0)
+hinge.SetRotation(ChQuaternionA(1.0, 0.0, 0.0, 0.0))
 
 
-irr.SetVisualizationCallback(visualize)
+# Attach the cable to the hinge
+
+cable.Attach(hinge, ChVectorA(0.0, 0.0, 0.0), ChVectorA(0.0, 0.0, 0.0), ChVectorA(0.0, 0.0, 0.0))
 
 
-# Main simulation loop
+# Set gravity
 
-while(1):
-
-    chrono.DoStepDynamics(0.01)
-
-    irr.DoStepIrr(0.01)
+system.SetGravity(ChVectorA(0.0, 0.0, -9.81))
 
 
-# Run the simulation
+# Set the initial position of the cable
 
-irr.Run()
+cable.SetInitialPosition(ChVectorA(0.0, 0.0, 0.0))
+
+
+# Set the initial velocity of the cable
+
+cable.SetInitialVelocity(ChVectorA(0.0, 0.0, 0.0))
+
+
+# Set the initial position of the beam
+
+beam.SetPosition(ChVectorA(0.0, 0.0, 0.0))
+
+
+# Set the initial rotation of the beam
+
+beam.SetRotation(ChQuaternionA(1.0, 0.0, 0.0, 0.0))
+
+
+# Set the initial velocity of the beam
+
+beam.SetVelocity(ChVectorA(0.0, 0.0, 0.0))
+
+
+# Visualization setup
+
+irr = irrlicht.IrrEngine()
+
+driver = irr.createDevice()
+
+driver.initialize(core.get_option("irrlicht.core.path"))
+
+sceneManager = driver.getSceneManager()
+
+rMaterial = sceneManager.createMaterial("rMaterial")
+
+rMaterial.setColor(irr.video.SColor(255, 0, 0, 255))
+
+
+# Simulation loop
+
+while driver.run() == irrlicht.core.ESEL_CONTINUE:
+
+    system.DoStepDynamics(0.01)
+
+    beam.SetPosition(ChVectorA(0.0, 0.0, 0.0))
+
+    beam.SetRotation(ChQuaternionA(1.0, 0.0, 0.0, 0.0))
+
+
+    # Render the beam and cable
+
+    beam.Draw(rMaterial)
+
+    cable.Draw(rMaterial)
+
+
+# Cleanup
+
+driver.drop()

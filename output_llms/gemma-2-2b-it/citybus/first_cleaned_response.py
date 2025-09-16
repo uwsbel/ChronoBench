@@ -10,38 +10,31 @@ engine = irr.IrrlichtEngine()
 
 
 terrain = chrono.RigidTerrain(
-    chrono.Vector3(0, 0, 0),  
-    chrono.Vector3(10, 10, 10),  
-    chrono.Vector3(1, 1, 1),  
-    chrono.Vector3(0, 0, 0),  
+    chrono.Vec3(0, 0, 0),  
+    chrono.Vec3(10, 10, 10),  
+    chrono.Vec3(1.0, 1.0, 1.0),  
     chrono.Texture("terrain.png")  
 )
 
 
 bus = chrono.Vehicle(
-    chrono.Vector3(0, 0, 0),  
-    chrono.Vector3(10, 10, 10),  
-    chrono.Vector3(1, 1, 1),  
-    chrono.Vector3(0, 0, 0),  
-    chrono.TireModel("tire.png")  
+    chrono.Vec3(0, 0, 0),  
+    chrono.Vec3(1.0, 1.0, 1.0),  
+    chrono.Vec3(1.0, 1.0, 1.0),  
+    chrono.TireModel("tire_model.xml")  
 )
 
 
-bus.set_position(chrono.Vector3(0, 0, 0))
-bus.set_orientation(chrono.Vector3(0, 0, 0))
-bus.set_tire_model("tire.png")
-
-
 camera = irr.IrrCamera(engine)
-camera.setPosition(chrono.Vector3(0, 0, 10))
+camera.setPosition(chrono.Vec3(0, 0, 5))
 
 
-engine.set_frame_rate(50)
+time_step = 0.01  
 
 
-while True:
+while engine.running():
     
-    bus.update()
+    bus.update(time_step)
 
     
     engine.render()
@@ -50,4 +43,8 @@ while True:
     camera.update()
 
     
-    engine.wait()
+    engine.update()
+
+
+engine.shutdown()
+chrono.finalize()

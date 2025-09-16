@@ -25,7 +25,7 @@ terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
 
-# Point tracked by the camera
+# Poon chassis tracked by the camera
 trackPoint = chrono.ChVector3d(-15.0, 10.0, 5.8)
 
 # Contact method
@@ -70,8 +70,8 @@ patch = terrain.AddPatch(patch_mat,
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
-
 # Create the vehicle Irrlicht interface
+
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('City Bus Demo')
 vis.SetWindowSize(1280, 1024)
@@ -82,37 +82,37 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
-# Create the data-driven driver system
-driver_inputs = [
-    veh.vector_Entry(0.0, 0.0, 0.0, 0.0),  # throttle, steering, braking, handbrake
-    veh.vector_Entry(0.1, 1.0, 0.0, 0.0),
-    veh.vector_Entry(0.5, 1.0, 0.0, 0.0, 0.7),
+# Create the driver system
+driver_entries = [
+    veh.vector_Entry(0.0, veh.DataDriverEntry(0.0, 0.0, 0.0)),
+    veh.vector_Entry(0.1, veh.DataDriverEntry(1.0, 0.0, 0.0)),
+    veh.vector_Entry(0.5, veh.DataDriverEntry(1.0, 0.7, 0.0))
 ]
-driver = veh.ChDataDriver(driver_inputs)
+driver = veh.ChDataDriver(driver_entries)
 
 # output vehicle mass
-print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
+print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
 
-# Initialize simulation frame counter
+# Initialize simulation frame counter s
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-while vis.Run():
+while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
 
     # Render scene and output POV-Ray data
-    if (step_number % render_steps == 0):
+    if (step_number % render_steps == 0) :
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
         render_frame += 1
 
     # Get driver inputs
-    driver_inputs = driver.GetInputs()
+    driver_inputs = driver.GetInputs(time)
 
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
@@ -125,7 +125,6 @@ while vis.Run():
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
-
     # Increment frame number
     step_number += 1
     # Spin in place for real time to catch up

@@ -9,7 +9,7 @@ from std_msgs.msg import Int64
 class MyCustomHandler(chros.ChROSHandler):
     
 
-    def __init__(self, topic, publish_rate):
+    def __init__(self, topic, publish_rate=10):
         super().__init__(publish_rate)  
 
         self.topic = topic
@@ -45,7 +45,7 @@ def main():
     floor.SetPos(ch.ChVector3d(0, 0, -1))  
     floor.SetFixed(True)  
     floor.SetName("base_link")  
-    floor.SetTexture("path/to/floor_texture.png")  
+    floor.SetTexture(irr.IrrlichtTexture("path/to/floor_texture.png"))  
     sys.Add(floor)  
 
     
@@ -53,7 +53,7 @@ def main():
     box.SetPos(ch.ChVector3d(0, 0, 5))  
     box.SetRot(ch.QuatFromAngleAxis(.2, ch.ChVector3d(1, 0, 0)))  
     box.SetName("box")  
-    box.SetTexture("path/to/box_texture.png")  
+    box.SetTexture(irr.IrrlichtTexture("path/to/box_texture.png"))  
     sys.Add(box)  
 
     
@@ -71,31 +71,27 @@ def main():
     ros_manager.RegisterHandler(tf_handler)
     
     
-    custom_handler = MyCustomHandler("~/my_topic", 10)  
+    custom_handler = MyCustomHandler("~/my_topic", publish_rate=10)
     ros_manager.RegisterPythonHandler(custom_handler)
 
     
     ros_manager.Initialize()
 
     
-    app = irr.IrrlichtDevice(irr.createIrrlichtDevice(
-        irr.dimension2d(800, 600), 
-        irr.videoMode(irr.driverType_OpenGL, 32, 0, 0), 
-        False, 
-        False, 
-        False, 
-        False
-    ))
-    
-    driver = app.getVideoDriver()
-    scene = app.getSceneManager()
-    camera = scene.addCameraSceneNode(0, irr.vector3df(0, 0, 10), irr.vector3df(0, 0, 0))
-    light = scene.addLightSceneNode(0, irr.vector3df(0, 0, 0), irr.SColorf(1, 1, 1, 1))
+    vis = irr.IrrlichtVisualizer(sys)
+    vis.SetCameraPosition(ch.ChVector3d(5, 5, 10))
+    vis.SetCameraTarget(ch.ChVector3d(0, 0, 0))
+    vis.SetAmbientLight(ch.ChColor(0.5, 0.5, 0.5))
+    vis.SetLightDirection(ch.ChVector3d(1, 1, 1))
+    vis.SetWindowSize(800, 600)
+    vis.setWindowTitle("PyChrono Simulation")
+    vis.SetFullScreen(False)
+    vis.Show()
 
     
     step_number = 0
-    render_step_size = 10
-    render_steps = 10
+    render_step_size = 10  
+    render_steps = 0
 
     
     time = 0
@@ -111,11 +107,10 @@ def main():
             break  
 
         step_number += 1
-        if step_number % render_step_size == 0:
-            
-            driver.beginScene(True, True, irr.SColor(255, 140, 0, 0))
-            scene.drawAll()
-            driver.endScene()
+        render_steps += 1
+        if render_steps >= render_step_size:
+            vis.Render()  
+            render_steps = 0
 
         realtime_timer.Spin(time_step)  
 

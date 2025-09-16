@@ -1,154 +1,73 @@
-**PyChrono Simulation Script**
-================================
-
-### Importing Necessary Modules
-
 ```python
 import pychrono.core as chrono
-import pychrono.irrlicht as chronoirr
 import pychrono.vehicle as veh
-import numpy as np
-```
+import pychrono.irrlicht as chronoirr
 
-### Initializing the PyChrono Environment
-
-```python
-# Create the simulation system
+# Initialize the PyChrono environment and core components
 sys = chrono.ChSystemNSC()
 
-# Set the default contact material properties
-contact_material = chrono.ChMaterialSurfaceNSC()
-contact_material.SetFriction(0.9)
-contact_material.SetDampingF(0.3)
-contact_material.SetCompliance(1e-6)
-contact_material.SetComplianceT(1e-6)
-sys.SetDefaultContactMaterial(contact_material)
+# Create the vehicle
+gator = veh.Gator()
+gator.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0.5), chrono.Q_from_AngX(chrono.CH_C_PI_2)))
+gator.SetChassisVisualization(chrono.ChVisualization.ChVIS_NONE)
+gator.SetSuspensionVisualization(chrono.ChVisualization.ChVIS_PRIMITIVES)
+gator.SetSteeringVisualization(chrono.ChVisualization.ChVIS_MESH)
+gator.SetWheelVisualization(chrono.ChVisualization.ChVIS_PRIMITIVES)
+sys.Add(gator)
 
-# Create the vehicle system
-vehicle = veh.Gator()
-
-# Initialize the vehicle system
-vehicle.Initialize(sys)
-
-# Set the vehicle's position and orientation
-vehicle.SetChassisPosition(chrono.ChVectorD(0, 1, 0))
-vehicle.SetChassisOrientation(chrono.Q_from_AngX(chrono.CH_C_PI_2))
-```
-
-### Adding Physical Systems and Objects
-
-```python
 # Create the terrain
-terrain = veh.RigidTerrain(sys)
+terrain = veh.RigidTerrain()
+terrain.Initialize(sys)
+sys.Add(terrain)
 
-# Add the terrain to the simulation system
-sys.Add(terrain.GetGroundBody())
+# Create the driver system
+driver = veh.ChIrrNodeDriver()
+driver.Initialize(sys, gator.GetChassisBody(), 0.5)
+sys.Add(driver)
 
-# Add the vehicle to the simulation system
-sys.Add(vehicle.GetChassisBody())
-sys.Add(vehicle.GetBody(0))
-sys.Add(vehicle.GetBody(1))
-sys.Add(vehicle.GetBody(2))
-sys.Add(vehicle.GetBody(3))
-
-# Create the interactive driver system
-driver = veh.ChIrrlichtDriver()
-driver.SetVehicle(vehicle)
-driver.SetSteeringMin(-0.5)
-driver.SetSteeringMax(0.5)
-driver.SetThrottleMin(0)
-driver.SetThrottleMax(1)
-```
-
-### Setting Visualization Parameters
-
-```python
-# Set the visualization type for the vehicle parts
-vehicle.GetChassisBody().SetCollide(True)
-vehicle.GetChassisBody().SetBodyFixed(False)
-
-# Set the visualization type for the wheels
-for wheel in vehicle.GetWheels():
-    wheel.GetBody().SetCollide(True)
-    wheel.GetBody().SetBodyFixed(False)
-```
-
-### Setting Up the Sensor Manager
-
-```python
 # Create the sensor manager
 sensor_manager = veh.SensorManager()
+sensor_manager.AddPointLight(chrono.ChVectorD(0, 0, 2), chrono.ChVectorF(1, 1, 1))
+sensor_manager.AddCamera(chrono.ChVectorD(0, 0, 1.5), gator.GetChassisBody())
+sys.Add(sensor_manager)
 
-# Create a point light and add it to the sensor manager
-point_light = chronoirr.ChLightDirectional()
-point_light.SetDirection(chrono.ChVectorD(-1, -1, -1))
-sensor_manager.AddSensor(point_light)
+# Create the Irrlicht visualization
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AddSkyBox()
+vis.AddTypicalLights()
+vis.AddCamera(chrono.ChVectorD(0, 0, 2))
+vis.AddCamera(chrono.ChVectorD(0, 0, 1.5), gator.GetChassisBody())
+vis.SetWindowSize(1024, 768)
+vis.SetLogo("")
 
-# Create a camera and add it to the sensor manager
-camera = chronoirr.ChCamera()
-camera.SetPosition(chrono.ChVectorD(0, 2, -3))
-camera.SetLookAt(chrono.ChVectorD(0, 0, 0))
-sensor_manager.AddSensor(camera)
-
-# Attach the camera to the vehicle's chassis
-camera.SetPosition(vehicle.GetChassisBody().GetPos() + chrono.ChVectorD(0, 2, -3))
-camera.SetLookAt(vehicle.GetChassisBody().GetPos())
-```
-
-### Running the Simulation Loop
-
-```python
-# Set the simulation time step
-time_step = 1e-3
-
-# Set the simulation duration
-simulation_duration = 10
-
-# Initialize the simulation time
+# Simulation loop
 time = 0
-
-# Run the simulation loop
-while time < simulation_duration:
+dt = 0.01
+while time < 10:
     # Update the driver
     driver.Synchronize(time)
-
+    
     # Update the terrain
     terrain.Synchronize(time)
-
+    
     # Update the vehicle
-    vehicle.Synchronize(time)
-
+    gator.Synchronize(time)
+    gator.Advance(dt)
+    
     # Update the sensor manager
     sensor_manager.Synchronize(time)
-
-    # Advance the simulation modules
-    sys.DoStepDynamics(time_step)
-
-    # Render the camera images
-    camera.Render()
-
-    # Increment the simulation time
-    time += time_step
+    sensor_manager.Render()
+    
+    # Advance the simulation
+    sys.DoStepDynamics(dt)
+    
+    # Update the visualization
+    vis.BeginScene()
+    vis.DrawAll()
+    vis.EndScene()
+    
+    # Increment time
+    time += dt
 ```
 
-### Visualizing the Simulation
-
-```python
-# Create an Irrlicht application
-app = chronoirr.ChVisualSystemIrrlicht()
-
-# Add the simulation system to the application
-app.AddSkyBox()
-app.AddTypicalLights()
-app.AddCamera(camera)
-app.AddCameraAxes()
-
-# Set the camera's position and orientation
-app.GetCamera().SetPosition(chrono.ChVectorD(0, 2, -3))
-app.GetCamera().SetLookAt(chrono.ChVectorD(0, 0, 0))
-
-# Run the application
-app.Run()
-```
-
-This script creates a PyChrono simulation featuring a Gator vehicle, including its initialization and visualization with various vehicle parts set to different visualization types. It also adds a rigid terrain and an interactive driver system, and sets up a sensor manager with point lights and a camera attached to the vehicle's chassis. The script then runs a simulation loop, updating the driver, terrain, vehicle, and sensor manager at each time step, while synchronizing and advancing the simulation modules. Finally, it visualizes the simulation using an Irrlicht application.
+This script initializes the PyChrono environment, sets up a Gator vehicle with different visualization types for its parts, adds a rigid terrain, and implements an interactive driver system. It also creates a sensor manager with point lights and a camera attached to the vehicle's chassis, rendering the camera images. The simulation loop updates the driver, terrain, vehicle, and sensor manager at each timestep, synchronizing and advancing the simulation modules.

@@ -50,6 +50,7 @@ vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 
+
 vehicle.Initialize()
 
 vehicle.SetChassisVisualizationType(vis_type)
@@ -66,8 +67,8 @@ patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 patch = terrain.AddPatch(patch_mat, 
-    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
-    chrono.GetChronoDataFile('vehicle/terrain/meshes/Highway_col.obj'),
+    chrono.ChCoordsysd(chrono.ChVector3d(0, -42, 0), chrono.QUNIT),
+    chrono.GetChronoDataFile('vehicle/terrain/meshes/bump.obj'),
     True, 0.01, False)
 vis_mesh = chrono.ChTriangleMeshConnected().CreateFromWavefrontFile(veh.GetDataFile("terrain/meshes/Highway_vis.obj"), True, True)
 tri_mesh_shape = chrono.ChVisualShapeTriangleMesh()
@@ -147,19 +148,3 @@ while vis.Run() :
 
     
     realtime_timer.Spin(step_size)
-
-    
-    new_patch_mat = chrono.ChContactMaterialNSC()
-    new_patch_mat.SetFriction(0.9)
-    new_patch_mat.SetRestitution(0.01)
-    new_terrain = veh.RigidTerrain(vehicle.GetSystem())
-    new_patch = new_terrain.AddPatch(new_patch_mat, 
-        chrono.ChCoordsysd(chrono.ChVector3d(0, -42, 0), chrono.QUNIT),
-        chrono.GetChronoDataFile('vehicle/terrain/meshes/bump.obj'),
-        True, 0.01, False)
-    vis_mesh = chrono.ChTriangleMeshConnected().CreateFromWavefrontFile(veh.GetDataFile("terrain/meshes/bump.obj"), True, True)
-    tri_mesh_shape = chrono.ChVisualShapeTriangleMesh()
-    tri_mesh_shape.SetMesh(vis_mesh)
-    tri_mesh_shape.SetMutable(False)
-    new_patch.GetGroundBody().AddVisualShape(tri_mesh_shape)
-    new_terrain.Initialize()

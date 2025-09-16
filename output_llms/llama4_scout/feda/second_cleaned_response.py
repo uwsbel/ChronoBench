@@ -20,9 +20,9 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 
-terrainHeight = 0      
+terrainHeight = 0  
 terrainLength = 200.0  
-terrainWidth = 100.0   
+terrainWidth = 100.0  
 
 
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
@@ -46,7 +46,6 @@ vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
-
 vehicle.Initialize()
 
 vehicle.SetChassisVisualizationType(vis_type)
@@ -61,15 +60,12 @@ vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
-terrain = veh.RigidTerrain(vehicle.GetSystem())
-patch = terrain.AddPatch(patch_mat, 
-    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
-    terrainLength, terrainWidth)
 
+terrain = veh.RigidTerrain(vehicle.GetSystem())
+patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), terrainLength, terrainWidth)
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
-
 
 
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
@@ -83,34 +79,12 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 
-path = veh.ChPath()
-path.AppendPoint(chrono.ChVector3d(0, 0, 0))
-path.AppendPoint(chrono.ChVector3d(20, 3, 0))
-path.AppendPoint(chrono.ChVector3d(40, 3, 0))
-path.AppendPoint(chrono.ChVector3d(60, -3, 0))
-path.AppendPoint(chrono.ChVector3d(80, -3, 0))
-path.AppendPoint(chrono.ChVector3d(100, 0, 0))
-path.AppendPoint(chrono.ChVector3d(120, 0, 0))
-path.AppendPoint(chrono.ChVector3d(140, 0, 0))
-path.AppendPoint(chrono.ChVector3d(160, 0, 0))
-path.AppendPoint(chrono.ChVector3d(180, 0, 0))
-
-driver = veh.ChPathFollowerDriver(vehicle, path, veh.DriverInputs())
-driver.SetTargetSpeed(10.0)
+driver = veh.ChPathFollowerDriver(vehicle.GetVehicle(), veh.GetDataFile('paths/double_lane_change.txt'), 10.0)
+driver.SetLookAheadDistance(5.0)
+driver.SetGains(0.5, 2.0, 0.0, 0.5, 2.0)  
 
 
-steering_controller = driver.GetSteeringController()
-steering_controller.SetLookAheadDistance(5)
-steering_controller.SetGains(0.5, 0.1, 0.05)
-
-
-speed_controller = driver.GetSpeedController()
-speed_controller.SetGains(0.5, 0.1)
-
-driver.Initialize()
-
-
-print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 
 render_steps = math.ceil(render_step_size / step_size)
@@ -120,11 +94,11 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-while vis.Run() :
+while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
     
-    if (step_number % render_steps == 0) :
+    if (step_number % render_steps == 0):
         vis.BeginScene()
         vis.Render()
         vis.EndScene()

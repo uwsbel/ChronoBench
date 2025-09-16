@@ -1,51 +1,62 @@
-import pychrono as chrono
-import pychrono.irrlicht as irr
+import chrono as ch
+import chrono.irrlicht as irr
 
 
-chrono.ChEngine.Initialize()
+ch.ChEngine.Initialize()
 
 
 app = irr.ChIrrApp()
 
 
-system = chrono.ChSystem()
+ground = ch.ChBody()
+ground.SetPos(ch.ChVector3d(0, 0, -10))
+ground.SetFixed(True)
 
 
-ground = chrono.ChBody()
-ground.SetBodyFixed(True)
-ground.SetPos(chrono.ChVectorD(0, 0, 0))
-system.Add(ground)
-
-
-pendulum = chrono.ChBody()
+pendulum = ch.ChBody()
 pendulum.SetMass(1.0)
-pendulum.SetInertiaXX(chrono.ChVectorD(0.1, 0.1, 0.1))
-pendulum.SetPos(chrono.ChVectorD(1.0, 0.0, 0.0))
-system.Add(pendulum)
+pendulum.SetPos(ch.ChVector3d(5, 0, 0))
+pendulum.SetRot(ch.ChQuaterniond(1, 0, 0, 0))
 
 
-joint = chrono.ChLinkLockRevolute()
-joint.Init(ground, pendulum, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.ChQuaternionD(1, 0, 0, 0)))
-system.Add(joint)
+inertia = ch.ChMatrix33d(1, 0, 0, 0, 1, 0, 0, 0, 1)
+inertia(0, 0) = 0.1
+inertia(1, 1) = 0.1
+inertia(2, 2) = 0.1
+pendulum.SetInertia(inertia)
 
 
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+joint = ch.ChRevolute()
+joint.Init(ground, pendulum, ch.ChFrame3d(ch.ChVector3d(0, 0, 0), ch.ChQuaterniond(1, 0, 0, 0)))
 
 
-vis = irr.ChIrrApp(system, "Simple Pendulum", chrono.ChVectorD(800, 600), True)
 
 
-vis.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
-vis.SetFrameRate(60)
-vis.SetTimeStep(0.01)
 
 
-def LogPendulumState(t):
-    print(f"Time: {t:.2f} s")
-    print(f"Pendulum position: {pendulum.GetPos()}")
-    print(f"Pendulum velocity: {pendulum.GetPos_dt()}")
+
+scene = irr.ChIrrScene()
+scene.AddBody(ground)
+scene.AddBody(pendulum)
+scene.AddLink(joint)
 
 
-while vis.Run():
-    vis.ComputeSimulationStep()
-    LogPendulumState(vis.GetChTime())
+scene.SetCameraPos(ch.ChVector3d(0, -20, 10))
+scene.SetCameraTarget(ch.ChVector3d(0, 0, 0))
+
+
+time = 0
+dt = 0.02
+while time < 30 and app.Run():
+    
+    pendulum.Update()
+    joint.Update()
+    
+    
+    print(f"Time: {time:.2f}, Pendulum Position: {pendulum.GetPos()}, Pendulum Velocity: {pendulum.GetPos_dt()}")
+    
+    
+    time += dt
+
+    
+    scene.Render()

@@ -1,4 +1,3 @@
-```python
 import os
 import math
 import numpy as np
@@ -36,12 +35,11 @@ vis.SetWindowTitle('Turtlebot Robot - Rigid terrain')
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()
-vis.AddCamera(chrono.ChVector3d(0, 1.5, 0.2), chrono.ChVector3d(0, 0, 0.2))
 vis.AddTypicalLights()
 vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0, 0.5), 3, 4, 10, 40, 512)
 
-# Enable shadows
-vis.EnableShadows()
+# Enable shadows (commented out to improve performance)
+# vis.EnableShadows()
 
 # Set the simulation time step
 time_step = 2e-3
@@ -53,389 +51,42 @@ while vis.Run():
     LEFT_DRIVE_WHEEL = 0
     RIGHT_DRIVE_WHEEL = 1
 
+    # Define move function to control the robot's movement
     def move(mode):
         if mode == 'straight':
             robot.SetMotorSpeed(0, LEFT_DRIVE_WHEEL)
             robot.SetMotorSpeed(0, RIGHT_DRIVE_WHEEL)
+            print("Robot moving straight.")
         elif mode == 'left':
-            robot.SetMotorSpeed(math.pi, LEFT_DRIVE_WHEEL)
-            robot.SetMotorSpeed(-math.pi, RIGHT_DRIVE_WHEEL)
-        elif mode == 'right':
             robot.SetMotorSpeed(-math.pi, LEFT_DRIVE_WHEEL)
-            robot.SetMotorSpeed(math.pi, RIGHT_DRIVE_WHEEL)
+            robot.SetMotorSpeed(0, RIGHT_DRIVE_WHEEL)
+            print("Robot turning left.")
+        elif mode == 'right':
+            robot.SetMotorSpeed(math.pi, LEFT_DRIVE_WHEEL)
+            robot.SetMotorSpeed(0, RIGHT_DRIVE_WHEEL)
+            print("Robot turning right.")
         else:
-            raise ValueError(f"Invalid mode: {mode}")
+            raise ValueError("Invalid mode: " + mode)
 
-    # At time = 1 s, start left turn
-    if abs(time - 1.0) < 1e-4:
+    # Move the robot straight for the first 5 seconds
+    if time < 5:
         move('straight')
-    elif abs(time - 2.0) < 1e-4:
-    elif time - 1.0:
+
+    # Turn the robot left for the next 5 seconds
+    elif time < 10:
         move('left')
-    elif time - 1.0:
-    elif time - 1e-4:
-    elif time - 1.0
 
-    elif time - 1.0
+    # Turn the robot right thereafter
+    else:
         move('right')
-    elif 1.0
 
-# Simulation loop - 1.0
+    # Increment time counter
+    time += time_step
 
-# Simulation loop - 1.0
+    # Render the scene
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
 
-# Simulation loop - 1.0
-
-# Simulation loop
-
-# Simulation loop
-
-#0
-
-# Simulation loop
-
-# Simulation loop
-
-# Simulation loop
-
-# Simulation loop
-
-# Simulation loop
-
-# Simulation loop
-
-# Simulation loop
-
-
-Simulation loop
-
-Simulation loop
-
- Simulation loop
-
-
-Simulation loop
-
- Simulation loop
-
-
-
-
-
-
-
-
-Simulation loop
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Simulation loop
-
-
-
-
-
-
-
-
-Simulation loop
-
-
-
-
-
-Simulation
-
-
-Simulation loop
-
-
-
-
-
-
-
-
-Simulation loop
-
-Simulation
-
-Simulation
-
-Simulation
-
-
-Simulation
-
-
-
-Simulation loop
-
-Simulation
-
-
-
-
-
-Simulation
-
-SimSimulation loop
-py
-
-
-
-
-
-
-Simulation loop
-
-Simulation
-
-
-
-
-
-
-
-
-
-
-Simulation
-
-
-
-
-
-
-
-
-
-
-
-
-from
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-fromSimulation
-sclimate
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Sim the firstSimulation
-
-
-
-
-
-
-
-
-
-
-Simulation.Simulation
-
-
-
-
-
-
-
-Label:py.
-initiate.
-BPySim.
-
-
-
-simulation
-
-
-from, whichSimulation
-
-Simulation
-
-
-
-val
-
-
-
-
-
-    def main()
-
-Challenge:
-Simulation
-
-
-
-
-
-
-
-val
-    def main()
-
-
-
-
-
-
-
-
-
-
-   
-
-
-
-
-
-
-
-
-
-   text-based on
-
-def:
-
-
-
-
-
-
-
-
-#include
-
-
-
-
-
-   
-
-
-
-
-    theta.
-   pypythpyt,pyt, and
-
-
-   2.
-
-
-
-
-
-
-
-
-    -11,0.
-
-   pyt0text.
-text
-
-
-   text
-   scriptor.
-
-   
-
-
-
-   
-   2.
-   1py.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-   0pyt3D, but
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-   1Chat
+    # Advance the simulation by one time step
+    system.DoStepDynamics(time_step)

@@ -2,94 +2,78 @@ import pychrono as chrono
 import pychrono.irrlicht as chronoirr
 import numpy as np
 
-# ---------------------------------------------------------------------
-# 1. Initialize PyChrono environment and core components
-# ---------------------------------------------------------------------
+# -------------------------------------
+# 1. Initialize PyChrono environment
+# -------------------------------------
+chrono.SetChronoDataPath("data/")
 
-# Create the physical system
-system = chrono.ChSystemNSC()
+# Create the simulation system
+sys = chrono.ChSystemNSC()
+sys.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
-# Set gravitational acceleration
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
-
-# Create a material for the vehicle and terrain
-material = chrono.ChMaterialSurfaceNSC()
-material.SetFriction(0.8)
-material.SetRestitution(0.2)
-
-# ---------------------------------------------------------------------
+# -------------------------------------
 # 2. Add physical systems and objects
-# ---------------------------------------------------------------------
+# -------------------------------------
 
-# Load the HMMWV vehicle model (replace with your actual model path)
+# Load HMMWV vehicle model
 vehicle = chrono.ChBodyEasyBox(
-    1000,  # Mass
-    chrono.ChVectorD(2.5, 1.5, 1.0),  # Half dimensions
-    material
+    2.5, 1.5, 0.8, 1000, True, True, chrono.ChVectorD(0, 1, 0)
 )
-vehicle.SetPos(chrono.ChVectorD(0, 1.5, 0))  # Initial position
+vehicle.SetPos(chrono.ChVectorD(0, 1, 0))
+sys.Add(vehicle)
 
-# Add the vehicle to the system
-system.Add(vehicle)
+# Create SCM deformable terrain
+terrain = chrono.ChTerrainSCM()
+terrain.SetSize(chrono.ChVectorD(100, 100, 1))
 
-# Create the SCM deformable terrain
-terrain = chrono.ChTerrainSCM(system)
+# Load height map (replace with your height map file)
+height_map = np.loadtxt("height_map.txt")
+terrain.Initialize(height_map, 1.0)
 
-# Define soil parameters (adjust as needed)
-terrain.SetYoungModulus(1e7)
-terrain.SetPoissonRatio(0.3)
+# Set soil parameters
 terrain.SetFriction(0.5)
+terrain.SetRestitution(0.2)
+terrain.SetSpringStiffness(1000)
+terrain.SetDamping(10)
 
-# Load the height map (replace with your actual height map file)
-terrain.LoadHeightMap("heightmap.png")
+sys.Add(terrain)
 
-# Add the terrain to the system
-system.Add(terrain)
-
-# ---------------------------------------------------------------------
-# 3. Set default parameters and interactions
-# ---------------------------------------------------------------------
-
-# Create a driver system for vehicle control (replace with your desired driver implementation)
+# Initialize driver system (placeholder, needs specific implementation)
 driver = chrono.ChDriver(vehicle)
 
-# Set initial vehicle speed
-vehicle.SetBodyFixed(False)
-vehicle.SetPos_dt(chrono.ChVectorD(5, 0, 0))
+# -------------------------------------
+# 3. Set visualization settings
+# -------------------------------------
 
-# ---------------------------------------------------------------------
-# 4. Initialize visualization
-# ---------------------------------------------------------------------
-
-# Create the Irrlicht visualization system
+# Create Irrlicht visualization system
 vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(system)
+vis.AttachSystem(sys)
 vis.SetWindowSize(800, 600)
 vis.SetWindowTitle("HMMWV Simulation")
 
 # Set camera position and lighting
 camera = vis.GetCamera()
 camera.SetLocation(chrono.ChVectorD(10, 5, 5))
-camera.SetLookAt(chrono.ChVectorD(0, 1.5, 0))
+camera.SetTarget(chrono.ChVectorD(0, 1, 0))
 
-# Add ambient light
-vis.AddLight(chrono.ChLight(chrono.ChVectorD(5, 5, 5), chrono.ChColor(0.8, 0.8, 0.8)))
+vis.SetAmbientLight(chrono.ChColor(0.5, 0.5, 0.5))
+vis.SetDirectionalLight(chrono.ChVectorD(1, -1, 0), chrono.ChColor(1, 1, 1))
 
-# ---------------------------------------------------------------------
-# 5. Simulation loop
-# ---------------------------------------------------------------------
+# -------------------------------------
+# 4. Simulation loop
+# -------------------------------------
 
-# Set simulation timestep
-timestep = 0.01
+# Simulation time step
+dt = 0.01
 
 while vis.Run():
-    # Update driver inputs (replace with your driver logic)
-    driver.Update(timestep)
-
     # Advance the simulation
-    system.DoStepDynamics(timestep)
+    sys.DoStepDynamics(dt)
 
-    # Update visualization
+    # Update driver input (placeholder)
+    driver.Update(dt)
+
+    # Synchronize visualization
     vis.BeginScene()
     vis.Render()
     vis.EndScene()

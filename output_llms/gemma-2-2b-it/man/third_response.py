@@ -3,10 +3,8 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import pychrono.sensor as sensor
 import numpy as np
-import math
-
-chrono.SetChronoDataPath(chrono.GetChronoDataPath())
-veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
+from pychrono.sensor import SensorManager
+from pychrono.sensor import LidarSensor
 
 # Initial vehicle location and orientation
 initLoc = chrono.ChVector3d(0, 0, 0.5)
@@ -22,7 +20,6 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 # Rigid terrain
-# terrain_model = veh.RigidTerrain.BOX
 terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
@@ -41,8 +38,11 @@ tire_step_size = step_size
 # Time interval between two render frames
 render_step_size = 1.0 / 50  # FPS = 50
 
-# Create the MAN vehicle, set parameters, and initialize
+# Import sensor manager and lidar sensor
+sensor_manager = SensorManager()
+lidar_sensor = LidarSensor(sensor_manager)
 
+# Create the MAN vehicle, set parameters, and initialize
 vehicle = veh.MAN_10t() 
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
@@ -75,7 +75,6 @@ patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 # Create the vehicle Irrlicht interface
-
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('MAN 10t Demo')
 vis.SetWindowSize(1280, 1024)
@@ -85,7 +84,6 @@ vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
-
 
 # Create the driver system
 driver = veh.ChInteractiveDriverIRR(vis)
@@ -100,14 +98,7 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 
 driver.Initialize()
 
-# sensor manager
-sensor_manager = sensor.SensorManager()
-sensor_manager.AddSensor(sensor.SensorType_LIDAR)
-
-# sensor data
-lidar_data = sensor_manager.GetSensorData(sensor.SensorType_LIDAR)
-
-# Output vehicle mass
+# output vehicle mass
 print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events

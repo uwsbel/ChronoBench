@@ -1,57 +1,52 @@
-import pychrono as pc
-import pychrono.irrlicht as irr
-import pychrono.vehicle as vehicle
-import pychrono.terrain as terrain
-import pychrono.driver as driver
+import pychrono as chrono
+from pychrono.irrlicht import *
 
-# Initialize PyChrono environment
-pc.Initialize()
+# 1. Initialize the PyChrono environment and core components
+chrono.SetChronoDataPath("path/to/chrono_data")  # Set the path to the Chrono data
+simulation = chrono.ChSimulation()
+simulation.SetTimestep(0.01)  # Set the simulation timestep to 0.01 seconds
 
-# Set up the rigid terrain
-terrain_size = 100
-terrain = terrain.RigidTerrain(terrain_size, terrain_size)
-terrain.SetFriction(0.8)
-terrain.SetRestitution(0.5)
-terrain.SetMaterial(pc.Material('grass', pc.Color(0.2, 0.8, 0.2)))
+# 2. Add the required physical systems and objects
+# Create the M113 vehicle
+vehicle = chrono.ChVehicle()
+vehicle.SetChassisBody(chrono.ChBodyEasyBox(0.5, 1, 0.3, 1000, True, True, False))
+vehicle.SetWheel(chrono.ChWheel(), chrono.ChVectorD(0.2, 0.3, 0.2), chrono.ChVectorD(0, 0, 0.3), chrono.ChVectorD(0, 1, 0), True, 0.3)
+vehicle.SetWheel(chrono.ChWheel(), chrono.ChVectorD(0.2, -0.3, 0.2), chrono.ChVectorD(0, 0, 0.3), chrono.ChVectorD(0, -1, 0), True, 0.3)
+vehicle.SetWheel(chrono.ChWheel(), chrono.ChVectorD(0.2, 0.3, -0.2), chrono.ChVectorD(0, 0, -0.3), chrono.ChVectorD(0, 1, 0), True, 0.3)
+vehicle.SetWheel(chrono.ChWheel(), chrono.ChVectorD(0.2, -0.3, -0.2), chrono.ChVectorD(0, 0, -0.3), chrono.ChVectorD(0, -1, 0), True, 0.3)
+vehicle.SetSteeringAngle(chrono.ChVectorD(0, 0, 0))  # Set initial steering angle to 0
+vehicle.SetWheelAngularSpeed(chrono.ChVectorD(0, 0, 0))  # Set initial wheel angular speed to 0
+vehicle.SetWheelForce(chrono.ChVectorD(0, 0, 0))  # Set initial wheel force to 0
 
-# Add the terrain to the simulation
-pc.World.Add(terrain)
+# Create the rigid terrain
+terrain = chrono.ChTerrain()
+terrain.SetFriction(0.8)  # Set terrain friction to 0.8
+terrain.SetRestitution(0.5)  # Set terrain restitution to 0.5
+terrain.AddBox(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(10, 10, 1), 1000, True, True, False)
 
-# Set up the M113 vehicle
-m113 = vehicle.M113()
-m113.SetPosition(0, 0, 0.5)
-m113.SetOrientation(pc.Quaternion.RotationY(pc.DegToRad(90)))
-m113.SetWheelFriction(0.5)
+# Create the driver system for vehicle control
+driver = chrono.ChVehicleDriver()
+driver.SetSteeringMethod(chrono.CH_VEHICLE_STEERING_METHOD_PURE_PURSUIT)
+driver.SetSteeringWheelAngle(0)  # Set initial steering wheel angle to 0
+driver.SetThrottle(0)  # Set initial throttle to 0
+driver.SetBrake(0)  # Set initial brake to 0
 
-# Add the vehicle to the simulation
-pc.World.Add(m113)
+# 3. Set necessary default parameters such as positions, forces, and interactions
+vehicle.SetPos(chrono.ChVectorD(0, 0, 0.5))  # Set initial vehicle position
+vehicle.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))  # Set initial vehicle rotation
 
-# Set up the driver system
-driver_system = driver.Driver(m113)
-driver_system.SetThrottle(0.5)
-driver_system.SetSteering(0.0)
+# Create the real-time visualization using Irrlicht with camera settings and lighting
+application = IrrlichtApplication(simulation, chrono.CH_CAMERA_ORTHOGRAPHIC)
+camera = application.GetCamera()
+camera.SetPos(chrono.ChVectorD(0, -5, 5))  # Set initial camera position
+camera.SetDir(chrono.ChVectorD(0, 0, -1))  # Set initial camera direction
+light = application.GetLight()
+light.SetPos(chrono.ChVectorD(10, 10, 10))  # Set initial light position
 
-# Set up real-time visualization using Irrlicht
-irr_app = irr.ChronoIrrApp()
-irr_app.SetCameraPosition(pc.Vector3d(0, -50, 50))
-irr_app.SetCameraRotation(pc.Vector3d(0, 0, 0))
-irr_app.SetLightDirection(pc.Vector3d(1, 1, 1))
-irr_app.SetLightColor(pc.Color(1, 1, 1))
-
-# Simulation loop
-while not irr_app.Done():
-    # Synchronize and advance the vehicle, terrain, driver, and visual system
-    pc.World.Step()
-    driver_system.Advance()
-    irr_app.Update()
-
-    # Draw the scene
-    irr_app.Draw()
-
-    # Check for user input to quit
-    if irr_app.GetKeyDown(pc.Key.ESCAPE):
-        break
-
-# Clean up and close the simulation
-pc.Finalize()
-irr_app.Close()
+# Implement the simulation loop that synchronizes and advances the vehicle, terrain, driver, and visual system at each timestep, maintaining real-time execution
+while application.GetDevice().run():
+    simulation.DoStep()
+    vehicle.Synchronize()
+    terrain.Synchronize()
+    driver.Synchronize()
+    application.DoStep()

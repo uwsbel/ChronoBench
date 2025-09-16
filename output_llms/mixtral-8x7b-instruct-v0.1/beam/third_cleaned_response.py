@@ -9,7 +9,7 @@ sys = chrono.ChSystemSMC()
 
 
 
-mesh = fea.ChMesh()
+mesh = fea.ChMesh();
 
 
 
@@ -22,11 +22,10 @@ msection.SetShearModulus(0.01e9 * 0.3)
 msection.SetRayleighDamping(0.000)
 msection.SetCentroid(0, 0.02)
 msection.SetShearCenter(0, 0.1)
-msection.SetSectionRotation(45 * chrono.CH_RAD_TO_DEG)
+msection.SetSectionRotation(45*chrono.CH_RAD_TO_DEG)
 
 
 beam_L = 0.1
-
 hnode1 = fea.ChNodeFEAxyzrot(chrono.ChFramed(chrono.ChVector3d(0, 0, 0)))
 hnode2 = fea.ChNodeFEAxyzrot(chrono.ChFramed(chrono.ChVector3d(beam_L, 0, 0)))
 hnode3 = fea.ChNodeFEAxyzrot(chrono.ChFramed(chrono.ChVector3d(beam_L * 2, 0, 0)))
@@ -46,9 +45,8 @@ belement2.SetSection(msection)
 mesh.AddElement(belement2)
 
 
-builder = fea.ChBuilderBeamEuler()
-builder.SetSection(msection)
-builder.BuildBeam(mesh, hnode3, chrono.ChVector3d(0.2, 0.1, -0.1), chrono.ChVector3d(0, 1, 0))
+builder.BuildBeam(mesh, msection, 5, hnode3.GetPos(), chrono.ChVector3d(0.2, 0.1, -0.1), chrono.ChVector3d(0, 1, 0))
+builder.GetLastBeamNodes().back().SetFixed(True)
 
 
 hnode2.SetForce(chrono.ChVector3d(4, 2, 0))
@@ -74,10 +72,25 @@ constr_d.SetConstrainedCoords(False, True, True,
                               False, False, False)    
 
 
+builder = fea.ChBuilderBeamEuler()
+
+
+builder.BuildBeam(mesh,                   
+                    msection,                  
+                    5,                         
+                    chrono.ChVector3d(0, 0, -0.1),   
+                    chrono.ChVector3d(0.2, 0, -0.1), 
+                    chrono.ChVector3d(0, 1, 0))      
+
+
 mesh.SetAutomaticGravity(False);
 
 
 sys.Add(mesh)
+
+
+
+
 
 
 visualizebeamA = chrono.ChVisualShapeFEA(mesh)
@@ -98,7 +111,7 @@ mesh.AddVisualShapeFEA(visualizebeamC)
 
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(sys)
-vis.SetWindowSize(1024, 768)
+vis.SetWindowSize(1024,768)
 vis.SetWindowTitle('FEA beams')
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))

@@ -3,8 +3,6 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import pychrono.sensor as sensor
 import numpy as np
-import math
-import random
 
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
@@ -75,16 +73,19 @@ patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 
+sensor_manager = sensor.ChSensorManager()
+lidar_sensor = sensor.ChLidarSensor()
+lidar_sensor.SetPosition(chrono.ChVector3d(0, 0, 1))
+sensor_manager.AddSensor(lidar_sensor)
+
+
 for _ in range(10):
-    box_size = chrono.ChVector3d(random.uniform(1, 3), random.uniform(1, 3), random.uniform(1, 3))
-    box_mat = chrono.ChMaterialSurfaceNSC()
-    box_mat.SetFriction(0.6)
-    box_mat.SetRestitution(0.1)
-    box = chrono.ChBoxShape(box_size.x(), box_size.y(), box_size.z())
-    body = chrono.ChBodyEasyBox(box_size.x(), box_size.y(), box_size.z(), 1000, True, True)
-    body.SetMaterialSurface(box_mat)
-    body.SetPos(chrono.ChVector3d(random.uniform(-terrainLength/2, terrainLength/2), random.uniform(-terrainWidth/2, terrainWidth/2), 0.5))
-    terrain.GetSystem().Add(body)
+    box = chrono.ChBoxShape()
+    box.SetBox(chrono.ChVector3d(np.random.uniform(-50, 50), np.random.uniform(-50, 50), np.random.uniform(0, 10)))
+    body = chrono.ChBody()
+    body.AddShape(box)
+    body.SetPos(chrono.ChVector3d(np.random.uniform(-50, 50), np.random.uniform(-50, 50), np.random.uniform(0, 10)))
+    vehicle.GetSystem().Add(body)
 
 
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
@@ -121,11 +122,6 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-
-sensor_manager = sensor.ChSensorManager(vehicle.GetVehicle())
-lidar_sensor = sensor.ChLidarSensor(vehicle.GetVehicle(), chrono.ChVector3d(0, 0, 1.5), 360, 10, 5)
-sensor_manager.AddSensor(lidar_sensor)
-
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
     
@@ -138,11 +134,13 @@ while vis.Run() :
     driver_inputs = driver.GetInputs()
 
     
+    sensor_manager.Synchronize(time)
+
+    
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
-    sensor_manager.Synchronize(time)
 
     
     driver.Advance(step_size)

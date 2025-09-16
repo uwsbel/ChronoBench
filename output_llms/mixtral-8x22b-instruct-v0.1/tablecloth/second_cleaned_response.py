@@ -46,17 +46,32 @@ for iz in range(nsections_z + 1):
         mynodes.append(mnode)
 
 
+nodePlotA = mynodes[0]
+nodePlotB = mynodes[1]
+nodesLoad = [mynodes[0], mynodes[1]]
+
+
+ref_X = np.linspace(0, L_x, nsections_x + 1)
+ref_Y = np.linspace(0, L_z, nsections_z + 1)
+
+
+load_force = chrono.ChVector3d(0, -1000, 0)
+
+
 for iz in range(nsections_z):
     for ix in range(nsections_x):
         melementA = fea.ChElementShellBST()
         boundary_1 = mynodes[(iz + 1) * (nsections_x + 1) + ix + 1] if (iz + 1) * (nsections_x + 1) + ix + 1 < len(mynodes) else None
-        boundary_2 = mynodes[(iz + 1) * (nsections_x + 1) + ix - 1] if ix > 0 and (iz + 1) * (nsections_x + 1) + ix - 1 < len(mynodes) else None
-        boundary_3 = mynodes[(iz - 1) * (nsections_x + 1) + ix + 1] if iz > 0 and (iz - 1) * (nsections_x + 1) + ix + 1 < len(mynodes) else None
+        boundary_2 = mynodes[(iz + 1) * (nsections_x + 1) + ix - 1] if ix > 0 else None
+        boundary_3 = mynodes[(iz - 1) * (nsections_x + 1) + ix + 1] if iz > 0 else None
 
         melementA.SetNodes(mynodes[iz * (nsections_x + 1) + ix], mynodes[iz * (nsections_x + 1) + ix + 1],
                            mynodes[(iz + 1) * (nsections_x + 1) + ix], boundary_1, boundary_2, boundary_3)
         melementA.AddLayer(thickness, 0, material)
         mesh.AddElement(melementA)
+
+        if iz == 0 and ix == 1:
+            melementmonitor = melementA
 
         melementB = fea.ChElementShellBST()
         boundary_1 = mynodes[iz * (nsections_x + 1) + ix]
@@ -69,27 +84,6 @@ for iz in range(nsections_z):
         mesh.AddElement(melementB)
 
 
-nodePlotA = mynodes[0]
-nodePlotB = mynodes[1]
-nodesLoad = [mynodes[0], mynodes[1]]
-
-def ref_X(t):
-    return np.sin(t)
-
-def ref_Y(t):
-    return np.cos(t)
-
-load_force = chrono.ChVector3d(0, -100, 0)
-
-
-mnodemonitor = mynodes[0]
-melementmonitor = melementA
-
-
-if iz == 0 and ix == 1:
-    melementmonitor = melementA
-
-
 for j in range(30):
     for k in range(30):
         mynodes[j * (nsections_x + 1) + k].SetFixed(True)
@@ -98,8 +92,8 @@ for j in range(30):
 mvisualizeshellA = chrono.ChVisualShapeFEA(mesh)
 mvisualizeshellA.SetShellResolution(2)
 mvisualizeshellA.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NONE)
-
-
+mvisualizeshellA.SetSmoothFaces(True)
+mvisualizeshellA.SetWireframe(True)
 
 mesh.AddVisualShapeFEA(mvisualizeshellA)
 

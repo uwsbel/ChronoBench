@@ -18,9 +18,9 @@ chassis_collision_type = veh.CollisionType_NONE
 
 
 
-terrainHeight = 0  
-terrainLength = 100.0  
-terrainWidth = 100.0  
+terrainHeight = 0
+terrainLength = 100.0
+terrainWidth = 100.0
 
 
 trackPoint = chrono.ChVector3d(0.0, 0.0, 0.1)
@@ -68,18 +68,18 @@ patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 
-box_mat = chrono.ChMaterialSurfaceSMC()
-box_mat.SetFriction(0.5)
-box_mat.SetRestitution(0.1)
+box_mat = chrono.ChContactMaterialSMC()
+box_mat.SetFriction(0.9)
+box_mat.SetRestitution(0.01)
 box = chrono.ChBodyEasy()
-box.SetPos(chrono.ChVector3d(50, 0, 0.5))
-box.SetSize(chrono.ChVector3d(10, 1, 1))
-box.SetMass(100)
-box.SetMaterialSurface(box_mat)
-box.GetCollisionModel().ClearModel()
-box.GetCollisionModel().AddBox(0.5, 0.5, 0.5)
 box.SetBodyFixed(False)
+box.SetPos(chrono.ChVector3d(20, 0, 0.5))
+box.SetSize(chrono.ChVector3d(10, 2, 1))
+box.AddAsset(chrono.ChBoxShape(), False)
+box.SetMass(100)
+box.SetContactMaterial(box_mat)
 vehicle.GetSystem().Add(box)
+box.SetCollide(True)
 
 
 vis = veh.ChTrackedVehicleVisualSystemIrrlicht()
@@ -96,9 +96,9 @@ vis.AttachVehicle(vehicle.GetVehicle())
 driver = veh.ChInteractiveDriverIRR(vis)
 
 
-steering_time = 1.0  
-throttle_time = 1.0  
-braking_time = 0.3  
+steering_time = 1.0
+throttle_time = 1.0
+braking_time = 0.3
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
@@ -121,6 +121,10 @@ vehicle.GetVehicle().EnableRealtime(True)
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
+
+    
+    throttle_value = 0.8
+    driver.SetThrottle(throttle_value)
 
     
     if (step_number % render_steps == 0):
@@ -146,6 +150,3 @@ while vis.Run():
 
     
     step_number += 1
-
-    
-    driver.SetThrottle(0.8)

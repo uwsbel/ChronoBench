@@ -28,7 +28,7 @@ thickness = 0.01
 
 
 melasticity = fea.ChElasticityKirchhoffIsothropic(E, nu)
-material = fea.ChMaterialShellKirchhoffIsothropic(E, nu)
+material = fea.ChMaterialShellKirchhoff(melasticity)
 material.SetDensity(density)
 
 
@@ -37,364 +37,101 @@ nsections_x, nsections_z = 40, 40
 
 
 mynodes = []
-for iz in range(nsections_x + 1
+for iz in range(nsections_z + 1):
+    for ix in range(nsections_x + 1):
+        p = chrono.ChVector3d(ix * (L_x / nsections_x), 0, iz * (L_z / nsections_z))
+        mnode = fea.ChNodeFEAxyz(p)
+        mesh.AddNode(mnode)
+        mynodes.append(mnode)
 
 
-for iz in range(nsections_z + 1
-    for ix in range(nsections_x + 1
-        p = chrono.ChVector3d
-        p = chrono.ChVector3d
+for iz in range(nsections_z):
+    for ix in range(nsections_x):
+        melementA = fea.ChElementShellBST()
+        boundary_1 = mynodes[(iz + 1) * (nsections_x + 1) + ix + 1] if ix > 0 else None
+        boundary_2 = mynodes[(iz + 1) * (nsections_x + 1) + ix - 1] if ix > 0 else None
+        boundary_3 = mynodes[(iz - 1) * (nsections_x + 1) + ix + 1] if iz > 0 else None
 
+        melementA.SetNodes(mynodes[iz * (nsections_x + 1) + ix], mynodes[iz * (nsections_x + 1) + ix + 1],
+                           mynodes[(iz + 1) * (nsections_x + 1) + ix], boundary_1, boundary_2, boundary_3)
+        melementA.AddLayer(thickness, 0, material)
+        mesh.AddElement(melementA)
 
-        mynodes.append(mynodes.append(mynodes
+        melementB = fea.ChElementShellBST()
+        boundary_1 = mynodes[iz * (nsections_x + 1) + ix] if ix < nsections_x - 1 else None
+        boundary_2 = mynodes[(iz + 1) * (nsections_x + 1) + ix + 2] if ix < nsections_x - 1 else None
+        boundary_3 = mynodes[(iz + 2) * (nsections_x + 1) + ix] if iz < nsections_z - 1 else None
 
+        melementB.SetNodes(mynodes[(iz + 1) * (nsections_x + 1) + ix + 1], mynodes[(iz + 1) * (nsections_x + 1) + ix],
+                           mynodes[iz * (nsections_x + 1) + ix + 1], boundary_1, boundary_2, boundary_3)
+        melementB.AddLayer(thickness, 0, material)
+        mesh.AddElement(melementB)
 
-        for iz in range(nsections_x
-            for ix in range(nsections_x
-                boundary_x
-                boundary_x
-                boundary_x
-                    
-                    
-                    boundary_x
-                    
-                    
-                    if ix
-                    if ix
-                    ifix
-                    ifx
-                    ifx
-                    ifx
 
+mvisualizeshellA = chrono.ChVisualShapeFEA(mesh)
+mvisualizeshellA.SetShellResolution(2)
+mesh.AddVisualShapeFEA(mvisualizeshellA)
 
-                    ifx
-                    ifx
-                    ifx
-                    if
+mvisualizeshellB = chrono.ChVisualShapeFEA(mesh)
+mvisualizeshellB.SetFEMglyphType(chrono.ChVisualShapeFEA.GlyphType_NODE_DOT_POS)
+mesh.AddVisualShapeFEA(mvisualizeshellB)
+mvisualizeshellB.SetSymbolsThickness(0.006)
+mesh.AddVisualShapeFEA(mvisualizeshellB)
 
 
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(sys)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle('Shells FEA test: triangle BST elements')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVector3d(1, 0.3, 1.3), chrono.ChVector3d(0.5, -0.3, 0.5))
+vis.AddTypicalLights()
 
-fea
-                    if
 
-Create elements
-                    if
+mkl_solver = mkl.ChSolverPardisoMKL()
+mkl_solver.LockSparsityPattern(True)  
+sys.SetSolver(mkl_solver)
 
-Create elements
-                    if
 
-Create elements
+timestep = 0.005  
 
-error
 
-Create elements
+sys.Setup()
+sys.Update()
 
-    if
 
-Create
-        if
-        if
-        if
-        if
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    sys.DoStepDynamics(timestep)
 
 
-Create if
+nodePlotA = []
+nodePlotB = []
+nodesLoad = []
 
 
+for iz in range(nsections_z + 1):
+    for ix in range(nsections_x + 1):
+        if ix > 0 and iz > 0:
+            nodePlotA.append(mynodes[iz * (nsections_x + 1) + ix])
+            nodePlotB.append(mynodes[(iz + 1) * (nsections_x + 1) + ix])
+            nodesLoad.append(mynodes[iz * (nsections_x + 1) + ix])
 
 
+ementmonitor = None
+if (iz == 0 and ix == 1):
+    ementmonitor = melementA
 
 
+for j in range(30):
+    for k in range(30):
+        mynodes[j * (nsections_x + 1) + k].SetFixed(True)
 
-s
 
-Create if
-
- Create elements
-
-
-Create
-
-a
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-   
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-   
-
-from
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-s
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-response
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-   
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Bse
-
-
-
-
-
-   
-
-
-
-
-
-
-
-
-
-
-
-
-
-   py
-
-
-```python
-
-
-
-
-
-   
-
-
-
-
-
-
-
-
-    if
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-   
-   
-
-
-   get_
-
-
-
-
-
-
-
-    PyCall:
-:
-
-
-
-
-
-
-def:
-Chem.
-s
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  nd
+mvisualizeshellA.SetSmoothFaces(True)
+mvisualizeshellA.SetWireMode(True)
+mvisualizeshellA.SetBackfaceCulling(False)

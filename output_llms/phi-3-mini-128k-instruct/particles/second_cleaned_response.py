@@ -2,8 +2,7 @@ import pychrono as chrono
 import pychrono.irrlicht as chronoirr
 from itertools import combinations
 
-
-class MyCreatorForSpheres(chrono.ChRandomShapeCreator_AddBodyCallback):
+class MyCreatorForAll(chrono.ChRandomShapeCreator_AddBodyCallback):
     def __init__(self, vis, coll):
         super().__init__()
         self.vis = vis
@@ -14,7 +13,6 @@ class MyCreatorForSpheres(chrono.ChRandomShapeCreator_AddBodyCallback):
         self.vis.BindItem(body)
         self.coll.BindItem(body)
         body.SetUseGyroTorque(False)
-
 
 
 sys = chrono.ChSystemNSC()
@@ -51,8 +49,8 @@ mangvelo = chrono.ChRandomParticleVelocityAnyDirection()
 mangvelo.SetModulusDistribution(chrono.ChUniformDistribution(0.0, 0.2))
 emitter.SetParticleAngularVelocity(mangvelo)
 
+
 mcreator_spheres = chrono.ChRandomShapeCreatorSpheres()
-mcreator_spheres.SetNpoints(15)
 mcreator_spheres.SetDiameterDistribution(chrono.ChZhangDistribution(0.6, 0.23))
 mcreator_spheres.SetDensityDistribution(chrono.ChConstantDistribution(1600))
 emitter.SetParticleCreator(mcreator_spheres)
@@ -69,7 +67,7 @@ vis.AddCamera(chrono.ChVector3d(0, 14, -20))
 vis.AddTypicalLights()
 
 
-mcreation_callback = MyCreatorForSpheres(vis, coll)
+mcreation_callback = MyCreatorForAll(vis, coll)
 emitter.RegisterAddBodyCallback(mcreation_callback)
 
 
@@ -79,7 +77,6 @@ sys.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, 0))
 
 
 stepsize = 1e-2
-
 while vis.Run():
     vis.BeginScene()
     vis.Render()
@@ -87,24 +84,26 @@ while vis.Run():
 
     emitter.EmitParticles(sys, stepsize)
 
+    
+    kinetic_energy = 0.0
+    potential_energy = 0.0
     for body in sys.GetBodies():
-        body.EmptyAccumulators()
+        kinetic_energy += 0.5 * body.GetMass() * body.GetLinearVelocity().Length2()
 
-    mlist = list(combinations(sys.GetBodies(), 2))
-    kinetic_energy = 0
-    potential_energy = 0
-    for abodyA, abodyB in mlist:
-        D_attract = abodyB.GetPos() - abodyA.GetPos()
-        r_attract = D_attract.Length()
+    
+    for abodyA, abodyB in combinations(sys.GetBodies(), 2):
+        r_attract = (abodyB.GetPos() - abodyA.GetPos()).Length()
         f_attract = G_constant * (abodyA.GetMass() * abodyB.GetMass()) / (r_attract ** 2)
         F_attract = (D_attract / r_attract) * f_attract
         abodyA.AccumulateForce(F_attract, abodyA.GetPos(), False)
         abodyB.AccumulateForce(-F_attract, abodyB.GetPos(), False)
-        kinetic_energy += 0.5 * abodyA.GetMass() * abodyA.GetVelocity().Length2()
-        kinetic_energy += 0.5 * abodyB.GetMass() * abodyB.GetVelocity().Length2()
         potential_energy -= G_constant * (abodyA.GetMass() * abodyB.GetMass()) / r_attract
 
-    total_energy = kinetic_energy + potential_energy
-    print(f"Kinetic Energy: {kinetic_energy}, Potential Energy: {potential_energy}, Total Energy: {total_energy}")
+    
+    print(f"Kinetic Energy: {kinetic_energy}, Potential Energy: {potential_energy}")
+
+    
+    G_constant = 6.674e-3
+
 
     sys.DoStepDynamics(stepsize)

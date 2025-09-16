@@ -1,8 +1,8 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
-import numpy as np
 import math
+import numpy as np
 import pychrono.sensor as sensor
 
 """
@@ -100,6 +100,30 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
+# Create obstacles
+obstacles = []
+for i in range(5):
+    obstacle = veh.ChBoxObstacle()
+    obstacle.SetPosition(chrono.ChVector3d(np.random.uniform(-10, 10), np.random.uniform(-10, 10), 0))
+    obstacle.SetSize(chrono.ChVector3d(1, 1, 1))
+    obstacles.append(obstacle)
+    vehicle.GetSystem().AddBody(obstacle)
+
+# Create the sensor manager
+sensor_manager = sensor.ChSensorManager(vehicle.GetSystem())
+
+# Create a lidar sensor
+lidar = sensor.ChLidarSensor(vehicle.GetSystem())
+lidar.SetRange(10)
+lidar.SetResolution(0.1)
+lidar.SetHeight(2)
+lidar.SetVisualization(True)
+lidar.SetFilter(10, 0.1)
+lidar.SetType(sensor.ChSensorType.LIDAR)
+lidar.SetPosition(chrono.ChVector3d(0, 0, 1.5))
+lidar.SetRotation(chrono.ChQuaterniond(0, 0, 0, 1))
+vehicle.GetSystem().AddSensor(lidar)
+
 # Create the driver system
 driver = veh.ChInteractiveDriverIRR(vis)
 
@@ -113,36 +137,26 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 
 driver.Initialize()
 
-# Create 5 box obstacles randomly positioned in the simulation space
-obstacles = []
-for i in range(5):
-    obstacle = veh.ChBoxObstacle(vehicle.GetSystem())
-    obstacle.SetPosition(chrono.ChVector3d(np.random.uniform(-20, 20), np.random.uniform(-20, 20), np.random.uniform(0, 10)))
-    obstacle.SetSize(chrono.ChVector3d(1, 1, 1))
-    obstacles.append(obstacle)
-
-# Create a sensor manager
-sensor_manager = sensor.ChSensorManager(vehicle.GetSystem())
-
-# Add a lidar sensor to the vehicle with specified parameters and filters for visualization
-lidar = sensor.ChLidarSensor(vehicle.GetSystem())
-lidar.SetPosition(chrono.ChVector3d(0, 0, 5))
-lidar.SetDirection(chrono.ChVector3d(0, 0, 1))
-lidar.SetFilterSize(0.1)
-lidar.SetFilterCount(100)
-lidar.SetVisualization(True)
-lidar.SetColor(chrono.ChColor(1, 0, 0))
-sensor_manager.AddSensor(lidar)
-
+# ---------------
 # Simulation loop
+# ---------------
+
+# output vehicle mass
+print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+
+# Number of simulation steps between miscellaneous events
+render_steps = math.ceil(render_step_size / step_size)
+
+# Initialize simulation frame counter s
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
+
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
 
     # Render scene and output POV-Ray data
-    if (step_number % math.ceil(render_step_size / step_size) == 0) :
+    if (step_number % render_steps == 0) :
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
@@ -156,24 +170,17 @@ while vis.Run() :
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
+    sensor_manager.Synchronize(time)
 
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
-
-    # Update sensor manager
-    sensor_manager.Update(time)
+    sensor_manager.Advance(step_size)
 
     # Increment frame number
     step_number += 1
 
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
-
-    # Move obstacles
-    for obstacle in obstacles:
-        obstacle.SetPosition(obstacle.GetPosition() + chrono.ChVector3d(np.random.uniform(-1, 1), np.random.uniform(-1, 1), 0))
-
-print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())

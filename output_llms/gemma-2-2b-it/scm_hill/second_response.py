@@ -1,10 +1,10 @@
-```python
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import pychrono.sensor as sensor
 import numpy as np
 import math
+import random
 
 """
 !!!! Set this path before running the demo!
@@ -115,6 +115,32 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 # ---------------
+# Obstacle creation
+# ---------------
+obstacles = []
+for i in range(5):
+    x = random.uniform(-terrainLength/2, terrainLength/2)
+    y = random.uniform(-terrainWidth/2, terrainWidth/2)
+    z = random.uniform(0, terrainHeight)
+    obstacles.append(chrono.ChBox(chrono.ChVector3d(x, y, z), 1.0, 1.0, 1.0))
+
+# ---------------
+# Sensor Manager and Lidar
+# ---------------
+sensor_manager = sensor.SensorManager()
+
+# Create a lidar sensor
+lidar = sensor.ChLidar(sensor_manager)
+lidar.SetResolution(10)
+lidar.SetBeamAngle(45)
+lidar.SetDistanceThreshold(0.1)
+lidar.SetFilterType(sensor.LidarFilterType_GAUSSIAN)
+lidar.SetFilterWidth(0.5)
+
+# Add the lidar sensor to the vehicle
+vehicle.AddSensor(lidar)
+
+# ---------------
 # Simulation loop
 # ---------------
 
@@ -159,127 +185,3 @@ while vis.Run() :
 
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
-
-    # Create 5 box obstacles
-    obstacles = []
-    for i in range(5):
-        x = np.random.uniform(-100, 100)
-        y = np.random.uniform(-100, 100)
-        z = np.random.uniform(0, 10)
-        obstacles.append(chrono.ChBox(chrono.ChVector3d(x, y, z), 1, 1, 1))
-
-    # Add obstacles to the simulation
-    for obstacle in obstacles:
-        vehicle.GetSystem().AddObstacle(obstacle)
-
-    # Update sensor manager
-    sensor_manager.Update(time)
-
-    # Update lidar sensor
-    lidar_sensor = sensor.ChLidarSensor(vehicle)
-    lidar_sensor.Update(time)
-
-    # Update the vehicle's sensor data
-    vehicle.UpdateSensors(sensor_manager, lidar_sensor)
-
-    # Update the vehicle's state
-    vehicle.UpdateState(time)
-
-    # Update the terrain
-    terrain.Update(time)
-
-    # Update the driver's state
-    driver.Update(time)
-
-    # Update the vehicle's state
-    vehicle.UpdateState(time)
-
-    # Update the terrain
-    terrain.Update(time)
-
-    # Update the driver's state
-    driver.Update(time)
-
-    # Update the vehicle's state
-    vehicle.UpdateState(time)
-
-    # Update the terrain
-    terrain.Update(time)
-
-    # Update the driver's state
-    driver.Update(time)
-
-    # Update the vehicle's state
-    vehicle.UpdateState(time)
-
-    # Update the terrain
-    terrain.Update(time)
-
-    # Update the driver's state
-    driver.Update(time)
-
-    # Update the vehicle's state
-    vehicle.UpdateState(time)
-
-    # Update the terrain
-    terrain.Update(time)
-
-    # Update the driver's state
-    driver.Update(time)
-
-    # Update the vehicle's state
-    vehicle.UpdateState(time)
-
-    # Update the terrain
-    terrain.Update(time)
-
-    # Update the driver's state
-    driver.Update(time)
-
-    # Update the vehicle's state
-    vehicle.UpdateState(time)
-
-    # Update the terrain
-    terrain.Update(time)
-
-    # Update the driver's state
-    driver.Update(time)
-
-    # Update the vehicle's state
-    vehicle.UpdateState(time)
-
-    # Update the terrain
-    terrain.Update(time)
-
-    # Update the driver's state
-    driver.Update(time)
-
-    # Update the vehicle's state
-    vehicle.UpdateState(time)
-
-    # Update the terrain
-    terrain.Update(time)
-
-    # Update the driver's state
-    driver.Update(time)
-
-    # Update the vehicle's state
-    vehicle.UpdateState(time)
-
-    # Update the terrain
-    terrain.Update(time)
-
-    # Update the driver's state
-    driver.Update(time)
-
-    # Update the vehicle's state
-    vehicle.UpdateState(time)
-
-    # Update the terrain
-    terrain.Update(time)
-
-    # Update the driver's state
-    driver.Update(time)
-
-    # Update the vehicle's state
-    vehicle.UpdateState(

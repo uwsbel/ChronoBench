@@ -49,6 +49,7 @@ vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 
+
 vehicle.Initialize()
 
 vehicle.SetChassisVisualizationType(vis_type)
@@ -83,28 +84,24 @@ vis.AttachVehicle(vehicle.GetVehicle())
 
 
 class MyDriver(veh.ChDriver):
-    def __init__(self, system, delay=0.0):
-        super().__init__(system)
+    def __init__(self, vehicle, delay=0.0):
+        super().__init__(vehicle)
         self.delay = delay
         self.start_time = 0
 
     def Synchronize(self, time):
         self.start_time = time
+
         if time > self.delay:
-            
-            if time > self.delay + 0.2:
-                self.SetThrottle(0.7)
-            else:
-                self.SetThrottle(0.0)
-
-            
-            if time > self.delay + 2:
-                self.SetSteering(math.sin((time - self.delay - 2) * 2))
-            else:
-                self.SetSteering(0)
+            throttle = 0.7 * (time - self.delay) / (2 - self.delay)
+            if throttle > 0.7:
+                throttle = 0.7
+            steering = 0.5 * math.sin(2 * math.pi * (time - 2))
+            self.SetThrottle(throttle)
+            self.SetSteering(steering)
 
 
-driver = MyDriver(vehicle.GetSystem(), delay=0.5)
+driver = MyDriver(vehicle.GetVehicle(), delay=0.5)
 
 
 print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())

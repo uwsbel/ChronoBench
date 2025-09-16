@@ -1,85 +1,50 @@
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
 
-# Initialize PyChrono environment
-chrono.SetChronoDataPath("path/to/chrono/data")  # Replace with your Chrono data path
-system = chrono.ChSystemNSC()
+# Initialize Chrono
+chrono.SetChronoDataPath("data/")  
+sys = chrono.ChSystemNSC()
 
-# Create Irrlicht visualization
-vis = chronoirr.ChIrrApp(system)
-vis.AddCamera(chrono.ChVectorD(5, 5, 5))  # Set initial camera position
+# Create a scene with Irrlicht visualization
+vis = chronoirr.ChIrrApp(sys)
 vis.SetWindowSize(1280, 720)
-vis.SetRenderMode(chronoirr.CH_WIREFRAME)  # Set rendering mode (optional)
-vis.Start()
+vis.SetTerrain(chrono.ChColor(0.5, 0.5, 0.5))
+vis.AddCamera(chrono.ChVectorD(0, 0, 5), chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 1, 0))
+vis.AddLight(chrono.ChVectorD(1, 1, 1))
 
 # Particle emitter settings
-emitter_pos = chrono.ChVectorD(0, 0, 0)
+emitter_pos = chrono.ChVectorD(0, 0, 1)
 particle_count = 100
 particle_mass = 0.1
-particle_radius = 0.1
+particle_radius = 0.05
 
 # Create particle emitter
-emitter = chrono.ChParticleEmitter()
+emitter = chrono.ChParticleEmitter(particle_count, particle_mass, particle_radius)
 emitter.SetPos(emitter_pos)
-emitter.SetNumParticles(particle_count)
-emitter.SetParticleMass(particle_mass)
-emitter.SetParticleRadius(particle_radius)
 
-# Define particle shape (random)
-particle_shape = chrono.ChBodyEasyBox(particle_radius, particle_radius, particle_radius)
+# Define custom gravitational force function
+def custom_gravity(particle, other_particle):
+    distance = chrono.ChVectorD.Distance(particle.GetPos(), other_particle.GetPos())
+    force = chrono.ChVectorD(0, 0, -1) * 10 / (distance**2)
+    return force
 
-# Set initial particle properties
+# Initialize particle system
 for i in range(particle_count):
-    # Random position within a sphere
-    particle_pos = chrono.ChVectorD(
-        chrono.RandomDouble(-1, 1), chrono.RandomDouble(-1, 1), chrono.RandomDouble(-1, 1)
-    )
-    # Random velocity
-    particle_vel = chrono.ChVectorD(
-        chrono.RandomDouble(-1, 1), chrono.RandomDouble(-1, 1), chrono.RandomDouble(-1, 1)
-    )
-    # Random orientation
-    particle_quat = chrono.ChQuaternionD.FromEulerZYX(chrono.RandomDouble(0, 2 * 3.14159), chrono.RandomDouble(0, 2 * 3.14159), chrono.RandomDouble(0, 2 * 3.14159))
+    particle = chrono.ChParticle(particle_mass)
+    particle.SetPos(chrono.ChVectorD(chrono.RandomDouble(-1, 1), chrono.RandomDouble(-1, 1), chrono.RandomDouble(0, 1)))
+    particle.SetVel(chrono.ChVectorD(chrono.RandomDouble(-1, 1), chrono.RandomDouble(-1, 1), chrono.RandomDouble(-1, 1)))
+    particle.SetRot(chrono.Q_from_Euler(chrono.RandomDouble(0, 360), chrono.RandomDouble(0, 360), chrono.RandomDouble(0, 360)))
+    sys.Add(particle)
+    
+# Set up particle interactions
+for particle in sys.GetBodyList():
+    particle.SetBodyType(chrono.ChBody.Type.BodyFixed)
+    particle.SetCollide(True)
+    particle.SetMaterial(chrono.ChMaterialSurfaceNSC())
+    particle.SetCustomGravityFunction(custom_gravity)
 
-    # Create particle body
-    particle = chrono.ChBodyEasy(particle_mass)
-    particle.SetPos(particle_pos)
-    particle.SetRot(particle_quat)
-    particle.SetBody(particle_shape)
-    particle.SetBodyFixed(False)
-    particle.SetLinearVelocity(particle_vel)
-
-    # Add particle to the system
-    system.AddBody(particle)
-
-# Custom gravitational force function
-def apply_gravitational_force(particle1, particle2):
-    # Calculate distance between particles
-    distance = particle1.GetPos() - particle2.GetPos()
-    distance_magnitude = distance.Length()
-
-    # Apply gravitational force
-    force_magnitude = -G * particle1.GetMass() * particle2.GetMass() / (distance_magnitude ** 2)
-    force_direction = distance / distance_magnitude
-    force = force_magnitude * force_direction
-
-    # Apply force to particles
-    particle1.AddForce(force)
-    particle2.AddForce(-force)
-
-# Simulation loop
-G = 6.67430e-11  # Gravitational constant
-dt = 0.01  # Time step
-
+# Run the simulation
+vis.Start()
 while vis.Run():
-    system.DoStepDynamics(dt)
-
-    # Apply custom gravitational forces between all particles
-    for i in range(system.GetBodyCount()):
-        for j in range(i + 1, system.GetBodyCount()):
-            apply_gravitational_force(system.GetBody(i), system.GetBody(j))
-
+    sys.DoStepDynamics(0.01)
     vis.Render()
-
-# Cleanup
-vis.Close()

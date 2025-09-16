@@ -2,12 +2,16 @@ import pychrono.core as chrono
 import pychrono.fea as fea
 import pychrono.irrlicht as chronoirr
 
+
+
+
+
+
+
 class Model1:
     def __init__(self, system, mesh, n_chains=6):
         self.n_chains = n_chains
         self.bodies = []
-        self.constraints = []
-
         for i in range(n_chains):
             
             msection_cable2 = fea.ChBeamSectionCable()
@@ -20,9 +24,9 @@ class Model1:
             builder.BuildBeam(
                 mesh,  
                 msection_cable2,  
-                10 + i * 5,  
-                chrono.ChVector3d(0, 0, -0.1 + i * 0.1),  
-                chrono.ChVector3d(0.5, 0, -0.1 + i * 0.1)  
+                i+10,  
+                chrono.ChVector3d(0, 0, -0.1),  
+                chrono.ChVector3d(0.5, 0, -0.1)  
             )
 
             
@@ -37,26 +41,25 @@ class Model1:
             constraint_hinge = fea.ChLinkNodeFrame()
             constraint_hinge.Initialize(builder.GetLastBeamNodes().back(), mtruss)
             system.Add(constraint_hinge)  
-            self.constraints.append(constraint_hinge)
 
             
-            box = chrono.ChBody()
-            box.SetBodyFixed(False)
-            box.SetMass(1)
-            box.SetInertiaXX(chrono.ChVector3d(1, 1, 1))
-            box.SetPos(builder.GetLastBeamNodes().back().GetPos())
-            system.Add(box)
-            self.bodies.append(box)
+            body = chrono.ChBody()
+            body.SetBodyFixed(False)
+            body.SetPos(chrono.ChVector3d(0.5, 0, -0.1))
+            body.SetMass(1)
+            body.SetInertiaXX(chrono.ChVector3d(0.1, 0.1, 0.1))
+            system.Add(body)
 
             
-            constraint_ball = chrono.ChLinkLockBall()
-            constraint_ball.Initialize(builder.GetLastBeamNodes().back(), box)
-            system.Add(constraint_ball)
-            self.constraints.append(constraint_ball)
+            constraint_hinge_box = fea.ChLinkLockPrismatic()
+            constraint_hinge_box.Initialize(builder.GetLastBeamNodes().back(), body)
+            system.Add(constraint_hinge_box)  
+
+            self.bodies.append(body)
 
     def PrintBodyPositions(self):
         for i, body in enumerate(self.bodies):
-            print(f"Body {i} position: {body.GetPos()}")
+            print(f"Position of body {i}: {body.GetPos()}")
 
 
 sys = chrono.ChSystemSMC()

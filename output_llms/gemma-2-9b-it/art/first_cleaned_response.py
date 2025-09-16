@@ -3,49 +3,42 @@ import pychrono.irrlicht as vis
 import numpy as np
 
 
-chrono.SetChronoDataPath("path/to/chrono/data")  
-system = chrono.ChSystemNSC()
+chrono.SetChronoDataPath("path/to/your/chrono/data")  
+app = vis.Application()
 
 
-app = vis.ChIrrApp(system, 'ARTcar Simulation', 
-                   window_width=800, window_height=600)
-app.SetCamera(vis.ChIrrCamera(app.GetSceneManager(), 
-                              pos=chrono.ChVectorD(5, 5, 5), 
-                              lookat=chrono.ChVectorD(0, 0, 0)))
-app.AddTypicalSky()
-app.AddTypicalGround()
+world = chrono.World()
 
 
-terrain = chrono.ChBodyEasyBox(10, 10, 0.5)  
-terrain.SetPos(chrono.ChVectorD(0, 0, 0))
+terrain = chrono.RigidBody(chrono.BodyEasyBox(10, 10, 1))
+terrain.SetPos(chrono.Vec3(0, 0, 0))
 terrain.SetBodyFixed(True)
-system.Add(terrain)
+world.Add(terrain)
 
 
-car = chrono.ChBodyEasyLoad("path/to/artcar/model.urdf")
-car.SetPos(chrono.ChVectorD(0, 0, 0.5))  
-car.SetRot(chrono.Q_from_Euler(chrono.ChVectorD(0, 0, 0)))  
-system.Add(car)
+texture = vis.Texture(app, "path/to/your/terrain/texture.png")
+terrain.GetVisualShape().SetTexture(texture)
 
 
-car.SetCollide(True)
-car.SetMaterialSurface(chrono.ChMaterialSurface(0.5, 0.5, 0.5))  
+vehicle = chrono.ChBodyEasyCylinder(0.5, 1, 1000)  
+vehicle.SetPos(chrono.Vec3(0, 0, 1))
+vehicle.SetBodyFixed(False)
+world.Add(vehicle)
 
 
-def on_key_pressed(key):
-    if key == chrono.KEY_LEFT:
-        car.SetWheelSpeed(0, -1)
-    elif key == chrono.KEY_RIGHT:
-        car.SetWheelSpeed(0, 1)
-    elif key == chrono.KEY_UP:
-        car.SetThrottle(1)
-    elif key == chrono.KEY_DOWN:
-        car.SetBrake(1)
-
-app.SetKeyCallback(on_key_pressed)
+vehicle.SetCollide(True)
+vehicle.GetVisualShape().SetMaterial(chrono.Material(chrono.Color(0.8, 0.2, 0.2)))  
 
 
-app.SetTargetFPS(50)
+
+
+
+dt = 1/50
 while app.Run():
-    system.DoStepDynamics(1/50.0)  
-    app.Render()
+    world.Step(dt)
+    app.BeginScene()
+    app.DrawWorld(world)
+    app.EndScene()
+
+
+app.Close()

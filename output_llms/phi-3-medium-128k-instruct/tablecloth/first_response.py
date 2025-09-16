@@ -1,72 +1,95 @@
-import Chrono
-
-import chrono
-
 import pychrono
 
-import pychrono.fea as fea
+import pychrono.irrlicht
 
-import pychrono.irrlicht as irr
+import pychrono.pardiso
+
+import numpy as np
 
 
-# Initialize PyChrono environment
+# Initialize the PyChrono environment
+
+chrono = pychrono.ChLink_DenDenovo()
 
 chrono.Init()
 
 
-# Create a ChSystemNSC to hold our simulation
+# Create a tablecloth object with isotropic Kirchhoff material properties
 
-system = chrono.ChSystemNSC()
-
-
-# Define material properties for the tablecloth
-
-material = fea.ChMaterialShellIsoKirchhoff(E=1000, rho=1.2, mu=0.3)
+tablecloth = pychrono.ChMaterialSurfaceIsotropicKirchhoff(1.0, 1.0e5, 0.3)
 
 
-# Create a mesh grid for the tablecloth
+# Define the mesh grid for the tablecloth
 
-mesh = fea.ChMshShellGrid()
+num_nodes = 100
 
-# Assuming a simple square tablecloth for demonstration
+mesh_size = 10
 
-mesh.AddRect(0.5, 0.5)
+nodes = np.zeros((num_nodes, 3))
 
+for i in range(num_nodes):
 
-# Generate nodes and elements from the mesh
+    nodes[i, 0] = i % mesh_size * mesh_size
 
-mesh.Generate(system)
+    nodes[i, 1] = i // mesh_size * mesh_size
 
-
-# Add the material to the mesh
-
-mesh.SetMaterial(material)
+    nodes[i, 2] = 0.0
 
 
-# Add the mesh to the system
+elements = []
 
-system.Add(mesh, chrono.ChBodyGroup())
+for i in range(num_nodes - 1):
+
+    elements.append(pychrono.ChElementShellIsotropicKirchhoff(tablecloth, 0.1))
 
 
 # Set up the Irrlicht visualization system
 
-vis = irr.ChIrrApp(&system, "Tablecloth Folding Simulation", chrono.COORDTYPE_DYNAMIC, "", chrono.SColor(0, 255, 0))
+irr = pychrono.irrlicht.ChIrrApp("TableclothFolding", 800, 600)
+
+
+# Create a visualizer for the tablecloth
+
+visualizer = pychrono.irrlicht.ChVisualizer()
 
 
 # Set up the PardisoMKL solver
 
-system.SetSolver(chrono.ChSolverPardisoMKL())
+solver = pychrono.pardiso.ChSolverPardisoMKL()
+
+
+# Add the tablecloth to the simulation
+
+tablecloth_body = pychrono.ChBody(chrono)
+
+tablecloth_body.SetName("Tablecloth")
+
+tablecloth_body.SetMass(1.0)
+
+tablecloth_body.SetStaticForce(chrono.ChVector(0, 0, -1000))
+
+tablecloth_body.AddAsset(visualizer)
+
+
+# Add nodes and elements to the tablecloth body
+
+for i, node in enumerate(nodes):
+
+    tablecloth_body.AddNode(node)
+
+    tablecloth_body.AddAsset(elements[i])
+
+
+# Set up the Irrlicht visualizer for the tablecloth
+
+visualizer.SetModel(tablecloth_body)
+
+
+# Set the solver for the simulation
+
+chrono.SetSolver(solver)
 
 
 # Run the simulation
 
-while (vis.GetDevice()->UserQuit() == False):
-
-    system.DoStepDynamics(0.01)
-
-    vis.Render()
-
-
-# Clean up
-
-chrono.destroy([system, mesh, vis])
+chrono.DoStep(1.0)

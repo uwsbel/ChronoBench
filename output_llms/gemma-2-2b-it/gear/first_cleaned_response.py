@@ -1,73 +1,72 @@
 import pychrono as chrono
-import pychrono.irrlicht as irrlicht
-import pychrono.materials as materials
-import pychrono.dynamics as dynamics
-import pychrono.geometry as geometry
+import pychrono.visualization as vis
+import pychrono.materials as mats
 
 
 chrono.init()
 
 
-engine = irrlicht.IrrlichtEngine()
+world = chrono.World()
 
 
-scene = engine.createScene()
+truss = chrono.RigidBody()
+truss.set_name("Truss")
+truss.set_mass(10.0)
+truss.set_inertia(chrono.Vector3(0.0, 0.0, 0.0))
+truss.set_position(chrono.Vector3(0.0, 0.0, 0.0))
+truss.set_inertia(chrono.Matrix4x4(1.0))
+world.add_object(truss)
 
 
-truss = geometry.createTruss(
-    length=1.0,
-    width=0.1,
-    height=0.2,
-    material=materials.createMaterial(materials.MaterialType.WOOD)
-)
-scene.add(truss)
+bar = chrono.RigidBody()
+bar.set_name("Bar")
+bar.set_mass(1.0)
+bar.set_inertia(chrono.Vector3(0.0, 0.0, 0.0))
+bar.set_position(chrono.Vector3(0.0, 0.0, 0.0))
+bar.set_inertia(chrono.Matrix4x4(1.0))
+world.add_object(bar)
 
 
-bar = geometry.createCylinder(
-    radius=0.1,
-    height=0.2,
-    material=materials.createMaterial(materials.MaterialType.METAL)
-)
-scene.add(bar)
+gear1 = chrono.Gear()
+gear1.set_name("Gear1")
+gear1.set_mass(1.0)
+gear1.set_inertia(chrono.Vector3(0.0, 0.0, 0.0))
+gear1.set_position(chrono.Vector3(0.0, 0.0, 0.0))
+gear1.set_inertia(chrono.Matrix4x4(1.0))
+world.add_object(gear1)
+
+gear2 = chrono.Gear()
+gear2.set_name("Gear2")
+gear2.set_mass(1.0)
+gear2.set_inertia(chrono.Vector3(0.0, 0.0, 0.0))
+gear2.set_position(chrono.Vector3(0.0, 0.0, 0.0))
+gear2.set_inertia(chrono.Matrix4x4(1.0))
+world.add_object(gear2)
 
 
-gear_motor = dynamics.createGearMotor(
-    gear_ratio=10,
-    speed=1.0,
-    torque=1.0,
-    material=materials.createMaterial(materials.MaterialType.METAL)
-)
-scene.add(gear_motor)
+gear_motor = chrono.GearMotor()
+gear_motor.set_name("Gear Motor")
+gear_motor.set_mass(1.0)
+gear_motor.set_inertia(chrono.Vector3(0.0, 0.0, 0.0))
+gear_motor.set_position(chrono.Vector3(0.0, 0.0, 0.0))
+gear_motor.set_inertia(chrono.Matrix4x4(1.0))
+world.add_object(gear_motor)
 
 
-gear1 = geometry.createGear(
-    radius=0.1,
-    teeth=10,
-    material=materials.createMaterial(materials.MaterialType.METAL)
-)
-scene.add(gear1)
-gear2 = geometry.createGear(
-    radius=0.1,
-    teeth=10,
-    material=materials.createMaterial(materials.MaterialType.METAL)
-)
-scene.add(gear2)
+gear_motor.set_speed(1.0)  
 
 
-gear_motor.connect(gear1)
-gear_motor.connect(gear2)
+vis.init()
+vis.set_background_color(chrono.Color.BLACK)
+vis.set_ambient_light(chrono.Color.WHITE)
+vis.set_light_position(chrono.Vector3(1.0, 1.0, 1.0))
+vis.set_camera_position(chrono.Vector3(0.0, 0.0, 5.0))
+vis.set_camera_rotation(chrono.Vector3(0.0, 0.0, 0.0))
+vis.add_object(truss)
+vis.add_object(bar)
+vis.add_object(gear1)
+vis.add_object(gear2)
+vis.add_object(gear_motor)
 
 
-truss.position = (0, 0, 0)
-bar.position = (0, 0, 0)
-gear1.position = (0, 0, 0)
-gear2.position = (0, 0, 0)
-
-
-
-
-
-engine.run()
-
-
-engine.render()
+chrono.run()

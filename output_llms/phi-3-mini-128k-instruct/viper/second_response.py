@@ -53,7 +53,7 @@ manager.AddSensor(cam)
 # Set the simulation time step
 time_step = 1e-3
 
-# Set simulation and render step variables
+# Define variables for simulation and rendering
 step_number = 0
 render_step_size = 1.0 / 25  # FPS = 25
 render_steps = math.ceil(render_step_size / time_step)
@@ -73,19 +73,15 @@ while vis.Run():
     
     driver.SetSteering(steering)  # Set the steering for the rover
 
-    rover.Update()  # Update the rover's state
+    manager.Update()  # Update the sensor manager
 
-    # Update the sensor manager
-    manager.Update()
+    rover.Update()  # Update the rover's state
 
     # Render the scene at specific intervals
     if (step_number % render_steps == 0):
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
-    
-    # Advance the simulation by one time step
-    system.DoStepDynamics(time_step)
-
-    # Increment the step number
     step_number += 1
+
+    system.DoStepDynamics(time_step)

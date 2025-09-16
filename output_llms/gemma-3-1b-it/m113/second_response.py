@@ -7,7 +7,7 @@ chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 # Initial vehicle location and orientation
-initLoc = chrono.ChVector3d(15, 0, 0)  # Adjusted initial location
+initLoc = chrono.ChVector3d(-15.0, 0.0, 0.0)
 initRot = chrono.ChQuaterniond(0, 0, 0, 0)
 
 # Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)

@@ -1,75 +1,106 @@
 import pychrono as chrono
 import pychrono.vehicle as veh
-import pychrono.ros as ros
+import pychrono.irrlicht as irr
+import pychrono.sensor as sensor
 import time
+import rospy
+from std_msgs.msg import Float64
+from geometry_msgs.msg import Twist
 
-# --- Simulation setup ---
-chrono.SetChronoDataPath("./")  # Set the path to the Chrono data directory
+class HMMWV_ROS_Simulation:
+    def __init__(self):
+        # Initialize PyChrono
+        chrono.SetChronoDataPath("./")  # Adjust path if needed
+        self.system = chrono.ChSystemNSC()
+        self.system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
-# Create a Chrono system
-system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
+        # --- VEHICLE SETUP ---
+        self.vehicle = veh.HMMWV()
+        self.vehicle.SetVehicleModel(veh.VehicleModel.HMMWV)
+        self.vehicle.Initialize(self.system)
 
-# --- Terrain ---
-terrain = chrono.ChTerrain()
-terrain.Create(system, "plane", 100, 100, 0, 0)
-terrain.SetFriction(0.5)
-terrain.SetRestitution(0.1)
-system.Add(terrain)
+        # Vehicle parameters
+        self.vehicle.SetTireFormula(veh.TireModelType.MT)
+        self.vehicle.SetEngineType(veh.EngineModelType.SIMPLE)
+        self.vehicle.SetContactMethod(veh.ContactMethod.SWEEP_AND_CLIP)
 
-# --- Vehicle setup ---
-hmmwv = veh.HMMWV(system)
-hmmwv.SetVehicleModel("hmmwv")
-hmmwv.SetTireModel(veh.TireModelType.FTIRE)  # Use FTIRE tire model
-hmmwv.SetEngineType(veh.EngineType.GASOLINE)  # Use gasoline engine
-hmmwv.SetContactMethod(veh.ContactMethodType.BULLET) #Use bullet contact method
-hmmwv.Initialize()
+        # Initial vehicle position
+        self.vehicle.SetInitialPosition(chrono.ChVectorD(0, 1, 0))
+        self.vehicle.SetInitialVelocity(chrono.ChVectorD(0, 0, 0))
 
-# Set initial vehicle position
-hmmwv.SetPos(chrono.ChVectorD(0, 1, 0))
+        # --- TERRAIN SETUP ---
+        self.terrain = veh.Terrain()
+        self.terrain.CreateBox(self.system, chrono.ChVectorD(100, 0.1, 100), chrono.ChVectorD(0, -0.1, 0))
+        self.terrain.SetFriction(0.8)
+        self.terrain.SetRestitution(0.1)
 
-# --- Driver system ---
-driver = veh.Driver(system)
-driver.SetVehicle(hmmwv)
-driver.SetInput(veh.DriverInput())
-driver.SetMode(veh.DriverMode.MANUAL)
+        # --- DRIVER SYSTEM ---
+        self.driver = veh.SimpleDriver()
+        self.driver.SetInput(veh.DriverInput.STEERING, 0)
+        self.driver.SetInput(veh.DriverInput.THROTTLE, 0)
+        self.driver.SetInput(veh.DriverInput.BRAKE, 0)
+        self.vehicle.SetDriver(self.driver)
 
-# --- ROS integration ---
-ros_manager = ros.RosManager()
-ros_manager.Initialize(system)
+        # --- ROS INTEGRATION ---
+        rospy.init_node('hmmwv_simulation', anonymous=True)
+        self.ros_manager = veh.ROSInterface(self.system, self.vehicle)
 
-# Register ROS handlers
-clock_handler = ros.RosClockHandler(system)
-ros_manager.RegisterHandler(clock_handler)
+        # ROS Publishers
+        self.steering_pub = rospy.Publisher('/hmmwv/steering', Float64, queue_size=10)
+        self.throttle_pub = rospy.Publisher('/hmmwv/throttle', Float64, queue_size=10)
+        self.brake_pub = rospy.Publisher('/hmmwv/brake', Float64, queue_size=10)
 
-driver_input_handler = ros.RosDriverInputHandler(driver)
-ros_manager.RegisterHandler(driver_input_handler)
+        # ROS Subscribers
+        rospy.Subscriber('/hmmwv/cmd_vel', Twist, self.cmd_vel_callback)
 
-vehicle_state_handler = ros.RosVehicleStateHandler(hmmwv)
-ros_manager.RegisterHandler(vehicle_state_handler)
+        # --- SIMULATION LOOP ---
+        self.time_step = 0.01
+        self.simulation_running = True
 
-# --- Simulation loop ---
-timestep = 0.01
-time_total = 10
+    def cmd_vel_callback(self, msg):
+        """
+        Callback function for receiving velocity commands from ROS.
+        """
+        linear_x = msg.linear.x
+        angular_z = msg.angular.z
 
-while system.GetChTime() < time_total:
-    # Synchronize ROS
-    ros_manager.Synchronize()
+        # Map ROS commands to driver inputs
+        throttle = linear_x
+        steering = angular_z * 0.5  # Adjust steering sensitivity as needed
+        brake = 0.0
 
-    # Advance the simulation
-    system.DoStepDynamics(timestep)
+        self.driver.SetInput(veh.DriverInput.THROTTLE, throttle)
+        self.driver.SetInput(veh.DriverInput.STEERING, steering)
+        self.driver.SetInput(veh.DriverInput.BRAKE, brake)
 
-    # Update driver inputs (example: constant throttle)
-    driver.SetThrottle(0.5)
-    driver.SetSteering(0.0)
-    driver.SetBraking(0.0)
+    def run_simulation(self):
+        """
+        Main simulation loop.
+        """
+        while self.simulation_running:
+            # Synchronize ROS time
+            self.ros_manager.Synchronize()
 
-    # Update ROS manager for data publishing
-    ros_manager.Update()
+            # Advance the simulation
+            self.system.DoStepDynamics(self.time_step)
 
-    # Print simulation time
-    print(f"Time: {system.GetChTime():.2f}")
+            # Update ROS data
+            self.ros_manager.Update()
 
-# --- Clean up ---
-ros_manager.Shutdown()
-print("Simulation finished.")
+            # Publish driver inputs to ROS
+            self.steering_pub.publish(self.driver.GetInput(veh.DriverInput.STEERING))
+            self.throttle_pub.publish(self.driver.GetInput(veh.DriverInput.THROTTLE))
+            self.brake_pub.publish(self.driver.GetInput(veh.DriverInput.BRAKE))
+
+            # Simple termination condition (e.g., after 30 seconds)
+            time.sleep(self.time_step)
+            if self.system.GetChTime() > 30:
+                self.simulation_running = False
+                print("Simulation finished.")
+
+if __name__ == "__main__":
+    try:
+        simulation = HMMWV_ROS_Simulation()
+        simulation.run_simulation()
+    except rospy.ROSInterruptException:
+        pass

@@ -28,21 +28,26 @@ robot = turtlebot.TurtleBot(system, init_pos, init_rot)  # Create Turtlebot inst
 robot.Initialize()  # Initialize the robot
 
 # Create sensor manager and configure lidar sensor
-sensor_manager = sens.ChSensorManager(system)
-lidar_sensor = sens.ChLidarSensor(system)
+sensor_manager = sens.ChSensorManager()
+lidar_sensor = sens.ChLidarSensor()
 lidar_sensor.SetRange(5)
 lidar_sensor.SetFov(math.pi)
-lidar_sensor.SetNumBeams(360)
-lidar_sensor.SetBeamAngle(0.01)
-lidar_sensor.SetFilter(sens.ChSensorFilter.Type_NEAREST)
-sensor_manager.AddSensor(lidar_sensor)
+lidar_sensor.SetResolution(0.0174533)
+lidar_sensor.SetPosition(chrono.ChVector3d(0, 0.2, 0))
+lidar_sensor.SetDirection(chrono.ChVector3d(0, 0, -1))
+lidar_sensor.SetNumBeams(1024)
+lidar_sensor.SetFilter(sens.ChLidarSensor.FilterType.BOX)
+lidar_sensor.SetFilterParams(chrono.ChVector3d(0.1, 0.1, 0.1))
+sensor_manager.Add(lidar_sensor)
+system.Add(sensor_manager)
 
 # Create randomly placed boxes
-box_size = 0.5
-for i in range(5):
-    box_pos = chrono.ChVectorD(np.random.uniform(-10, 10), np.random.uniform(-10, 10), 0.5)
-    box = chrono.ChBodyEasyBox(box_size, box_size, box_size, 100, True, True, ground_mat)
-    box.SetPos(box_pos)
+box_positions = np.random.rand(5, 3) * 10 - 5
+boxes = []
+for pos in box_positions:
+    box = chrono.ChBodyEasyBox(0.5, 0.5, 0.5, 100, True, True, ground_mat)
+    box.SetPos(chrono.ChVector3d(pos[0], pos[1], 0.25))
+    boxes.append(box)
     system.Add(box)
 
 # Create run-time visualization
@@ -50,7 +55,7 @@ vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
 vis.SetCameraVertical(chrono.CameraVerticalDir_Z)
 vis.SetWindowSize(1280, 720)
-vis.SetWindowTitle('Turtlebot Robot - Rigid terrain with obstacles')
+vis.SetWindowTitle('Turtlebot Robot - Rigid terrain with boxes')
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()
@@ -58,39 +63,21 @@ vis.AddCamera(chrono.ChVector3d(0, 1.5, 0.2), chrono.ChVector3d(0, 0, 0.2))
 vis.AddTypicalLights()
 vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0, 0.5), 3, 4, 10, 40, 512)
 
-# Enable shadows (commented out to improve performance)
-# vis.EnableShadows()
-
-# Set the simulation time step
-time_step = 2e-3
-
 # Define WheelID enum values for motor control
 LEFT_DRIVE_WHEEL = 0
 RIGHT_DRIVE_WHEEL = 1
 
-# Motion control function for Turtlebot
-def move(mode):
-    if mode == 'straight':
-        robot.SetMotorSpeed(0.5, LEFT_DRIVE_WHEEL)
-        robot.SetMotorSpeed(0.5, RIGHT_DRIVE_WHEEL)
-    elif mode == 'left':
-        robot.SetMotorSpeed(0.5, LEFT_DRIVE_WHEEL)
-        robot.SetMotorSpeed(-0.5, RIGHT_DRIVE_WHEEL)
-    elif mode == 'right':
-        robot.SetMotorSpeed(-0.5, LEFT_DRIVE_WHEEL)
-        robot.SetMotorSpeed(0.5, RIGHT_DRIVE_WHEEL)
+# Set the simulation time step
+time_step = 2e-3
 
 # Simulation loop
 time = 0
 while vis.Run():
+    # Move Turtlebot straight
+    robot.move('straight')
+
     # Update sensor manager
     sensor_manager.Update()
-
-    # Move Turtlebot straight
-    move('straight')
-
-    # Increment time counter
-    time += time_step
 
     # Render the scene
     vis.BeginScene()
@@ -99,3 +86,15 @@ while vis.Run():
 
     # Advance the simulation by one time step
     system.DoStepDynamics(time_step)
+
+# Define motion control function for Turtlebot
+def move(self, mode):
+    if mode == 'straight':
+        self.SetMotorSpeed(0.5, LEFT_DRIVE_WHEEL)
+        self.SetMotorSpeed(0.5, RIGHT_DRIVE_WHEEL)
+    elif mode == 'left':
+        self.SetMotorSpeed(0.5, LEFT_DRIVE_WHEEL)
+        self.SetMotorSpeed(-0.5, RIGHT_DRIVE_WHEEL)
+    elif mode == 'right':
+        self.SetMotorSpeed(-0.5, LEFT_DRIVE_WHEEL)
+        self.SetMotorSpeed(0.5, RIGHT_DRIVE_WHEEL)

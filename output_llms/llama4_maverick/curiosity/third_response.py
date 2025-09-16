@@ -5,6 +5,7 @@ import pychrono as chrono
 import pychrono.robot as robot
 from pychrono import irrlicht as chronoirr
 import pychrono.sensor as sens
+from pychrono.sensor import *
 
 # Create Chrono system
 system = chrono.ChSystemNSC()
@@ -38,7 +39,23 @@ rover.SetDriver(driver)
 # Initialize rover position and orientation
 init_pos = chrono.ChVector3d(-5, 0.0, 0)
 init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
-rover.Initialize(chrono.ChFramed(init_pos, init_rot))
+rover.Initialize(chrono.ChFrame(init_pos, init_rot))
+
+# Create a sensor manager
+manager = sens.ChSensorManager(system)
+
+# Create a lidar sensor
+lidar_update_rate = 10  # Hz
+lidar = sens.ChLidarSensor(rover.GetChassisBody(), lidar_update_rate, chrono.ChFrame(chrono.ChVector3d(0, 0, 0.3), chrono.Q_from_AngZ(0)),
+                           100, chrono.CH_C_PI / 4,  # horizontal samples, horizontal fov
+                           100, chrono.CH_C_PI / 8)  # vertical samples, vertical fov
+lidar.SetName("Lidar Sensor")
+lidar.PushFilter(sens.ChFilterDIAccess())
+lidar.PushFilter(sens.ChFilterVisualize(256, 256, 1))
+lidar.PushFilter(sens.ChFilterSavePtCloud("lidar_data/"))
+
+# Add the lidar sensor to the sensor manager
+manager.AddSensor(lidar)
 
 # Create the Irrlicht visualization
 vis = chronoirr.ChVisualSystemIrrlicht()
@@ -53,38 +70,6 @@ vis.AddCamera(chrono.ChVector3d(0, 3, 3), chrono.ChVector3d(0, 0, 0))
 vis.AddTypicalLights()
 vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0, 0), 3, 4, 10, 40, 512)
 
-# Create a sensor manager
-manager = sens.ChSensorManager(system)
-
-# Define lidar parameters
-lidar_update_rate = 10  # Hz
-lidar_horizontal_samples = 4500
-lidar_vertical_samples = 32
-lidar_field_of_view = 2 * math.pi  # 360 degrees
-lidar_max_distance = 100  # meters
-lidar_lag = 0  # seconds
-lidar_noise = 0.01  # meters
-
-# Create the lidar sensor
-lidar = sens.ChLidarSensor(
-    rover.GetChassisBody(),
-    lidar_update_rate,
-    chrono.ChFramed(chrono.ChVector3d(0, 0, 1), chrono.Q_from_AngAxis(0, chrono.ChVector3d(0, 1, 0))),
-    lidar_horizontal_samples,
-    lidar_vertical_samples,
-    chrono.CH_C_PI / 4,
-    lidar_max_distance,
-    lidar_lag,
-    lidar_noise
-)
-
-# Set up filters for the lidar data
-lidar.PushFilter(sens.ChFilterDIAccess())
-lidar.PushFilter(sens.ChFilterVisualize(lidar_horizontal_samples, lidar_vertical_samples, 1, "Lidar"))
-
-# Add the lidar sensor to the sensor manager
-manager.AddSensor(lidar)
-
 # Set the simulation time step
 time_step = 1e-3
 
@@ -95,7 +80,6 @@ while vis.Run():
 
     # ask rover to move forward
     driver.SetSteering(0.0)
-    driver.SetMotorSpeed(1.0)  # Added to make the rover move
 
     # Update rover dynamics
     rover.Update()

@@ -42,36 +42,48 @@ vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0
 # Set the simulation time step
 time_step = 2e-3
 
-# Function to control the robot's movement
 def move(mode):
+    """
+    Control the robot's movement.
+    
+    Args:
+    mode (str): The movement mode. Can be 'straight', 'left', or 'right'.
+    
+    Raises:
+    ValueError: If the mode is not one of 'straight', 'left', or 'right'.
+    """
     if mode == 'straight':
-        robot.SetMotorSpeed(math.pi, 0)  # Left wheel
-        robot.SetMotorSpeed(math.pi, 1)  # Right wheel
+        robot.SetMotorSpeed(0.5, 0)  # Left wheel
+        robot.SetMotorSpeed(0.5, 1)  # Right wheel
     elif mode == 'left':
-        robot.SetMotorSpeed(math.pi, 0)  # Left wheel
-        robot.SetMotorSpeed(0, 1)  # Right wheel
+        robot.SetMotorSpeed(0.5, 0)  # Left wheel
+        robot.SetMotorSpeed(-0.5, 1)  # Right wheel
     elif mode == 'right':
-        robot.SetMotorSpeed(0, 0)  # Left wheel
-        robot.SetMotorSpeed(math.pi, 1)  # Right wheel
+        robot.SetMotorSpeed(-0.5, 0)  # Left wheel
+        robot.SetMotorSpeed(0.5, 1)  # Right wheel
     else:
-        raise ValueError("Invalid mode. Mode can be 'straight', 'left', or 'right'.")
+        raise ValueError("Invalid mode. Must be 'straight', 'left', or 'right'.")
 
 # Simulation loop
 time = 0
 mode = 'straight'
+mode_time = 0
 while vis.Run():
-    if time < 5:
-        move('straight')
-        print("Moving straight")
-    elif time < 10:
-        move('left')
+    if mode == 'straight' and mode_time >= 5:
+        mode = 'left'
+        mode_time = 0
         print("Turning left")
-    else:
-        move('right')
+    elif mode == 'left' and mode_time >= 5:
+        mode = 'right'
+        mode_time = 0
         print("Turning right")
-
+    
+    move(mode)
+    print(f"Time: {time:.2f}, Mode: {mode}")
+    
     # Increment time counter
     time += time_step
+    mode_time += time_step
 
     # Render the scene
     vis.BeginScene()

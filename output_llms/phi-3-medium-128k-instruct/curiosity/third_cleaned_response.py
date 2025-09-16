@@ -4,14 +4,14 @@ import numpy as np
 import pychrono as chrono
 import pychrono.robot as robot
 from pychrono import irrlicht as chronoirr
-from pychrono import sensor as sens
+from pychrono.sensor import sens  
 
 
 system = chrono.ChSystemNSC()
 system.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 system.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, -9.81))
 chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.0025)
-chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
+chronoChCollisionModel.SetDefaultSuggestedMargin(0.0025)
 
 
 ground_mat = chrono.ChContactMaterialNSC()
@@ -60,30 +60,30 @@ vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0
 time_step = 1e-3
 
 
-manager = sens.ChSensorManager(system)
+sensor_manager = sens.ChSensorManager(system)  
 
 
 lidar = sens.ChLidarSensor(system)
 lidar.SetUpdateRate(10)  
-lidar.SetHorizontalSamples(180)
-lidar.SetVerticalSamples(180)
-lidar.SetFieldOfView(chrono.ChVector3d(0, 0, 180))
-lidar.SetMaxRange(10)
-lidar.SetMinRange(0.1)
-lidar.SetMaxAngle(chrono.ChVector3d(0, 0, 180))
-lidar.SetMinAngle(chrono.ChVector3d(0, 0, -180))
-lidar.SetSensorPosition(chrono.ChVector3d(0, 0, 0))
-lidar.SetSensorOrientation(chrono.ChQuaterniond(1, 0, 0, 0))
-lidar.SetSensorHeight(0.2)
+lidar.SetNumHorizontalSamples(360)  
+lidar.SetNumVerticalSamples(180)  
+lidar.SetFieldOfView(1.57)  
+lidar.SetMaxRange(5.0)  
+lidar.SetMinRange(0.1)  
+lidar.SetMinAngle(0.0)  
+lidar.SetMaxAngle(3.141592653589793)  
+lidar.SetSensorPos(chrono.ChVector3d(0, 0, 0.5))  
+lidar.SetSensorRadius(0.5)  
+lidar.SetMaxNumPoints(1000)  
 
 
-filter = sens.ChLidarFilter(lidar)
-filter.SetFilterType(sens.LidarFilterType_GAUSSIAN)
-filter.SetSigma(1.0)
+lidar_filter = sens.ChFilterLidar()
+lidar_filter.SetMinRange(0.1)  
+lidar_filter.SetMaxRange(5.0)  
+lidar.SetFilter(lidar_filter)  
 
 
-manager.AddSensor(lidar)
-manager.AddFilter(filter)
+sensor_manager.AddSensor(lidar)
 
 
 time = 0
@@ -97,7 +97,7 @@ while vis.Run():
     rover.Update()
 
     
-    manager.Update()
+    sensor_manager.Update()  
 
     
     vis.BeginScene()
@@ -106,6 +106,3 @@ while vis.Run():
 
     
     system.DoStepDynamics(time_step)
-
-
-vis.ShutDown()

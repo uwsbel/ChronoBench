@@ -68,43 +68,45 @@ vis.AddSkyBox()
 vis.AddCamera(chrono.ChVector3d(1, 1, 3), chrono.ChVector3d(0, 1, 0))
 vis.AddTypicalLights()
 
-# Initialize arrays for plotting
+# --- Data Collection Initialization ---
 array_time = []
 array_angle = []
 array_pos = []
 array_speed = []
 
-# Simulation loop
-time = 0
-while vis.Run() and time < 20:
+# Run the interactive simulation loop
+t = 0
+while vis.Run() and t < 20:
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
     sys.DoStepDynamics(1e-3)
 
-    # Collect data
-    time += 1e-3
-    array_time.append(time)
-    array_angle.append(mcrank.GetRot().Q_to_Euler123().y)  # Get crank angle
-    array_pos.append(mpiston.GetPos().x)  # Get piston position
-    array_speed.append(mpiston.GetPos_dt().x)  # Get piston speed
+    # --- Data Collection ---
+    t += 1e-3
+    array_time.append(t)
+    array_angle.append(mcrank.GetRot().Q_to_Euler123().y)
+    array_pos.append(mpiston.GetPos().x)
+    array_speed.append(mpiston.GetPos_dt().x)
 
-# Matplotlib plotting
+# --- Plotting ---
 plt.figure(figsize=(12, 6))
 
-plt.subplot(2, 1, 1)
+plt.subplot(1, 2, 1)
 plt.plot(array_angle, array_pos)
 plt.xlabel('Crank Angle [rad]')
 plt.ylabel('Piston Position [m]')
-plt.title('Piston Position vs. Crank Angle')
-plt.xticks(np.arange(0, 2 * np.pi + 0.1, np.pi / 2))
+plt.title('Position vs. Crank Angle')
+plt.xticks(np.arange(0, 2 * np.pi + 0.1, np.pi / 2),
+           ['0', 'π/2', 'π', '3π/2', '2π'])
 
-plt.subplot(2, 1, 2)
+plt.subplot(1, 2, 2)
 plt.plot(array_angle, array_speed)
 plt.xlabel('Crank Angle [rad]')
 plt.ylabel('Piston Speed [m/s]')
-plt.title('Piston Speed vs. Crank Angle')
-plt.xticks(np.arange(0, 2 * np.pi + 0.1, np.pi / 2))
+plt.title('Speed vs. Crank Angle')
+plt.xticks(np.arange(0, 2 * np.pi + 0.1, np.pi / 2),
+           ['0', 'π/2', 'π', '3π/2', '2π'])
 
 plt.tight_layout()
 plt.show()

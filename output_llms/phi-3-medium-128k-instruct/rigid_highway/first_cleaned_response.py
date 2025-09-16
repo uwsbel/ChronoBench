@@ -1,125 +1,109 @@
 import pychrono
 
-import pychrono.Irrlicht
+import pychrono.vehicle as pcv
 
-import pychrono.vehicle
+import pychrono.IrrlichtVisualizer as piv
 
-import pychrono.tire
+import pychrono.tire as pti
 
-import pychrono.contact as contact
+import pychrono.contact as pcon
 
-import pychrono.collision as collision
+import pychrono.sat as psa
 
-import pychrono.rigid_body as rb
+import pychrono.contact_plan as pcp
 
-import pychrono.sensor as sensor
+import pychrono.sat_solver as pss
 
-import pychrono.tire_model as tire_model
+import pychrono.contact_friction as pcf
 
-import pychrono.vehicle_model as vehicle_model
 
 
 
+chrono = pychrono.ChLinkCreateFunicular(0)
 
-chrono = pychrono.ChRono()
 
-irrlicht = pychrono.Irrlicht()
 
 
+irrlicht_visualizer = piv.IrrlichtVisualizer()
 
 
 
 
-terrain_collision_mesh = pychrono.ChCollisionMesh(pychrono.ChTriangleMesh())
+col_mesh = pcv.ChTriangleMeshCreateFrom(0, 0, 0, 0)
 
-terrain_collision_mesh.load_mesh("Highway_col.obj")
+col_mesh.ReadSTL("Highway_col.obj")
 
-terrain_visual_mesh = pychrono.ChCollisionMesh(pychrono.ChTriangleMesh())
+vis_mesh = pcv.ChTriangleMeshCreateFrom(0, 0, 0, 0)
 
-terrain_visual_mesh.load_mesh("Highway_vis.obj")
+vis_mesh.ReadSTL("Highway_vis.obj")
 
-terrain_collision_mesh.set_visual_mesh(terrain_visual_mesh)
 
 
 
+vehicle = pcv.ChVehicleCreateHMMWV(chrono)
 
-hmmwv_vehicle_model = pychrono.ChVehicleModel()
+vehicle.SetPosition(pychrono.ChVectorD(0, 0, 0))
 
-hmmwv_vehicle_model.load_vehicle_model("HMMWV_model.obj")
+vehicle.SetOrientation(pychrono.ChQuaternionD(1, 0, 0, 0))
 
+vehicle.SetContactMethod(pychrono.ChContactMethodHardware)
 
+vehicle.SetTireModel(pti.ChTireModelTMEASY())
 
 
-tire_model = pychrono.ChTireModel()
 
-tire_model.set_tire_model(tire_model.TMEASY)
 
+vehicle.AddCollisionMesh(col_mesh)
 
+vehicle.AddVisualMesh(vis_mesh)
 
 
-contact_method = contact.ChRigidFrictionContactMethod()
 
-contact_method.set_friction_coefficient(0.7)
 
+driver = pcv.ChDriverSystemCreate()
 
+driver.SetSteering(pychrono.ChDriverControlPID(0.1, 0.01, 0.001))
 
+driver.SetThrottle(pychrono.ChDriverControlPID(0.5, 0.1, 0.01))
 
-hmmwv_vehicle = pychrono.ChRigidBody(chrono.ChBody())
+driver.SetBraking(pychrono.ChDriverControlPID(0.5, 0.1, 0.01))
 
-hmmwv_vehicle.set_vehicle_model(hmmwv_vehicle_model)
 
-hmmwv_vehicle.set_tire_model(tire_model)
 
-hmmwv_vehicle.set_contact_method(contact_method)
 
-hmmwv_vehicle.set_position(pychrono.ChVector(0, 0, 0))
+vehicle.SetMass(3000)  
 
-hmmwv_vehicle.set_orientation(pychrono.ChQuaternion(1, 0, 0, 0))
+vehicle.SetWheelRadius(0.3)
 
+vehicle.SetSteeringStiffness(1000)
 
+vehicle.SetTireFriction(pychrono.ChSatContactFriction(1, 0.5))
 
 
-chrono.add_rigid_body(hmmwv_vehicle)
 
 
+contact_plan = pcp.ChContactPlanCreate(chrono)
 
+contact_plan.AddContactPair(vehicle.GetCollisionMesh(), col_mesh)
 
-terrain_body = pychrono.ChRigidBody(chrono.ChBody())
 
-terrain_body.set_collision_model(terrain_collision_mesh)
 
-terrain_body.set_position(pychrono.ChVector(0, 0, 0))
 
-terrain_body.set_orientation(pychrono.ChQuaternion(1, 0, 0, 0))
+sat_solver = pss.ChSatSolverCreate(chrono)
 
-chrono.add_rigid_body(terrain_body)
+contact_plan.SetSolver(sat_solver)
 
 
 
 
-driver = pychrono.ChDriver()
+while True:
 
-driver.set_steering_control(pychrono.ChDriver.SteeringControl.PID)
+    chrono.StepDynamics(0.02)  
 
-driver.set_throttle_control(pychrono.ChDriver.ThrottleControl.PID)
+    driver.Update(chrono)
 
-driver.set_brake_control(pychrono.ChDriver.BrakeControl.PID)
+    vehicle.Update(chrono)
 
+    irrlicht_visualizer.Render()
 
-
-
-while chrono.run() > 0:
-
-    
-
-    hmmwv_vehicle.update(chrono.time())
-
-
-    
-
-    irrlicht.render()
-
-
-    
-
-    chrono.set_time_step(1.0 / 50.0)
+    chrono.DoEvents()

@@ -4,443 +4,1372 @@ import pychrono
 
 import pychrono.rigid_body_tree as rbt
 
-import pychrono.sensor as sensor
-
-import pychrono.vehicle as vehicle
-
-import pychrono.robotics as robotics
-
-import pychrono.sensor as sensor
-
 import pychrono.lidar as lidar
 
-import pychrono.utils as utils
+import pychrono.sensor as sensor
 
-import pychrono.plotter as plotter
+import pychrono.ch_solver as ch
 
-import numpy as np
+import pychrono.sensor_manager as sm
 
+import pychrono.sensor_visualization as sv
 
-# Initialize PyChrono environment
+import pychrono.sensor_visualization.lidar_visualization as lv
 
-chrono = pychrono.ChLinkCreateStaticFromMesh("mesh.obj")
+import pychrono.sensor_manager.lidar_manager as lm
 
+import pychrono.sensor_manager.sensor_visualization as sv
 
-# Create a rigid body tree and add the mesh as a fixed body
+import pychrono.sensor_manager.sensor_manager as sm
 
-tree = rbt.ChRigidBodyTree()
+import pychrono.sensor_manager.sensor_visualization as sv
 
-body = tree.AddRigidBody(chrono)
+import pychrono.sensor_manager.lidar_visualization as lv
 
-body.SetBody(chrono)
+import pychrono.sensor_manager.lidar_visualization as lv
 
-body.SetMass(1.0)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-body.SetInertia(pychrono.ChBoxInertia(1.0, 1.0, 1.0))
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-body.SetPos(0, 0, 0)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-body.SetBodyType(rbt.ChBodyType.STATIC)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-# Add a lidar sensor to the body
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor = sensor.ChLidar(chrono)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRange(10.0)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanResolution(100)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetNoiseModel(sensor.ChLidarNoiseModel())
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(npirus.ChLidarNoiseModel())
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.ChLidarNoiseModel())
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanAngle(np.pi / 2)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
 
-lidar_sensor.SetScanRate(10)
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.lidar_manager_visualization as lmv
+
+import pychrono.sensor_manager.l

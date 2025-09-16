@@ -1,194 +1,290 @@
-import pychron
+import pychrono
 
-import pychron.vehicle as pv
+import pychrono.Irrlicht
 
-import pychron.vehicle_model as pvm
+import pychrono.vehicle
 
-import pychron.vehicle_driver as pvd
+import pychrono.rigid_body_system as rb
 
-import pychron.vehicle_visualization as pviz
+import pychrono.sensor
 
-import pychron.vehicle_model.vehicle_model as pvm
+import pychrono.vehicle_vehicle as vv
 
-import pychron.vehicle_model.vehicle_driver as pvd
 
-import pychron.vehicle_model.vehicle_visualization as pviz
 
-import pychron.vehicle_model.vehicle_driver as pvd
 
-import pychron.vehicle_model.vehicle_visualization as pviz
+chrono = pychrono.ChRono()
 
-import pychron.vehicle_model.vehicle_visualization as pviz
+chrono.SetVisualization(pychrono.Irrlicht.ChIrrViewerGUI, "PyChronoViewer")
 
-import pychron.vehicle_model.vehicle_visualization as pviz
 
-import pychron.vehicle_model.vehicle_visualization as pviz
 
-import pychron.vehicle_model.vehicle_visualization as pviz
 
-import pychron.vehicle_model.vehicle_visualization as pviz
+system = rb.ChSystemNSC()
 
-import pychron.vehicle_model.vehicle_visualization as pviz
+system.Set_G_acc(pychrono.ChVectorD(0, 0, -9.81))
 
-import pychron.vehicle_model.vehicle_visualization as pviz
 
-import pychron.vehicle_model.vehicle_visualization as pviz
 
-import pychron.vehicle_model.vehicle_visualization as pviz
 
-import pychron.vehicle_model.vehicle_visualization as pviz
+terrain = rb.ChTerrainNSC(system)
 
-import pychron.vehicle_model.vehicle_visualization as pviz
+terrain.Set_texture("path_to_custom_terrain_texture.jpg")
 
-import pychron.vehicle_model.vehicle_visualization as pviz
+terrain.Set_friction_coefficient(0.5)
 
-import pychron.vehicle_model.vehicle_visualization as pviz
 
-import pychron.vehicle_model.vehicle_visualization as pviz
 
-import pychron.vehicle_model.vehicle_visualization as pviz
 
-import pychron.vehicle_model.vehicle_visualization as pviz
+vehicle = pychrono.vehicle.ChVehicleVehicle()
 
-import pychron.vehicle_model.vehicle_visualization as pviz
+vehicle.Set_vehicle_name("CityBus")
 
-import pychron.vehicle_model.vehicle_visualization as pviz
+vehicle.Set_vehicle_type(pychrono.vehicle.ChVehicleType.ChVehicleType_CityBus)
 
-import pychron.vehicle_model.vehicle_visualization as pviz
+vehicle.Set_vehicle_parameters(pychrono.vehicle.ChVehicle_Parameters(
 
-import pychron.vehicle_model.vehicle_visualization as pviz
+    ChVehicle_Parameters.ChVehicle_Parameters_Car(0.5, 1.0, 2.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0
 
-import pychron.vehicle_model.vehicle_visualization as pviz
+vehicle_body = pychrono.ChBodyRigidBody(system)
 
-import pychron.vehicle_model.vehicle_visualization as pviz
+vehicle_body.Set_mass(20000)
 
-import pychron.vehicle_model.vehicle_visualization as pviz
+vehicle_body.Set_gravity(pychrono.ChVectorD(0, 0, 0)
 
-import pychron.vehicle_model.vehicle_visualization as pviz
+vehicle_body.Set_length(10)
 
-import pychron.vehicle_model.vehicle_visualization as pviz
+vehicle_body.Set_chassis_body(vehicle_body)
 
-import pychron.vehicle_model.vehicle_visualization as pviz
+vehicle_body.Set_coeff_friction(0.5)
 
-import pychron.vehicle_model.vehicle_visualization as pviz
 
-import pychron.vehicle_model.vehicle_visualization as pviz
+vehicle_body.Set_vehicle_model(vehicle_body)
 
-import pychron.vehicle_model.vehicle_visualization as pviz
+vehicle_body.Set_vehicle_model("citybus_model")
 
-import pychron.vehicle_model.vehicle_visualization as pviz
+vehicle_body.Set_vehull(vehicle_body)
 
-import pychron.vehicle_model.vehicle_visualization as pviz
+vehicle_body.Set_vehull_collision_model("path_to_citybus_hull_model)
 
-import pychron.vehicle_model.vehicle_visualization as pviz
+vehicle_body.Set_vehull_collision_model("path_to_citybus_collision_model)
 
-import pychron.vehicle_model.vehicle_visualization as pviz
+vehicle_body.Set_vehull_collision_model.Set_collision_model("path_to_citybus_collision_model)
 
-import pychron.vehicle_model.vehicle_visualization as pviz
+vehicle_body.Set_vehull_collision_model.Set_length(12.0)
 
-import pychron.vehicle_model.vehicle_visualization as pviz
+vehicle_body.Set_vehull_collision_model.Set_width(2.5)
 
-import pychron.vehicle_model.vehicle_visualization as pviz
+vehicle_body.Set_vehull_collision_model.Set_height(2.5)
 
-import pychron.vehicle_model.vehicle_visualization as pviz
+vehicle_body.Set_vehull_collision_model.Set_collision_model.Set_density(1000.0)
 
-import pychron.vehicle_model.vehicle_visualization as pviz
+vehicle_body.Set_vehull_collision_model.Set_collision_model.Set_restitution(0.05)
 
-import pychron.vehicle_model.vehicle_visualization as pviz
+vehicle_body.Set_vehull_collision_model.Set_collision_model.Set_friction(0.5)
 
-import pychron.vehicle_model.vehicle_visualization as pviz
 
-import pychron.vehicle_model.vehicle_visualization as pviz
+vehicle_body.Set_vehull_collision_model.Set_collision_model.Set_restitution(0.5)
 
-import pychron.vehicle_model.vehicle_visualization as pviz
 
-import pychron.vehicle_model.vehicle_visualization as pviz
+vehicle_body.Set_vehull_collision_model.Set_collision_model.Set_friction(0.5))
 
-import pychron.
+vehicle_body.Set_vehull_collision_model.Set_collision_model.Set_restitution(0.5)
 
 
+vehull = vehicle_body.Add_vehull(vehull_collision_model)
 
-chrono = pychron.Chrono()
+vehull.Set_type(pychrono.ChBodyType_Static)
 
-chrono.init()
 
+vehull.Set_coeff_friction(0.5)
 
+vehull.Set_restitution(0.5)
 
+vehull.Set_density(1000.0)
 
-terrain = pvm.RigidTerrain()
 
-terrain.set_texture("path/to/custom_terrain_texture.png")
+vehull.Set_collision_model.Set_collision_model.Set_restitution(0.5)
 
+vehull.Set_friction(0.5)
 
+vehull.Set_collision_model.Set_collision_model.Set_restitution(0.5)
 
 
-city_bus = pvm.CityBus()
+vehull.Set_density(100.0)
 
-city_bus.set_position([0, 0, 0])
 
-city_bus.set_orientation([0, 0, 0])
+vehull.Set_collision_model.Set_collision_model.Set_restitution(0.5)
 
-city_bus.set_tire_model("Pacejka")
+vehull.Set_friction(0.5)
 
 
+vehull.Set_collision_model.Set_collision_model.Set_restitution(0.5)
 
+vehull.Set_density(100.0)
 
-mesh_visualization = pviz.MeshVisualization()
 
-primitive_visualization = pviz.PrimitiveVisualization()
+vehull.Set_type(pychrono.ChBodyType_Static)
 
 
 
 
-camera = pviz.Camera()
 
-camera.set_follow_object(city_bus)
+vehicle.Set_mass(10000.0)
 
-camera.set_position([10, 10, 10])
+vehicle.Set_length(10.0)
 
-camera.set_target_position([0, 0, 0])
+vehull.Set_type(pychrono.ChBodyType_Dynamic)
+
+vehull.Set_type(pychrono.ChBodyType_Dynamic)
+
+vehull.Set_coeff_friction(0.5)
+
+vehull.Set_restitution(0.5)
+
+vehull.Set_density(1000.0)
+
+vehull.Set_collision_model.Set_collision_model.Set_restitution(0.5)
+
+vehull.Set_friction(0.5)
+
+vehull.Set_collision_model.Set_collision_model.Set_restitution(0.5)
+
+vehull.Set_density(1000.0)
+
+vehull.Set_type(pychrono.ChBodyType_Dynamic)
+
+vehull.Set_type(pychrono.ChBodyType_Dynamic)
+
+vehull.Set_coeff_friction(0.5)
+
+vehull.Set_restitution(0.5)
+
+vehull.Set_density(1000.0)
+
+
+vehull.Set_collision_model.Set_collision_model.Set_restitution(0.5)
+
+vehull.Set_friction(0.5)
+
+
+
+
+
+vehicle_body.Set_position(pychrono.ChVectorD(0, 0, 0))
+
+vehull.Set_position(pychrono.ChVectorD(0, 0, 0))
+
+vehull.Set_orientation(pychrono.ChVectorD(0, 0, 0))
+
+
+
+
+tire_model = pychrono.ChTireModel()
+
+vehicle_body.Add_tire(tire_model)
+
+tire_model.Set_position(pychrono.ChVectorD(0, 0, 0))
+
+tire_model.Set_orientation(pychrono.ChVectorD(0, 0, 0))
+
+tire_model.Set_friction(0.5)
+
+tire_model.Set_restitution(0.5)
+
+tire_model.Set_density(100.0)
+
+vehull.Add_tire(tire_model)
+
+tire_model.Set_position(pychrono.ChVectorD(0, 0, 0))
+
+tire_model.Set_orientation(pychrono.ChVectorD(0, 0, 0))
+
+tire_model.Set_friction(0.5)
+
+tire_model.Set_restitution(0.5)
+
+tire_model.Set_density(100.0)
+
+
+
+
+vehicle.Set_steering_angle(0.0)
+
+vehicle.Set_throttle(0.0)
+
+vehicle.Set_brake(0.0)
+
+
+
+
+camera = pychrono.ChCamera()
+
+camera.Set_position(pychrono.ChVectorD(10, 0, 10))
+
+camera.Set_target(vehicle_body.Get_position())
+
+
+
+
+
+system.Add(vehicle_body)
+
+
+
+
+system.Add(terrain)
+
+
+
+
+driver = pychrono.ChDriver()
+
+driver.Set_driver_type(pychrono.ChDriverType_Simple)
+
+driver.Set_driver_parameters(pychrono.ChDriver_Parameters(0.5, 0.5, 0.5))
+
+vehicle.Set_driver(driver)
+
+
+
+
+sensor = pychrono.ChSensor(pychrono.ChSensorType_Distance)
+
+sensor.Set_body(vehicle_body)
+
+sensor.Set_target(pychrono.ChVectorD(0, 0, 0))
+
+sensor.Set_body(vehull)
+
+sensor.Set_target(pychrono.ChVectorD(0, 0, 0))
+
+system.Add(sensor)
+
+
+
+
+system.Set_time_step(1.0 / 50.0)
+
+system.Set_max_iterations_per_time_step(10)
 
 
 
 
 while True:
 
-    
+    system.DoStepDynamics(1.0 / 50.0)
 
-    city_bus.update_dynamics(50)
-
-
-    
-
-    chrono.render(camera)
+    chrono.Irrlicht.Render()
 
 
-    
-
-    if pvd.is_key_pressed("W"):
-
-        city_bus.apply_throttle(0.1)
-
-    if pvd.is_key_pressed("S"):
-
-        city_bus.apply_brake(0.1)
-
-    if pvd.is_key_pressed("A"):
-
-        city_bus.apply_steering(-0.1)
-
-    if pvd.is_key_pressed("D"):
-
-        city_bus.apply_steering(0.1)
 
 
-    
-
-    if pvd.is_key_pressed("ESCAPE"):
+    if chrono.Irrlicht.IsKeyDown(pychrono.Irrlicht.KEY_ESCAPE):
 
         break
 
 
 
 
-chrono.close()
+system.Destroy()

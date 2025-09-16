@@ -25,7 +25,7 @@ terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
 
-# Point tracked by the camera
+# Poon chassis tracked by the camera
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
 
 # Contact method
@@ -90,7 +90,6 @@ vis.AttachVehicle(vehicle.GetVehicle())
 driver = veh.ChInteractiveDriverIRR(vis)
 
 # Set the time response for steering and throttle keyboard inputs.
-# Make the driver less responsive by increasing the time to go from 0 to +1 (or from 0 to -1)
 steering_time = 2.0  # time to go from 0 to +1 (or from 0 to -1)
 throttle_time = 2.0  # time to go from 0 to +1
 braking_time = 0.6   # time to go from 0 to +1

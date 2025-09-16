@@ -3,11 +3,12 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
+
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 
-initLoc = chrono.ChVector3d(-40, 0, 0.5)  
+initLoc = chrono.ChVector3d(-40, 0, 0.5)
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 
@@ -18,7 +19,6 @@ chassis_collision_type = veh.CollisionType_NONE
 
 
 tire_model = veh.TireModelType_TMEASY
-
 
 
 terrainHeight = 0      
@@ -67,7 +67,7 @@ patch = terrain.AddPatch(patch_mat,
     chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
     terrainLength, terrainWidth)
 
-patch.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 200, 200)  
+patch.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
@@ -96,7 +96,7 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 
-print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+print("VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 
 
 render_steps = math.ceil(render_step_size / step_size)
@@ -105,17 +105,12 @@ render_steps = math.ceil(render_step_size / step_size)
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
-
-
-lane_change_time = 5.0  
-steering_angle = 0.5  
-throttle = 0.5  
-brake = 0.0  
-time = 0.0
+lane_change_time = 0
+steering_input = 0
+throttle_input = 1
 
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
-    
     
     if (step_number % render_steps == 0) :
         vis.BeginScene()
@@ -133,18 +128,25 @@ while vis.Run() :
     vis.Synchronize(time, driver_inputs)
 
     
-    if time < lane_change_time:
-        driver_inputs.steering = steering_angle
-        driver_inputs.throttle = throttle
-        driver_inputs.braking = brake
-    elif time < 2 * lane_change_time:
-        driver_inputs.steering = -steering_angle
-        driver_inputs.throttle = throttle
-        driver_inputs.braking = brake
+    if time < 2:
+        steering_input = 0
+        throttle_input = 1
+    elif time < 4:
+        steering_input = -0.5
+        throttle_input = 1
+    elif time < 6:
+        steering_input = 0.5
+        throttle_input = 1
+    elif time < 8:
+        steering_input = 0
+        throttle_input = 0.5
     else:
-        driver_inputs.steering = 0.0
-        driver_inputs.throttle = 0.0
-        driver_inputs.braking = 1.0
+        steering_input = 0
+        throttle_input = 0
+
+    driver_inputs.m_steering = steering_input
+    driver_inputs.m_throttle = throttle_input
+    driver_inputs.m_braking = 0
 
     
     driver.Advance(step_size)

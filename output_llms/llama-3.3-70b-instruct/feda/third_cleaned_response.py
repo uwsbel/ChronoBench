@@ -82,26 +82,12 @@ vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()
 
 
-vis.AddLightDirectional(chrono.ChVectorD(1, 1, 1), chrono.ChVectorD(1, 1, 1), 1000)
-vis.AddLightDirectional(chrono.ChVectorD(-1, -1, -1), chrono.ChVectorD(-1, -1, -1), 1000)
-
-
 sensor_manager = veh.ChSensorManager()
 
 
-camera = veh.ChCameraSensor()
-camera.SetName("Camera")
-camera.SetResolution(1024, 768)
-camera.SetFieldOfView(45)
-camera.SetPosition(chrono.ChVectorD(0, 0, 1.5))
-camera.SetOrientation(chrono.ChQuaternionD(1, 0, 0, 0))
-sensor_manager.AddSensor(camera)
-
-
-filter = veh.ChFilterCamera()
-filter.SetSensor(camera)
-filter.SetWindow(chrono.ChWindow(10, 10, 512, 512))
-sensor_manager.AddFilter(filter)
+vis.AddLightPointLight(chrono.ChVector3D(0, 0, 10), 100, chrono.ChColor(1, 1, 1))
+vis.AddLightPointLight(chrono.ChVector3D(-10, 0, 10), 100, chrono.ChColor(1, 1, 1))
+vis.AddLightPointLight(chrono.ChVector3D(10, 0, 10), 100, chrono.ChColor(1, 1, 1))
 
 
 vis.AttachVehicle(vehicle.GetVehicle())
@@ -120,7 +106,22 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 
-print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
+print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+
+
+camera = veh.ChCameraSensor()
+camera.SetName("Camera")
+camera.SetResolution(1024, 768)
+camera.SetFieldOfView(60)
+camera.SetPosition(chrono.ChVector3D(0, 0, 1.5))
+camera.SetLookAt(chrono.ChVector3D(0, 0, 0))
+sensor_manager.AddSensor(camera)
+
+
+camera_filter = veh.ChFilterCamera()
+camera_filter.SetName("CameraFilter")
+camera_filter.SetSensor(camera)
+vis.AddFilter(camera_filter)
 
 
 render_steps = math.ceil(render_step_size / step_size)
@@ -130,11 +131,11 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-while vis.Run():
+while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
 
     
-    if (step_number % render_steps == 0):
+    if (step_number % render_steps == 0) :
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
@@ -148,8 +149,6 @@ while vis.Run():
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
-
-    
     sensor_manager.Synchronize(time)
 
     
@@ -157,6 +156,7 @@ while vis.Run():
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
+    sensor_manager.Advance(step_size)
 
     
     step_number += 1

@@ -32,11 +32,13 @@ sys.Add(msphereBody1)
 msphereBody2 = chrono.ChBodyEasySphere(2.1, 1800, True, True, sphere_mat)
 msphereBody2.SetPos(chrono.ChVector3d(-10, -10, 0))
 msphereBody2.SetPos_dt(chrono.ChVector3d(-0.5, 0, -0.1)) 
+msphereBody2.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
 sys.Add(msphereBody2)
 
 msphereBody3 = chrono.ChBodyEasySphere(2.1, 1800, True, True, sphere_mat)
 msphereBody3.SetPos(chrono.ChVector3d(0, 20, 0))
 msphereBody3.SetPos_dt(chrono.ChVector3d(0, -0.5, 0.2)) 
+msphereBody3.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
 sys.Add(msphereBody3)
 
 
@@ -52,6 +54,7 @@ vis.AddTypicalLights()
 
 mcreation_callback = MyCreatorForAll(vis, coll)
 
+
 sys.SetSolverType(chrono.ChSolver.Type_PSOR)
 sys.GetSolver().AsIterative().SetMaxIterations(40)
 sys.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, 0))
@@ -63,6 +66,8 @@ while vis.Run():
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
+
+    
 
     for body in sys.GetBodies():
         body.EmptyAccumulators()

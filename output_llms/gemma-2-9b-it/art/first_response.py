@@ -2,50 +2,43 @@ import pychrono as chrono
 import pychrono.irrlicht as vis
 import numpy as np
 
-# Initialize Chrono environment
-chrono.SetChronoDataPath("path/to/chrono/data")  # Replace with your Chrono data path
-system = chrono.ChSystemNSC()
+# Initialize PyChrono environment
+chrono.SetChronoDataPath("path/to/your/chrono/data")  # Replace with your Chrono data path
+app = vis.Application()
 
-# Create Irrlicht visualization
-app = vis.ChIrrApp(system, 'ARTcar Simulation', 
-                   window_width=800, window_height=600)
-app.SetCamera(vis.ChIrrCamera(app.GetSceneManager(), 
-                              pos=chrono.ChVectorD(5, 5, 5), 
-                              lookat=chrono.ChVectorD(0, 0, 0)))
-app.AddTypicalSky()
-app.AddTypicalGround()
+# Create the world
+world = chrono.World()
 
-# Create RigidTerrain
-terrain = chrono.ChBodyEasyBox(10, 10, 0.5)  # Dimensions: length, width, height
-terrain.SetPos(chrono.ChVectorD(0, 0, 0))
+# Create the rigid terrain
+terrain = chrono.RigidBody(chrono.BodyEasyBox(10, 10, 1))
+terrain.SetPos(chrono.Vec3(0, 0, 0))
 terrain.SetBodyFixed(True)
-system.Add(terrain)
+world.Add(terrain)
 
-# Load ARTcar model (replace with your model path)
-car = chrono.ChBodyEasyLoad("path/to/artcar/model.urdf")
-car.SetPos(chrono.ChVectorD(0, 0, 0.5))  # Initial position
-car.SetRot(chrono.Q_from_Euler(chrono.ChVectorD(0, 0, 0)))  # Initial orientation
-system.Add(car)
+# Load terrain texture (replace with your texture path)
+texture = vis.Texture(app, "path/to/your/terrain/texture.png")
+terrain.GetVisualShape().SetTexture(texture)
+
+# Create the ARTcar vehicle
+vehicle = chrono.ChBodyEasyCylinder(0.5, 1, 1000)  # Adjust dimensions as needed
+vehicle.SetPos(chrono.Vec3(0, 0, 1))
+vehicle.SetBodyFixed(False)
+world.Add(vehicle)
 
 # Set contact method and visualization type
-car.SetCollide(True)
-car.SetMaterialSurface(chrono.ChMaterialSurface(0.5, 0.5, 0.5))  # Adjust friction and restitution
+vehicle.SetCollide(True)
+vehicle.GetVisualShape().SetMaterial(chrono.Material(chrono.Color(0.8, 0.2, 0.2)))  # Example color
 
-# Interactive driver system (placeholder)
-def on_key_pressed(key):
-    if key == chrono.KEY_LEFT:
-        car.SetWheelSpeed(0, -1)
-    elif key == chrono.KEY_RIGHT:
-        car.SetWheelSpeed(0, 1)
-    elif key == chrono.KEY_UP:
-        car.SetThrottle(1)
-    elif key == chrono.KEY_DOWN:
-        car.SetBrake(1)
-
-app.SetKeyCallback(on_key_pressed)
+# Add interactive driver system (placeholder)
+# ...
 
 # Simulation loop
-app.SetTargetFPS(50)
+dt = 1/50
 while app.Run():
-    system.DoStepDynamics(1/50.0)  # Update simulation at 50 FPS
-    app.Render()
+    world.Step(dt)
+    app.BeginScene()
+    app.DrawWorld(world)
+    app.EndScene()
+
+# Cleanup
+app.Close()

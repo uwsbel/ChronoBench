@@ -1,101 +1,89 @@
-import pychrono as chrono
+# Import necessary PyChrono and Irrlicht libraries
+from pychrono.core import ChronoData, ChSystemSys, ChSystemSMC, ChBody, ChVisualBody, ChVisualizer, ChScene, ChSceneManager, ChTerrain, ChTerrainGenerator, ChTerrainGeneratorOptions, ChTerrain, ChTerrainOptions
+from pychrono.vehicle import ChVehicle, ChVehicleMotor, ChVehicleWheel, ChVehicleWheelTire, ChVehicleWheelTireContact, ChVehicleSuspension, ChVehicleChassis, ChVehicleDriver, ChVehicleControl, ChVehicleSuspension
+from pychrono.irrlicht import IrrlichtApplication, ChIrrlichtSceneGraph
+from pychrono.vehicle.vehicle_hmmwv import ChVehicleHMMWV
+from pychrono.vehicle.sensors import ChVehicleSensorIMU, ChVehicleSensorGPS
 
-from pychrono.core import ChiPose, ChronoData
+# Initialize the PyChrono environment and core components
+chrono_data = ChronoData()
+chrono_data.SetPhysicsEngine(ChSystemSMC())
+chrono_data.SetGravity(0.0, 0.0, -9.81)
 
-from pychrono.vehicle import HMMWV
+# Create a ChSystemSys instance
+system_sys = ChSystemSys()
 
-from pychrono.vehicle import VehicleSensor
+# Add a ChVehicleHMMWV to the system
+hmmwv = ChVehicleHMMWV(chrono_data)
+hmmwv.Initialize(chrono_data)
 
-from pychrono.vehicle import VehicleSensorType
+# Add terrain
+terrain_generator = ChTerrainGenerator(chrono_data)
+terrain_generator.SetOptions(ChTerrainOptions_Default())
+terrain_generator.GenTerrain()
+terrain_manager = ChSceneManager(chrono_data)
+terrain_manager.AddTerrain(terrain_generator.GetTerrain())
 
-from pychrono.vehicle import VehicleSensorData
+# Add a ChVisualizer
+visualizer = ChIrrlichtSceneGraph()
+visualizer.SetWindowTitle("HMMWV Simulation")
+visualizer.SetApplicationGl()
+visualizer.AddCustomLogo("path_to_logo.png")
 
-from pychrono.core import ChiTimestep
+# Create a ChVehicleSensorIMU and attach it to the chassis
+imu_sensor = ChVehicleSensorIMU(chrono_data)
+imu_sensor.SetPos(0.0, 0.0, 1.0)
+hmmwv.AddSensor(imu_sensor)
 
-from pychrono.irrlicht import scene_manager
+# Create and add a ChVehicleSensorGPS and attach it to the chassis
+gps_sensor = ChVehicleSensorGPS(chrono_data)
+gps_sensor.SetPos(0.0, 0.0, 1.5)
+hmmwv.AddSensor(gps_sensor)
 
+# Initialize the vehicle's chassis
+hmmwv.Initialize(chrono_data)
 
-# Initialize PyChrono
+# Create a ChVehicleMotor and attach it to the vehicle
+motor = ChVehicleMotor(chrono_data)
+hmmwv.AddMotor(motor)
 
-chrono.SetChronoDataPath('../../data/chrono')
+# Add wheels and tires
+wheel = ChVehicleWheel(chrono_data)
+tire = ChVehicleWheelTire(chrono_data)
+hmmwv.AddWheel(wheel, tire)
 
+# Create a ChVehicleSuspension and attach it to the vehicle
+suspension = ChVehicleSuspension(chrono_data)
+hmmwv.AddSuspension(suspension)
 
-# Create the simulation
+# Create a ChVehicleDriver and attach it to the vehicle
+driver = ChVehicleDriver(chrono_data)
+hmmwv.AddDriver(driver)
 
-my_chrono_system = chrono.ChSystemState()
+# Set the vehicle's initial position and orientation
+hmmwv.SetPos(0.0, 0.0, 0.0)
+hmmwv.SetRot(0.0, 0.0, 0.0)
 
+# Set the vehicle's initial velocity
+hmmwv.SetLinearVel(0.0, 0.0, 0.0)
+hmmwv.SetAngVel(0.0, 0.0, 0.0)
 
-# Create the vehicle (HMMWV)
+# Add visualization
+visual_body = ChVisualBody(chrono_data)
+hmmwv.AddVisualization(visual_body)
 
-my_vehicle = HMMWV()
+# Initialize the Irrlicht application
+app = IrrlichtApplication(chrono_data, visualizer)
 
-my_vehicle.SetPos(chrono.ChVectorD(0, 0, 0))
-
-my_vehicle.SetVel(chrono.ChVectorD(0, 0, 0))
-
-my_vehicle.SetRot(ChiPose(chrono.ChQuatD(1, 0, 0, 0), chrono.ChVectorD(0, 0, 0)))
-
-my_chrono_system.Add(my_vehicle)
-
-
-# Create terrain
-
-my_terrain = chrono.ChTerrain()
-
-my_chrono_system.Add(my_terrain)
-
-
-# Create IMU and GPS sensors
-
-imu_sensor = VehicleSensor(my_vehicle, VehicleSensorType.IMU)
-
-gps_sensor = VehicleSensor(my_vehicle, VehicleSensorType.GPS)
-
-
-# Add sensors to the vehicle
-
-my_vehicle.AddSensor(imu_sensor)
-
-my_vehicle.AddSensor(gps_sensor)
-
-
-# Setup visual interface using Irrlicht
-
-my_scene_manager = scene_manager.getSceneManager(4)
-
-my_scene_manager.AddUniqueGeometry(my_terrain)
-
-
-# Setup simulation loop
-
-for i in range(1000):
-
-    # Update sensors
-
-    imu_sensor.Update()
-
-    gps_sensor.Update()
-
-
-    # Advance the simulation
-
-    my_chrono_system.DoStepDynamics(ChiTimestep(1e-3))
-
+# Main simulation loop
+while app.GetDevice().Run():
+    # Update the vehicle, terrain, driver, and visual system
+    chrono_data.DoStep(0.01, 1e-3)
+    terrain_manager.AddScene(hmmwv.GetVisualization().GetScene())
+    visualizer.AddLogo(visual_body.GetScene())
 
     # Output vehicle mass
-
-    print("Vehicle mass:", my_vehicle.GetMass())
-
+    print(f"Vehicle mass: {hmmwv.GetMass()}")
 
     # Render the scene
-
-    my_scene_manager.BeginScene()
-
-    my_scene_manager.DrawAll()
-
-    my_scene_manager.EndScene()
-
-
-# Clean up
-
-scene_manager.deleteSceneManager()
+    visualizer.RenderScene()

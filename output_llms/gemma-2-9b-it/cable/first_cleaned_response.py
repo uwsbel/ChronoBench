@@ -1,53 +1,45 @@
-import pychrono as chrono
-import pychrono.irrlicht as chronoirr
+from pychrono import ChSystem, ChBody, ChLinkLock, ChMaterialSurface, ChCoordsys, ChFunction
+from pychrono.irrlicht import ChIrrApp
 
 
-chrono.SetChronoDataPath("path/to/chrono/data")  
-system = chrono.ChSystemNSC()
+system = ChSystem()
+app = ChIrrApp(system, 'Beam Simulation', 'data/media')
 
 
-ground = chrono.ChBodyEasyBox(10, 10, 1, 1000)
-ground.SetPos(chrono.ChVectorD(0, 0, 0))
-system.Add(ground)
+beam_material = ChMaterialSurface(0.5, 0.5, 0.5)
 
 
-beam_length = 5
+beam_length = 1.0
 beam_width = 0.1
-beam_nodes = 5  
+beam_height = 0.1
 
 
-cable_elements = []
-for i in range(beam_nodes - 1):
-    node1 = chrono.ChBodyEasySphere(0.05, 1)
-    node1.SetPos(chrono.ChVectorD(i * beam_length / (beam_nodes - 1), 0, 0))
-    system.Add(node1)
-
-    node2 = chrono.ChBodyEasySphere(0.05, 1)
-    node2.SetPos(chrono.ChVectorD((i + 1) * beam_length / (beam_nodes - 1), 0, 0))
-    system.Add(node2)
-
-    cable = chrono.ChLinkCable(node1, node2, beam_width)
-    cable.SetMaterial(chrono.ChMaterialSurfaceNSC())
-    cable.SetRestLength(beam_length / (beam_nodes - 1))
-    cable_elements.append(cable)
+node1 = ChCoordsys(ChVectorD(0, 0, 0))
+node2 = ChCoordsys(ChVectorD(beam_length, 0, 0))
 
 
-hinge = chrono.ChLinkLockUniversal(ground, cable_elements[0].GetNode1())
-hinge.SetPos(chrono.ChVectorD(0, 0, 0))
-system.Add(hinge)
+cable_element = ChFunction.CreateANCF(beam_material, node1, node2)
+cable_element.SetRestLength(beam_length)
 
 
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+beam_body = ChBody(beam_material)
+beam_body.SetPos(node1.pos)
+beam_body.SetRot(node1.rot)
+beam_body.SetMass(1.0)  
 
 
-vis = chronoirr.ChIrrApp(system, 'Beam Simulation')
-vis.AddCamera(chrono.ChVectorD(5, 5, 5))
-vis.AddLight(chrono.ChVectorD(5, 5, 5))
+hinge_constraint = ChLinkLock(beam_body, system.GetGround(), ChCoordsys(ChVectorD(0, 0, 0)))
+hinge_constraint.SetLockType(ChLinkLock.LOCK_XYZ)
 
 
-while vis.Run():
+system.Add(beam_body)
+system.Add(cable_element)
+system.Add(hinge_constraint)
+
+
+while app.GetTimer() < 10:
+    app.DrawAll()
     system.DoStepDynamics(0.01)
-    vis.Render()
 
 
-vis.GetDevice().drop()
+app.Close()

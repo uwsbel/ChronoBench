@@ -1,135 +1,57 @@
-import pychrono as chrono
-import pychrono.irrlicht as irr
-from pychrono.vehicle import *
+import chrono as ch
+import chrono.irrlicht as irr
 
 
-chrono.ChronoEnvironment.set_G(chrono.ChVector3d(0, 0, -9.81))  
+ch.ChEngine.Initialize()
 
 
-system = chrono.ChSystemNSC()
+system = ch.ChSystemNSC()
+system.SetGravitationalAcceleration(ch.ChVector3d(0, -9.81, 0))
 
 
-system.SetTimestep(0.01)
-system.SetMaxIters(50)
+ground = ch.ChBodyEasyTerrain(
+    100, 100,  20, 20,  
+    ch.GetChronoDataFile("terrain/terrain.jpg"),  
+    ch.ChVector3d(0, 0, 0),  
+    False  
+)
+system.AddBody(ground)
 
 
-ground = chrono.ChBody()
-ground.SetKinematic(True)
-
-
-ground_shape = chrono.ChCollisionShapeBox(ground, chrono.ChVector3d(100, 100, 0.1))
-ground_shape.SetFriction(0.9)
-
-
-system.Add(ground_shape)
-
-
-viper = chrono.viper.Viper()
-
-
-viper.Initialize(system)
-
-
-viper.SetPos(chrono.ChVector3d(0, 0, 0.5))
-
-
+viper = ch.ChVehicle(ch.GetChronoDataFile("vehicles/viper/Viper.json"))
 system.Add(viper.GetChassisBody())
+for wheel in viper.GetWheels():
+    system.Add(wheel)
+for susp in viper.GetSuspensionLinks():
+    system.Add(susp)
 
 
-driver = chrono.ChVehicleDriver(viper)
+driver = ch.ChVehicleDriver(viper)
+driver.SetSpeed(5)  
 
 
-driver.SetThrottle(0.5)
-driver.SetSteering(0.0)
+vis = irr.ChIrrApp(system, 'Viper Rover Simulation', 800, 600)
+vis.SetCameraPosition(ch.ChVector3d(0, -10, 5))
+vis.SetCameraTarget(ch.ChVector3d(0, 0, 0))
+vis.EnableCollisionVisualization(True)
+vis.EnableSFX(True)
+vis.EnableShadows(True)
 
 
-app = irr.IrrlichtApplication(system)
+t_end = 10.0  
+dt = 0.02     
+steering_time = 5.0  
+steering_start = 0.0
+steering_target = ch.ChVector3d(0.5, 0, 0)  
 
-
-app.SetCamera(chrono.ChVector3d(0, -5, 1), chrono.ChVector3d(0, 0, 0.5))
-
-
-app.SetLight(chrono.ChVector3d(-5, -5, 5), chrono.ChVector3d(1, 1, 1), True)
-
-
-while app.Run():
-    
-    system.DoStepDynamics(0.01)
-
-    
-    t = system.GetChTime()
-    steering = 0.5 * (1 - chrono.ChMath.cos(chrono.ChConst.Pi * t / 10))
-    driver.SetSteering(steering)
-
-    
-    app.Render()
-
-import pychrono as chrono
-import pychrono.irrlicht as irr
-from pychrono.vehicle import *
-
-def main():
-    
-    chrono.ChronoEnvironment.set_G(chrono.ChVector3d(0, 0, -9.81))  
-
-    
-    system = chrono.ChSystemNSC()
-
-    
-    system.SetTimestep(0.01)
-    system.SetMaxIters(50)
-
-    
-    ground = chrono.ChBody()
-    ground.SetKinematic(True)
-
-    
-    ground_shape = chrono.ChCollisionShapeBox(ground, chrono.ChVector3d(100, 100, 0.1))
-    ground_shape.SetFriction(0.9)
-
-    
-    system.Add(ground_shape)
-
-    
-    viper = chrono.viper.Viper()
-
-    
-    viper.Initialize(system)
-
-    
-    viper.SetPos(chrono.ChVector3d(0, 0, 0.5))
-
-    
-    system.Add(viper.GetChassisBody())
-
-    
-    driver = chrono.ChVehicleDriver(viper)
-
-    
-    driver.SetThrottle(0.5)
-    driver.SetSteering(0.0)
-
-    
-    app = irr.IrrlichtApplication(system)
-
-    
-    app.SetCamera(chrono.ChVector3d(0, -5, 1), chrono.ChVector3d(0, 0, 0.5))
-
-    
-    app.SetLight(chrono.ChVector3d(-5, -5, 5), chrono.ChVector3d(1, 1, 1), True)
-
-    
-    while app.Run():
-        
-        system.DoStepDynamics(0.01)
-
-        
-        t = system.GetChTime()
-        steering = 0.5 * (1 - chrono.ChMath.cos(chrono.ChConst.Pi * t / 10))
+while vis.GetTime() < t_end:
+    if vis.GetTime() > steering_start and vis.GetTime() < steering_start + steering_time:
+        steering = steering_target * (vis.GetTime() - steering_start) / steering_time
         driver.SetSteering(steering)
+    
+    system.DoStepDynamics(dt)
+    vis.Render()
+    irr.ChIrrApp.SoftwareShadowsOn()
+    vis.UpdateCamera()
 
-        
-        app.Render()
-
-if __name__ == "__main__":
-    main()
+vis.Exit()

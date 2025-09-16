@@ -1,88 +1,63 @@
 import pychrono
 import numpy as np
 import matplotlib.pyplot as plt
-from pychrono.environment import System
-from pychrono.environment import Terrain
+from pychrono.simulation import Simulation
 from pychrono.visual import Irrlicht
-import time
 
 
-simulation_name = "HMMWV Simulation"
-simulation_time = 10  
-initial_position = [0, 0, 0]  
-initial_velocity = [0, 0, 0]  
-initial_force = [0, 0, 0]  
-terrain_heightmap_path = "terrain.png"  
-terrain_heightmap_size = 100 
+simulation_name = "HMMWV_Simulation"
+initial_position = [0, 0, 0]
+initial_velocity = [0, 0, 0]
+terrain_heightmap = np.zeros((100, 100))  
+soil_parameters = {
+    "density": 0.8,
+    "friction": 0.01
+}
+driver_system_parameters = {
+    "acceleration": 1.0,
+    "steering_angle": 0.0
+}
+visual_settings = {
+    "camera_width": 600,
+    "camera_height": 400,
+    "camera_offset": [0, 0, 10],
+    "color": [1, 1, 1] 
+}
 
 
-system = System(simulation_name, initial_position, initial_velocity, initial_force)
-system.set_physics_system(pychrono.physics_system.Fluid) 
-system.set_gravity(0) 
-system.set_simulation_time(simulation_time)
+simulation = Simulation(simulation_name)
 
 
-
-terrain = Terrain(
+vehicle = simulation.add_vehicle(
     initial_position,
-    terrain_heightmap_path,
-    terrain_heightmap_size,
-    
-    
+    initial_velocity,
+    terrain_heightmap,
+    soil_parameters,
+    driver_system_parameters,
+    visual_settings
 )
 
 
-driver = Driver(system, "Driver")
-driver.set_speed(initial_velocity) 
-driver.set_acceleration(0) 
-
-
-irrlicht = Irrlicht.initialize()
-irrlicht.set_color("blue")
-irrlicht.set_width(800)
-irrlicht.set_height(600)
-irrlicht.set_title(simulation_name)
-irrlicht.rotate(np.pi / 2)  
-
-
 def update_simulation():
-    global system, terrain, driver, irrlicht
+    global vehicle
 
     
-    system.update()
-    vehicle_position = system.get_position()
-    vehicle_velocity = system.get_velocity()
-    vehicle_force = system.get_force()
+    vehicle.update()
 
     
-    terrain.update()
+    terrain_heightmap += vehicle.get_position() * simulation_name 
 
     
-    driver.update()
+    vehicle.update_driver(driver_system_parameters)
 
     
-    irrlicht.clear()
-    irrlicht.set_aspect(1)  
-    irrlicht.set_camera_position(vehicle_position)
-    irrlicht.set_camera_look_at(terrain.get_center())
+    irrlicht.update_scene()
+    irrlicht.set_camera(visual_settings["camera_width"], visual_settings["camera_height"])
+    irrlicht.set_camera_offset(visual_settings["camera_offset"])
+    irrlicht.set_color(visual_settings["color"])
 
     
-    irrlicht.plot(terrain.get_heightmap())
-
-    
-    irrlicht.plot(vehicle_position)
-    irrlicht.plot(vehicle_velocity)
-    irrlicht.plot(vehicle_force)
-
-    irrlicht.pause(0.01) 
+    irrlicht.display()
 
 
-
-try:
-    while True:
-        update_simulation()
-        time.sleep(0.1)  
-
-except KeyboardInterrupt:
-    print("Simulation interrupted.")
-    sys.exit()
+update_simulation()

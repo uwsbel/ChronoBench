@@ -1,97 +1,82 @@
 import pychrono
-import pychrono.core as chrono
-import pychrono.visual as visual
 import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib.animation as animation
+from matplotlib.animation import FuncAnimation
 
 
-grid_size = 100  
-time_step = 0.01  
-simulation_duration = 10  
-vehicle_mass = 1000  
-vehicle_acceleration = 2  
-friction_coefficient = 0.7  
+simulation_time = 100  
+time_step = 0.1  
+initial_position = np.array([0.0, 0.0, 0.0])
+initial_velocity = 2.0  
+friction_coefficient = 0.8  
 restitution_coefficient = 0.7  
-terrain_friction = 0.8  
-terrain_restitution = 0.6  
+terrain_friction = 0.01  
+terrain_restitution = 0.8  
+terrain_mass = 100.0 
+terrain_density = 1.0 
 
 
-terrain_heightmap = np.zeros((grid_size, grid_size))
-terrain_heightmap[10:20, 10:20] = 1.0  
-terrain_heightmap[10:20, 10:20] = 0.5  
-
-
-vehicle_x = 0
-vehicle_y = 0
-vehicle_vx = 0
-vehicle_vy = 0
-
-
-driver_x = 0
-driver_y = 0
-driver_ax = 0
-driver_ay = 0
-
-
-initial_position = (vehicle_x, vehicle_y)
-initial_velocity = (vehicle_vx, vehicle_vy)
-
-
-fig = visual.Figure(width=800, height=600)
-ax = fig.add_subplot(111, projection='3d')
-camera_x = 0
-camera_y = 0
-camera_z = 0
-camera_fov = 60
-camera_aspect = 1.0
-camera_tilt = 0.0
-camera_zoom = 1.0
-
-
-camera_frame = chrono.Frame(
-    x=camera_x,
-    y=camera_y,
-    z=camera_z,
-    fov=camera_fov,
-    aspect=camera_aspect,
-    tilt=camera_tilt,
-    zoom=camera_zoom
+env = pychrono.Environment(
+    time_step=time_step,
+    simulation_time=simulation_time,
+    initial_position=initial_position,
+    initial_velocity=initial_velocity,
+    friction_coefficient=friction_coefficient,
+    restitution_coefficient=restitution_coefficient,
+    terrain_friction=terrain_friction,
+    terrain_restitution=terrain_restitution,
+    terrain_mass=terrain_mass,
+    terrain_density=terrain_density
 )
-ax.add_collection(camera_frame)
 
 
-for t in range(simulation_duration):
-    
-    vehicle_vx += vehicle_acceleration * time_step
-    vehicle_vy += vehicle_acceleration * time_step
-
-    
-    terrain_heightmap[vehicle_x, vehicle_y] += terrain_vx * time_step
-    terrain_heightmap[vehicle_x, vehicle_y] += terrain_vy * time_step
-
-    
-    driver_x += driver_ax * time_step
-    driver_y += driver_ay * time_step
-
-    
-    
-    ax.set_xlim(vehicle_x - 1, vehicle_x + 1)
-    ax.set_ylim(vehicle_y - 1, vehicle_y + 1)
-    ax.set_zlim(0, 1)
-    ax.set_title(f"Time: {t}")
-
-    
-    ani = animation.FuncAnimation(fig, lambda t: ax.set_data(t, ax.set_xlim()),
-                                 interval=10,
-                                 frames=100)  
-
-    
-    plt.show()
-
-    
-    
-    
+terrain = env.create_terrain(
+    height_map=np.zeros((simulation_time, 3), dtype=np.float32),
+    height_map_size=100.0,
+    terrain_density=terrain_density
+)
 
 
-print("Simulation complete.")
+driver = env.create_driver(
+    vehicle_type="M113",
+    initial_position=initial_position,
+    initial_velocity=initial_velocity,
+    max_speed=20.0,
+    acceleration_rate=0.1
+)
+
+
+fig, ax = plt.subplots()
+scene = ax.scene()
+ax.set_xlim(0, terrain.size)
+ax.set_ylim(0, terrain.size)
+ax.set_aspect('equal')
+ax.set_xlabel("X")
+ax.set_ylabel("Y")
+ax.set_title("M113 Simulation")
+
+
+camera = ax.figure()
+camera.set_xlim(0, terrain.size)
+camera.set_ylim(0, terrain.size)
+camera.set_aspect('equal')
+camera.set_title("Camera")
+
+
+def update(frame):
+    
+    terrain.update(frame)
+
+    
+    driver.update(frame)
+
+    
+    scene.update(frame)
+
+    return scene
+
+
+ani = FuncAnimation(fig, update, frames=simulation_time, interval=10)
+
+
+plt.show()

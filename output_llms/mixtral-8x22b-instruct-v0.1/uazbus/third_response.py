@@ -40,7 +40,6 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  # FPS = 50
 
 # Create the UAZBUS vehicle, set parameters, and initialize
-
 vehicle = veh.UAZBUS()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
@@ -72,17 +71,13 @@ patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
-# Create a box obstacle
-box_shape = chrono.ChBoxShape()
-box_shape.GetBoxGeometry().SetLengths(chrono.ChVector3d(0.5, 5, 0.2))
-box_body = chrono.ChBody()
-box_body.SetBodyFixed(True)
-box_body.SetPos(chrono.ChVector3d(5, 0, 0.1))
-box_body.AddAsset(chrono.ChBoxShape())
-vehicle.GetSystem().AddBody(box_body)
+# Create the box obstacle
+box = chrono.ChBodyEasyBox(5, 0.5, 0.2, 1000, False, False)
+box.SetPos(chrono.ChVector3d(5, 0, 0.1))
+box.SetBodyFixed(True)
+vehicle.GetSystem().Add(box)
 
 # Create the vehicle Irrlicht interface
-
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('UAZBUS Demo')
 vis.SetWindowSize(1280, 1024)
@@ -128,13 +123,15 @@ while vis.Run() :
 
     # Get driver inputs
     driver_inputs = driver.GetInputs()
-    driver_inputs.m_throttle = 0.5  # move the vehicle forward
 
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
+
+    # Added logic to move the vehicle forward by setting a constant throttle value of 0.5
+    driver_inputs.m_throttle = 0.5
 
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)

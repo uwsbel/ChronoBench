@@ -2,6 +2,8 @@ import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
+import time
+
 print(veh)
 """
 !!!! Set this path before running the demo!
@@ -71,7 +73,7 @@ patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-patch = terrain.AddPatch(patch_mat,
+patch = terrain.AddPatch(patch_mat, 
     chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
     terrainLength, terrainWidth)
 
@@ -138,8 +140,24 @@ while vis.Run() :
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
 
+    # Advance simulation for one timestep for all modules
+    driver.Advance(step_size)
+    terrain.Advance(step_size)
+    vehicle.Advance(step_size)
+    vis.Advance(step_size)
     # Increment frame number
     step_number += 1
 
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
+
+
+
+"""
+Initial vehicle location and orientation adjusted.
+Increased steering response time to 5 seconds.
+Decreased simulation step size and render step size for finer control.
+Terrain initialized with a highway mesh.
+Reference speed input added for controlling the vehicle's speed.
+PID controller implemented for throttle control based on speed error.
+"""

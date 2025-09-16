@@ -2,83 +2,116 @@ import pychrono as chrono
 import pychrono.irrlicht as chronoirr
 import pychrono.vehicle as chronovehicle
 
-# 1. Initialize PyChrono environment and core components
-chrono.SetChronoDataPath("data/")
+# ---------------------------------------------------------------------
+#
+#  Create the simulation system and set the solver parameters
+#
+# ---------------------------------------------------------------------
+
 my_system = chrono.ChSystemNSC()
-my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 my_system.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
+my_system.SetSolverMaxIterations(100)
+my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
-# 2. Add physical systems and objects
+# ---------------------------------------------------------------------
+#
+#  Create the terrain
+#
+# ---------------------------------------------------------------------
 
-# a. Vehicle
-vehicle = chronovehicle.ChVehicle("HMMWV")
-vehicle.SetSystem(my_system)
-
-# Load HMMWV chassis and components (replace with your HMMWV model files)
-chassis = chronovehicle.ChBodyEasyBox(
-    "chassis", 4.0, 2.0, 1.5, 1000
-)  # Placeholder dimensions and mass
-vehicle.AddChassis(chassis)
-
-# Add wheels with rigid tire model (replace with your tire model)
-wheel_radius = 0.5
-wheel_width = 0.2
-for i in range(4):
-    wheel = chronovehicle.ChWheel(
-        "wheel_" + str(i),
-        chrono.ChVectorD(0, 0, 0),  # Initial position
-        chrono.ChQuaternionD(1, 0, 0, 0),  # Initial orientation
-        wheel_radius,
-        wheel_width,
-        chrono.ChVectorD(0, -1, 0),  # Wheel direction
-    )
-    vehicle.AddWheel(wheel)
-
-# b. SCM Terrain
-terrain = chrono.ChTerrainSCM()
-terrain.SetSystem(my_system)
-terrain.SetSize(100, 100)  # Terrain dimensions
-
-# Configure soil parameters (adjust as needed)
-terrain.SetSoilParameters(
-    density=1500,
-    friction=0.5,
-    cohesion=1000,
-    adhesion=0.8,
-    restitution=0.2,
+terrain_heightmap = chrono.ChHeightmap(
+    "terrain_heightmap.png",  # Replace with your heightmap file
+    100,  # Width
+    100,  # Height
+    5,  # Scale
 )
 
-# Enable moving patch feature
-terrain.SetMovingPatch(True)
-terrain.SetPatchSize(5, 5)  # Patch dimensions
+terrain_material = chrono.ChMaterialSurfaceNSC()
+terrain_material.SetFriction(0.8)
+terrain_material.SetRestitution(0.2)
 
-# 3. Set default parameters
+terrain = chrono.ChTerrain(terrain_heightmap, terrain_material)
+my_system.Add(terrain)
 
-# Vehicle initial position and orientation
-vehicle.SetPos(chrono.ChVectorD(0, 1, 0))
-vehicle.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
+# ---------------------------------------------------------------------
+#
+#  Create the HMMWV vehicle
+#
+# ---------------------------------------------------------------------
 
-# Visualization
+vehicle = chronovehicle.ChVehicle("HMMWV", my_system)
+vehicle.SetChassisFixed(False)
+vehicle.SetChassisPosition(chrono.ChVectorD(0, 1, 0))
+
+# Load vehicle model and add it to the system
+vehicle.SetVehicleModel(chronovehicle.ChVehicleModelHMMWV())
+vehicle.Initialize()
+
+# ---------------------------------------------------------------------
+#
+#  Set up the tire model and visualization
+#
+# ---------------------------------------------------------------------
+
+for i in range(vehicle.GetNumWheels()):
+    wheel = vehicle.GetWheel(i)
+    wheel.SetVisualizationType(chronovehicle.ChWheelVisualizationType_MESH)
+    wheel.SetTireModel(chronovehicle.ChTireModelRigid())
+
+# ---------------------------------------------------------------------
+#
+#  Set up the SCM terrain patch
+#
+# ---------------------------------------------------------------------
+
+scm_patch = chrono.ChSCMDeformableTerrainPatch(terrain, 10, 10)
+scm_patch.SetMaterial(chrono.ChMaterialSurfaceNSC())
+scm_patch.SetSinkageFactor(0.5)
+scm_patch.SetStiffness(1000)
+scm_patch.SetDamping(100)
+scm_patch.SetMovingPatch(True)
+
+# Attach the SCM patch to the vehicle chassis
+scm_patch.SetTargetBody(vehicle.GetChassis())
+
+# ---------------------------------------------------------------------
+#
+#  Set up the Irrlicht visualization
+#
+# ---------------------------------------------------------------------
+
 vis = chronoirr.ChIrrApp(my_system, "HMMWV Simulation", chronoirr.dimension2du(1280, 720))
-vis.AddTypicalSky()
 vis.AddTypicalLights()
-vis.AddCamera(chrono.ChVectorD(0, 5, -10))
+vis.AddSkyBox()
+vis.SetCameraPosition(chrono.ChVectorD(0, 5, 5))
+vis.SetCameraLookAt(chrono.ChVectorD(0, 1, 0))
 
-# Enable mesh visualization for vehicle components
-vis.SetShowMesh(True)
-vis.SetShowContacts(True)
+# Set up visualization for the vehicle components
+vehicle.SetChassisVisualizationType(chronovehicle.ChChassisVisualizationType_MESH)
+for i in range(vehicle.GetNumWheels()):
+    vehicle.GetWheel(i).SetVisualizationType(chronovehicle.ChWheelVisualizationType_MESH)
 
-# Terrain visualization with sinkage visualization
-terrain.SetVisualizationType(chrono.ChTerrainSCM.VisualizationType_HEIGHTMAP)
-terrain.SetSinkageVisualization(True)
+# Set up visualization for the SCM terrain
+scm_patch.SetVisualizationType(chrono.ChVisualizationType_SCM_DEFORMABLE_TERRAIN)
+scm_patch.SetSinkageVisualization(True)
 
-# 4. Interactive driver system
-driver = chronovehicle.ChDriver(vehicle)
+# ---------------------------------------------------------------------
+#
+#  Set up the interactive driver system
+#
+# ---------------------------------------------------------------------
+
+driver = chronovehicle.ChInteractiveDriver(vehicle)
 vis.SetDriver(driver)
 
-# 5. Simulation loop
+# ---------------------------------------------------------------------
+#
+#  Run the simulation
+#
+# ---------------------------------------------------------------------
+
 while vis.GetDevice().run():
     vis.BeginScene()
     vis.Render()
-    my_system.DoStepDynamics(0.02)  # Time step for real-time simulation
+    my_system.DoStepDynamics(0.02)
     vis.EndScene()

@@ -14,7 +14,7 @@ class Model1:
         msection_cable2 = fea.ChBeamSectionCable()
         msection_cable2.SetDiameter(0.015)  # Set the diameter of the cable section to 15 mm
         msection_cable2.SetYoungModulus(0.01e9)  # Set the Young's modulus of the cable section (0.01 GPa)
-        msection_cable2.SetRayleighDamping(0.0001)  # Set Rayleigh damping to 0.0001 for this section
+        msection_cable2.SetRayleighDamping(0.0001)  # Set Rayleigh damping to 0.0001
 
         # Create a ChBuilderCableANCF helper object to facilitate the creation of ANCF beams
         builder = fea.ChBuilderCableANCF()

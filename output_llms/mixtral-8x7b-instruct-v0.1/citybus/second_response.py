@@ -1,4 +1,5 @@
 import pychrono.core as chrono
+import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
@@ -82,12 +83,23 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 # Create the data-driven driver system
-driver_data = [
-    (0.0, 0.0, 0.0),
-    (0.1, 1.0, 0.0),
-    (0.5, 1.0, 0.7),
-]
-driver = veh.ChDataDriver(vehicle.GetVehicle(), driver_data)
+driver_inputs = veh.vector_Entry()
+entry1 = veh.DataDriverEntry(0.0, 0.0, 0.0, 0.0)
+entry2 = veh.DataDriverEntry(0.1, 1.0, 0.0, 0.0)
+entry3 = veh.DataDriverEntry(0.5, 1.0, 0.7, 0.0)
+driver_inputs.push_back(entry1)
+driver_inputs.push_back(entry2)
+driver_inputs.push_back(entry3)
+
+driver = veh.ChDataDriver(driver_inputs)
+
+driver.Initialize()
+
+# output vehicle mass
+print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+
+# Number of simulation steps between miscellaneous events
+render_steps = math.ceil(render_step_size / step_size)
 
 # Initialize simulation frame counter s
 realtime_timer = chrono.ChRealtimeStepTimer()
@@ -104,11 +116,14 @@ while vis.Run() :
         vis.EndScene()
         render_frame += 1
 
+    # Get driver inputs
+    # driver_inputs = driver.GetInputs()
+
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
     terrain.Synchronize(time)
-    vehicle.Synchronize(time, driver, terrain)
-    vis.Synchronize(time, driver, terrain)
+    vehicle.Synchronize(time, driver_inputs, terrain)
+    vis.Synchronize(time, driver_inputs)
 
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)

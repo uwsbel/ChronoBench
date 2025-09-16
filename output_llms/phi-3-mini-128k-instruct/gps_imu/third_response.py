@@ -88,19 +88,18 @@ vis.AttachVehicle(vehicle.GetVehicle())
 driver = veh.ChInteractiveDriverIRR(vis)
 
 # Set the time response for steering and throttle keyboard inputs
-steering_time = 1.0  # Time to go from 0 to +1 (or from 0 to -1)
-throttle_time = 1.0  # Time to go from 0 to +1
-braking_time = 0.3   # Time to go from 0 to +1
-driver.SetSteeringDelta(0.0)  # Simplified to constant steering
-driver.SetThrottleDelta(0.5)  # Simplified to constant throttle
-driver.SetBrakingDelta(0.0)  # Simplified to no braking
+# Simplified the driver inputs to maintain a constant steering of 0.6 and throttle of 0.5 throughout the simulation
+driver.SetSteering(0.6)
+driver.SetThrottle(0.5)
+driver.SetBraking(0.0)  # Set braking to 0.0 as it's not used in the simplified inputs
 driver.Initialize()
 
 # Initialize sensor manager
 manager = sens.ChSensorManager(vehicle.GetSystem())
 
 # Create an IMU sensor and add it to the manager
-offset_pose = chrono.ChFramed(chrono.ChVector3d(0, 0, 1), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0)))  # Changed offset pose
+# Modified the IMU sensor's offset pose from chrono.ChVector3d(-8, 0, 1) to chrono.ChVector3d(0, 0, 1)
+offset_pose = chrono.ChFramed(chrono.ChVector3d(0, 0, 1), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0)))
 imu = sens.ChAccelerometerSensor(vehicle.GetChassisBody(),                     # Body IMU is attached to
                                  10,        # Update rate in Hz
                                  offset_pose,          # Offset pose
@@ -141,8 +140,8 @@ log_steps = math.ceil(log_step_size / step_size)
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
-
 gps_data = []
+
 # Simulation loop
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
@@ -156,9 +155,11 @@ while vis.Run():
     if step_number % log_steps == 0:
         # get most recent GPS data
         gps_coor = gps.GetMostRecentGPSBuffer().GetGPSData()
-        gps_data.append([gps_coor[0], gps_coor[1]])  # Removed the third element for latitude
+        gps_data.append([gps_coor[0], gps_coor[1], gps_coor[2]])
+
     # Set driver inputs
-    driver_inputs = [0.6, 0.5]  # Simplified to constant inputs
+    # Simplified the driver inputs to maintain a constant steering of 0.6 and throttle of 0.5 throughout the simulation
+    driver_inputs = (0.6, 0.5, 0.0)  # (Steering, Throttle, Braking)
     
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
@@ -181,12 +182,10 @@ while vis.Run():
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
 
-# After the simulation loop, plot the GPS data
+# After the simulation loop, plot the GPS data using Matplotlib
 plt.figure()
 plt.plot(gps_data, 'r-')
-plt.xlabel('Frame')
-plt.ylabel('Latitude')
+plt.xlabel('Step Number')
+plt.ylabel('GPS Coordinates')
 plt.title('GPS Trajectory')
 plt.show()
-
-# Note: The above plotting code assumes that gps_data contains latitude values only. If longitude values are also required, they should be included in the gps_data list.

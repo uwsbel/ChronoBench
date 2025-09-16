@@ -1,5 +1,5 @@
 import math as m  # Import the math library for trigonometric functions, constants, etc.
-import pychrono as chrno  # Import the main PyChrono library
+import pychrono as chrono  # Import the main PyChrono library
 import pychrono.fea as fea  # Import the finite element analysis module from PyChrono
 import pychrono.pardisomkl as mklsolver  # Import the Pardiso solver module from PyChrono
 import pychrono.irrlicht as chronicls  # Import the Irrlicht visualization module from PyChrono
@@ -9,7 +9,7 @@ import os  # Import the OS library for file and directory operations
 class ChFunctionMyFun(chrono.ChFunction):
     def __init__(self):
         chrono.ChFunction.__init__(self)
-    def GetVal(self, x):
+    def Get_y(self, x):
         if x > 0.5:
             return chrono.CH_PI
         else:
@@ -34,7 +34,7 @@ vd = chrono.ChVector3d(0, 0, 0.0001)
 # Create a truss body, fixed in space:
 body_trss = chrono.ChBody()
 body_trss.SetFixed(True)
-sys.AddBody(body_trss)
+sys.Add(body_trss)
 
 # Attach a visualization shape to the truss
 boxtruss = chrono.ChVisualShapeBox(0.03, 0.25, 0.15)
@@ -43,7 +43,7 @@ body_trss.AddVisualShape(boxtruss, chrono.ChFrame(chrono.ChVector3d(-0.01, 0, 0)
 # Create a crank body:
 body_crank = chrono.ChBody()
 body_crank.SetPos((vC + vG) * 0.5)
-sys.AddBody(body_crank)
+sys.Add(body_crank)
 
 # Attach a visualization shape to the crank
 boxcrank = chrono.ChVisualShapeBox(K, 0.05, 0.03)
@@ -51,9 +51,9 @@ body_crank.AddVisualShape(boxcrank)
 
 # Create a rotational motor
 motor = chrono.ChLinkMotorRotationSpeed()
-motor.Initialize(body_truss, body_crank, chrono.ChFrame(vG))
+motor.Initialize(body_trss, body_crank, chrono.ChFrame(vG))
 myfun = ChFunctionMyFun()
-motor.Set_torque_funct(myfun)
+motor.Set_speeds(myfun)
 sys.Add(motor)
 
 # Create a FEM mesh container:
@@ -70,7 +70,7 @@ melasticity = fea.ChElasticityCosseratSimple()
 melasticity.SetYoungModulus(72.0e9)
 melasticity.SetShearModulusFromPoisson(0.35)
 melasticity.SetAsRectangularSection(beam_wy, beam_wz)
-msection1 = fea.ChMassSectionCosserat(minertia, melasticity)
+msection1 = fea.ChBeamSectionCosserat(minertia, melasticity)
 msection1.SetDrawThickness(beam_wy * 0.5, beam_wz)
 
 # Build the IGA beam
@@ -83,7 +83,7 @@ node_tip = builder_iga.GetLastBeamNodes()[65]
 node_mid = builder_iga.GetLastBeamNodes()[32]
 
 # Define vertical beam parameters using Euler beams
-section2 = fea.ChBeamSectionAdvancedEuler()
+section2 = fea.ChBeamSectionEuler()
 hbeam_d = 0.05
 section2.SetDensity(2500)
 section2.SetYoungModulus(75.0e9)
@@ -110,7 +110,7 @@ sphereconstr2 = chrono.ChVisualShapeSphere(0.02)
 constr_bb.AddVisualShape(sphereconstr2)
 
 # Create a crank beam
-section3 = fea.ChBeamSectionEulerAdvanced()
+section3 = fea.ChBeamSectionEuler()
 crankbeam_d = 0.06
 section3.SetDensity(2800)
 section3.SetYoungModulus(75.0e9)
@@ -177,7 +177,7 @@ vis.AddTypicalLights()
 custom_solver = mklsolver.ChSolverPardisoMKL()
 sys.SetSolver(custom_solver)
 # Use the HHT timestepper for less numerical damping and higher accuracy
-ts = chrono.ChTimestepperEulerExplicit(sys)
+ts = chrono.ChTimestepperHHT()
 ts.SetStepControl(True)
 sys.SetTimestepper(ts)
 

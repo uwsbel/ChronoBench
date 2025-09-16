@@ -1,141 +1,51 @@
-import pychrono as chrono
-import pychrono.irrlicht as irr
 import numpy as np
+from chrono import chrono_types
+from chrono import ChronoEngine
+from chrono import Irrlicht
+from chrono import ChBeam
 
 
-chrono.ChEngine.Initialize()
+chrono_types.InitChrono()
 
 
-system = chrono.ChSystem()
+system = chrono_types.ChSystem()
 
 
-system.Set_G_acc(chrono.ChVectorDbl(0, -9.81, 0))
+app = Irrlicht.ChIrrApp(system, "ANCF Beam Simulation")
 
 
-app = irr.ChIrrApp(system, "ANCF Cable Beam Simulation", chrono.IrrlichtInfo())
+system.Set_G_acc(chrono_types.ChVectorD(0, -9.81, 0))
 
 
-app.SetTimestep(0.01)
-app.SetRenderMode(irr.RenderMode.SolidWIREFRAME)
+ground = chrono_types.ChBody()
+ground.SetFixed(True)
+system.AddBody(ground)
 
 
-beam_length = 10.0  
-beam_diameter = 0.1  
-num_elements = 10
-young_modulus = 200e9  
-density = 7850  
+beam = ChBeam.ChBeam()
+beam.SetBeamLength(10.0)  
+beam.SetNumElements(10)   
+beam.SetNumSections(1)    
+beam.SetSectionRadius(0.1) 
+beam.SetYoungModulus(2e6)  
+beam.SetDensity(7850)      
 
 
-cable_section = chrono.ChCableSectionA()
-cable_section.SetYoungModulus(young_modulus)
-cable_section.SetDensity(density)
-cable_section.SetDiameter(beam_diameter)
+beam.Initialize(ground, chrono_types.ChVectorD(0, 0, 0), chrono_types.ChQuaternionD(1, 0, 0, 0))
 
 
-cable_elements = []
-for i in range(num_elements):
-    cable_element = chrono.ChCableANCF()
-    cable_element.SetCableSection(cable_section)
-    cable_element.SetLength(beam_length / num_elements)
-    cable_elements.append(cable_element)
-
-    
-    system.Add(cable_element)
+system.Add(beam)
 
 
-for i in range(num_elements - 1):
-    cable_elements[i].Connect(cable_elements[i + 1])
+viz = Irrlicht.ChIrrVisualization(beam)
+app.Add(viz)
 
 
-cable_elements[0].SetFixedFrame(chrono.ChFrameDbl(chrono.ChVectorDbl(0, 0, 0), chrono.ChQuaternionDbl(1, 0, 0, 0)))
+system.Set_Timestep(0.01)
+system.Set_StopTime(10.0)
 
 
-for cable_element in cable_elements:
-    visual_shape = chrono.ChVisualShapeCable()
-    visual_shape.SetCableSection(cable_section)
-    cable_element.AddVisualShape(visual_shape)
+app.Run()
 
 
-while app.GetDevice().run():
-    
-    system.DoStepDynamics(app.GetTimestep())
-
-    
-    app.Render()
-    app.UpdateCamera()
-
-
-app.GetDevice().close()
-
-import pychrono as chrono
-import pychrono.irrlicht as irr
-import numpy as np
-
-def main():
-    
-    chrono.ChEngine.Initialize()
-
-    
-    system = chrono.ChSystem()
-
-    
-    system.Set_G_acc(chrono.ChVectorDbl(0, -9.81, 0))
-
-    
-    app = irr.ChIrrApp(system, "ANCF Cable Beam Simulation", chrono.IrrlichtInfo())
-
-    
-    app.SetTimestep(0.01)
-    app.SetRenderMode(irr.RenderMode.SolidWIREFRAME)
-
-    
-    beam_length = 10.0  
-    beam_diameter = 0.1  
-    num_elements = 10
-    young_modulus = 200e9  
-    density = 7850  
-
-    
-    cable_section = chrono.ChCableSectionA()
-    cable_section.SetYoungModulus(young_modulus)
-    cable_section.SetDensity(density)
-    cable_section.SetDiameter(beam_diameter)
-
-    
-    cable_elements = []
-    for i in range(num_elements):
-        cable_element = chrono.ChCableANCF()
-        cable_element.SetCableSection(cable_section)
-        cable_element.SetLength(beam_length / num_elements)
-        cable_elements.append(cable_element)
-
-        
-        system.Add(cable_element)
-
-    
-    for i in range(num_elements - 1):
-        cable_elements[i].Connect(cable_elements[i + 1])
-
-    
-    cable_elements[0].SetFixedFrame(chrono.ChFrameDbl(chrono.ChVectorDbl(0, 0, 0), chrono.ChQuaternionDbl(1, 0, 0, 0)))
-
-    
-    for cable_element in cable_elements:
-        visual_shape = chrono.ChVisualShapeCable()
-        visual_shape.SetCableSection(cable_section)
-        cable_element.AddVisualShape(visual_shape)
-
-    
-    while app.GetDevice().run():
-        
-        system.DoStepDynamics(app.GetTimestep())
-
-        
-        app.Render()
-        app.UpdateCamera()
-
-    
-    app.GetDevice().close()
-
-if __name__ == "__main__":
-    main()
+chrono_types.ChronoEngine.Finalize()

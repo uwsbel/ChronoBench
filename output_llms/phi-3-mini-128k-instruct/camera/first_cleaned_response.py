@@ -1,12 +1,8 @@
-```python
-
 import pychrono as chrono
 
 import pychrono.app
 
 import pychrono.sensor
-
-import pychrono.visualization
 
 import pychrono.core
 
@@ -22,417 +18,81 @@ pychrono.Initialize()
 
 
 
-mesh = chrono.ChMesh()
+mesh_file = 'path_to_your_mesh.obj'
 
-mesh.Load("path_to_your_mesh.obj")
+mesh = chrono.ChTriangleMesh()
+
+mesh.Load(mesh_file)
 
 
 
 
-body = chrono.ChBodyEarth()
-
-body.SetName("MeshBody")
+body = chrono.ChBodyEasy(mesh)
 
 body.SetPos(chrono.ChVectorD(0, 0, 0))
 
-body.AddSolid(mesh)
+body.SetRot(chrono.ChQuaternionD(math.cos(math.pi/4), 0, 0, math.sin(math.pi/4)))
 
 
 
+
+chrono.AddBody(body)
+
+
+
+
+sensor_manager = chrono.ChSensorManager()
 
 camera_sensor = chrono.ChCameraSensor()
 
-camera_sensor.SetName("CameraSensor")
-
 camera_sensor.SetBody(body)
 
-camera_sensor.SetCameraType(chrono.ChCameraSensor.CAMERA_TYPE_FIXED)
+sensor_manager.AddSensor(camera_sensor)
 
-camera_sensor.SetCameraPosition(chrono.ChVectorD(1, 1, 1))
 
-camera_sensor.SetCameraTarget(body.GetCenterOfMass())
 
-camera_sensor.SetCameraUp(chrono.ChVectorD(0, 0, 1))
 
-camera_sensor.SetCameraFov(math.Degrees(90))
+camera_sensor.SetNoiseFilter(chrono.ChNoiseFilter())
 
-camera_sensor.SetCameraFovVertical(math.Degrees(60))
+camera_sensor.SetVisualization(chrono.ChVisualization())
 
-camera_sensor.SetCameraFovHorizontal(math.Degrees(120))
 
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
 
-camera_sensor.SetCameraFovHorizontal(math.Degrees(90))
 
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
+camera_sensor_manager = chrono.ChSensorManager()
 
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
+camera_sensor_manager.AddSensor(sensor_manager)
 
-camera_sensor.SetCameraFovHorizontal(math.Degrees(90))
 
-camera_sensor.SetCameraFovHorizontal(math.Degrees(90))
 
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
 
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
+camera_sensor_manager.SetCameraSensor(camera_sensor)
 
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
+camera_sensor_manager.SetCameraTarget(body)
 
-camera_sensor.SetCameraFovHorizontal(math.Degrees(90))
+camera_sensor_manager.SetCameraField(chrono.ChCameraField())
 
-camera_sensor.SetCameraFovHorizontal(math.Degrees(90))
+camera_sensor_manager.SetCameraField(chrono.ChCameraField())
 
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
 
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
 
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
 
-camera_sensor.SetCameraFovHorizontal(math.Degrees(90))
+timer = chrono.ChTimer()
 
-camera_sensor.SetCameraFovHorizontal(math.Degrees(90))
+while chrono.GetChronoBool(timer.IsDone()):
 
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
+    chrono.ChronoIncrementReference()
 
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
+    camera_sensor_manager.Update()
 
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
 
-camera_sensor.SetCameraFovHorizontal(math.Degrees(90))
+    
 
-camera_sensor.SetCameraFovHorizontal(math.Degrees(90))
+    camera_buffer = camera_sensor_manager.GetCameraBuffer()
 
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
+    print("Camera buffer data:", camera_buffer)
 
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
 
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
 
-camera_sensor.SetCameraFovHorizontal(math.Degrees(90))
 
-camera_sensor.SetCameraFovHorizontal(math.Degrees(90))
-
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
-
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
-
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
-
-camera_sensor.SetCameraFovHorizontal(math.Degrees(90))
-
-camera_sensor.SetCameraFovHorizontal(math.Degrees(90))
-
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
-
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
-
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
-
-camera_sensor.SetCameraFovHorizontal(math.Degrees(90))
-
-camera_sensor.SetCameraFovHorizontal(math.Degrees(90))
-
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
-
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
-
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
-
-camera_sensor.SetCameraFovHorizontal(math.Degrees(90))
-
-camera_sensor.SetCameraFovHorizontal(math.Degrees(90))
-
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
-
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
-
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
-
-camera_sensor.SetCameraFovHorizontal(math.Degrees(90))
-
-camera_sensor.SetCameraFovHorizontal(math.Degrees(90))
-
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
-
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
-
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
-
-camera_sensor.SetCameraFovHorizontal(math.Degrees(90))
-
-camera_sensor.SetCameraFovHorizontal(math.Degrees(90))
-
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
-
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
-
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
-
-camera_sensor.SetCameraFovHorizontal(math.Degrees(90))
-
-camera_sensor.SetCameraFovHorizontal(math.Degrees(90))
-
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
-
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
-
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
-
-camera_sensor.SetCameraFovHorizontal(math.Degrees(90))
-
-camera_sensor.SetCameraFovHorizontal(math.Degrees(90))
-
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
-
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
-
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
-
-camera_sensor.SetCameraFovHorizontal(math.Degrees(90))
-
-camera_sensor.SetCameraFovHorizontal(math.Degrees(90))
-
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
-
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
-
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
-
-camera_sensor.SetCameraFovHorizontal(math.Degrees(90))
-
-camera_sensor.SetCameraFovHorizontal(math.Degrees(90))
-
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
-
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
-
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
-
-camera_sensor.SetCameraFovHorizontal(math.Degrees(90))
-
-camera_sensor.SetCameraFovHorizontal(math.Degrees(90))
-
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
-
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
-
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
-
-camera_sensor.SetCameraFovHorizontal(math.Degrees(90))
-
-camera_sensor.SetCameraFovHorizontal(math.Degrees(90))
-
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
-
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
-
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
-
-camera_sensor.SetCameraFovHorizontal(math.Degrees(90))
-
-camera_sensor.SetCameraFovHorizontal(math.Degrees(90))
-
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
-
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
-
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
-
-camera_sensor.SetCameraFovHorizontal(math.Degrees(90))
-
-camera_sensor.SetCameraFovHorizontal(math.Degrees(90))
-
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
-
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
-
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
-
-camera_sensor.SetCameraFovHorizontal(math.Degrees(90))
-
-camera_sensor.SetCameraFovHorizontal(math.Degrees(90))
-
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
-
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
-
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
-
-camera_sensor.SetCameraFovHorizontal(math.Degrees(90))
-
-camera_sensor.SetCameraFovHorizontal(math.Degrees(90))
-
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
-
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
-
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
-
-camera_sensor.SetCameraFovHorizontal(math.Degrees(90))
-
-camera_sensor.SetCameraFovHorizontal(math.Degrees(90))
-
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
-
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
-
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
-
-camera_sensor.SetCameraFovHorizontal(math.Degrees(90))
-
-camera_sensor.SetCameraFovHorizontal(math.Degrees(90))
-
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
-
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
-
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
-
-camera_sensor.SetCameraFovHorizontal(math.Degrees(90))
-
-camera_sensor.SetCameraFovHorizontal(math.Degrees(90))
-
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
-
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
-
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
-
-camera_sensor.SetCameraFovHorizontal(math.Degrees(90))
-
-camera_sensor.SetCameraFovHorizontal(math.Degrees(90))
-
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
-
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
-
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
-
-camera_sensor.SetCameraFovHorizontal(math.Degrees(90))
-
-camera_sensor.SetCameraFovHorizontal(math.Degrees(90))
-
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
-
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
-
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
-
-camera_sensor.SetCameraFovHorizontal(math.Degrees(90))
-
-camera_sensor.SetCameraFovHorizontal(math.Degrees(90))
-
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
-
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
-
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
-
-camera_sensor.SetCameraFovHorizontal(math.Degrees(90))
-
-camera_sensor.SetCameraFovHorizontal(math.Degrees(90))
-
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
-
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
-
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
-
-camera_sensor.SetCameraFovHorizontal(math.Degrees(90))
-
-camera_sensor.SetCameraFovHorizontal(math.Degrees(90))
-
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
-
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
-
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
-
-camera_sensor.SetCameraFovHorizontal(math.Degrees(90))
-
-camera_sensor.SetCameraFovHorizontal(math.Degrees(90))
-
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
-
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
-
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
-
-camera_sensor.SetCameraFovHorizontal(math.Degrees(90))
-
-camera_sensor.SetCameraFovHorizontal(math.Degrees(90))
-
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
-
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
-
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
-
-camera_sensor.SetCameraFovHorizontal(math.Degrees(90))
-
-camera_sensor.SetCameraFovHorizontal(math.Degrees(90))
-
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
-
-camera_sensor.SetCameraFovVertical(math.Degrees(45))
-
-camera_sensor.SetCameraFovVertical(math.D
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-)
+chrono.ChApplication.GetInstance().Shutdown()

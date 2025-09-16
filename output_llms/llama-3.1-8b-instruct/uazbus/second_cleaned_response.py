@@ -112,12 +112,34 @@ render_frame = 0
 
 
 lane_change_time = 5.0  
-steering_interval = lane_change_time / 2.0  
-throttle_interval = lane_change_time / 2.0  
-braking_interval = lane_change_time / 2.0  
+lane_change_steering = 0.5  
+lane_change_throttle = 0.5  
+lane_change_braking = 0.5  
 
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
+    
+    
+    if time < lane_change_time:
+        driver.SetSteeringDelta(lane_change_steering)
+        driver.SetThrottleDelta(lane_change_throttle)
+    elif time < 2 * lane_change_time:
+        driver.SetSteeringDelta(-lane_change_steering)
+        driver.SetThrottleDelta(lane_change_throttle)
+    elif time < 3 * lane_change_time:
+        driver.SetSteeringDelta(lane_change_steering)
+        driver.SetThrottleDelta(lane_change_throttle)
+    elif time < 4 * lane_change_time:
+        driver.SetSteeringDelta(-lane_change_steering)
+        driver.SetThrottleDelta(lane_change_throttle)
+    elif time < 5 * lane_change_time:
+        driver.SetSteeringDelta(lane_change_steering)
+        driver.SetThrottleDelta(lane_change_throttle)
+    else:
+        driver.SetSteeringDelta(0.0)
+        driver.SetThrottleDelta(0.0)
+        driver.SetBrakingDelta(lane_change_braking)
+
     
     if (step_number % render_steps == 0) :
         vis.BeginScene()
@@ -138,18 +160,7 @@ while vis.Run() :
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
-
-    
-    if time < lane_change_time:
-        
-        if time < steering_interval:
-            driver.SetSteeringDelta(render_step_size / steering_time)
-        
-        elif time < steering_interval + throttle_interval:
-            driver.SetThrottleDelta(render_step_size / throttle_time)
-        
-        else:
-            driver.SetBrakingDelta(render_step_size / braking_time)
+    vis.Advance(step_size)
 
     
     step_number += 1

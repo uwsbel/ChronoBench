@@ -1,91 +1,55 @@
-import pychronoid as pc
-
-import irrlicht as ir
-
-import numpy as np
-
-
-
-
-pc.init()
+from pychrono.core import *
+from pychrono.vehicle import *
+from pychrono.vehicle_types import *
+from pychrono.vehicle_world import *
+from pychrono.irrlicht_utils import *
+from pychrono.irrlicht_sources import *
 
 
+chrono_core = ChronoCore()
+chrono_core.SetChronoPhysicsOptions(solver_type=ChSystemSolver_NewtonRaphson)
 
 
-terrain_mesh = pc.Mesh(pc.FilePath("Highway_col.obj"))
-
-terrain_mesh.setCollision(True)
-
-terrain_mesh.setVisual(True)
-
-terrain = pc.SceneObject(terrain_mesh)
+hmmwv = Vehicle_HMMWV()
+hmmwv.SetPosXYZ(0, 0, 0)  
+hmmwv.SetRot(0, 0, 0, M_PI / 4)  
+hmmwv.SetContactMethod(ChContactMethod_SliderJoint)
+hmmwv.SetTireModel(ChTireModel_Elastohydrodynamic)
 
 
+vehicle_world = VehicleWorld()
+vehicle_world.Add(hmmwv)
 
 
-vehicle_model = pc.Model(pc.FilePath("HMMWV_model.obj"))
-
-vehicle = pc.SceneObject(vehicle_model)
-
-vehicle.setPosition(np.array([0, 0, 0]))
-
-vehicle.setOrientation(np.array([0, 0, 0]))
-
-vehicle.setContactMethod(pc.ContactMethod_Auto)
-
-vehicle.setTireModel(pc.TireModel_TMEASY)
-
-vehicle.setVisual(True)
+mesh_collision = VehicleWorld.AddMesh(VehicleWorld(), "Highway_col.obj", ChVector3D(0, 0, 0), ChVector3D(0, 0, 0), ChQuaternion(1, 0, 0, 0), ChMatrix33(1))
+mesh_visualization = VehicleWorld.AddMesh(VehicleWorld(), "Highway_vis.obj", ChVector3D(0, 0, 0), ChVector3D(0, 0, 0), ChQuaternion(1, 0, 0, 0), ChMatrix33(1))
 
 
+terrain = VehicleWorld.AddTerrain(VehicleWorld(), ChTerrain_Ground(), ChVector3D(0, 0, -5), ChVector3D(0, 0, 0), ChQuaternion(1, 0, 0, 0), ChMatrix33(1), ChTerrain_Ground_Smooth())
 
 
-scene = pc.Scene()
-
-scene.addLightCone(pc.LightConeType_NoCone)
-
-scene.addCamera(pc.Vector3(0, 10, 10))
-
-scene.addLogic(pc.LogicType_PyChrono)
-
-scene.addSceneObject(terrain)
-
-scene.addSceneObject(vehicle)
+driver_system = VehicleWorld.AddDriverSystem(VehicleWorld(), ChDriverSystem_Interactive())
 
 
+sim_time = SimTime()
+while True:
+    chrono_core.DoStep(sim_time, ChFloat_SleepConstant(1.0/50.0))  
 
+    
+    hmmwv.DoStepDynamics(sim_time, ChFloat_SleepConstant(1.0/50.0))
 
-driver_system = pc.DriverSystem(
+    
+    driver_system.Update(sim_time)
+    irrlicht_utils.draw_vehicle(hmmwv)
+    irrlicht_utils.draw_terrain(terrain)
 
-    pc.DriverType_Joystick,
+    
+    application = create_application()
+    application <<= IrrlichtApplication()
+    application.set_current_device(create_display_device(video_device_x=1280, video_device_y=720, display_manager=create_display_manager())
+    application.start_irrlicht()
+    while application.run():
+        application.draw_frame()
 
-    pc.DriverButtons(pc.DriverButton_X, pc.DriverButton_Y, pc.DriverButton_A, pc.DriverButton_B),
-
-    pc.DriverHats(pc.DriverHat_None)
-
-)
-
-
-
-
-simulation = pc.Simulation(scene, driver_system)
-
-simulation.setTimeStep(1.0 / 50.0)
-
-
-
-
-while simulation.getSimulationStatus() == pc.SimulationStatus_NotFinished:
-
-    simulation.advance()
-
-    scene.drawAll()
-
-    ir.getDevice().requestAnimation()
-
-
-
-
-scene.close()
-
-pc.shutdown()
+    
+    application.shutdown()

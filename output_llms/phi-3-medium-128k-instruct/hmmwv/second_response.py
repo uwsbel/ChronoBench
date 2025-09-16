@@ -21,8 +21,8 @@ tire_model = veh.TireModelType_TMEASY
 
 # Rigid terrain
 terrainHeight = 0      # terrain height
-terrainLength = 200.0  # size in X direction
-terrainWidth = 200.0   # size in Y direction
+terrainLength = 200.0  # size in X direction (increased from 100.0 to 200.0)
+terrainWidth = 200.0   # size in Y direction (increased from 100.0 to 200.0)
 
 # Poon chassis tracked by the camera
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
@@ -39,7 +39,7 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  # FPS = 50
 
 # Create the HMMWV vehicle, set parameters, and initialize
-vehicle = veh.HMMWV_Full() # veh.HMMWV_Reduced()  could be another choice here
+vehicle = veh.HMMWV_Full()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
@@ -62,7 +62,7 @@ patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-patch = terrain.AddPatch(patch_mat,chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),terrainLength, terrainWidth)
+patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT, terrainLength, terrainWidth)
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
@@ -80,26 +80,25 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 # Create the driver system
-# Removed interactive driver and replaced with path follower
-path_follower = veh.ChPathFollower(vis)
+# Removed interactive driver as we will implement a path follower
 
-# Set the time response for steering and throttle keyboard inputs.
-# Removed throttle_time and braking_time as we have a constant throttle value
-steering_time = 1.0  # time to go from 0 to +1 (or from 0 to -1)
-constant_throttle = 0.3
-
-# Set the PID controller gains for steering control
+# PID controller parameters (assuming saturation limits and PID gains)
 kp = 1.0
 ki = 0.1
 kd = 0.01
-path_follower.SetPIDGains(kp, ki, kd)
+pid_controller = chrono.ChPIDController(vehicle.GetVehicle())
+pid_controller.SetP(kp)
+pid_controller.SetI(ki)
+pid_controller.SetD(kd)
+pid_controller.SetSaturationLimits(0.0, 1.0)
 
-path_follower.SetThrottle(constant_throttle)
+# Constant throttle value
+throttle_value = 0.3
 
-path_follower.Initialize()
-
-# output vehicle mass
-print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+# Path follower
+path_radius = 10.0
+sentinel_pos = chrono.ChVector3d(0, 0, 0.5)
+target_pos = chrono.ChVector3d(0, 0, 0.5)
 
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
@@ -108,13 +107,6 @@ render_steps = math.ceil(render_step_size / step_size)
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
-
-# Initialize sentinel and target points
-sentinel = chrono.ChVector3d(0, 0, 0)
-target = chrono.ChVector3d(0, 0, 0)
-
-# Circular path implementation
-radius = 50.0
 
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
@@ -126,17 +118,18 @@ while vis.Run() :
         vis.EndScene()
         render_frame += 1
 
-    # Get driver inputs
-    # Removed driver_inputs as we have a path follower
-
     # Update modules (process inputs from other modules)
-    path_follower.Synchronize(time)
+    # Removed driver.GetInputs() as we are using a path follower
+    # Update path follower
+    target_pos.z = path_radius * math.sin(time)
+    target_pos.x = path_radius * math.cos(time)
+    driver_inputs = [throttle_value, pid_controller.ComputeSteering(sentinel_pos, target_pos)]
     terrain.Synchronize(time)
-    vehicle.Synchronize(time)
-    vis.Synchronize(time)
+    vehicle.Synchronize(time, driver_inputs, terrain)
+    vis.Synchronize(time, driver_inputs)
 
     # Advance simulation for one timestep for all modules
-    path_follower.Advance(step_size)
+    driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
@@ -147,10 +140,6 @@ while vis.Run() :
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
 
-    # Update sentinel and target points for visualization
-    sentinel = chrono.ChVector3d(math.cos(time), math.sin(time), 0)
-    target = chrono.ChVector3d(math.cos(time + math.pi), math.sin(time + math.pi), 0)
-
-    # Visualize the sentinel and target points
-    vis.AddSphere(sentinel, 0.1, chrono.ChColor(1, 0, 0))
-    vis.AddSphere(target, 0.1, chrono.ChColor(0, 0, 1))
+    # Visualize sentinel and target points
+    vis.AddSphere(sentinel_pos, 0.1, chrono.ChColor(1, 0, 0))  # Sentinel point (initial position)
+    vis.AddSphere(target_pos, 0.1, chrono.ChColor(0, 0, 1))  # Target point (current position)

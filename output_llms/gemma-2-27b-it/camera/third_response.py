@@ -13,14 +13,14 @@ def main():
     mphysicalSystem = chrono.ChSystemNSC()
 
     # -----------------------
-    # Create a box object
+    # Create a box
     # -----------------------
-    side = 2  # Side length of the box
+    side = 2  # Define the side length of the box
     box = chrono.ChBodyEasyBox(side, side, side, 1000)  # Create a box body
     box.SetPos(chrono.ChVector3d(0, 0, 0))  # Set the position of the box
-    # Add texture to the box (optional)
+    # Add a texture to the box (optional)
     # box.AddVisualShape(chrono.ChVisualShapeBox(side, side, side))
-    # box.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/texture.jpg"))
+    # box.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/texture.png"))
     box.SetFixed(True)  # Fix the box in space
     mphysicalSystem.Add(box)  # Add the box to the physical system
 
@@ -120,6 +120,4 @@ def main():
         if rgba8_buffer.HasData():
             rgba8_data = rgba8_buffer.GetRGBA8Data()
             print('RGBA8 buffer received from cam. Camera resolution: {0}x{1}'.format(rgba8_buffer.Width, rgba8_buffer.Height))
-            print('First Pixel: {0}'.format(rgba8_data[0, 0, :]))
-
-        # Update the sensor manager (render/save/filter
+            print('First Pixel: {0}'.format(rgba8_data

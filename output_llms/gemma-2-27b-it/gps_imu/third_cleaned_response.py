@@ -162,10 +162,10 @@ while vis.Run():
     
     driver.SetThrottle(0.5)
     driver.SetSteering(0.6)
+    
     driver_inputs = driver.GetInputs()
     
     
     driver.Synchronize(time)
     terrain.Synchronize(time)
-    vehicle.Synchronize(time, driver_inputs, terrain)
-    vis.Synchronize(time,
+    vehicle

@@ -25,19 +25,19 @@ sphere_mat.SetFriction(0.2)
 
 msphereBody1 = chrono.ChBodyEasySphere(2.1, 1800, True, True, sphere_mat)
 msphereBody1.SetPos(chrono.ChVector3d(1, 1, 0))
-msphereBody1.SetPosDt(chrono.ChVector3d(0.5, 0, 0.1))  
+msphereBody1.SetPos_dt(chrono.ChVector3d(0.5, 0, 0.1))  
 msphereBody1.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
 sys.Add(msphereBody1)
 
 msphereBody2 = chrono.ChBodyEasySphere(2.1, 1800, True, True, sphere_mat)
 msphereBody2.SetPos(chrono.ChVector3d(-10, -10, 0))
-msphereBody2.SetPosDt(chrono.ChVector3d(-0.5, 0, -0.1))  
+msphereBody2.SetPos_dt(chrono.ChVector3d(-0.5, 0, -0.1))  
 msphereBody2.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
 sys.Add(msphereBody2)
 
 msphereBody3 = chrono.ChBodyEasySphere(2.1, 1800, True, True, sphere_mat)
 msphereBody3.SetPos(chrono.ChVector3d(0, 20, 0))
-msphereBody3.SetPosDt(chrono.ChVector3d(0, -0.5, 0.2))  
+msphereBody3.SetPos_dt(chrono.ChVector3d(0, -0.5, 0.2))  
 msphereBody3.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
 sys.Add(msphereBody3)
 
@@ -99,7 +99,7 @@ while vis.Run():
     for body in sys.GetBodies():
         body.EmptyAccumulators()
 
-    G_constant = 6.674e-11  
+    G_constant = 6.674e-3  
 
     
     kinetic_energy = 0
@@ -113,8 +113,7 @@ while vis.Run():
     for abodyA, abodyB in combinations(sys.GetBodies(), 2):
         D_attract = abodyB.GetPos() - abodyA.GetPos()
         r_attract = D_attract.Length()
-        if r_attract > 0:
-            potential_energy += -G_constant * (abodyA.GetMass() * abodyB.GetMass()) / r_attract
+        potential_energy += -G_constant * (abodyA.GetMass() * abodyB.GetMass()) / r_attract
 
     
     total_energy = kinetic_energy + potential_energy
@@ -122,11 +121,10 @@ while vis.Run():
     for abodyA, abodyB in mlist:
         D_attract = abodyB.GetPos() - abodyA.GetPos()
         r_attract = D_attract.Length()
-        if r_attract > 0:
-            f_attract = G_constant * (abodyA.GetMass() * abodyB.GetMass()) / (r_attract ** 2)
-            F_attract = (D_attract / r_attract) * f_attract
-            abodyA.AccumulateForce(F_attract, abodyA.GetPos(), False)
-            abodyB.AccumulateForce(-F_attract, abodyB.GetPos(), False)
+        f_attract = G_constant * (abodyA.GetMass() * abodyB.GetMass()) / (r_attract ** 2)
+        F_attract = (D_attract / r_attract) * f_attract
+        abodyA.AccumulateForce(F_attract, abodyA.GetPos(), False)
+        abodyB.AccumulateForce(-F_attract, abodyB.GetPos(), False)
 
     
     print(

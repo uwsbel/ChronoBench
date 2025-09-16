@@ -39,44 +39,47 @@ vis.AddCamera(chrono.ChVector3d(0, 1.5, 0.2), chrono.ChVector3d(0, 0, 0.2))
 vis.AddTypicalLights()
 vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0, 0.5), 3, 4, 10, 40, 512)
 
-# Move the robot straight for the first 5 seconds
+# Move function to control the robot's movement
 def move(mode):
     if mode == 'straight':
-        robot.SetMotorSpeed(0, 0)
-        print("Moving straight")
+        robot.SetMotorSpeed(0, 0)  
+        robot.SetMotorSpeed(0, 0)  
     elif mode == 'left':
         robot.SetMotorSpeed(-math.pi, 0)
-        print("Turning left")
+        robot.SetMotorSpeed(math.pi, 1)
     elif mode == 'right':
         robot.SetMotorSpeed(math.pi, 0)
-        print("Turning right")
+        robot.SetMotorSpeed(0, 1)
     else:
-        raise ValueError("Invalid mode")
+        raise ValueError("Invalid mode. Choose from 'straight', 'left', or 'right'.")
 
 # Simulation loop
 time = 0
 while vis.Run():
-    # Move the robot
-    move('straight')
-    time += 0.05
+    print(f"Time: {time}")
     
-    # Move the robot left for the next 5 seconds
-    if abs(time - 5.0) < 1e-4:
+    # Move the robot straight for 5 seconds
+    if time < 5.0:
+        move('straight')
+        time += 0.01
+    
+    # Turn left for 5 seconds
+    elif time < 10.0:
         move('left')
-        time += 0.05
+        time += 0.01
     
-    # Move the robot right thereafter
-    if abs(time - 10.0) < 1e-4:
+    # Turn right for 5 seconds
+    elif time < 15.0:
         move('right')
-        time += 0.05
+        time += 0.01
     
     # Increment time counter
-    time += 0.05
+    time += 0.01
     
     # Render the scene
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
-    
+
     # Advance the simulation by one time step
     system.DoStepDynamics(0.001)

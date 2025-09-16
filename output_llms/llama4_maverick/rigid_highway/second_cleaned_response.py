@@ -4,8 +4,7 @@ import pychrono.vehicle as veh
 import math
 
 
-
-chrono.SetChronoDataPath('/path/to/chrono/data/')
+chrono.SetChronoDataPath('/path/to/chrono/data')  
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 
@@ -22,9 +21,9 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 
-terrainHeight = 0      
-terrainLength = 100.0  
-terrainWidth = 100.0   
+terrainHeight = 0 
+terrainLength = 100.0 
+terrainWidth = 100.0 
 
 
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
@@ -38,19 +37,16 @@ step_size = 1e-3
 tire_step_size = step_size
 
 
-render_step_size = 1.0 / 50  
+render_step_size = 1.0 / 50 
 
 
-
-vehicle = veh.HMMWV_Full() 
+vehicle = veh.HMMWV_Full()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
-
-
 vehicle.Initialize()
 
 vehicle.SetChassisVisualizationType(vis_type)
@@ -65,11 +61,15 @@ vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
+
 terrain = veh.RigidTerrain(vehicle.GetSystem())
+
+
 patch = terrain.AddPatch(patch_mat, 
-    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
-    chrono.GetChronoDataFile('vehicle/terrain/meshes/Highway_col.obj'),
-    True, 0.01, False)
+                         chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
+                         chrono.GetChronoDataFile('vehicle/terrain/meshes/Highway_col.obj'), 
+                         True, 0.01, False)
+
 vis_mesh = chrono.ChTriangleMeshConnected().CreateFromWavefrontFile(veh.GetDataFile("terrain/meshes/Highway_vis.obj"), True, True)
 tri_mesh_shape = chrono.ChVisualShapeTriangleMesh()
 tri_mesh_shape.SetMesh(vis_mesh)
@@ -77,26 +77,29 @@ tri_mesh_shape.SetMutable(False)
 patch.GetGroundBody().AddVisualShape(tri_mesh_shape)
 
 
-patch_mat_bump = chrono.ChContactMaterialNSC()
-patch_mat_bump.SetFriction(0.9)
-patch_mat_bump.SetRestitution(0.01)
-patch_bump = terrain.AddPatch(patch_mat_bump, 
-    chrono.ChCoordsysd(chrono.ChVector3d(0, -42, 0), chrono.QUNIT),
-    chrono.GetChronoDataFile('vehicle/terrain/meshes/bump.obj'),
-    True, 0.01, False)
-vis_mesh_bump = chrono.ChTriangleMeshConnected().CreateFromWavefrontFile(chrono.GetChronoDataFile("vehicle/terrain/meshes/bump.obj"), True, True)
-tri_mesh_shape_bump = chrono.ChVisualShapeTriangleMesh()
-tri_mesh_shape_bump.SetMesh(vis_mesh_bump)
-tri_mesh_shape_bump.SetMutable(False)
-tri_mesh_shape_bump.SetColor(chrono.ChColor(0.5, 0.5, 0.8))
+new_patch = terrain.AddPatch(patch_mat, 
+                             chrono.ChCoordsysd(chrono.ChVector3d(0, -42, 0), chrono.QUNIT), 
+                             chrono.GetChronoDataFile('vehicle/terrain/meshes/bump.obj'), 
+                             True, 0.01, False)
+
+
+new_vis_mesh = chrono.ChTriangleMeshConnected().CreateFromWavefrontFile(chrono.GetChronoDataFile('vehicle/terrain/meshes/bump.obj'), True, True)
+new_tri_mesh_shape = chrono.ChVisualShapeTriangleMesh()
+new_tri_mesh_shape.SetMesh(new_vis_mesh)
+new_tri_mesh_shape.SetMutable(False)
+
+
+new_tri_mesh_shape.SetColor(chrono.ChColor(0.5, 0.5, 0.8))
+
+
 texture = chrono.ChVisualMaterial()
-texture.SetKdTexture(chrono.GetChronoDataFile("textures/dirt.jpg"))
-texture.SetTextureScaling(6.0, 6.0)
-tri_mesh_shape_bump.AddMaterial(texture)
-patch_bump.GetGroundBody().AddVisualShape(tri_mesh_shape_bump)
+texture.SetKdTexture(chrono.GetChronoDataFile('vehicle/terrain/textures/dirt.jpg'))
+texture.SetTextureScale(6.0, 6.0)
+new_tri_mesh_shape.AddMaterial(texture)
+
+new_patch.GetGroundBody().AddVisualShape(new_tri_mesh_shape)
 
 terrain.Initialize()
-
 
 
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
@@ -110,30 +113,19 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 
-
 driver = veh.ChInteractiveDriverIRR(vis)
 
 
-steering_time = 1.0  
-throttle_time = 1.0  
-braking_time = 0.3   
+steering_time = 1.0 
+throttle_time = 1.0 
+braking_time = 0.3 
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
-
 driver.Initialize()
 
 
-
-
-
-
-print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
-
-
 render_steps = math.ceil(render_step_size / step_size)
-
-
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0

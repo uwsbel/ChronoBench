@@ -1,5 +1,5 @@
 import pychrono.core as chrono
-import pychrono.vehicle as veh
+import pychrono.vehicle as vehi
 import pychrono.sensor as sens
 
 import numpy as np
@@ -10,7 +10,9 @@ def main():
     
     
     
-    mphysicalSystem = chrono.ChSystemNSC()
+    my_vehicle = vehi.ARTcar()
+    my_vehicle.Initialize(chrono.GetChronoDataFile('vehicle/vehicle/car/car.json'))
+    mphysicalSystem = my_vehicle.GetSystem()
 
     
     
@@ -26,23 +28,6 @@ def main():
     
     
     
-    my_car = veh.ARTcar()
-    my_car.Initialize(mphysicalSystem)
-
-    
-    
-    
-    my_driver = veh.ChIrrGuiDriver(my_car)
-
-    
-    
-    
-    my_terrain = veh.ChTerrain()
-    my_terrain.Initialize(mphysicalSystem)
-
-    
-    
-    
     manager = sens.ChSensorManager(mphysicalSystem)
 
     
@@ -52,7 +37,7 @@ def main():
         chrono.ChVector3d(1.0, 0, 1), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
     )
     lidar = sens.ChLidarSensor(
-        my_car.GetChassis(),              
+        my_vehicle.GetChassis(),              
         update_rate,            
         offset_pose,            
         horizontal_samples,     
@@ -96,7 +81,7 @@ def main():
 
     
     lidar_2d =  sens.ChLidarSensor(
-        my_car.GetChassis(),              
+        my_vehicle.GetChassis(),              
         update_rate,            
         offset_pose,            
         horizontal_samples,     
@@ -130,17 +115,6 @@ def main():
     lidar_2d.PushFilter(sens.ChFilterXYZIAccess())
     
     manager.AddSensor(lidar_2d)
-
-    
-    
-    
-    my_camera = veh.ChCameraSensor(my_car.GetChassis())
-    my_camera.SetName("Third Person View Camera")
-    my_camera.SetLag(lag)
-    my_camera.SetCollectionWindow(collection_time)
-    if vis:
-        my_camera.PushFilter(sens.ChFilterVisualize(640, 480, "Third Person View Camera"))
-    manager.AddSensor(my_camera)
 
     
     

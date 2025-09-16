@@ -24,12 +24,13 @@ tire_model_truck = veh.TireModelType_RIGID
 tire_model_sedan = veh.TireModelType_TMEASY
 
 
-terrainHeight = 0
-terrainLength = 100.0
-terrainWidth = 100.0
+terrain_model = veh.RigidTerrain.MESH
+terrainHeight = 0      
+terrainLength = 100.0  
+terrainWidth = 100.0   
 
 
-trackPoint = chrono.ChVector3d(0, 0, 2.1)
+trackPoint = chrono.ChVector3d(0,0, 2.1)
 
 
 contact_method = chrono.ChContactMethod_NSC
@@ -79,8 +80,8 @@ patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle_truck.GetSystem())
-patch = terrain.AddPatch(patch_mat,
-    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
+patch = terrain.AddPatch(patch_mat, 
+    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
     terrainLength, terrainWidth)
 
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
@@ -89,7 +90,7 @@ terrain.Initialize()
 
 
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
-vis.SetWindowTitle('Kraz and Sedan Demo')
+vis.SetWindowTitle('Kraz Demo')
 vis.SetWindowSize(1280, 1024)
 vis.SetChaseCamera(trackPoint, 25.0, 1.5)
 vis.Initialize()
@@ -101,25 +102,22 @@ vis.AttachVehicle(vehicle_sedan.GetChassis())
 
 
 driver_truck = veh.ChInteractiveDriverIRR(vis)
-
-
 steering_time_truck = 1.0  
 throttle_time_truck = 1.0  
 braking_time_truck = 0.3   
 driver_truck.SetSteeringDelta(render_step_size / steering_time_truck)
 driver_truck.SetThrottleDelta(render_step_size / throttle_time_truck)
 driver_truck.SetBrakingDelta(render_step_size / braking_time_truck)
-
 driver_truck.Initialize()
 
 
 driver_sedan = veh.ChDriver(vehicle_sedan.GetChassis())
-driver_sedan.SetSteering(0.2)
+driver_sedan.SetSteeringAngle(0.0)
 driver_sedan.SetThrottle(0.5)
+driver_sedan.SetBraking(0.0)
 
 
-tractor_states = []
-trailer_states = []
+print( "VEHICLE MASS: ",  vehicle_truck.GetTractor().GetMass())
 
 
 render_steps = math.ceil(render_step_size / step_size)
@@ -129,11 +127,15 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-while vis.Run():
+
+states_truck = []
+states_sedan = []
+
+while vis.Run() :
     time = vehicle_truck.GetSystem().GetChTime()
 
     
-    if (step_number % render_steps == 0):
+    if (step_number % render_steps == 0) :
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
@@ -147,7 +149,7 @@ while vis.Run():
     driver_sedan.Synchronize(time)
     terrain.Synchronize(time)
     vehicle_truck.Synchronize(time, driver_inputs_truck, terrain)
-    vehicle_sedan.Synchronize(time, driver_sedan.GetInputs(), terrain)
+    vehicle_sedan.Synchronize(time, driver_sedan, terrain)
     vis.Synchronize(time, driver_inputs_truck)
 
     
@@ -159,8 +161,8 @@ while vis.Run():
     vis.Advance(step_size)
 
     
-    tractor_states.append(vehicle_truck.GetTractor().GetPos())
-    trailer_states.append(vehicle_truck.GetTrailer().GetPos())
+    states_truck.append((vehicle_truck.GetTractor().GetPos(), vehicle_truck.GetTractor().GetRot()))
+    states_sedan.append((vehicle_sedan.GetChassis().GetPos(), vehicle_sedan.GetChassis().GetRot()))
 
     
     step_number += 1

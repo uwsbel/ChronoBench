@@ -74,41 +74,43 @@ vis.AddSkyBox()  # Add a skybox for better visual appearance
 vis.AddCamera(chrono.ChVector3d(1, 1, 3), chrono.ChVector3d(0, 1, 0))  # Add a camera to the visualization, positioned at (x=1, y=1, z=3) and looking at (x=0, y=1, z=0)
 vis.AddTypicalLights()  # Add typical lights for better visualization
 
+# Simulation time
+t = 0
+
 # Run the interactive simulation loop
-time = 0
-while vis.Run() and time < 20:
+while vis.Run() and t < 20:
     # Visualization and time step integration
     vis.BeginScene()  # Begin the visualization scene
     vis.Render()  # Render the scene
     vis.EndScene()  # End the visualization scene
     sys.DoStepDynamics(1e-3)  # Advance the simulation by a time step of 0.001 seconds (1 ms)
-    
+
     # Collect data during simulation
-    array_time.append(time)
-    array_angle.append(mcrank.GetRot().EulerAngles()[2])  # Append the instantaneous angle of the crank
-    array_pos.append(mpiston.GetPos().x())  # Append the instantaneous position of the piston
-    array_speed.append(my_motor.GetMotorSpeed())  # Append the instantaneous speed of the motor
-    
-    time += 1e-3  # Increment the time
+    array_time.append(t)
+    array_angle.append(my_motor.GetMotorRot())
+    array_pos.append(mpiston.GetPos().x())
+    array_speed.append(my_motor.GetMotorSpeed())
+
+    # Increment simulation time
+    t += 1e-3
 
 # Matplotlib plotting
-fig, axs = plt.subplots(2, figsize=(8, 6))  # Create two subplots
+fig, axs = plt.subplots(2, figsize=(10, 6))
 
-# First subplot: Plot position [m] versus the crank angle [rad]
 axs[0].plot(array_angle, array_pos)
 axs[0].set_title('Position vs. Crank Angle')
 axs[0].set_xlabel('Crank Angle [rad]')
 axs[0].set_ylabel('Position [m]')
-axs[0].set_xticks([0, np.pi/2, np.pi, 3*np.pi/2, 2*np.pi])
-axs[0].set_xticklabels(['0', r'$\pi/2$', r'$\pi$', r'$3\pi/2$', r'$2\pi$'])
 
-# Second subplot: Plot speed [m/s] versus the crank angle [rad]
 axs[1].plot(array_angle, array_speed)
 axs[1].set_title('Speed vs. Crank Angle')
 axs[1].set_xlabel('Crank Angle [rad]')
 axs[1].set_ylabel('Speed [m/s]')
-axs[1].set_xticks([0, np.pi/2, np.pi, 3*np.pi/2, 2*np.pi])
-axs[1].set_xticklabels(['0', r'$\pi/2$', r'$\pi$', r'$3\pi/2$', r'$2\pi$'])
+
+# Adjust x-axis ticks to display π-based intervals
+xticks = np.array([0, np.pi/2, np.pi, 3*np.pi/2, 2*np.pi])
+axs[0].set_xticks(xticks)
+axs[1].set_xticks(xticks)
 
 plt.tight_layout()
 plt.show()

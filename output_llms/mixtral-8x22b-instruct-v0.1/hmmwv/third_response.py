@@ -69,6 +69,7 @@ patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 # Create the vehicle Irrlicht interface
+
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('HMMWV Demo')
 vis.SetWindowSize(1280, 1024)
@@ -79,28 +80,25 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
-# Custom Driver Class Implementation
 class MyDriver(veh.ChDriver):
     def __init__(self, delay):
         super().__init__()
         self.delay = delay
-        self.time = 0
 
     def Synchronize(self, time):
-        self.time = time
         if time < self.delay:
-            self.m_steering = 0
-            self.m_throttle = 0
-            self.m_braking = 0
+            self.SetThrottle(0)
+            self.SetSteering(0)
+            self.SetBraking(0)
         elif time < 0.2 + self.delay:
-            self.m_throttle = (time - self.delay) / 0.2
-        elif time < 2 + self.delay:
-            self.m_throttle = 0.7
+            self.SetThrottle(0.7 * (time - self.delay) / 0.2)
+            self.SetSteering(0)
+            self.SetBraking(0)
         else:
-            self.m_throttle = 0.7
-            self.m_steering = math.sin(time - 2 - self.delay)
+            self.SetThrottle(0.7)
+            self.SetSteering(0.5 * math.sin(time - 2))
+            self.SetBraking(0)
 
-# Driver System Replacement
 driver = MyDriver(0.5)
 
 # Set the time response for steering and throttle keyboard inputs.

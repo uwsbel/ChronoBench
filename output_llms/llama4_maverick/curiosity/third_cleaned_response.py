@@ -5,6 +5,7 @@ import pychrono as chrono
 import pychrono.robot as robot
 from pychrono import irrlicht as chronoirr
 import pychrono.sensor as sens
+from pychrono.sensor import *
 
 
 system = chrono.ChSystemNSC()
@@ -38,7 +39,23 @@ rover.SetDriver(driver)
 
 init_pos = chrono.ChVector3d(-5, 0.0, 0)
 init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
-rover.Initialize(chrono.ChFramed(init_pos, init_rot))
+rover.Initialize(chrono.ChFrame(init_pos, init_rot))
+
+
+manager = sens.ChSensorManager(system)
+
+
+lidar_update_rate = 10  
+lidar = sens.ChLidarSensor(rover.GetChassisBody(), lidar_update_rate, chrono.ChFrame(chrono.ChVector3d(0, 0, 0.3), chrono.Q_from_AngZ(0)),
+                           100, chrono.CH_C_PI / 4,  
+                           100, chrono.CH_C_PI / 8)  
+lidar.SetName("Lidar Sensor")
+lidar.PushFilter(sens.ChFilterDIAccess())
+lidar.PushFilter(sens.ChFilterVisualize(256, 256, 1))
+lidar.PushFilter(sens.ChFilterSavePtCloud("lidar_data/"))
+
+
+manager.AddSensor(lidar)
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
@@ -54,38 +71,6 @@ vis.AddTypicalLights()
 vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0, 0), 3, 4, 10, 40, 512)
 
 
-manager = sens.ChSensorManager(system)
-
-
-lidar_update_rate = 10  
-lidar_horizontal_samples = 4500
-lidar_vertical_samples = 32
-lidar_field_of_view = 2 * math.pi  
-lidar_max_distance = 100  
-lidar_lag = 0  
-lidar_noise = 0.01  
-
-
-lidar = sens.ChLidarSensor(
-    rover.GetChassisBody(),
-    lidar_update_rate,
-    chrono.ChFramed(chrono.ChVector3d(0, 0, 1), chrono.Q_from_AngAxis(0, chrono.ChVector3d(0, 1, 0))),
-    lidar_horizontal_samples,
-    lidar_vertical_samples,
-    chrono.CH_C_PI / 4,
-    lidar_max_distance,
-    lidar_lag,
-    lidar_noise
-)
-
-
-lidar.PushFilter(sens.ChFilterDIAccess())
-lidar.PushFilter(sens.ChFilterVisualize(lidar_horizontal_samples, lidar_vertical_samples, 1, "Lidar"))
-
-
-manager.AddSensor(lidar)
-
-
 time_step = 1e-3
 
 
@@ -95,7 +80,6 @@ while vis.Run():
 
     
     driver.SetSteering(0.0)
-    driver.SetMotorSpeed(1.0)  
 
     
     rover.Update()

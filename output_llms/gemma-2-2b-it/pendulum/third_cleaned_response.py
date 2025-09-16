@@ -32,16 +32,6 @@ cyl_1.SetColor(chrono.ChColor(0.6, 0, 0))
 pend_1.AddVisualShape(cyl_1, chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleY(chrono.CH_PI_2)))
 
 
-
-pend_1.SetPos(chrono.ChVector3d(1, 0, 1))
-
-
-
-rev_1 = chrono.ChLinkLockRevolute()
-rev_1.Initialize(ground, pend_1, chrono.ChFramed(chrono.ChVector3d(0, 0, 1), chrono.ChQuaterniond(1, 0, 0, 0)))
-sys.AddLink(rev_1)
-
-
 pend_2 = chrono.ChBody()
 sys.AddBody(pend_2)
 pend_2.SetFixed(False)  
@@ -55,8 +45,13 @@ cyl_2.SetColor(chrono.ChColor(0.6, 0, 0))
 pend_2.AddVisualShape(cyl_2, chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleY(chrono.CH_PI_2)))
 
 
-pend_2.SetPos(chrono.ChVector3d(1, 0, 1))
+pend_1.SetPos(chrono.ChVector3d(1, 0, 1))
 
+
+
+rev_1 = chrono.ChLinkLockRevolute()
+rev_1.Initialize(ground, pend_1, chrono.ChFramed(chrono.ChVector3d(0, 0, 1), chrono.ChQuaterniond(1, 0, 0, 0)))
+sys.AddLink(rev_1)
 
 
 rev_2 = chrono.ChLinkLockRevolute()

@@ -21,7 +21,7 @@ class Model1:
 
             
             
-            num_elements = i * 2 + 10  
+            num_elements = i * 2 + 10 
             builder.BuildBeam(
                 mesh,  
                 msection_cable2,  
@@ -44,20 +44,20 @@ class Model1:
             system.Add(constraint_hinge)  
 
             
-            box_body = chrono.ChBodyEasyBox(0.1, 0.1, 0.1)
-            box_body.SetPos(builder.GetLastBeamNodes().back().GetPos())
-            system.Add(box_body)
+            box = chrono.ChBodyEasyBox(0.1, 0.1, 0.1)
+            box.SetPos(builder.GetLastBeamNodes().back().GetPos())
+            system.Add(box)
 
             
-            constraint_body = fea.ChLinkPointPoint()
-            constraint_body.Initialize(builder.GetLastBeamNodes().back(), box_body.GetPos())
-            system.Add(constraint_body)
+            constraint_hinge_box = fea.ChLinkNodeFrame()
+            constraint_hinge_box.Initialize(builder.GetLastBeamNodes().back(), box)
+            system.Add(constraint_hinge_box)
 
     def PrintBodyPositions(self, system):
         for i in range(self.n_chains):
             
-            box_body = system.GetBody(i * 2 + 10)  
-            print(f"Chain {i+1} - Box Body Position: {box_body.GetPos()}")
+            box = system.GetBody(i * 2 + 10)  
+            print(f"Chain {i+1} Box Position: {box.GetPos()}")
 
 
 sys = chrono.ChSystemSMC()

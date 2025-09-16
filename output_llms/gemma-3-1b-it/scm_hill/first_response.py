@@ -1,88 +1,67 @@
 import pychrono
 import numpy as np
 import matplotlib.pyplot as plt
-from pychrono.environment import System
-from pychrono.environment import Terrain
+from pychrono.simulation import Simulation
 from pychrono.visual import Irrlicht
-import time
 
-# --- Configuration ---
-simulation_name = "HMMWV Simulation"
-simulation_time = 10  # Simulation duration in seconds
-initial_position = [0, 0, 0]  # Initial vehicle position (x, y, z)
-initial_velocity = [0, 0, 0]  # Initial vehicle velocity (x, y, z)
-initial_force = [0, 0, 0]  # Initial force applied to the vehicle (x, y, z)
-terrain_heightmap_path = "terrain.png"  # Replace with your terrain image path
-terrain_heightmap_size = 100 # Size of the terrain heightmap in pixels
+# Simulation Parameters
+simulation_name = "HMMWV_Simulation"
+initial_position = [0, 0, 0]
+initial_velocity = [0, 0, 0]
+terrain_heightmap = np.zeros((100, 100))  # Example heightmap - adjust for your terrain
+soil_parameters = {
+    "density": 0.8,
+    "friction": 0.01
+}
+driver_system_parameters = {
+    "acceleration": 1.0,
+    "steering_angle": 0.0
+}
+visual_settings = {
+    "camera_width": 600,
+    "camera_height": 400,
+    "camera_offset": [0, 0, 10],
+    "color": [1, 1, 1] # White
+}
 
-# --- System Setup ---
-system = System(simulation_name, initial_position, initial_velocity, initial_force)
-system.set_physics_system(pychrono.physics_system.Fluid) # Using Fluid for better realism
-system.set_gravity(0) # Apply gravity
-system.set_simulation_time(simulation_time)
+# Initialize PyChrono
+simulation = Simulation(simulation_name)
 
-
-# --- Terrain Setup ---
-terrain = Terrain(
+# Initialize the HMMWV
+vehicle = simulation.add_vehicle(
     initial_position,
-    terrain_heightmap_path,
-    terrain_heightmap_size,
-    # Add more terrain parameters as needed (e.g., slope, roughness)
-    # Example:  terrain_slope = 0.1  # Example slope
+    initial_velocity,
+    terrain_heightmap,
+    soil_parameters,
+    driver_system_parameters,
+    visual_settings
 )
 
-# --- Driver System ---
-driver = Driver(system, "Driver")
-driver.set_speed(initial_velocity) # Set initial speed
-driver.set_acceleration(0) # Set initial acceleration
-
-# --- Irrlicht Visualization ---
-irrlicht = Irrlicht.initialize()
-irrlicht.set_color("blue")
-irrlicht.set_width(800)
-irrlicht.set_height(600)
-irrlicht.set_title(simulation_name)
-irrlicht.rotate(np.pi / 2)  # Rotate the scene for better viewing
-
-# --- Visualization Loop ---
+# Simulation Loop
 def update_simulation():
-    global system, terrain, driver, irrlicht
+    global vehicle
 
-    # Update vehicle position
-    system.update()
-    vehicle_position = system.get_position()
-    vehicle_velocity = system.get_velocity()
-    vehicle_force = system.get_force()
+    # Update vehicle position and velocity
+    vehicle.update()
 
-    # Update terrain
-    terrain.update()
+    # Update terrain heightmap
+    terrain_heightmap += vehicle.get_position() * simulation_name #Simple height update
 
-    # Update driver
-    driver.update()
+    # Update driver system
+    vehicle.update_driver(driver_system_parameters)
 
-    # Update Irrlicht
-    irrlicht.clear()
-    irrlicht.set_aspect(1)  # Maintain aspect ratio
-    irrlicht.set_camera_position(vehicle_position)
-    irrlicht.set_camera_look_at(terrain.get_center())
+    # Update visual system
+    irrlicht.update_scene()
+    irrlicht.set_camera(visual_settings["camera_width"], visual_settings["camera_height"])
+    irrlicht.set_camera_offset(visual_settings["camera_offset"])
+    irrlicht.set_color(visual_settings["color"])
 
-    # Draw the terrain
-    irrlicht.plot(terrain.get_heightmap())
+    # Display the scene
+    irrlicht.display()
 
-    # Draw the vehicle
-    irrlicht.plot(vehicle_position)
-    irrlicht.plot(vehicle_velocity)
-    irrlicht.plot(vehicle_force)
+# Run the simulation
+update_simulation()
 
-    irrlicht.pause(0.01) # Small delay for visualization
-
-
-# --- Main Simulation Loop ---
-try:
-    while True:
-        update_simulation()
-        time.sleep(0.1)  # Adjust for desired simulation speed
-
-except KeyboardInterrupt:
-    print("Simulation interrupted.")
-    sys.exit()
+# Optional:  Add a delay for visualization (adjust as needed)
+# import time
+# time.sleep(5)  # Wait 5 seconds

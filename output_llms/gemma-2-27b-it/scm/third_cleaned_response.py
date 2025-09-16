@@ -40,7 +40,7 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  
 
 
-vehicle = veh.HMMWV_Full()  
+vehicle = veh.HMMWV_Full() 
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
@@ -106,6 +106,27 @@ driver.Initialize()
 
 
 
+sensor_manager = chrono.ChSensorManager(vehicle.GetSystem())
+
+
+sensor_manager.AddPointLight(chrono.ChVector3d(5, 5, 5), chrono.ChColor(1, 1, 1))
+sensor_manager.AddPointLight(chrono.ChVector3d(-5, 5, 5), chrono.ChColor(1, 1, 1))
+
+
+camera_sensor = chrono.ChCameraSensor(vehicle.GetChassisBody())
+camera_sensor.SetCameraPosition(chrono.ChVector3d(0, 0, 2))
+camera_sensor.SetCameraDirection(chrono.ChVector3d(0, 0, -1))
+camera_sensor.SetResolution(640, 480)
+camera_sensor.SetFOV(60)
+sensor_manager.AddSensor(camera_sensor)
+
+
+filter = chrono.ChFilterVisualizeCamera(camera_sensor)
+sensor_manager.AddFilter(filter)
+
+
+
+
 
 
 print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
@@ -117,23 +138,6 @@ render_steps = math.ceil(render_step_size / step_size)
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
-
-
-sensor_manager = chrono.ChSensorManager(vehicle.GetSystem())
-
-
-sensor_manager.AddLight(chrono.ChLightPoint(chrono.ChVector3d(5, 5, 5)))
-sensor_manager.AddLight(chrono.ChLightPoint(chrono.ChVector3d(-5, 5, 5)))
-
-
-camera_sensor = chrono.ChCameraSensor(vehicle.GetChassisBody())
-camera_sensor.SetResolution(640, 480)
-camera_sensor.SetFOV(90)
-sensor_manager.AddSensor(camera_sensor)
-
-
-filter = chrono.ChFilterVisualizeCamera(camera_sensor)
-vis.AddFilter(filter)
 
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
@@ -153,14 +157,15 @@ while vis.Run() :
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
-    sensor_manager.Synchronize(time)
 
     
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
-    sensor_manager.Advance(step_size)
+
+    
+    sensor_manager.Update()
 
     
     step_number += 1
@@ -170,9 +175,9 @@ while vis.Run() :
 
     
     if step_number % 100 == 0:
-        box_pos = chrono.ChVector3d(random.uniform(-50, 50), random.uniform(-50, 50), 0.5)
-        
-        if chrono.ChVector3d(box_pos.x - initLoc.x, box_pos.y - initLoc.y, 0).Length() > 5:
-            box = chrono.ChBodyEasyBox(1, 1, 1, 1000, True, True)
-            box.SetPos(box_pos)
-            vehicle.GetSystem().AddBody(box)
+        box_x = random.uniform(-20, 20)
+        box_y = random.uniform(-20, 20)
+        box_z = 0.5
+        box = chrono.ChBodyEasyBox(1, 1, 1, 1000, True, True)
+        box.SetPos(chrono.ChVector3d(box_x, box_y, box_z))
+        vehicle.GetSystem().Add(box)

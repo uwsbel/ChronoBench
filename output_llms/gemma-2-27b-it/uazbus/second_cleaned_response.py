@@ -70,7 +70,7 @@ patch = terrain.AddPatch(patch_mat,
     chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
     terrainLength, terrainWidth)
 
-patch.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 200, 200) 
+patch.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 200, 200)  
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
@@ -112,8 +112,8 @@ render_frame = 0
 
 
 lane_change_duration = 5.0  
-lane_width = 3.7  
-target_lane = 1  
+lane_width = 3.0  
+steering_angle = 0.5  
 
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
@@ -128,19 +128,14 @@ while vis.Run() :
     
     if time < lane_change_duration:
         
-        progress = time / lane_change_duration
-        if target_lane == 0:
-            steering_angle = -math.pi / 4 * progress
-        else:
-            steering_angle = math.pi / 4 * progress
-        driver.SetSteeringAngle(steering_angle)
-
-        
-        driver.SetThrottle(0.5)
+        steering_input = steering_angle * math.sin(math.pi * time / lane_change_duration)
+        driver.SetSteeringInput(steering_input)
+        driver.SetThrottleInput(0.5)  
     else:
         
-        driver.SetThrottle(0)
-        driver.SetBraking(1.0)
+        driver.SetSteeringInput(0)
+        driver.SetThrottleInput(0)
+        driver.SetBrakingInput(1)
 
     
     driver_inputs = driver.GetInputs()

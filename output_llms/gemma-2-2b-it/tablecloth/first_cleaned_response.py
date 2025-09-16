@@ -1,56 +1,63 @@
 import pychrono as chrono
 import pychrono.core as core
-import pychrono.physics as physics
+import pychrono.materials as materials
+import pychrono.dynamics as dynamics
 import pychrono.visualization as visualization
-import pychrono.solver as solver
+import pychrono.solvers as solvers
 
 
 chrono.init()
 
 
-env = chrono.Simulation()
+app = chrono.Application()
 
 
-core.create_core(env)
+world = chrono.World()
 
 
-material = chrono.Material()
-material.set_name("Isotropic Kirchhoff")
-material.set_density(1.0)
-material.set_elasticity(1.0)
-material.set_poisson_ratio(0.3)
+material = materials.IsotropicKirchhoff(
+    density=1000.0,  
+    elasticity=100.0,  
+    PoissonRatio=0.3,  
+)
 
 
-mesh = chrono.Mesh()
-mesh.set_name("Tablecloth")
-mesh.set_material(material)
+mesh = chrono.MeshGenerator.create_triangle_mesh(
+    size=0.1,  
+    n_vertices=1000,  
+    n_elements=1000,  
+)
 
 
-mesh.generate_mesh(100, 100)
+shell = chrono.ShellElement(
+    material=material,
+    mesh=mesh,
+    name="TableclothShell",
+)
 
 
-nodes = mesh.get_nodes()
-elements = mesh.get_elements()
+nodes = chrono.NodeSet()
+nodes.add_node(mesh.get_vertices())
 
 
-physics_system = physics.System()
-physics_system.set_material(material)
-physics_system.set_nodes(nodes)
-physics_system.set_elements(elements)
+elements = chrono.ElementSet()
+elements.add_element(shell)
 
 
-env.add_system(physics_system)
+system = chrono.SimulationSystem(
+    world=world,
+    elements=elements,
+    nodes=nodes,
+    solver=solvers.PardisoMKL(),
+)
+
+
+vis = visualization.IrrlichtVisualization(app)
+vis.add_mesh(mesh)
+vis.add_system(system)
 
 
 
 
 
-vis = visualization.IrrlichtVisualization()
-vis.set_scene(env)
-
-
-solver = solver.PardisoMKL()
-solver.set_system(physics_system)
-
-
-env.run()
+app.run()

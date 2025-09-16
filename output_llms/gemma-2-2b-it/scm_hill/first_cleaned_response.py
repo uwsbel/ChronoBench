@@ -1,46 +1,65 @@
-import pychrono as chrono
-import pychrono.irrlicht as irrlicht
-import numpy as np
+from pychrono import Chrono
+from pychrono.core import System
+from pychrono.core.math import Vector3, Matrix4x4
+from pychrono.physics import RigidBody, Contact
+from pychrono.physics.collision import Collision
+from pychrono.rendering import Irrlicht
+from pychrono.rendering.irrlicht import IrrlichtScene, IrrlichtCamera
+from pychrono.rendering.irrlicht import IrrlichtMaterial
+from pychrono.rendering.irrlicht import IrrlichtLight
+from pychrono.rendering.irrlicht import IrrlichtTexture
+from pychrono.rendering.irrlicht import IrrlichtWorld
+from pychrono.vehicle import HMMWV
+from pychrono.terrain import SCMTerrain
+from pychrono.terrain import Soil
+from pychrono.driver import Driver
 
 
-chrono.init()
+chrono = Chrono()
 
 
-world = chrono.World()
+sys = System(chrono)
 
 
-vehicle = chrono.Vehicle(world)
-vehicle.set_model("HMMWV.stl")  
-vehicle.set_mass(1000)  
-vehicle.set_position(chrono.Vec3(0, 0, 0))  
-vehicle.set_velocity(chrono.Vec3(0, 0, 0))  
+vehicle = HMMWV(sys)
+vehicle.set_mass(1000)
+vehicle.set_position(Vector3(0, 0, 0))
+vehicle.set_rotation(Matrix4x4.identity())
 
 
-terrain = chrono.Terrain(world)
-terrain.set_height_map("terrain.png")  
-terrain.set_soil_parameters(
-    density=1000,  
-    shear_strength=10000,  
-    elasticity=0.4,  
+terrain = SCMTerrain(sys)
+terrain.set_soil_parameters(Soil.create_soil("clay"))
+terrain.set_height_map(
+    {
+        (0, 0): 1.0,
+        (10, 0): 0.5,
+        (0, 10): 0.5,
+        (10, 10): 1.0,
+    }
 )
 
 
-driver = chrono.Driver(vehicle)
-driver.set_control_mode(chrono.ControlMode.MANUAL)  
+driver = Driver(sys)
+driver.set_position(Vector3(0, 0, 0))
+driver.set_rotation(Matrix4x4.identity())
 
 
-irrlicht_engine = irrlicht.IrrlichtEngine()
-irrlicht_engine.createWindow("HMMWV Simulation", 800, 600)
-irrlicht_engine.setCamera(chrono.Vec3(0, 0, 10), chrono.Vec3(0, 0, 0), chrono.Vec3(0, 1, 0))
-irrlicht_engine.setLighting(chrono.Vec3(1, 1, 1))
+irrlicht = Irrlicht()
+scene = IrrlichtScene(irrlicht)
+camera = IrrlichtCamera(scene, Vector3(0, 10, 5))
+camera.set_fov(45)
+camera.set_position(Vector3(0, 10, 5))
+light = IrrlichtLight(scene, Vector3(0, 1, 0))
+
+
+world = IrrlichtWorld(irrlicht)
+world.set_camera(camera)
+world.set_light(light)
 
 
 while True:
     
-    world.update()
+    sys.update()
 
     
-    irrlicht_engine.render()
-
-    
-    chrono.sleep(0.01)
+    irrlicht.render()

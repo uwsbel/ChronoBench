@@ -20,6 +20,7 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 
+
 terrainHeight = 0      
 terrainLength = 200.0  
 terrainWidth = 100.0   
@@ -27,6 +28,10 @@ terrainWidth = 100.0
 
 path_radius = 50.0
 path_center = chrono.ChVector3d(0, 0, 0)
+
+
+path_ball1 = chrono.ChBodyEasySphere(1.0)
+path_ball2 = chrono.ChBodyEasySphere(1.0)
 
 
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
@@ -42,6 +47,12 @@ tire_step_size = step_size
 
 render_step_size = 1.0 / 50  
 
+
+kp = 1.0
+ki = 0.1
+kd = 0.01
+last_error = 0
+integral = 0
 
 
 vehicle = veh.HMMWV_Full() 
@@ -86,52 +97,26 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 
-kp = 1.0
-ki = 0.1
-kd = 0.01
+path_ball1.SetPos(path_center + chrono.ChVector3d(path_radius, 0, 0))
+path_ball2.SetPos(path_center + chrono.ChVector3d(-path_radius, 0, 0))
+vis.AddBody(path_ball1)
+vis.AddBody(path_ball2)
 
 
-pid = chrono.ChPID()
-pid.SetKp(kp)
-pid.SetKi(ki)
-pid.SetKd(kd)
+driver = veh.ChPathFollower()
 
 
-class PathFollower:
-    def __init__(self, vehicle, path_radius, path_center):
-        self.vehicle = vehicle
-        self.path_radius = path_radius
-        self.path_center = path_center
-        self.target_angle = 0.0
-
-    def update(self, time):
-        
-        vehicle_pos = self.vehicle.GetChassis().GetPos()
-        distance_to_center = (vehicle_pos - self.path_center).Length()
-        target_angle = math.atan2(vehicle_pos.y - self.path_center.y, vehicle_pos.x - self.path_center.x)
-
-        
-        error = target_angle - self.vehicle.GetSteeringAngle()
-        pid.Compute(error, time)
-        steering_angle = pid.GetOutput()
-
-        
-        self.vehicle.SetThrottle(0.3)
-        self.vehicle.SetSteeringAngle(steering_angle)
+driver.SetPath(path_center, path_radius)
 
 
-path_follower = PathFollower(vehicle, path_radius, path_center)
+driver.SetThrottle(0.3)
+driver.SetPID(kp, ki, kd)
 
 
-sentinel_sphere = chrono.ChBodyEasySphere(0.1)
-sentinel_sphere.SetPos(path_center)
-sentinel_sphere.SetBodyFixed(True)
-vehicle.GetSystem().Add(sentinel_sphere)
+print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 
-target_sphere = chrono.ChBodyEasySphere(0.1)
-target_sphere.SetPos(path_center + chrono.ChVector3d(path_radius, 0, 0))
-target_sphere.SetBodyFixed(True)
-vehicle.GetSystem().Add(target_sphere)
+
+render_steps = math.ceil(render_step_size / step_size)
 
 
 realtime_timer = chrono.ChRealtimeStepTimer()
@@ -149,11 +134,18 @@ while vis.Run() :
         render_frame += 1
 
     
-    path_follower.update(time)
+    
 
     
-    vehicle.Advance(step_size)
+    driver.Synchronize(time)
+    terrain.Synchronize(time)
+    vehicle.Synchronize(time, driver.GetSteering(), terrain)
+    vis.Synchronize(time, driver.GetSteering(), driver.GetThrottle())
+
+    
+    driver.Advance(step_size)
     terrain.Advance(step_size)
+    vehicle.Advance(step_size)
     vis.Advance(step_size)
 
     

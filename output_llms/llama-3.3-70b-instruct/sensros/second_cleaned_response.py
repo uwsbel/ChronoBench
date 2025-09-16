@@ -22,14 +22,14 @@ def main():
     mesh_body = ch.ChBody()
     mesh_body.SetPos(ch.ChVector3d(0, 0, 0))
     mesh_body.AddVisualShape(trimesh_shape)
-    mesh_body.SetFixed(True)  
+    mesh_body.SetFixed(False)  
     mesh_body.SetMass(0)  
     sys.Add(mesh_body)
 
     
     ground_body = ch.ChBodyEasyBox(1, 1, 1, 1000, False, False)
     ground_body.SetPos(ch.ChVector3d(0, 0, 0))
-    ground_body.SetFixed(True)  
+    ground_body.SetFixed(False)  
     ground_body.SetMass(0)  
     sys.Add(ground_body)
 
@@ -61,11 +61,11 @@ def main():
     sens_manager.AddSensor(lidar)
 
     
-    lidar_2d = sens.ChLidar2DSensor(ground_body, 10., offset_pose, 180, 360, 2*ch.CH_PI, 0.1, 0)
+    lidar_2d = sens.ChLidar2DSensor(ground_body, 5., offset_pose, 90, 300, ch.CH_PI / 2, -ch.CH_PI / 2, 100., 0)
     lidar_2d.PushFilter(sens.ChFilterDIAccess())  
     lidar_2d.PushFilter(sens.ChFilterScanAccess())  
     lidar_2d.PushFilter(sens.ChFilterVisualizeScan(1280, 720, 1, "2D Lidar Scan"))  
-    lidar_2d.SetName("lidar_2d")
+    lidar_2d.SetName("lidar2d")
     sens_manager.AddSensor(lidar_2d)
 
     
@@ -104,7 +104,6 @@ def main():
     
     ros_manager.RegisterHandler(chros.ChROSCameraHandler(cam.GetUpdateRate() / 4, cam, "~/output/camera/data/image"))
     ros_manager.RegisterHandler(chros.ChROSLidarHandler(lidar, "~/output/lidar/data/pointcloud"))
-    ros_manager.RegisterHandler(chros.ChROSLidar2DHandler(lidar_2d, "~/output/lidar2d/data/scan"))
     ros_manager.RegisterHandler(chros.ChROSGPSHandler(gps, "~/output/gps/data"))
     acc_handler = chros.ChROSAccelerometerHandler(acc, "~/output/accelerometer/data")
     ros_manager.RegisterHandler(acc_handler)
@@ -119,6 +118,9 @@ def main():
     imu_handler.SetGyroscopeHandler(gyro_handler)
     imu_handler.SetMagnetometerHandler(mag_handler)
     ros_manager.RegisterHandler(imu_handler)
+
+    
+    ros_manager.RegisterHandler(chros.ChROSLidar2DHandler(lidar_2d, "~/output/lidar2d/data/scan"))
 
     ros_manager.Initialize()  
 

@@ -1,59 +1,78 @@
-import pychrono as pc
-import pychrono.visualization.irrlicht as irr
+import pychrono as chrono
+import pyirrlicht as irl
 
-# Initialize PyChrono environment
-pc.Initialize()
+# 1. Initialize the PyChrono environment and core components
+simulation = chrono.ChSimulation()
+simulation.SetChronoDataPath("path/to/chrono_data")
 
-# Create a simulation scene
-scene = pc.Scene()
+# 2. Add the required physical systems and objects
+floor = chrono.ChBodyEasyBox(10, 0.5, 10, 1000, False, True)
+floor.SetPos(chrono.ChVectorD(0, -0.5, 0))
+floor.SetName("floor")
+simulation.Add(floor)
 
-# Create physical systems
-floor = pc.ChBodyEasyBox(10, 0.1, 10, 1000, False)
-crankshaft = pc.ChBodyEasyBox(0.5, 1, 0.5, 1, False)
-connecting_rod = pc.ChBodyEasyBox(0.5, 1, 0.5, 1, False)
-piston = pc.ChBodyEasyBox(0.5, 1, 0.5, 1, False)
+crankshaft = chrono.ChBodyEasyBox(0.5, 0.5, 1, 10, False, True)
+crankshaft.SetPos(chrono.ChVectorD(0, 0.25, 0))
+crankshaft.SetName("crankshaft")
+simulation.Add(crankshaft)
 
-# Add physical systems to the scene
-scene.Add(floor)
-scene.Add(crankshaft)
-scene.Add(connecting_rod)
-scene.Add(piston)
+connecting_rod = chrono.ChBodyEasyBox(0.5, 0.5, 1, 10, False, True)
+connecting_rod.SetPos(chrono.ChVectorD(0, 0.75, 0))
+connecting_rod.SetName("connecting_rod")
+simulation.Add(connecting_rod)
 
-# Set default parameters
-floor.SetPos(pc.ChVectorD(0, -5, 0))
-crankshaft.SetPos(pc.ChVectorD(0, 0, 0))
-connecting_rod.SetPos(pc.ChVectorD(1, 0, 0))
-piston.SetPos(pc.ChVectorD(3, 0, 0))
+piston = chrono.ChBodyEasyBox(0.5, 1, 0.5, 10, False, True)
+piston.SetPos(chrono.ChVectorD(0, 1.5, 0))
+piston.SetName("piston")
+simulation.Add(piston)
 
-# Create joints
-crankshaft_joint = pc.ChLinkRevolute()
-crankshaft_joint.Initialize(crankshaft, floor, pc.ChVectorD(0, 0, 0), pc.ChVectorD(0, 0, 1))
-scene.Add(crankshaft_joint)
+# Define joints
+crankshaft_joint = chrono.ChLinkRevolute()
+crankshaft_joint.Initialize(floor, crankshaft, chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 1, 0))
+simulation.Add(crankshaft_joint)
 
-connecting_rod_joint = pc.ChLinkRevolute()
-connecting_rod_joint.Initialize(crankshaft, connecting_rod, pc.ChVectorD(1, 0, 0), pc.ChVectorD(0, 1, 0))
-scene.Add(connecting_rod_joint)
+rod_joint = chrono.ChLinkRevolute()
+rod_joint.Initialize(crankshaft, connecting_rod, chrono.ChVectorD(0, 0.5, 0), chrono.ChVectorD(0, 1, 0))
+simulation.Add(rod_joint)
 
-piston_joint = pc.ChLinkRevolute()
-piston_joint.Initialize(connecting_rod, piston, pc.ChVectorD(3, 0, 0), pc.ChVectorD(0, 1, 0))
-scene.Add(piston_joint)
+piston_joint = chrono.ChLinkRevolute()
+piston_joint.Initialize(connecting_rod, piston, chrono.ChVectorD(0, 1, 0), chrono.ChVectorD(0, 1, 0))
+simulation.Add(piston_joint)
 
-# Create motor
-motor = pc.ChLinkMotor()
-motor.Initialize(crankshaft_joint, True, True)
-motor.SetTargetSpeed(1)
-scene.Add(motor)
+# Add motor to drive the crankshaft
+motor = chrono.ChLinkMotor()
+motor.Initialize(floor, crankshaft, chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 1, 0))
+motor.SetAxes(chrono.ChVectorD(0, 1, 0))
+motor.SetTargetSpeed(chrono.ChVectorD(5))
+simulation.Add(motor)
 
-# Create visualization system
-vis = irr.ChIrrApp(scene, 'Crank-Slider Mechanism')
-vis.SetCamera(pc.ChVectorD(1, 1, -5), pc.ChVectorD(0, 0, 0))
-vis.SetLightType(irr.ChIrrApp.LIGHT_DIRECTIONAL)
-vis.AddLogo(irr.ChIrrApp.LOGO_CHRONO)
-vis.AddSkyBox()
-vis.AssetAddTexture(irr.ChIrrApp.TEXTURE_FLOOR, 'textures/grass.png')
+# 3. Set necessary default parameters such as positions, forces, and interactions
+simulation.SetTimestep(0.01)
 
-# Run simulation
-vis.Run()
+# Visualization using Irrlicht
+irrlicht = irl.CIrrlicht()
+irrlicht.SetWindowSize(800, 600)
+irrlicht.SetWindowTitle("Crank-Slider Mechanism")
+irrlicht.AddEventListener("ESC", "quit")
 
-# Clean up
-pc.Terminate()
+camera = irrlicht.GetCamera()
+camera.SetPosition(chrono.ChVectorD(3, 3, -5))
+camera.SetTarget(chrono.ChVectorD(0, 0, 0))
+
+light = irrlicht.GetLightManager().AddLight()
+light.SetType(irl.ELT_DIRECTIONAL)
+light.SetPosition(chrono.ChVectorD(5, 5, 5))
+light.SetColor(irl.SColorf(1, 1, 1, 1))
+
+# Add textures and logos (example: floor texture)
+floor_tex = irrlicht.GetVideoDriver().getTexture("path/to/floor_texture.png")
+floor_mat = irrlicht.GetSceneManager().getMaterial("floor_mat")
+floor_mat.SetTexture(0, floor_tex)
+floor_mat.SetDiffuseColor(irl.SColor(255, 255, 255, 255))
+floor.AddMaterial(floor_mat)
+
+# Run the simulation
+while not irrlicht.IsQuit():
+    simulation.DoStep()
+    irrlicht.DrawAll()
+    irrlicht.ToggleFullscreen()

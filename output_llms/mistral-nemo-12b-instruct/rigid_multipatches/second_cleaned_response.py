@@ -4,13 +4,6 @@ import pychrono.irrlicht as irr
 
 def main():
     
-    veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
-
-    
-    step_size = 2e-3
-    tire_step_size = 1e-3
-
-    
     hmmwv = veh.HMMWV_Full()
     hmmwv.SetContactMethod(chrono.ChContactMethod_NSC)
     hmmwv.SetChassisFixed(False)
@@ -22,7 +15,6 @@ def main():
     hmmwv.SetTireStepSize(tire_step_size)
     hmmwv.Initialize()
 
-    
     hmmwv.SetChassisVisualizationType(veh.VisualizationType_MESH)
     hmmwv.SetSuspensionVisualizationType(veh.VisualizationType_MESH)
     hmmwv.SetSteeringVisualizationType(veh.VisualizationType_MESH)
@@ -34,20 +26,16 @@ def main():
     
     terrain = veh.RigidTerrain(hmmwv.GetSystem())
 
-    
-    patch_mat = chrono.ChContactMaterialNSC()
-    patch_mat.SetFriction(0.9)
-    patch_mat.SetRestitution(0.01)
+    contact_mat = chrono.ChContactMaterialNSC()
+    contact_mat.SetFriction(0.9)
+    contact_mat.SetRestitution(0.01)
 
-    
-    patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
-                             veh.GetDataFile("terrain/meshes/Highway_col.obj"), collision=True, thickness=0.01)
+    terrain.AddPatch(contact_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
+                     veh.GetDataFile("vehicle/terrain/meshes/Highway_col.obj"), True, 0.01)
 
     
     terrain_vis_mesh = chrono.ChTriangleMeshConnected()
     terrain_vis_mesh.LoadMesh(veh.GetDataFile("terrain/meshes/Highway_vis.obj"))
-
-    
     terrain.GetGroundBody().AddVisualShape(chrono.ChVisualShapeTriangleMesh(terrain_vis_mesh))
 
     terrain.Initialize()
@@ -96,5 +84,11 @@ def main():
         vis.Advance(step_size)
 
     return 0
+
+veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
+
+
+step_size = 2e-3
+tire_step_size = 1e-3
 
 main()

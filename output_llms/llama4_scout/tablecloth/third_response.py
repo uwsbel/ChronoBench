@@ -13,10 +13,7 @@ try:
     os.mkdir(out_dir)  # Try to create the directory
 except OSError as exc:
     if exc.errno != errno.EEXIST:  # If directory exists, no error; otherwise, print error message
-        print(f"Error creating output directory: {exc}")
-
-# Define necessary constants
-VNULL = chrono.ChVector3d(0, 0, 0)  # Zero vector
+        print("Error creating output directory ")
 
 # Create a Chrono::Engine physical system
 sys = chrono.ChSystemSMC()  # Instantiate the physical system
@@ -25,10 +22,10 @@ sys = chrono.ChSystemSMC()  # Instantiate the physical system
 mesh = fea.ChMesh()  # Instantiate the mesh
 
 # Add the created mesh to the physical system
-sys.Add(mesh)
+sys.Add(mesh)  # Add mesh to the physical system
 
 # Disable gravity for the system (options)
-# sys.SetGravitationalAcceleration(VNULL) or
+# sys.SetGravitationalAcceleration(VNULL) or mesh.SetAutomaticGravity(False)
 mesh.SetAutomaticGravity(False)
 
 # Define nodes to plot or load
@@ -44,14 +41,14 @@ ref_Y = chrono.ChFunctionInterp()
 load_force = chrono.ChVector3d()
 
 # Monitoring nodes and elements
-mnodemonitor = fea.ChNodeFEAxyz()  # Node for monitoring
+m nodemonitor = fea.ChNodeFEAxyz()  # Node for monitoring
 melementmonitor = fea.ChElementShellBST()  # Element for monitoring
 
 if True:  # Block to execute the following setup
     # Define material properties
     density = 100  # Material density
     E = 6e4  # Young's modulus
-    nu = 0.0  # Poisson's ratio
+    nu = 0.3  # Poisson's ratio (Changed from 0.0 to a more sensible value for shell simulation)
     thickness = 0.01  # Thickness of the shell
 
     # Create isotropic Kirchhoff material elasticity object
@@ -66,10 +63,6 @@ if True:  # Block to execute the following setup
     nsections_x = 40  # Number of sections in x direction
     L_z = 1  # Length in z direction
     nsections_z = 40  # Number of sections in z direction
-
-    # Check if dimensions are valid
-    if nsections_x < 1 or nsections_z < 1:
-        raise ValueError("Number of sections must be greater than 0")
 
     # Create list to hold the nodes
     mynodes = []
@@ -88,7 +81,6 @@ if True:  # Block to execute the following setup
             # Create first element
             melementA = fea.ChElementShellBST()
             mesh.AddElement(melementA)
-
             if iz == 0 and ix == 1:
                 melementmonitor = melementA  # Assign element to monitor
 
@@ -99,10 +91,12 @@ if True:  # Block to execute the following setup
 
             # Set nodes to the element
             melementA.SetNodes(
-                mynodes[iz * (nsections_x + 1) + ix],
-                mynodes[iz * (nsections_x + 1) + ix + 1],
+                mynodes[(iz) * (nsections_x + 1) + ix],
+                mynodes[(iz) * (nsections_x + 1) + ix + 1],
                 mynodes[(iz + 1) * (nsections_x + 1) + ix],
-                boundary_1, boundary_2, boundary_3
+                boundary_1,
+                boundary_2,
+                boundary_3,
             )
 
             # Add layer to the element
@@ -113,16 +107,18 @@ if True:  # Block to execute the following setup
             mesh.AddElement(melementB)
 
             # Define boundary nodes
-            boundary_1 = mynodes[iz * (nsections_x + 1) + ix]
-            boundary_2 = mynodes[iz * (nsections_x + 1) + ix + 2] if ix < nsections_x - 1 else None
+            boundary_1 = mynodes[(iz) * (nsections_x + 1) + ix]
+            boundary_2 = mynodes[(iz) * (nsections_x + 1) + ix + 2] if ix < nsections_x - 1 else None
             boundary_3 = mynodes[(iz + 2) * (nsections_x + 1) + ix] if iz < nsections_z - 1 else None
 
             # Set nodes to the element
             melementB.SetNodes(
                 mynodes[(iz + 1) * (nsections_x + 1) + ix + 1],
                 mynodes[(iz + 1) * (nsections_x + 1) + ix],
-                mynodes[iz * (nsections_x + 1) + ix + 1],
-                boundary_1, boundary_2, boundary_3
+                mynodes[(iz) * (nsections_x + 1) + ix + 1],
+                boundary_1,
+                boundary_2,
+                boundary_3,
             )
 
             # Add layer to the element
@@ -137,8 +133,8 @@ if True:  # Block to execute the following setup
     mvisualizeshellA = chrono.ChVisualShapeFEA(mesh)
     mvisualizeshellA.SetSmoothFaces(True)  # Enable smooth faces
     mvisualizeshellA.SetWireframe(True)  # Enable wireframe mode
-    mvisualizeshellA.SetBackfaceCull(True)  # Enable backface culling
     mvisualizeshellA.SetShellResolution(2)  # Set resolution for shell visualization
+    mvisualizeshellA.SetBackfaceCull(True)  # Enable backface culling
     mesh.AddVisualShapeFEA(mvisualizeshellA)  # Add visual shape to mesh
 
     # Create visualization of FEM data
@@ -148,37 +144,36 @@ if True:  # Block to execute the following setup
     mvisualizeshellB.SetSymbolsThickness(0.006)  # Set thickness of symbols
     mesh.AddVisualShapeFEA(mvisualizeshellB)  # Add visual shape to mesh
 
-# Create Irrlicht visualization system
-vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(sys)  # Attach the physical system to the visualization
-vis.SetWindowSize(1024, 768)  # Set window size
-vis.SetWindowTitle('Shells FEA test: triangle BST elements')  # Set window title
-vis.Initialize()  # Initialize the visualization window
-vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))  # Add logo to the window
-vis.AddSkyBox()  # Add a skybox for background
-vis.AddCamera(chrono.ChVector3d(1, .3, 1.3), chrono.ChVector3d(.5, -.3, .5))  # Add and position the camera
-vis.AddTypicalLights()  # Add typical lights to the scene
+    # Create Irrlicht visualization system
+    vis = chronoirr.ChVisualSystemIrrlicht()
+    vis.AttachSystem(sys)  # Attach the physical system to the visualization
+    vis.SetWindowSize(1024, 768)  # Set window size
+    vis.SetWindowTitle("Shells FEA test: triangle BST elements")  # Set window title
+    vis.Initialize()  # Initialize the visualization window
+    vis.AddLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))  # Add logo to the window
+    vis.AddSkyBox()  # Add a skybox for background
+    vis.AddCamera(chrono.ChVector3d(1, 0.3, 1.3), chrono.ChVector3d(0.5, -0.3, 0.5))  # Add and position the camera
+    vis.AddTypicalLights()  # Add typical lights to the scene
 
-# Change solver to PardisoMKL
-mkl_solver = mkl.ChSolverPardisoMKL()  # Instantiate PardisoMKL solver
-mkl_solver.LockSparsityPattern(True)  # Locks sparsity pattern of the matrix for optimization
-sys.SetSolver(mkl_solver)  # Set the solver in the system
+    # Change solver to PardisoMKL
+    mkl_solver = mkl.ChSolverPardisoMKL()  # Instantiate PardisoMKL solver
+    mkl_solver.LockSparsityPattern(True)  # Locks sparsity pattern of the matrix for optimization
+    sys.SetSolver(mkl_solver)  # Set the solver in the system
 
-# Define time step for simulation
-timestep = 0.005
+    # Define time step for simulation
+    timestep = 0.005
 
-# Final setup and system updates
-sys.Setup()  # Prepare the system for simulation
-sys.Update()  # Update the system's internal states
+    # Final setup and system updates
+    sys.Setup()  # Prepare the system for simulation
+    sys.Update()  # Update the system's internal states
 
-# Initialize interpolation function records (if required)
-rec_X = chrono.ChFunctionInterp()
-rec_Y = chrono.ChFunctionInterp()
+    # Initialize interpolation function records (if required)
+    rec_X = chrono.ChFunctionInterp()
+    rec_Y = chrono.ChFunctionInterp()
 
-# Simulation loop for running the visualization and dynamical system
-while vis.Run():
-    vis.BeginScene()  # Begin the visualization scene
-    vis.Render()  # Render the scene
-    vis.EndScene()  # End the visualization scene
-
-    sys.DoStepDynamics(timestep)  # Perform a simulation step with the defined timestep
+    # Simulation loop for running the visualization and dynamical system
+    while vis.Run():
+        vis.BeginScene()  # Begin the visualization scene
+        vis.Render()  # Render the scene
+        vis.EndScene()  # End the visualization scene
+        sys.DoStepDynamics(timestep)  # Perform a simulation step with the defined timestep

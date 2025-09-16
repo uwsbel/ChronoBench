@@ -1,103 +1,85 @@
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
-import math
 
-# Initialize the PyChrono environment
-chrono.SetChronoDataPath("/path/to/chrono/data/")
+# 1. Initialize the PyChrono environment and core components.
+chrono.SetChronoDataPath("/path/to/chrono/data/")  # Optional, if you have custom data path
 
-# Create a Chrono system
+# 2. Create the physical system
 sys = chrono.ChSystemNSC()
 
-# Create a fixed truss
-truss = chrono.ChBody()
-truss.SetBodyFixed(True)
-sys.Add(truss)
+# 3. Create the fixed truss (ground body)
+ground = chrono.ChBody()
+ground.SetBodyFixed(True)
+sys.Add(ground)
 
-# Create a rotating bar
+# 4. Create the rotating bar
 bar = chrono.ChBody()
 bar.SetMass(1)
-bar.SetInertiaXX(chrono.ChVectorD(1, 1, 0.1))
+bar.SetInertiaXX(chrono.ChVectorD(0.1, 0.1, 0.1))
 bar.SetPos(chrono.ChVectorD(0, 0, 0))
+bar.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
 sys.Add(bar)
 
-# Create the first gear (sun gear)
+# 5. Create the first gear ( Gear 1)
 gear1 = chrono.ChBody()
 gear1.SetMass(1)
 gear1.SetInertiaXX(chrono.ChVectorD(0.1, 0.1, 0.1))
-gear1.SetPos(chrono.ChVectorD(0, 0, 0))
+gear1.SetPos(chrono.ChVectorD(-2, 0, 0))
 sys.Add(gear1)
 
-# Create the second gear (planet gear)
+# 6. Create the second gear ( Gear 2)
 gear2 = chrono.ChBody()
 gear2.SetMass(1)
 gear2.SetInertiaXX(chrono.ChVectorD(0.1, 0.1, 0.1))
 gear2.SetPos(chrono.ChVectorD(2, 0, 0))
 sys.Add(gear2)
 
-# Create a revolute joint between the truss and the bar
-rev_joint1 = chrono.ChLinkRevolute()
-rev_joint1.Initialize(truss, bar, chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.Q_ROTATE_Z_TO_Y))
-sys.Add(rev_joint1)
+# 7. Create a revolute joint between the bar and the ground
+revolute1 = chrono.ChLinkRevolute()
+revolute1.Initialize(bar, ground, chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.ChQuaternionD(1, 0, 0, 0)))
+sys.Add(revolute1)
 
-# Create a revolute joint between the bar and the planet gear
-rev_joint2 = chrono.ChLinkRevolute()
-rev_joint2.Initialize(bar, gear2, chrono.ChCoordsysD(chrono.ChVectorD(2, 0, 0), chrono.Q_ROTATE_Z_TO_Y))
-sys.Add(rev_joint2)
+# 8. Create a revolute joint between the first gear and the ground
+revolute2 = chrono.ChLinkRevolute()
+revolute2.Initialize(gear1, ground, chrono.ChCoordsysD(chrono.ChVectorD(-2, 0, 0), chrono.ChQuaternionD(1, 0, 0, 0)))
+sys.Add(revolute2)
 
-# Create a revolute joint between the truss and the sun gear
-rev_joint3 = chrono.ChLinkRevolute()
-rev_joint3.Initialize(truss, gear1, chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.Q_ROTATE_Z_TO_Y))
-sys.Add(rev_joint3)
+# 9. Create a revolute joint between the second gear and the bar
+revolute3 = chrono.ChLinkRevolute()
+revolute3.Initialize(gear2, bar, chrono.ChCoordsysD(chrono.ChVectorD(2, 0, 0), chrono.ChQuaternionD(1, 0, 0, 0)))
+sys.Add(revolute3)
 
-# Create a gear motor between the sun gear and the planet gear
+# 10. Create a gear motor between gear1 and gear2
 gear_motor = chrono.ChLinkGear()
-gear_motor.Initialize(gear1, gear2, False, chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.Q_ROTATE_Z_TO_Y), chrono.ChCoordsysD(chrono.ChVectorD(2, 0, 0), chrono.Q_ROTATE_Z_TO_Y))
-gear_motor.Set_checkphase(False)
-gear_motor.Set_enforce_ratio(True)
-gear_motor.Set_ratio(-2) # Ratio between the two gears
+gear_motor.Initialize(gear1, gear2, False, chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.ChQuaternionD(1, 0, 0, 0)), chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.ChQuaternionD(1, 0, 0, 0)))
+gear_motor.SetRatio(-0.5)  # The ratio is negative because the gears are external
 sys.Add(gear_motor)
 
-# Create a motor to enforce a constant rotation speed on the bar
+# 11. Create a motor to rotate the bar
 motor = chrono.ChLinkMotorRotationSpeed()
-motor.Initialize(bar, truss, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.Q_ROTATE_Z_TO_Y))
-motor.SetSpeedFunction(chrono.ChFunction_Const(1)) # Rotation speed in rad/s
+motor.Initialize(bar, ground, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)))
+motor.SetSpeedFunction(chrono.ChFunction_Const(chrono.CH_C_PI))  # Rotate at 180 degrees per second
 sys.Add(motor)
 
-# Create the Irrlicht visualization system
+# 12. Visualization
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(sys)
-vis.SetWindowSize(1024, 768)
-vis.SetWindowTitle('Epicyclic Gear Simulation')
+vis.SetWindowSize(1024,768)
+vis.SetWindowTitle('Epicyclic Gear Demo')
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataPath() + 'logo_pychrono_alpha.png')
 vis.AddSkyBox()
-vis.AddCamera(chrono.ChVectorD(4, 4, 4))
+vis.AddCamera(chrono.ChVectorD(0, 4, -6))
 vis.AddTypicalLights()
 
-# Set materials and lighting for the visualization
-gear1_mat = chrono.ChVisualMaterial()
-gear1_mat.SetKdTexture(chrono.GetChronoDataPath() + 'aluminum.jpg')
-gear1.AddVisualShape(chrono.ChSphereShape(0.5), chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)))
-gear1.GetVisualShape(0).SetMaterial(0, gear1_mat)
-
-gear2_mat = chrono.ChVisualMaterial()
-gear2_mat.SetKdTexture(chrono.GetChronoDataPath() + 'aluminum.jpg')
-gear2.AddVisualShape(chrono.ChSphereShape(0.25), chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)))
-gear2.GetVisualShape(0).SetMaterial(0, gear2_mat)
-
-bar_mat = chrono.ChVisualMaterial()
-bar_mat.SetKdTexture(chrono.GetChronoDataPath() + 'steel.jpg')
-bar.AddVisualShape(chrono.ChBoxShape(chrono.ChVectorD(2, 0.1, 0.1)), chrono.ChFrameD(chrono.ChVectorD(1, 0, 0)))
-bar.GetVisualShape(0).SetMaterial(0, bar_mat)
-
-truss_mat = chrono.ChVisualMaterial()
-truss_mat.SetKdTexture(chrono.GetChronoDataPath() + 'concrete.jpg')
-truss.AddVisualShape(chrono.ChBoxShape(chrono.ChVectorD(0.1, 0.1, 0.1)), chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)))
-truss.GetVisualShape(0).SetMaterial(0, truss_mat)
-
-# Simulation loop
+# 13. Simulation loop
 while vis.Run():
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
     sys.DoStepDynamics(0.01)
+
+# No code changes needed; the above Python code is the final simulation script.
+
+# To run this script, ensure you have PyChrono and its dependencies installed.
+# You can modify "/path/to/chrono/data/" to your actual Chrono data path if necessary.

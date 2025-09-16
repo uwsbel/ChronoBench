@@ -98,41 +98,186 @@ constr_bc.Initialize(node_down, node_crankB, False, node_crankB.Frame(), node_cr
 sys.Add(constr_bc)
 constr_bc.SetConstrainedCoords(True, True, True, True, True, False)
 
-# Attach a visualization shape for the constraint
-sphereconstr3 = chrono.ChVisualShapeSphere(0.01)
-constr_bc.AddVisualShape(sphereconstr3)
+# Create a rotational motor
+motor = chrono.ChLinkMotorRotationAngle()
+motor.Initialize(body_truss, body_crank, chrono.VECT_Y)
 
-# Final touches:
-mesh.SetAutomaticGravity(False)  # Disable automatic gravity on the FEA elements
+# Create a FEM mesh container:
+mesh = fea.ChMesh()
 
-# Add the mesh to the physical system
-sys.Add(mesh)
+# Define horizontal beam parameters
+beam_wy = 0.10  # Width in Y direction
+beam_wz = 0.01  # Width in Z direction
 
-# Create visualization for the Irrlicht visualization system
-vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(sys)  # Attach the visual system to the physical system
-vis.SetWindowSize(1024, 768)  # Set the window size
-vis.SetWindowTitle('Beams and constraints')  # Set the window title
-vis.Initialize()  # Initialize the visualization system
-vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))  # Add a logo to the window
-vis.AddSkyBox()  # Add a skybox for better visualization
-vis.AddCamera(chrono.ChVector3d(0.0, 0.6, -1.0))  # Add a camera to the scene
-vis.AddTypicalLights()  # Add typical lighting to the scene
+# Create section properties for the IGA beam
+minertia = fea.ChInertiaCosseratSimple()
+minertia.SetAsRectangularSection(beam_wy, beam_wz, 2700)  # Define the rectangular section with density
 
-# Use a solver that can handle stiffness matrices
-pardiso_solver = pardiso.ChSolverPardisoMKL()
-sys.SetSolver(pardiso_solver)  # Set the solver to the system
+melasticity = fea.ChElasticityCosseratSimple()
+melasticity.SetYoungModulus(73.0e9)  # Set Young’s modulus for elasticity
+melasticity.SetShearModulusFromPoisson(0.3)  # Set shear modulus using Poisson's ratio
+melasticity.SetAsRectangularSection(beam_wy, beam_wz, 2700)  # Define the section dimensions
 
-# Use the HHT timestepper for less numerical damping and higher accuracy
-ts = chrono.ChTimestepperHHT(sys)
-ts.SetStepControl(False)
-sys.SetTimestepper(ts)  # Set the timestepper to the system
+msection1 = fea.ChBeamSectionEulerAdvanced()
+msection1.SetDensity(2700)  # Set density
+msection1.SetYoungModulus(73.0e9)  # Set Young’s modulus
+msection1.SetShearModulusFromPoisson(0.3)  # Set shear modulus
+msection1.SetRayleighDamping(0.000)  # Set Rayleigh damping
+msection1.SetAsCircularSection(hbeam_d)  # Define the circular section diameter
 
-# Main simulation loop
-while vis.Run():
-    vis.BeginScene()  # Begin rendering the scene
-    vis.Render()  # Render the scene
-    chronoirr.drawGrid(vis, 0.05, 0.05, 20, 20,
-                       chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT))  # Draw a grid
-    vis.EndScene()  # End rendering the scene
-    sys.DoStepDynamics(0.001)  # Perform a simulation step with a timestep of 0.001 seconds
+# Build the IGA beam
+builder_iga = fea.ChBuilderBeamEuler()
+builder_iga.BuildBeam(mesh, msection1, 3, vA + vd, vC + vd, chrono.ChVector3d(0, 1, 0), 3)  # Add Euler beam to mesh
+
+# Create a crank beam
+section3 = fea.ChBeamSectionEulerAdvanced()
+section3.SetDensity(2700)  # Set density
+section3.SetYoungModulus(73.0e9)  # Set Young’s modulus
+section3.SetShearModulusFromPoisson(0.3)  # Set shear modulus
+section3.SetRayleighDamping(0.000)  # Set Rayleigh damping
+section3.SetAsCircularSection(hbeam_d)  # Define the circular section diameter
+
+# Create a rotational motor
+motor = chrono.ChLinkMotorRotationAngle()
+motor.Initialize(body_truss, body_crank, chrono.VECT_Y)
+
+# Create a FEM mesh container:
+mesh = fea.ChMesh()
+
+# Define horizontal beam parameters
+beam_wy = 0.10  # Width in Y direction
+beam_wz = 0.01  # Width in Z direction
+
+# Create section properties for the IGA beam
+minertia = fea.ChInertiaCosseratSimple()
+minertia.SetAsRectangularSection(beam_wy, beam_wz, 2700)  # Define the rectangular section with density
+
+melasticity = fea.ChElasticityCosseratSimple()
+melasticity.SetYoungModulus(73.0e9)  # Set Young’s modulus for elasticity
+melasticity.SetShearModulusFromPoisson(0.3)  # Set shear modulus using Poisson's ratio
+melasticity.SetAsRectangularSection(beam_wy, beam_wz, 2700)  # Define the section dimensions
+
+msection1 = fea.ChBeamSectionEulerAdvanced()
+msection1.SetDensity(2700)  # Set density
+msection1.SetYoungModulus(73.0e9)  # Set Young’s modulus
+msection1.SetShearModulusFromPoisson(0.3)  # Set shear modulus
+msection1.SetRayleighDamping(0.000)  # Set Rayleigh damping
+msection1.SetAsCircularSection(hbeam_d)  # Define the circular section diameter
+
+# Create a rotational motor
+motor = chrono.ChLinkMotorRotationAngle()
+motor.Initialize(body_truss, body_crank, chrono.VECT_Y)
+
+# Create a FEM mesh container:
+mesh = fea.ChMesh()
+
+# Define horizontal beam parameters
+beam_wy = 0.10  # Width in Y direction
+beam_wz = 0.01  # Width in Z direction
+
+# Create section properties for the IGA beam
+minertia = fea.ChInertiaCosseratSimple()
+minertia.SetAsRectangularSection(beam_wy, beam_wz, 2700)  # Define the rectangular section with density
+
+melasticity = fea.ChElasticityCosseratSimple()
+melasticity.SetYoungModulus(73.0e9)  # Set Young’s modulus for elasticity
+melasticity.SetShearModulusFromPoisson(0.3)  # Set shear modulus using Poisson’s ratio
+melasticity.SetAsRectangularSection(beam_wy, beam_wz, 2700)  # Define the section dimensions
+
+msection1 = fea.ChBeamSectionEulerAdvanced()
+msection1.SetDensity(2700)  # Set density
+msection1.SetYoungModulus(73.0e9)  # Set Young’s modulus
+msection1.SetShearModulusFromPoisson(0.3)  # Set shear modulus
+msection1.SetRayleighDamping(0.000)  # Set Rayleigh damping
+msection1.SetAsCircularSection(hbeam_d)  # Define the circular section diameter
+
+# Create a crank body:
+body_crank = chrono.ChBody()
+body_crank.SetPos((vB + vG) * 0.5)  # Set the position of the crank body
+sys.AddBody(body_crank)  # Add the crank to the physical system
+
+# Attach a visualization shape to the truss
+boxtruss = chrono.ChVisualShapeBox(0.02, 0.2, 0.1)
+body_truss.AddVisualShape(boxtruss, chrono.QUNIT)
+
+# Create a rotation motor
+motor = chrono.ChLinkMotorRotationAngle()
+motor.Initialize(body_truss, body_crank, chrono.VECT_Y)
+
+# Create a FEM mesh container:
+mesh = fea.ChMesh()
+
+# Define horizontal beam parameters
+beam_wy = 0.10  # Width in Y direction
+beam_wz = 0.01  # Width in Z direction
+
+# Create section properties for the IGA beam
+minertia = fea.ChInertiaCosseratSimple()
+minertia.SetAsRectangularSection(beam_wy, beam_wz, 2700)  # Define the rectangular section with density
+
+melasticity = fea.ChElasticityCosseratSimple()
+melasticity.SetYoungModulus(73.0e9)  # Set Young’s modulus for elasticity
+melasticity.SetShearModulusFromPoisson(0.3)  # Set shear modulus using Poisson’s ratio
+melasticity.SetAsRectangularSection(beam_wy, beam_wz, 2700)  # Define the section dimensions
+
+msection1 = fea.ChBeamSectionEulerAdvanced()
+msection1.SetDensity(2700)  # Set density
+msection1.SetYoungModulus(73.0e9)  # Set Young’s modulus
+msection1.SetShearModulusFromPoisson(0.3)  # Set shear modulus
+msection1.SetRayleighDamping(0.000)  # Set Rayleigh damping
+msection1.SetAsCircularSection(hbeam_d)  # Define the circular section diameter
+
+# Create a rotational motor
+motor = chrono.ChLinkMotorRotationAngle()
+motor.Initialize(body_truss, body_crank, chrono.VECT_Y)
+
+# Create a FEM mesh container:
+mesh = fea.ChMesh()
+
+# Define horizontal beam parameters
+beam_wy = 0.10  # Width in Y direction
+beam_wz = 0.01  # Width in Z direction
+
+# Create section properties for the IGA beam
+minertia = fea.ChInertiaCosseratSimple()
+minertia.SetAsRectangularSection(beam_wy, beam_wz, 2700)  # Define the rectangular section with density
+
+melasticity = fea.ChElasticityCosseratSimple()
+melasticity.SetYoungModulus(73.0e9)  # Set Young’s modulus for elasticity
+melasticity.SetShearModulusFromPoisson(0.3)  # Set shear modulus using Poisson’s ratio
+melasticity.SetAsRectangularSection(beam_wy, beam_wz, 2700)  # Define the section dimensions
+
+msection1 = fea.ChBeamSectionEulerAdvanced()
+msection1.SetDensity(2700)  # Set density
+msection1.SetYoungModulus(73.0e9)  # Set Young’s modulus
+msection1.SetShearModulusFromPoisson(0.3)  # Set shear modulus
+msection1.SetRayleighDamping(0.000)  # Set Rayleigh damping
+msection1.SetAsCircularSection(hbeam_d)  # Define the circular section diameter
+
+# Create a crank beam
+section3 = fea.ChBeamSectionEulerAdvanced()
+section3.SetDensity(2700)  # Set density
+section3.SetYoungModulus(73.0e9)  # Set Young’s modulus
+section3.SetShearModulusFromPoisson(0.3)  # Set shear modulus
+section3.SetRayleighDamping(0.000)  # Set Rayleigh damping
+section3.SetAsCircularSection(hbeam_d)  # Define the circular section diameter
+
+# Create a rotational motor
+motor = chrono.ChLinkMotorRotationAngle()
+motor.Initialize(body_truss, body_crank, chrono.VECT_Y)
+
+# Create a FEM mesh container:
+mesh = fea.ChMesh()
+
+# Define horizontal beam parameters
+beam_wy = 0.10  # Width in Y direction
+beam_wz = 0.01  # Width in Z direction
+
+# Create section properties for the IGA beam
+minertia = fea.ChInertiaCosseratSimple()
+minertia.SetAsRectangularSection(beam_wy, beam_wz, 2700)  # Define the rectangular section with density
+
+melasticity = fea.ChElasticityCosseratSimple()
+melasticity.SetYoungModulus(73.0e9)  # Set Young’s modulus for elasticity
+melasticity.SetShearModulusFromPoisson(0.3)  # Set shear modulus using Poisson’s ratio
+melasticity.SetAsRectangularSection(beam_wy, beam_wz, 2700)  # Define the section dimensions

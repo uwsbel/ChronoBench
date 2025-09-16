@@ -1,63 +1,75 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
 import pychrono.vehicle as veh
-import numpy as np
 
 # Initialize the PyChrono environment and core components
-sys = chrono.ChSystemNSC()
-
-# Create the vehicle
-veh_feda = veh.FEDA()
-veh_feda.Initialize(sys, 
-                    chrono.ChVectorD(0, 0, 1.2),  # location
-                    chrono.ChQuaternionD(1, 0, 0, 0),  # orientation
-                    0.5,  # contact method
-                    veh.TireModelType.TME_SIMPLE)
-
-# Add the vehicle to the system
-sys.Add(veh_feda.GetChassisBody())
-sys.Add(veh_feda.GetWheel(0))
-sys.Add(veh_feda.GetWheel(1))
-sys.Add(veh_feda.GetWheel(2))
-sys.Add(veh_feda.GetWheel(3))
-
-# Create the terrain
-terrain = veh.RigidTerrain(sys)
-terrain.SetTexture(chrono.GetChronoDataFile("asphalt.jpg"))
+sys = chrono.ChSystem()
 
 # Create the Irrlicht visualization
 vis = chronoirr.ChVisualSystemIrrlicht()
-vis.SetWindowSize(1024, 768)
 vis.AddSkyBox()
 vis.AddTypicalLights()
 
-# Create the camera
-cam = vis.AddCamera(chrono.ChVectorD(0, 0, 1.5))
-cam.SetFollowNode(veh_feda.GetChassisBody())
-cam.SetLookAt(chrono.ChVectorD(0, 0, 0))
+# Create the vehicle
+vehicle = veh.ChVehicleFEDA()
+vehicle.SetContactMethod(chrono.ChContactMethod_NSC)
+vehicle.SetTireModel(veh.ChTireModel_PAC2002)
+vehicle.SetChassisFixed(False)
+vehicle.SetSuspensionEnabled(True)
+vehicle.SetSteeringEnabled(True)
+vehicle.SetBrakingEnabled(True)
 
-# Set the visualization type for all vehicle parts
-for part in veh_feda.GetParts():
-    vis.AssetCreateMeshVisualization(part, 
-                                    chrono.ChVisualMaterial(chrono.ChVectorD(0.8, 0.8, 0.8)), 
-                                    0.1)
+# Initialize the vehicle with specific parameters
+vehicle.Initialize(chrono.ChCoordsysD(0, 0, 0, chrono.Q_from_AngX(chrono.CH_C_PI_2)))
 
-# Create the interactive driver system
-driver = veh.InteractiveDriver(veh_feda)
+# Add the vehicle to the system
+sys.Add(vehicle)
 
-# Simulation loop
-time_step = 0.02
+# Create the rigid terrain
+terrain = chrono.ChBodyEasyBox(sys, 10, 1, 10, 1000, True, chrono.ChMaterialSurfaceNSC())
+terrain.SetPos(chrono.ChVectorD(0, -1, 0))
+terrain.SetMaterial(chrono.ChMaterialSurfaceNSC())
+terrain.AddAsset(chrono.ChBoxShape(chrono.ChVectorD(10, 1, 10)))
+terrain.AddAsset(chrono.ChTexture(chrono.GetChronoDataPath() + "terrain.png"))
+
+# Add the terrain to the system
+sys.Add(terrain)
+
+# Set the camera to follow the vehicle
+camera = vis.AddCamera(chrono.ChVectorD(0, 5, -10))
+camera.SetFollowVehicle(vehicle)
+
+# Set the simulation loop parameters
+step_size = 0.02
+vis.SetWindowSize(800, 600)
+vis.SetCamera(camera)
+vis.SetLogo("")
+
+# Run the simulation loop
 while vis.Run():
     # Update the vehicle dynamics
-    sys.DoStepDynamics(time_step)
-    
-    # Update the visualization
+    vehicle.Steering(0.1)
+    vehicle.Throttle(0.5)
+    vehicle.Braking(0)
+    sys.DoStepDynamics(step_size)
+
+    # Render the scene
     vis.BeginScene()
     vis.DrawAll()
     vis.EndScene()
-    
-    # Update the driver system
-    driver.Update(time_step)
-    
+
+    # Update the visualization
+    vis.DrawAll()
+
     # Limit the simulation speed to 50 frames per second
-    chrono.ChSleep(1/50)
+    vis.SetSimulationSpeed(50)
+
+    # Check for user input
+    if vis.IsKeyPressed(chrono.irr.KEY_KEY_Z):
+        vehicle.Steering(-0.1)
+    if vis.IsKeyPressed(chrono.irr.KEY_KEY_X):
+        vehicle.Steering(0.1)
+    if vis.IsKeyPressed(chrono.irr.KEY_KEY_UP):
+        vehicle.Throttle(0.5)
+    if vis.IsKeyPressed(chrono.irr.KEY_KEY_DOWN):
+        vehicle.Braking(0.5)

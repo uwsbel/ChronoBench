@@ -35,6 +35,13 @@ mpiston.SetPos(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0))  
 mpiston.SetRot(chrono.Q_ROTATE_Y_TO_X)  # Rotate the piston to align it along the X-axis
 sys.Add(mpiston)  # Add the piston to the simulation system
 
+# Create a motor to spin the crankshaft
+my_motor = chrono.ChLinkMotorRotationSpeed()  # Create a motor that controls rotational speed
+my_motor.Initialize(mcrank, mfloor, chrono.ChFramed(crank_center))  # Initialize the motor at the crank center, connecting the crank and the floor
+my_angularspeed = chrono.ChFunctionConst(chrono.CH_PI)  # Set the angular speed of the motor to π rad/s (180°/s)
+my_motor.SetMotorFunction(my_angularspeed)  # Assign the angular speed function to the motor
+sys.Add(my_motor)  # Add the motor to the simulation system
+
 # Create a revolute joint to connect the crank to the rod
 mjointA = chrono.ChLinkLockRevolute()  # Create a revolute (hinge) joint
 mjointA.Initialize(mrod, mcrank, chrono.ChFramed(crank_center + chrono.ChVector3d(crank_rad, 0, 0)))  # Initialize the joint at (x=-0.6, y=0.5, z=0)
@@ -60,11 +67,3 @@ vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))  # Add a logo t
 vis.AddSkyBox()  # Add a skybox for better visual appearance
 vis.AddCamera(chrono.ChVector3d(1, 1, 3), chrono.ChVector3d(0, 1, 0))  # Add a camera to the visualization, positioned at (x=1, y=1, z=3) and looking at (x=0, y=1, z=0)
 vis.AddTypicalLights()  # Add typical lights for better visualization
-
-# Run the interactive simulation loop
-while vis.Run():
-    # Visualization and time step integration
-    vis.BeginScene()  # Begin the visualization scene
-    vis.Render()  # Render the scene
-    vis.EndScene()  # End the visualization scene
-    sys.DoStepDynamics(1e-3)  # Advance the simulation by a time step of 0.001 seconds (1 ms)

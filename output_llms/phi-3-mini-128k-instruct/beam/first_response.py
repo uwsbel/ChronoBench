@@ -1,104 +1,56 @@
-import pychrono as chrono
+# Import necessary PyChrono modules
 
-import pychrono.visualization as visual
+from pychoro import *
 
-import pychrono.core as core
-
-import pychrono.fea as fea
-
-import pychrono.analytical_solvers as analytical
-
-import pychrono.compiler as compiler
-
-import pychrono.compiler.gmsh as gmsh
-
-import pychrono.compiler.irrlicht as irrlicht
+import irrlicht as irr
 
 
-# Initialize the PyChrono environment
+# Initialize PyChrono environment
 
-core.Initialize()
-
-
-# Create a physical system
-
-my_system = core.System_Create()
+init(6)
 
 
-# Create a mesh composed of beams and nodes
+# Create a mesh with beam finite elements
 
-# Define beam properties
+mesh = Mesh()
 
-beam_props = fea.Beam_Create()
-
-beam_props.SetElasticModulus(210e9)  # Elastic modulus in Pascals
-
-beam_props.SetPoissonsRatio(0.3)     # Poisson's ratio
-
-beam_props.SetDensity(7800)          # Density in kg/m^3
-
-beam_props.SetLength(2.0)            # Length in meters
-
-beam_props.SetMassPerLength(100)     # Mass per length in kg/m
+mesh.addBeam(2, 10, 1000, 100, 1000, 0, 0, 0, 0, 0)
 
 
-# Define node properties
+# Create a physical system and add the mesh
 
-node_props = fea.Node_Create()
+system = System()
 
-node_props.SetPosition(chrono.ChVectorD(0, 0, 0))  # Position in meters
-
-node_props.SetMass(10)                           # Mass in kg
+system.addMesh(mesh)
 
 
-# Create beams and nodes
+# Set default parameters (example values)
 
-beam1 = fea.Beam_Create()
-
-beam1.SetProperties(beam_props)
-
-node1 = fea.Node_Create()
-
-node1.SetProperties(node_props)
-
-beam1.SetNodes(node1)
+system.setGravity([0, -9.81, 0])
 
 
-# Add the beam to the system
+# Setup visualization with Irrlicht
 
-my_system.Add(beam1)
+scene = Scene()
 
+camera = scene.addCamera("Main Camera", 5.0, 5.0, 5.0, 0.0, 0.0, 0.0, 0.0, 1.0)
 
-# Set default parameters such as forces and interactions
-
-# For demonstration, let's apply a force at the end of the beam
-
-force = chrono.ChVectorD(0, 0, -1000)  # Force in Newtons
-
-beam1.AddForce(force)
+renderer = scene.addRenderer("Main Renderer")
 
 
-# Set up visualization
+# Main simulation loop
 
-vis = visual.Visualization_Create()
+while not system.isStopped():
 
-vis.SetGlOptions("-w 1280 -h 720 -t 2")
+    system.advance()
 
+    scene.drawAll()
 
-# Compile the system for real-time rendering
-
-compiler.Compile(my_system, "beam_simulation", "irrlicht")
-
-
-# Run the simulation loop
-
-while core.GetCondition() == core.Conditions.ITERATIVE:
-
-    core.DoStep(1e-3, 1e-3)
-
-    vis.Draw()
+    system.waitEvent()
 
 
-# Clean up
+# Cleanup
 
-core.End()
+scene.removeAll()
+
+system.removeAll()

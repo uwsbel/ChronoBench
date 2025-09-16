@@ -4,152 +4,172 @@
 
 ### 1. Completeness (40 points)
 
-- **System initialization:** Present and correct (`sys = chrono.ChSystemNSC()`).
-- **Body creation:** Ground and two pendulum bodies created. However:
-  - The ground body is created as `chrono.ChBody()` but not explicitly positioned or given a collision shape. While it is fixed and collision disabled, this is acceptable for a static ground.
-  - The pendulum bodies are created using `ChBodyAuxRef(chrono.ChVector3d(1, 0, 1), chrono.ChBody())`. This is incorrect usage. According to the API, `ChBodyAuxRef` constructor can be called without arguments or with a `ChFrame` (or `ChCoordsys`), but passing `chrono.ChBody()` as second argument is invalid. This is a **significant omission**.
-- **Setting body properties:** Mass and inertia are set for pendulums, fixed and collision flags set.
-- **Visual shapes:** Added to ground and pendulums, with colors and orientations.
-- **Joints:** Two revolute joints created and initialized between bodies.
-- **Visualization:** Irrlicht visualization system is properly set up with window size, title, logo, skybox, camera, and lights.
-- **Simulation loop:** Present, with rendering and stepping.
+- **System Initialization:** Present and correctly done with `chrono.ChSystemNSC()`. No deduction.
+- **Body Creation:** Ground and two pendulum bodies created. However:
+  - The ground body is created with `chrono.ChBody()` but not explicitly set with a collision model or material. While collision is disabled, this is acceptable for a fixed ground.
+  - Pendulum bodies are created and added correctly.
+- **Visualization:** Visualization system is set up with Irrlicht, window size, title, camera, lighting, skybox, and logo. All present.
+- **Joints:** Two revolute joints created and initialized.
+- **Simulation Loop:** Present with visualization rendering and system stepping.
+- **Logging:** Present, printing positions and velocities after 1 second.
+
+**Issues:**
+
+- **Syntax error / missing parenthesis:**  
+  ```python
+  pend_2.SetPos(chrono.ChVector3d(pend_1.Pos() + chrono.ChVector3d(0, 0, 2))
+  ```  
+  This line is missing a closing parenthesis. This is a critical error that would prevent the script from running.
+
+- **Incorrect use of `AddVisualShape`:**  
+  The method `AddVisualShape` is called with `chrono.ChFramed(...)`. According to the API, the second argument should be a `chrono.ChCoordsysD` (or `chrono.ChCoordsys` in Python), not `ChFramed`. `ChFramed` is a C++ class and not part of the Python API. The correct usage is to use `chrono.ChCoordsysD(position, rotation)` or `chrono.ChCoordsys(position, rotation)`.
+
+  For example:  
+  ```python
+  ground.AddVisualShape(cyl_1, chrono.ChCoordsysD(chrono.ChVector3d(0, 0, 1)))
+  ```  
+  instead of  
+  ```python
+  ground.AddVisualShape(cyl_1, chrono.ChFramed(chrono.ChVector3d(0, 0, +1)))
+  ```
+
+  This occurs multiple times:
+  - For ground visual shape
+  - For pend_1 visual shape
+  - For pend_2 visual shape
+
+  This is a significant correctness issue.
+
+- **Joint initialization frames:**  
+  The revolute joints are initialized with `chrono.ChFramed(...)` instead of `chrono.ChCoordsysD(...)`. The API specifies `Initialize(body1, body2, chrono.ChCoordsysD(position, rotation))`. Using `ChFramed` is incorrect and will cause errors.
+
+- **Use of `sys.AddBody(pend_1)` and `sys.AddBody(pend_2)`:**  
+  The API uses `sys.Add(body)` to add bodies, not `AddBody`. This is a correctness issue.
+
+- **Inertia tensor values:**  
+  The inertia tensor is set as `chrono.ChVector3d(0.2, 1, 1)`. While not necessarily wrong, the values seem arbitrary and could be better justified or set to more physically meaningful values. This is a minor issue.
+
+- **Missing collision model setup:**  
+  Although collision is disabled for all bodies, no collision models or materials are set. This is acceptable if collisions are not needed, so no deduction here.
 
 **Deductions:**
 
-- Missing or incorrect body creation details for pendulums (incorrect constructor usage): **-15 points**
-- Minor omission: ground body has no collision shape or position set (though fixed and collision disabled), but this is minor: **-5 points**
+- Missing closing parenthesis: -15 points (critical error)
+- Incorrect use of `ChFramed` instead of `ChCoordsysD` for visual shapes and joint initialization: -15 points (significant API misuse)
+- Use of `sys.AddBody` instead of `sys.Add`: -10 points (incorrect API usage)
+- Minor inertia tensor questionable values: no deduction (not critical)
 
-**Subtotal Completeness: 40 - 20 = 20**
+**Total Completeness deduction:** 15 + 15 + 10 = 40 points (max deduction)
 
 ---
 
 ### 2. Correctness (30 points)
 
-- **Incorrect API usage:**
+- **Incorrect API usage:**  
+  - `ChFramed` used instead of `ChCoordsysD` (already counted above).
+  - `sys.AddBody` instead of `sys.Add`.
+- **Logical errors:**  
+  - The joint frames are not correctly specified; the revolute joint axis is likely intended to be around Z or Y, but the quaternion used is identity `(1,0,0,0)` which corresponds to no rotation. This might be acceptable if the axis is aligned with the global frame, but given the pendulum orientation, this could be wrong.
+  - The second pendulum's position is set relative to `pend_1.Pos() + (0,0,2)`, but since `pend_1` is at `(1,0,1)`, this places `pend_2` at `(1,0,3)`. However, the joint between `pend_1` and `pend_2` is initialized at `pend_1.Pos()`, which is at `(1,0,1)`. This means the joint is at the base of `pend_1`, but `pend_2` is offset by 2 units along Z. This is inconsistent with a double pendulum where the second pendulum should be connected at the end of the first pendulum (which is 2 units long along Y or Z depending on orientation). This is a logical error.
 
-  - `pend_1 = chrono.ChBodyAuxRef(chrono.ChVector3d(1, 0, 1), chrono.ChBody())`  
-    This is invalid. The second argument should not be a `ChBody` instance. The constructor expects either no arguments or a `ChFrame`/`ChCoordsys`. This will cause runtime errors or unexpected behavior.  
-    **-15 points**
+- **Use of `chrono.VNULL`:**  
+  `chrono.VNULL` is used in `AddVisualShape` calls. The API documentation does not mention `VNULL`. The standard zero vector is `chrono.ChVector3d(0,0,0)`. This may cause errors or unexpected behavior.
 
-  - Joint initialization calls:  
-    `rev_1.Initialize(ground, pend_1, chrono.ChFrameD::Identity())`  
-    `rev_2.Initialize(pend_1, pend_2, chrono.ChFrameD::Identity())`  
-    The syntax `chrono.ChFrameD::Identity()` is C++ style, not Python. In Python, it should be `chrono.ChFrameD.Identity()` or `chrono.ChCoordsysD.Identity()`. This will cause syntax errors.  
-    **-15 points**
+- **Use of `chrono.QuatFromAngleY(chrono.CH_PI_2)`:**  
+  This is acceptable to rotate the cylinder by 90 degrees around Y.
 
-- **Logical errors:**
-
-  - The initial positions of pendulums are set via constructor (incorrectly), but no explicit `SetPos()` calls are made. This can lead to bodies being at origin or unexpected positions.  
-    **-10 points**
-
-- **Minor inaccuracies:**
-
-  - The inertia vector `chrono.ChVector3d(0.2, 1, 1)` is asymmetric and may be physically unrealistic for a cylinder, but this is minor and acceptable for demo purposes.  
-  - The ground has collision disabled, so no collision shapes are needed, which is acceptable.
+- **Logging:**  
+  The logging prints only x and y components of position and velocity, ignoring z. Given the pendulum is oriented in 3D space, this is a minor omission but acceptable.
 
 **Deductions:**
 
-- Incorrect constructor usage for pendulums: -15  
-- Incorrect joint initialization syntax: -15  
-- Logical error: no explicit position setting for pendulums: -10
+- Incorrect joint initialization frames and inconsistent joint positions: -15 points (significant logical error)
+- Use of `chrono.VNULL` (not documented): -5 points (minor correctness issue)
+- Logging only x and y components: no deduction (minor omission)
 
-**Subtotal Correctness: 30 - 40 = -10 (minimum 0)** → So 0 points.
+**Total Correctness deduction:** 15 + 5 = 20 points
 
 ---
 
 ### 3. Code Quality (10 points)
 
-- **Readability:**
-
-  - Variable names like `cyl_1` reused for different cylinders (ground and pendulum 1) can cause confusion.  
-  - The code lacks comments explaining key steps (e.g., why certain frames or positions are chosen).  
-  - The code formatting is generally acceptable but could be improved with spacing and comments.
-
-- **Comments:**
-
-  - Only a few comments are present, mostly minimal or absent.
+- **Readability:**  
+  - Variable names like `cyl_1` reused for different cylinders (ground and pend_1) — could cause confusion.
+  - Inconsistent spacing and blank lines.
+  - No comments explaining the purpose of code blocks or variables.
+- **Structure:**  
+  - The code is mostly linear and straightforward.
+- **Comments:**  
+  - No comments at all.
 
 **Deductions:**
 
-- Poor variable naming and reuse: -5  
-- Insufficient comments: -5
+- Lack of comments: -5 points
+- Variable reuse and minor readability issues: -3 points
 
-**Subtotal Code Quality: 0 points**
+**Total Code Quality deduction:** 8 points
 
 ---
 
 ### 4. Efficiency (10 points)
 
-- No obvious redundant calculations or API calls.  
-- The simulation loop steps with a fixed timestep of 1e-3, which is reasonable.  
-- The visualization setup is standard.
+- No obvious redundant calculations or inefficient API usage.
+- The simulation loop is standard.
+- The logging is done only once after 1 second, which is efficient.
 
-- Minor inefficiency: The `log_info` flag disables logging after first print, which is fine but could be better structured.
-
-- The visual shapes are created and added once, which is efficient.
-
-**Deductions:**
-
-- Minor missed optimization: no major issues, so no deduction.
-
-**Subtotal Efficiency: 10 points**
+No deductions.
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- No error handling present (try-except blocks, input validation, etc.).  
-- No checks for visualization system initialization success or system state.  
-- No handling of edge cases or unexpected inputs.
+- No error handling at all (try-except blocks or checks).
+- No handling of edge cases or invalid inputs.
+
+Given that PyChrono scripts often do not include explicit error handling and rely on the user to provide correct inputs, this is a minor issue but still worth noting.
 
 **Deductions:**
 
-- Lack of basic error handling: -5
-
-**Subtotal Error Handling: 0 points**
+- Lack of basic error handling: -3 points
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
-- Visualization system is properly created and attached.  
-- Window size and title set.  
-- Logo, skybox, camera, and typical lights added.  
-- Visualization loop correctly implemented.
+- Visualization system is set up correctly with window size, title, camera, lights, skybox, and logo.
+- No obvious issues with visualization setup.
+- Minor issue: The camera position is fixed and may not optimally view the pendulum, but this is subjective.
 
-- Minor issue: The camera position is fixed; no user interaction or camera control is shown, but this is acceptable for a demo.
-
-**Deductions:**
-
-- Minor visualization issue: none significant.
-
-**Subtotal Visualization: 5 points**
+No deductions.
 
 ---
 
-### **Final Score Calculation**
+### Summary of deductions:
 
-| Category                  | Points | Deduction | Score |
-|---------------------------|--------|-----------|-------|
-| Completeness              | 40     | 20        | 20    |
-| Correctness               | 30     | 30+10=40  | 0     |
-| Code Quality              | 10     | 10        | 0     |
-| Efficiency                | 10     | 0         | 10    |
-| Error Handling & Robustness | 5      | 5         | 0     |
-| Visualization             | 5      | 0         | 5     |
-| **Total**                 | 100    | 75        | 35    |
-
----
-
-### **Summary of Major Issues**
-
-- Incorrect usage of `ChBodyAuxRef` constructor with invalid arguments.
-- Incorrect joint initialization syntax using C++ style `::` instead of Python method calls.
-- No explicit position setting for pendulum bodies.
-- Poor code quality due to variable reuse and lack of comments.
-- No error handling.
-- Minor completeness issue with ground body setup.
+| Criterion                  | Deduction |
+|----------------------------|-----------|
+| Completeness               | 40        |
+| Correctness               | 20        |
+| Code Quality              | 8         |
+| Efficiency                | 0         |
+| Error Handling & Robustness| 3         |
+| Visualization             | 0         |
+| **Total**                 | **71**    |
 
 ---
 
-[[35]]
+### Final Score:
+
+100 - 71 = 29 points
+
+---
+
+### Explanation:
+
+The script includes all essential components but suffers from critical API misuse (`ChFramed` instead of `ChCoordsysD`), syntax errors (missing parenthesis), and incorrect method calls (`AddBody` instead of `Add`). Logical errors in joint initialization and body positioning further reduce correctness. Code quality is lowered due to lack of comments and variable reuse. No efficiency or visualization issues are present, but error handling is minimal.
+
+---
+
+**Final score:**
+
+[[29]]

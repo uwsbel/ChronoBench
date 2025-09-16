@@ -7,55 +7,52 @@ sys = chrono.ChSystemNSC()
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
+vis.SetWindowSize(1024, 768)
+vis.SetTitle("Gator Vehicle Simulation")
 vis.AddSkyBox()
 vis.AddTypicalLights()
 
 
-gator = veh.ChVehicle()
-
-
+gator = veh.Gator()
 gator.SetContactMethod(chrono.ChContactMethod_NSC)
-gator.SetChassisCollisionModel(chrono.ChCollisionModel())
-gator.SetTireType(chrono.ChTire.TMEASY)
-gator.SetTirePropertiesFile("tire.properties")
+gator.SetTireModel(veh.TireModelType.TMEASY)
+gator.SetTireProperties(veh.TireProperties())
+gator.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0.5), chrono.Q_from_AngX(chrono.CH_C_PI_2)))
 
 
-gator.SetChassisPosition(chrono.ChVectorD(0, 0.5, 0))
-gator.SetChassisOrientation(chrono.Q_from_AngX(chrono.CH_C_PI_2))
+sys.Add(gator)
 
 
-gator.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0.5, 0), chrono.Q_from_AngX(chrono.CH_C_PI_2)))
-gator.AddVisualizers()
-
-
-terrain = chrono.ChBodyEasyBox(sys, 100, 1, 100, 1000, True, False)
-terrain.SetBodyFixed(True)
+terrain = veh.RigidTerrain(sys)
+terrain.SetPlane(chrono.ChPlane(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 1)))
+terrain.SetTexture(chrono.GetChronoDataFile("terrain.txt"))
 terrain.SetMaterial(chrono.ChMaterialSurfaceNSC())
-terrain.SetCollide(True)
 
 
-terrain_texture = chronoirr.ChIrrTexture(chrono.GetChronoDataFile("terrain.png"))
-terrain.AddVisualShape(chrono.ChVisualShapeBox(terrain_texture))
+sys.Add(terrain)
 
 
-driver = veh.ChIrrlichtDriver(gator)
+driver = veh.ChIrrlichtDriver()
+driver.SetVehicle(gator)
+driver.AddTypicalInputs()
 
 
-sys.SetTimestep(0.02)
-sys.SetMaxItersSolverSpeed(100)
-
+stepping = chrono.ChTimestepperHHT(sys)
+stepping.SetMaxiters(50)
+stepping.SetMindt(1e-6)
+stepping.SetMaxdt(1.0 / 50.0)
 
 while vis.Run():
     
-    sys.DoStepDynamics(0.02)
-    
+    sys.DoStepDynamics(1.0 / 50.0)
+
     
     vis.BeginScene()
     vis.DrawAll()
     vis.EndScene()
-    
-    
-    chrono.ChSleep(0.02)
 
+    
+    driver.Synchronize(1.0 / 50.0)
 
-vis.CloseWindow()
+    
+    sys.GetTime()

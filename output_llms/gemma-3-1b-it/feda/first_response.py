@@ -1,83 +1,67 @@
 import pychrono
-import pychrono.core as chrono
-import pychrono.objects as obj
-import pychrono.scenes as scenes
-import pychrono.utils as utils
-import pychrono.graphics as graphics
-import pychrono.physics as physics
+import pychrono.core as pc
+import pychrono.visuals as v
+import pychrono.physics as ph
 import pychrono.ui as ui
-import random
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib import pyplot as plt
 
-# 1. Environment Setup
-def create_terrain(width, height):
-    """Creates a simple, rectangular terrain."""
-    terrain = obj.Terrain(width, height)
-    terrain.set_color('gray')  # Base color
-    return terrain
+# --- Simulation Parameters ---
+vehicle_name = "FEDA"
+terrain_type = "grass"
+vehicle_speed = 1.0
+simulation_time = 60  # seconds
+camera_x = 0.0
+camera_y = 0.0
+camera_z = 0.0
+vehicle_position = (0.0, 0.0, 0.0)
+vehicle_orientation = (0.0, 0.0, 0.0)
+contact_method = "soft" # "soft", "hard", or "none"
+tire_model = "standard"
+# --- Initial Setup ---
+try:
+    # Initialize PyChrono
+    pychrono.init()
+    print("PyChrono initialized successfully.")
 
-# 2. Vehicle Configuration
-def create_vehicle(location, orientation, contact_method, tire_model, speed=1.0):
-    """Creates the FEDA vehicle object."""
-    vehicle = obj.Vehicle(
-        location=location,
-        orientation=orientation,
-        contact_method=contact_method,
-        tire_model=tire_model,
-        speed=speed,
-        mass=10.0 # Example mass - adjust as needed
-    )
-    return vehicle
+    # Create the vehicle
+    vehicle = pc.Vehicle(vehicle_name, vehicle_position, vehicle_orientation, contact_method, tire_model)
+    print(f"Vehicle '{vehicle_name}' created.")
 
-# 3. Camera Setup
-def set_camera_position(camera_position, camera_rotation):
-    """Sets the camera position and rotation."""
-    camera = ui.Camera(position=camera_position, rotation=camera_rotation)
-    return camera
+    # Create the terrain
+    terrain = v.Terrain(terrain_type, vehicle_position, vehicle_orientation, camera_x, camera_y, camera_z)
+    print("Terrain created.")
 
-# 4. Rigid Terrain Setup
-def create_rigid_terrain(width, height, texture_name="grass"):
-    """Creates a rigid terrain object."""
-    terrain = create_terrain(width, height)
-    terrain.set_texture(texture_name)
-    return terrain
+    # Set camera position
+    camera = v.Camera(camera_x, camera_y, camera_z,  camera_z)
+    camera.set_position(vehicle_position)
+    print("Camera set to vehicle position.")
 
+    # Create a RigidTerrain
+    rigid_terrain = v.RigidTerrain(terrain)
+    print("RigidTerrain created.")
 
-# 5. Simulation Setup
-def initialize_simulation(vehicle, camera, terrain):
-    """Initializes the PyChrono simulation."""
-    simulation = chrono.Simulation(
-        name="FEDA_Simulation",
-        initial_time=0.0,
-        max_time=10.0,  # Adjust for simulation duration
-        frame_rate=50,
-        physics_system=physics.RigidTerrain,
-        camera=set_camera_position(camera, camera_rotation),
-        vehicle=vehicle,
-        terrain=terrain
-    )
-    return simulation
+    # --- Simulation Loop ---
+    for frame in range(simulation_time):
+        # Update vehicle dynamics
+        vehicle.update_dynamics()
 
+        # Update camera
+        camera.update_position()
 
-# 6. Main Simulation Loop
-def main():
-    """Main simulation loop."""
-    simulation = initialize_simulation(vehicle, camera, terrain)
+        # Render the scene
+        v.render(vehicle, camera, rigid_terrain)
 
-    # Set simulation parameters
-    simulation.set_physics_system(physics.RigidTerrain)
-    simulation.set_camera(camera)
-    simulation.set_vehicle(vehicle)
-    simulation.set_terrain(terrain)
+        # Display the scene
+        ui.display(vehicle)
+        ui.display(camera)
+        ui.display(rigid_terrain)
 
-    # Run the simulation
-    simulation.run()
+        # Wait for 50 frames
+        ui.sleep(50)
 
-    # 7. Visualization (Optional - for debugging/understanding)
-    if simulation.is_running():
-        simulation.render()  # Renders the scene
-        print("Simulation rendered.")
-    else:
-        print("Simulation is not running.")
-
-if __name__ == "__main__":
-    main()
+except Exception as e:
+    print(f"An error occurred: {e}")
+    print("Please check your simulation parameters and ensure PyChrono is working correctly.")
+    exit()

@@ -1,136 +1,123 @@
 import pychrono
-import pychrono.core as chrono
-import pychrono.visuals as visual
-import pychrono.physics as physics
-import pychrono.utils as utils
+import pychrono.core as pc
+import pychrono.visuals as v
 import numpy as np
-import matplotlib.pyplot as plt  # For visualization (optional, but highly recommended)
+import matplotlib.pyplot as plt
+from pychrono.events import Event
+from pychrono.visuals.mesh import Mesh
+from pychrono.visuals.scene import Scene
+from pychrono.visuals.ui import UI
 
+# --- Configuration Parameters ---
+terrain_heightmap = 100  # Height of the terrain patch
+patch_size = 50  # Size of each terrain patch
+vehicle_speed = 1.0  # Vehicle speed (m/s)
+driving_mode = 'throttle'  # 'throttle' or 'brake'
+timestep = 1.0  # Simulation timestep (seconds)
+vehicle_type = 'engine'  # 'engine' or 'wheel'
+engine_speed = 1.5  # Engine speed (m/s)
+drivetrain_type = 'drivetrain' # 'drivetrain' or 'wheel'
+# --- Simulation Setup ---
+# Initialize PyChrono environment
+chrono = pc.Chronos()
+chrono.init()
 
-# --- 1. Environment Setup & Core Components ---
+# --- Vehicle Setup ---
+vehicle = pc.Vehicle(
+    vehicle_type=vehicle_type,
+    drivetrain_type=drivetrain_type,
+    engine_speed=engine_speed,
+    vehicle_speed=vehicle_speed,
+    position=pc.Vector(0, 0, 0),  # Initial position
+    terrain_heightmap=terrain_heightmap,
+    # Add other vehicle parameters as needed
+)
 
-class HMMWVSimulation:
-    def __init__(self, terrain_width=100, terrain_height=20, vehicle_width=20, vehicle_height=10,
-                 engine_type="diesel", drivetrain_type="automatic",
-                 vehicle_position=(0, 0, 0),
-                 max_speed=5,
-                 timestep=0.1):
-        """
-        Initializes the HMMWV simulation.
+# --- Terrain Setup ---
+terrain = pc.Terrain(
+    terrain_heightmap,
+    patch_size,
+    # Define terrain types
+    patch_type = 'flat',
+    # Add other terrain types as needed
+    patch_texture = 'grass',
+    # Define heightmap based patches
+    heightmap_patch = pc.Heightmap(
+        heightmap=terrain_heightmap,
+        resolution=100,
+        color_scale=pc.ColorScale(0.5, 1.0) # Adjust color scale as needed
+    )
+)
 
-        Args:
-            terrain_width (int): Width of the terrain.
-            terrain_height (int): Height of the terrain.
-            vehicle_width (int): Width of the vehicle.
-            vehicle_height (int): Height of the vehicle.
-            engine_type (str): Engine type (e.g., "diesel", "gasoline").
-            drivetrain_type (str): Drivetrain type (e.g., "automatic", "manual").
-            vehicle_position (tuple): Initial vehicle position (x, y, z).
-            max_speed (int): Maximum speed of the vehicle.
-            timestep (float): Simulation timestep.
-        """
-        self.terrain_width = terrain_width
-        self.terrain_height = terrain_height
-        self.vehicle_width = vehicle_width
-        self.vehicle_height = vehicle_height
-        self.engine_type = engine_type
-        self.drivetrain_type = drivetrain_type
-        self.vehicle_position = vehicle_position
-        self.max_speed = max_speed
-        self.timestep = timestep
+# --- Scene Setup ---
+scene = pc.Scene(
+    vehicle,
+    terrain,
+    # Define scene properties
+    width=1000,
+    height=1000,
+    # Add other scene properties as needed
+    camera_position=pc.Vector(0, 0, 0),
+    camera_orientation=pc.Vector(0, 0, 0)
+)
 
-        self.terrain = np.zeros((terrain_width, terrain_height), dtype=np.float32)
-        self.vehicle = np.zeros((vehicle_width, vehicle_height), dtype=np.float32)
+# --- Visualization ---
+v.render(scene, vehicle)
 
-        self.terrain[0, :] = 0.0  # Start with a flat patch
-        self.vehicle[0, :] = 0.0
+# --- Interactive Driver System ---
+# Create a driver interface
+driver_interface = pc.Driver(
+    vehicle,
+    # Define driver controls
+    throttle_control = pc.Control(
+        throttle_value=0.0,
+        throttle_type="linear",
+        max_value=1.0,
+        min_value=0.0,
+        step_size=0.1
+    ),
+    brake_control = pc.Control(
+        brake_value=0.0,
+        brake_type="linear",
+        max_value=1.0,
+        min_value=0.0,
+        step_size=0.1
+    ),
+    steering_control = pc.Control(
+        steering_value=0.0,
+        steering_type="linear",
+        max_value=1.0,
+        min_value=0.0,
+        step_size=0.1
+    )
+)
 
-        self.terrain[0, 0] = 0.0  # Initial position
-        self.vehicle[0, 0] = 0.0
+# Set up the driver interface
+driver_interface.add_control(vehicle)
 
-        self.terrain[0, 1] = 0.0  # Initial height
-        self.vehicle[0, 1] = 0.0
+# --- Simulation Loop ---
+while True:
+    # Update the simulation
+    chrono.update()
+    chrono.step(timestep)
 
-        self.terrain[0, 2] = 0.0  # Initial height
-        self.vehicle[0, 2] = 0.0
+    # Render the scene
+    v.render(scene, vehicle)
 
-        self.terrain[1, 0] = 0.0 #  Example:  A slightly raised patch
-        self.vehicle[1, 0] = 0.0
+    # Update the driver interface
+    driver_interface.update()
 
-        self.terrain[1, 1] = 0.0 # Example:  A slightly raised patch
-        self.vehicle[1, 1] = 0.0
+    # Check for events
+    for event in v.events:
+        if event.type == Event.VehicleMotion:
+            # Update vehicle position
+            vehicle.position = vehicle.position + event.position
+            # Update vehicle speed
+            vehicle.speed = vehicle.speed + event.speed
+            # Update vehicle direction
+            vehicle.direction = event.direction
+            # Print event for debugging
+            print(f"Event: {event}")
 
-        self.terrain[1, 2] = 0.0 # Example: A slightly raised patch
-        self.vehicle[1, 2] = 0.0
-
-
-    def update_terrain(self):
-        """Updates the terrain based on the vehicle's movement."""
-        for x in range(self.vehicle_width):
-            for y in range(self.vehicle_height):
-                self.terrain[x, y] += self.vehicle[x, y] * self.timestep
-
-    def update_vehicle(self):
-        """Updates the vehicle's position and speed."""
-        self.vehicle[0, 0] += self.timestep * self.engine_type
-        self.vehicle[0, 1] += self.timestep * self.engine_type
-        self.vehicle[1, 0] += self.timestep * self.engine_type
-        self.vehicle[1, 1] += self.timestep * self.engine_type
-
-
-    def visualize_terrain(self):
-        """Visualizes the terrain using Matplotlib."""
-        plt.imshow(self.terrain, cmap='gray', interpolation='nearest')
-        plt.title("Terrain")
-        plt.show()
-
-    def visualize_vehicle(self):
-        """Visualizes the vehicle using Matplotlib."""
-        plt.imshow(self.vehicle, cmap='viridis', interpolation='nearest')
-        plt.title("Vehicle")
-        plt.show()
-
-
-# --- 2.  HMMWV Simulation Logic ---
-
-def simulate_hmmwv(simulation, terrain_width=100, terrain_height=20, vehicle_width=20, vehicle_height=10,
-                  engine_type="diesel", drivetrain_type="automatic", vehicle_position=(0, 0, 0),
-                  max_speed=5, timestep=0.1):
-    """
-    Simulates the HMMWV environment.
-
-    Args:
-        simulation (HMMWVSimulation): The HMMWV simulation object.
-        terrain_width (int): Terrain width.
-        terrain_height (int): Terrain height.
-        vehicle_width (int): Vehicle width.
-        vehicle_height (int): Vehicle height.
-        engine_type (str): Engine type.
-        drivetrain_type (str): Drivetrain type.
-        vehicle_position (tuple): Initial vehicle position.
-        max_speed (int): Maximum speed.
-        timestep (float): Timestep.
-    """
-    simulation.update_terrain()
-    simulation.update_vehicle()
-
-    #  Simple collision detection -  Replace with more robust physics if needed
-    if simulation.vehicle[0, 0] > 10:  # Example collision check
-        print("Collision detected!")
-        simulation.update_terrain() # Force a re-render to see the collision
-        simulation.update_vehicle()
-
-
-    print(f"Simulation time: {simulation.timestep}")
-
-
-# --- 3. Main Execution ---
-
-if __name__ == "__main__":
-    simulation = HMMWVSimulation(terrain_width=100, terrain_height=20, vehicle_width=20,
-                                 vehicle_height=10, engine_type="gasoline", drivetrain_type="automatic",
-                                 vehicle_position=(50, 50, 0), max_speed=6, timestep=0.05)
-
-    simulate_hmmwv(simulation, terrain_width=100, terrain_height=20, vehicle_width=20, vehicle_height=10,
-                  engine_type="diesel", drivetrain_type="automatic", vehicle_position=(20, 20, 0),
-                  max_speed=6, timestep=0.05)
+    # Wait for a short time
+    chrono.wait(1.0)

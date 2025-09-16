@@ -68,7 +68,7 @@ constr_bc = chrono.ChLinkMateGeneric()
 constr_bc.Initialize(hnode3, mtruss, False, hnode3.Frame(), hnode3.Frame())
 sys.Add(constr_bc)
 constr_bc.SetConstrainedCoords(True, True, True,   
-                              True, True, True)   
+                               True, True, True)   
 
 constr_d = chrono.ChLinkMateGeneric()
 constr_d.Initialize(hnode1, mtruss, False, hnode1.Frame(), hnode1.Frame())
@@ -150,3 +150,12 @@ while vis.Run():
     vis.Render()
     vis.EndScene()
     sys.DoStepDynamics(0.001)
+
+
+
+
+
+
+
+
+"""

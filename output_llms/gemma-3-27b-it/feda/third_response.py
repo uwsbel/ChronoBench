@@ -76,13 +76,9 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 
 # Add point lights
-light1 = vis.AddLightPoint()
-light1.SetPosition(chrono.ChVector3d(5, 5, 5))
-light1.SetIntensity(2.0)
-
-light2 = vis.AddLightPoint()
-light2.SetPosition(chrono.ChVector3d(-5, -5, 5))
-light2.SetIntensity(2.0)
+light_intensity = 2.0
+vis.AddLightPoint(chrono.ChVector3d(20, 20, 20), light_intensity, chrono.ChColor(1.0, 1.0, 1.0))
+vis.AddLightPoint(chrono.ChVector3d(-20, -20, 20), light_intensity, chrono.ChColor(1.0, 1.0, 1.0))
 
 vis.AttachVehicle(vehicle.GetVehicle())
 
@@ -116,11 +112,11 @@ sensor_manager = chrono.ChSensorManager()
 camera = chrono.ChCameraSensor()
 camera.SetResolution(1280, 720)
 camera.SetFieldOfView(60)
-camera.Attach(vehicle.GetChassis())
+camera.Attach(vehicle.GetChassis())  # Attach to chassis body
 sensor_manager.AddSensor(camera)
 
-# Create visualization filter
-vis_filter = chrono.ChVisualizationFilter()
+# Create visualization filter for the camera
+vis_filter = chrono.ChFilterVisualize()
 vis_filter.SetSensor(camera)
 sensor_manager.AddFilter(vis_filter)
 
@@ -128,7 +124,7 @@ while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
     # Render scene and output POV-Ray data
-    if step_number % render_steps == 0:
+    if (step_number % render_steps == 0):
         vis.BeginScene()
         vis.Render()
         vis.EndScene()

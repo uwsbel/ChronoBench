@@ -1,112 +1,74 @@
-import chrono
+# Import necessary PyChrono and Irrlicht libraries
+from pychrono.core import *
+from pychrono.vehicle_robot import *
+from pychrono.vehicle_robot import VehicleRobot, VehicleRobotDriver
+from pychrono import visualization
+from pychrono.irrlicht_utils import *
 
-from chrono_helpers import *
+# Initialize the PyChrono core and create the Chrono system
+chrono_system = ChronoSystem()
+chrono_system.SetGravity(0, 0, -9.81)
 
-import irrlicht as ir
+# Create a ground body
+ground = ChronoFixedBody()
+ground.SetPosition(0, 0, 0)
+chrono_system.AddSolidBody(ground)
 
+# Create the Viper rover and its driver
+viper_rover = VehicleRobot()
+viper_driver = VehicleRobotDriver(viper_rover)
 
-# Initialize the PyChrono environment
+# Set the initial position and orientation of the Viper rover
+viper_rover.SetPosition(0, 0, 0)
+viper_rover.SetOrientation(0, 0, 0, 1)
 
-sch = chrono.ChSystemSMC()
+# Add the Viper rover to the Chrono system
+chrono_system.Add(viper_rover)
 
+# Set up the visualization
+irrlicht_application = visualization.IrrlichtApplication(chrono_system, "Viper Rover Simulation")
+irrlicht_application.SetWindowSize(800, 600)
+irrlicht_application.SetWindowCaption("Viper Rover Simulation")
 
-# Add the ground body
+# Create the camera
+camera = irrlicht_application.AddCamera()
+camera.SetPosition(10, 10, 10)
+camera.SetFocalPoint(0, 0, 0)
+camera.SetFieldOfView(45)
 
-ground = chrono.ChBoxShape(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(10, 1, 0.1))
+# Create the light source
+light = irrlicht_application.AddLight()
+light.SetPosition(10, 10, 10)
+light.SetColor(255, 255, 255)
 
-ground_body = chrono.ChBodyE(mass=1000, shape=ground)
+# Add the light to the scene
+irrlicht_application.AddLight(light)
 
-sch.AddBody(ground_body)
+# Create the renderer
+renderer = irrlicht_application.AddRenderWindow()
 
+# Add the camera and light to the renderer
+irrlicht_application.AddCameraSceneNode(camera)
+irrlicht_application.AddLightSceneNode(light)
 
-# Set gravity
+# Create the irrlicht_application's main loop
+while irrlicht_application.GetDevice()->run():
+    # Update the simulation
+    chrono_system.DoStep(0.001, 1)
+    
+    # Update the visualization
+    irrlicht_application.SetGamma(270)
+    irrlicht_application.drawScene()
+    irrlicht_application.DoFrame()
+    
+    # Gradually change the steering angle of the Viper rover
+    viper_driver.SetSteeringAngle(viper_driver.GetSteeringAngle() + 0.01)  # Increment the steering angle by 0.01 degrees
+    
+    # Update the visualization with the new rover position
+    viper_rover.SetPosition(viper_rover.GetPosition())
+    viper_rover.SetOrientation(viper_rover.GetOrientation())
+    irrlicht_application.drawScene()
+    irrlicht_application.DoFrame()
 
-sch.SetGravity(chrono.ChVectorD(0, -9.81, 0))
-
-
-# Initialize the Viper rover
-
-viper_shape = chrono.ChBoxShape(chrono.ChVectorD(-0.5, -0.5, 0.5), chrono.ChVectorD(0.5, 0.5, 0.2))
-
-viper_body = chrono.ChBodyE(mass=100, shape=viper_shape)
-
-viper_body.SetPos(chrono.ChVectorD(0, 0, 0.5))
-
-sch.AddBody(viper_body)
-
-
-# Initialize the Viper rover's driver
-
-driver_shape = chrono.ChBoxShape(chrono.ChVectorD(-0.1, -0.1, 0.2), chrono.ChVectorD(0.1, 0.1, 0.1))
-
-driver_body = chrono.ChBodyE(mass=5, shape=driver_shape)
-
-driver_body.SetPos(chrono.ChVectorD(0, 0, 0.5))
-
-sch.AddBody(driver_body)
-
-
-# Set up the Irrlicht visualization
-
-scene = chrono.ChVisualSceneIrrlicht()
-
-scene.AddGround(ground_body)
-
-
-# Set up the Irrlicht camera
-
-camera = chrono.ChArbCameraIrrlicht()
-
-camera.SetCameraVerticalFOV(90)
-
-camera.SetCameraPosition(chrono.ChVectorD(0, 5, 10))
-
-camera.SetFocalPoint(chrono.ChVectorD(0, 0, 0))
-
-
-# Set up the Irrlicht light
-
-light = chrono.ChLightIrrlicht()
-
-light.SetLightColor(chrono.ChColor(1, 1, 1))
-
-light.SetLightPosition(chrono.ChVectorD(0, 10, 10))
-
-
-# Set up the Irrlicht scene
-
-scene.AddCamera(camera)
-
-scene.AddLight(light)
-
-
-# Set up the simulation loop
-
-def simulation_loop(sch, viper_body, driver_body, scene, camera, light, duration=10):
-
-    time = 0
-
-    while time < duration:
-
-        sch.DoStepDynamics(1/60)
-
-        viper_body.SetSteering(chrono.ChVectorD(0, 0.01 * time, 0))
-
-        driver_body.SetSteering(chrono.ChVectorD(0, 0.01 * time, 0))
-
-
-        # Update the visualization
-
-        scene.BeginScene()
-
-        scene.DrawAll()
-
-        scene.EndScene()
-
-
-        time += 1/60
-
-
-# Run the simulation loop
-
-simulation_loop(sch, viper_body, driver_body, scene, camera, light)
+# Run the simulation
+irrlicht_application.MainLoop()

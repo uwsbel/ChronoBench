@@ -1,10 +1,10 @@
-```python
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import pychrono.sensor as sensor
 import numpy as np
 import math
+import random
 
 
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
@@ -115,6 +115,32 @@ driver.Initialize()
 
 
 
+obstacles = []
+for i in range(5):
+    x = random.uniform(-terrainLength/2, terrainLength/2)
+    y = random.uniform(-terrainWidth/2, terrainWidth/2)
+    z = random.uniform(0, terrainHeight)
+    obstacles.append(chrono.ChBox(chrono.ChVector3d(x, y, z), 1.0, 1.0, 1.0))
+
+
+
+
+sensor_manager = sensor.SensorManager()
+
+
+lidar = sensor.ChLidar(sensor_manager)
+lidar.SetResolution(10)
+lidar.SetBeamAngle(45)
+lidar.SetDistanceThreshold(0.1)
+lidar.SetFilterType(sensor.LidarFilterType_GAUSSIAN)
+lidar.SetFilterWidth(0.5)
+
+
+vehicle.AddSensor(lidar)
+
+
+
+
 
 
 print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
@@ -157,127 +183,3 @@ while vis.Run() :
 
     
     realtime_timer.Spin(step_size)
-
-    
-    obstacles = []
-    for i in range(5):
-        x = np.random.uniform(-100, 100)
-        y = np.random.uniform(-100, 100)
-        z = np.random.uniform(0, 10)
-        obstacles.append(chrono.ChBox(chrono.ChVector3d(x, y, z), 1, 1, 1))
-
-    
-    for obstacle in obstacles:
-        vehicle.GetSystem().AddObstacle(obstacle)
-
-    
-    sensor_manager.Update(time)
-
-    
-    lidar_sensor = sensor.ChLidarSensor(vehicle)
-    lidar_sensor.Update(time)
-
-    
-    vehicle.UpdateSensors(sensor_manager, lidar_sensor)
-
-    
-    vehicle.UpdateState(time)
-
-    
-    terrain.Update(time)
-
-    
-    driver.Update(time)
-
-    
-    vehicle.UpdateState(time)
-
-    
-    terrain.Update(time)
-
-    
-    driver.Update(time)
-
-    
-    vehicle.UpdateState(time)
-
-    
-    terrain.Update(time)
-
-    
-    driver.Update(time)
-
-    
-    vehicle.UpdateState(time)
-
-    
-    terrain.Update(time)
-
-    
-    driver.Update(time)
-
-    
-    vehicle.UpdateState(time)
-
-    
-    terrain.Update(time)
-
-    
-    driver.Update(time)
-
-    
-    vehicle.UpdateState(time)
-
-    
-    terrain.Update(time)
-
-    
-    driver.Update(time)
-
-    
-    vehicle.UpdateState(time)
-
-    
-    terrain.Update(time)
-
-    
-    driver.Update(time)
-
-    
-    vehicle.UpdateState(time)
-
-    
-    terrain.Update(time)
-
-    
-    driver.Update(time)
-
-    
-    vehicle.UpdateState(time)
-
-    
-    terrain.Update(time)
-
-    
-    driver.Update(time)
-
-    
-    vehicle.UpdateState(time)
-
-    
-    terrain.Update(time)
-
-    
-    driver.Update(time)
-
-    
-    vehicle.UpdateState(time)
-
-    
-    terrain.Update(time)
-
-    
-    driver.Update(time)
-
-    
-    vehicle.UpdateState(

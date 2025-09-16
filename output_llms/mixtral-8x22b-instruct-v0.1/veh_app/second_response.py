@@ -8,8 +8,6 @@ import os
 # Set the data path for Chrono assets
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
-print(chrono.GetChronoDataPath() + 'vehicle/')
-
 # Initial vehicle location and orientation
 initLoc = chrono.ChVector3d(0, -5, 0.4)  # Changed initLoc
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
@@ -95,19 +93,25 @@ patch.SetColor(chrono.ChColor(0.8, 0.8, 1.0))
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 50, 50)
 terrain.Initialize()
 
-# Added Box Object
-box = chrono.ChBodyEasyBox(1, 1, 1, 1000, True, True)
-box.SetPos(chrono.ChVector3d(0, 0, 0.5))
-box.SetBodyFixed(True)
-box.SetTexture(veh.GetDataFile("terrain/textures/blue.jpg"))
-gator.GetSystem().AddBody(box)
+# Add a box object to the system
+box_shape = chrono.ChBoxShape()
+box_shape.GetBoxGeometry().Size = chrono.ChVector3d(1, 1, 1)
+box_body = chrono.ChBodyEasyBox(1, 1, 1, 10, True, True)
+box_body.SetPos(chrono.ChVector3d(0, 0, 0.5))
+box_body.AddAsset(chrono.ChBoxShape())
+box_body.GetAsset(0).SetColor(chrono.ChColor(0, 0, 1))  # Apply blue texture
+gator.GetSystem().Add(box_body)
 
-# Added Cylinder Object
-cylinder = chrono.ChBodyEasyCylinder(0.5, 1, 1000, True, True)
-cylinder.SetPos(chrono.ChVector3d(0, 0, 1.5))
-cylinder.SetBodyFixed(True)
-cylinder.SetTexture(veh.GetDataFile("terrain/textures/blue.jpg"))
-gator.GetSystem().AddBody(cylinder)
+# Add a cylinder object to the system
+cylinder_shape = chrono.ChCylinderShape()
+cylinder_shape.GetCylinderGeometry().p1 = chrono.ChVector3d(0, 0, 0)
+cylinder_shape.GetCylinderGeometry().p2 = chrono.ChVector3d(0, 0, 1)
+cylinder_shape.GetCylinderGeometry().rad = 0.5
+cylinder_body = chrono.ChBodyEasyCylinder(1, 1, 1, 10, True, True)
+cylinder_body.SetPos(chrono.ChVector3d(0, 0, 1.5))
+cylinder_body.AddAsset(cylinder_shape)
+cylinder_body.GetAsset(0).SetColor(chrono.ChColor(0, 0, 1))  # Apply blue texture
+gator.GetSystem().Add(cylinder_body)
 
 # Create the interactive driver system
 driver = veh.ChDriver(gator.GetVehicle())
@@ -120,7 +124,7 @@ manager = sens.ChSensorManager(gator.GetSystem())
 intensity = 1.0
 manager.scene.AddPointLight(chrono.ChVector3f(2, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
 
-# Create two cameras and add them to the sensor manager
+# Create a camera and add it to the sensor manager
 offset_pose = chrono.ChFramed(chrono.ChVector3d(-8.0, 0, 1.45), chrono.QuatFromAngleAxis(.2, chrono.ChVector3d(0, 1, 0)))
 cam = sens.ChCameraSensor(
     gator.GetChassisBody(),
@@ -135,26 +139,27 @@ cam.SetName("Third Person POV")
 cam.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Gator Camera"))
 manager.AddSensor(cam)
 
-# Added Lidar Sensor
+# Create a Lidar sensor and add it to the sensor manager
 lidar = sens.ChLidarSensor(
     gator.GetChassisBody(),
     update_rate,
-    chrono.ChVector3d(0.0, 0, 2),
-    800,
-    300,
-    2 * chrono.CH_PI,
-    chrono.CH_PI / 12,
-    -chrono.CH_PI / 6,
-    100.0,
-    sens.LidarShape_RECTANGULAR,
-    2,
-    0.003,
-    sens.LidarReturnMode_STRONGEST,
+    chrono.ChVector3d(0.0, 0, 2),  # Offset pose
+    800,  # Horizontal samples
+    300,  # Vertical channels
+    2 * chrono.CH_PI,  # Horizontal field of view
+    chrono.CH_PI / 12,  # Maximum vertical field of view
+    -chrono.CH_PI / 6,  # Minimum vertical field of view
+    100.0,  # Maximum range
+    sens.LidarShape_RECTANGULAR,  # Rectangular beam shape
+    2,  # Sample radius
+    0.003,  # Divergence angle
+    sens.LidarMode_STRONGEST,  # Strongest return mode
 )
+lidar.SetName("Lidar Sensor")
 lidar.PushFilter(sens.ChFilterDepth())
 lidar.PushFilter(sens.ChFilterIntensity())
 lidar.PushFilter(sens.ChFilterXYZI())
-lidar.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Lidar Data"))
+lidar.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Lidar Sensor"))
 manager.AddSensor(lidar)
 
 # ---------------
@@ -167,8 +172,8 @@ end_time = 30
 while time < end_time:
     time = gator.GetSystem().GetChTime()
     # set driver inputs
-    driver.SetSteering(0.5)  # Modified driver inputs
-    driver.SetThrottle(0.2)  # Modified driver inputs
+    driver.SetSteering(0.5)
+    driver.SetThrottle(0.2)
     # Collect output data from modules (for inter-module communication)
     driver_inputs = driver.GetInputs()
 

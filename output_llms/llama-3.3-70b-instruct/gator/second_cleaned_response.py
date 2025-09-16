@@ -4,11 +4,12 @@ import pychrono.vehicle as veh
 import math
 
 
-chrono.SetChronoDataPath("/path/to/chrono/data")
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())
+veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 
-initLoc = chrono.ChVector3d(0, 0, 0.5)
-initRot = chrono.ChQuaterniond(1, 0, 0, 0)
+initLoc = chrono.ChVectorD(0, 0, 0.5)
+initRot = chrono.ChQuaternionD(1, 0, 0, 0)
 
 
 vis_type = veh.VisualizationType_MESH
@@ -25,7 +26,7 @@ terrainLength = 100.0
 terrainWidth = 100.0   
 
 
-trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
+trackPoint = chrono.ChVectorD(-3.0, 0.0, 1.1)
 
 
 contact_method = chrono.ChContactMethod_NSC
@@ -43,7 +44,7 @@ vehicle = veh.Gator()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
-vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
+vehicle.SetInitPosition(chrono.ChCoordsysD(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 
@@ -67,33 +68,44 @@ terrain = veh.RigidTerrain(vehicle.GetSystem())
 
 
 patch1 = terrain.AddPatch(patch_mat, 
-    chrono.ChCoordsysd(chrono.ChVector3d(-25, 0, 0), chrono.QUNIT), 
-    25, terrainWidth)
+    chrono.ChCoordsysD(chrono.ChVectorD(-20, 0, 0), chrono.QUNIT), 
+    20, 100)
 patch1.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch1.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 
 
 patch2 = terrain.AddPatch(patch_mat, 
-    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
-    25, terrainWidth)
-patch2.SetHeight(veh.GetDataFile("terrain/heightmaps/heightmap1.txt"), 1, 1)
+    chrono.ChCoordsysD(chrono.ChVectorD(20, 0, 0), chrono.QUNIT), 
+    20, 100)
 patch2.SetTexture(veh.GetDataFile("terrain/textures/tile5.jpg"), 200, 200)
-patch2.SetColor(chrono.ChColor(0.7, 0.7, 0.4))
+patch2.SetColor(chrono.ChColor(0.5, 0.5, 0.8))
 
 
 patch3 = terrain.AddPatch(patch_mat, 
-    chrono.ChCoordsysd(chrono.ChVector3d(25, 0, 0), chrono.QUNIT), 
-    25, terrainWidth)
+    chrono.ChCoordsysD(chrono.ChVectorD(0, -20, 0), chrono.QUNIT), 
+    100, 20, 
+    veh.GetDataFile("terrain/heightmaps/heightmap1.txt"))
 patch3.SetTexture(veh.GetDataFile("terrain/textures/tile6.jpg"), 200, 200)
-patch3.SetColor(chrono.ChColor(0.6, 0.6, 0.3))
-patch3.AddBump(chrono.ChVector3d(12.5, 0, 0), 5, 2)
+patch3.SetColor(chrono.ChColor(0.8, 0.5, 0.5))
 
 
 patch4 = terrain.AddPatch(patch_mat, 
-    chrono.ChCoordsysd(chrono.ChVector3d(50, 0, 0), chrono.QUNIT), 
-    25, terrainWidth)
+    chrono.ChCoordsysD(chrono.ChVectorD(0, 20, 0), chrono.QUNIT), 
+    100, 20)
 patch4.SetTexture(veh.GetDataFile("terrain/textures/tile7.jpg"), 200, 200)
-patch4.SetColor(chrono.ChColor(0.5, 0.5, 0.2))
+patch4.SetColor(chrono.ChColor(0.5, 0.8, 0.5))
+
+
+bump = chrono.ChContactMaterialNSC()
+bump.SetFriction(0.9)
+bump.SetRestitution(0.01)
+bump_shape = chrono.ChBoxShape()
+bump_shape.GetBox().SetLength(5)
+bump_shape.GetBox().SetWidth(5)
+bump_shape.GetBox().SetHeight(2)
+bump_body = chrono.ChBodyEasyBox(vehicle.GetSystem(), 5, 5, 2, 1000, True, bump, bump_shape)
+bump_body.SetPos(chrono.ChVectorD(0, 0, 1))
+bump_body.SetBodyFixed(True)
 
 terrain.Initialize()
 
@@ -122,23 +134,25 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 
-print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
+print("VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 
 render_steps = math.ceil(render_step_size / step_size)
+
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-while vis.Run():
+while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
 
-    if (step_number % render_steps == 0):
+    if (step_number % render_steps == 0) :
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
         render_frame += 1
 
     driver_inputs = driver.GetInputs()
+
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
@@ -150,4 +164,5 @@ while vis.Run():
     vis.Advance(step_size)
 
     step_number += 1
+
     realtime_timer.Spin(step_size)

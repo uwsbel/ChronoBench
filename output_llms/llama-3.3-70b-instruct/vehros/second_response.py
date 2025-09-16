@@ -1,13 +1,11 @@
 import pychrono as ch
 import pychrono.vehicle as veh
-from pychrono import irrlicht as chronoirr
 import pychrono.ros as chros
+from pychrono import irrlicht as chronoirr
 
 def main():
-    # Set the Chrono data path for vehicle data
-    veh.SetDataPath(ch.GetChronoDataPath() + 'vehicle/')
-
     # Create the HMMWV vehicle and set its parameters.
+    veh.SetDataPath(ch.GetChronoDataPath() + 'vehicle/')
     hmmwv = veh.HMMWV_Full()
     hmmwv.SetContactMethod(ch.ChContactMethod_NSC)  # Set the contact method for physics.
     hmmwv.SetChassisCollisionType(veh.CollisionType_NONE)  # Disable collision for the chassis.
@@ -19,14 +17,11 @@ def main():
     hmmwv.SetSteeringType(veh.SteeringTypeWV_PITMAN_ARM)  # Use pitman arm steering.
     hmmwv.SetTireType(veh.TireModelType_TMEASY)  # Set tire model.
     hmmwv.SetTireStepSize(1e-3)  # Set the tire simulation step size.
-
-    # Enhanced visualization settings for HMMWV vehicle
-    hmmwv.SetChassisVisualizationType(veh.VisualizationType_MESH)
-    hmmwv.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
-    hmmwv.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
-    hmmwv.SetWheelVisualizationType(veh.VisualizationType_MESH)
-    hmmwv.SetTireVisualizationType(veh.VisualizationType_MESH)
-
+    hmmwv.SetChassisVisualizationType(veh.VisualizationType_MESH)  # Set chassis visualization type.
+    hmmwv.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)  # Set suspension visualization type.
+    hmmwv.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)  # Set steering visualization type.
+    hmmwv.SetWheelVisualizationType(veh.VisualizationType_MESH)  # Set wheel visualization type.
+    hmmwv.SetTireVisualizationType(veh.VisualizationType_MESH)  # Set tire visualization type.
     hmmwv.Initialize()  # Initialize the vehicle.
 
     # Create the terrain for the vehicle to interact with.
@@ -51,13 +46,15 @@ def main():
     ros_manager.RegisterHandler(chros.ChROSBodyHandler(25, hmmwv.GetChassisBody(), "~/output/hmmwv/state"))
     ros_manager.Initialize()  # Initialize the ROS manager.
 
-    # Create the Irrlicht visualization interface
+    # Create the Irrlicht visualization.
     vis = chronoirr.ChVisualSystemIrrlicht()
+    vis.AddTypicalLights()
     vis.AddSkyBox()
-    vis.AddTypicalLights()
     vis.AddCamera(ch.ChVectorD(0, 0, 10))
-    vis.AddCamera(ch.ChVectorD(0, 10, 0))
-    vis.AddTypicalLights()
+    vis.AddTypicalGround(100)
+    vis.SetWindowSize(1024, 768)
+    vis.SetWindowTitle("HMMWV Simulation")
+    vis.SetLogo("")
 
     # Start the simulation loop.
     time = 0
@@ -83,10 +80,11 @@ def main():
         if not ros_manager.Update(time, time_step):
             break  # Exit loop if ROS manager update fails.
 
-        # Render the scene
+        # Render the scene.
         vis.BeginScene()
         vis.DrawAll()
         vis.EndScene()
+        vis.Render()
 
 if __name__ == "__main__":
     main()

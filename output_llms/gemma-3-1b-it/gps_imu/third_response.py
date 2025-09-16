@@ -9,7 +9,7 @@ chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 # Initial vehicle location and orientation
-initLoc = chrono.ChCoordsysd(0, 0, 0.5)
+initLoc = chrono.ChVector3d(0, 0, 0.5)
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 # Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
@@ -86,7 +86,6 @@ vis.AttachVehicle(vehicle.GetVehicle())
 
 # Create the driver system
 driver = veh.ChInteractiveDriverIRR(vis)
-
 # Set the time response for steering and throttle keyboard inputs
 steering_time = 1.0  # Time to go from 0 to +1 (or from 0 to -1)
 throttle_time = 1.0  # Time to go from 0 to +1
@@ -168,12 +167,12 @@ while vis.Run():
     # Add the GPS to the sensor manager
     manager.AddSensor(gps)
 
-    # Update sensor manager in each step
+    # Update sensor managers in each step
     manager.Update()
-
+    
     # Increment frame number
     realtime_timer.Spin(step_size)
-
+    
 # Output vehicle mass
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
@@ -252,8 +251,8 @@ while vis.Run():
     # Add the GPS to the sensor manager
     manager.AddSensor(gps)
 
-    # Update sensor manager in each step
+    # Update sensor managers in each step
     manager.Update()
-
+    
     # Increment frame number
     realtime_timer.Spin(step_size)

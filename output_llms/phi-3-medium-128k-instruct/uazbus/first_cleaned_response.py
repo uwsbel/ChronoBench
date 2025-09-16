@@ -1,92 +1,135 @@
 import pychrono
 
+import pychrono.irrlicht
+
 import pychrono.vehicle as vehicle
 
-import pychrono.irrlicht as irr
+import pychrono.vehicle_vehicles as vehicle_vehicles
+
+import pychrono.vehicle_vehicle as vehicle_vehicle
+
+import pychrono.vehicle_vehicle_vehicles as vehicle_vehicle_vehicles
+
+import pychrono.vehicle_vehicle_driver as vehicle_vehicle_driver
+
+import pychrono.vehicle_vehicle_vehicle as vehicle_vehicle_vehicle
 
 
 
 
-chrono = pychrono.ChBody()
+chrono = pychrono.ChNoSimulator()
 
 
 
 
-vehicle_body = vehicle.VehicleBody(chrono)
+chrono.Set_Solver_Type(pychrono.ChSolverType.dDsSsfSM)
 
-vehicle_body.SetMass(1500.0)  
+chrono.Set_Real_Time(True)
 
-
-
-
-terrain = pychrono.RigidTerrain(chrono)
-
-terrain.SetFriction(0.5)
-
-terrain.SetRestitution(0.3)
+chrono.Set_Real_Time_Step(1.0/60.0)
 
 
 
 
-driver = vehicle.Driver(chrono)
+terrain = pychrono.RigidTerrain("Terrain", 100.0, 100.0)
 
-driver.SetMaxSteer(30.0)  
+terrain.Set_Friction_Coefficient(0.5)
 
+terrain.Set_Restitution(0.2)
 
-
-
-irr_application = irr.Application("UAZBUS Simulation", irr.dimension2d(1024, 768))
-
-camera = irr.film.Camera3D(irr.core.vector3df(0, 0, 10), irr.core.vector3df(0, 0, 0))
-
-light = irr.scene.Light(irr.core.vector3df(0, 0, 10))
-
-light.kind = irr.scene.LIGHT_TYPE_POINT
-
-light.diffuse = irr.core.vector3df(1, 1, 1)
-
-light.attenuation = irr.core.vector4df(1, 0, 0, 0)
+terrain.Add_Ramp(0.0, 0.0, 100.0, 100.0, 10.0)
 
 
 
 
-visualization_node = vehicle_body.CreateNode(vehicle_body.GetBody())
+uazbus = vehicle.UAZBUS("UAZBUS", 10.0, 5.0, 10.0)
 
-visualization_node.SetName("UAZBUS")
+uazbus.Set_RigidBody_Mass(1500.0)
 
+uazbus.Set_RigidBody_Inertia(pychrono.ChBoxInertia(1000.0, 1000.0, 1000.0))
 
+uazbus.Set_RigidBody_Pos(0.0, 0.0, 0.0)
 
+uazbus.Set_RigidBody_Vel(0.0, 0.0, 0.0)
 
-irr_visualization = irr.video.IVideoDriver3D(irr_application.getDevice())
-
-irr_visualization.beginScene()
-
-irr_visualization.drawAllUsers(True)
-
-irr_visualization.endScene()
+uazbus.Set_RigidBody_AngVel(0.0, 0.0, 0.0)
 
 
 
 
-time_step = 0.01  
+driver = vehicle_vehicle_driver.Driver("Driver")
 
-while irr_application.run():
+driver.Set_MaxSteerAngle(30.0)
 
-    chrono.Advance(time_step)
+driver.Set_MaxBrake(1000.0)
 
-    vehicle_body.Advance(time_step)
+driver.Set_MaxAccel(10.0)
 
-    terrain.Advance(time_step)
+driver.Set_MaxSteerRate(30.0)
 
-    driver.Advance(time_step)
 
+
+
+uazbus.Add_Driver(driver)
+
+
+
+
+chrono.Set_Screen_Width(800)
+
+chrono.Set_Screen_Height(600)
+
+chrono.Set_Screen_Title("UAZBUS Simulation")
+
+chrono.Set_Screen_Allow_Window_Resizing(False)
+
+chrono.Set_Screen_Allow_Fullscreen(False)
+
+
+
+
+irr = pychrono.irrlicht.ChIrrApp("UAZBUS Visualization", chrono.Get_Window_Width(), chrono.Get_Window_Height())
+
+chrono.Add_Irr_Options(irr)
+
+irr.Set_Sleep_Speed(0.001)
+
+irr.Set_Max_FPS(60)
+
+irr.Set_Window_Title("UAZBUS Simulation")
+
+irr.Set_Use_OpenGL(False)
+
+
+
+
+irr.Add_Vehicle(uazbus, vehicle_vehicle.Vehicle_Vehicle_Visualization(uazbus, 100.0, 100.0, 100.0, 100.0)
+
+
+
+
+irr.Add_Terrain(terrain, 100.0, 100.0, 10.0)
+
+
+
+
+while(chrono.Get_Time() < 100.0):
+
+    chrono.Do_Step()
 
     
 
-    visualization_node.SetPos(chrono.GetPos(vehicle_body.GetBody()))
+    irr.BeginScene()
 
-    irr_visualization.beginScene()
+    irr.Draw()
 
-    irr_visualization.drawAllUsers(True)
+    irr.EndScene()
 
-    irr_visualization.endScene()
+    chrono.Set_Real_Time_Step(1.0/60.0)
+
+    chrono.Step()
+
+
+
+
+chrono.Destroy()

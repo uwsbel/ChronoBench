@@ -8,7 +8,7 @@ chrono.SetChronoDataPath("./")
 
 
 system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  
 
 
 mesh_file = "cube.obj"  
@@ -23,59 +23,42 @@ system.Add(mesh_body)
 sensor_manager = chrono.ChSensorManager()
 sensor_manager.AddSensor(mesh_body)
 
+
 lidar = chrono.ChLidarSensor()
 lidar.SetSensorName("Lidar")
-lidar.SetScanRate(30)  
-lidar.SetHorizontalResolution(360)
-lidar.SetVerticalResolution(60)
-lidar.SetMaxDistance(10.0)
-lidar.SetNoise(0.01)  
-lidar.SetVisualization(True)  
+lidar.SetScanRate(10)  
+lidar.SetRange(10)  
+lidar.SetResolution(180)  
+lidar.SetFOV(np.pi / 2)  
+lidar.SetNoiseStdDev(0.01)  
+lidar.SetVisualize(True)  
 lidar.SetSaveData(True)  
-lidar.SetSaveFile("lidar_data.txt")
+lidar.SetOutputFileName("lidar_data.txt")  
 
 sensor_manager.AddSensor(lidar)
-sensor_manager.AttachSensor(lidar, mesh_body)
 
 
-orbit_radius = 5.0
-orbit_speed = 1.0  
-orbit_angle = 0.0
+orbit_radius = 5
+orbit_speed = 1  
+time = 0
+def update_lidar_position(body, time):
+    
+    x = orbit_radius * np.cos(orbit_speed * time)
+    z = orbit_radius * np.sin(orbit_speed * time)
+    lidar.SetPos(chrono.ChVectorD(x, 0, z))
+    return lidar
 
 
 time_step = 0.01
-num_steps = 500
+num_steps = 100
 
-for step in range(num_steps):
+for i in range(num_steps):
+    time += time_step
+    update_lidar_position(mesh_body, time)
+
     system.DoStepDynamics(time_step)
 
     
-    orbit_angle += orbit_speed * time_step
-    lidar_position = chrono.ChVectorD(
-        orbit_radius * np.cos(orbit_angle),
-        0.5,  
-        orbit_radius * np.sin(orbit_angle),
-    )
-    lidar.SetPosition(lidar_position)
-    lidar.SetDirection(chrono.ChVectorD(0, 0, 0))  
-
-    
     if lidar.HasNewData():
-        data = lidar.GetBuffer()
-        print(f"Step {step}: Lidar data - {len(data)} points")
-        
-        
-        
-        
-        
-        
-    sensor_manager.UpdateSensors(system.GetChTime())
-
-
-
-vis = chrono.ChVisualSystemSLX()
-vis.AttachSystem(system)
-vis.SetWindowSize(1024, 768)
-vis.SetWindowTitle("Lidar Simulation")
-vis.Initialize()
-vis.Run()
+        buffer = lidar.GetBuffer()
+        print(f"Step {i}: Lidar data points = {len(buffer)}")

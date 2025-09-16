@@ -4,109 +4,136 @@
 
 ### 1. Completeness (40 points)
 
-- **System Initialization:** Present and correct (`sys = chrono.ChSystemNSC()`), gravitational acceleration set (though zero gravity). No deduction.
-- **Body Creation:** Two dynamic bodies (`body_1`, `body_2`) and one fixed ground body created. However, `body_2` is used before its declaration in the spring initialization (see correctness). Minor issue but affects completeness.
-- **Visualization:** Visualization system created and attached, window size and title set, initialized, logo, skybox, camera, and lights added. Complete.
-- **Spring Links:** Two springs created (`spring_1` and `spring_2`), with `spring_2` using a custom force functor.
-- **Visual Shapes:** Visual shapes added to bodies and ground.
-- **Simulation Loop:** Present and standard.
+- **System Initialization:** Present and correct (`sys = chrono.ChSystemNSC()`), gravity set explicitly. **No deduction.**
+- **Body Creation:** Two bodies (`body_1`, `body_2`) and a fixed ground body created. However, `body_2` is added **after** the spring_2 initialization, which is a logical error (spring_2 uses `body_2` before it is defined). This is a completeness and correctness issue.
+- **Visualization:** Visualization system is set up properly with window size, title, logo, skybox, camera, and lights. Visual shapes are added to bodies and springs.
+- **Spring Links:** Two springs (`spring_1` and `spring_2`) are created and added to the system.
+- **Custom Force Functor:** Defined and assigned to `spring_2`.
 
 **Deductions:**
 
-- The order of `body_2` creation is after `spring_2` initialization, which is a missing essential component for correct setup (spring initialization requires existing bodies). This is a completeness issue because the spring cannot be properly initialized without `body_2` existing. Deduct **15 points**.
-- Minor omission: The ground body has collision enabled but no collision shape is added, which is unusual and may cause issues in collision detection. Deduct **5 points**.
-- The spring visual shape for `spring_1` is added, but no visual shape is added for `spring_2`. This is a minor omission in visualization completeness. Deduct **5 points**.
+- Missing or misordered body creation for `body_2` before its use in `spring_2` initialization: **15 points** (essential component misconfigured).
+- Minor omission: `spring_1.Initialize()` uses `chrono.ChVector3d(0,0,0)` and `chrono.ChVector3d(-1,0,0)` as attachment points, but the rest length is 1.5, which is inconsistent with the initial positions of bodies (body_1 at (-1,-3,0), ground at (0,0,0)). This could cause unexpected spring behavior. **5 points** deduction for slight deviation from best practices.
+- The ground body is created with `chrono.ChBody()` but no collision model or material is assigned. While collision is disabled, it is generally better to assign collision models or use `SetCollide(False)` properly. **5 points** minor omission.
 
-**Completeness subtotal:** 40 - 15 - 5 - 5 = **15 points**
+**Total Completeness deduction: 15 + 5 + 5 = 25 points**
 
 ---
 
 ### 2. Correctness (30 points)
 
-- **Incorrect use of `spring_2.Initialize(body_2, ground, ...)` before `body_2` is defined:** This will cause a runtime error or undefined behavior. Deduct **15 points**.
-- **Custom ForceFunctor `MySpringForce`:**  
-  - The `ComputeForce` method signature and usage are questionable. The API expects `ComputeForce(self, body1, body2, rel_pos)`, but the calculation of damping force uses `rel_pos.GetSpeed()`, which is not a documented method of `ChVector3d`. `rel_pos` is presumably a vector, but `GetSpeed()` is not a vector method. This is a logical error. Deduct **10 points**.
-  - The returned force vector is constructed as `chrono.ChVector3d(spring_force, damping_force, 0)`, which mixes scalar spring and damping forces as x and y components, which is physically incorrect. The force should be a vector in the direction of the spring axis. Deduct **15 points**.
-- **Visual shape creation:** `chrono.ChVisualShapeBox(1,1,1)` is used, but per documentation, the constructor expects a `ChVector3d` size, not three separate floats. This is an incorrect API usage. Deduct **15 points**.
-- **Ground body collision:** No collision shape added to ground, so enabling collision is ineffective. Deduct **10 points**.
-- **Use of `sys.AddBody()` instead of `sys.Add()` for bodies:** The documentation shows `sys.Add(body)`, but `sys.AddBody(body)` is used. This is acceptable as both exist, but `AddBody` is the correct method for adding bodies. No deduction.
-- **Gravity set to zero:** This is acceptable if intentional. No deduction.
-- **Use of `chrono.ChFramed` in `AddVisualShape`:** The documentation does not mention `ChFramed`, but it is a valid way to specify frame for visual shapes. No deduction.
-- **Simulation loop and visualization calls:** Correct.
+- **Incorrect use of `spring_2` before `body_2` is defined:** This will cause a runtime error or undefined behavior. **15 points deduction.**
+- **In `MySpringForce.ComputeBodyForce`:**
+  - Syntax error: missing closing parenthesis in `force_magnitude = self.spring_coef * (self.rest_length - (displacement.Length())` (missing `)`).
+  - Incorrect vector operation: `displacement.GetXAxis()` is invalid; `ChVector3d` does not have `GetXAxis()`. The intended operation is likely to get the unit vector along displacement, which should be `displacement.GetNormalized()` or `displacement / displacement.Length()`.
+  - The force calculation sign is reversed: spring force should be proportional to `(current_length - rest_length)` times unit vector along displacement, not `(rest_length - current_length)`.
+  - `ComputeDampingForce` returns a vector with magnitude but no direction: `-self.damping_coef * body.GetVelocity().Length()` returns a scalar, but wrapped in `ChVector3d(...)` without direction, which is incorrect.
+  
+  These are **significant logical errors** that will cause incorrect force application. **15 points deduction.**
+  
+- **Spring initialization:**
+  - `spring_1.Initialize(body_1, ground, True, chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(-1, 0, 0))`
+    - The third argument is `True`, which corresponds to `pos_are_relative` (from PyChrono docs). This is acceptable but unusual; typically, absolute positions are used for clarity.
+  - `spring_2.Initialize(body_2, ground, True, chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(1, 0, 0))`
+    - Same issue, but compounded by `body_2` not being defined yet.
+  
+- **Missing `vis.EndScene()` in the visualization loop:** According to the API, after `vis.Render()`, `vis.EndScene()` should be called to complete the frame rendering. **5 points deduction.**
 
-**Correctness subtotal:** 30 - 15 - 10 - 15 - 10 = **-30 points** (exceeds total, so minimum 0)
+**Total Correctness deduction: 15 + 15 + 5 = 35 points**
 
 ---
 
 ### 3. Code Quality (10 points)
 
-- **Readability:** Variable names like `body_1`, `body_2`, `spring_1`, `spring_2` are generic but acceptable for a demo.  
-- **Structure:** The order of body and spring creation is incorrect, which affects clarity.  
-- **Comments:** No comments at all, which is poor practice for readability and maintainability. Deduct **5 points**.
-- **Formatting:** Reasonable, no major issues.
+- **Readability:**
+  - Variable names are reasonable (`body_1`, `spring_1`, etc.), but could be more descriptive.
+  - The code lacks comments explaining key steps, especially the custom force functor and spring setup.
+  - The indentation and formatting are mostly fine.
+- **Documentation:**
+  - No comments or docstrings explaining the purpose of classes or functions.
+  
+**Deductions:**
 
-**Code Quality subtotal:** 10 - 5 = **5 points**
+- Lack of comments and explanations: **5 points**
+- Moderate readability but could be improved with better variable names and structure: **3 points**
+
+**Total Code Quality deduction: 8 points**
 
 ---
 
 ### 4. Efficiency (10 points)
 
-- No obvious redundant calculations or inefficient API usage, except the custom force functor is inefficient and incorrect (already deducted under correctness).  
-- Minor optimization: The `spring_force` and `damping_force` calculations could be combined into a single vector operation. Deduct **3 points** for missing this obvious optimization.
+- The code does not contain obvious redundant calculations except in the custom force functor where vector operations are incorrectly used.
+- The force functor recomputes displacement and length every call, which is necessary.
+- No obvious inefficiencies in the simulation loop or visualization.
+- However, the custom force functor's `ComputeDampingForce` calculates velocity length but does not use direction, which is inefficient and incorrect.
 
-**Efficiency subtotal:** 10 - 3 = **7 points**
+**Deductions:**
+
+- Inefficient and incorrect force vector calculation in `ComputeDampingForce`: **5 points**
+- Minor inefficiency in `ComputeBodyForce` due to incorrect vector usage (could be optimized): **3 points**
+
+**Total Efficiency deduction: 8 points**
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- No error handling at all (try-except blocks, input validation, etc.).  
-- No checks for zero-length vectors or division by zero in force calculations.  
-- Deduct **5 points** for lack of basic error handling.
+- No error handling or checks for invalid inputs.
+- The code does not check for zero-length displacement vectors before normalization (which would cause division by zero).
+- No try-except blocks or validation for force functor inputs.
+- Lack of robustness in the custom force functor.
 
-**Error Handling subtotal:** 0 points
+**Deductions:**
+
+- Lack of basic error handling: **5 points**
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
-- Visualization system is correctly created and attached.  
-- Window size, title, logo, skybox, camera, and lights are set up properly.  
-- However, no visual shape added for `spring_2` (minor visualization omission).  
-- Camera position is at `(0, 0, 6)`, which is acceptable but might be suboptimal for viewing the scene (usually some offset in y is better). Minor issue.  
-- Deduct **2 points** for minor visualization issues.
+- Visualization system is properly initialized and attached.
+- Window size, title, logo, skybox, camera, and lights are set.
+- Visual shapes are added to bodies and springs.
+- Missing `vis.EndScene()` in the rendering loop, which is required to complete the frame rendering cycle.
+- Camera position is at `(0,0,6)`, which is acceptable but might not provide the best view of the scene (bodies are at y = -3, so camera looking from above or side might be better).
+- No color is set for visual shapes, which could improve clarity.
 
-**Visualization subtotal:** 5 - 2 = **3 points**
+**Deductions:**
 
----
+- Missing `vis.EndScene()`: **3 points**
+- Minor visualization improvement opportunities (color, camera angle): **2 points**
 
-### **Summary of deductions:**
-
-| Criterion                   | Points | Deductions | Score  |
-|-----------------------------|--------|------------|--------|
-| Completeness                | 40     | 25         | 15     |
-| Correctness                | 30     | 30         | 0      |
-| Code Quality               | 10     | 5          | 5      |
-| Efficiency                 | 10     | 3          | 7      |
-| Error Handling & Robustness| 5      | 5          | 0      |
-| Visualization              | 5      | 2          | 3      |
-| **Total**                  | 100    | 70         | **30** |
+**Total Visualization deduction: 5 points**
 
 ---
 
-### **Final score:**
+### Summary of deductions:
 
-[[30]]
+| Criterion                  | Deduction Points |
+|----------------------------|------------------|
+| Completeness               | 25               |
+| Correctness                | 35               |
+| Code Quality               | 8                |
+| Efficiency                 | 8                |
+| Error Handling & Robustness| 5                |
+| Visualization              | 5                |
+| **Total Deduction**        | **86**           |
 
 ---
 
-### **Explanation of deductions:**
+### Final score:
 
-- The most critical issue is the incorrect order of body and spring initialization, which breaks the simulation setup (completeness and correctness).
-- The custom force functor is implemented incorrectly, with wrong force vector construction and use of non-existent methods, severely affecting correctness.
-- Visual shape constructors are used incorrectly (passing separate floats instead of a vector), which is an API misuse.
-- Ground body has collision enabled but no collision shape, which is a significant omission.
-- Lack of comments and error handling reduces code quality and robustness.
-- Minor visualization and efficiency issues also contribute to deductions.
+100 - 86 = **14**
 
-Overall, the script demonstrates an attempt at a PyChrono simulation but contains fundamental errors that would prevent it from running correctly or producing meaningful results.
+---
+
+### Explanation:
+
+The script includes most essential components but has critical errors such as using `body_2` before definition, incorrect force calculations in the custom force functor, missing `vis.EndScene()`, and lack of comments/documentation. These issues significantly affect correctness and completeness, leading to a low score. Minor issues in visualization and efficiency further reduce the score. The code would not run correctly without fixing these errors.
+
+---
+
+**Final score:**
+
+[[14]]

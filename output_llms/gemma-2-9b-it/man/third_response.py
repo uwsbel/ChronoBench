@@ -2,8 +2,8 @@ import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
-import pychrono.sensor as sensor
 import numpy as np
+import pychrono.sensor as sensor
 
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
@@ -22,9 +22,10 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 # Rigid terrain
-terrainHeight = 0      
-terrainLength = 100.0  
-terrainWidth = 100.0   
+# terrain_model = veh.RigidTerrain.BOX
+terrainHeight = 0      # terrain height
+terrainLength = 100.0  # size in X direction
+terrainWidth = 100.0   # size in Y direction
 
 # Poon chassis tracked by the camera
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
@@ -91,9 +92,9 @@ vis.AttachVehicle(vehicle.GetVehicle())
 driver = veh.ChInteractiveDriverIRR(vis)
 
 # Set the time response for steering and throttle keyboard inputs.
-steering_time = 1.0  
-throttle_time = 1.0  
-braking_time = 0.3   
+steering_time = 1.0  # time to go from 0 to +1 (or from 0 to -1)
+throttle_time = 1.0  # time to go from 0 to +1
+braking_time = 0.3   # time to go from 0 to +1
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
@@ -111,24 +112,18 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-# Sensor Manager
+# Create sensor manager and lidar sensor
 sensor_manager = sensor.ChSensorManager()
-vehicle.GetSystem().Add(sensor_manager)
-
-# Lidar Sensor
-lidar = sensor.ChLidarSensor()
-lidar.SetRange(10)
-lidar.SetAngleStep(0.1)
-lidar.SetNumAngles(360)
+lidar = sensor.ChLidar(vehicle.GetVehicle().GetSystem())
 sensor_manager.AddSensor(lidar)
 
-# Add random boxes
+# Add random boxes to the simulation
 for i in range(10):
     box = chrono.ChBoxShape(chrono.ChVector3d(0.5, 0.5, 0.5))
-    box_body = chrono.ChBodyEasy(1.0, box)
-    box_body.SetPos(chrono.ChVector3d(np.random.uniform(-50, 50), np.random.uniform(-50, 50), np.random.uniform(1, 2)))
-    box_body.SetRot(chrono.QUNIT)
-    vehicle.GetSystem().Add(box_body)
+    body = chrono.ChBodyEasy(1.0, box)
+    body.SetPos(chrono.ChVector3d(np.random.uniform(-50, 50), np.random.uniform(-50, 50), 1))
+    body.SetRot(chrono.ChQuaterniond(1, 0, 0, 0))
+    vehicle.GetSystem().Add(body)
 
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()

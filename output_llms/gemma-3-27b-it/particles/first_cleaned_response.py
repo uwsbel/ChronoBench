@@ -1,10 +1,9 @@
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
 import random
-import math
 
 
-chrono.SetChronoDataPath("./")  
+chrono.SetChronoDataPath("../chrono_data/")  
 
 
 system = chrono.ChSystemNSC()
@@ -13,92 +12,91 @@ system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
 class ParticleEmitter(chrono.ChBehavior):
     def __init__(self, body, rate, min_radius, max_radius):
-        chrono.ChBehavior.__init__(self)
-        self.body = body
+        chrono.ChBehavior.__init__(self, body)
         self.rate = rate
         self.min_radius = min_radius
         self.max_radius = max_radius
-        self.time_since_last_emission = 0.0
+        self.time_since_last_emission = 0
 
     def DoStep(self, step):
         time = step.GetTime()
         dt = step.GetStepSize()
         self.time_since_last_emission += dt
 
-        while self.time_since_last_emission > (1.0 / self.rate):
+        if self.time_since_last_emission >= 1.0 / self.rate:
+            self.time_since_last_emission = 0
+
             
             particle = chrono.ChBodyEasy()
             particle.SetBodyFixed(False)
-            particle.SetCollide(True)
-            particle.SetMaterialSurface(chrono.ChMaterialSurfaceNSC())
+            particle.SetMass(0.1)  
 
             
             radius = random.uniform(self.min_radius, self.max_radius)
-            particle.AddSphere(radius)
-            particle.SetMass(1.0)
-            particle.SetInertia(0.5 * particle.GetMass() * radius * radius)
+            sphere_asset = chrono.ChSphereShape()
+            sphere_asset.GetSphereGeometry().SetRadius(radius)
+            particle.AddAsset(sphere_asset)
+            particle.SetCollide(True)
 
             
-            x = random.uniform(-1.0, 1.0)
-            y = random.uniform(0.0, 1.0)
-            z = random.uniform(-1.0, 1.0)
+            x = random.uniform(-1, 1)
+            y = random.uniform(2, 4)  
+            z = random.uniform(-1, 1)
             particle.SetPos(chrono.ChVectorD(x, y, z))
 
             
-            vx = random.uniform(-1.0, 1.0)
-            vy = random.uniform(0.0, 1.0)
-            vz = random.uniform(-1.0, 1.0)
+            vx = random.uniform(-1, 1)
+            vy = random.uniform(-1, 1)
+            vz = random.uniform(-1, 1)
             particle.SetWVel(chrono.ChVectorD(vx, vy, vz))
 
             
-            particle.SetRot(chrono.ChQuaternionD(random.uniform(0, 2*math.pi), random.uniform(0, 2*math.pi), random.uniform(0, 2*math.pi)))
+            particle.SetRot(chrono.ChQuaternionD(random.uniform(0, 360), random.uniform(0, 360), random.uniform(0, 360)))
 
             
             system.Add(particle)
 
-            self.time_since_last_emission -= (1.0 / self.rate)
+            
+            attractor = CustomGravityForce(particle, system)
+            particle.AddForce(attractor)
+
+
+class CustomGravityForce(chrono.ChForce):
+    def __init__(self, body, system):
+        chrono.ChForce.__init__(self, "CustomGravity")
+        self.body = body
+        self.system = system
+
+    def Setup(self):
+        pass
+
+    def DoStep(self, step):
+        
+        force_direction = -self.body.GetPos()
+        force_direction.Normalize()
+        force_magnitude = 1.0  
+        force = force_direction * force_magnitude
+        self.body.ApplyForce(force)
+
 
 
 emitter_body = chrono.ChBodyEasy()
 emitter_body.SetBodyFixed(True)
 emitter_body.SetPos(chrono.ChVectorD(0, 0, 0))
-emitter_body.AddBox(0.2, 0.2, 0.2)
 system.Add(emitter_body)
 
 
-emitter = ParticleEmitter(emitter_body, 10, 0.05, 0.1)
+emitter = ParticleEmitter(emitter_body, rate=20, min_radius=0.1, max_radius=0.2)
 emitter_body.AddBehavior(emitter)
 
-
-
-class AttractiveForce(chrono.ChForce):
-    def __init__(self, strength):
-        chrono.ChForce.__init__(self)
-        self.strength = strength
-
-    def Apply(self, step):
-        for body in system.Get_BodyList():
-            for other_body in system.Get_BodyList():
-                if body != other_body:
-                    distance = chrono.ChVectorD(body.GetPos() - other_body.GetPos()).Length()
-                    if distance > 0.01: 
-                        force_magnitude = self.strength / (distance * distance)
-                        force_direction = chrono.ChVectorD(other_body.GetPos() - body.GetPos()).Normalize()
-                        force = force_magnitude * force_direction
-                        body.ApplyForce(force)
-
-
-
-attractive_force = AttractiveForce(100.0)
-system.AddForce(attractive_force)
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
 vis.SetWindowSize(1024, 768)
-vis.SetWindowTitle('Particle Attraction')
+vis.SetWindowTitle('Particle Gravity Simulation')
 vis.Initialize()
-vis.AddCamera(chrono.ChVectorD(2, 1.5, -3))
+vis.AddCamera(chrono.ChVectorD(0, 3, -5))
 vis.AddTypicalLights()
 
 

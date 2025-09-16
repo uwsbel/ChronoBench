@@ -1,80 +1,51 @@
-import pychrono as chrono
-import pychrono.irrlicht as irr
-import pychrono.fea as fea
-import numpy as np
+import chrono as ch
+import chrono.irrlicht as irr
+import chrono.fem as fem
+import math
 
 # Initialize PyChrono environment
-chrono.ChEngine.Initialize()
+ch.CH_init()
 
-# Create a Chrono system
-system = chrono.ChSystem()
+# Create the system
+system = ch.ChSystem()
 
-# Set the gravitational acceleration (default: 9.81 m/s^2)
-system.SetGravitationalAcceleration(chrono.ChVectorD(0, 0, -9.81))
-
-# Create a Irrlicht application for visualization
-app = irr.ChIrrApp(system, "Jeffcott Rotor Simulation", chrono.ChVectorD(800, 600))
-app.SetTimestep(0.01)
-app.SetTryRewind(True)
-
-# Create an IGA beam
-beam = fea.ChIGAbeam()
-beam.SetLength(1.0)  # Length of the beam (m)
-beam.SetSectionWidth(0.05)  # Section width (m)
-beam.SetSectionHeight(0.05)  # Section height (m)
-beam.SetNg(4)  # Number of Gauss points
-beam.SetNurbsOrder(3)  # Order of the NURBS curve
-beam.SetMaterial(chrono.ChMaterialShellGiant(200e9, 0.3, 7850))  # Material properties
-
-# Set the beam's start and end points
-beam.SetStartPoint(chrono.ChVectorD(0, 0, 0))
-beam.SetEndPoint(chrono.ChVectorD(1, 0, 0))
-
-# Add the beam to the system
+# Create the IGA beam
+beam = fem.ChBeamIGA()
+beam.SetNodesSpacing(0.1)  # Adjust spacing as needed
+beam.SetLength(1.0)      # Adjust length as needed
+beam.SetSection(fem.ChBeamSectionIGA(0.05, 0.01, 0.01))  # Adjust section dimensions as needed
+beam.SetMaterial(fem.ChFEMMaterial(200e9, 0.3, 7850))  # Steel, adjust as needed
 system.Add(beam)
 
 # Create a flywheel
-flywheel = chrono.ChBody()
-flywheel.SetMass(10)  # Mass of the flywheel (kg)
-flywheel.SetInertia(chrono.ChMatrix33D(1, 0, 0, 0, 1, 0, 0, 0, 1))  # Inertia tensor
-
-# Set the flywheel's initial position and rotation
-flywheel.SetPos(chrono.ChVectorD(0.5, 0, 0))
-flywheel.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
-
-# Add the flywheel to the system
+flywheel = ch.ChBodyEasyBody(1.0,  # mass
+                              0.5,  # radius
+                              ch.ChFrame(ch.Vector(0, 0, 0.5), ch.Quaternion(1, 0, 0, 0)))
+flywheel.SetPos(ch.Vector(0.5, 0, 0.5))  # Position at beam center
 system.Add(flywheel)
 
-# Create a fixed constraint between the beam and the flywheel
-constraint = chrono.ChLinkLockPointLine(flywheel, beam)
-constraint.SetPointA(chrono.ChVectorD(0, 0, 0))
-constraint.SetPointB(chrono.ChVectorD(0.5, 0, 0))
-system.Add(constraint)
+# Attach flywheel to beam
+ch.ChLinkMateFix().Connect(beam, flywheel)
 
 # Create a rotational motor
-motor = chrono.ChLinkMotorRotationAngle()
-motor.SetMotorFunction(chrono.ChFunction_Sine(0, 1, 0))  # Sine function with amplitude 1 and frequency 1
-
-# Set the motor's end points
-motor.SetPointA(chrono.ChVectorD(0, 0, 0))
-motor.SetPointB(chrono.ChVectorD(0, 0, 0))
-
-# Add the motor to the system
+motor = ch.ChLinkMotorRotation()
+motor.Init(beam, 
+           ch.Frame(ch.Vector(0, 0, 0), ch.Quaternion(1, 0, 0, 0)), 
+           ch.Frame(ch.Vector(0, 0, 0), ch.Quaternion(1, 0, 0, 0)))
+motor.SetMotorFunction(ch.ChFunction_Sine(0, 1, 0))  # Sine function for rotation
 system.Add(motor)
 
-# Connect the motor to the beam
-motor.Connect(beam, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.ChQuaternionD(1, 0, 0, 0)))
+# Create Irrlicht application
+app = irr.ChIrrApp(system, 'Jeffcott Rotor Simulation', 800, 600)
 
-# Create a FEM visualization
-fem_vis = fea.ChFEMvisualization(beam)
-fem_vis.SetFEMdata(beam.GetNodes(), beam.GetElements())
-app.Add(fem_vis)
+# Add FEM visualization
+fem_vis = ch.ChFEMVisualization(beam)
+fem_vis.SetFEMdataResolution(4)
+app.AddVisualization(fem_vis)
 
-# Create an Irrlicht window
-irr_window = irr.ChIrrlicht irr_window(app)
-irr_window.AddCamera(chrono.ChVectorD(2, 2, 2), chrono.ChVectorD(0, 0, 0))
+# Set visualization parameters
+app.SetTimestep(0.01)
+app.SetCollision(True)
 
 # Run the simulation
-while app.GetShouldKeepRunning():
-    app.DoStep()
-    irr_window.Update()
+app.Run()

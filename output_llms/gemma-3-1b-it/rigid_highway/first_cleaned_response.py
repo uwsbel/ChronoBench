@@ -1,83 +1,53 @@
 import pychrono
 import pychrono.core as pc
-import pychrono.objects as pco
-import pychrono.scenes as sc
-import pychrono.visuals as v
-import pychrono.physics as pphysics
-import pychrono.utils as pcu
+import pychrono.visual as pv
 import numpy as np
+import matplotlib.pyplot as plt
+from pychrono.visual import MeshVisualizer
+from pychrono.core import Simulation
+from pychrono.visual.mesh import MeshVisualizer
+from pychrono.visual.render import Render
+from pychrono.visual.ui import UI
+import random
 
 
+terrain_height = 10.0  
+terrain_width = 10.0
+terrain_scale = 1.0  
+terrain_density = 0.5  
+terrain_color = np.random.rand(terrain_width, terrain_height)
+terrain_color = np.clip(terrain_color, 0.0, 1.0)
 
-highway_col = pco.Mesh("Highway_col.obj")
-highway_vis = pco.Mesh("Highway_vis.obj")
 
-
-vehicle_location = (0, 0, 0)  
-vehicle_orientation = (0, 0, 0) 
-vehicle_contact_method = pc.ContactMethod.CONTACT_METHOD_NO_CONTACT 
-vehicle_tmeasy_model = pc.TMEASY_MODEL_1  
-vehicle_mass = 1000  
+vehicle_x = 0.0
+vehicle_y = 0.0
+vehicle_z = 0.0
+vehicle_orientation = 0.0  
+vehicle_speed = 0.0
+vehicle_throttle = 0.0
+vehicle_brake = 0.0
+vehicle_contact_method = 'contact_method'  
+vehicle_tire_model = 'Irrlicht_Tire'  
+vehicle_mass = 100.0  
 vehicle_radius = 0.5  
 
 
+highway_col = 'Highway_col.obj'
+highway_vis = 'Highway_vis.obj'
 
 
-hmmwv_type = pc.HMMWV_TYPE_ADVANCED
-hmmwv_speed = 1.0  
-hmmwv_acceleration = 0.1 
-hmmwv_turning_speed = 0.05 
-hmmwv_vehicle_radius = 0.3 
+simulation = Simulation()
+simulation.set_vehicle(vehicle_x, vehicle_y, vehicle_z, vehicle_orientation, vehicle_speed, vehicle_throttle, vehicle_brake, vehicle_contact_method, vehicle_tire_model, vehicle_mass, vehicle_radius)
+simulation.set_terrain(terrain_height, terrain_width, terrain_scale, terrain_density)
+simulation.set_visual(MeshVisualizer(terrain_color))
+simulation.set_ui(UI(vehicle_x, vehicle_y, vehicle_z, vehicle_orientation, vehicle_speed, vehicle_throttle, vehicle_brake, vehicle_contact_method, vehicle_tire_model, vehicle_mass, vehicle_radius))
 
 
-
-scene = sc.Scene()
-
-
-vehicle = pco.Vehicle(
-    vehicle_location,
-    vehicle_orientation,
-    vehicle_contact_method,
-    vehicle_tmeasy_model,
-    vehicle_mass,
-    vehicle_radius,
-    vehicle_id = "vehicle"
-)
+render = Render()
+render.render(simulation)
 
 
+simulation.run()
+simulation.wait()
 
-physics = pphysics.Physics(
-    scene,
-    vehicle,
-    vehicle_mass,
-    vehicle_radius,
-    hmmwv_speed,
-    hmmwv_acceleration,
-    hmmwv_turning_speed,
-    hmmwv_vehicle_radius,
-    hmmwv_vehicle_radius,
-    hmmwv_vehicle_radius,
-    hmmwv_vehicle_radius,
-    hmmwv_vehicle_radius,
-    hmmwv_vehicle_radius,
-    hmmwv_vehicle_radius,
-    hmmwv_vehicle_radius
-)
-
-
-
-
-v.Visualization(scene, vehicle)
-
-
-
-
-driver_system = pc.Driver(
-    scene,
-    vehicle
-)
-
-
-
-print("Simulation started.  Running at 50 frames/second.")
-scene.run()
+print("Simulation complete.")

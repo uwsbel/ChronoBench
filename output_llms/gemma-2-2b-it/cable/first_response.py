@@ -1,63 +1,56 @@
 import pychrono as chrono
-import pychrono.irrlicht as irr
-import pychrono.irrlicht.irrlicht as irr
+import pychrono.irr as irr
 
 # Initialize PyChrono
 chrono.init()
 
-# Create the world
+# Create a new Chrono world
 world = chrono.World()
 
-# Create the Irrlicht engine
-irr_engine = irr.IrrlichtEngine()
+# Create a new Irrlicht engine
+engine = irr.IrrlichtEngine()
 
-# Create the Irrlicht scene
-scene = irr_engine.createScene()
+# Define the beam's dimensions
+beam_length = 1.0  # meters
+beam_width = 0.1  # meters
+beam_height = 0.2  # meters
 
-# Define the beam properties
-beam_length = 1.0  # Length of the beam in meters
-beam_width = 0.1  # Width of the beam in meters
-beam_material = chrono.Material(chrono.Material.Type.STEEL)  # Material of the beam
+# Create the beam's geometry
+beam_geometry = chrono.Shape(chrono.ShapeType.BOX)
+beam_geometry.set_size(beam_length, beam_width, beam_height)
 
-# Create the beam elements
-beam_elements = []
-for i in range(10):  # Number of elements in the beam
-    element = chrono.BeamElement(beam_length, beam_width, beam_material)
-    beam_elements.append(element)
+# Create the beam's material
+beam_material = chrono.Material()
+beam_material.set_density(1000.0)  # kg/m^3
+beam_material.set_elasticity(100.0)  # MPa
+beam_material.set_friction(0.1)
 
-# Create the beam
-beam = chrono.Beam(beam_elements)
+# Create the beam's nodes
+beam_nodes = [
+    chrono.Node(beam_geometry, chrono.Position(0.0, 0.0, 0.0)),
+    chrono.Node(beam_geometry, chrono.Position(beam_length, 0.0, 0.0))
+]
 
-# Set the beam's hinge point
-beam.set HingePoint(chrono.Point(0, 0, 0))
-
-# Set the beam's gravity
-beam.setGravity(chrono.Vector(0, -9.81, 0))
-
-# Create the ground
-ground = chrono.Ground()
-
-# Set the ground's position
-ground.setPosition(chrono.Vector(0, 0, 0))
-
-# Add the ground to the world
-world.add(ground)
+# Create the beam's elements
+beam_elements = [
+    chrono.Element(beam_nodes[0], beam_nodes[1], beam_material)
+]
 
 # Add the beam to the world
-world.add(beam)
+world.add_object(beam_geometry)
 
-# Set the simulation parameters
-dt = 0.01  # Time step
-iterations = 1000  # Number of simulation iterations
+# Set the beam's gravity
+world.set_gravity(chrono.Vector3(0.0, -9.81, 0.0))
 
-# Start the simulation loop
-for i in range(iterations):
-    # Update the beam's position and deformation
-    beam.update(dt)
+# Set the beam's initial positions
+for node in beam_nodes:
+    node.set_position(chrono.Vector3(node.get_position().x, node.get_position().y, node.get_position().z))
 
-    # Render the scene
-    scene.render()
+# Set the beam's initial forces
+# You can add forces here based on your simulation needs
 
-# Clean up
-world.clear()
-irr_engine.shutdown()
+# Run the simulation
+engine.run()
+
+# Visualize the beam's deformation
+engine.draw()

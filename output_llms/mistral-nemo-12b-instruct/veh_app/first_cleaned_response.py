@@ -1,68 +1,66 @@
-import pychrono as pc
+import pychrono as chrono
 import numpy as np
 
 
-sim = pc.Simulation()
-renderer = pc.OglRenderer()
-sim.set_renderer(renderer)
+chrono.setChronoDataPath('path/to/chrono_data')
 
 
+simulation = chrono.ChSimulation()
+system = chrono.ChSystemSMC()
+collision_system = chrono.ChCollisionSystem()
+contact_manager = chrono.ChContactContainer()
+collision_system.SetContactContainer(contact_manager)
+system.AddContactSystem(collision_system, contact_manager)
 
 
-gator = pc.Gator()
-gator.set_position([0, 0, 0.5])
-sim.add(gator)
+vehicle = chrono.ChBodyEasyBox(0.5, 1, 0.2, 1000, True, True)
+vehicle.SetPos(chrono.ChVectorD(0, 0, 0.5))
+vehicle.SetName('Gator')
+system.Add(vehicle)
+
+terrain = chrono.ChBodyEasyBox(10, 0.1, 10, 100, True, True)
+terrain.SetPos(chrono.ChVectorD(0, 0, -0.5))
+terrain.SetName('Terrain')
+system.Add(terrain)
+
+driver = chrono.ChDriver()
+driver.Initialize(vehicle)
+system.Add(driver)
 
 
-terrain = pc.Plane()
-terrain.set_position([0, 0, -0.5])
-sim.add(terrain)
+vehicle.SetMass(1000)
+vehicle.SetInertiaXX(chrono.ChVectorD(100, 200, 300))
+vehicle.SetBuoyancyForce(chrono.ChVectorD(0, 0, -100))
+vehicle.SetSpatialForce(chrono.ChVectorD(0, 0, 100))
 
 
-driver = pc.Driver()
-driver.set_position([0, 0, 1])
-driver.set_vehicle(gator)
-sim.add(driver)
+vehicle.SetBodyFixed(False)
+vehicle.SetCollide(True)
+vehicle.SetCollideBody(True)
 
 
-sensor_manager = pc.SensorManager()
-point_light = pc.PointLight()
-point_light.set_position([0, 0, 2])
-sensor_manager.add_light(point_light)
+sensor_manager = chrono.ChSensorManager()
+system.Add(sensor_manager)
 
-camera = pc.Camera()
-camera.set_position([0, 0, 1])
-camera.set_lookat([0, 0, 0])
-sensor_manager.add_camera(camera)
+point_light = chrono.ChLightPoint()
+point_light.SetPos(chrono.ChVectorD(0, 0, 2))
+sensor_manager.Add(point_light)
 
-gator.add_sensor_manager(sensor_manager)
-
-
-
-
-gator.set_part_visualization_type("chassis", pc.VISUALIZATION_TYPE.MESH)
-gator.set_part_visualization_type("wheel", pc.VISUALIZATION_TYPE.MESH)
-gator.set_part_visualization_type("tire", pc.VISUALIZATION_TYPE.MESH)
+camera = chrono.ChCamera()
+camera.SetPos(chrono.ChVectorD(0, 0, 1))
+camera.SetDir(chrono.ChVectorD(0, 0, -1))
+camera.SetFov(90)
+sensor_manager.Add(camera)
 
 
-gator.set_throttle(0.5)
-gator.set_steering(0)
-
-
-while not sim.is_finished():
-    
-    driver.update()
-    terrain.update()
-    gator.update()
-    sensor_manager.update()
-
-    
-    image = sensor_manager.get_camera_image()
-    renderer.render(image)
-
-    
-    sim.synchronize()
-    sim.advance()
-
-
-sim.finalize()
+dt = 0.01
+simulation.SetTimestep(dt)
+for i in range(1000):
+    simulation.DoStep()
+    driver.DoStep()
+    terrain.DoStep()
+    sensor_manager.DoStep()
+    system.DoStep()
+    simulation.Advance()
+    if i % 100 == 0:
+        image = sensor_manager.GetImage()

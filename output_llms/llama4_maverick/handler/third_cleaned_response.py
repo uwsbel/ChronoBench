@@ -1,20 +1,16 @@
 import pychrono as ch
 import pychrono.ros as chros
 import pychrono.irrlicht as chirr
-
-import rclpy
-from rclpy.executors import ExternalShutdownException
+from rclpy.publisher import Publisher
 from std_msgs.msg import Int64
 
 
 class MyCustomHandler(chros.ChROSHandler):
     
-
     def __init__(self, topic, publish_rate):
         super().__init__(publish_rate)  
-
         self.topic = topic
-        self.publisher: rclpy.publisher.Publisher = None
+        self.publisher: Publisher = None
         self.ticker = 0  
 
     def Initialize(self, interface: chros.ChROSPythonInterface) -> bool:
@@ -34,9 +30,6 @@ class MyCustomHandler(chros.ChROSHandler):
 
 def main():
     
-    rclpy.init()
-
-    
     sys = ch.ChSystemNSC()
     sys.SetGravitationalAcceleration(ch.ChVector3d(0, 0, -9.81))  
 
@@ -49,6 +42,10 @@ def main():
     floor.SetPos(ch.ChVector3d(0, 0, -1))  
     floor.SetFixed(True)  
     floor.SetName("base_link")  
+    floor_asset = floor.GetAssets()[0]
+    floor_visual_material = ch.ChVisualMaterial()
+    floor_visual_material.SetKdTexture(ch.GetChronoDataFile("textures/concrete.jpg"))
+    floor_asset.material_list.append(floor_visual_material)
     sys.Add(floor)  
 
     
@@ -56,61 +53,55 @@ def main():
     box.SetPos(ch.ChVector3d(0, 0, 5))  
     box.SetRot(ch.QuatFromAngleAxis(.2, ch.ChVector3d(1, 0, 0)))  
     box.SetName("box")  
+    box_asset = box.GetAssets()[0]
+    box_visual_material = ch.ChVisualMaterial()
+    box_visual_material.SetKdTexture(ch.GetChronoDataFile("textures/blue.png"))
+    box_asset.material_list.append(box_visual_material)
     sys.Add(box)  
 
     
-    floor.GetVisualShape(0).SetTexture(ch.GetChronoDataFile("textures/concrete.jpg"))
-    box.GetVisualShape(0).SetTexture(ch.GetChronoDataFile("textures/bluewhite.png"))
-
-    
+    publish_rate = 10  
     ros_manager = chros.ChROSPythonManager()
     
+    ros_manager.RegisterHandler(chros.ChROSClockHandler(publish_rate))
     
-    ros_manager.RegisterHandler(chros.ChROSClockHandler())
+    ros_manager.RegisterHandler(chros.ChROSBodyHandler(publish_rate, box, "~/box"))
     
-    
-    ros_manager.RegisterHandler(chros.ChROSBodyHandler(25, box, "~/box"))
-    
-    
-    tf_handler = chros.ChROSTFHandler(30)
+    tf_handler = chros.ChROSTFHandler(publish_rate)
     tf_handler.AddTransform(floor, floor.GetName(), box, box.GetName())
     ros_manager.RegisterHandler(tf_handler)
     
-    
-    publish_rate = 10
     custom_handler = MyCustomHandler("~/my_topic", publish_rate)
     ros_manager.RegisterPythonHandler(custom_handler)
-
     
     ros_manager.Initialize()
 
     
     vis = chirr.ChVisualSystemIrrlicht()
-    vis.AttachSystem(sys)
     vis.SetWindowSize(1024, 768)
-    vis.SetWindowTitle('Chrono Simulation')
+    vis.SetWindowTitle('Chrono::Irrlicht ROS Demo')
     vis.Initialize()
-    vis.AddLogo(ch.GetChronoDataFile("logo_pychrono_alpha.png"))
     vis.AddSkyBox()
-    vis.AddCamera(ch.ChVector3d(5, 5, 5), ch.ChVector3d(0, 0, 0))
-    vis.AddTypicalLights()
+    vis.AddCamera(ch.ChVector3d(5, 5, 5))
+    vis.AddLight(ch.ChVector3d(10, 10, 10), 10)
+    vis.AttachSystem(sys)
 
     
     step_number = 0
-    render_step_size = 0.02
-    render_steps = int(render_step_size / 1e-3)
+    render_step_size = 1e-3  
+    render_steps = int(render_step_size / (1 / 60))  
 
     
     time = 0
     time_step = 1e-3  
     time_end = 30  
-
-    realtime_timer = ch.ChRealtimeStepTimer()  
+    realtime_timer = ch.ChRealtimeStepTimer()
     while time < time_end:
         sys.DoStepDynamics(time_step)  
         time = sys.GetChTime()  
 
-        if not ros_manager.Update(time, time_step):  
+        
+        if not ros_manager.Update(time, time_step):
             break  
 
         
@@ -122,9 +113,5 @@ def main():
         realtime_timer.Spin(time_step)  
 
     
-    vis.~ChVisualSystemIrrlicht()
-    rclpy.shutdown()
-
-
 if __name__ == "__main__":
     main()

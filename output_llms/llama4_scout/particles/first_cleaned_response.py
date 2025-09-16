@@ -1,162 +1,96 @@
 import chrono as ch
-import chrono.irrlicht as irr
+import chrono.irrlicht as chirr
+import numpy as np
 import random
-import math
 
 
 ch.ChEngine.Initialize()
 
 
-app = irr.ChIrrApp()
+app = chirr.ChIrrApp()
 
 
-step_size = 0.01
-frame_rate = 60
+system = ch.ChSystem()
 
 
-system = ch.ChSystemNSC()
 
 
-emitter = ch.ChParticleEmitter()
 
+class ParticleEmitter(ch.ChParticleEmitter):
+    def __init__(self):
+        super(ParticleEmitter, self).__init__()
+        self.SetParticleMass(0.1)
+        self.SetParticleRadius(0.1)
+        self.SetEmissionRate(10)
+        self.SetInitialVelocity(ch.ChVector3f(0, 0, 0))
+        self.SetInitialAngularVelocity(ch.ChVector3f(0, 0, 0))
 
-emitter.SetEmissionRate(100)  
-emitter.SetInitialSpeed(10)
-emitter.SetInitialSize(0.1)
-emitter.SetRadius(1)
+    def EmitParticles(self, timeStep):
+        for _ in range(self.GetEmissionRate()):
+            particle = ch.ChParticle()
+            particle.SetMass(self.GetParticleMass())
+            particle.SetRadius(self.GetParticleRadius())
+            particle.SetPos(ch.ChVector3f(
+                random.uniform(-5, 5),
+                random.uniform(0, 10),
+                random.uniform(-5, 5)
+            ))
+            particle.SetLinVel(ch.ChVector3f(
+                random.uniform(-1, 1),
+                random.uniform(-2, 0),
+                random.uniform(-1, 1)
+            ))
+            particle.SetAngVel(ch.ChVector3f(
+                random.uniform(-0.1, 0.1),
+                random.uniform(-0.1, 0.1),
+                random.uniform(-0.1, 0.1)
+            ))
+            system.Add(particle)
 
-
+emitter = ParticleEmitter()
 system.Add(emitter)
 
 
-class CustomGravity(ch.ChForce):
+class CustomGravity(ch.ChForceTorque):
     def __init__(self, body):
-        super(CustomGravity, self).__init__(body)
+        super(CustomGravity, self).__init__()
+        self.body = body
 
-    def ComputeForce(self, body, M, x, v, t):
-        F = ch.ChVectorD(0, 0, 0)
-        for other_body in system.GetBodies():
-            if other_body != body:
-                r = other_body.GetPos() - body.GetPos()
-                dist = r.Length()
-                if dist > 0:
-                    G = 0.1  
-                    F += G * body.GetMass() * other_body.GetMass() * r / (dist ** 3)
+    def ComputeForce(self, body, M, H, timeStep):
+        F = ch.ChVector3f()
+        for other in system.Get_particles():
+            if other != body:
+                distance = (body.GetPos() - other.GetPos()).Length()
+                if distance > 0:
+                    grav_force = 0.1 / (distance ** 2)
+                    direction = (other.GetPos() - body.GetPos()).Normalize()
+                    F += grav_force * direction
         return F
 
 
-def ApplyCustomGravity(body):
-    force = CustomGravity(body)
-    body.AddForce(force)
-
-
-for body in system.GetBodies():
-    ApplyCustomGravity(body)
-
-
-for _ in range(1000):
-    particle = ch.ChBodyEasySphere(1, 1000)
-    particle.SetPos(ch.ChVectorD(random.uniform(-10, 10), random.uniform(-10, 10), random.uniform(-10, 10)))
-    particle.SetRot(ch.Q_from_AxisAngle(ch.ChVectorD(1, 0, 0), random.uniform(0, 2 * math.pi)))
-    particle.SetVelPos(ch.ChVectorD(random.uniform(-1, 1), random.uniform(-1, 1), random.uniform(-1, 1)))
+for _ in range(100):  
+    particle = ch.ChParticle()
+    particle.SetMass(0.1)
+    particle.SetRadius(0.1)
+    particle.SetPos(ch.ChVector3f(
+        random.uniform(-5, 5),
+        random.uniform(0, 10),
+        random.uniform(-5, 5)
+    ))
+    particle.AddForce(CustomGravity(particle))
     system.Add(particle)
 
 
-vis = irr.ChIrrVisualization(system)
+scene = app.AddScene()
 
 
-vis.SetVisibilityFlags(irr.ChIrrVisibilityFlags.VIS_BODY_FRAMES | irr.ChIrrVisibilityFlags.VIS_COLLISION_SHAPES)
+camera = chirr.ChIrrCamera()
+camera.SetPosition(ch.ChVector3f(0, 5, -10))
+camera.LookAt(ch.ChVector3f(0, 0, 0))
+scene.Add(camera)
 
 
-camera = irr.ChIrrCamera()
-
-
-camera.SetPosition(ch.ChVectorD(0, 0, 10))
-camera.SetTarget(ch.ChVectorD(0, 0, 0))
-
-
-vis.Add(camera)
-
-
-app.SetSimulationStep(step_size)
-app.SetFrameRate(frame_rate)
-app.Run()
-
-import chrono as ch
-import chrono.irrlicht as irr
-import random
-import math
-
-def main():
-    
-    ch.ChEngine.Initialize()
-
-    
-    app = irr.ChIrrApp()
-
-    
-    step_size = 0.01
-    frame_rate = 60
-
-    
-    system = ch.ChSystemNSC()
-
-    
-    emitter = ch.ChParticleEmitter()
-
-    
-    emitter.SetEmissionRate(100)  
-    emitter.SetInitialSpeed(10)
-    emitter.SetInitialSize(0.1)
-    emitter.SetRadius(1)
-
-    
-    system.Add(emitter)
-
-    
-    class CustomGravity(ch.ChForce):
-        def __init__(self, body):
-            super(CustomGravity, self).__init__(body)
-
-        def ComputeForce(self, body, M, x, v, t):
-            F = ch.ChVectorD(0, 0, 0)
-            for other_body in system.GetBodies():
-                if other_body != body:
-                    r = other_body.GetPos() - body.GetPos()
-                    dist = r.Length()
-                    if dist > 0:
-                        G = 0.1  
-                        F += G * body.GetMass() * other_body.GetMass() * r / (dist ** 3)
-            return F
-
-    
-    for _ in range(1000):
-        particle = ch.ChBodyEasySphere(1, 1000)
-        particle.SetPos(ch.ChVectorD(random.uniform(-10, 10), random.uniform(-10, 10), random.uniform(-10, 10)))
-        particle.SetRot(ch.Q_from_AxisAngle(ch.ChVectorD(1, 0, 0), random.uniform(0, 2 * math.pi)))
-        particle.SetVelPos(ch.ChVectorD(random.uniform(-1, 1), random.uniform(-1, 1), random.uniform(-1, 1)))
-        system.Add(particle)
-
-    
-    vis = irr.ChIrrVisualization(system)
-
-    
-    vis.SetVisibilityFlags(irr.ChIrrVisibilityFlags.VIS_BODY_FRAMES | irr.ChIrrVisibilityFlags.VIS_COLLISION_SHAPES)
-
-    
-    camera = irr.ChIrrCamera()
-
-    
-    camera.SetPosition(ch.ChVectorD(0, 0, 10))
-    camera.SetTarget(ch.ChVectorD(0, 0, 0))
-
-    
-    vis.Add(camera)
-
-    
-    app.SetSimulationStep(step_size)
-    app.SetFrameRate(frame_rate)
-    app.Run()
-
-if __name__ == "__main__":
-    main()
+while app.Run():
+    system.DoStepDynamics(1 / 60.0)
+    app.Render()
+    scene.Update()

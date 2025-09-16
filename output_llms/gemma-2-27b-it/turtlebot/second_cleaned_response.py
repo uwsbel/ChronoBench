@@ -75,6 +75,7 @@ while vis.Run():
         move('right')
         print("Turning right")
 
+    
     time += time_step
 
     

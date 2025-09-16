@@ -78,33 +78,41 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
+
 # Custom Driver Class Implementation
 class MyDriver(veh.ChDriver):
-    def __init__(self, delay):
+    def __init__(self, delay=0.5):
         super().__init__()
         self.delay = delay
-        self.delay_counter = 0
+        self.time = 0.0
 
     def Synchronize(self, time):
-        super().Synchronize(time)
-        if self.delay_counter < self.delay * 50:  # Assuming render_step_size = 1/50
-            return  # Delay driver inputs
-        else:
-            throttle = min(0.7, 0.7 * (time - 0.2) / (4 - 0.2)) if time > 0.2 else 0.0
-            steering = 0.5 * math.sin(2 * math.pi * (time - 2) / 4) if time > 2 else 0.0
-            braking = 0.0
-            self.SetSteering(steering)
-            self.SetThrottle(throttle)
-            self.SetBraking(braking)
-        self.delay_counter += 1
+        self.time = time
+        throttle = 0.0
+        steering = 0.0
+        braking = 0.0
+
+        if self.time > 0.2:
+            throttle = min(0.7, self.time * 0.7 / 0.2)  # Gradually increase throttle
+
+        if self.time > 2.0:
+            steering = math.sin(self.time * 2) * 0.2  # Sinusoidal steering
+
+        self.SetThrottle(throttle)
+        self.SetSteering(steering)
+        self.SetBraking(braking)
+
 
 # Create the driver system
-driver = MyDriver(0.5)
+driver = MyDriver(delay=0.5)
 
 # Set the time response for steering and throttle keyboard inputs.
-# driver.SetSteeringDelta(render_step_size / steering_time)
-# driver.SetThrottleDelta(render_step_size / throttle_time)
-# driver.SetBrakingDelta(render_step_size / braking_time)
+steering_time = 1.0  # time to go from 0 to +1 (or from 0 to -1)
+throttle_time = 1.0  # time to go from 0 to +1
+braking_time = 0.3  # time to go from 0 to +1
+driver.SetSteeringDelta(render_step_size / steering_time)
+driver.SetThrottleDelta(render_step_size / throttle_time)
+driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 # output vehicle mass

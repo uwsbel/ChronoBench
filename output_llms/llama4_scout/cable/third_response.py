@@ -7,7 +7,6 @@ import pychrono.irrlicht as chronoirr
 # ground, moving under gravity alone.
 # This model demonstrates the use of the utility class ChBuilderCableANCF.
 # ----------------------------------------------------------------------------
-
 class Model1:
     def __init__(self, system, mesh, n_chains=6):
         self.n_chains = n_chains
@@ -21,20 +20,21 @@ class Model1:
 
             # Create a ChBuilderCableANCF helper object to facilitate the creation of ANCF beams
             builder = fea.ChBuilderCableANCF()
-            num_elements = 10 + i  # Increase the number of elements with each chain
+
             # Use BuildBeam to create a beam structure consisting of ANCF elements:
+            num_elements = 10 + i * 2  # Increase the number of elements for each chain
             builder.BuildBeam(
                 mesh,  # The mesh to which the created nodes and elements will be added
                 msection_cable2,  # The beam section properties to use
                 num_elements,  # Number of ANCF elements to create along the beam
-                chrono.ChVector3d(0 + i * 0.1, 0, -0.1),  # Starting point ('A' point) of the beam
-                chrono.ChVector3d(0.5 + i * 0.1, 0, -0.1)  # Ending point ('B' point) of the beam
+                chrono.ChVector3d(0, -i * 0.2, -0.1),  # Starting point ('A' point) of the beam
+                chrono.ChVector3d(0.5, -i * 0.2, -0.1)  # Ending point ('B' point) of the beam
             )
 
             # Apply boundary conditions and loads:
             # Retrieve the end nodes of the beam and apply load/constraints
-            last_node = builder.GetLastBeamNodes().front()
-            last_node.SetForce(chrono.ChVector3d(0, -0.7, 0))  # Apply forces to the front node
+            end_node = builder.GetLastBeamNodes().front()
+            end_node.SetForce(chrono.ChVector3d(0, -0.7, 0))  # Apply forces to the front node
 
             # Create a truss body (a fixed reference frame in the simulation)
             mtruss = chrono.ChBody()
@@ -48,13 +48,13 @@ class Model1:
 
             # Create a box body to connect to the end of the beam
             end_body = chrono.ChBody()
-            end_body.SetPos(last_node.GetPos())
+            end_body.SetPos(end_node.GetPos())
             system.Add(end_body)
             self.end_bodies.append(end_body)
 
             # Create a constraint between the beam endpoint and the box
             constraint = chrono.ChLinkLock()
-            constraint.Initialize(last_node, end_body)
+            constraint.Initialize(end_node, end_body)
             system.Add(constraint)
 
     def PrintBodyPositions(self):
@@ -70,6 +70,7 @@ model = Model1(sys, mesh)
 sys.Add(mesh)  # Remember to add the mesh to the physical system
 
 # Add visualization for the FEM mesh:
+# This allows visualization of the forces/moments in the beam elements:
 visualizebeamA = chrono.ChVisualShapeFEA(mesh)
 visualizebeamA.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_ELEM_BEAM_MZ)  # Display moments along the beam
 visualizebeamA.SetColorscaleMinMax(-0.4, 0.4)  # Set color scale for moment visualization
@@ -98,24 +99,23 @@ vis.AddCamera(chrono.ChVector3d(0, 0.6, -1))  # Add a camera with specific posit
 vis.AddTypicalLights()  # Add typical lights for better illumination
 
 # Set solver type and settings
-solver = chrono.ChSolverMINRES() 
-if solver.GetType()== chrono.ChSolver.Type_MINRES :
-	print( "Using MINRES solver" )
-	sys.SetSolver(solver)
-	solver.SetMaxIterations(200)
-	solver.SetTolerance(1e-10)
-	solver.EnableDiagonalPreconditioner(True)
-	solver.EnableWarmStart(True)  
-	solver.SetVerbose(False)
+solver = chrono.ChSolverMINRES()  # Choose SparseQR solver
+if solver.GetType() == chrono.ChSolver.Type_MINRES:
+    print("Using MINRES solver")
+sys.SetSolver(solver)
+solver.SetMaxIterations(200)
+solver.SetTolerance(1e-10)
+solver.EnableDiagonalPreconditioner(True)
+solver.EnableWarmStart(True)  # IMPORTANT for convergence when using EULER_IMPLICIT_LINEARIZED
+solver.SetVerbose(False)  # Set the timestepper for the simulation
 
-# Set the timestepper for the simulation
 ts = chrono.ChTimestepperEulerImplicitLinearized(sys)
 sys.SetTimestepper(ts)
 
 # Simulation loop
 while vis.Run():
-    vis.BeginScene()  
-    vis.Render()  
-    vis.EndScene()  
-    sys.DoStepDynamics(0.01)  
-    model.PrintBodyPositions()
+    vis.BeginScene()  # Begin scene rendering
+    vis.Render()  # Render the scene
+    vis.EndScene()  # End scene rendering
+    sys.DoStepDynamics(0.01)  # Advance the simulation by one step with a time step of 0.01 seconds
+    model.PrintBodyPositions()  # Print the positions of the end bodies

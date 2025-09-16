@@ -90,8 +90,9 @@ def main():
     
     lidar.PushFilter(sens.ChFilterXYZIAccess())
 
-    
-    manager.AddSensor(lidar)
+    if vis:
+        
+        lidar.PushFilter(sens.ChFilterVisualizeDepthMap(100, 100))
 
     
     
@@ -142,10 +143,12 @@ def main():
 
 
 
-noise_model = "NONE"  
 
 
-return_mode = sens.LidarReturnMode_STRONGEST_RETURN
+
+
+
+
 
 
 
@@ -192,3 +195,10 @@ vis = True
 
 
 out_dir = "SENSOR_OUTPUT/"
+
+
+
+
+
+
+main()

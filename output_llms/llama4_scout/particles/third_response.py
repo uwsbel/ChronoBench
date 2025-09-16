@@ -19,28 +19,28 @@ sys = chrono.ChSystemNSC()
 sys.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 coll = sys.GetCollisionSystem()
 
-# Create three sphere bodies
+# Create sphere bodies
 sphere_mat = chrono.ChContactMaterialNSC()
 sphere_mat.SetFriction(0.2)
 
 # Sphere 1
 msphereBody1 = chrono.ChBodyEasySphere(2.1, 1800, True, True, sphere_mat)
 msphereBody1.SetPos(chrono.ChVector3d(1, 1, 0))
-msphereBody1.SetPosDt(chrono.ChVector3d(0.5, 0, 0.1))
+msphereBody1.SetPosDt(chrono.ChVector3d(0.5, 0, 0.1))  # Initial velocity
 msphereBody1.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
 sys.Add(msphereBody1)
 
 # Sphere 2
 msphereBody2 = chrono.ChBodyEasySphere(2.1, 1800, True, True, sphere_mat)
 msphereBody2.SetPos(chrono.ChVector3d(-10, -10, 0))
-msphereBody2.SetPosDt(chrono.ChVector3d(-0.5, 0, -0.1))
+msphereBody2.SetPosDt(chrono.ChVector3d(-0.5, 0, -0.1))  # Initial velocity
 msphereBody2.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
 sys.Add(msphereBody2)
 
 # Sphere 3
 msphereBody3 = chrono.ChBodyEasySphere(2.1, 1800, True, True, sphere_mat)
 msphereBody3.SetPos(chrono.ChVector3d(0, 20, 0))
-msphereBody3.SetPosDt(chrono.ChVector3d(0, -0.5, 0.2))
+msphereBody3.SetPosDt(chrono.ChVector3d(0, -0.5, 0.2))  # Initial velocity
 msphereBody3.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
 sys.Add(msphereBody3)
 
@@ -52,7 +52,7 @@ emitter.SetParticleReservoirAmount(200)
 
 # Randomizers for particle properties
 emitter_positions = chrono.ChRandomParticlePositionOnGeometry()
-emitter_positions.SetGeometry(chrono.ChBox(50, 50, 50), chrono.ChFramed())
+emitter_positions.SetGeometry(chrono.ChBox(50, 50, 50), chrono.ChFrame())
 emitter.SetParticlePositioner(emitter_positions)
 
 emitter_rotations = chrono.ChRandomParticleAlignmentUniform()
@@ -87,10 +87,11 @@ emitter.RegisterAddBodyCallback(mcreation_callback)
 
 sys.SetSolverType(chrono.ChSolver.Type_PSOR)
 sys.GetSolver().AsIterative().SetMaxIterations(40)
-sys.SetGravitationalAcceleration(chrono.ChVector3d(0, -9.81, 0))  # Standard gravity
+sys.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, 0))  # No gravity
 
 # Simulation loop
 stepsize = 1e-2
+G_constant = 6.674e-3  # Modified gravitational constant
 
 while vis.Run():
     vis.BeginScene()
@@ -102,12 +103,36 @@ while vis.Run():
     for body in sys.GetBodies():
         body.EmptyAccumulators()
 
-    # Print the energy values (commented out as they are not necessary)
-    # kinetic_energy = 0
-    # for body in sys.GetBodies():
-    #     mass = body.GetMass()
-    #     velocity = body.GetPosDt()
-    #     kinetic_energy += 0.5 * mass * velocity.Length2()
-    # print(f"Kinetic Energy: {kinetic_energy:.6f}")
+    # Calculate the total kinetic energy of the system
+    kinetic_energy = 0
+    for body in sys.GetBodies():
+        mass = body.GetMass()
+        velocity = body.GetPosDt()
+        kinetic_energy += 0.5 * mass * velocity.Length2()
+
+    # Calculate the total potential energy of the system (using gravitational potential)
+    potential_energy = 0
+    mlist = list(combinations(sys.GetBodies(), 2))
+    for abodyA, abodyB in mlist:
+        D_attract = abodyB.GetPos() - abodyA.GetPos()
+        r_attract = D_attract.Length()
+        if r_attract > 0:  # Avoid division by zero
+            potential_energy += -G_constant * (abodyA.GetMass() * abodyB.GetMass()) / r_attract
+
+    # Total energy of the system
+    total_energy = kinetic_energy + potential_energy
+
+    # Apply gravitational forces between bodies
+    for abodyA, abodyB in mlist:
+        D_attract = abodyB.GetPos() - abodyA.GetPos()
+        r_attract = D_attract.Length()
+        if r_attract > 0:  # Avoid division by zero
+            f_attract = G_constant * (abodyA.GetMass() * abodyB.GetMass()) / (r_attract ** 2)
+            F_attract = (D_attract / r_attract) * f_attract
+            abodyA.AccumulateForce(F_attract, abodyA.GetPos(), False)
+            abodyB.AccumulateForce(-F_attract, abodyB.GetPos(), False)
+
+    # Print the energy values
+    print(f"Kinetic Energy: {kinetic_energy:.6f}, Potential Energy: {potential_energy:.6f}, Total Energy: {total_energy:.6f}")
 
     sys.DoStepDynamics(stepsize)

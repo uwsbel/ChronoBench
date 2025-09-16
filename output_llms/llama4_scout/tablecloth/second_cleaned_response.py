@@ -52,37 +52,46 @@ nodePlotB = mynodes[-1]
 nodesLoad = []
 
 
-t = np.linspace(0, 1, 100)
-ref_X = interp1d(t, np.linspace(0, L_x, 100))
-ref_Y = interp1d(t, np.linspace(0, L_z, 100))
+ref_X = interp1d(np.linspace(0, L_x, nsections_x + 1), np.linspace(0, 1, nsections_x + 1))
+ref_Y = interp1d(np.linspace(0, L_z, nsections_z + 1), np.linspace(0, 1, nsections_z + 1))
 
 
-load_force = chrono.ChVector3d(0, 1000, 0)
+load_force = chrono.ChVector3d(0, -1000, 0)
 
 
-melementmonitor = None
 for iz in range(nsections_z):
     for ix in range(nsections_x):
         melementA = fea.ChElementShellBST()
-        boundary_1 = mynodes[(iz + 1) * (nsections_x + 1) + ix + 1] if iz < nsections_z else None
-        boundary_2 = mynodes[(iz + 1) * (nsections_x + 1) + ix - 1] if ix > 0 and iz < nsections_z else None
+        
+        
+        boundary_1 = mynodes[(iz + 1) * (nsections_x + 1) + ix + 1] if ix < nsections_x else None
+        boundary_2 = mynodes[(iz + 1) * (nsections_x + 1) + ix - 1] if ix > 0 else None
         boundary_3 = mynodes[(iz - 1) * (nsections_x + 1) + ix + 1] if iz > 0 else None
-
-        melementA.SetNodes(mynodes[iz * (nsections_x + 1) + ix], mynodes[iz * (nsections_x + 1) + ix + 1],
-                           mynodes[(iz + 1) * (nsections_x + 1) + ix], boundary_1, boundary_2, boundary_3)
+        
+        melementA.SetNodes(mynodes[iz * (nsections_x + 1) + ix], 
+                           mynodes[iz * (nsections_x + 1) + ix + 1], 
+                           mynodes[(iz + 1) * (nsections_x + 1) + ix], 
+                           boundary_1, boundary_2, boundary_3)
+        
         melementA.AddLayer(thickness, 0, material)
         mesh.AddElement(melementA)
-
+        
+        
         if iz == 0 and ix == 1:
             melementmonitor = melementA
 
         melementB = fea.ChElementShellBST()
+        
+        
         boundary_1 = mynodes[iz * (nsections_x + 1) + ix] 
         boundary_2 = mynodes[iz * (nsections_x + 1) + ix + 2] if ix < nsections_x - 1 else None
         boundary_3 = mynodes[(iz + 2) * (nsections_x + 1) + ix] if iz < nsections_z - 1 else None
-
-        melementB.SetNodes(mynodes[(iz + 1) * (nsections_x + 1) + ix + 1], mynodes[(iz + 1) * (nsections_x + 1) + ix],
-                           mynodes[iz * (nsections_x + 1) + ix + 1], boundary_1, boundary_2, boundary_3)
+        
+        melementB.SetNodes(mynodes[(iz + 1) * (nsections_x + 1) + ix + 1], 
+                           mynodes[(iz + 1) * (nsections_x + 1) + ix], 
+                           mynodes[iz * (nsections_x + 1) + ix + 1], 
+                           boundary_1, boundary_2, boundary_3)
+        
         melementB.AddLayer(thickness, 0, material)
         mesh.AddElement(melementB)
 
@@ -119,7 +128,7 @@ vis.AddTypicalLights()
 
 
 mkl_solver = mkl.ChSolverPardisoMKL()
-mkl_solver.LockSparsityPattern(True)
+mkl_solver.LockSparsityPattern(True)  
 sys.SetSolver(mkl_solver)
 
 

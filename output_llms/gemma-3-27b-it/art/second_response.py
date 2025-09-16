@@ -7,17 +7,17 @@ chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 # Initial vehicle location and orientation
-initLoc = chrono.ChVector3d(1, 0, 0.5)  # Modified initial location
+initLoc = chrono.ChVector3d(1, 0, 0.5)  # Changed initial location
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 # Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
-vis_type = veh.VisualizationType_PRIMITIVES  # Modified visualization type
+vis_type = veh.VisualizationType_PRIMITIVES  # Changed visualization type
 
 # Collision type for chassis (PRIMITIVES, MESH, or NONE)
-chassis_collision_type = veh.CollisionType_MESH  # Modified chassis collision type
+chassis_collision_type = veh.CollisionType_MESH  # Changed chassis collision type
 
 # Type of tire model (RIGID, TMEASY)
-tire_model = veh.TireModelType_FIALA  # Modified tire model type
+tire_model = veh.TireModelType_FIALA  # Changed tire model type
 
 # Rigid terrain
 # terrain_model = veh.RigidTerrain.BOX

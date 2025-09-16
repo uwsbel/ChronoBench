@@ -82,8 +82,8 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
-# Create the data-driven driver system
-driver = veh.ChDataDriver()
+# Create the driver system
+# driver = veh.ChInteractiveDriverIRR(vis)
 
 # Define a sequence of driver inputs
 driver_entries = veh.vector_Entry()
@@ -91,7 +91,17 @@ driver_entries.push_back(veh.DataDriverEntry(0.0, 0.0, 0.0, 0.0))
 driver_entries.push_back(veh.DataDriverEntry(0.1, 1.0, 0.0, 0.0))
 driver_entries.push_back(veh.DataDriverEntry(0.5, 1.0, 0.7, 0.0))
 
-driver.SetData(driver_entries)
+driver = veh.ChDataDriver(driver_entries)
+
+# Set the time response for steering and throttle keyboard inputs.
+# steering_time = 1.0  # time to go from 0 to +1 (or from 0 to -1)
+# throttle_time = 1.0  # time to go from 0 to +1
+# braking_time = 0.3   # time to go from 0 to +1
+# driver.SetSteeringDelta(render_step_size / steering_time)
+# driver.SetThrottleDelta(render_step_size / throttle_time)
+# driver.SetBrakingDelta(render_step_size / braking_time)
+
+driver.Initialize()
 
 # output vehicle mass
 print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
@@ -115,7 +125,7 @@ while vis.Run() :
         render_frame += 1
 
     # Get driver inputs
-    driver_inputs = driver.GetInputs(time)
+    driver_inputs = driver.GetInputs()
 
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)

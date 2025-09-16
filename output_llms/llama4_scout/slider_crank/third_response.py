@@ -3,10 +3,7 @@ import pychrono.irrlicht as chronoirr
 import matplotlib.pyplot as plt
 import numpy as np
 
-# Set the path to the Chrono data files
-chrono.SetChronoDataPath('path/to/data')
-
-# Create the system
+# Initialize the Chrono system
 sys = chrono.ChSystemNSC()
 
 # Some data shared in the following
@@ -45,32 +42,25 @@ sys.Add(mpiston)
 my_motor = chrono.ChLinkMotorRotationSpeed()
 my_motor.Initialize(mcrank,  # the first connected body
                     mfloor,  # the second connected body
-                    chrono.ChFramed(crank_center))  # where to create the motor in abs.space
+                    chrono.ChFramed(crank_center))
+# where to create the motor in abs.space
 my_angularspeed = chrono.ChFunctionConst(chrono.CH_PI)  # ang.speed: 180°/s
 my_motor.SetMotorFunction(my_angularspeed)
 sys.Add(my_motor)
 
-# Create crank-rod joint: spherical (ball-and-socket)
+# Create crank-rod joint: Change to spherical (ball-and-socket)
 mjointA = chrono.ChLinkLockSpherical()
-mjointA.Initialize(mrod,
-                   mcrank,
-                   chrono.ChFramed(crank_center + chrono.ChVector3d(crank_rad, 0, 0)))
+mjointA.Initialize(mrod, mcrank, chrono.ChFramed(crank_center + chrono.ChVector3d(crank_rad, 0, 0)))
 sys.Add(mjointA)
 
-# Create rod-piston joint: spherical (ball-and-socket)
+# Create rod-piston joint: Change to spherical (ball-and-socket)
 mjointB = chrono.ChLinkLockSpherical()
-mjointB.Initialize(mpiston,
-                   mrod,
-                   chrono.ChFramed(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0)))
+mjointB.Initialize(mpiston, mrod, chrono.ChFramed(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0)))
 sys.Add(mjointB)
 
-# Create piston-truss joint: planar
+# Create piston-truss joint: Change to plane-plane (planar)
 mjointC = chrono.ChLinkLockPlanar()
-mjointC.Initialize(mpiston,
-                   mfloor,
-                   chrono.ChFramed(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0),
-                                   chrono.Q_ROTATE_Z_TO_X)
-                   )
+mjointC.Initialize(mpiston, mfloor, chrono.ChFramed(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0), chrono.Q_ROTATE_Z_TO_X))
 sys.Add(mjointC)
 
 vis = chronoirr.ChVisualSystemIrrlicht()
@@ -94,30 +84,25 @@ while vis.Run():
     # for plotting, append instantaneous values:
     array_time.append(sys.GetChTime())
     array_angle.append(my_motor.GetMotorAngle())
-    array_pos.append(mpiston.GetPos().x)
-    array_speed.append(mpiston.GetPosDt().x)
+    array_pos.append(mpiston.GetPos().x())
+    array_speed.append(mpiston.GetPosDt().x())
     # here happens the visualization and step time integration
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
     sys.DoStepDynamics(1e-3)
-
     # stop simulation after 2 seconds
-    if sys.GetChTime() > 2:
-        break
+    if sys.GetChTime() > 20:
+        vis.GetDevice().closeDevice()
 
 # Use matplotlib to make two plots when simulation ended:
 fig, (ax1, ax2) = plt.subplots(2, sharex=True)
-
 ax1.plot(array_angle, array_pos)
 ax1.set(ylabel='position [m]')
 ax1.grid()
-
 ax2.plot(array_angle, array_speed, 'r--')
 ax2.set(ylabel='speed [m]', xlabel='angle [rad]')
 ax2.grid()
-
 # trick to plot \pi on x axis of plots instead of 1 2 3 4 etc.
 plt.xticks(np.linspace(0, 2 * np.pi, 5), ['0', r'$\pi/2$', r'$\pi$', r'$3\pi/2$', r'$2\pi$'])
-
 plt.show()

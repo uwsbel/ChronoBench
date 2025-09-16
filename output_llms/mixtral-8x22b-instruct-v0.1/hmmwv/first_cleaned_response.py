@@ -1,66 +1,48 @@
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
-import pychrono.vehicle as veh
+import numpy as np
 
 
-chrono.SetChronoDataPath("path/to/chrono/data")
-my_system = chrono.ChSystemNSC()
+physics_engine = chrono.ChSystemNSC()
+physics_engine.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
 
 
-my_application = chronoirr.ChIrrApp(my_system, "HMMWV Simulation", chronoirr.Dimensions(800, 600))
+terrain = chrono.ChBoxGround(chrono.ChVectorD(100, 100, 0), 0.1)
+terrain.SetContactMaterial(3e7, 0.3)
+terrain.SetTexture(chrono.GetChronoDataFile('terrain/textures/concrete.jpg'))
+physics_engine.Add(terrain)
 
 
-my_vehicle = veh.HMMWV()
+vehicle = chrono.ChHMMWV()
+vehicle.SetChassisFixed(False)
+vehicle.SetFrame_COG_to_chassis(chrono.ChVectorD(0.0, 0.0, 0.75))
+vehicle.SetMass(3300)
+vehicle.SetInertiaXX(chrono.ChVectorD(500, 500, 500))
+vehicle.SetContactMaterial(3e7, 0.4)
+vehicle.SetTireType(chrono.ChHMMWV::TMEASY)
+vehicle.SetTireStep(0.01)
+vehicle.SetInitCondition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0.75), chrono.QUNIT))
+physics_engine.Add(vehicle)
 
 
-my_vehicle.SetChassisPosition(chrono.ChVectorD(0, 0, 0))
-my_vehicle.SetChassisOrientation(chrono.ChQuaternionD(1, 0, 0, 0))
-my_vehicle.SetContactMethod(veh.ChContactMethod_FEA)
+driver = chrono.ChIrrGuiDriver()
+driver.SetSleepInterval(1 / 50)
+driver.SetTimestep(0.01)
+driver.Initialize()
 
 
-my_vehicle.SetTireType(veh.ChVehicleTire_TMeasy)
+visualization = chronoirr.ChIrrApp(physics_engine, 'HMMWV Simulation', chronoirr.dimension2du(1024, 768))
+visualization.AddTypicalSky()
+visualization.AddTypicalLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+visualization.AddTypicalCamera(chrono.ChVectorD(0, 0, 1.5))
+visualization.AddLightWithShadow(chrono.ChVectorD(10, 10, 10), chrono.ChVectorD(0, 0, 0), 1, 5, 50, 512, 2048)
 
 
-my_system.Add(my_vehicle)
+while visualization.Run():
+    physics_engine.DoStepDynamics(driver.GetTimestep())
+    visualization.BeginScene()
+    visualization.DrawAll()
+    visualization.EndScene()
 
 
-my_vehicle.SetInitSpeed(10)
-
-
-my_vehicle.SetSteeringValue(0.1)
-
-
-my_vehicle.SetThrottle(0.5)
-my_vehicle.SetBraking(0.2)
-
-
-my_terrain = veh.RigidTerrain(my_system)
-
-
-my_terrain.SetTexture(chronoirr.GetDataFile("terrain/textures/tile4.jpg"))
-my_terrain.SetContactMaterial(veh.ChMaterialSurfaceNSC(0.9, 0.9, 0.01))
-my_terrain.Initialize(chrono.ChVectorD(-100, 0, -100), chrono.ChVectorD(100, 0, 100))
-
-
-my_system.Add(my_terrain)
-
-
-my_driver = veh.ChIrrGuiDriver(my_application, my_vehicle)
-
-
-my_driver.SetSteeringDelta(0.05)
-my_driver.SetThrottleDelta(0.1)
-my_driver.SetBrakingDelta(0.1)
-
-
-my_system.SetTimestepperType(chrono.ChTimestepper::Type::EULER_IMPLICIT_LINEARIZED)
-my_system.SetSolverType(chrono.ChSolver::Type::MINRES)
-my_system.SetSolverMaxIterations(100)
-my_system.SetSolverTolerance(1e-10)
-my_system.SetStep(0.01)
-
-
-my_application.SetTimestep(0.02)
-my_application.SetTryRealtime(True)
-my_application.SetFPS(50)
-my_application.Run()
+visualization.Close()

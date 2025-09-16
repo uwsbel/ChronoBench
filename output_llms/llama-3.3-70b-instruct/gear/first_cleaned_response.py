@@ -3,74 +3,64 @@ import pychrono.irrlicht as chronoirr
 import pychrono.engine as chronoengine
 
 
-sys = chrono.ChSystemNSC()
-
-
-ground = chrono.ChBodyEasyBox(sys, 10, 1, 10, 1000, True, True)
-ground.SetPos(chrono.ChVectorD(0, -5, 0))
-ground.SetBodyFixed(True)
-
-
-bar = chrono.ChBodyEasyBox(sys, 5, 1, 1, 1000, True, True)
-bar.SetPos(chrono.ChVectorD(0, 0, 0))
-bar.SetRot(chrono.Q_from_AngX(chrono.CH_C_PI_2))
-
-
-motor = chrono.ChLinkMotorRotationSpeed()
-motor.Initialize(bar, ground, chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 1), chrono.ChVectorD(0, 0, 1))
-motor.SetSpeed(1)  
-
-
-gear1 = chrono.ChBodyEasyCylinder(sys, 2, 1, 1000, True, True)
-gear1.SetPos(chrono.ChVectorD(-3, 0, 0))
-gear1.SetRot(chrono.Q_from_AngZ(chrono.CH_C_PI_2))
-
-
-gear2 = chrono.ChBodyEasyCylinder(sys, 1, 1, 1000, True, True)
-gear2.SetPos(chrono.ChVectorD(3, 0, 0))
-gear2.SetRot(chrono.Q_from_AngZ(-chrono.CH_C_PI_2))
-
-
-mat = chrono.ChMaterialSurfaceNSC()
-mat.SetFriction(0.5)
-mat.SetDampingF(0.5)
-mat.SetCompliance(0.0001)
-mat.SetCoulombFriction(0.5)
-
-
-gear1.AddAsset(mat)
-gear2.AddAsset(mat)
-
-
-contact = chrono.ChLinkMateGeneric()
-contact.Initialize(gear1, gear2, False, False, False)
-contact.SetMaterial(mat)
-
-
-sys.Add(ground)
-sys.Add(bar)
-sys.Add(gear1)
-sys.Add(gear2)
-sys.Add(motor)
-sys.Add(contact)
+system = chrono.ChSystemNSC()
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
+vis.SetWindowSize(1024, 768)
 vis.AddSkyBox()
 vis.AddTypicalLights()
+vis.AddCamera(chrono.ChVectorD(0, 0, 5))
+vis.SetCameraAZEL(0, -45, 0)
 
 
-vis.AddCamera(chrono.ChVectorD(0, 5, -10))
-vis.AddTypicalCameraMovements()
+ground = chrono.ChBodyEasyBox(system, 10, 1, 10, 1000, True, True)
+ground.SetPos(chrono.ChVectorD(0, -5, 0))
+ground.SetMaterial(chrono.ChMaterialSurfaceNSC())
 
 
-vis.SetWindowSize(1024, 768)
-vis.SetWindowTitle("Epicyclic Gear System")
-vis.SetLogo("")
+bar = chrono.ChBodyEasyBox(system, 1, 10, 1, 100, True, True)
+bar.SetPos(chrono.ChVectorD(0, 0, 0))
+bar.SetMaterial(chrono.ChMaterialSurfaceNSC())
+bar.SetMass(1)
+bar.SetInertiaXX(chrono.ChVectorD(0.1, 0.1, 0.1))
 
 
-while vis.Run():
-    sys.DoStepDynamics(0.01)
+gear1 = chrono.ChBodyEasyCylinder(system, 2, 1, 100, True, True)
+gear1.SetPos(chrono.ChVectorD(-3, 0, 0))
+gear1.SetMaterial(chrono.ChMaterialSurfaceNSC())
+gear1.SetMass(1)
+gear1.SetInertiaXX(chrono.ChVectorD(0.1, 0.1, 0.1))
+
+
+gear2 = chrono.ChBodyEasyCylinder(system, 1, 1, 100, True, True)
+gear2.SetPos(chrono.ChVectorD(3, 0, 0))
+gear2.SetMaterial(chrono.ChMaterialSurfaceNSC())
+gear2.SetMass(1)
+gear2.SetInertiaXX(chrono.ChVectorD(0.1, 0.1, 0.1))
+
+
+motor = chrono.ChLinkMotorRotationSpeed()
+motor.Initialize(bar, gear1, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)))
+motor.SetSpeed(10)
+
+
+system.Add(ground)
+system.Add(bar)
+system.Add(gear1)
+system.Add(gear2)
+system.Add(motor)
+
+
+dt = 0.01
+t_end = 10
+
+
+while system.GetChTime() < t_end:
+    system.DoStepDynamics(dt)
     vis.BeginScene()
     vis.DrawAll()
     vis.EndScene()
+    vis.Run()
+
+vis.CloseWindow()

@@ -121,7 +121,7 @@ while vis.Run() :
 
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
-    terrain.Synchronize(time)
+    terrain.Synchronize(time, driver_inputs, terrain)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
 
@@ -139,5 +139,7 @@ while vis.Run() :
 
 
 
+print("VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 
-print("Simulation completed.")
+# Example:  Add a simple visual effect (optional)
+# vehicle.SetColor(chrono.ChColor(0.5, 0.5, 0.5)) # Light gray

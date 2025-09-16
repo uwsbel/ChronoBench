@@ -17,7 +17,6 @@ class ChFunctionMyFun(chrno.ChFunction):
 
 # Define the output directory path
 out_dir = chrno.GetChronoOutputPath() + "BEAM_FAILED"
-os.makedirs(out_dir, exist_ok=True)
 
 # Create a Chrono::Engine physical system
 sys = chrno.ChSystemSMC()
@@ -38,8 +37,8 @@ body_truss.SetFixed(True)
 sys.AddBody(body_truss)
 
 # Attach a visualization shape to the truss
-boxtruss = fea.ChVisualShapeBox(0.03, 0.25, 0.15)
-body_truss.AddVisualShape(boxtruss, chrno.ChFrame(chrno.ChVectorD(-0.01, 0, 0), chrno.QUNIT))
+boxtruss = fea.ChVisualShapeFEABox(0.03, 0.25, 0.15)
+body_truss.AddVisualShape(boxtruss, chrno.ChFrame(chrno.ChVectorD(0, 0, 0)))
 
 # Create a crank body:
 body_crank = chrno.ChBody()
@@ -47,15 +46,15 @@ body_crank.SetPos((vC + vG) * 0.5)
 sys.AddBody(body_crank)
 
 # Attach a visualization shape to the crank
-boxcrank = fea.ChVisualShapeBox(K, 0.05, 0.03)
-body_crank.AddVisualShape(boxcrank)
+boxcrank = fea.ChVisualShapeFEABox(K, 0.05, 0.03)
+body_crank.AddVisualShape(boxcrank, chrno.ChFrame(chrno.ChVectorD(0, 0, 0)))
 
 # Create a rotational motor
 motor = chrno.ChLinkMotorRotationSpeed()
 motor.Initialize(body_truss, body_crank, chrno.ChFrame(vG))
 myfun = ChFunctionMyFun()
 motor.SetTorqueFunction(myfun)
-sys.Add(motor)
+sys.AddLink(motor)
 
 # Create a FEM mesh container:
 mesh = fea.ChMesh()
@@ -66,20 +65,20 @@ beam_wz = 0.15
 
 # Create section properties for the IGA beam
 minertia = fea.ChInertiaCosserat()
-minertia.SetAsRectangularSection(beam_wy, beam_wz, 2700)
+minertia.SetRectangularSection(beam_wy, beam_wz, 2700)
 melasticity = fea.ChElasticityCosserat()
 melasticity.SetYoungModulus(72.0e9)
 melasticity.SetShearModulusFromPoisson(0.35)
-melasticity.SetAsRectangularSection(beam_wy, beam_wz)
+melasticity.SetRectangularSection(beam_wy, beam_wz)
 msection1 = fea.ChMassSectionCosserat(minertia, melasticity)
 msection1.SetDrawThickness(beam_wy * 0.5, beam_wz)
 
 # Build the IGA beam
 builder_iga = fea.ChBuilderBeamIGA()
-builder_iga.BuildBeam(mesh, msection1, 30, vA, vC, chrno.Vect_X, 3)
+builder_iga.BuildBeam(mesh, msection1, 30, vA, vC, chrno.Vect3(1, 0, 0), 3)
 
 # Fix the first node of the horizontal beam
-builder_iga.GetLastBeamNodes().front().SetFixed(True)
+builder_iga.GetLastBeamNodes()[0].SetFixed(True)
 node_tip = builder_iga.GetLastBeamNodes()[65]
 node_mid = builder_iga.GetLastBeamNodes()[32]
 
@@ -94,20 +93,20 @@ section2.SetAsCircularSection(hbeam_d)
 
 # Build the vertical beam with Euler elements
 builderA = fea.ChBuilderBeamEuler()
-builderA.BuildBeam(mesh, section2, 10, vC + vd, vB + vd, chrno.ChVectorD(1, 0, 0))
+builderA.BuildBeam(mesh, section2, 10, vC + vd, vB + vd, chrno.Vect3(1, 0, 0))
 
 # Define nodes at the top and bottom of the vertical beam
-node_top = builderA.GetLastBeamNodes()[1]
+node_top = builderA.GetLastBeamNodes()[0]
 node_down = builderA.GetLastBeamNodes()[-1]
 
 # Create a constraint between the horizontal and vertical beams
 constr_bb = chrno.ChLinkMateParallel()
-constr_bb.Initialize(node_top, node_tip, False, node_top.GetFrame(), node_top.GetFrame())
-sys.Add(constr_bb)
+constr_bb.Initialize(node_top, node_tip, False, chrno.ChFrame(chrno.ChVectorD(0, 0, 0)), chrno.ChFrame(chrno.ChVectorD(0, 0, 0)))
+sys.AddLink(constr_bb)
 constr_bb.SetConstrainedCoords(True, False, True, False, False, False)
 
 # Attach a visualization shape for the constraint
-sphereconstr2 = fea.ChVisualShapeSphere(0.02)
+sphereconstr2 = fea.ChVisualShapeFEASphere(0.02)
 constr_bb.AddVisualShape(sphereconstr2)
 
 # Create a crank beam
@@ -121,7 +120,7 @@ section3.SetAsCircularSection(crankbeam_d)
 
 # Build the crank beam with Euler elements
 builderB = fea.ChBuilderBeamEuler()
-builderB.BuildBeam(mesh, section3, 4, vG + vd, vB + vd, chrno.ChVectorD(0, 1, 0))
+builderB.BuildBeam(mesh, section3, 4, vG + vd, vB + vd, chrno.Vect3(0, 1, 0))
 
 # Define nodes at the ends of the crank beam
 node_crnkG = builderB.GetLastBeamNodes()[0]
@@ -129,18 +128,18 @@ node_crankB = builderB.GetLastBeamNodes()[-1]
 
 # Create a constraint between the crank beam and the body crank
 constr_cbd = chrno.ChLinkMatePrismatic()
-constr_cbd.Initialize(node_crnkG, body_crank, False, node_crnkG.GetFrame(), node_crnkG.GetFrame())
-sys.Add(constr_cbd)
+constr_cbd.Initialize(node_crnkG, body_crank, False, chrno.ChFrame(chrno.ChVectorD(0, 0, 0)), chrno.ChFrame(chrno.ChVectorD(0, 0, 0)))
+sys.AddLink(constr_cbd)
 constr_cbd.SetConstrainedCoords(True, True, True, True, True, True)
 
 # Create a constraint between the vertical beam and the crank beam
 constr_bc = chrno.ChLinkMateGeneric()
-constr_bc.Initialize(node_down, node_crankB, False, node_crankB.GetFrame(), node_crankB.GetFrame())
-sys.Add(constr_bc)
+constr_bc.Initialize(node_down, node_crankB, False, chrno.ChFrame(chrno.ChVectorD(0, 0, 0)), chrno.ChFrame(chrno.ChVectorD(0, 0, 0)))
+sys.AddLink(constr_bc)
 constr_bc.SetConstrainedCoords(True, True, False, True, True, False)
 
 # Attach a visualization shape for the constraint
-sphereconstr3 = fea.ChVisualShapeSphere(0.01)
+sphereconstr3 = fea.ChVisualShapeFEASphere(0.01)
 constr_bc.AddVisualShape(sphereconstr3)
 
 # Final touches:

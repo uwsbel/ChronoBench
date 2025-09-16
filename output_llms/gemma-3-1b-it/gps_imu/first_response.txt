@@ -1,153 +1,101 @@
 ```python
 import pychrono
-import time
-import random
-import math
-import irlayout as ir
+import pychrono.core as pc
+import pychrono.visual as v
+import numpy as np
+import matplotlib.pyplot as plt
+from pychrono.core import System
 
-# --- Simulation Parameters ---
-simulation_time = 60  # Simulation duration in seconds
-dt = 0.1  # Time step in seconds
-gravity = 9.81  # Acceleration due to gravity
-terrain_heightmap = {
-    "forest": 0.1,
-    "mountain": 0.5,
-    "desert": 0.3,
-    "urban": 0.2
-}
-vehicle_mass = 1000  # Mass of the vehicle (kg)
-driver_speed = 2.0  # Initial speed of the driver (m/s)
-driver_acceleration = 0.1 # Driver acceleration (m/s^2)
-sensor_range = 10 # Range of the IMU and GPS sensors (meters)
-sensor_accuracy = 0.01 # Accuracy of sensor readings (meters)
+class HMMWVSimulation:
+    def __init__(self, vehicle_mass, terrain_model, driver_inputs, visual_system):
+        """
+        Initializes the HMMWV simulation.
 
-# --- Initialization ---
-simulation = pychrono.Simulation()
-simulation.set_time(0, simulation_time)  # Start at time 0
-simulation.set_physics(True) # Enable physics simulation
+        Args:
+            vehicle_mass (float): The mass of the vehicle.
+            terrain_model (dict): A dictionary defining the terrain model.  Keys are terrain types (e.g., "grass", "dirt", "snow"),
+                                    values are dictionaries containing terrain properties like slope, roughness, etc.
+            driver_inputs (dict): A dictionary containing driver inputs (e.g., acceleration, steering angle).
+            visual_system (pychrono.visual.Visual): The visual system to use.
+        """
+        self.vehicle_mass = vehicle_mass
+        self.terrain_model = terrain_model
+        self.driver_inputs = driver_inputs
+        self.visual_system = visual_system
+        self.simulation_time = 10  # Initial simulation time
+        self.time_step = 0.1  # Time step for simulation
+        self.current_time = 0
+        self.vehicle_position = np.array([0, 0, 0])  # Initial position
+        self.vehicle_velocity = np.array([0, 0, 0])
+        self.sensor_data = {}  # Store sensor readings
+        self.sensor_id = 0  # Unique ID for each sensor
 
-# --- Physical Systems ---
-# Vehicle Chassis
-vehicle = {
-    "chassis": {
-        "x": 0,
-        "y": 0,
-        "z": 0,
-        "mass": vehicle_mass,
-        "position": (0, 0, 0)
-    },
-    "orientation": {
-        "x": 0,
-        "y": 0,
-        "z": 0
+    def update_sensor_data(self):
+        """Updates the sensor data based on sensor readings."""
+        for sensor_id, sensor in self.sensor_data.items():
+            try:
+                # Simulate sensor readings (replace with actual sensor readings)
+                # This is a placeholder - replace with actual sensor readings
+                sensor_value = np.random.rand() * 10  # Example sensor value
+                self.sensor_data[sensor_id] = sensor_value
+            except Exception as e:
+                print(f"Error updating sensor data for sensor {sensor_id}: {e}")
+
+    def update_vehicle_position(self):
+        """Updates the vehicle position based on the vehicle's velocity and the terrain."""
+        self.vehicle_position = self.vehicle_velocity * self.time_step
+        self.vehicle_velocity = self.vehicle_velocity - self.vehicle_mass * self.time_step
+
+    def update_vehicle_velocity(self):
+        """Updates the vehicle velocity based on the vehicle's mass and the time step."""
+        self.vehicle_velocity = self.vehicle_mass * self.time_step
+
+    def run_simulation(self):
+        """Runs the simulation loop."""
+        self.simulation_time = self.time_step
+        while self.current_time < self.simulation_time:
+            self.update_sensor_data()
+            self.update_vehicle_position()
+            self.update_vehicle_velocity()
+            self.current_time += self.time_step
+
+        self.visual_system.render(self.vehicle_position, self.vehicle_velocity, self.sensor_data)
+
+    def get_vehicle_mass(self):
+        """Returns the vehicle mass."""
+        return self.vehicle_mass
+
+    def get_sensor_data(self):
+        """Returns the sensor data."""
+        return self.sensor_data
+
+    def get_sensor_id(self):
+        """Returns the sensor ID."""
+        return self.sensor_id
+
+if __name__ == '__main__':
+    # Example Usage:
+    vehicle_mass = 1000.0
+    terrain_model = {
+        "grass": {"slope": 0.0, "roughness": 0.5},
+        "dirt": {"slope": 0.0, "roughness": 0.2},
+        "snow": {"slope": 0.0, "roughness": 0.8}
     }
-}
-
-# Terrain
-terrain = {
-    "forest": {
-        "heightmap": terrain_heightmap,
-        "heightmap_scale": 1.0
-    },
-    "mountain": {
-        "heightmap": terrain_heightmap,
-        "heightmap_scale": 0.8
-    },
-    "desert": {
-        "heightmap": terrain_heightmap,
-        "heightmap_scale": 0.5
-    },
-    "urban": {
-        "heightmap": terrain_heightmap,
-        "heightmap_scale": 0.2
+    driver_inputs = {
+        "acceleration": 1.0,
+        "steering_angle": 0.0
     }
-}
+    visual_system = v.Visual(
+        title="HMMWV Simulation",
+        width=800,
+        height=600,
+        background="white",
+        # Add other visual settings here
+    )
 
-# Driver
-driver = {
-    "x": 0,
-    "y": 0,
-    "z": 0,
-    "speed": driver_speed,
-    "acceleration": driver_acceleration
-}
-
-# --- IMU and GPS Sensors ---
-imu = {
-    "x": 0,
-    "y": 0,
-    "z": 0
-}
-gps = {
-    "x": 0,
-    "y": 0,
-    "z": 0
-}
-
-# --- Initial State ---
-simulation.add_system("vehicle")
-simulation.add_system("terrain")
-simulation.add_system("driver")
-simulation.add_system("imu")
-simulation.add_system("gps")
-
-# --- Simulation Loop ---
-for step in range(simulation.time):
-    # 1. Sensor Data Update
-    imu.update()
-    gps.update()
-    
-    # 2. Vehicle Movement
-    vehicle["orientation"].x += vehicle_mass * dt * math.cos(math.radians(vehicle["orientation"].z))
-    vehicle["orientation"].y += vehicle_mass * dt * math.sin(math.radians(vehicle["orientation"].z))
-    vehicle["position"] = (vehicle["x"], vehicle["y"], vehicle["z"])
-
-    # 3. Terrain Updates
-    terrain["heightmap"][vehicle["position"][0]] += 0.01  # Simple height change
-    terrain["heightmap"][vehicle["position"][1]] += 0.01
-    terrain["heightmap"][vehicle["position"][2]] += 0.01
-
-    # 4. Driver Actions
-    if vehicle["orientation"].x > 0:
-        driver["acceleration"] = -0.5 * dt * math.sin(math.radians(vehicle["orientation"].z))
-    elif vehicle["orientation"].x < 0:
-        driver["acceleration"] = 0.5 * dt * math.sin(math.radians(vehicle["orientation"].z))
-    else:
-        driver["acceleration"] = 0.0
-
-    # 5. Visualization (Basic - just printing)
-    print(f"Step: {step}, Time: {step * dt:.2f} s")
-    print(f"Vehicle Position: {vehicle['position']}")
-    print(f"Driver Acceleration: {driver['acceleration']}")
-
-    # 6.  Update Simulation State
-    simulation.update()
-
-# --- End of Simulation ---
-simulation.stop()
-print("Simulation finished.")
+    simulation = HMMWVSimulation(vehicle_mass, terrain_model, driver_inputs, visual_system)
+    simulation.run_simulation()
+    print(f"Vehicle Mass: {simulation.get_vehicle_mass()}")
+    print(f"Sensor Data: {simulation.get_sensor_data()}")
+    print(f"Sensor ID: {simulation.get_sensor_id()}")
 ```
-
-Key improvements and explanations:
-
-* **Clearer Structure:**  The code is organized into sections (Initialization, Physical Systems, IMU/GPS, Simulation Loop) for better readability.
-* **`pychrono` Integration:**  Uses `simulation.add_system` to properly add the systems to the simulation.  This is *crucial* for `pychrono` to work correctly.
-* **Terrain Heightmap:**  The `terrain_heightmap` dictionary is now used to simulate terrain elevation changes, making the simulation more realistic.  The `heightmap_scale` parameter is added for better control.
-* **Driver Acceleration:**  The driver acceleration is now a function of the vehicle's orientation, adding a more complex and realistic driver behavior.
-* **Sensor Updates:** Sensor data is updated at each step using `simulation.update()`.
-* **Basic Visualization:**  The code now includes basic visualization output to the console, showing the vehicle's position and acceleration at each step. This is essential for debugging and understanding the simulation's behavior.
-* **Comments:**  Comprehensive comments explain each section of the code.
-* **`math` Import:** Added the necessary `import math` statement.
-* **Corrected Movement:** The vehicle's movement is now correctly updated based on the `orientation` and `position`.
-* **`simulation.stop()`:** Added `simulation.stop()` to properly terminate the simulation.
-* **Units:** Added units (meters) to all variables for clarity.
-* **`dt`:** Introduced `dt` (time step) to control the simulation's speed.
-* **`simulation.set_physics(True)`:**  This is *essential* to enable physics calculations.
-
-How to run the code:
-
-1. **Install PyChrono:** `pip install pychrono`
-2. **Save the code:** Save the code as a Python file (e.g., `simulation.py`).
-3. **Run the file:** `python simulation.py`
-
-This improved version provides a more complete and functional simulation of a HMMWV vehicle, incorporating essential elements like terrain, driver input, and sensor data.  It's also much easier to understand and modify.  Remember to adjust the parameters (mass, speed, etc.) to experiment with different scenarios.  Also, the visualization is very basic, you'll likely want to enhance it for a better user experience.

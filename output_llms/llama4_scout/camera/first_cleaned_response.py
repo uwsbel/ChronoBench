@@ -1,130 +1,63 @@
 import chrono as ch
 import chrono.sensor as chs
-import chrono.utils as ch_utils
-import numpy as np
+import chrono.irr as chirr
 
 
-ch.ChronoEnvironment.set_GeometryFileSearchPath("./")
+ch.ChronoEngine.Initialize()
 
 
-system = ch.PhysicalSystem()
+app = ch.ChIrrApp()
 
-
-sensor_manager = chs.SensorManager(system)
-
-
-system.SetTimestep(0.01)
-system.SetEndTime(10.0)
 
 
 mesh = ch.ChTriangleMeshConnected()
-
-
-mesh.LoadWavefrontMesh("path/to/mesh.obj")
+mesh.LoadWavefrontMesh('path/to/your/mesh.obj')
 
 
 body = ch.ChBody()
+body.SetPos(ch.ChVectorD(0, 0, 0))
+body.SetBodyFixed(True)
+body.AddVisualShape(mesh)
 
 
-body.SetFixed(True)
-
-
-body.AddVisualizationShape(mesh)
-
-
+system = ch.ChSystemNSC()
 system.AddBody(body)
 
 
-camera = chs.CameraSensor(body)
+
+camera = chs.ChCameraSensor(body, 
+                            chs.ChFrameD(ch.ChVectorD(0, 0, 2), ch.ChQuaternionD(1, 0, 0, 0)), 
+                            640, 480, 
+                            ch.ChVectorD(45, 45))
 
 
-camera.SetPosition(ch.ChVector3d(0, 0, 1))
-camera.SetResolution(640, 480)
-camera.SetFOV(ch.CH_C_PI / 2)
+noise = chs.ChCameraNoiseModelGaussian()
+noise.SetParameters(0.1, 0.05)
+camera.SetNoiseModel(noise)
 
 
-noise = chs.GaussianNoiseFilter(10)
-camera.AddFilter(noise)
-
-
+sensor_manager = chs.ChSensorManager(system)
 sensor_manager.AddSensor(camera)
 
 
-render_window = chs.RenderWindow(camera)
+sensor_manager.Visualize()
 
 
-sensor_manager.SetVerbose(True)
-sensor_manager.AttachRenderWindow(render_window)
-
-
-time_step = 0
-
-while system.GetChTime() < system.GetEndTime():
+while True:
     
-    system.DoStepDynamics(system.GetTimestep())
+    system.Update(0.01)
 
     
-    camera_pos = ch.ChVector3d(np.cos(time_step) * 2, np.sin(time_step) * 2, 1)
-    camera.SetPosition(camera_pos)
+    angle = system.GetChTime()
+    camera_pos = ch.ChVectorD(5 * ch.cos(angle), 5 * ch.sin(angle), 2)
+    camera_frame = ch.ChFrameD(camera_pos, ch.ChQuaternionD(1, 0, 0, 0))
+    camera.SetFrame(camera_frame)
 
     
-    print(camera.GetBuffer())
+    buffer = camera.GetBuffer()
+    if buffer.IsValid():
+        print(buffer)
 
     
-    time_step += 0.1
-
-import chrono as ch
-import chrono.sensor as chs
-import chrono.utils as ch_utils
-import numpy as np
-
-def main():
-    
-    ch.ChronoEnvironment.set_GeometryFileSearchPath("./")
-
-    
-    system = ch.PhysicalSystem()
-
-    
-    sensor_manager = chs.SensorManager(system)
-
-    
-    system.SetTimestep(0.01)
-    system.SetEndTime(10.0)
-
-    
-    mesh = ch.ChTriangleMeshConnected()
-    mesh.LoadWavefrontMesh("path/to/mesh.obj")
-
-    body = ch.ChBody()
-    body.SetFixed(True)
-    body.AddVisualizationShape(mesh)
-    system.AddBody(body)
-
-    
-    camera = chs.CameraSensor(body)
-    camera.SetPosition(ch.ChVector3d(0, 0, 1))
-    camera.SetResolution(640, 480)
-    camera.SetFOV(ch.CH_C_PI / 2)
-
-    noise = chs.GaussianNoiseFilter(10)
-    camera.AddFilter(noise)
-
-    sensor_manager.AddSensor(camera)
-
-    
-    render_window = chs.RenderWindow(camera)
-    sensor_manager.SetVerbose(True)
-    sensor_manager.AttachRenderWindow(render_window)
-
-    
-    time_step = 0
-    while system.GetChTime() < system.GetEndTime():
-        system.DoStepDynamics(system.GetTimestep())
-        camera_pos = ch.ChVector3d(np.cos(time_step) * 2, np.sin(time_step) * 2, 1)
-        camera.SetPosition(camera_pos)
-        print(camera.GetBuffer())
-        time_step += 0.1
-
-if __name__ == "__main__":
-    main()
+    app.Render()
+    app.Update()

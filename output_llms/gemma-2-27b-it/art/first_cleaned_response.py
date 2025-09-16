@@ -9,26 +9,19 @@ import pychrono.vehicle as chronovehicle
 
 
 system = chrono.ChSystemNSC()
+
+
 system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
-
-
-system.SetTimestepperType(chrono.ChTimestepperType.CHRONO_TS_FIXED_STEP)
-system.SetStep(0.01)
+system.SetTimestep(0.01)
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
 vis.SetWindowSize(800, 600)
-vis.SetWindowTitle("ARTcar Simulation")
+vis.SetWindowTitle('ARTcar Simulation')
 vis.Initialize()
-vis.AddCamera(chrono.ChVectorD(0, 2, -5))
-vis.AddLight(chrono.ChVectorD(0, 5, 0), chrono.ChColor(1, 1, 1))
-
-
-terrain = chrono.ChRigidTerrain(system)
-patch = terrain.AddPatch(chrono.ChVectorD(-100, 0, -100), chrono.ChVectorD(100, 0, 100))
-patch.SetTexture(chrono.GetChronoDataPath() + 'terrain/textures/grass.png')
-patch.SetFriction(0.8)
+vis.AddTypicalSky()
+vis.AddCamera(chrono.ChVectorD(0, 1.5, 2))
 
 
 
@@ -36,20 +29,47 @@ patch.SetFriction(0.8)
 
 
 
-vehicle = chronovehicle.ChVehicle(system)
+terrain = chrono.ChRigidBody()
+terrain.SetBodyFixed(True)
+ground_material = chrono.ChMaterialSurfaceNSC()
+ground_material.SetFriction(0.8)
+ground_material.SetRestitution(0.2)
+terrain.SetMaterialSurface(ground_material)
 
 
-vehicle.SetInitPosition(chrono.ChVectorD(0, 1, 0))
-vehicle.SetInitOrientation(chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0)))
+terrain_size = chrono.ChVectorD(100, 10, 100)
+terrain_shape = chrono.ChBoxShape()
+terrain_shape.SetSize(terrain_size)
+terrain.AddAsset(terrain_shape)
+terrain.SetPos(chrono.ChVectorD(0, -0.5, 0))
 
 
-vehicle.SetChassisContactMethod(chronovehicle.ChVehicle.ContactMethod_NSC)
+texture = chronoirr.ChTexture()
+texture.SetFile("path/to/your/texture.png")  
+terrain.AddAsset(texture)
+
+system.Add(terrain)
+
+
+
+
+
+
+
+vehicle = chronovehicle.ChVehicle("ARTcar")
+
+
+vehicle.SetPos(chrono.ChVectorD(0, 1, 0))
+vehicle.SetRot(chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0)))
+
+
+vehicle.SetChassisContactMethod(chronovehicle.ChVehicle.CONTACT_METHOD_NSC)
 
 
 vehicle.SetChassisVisualizationType(chronovehicle.ChVehicle.VisualizationType_MESH)
 
 
-vehicle.SetVehicleModel(chrono.GetChronoDataPath() + 'vehicle/ARTcar/ARTcar.json')
+system.Add(vehicle)
 
 
 
@@ -64,13 +84,15 @@ driver = chronovehicle.ChInteractiveDriver(vehicle)
 
 
 
-
 while vis.Run():
     
-    driver.Update(vis.GetDeltaTime())
+    time = system.GetChTime()
 
     
-    system.DoStepDynamics(vis.GetDeltaTime())
+    driver.Update(time)
+
+    
+    system.DoStepDynamics(0.01)
 
     
     vis.BeginScene()
@@ -78,4 +100,4 @@ while vis.Run():
     vis.EndScene()
 
     
-    chrono.ChTime.Wait(1.0 / 50.0)
+    chrono.ChSystem.WaitUntil(time + 0.02)

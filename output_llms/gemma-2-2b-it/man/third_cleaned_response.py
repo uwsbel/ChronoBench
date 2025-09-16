@@ -3,10 +3,8 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import pychrono.sensor as sensor
 import numpy as np
-import math
-
-chrono.SetChronoDataPath(chrono.GetChronoDataPath())
-veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
+from pychrono.sensor import SensorManager
+from pychrono.sensor import LidarSensor
 
 
 initLoc = chrono.ChVector3d(0, 0, 0.5)
@@ -20,7 +18,6 @@ chassis_collision_type = veh.CollisionType_NONE
 
 
 tire_model = veh.TireModelType_TMEASY
-
 
 
 terrainHeight = 0      
@@ -41,6 +38,9 @@ tire_step_size = step_size
 
 render_step_size = 1.0 / 50  
 
+
+sensor_manager = SensorManager()
+lidar_sensor = LidarSensor(sensor_manager)
 
 
 vehicle = veh.MAN_10t() 
@@ -75,7 +75,6 @@ patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 
-
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('MAN 10t Demo')
 vis.SetWindowSize(1280, 1024)
@@ -85,7 +84,6 @@ vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
-
 
 
 driver = veh.ChInteractiveDriverIRR(vis)
@@ -99,13 +97,6 @@ driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
 
 driver.Initialize()
-
-
-sensor_manager = sensor.SensorManager()
-sensor_manager.AddSensor(sensor.SensorType_LIDAR)
-
-
-lidar_data = sensor_manager.GetSensorData(sensor.SensorType_LIDAR)
 
 
 print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())

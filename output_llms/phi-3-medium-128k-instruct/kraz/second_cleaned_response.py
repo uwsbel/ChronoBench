@@ -8,7 +8,7 @@ veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 
 initLoc = chrono.ChVector3d(-15, 0, 0.5)  
-initRot = chrono.ChQuaterniond(0, 0, 1, 0)  
+initRot = chrono.ChQuaterniond(0, 0, 0, 1)  
 
 
 vis_type = veh.VisualizationType_MESH
@@ -18,6 +18,7 @@ chassis_collision_type = veh.CollisionType_NONE
 
 
 tire_model = veh.TireModelType_TMEASY
+
 
 
 terrainHeight = 0      
@@ -48,11 +49,10 @@ vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.Initialize()
 
 vehicle.SetChassisVisualizationType(vis_type, vis_type)
-vehicle.SetSteeringVisualizationType(vis_type)
+vehicle.SetSteeringVisualizationType(vis_type, vis_type)
 vehicle.SetSuspensionVisualizationType(vis_type, vis_type)
 vehicle.SetWheelVisualizationType(vis_type, vis_type)
 vehicle.SetTireVisualizationType(vis_type, vis_type)
-
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
@@ -80,7 +80,6 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetTractor())
 
 
-
 driver = veh.ChInteractiveDriverIRR(vis)
 
 
@@ -105,8 +104,7 @@ step_number = 0
 render_frame = 0
 
 
-lane_change_time = 5.0  
-lane_change_start_time = 10.0  
+lane_change_time = 10.0  
 
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
@@ -128,6 +126,21 @@ while vis.Run() :
     vis.Synchronize(time, driver_inputs)
 
     
+    if (time % lane_change_time == 0):
+        
+        driver.SetSteeringDelta(render_step_size / steering_time)
+        
+        driver.SetSteeringDelta(render_step_size / steering_time)
+        
+        while (time % lane_change_time < (lane_change_time / 2)):
+            driver.Advance(step_size)
+            vehicle.Advance(step_size)
+            vis.Advance(step_size)
+            realtime_timer.Spin(step_size)
+        
+        driver.SetSteeringDelta(0)
+
+    
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
@@ -138,22 +151,3 @@ while vis.Run() :
 
     
     realtime_timer.Spin(step_size)
-
-    
-    if time >= lane_change_start_time and time < lane_change_start_time + lane_change_time:
-        
-        
-        
-        
-        pass
-
-    
-    if time >= lane_change_start_time + lane_change_time:
-        
-        
-        
-        
-        pass
-
-    
-    continue

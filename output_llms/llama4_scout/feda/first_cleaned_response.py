@@ -1,129 +1,54 @@
-import pychrono as chrono
-import pychrono.feda as feda
-import pychrono.irrlicht as irr
-import numpy as np
+import chrono as ch
+import chrono.irrlicht as irr
+import chrono.vehicle as veh
 
 
-chrono.ChEngine.Initialize()
+ch.ChEngine.Initialize()
 
 
 app = irr.IrrlichtApplication()
 
 
-vehicle = feda.ChFEDA()
+vehicle = veh.FEDA()
 
 
-vehicle.SetLocation(chrono.ChVector3d(0, 0, 1))
-vehicle.SetOrientation(chrono.ChQuaterniond(1, 0, 0, 0))
+vehicle.SetLocation(ch.ChVector3d(0, 0, 1))
+vehicle.SetOrientation(ch.ChQuaterniond(1, 0, 0, 0))
 
 
-vehicle.SetContactMethod(chrono.ChContactMethod_NSC)
-vehicle.SetTireModel(chrono.ChTireModel_TMEasy)
+vehicle.SetContactMethod(veh.ChContactMethod_NSC)
+vehicle.SetTireModel(veh.ChTireModel_Pacejka)
 
 
-vehicle.SetVisualizationType(chrono.ChVehicleVisualizationType_MESH)
+vehicle.SetVisualizationType(veh.ChVehicleVisualizationType_Mesh)
 
 
-terrain = chrono.ChRigidTerrain(vehicle.GetSystem())
-terrain.SetTerrainFile("path/to/terrain/heightmap.png")
-terrain.SetTextureFile("path/to/terrain/texture.jpg")
-terrain.SetColor(chrono.ChColor(1, 1, 1))
+terrain = veh.RigidTerrain(vehicle.GetSystem())
+terrain.SetTextureFilename("path/to/your/terrain_texture.jpg")
 
 
-vehicle.GetSystem().Add(terrain.GetBody())
-vehicle.GetSystem().Add(terrain.GetVisualModel())
+camera = irr.IrrlichtCamera()
+camera.SetPosition(ch.ChVector3d(0, -10, 5))
+camera.SetTarget(vehicle.GetLocation())
 
 
-driver = chrono.ChInteractiveDriverIRR(vehicle, app)
+driver = veh.ChInteractiveDriverIRR(vehicle, app, camera)
 
 
-driver.SetThrottleInput(0.5)
-driver.SetSteeringInput(0.2)
-driver.SetBrakingInput(0.0)
+dt = 0.02  
+fps = 50  
 
-
-camera_pos = chrono.ChVector3d(0, -10, 5)
-camera_target = vehicle.GetLocation() + chrono.ChVector3d(0, 0, 1)
-app.SetCameraPosition(camera_pos)
-app.SetCameraTarget(camera_target)
-
-
-simulation_fps = 50
-time_step = 1.0 / simulation_fps
 
 while app.Run():
     
-    vehicle.Update(time_step)
+    vehicle.Update(dt)
 
     
-    app.Render(vehicle.GetSystem())
+    app.Render()
 
     
-    vehicle.GetSystem().DoStepDynamics(time_step)
+    ch.ChTimeStep.makeCurrentTimeStep(dt)
 
-import pychrono as chrono
-import pychrono.feda as feda
-import pychrono.irrlicht as irr
-import numpy as np
 
-def main():
-    
-    chrono.ChEngine.Initialize()
-
-    
-    app = irr.IrrlichtApplication()
-
-    
-    vehicle = feda.ChFEDA()
-
-    
-    vehicle.SetLocation(chrono.ChVector3d(0, 0, 1))
-    vehicle.SetOrientation(chrono.ChQuaterniond(1, 0, 0, 0))
-
-    
-    vehicle.SetContactMethod(chrono.ChContactMethod_NSC)
-    vehicle.SetTireModel(chrono.ChTireModel_TMEasy)
-
-    
-    vehicle.SetVisualizationType(chrono.ChVehicleVisualizationType_MESH)
-
-    
-    terrain = chrono.ChRigidTerrain(vehicle.GetSystem())
-    terrain.SetTerrainFile("path/to/terrain/heightmap.png")
-    terrain.SetTextureFile("path/to/terrain/texture.jpg")
-    terrain.SetColor(chrono.ChColor(1, 1, 1))
-
-    
-    vehicle.GetSystem().Add(terrain.GetBody())
-    vehicle.GetSystem().Add(terrain.GetVisualModel())
-
-    
-    driver = chrono.ChInteractiveDriverIRR(vehicle, app)
-
-    
-    driver.SetThrottleInput(0.5)
-    driver.SetSteeringInput(0.2)
-    driver.SetBrakingInput(0.0)
-
-    
-    camera_pos = chrono.ChVector3d(0, -10, 5)
-    camera_target = vehicle.GetLocation() + chrono.ChVector3d(0, 0, 1)
-    app.SetCameraPosition(camera_pos)
-    app.SetCameraTarget(camera_target)
-
-    
-    simulation_fps = 50
-    time_step = 1.0 / simulation_fps
-
-    while app.Run():
-        
-        vehicle.Update(time_step)
-
-        
-        app.Render(vehicle.GetSystem())
-
-        
-        vehicle.GetSystem().DoStepDynamics(time_step)
-
-if __name__ == "__main__":
-    main()
+app.Exit()
+ch.ChEngine.Exit()

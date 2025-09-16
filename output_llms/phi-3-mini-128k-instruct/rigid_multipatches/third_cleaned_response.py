@@ -4,6 +4,10 @@ import pychrono.irrlicht as irr
 
 def main():
     
+    step_size = 2e-3
+    tire_step_size = 1e-3
+
+    
     hmmwv = veh.HMMWV_Full()
     hmmwv.SetContactMethod(chrono.ChContactMethod_NSC)
     hmmwv.SetChassisFixed(False)

@@ -1,6 +1,6 @@
 import pychrono as chrono
 import pychrono.irrlicht as irr
-import pychrono.irrlicht.irrlicht_utils as irr_utils
+import pychrono.irrlicht.irrlicht_tools as irr_tools
 
 
 chrono.init()
@@ -9,71 +9,46 @@ chrono.init()
 engine = irr.IrrlichtEngine()
 
 
-scene = engine.createScene()
-
-
-terrain = chrono.SCMTerrain(
-    engine,
-    "terrain.png",  
-    soil_parameters=[
-        {"name": "soil", "density": 1000, "friction": 0.5},
-        {"name": "rock", "density": 2000, "friction": 0.2},
-    ],
-    moving_patch_enabled=True,
+terrain = chrono.SCMTerrain()
+terrain.setSoilParameters(
+    density=1000,  
+    shear_strength=1000,  
+    friction=0.5,  
+    viscosity=100,  
 )
 
 
-vehicle = chrono.Vehicle(
-    engine,
-    "hmwv.obj",  
-    position=[0, 0, 0],  
-    orientation=[0, 0, 0],  
-    rigid_tire_model=chrono.RigidTireModel(
-        engine,
-        "tire.obj",  
-        tire_radius=0.1,  
-    ),
-)
+patch = chrono.MovingPatch(terrain)
+patch.setMovementSpeed(1.0)
 
 
-vehicle.addMeshVisualization()
+vehicle = chrono.Vehicle()
+vehicle.setMeshVisualization(True)
 
 
-driver = chrono.Driver(
-    engine,
-    vehicle,
-    steering_control=chrono.SteeringControl(
-        sensitivity=1.0,
-        max_steering_angle=1.0,
-    ),
-    throttle_control=chrono.ThrottleControl(
-        max_throttle=1.0,
-    ),
-    brake_control=chrono.BrakeControl(
-        max_brake=1.0,
-    ),
-)
+vehicle.setPosition(chrono.Vector3(0, 0, 0))
+vehicle.setOrientation(chrono.Quaternion(0, 0, 0, 1))
+vehicle.setMass(1000)  
+vehicle.setInertia(chrono.Vector3(100, 100, 100))
 
 
-dt = 0.01  
-max_frames_per_second = 50
+tire = chrono.RigidTire(vehicle)
+tire.setRadius(0.1)  
+tire.setStiffness(10000)  
+tire.setFriction(0.5)  
+
+
+driver = chrono.Driver()
+driver.setSteeringSensitivity(0.1)
+driver.setThrottleSensitivity(0.1)
+driver.setBrakingSensitivity(0.1)
+
+
+chrono.setSimulationTime(10)  
+chrono.setFrameRate(50)  
 
 
 engine.run()
 
 
-while engine.isRunning():
-    
-    vehicle.update(dt)
-
-    
-    driver.update(dt)
-
-    
-    scene.render()
-
-    
-    engine.updateFrameRate(max_frames_per_second)
-
-
-engine.shutdown()
+engine.render()

@@ -44,4 +44,4 @@ sys.AddBody(body_truss)
 
 
 boxtruss = chrono.ChVisualShapeBox(0.03, 0.25, 0.12)
-body_truss.AddVisualShape(boxtruss, chrono.ChFramed(chrono.ChVector3d(-0.015, 0
+body_truss.AddVisualShape(boxtruss, chrono

@@ -17,28 +17,29 @@ vis_type = veh.VisualizationType_MESH
 chassis_collision_type = veh.CollisionType_NONE
 
 # SCM deformable terrain
-terrain_model = veh.SCMTerrain.HEIGHT_MAP
-terrainHeight = 0      # terrain height
+terrain_model = veh.SoilTerrain.STANDARD
+terrainHeight = 0  # terrain height
 terrainLength = 100.0  # size in X direction
-terrainWidth = 100.0   # size in Y direction
+terrainWidth = 100.0  # size in Y direction
 
-# Soil parameters for SCM terrain
-soil_params = chrono.ChSMCSoil()
-soil_params.SetFriction(0.9)
-soil_params.SetRestitution(0.01)
+# Poon chassis tracked by the camera
+trackPoint = chrono.ChVector3d(0.0, 0.0, 0.1)
 
-# Initialize SCM terrain using a height map
-terrain = veh.SCMTerrain(vehicle.GetSystem(), soil_params)
-terrain.SetHeightMap("terrain/height_map.png")  # Set height map
+# Contact method
+contact_method = chrono.ChContactMethod_SMC
+contact_vis = False
 
-# Set SCM terrain texture to dirt
-terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 200, 200)
-terrain.Initialize()
+# Simulation step sizes
+step_size = 5e-4
+tire_step_size = step_size
+
+# Time interval between two render frames
+render_step_size = 1.0 / 50  # FPS = 50
 
 # Create the MAN vehicle, set parameters, and initialize
 
 vehicle = veh.M113()
-vehicle.SetContactMethod(veh.ChContactMethod_SMC)
+vehicle.SetContactMethod(contact_method)
 vehicle.SetTrackShoeType(veh.TrackShoeType_SINGLE_PIN)
 vehicle.SetDrivelineType(veh.DrivelineTypeTV_BDS)
 vehicle.SetEngineType(veh.EngineModelType_SHAFTS)
@@ -55,8 +56,22 @@ vehicle.SetIdlerWheelVisualizationType(vis_type)
 vehicle.SetSuspensionVisualizationType(vis_type)
 vehicle.SetRoadWheelVisualizationType(vis_type)
 vehicle.SetTrackShoeVisualizationType(vis_type)
-
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+
+# Create the SCM terrain
+patch_mat = chrono.ChContactMaterialSMC()
+patch_mat.SetFriction(0.9)
+patch_mat.SetRestitution(0.01)
+terrain = veh.SoilTerrain(vehicle.GetSystem())  # Changed to SoilTerrain
+
+# Initialize SCM terrain using a height map
+terrainHeightMap = [0.0] * (terrainLength * terrainWidth)  # Hard-coded height map (example: flat terrain)
+for i in range(len(terrainHeightMap)):
+    terrainHeightMap[i] = 0.0  # Example height map values
+terrain.SetHeightMap(terrainHeightMap)
+
+terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 200, 200)  # Set SCM terrain texture to dirt
+terrain.Initialize()
 
 # Create the vehicle Irrlicht interface
 vis = veh.ChTrackedVehicleVisualSystemIrrlicht()
@@ -117,14 +132,8 @@ while vis.Run() :
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
-    # Increment frame number
-    step_number += 1
-
-    # Hard-coded throttle value to 0.8 during the simulation loop
-    driver_inputs.throttle = 0.8
-
-    # Set the throttle value to 0.8
-    driver.SetThrottle(0.8)
-
+    # Hard-coded throttle value to 0.8
+    driver.SetThrottle(0.8)  # Hard-coded throttle value to 0.8
+    vis.Advance(step_size)
     # Increment frame number
     step_number += 1

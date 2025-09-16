@@ -1,95 +1,56 @@
-import pychrono as chrono
-import pychrono.irrlicht as chronoirr
-import numpy as np
+import PyChrono as chrono
+import PyChrono.Irrlicht as chronoirr
+import PyChrono.Vehicle as vehicle
+import PyChrono.Postprocess as postprocess
 
-# Create a Chrono::Engine instance
-my_application = chronoirr.ChIrrApp(chronoirr.NullCamera(), "Chrono Example", chrono.Dimensions(800, 600))
+# Initialize the PyChrono system and core components
+chrono.Init_Chrono()
 
-# Create a Chrono::System instance
-my_system = chrono.ChSystemNSC()
-
-# Create a Chrono::Irrlicht::ChIrrNodeAsset instance for visualization
-my_asset = chronoirr.ChIrrNodeAsset()
-
-# Create a Chrono::Vehicle::ChVehicle instance
-my_vehicle = chrono.vehicle.ChVehicle()
-
-# Create a Chrono::Vehicle::ChWheeledVehicle instance
-my_wheeled_vehicle = chrono.vehicle.ChWheeledVehicle()
-
-# Create a Chrono::Vehicle::ChVehicleModelData instance
-my_vehicle_data = chrono.vehicle.ChVehicleModelData()
-
-# Set vehicle parameters
-my_vehicle_data.m_chassis_mass = 1000.0
-my_vehicle_data.m_chassis_inertia = chrono.ChVectorD(100, 100, 100)
-my_vehicle_data.m_chassis_COM = chrono.ChVectorD(0, 0, 0)
-my_vehicle_data.m_chassis_vis_shape = chrono.ChVectorD(1, 1, 1)
-my_vehicle_data.m_chassis_vis_material = chronoirr.ChIrrMaterial(chrono.ChColor(0.5, 0.5, 0.5))
-
-# Create a Chrono::Vehicle::ChWheeledVehicle::ChWheeledVehicleTire instance
-my_tire = chrono.vehicle.ChWheeledVehicleTire()
-
-# Set tire parameters
-my_tire.m_radius = 0.5
-my_tire.m_width = 0.3
-my_tire.m_mass = 10.0
-my_tire.m_vis_shape = chrono.ChVectorD(my_tire.m_radius, my_tire.m_width, 0.1)
-my_tire.m_vis_material = chronoirr.ChIrrMaterial(chrono.ChColor(0.5, 0.5, 0.5))
-
-# Create a Chrono::Vehicle::ChWheeledVehicle::ChWheeledVehicleWheel instance
-my_wheel = chrono.vehicle.ChWheeledVehicleWheel()
-
-# Set wheel parameters
-my_wheel.m_radius = my_tire.m_radius
-my_wheel.m_width = my_tire.m_width
-my_wheel.m_mass = my_tire.m_mass
-my_wheel.m_vis_shape = my_tire.m_vis_shape
-my_wheel.m_vis_material = my_tire.m_vis_material
-
-# Add the wheel to the vehicle
-my_wheeled_vehicle.AddWheel(my_wheel, chrono.ChVectorD(0.5, 0, 0), chrono.ChVectorD(0, 1, 0), chrono.ChVectorD(0, 0, 1))
-
-# Set the vehicle's location, orientation, contact method, and visualization type
-my_vehicle.SetChassis(my_vehicle_data.m_chassis_vis_shape, my_vehicle_data.m_chassis_vis_material)
-my_vehicle.SetWheel(0, my_wheel, my_tire)
-my_vehicle.SetContactMethod(chrono.vehicle.ChContactMethod.NSC)
-my_vehicle.SetVisualizationType(chrono.vehicle.ChVisualizationType.PRIMITIVES)
-
-# Create a Chrono::Terrain::RigidTerrain instance
-my_terrain = chrono.terrain.RigidTerrain(my_system.GetContactMethod())
-
-# Set terrain dimensions
-my_terrain.SetTexture(chronoirr.ChIrrMaterial(chrono.ChColor(0.5, 0.5, 0.5)))
-my_terrain.Add(chrono.ChBoxShape(chrono.ChVectorD(10, 10, 0.1)))
-my_terrain.Initialize(my_system)
-
-# Add the vehicle and terrain to the system
-my_system.Add(my_vehicle)
-my_system.Add(my_terrain)
+# Create the vehicle
+vehicle_system = vehicle.ChVehicle()
+vehicle_system.Initialize(chrono.GetChronoDataFile('vehicle/hmmwv/hmmwv.tire'), chrono.GetChronoDataFile('vehicle/hmmwv/hmmwv.chassis'))
 
 # Set the vehicle's initial position and orientation
-my_vehicle.SetChassisPose(chrono.ChVectorD(0, 0, 0.5), chrono.ChQuaternionD(1, 0, 0, 0))
+vehicle_system.SetChassisPosition(chrono.ChVectorD(0, 0, 0.5))
+vehicle_system.SetChassisOrientation(chrono.ChQuaternionD(1, 0, 0, 0))
 
-# Set the vehicle's initial steering, throttle, and braking
-my_vehicle.SetSteeringValue(0, 0)
-my_vehicle.SetThrottleValue(0, 0)
-my_vehicle.SetBrakingValue(0, 0)
+# Set the vehicle's contact method and visualization type
+vehicle_system.SetContactMethod(vehicle.ChContactMethod_FEA)
+vehicle_system.SetChassisVisualizationType(vehicle.ChVehicleVisualizationType_PRIMITIVES)
 
-# Set the simulation step size
-my_system.SetTimestep(0.01)
+# Create the rigid terrain
+terrain = chrono.ChTerrain()
+terrain.SetTexture(chrono.GetChronoDataFile('vehicle/textures/tile4.jpg'), 200, 200)
+terrain.Initialize(vehicle_system.GetSystem())
 
-# Set the simulation speed
-my_application.SetTimestep(0.01)
+# Set the terrain dimensions
+terrain.Set_tx(200)
+terrain.Set_tz(200)
 
-# Set the simulation frame rate
-my_application.SetFPS(50)
+# Add the terrain to the vehicle system
+vehicle_system.AddAsset(terrain)
 
-# Run the simulation loop
-while my_application.GetDevice().run():
-    my_application.BeginScene()
-    my_application.DrawAll()
-    my_application.DoStepDynamics()
-    my_application.EndScene()
+# Create the interactive driver system
+driver = vehicle.ChIrrGuiDriver(vehicle_system, 0.01)
+driver.SetSteeringDelta(0.04)
+driver.SetSteeringSpeed(1.0)
+driver.SetThrottleDelta(0.2)
+driver.SetBrakingDelta(0.3)
 
-my_application.GetSystem().Finalize()
+# Create the visualization system
+visualization = chronoirr.ChIrrApp(vehicle_system, 'ARTcar Simulation', chronoirr.dimension2d(800, 600), True, True)
+
+# Set the visualization parameters
+visualization.AddTypicalLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+visualization.AddTypicalSky(chrono.GetChronoDataFile('skybox/daewoo_512.jpg'))
+visualization.AddTypicalLights()
+visualization.AddTypicalCamera(chrono.ChVectorD(0.5, 0.5, -1.5))
+visualization.AddPostprocessor(postprocess.ChGlobalPostprocessor(vehicle_system.GetSystem()))
+
+# Set the simulation loop parameters
+visualization.SetTimestep(0.01)
+visualization.SetTryRealtime(True)
+visualization.SetFPS(50)
+
+# Run the simulation
+visualization.Run()

@@ -57,7 +57,9 @@ while vis.Run():
     time += time_step
 
     # Set rover to move forward with zero steering input
-    driver.SetSteering(0)  
+    driver.SetSteering(0) 
+    
+    # Update rover dynamics
     rover.Update()
 
     # Render the scene

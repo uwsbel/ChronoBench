@@ -1,119 +1,147 @@
 import chrono
 
-import irrlicht
+import chrono_irrlicht_sensor as irr
+
+import chrono
+
+import chrono_impact_sensor as impact
 
 import numpy as np
 
 
-# Initialize PyChrono environment
+# Initialize the Chrono environment
 
 chrono.Init()
 
 
-# Create the main simulation scene
+# Create the ground body
 
-s = chrono.ChSystemNSC()
+ground = chrono.ChBodyAux()
 
+ground.SetName("Ground")
 
-# Set gravity
+ground.SetBodyType(chrono.ChBodyType.STATIC)
 
-s.SetGravity(chrono.ChVectorD(0, -9.81, 0))
+ground.SetMass(0)
 
+ground.SetInertiaTensor(chrono.ChVector3(0, 0, 0))
 
-# Add a ground body
+ground.SetStaticFriction(0.0)
 
-ground_shape = chrono.ChBodyDSG(chrono.ChEntityExt::CreateBox(s, 10, 1, 1))
+ground.SetDynamicFriction(0.0)
 
-ground_shape.SetBodyFixed(True)
-
-s.AddBody(ground_shape)
-
-
-# Initialize Turtlebot
-
-turtlebot = chrono.ChBody(chrono.ChVectorD(0, 0, 0.1), chrono.ChQuaternionD(0, 0, 0, 1))
-
-turtlebot.SetMass(10)
-
-s.AddBody(turtlebot)
+ground.SetColor(chrono.ChColor(0, 0, 0))
 
 
-# Add Turtlebot's wheel bodies and joints
+# Create the Turtlebot robot
 
-# ... (code to add wheels and joints)
+turtlebot = chrono.ChBodyAux()
 
+turtlebot.SetName("Turtlebot")
 
-# Set initial position and orientation
+turtlebot.SetBodyType(chrono.ChBodyType.DYNAMIC)
 
-turtlebot.SetPos(chrono.ChVectorD(0, 0, 0))
+turtlebot.SetMass(10.0)
 
-turtlebot.SetRot(chrono.ChQuaternionD(0, 0, 0, 1))
+turtlebot.SetInertiaTensor(chrono.ChVector3(0.1, 0.1, 0.1))
 
-
-# Set up Irrlicht visualization
-
-irr = irrlicht.IrrEngine()
+turtlebot.SetColor(chrono.ChColor(1, 0, 0))
 
 
-# Camera settings
+# Add the ground body to the Chrono system
 
-camera = irr.getCamera()
-
-camera.setPosition(chrono.ChVectorD(0, 0, 10))
-
-camera.setTarget(chrono.ChVectorD(0, 0, 0))
+chrono.ChSystem.CreateChBody(ground)
 
 
-# Lighting
+# Set the initial position and orientation of the Turtlebot
 
-light = irr.getLightScene().createLight()
+turtlebot.SetPos(chrono.ChVector(0, 0, 0))
 
-light.setType(irrlicht.video.ETC_LIGHT_SPOT)
-
-light.setDirection(chrono.ChVectorD(0, 0, -1))
-
-light.setRange(1000)
+turtlebot.SetRot(chrono.ChQuaternion(1, 0, 0, 0))
 
 
-# Simulation loop
+# Add the Turtlebot to the Chrono system
 
-sim_time = 0
-
-while True:
-
-    # Update Turtlebot's motors for turning
-
-    # ... (code to update motors)
+chrono.ChSystem.CreateChBody(turtlebot)
 
 
-    # Step the simulation
+# Create a camera for visualization
 
-    s.DoStep()
+camera = irr.ChCamera()
+
+camera.SetName("Camera")
+
+camera.SetCameraPos(chrono.ChVector(0, 0, 5))
+
+camera.SetLookAt(chrono.ChVector(0, 0, 0))
+
+camera.SetFOV(chrono.ChVector(60, 0, 0))
+
+camera.SetNearClip(0.1)
+
+camera.SetFarClip(100)
+
+camera.SetUpAxis(chrono.ChVector(0, 1, 0))
+
+camera.SetColor(chrono.ChColor(0, 0, 0))
+
+camera.SetNearClipColor(chrono.ChColor(0, 0, 0))
+
+camera.SetFarClipColor(chrono.ChColor(0, 0, 0))
+
+camera.SetAmbientColor(chrono.ChColor(0, 0, 0))
+
+camera.SetBackgroundColor(chrono.ChColor(0, 0, 0))
 
 
-    # Update Irrlicht visualization
+# Add the camera to the Chrono system
 
-    irr.beginScene()
-
-    irr.drawAll()
-
-    irr.endScene()
+chrono.ChSystem.CreateCamera(camera)
 
 
-    # Increment simulation time
+# Set the camera's sensor for real-time visualization
 
-    sim_time += 1e-3
-
-
-    # Break condition
-
-    if sim_time > 10:
-
-        break
+irr.ChSensor.CreateSensor(camera)
 
 
-# Clean up
+# Set the gravity
 
-chrono.reset()
+chrono.ChSystem.SetGravity(chrono.ChVector(0, 0, -9.81))
 
-irr.end()
+
+# Create the visualization
+
+vis = irr.ChIrrApp()
+
+vis.SetWindowSize(800, 600)
+
+vis.SetTitle("PyChrono Turtlebot Simulation")
+
+vis.SetTargetFrameRate(30)
+
+vis.AddSensor(camera.GetSensor())
+
+
+# Start the visualization
+
+vis.Run()
+
+
+# Set up the simulation loop
+
+while vis.GetDoEvents():
+
+    # Update the Turtlebot's motors to control turns
+
+    turtlebot.SetMotorSpeed(chrono.ChVector(0.5, -0.5))
+
+    chrono.ChSystem.DoStepDynamics(1.0 / 60.0)
+
+    # Render the simulation
+
+    vis.Step()
+
+
+# Clean up the Chrono system
+
+chrono.ChSystem.Destroy()

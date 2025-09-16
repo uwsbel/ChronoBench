@@ -1,5 +1,5 @@
 import pychrono.core as chrono
-import pychrono.sensor as sens
+import pychrono.sensor as sensor
 import pychrono.irrlicht as chronoirr
 import numpy as np
 
@@ -7,64 +7,64 @@ import numpy as np
 sys = chrono.ChSystemNSC()
 
 
-vis = chronoirr.ChVisualSystem()
-vis.AddSkyBox()
-vis.AddTypicalLights()
-vis.AddCamera(chrono.ChVectorD(0, 0, 3))
-vis.SetWindowSize(800, 600)
-vis.SetWindowTitle("PyChrono Simulation")
+vis = chronoirr.ChVisualSystemIrrlicht()
+
+
+chrono.ChCollisionSystem.SetDefaultSuggestedEnvelope(0.001)
+chrono.ChCollisionSystem.SetDefaultSuggestedRadius(0.001)
 
 
 mesh = chrono.ChTriangleMesh()
 mesh.LoadWavefrontMesh("mesh.obj")
 
 
-body = chrono.ChBodyEasyMesh(sys, mesh, True, False)
+body = chrono.ChBodyEasyMesh(mesh, 1000, True, True)
 body.SetPos(chrono.ChVectorD(0, 0, 0))
-body.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
+body.SetRot(chrono.Q_from_AngX(0))
 sys.Add(body)
 
 
-cam = sens.ChCameraSensor(sys)
+cam = sensor.ChCameraSensor()
+cam.SetName("camera")
+cam.SetImageSize(640, 480)
+cam.SetFocalLength(10)
+cam.SetPosition(chrono.ChVectorD(0, 0, 5))
+cam.SetLookAt(chrono.ChVectorD(0, 0, 0))
 
 
-sens_man = sens.ChSensorManager(sys)
-sens_man.AddSensor(cam)
+sensor_manager = sensor.ChSensorManager()
+sensor_manager.AddSensor(cam)
 
 
-cam.AddFilter(sens.ChGaussianNoiseFilter(0.1))
-cam.AddFilter(sens.ChSaltAndPepperNoiseFilter(0.05))
-cam.AddVisualization(sens.ChImageDisplay())
+noise_filter = sensor.ChNoiseFilterGaussian(0.1, 0.01)
+cam.AddFilter(noise_filter)
+vis.AddTypicalLights()
+vis.AddCamera(cam)
 
 
-dt = 0.01
-t_end = 10.0
-
-
-t = 0.0
-
-
-cam_buffer_data = []
-
+time_step = 0.01
+t_end = 10
+t = 0
 while t < t_end:
     
-    radius = 2.0
-    angle = t * 0.1
-    cam_pos = chrono.ChVectorD(radius * np.cos(angle), radius * np.sin(angle), 1.0)
-    cam.SetPos(cam_pos)
+    theta = t * np.pi / 180
+    cam.SetPosition(chrono.ChVectorD(5 * np.cos(theta), 0, 5 * np.sin(theta)))
+    cam.SetLookAt(chrono.ChVectorD(0, 0, 0))
 
     
-    sys.DoStepDynamics(dt)
+    sys.DoStepDynamics(time_step)
 
     
-    buffer_data = cam.GetBuffer()
-    cam_buffer_data.append(buffer_data)
+    buffer = cam.GetImageBuffer()
+    print(buffer)
 
     
-    print(f"Time: {t:.2f}, Camera Buffer Data: {buffer_data}")
+    vis.BeginScene()
+    vis.DrawAll()
+    vis.EndScene()
 
     
-    t += dt
+    t += time_step
 
-
-vis.Run()
+    
+    chrono.ChSleep(0.01)

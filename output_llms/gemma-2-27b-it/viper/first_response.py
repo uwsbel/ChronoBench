@@ -8,7 +8,7 @@ import math
 #
 # ---------------------------------------------------------------------
 
-# Create the physical system
+# Create the Chrono system
 system = chrono.ChSystemNSC()
 
 # Set gravitational acceleration
@@ -20,30 +20,21 @@ ground.SetPos(chrono.ChVectorD(0, -0.5, 0))
 ground.SetBodyFixed(True)
 system.Add(ground)
 
-# ---------------------------------------------------------------------
-#
-#  Create the Viper rover
-#
-# ---------------------------------------------------------------------
-
-# Load the Viper rover model (replace with your actual file path)
-rover = chrono.ChWheeledVehicle("viper_rover.obj")
-
-# Set initial position and orientation
-rover.SetPos(chrono.ChVectorD(0, 1, 0))
-rover.SetRot(chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 0, 1)))
-
-# Add the rover to the system
+# Create the Viper rover
+rover = chrono.ChChassis(
+    "Viper", chrono.ChVectorD(0, 0.5, 0), chrono.ChQuaternionD(1, 0, 0, 0),
+    chrono.ChChassis.Type_VEHICLES, 1000
+)
 system.Add(rover)
 
-# ---------------------------------------------------------------------
-#
-#  Create the driver (optional)
-#
-# ---------------------------------------------------------------------
+# Create the driver (placeholder for now)
+driver = chrono.ChBodyEasySphere(0.2, 1000)
+driver.SetPos(chrono.ChVectorD(0, 0.8, 0))
+driver.SetBodyFixed(True)
+system.Add(driver)
 
-# You can add a driver model here if needed, controlling the rover's
-# steering and other functions.
+# Attach the driver to the rover
+rover.AddSensor(driver)
 
 # ---------------------------------------------------------------------
 #
@@ -56,12 +47,14 @@ vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
 vis.SetWindowSize(800, 600)
 vis.SetWindowTitle("Viper Rover Simulation")
+vis.Initialize()
 
-# Set camera position and lighting
-camera = vis.GetCamera()
-camera.SetLocation(chrono.ChVectorD(5, 5, 3))
-camera.SetLookAt(chrono.ChVectorD(0, 1, 0))
-vis.AddLight(chrono.ChLightPoint(chrono.ChVectorD(5, 5, 5)))
+# Set camera position and look at point
+vis.GetCamera().SetTarget(chrono.ChVectorD(0, 0.5, 0))
+vis.GetCamera().SetPosition(chrono.ChVectorD(5, 2, 5))
+
+# Add some lighting
+vis.AddLightWithShadow(chrono.ChVectorD(2, 5, 2), chrono.ChVectorD(0.8, 0.8, 0.8), 10)
 
 # ---------------------------------------------------------------------
 #
@@ -69,33 +62,29 @@ vis.AddLight(chrono.ChLightPoint(chrono.ChVectorD(5, 5, 5)))
 #
 # ---------------------------------------------------------------------
 
-# Simulation parameters
+# Simulation step size
 timestep = 0.01
-simulation_time = 10
 
-# Steering control parameters
-initial_steering = 0
-final_steering = math.pi / 4  # 45 degrees
-steering_change_time = 5
+# Steering change parameters
+steering_start = 0
+steering_end = math.pi / 4
+steering_duration = 5
 
-# Main simulation loop
-for i in range(int(simulation_time / timestep)):
-    time = i * timestep
+# Simulation loop
+while vis.Run():
+    # Calculate current steering angle
+    simulation_time = system.GetChTime()
+    steering_angle = chrono.ChInterp.Linear(
+        steering_start, steering_end, simulation_time / steering_duration
+    )
 
-    # Gradually change steering angle
-    if time <= steering_change_time:
-        steering_angle = initial_steering + (final_steering - initial_steering) * time / steering_change_time
-    else:
-        steering_angle = final_steering
-
-    # Apply steering to the rover (replace with your actual steering control logic)
-    rover.SetSteeringAngle(steering_angle)
+    # Apply steering to the rover (implementation depends on rover model)
+    # ...
 
     # Advance the simulation
     system.DoStepDynamics(timestep)
 
-    # Render the scene
+    # Update visualization
+    vis.BeginScene()
     vis.Render()
-
-# Quit the visualization
-vis.GetDevice().close()
+    vis.EndScene()

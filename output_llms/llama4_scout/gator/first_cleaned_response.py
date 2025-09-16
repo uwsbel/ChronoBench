@@ -1,148 +1,65 @@
 import pychrono as chrono
 import pychrono.irrlicht as irr
-from pychrono.vehicle import *
+import pychrono.vehicle as veh
 
 
 chrono.ChEngine.Initialize()
 
 
-app = irr.IrrlichtApplication()
+app = irr.ChIrrApp()
 
 
-system = chrono.ChSystem()
+SIMULATION_FPS = 50
 
 
-system.SetContactMethod(chrono.ChContactMethod_NFE)
-system.SetCollisionSystem(chrono.ChCollisionSystem_Narrowphase_GJK)
-
-
-system.SetTimeStep(0.02)
-system.SetSolverType(chrono.ChSolverType_PCG)
-system.SetSolverMaxIterations(150)
-
-
-gator = chrono véhicule.ChGator()
+gator = veh.ChGator()
 
 
 gator.SetChassisPos(chrono.ChVector3d(0, 0, 1))
 gator.SetChassisRot(chrono.ChQuaterniond(1, 0, 0, 0))
 
 
-gator.SetContactMethod(chrono.ChContactMethod_NFE)
-gator.SetTireModel(chrono_vehicle.ChTireModel_TMEASY)
+gator.SetContactMethod(veh.ChContactMethod_TM_EASY)
+gator.SetTireModel(veh.ChTireModel_TMEASY)
 
 
-gator.EnableMeshVisualization(True)
+gator.EnableVisualizationBodyFrames(True)
+gator.EnableVisualizationBodyWheels(True)
+gator.EnableVisualizationTirePoints(True)
 
 
-system.Add(gator.GetChassisBody())
+terrain = veh.ChRigidTerrain(gator.GetChassisBody().GetWorldFrame().GetPos())
 
 
-terrain = chrono_vehicle.ChRigidTerrain(system)
+terrain.SetTerrainSize(10, 10)
+terrain.SetTextureFilename("path/to/your/terrain_texture.jpg")
 
 
-terrain.SetTerrainDimensions(chrono.ChVector3d(-10, -10, 0), chrono.ChVector3d(10, 10, 0))
-terrain.SetTextureFilename("terrain_texture.jpg")
+driver = veh.ChInteractiveDriverIRR()
 
 
-system.Add(terrain.GetGroundBody())
+driver.SetThrottleMax(1.0)
+driver.SetSteeringMax(1.0)
+driver.SetBrakingMax(1.0)
 
 
-driver = chrono_vehicle.ChInteractiveDriverIRR()
+chrono.ChSystemGlobals.SetVerbose(True)
 
 
-driver.SetThrottle(0.5)
-driver.SetSteering(0.2)
-driver.SetBraking(0.1)
+scene = irr.ChIrrSceneNode(app.GetDevice())
 
 
-system.Add(driver)
+scene.AddBody(gator.GetChassisBody())
+scene.AddTerrain(terrain)
 
 
-def Simulate(t):
-    system.Increment(t)
-    app.Render()
-
-
-chrono.ChTimeSystem.SetMaxStepSize(0.02)
-chrono.ChTimeSystem.SetMaxDuration(100)
-
-while app.Run() and system.GetChTime() < 100:
-    Simulate(chrono.ChTimeSystem.GetNextStep())
-
-
-app.Close()
-
-import pychrono as chrono
-import pychrono.irrlicht as irr
-from pychrono.vehicle import *
-
-def main():
-    
-    chrono.ChEngine.Initialize()
-
-    
-    app = irr.IrrlichtApplication()
-
-    
-    system = chrono.ChSystem()
-
-    
-    system.SetContactMethod(chrono.ChContactMethod_NFE)
-    system.SetCollisionSystem(chrono.ChCollisionSystem_Narrowphase_GJK)
-
-    
-    system.SetTimeStep(0.02)
-    system.SetSolverType(chrono.ChSolverType_PCG)
-    system.SetSolverMaxIterations(150)
-
-    
-    gator = chrono_vehicle.ChGator()
-
-    
-    gator.SetChassisPos(chrono.ChVector3d(0, 0, 1))
-    gator.SetChassisRot(chrono.ChQuaterniond(1, 0, 0, 0))
-
-    
-    gator.SetContactMethod(chrono.ChContactMethod_NFE)
-    gator.SetTireModel(chrono_vehicle.ChTireModel_TMEASY)
-
-    
-    gator.EnableMeshVisualization(True)
-
-    
-    system.Add(gator.GetChassisBody())
-
-    
-    terrain = chrono_vehicle.ChRigidTerrain(system)
-
-    
-    terrain.SetTerrainDimensions(chrono.ChVector3d(-10, -10, 0), chrono.ChVector3d(10, 10, 0))
-    terrain.SetTextureFilename("terrain_texture.jpg")
-
-    
-    system.Add(terrain.GetGroundBody())
-
-    
-    driver = chrono_vehicle.ChInteractiveDriverIRR()
-
-    
-    driver.SetThrottle(0.5)
-    driver.SetSteering(0.2)
-    driver.SetBraking(0.1)
-
-    
-    system.Add(driver)
-
-    
-    chrono.ChTimeSystem.SetMaxStepSize(0.02)
-    chrono.ChTimeSystem.SetMaxDuration(100)
-
-    while app.Run() and system.GetChTime() < 100:
-        system.Increment(chrono.ChTimeSystem.GetNextStep())
+def SimulationLoop():
+    while app.Run():
+        scene.Update()
+        gator.Update()
+        driver.Update()
         app.Render()
 
-    app.Close()
 
-if __name__ == "__main__":
-    main()
+chrono.ChScheduler.SetSimulationFps(SIMULATION_FPS)
+SimulationLoop()

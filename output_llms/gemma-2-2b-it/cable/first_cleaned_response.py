@@ -1,6 +1,5 @@
 import pychrono as chrono
-import pychrono.irrlicht as irr
-import pychrono.irrlicht.irrlicht as irr
+import pychrono.irr as irr
 
 
 chrono.init()
@@ -9,55 +8,49 @@ chrono.init()
 world = chrono.World()
 
 
-irr_engine = irr.IrrlichtEngine()
-
-
-scene = irr_engine.createScene()
+engine = irr.IrrlichtEngine()
 
 
 beam_length = 1.0  
 beam_width = 0.1  
-beam_material = chrono.Material(chrono.Material.Type.STEEL)  
+beam_height = 0.2  
 
 
-beam_elements = []
-for i in range(10):  
-    element = chrono.BeamElement(beam_length, beam_width, beam_material)
-    beam_elements.append(element)
+beam_geometry = chrono.Shape(chrono.ShapeType.BOX)
+beam_geometry.set_size(beam_length, beam_width, beam_height)
 
 
-beam = chrono.Beam(beam_elements)
+beam_material = chrono.Material()
+beam_material.set_density(1000.0)  
+beam_material.set_elasticity(100.0)  
+beam_material.set_friction(0.1)
 
 
-beam.set HingePoint(chrono.Point(0, 0, 0))
+beam_nodes = [
+    chrono.Node(beam_geometry, chrono.Position(0.0, 0.0, 0.0)),
+    chrono.Node(beam_geometry, chrono.Position(beam_length, 0.0, 0.0))
+]
 
 
-beam.setGravity(chrono.Vector(0, -9.81, 0))
+beam_elements = [
+    chrono.Element(beam_nodes[0], beam_nodes[1], beam_material)
+]
 
 
-ground = chrono.Ground()
+world.add_object(beam_geometry)
 
 
-ground.setPosition(chrono.Vector(0, 0, 0))
+world.set_gravity(chrono.Vector3(0.0, -9.81, 0.0))
 
 
-world.add(ground)
+for node in beam_nodes:
+    node.set_position(chrono.Vector3(node.get_position().x, node.get_position().y, node.get_position().z))
 
 
-world.add(beam)
 
 
-dt = 0.01  
-iterations = 1000  
+
+engine.run()
 
 
-for i in range(iterations):
-    
-    beam.update(dt)
-
-    
-    scene.render()
-
-
-world.clear()
-irr_engine.shutdown()
+engine.draw()

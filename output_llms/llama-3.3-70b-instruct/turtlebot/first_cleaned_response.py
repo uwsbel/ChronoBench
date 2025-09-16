@@ -9,54 +9,48 @@ sys = chrono.ChSystemNSC()
 sys.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
 
-ground = chrono.ChBodyEasyBox(sys, 10, 1, 10, 1000, True, False)
-ground.SetPos(chrono.ChVectorD(0, -1, 0))
+ground = chrono.ChBodyEasyBox(sys, 10, 1, 10, 1000, True, chrono.ChVectorD(0, -1, 0))
 ground.SetBodyFixed(True)
+sys.Add(ground)
 
 
-turtlebot = veh.Turtlebot(sys)
-
-
-turtlebot.SetPos(chrono.ChVectorD(0, 1, 0))
-turtlebot.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
-
-
-sys.Add(turtlebot.GetChassisBody())
-sys.Add(turtlebot.GetLeftWheel())
-sys.Add(turtlebot.GetRightWheel())
+turtlebot = veh.TurtleBot(sys, chrono.ChVectorD(0, 1, 0), chrono.ChQuaternionD(1, 0, 0, 0))
+sys.Add(turtlebot)
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AddSkyBox()
 vis.AddTypicalLights()
-vis.AddCamera(chrono.ChVectorD(0, 5, -10))
-vis.AddCamera(chrono.ChVectorD(0, 5, -10), chrono.ChVectorD(0, 0, 0))
+vis.AddCamera(chrono.ChVectorD(0, 5, -10), chrono.ChVectorD(0, 0, 0), 35)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle("Turtlebot Simulation")
+vis.AddTypicalCameraMovements()
+
+
+time_step = 0.01
+duration = 10
 
 
 time = 0
-dt = 0.01
-while time < 10:
+while time < duration:
     
-    if time < 2:
-        turtlebot.SetMotorTorque(10, 10)
-    elif time < 4:
-        turtlebot.SetMotorTorque(-10, 10)
-    elif time < 6:
-        turtlebot.SetMotorTorque(10, -10)
-    else:
-        turtlebot.SetMotorTorque(0, 0)
+    sys.DoStepDynamics(time_step)
 
     
-    sys.DoStepDynamics(dt)
+    if time < 2:
+        turtlebot.SetMotorTorque(chrono.ChVectorD(10, 10))
+    elif time < 4:
+        turtlebot.SetMotorTorque(chrono.ChVectorD(-10, 10))
+    elif time < 6:
+        turtlebot.SetMotorTorque(chrono.ChVectorD(10, -10))
+    else:
+        turtlebot.SetMotorTorque(chrono.ChVectorD(0, 0))
 
     
     vis.DrawAll()
 
     
-    time += dt
+    time += time_step
 
     
-    print(f"Time: {time}")
-
-
-sys.GetContactContainer().ReportAllContacts()
+    chronoirr.ChSleep(1 / 60)

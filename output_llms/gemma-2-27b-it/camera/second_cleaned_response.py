@@ -124,5 +124,4 @@ def main():
 
         
         rgba8_buffer = cam.GetMostRecentRGBA8Buffer()
-        if rgba8_buffer.HasData():
-            rgba8_data = rgba8_buffer.GetRGBA8Data()
+        if rgba8_buffer.HasData

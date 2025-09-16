@@ -1,57 +1,84 @@
-import pychrono as chrono
-import pychrono.irrlicht as irr
-import pychrono.tmeasy as tmeasy
+from pychrono import *
+from pychrono.irrlicht import IrrlichtApplication
+from pychrono.irrlicht.irrlicht import IrrlichtDevice
+from pychrono.irrlicht.irrlicht import IrrlichtEngine
+from pychrono.irrlicht.irrlicht import IrrlichtScene
+from pychrono.irrlicht.irrlicht import IrrlichtSceneNode
+from pychrono.irrlicht.irrlicht import IrrlichtMaterial
+from pychrono.irrlicht.irrlicht import IrrlichtMesh
+from pychrono.irrlicht.irrlicht import IrrlichtLight
 
 
-chrono.init()
+init_chrono()
 
 
-engine = irr.IrrlichtEngine()
+app = IrrlichtApplication(
+    "HMMWV Simulation",
+    None,
+    False,
+    None,
+    None
+)
 
 
-world = chrono.World()
+device = app.getIrrlichtDevice()
 
 
-terrain_mesh = chrono.Mesh()
-terrain_mesh.load_obj("Highway_col.obj")
-terrain_mesh.load_obj("Highway_vis.obj")
+engine = app.getIrrlichtEngine()
 
 
-vehicle = chrono.Vehicle()
-vehicle.set_mesh(chrono.Mesh())
-vehicle.set_collision_mesh(chrono.Mesh())
-vehicle.set_collision_method(chrono.CollisionMethod.COLLISION_METHOD_NONE)
-vehicle.set_contact_method(chrono.ContactMethod.CONTACT_METHOD_NONE)
+scene = app.getIrrlichtScene()
 
 
-vehicle.set_position(chrono.Vector3(0, 0, 0))
-vehicle.set_orientation(chrono.Quaternion(0, 0, 0, 1))
-vehicle.set_contact_method(chrono.ContactMethod.CONTACT_METHOD_NONE)
-vehicle.set_tire_model(tmeasy.TireModel.TMEASY_MODEL_STANDARD)
+hmmwv_node = scene.addSceneNode("HMMWV")
 
 
-world.add_object(vehicle)
+hmmwv_mesh = IrrlichtMesh.createMesh("HMMWV_mesh.obj")
+hmmwv_node.addMesh(hmmwv_mesh)
 
 
-world.add_object(terrain_mesh)
+hmmwv_material = IrrlichtMaterial.createMaterial("HMMWV_material")
+hmmwv_material.setDiffuseColor(0.5, 0.5, 0.5)
+hmmwv_material.setSpecularColor(0.5, 0.5, 0.5)
+hmmwv_node.addMaterial(hmmwv_material)
 
 
-world.set_time_step(0.01)
-world.set_frame_rate(50)
+hmmwv_light = IrrlichtLight.createLight("HMMWV_light")
+hmmwv_light.setPosition(0, 0, 0)
+hmmwv_light.setDirection(0, 0, 1)
+hmmwv_node.addLight(hmmwv_light)
 
 
-driver = chrono.Driver()
-driver.set_steering_control(chrono.SteeringControl.STEERING_CONTROL_MANUAL)
-driver.set_throttle_control(chrono.ThrottleControl.THROTTLE_CONTROL_MANUAL)
-driver.set_braking_control(chrono.BrakingControl.BRAKING_CONTROL_MANUAL)
+terrain_mesh = IrrlichtMesh.createMesh("Highway_col.obj")
+terrain_node = scene.addSceneNode("Terrain")
+terrain_node.addMesh(terrain_mesh)
 
 
-while True:
-    
-    world.update()
+terrain_vis_mesh = IrrlichtMesh.createMesh("Highway_vis.obj")
+terrain_vis_node = scene.addSceneNode("TerrainVisualization")
+terrain_vis_node.addMesh(terrain_vis_mesh)
 
-    
-    engine.render()
 
-    
-    chrono.sleep(1 / 50)
+driver_system = app.createDriverSystem()
+
+
+driver_system.setSteeringControlType(DriverControlType.SteeringWheel)
+driver_system.setThrottleControlType(DriverControlType.Throttle)
+driver_system.setBrakingControlType(DriverControlType.Brakes)
+
+
+hmmwv_position = Vec3(0, 0, 0)
+hmmwv_orientation = Vec3(0, 0, 0)
+hmmwv_contact_method = ContactMethod.ContactSurface
+
+
+hmmwv_driver = driver_system.createDriver("HMMWV")
+hmmwv_driver.setVehiclePosition(hmmwv_position)
+hmmwv_driver.setVehicleOrientation(hmmwv_orientation)
+hmmwv_driver.setContactMethod(hmmwv_contact_method)
+
+
+hmmwv_tire = hmmwv_driver.createTire("TMEASY")
+
+
+app.run(50)

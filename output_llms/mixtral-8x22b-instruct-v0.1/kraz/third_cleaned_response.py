@@ -43,7 +43,6 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  
 
 
-
 vehicle_truck = veh.Kraz()
 vehicle_truck.SetContactMethod(contact_method)
 vehicle_truck.SetChassisCollisionType(chassis_collision_type)
@@ -55,10 +54,9 @@ vehicle_truck.SetChassisVisualizationType(vis_type, vis_type)
 vehicle_truck.SetSteeringVisualizationType(vis_type)
 vehicle_truck.SetSuspensionVisualizationType(vis_type, vis_type)
 vehicle_truck.SetWheelVisualizationType(vis_type, vis_type)
-vehicle_truck.SetTireVisualizationType(vis_type, tire_model_truck)
+vehicle_truck.SetTireVisualizationType(vis_type, vis_type)
 
 vehicle_truck.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
-
 
 
 vehicle_sedan = veh.Sedan()
@@ -72,7 +70,7 @@ vehicle_sedan.SetChassisVisualizationType(vis_type, vis_type)
 vehicle_sedan.SetSteeringVisualizationType(vis_type)
 vehicle_sedan.SetSuspensionVisualizationType(vis_type, vis_type)
 vehicle_sedan.SetWheelVisualizationType(vis_type, vis_type)
-vehicle_sedan.SetTireVisualizationType(vis_type, tire_model_sedan)
+vehicle_sedan.SetTireVisualizationType(vis_type, vis_type)
 
 vehicle_sedan.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
@@ -103,6 +101,8 @@ vis.AttachVehicle(vehicle_sedan.GetTractor())
 
 
 driver_truck = veh.ChInteractiveDriverIRR(vis)
+
+
 driver_sedan = veh.ChInteractiveDriverIRR(vis)
 
 
@@ -112,6 +112,7 @@ braking_time = 0.3
 driver_truck.SetSteeringDelta(render_step_size / steering_time)
 driver_truck.SetThrottleDelta(render_step_size / throttle_time)
 driver_truck.SetBrakingDelta(render_step_size / braking_time)
+
 driver_sedan.SetSteeringDelta(render_step_size / steering_time)
 driver_sedan.SetThrottleDelta(render_step_size / throttle_time)
 driver_sedan.SetBrakingDelta(render_step_size / braking_time)
@@ -152,7 +153,6 @@ while vis.Run() :
     vehicle_truck.Synchronize(time, driver_inputs_truck, terrain)
     vehicle_sedan.Synchronize(time, driver_inputs_sedan, terrain)
     vis.Synchronize(time, driver_inputs_truck)
-    vis.Synchronize(time, driver_inputs_sedan)
 
     
     driver_truck.Advance(step_size)

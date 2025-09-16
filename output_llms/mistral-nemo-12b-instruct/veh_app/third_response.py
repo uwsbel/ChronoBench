@@ -8,6 +8,8 @@ import os
 # Set the data path for Chrono assets
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
+print(chrono.GetChronoDataPath() + 'vehicle/')
+
 # Initial vehicle location and orientation
 initLoc = chrono.ChVector3d(0, -5, 0.4)
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
@@ -93,14 +95,14 @@ patch.SetColor(chrono.ChColor(0.8, 0.8, 1.0))
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 50, 50)
 terrain.Initialize()
 
-# Create a box
+# create a box
 box = chrono.ChBodyEasyBox(1, 1, 1, 1000)
 box.SetPos(chrono.ChVector3d(0, 0, 0.5))
 box.SetFixed(True)
 box.GetVisualModel().GetShape(0).SetTexture(chrono.GetChronoDataFile("textures/blue.png"))
 gator.GetSystem().AddBody(box)
 
-# Create cylinder
+# create cylinder
 cylinder = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, 0.5, 1, 1000)
 cylinder.SetPos(chrono.ChVector3d(0, 0, 1.5))
 cylinder.SetFixed(True)
@@ -119,7 +121,7 @@ intensity = 1.0
 manager.scene.AddPointLight(chrono.ChVector3f(2, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
 
 # Create two cameras and add them to the sensor manager
-offset_pose = chrono.ChFramed(chrono.ChVector3d(-8.0, 0, 1.45), chrono.QuatFromAngleAxis(.2, chrono.ChVector3d(0, 1, 0)))
+offset_pose = chrono.ChFramed(chrono.ChVector3d(-5.0, 0, 2), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0)))
 cam = sens.ChCameraSensor(
     gator.GetChassisBody(),
     update_rate,
@@ -128,15 +130,15 @@ cam = sens.ChCameraSensor(
     image_height,
     fov
 )
-cam.SetName("Third Person POV")
+cam.SetName("Depth Camera")
 # Renders the image at current point in the filter graph
-cam.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Gator Camera"))
+cam.PushFilter(sens.ChFilterDepthMap(image_width, image_height, "Depth Map"))
 manager.AddSensor(cam)
 
-# Create lidar sensor
+# create lidar sensor
 offset_pose = chrono.ChFramed(
-    chrono.ChVector3d(0.0, 0, 2), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
-)
+        chrono.ChVector3d(0.0, 0, 2), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
+    )
 lidar = sens.ChLidarSensor(
     gator.GetChassisBody(),              # Body lidar is attached to
     update_rate,            # Scanning rate in Hz
@@ -166,58 +168,8 @@ lidar.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "Lidar Point Cl
 # Add the lidar to the sensor manager
 manager.AddSensor(lidar)
 
-# Create depth camera
-offset_pose = chrono.ChFramed(chrono.ChVector3d(-5.0, 0, 2), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0)))
-depth_cam = sens.ChDepthCameraSensor(
-    gator.GetChassisBody(),
-    update_rate,
-    offset_pose,
-    image_width,
-    image_height,
-    fov,
-    30  # Maximum depth
-)
-depth_cam.SetName("Depth Camera")
-depth_cam.PushFilter(sens.ChFilterVisualizeDepthMap(image_width, image_height, "Depth Map"))
-manager.AddSensor(depth_cam)
-
-# ---------------
-# Simulation loop
-# ---------------
-realtime_timer = chrono.ChRealtimeStepTimer()
-time = 0
-end_time = 30
+# Vehicle state logging
 vehicle_state_log = []
-
-while time < end_time:
-    time = gator.GetSystem().GetChTime()
-    # set driver inputs
-    driver.SetSteering(0.5)
-    driver.SetThrottle(0.2)
-    # Collect output data from modules (for inter-module communication)
-    driver_inputs = driver.GetInputs()
-
-    # Update modules (process inputs from other modules)
-    driver.Synchronize(time)
-    terrain.Synchronize(time)
-    gator.Synchronize(time, driver_inputs, terrain)
-
-    manager.Update()
-
-    # Advance simulation for one timestep for all modules
-    driver.Advance(step_size)
-    terrain.Advance(step_size)
-    gator.Advance(step_size)
-
-    # Log vehicle state
-    pos = gator.GetChassisBody().GetPos()
-    rot = gator.GetChassisBody().GetRot()
-    heading = math.atan2(2 * (rot.VxWz + rot.WxVy), 1 - 2 * (rot.VxVx + rot.WyWz)) * 180 / math.pi
-    vehicle_state_log.append((time, pos.x, pos.y, pos.z, heading))
-
-    # Spin in place for real time to catch up
-    realtime_timer.Spin(step_size)
-
-print("Vehicle state log:")
-for ts, x, y, z, heading in vehicle_state_log:
-    print(f"Time: {ts:.3f}, Position: ({x:.3f}, {y:.3f}, {z:.3f}), Heading: {heading:.3f} degrees")
+while gator.GetSystem().GetChTime() < tend:
+    # ... (rest of the simulation loop)
+    vehicle_state_log.append((gator.GetChassisBody().GetPos(), gator.GetChassisBody().GetRot().ToEulerAngles()))

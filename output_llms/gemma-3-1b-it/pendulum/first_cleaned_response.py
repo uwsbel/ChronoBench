@@ -1,89 +1,67 @@
 import pychrono
-import pychrono.core as chrono
-import pychrono.visuals as visuals
-import pychrono.events as events
-import numpy as np
+import pychrono.core as pc
+import pychrono.events as ce
+import pychrono.visuals as v
 
 
-gravity = 9.81  
-initial_angle = 30.0  
-initial_angular_velocity = 0.0
-initial_position = 0.0
-initial_velocity = 0.0
-simulation_duration = 10.0  
-num_steps = 100
-
-
+g = 9.81  
 mass = 1.0  
 length = 1.0  
-joint_length = 0.5  
-
-ground_body_position = 0.0
-ground_body_velocity = 0.0
-
-
-pendulum_mass = mass
-pendulum_inertia = 1.0  
-pendulum_angle = initial_angle
-pendulum_angular_velocity = initial_angular_velocity
+damping = 0.1  
+initial_angle = 0.2  
+initial_angular_velocity = 0.0  
+time_step = 0.01  
+simulation_duration = 10.0  
 
 
-joint_angle = 0.0
-joint_radius = 0.05 
-joint_length = 0.5
+try:
+    chrono.init()
+    print("PyChrono environment initialized.")
+except Exception as e:
+    print(f"Error initializing PyChrono: {e}")
+    exit()
 
 
 
-pendulum_position = pendulum_position
-pendulum_velocity = pendulum_angular_velocity
+
+ground_body = pc.GroundBody()
+ground_body.mass = 1.0
+ground_body.position = (0, 0)  
+ground_body.rotation = pc.Rotation(0, 0, 0) 
 
 
-for i in range(simulation_duration):
+pendulum = pc.Pendulum(mass, length, damping=damping)
+pendulum.position = (0, initial_angle)
+pendulum.velocity = (initial_angular_velocity, 0)  
+
+
+
+visualizer = v.Visualizer()
+
+
+canvas = visualizer.create_canvas(width=800, height=600)
+
+
+try:
+    for t in range(simulation_duration):
+        
+        angle_change = pendulum.velocity[0] * t
+        pendulum.position = pendulum.position + angle_change
+
+        
+        pendulum.velocity = pendulum.velocity + pendulum.velocity * (g / length) * t
+
+        
+        visualizer.render(pendulum, canvas)
+
+        
+        print(f"Time: {t:.2f}, Angle: {pendulum.angle:.2f}, Velocity: {pendulum.velocity}")
+
+except Exception as e:
+    print(f"Error during simulation: {e}")
+
+finally:
     
-    pendulum_position += pendulum_angular_velocity * i
-    pendulum_velocity += pendulum_angular_velocity * i
-
-    
-    
-    
-    
-    force = 0.0  
-    force = force * (pendulum_mass / length) 
-    force = force * (pendulum_inertia / length) 
-    force = force * (1.0 - np.cos(pendulum_angle)) 
-    pendulum_position += force * (pendulum_mass / length)
-
-    
-    joint_angle += joint_angle * 0.1  
-
-    
-    visuals.plot(pendulum_position, pendulum_velocity,  
-                label="Pendulum Position", color="blue")
-    visuals.plot(joint_angle, joint_radius, color="red")
-    visuals.plot(pendulum_angle, pendulum_inertia, color="green")
-
-    
-    if i % 10 == 0:
-        print(f"Step {i}: Pendulum Position = {pendulum_position:.2f}, Velocity = {pendulum_velocity:.2f}")
-
-    
-    
-    
-    
-    
-
-
-
-visuals.plot(pendulum_position, pendulum_velocity,  
-                label="Pendulum Position", color="blue")
-visuals.plot(joint_angle, joint_radius, color="red")
-visuals.plot(pendulum_angle, pendulum_inertia, color="green")
-visuals.plot(pendulum_angle, pendulum_mass, color="yellow") 
-visuals.plot(pendulum_mass, 0.0, color="black") 
-visuals.plot(pendulum_mass, 0.0, color="black") 
-
-visuals.plot(pendulum_angle, 0.0, color="red") 
-visuals.plot(pendulum_angle, 0.0, color="red") 
-
-
-print("Simulation complete.")
+    visualizer.destroy()
+    visualizer.close()
+    chrono.shutdown()

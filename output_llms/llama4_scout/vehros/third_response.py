@@ -7,6 +7,7 @@ import math
 
 def main():
     veh.SetDataPath(ch.GetChronoDataPath() + 'vehicle/')
+
     # Create the HMMWV vehicle and set its parameters.
     hmmwv = veh.HMMWV_Full()
     hmmwv.SetContactMethod(ch.ChContactMethod_NSC)  # Set the contact method for physics.
@@ -20,6 +21,8 @@ def main():
     hmmwv.SetTireType(veh.TireModelType_TMEASY)  # Set tire model.
     hmmwv.SetTireStepSize(1e-3)  # Set the tire simulation step size.
     hmmwv.Initialize()  # Initialize the vehicle.
+
+    # Visualization settings
     hmmwv.SetChassisVisualizationType(veh.VisualizationType_MESH)
     hmmwv.SetSuspensionVisualizationType(veh.VisualizationType_MESH)
     hmmwv.SetSteeringVisualizationType(veh.VisualizationType_MESH)
@@ -35,37 +38,6 @@ def main():
     patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 100, 100)
     terrain.Initialize()  # Initialize the terrain.
 
-    # Create a visualization box
-    box_body = ch.ChBodyEasyBox(1, 1, 1, 1000, False, False)
-    box_body.SetPos(ch.ChVector3d(5, 0, 1))
-    hmmwv.GetSystem().AddBody(box_body)
-
-    # Create and initialize the driver system.
-    driver = veh.ChDriver(hmmwv.GetVehicle())
-    driver.Initialize()  # Initialize the driver system.
-
-    # Create the ROS manager and register handlers for communication.
-    ros_manager = chros.ChROSPythonManager()
-    ros_manager.RegisterHandler(chros.ChROSClockHandler())  # Register the clock handler to synchronize ROS with the simulation.
-    # Register the driver inputs handler for ROS topic '~/input/driver_inputs'.
-    ros_manager.RegisterHandler(chros.ChROSDriverInputsHandler(25, driver, "~/input/driver_inputs"))
-    # Register the vehicle state handler to publish vehicle state to ROS topic '~/output/hmmwv/state'.
-    ros_manager.RegisterHandler(chros.ChROSBodyHandler(25, hmmwv.GetChassisBody(), "~/output/hmmwv/state"))
-    ros_manager.Initialize()  # Initialize the ROS manager.
-
-    # Set up ChSensorManager
-    sens_manager = sens.ChSensorManager(hmmwv.GetSystem())
-    sens_manager.SetVisualization(False)
-
-    # Added and configured a ChLidarSensor
-    lidar_sensor = sens.ChLidarSensor(ch.ChFrameSensorPosRot(ch.ChVector3d(0.5, 0, 1.6), ch.ChQuaterniond(1, 0, 0, 0)))
-    lidar_sensor.SetPointCloudResolution(0.1, 0.1)
-    lidar_sensor.SetScanRate(10)
-    lidar_sensor.SetMinMaxRange(1, 100)
-    lidar_sensor.SetFOV(360)
-    lidar_sensor.EnableFilters(True, False, True)
-    sens_manager.AddSensor(lidar_sensor)
-
     # Create run-time visualization
     vis = chronoirr.ChVisualSystemIrrlicht()
     vis.AttachSystem(hmmwv.GetSystem())
@@ -75,32 +47,70 @@ def main():
     vis.Initialize()
     vis.AddLogo(ch.GetChronoDataFile('logo_pychrono_alpha.png'))
     vis.AddSkyBox()
-    vis.AddCamera(ch.ChVector3d(-5, 2.5, 1.5), ch.ChVector3d(0, 0, 1))
+    vis.AddCamera(ch.ChVector3d(-5, 2.5, 1.5), ch.ChVector3d(0, 0, 1))  # Updated camera position
     vis.AddTypicalLights()
     vis.AddLightWithShadow(ch.ChVector3d(1.5, -2.5, 5.5), ch.ChVector3d(0, 0, 0.5), 3, 4, 10, 40, 512)
 
-    # Register ChROSLidarHandler
+    # Create and initialize the driver system.
+    driver = veh.ChDriver(hmmwv.GetVehicle())
+    driver.Initialize()  # Initialize the driver system.
+
+    # Create the ROS manager and register handlers for communication.
+    ros_manager = chros.ChROSPythonManager()
+    ros_manager.RegisterHandler(chros.ChROSClockHandler())  # Register the clock handler to synchronize ROS with the simulation.
+
+    # Register the driver inputs handler for ROS topic '~/input/driver_inputs'.
+    ros_manager.RegisterHandler(chros.ChROSDriverInputsHandler(25, driver, "~/input/driver_inputs"))
+
+    # Register the vehicle state handler to publish vehicle state to ROS topic '~/output/hmmwv/state'.
+    ros_manager.RegisterHandler(chros.ChROSBodyHandler(25, hmmwv.GetChassisBody(), "~/output/hmmwv/state"))
+
+    ros_manager.Initialize()  # Initialize the ROS manager.
+
+    # Sensor-related code
+    sens_manager = sens.ChSensorManager(hmmwv.GetSystem())
+    sens_manager.Initialize()
+
+    # Create a box body for visualization
+    box_body = ch.ChBodyEasyBox(1, 1, 1, ch.ChVector3d(5, 0, 1), ch.ChQuaterniond(1, 0, 0, 0), False, False)
+    hmmwv.GetSystem().AddBody(box_body)
+
+    # Add and configure a Lidar sensor
+    lidar_sensor = sens.ChLidarSensor(box_body)
+    lidar_sensor.SetName("Lidar Sensor")
+    lidar_sensor.SetUpdateRate(10)
+    lidar_sensor.SetHorizontalResolution(360)
+    lidar_sensor.SetVerticalResolution(10)
+    lidar_sensor.SetMinRange(0.1)
+    lidar_sensor.SetMaxRange(100)
+    lidar_sensor.EnableFilters(True, True, True)  # Enable filters: radial, horizontal, and vertical
+
+    sens_manager.AddSensor(lidar_sensor)
+
+    # Register the Lidar handler to publish lidar data to ROS topic '~/output/hmmwv/lidar'
     ros_manager.RegisterHandler(chros.ChROSLidarHandler(25, lidar_sensor, "~/output/hmmwv/lidar"))
 
     # Start the simulation loop.
     time = 0
     time_step = 1e-3  # Define the simulation time step.
     time_end = 30  # Set the total duration of the simulation.
-    # setup render related variables
-    # Set the simulation time step
-    time_step = 1e-3
-    step_number = 0
+
+    # Setup render related variables
     # Time interval between two render frames
     render_step_size = 1.0 / 25  # FPS = 25
     render_steps = math.ceil(render_step_size / time_step)
+    step_number = 0
+
     hmmwv.GetVehicle().EnableRealtime(True)  # Enable real-time simulation for the vehicle.
+
     while vis.Run():  # Run the simulation loop.
         time = hmmwv.GetSystem().GetChTime()  # Update simulation time.
-        # Render the scene
-        if (step_number % render_steps == 0):
-            vis.BeginScene()
-            vis.Render()
-            vis.EndScene()
+
+        # Render the scene if (step_number % render_steps == 0):
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+
         # Get driver inputs and synchronize the vehicle, terrain, and driver systems.
         driver_inputs = driver.GetInputs()
         driver.Synchronize(time)  # Synchronize the driver system.
@@ -118,6 +128,7 @@ def main():
         # Update the ROS manager to handle data publishing.
         if not ros_manager.Update(time, time_step):
             break  # Exit loop if ROS manager update fails.
+
         step_number += 1
 
 if __name__ == "__main__":

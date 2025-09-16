@@ -72,16 +72,3 @@ while vis.Run():
     
     
     system.DoStepDynamics(time_step)
-
-
-def move(mode):
-    if mode == 'straight':
-        robot.SetMotorSpeed(0, 0)
-    elif mode == 'left':
-        robot.SetMotorSpeed(-math.pi, 0)
-    elif mode == 'right':
-        robot.SetMotorSpeed(0, 0)
-
-vis.BeginScene()
-vis.Render()
-vis.EndScene()

@@ -7,7 +7,7 @@ chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 
-initLoc = chrono.ChVector3d(-5, 0, 0.5)  
+initLoc = chrono.ChVector3d(-5, 0, 0.5)
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 
@@ -73,9 +73,14 @@ patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 
-box = chrono.ChBodyEasyBox(20, 1, 1, 1000, True, True)
-box.SetPos(chrono.ChVector3d(20, 0, 0))
-vehicle.GetSystem().Add(box)
+box = chrono.ChBody()
+box.SetPos(chrono.ChVector3d(20, 0, 0.5))
+box.SetBodyFixed(True)
+box.SetCollide(True)
+box_shape = chrono.ChBoxShape()
+box_shape.SetLengths(chrono.ChVector3d(10, 2, 1))
+box.AddShape(box_shape)
+vehicle.GetSystem().AddBody(box)
 
 
 
@@ -128,8 +133,6 @@ while vis.Run() :
 
     
     driver_inputs = driver.GetInputs()
-    driver_inputs.throttle = 0.8
-
     
     driver.Synchronize(time)
     terrain.Synchronize(time)
@@ -140,5 +143,7 @@ while vis.Run() :
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
+    
+    vehicle.GetVehicle().SetThrottle(0.8)
     
     step_number += 1

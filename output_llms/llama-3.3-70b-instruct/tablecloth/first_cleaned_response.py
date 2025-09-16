@@ -1,92 +1,75 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
+import pychrono.mesh as chronomesh
 import numpy as np
 
 
 sys = chrono.ChSystemNSC()
 
 
-contact_material = chrono.ChMaterialSurfaceNSC()
-contact_material.SetFriction(0.5)
-contact_material.SetDampingF(0.5)
-contact_material.SetCompliance(1e-6)
-contact_material.SetComplianceT(1e-6)
+sys.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  
 
 
-ground = chrono.ChBodyEasyBox(sys, 10, 1, 10, 1000, True, contact_material)
-ground.SetPos(chrono.ChVectorD(0, -2, 0))
+ground = chrono.ChBodyEasyBox(sys, 10, 1, 10, 1000, True, True)
+ground.SetPos(chrono.ChVectorD(0, -5, 0))
 ground.SetBodyFixed(True)
 
 
-sys.Add(ground)
-
-
-nx = 20
-ny = 20
-Lx = 5
-Ly = 5
-dx = Lx / (nx - 1)
-dy = Ly / (ny - 1)
-
-
+nx, ny = 20, 20  
+dx, dy = 0.1, 0.1  
 nodes = []
-for i in range(nx):
-    for j in range(ny):
-        node = chrono.ChNodeFEAxyzrot()
-        node.SetPos(chrono.ChVectorD(i * dx, 0, j * dy))
-        node.SetMass(1)
-        nodes.append(node)
+for i in range(nx + 1):
+    for j in range(ny + 1):
+        node = chrono.ChNodeFEAxyz()
+        node.SetId(len(nodes))
+        node.SetPos(chrono.ChVectorD(i * dx, j * dy, 0))
         sys.Add(node)
-
+        nodes.append(node)
 
 elements = []
-for i in range(nx - 1):
-    for j in range(ny - 1):
-        node1 = nodes[i * ny + j]
-        node2 = nodes[i * ny + j + 1]
-        node3 = nodes[(i + 1) * ny + j + 1]
-        node4 = nodes[(i + 1) * ny + j]
-        
-        element = chrono.ChElementShellANCF()
-        element.AddNode(node1)
-        element.AddNode(node2)
-        element.AddNode(node3)
-        element.AddNode(node4)
-        
-        
-        element.SetThickness(0.1)
-        
-        
-        material = chrono.ChMaterialShellANCF()
-        material.SetDensity(1000)
-        material.SetYoungModulus(1e6)
-        material.SetPoissonRatio(0.3)
-        material.SetThickness(0.1)
-        
-        element.SetMaterial(material)
-        
-        elements.append(element)
+for i in range(nx):
+    for j in range(ny):
+        node1 = nodes[i * (ny + 1) + j]
+        node2 = nodes[i * (ny + 1) + j + 1]
+        node3 = nodes[(i + 1) * (ny + 1) + j + 1]
+        node4 = nodes[(i + 1) * (ny + 1) + j]
+        element = chrono.ChElementShellKirchhoff()
+        element.SetNodes(node1, node2, node3, node4)
         sys.Add(element)
+        elements.append(element)
+
+
+mat = chrono.ChMaterialShellKirchhoff()
+mat.SetYoungModulus(1e6)  
+mat.SetPoissonRatio(0.3)  
+mat.SetThickness(0.01)  
+for element in elements:
+    element.SetMaterial(mat)
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AddSkyBox()
 vis.AddTypicalLights()
-
-
-for node in nodes:
-    vis.AddPoint(node, 0.1, chrono.ChVectorD(1, 0, 0))
-
-for element in elements:
-    vis.AddShell(element, 0.1, chrono.ChVectorD(1, 0, 0))
-
-
-vis.AddCamera(chrono.ChVectorD(0, 5, 5), chrono.ChVectorD(0, 0, 0))
+vis.AddCamera(chrono.ChVectorD(0, 0, 5))
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle("Tablecloth folding simulation")
 
 
 solver = chrono.ChSolverPardisoMKL()
 sys.SetSolver(solver)
 
 
-while vis.Run():
-    sys.DoStepDynamics(0.01)
+dt = 1e-3  
+t_end = 10  
+
+
+while sys.GetChTime() < t_end:
+    sys.DoStep(dt)
+    vis.BeginScene()
+    vis.DrawAll()
+    vis.EndScene()
+    vis.Run()
+
+
+sys.Delete()
+vis.Delete()

@@ -1,42 +1,40 @@
 import pychrono as chrono
-import numpy as np
+from pychrono.irrlicht import *
 
 
-chrono.SetChronoDataPath("path/to/chrono_data")
-app = chrono.ChApp("Simple Pendulum", chrono.ChIrrApp.IrrApp(chrono.ChVectorD(1024, 768), "Simple Pendulum", chrono.ChVectorD(800, 600)))
-app.SetTimestep(0.005)
+sim = chrono.ChSimulation()
+irr = IrrlichtInterface()
+sim.AddSystem(irr.GetSystem())
 
 
-ground = chrono.ChBodyEasyBox(10, 10, 1, 1e-03, True)
-ground.SetPos(chrono.ChVectorD(0, 0, 0))
-app.Add(ground)
+ground = chrono.ChBodyEasyBox(10, 10, 1, 1000, True)
+ground.SetPos(chrono.ChVectorD(0, -5, 0))
+sim.Add(ground)
 
-
-pendulum = chrono.ChBodyEasyCylinder(0.1, 1, 1000, 1e-03, True)
-pendulum.SetPos(chrono.ChVectorD(0, 1, 0))
+pendulum = chrono.ChBody()
 pendulum.SetMass(1)
-pendulum.SetInertiaXX(chrono.ChVectorD(1, 0.1, 0.1))
-app.Add(pendulum)
-
+pendulum.SetInertiaXX(chrono.ChVectorD(0.1, 0.1, 0.01))
+pendulum.SetPos(chrono.ChVectorD(0, 1, 0))
+pendulum.SetRot(chrono.Q_from_AngX(chrono.CH_C_PI / 2))
+sim.Add(pendulum)
 
 joint = chrono.ChLinkRevolute()
-joint.Initialize(ground, pendulum, chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 1))
-app.Add(joint)
+joint.Initialize(ground, pendulum, chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 1), chrono.ChVectorD(0, 1, 0))
+sim.Add(joint)
 
 
-pendulum.SetPos_dt(chrono.ChVectorD(0, 0, 0))
-pendulum.SetWvel_abs(chrono.ChVectorD(0, 0, 0.5))
+gravity = chrono.ChVectorD(0, -9.81, 0)
+sim.Set_Gravity(gravity)
 
 
-logger = chrono.ChLogger()
-logger.SetLogLevel(chrono.ChLogLevel.LEVEL_INFO)
-logger.Enable()
-logger.AddItem("Pendulum Position", pendulum.GetPos())
-logger.AddItem("Pendulum Velocity", pendulum.GetWvel_abs())
+while sim.GetSystem().GetChTime() < 10:
+    sim.DoStepDynamics(0.01)
 
+    
+    if sim.GetSystem().GetChTime() % 0.1 < 0.01:
+        pos = pendulum.GetPos()
+        vel = pendulum.GetPos_dt()
+        print(f"Time: {sim.GetSystem().GetChTime():.2f}, Position: {pos}, Velocity: {vel}")
 
-while app.GetTimestep() >= 0:
-    app.BeginScene()
-    app.DrawAll()
-    app.EndScene()
-    app.Advance()
+    
+    sim.GetSystem().Render()

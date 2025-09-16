@@ -1,59 +1,56 @@
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
-import pychrono.pardisomkl as mkl
 import numpy as np
 
 
-chrono.SetChronoDataPath("./chrono_data/")  
-
-
 sys = chrono.ChSystemSMC()
-sys.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  
 
 
-mkl_solver = mkl.ChSolverPardisoMKL()
-sys.SetSolver(mkl_solver)
+contact_mat = chrono.ChMaterialSurfaceSMC()
+contact_mat.SetYoungModulus(1e7)
+contact_mat.SetFriction(0.3)
+sys.SetDefaultMaterial(contact_mat)
 
 
-
-length = 2.0
-width = 1.5
-num_elements_x = 40
-num_elements_y = 30
+length = 1.0  
+width = 1.0   
+num_elements_x = 20  
+num_elements_y = 20  
 
 
 nodes = []
 for i in range(num_elements_y + 1):
     for j in range(num_elements_x + 1):
         x = j * (length / num_elements_x)
-        y = 0.5  
-        z = i * (width / num_elements_y)
-        node = chrono.ChNodeFEAxyz(chrono.ChVectorD(x, y, z))
+        y = i * (width / num_elements_y)
+        node = chrono.ChNodeFEAxyz(chrono.ChVectorD(x, y, 0))
         sys.AddNode(node)
         nodes.append(node)
 
 
-
-E = 1e7  
+E = 1e6  
 nu = 0.3  
 rho = 1000  
 thickness = 0.01  
+mat = chrono.ChMaterialShellKirchhoff()
+mat.Set_E(E)
+mat.Set_nu(nu)
+mat.Set_Rho(rho)
 
-mat = chrono.ChMaterialShellKirchhoff(E, nu, rho, thickness)
 
+elements = []
 for i in range(num_elements_y):
     for j in range(num_elements_x):
-        
-        node1 = i * (num_elements_x + 1) + j
-        node2 = node1 + 1
-        node3 = (i + 1) * (num_elements_x + 1) + j + 1
-        node4 = node3 - 1
-        
-        
-        element = chrono.ChElementShellKirchhoff4()
-        element.SetNodes(nodes[node1], nodes[node2], nodes[node3], nodes[node4])
+        node0 = nodes[i * (num_elements_x + 1) + j]
+        node1 = nodes[i * (num_elements_x + 1) + j + 1]
+        node2 = nodes[(i + 1) * (num_elements_x + 1) + j + 1]
+        node3 = nodes[(i + 1) * (num_elements_x + 1) + j]
+        element = chrono.ChElementShellANCF_3423()
+        element.SetNodes(node0, node1, node2, node3)
         element.SetMaterial(mat)
+        element.SetThickness(thickness)
         sys.AddElement(element)
+        elements.append(element)
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
@@ -61,14 +58,17 @@ vis.AttachSystem(sys)
 vis.SetWindowSize(1024, 768)
 vis.SetWindowTitle('Tablecloth Simulation')
 vis.Initialize()
-vis.AddLogo(chrono.GetChronoDataPath() + 'logo_pychrono_alpha.png')
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()
-vis.AddCamera(chrono.ChVectorD(1, 1, -2))
+vis.AddCamera(chrono.ChVectorD(0.5, 0.5, 1.0))
 vis.AddTypicalLights()
+
+
+sys.SetSolverType(chrono.ChSolver.Type_PARDISO_MKL)
 
 
 while vis.Run():
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
-    sys.DoStepDynamics(0.001)
+    sys.DoStepDynamics(0.01)
