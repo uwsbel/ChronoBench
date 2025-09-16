@@ -1,50 +1,56 @@
 import pychrono as chrono
-import pychrono.irrlicht as chronoirr
+import pychrono.irrlicht as irr
 import pychrono.sensor as sens
 import numpy as np
 
-# 1. Initialize the PyChrono environment and core components.
-chrono.SetChronoDataPath('PYCHRONO_DATA_DIR')
+# Initialize PyChrono environment and core components
+chrono.SetChronoDataPath("PYCHRONO_DATA_DIR")
 my_system = chrono.ChSystemNSC()
 
-# 2. Add the required physical systems and objects as specified.
-# Create a fixed body from the triangular mesh
+# Add the triangular mesh from a Wavefront .obj file as a fixed body in the scene
 mesh_shape = chrono.ChTriangleMeshConnected()
-mesh_shape.LoadWavefrontMesh('path_to_your_file.obj', True, True)
-mesh_shape.Transform(chrono.ChVectorD(0, 0, 0), chrono.ChMatrix33D(1))
+mesh_shape.LoadWavefrontMesh("mesh.obj")
 mesh_material = chrono.ChMaterialSurfaceNSC()
-mesh_body = chrono.ChBodyEasyMesh(mesh_shape, 1000, True, True, chrono.ChVectorD(0, 0, 0), chrono.ChMatrix33D(1), chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 0), mesh_material)
+mesh_body = chrono.ChBodyEasyMesh(mesh_shape, 1000, True, True, mesh_material)
+mesh_body.SetPos(chrono.ChVectorD(0, 0, 0))
+mesh_body.SetBodyFixed(True)
 my_system.Add(mesh_body)
 
-# Add a lidar sensor to the body
-lidar_sensor = sens.ChLidarSensor(mesh_body, 100, 100, 10, 1, 1, chrono.ChVectorD(0, 0, 0), chrono.ChMatrix33D(1), chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 0))
-lidar_sensor.AddNoiseGaussian(0.01, 0.01)
-lidar_sensor.SetVisualizeScanner(True)
-lidar_sensor.SetSaveData(True)
-my_system.AddSensor(lidar_sensor)
+# Add a lidar sensor to the body using a sensor manager
+lidar_manager = sens.ChSensorManager(my_system)
+lidar_sensor = sens.ChLidarSensor(mesh_body, 1000, 100, 1, 20, 0.05, 10, 0.1, 10)
+lidar_manager.AddSensor(lidar_sensor)
 
-# 3. Set necessary default parameters such as positions, forces, and interactions.
-# Set the lidar's initial position
-lidar_sensor.SetSensorOffsetPose(chrono.ChFrameD(chrono.ChVectorD(2, 0, 0), chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0))))
+# Apply noise filters, visualizations, and saving options to the lidar data
+lidar_sensor.SetFilter(sens.ChSensorFilterNoiseGaussian(0.01))
+lidar_sensor.SetVisualizationType(sens.ChSensorVisualizationType_POINTS)
+lidar_sensor.SetDataSaving(True)
 
-# Create an Irrlicht application to visualize the system
-application = chronoirr.ChIrrApp(my_system, 'Lidar Sensor Simulation', chronoirr.dimension2du(1024, 768))
+# Set the initial position of the lidar sensor in an orbit around the mesh
+lidar_radius = 5
+lidar_angle = 0
+
+# Simulate the system
+application = irr.ChIrrApp(my_system, 'Lidar sensor simulation', irr.dimension2du(1024, 768))
 application.AddTypicalLights()
-application.AddCamera(chronoirr.vector3df(0, 0, -3))
-application.AssetBindAll()
-application.AssetUpdateAll()
+application.AddCamera(irr.vector3df(0, 0, -lidar_radius), irr.vector3df(0, 0, 0))
+application.SetTimestep(0.01)
 
-# Simulate the system while dynamically updating the lidar's position in an orbit around the mesh
 while application.GetDevice().run():
     application.BeginScene()
     application.DrawAll()
+
+    # Dynamically update the lidar's position in an orbit around the mesh
+    lidar_angle += 0.01
+    lidar_x = lidar_radius * np.cos(lidar_angle)
+    lidar_y = lidar_radius * np.sin(lidar_angle)
+    lidar_sensor.SetSensorOffsetPose(chrono.ChFrameD(chrono.ChVectorD(lidar_x, lidar_y, 0), chrono.Q_from_AngX(np.pi/2)))
+
+    # Print lidar buffer data at each simulation step
+    lidar_data = lidar_sensor.GetData()
+    print(lidar_data.buffer)
+
     application.DoStep()
-
-    # Update the lidar's position
-    time = my_system.GetChTime()
-    lidar_sensor.SetSensorOffsetPose(chrono.ChFrameD(chrono.ChVectorD(2 * np.cos(time), 0, 2 * np.sin(time)), chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0))))
-
-    # Print lidar buffer data
-    print(lidar_sensor.GetBuffer())
-
     application.EndScene()
+
+application.GetDevice().closeDevice()

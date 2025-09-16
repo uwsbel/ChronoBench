@@ -22,26 +22,25 @@ chassis_collision_type = veh.CollisionType_NONE
 # Type of tire model (RIGID, TMEASY)
 tire_model = veh.TireModelType_TMEASY
 
-# Rigid terrain
+# Terrain configuration
 terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
 
-# Point tracked by the camera
+# Camera tracking point
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
 
 # Contact method
 contact_method = chrono.ChContactMethod_NSC
-contact_vis = False
 
 # Simulation step sizes
 step_size = 1e-3
 tire_step_size = step_size
 
-# Time interval between two render frames
+# Render frame rate
 render_step_size = 1.0 / 50  # FPS = 50
 
-# Create the HMMWV vehicle, set parameters, and initialize
+# Create the HMMWV vehicle
 vehicle = veh.HMMWV_Full()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
@@ -65,43 +64,43 @@ patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 
-# First terrain patch (Highway)
+# Add first terrain patch (Highway)
 patch = terrain.AddPatch(patch_mat,
-    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
     veh.GetDataFile("terrain/meshes/Highway_col.obj"),
-    True, 0.01, False)
+    chrono.ChVector3d(0, 0, 0),
+    chrono.QUNIT,
+    True,
+    True,
+    0.01)
 
 vis_mesh = chrono.ChTriangleMeshConnected().CreateFromWavefrontFile(
-    veh.GetDataFile("terrain/meshes/Highway_vis.obj"), True, True
-)
+    veh.GetDataFile("terrain/meshes/Highway_vis.obj"), True, True)
 tri_mesh_shape = chrono.ChVisualShapeTriangleMesh()
 tri_mesh_shape.SetMesh(vis_mesh)
 tri_mesh_shape.SetMutable(False)
 patch.GetGroundBody().AddVisualShape(tri_mesh_shape)
 
-# Second terrain patch (Bump)
+# Add second terrain patch (Bump)
 patch2 = terrain.AddPatch(patch_mat,
-    chrono.ChCoordsysd(chrono.ChVector3d(0, -42, 0), chrono.QUNIT),
     veh.GetDataFile("terrain/meshes/bump.obj"),
-    True, 0.01, False)
+    chrono.ChVector3d(0, -42, 0),
+    chrono.QUNIT,
+    True,
+    True,
+    0.01)
 
-vis_mesh2 = chrono.ChTriangleMeshConnected().CreateFromWavefrontFile(
-    veh.GetDataFile("terrain/meshes/bump.obj"), True, True
-)
-tri_mesh_shape2 = chrono.ChVisualShapeTriangleMesh()
-tri_mesh_shape2.SetMesh(vis_mesh2)
-
-# Create and apply material with color and texture
-material2 = chrono.ChVisualMaterial()
-material2.SetKd(chrono.ChColor(0.5, 0.5, 0.8))  # Diffuse color
-material2.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
-tri_mesh_shape2.AddMaterial(material2)
-tri_mesh_shape2.SetMutable(False)
-patch2.GetGroundBody().AddVisualShape(tri_mesh_shape2)
+vis_mesh_bump = chrono.ChTriangleMeshConnected().CreateFromWavefrontFile(
+    veh.GetDataFile("terrain/meshes/bump.obj"), True, True)
+tri_mesh_shape_bump = chrono.ChVisualShapeTriangleMesh()
+tri_mesh_shape_bump.SetMesh(vis_mesh_bump)
+tri_mesh_shape_bump.SetMutable(False)
+tri_mesh_shape_bump.SetColor(chrono.ChColor(0.5, 0.5, 0.8))
+tri_mesh_shape_bump.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
+patch2.GetGroundBody().AddVisualShape(tri_mesh_shape_bump)
 
 terrain.Initialize()
 
-# Create the vehicle Irrlicht interface
+# Create the Irrlicht visualization system
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('HMMWV Demo')
 vis.SetWindowSize(1280, 1024)
@@ -115,28 +114,26 @@ vis.AttachVehicle(vehicle.GetVehicle())
 # Create the driver system
 driver = veh.ChInteractiveDriverIRR(vis)
 
-# Set the time response for steering and throttle keyboard inputs.
-steering_time = 1.0  # time to go from 0 to +1 (or from 0 to -1)
-throttle_time = 1.0  # time to go from 0 to +1
-braking_time = 0.3   # time to go from 0 to +1
+# Set driver input response times
+steering_time = 1.0
+throttle_time = 1.0
+braking_time = 0.3
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
-
 driver.Initialize()
 
-# Output vehicle mass
+# Simulation loop
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
-# Number of simulation steps between render frames
+# Render frame calculation
 render_steps = math.ceil(render_step_size / step_size)
 
-# Initialize simulation frame counter
+# Simulation loop variables
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-# Simulation loop
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
@@ -162,8 +159,5 @@ while vis.Run():
     vehicle.Advance(step_size)
     vis.Advance(step_size)
 
-    # Increment frame number
     step_number += 1
-
-    # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)

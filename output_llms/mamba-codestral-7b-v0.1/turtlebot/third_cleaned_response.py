@@ -1,20 +1,10 @@
-lidar = sens.ChLidarSensor()
-   lidar.SetParent(robot)
-   lidar.SetPos(chrono.ChVectorD(0, 0, 0))
-   lidar.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
-   lidar.SetAngleLimit(-math.pi / 2, math.pi / 2)
-   lidar.SetResolution(1000)
-   lidar.SetRange(5)
-   lidar.SetFilter(sens.ChFilterDistance())
-   sensor_manager.AddSensor(lidar)
-
 import os
 import math
 import numpy as np
 import pychrono as chrono
 import pychrono.robot as turtlebot
-import pychrono.sensor as sens
 from pychrono import irrlicht as chronoirr
+import pychrono.sensor as sens
 
 
 system = chrono.ChSystemNSC()
@@ -41,15 +31,12 @@ robot.Initialize()
 sensor_manager = sens.ChSensorManager(system)
 
 
-lidar = sens.ChLidarSensor()
-lidar.SetParent(robot)
-lidar.SetPos(chrono.ChVectorD(0, 0, 0))
-lidar.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
-lidar.SetAngleLimit(-math.pi / 2, math.pi / 2)
-lidar.SetResolution(1000)
-lidar.SetRange(5)
-lidar.SetFilter(sens.ChFilterDistance())
-sensor_manager.AddSensor(lidar)
+lidar_sensor = sens.ChLidarSensor()
+lidar_sensor.SetResolution(360)
+lidar_sensor.SetRange(5.0)
+lidar_sensor.SetFilterByLabel(True)
+lidar_sensor.SetFilterLabel("Terrain")
+sensor_manager.AddSensor(lidar_sensor)
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
@@ -100,3 +87,18 @@ while vis.Run():
 
     
     sensor_manager.Update()
+
+    
+    def move(mode):
+        if mode == 'straight':
+            robot.SetMotorSpeed(1.0, LEFT_DRIVE_WHEEL)
+            robot.SetMotorSpeed(1.0, RIGHT_DRIVE_WHEEL)
+        elif mode == 'left':
+            robot.SetMotorSpeed(0.5, LEFT_DRIVE_WHEEL)
+            robot.SetMotorSpeed(1.0, RIGHT_DRIVE_WHEEL)
+        elif mode == 'right':
+            robot.SetMotorSpeed(1.0, LEFT_DRIVE_WHEEL)
+            robot.SetMotorSpeed(0.5, RIGHT_DRIVE_WHEEL)
+
+    
+    move('straight')

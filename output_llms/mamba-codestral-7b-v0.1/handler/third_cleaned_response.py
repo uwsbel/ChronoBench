@@ -56,22 +56,13 @@ def main():
     sys.Add(box)  
 
     
-    floor_texture = ch.ChTexture()
-    floor_texture.SetTextureFilename("path_to_floor_texture.png")
-    floor.AddAsset(floor_texture)
-
-    box_texture = ch.ChTexture()
-    box_texture.SetTextureFilename("path_to_box_texture.png")
-    box.AddAsset(box_texture)
-
-    
     ros_manager = chirr.ChIrrlichtManager()
 
     
     ros_manager.RegisterHandler(chirr.ChIrrlichtClockHandler())
 
     
-    ros_manager.RegisterHandler(chirr.ChIrrlichtBodyHandler(25, box, "~/box"))
+    ros_manager.RegisterHandler(chirr.ChIrrlichtBodyHandler(25, box, "~/box", 10))
 
     
     tf_handler = chirr.ChIrrlichtTFHandler(30)
@@ -79,20 +70,24 @@ def main():
     ros_manager.RegisterHandler(tf_handler)
 
     
-    custom_handler = MyCustomHandler("~/my_topic", 10)  
+    custom_handler = MyCustomHandler("~/my_topic", 10)
     ros_manager.RegisterPythonHandler(custom_handler)
 
     
     ros_manager.Initialize()
 
     
-    app = chirr.ChIrrlichtApplication()
-    app.SetWindowSize(800, 600)  
-    app.SetWindowCaption("PyChrono Irrlicht Example")  
-    app.AddLogo(chirr.ChIrrlichtLogo())  
-    app.AddSkyBox()  
-    app.AddTypicalLights()  
-    app.AddCamera(chirr.ChIrrlichtCamera(ch.ChVector3D(0, 0, 10), ch.ChVector3D(0, 0, 0)))  
+    vis = chirr.ChIrrlichtVisualization()
+    vis.SetWindowSize(800, 600)
+    vis.SetWindowTitle('PyChrono Irrlicht Visualization')
+    vis.SetCameraPosition(ch.ChVector3D(0, 0, 10), ch.ChVector3D(0, 0, 0), ch.ChVector3D(0, 1, 0))
+    vis.AddLogo()
+    vis.AddSkyBox()
+    vis.AddTypicalLights(ch.ChVector3D(-10, -10, 10), ch.ChVector3D(10, 10, 10), 250, 250, 250)
+
+    
+    floor.SetTexture(ch.ChTexture(ch.GetChronoDataFile('concrete.png')))
+    box.SetTexture(ch.ChTexture(ch.GetChronoDataFile('concrete.png')))
 
     
     time = 0
@@ -102,7 +97,7 @@ def main():
     realtime_timer = ch.ChRealtimeStepTimer()  
     step_number = 0
     render_step_size = 10  
-    render_steps = 0
+    render_steps = 0  
     while time < time_end:
         sys.DoStepDynamics(time_step)  
         time = sys.GetChTime()  
@@ -112,16 +107,15 @@ def main():
 
         realtime_timer.Spin(time_step)  
 
-        
-        if render_steps >= render_step_size:
-            app.BeginScene()
-            app.Render()
-            app.EndScene()
-            render_steps = 0
-        else:
+        if step_number % render_step_size == 0:
+            vis.BeginScene()
+            vis.Render()
+            vis.EndScene()
             render_steps += 1
 
         step_number += 1
+
+    print(f"Total rendering steps: {render_steps}")
 
 
 if __name__ == "__main__":

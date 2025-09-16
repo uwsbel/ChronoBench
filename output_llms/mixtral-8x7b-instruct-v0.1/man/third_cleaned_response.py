@@ -8,42 +8,27 @@ import math
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
-
 initLoc = chrono.ChVector3d(0, 0, 0.5)
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
-
 vis_type = veh.VisualizationType_MESH
-
-
 chassis_collision_type = veh.CollisionType_NONE
-
-
 tire_model = veh.TireModelType_TMEASY
 
-
-
-terrainHeight = 0      
-terrainLength = 100.0  
-terrainWidth = 100.0   
-
+terrainHeight = 0
+terrainLength = 100.0
+terrainWidth = 100.0
 
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
-
 
 contact_method = chrono.ChContactMethod_NSC
 contact_vis = False
 
-
 step_size = 1e-3
 tire_step_size = step_size
+render_step_size = 1.0 / 50
 
-
-render_step_size = 1.0 / 50  
-
-
-
-vehicle = veh.MAN_10t() 
+vehicle = veh.MAN_10t()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
@@ -61,20 +46,17 @@ vehicle.SetTireVisualizationType(vis_type)
 
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
-
 patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 patch = terrain.AddPatch(patch_mat, 
-    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
+    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, terrainHeight), chrono.QUNIT), 
     terrainLength, terrainWidth)
 
 patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
-
-
 
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('MAN 10t Demo')
@@ -86,81 +68,57 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
-
-sensor_manager = sensor.ChSensorManager(vehicle.GetSystem())
-lidar_sensor = sensor.ChLidarSensor()
-lidar_sensor.SetRange(10)
-lidar_sensor.SetResolution(100)
-lidar_sensor.SetPosition(chrono.ChVector(0, 0, 1))
-lidar_sensor.SetOrientation(chrono.QUNIT)
-sensor_manager.AddSensor(lidar_sensor)
-
-
 driver = veh.ChInteractiveDriverIRR(vis)
 
-
-steering_time = 1.0  
-throttle_time = 1.0  
-braking_time = 0.3   
+steering_time = 1.0
+throttle_time = 1.0
+braking_time = 0.3
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
 
 driver.Initialize()
 
+sensor_manager = sensor.ChSensorManager()
+lidar_sensor = sensor.ChLidarSensor()
+lidar_sensor.SetRange(10)
+lidar_sensor.SetResolution(10)
+lidar_sensor.SetPosition(chrono.ChVector3d(0, 0, 1.5))
+sensor_manager.AddSensor(lidar_sensor)
+vehicle.GetSystem().AddSensorManager(sensor_manager)
 
-print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
-
+print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 render_steps = math.ceil(render_step_size / step_size)
-
 
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-random_boxes = []
-for i in range(10):
-    box = chrono.ChBody()
-    box.SetBox(chrono.ChVector(0.5), 1)
-    box.SetPos(chrono.ChVector(np.random.uniform(-5, 5), np.random.uniform(-5, 5), 0))
-    box.SetMass(1)
-    box.SetInertiaXX(chrono.ChVector(1, 1, 1))
-    box.SetCollisionType(chrono.ChCollisionType.BOX)
-    box.SetCollide(True)
-    vehicle.GetSystem().AddBody(box)
-    random_boxes.append(box)
-
-while vis.Run() :
+while vis.Run() and step_number < 10000:
     time = vehicle.GetSystem().GetChTime()
-    
-    if (step_number % render_steps == 0) :
+
+    if (step_number % render_steps == 0):
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
         render_frame += 1
-        sensor_manager.Update(time)
-        lidar_data = lidar_sensor.GetData()
-        print(lidar_data)
-    
+
     driver_inputs = driver.GetInputs()
 
-    
+    sensor_manager.ClearData()
+    sensor_manager.Update(time)
+
     driver.Synchronize(time)
     terrain.Synchronize(time)
-    sensor_manager.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
 
-    
     driver.Advance(step_size)
     terrain.Advance(step_size)
-    sensor_manager.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
 
-    
     step_number += 1
 
-    
     realtime_timer.Spin(step_size)

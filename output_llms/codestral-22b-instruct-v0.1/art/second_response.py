@@ -16,7 +16,7 @@ vis_type = veh.VisualizationType_PRIMITIVES  # Modified visualization type
 # Collision type for chassis (PRIMITIVES, MESH, or NONE)
 chassis_collision_type = veh.CollisionType_MESH  # Modified collision type
 
-# Type of tire model (RIGID, TMEASY, FIALA)
+# Type of tire model (RIGID, TMEASY, or FIALA)
 tire_model = veh.TireModelType_FIALA  # Modified tire model type
 
 # Rigid terrain
@@ -105,7 +105,7 @@ driver.Initialize()
 # ---------------
 
 # output vehicle mass
-print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
@@ -115,11 +115,11 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-while vis.Run() :
+while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
     # Render scene and output POV-Ray data
-    if (step_number % render_steps == 0) :
+    if (step_number % render_steps == 0):
         vis.BeginScene()
         vis.Render()
         vis.EndScene()

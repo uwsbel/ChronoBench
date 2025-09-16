@@ -1,81 +1,75 @@
 import pychrono as chrono
 import pychrono.fea as fea
-import pychrono.irrlicht as irrlicht
-import pychrono.mkl as mkl
+import pychrono.irrlicht as irr
 
-# Initialize the Chrono system with non-smooth contact (NSC) solver
-sys = chrono.ChSystemNSC()
-sys.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity in Y-direction
+# Initialize the Chrono system
+system = chrono.ChSystemNSC()
 
-# Tablecloth mesh parameters
-length = 1.0  # X direction
-width = 1.0   # Z direction
-num_nodes_x = 10
-num_nodes_z = 10
-dx = length / (num_nodes_x - 1)
-dz = width / (num_nodes_z - 1)
-
-# Create FEA mesh
+# Create a mesh container
 mesh = fea.ChMesh()
 
-# Generate nodes in X-Z plane with rotational DOF
+# Define isotropic Kirchhoff material properties
+material = fea.ChMaterialShellKirchhoff()
+material.SetYoungModulus(2e5)  # 200 kPa
+material.SetPoissonRatio(0.3)
+material.SetDensity(1000)      # 1000 kg/m^3
+material.SetThickness(0.001)   # 1 mm thickness
+
+# Mesh grid parameters
+nx, ny = 20, 20                # Number of elements in X and Y directions
+lx, ly = 1.0, 1.0              # Tablecloth dimensions (meters)
+dx, dy = lx / nx, ly / ny      # Element spacing
+
+# Create nodes in X-Z plane (Y=0) with fixed boundary conditions
 nodes = []
-for i in range(num_nodes_x):
+for i in range(nx + 1):
     row = []
-    for j in range(num_nodes_z):
+    for j in range(ny + 1):
         x = i * dx
-        z = j * dz
-        pos = chrono.ChVectorD(x, 0, z)
-        rot = chrono.ChQuaternionD(1, 0, 0, 0)  # Identity rotation
-        node = fea.ChNodeFEAxyzrot(chrono.ChFrameD(pos, rot))
-        # Fix nodes along the top edge (j=0)
-        if j == 0:
+        z = j * dy
+        node = fea.ChNodeFEAxyz(chrono.ChVectorD(x, 0, z))
+        # Fix nodes at left (i=0) and right (i=nx) edges
+        if i == 0 or i == nx:
             node.SetFixed(True)
         mesh.AddNode(node)
         row.append(node)
     nodes.append(row)
 
-# Create shell elements with Kirchhoff material
-material = fea.ChMaterialShellKirchhoff()
-material.SetYoungModulus(2.1e9)    # 2.1 GPa
-material.SetPoissonRatio(0.3)      # Steel-like material
-material.SetThickness(0.001)       # 1 mm thickness
-
-# Populate elements in grid
-for i in range(num_nodes_x - 1):
-    for j in range(num_nodes_z - 1):
-        # Get corner nodes
+# Create shell elements using ANCF (Absolute Nodal Coordinate Formulation)
+for i in range(nx):
+    for j in range(ny):
+        # Get corner nodes for the element
         n1 = nodes[i][j]
         n2 = nodes[i+1][j]
         n3 = nodes[i+1][j+1]
         n4 = nodes[i][j+1]
         
-        # Create and configure element
-        element = fea.ChElementShellKirchhoff()
-        element.SetNodes(n1, n2, n3, n4)
-        element.SetMaterial(material)
-        element.SetAlphaDamp(0.0)  # No damping
-        mesh.AddElement(element)
+        # Create and configure the shell element
+        el = fea.ChElementShellANCF_3423()
+        el.SetNodes(n1, n2, n3, n4)
+        # Add material layer with thickness and normal direction
+        el.AddLayer(material, 0.001, chrono.ChVectorD(0, 1, 0))  # Y-axis normal
+        mesh.AddElement(el)
 
-# Add mesh to system
-sys.Add(mesh)
+# Add the mesh to the system
+system.Add(mesh)
 
-# Configure PardisoMKL solver for efficient dynamics
-solver = mkl.ChSolverPardisoMKL()
-sys.SetSolver(solver)
+# Configure solver (PardisoMKL for sparse matrix handling)
+system.SetSolverType(chrono.ChSolver.Type_PARDISO_MKL)
+system.SetSolverMaxIterations(100)
 
 # Set up Irrlicht visualization
-vis = irrlicht.ChVisualSystemIrrlicht()
-vis.AttachSystem(sys)
-vis.SetWindowSize(1024, 768)
-vis.SetWindowTitle('Tablecloth Folding Simulation')
-vis.Initialize()
-vis.AddCamera(chrono.ChVectorD(0, 1, -2))  # Position camera
-vis.AddLight(chrono.ChVectorD(1, 2, -1), 2.5)  # Add light source
+vis = irr.ChIrrApp(system, 'Tablecloth Folding Simulation', irr.dimension2du(1024, 768))
+vis.AddTypicalSky()
+vis.AddTypicalLogo()
+vis.AddTypicalCamera(irr.vector3df(0, 3, -4))  # Camera position
+vis.AddTypicalLights()
+vis.AssetBindAll()
+vis.AssetUpdateAll()
 
 # Simulation loop
-while vis.Run():
+while vis.GetDevice().run():
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
-    sys.DoStepDynamics(0.01)  # Step simulation with 10ms time step
+    system.DoStepDynamics(0.01)

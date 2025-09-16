@@ -1,64 +1,74 @@
 import pychrono as chrono
 import pychrono.fea as fea
-import pychrono.irrlicht as irr
+import pychrono.irrlicht as irrlicht
 
-# 1. Initialize the physical system
+# Initialize the physical system
 system = chrono.ChSystemNSC()
 
-# 2. Create a finite element mesh
+# Create a mesh
 mesh = fea.ChMesh()
 
-# 3. Define two nodes for the beam
-nodeA = fea.ChNodeFEAxyz(chrono.ChVectorD(0, 0, 0))  # Fixed end
-nodeB = fea.ChNodeFEAxyz(chrono.ChVectorD(1, 0, 0))  # Free end
+# Beam properties
+num_nodes = 10
+beam_length = 1.0
+beam_width = 0.02
+beam_height = 0.02
+E = 2e11  # Young's modulus (Pa)
+nu = 0.3   # Poisson's ratio
+G = E / (2 * (1 + nu))  # Shear modulus
+density = 7800  # kg/m^3
+
+# Cross-sectional properties
+area = beam_width * beam_height
+Iyy = (beam_width * beam_height**3) / 12
+Izz = (beam_height * beam_width**3) / 12
+J = Iyy + Izz  # Polar moment of inertia
+
+# Create material
+material = fea.ChMaterialBeamANCF(density, E, G, area, Iyy, Izz, J)
 
 # Add nodes to the mesh
-mesh.AddNode(nodeA)
-mesh.AddNode(nodeB)
+nodes = []
+for i in range(num_nodes):
+    x = i * beam_length / (num_nodes - 1)
+    node = fea.ChNodeFEAxyz(chrono.ChVectorD(x, 0, 0))
+    mesh.AddNode(node)
+    nodes.append(node)
 
-# 4. Define material properties for the beam
-# Young's modulus [Pa], Poisson ratio, Density [kg/m^3]
-material = fea.ChMaterialBeamIso(2e6, 0.3, 1000)
+# Add beam elements
+for i in range(num_nodes - 1):
+    element = fea.ChElementBeam()
+    element.SetNodes(nodes[i], nodes[i+1])
+    element.SetMaterial(material)
+    mesh.AddElement(element)
 
-# 5. Create a beam element
-beam_element = fea.ChElementBeamEuler()
-beam_element.SetNodes(nodeA, nodeB)
-beam_element.SetMaterial(material)
-beam_element.SetAx(0.01)    # Cross-sectional area [m^2]
-beam_element.SetIyy(0.0001)  # Area moment of inertia about y-axis [m^4]
-beam_element.SetIzz(0.0001)  # Area moment of inertia about z-axis [m^4]
-beam_element.SetJ(0.0002)    # Polar moment of inertia [m^4]
-
-# Add the beam element to the mesh
-mesh.AddElement(beam_element)
-
-# 6. Add the mesh to the system
+# Add mesh to the system
 system.Add(mesh)
 
-# 7. Apply constraint: Fix nodeA to the ground
-constraint = chrono.ChLinkMateFix()
-constraint.Initialize(nodeA, system.GetGroundBody())
+# Fix the first node
+constraint = chrono.ChLinkPointFrame()
+constraint.Initialize(nodes[0], system.GetGroundBody())
 system.Add(constraint)
 
-# 8. Add visualization assets to the mesh
-vis_mesh = fea.ChVisualizationFEAmesh(mesh)
-vis_mesh.SetFEMdataType(fea.ChVisualizationFEAmesh.E_PLOT_BEAM_VONMISES)  # Visualize von Mises stress
-vis_mesh.SetColorscaleMinMax(0, 500)  # Stress range for visualization
-mesh.AddAsset(vis_mesh)
-
-# 9. Set up Irrlicht visualization
-application = irr.ChIrrApp(system, 'PyChrono Beam Finite Element Simulation', irr.dimension2du(1024, 768))
-
-application.AddTypicalSky()
+# Set up Irrlicht visualization
+application = irrlicht.ChIrrApp(system, 'Beam Finite Element Simulation', irrlicht.dimension2du(1024, 768))
+application.AddTypicalLogo()
+application.AddTypicalCamera(irrlicht.vector3df(0, 0.5, 1))
 application.AddTypicalLights()
-application.AddTypicalCamera(irr.vector3df(0, 2, -3))  # Camera position
-
 application.AssetBindAll()
 application.AssetUpdateAll()
 
-# 10. Simulation loop
+# Add visualization for the beam mesh
+visual_asset = fea.ChVisualizationFEAmesh(mesh)
+visual_asset.SetFEMdataType(fea.ChVisualizationFEAmesh.E_PLOT_ELEM_BEAM_VONMISES_STRAIN)
+visual_asset.SetColorscaleMinMax(0, 5e7)
+visual_asset.SetBeamRadius(0.005)
+mesh.AddAsset(visual_asset)
+
+# Simulation loop
+application.SetTimestep(0.001)
 while application.GetDevice().run():
     application.BeginScene()
     application.DrawAll()
     application.EndScene()
-    system.DoStepDynamics(0.01)
+    system.DoStepDynamics(application.GetTimestep())

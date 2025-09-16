@@ -25,17 +25,33 @@ system.Add(beam)
 application = chronoirr.ChVisualSystemIrrlicht()
 application.AddTypicalLights()
 application.AddSkyBox()
-application.AddTypicalCamera(chronoirr.vector3df(1, 1, 1))
+application.AddLogo(0.5, 0.5)
+
+
+application.SetWindowSize(800, 600)
+application.SetWindowTitle('PyChrono Beam Simulation')
 
 
 application.AddSystem(system)
 
 
-application.SetTimestep(0.01)
-application.SetTryRealtime(True)
+application.SetCamera(chrono.ChVectorD(0, 0, 3), chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 1, 0))
 
 
-while application.Run():
+dt = 0.01
+t_end = 10
+
+
+while application.GetDevice().run():
     application.BeginScene()
     application.DrawAll()
     application.EndScene()
+
+    system.DoStepDynamics(dt)
+
+    
+    if system.GetChTime() > t_end:
+        break
+
+
+application.GetDevice().closeDevice()

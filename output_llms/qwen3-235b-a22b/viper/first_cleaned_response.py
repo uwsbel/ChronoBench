@@ -1,6 +1,6 @@
 import pychrono as chrono
-import pychrono.viper as viper
-import pychrono.irrlicht as irrlicht
+import pychrono.vehicle as veh
+import pychrono.irrlicht as irr
 
 
 system = chrono.ChSystemNSC()
@@ -16,41 +16,46 @@ ground.SetPos(chrono.ChVectorD(0, -1, 0))
 system.Add(ground)
 
 
-rover = viper.ChViper(system)
-rover.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0.5, 0), chrono.QUNIT))  
+rover = veh.Viper(system)
+rover.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0.5, 0), chrono.QUNIT))
+rover.Initialize()
 
 
-driver = viper.ChViperDriver()
-rover.SetDriver(driver)
+driver = veh.ViperSimpleDriver(rover)
+driver.Initialize()
 
 
-application = irrlicht.ChIrrApp(system, 'Viper Rover Simulation', irrlicht.dimension2du(1280, 720))
+application = irr.ChIrrApp(system, 'Viper Rover Simulation', irr.dimension2du(800, 600))
 application.AddTypicalLogo()
-application.AddTypicalCamera(irrlicht.vector3df(0, 3, -6), irrlicht.vector3df(0, 0, 0))  
+application.AddTypicalCamera(chrono.ChVectorD(0, 2, -5), rover.GetChassis().GetPos())
 application.AddTypicalLights()
 application.AssetBindAll()
 application.AssetUpdateAll()
 
 
-end_time = 10.0  
-max_steering = 1.0  
+time_step = 1e-3  
+end_time = 20.0  
 
 
 while application.GetDevice().run():
     current_time = system.GetChTime()
-    
-    
-    if current_time <= end_time:
-        steering = -max_steering + (2 * max_steering) * (current_time / end_time)
-    else:
-        steering = max_steering  
-    
-    
-    driver.SetSteering(steering)
-    driver.SetThrottle(0.3)  
+    if current_time > end_time:
+        break
 
     
-    system.DoStepDynamics(1e-3)  
+    if current_time < 10.0:
+        steering = 0.5 * (current_time / 10.0)
+    else:
+        steering = 0.5 * (1.0 - (current_time - 10.0) / 10.0)
+    steering = max(0.0, min(0.5, steering))  
+    driver.SetSteering(steering)
+
+    
+    driver.Synchronize(current_time)
+    rover.Synchronize(current_time, driver.GetInputs(), time_step)
+
+    
+    system.DoStepDynamics(time_step)
 
     
     application.BeginScene()

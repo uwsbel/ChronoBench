@@ -1,7 +1,7 @@
 import pychrono as ch
 import pychrono.vehicle as veh
 import pychrono.ros as chros
-from pychrono import irrlicht as chronoirr  
+from pychrono import irrlicht as chronoirr
 
 def main():
     
@@ -22,8 +22,8 @@ def main():
 
     
     hmmwv.SetChassisVisualizationType(veh.VisualizationType_MESH)
-    hmmwv.SetSuspensionVisualizationType(veh.VisualizationType_MESH)
-    hmmwv.SetSteeringVisualizationType(veh.VisualizationType_MESH)
+    hmmwv.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
+    hmmwv.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
     hmmwv.SetWheelVisualizationType(veh.VisualizationType_MESH)
     hmmwv.SetTireVisualizationType(veh.VisualizationType_MESH)
 
@@ -34,10 +34,10 @@ def main():
     patch_mat = ch.ChContactMaterialNSC()  
     patch_mat.SetFriction(0.9)  
     patch_mat.SetRestitution(0.01)  
-    
+
     
     patch = terrain.AddPatch(patch_mat, ch.CSYSNORM, 100.0, 100.0)
-    patch.SetTexture(ch.GetChronoDataFile("vehicle/terrain/textures/tile4.jpg"), 100, 100)  
+    patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 100, 100)
 
     terrain.Initialize()  
 
@@ -57,12 +57,12 @@ def main():
     
     vis = chronoirr.ChVisualSystemIrrlicht()
     vis.AttachSystem(hmmwv.GetSystem())
-    vis.SetWindowSize(1024, 768)
+    vis.SetWindowSize(1280, 720)
     vis.SetWindowTitle('HMMWV Simulation')
     vis.Initialize()
-    vis.AddLogo(ch.GetChronoDataFile('logo_pychrono_alpha.png'))
+    vis.AddLogo(chronoirr.GetChronoDataFile("logo_pychrono.png"))
     vis.AddSkyBox()
-    vis.AddCamera(ch.ChVector3d(0, 2.5, 6), ch.ChVector3d(0, 0, 0))
+    vis.AddCamera(ch.ChVector3d(0, 2.5, 5), ch.ChVector3d(0, 0, 0))
     vis.AddTypicalLights()
 
     
@@ -71,7 +71,7 @@ def main():
     time_end = 30  
 
     hmmwv.GetVehicle().EnableRealtime(True)  
-    while time < time_end and vis.Run():
+    while time < time_end:
         time = hmmwv.GetSystem().GetChTime()  
 
         
@@ -90,9 +90,10 @@ def main():
             break  
 
         
-        vis.BeginScene()
-        vis.Render()
-        vis.EndScene()
+        if vis.Run():
+            vis.BeginScene()
+            vis.Render()
+            vis.EndScene()
 
 if __name__ == "__main__":
     main()

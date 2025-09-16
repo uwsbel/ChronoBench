@@ -1,30 +1,49 @@
-# Import PyChrono modules
 import pychrono as chrono
+import pychrono.vehicle as veh
 import pychrono.irrlicht as chronoirr
 
-# Create a Chrono system
-system = chrono.ChSystemNSC()
+# Initialize the PyChrono environment and core components
+chrono.SetChronoDataPath('PYCHRONO_DATA_DIR')
+my_system = chrono.ChSystemNSC()
 
-# Create a ground body
-ground = chrono.ChBodyEasyBox(10, 1, 10, 1000, True, True)
-ground.SetPos(chrono.ChVectorD(0, -5, 0))
-system.Add(ground)
+# Create the vehicle model
+man_truck = veh.WheeledVehicle(my_system)
+man_truck.SetChassisVisualizationType(veh.VisualizationType_MESH)
+man_truck.SetChassisCollisionType(veh.CollisionType_MESH)
+man_truck.Initialize('man_truck.json')
 
-# Create a falling sphere
-sphere = chrono.ChBodyEasySphere(1, 1000, True, True)
-sphere.SetPos(chrono.ChVectorD(0, 10, 0))
-system.Add(sphere)
+# Create the TMEASY tire model
+for axle in man_truck.GetAxles():
+    for wheel in axle.GetWheels():
+        wheel.SetTireType(veh.TireModelType_TMEASY)
 
-# Create a visualization application
-application = chronoirr.ChIrrApp(system, 'Falling Sphere', chronoirr.dimension2du(1024, 768))
-application.AddTypicalLights()
-application.AddCamera(chronoirr.vector3df(0, 15, -20))
-application.AssetBindAll()
-application.AssetUpdateAll()
+# Set necessary default parameters
+man_truck.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 1)))
+man_truck.SetInitFwdVel(5)
+man_truck.SetTireStepSize(0.01)
+man_truck.SetChassisFixed(False)
+
+# Add real-time driver controls
+steering_input = veh.ChVehicleInput()
+throttle_input = veh.ChVehicleInput()
+braking_input = veh.ChVehicleInput()
+man_truck.InitializeDriver(steering_input, throttle_input, braking_input)
+
+# Create the rigid terrain
+terrain = veh.RigidTerrain(my_system)
+terrain.Initialize(50, 50, 0, 0, 0, 0, 1, 'terrain_mesh.obj')
+
+# Visualize the simulation using the Irrlicht visualization system
+app = chronoirr.ChIrrApp(man_truck, 'MAN 10t Truck Simulation', chronoirr.dimension2du(1024, 768))
+app.AddTypicalLogo()
+app.AddTypicalSky()
+app.AddTypicalCamera(chronoirr.vector3df(0, 3, -5))
+app.AddTypicalLights()
+app.SetTimestep(0.01)
 
 # Run the simulation
-while application.GetDevice().run():
-    application.BeginScene()
-    application.DrawAll()
-    application.DoStep()
-    application.EndScene()
+while app.GetDevice().run():
+    app.BeginScene()
+    app.DrawAll()
+    app.DoStep()
+    app.EndScene()

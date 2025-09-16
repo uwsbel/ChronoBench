@@ -93,16 +93,13 @@ patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 
-vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
-vis.SetWindowTitle('Sedan')
-vis.SetWindowSize(1280, 1024)
-vis.SetChaseCamera(trackPoint, 6.0, 0.5)
-vis.Initialize()
-vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
-vis.AddLightDirectional()
-vis.AddSkyBox()
-vis.AttachVehicle(vehicle1.GetVehicle())
-vis.AttachVehicle(vehicle2.GetVehicle())
+vis = irr.ChIrrApp(vehicle1.GetSystem(), 'Sedan', irr.dimension2du(1280, 1024))
+vis.AddTypicalLogo()
+vis.AddTypicalSky()
+vis.AddTypicalLights()
+vis.AddTypicalCamera(trackPoint, 6.0, 0.5)
+vis.AssetBindAll()
+vis.AssetUpdateAll()
 
 
 driver1 = veh.ChInteractiveDriverIRR(vis)
@@ -138,13 +135,13 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-while vis.Run():
+while vis.GetDevice().run():
     time = vehicle1.GetSystem().GetChTime()
 
     
     if (step_number % render_steps == 0):
-        vis.BeginScene()
-        vis.Render()
+        vis.BeginScene(True, True, irr.SColor(255, 140, 161, 192))
+        vis.DrawAll()
         vis.EndScene()
         render_frame += 1
 
@@ -162,7 +159,7 @@ while vis.Run():
     terrain.Synchronize(time)
     vehicle1.Synchronize(time, driver_inputs1, terrain)
     vehicle2.Synchronize(time, driver_inputs2, terrain)
-    vis.Synchronize(time, driver_inputs1)
+    vis.Synchronize()
 
     
     driver1.Advance(step_size)
@@ -170,7 +167,8 @@ while vis.Run():
     terrain.Advance(step_size)
     vehicle1.Advance(step_size)
     vehicle2.Advance(step_size)
-    vis.Advance(step_size)
+    vis.Advance()
+
     
     step_number += 1
 

@@ -1,31 +1,29 @@
-# Import necessary modules
-import pychrono as chrono
-import pychrono.irrlicht as chronoirr
+import pychrono
 
-# Initialize the PyChrono environment
-system = chrono.ChSystemNSC()
+# Initialize PyChrono environment
+pychrono.SetChronoDataPath("path_to_chrono_data")
+pychrono.SetChronoOutputLevel(pychrono.LogLevel.LOG_WARNING)
 
-# Create a physical system with a mesh of beams
-beam_mesh = chrono.ChBeamMesh()
-beam_mesh.SetNodes(5, 1)  # Set the number of nodes and beams
-beam_mesh.SetNodePosition(0, chrono.ChVectorD(0, 0, 0))  # Set the position of the first node
-beam_mesh.SetNodePosition(4, chrono.ChVectorD(1, 0, 0))  # Set the position of the last node
-beam_mesh.SetBeamProperties(chrono.ChBeamSectionCylinder(0.01, 0.01))  # Set the beam properties
-beam_mesh.Create(system)
+# Create the physical system
+system = pychrono.ChSystemSMC()
 
-# Add visualization
-irr_system = chronoirr.ChIrrApp(system, "Beam Finite Elements", chronoirr.dimension2du(800, 600))
-irr_system.AddTypicalLogo()
-irr_system.AddTypicalCamera(chronoirr.vector3df(0, 0, -2), chronoirr.vector3df(0, 0, 0))
-irr_system.AddTypicalLights()
-irr_system.AddTypicalSky()
-irr_system.AddTypicalLogo()
-irr_system.AddTypicalCamera(chronoirr.vector3df(0, 0, -2), chronoirr.vector3df(0, 0, 0))
-irr_system.AddTypicalLights()
-irr_system.AddTypicalSky()
-irr_system.AddVisualization(system)
+# Create a mesh of beams and nodes
+# Add code to create the mesh with specific properties
+
+# Set necessary default parameters
+# Add code to set default parameters such as positions, forces, and interactions
+
+# Create a visualization object
+visualization = pychrono.ChVisualizationIrrlicht()
+visualization.AttachSystem(system)
+visualization.SetWindowSize(800, 600)
+visualization.SetWindowTitle("Beam Finite Elements Simulation")
+visualization.SetRenderMode(pychrono.ChVisualizationIrrlicht.RENDER_MODE_OPENGL)
 
 # Run the simulation loop
-irr_system.SetTimestep(0.01)
-irr_system.SetTryRealtime(True)
-irr_system.Run()
+while system.GetTime() < 10.0:
+    system.DoStepDynamics(0.001)
+    visualization.Render()
+
+# Close the simulation
+system.Clear()

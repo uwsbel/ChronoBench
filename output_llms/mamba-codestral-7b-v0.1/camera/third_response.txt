@@ -13,22 +13,14 @@ def main():
     mphysicalSystem = chrono.ChSystemNSC()
 
     # -----------------------------------
-    # Add a box to be sensed by a camera
+    # Add a mesh to be sensed by a camera
     # -----------------------------------
-    # Set the side length of the box
+    # Create a box object with dimensions specified by side and set its position and texture
     side = 1.0
-
-    # Create a visual representation of the box
-    box_shape = chrono.ChVisualShapeBox(side, side, side)
-    box_shape.SetName("Box Shape")
-    box_shape.SetMutable(False)  # Set the box to be immutable
-
-    # Create a body to which the visual shape will be attached
     box_body = chrono.ChBodyEasyBox(side, side, side, 1000)
-    box_body.SetPos(chrono.ChVector3d(0, 0, 0))  # Set the position of the body
-    box_body.AddVisualShape(box_shape)  # Attach the visual shape to the body
-    box_body.SetFixed(True)  # Fix the body in space
-    mphysicalSystem.Add(box_body)  # Add the body to the physical system
+    box_body.SetPos(chrono.ChVector3d(0, 0, 0))
+    box_body.SetTexture(chrono.GetChronoDataFile("concrete.png"), True, 1)
+    mphysicalSystem.Add(box_body)
 
     # -----------------------
     # Create a sensor manager
@@ -95,4 +87,10 @@ def main():
 
     # Save the grayscaled image to a PNG file at the specified path
     if save:
-        cam.PushFilter(sens.ChFilterSave
+        cam.PushFilter(sens.ChFilterSave(out_dir + "gray/"))
+
+    # Resize the image to the specified width and height
+    cam.PushFilter(sens.ChFilterImageResize(int(image_width / 2), int(image_height / 2)))
+
+    # Access the grayscaled image buffer as R8 pixels
+    cam.PushFilter(sens.ChFilterR8Access())

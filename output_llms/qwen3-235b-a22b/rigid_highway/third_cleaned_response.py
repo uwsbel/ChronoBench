@@ -47,7 +47,6 @@ vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
-
 vehicle.Initialize()
 
 vehicle.SetChassisVisualizationType(vis_type)
@@ -60,21 +59,18 @@ vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
 patch_mat = chrono.ChContactMaterialNSC()
+patch_mat.SetFriction(0.4)  
+patch_mat.SetRestitution(0.05)  
 
-patch_mat.SetFriction(0.4)
-patch_mat.SetRestitution(0.05)
 
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-
-
 patch = terrain.AddPatch(patch_mat, 
     chrono.ChCoordsysd(
         chrono.ChVector3d(6, -70, 0),  
-        chrono.QuatFromAngleZ(-math.pi/2)  
+        chrono.QuatFromAngleZ(math.radians(-90))  
     ),
     chrono.GetChronoDataFile('vehicle/terrain/meshes/Highway_col.obj'),
-    True, 0.01, False
-)
+    True, 0.01, False)
 
 
 vis_mesh = chrono.ChTriangleMeshConnected().CreateFromWavefrontFile(
@@ -84,7 +80,6 @@ tri_mesh_shape = chrono.ChVisualShapeTriangleMesh()
 tri_mesh_shape.SetMesh(vis_mesh)
 tri_mesh_shape.SetMutable(False)
 patch.GetGroundBody().AddVisualShape(tri_mesh_shape)
-
 terrain.Initialize()
 
 
@@ -102,9 +97,9 @@ vis.AttachVehicle(vehicle.GetVehicle())
 driver = veh.ChInteractiveDriverIRR(vis)
 
 
-steering_time = 1.0
-throttle_time = 1.0
-braking_time = 0.3
+steering_time = 1.0  
+throttle_time = 1.0  
+braking_time = 0.3   
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
@@ -114,27 +109,32 @@ driver.Initialize()
 
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
-render_steps = math.ceil(render_step_size / step_size)
+
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
+render_steps = math.ceil(render_step_size / step_size)
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
+    
     if step_number % render_steps == 0:
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
         render_frame += 1
 
+    
     driver_inputs = driver.GetInputs()
 
+    
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
 
+    
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)

@@ -80,8 +80,10 @@ vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 
 # Add point lights to the scene
-vis.AddPointLight(chrono.ChVector3d(10, 10, 10), chrono.ChColor(1, 1, 1), 200)
-vis.AddPointLight(chrono.ChVector3d(-10, -10, 10), chrono.ChColor(1, 1, 1), 200)
+vis.AddPointLight(chrono.ChVector3d(-5, 5, 5), chrono.ChColor(1, 1, 1), 20)
+vis.AddPointLight(chrono.ChVector3d(5, 5, 5), chrono.ChColor(1, 1, 1), 20)
+vis.AddPointLight(chrono.ChVector3d(5, -5, 5), chrono.ChColor(1, 1, 1), 20)
+vis.AddPointLight(chrono.ChVector3d(-5, -5, 5), chrono.ChColor(1, 1, 1), 20)
 
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
@@ -100,7 +102,7 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 # output vehicle mass
-print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
@@ -108,32 +110,34 @@ render_steps = math.ceil(render_step_size / step_size)
 # Create a sensor manager
 sensor_manager = veh.ChSensorManager(vehicle.GetSystem())
 
-# Add a camera sensor to the vehicle’s chassis body
-camera_sensor = veh.ChCameraSensor(vehicle.GetChassisBody(), 1280, 720, 45.0)
-camera_sensor.SetName("Camera Sensor")
-camera_sensor.SetPosition(chrono.ChVector3d(0.0, 0.0, 1.75))
-camera_sensor.SetRotation(chrono.ChQuaterniond(1, 0, 0, 0))
+# Add a camera sensor to the vehicle's chassis body
+camera_location = chrono.ChFrameD(chrono.ChVector3d(0, 0, 1.5))
+camera_direction = chrono.ChVector3d(0, 0, -1)
+camera_sensor = veh.ChCameraSensor(
+    vehicle.GetChassisBody(),  # parent body
+    camera_location,  # relative position
+    camera_direction,  # direction
+    40.0,  # field of view
+    1280,  # resolution X
+    720,  # resolution Y
+    irr.ChColor(1, 1, 1)  # background color
+)
 sensor_manager.AddSensor(camera_sensor)
 
 # Add a visualization filter to render the image
-camera_filter = veh.ChFilterVisualize(sensor_manager)
-camera_filter.SetSensor(camera_sensor)
-camera_filter.SetTextureSize(1280, 720)
-camera_filter.SetWindowSize(640, 360)
-camera_filter.SetWindowTitle("Camera Sensor")
-camera_filter.SetRenderMode(irr.ER_TEXTURE_ONLY)
-camera_filter.Initialize()
+camera_filter = veh.ChFilterVisualize(camera_sensor)
+sensor_manager.AddFilter(camera_filter)
 
-# Initialize simulation frame counter s
+# Initialize simulation frame counter
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-while vis.Run() :
+while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
     # Render scene and output POV-Ray data
-    if (step_number % render_steps == 0) :
+    if (step_number % render_steps == 0):
         vis.BeginScene()
         vis.Render()
         vis.EndScene()

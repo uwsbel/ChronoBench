@@ -1,120 +1,113 @@
-Certainly! Below is a PyChrono simulation script that adheres to the given instructions. This script sets up a simulation featuring a Gator vehicle, a rigid terrain, and an interactive driver system. It also includes a sensor manager with point lights and a camera attached to the vehicle's chassis, rendering the camera images.
+Certainly! Below is a PyChrono simulation script that meets the specified requirements. This script initializes the PyChrono environment, adds a Gator vehicle, a rigid terrain, an interactive driver system, and a sensor manager with point lights and a camera. It also includes a simulation loop to update and advance the simulation.
 
 ```python
 import pychrono.core as chrono
 import pychrono.vehicle as veh
-import pychrono.sensor as sens
 import pychrono.irrlicht as chronoirr
 
 # Initialize the PyChrono environment
-chrono.SetChronoDataPath('path_to_chrono_data')  # Set the path to the Chrono data directory
+chrono.SetChronoDataPath('path/to/chrono/data')
 
-# Create the system
+# Create the physical system
 system = chrono.ChSystemNSC()
 system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
+# Create the vehicle system
+vehicle = veh.ChVehicleSystem()
+vehicle.SetChassisBody(system.NewBody(chrono.ChBodyEasyBox(1, 1, 1, 1000)))
+vehicle.Initialize()
+
+# Set up the Gator vehicle
+gator = veh.ChVehicleGator()
+gator.SetChassisBody(system.NewBody(chrono.ChBodyEasyBox(1, 1, 1, 1000)))
+gator.SetInitPosition(chrono.ChVectorD(0, 0, 0.5))
+gator.SetInitOrientation(chrono.Q_from_AngAxis(chrono.ChVectorD(0, 0, 1), chrono.CHRONO_PI / 2))
+gator.Initialize()
+
+# Add the vehicle to the system
+vehicle.AddVehicle(gator)
+
 # Create the terrain
-terrain = veh.ChTerrain(
-    system,
-    'path_to_terrain_file',  # Path to the terrain file
-    100, 100, 0.5,  # Dimensions of the terrain
-    chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.ChQuaternionD(1, 0, 0, 0)),
-    False,
-    True
-)
+terrain = chrono.ChTerrain()
+terrain.CreateRectangularPatch(system, 20, 20, 100, 100, chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 1))
+terrain.SetMaterialSurface(chrono.ChMaterialSurfaceNSC())
+terrain.GetMaterialSurface().SetFriction(0.9)
+terrain.GetMaterialSurface().SetRestitution(0.1)
+terrain.GetMaterialSurface().SetCompliance(0.00001)
+terrain.GetMaterialSurface().SetComplianceT(0.00001)
 
-# Create the Gator vehicle
-gator = veh.Gator(
-    system,
-    veh.ChVehicleModelType.GATOR,
-    'path_to_gator_folder',  # Path to the Gator vehicle folder
-    chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0.5), chrono.ChQuaternionD(1, 0, 0, 0)),
-    True,
-    False
-)
+# Add the terrain to the system
+system.Add(terrain)
 
-# Set visualization types for vehicle parts
-gator.SetChassisVisualizationType(veh.ChVehicleVisualizationType.PRIMITIVES)
-gator.SetSuspensionVisualizationType(veh.ChVehicleVisualizationType.PRIMITIVES)
-gator.SetSteeringVisualizationType(veh.ChVehicleVisualizationType.PRIMITIVES)
-gator.SetWheelVisualizationType(veh.ChVehicleVisualizationType.MESH)
-
-# Initialize the interactive driver system
-driver = veh.ChDriver(
-    gator.GetPowerTrain(),
-    veh.ChDriverInputSimple(
-        veh.ChDriverInputSimple.ThrottleType.THROTTLE_PERCENTAGE,
-        veh.ChDriverInputSimple.SteeringType.STEERING_PERCENTAGE,
-        veh.ChDriverInputSimple.BrakingType.BRAKING_PERCENTAGE
-    )
-)
-
-# Set driver parameters
+# Create the interactive driver system
+driver = veh.ChDriver()
+driver.Initialize(gator, system)
+driver.SetSteeringDelta(0.0)
 driver.SetThrottle(0.5)
-driver.SetSteering(0.0)
 driver.SetBraking(0.0)
 
 # Create the sensor manager
-sensor_manager = sens.ChSensorManager(system)
+sensor_manager = veh.ChSensorManager()
+sensor_manager.Initialize(gator)
 
-# Add a point light
-point_light = chronoirr.ChIrrLightPoint(system, chrono.ChVectorD(10, 10, 10))
-sensor_manager.AddLight(point_light)
+# Add point lights
+light1 = chronoirr.ChIrrLightPoint(chrono.ChVectorD(5, 5, 5), chrono.ChColorf(1.0, 1.0, 1.0), 100)
+sensor_manager.AddLight(light1)
+
+light2 = chronoirr.ChIrrLightPoint(chrono.ChVectorD(-5, 5, 5), chrono.ChColorf(1.0, 1.0, 1.0), 100)
+sensor_manager.AddLight(light2)
 
 # Add a camera attached to the vehicle's chassis
-camera = sens.ChCamera(
-    sensor_manager,
-    chrono.ChFrameD(chrono.ChVectorD(0, 0, 1.5), chrono.Q_FROM_EULER(chrono.ChVectorD(0, 0, 0))),
-    100,  # FOV
-    0.1,  # Near clipping plane
-    1000  # Far clipping plane
-)
-camera.SetName("vehicle_camera")
+camera = chronoirr.ChIrrCamera()
+camera.SetPosition(chrono.ChVectorD(0, -5, 2))
+camera.SetTarget(chrono.ChVectorD(0, 0, 0))
+camera.SetNearClip(0.1)
+camera.SetFarClip(100)
+camera.SetFOV(chrono.CHRONO_PI / 4)
 sensor_manager.AddCamera(camera)
 
-# Create the Irrlicht visualization module
-vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(system)
-vis.SetWindowSize(1280, 720)
-vis.SetWindowTitle('Gator Vehicle Simulation')
-vis.Initialize()
-vis.AddLight(point_light.GetLight())
-vis.AddCamera(camera.GetCamera())
+# Initialize the visualization system
+application = chronoirr.ChIrrApp(system, 'Gator Vehicle Simulation', chronoirr.dimension2du(1280, 720))
+application.AddVisualSystem('Vehicle', sensor_manager.GetVisualSystem())
+application.AddVisualSystem('Terrain', terrain.GetVisualSystem())
+application.AddVisualSystem('Driver', driver.GetVisualSystem())
 
-# Simulation parameters
-step_size = 0.01  # simulation step size
-end_time = 10.0   # simulation end time
+# Set up the simulation loop
+step_size = 0.01
+max_time = 10.0
+time = 0.0
 
-# Simulation loop
-current_time = 0.0
-while current_time < end_time:
+while time < max_time:
+    application.BeginScene()
+    application.DrawAll()
+    application.EndScene()
+
     system.DoStepDynamics(step_size)
 
     # Update the driver
-    driver.SynchronizeForces(step_size)
+    driver.Synchronize(step_size)
+    driver.Advance(step_size)
 
     # Update the terrain
     terrain.Synchronize(step_size)
+    terrain.Advance(step_size)
 
     # Update the vehicle
-    gator.Synchronize(step_size, driver, terrain)
+    vehicle.Synchronize(step_size)
+    vehicle.Advance(step_size)
 
     # Update the sensor manager
-    sensor_manager.Update()
+    sensor_manager.Synchronize(step_size)
+    sensor_manager.Advance(step_size)
 
-    # Render the scene
-    vis.Render()
+    time += step_size
 
-    # Increment the current time
-    current_time += step_size
-
-# Close the visualization module
-vis.Close()
+# Close the application
+application.Close()
 ```
 
 ### Notes:
-1. **Paths**: Ensure you replace `'path_to_chrono_data'`, `'path_to_terrain_file'`, and `'path_to_gator_folder'` with the actual paths to your Chrono data directory, terrain file, and Gator vehicle folder, respectively.
-2. **Visualization Types**: The visualization types for the vehicle parts can be adjusted as needed (e.g., `PRIMITIVES`, `MESH`, etc.).
-3. **Driver Input**: The driver input parameters (`SetThrottle`, `SetSteering`, `SetBraking`) can be adjusted to simulate different driving behaviors.
-
-This script initializes the PyChrono environment, sets up the required physical systems and objects, and runs a simulation loop that updates the driver, terrain, vehicle, and sensor manager at each timestep. The visualization module renders the scene, including the camera images.
+1. Make sure to replace `'path/to/chrono/data'` with the actual path to your Chrono::Engine data directory.
+2. The script assumes that the `ChVehicleGator` class and other necessary classes are available in your PyChrono environment. If not, you may need to adjust the script accordingly.
+3. The visualization system uses Irrlicht, so ensure that Irrlicht is properly installed and configured with PyChrono.
+4. The script includes basic initialization and updates for the driver, terrain, vehicle, and sensor manager. You may need to customize these parts further based on your specific requirements.

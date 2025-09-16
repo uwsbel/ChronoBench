@@ -1,46 +1,52 @@
-# Import necessary PyChrono modules
 import pychrono as chrono
-import pychrono.irrlicht as irr
+import pychrono.vehicle as veh
+import pychrono.irrlicht as chronoirr
 
-# Initialize the PyChrono environment
-chrono.SetChronoDataPath('PYCHRONO_DATA_DIR')
+# Initialize PyChrono environment and core components
+chrono.SetChronoDataPath("PYCHRONO_DATA_DIR")
 
 # Create a system
-my_system = chrono.ChSystemNSC()
+system = chrono.ChSystemNSC()
 
-# Create a Kraz vehicle
-my_vehicle = chrono.ChBodyEasyBox(10, 2, 1, 1000, True, True)
-my_system.Add(my_vehicle)
+# Create the Kraz vehicle
+kraz = veh.VehicleKraz(system)
+kraz.SetChassisFixed(False)
+kraz.SetChassisCollisionType(chrono.ChCollisionModel.CollisionType.HULL)
+kraz.SetChassisVisualizationType(chrono.VisualizationType.MESH)
+kraz.SetTireType(veh.TireModelType.RIGID)
+kraz.SetTireStepSize(0.05)
+kraz.Initialize()
 
-# Set initial conditions for the vehicle
-my_vehicle.SetPos(chrono.ChVectorD(0, 0, 1))
+# Set initial conditions for the Kraz vehicle
+kraz.SetChassisPos(chrono.ChVectorD(0, 0, 1))
+kraz.SetChassisRot(chrono.ChQuaternionD(1, 0, 0, 0))
 
-# Create a rigid terrain
-my_terrain = chrono.ChBodyEasyBox(100, 100, 1, 1000, True, True)
-my_system.Add(my_terrain)
+# Create the rigid terrain
+terrain = veh.RigidTerrain(system)
+terrain.SetContactFrictionCoefficient(0.8)
+terrain.SetContactRestitutionCoefficient(0.01)
+terrain.SetContactMaterialProperties(2e7, 0.3)
+terrain.Initialize()
 
-# Set friction and restitution for the terrain
-my_terrain.SetFriction(0.5)
-my_terrain.SetRestitution(0.1)
+# Initialize the driver system
+driver = veh.ChDriver(kraz)
+driver.Initialize()
 
-# Initialize a driver system for vehicle control
-my_driver = chrono.ChDriver(my_vehicle)
-
-# Create a real-time visualization using Irrlicht
-my_application = irr.ChIrrApp(my_system, 'Kraz Vehicle Simulation', irr.dimension2du(1024,768))
-my_application.AddTypicalLights()
-my_application.AddCamera(chrono.ChVectorD(0, -10, 5), chrono.ChVectorD(0, 0, 0))
-my_application.AssetBindAll()
-my_application.AssetUpdateAll()
+# Create real-time visualization using Irrlicht
+visualization = chronoirr.ChVisualSystemIrrlicht()
+visualization.AttachSystem(system)
+visualization.SetWindowSize(800, 600)
+visualization.SetWindowTitle("Kraz Vehicle Simulation")
+visualization.Initialize()
+visualization.AddCamera(chrono.ChVectorD(0, -10, 2), chrono.ChVectorD(0, 0, 0))
+visualization.AddTypicalLights()
 
 # Simulation loop
-while my_application.GetDevice().run():
-    my_application.BeginScene()
-    my_application.DrawAll()
-    my_application.DoStep()
-    my_application.EndScene()
+while visualization.Run():
+    visualization.BeginScene()
+    visualization.AddPointLight(chrono.ChVectorD(10, -10, 20), chrono.ChColor(1, 1, 1), 100)
+    visualization.Render()
+    visualization.EndScene()
 
-    # Advance the vehicle, terrain, driver, and visual system
-    my_system.DoStepDynamics(0.01)
-    my_driver.Synchronize(my_system.GetChTime())
-    my_application.Synchronize('', my_system.GetChTime())
+    # Advance the simulation
+    system.DoStepDynamics(0.01)

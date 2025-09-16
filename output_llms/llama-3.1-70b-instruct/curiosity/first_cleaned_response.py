@@ -19,48 +19,30 @@ rover.SetPos(chrono.ChVectorD(0, 1, 0))
 mysystem.Add(rover)
 
 
-motor_driver = chrono.ChMotorLinearSpeed()
-motor_driver.SetSpeed(chrono.ChVectorD(0, 0, 1))
-rover.AddDriver(motor_driver)
+motor = chrono.ChMotorLinearTransmission()
+motor.SetMaxForce(1000)
+rover.AddMotor(motor)
 
 
-viz = chronoirr.ChVisualSystemIrrlicht()
-viz.SetWindowSize(1024, 768)
-viz.SetWindowTitle("Curiosity Rover Simulation")
-viz.SetCamera(chrono.ChVectorD(0, 2, -5), chrono.ChVectorD(0, 0, 0))
-viz.SetLightDirection(chrono.ChVectorD(1, 1, 1))
-viz.SetShowAxes(True)
-viz.SetShowLogo(True)
-viz.SetSkyBox(True)
-viz.SetShadows(True)
-viz.SetTextures(True)
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.SetWindowSize(800, 600)
+vis.SetWindowTitle("Curiosity Rover Simulation")
+vis.SetCamera(chrono.ChVectorD(0, 1, -3), chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 1, 0))
 
 
-rover_texture = chrono.ChTexture()
-rover_texture.SetTextureFilename("rover_texture.png")
-rover.AddVisualizationAsset(rover_texture)
+vis.SetCameraUp(chrono.ChVectorD(0, 1, 0))
+vis.SetCameraLookAt(chrono.ChVectorD(0, 0, 0))
 
 
-ground_texture = chrono.ChTexture()
-ground_texture.SetTextureFilename("ground_texture.png")
-ground.AddVisualizationAsset(ground_texture)
+vis.AddTypicalLights()
+vis.AddShadowAll()
 
 
-logo = chrono.ChVisualizationLogo()
-logo.SetLogoFilename("logo.png")
-logo.SetLogoPosition(chrono.ChVectorD(0, 0, 0))
-logo.SetLogoScale(chrono.ChVectorD(1, 1, 1))
-viz.AddVisualizationAsset(logo)
+vis.AddLogo(chrono.ChVectorD(0.5, 0.1, 0.1), chrono.ChVectorD(0.1, 0.1, 0.1), "chrono.png")
 
 
-def collision_callback(contact_info):
-    print("Contact detected between rover and ground")
-
-mysystem.SetContactCallback(collision_callback)
-
-
-while viz.Run():
-    mysystem.DoStepDynamics(0.01)
-    viz.BeginScene()
-    viz.DrawAll()
-    viz.EndScene()
+while vis.Run():
+    mysystem.DoStepDynamics(mysystem.GetDt())
+    vis.BeginScene()
+    vis.DrawAll()
+    vis.EndScene()

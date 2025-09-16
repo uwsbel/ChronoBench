@@ -3,37 +3,38 @@ import pychrono.vehicle as veh
 import pychrono.ros as ros
 
 
-chrono.SetChronoDataPath('path_to_chrono_data')
+chrono.SetChronoDataPath('/path/to/chrono/data/')
+system = chrono.ChSystemNSC()
 
 
-my_system = chrono.ChSystemNSC()
+hmmwv = veh.HMMWV(system)
+hmmwv.SetContactMethod(chrono.ChContactMethod_NSC)
+hmmwv.SetEngineType(veh.HMMWV_ENGINE_TYPE_DIESEL)
+hmmwv.SetTireType(veh.HMMWV_TIRE_TYPE_TMEASY)
 
 
-hmmwv = veh.HMMWV(my_system)
-hmmwv.SetContactMethod(veh.ChVehicleModel::ContactMethod::NSC)
-hmmwv.SetEngineType(veh.ChVehicleModel::EngineType::SHAFTS)
-hmmwv.SetTireType(veh.ChVehicleModel::TireModelType::TMEASY)
-
-
-terrain = veh.RigidTerrain(my_system)
-terrain.SetFriction(0.9)
+terrain = veh.RigidTerrain(system)
+terrain.SetFriction(0.8)
 terrain.SetRestitution(0.01)
 
 
-driver = veh.ChDriver(hmmwv)
+driver = veh.SimpleVehicleDriver(hmmwv)
 
 
-ros.ChRosInterface()
-ros.ChRosInterface().SetDataStream(True)
+ros_manager = ros.ChROSManager()
+ros_manager.SetChronoSystem(system)
+ros_manager.Initialize()
 
 
-ros.ChRosInterface().RegisterHandler(chrono.ChRosClockHandler())
-ros.ChRosInterface().RegisterHandler(veh.ChROSVehicleHandler(hmmwv))
-ros.ChRosInterface().RegisterHandler(veh.ChROSDriverHandler(driver))
+clock_synchronizer = ros.ChROSClockSynchronizer(ros_manager)
+driver_input = ros.ChROSVehicleDriverInput(ros_manager, driver)
+vehicle_state = ros.ChROSVehicleState(ros_manager, hmmwv)
 
 
-while my_system.GetChTime() < 10:
+while ros_manager.GetTime() < 10.0:
     
-    ros.ChRosInterface().Synchronize()
-    my_system.DoStepDynamics(1e-3)
-    ros.ChRosInterface().Advance()
+    clock_synchronizer.Synchronize()
+    system.DoStepDynamics(0.01)
+
+    
+    ros_manager.AdvanceSimulation(0.01)

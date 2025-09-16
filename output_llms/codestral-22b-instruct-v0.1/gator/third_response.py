@@ -89,7 +89,6 @@ vis.AttachVehicle(vehicle.GetVehicle())
 driver = veh.ChInteractiveDriverIRR(vis)
 
 # Set the time response for steering and throttle keyboard inputs.
-# Make the driver less responsive
 steering_time = 2.0  # time to go from 0 to +1 (or from 0 to -1)
 throttle_time = 2.0  # time to go from 0 to +1
 braking_time = 0.6   # time to go from 0 to +1

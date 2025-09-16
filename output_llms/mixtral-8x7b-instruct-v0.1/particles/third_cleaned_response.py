@@ -29,16 +29,13 @@ msphereBody.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/conc
 sys.Add(msphereBody)
 
 
-sphere_mat2 = chrono.ChContactMaterialNSC()
-sphere_mat2.SetFriction(0.2)
-msphereBody2 = chrono.ChBodyEasySphere(2.1, 1800, True, True, sphere_mat2)
+msphereBody2 = chrono.ChBodyEasySphere(2.1, 1800, True, True, sphere_mat)
 msphereBody2.SetPos(chrono.ChVector3d(-10, -10, 0))
 msphereBody2.SetVel(chrono.ChVectorD(-0.5, 0, -0.1))
 sys.Add(msphereBody2)
 
-sphere_mat3 = chrono.ChContactMaterialNSC()
-sphere_mat3.SetFriction(0.2)
-msphereBody3 = chrono.ChBodyEasySphere(2.1, 1800, True, True, sphere_mat3)
+
+msphereBody3 = chrono.ChBodyEasySphere(2.1, 1800, True, True, sphere_mat)
 msphereBody3.SetPos(chrono.ChVector3d(0, 20, 0))
 msphereBody3.SetVel(chrono.ChVectorD(0, -0.5, 0.2))
 sys.Add(msphereBody3)

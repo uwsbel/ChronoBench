@@ -21,9 +21,10 @@ tire_model = veh.TireModelType_TMEASY
 
 # Rigid terrain
 terrain_model = veh.RigidTerrain.HEIGHT_MAP
-terrainHeight = 0      # terrain height
-terrainLength = 100.0  # size in X direction
-terrainWidth = 100.0   # size in Y direction
+terrainHeight = 0
+terrainLength = 100.0
+terrainWidth = 100.0
+terrainHeightMap = chrono.GetChronoDataFile("terrain/heightmaps/heightmap_20x20.bmp")
 
 # Poon chassis tracked by the camera
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
@@ -37,10 +38,10 @@ step_size = 1e-3
 tire_step_size = step_size
 
 # Time interval between two render frames
-render_step_size = 1.0 / 50  # FPS = 50
+render_step_size = 1.0 / 50
 
 # Create the MAN vehicle, set parameters, and initialize
-vehicle = veh.MAN_5t()  # Changed from MAN_10t to MAN_5t
+vehicle = veh.MAN_5t()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
@@ -60,9 +61,9 @@ vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 # Create the terrain
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-terrain.SetHeightMap(chrono.GetChronoDataFile("terrain/textures/heightmap.png"), 0, 0, terrainLength, terrainWidth)
-terrain.SetTexture(chrono.GetChronoDataFile("terrain/textures/grass.jpg"), 200, 200)
-terrain.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+terrain.LoadHeightMap(terrainHeightMap)
+terrain.SetContactMethod(contact_method)
+terrain.SetContactVis(contact_vis)
 terrain.Initialize()
 
 # Create the vehicle Irrlicht interface
@@ -80,9 +81,9 @@ vis.AttachVehicle(vehicle.GetVehicle())
 driver = veh.ChInteractiveDriverIRR(vis)
 
 # Set the time response for steering and throttle keyboard inputs.
-steering_time = 1.0  # time to go from 0 to +1 (or from 0 to -1)
-throttle_time = 1.0  # time to go from 0 to +1
-braking_time = 0.3   # time to go from 0 to +1
+steering_time = 1.0
+throttle_time = 1.0
+braking_time = 0.3
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
@@ -102,12 +103,14 @@ render_frame = 0
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
+
     # Render scene and output POV-Ray data
-    if (step_number % render_steps == 0):
+    if step_number % render_steps == 0:
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
         render_frame += 1
+
     # Get driver inputs
     driver_inputs = driver.GetInputs()
 

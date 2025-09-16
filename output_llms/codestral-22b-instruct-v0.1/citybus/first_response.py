@@ -1,43 +1,56 @@
-# Import necessary modules
 import pychrono as chrono
 import pychrono.irrlicht as irr
+import pychrono.vehicle as veh
+import os
 
-# Initialize Chrono and Irrlicht
-chrono.SetChronoDataPath('PATH_TO_CHRONO_DATA')
+# 1. Initialize the PyChrono environment and core components
+chrono.SetChronoDataPath(os.path.dirname(chrono.__file__) + '/data/')
 my_system = chrono.ChSystemNSC()
 my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
-# Create the vehicle
-vehicle = chrono.CityBus()
-vehicle.Initialize(my_system, 'vehicle')
-vehicle.SetPos(chrono.ChVectorD(0, 0.5, 0))
-vehicle.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
+# 2. Add the required physical systems and objects
+# Create the CityBus vehicle
+city_bus = veh.CityBus()
+city_bus.Initialize(my_system)
+city_bus.SetChassisPos(chrono.ChCoordsysD(chrono.ChVectorD(0, 0.2, 0)))
+city_bus.SetChassisFixed(False)
+city_bus.SetTireType(veh.TireModelType_TMEASY)
+city_bus.SetTireStepSize(0.05)
 
-# Set up the tires
-vehicle.SetTireType(chrono.TireModelType_TMEASY)
+# Set visualization types
+city_bus.SetChassisVisualizationType(veh.VisualizationType_MESH)
+city_bus.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
+city_bus.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
+city_bus.SetWheelVisualizationType(veh.VisualizationType_MESH)
 
 # Create the terrain
-terrain = chrono.ChBoxShape(20, 1, 20)
-terrain_body = chrono.ChBodyEasyBox(20, 1, 20, 1000, True, True)
-terrain_body.SetPos(chrono.ChVectorD(0, -0.5, 0))
-my_system.Add(terrain_body)
+terrain = veh.RigidTerrain(city_bus.GetSystem())
+terrain.SetTexture(chrono.GetChronoDataFile("terrain/textures/tile4.jpg"))
+terrain.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0)), chrono.ChVectorD(0, 0, 0), 50, 50, 1, 1)
 
-# Set up the visualization
-app = irr.ChIrrApp(my_system, 'CityBus on Rigid Terrain', irr.dimension2du(1024, 768))
-app.AddTypicalLogo()
-app.AddTypicalSky()
-app.AddTypicalCamera(irr.vector3df(0, 3, -6))
+# Create the driver system
+driver = veh.ChDriver(city_bus.GetVehicle())
+driver.SetSteeringControllerType(veh.SteeringControllerType_PID)
+driver.SetSpeedControllerType(veh.SpeedControllerType_PID)
+driver.Initialize()
+
+# 3. Set necessary default parameters
+# Set camera position
+camera = irr.ChCamera(irr.ChVector3df(0, 3, -5))
+camera.SetLookAtPoint(irr.ChVector3df(0, 0, 0))
+
+# Create the Irrlicht application
+app = irr.ChIrrApp(my_system, camera)
 app.AddTypicalLights()
-app.AddShadowAll()
+app.AddSkyBox()
+app.AddLogo()
+app.AddLightWithShadow(irr.ChVector3df(1.5, 5.5, -2.5), irr.ChVector3df(0, 0, 0), 3, 2, 10, 40, 512)
+app.SetTimestep(0.02)
+app.SetTryRealtime(True)
 
-# Set up the driver system
-driver = chrono.ChDriver(vehicle)
-
-# Run the simulation
+# Set the simulation loop
 while app.GetDevice().run():
     app.BeginScene()
     app.DrawAll()
     app.DoStep()
-    driver.Synchronize(my_system)
-    my_system.DoStepDynamics(0.02)
     app.EndScene()

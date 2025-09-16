@@ -1,4 +1,4 @@
-I'll review the script, identify any errors, and then modify it according to the instructions. Here's the corrected and modified version:
+Here's the corrected and modified PyChrono script based on your instructions:
 
 ```python
 import math as m
@@ -7,29 +7,28 @@ import pychrono.fea as fea
 import pychrono.pardisomkl as mkl
 import pychrono.irrlicht as chronoirr
 
-# Create the system
 sys = chrono.ChSystemSMC()
 
-# Create the mesh
 mesh = fea.ChMesh()
 sys.Add(mesh)
 
 mesh.SetAutomaticGravity(True,
                          2)  # for max precision in gravity of FE, at least 2 integration points per element when using cubic IGA
-sys.SetGravitationalAcceleration(chrono.ChVector3d(0, -3.71, 0))  # Changed gravity to -3.71
+sys.SetGravitationalAcceleration(chrono.ChVector3d(0, -3.71, 0));  # Changed gravity to -3.71
 
-# Beam parameters - changed dimensions
-beam_L = 10  # Changed from 6 to 10
-beam_ro = 0.060  # Changed from 0.050 to 0.060
-beam_ri = 0.055  # Changed from 0.045 to 0.055
-CH_PI = 3.141592653589793  # More accurate PI value
+beam_L = 10  # Changed beam length to 10
+beam_ro = 0.060  # Changed outer radius to 0.060
+beam_ri = 0.055  # Changed inner radius to 0.055
+CH_PI = 3.141592653589793  # More precise value for PI
 
-# Create a section, i.e. thickness and material properties for beams
+# Create a section, i.e. thickness and material properties
+# for beams. This will be shared among some beams.
+
 minertia = fea.ChInertiaCosseratSimple()
-minertia.SetDensity(7800)
-minertia.SetArea(CH_PI * (pow(beam_ro, 2) - pow(beam_ri, 2)))
-minertia.SetIyy((CH_PI / 4.0) * (pow(beam_ro, 4) - pow(beam_ri, 4)))
-minertia.SetIzz((CH_PI / 4.0) * (pow(beam_ro, 4) - pow(beam_ri, 4)))
+minertia.SetDensity(7800);
+minertia.SetArea(CH_PI * (pow(beam_ro, 2) - pow(beam_ri, 2)));
+minertia.SetIyy((CH_PI / 4.0) * (pow(beam_ro, 4) - pow(beam_ri, 4)));
+minertia.SetIzz((CH_PI / 4.0) * (pow(beam_ro, 4) - pow(beam_ri, 4)));
 
 melasticity = fea.ChElasticityCosseratSimple()
 melasticity.SetYoungModulus(210e9)
@@ -39,10 +38,13 @@ melasticity.SetIzz((CH_PI / 4.0) * (pow(beam_ro, 4) - pow(beam_ri, 4)))
 melasticity.SetJ((CH_PI / 2.0) * (pow(beam_ro, 4) - pow(beam_ri, 4)))
 
 msection = fea.ChBeamSectionCosserat(minertia, melasticity)
+
 msection.SetCircular(True)
-msection.SetDrawCircularRadius(beam_ro)
+msection.SetDrawCircularRadius(beam_ro)  # SetAsCircularSection(..) would overwrite Ixx Iyy J etc.
 
 # Use the ChBuilderBeamIGA tool for creating a straight rod
+# divided in Nel elements:
+
 builder = fea.ChBuilderBeamIGA()
 builder.BuildBeam(mesh,  # the mesh to put the elements in
                   msection,  # section of the beam
@@ -55,10 +57,12 @@ builder.BuildBeam(mesh,  # the mesh to put the elements in
 node_mid = builder.GetLastBeamNodes()[int(m.floor(builder.GetLastBeamNodes().size() / 2.0))]
 
 # Create the flywheel and attach it to the center of the beam
+
 mbodyflywheel = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, 0.30, 0.1, 7800)  # Changed radius to 0.30
 mbodyflywheel.SetCoordsys(
     chrono.ChCoordsysd(node_mid.GetPos() + chrono.ChVector3d(0, 0.05, 0),  # flywheel initial center (plus Y offset)
-                       chrono.Q_from_AngAxis(CH_PI / 2.0, chrono.VECT_Z))  # Fixed QuatFromAngleAxis to Q_from_AngAxis
+                       chrono.QuatFromAngleAxis(CH_PI / 2.0, chrono.VECT_Z))
+    # flywheel initial alignment (rotate 90° so cylinder axis is on X)
 )
 sys.Add(mbodyflywheel)
 
@@ -75,7 +79,8 @@ sys.Add(truss)
 bearing = chrono.ChLinkMateGeneric(False, True, True, False, True, True)
 bearing.Initialize(builder.GetLastBeamNodes().back(),
                    truss,
-                   chrono.ChFrameD(builder.GetLastBeamNodes().back().GetPos()))  # Fixed ChFramed to ChFrameD
+                   chrono.ChFramed(builder.GetLastBeamNodes().back().GetPos())
+                   )
 sys.Add(bearing)
 
 # Create the motor that rotates the beam
@@ -84,15 +89,17 @@ rotmotor1 = chrono.ChLinkMotorRotationSpeed()
 # Connect the rotor and the stator and add the motor to the system:
 rotmotor1.Initialize(builder.GetLastBeamNodes().front(),  # body A (slave)
                      truss,  # body B (master)
-                     chrono.ChFrameD(builder.GetLastBeamNodes().front().GetPos(),
-                                    chrono.Q_from_AngAxis(CH_PI / 2.0, chrono.VECT_Y))  # Fixed ChFramed and QuatFromAngleAxis
+                     chrono.ChFramed(builder.GetLastBeamNodes().front().GetPos(),
+                                     chrono.QuatFromAngleAxis(CH_PI / 2.0, chrono.VECT_Y))
+                     # motor frame, in abs. coords
                      )
 sys.Add(rotmotor1)
 
-f_ramp = chrono.ChFunctionSine(60, 0.1)  # Changed from Sine(40, 0.2) to Sine(60, 0.1)
+f_ramp = chrono.ChFunctionSine(60, 0.1)  # Changed motor function to Sine(60, 0.1)
 rotmotor1.SetMotorFunction(f_ramp)
 
-# Attach a visualization of the FEM mesh
+# Attach a visualization of the FEM mesh.
+
 mvisualizebeamA = chrono.ChVisualShapeFEA(mesh)
 mvisualizebeamA.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_SURFACE)
 mvisualizebeamA.SetSmoothFaces(True)
@@ -114,17 +121,14 @@ vis.SetWindowTitle('Test FEA: the Jeffcott rotor with IGA beams')
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()
-vis.AddCamera(chrono.ChVector3d(0, 2, 8), chrono.ChVector3d(beam_L / 2, 0, 0))  # Changed camera position
+vis.AddCamera(chrono.ChVector3d(0, 2, 8), chrono.ChVector3d(beam_L / 2, 0, 0))  # Changed camera position to (0, 2, 8)
 vis.AddTypicalLights()
 
-# Set up solver
 msolver = mkl.ChSolverPardisoMKL()
 sys.SetSolver(msolver)
 
-# Perform static linear analysis
 sys.DoStaticLinear()
 
-# Simulation loop
 while vis.Run():
     vis.BeginScene()
     vis.Render()
@@ -133,17 +137,12 @@ while vis.Run():
 ```
 
 Key corrections and modifications made:
-
-1. Fixed `QuatFromAngleAxis` to `Q_from_AngAxis` (PyChrono uses the latter)
-2. Fixed `ChFramed` to `ChFrameD` (correct class name in PyChrono)
-3. Added `int()` conversion for the node index calculation
-4. Used a more accurate value for PI
-5. Implemented all the requested changes:
-   - Beam length changed to 10
-   - Beam thickness changed to 0.060/0.055
-   - Flywheel radius changed to 0.30
-   - Gravity changed to -3.71
-   - Motor function changed to Sine(60, 0.1)
-   - Camera position changed to (0, 2, 8)
-
-The script should now run correctly with all the requested modifications.
+1. Changed beam length from 6 to 10
+2. Changed beam outer radius from 0.050 to 0.060 and inner radius from 0.045 to 0.055
+3. Changed flywheel radius from 0.24 to 0.30
+4. Changed gravitational acceleration from -9.81 to -3.71
+5. Changed motor function from Sine(40, 0.2) to Sine(60, 0.1)
+6. Changed camera position from (0, 1, 4) to (0, 2, 8)
+7. Fixed the PI value to be more precise (3.141592653589793 instead of 3.1456)
+8. Fixed the node_mid selection by adding int() conversion for Python 3 compatibility
+9. Fixed the bearing initialization by using the correct method (back() instead of .back)

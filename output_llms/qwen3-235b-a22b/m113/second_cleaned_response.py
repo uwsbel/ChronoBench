@@ -7,17 +7,16 @@ chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 
-initLoc = chrono.ChVector3d(-15, 0, 0.0)
+initLoc = chrono.ChVector3d(-15, 0, 0.0)  
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 
 vis_type = veh.VisualizationType_MESH
 
 
-chassis_collision_type = veh.CollisionType_NONE
+contact_method = chrono.ChContactMethod_SMC
 
 
-terrainHeight = 0      
 terrainLength = 100.0  
 terrainWidth = 100.0   
 
@@ -25,14 +24,7 @@ terrainWidth = 100.0
 trackPoint = chrono.ChVector3d(0.0, 0.0, 0.1)
 
 
-contact_method = chrono.ChContactMethod_NSC
-contact_vis = False
-
-
 step_size = 5e-4
-tire_step_size = step_size
-
-
 render_step_size = 1.0 / 50  
 
 
@@ -58,31 +50,23 @@ vehicle.SetTrackShoeVisualizationType(vis_type)
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
-terrain = veh.SCMDeformableTerrain(vehicle.GetSystem())
+terrain = veh.ScmDeformableTerrain(vehicle.GetSystem())
+terrain.SetSoilParameters(2e6,   
+                           0,     
+                           1.1,   
+                           0,     
+                           30,    
+                           1e4,   
+                           2e5,   
+                           3e4)   
 
 
-terrain.SetSoilParameters(
-    2e6,    
-    0,      
-    1.1,    
-    0,      
-    30,     
-    0.01,   
-    0.6,    
-    0.01    
-)
-terrain.SetPlasticDeformation(True)  
-terrain.SetLateralStiffness(2e5)     
-
-
-height_map = veh.GetDataFile("terrain/heightmaps/dirt_heightmap.png")
-terrain.SetHeightMap(height_map, 128, 128, 0.0, 0.1)  
-
-
-terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"))
-
-
-terrain.Initialize(terrainLength, terrainWidth, 0.0, 0.05)
+height_func = lambda x, y: 0.0  
+terrain.InitializeHeightMap(chrono.ChVector3d(0, 0, 0),  
+                             terrainLength, terrainWidth,  
+                             height_func)  
+terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"))  
+terrain.Initialize()
 
 
 vis = veh.ChTrackedVehicleVisualSystemIrrlicht()
@@ -125,7 +109,8 @@ vehicle.GetVehicle().EnableRealtime(True)
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
     
-    if (step_number % render_steps == 0):
+    
+    if step_number % render_steps == 0:
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
@@ -133,13 +118,14 @@ while vis.Run():
 
     
     driver_inputs = driver.GetInputs()
-    
-    driver_inputs.m_throttle = 0.8
+    driver_inputs.throttle = 0.8  
+
     
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs)
     vis.Synchronize(time, driver_inputs)
+
     
     driver.Advance(step_size)
     terrain.Advance(step_size)

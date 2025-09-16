@@ -57,6 +57,7 @@ bearing.Initialize(builder.GetLastBeamNodes().back(), truss, chrono.ChFramed(bui
 sys.Add(bearing)
 
 rotmotor1 = chrono.ChLinkMotorRotationSpeed()
+
 rotmotor1.Initialize(builder.GetLastBeamNodes().front(), truss, chrono.ChFramed(builder.GetLastBeamNodes().front().GetPos(), chrono.QuatFromAngleAxis(CH_PI / 2.0, chrono.VECT_Y)))
 sys.Add(rotmotor1)
 

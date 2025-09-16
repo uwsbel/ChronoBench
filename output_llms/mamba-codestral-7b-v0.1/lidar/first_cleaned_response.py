@@ -1,35 +1,31 @@
 import pychrono
+import pychrono.irrlicht
 
 
 system = pychrono.ChSystemSMC()
 
 
-mesh = pychrono.ChTriangleMeshConnected()
-mesh.LoadWavefrontMesh(pychrono.GetChronoDataFile("mesh.obj"))
-mesh.WeldVertices(0.0001)
-mesh.RepairDuplicateVertexFaces(0.0001)
-mesh.RemoveDuplicateFaces(0.0001)
+mesh_body = pychrono.ChBodyEasyMesh("triangular_mesh.obj", 1.0, True, True)
+mesh_body.SetBodyFixed(True)
+system.Add(mesh_body)
 
 
-body = pychrono.ChBody()
-body.SetBodyFixed(True)
-body.GetCollisionModel().Clear()
-body.GetCollisionModel().AddTriangleMesh(mesh, False, False)
-body.GetCollisionModel().Build()
-body.SetCollide(True)
-system.Add(body)
+lidar_sensor = pychrono.ChLidarSensor()
+lidar_sensor.SetParent(mesh_body)
+lidar_sensor.SetPos(pychrono.ChVectorD(0, 0, 0))
+lidar_sensor.SetRot(pychrono.ChQuaternionD(0, 0, 0))
+lidar_sensor.SetAperture(90, 45)
+lidar_sensor.SetResolution(360, 180)
+lidar_sensor.SetNoise(0.01)
+system.AddSensor(lidar_sensor)
 
 
-lidar = pychrono.ChLidar()
-lidar.SetParent(body)
-lidar.SetPos(pychrono.ChVectorD(0, 0, 0))  
-lidar.SetDir(pychrono.ChVectorD(0, 0, -1))  
-lidar.SetAperture(60 * pychrono.CH_C_DEG_TO_RAD)  
-lidar.SetResolution(100)  
-system.AddSensor(lidar)
+simulation_time = 10.0
+time_step = 0.01
+while system.GetChTime() < simulation_time:
+    system.DoStepDynamics(time_step)
+    lidar_sensor.SetPos(pychrono.ChVectorD(5 * pychrono.sin(system.GetChTime()), 0, 5 * pychrono.cos(system.GetChTime())))
 
-
-for i in range(1000):
-    system.DoStepDynamics(0.01)
-    lidar.SetPos(pychrono.ChVectorD(5 * pychrono.sin(i * 0.01), 0, 5 * pychrono.cos(i * 0.01)))  
-    print(lidar.GetBufferData())
+    
+    lidar_data = lidar_sensor.GetData()
+    print(lidar_data)

@@ -5,50 +5,36 @@ system = pychrono.ChSystemSMC()
 
 
 
-particle_system = pychrono.ChParticleSystem()
-system.AddSystem(particle_system)
 
 
-
-system.Set_G_acc(pychrono.ChVectorD(0, 0, -9.81))
-
-
-
-def particle_emitter():
-    
-    particle = pychrono.ChParticle()
-    particle.SetPos(pychrono.ChVectorD(...))  
-    particle.SetVel(pychrono.ChVectorD(...))  
-    particle.SetRot(pychrono.ChQuaternionD(...))  
-    particle.SetShape(pychrono.ChShapeSphere(...))  
-    particle_system.AddParticle(particle)
+particle_emitter = pychrono.ChParticleEmitter()
+system.Add(particle_emitter)
 
 
+irrlicht_visualization = pychrono.ChIrrApp(system, "Particle Attraction Simulation", pychrono.dimension2du(800, 600))
+irrlicht_visualization.AddTypicalLogo()
+irrlicht_visualization.AddTypicalSky()
+irrlicht_visualization.AddTypicalCamera(pychrono.vec3(0, 3, -6), pychrono.vec3(0, 0, 0))
 
-def visualize_simulation():
-    
-    ...
 
-    
-    ...
+class GravitationalForce(pychrono.ChForce):
+    def __init__(self, particle1, particle2):
+        pychrono.ChForce.__init__(self)
+        self.particle1 = particle1
+        self.particle2 = particle2
 
-    
-    def custom_gravitational_force(particle):
+    def UpdateForces(self, t):
         
-        ...
-        particle.SetForce(force)
-
-    
-    while system.GetChTime() < simulation_time:
+        force = pychrono.ChVectorD(0, 0, 0)
         
-        system.DoStepDynamics(stepsize)
-
-        
-        for particle in particle_system.GetParticlesList():
-            custom_gravitational_force(particle)
-
-        
-        ...
+        self.particle1.GetAppliedForce().Set(force)
+        self.particle2.GetAppliedForce().Set(force)
 
 
-visualize_simulation()
+gravitational_force = GravitationalForce(particle1, particle2)
+system.AddForce(gravitational_force)
+
+
+irrlicht_visualization.SetTimestep(0.01)
+irrlicht_visualization.SetTryRealtime(True)
+irrlicht_visualization.Run()

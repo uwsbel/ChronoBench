@@ -49,7 +49,6 @@ vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
-
 vehicle.Initialize()
 
 vehicle.SetChassisVisualizationType(vis_type)
@@ -62,11 +61,10 @@ vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 # Create the rigid terrain patch
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-
-# Initialize the rigid terrain (length, width, height, texture)
 terrain.Initialize(veh.GetDataFile("terrain/height_maps/bump64.bmp"),
-                   veh.GetDataFile("terrain/textures/dirt.jpg"),
-                   terrainLength, terrainWidth, terrainHeight)
+                   chrono.ChCoordsysd(chrono.ChVector3d(0, 0, terrainHeight), chrono.Q_from_AngAxis(0, chrono.ChVector3d(0, 1, 0))),
+                   terrainLength, terrainWidth)
+terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
 
 # Create the vehicle Irrlicht interface
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()

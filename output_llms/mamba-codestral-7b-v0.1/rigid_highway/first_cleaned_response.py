@@ -1,45 +1,60 @@
 import pychrono
 
 
-system = pychrono.ChSystemSMC()
+pychrono.StartFileLog("hmmwv_simulation.txt", False)
 
 
-terrain = pychrono.ChTerrain(system)
-terrain.LoadMesh("Highway_col.obj", "Highway_vis.obj")
+vehicle_system = pychrono.ChVehicleSystem()
 
-vehicle = pychrono.ChVehicle(system)
-vehicle.SetChassisCollisionType(pychrono.ChCollisionModel.ChCollisionModelType.CHRONO_IRR_TRIMESH)
-vehicle.SetContactMethod(pychrono.ChContactMethod.NSC)
-vehicle.SetTireModel(pychrono.ChTireModelType.TMEASY)
+
+vehicle = pychrono.ChWheeledVehicle()
+vehicle_system.AddVehicle(vehicle)
+
+
 vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(pychrono.ChVectorD(0, 0, 0))
-vehicle.SetInitOrientation(pychrono.ChQuaternionD(1, 0, 0, 0))
+vehicle.SetInitForwardVelocity(pychrono.ChVectorD(0, 0, 0))
+vehicle.SetInitForwardAcceleration(pychrono.ChVectorD(0, 0, 0))
+vehicle.SetContactMethod(pychrono.ChContactMethod.NSC)
+vehicle.SetTireType(pychrono.TireModelType.TMEASY)
 
 
-vehicle.SetSteeringValue(0)
-vehicle.SetThrottle(0)
-vehicle.SetBrake(0)
+vehicle.SetChassisMesh("hmmwv_chassis.obj")
+vehicle.SetWheelMesh("hmmwv_wheel.obj")
 
 
-visualization = pychrono.ChIrrApp(system, "HMMWV Simulation", pychrono.dimension2du(800, 600))
-visualization.SetSymbolscale(0.001)
-visualization.SetRenderMode(pychrono.ChIrrWizard.RENDER_SHADES)
-visualization.AddTypology(pychrono.ChIrrWizard.ChTypologyVehicle(vehicle, 1000, True))
-visualization.AddCamera(pychrono.ChVectorD(0, 3, -4), pychrono.ChVectorD(0, 0, 0))
-visualization.AssetBindAll()
-visualization.AssetUpdateAll()
+terrain_system = pychrono.ChTerrainSystem()
 
 
-terrain.SetContactMethod(pychrono.ChContactMethod.NSC)
-terrain.SetCollisionEnvelope(0.01)
+terrain = pychrono.ChTerrainCustom()
+terrain_system.AddTerrain(terrain)
 
 
-driver = pychrono.ChIrrVehicleUser(vehicle, visualization)
+terrain.SetCollisionMeshFile("Hill_col.obj")
+terrain.SetVisualizationMeshFile("Hill_vis.obj")
 
 
-system.SetTimestep(1.0 / 50.0)
-while system.GetChTime() < 10.0:
-    system.DoStepDynamics(system.GetTimestep())
-    visualization.BeginScene()
-    visualization.Render()
-    visualization.EndScene()
+driver_system = pychrono.ChIrrlichtDriverSystem()
+
+
+driver = pychrono.ChIrrlichtDriver()
+driver_system.AddDriver(driver)
+
+
+driver.SetSteering(0)
+driver.SetThrottle(0)
+driver.SetBraking(0)
+
+
+pychrono.SetTimestep(0.02)
+
+
+while pychrono.GetChronoTime() < 10:
+    
+    vehicle_system.DoStepDynamics(pychrono.GetChronoTime())
+
+    
+    driver_system.Render()
+
+
+pychrono.StopFileLog()

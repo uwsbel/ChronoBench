@@ -1,182 +1,136 @@
-Here is a well-documented PyChrono simulation script that fulfills the specified requirements. It initializes the Chrono system, creates a moving ground body with attached sensors, visualizes the scene using Irrlicht, and integrates with ROS for sensor data publication. The simulation loop ensures real-time execution and updates all components accordingly.
 
----
-
-### ✅ **Key Features Implemented**
-- **Chrono System Initialization**
-- **Moving Ground Body** (rotating using a motor)
-- **Mesh Visualization** (using a box shape for simplicity)
-- **Sensor Integration** (camera, lidar, GPS, IMU)
-- **ROS Communication** (data published to specific topics)
-- **Real-Time Simulation Loop**
-
----
-
-### 🧠 **Assumptions**
-- The ground body is a dynamic body that rotates continuously using a `ChLinkMotorRotationSpeed`.
-- A box shape is used as a placeholder for a mesh (can be replaced with a `.obj` file).
-- ROS topics are set up with appropriate handlers for each sensor type.
-- The simulation runs in real-time using `ChRealtimeStepTimer`.
-
----
-
-### 🧾 **Python Script**
 
 ```python
 import pychrono as chrono
-import pychrono.irrlicht as irrlicht
-import pychrono.sensor as sensor
-import pychrono.ros as ros
+import pychrono.sensor as sens
+import pychrono.ros as chros
 import math
 
-# Initialize Chrono system
+# Initialize the Chrono system
 system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+system.SetGravity(chrono.ChVector3d(0, 0, -9.81))
 
-# Create a dynamic ground body
+# Create the ground body and add it to the system
 ground = chrono.ChBody()
+ground.SetPos(chrono.ChVector3d(0, 0, 0))
 ground.SetBodyFixed(False)
 ground.SetMass(1000)
-ground.SetInertiaXX(chrono.ChVectorD(100, 100, 100))
+ground.SetInertiaXX(chrono.ChVector3d(1e3, 1e3, 1e3))
+ground.SetLinearVel(chrono.ChVector3d(1, 0, 0))  # Initial velocity in x-direction
 system.Add(ground)
 
-# Attach a rotating motor to the ground body (rotates around Y-axis)
-motor = chrono.ChLinkMotorRotationSpeed()
-motor.Initialize(ground, system.GetGround(), chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)))
-speed_function = chrono.ChFunction_Const(chrono.CH_C_PI)  # 180 degrees per second
-motor.SetSpeedFunction(speed_function)
-system.AddLink(motor)
+# Add a visual shape to the ground (a large box)
+ground_shape = chrono.ChBox(chrono.ChVector3d(5, 5, 0.05))  # 10x10x0.1
+ground.AddVisualShape(ground_shape, chrono.ChFramed())
 
-# Add a box shape as a placeholder for a mesh
-mesh = chrono.ChBoxShape()
-mesh.GetBoxGeometry().Size = chrono.ChVectorD(5, 0.5, 5)
-ground.AddAsset(mesh)
+# Create the sensor manager
+manager = sens.ChSensorManager(system)
 
-# Add color for visualization
-color = chrono.ChColorAsset()
-color.SetColor(chrono.ChColor(0.2, 0.8, 0.2))  # Green
-ground.AddAsset(color)
-
-# Initialize Irrlicht visualization
-application = irrlicht.ChIrrApp(system, 'PyChrono Sensor Simulation', irrlicht.dimension2du(1024, 768))
-application.AddTypicalLights()
-application.AddCamera(chrono.ChVectorD(0, 5, -10), chrono.ChVectorD(0, 0, 0))
-application.AssetBindAll()
-application.AssetUpdateAll()
-
-# Initialize sensor manager
-manager = sensor.ChSensorManager(system)
-
-# Add camera sensor
-camera = sensor.ChCameraSensor(
+# Add sensors to the ground body
+# Camera sensor
+camera = sens.ChCameraSensor(
     ground,
-    60,  # update rate (Hz)
-    chrono.ChFrameD(chrono.ChVectorD(0, 1.5, 0), chrono.Q_from_AngAxis(math.pi / 4, chrono.ChVectorD(0, 1, 0))),
-    1280,  # width
-    720,   # height
-    60     # horizontal FOV (degrees)
+    30,  # Update rate in Hz
+    chrono.ChFrameD(chrono.ChVector3d(0, 1, 0.5), chrono.Q_from_AngAxis(math.pi/2, chrono.ChVector3d(0, 1, 0))),
+    1280,  # Image width
+    720,   # Image height
+    math.radians(60)  # Horizontal FOV
 )
 camera.SetName("camera")
 manager.AddSensor(camera)
 
-# Add lidar sensor
-lidar = sensor.ChLidarSensor(
+# Lidar sensor
+lidar = sens.ChLidarSensor(
     ground,
-    10,  # update rate
-    chrono.ChFrameD(chrono.ChVectorD(0, 2, 0)),
-    360,  # horizontal samples
-    1,    # vertical samples
-    math.pi * 2,  # horizontal FOV
-    math.pi / 180 * 30,  # vertical FOV
-    100  # max distance
+    10,  # Update rate
+    chrono.ChFrameD(chrono.ChVector3d(0, 0.5, 0.3)),
+    1,  # Horizontal samples
+    1,  # Vertical samples
+    math.radians(360),  # Horizontal FOV
+    math.radians(40),   # Vertical FOV
+    100  # Max distance
 )
 lidar.SetName("lidar")
 manager.AddSensor(lidar)
 
-# Add GPS sensor
-gps = sensor.ChGPSSensor(
+# GPS sensor
+gps = sens.ChGPSSensor(
     ground,
-    10,  # update rate
-    chrono.ChFrameD(chrono.ChVectorD(0, 2.5, 0)),
-    chrono.ChVectorD(37.7749, -122.4194, 0),  # San Francisco coordinates
-    0.1  # noise
+    10,  # Update rate
+    chrono.ChFrameD(chrono.ChVector3d(0, 0, 1)),  # Sensor position
+    chrono.ChVector3d(0, 0, 0)  # Reference GPS coordinates
 )
 gps.SetName("gps")
 manager.AddSensor(gps)
 
-# Add accelerometer
-accel = sensor.ChAccelerometerSensor(
+# Accelerometer sensor
+accel = sens.ChAccelerometerSensor(
     ground,
-    100,  # update rate
-    chrono.ChFrameD(chrono.ChVectorD(0, 0.5, 0))
+    100,  # Update rate
+    chrono.ChFrameD(chrono.ChVector3d(0, 0, 0.5))  # Sensor position
 )
 accel.SetName("accelerometer")
 manager.AddSensor(accel)
 
-# Add gyroscope
-gyro = sensor.ChGyroscopeSensor(
+# Gyroscope sensor
+gyro = sens.ChGyroscopeSensor(
     ground,
-    100,  # update rate
-    chrono.ChFrameD(chrono.ChVectorD(0, 0.5, 0))
+    100,  # Update rate
+    chrono.ChFrameD(chrono.ChVector3d(0, 0, 0.5))  # Sensor position
 )
 gyro.SetName("gyroscope")
 manager.AddSensor(gyro)
 
-# Add magnetometer
-magnet = sensor.ChMagnetometerSensor(
+# Magnetometer sensor
+mag = sens.ChMagnetometerSensor(
     ground,
-    10,  # update rate
-    chrono.ChFrameD(chrono.ChVectorD(0, 0.5, 0)),
-    chrono.ChVectorD(0.2, 0.0, 0.0)  # default magnetic field
+    10,  # Update rate
+    chrono.ChFrameD(chrono.ChVector3d(0, 0, 0.5))  # Sensor position
 )
-magnet.SetName("magnetometer")
-manager.AddSensor(magnet)
+mag.SetName("magnetometer")
+manager.AddSensor(mag)
 
-# Initialize ROS manager
-ros_manager = ros.ChROSManager()
-ros_manager.Initialize()
+# Create and configure the ROS publisher manager
+ros_publisher = chros.ChROSPublisherManager()
 
-# Register sensors with ROS topics
-ros_manager.AddHandler(ros.ChROSCameraHandler(camera, "/sensor/camera"))
-ros_manager.AddHandler(ros.ChROSLidarHandler(lidar, "/sensor/lidar"))
-ros_manager.AddHandler(ros.ChROSGPSHandler(gps, "/sensor/gps"))
-ros_manager.AddHandler(ros.ChROSIMUHandler(accel, gyro, magnet, "/sensor/imu"))
+# Create individual ROS publishers for each sensor
+camera_pub = chros.ChROSPublisherCamera(camera, "/chrono/camera/image")
+lidar_pub = chros.ChROSPublisherLidar(lidar, "/chrono/lidar/scan")
+gps_pub = chros.ChROSPublisherGPS(gps, "/chrono/gps/data")
+accel_pub = chros.ChROSPublisherAccelerometer(accel, "/chrono/imu/accel")
+gyro_pub = chros.ChROSPublisherGyroscope(gyro, "/chrono/imu/gyro")
+mag_pub = chros.ChROSPublisherMagnetometer(mag, "/chrono/imu/mag")
 
-# Simulation loop
-step_size = 1e-3  # 1 ms
-timer = chrono.ChRealtimeStepTimer()
+# Add publishers to the ROS manager
+ros_publisher.AddPublisher(camera_pub)
+ros_publisher.AddPublisher(lidar_pub)
+ros_publisher.AddPublisher(gps_pub)
+ros_publisher.AddPublisher(accel_pub)
+ros_publisher.AddPublisher(gyro_pub)
+ros_publisher.AddPublisher(mag_pub)
 
-application.SetTimestep(step_size)
+# Initialize the ROS publisher manager
+ros_publisher.Initialize(system, manager)
 
-while application.GetDevice().run():
-    time = system.GetChTime()
+# Simulation loop setup
+step_size = 1e-3  # 1 ms step size
+sim_duration = 10  # Simulate for 10 seconds
+rt_timer = chrono.ChRealtimeStepTimer()
 
-    # Update sensors
-    manager.Update()
+# Start the simulation loop
+time = 0
+while time < sim_duration:
+    # Get current simulation time
+    current_time = system.GetChTime()
 
-    # Update ROS communication
-    ros_manager.Update()
-
-    # Advance simulation
+    # Advance the simulation dynamics
     system.DoStepDynamics(step_size)
+    time += step_size
 
-    # Maintain real-time
-    timer.Spin(step_size)
+    # Update sensors and ROS publishers
+    manager.Update()
+    ros_publisher.Update(current_time)
 
-    # Update visualization
-    application.BeginScene()
-    application.DrawAll()
-    application.EndScene()
+    # Maintain real-time execution
+    rt_timer.Spin(step_size)
 ```
-
----
-
-### 📌 **Notes**
-- **Mesh Replacement**: Replace the `ChBoxShape` with a `ChTriangleMeshConnected` and load a `.obj` file if a more complex mesh is desired.
-- **ROS Integration**: Ensure that the ROS environment is properly set up and sourced before running the script.
-- **Sensor Placement**: Adjust sensor positions and orientations as needed for your specific use case.
-- **Real-Time Execution**: The `ChRealtimeStepTimer` ensures the simulation runs in real-time, matching wall-clock time.
-
----
-
-This script provides a complete and modular simulation environment suitable for testing and integrating sensor data in a ROS-based robotics pipeline.

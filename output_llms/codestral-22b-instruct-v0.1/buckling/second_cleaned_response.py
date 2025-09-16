@@ -11,7 +11,7 @@ class ChFunctionMyFun(chrono.ChFunction):
         
         chrono.ChFunction.__init__(self)
 
-    def Get_y(self, x):
+    def GetVal(self, x):
         
         if x > 0.4:
             return chrono.CH_PI
@@ -106,7 +106,7 @@ node_down = builderA.GetLastBeamNodes()[-1]
 
 
 constr_bb = chrono.ChLinkMateGeneric()
-constr_bb.Initialize(node_top, node_tip, False, node_top.Frame(), node_tip.Frame())
+constr_bb.Initialize(node_top, node_tip, False, node_top.Frame(), node_top.Frame())
 sys.Add(constr_bb)
 constr_bb.SetConstrainedCoords(True, True, True, False, False, False)  
 
@@ -132,7 +132,7 @@ node_crankG = builderB.GetLastBeamNodes()[0]
 node_crankB = builderB.GetLastBeamNodes()[-1]
 
 
-constr_cbd = chrono.ChLinkMateGeneric()
+constr_cbd = chrono.ChLinkMotorRotationAngle()
 constr_cbd.Initialize(node_crankG, body_crank, False, node_crankG.Frame(), node_crankG.Frame())
 sys.Add(constr_cbd)
 constr_cbd.SetConstrainedCoords(True, True, True, True, True, True)

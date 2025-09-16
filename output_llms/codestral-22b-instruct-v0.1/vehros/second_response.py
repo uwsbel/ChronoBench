@@ -1,7 +1,7 @@
 import pychrono as ch
 import pychrono.vehicle as veh
 import pychrono.ros as chros
-from pychrono import irrlicht as chronoirr
+import pychrono.irrlicht as chronoirr
 
 def main():
     # Create the HMMWV vehicle and set its parameters.
@@ -17,11 +17,11 @@ def main():
     hmmwv.SetSteeringType(veh.SteeringTypeWV_PITMAN_ARM)  # Use pitman arm steering.
     hmmwv.SetTireType(veh.TireModelType_TMEASY)  # Set tire model.
     hmmwv.SetTireStepSize(1e-3)  # Set the tire simulation step size.
-    hmmwv.SetChassisVisualizationType(veh.VisualizationType_MESH)  # Enhance visualization settings for HMMWV vehicle.
-    hmmwv.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
-    hmmwv.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
-    hmmwv.SetWheelVisualizationType(veh.VisualizationType_MESH)
-    hmmwv.SetTireVisualizationType(veh.VisualizationType_MESH)
+    hmmwv.SetChassisVisualizationType(veh.VisualizationType_MESH)  # Set chassis visualization type.
+    hmmwv.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)  # Set suspension visualization type.
+    hmmwv.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)  # Set steering visualization type.
+    hmmwv.SetWheelVisualizationType(veh.VisualizationType_MESH)  # Set wheel visualization type.
+    hmmwv.SetTireVisualizationType(veh.VisualizationType_MESH)  # Set tire visualization type.
     hmmwv.Initialize()  # Initialize the vehicle.
 
     # Create the terrain for the vehicle to interact with.
@@ -59,13 +59,19 @@ def main():
     app.SetWindowSize(1024, 768)
     app.SetWindowTitle('HMMWV Simulation')
     app.Initialize()
-    app.AddLogo()
-    app.AddSkyBox()
-    app.AddCamera(ch.ChVector3d(0, -10, 5))
+    app.AddCamera(ch.ChVector3d(0, -10, 2), ch.ChVector3d(0, 0, 0))
     app.AddTypicalLights()
+    app.AddSkyBox()
+    app.AddLogo()
+    app.AddLightWithShadow(ch.ChVector3d(20, 20, 20), ch.ChVector3d(0, 0, 0), 30, 100, 100)
 
-    # Render loop setup with rendering steps and frame rendering.
-    while app.Run():
+    # Render loop setup
+    while app.GetDevice().run():
+        app.BeginScene()
+        app.DrawAll()
+        app.DoStep()
+        app.EndScene()
+
         time = hmmwv.GetSystem().GetChTime()  # Update simulation time.
 
         # Get driver inputs and synchronize the vehicle, terrain, and driver systems.
@@ -82,14 +88,6 @@ def main():
         # Update the ROS manager to handle data publishing.
         if not ros_manager.Update(time, time_step):
             break  # Exit loop if ROS manager update fails.
-
-        # Render scene
-        app.BeginScene()
-        app.Render()
-        app.EndScene()
-
-        if time >= time_end:
-            break
 
 if __name__ == "__main__":
     main()

@@ -21,8 +21,7 @@ def main():
     hmmwv.SetWheelVisualizationType(veh.VisualizationType_MESH)
     hmmwv.SetTireVisualizationType(veh.VisualizationType_MESH)
 
-    
-    hmmwv.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_Bullet)
+    hmmwv.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
     
     terrain = veh.RigidTerrain(hmmwv.GetSystem())
@@ -105,11 +104,12 @@ def main():
         hmmwv.Advance(step_size)
         vis.Advance(step_size)
 
+    return 0
+
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 
-step_size = 2e-3
+step_size = 1e-3
 tire_step_size = 1e-3
 
-if __name__ == "__main__":
-    main()
+main()

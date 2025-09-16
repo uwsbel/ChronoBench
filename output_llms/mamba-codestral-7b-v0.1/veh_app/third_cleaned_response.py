@@ -1,5 +1,3 @@
-Here is the corrected and modified PyChrono script based on the provided instructions:
-
 ```python
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
@@ -75,18 +73,6 @@ gator.SetWheelVisualizationType(wheel_vis_type)
 gator.SetTireVisualizationType(tire_vis_type)
 
 
-print("Vehicle mass:   " + str(gator.GetVehicle().GetMass()))
-print("Driveline type: " + gator.GetVehicle().GetDriveline().GetTemplateName())
-print("Brake type:     " + gator.GetVehicle().GetBrake(1, veh.LEFT).GetTemplateName())
-print("Tire type:      " + gator.GetVehicle().GetTire(1, veh.LEFT).GetTemplateName())
-print("\n")
-
-
-gator.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
-
-
-
-
 terrain = veh.RigidTerrain(gator.GetSystem())
 patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
@@ -111,4 +97,18 @@ cylinder.GetVisualModel().GetShape(0).SetTexture(chrono.GetChronoDataFile("textu
 gator.GetSystem().AddBody(cylinder)
 
 
-driver = veh.
+driver = veh.ChDriver(gator.GetVehicle())
+
+
+offset_pose = chrono.ChFramed(chrono.ChVector3d(-5.0, 0, 2), chrono.QuatFromAngleAxis(.2, chrono.ChVector3d(0, 1, 0)))
+depth_cam = sens.ChDepthCameraSensor(
+    gator.GetChassisBody(),
+    update_rate,
+    offset_pose,
+    image_width,
+    image_height,
+    fov,
+    exposure_time
+)
+depth_cam.SetName("Depth Camera")
+depth_cam.PushFilter(sens.ChFilterVisualizeDepthMap(image_width, image_height

@@ -2,48 +2,45 @@ import pychrono as chrono
 import pychrono.irrlicht as chronoirr
 
 
-chrono.SetChronoDataPath('path_to_your_chrono_data_folder')
+chrono.SetChronoDataPath('/path/to/chrono/data/')
 my_system = chrono.ChSystemNSC()
+
+
+ground = chrono.ChBodyEasyBox(20, 1, 20, 1000, True, True)
+ground.SetPos(chrono.ChVectorD(0, -5, 0))
+ground.SetBodyFixed(True)
+my_system.Add(ground)
+
+
+beam = chrono.ChBody()
+beam.SetPos(chrono.ChVectorD(0, 10, 0))
+beam.SetMass(1)
+beam.SetInertiaXX(chrono.ChVectorD(1, 1, 1))
+my_system.Add(beam)
+
+
+num_elements = 10
+for i in range(num_elements):
+    element = chrono.ChLinkANCF()
+    element.Initialize(beam, ground, False, chrono.ChVectorD(0, -10 - i, 0), chrono.ChVectorD(0, -10 - i - 1, 0))
+    my_system.Add(element)
 
 
 my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
 
-beam_length = 1.0
-num_elements = 10
-element_length = beam_length / num_elements
-
-for i in range(num_elements):
-    element = chrono.ChElementCableANCF()
-    element.SetLength(element_length)
-    element.SetDiameter(0.01)
-    element.SetYoungModulus(2e5)
-    element.SetBeamRaleyghDamping(0.001)
-    element.SetBeamSectionAsCircular(0.005)
-    my_system.Add(element)
-
-    if i == 0:
-        
-        node_ground = chrono.ChNodeBodyEasySphere(0.02, 1000, True, True)
-        my_system.Add(node_ground)
-        my_system.Add(chrono.ChLinkLockLock(node_ground, element.GetNodeA()))
-    else:
-        
-        my_system.Add(chrono.ChLinkPointPoint(element.GetNodeA(), previous_element.GetNodeB()))
-
-    previous_element = element
+app = chronoirr.ChIrrApp(my_system, 'Beam deformation', chronoirr.dimension2du(1024, 768))
+app.AddTypicalLogo()
+app.AddTypicalCamera(chronoirr.vector3df(0, 15, -30))
+app.AddTypicalLights()
 
 
-my_application = chronoirr.ChIrrApp(my_system, 'Beam ANCF', chronoirr.dimension2du(1024, 768))
+while app.GetDevice().run():
+    app.BeginScene()
+    app.DrawAll()
+    app.DoStep()
+    app.EndScene()
 
-
-my_application.SetCameraVertical(chrono.CameraVerticalDir.Z)
-my_application.SetCameraPosition(chrono.ChVectorD(0, -2, 0))
-my_application.SetCameraTarget(chrono.ChVectorD(0, 0, 0))
-
-
-while my_application.GetDevice().run():
-    my_application.BeginScene()
-    my_application.DrawAll()
-    my_application.DoStep()
-    my_application.EndScene()
+    
+    for i in range(num_elements + 1):
+        print(f'Node {i}: {beam.GetPos() + chrono.ChVectorD(0, -10 - i, 0)}')

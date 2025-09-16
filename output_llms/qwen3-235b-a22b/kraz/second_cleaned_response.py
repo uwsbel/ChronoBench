@@ -3,13 +3,12 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
-
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 
-initLoc = chrono.ChVector3d(-15, 0, 0.5)
-initRot = chrono.ChQuaterniond(0, 0, 1, 0)  
+initLoc = chrono.ChVector3d(-15, 0, 0.5)  
+initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 
 vis_type = veh.VisualizationType_MESH
@@ -26,10 +25,9 @@ terrainLength = 100.0
 terrainWidth = 100.0   
 
 
-trackPoint = chrono.ChVector3d(3, 0, 2.1)
-
-
+trackPoint = chrono.ChVector3d(3, 0, 2.1)  
 contact_method = chrono.ChContactMethod_NSC
+contact_vis = False
 
 
 step_size = 1e-3
@@ -44,16 +42,13 @@ vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
-vehicle.SetTireType(tire_model)  
-
+vehicle.Initialize()
 
 vehicle.SetChassisVisualizationType(vis_type, vis_type)
 vehicle.SetSteeringVisualizationType(vis_type)
 vehicle.SetSuspensionVisualizationType(vis_type, vis_type)
 vehicle.SetWheelVisualizationType(vis_type, vis_type)
 vehicle.SetTireVisualizationType(vis_type, vis_type)
-
-vehicle.Initialize()
 
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
@@ -65,6 +60,7 @@ terrain = veh.RigidTerrain(vehicle.GetSystem())
 patch = terrain.AddPatch(patch_mat, 
     chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
     terrainLength, terrainWidth)
+
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
@@ -73,7 +69,7 @@ terrain.Initialize()
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('Kraz Demo')
 vis.SetWindowSize(1280, 1024)
-vis.SetChaseCamera(trackPoint, 25.0, 10.5)
+vis.SetChaseCamera(trackPoint, 25.0, 10.5)  
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
@@ -104,9 +100,6 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 
 
-maneuver_start_time = 2.0
-maneuver_duration = 4.0
-
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
@@ -117,26 +110,21 @@ while vis.Run():
         vis.EndScene()
 
     
+    driver.Synchronize(time)
+    terrain.Synchronize(time)
     driver_inputs = driver.GetInputs()
 
     
-    if time >= maneuver_start_time:
-        t_maneuver = time - maneuver_start_time
-        if t_maneuver < 1.0:
-            
-            driver_inputs.m_steering = 0.0
-        elif t_maneuver < 2.5:
-            
-            driver_inputs.m_steering = 0.5 * math.sin((t_maneuver - 1.0) * math.pi / 1.5)
-        elif t_maneuver < 4.0:
-            
-            driver_inputs.m_steering = -0.5 * math.sin((t_maneuver - 2.5) * math.pi / 1.5)
-        else:
-            driver_inputs.m_steering = 0.0
+    if 1.0 <= time < 2.0:
+        driver_inputs.steering = 0.5   
+    elif 2.0 <= time < 3.0:
+        driver_inputs.steering = -0.5  
+    elif 3.0 <= time < 4.0:
+        driver_inputs.steering = 0.5   
+    else:
+        driver_inputs.steering = 0.0   
 
     
-    driver.Synchronize(time)
-    terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
 

@@ -3,7 +3,6 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
-# Set data paths
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
@@ -11,21 +10,21 @@ veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 initLoc = chrono.ChVector3d(0, 0, 0.5)
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
-# Visualization type for vehicle parts
+# Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
 vis_type = veh.VisualizationType_MESH
 
-# Collision type for chassis
+# Collision type for chassis (PRIMITIVES, MESH, or NONE)
 chassis_collision_type = veh.CollisionType_NONE
 
-# Tire model type (changed to RIGID as per instructions)
-tire_model = veh.TireModelType_RIGID
+# Type of tire model (RIGID, TMEASY)
+tire_model = veh.TireModelType_RIGID  # Changed to RIGID
 
-# Terrain parameters
-terrainHeight = 0
-terrainLength = 100.0
-terrainWidth = 100.0
+# Rigid terrain
+terrainHeight = 0      # terrain height
+terrainLength = 100.0  # size in X direction
+terrainWidth = 100.0   # size in Y direction
 
-# Camera tracking point
+# Point tracked by the camera
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
 
 # Contact method
@@ -36,11 +35,11 @@ contact_vis = False
 step_size = 1e-3
 tire_step_size = step_size
 
-# Render frame rate
-render_step_size = 1.0 / 50
+# Time interval between two render frames
+render_step_size = 1.0 / 50  # FPS = 50
 
-# Create vehicle
-vehicle = veh.UAZBUS()
+# Create the UAZBUS vehicle, set parameters, and initialize
+vehicle = veh.UAZBUS() 
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
@@ -49,48 +48,33 @@ vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 vehicle.Initialize()
 
-# Set visualization types
 vehicle.SetChassisVisualizationType(vis_type)
 vehicle.SetSuspensionVisualizationType(vis_type)
 vehicle.SetSteeringVisualizationType(vis_type)
 vehicle.SetWheelVisualizationType(vis_type)
 vehicle.SetTireVisualizationType(vis_type)
 
-# Set collision system
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
-# Create terrain
+# Create the terrain
 patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-patch = terrain.AddPatch(patch_mat,
-    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
+patch = terrain.AddPatch(patch_mat, 
+    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
     terrainLength, terrainWidth)
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
-# Add box obstacle
-box = chrono.ChBody()
-box.SetPos(chrono.ChVector3d(5, 0, 0.1))
-box.SetFixed(True)
-box.SetCollide(True)
+# Add a box obstacle
+box = chrono.ChBodyEasyBox(0.5, 5.0, 0.2, 1000)  # Dimensions and density
+box.SetPos(chrono.ChVector3d(5, 0, 0.1))  # Position
+box.SetBodyFixed(True)  # Fix the box
+vehicle.GetSystem().Add(box)  # Add to the system
 
-# Collision shape for box (0.5, 5, 0.2 dimensions)
-box.GetCollisionModel().ClearModel()
-chrono.ChCollisionModel.AddBox(box, patch_mat, 0.25, 2.5, 0.1, chrono.ChVector3d(0, 0, 0), chrono.ChMatrix33d())
-box.GetCollisionModel().BuildModel()
-
-# Visualization for box
-box_vis = chrono.ChVisualShapeBox(0.5, 5, 0.2)
-box_vis.SetColor(chrono.ChColor(0.4, 0.4, 0.4))
-box.AddVisualShape(box_vis)
-
-# Add box to the system
-vehicle.GetSystem().Add(box)
-
-# Create visualization system
+# Create the vehicle Irrlicht interface
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('UAZBUS Demo')
 vis.SetWindowSize(1280, 1024)
@@ -101,13 +85,13 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
-# Create driver system
+# Create the driver system
 driver = veh.ChInteractiveDriverIRR(vis)
 
-# Set input response times
-steering_time = 1.0
-throttle_time = 1.0
-braking_time = 0.3
+# Set the time response for steering and throttle keyboard inputs.
+steering_time = 1.0  # time to go from 0 to +1 (or from 0 to -1)
+throttle_time = 1.0  # time to go from 0 to +1
+braking_time = 0.3   # time to go from 0 to +1
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
@@ -116,13 +100,14 @@ driver.Initialize()
 # Output vehicle mass
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
-# Simulation loop variables
+# Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
+
+# Initialize simulation frame counter
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-# Simulation loop
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
     
@@ -133,9 +118,9 @@ while vis.Run():
         vis.EndScene()
         render_frame += 1
 
-    # Get and modify driver inputs
+    # Get driver inputs and set constant throttle
     driver_inputs = driver.GetInputs()
-    driver_inputs.m_throttle = 0.5  # Set constant throttle
+    driver_inputs.throttle = 0.5  # Constant throttle value
 
     # Update modules
     driver.Synchronize(time)
@@ -149,6 +134,6 @@ while vis.Run():
     vehicle.Advance(step_size)
     vis.Advance(step_size)
 
-    # Increment step counter
+    # Increment frame number
     step_number += 1
     realtime_timer.Spin(step_size)

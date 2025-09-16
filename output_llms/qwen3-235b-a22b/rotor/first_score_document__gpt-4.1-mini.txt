@@ -4,137 +4,161 @@
 
 ### 1. Completeness (40 points)
 
-- **System Initialization:** Present and correctly done with `chrono.ChSystemNSC()` and gravity set. (No deduction)
-- **Body Creation:** Flywheel and motor bodies are created with mass, inertia, and position. (No deduction)
-- **Mesh and Beam Setup:** The beam mesh is created with `fea.ChMesh()` and built using `fea.ChBuilderBeamIGA()`. Section properties are set comprehensively. (No deduction)
-- **Joints and Links:** The flywheel is linked to the beam node with `fea.ChLinkNodeBody()`. The motor body is linked similarly, and a motor joint is created with `chrono.ChLinkMotorRotationSpeed()`. (No deduction)
-- **Visualization:** Visualization is set up using `irr.ChIrrApp()`, with typical sky, lights, camera, and visual shapes added for the mesh, flywheel, and motor. (No deduction)
-- **Simulation Loop:** Present and correctly structured with rendering and stepping dynamics. (No deduction)
-- **Missing Components:** No essential components appear missing.
+- **System Initialization:** Present and correctly done with `chrono.ChSystemNSC()`.  
+  *No deduction.*
 
-**No deductions here.**
+- **Gravity Setting:** Gravity is set to zero vector with `system.Set_G_acc(chrono.ChVectorD(0, 0, 0))`.  
+  *No deduction.*
+
+- **FEA Mesh and Nodes:** Nodes and mesh are created properly, nodes added to mesh and system, elements created and added to mesh.  
+  *No deduction.*
+
+- **Beam Section:** Section properties are set with Young's modulus, Poisson ratio, density, area, moments of inertia, and torsional constant.  
+  *No deduction.*
+
+- **Bodies:** Flywheel and motor bodies are created with mass, inertia, position, and added to system.  
+  *No deduction.*
+
+- **Joints:**  
+  - `ChLinkMateFix` used to fix flywheel to a node and motor body to a node.  
+  - Motor joint `ChLinkMotorRotationSpeed` initialized between ground and motor body with speed function.  
+  *No deduction.*
+
+- **Visualization:**  
+  - Irrlicht visualization system initialized, attached to system, window size and title set, camera added.  
+  - Mesh visualization asset added with strain energy coloring and color asset.  
+  *No deduction.*
+
+- **Simulation Loop:** Proper loop with `vis.Run()`, scene begin/end, render, and `system.DoStepDynamics(0.001)`.  
+  *No deduction.*
+
+- **Minor omissions:**  
+  - No explicit collision system type set (e.g., Bullet), but since no collisions are expected here, this is acceptable.  
+  - No setting of Chrono data path (not mandatory here).  
+  - No comments in code (see Code Quality).  
+
+**Completeness deduction:** 0 points.
 
 ---
 
 ### 2. Correctness (30 points)
 
-- **Use of `fea.ChBuilderBeamIGA()`:** This builder is used to create the beam mesh. According to PyChrono documentation, `ChBuilderBeamIGA` is a valid class for IGA beam construction. Usage seems correct.
-- **Flywheel Inertia Calculation:** The inertia tensor is set manually. The formulas used correspond to a solid cylinder about its principal axes:
-  - \( I_{xx} = \frac{1}{2} m r^2 \)
-  - \( I_{yy} = I_{zz} = \frac{1}{12} m (3r^2 + h^2) \)
-  
-  These are correct.
-- **Link Initialization:**
-  - `fea.ChLinkNodeBody()` is used to link the flywheel to the center node and motor body to the end node. This is appropriate for connecting FEA nodes to rigid bodies.
-- **Motor Initialization:**
-  - The motor is initialized between the motor body and ground at the end node position, which is logical.
-- **Visualization:**
-  - `fea.ChVisualShapeFEA` is used correctly.
-  - The flywheel visual shape is created as a cylinder with radius and length, colored red, and rotated with `chrono.Q_ROTATE_Z_TO_X` which is a standard quaternion rotation constant.
-  - The motor visual shape is a blue sphere.
-- **Potential Issues:**
-  - The motor body is created but **not given mass or inertia**. This is a logical error because a dynamic body without mass/inertia will behave incorrectly or cause simulation errors.
-  - The motor body is set as `SetBodyFixed(False)`, but without mass/inertia, it is effectively massless.
-  - The flywheel is placed at `beam_L / 2` along x-axis, which matches the center node selection.
-  - The motor is placed at the first node (start of beam), which is consistent.
-- **Gravity is set to zero**, which is acceptable for a rotor simulation.
-- **Use of `application.GetDevice().run()`** is correct for Irrlicht event loop.
-- **Use of `application.SetTryRealtime(True)`** is appropriate.
+- **API usage:**  
+  - `Set_G_acc` is the correct method for setting gravity in `ChSystemNSC`.  
+  - Nodes created with `ChNodeFEAxyzrot` and added to system and mesh correctly.  
+  - Beam section properties set correctly using `fea.ChBeamSectionIGA()`.  
+  - Moments of inertia and torsion constants calculated correctly using `chrono.CH_C_PI`.  
+  - Elements created with `ChElementBeamIGA`, nodes and section assigned properly.  
+  - Bodies created with `ChBody()`, mass and inertia set properly.  
+  - Positions set using `SetPos` with node positions.  
+  - `ChLinkMateFix` used correctly to fix bodies to nodes.  
+  - Motor joint initialized correctly between ground and motor body with proper frame.  
+  - Speed function set with `ChFunction_Const`.  
+  - Visualization system used correctly, including mesh visualization asset.  
+  - Simulation loop calls `DoStepDynamics` with reasonable timestep.  
 
-**Deductions:**
+- **Potential issues:**  
+  - `ChLinkMateFix` is used to fix a body to a node. According to PyChrono API, `ChLinkMateFix` connects two bodies, but here one is a `ChBody` and the other is a `ChNodeFEAxyzrot`. This is not standard usage. Usually, to constrain a body to a node in FEA, a different approach is used, such as a `ChLinkPointFrame` or `ChLinkPointFrame` or a `ChLinkMateGeneric` with constraints.  
+  - The `Initialize` method of `ChLinkMateFix` expects two bodies, but `flywheel_node` and `nodes[0]` are nodes, not bodies. This is a logical error and will likely cause runtime errors or incorrect behavior.  
+  - Similarly, the motor joint is initialized between `system.GetGroundBody()` and `motor_body` with a frame at `nodes[0].GetPos()`. This is acceptable, but the frame is given as `chrono.ChFrameD(nodes[0].GetPos())` which defaults to identity rotation, which is okay if the motor axis is along the default axis. However, the motor axis is not explicitly set, which may cause unexpected behavior if the default axis is not aligned with the intended rotation axis.  
+  - The flywheel inertia is set as `(0.1, 0.1, 0.1)`, which is very low for a 10 kg body; this might be physically unrealistic but not an API error.  
+  - The motor body inertia and mass are very low, but again, not an API error.  
+  - The gravity is set to zero, which is acceptable if the simulation is intended to be gravity-free.  
 
-- **-10 points** for logical error: motor body lacks mass and inertia, which is important for correct dynamics.
+**Correctness deduction:**  
+- Deduct **15 points** for incorrect use of `ChLinkMateFix` to connect bodies to nodes (significant API misuse).  
+- Deduct **5 points** for not explicitly specifying motor axis or frame orientation in motor initialization (minor inaccuracy).  
+
+Total correctness deduction: 20 points.
 
 ---
 
 ### 3. Code Quality (10 points)
 
-- **Readability:** Variable names are meaningful (`beam_L`, `flywheel_mass`, `center_node`, etc.).
-- **Structure:** Code is logically structured: system setup, mesh creation, body creation, linking, visualization, simulation loop.
-- **Comments:** There are **no comments** explaining the purpose of code blocks or key steps.
-- **Formatting:** Code is well formatted and PEP8 compliant.
-  
-**Deductions:**
+- **Readability:**  
+  - Variable names are meaningful (`system`, `nodes`, `mesh`, `section`, `elements`, `flywheel`, `motor_body`, `motor`).  
+  - Code is structured logically with clear loops and steps.  
+  - Indentation and formatting are good.  
 
-- **-5 points** for insufficient comments/documentation.
-- No deduction for readability or structure.
+- **Comments:**  
+  - No comments at all explaining the purpose of code blocks or variables.  
+  - This reduces understandability and maintainability.  
+
+**Code Quality deduction:**  
+- Deduct **0 points** for readability (good).  
+- Deduct **5 points** for lack of comments/documentation.  
+
+Total code quality deduction: 5 points.
 
 ---
 
 ### 4. Efficiency (10 points)
 
-- **Calculations:** Area, moments of inertia, and section properties are calculated once and reused.
-- **Loop over nodes:** The search for the center node is done with a loop and break, which is efficient.
-- **No redundant API calls** or unnecessary calculations observed.
-- **Visualization shapes are added once.**
+- No obvious redundant calculations or unnecessary API calls.  
+- The loop for adding nodes to mesh is done after adding elements, which is acceptable but could be done before adding elements for clarity (minor).  
+- The calculation of moments of inertia uses `chrono.CH_C_PI` multiple times; could be precomputed once (minor).  
+- The visualization setup is minimal but sufficient.  
+- No major inefficiencies.  
 
-**No deductions.**
+**Efficiency deduction:**  
+- Deduct **3 points** for minor optimization opportunity (precomputing constants or ordering).  
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- The code does not check if `center_node` is found before using it (although it breaks after finding it).
-- The code does check `if center_node:` before linking, which is good.
-- No try-except blocks or error handling for other potential failures (e.g., empty mesh nodes).
-- No validation of motor body properties (mass/inertia missing).
-- No warnings or error messages for missing components.
+- No error handling or checks for node or body creation success.  
+- No try-except blocks or validation of inputs.  
+- While not always mandatory in simulation scripts, basic checks or assertions improve robustness.  
 
-**Deductions:**
-
-- **-3 points** for inadequate handling of edge cases and lack of error handling.
+**Error Handling deduction:**  
+- Deduct **5 points** for lack of any error handling or robustness measures.  
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
-- Visualization is set up with typical logo, sky, lights, and camera.
-- Visual shapes are added for mesh, flywheel, and motor.
-- The flywheel visual shape uses a quaternion rotation to align the cylinder correctly.
-- The camera is positioned at `(0,1,-2)`, which is reasonable.
-- The visualization loop uses `BeginScene()`, `DrawAll()`, and `EndScene()` correctly.
-- Minor issue: The motor visual shape is a small sphere (radius 0.05), which is fine but could be more visually distinct or scaled relative to the motor body size.
-- The mesh glyph size is set to 0.01, which might be small but acceptable.
-- The visualization uses `irr.ChIrrApp` instead of the newer `chronoirr.ChVisualSystemIrrlicht()`. The documentation suggests `chronoirr.ChVisualSystemIrrlicht()` is the standard visualization system, but `irr.ChIrrApp` is also a valid helper class for Irrlicht applications in PyChrono. This is acceptable but slightly less modern.
+- Visualization system is initialized and attached properly.  
+- Window size and title set.  
+- Camera added with position and look-at point.  
+- Mesh visualization asset added with strain energy coloring and color scale.  
+- However, no skybox or typical lights added, which are recommended for better visualization per documentation.  
+- No logo or additional visual enhancements.  
+- Lighting is not explicitly added, which may lead to suboptimal visualization.  
 
-**Deductions:**
-
-- **-2 points** for minor visualization issues (e.g., suboptimal camera placement or minor visual shape scaling).
+**Visualization deduction:**  
+- Deduct **3 points** for missing typical lights and skybox, which are standard for good visualization.  
 
 ---
 
-### Summary of Deductions:
+### **Summary of deductions:**
 
-| Category                     | Deduction | Reason                                      |
-|------------------------------|-----------|---------------------------------------------|
-| Completeness                 | 0         | All essential components present            |
-| Correctness                 | -10       | Motor body missing mass/inertia              |
-| Code Quality                | -5        | Lack of comments/documentation               |
-| Efficiency                  | 0         | No inefficiencies found                       |
-| Error Handling and Robustness| -3        | Minimal error handling, no mass check on motor body |
-| Visualization               | -2        | Minor visualization issues                    |
-
----
-
-### Final Score Calculation:
-
-- Completeness: 40 - 0 = 40
-- Correctness: 30 - 10 = 20
-- Code Quality: 10 - 5 = 5
-- Efficiency: 10 - 0 = 10
-- Error Handling: 5 - 3 = 2
-- Visualization: 5 - 2 = 3
-
-**Total = 40 + 20 + 5 + 10 + 2 + 3 = 80**
+| Criterion                 | Deduction Points | Reason                                                                                  |
+|---------------------------|------------------|-----------------------------------------------------------------------------------------|
+| Completeness              | 0                | All essential components present and configured.                                       |
+| Correctness               | 20               | Incorrect use of `ChLinkMateFix` with nodes; minor motor frame axis omission.           |
+| Code Quality              | 5                | No comments/documentation.                                                              |
+| Efficiency                | 3                | Minor optimization opportunities (constant reuse, order).                              |
+| Error Handling & Robustness| 5                | No error handling or input validation.                                                 |
+| Visualization             | 3                | Missing typical lights and skybox for better visualization.                            |
+| **Total Deductions**       | **36**           |                                                                                         |
 
 ---
 
 ### Final score:
 
-[[80]]
+40 (Completeness) + 10 (Correctness remaining) + 5 (Code Quality remaining) + 7 (Efficiency & Visualization remaining) + 0 (Error Handling) = 62 points.
+
+Expressed as:
+
+**[[62]]**
 
 ---
 
 ### Explanation:
 
-The script is mostly complete and correctly uses PyChrono APIs for system setup, beam mesh creation, body and joint initialization, visualization, and simulation loop. The main correctness issue is the motor body lacking mass and inertia, which can cause simulation inaccuracies or errors. The code quality suffers from a lack of comments, which reduces maintainability and clarity. Error handling is minimal, with no checks on motor body properties or mesh node availability beyond a simple `if` statement. Visualization is generally well done but could be improved slightly in terms of visual shape scaling and camera positioning. Overall, the script is functional and well-structured but could benefit from these improvements.
+The script is mostly complete and well-structured, with proper use of PyChrono classes and methods for setting up an FEA beam and motor-driven flywheel system. However, the critical error is the misuse of `ChLinkMateFix` to connect rigid bodies to FEA nodes, which is not supported and will cause simulation errors or crashes. This is a significant API misuse leading to a large deduction.
+
+Minor issues include lack of comments, missing lighting in visualization, and no error handling, which reduce code quality and robustness.
+
+Overall, the script demonstrates good understanding but requires correction of the joint connections and improved documentation and visualization setup.

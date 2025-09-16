@@ -5,38 +5,38 @@ system = pychrono.ChSystemSMC()
 
 
 terrain = pychrono.RigidTerrain(system)
+terrain.SetTexture(pychrono.GetChronoDataFile("terrain/textures/rocky.png"))
 
-terrain.SetTexture(pychrono.GetChronoDataFile("terrain_texture.png"))
-
-vehicle = pychrono.FEDA(system)
-
+vehicle = pychrono.FEDA()
 vehicle.SetPos(pychrono.ChVectorD(0, 0, 0))
 vehicle.SetRot(pychrono.ChQuaternionD(0, 0, 0))
 vehicle.SetContactMethod(pychrono.ChContactMethod.NSC)
 vehicle.SetTireModel(pychrono.TireModelType.RigidTire)
+system.Add(vehicle)
 
 
-camera = pychrono.ChCamera()
-camera.SetPosition(pychrono.ChVectorD(0, 2, -5))
-camera.SetTarget(pychrono.ChVectorD(0, 0, 0))
+camera = pychrono.ChCameraFollower(vehicle)
+camera.SetFollowOffset(pychrono.ChVectorD(0, 1, -3))
+camera.SetFollowOrientation(pychrono.ChQuaternionD(0, 0, 0))
+system.Add(camera)
 
 
-terrain.SetTexture(pychrono.GetChronoDataFile("terrain_texture.png"))
+system.SetTimestep(0.02)
+
+
+terrain.SetContactMethod(pychrono.ChContactMethod.NSC)
+terrain.SetCollide(True)
+terrain.SetColor(pychrono.ChColor(0.8, 0.8, 0.5))
+system.Add(terrain)
 
 
 vehicle.SetVisualizationType(pychrono.VisualizationType.MESH)
 
 
-driver = pychrono.InteractiveDriver(system, vehicle)
-
-
-system.SetTimestep(1/50)
+driver = pychrono.ChDriver(vehicle)
+system.Add(driver)
 
 
 while system.GetChTime() < 10:
-    system.DoStepDynamics(system.GetTimestep())
-    
-    vehicle.Update()
-    terrain.Render()
-    vehicle.Render()
+    system.DoStepDynamics(0.02)
     system.Render()

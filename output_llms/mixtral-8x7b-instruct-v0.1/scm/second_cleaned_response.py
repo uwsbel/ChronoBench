@@ -3,70 +3,31 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
-class SCMParameters:
-    def __init__(self):
-        self.Bekker_Kphi = 0    
-        self.Bekker_Kc = 0      
-        self.Bekker_n = 0       
-        self.Mohr_cohesion = 0  
-        self.Mohr_friction = 0  
-        self.Janosi_shear = 0   
-        self.elastic_K = 0      
-        self.damping_R = 0      
 
-    def InitializeParametersAsSoft(self):
-        self.Bekker_Kphi = 0.2e6
-        self.Bekker_Kc = 0
-        self.Bekker_n = 1.1
-        self.Mohr_cohesion = 0
-        self.Mohr_friction = 30
-        self.Janosi_shear = 0.01
-        self.elastic_K = 4e7
-        self.damping_R = 3e4
+class SCMTerrainParams:
+    def __init__(self, kphi, kc, n, cohesive_limit, friction_limit, shear_coefficient, elastic_stiffness, damping):
+        self.kphi = kphi
+        self.kc = kc
+        self.n = n
+        self.cohesive_limit = cohesive_limit
+        self.friction_limit = friction_limit
+        self.shear_coefficient = shear_coefficient
+        self.elastic_stiffness = elastic_stiffness
+        self.damping = damping
 
-    def InitializeParametersAsMid(self):
-        self.Bekker_Kphi = 2e6
-        self.Bekker_Kc = 0
-        self.Bekker_n = 1.1
-        self.Mohr_cohesion = 0
-        self.Mohr_friction = 30
-        self.Janosi_shear = 0.01
-        self.elastic_K = 2e8
-        self.damping_R = 3e4
 
-    def InitializeParametersAsHard(self):
-        self.Bekker_Kphi = 5301e3
-        self.Bekker_Kc = 102e3
-        self.Bekker_n = 0.793
-        self.Mohr_cohesion = 1.3e3
-        self.Mohr_friction = 31.1
-        self.Janosi_shear = 1.2e-2
-        self.elastic_K = 4e8
-        self.damping_R = 3e4
+def initialize_scm_terrain(terrain, params):
+    terrain.SetSoilParameters(
+        params.kphi,
+        params.kc,
+        params.n,
+        params.cohesive_limit,
+        params.friction_limit,
+        params.shear_coefficient,
+        params.elastic_stiffness,
+        params.damping
+    )
 
-class TerrainParameters:
-    def __init__(self):
-        self.params = SCMParameters()
-
-    def SetSoft(self):
-        self.params.InitializeParametersAsSoft()
-
-    def SetMid(self):
-        self.params.InitializeParametersAsMid()
-
-    def SetHard(self):
-        self.params.InitializeParametersAsHard()
-
-    def SetParameters(self, terrain):
-        terrain.SetSoilParameters(
-            self.params.Bekker_Kphi,    
-            self.params.Bekker_Kc,      
-            self.params.Bekker_n,       
-            self.params.Mohr_cohesion,  
-            self.params.Mohr_friction,  
-            self.params.Janosi_shear,   
-            self.params.elastic_K,      
-            self.params.damping_R)      
 
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
@@ -109,11 +70,19 @@ vehicle.SetTireVisualizationType(vis_type)
 
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
-terrain_params = TerrainParameters()
-terrain_params.SetMid()
+terrain_params = SCMTerrainParams(
+    2e6,  
+    0,    
+    1.1,  
+    0,    
+    30,   
+    0.01, 
+    2e8,  
+    3e4   
+)
 
 terrain = veh.SCMTerrain(vehicle.GetSystem())
-terrain_params.SetParameters(terrain)
+initialize_scm_terrain(terrain, terrain_params)
 
 terrain.AddMovingPatch(vehicle.GetChassisBody(), chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(5, 3, 1))
 terrain.SetPlotType(veh.SCMTerrain.PLOT_SINKAGE, 0, 0.1)
@@ -140,17 +109,17 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 
 driver.Initialize()
 
-print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 render_steps = math.ceil(render_step_size / step_size)
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-while vis.Run() :
+while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
-    if (step_number % render_steps == 0) :
+    if (step_number % render_steps == 0):
         vis.BeginScene()
         vis.Render()
         vis.EndScene()

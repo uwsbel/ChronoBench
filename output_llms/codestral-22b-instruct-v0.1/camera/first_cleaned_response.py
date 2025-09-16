@@ -1,70 +1,59 @@
 import pychrono as chrono
-import pychrono.irrlicht as chronoirr
+import pychrono.irrlicht as irr
+import pychrono.sensor as sensor
+import numpy as np
 
 
-chrono.SetChronoDataPath('PYCHRONO_DATA_DIR')
+chrono.SetChronoDataPath('path_to_chrono_data_folder')
 my_system = chrono.ChSystemNSC()
 
 
-
-mesh_shape = chrono.ChTriangleMeshConnected()
-mesh_shape.LoadWavefrontMesh('path_to_your_file.obj', True, True)
-
-
-body_fixed = chrono.ChBody()
-body_fixed.SetBodyFixed(True)
-body_fixed.AddAsset(mesh_shape)
-my_system.Add(body_fixed)
+mesh = chrono.ChBodyEasyMesh('mesh.obj', 1000, False, True)
+mesh.SetPos(chrono.ChVectorD(0, 0, 0))
+mesh.SetBodyFixed(True)
+my_system.Add(mesh)
 
 
-camera = chrono.ChCameraSensor()
-camera.SetName('CameraSensor')
-camera.SetLocation(chrono.ChVectorD(0, 0, 1))
-camera.SetDirection(chrono.ChVectorD(0, 0, -1))
-camera.SetUpVector(chrono.ChVectorD(0, 1, 0))
-body_fixed.AddSensor(camera)
+camera = sensor.ChCameraSensor(
+    name='Camera',
+    cam_location=chrono.ChVectorD(1, 1, 1),
+    lookat_location=chrono.ChVectorD(0, 0, 0),
+    resolution=chrono.ChVectorD(640, 480),
+    update_rate=10
+)
 
 
-manager = chrono.ChSensorManager(my_system)
-manager.AddSensor(camera)
+camera.AddFilter(sensor.ChFilterVisualize(sensor.ChFilterVisualize.FILTER_GRAYSCALE))
+camera.AddFilter(sensor.ChFilterVisualize(sensor.ChFilterVisualize.FILTER_NOISE_GAUSSIAN, 0.01))
 
 
-camera.SetNoiseType(chrono.ChCameraSensor.NOISE_GAUSSIAN)
-camera.SetNoiseParameters(0, 0.01)
-camera.SetImageFilterType(chrono.ChCameraSensor.FILTER_NONE)
-camera.SetImageFilterParameters(0, 0)
+sensor_manager = sensor.ChSensorManager(my_system)
+sensor_manager.AddSensor(camera)
 
 
-
-camera.SetLocation(chrono.ChVectorD(2, 2, 2))
-
-
-application = chronoirr.ChIrrApp(my_system, 'Camera Sensor', chronoirr.dimension2du(1024, 768))
+application = irr.ChIrrApp(my_system, 'Camera Sensor Simulation', irr.dimension2du(800, 600), False)
 application.AddTypicalLogo()
-application.AddTypicalCamera(chronoirr.vector3df(0, 0, -3))
+application.AddTypicalSky()
+application.AddTypicalCamera(irr.vector3df(1, 1, 1))
 application.AddTypicalLights()
-application.AddSkyBox()
-application.AddLightWithShadow(chronoirr.vector3df(1.5, -2.5, -2.5),  
-                               chronoirr.vector3df(0, 0, 0),  
-                               3,  
-                               10,  
-                               256,  
-                               0.5)  
-application.AssetBindAll()
-application.AssetUpdateAll()
-
+application.AddLightWithShadow(irr.vector3df(1.5, 5.5, -2.5), irr.vector3df(0, 0, 0), 3, 2.2, 7.2, 40, 512, irr.SColorf(0.8, 0.8, 1))
+application.SetTimestep(0.01)
 
 while application.GetDevice().run():
     application.BeginScene()
     application.DrawAll()
+
+    
+    time = my_system.GetChTime()
+    radius = 2
+    camera_pos = chrono.ChVectorD(radius * np.cos(time), radius * np.sin(time), 1)
+    camera.SetCameraLocation(camera_pos)
+
+    
+    camera_buffer = camera.GetMostRecentBuffer()
+    print(camera_buffer.Data)
+
     application.DoStep()
-
-    
-    camera.SetLocation(chrono.ChVectorD(2 * chrono.ChMath.cos(my_system.GetChTime()),
-                                        2 * chrono.ChMath.sin(my_system.GetChTime()),
-                                        2))
-
-    
-    print(camera.GetImageData())
-
     application.EndScene()
+
+application.GetDevice().closeDevice()

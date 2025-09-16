@@ -52,7 +52,6 @@ vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 
-
 vehicle.Initialize()
 
 vehicle.SetChassisVisualizationType(vis_type)
@@ -69,20 +68,12 @@ patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 patch = terrain.AddPatch(patch_mat,
-    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
-    chrono.GetChronoDataFile('vehicle/terrain/meshes/Highway_col.obj'),
+    chrono.ChCoordsysd(chrono.ChVector3d(0, -42, 0), chrono.QUNIT),
+    chrono.GetChronoDataFile('vehicle/terrain/meshes/bump.obj'),
     True, 0.01, False)
-vis_mesh = chrono.ChTriangleMeshConnected().CreateFromWavefrontFile(veh.GetDataFile("terrain/meshes/Highway_vis.obj"), True, True)
-tri_mesh_shape = chrono.ChVisualShapeTriangleMesh()
-tri_mesh_shape.SetMesh(vis_mesh)
-tri_mesh_shape.SetMutable(False)
-patch.GetGroundBody().AddVisualShape(tri_mesh_shape)
-
-patch3 = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, -42, 0), chrono.QUNIT),
-                            veh.GetDataFile("terrain/meshes/bump.obj"))
-patch3.SetColor(chrono.ChColor(0.5, 0.5, 0.8))
-patch3.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
-
+patch.SetColor(chrono.ChColor(0.5, 0.5, 0.8))
+patch.SetTexture(chrono.ChTexture(chrono.ChTexture_WRAP, chrono.ChTexture_LINEAR, 0, 0, chrono.GetChronoDataFile('vehicle/terrain/textures/dirt.jpg')))
+patch.SetScale(6.0, 6.0)
 terrain.Initialize()
 
 # Create the vehicle Irrlicht interface
@@ -96,7 +87,6 @@ vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
-
 
 # Create the driver system
 driver = veh.ChInteractiveDriverIRR(vis)

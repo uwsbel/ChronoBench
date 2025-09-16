@@ -7,7 +7,7 @@ chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 # Initial vehicle location and orientation
-initLoc = chrono.ChVector3d(-5, 0, 0.5)
+initLoc = chrono.ChVector3d(-5, 0, 0.5)  # Changed initial location to (-5, 0, 0.5)
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 # Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
@@ -17,6 +17,7 @@ vis_type = veh.VisualizationType_MESH
 chassis_collision_type = veh.CollisionType_NONE
 
 # Rigid terrain
+terrain_model = veh.RigidTerrain.BOX  # Added a long box to the system
 terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
@@ -36,6 +37,7 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  # FPS = 50
 
 # Create the MAN vehicle, set parameters, and initialize
+
 vehicle = veh.M113()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetTrackShoeType(veh.TrackShoeType_SINGLE_PIN)
@@ -71,6 +73,7 @@ patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 # Create the vehicle Irrlicht interface
+
 vis = veh.ChTrackedVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('M113 Demo')
 vis.SetWindowSize(1280, 1024)
@@ -104,20 +107,10 @@ print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
 
-# Initialize simulation frame counter
+# Initialize simulation frame counter s
 step_number = 0
 render_frame = 0
 vehicle.GetVehicle().EnableRealtime(True)
-
-# Add a long box to the system
-box = chrono.ChBoxShape()
-box.SetLengths(chrono.ChVector3D(10, 10, 10))
-box.SetPos(chrono.ChVector3D(0, 0, 0))
-box.SetRot(chrono.ChQuaternionD(0, 0, 0))
-box.SetColor(chrono.ChColor(0.5, 0.5, 0.5))
-box.SetBody(vehicle.GetVehicle().GetChassisBody())
-vehicle.GetSystem().Add(box)
-
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
     # Render scene and output POV-Ray data
@@ -141,3 +134,13 @@ while vis.Run() :
     vis.Advance(step_size)
     # Increment frame number
     step_number += 1
+
+    # Added long box to the system
+    if step_number % 100 == 0:
+        long_box = chrono.ChBox(chrono.ChVector3d(2, 1, 0.5), 1000)
+        long_box.SetPos(chrono.ChVector3d(0, 0, 0))
+        long_box.SetRot(chrono.ChQuaterniond(1, 0, 0, 0))
+        long_box.SetColor(chrono.ChColor(0.5, 0.5, 0.5))
+        long_box.SetCollide(True)
+        long_box.SetBodyFixed(False)
+        vehicle.GetSystem().Add(long_box)

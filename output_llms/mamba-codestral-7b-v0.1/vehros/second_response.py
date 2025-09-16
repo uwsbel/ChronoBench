@@ -40,19 +40,12 @@ def main():
     ros_manager.RegisterHandler(chros.ChROSBodyHandler(25, hmmwv.GetChassisBody(), "~/output/hmmwv/state"))
     ros_manager.Initialize()  # Initialize the ROS manager.
 
-    # Setup visualization using Irrlicht.
-    vis = chronoirr.ChVisualSystemIrrlicht()
-    vis.SetWindowSize(800, 600)
-    vis.SetWindowTitle('PyChrono HMMWV')
-    vis.SetRenderMode(chronoirr.ChRenderMode_SHADED)
-    vis.SetSkybox()
-    vis.AddCamera(ch.ChVectorD(0, 0, 10), ch.ChVectorD(0, 0, 0))
-    vis.AddTypicalLights(ch.ChVectorD(0, 0, 10), ch.ChVectorD(0, 0, 0), 400, 400, 400)
-    vis.AddLogo()
-    vis.AddAxis(1)
-    vis.AddHMMWV(hmmwv.GetVehicle(), 1, True, 1000, 1000, 1000, False)
-    vis.AddTerrain(terrain)
-    vis.Initialize()
+    # Set visualization settings for HMMWV vehicle.
+    hmmwv.SetChassisVisualizationType(veh.ChVisualizationType_PRIMITIVES)
+    hmmwv.SetSuspensionVisualizationType(veh.ChVisualizationType_PRIMITIVES)
+    hmmwv.SetSteeringVisualizationType(veh.ChVisualizationType_PRIMITIVES)
+    hmmwv.SetWheelVisualizationType(veh.ChVisualizationType_PRIMITIVES)
+    hmmwv.SetTireVisualizationType(veh.ChVisualizationType_PRIMITIVES)
 
     # Start the simulation loop.
     time = 0
@@ -78,15 +71,32 @@ def main():
         if not ros_manager.Update(time, time_step):
             break  # Exit loop if ROS manager update fails.
 
-        # Render the scene.
-        vis.BeginScene()
-        vis.Render()
-        vis.EndScene()
+    # Create the Irrlicht visualization system.
+    vis_system = chronoirr.ChVisualSystemIrrlicht()
+    vis_system.SetWindowSize(800, 600)
+    vis_system.SetWindowTitle('PyChrono Vehicle Simulation')
+    vis_system.SetRenderMode(chronoirr.ChIrrWireframeMode_SHADED)
+    vis_system.SetCameraVertical(ch.ChVectorD(0, 0, 1))
+    vis_system.SetCameraHorizontal(ch.ChVectorD(1, 0, 0))
+    vis_system.SetCameraPosition(ch.ChVectorD(0, -15, 5))
+    vis_system.SetCameraLookatPoint(ch.ChVectorD(0, 0, 0))
+    vis_system.SetSymbolsZbuffer(True)
+    vis_system.SetBackgroundColor(ch.ChColor(0.9, 0.9, 0.9))
+    vis_system.SetSkybox(ch.GetChronoDataPath() + 'skybox/skybox.jpg', 100, 100, 100)
+    vis_system.SetSymbolsZbuffer(True)
+    vis_system.SetRenderSymbols(True)
+    vis_system.SetRenderMode(chronoirr.ChIrrWireframeMode_SHADED)
+    vis_system.SetRenderMode(chronoirr.ChIrrWireframeMode_NONE)
+    vis_system.SetRenderMode(chronoirr.ChIrrWireframeMode_POINTS)
 
-        # Perform rendering steps and frame rendering.
-        vis.BeginScene(True, True, ch.ChColor(0.1, 0.1, 0.1))
-        vis.Render()
-        vis.EndScene()
+    # Set the rendering steps and frame rendering.
+    vis_system.SetRenderStep(1)
+    vis_system.SetRenderFrame(True)
+
+    # Start the Irrlicht visualization loop.
+    vis_system.BeginScene(True, True, ch.ChColor(0.15, 0.15, 0.15))
+    vis_system.Render()
+    vis_system.EndScene()
 
 if __name__ == "__main__":
     main()

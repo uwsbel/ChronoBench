@@ -15,7 +15,9 @@ def main():
     
     
     
-    side = 2  
+    side = 2
+
+    
     box = chrono.ChBodyEasyBox(side, side, side, 1000)
     box.SetPos(chrono.ChVector3d(0, 0, 0))  
     box.SetFixed(True)  
@@ -23,8 +25,8 @@ def main():
 
     
     texture = chrono.ChTexture()
-    texture.SetTextureFilename(chrono.GetChronoDataFile("textures/concrete.jpg"))
-    box.AddAsset(texture)
+    texture.SetTextureFilename(chrono.GetChronoDataFile("sensor/textures/bluewhite.png"))
+    box.GetVisualShape(0).SetTexture(texture)
 
     
     
@@ -48,12 +50,12 @@ def main():
 
     
     cam = sens.ChCameraSensor(
-        box,               
-        update_rate,       
-        offset_pose,       
-        image_width,       
-        image_height,      
-        fov                 
+        box,              
+        update_rate,            
+        offset_pose,            
+        image_width,            
+        image_height,           
+        fov                     
     )
     cam.SetName("Camera Sensor")
     cam.SetLag(lag)  

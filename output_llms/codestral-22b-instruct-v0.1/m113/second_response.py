@@ -16,12 +16,12 @@ vis_type = veh.VisualizationType_MESH
 # Collision type for chassis (PRIMITIVES, MESH, or NONE)
 chassis_collision_type = veh.CollisionType_NONE
 
-# SCM deformable terrain
+# Deformable terrain
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
 
 # Poon chassis tracked by the camera
-trackPoint = chrono.ChVector3d(0.0, 0.0, 0.1)
+trackPoint = chrono.ChVector3d(0.0, 0.0, 1.5)
 
 # Contact method
 contact_method = chrono.ChContactMethod_SMC
@@ -57,17 +57,17 @@ vehicle.SetTrackShoeVisualizationType(vis_type)
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 # Create the terrain
-patch_mat = chrono.ChContactMaterialSMC()
-patch_mat.SetFriction(0.9)
-patch_mat.SetRestitution(0.01)
 terrain = veh.SCMTerrain(vehicle.GetSystem())
-terrain.SetSoilParameters(1e3,    # Bekker Kphi
-                          0.3,    # Bekker Kc
-                          0.1)   # Bekker n exponent
-terrain.SetPlane(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
-                 terrainLength, terrainWidth)
+terrain.SetSoilParameters(veh.SCMDeformableTerrain.SoilParameters(3000,  # Bekker Kphi
+                                                                   0.3,   # Bekker Kc
+                                                                   0.1))  # Bekker n exponent
+
+# Initialize SCM terrain using a height map
+height_map_file = "path_to_height_map.txt"  # replace with the path to your height map file
+terrain.Initialize(height_map_file, terrainLength, terrainWidth)
+
+# Set the SCM terrain texture to dirt
 terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 200, 200)
-terrain.Initialize(veh.GetDataFile("terrain/height_maps/test64.bmp"))
 
 # Create the vehicle Irrlicht interface
 vis = veh.ChTrackedVehicleVisualSystemIrrlicht()
@@ -94,7 +94,6 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 # Solver and integrator settings
-# ------------------------------
 vehicle.GetSystem().SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
 
 # output vehicle mass
@@ -118,7 +117,7 @@ while vis.Run():
 
     # Get driver inputs
     driver_inputs = driver.GetInputs()
-    # Hard-coded the throttle value to 0.8
+    # Hard-code the throttle value to 0.8
     driver_inputs.m_throttle = 0.8
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)

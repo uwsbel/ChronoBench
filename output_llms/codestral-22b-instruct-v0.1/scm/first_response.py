@@ -1,54 +1,58 @@
-# Import necessary PyChrono modules
 import pychrono as chrono
 import pychrono.irrlicht as irr
+import pychrono.vehicle as veh
+import pychrono.scmdeformable as scm
 
-# Initialize the PyChrono environment
-chrono.SetChronoDataPath('path_to_your_chrono_data_folder')
+# Initialize PyChrono environment
+chrono.SetChronoDataPath('path_to_chrono_data_folder')
+system = chrono.ChSystemNSC()
 
-# Create a system
-my_system = chrono.ChSystemNSC()
+# Create vehicle system
+vehicle = veh.HMMWV(system)
+vehicle.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 1), chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0))))
+vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
+vehicle.SetSuspensionVisualizationType(veh.VisualizationType_MESH)
+vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
 
-# Create a ground body
-ground = chrono.ChBodyEasyBox(20, 0.5, 20, 1000, True, True)
-ground.SetPos(chrono.ChVectorD(0, -0.5, 0))
-ground.SetBodyFixed(True)
-my_system.Add(ground)
+# Create SCM terrain
+terrain = scm.SCMDeformableTerrain(system)
+terrain.SetSoilParameters(2e6,  # Bekker Kphi
+                          0.3,  # Bekker Kc
+                          0.1,  # Bekker n exponent
+                          0.02, # Bekker c cohesion
+                          1.5,  # Mohr cohesion
+                          30,   # Mohr friction angle
+                          0.01, # Janosi shear coefficient
+                          0.01) # Janosi cohesion coefficient
+terrain.SetPlotType(scm.SCMDeformableTerrain.PLOT_SINKAGE, 0, 2)
+terrain.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT),
+                   chrono.ChVectorD(0, 0, 1),
+                   chrono.ChVectorD(100, 100, 10),
+                   chrono.ChVectorD(0.01, 0.01, 0.01))
 
-# Create the HMMWV body
-hmmwv = chrono.ChBodyEasyBox(5, 1, 2, 1000)
-hmmwv.SetPos(chrono.ChVectorD(0, 1, 0))
-my_system.Add(hmmwv)
+# Enable moving patch feature
+terrain.EnableMovingPatch(vehicle.GetChassisBody(), 2.5)
 
-# Add tires to the HMMWV
-# You'll need to define the tire model and add it to the HMMWV body
+# Create vehicle driver
+driver = veh.ChVehicleDriver(vehicle)
+driver.SetSteeringControllerType(veh.SteeringControllerType_PID)
+driver.SetSpeedControllerType(veh.SpeedControllerType_PID)
+driver.Initialize()
 
-# Create the SCM terrain
-terrain = chrono.ChSCMTerrain(my_system)
-terrain.SetSoilParameters(young_modulus, poisson_ratio, cohesion, friction_angle)
-terrain.EnableMovingPatch(hmmwv)
-
-# Set up the Irrlicht visualization
-app = irr.ChIrrApp(my_system, 'HMMWV on SCM Terrain', irr.dimension2du(1024, 768))
+# Create Irrlicht application
+app = irr.ChIrrApp(system, 'HMMWV on SCM Deformable Terrain', irr.dimension2du(1024, 768))
 app.AddTypicalLogo()
 app.AddTypicalSky()
-app.AddTypicalCamera(irr.vector3df(0, 3, -6))
 app.AddTypicalLights()
-app.AddLightWithShadow(irr.vector3df(3, 6, -3), irr.vector3df(0, 0, 0), 9, 2.2, 7.2, 40)
+app.AddTypicalCamera(irr.vector3df(0, 3, -6))
+app.AddTypicalEnvironment()
+app.AssetBindAll()
+app.AssetUpdateAll()
+app.SetTimestep(0.02)
+app.SetTryRealtime(True)
+app.SetFrameRate(50)
 
-# Add mesh visualization to all vehicle components
-# You'll need to define the mesh visualization and add it to the HMMWV body
-
-# Set up the interactive driver system
-# You'll need to define the driver system and add it to the HMMWV body
-
-# Set the simulation step size and run the simulation
-my_system.SetTimestepperType(chrono.ChTimestepper.Type_MINIMAL)
-my_system.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
-my_system.SetSolverWarmStarting(True)
-my_system.SetMaxItersSolverSpeed(50)
-my_system.SetMaxItersSolverStab(50)
-my_system.SetMaxPenetrationRecoverySpeed(0.01)
-
+# Run simulation
 while app.GetDevice().run():
     app.BeginScene()
     app.DrawAll()

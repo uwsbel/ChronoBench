@@ -2,9 +2,8 @@ import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import pychrono.sensor as sens
-import numpy as np
 import math
-import random
+import numpy as np
 
 """
 !!!! Set this path before running the demo!
@@ -111,24 +110,21 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 
 driver.Initialize()
 
-# Create the sensor manager
+# Create sensor manager
 manager = sens.ChSensorManager(vehicle.GetSystem())
 
 # Add a lidar sensor to the vehicle
-lidar = sens.ChLidarSensor(vehicle.GetChassisBody(), 100, chrono.ChCoordsysd(chrono.ChVector3d(0.5, 0, 1.5), chrono.Q_from_AngX(0)))
-lidar.SetName("Lidar")
-lidar.SetScanDirection(chrono.ChVector3d(0, 0, 1))
-lidar.SetScanAngle(np.deg2rad(180))
-lidar.SetScanResolution(np.deg2rad(0.5))
-lidar.SetRange(50)
-lidar.SetUpdateRate(10)
-lidar.SetFilter(sens.ChSensorFilterBox(chrono.ChVector3d(-10, -10, -10), chrono.ChVector3d(10, 10, 10)))
+lidar = sens.ChLidarSensor(vehicle.GetSystem(), 100, 100, 10, 360, chrono.ChCoordsysd(chrono.ChVector3d(0.8, 0, 1.7), chrono.Q_from_AngZ(0)))
+lidar.SetFilter(sens.ChSensorFilterLidarPointCloudMinMax(0.0, 50.0))
+lidar.SetFilter(sens.ChSensorFilterLidarRaycast())
+lidar.SetVisualizePoints(True)
+lidar.SetVisualizeSensor(True)
 manager.AddSensor(lidar)
 
 # Create 5 box obstacles randomly positioned in the simulation space
 for i in range(5):
     obstacle = chrono.ChBodyEasyBox(1, 1, 1, 1000, True, True)
-    obstacle.SetPos(chrono.ChVector3d(random.uniform(-50, 50), random.uniform(-50, 50), 1))
+    obstacle.SetPos(chrono.ChVector3d(np.random.uniform(-50, 50), np.random.uniform(-50, 50), 1))
     obstacle.SetBodyFixed(True)
     vehicle.GetSystem().Add(obstacle)
 

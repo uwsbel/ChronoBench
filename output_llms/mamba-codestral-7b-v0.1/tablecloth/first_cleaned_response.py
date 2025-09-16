@@ -4,48 +4,44 @@ import pychrono
 system = pychrono.ChSystemSMC()
 
 
-tablecloth_material = pychrono.ChKirchhoffMaterial()
-tablecloth_material.SetYoungModulus(1e5)
-tablecloth_material.SetPoissonRatio(0.3)
+material = pychrono.ChKirchhoffMaterial()
+material.SetYoungModulus(2e7)
+material.SetPoissonRatio(0.3)
 
 
-tablecloth_mesh = pychrono.ChMesh()
-tablecloth_mesh.SetAutomaticElementRefinement(True)
+tablecloth_length = 2.0
+tablecloth_width = 1.0
+num_elements_length = 20
+num_elements_width = 10
 
 
-for i in range(10):
-    for j in range(10):
-        node = pychrono.ChNodeFEAxyzR(system)
-        node.SetPos(pychrono.ChVectorD(i, j, 0))
-        tablecloth_mesh.AddNode(node)
+for i in range(num_elements_length):
+    for j in range(num_elements_width):
+        
+        node1 = pychrono.ChNodeFEAxyzR(system, pychrono.ChVectorD(i / num_elements_length * tablecloth_length, j / num_elements_width * tablecloth_width, 0))
+        node2 = pychrono.ChNodeFEAxyzR(system, pychrono.ChVectorD((i + 1) / num_elements_length * tablecloth_length, j / num_elements_width * tablecloth_width, 0))
+        node3 = pychrono.ChNodeFEAxyzR(system, pychrono.ChVectorD(i / num_elements_length * tablecloth_length, (j + 1) / num_elements_width * tablecloth_width, 0))
+        node4 = pychrono.ChNodeFEAxyzR(system, pychrono.ChVectorD((i + 1) / num_elements_length * tablecloth_length, (j + 1) / num_elements_width * tablecloth_width, 0))
 
-for i in range(9):
-    for j in range(9):
-        node1 = tablecloth_mesh.GetNode(i + j * 10)
-        node2 = tablecloth_mesh.GetNode((i + 1) + j * 10)
-        node3 = tablecloth_mesh.GetNode(i + (j + 1) * 10)
-        node4 = tablecloth_mesh.GetNode((i + 1) + (j + 1) * 10)
+        
+        element1 = pychrono.ChElementShellIsotropic2D(material, node1, node2, node3)
+        element2 = pychrono.ChElementShellIsotropic2D(material, node2, node4, node3)
 
-        element = pychrono.ChElementShellIsoparametric3D(node1, node2, node3, node4)
-        element.SetMaterial(tablecloth_material)
-        tablecloth_mesh.AddElement(element)
+        system.Add(element1)
+        system.Add(element2)
 
 
 visualization = pychrono.ChVisualSystemIrrlicht()
-visualization.AttachSystem(system)
 visualization.SetWindowSize(800, 600)
-visualization.SetWindowTitle('PyChrono Tablecloth Simulation')
-visualization.SetRenderMode(pychrono.ChVisualSystemIrrlicht.RENDER_MESH_WIREFRAME)
-visualization.Initialize()
+visualization.SetWindowTitle('Tablecloth Folding Simulation')
+visualization.SetRenderMode(pychrono.ChVisualSystemIrrlicht.RENDER_WIREFRAME)
+visualization.AttachSystem(system)
 
 
-solver = pychrono.ChSolverPardisoMKL()
-system.SetSolver(solver)
+system.SetSolverType(pychrono.ChSolver.Type::PARDOSO)
+system.SetMaxItersSolver(200)
+system.SetMaxItersSolverForce(200)
 
-
-while system.GetChTime() < 10:
+while visualization.Run():
     system.DoStepDynamics(0.01)
     visualization.Render()
-    visualization.BeginScene(True, True, pychrono.ChColor(0.4, 0.4, 0.4))
-    visualization.RenderMesh(tablecloth_mesh, pychrono.ChColor(0.8, 0.2, 0.2), True, False)
-    visualization.EndScene()

@@ -18,7 +18,7 @@ def main():
     side = 1.0
     mbox = chrono.ChBodyEasyBox(side, side, side, 1000)
     mbox.SetPos(chrono.ChVector3d(0, 0, 0))
-    mbox.SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"), True)
+    mbox.SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
     mphysicalSystem.Add(mbox)
 
     # -----------------------
@@ -33,20 +33,20 @@ def main():
         chrono.ChVector3d(-12, 0, 1), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
     )
     lidar = sens.ChLidarSensor(
-        mbox,                   # Body lidar is attached to
-        update_rate,            # Scanning rate in Hz
-        offset_pose,            # Offset pose
-        horizontal_samples,     # Number of horizontal samples
-        vertical_samples,       # Number of vertical channels
-        horizontal_fov,         # Horizontal field of view
-        max_vert_angle,         # Maximum vertical field of view
-        min_vert_angle,         # Minimum vertical field of view
-        100.0,                  # Maximum lidar range
+        mbox,                     # Body lidar is attached to
+        update_rate,              # Scanning rate in Hz
+        offset_pose,              # Offset pose
+        horizontal_samples,       # Number of horizontal samples
+        vertical_samples,         # Number of vertical channels
+        horizontal_fov,           # Horizontal field of view
+        max_vert_angle,           # Maximum vertical field of view
+        min_vert_angle,           # Minimum vertical field of view
+        100.0,                    # Maximum lidar range
         sens.LidarBeamShape_RECTANGULAR,  # Shape of the lidar beam
-        sample_radius,          # Sample radius
-        divergence_angle,       # Divergence angle
-        divergence_angle,       # Divergence angle (again, typically same value)
-        return_mode             # Return mode for the lidar
+        sample_radius,            # Sample radius
+        divergence_angle,         # Divergence angle
+        divergence_angle,         # Divergence angle (again, typically same value)
+        return_mode               # Return mode for the lidar
     )
     lidar.SetName("Lidar Sensor")
     lidar.SetLag(lag)
@@ -81,29 +81,31 @@ def main():
     # Add the lidar to the sensor manager
     manager.AddSensor(lidar)
 
-    # Create a second 2D lidar sensor
+    # --------------------------------------------------
+    # Create a 2D lidar and add it to the sensor manager
+    # --------------------------------------------------
     lidar_2d = sens.ChLidarSensor(
-        mbox,                   # Body lidar is attached to
-        update_rate,            # Scanning rate in Hz
-        offset_pose,            # Offset pose
-        1,                      # Number of horizontal samples (1 for 2D lidar)
-        1,                      # Number of vertical channels (1 for 2D lidar)
-        math.radians(360),      # Horizontal field of view (360 degrees for 2D lidar)
-        math.radians(1),        # Maximum vertical field of view (1 degree for 2D lidar)
-        math.radians(1),        # Minimum vertical field of view (1 degree for 2D lidar)
-        100.0,                  # Maximum lidar range
+        mbox,                     # Body lidar is attached to
+        update_rate,              # Scanning rate in Hz
+        offset_pose,              # Offset pose
+        1,                        # Number of horizontal samples
+        vertical_samples,         # Number of vertical channels
+        horizontal_fov,           # Horizontal field of view
+        max_vert_angle,           # Maximum vertical field of view
+        min_vert_angle,           # Minimum vertical field of view
+        100.0,                    # Maximum lidar range
         sens.LidarBeamShape_RECTANGULAR,  # Shape of the lidar beam
-        sample_radius,          # Sample radius
-        divergence_angle,       # Divergence angle
-        divergence_angle,       # Divergence angle (again, typically same value)
-        return_mode             # Return mode for the lidar
+        sample_radius,            # Sample radius
+        divergence_angle,         # Divergence angle
+        divergence_angle,         # Divergence angle (again, typically same value)
+        return_mode               # Return mode for the lidar
     )
     lidar_2d.SetName("Lidar Sensor 2D")
     lidar_2d.SetLag(lag)
     lidar_2d.SetCollectionWindow(collection_time)
 
     # -----------------------------------------------------------------
-    # Create a filter graph for post-processing the data from the 2D lidar
+    # Create a filter graph for post-processing the data from the lidar
     # -----------------------------------------------------------------
     if noise_model == "CONST_NORMAL_XYZI":
         lidar_2d.PushFilter(sens.ChFilterLidarNoiseXYZI(0.01, 0.001, 0.001, 0.01))
@@ -113,7 +115,7 @@ def main():
 
     if vis:
         # Visualize the raw lidar data
-        lidar_2d.PushFilter(sens.ChFilterVisualize(1, 1, "Raw Lidar Depth Data 2D"))
+        lidar_2d.PushFilter(sens.ChFilterVisualize(1, vertical_samples, "Raw Lidar Depth Data"))
 
     # Provides the host access to the Depth, Intensity data
     lidar_2d.PushFilter(sens.ChFilterDIAccess())
@@ -123,7 +125,10 @@ def main():
 
     if vis:
         # Visualize the point cloud
-        lidar_2d.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "Lidar Point Cloud 2D"))
+        lidar_2d.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "Lidar Point Cloud"))
 
     # Provides the host access to the XYZI data
     lidar_2d.PushFilter(sens.ChFilterXYZIAccess())
+
+    # Add the 2D lidar to the sensor manager
+    manager.AddSensor(lidar_2d)

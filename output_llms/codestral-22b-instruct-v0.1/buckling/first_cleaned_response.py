@@ -4,27 +4,23 @@ import pychrono.irrlicht as irr
 
 
 chrono.SetChronoDataPath('PYCHRONO_DATA_DIR')
-
-
 my_system = chrono.ChSystemNSC()
+
 
 
 beam = fea.ChElementBeamANCF()
 
 
 
-def custom_motor_function(time):
-    
-    pass
 
 
-motor = chrono.ChFunction_Recorder()
-motor.AddPoint(0, 0)
-motor.AddPoint(1, 1)
-motor.AddPoint(2, 0)
 
-motor.SetCustomFunction(custom_motor_function)
+my_system.Add(beam)
 
+
+
+
+beam.SetPos(chrono.ChVectorD(0, 0, 0))
 
 
 
@@ -32,22 +28,26 @@ motor.SetCustomFunction(custom_motor_function)
 
 
 
-app = irr.ChIrrApp(my_system, 'Beam Buckling Simulation', irr.dimension2du(1024, 768))
-app.AddTypicalSky()
-app.AddTypicalLogo()
-app.AddTypicalCamera(irr.vector3df(0.0, 0.5, -1.0))
-app.AddTypicalLights()
-app.AssetBindAll()
-app.AssetUpdateAll()
+
+
+application = irr.ChIrrApp(my_system, 'Beam Buckling Simulation', irr.dimension2du(1024, 768))
+application.AddTypicalLogo()
+application.AddTypicalCamera(irr.vector3df(0, 3, -6))
+application.AddTypicalLights()
+application.AssetBindAll()
+application.AssetUpdateAll()
 
 
 my_system.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
 my_system.SetSolverMaxIterations(100)
+my_system.SetSolverWarmStarting(True)
 my_system.SetTimestepperType(chrono.ChTimestepper.Type_HHT)
 
 
-while app.GetDevice().run():
-    app.BeginScene()
-    app.DrawAll()
-    app.DoStep()
-    app.EndScene()
+application.SetTimestep(0.01)
+application.SetTryRealtime(True)
+while application.GetDevice().run():
+    application.BeginScene()
+    application.DrawAll()
+    application.DoStep()
+    application.EndScene()

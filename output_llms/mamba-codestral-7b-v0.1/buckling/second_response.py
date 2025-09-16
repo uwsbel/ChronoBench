@@ -1,10 +1,4 @@
 ```python
-import math as m
-import pychrono as chrono
-import pychrono.fea as fea
-import pychrono.pardisomkl as pardiso
-import pychrono.irrlicht as chronoirr
-import os
-
-# Custom function class for motor angle:
-class ChFunctionMyFun(chrono.
+import math as m  # Import the math library for trigonometric functions, constants, etc.
+import pychrono as chrono  # Import the main PyChrono library
+import pychrono.fea as fea  # Import the finite element analysis module from PyChron

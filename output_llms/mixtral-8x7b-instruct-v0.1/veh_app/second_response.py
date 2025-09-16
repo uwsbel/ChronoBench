@@ -83,56 +83,99 @@ print("\n")
 # Set collision system type
 gator.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
-# Add box object
-box = chrono.ChBodyEasyBox(1, 1, 1, 1000, True, True)
-box.SetPos(chrono.ChVectorD(0, 0, 0.5))
-box.SetCollide(True)
-box.SetMaterialSurface(veh.GetDataFile("surfaces/blue.surf"))
-gator.GetSystem().AddBody(box)
+# ------------------
+# Create the terrain
+# ------------------
+terrain = veh.RigidTerrain(gator.GetSystem())
+patch_mat = chrono.ChContactMaterialNSC()
+patch_mat.SetFriction(0.9)
+patch_mat.SetRestitution(0.01)
+patch = terrain.AddPatch(patch_mat, chrono.CSYSNORM, 50, 50)
+patch.SetColor(chrono.ChColor(0.8, 0.8, 1.0))
+patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 50, 50)
+terrain.Initialize()
 
-# Add cylinder object
-cylinder = chrono.ChBodyEasyCylinder(0.5, 1, 1000, True, True)
-cylinder.SetPos(chrono.ChVectorD(0, 0, 1.5))
-cylinder.SetCollide(True)
-cylinder.SetMaterialSurface(veh.GetDataFile("surfaces/blue.surf"))
-gator.GetSystem().AddBody(cylinder)
+# Add Box Object
+box = terrain.AddBox(chrono.ChVector3d(0.5, 0.5, 0.5), chrono.ChVector3d(0, 0, 0.5), 10.0, True, True)
+box.SetTexture(veh.GetDataFile("textures/blue.jpg"), 50, 50)
 
-# Create Lidar sensor
-lidar_pose = chrono.ChFrameD(chrono.ChVectorD(0.0, 0, 2))
+# Add Cylinder Object
+cyl = terrain.AddCylinder(0.5, 1.0, chrono.ChVector3d(0, 0, 1.5), chrono.ChVector3d(0, 0, 1), 10.0, True, True)
+cyl.SetTexture(veh.GetDataFile("textures/blue.jpg"), 50, 50)
+
+# Create the interactive driver system
+driver = veh.ChDriver(gator.GetVehicle())
+
+driver.Initialize()
+
+# -----------------------
+# Create a sensor manager
+# -----------------------
+manager = sens.ChSensorManager(gator.GetSystem())
+intensity = 1.0
+manager.scene.AddPointLight(chrono.ChVector3f(2, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
+
+# Create Lidar Sensor
+lidar_pose = chrono.ChFramed(chrono.ChVector3d(0.0, 0, 2))
 lidar = sens.ChLidarSensor(
     gator.GetChassisBody(),
     update_rate,
     lidar_pose,
     image_width,
     image_height,
-    fov,
-    2 * math.pi,
-    math.pi / 12,
-    -math.pi / 6,
+    fov * 2,
+    chrono.CH_PI / 12,
+    -chrono.CH_PI / 6,
     100.0,
     sens.ChLidarSensor.BeamShape_RECTANGULAR,
     2,
     0.003,
-    sens.ChLidarSensor.ReturnMode_STRONGEST,
-    [sens.ChFilterDepth(), sens.ChFilterIntensity(), sens.ChFilterXYZI(), sens.ChFilterVisualize()]
+    sens.ChLidarSensor.ReturnMode_STRONGEST
 )
-lidar.SetName("Lidar Sensor")
+lidar.AddFilter(sens.ChFilterDepth())
+lidar.AddFilter(sens.ChFilterIntensity())
+lidar.AddFilter(sens.ChFilterXYZI())
+lidar.AddFilter(sens.ChFilterVisualize(image_width, image_height, "Lidar Camera"))
 manager.AddSensor(lidar)
 
-# Changed Driver Inputs
+# Create two cameras and add them to the sensor manager
+offset_pose = chrono.ChFramed(chrono.ChVector3d(-8.0, 0, 1.45), chrono.QuatFromAngleAxis(.2, chrono.ChVector3d(0, 1, 0)))
+cam = sens.ChCameraSensor(
+    gator.GetChassisBody(),
+    update_rate,
+    offset_pose,
+    image_width,
+    image_height,
+    fov
+)
+cam.SetName("Third Person POV")
+# Renders the image at current point in the filter graph
+cam.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Gator Camera"))
+manager.AddSensor(cam)
+
+# Simulation loop
 realtime_timer = chrono.ChRealtimeStepTimer()
 time = 0
 end_time = 30
 while time < end_time:
     time = gator.GetSystem().GetChTime()
+    # Set driver inputs
     driver.SetSteering(0.5)
     driver.SetThrottle(0.2)
+    # Collect output data from modules (for inter-module communication)
     driver_inputs = driver.GetInputs()
+
+    # Update modules (process inputs from other modules)
     driver.Synchronize(time)
     terrain.Synchronize(time)
     gator.Synchronize(time, driver_inputs, terrain)
+
     manager.Update()
+
+    # Advance simulation for one timestep for all modules
     driver.Advance(step_size)
     terrain.Advance(step_size)
     gator.Advance(step_size)
+
+    # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)

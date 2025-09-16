@@ -1,45 +1,60 @@
 import pychrono
 
-# Initialize the PyChrono environment and core components
-system = pychrono.ChSystemSMC()
+# Initialize the PyChrono environment
+pychrono.StartFileLog("hmmwv_simulation.txt", False)
 
-# Add the required physical systems and objects
-terrain = pychrono.ChTerrain(system)
-terrain.LoadMesh("Highway_col.obj", "Highway_vis.obj")
+# Create the vehicle system
+vehicle_system = pychrono.ChVehicleSystem()
 
-vehicle = pychrono.ChVehicle(system)
-vehicle.SetChassisCollisionType(pychrono.ChCollisionModel.ChCollisionModelType.CHRONO_IRR_TRIMESH)
-vehicle.SetContactMethod(pychrono.ChContactMethod.NSC)
-vehicle.SetTireModel(pychrono.ChTireModelType.TMEASY)
+# Add the vehicle to the system
+vehicle = pychrono.ChWheeledVehicle()
+vehicle_system.AddVehicle(vehicle)
+
+# Set the vehicle's initial parameters
 vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(pychrono.ChVectorD(0, 0, 0))
-vehicle.SetInitOrientation(pychrono.ChQuaternionD(1, 0, 0, 0))
+vehicle.SetInitForwardVelocity(pychrono.ChVectorD(0, 0, 0))
+vehicle.SetInitForwardAcceleration(pychrono.ChVectorD(0, 0, 0))
+vehicle.SetContactMethod(pychrono.ChContactMethod.NSC)
+vehicle.SetTireType(pychrono.TireModelType.TMEASY)
 
-# Set necessary default parameters such as positions, forces, and interactions
-vehicle.SetSteeringValue(0)
-vehicle.SetThrottle(0)
-vehicle.SetBrake(0)
+# Set the vehicle's mesh visualization
+vehicle.SetChassisMesh("hmmwv_chassis.obj")
+vehicle.SetWheelMesh("hmmwv_wheel.obj")
 
-# Initialize the Irrlicht visualization
-visualization = pychrono.ChIrrApp(system, "HMMWV Simulation", pychrono.dimension2du(800, 600))
-visualization.SetSymbolscale(0.001)
-visualization.SetRenderMode(pychrono.ChIrrWizard.RENDER_SHADES)
-visualization.AddTypology(pychrono.ChIrrWizard.ChTypologyVehicle(vehicle, 1000, True))
-visualization.AddCamera(pychrono.ChVectorD(0, 3, -4), pychrono.ChVectorD(0, 0, 0))
-visualization.AssetBindAll()
-visualization.AssetUpdateAll()
+# Create the terrain system
+terrain_system = pychrono.ChTerrainSystem()
 
-# Implement a custom terrain using collision and visual meshes
-terrain.SetContactMethod(pychrono.ChContactMethod.NSC)
-terrain.SetCollisionEnvelope(0.01)
+# Add a custom terrain to the system
+terrain = pychrono.ChTerrainCustom()
+terrain_system.AddTerrain(terrain)
 
-# Configure an interactive driver system for steering, throttle, and braking control
-driver = pychrono.ChIrrVehicleUser(vehicle, visualization)
+# Set the terrain's collision and visual meshes
+terrain.SetCollisionMeshFile("Hill_col.obj")
+terrain.SetVisualizationMeshFile("Hill_vis.obj")
 
-# Run the simulation loop in real time at 50 frames per second
-system.SetTimestep(1.0 / 50.0)
-while system.GetChTime() < 10.0:
-    system.DoStepDynamics(system.GetTimestep())
-    visualization.BeginScene()
-    visualization.Render()
-    visualization.EndScene()
+# Create the driver system
+driver_system = pychrono.ChIrrlichtDriverSystem()
+
+# Add the driver to the system
+driver = pychrono.ChIrrlichtDriver()
+driver_system.AddDriver(driver)
+
+# Set the driver's steering, throttle, and braking control
+driver.SetSteering(0)
+driver.SetThrottle(0)
+driver.SetBraking(0)
+
+# Set the simulation loop time step
+pychrono.SetTimestep(0.02)
+
+# Start the simulation loop
+while pychrono.GetChronoTime() < 10:
+    # Update the vehicle dynamics
+    vehicle_system.DoStepDynamics(pychrono.GetChronoTime())
+
+    # Render the scene
+    driver_system.Render()
+
+# Close the PyChrono environment
+pychrono.StopFileLog()

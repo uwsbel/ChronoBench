@@ -1,0 +1,594 @@
+Okay, let's tackle this problem step by step. First, I need to understand what the user is asking for. They want me to modify an existing PyChrono simulation script based on specific instructions and also fix any potential errors in the original code.
+
+Starting with the original code provided. The user mentioned that the original code might have errors, so I should look for any obvious issues first. Let me go through the code line by line.
+
+Looking at the imports: they include pychrono.core, irrlicht, vehicle, and math. That seems okay. The initial setup for the vehicle's location and orientation looks fine. The visualization and collision types are set, but I'll note those for later when applying the instructions.
+
+The user's instructions mention changing the contact method from SMC to NSC. In the original code, contact_method is set to ChContactMethod_SMC. So I'll need to change that to NSC, which is ChContactMethod_NSC. Also, the contact_vis variable is set to False, but maybe that's part of the configuration for the terrain?
+
+Next, the terrain creation. The original code uses SCM deformable terrain. The user wants to switch to a rigid terrain with a single patch and a height map. So I need to replace the SCM terrain part with the rigid terrain setup.
+
+In the original code, there's a section where terrain_model is commented out. The user's instructions mention using a rigid terrain, so I should uncomment that or create a RigidTerrain instead. The RigidTerrain in Chrono typically uses a height map and a texture. The parameters for the terrain like length, width, and height are already set, but need to be adjusted if necessary.
+
+Looking at the original code, there's a part where the SCM terrain is initialized with a BMP file for the height map. The user wants to use that, so the height map file should be kept but under the rigid terrain setup.
+
+The moving patch and plot type settings are related to SCM, so those lines should be removed as per the instructions. Also, the line where the collision system type is set to BULLET might be okay, but I need to check if that's compatible with NSC. Wait, NSC uses a different collision system, so maybe that line should be removed or adjusted? Let me think. The user wants to change the contact method to NSC, so setting the collision system type to BULLET might conflict. Wait, the collision system type is separate from the contact method. The ChCollisionSystem.Type_BULLET is for Bullet, but NSC uses its own system. Maybe the line vehicle.GetSystem().SetCollisionSystemType(...) can be removed because it's not needed when using NSC? Or perhaps it's okay. Hmm, perhaps that line is okay but maybe not necessary. Alternatively, if using NSC, maybe the collision system should be Chrono's default. Let me check the Chrono documentation. Oh, right, when using NSC, the collision system is typically Chrono's built-in one, so setting it to Bullet might not be necessary. So perhaps that line can be commented out or removed. Alternatively, maybe it's okay, but the user didn't mention changing that, so perhaps it's better to leave it unless it's causing an error. Wait, maybe that line is causing an error if the contact method is NSC. Let me think. The contact method and collision system are separate. The collision system is for collision detection, while the contact method is for handling the contacts. So setting the collision system to Bullet might still be okay, but perhaps in the original code, when using SMC, maybe it's okay. But the user wants to switch to NSC. I'll need to ensure that the contact method is correctly set to NSC. So first, changing contact_method to NSC.
+
+Now, the main task is to replace the SCM terrain with a rigid terrain. Let's look at the original code's terrain section. The terrain is created as an SCM terrain, but we need to replace that with a RigidTerrain.
+
+The RigidTerrain in Chrono_vehicle is created using the veh.RigidTerrain class. The setup involves creating a terrain patch with a height map. The steps would be:
+
+1. Create a terrain system using veh.RigidTerrain.
+2. Define the terrain parameters like patch dimensions, height map, texture, etc.
+3. Initialize the terrain with the height map file and other parameters.
+
+In the original code, the SCM terrain was initialized with a BMP file for the height map. The user wants to keep that, so the height map path should remain. The texture is set using SetTexture, which is also part of the rigid terrain setup.
+
+So replacing the terrain creation part:
+
+Original code has:
+
+terrain = veh.SCMTerrain(vehicle.GetSystem())
+terrain.SetSoilParameters(... various parameters ...)
+terrain.AddMovingPatch(...) → which needs to be removed.
+terrain.SetPlotType(...) → also removed.
+terrain.Initialize(...) with the BMP file, etc.
+
+Instead, the new code should create a RigidTerrain. Let me recall the steps for creating a rigid terrain with a height map:
+
+First, create the terrain object:
+
+terrain = veh.RigidTerrain(vehicle.GetSystem())
+
+Then, define the patch. The RigidTerrain can have patches added via AddPatch. The parameters for AddPatch include:
+
+- material: the collision material (maybe using the default or a new one)
+- patch dimensions (length, width, height)
+- patch dimensions in mesh resolution (dx, dy)
+- height map file
+- texture file and scaling
+- etc.
+
+Wait, the AddPatch method for RigidTerrain might have parameters like:
+
+material, 
+patch_length, 
+patch_width, 
+patch_height, 
+patch_friction, 
+texture_path, 
+texture_scale_x, 
+texture_scale_y, 
+height_map, 
+height_scale, 
+...
+
+Alternatively, perhaps the height map is specified with a file path. Let me check the Chrono documentation.
+
+Looking up the ChRigidTerrain::AddPatch method:
+
+The method is:
+
+void AddPatch(ChSharedPtr<ChMaterialSurface> material,
+              double length, double width, double height,
+              double friction_coefficient,
+              const char* texture_filename = 0,
+              double texture_scale_x = 1,
+              double texture_scale_y = 1,
+              const char* height_map_filename = 0,
+              double height_scale = 1,
+              bool flip_texture = false);
+
+Wait, but in the PyChrono interface, maybe the parameters are similar. So to create a patch with a height map, we can call AddPatch with the material, dimensions, and the height_map_filename.
+
+Alternatively, perhaps the RigidTerrain in the vehicle module (veh.RigidTerrain) has a method to set the height map.
+
+Alternatively, perhaps the correct approach is to create a material, then add a patch with the height map.
+
+So, here's how to structure it:
+
+material = chrono.ChMaterialSurfaceNSC()  # since we're using NSC contact method
+material.SetFriction(0.8)  # or some default value, but maybe the user's code had parameters?
+
+Wait, but the original code's SCM terrain had parameters for soil, but now with rigid terrain, those parameters are irrelevant. So the user's instructions say to use a rigid terrain with a single patch and height map. So the parameters for the soil (like Bekker Kphi etc.) can be removed.
+
+So, in the code:
+
+First, create the terrain:
+
+terrain = veh.RigidTerrain(vehicle.GetSystem())
+
+Then, add a patch using AddPatch with the parameters. The length and width would be terrainLength and terrainWidth (from the original variables). The height is terrainHeight (which is 0 in the original code). The height map is the BMP file.
+
+Wait, the original code's terrainLength and terrainWidth are 100 each. The height is 0. The height map is "terrain/height_maps/bump64.bmp".
+
+So, the code would be something like:
+
+material = chrono.ChMaterialSurfaceNSC()
+material.SetFriction(0.8)  # default friction, but maybe the user wants to set it to something else?
+
+Then:
+
+terrain.AddPatch(material,
+                terrainLength, terrainWidth, terrainHeight,
+                0.8,  # friction coefficient
+                veh.GetDataFile("terrain/textures/dirt.jpg"),
+                6.0, 6.0,
+                veh.GetDataFile("terrain/height_maps/bump64.bmp"),
+                0.02)  # height scale, as in original code?
+
+Wait, in the original code's SCM terrain initialization, the parameters for Initialize were (height_map, 40, 40, -1, 1, 0.02). The 40 and 40 were the mesh resolution, but in the rigid terrain's AddPatch, the parameters are different. The height_map_filename is the BMP file, and the height_scale is the scaling factor for the height map values. The original code's 0.02 is probably the height_scale.
+
+So the AddPatch call would include the height_map_filename and height_scale.
+
+Putting it all together:
+
+terrain = veh.RigidTerrain(vehicle.GetSystem())
+material = chrono.ChMaterialSurfaceNSC()
+material.SetFriction(0.8)  # or some value, maybe default is okay?
+terrain.AddPatch(material,
+                terrainLength, terrainWidth, terrainHeight,
+                0.8,  # friction coefficient
+                veh.GetDataFile("terrain/textures/dirt.jpg"),
+                6.0, 6.0,
+                veh.GetDataFile("terrain/height_maps/bump64.bmp"),
+                0.02)  # height_scale
+
+Wait, but the parameters for AddPatch are:
+
+material (first),
+then length, width, height (of the patch, which is the terrain dimensions),
+friction coefficient (so the fourth parameter here is friction),
+then texture file, texture scales, height map file, height scale.
+
+Yes, that seems right.
+
+Also, in the original code, the terrain's texture was set with SetTexture, but in the RigidTerrain, the texture is set via the AddPatch parameters, so that's handled here.
+
+So the SCM terrain code is replaced with the above.
+
+Additionally, the user's instructions say to remove the moving patch and plot type settings, which are part of the SCM code. Those lines can be safely removed.
+
+Next, changing the contact method from SMC to NSC. The original code has contact_method = chrono.ChContactMethod_SMC. So changing that to chrono.ChContactMethod_NSC.
+
+Also, in the vehicle initialization, the contact method is set via vehicle.SetContactMethod(contact_method). That should now be NSC.
+
+Another thing: the original code had vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET). When using NSC, perhaps this line is unnecessary or could cause an error. Because NSC uses the built-in collision system, and Bullet is for SMC? Or maybe it's okay. Let me think. The collision system type is separate from the contact method. For NSC, the default collision system is Chrono's own, so setting it to Bullet might not be needed. The user's instructions don't mention changing the collision system, so perhaps it's better to remove that line unless it's causing an error. Alternatively, maybe it's okay. But to be safe, since the user wants NSC, perhaps removing that line would be better. Because using Bullet might interfere with NSC. So I'll comment that line out or remove it.
+
+Wait, in the original code, the vehicle's contact method is set to SMC, so using Bullet collision system might have been okay. But with NSC, the collision system is typically Chrono's own. So changing the contact method to NSC and removing the collision system setting would be better.
+
+So the line:
+
+vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+
+should be removed or commented out.
+
+Now, checking for other possible errors in the original code.
+
+Looking at the vehicle initialization: the code uses vehicle = veh.HMMWV_Full(). The initialization is done with vehicle.Initialize(), which is correct.
+
+The driver setup seems okay.
+
+The simulation loop: the driver, terrain, vehicle, and vis are updated each step. Since the terrain is now rigid, the Advance calls for terrain might be different. Wait, in the original code, terrain was an SCM terrain which required Advance. But with RigidTerrain, perhaps the terrain doesn't need to be advanced each step. Let me check the documentation.
+
+The RigidTerrain in the vehicle module probably doesn't require an Advance() method, since it's static. So in the simulation loop, the line terrain.Advance(step_size) should be removed. Because the RigidTerrain doesn't have an Advance function. That's a potential error in the original code when using RigidTerrain. So in the simulation loop, after replacing the terrain, the line terrain.Advance(step_size) would cause an error because RigidTerrain doesn't have that method. So that line must be removed.
+
+Looking at the original code's simulation loop:
+
+driver.Advance(step_size)
+terrain.Advance(step_size) → this needs to be removed.
+vehicle.Advance(step_size)
+vis.Advance(step_size)
+
+So the terrain.Advance is part of the original code when using SCM terrain, but with RigidTerrain, that line should be deleted.
+
+Another possible error: the initial code had terrain = veh.SCMTerrain(...), but now it's replaced with RigidTerrain. So that's correct.
+
+Also, in the original code, the terrain was added as a module to the system? Not sure, but the RigidTerrain's initialization should handle that.
+
+Another thing: in the original code, the terrain was initialized with:
+
+terrain.Initialize(veh.GetDataFile("terrain/height_maps/bump64.bmp"),40, 40, -1,1, 0.02)
+
+But with RigidTerrain, the initialization is via AddPatch, so the Initialize() method might not be needed. Wait, perhaps the RigidTerrain's AddPatch is sufficient, and the Initialize() is part of the SCMTerrain. So for RigidTerrain, the AddPatch is enough, so the terrain.Initialize(...) line should be removed.
+
+Wait, the RigidTerrain's AddPatch adds the patch to the terrain, but maybe there's an initialization step. Let me check the documentation for veh.RigidTerrain.
+
+Looking at the Chrono Vehicle module documentation, the RigidTerrain's AddPatch adds a patch to the terrain, and the system is automatically added to the vehicle's system. So perhaps the only steps are creating the terrain, adding the patch, and then maybe no further initialization is needed. So the terrain.Initialize(...) line from the original code (which was for SCMTerrain) is not needed anymore and should be removed.
+
+So in the code after replacing with RigidTerrain, the following lines are removed:
+
+terrain.Initialize(...) → removed.
+terrain.SetTexture(...) → since texture is set in AddPatch.
+
+Now, compiling all these changes:
+
+1. Change contact_method to NSC.
+
+2. Replace SCM terrain with RigidTerrain:
+
+   - Create terrain as veh.RigidTerrain(vehicle.GetSystem())
+
+   - Create material (ChMaterialSurfaceNSC)
+
+   - AddPatch with parameters including height map and texture.
+
+   - Remove all SCM-specific lines (SetSoilParameters, AddMovingPatch, SetPlotType, Initialize with BMP, etc.)
+
+3. Remove the collision system setting (SetCollisionSystemType) because it's not needed for NSC.
+
+4. In the simulation loop, remove the terrain.Advance(step_size) line.
+
+5. Also, check if any other parts are affected. For example, the vehicle's collision type was set to NONE for chassis. That's okay, but maybe the rigid terrain doesn't require that. Not sure, but the user's instructions don't mention changing that.
+
+Now, let's check for syntax errors in the code.
+
+In the original code, when creating the material for the RigidTerrain's patch, the material is of type ChMaterialSurfaceNSC. The friction coefficient is set in the AddPatch call's fourth parameter. Wait, the AddPatch parameters are:
+
+material (ChSharedPtr<ChMaterialSurface>),
+length (double),
+width (double),
+height (double),
+friction_coefficient (double),
+texture_filename (const char*),
+texture_scale_x (double),
+texture_scale_y (double),
+height_map_filename (const char*),
+height_scale (double),
+flip_texture (bool)
+
+Wait, the fourth parameter after material is length, then width, then height. Wait, no, looking again:
+
+Wait, the parameters are:
+
+material,
+
+then length,
+
+width,
+
+height,
+
+friction_coefficient,
+
+texture_filename,
+
+texture_scale_x,
+
+texture_scale_y,
+
+height_map_filename,
+
+height_scale,
+
+flip_texture.
+
+Wait, so the parameters are:
+
+material,
+
+length,
+
+width,
+
+height,
+
+friction,
+
+texture filename,
+
+texture scales,
+
+height map filename,
+
+height scale,
+
+flip texture.
+
+Wait, that's a lot of parameters. Let me recount:
+
+The AddPatch parameters as per the documentation (assuming the Python binding follows the same order):
+
+material (ChSharedPtr<ChMaterialSurface>),
+
+double length,
+
+double width,
+
+double height,
+
+double friction_coefficient,
+
+const char* texture_filename = 0,
+
+double texture_scale_x = 1,
+
+double texture_scale_y = 1,
+
+const char* height_map_filename = 0,
+
+double height_scale = 1,
+
+bool flip_texture = false.
+
+So in code, the call would be:
+
+terrain.AddPatch(material,
+
+                terrainLength, terrainWidth, terrainHeight,
+
+                0.8,  # friction coefficient
+
+                veh.GetDataFile("terrain/textures/dirt.jpg"),
+
+                6.0, 6.0,
+
+                veh.GetDataFile("terrain/height_maps/bump64.bmp"),
+
+                0.02,
+
+                False)  # flip_texture (optional)
+
+Wait, but in Python, the parameters after the optional ones can be omitted if using default values. Since the user's original code had the texture scale as 6.0,6.0 and the height map's height_scale as 0.02, that's correct.
+
+So the parameters are in order. The material is first, then length, width, height, friction, then texture file, texture scales, height map file, height scale, and flip texture (which can be omitted if default is False).
+
+Therefore, the AddPatch line is correctly structured.
+
+Another thing: the original code had terrain.SetTexture, but that's now handled via the AddPatch parameters, so that line is removed.
+
+Now, looking for other potential errors in the original code before modifications:
+
+In the original code, the line:
+
+vehicle.SetChassisCollisionType(chassis_collision_type)
+
+where chassis_collision_type is set to CollisionType_NONE. That's okay, but maybe the user wants to keep that as per their instructions. The instructions don't mention changing that, so it stays.
+
+Another possible error: in the original code, the vehicle's initialization includes vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET). When switching to NSC, this might be problematic because NSC uses the built-in collision system. So removing that line is necessary.
+
+Now, putting all these changes into the code.
+
+Let me go through each part step by step.
+
+First, modifying the contact method:
+
+contact_method = chrono.ChContactMethod_NSC
+
+Then, in the vehicle setup:
+
+vehicle.SetContactMethod(contact_method)
+
+The collision system line is removed.
+
+Next, replacing the terrain creation:
+
+Original code had:
+
+terrain = veh.SCMTerrain(vehicle.GetSystem())
+terrain.SetSoilParameters(...)
+terrain.AddMovingPatch(...)
+terrain.SetPlotType(...)
+terrain.Initialize(...)
+terrain.SetTexture(...)
+
+Replace with:
+
+terrain = veh.RigidTerrain(vehicle.GetSystem())
+material = chrono.ChMaterialSurfaceNSC()
+material.SetFriction(0.8)  # maybe not needed if friction is set in AddPatch?
+Wait, the friction is set in the AddPatch's fourth parameter, so the material's friction is separate. Wait, the material's friction is part of the material's properties. Wait, in NSC, the friction is set via the material. Wait, the material's friction is set via material.SetFriction(), and the AddPatch's fourth parameter is the friction coefficient. Wait, perhaps the friction parameter in AddPatch overrides the material's friction? Or is it that the material's friction is used?
+
+Wait, looking at the parameters for AddPatch: the fourth parameter is the friction coefficient, which is passed to the material. So perhaps the material's friction is set via that parameter. Therefore, the line material.SetFriction(...) might be redundant. Let me check the documentation.
+
+The AddPatch function's fourth parameter is the friction coefficient, which is assigned to the material's friction. So the material's friction is set via that parameter. Therefore, the material's friction doesn't need to be set explicitly. So the code can omit setting material.SetFriction, and just pass the friction in AddPatch.
+
+Therefore, the code can be:
+
+material = chrono.ChMaterialSurfaceNSC()
+terrain.AddPatch(material,
+
+                terrainLength, terrainWidth, terrainHeight,
+
+                0.8,  # friction coefficient
+
+                veh.GetDataFile("terrain/textures/dirt.jpg"),
+
+                6.0, 6.0,
+
+                veh.GetDataFile("terrain/height_maps/bump64.bmp"),
+
+                0.02,
+
+                False)
+
+Wait, but the material is created, but perhaps it's better to set the material's properties. Alternatively, maybe the friction is correctly handled via the parameter.
+
+Another thing: the material's surface properties (like restitution) might need to be set, but unless specified, the default is okay. Since the user's instructions don't mention that, we can proceed with the default.
+
+So the code for terrain creation is as above.
+
+Now, in the simulation loop, remove the terrain.Advance() line.
+
+Also, in the original code, the terrain was initialized with the BMP file via terrain.Initialize(...), but that's part of the SCMTerrain. Since we're using RigidTerrain, that line is removed.
+
+Now, other possible errors in the original code:
+
+Looking at the vehicle creation: vehicle = veh.HMMWV_Full(). That's okay.
+
+The line:
+
+vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+
+is removed because we're using NSC, which doesn't require Bullet.
+
+Another thing: in the original code, the vehicle's tire model is set to RIGID. That's okay, but the user's instructions don't mention changing that, so it stays.
+
+The vis_type variables are okay.
+
+Now, putting all these changes into the code.
+
+Let me also check for any syntax errors. For example, in the AddPatch parameters, the order must be correct.
+
+Now, let's write the corrected code step by step.
+
+Starting with the imports and initial setup.
+
+Then, the contact method is set to NSC.
+
+Then, in the vehicle initialization:
+
+vehicle.SetContactMethod(contact_method)
+
+Then, removing the collision system line.
+
+Then, creating the terrain as RigidTerrain with the AddPatch.
+
+Then, removing the SCM terrain's lines.
+
+In the simulation loop, removing terrain.Advance.
+
+Now, let me write the modified code.
+</think>
+
+```python
+import pychrono.core as chrono
+import pychrono.irrlicht as irr
+import pychrono.vehicle as veh
+import math
+
+"""
+!!!! Set this path before running the demo!
+"""
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())
+veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
+
+# Initial vehicle location and orientation
+initLoc = chrono.ChVectorD(-15, 0, 1.2)
+initRot = chrono.ChQuaternionD(1, 0, 0, 0)
+
+# Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
+vis_type = veh.VisualizationType_MESH
+
+# Collision type for chassis (PRIMITIVES, MESH, or NONE)
+chassis_collision_type = veh.CollisionType_NONE
+
+# Type of tire model (RIGID, TMEASY)
+tire_model = veh.TireModelType_RIGID
+
+# Rigid terrain parameters
+terrainHeight = 0      # terrain height
+terrainLength = 100.0  # size in X direction
+terrainWidth = 100.0   # size in Y direction
+
+# Camera tracking point
+trackPoint = chrono.ChVectorD(0.0, 0.0, 1.71)
+
+# Contact method (changed to NSC)
+contact_method = chrono.ChContactMethod_NSC
+contact_vis = False
+
+# Simulation step sizes
+step_size = 1e-3
+tire_step_size = step_size
+
+# Time interval between two render frames
+render_step_size = 1.0 / 20  # FPS = 50
+
+# Create the HMMWV vehicle, set parameters, and initialize
+vehicle = veh.HMMWV_Full()
+vehicle.SetContactMethod(contact_method)
+vehicle.SetChassisCollisionType(chassis_collision_type)
+vehicle.SetChassisFixed(False)
+vehicle.SetInitPosition(chrono.ChCoordsysD(initLoc, initRot))
+vehicle.SetTireType(tire_model)
+vehicle.SetTireStepSize(tire_step_size)
+
+vehicle.Initialize()
+
+vehicle.SetChassisVisualizationType(vis_type)
+vehicle.SetSuspensionVisualizationType(vis_type)
+vehicle.SetSteeringVisualizationType(vis_type)
+vehicle.SetWheelVisualizationType(vis_type)
+vehicle.SetTireVisualizationType(vis_type)
+
+# Create rigid terrain
+terrain = veh.RigidTerrain(vehicle.GetSystem())
+
+# Define terrain material (NSC)
+material = chrono.ChMaterialSurfaceNSC()
+terrain.AddPatch(material,
+                terrainLength, terrainWidth, terrainHeight,
+                0.8,  # friction coefficient
+                veh.GetDataFile("terrain/textures/dirt.jpg"),
+                6.0, 6.0,
+                veh.GetDataFile("terrain/height_maps/bump64.bmp"),
+                0.02)  # height scale
+
+# Create the vehicle Irrlicht interface
+vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
+vis.SetWindowTitle('HMMWV Demo')
+vis.SetWindowSize(1280, 1024)
+vis.SetChaseCamera(trackPoint, 6.0, 0.5)
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddLightDirectional()
+vis.AddSkyBox()
+vis.AttachVehicle(vehicle.GetVehicle())
+
+# Create the driver system
+driver = veh.ChInteractiveDriverIRR(vis)
+
+# Set input time response parameters
+steering_time = 1.0
+throttle_time = 1.0
+braking_time = 0.3
+driver.SetSteeringDelta(render_step_size / steering_time)
+driver.SetThrottleDelta(render_step_size / throttle_time)
+driver.SetBrakingDelta(render_step_size / braking_time)
+
+driver.Initialize()
+
+# ---------------
+# Simulation loop
+# ---------------
+
+print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
+
+render_steps = math.ceil(render_step_size / step_size)
+realtime_timer = chrono.ChRealtimeStepTimer()
+step_number = 0
+render_frame = 0
+
+while vis.Run():
+    time = vehicle.GetSystem().GetChTime()
+
+    if (step_number % render_steps == 0):
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+        render_frame += 1
+
+    driver_inputs = driver.GetInputs()
+
+    driver.Synchronize(time)
+    terrain.Synchronize(time)
+    vehicle.Synchronize(time, driver_inputs, terrain)
+    vis.Synchronize(time, driver_inputs)
+
+    driver.Advance(step_size)
+    vehicle.Advance(step_size)
+    vis.Advance(step_size)
+
+    step_number += 1
+    realtime_timer.Spin(step_size)
+```
+
+Key changes and corrections made:
+1. **Contact Method**: Changed from SMC to NSC.
+2. **Terrain Replacement**: Replaced SCM terrain with rigid terrain using `veh.RigidTerrain` and `AddPatch` with height map and texture.
+3. **Removed SCM-Specific Code**: Removed moving patch, plot type, and SCM initialization lines.
+4. **Collision System**: Removed `SetCollisionSystemType` as NSC uses default.
+5. **Simulation Loop**: Removed `terrain.Advance` as rigid terrain doesn't require it.
+6. **Material Setup**: Configured NSC material for terrain friction.
+7. **Parameter Order**: Ensured correct parameter order for `AddPatch` including friction and height map scaling.

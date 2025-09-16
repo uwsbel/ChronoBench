@@ -1,0 +1,770 @@
+Okay, I need to create a PyChrono simulation of a simple pendulum with Irrlicht visualization. Let me start by recalling the steps for setting up a basic simulation. First, I should import the necessary modules. Since it's using Irrlicht, I'll need to import chronoirrl and then create a system.
+
+The user mentioned a ground body, a pendulum, and a revolute joint. The pendulum needs mass and inertia, so I should define a rigid body for that. The ground is typically a static body. Let me structure the code step by step.
+
+First, initialize the Chrono system. Then create the ground. Maybe a simple box or a sphere? Wait, the ground is usually just a static object. Maybe a box at the top to represent the pivot point? Or perhaps just a point. Hmm, the revolute joint connects two bodies. The ground will be one, and the pendulum the other.
+
+Wait, the revolute joint in Chrono requires two bodies. The ground can be a Chrono::ChBody, but set as a static body. The pendulum body will be dynamic. So first, create the ground body. Let's make it a static box at (0,0,0) or maybe at a higher position? Let me think. The pendulum will hang down, so perhaps the pivot is at (0,0,1) or something. Wait, coordinates depend on the setup. Let me decide to place the pivot point at (0,0,0), and the pendulum bob below it.
+
+Wait, the ground body can be a static body placed at the pivot point. Alternatively, maybe the ground is a separate body, but since it's static, it doesn't need to be part of the simulation except for the joint. Alternatively, perhaps using the ChBodyAuxRef as the ground, but maybe it's easier to just create a static body.
+
+Let me outline the steps:
+
+1. Import modules: chrono and chronoirrl.
+
+2. Create a Chrono system: my_system = chrono.ChSystemNSC()
+
+3. Create the Irrlicht visualizer: vis = chronoirrl.ChVisualSystemIrrlicht()
+
+   Configure it to be visible, set a window size, and position the camera to view the pendulum.
+
+4. Attach the visual system to the system: my_system.SetVisualSystem(vis)
+
+5. Create the ground body. Let's make it a static body. So:
+
+   ground = chrono.ChBodyEasyBox(1, 1, 1, 1000, True, True)
+   ground.SetPos(chrono.ChVectorD(0,0,0))
+   ground.SetBodyFixed(True)
+   my_system.Add(ground)
+
+   Wait, but maybe the ground doesn't need a shape? Since it's just a pivot point. Alternatively, perhaps a small sphere to represent the pivot. Hmm, maybe better to have a visual representation. Alternatively, the pendulum's joint is attached to the ground, so maybe the ground can be a point. Alternatively, maybe the ground is just a static body with a small sphere at the pivot point.
+
+Alternatively, perhaps the ground is just a static body with no visual shape, but for the joint. Let me think. The revolute joint needs to be attached between the ground and the pendulum. So the ground body can be a static body at (0,0,0). The pendulum will be a sphere or a rod?
+
+Wait, the problem says "pendulum with appropriate mass and inertia". So maybe the pendulum is a point mass? Or a rod? Since it's a simple pendulum, typically it's a point mass at the end of a massless rod. But in Chrono, we need to model it as a rigid body. So perhaps the pendulum is a sphere with mass, connected via a revolute joint with a rod represented by the joint's axis length?
+
+Alternatively, maybe model the pendulum as a sphere with some radius, placed at the end of a rod. But for simplicity, perhaps just a sphere at the end, connected via a revolute joint with a distance from the pivot.
+
+Wait, the revolute joint in Chrono can have an offset. So the joint can be placed between the ground's position and the pendulum's position. Let me structure it as follows:
+
+The pendulum is a sphere (or a cylinder) with mass. Let's choose a sphere for simplicity. Let's set its mass and radius. The sphere's center will be at some distance from the pivot point (the ground's position). The revolute joint will connect the ground and the pendulum, with the joint's coordinate frame at the pivot point.
+
+So steps:
+
+- Create the ground body as a static body at (0,0,0).
+
+- Create the pendulum body as a sphere. Let's say radius 0.1 m, mass 1 kg. The sphere's initial position is (0,0,-1), so the length of the pendulum is 1 meter. Wait, but the joint will connect them. Wait, the joint's anchor point is the pivot point. So the sphere's position should be offset from the ground's position by the length of the pendulum. So the initial position is (0,0,-1), so that the distance is 1m.
+
+Wait, but the joint's position is the anchor point. The revolute joint is between the ground and the pendulum. The joint's frame is placed at the pivot point (0,0,0). The pendulum's body is connected via the joint, so the joint allows rotation around an axis (say, the x-axis? Or y? Let's say the pendulum swings in the x-z plane, so the rotation is around the y-axis. So the joint's rotation axis is along the y-axis.
+
+So the steps are:
+
+Create the pendulum body:
+
+pendulum = chrono.ChBodyEasySphere(0.1, 1000, True, True)
+
+Wait, ChBodyEasySphere creates a sphere with given radius and density. The mass is calculated as density * volume. So if density is 1000 kg/m³, then mass would be (4/3 π r³)*density. For radius 0.1, volume is ~0.004188 m³, so mass is ~4.188 kg. Maybe the user wants a specific mass. Let me check the instructions: "pendulum with appropriate mass and inertia". Since it's a simple pendulum, maybe just set mass directly. Alternatively, perhaps better to use ChBody and set mass properties manually.
+
+Alternatively, use ChBodyEasySphere but adjust the parameters. Alternatively, maybe the user wants a point mass, so perhaps a sphere with small radius but set the mass. Hmm, perhaps better to use ChBody and set the mass and inertia explicitly.
+
+Alternatively, let's use ChBodyEasySphere but adjust the density so that the mass is, say, 1 kg. Let's see: desired mass m = 1 kg. Volume of sphere is (4/3)πr³. Let's pick radius 0.1 m. Volume is (4/3)*π*(0.1)^3 ≈ 0.004188 m³. So density would be m/volume = 1 / 0.004188 ≈ 238.7 kg/m³. That's reasonable for a metal sphere. Alternatively, maybe the user doesn't care as long as it's set. Alternatively, perhaps better to use ChBody and set mass directly.
+
+Wait, the problem says "appropriate mass and inertia", but doesn't specify, so maybe just set to 1 kg for simplicity. Let me think. Let's create the pendulum body as a sphere with mass 1 kg and radius 0.1 m.
+
+So:
+
+pendulum = chrono.ChBody()
+pendulum.SetMass(1)
+pendulum.SetInertiaXX(chrono.ChMatrix33D()) # Need to compute inertia tensor for sphere.
+
+The inertia tensor for a solid sphere is (2/5)mr² * identity matrix. So:
+
+radius = 0.1
+inertia_xx = (2/5.0)*1*(radius**2)
+inertia_yy = inertia_xx
+inertia_zz = inertia_xx
+pendulum.GetInertia().SetElement(0,0, inertia_xx)
+pendulum.GetInertia().SetElement(1,1, inertia_yy)
+pendulum.GetInertia().SetElement(2,2, inertia_zz)
+
+Alternatively, use ChBodyEasySphere but adjust the parameters to get desired mass. Let me see:
+
+ChBodyEasySphere takes radius, density, and then the function computes mass as volume*density. So if I want mass 1 kg, then density = 1/( (4/3)*pi*r^3 )
+
+Let me compute that:
+
+r = 0.1 m,
+
+volume = (4/3)*pi*(0.1)^3 ≈ 0.00418879 m³,
+
+density = 1 / 0.00418879 ≈ 238.7 kg/m³. So:
+
+pendulum = chrono.ChBodyEasySphere(0.1, 238.7, True, True)
+
+That would give mass 1 kg. Maybe that's acceptable. Alternatively, perhaps it's easier to use ChBody and set mass and inertia directly. Let me proceed with that approach for clarity.
+
+Alternatively, maybe the problem doesn't require precise inertia as long as it's set. Let's proceed with creating the pendulum body as a sphere with mass 1 kg, radius 0.1 m.
+
+So code steps:
+
+pendulum = chrono.ChBody()
+pendulum.SetMass(1)
+pendulum.SetPos(chrono.ChVectorD(0,0,-1)) # Position 1 meter below the pivot (assuming pivot at (0,0,0))
+
+Then set the inertia tensor. Let me compute the inertia for a solid sphere:
+
+I = (2/5) * mass * radius² * identity matrix.
+
+So:
+
+radius = 0.1
+inertia = chrono.ChMatrix33D()
+inertia.SetDiagonal(chrono.ChVectorD( (2/5.0)*1*(radius**2), (2/5.0)*1*(radius**2), (2/5.0)*1*(radius**2) ))
+pendulum.SetInertiaTensor(inertia)
+
+Wait, or maybe use the GetInertia() method. Let me check the API. The ChBody::SetInertiaTensor method takes a ChMatrix33D, so that should work.
+
+Alternatively, use the ChBodyEasySphere approach with adjusted density. Let me see. Let me think that might be simpler. Let me try that:
+
+pendulum = chrono.ChBodyEasySphere(0.1, 238.7, True, True)
+
+The third parameter is whether it's a visualization asset, and fourth whether it's a collision asset. So that would create a sphere with radius 0.1, density 238.7, hence mass 1 kg. Then the inertia is automatically computed. That might be better.
+
+So perhaps that's better. Then the position is set to (0,0,-1).
+
+Next, create the revolute joint between ground and pendulum.
+
+The revolute joint is created via chrono.ChLinkLockRevolute. Let me check the parameters.
+
+The revolute joint needs to be between two bodies, and positioned at the anchor point. The axis of rotation is typically set via the SetAxis method.
+
+So:
+
+revolute = chrono.ChLinkLockRevolute()
+
+revolute.Initialize(ground, pendulum, chrono.ChFrameD(chrono.ChVectorD(0,0,0), chrono.Q_from_AngAxis(0, chrono.ChVectorD(0,1,0))) )
+
+Wait, the third argument is the coordinate frame of the joint relative to the first body (ground). Since the ground is at (0,0,0), the joint's position is at (0,0,0). The rotation axis is along the y-axis (since the swing is in x-z plane). The Q_from_AngAxis(0, y-axis) just sets the rotation part to identity, so the rotation axis is the y-axis.
+
+Wait, the axis is specified via the orientation. The rotation axis is determined by the coordinate system of the joint. The default might be that the axis is along the Z axis of the joint's coordinate frame. Wait, perhaps I need to set the rotation axis explicitly.
+
+Alternatively, the ChLinkLockRevolute allows setting the rotation axis via SetLimitCone. Wait, perhaps better to use ChLinkLockRevolute and set the rotation axis.
+
+Alternatively, perhaps I should use ChLinkRevolute instead of ChLinkLockRevolute? Wait, ChLinkLockRevolute is a locked joint, which allows rotation around an axis. Wait, no, maybe I need to use ChLinkRevolute. Let me check.
+
+Wait, the ChLinkLockRevolute is a constraint that allows rotation around an axis, but doesn't allow translation. So that's exactly what we need for a pendulum.
+
+Alternatively, maybe ChLinkLockRevolute is the right choice. Let me proceed.
+
+So after initializing the joint between ground and pendulum, we add it to the system.
+
+my_system.AddLink(revolute)
+
+Wait, the Initialize method returns void, so after that, we add the link to the system via my_system.Add(revolute).
+
+Now, visualization.
+
+The ground body is at (0,0,0). To visualize it, perhaps add a small sphere or a box. Alternatively, since it's just a point, maybe a small sphere. Alternatively, maybe the ground is just the joint point, so perhaps not necessary to visualize it. But for clarity, maybe add a small sphere at the pivot point.
+
+Wait, the ground body in the code above is a box? Wait no, in the first step, I thought of creating a ground body as a box, but then changed to a static body with no shape? Wait, in the code steps above, the ground was initially considered as a box, but perhaps that's not necessary. Wait, in the code steps I outlined earlier, the ground was created as a ChBodyEasyBox, but that might not be necessary. Let me correct that.
+
+Wait, the ground body is a static body. To create it as a static body with no shape, perhaps it's better to create it as a simple body without any collision shape, since it's just a pivot point. Alternatively, perhaps it's better to have a small sphere for visualization.
+
+Wait, the user wants to visualize the simulation. So perhaps the ground should have a visual asset. Let me create the ground as a static body with a small sphere.
+
+So:
+
+ground = chrono.ChBody()
+ground.SetBodyFixed(True)
+ground.SetPos(chrono.ChVectorD(0,0,0))
+ground_shape = chrono.ChSphereShape()
+ground_shape.GetSphereGeometry().rad = 0.05
+ground.AddAsset(ground_shape)
+ground.AddAsset(chrono.ChColorAsset(chrono.ChColor(0.5,0.5,0.5))) # grey color
+my_system.Add(ground)
+
+That way, the ground is a small sphere at the pivot point, visible in the simulation.
+
+Then the pendulum's sphere is at (0,0,-1). So the distance between the pivot and the center of the pendulum is 1 meter, which is the length of the pendulum.
+
+Now, adding visualization assets for the pendulum. The ChBodyEasySphere automatically adds a sphere shape, so that's okay.
+
+Now, the Irrlicht setup. Need to create the visual system and set up the camera.
+
+vis = chronoirrl.ChVisualSystemIrrlicht()
+vis.SetWindowSize(1024,768)
+vis.SetWindowTitle('Simple Pendulum Simulation')
+vis.SetSymbolscale(0.01)
+vis.SetShowInfos(True)
+vis.SetCameraPosition(chrono.ChVectorD(0, 3, 3)) # position the camera to view the pendulum
+vis.SetCameraRotation(chrono.Q_from_AngAxis(chrono.CH_C_PI/4, chrono.ChVectorD(1,0,0))) # rotate to look at the pendulum
+my_system.SetVisualSystem(vis)
+
+Wait, the camera position and rotation might need adjustment. Alternatively, perhaps set the camera position to (0, 3, 3) and look towards the origin.
+
+Alternatively, maybe use SetCameraLocation and SetCameraLookAt.
+
+Alternatively, perhaps:
+
+vis.SetCameraLocation(chrono.ChVectorD(0, 3, 3))
+vis.SetCameraLookAt(chrono.ChVectorD(0,0,0))
+
+But the Irrlicht methods might have different parameters. Need to check the API, but assuming that the code above is acceptable.
+
+Then, after creating the system and adding all bodies and constraints, we need to simulate and visualize.
+
+The simulation loop would involve:
+
+my_system.SetupSimulation()
+my_system.DoStepDynamics(0)
+
+Wait, but the main loop would typically involve a time step and looping until the user closes the window.
+
+Alternatively, in Irrlicht, the visualization system handles the loop. Wait, no, in PyChrono, you need to run the simulation loop and update the visualization.
+
+Wait, perhaps the code should look like this:
+
+vis = chronoirrl.ChVisualSystemIrrlicht()
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle('Simple Pendulum')
+vis.SetAntialiasing(0)
+vis.SetPointLight(chrono.ChVectorD(1,1,1), 2, chrono.ChVectorD(0,0,0))
+vis.SetCameraPosition(chrono.ChVectorD(0, 3, 3))
+vis.SetCameraRotation(chrono.Q_from_AngAxis(chrono.CH_C_PI/4, chrono.ChVectorD(1,0,0)))
+my_system.SetVisualSystem(vis)
+
+# Initialize the system
+my_system.SetupSimulation()
+my_system.DoStepDynamics(0)
+
+# Create the Irrlicht window
+vis.BeginDrawing()
+
+# Simulation loop
+while vis.Run():
+    my_system.DoStepDynamics(0.005)
+    vis.EndDrawing()
+    vis.BeginDrawing()
+
+Wait, but the time step needs to be small enough. The DoStepDynamics requires the step time. So perhaps the step is 0.005 seconds.
+
+But the user also wants to periodically log the pendulum's position and velocity. So need to add logging code.
+
+To log, perhaps every simulation step, record the position and velocity of the pendulum.
+
+Alternatively, use a timer or every N steps.
+
+Let me add a loop that runs for a certain number of steps, say 1000 steps, and logs the data.
+
+Wait, but in the Irrlicht visualization loop, the simulation runs until the window is closed. To log, perhaps inside the loop, after each DoStepDynamics, we can record the data.
+
+Alternatively, the user might want to log to a file or print to console periodically.
+
+The problem says "periodically log the pendulum's position and velocity". So perhaps every step, but that's too much. Alternatively, every N steps.
+
+Let me create a variable to count steps, and every, say, 10 steps, log the data.
+
+Alternatively, just append to a list and print at the end. But the user might want it to be logged during simulation.
+
+So inside the loop:
+
+step = 0
+while vis.Run():
+    my_system.DoStepDynamics(0.005)
+    if step % 10 == 0:
+        pos = pendulum.GetPos()
+        vel = pendulum.GetPos_dt()
+        print(f"Step {step}: Position {pos}, Velocity {vel}")
+    vis.EndDrawing()
+    vis.BeginDrawing()
+    step +=1
+
+Wait, but in the Irrlicht loop, the order is BeginDrawing, then simulate, then EndDrawing? Or is it the other way around?
+
+Actually, the standard loop is:
+
+while vis.Run():
+    vis.BeginDrawing()
+    # Draw stuff
+    vis.EndDrawing()
+
+But in the simulation loop, the DoStepDynamics must be called each iteration. So the correct structure is:
+
+Inside the loop:
+
+while vis.Run():
+    my_system.DoStepDynamics(0.005)
+    # Logging here
+    vis.BeginDrawing()
+    vis.Render()
+    vis.EndDrawing()
+
+Wait, perhaps the correct order is:
+
+while vis.Run():
+    my_system.DoStepDynamics(0.005)
+    vis.BeginDrawing()
+    vis.Render()
+    vis.EndDrawing()
+
+But the exact steps might vary. Alternatively, the standard code from examples might be better followed.
+
+Looking at PyChrono examples, for example, the basic simulation with Irrlicht:
+
+They have:
+
+visualizator = chronoirrl.ChVisualSystemIrrlicht()
+visualizator.SetWindowSize(1280, 1024)
+visualizator.SetWindowTitle('Simple pendulum')
+visualizator.SetAntialiasing(0)
+visualizator.SetShadows(True)
+visualizator.SetLightIntensity(0.9)
+visualizator.SetCameraPosition(chrono.ChVectorD(0, 3, 3))
+visualizator.SetCameraRotation(chrono.Q_from_AngAxis(chrono.CH_C_PI / 4, chrono.ChVectorD(1, 0, 0)))
+system.SetVisualSystem(visualizator)
+
+visualizator.BEGIN()
+visualizator.AddLightWithShadow(chrono.ChVectorD(0, 3, 3), chrono.ChVectorD(0, 0, 0), 3)
+
+# Simulation loop
+while (system.GetChTime() < 10) and visualizator.Run():
+    system.DoStepDynamics(0.005)
+    visualizator.Render()
+
+visualizator.BEGIN() and END()?
+
+Hmm, perhaps the code structure is:
+
+After setting up the visual system and adding all bodies, then:
+
+vis.BEGIN()
+
+while vis.Run():
+    system.DoStepDynamics(dt)
+    vis.Render()
+vis.END()
+
+Wait, the exact functions may vary. Alternatively, perhaps the loop is:
+
+while vis.Run():
+    vis.BeginDrawing()
+    system.DoStepDynamics(dt)
+    vis.Render()
+    vis.EndDrawing()
+
+But I might need to refer to the actual API. Alternatively, proceed with the code that is standard.
+
+Alternatively, perhaps the correct way is to use the Irrlicht loop as follows:
+
+vis.BEGIN()
+
+while vis.Run():
+    vis.Render()
+    system.DoStepDynamics(0.005)
+
+vis.END()
+
+But I'm a bit unsure. Let me proceed with code that should work, perhaps using the example from the PyChrono tutorial.
+
+Alternatively, here's a typical structure from the Chrono tutorial:
+
+# Create and initialize the Irrlicht application
+visualizator = chronoirrl.ChVisualSystemIrrlicht()
+visualizator.SetWindowSize(1280, 1024)
+visualizator.SetWindowTitle('Simple pendulum')
+visualizator.SetAntialiasing(0)
+visualizator.SetLightIntensity(0.9)
+visualizator.SetCameraPosition(chrono.ChVectorD(0, 3, 3))
+visualizator.SetCameraRotation(chrono.Q_from_AngAxis(chrono.CH_C_PI / 4, chrono.ChVectorD(1, 0, 0)))
+system.SetVisualSystem(visualizator)
+
+# Initialize the visualization
+visualizator.BEGIN()
+
+# Simulation loop
+while (system.GetChTime() < 10) and visualizator.Run():
+    system.DoStepDynamics(0.005)
+    visualizator.Render()
+
+visualizator.END()
+
+So in this structure, the loop runs until time reaches 10 seconds or the window is closed.
+
+Therefore, in the code, after setting up the system, we can set a time limit, say 10 seconds, and log the data every step or every N steps.
+
+To log the position and velocity, inside the loop:
+
+import sys
+
+...
+
+# Initialize the visualization
+vis.BEGIN()
+
+# Simulation loop
+step = 0
+while (my_system.GetChTime() < 10) and vis.Run():
+    my_system.DoStepDynamics(0.005)
+    
+    # Logging every 10 steps
+    if step % 10 == 0:
+        pos = pendulum.GetPos()
+        vel = pendulum.GetPos_dt()
+        print(f"Time: {my_system.GetChTime():.2f}s | Position: {pos.x:.2f}, {pos.y:.2f}, {pos.z:.2f} | Velocity: {vel.x:.2f}, {vel.y:.2f}, {vel.z:.2f}")
+    
+    vis.Render()
+    step +=1
+
+vis.END()
+
+Wait, but in the example code, the loop uses system.DoStepDynamics and Render.
+
+Wait, the step variable here is just for counting steps for logging.
+
+Putting all together:
+
+Now, let me structure the code step by step.
+
+Import modules:
+
+import pychrono as chrono
+import pychrono.irrlicht as chronoirrl
+
+Create the system:
+
+my_system = chrono.ChSystemNSC()
+
+Create the ground body:
+
+ground = chrono.ChBody()
+ground.SetBodyFixed(True)
+ground.SetPos(chrono.ChVectorD(0,0,0))
+ground_shape = chrono.ChSphereShape()
+ground_shape.GetSphereGeometry().rad = 0.05
+ground.AddAsset(ground_shape)
+ground.AddAsset(chrono.ChColorAsset(chrono.ChColor(0.5,0.5,0.5)))
+my_system.Add(ground)
+
+Create the pendulum:
+
+pendulum_radius = 0.1
+pendulum_mass = 1.0
+
+pendulum = chrono.ChBody()
+pendulum.SetMass(pendulum_mass)
+pendulum.SetPos(chrono.ChVectorD(0,0,-1))  # 1m below the pivot
+
+# Create inertia tensor for a solid sphere: I = (2/5)mr² * identity
+radius = pendulum_radius
+inertia_xx = (2/5.0)*pendulum_mass*(radius**2)
+inertia_yy = inertia_xx
+inertia_zz = inertia_xx
+inertia_tensor = chrono.ChMatrix33D()
+inertia_tensor.SetElement(0,0, inertia_xx)
+inertia_tensor.SetElement(1,1, inertia_yy)
+inertia_tensor.SetElement(2,2, inertia_zz)
+pendulum.SetInertiaTensor(inertia_tensor)
+
+# Add a sphere shape for visualization
+pendulum_shape = chrono.ChSphereShape()
+pendulum_shape.GetSphereGeometry().rad = pendulum_radius
+pendulum.AddAsset(pendulum_shape)
+pendulum.AddAsset(chrono.ChColorAsset(chrono.ChColor(0.8,0,0)))  # red color
+my_system.Add(pendulum)
+
+Create the revolute joint between ground and pendulum:
+
+revolute = chrono.ChLinkLockRevolute()
+revolute.Initialize(ground, pendulum, chrono.ChFrameD(chrono.ChVectorD(0,0,0), chrono.QUNIT))
+# Set the rotation axis to Y-axis (allows rotation in X-Z plane)
+revolute.SetAxis(chrono.ChVectorD(0,1,0))  # Set the rotation axis to Y-axis
+my_system.AddLink(revolute)
+
+Wait, the ChLinkLockRevolute's axis is set via SetAxis? Let me check the API. The ChLinkLockRevolute has a method SetAxis which sets the rotation axis. So that's correct.
+
+Alternatively, the ChFrameD in Initialize sets the coordinate frame. Since the joint is at (0,0,0), and the rotation axis is along Y (since SetAxis(0,1,0)), that should be okay.
+
+Now the visualization setup:
+
+vis = chronoirrl.ChVisualSystemIrrlicht()
+vis.SetWindowSize(1024,768)
+vis.SetWindowTitle('Simple Pendulum Simulation')
+vis.SetAntialiasing(0)
+vis.SetCameraPosition(chrono.ChVectorD(0, 3, 3))
+vis.SetCameraRotation(chrono.Q_from_AngAxis(chrono.CH_C_PI/4, chrono.ChVectorD(1,0,0)))
+my_system.SetVisualSystem(vis)
+
+Initialize the simulation:
+
+my_system.SetupSimulation()
+my_system.DoStepDynamics(0)  # Initialize
+
+Then the visualization loop with logging:
+
+vis.BEGIN()
+
+step = 0
+while vis.Run() and my_system.GetChTime() < 10:
+    my_system.DoStepDynamics(0.005)
+    
+    if step % 10 == 0:
+        pos = pendulum.GetPos()
+        vel = pendulum.GetPos_dt()
+        print(f"Time: {my_system.GetChTime():.2f}s | Position: ({pos.x:.2f}, {pos.y:.2f}, {pos.z:.2f}) | Velocity: ({vel.x:.2f}, {vel.y:.2f}, {vel.z:.2f})")
+    
+    vis.Render()
+    step +=1
+
+vis.END()
+
+Wait, but in the loop, the condition is while vis.Run() and time <10. The vis.Run() returns True while the window is open. So the loop continues until either the window is closed or time reaches 10.
+
+This should work.
+
+Now, checking for possible errors:
+
+- The revolute joint's axis is set to Y-axis, allowing rotation around Y, so the pendulum can swing in X-Z plane. The initial position is (0,0,-1), so it's hanging straight down along the negative Z-axis. Under gravity, it should swing back and forth.
+
+Wait, the system's gravity is set? Oh right, by default, Chrono systems have gravity enabled. The default gravity is along the negative Z-axis (assuming standard coordinate system). So the pendulum should swing in the X-Z plane.
+
+Wait, if the pendulum is initially at (0,0,-1), then in the Z direction. So gravity is pulling it further down, but since it's constrained by the joint, it will swing around the pivot.
+
+Wait, but in the initial position, the pendulum is already at the lowest point. So perhaps it needs an initial push to swing. The user didn't mention that, so maybe the simulation will just show it hanging there. To see motion, perhaps apply an initial velocity or displacement.
+
+Wait, the problem says "simple pendulum", so maybe it's okay to let it just hang. But perhaps the user expects some motion. Since the problem doesn't specify, but the simulation should work regardless.
+
+Alternatively, to make it swing, perhaps set an initial angular velocity. Let me see. The pendulum's initial position is at (0,0,-1). To give it an initial push, maybe set its angular velocity around the Y-axis.
+
+The angular velocity can be set via pendulum.SetWvel_par( ... ), but perhaps easier to set the linear velocity. Alternatively, set the angular velocity.
+
+The angular velocity around Y-axis would cause rotation in X-Z plane.
+
+Alternatively, set the pendulum's initial position to (0.5, 0, -0.866), so that it's displaced from the vertical. That would make it swing.
+
+Wait, but the problem doesn't specify initial conditions, so perhaps leave it as is. The code should work regardless.
+
+Another possible issue: the inertia tensor. In the code above, I set the inertia tensor manually. Let me confirm the calculation.
+
+For a solid sphere, I = (2/5)mr². So yes, that's correct.
+
+Alternatively, using ChBodyEasySphere with adjusted density to get mass 1 kg is another approach. Let me try that approach instead for simplicity.
+
+So replacing the pendulum creation part:
+
+pendulum = chrono.ChBodyEasySphere(pendulum_radius, 238.7, True, True)
+pendulum.SetPos(chrono.ChVectorD(0,0,-1))
+my_system.Add(pendulum)
+
+Then the inertia is automatically computed, which is correct.
+
+This might be better because it avoids manual inertia calculations.
+
+So the code would be cleaner.
+
+So revising the pendulum code:
+
+pendulum_radius = 0.1
+pendulum_mass = 1.0
+
+density = pendulum_mass / ( (4/3)*chrono.CH_C_PI*(pendulum_radius**3) )
+pendulum = chrono.ChBodyEasySphere(pendulum_radius, density, True, True)
+pendulum.SetPos(chrono.ChVectorD(0,0,-1))
+pendulum.AddAsset(chrono.ChColorAsset(chrono.ChColor(0.8,0,0)))  # red color
+my_system.Add(pendulum)
+
+That way, the mass is exactly 1 kg.
+
+That's better.
+
+Putting it all together.
+
+Now, the full code:
+
+import pychrono as chrono
+import pychrono.irrlicht as chronoirrl
+
+def main():
+    # Create the Chrono system
+    my_system = chrono.ChSystemNSC()
+
+    # Create ground body (pivot point)
+    ground = chrono.ChBody()
+    ground.SetBodyFixed(True)
+    ground.SetPos(chrono.ChVectorD(0, 0, 0))
+    # Add a small sphere for visualization
+    ground_shape = chrono.ChSphereShape()
+    ground_shape.GetSphereGeometry().rad = 0.05
+    ground.AddAsset(ground_shape)
+    ground.AddAsset(chrono.ChColorAsset(chrono.ChColor(0.5, 0.5, 0.5)))  # Grey color
+    my_system.Add(ground)
+
+    # Create pendulum body
+    pendulum_radius = 0.1  # meters
+    pendulum_mass = 1.0    # kg
+    # Calculate density to achieve desired mass
+    density = pendulum_mass / ( (4/3)*chrono.CH_C_PI*(pendulum_radius**3) )
+    pendulum = chrono.ChBodyEasySphere(pendulum_radius, density, True, True)
+    pendulum.SetPos(chrono.ChVectorD(0, 0, -1))  # Position 1m below pivot
+    pendulum.AddAsset(chrono.ChColorAsset(chrono.ChColor(0.8, 0, 0)))  # Red color
+    my_system.Add(pendulum)
+
+    # Create revolute joint between ground and pendulum
+    revolute = chrono.ChLinkLockRevolute()
+    revolute.Initialize(ground, pendulum, chrono.ChFrameD(chrono.ChVectorD(0,0,0), chrono.QUNIT))
+    # Set rotation axis to Y-axis (allows rotation in X-Z plane)
+    revolute.SetAxis(chrono.ChVectorD(0, 1, 0))
+    my_system.AddLink(revolute)
+
+    # Setup visualization
+    vis = chronoirrl.ChVisualSystemIrrlicht()
+    vis.SetWindowSize(1024, 768)
+    vis.SetWindowTitle('Simple Pendulum Simulation')
+    vis.SetAntialiasing(0)
+    vis.SetCameraPosition(chrono.ChVectorD(0, 3, 3))
+    vis.SetCameraRotation(chrono.Q_from_AngAxis(chrono.CH_C_PI/4, chrono.ChVectorD(1,0,0)))
+    my_system.SetVisualSystem(vis)
+
+    # Initialize the simulation
+    my_system.SetupSimulation()
+    my_system.DoStepDynamics(0)  # Initialize
+
+    # Start visualization
+    vis.BEGIN()
+
+    # Simulation loop
+    step = 0
+    while vis.Run() and my_system.GetChTime() < 10:
+        my_system.DoStepDynamics(0.005)  # Time step of 5ms
+
+        # Log data every 10 steps (~0.05 seconds)
+        if step % 10 == 0:
+            pos = pendulum.GetPos()
+            vel = pendulum.GetPos_dt()  # Linear velocity
+            print(f"Time: {my_system.GetChTime():.2f}s | Position: ({pos.x:.2f}, {pos.y:.2f}, {pos.z:.2f}) | Velocity: ({vel.x:.2f}, {vel.y:.2f}, {vel.z:.2f})")
+
+        vis.Render()
+        step += 1
+
+    vis.END()
+
+if __name__ == '__main__':
+    main()
+
+Wait, but in the revolute joint's Initialize function, the coordinate frame is set to the ground's local frame. Since the ground is at (0,0,0), the joint is at that position. The rotation axis is Y-axis.
+
+This should allow the pendulum to swing in the X-Z plane.
+
+Testing the code, the pendulum should hang straight down initially (since it's at (0,0,-1)), and under gravity (which is along -Z by default), it might not move. Wait, because if it's already at the lowest point, then the net torque is zero. So it would just stay there.
+
+To see motion, perhaps we need to displace it. Let me add an initial angular velocity.
+
+Alternatively, set the initial position to (0.5,0,-sqrt(3)/2) to make it displaced by 60 degrees. Let me compute:
+
+If the length is 1m, then coordinates (sin(theta), 0, -cos(theta)). For theta=60 degrees (pi/3 radians):
+
+sin(60)=√3/2 ≈0.866, cos=0.5.
+
+So position (0.866,0,-0.5). So the pendulum is displaced 60 degrees from vertical.
+
+So set pendulum.SetPos(chrono.ChVectorD(0.866,0,-0.5))
+
+That would give an initial displacement.
+
+Alternatively, the user might not care, but to have motion, perhaps better to add that.
+
+Alternatively, the problem didn't specify, but the simulation should work either way. The code as written would show the pendulum hanging still unless displaced.
+
+Hmm, perhaps the user expects it to swing, so adding an initial displacement is better.
+
+Modify the pendulum's initial position to (0.5,0,-sqrt(3)/2) or similar.
+
+Let me adjust the code:
+
+pendulum.SetPos(chrono.ChVectorD(0.5, 0, -chrono.sqrt(3)/2))
+
+Wait, let's compute sqrt(3)/2 is ~0.866, so 0.5^2 + (sqrt(3)/2)^2 = 0.25 + 0.75 = 1, so that's a unit vector.
+
+So that would place it at 60 degrees from the vertical.
+
+Alternatively, just set to (0.5,0,-0.866) for simplicity.
+
+Alternatively, perhaps the user expects the code to work as is. Since the problem didn't specify initial conditions, but the code should functionally be correct.
+
+Alternatively, the problem might just want the basic setup, even if it doesn't swing.
+
+In any case, the code provided meets the requirements: ground, pendulum with mass and inertia, revolute joint, visualization, and logging.
+
+Now, checking for any missing components:
+
+- The gravity is enabled by default in Chrono, so no need to set it.
+
+- The revolute joint is properly set between ground and pendulum.
+
+- Visualization assets are added.
+
+- The simulation loop with logging is present.
+
+Yes, this should be correct.
+</think>
+
+```python
+import pychrono as chrono
+import pychrono.irrlicht as chronoirrl
+
+def main():
+    # Create the Chrono system
+    my_system = chrono.ChSystemNSC()
+
+    # Create ground body (pivot point)
+    ground = chrono.ChBody()
+    ground.SetBodyFixed(True)
+    ground.SetPos(chrono.ChVectorD(0, 0, 0))
+    # Add a small sphere for visualization
+    ground_shape = chrono.ChSphereShape()
+    ground_shape.GetSphereGeometry().rad = 0.05
+    ground.AddAsset(ground_shape)
+    ground.AddAsset(chrono.ChColorAsset(chrono.ChColor(0.5, 0.5, 0.5)))  # Grey color
+    my_system.Add(ground)
+
+    # Create pendulum body
+    pendulum_radius = 0.1  # meters
+    pendulum_mass = 1.0    # kg
+    # Calculate density to achieve desired mass
+    density = pendulum_mass / ( (4/3)*chrono.CH_C_PI*(pendulum_radius**3) )
+    pendulum = chrono.ChBodyEasySphere(pendulum_radius, density, True, True)
+    pendulum.SetPos(chrono.ChVectorD(0.5, 0, -chrono.sqrt(3)/2))  # Displaced initial position
+    pendulum.AddAsset(chrono.ChColorAsset(chrono.ChColor(0.8, 0, 0)))  # Red color
+    my_system.Add(pendulum)
+
+    # Create revolute joint between ground and pendulum
+    revolute = chrono.ChLinkLockRevolute()
+    revolute.Initialize(ground, pendulum, chrono.ChFrameD(chrono.ChVectorD(0,0,0), chrono.QUNIT))
+    # Set rotation axis to Y-axis (allows rotation in X-Z plane)
+    revolute.SetAxis(chrono.ChVectorD(0, 1, 0))
+    my_system.AddLink(revolute)
+
+    # Setup visualization
+    vis = chronoirrl.ChVisualSystemIrrlicht()
+    vis.SetWindowSize(1024, 768)
+    vis.SetWindowTitle('Simple Pendulum Simulation')
+    vis.SetAntialiasing(0)
+    vis.SetCameraPosition(chrono.ChVectorD(0, 3, 3))
+    vis.SetCameraRotation(chrono.Q_from_AngAxis(chrono.CH_C_PI/4, chrono.ChVectorD(1,0,0)))
+    my_system.SetVisualSystem(vis)
+
+    # Initialize the simulation
+    my_system.SetupSimulation()
+    my_system.DoStepDynamics(0)  # Initialize
+
+    # Start visualization
+    vis.BEGIN()
+
+    # Simulation loop
+    step = 0
+    while vis.Run() and my_system.GetChTime() < 10:
+        my_system.DoStepDynamics(0.005)  # Time step of 5ms
+
+        # Log data every 10 steps (~0.05 seconds)
+        if step % 10 == 0:
+            pos = pendulum.GetPos()
+            vel = pendulum.GetPos_dt()  # Linear velocity
+            print(f"Time: {my_system.GetChTime():.2f}s | Position: ({pos.x:.2f}, {pos.y:.2f}, {pos.z:.2f}) | Velocity: ({vel.x:.2f}, {vel.y:.2f}, {vel.z:.2f})")
+
+        vis.Render()
+        step += 1
+
+    vis.END()
+
+if __name__ == '__main__':
+    main()
+```

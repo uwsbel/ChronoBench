@@ -1,52 +1,56 @@
 import pychrono as chrono
-import pychrono.vehicle as vehicle
+import pychrono.vehicle as veh
 import pychrono.irrlicht as irrlicht
 
-# 1. Initialize the PyChrono system
-system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
+# Initialize the PyChrono system
+my_system = chrono.ChSystemNSC()
+my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
-# 2. Create the ARTcar vehicle
-artcar = vehicle.ARTcar(system)
-artcar.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0.5), chrono.QUNIT))
-artcar.SetChassisVisualizationType(vehicle.VisualizationType_MESH)
-artcar.SetWheelVisualizationType(vehicle.VisualizationType_MESH)
+# Create Irrlicht visualization
+application = irrlicht.ChIrrApp(my_system, 'ARTcar Simulation', irrlicht.dimension2du(800, 600))
+application.AddTypicalLights()
+application.AddCamera(chrono.ChVectorD(0, 5, -10), chrono.ChVectorD(0, 0, 0))
+application.AssetBindAll()
+application.AssetUpdateAll()
 
-# 3. Create the RigidTerrain
-terrain = vehicle.RigidTerrain(system)
-terrain.SetPlane(chrono.ChPlane(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 1)))
-terrain.SetSize(chrono.ChVectorD(100, 100, 10))
-terrain.SetTexture(chrono.GetChronoDataFile("terrain/textures/grass.jpg"))
+# Create RigidTerrain with custom texture
+terrain = veh.RigidTerrain(my_system)
+patch = terrain.AddPatch(chrono.ChMaterialSurfaceNSC(), 
+                         chrono.ChVectorD(0, 0, 0), 
+                         chrono.ChVectorD(200, 200, 1), 
+                         True)
+patch.SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
+terrain.Initialize()
 
-# 4. Set up Irrlicht visualization
-app = vehicle.ChVehicleIrrApp(artcar, terrain, 'ARTcar Simulation')
-app.SetWindowSize(1024, 768)
-app.SetWindowTitle('ARTcar Simulation')
-app.SetChaseCamera(chrono.ChVectorD(0, -5, 2), 6.0, 0.5)
-app.AssetBindAll()
-app.AssetUpdateAll()
+# Create ARTcar vehicle
+artcar = veh.ARTcar(my_system)
+artcar.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 1, 0), 
+                                    chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0))))
+artcar.SetContactMethod(chrono.ChMaterialSurfaceNSC())
+artcar.SetChassisVisualizationType(veh.VisualizationType_MESH)
+artcar.SetWheelVisualizationType(veh.VisualizationType_MESH)
 
-# 5. Create interactive driver system
-driver = vehicle.ChIrrGuiDriver(app)
+# Create interactive driver
+driver = veh.ChInteractiveDriverIRR(application.GetDevice(), artcar, "Driver Controls")
 driver.SetSteeringDelta(0.05)
 driver.SetThrottleDelta(0.05)
 driver.SetBrakingDelta(0.05)
+driver.Initialize()
 
-# 6. Simulation loop parameters
-step_size = 0.02  # 50 FPS
-simulation_time = 0
-
-# Main simulation loop
-while app.GetDevice().run():
+# Simulation loop
+while application.GetDevice().run():
+    time = my_system.GetChTime()
+    
     # Update driver inputs
-    driver_inputs = driver.GetInputs()
+    driver.Synchronize(time)
     
     # Update vehicle dynamics
-    artcar.Synchronize(simulation_time, driver_inputs, terrain)
-    system.DoStepDynamics(step_size)
-    simulation_time += step_size
-
+    artcar.Synchronize(time, driver.GetInputs(), terrain)
+    
+    # Advance simulation
+    my_system.DoStepDynamics(0.02)
+    
     # Update visualization
-    app.BeginScene()
-    app.DrawAll()
-    app.EndScene()
+    application.BeginScene()
+    application.DrawAll()
+    application.EndScene()

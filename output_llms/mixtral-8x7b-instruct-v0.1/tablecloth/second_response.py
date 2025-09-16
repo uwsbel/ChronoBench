@@ -5,111 +5,84 @@ import pychrono.pardisomkl as mkl
 import errno
 import os
 
-Create node variables for plotting and loading setup
-=====================================================
+# Output directory setup
+out_dir = chrono.GetChronoOutputPath() + "FEA_SHELLS_BST"
+try:
+    os.mkdir(out_dir)
+except OSError as exc:
+    if exc.errno != errno.EEXIST:
+        print("Error creating output directory")
 
-nodePlotA, nodePlotB = None, None
-nodesLoad = []
-
-Create interpolation functions for reference tracking
-==================================================
-
-ref\_X, ref\_Y = 0.5, 0.5
-
-Introduce load force vector
-==========================
-
-load\_force = [0, -1000, 0]
-
-Create monitoring nodes and elements
-===================================
-
-mnodemonitor = None
-melementmonitor = None
-
-Create the Chrono system and add mesh
-=====================================
-
+# Create Chrono physical system
 sys = chrono.ChSystemSMC()
+
+# Create and add mesh to the system
 mesh = fea.ChMesh()
 sys.Add(mesh)
 
-Define material properties
-==========================
-
+# Material properties
 density = 100
 E = 6e4
 nu = 0.0
 thickness = 0.01
 
-Create material
-=============
-
+# Create material
 melasticity = fea.ChElasticityKirchhoffIsothropic(E, nu)
 material = fea.ChMaterialShellKirchhoff(melasticity)
 material.SetDensity(density)
 
-Set up mesh dimensions and create nodes
-========================================
+# Mesh dimensions
+L_x, L_z = 1, 1
+nsections_x, nsections_z = 40, 40
 
-L\_x, L\_z = 1, 1
-nsections\_x, nsections\_z = 40, 40
-
+# Create nodes
 mynodes = []
-for iz in range(nsections\_z + 1):
-for ix in range(nsections\_x + 1):
-p = chrono.ChVector3d(ix \* (L\_x / nsections\_x), 0, iz \* (L\_z / nsections\_z))
-mnode = fea.ChNodeFEAxyz(p)
-mesh.AddNode(mnode)
-mynodes.append(mnode)
-if iz == nsections\_z and ix == 1:
-melementmonitor = melementA
-if iz == 0 and ix == 1:
-nodePlotA = mnode
-nodesLoad.append(mnode)
-if ix == nsections\_x and iz == nsections\_z:
-nodePlotB = mnode
+nodePlotA = []
+nodePlotB = []
+nodesLoad = []
+ref_X = []
+ref_Y = []
+for iz in range(nsections_z + 1):
+    for ix in range(nsections_x + 1):
+        p = chrono.ChVector3d(ix * (L_x / nsections_x), 0, iz * (L_z / nsections_z))
+        mnode = fea.ChNodeFEAxyz(p)
+        mesh.AddNode(mnode)
+        mynodes.append(mnode)
+        if iz == 1 and ix == 1:
+            nodePlotA.append(mnode)
+            nodePlotB.append(mnode)
+        if iz == nsections_z // 2 and ix == nsections_x // 2:
+            nodesLoad.append(mnode)
+        ref_X.append(p.x)
+        ref_Y.append(p.y)
 
-Construct boundary nodes with conditional checks
-=============================================
-
-for iz in range(nsections\_z):
-for ix in range(nsections\_x):
+# Create elements
 melementA = fea.ChElementShellBST()
-boundary\_1 = mynodes[(iz + 1) \* (nsections\_x + 1) + ix + 1] \
-if (ix > 0) else None
-boundary\_2 = mynodes[(iz + 1) \* (nsections\_x + 1) + ix - 1] \
-if (ix > 0 and iz > 0) else None
-boundary\_3 = mynodes[(iz - 1) \* (nsections\_x + 1) + ix + 1] \
-if (iz > 0) else None
+melementmonitor = None
+for iz in range(nsections_z):
+    for ix in range(nsections_x):
+        boundary_1 = mynodes[(iz + 1) * (nsections_x + 1) + ix]
+        boundary_2 = mynodes[(iz + 1) * (nsections_x + 1) + ix] if ix > 0 else None
+        boundary_3 = mynodes[(iz - 1) * (nsections_x + 1) + ix] if iz > 0 else None
 
-melementA.SetNodes(mynodes[iz \* (nsections\_x + 1) + ix], mynodes[iz \* (nsections\_x + 1) + ix + 1],
-mynodes[(iz + 1) \* (nsections\_x + 1) + ix], boundary\_1, boundary\_2, boundary\_3)
-melementA.AddLayer(thickness, 0, material)
-mesh.AddElement(melementA)
+        melementA.SetNodes(mynodes[iz * (nsections_x + 1) + ix], mynodes[iz * (nsections_x + 1) + ix + 1],
+                           mynodes[(iz + 1) * (nsections_x + 1) + ix], boundary_1, boundary_2, boundary_3)
+        melementA.AddLayer(thickness, 0, material)
+        mesh.AddElement(melementA)
 
-melementB = fea.ChElementShellBST()
-boundary\_1 = mynodes[iz \* (nsections\_x + 1) + ix]
-boundary\_2 = mynodes[iz \* (nsections\_x + 1) + ix + 2] \
-if (ix < nsections\_x - 1) else None
-boundary\_3 = mynodes[(iz + 2) \* (nsections\_x + 1) + ix] \
-if (iz < nsections\_z - 1) else None
+        if iz == 0 and ix == 1:
+            melementmonitor = melementA
 
-melementB.SetNodes(mynodes[(iz + 1) \* (nsections\_x + 1) + ix + 1], mynodes[(iz + 1) \* (nsections\_x + 1) + ix],
-mynodes[iz \* (nsections\_x + 1) + ix + 1], boundary\_1, boundary\_2, boundary\_3)
-melementB.AddLayer(thickness, 0, material)
-mesh.AddElement(melementB)
+        boundary_1 = mynodes[iz * (nsections_x + 1) + ix]
+        boundary_2 = mynodes[iz * (nsections_x + 1) + ix + 2] if ix < nsections_x - 1 else None
+        boundary_3 = mynodes[(iz + 2) * (nsections_x + 1) + ix] if iz < nsections_z - 1 else None
 
-Fix upper nodes
-==============
+        melementA.SetNodes(mynodes[(iz + 1) * (nsections_x + 1) + ix + 1], mynodes[(iz + 1) * (nsections_x + 1) + ix],
+                           mynodes[iz * (nsections_x + 1) + ix + 1], boundary_1, boundary_2, boundary_3)
+        melementA.AddLayer(thickness, 0, material)
+        mesh.AddElement(melementA)
 
-for j in range(30):
-for k in range(30):
-mynodes[j \* (nsections\_x + 1) + k].SetFixed(True)
-
-Adjust visualization shapes
-==========================
-
+# Create visualizations for shell elements
 mvisualizeshellA = chrono.ChVisualShapeFEA(mesh)
 mvisualizeshellA.SetShellResolution(2)
 mvisualizeshellA.SetWireframe(True)
@@ -118,63 +91,47 @@ mvisualizeshellA.SetBackfaceCulling(True)
 mesh.AddVisualShapeFEA(mvisualizeshellA)
 
 mvisualizeshellB = chrono.ChVisualShapeFEA(mesh)
-mvisualizeshellB.SetFEMglyphType(chrono.ChVisualShapeFEA.GlyphType\_NODE\_DOT\_POS)
+mvisualizeshellB.SetFEMglyphType(chrono.ChVisualShapeFEA.GlyphType_NODE_DOT_POS)
 mvisualizeshellB.SetSymbolsThickness(0.006)
-mvisualizeshellB.SetFEMdataType(chrono.ChVisualShapeFEA.DataType\_NONE)
+mvisualizeshellB.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NONE)
 mesh.AddVisualShapeFEA(mvisualizeshellB)
 
-Set up Irrlicht visualization system
-===================================
-
+# Irrlicht visualization system setup
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(sys)
 vis.SetWindowSize(1024, 768)
 vis.SetWindowTitle('Shells FEA test: triangle BST elements')
 vis.Initialize()
-vis.AddLogo(chrono.GetChronoDataFile('logo\_pychrono\_alpha.png'))
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()
 vis.AddCamera(chrono.ChVector3d(1, 0.3, 1.3), chrono.ChVector3d(0.5, -0.3, 0.5))
 vis.AddTypicalLights()
 
-Adjust solver settings
-=====================
+# Fix certain nodes in the mesh
+for j in range(30):
+    for k in range(30):
+        mynodes[j * (nsections_x + 1) + k].SetFixed(True)
 
-mkl\_solver = mkl.ChSolverPardisoMKL()
-mkl\_solver.LockSparsityPattern(True)
-sys.SetSolver(mkl\_solver)
+# Change solver to PardisoMKL
+mkl_solver = mkl.ChSolverPardisoMKL()
+mkl_solver.LockSparsityPattern(True)
+sys.SetSolver(mkl_solver)
 
-Adjust time step
-===============
-
+# Define time step for simulation
 timestep = 0.005
 
-Final setup and system updates
-=============================
-
+# Final setup and system updates
 sys.Setup()
 sys.Update()
 
-Simulation loop
-==============
+# Apply load to the nodes
+load_force = chrono.ChVectorD(0, -1, 0)
+for node in nodesLoad:
+    node.AddForce(load_force)
 
+# Simulation loop
 while vis.Run():
-vis.BeginScene()
-vis.Render()
-vis.EndScene()
-sys.DoStepDynamics(timestep)
-
-Apply loads
-==========
-
-nodePlotA.AddForce(load\_force)
-
-Monitor nodes and elements
-=========================
-
-mnodemonitor = nodePlotA
-melementmonitor = melementA
-
-Plot results
-============
-
-# Plotting code here
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    sys.DoStepDynamics(timestep)

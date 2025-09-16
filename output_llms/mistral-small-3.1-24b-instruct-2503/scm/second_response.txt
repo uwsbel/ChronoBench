@@ -1,23 +1,16 @@
-Sure, let's start by reviewing the given PyChrono script for any errors and then modify it to encapsulate SCM terrain parameters and initialize them using predefined configurations.
+To achieve the specified requirements, we will follow these steps:
 
-### Identifying and Correcting Errors
+1. **Identify and Correct Errors**: Review the given script for any potential errors and correct them.
+2. **Encapsulate SCM Terrain Parameters**: Create a new class to manage and set the SCM terrain parameters.
+3. **Initialize Terrain Parameters**: Replace the existing terrain parameter setup with the new class using predefined configurations.
 
-1. **Unused Imports**: The import for `math` is not necessary as `math.ceil` is not used. Instead, `chrono.ChRound` can be used.
-2. **Commented Terrain Model**: The line `# terrain_model = veh.RigidTerrain.BOX` is commented out and unnecessary.
-3. **Contact Method Setting**: The `SetContactMethod` method is not available for the `HMMWV_Full` class. It should be set in the `ChSystem` instead.
-4. **Tire Step Size**: The `SetTireStepSize` method does not exist. The tire step size should be set in the `Initialize` method of the `ChWheeledVehicle` class.
-5. **Terrain Plot Type**: The `SetPlotType` method should use `veh.SCMTerrain.PLOT_SINKAGE` directly instead of passing arguments.
-6. **Driver Initialization**: The `driver.Initialize()` method should be called after setting the deltas.
-7. **Realtime Timer**: The `realtime_timer.Spin(step_size)` should be outside the render check to ensure it runs every step.
-
-### Modified Script
-
-Here's the corrected and modified script:
+Here is the corrected and modified script:
 
 ```python
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
+import math
 
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
@@ -35,7 +28,7 @@ chassis_collision_type = veh.CollisionType_NONE
 # Type of tire model (RIGID, TMEASY)
 tire_model = veh.TireModelType_RIGID
 
-# Terrain height
+# Rigid terrain
 terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
@@ -55,7 +48,8 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  # FPS = 50
 
 # Create the HMMWV vehicle, set parameters, and initialize
-vehicle = veh.HMMWV_Full()
+vehicle = veh.HMMWV_Full()  # veh.HMMWV_Reduced() could be another choice here
+vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
@@ -71,39 +65,77 @@ vehicle.SetWheelVisualizationType(vis_type)
 vehicle.SetTireVisualizationType(vis_type)
 
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
-vehicle.GetSystem().SetContactMethod(contact_method)
 
 # Encapsulate SCM Terrain Parameters
-class SCMTerrainParams:
-    def __init__(self, config):
+class SCMTerrainParameters:
+    def __init__(self, config="mid"):
         self.config = config
-        self.params = self.get_params()
+        self.parameters = self.get_parameters(config)
 
-    def get_params(self):
-        if self.config == "soft":
-            return (2e6, 0, 1.1, 0, 30, 0.01, 2e8, 3e4)
-        elif self.config == "mid":
-            return (1e7, 0, 1.2, 0, 35, 0.02, 1e9, 2e4)
-        elif self.config == "hard":
-            return (5e7, 0, 1.3, 0, 40, 0.03, 5e9, 1e4)
+    def get_parameters(self, config):
+        if config == "soft":
+            return {
+                "Bekker_Kphi": 1e6,
+                "Bekker_Kc": 0,
+                "Bekker_n": 1.1,
+                "Mohr_cohesive_limit": 0,
+                "Mohr_friction_limit": 30,
+                "Janosi_shear_coefficient": 0.01,
+                "Elastic_stiffness": 1e8,
+                "Damping": 2e4
+            }
+        elif config == "mid":
+            return {
+                "Bekker_Kphi": 2e6,
+                "Bekker_Kc": 0,
+                "Bekker_n": 1.1,
+                "Mohr_cohesive_limit": 0,
+                "Mohr_friction_limit": 30,
+                "Janosi_shear_coefficient": 0.01,
+                "Elastic_stiffness": 2e8,
+                "Damping": 3e4
+            }
+        elif config == "hard":
+            return {
+                "Bekker_Kphi": 3e6,
+                "Bekker_Kc": 0,
+                "Bekker_n": 1.1,
+                "Mohr_cohesive_limit": 0,
+                "Mohr_friction_limit": 30,
+                "Janosi_shear_coefficient": 0.01,
+                "Elastic_stiffness": 3e8,
+                "Damping": 4e4
+            }
         else:
             raise ValueError("Invalid terrain configuration")
 
+    def get_parameter(self, key):
+        return self.parameters[key]
+
 # Initialize Terrain Parameters
-terrain_params = SCMTerrainParams("mid").params
+terrain_params = SCMTerrainParameters(config="mid")
 
 # Create the SCM deformable terrain patch
 terrain = veh.SCMTerrain(vehicle.GetSystem())
-terrain.SetSoilParameters(*terrain_params)
+terrain.SetSoilParameters(
+    terrain_params.get_parameter("Bekker_Kphi"),
+    terrain_params.get_parameter("Bekker_Kc"),
+    terrain_params.get_parameter("Bekker_n"),
+    terrain_params.get_parameter("Mohr_cohesive_limit"),
+    terrain_params.get_parameter("Mohr_friction_limit"),
+    terrain_params.get_parameter("Janosi_shear_coefficient"),
+    terrain_params.get_parameter("Elastic_stiffness"),
+    terrain_params.get_parameter("Damping")
+)
 
 # Optionally, enable moving patch feature (single patch around vehicle chassis)
 terrain.AddMovingPatch(vehicle.GetChassisBody(), chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(5, 3, 1))
 
 # Set plot type for SCM (false color plotting)
-terrain.SetPlotType(veh.SCMTerrain.PLOT_SINKAGE)
+terrain.SetPlotType(veh.SCMTerrain.PLOT_SINKAGE, 0, 0.1)
 
 # Initialize the SCM terrain (length, width, mesh resolution), specifying the initial mesh grid
-terrain.Initialize(terrainLength, terrainWidth, 0.02)
+terrain.Initialize(20, 20, 0.02)
 
 # Create the vehicle Irrlicht interface
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
@@ -137,9 +169,9 @@ driver.Initialize()
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events
-render_steps = chrono.ChRound(render_step_size / step_size)
+render_steps = math.ceil(render_step_size / step_size)
 
-# Initialize simulation frame counter
+# Initialize simulation frame counter s
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
@@ -148,7 +180,7 @@ while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
     # Render scene and output POV-Ray data
-    if step_number % render_steps == 0:
+    if (step_number % render_steps == 0):
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
@@ -169,21 +201,16 @@ while vis.Run():
     vehicle.Advance(step_size)
     vis.Advance(step_size)
 
-    # Spin in place for real time to catch up
-    realtime_timer.Spin(step_size)
-
     # Increment frame number
     step_number += 1
+
+    # Spin in place for real time to catch up
+    realtime_timer.Spin(step_size)
 ```
 
-### Explanation of Changes
+### Summary of Changes:
+1. **Encapsulated SCM Terrain Parameters**: Created a `SCMTerrainParameters` class to manage and set the SCM terrain parameters.
+2. **Initialized Terrain Parameters**: Replaced the direct setting of terrain parameters with the new class using a predefined configuration (`"mid"` in this case).
+3. **Corrected Errors**: Ensured that all method names and parameters are correct and consistent with PyChrono's API.
 
-1. **Removed Unused Imports**: Removed the `math` import since `chrono.ChRound` is used instead.
-2. **Contact Method Setting**: Moved the `SetContactMethod` call to the `ChSystem` of the vehicle.
-3. **Tire Step Size**: Removed the `SetTireStepSize` call since it does not exist.
-4. **Terrain Plot Type**: Simplified the `SetPlotType` call.
-5. **Driver Initialization**: Ensured `driver.Initialize()` is called after setting the deltas.
-6. **Realtime Timer**: Moved `realtime_timer.Spin(step_size)` outside the render check.
-7. **Encapsulated SCM Terrain Parameters**: Created a `SCMTerrainParams` class to manage terrain parameters and used it to initialize the terrain.
-
-This script should now be error-free and meet the specified requirements.
+This script should now meet the specified requirements and run correctly.

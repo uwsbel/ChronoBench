@@ -18,22 +18,10 @@ terrain = veh.SCMDeformableTerrain(system)
 terrain.SetPlane(chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT))  
 terrain.SetLength(20)    
 terrain.SetWidth(20)     
-terrain.SetMeshResolution(0.1)  
+terrain.SetMeshResolution(0.05)  
 
-
-soil_params = veh.SCMSoilParams()
-soil_params.BekkerKphi = 0.2e6    
-soil_params.BekkerKc = 0          
-soil_params.Bekkern = 1.1         
-soil_params.MohrCoulombCohesion = 0
-soil_params.MohrCoulombFrictionAngle = 30 * chrono.CH_PI / 180  
-soil_params.DrLateralFriction = 0.03
-soil_params.YoungsModulus = 2e7   
-soil_params.PoissonsRatio = 0.3   
-soil_params.plastic_flow = True
-soil_params.use_shear = True
-terrain.SetSoilParameters(soil_params)
-terrain.Initialize()  
+terrain.SetSoilParameters(2e6, 3e5, 0.3, 0.01, 0.005)  
+terrain.Initialize()
 
 
 rover = viper.Viper(system)  
@@ -41,8 +29,8 @@ driver = viper.ViperDCMotorControl()
 rover.SetDriver(driver)  
 
 
-init_pos = chrono.ChVector3d(0, 0, 0.2)  
-init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
+init_pos = chrono.ChVector3d(0, 0.2, 0.1)  
+init_rot = chrono.ChQuaterniond(1, 0, 0, 0)  
 rover.Initialize(chrono.ChFramed(init_pos, init_rot))
 
 
@@ -65,9 +53,9 @@ time_step = 1e-3
 time = 0
 while vis.Run():
     time += time_step  
-
     
-    steering = 0.0
+    
+    steering = 0.0  
     driver.SetSteering(steering)  
 
     rover.Update()  

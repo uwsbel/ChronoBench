@@ -1,58 +1,63 @@
 import pychrono as chrono
-import pychrono.viper as viper
-import pychrono.irrlicht as irrlicht
+import pychrono.vehicle as veh
+import pychrono.irrlicht as irr
 
-# Initialize the Chrono system with gravity
+# Initialize the Chrono system
 system = chrono.ChSystemNSC()
 system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
-# Create a rigid ground body
+# Create the ground
 ground = chrono.ChBody()
 ground.SetBodyFixed(True)
 ground.SetCollide(True)
 ground.GetCollisionModel().ClearModel()
-ground.GetCollisionModel().AddBox(100, 1, 100)  # Large flat ground
+ground.GetCollisionModel().AddBox(100, 1, 100)  # x, y, z half-dimensions
 ground.SetPos(chrono.ChVectorD(0, -1, 0))  # Position the ground
 system.Add(ground)
 
-# Initialize the Viper rover
-rover = viper.ChViper(system)
-rover.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0.5, 0), chrono.QUNIT))  # Start position and orientation
+# Create the Viper rover
+rover = veh.Viper(system)
+rover.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0.5, 0), chrono.QUNIT))
+rover.Initialize()
 
-# Set up the driver for the Viper rover
-driver = viper.ChViperDriver()
-rover.SetDriver(driver)
+# Create the driver
+driver = veh.ViperSimpleDriver(rover)
+driver.Initialize()
 
-# Configure Irrlicht visualization
-application = irrlicht.ChIrrApp(system, 'Viper Rover Simulation', irrlicht.dimension2du(1280, 720))
+# Set up Irrlicht visualization
+application = irr.ChIrrApp(system, 'Viper Rover Simulation', irr.dimension2du(800, 600))
 application.AddTypicalLogo()
-application.AddTypicalCamera(irrlicht.vector3df(0, 3, -6), irrlicht.vector3df(0, 0, 0))  # Camera setup
+application.AddTypicalCamera(chrono.ChVectorD(0, 2, -5), rover.GetChassis().GetPos())
 application.AddTypicalLights()
 application.AssetBindAll()
 application.AssetUpdateAll()
 
-# Simulation parameters
-end_time = 10.0  # Duration for steering change (seconds)
-max_steering = 1.0  # Maximum steering input (-1 to 1)
+# Simulation loop parameters
+time_step = 1e-3  # 0.001 seconds
+end_time = 20.0  # seconds
 
 # Simulation loop
 while application.GetDevice().run():
     current_time = system.GetChTime()
-    
-    # Gradually change steering from -max to +max over end_time
-    if current_time <= end_time:
-        steering = -max_steering + (2 * max_steering) * (current_time / end_time)
+    if current_time > end_time:
+        break
+
+    # Update steering: ramp up to 0.5 over 10s, then ramp down to 0 over next 10s
+    if current_time < 10.0:
+        steering = 0.5 * (current_time / 10.0)
     else:
-        steering = max_steering  # Hold at maximum steering after end_time
-    
-    # Update driver inputs
+        steering = 0.5 * (1.0 - (current_time - 10.0) / 10.0)
+    steering = max(0.0, min(0.5, steering))  # Clamp steering between 0 and 0.5
     driver.SetSteering(steering)
-    driver.SetThrottle(0.3)  # Apply constant throttle for forward motion
 
-    # Advance the simulation
-    system.DoStepDynamics(1e-3)  # Fixed time step of 0.001 seconds
+    # Update driver and rover
+    driver.Synchronize(current_time)
+    rover.Synchronize(current_time, driver.GetInputs(), time_step)
 
-    # Update and render the scene
+    # Advance simulation
+    system.DoStepDynamics(time_step)
+
+    # Render
     application.BeginScene()
     application.DrawAll()
     application.EndScene()

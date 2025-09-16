@@ -1,79 +1,65 @@
-# Import necessary PyChrono modules
-from pychrono.core import *
-from pychrono.irrlicht import *
-from pychrono.fea import *
+import chrono
+from chrono import ChVector, ChMatrix33, ChQuaternion, ChCoordsys
+from chrono.fea import ChElementBeamIGA, ChLinkDirFrame
+from chrono.collision import ChCollisionModel, ChCollisionPair, ChBox, ChSphere
+from chrono.irrlicht import ChIrrApp
+from chrono.vehicle import ChWheel, ChTire
 
-# Initialize the PyChrono environment
-my_system = ChronoSystem()
+# Initialize the PyChrono environment and core components
+chrono.SetSharedConfig(chrono.ChConfig())
 
-# Set up the Irrlicht visualization
-my_visualization = IrrlichtVisualization(my_system, "Jeffcott Rotor IGA", 800, 600, false)
-my_visualization.set_background_color(0.4, 0.4, 0.8)
-my_visualization.set_camera_position(Vector3(5, 5, 5))
-my_visualization.set_camera_looking_at(Vector3(0, 0, 0))
-
-# ------------------
 # Create the IGA beam
-# ------------------
-beam_shape = IGABeamGeometry()
-beam_shape.set_width(0.1)
-beam_shape.set_height(0.02)
-beam_shape.set_length(1)
-beam_shape.set_num_segments(10)
-beam_shape.set_num_elements(100)
-beam_shape.update_geometry()
+beam_width = 0.1  # width of the beam
+beam_height = 0.05  # height of the beam
+beam_length = 1.0  # length of the beam
+beam_sections = 10  # number of sections for the IGA beam
+beam = ChElementBeamIGA.IgaCreateBeam(beam_width, beam_height, beam_length, beam_sections)
 
-beam_material = StructuralSteel()
-beam_material.set_density(7800)
-beam_material.set_young_modulus(210e9)
-beam_material.set_poisson_ratio(0.3)
+# Add the beam to the system
+system = chrono.ChSystem()
+system.Add(beam)
 
-beam_body = RigidBody(my_system, "beam_body")
-beam_spatial = IGA_Beam(beam_body, beam_shape, beam_material)
-beam_spatial.set_initial_position(ChVector<>(0, 0, 0))
+# Create the flywheel
+flywheel_mass = 1.0  # mass of the flywheel
+flywheel_radius = 0.1  # radius of the flywheel
+flywheel_inertia = flywheel_mass * (flywheel_radius ** 2) / 2.0  # inertia of the flywheel
+flywheel_body = chrono.ChBodyEasyBox(flywheel_mass, 0.1, 0.1, 0.1, True, True)
+flywheel_body.SetPos(ChVector(0, 0, 0))
+flywheel_body.SetMass(flywheel_mass)
+flywheel_body.SetInertiaXX(ChMatrix33.Diagonal(flywheel_inertia, flywheel_inertia, flywheel_inertia))
+system.Add(flywheel_body)
 
-# --------------
-# Add the flywheel
-# --------------
-flywheel_shape = ChBoxShape()
-flywheel_shape.get_box_geometry().size = ChVector<>(0.2, 0.05, 0.05)
+# Attach the flywheel to the beam
+link = ChLinkDirFrame()
+link.Initialize(beam, flywheel_body, ChCoordsys(ChVector(0, 0, 0), ChQuaternion.Identity()))
+system.Add(link)
 
-flywheel_material = StructuralSteel()
-flywheel_material.set_density(7800)
+# Create the rotational motor
+motor_torque = 1.0  # torque of the motor
+motor_speed = 10.0  # speed of the motor
+motor = chrono.ChLinkMotorRotationSpeed(beam, ChVector(0, 0, 1), motor_speed)
+motor.SetForce(motor_torque)
+system.Add(motor)
 
-flywheel_body = RigidBody(my_system, "flywheel_body")
-flywheel_body.add_shape(flywheel_shape)
-flywheel_body.set_mass(1)
-flywheel_body.set_pos(ChVector<>(0, 0, 0.05))
-beam_spatial.add_child_body(flywheel_body)
+# Set up the visualization
+vis = ChIrrApp(system)
+vis.AddLogo()
+vis.AddCamera(chrono.ChVector(2, 2, 2))
+vis.AddSkyBox()
+vis.AddTypicalLights()
 
-# -----------------
-# Add the rotational motor
-# -----------------
-rotational_motor = RotationalMotor(my_system, "rotational_motor")
-rotational_motor.set_axis(ChVector3(0, 0, 1))
-rotational_motor.set_joint_target_velocity(10)
-beam_spatial.add_motor(rotational_motor)
+# Add FEM visualization for the beam
+beam_mesh = chrono.ChMeshFile()
+beam_mesh.Load("path/to/iga_beam_mesh.obj")
+beam_shape = ChBox(beam_width / 2, beam_height / 2, beam_length / 2)
+beam_vis = chrono.ChVisualizationFEAmesh(beam, beam_mesh, beam_shape, chrono.ChColor(0.5, 0.5, 0.5))
+vis.Add(beam_vis)
 
-# ------------------
-# Set up the FEM visualization
-# ------------------
-my_visualization.attach_object(beam_spatial.get_fea_visualization())
+# Add visualization for the flywheel
+flywheel_shape = ChSphere(flywheel_radius)
+flywheel_vis = chrono.ChVisualizationShape(flywheel_body, flywheel_shape, chrono.ChColor(0.5, 0, 0))
+vis.Add(flywheel_vis)
 
-# ------------------
 # Run the simulation
-# ------------------
-my_system.set_solver_type(ChSolverType.CHRONO_SOLVER_ITERATIVE_NEWTON)
-my_system.set_solver_max_iterations(100)
-my_system.set_solver_tolerance(1e-6)
-my_system.set_timestepper_type(ChTimestepperType.HHT)
-my_system.set_step_method(ChTimestepperHHT::Type.EULER_IMPLICIT_LINEARIZED)
-my_system.set_time_step(1e-4)
-
-for i in range(1000):
-    my_system.do_step()
-    my_visualization.run_one_timestep()
-
-# Clean up and close the visualization window
-my_visualization.wait_for_user()
-my_visualization.close()
+vis.SetTimestep(0.001)
+vis.Run()

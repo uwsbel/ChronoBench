@@ -14,8 +14,10 @@ def main():
     # -----------------------------------
     # Add a box to be sensed by a camera
     # -----------------------------------
+    # Define the side length of the box
+    side = 2
+
     # Create a box object
-    side = 2  # Side length of the box
     box = chrono.ChBodyEasyBox(side, side, side, 1000)
     box.SetPos(chrono.ChVector3d(0, 0, 0))  # Set the position of the box
     box.SetFixed(True)  # Fix the box in space
@@ -23,8 +25,8 @@ def main():
 
     # Set the texture of the box
     texture = chrono.ChTexture()
-    texture.SetTextureFilename(chrono.GetChronoDataFile("textures/concrete.jpg"))
-    box.AddAsset(texture)
+    texture.SetTextureFilename(chrono.GetChronoDataFile("sensor/textures/bluewhite.png"))
+    box.GetVisualShape(0).SetTexture(texture)
 
     # -----------------------
     # Create a sensor manager
@@ -48,12 +50,12 @@ def main():
 
     # Initialize the camera sensor
     cam = sens.ChCameraSensor(
-        box,               # Body the camera is attached to
-        update_rate,       # Camera update rate in Hz
-        offset_pose,       # Offset pose of the camera
-        image_width,       # Image width in pixels
-        image_height,      # Image height in pixels
-        fov                 # Camera's horizontal field of view in radians
+        box,              # Body the camera is attached to
+        update_rate,            # Camera update rate in Hz
+        offset_pose,            # Offset pose of the camera
+        image_width,            # Image width in pixels
+        image_height,           # Image height in pixels
+        fov                     # Camera's horizontal field of view in radians
     )
     cam.SetName("Camera Sensor")
     cam.SetLag(lag)  # Set the lag between sensing and data accessibility

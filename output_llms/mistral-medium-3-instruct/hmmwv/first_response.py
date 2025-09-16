@@ -1,0 +1,143 @@
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
+import pychrono.vehicle as veh
+from pychrono.vehicle import ChVehicleModelData
+import math
+
+# ==============================================================================
+# Simulation parameters
+# ==============================================================================
+
+# Simulation step size
+step_size = 0.02
+
+# Simulation end time
+tend = 100
+
+# Point on chassis tracked by the camera
+trackPoint = chrono.ChVectorD(0.0, 0.0, 1.75)
+
+# ==============================================================================
+# Create the vehicle system
+# ==============================================================================
+
+# Create the vehicle system
+vehicle = veh.Vehicle()
+vehicle.SetChassisFixed(False)
+vehicle.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0.5), chrono.QUNIT))
+vehicle.SetInitFwdVel(10)
+
+# Create the vehicle model
+vehicle_model = ChVehicleModelData()
+vehicle_model.SetContactMethod(chrono.ChContactMethod_SMC)
+vehicle_model.SetTireModelType(veh.TMeasyTire)
+vehicle_model.SetChassisMass(2500)
+vehicle_model.SetChassisInertiaXX(chrono.ChVectorD(1000, 1500, 2000))
+vehicle_model.SetChassisCOM(chrono.ChVectorD(0, 0, 0.5))
+vehicle_model.SetChassisDimensions(2.5, 1.5, 1.0)
+
+# Create and initialize the tires
+tire = veh.ChTMeasyTire("tire_R16")
+tire.SetTireType("P235/85R16")
+vehicle_model.SetTire(tire)
+
+# Create the vehicle subsystem and add it to the system
+vehicle.SetVehicleModel(vehicle_model)
+vehicle.Initialize()
+
+# ==============================================================================
+# Create the terrain
+# ==============================================================================
+
+# Create a rigid terrain
+terrain = veh.RigidTerrain(vehicle.GetSystem())
+terrain.SetContactFrictionCoefficient(0.8)
+terrain.SetContactRestitutionCoefficient(0.1)
+terrain.SetContactMaterialProperties(2e7, 0.3)
+
+# Create a large box as terrain
+terrain_box = chrono.ChBody()
+terrain_box.SetBodyFixed(True)
+terrain_box.GetCollisionModel().AddBox(10, 10, 0.1)
+terrain_box.GetVisualModel().AddBox(10, 10, 0.1)
+terrain_box.SetPos(chrono.ChVectorD(0, 0, -0.1))
+terrain_box.SetCollide(True)
+terrain_box.GetVisualModel().SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
+vehicle.GetSystem().AddBody(terrain_box)
+
+# ==============================================================================
+# Create the visualization system
+# ==============================================================================
+
+# Create the Irrlicht application
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.SetWindowSize(800, 600)
+vis.SetWindowTitle("HMMWV Simulation")
+vis.Initialize()
+vis.AddLogo()
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVectorD(0, 0, 3), chrono.ChVectorD(0, 0, 0))
+vis.SetCameraTracking(vehicle.GetChassisBody(), trackPoint, chrono.ChVectorD(0, 0, 2))
+vis.SetUserCameraTracking(vehicle.GetChassisBody(), trackPoint, chrono.ChVectorD(0, 0, 2))
+vis.AddLight(chrono.ChVectorD(10, 10, 10), chrono.ChVectorD(0, 0, 0), 10)
+vis.AddLight(chrono.ChVectorD(-10, -10, 10), chrono.ChVectorD(0, 0, 0), 10)
+vis.AssetBindAll()
+vis.AssetUpdateAll()
+
+# ==============================================================================
+# Create the driver system
+# ==============================================================================
+
+# Create a simple driver
+driver = veh.ChDriver()
+driver.SetSteeringDelta(0.1)
+driver.SetThrottleDelta(0.1)
+driver.SetBrakingDelta(0.1)
+driver.Initialize()
+
+# ==============================================================================
+# Simulation loop
+# ==============================================================================
+
+# Number of simulation steps between two 3D view render frames
+render_steps = math.ceil(1.0 / (step_size * 50))
+
+# Initialize simulation frame counter
+step_number = 0
+
+# Simulation loop
+while vis.Run():
+    time = vehicle.GetSystem().GetChTime()
+
+    # End simulation
+    if time >= tend:
+        break
+
+    # Render scene
+    if step_number % render_steps == 0:
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+
+    # Driver inputs
+    steering = driver.GetSteering()
+    throttle = driver.GetThrottle()
+    braking = driver.GetBraking()
+
+    # Update vehicle state
+    vehicle.Synchronize(time)
+    vehicle.Update()
+
+    # Advance simulation for one timestep for all modules
+    driver.Synchronize(time)
+    terrain.Synchronize(time)
+    vehicle.Advance(step_size)
+
+    # Increment frame number
+    step_number += 1
+
+# ==============================================================================
+# Clean up
+# ==============================================================================
+
+vis.Close()

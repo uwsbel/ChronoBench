@@ -3,61 +3,59 @@ import pychrono.vehicle as veh
 import pychrono.irrlicht as chronoirr
 
 
-my_system = chrono.ChSystemNSC()
-my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+system = chrono.ChSystemNSC()
 
 
-uaz = veh.UAZBUS_SAE(my_system)
-uaz.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0.5, 0), chrono.QUNIT))
-uaz.SetPowertrainType(veh.PowertrainModelType_SIMPLE_MAP)
-uaz.SetTireType(veh.TireModelType_TMEASY)
-uaz.Initialize()
+vehicle = veh.WheeledVehicle(system, chrono.GetChronoDataFile("vehicle/UAZBUS/vehicle.json"))
+vehicle.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 1.0), chrono.QUNIT))
 
 
-uaz.SetChassisVisualizationType(veh.VisualizationType_MESH)
-uaz.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
-uaz.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
-uaz.SetWheelVisualizationType(veh.VisualizationType_MESH)
-
-
-terrain_material = chrono.ChMaterialSurfaceNSC()
-terrain_material.SetFriction(0.9)
-terrain_material.SetRestitution(0.01)
-terrain = veh.RigidTerrain(my_system, terrain_material)
-patch = terrain.AddPatch(chrono.ChCoordsysD(), chrono.ChVectorD(200, 1, 200))
-patch.SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
+terrain = veh.RigidTerrain(system)
+patch_material = chrono.ChMaterialSurfaceNSC()
+patch_material.SetFriction(0.9)
+patch_material.SetRestitution(0.01)
+patch = terrain.AddPatch(patch_material, chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(200, 200, 1))
+patch.SetTexture(chrono.GetChronoDataFile("terrain/textures/tile4.jpg"), 200, 200)
 terrain.Initialize()
 
 
-driver = veh.ChIrrGuiDriverIRR(my_system, uaz.GetVehicle(), 10, 10, 0.3, 0.001)
-driver.Initialize()
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle("UAZBUS Simulation")
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVectorD(0, 3, 6), chrono.ChVectorD(0, 0, 1))
+vis.AddTypicalLights()
 
 
-application = chronoirr.ChIrrApp(my_system, 'UAZBUS Simulation', chronoirr.dimension2du(1024, 768))
-application.AddTypicalLogo()
-application.AddTypicalCamera(chronoirr.vector3df(0, 3, -6), chronoirr.vector3df(0, 0, 0))
-application.AddTypicalLights()
-application.AssetBindAll()
-application.AssetUpdateAll()
+driver = veh.ChIrrGuiDriver(vehicle, vis)
+driver.SetSteeringDelta(0.05)
+driver.SetThrottleDelta(0.05)
+driver.SetBrakingDelta(0.05)
 
 
-application.SetStepManage(True)
-application.SetTimestep(1e-3)  
-application.SetTryRealtime(True)  
+step_size = 1e-3
+rt_timer = chrono.ChRealtimeStepTimer()
 
 
-while application.GetDevice().run():
-    time = my_system.GetChTime()
+while vis.Run():
+    time = system.GetChTime()
+
     
-    
-    driver_inputs = driver.GetInputs()
-    uaz.Synchronize(time, driver_inputs)
+    driver.Synchronize(time)
+    vehicle_inputs = driver.GetInputs()
+    vehicle.Synchronize(time, vehicle_inputs, terrain)
     terrain.Synchronize(time)
+
     
+    system.DoStepDynamics(step_size)
+
     
-    application.BeginScene()
-    application.DrawAll()
-    application.EndScene()
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+
     
-    
-    application.DoStep()
+    rt_timer.Spin(time)

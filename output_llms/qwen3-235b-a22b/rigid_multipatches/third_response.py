@@ -21,13 +21,12 @@ def main():
     hmmwv.SetWheelVisualizationType(veh.VisualizationType_MESH)
     hmmwv.SetTireVisualizationType(veh.VisualizationType_MESH)
 
-    # Fix: Use correct enum for Bullet collision system
-    hmmwv.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_Bullet)
+    hmmwv.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
     # Create the terrain with multiple patches
     terrain = veh.RigidTerrain(hmmwv.GetSystem())
 
-    # Patch 1: Updated position to (-20, 5, 0)
+    # Patch 1 with updated position
     patch1_mat = chrono.ChContactMaterialNSC()
     patch1_mat.SetFriction(0.9)
     patch1_mat.SetRestitution(0.01)
@@ -35,7 +34,7 @@ def main():
     patch1.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
     patch1.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 20, 20)
 
-    # Patch 2: Updated position to (20, -5, 0.2)
+    # Patch 2 with updated position
     patch2_mat = chrono.ChContactMaterialNSC()
     patch2_mat.SetFriction(0.9)
     patch2_mat.SetRestitution(0.01)
@@ -43,7 +42,7 @@ def main():
     patch2.SetColor(chrono.ChColor(1.0, 0.5, 0.5))
     patch2.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 20, 20)
 
-    # Patch 3: Updated position to (5, -45, 0)
+    # Patch 3 with updated position
     patch3_mat = chrono.ChContactMaterialNSC()
     patch3_mat.SetFriction(0.9)
     patch3_mat.SetRestitution(0.01)
@@ -52,7 +51,7 @@ def main():
     patch3.SetColor(chrono.ChColor(0.5, 0.5, 0.8))
     patch3.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
 
-    # Patch 4: Updated position to (10, 40, 0)
+    # Patch 4 with updated position
     patch4_mat = chrono.ChContactMaterialNSC()
     patch4_mat.SetFriction(0.9)
     patch4_mat.SetRestitution(0.01)
@@ -93,23 +92,24 @@ def main():
         # Get driver inputs
         driver_inputs = driver.GetInputs()
 
-        # Update modules
+        # Update modules (process inputs from other modules)
         driver.Synchronize(time)
         terrain.Synchronize(time)
         hmmwv.Synchronize(time, driver_inputs, terrain)
         vis.Synchronize(time, driver_inputs)
 
-        # Advance simulation
+        # Advance simulation for one timestep for all modules
         driver.Advance(step_size)
         terrain.Advance(step_size)
         hmmwv.Advance(step_size)
         vis.Advance(step_size)
 
+    return 0
+
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
-# Simulation step sizes
-step_size = 2e-3
+# Simulation step sizes (corrected to match tire step size)
+step_size = 1e-3
 tire_step_size = 1e-3
 
-if __name__ == "__main__":
-    main()
+main()

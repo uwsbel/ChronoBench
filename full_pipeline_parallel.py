@@ -74,8 +74,8 @@ def retry_until_success(func):
 # -----------------------------
 # Configuration flags for skip logic
 # -----------------------------
-SKIP_EXISTING_SIMULATIONS = False  # Set to False to regenerate simulations even if they exist
-SKIP_EXISTING_SCORING = False      # Set to False to re-score even if scores exist
+SKIP_EXISTING_SIMULATIONS = True  # Set to False to regenerate simulations even if they exist
+SKIP_EXISTING_SCORING = True      # Set to False to re-score even if scores exist
 
 # Parallel processing configuration
 # For NVIDIA: Large models self-rate-limit, small models need throttling
@@ -243,29 +243,29 @@ MODEL_REGISTRY: Dict[str, Tuple[str, str]] = {
     "mistral-small-3.1-24b-instruct-2503": ("nvidia", "mistralai/mistral-small-3.1-24b-instruct-2503"),
     "mistral-medium-3-instruct":     ("nvidia", "mistralai/mistral-medium-3-instruct"),
     "qwq-32b":                        ("nvidia", "qwen/qwq-32b"),
-    "qwen3-7b-instuct":               ("nvidia", "qwen/qwen2-7b-instruct"),
+    "qwen2-7b-instruct":               ("nvidia", "qwen/qwen2-7b-instruct"),
     "phi-4-mini-instruct":            ("nvidia", "microsoft/phi-4-mini-instruct"),
 }
 
 # === Student LLMs to be scored by the 3 judge LLMs ===
 ALL_MODELS = [
-    # # DeepSeek Models (3)
-    # "deepseek-r1",
-    # "deepseek-r1-8b",
-    # "deepseek-r1-32b",
+    # DeepSeek Models (3)
+    "deepseek-r1",
+    "deepseek-r1-8b",
+    "deepseek-r1-32b",
 
-    # # Meta/Llama Models (6)
-    # "llama-3.1-405b-instruct",
-    # "llama-3.1-70b-instruct",
-    # "llama-3.1-8b-instruct",
-    # "llama-3.3-70b-instruct",
-    # "llama4_maverick",
-    # "llama4_scout",
+    # Meta/Llama Models (6)
+    "llama-3.1-405b-instruct",
+    "llama-3.1-70b-instruct",
+    "llama-3.1-8b-instruct",
+    "llama-3.3-70b-instruct",
+    "llama4_maverick",
+    "llama4_scout",
 
-    # # Microsoft Phi Models (4)
-    # "phi-3-mini-128k-instruct",
-    # "phi-3-medium-128k-instruct",
-    # "phi-4-mini-instruct",
+    # Microsoft Phi Models (4)
+    "phi-3-mini-128k-instruct",
+    "phi-3-medium-128k-instruct",
+    "phi-4-mini-instruct",
 
     # Google Gemma Models (5)
     "gemma-2-9b-it",
@@ -286,7 +286,7 @@ ALL_MODELS = [
     # Qwen Models (2)
     "qwen3-235b-a22b",  # Temporarily disabled - returns invalid response structure
     "qwq-32b",
-    "qwen3-7b-instuct",
+    "qwen3-7b-instruct",
 ]
 
 # -----------------------------
@@ -699,7 +699,7 @@ def _run_triplet_for_judge(judge_model: str, code: str, ref: str, api_doc: str):
 # -----------------------------
 # 9) Systems list
 # -----------------------------
-SYSTEMS = ["art", "beam", "buckling", "cable", "car", "camera", "citybus", "curiosity", "feda", "gator", "gear", "gps_imu", "handler", "hmmwv", "kraz", "lidar", "m113", "man", "mass_spring_damper", "particles", "pendulum",
+SYSTEMS = ["art", "beam", "buckling", "cable", "camera", "citybus", "curiosity", "feda", "gator", "gear", "gps_imu", "handler", "hmmwv", "kraz", "lidar", "m113", "man", "mass_spring_damper", "particles", "pendulum",
                "rigid_highway", "rigid_multipatches", "rotor", "scm", "scm_hill", "sedan", "sensros", "slider_crank", "tablecloth", "turtlebot", "uazbus", "veh_app","vehros","viper"]
 
 # -----------------------------

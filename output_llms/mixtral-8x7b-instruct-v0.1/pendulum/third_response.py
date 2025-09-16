@@ -21,9 +21,9 @@ ground.AddVisualShape(cyl_1, chrono.ChFramed(chrono.ChVector3d(0, 0, +1)))
 # Create the first pendulum body and add it to the simulation
 pend_1 = chrono.ChBody()
 sys.AddBody(pend_1)
-pend_1.SetFixed(False)  # The first pendulum can move
-pend_1.EnableCollision(False)  # Disable collision detection for the first pendulum
-pend_1.SetMass(1)  # Set the mass of the first pendulum (in kg)
+pend_1.SetFixed(False)  # The pendulum can move
+pend_1.EnableCollision(False)  # Disable collision detection for the pendulum
+pend_1.SetMass(1)  # Set the mass of the pendulum (in kg)
 pend_1.SetInertiaXX(chrono.ChVector3d(0.2, 1, 1))  # Set the inertia tensor (in kg·m^2)
 
 # Add a visualization cylinder to the first pendulum
@@ -86,12 +86,14 @@ while vis.Run():
     # Log information after 1 second of simulation time
     if log_info and sys.GetChTime() > 1:
         pos_1 = pend_1.GetPos()  # Get the position of the first pendulum
-        pos_2 = pend_2.GetPos()  # Get the position of the second pendulum
         print("t = ", sys.GetChTime())
         print("     ", pos_1.x, "  ", pos_1.y)
-        print("     ", pos_2.x, "  ", pos_2.y)
         lin_vel_1 = pend_1.GetPosDt()  # Get the linear velocity of the first pendulum
-        lin_vel_2 = pend_2.GetPosDt()  # Get the linear velocity of the second pendulum
         print("     ", lin_vel_1.x, "  ", lin_vel_1.y)
+
+        pos_2 = pend_2.GetPos()  # Get the position of the second pendulum
+        print("     ", pos_2.x, "  ", pos_2.y)
+        lin_vel_2 = pend_2.GetPosDt()  # Get the linear velocity of the second pendulum
         print("     ", lin_vel_2.x, "  ", lin_vel_2.y)
+
         log_info = False  # Disable further logging

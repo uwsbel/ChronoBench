@@ -1,0 +1,61 @@
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
+
+# Set the path to the Chrono data directory
+chrono.SetChronoDataPath("PATH_TO_CHRONO_DATA")  # Update this path!
+
+# Create a Chrono physical system
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
+
+# Create the Irrlicht visualization system
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetWindowSize(800, 600)
+vis.SetWindowTitle("Mass-Spring-Damper System")
+vis.Initialize()
+vis.AddLogo()
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVectorD(0, 0.5, 2), chrono.ChVectorD(0, 0, 0))
+vis.AddLight(chrono.ChVectorD(2, 2, 2), chrono.ChVectorD(0, 0, 0), 5)
+vis.SetCameraVertical(chrono.ChCameraVertical_DIRTYZ)
+
+# Create a ground body
+ground = chrono.ChBody()
+ground.SetBodyFixed(True)
+ground.SetPos(chrono.ChVectorD(0, -1, 0))
+ground.GetVisualModel().AddBox(2, 0.2, 2, chrono.ChColor(0.5, 0.5, 0.5))
+system.Add(ground)
+
+# Create a mass body
+mass = chrono.ChBody()
+mass.SetMass(1.0)  # 1 kg mass
+mass.SetPos(chrono.ChVectorD(0, 0, 0))
+mass.SetInertiaXX(chrono.ChVectorD(0.1, 0.1, 0.1))  # Small inertia
+mass.GetVisualModel().AddSphere(0.1, chrono.ChColor(0.8, 0.2, 0.2))
+system.Add(mass)
+
+# Create a spring-damper link between the mass and ground
+spring_damper = chrono.ChLinkTSDA()
+spring_damper.Initialize(mass, ground, False, chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, -1, 0))
+spring_damper.SetSpringCoefficient(50.0)  # Spring stiffness [N/m]
+spring_damper.SetDampingCoefficient(2.0)  # Damping coefficient [Ns/m]
+spring_damper.SetRestLength(1.0)  # Rest length [m]
+
+# Add visualization for the spring
+spring_vis = chrono.ChSpringVisualization()
+spring_vis.SetSpring(spring_damper)
+spring_vis.SetNumHelices(20)
+spring_vis.SetHelixRadius(0.05)
+spring_vis.SetHelixStep(0.05)
+spring_damper.AddVisualization(spring_vis)
+
+system.AddLink(spring_damper)
+
+# Simulation loop
+time_step = 0.01
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    system.DoStepDynamics(time_step)

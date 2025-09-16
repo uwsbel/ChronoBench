@@ -29,30 +29,44 @@ STATISTICS_DIR = BASE_DIR / "statistics"  # Alternative location
 
 # The 24 target models
 TARGET_MODELS = [
-    "gemma-3-27b-it",
-    "llama-3.1-405b-instruct",
-    "mistral-large-latest",
-    "llama4_maverick",
-    "llama-3.3-70b-instruct",
-    "qwen3-235b-a22b",
-    "llama4_scout",
-    "codestral-22b-instruct-v0.1",
-    "mixtral-8x22b-instruct-v0.1",
+    # DeepSeek Models (3)
     "deepseek-r1",
-    "deepseek-r1-32b",
-    "llama-3.1-70b-instruct",
-    "gemma-2-27b-it",
-    "nemotron-4-340b-instruct",
-    "llama-3.1-8b-instruct",
-    "mistral-nemo-12b-instruct",
     "deepseek-r1-8b",
-    "gemma-2-2b-it",
-    "mixtral-8x7b-instruct-v0.1",
-    "gemma-3-1b-it",
-    "mamba-codestral-7b-v0.1",
+    "deepseek-r1-32b",
+
+    # Meta/Llama Models (6)
+    "llama-3.1-405b-instruct",
+    "llama-3.1-70b-instruct",
+    "llama-3.1-8b-instruct",
+    "llama-3.3-70b-instruct",
+    "llama4_maverick",
+    "llama4_scout",
+
+    # Microsoft Phi Models (4)
     "phi-3-mini-128k-instruct",
+    "phi-3-medium-128k-instruct",
+    "phi-4-mini-instruct",
+
+    # Google Gemma Models (5)
     "gemma-2-9b-it",
-    "phi-3-medium-128k-instruct"
+    "gemma-2-27b-it",
+    "gemma-2-2b-it",
+    "gemma-3-1b-it",
+    "gemma-3-27b-it",
+
+    # Mistral Models (8)
+    "mistral-nemo-12b-instruct",
+    "mixtral-8x22b-instruct-v0.1",
+    "mixtral-8x7b-instruct-v0.1",
+    "codestral-22b-instruct-v0.1",
+    "mamba-codestral-7b-v0.1",
+    "mistral-small-3.1-24b-instruct-2503",
+    "mistral-medium-3-instruct",
+
+    # Qwen Models (2)
+    "qwen3-235b-a22b",  # Temporarily disabled - returns invalid response structure
+    "qwq-32b",
+    "qwen3-7b-instuct",
 ]
 
 # Systems to evaluate

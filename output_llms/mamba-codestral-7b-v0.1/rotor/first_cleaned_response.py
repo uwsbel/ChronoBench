@@ -4,36 +4,40 @@ import pychrono
 system = pychrono.ChSystemSMC()
 
 
-
 beam = pychrono.ChBeam()
-beam.SetEndPoints(pychrono.ChVectorD(0, 0, 0), pychrono.ChVectorD(1, 0, 0))
 system.Add(beam)
 
-
-flywheel = pychrono.ChBodyEasySphere(0.1, 1000, True, True)
-flywheel.SetPos(pychrono.ChVectorD(0.5, 0, 0))
+flywheel = pychrono.ChBody()
 system.Add(flywheel)
 
-
-motor = pychrono.ChRotationalMotorLinear()
-motor.SetInertia(pychrono.ChVectorD(1, 1, 1))
-motor.SetTransform(pychrono.ChFrameD(pychrono.ChVectorD(0, 0, 0), pychrono.ChQuaternionD(1, 0, 0, 0)))
-motor.SetPowerFunction(pychrono.ChFunction_Const(100))
+motor = pychrono.ChRotationalMotor()
 system.Add(motor)
 
 
-beam.SetFixed(True, True, True)
-beam.SetFixed(False, False, False)
+beam.SetEndPoint1(pychrono.ChVectorD(0, 0, 0))
+beam.SetEndPoint2(pychrono.ChVectorD(1, 0, 0))
+
+flywheel.SetPos(pychrono.ChVectorD(0.5, 0, 0))
+
+motor.SetEndPoint1(pychrono.ChVectorD(0, 0, 0))
+motor.SetEndPoint2(pychrono.ChVectorD(0, 0, 0))
 
 
-system.SetChronoVisualizationType(pychrono.ChVisualizationTypeIrrlicht)
+visual_system = pychrono.ChVisualSystemIrrlicht()
+visual_system.SetWindowSize(800, 600)
+visual_system.SetWindowTitle('Jeffcott Rotor Simulation')
+visual_system.SetRenderMode(pychrono.ChVisualSystemIrrlicht.RENDER_FEM)
+visual_system.AttachSystem(system)
+visual_system.Initialize()
 
 
-system.SetSolverType(pychrono.ChSolverType_BARZILAIBORWEIN)
-system.SetMaxItersSolverIterLCP(500)
-system.SetMaxItersSolverIterNonLinear(500)
-system.SetTimestepperType(pychrono.ChTimestepperType_EULER_IMPLICIT_LINEARIZED)
-system.SetMaxTime(10)
-system.SetTimeStep(0.01)
-system.DoStaticLinear()
-system.DoDynamic()
+while system.GetChTime() < 10.0:
+    system.DoStepDynamics(0.001)
+    visual_system.Render()
+    visual_system.BeginScene(True, True, pychrono.ChColor(0.4, 0.4, 0.4))
+    visual_system.Render()
+    visual_system.EndScene()
+
+
+del visual_system
+del system

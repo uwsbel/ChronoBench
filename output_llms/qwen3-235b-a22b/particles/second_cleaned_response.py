@@ -3,18 +3,21 @@ import pychrono.irrlicht as chronoirr
 from itertools import combinations
 
 class MyCreatorForAll(chrono.ChRandomShapeCreator_AddBodyCallback):
-    def __init__(self, vis):
+    def __init__(self, vis, coll):
         super().__init__()
         self.vis = vis
+        self.coll = coll
 
     def OnAddBody(self, body, coords, creator):
-        
         body.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/bluewhite.png"))
         self.vis.BindItem(body)
+        self.coll.BindItem(body)
+        body.SetUseGyroTorque(False)
 
 
 sys = chrono.ChSystemNSC()
 sys.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+coll = sys.GetCollisionSystem()
 
 
 sphere_mat = chrono.ChContactMaterialNSC()
@@ -64,7 +67,7 @@ vis.AddCamera(chrono.ChVector3d(0, 14, -20))
 vis.AddTypicalLights()
 
 
-mcreation_callback = MyCreatorForAll(vis)
+mcreation_callback = MyCreatorForAll(vis, coll)
 emitter.RegisterAddBodyCallback(mcreation_callback)
 
 
@@ -85,15 +88,33 @@ while vis.Run():
     for body in sys.GetBodies():
         body.EmptyAccumulators()
 
-    
     G_constant = 6.674e-3  
 
     
+    kinetic_energy = 0.0
+    for body in sys.GetBodies():
+        mass = body.GetMass()
+        vel = body.GetPos_dt()  
+        kinetic_energy += 0.5 * mass * vel.Length2()
+
+    
+    potential_energy = 0.0
     mlist = list(combinations(sys.GetBodies(), 2))
     for abodyA, abodyB in mlist:
         D_attract = abodyB.GetPos() - abodyA.GetPos()
         r_attract = D_attract.Length()
-        if r_attract < 1e-6:  
+        if r_attract < 1e-6:
+            continue  
+        potential_energy += -G_constant * (abodyA.GetMass() * abodyB.GetMass()) / r_attract
+
+    total_energy = kinetic_energy + potential_energy
+    print(f"Kinetic Energy: {kinetic_energy}, Potential Energy: {potential_energy}, Total Energy: {total_energy}")
+
+    
+    for abodyA, abodyB in mlist:
+        D_attract = abodyB.GetPos() - abodyA.GetPos()
+        r_attract = D_attract.Length()
+        if r_attract < 1e-6:
             continue
         f_attract = G_constant * (abodyA.GetMass() * abodyB.GetMass()) / (r_attract ** 2)
         F_attract = (D_attract / r_attract) * f_attract
@@ -101,26 +122,3 @@ while vis.Run():
         abodyB.AccumulateForce(-F_attract, abodyB.GetPos(), False)
 
     sys.DoStepDynamics(stepsize)
-
-    
-    kinetic_energy = 0.0
-    potential_energy = 0.0
-
-    
-    for body in sys.GetBodies():
-        mass = body.GetMass()
-        vel = body.GetPos_dt()
-        kinetic_energy += 0.5 * mass * vel.Length2()
-
-    
-    pairs = combinations(sys.GetBodies(), 2)
-    for bodyA, bodyB in pairs:
-        D = bodyB.GetPos() - bodyA.GetPos()
-        r = D.Length()
-        if r < 1e-6:
-            continue
-        potential_energy += - G_constant * (bodyA.GetMass() * bodyB.GetMass()) / r
-
-    total_energy = kinetic_energy + potential_energy
-
-    print(f"Kinetic Energy: {kinetic_energy:.4f}, Potential Energy: {potential_energy:.4f}, Total Energy: {total_energy:.4f}")

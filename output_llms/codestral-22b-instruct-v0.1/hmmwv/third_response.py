@@ -46,7 +46,6 @@ vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
-
 vehicle.Initialize()
 
 vehicle.SetChassisVisualizationType(vis_type)
@@ -79,7 +78,26 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 # Create the custom driver system
-driver = MyDriver(delay=0.5)
+class MyDriver(veh.ChDriver):
+    def __init__(self, delay):
+        super().__init__()
+        self.delay = delay
+
+    def Synchronize(self, time):
+        if time < self.delay:
+            self.SetThrottle(0)
+            self.SetSteering(0)
+            self.SetBraking(0)
+        else:
+            self.SetThrottle(min(0.7, (time - self.delay) / 1.8))
+            self.SetSteering(0.5 * math.sin(2 * math.pi * (time - 2)))
+            self.SetBraking(0)
+
+driver = MyDriver(0.5)
+driver.Initialize()
+
+# output vehicle mass
+print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
@@ -99,11 +117,14 @@ while vis.Run() and vehicle.GetSystem().GetChTime() < 4:
         vis.EndScene()
         render_frame += 1
 
+    # Get driver inputs
+    driver_inputs = driver.GetInputs()
+
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
     terrain.Synchronize(time)
-    vehicle.Synchronize(time, driver.GetInputs(), terrain)
-    vis.Synchronize(time, driver.GetInputs())
+    vehicle.Synchronize(time, driver_inputs, terrain)
+    vis.Synchronize(time, driver_inputs)
 
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)
@@ -116,32 +137,3 @@ while vis.Run() and vehicle.GetSystem().GetChTime() < 4:
 
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
-
-# Custom driver class implementation
-class MyDriver(veh.ChDriver):
-    def __init__(self, delay):
-        super(MyDriver, self).__init__()
-        self.delay = delay
-        self.throttle = 0
-        self.steering = 0
-        self.braking = 0
-
-    def Synchronize(self, time):
-        if time < self.delay:
-            self.throttle = 0
-            self.steering = 0
-            self.braking = 0
-        else:
-            if time < 0.2 + self.delay:
-                self.throttle = (time - self.delay) / 0.2
-            else:
-                self.throttle = 0.7
-
-            if time > 2 + self.delay:
-                self.steering = math.sin(time - 2 - self.delay)
-            else:
-                self.steering = 0
-
-        self.SetThrottle(self.throttle)
-        self.SetSteering(self.steering)
-        self.SetBraking(self.braking)

@@ -1,0 +1,577 @@
+Okay, let's tackle this problem step by step. First, I need to go through the original code provided and then apply the modifications as per the instructions. Also, I should check for any existing errors in the original script before making the changes.
+
+Starting with the original code:
+
+Looking at the ground position, the user wants it changed from (0,0,-1) to (0,0,-0.6). That's straightforward. The line where ground.SetPos is called should be adjusted.
+
+Next, the instructions mention adding a sensor manager and a lidar sensor. The user wants to import pychrono.sensor as sens. I need to check if that's correctly imported. Also, creating a sensor manager and adding it to the system. The lidar configuration requires parameters like name, pose, sensor parameters, filters, etc. I'll have to add those parts. Wait, in the original code, there's no mention of sensors, so those lines need to be added after creating the robot or in the initialization part.
+
+Then, adding randomly placed boxes. The user wants 5 boxes with random positions. So I need to loop 5 times, generate random positions, create each box, set properties like mass, material, position, and add them to the system. The boxes should be placed above the ground so they don't intersect. The ground's new position is at z=-0.6, so maybe the boxes should be placed between z=0.1 and higher.
+
+Adding the move function for the Turtlebot. The function should take a mode parameter and set the motor speeds accordingly. The original code has some control logic with if statements at specific times. The move function should replace those, perhaps using the function calls in the simulation loop instead of the time-based conditions.
+
+Updating the simulation loop: instead of checking time for turning, use the move function. Also, include the sensor manager's Update() method each step.
+
+Now, checking for existing errors in the original code:
+
+Looking at the original code:
+
+1. The ground is created with ChBodyEasyBox, but the parameters are (length, width, height). The ground is a box of 20x20x1 meters. The position is set to (0,0,-1). That's okay, but when adjusting to -0.6, that's the first change.
+
+2. The robot is initialized with system, init_pos, init_rot. Then robot.Initialize() is called. That's correct, as per TurtleBot's API.
+
+3. The simulation loop uses vis.Run(), which is okay for Irrlicht. However, the time increment and step dynamics are handled properly. Wait, the time variable starts at 0 and increments by time_step each loop. But in the loop, after rendering and before advancing, the control is applied. The order is correct: control first, then step dynamics.
+
+Potential issues:
+
+- The WheelID enum: the original code uses LEFT_DRIVE_WHEEL = 0 and RIGHT_DRIVE_WHEEL = 1. But maybe the TurtleBot's actual motor IDs are different? The user's code might have a mistake here if the actual indices are different. However, since the user's instruction includes adding a move function, perhaps that will replace these values. But in the original code, those variables are defined inside the loop, which is inefficient. But maybe that's okay.
+
+Now, moving to the modifications:
+
+First, import the sensor module:
+
+import pychrono.sensor as sens
+
+This needs to be added at the top with other imports.
+
+Next, creating the sensor manager. The sensor manager is created with the system and added to it. Then, adding a lidar sensor.
+
+Wait, the sensor manager should be created and added to the system. Let's see:
+
+sensor_mgr = sens.ChSensorManager(system)
+system.AddSensorManager(sensor_mgr)
+
+Then, creating a lidar sensor. The parameters would include:
+
+- Name, pose (position and rotation relative to robot?), sensor parameters like range, FOV, etc., and filters.
+
+The code example might look like:
+
+lidar = sens.ChLidar()
+lidar.SetName("lidar")
+lidar.SetPosition(chrono.ChVectorD(0,0,0.2))  # Position on the robot
+lidar.SetRotation(chrono.Q_from_AngAxis(0, chrono.ChVectorD(1,0,0)))  # Rotation if needed
+lidar_params = sens.ChLidarParameters()
+lidar_params.SetResolutionH(1024)
+lidar_params.SetFOV(chrono.ChVectorD(-45,45, 360))  # Maybe?
+lidar_params.SetRange(0.1, 10)
+lidar.SetParameters(lidar_params)
+# Add filters like noise, etc.
+# Then add to sensor manager
+sensor_mgr.AddSensor(lidar)
+
+But the exact parameters depend on what the user wants. The instruction says "various parameters and filters". So I need to include some example parameters and maybe a filter.
+
+Then, adding the sensor manager to the robot? Or the robot's body? The sensor should be attached to the robot's body. The TurtleBot's body can be accessed via robot.GetBody(), perhaps. So:
+
+lidar.SetBody(robot.GetBody())  # Assuming GetBody() returns the main body.
+
+Wait, the TurtleBot class might have a method to get the body. Alternatively, maybe the robot has a reference to its chassis. Need to check the API. Assuming that robot has a method like GetChassisBody(), then:
+
+lidar.SetBody(robot.GetChassisBody())
+
+Alternatively, perhaps the robot's base link is the body to attach the sensor to.
+
+Next, adding the boxes. The user wants 5 boxes with random positions. Let's see:
+
+for i in range(5):
+    box = chrono.ChBodyEasyBox(1,1,0.5, 1000, True, True, ground_mat)
+    # Random position in x and y between -5 to 5, z above ground.
+    x = np.random.uniform(-5,5)
+    y = np.random.uniform(-5,5)
+    z = 0.25  # since ground is at -0.6, height 1, so box's bottom is at z - 0.25 (since height is 0.5)
+    box.SetPos(chrono.ChVectorD(x, y, z))
+    box.SetCollide(True)
+    system.Add(box)
+
+Wait, the ground_mat is the same as the ground's material? Maybe, but using the same material might be okay. Alternatively, maybe a different material. But the user didn't specify, so proceed with ground_mat.
+
+Next, the move function. The user wants a function move(mode) that sets the motor speeds. The modes are 'straight', 'left', 'right'.
+
+def move(robot, mode):
+    if mode == 'straight':
+        robot.SetMotorSpeed(math.pi, LEFT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(math.pi, RIGHT_DRIVE_WHEEL)
+    elif mode == 'left':
+        robot.SetMotorSpeed(0, LEFT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(math.pi, RIGHT_DRIVE_WHEEL)
+    elif mode == 'right':
+        robot.SetMotorSpeed(math.pi, LEFT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(0, RIGHT_DRIVE_WHEEL)
+
+Wait, but the original code uses LEFT and RIGHT as 0 and 1. Need to ensure that the WheelID is correctly set. Also, the original code had motor speeds set to 0 and -pi, but perhaps the move function uses different values. For example, moving straight might require both wheels to go forward at the same speed. The direction of rotation depends on the robot's design. Maybe the original code's control was for turning left and right by setting one wheel to 0 and the other to -pi (which would turn clockwise?), but the move function needs to be consistent.
+
+Wait, in the original code, at time 1, left turn: left wheel speed 0, right wheel -pi. That might mean that the right wheel is rotating backwards, causing a left turn. Alternatively, perhaps the direction is inverted. The move function needs to set the correct speeds for each mode. Let me think: when moving straight, both wheels should have the same speed (maybe positive). For left turn, left wheel slower or stopped, right wheel faster. Or perhaps the original code's approach is correct but the move function should replicate that.
+
+Alternatively, perhaps the move function should set the speeds as follows:
+
+For straight: both wheels at +pi (assuming that a positive speed makes them rotate forward, leading the robot to move forward).
+
+Left turn: left wheel 0, right wheel +pi (so right wheel moves forward faster, turning left).
+
+Right turn: left wheel +pi, right wheel 0 (turning right).
+
+Wait, the original code uses negative pi for the right wheel at time 1.0. Maybe the motor speed direction depends on the robot's setup. The user's code may have an error here, but the move function should be as per the user's instruction.
+
+Alternatively, perhaps the user's instruction says to have the move function control the robot's movement, so the simulation loop will call move('straight') instead of the time-based conditions. So in the simulation loop, instead of checking time, just call move with the desired mode. But the user's instruction says to "use move('straight') function for Turtlebot's movement". So perhaps in the simulation loop, after initializing, the move function is called each step with 'straight', but maybe the user wants some dynamic control. Alternatively, maybe the move function is supposed to handle different modes based on some logic. But according to the instruction, the simulation loop should use move('straight'), so maybe that's the only mode used here, but the function is there for future use.
+
+Wait, the instruction says: "Added motion control function for Turtlebot: move(mode) function to control... modes: straight, left, right." So the simulation loop should call this function, perhaps in a way that the robot moves straight by default, but maybe the user's instruction's simulation loop requires to use move('straight') in the loop. So in the simulation loop, instead of the time-based conditions, replace them with move('straight').
+
+But the original code has those time-based conditions. So in the modified code, those if statements should be removed and replaced with the move function.
+
+Now, putting all together:
+
+First, the imports: add 'import pychrono.sensor as sens' at the top.
+
+Then, in the ground creation:
+
+ground.SetPos(chrono.ChVectorD(0, 0, -0.6))
+
+Next, the sensor setup:
+
+After creating the robot, create the sensor manager:
+
+sensor_mgr = sens.ChSensorManager(system)
+system.AddSensorManager(sensor_mgr)
+
+Then, create the lidar sensor:
+
+lidar = sens.ChLidar()
+lidar.SetName("lidar")
+lidar.SetBody(robot.GetBody())  # assuming robot has a GetBody() method. Alternatively, GetChassisBody()
+lidar.SetPosition(chrono.ChVectorD(0, 0, 0.2))  # position on the robot's body
+lidar_params = sens.ChLidarParameters()
+lidar_params.SetResolutionH(1024)
+lidar_params.SetResolutionV(1)
+lidar_params.SetFOV(chrono.ChVectorD(-20, 20, 270))  # example values
+lidar_params.SetRange(0.1, 10.0)
+lidar.SetParameters(lidar_params)
+# Add a filter, e.g., noise
+noise_filter = sens.ChFilterNoise()
+noise_filter.SetName("noise_filter")
+noise_filter.SetNoiseSigma(0.01)
+lidar.AddFilter(noise_filter)
+sensor_mgr.AddSensor(lidar)
+
+Wait, need to check the exact methods. For example, the ChLidarParameters' FOV might take horizontal and vertical angles. The parameters might need to be set properly. Also, the rotation might need to be set. But this is an example as per the instruction's requirement to add parameters and filters.
+
+Next, adding the boxes:
+
+for i in range(5):
+    # Create box with random position
+    box = chrono.ChBodyEasyBox(1, 1, 0.5, 1000, True, True, ground_mat)
+    x = np.random.uniform(-5, 5)
+    y = np.random.uniform(-5, 5)
+    z = 0.25  # since ground is at z=-0.6, so box's bottom is at z - 0.25 (height 0.5, so center at 0.25)
+    box.SetPos(chrono.ChVectorD(x, y, z))
+    box.SetCollide(True)
+    system.Add(box)
+
+Wait, the ground's position is at z=-0.6, and the box's position's z-coordinate is 0.25. The box's height is 0.5, so its bottom is at 0.25 - 0.25 = 0. So the box is placed above the ground. That's okay.
+
+Now, the move function:
+
+def move(robot, mode):
+    LEFT_DRIVE_WHEEL = 0
+    RIGHT_DRIVE_WHEEL = 1
+    if mode == 'straight':
+        robot.SetMotorSpeed(math.pi, LEFT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(math.pi, RIGHT_DRIVE_WHEEL)
+    elif mode == 'left':
+        robot.SetMotorSpeed(0, LEFT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(math.pi, RIGHT_DRIVE_WHEEL)
+    elif mode == 'right':
+        robot.SetMotorSpeed(math.pi, LEFT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(0, RIGHT_DRIVE_WHEEL)
+
+Wait, but the original code had negative pi for the right wheel. So perhaps the direction is inverted. Maybe the correct speeds for left turn would be robot.SetMotorSpeed(-math.pi, ...) but need to see the robot's setup. Alternatively, perhaps the original code's approach was correct but the move function needs to be adjusted. Since the user's instruction says to add the move function with those modes, I'll proceed with the code as per the instruction.
+
+Now, in the simulation loop:
+
+Replace the existing if statements with a call to move('straight').
+
+Also, add sensor_mgr.Update() in the loop.
+
+So the loop becomes:
+
+while vis.Run():
+    # Call move function
+    move(robot, 'straight')
+    
+    # Update sensor manager
+    sensor_mgr.Update()
+    
+    # Rest of the loop as before
+    time += time_step
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    system.DoStepDynamics(time_step)
+
+Wait, but the original code had the time variable being incremented and the DoStepDynamics. The order is important: control first, then step dynamics.
+
+Now, checking for errors in the original code:
+
+Looking at the original code, in the collision model settings:
+
+chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.0025)
+chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
+
+Wait, this might be incorrect. The ChCollisionModel is a class, and these are static methods? Or perhaps the syntax is wrong. The correct way is to set the default collision model parameters on the system's collision system.
+
+Wait, in Chrono, to set the default envelope and margin, you need to do something like:
+
+system.GetCollisionSystem().SetDefaultSuggestedEnvelope(0.0025)
+system.GetCollisionSystem().SetDefaultSuggestedMargin(0.0025)
+
+Because the previous code uses chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(...) which may not be the correct way. Because ChCollisionModel is a class, and those are static methods? Or maybe it's a typo. Let me check the Chrono documentation.
+
+Upon checking, the correct approach is to set the default parameters via the collision system. So the original code has an error here. So that's an important fix.
+
+So the corrected lines would be:
+
+system.GetCollisionSystem().SetDefaultSuggestedEnvelope(0.0025)
+system.GetCollisionSystem().SetDefaultSuggestedMargin(0.0025)
+
+So that's a critical error in the original code that needs fixing.
+
+Another possible error: the ground material is created as ground_mat = chrono.ChContactMaterialNSC(), but when creating the ground body with ChBodyEasyBox, the material is passed as the last argument. However, ChBodyEasyBox's parameters are (length, width, height, density, textured?, collision?, material). The material is an optional parameter. So passing ground_mat there is okay. But in the original code, the ground is created with ground_mat, so that's correct.
+
+Another thing: when creating the robot, the parameters are (system, init_pos, init_rot). The TurtleBot constructor might require those parameters. Assuming that's correct.
+
+Also, the simulation loop's vis.Run() returns a boolean indicating whether to continue. So the loop is okay.
+
+Another possible issue: the robot's Initialize() method might require parameters. Looking at the TurtleBot's documentation, the Initialize() method may require parameters like the terrain or other settings. But in the original code, it's called without parameters, so maybe that's okay. Or perhaps it's missing parameters. But since the user didn't mention that, perhaps it's correct.
+
+Now, putting all the corrections and modifications together:
+
+First, correct the collision model parameters.
+
+Then, add the imports for the sensor module.
+
+Add the sensor manager and lidar.
+
+Add the random boxes.
+
+Add the move function.
+
+Modify the simulation loop to call move and update the sensor manager.
+
+Also, in the simulation loop, the WheelID enums were defined inside the loop. Since the move function now uses them, they should be moved outside or defined in the function.
+
+Wait, in the original code, LEFT_DRIVE_WHEEL and RIGHT_DRIVE_WHEEL were defined inside the loop. That's inefficient but works. However, in the move function, they are redefined. Alternatively, to avoid redefining each time, perhaps define them as constants outside the loop.
+
+So, adding:
+
+LEFT_DRIVE_WHEEL = 0
+RIGHT_DRIVE_WHEEL = 1
+
+before the simulation loop.
+
+Alternatively, inside the move function, but the function is called each time, so redefining them each time is okay but redundant. So better to define them as constants outside.
+
+Thus, in the code:
+
+LEFT_DRIVE_WHEEL = 0
+RIGHT_DRIVE_WHEEL = 1
+
+Then, in the move function, use those constants.
+
+Now, compiling all the changes.
+
+The final code would look like this:
+
+import os
+import math
+import numpy as np
+import pychrono as chrono
+import pychrono.robot as turtlebot
+from pychrono import irrlicht as chronoirr
+import pychrono.sensor as sens  # Added sensor import
+
+# Create Chrono system
+system = chrono.ChSystemNSC()
+system.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+system.SetGravitationalAcceleration(chrono.ChVectorD(0, 0, -9.81))
+system.GetCollisionSystem().SetDefaultSuggestedEnvelope(0.0025)  # Corrected line
+system.GetCollisionSystem().SetDefaultSuggestedMargin(0.0025)   # Corrected line
+
+# Create ground body as terrain plane that robot will drive on
+ground_mat = chrono.ChContactMaterialNSC()
+ground = chrono.ChBodyEasyBox(20, 20, 1, 1000, True, True, ground_mat)
+ground.SetPos(chrono.ChVectorD(0, 0, -0.6))  # Adjusted ground position
+ground.SetFixed(True)
+ground.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
+system.Add(ground)
+
+# Create Turtlebot Robot
+init_pos = chrono.ChVectorD(0, 0.2, 0)
+init_rot = chrono.ChQuaternionD(1, 0, 0, 0)
+robot = turtlebot.TurtleBot(system, init_pos, init_rot)
+robot.Initialize()
+
+# Sensor Manager and Lidar setup
+sensor_mgr = sens.ChSensorManager(system)
+system.AddSensorManager(sensor_mgr)
+
+lidar = sens.ChLidar()
+lidar.SetName("lidar")
+lidar.SetBody(robot.GetBody())  # Assuming GetBody() returns the robot's chassis body
+lidar.SetPosition(chrono.ChVectorD(0, 0, 0.2))  # Position on the robot's body
+lidar_params = sens.ChLidarParameters()
+lidar_params.SetResolutionH(1024)
+lidar_params.SetResolutionV(1)
+lidar_params.SetFOV(chrono.ChVectorD(-20, 20, 270))  # Horizontal FOV from -20 to 20 degrees, vertical 270?
+lidar_params.SetRange(0.1, 10.0)
+lidar.SetParameters(lidar_params)
+
+# Add a noise filter
+noise_filter = sens.ChFilterNoise()
+noise_filter.SetName("Noise Filter")
+noise_filter.SetNoiseSigma(0.01)
+lidar.AddFilter(noise_filter)
+
+sensor_mgr.AddSensor(lidar)
+
+# Add randomly placed boxes
+for _ in range(5):
+    box = chrono.ChBodyEasyBox(1, 1, 0.5, 1000, True, True, ground_mat)
+    x = np.random.uniform(-5, 5)
+    y = np.random.uniform(-5, 5)
+    z = 0.25  # So box is above ground at z=-0.6
+    box.SetPos(chrono.ChVectorD(x, y, z))
+    box.SetCollide(True)
+    system.Add(box)
+
+# Motion control constants
+LEFT_DRIVE_WHEEL = 0
+RIGHT_DRIVE_WHEEL = 1
+
+def move(robot, mode):
+    if mode == 'straight':
+        robot.SetMotorSpeed(math.pi, LEFT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(math.pi, RIGHT_DRIVE_WHEEL)
+    elif mode == 'left':
+        robot.SetMotorSpeed(0, LEFT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(math.pi, RIGHT_DRIVE_WHEEL)
+    elif mode == 'right':
+        robot.SetMotorSpeed(math.pi, LEFT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(0, RIGHT_DRIVE_WHEEL)
+
+# Create run-time visualization
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetCameraVertical(chrono.CameraVerticalDir_Z)
+vis.SetWindowSize(1280, 720)
+vis.SetWindowTitle('Turtlebot Robot - Rigid terrain')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVectorD(0, 1.5, 0.2), chrono.ChVectorD(0, 0, 0.2))
+vis.AddTypicalLights()
+vis.AddLightWithShadow(chrono.ChVectorD(1.5, -2.5, 5.5), chrono.ChVectorD(0, 0, 0.5), 3, 4, 10, 40, 512)
+
+time_step = 2e-3
+time = 0
+
+# Simulation loop
+while vis.Run():
+    # Control the robot's movement
+    move(robot, 'straight')
+    
+    # Update sensor manager
+    sensor_mgr.Update()
+    
+    # Update time and simulation step
+    time += time_step
+    
+    # Render and advance simulation
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    system.DoStepDynamics(time_step)
+
+Wait, but in the sensor_mgr.Update(), the documentation might require passing the current time or something else. Need to check. The ChSensorManager's Update() function typically takes the current time as an argument. So perhaps:
+
+sensor_mgr.Update(time)
+
+But I'm not sure. The exact parameters depend on the sensor manager's Update method. Assuming that the Update() method doesn't require parameters, but if it does, the code may need adjustment. Since the user's instruction says to add sensor manager update, I'll proceed with the code as above, but maybe the correct line is sensor_mgr.Update(time).
+
+Another possible issue: the lidar's FOV parameters might be set incorrectly. The FOV for lidar is usually set with horizontal and vertical angles. The SetFOV function may take parameters like horizontal start, horizontal end, vertical start, vertical end. The example above might have incorrect parameters. For example, perhaps:
+
+lidar_params.SetFOV(chrono.ChVectorD(-20, 20, 0, 0))  # assuming horizontal from -20 to 20, vertical 0 to 0 (flat)
+
+But I'm not sure. Since the instruction says "various parameters", perhaps just setting some example values is okay.
+
+Also, the lidar's rotation might need to be set. The SetRotation function could set the orientation of the sensor. For example, pointing forward.
+
+lidar.SetRotation(chrono.Q_from_AngAxis(0, chrono.ChVectorD(1,0,0)))  # No rotation
+
+Alternatively, maybe the lidar is mounted facing forward, so no rotation needed.
+
+Another possible error: in the original code, the ground's position was set with ChVector3d, but in the corrected code, using ChVectorD (with a capital D for double precision). Wait, in the original code, the user used ChVector3d, but in the latest Chrono versions, the correct type is ChVectorD. So need to check the correct class name.
+
+Looking at the Chrono documentation, the correct type is chrono.ChVectorD. So replacing all instances of ChVector3d with ChVectorD.
+
+Original code had:
+
+ground.SetPos(chrono.ChVector3d(0, 0, -1))
+
+This should be:
+
+ground.SetPos(chrono.ChVectorD(0, 0, -0.6))
+
+Similarly, the robot's initial position uses ChVector3d which should be ChVectorD.
+
+So in the original code, the init_pos is defined as:
+
+init_pos = chrono.ChVector3d(0, 0.2, 0)
+
+This should be changed to ChVectorD.
+
+So correcting all instances of ChVector3d to ChVectorD.
+
+Another possible error: the original code used chrono.ChVector3d in several places. Need to replace all with ChVectorD.
+
+Similarly, the quaternion is ChQuaterniond -> ChQuaternionD.
+
+So in the original code, the robot's initial rotation is:
+
+init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
+
+This should be ChQuaternionD.
+
+So all these changes are necessary.
+
+So, in the corrected code, all instances of ChVector3d should be ChVectorD, and ChQuaterniond should be ChQuaternionD.
+
+Therefore, in the ground creation:
+
+ground.SetPos(chrono.ChVectorD(0, 0, -0.6))
+
+Robot's initial position and rotation:
+
+init_pos = chrono.ChVectorD(0, 0.2, 0)
+init_rot = chrono.ChQuaternionD(1, 0, 0, 0)
+
+Also, in the camera settings:
+
+vis.AddCamera(chrono.ChVectorD(0, 1.5, 0.2), chrono.ChVectorD(0, 0, 0.2))
+
+And other places where ChVector3d was used.
+
+So that's another critical correction.
+
+Now, compiling all these changes into the final code.
+
+The final code would have all these corrections and the modifications as per the user's instructions.
+</think>
+
+```python
+import os
+import math
+import numpy as np
+import pychrono as chrono
+import pychrono.robot as turtlebot
+from pychrono import irrlicht as chronoirr
+import pychrono.sensor as sens
+
+# Create Chrono system
+system = chrono.ChSystemNSC()
+system.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+system.SetGravitationalAcceleration(chrono.ChVectorD(0, 0, -9.81))
+system.GetCollisionSystem().SetDefaultSuggestedEnvelope(0.0025)
+system.GetCollisionSystem().SetDefaultSuggestedMargin(0.0025)
+
+# Create ground body
+ground_mat = chrono.ChContactMaterialNSC()
+ground = chrono.ChBodyEasyBox(20, 20, 1, 1000, True, True, ground_mat)
+ground.SetPos(chrono.ChVectorD(0, 0, -0.6))
+ground.SetFixed(True)
+ground.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
+system.Add(ground)
+
+# Create Turtlebot Robot
+init_pos = chrono.ChVectorD(0, 0.2, 0)
+init_rot = chrono.ChQuaternionD(1, 0, 0, 0)
+robot = turtlebot.TurtleBot(system, init_pos, init_rot)
+robot.Initialize()
+
+# Sensor Manager and Lidar setup
+sensor_mgr = sens.ChSensorManager(system)
+system.AddSensorManager(sensor_mgr)
+
+lidar = sens.ChLidar()
+lidar.SetName("lidar")
+lidar.SetBody(robot.GetBody())  # Attach to robot's body
+lidar.SetPosition(chrono.ChVectorD(0, 0, 0.2))  # Position relative to robot's body
+lidar_params = sens.ChLidarParameters()
+lidar_params.SetResolutionH(1024)
+lidar_params.SetResolutionV(1)
+lidar_params.SetFOV(chrono.ChVectorD(-20, 20, 0, 0))  # Horizontal FOV from -20 to 20 degrees
+lidar_params.SetRange(0.1, 10.0)
+lidar.SetParameters(lidar_params)
+
+# Add noise filter
+noise_filter = sens.ChFilterNoise()
+noise_filter.SetName("Noise Filter")
+noise_filter.SetNoiseSigma(0.01)
+lidar.AddFilter(noise_filter)
+sensor_mgr.AddSensor(lidar)
+
+# Add randomly placed boxes
+for _ in range(5):
+    box = chrono.ChBodyEasyBox(1, 1, 0.5, 1000, True, True, ground_mat)
+    x = np.random.uniform(-5, 5)
+    y = np.random.uniform(-5, 5)
+    z = 0.25  # Above ground at z = -0.6
+    box.SetPos(chrono.ChVectorD(x, y, z))
+    box.SetCollide(True)
+    system.Add(box)
+
+# Motion control constants
+LEFT_DRIVE_WHEEL = 0
+RIGHT_DRIVE_WHEEL = 1
+
+def move(robot, mode):
+    if mode == 'straight':
+        robot.SetMotorSpeed(math.pi, LEFT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(math.pi, RIGHT_DRIVE_WHEEL)
+    elif mode == 'left':
+        robot.SetMotorSpeed(0, LEFT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(math.pi, RIGHT_DRIVE_WHEEL)
+    elif mode == 'right':
+        robot.SetMotorSpeed(math.pi, LEFT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(0, RIGHT_DRIVE_WHEEL)
+
+# Create visualization
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetCameraVertical(chrono.CameraVerticalDir_Z)
+vis.SetWindowSize(1280, 720)
+vis.SetWindowTitle('Turtlebot Robot - Rigid terrain')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVectorD(0, 1.5, 0.2), chrono.ChVectorD(0, 0, 0.2))
+vis.AddTypicalLights()
+vis.AddLightWithShadow(chrono.ChVectorD(1.5, -2.5, 5.5), chrono.ChVectorD(0, 0, 0.5), 3, 4, 10, 40, 512)
+
+time_step = 2e-3
+time = 0
+
+# Simulation loop
+while vis.Run():
+    # Control robot movement
+    move(robot, 'straight')
+    
+    # Update sensor manager
+    sensor_mgr.Update(time)
+    
+    # Simulation step
+    time += time_step
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    system.DoStepDynamics(time_step)
+```

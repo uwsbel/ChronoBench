@@ -1,144 +1,132 @@
 import pychrono as chrono
-import pychrono.irrlicht as irrlicht
-import pychrono.sensor as sensor
-import pychrono.ros as ros
+import pychrono.sensor as sens
+import pychrono.ros as chros
 import math
 
 
 system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+system.SetGravity(chrono.ChVector3d(0, 0, -9.81))
 
 
 ground = chrono.ChBody()
+ground.SetPos(chrono.ChVector3d(0, 0, 0))
 ground.SetBodyFixed(False)
 ground.SetMass(1000)
-ground.SetInertiaXX(chrono.ChVectorD(100, 100, 100))
+ground.SetInertiaXX(chrono.ChVector3d(1e3, 1e3, 1e3))
+ground.SetLinearVel(chrono.ChVector3d(1, 0, 0))  
 system.Add(ground)
 
 
-motor = chrono.ChLinkMotorRotationSpeed()
-motor.Initialize(ground, system.GetGround(), chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)))
-speed_function = chrono.ChFunction_Const(chrono.CH_C_PI)  
-motor.SetSpeedFunction(speed_function)
-system.AddLink(motor)
+ground_shape = chrono.ChBox(chrono.ChVector3d(5, 5, 0.05))  
+ground.AddVisualShape(ground_shape, chrono.ChFramed())
 
 
-mesh = chrono.ChBoxShape()
-mesh.GetBoxGeometry().Size = chrono.ChVectorD(5, 0.5, 5)
-ground.AddAsset(mesh)
+manager = sens.ChSensorManager(system)
 
 
-color = chrono.ChColorAsset()
-color.SetColor(chrono.ChColor(0.2, 0.8, 0.2))  
-ground.AddAsset(color)
 
-
-application = irrlicht.ChIrrApp(system, 'PyChrono Sensor Simulation', irrlicht.dimension2du(1024, 768))
-application.AddTypicalLights()
-application.AddCamera(chrono.ChVectorD(0, 5, -10), chrono.ChVectorD(0, 0, 0))
-application.AssetBindAll()
-application.AssetUpdateAll()
-
-
-manager = sensor.ChSensorManager(system)
-
-
-camera = sensor.ChCameraSensor(
+camera = sens.ChCameraSensor(
     ground,
-    60,  
-    chrono.ChFrameD(chrono.ChVectorD(0, 1.5, 0), chrono.Q_from_AngAxis(math.pi / 4, chrono.ChVectorD(0, 1, 0))),
+    30,  
+    chrono.ChFrameD(chrono.ChVector3d(0, 1, 0.5), chrono.Q_from_AngAxis(math.pi/2, chrono.ChVector3d(0, 1, 0))),
     1280,  
     720,   
-    60     
+    math.radians(60)  
 )
 camera.SetName("camera")
 manager.AddSensor(camera)
 
 
-lidar = sensor.ChLidarSensor(
+lidar = sens.ChLidarSensor(
     ground,
     10,  
-    chrono.ChFrameD(chrono.ChVectorD(0, 2, 0)),
-    360,  
-    1,    
-    math.pi * 2,  
-    math.pi / 180 * 30,  
+    chrono.ChFrameD(chrono.ChVector3d(0, 0.5, 0.3)),
+    1,  
+    1,  
+    math.radians(360),  
+    math.radians(40),   
     100  
 )
 lidar.SetName("lidar")
 manager.AddSensor(lidar)
 
 
-gps = sensor.ChGPSSensor(
+gps = sens.ChGPSSensor(
     ground,
     10,  
-    chrono.ChFrameD(chrono.ChVectorD(0, 2.5, 0)),
-    chrono.ChVectorD(37.7749, -122.4194, 0),  
-    0.1  
+    chrono.ChFrameD(chrono.ChVector3d(0, 0, 1)),  
+    chrono.ChVector3d(0, 0, 0)  
 )
 gps.SetName("gps")
 manager.AddSensor(gps)
 
 
-accel = sensor.ChAccelerometerSensor(
+accel = sens.ChAccelerometerSensor(
     ground,
     100,  
-    chrono.ChFrameD(chrono.ChVectorD(0, 0.5, 0))
+    chrono.ChFrameD(chrono.ChVector3d(0, 0, 0.5))  
 )
 accel.SetName("accelerometer")
 manager.AddSensor(accel)
 
 
-gyro = sensor.ChGyroscopeSensor(
+gyro = sens.ChGyroscopeSensor(
     ground,
     100,  
-    chrono.ChFrameD(chrono.ChVectorD(0, 0.5, 0))
+    chrono.ChFrameD(chrono.ChVector3d(0, 0, 0.5))  
 )
 gyro.SetName("gyroscope")
 manager.AddSensor(gyro)
 
 
-magnet = sensor.ChMagnetometerSensor(
+mag = sens.ChMagnetometerSensor(
     ground,
     10,  
-    chrono.ChFrameD(chrono.ChVectorD(0, 0.5, 0)),
-    chrono.ChVectorD(0.2, 0.0, 0.0)  
+    chrono.ChFrameD(chrono.ChVector3d(0, 0, 0.5))  
 )
-magnet.SetName("magnetometer")
-manager.AddSensor(magnet)
+mag.SetName("magnetometer")
+manager.AddSensor(mag)
 
 
-ros_manager = ros.ChROSManager()
-ros_manager.Initialize()
+ros_publisher = chros.ChROSPublisherManager()
 
 
-ros_manager.AddHandler(ros.ChROSCameraHandler(camera, "/sensor/camera"))
-ros_manager.AddHandler(ros.ChROSLidarHandler(lidar, "/sensor/lidar"))
-ros_manager.AddHandler(ros.ChROSGPSHandler(gps, "/sensor/gps"))
-ros_manager.AddHandler(ros.ChROSIMUHandler(accel, gyro, magnet, "/sensor/imu"))
+camera_pub = chros.ChROSPublisherCamera(camera, "/chrono/camera/image")
+lidar_pub = chros.ChROSPublisherLidar(lidar, "/chrono/lidar/scan")
+gps_pub = chros.ChROSPublisherGPS(gps, "/chrono/gps/data")
+accel_pub = chros.ChROSPublisherAccelerometer(accel, "/chrono/imu/accel")
+gyro_pub = chros.ChROSPublisherGyroscope(gyro, "/chrono/imu/gyro")
+mag_pub = chros.ChROSPublisherMagnetometer(mag, "/chrono/imu/mag")
+
+
+ros_publisher.AddPublisher(camera_pub)
+ros_publisher.AddPublisher(lidar_pub)
+ros_publisher.AddPublisher(gps_pub)
+ros_publisher.AddPublisher(accel_pub)
+ros_publisher.AddPublisher(gyro_pub)
+ros_publisher.AddPublisher(mag_pub)
+
+
+ros_publisher.Initialize(system, manager)
 
 
 step_size = 1e-3  
-timer = chrono.ChRealtimeStepTimer()
+sim_duration = 10  
+rt_timer = chrono.ChRealtimeStepTimer()
 
-application.SetTimestep(step_size)
 
-while application.GetDevice().run():
-    time = system.GetChTime()
-
+time = 0
+while time < sim_duration:
     
-    manager.Update()
-
-    
-    ros_manager.Update()
+    current_time = system.GetChTime()
 
     
     system.DoStepDynamics(step_size)
+    time += step_size
 
     
-    timer.Spin(step_size)
+    manager.Update()
+    ros_publisher.Update(current_time)
 
     
-    application.BeginScene()
-    application.DrawAll()
-    application.EndScene()
+    rt_timer.Spin(step_size)

@@ -1,67 +1,69 @@
 import pychrono as chrono
-import pychrono.vehicle as veh
-import pychrono.irrlicht as irr
-import pychrono.driver as driver
+import pychrono.vehicle as vehicle
+import pychrono.terrain as terrain
+import pychrono.irrlicht as irrlicht
 
-# Initialize the Chrono system
+# Initialize PyChrono system
 system = chrono.ChSystemNSC()
 system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
-chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.001)
-chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.001)
 
-# Create the HMMWV vehicle
-vehicle = veh.HMMWV_Full()
-vehicle.SetContactMethod(chrono.ChContactMethod_NSC)
-vehicle.SetChassisFixed(False)
-# Set initial position and orientation (at origin, no rotation)
-vehicle.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 1.0, 0), chrono.ChQuaternionD(1, 0, 0, 0)))
-vehicle.SetTireType(veh.TireModelType_RIGID)
-vehicle.SetTireStepSize(0.02)
-vehicle.SetMeshVisualization(True)  # Enable mesh visualization
-vehicle.Initialize()
-
-# Create the SCM terrain
-terrain = veh.SCMTerrain(system)
-terrain.SetSoilParameters(2e6,   # Bekker stiffness K
-                          1.1,   # Bekker exponent n
-                          0,     # Cohesion
-                          0.5,   # Internal friction angle (radians)
-                          1e-3,  # Shear stress scale
-                          2000)  # Soil density
-# Enable moving patch following the chassis
-terrain.EnableMovingPatch(vehicle.GetChassisBody(), chrono.ChVectorD(10, 4, 4))  # Adjust size as needed
-terrain.SetPlotType(veh.SCMTerrain.PLOT_SINKAGE)  # Visualize sinkage with false colors
-terrain.Initialize()
-
-# Set up Irrlicht visualization
-application = irr.ChIrrApp(system, 'HMMWV on SCM Terrain', irr.dimension2du(1280, 720))
+# Create Irrlicht visualization
+application = irrlicht.ChIrrApp(system, 'HMMWV on SCM Terrain', irrlicht.dimension2du(1024, 768))
+application.AddTypicalLogo()
+application.AddTypicalSky()
 application.AddTypicalLights()
-application.AddCamera(chrono.ChVectorD(0, 3, -6), chrono.ChVectorD(0, 0, 0))
+application.AddCamera(chrono.ChVectorD(0, 5, -10), chrono.ChVectorD(0, 0, 0))
 application.AssetBindAll()
 application.AssetUpdateAll()
 
-# Set up the driver system
-drv = veh.ChIrrGuiDriver(vehicle.GetVehicle())
-drv.SetSteeringDelta(0.05)
-drv.SetThrottleDelta(0.05)
-drv.SetBrakingDelta(0.05)
-application.SetDriver(drv)
+# Create and configure HMMWV vehicle
+hmmwv = vehicle.HMMWV_Full(system)
+hmmwv.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 1, 0), chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0))))
+hmmwv.SetTireType(vehicle.TireModelType_RIGID)
+hmmwv.SetChassisVisualizationType(vehicle.VisualizationType_MESH)
+hmmwv.SetSuspensionVisualizationType(vehicle.VisualizationType_MESH)
+hmmwv.SetSteeringVisualizationType(vehicle.VisualizationType_MESH)
+hmmwv.SetWheelVisualizationType(vehicle.VisualizationType_MESH)
+hmmwv.Initialize()
 
-# Simulation loop
-system.SetStep(0.02)  # 50 FPS
+# Create and configure SCM deformable terrain
+scm_terrain = terrain.SCMDeformableTerrain(system)
+scm_terrain.SetPlane(chrono.ChCoordsysD(), 100, 100)
+scm_terrain.SetSoilParameters(
+    2e6,    # Bekker Kphi
+    0,      # Bekker Kc
+    1.1,    # Bekker n
+    0,      # Mohr cohesion
+    30,     # Mohr friction angle (degrees)
+    0.01,   # Restitution
+    0.5     # Friction
+)
+scm_terrain.AddMovingPatch(hmmwv.GetChassis(), chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(5, 1, 5))
+scm_terrain.SetPlotType(terrain.SCMDeformableTerrain.PLOT_SINKAGE, 0.0, 0.2)
+scm_terrain.Initialize()
 
+# Set up interactive driver
+driver = vehicle.DriverIRL(hmmwv)
+driver.Initialize()
+
+# Simulation loop parameters
+step_size = 1.0 / 50.0
+system.SetStep(step_size)
+
+# Run simulation
 while application.GetDevice().run():
-    # Synchronize the driver
-    drv.Synchronize(application.GetTime())
+    time = system.GetChTime()
     
-    # Synchronize vehicle and terrain
-    vehicle.Synchronize(application.GetTime(), drv.GetInputs(), terrain)
-    terrain.Synchronize(application.GetTime())
+    # Update vehicle components
+    driver_inputs = driver.GetInputs()
+    driver.Synchronize(time)
+    hmmwv.Synchronize(time, driver_inputs)
+    scm_terrain.Synchronize(time)
     
-    # Advance the simulation
-    system.DoStepDynamics(0.02)
-    
-    # Update visualization
+    # Render scene
     application.BeginScene()
     application.DrawAll()
     application.EndScene()
+    
+    # Advance simulation
+    system.DoStepDynamics(step_size)

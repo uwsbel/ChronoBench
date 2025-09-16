@@ -44,8 +44,6 @@ def main():
     vis.AddLogo(ch.GetChronoDataFile('logo_pychrono_alpha.png'))
     vis.AddSkyBox()
     vis.AddCamera(ch.ChVector3d(-5, 2.5, 1.5), ch.ChVector3d(0, 0, 1))  # New camera position
-    vis.AddTypicalLights()
-    vis.AddLightWithShadow(ch.ChVector3d(1.5, -2.5, 5.5), ch.ChVector3d(0, 0, 0.5), 3, 4, 10, 40, 512)
 
     # Create and initialize the driver system.
     driver = veh.ChDriver(hmmwv.GetVehicle())
@@ -58,28 +56,42 @@ def main():
     ros_manager.RegisterHandler(chros.ChROSDriverInputsHandler(25, driver, "~/input/driver_inputs"))
     # Register the vehicle state handler to publish vehicle state to ROS topic '~/output/hmmwv/state'.
     ros_manager.RegisterHandler(chros.ChROSBodyHandler(25, hmmwv.GetChassisBody(), "~/output/hmmwv/state"))
-    ros_manager.Initialize()  # Initialize the ROS manager.
-
-    # Create a sensor manager
+    # Create and initialize the sensor manager.
     sens_manager = sens.ChSensorManager(hmmwv.GetSystem())
-
-    # Add a lidar sensor
+    sens_manager.Initialize()
+    # Add a lidar sensor to the sensor manager.
     lidar_sensor = sens.ChLidarSensor()
-    lidar_sensor.SetName("lidar_sensor")
-    lidar_sensor.SetParentBody(hmmwv.GetVehicle().GetChassisBody())
-    lidar_sensor.SetLocalPos(ch.ChVectorD(0, 0, 0))
-    lidar_sensor.SetLocalRot(ch.ChQuaternionD(0, 0, 0))
-    lidar_sensor.SetAngleRes(math.radians(1))
-    lidar_sensor.SetRange(100)
-    lidar_sensor.SetFilterType(sens.ChLidarFilterType_NONE)
-    lidar_sensor.SetFilterParam(0)
-    lidar_sensor.SetVisualizationType(sens.ChVisualizationType_POINTS)
-    lidar_sensor.SetVisualizationSize(0.01)
-    lidar_sensor.SetVisualizationColor(ch.ChColor(1, 0, 0))
-    lidar_sensor.Initialize()
-
-    # Register the lidar sensor handler for ROS
-    ros_manager.RegisterHandler(chros.ChROSLidarHandler(25, lidar_sensor, "~/output/lidar_data"))
+    lidar_sensor.SetName("lidar")
+    lidar_sensor.SetResolution(500)
+    lidar_sensor.SetHorizontalFov(math.radians(360))
+    lidar_sensor.SetVerticalFov(math.radians(360))
+    lidar_sensor.SetMaxRange(100)
+    lidar_sensor.SetPos(ch.ChVectorD(0, 0, 1.6))
+    lidar_sensor.SetRot(ch.ChQuaternionD())
+    lidar_sensor.SetFilterByClass(True)
+    lidar_sensor.SetFilterColliding(True)
+    lidar_sensor.SetFilterByLayer(False)
+    lidar_sensor.SetFilterCollisionMask(0)
+    lidar_sensor.SetFilterLayerMask(0)
+    lidar_sensor.SetFilterByElementType(False)
+    lidar_sensor.SetFilterElementType(0)
+    lidar_sensor.SetApplyImpulse(False)
+    lidar_sensor.SetImpulseForce(10)
+    lidar_sensor.SetApplyImpulseOffset(ch.ChVectorD(0, 0, 0))
+    lidar_sensor.SetVisualizationType(sens.VisualizationType_NONE)
+    sens_manager.AddSensor(lidar_sensor)
+    # Create the lidar sensor visualization box.
+    lidar_box = veh.ChBodyEasyBox(0.1, 0.1, 0.1, 1000, True, False, hmmwv.GetSystem())
+    lidar_box.SetPos(ch.ChVectorD(0, 0, 1.6))
+    lidar_box.SetRot(ch.ChQuaternionD())
+    lidar_box.SetBodyFixed(True)
+    lidar_box.SetCollide(False)
+    lidar_box.SetVisualizationType(veh.VisualizationType_NONE)
+    lidar_sensor.SetVisualizationBody(lidar_box)
+    # Register the lidar sensor handler for ROS topic '~/output/hmmwv/lidar'.
+    ros_manager.RegisterHandler(chros.ChROSLidarHandler(25, lidar_sensor, "~/output/hmmwv/lidar"))
+    # Initialize the ROS manager.
+    ros_manager.Initialize()
 
     # Start the simulation loop.
     time = 0
@@ -91,19 +103,4 @@ def main():
     step_number = 0
     # Time interval between two render frames
     render_step_size = 1.0 / 25  # FPS = 25
-    render_steps = math.ceil(render_step_size / time_step)
-    hmmwv.GetVehicle().EnableRealtime(True)  # Enable real-time simulation for the vehicle.
-    while vis.Run():  # Run the simulation loop.
-        time = hmmwv.GetSystem().GetChTime()  # Update simulation time.
-        # Render the scene
-        if (step_number % render_steps == 0):
-            vis.BeginScene()
-            vis.Render()
-            vis.EndScene()
-        # Get driver inputs and synchronize the vehicle, terrain, and driver systems.
-        driver_inputs = driver.GetInputs()
-        driver.Synchronize(time)  # Synchronize the driver system.
-        terrain.Synchronize(time)  # Synchronize the terrain.
-        hmmwv.Synchronize(time, driver_inputs, terrain)  # Synchronize the vehicle with inputs and terrain.
-
-        # Advance the simulation for all modules by one
+    render_steps = math.ceil(render_

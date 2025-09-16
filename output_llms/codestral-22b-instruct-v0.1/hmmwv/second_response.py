@@ -21,8 +21,8 @@ tire_model = veh.TireModelType_TMEASY
 
 # Rigid terrain
 terrainHeight = 0      # terrain height
-terrainLength = 200.0  # size in X direction (increased from 100.0)
-terrainWidth = 100.0   # size in Y direction
+terrainLength = 200.0  # increased terrain length
+terrainWidth = 100.0   # terrain width
 
 # Poon chassis tracked by the camera
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
@@ -38,6 +38,10 @@ tire_step_size = step_size
 # Time interval between two render frames
 render_step_size = 1.0 / 50  # FPS = 50
 
+# Circular path parameters
+path_radius = 20.0
+path_center = chrono.ChVector3d(0, path_radius, 0)
+
 # Create the HMMWV vehicle, set parameters, and initialize
 vehicle = veh.HMMWV_Full()
 vehicle.SetContactMethod(contact_method)
@@ -46,7 +50,6 @@ vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
-
 vehicle.Initialize()
 
 vehicle.SetChassisVisualizationType(vis_type)
@@ -78,42 +81,36 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
-# Create the circular path
-path_radius = 10.0
-path_center = chrono.ChVector3d(0, 0, 0)
-
-# Visualize the path using two balls
-path_vis_sphere1 = chrono.ChSphereShape(0.2)
-path_vis_sphere2 = chrono.ChSphereShape(0.2)
-path_vis_body1 = chrono.ChBodyEasySphere(0.2, 1000, False, True)
-path_vis_body2 = chrono.ChBodyEasySphere(0.2, 1000, False, True)
-path_vis_body1.SetPos(path_center + chrono.ChVector3d(path_radius, 0, 0.2))
-path_vis_body2.SetPos(path_center - chrono.ChVector3d(path_radius, 0, 0.2))
-path_vis_body1.SetBodyFixed(True)
-path_vis_body2.SetBodyFixed(True)
-path_vis_body1.GetCollisionModel().ClearModel()
-path_vis_body2.GetCollisionModel().ClearModel()
-path_vis_body1.AddAsset(path_vis_sphere1)
-path_vis_body2.AddAsset(path_vis_sphere2)
-vehicle.GetSystem().Add(path_vis_body1)
-vehicle.GetSystem().Add(path_vis_body2)
-
 # Create the path follower
-path_follower = veh.ChPathFollower(vehicle.GetVehicle(), path_center, path_radius)
+path_follower = veh.ChPathFollowerDriver(vehicle.GetVehicle(), path_center, path_radius)
 path_follower.Initialize()
 
-# Set the constant throttle value and PID controller gains for steering control
+# Set the throttle value and PID gains for steering control
 throttle_value = 0.3
 steering_gain = 0.5
-proportional_gain = 1.0
-integral_gain = 0.1
-derivative_gain = 0.05
-path_follower.GetSteeringController().SetGains(proportional_gain, integral_gain, derivative_gain)
-path_follower.GetSteeringController().SetSteeringFunction(veh.ChPathFollower.STEERING_PID)
-path_follower.GetSpeedController().SetDesiredSpeed(10.0)
+proportional_gain = 0.1
+integral_gain = 0.0
+derivative_gain = 0.0
+path_follower.SetSteeringGains(steering_gain, proportional_gain, integral_gain, derivative_gain)
 
-# output vehicle mass
-print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
+# Create visualization for sentinel and target points
+sentinel_sphere = chrono.ChSphereShape(0.2)
+sentinel_body = chrono.ChBodyEasySphere(0.2, 1000, True, True, chrono.ChMaterialSurfaceNSC())
+sentinel_body.SetPos(path_center + chrono.ChVector3d(path_radius, 0, 0))
+sentinel_body.GetCollisionModel().ClearModel()
+sentinel_body.GetCollisionModel().AddSphere(0.2)
+sentinel_body.GetCollisionModel().BuildModel()
+sentinel_body.SetBodyFixed(True)
+vehicle.GetSystem().Add(sentinel_body)
+
+target_sphere = chrono.ChSphereShape(0.2)
+target_body = chrono.ChBodyEasySphere(0.2, 1000, True, True, chrono.ChMaterialSurfaceNSC())
+target_body.SetPos(path_center)
+target_body.GetCollisionModel().ClearModel()
+target_body.GetCollisionModel().AddSphere(0.2)
+target_body.GetCollisionModel().BuildModel()
+target_body.SetBodyFixed(True)
+vehicle.GetSystem().Add(target_body)
 
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
@@ -133,15 +130,14 @@ while vis.Run():
         vis.EndScene()
         render_frame += 1
 
-    # Update path follower
-    path_follower.Advance(step_size)
-
     # Update modules (process inputs from other modules)
+    path_follower.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, path_follower.GetInputs(), terrain)
     vis.Synchronize(time, path_follower.GetInputs())
 
     # Advance simulation for one timestep for all modules
+    path_follower.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)

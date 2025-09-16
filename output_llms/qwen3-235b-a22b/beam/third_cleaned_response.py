@@ -20,8 +20,7 @@ msection.SetShearModulus(0.01e9 * 0.3)
 msection.SetRayleighDamping(0.000)
 msection.SetCentroid(0, 0.02)
 msection.SetShearCenter(0, 0.1)
-
-msection.SetSectionRotation(chrono.CH_DEG_TO_RAD * 45)
+msection.SetSectionRotation(45.0)  
 
 
 beam_L = 0.1
@@ -56,30 +55,25 @@ sys.Add(mtruss)
 constr_bc = chrono.ChLinkMateGeneric()
 constr_bc.Initialize(hnode3, mtruss, False, hnode3.Frame(), hnode3.Frame())
 sys.Add(constr_bc)
-constr_bc.SetConstrainedCoords(True, True, True, True, True, True)
+constr_bc.SetConstrainedCoords(True, True, True, True, True, True)  
 
 constr_d = chrono.ChLinkMateGeneric()
 constr_d.Initialize(hnode1, mtruss, False, hnode1.Frame(), hnode1.Frame())
 sys.Add(constr_d)
-constr_d.SetConstrainedCoords(False, True, True, False, False, False)
+constr_d.SetConstrainedCoords(False, True, True, False, False, False)  
 
 
 builder = fea.ChBuilderBeamEuler()
 
-builder.BuildBeam(mesh, msection, 5,
-                  chrono.ChVector3d(0, 0, -0.1),
-                  chrono.ChVector3d(0.2, 0, -0.1),
-                  chrono.ChVector3d(0, 1, 0))
+
+builder.BuildBeam(mesh, msection, 5, chrono.ChVector3d(0, 0, -0.1), chrono.ChVector3d(0.2, 0, -0.1), chrono.ChVector3d(0, 1, 0))
 
 
 builder.GetLastBeamNodes().back().SetFixed(True)
 builder.GetLastBeamNodes().front().SetForce(chrono.ChVector3d(0, -1, 0))
 
 
-builder.BuildBeam(mesh, msection, 5,
-                  chrono.ChVector3d(0.2, 0, -0.1),  
-                  chrono.ChVector3d(0.2, 0.1, -0.1),  
-                  chrono.ChVector3d(0, 1, 0))  
+builder.BuildBeam(mesh, msection, 5, chrono.ChVector3d(0.2, 0, -0.1), chrono.ChVector3d(0.2, 0.1, -0.1), chrono.ChVector3d(0, 1, 0))
 
 
 mesh.SetAutomaticGravity(False)
@@ -92,6 +86,7 @@ visualizebeamA = chrono.ChVisualShapeFEA(mesh)
 visualizebeamA.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_ELEM_BEAM_MZ)
 visualizebeamA.SetColorscaleMinMax(-0.4, 0.4)
 visualizebeamA.SetSmoothFaces(True)
+visualizebeamA.SetWireframe(False)
 mesh.AddVisualShapeFEA(visualizebeamA)
 
 visualizebeamC = chrono.ChVisualShapeFEA(mesh)

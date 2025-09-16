@@ -30,7 +30,7 @@ class Model1:
 
         # Apply boundary conditions and loads:
         # Retrieve the end nodes of the beam and apply load/constraints
-        builder.GetLastBeamNodes().front().SetForce(chrono.ChVector3d(0, -0.7, 0))  # Change applied force to (0, -0.7, 0)
+        builder.GetLastBeamNodes().front().SetForce(chrono.ChVector3d(0, -0.7, 0))  # Change applied force to (-0, -0.7, 0)
 
         # Create a truss body (a fixed reference frame in the simulation)
         mtruss = chrono.ChBody()
@@ -79,15 +79,15 @@ vis.AddCamera(chrono.ChVector3d(0, 0.6, -1))  # Add a camera with specific posit
 vis.AddTypicalLights()  # Add typical lights for better illumination
 
 # Set solver type and settings
-solver = chrono.ChSolverMINRES()  # Change solver to MINRES
+solver = chrono.ChSolverMINRES()  # Change solver type to MINRES
 if solver.GetType() == chrono.ChSolver.Type_MINRES:
     print("Using MINRES solver")
-sys.SetSolver(solver)
 solver.SetMaxIterations(200)  # Set maximum number of iterations to 200
 solver.SetTolerance(1e-10)  # Set solver tolerance to 1e-10
 solver.EnableDiagonalPreconditioner(True)  # Enable diagonal preconditioner
 solver.EnableWarmStart(True)  # Enable warm start
 solver.SetVerbose(False)  # Disable verbose output
+sys.SetSolver(solver)
 
 # Set the timestepper for the simulation
 ts = chrono.ChTimestepperEulerImplicitLinearized(sys)

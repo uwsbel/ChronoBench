@@ -3,12 +3,9 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import pychrono.sensor as sens
 import math
-import os
 
 # Set the data path for Chrono assets
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
-
-print(chrono.GetChronoDataPath() + 'vehicle/')
 
 # Initial vehicle location and orientation
 initLoc = chrono.ChVector3d(0, -5, 0.4)
@@ -136,21 +133,18 @@ cam.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Gator Camera")
 manager.AddSensor(cam)
 
 # Create Depth Camera
-offset_pose_depth = chrono.ChFramed(
-    chrono.ChVector3d(-5.0, 0, 2),
-    chrono.ChQuaterniond(1, 0, 0, 0)
-)
-depth_cam = sens.ChCameraSensor(
+depth_offset_pose = chrono.ChFramed(chrono.ChVector3d(-5.0, 0, 2), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0)))
+depth_cam = sens.ChDepthCameraSensor(
     gator.GetChassisBody(),
     update_rate,
-    offset_pose_depth,
+    depth_offset_pose,
     image_width,
     image_height,
-    fov
+    fov,
+    30  # max depth
 )
 depth_cam.SetName("Depth Camera")
-depth_cam.PushFilter(sens.ChFilterR16Depth(0.0, 30.0))  # Depth range 0-30m
-depth_cam.PushFilter(sens.ChFilterVisualizeDepth(image_width, image_height, "Depth Map"))
+depth_cam.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Depth Map"))
 manager.AddSensor(depth_cam)
 
 # Create lidar sensor
@@ -191,28 +185,12 @@ manager.AddSensor(lidar)
 # ---------------
 realtime_timer = chrono.ChRealtimeStepTimer()
 time = 0
-end_time = 30
+end_time = tend  # Corrected to use tend instead of fixed 30 seconds
 while time < end_time:
     time = gator.GetSystem().GetChTime()
-    
-    # Log vehicle state
-    chassis = gator.GetChassisBody()
-    pos = chassis.GetPos()
-    rot = chassis.GetRot()
-    # Calculate yaw (heading)
-    qw = rot.e0
-    qx = rot.e1
-    qy = rot.e2
-    qz = rot.e3
-    siny_cosp = 2.0 * (qw * qz + qx * qy)
-    cosy_cosp = 1.0 - 2.0 * (qy*qy + qz*qz)
-    yaw = math.atan2(siny_cosp, cosy_cosp)
-    print(f"Time: {time:.3f}, Position: ({pos.x:.3f}, {pos.y:.3f}, {pos.z:.3f}), Heading: {yaw:.3f} rad")
-
     # Set driver inputs
     driver.SetSteering(0.5)
     driver.SetThrottle(0.2)
-    
     # Collect output data from modules (for inter-module communication)
     driver_inputs = driver.GetInputs()
 
@@ -230,3 +208,9 @@ while time < end_time:
 
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
+
+    # Log vehicle state
+    current_time = gator.GetSystem().GetChTime()
+    pos = gator.GetChassisBody().GetPos()
+    heading = gator.GetVehicle().GetHeading()
+    print(f"Time: {current_time:.3f}, Position: ({pos.x:.3f}, {pos.y:.3f}, {pos.z:.3f}), Heading: {heading:.3f} rad")

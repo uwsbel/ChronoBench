@@ -8,14 +8,14 @@ from pychrono import irrlicht as chronoirr
 # Create Chrono system
 system = chrono.ChSystemNSC()
 system.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
-system.SetGravitationalAcceleration(chrono.ChVector3D(0, 0, -9.81))
+system.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, -9.81))
 chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.0025)
 chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
 
 # Create ground body with contact material and add it to the system
 ground_mat = chrono.ChContactMaterialNSC()
 ground = chrono.ChBodyEasyBox(20, 20, 1, 1000, True, True, ground_mat)
-ground.SetPos(chrono.ChVector3D(0, 0, -0.5))  # Position the ground slightly below the origin
+ground.SetPos(chrono.ChVector3d(0, 0, -0.5))  # Position the ground slightly below the origin
 ground.SetFixed(True)  # Fix the ground in place
 ground.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
 system.Add(ground)
@@ -28,8 +28,8 @@ driver = robot.CuriosityDCMotorControl()
 rover.SetDriver(driver)
 
 # Initialize rover position and orientation
-init_pos = chrono.ChVector3D(-5, 0.0, 0)  # Changed initial position to (-5, 0.0, 0)
-init_rot = chrono.ChQuaternionD(1, 0, 0, 0)
+init_pos = chrono.ChVector3d(-5, 0.0, 0)  # Modified initial position
+init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
 rover.Initialize(chrono.ChFramed(init_pos, init_rot))
 
 # Create the Irrlicht visualization
@@ -41,12 +41,17 @@ vis.SetWindowTitle('Curiosity rover - Rigid terrain')
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()
-vis.AddCamera(chrono.ChVector3D(0, 3, 3), chrono.ChVector3D(0, 0, 0))
+vis.AddCamera(chrono.ChVector3d(0, 3, 3), chrono.ChVector3d(0, 0, 0))
 vis.AddTypicalLights()
-vis.AddLightWithShadow(chrono.ChVector3D(1.5, -2.5, 5.5), chrono.ChVector3D(0, 0, 0), 3, 4, 10, 40, 512)
+vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0, 0), 3, 4, 10, 40, 512)
 
 # Enable shadows (commented out to improve performance)
 # vis.EnableShadows()
+
+# Create long box obstacle
+obstacle = chrono.ChBodyEasyBox(10, 0.5, 5, 1000, True, True, ground_mat)
+obstacle.SetPos(chrono.ChVector3d(0, 0, 0))  # Position the obstacle
+system.Add(obstacle)
 
 # Set the simulation time step
 time_step = 1e-3
@@ -56,8 +61,8 @@ time = 0
 while vis.Run():
     time += time_step
 
-    # Set steering input for the rover to move forward with zero steering input
-    driver.SetSteering(0)
+    # Set steering input for the rover
+    driver.SetSteering(0)  # Set steering input to 0 to make the rover move forward
 
     # Update rover dynamics
     rover.Update()

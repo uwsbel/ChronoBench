@@ -1,51 +1,110 @@
-import chrono as chrono
-import irrlicht as irrl
+import chrono
+import chrono.irrlicht as irrlicht
+import chrono.collision as collision
+import chrono.vehicle as vehicle
 
 
-chrono.ChronoPy_SetChrono(use_double_precision=True)
-system = chrono.ChronoSystem()
-irrlicht = irrl.IrrlichtEngine()
+chrono.SetChronoDataPath('path/to/chrono/data')
+my_system = chrono.ChSystemSolverSH(collision.ChCollisionModel.Type_RIGID)
+my_system.SetSolverType(chrono.ChSolver.Type_PGS)
+my_system.SetSolverMaxIterations(100)
+my_system.SetSolverMinIterations(10)
+my_system.SetSolverAccuracy(1e-6)
+my_system.SetSolverSpeed(1e-3)
 
 
-vehicle = system.NewHMMWV()
-vehicle.SetPos(chrono.ChVectorD(0, 0, 0))
-vehicle.SetEngineType(chrono.HMMWVEngineType.V8)
-vehicle.SetDrivetrainType(chrono.HMMWVDrivetrainType.ALLWHEEL)
-vehicle.AddVisualizationMesh(system.GetDataFile("path/to/hmmwv_mesh.obj"))
 
 
-terrain = system.NewTerrain()
+terrain = collision.ChHeightfield()
+terrain.SetHeightfieldPath('path/to/heightmap.txt')
+terrain.SetMaterial(vehicle.ChMaterialSurface.BoxMat)
+terrain.SetHeightfieldTexturePatches(True)
+terrain_shape = collision.ChCollisionShapeHeightfield(terrain)
+terrain_body = my_system.AddBody(collision.ChBody.Box, (0, 0, 0), (100, 100, 1))
+terrain_body.AddShape(terrain_shape)
 
 
-flat_patch1 = terrain.AddPatch(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(100, 0, 0), chrono.ChVectorD(0, 0, 10))
-flat_patch1.SetTexture(system.GetDataFile("path/to/texture1.png"))
+hmmwv_chassis = vehicle.ChBodyAerodynamic(vehicle.ChAssistableBody, 2500, chrono.ChCoordsysD(0, 0, 0))
+hmmwv_chassis.AddVisualShape(collision.ChVisualShapeFile(vehicle.GetHMMWVPath('hmmwv.obj'), 1, chrono.ChCoordsysD(0, 0, 0)))
+hmmwv_chassis.SetCollide(False)
+my_system.AddBody(hmmwv_chassis)
 
-flat_patch2 = terrain.AddPatch(chrono.ChVectorD(100, 0, 0), chrono.ChVectorD(100, 0, 100), chrono.ChVectorD(0, 0, 10))
-flat_patch2.SetTexture(system.GetDataFile("path/to/texture2.png"))
+hmmwv_engine = vehicle.ChVehicleEngineSimple(vehicle.ChVehicleEngineSimple.Type_DIESEL)
+hmmwv_engine.SetPower(300)
+hmmwv_engine.SetTorque(750)
+hmmwv_engine.SetRPM(2000)
+
+hmmwv_transmission = vehicle.ChVehicleTransmissionSequential(vehicle.ChVehicleTransmissionSequential.Type_SEQUENTIAL)
+hmmwv_transmission.SetGearRatios([1.0, 1.67, 2.52, 3.69, 5.13, 6.77])
+hmmwv_transmission.SetClutchStrength(1500)
+
+hmmwv_differential = vehicle.ChVehicleDifferential(vehicle.ChVehicleDifferential.Type_LOCKED)
+hmmwv_driveline = vehicle.ChVehicleDriveline(hmmwv_engine, hmmwv_transmission, hmmwv_differential)
+
+hmmwv_suspension_front = vehicle.ChSuspensionDoubleWishbone(vehicle.ChSuspensionDoubleWishbone.Type_WISHBONE)
+hmmwv_suspension_rear = vehicle.ChSuspensionDoubleWishbone(vehicle.ChSuspensionDoubleWishbone.Type_WISHBONE)
+
+hmmwv_wheel_front = vehicle.ChWheel(vehicle.ChWheel.Type_DISC)
+hmmwv_wheel_rear = vehicle.ChWheel(vehicle.ChWheel.Type_DISC)
+
+hmmwv_chassis.AddVisualShape(collision.ChVisualShapeFile(vehicle.GetHMMWVPath('hmmwv_chassis.obj'), 1, chrono.ChCoordsysD(0, 0, 0)))
+hmmwv_chassis.AddVisualShape(collision.ChVisualShapeFile(vehicle.GetHMMWVPath('hmmwv_engine.obj'), 1, chrono.ChCoordsysD(0, 0, 0)))
+hmmwv_chassis.AddVisualShape(collision.ChVisualShapeFile(vehicle.GetHMMWVPath('hmmwv_transmission.obj'), 1, chrono.ChCoordsysD(0, 0, 0)))
+hmmwv_chassis.AddVisualShape(collision.ChVisualShapeFile(vehicle.GetHMMWVPath('hmmwv_differential.obj'), 1, chrono.ChCoordsysD(0, 0, 0)))
+hmmwv_chassis.AddVisualShape(collision.ChVisualShapeFile(vehicle.GetHMMWVPath('hmmwv_suspension_front.obj'), 1, chrono.ChCoordsysD(0, 0, 0)))
+hmmwv_chassis.AddVisualShape(collision.ChVisualShapeFile(vehicle.GetHMMWVPath('hmmwv_suspension_rear.obj'), 1, chrono.ChCoordsysD(0, 0, 0)))
+hmmwv_chassis.AddVisualShape(collision.ChVisualShapeFile(vehicle.GetHMMWVPath('hmmwv_wheel_front.obj'), 1, chrono.ChCoordsysD(0, 0, 0)))
+hmmwv_chassis.AddVisualShape(collision.ChVisualShapeFile(vehicle.GetHMMWVPath('hmmwv_wheel_rear.obj'), 1, chrono.ChCoordsysD(0, 0, 0)))
+
+hmmwv_vehicle = vehicle.ChVehicle(hmmwv_chassis, hmmwv_driveline, hmmwv_suspension_front, hmmwv_suspension_rear, hmmwv_wheel_front, hmmwv_wheel_rear)
+my_system.AddVehicle(hmmwv_vehicle)
 
 
-mesh_patch = terrain.AddPatch(chrono.ChVectorD(50, 0, 100), chrono.ChVectorD(50, 0, 50), chrono.ChVectorD(0, 0, 10))
-mesh_patch.SetMesh(system.GetDataFile("path/to/bump_mesh.obj"))
+hmmwv_vehicle.SetPos(chrono.ChCoordsysD(0, 0, 1))
+hmmwv_vehicle.SetSteerAngle(0)
+hmmwv_vehicle.SetThrottle(0)
+hmmwv_vehicle.SetBrake(0)
 
 
-heightmap_patch = terrain.AddHeightmapPatch(system.GetDataFile("path/to/heightmap.png"), 1, 10, 50, 50)
+device = irrlicht.createDevice(irrlicht.video.EDT_OPENGL, chrono.GetChronoDataPath() + 'irrlicht/', 800, 600, False, False, False, chrono.GetChronoDataPath() + 'irrlicht/media/')
+driver = device.getDriver()
+scene = device.getSceneManager()
+smgr = irrlicht.ChIrrApp(my_system, device, scene, driver)
+smgr.addLogo()
+smgr.addSkyBox()
+smgr.addCamera(chrono.ChCoordsysD(0, 10, 15))
 
 
-driver = system.NewInteractiveDriver(vehicle)
-driver.AddControl(chrono.InteractiveDriverControlType.STEERING)
-driver.AddControl(chrono.InteractiveDriverControlType.THROTTLE)
-driver.AddControl(chrono.InteractiveDriverControlType.BRAKE)
+def on_event(app):
+    if app.device.isWindowClosed():
+        return False
+
+    if app.device.getKeyPress(irrlicht.key_UP):
+        hmmwv_vehicle.SetThrottle(1)
+    elif app.device.getKeyPress(irrlicht.key_DOWN):
+        hmmwv_vehicle.SetThrottle(-1)
+    else:
+        hmmwv_vehicle.SetThrottle(0)
+
+    if app.device.getKeyPress(irrlicht.key_LEFT):
+        hmmwv_vehicle.SetSteerAngle(-0.1)
+    elif app.device.getKeyPress(irrlicht.key_RIGHT):
+        hmmwv_vehicle.SetSteerAngle(0.1)
+    else:
+        hmmwv_vehicle.SetSteerAngle(0)
+
+    if app.device.getKeyPress(irrlicht.key_SPACE):
+        hmmwv_vehicle.SetBrake(1)
+    else:
+        hmmwv_vehicle.SetBrake(0)
+
+    return True
 
 
-system.SetTimestep(1 / 60.0)
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
-
-
-while system.GetChTime() < 10.0:
-    system.DoStepDynamics()
-    irrlicht.DrawAll()
-    irrlicht.WaitEvent()
-
-
-irrlicht.DeviceDestroy()
-system.Clear()
+while(True):
+    smgr.beginScene(True, True, irrlicht.SColor(255, 150, 150, 255))
+    my_system.DoStepDynamics(1.0 / 60.0)
+    smgr.drawAll()
+    smgr.endScene()
+    if not on_event(smgr):
+        break

@@ -1,127 +1,78 @@
-Here is a well-structured and documented PyChrono simulation script that fulfills the requirements for simulating a **MAN 10t truck** driving on a **rigid terrain** with **TMeasy tire models**, **real-time driver controls**, and **Irrlicht-based visualization** featuring a **chase camera**, **skybox**, **directional lighting**, and **customizable terrain textures**.
 
----
-
-### ✅ Prerequisites
-
-Ensure you have the following installed:
-- PyChrono (with vehicle and Irrlicht modules)
-- Appropriate assets (e.g., textures, models) in the `chrono::GetDataPath()` directory
-
----
-
-### 📜 Simulation Script
 
 ```python
 import pychrono as chrono
 import pychrono.vehicle as veh
 import pychrono.irrlicht as irr
 
-# ----------------------------
-# 1. Initialize the PyChrono System
-# ----------------------------
+# Initialize PyChrono system
 system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))  # Set gravity
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
-# ----------------------------
-# 2. Create the Rigid Terrain
-# ----------------------------
-terrain = veh.RigidTerrain(system)
-patch = terrain.AddPatch(chrono.ChCoordsysD(), chrono.ChVectorD(200, 100, 1), True, True)
-patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 100)  # Customizable texture
-terrain.Initialize()
+# Create MAN 10t truck
+truck = veh.MAN10t(system)
+truck.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 1.2), chrono.QUNIT))
+truck.SetTireType(veh.TMEASY)  # Set TMEASY tire model
+truck.Initialize()
 
-# ----------------------------
-# 3. Create and Configure the MAN 10t Truck
-# ----------------------------
-truck = veh.MAN_10t(system)
-truck.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 1.5), chrono.QUNIT))  # Start position and orientation
-
-# Set visualization types
+# Configure visualization settings
 truck.SetChassisVisualizationType(veh.VisualizationType_MESH)
 truck.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
 truck.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
 truck.SetWheelVisualizationType(veh.VisualizationType_MESH)
 
-# Replace default tires with TMeasy models
-for axle in truck.GetAxles():
-    for wheel in axle.GetWheels():
-        tire = veh.ChTMeasyTire("TMeasyTire")
-        tire.SetSize(0.3, 0.2)  # Example tire dimensions
-        tire.SetRimRadius(0.3)
-        tire.SetTireWidth(0.2)
-        tire.SetContactMaterialSurface(chrono.ChMaterialSurfaceNSC())
-        tire.Initialize(wheel, veh.WheelID())  # Attach to the wheel
+# Create rigid terrain
+terrain = chrono.ChBody()
+terrain.SetBodyFixed(True)
+terrain.SetCollide(True)
+terrain.GetCollisionModel().AddPlane(chrono.ChCoordsysD(), 100, 100)
+system.Add(terrain)
 
-# ----------------------------
-# 4. Set Up Irrlicht Visualization
-# ----------------------------
-application = irr.ChIrrApp(system, 'MAN 10t Truck Simulation', irr.dimension2du(1024, 768))
-application.AddTypicalLogo()
-application.AddSkyBox()
-application.AddCamera(chrono.ChVectorD(0, -5, 2), chrono.ChVectorD(0, 0, 0))  # Initial camera position
-application.AddLightWithShadow(chrono.ChVectorD(10, -25, 10), chrono.ChVectorD(0, 0, 0), 100, 10, 20, 60)
+# Set terrain material properties
+ground_mat = chrono.ChMaterialSurfaceNSC()
+ground_mat.SetFriction(0.9)
+ground_mat.SetRestitution(0.01)
+terrain.SetMaterialSurface(ground_mat)
+
+# Initialize Irrlicht visualization
+application = irr.ChIrrApp(system, 'MAN 10t Truck Simulation', irr.dimension2d(1280, 720))
+application.AddTypicalSky()
+application.AddTypicalLights(irr.vector3df(30, 100, 30), irr.vector3df(-30, -100, -30))
+
+# Configure terrain visualization with texture
+application.AddGround(chrono.GridPlane(20, 20, 1, 1), "textures/concrete.jpg")
 
 # Set up chase camera
-chase_camera = veh.ChChaseCamera(truck.GetChassisBody(), 4.0, 0.5)  # Distance and height
-application.SetChaseCamera(chase_camera)
+camera = irr.ChIrrChaseCamera(application.GetSceneManager(), truck.GetChassisBody(), 6.0, 0.5)
+application.GetSceneManager().setActiveCamera(camera)
 
-# ----------------------------
-# 5. Set Up Real-Time Driver Controls
-# ----------------------------
-driver = veh.ChIrrGuiDriver(application.GetDevice())
+# Initialize real-time driver controls
+driver = veh.ChIrrGuiDriver(truck)
 driver.SetSteeringDelta(0.05)
 driver.SetThrottleDelta(0.05)
 driver.SetBrakingDelta(0.05)
 
-# ----------------------------
-# 6. Simulation Loop
-# ----------------------------
-step_size = 1e-3  # Simulation time step
-rt_timer = chrono.ChRealtimeStepTimer()
+# Simulation loop
+application.AssetBindAll()
+application.AssetUpdateAll()
 
+step_timer = chrono.ChRealtimeStepTimer()
 while application.GetDevice().run():
     time = system.GetChTime()
+    
+    # Get driver inputs
     driver_inputs = driver.GetInputs()
-
-    # Synchronize components
+    
+    # Synchronize vehicle and driver
     truck.Synchronize(time, driver_inputs)
-    terrain.Synchronize(time)
-    application.Synchronize("MAN 10t Truck Simulation", driver_inputs)
-
-    # Advance the simulation
-    system.DoStepDynamics(step_size)
-
+    
+    # Advance simulation
+    step_timer.Start()
+    system.DoStepDynamics(chrono.ChTimeStep(0.01))
+    step_timer.Spin()
+    
     # Update visualization
     application.BeginScene()
     application.DrawAll()
     application.EndScene()
-
-    rt_timer.Spin(step_size)
 ```
-
----
-
-### 📌 Notes
-
-- **TMeasy Tire Parameters**: The `ChTMeasyTire` class can be further configured using JSON files or custom parameters. For production use, consider loading a JSON file with calibrated tire properties.
-- **Customization**: You can change the terrain texture by replacing `"terrain/textures/grass.jpg"` with any other image path.
-- **Chase Camera**: The `ChChaseCamera` follows the truck's chassis and can be adjusted for distance and height.
-- **Real-Time Controls**: The `ChIrrGuiDriver` allows keyboard input for steering, throttle, and braking.
-
----
-
-### 🧪 Running the Simulation
-
-To run the simulation:
-1. Save the script as `man_truck_simulation.py`
-2. Ensure the PyChrono environment is set up with the required assets
-3. Execute the script using Python:
-
-```bash
-python man_truck_simulation.py
-```
-
----
-
-This script provides a complete and extensible framework for simulating a MAN 10t truck in PyChrono with advanced visualization and physics modeling.

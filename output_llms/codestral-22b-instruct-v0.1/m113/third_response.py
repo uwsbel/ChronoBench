@@ -71,14 +71,9 @@ patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 # Add a long box to the system to test vehicle mobility
-box_body = chrono.ChBody()
-box_body.SetPos(chrono.ChVectorD(10, 0, 0.5))
-box_body.SetMass(1000)
-box_body.SetInertiaXX(chrono.ChVectorD(1, 1, 1))
-box_body.SetCollide(True)
-box_shape = chrono.ChBoxShape()
-box_shape.SetLengths(chrono.ChVectorD(20, 2, 1))
-box_body.AddAsset(box_shape)
+box_body = chrono.ChBodyEasyBox(10, 1, 1, 1000, False, True)
+box_body.SetPos(chrono.ChVectorD(20, 0, 0.5))
+box_body.SetBodyFixed(True)
 vehicle.GetSystem().Add(box_body)
 
 # Create the vehicle Irrlicht interface
@@ -106,7 +101,6 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 # Solver and integrator settings
-# ------------------------------
 vehicle.GetSystem().SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
 
 # output vehicle mass
@@ -115,7 +109,7 @@ print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
 
-# Initialize simulation frame counter s
+# Initialize simulation frame counter
 step_number = 0
 render_frame = 0
 vehicle.GetVehicle().EnableRealtime(True)
@@ -130,7 +124,7 @@ while vis.Run():
 
     # Get driver inputs
     driver_inputs = driver.GetInputs()
-    # Hard-coded the throttle value to 0.8 during the simulation loop
+    # Hard-code the throttle value to 0.8
     driver_inputs.m_throttle = 0.8
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)

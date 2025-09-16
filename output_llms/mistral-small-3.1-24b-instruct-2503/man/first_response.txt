@@ -1,132 +1,89 @@
-Sure! Below is a Python script that sets up a PyChrono simulation of a MAN 10t truck driving on a rigid terrain, following the specified instructions.
+Here is a PyChrono simulation script that meets the specified requirements:
 
 ```python
 import pychrono.core as chrono
-import pychrono.irrlicht as chronoirr
 import pychrono.vehicle as veh
+import pychrono.irrlicht as chronoirr
 import pychrono.fea as fea
-import os
 
-# ----------------------------------------------------------------------
-# Initialize the simulation
-# ----------------------------------------------------------------------
-chrono.SetChronoDataPath(os.path.dirname(__file__))
+# Initialize the PyChrono environment
+chrono.SetChronoDataPath('../../data/')  # Set the path to the Chrono data directory
 
-# Create the system
-system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+# Create the vehicle system
+vehicle = veh.ChVehicle(veh.ChVehicleType.TRUCK)
+vehicle.SetChassisBodyType(veh.ChChassisBodyType.RIGID)
+
+# Load the MAN 10t truck model
+truck = veh.ChTruck(vehicle)
+truck.Init(veh.ChTruckType.MAN_TGX)
+truck.SetInitPosition(chrono.ChVectorD(0, 0, 0.5))  # Set initial position of the truck
+truck.SetInitOrientation(chrono.ChQuaternionD(1, 0, 0, 0))  # Set initial orientation of the truck
+
+# Add the TMEASY tire model
+for wheel in truck.GetWheels():
+    wheel.SetTireModelType(veh.ChTireModelType.TMEASY)
+
+# Create the terrain
+terrain = veh.ChTerrain(vehicle.GetSystem())
+terrain.SetContactMaterial(chrono.ChMaterialSurface::DefaultMaterial())
+terrain.SetTexture(chrono.GetChronoDataFile('terrain/textures/t_grass.jpg'), True)
+terrain.SetMesh(chrono.GetChronoDataFile('terrain/heightmaps/plain_ground.obj'))
+
+# Add the terrain to the vehicle system
+vehicle.GetSystem().Add(terrain)
 
 # Create the Irrlicht visualization system
-vis = chronoirr.ChVisualSystemIrrlicht()
-vis.SetWindowSize(1280, 720)
-vis.SetWindowTitle('MAN 10t Truck Simulation')
-vis.Initialize()
-vis.AddLogo()
-vis.AddSkyBox()
-vis.AddLightDirectional()
+visualization = chronoirr.ChIrrApp(vehicle.GetSystem(), 'MAN 10t Truck Simulation', chronoirr.dimension2du(1280, 720))
 
-# Add a chase camera
+# Set up the chase camera
 camera = chronoirr.ChIrrCamera()
-camera.SetPosition(chrono.ChVectorD(0, 5, -10))
-camera.SetUp(chrono.ChVectorD(0, 1, 0))
+camera.SetPosition(chrono.ChVectorD(0, -10, 3))
 camera.SetTarget(chrono.ChVectorD(0, 0, 0))
 camera.SetNearClip(0.1)
 camera.SetFarClip(1000)
-vis.AddCamera(camera)
-vis.AttachCamera(camera)
+visualization.AddCamera(camera)
+visualization.SetChaseCamera(track_body=truck.GetChassis(), distance=10, height=3, lookat=chrono.ChVectorD(0, 0, 0))
 
-# ----------------------------------------------------------------------
-# Create the terrain
-# ----------------------------------------------------------------------
-terrain = chrono.ChBodyEasyBox(200, 0.5, 200, 1000, True, True)
-terrain.SetPos(chrono.ChVectorD(0, -0.25, 0))
-terrain.SetBodyFixed(True)
-system.Add(terrain)
+# Set up directional lighting
+light = chronoirr.ChIrrLightPoint()
+light.SetPosition(chrono.ChVectorD(10, -10, 10))
+light.SetRadius(100)
+light.SetDiffuseColor(chrono.ChColorf(0.8, 0.8, 0.8))
+light.SetSpecularColor(chrono.ChColorf(0.8, 0.8, 0.8))
+visualization.AddLight(light)
 
-# Set terrain material properties
-terrain_material = chrono.ChMaterialSurfaceNSC()
-terrain_material.SetFriction(0.9)
-terrain_material.SetRestitution(0.2)
-terrain.GetMaterialSurface().SetMaterialSurfaceNSC(terrain_material)
+# Add a skybox
+skybox = chronoirr.ChIrrSkyBox()
+skybox.SetTextureName(chrono.GetChronoDataFile('skybox/space.jpg'))
+visualization.AddSkyBox(skybox)
 
-# Create a texture for the terrain
-terrain_mesh = chronoirr.ChVisualShapeSphere()
-terrain_mesh.GetMesh().Clear()
-terrain_mesh.GetMesh().CreateBox(terrain.GetBoxHalfLengths())
-terrain_mesh.GetMesh().Scale(chrono.ChVectorD(200, 0.5, 200))
-terrain_mesh.GetMaterial().setTexture(chrono.GetChronoDataFile('textures/concrete.jpg'))
-terrain_mesh.SetChMaterialSurface(terrain_material)
-terrain.AddVisualShape(terrain_mesh)
+# Add customizable terrain textures and logos
+terrain_texture = chronoirr.ChIrrMaterialTexture()
+terrain_texture.SetTextureName(chrono.GetChronoDataFile('terrain/textures/t_grass.jpg'))
+visualization.AddTexture(terrain_texture)
 
-# ----------------------------------------------------------------------
-# Create the MAN 10t truck
-# ----------------------------------------------------------------------
-# Load the vehicle model
-vehicle = veh.ChVehicle()
-vehicle.SetChassisBody(chrono.ChBody())
-vehicle.SetChassis(veh.ChChassis(vehicle.GetChassisBody()))
+# Set up real-time driver controls
+driver = veh.ChDriver(vehicle)
+driver.SetSteeringController(veh.ChSteeringControllerType.SIMPLE)
+driver.SetThrottleController(veh.ChThrottleControllerType.SIMPLE)
+driver.SetBrakingController(veh.ChBrakingControllerType.SIMPLE)
 
-# Add wheels with TMEASY tire model
-wheels = []
-for i in range(4):
-    wheel = veh.ChWheel()
-    wheel.SetRadius(0.5)
-    wheel.SetPosition(chrono.ChVectorD(0, 0.3, 0))
-    wheel.SetLocalPos(chrono.ChVectorD(0, 0.3, 0))
-    wheel.SetTireModel(veh.ChTireModelTMEASY())
-    wheels.append(wheel)
-    vehicle.AddWheel(wheel)
-
-# Set up the vehicle visualization
-vehicle.GetChassisBody().AddVisualShape(chrono.ChVisualShapeSphere(0.5))
-vehicle.GetChassisBody().GetVisualShape(0).GetMaterial().setTexture(chrono.GetChronoDataFile('textures/truck.jpg'))
-
-# Add the vehicle to the system
-system.Add(vehicle.GetChassisBody())
-for wheel in wheels:
-    system.Add(wheel.GetBody())
-
-# ----------------------------------------------------------------------
-# Set up the driver controls
-# ----------------------------------------------------------------------
-driver = veh.ChDriver()
-driver.Initialize(vehicle)
-driver.SetSteeringInput(0)
-driver.SetThrottleInput(0)
-driver.SetBrakingInput(0)
-
-# ----------------------------------------------------------------------
 # Run the simulation
-# ----------------------------------------------------------------------
-myapplication = chronoirr.ChIrrApp(vis, 'MAN 10t Truck Simulation')
-myapplication.AddSystem(system)
-myapplication.SetTimestep(0.01)
-myapplication.SetTryRealTime(True)
+visualization.AddLogos(chrono.GetChronoDataFile('logo_pychrono_splash.png'), chronoirr.vector2df(50, 50), False)
+visualization.SetSymbolScale(1.0)
+visualization.SetPaused(False)
 
-# Run the simulation loop
-myapplication.Run()
+# Simulation loop
+while visualization.Run():
+    visualization.BeginScene()
+    visualization.Render()
+    visualization.EndScene()
 
+    vehicle.Update(0.01)  # Update the vehicle system
+    driver.Synchronize(vehicle, 0.01)  # Synchronize the driver controls
+
+# Close the visualization
+visualization.Close()
 ```
 
-### Explanation:
-1. **Initialization**:
-   - The PyChrono environment is initialized, and the necessary core components are set up.
-   - The Irrlicht visualization system is configured with a chase camera, directional lighting, a skybox, and customizable terrain textures.
-
-2. **Terrain**:
-   - A rigid terrain is created using a box shape.
-   - Material properties for friction and restitution are set.
-   - A texture is applied to the terrain for visualization.
-
-3. **Vehicle**:
-   - A MAN 10t truck is simulated using the `ChVehicle` class.
-   - Wheels are added with the TMEASY tire model.
-   - Visual shapes and textures are applied to the vehicle.
-
-4. **Driver Controls**:
-   - A driver control system is set up to handle steering, throttle, and braking inputs.
-
-5. **Simulation Loop**:
-   - The simulation is run using the Irrlicht application, with a specified timestep and real-time synchronization.
-
-This script provides a basic framework for the simulation. You can further customize the vehicle model, driver controls, and visualization settings as needed.
+This script initializes a PyChrono simulation for a MAN 10t truck driving on a rigid terrain. It includes the TMEASY tire model, real-time driver controls, and visualizes the simulation using the Irrlicht visualization system with a chase camera, directional lighting, a skybox, and customizable terrain textures and logos.

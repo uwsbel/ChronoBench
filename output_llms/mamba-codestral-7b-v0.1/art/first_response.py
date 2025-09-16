@@ -1,49 +1,37 @@
 import pychrono
 
-# Initialize PyChrono
-pychrono.SetChronoPath('path_to_your_pychrono_directory')
-pychrono.Initialize()
-
-# Create the system
+# Initialize the PyChrono environment and core components
 system = pychrono.ChSystemSMC()
 
-# Add the vehicle
-vehicle = pychrono.ARTcar()
-vehicle.SetPos(pychrono.ChVectorD(0, 0, 0))  # Set initial position
-vehicle.SetRot(pychrono.ChQuaternionD(0, 0, 0))  # Set initial orientation
-system.Add(vehicle)
+# Add the required physical systems and objects
+terrain = pychrono.RigidTerrain(system)
+terrain.SetTexture(pychrono.GetChronoDataFile('terrain/textures/tile4.png'))
 
-# Set contact method
-vehicle.SetContactMethod(pychrono.ChContactMethod.NSC)
+# Set necessary default parameters such as positions, forces, and interactions
+terrain.SetContactMethod(pychrono.ChContactMethod.NSC)
+terrain.SetContactMethod(pychrono.ChContactMethod.NSC)
+
+# Create the ARTcar vehicle
+vehicle = pychrono.ARTcar(system)
+vehicle.SetPos(pychrono.ChVectorD(0, 0, 0))  # Set vehicle position
+vehicle.SetRot(pychrono.ChQuaternionD(0, 0, 0))  # Set vehicle orientation
+vehicle.SetContactMethod(pychrono.ChContactMethod.NSC)  # Set contact method
 
 # Set visualization type
-vehicle.SetVisualizationType(pychrono.ChVisualizationType.OPENGL)
+vehicle.SetChassisVisualizationType(pychrono.ChVisualizationType.MESH)
 
-# Create the terrain
-terrain = pychrono.ChTerrainRigid()
-terrain.SetDimensions(pychrono.ChVectorD(10, 10, 1))  # Set dimensions
-terrain.SetTexture(pychrono.ChTexture(pychrono.ChGetDataFile('terrain_texture.png')))  # Add custom texture
-system.Add(terrain)
+# Implement a simulation loop
+simulation_time_step = 1.0 / 50.0  # 50 frames per second
+system.SetTimestep(simulation_time_step)
 
-# Create the driver system
-driver = pychrono.ChDriver()
-driver.SetVehicle(vehicle)
-system.Add(driver)
+# Add driver system to control the vehicle's steering, throttle, and braking
+driver = pychrono.ChIrrDriver(system, vehicle)
 
-# Set up the simulation loop
-time_step = 1.0 / 50.0
-simulation_time = 10.0
-current_time = 0.0
+# Run the simulation loop
+while system.GetChTime() < 10.0:  # Simulate for 10 seconds
+    system.DoStepDynamics(simulation_time_step)
+    driver.Render()
 
-while current_time < simulation_time:
-    # Update the vehicle dynamics
-    system.DoStepDynamics(time_step)
-
-    # Update the visualization
-    vehicle.GetVisualization()->Render()
-
-    # Increment the current time
-    current_time += time_step
-
-# Finalize PyChrono
-pychrono.Finalize()
+# Close the simulation
+system.GetSettings().SetBoolDefault(pychrono.ChSettingsDefaults.SHOW_INFO_BAR, False)
+system.GetSettings().SetBoolDefault(pychrono.ChSettingsDefaults.SHOW_LOAD_REPORT, False)

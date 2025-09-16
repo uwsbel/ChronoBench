@@ -65,7 +65,7 @@ rev_2.Initialize(pend_1, pend_2, chrono.ChFramed(chrono.ChVector3d(0, 0, 1), chr
 sys.AddLink(rev_2)
 
 
-vis = chronoirr.ChVisualSystemIrrlicht()
+vis = chrono.ChVisualSystemIrrlicht()
 vis.AttachSystem(sys)  
 vis.SetWindowSize(1024, 768)  
 vis.SetWindowTitle('Double Pendulum demo')  
@@ -95,5 +95,4 @@ while vis.Run():
         print("     ", pos_2.x, "  ", pos_2.y)
         lin_vel_2 = pend_2.GetPosDt()  
         print("     ", lin_vel_2.x, "  ", lin_vel_2.y)
-
         log_info = False

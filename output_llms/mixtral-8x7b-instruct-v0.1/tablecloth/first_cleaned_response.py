@@ -1,56 +1,63 @@
 import chrono
-from chrono import ChBody, ChSystem, ChShapes, ChMaterial, ChVector
+from chrono import ChMaterial, ChSystem, ChBody, ChLinkMate, ChVisualization, ChShapes, ChFunctions, ChTimestepperODE
 from chrono.irrlicht import ChIrrApp
-from chrono.fea import ChElementShellANCF, ChMesh, ChMaterialShellANCF
+from chrono.fea import ChMesh, ChElementShell, ChLoaderMSH
+
+
+chrono.SetChronoDataPath('path/to/chrono/data')
 
 
 my_system = ChSystem()
-my_system.Set_G_acc(ChVector(0, 0, -9.81))  
-my_system.SetSolverType(ChSolver.Type_PARDISO_MKL)  
+my_system.Set_G_acc(ChVectorD(0, 0, -9.81))
+my_system.SetSolverType(ChSolver.Type_PARDISO_MKL)
 
 
 tablecloth_mesh = ChMesh()
-num_nodes = 50
-num_elements = 48
+tablecloth_loader = ChLoaderMSH()
+tablecloth_loader.Load('path/to/tablecloth/mesh.msh', tablecloth_mesh)
 
-
-for i in range(num_nodes):
-    x = i * 0.1  
-    tablecloth_mesh.AddNode(ChVector(x, 0, 0))
-
-
-for i in range(num_elements):
-    node1 = i * 2
-    node2 = node1 + 1
-    node3 = node1 + 2
-    node4 = node2 + 2
-    tablecloth_mesh.AddElement(ChElementShellANCF(tablecloth_mesh.GetNode(node1),
-                                                 tablecloth_mesh.GetNode(node2),
-                                                 tablecloth_mesh.GetNode(node3),
-                                                 tablecloth_mesh.GetNode(node4)))
-
-
-tablecloth_material = ChMaterialShellANCF()
-tablecloth_material.SetYoungModulus(130e6)  
-tablecloth_material.SetPoissonRatio(0.3)  
-tablecloth_material.SetDensity(900)  
-
+tablecloth_material = ChMaterialSurfaceShell()
+tablecloth_material.SetYoungModulus(130e6)
+tablecloth_material.SetPoissonRatio(0.35)
+tablecloth_material.SetThickness(0.001)
 
 for element in tablecloth_mesh.GetElements():
-    element.SetMaterial(tablecloth_material)
+    if isinstance(element, ChElementShell):
+        element.SetMaterialSurface(tablecloth_material)
 
-
-tablecloth_body = ChBody(tablecloth_mesh)
-tablecloth_body.SetPos(ChVector(0, 0, 0.01))  
-tablecloth_body.SetMass(tablecloth_mesh.GetMass())  
+tablecloth_body = ChBody()
+tablecloth_body.SetMass(1)
+tablecloth_body.SetCollide(False)
+tablecloth_body.SetPos(ChVectorD(0, 0, 0))
+tablecloth_body.SetChassisShape(tablecloth_mesh)
 my_system.AddBody(tablecloth_body)
 
 
-my_application = ChIrrApp(my_system)
-my_application.AddTypicalLogo()
-my_application.AddTypicalSky()
-my_application.AddCamera(ChVector(2, 2, 2), ChVector(0, 0, 0))
+my_vis = ChVisualization()
+my_vis.AttachSystem(my_system)
+my_vis.SetWindowSize(800, 600)
+my_vis.SetWindowTitle('Tablecloth Folding Simulation')
+my_vis.Initialize()
+my_vis.AddLogo()
+my_vis.AddSkyBox()
+my_vis.AddCamera(ChVectorD(5, 5, 5), ChVectorD(0, 0, 0))
 
 
-my_application.SetTimestep(1e-4)
-my_application.Run()
+my_stepper = ChTimestepperODE()
+my_stepper.SetStepSize(1e-4)
+my_stepper.SetMaxIterations(100)
+my_stepper.SetTolVel(1e-8)
+my_stepper.SetTolPos(1e-8)
+my_system.SetTimestepper(my_stepper)
+
+
+for i in range(10000):
+    my_stepper.DoStepDynamics(my_system)
+    my_vis.BeginScene()
+    my_vis.RenderScene()
+    my_vis.EndScene()
+
+
+del my_system
+del my_stepper
+del my_vis

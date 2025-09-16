@@ -4,130 +4,143 @@
 
 ### 1. Completeness (40 points)
 
-- **System Initialization**:  
-  The script creates a vehicle object `veh.HMMWV_Full()` but **does not explicitly create or access the underlying system object** (e.g., `ch.ChSystemNSC()` or `ch.ChSystemSMC()`). According to the API, the system should be explicitly created or at least referenced clearly. The vehicle internally creates a system, but best practice is to explicitly manage the system for clarity and control.  
-  **Deduction: 5 points** (minor omission, since vehicle internally manages system but explicit system creation is better practice).
+- **System Initialization:**  
+  The script creates a vehicle (`veh.HMMWV_Full()`), but it never explicitly creates or accesses the underlying `ChSystemNSC` or `ChSystemSMC` system object. The vehicle internally creates a system, but best practice is to explicitly create and manage the system object for clarity and control.  
+  **Deduction:** 15 points (missing explicit system initialization).
 
-- **Terrain Setup**:  
-  The terrain is created and initialized properly. However, there is a **bug in the terrain patch texture assignment**:  
-  ```python
-  patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 100, 100)
-  ```  
-  The variable `patch` is never assigned; the call to `terrain.AddPatch(...)` returns a patch object that should be assigned to `patch`. This is a missing step.  
-  **Deduction: 15 points** (missing essential component: patch object assignment and texture setting).
+- **Terrain Patch Creation:**  
+  The terrain patch is added with `terrain.AddPatch(...)` and assigned a material, but the variable `patch` is never assigned. The line `patch.SetTexture(...)` references `patch` which is undefined, causing an error. The correct usage is to assign the return value of `AddPatch` to `patch`.  
+  **Deduction:** 15 points (missing patch assignment, critical for terrain setup).
 
-- **Driver Setup**:  
-  The driver is created and initialized properly.
+- **Visualization Setup:**  
+  Visualization is created at the end, but it is not attached to the system (`vis_system.AttachSystem(...)` is missing). Also, the visualization is only run once (no loop), so no continuous rendering or interaction occurs.  
+  **Deduction:** 15 points (missing system attachment and continuous rendering loop).
 
-- **ROS Manager Setup**:  
-  The ROS manager is created and handlers are registered correctly.
+- **Driver Initialization:**  
+  The driver is created and initialized, but no input source or driver model is specified beyond default. This is acceptable but minimal. No deduction.
 
-- **Visualization Setup**:  
-  The visualization system is created and configured with window size, title, render mode, skybox, camera, lights, logo, axis, vehicle, and terrain. However, the call to `vis.AddHMMWV(...)` is **not part of the documented API** in the provided documentation. The documentation shows `vis.AttachSystem(sys)` to link the system for visualization, but no `AddHMMWV` method is documented. This suggests a possible misuse or a custom extension not documented here.  
-  Also, the visualization system is **not attached to the system** via `vis.AttachSystem(hmmwv.GetSystem())`, which is necessary for proper visualization updates.  
-  **Deduction: 15 points** (missing essential component: attaching system to visualization, and possible incorrect visualization method).
+- **ROS Manager:**  
+  ROS handlers are registered and initialized properly. No deduction.
 
-- **Simulation Loop**:  
-  The loop advances the vehicle, terrain, driver, and updates ROS and visualization. However, the visualization rendering calls are duplicated unnecessarily (two `BeginScene`/`Render`/`EndScene` blocks per iteration).  
-  **Deduction: 5 points** (minor omission: redundant rendering calls).
+- **Simulation Loop:**  
+  The simulation loop advances the vehicle, terrain, and driver correctly, and updates the ROS manager. However, it uses `hmmwv.GetSystem().GetChTime()` to update time, which is acceptable. No deduction.
 
-**Total Completeness Deduction: 5 + 15 + 15 + 5 = 40 points** (full deduction for completeness).
+- **Summary Completeness:**  
+  Missing explicit system initialization, incorrect terrain patch assignment, and incomplete visualization setup are major omissions.
+
+**Total Completeness Deduction:** 15 + 15 + 15 = 45 points (cap at 40 points max deduction).
 
 ---
 
 ### 2. Correctness (30 points)
 
-- **Incorrect use of `patch.SetTexture` without assigning `patch`**: This will cause a runtime error.  
-  **Deduction: 15 points** (significant API misuse).
+- **Incorrect use of `patch.SetTexture`:**  
+  `patch` is undefined, so this will cause a runtime error. This is a significant API misuse.  
+  **Deduction:** 15 points.
 
-- **Visualization: `vis.AddHMMWV(...)` is not documented and likely incorrect.** The documented way is to attach the system and the vehicle's visual assets are automatically handled.  
-  **Deduction: 15 points** (incorrect API usage affecting simulation visualization).
+- **Visualization render mode calls:**  
+  The code calls `SetRenderMode` three times in a row with different modes, ending with `ChIrrWireframeMode_POINTS`. This overrides previous calls unnecessarily and is likely unintended.  
+  **Deduction:** 5 points (minor API misuse/redundancy).
 
-- **Logical error: The simulation loop uses `time = hmmwv.GetSystem().GetChTime()` but does not advance the system time explicitly via `sys.DoStepDynamics(time_step)` or similar. Instead, it advances vehicle, terrain, and driver separately. While this might be acceptable in vehicle module context, the standard practice is to advance the system dynamics explicitly.**  
-  This is borderline but could cause synchronization issues.  
-  **Deduction: 10 points** (logical error in simulation stepping).
+- **Visualization camera setup:**  
+  The calls to `SetCameraVertical` and `SetCameraHorizontal` are unusual and not standard in the API doc; typically, `AddCamera` is used. This may not cause an error but is non-standard.  
+  **Deduction:** 5 points (minor inaccuracy).
 
-- **Minor: The `hmmwv.GetVehicle().EnableRealtime(True)` is used, but no check on visualization running state (`vis.Run()`) is done to control the loop.**  
-  **Deduction: 5 points** (minor inaccuracy).
+- **Visualization initialization:**  
+  The visualization system is never initialized with `vis_system.Initialize()`. This is required before rendering.  
+  **Deduction:** 15 points (significant API misuse).
 
-**Total Correctness Deduction: 15 + 15 + 10 + 5 = 45 points** (exceeds max deduction, cap at 30 points).
+- **Simulation loop does not call `sys.DoStepDynamics(time_step)`:**  
+  Instead, it calls `Advance(time_step)` on vehicle, terrain, and driver. This is acceptable for vehicle simulations, but the underlying system step is not explicitly called. This is typical in vehicle module usage, so no deduction.
+
+- **Summary Correctness:**  
+  Major deductions for undefined `patch`, missing visualization initialization, and minor for redundant render mode calls and unusual camera setup.
+
+**Total Correctness Deduction:** 15 + 15 + 5 + 5 = 40 points (cap at 30 points max deduction).
 
 ---
 
 ### 3. Code Quality (10 points)
 
-- **Readability and structure**:  
-  The code is mostly readable with meaningful variable names and reasonable structure. However, there are no comments explaining the purpose of blocks or parameters, which is important for clarity and maintainability.  
-  **Deduction: 5 points** (lack of comments).
+- **Readability:**  
+  The code is mostly readable with meaningful variable names. However, the lack of comments explaining key steps reduces clarity.  
+  **Deduction:** 5 points (lack of comments).
 
-- **Formatting**:  
-  The code formatting is acceptable, but some lines are quite long (e.g., `vis.AddHMMWV(...)`), and the double rendering calls in the loop reduce clarity.  
-  **Deduction: 2 points** (minor readability issues).
+- **Formatting:**  
+  Reasonable formatting, but some lines are long and could be split for clarity. Minor issue.
 
-**Total Code Quality Deduction: 7 points**
+- **Summary Code Quality:**  
+  Deduct 5 points for insufficient comments/documentation.
 
 ---
 
 ### 4. Efficiency (10 points)
 
-- **Redundant rendering calls inside the simulation loop**: Two consecutive `BeginScene`/`Render`/`EndScene` calls per iteration are unnecessary and inefficient.  
-  **Deduction: 5 points** (unnecessary redundant rendering).
+- **Redundant calls to `SetRenderMode`:**  
+  Three consecutive calls with different modes; only the last one takes effect. This is inefficient.  
+  **Deduction:** 5 points.
 
-- **No other obvious inefficiencies or redundant calculations.**
-
-**Total Efficiency Deduction: 5 points**
+- **No other obvious inefficiencies.**
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- **No error handling or try-except blocks**: The code assumes all operations succeed, which is risky especially with ROS and visualization.  
-  **Deduction: 5 points** (lack of basic error handling).
+- **No error handling:**  
+  The code does not check for exceptions or invalid states (e.g., failed initialization, ROS manager update failure beyond breaking loop).  
+  **Deduction:** 5 points.
 
-- **No checks for ROS manager update failure beyond breaking the loop, which is minimal but acceptable.**
-
-**Total Error Handling Deduction: 5 points**
+- **No handling of edge cases:**  
+  Minor, no deduction.
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
-- **Incorrect visualization setup: missing `vis.AttachSystem(hmmwv.GetSystem())` and use of undocumented `AddHMMWV` method.**  
-  **Deduction: 5 points** (incorrect visualization setup).
+- **Visualization system is not attached to the system:**  
+  Missing `vis_system.AttachSystem(hmmwv.GetSystem())`. Without this, visualization will not reflect the simulation state.  
+  **Deduction:** 5 points.
 
-- **Minor: Lighting and camera setup is acceptable, but could be improved by using documented defaults without magic numbers.**
+- **Visualization is only rendered once, no loop:**  
+  Typically, visualization runs inside a loop until the window is closed.  
+  **Deduction:** 3 points.
 
-**Total Visualization Deduction: 5 points**
+- **Use of `SetCameraVertical` and `SetCameraHorizontal` is non-standard:**  
+  Minor issue, no deduction here beyond what was already given.
 
 ---
 
 ### Summary of Deductions
 
-| Criterion                  | Max Points | Deduction | Notes                                  |
-|----------------------------|------------|-----------|----------------------------------------|
-| Completeness               | 40         | 40        | Missing patch assignment, visualization setup, redundant rendering |
-| Correctness               | 30         | 30        | Incorrect patch usage, visualization API misuse, simulation stepping logic |
-| Code Quality              | 10         | 7         | Lack of comments, minor readability issues |
-| Efficiency                | 10         | 5         | Redundant rendering calls              |
-| Error Handling & Robustness| 5          | 5         | No error handling                      |
-| Visualization Tools       | 5          | 5         | Missing AttachSystem, wrong visualization calls |
+| Criterion                  | Max Points | Deduction | Notes                              |
+|----------------------------|------------|-----------|----------------------------------|
+| Completeness               | 40         | 40        | Missing system init, patch assign, vis setup |
+| Correctness               | 30         | 30        | Undefined patch, missing vis init, redundant calls |
+| Code Quality              | 10         | 5         | Lack of comments                 |
+| Efficiency                | 10         | 5         | Redundant render mode calls     |
+| Error Handling & Robustness| 5          | 5         | No error handling               |
+| Visualization Tools       | 5          | 8 (cap 5) | Missing AttachSystem, no loop   |
 
-**Total Deductions: 40 + 30 + 7 + 5 + 5 + 5 = 92 points**
+Total deductions = 40 + 30 + 5 + 5 + 5 + 5 = 90 points
 
-**Final Score: 100 - 92 = 8 points**
+---
+
+### Final Score
+
+100 - 90 = 10 points
 
 ---
 
 ### Additional Notes
 
-- The script shows a good attempt at integrating vehicle, terrain, driver, ROS, and visualization modules, but critical API misuses and missing steps severely impact its correctness and completeness.
-
-- Adding comments and restructuring the simulation loop would improve maintainability and clarity.
-
-- Proper error handling and visualization setup are essential for robust and visually correct simulations.
+- The script shows a basic understanding of PyChrono vehicle simulation but misses critical setup steps and contains errors that would prevent it from running correctly.
+- The visualization setup is incomplete and non-functional as is.
+- The terrain patch assignment error is a critical bug.
+- Lack of comments and error handling reduces maintainability and robustness.
+- The ROS integration is a positive aspect but does not compensate for the major issues.
 
 ---
 
 **Final score:**
 
-[[8]]
+[[10]]

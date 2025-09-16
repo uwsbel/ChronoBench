@@ -1,105 +1,83 @@
-Sure! Below is a Python script that sets up a PyChrono simulation featuring an HMMWV vehicle on an SCM deformable terrain, including the necessary initial conditions, visualization settings, and a simulation loop.
+Sure, here is a Python script that sets up a PyChrono simulation featuring an HMMWV vehicle with an SCM deformable terrain, a driver system, and real-time visualization using Irrlicht.
 
 ```python
-import pychrono.core as chrono
+import pychrono as chrono
 import pychrono.vehicle as veh
 import pychrono.irrlicht as chronoirr
-import pychrono.scm as scm
 
 # Initialize the PyChrono environment
-chrono.SetChronoDataPath('path/to/chrono/data')
+chrono.SetChronoDataPath('path/to/chrono/data')  # Set the path to the Chrono data directory
 
-# Create the simulation system
+# Create the system
 system = chrono.ChSystemNSC()
 system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
+# Create the terrain
+terrain = veh.SCMDeformableTerrain(system)
+terrain.SetTerrainSize(chrono.ChVectorD(100, 100))
+terrain.SetTerrainResolution(chrono.ChVectorD(0.5, 0.5))
+terrain.SetTerrainHeightMap('path/to/heightmap.png')
+terrain.SetTerrainMaterialProperties(chrono.ChMaterialSurfaceSCM::SCM_MAT_SAND, 0.01, 0.001, 0.01, 0.1)
+
 # Create the HMMWV vehicle
 vehicle = veh.HMMWV()
-vehicle.SetChassisBodyVisualizationType(veh.ChVisualizationType::PRISM_SHADOWMAP)
-vehicle.SetInitPosition(chrono.ChVectorD(0, 1, 0))
-vehicle.SetInitOrientation(chrono.Q_from_AngAxis(chrono.CHR_PI / 2, chrono.ChVectorD(0, 0, 1)))
-vehicle.SetInitFwdVelocity(5)
+vehicle.SetChassisBody(system)
+vehicle.SetInitPosition(chrono.ChVectorD(0, 0, 1))
+vehicle.SetInitOrientation(chrono.Q_from_AngAxis(chrono.ChVectorD(1, 0, 0), chrono.CHRONO_PI / 2))
 
-# Add the HMMWV vehicle to the system
-vehicle_system = vehicle.GetVehicleSystem()
-system.Add(vehicle_system)
-
-# Create the SCM deformable terrain
-terrain = scm.ChTerrain()
-terrain.SetSystem(system)
-terrain.SetHeightMapFile('path/to/heightmap.png')
-terrain.SetTextureFile('path/to/texture.png')
-terrain.SetMaterialProperties(scm.ChMaterialSurfaceSCM::SCM_MATERIAL_GENERIC, 0.3, 0.3, 0.01, 0.01, 0.01, 0.01)
-terrain.SetPlane(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 1))
-terrain.Initialize()
-
-# Create the driver system
+# Initialize the driver system
 driver = veh.ChDriver()
-driver.Initialize(vehicle, system)
-driver.SetSteeringController(veh.ChFunction_Ramp(0, 0.1))
-driver.SetThrottleController(veh.ChFunction_Ramp(0, 1))
+driver.Initialize(vehicle.GetVehicle(), system)
+driver.SetSteeringController(veh.ChDriver::STEERING_CONTROLLER_SIMPLE)
+driver.SetSteeringControllerGain(1.0)
+driver.SetSteeringControllerTimeConst(0.5)
+driver.SetThrottleController(veh.ChDriver::THROTTLE_CONTROLLER_SIMPLE)
+driver.SetThrottleControllerGain(0.5)
+driver.SetThrottleControllerTimeConst(0.5)
+driver.SetBrakeController(veh.ChDriver::BRAKE_CONTROLLER_SIMPLE)
+driver.SetBrakeControllerGain(0.5)
+driver.SetBrakeControllerTimeConst(0.5)
 
 # Create the Irrlicht visualization system
-visualization = chronoirr.ChVisualSystemIrrlicht()
-visualization.AttachSystem(system)
-visualization.SetWindowSize(1280, 720)
-visualization.SetWindowTitle('HMMWV on SCM Terrain')
-visualization.SetCameraPosition(chrono.ChVectorD(0, 10, -15))
-visualization.SetCameraTarget(chrono.ChVectorD(0, 1, 0))
+visualization = chronoirr.ChIrrApp(system, 'HMMWV on SCM Terrain', chrono.ChVectorD(1024, 768))
+visualization.AddTypicalSky()
+visualization.AddTypicalLogo(chrono.GetChronoDataFile('logo_pychrono_white.png'))
+visualization.AddLightWithShadow(chrono.ChVectorD(1.0, 0.0, 1.0), chrono.ChVectorD(1.0, -1.0, 1.0), 1.0, 1.0, 50, 50, chrono.ChColor(1, 1, 1))
+visualization.SetSymbolScale(0.003)
+visualization.SetContactPointRadius(0.005)
+visualization.SetCameraVertical(chrono.ChVectorD(0, 0, 1))
+visualization.SetCameraTarget(chrono.ChVectorD(0, 0, 0))
 
-# Set up lighting
-visualization.AddLightWithShadow(chrono.ChVectorD(5, 10, 5), chrono.ChVectorD(0, 0, 0), 1, 0.2, 0.001, 100, 512)
-visualization.SetLightAmbientColor(chrono.ChColor(0.3, 0.3, 0.3))
-visualization.SetLightDiffuseColor(chrono.ChColor(0.8, 0.8, 0.8))
-visualization.SetLightSpecularColor(chrono.ChColor(0.5, 0.5, 0.5))
-
-# Create the simulation manager
-manager = chrono.ChSimulationManager()
-manager.SetSystem(system)
-manager.SetVisualization(visualization)
+# Add the vehicle and terrain to the visualization
+visualization.AddVisualSystem(vehicle.GetVehicle())
+visualization.AddVisualSystem(terrain)
 
 # Simulation loop
 step_size = 0.01
-end_time = 10  # seconds
+end_time = 10.0
+current_time = 0.0
 
-current_time = 0
 while current_time < end_time:
-    manager.Synchronize()
-    manager.Advance(step_size)
+    visualization.BeginScene()
     visualization.Render()
+
+    system.DoStepDynamics(step_size)
+
     current_time += step_size
 
-# Clean up
-visualization.ExitApplication()
+    visualization.EndScene()
+
+    chrono.ChSystemNSC.Synchronize(system, chrono.GetChronoRealTime())
+
+visualization.Close()
 ```
 
 ### Explanation:
-1. **Initialization**:
-   - The PyChrono environment is initialized with `chrono.SetChronoDataPath`.
-   - The simulation system `ChSystemNSC` is created and the gravity vector is set.
-
-2. **HMMWV Vehicle**:
-   - An HMMWV vehicle is created and configured with initial position, orientation, and velocity.
-   - The vehicle is added to the simulation system.
-
-3. **SCM Deformable Terrain**:
-   - An SCM terrain is created with specified height map and texture files.
-   - Material properties and plane settings are defined.
-   - The terrain is initialized and added to the system.
-
-4. **Driver System**:
-   - A driver system is created and initialized with the vehicle and simulation system.
-   - Steering and throttle controllers are set.
-
-5. **Visualization**:
-   - An Irrlicht visualization system is created and configured with camera settings and lighting.
-   - The visualization system is attached to the simulation system.
-
-6. **Simulation Loop**:
-   - A simulation loop runs for a specified duration, synchronizing and advancing the vehicle, terrain, driver, and visual system at each timestep.
-   - The visualization is rendered in real-time.
-
-7. **Cleanup**:
-   - The visualization system is properly exited to clean up resources.
-
-Make sure to replace `'path/to/chrono/data'`, `'path/to/heightmap.png'`, and `'path/to/texture.png'` with the actual paths to your Chrono data directory and height map/texture files.
+1. **Initialize the PyChrono environment**: Set the path to the Chrono data directory.
+2. **Create the system**: Initialize the Chrono system with gravity.
+3. **Create the terrain**: Set up the SCM deformable terrain with specified size, resolution, height map, and material properties.
+4. **Create the HMMWV vehicle**: Initialize the HMMWV vehicle and set its initial position and orientation.
+5. **Initialize the driver system**: Set up the driver system for vehicle control.
+6. **Create the Irrlicht visualization system**: Set up the Irrlicht visualization with camera settings and lighting.
+7. **Add the vehicle and terrain to the visualization**: Add the vehicle and terrain to the visualization system.
+8. **Simulation loop**: Run the simulation loop, synchronizing and advancing the vehicle, terrain, driver, and visual system at each timestep.

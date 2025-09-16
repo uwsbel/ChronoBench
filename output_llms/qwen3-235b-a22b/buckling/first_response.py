@@ -2,120 +2,88 @@ import pychrono as chrono
 import pychrono.fea as fea
 import pychrono.irrlicht as irr
 
-# Initialize system
-system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, 0, 0))  # Disable gravity
+# Initialize the physical system
+sys = chrono.ChSystemNSC()
 
-# Beam parameters
-L = 1.0              # Length
-radius = 0.02        # Radius
-num_elements = 20    # Mesh resolution
-num_nodes = num_elements + 1
-
-# Create mesh
+# Create FEA mesh
 mesh = fea.ChMesh()
-nodes = []
+sys.Add(mesh)
 
-# Create beam nodes with small lateral imperfection
-for i in range(num_nodes):
-    x = i * L / num_elements
-    y = 0.0
-    z = 0.0
-    
-    # Add small random lateral perturbation to trigger buckling
-    if i != 0:
-        y += 0.001 * (chrono.ChRandom() - 0.5)
-    
-    pos = chrono.ChVectorD(x, y, z)
-    node = fea.ChNodeFEAxyzrot(pos)
-    if i == 0:
-        node.SetFixed(True)  # Fix first node
+# Material properties
+E = 210e9  # Young's modulus (Pa)
+nu = 0.3   # Poisson ratio
+density = 7800  # Density (kg/m^3)
+
+# Beam geometry
+length = 1.0
+height = 0.02
+width = 0.01
+area = height * width
+Iyy = (width * height**3) / 12
+Izz = (height * width**3) / 12
+J = Iyy + Izz
+
+# Beam section properties
+section = fea.ChBeamSectionAdvanced()
+section.SetArea(area)
+section.SetIyy(Iyy)
+section.SetIzz(Izz)
+section.SetJ(J)
+section.SetE(E)
+section.SetG(E / (2 * (1 + nu)))
+section.SetDensity(density)
+
+# Create beam nodes and elements
+num_elements = 10
+nodes = []
+for i in range(num_elements + 1):
+    pos = chrono.ChVectorD(i * length / num_elements, 0, 0)
+    node = fea.ChNodeFEAxyzrot(chrono.ChFrameD(pos))
     mesh.AddNode(node)
     nodes.append(node)
 
-# Material properties
-E = 2e5e6    # Young's modulus (Pa)
-nu = 0.3     # Poisson ratio
-area = chrono.CH_C_PI * radius**2
-Iy = chrono.CH_C_PI * radius**4 / 4
-Iz = Iy
-G = E / (2 * (1 + nu))
-J = Iy + Iz
-
-# Create beam elements
 for i in range(num_elements):
     element = fea.ChElementBeamEuler()
     element.SetNodes(nodes[i], nodes[i+1])
-    
-    # Set element properties
-    element.SetSectionArea(area)
-    element.SetSectionIy(Iy)
-    element.SetSectionIz(Iz)
-    element.SetSectionYoungModulus(E)
-    element.SetSectionShearModulus(G)
-    element.SetSectionRadius(radius)
-    
+    element.SetSection(section)
     mesh.AddElement(element)
 
-# Add mesh to system
-system.Add(mesh)
+# Fix the first node
+nodes[0].SetFixed(True)
 
-# Create prismatic joint with motor for compression
-ground = chrono.ChBody()
-ground.SetBodyFixed(True)
-system.Add(ground)
+# Apply time-dependent compressive force at the end
+load = fea.ChLoadNodeForce(nodes[-1])
+mesh.AddLoad(load)
 
-# Connect last node to ground via prismatic joint
-node_end = nodes[-1]
-joint = chrono.ChLinkLockPrismatic()
-joint.Initialize(ground, node_end, 
-                chrono.ChCoordsysD(chrono.ChVectorD(L, 0, 0), 
-                                   chrono.ChQuaternionD(1, 0, 0, 0)))
-system.Add(joint)
-
-# Define motor function (linear displacement over time)
-motor = chrono.ChFunction_Ramp()
-motor.SetCoeff(0.0, -0.02)  # 0.02 m/s compression rate
-joint.SetMotion_x(motor)
-
-# Solver and timestepper setup
-solver = chrono.ChSolverMINRES()
-solver.SetMaxIterations(200)
-solver.SetTolerance(1e-8)
-system.SetSolver(solver)
-
-timestepper = chrono.ChTimestepperHHT(system)
-timestepper.SetStepControl(True)
-timestepper.SetAlpha(-0.1)
-timestepper.SetMaxiters(20)
-timestepper.SetAbsTolerances(1e-8)
-timestepper.SetMode(chrono.ChTimestepperHHT.POSITION)
-system.SetTimestepper(timestepper)
+# Set solver and timestepper
+sys.SetSolverType(chrono.ChSolver.Type_MINRES)
+sys.SetSolverMaxIterations(100)
+sys.SetTimestepperType(chrono.ChTimestepper.Type_HHT)
 
 # Visualization setup
-application = irr.ChIrrApp(system, 'Beam Buckling Simulation', irr.dimension2du(1024, 768))
-application.AddLogo()
-application.AddSkyBox()
-application.AddCamera(chrono.ChVectorD(0.5, 0.5, 1.5))
-application.AddTypicalLights()
+vis = irr.ChIrrApp(sys, 'Beam Buckling Simulation', irr.dimension2du(1024, 768))
+vis.AddTypicalSky()
+vis.AddTypicalLights()
+vis.CameraSetPosition(chrono.ChVectorD(0, 1, -2))
 
-# Add beam visualization
-vis_beam = fea.ChVisualizationFEAmesh(mesh)
-vis_beam.SetFEMdataType(fea.ChVisualizationFEAmesh.E_PLOT_SURFACE)
-vis_beam.SetWireframe(True)
-vis_beam.SetDrawInUndeformedReference(False)
-mesh.AddAsset(vis_beam)
+# Add FEA mesh visualization
+mesh_vis = fea.ChVisualizationFEAmesh(mesh)
+mesh_vis.SetFEMdataType(fea.ChVisualizationFEAmesh.E_PLOT_SURFACE)
+mesh_vis.SetColorscaleMinMax(-0.1, 0.1)
+mesh.AddAsset(mesh_vis)
 
-# Finalize visualization
-application.AssetBindAll()
-application.AssetUpdateAll()
+vis.AssetBindAll()
+vis.AssetUpdateAll()
 
 # Simulation loop
-application.SetTimestep(0.01)
-application.SetTryRealtime(True)
-
-while application.GetDevice().run():
-    application.BeginScene()
-    application.DrawAll()
-    application.EndScene()
-    application.DoStep()
+while vis.GetDevice().run():
+    # Update force magnitude (linear ramp up to 1000 N over 1 second)
+    time = sys.GetChTime()
+    force_magnitude = 1000 * min(time, 1.0)  # Clamp at 1000 N
+    load.SetForce(chrono.ChVectorD(-force_magnitude, 0, 0))
+    
+    sys.DoStepDynamics(0.001)
+    
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()

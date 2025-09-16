@@ -1,73 +1,67 @@
 import pychrono as chrono
 import pychrono.vehicle as veh
 import pychrono.terrain as terrain
-import pychrono.irrlicht as irrlicht
+import pychrono.irrlicht as irr
 
 
 system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))  
+system.SetGravitationalAcceleration(chrono.ChVectorD(0, -9.81, 0))
 
 
 vehicle = veh.HMMWV_Full(system)
-vehicle.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 1.0), chrono.QUNIT))
-vehicle.SetTireType(veh.TireModelType_TMEASY)
-vehicle.SetTireStepSize(1e-3)
+vehicle.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 1.0, 0), chrono.ChQuaternionD(1, 0, 0, 0)))
 vehicle.Initialize()
 
 
-terrain = terrain.SCMDeformableTerrain(system)
-terrain.SetSoilParameters(
-    2e6,    
-    0.0,    
-    0.0,    
-    30.0,   
-    0.01,   
-    2000    
+scm_terrain = terrain.SCMDeformableTerrain(system)
+scm_terrain.SetSoilParameters(
+    5000,    
+    800,     
+    1.1,     
+    0.2e4,   
+    30,      
+    1e-3,    
+    5e3      
 )
 
-
-height_map_file = "heightmap.png"
-
-terrain.SetHeightMap(chrono.GetChronoDataFile(height_map_file), 0, 10, 0, 10, 0.1)
-terrain.Initialize()
+scm_terrain.Initialize(chrono.ChVectorD(0, 0, 0), 20, 20, 0.1)
 
 
-driver = veh.ChDriver(vehicle)
+driver = veh.ChDriver(vehicle.GetVehicle())
 driver.Initialize()
 
-driver.SetThrottle(0.5)
-driver.SetSteering(0.0)
-driver.SetBraking(0.0)
 
-
-vis = irrlicht.ChVisualSystemIrrlicht()
-vis.AttachSystem(system)
-vis.SetWindowSize(1024, 768)
-vis.SetWindowTitle("HMMWV on SCM Terrain")
-vis.Initialize()
-
-vis.AddCamera(chrono.ChVectorD(0, -6, 2), chrono.ChVectorD(0, 0, 1))
-vis.AddLight(chrono.ChVectorD(5, -10, 10), chrono.ChColor(1, 1, 1), 800)
+application = irr.ChIrrApp(system, 'HMMWV Simulation', irr.dimension2du(1280, 720))
+application.AddTypicalLights()
+application.AddCamera(chrono.ChVectorD(0, 3, -6), chrono.ChVectorD(0, 1, 0))
+application.AssetBindAll()
+application.AssetUpdateAll()
 
 
 step_size = 1e-3
-time = 0
-rt_timer = chrono.ChRealtimeStepTimer()
+realtime_timer = chrono.ChRealtimeStepTimer()
 
-while vis.Run():
+
+while application.GetDevice().run():
+    time = system.GetChTime()
     
-    driver.Synchronize(time)
-    vehicle.Synchronize(time)
-    terrain.Synchronize(time)
+    
+    driver_inputs = driver.GetInputs()
+    vehicle.Synchronize(time, driver_inputs, scm_terrain)
+    scm_terrain.Synchronize(time)
+    
+    
+    driver.Advance(step_size)
+    vehicle.Advance(step_size)
+    scm_terrain.Advance(step_size)
     
     
     system.DoStepDynamics(step_size)
-    time += step_size
     
     
-    vis.BeginScene()
-    vis.Render()
-    vis.EndScene()
+    application.BeginScene()
+    application.DrawAll()
+    application.EndScene()
     
     
-    rt_timer.Spin(step_size)
+    realtime_timer.Spin(step_size)

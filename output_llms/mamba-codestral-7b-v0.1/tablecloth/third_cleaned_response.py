@@ -100,7 +100,4 @@ if (True):
             )
 
             
-            melementA.AddLayer(thickness, 0 * chrono.CH_DEG_TO_RAD, material)
-
-            
-            melement
+            melementA.AddLayer(thickness, 0 * chrono.CH_DEG_TO_RAD

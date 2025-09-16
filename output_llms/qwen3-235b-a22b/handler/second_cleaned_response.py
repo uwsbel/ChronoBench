@@ -70,7 +70,7 @@ def main():
     
     
     custom_handler = MyCustomHandler("~/my_topic")
-    ros_manager.RegisterPythonHandler(custom_handler)  
+    ros_manager.RegisterPythonHandler(custom_handler)
 
     
     ros_manager.Initialize()

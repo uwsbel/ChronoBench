@@ -30,7 +30,6 @@ trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
 
 
 contact_method = chrono.ChContactMethod_NSC
-contact_vis = False
 
 
 step_size = 1e-3
@@ -65,13 +64,15 @@ terrain = veh.RigidTerrain(vehicle.GetSystem())
 
 
 patch = terrain.AddPatch(patch_mat,
-    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
     veh.GetDataFile("terrain/meshes/Highway_col.obj"),
-    True, 0.01, False)
+    chrono.ChVector3d(0, 0, 0),
+    chrono.QUNIT,
+    True,
+    True,
+    0.01)
 
 vis_mesh = chrono.ChTriangleMeshConnected().CreateFromWavefrontFile(
-    veh.GetDataFile("terrain/meshes/Highway_vis.obj"), True, True
-)
+    veh.GetDataFile("terrain/meshes/Highway_vis.obj"), True, True)
 tri_mesh_shape = chrono.ChVisualShapeTriangleMesh()
 tri_mesh_shape.SetMesh(vis_mesh)
 tri_mesh_shape.SetMutable(False)
@@ -79,23 +80,21 @@ patch.GetGroundBody().AddVisualShape(tri_mesh_shape)
 
 
 patch2 = terrain.AddPatch(patch_mat,
-    chrono.ChCoordsysd(chrono.ChVector3d(0, -42, 0), chrono.QUNIT),
     veh.GetDataFile("terrain/meshes/bump.obj"),
-    True, 0.01, False)
+    chrono.ChVector3d(0, -42, 0),
+    chrono.QUNIT,
+    True,
+    True,
+    0.01)
 
-vis_mesh2 = chrono.ChTriangleMeshConnected().CreateFromWavefrontFile(
-    veh.GetDataFile("terrain/meshes/bump.obj"), True, True
-)
-tri_mesh_shape2 = chrono.ChVisualShapeTriangleMesh()
-tri_mesh_shape2.SetMesh(vis_mesh2)
-
-
-material2 = chrono.ChVisualMaterial()
-material2.SetKd(chrono.ChColor(0.5, 0.5, 0.8))  
-material2.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
-tri_mesh_shape2.AddMaterial(material2)
-tri_mesh_shape2.SetMutable(False)
-patch2.GetGroundBody().AddVisualShape(tri_mesh_shape2)
+vis_mesh_bump = chrono.ChTriangleMeshConnected().CreateFromWavefrontFile(
+    veh.GetDataFile("terrain/meshes/bump.obj"), True, True)
+tri_mesh_shape_bump = chrono.ChVisualShapeTriangleMesh()
+tri_mesh_shape_bump.SetMesh(vis_mesh_bump)
+tri_mesh_shape_bump.SetMutable(False)
+tri_mesh_shape_bump.SetColor(chrono.ChColor(0.5, 0.5, 0.8))
+tri_mesh_shape_bump.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
+patch2.GetGroundBody().AddVisualShape(tri_mesh_shape_bump)
 
 terrain.Initialize()
 
@@ -114,13 +113,12 @@ vis.AttachVehicle(vehicle.GetVehicle())
 driver = veh.ChInteractiveDriverIRR(vis)
 
 
-steering_time = 1.0  
-throttle_time = 1.0  
-braking_time = 0.3   
+steering_time = 1.0
+throttle_time = 1.0
+braking_time = 0.3
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
-
 driver.Initialize()
 
 
@@ -133,7 +131,6 @@ render_steps = math.ceil(render_step_size / step_size)
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
-
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
@@ -160,8 +157,5 @@ while vis.Run():
     vehicle.Advance(step_size)
     vis.Advance(step_size)
 
-    
     step_number += 1
-
-    
     realtime_timer.Spin(step_size)

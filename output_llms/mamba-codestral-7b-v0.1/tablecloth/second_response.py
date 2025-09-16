@@ -1,3 +1,4 @@
+```python
 import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
 import pychrono.fea as fea
@@ -48,7 +49,7 @@ for iz in range(nsections_z + 1):
 for iz in range(nsections_z):
     for ix in range(nsections_x):
         melementA = fea.ChElementShellBST()
-        boundary_1 = mynodes[(iz + 1) * (nsections_x + 1) + ix + 1]
+        boundary_1 = mynodes[(iz + 1) * (nsections_x + 1) + ix + 1] if ix < nsections_x else None
         boundary_2 = mynodes[(iz + 1) * (nsections_x + 1) + ix - 1] if ix > 0 else None
         boundary_3 = mynodes[(iz - 1) * (nsections_x + 1) + ix + 1] if iz > 0 else None
 
@@ -68,17 +69,52 @@ for iz in range(nsections_z):
         mesh.AddElement(melementB)
 
 # Node monitoring and load setup
-nodePlotA = mynodes[0]
-nodePlotB = mynodes[-1]
-nodesLoad = [mynodes[i] for i in range(0, len(mynodes), 10)]
+nodePlotA = mynodes[nsections_z * (nsections_x + 1) + nsections_x // 2]
+nodePlotB = mynodes[nsections_z * (nsections_x + 1) + nsections_x // 2 + 1]
+nodesLoad = [mynodes[nsections_z * (nsections_x + 1) + nsections_x // 2 - 1]]
 
-ref_X = lambda x: x
-ref_Y = lambda y: y
-
+ref_X = chrono.ChFunction_Ramp(0, 1)
+ref_Y = chrono.ChFunction_Ramp(0, 1)
 load_force = chrono.ChVectorD(0, -10, 0)
 
-mnodemonitor = mynodes[0]
+mnodemonitor = fea.ChNodeFEAxyz(chrono.ChVectorD(0.5, 0, 0.5))
 melementmonitor = fea.ChElementShellBST()
+
+# Construct boundary nodes with conditional checks
+for iz in range(nsections_z):
+    for ix in range(nsections_x):
+        if ix > 0:
+            boundary_1 = mynodes[(iz + 1) * (nsections_x + 1) + ix + 1]
+        else:
+            boundary_1 = None
+
+        if iz > 0:
+            boundary_2 = mynodes[(iz + 1) * (nsections_x + 1) + ix - 1]
+        else:
+            boundary_2 = None
+
+        if iz > 0 and ix > 0:
+            boundary_3 = mynodes[(iz - 1) * (nsections_x + 1) + ix + 1]
+        else:
+            boundary_3 = None
+
+        melementA = fea.ChElementShellBST()
+        melementA.SetNodes(mynodes[iz * (nsections_x + 1) + ix], mynodes[iz * (nsections_x + 1) + ix + 1],
+                           mynodes[(iz + 1) * (nsections_x + 1) + ix], boundary_1, boundary_2, boundary_3)
+        melementA.AddLayer(thickness, 0, material)
+        mesh.AddElement(melementA)
+
+        melementB = fea.ChElementShellBST()
+        melementB.SetNodes(mynodes[iz * (nsections_x + 1) + ix + 1], mynodes[iz * (nsections_x + 1) + ix + 2],
+                           mynodes[(iz + 1) * (nsections_x + 1) + ix + 1], boundary_1, boundary_2, boundary_3)
+        melementB.AddLayer(thickness, 0, material)
+        mesh.AddElement(melementB)
+
+# Element monitoring
+for iz in range(nsections_z):
+    for ix in range(nsections_x):
+        if iz == 0 and ix == 1:
+            ementmonitor = melementA
 
 # Fix upper nodes
 for j in range(30):
@@ -103,24 +139,4 @@ vis.SetWindowTitle('Shells FEA test: triangle BST elements')
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()
-vis.AddCamera(chrono.ChVector3d(1, 0.3, 1.3), chrono.ChVector3d(0.5, -0.3, 0.5))
-vis.AddTypicalLights()
-
-# Change solver to PardisoMKL
-mkl_solver = mkl.ChSolverPardisoMKL()
-mkl_solver.LockSparsityPattern(True)
-sys.SetSolver(mkl_solver)
-
-# Define time step for simulation
-timestep = 0.005
-
-# Final setup and system updates
-sys.Setup()
-sys.Update()
-
-# Simulation loop
-while vis.Run():
-    vis.BeginScene()
-    vis.Render()
-    vis.EndScene()
-    sys.DoStepDynamics(timestep)
+vis.AddCamera(chrono.ChVector3

@@ -4,7 +4,6 @@ import pychrono.vehicle as veh
 import math
 
 
-
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
@@ -22,6 +21,7 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_RIGID
 
 
+terrainHeight = 0      
 terrainLength = 100.0  
 terrainWidth = 100.0   
 
@@ -59,14 +59,9 @@ vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-terrain.Initialize(
-    veh.GetDataFile("terrain/height_maps/bump64.bmp"),
-    terrainLength,
-    terrainWidth,
-    -1.0,  
-    1.0    
-)
-terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
+patch = terrain.AddPatch(chrono.ChCoordsysd(), veh.GetDataFile("terrain/height_maps/bump64.bmp"), -1, 1)
+patch.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
+terrain.Initialize()
 
 
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
@@ -95,41 +90,29 @@ driver.Initialize()
 
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
-
 render_steps = math.ceil(render_step_size / step_size)
-
-
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
-render_frame = 0
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
-    
     if step_number % render_steps == 0:
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
-        render_frame += 1
 
-    
     driver_inputs = driver.GetInputs()
 
-    
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
 
-    
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
 
-    
     step_number += 1
-
-    
     realtime_timer.Spin(step_size)

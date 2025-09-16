@@ -43,7 +43,7 @@ tire_step_size = step_size
 render_step_size = 1.0 / 20  # FPS = 50
 
 # Create the HMMWV vehicle, set parameters, and initialize
-vehicle = veh.HMMWV_Full() # veh.HMMWV_Reduced()  could be another choice here
+vehicle = veh.HMMWV_Full()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
@@ -62,7 +62,26 @@ vehicle.SetTireVisualizationType(vis_type)
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 # Create the SCM deformable terrain patch
-terrain = veh.RigidTerrain(vehicle.GetSystem())
+terrain = veh.SCMTerrain(vehicle.GetSystem())
+terrain.SetSoilParameters(2e6,   # Bekker Kphi
+                            0,     # Bekker Kc
+                            1.1,   # Bekker n exponent
+                            0,     # Mohr cohesive limit (Pa)
+                            30,    # Mohr friction limit (degrees)
+                            0.01,  # Janosi shear coefficient (m)
+                            2e8,   # Elastic stiffness (Pa/m), before plastic yield
+                            3e4    # Damping (Pa s/m), proportional to negative vertical speed (optional)
+)
+
+# Optionally, enable moving patch feature (single patch around vehicle chassis)
+terrain.AddMovingPatch(vehicle.GetChassisBody(), chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(5, 3, 1))
+
+# Set plot type for SCM (false color plotting)
+terrain.SetPlotType(veh.SCMTerrain.PLOT_SINKAGE, 0, 0.1)
+
+# Initialize the SCM terrain (length, width, mesh resolution), specifying the initial mesh grid
+terrain.Initialize(veh.GetDataFile("terrain/height_maps/bump64.bmp"),40, 40, -1,1, 0.02)
+
 terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
 
 # Create the vehicle Irrlicht interface

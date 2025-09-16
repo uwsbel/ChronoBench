@@ -1,86 +1,66 @@
 import pychrono as chrono
-import pychrono.vehicle as vehicle
-import pychrono.irrlicht as irr
+import pychrono.robot as robot
+import pychrono.irrlicht as irrlicht
 
 
 system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
 
 ground = chrono.ChBody()
 ground.SetBodyFixed(True)
 ground.SetCollide(True)
-ground.GetCollisionModel().ClearModel()
-ground.GetCollisionModel().AddBox(100, 100, 1, chrono.ChVectorD(0, 0, 0))
-ground.GetCollisionModel().BuildModel()
 
 
 mat = chrono.ChMaterialSurfaceNSC()
 mat.SetFriction(0.8)
 mat.SetRestitution(0.1)
-ground.SetMaterialSurface(mat)
 
 
-ground_shape = chrono.ChBoxShape()
-ground_shape.GetBoxGeometry().Size = chrono.ChVectorD(100, 100, 1)
-ground.AddAsset(ground_shape)
-ground_texture = chrono.ChTexture()
-ground_texture.SetTextureFilename(chrono.GetChronoDataFile("textures/concrete.jpg"))
-ground.AddAsset(ground_texture)
+ground.GetCollisionModel().ClearModel()
+ground.GetCollisionModel().AddBox(mat, 10, 1, 10)  
+ground.GetCollisionModel().BuildModel()
 
+
+box_vis = chrono.ChBoxShape()
+box_vis.GetBoxGeometry().Size = chrono.ChVectorD(10, 1, 10)
+ground.AddAsset(box_vis)
 
 system.Add(ground)
 
 
-turtlebot = vehicle.ChTurtlebot()
-init_pos = chrono.ChVectorD(0, 0, 0.5)  
-init_rot = chrono.Q_from_AngAxis(chrono.CH_C_PI, chrono.ChVectorD(0, 1, 0))  
-turtlebot.Initialize(system, chrono.ChCoordsysD(init_pos, init_rot))
+turtlebot = robot.Turtlebot(system)
+init_pos = chrono.ChVectorD(0, 0.5, 0)  
+init_rot = chrono.ChQuaternionD(1, 0, 0, 0)  
+turtlebot.SetInitPosition(chrono.ChFrameD(init_pos, init_rot))
+turtlebot.Initialize()
 
 
-application = irr.ChIrrApp(system, 'Turtlebot Simulation', irr.dimension2du(800, 600))
-application.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
-application.AddSkyBox()
-application.AddCamera(chrono.ChVectorD(0, -6, 3), chrono.ChVectorD(0, 0, 0))  
+application = irrlicht.ChIrrApp(system, 'Turtlebot Simulation', irrlicht.dimension2du(800, 600))
 application.AddTypicalLights()
-
-
+application.AddCamera(chrono.ChVectorD(0, 3, -6), chrono.ChVectorD(0, 0, 0))  
 application.AssetBindAll()
 application.AssetUpdateAll()
 
 
-step_size = 1e-3  
-simulation_time = 0
-
-
 while application.GetDevice().run():
+    application.BeginScene()
     
     current_time = system.GetChTime()
-    left_torque = 0
-    right_torque = 0
-
-    if current_time < 5:
-        
-        left_torque = 10
-        right_torque = 10
-    elif current_time < 7:
-        
-        left_torque = -5
-        right_torque = 5
+    
+    
+    if current_time < 1.0:
+        left_torque, right_torque = 0.0, 0.0  
+    elif current_time < 3.0:
+        left_torque, right_torque = -1.0, 1.0  
     else:
-        
-        left_torque = 10
-        right_torque = 10
-
+        left_torque, right_torque = 1.0, -1.0  
     
-    turtlebot.SetLeftMotorTorque(left_torque)
-    turtlebot.SetRightMotorTorque(right_torque)
-
     
-    system.DoStepDynamics(step_size)
-    simulation_time += step_size
-
+    turtlebot.SetMotorTorqueLeft(left_torque)
+    turtlebot.SetMotorTorqueRight(right_torque)
     
-    application.BeginScene()
+    
+    system.DoStepDynamics(0.01)
     application.DrawAll()
     application.EndScene()

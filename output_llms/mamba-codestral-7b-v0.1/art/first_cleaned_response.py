@@ -1,49 +1,37 @@
 import pychrono
 
 
-pychrono.SetChronoPath('path_to_your_pychrono_directory')
-pychrono.Initialize()
-
-
 system = pychrono.ChSystemSMC()
 
 
-vehicle = pychrono.ARTcar()
+terrain = pychrono.RigidTerrain(system)
+terrain.SetTexture(pychrono.GetChronoDataFile('terrain/textures/tile4.png'))
+
+
+terrain.SetContactMethod(pychrono.ChContactMethod.NSC)
+terrain.SetContactMethod(pychrono.ChContactMethod.NSC)
+
+
+vehicle = pychrono.ARTcar(system)
 vehicle.SetPos(pychrono.ChVectorD(0, 0, 0))  
 vehicle.SetRot(pychrono.ChQuaternionD(0, 0, 0))  
-system.Add(vehicle)
+vehicle.SetContactMethod(pychrono.ChContactMethod.NSC)  
 
 
-vehicle.SetContactMethod(pychrono.ChContactMethod.NSC)
+vehicle.SetChassisVisualizationType(pychrono.ChVisualizationType.MESH)
 
 
-vehicle.SetVisualizationType(pychrono.ChVisualizationType.OPENGL)
+simulation_time_step = 1.0 / 50.0  
+system.SetTimestep(simulation_time_step)
 
 
-terrain = pychrono.ChTerrainRigid()
-terrain.SetDimensions(pychrono.ChVectorD(10, 10, 1))  
-terrain.SetTexture(pychrono.ChTexture(pychrono.ChGetDataFile('terrain_texture.png')))  
-system.Add(terrain)
+driver = pychrono.ChIrrDriver(system, vehicle)
 
 
-driver = pychrono.ChDriver()
-driver.SetVehicle(vehicle)
-system.Add(driver)
+while system.GetChTime() < 10.0:  
+    system.DoStepDynamics(simulation_time_step)
+    driver.Render()
 
 
-time_step = 1.0 / 50.0
-simulation_time = 10.0
-current_time = 0.0
-
-while current_time < simulation_time:
-    
-    system.DoStepDynamics(time_step)
-
-    
-    vehicle.GetVisualization()->Render()
-
-    
-    current_time += time_step
-
-
-pychrono.Finalize()
+system.GetSettings().SetBoolDefault(pychrono.ChSettingsDefaults.SHOW_INFO_BAR, False)
+system.GetSettings().SetBoolDefault(pychrono.ChSettingsDefaults.SHOW_LOAD_REPORT, False)

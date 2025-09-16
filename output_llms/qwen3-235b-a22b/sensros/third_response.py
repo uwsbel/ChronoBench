@@ -24,7 +24,7 @@ def main():
     mesh_body.AddVisualShape(trimesh_shape)
     mesh_body.SetFixed(False)  # Make the body movable.
     mesh_body.SetMass(0)  # Set mass to 0 (static object).
-    sys.Add(mesh_body)  # Added: Add mesh body to the simulation system
+    sys.Add(mesh_body)  # Added as per instruction 1
 
     # Create a ground body to attach sensors.
     ground_body = ch.ChBodyEasyBox(1, 1, 1, 1000, False, False)
@@ -60,10 +60,10 @@ def main():
     lidar.SetName("lidar")
     sens_manager.AddSensor(lidar)
     
-    # Create 2D lidar
+    # Create 2d lidar
     offset_pose_2dlidar = ch.ChFramed(ch.ChVector3d(-8, 0, 0), ch.QuatFromAngleAxis(.2, ch.ChVector3d(0, 1, 0)))
     lidar2d = sens.ChLidarSensor(ground_body, 5, offset_pose_2dlidar, 480, 1, 2 * ch.CH_PI, ch.CH_PI / 12, -ch.CH_PI / 6, 100.0)
-    # Added: Initialize necessary filters for the 2D Lidar sensor
+    # Added filters as per instruction 2
     lidar2d.PushFilter(sens.ChFilterDIAccess())
     lidar2d.PushFilter(sens.ChFilterPCfromDepth())
     lidar2d.PushFilter(sens.ChFilterXYZIAccess())
@@ -137,11 +137,8 @@ def main():
 
         # Update sensors and ROS data.
         sens_manager.Update()
-        
-        # Added: Check for ROS manager update status and exit loop if update fails
-        if not ros_manager.Update():
+        if not ros_manager.Update():  # Check ROS manager update status as per instruction 3
             break
-
         sys.DoStepDynamics(time_step)  # Advance the simulation by one time step.
 
 if __name__ == "__main__":

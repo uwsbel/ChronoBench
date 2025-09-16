@@ -140,7 +140,7 @@ def main():
         # Update sensors and ROS data.
         sens_manager.Update()
 
-        # Check if the ROS manager update status is True, otherwise exit the loop.
+        # Check if the ROS manager update was successful
         if not ros_manager.Update():
             break
 

@@ -1,124 +1,90 @@
-# PyChrono Beam Finite Element Simulation
-
-Below is a complete PyChrono script that demonstrates a beam finite element simulation with visualization using the Irrlicht engine:
+Here's a PyChrono simulation script that demonstrates the use of beam finite elements with visualization using the Irrlicht engine:
 
 ```python
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
 import numpy as np
 
-# 1. Initialize the PyChrono environment and core components
-chrono.SetChronoDataPath("PATH_TO_CHRONO_DATA")  # Set path to Chrono data files
+# Set the path to the Chrono data directory
+chrono.SetChronoDataPath("PATH_TO_CHRONO_DATA")  # Update this path
 
 # Create a Chrono physical system
-my_system = chrono.ChSystemNSC()
-my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
 
-# 2. Add the required physical systems and objects
-
-# Create a mesh of beam finite elements
-beam_mesh = chrono.fea.ChMesh()
+# Create a mesh composed of beams and nodes
+mesh = chrono.fea.ChMesh()
 
 # Material properties for the beam
-material = chrono.fea.ChContinuumElastic()
+material = chrono.ChMaterialShellANCF()
 material.SetYoungModulus(2.1e11)  # Steel Young's modulus in Pa
 material.SetPoissonRatio(0.3)
-material.SetDensity(7850)  # Steel density in kg/m^3
+material.SetDensity(7850)         # Steel density in kg/m^3
 
-# Create nodes for the beam mesh
+# Create nodes for the beam
 num_nodes = 10
 nodes = []
 for i in range(num_nodes):
-    # Create nodes along a line (simple cantilever beam example)
-    node = chrono.fea.ChNodeFEAxyz(chrono.ChVectorD(i*0.1, 0, 0))
-    node.SetMass(0.1)  # Small mass for numerical stability
-    beam_mesh.AddNode(node)
+    node = chrono.fea.ChNodeFEAxyzD(chrono.ChVectorD(i * 0.1, 0, 0))
+    mesh.AddNode(node)
     nodes.append(node)
 
-# Fix the first node (cantilever boundary condition)
+# Fix the first node
 nodes[0].SetFixed(True)
 
 # Create beam elements between nodes
 for i in range(num_nodes - 1):
-    beam = chrono.fea.ChElementBeamEuler()
+    beam = chrono.fea.ChElementBeamANCF()
     beam.SetNodes(nodes[i], nodes[i+1])
-
-    # Set beam properties
-    beam.SetSection(chrono.fea.ChBeamSectionCircular(0.01))  # Radius 0.01m
     beam.SetMaterial(material)
+    beam.SetDimensions(0.01, 0.01)  # Cross-section dimensions (square beam)
+    mesh.AddElement(beam)
 
-    beam_mesh.AddElement(beam)
+# Add the mesh to the system
+system.Add(mesh)
 
-# Add the beam mesh to the system
-my_system.Add(beam_mesh)
-
-# 3. Set up visualization with Irrlicht
+# Create visualization system
 vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(my_system)
+vis.AttachSystem(system)
 vis.SetWindowSize(800, 600)
-vis.SetWindowTitle("Beam Finite Element Simulation")
+vis.SetWindowTitle('Beam FEA Simulation')
 vis.Initialize()
 vis.AddLogo()
 vis.AddSkyBox()
-vis.AddCamera(chrono.ChVectorD(0.5, 0.5, 1.5))
+vis.AddCamera(chrono.ChVectorD(0.5, 0.5, 1))
 vis.AddTypicalLights()
+vis.AddLightWithShadow(chrono.ChVectorD(1, 1, 1), chrono.ChVectorD(0, 0, 0), 3, 1, 10, 40, 512)
 
-# Create a visual asset for the beam mesh
-beam_asset = chrono.fea.ChVisualizationFEAmesh(beam_mesh)
-beam_asset.SetFEMdataType(chrono.fea.ChVisualizationFEAmesh.E_PLOT_NODES)
-beam_asset.SetFEMglyphType(chrono.fea.ChVisualizationFEAmesh.E_GLYPH_NODE_DOT_POS)
-beam_asset.SetFEMdataType(chrono.fea.ChVisualizationFEAmesh.E_PLOT_ELEM_BEAM_MZ)
-beam_asset.SetColorscaleMinMax(-100, 100)
-beam_asset.SetSmoothFaces(True)
-beam_mesh.AddAsset(beam_asset)
+# Visualization assets for the beam
+for beam in mesh.GetElementsBeam():
+    vis_asset = chrono.fea.ChVisualizationFEAmesh(mesh)
+    vis_asset.SetFEMdataType(chrono.fea.ChVisualizationFEAmesh.E_PLOT_NODES)
+    vis_asset.SetFEMglyphType(chrono.fea.ChVisualizationFEAmesh.E_GLYPH_NODE_DOT_POS)
+    vis_asset.SetFEMcolorscaleMinMax(-0.1, 0.1)
+    vis_asset.SetSmoothFaces(True)
+    beam.AddAsset(vis_asset)
 
-# Simulation parameters
-time_step = 0.01
-simulation_time = 5.0
-
-# Run the simulation loop
+# Simulation loop
+time_step = 0.001
 while vis.Run():
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
-
-    # Apply a force to the last node to demonstrate deformation
-    if my_system.GetChTime() < 1.0:
-        nodes[-1].SetForce(chrono.ChVectorD(0, -50, 0))
-
-    # Advance simulation by one step
-    my_system.DoStepDynamics(time_step)
-
-    # Check if simulation time has been reached
-    if my_system.GetChTime() >= simulation_time:
-        break
+    system.DoStepDynamics(time_step)
 ```
 
-## Key Components Explained:
+Notes:
+1. Replace "PATH_TO_CHRONO_DATA" with the actual path to your Chrono data directory.
+2. This script creates a cantilever beam with 10 nodes and 9 beam elements.
+3. The first node is fixed, and the rest are free to move under gravity.
+4. The visualization uses the Irrlicht engine with basic lighting and camera setup.
+5. The beam is visualized with nodes shown as dots.
 
-1. **System Initialization**:
-   - Creates a `ChSystemNSC` (non-smooth contact system)
-   - Sets gravity to -9.81 m/s² in the Y direction
+You can modify parameters like:
+- Number of nodes/elements
+- Material properties
+- Cross-section dimensions
+- Initial configuration
+- Time step size
 
-2. **Beam Finite Element Mesh**:
-   - Creates a mesh of beam elements using `ChMesh`
-   - Defines material properties (steel in this case)
-   - Creates nodes along a line and connects them with Euler beam elements
-   - Applies cantilever boundary condition by fixing the first node
-
-3. **Visualization**:
-   - Uses Irrlicht for real-time rendering
-   - Sets up camera, lights, and visualization assets
-   - Configures color scaling for the beam visualization
-
-4. **Simulation Loop**:
-   - Applies a downward force to the free end of the beam
-   - Runs the simulation for 5 seconds with 0.01s time steps
-   - Visualizes the beam deformation in real-time
-
-To run this script, you'll need to:
-1. Have PyChrono installed with Irrlicht support
-2. Set the correct path to Chrono data files
-3. Adjust parameters like beam length, material properties, or forces as needed for your specific application
-
-The simulation will show a cantilever beam that deforms under the applied load, with the deformation visualized using color scaling.
+The simulation will run in real-time with the Irrlicht visualization window.

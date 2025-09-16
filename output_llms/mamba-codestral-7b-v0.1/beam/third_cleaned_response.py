@@ -1,27 +1,13 @@
-The given PyChrono script appears to be well-structured and does not contain any syntax errors or logical errors. However, there are a few minor issues that need to be addressed:
-
-1. The `chrono.ChVector3d` function calls in the script are missing parentheses. These function calls should be `chrono.ChVector3d()` instead of `chrono.ChVector3d`.
-
-2. The `builder.BuildBeam()` method calls in the script are missing the `mesh` argument. This argument should be added before the `mesh` variable.
-
-Here is the corrected and modified script:
-
-```python
 import pychrono as chrono
 import pychrono.fea as fea
 import pychrono.pardisomkl as mkl
 import pychrono.irrlicht as chronoirr
 
-print("Example: PyChrono using  beam finite elements")
+print("Example: PyChrono using beam finite elements")
 
 sys = chrono.ChSystemSMC()
 
-
-
 mesh = fea.ChMesh()
-
-
-
 
 msection = fea.ChBeamSectionEulerAdvanced()
 
@@ -35,13 +21,9 @@ msection.SetCentroid(0, 0.02)
 msection.SetShearCenter(0, 0.1)
 msection.SetSectionRotation(45 * chrono.CH_RAD_TO_DEG)
 
-
-
-beam_L = 0.1
-
 hnode1 = fea.ChNodeFEAxyzrot(chrono.ChFramed(chrono.ChVector3d(0, 0, 0)))
-hnode2 = fea.ChNodeFEAxyzrot(chrono.ChFramed(chrono.ChVector3d(beam_L, 0, 0)))
-hnode3 = fea.ChNodeFEAxyzrot(chrono.ChFramed(chrono.ChVector3d(beam_L * 2, 0, 0)))
+hnode2 = fea.ChNodeFEAxyzrot(chrono.ChFramed(chrono.ChVector3d(0.1, 0, 0)))
+hnode3 = fea.ChNodeFEAxyzrot(chrono.ChFramed(chrono.ChVector3d(0.2, 0, 0)))
 
 mesh.AddNode(hnode1)
 mesh.AddNode(hnode2)
@@ -61,13 +43,8 @@ belement2.SetSection(msection)
 
 mesh.AddElement(belement2)
 
-
 hnode2.SetForce(chrono.ChVector3d(4, 2, 0))
 hnode3.SetTorque(chrono.ChVector3d(0, -0.04, 0))
-
-
-
-
 
 mtruss = chrono.ChBody()
 mtruss.SetFixed(True)
@@ -76,46 +53,23 @@ sys.Add(mtruss)
 constr_bc = chrono.ChLinkMateGeneric()
 constr_bc.Initialize(hnode3, mtruss, False, hnode3.Frame(), hnode3.Frame())
 sys.Add(constr_bc)
-constr_bc.SetConstrainedCoords(True, True, True,  
-                               True, True, True)  
+constr_bc.SetConstrainedCoords(True, True, True, True, True, True)
 
 constr_d = chrono.ChLinkMateGeneric()
 constr_d.Initialize(hnode1, mtruss, False, hnode1.Frame(), hnode1.Frame())
 sys.Add(constr_d)
-constr_d.SetConstrainedCoords(False, True, True,  
-                              False, False, False)  
-
-
-
-
-
-
-
-
+constr_d.SetConstrainedCoords(False, True, True, False, False, False)
 
 builder = fea.ChBuilderBeamEuler()
 
-
-builder.BuildBeam(mesh, msection, 5, chrono.ChVector3d(0, 0, -0.1), chrono.ChVector3d(0.2, 0, -0.1), chrono.ChVector3d(0, 1, 0))
-
-
-builder.BuildBeam(mesh, msection, 5, chrono.ChVector3d(0.2, 0.1, -0.1), chrono.ChVector3d(0.3, 0.1, -0.1), chrono.ChVector3d(0, 1, 0))
-
-
+builder.BuildBeam(mesh, msection, 1, chrono.ChVector3d(0.1, 0.1, -0.1), chrono.ChVector3d(0.2, 0.1, -0.1), chrono.ChVector3d(0, 1, 0))
 
 builder.GetLastBeamNodes().back().SetFixed(True)
 builder.GetLastBeamNodes().front().SetForce(chrono.ChVector3d(0, -1, 0))
 
-
 mesh.SetAutomaticGravity(False)
 
-
 sys.Add(mesh)
-
-
-
-
-
 
 visualizebeamA = chrono.ChVisualShapeFEA(mesh)
 visualizebeamA.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_ELEM_BEAM_MZ)
@@ -129,4 +83,24 @@ visualizebeamC.SetFEMglyphType(chrono.ChVisualShapeFEA.GlyphType_NODE_CSYS)
 visualizebeamC.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NONE)
 visualizebeamC.SetSymbolsThickness(0.006)
 visualizebeamC.SetSymbolsScale(0.01)
-visualizebeamC.SetZbufferHide(
+visualizebeamC.SetZbufferHide(False)
+mesh.AddVisualShapeFEA(visualizebeamC)
+
+msolver = mkl.ChSolverPardisoMKL()
+sys.SetSolver(msolver)
+
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(sys)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle('FEA beams')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVector3d(0.1, 0.1, 0.2))
+vis.AddTypicalLights()
+
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    sys.DoStepDynamics(0.001)

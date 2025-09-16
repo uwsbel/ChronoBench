@@ -82,16 +82,14 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 
-driver = veh.ChPathFollowerDriver(vehicle.GetVehicle(), trackPoint, 10.0)
-
-
 path = veh.ChBezierCurve()
 path.AddPoint(chrono.ChVector3d(-50, 0, 0.5))
-path.AddPoint(chrono.ChVector3d(-45, 5, 0.5))
-path.AddPoint(chrono.ChVector3d(-40, 0, 0.5))
-path.AddPoint(chrono.ChVector3d(-35, 5, 0.5))
-path.AddPoint(chrono.ChVector3d(-30, 0, 0.5))
-driver.SetPath(path)
+path.AddPoint(chrono.ChVector3d(-25, 5, 0.5))
+path.AddPoint(chrono.ChVector3d(0, 5, 0.5))
+path.AddPoint(chrono.ChVector3d(25, 0, 0.5))
+path.AddPoint(chrono.ChVector3d(50, 0, 0.5))
+
+driver = veh.ChPathFollowerDriver(vehicle.GetVehicle(), path, "path", 10.0)
 
 
 driver.GetSteeringController().SetLookAheadDistance(5)

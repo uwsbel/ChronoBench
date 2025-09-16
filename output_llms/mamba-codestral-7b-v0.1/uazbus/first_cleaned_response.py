@@ -4,53 +4,35 @@ import pychrono
 system = pychrono.ChSystemSMC()
 
 
-vehicle = pychrono.ChVehicleUaz()
+vehicle = pychrono.ChVehicle4WD()
 system.Add(vehicle)
 
 
-vehicle.SetPos(pychrono.ChVectorD(0, 0, 0))
-vehicle.SetRot(pychrono.ChQuaternionD(0, 0, 0))
-
-
-vehicle.SetInitialLinVel(pychrono.ChVectorD(0, 0, 0))
-
-
-vehicle.SetInitialAngVel(pychrono.ChVectorD(0, 0, 0))
+vehicle.SetChassisFixed(False)
+vehicle.SetInitPosition(pychrono.ChVectorD(0, 0, 0))
+vehicle.SetInitForwardVelocity(pychrono.ChVectorD(0, 0, 0))
 
 
 terrain = pychrono.ChTerrainRigid()
+terrain.SetContactFrictionCoefficient(0.7)
+terrain.SetContactRestitution(0.0)
 system.Add(terrain)
-
-
-terrain.SetFriction(0.8)
-terrain.SetRestitution(0.3)
 
 
 driver = pychrono.ChDriver()
 system.Add(driver)
 
 
-visualization = pychrono.ChVisualSystemIrrlicht()
-visualization.SetWindowSize(800, 600)
-visualization.SetWindowTitle('PyChrono UAZBUS Simulation')
-visualization.SetCameraPosition(pychrono.ChVectorD(0, 0, 5), pychrono.ChVectorD(0, 0, 0), pychrono.ChVectorD(0, 1, 0))
-visualization.SetCameraVertical(pychrono.ChVectorD(0, 1, 0))
-visualization.SetRenderMode(pychrono.ChVisualSystemIrrlicht.RENDER_MODE_SHADED_FLAT)
-visualization.SetSkyBox(True, pychrono.ChColor(0.7f, 0.7f, 0.7f))
-visualization.SetSymbolScale(0.005)
-visualization.AttachSystem(system)
-
-
-system.SetTimestep(0.01)
+visual_system = pychrono.ChVisualSystemIrrlicht()
+visual_system.SetWindowSize(800, 600)
+visual_system.SetWindowTitle('PyChrono UAZBUS Vehicle Simulation')
+visual_system.SetCameraVertical(pychrono.ChVectorD(0, 0, 1), 5)
+visual_system.SetCameraHorizontal(pychrono.ChVectorD(0, 0, 1), -3.14159 / 2)
+visual_system.Initialize()
 
 
 while system.GetChTime() < 10.0:
-    system.DoStepDynamics(system.GetTimestep())
-    visualization.Render()
-    visualization.BeginScene(True, True, pychrono.ChColor(0.4f, 0.4f, 0.4f))
-    visualization.RenderItem(vehicle, False)
-    visualization.RenderItem(terrain, False)
-    visualization.EndScene()
-
-
-visualization.Close()
+    system.DoStepDynamics(0.01)
+    visual_system.BeginScene(True, True, pychrono.ChColor(0.4, 0.4, 0.4))
+    visual_system.Render()
+    visual_system.EndScene()

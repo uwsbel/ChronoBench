@@ -1,56 +1,56 @@
 import pychrono as chrono
 import pychrono.irrlicht as irr
+import pychrono.vehicle as veh
 
 
 chrono.SetChronoDataPath('PYCHRONO_DATA_DIR')
 
 
-my_system = chrono.ChSystemNSC()
+system = chrono.ChSystemNSC()
+vehicle = veh.ChVehicle(system)
 
 
-vehicle = chrono.vehicle.ChVehicle()
-vehicle.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 1), chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0))))
+vehicle.Initialize(veh.ChVehicleModelData(), 'FEDA')
+vehicle.SetChassisFixed(False)
+vehicle.SetChassisCollisionType(chrono.ChCollisionModel.CollisionType_BOX)
+vehicle.SetChassisVisualizationType(chrono.ChVisualization.VisualizationType_MESH)
+vehicle.SetChassisPos(chrono.ChVectorD(0, 0.5, 0))
+vehicle.SetChassisRot(chrono.ChQuaternionD(1, 0, 0, 0))
 vehicle.SetContactMethod(chrono.ChContactMethod_NSC)
-vehicle.SetTireType(chrono.TireModelType_RIGID)
+vehicle.SetTireType(veh.ChTireModelType_RIGID)
 
 
-my_system.Add(vehicle)
+driver = veh.ChDriver(vehicle)
+driver.SetSteeringMethod(veh.ChDriver.SteeringMethod_PS)
+driver.SetThrottleMethod(veh.ChDriver.ThrottleMethod_PS)
+driver.SetBrakingMethod(veh.ChDriver.BrakingMethod_PS)
 
 
-terrain = chrono.vehicle.RigidTerrain(vehicle.GetSystem())
-terrain.SetContactFrictionCoefficient(0.9)
-terrain.SetContactRestitutionCoefficient(0.01)
-terrain.SetContactMaterialProperties(1e7, 0.3)
-terrain.SetTexture(chrono.GetChronoDataFile("terrain/textures/rock.jpg"))
+terrain = veh.RigidTerrain(system)
+terrain.SetContactFrictionCoeff(0.9)
+terrain.SetContactRestitutionCoeff(0.01)
+terrain.SetContactMaterial(0, 0, 0.1, 0.1, 0.01)
+terrain.SetColor(chrono.ChColor(0.6, 0.6, 0.6))
+terrain.SetTexture(chrono.GetChronoDataFile('terrain/textures/tile4.jpg'))
+terrain.Initialize(200, 200, 0, 0, 0.01)
 
 
-my_system.Add(terrain)
+app = irr.ChIrrApp(system, 'FEDA Vehicle Simulation', irr.dimension2du(1024, 768))
+app.AddTypicalLogo()
+app.AddTypicalSky()
+app.AddTypicalCamera(irr.vector3df(0, 2, -3), irr.vector3df(0, 0, 0))
+app.AddTypicalLights()
+app.SetTimestep(0.02)
 
 
-driver = chrono.vehicle.ChDriver(vehicle)
-driver.Initialize()
-
-
-application = irr.ChIrrApp(vehicle, 'FEDA Vehicle Simulation', irr.dimension2du(1024, 768))
-application.AddTypicalLogo()
-application.AddTypicalSky()
-application.AddTypicalLights()
-application.AddTypicalCamera(irr.vector3df(0, 3, -6))
-application.SetTimestep(0.02)
-
-
-vehicle.SetChassisVisualizationType(chrono.VisualizationType_MESH)
-vehicle.SetSuspensionVisualizationType(chrono.VisualizationType_PRIMITIVES)
-vehicle.SetWheelVisualizationType(chrono.VisualizationType_MESH)
-
-
-while application.GetDevice().run():
-    application.BeginScene()
-    application.DrawAll()
-    application.DoStep()
-    application.EndScene()
+while app.GetDevice().run():
+    app.BeginScene()
+    app.DrawAll()
+    app.DoStep()
+    app.EndScene()
 
     
-    driver.Synchronize(my_system.GetChTime())
-    vehicle.Synchronize(my_system.GetChTime(), driver.GetInputs())
-    my_system.DoStepDynamics(0.02)
+    vehicle_pos = vehicle.GetChassisBody().GetPos()
+    camera_pos = irr.vector3df(vehicle_pos.x, vehicle_pos.y + 2, vehicle_pos.z - 3)
+    app.GetSceneManager().getActiveCamera().setPosition(camera_pos)
+    app.GetSceneManager().getActiveCamera().setTarget(irr.vector3df(vehicle_pos.x, vehicle_pos.y, vehicle_pos.z))

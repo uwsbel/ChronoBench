@@ -100,7 +100,4 @@ if (True):  # Block to execute the following setup
             )
 
             # Add layer to the element
-            melementA.AddLayer(thickness, 0 * chrono.CH_DEG_TO_RAD, material)
-
-            # Create second element
-            melement
+            melementA.AddLayer(thickness, 0 * chrono.CH_DEG_TO_RAD

@@ -22,7 +22,7 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 # Rigid terrain
-terrain_model = veh.RigidTerrain.BOX
+# terrain_model = veh.RigidTerrain.BOX
 terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
@@ -86,16 +86,30 @@ vis.AttachVehicle(vehicle.GetVehicle())
 
 # Create the sensor manager and lidar sensor
 sensor_manager = sensor.ChSensorManager(vehicle.GetVehicle())
-lidar_sensor = sensor.ChLidarSensor()
-lidar_sensor.SetName("lidar")
-lidar_sensor.SetResolution(1000, 1000)
-lidar_sensor.SetHorizontalFov(math.radians(360))
-lidar_sensor.SetVerticalFov(math.radians(360))
-lidar_sensor.SetRange(100.0)
-lidar_sensor.SetPos(chrono.ChVectorD(0, 0, 0))
-lidar_sensor.SetDir(chrono.ChVectorD(0, 0, -1))
-lidar_sensor.SetParent(vehicle.GetVehicle().GetChassisBody())
-sensor_manager.AddSensor(lidar_sensor)
+lidar = sensor.ChLidarSensor()
+lidar.SetName("lidar")
+lidar.SetResolution(100, 100)
+lidar.SetAperture(90, 90)
+lidar.SetPosition(chrono.ChVectorD(0, 0, 0))
+lidar.SetRotation(chrono.ChQuaternionD(1, 0, 0, 0))
+lidar.SetVerticalFov(90)
+lidar.SetHorizontalFov(90)
+lidar.SetMaxDistance(100)
+sensor_manager.AddSensor(lidar)
+
+# Create random boxes in the simulation
+num_boxes = 10
+box_size = 1.0
+for i in range(num_boxes):
+    x = np.random.uniform(-terrainLength/2, terrainLength/2)
+    y = np.random.uniform(-terrainWidth/2, terrainWidth/2)
+    z = np.random.uniform(0.5, 2.0)
+    box = chrono.ChBoxShape()
+    box.GetBoxGeometry().Size = chrono.ChVectorD(box_size, box_size, box_size)
+    box.SetPos(chrono.ChVectorD(x, y, z))
+    box.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
+    box.SetCollide(True)
+    vehicle.GetSystem().Add(box)
 
 # Create the driver system
 driver = veh.ChInteractiveDriverIRR(vis)
@@ -111,7 +125,7 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 # output vehicle mass
-print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
+print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
@@ -121,18 +135,14 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-while vis.Run():
+while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
     # Render scene and output POV-Ray data
-    if (step_number % render_steps == 0):
+    if (step_number % render_steps == 0) :
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
         render_frame += 1
-
-    # Update sensor manager
-    sensor_manager.Update()
-
     # Get driver inputs
     driver_inputs = driver.GetInputs()
 
@@ -140,12 +150,14 @@ while vis.Run():
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
+    sensor_manager.Synchronize(time, vehicle.GetVehicle())
     vis.Synchronize(time, driver_inputs)
 
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
+    sensor_manager.Advance(step_size)
     vis.Advance(step_size)
 
     # Increment frame number

@@ -30,21 +30,24 @@ mpiston.SetRot(chrono.Q_ROTATE_Y_TO_X)
 sys.Add(mpiston)
 
 my_motor = chrono.ChLinkMotorRotationSpeed()
-my_motor.Initialize(mcrank, mfloor, chrono.ChFramed(crank_center))
-my_angularspeed = chrono.ChFunctionConst(chrono.CH_PI)
+my_motor.Initialize(mcrank, mfloor, chrono.ChFrame(crank_center))
+my_angularspeed = chrono.ChFunction_Const(chrono.CH_PI)
 my_motor.SetMotorFunction(my_angularspeed)
 sys.Add(my_motor)
 
-mjointA = chrono.ChLinkLockRevolute()
-mjointA.Initialize(mrod, mcrank, chrono.ChFramed(crank_center + chrono.ChVector3d(crank_rad, 0, 0)))
+mjointA = chrono.ChLinkRevolute()
+mjointA.Initialize(mrod, mcrank, chrono.ChFrame(crank_center + chrono.ChVector3d(crank_rad, 0, 0)))
 sys.Add(mjointA)
 
-mjointB = chrono.ChLinkLockRevolute()
-mjointB.Initialize(mpiston, mrod, chrono.ChFramed(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0)))
-sys.SetUpVisualSystem()
+mjointB = chrono.ChLinkRevolute()
+mjointB.Initialize(mpiston, mrod, chrono.ChFrame(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0)))
+sys.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
+sys.SetSolverMaxIterations(150)
+sys.SetSolverMaxIterations(150)
+sys.SetTimestep(1e-3)
 
-mjointC = chrono.ChLinkLockPrismatic()
-mjointC.Initialize(mpiston, mfloor, chrono.ChFramed(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0), chrono.Q_ROTATE_Z_TO_X))
+mjointC = chrono.ChLinkPrismatic()
+mjointC.Initialize(mpiston, mfloor, chrono.ChFrame(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0), chrono.Q_ROTATE_Z_TO_X))
 sys.Add(mjointC)
 
 vis = chronoirr.ChVisualSystemIrrlicht()
@@ -57,12 +60,10 @@ vis.AddSkyBox()
 vis.AddCamera(chrono.ChVector3d(1, 1, 3), chrono.ChVector3d(0, 1, 0))
 vis.AddTypicalLights()
 
-
 array_time = []
 array_angle = []
 array_pos = []
 array_speed = []
-
 
 while vis.Run():
     vis.BeginScene()
@@ -70,36 +71,28 @@ while vis.Run():
     vis.EndScene()
     sys.DoStepDynamics(1e-3)
 
-    
     array_time.append(sys.GetChTime())
-    array_angle.append(mcrank.GetPos().x())
-    array_pos.append(mrod.GetPos().x())
-    array_speed.append(mcrank.GetPos_dt().x())
+    array_angle.append(mcrank.GetRot().Q_to_AngleAxis().ang)
+    array_pos.append(mrod.GetPos().x)
+    array_speed.append(mcrank.GetWvel_loc().z)
 
-    
     if sys.GetChTime() >= 20:
         break
 
+plt.figure(figsize=(10, 4))
+plt.subplot(1, 2, 1)
+plt.plot(array_angle, array_pos, 'b-')
+plt.xlabel('Crank Angle [rad]')
+plt.ylabel('Position [m]')
+plt.xticks(np.linspace(0, 2 * np.pi, 5), ['0', 'π/2', 'π', '3π/2', '2π'])
+plt.grid(True)
 
-fig, axs = plt.subplots(2)
+plt.subplot(1, 2, 2)
+plt.plot(array_angle, array_speed, 'r-')
+plt.xlabel('Crank Angle [rad]')
+plt.ylabel('Speed [m/s]')
+plt.xticks(np.linspace(0, 2 * np.pi, 5), ['0', 'π/2', 'π', '3π/2', '2π'])
+plt.grid(True)
 
-
-axs[0].plot(array_angle, array_pos)
-axs[0].set_xlabel('Crank Angle [rad]')
-axs[0].set_ylabel('Position [m]')
-axs[0].set_title('Position vs. Crank Angle')
-
-
-axs[1].plot(array_angle, array_speed)
-axs[1].set_xlabel('Crank Angle [rad]')
-axs[1].set_ylabel('Speed [m/s]')
-axs[1].set_title('Speed vs. Crank Angle')
-
-
-pi_ticks = np.arange(0, 2 * np.pi + np.pi / 2, np.pi / 2)
-axs[0].set_xticks(pi_ticks)
-axs[0].set_xticklabels([f'{tick:.2f}π' for tick in pi_ticks / np.pi])
-axs[1].set_xticks(pi_ticks)
-axs[1].set_xticklabels([f'{tick:.2f}π' for tick in pi_ticks / np.pi])
-
+plt.tight_layout()
 plt.show()

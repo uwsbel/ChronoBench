@@ -1,51 +1,52 @@
 import pychrono as chrono
-import pychrono.ros as ros
+import pychrono.ros as chrono_ros
 import rospy
 from std_msgs.msg import Int32
 
 
-chrono.SetChronoDataPath('/path/to/chrono/data/')
+chrono.SetChronoDataPath("/usr/local/share/chrono/data/")
+my_system = chrono.ChSystemNSC()
 
 
-system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
 
 material = chrono.ChMaterialSurfaceNSC()
-material.SetFriction(0.3)
 
 
-floor_body = chrono.ChBodyEasyBox(10, 1, 10, 1000, True, True, material)
-floor_body.SetPos(chrono.ChVectorD(0, -5, 0))
-system.Add(floor_body)
+floor_body = chrono.ChBodyEasyBox(10, 1, 10, 1000, material)
+floor_body.SetBodyFixed(True)
+my_system.Add(floor_body)
 
 
-box_body = chrono.ChBodyEasyBox(1, 1, 1, 10, False, False, material)
+box_body = chrono.ChBodyEasyBox(1, 1, 1, 10, material)
 box_body.SetPos(chrono.ChVectorD(0, 2, 0))
-system.Add(box_body)
+my_system.Add(box_body)
 
 
-rospy.init_node('chrono_ros_node')
+class CustomROSHandler(chrono_ros.ChROSHandler):
+    def __init__(self, topic_name):
+        self.publisher = rospy.Publisher(topic_name, Int32, queue_size=10)
 
-
-class CustomROSHandler(ros.ChROSHandler):
-    def __init__(self, system):
-        super(CustomROSHandler, self).__init__(system)
-        self.pub = rospy.Publisher('custom_topic', Int32, queue_size=10)
-
-    def OnUpdate(self, system):
+    def Update(self, system):
+        
         msg = Int32()
-        msg.data = 1  
-        self.pub.publish(msg)
+        msg.data = 123  
+        self.publisher.publish(msg)
 
 
-ros_manager = ros.ChROSManager(system)
-ros_manager.AddHandler(ros.ChROSClockHandler(system))
-ros_manager.AddHandler(ros.ChROSBodyHandler(system))
-ros_manager.AddHandler(ros.ChROSTransformHandler(system))
-ros_manager.AddHandler(CustomROSHandler(system))
+ros_manager = chrono_ros.ChROSManager(my_system)
+ros_manager.AddClockHandler()
+ros_manager.AddBodyHandler(floor_body)
+ros_manager.AddBodyHandler(box_body)
 
 
+custom_handler = CustomROSHandler("custom_topic")
+ros_manager.AddHandler(custom_handler)
+
+
+time_step = 0.01
 while rospy.is_shutdown() is False:
-    system.DoStepDynamics(0.01)
+    my_system.DoStepDynamics(time_step)
     ros_manager.Update()
+    chrono.ChTime.Sleep(time_step)

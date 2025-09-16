@@ -7,7 +7,7 @@ chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 
-initLoc = chrono.ChVector3d(-5, 0, 0.5)
+initLoc = chrono.ChVector3d(-5, 0, 0.5)  
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 
@@ -17,6 +17,7 @@ vis_type = veh.VisualizationType_MESH
 chassis_collision_type = veh.CollisionType_NONE
 
 
+terrain_model = veh.RigidTerrain.BOX  
 terrainHeight = 0      
 terrainLength = 100.0  
 terrainWidth = 100.0   
@@ -34,6 +35,7 @@ tire_step_size = step_size
 
 
 render_step_size = 1.0 / 50  
+
 
 
 vehicle = veh.M113()
@@ -69,6 +71,7 @@ patch = terrain.AddPatch(patch_mat,
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
+
 
 
 vis = veh.ChTrackedVehicleVisualSystemIrrlicht()
@@ -108,16 +111,6 @@ render_steps = math.ceil(render_step_size / step_size)
 step_number = 0
 render_frame = 0
 vehicle.GetVehicle().EnableRealtime(True)
-
-
-box = chrono.ChBoxShape()
-box.SetLengths(chrono.ChVector3D(10, 10, 10))
-box.SetPos(chrono.ChVector3D(0, 0, 0))
-box.SetRot(chrono.ChQuaternionD(0, 0, 0))
-box.SetColor(chrono.ChColor(0.5, 0.5, 0.5))
-box.SetBody(vehicle.GetVehicle().GetChassisBody())
-vehicle.GetSystem().Add(box)
-
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
     
@@ -141,3 +134,13 @@ while vis.Run() :
     vis.Advance(step_size)
     
     step_number += 1
+
+    
+    if step_number % 100 == 0:
+        long_box = chrono.ChBox(chrono.ChVector3d(2, 1, 0.5), 1000)
+        long_box.SetPos(chrono.ChVector3d(0, 0, 0))
+        long_box.SetRot(chrono.ChQuaterniond(1, 0, 0, 0))
+        long_box.SetColor(chrono.ChColor(0.5, 0.5, 0.5))
+        long_box.SetCollide(True)
+        long_box.SetBodyFixed(False)
+        vehicle.GetSystem().Add(long_box)

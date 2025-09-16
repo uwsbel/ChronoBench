@@ -1,50 +1,77 @@
 import pychrono as chrono
-import pychrono.irrlicht as irr
+import pychrono.irrlicht as irrlicht
+import pychrono.vehicle as vehicle
 
 
 system = chrono.ChSystemNSC()
 system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
 
-ground = chrono.ChBodyEasyBox(10, 1, 10, 1000, True, True)
+ground = chrono.ChBody()
 ground.SetBodyFixed(True)
-ground.SetPos(chrono.ChVectorD(0, -1, 0))
-ground.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
+ground.SetCollide(True)
+
+
+ground_collision = ground.GetCollisionModel()
+ground_collision.ClearModel()
+ground_collision.AddBox(100, 1, 100)  
+ground_collision.BuildModel()
+ground.SetMaterialSurface(chrono.ChMaterialSurfaceNSC())
+ground.GetMaterialSurface(0).SetFriction(0.9)
+
+
+ground_box = chrono.ChBoxShape()
+ground_box.GetBoxGeometry().Size = chrono.ChVectorD(100, 1, 100)
+ground.AddAsset(ground_box)
+
+ground_texture = chrono.ChTexture()
+ground_texture.SetTextureFilename(chrono.GetChronoDataFile("textures/concrete.jpg"))
+ground.AddAsset(ground_texture)
+
 system.Add(ground)
 
 
-rover = chrono.ChRoverCuriosity()
-rover.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0.5, 0), chrono.QUNIT))
-rover.SetChassisVisualizationType(chrono.ChRoverCuriosity.VisualizationType_MESH)
-rover.SetWheelVisualizationType(chrono.ChRoverCuriosity.VisualizationType_MESH)
+rover = vehicle.ChRoverCuriosity()
+rover.Initialize(system, chrono.ChCoordsysD(chrono.ChVectorD(0, 2, 0), chrono.ChQuaternionD(1, 0, 0, 0)))
 system.Add(rover)
 
 
-app = irr.ChIrrApp(system, 'Curiosity Rover Simulation', irr.dimension2du(1024, 768))
-app.AddLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))
+app = irrlicht.ChIrrApp(system, 'Curiosity Rover Simulation', irrlicht.dimension2du(1280, 720))
+app.AddTypicalLights()
 app.AddSkyBox()
-app.AddCamera(chrono.ChVectorD(0, 3, -6), chrono.ChVectorD(0, 0, 0))
-app.SetLight(chrono.ChVectorD(0, 10, -10), 1.0)
+app.AddCamera(chrono.ChVectorD(0, 5, -10), chrono.ChVectorD(0, 0, 0))
+app.AssetBindAll()
+app.AssetUpdateAll()
+
+
+app.GetSceneManager().getVideoDriver().setTextureFilter(irrlicht.ETFT_ANISOTROPIC)
 app.EnableShadows()
 
 
-driver = irr.ChIrrGuiDriver(app)
-driver.SetSteeringDelta(0.05)
-driver.SetThrottleDelta(0.05)
+guienv = app.GetDevice().getGUIEnvironment()
+logo = guienv.addImage(
+    irrlicht.rect(10, 10, 110, 110),
+    0, -1, irrlicht.SColor(255, 255, 255, 255),
+    irrlicht.core.stringw("Chrono Logo")
+)
 
 
 while app.GetDevice().run():
     
-    app.BeginScene(True, True, irr.SColor(255, 140, 161, 194))
+    keymap = app.GetDevice().getEventReceiver().getKeyMap()
+    steering = 0.0
+    if keymap[irrlicht.KEY_LEFT]:
+        steering = -1.0
+    elif keymap[irrlicht.KEY_RIGHT]:
+        steering = 1.0
     
     
+    rover.SetSteering(steering)
+    
+    
+    system.DoStepDynamics(1e-3)
+    
+    
+    app.BeginScene()
     app.DrawAll()
-    
-    
-    rover.SetDriverInput(driver.GetThrottle(), driver.GetSteering())
-    
-    
     app.EndScene()
-    
-    
-    system.DoStepDynamics(0.01)

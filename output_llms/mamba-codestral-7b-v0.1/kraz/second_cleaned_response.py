@@ -20,7 +20,7 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 
-
+terrain_model = veh.RigidTerrain.BOX
 terrainHeight = 0      
 terrainLength = 100.0  
 terrainWidth = 100.0   
@@ -38,7 +38,6 @@ tire_step_size = step_size
 
 
 render_step_size = 1.0 / 50  
-
 
 
 vehicle = veh.Kraz()
@@ -61,10 +60,7 @@ patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-patch = terrain.AddPatch(patch_mat,
-    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
-    terrainLength, terrainWidth)
-
+patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), terrainLength, terrainWidth)
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
@@ -104,11 +100,6 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-
-lane_change_time = 10.0  
-lane_change_step = lane_change_time / render_step_size  
-lane_change_count = 0  
-
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
 
@@ -141,14 +132,9 @@ while vis.Run() :
     realtime_timer.Spin(step_size)
 
     
-    if step_number % lane_change_step == 0:
-        lane_change_count += 1
-        if lane_change_count == 1:
-            driver.SetChassisLocalPosition(chrono.ChVector3d(0, 0, 0))  
-            driver.SetChassisLocalDirection(chrono.ChQuaterniond(1, 0, 0, 0))  
-            driver.SetSteeringDelta(0.5)  
-        elif lane_change_count == 2:
-            driver.SetSteeringDelta(-0.5)  
-        elif lane_change_count == 3:
-            driver.SetSteeringDelta(0)  
-            lane_change_count = 0
+    if 10 < time < 20:
+        driver.SetControl(veh.ChVehicleIrrlichtInterface.Control_SetSteering, 0.5)
+    elif 20 < time < 30:
+        driver.SetControl(veh.ChVehicleIrrlichtInterface.Control_SetSteering, -0.5)
+    else:
+        driver.SetControl(veh.ChVehicleIrrlichtInterface.Control_SetSteering, 0)

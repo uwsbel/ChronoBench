@@ -5,7 +5,7 @@ import math
 
 
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
-veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
+veh.SetDataPath(chrono.GetChronoDataPath() + '/vehicle/')  
 
 
 initLoc = chrono.ChVector3d(-5, 0, 0.5)  
@@ -18,23 +18,21 @@ vis_type = veh.VisualizationType_MESH
 chassis_collision_type = veh.CollisionType_NONE
 
 
-terrainHeight = 0      
-terrainLength = 100.0  
-terrainWidth = 100.0   
+terrainHeight = 0
+terrainLength = 100.0
+terrainWidth = 100.0
 
 
 trackPoint = chrono.ChVector3d(0.0, 0.0, 0.1)
 
 
 contact_method = chrono.ChContactMethod_SMC
-contact_vis = False
 
 
 step_size = 5e-4
-tire_step_size = step_size
 
 
-render_step_size = 1.0 / 50  
+render_step_size = 1.0 / 50
 
 
 vehicle = veh.M113()
@@ -68,35 +66,37 @@ terrain = veh.RigidTerrain(vehicle.GetSystem())
 patch = terrain.AddPatch(patch_mat, 
     chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
     terrainLength, terrainWidth)
-
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 
 box = chrono.ChBody()
-box.SetPos(chrono.ChVector3d(0, 0, 0.25))  
-box.SetMass(1000)  
-box.SetInertiaXX(chrono.ChVector3d(1, 1, 1))  
-
-
-box.GetCollisionModel().ClearModel()
-box.GetCollisionModel().AddBox(patch_mat, 2.5, 1, 0.25)  
-box.GetCollisionModel().BuildModel()
+box.SetPos(chrono.ChVector3d(20, 0, 0.5))  
+box.SetBodyFixed(True)
 box.SetCollide(True)
 
 
-box_vis = chrono.ChVisualShapeBox(5, 2, 0.5)  
+box_mat = chrono.ChContactMaterialSMC()
+box_mat.SetFriction(0.9)
+box_mat.SetRestitution(0.01)
+
+
+box.GetCollisionModel().ClearModel()
+box.GetCollisionModel().AddBox(box_mat, 5, 1, 0.5)  
+box.GetCollisionModel().BuildModel()
+
+
+box_vis = chrono.ChBoxShape(chrono.ChVector3d(5, 1, 0.5))
 box_vis.SetColor(chrono.ChColor(1, 0, 0))  
-box.AddVisualShape(box_vis)
+box.AddAsset(box_vis)
 
 
-box.SetBodyFixed(True)
 vehicle.GetSystem().Add(box)
 
 
 vis = veh.ChTrackedVehicleVisualSystemIrrlicht()
-vis.SetWindowTitle('M113 Demo')
+vis.SetWindowTitle('M113 Mobility Test')
 vis.SetWindowSize(1280, 1024)
 vis.SetChaseCamera(trackPoint, 9.0, 1.5)
 vis.Initialize()
@@ -115,7 +115,6 @@ braking_time = 0.3
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
-
 driver.Initialize()
 
 
@@ -143,7 +142,7 @@ while vis.Run():
 
     
     driver_inputs = driver.GetInputs()
-    driver_inputs.m_throttle = 0.8  
+    driver_inputs.throttle = 0.8  
 
     
     driver.Synchronize(time)

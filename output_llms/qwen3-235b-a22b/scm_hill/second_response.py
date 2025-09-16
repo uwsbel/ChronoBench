@@ -3,13 +3,13 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 import numpy as np
-import pychrono.sensor as sens  # Added sensor module import
+import pychrono.sensor as sens
 
 """
 !!!! Set this path before running the demo!
 """
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
-veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
+veh.SetDataPath(chrono.GetChronoDataPath() + '/vehicle/')
 
 # Initial vehicle location and orientation
 initLoc = chrono.ChVector3d(-15, 0, 1.2)
@@ -25,11 +25,11 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_RIGID
 
 # Rigid terrain
-terrainHeight = 0      # terrain height
-terrainLength = 100.0  # size in X direction
-terrainWidth = 100.0   # size in Y direction
+terrainHeight = 0      
+terrainLength = 100.0  
+terrainWidth = 100.0   
 
-# Point tracked by the camera
+# Tracking point for camera
 trackPoint = chrono.ChVector3d(0.0, 0.0, 1.71)
 
 # Contact method
@@ -40,10 +40,10 @@ contact_vis = False
 step_size = 1e-3
 tire_step_size = step_size
 
-# Time interval between two render frames
-render_step_size = 1.0 / 20  # FPS = 50
+# Render frame rate
+render_step_size = 1.0 / 50  
 
-# Create the HMMWV vehicle, set parameters, and initialize
+# Create the HMMWV vehicle
 vehicle = veh.HMMWV_Full()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
@@ -61,43 +61,30 @@ vehicle.SetTireVisualizationType(vis_type)
 
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
-# Create the SCM deformable terrain patch
+# Create SCM terrain
 terrain = veh.SCMTerrain(vehicle.GetSystem())
-terrain.SetSoilParameters(2e6,   # Bekker Kphi
-                            0,     # Bekker Kc
-                            1.1,   # Bekker n exponent
-                            0,     # Mohr cohesive limit (Pa)
-                            30,    # Mohr friction limit (degrees)
-                            0.01,  # Janosi shear coefficient (m)
-                            2e8,   # Elastic stiffness (Pa/m)
-                            3e4    # Damping (Pa s/m)
-)
-
-# Add moving patch around vehicle chassis
+terrain.SetSoilParameters(2e6, 0, 1.1, 0, 30, 0.01, 2e8, 3e4)
 terrain.AddMovingPatch(vehicle.GetChassisBody(), chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(5, 3, 1))
-
-# Set plot type for SCM (false color plotting)
 terrain.SetPlotType(veh.SCMTerrain.PLOT_SINKAGE, 0, 0.1)
-
-# Initialize the SCM terrain with correct dimensions
-terrain.Initialize(veh.GetDataFile("terrain/height_maps/bump64.bmp"),
-                   terrainLength, terrainWidth,  # Corrected from hardcoded 40,40
-                   -1, 1, 0.02)
-
+terrain.Initialize(veh.GetDataFile("terrain/height_maps/bump64.bmp"), 40, 40, -1, 1, 0.02)
 terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
 
-# Create 5 random box obstacles
+# Create random obstacles
 for i in range(5):
-    obstacle = chrono.ChBodyEasyBox(1.5, 1.5, 1.5, 1000)  # width, length, height, density
-    obstacle.SetPos(chrono.ChVector3d(
-        np.random.uniform(-terrainLength/2 + 5, terrainLength/2 - 5),
-        np.random.uniform(-terrainWidth/2 + 5, terrainWidth/2 - 5),
-        0.75  # Half of box height
-    ))
+    obstacle = chrono.ChBody()
+    x = np.random.uniform(-50, 50)
+    y = np.random.uniform(-50, 50)
+    z = 0.5
+    obstacle.SetPos(chrono.ChVector3d(x, y, z))
     obstacle.SetBodyFixed(True)
-    vehicle.GetSystem().Add(obstacle)
+    obstacle.GetCollisionModel().ClearModel()
+    obstacle.GetCollisionModel().AddBox(0.5, 0.5, 0.5)  # Half-lengths
+    obstacle.GetCollisionModel().BuildModel()
+    box = chrono.ChVisualShapeBox(1, 1, 1)  # Full lengths
+    obstacle.AddVisualShape(box)
+    vehicle.GetSystem().AddBody(obstacle)
 
-# Create the vehicle Irrlicht interface
+# Create visualization system
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('HMMWV Demo')
 vis.SetWindowSize(1280, 1024)
@@ -108,13 +95,11 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
-# Create the driver system
+# Create driver system
 driver = veh.ChInteractiveDriverIRR(vis)
-
-# Set the time response for steering and throttle keyboard inputs
-steering_time = 1.0  # time to go from 0 to +1 (or from 0 to -1)
-throttle_time = 1.0  # time to go from 0 to +1
-braking_time = 0.3   # time to go from 0 to +1
+steering_time = 1.0
+throttle_time = 1.0
+braking_time = 0.3
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
@@ -122,69 +107,49 @@ driver.Initialize()
 
 # Create sensor manager and lidar
 manager = sens.ChSensorManager(vehicle.GetSystem())
-
-# Create and configure lidar sensor
+offset_pose = chrono.ChFramed(chrono.ChVector3d(0, 0, 2), chrono.ChQuaterniond(1, 0, 0, 0))
 lidar = sens.ChLidarSensor(
-    vehicle.GetChassisBody(),  # body to attach to
-    10,  # update rate in Hz
-    chrono.ChFrameD(chrono.ChVectorD(0, 0, 2), chrono.QUNIT),  # position and orientation
-    800,  # horizontal samples
-    1,    # vertical samples
-    chrono.CH_C_PI,  # horizontal field of view
-    -chrono.CH_C_PI / 12, chrono.CH_C_PI / 12,  # vertical field of view
-    100,  # max distance
-    sens.LidarBeamShape_RECTANGULAR,
-    2,    # sample radius
-    0.003,  # divergence angle
-    0.003,  # divergence angle
-    sens.LidarReturnMode_STRONGEST_RETURN  # return mode
+    vehicle.GetChassisBody(),
+    100,
+    30,
+    offset_pose,
+    100,
+    360,
+    30,
+    0.01,
+    sens.ChLidarSensor.LidarType_Cylinder
 )
 lidar.SetName("Lidar Sensor")
 lidar.SetLag(0)
 lidar.SetCollectionWindow(0.1)
-
-# Add filters for lidar visualization
-lidar.PushFilter(sens.ChFilterDIAccess())
-lidar.PushFilter(sens.ChFilterPCfromDepth())
-lidar.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, "Point Cloud"))
+lidar.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1, "Point Cloud"))
 manager.AddSensor(lidar)
 
-# Output vehicle mass
-print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
-
 # Simulation loop
+print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
+render_steps = math.ceil(render_step_size / step_size)
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
-render_frame = 0
-render_steps = math.ceil(render_step_size / step_size)
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
-    # Render scene
     if step_number % render_steps == 0:
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
-        render_frame += 1
 
-    # Get driver inputs
     driver_inputs = driver.GetInputs()
-
-    # Update modules
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
 
-    # Advance simulation
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
-    
-    # Update sensor manager
-    manager.Update()  # Added as per instructions
+    manager.Update()
 
     step_number += 1
     realtime_timer.Spin(step_size)

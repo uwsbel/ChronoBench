@@ -118,7 +118,7 @@ sys.AddLink(link_revoluteE)
 
 
 link_beltDE = chrono.ChLinkSynchro()
-link_beltDE.Initialize(mbody_gearD, mbody_pulleyE, chrono.ChVector3d(-10, -11, -9))
+link_beltDE.Initialize(mbody_gearD, mbody_pulleyE, chrono.ChFramed())
 sys.AddLink(link_beltDE)
 
 

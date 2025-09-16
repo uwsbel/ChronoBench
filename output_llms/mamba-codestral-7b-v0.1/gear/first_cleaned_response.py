@@ -1,53 +1,62 @@
 import pychrono
 
 
-system = pychrono.ChSystemSMC()
+system = pychrono.ChSystemNSC()
 
 
+truss = pychrono.ChTruss()
+truss.AddNode(pychrono.ChVectorD(0, 0, 0))
+truss.AddNode(pychrono.ChVectorD(1, 0, 0))
+truss.AddElement(0, 1, 1e6)
+system.Add(truss)
 
-fixed_truss = pychrono.ChBodyEasyBox(1, 1, 1, 1000, True, True)
-fixed_truss.SetPos(pychrono.ChVectorD(0, 0, 0))
-system.AddBody(fixed_truss)
 
-
-rotating_bar = pychrono.ChBodyEasyBox(1, 1, 1, 1000, True, True)
+rotating_bar = pychrono.ChBody()
+rotating_bar.SetMass(1)
+rotating_bar.SetInertiaXX(pychrono.ChVectorD(1, 1, 1))
 rotating_bar.SetPos(pychrono.ChVectorD(2, 0, 0))
-system.AddBody(rotating_bar)
+rotating_bar.SetWvel_loc(pychrono.ChVectorD(0, 0, 1))
+system.Add(rotating_bar)
 
 
-gear1 = pychrono.ChBodyEasyBox(1, 1, 1, 1000, True, True)
-gear1.SetPos(pychrono.ChVectorD(4, 0, 0))
-system.AddBody(gear1)
+gear = pychrono.ChGear()
+gear.SetGearRadius(1)
+gear.SetBacklash(0.01)
+gear.SetTeethNumber(20)
+gear.SetInvGearRadius(1)
+gear.SetInvBacklash(0.01)
+gear.SetInvTeethNumber(20)
+gear.SetAngle(0)
+gear.SetDirection(1)
+system.Add(gear)
 
 
-gear2 = pychrono.ChBodyEasyBox(1, 1, 1, 1000, True, True)
-gear2.SetPos(pychrono.ChVectorD(6, 0, 0))
-system.AddBody(gear2)
-
-
-gear_motor = pychrono.ChBodyEasyBox(1, 1, 1, 1000, True, True)
-gear_motor.SetPos(pychrono.ChVectorD(8, 0, 0))
-system.AddBody(gear_motor)
-
-
-
+gear_motor = pychrono.ChGearMotor()
+gear_motor.SetSphericalContact(True)
+gear_motor.SetAngleFunction(pychrono.ChFunction_Const(0))
+gear_motor.SetAngleFunctionDerivative(pychrono.ChFunction_Const(1))
+system.Add(gear_motor)
 
 
 visualization = pychrono.ChVisualSystemIrrlicht()
 visualization.AttachSystem(system)
 visualization.SetWindowSize(800, 600)
 visualization.SetWindowTitle('Epicyclic Gears Simulation')
-visualization.SetRenderMode(pychrono.ChVisualization.eSHADED, 40)
+visualization.SetCameraPosition(pychrono.ChVectorD(5, 5, 5), pychrono.ChVectorD(0, 0, 0))
 visualization.Initialize()
 visualization.AddLogo()
-visualization.AddCamera(pychrono.ChVectorD(10, 10, 10), pychrono.ChVectorD(0, 0, 0))
+visualization.AddSkyBox()
+visualization.AddCamera()
+visualization.AddLight()
+visualization.AddTypicalLights()
+visualization.AddTruss(truss, 0.01, pychrono.ChColor(0, 0, 255))
+visualization.AddBody(rotating_bar, 0.01, pychrono.ChColor(255, 0, 0))
+visualization.AddGear(gear, 0.01, pychrono.ChColor(0, 255, 0))
+visualization.AddGearMotor(gear_motor, 0.01, pychrono.ChColor(255, 255, 0))
 
 
-while system.GetTime() < 10:
+while visualization.Run():
+    system.DoStepDynamics(0.01)
     visualization.BeginScene()
     visualization.Render()
     visualization.EndScene()
-    system.DoStepDynamics(0.01)
-
-
-visualization.Close()

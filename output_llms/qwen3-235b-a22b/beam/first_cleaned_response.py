@@ -1,6 +1,6 @@
 import pychrono as chrono
 import pychrono.fea as fea
-import pychrono.irrlicht as irr
+import pychrono.irrlicht as irrlicht
 
 
 system = chrono.ChSystemNSC()
@@ -9,56 +9,66 @@ system = chrono.ChSystemNSC()
 mesh = fea.ChMesh()
 
 
-nodeA = fea.ChNodeFEAxyz(chrono.ChVectorD(0, 0, 0))  
-nodeB = fea.ChNodeFEAxyz(chrono.ChVectorD(1, 0, 0))  
+num_nodes = 10
+beam_length = 1.0
+beam_width = 0.02
+beam_height = 0.02
+E = 2e11  
+nu = 0.3   
+G = E / (2 * (1 + nu))  
+density = 7800  
 
 
-mesh.AddNode(nodeA)
-mesh.AddNode(nodeB)
+area = beam_width * beam_height
+Iyy = (beam_width * beam_height**3) / 12
+Izz = (beam_height * beam_width**3) / 12
+J = Iyy + Izz  
 
 
-
-material = fea.ChMaterialBeamIso(2e6, 0.3, 1000)
-
-
-beam_element = fea.ChElementBeamEuler()
-beam_element.SetNodes(nodeA, nodeB)
-beam_element.SetMaterial(material)
-beam_element.SetAx(0.01)    
-beam_element.SetIyy(0.0001)  
-beam_element.SetIzz(0.0001)  
-beam_element.SetJ(0.0002)    
+material = fea.ChMaterialBeamANCF(density, E, G, area, Iyy, Izz, J)
 
 
-mesh.AddElement(beam_element)
+nodes = []
+for i in range(num_nodes):
+    x = i * beam_length / (num_nodes - 1)
+    node = fea.ChNodeFEAxyz(chrono.ChVectorD(x, 0, 0))
+    mesh.AddNode(node)
+    nodes.append(node)
+
+
+for i in range(num_nodes - 1):
+    element = fea.ChElementBeam()
+    element.SetNodes(nodes[i], nodes[i+1])
+    element.SetMaterial(material)
+    mesh.AddElement(element)
 
 
 system.Add(mesh)
 
 
-constraint = chrono.ChLinkMateFix()
-constraint.Initialize(nodeA, system.GetGroundBody())
+constraint = chrono.ChLinkPointFrame()
+constraint.Initialize(nodes[0], system.GetGroundBody())
 system.Add(constraint)
 
 
-vis_mesh = fea.ChVisualizationFEAmesh(mesh)
-vis_mesh.SetFEMdataType(fea.ChVisualizationFEAmesh.E_PLOT_BEAM_VONMISES)  
-vis_mesh.SetColorscaleMinMax(0, 500)  
-mesh.AddAsset(vis_mesh)
-
-
-application = irr.ChIrrApp(system, 'PyChrono Beam Finite Element Simulation', irr.dimension2du(1024, 768))
-
-application.AddTypicalSky()
+application = irrlicht.ChIrrApp(system, 'Beam Finite Element Simulation', irrlicht.dimension2du(1024, 768))
+application.AddTypicalLogo()
+application.AddTypicalCamera(irrlicht.vector3df(0, 0.5, 1))
 application.AddTypicalLights()
-application.AddTypicalCamera(irr.vector3df(0, 2, -3))  
-
 application.AssetBindAll()
 application.AssetUpdateAll()
 
 
+visual_asset = fea.ChVisualizationFEAmesh(mesh)
+visual_asset.SetFEMdataType(fea.ChVisualizationFEAmesh.E_PLOT_ELEM_BEAM_VONMISES_STRAIN)
+visual_asset.SetColorscaleMinMax(0, 5e7)
+visual_asset.SetBeamRadius(0.005)
+mesh.AddAsset(visual_asset)
+
+
+application.SetTimestep(0.001)
 while application.GetDevice().run():
     application.BeginScene()
     application.DrawAll()
     application.EndScene()
-    system.DoStepDynamics(0.01)
+    system.DoStepDynamics(application.GetTimestep())

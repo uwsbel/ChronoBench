@@ -35,11 +35,11 @@ pend_1.AddVisualShape(cyl_1, chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleY
 # The pendulum is initially horizontal, pointing towards the positive X direction
 pend_1.SetPos(chrono.ChVector3d(1, 0, 1))
 
-# Set the initial angular velocity of the pendulum
+# Set an initial angular velocity for the pendulum
 pend_1.SetWvel_par(chrono.ChVector3d(0, 0, 1))  # Angular velocity around the Z-axis
 
 # Create a spherical joint to connect the pendulum to the ground
-# The spherical joint allows rotation around three axes
+# The spherical joint allows rotation around all three axes
 spherical_1 = chrono.ChLinkLockSpherical()
 spherical_1.Initialize(ground, pend_1, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 1)))
 sys.AddLink(spherical_1)

@@ -82,15 +82,13 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 
-driver_inputs = veh.ChDataDriver()
-driver_inputs.Initialize(vehicle.GetVehicle())
+driver_inputs = veh.DataDriverInputs()
+driver_inputs.Insert(veh.DataDriverEntry(0.0, 0.0, 0.0))
+driver_inputs.Insert(veh.DataDriverEntry(0.1, 1.0, 0.0))
+driver_inputs.Insert(veh.DataDriverEntry(0.5, 1.0, 0.7))
+driver = veh.ChDataDriver(driver_inputs)
 
-
-driver_inputs.SetSequence(veh.vector_Entry([
-    veh.DataDriverEntry(0.0, 0.0, 0.0),
-    veh.DataDriverEntry(0.1, 1.0, 0.0),
-    veh.DataDriverEntry(0.5, 1.0, 0.7)
-]))
+driver.Initialize()
 
 
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
@@ -114,13 +112,16 @@ while vis.Run():
         render_frame += 1
 
     
-    driver_inputs.Synchronize(time)
+    driver_inputs = driver.GetInputs()
+
+    
+    driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
 
     
-    driver_inputs.Advance(step_size)
+    driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)

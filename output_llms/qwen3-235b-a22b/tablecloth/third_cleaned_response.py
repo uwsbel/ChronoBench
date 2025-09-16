@@ -29,15 +29,9 @@ mesh.SetAutomaticGravity(False)
 nodePlotA = fea.ChNodeFEAxyz()
 nodePlotB = fea.ChNodeFEAxyz()
 nodesLoad = []
-
-
 ref_X = chrono.ChFunctionInterp()
 ref_Y = chrono.ChFunctionInterp()
-
-
 load_force = chrono.ChVector3d()
-
-
 mnodemonitor = fea.ChNodeFEAxyz()
 melementmonitor = fea.ChElementShellBST()
 
@@ -47,11 +41,7 @@ if True:
     E = 6e4
     nu = 0.0
     thickness = 0.01
-
-    
-    melasticity = fea.ChElasticityKirchhoffIsotropic(E, nu)
-
-    
+    melasticity = fea.ChElasticityKirchhoffIsothropic(E, nu)
     material = fea.ChMaterialShellKirchhoff(melasticity)
     material.SetDensity(density)
 
@@ -63,8 +53,6 @@ if True:
 
     
     mynodes = []
-
-    
     for iz in range(nsections_z + 1):
         for ix in range(nsections_x + 1):
             p = chrono.ChVector3d(ix * (L_x / nsections_x), 0, iz * (L_z / nsections_z))
@@ -84,12 +72,12 @@ if True:
 
             
             boundary_1 = mynodes[(iz + 1) * (nsections_x + 1) + ix + 1]
-            boundary_2 = mynodes[(iz + 1) * (nsections_x + 1) + ix - 1] if ix > 0 else None
-            boundary_3 = mynodes[(iz - 1) * (nsections_x + 1) + ix + 1] if iz > 0 else None
+            boundary_2 = mynodes[(iz + 1) * (nsections_x + 1) + ix - 1] if ix > 0 else mynodes[(iz + 1) * (nsections_x + 1) + ix]
+            boundary_3 = mynodes[(iz - 1) * (nsections_x + 1) + ix + 1] if iz > 0 else mynodes[(iz) * (nsections_x + 1) + ix + 1]
 
             melementA.SetNodes(
-                mynodes[iz * (nsections_x + 1) + ix],
-                mynodes[iz * (nsections_x + 1) + ix + 1],
+                mynodes[(iz) * (nsections_x + 1) + ix],
+                mynodes[(iz) * (nsections_x + 1) + ix + 1],
                 mynodes[(iz + 1) * (nsections_x + 1) + ix],
                 boundary_1, boundary_2, boundary_3
             )
@@ -100,14 +88,14 @@ if True:
             mesh.AddElement(melementB)
 
             
-            boundary_1 = mynodes[iz * (nsections_x + 1) + ix]
-            boundary_2 = mynodes[iz * (nsections_x + 1) + ix + 2] if ix < nsections_x - 1 else None
-            boundary_3 = mynodes[(iz + 2) * (nsections_x + 1) + ix] if iz < nsections_z - 1 else None
+            boundary_1 = mynodes[(iz) * (nsections_x + 1) + ix]
+            boundary_2 = mynodes[(iz) * (nsections_x + 1) + ix + 2] if ix < nsections_x - 1 else mynodes[(iz) * (nsections_x + 1) + ix + 1]
+            boundary_3 = mynodes[(iz + 2) * (nsections_x + 1) + ix] if iz < nsections_z - 1 else mynodes[(iz + 1) * (nsections_x + 1) + ix]
 
             melementB.SetNodes(
                 mynodes[(iz + 1) * (nsections_x + 1) + ix + 1],
                 mynodes[(iz + 1) * (nsections_x + 1) + ix],
-                mynodes[iz * (nsections_x + 1) + ix + 1],
+                mynodes[(iz) * (nsections_x + 1) + ix + 1],
                 boundary_1, boundary_2, boundary_3
             )
             melementB.AddLayer(thickness, 0 * chrono.CH_DEG_TO_RAD, material)
@@ -119,10 +107,10 @@ if True:
 
     
     mvisualizeshellA = chrono.ChVisualShapeFEA(mesh)
-    mvisualizeshellA.SetSmoothFaces(True)    
-    mvisualizeshellA.SetWireframe(True)      
+    mvisualizeshellA.SetSmoothFaces(True)  
+    mvisualizeshellA.SetWireframe(True)    
+    mvisualizeshellA.SetBackfaceCull(True) 
     mvisualizeshellA.SetShellResolution(2)
-    mvisualizeshellA.SetBackfaceCull(True)   
     mesh.AddVisualShapeFEA(mvisualizeshellA)
 
     mvisualizeshellB = chrono.ChVisualShapeFEA(mesh)
@@ -149,11 +137,8 @@ sys.SetSolver(mkl_solver)
 
 
 timestep = 0.005
-
-
 sys.Setup()
 sys.Update()
-
 
 while vis.Run():
     vis.BeginScene()

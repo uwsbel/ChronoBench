@@ -1,59 +1,46 @@
 import pychrono as chrono
-import pychrono.ros as ros
-import pychrono.sensor as sensor
+import pychrono.ros as chrono_ros
+import rospy
 
 
-chrono.SetChronoDataPath('path_to_your_data_folder')
+chrono.SetChronoDataPath('PATH_TO_CHRONO_DATA')
 my_system = chrono.ChSystemNSC()
 
 
-ground = chrono.ChBody()
-ground_shape = chrono.ChBoxShape(10, 10, 1)
-ground.AddAsset(ground_shape)
-ground.SetPos(chrono.ChVectorD(0, -5, 0))
+mesh_path = 'PATH_TO_MESH_FILE'
+mesh_object = chrono.ChBodyEasyMesh(mesh_path, 1000, True, True)
+my_system.Add(mesh_object)
+
+
+ground = chrono.ChBodyEasyBox(20, 1, 20, 1000, True, True)
+ground.SetPos(chrono.ChVectorD(0, -1, 0))
 ground.SetBodyFixed(True)
 my_system.Add(ground)
 
 
-mesh_shape = chrono.ChObjShapeFile()
-mesh_shape.SetFilename('path_to_your_mesh_file')
-ground.AddAsset(mesh_shape)
+ground.SetPos_dt(chrono.ChVectorD(0.1, 0, 0))
 
 
-ground_force = chrono.ChForce()
-ground_force.SetMode(chrono.ChForce.FORCE)
-ground_force.SetF_x(10)  
-ground.AddForce(ground_force)
+sensor_manager = chrono.ChSensorManager(my_system)
+camera = chrono.ChCameraSensor()
+lidar = chrono.ChLidarSensor()
+gps = chrono.ChGPSSensor()
+accelerometer = chrono.ChAccelerometerSensor()
+gyroscope = chrono.ChGyroscopeSensor()
+magnetometer = chrono.ChMagnetometerSensor()
 
 
-sensor_manager = sensor.ChSensorManager(my_system)
+robot_id = 'my_robot'
+ros_manager = chrono_ros.ChRosManager(robot_id)
+ros_manager.AddSensor(camera, 'camera')
+ros_manager.AddSensor(lidar, 'lidar')
+ros_manager.AddSensor(gps, 'gps')
+ros_manager.AddSensor(accelerometer, 'accelerometer')
+ros_manager.AddSensor(gyroscope, 'gyroscope')
+ros_manager.AddSensor(magnetometer, 'magnetometer')
 
 
-camera = sensor.ChCameraSensor(ground, 640, 480, 30, 100)
-lidar = sensor.ChLidarSensor(ground, 640, 480, 30, 100)
-gps = sensor.ChGPSSensor(ground)
-accelerometer = sensor.ChAccelerometerSensor(ground)
-gyroscope = sensor.ChGyroscopeSensor(ground)
-magnetometer = sensor.ChMagnetometerSensor(ground)
-
-sensor_manager.AddSensor(camera)
-sensor_manager.AddSensor(lidar)
-sensor_manager.AddSensor(gps)
-sensor_manager.AddSensor(accelerometer)
-sensor_manager.AddSensor(gyroscope)
-sensor_manager.AddSensor(magnetometer)
-
-
-ros_manager = ros.ChROSManager(my_system)
-ros_manager.AddSensor(camera, 'camera_topic')
-ros_manager.AddSensor(lidar, 'lidar_topic')
-ros_manager.AddSensor(gps, 'gps_topic')
-ros_manager.AddSensor(accelerometer, 'accelerometer_topic')
-ros_manager.AddSensor(gyroscope, 'gyroscope_topic')
-ros_manager.AddSensor(magnetometer, 'magnetometer_topic')
-
-
-while my_system.GetChTime() < 10:  
+while my_system.GetChTime() < 10:
     sensor_manager.Update()
-    ros_manager.Synchronize()
     my_system.DoStepDynamics(0.01)
+    ros_manager.Synchronize(my_system.GetChTime())

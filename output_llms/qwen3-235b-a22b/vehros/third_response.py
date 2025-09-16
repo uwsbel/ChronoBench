@@ -3,14 +3,11 @@ import pychrono.vehicle as veh
 import pychrono.ros as chros
 from pychrono import irrlicht as chronoirr
 import math
-import pychrono.sensor as sens  # Added sensor module
+import pychrono.sensor as sens  # Added per instruction 1
 
 def main():
-    # Set Chrono data path
-    ch.SetChronoDataPath(ch.GetChronoDataPath())
     veh.SetDataPath(ch.GetChronoDataPath() + 'vehicle/')
-
-    # Create the HMMWV vehicle
+    # Create the HMMWV vehicle and set its parameters.
     hmmwv = veh.HMMWV_Full()
     hmmwv.SetContactMethod(ch.ChContactMethod_NSC)
     hmmwv.SetChassisCollisionType(veh.CollisionType_NONE)
@@ -23,15 +20,13 @@ def main():
     hmmwv.SetTireType(veh.TireModelType_TMEASY)
     hmmwv.SetTireStepSize(1e-3)
     hmmwv.Initialize()
-    
-    # Set visualization types
     hmmwv.SetChassisVisualizationType(veh.VisualizationType_MESH)
     hmmwv.SetSuspensionVisualizationType(veh.VisualizationType_MESH)
     hmmwv.SetSteeringVisualizationType(veh.VisualizationType_MESH)
     hmmwv.SetWheelVisualizationType(veh.VisualizationType_MESH)
     hmmwv.SetTireVisualizationType(veh.VisualizationType_MESH)
-
-    # Create terrain
+    
+    # Create the terrain for the vehicle to interact with.
     terrain = veh.RigidTerrain(hmmwv.GetSystem())
     patch_mat = ch.ChContactMaterialNSC()
     patch_mat.SetFriction(0.9)
@@ -39,14 +34,13 @@ def main():
     patch = terrain.AddPatch(patch_mat, ch.CSYSNORM, 100.0, 100.0)
     patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 100, 100)
     terrain.Initialize()
-
-    # Add visualization box
+    
+    # Add visualization box (instruction 2)
     box = ch.ChBodyEasyBox(1, 1, 1, 1000, True, True)
     box.SetPos(ch.ChVector3d(0, 0, 0.5))
-    box.SetName("Visualization_Box")
     hmmwv.GetSystem().Add(box)
-
-    # Create visualization system
+    
+    # Create run-time visualization
     vis = chronoirr.ChVisualSystemIrrlicht()
     vis.AttachSystem(hmmwv.GetSystem())
     vis.SetCameraVertical(ch.CameraVerticalDir_Z)
@@ -55,41 +49,38 @@ def main():
     vis.Initialize()
     vis.AddLogo(ch.GetChronoDataFile('logo_pychrono_alpha.png'))
     vis.AddSkyBox()
-    vis.AddCamera(ch.ChVector3d(-5, 2.5, 1.5), ch.ChVector3d(0, 0, 1))  # Updated camera position
+    vis.AddCamera(ch.ChVector3d(-5, 2.5, 1.5), ch.ChVector3d(0, 0, 1))  # Updated camera position (instruction 7)
     vis.AddTypicalLights()
     vis.AddLightWithShadow(ch.ChVector3d(1.5, -2.5, 5.5), ch.ChVector3d(0, 0, 0.5), 3, 4, 10, 40, 512)
 
-    # Create driver system
+    # Create and initialize the driver system.
     driver = veh.ChDriver(hmmwv.GetVehicle())
     driver.Initialize()
 
-    # Create sensor manager
+    # Create sensor manager and configure lidar (instructions 3-5)
     sens_manager = sens.ChSensorManager(hmmwv.GetSystem())
-
-    # Create and configure lidar sensor
+    sens_manager.SetTimeStep(1e-3)  # Set sensor manager time step
+    
     lidar = sens.ChLidarSensor(
         hmmwv.GetChassisBody(),  # Attach to chassis
         10,  # Update rate in Hz
-        sens.ChLidarSensor.LidarType_Rotational,  # Rotational lidar
+        ch.ChFrameD(ch.ChVector3d(0, 0, 2), ch.QUNIT),  # Position and orientation
         360,  # Horizontal samples
-        1,  # Vertical samples
-        math.radians(360),  # Horizontal FOV
-        0.01,  # Minimum distance
-        100  # Maximum distance
+        1,    # Vertical samples (2D lidar)
+        math.radians(30),  # Horizontal field of view
+        0.01,  # Minimum range
+        10     # Maximum range
     )
-    lidar.SetName("Lidar_Sensor")
+    lidar.SetName("Lidar Sensor")
     lidar.SetLag(0)
     lidar.SetCollectionWindow(0.1)
-    
-    # Add filters to lidar
+    # Add filters
     lidar.PushFilter(sens.ChFilterDIAccess())
     lidar.PushFilter(sens.ChFilterPCfromDepth())
-    lidar.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, "Point Cloud"))
-    
-    # Add lidar to sensor manager
+    lidar.PushFilter(sens.ChFilterVisualizePointCloud(512, 512, "Point Cloud"))
     sens_manager.AddSensor(lidar)
-
-    # Create ROS manager
+    
+    # Create the ROS manager and register handlers (instruction 5)
     ros_manager = chros.ChROSPythonManager()
     ros_manager.RegisterHandler(chros.ChROSClockHandler())
     ros_manager.RegisterHandler(chros.ChROSDriverInputsHandler(25, driver, "~/input/driver_inputs"))
@@ -97,44 +88,37 @@ def main():
     ros_manager.RegisterHandler(chros.ChROSLidarHandler(25, lidar, "~/output/lidar/data"))  # Register lidar handler
     ros_manager.Initialize()
 
-    # Simulation loop
+    # Start the simulation loop.
     time = 0
     time_step = 1e-3
     time_end = 30
     step_number = 0
     render_step_size = 1.0 / 25
     render_steps = math.ceil(render_step_size / time_step)
+    hmmwv.GetVehicle().EnableRealtime(True)
     
-    # Enable real-time simulation on the system
-    hmmwv.GetSystem().EnableRealtime(True)  # Corrected from GetVehicle() to GetSystem()
-
     while vis.Run():
         time = hmmwv.GetSystem().GetChTime()
         
-        # Render scene
         if step_number % render_steps == 0:
             vis.BeginScene()
             vis.Render()
             vis.EndScene()
-        
-        # Synchronize systems
+            
         driver_inputs = driver.GetInputs()
         driver.Synchronize(time)
         terrain.Synchronize(time)
         hmmwv.Synchronize(time, driver_inputs, terrain)
-        
-        # Advance simulation
+
         driver.Advance(time_step)
         terrain.Advance(time_step)
         hmmwv.Advance(time_step)
         
-        # Update sensor manager
+        # Update sensor manager (instruction 6)
         sens_manager.Update()
         
-        # Update ROS communication
         if not ros_manager.Update(time, time_step):
             break
-            
         step_number += 1
 
 if __name__ == "__main__":

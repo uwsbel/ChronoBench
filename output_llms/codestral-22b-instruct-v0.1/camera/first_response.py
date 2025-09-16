@@ -1,70 +1,59 @@
 import pychrono as chrono
-import pychrono.irrlicht as chronoirr
+import pychrono.irrlicht as irr
+import pychrono.sensor as sensor
+import numpy as np
 
-# 1. Initialize the PyChrono environment and core components.
-chrono.SetChronoDataPath('PYCHRONO_DATA_DIR')
+# Initialize PyChrono environment
+chrono.SetChronoDataPath('path_to_chrono_data_folder')
 my_system = chrono.ChSystemNSC()
 
-# 2. Add the required physical systems and objects as specified.
-# Create a triangular mesh shape
-mesh_shape = chrono.ChTriangleMeshConnected()
-mesh_shape.LoadWavefrontMesh('path_to_your_file.obj', True, True)
+# Create a triangular mesh from a Wavefront .obj file
+mesh = chrono.ChBodyEasyMesh('mesh.obj', 1000, False, True)
+mesh.SetPos(chrono.ChVectorD(0, 0, 0))
+mesh.SetBodyFixed(True)
+my_system.Add(mesh)
 
-# Create a fixed body and add the mesh shape to it
-body_fixed = chrono.ChBody()
-body_fixed.SetBodyFixed(True)
-body_fixed.AddAsset(mesh_shape)
-my_system.Add(body_fixed)
+# Create a camera sensor
+camera = sensor.ChCameraSensor(
+    name='Camera',
+    cam_location=chrono.ChVectorD(1, 1, 1),
+    lookat_location=chrono.ChVectorD(0, 0, 0),
+    resolution=chrono.ChVectorD(640, 480),
+    update_rate=10
+)
 
-# Add a camera sensor to the body
-camera = chrono.ChCameraSensor()
-camera.SetName('CameraSensor')
-camera.SetLocation(chrono.ChVectorD(0, 0, 1))
-camera.SetDirection(chrono.ChVectorD(0, 0, -1))
-camera.SetUpVector(chrono.ChVectorD(0, 1, 0))
-body_fixed.AddSensor(camera)
+# Apply noise filters to the camera images
+camera.AddFilter(sensor.ChFilterVisualize(sensor.ChFilterVisualize.FILTER_GRAYSCALE))
+camera.AddFilter(sensor.ChFilterVisualize(sensor.ChFilterVisualize.FILTER_NOISE_GAUSSIAN, 0.01))
 
-# Add a sensor manager
-manager = chrono.ChSensorManager(my_system)
-manager.AddSensor(camera)
-
-# Apply noise filters and visualizations to the camera images
-camera.SetNoiseType(chrono.ChCameraSensor.NOISE_GAUSSIAN)
-camera.SetNoiseParameters(0, 0.01)
-camera.SetImageFilterType(chrono.ChCameraSensor.FILTER_NONE)
-camera.SetImageFilterParameters(0, 0)
-
-# 3. Set necessary default parameters such as positions, forces, and interactions.
-# Set the initial camera position
-camera.SetLocation(chrono.ChVectorD(2, 2, 2))
-
-# Create an Irrlicht application to visualize the system
-application = chronoirr.ChIrrApp(my_system, 'Camera Sensor', chronoirr.dimension2du(1024, 768))
-application.AddTypicalLogo()
-application.AddTypicalCamera(chronoirr.vector3df(0, 0, -3))
-application.AddTypicalLights()
-application.AddSkyBox()
-application.AddLightWithShadow(chronoirr.vector3df(1.5, -2.5, -2.5),  # point
-                               chronoirr.vector3df(0, 0, 0),  # aimpoint
-                               3,  # radius (power)
-                               10,  # brightness
-                               256,  # mapsize
-                               0.5)  # softness
-application.AssetBindAll()
-application.AssetUpdateAll()
+# Add the camera sensor to the sensor manager
+sensor_manager = sensor.ChSensorManager(my_system)
+sensor_manager.AddSensor(camera)
 
 # Simulate the system
+application = irr.ChIrrApp(my_system, 'Camera Sensor Simulation', irr.dimension2du(800, 600), False)
+application.AddTypicalLogo()
+application.AddTypicalSky()
+application.AddTypicalCamera(irr.vector3df(1, 1, 1))
+application.AddTypicalLights()
+application.AddLightWithShadow(irr.vector3df(1.5, 5.5, -2.5), irr.vector3df(0, 0, 0), 3, 2.2, 7.2, 40, 512, irr.SColorf(0.8, 0.8, 1))
+application.SetTimestep(0.01)
+
 while application.GetDevice().run():
     application.BeginScene()
     application.DrawAll()
-    application.DoStep()
 
     # Dynamically update the camera's position in an orbit around the mesh
-    camera.SetLocation(chrono.ChVectorD(2 * chrono.ChMath.cos(my_system.GetChTime()),
-                                        2 * chrono.ChMath.sin(my_system.GetChTime()),
-                                        2))
+    time = my_system.GetChTime()
+    radius = 2
+    camera_pos = chrono.ChVectorD(radius * np.cos(time), radius * np.sin(time), 1)
+    camera.SetCameraLocation(camera_pos)
 
     # Print out camera buffer data at each step
-    print(camera.GetImageData())
+    camera_buffer = camera.GetMostRecentBuffer()
+    print(camera_buffer.Data)
 
+    application.DoStep()
     application.EndScene()
+
+application.GetDevice().closeDevice()

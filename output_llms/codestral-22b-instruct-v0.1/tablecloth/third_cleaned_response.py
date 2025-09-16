@@ -25,7 +25,6 @@ mesh = fea.ChMesh()
 sys.Add(mesh)
 
 
-
 mesh.SetAutomaticGravity(False)
 
 

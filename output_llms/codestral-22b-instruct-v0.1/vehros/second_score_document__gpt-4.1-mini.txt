@@ -4,166 +4,182 @@
 
 ### 1. Completeness (40 points)
 
-- **System Initialization:**  
-  The script creates a vehicle (`veh.HMMWV_Full()`), but it does **not explicitly create or access the underlying `ChSystemNSC` system object** before vehicle initialization. The vehicle internally creates its own system, but best practice and clarity suggest explicitly creating and managing the system object, especially since the terrain and visualization attach to it.  
-  **Deduction: 5 points** (minor omission, since the vehicle internally manages the system, but explicit system creation is clearer and recommended).
+- **System Initialization**:  
+  The script uses `veh.HMMWV_Full()` which internally creates and manages the system. However, the script does **not explicitly create or reference a `ChSystemNSC` or `ChSystemSMC` object** directly. According to the API, explicit system creation is a standard practice, especially to set system-wide parameters or to ensure clarity.  
+  **Deduction: 15 points** (missing explicit system initialization).
 
-- **Setting Chrono Data Path:**  
-  The call to `veh.SetDataPath(ch.GetChronoDataPath() + 'vehicle/')` is **incorrectly placed after vehicle creation**. According to best practices, the data path should be set **before** creating vehicle objects to ensure proper resource loading.  
-  **Deduction: 10 points** (important detail, could cause resource loading issues).
+- **Vehicle Setup**:  
+  The vehicle is fully configured with contact method, collision type, engine, transmission, drive, steering, tire types, visualization types, and initialized properly. This is complete and correct.
 
-- **Terrain Initialization:**  
-  Terrain is created and initialized properly with material and texture. This is complete.
+- **Terrain Setup**:  
+  Terrain is created with a patch and material, friction and restitution are set, texture applied, and terrain initialized. This is complete.
 
-- **Driver Initialization:**  
+- **Driver Setup**:  
   The driver is created and initialized properly.
 
-- **ROS Manager Setup:**  
-  ROS handlers are registered and initialized correctly.
+- **ROS Manager Setup**:  
+  ROS handlers are registered and initialized properly.
 
-- **Visualization Setup:**  
-  Visualization system is created, attached, and configured with window size, title, logo, skybox, camera, and lights. This is complete.
+- **Visualization Setup**:  
+  Visualization system is created, attached to the system, window size and title set, initialized, camera and lights added, skybox and logo added, and a shadow light added. This is complete.
 
-- **Simulation Loop:**  
-  The loop synchronizes and advances all components properly, and includes ROS update and visualization rendering.
+- **Simulation Loop**:  
+  The loop runs while the visualization device is active, with BeginScene, DrawAll, DoStep, EndScene calls. Synchronization and advance calls for driver, terrain, and vehicle are done in correct order. ROS manager is updated and loop breaks if update fails. Time is updated from system time.  
+  This is complete.
 
-- **Missing System Settings:**  
-  The script does not set collision system type explicitly (e.g., Bullet), nor does it set collision model margins or envelopes, which are often recommended for stability and accuracy.  
+- **Minor omissions**:  
+  - The `veh.SetDataPath()` call is made **after** the vehicle object creation, which is not the recommended order. The data path should be set **before** creating vehicle objects to ensure proper resource loading.  
   **Deduction: 5 points** (minor omission).
 
-- **Vehicle Initialization Details:**  
-  The vehicle is initialized with many parameters set, which is good.
+- **No explicit system-wide settings** such as collision system type or default collision envelope/margin are set. While not strictly mandatory, these are often recommended for stability and performance.  
+  **No deduction** here since not strictly essential.
 
-**Total Completeness Deduction: 5 + 10 + 5 = 20 points**
+**Total Completeness Deduction: 15 + 5 = 20 points**  
+**Remaining: 20/40**
 
 ---
 
 ### 2. Correctness (30 points)
 
-- **Order of `SetDataPath` and Vehicle Creation:**  
-  As noted, `SetDataPath` should be called before vehicle creation to avoid resource path issues. This is a correctness issue.  
+- **Use of `veh.HMMWV_Full()`**:  
+  This is correct and standard for vehicle simulation.
+
+- **`veh.SetDataPath()` usage**:  
+  Called after vehicle creation, which may cause resource loading issues. This is a **significant correctness issue** because vehicle initialization depends on data path for meshes and textures.  
   **Deduction: 15 points**
 
-- **Use of `ch.CSYSNORM` in Terrain Patch:**  
-  The terrain patch is added with `ch.CSYSNORM` as the coordinate system. According to the API, this is acceptable as a shorthand for a normalized coordinate system at the origin. No issue here.
+- **ChCoordsysd vs ChCoordsysD**:  
+  The code uses `ch.ChCoordsysd` and `ch.ChVector3d`, which is consistent with the API naming (lowercase 'd' suffix for double precision). This is correct.
 
-- **Driver Initialization:**  
-  `veh.ChDriver(hmmwv.GetVehicle())` is correct.
+- **`hmmwv.SetChassisCollisionType(veh.CollisionType_NONE)`**:  
+  This disables chassis collision. This is acceptable if intended, but usually chassis collision is enabled for realistic simulation. No error, but could be a logical issue if collisions are expected. No deduction.
 
-- **ROS Handlers:**  
-  The ROS handlers are registered with correct parameters.
-
-- **Visualization Camera Position:**  
-  The camera is set at `(0, -10, 5)`, which is reasonable.
-
-- **Use of `hmmwv.GetVehicle().EnableRealtime(True)`:**  
-  This is correct to enable real-time simulation.
-
-- **Advancing Simulation:**  
-  The script calls `Advance(time_step)` on driver, terrain, and vehicle, but **does not call `DoStepDynamics(time_step)` on the system**. According to the API, the system's `DoStepDynamics` is the standard way to advance simulation time. The vehicle and terrain `Advance` methods update internal states but do not advance the physics system.  
-  This is a significant correctness issue that can cause the simulation not to progress physically.  
-  **Deduction: 15 points**
-
-- **Use of `time` variable:**  
-  The script updates `time` from `hmmwv.GetSystem().GetChTime()`, which is correct.
-
-- **Use of `ros_manager.Update(time, time_step)`:**  
+- **`driver = veh.ChDriver(hmmwv.GetVehicle())`**:  
   Correct usage.
 
-- **No explicit collision system type set:**  
-  Not critical but recommended.
+- **`ros_manager.RegisterHandler(chros.ChROSDriverInputsHandler(25, driver, "~/input/driver_inputs"))`**:  
+  The frequency parameter is 25 Hz, which is reasonable.
 
-**Total Correctness Deduction: 15 + 15 = 30 points**
+- **`hmmwv.GetVehicle().EnableRealtime(True)`**:  
+  Correct usage.
+
+- **Visualization loop calls `app.DoStep()` before synchronization and advance**:  
+  According to best practices, the simulation step (`DoStep`) should be called **after** synchronization and advance of all components to ensure the system state is updated before rendering. Here, `app.DoStep()` is called **before** synchronization and advance calls, which is a **logical error** and can cause visualization lag or inconsistent states.  
+  **Deduction: 10 points**
+
+- **`time` variable is updated after `app.DoStep()`**:  
+  This is acceptable since `GetChTime()` returns the current system time.
+
+- **No explicit error in API usage otherwise**.
+
+**Total Correctness Deduction: 15 + 10 = 25 points**  
+**Remaining: 5/30**
 
 ---
 
 ### 3. Code Quality (10 points)
 
-- **Readability and Structure:**  
-  The code is structured into a `main()` function with a proper `if __name__ == "__main__":` guard. Variable names are meaningful (`hmmwv`, `terrain`, `driver`, `ros_manager`, `app`).
+- **Readability and structure**:  
+  The code is structured into a `main()` function, which is good practice. Variable names are meaningful (`hmmwv`, `terrain`, `driver`, `ros_manager`, `app`). Indentation and formatting are consistent.
 
-- **Comments:**  
-  The code lacks comments explaining the purpose of blocks or key steps. This reduces readability and maintainability.
+- **Comments**:  
+  There are **no comments** explaining the purpose of code blocks or parameters. Given the complexity of vehicle simulation, some comments would improve understandability.
 
-- **Formatting:**  
-  Formatting is consistent and PEP8 compliant.
+- **Imports**:  
+  All necessary modules are imported.
 
-- **Imports:**  
-  Imports are clear and grouped.
+- **Minor style issues**:  
+  - The `veh.SetDataPath()` call is not preceded by a comment or explanation, and its placement is suboptimal.  
+  - The main simulation loop is dense and could benefit from inline comments.
 
-**Deduction: 5 points for insufficient comments.**
+**Deduction: 5 points for lack of comments**  
+**No deduction for readability or structure**.
+
+**Remaining: 5/10**
 
 ---
 
 ### 4. Efficiency (10 points)
 
-- No obvious redundant or unnecessary calculations.
+- **No redundant or unnecessary calculations**:  
+  The code calls synchronization and advance methods once per loop iteration, which is standard.
 
-- The simulation loop is standard.
+- **`app.DoStep()` is called every frame**:  
+  This is necessary for advancing the simulation.
 
-- Minor optimization: The `time` variable is updated from the system time each loop iteration but also initialized to zero at the start unnecessarily.
+- **No obvious inefficiencies or redundant API calls**.
 
-- The `driver_inputs = driver.GetInputs()` line is unused (the variable is assigned but not used; instead, `driver_inputs` is passed to `hmmwv.Synchronize()`). This is a minor inefficiency.
+- **Possible optimization**:  
+  The `time` variable is updated from the system after `app.DoStep()`, but since synchronization and advance happen after, it might be better to update time earlier to avoid confusion. This is minor.
 
-**Deduction: 3 points for minor inefficiencies (unused variable and redundant initialization).**
+**Deduction: 3 points for minor optimization opportunity (time update placement and synchronization order)**
+
+**Remaining: 7/10**
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- No error handling or try-except blocks are present.
+- **No try-except blocks or error handling**:  
+  The script assumes all initializations succeed.
 
-- No checks for ROS manager initialization success or vehicle initialization success.
+- **No checks on ROS manager update return value except breaking the loop**:  
+  This is minimal but acceptable.
 
-- No handling of possible exceptions or invalid states.
+- **No handling of possible failures in vehicle or terrain initialization**.
 
-**Deduction: 5 points for lack of basic error handling.**
+- **No handling of keyboard or window close events beyond `app.GetDevice().run()`**.
+
+**Deduction: 5 points for lack of basic error handling**
+
+**Remaining: 0/5**
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
-- Visualization is set up with window size, title, logo, skybox, camera, and typical lights.
+- **Visualization system is properly created and attached**.
 
-- The logo is added without specifying a path; the API example suggests using `chrono.GetChronoDataFile()` to get the logo path. Here, `app.AddLogo()` is called without arguments, which may default to no logo or cause an error depending on the API version.  
-  **Deduction: 2 points for minor visualization issue.**
+- **Window size and title set**.
 
-- Lighting and camera are reasonable.
+- **Camera added with position and target**.
+
+- **Typical lights, skybox, logo, and shadow light added**.
+
+- **However, `app.DrawAll()` is called instead of `app.Render()`**:  
+  According to the API, the method to render the scene is `Render()`, not `DrawAll()`. The code calls `app.DrawAll()` which is not documented and may be incorrect or deprecated. This could cause visualization issues.  
+  **Deduction: 5 points**
+
+- **Lighting setup is comprehensive, no minor issues**.
+
+**Remaining: 0/5**
 
 ---
 
 ### Summary of Deductions
 
-| Criterion                    | Points | Reason                                                                                  |
-|-----------------------------|--------|-----------------------------------------------------------------------------------------|
-| Completeness                | -20    | `SetDataPath` after vehicle creation, no explicit system creation, missing collision settings |
-| Correctness                | -30    | `SetDataPath` order, missing `DoStepDynamics` call to advance physics                   |
-| Code Quality               | -5     | Lack of comments                                                                       |
-| Efficiency                 | -3     | Unused variable, redundant initialization                                              |
-| Error Handling and Robustness | -5     | No error handling                                                                      |
-| Visualization              | -2     | `AddLogo()` called without path                                                        |
+| Criterion                  | Points | Deduction | Remaining |
+|----------------------------|--------|-----------|-----------|
+| Completeness               | 40     | 20        | 20        |
+| Correctness               | 30     | 25        | 5         |
+| Code Quality              | 10     | 5         | 5         |
+| Efficiency                | 10     | 3         | 7         |
+| Error Handling & Robustness| 5      | 5         | 0         |
+| Visualization Tools       | 5      | 5         | 0         |
+| **Total**                 | 100    | 63        | **37**    |
 
 ---
 
-### Final Score Calculation
-
-- Start: 100 points  
-- Completeness: -20  
-- Correctness: -30  
-- Code Quality: -5  
-- Efficiency: -3  
-- Error Handling: -5  
-- Visualization: -2  
-
-**Total: 100 - 20 - 30 - 5 - 3 - 5 - 2 = 35 points**
+### Final Score: [[37]]
 
 ---
 
-### Final Score:  
-[[35]]
+### Explanation of Deductions:
 
----
+- **Major issues** include missing explicit system initialization, incorrect order of setting data path, incorrect simulation loop order (calling `DoStep()` before synchronization and advance), and incorrect visualization call (`DrawAll()` instead of `Render()`).
 
-### Explanation:
+- **Minor issues** include lack of comments, minor inefficiencies in time update placement, and no error handling.
 
-The script demonstrates a mostly complete vehicle simulation setup with terrain, driver, ROS integration, and visualization. However, critical issues such as calling `SetDataPath` after vehicle creation and failing to advance the physics system with `DoStepDynamics` significantly impact correctness and simulation behavior. Minor omissions in system initialization clarity, lack of comments, and missing error handling further reduce the score. Visualization setup is mostly correct but could be improved by specifying the logo path explicitly. Overall, the script requires corrections and enhancements to meet best practices and API guidelines fully.
+- **Visualization setup is mostly complete but the incorrect rendering call is a significant problem.**
+
+- Overall, the script demonstrates a good understanding of PyChrono vehicle simulation but has critical correctness and completeness flaws that would likely cause runtime issues or incorrect simulation behavior.

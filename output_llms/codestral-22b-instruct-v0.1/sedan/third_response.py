@@ -3,12 +3,14 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
-# Set this path before running the demo!
+"""
+Set this path before running the demo!
+"""
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
-# Initial vehicle location and orientation adjusted
-initLoc = chrono.ChVector3d(0, 0, 1)
+# Initial vehicle location and orientation
+initLoc = chrono.ChVector3d(0, 0, 0.5)
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 # Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
@@ -20,7 +22,7 @@ chassis_collision_type = veh.CollisionType_NONE
 # Type of tire model (RIGID, TMEASY)
 tire_model = veh.TireModelType_TMEASY
 
-# Terrain initialized with a highway mesh
+# Terrain mesh
 terrain_mesh = veh.GetDataFile("terrain/meshes/highway.obj")
 
 # Poon chassis tracked by the camera
@@ -30,9 +32,11 @@ trackPoint = chrono.ChVector3d(-5.0, 0.0, 1.8)
 contact_method = chrono.ChContactMethod_NSC
 contact_vis = False
 
-# Decreased simulation step size and render step size for finer control
+# Simulation step sizes
 step_size = 1e-4
 tire_step_size = step_size
+
+# Time interval between two render frames
 render_step_size = 1.0 / 60  # FPS = 60
 
 # --------------
@@ -47,6 +51,7 @@ vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
+
 vehicle.Initialize()
 
 vehicle.SetChassisVisualizationType(vis_type)
@@ -83,24 +88,15 @@ vis.AttachVehicle(vehicle.GetVehicle())
 driver = veh.ChDriver(vehicle.GetVehicle())
 
 # Set the time response for steering and throttle keyboard inputs.
-steering_time = 5.0  # increased steering response time to 5 seconds
-throttle_time = 1.0  # time to go from 0 to +1
-braking_time = 0.3   # time to go from 0 to +1
+steering_time = 5.0  # time to go from 0 to +1 (or from 0 to -1)
 driver.SetSteeringDelta(render_step_size / steering_time)
-driver.SetThrottleDelta(render_step_size / throttle_time)
-driver.SetBrakingDelta(render_step_size / braking_time)
 
-# Reference speed input added for controlling the vehicle's speed
-reference_speed = 20.0  # m/s
+# Create a PID controller for throttle control based on speed error
+throttle_PID = veh.ChPIDController(0.2, 0.0, 0.0)
+throttle_PID.SetOutputLimits(-1.0, 1.0)
 
-# PID controller implemented for throttle control based on speed error
-Kp = 0.5
-Ki = 0.1
-Kd = 0.05
-integral = 0.0
-prev_error = 0.0
-
-driver.Initialize()
+# Set the reference speed
+reference_speed = 50.0  # m/s
 
 # ---------------
 # Simulation loop
@@ -112,7 +108,7 @@ print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
 
-# Initialize simulation frame counter s
+# Initialize simulation frame counter
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
@@ -127,27 +123,18 @@ while vis.Run():
         vis.EndScene()
         render_frame += 1
 
-    # Get driver inputs
-    driver_inputs = driver.GetInputs()
+    # Get current speed
+    current_speed = vehicle.GetVehicle().GetSpeed()
 
     # Calculate speed error
-    current_speed = vehicle.GetVehicle().GetSpeed()
     speed_error = reference_speed - current_speed
 
-    # Calculate PID control signal
-    proportional = Kp * speed_error
-    integral += Ki * speed_error * step_size
-    derivative = Kd * (speed_error - prev_error) / step_size
-    throttle = proportional + integral + derivative
+    # Calculate throttle input using PID controller
+    throttle_input = throttle_PID.Update(speed_error, render_step_size)
 
-    # Clamp throttle between 0 and 1
-    throttle = max(0.0, min(1.0, throttle))
-
-    # Set throttle input
-    driver_inputs.m_throttle = throttle
-
-    # Update previous error
-    prev_error = speed_error
+    # Create driver inputs
+    driver_inputs = veh.ChDriverInputs()
+    driver_inputs.m_throttle = throttle_input
 
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)

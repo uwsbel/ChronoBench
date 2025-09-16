@@ -32,29 +32,25 @@ system.Add(box)
 rover = robot.Curiosity(system)
 
 
-manager = sensor.ChSensorManager(system)
+sens_manager = sensor.ChSensorManager(system)
 
 
-lidar_params = sensor.ChLidarParameters()
-lidar_params.update_rate = 10.0
-lidar_params.horizontal_samples = 100
-lidar_params.vertical_samples = 10
-lidar_params.field_of_view_horizontal = math.radians(30)
-lidar_params.field_of_view_vertical = math.radians(20)
-lidar_params.min_distance = 0.1
-lidar_params.max_distance = 5.0
-lidar_sensor = sensor.ChLidarSensor(rover.GetChassisBody(), lidar_params)
-lidar_sensor.SetUpdateRate(10.0)
-lidar_sensor.SetHorizontalSamples(100)
-lidar_sensor.SetVerticalSamples(10)
-lidar_sensor.SetFieldOfViewHorizontal(math.radians(30))
-lidar_sensor.SetFieldOfViewVertical(math.radians(20))
-lidar_sensor.SetMinDistance(0.1)
-lidar_sensor.SetMaxDistance(5.0)
-rover.AddSensor(lidar_sensor)
-
-
-manager.AddSensor(lidar_sensor)
+lidar_update_rate = 10.0
+lidar_samples_hor = 360
+lidar_samples_vert = 1
+lidar_fov = 90.0
+lidar_range = 10.0
+lidar_res = 0.05
+lidar_noise = 0.01
+lidar_sensor = sensor.ChLidarSensor(system, lidar_update_rate, lidar_samples_hor, lidar_samples_vert, lidar_fov, lidar_range, lidar_res, lidar_noise)
+lidar_sensor.SetName("lidar_sensor")
+lidar_sensor.SetLocalPos(chrono.ChVector3d(0, 0, 0.5))
+lidar_sensor.SetLocalRot(chrono.ChQuaterniond(0, 0, 0, 1))
+lidar_sensor.SetBody(rover.GetChassisBody())
+lidar_sensor.SetTransmission(True)
+lidar_sensor.SetVisualizationType(sensor.VisualizationType_POINTS)
+lidar_sensor.SetFilterType(sensor.FilterType_NONE)
+sens_manager.AddSensor(lidar_sensor)
 
 
 driver = robot.CuriosityDCMotorControl()
@@ -96,7 +92,7 @@ while vis.Run():
     rover.Update()
 
     
-    manager.Update()
+    sens_manager.Update()
 
     
     vis.BeginScene()

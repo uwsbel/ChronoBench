@@ -1,0 +1,120 @@
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
+import pychrono.vehicle as veh
+import pychrono.vehicle.gator as gator
+
+
+
+
+
+
+sys = chrono.ChSystemNSC()
+sys.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
+
+
+sys.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
+sys.SetMaxItersSolverSpeed(40)
+sys.SetMaxItersSolverStab(40)
+sys.SetTolForce(1e-5)
+
+
+
+
+
+
+terrain_length = 100.0
+terrain_width = 100.0
+terrain = veh.RigidTerrain(sys)
+terrain.SetContactFrictionCoefficient(0.9)
+terrain.SetContactRestitutionCoefficient(0.1)
+terrain.SetContactMaterialProperties(2e7, 0.3)
+
+patch = terrain.AddPatch(chrono.ChVectorD(0, 0, 0),
+                         chrono.ChVectorD(terrain_length, terrain_width, 0))
+patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 20, 20)
+terrain.Initialize()
+
+
+
+
+
+
+vehicle_pos = chrono.ChVectorD(0, 0, 0.5)
+vehicle_rot = chrono.ChQuaternionD(1, 0, 0, 0)
+
+
+gator = gator.Gator()
+gator.SetContactMethod(chrono.ChContactMethod_NSC)
+gator.SetChassisFixed(False)
+gator.SetInitPosition(chrono.CoordSysD(vehicle_pos, vehicle_rot))
+gator.SetTireType(veh.TMeasyTire)
+gator.SetTireStepSize(0.01)
+gator.Initialize()
+
+
+gator.SetChassisVisualizationType(veh.VisualizationType_MESH)
+gator.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
+gator.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
+gator.SetWheelVisualizationType(veh.VisualizationType_MESH)
+
+gator.GetChassisBody().AddVisualModel(gator.GetChassisMesh())
+for wheel in gator.GetWheels():
+    wheel.AddVisualModel(wheel.GetMesh())
+
+
+
+
+
+driver = veh.ChInteractiveDriverIRR(sys, gator)
+driver.SetSteeringDelta(0.04)
+driver.SetThrottleDelta(0.02)
+driver.SetBrakingDelta(0.05)
+driver.Initialize()
+
+
+
+
+
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(sys)
+vis.SetWindowSize(1280, 720)
+vis.SetWindowTitle("Gator Vehicle Simulation")
+vis.Initialize()
+vis.AddLogo()
+vis.AddSkyBox()
+vis.AddTypicalLights()
+vis.AddCamera(chrono.ChVectorD(5, 5, 3), chrono.ChVectorD(0, 0, 0.5))
+vis.SetCameraMovementType(chronoirr.CameraMovementType_FREE)
+
+
+
+
+
+
+step_size = 0.02  
+sim_time = 0
+max_sim_time = 100
+
+while vis.Run() and sim_time < max_sim_time:
+    
+    time = sys.GetChTime()
+
+    
+    driver.Synchronize(time)
+    driver.SetSteering(gator.GetSteeringAngle())
+    driver.SetThrottle(gator.GetMotorFunctionType() == veh.ChFunction_Motor::MOT_FORWARD)
+    driver.SetBraking(gator.GetMotorFunctionType() == veh.ChFunction_Motor::MOT_BACKWARD)
+
+    
+    gator.Synchronize(time, driver.GetSteering(), driver.GetThrottle(), driver.GetBraking())
+
+    
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+
+    sys.DoStepDynamics(step_size)
+    sim_time += step_size
+
+
+vis.RemoveAllVisualModels()

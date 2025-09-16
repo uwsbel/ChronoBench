@@ -8,14 +8,14 @@ from pychrono import irrlicht as chronoirr
 
 system = chrono.ChSystemNSC()
 system.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
-system.SetGravitationalAcceleration(chrono.ChVector3D(0, 0, -9.81))
+system.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, -9.81))
 chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.0025)
 chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
 
 
 ground_mat = chrono.ChContactMaterialNSC()
 ground = chrono.ChBodyEasyBox(20, 20, 1, 1000, True, True, ground_mat)
-ground.SetPos(chrono.ChVector3D(0, 0, -0.5))  
+ground.SetPos(chrono.ChVector3d(0, 0, -0.5))  
 ground.SetFixed(True)  
 ground.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
 system.Add(ground)
@@ -28,8 +28,8 @@ driver = robot.CuriosityDCMotorControl()
 rover.SetDriver(driver)
 
 
-init_pos = chrono.ChVector3D(-5, 0.0, 0)  
-init_rot = chrono.ChQuaternionD(1, 0, 0, 0)
+init_pos = chrono.ChVector3d(-5, 0.0, 0)  
+init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
 rover.Initialize(chrono.ChFramed(init_pos, init_rot))
 
 
@@ -41,12 +41,17 @@ vis.SetWindowTitle('Curiosity rover - Rigid terrain')
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()
-vis.AddCamera(chrono.ChVector3D(0, 3, 3), chrono.ChVector3D(0, 0, 0))
+vis.AddCamera(chrono.ChVector3d(0, 3, 3), chrono.ChVector3d(0, 0, 0))
 vis.AddTypicalLights()
-vis.AddLightWithShadow(chrono.ChVector3D(1.5, -2.5, 5.5), chrono.ChVector3D(0, 0, 0), 3, 4, 10, 40, 512)
+vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0, 0), 3, 4, 10, 40, 512)
 
 
 
+
+
+obstacle = chrono.ChBodyEasyBox(10, 0.5, 5, 1000, True, True, ground_mat)
+obstacle.SetPos(chrono.ChVector3d(0, 0, 0))  
+system.Add(obstacle)
 
 
 time_step = 1e-3
@@ -57,7 +62,7 @@ while vis.Run():
     time += time_step
 
     
-    driver.SetSteering(0)
+    driver.SetSteering(0)  
 
     
     rover.Update()

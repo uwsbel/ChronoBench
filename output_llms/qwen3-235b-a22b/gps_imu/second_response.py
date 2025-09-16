@@ -40,8 +40,13 @@ tire_step_size = step_size
 # Time interval between two render frames
 render_step_size = 1.0 / 50  # FPS = 50
 
+# Logging step size and GPS data list
+log_step_size = 1e-2  # Log every 0.01 seconds
+log_steps = math.ceil(log_step_size / step_size)
+gps_data = []
+
 # Create the HMMWV vehicle, set parameters, and initialize
-vehicle = veh.HMMWV_Full()
+vehicle = veh.HMMWV_Full() # veh.HMMWV_Reduced() could be another choice
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
@@ -113,12 +118,10 @@ imu.PushFilter(sens.ChFilterAccelAccess())
 manager.AddSensor(imu)
 
 # Create a GPS sensor and add it to the manager
-# Corrected GPS reference point to a valid world-space coordinate
-gps_ref = chrono.ChVector3d(0, 0, 0)  # Reference point in world coordinates
 gps = sens.ChGPSSensor(vehicle.GetChassisBody(),                     # Body GPS is attached to
                        10,        # Update rate in Hz
                        offset_pose,          # Offset pose
-                       gps_ref,              # GPS reference point
+                       chrono.ChVector3d(-89.400, 43.070, 260.0),  # GPS reference point
                        sens.ChNoiseNone())   # Noise model
 gps.SetName("GPS Sensor")
 gps.SetLag(0)
@@ -137,11 +140,6 @@ print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
-
-# Define log step size and initialize GPS data list
-log_step_size = 0.1  # Log every 0.1 seconds
-log_steps = math.ceil(log_step_size / step_size)
-gps_data = []
 
 # Initialize simulation frame counter
 realtime_timer = chrono.ChRealtimeStepTimer()
@@ -162,17 +160,15 @@ while vis.Run():
     # Get driver inputs
     driver_inputs = driver.GetInputs()
 
-    # Override inputs based on simulation time
-    if time < 5:
+    # Override driver inputs with scripted values
+    if time < 6:
         driver_inputs.m_throttle = 0.8
-        driver_inputs.m_steering = 0.0
-    elif time < 6:
-        driver_inputs.m_throttle = 0.5
         driver_inputs.m_steering = 0.5
+        driver_inputs.m_braking = 0.0
     else:
-        driver_inputs.m_braking = 1.0
         driver_inputs.m_throttle = 0.0
         driver_inputs.m_steering = 0.0
+        driver_inputs.m_braking = 1.0
 
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
@@ -188,10 +184,13 @@ while vis.Run():
 
     # Update sensor manager in each step
     manager.Update()
-
-    # Log GPS data at intervals
+    
+    # Log GPS data at specified intervals
     if step_number % log_steps == 0:
-        gps_data.append(gps.GetMostRecentGPSBuffer().GetGPSData())
+        gps_buffer = gps.GetMostRecentGPSBuffer()
+        if gps_buffer:
+            gps_info = gps_buffer.GetGPSData()
+            gps_data.append((time, gps_info.x(), gps_info.y(), gps_info.z()))
 
     # Increment frame number
     step_number += 1
@@ -199,5 +198,5 @@ while vis.Run():
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
 
-# Print logged GPS data at the end of the simulation
+# Print logged GPS data after simulation ends
 print("GPS Data: ", gps_data)

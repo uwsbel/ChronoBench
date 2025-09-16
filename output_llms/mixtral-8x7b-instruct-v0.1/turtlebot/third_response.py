@@ -22,34 +22,50 @@ ground.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.
 system.Add(ground)
 
 # Create sensor manager
-sensor_manager = chrono.ChSensorManager()
+sensor_manager = sens.ChSensorManager()
 system.AddSensorManager(sensor_manager)
 
-# Configure lidar sensor
+# Configure and add Lidar sensor
 lidar_sensor = sens.ChLidarSensor()
 lidar_sensor.SetRange(10)
-lidar_sensor.SetResolution(0.1)
-lidar_sensor.SetFrequency(10)
+lidar_sensor.SetResolution(10)
+lidar_sensor.SetAngle(math.pi / 2)
 lidar_sensor.SetPosition(chrono.ChVector3d(0.2, 0, 0.1))
 lidar_sensor.SetOrientation(chrono.Q_from_AngX(math.pi / 2))
-lidar_sensor.SetRangeFilter(sens.ChLidarSensor.RangeFilter_LOG)
-lidar_sensor.SetReturnMode(sens.ChLidarSensor.ReturnMode_ALL)
-lidar_sensor.SetNoise(0.001)
-sensor_manager.AddSensor(lidar_sensor)
+lidar_sensor.SetFrame(robot.GetFrame(turtlebot.TURTLEBOT_LINK_BASE_LIDAR))
+lidar_sensor.SetDataFile("lidar_data.txt")
+lidar_sensor.SetFilters([sens.ChLidarSensor.FILTER_MEAN, sens.ChLidarSensor.FILTER_MEDIAN, sens.ChLidarSensor.FILTER_GAUSSIAN])
+sensor_manager.Add(lidar_sensor)
 
 # Create 5 randomly placed boxes
 for i in range(5):
-    box_shape = chrono.ChBox(0.5, 0.5, 0.5)
-    box_mat = chrono.ChMaterialSurfaceNSC()
-    box_body = chrono.ChBody(box_shape, box_mat, chrono.ChVectorD(0, 0, 0))
-    box_body.SetPos(chrono.ChVectorD(np.random.uniform(-5, 5), np.random.uniform(-5, 5), 0))
-    system.AddBody(box_body)
+    box_x = np.random.uniform(-5, 5)
+    box_y = np.random.uniform(-5, 5)
+    box_z = 0.05
+    box_shape = chrono.ChBoxShape(chrono.ChVector3d(0.1, 0.1, 0.1))
+    box_body = chrono.ChBodyEasyBox(0.1, 0.1, 0.1, 1, True, True)
+    box_body.SetPos(chrono.ChVector3d(box_x, box_y, 0))
+    box_body.SetMass(1)
+    box_body.AddVisualShape(box_shape)
+    box_body.AddCollisionShape(box_shape)
+    system.Add(box_body)
 
 # Create Turtlebot Robot
 init_pos = chrono.ChVector3d(0, 0.2, 0)  # Initial position of the robot
 init_rot = chrono.ChQuaterniond(1, 0, 0, 0)  # Initial orientation of the robot
 robot = turtlebot.TurtleBot(system, init_pos, init_rot)  # Create Turtlebot instance
 robot.Initialize()  # Initialize the robot
+
+def move(mode):
+    if mode == 'straight':
+        robot.SetMotorSpeed(0, turtlebot.TURTLEBOT_MOTOR_LEFT)
+        robot.SetMotorSpeed(0, turtlebot.TURTLEBOT_MOTOR_RIGHT)
+    elif mode == 'left':
+        robot.SetMotorSpeed(-math.pi, turtlebot.TURTLEBOT_MOTOR_LEFT)
+        robot.SetMotorSpeed(0, turtlebot.TURTLEBOT_MOTOR_RIGHT)
+    elif mode == 'right':
+        robot.SetMotorSpeed(0, turtlebot.TURTLEBOT_MOTOR_LEFT)
+        robot.SetMotorSpeed(-math.pi, turtlebot.TURTLEBOT_MOTOR_RIGHT)
 
 # Create run-time visualization
 vis = chronoirr.ChVisualSystemIrrlicht()
@@ -70,24 +86,11 @@ vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0
 # Set the simulation time step
 time_step = 2e-3
 
-
-def move(mode):
-    if mode == 'straight':
-        robot.SetMotorSpeed(math.pi, 0)
-        robot.SetMotorSpeed(math.pi, 1)
-    elif mode == 'left':
-        robot.SetMotorSpeed(math.pi, 0)
-        robot.SetMotorSpeed(0, 1)
-    elif mode == 'right':
-        robot.SetMotorSpeed(0, 0)
-        robot.SetMotorSpeed(math.pi, 1)
-
-
 # Simulation loop
 time = 0
 while vis.Run():
     move('straight')
-    sensor_manager.DoStepDynamics(time_step)
+    sensor_manager.Update()
 
     # Increment time counter
     time += time_step

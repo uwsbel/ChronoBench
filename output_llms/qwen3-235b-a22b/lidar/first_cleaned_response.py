@@ -1,117 +1,87 @@
-import math
 import pychrono as chrono
-import pychrono.irrlicht as irr
+import pychrono.irrlicht as chronoirr
 import pychrono.sensor as sens
+import math
 
 
-
-
-chrono.SetChronoDataPath('path_to_data')  
 system = chrono.ChSystemNSC()
-
-
+system.SetGravity(chrono.ChVectorD(0, 0, 0))
 
 
 mesh = chrono.ChTriangleMeshConnected()
-mesh.LoadWavefrontMesh('path/to/mesh.obj', True, True)  
-
-
+mesh.LoadWavefrontMesh("path/to/your/mesh.obj", False, True)  
 mesh_body = chrono.ChBody()
 mesh_body.SetMesh(mesh)
-mesh_body.SetPos(chrono.ChVectorD(0, 0, 0))
-mesh_body.SetBodyFixed(True)
+mesh_body.SetBodyFixed(True)  
 system.Add(mesh_body)
 
 
-
-
-application = irr.ChIrrApp(system, 'PyChrono Lidar Simulation', irr.dimension2du(800, 600))
-application.AddTypicalSky()
+application = chronoirr.ChIrrApp(system, "PyChrono Mesh with Lidar Simulation", chronoirr.dimension2du(800, 600))
 application.AddTypicalLights()
-application.AddCamera(chrono.ChVectorD(0, 0, 5), chrono.ChVectorD(0, 0, 0))
+application.AddTypicalCamera(chronoirr.vector3df(0, 10, 20), chronoirr.vector3df(0, 0, 0))
 application.AssetBindAll()
 application.AssetUpdateAll()
+application.SetTimestep(1e-3)
+application.SetStepManage(True)
 
 
+dummy_body = chrono.ChBody()
+dummy_body.SetMass(0.1)  
+dummy_body.SetInertiaXX(chrono.ChVectorD(0.01, 0.01, 0.01))
+dummy_body.SetPos(chrono.ChVectorD(5, 2, 0))  
+system.Add(dummy_body)
 
 
 manager = sens.ChSensorManager(system)
 
 
-
-
 lidar = sens.ChLidarSensor(
-    mesh_body,  
-    100,        
-    10,         
-    chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.ChQuaternionD(1, 0, 0, 0)),  
-    100,        
-    360,        
-    40,         
-    0.01,       
-    0.01        
+    dummy_body,           
+    10,                   
+    chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT),  
+    800,                  
+    30,                   
+    chrono.CH_C_PI,       
+    chrono.CH_C_PI / 4,   
+    100.0                 
 )
-lidar.SetName("LidarSensor")
+lidar.SetName("Lidar Sensor")
 lidar.SetLag(0)
 lidar.SetCollectionWindow(0.01)
 
 
+noise = sens.ChNoiseGaussian(0.01)
+lidar.AddNoise(noise)
 
 
-noise = sens.ChNoiseModelGaussian(0.0, 0.01)  
-lidar.PushFilter(noise)
-
-
-
-
-lidar.PushFilter(sens.ChFilterVisualize(100, 10, "Lidar Points"))
-
-
-
-
-lidar.PushFilter(sens.ChFilterSave("output/lidar_data"))
-
-
+lidar.PushFilter(sens.ChFilterVisualize(800, 30, "Lidar Visualization"))
 
 
 manager.AddSensor(lidar)
 
 
-
-
 while application.GetDevice().run():
-    time = system.GetChTime()
-
+    application.BeginScene()
     
+    
+    time = system.GetChTime()
     radius = 5.0
     height = 2.0
-    angular_speed = 0.5  
-    theta = angular_speed * time
-
-    
+    theta = 0.1 * time  
     x = radius * math.cos(theta)
-    y = radius * math.sin(theta)
-    z = height
-
+    z = radius * math.sin(theta)
+    dummy_body.SetPos(chrono.ChVectorD(x, height, z))
     
-    yaw = theta + math.pi
-    quat = chrono.ChQuaternionD(chrono.ChAngleAxisD(yaw, chrono.ChVectorD(0, 0, 1)))
-
     
-    lidar.SetParentFrame(chrono.ChFrameD(chrono.ChVectorD(x, y, z), quat))
-
+    application.DoStep()
+    
     
     manager.Update()
-
+    buffer = lidar.GetMostRecentBuffer()
     
-    system.DoStepDynamics(0.01)
-
     
-    if lidar.HasData():
-        data = lidar.GetMostRecentBuffer()
-        print(f"Time: {time}, Lidar data points: {len(data.point_cloud)}")
-
+    if buffer.HasData():
+        point_cloud = buffer.GetAsPointCloud()
+        print(f"Time: {time:.3f}s, Lidar Points: {point_cloud.shape[0]} points")
     
-    application.BeginScene()
-    application.DrawAll()
     application.EndScene()

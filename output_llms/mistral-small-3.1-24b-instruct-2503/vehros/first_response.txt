@@ -1,89 +1,97 @@
-Certainly! Below is a comprehensive PyChrono simulation script based on the provided instructions. This script initializes the PyChrono environment, sets up the HMMWV vehicle with specified parameters, defines a terrain, initializes a driver system, integrates ROS for communication, and implements a simulation loop.
+Sure, here is a Python script that sets up a PyChrono simulation featuring an HMMWV vehicle with the specified parameters. This script also integrates ROS for communication and synchronizes the simulation components at each timestep.
 
 ```python
 import chrono
 import chrono.vehicle as veh
-import chrono.ros as cros
+import chrono.ros as ros
 import rospy
+from std_msgs.msg import Float32
+from chrono_vehicle_msgs.msg import VehicleState
 
-# Initialize ROS node
-rospy.init_node('pychrono_simulation', anonymous=True)
+# Initialize the PyChrono environment
+chrono.SetChronoDataPath('path/to/chrono/data')
 
-# Initialize the Chrono::Engine system
-chrono.SetChronoDataPath('/path/to/chrono/data')  # Set the path to Chrono data directory
+# Create a system
 system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+
+# Set the time step for the simulation
+time_step = 0.01
+system.SetTimestepperType(chrono.ChTimestepperType.Fixed)
 
 # Create the HMMWV vehicle
 vehicle = veh.HMMWV()
-vehicle.SetChassisBodyVisualizationType(veh.ChVisualizationType.PRISMATIC)
+vehicle.SetChassisBodyFix(False)
 vehicle.SetInitPosition(chrono.ChVectorD(0, 0, 0.5))
-vehicle.SetInitOrientation(chrono.Q_from_AngAxis(chrono.CHRONO_PI / 2, chrono.ChVectorD(0, 0, 1)))
-
-# Set vehicle parameters
-vehicle.SetTireContactMethod(veh.ChTireContactMethod.PENETRATION)
-vehicle.SetEngineType(veh.ChEngineType.FUEL_INJECTION)
-vehicle.SetTireModel(veh.ChTireModel.PAC89)
-
-# Create the terrain
-terrain = veh.RigidTerrain()
-terrain.SetContactMaterialProperties(0.9, 0.3, 0.01)
-terrain.SetPlane(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 1))
-terrain.Initialize(system)
+vehicle.SetInitOrientation(chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 0, 1)))
+vehicle.SetTireType(veh.TireModelType::TIRE_MODEL_FIALA)
+vehicle.SetContactMethod(chrono.ChContactMethod::NSC)
+vehicle.SetEngineType(veh.EngineModelType::ENGINE_MODEL_MAP)
 
 # Add the vehicle to the system
-vehicle.Initialize(system)
-vehicle.SetDriver(veh.DriverHMMWV())
+system.Add(vehicle.GetVehicle())
 
-# Initialize ROS communication
-ros_manager = cros.RosManager(system)
-ros_manager.RegisterHandler('clock', cros.ClockHandler())
-ros_manager.RegisterHandler('driver_inputs', cros.DriverInputsHandler())
-ros_manager.RegisterHandler('vehicle_state', cros.VehicleStateHandler(vehicle))
+# Create the terrain
+terrain = veh.RigidTerrain(system)
+terrain.Initialize(100, 100, 0.1, "/terrain/materials/flat.xml")
+terrain.GetMaterialSurface().SetFriction(0.9)
+terrain.GetMaterialSurface().SetRestitution(0.1)
+terrain.GetMaterialSurface().SetCompliance(0.001)
+terrain.GetMaterialSurface().SetComplianceT(0.001)
+terrain.GetMaterialSurface().SetDampingF(0.2)
+terrain.GetMaterialSurface().SetDampingT(0.2)
+terrain.GetMaterialSurface().SetRollingFriction(0.02)
 
-# Simulation parameters
-step_size = 0.01
-end_time = 10.0
-current_time = 0.0
+# Add the terrain to the system
+system.Add(terrain.GetGroundBody())
+
+# Initialize the driver system
+driver = veh.Driver()
+driver.Initialize(vehicle, system)
+
+# Initialize ROS
+ros_manager = ros.ChRosManager(system)
+ros_manager.AddClockSynchronizationHandler()
+ros_manager.AddDriverInputHandler(driver)
+ros_manager.AddVehicleStateHandler(vehicle)
+
+# ROS node initialization
+rospy.init_node('chrono_vehicle_simulation', anonymous=True)
+
+# ROS publishers
+vehicle_state_pub = rospy.Publisher('/vehicle_state', VehicleState, queue_size=10)
 
 # Simulation loop
-while current_time < end_time:
-    # Synchronize and advance the simulation
-    system.DoStepDynamics(step_size)
-    ros_manager.Update(step_size)
+simulation_time = 0.0
+while simulation_time < 10.0:
+    # Synchronize ROS
+    ros_manager.Synchronize()
 
-    # Update the current time
-    current_time += step_size
+    # Advance the simulation
+    system.DoStepDynamics(time_step)
 
-# Finalize ROS communication
-ros_manager.Finalize()
+    # Update ROS manager
+    ros_manager.Update()
+
+    # Publish vehicle state
+    vehicle_state_msg = VehicleState()
+    vehicle_state_msg.position = vehicle.GetChassisBody().GetPos()
+    vehicle_state_msg.orientation = vehicle.GetChassisBody().GetRot().Q_to_AngAxis()
+    vehicle_state_msg.velocity = vehicle.GetChassisBody().GetPos_dt()
+    vehicle_state_msg.angular_velocity = vehicle.GetChassisBody().GetWvel_loc()
+    vehicle_state_pub.publish(vehicle_state_msg)
+
+    # Increment simulation time
+    simulation_time += time_step
+
+# Clean up
+ros_manager.Close()
 ```
 
-### Explanation:
-1. **Initialize the PyChrono Environment and Core Components:**
-   - The Chrono data path is set.
-   - The Chrono system is initialized with gravity.
+### Notes:
+1. **Chrono Data Path**: Ensure that the path to the Chrono data directory is correctly set.
+2. **ROS Integration**: This script assumes that ROS is properly installed and configured on your system.
+3. **Vehicle Parameters**: Adjust the vehicle parameters (e.g., tire model, engine type) as needed.
+4. **Terrain Parameters**: Modify the terrain parameters (e.g., friction, restitution) to match your requirements.
+5. **Simulation Time**: The simulation runs for 10 seconds in this example. Adjust the `simulation_time` as needed.
 
-2. **Add the Required Physical Systems and Objects:**
-   - An HMMWV vehicle is created and configured with specific parameters such as contact method, engine type, and tire model.
-   - A terrain is created with defined friction and restitution properties.
-
-3. **Set Necessary Default Parameters:**
-   - The vehicle's initial position and orientation are set.
-   - The terrain's contact material properties and plane are defined.
-
-4. **Initialize a Driver System for Vehicle Control:**
-   - A driver system is set up for the HMMWV vehicle.
-
-5. **Integrate ROS for Communication:**
-   - A ROS manager is initialized to handle clock synchronization, driver inputs, and vehicle state.
-   - Handlers for these ROS topics are registered.
-
-6. **Implement a Simulation Loop:**
-   - The simulation loop advances the vehicle, terrain, and driver systems at each timestep.
-   - The ROS manager is updated to publish data.
-
-### Note:
-- Ensure that the Chrono data path is correctly set to the directory where Chrono data is located.
-- This script assumes that ROS is properly installed and configured on your system.
-- Adjust the simulation parameters (`step_size`, `end_time`) as needed for your specific use case.
+This script provides a basic framework for setting up a PyChrono simulation with an HMMWV vehicle, a terrain, a driver system, and ROS integration. Adjust the parameters and add more features as required for your specific use case.

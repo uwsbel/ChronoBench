@@ -1,48 +1,50 @@
 import pychrono as chrono
 import pychrono.irrlicht as irr
-import pychrono.mkl as mkl
+import pychrono.fea as fea
 
 
-chrono.SetChronoDataPath('PYCHRONO_DATA_DIR')
-my_system = chrono.ChSystemNSC()
+system = chrono.ChSystemNSC()
 
 
-
-material = chrono.ChMaterialSurfaceNSC()
-material.SetYoungModulus(1e7)
-material.SetPoissonRatio(0.3)
-
-
-mesh = chrono.ChMesh()
+mesh = fea.ChMesh()
+mesh.AddPoint(chrono.ChVectorD(0, 0, 0))
+mesh.AddPoint(chrono.ChVectorD(1, 0, 0))
+mesh.AddPoint(chrono.ChVectorD(1, 1, 0))
+mesh.AddPoint(chrono.ChVectorD(0, 1, 0))
 
 
+node_id_1 = mesh.AddNode(chrono.FEA_NODE_POINT, 0)
+node_id_2 = mesh.AddNode(chrono.FEA_NODE_POINT, 1)
+node_id_3 = mesh.AddNode(chrono.FEA_NODE_POINT, 2)
+node_id_4 = mesh.AddNode(chrono.FEA_NODE_POINT, 3)
 
-tablecloth = chrono.ChShellANCF(mesh, material)
-my_system.Add(tablecloth)
-
-
-
-tablecloth.SetPos(chrono.ChVectorD(0, 0, 0))
-
-
-ground = chrono.ChBodyEasyBox(2, 2, 0.1, 1000, True, True)
-my_system.Add(ground)
+mesh.AddElementShellANCF_4(node_id_1, node_id_2, node_id_3, node_id_4)
 
 
-my_system.SetSolverType(chrono.ChSolver.Type_MKL_PARDISO)
+material = fea.ChMaterialShellANCF()
+material.Set_E(200e9)
+material.Set_nu(0.3)
+material.Set_thickness(0.001)
 
 
-app = irr.ChIrrApp(my_system, 'Tablecloth folding', irr.dimension2du(1024, 768))
+model = fea.ChModelFEA()
+model.AddMesh(mesh, material)
+model.SetSolverType(chrono.ChSolver.Type_PARDISO_MKL)
+
+
+system.Add(model)
+
+
+app = irr.ChIrrApp(system, 'Tablecloth Folding Simulation', chrono.ChVectorD(0, 0, -5), 1, 1000)
+
+
 app.AddTypicalLogo()
-app.AddTypicalCamera(irr.vector3df(0, 1, -1))
+app.AddTypicalCamera(chrono.ChVectorD(0, 0, -2))
 app.AddTypicalLights()
-app.AddSkyBox()
-app.AddLightWithShadow(irr.vector3df(1.5, 5.5, -2.5), irr.vector3df(0, 0, 0), 3, 2.2, 7.2, 40, 512, irr.SColorf(0.8, 0.8, 1))
+app.AssetBindAll()
+app.AssetUpdateAll()
 
 
 app.SetTimestep(0.01)
-while app.GetDevice().run():
-    app.BeginScene()
-    app.DrawAll()
-    app.DoStep()
-    app.EndScene()
+app.SetTryRealtime(True)
+app.Run()

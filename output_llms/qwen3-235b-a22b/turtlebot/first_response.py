@@ -1,86 +1,66 @@
 import pychrono as chrono
-import pychrono.vehicle as vehicle
-import pychrono.irrlicht as irr
+import pychrono.robot as robot
+import pychrono.irrlicht as irrlicht
 
 # Initialize the Chrono system with gravity
 system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
-# Create the ground body
+# Create the ground body with collision enabled
 ground = chrono.ChBody()
 ground.SetBodyFixed(True)
 ground.SetCollide(True)
-ground.GetCollisionModel().ClearModel()
-ground.GetCollisionModel().AddBox(100, 100, 1, chrono.ChVectorD(0, 0, 0))
-ground.GetCollisionModel().BuildModel()
 
-# Set material properties for the ground
+# Define material for ground collision
 mat = chrono.ChMaterialSurfaceNSC()
 mat.SetFriction(0.8)
 mat.SetRestitution(0.1)
-ground.SetMaterialSurface(mat)
 
-# Add visualization for the ground
-ground_shape = chrono.ChBoxShape()
-ground_shape.GetBoxGeometry().Size = chrono.ChVectorD(100, 100, 1)
-ground.AddAsset(ground_shape)
-ground_texture = chrono.ChTexture()
-ground_texture.SetTextureFilename(chrono.GetChronoDataFile("textures/concrete.jpg"))
-ground.AddAsset(ground_texture)
+# Collision model for ground (box with size 20x2x20)
+ground.GetCollisionModel().ClearModel()
+ground.GetCollisionModel().AddBox(mat, 10, 1, 10)  # Half-dimensions
+ground.GetCollisionModel().BuildModel()
 
-# Add the ground to the system
+# Visual shape for ground
+box_vis = chrono.ChBoxShape()
+box_vis.GetBoxGeometry().Size = chrono.ChVectorD(10, 1, 10)
+ground.AddAsset(box_vis)
+
 system.Add(ground)
 
 # Create and initialize the Turtlebot
-turtlebot = vehicle.ChTurtlebot()
-init_pos = chrono.ChVectorD(0, 0, 0.5)  # Initial position (x, y, z)
-init_rot = chrono.Q_from_AngAxis(chrono.CH_C_PI, chrono.ChVectorD(0, 1, 0))  # 180-degree rotation around Y-axis
-turtlebot.Initialize(system, chrono.ChCoordsysD(init_pos, init_rot))
+turtlebot = robot.Turtlebot(system)
+init_pos = chrono.ChVectorD(0, 0.5, 0)  # Position above ground
+init_rot = chrono.ChQuaternionD(1, 0, 0, 0)  # No initial rotation
+turtlebot.SetInitPosition(chrono.ChFrameD(init_pos, init_rot))
+turtlebot.Initialize()
 
 # Set up Irrlicht visualization
-application = irr.ChIrrApp(system, 'Turtlebot Simulation', irr.dimension2du(800, 600))
-application.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
-application.AddSkyBox()
-application.AddCamera(chrono.ChVectorD(0, -6, 3), chrono.ChVectorD(0, 0, 0))  # Camera position and target
+application = irrlicht.ChIrrApp(system, 'Turtlebot Simulation', irrlicht.dimension2du(800, 600))
 application.AddTypicalLights()
-
-# Bind and update all visualization assets
+application.AddCamera(chrono.ChVectorD(0, 3, -6), chrono.ChVectorD(0, 0, 0))  # Camera setup
 application.AssetBindAll()
 application.AssetUpdateAll()
 
-# Simulation loop parameters
-step_size = 1e-3  # Simulation time step
-simulation_time = 0
-
-# Simulation loop
+# Simulation loop with motor control
 while application.GetDevice().run():
-    # Control logic based on simulation time
-    current_time = system.GetChTime()
-    left_torque = 0
-    right_torque = 0
-
-    if current_time < 5:
-        # Move forward
-        left_torque = 10
-        right_torque = 10
-    elif current_time < 7:
-        # Turn left
-        left_torque = -5
-        right_torque = 5
-    else:
-        # Resume forward motion
-        left_torque = 10
-        right_torque = 10
-
-    # Apply torques to Turtlebot motors
-    turtlebot.SetLeftMotorTorque(left_torque)
-    turtlebot.SetRightMotorTorque(right_torque)
-
-    # Advance the simulation
-    system.DoStepDynamics(step_size)
-    simulation_time += step_size
-
-    # Update visualization
     application.BeginScene()
+    
+    current_time = system.GetChTime()
+    
+    # Motor control logic based on simulation time
+    if current_time < 1.0:
+        left_torque, right_torque = 0.0, 0.0  # Stop
+    elif current_time < 3.0:
+        left_torque, right_torque = -1.0, 1.0  # Turn left
+    else:
+        left_torque, right_torque = 1.0, -1.0  # Turn right
+    
+    # Apply torques to Turtlebot's motors
+    turtlebot.SetMotorTorqueLeft(left_torque)
+    turtlebot.SetMotorTorqueRight(right_torque)
+    
+    # Advance simulation and render
+    system.DoStepDynamics(0.01)
     application.DrawAll()
     application.EndScene()

@@ -1,0 +1,91 @@
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
+import pychrono.vehicle as veh
+import numpy as np
+
+# 1. Initialize PyChrono environment
+chrono.SetChronoDataPath("PATH_TO_CHRONO_DATA")  # Update this path
+vehicle_dir = "vehicle/data/hmmwv"
+
+# Create the simulation system
+system = chrono.ChronoSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
+
+# 2. Create the vehicle system
+hmmwv = veh.HMMWV()
+hmmwv.SetContactMethod(chrono.ChContactMethod_NSC)
+hmmwv.SetChassisFixed(False)
+hmmwv.SetInitPosition(chrono.ChCoorD(0, 0, 0.5))
+hmmwv.SetInitFwdVel(5)
+hmmwv.Initialize()
+
+# Set rigid tire model
+hmmwv.SetTireType(veh.RigidTire)
+hmmwv.SetTireStepSize(0.01)
+
+# Add vehicle to system
+hmmwv.GetSystem().Add(hmmwv.GetChassis())
+hmmwv.GetSystem().Add(hmmwv.GetPowertrain())
+hmmwv.GetSystem().Add(hmmwv.GetSteering())
+
+for axle in hmmwv.GetAxles():
+    system.Add(axle)
+    for wheel in axle.GetWheels():
+        system.Add(wheel)
+
+# 3. Create SCM deformable terrain
+terrain = veh.SCMDeformableTerrain(hmmwv.GetSystem())
+terrain.SetPlane(chrono.ChCoorD(0, 0, 0, chrono.QUNIT))
+terrain.SetLength(20)
+terrain.SetWidth(10)
+terrain.Initialize()
+
+# Set soil parameters
+terrain.SetSoilParameters(
+    Bekker_Kphi=1e6,
+    Bekker_Kc=1e5,
+    Bekker_n=1.0,
+    Mohr_cohesion=1e3,
+    Mohr_friction=35,
+    Mohr_dilation=5,
+    Janosi_shear=0.01,
+    plastic_yield=0.01
+)
+
+# Enable moving patch
+terrain.EnableMovingPatch(True, 10, 5)
+terrain.SetMovingPatchReference(hmmwv.GetChassis())
+
+# 4. Set up visualization
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetWindowSize(1280, 720)
+vis.SetWindowTitle("HMMWV on SCM Terrain")
+vis.Initialize()
+vis.AddLogo()
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVectorD(5, 0, 2), chrono.ChVectorD(0, 0, 0.5))
+vis.AddTypicalLights()
+vis.AddLightWithShadow(chrono.ChVectorD(10, 10, 10), chrono.ChVectorD(0, 0, 0), 15, 1, 15, 40, 512)
+
+# Enable false color plotting for sinkage
+terrain.GetMesh().SetFalseColorRange(0, 0.2)
+terrain.GetMesh().SetFalseColorMode(chronoirr.FalseColorMode::Z_DISPLACEMENT)
+
+# Add vehicle visualization assets
+veh.ChVehicleVisualSystemIrrlicht::AddVisualModel(hmmwv, vis)
+
+# 5. Set up interactive driver
+driver = veh.ChDriverHMMWV(vis)
+driver.Initialize()
+
+# 6. Simulation loop
+time_step = 0.02  # 50 FPS
+while vis.Run():
+    time = system.GetChTime()
+    driver.Synchronize(time)
+    terrain.Synchronize(time)
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    system.DoStepDynamics(time_step)

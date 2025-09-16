@@ -1,45 +1,61 @@
 import chrono
-from chrono import chrono_python as cp
+from chrono import ChVector, ChCoordsys, ChFrame, ChMatrix33
+from chrono.collision import ChCollisionModel
+from chrono.vehicle import ChVehicleModel, ChTMeasyTire
+from chrono.irrlicht import ChIrrApp
+from chrono.irrlicht.ChIrrSimpleVisualSystem import ChIrrSimpleVisualSystem
+from chrono.irrlicht.ChIrrDriver import ChIrrDriver
 
 
-my_chrono = cp.ChronoEngine()
+chrono.SetChronoDataPath('path/to/chrono/data')
+chrono.SetChronoRunTime(0)
 
 
-my_chrono.Initialize(cp.ChronoSystemSolver.SIMULATION)
-my_chrono.Set_G_acc(cp.Vector3d(0, -9.81, 0))
+my_vis = ChIrrSimpleVisualSystem(True)
+my_vis.SetChaseCamera(ChVectorD(10, 10, 10), ChVectorD(0, 0, 0))
+my_vis.AddSkyBox()
+my_vis.AddDirectionalLight(ChVector(10, 10, -10), ChVector(0.5, 0.5, 0.5))
+my_vis.AddLogo('path/to/your/logo.png')
 
 
-ground = my_chrono.AddBody(cp.RigidBody())
-ground_shape = cp.BoxShape(ground, 10, 0.1, 10)
-ground.AddAsset(ground_shape)
+my_driver = ChIrrDriver(my_vis.GetDevice(), True)
 
 
-box = my_chrono.AddBody(cp.RigidBody())
-box_shape = cp.BoxShape(box, 1, 1, 1)
-box.AddAsset(box_shape)
-box.SetPos(cp.ChVectorD(0, 0.5, 0))
-box.SetRot(cp.ChQuaternionD(1, 0, 0, 0))
+my_system = chrono.ChSystem()
+my_system.Set_G_acc(ChVectorD(0, 0, -9.81))
 
 
-sphere = my_chrono.AddBody(cp.RigidBody())
-sphere_shape = cp.SphereShape(sphere, 0.5)
-sphere.AddAsset(sphere_shape)
-sphere.SetPos(cp.ChVectorD(0, 1.5, 0))
-sphere.SetRot(cp.ChQuaternionD(1, 0, 0, 0))
+terrain = chrono.ChHeightfield()
+terrain.SetDataPath('path/to/your/terrain/data.txt')
+terrain.SetMaterialSurface(chrono.ChMaterialSurface().SetFriction(0.5).SetRestitution(0.1))
+terrain_shape = my_system.AddCollisionModel(terrain)
+terrain_shape.SetPos(ChVectorD(0, 0, 0))
 
 
-force_maker = cp.UniformForce(my_chrono.GetSystem())
-force_maker.Set_force(cp.ChVectorD(0, -10, 0))
-sphere.AddAsset(force_maker)
-sphere.AddForce(force_maker)
+vehicle = ChVehicleModel()
+vehicle.SetChassisCollision(chrono.ChCollisionModel())
+vehicle.SetChassisVisualization(True)
+vehicle.SetChassisGeometry(chrono.ChBoxShape().SetDimensions(ChVectorD(2.5, 1.5, 0.6)))
+vehicle.SetSuspensionType(ChVehicleModel.SUSPENSION_TYPE_DEPENDENT)
+vehicle.SetTireType(ChVehicleModel.TIRE_TYPE_TMEASY)
+vehicle.SetTire(0, ChTMeasyTire())
+vehicle.SetTire(1, ChTMeasyTire())
+vehicle.SetTire(2, ChTMeasyTire())
+vehicle.SetTire(3, ChTMeasyTire())
+vehicle.Initialize(my_system, terrain_shape)
 
 
-my_chrono.Set_timestep(1e-4)
-my_chrono.Set_playercollision(True)
+vehicle.SetSteeringValue(0.5)
+vehicle.SetThrottleValue(0.3)
+vehicle.SetBrakeValue(0.1)
 
 
-my_chrono.DoSimulation(10, 1e-4)
+my_system.Add(vehicle.GetChassisBody())
 
 
-print("Final position of the box: ", box.GetPos())
-print("Final position of the sphere: ", sphere.GetPos())
+while my_driver.Run():
+    my_system.DoStepDynamics(chrono.ChTime(1./240))
+    vehicle.Synchronize(my_system.GetStep(), my_driver.GetTimer().GetRealTime())
+    my_vis.BeginScene()
+    my_vis.DrawAll()
+    my_vis.EndScene()

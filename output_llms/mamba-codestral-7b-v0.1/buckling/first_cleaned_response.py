@@ -1,41 +1,60 @@
 import pychrono
-from pychrono import irrlicht
-from pychrono.core import *
-from pychrono.irrlicht import *
 
 
-system = ChSystemSMC()
+system = pychrono.ChSystemSMC()
 
 
 
-beam = ChBeam()
+beam_length = 1.0
+beam_width = 0.1
+beam_thickness = 0.01
+beam_young_modulus = 2e5
+beam_poisson_ratio = 0.3
+
+
+beam = pychrono.ChBeamElement()
+beam.SetLength(beam_length)
+beam.SetWidth(beam_width)
+beam.SetThickness(beam_thickness)
+beam.SetYoungModulus(beam_young_modulus)
+beam.SetPoissonRatio(beam_poisson_ratio)
+
+
 system.Add(beam)
 
 
 
-beam.SetLength(1.0)
-beam.SetWidth(0.1)
-beam.SetYoungModulus(2e5)
+beam.SetPos(pychrono.ChVectorD(0, 0, 0))
 
 
+beam.SetRot(pychrono.ChQuaternionD(1, 0, 0, 0))
 
 
+beam.SetForce(pychrono.ChVectorD(0, -10, 0))
 
 
-joint = ChLinkLockRevolute()
-joint.Initialize(beam.GetNode(1), beam.GetNode(2))
-system.Add(joint)
+beam.SetTorque(pychrono.ChVectorD(0, 0, 0))
 
 
-irrlicht_app = ChIrrlichtApplication(system, L"Beam Buckling Simulation")
-
-
-
-timestepper = TimestepperHHT()
-timestepper.SetStepSize(1e-3)
-system.SetTimestepper(timestepper)
-solver = ChSolverSparseQR()
+solver = pychrono.ChSolverSMC()
 system.SetSolver(solver)
 
+timestepper = pychrono.ChTimestepperHHT()
+system.SetTimestepper(timestepper)
 
-irrlicht_app.Run()
+
+visualization = pychrono.ChVisualizationIrrlicht()
+visualization.SetWindowSize(800, 600)
+visualization.SetWindowTitle('PyChrono Beam Buckling Simulation')
+visualization.SetWindowPosition(100, 50)
+visualization.AttachSystem(system)
+visualization.SetRenderMode(pychrono.ChVisualizationIrrlicht.RENDER_MODE_SHADED_FLAT)
+visualization.SetCameraPosition(pychrono.ChVectorD(1, 1, 1), pychrono.ChVectorD(0, 0, 0))
+visualization.SetCameraVertical(pychrono.ChVectorD(0, 0, 1))
+visualization.Initialize()
+
+
+system.DoStepDynamics(0.01)
+
+
+visualization.Deinitialize()

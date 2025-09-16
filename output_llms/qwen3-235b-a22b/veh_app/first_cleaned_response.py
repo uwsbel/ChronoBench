@@ -1,86 +1,81 @@
 import pychrono as chrono
 import pychrono.vehicle as veh
 import pychrono.sensor as sens
-import pychrono.irrlicht as irr
+import pychrono.irrlicht as chronoirr
 
 
-my_system = chrono.ChSystemNSC()
+system = chrono.ChSystemNSC()
+system.SetGravity(chrono.ChVectorD(0, 0, -9.81))
 
 
-app = irr.ChIrrApp(my_system, 'Gator Vehicle Simulation', irr.dimension2du(1280, 720))
-app.AddTypicalLogo()
-app.AddTypicalCamera(irr.vector3df(0, 3, -5), irr.vector3df(0, 0, 0))
-app.AddTypicalLights()
-
-
-gator = veh.Gator(my_system)
-gator.SetInitPosition(chrono.ChCoordsys(chrono.ChVector(0, 0.5, 0), chrono.QUNIT))
-gator.SetEngineType(veh.EngineModelType_SIMPLE)
-gator.SetTransmissionType(veh.TransmissionModelType_SIMPLE_MAP)
+gator = veh.Gator(system)
+gator.SetContactMethod(chrono.ChContactMethod_NSC)
+gator.SetChassisVisualizationType(veh.VisualizationType_MESH)
+gator.SetWheelVisualizationType(veh.VisualizationType_WIREFRAME)
+gator.SetTireVisualizationType(veh.VisualizationType_MESH)
+gator.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0.5)))
 gator.SetTireType(veh.TireModelType_TMEASY)
-gator.SetTireStepSize(0.001)
+gator.SetTireStepSize(1e-3)
 gator.Initialize()
 
 
-gator.SetChassisVisualizationType(veh.VisualizationType_MESH)
-gator.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
-gator.SetSteeringVisualizationType(veh.VisualizationType_MESH)
-gator.SetWheelVisualizationType(veh.VisualizationType_MESH)
-gator.SetTireVisualizationType(veh.VisualizationType_MESH)
-
-
-terrain = veh.RigidTerrain(my_system)
-patch = terrain.AddPatch(chrono.ChCoordsys(), chrono.ChVector(200, 1, 200), 0.8)
-patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)
+terrain = veh.RigidTerrain(system)
+patch = terrain.AddPatch(chrono.ChCoordsysD(), chrono.ChVectorD(200, 200, 1))
+patch.SetTexture(veh.GetDataFile("terrain/textures/tile1.jpg"), 200, 200)
 terrain.Initialize()
 
 
-driver = veh.ChIrrGuiDriver(app.GetDevice(), gator)
+application = chronoirr.ChIrrApp(system, 'PyChrono Gator Simulation', chronoirr.dimension2du(1024, 768))
+application.AddTypicalLogo()
+application.AddTypicalSky()
+application.AddTypicalLights()
+application.AddCamera(chronoirr.vector3df(0, 3, 6), chronoirr.vector3df(0, 0, 0))
+application.AssetBindAll()
+application.AssetUpdateAll()
+
+driver = veh.ChIrrGuiDriver(application)
 driver.SetSteeringDelta(0.05)
 driver.SetThrottleDelta(0.05)
 driver.SetBrakingDelta(0.05)
 
 
-manager = sens.ChSensorManager(my_system)
-
+manager = sens.ChSensorManager(system)
+manager.scene.AddPointLight(chrono.ChVectorF(1, 1, 1), chrono.ChColor(1, 1, 1), 100.0)
+manager.scene.AddPointLight(chrono.ChVectorF(-1, -1, 1), chrono.ChColor(0.5, 0.5, 0.5), 50.0)
 
 camera = sens.ChCameraSensor(
     gator.GetChassisBody(),
-    60,  
-    chrono.ChFrame(chrono.ChVector(0, 1.5, 2), chrono.Q_from_AngAxis(0, chrono.ChVector(0, 1, 0))),
-    1280, 720,  
-    chrono.CH_C_PI / 3  
+    60,
+    chrono.ChFrameD(chrono.ChVectorD(0, 2, 1)),
+    1280,
+    800,
+    chrono.CH_C_PI / 3
 )
-camera.SetName("Front Camera")
+camera.PushFilter(sens.ChFilterRGBA8Access())
 manager.AddSensor(camera)
 
 
-light = sens.ChPointLight(chrono.ChVector(2, 3, 2), chrono.ChColor(1, 1, 1))
-manager.AddLight(light)
+step_size = 1e-3
 
+while application.GetDevice().run():
+    time = system.GetChTime()
 
-step_size = 0.001  
-time = 0
-
-while app.GetDevice().run():
-    time = my_system.GetChTime()
     
-    
-    driver_inputs = driver.GetInputs()
     driver.Synchronize(time)
     terrain.Synchronize(time)
-    gator.Synchronize(time, driver_inputs, terrain)
-    manager.Update(time)
-    
-    
-    my_system.DoStepDynamics(step_size)
+    gator.Synchronize(time, driver.GetInputs(), terrain.GetSurface())
+    manager.Update()
+
     
     driver.Advance(step_size)
     terrain.Advance(step_size)
     gator.Advance(step_size)
     manager.Advance(step_size)
+
     
+    system.DoStepDynamics(step_size)
+
     
-    app.BeginScene()
-    app.DrawAll()
-    app.EndScene()
+    application.BeginScene()
+    application.DrawAll()
+    application.EndScene()

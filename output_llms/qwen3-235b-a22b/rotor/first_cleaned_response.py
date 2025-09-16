@@ -1,127 +1,97 @@
 import pychrono as chrono
 import pychrono.fea as fea
-import pychrono.irrlicht as irr
+import pychrono.irrlicht as irrlicht
 
 
-my_system = chrono.ChSystemNSC()
-my_system.SetGravity(chrono.ChVectorD(0, 0, 0))  
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, 0, 0))
 
 
-beam_L = 1.0  
-beam_radius = 0.05  
-num_elements = 4  
+length = 1.0
+radius = 0.05
+num_elements = 4
 
 
-msection = fea.ChBeamSectionEulerAdvanced()
-msection.SetRadius(beam_radius)
-msection.SetYoungModulus(2.1e11)  
-msection.SetShearModulus(8.1e10)
-msection.SetDensity(7800)
-area = 3.14159 * beam_radius**2
-I = 3.14159 * beam_radius**4 / 4
-J = 2 * I  
-msection.SetArea(area)
-msection.SetIyy(I)
-msection.SetIzz(I)
-msection.SetJ(J)
-msection.SetKsy(10)  
-msection.SetKsz(10)
+nodes = []
+for i in range(num_elements + 1):
+    x = length * i / num_elements
+    node = fea.ChNodeFEAxyzrot(chrono.ChFrameD(chrono.ChVectorD(x, 0, 0)))
+    nodes.append(node)
+    system.Add(node)
 
 
 mesh = fea.ChMesh()
-builder = fea.ChBuilderBeamIGA()
-builder.BuildBeam(mesh, msection, num_elements,
-                  chrono.ChVectorD(0, 0, 0),
-                  chrono.ChVectorD(beam_L, 0, 0),
-                  chrono.ChVectorD(0, 1, 0))  
+section = fea.ChBeamSectionIGA()
+section.SetYoungModulus(2e11)
+section.SetPoissonRatio(0.3)
+section.SetDensity(7800)
+section.SetArea(chrono.CH_C_PI * radius**2)
+section.SetIyy(radius**4 * chrono.CH_C_PI / 4)
+section.SetIzz(radius**4 * chrono.CH_C_PI / 4)
+section.SetJ(radius**4 * chrono.CH_C_PI / 2)
 
-my_system.Add(mesh)
+elements = []
+for i in range(num_elements):
+    element = fea.ChElementBeamIGA()
+    element.SetNodes(nodes[i], nodes[i+1])
+    element.SetSection(section)
+    elements.append(element)
+    mesh.AddElement(element)
+
+for node in nodes:
+    mesh.AddNode(node)
+
+system.Add(mesh)
 
 
-flywheel_mass = 10
-flywheel_radius = 0.3
-flywheel_length = 0.2  
-
-
+flywheel_node = nodes[len(nodes)//2]
 flywheel = chrono.ChBody()
-flywheel.SetMass(flywheel_mass)
-flywheel.SetInertiaXX(chrono.ChVectorD(
-    0.5 * flywheel_mass * flywheel_radius**2,  
-    (flywheel_mass / 12) * (3 * flywheel_radius**2 + flywheel_length**2),  
-    (flywheel_mass / 12) * (3 * flywheel_radius**2 + flywheel_length**2)   
-))
-flywheel.SetPos(chrono.ChVectorD(beam_L / 2, 0, 0))
-flywheel.SetBodyFixed(False)
-my_system.Add(flywheel)
+flywheel.SetMass(10)
+flywheel.SetInertiaXX(chrono.ChVectorD(0.1, 0.1, 0.1))
+flywheel.SetPos(flywheel_node.GetPos())
+flywheel.AddAsset(chrono.ChColorAsset(1, 0, 0))
+system.Add(flywheel)
 
-
-center_node = None
-for node in mesh.GetNodes():
-    if abs(node.GetPos().x - beam_L / 2) < 1e-6:
-        center_node = node
-        break
-
-
-if center_node:
-    flywheel_link = fea.ChLinkNodeBody()
-    flywheel_link.Initialize(center_node, flywheel)
-    my_system.Add(flywheel_link)
-
-
-end_node = mesh.GetNodes()[0]  
+fix_link = chrono.ChLinkMateFix()
+fix_link.Initialize(flywheel, flywheel_node)
+system.AddLink(fix_link)
 
 
 motor_body = chrono.ChBody()
-motor_body.SetPos(end_node.GetPos())
-motor_body.SetBodyFixed(False)
-my_system.Add(motor_body)
+motor_body.SetMass(0.1)
+motor_body.SetInertiaXX(chrono.ChVectorD(0.01, 0.01, 0.01))
+motor_body.SetPos(nodes[0].GetPos())
+system.Add(motor_body)
 
-
-motor_link = fea.ChLinkNodeBody()
-motor_link.Initialize(end_node, motor_body)
-my_system.Add(motor_link)
-
+fix_motor_node = chrono.ChLinkMateFix()
+fix_motor_node.Initialize(motor_body, nodes[0])
+system.AddLink(fix_motor_node)
 
 motor = chrono.ChLinkMotorRotationSpeed()
-motor.Initialize(motor_body, my_system.GetGround(), chrono.ChFrameD(end_node.GetPos()))
-my_system.Add(motor)
+motor.Initialize(system.GetGroundBody(), motor_body, chrono.ChFrameD(nodes[0].GetPos()))
+omega = 10.0
+motor.SetSpeedFunction(chrono.ChFunction_Const(omega))
+system.AddLink(motor)
 
 
-speed_function = chrono.ChFunction_Const(10)
-motor.SetSpeedFunction(speed_function)
+vis = irrlicht.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle('Jeffcott Rotor IGA Simulation')
+vis.Initialize()
+vis.AddCamera(chrono.ChVectorD(0, 0.5, 2), chrono.ChVectorD(0, 0, 0))
 
 
-application = irr.ChIrrApp(my_system, 'Jeffcott Rotor IGA Simulation', irr.dimension2du(1024, 768))
-application.AddTypicalLogo()
-application.AddTypicalSky()
-application.AddTypicalLights()
-application.AddTypicalCamera(chrono.ChVectorD(0, 1, -2))
+mesh_vis = fea.ChVisualizationFEAmesh(mesh)
+mesh_vis.SetFEMdataType(fea.ChVisualizationFEAmesh.E_FEM_DATATYPE_ELEM_STRAIN_ENERGY)
+mesh_vis.SetColorscaleMinMax(0.0, 1e4)
+mesh.AddAsset(mesh_vis)
+mesh.AddAsset(chrono.ChColorAsset(0.6, 0.6, 0.6))
 
 
-vis_shape = fea.ChVisualShapeFEA(mesh)
-vis_shape.AddFEMglyphFEA(chrono.fea.ChGlyphType_GLYPH_ELEM_SHAFT, 0.01)
-mesh.AddVisualShapeFEA(vis_shape)
-
-
-flywheel_vis = chrono.ChVisualShapeCylinder(flywheel_radius, flywheel_length)
-flywheel_vis.SetColor(chrono.ChColor(1, 0, 0))
-flywheel.AddVisualShape(flywheel_vis, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.Q_ROTATE_Z_TO_X))
-
-
-motor_vis = chrono.ChVisualShapeSphere(0.05)
-motor_vis.SetColor(chrono.ChColor(0, 0, 1))
-motor_body.AddVisualShape(motor_vis)
-
-
-application.AssetBindAll()
-application.AssetUpdateAll()
-
-
-application.SetTimestep(0.01)
-application.SetTryRealtime(True)
-
-while application.GetDevice().run():
-    application.BeginScene()
-    application.DrawAll()
-    application.EndScene()
-    my_system.DoStepDynamics(application.GetTimestep())
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    irrlicht.ChIrrTools.drawAll(vis)
+    vis.EndScene()
+    system.DoStepDynamics(0.001)

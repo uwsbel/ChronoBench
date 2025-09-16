@@ -1,179 +1,153 @@
-# PyChrono Gator Vehicle Simulation with Interactive Driver and Sensors
-
-Below is a complete PyChrono simulation script that creates a Gator vehicle with interactive driver, terrain, and sensor system as requested:
+Here's a PyChrono simulation script that meets your requirements, featuring a Gator vehicle with visualization, terrain, interactive driver, and sensor manager:
 
 ```python
 import pychrono as chrono
+import pychrono.irrlicht as chronoirr
 import pychrono.vehicle as veh
-import pychrono.irrlicht as irr
+import pychrono.sensor as sens
 import numpy as np
 
-# 1. Initialize the PyChrono environment and core components
-chrono.SetChronoDataPath("PATH_TO_CHRONO_DATA")  # Update with your Chrono data path
+# ==============================================================================
+# Set up the simulation parameters
+# ==============================================================================
+time_step = 1e-3
+tire_step_size = 1e-3
+end_time = 10.0
 
-# Create the vehicle system
-vehicle_system = veh.VehicleSystem()
-vehicle_system.SetChTimeStep(1e-3)  # 1ms time step
+# ==============================================================================
+# Create the simulation system and add items
+# ==============================================================================
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
 
+# ==============================================================================
 # Create the terrain
-terrain = veh.RigidTerrain(vehicle_system)
+# ==============================================================================
+terrain = veh.RigidTerrain(system)
 terrain.SetContactFrictionCoefficient(0.9)
 terrain.SetContactRestitutionCoefficient(0.1)
 terrain.SetContactMaterialProperties(2e7, 0.3)
+terrain.SetContactForceModel(chrono.ChSystemNSC::ContactForceModel::Hooke)
+patch = terrain.AddPatch(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT),
+                        100, 100)
+patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
+patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 
-# Create a flat patch of terrain
-patch = terrain.AddPatch(chrono.ChCoordinatesysD(chrono.VECT_X, chrono.QUNIT),
-                         100, 100,  # dimensions
-                         0, 0,      # grid spacing
-                         True)      # visualize
+# ==============================================================================
+# Create the vehicle
+# ==============================================================================
+vehicle = veh.Gator(system)
+vehicle.SetContactFrictionCoefficient(0.9)
+vehicle.SetContactRestitutionCoefficient(0.1)
+vehicle.SetContactMaterialProperties(2e7, 0.3)
+vehicle.SetContactForceModel(chrono.ChSystemNSC::ContactForceModel::Hooke)
+vehicle.SetChassisFixed(False)
+vehicle.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0.5), chrono.QUNIT))
+vehicle.Initialize()
 
-# 2. Add the Gator vehicle
-gator = veh.Gator(vehicle_system)
-gator.SetContactFrictionCoefficient(0.9)
-gator.SetContactRestitutionCoefficient(0.1)
-gator.SetContactMaterialProperties(2e7, 0.3)
+# ==============================================================================
+# Set visualization types for different vehicle parts
+# ==============================================================================
+vehicle.GetChassisBody().SetBodyFixed(False)
+vehicle.GetChassisBody().SetCollide(True)
+vehicle.GetChassisBody().SetVisualizationType(chrono.ChVisualization::ENABLED)
 
-# Set initial vehicle location
-gator.SetInitPosition(chrono.ChVectorD(0, 0, 0.5))
-gator.SetInitFwdVel(5)  # m/s
+for axle in vehicle.GetAxles():
+    for wheel in axle.GetWheels():
+        wheel.SetVisualizationType(chrono.ChVisualization::ENABLED)
 
-# Initialize the vehicle
-gator.Initialize()
-
-# 3. Set visualization types for different vehicle parts
-gator.GetChassisBody().SetVisualizationType(irr.VisualizationType_MESH)
-gator.GetChassisBody().GetVisualModel().SetMeshFile(veh.GetDataFile("gator/chassis.obj"))
-gator.GetChassisBody().GetVisualModel().SetTextureFile(veh.GetDataFile("gator/chassis.png"))
-
-for i in range(gator.GetNumberWheels()):
-    wheel = gator.GetWheelBody(i)
-    wheel.SetVisualizationType(irr.VisualizationType_MESH)
-    wheel.GetVisualModel().SetMeshFile(veh.GetDataFile("gator/wheel.obj"))
-    wheel.GetVisualModel().SetTextureFile(veh.GetDataFile("gator/wheel.png"))
-
-# 4. Add interactive driver system
-driver = veh.ChPathFollowerDriver(gator, "my_path", "path.plt")  # Assuming you have a path file
-driver.SetSteeringGain(0.5)
-driver.SetThrottleGain(0.5)
-driver.SetTargetSpeed(5)
+# ==============================================================================
+# Create the interactive driver system
+# ==============================================================================
+driver = veh.ChInteractiveDriverIRR(system)
+driver.SetSteeringDelta(0.1)
+driver.SetThrottleDelta(0.1)
+driver.SetBrakingDelta(0.1)
 driver.Initialize()
 
-# 5. Set up sensor manager with point lights and camera
-sensor_manager = veh.ChSensorManager(vehicle_system)
-sensor_manager.SetSynchronizationMode(chrono.ChSensorManager.SyncMode_FIXED_STEP)
-
-# Add point lights
-light1 = chrono.ChPointPointLight()
-light1.SetLightPos(chrono.ChVectorD(1, 1, 5))
-light1.SetLightDir(chrono.ChVectorD(-1, -1, -5))
-sensor_manager.AddLight(light1)
-
-light2 = chrono.ChPointPointLight()
-light2.SetLightPos(chrono.ChVectorD(-1, 1, 5))
-light2.SetLightDir(chrono.ChVectorD(1, -1, -5))
-sensor_manager.AddLight(light2)
-
-# Add camera attached to vehicle chassis
-camera = chrono.ChCameraSensor(gator.GetChassisBody(),  # parent body
-                              10,                       # update rate (Hz)
-                              chrono.ChFrameD(chrono.ChVectorD(0.5, 0, 1.5),  # position
-                                             chrono.Q_from_AngAxis(chrono.PI/4, chrono.VECT_Z)),  # orientation
-                              640, 480)                # image dimensions
-camera.SetName("main_camera")
-camera.SetLensModel(chrono.ChLensModelType::PINHOLE)
-camera.SetFocalLength(0.05)  # 50mm focal length
+# ==============================================================================
+# Create the sensor manager
+# ==============================================================================
+sensor_manager = sens.ChSensorManager(system)
+camera = sens.ChCameraSensor(vehicle.GetChassisBody(),  # parent body
+                            10,                          # update rate (Hz)
+                            chrono.ChFrameD(chrono.ChVectorD(1.5, 0, 1.0), chrono.Q_from_AngAxis(-chrono.CH_PI_2, chrono.VECT_Y)),
+                            640, 480,                    # image width/height
+                            1.05)                        # focal length
+camera.SetName("camera_sensor")
+camera.PushFilter(sens.ChFilterRGBA8())
+camera.PushFilter(sens.ChFilterVisualize(640, 480, "Camera View"))
 sensor_manager.AddSensor(camera)
 
-# 6. Create visualization system
-vis = veh.ChVehicleVisualSystemIrrlicht()
-vis.SetWindowTitle("Gator Vehicle Simulation")
+# Add point lights
+light1 = sens.ChLightSensor(vehicle.GetChassisBody(),
+                           10,
+                           chrono.ChFrameD(chrono.ChVectorD(1.0, 0.5, 1.5), chrono.QUNIT),
+                           sens.ChLightSensor::Type::POINT)
+light1.SetName("point_light_1")
+light1.SetColor(chrono.ChColor(1.0, 1.0, 1.0))
+light1.SetIntensity(10.0)
+sensor_manager.AddSensor(light1)
+
+# ==============================================================================
+# Create the visualization system
+# ==============================================================================
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
 vis.SetWindowSize(1280, 720)
-vis.SetChaseCamera(chrono.ChVectorD(0, 0, 1.75), 6.0, 0.5)
+vis.SetWindowTitle("Gator Vehicle Simulation")
 vis.Initialize()
-vis.AddLightDirectional()
-vis.AddSkyBox()
 vis.AddLogo()
-vis.AttachVehicle(gator.GetChassisBody())
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVectorD(5, 0, 2), chrono.ChVectorD(0, 0, 0.5))
+vis.AddTypicalLights()
+vis.SetSymbolScale(1.0)
 
-# 7. Simulation loop
-time_step = 1e-3
-sim_time = 10.0  # simulation duration in seconds
+# ==============================================================================
+# Simulation loop
+# ==============================================================================
+while vis.Run():
+    time = system.GetChTime()
 
-while vehicle_system.GetChTime() < sim_time:
-    # Get current time
-    time = vehicle_system.GetChTime()
+    # End simulation
+    if time > end_time:
+        break
 
     # Update driver inputs
+    driver_input = driver.GetInputs()
+    vehicle.SetDriverInputs(driver_input.m_steering, driver_input.m_throttle, driver_input.m_braking)
+
+    # Update modules (process inputs from other modules)
     driver.Synchronize(time)
-    driver.Advance(time_step)
-
-    # Update terrain
     terrain.Synchronize(time)
+    vehicle.Synchronize(time, driver_input.m_steering, driver_input.m_throttle, driver_input.m_braking)
+    sensor_manager.Update()
+
+    # Advance simulation for one timestep for all modules
+    driver.Advance(time_step)
     terrain.Advance(time_step)
-
-    # Update vehicle
-    gator.Synchronize(time, driver.GetSteering(), driver.GetThrottle(), driver.GetBraking())
-    gator.Advance(time_step)
-
-    # Update sensor manager
-    sensor_manager.Synchronize(time)
+    vehicle.Advance(time_step)
     sensor_manager.Advance(time_step)
 
-    # Update visualization
-    vis.Synchronize(time, driver.GetSteering(), driver.GetThrottle(), driver.GetBraking())
-    vis.Advance(time_step)
-
-    # Render camera images
-    sensor_manager.Render()
-
-    # Save camera images if needed
-    if int(time * 10) % 10 == 0:  # Save every 0.1 seconds
-        camera.SaveLastImage("camera_frame_" + str(int(time*10)) + ".png")
-
-    # Render visualization
+    # Render the scene
+    vis.BeginScene()
     vis.Render()
+    vis.EndScene()
 
-print("Simulation completed successfully.")
+    # Advance simulation by one timestep
+    system.DoStepDynamics(time_step)
+
+    # Display camera image
+    if camera.GetFilter().IsType(sens.ChFilterVisualize):
+        camera.GetFilter().GetAsTypeVisualize().Show()
 ```
 
-## Key Components Explained:
+This script includes:
+1. A Gator vehicle with different visualization types for chassis and wheels
+2. Rigid terrain with contact properties
+3. Interactive driver system for user control
+4. Sensor manager with a camera attached to the chassis and point lights
+5. Visualization system with Irrlicht
+6. Simulation loop that updates all components at each timestep
 
-1. **Initialization**:
-   - Sets up the Chrono environment with proper data paths
-   - Creates the vehicle system with a 1ms time step
-
-2. **Terrain**:
-   - Creates a rigid terrain with friction and restitution properties
-   - Adds a flat patch for the vehicle to drive on
-
-3. **Gator Vehicle**:
-   - Initializes a Gator vehicle with proper contact properties
-   - Sets initial position and velocity
-   - Configures visualization for chassis and wheels with mesh models
-
-4. **Interactive Driver**:
-   - Implements a path-following driver system
-   - Configures steering, throttle, and braking gains
-
-5. **Sensor System**:
-   - Sets up a sensor manager with two point lights
-   - Adds a camera sensor attached to the vehicle chassis
-   - Configures camera properties (position, orientation, resolution)
-
-6. **Visualization**:
-   - Creates an Irrlicht visualization system
-   - Sets up camera, lights, and skybox
-   - Attaches the vehicle for visualization
-
-7. **Simulation Loop**:
-   - Synchronizes and advances all systems at each time step
-   - Handles driver inputs, terrain, vehicle dynamics
-   - Updates sensors and visualization
-   - Optionally saves camera images during simulation
-
-Note: You'll need to:
-1. Update the `PATH_TO_CHRONO_DATA` with your actual Chrono data directory
-2. Ensure you have the proper vehicle data files (mesh and texture files)
-3. Have a path file for the driver to follow (or modify the driver to use a different control method)
-
-The simulation will run for 10 seconds, showing the Gator vehicle driving on the terrain with the camera view being rendered and optionally saved to files.
+The camera view is rendered and displayed during the simulation. You can control the vehicle using the interactive driver (typically with keyboard inputs in the visualization window).

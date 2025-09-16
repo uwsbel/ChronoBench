@@ -15,8 +15,8 @@ ground.SetFixed(True)  # The ground is fixed and does not move
 ground.EnableCollision(False)  # Disable collision detection for the ground
 
 # Add a visualization sphere to the ground
-sph_1 = chrono.ChVisualShapeSphere(2)  # Sphere with radius 2
-ground.AddVisualShape(sph_1, chrono.ChFramed(chrono.ChVector3d(0, 0, +1)))
+sphere_1 = chrono.ChVisualShapeSphere(2)  # Sphere with radius 2
+ground.AddVisualShape(sphere_1, chrono.ChFramed(chrono.ChVector3d(0, 0, +1)))
 
 # Create a pendulum body and add it to the simulation
 pend_1 = chrono.ChBody()
@@ -40,9 +40,9 @@ pend_1.SetWvel_loc(chrono.ChVector3d(0, 0, 1))  # Initial angular velocity along
 
 # Create a spherical joint to connect the pendulum to the ground
 # The spherical joint allows rotation around all axes
-sph_joint = chrono.ChLinkLockSpherical()
-sph_joint.Initialize(ground, pend_1, chrono.ChFramed(chrono.ChVector3d(0, 0, 1), chrono.ChQuaterniond(1, 0, 0, 0)))
-sys.AddLink(sph_joint)
+sph_1 = chrono.ChLinkLockSpherical()
+sph_1.Initialize(ground, pend_1, chrono.ChFramed(chrono.ChVector3d(0, 0, 1), chrono.ChQuaterniond(1, 0, 0, 0)))
+sys.AddLink(sph_1)
 
 # Create the Irrlicht visualization system
 vis = chronoirr.ChVisualSystemIrrlicht()

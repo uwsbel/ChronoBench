@@ -1,20 +1,10 @@
-lidar = sens.ChLidarSensor()
-   lidar.SetParent(robot)
-   lidar.SetPos(chrono.ChVectorD(0, 0, 0))
-   lidar.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
-   lidar.SetAngleLimit(-math.pi / 2, math.pi / 2)
-   lidar.SetResolution(1000)
-   lidar.SetRange(5)
-   lidar.SetFilter(sens.ChFilterDistance())
-   sensor_manager.AddSensor(lidar)
-
 import os
 import math
 import numpy as np
 import pychrono as chrono
 import pychrono.robot as turtlebot
-import pychrono.sensor as sens
 from pychrono import irrlicht as chronoirr
+import pychrono.sensor as sens
 
 # Create Chrono system
 system = chrono.ChSystemNSC()
@@ -40,16 +30,13 @@ robot.Initialize()  # Initialize the robot
 # Create sensor manager
 sensor_manager = sens.ChSensorManager(system)
 
-# Create lidar sensor
-lidar = sens.ChLidarSensor()
-lidar.SetParent(robot)
-lidar.SetPos(chrono.ChVectorD(0, 0, 0))
-lidar.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
-lidar.SetAngleLimit(-math.pi / 2, math.pi / 2)
-lidar.SetResolution(1000)
-lidar.SetRange(5)
-lidar.SetFilter(sens.ChFilterDistance())
-sensor_manager.AddSensor(lidar)
+# Configure and add lidar sensor
+lidar_sensor = sens.ChLidarSensor()
+lidar_sensor.SetResolution(360)
+lidar_sensor.SetRange(5.0)
+lidar_sensor.SetFilterByLabel(True)
+lidar_sensor.SetFilterLabel("Terrain")
+sensor_manager.AddSensor(lidar_sensor)
 
 # Create run-time visualization
 vis = chronoirr.ChVisualSystemIrrlicht()
@@ -100,3 +87,18 @@ while vis.Run():
 
     # Update sensor manager
     sensor_manager.Update()
+
+    # Control Turtlebot's movement
+    def move(mode):
+        if mode == 'straight':
+            robot.SetMotorSpeed(1.0, LEFT_DRIVE_WHEEL)
+            robot.SetMotorSpeed(1.0, RIGHT_DRIVE_WHEEL)
+        elif mode == 'left':
+            robot.SetMotorSpeed(0.5, LEFT_DRIVE_WHEEL)
+            robot.SetMotorSpeed(1.0, RIGHT_DRIVE_WHEEL)
+        elif mode == 'right':
+            robot.SetMotorSpeed(1.0, LEFT_DRIVE_WHEEL)
+            robot.SetMotorSpeed(0.5, RIGHT_DRIVE_WHEEL)
+
+    # Example usage of move function
+    move('straight')

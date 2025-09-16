@@ -8,7 +8,7 @@ chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 
-initLoc = chrono.ChVector3d(0, 0, 1)
+initLoc = chrono.ChVector3d(0, 0, 0.5)
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 
@@ -33,6 +33,8 @@ contact_vis = False
 
 step_size = 1e-4
 tire_step_size = step_size
+
+
 render_step_size = 1.0 / 60  
 
 
@@ -47,6 +49,7 @@ vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
+
 vehicle.Initialize()
 
 vehicle.SetChassisVisualizationType(vis_type)
@@ -84,23 +87,14 @@ driver = veh.ChDriver(vehicle.GetVehicle())
 
 
 steering_time = 5.0  
-throttle_time = 1.0  
-braking_time = 0.3   
 driver.SetSteeringDelta(render_step_size / steering_time)
-driver.SetThrottleDelta(render_step_size / throttle_time)
-driver.SetBrakingDelta(render_step_size / braking_time)
 
 
-reference_speed = 20.0  
+throttle_PID = veh.ChPIDController(0.2, 0.0, 0.0)
+throttle_PID.SetOutputLimits(-1.0, 1.0)
 
 
-Kp = 0.5
-Ki = 0.1
-Kd = 0.05
-integral = 0.0
-prev_error = 0.0
-
-driver.Initialize()
+reference_speed = 50.0  
 
 
 
@@ -128,26 +122,17 @@ while vis.Run():
         render_frame += 1
 
     
-    driver_inputs = driver.GetInputs()
+    current_speed = vehicle.GetVehicle().GetSpeed()
 
     
-    current_speed = vehicle.GetVehicle().GetSpeed()
     speed_error = reference_speed - current_speed
 
     
-    proportional = Kp * speed_error
-    integral += Ki * speed_error * step_size
-    derivative = Kd * (speed_error - prev_error) / step_size
-    throttle = proportional + integral + derivative
+    throttle_input = throttle_PID.Update(speed_error, render_step_size)
 
     
-    throttle = max(0.0, min(1.0, throttle))
-
-    
-    driver_inputs.m_throttle = throttle
-
-    
-    prev_error = speed_error
+    driver_inputs = veh.ChDriverInputs()
+    driver_inputs.m_throttle = throttle_input
 
     
     driver.Synchronize(time)

@@ -1,7 +1,7 @@
 import pychrono as ch
 import pychrono.vehicle as veh
 import pychrono.ros as chros
-from pychrono import irrlicht as chronoirr
+import pychrono.irrlicht as chronoirr
 
 def main():
     
@@ -18,10 +18,10 @@ def main():
     hmmwv.SetTireType(veh.TireModelType_TMEASY)  
     hmmwv.SetTireStepSize(1e-3)  
     hmmwv.SetChassisVisualizationType(veh.VisualizationType_MESH)  
-    hmmwv.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
-    hmmwv.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
-    hmmwv.SetWheelVisualizationType(veh.VisualizationType_MESH)
-    hmmwv.SetTireVisualizationType(veh.VisualizationType_MESH)
+    hmmwv.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)  
+    hmmwv.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)  
+    hmmwv.SetWheelVisualizationType(veh.VisualizationType_MESH)  
+    hmmwv.SetTireVisualizationType(veh.VisualizationType_MESH)  
     hmmwv.Initialize()  
 
     
@@ -59,13 +59,19 @@ def main():
     app.SetWindowSize(1024, 768)
     app.SetWindowTitle('HMMWV Simulation')
     app.Initialize()
-    app.AddLogo()
-    app.AddSkyBox()
-    app.AddCamera(ch.ChVector3d(0, -10, 5))
+    app.AddCamera(ch.ChVector3d(0, -10, 2), ch.ChVector3d(0, 0, 0))
     app.AddTypicalLights()
+    app.AddSkyBox()
+    app.AddLogo()
+    app.AddLightWithShadow(ch.ChVector3d(20, 20, 20), ch.ChVector3d(0, 0, 0), 30, 100, 100)
 
     
-    while app.Run():
+    while app.GetDevice().run():
+        app.BeginScene()
+        app.DrawAll()
+        app.DoStep()
+        app.EndScene()
+
         time = hmmwv.GetSystem().GetChTime()  
 
         
@@ -82,14 +88,6 @@ def main():
         
         if not ros_manager.Update(time, time_step):
             break  
-
-        
-        app.BeginScene()
-        app.Render()
-        app.EndScene()
-
-        if time >= time_end:
-            break
 
 if __name__ == "__main__":
     main()

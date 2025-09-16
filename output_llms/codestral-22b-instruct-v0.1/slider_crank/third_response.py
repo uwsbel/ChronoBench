@@ -20,7 +20,6 @@ mfloor = chrono.ChBodyEasyBox(3, 1, 3, 1000)
 mfloor.SetPos(chrono.ChVector3d(0, -0.5, 0))
 mfloor.SetFixed(True)
 sys.Add(mfloor)
-
 # Create the flywheel crank
 mcrank = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, crank_rad, crank_thick, 1000)
 mcrank.SetPos(crank_center + chrono.ChVector3d(0, 0, -0.1))
@@ -43,7 +42,7 @@ sys.Add(mpiston)
 my_motor = chrono.ChLinkMotorRotationSpeed()
 my_motor.Initialize(mcrank,  # the first connected body
                     mfloor,  # the second connected body
-                    chrono.ChFrame(crank_center))  # where to create the motor in abs.space
+                    chrono.ChFramed(crank_center))  # where to create the motor in abs.space
 my_angularspeed = chrono.ChFunctionConst(chrono.CH_PI)  # ang.speed: 180°/s
 my_motor.SetMotorFunction(my_angularspeed)
 sys.Add(my_motor)
@@ -52,23 +51,22 @@ sys.Add(my_motor)
 mjointA = chrono.ChLinkLockSpherical()
 mjointA.Initialize(mrod,
                    mcrank,
-                   chrono.ChFrame(crank_center + chrono.ChVector3d(crank_rad, 0, 0)))
+                   chrono.ChFramed(crank_center + chrono.ChVector3d(crank_rad, 0, 0)))
 sys.Add(mjointA)
 
 # Create rod-piston joint
 mjointB = chrono.ChLinkLockSpherical()
 mjointB.Initialize(mpiston,
                    mrod,
-                   chrono.ChFrame(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0)))
+                   chrono.ChFramed(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0)))
 sys.Add(mjointB)
 
 # Create piston-truss joint
 mjointC = chrono.ChLinkLockPlanePlane()
 mjointC.Initialize(mpiston,
                    mfloor,
-                   chrono.ChFrame(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0),
-                                   chrono.Q_ROTATE_Z_TO_X)
-                   )
+                   chrono.ChCoordsys(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0),
+                                   chrono.QUNIT))
 sys.Add(mjointC)
 
 vis = chronoirr.ChVisualSystemIrrlicht()

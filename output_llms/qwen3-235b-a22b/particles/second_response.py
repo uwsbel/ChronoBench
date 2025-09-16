@@ -3,18 +3,21 @@ import pychrono.irrlicht as chronoirr
 from itertools import combinations
 
 class MyCreatorForAll(chrono.ChRandomShapeCreator_AddBodyCallback):
-    def __init__(self, vis):
+    def __init__(self, vis, coll):
         super().__init__()
         self.vis = vis
+        self.coll = coll
 
     def OnAddBody(self, body, coords, creator):
-        # Set texture and visualization
         body.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/bluewhite.png"))
         self.vis.BindItem(body)
+        self.coll.BindItem(body)
+        body.SetUseGyroTorque(False)
 
 # Create a Chrono physical system
 sys = chrono.ChSystemNSC()
 sys.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+coll = sys.GetCollisionSystem()
 
 # Create a sphere body
 sphere_mat = chrono.ChContactMaterialNSC()
@@ -46,7 +49,7 @@ mangvelo = chrono.ChRandomParticleVelocityAnyDirection()
 mangvelo.SetModulusDistribution(chrono.ChUniformDistribution(0.0, 0.2))
 emitter.SetParticleAngularVelocity(mangvelo)
 
-# Replace convex hulls with spheres
+# Replace convex hulls with spheres and configure parameters
 mcreator_spheres = chrono.ChRandomShapeCreatorSpheres()
 mcreator_spheres.SetDiameterDistribution(chrono.ChZhangDistribution(0.6, 0.23))
 mcreator_spheres.SetDensityDistribution(chrono.ChConstantDistribution(1600))
@@ -64,7 +67,7 @@ vis.AddCamera(chrono.ChVector3d(0, 14, -20))
 vis.AddTypicalLights()
 
 # Attach callback to the emitter
-mcreation_callback = MyCreatorForAll(vis)
+mcreation_callback = MyCreatorForAll(vis, coll)
 emitter.RegisterAddBodyCallback(mcreation_callback)
 
 # Simulation settings
@@ -85,15 +88,33 @@ while vis.Run():
     for body in sys.GetBodies():
         body.EmptyAccumulators()
 
-    # Move G_constant definition here as requested
-    G_constant = 6.674e-3  # Modified gravitational constant
+    G_constant = 6.674e-3  # Moved inside the loop
 
-    # Calculate and apply gravitational forces
+    # Calculate kinetic energy
+    kinetic_energy = 0.0
+    for body in sys.GetBodies():
+        mass = body.GetMass()
+        vel = body.GetPos_dt()  # Get velocity
+        kinetic_energy += 0.5 * mass * vel.Length2()
+
+    # Calculate potential energy
+    potential_energy = 0.0
     mlist = list(combinations(sys.GetBodies(), 2))
     for abodyA, abodyB in mlist:
         D_attract = abodyB.GetPos() - abodyA.GetPos()
         r_attract = D_attract.Length()
-        if r_attract < 1e-6:  # Avoid division by zero
+        if r_attract < 1e-6:
+            continue  # Avoid division by zero
+        potential_energy += -G_constant * (abodyA.GetMass() * abodyB.GetMass()) / r_attract
+
+    total_energy = kinetic_energy + potential_energy
+    print(f"Kinetic Energy: {kinetic_energy}, Potential Energy: {potential_energy}, Total Energy: {total_energy}")
+
+    # Apply gravitational forces
+    for abodyA, abodyB in mlist:
+        D_attract = abodyB.GetPos() - abodyA.GetPos()
+        r_attract = D_attract.Length()
+        if r_attract < 1e-6:
             continue
         f_attract = G_constant * (abodyA.GetMass() * abodyB.GetMass()) / (r_attract ** 2)
         F_attract = (D_attract / r_attract) * f_attract
@@ -101,26 +122,3 @@ while vis.Run():
         abodyB.AccumulateForce(-F_attract, abodyB.GetPos(), False)
 
     sys.DoStepDynamics(stepsize)
-
-    # Energy calculations
-    kinetic_energy = 0.0
-    potential_energy = 0.0
-
-    # Compute kinetic energy
-    for body in sys.GetBodies():
-        mass = body.GetMass()
-        vel = body.GetPos_dt()
-        kinetic_energy += 0.5 * mass * vel.Length2()
-
-    # Compute potential energy
-    pairs = combinations(sys.GetBodies(), 2)
-    for bodyA, bodyB in pairs:
-        D = bodyB.GetPos() - bodyA.GetPos()
-        r = D.Length()
-        if r < 1e-6:
-            continue
-        potential_energy += - G_constant * (bodyA.GetMass() * bodyB.GetMass()) / r
-
-    total_energy = kinetic_energy + potential_energy
-
-    print(f"Kinetic Energy: {kinetic_energy:.4f}, Potential Energy: {potential_energy:.4f}, Total Energy: {total_energy:.4f}")

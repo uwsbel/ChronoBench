@@ -1,79 +1,65 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
 import pychrono.vehicle as veh
-import numpy as np
 
 
-chrono.SetChronoDataPath('./data/')
+sys = chrono.ChSystemNSC()
+contact_material = chrono.ChMaterialSurfaceNSC()
+contact_material.SetFriction(0.9)
+contact_material.SetRestitution(0.1)
+contact_material.SetYoungModulus(1e7)
 
 
-system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+veh_params = veh.CityBus()
+veh_params.SetContactMaterial(contact_material)
+veh_params.SetChassisCollisionShape(chrono.ChBox(1, 1, 1))
+veh_params.SetChassisVisualizationType(chrono.ChVisualizationType.MESH)
+veh_params.SetChassisMeshFile("citybus_chassis.obj")
+veh_params.SetWheelVisualizationType(chrono.ChVisualizationType.PRIMITIVE)
 
 
-vehicle = veh.ChCityBus()
-vehicle.SetChassisFixed(False)
-vehicle.SetChassisMass(1500)
-vehicle.SetChassisInertiaXX(chrono.ChVectorD(100, 100, 100))
-vehicle.SetChassisInertiaXY(chrono.ChVectorD(0, 0, 0))
-vehicle.SetChassisInertiaXZ(chrono.ChVectorD(0, 0, 0))
-vehicle.SetChassisInertiaYY(chrono.ChVectorD(100, 100, 100))
-vehicle.SetChassisInertiaYZ(chrono.ChVectorD(0, 0, 0))
-vehicle.SetChassisInertiaZZ(chrono.ChVectorD(100, 100, 100))
-vehicle.SetChassisPosition(chrono.ChVectorD(0, 0, 0.5))
-vehicle.SetChassisOrientation(chrono.ChQuaternionD(1, 0, 0, 0))
-vehicle.SetTireModel(veh.TireModelType.TM_RIGID)
+veh_params.SetLocation(chrono.ChVectorD(0, 0, 0.5))
+veh_params.SetOrientation(chrono.Q_from_AngX(chrono.CH_C_PI_2))
+veh_params.SetTireModel(veh.TireModelType.TME_SIMPLE)
 
 
-terrain = veh.ChRigidTerrain(system)
-terrain.SetTexture(chrono.GetChronoDataFile('terrain/textures/tile_0.jpg'))
-terrain.SetPlane(chrono.ChPlane(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 1, 0)))
+vehicle = veh.CityBus(veh_params)
+
+
+sys.Add(vehicle.GetPart(0))
+
+
+terrain = chrono.ChBodyEasyBox(sys, 10, 10, 1, 1000, True, contact_material)
+terrain.SetPos(chrono.ChVectorD(0, 0, -0.5))
+terrain.SetBodyFixed(True)
+
+
+sys.Add(terrain)
+
+
+driver = veh.DriverInteractive(vehicle)
+driver.SetSteeringMode(veh.SteeringMode.ANGLE)
+driver.SetThrottleMode(veh.ThrottleMode.TORQUE)
+driver.SetBrakingMode(veh.BrakingMode.TORQUE)
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.SetWindowSize(1024, 768)
-vis.SetWindowTitle('CityBus Simulation')
-vis.AddSkyBox()
-vis.AddTypicalLights()
+vis.SetWindowTitle("CityBus Simulation")
+vis.SetCamera(chrono.ChVectorD(0, 0, 5), chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 1, 0))
 
 
-vehicle_vis = veh.ChCityBusVisualization(vehicle)
-vehicle_vis.SetChassisVisualizationType(chronoirrVisualizationType.MESH)
-vehicle_vis.SetWheelVisualizationType(chronoirrVisualizationType.PRIMITIVE)
-vehicle_vis.SetSteeringVisualizationType(chronoirrVisualizationType.PRIMITIVE)
-vehicle_vis.SetSuspensionVisualizationType(chronoirrVisualizationType.PRIMITIVE)
-vehicle_vis.SetChassisColor(chrono.ChColor(1, 0, 0))
+vis.SetFollowCamera(True)
+vis.SetFollowDistance(5)
 
 
-terrain_vis = veh.ChRigidTerrainVisualization(terrain)
-terrain_vis.SetVisualizationType(chronoirrVisualizationType.MESH)
-terrain_vis.SetColor(chrono.ChColor(0.5, 0.5, 0.5))
-
-
-camera = vis.AddCamera(chrono.ChVectorD(0, 0, 2))
-camera.SetFollowNode(vehicle.GetChassisBody())
-camera.SetLookAtNode(vehicle.GetChassisBody())
-
-
-driver = veh.ChIrrlichtDriver()
-driver.SetVehicle(vehicle)
-driver.SetSteeringGain(0.5)
-driver.SetThrottleGain(0.5)
-driver.SetBrakingGain(0.5)
+time_step = 0.02
+render_interval = 1 / 50
 
 
 while vis.Run():
-    
-    vehicle.Update(1 / 50.0)
-    terrain.Synchronize(1 / 50.0)
-    
-    
+    sys.DoStepDynamics(time_step)
     vis.BeginScene()
     vis.DrawAll()
     vis.EndScene()
-    
-    
-    driver.Synchronize(1 / 50.0)
-    
-    
-    vis.DoStep(1 / 50.0)
+    vis.Render(render_interval)

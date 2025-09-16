@@ -1,42 +1,55 @@
 import pychrono as chrono
-import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
+import pychrono.irrlicht as chronoirr
 
 
-chrono.SetChronoDataPath('PYCHRONO_DATA_DIR')
+system = chrono.ChSystemNSC()
 
 
-my_system = chrono.ChSystemNSC()
-my_vehicle = veh.WheeledVehicle(my_system)
+gator = veh.GatorVehicle(system)
+gator.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 1), chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0))))
+gator.SetContactMethod(veh.ChVehicleModel::ContactMethod::NSC)
+gator.SetTireType(veh.TireModelType::TMEASY)
+gator.SetChassisVisualizationType(veh.VisualizationType::MESH)
+gator.SetSuspensionVisualizationType(veh.VisualizationType::MESH)
+gator.SetWheelVisualizationType(veh.VisualizationType::MESH)
 
 
-my_vehicle.SetChassisLocation(chrono.ChVectorD(0, 0, 1))
-my_vehicle.SetChassisOrientation(chrono.ChQuaternionD(1, 0, 0, 0))
-my_vehicle.SetChassisFixed(False)
-my_vehicle.SetChassisCollisionType(chrono.ChCollisionModel.CollisionType_BOX)
-my_vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
-my_vehicle.SetTireType(veh.TireModelType_TMEASY)
+terrain = veh.RigidTerrain(system)
+terrain.Initialize(system.GetContactMethod(), system.GetLcpSolverType(), 20, 20, 0, 0, 0, 10, 10)
+terrain.SetTexture(chrono.GetChronoDataFile("terrain/textures/tile4.jpg"))
 
 
-my_terrain = veh.RigidTerrain(my_system)
-my_terrain.SetPlane(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.Q_from_AngX(chrono.CH_C_PI_2)))
-my_terrain.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
+driver = veh.ChInteractiveDriverIRR()
+driver.Initialize(gator)
 
 
+vis = chronoirr.ChIrrApp(system, "Gator Simulation", chronoirr.dimension2du(1024, 768))
+vis.AddTypicalLogo()
+vis.AddTypicalSky()
+vis.AddTypicalCamera(chronoirr.vector3df(0, 3, -6))
+vis.AddTypicalLights()
+vis.AddTypicalEnvironment()
+vis.AddLightWithShadow(chronoirr.vector3df(2, 10, -2), chronoirr.vector3df(0, 0, 0), 15, 5, 10, 40, 512, chronoirr.SColorf(0.8, 0.8, 1))
+vis.AddShadowAll()
+vis.AssetBindAll()
+vis.AssetBindAll()
+vis.AssetUpdateAll()
 
 
+system.SetSolverType(chrono.ChSolver::Type::MINRES)
+system.SetSolverWarmStarting(True)
+system.SetMaxItersSolverSpeed(50)
+system.SetMaxItersSolverStab(50)
+system.SetTimestepperType(chrono.ChTimestepper::Type::HHT)
+system.SetFixedStepSize(1e-3)
 
-my_application = irr.ChIrrApp(my_system, 'Gator Vehicle Simulation', irr.dimension2du(1024, 768))
-my_application.AddTypicalLogo()
-my_application.AddTypicalSky()
-my_application.AddTypicalCamera(chrono.ChVectorD(0, -10, 2))
-my_application.AddTypicalLights()
 
-
-while my_application.GetDevice().run():
-    my_application.BeginScene()
-    my_application.DrawAll()
-    my_application.DoStep()
-    my_application.EndScene()
-    
-    chrono.ChTime.Sleep(0.02)
+while vis.GetDevice().run():
+    vis.BeginScene()
+    vis.DrawAll()
+    vis.DoStep()
+    vis.EndScene()
+    system.DoStepDynamics(1e-3)
+    driver.Synchronize(system)
+    vis.SetTitle("Gator Simulation - Time: " + str(system.GetChTime()))

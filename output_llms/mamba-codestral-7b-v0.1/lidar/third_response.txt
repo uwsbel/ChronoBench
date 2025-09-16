@@ -7,91 +7,109 @@ import numpy as np
 import time
 import math
 
+# -----------------
+# Create the system
+# -----------------
 def main():
-    # -----------------
-    # Create the system
-    # -----------------
-    mphysicalSystem = vehicle.ChVehicleSystemNSC()
+    # Initialize the ARTcar vehicle
+    vehicle_system = vehicle.ChVehicleSystem()
+    vehicle_system.SetStepSize(step_size)
 
-    # ----------------------------------
-    # Add a mesh to be sensed by a lidar
-    # ----------------------------------
-    # Create vehicle chassis
-    chassis = vehicle.ChVehicleChassis()
-    chassis.SetName("Chassis")
-    chassis.SetChassisFixed(True)
-    mphysicalSystem.Add(chassis)
+    # Initialize the driver for the vehicle
+    driver = vehicle.ChDriver(vehicle_system)
+    driver.SetSteeringMode(vehicle.ChSteeringMode.LOCKED)
+    driver.SetSpeedMode(vehicle.ChSpeedMode.LIMITED)
+    driver.SetSpeed(10)
 
-    # -----------------------
+    # Create a rigid terrain
+    terrain = vehicle.ChTerrainRigid(vehicle_system)
+    terrain.SetContactFrictionCoefficient(0.9)
+    terrain.SetContactRestitution(0.01)
+    terrain.SetTexture(chrono.GetChronoDataFile("textures/tile4.jpg"))
+    terrain.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+
     # Create a sensor manager
-    # -----------------------
-    manager = sens.ChSensorManager(mphysicalSystem)
+    manager = sens.ChSensorManager(vehicle_system)
 
-    # ------------------------------------------------
     # Create a lidar and add it to the sensor manager
-    # ------------------------------------------------
-    offset_pose = chrono.ChFramed(
-        chrono.ChVector3d(1.0, 0, 1), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
-    )
     lidar = sens.ChLidarSensor(
-        chassis,              # Body lidar is attached to
-        update_rate,            # Scanning rate in Hz
-        offset_pose,            # Offset pose
-        horizontal_samples,     # Number of horizontal samples
-        vertical_samples,       # Number of vertical channels
-        horizontal_fov,         # Horizontal field of view
-        max_vert_angle,         # Maximum vertical field of view
-        min_vert_angle,         # Minimum vertical field of view
-        100.0,                  # Maximum lidar range
-        sens.LidarBeamShape_RECTANGULAR,  # Shape of the lidar beam
-        sample_radius,          # Sample radius
-        divergence_angle,       # Divergence angle
-        divergence_angle,       # Divergence angle (again, typically same value)
-        return_mode             # Return mode for the lidar
+        vehicle_system.GetVehicleChassisBody(),
+        update_rate,
+        chrono.ChVector3d(1.0, 0, 1),
+        horizontal_samples,
+        vertical_samples,
+        horizontal_fov,
+        max_vert_angle,
+        min_vert_angle,
+        100.0,
+        sens.LidarBeamShape_RECTANGULAR,
+        sample_radius,
+        divergence_angle,
+        divergence_angle,
+        return_mode
     )
     lidar.SetName("Lidar Sensor")
     lidar.SetLag(lag)
     lidar.SetCollectionWindow(collection_time)
-
-    # -----------------------------------------------------------------
-    # Create a filter graph for post-processing the data from the lidar
-    # -----------------------------------------------------------------
-    if noise_model == "CONST_NORMAL_XYZI":
-        lidar.PushFilter(sens.ChFilterLidarNoiseXYZI(0.01, 0.001, 0.001, 0.01))
-    elif noise_model == "NONE":
-        # Don't add any noise models
-        pass
-    if vis:
-        # Visualize the raw lidar data
-        lidar.PushFilter(sens.ChFilterVisualize(horizontal_samples, vertical_samples, "Raw Lidar Depth Data"))
-    # Provides the host access to the Depth, Intensity data
-    lidar.PushFilter(sens.ChFilterDIAccess())
-    # Convert Depth, Intensity data to XYZI point cloud data
-    lidar.PushFilter(sens.ChFilterPCfromDepth())
-    if vis:
-        # Visualize the point cloud
-        lidar.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "Lidar Point Cloud"))
-    # Provides the host access to the XYZI data
-    lidar.PushFilter(sens.ChFilterXYZIAccess())
-    # Add the lidar to the sensor manager
     manager.AddSensor(lidar)
 
-    # Create 2D lidar sensor
-    lidar_2d =  sens.ChLidarSensor(
-        chassis,              # Body lidar is attached to
-        update_rate,            # Scanning rate in Hz
-        offset_pose,            # Offset pose
-        horizontal_samples,     # Number of horizontal samples
-        1,                      # only 1 vertical channel for 2D lidar
-        horizontal_fov,         # Horizontal field of view
-        0.0,                    # Maximum vertical field of view
-        0.0,                    # Minimum vertical field of view
-        100.0,                  # Maximum lidar range
-        sens.LidarBeamShape_RECTANGULAR,  # Shape of the lidar beam
-        sample_radius,          # Sample radius
-        divergence_angle,       # Divergence angle
-        divergence_angle,       # Divergence angle (again, typically same value)
-        return_mode             # Return mode for the lidar
+    # Create a 3D lidar sensor
+    lidar_3d = sens.ChLidarSensor(
+        vehicle_system.GetVehicleChassisBody(),
+        update_rate,
+        chrono.ChVector3d(1.0, 0, 1),
+        horizontal_samples,
+        vertical_samples,
+        horizontal_fov,
+        max_vert_angle,
+        min_vert_angle,
+        100.0,
+        sens.LidarBeamShape_RECTANGULAR,
+        sample_radius,
+        divergence_angle,
+        divergence_angle,
+        return_mode
     )
-    lidar_2d.SetName("2D Lidar Sensor")
-    lidar_
+    lidar_3d.SetName("3D Lidar Sensor")
+    lidar_3d.SetLag(lag)
+    lidar_3d.SetCollectionWindow(collection_time)
+    manager.AddSensor(lidar_3d)
+
+    # Add a third person view camera sensor
+    camera = sens.ChCameraSensor(vehicle_system.GetVehicleChassisBody())
+    camera.SetMode(sens.ChCameraMode.EYE)
+    camera.SetPosition(chrono.ChVector3d(0, 1.8, -4))
+    camera.SetRotation(chrono.ChQuaternionD(0, 0, 0))
+    camera.SetResolution(1280, 720)
+    camera.SetOutputTexture(True)
+    camera.SetOutputDepth(True)
+    camera.SetOutputPointCloud(True)
+    manager.AddSensor(camera)
+
+    # Simulate system
+    orbit_radius = 10
+    orbit_rate = 0.1
+    ch_time = 0.0
+
+    render_time = 0
+    t1 = time.time()
+
+    while ch_time < end_time:
+        # Set lidar to orbit around the mesh body
+        lidar.SetOffsetPose(
+            chrono.ChFramed(
+                chrono.ChVector3d(
+                    -orbit_radius * math.cos(ch_time * orbit_rate),
+                    -orbit_radius * math.sin(ch_time * orbit_rate),
+                    1
+                ),
+                chrono.ChQuaternionD(0, 0, 0)
+            )
+        )
+
+        # Update sensor manager (will render/save/filter automatically)
+        manager.Update()
+
+        # Perform step of dynamics
+        vehicle_system.DoStepDynamics(step_size)
+        driver.Synchronize(vehicle_system.GetVehicleChassisBody().GetPos(), vehicle_system.GetVehicleChassisBody().GetRot(), vehicle_system

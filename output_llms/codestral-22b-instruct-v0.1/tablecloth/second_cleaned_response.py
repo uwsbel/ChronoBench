@@ -4,6 +4,7 @@ import pychrono.fea as fea
 import pychrono.pardisomkl as mkl
 import errno
 import os
+import math
 
 
 out_dir = chrono.GetChronoOutputPath() + "FEA_SHELLS_BST"
@@ -45,7 +46,13 @@ for iz in range(nsections_z + 1):
         mynodes.append(mnode)
 
 
-nodesLoad = []
+nodePlotA = mynodes[0]
+nodePlotB = mynodes[nsections_x]
+nodesLoad = mynodes[nsections_z * (nsections_x + 1):]
+
+
+melementmonitor = None
+mnodemonitor = []
 for iz in range(nsections_z):
     for ix in range(nsections_x):
         melementA = fea.ChElementShellBST()
@@ -60,6 +67,9 @@ for iz in range(nsections_z):
 
         if iz == 0 and ix == 1:
             melementmonitor = melementA
+            mnodemonitor.append(mynodes[iz * (nsections_x + 1) + ix])
+            mnodemonitor.append(mynodes[iz * (nsections_x + 1) + ix + 1])
+            mnodemonitor.append(mynodes[(iz + 1) * (nsections_x + 1) + ix])
 
         melementB = fea.ChElementShellBST()
         boundary_1 = mynodes[iz * (nsections_x + 1) + ix]
@@ -70,9 +80,6 @@ for iz in range(nsections_z):
                            mynodes[iz * (nsections_x + 1) + ix + 1], boundary_1, boundary_2, boundary_3)
         melementB.AddLayer(thickness, 0, material)
         mesh.AddElement(melementB)
-
-        if iz == 0 and ix == 0:
-            nodesLoad.append(mynodes[iz * (nsections_x + 1) + ix])
 
 
 for j in range(30):
@@ -113,22 +120,21 @@ sys.SetSolver(mkl_solver)
 timestep = 0.005
 
 
+def ref_X(t):
+    return 0.1 * math.sin(t)
+
+def ref_Y(t):
+    return 0.1 * math.cos(t)
+
+
+load_force = chrono.ChVector3d(0, -10, 0)
+
+
 sys.Setup()
 sys.Update()
 
 
-nodePlotA = mynodes[0]
-nodePlotB = mynodes[nsections_x]
-
-def ref_X(t):
-    return 0.0
-
-def ref_Y(t):
-    return 0.0
-
-load_force = chrono.ChVector3d(0, -1, 0)
-
-
+t = 0
 while vis.Run():
     vis.BeginScene()
     vis.Render()
@@ -139,7 +145,8 @@ while vis.Run():
         node.SetForce(load_force)
 
     
-    mnodemonitor = nodePlotA.GetPos()
-    melementmonitor.GetStress(0)
+    nodePlotA.SetPos(chrono.ChVector3d(ref_X(t), 0, ref_Y(t)))
+    nodePlotB.SetPos(chrono.ChVector3d(ref_X(t), 0, ref_Y(t)))
 
     sys.DoStepDynamics(timestep)
+    t += timestep

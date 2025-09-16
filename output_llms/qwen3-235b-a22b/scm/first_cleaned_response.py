@@ -1,67 +1,69 @@
 import pychrono as chrono
-import pychrono.vehicle as veh
-import pychrono.irrlicht as irr
-import pychrono.driver as driver
+import pychrono.vehicle as vehicle
+import pychrono.terrain as terrain
+import pychrono.irrlicht as irrlicht
 
 
 system = chrono.ChSystemNSC()
 system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
-chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.001)
-chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.001)
 
 
-vehicle = veh.HMMWV_Full()
-vehicle.SetContactMethod(chrono.ChContactMethod_NSC)
-vehicle.SetChassisFixed(False)
-
-vehicle.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 1.0, 0), chrono.ChQuaternionD(1, 0, 0, 0)))
-vehicle.SetTireType(veh.TireModelType_RIGID)
-vehicle.SetTireStepSize(0.02)
-vehicle.SetMeshVisualization(True)  
-vehicle.Initialize()
-
-
-terrain = veh.SCMTerrain(system)
-terrain.SetSoilParameters(2e6,   
-                          1.1,   
-                          0,     
-                          0.5,   
-                          1e-3,  
-                          2000)  
-
-terrain.EnableMovingPatch(vehicle.GetChassisBody(), chrono.ChVectorD(10, 4, 4))  
-terrain.SetPlotType(veh.SCMTerrain.PLOT_SINKAGE)  
-terrain.Initialize()
-
-
-application = irr.ChIrrApp(system, 'HMMWV on SCM Terrain', irr.dimension2du(1280, 720))
+application = irrlicht.ChIrrApp(system, 'HMMWV on SCM Terrain', irrlicht.dimension2du(1024, 768))
+application.AddTypicalLogo()
+application.AddTypicalSky()
 application.AddTypicalLights()
-application.AddCamera(chrono.ChVectorD(0, 3, -6), chrono.ChVectorD(0, 0, 0))
+application.AddCamera(chrono.ChVectorD(0, 5, -10), chrono.ChVectorD(0, 0, 0))
 application.AssetBindAll()
 application.AssetUpdateAll()
 
 
-drv = veh.ChIrrGuiDriver(vehicle.GetVehicle())
-drv.SetSteeringDelta(0.05)
-drv.SetThrottleDelta(0.05)
-drv.SetBrakingDelta(0.05)
-application.SetDriver(drv)
+hmmwv = vehicle.HMMWV_Full(system)
+hmmwv.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 1, 0), chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0))))
+hmmwv.SetTireType(vehicle.TireModelType_RIGID)
+hmmwv.SetChassisVisualizationType(vehicle.VisualizationType_MESH)
+hmmwv.SetSuspensionVisualizationType(vehicle.VisualizationType_MESH)
+hmmwv.SetSteeringVisualizationType(vehicle.VisualizationType_MESH)
+hmmwv.SetWheelVisualizationType(vehicle.VisualizationType_MESH)
+hmmwv.Initialize()
 
 
-system.SetStep(0.02)  
+scm_terrain = terrain.SCMDeformableTerrain(system)
+scm_terrain.SetPlane(chrono.ChCoordsysD(), 100, 100)
+scm_terrain.SetSoilParameters(
+    2e6,    
+    0,      
+    1.1,    
+    0,      
+    30,     
+    0.01,   
+    0.5     
+)
+scm_terrain.AddMovingPatch(hmmwv.GetChassis(), chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(5, 1, 5))
+scm_terrain.SetPlotType(terrain.SCMDeformableTerrain.PLOT_SINKAGE, 0.0, 0.2)
+scm_terrain.Initialize()
+
+
+driver = vehicle.DriverIRL(hmmwv)
+driver.Initialize()
+
+
+step_size = 1.0 / 50.0
+system.SetStep(step_size)
+
 
 while application.GetDevice().run():
-    
-    drv.Synchronize(application.GetTime())
-    
-    
-    vehicle.Synchronize(application.GetTime(), drv.GetInputs(), terrain)
-    terrain.Synchronize(application.GetTime())
+    time = system.GetChTime()
     
     
-    system.DoStepDynamics(0.02)
+    driver_inputs = driver.GetInputs()
+    driver.Synchronize(time)
+    hmmwv.Synchronize(time, driver_inputs)
+    scm_terrain.Synchronize(time)
     
     
     application.BeginScene()
     application.DrawAll()
     application.EndScene()
+    
+    
+    system.DoStepDynamics(step_size)

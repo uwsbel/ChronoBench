@@ -12,34 +12,31 @@ def main():
     # -----------------
     mphysicalSystem = chrono.ChSystemNSC()
 
-    # -------------------------------
-    # Create and initialize ARTcar vehicle
-    # -------------------------------
-    # Create vehicle chassis
-    chassis = chrono.ChBodyEasyBox(2, 1, 0.5, 1000)
-    chassis.SetPos(chrono.ChVector3d(0, 0, 0.25))
-    chassis.SetFixed(False)
-    chassis.GetVisualModel().GetShape(0).SetTexture(chrono.GetChronoDataFile("textures/blue.png"))
-    mphysicalSystem.Add(chassis)
+    # ---------------------
+    # Create and initialize the ARTcar vehicle
+    # ---------------------
+    # Set path to ARTcar data files
+    vehicle = veh.ChWheeledVehicle(mphysicalSystem, veh.GetDataFile("ARTcar/vehicle/ARTcar.json"))
+    vehicle.Initialize(chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 1.0)))
+    chassis = vehicle.GetChassisBody()
 
-    # -------------------------------
-    # Create and initialize driver
-    # -------------------------------
-    driver = veh.ChDriver(chassis)
-    driver.Initialize()
-
-    # -------------------------------
-    # Create and initialize terrain
-    # -------------------------------
+    # ---------------------
+    # Create and initialize the terrain
+    # ---------------------
     terrain = veh.ChRigidTerrain(mphysicalSystem)
     patch = terrain.AddPatch(
-        chrono.ChCoordsysd(), 
-        chrono.ChVector3d(100, 100, 1),  # Size
-        "texture.png",  # Texture (assuming exists)
-        0.8  # Friction
+        veh.GetDataFile("terrain/textures/tile4.jpg"),
+        chrono.ChVector3d(0, 0, 0),
+        chrono.ChVector3d(200, 200, 1)
     )
-    patch.SetColor(chrono.ChColor(0.5, 0.5, 0.5))  # Gray color
+    patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
     terrain.Initialize()
+
+    # ---------------------
+    # Create and initialize the driver
+    # ---------------------
+    driver = veh.ChDriver(vehicle)
+    driver.Initialize()
 
     # -----------------------
     # Create sensor manager
@@ -51,32 +48,32 @@ def main():
     # ------------------------------------------------
     # Common lidar parameters
     offset_pose = chrono.ChFramed(
-        chrono.ChVector3d(1.0, 0, 1),  # Changed from -12 to 1.0
+        chrono.ChVector3d(1.0, 0, 1),
         chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
     )
 
     # 3D Lidar
     lidar = sens.ChLidarSensor(
-        chassis,              # Body lidar is attached to (now chassis)
-        update_rate,            
-        offset_pose,            
-        horizontal_samples,     
-        vertical_samples,       
-        horizontal_fov,         
-        max_vert_angle,         
-        min_vert_angle,         
-        100.0,                  
-        sens.LidarBeamShape_RECTANGULAR,  
-        sample_radius,          
-        divergence_angle,       
-        divergence_angle,       
-        return_mode             
+        chassis,
+        update_rate,
+        offset_pose,
+        horizontal_samples,
+        vertical_samples,
+        horizontal_fov,
+        max_vert_angle,
+        min_vert_angle,
+        100.0,
+        sens.LidarBeamShape_RECTANGULAR,
+        sample_radius,
+        divergence_angle,
+        divergence_angle,
+        return_mode
     )
     lidar.SetName("Lidar Sensor")
     lidar.SetLag(lag)
     lidar.SetCollectionWindow(collection_time)
 
-    # Apply filters to 3D lidar
+    # Add filters for 3D lidar
     if noise_model == "CONST_NORMAL_XYZI":
         lidar.PushFilter(sens.ChFilterLidarNoiseXYZI(0.01, 0.001, 0.001, 0.01))
     elif noise_model == "NONE":
@@ -89,29 +86,29 @@ def main():
         lidar.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "Lidar Point Cloud"))
     lidar.PushFilter(sens.ChFilterXYZIAccess())
     manager.AddSensor(lidar)
-    
+
     # 2D Lidar
-    lidar_2d =  sens.ChLidarSensor(
-        chassis,              # Body lidar is attached to (now chassis)
-        update_rate,            
-        offset_pose,            
-        horizontal_samples,     
-        1,                      
-        horizontal_fov,         
-        0.0,                    
-        0.0,                    
-        100.0,                  
-        sens.LidarBeamShape_RECTANGULAR,  
-        sample_radius,          
-        divergence_angle,       
-        divergence_angle,       
-        return_mode             
+    lidar_2d = sens.ChLidarSensor(
+        chassis,
+        update_rate,
+        offset_pose,
+        horizontal_samples,
+        1,
+        horizontal_fov,
+        0.0,
+        0.0,
+        100.0,
+        sens.LidarBeamShape_RECTANGULAR,
+        sample_radius,
+        divergence_angle,
+        divergence_angle,
+        return_mode
     )
     lidar_2d.SetName("2D Lidar Sensor")
     lidar_2d.SetLag(lag)
     lidar_2d.SetCollectionWindow(collection_time)
-    
-    # Apply filters to 2D lidar
+
+    # Add filters for 2D lidar
     if noise_model == "CONST_NORMAL_XYZI":
         lidar_2d.PushFilter(sens.ChFilterLidarNoiseXYZI(0.01, 0.001, 0.001, 0.01))
     elif noise_model == "NONE":
@@ -123,26 +120,27 @@ def main():
     lidar_2d.PushFilter(sens.ChFilterXYZIAccess())
     manager.AddSensor(lidar_2d)
 
-    # -------------------------------
-    # Add third person camera
-    # -------------------------------
+    # ---------------------
+    # Create third-person camera
+    # ---------------------
     camera_offset = chrono.ChFramed(
-        chrono.ChVector3d(-3, 0, 2),  # Behind the vehicle
+        chrono.ChVector3d(-3, 0, 2),
         chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
     )
     camera = sens.ChCameraSensor(
         chassis,
-        60,  # Update rate
+        update_rate,
         camera_offset,
-        800,  # Width
-        600,  # Height
-        chrono.CH_PI / 4  # Field of view in radians
+        1280,
+        720,
+        chrono.CH_PI / 3
     )
     camera.SetName("Third Person Camera")
     if vis:
-        camera.PushFilter(sens.ChFilterVisualize(800, 600, "Third Person View"))
+        camera.PushFilter(sens.ChFilterVisualize(1280, 720, "Camera View"))
+    camera.PushFilter(sens.ChFilterRGBA8Access())
     manager.AddSensor(camera)
-    
+
     # ---------------
     # Simulate system
     # ---------------
@@ -152,36 +150,33 @@ def main():
     while ch_time < end_time:
         # Get driver inputs
         driver_inputs = driver.GetInputs()
-        
-        # Synchronize components
+
+        # Synchronize all modules
         driver.Synchronize(ch_time)
-        # Vehicle synchronization (assuming vehicle is chassis for simplicity)
-        chassis.Synchronize(ch_time, driver_inputs, terrain)
+        vehicle.Synchronize(ch_time, driver_inputs, terrain)
         terrain.Synchronize(ch_time)
-        
+        manager.Synchronize(ch_time)
+
+        # Advance all modules
+        driver.Advance(step_size)
+        vehicle.Advance(step_size)
+        terrain.Advance(step_size)
+        manager.Advance(step_size)
+
         # Access the XYZI buffer from lidar
         xyzi_buffer = lidar.GetMostRecentXYZIBuffer()
         if xyzi_buffer.HasData():
             xyzi_data = xyzi_buffer.GetXYZIData()
-            print('XYZI buffer received from lidar. Lidar resolution: {0}x{1}'.format(xyzi_buffer.Width, xyzi_buffer.Height))
-            print('Max Value: {0}'.format(np.max(xyzi_data)))
+            print(f'XYZI buffer received from lidar. Lidar resolution: {xyzi_buffer.Width}x{xyzi_buffer.Height}')
+            print(f'Max Value: {np.max(xyzi_data)}')
 
-        # Update sensor manager
-        manager.Update()
-        
-        # Advance components
-        driver.Advance(step_size)
-        chassis.Advance(step_size)
-        terrain.Advance(step_size)
-        
         # Perform step of dynamics
         mphysicalSystem.DoStepDynamics(step_size)
 
-        # Get the current time of the simulation
+        # Update simulation time
         ch_time = mphysicalSystem.GetChTime()
 
     print("Sim time:", end_time, "Wall time:", time.time() - t1)
-
 
 # -----------------
 # Lidar parameters
@@ -207,5 +202,8 @@ end_time = 40.0
 save = False
 vis = True
 out_dir = "SENSOR_OUTPUT/"
+
+# Set Chrono data path (if needed)
+chrono.SetChronoDataPath("../../../data/")
 
 main()

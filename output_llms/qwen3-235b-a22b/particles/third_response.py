@@ -19,28 +19,36 @@ sys = chrono.ChSystemNSC()
 sys.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 coll = sys.GetCollisionSystem()
 
-# Create Sphere 1
+# Create three spheres for three-body simulation
 sphere_mat = chrono.ChContactMaterialNSC()
 sphere_mat.SetFriction(0.2)
+
+# Sphere 1: Original sphere with updated velocity
 msphereBody = chrono.ChBodyEasySphere(2.1, 1800, True, True, sphere_mat)
 msphereBody.SetPos(chrono.ChVector3d(1, 1, 0))
 msphereBody.SetPos_dt(chrono.ChVector3d(0.5, 0, 0.1))  # Set initial velocity
 msphereBody.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
+msphereBody.SetUseGyroTorque(False)
 sys.Add(msphereBody)
 
-# Create Sphere 2
+# Sphere 2: New sphere at (-10, -10, 0)
 sphere2 = chrono.ChBodyEasySphere(2.1, 1800, True, True, sphere_mat)
 sphere2.SetPos(chrono.ChVector3d(-10, -10, 0))
 sphere2.SetPos_dt(chrono.ChVector3d(-0.5, 0, -0.1))  # Set initial velocity
 sphere2.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
+sphere2.SetUseGyroTorque(False)
 sys.Add(sphere2)
 
-# Create Sphere 3
+# Sphere 3: New sphere at (0, 20, 0)
 sphere3 = chrono.ChBodyEasySphere(2.1, 1800, True, True, sphere_mat)
 sphere3.SetPos(chrono.ChVector3d(0, 20, 0))
 sphere3.SetPos_dt(chrono.ChVector3d(0, -0.5, 0.2))  # Set initial velocity
 sphere3.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
+sphere3.SetUseGyroTorque(False)
 sys.Add(sphere3)
+
+# List of gravitational bodies for three-body simulation
+gravitational_bodies = [msphereBody, sphere2, sphere3]
 
 # Create an emitter
 emitter = chrono.ChParticleEmitter()
@@ -97,35 +105,41 @@ while vis.Run():
 
     emitter.EmitParticles(sys, stepsize)
 
+    # Empty accumulators for all bodies before applying new forces
     for body in sys.GetBodies():
         body.EmptyAccumulators()
 
     G_constant = 6.674e-3  # Modified gravitational constant
 
-    # Calculate the total kinetic energy of the system
+    # Calculate the total kinetic energy of the three-body system
     kinetic_energy = 0
-    for body in sys.GetBodies():
+    for body in gravitational_bodies:
         mass = body.GetMass()
         velocity = body.GetPosDt()
         kinetic_energy += 0.5 * mass * velocity.Length2()
 
-    # Calculate the total potential energy of the system (using gravitational potential)
+    # Calculate the total potential energy of the three-body system
     potential_energy = 0
-    for abodyA, abodyB in combinations(sys.GetBodies(), 2):
+    for abodyA, abodyB in combinations(gravitational_bodies, 2):
         D_attract = abodyB.GetPos() - abodyA.GetPos()
         r_attract = D_attract.Length()
+        if r_attract == 0:
+            continue  # Avoid division by zero
         potential_energy += -G_constant * (abodyA.GetMass() * abodyB.GetMass()) / r_attract
 
-    # Total energy of the system
-    total_energy = kinetic_energy + potential_energy
-    mlist = list(combinations(sys.GetBodies(), 2))
-    for abodyA, abodyB in mlist:
+    # Apply mutual gravitational forces between the three bodies
+    for abodyA, abodyB in combinations(gravitational_bodies, 2):
         D_attract = abodyB.GetPos() - abodyA.GetPos()
         r_attract = D_attract.Length()
+        if r_attract == 0:
+            continue  # Avoid division by zero
         f_attract = G_constant * (abodyA.GetMass() * abodyB.GetMass()) / (r_attract ** 2)
         F_attract = (D_attract / r_attract) * f_attract
         abodyA.AccumulateForce(F_attract, abodyA.GetPos(), False)
         abodyB.AccumulateForce(-F_attract, abodyB.GetPos(), False)
+
+    # Total energy of the system
+    total_energy = kinetic_energy + potential_energy
 
     # Print the energy values
     print(

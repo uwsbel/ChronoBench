@@ -1,130 +1,72 @@
-Here's a well-documented PyChrono simulation script that creates a beam composed of **ANCF cable elements**, with **one end fixed to the ground**, and **gravity applied**. The simulation uses **Irrlicht for visualization**, showing the **deformation and nodal positions** in real time.
 
----
-
-### ✅ Features Implemented:
-- ANCF cable beam elements using `ChElementCableANCF`
-- Fixed constraint on the first node (hinge)
-- Gravity applied along the Y-axis
-- Real-time visualization using Irrlicht
-- Proper material properties and beam geometry
-
----
-
-### 📜 PyChrono Simulation Script
 
 ```python
-# Import required PyChrono modules
 import pychrono as chrono
 import pychrono.fea as fea
-import pychrono.irrlicht as irr
+import pychrono.irrlicht as irrlicht
 
-# -------------------------------
-# 1. Initialize the physical system
-# -------------------------------
-my_system = chrono.ChSystemNSC()
-my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Gravity along Y-axis
+# Initialize the PyChrono system with non-smooth contact dynamics
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Gravity in Y-direction
 
-# -------------------------------
-# 2. Define beam parameters
-# -------------------------------
-num_elements = 10         # Number of ANCF elements
-beam_length = 1.0         # Total length of the beam (m)
-radius = 0.01             # Cable radius (m)
-density = 1000            # Material density (kg/m^3)
-E = 5e6                   # Young's modulus (Pa)
-nu = 0.3                  # Poisson's ratio
-
-# -------------------------------
-# 3. Create FEA mesh
-# -------------------------------
+# Create FEA mesh for the beam
 mesh = fea.ChMesh()
 
-# Create nodes
-nodes = []
+# Beam parameters
+L = 1.0  # Length of the beam
+num_elements = 10  # Number of elements
+radius = 0.01  # Radius of the cable
+E = 2e5  # Young's modulus (Pa)
+density = 1000  # Density (kg/m^3)
+area = chrono.CH_C_PI * radius**2  # Cross-sectional area
+I = chrono.CH_C_PI * radius**4 / 4  # Area moment of inertia
+
+# Create nodes along the beam
 for i in range(num_elements + 1):
-    pos = chrono.ChVectorD(beam_length * i / num_elements, 0, 0)
-    node = fea.ChNodeFEAxyzD(pos)  # Node with position and director vector
-    nodes.append(node)
+    pos = chrono.ChVectorD(L * i / num_elements, 0, 0)
+    node = fea.ChNodeFEAxyz(pos)
     mesh.AddNode(node)
 
-# Create cable elements
+# Create ANCF cable elements
 for i in range(num_elements):
     element = fea.ChElementCableANCF()
-    element.SetNodes(nodes[i], nodes[i+1])
-    element.SetDiameter(radius * 2)  # Diameter = 2 * radius
-    material = fea.ChMaterialCableANCF(density, E, nu)
-    element.SetMaterial(material)
+    element.SetNodes(mesh.GetNode(i), mesh.GetNode(i+1))
+    element.SetDiameter(2 * radius)
+    element.SetMaterialYoungModulus(E)
+    element.SetArea(area)
+    element.SetI(I)
+    element.SetDensity(density)
     mesh.AddElement(element)
 
-# -------------------------------
-# 4. Apply boundary conditions
-# -------------------------------
-# Fix the first node using a fixed constraint
-constraint = fea.ChLinkMateFixed()
-constraint.Initialize(nodes[0], chrono.ChFrameD())
-my_system.Add(constraint)
-
 # Add the mesh to the system
-my_system.Add(mesh)
+system.Add(mesh)
 
-# -------------------------------
-# 5. Set up Irrlicht visualization
-# -------------------------------
-application = irr.ChIrrApp(my_system, 'ANCF Cable Beam Simulation', irr.dimension2d_u32(800, 600))
+# Fix the first node to the ground using a generic constraint
+node0 = mesh.GetNode(0)
+constraint = chrono.ChLinkMateGeneric(True, True, True, True, True, True)
+constraint.Initialize(node0, system.GetGroundBody(), False, chrono.ChFrameD(), chrono.ChFrameD())
+system.Add(constraint)
+
+# Set up Irrlicht visualization
+application = irrlicht.ChIrrApp(system, 'ANCF Beam Simulation', irrlicht.dimension2du(1024, 768))
 application.AddTypicalSky()
 application.AddTypicalLights()
-application.AddCamera(chrono.ChVectorD(0.5, 0.5, -1.5), chrono.ChVectorD(0.5, 0, 0))
+application.AddTypicalCamera(irrlicht.vector3df(0.5, 0.5, -1.5))  # Adjusted camera position
 
-# Add visualization assets for nodes and elements
-for node in nodes:
-    sphere = chrono.ChSphereShape(radius * 0.5)
-    sphere.SetColor(chrono.ChColor(1, 0, 0))  # Red color for nodes
-    node.AddAsset(sphere)
+# Add FEA mesh visualization assets
+vis_mesh = fea.ChVisualizationFEAmesh(mesh)
+vis_mesh.SetWireframe(True)
+vis_mesh.SetShowNodes(True)
+vis_mesh.SetNodeSize(0.01)
+mesh.AddAsset(vis_mesh)
 
-# Optional: Add visualization asset for the mesh
-mesh_vis = fea.ChVisualizationFEA(mesh)
-mesh_vis.SetFEMdataType(fea.ChVisualizationFEA.DataType_SURFACE)
-mesh_vis.SetWireframe(True)
-mesh.AddAsset(mesh_vis)
-
-# Finalize visualization setup
 application.AssetBindAll()
 application.AssetUpdateAll()
 
-# -------------------------------
-# 6. Simulation loop
-# -------------------------------
-application.SetTimestep(0.01)  # Time step (s)
-application.SetTryRealtime(True)
-
+# Simulation loop
 while application.GetDevice().run():
     application.BeginScene()
     application.DrawAll()
-    application.DoStep()
     application.EndScene()
+    system.DoStepDynamics(1e-4)  # Smaller timestep for stability
 ```
-
----
-
-### 🧪 Notes on Behavior and Tuning
-
-- **Gravity** pulls the beam downward, causing it to sag under its own weight.
-- The **fixed constraint** at the first node simulates a hinge.
-- **Visualization** shows:
-  - Red spheres at each node.
-  - Mesh surface (wireframe) showing the beam's shape.
-- If the beam appears too stiff, try reducing `E` (Young's modulus) or increasing the time step.
-- You can increase the number of elements for more accurate deformation.
-
----
-
-### 🧰 Dependencies
-
-Make sure you have **PyChrono** installed with the following modules:
-- `chrono.fea`
-- `chrono.irrlicht`
-
----
-
-This script provides a complete and visual simulation of a hanging beam using **ANCF cable elements** under gravity, and is ready for further customization or extension.

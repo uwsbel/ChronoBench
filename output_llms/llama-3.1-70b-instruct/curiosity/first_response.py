@@ -14,54 +14,36 @@ ground.SetPos(chrono.ChVectorD(0, -3, 0))
 ground.SetBodyFixed(True)
 mysystem.Add(ground)
 
-# Create the rover body and add it to the system
+# Create the rover model
 rover = chrono.ChBodyEasyBox(mysystem, 2, 1, 2, 100, True, True)
 rover.SetPos(chrono.ChVectorD(0, 1, 0))
 mysystem.Add(rover)
 
-# Create the motor control driver for real-time steering inputs
-motor_driver = chrono.ChMotorLinearSpeed()
-motor_driver.SetSpeed(chrono.ChVectorD(0, 0, 1))
-rover.AddDriver(motor_driver)
+# Add a motor control driver for real-time steering inputs
+motor = chrono.ChMotorLinearTransmission()
+motor.SetMaxForce(1000)
+rover.AddMotor(motor)
 
 # Create the Irrlicht visualization system
-viz = chronoirr.ChVisualSystemIrrlicht()
-viz.SetWindowSize(1024, 768)
-viz.SetWindowTitle("Curiosity Rover Simulation")
-viz.SetCamera(chrono.ChVectorD(0, 2, -5), chrono.ChVectorD(0, 0, 0))
-viz.SetLightDirection(chrono.ChVectorD(1, 1, 1))
-viz.SetShowAxes(True)
-viz.SetShowLogo(True)
-viz.SetSkyBox(True)
-viz.SetShadows(True)
-viz.SetTextures(True)
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.SetWindowSize(800, 600)
+vis.SetWindowTitle("Curiosity Rover Simulation")
+vis.SetCamera(chrono.ChVectorD(0, 1, -3), chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 1, 0))
 
-# Add visualization assets to the rover body
-rover_texture = chrono.ChTexture()
-rover_texture.SetTextureFilename("rover_texture.png")
-rover.AddVisualizationAsset(rover_texture)
+# Customize camera settings
+vis.SetCameraUp(chrono.ChVectorD(0, 1, 0))
+vis.SetCameraLookAt(chrono.ChVectorD(0, 0, 0))
 
-# Add visualization assets to the ground body
-ground_texture = chrono.ChTexture()
-ground_texture.SetTextureFilename("ground_texture.png")
-ground.AddVisualizationAsset(ground_texture)
+# Add lighting and shadows
+vis.AddTypicalLights()
+vis.AddShadowAll()
 
-# Create a logo visualization asset
-logo = chrono.ChVisualizationLogo()
-logo.SetLogoFilename("logo.png")
-logo.SetLogoPosition(chrono.ChVectorD(0, 0, 0))
-logo.SetLogoScale(chrono.ChVectorD(1, 1, 1))
-viz.AddVisualizationAsset(logo)
+# Add textures and logos
+vis.AddLogo(chrono.ChVectorD(0.5, 0.1, 0.1), chrono.ChVectorD(0.1, 0.1, 0.1), "chrono.png")
 
-# Create a collision callback to detect contacts between the rover and ground
-def collision_callback(contact_info):
-    print("Contact detected between rover and ground")
-
-mysystem.SetContactCallback(collision_callback)
-
-# Run the simulation
-while viz.Run():
-    mysystem.DoStepDynamics(0.01)
-    viz.BeginScene()
-    viz.DrawAll()
-    viz.EndScene()
+# Set up the simulation loop
+while vis.Run():
+    mysystem.DoStepDynamics(mysystem.GetDt())
+    vis.BeginScene()
+    vis.DrawAll()
+    vis.EndScene()

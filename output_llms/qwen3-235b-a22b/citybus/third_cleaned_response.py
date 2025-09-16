@@ -3,13 +3,12 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
-
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 
 initLoc = chrono.ChVector3d(0, 0, 0.5)
-initRot = chrono.ChQuaterniond(1, 0, 0, 0)  
+initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 
 vis_type = veh.VisualizationType_PRIMITIVES
@@ -18,7 +17,7 @@ vis_type_mesh = veh.VisualizationType_MESH
 chassis_collision_type = veh.CollisionType_NONE
 
 
-tire_model = veh.TireModelType_PACEJKA_89
+tire_model = veh.TireModelType_PACEJKA  
 
 
 terrainHeight = 0      
@@ -33,8 +32,8 @@ contact_method = chrono.ChContactMethod_NSC
 contact_vis = False
 
 
-step_size = 5e-4
-tire_step_size = step_size
+step_size = 5e-4  
+tire_step_size = 5e-4  
 
 
 render_step_size = 1.0 / 50  
@@ -50,13 +49,11 @@ vehicle.SetTireStepSize(tire_step_size)
 
 vehicle.Initialize()
 
-
 vehicle.SetChassisVisualizationType(vis_type_mesh)
 vehicle.SetSuspensionVisualizationType(vis_type)
 vehicle.SetSteeringVisualizationType(vis_type)
 vehicle.SetWheelVisualizationType(vis_type_mesh)
 vehicle.SetTireVisualizationType(vis_type_mesh)
-
 
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
@@ -103,16 +100,17 @@ print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 
 render_steps = math.ceil(render_step_size / step_size)
+
+
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
-
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
     
-    if (step_number % render_steps == 0):
+    if step_number % render_steps == 0:
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
@@ -132,9 +130,6 @@ while vis.Run():
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
-
     
     step_number += 1
-
-    
     realtime_timer.Spin(step_size)

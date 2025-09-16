@@ -1,0 +1,66 @@
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
+import math
+
+# 1. Initialize the PyChrono environment and core components
+chrono.SetChronoDataPath("PATH_TO_CHRONO_DATA")  # Set your Chrono data path here
+
+# Create the Chrono system
+my_system = chrono.ChSystemNSC()
+my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
+
+# 2. Add the required physical systems and objects
+# Create the ground body
+ground = chrono.ChBody()
+ground.SetBodyFixed(True)
+ground.GetVisualModel().AddBox(10, 0.1, 10, chrono.ChVectorD(0, -0.1, 0))
+ground.GetCollisionModel().AddBox(10, 0.1, 10, chrono.ChVectorD(0, -0.1, 0))
+my_system.Add(ground)
+
+# Create the Viper rover
+viper = chrono.ChViperWheeledVehicle(my_system)
+viper.Initialize(chrono.ChVectorD(0, 0.5, 0), chrono.ChQuaternionD(1, 0, 0, 0))
+viper.GetChassis().SetBodyFixed(False)
+my_system.Add(viper.GetChassis())
+
+# Create and initialize the driver
+driver = chrono.ChViperDriver(viper)
+driver.Initialize()
+
+# 3. Set up visualization
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(my_system)
+vis.SetWindowSize(1280, 720)
+vis.SetWindowTitle("Viper Rover Simulation")
+vis.Initialize()
+vis.AddLogo()
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVectorD(5, 2, 0))
+vis.AddTypicalLights()
+vis.SetCameraVertical(chrono.CameraVerticalDir_Z)
+vis.SetUseSkyBox(True)
+
+# 4. Simulation loop
+time_step = 0.01
+sim_time = 0
+max_time = 10.0
+
+while vis.Run() and sim_time < max_time:
+    # Update driver inputs (gradually changing steering)
+    steering_angle = 0.5 * math.sin(2 * math.pi * sim_time / 5)  # Oscillating steering
+    throttle = 0.3  # Constant throttle
+
+    driver.SetSteering(steering_angle)
+    driver.SetThrottle(throttle)
+
+    # Update visualization
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+
+    # Advance simulation
+    my_system.DoStepDynamics(time_step)
+    sim_time += time_step
+
+    # Print simulation time
+    print(f"Simulation time: {sim_time:.2f}s")

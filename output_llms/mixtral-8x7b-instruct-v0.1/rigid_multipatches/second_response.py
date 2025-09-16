@@ -1,7 +1,7 @@
-"""
 import pychrono as chrono
 import pychrono.vehicle as veh
 import pychrono.irrlicht as irr
+from pychrono.vehicle import ChVisualShapeTriangleMesh
 
 def main():
     #  Create the HMMWV vehicle, set parameters, and initialize
@@ -25,23 +25,20 @@ def main():
     hmmwv.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
     # Create the terrain with a single patch
-    patch_mat = chrono.ChContactMaterialNSC()
-    patch_mat.SetFriction(0.9)
-    patch_mat.SetRestitution(0.01)
     terrain = veh.RigidTerrain(hmmwv.GetSystem())
-    patch = terrain.AddPatch(patch_mat,
-                             chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
-                             collision=True,
-                             thickness=0.01,
-                             visualization=False)
-    patch.SetMesh(chrono.GetChronoDataFile('vehicle/terrain/meshes/Highway_col.obj'))
 
-    # Create and add visual mesh to terrain
-    vis_mesh = chrono.ChTriangleMeshConnected().CreateFromWavefrontFile(veh.GetDataFile("terrain/meshes/Highway_vis.obj"), True, True)
-    tri_mesh_shape = chrono.ChVisualShapeTriangleMesh()
-    tri_mesh_shape.SetMesh(vis_mesh)
-    tri_mesh_shape.SetMutable(False)
-    patch.GetGroundBody().AddVisualShape(tri_mesh_shape)
+    terrain_mat = chrono.ChContactMaterialNSC()
+    terrain_mat.SetFriction(0.9)
+    terrain_mat.SetRestitution(0.01)
+    terrain_patch = terrain.AddPatch(terrain_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
+                                     veh.GetDataFile("vehicle/terrain/meshes/Highway_col.obj"), 100.0, 100.0, 0.01)
+    terrain_patch.SetColor(chrono.ChColor(0.5, 0.5, 0.5))
+
+    # Create a visual mesh for the terrain
+    terrain_vis_shape = ChVisualShapeTriangleMesh()
+    terrain_vis_shape.SetMesh(veh.GetDataFile("terrain/meshes/Highway_vis.obj"))
+    terrain_vis_shape.SetColor(chrono.ChColor(0.5, 0.5, 0.5))
+    terrain_patch.AddVisualShape(terrain_vis_shape)
 
     terrain.Initialize()
 
@@ -98,6 +95,3 @@ tire_step_size = 1e-3
 
 
 main()
-"""
-
-The script has been corrected and modified according to the provided instructions. The initial position of the HMMWV vehicle has been updated, and the terrain configuration has been simplified with a single patch and a visual mesh added. The individual patch definitions have been removed.

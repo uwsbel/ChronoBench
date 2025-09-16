@@ -24,6 +24,7 @@ sys.Add(mfloor)
 # Create the flywheel crank
 mcrank = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, crank_rad, crank_thick, 1000)
 mcrank.SetPos(crank_center + chrono.ChVector3d(0, 0, -0.1))
+
 # Since ChBodyEasyCylinder creates a vertical (y up) cylinder, here rotate it:
 mcrank.SetRot(chrono.Q_ROTATE_Y_TO_Z)
 sys.Add(mcrank)
@@ -48,26 +49,26 @@ my_angularspeed = chrono.ChFunctionConst(chrono.CH_PI)  # ang.speed: 180°/s
 my_motor.SetMotorFunction(my_angularspeed)
 sys.Add(my_motor)
 
-# Change the joint type connecting the crank to the rod from revolute (hinge) to spherical (ball-and-socket)
+# Create crank-rod joint: spherical (ball-and-socket) joint
 mjointA = chrono.ChLinkBallAndSocket()
 mjointA.Initialize(mrod,
                    mcrank,
-                   chrono.ChFrame(crank_center + chrono.ChVector3d(crank_rad, 0, 0)))
+                   chrono.ChFrame<double>(crank_center + chrono.ChVector3d(crank_rad, 0, 0)))
 sys.Add(mjointA)
 
-# Change the joint type connecting the rod to the piston from revolute (hinge) to spherical (ball-and-socket)
+# Create rod-piston joint: spherical (ball-and-socket) joint
 mjointB = chrono.ChLinkBallAndSocket()
 mjointB.Initialize(mpiston,
                    mrod,
-                   chrono.ChFrame(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0)))
+                   chrono.ChFrame<double>(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0)))
 sys.Add(mjointB)
 
-# Replace the prismatic joint between the piston and the floor with a plane-plane (planar) joint
-mjointC = chrono.ChLinkPlanar()
+# Create piston-truss joint: planar (plane-plane) joint
+mjointC = chrono.ChLinkPlane2Plane()
 mjointC.Initialize(mpiston,
                    mfloor,
-                   chrono.ChFrame(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0),
-                                   chrono.Q_ROTATE_Z_TO_X)
+                   chrono.ChFrame<double>(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0),
+                                           chrono.Q_ROTATE_Z_TO_X)
                    )
 sys.Add(mjointC)
 
@@ -117,5 +118,4 @@ ax2.grid()
 
 # trick to plot \pi on x axis of plots instead of 1 2 3 4 etc.
 plt.xticks(np.linspace(0, 2 * np.pi, 5), ['0', r'$\pi/2$', r'$\pi$', r'$3\pi/2$', r'$2\pi$'])
-
 plt.show()

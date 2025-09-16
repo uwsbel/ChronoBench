@@ -1,55 +1,52 @@
 import pychrono as chrono
 import pychrono.irrlicht as irr
+import pychrono.vehicle as veh
+import math
 
-# Initialize PyChrono environment
-chrono.SetChronoDataPath('PYCHRONO_DATA_DIR')
-
-# Create a system
+# 1. Initialize the PyChrono environment and core components
+chrono.SetChronoDataPath("../../data/")
 my_system = chrono.ChSystemNSC()
+my_system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
 
-# Create a vehicle
-my_vehicle = chrono.HMMWV(my_system)
-my_vehicle.SetContactMethod(chrono.ChContactMethod_NSC)
-my_vehicle.SetTireType(chrono.TireModelType_TMEASY)
-my_vehicle.SetChassisFixed(False)
-my_vehicle.SetInitPosition(chrono.ChCoordsys(chrono.ChVectorD(0, 0, 1)))
-my_vehicle.SetInitFwdVel(10)
-my_vehicle.SetTireVisualizationType(chrono.VisualizationType_PRIMITIVES)
+# 2. Add the required physical systems and objects
 
-# Create a rigid terrain
-my_terrain = chrono.RigidTerrain(my_system)
-my_terrain.SetContactFrictionCoeff00(0.9)
-my_terrain.SetContactFrictionCoeff11(0.9)
-my_terrain.SetContactFrictionCoeff22(0.9)
-my_terrain.SetContactRestitutionCoeff(0.0)
-my_terrain.SetContactSoundsMu(0.1)
-my_terrain.SetContactSoundsBeta(0.1)
-my_terrain.SetTexture(chrono.GetChronoDataFile("terrain/textures/tile4.jpg"))
-my_terrain.Initialize(my_vehicle.GetSystem(), 200, 200, 0, 0, 0, 0.01)
+# Create the HMMWV vehicle
+hmmwv = veh.HMMWV(my_system)
+hmmwv.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 1), chrono.ChQuaternionD(1, 0, 0, 0)))
+hmmwv.SetContactMethod(chrono.ChContactMethod_NSC)
+hmmwv.SetTireType(veh.TireModelType_TMEASY)
+hmmwv.SetTireVisualizationType(veh.VisualizationType_PRIMITIVES)
 
-# Create an interactive driver system
-my_driver = chrono.ChDriver(my_system)
-my_driver.Initialize()
-my_driver.SetSteeringControllerType(chrono.ChDriver.SteeringControllerType_PS)
-my_driver.SetEngineControllerType(chrono.ChDriver.EngineControllerType_PS)
-my_driver.SetBrakingControllerType(chrono.ChDriver.BrakingControllerType_PS)
-my_driver.SetSteeringControllerGain(0.5)
-my_driver.SetEngineMaxRPM(6000)
-my_driver.SetEngineMinRPM(1000)
-my_driver.SetBrakingControllerGain(1.0)
+# Create the rigid terrain
+terrain = veh.RigidTerrain(my_system)
+terrain.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.ChQuaternionD(1, 0, 0, 0)),
+                   chrono.ChVectorD(100, 100, 1),
+                   chrono.ChVectorD(50, 50, 1),
+                   chrono.ChVectorD(0.8, 0.9, 0.3))
+terrain.SetTexture(chrono.GetChronoDataFile("terrain/textures/tile4.jpg"))
 
-# Create an Irrlicht application
-my_application = irr.ChIrrApp(my_system, 'HMMWV on Rigid Terrain', irr.dimension2du(1024, 768))
-my_application.AddTypicalLogo()
-my_application.AddTypicalSky()
-my_application.AddTypicalLights()
-my_application.AddTypicalCamera(irr.vector3df(0, 3, -6))
-my_application.AddTypicalLights()
-my_application.SetTimestep(0.02)
+# 3. Set necessary default parameters
+
+# Configure the interactive driver system
+driver = veh.ChIrrGuiDriver(hmmwv.GetVehicle(), cam_location=chrono.ChVectorD(0, 20, 10))
+
+# 4. Set up the simulation loop
+
+# Create an Irrlicht application to visualize the system
+application = irr.ChIrrApp(my_system, "HMMWV on Rigid Terrain", irr.dimension2du(1024, 768))
+application.AddTypicalLogo()
+application.AddTypicalSky()
+application.AddTypicalCamera(chrono.ChVectorD(0, 20, 10))
+application.AddTypicalLights()
+application.AddLightWithShadow(chrono.ChVectorD(20, 20, 20), chrono.ChVectorD(0, 0, 0), 30, 4, 20, 50)
+application.AssetBindAll()
+application.AssetUpdateAll()
 
 # Run the simulation loop
-while my_application.GetDevice().run():
-    my_application.BeginScene()
-    my_application.DrawAll()
-    my_application.DoStep()
-    my_application.EndScene()
+while application.GetDevice().run():
+    application.BeginScene()
+    application.DrawAll()
+    application.DoStep()
+    application.EndScene()
+    my_system.DoStepDynamics(1e-3)
+    driver.Synchronize(my_system)

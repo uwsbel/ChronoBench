@@ -1,61 +1,70 @@
-from pychrono.core import *
-from pychrono.irrlicht import *
-from pychrono.vehicles import *
+import chrono
+import chrono.collision as col
+import chrono.sensor as sens
+import chrono.vehicle as veh
+import chrono.utility as uti
 
 
-my_system = ChronoSystem(PyChrono.IRRLICHT_ENGINE)
-my_system.Set_Chrono_Data_Path("path/to/chrono/data/")
-my_system.Initialize(PyChrono.CHRONO_IRRLICHT)
+chrono.SetChronoDataPath('path/to/data/folder')
+my_system = chrono.ChSystemSolverSH()
+my_system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
 
 
-terrain = RigidTerrain()
-terrain.CreateFromHeightfield(my_system.GetDataFile("terrain.png"), 1, 5, 0.1, 50, true)
-my_system.Add(terrain)
+terrain = veh.RigidTerrain(my_system, 'terrain', chrono.ChVectorD(0, 0, 0))
+vehicle = veh.ChVehicleModelGator(my_system, 'gator')
+driver = veh.ChDriverScripted(vehicle, 'driver')
+sensor_manager = sens.ChSensorManager(my_system)
 
 
-gator = ChassisBody()
-gator.SetChassisShape(MyChassisShape())
-gator.SetVisualShape(MyChassisVisualization())
-my_system.Add(gator)
+terrain.SetContactMethod(col.CMETHOD_DISCRETE)
+terrain.SetContactBreakingThreshold(10000)
 
 
-for part in gator.GetVehicleParts():
-    if part.name == "left_front_wheel":
-        part.SetVisualShape(MyWheelVisualization(PyChrono.VEHICLE_VISUALIZATION_TYPE_RIGID))
-    elif part.name == "left_rear_wheel":
-        part.SetVisualShape(MyWheelVisualization(PyChrono.VEHICLE_VISUALIZATION_TYPE_RIGID_WITH_TIRE))
-    elif part.name == "right_front_wheel":
-        part.SetVisualShape(MyWheelVisualization(PyChrono.VEHICLE_VISUALIZATION_TYPE_RIGID))
-    elif part.name == "right_rear_wheel":
-        part.SetVisualShape(MyWheelVisualization(PyChrono.VEHICLE_VISUALIZATION_TYPE_RIGID_WITH_TIRE))
+vehicle.GetChassis().SetName('chassis')
+vehicle.GetChassis().SetCollide(False)
+vehicle.GetChassis().SetBodyFixed(True)
+vehicle.GetChassis().SetPos(chrono.ChVectorD(0, 0, 0))
+vehicle.GetChassis().SetColor(chrono.ChColor(0.5, 0.5, 0.5))
+
+vehicle.GetSuspension(0).SetVisualizationType(veh.VisualizationType.VT_SPHERE)
+vehicle.GetSuspension(1).SetVisualizationType(veh.VisualizationType.VT_SPHERE)
+vehicle.GetWheel(0).SetVisualizationType(veh.VisualizationType.VT_BOX)
+vehicle.GetWheel(1).SetVisualizationType(veh.VisualizationType.VT_BOX)
 
 
-driver = VehicleDriver()
-gator.SetDriver(driver)
+terrain_shape = col.ChBoxShape()
+terrain_shape.GetBoxGeometry().Size = chrono.ChVectorD(100, 100, 1)
+terrain.AddShape(terrain_shape)
 
 
-sensor_manager = SensorManager()
-my_system.Add(sensor_manager)
+driver.SetScriptFunction(lambda t: chrono.ChVectorD(10 * chrono.cos(t), 0, 10 * chrono.sin(t)))
 
 
-light = PointLight()
-light.SetRange(10)
-light.SetColor(PyChrono.Vector3d(1, 1, 1))
-sensor_manager.AddLight(light)
+camera = sens.ChCameraSensor()
+camera.SetPos(chrono.ChVectorD(0, 10, 15))
+camera.SetFocus(chrono.ChVectorD(0, 0, 0))
+camera.SetUp(chrono.ChVectorD(0, 1, 0))
+sensor_manager.AddSensor(camera)
 
-camera = IrrCamera()
-camera.SetPosition(PyChrono.Vector3d(0, 5, 5))
-camera.SetTarget(PyChrono.Vector3d(0, 0, 0))
-sensor_manager.AddCamera(camera)
-
-
-my_system.Set_Delta_Time(1.0 / 60.0)
-while my_system.Run():
-    driver.Synchronize(my_system.GetChTime())
-    gator.Synchronize(my_system.GetChTime(), MyChassisUpdateType.DRIVING)
-    terrain.Synchronize(my_system.GetChTime())
-    sensor_manager.Synchronize(my_system.GetChTime())
-    my_system.Advance(my_system.Get_Delta_Time())
+point_light = sens.ChPointLight()
+point_light.SetPos(chrono.ChVectorD(0, 10, 15))
+point_light.SetColor(chrono.ChColor(1, 1, 1))
+sensor_manager.AddSensor(point_light)
 
 
-my_system.Finalize()
+my_system.SetSolverType(chrono.ChSolver.Type.CS_CONTACT_FORCE)
+my_system.SetSolverMaxIterations(100)
+my_system.SetSolverMinIterations(10)
+my_system.SetSolverAccuracy(1e-6)
+my_system.SetSolverCollisionMargin(0.01)
+
+for i in range(1000):
+    my_system.DoStepDynamics(1.0 / 60.0)
+    sensor_manager.Update(my_system.GetChTime())
+
+
+my_system.DoFrameDynamics()
+my_system.DoSimulationAdvance()
+
+
+camera.SaveImages('camera_images', 1000)

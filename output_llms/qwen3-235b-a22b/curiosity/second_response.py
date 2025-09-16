@@ -20,11 +20,10 @@ ground.SetFixed(True)  # Fix the ground in place
 ground.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
 system.Add(ground)
 
-# Add a long box obstacle for the rover to cross
-obstacle = chrono.ChBodyEasyBox(2, 1, 0.5, 1000, True, True, ground_mat)
-obstacle.SetPos(chrono.ChVector3d(0, 0, 0.25))  # Position the obstacle on top of the ground
+# Create long box obstacle
+obstacle = chrono.ChBodyEasyBox(4, 1, 0.5, 1000, True, True, ground_mat)
+obstacle.SetPos(chrono.ChVector3d(0, 0, 0.25))  # Position obstacle on top of ground
 obstacle.SetFixed(True)
-obstacle.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
 system.Add(obstacle)
 
 # Create Curiosity rover and add it to the system
@@ -58,10 +57,8 @@ time_step = 1e-3
 # Simulation loop
 time = 0
 while vis.Run():
-    time += time_step
-
     # Set zero steering input for the rover
-    driver.SetSteering(0.0)
+    driver.SetSteering(0)
 
     # Update rover dynamics
     rover.Update()

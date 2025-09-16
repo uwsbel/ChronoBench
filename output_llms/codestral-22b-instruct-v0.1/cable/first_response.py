@@ -1,49 +1,46 @@
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
 
-# Initialize PyChrono environment
-chrono.SetChronoDataPath('path_to_your_chrono_data_folder')
+# Initialize PyChrono system
+chrono.SetChronoDataPath('/path/to/chrono/data/')
 my_system = chrono.ChSystemNSC()
 
-# Add gravity
-my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+# Create ground
+ground = chrono.ChBodyEasyBox(20, 1, 20, 1000, True, True)
+ground.SetPos(chrono.ChVectorD(0, -5, 0))
+ground.SetBodyFixed(True)
+my_system.Add(ground)
 
-# Create a beam composed of ANCF cable elements
-beam_length = 1.0
+# Create beam
+beam = chrono.ChBody()
+beam.SetPos(chrono.ChVectorD(0, 10, 0))
+beam.SetMass(1)
+beam.SetInertiaXX(chrono.ChVectorD(1, 1, 1))
+my_system.Add(beam)
+
+# Create ANCF cable elements
 num_elements = 10
-element_length = beam_length / num_elements
-
 for i in range(num_elements):
-    element = chrono.ChElementCableANCF()
-    element.SetLength(element_length)
-    element.SetDiameter(0.01)
-    element.SetYoungModulus(2e5)
-    element.SetBeamRaleyghDamping(0.001)
-    element.SetBeamSectionAsCircular(0.005)
+    element = chrono.ChLinkANCF()
+    element.Initialize(beam, ground, False, chrono.ChVectorD(0, -10 - i, 0), chrono.ChVectorD(0, -10 - i - 1, 0))
     my_system.Add(element)
 
-    if i == 0:
-        # Hinge the first end to the ground
-        node_ground = chrono.ChNodeBodyEasySphere(0.02, 1000, True, True)
-        my_system.Add(node_ground)
-        my_system.Add(chrono.ChLinkLockLock(node_ground, element.GetNodeA()))
-    else:
-        # Connect the nodes of the elements
-        my_system.Add(chrono.ChLinkPointPoint(element.GetNodeA(), previous_element.GetNodeB()))
+# Set gravity
+my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
-    previous_element = element
+# Create Irrlicht application
+app = chronoirr.ChIrrApp(my_system, 'Beam deformation', chronoirr.dimension2du(1024, 768))
+app.AddTypicalLogo()
+app.AddTypicalCamera(chronoirr.vector3df(0, 15, -30))
+app.AddTypicalLights()
 
-# Create an Irrlicht application to visualize the beam
-my_application = chronoirr.ChIrrApp(my_system, 'Beam ANCF', chronoirr.dimension2du(1024, 768))
+# Run simulation loop
+while app.GetDevice().run():
+    app.BeginScene()
+    app.DrawAll()
+    app.DoStep()
+    app.EndScene()
 
-# Set the camera position and target
-my_application.SetCameraVertical(chrono.CameraVerticalDir.Z)
-my_application.SetCameraPosition(chrono.ChVectorD(0, -2, 0))
-my_application.SetCameraTarget(chrono.ChVectorD(0, 0, 0))
-
-# Run the simulation loop
-while my_application.GetDevice().run():
-    my_application.BeginScene()
-    my_application.DrawAll()
-    my_application.DoStep()
-    my_application.EndScene()
+    # Print nodal positions
+    for i in range(num_elements + 1):
+        print(f'Node {i}: {beam.GetPos() + chrono.ChVectorD(0, -10 - i, 0)}')

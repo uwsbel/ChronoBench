@@ -1,40 +1,40 @@
-# Import necessary PyChrono modules
 import pychrono as chrono
 import pychrono.vehicle as veh
 import pychrono.ros as ros
 
-# Initialize the PyChrono environment
-chrono.SetChronoDataPath('path_to_chrono_data')
+# Initialize PyChrono environment and core components
+chrono.SetChronoDataPath('/path/to/chrono/data/')
+system = chrono.ChSystemNSC()
 
-# Create a system
-my_system = chrono.ChSystemNSC()
+# Create an HMMWV vehicle
+hmmwv = veh.HMMWV(system)
+hmmwv.SetContactMethod(chrono.ChContactMethod_NSC)
+hmmwv.SetEngineType(veh.HMMWV_ENGINE_TYPE_DIESEL)
+hmmwv.SetTireType(veh.HMMWV_TIRE_TYPE_TMEASY)
 
-# Create and add the HMMWV vehicle
-hmmwv = veh.HMMWV(my_system)
-hmmwv.SetContactMethod(veh.ChVehicleModel::ContactMethod::NSC)
-hmmwv.SetEngineType(veh.ChVehicleModel::EngineType::SHAFTS)
-hmmwv.SetTireType(veh.ChVehicleModel::TireModelType::TMEASY)
-
-# Create and add the terrain
-terrain = veh.RigidTerrain(my_system)
-terrain.SetFriction(0.9)
+# Create a terrain
+terrain = veh.RigidTerrain(system)
+terrain.SetFriction(0.8)
 terrain.SetRestitution(0.01)
 
-# Initialize the driver system
-driver = veh.ChDriver(hmmwv)
+# Initialize a driver system for vehicle control
+driver = veh.SimpleVehicleDriver(hmmwv)
 
-# Initialize ROS
-ros.ChRosInterface()
-ros.ChRosInterface().SetDataStream(True)
+# Integrate ROS for communication
+ros_manager = ros.ChROSManager()
+ros_manager.SetChronoSystem(system)
+ros_manager.Initialize()
 
 # Register handlers for clock synchronization, driver inputs, and vehicle state
-ros.ChRosInterface().RegisterHandler(chrono.ChRosClockHandler())
-ros.ChRosInterface().RegisterHandler(veh.ChROSVehicleHandler(hmmwv))
-ros.ChRosInterface().RegisterHandler(veh.ChROSDriverHandler(driver))
+clock_synchronizer = ros.ChROSClockSynchronizer(ros_manager)
+driver_input = ros.ChROSVehicleDriverInput(ros_manager, driver)
+vehicle_state = ros.ChROSVehicleState(ros_manager, hmmwv)
 
 # Simulation loop
-while my_system.GetChTime() < 10:
+while ros_manager.GetTime() < 10.0:
     # Synchronize and advance the vehicle, terrain, and driver systems
-    ros.ChRosInterface().Synchronize()
-    my_system.DoStepDynamics(1e-3)
-    ros.ChRosInterface().Advance()
+    clock_synchronizer.Synchronize()
+    system.DoStepDynamics(0.01)
+
+    # Update the ROS manager for data publishing
+    ros_manager.AdvanceSimulation(0.01)

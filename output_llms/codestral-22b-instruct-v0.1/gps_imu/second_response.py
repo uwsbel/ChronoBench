@@ -40,7 +40,7 @@ tire_step_size = step_size
 # Time interval between two render frames
 render_step_size = 1.0 / 50  # FPS = 50
 
-# Added logging step size
+# Added Logging Step Size
 log_step_size = 0.1
 
 # Create the HMMWV vehicle, set parameters, and initialize
@@ -129,7 +129,7 @@ gps.PushFilter(sens.ChFilterGPSAccess())
 # Add the GPS to the sensor manager
 manager.AddSensor(gps)
 
-# Initialized GPS data list
+# Initialized GPS Data List
 gps_data = []
 
 # ---------------
@@ -161,9 +161,9 @@ while vis.Run():
 
     # Get driver inputs
     if time < 6:
-        driver_inputs = veh.ChDriverInputs(throttle=1, steering=0.5)
+        driver_inputs = veh.ChDriverInputs(throttle=1, steering=0)
     else:
-        driver_inputs = veh.ChDriverInputs(throttle=0, braking=1, steering=0)
+        driver_inputs = veh.ChDriverInputs(throttle=0, steering=0, braking=1)
 
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
@@ -190,5 +190,5 @@ while vis.Run():
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
 
-# Print the logged GPS data
+# Added GPS Data Output
 print("GPS Data: ", gps_data)

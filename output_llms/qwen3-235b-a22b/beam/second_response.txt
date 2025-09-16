@@ -1,3 +1,5 @@
+
+
 ```python
 import pychrono as chrono
 import pychrono.fea as fea
@@ -9,65 +11,59 @@ print("Example: PyChrono using beam finite elements")
 # Create the physical system
 sys = chrono.ChSystemSMC()
 
-# Create a mesh for finite elements
+# Create a mesh container
 mesh = fea.ChMesh()
 
-# Define beam section properties
+# Create a beam section with Euler-Bernoulli properties
 msection = fea.ChBeamSectionEulerAdvanced()
 beam_wy = 0.012
 beam_wz = 0.025
 msection.SetAsRectangularSection(beam_wy, beam_wz)
+
+# Set material properties
 msection.SetYoungModulus(0.01e9)
 msection.SetShearModulus(0.01e9 * 0.3)
 msection.SetRayleighDamping(0.000)
 msection.SetCentroid(0, 0.02)
 msection.SetShearCenter(0, 0.1)
-msection.SetSectionRotation(45.0)  # Corrected to degrees
+# Fix: Correct rotation angle to degrees (was incorrectly multiplied by CH_RAD_TO_DEG)
+msection.SetSectionRotation(45)  # Set rotation angle in degrees
 
-# Create beam using ChBuilderBeamEuler helper
-# Instruction 1: Euler-Bernoulli beam setup
+# 1. Add Euler-Bernoulli beam section using helper object
+# 3. Create beam with ChBuilderBeamEuler (5 elements from (0,0,-0.1) to (0.2,0,-0.1))
 builder = fea.ChBuilderBeamEuler()
-builder.BuildBeam(mesh, msection, 2, chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(0.2, 0, 0), chrono.ChVector3d(0, 1, 0))
+builder.BuildBeam(mesh, msection, 5, 
+                 chrono.ChVector3d(0, 0, -0.1), 
+                 chrono.ChVector3d(0.2, 0, -0.1), 
+                 chrono.ChVector3d(0, 1, 0))  # Y-up direction
+
+# Get nodes created by the builder
 nodes = builder.GetLastBeamNodes()
-hnode1 = nodes[0]
-hnode2 = nodes[1]
-hnode3 = nodes[2]
 
-# Apply forces to nodes
-hnode2.SetForce(chrono.ChVector3d(4, 2, 0))
-hnode3.SetTorque(chrono.ChVector3d(0, -0.04, 0))
+# Apply force to first node (instruction 3)
+nodes[0].SetForce(chrono.ChVector3d(0, -1, 0))
 
-# Create fixed truss body
+# Fix last node using SetFixed (instruction 3)
+nodes[-1].SetFixed(True)
+
+# 2. Create fixed truss and constraints (modified from original)
 mtruss = chrono.ChBody()
 mtruss.SetFixed(True)
 sys.Add(mtruss)
 
-# Constraint for node 3 (fixed)
-constr_bc = chrono.ChLinkMateGeneric()
-constr_bc.Initialize(hnode3, mtruss, False, hnode3.Frame, hnode3.Frame)
-sys.Add(constr_bc)
-constr_bc.SetConstrainedCoords(True, True, True, True, True, True)
-
-# Constraint for node 1 (modified to use constraint instead of direct fix)
+# Constraint for first node (constrain y/z translations only)
 constr_d = chrono.ChLinkMateGeneric()
-constr_d.Initialize(hnode1, mtruss, False, hnode1.Frame, hnode1.Frame)
+constr_d.Initialize(nodes[0], mtruss, False, nodes[0].Frame(), nodes[0].Frame())
 sys.Add(constr_d)
 constr_d.SetConstrainedCoords(False, True, True, False, False, False)
 
-# Instruction 3: Additional beam with ChBuilderBeamEuler
-builder_new = fea.ChBuilderBeamEuler()
-builder_new.BuildBeam(mesh, msection, 5, chrono.ChVector3d(0, 0, -0.1), chrono.ChVector3d(0.2, 0, -0.1), chrono.ChVector3d(0, 1, 0))
-new_nodes = builder_new.GetLastBeamNodes()
-first_node_new = new_nodes[0]
-last_node_new = new_nodes[-1]
-last_node_new.SetFixed(True)  # Fixing last node as per instruction
-first_node_new.SetForce(chrono.ChVector3d(0, -1, 0))  # Apply force to first node
-
-# Finalize mesh setup
+# Disable automatic gravity for FEA elements
 mesh.SetAutomaticGravity(False)
+
+# Add mesh to system
 sys.Add(mesh)
 
-# Visualization settings (unchanged)
+# Visualization settings (unchanged per instruction)
 visualizebeamA = chrono.ChVisualShapeFEA(mesh)
 visualizebeamA.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_ELEM_BEAM_MZ)
 visualizebeamA.SetColorscaleMinMax(-0.4, 0.4)
@@ -83,7 +79,7 @@ visualizebeamC.SetSymbolsScale(0.01)
 visualizebeamC.SetZbufferHide(False)
 mesh.AddVisualShapeFEA(visualizebeamC)
 
-# Visualization system setup
+# Visualization system (unchanged)
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(sys)
 vis.SetWindowSize(1024, 768)
@@ -94,7 +90,7 @@ vis.AddSkyBox()
 vis.AddCamera(chrono.ChVector3d(0.1, 0.1, 0.2))
 vis.AddTypicalLights()
 
-# Set solver
+# Set MKL solver (unchanged)
 msolver = mkl.ChSolverPardisoMKL()
 sys.SetSolver(msolver)
 

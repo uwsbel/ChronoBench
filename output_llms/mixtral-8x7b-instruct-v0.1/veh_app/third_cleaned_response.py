@@ -1,17 +1,4 @@
-I have reviewed the given PyChrono script and did not find any syntax errors, logical errors, or incorrect method names. However, I will modify the script based on the provided instructions.
-
-1. Add a Depth Camera:
-- Create a `ChDepthCameraSensor` object with the specified offset pose, image width, image height, and horizontal field of view.
-- Set the maximum depth of the camera to 30.
-- Apply a visualization filter for the Depth Map.
-
-2. Log Vehicle State:
-- Create a function to log the vehicle's state, including position (X, Y, Z) and heading.
-- Call this function at every simulation step.
-
-Here is the modified script:
-
-<pre><code>import pychrono.core as chrono
+import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import pychrono.sensor as sens
@@ -103,12 +90,24 @@ terrain = veh.RigidTerrain(gator.GetSystem())
 patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
-patch_mat.SetYoungModulus(1e7)
-patch_mat.SetPoissonRatio(0.3)
 patch = terrain.AddPatch(patch_mat, chrono.CSYSNORM, 50, 50)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 1.0))
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 50, 50)
 terrain.Initialize()
+
+
+box = chrono.ChBodyEasyBox(1, 1, 1, 1000)
+box.SetPos(chrono.ChVector3d(0, 0, 0.5))
+box.SetFixed(True)
+box.GetVisualModel().GetShape(0).SetTexture(chrono.GetChronoDataFile("textures/blue.png"))
+gator.GetSystem().AddBody(box)
+
+
+cylinder = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y ,0.5, 1, 1000)
+cylinder.SetPos(chrono.ChVector3d(0, 0, 1.5))
+cylinder.SetFixed(True)
+cylinder.GetVisualModel().GetShape(0).SetTexture(chrono.GetChronoDataFile("textures/blue.png"))
+gator.GetSystem().AddBody(cylinder)
 
 
 driver = veh.ChDriver(gator.GetVehicle())
@@ -138,24 +137,9 @@ cam.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Gator Camera")
 manager.AddSensor(cam)
 
 
-offset_pose_depth_camera = chrono.ChFramed(chrono.ChVector3d(-5.0, 0, 2))
-depth_camera = sens.ChDepthCameraSensor(
-    gator.GetChassisBody(),
-    update_rate,
-    offset_pose_depth_camera,
-    image_width,
-    image_height,
-    fov,
-    30
-)
-depth_camera.SetName("Depth Camera")
-depth_camera.PushFilter(sens.ChFilterVisualizeDepthMap(image_width, image_height, "Depth Camera Depth Map"))
-manager.AddSensor(depth_camera)
-
-
 offset_pose = chrono.ChFramed(
-    chrono.ChVector3d(0.0, 0, 2), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
-)
+        chrono.ChVector3d(0.0, 0, 2), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
+    )
 lidar = sens.ChLidarSensor(
     gator.GetChassisBody(),              
     update_rate,            
@@ -185,11 +169,20 @@ lidar.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "Lidar Point Cl
 
 manager.AddSensor(lidar)
 
-def log_vehicle_state(gator, time):
-    pos = gator.GetSystem().GetChTime()
-    rot = gator.GetChassisBody().GetRotation().Q_to_Euler()
-    heading = rot[2]
-    print(f"Time: {time:.2f}, Position: ({pos.x:.2f}, {pos.y:.2f}, {pos.z:.2f}), Heading: {heading:.2f}")
+
+offset_pose = chrono.ChFramed(chrono.ChVector3d(-5.0, 0, 2))
+depth_cam = sens.ChDepthCameraSensor(
+    gator.GetChassisBody(),
+    update_rate,
+    offset_pose,
+    image_width,
+    image_height,
+    fov,
+    30
+)
+depth_cam.SetName("Depth Camera")
+depth_cam.PushFilter(sens.ChFilterVisualizeDepthMap())
+manager.AddSensor(depth_cam)
 
 
 
@@ -198,6 +191,7 @@ def log_vehicle_state(gator, time):
 realtime_timer = chrono.ChRealtimeStepTimer()
 time = 0
 end_time = 30
+vehicle_states = []
 while time < end_time:
     time = gator.GetSystem().GetChTime()
     
@@ -219,10 +213,14 @@ while time < end_time:
     gator.Advance(step_size)
 
     
-    log_vehicle_state(gator, time)
+    pos = gator.GetSystem().GetChBody(gator.GetChassisBody().GetId()).GetPos()
+    rot = gator.GetSystem().GetChBody(gator.GetChassisBody().GetId()).GetRot()
+    heading = rot.Q_to_Euler().Z
+    vehicle_states.append((time, pos.X, pos.Y, pos.Z, heading))
 
     
     realtime_timer.Spin(step_size)
-</code></pre>
 
-This modified script now includes a Depth Camera and logs the vehicle's state at every simulation step.
+print("Vehicle states:")
+for state in vehicle_states:
+    print(f"{state}")

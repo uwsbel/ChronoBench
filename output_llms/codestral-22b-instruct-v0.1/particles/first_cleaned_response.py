@@ -5,63 +5,48 @@ import random
 
 chrono.SetChronoDataPath('PYCHRONO_DATA_DIR')
 my_system = chrono.ChSystemNSC()
+my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
 
-class ParticleEmitter:
-    def __init__(self, system):
-        self.system = system
-
-    def emit_particle(self):
-        
-        shape = random.choice([chrono.ChBodyEasySphere, chrono.ChBodyEasyBox, chrono.ChBodyEasyCylinder])
-
-        
-        body = shape(1, 1000, True, True)
-
-        
-        body.SetPos(chrono.ChVectorD(random.uniform(-10, 10), random.uniform(-10, 10), random.uniform(10, 20)))
-        body.SetPos_dt(chrono.ChVectorD(random.uniform(-1, 1), random.uniform(-1, 1), random.uniform(-1, 1)))
-        body.SetRot(chrono.ChQuaternionD(random.uniform(-1, 1), random.uniform(-1, 1), random.uniform(-1, 1), random.uniform(-1, 1)))
-
-        
-        self.system.Add(body)
+my_application = irr.ChIrrApp(my_system, 'Particle Attraction Simulation', irr.dimension2du(1024, 768))
+my_application.AddTypicalLogo()
+my_application.AddTypicalSky()
+my_application.AddTypicalCamera(irr.vector3df(0, 3, -6))
+my_application.AddTypicalLights()
 
 
-emitter = ParticleEmitter(my_system)
+emitter_position = chrono.ChVectorD(0, 3, 0)
+emitter_velocity = chrono.ChVectorD(0, 0, 0)
 
 
-for _ in range(100):
-    emitter.emit_particle()
+def create_particle():
+    
+    shape_choice = random.choice([chrono.ChBodyEasyBox, chrono.ChBodyEasySphere, chrono.ChBodyEasyCylinder])
+    particle = shape_choice(1, 1, 1, 1000)
+
+    
+    particle.SetPos(emitter_position + chrono.ChVectorD(random.uniform(-1, 1), random.uniform(-1, 1), random.uniform(-1, 1)))
+    particle.SetPos_dt(emitter_velocity + chrono.ChVectorD(random.uniform(-0.1, 0.1), random.uniform(-0.1, 0.1), random.uniform(-0.1, 0.1)))
+    particle.SetRot(chrono.ChQuaternionD(random.uniform(-1, 1), random.uniform(-1, 1), random.uniform(-1, 1), random.uniform(-1, 1)).GetNormalized())
+
+    
+    my_system.Add(particle)
 
 
-class GravitationalForce(chrono.ChForce):
-    def __init__(self, body, strength):
-        super(GravitationalForce, self).__init__()
-        self.body = body
-        self.strength = strength
 
-    def Compute(self, time, A, B, state_x, state_w):
-        
-        force = -self.strength / self.body.GetPos().Length2() * self.body.GetPos()
-        return force
+def custom_gravity(body, time, force):
+    force += body.GetMass() * 0.5 * chrono.ChVectorD(0, -9.81, 0)
 
 
-for body in my_system.Get_bodylist():
-    force = GravitationalForce(body, 1000)
-    body.AddForce(force)
+my_system.AddForceField(custom_gravity)
 
 
-app = irr.ChIrrApp(my_system, 'Particle Gravitation', irr.dimension2du(1024, 768))
-app.AddTypicalLights()
-app.AddCamera(irr.vector3df(0, 0, -20))
-app.AddSkyBox()
-app.AddLogo()
-app.AddLightWithShadow(irr.vector3df(20, 20, 20), irr.vector3df(0, 0, 0), 20, 50, 1024, 2)
-app.SetTimestep(0.01)
+while my_application.GetDevice().run():
+    my_application.BeginScene()
+    my_application.DrawAll()
+    my_application.DoStep()
 
+    
+    create_particle()
 
-while app.GetDevice().run():
-    app.BeginScene()
-    app.DrawAll()
-    app.DoStep()
-    app.EndScene()
+    my_application.EndScene()

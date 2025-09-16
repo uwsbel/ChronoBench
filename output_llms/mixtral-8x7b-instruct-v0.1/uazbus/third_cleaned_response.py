@@ -20,6 +20,7 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_RIGID
 
 
+
 terrainHeight = 0      
 terrainLength = 100.0  
 terrainWidth = 100.0   
@@ -72,12 +73,9 @@ terrain.Initialize()
 
 
 box_shape = chrono.ChBoxShape()
-box_shape.SetBox(chrono.ChVector(0.5, 5, 0.2))
-box_body = chrono.ChBody()
+box_shape.SetDimensions(chrono.ChVector(0.5, 5, 0.2))
+box_body = chrono.ChBodyEasyBox(1, True, True, box_shape)
 box_body.SetPos(chrono.ChVector(5, 0, 0.1))
-box_body.AddShape(box_shape)
-box_body.SetMass(0)
-box_body.SetFixed(True)
 vehicle.GetSystem().AddBody(box_body)
 
 
@@ -102,10 +100,13 @@ driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
 
+
+driver.SetThrottle(0.5)
+
 driver.Initialize()
 
 
-print("VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 
 
 render_steps = math.ceil(render_step_size / step_size)
@@ -114,9 +115,6 @@ render_steps = math.ceil(render_step_size / step_size)
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
-
-
-vehicle.SetThrottle(0.5)
 
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()

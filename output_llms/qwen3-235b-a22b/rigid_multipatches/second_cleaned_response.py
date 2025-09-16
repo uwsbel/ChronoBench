@@ -2,6 +2,13 @@ import pychrono as chrono
 import pychrono.vehicle as veh
 import pychrono.irrlicht as irr
 
+
+veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
+
+
+step_size = 2e-3
+tire_step_size = 1e-3
+
 def main():
     
     hmmwv = veh.HMMWV_Full()
@@ -10,43 +17,53 @@ def main():
     hmmwv.SetInitPosition(chrono.ChCoordsysd(chrono.ChVector3d(6, -70, 0.5), chrono.ChQuaterniond(1, 0, 0, 0)))
     hmmwv.SetEngineType(veh.EngineModelType_SIMPLE)
     hmmwv.SetTransmissionType(veh.TransmissionModelType_AUTOMATIC_SIMPLE_MAP)
-    hmmwv.SetDrivelineType(veh.DrivelineType_AWD)  
+    hmmwv.SetDriveType(veh.DrivelineTypeWV_AWD)
     hmmwv.SetTireType(veh.TireModelType_TMEASY)
     hmmwv.SetTireStepSize(tire_step_size)
     hmmwv.Initialize()
 
+    
     hmmwv.SetChassisVisualizationType(veh.VisualizationType_MESH)
     hmmwv.SetSuspensionVisualizationType(veh.VisualizationType_MESH)
     hmmwv.SetSteeringVisualizationType(veh.VisualizationType_MESH)
     hmmwv.SetWheelVisualizationType(veh.VisualizationType_MESH)
     hmmwv.SetTireVisualizationType(veh.VisualizationType_MESH)
 
+    
     hmmwv.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
     
     terrain = veh.RigidTerrain(hmmwv.GetSystem())
 
     
-    patch_mat = chrono.ChContactMaterialNSC()
-    patch_mat.SetFriction(0.9)
-    patch_mat.SetRestitution(0.01)
+    patch_material = chrono.ChContactMaterialNSC()
+    patch_material.SetFriction(0.9)
+    patch_material.SetRestitution(0.01)
 
     
-    patch = terrain.AddPatch(patch_mat,
+    patch = terrain.AddPatch(patch_material,
                              chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
-                             veh.GetDataFile("terrain/meshes/Highway_col.obj"),
-                             0.01)  
+                             veh.GetDataFile("terrain/meshes/Highway_col.obj"))
 
     
-    mesh_vis = chrono.ChTriangleMeshConnected()
-    mesh_vis.LoadWavefrontMesh(veh.GetDataFile("terrain/meshes/Highway_vis.obj"), False, True)
-    vis_shape = chrono.ChVisualShapeTriangleMesh(mesh_vis)
-    terrain.GetGroundBody().AddVisualShape(vis_shape)
+    if hasattr(patch, 'SetContactMaterialThickness'):
+        patch.SetContactMaterialThickness(0.01)
+
+    
+    vis_mesh = chrono.ChTriangleMeshConnected()
+    vis_mesh.LoadWavefrontMesh(veh.GetDataFile("terrain/meshes/Highway_vis.obj"), False, True)
+
+    vis_shape = chrono.ChVisualShapeTriangleMesh()
+    vis_shape.SetMesh(vis_mesh)
+    vis_shape.SetName("Highway Visualization")
+
+    
+    terrain.GetGroundBody().AddVisualShape(vis_shape, chrono.ChFramed())
 
     terrain.Initialize()
 
     
-    vis = veh.ChVehicleVisualSystemIrrlicht()  
+    vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
     vis.SetWindowTitle('HMMWV Rigid Terrain Demo')
     vis.SetWindowSize(1280, 1024)
     vis.SetChaseCamera(chrono.ChVector3d(0.0, 0.0, 0.75), 6.0, 0.5)
@@ -65,6 +82,7 @@ def main():
 
     hmmwv.GetVehicle().EnableRealtime(True)
 
+    
     while vis.Run():
         time = hmmwv.GetSystem().GetChTime()
 
@@ -88,14 +106,6 @@ def main():
         hmmwv.Advance(step_size)
         vis.Advance(step_size)
 
-    return 0
 
-
-veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
-
-
-step_size = 2e-3
-tire_step_size = 1e-3
-
-
-main()
+if __name__ == "__main__":
+    main()

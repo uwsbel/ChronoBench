@@ -3,14 +3,13 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
-!!!! Set this path before running the demo!
-"""
+
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 
 initLoc = chrono.ChVector3d(6, -70, 0.5)
-initRot = chrono.QuatFromAngleZ(1.57)
+initRot = chrono.QuatFromAngleZ(-math.pi / 2)  
 
 
 vis_type = veh.VisualizationType_MESH
@@ -23,9 +22,9 @@ tire_model = veh.TireModelType_TMEASY
 
 
 
-terrainHeight = 0  
+terrainHeight = 0      
 terrainLength = 100.0  
-terrainWidth = 100.0  
+terrainWidth = 100.0   
 
 
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
@@ -51,6 +50,7 @@ vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 
+
 vehicle.Initialize()
 
 vehicle.SetChassisVisualizationType(vis_type)
@@ -66,15 +66,10 @@ patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.4)  
 patch_mat.SetRestitution(0.05)  
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-
-quat = chrono.ChQuaterniond()
-quat.SetFromAngleAxis(-math.pi / 2, chrono.ChVector3d(0, 0, 1))
-
 patch = terrain.AddPatch(patch_mat, 
-chrono.ChCoordsysd(chrono.ChVector3d(6, -70, 0), quat),  
-chrono.GetChronoDataFile('vehicle/terrain/meshes/Highway_col.obj'),
-True, 0.01, False)
-
+    chrono.ChCoordsysd(chrono.ChVector3d(6, -70, 0), chrono.QUNIT),  
+    chrono.GetChronoDataFile('vehicle/terrain/meshes/Highway_col.obj'),
+    True, 0.01, False)
 vis_mesh = chrono.ChTriangleMeshConnected().CreateFromWavefrontFile(veh.GetDataFile("terrain/meshes/Highway_vis.obj"), True, True)
 tri_mesh_shape = chrono.ChVisualShapeTriangleMesh()
 tri_mesh_shape.SetMesh(vis_mesh)
@@ -89,21 +84,22 @@ vis.SetWindowTitle('HMMWV Demo')
 vis.SetWindowSize(1280, 1024)
 vis.SetChaseCamera(trackPoint, 6.0, 0.5)
 vis.Initialize()
-vis.AddLogo(chrono.GetChronoDataFile('logo\_pychrono\_alpha.png'))
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 
+
 driver = veh.ChInteractiveDriverIRR(vis)
 
 
-steering\_time = 1.0  
-throttle\_time = 1.0  
-braking\_time = 0.3  
-driver.SetSteeringDelta(render\_step\_size / steering\_time)
-driver.SetThrottleDelta(render\_step\_size / throttle\_time)
-driver.SetBrakingDelta(render\_step\_size / braking\_time)
+steering_time = 1.0  
+throttle_time = 1.0  
+braking_time = 0.3   
+driver.SetSteeringDelta(render_step_size / steering_time)
+driver.SetThrottleDelta(render_step_size / throttle_time)
+driver.SetBrakingDelta(render_step_size / braking_time)
 
 driver.Initialize()
 
@@ -112,43 +108,43 @@ driver.Initialize()
 
 
 
-print("VEHICLE MASS: ", <mark>vehicle.GetVehicle().GetMass()</mark>)
+print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 
 
-render\_steps = math.ceil(render\_step\_size / step\_size)
+render_steps = math.ceil(render_step_size / step_size)
 
 
-realtime\_timer = chrono.ChRealtimeStepTimer()
-step\_number = 0
-render\_frame = 0
+realtime_timer = chrono.ChRealtimeStepTimer()
+step_number = 0
+render_frame = 0
 
-while vis.Run():
-time = vehicle.GetSystem().GetChTime()
+while vis.Run() :
+    time = vehicle.GetSystem().GetChTime()
 
+    
+    if (step_number % render_steps == 0) :
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+        render_frame += 1
 
-if (step\_number % render\_steps == 0):
-vis.BeginScene()
-vis.Render()
-vis.EndScene()
-render\_frame += 1
+    
+    driver_inputs = driver.GetInputs()
 
+    
+    driver.Synchronize(time)
+    terrain.Synchronize(time)
+    vehicle.Synchronize(time, driver_inputs, terrain)
+    vis.Synchronize(time, driver_inputs)
 
-driver\_inputs = driver.GetInputs()
+    
+    driver.Advance(step_size)
+    terrain.Advance(step_size)
+    vehicle.Advance(step_size)
+    vis.Advance(step_size)
 
+    
+    step_number += 1
 
-driver.Synchronize(time)
-terrain.Synchronize(time)
-vehicle.Synchronize(time, driver\_inputs, terrain)
-vis.Synchronize(time, driver\_inputs)
-
-
-driver.Advance(step\_size)
-terrain.Advance(step\_size)
-vehicle.Advance(step\_size)
-vis.Advance(step\_size)
-
-
-step\_number += 1
-
-
-realtime\_timer.Spin(step\_size)
+    
+    realtime_timer.Spin(step_size)

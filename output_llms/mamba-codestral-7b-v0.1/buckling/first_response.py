@@ -1,42 +1,60 @@
-# Import necessary modules
 import pychrono
-from pychrono import irrlicht
-from pychrono.core import *
-from pychrono.irrlicht import *
 
 # Initialize the PyChrono environment and core components
-system = ChSystemSMC()
+system = pychrono.ChSystemSMC()
 
 # Add the required physical systems and objects
-# For example, add a beam object
-beam = ChBeam()
+# Define the beam properties
+beam_length = 1.0
+beam_width = 0.1
+beam_thickness = 0.01
+beam_young_modulus = 2e5
+beam_poisson_ratio = 0.3
+
+# Create the beam element
+beam = pychrono.ChBeamElement()
+beam.SetLength(beam_length)
+beam.SetWidth(beam_width)
+beam.SetThickness(beam_thickness)
+beam.SetYoungModulus(beam_young_modulus)
+beam.SetPoissonRatio(beam_poisson_ratio)
+
+# Add the beam element to the system
 system.Add(beam)
 
 # Set necessary default parameters such as positions, forces, and interactions
-# For example, set the beam's length, width, and Young's modulus
-beam.SetLength(1.0)
-beam.SetWidth(0.1)
-beam.SetYoungModulus(2e5)
+# Set the initial position of the beam
+beam.SetPos(pychrono.ChVectorD(0, 0, 0))
 
-# Define custom motor functions
-# This would depend on your specific use case
+# Set the initial orientation of the beam
+beam.SetRot(pychrono.ChQuaternionD(1, 0, 0, 0))
 
-# Include constraints between different parts of the system
-# For example, add a joint between two parts of the beam
-joint = ChLinkLockRevolute()
-joint.Initialize(beam.GetNode(1), beam.GetNode(2))
-system.Add(joint)
+# Set the initial force on the beam
+beam.SetForce(pychrono.ChVectorD(0, -10, 0))
 
-# Visualize the simulation using the Irrlicht visualization module
-irrlicht_app = ChIrrlichtApplication(system, L"Beam Buckling Simulation")
+# Set the initial torque on the beam
+beam.SetTorque(pychrono.ChVectorD(0, 0, 0))
 
 # Implement a suitable solver and timestepper for accurate dynamics simulation
-# For example, use the TimestepperHHT with a solver for large systems
-timestepper = TimestepperHHT()
-timestepper.SetStepSize(1e-3)
-system.SetTimestepper(timestepper)
-solver = ChSolverSparseQR()
+solver = pychrono.ChSolverSMC()
 system.SetSolver(solver)
 
-# Run the simulation
-irrlicht_app.Run()
+timestepper = pychrono.ChTimestepperHHT()
+system.SetTimestepper(timestepper)
+
+# Visualize the simulation using the Irrlicht visualization module
+visualization = pychrono.ChVisualizationIrrlicht()
+visualization.SetWindowSize(800, 600)
+visualization.SetWindowTitle('PyChrono Beam Buckling Simulation')
+visualization.SetWindowPosition(100, 50)
+visualization.AttachSystem(system)
+visualization.SetRenderMode(pychrono.ChVisualizationIrrlicht.RENDER_MODE_SHADED_FLAT)
+visualization.SetCameraPosition(pychrono.ChVectorD(1, 1, 1), pychrono.ChVectorD(0, 0, 0))
+visualization.SetCameraVertical(pychrono.ChVectorD(0, 0, 1))
+visualization.Initialize()
+
+# Simulate the system
+system.DoStepDynamics(0.01)
+
+# Close the visualization
+visualization.Deinitialize()

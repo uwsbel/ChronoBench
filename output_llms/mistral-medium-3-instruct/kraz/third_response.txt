@@ -1,4 +1,4 @@
-I'll analyze the script, identify potential issues, and then modify it according to the instructions. Here's the corrected and modified version:
+Here's the corrected and modified PyChrono script based on your instructions:
 
 ```python
 import pychrono.core as chrono
@@ -13,7 +13,7 @@ veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 truck_initLoc = chrono.ChVector3d(0, 0, 0.5)
 truck_initRot = chrono.ChQuaterniond(1, 0, 0, 0)  # No rotation
 
-sedan_initLoc = chrono.ChVector3d(5, 0, 0.5)      # 5 meters behind the truck
+sedan_initLoc = chrono.ChVector3d(5, 0, 0.5)
 sedan_initRot = chrono.ChQuaterniond(1, 0, 0, 0)  # No rotation
 
 # Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
@@ -23,10 +23,10 @@ vis_type = veh.VisualizationType_MESH
 chassis_collision_type = veh.CollisionType_NONE
 
 # Type of tire model (RIGID, TMEASY)
-truck_tire_model = veh.TireModelType_RIGID  # Changed to RIGID for truck
+truck_tire_model = veh.TireModelType_RIGID
 sedan_tire_model = veh.TireModelType_TMEASY
 
-# Rigid terrain - using predefined highway mesh
+# Rigid terrain
 terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
@@ -45,7 +45,7 @@ tire_step_size = step_size
 # Time interval between two render frames
 render_step_size = 1.0 / 50  # FPS = 50
 
-# Create the kraz vehicle (truck), set parameters, and initialize
+# Create the Kraz vehicle (truck), set parameters, and initialize
 truck = veh.Kraz()
 truck.SetContactMethod(contact_method)
 truck.SetChassisCollisionType(chassis_collision_type)
@@ -73,30 +73,27 @@ sedan.SetSuspensionVisualizationType(vis_type, vis_type)
 sedan.SetWheelVisualizationType(vis_type, vis_type)
 sedan.SetTireVisualizationType(vis_type, vis_type)
 
-# Set tire models
-truck.SetTireTypeFront(truck_tire_model)
-truck.SetTireTypeRear(truck_tire_model)
-sedan.SetTireTypeFront(sedan_tire_model)
-sedan.SetTireTypeRear(sedan_tire_model)
+# Set collision system type for both vehicles
+truck.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+sedan.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 # Create the terrain with highway mesh
 patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
+terrain = veh.RigidTerrain(truck.GetSystem())
+patch = terrain.AddPatch(patch_mat,
+    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
+    terrainLength, terrainWidth)
 
-# Using predefined highway mesh instead of simple patch
-terrain = veh.RigidTerrain(vehicle.GetSystem())
-highway_mesh = veh.GetDataFile("terrain/meshes/highway.obj")
-terrain.AddVisualizationMesh(highway_mesh, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
-                           chrono.ChVector2d(terrainLength, terrainWidth))
-terrain.AddContactMesh(highway_mesh, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
-                      chrono.ChVector2d(terrainLength, terrainWidth))
-
+# Use highway texture
+patch.SetTexture(veh.GetDataFile("terrain/textures/highway.jpg"), 200, 200)
+patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 # Create the vehicle Irrlicht interface
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
-vis.SetWindowTitle('Vehicle Demo')
+vis.SetWindowTitle('Kraz and Sedan Demo')
 vis.SetWindowSize(1280, 1024)
 vis.SetChaseCamera(trackPoint, 25.0, 1.5)
 vis.Initialize()
@@ -106,28 +103,26 @@ vis.AddSkyBox()
 vis.AttachVehicle(truck.GetTractor())
 vis.AttachVehicle(sedan.GetVehicle())
 
-# Create the driver systems
+# Create the driver system for truck
 truck_driver = veh.ChInteractiveDriverIRR(vis)
-sedan_driver = veh.ChDataDriver()
 
-# Set the time response for steering and throttle keyboard inputs for truck
+# Create the driver system for sedan with fixed throttle and steering
+sedan_driver = veh.ChDataDriver()
+sedan_driver.SetSteering(0)  # Straight
+sedan_driver.SetThrottle(0.5)  # Constant forward motion
+sedan_driver.SetBraking(0)
+
+# Set the time response for truck's steering and throttle keyboard inputs
 steering_time = 1.0  # time to go from 0 to +1 (or from 0 to -1)
 throttle_time = 1.0  # time to go from 0 to +1
 braking_time = 0.3   # time to go from 0 to +1
 truck_driver.SetSteeringDelta(render_step_size / steering_time)
 truck_driver.SetThrottleDelta(render_step_size / throttle_time)
 truck_driver.SetBrakingDelta(render_step_size / braking_time)
+
 truck_driver.Initialize()
 
-# Set fixed throttle and steering for sedan
-sedan_throttle = 0.5  # Fixed throttle
-sedan_steering = 0.0  # Straight steering
-sedan_driver.SetSteering(sedan_steering)
-sedan_driver.SetThrottle(sedan_throttle)
-sedan_driver.SetBraking(0.0)
-sedan_driver.Initialize()
-
-# Output vehicle masses
+# output vehicle masses
 print("TRUCK MASS: ", truck.GetTractor().GetMass())
 print("SEDAN MASS: ", sedan.GetVehicle().GetMass())
 
@@ -139,8 +134,9 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-# Storage for truck state
-truck_states = []
+# Lists to store truck's tractor and trailer states
+truck_tractor_states = []
+truck_trailer_states = []
 
 while vis.Run():
     time = truck.GetSystem().GetChTime()
@@ -155,17 +151,12 @@ while vis.Run():
     # Get driver inputs for truck
     truck_driver_inputs = truck_driver.GetInputs()
 
-    # Fixed inputs for sedan
-    sedan_driver_inputs = veh.ChDriverInputs()
-    sedan_driver_inputs.m_throttle = sedan_throttle
-    sedan_driver_inputs.m_steering = sedan_steering
-
     # Update modules (process inputs from other modules)
     truck_driver.Synchronize(time)
     sedan_driver.Synchronize(time)
     terrain.Synchronize(time)
     truck.Synchronize(time, truck_driver_inputs, terrain)
-    sedan.Synchronize(time, sedan_driver_inputs, terrain)
+    sedan.Synchronize(time, sedan_driver.GetInputs(), terrain)
     vis.Synchronize(time, truck_driver_inputs)
 
     # Advance simulation for one timestep for all modules
@@ -176,49 +167,34 @@ while vis.Run():
     sedan.Advance(step_size)
     vis.Advance(step_size)
 
-    # Store truck state (tractor and trailer positions)
-    tractor_pos = truck.GetTractor().GetPos()
-    trailer_pos = truck.GetTrailer().GetPos() if truck.GetTrailer() else None
-    truck_states.append({
-        'time': time,
-        'tractor_pos': (tractor_pos.x, tractor_pos.y, tractor_pos.z),
-        'trailer_pos': (trailer_pos.x, trailer_pos.y, trailer_pos.z) if trailer_pos else None
-    })
+    # Store truck's tractor and trailer states
+    truck_tractor_states.append((truck.GetTractor().GetPos(), truck.GetTractor().GetRot()))
+    if truck.HasTrailer():
+        truck_trailer_states.append((truck.GetTrailer().GetPos(), truck.GetTrailer().GetRot()))
 
     # Increment frame number
     step_number += 1
 
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
+
+# Simulation finished - you can now process the stored states
+print("\nSimulation completed!")
+print(f"Stored {len(truck_tractor_states)} tractor states")
+if truck.HasTrailer():
+    print(f"Stored {len(truck_trailer_states)} trailer states")
 ```
 
-Key modifications and corrections made:
+Key modifications made:
+1. Changed initial truck location and orientation
+2. Added initial location and orientation for sedan
+3. Changed truck tire model to RIGID
+4. Updated terrain to use highway texture
+5. Added sedan vehicle creation and initialization
+6. Added second driver system for sedan with fixed throttle and steering
+7. Added state storage for truck's tractor and trailer
+8. Fixed potential issues with vehicle synchronization and visualization
+9. Added proper collision system setup for both vehicles
+10. Added mass output for both vehicles
 
-1. **Initial Positions and Orientations**:
-   - Changed truck's initial location to (0, 0, 0.5)
-   - Added sedan's initial location at (5, 0, 0.5)
-
-2. **Tire Models**:
-   - Changed truck's tire model to RIGID as requested
-   - Kept sedan's tire model as TMEASY
-
-3. **Terrain**:
-   - Replaced the simple patch terrain with a predefined highway mesh
-
-4. **Second Vehicle (Sedan)**:
-   - Added creation and initialization of a sedan vehicle
-   - Set up visualization for the sedan
-
-5. **Second Driver System**:
-   - Added a data driver for the sedan with fixed throttle and steering
-   - The sedan will move forward with constant throttle
-
-6. **State Storage**:
-   - Added storage for the truck's tractor and trailer positions during simulation
-
-7. **Corrections**:
-   - Fixed potential issues with vehicle initialization and visualization
-   - Ensured proper synchronization of all vehicles and drivers
-   - Corrected the terrain initialization to use the highway mesh properly
-
-The script should now run correctly with both vehicles (truck and sedan) and meet all the specified requirements. The truck can be controlled interactively while the sedan moves forward automatically.
+The script should now run correctly with both vehicles on the highway terrain, with the sedan moving forward automatically and the truck being controllable via keyboard. The states of the truck's components are stored during the simulation for later analysis.

@@ -3,109 +3,84 @@ import pychrono.sensor as sens
 import math
 
 
-
-
 system = chrono.ChSystemNSC()
-system.SetGravity(chrono.ChVectorD(0, 0, 0))
-
-
 
 
 mesh = chrono.ChTriangleMeshConnected()
-mesh.LoadWavefrontMesh("mesh.obj", False, True)  
+
+mesh.LoadWavefrontMesh('path/to/mesh.obj', True, True)
 
 
-mesh_body = chrono.ChBody()
-mesh_body.SetMesh(mesh)
-mesh_body.SetBodyFixed(True)
-system.Add(mesh_body)
+body = chrono.ChBody()
+body.SetBodyFixed(True)
+body.SetPos(chrono.ChVectorD(0, 0, 0))
+body.GetCollisionModel().ClearModel()
+body.GetCollisionModel().AddTriangleMesh(mesh, False, False, chrono.ChVectorD(0, 0, 0), chrono.ChMatrix33D(1))
+body.GetCollisionModel().BuildModel()
+system.Add(body)
 
 
-
-
-
-update_rate = 30  
-resolution = (640, 480)
-fov_deg = 60  
-
-
-initial_pose = chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT)
-
-camera = sens.ChCameraSensor(
-    mesh_body, update_rate, initial_pose,
-    resolution[0], resolution[1], fov_deg
-)
-camera.SetName("Camera Sensor")
-camera.SetLag(0)
-camera.SetCollectionWindow(0.0)
-
-
-camera.PushFilter(sens.ChFilterRGBA8Access())  
-camera.PushFilter(sens.ChFilterVisualize(resolution[0], resolution[1], "Camera Feed"))  
-camera.PushFilter(sens.ChFilterImageNoiseGaussian(0.01))  
-
-
-manager = sens.ChSensorManager(system)
-manager.AddSensor(camera)
-
-
+vis_shape = chrono.ChVisualShapeTriangleMesh()
+vis_shape.SetMesh(mesh)
+body.AddVisualShape(vis_shape)
 
 
 vis = chrono.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
 vis.SetWindowSize(1024, 768)
-vis.SetWindowTitle("PyChrono Mesh with Orbiting Camera")
+vis.SetWindowTitle('PyChrono Mesh Visualization')
 vis.Initialize()
-vis.AddCamera(chrono.ChVectorD(0, 0, 5), chrono.ChVectorD(0, 0, 0))
+vis.AddCamera(chrono.ChVectorD(0, 0, 3), chrono.ChVectorD(0, 0, 0))
 
 
+manager = sens.ChSensorManager(system)
+
+
+camera = sens.ChCameraSensor(
+    body,                    
+    60,                    
+    640,                   
+    480,                   
+    chrono.ChFrameD(chrono.ChVectorD(1, 0, 0), chrono.QUNIT)  
+)
+camera.SetName("Camera")
+camera.SetLag(0)  
+camera.SetCollectionWindow(0.01)  
+
+
+camera.PushFilter(sens.ChFilterNoiseGaussian(0.0, 0.02))  
+camera.PushFilter(sens.ChFilterVisualize(640, 480, "Camera Feed"))  
+
+
+manager.AddSensor(camera)
 
 
 orbit_radius = 2.0
-orbit_height = 1.0
-angular_velocity = 0.1  
-t = 0
-time_step = 0.01
+omega = 0.5  
+step_size = 1e-3
+end_time = 10.0
 
 while vis.Run():
+    current_time = system.GetChTime()
     
-    angle = angular_velocity * t
-    x = orbit_radius * math.cos(angle)
-    y = orbit_radius * math.sin(angle)
-    z = orbit_height
-    cam_pos = chrono.ChVectorD(x, y, z)
-
     
-    target = chrono.ChVectorD(0, 0, 0)
-    dir_to_target = (target - cam_pos).GetNormalized()
-    quat = chrono.ChQuaternionD().FromTwoVectors(
-        chrono.ChVectorD(0, 0, -1),  
-        dir_to_target
-    )
-
+    theta = omega * current_time
+    cam_pos = chrono.ChVectorD(orbit_radius * math.cos(theta), 0, orbit_radius * math.sin(theta))
     
-    camera.SetOffsetPose(chrono.ChFrameD(cam_pos, quat))
-
     
-    system.DoStepDynamics(time_step)
+    look_dir = chrono.ChVectorD(0, 0, 0) - cam_pos
+    rot = chrono.Q_from_2vectors(chrono.ChVectorD(0, 0, -1), look_dir)
+    
+    
+    camera.SetOffsetPose(chrono.ChFrameD(cam_pos, rot))
+    
+    
+    system.DoStepDynamics(step_size)
+    
+    
     manager.Update()
-
     
-    buffer = camera.GetMostRecentRGBA8Buffer()
-    if buffer.HasData():
-        print(f"Time: {t:.2f} s, Buffer timestamp: {buffer.TimeStamp():.4f} s")
-
-        
-        width = buffer.Width()
-        height = buffer.Height()
-        if width > 0 and height > 0:
-            center_pixel_index = (height // 2) * width + (width // 2)
-            pixel = buffer.Data()[center_pixel_index]
-            print(f"Center pixel (RGBA): {pixel.R}, {pixel.G}, {pixel.B}, {pixel.A}")
-
     
-    vis.BeginScene()
-    vis.Render()
-    vis.EndScene()
-
-    t += time_step
+    buffer = camera.GetMostRecentBuffer()
+    if buffer is not None:
+        print(f"Time: {current_time:.3f}, Buffer data sample: {buffer[0, 0]}")

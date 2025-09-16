@@ -19,19 +19,19 @@ class SCMTerrainParameters:
             self.Bekker_Kc = 0
             self.Bekker_n = 1.2
             self.Mohr_cohesive_limit = 0
-            self.Mohr_friction_limit = 35
+            self.Mohr_friction_limit = 40
             self.Janosi_shear_coefficient = 0.02
-            self.Elastic_stiffness = 5e8
+            self.Elastic_stiffness = 3e8
             self.Damping = 5e4
         elif config == "hard":
             self.Bekker_Kphi = 1e7
             self.Bekker_Kc = 0
             self.Bekker_n = 1.3
             self.Mohr_cohesive_limit = 0
-            self.Mohr_friction_limit = 40
+            self.Mohr_friction_limit = 50
             self.Janosi_shear_coefficient = 0.03
-            self.Elastic_stiffness = 1e9
-            self.Damping = 1e5
+            self.Elastic_stiffness = 4e8
+            self.Damping = 7e4
 
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
@@ -50,6 +50,7 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_RIGID
 
 # Rigid terrain
+# terrain_model = veh.RigidTerrain.BOX
 terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
@@ -69,13 +70,14 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  # FPS = 50
 
 # Create the HMMWV vehicle, set parameters, and initialize
-vehicle = veh.HMMWV_Full()
+vehicle = veh.HMMWV_Full() # veh.HMMWV_Reduced()  could be another choice here
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
+
 vehicle.Initialize()
 
 vehicle.SetChassisVisualizationType(vis_type)
@@ -88,15 +90,19 @@ vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 # Create the SCM deformable terrain patch
 terrain = veh.SCMTerrain(vehicle.GetSystem())
-terrain_params = SCMTerrainParameters("mid")
+
+# Initialize the SCM terrain parameters
+terrain_params = SCMTerrainParameters("soft")  # Choose "soft", "mid", or "hard" configuration
+
+# Set the SCM terrain parameters
 terrain.SetSoilParameters(terrain_params.Bekker_Kphi,
-                            terrain_params.Bekker_Kc,
-                            terrain_params.Bekker_n,
-                            terrain_params.Mohr_cohesive_limit,
-                            terrain_params.Mohr_friction_limit,
-                            terrain_params.Janosi_shear_coefficient,
-                            terrain_params.Elastic_stiffness,
-                            terrain_params.Damping)
+                          terrain_params.Bekker_Kc,
+                          terrain_params.Bekker_n,
+                          terrain_params.Mohr_cohesive_limit,
+                          terrain_params.Mohr_friction_limit,
+                          terrain_params.Janosi_shear_coefficient,
+                          terrain_params.Elastic_stiffness,
+                          terrain_params.Damping)
 
 # Optionally, enable moving patch feature (single patch around vehicle chassis)
 terrain.AddMovingPatch(vehicle.GetChassisBody(), chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(5, 3, 1))

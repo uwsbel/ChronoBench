@@ -1,29 +1,42 @@
 import pychrono as chrono
-import pychrono.irrlicht as chronoirr
+import pychrono.vehicle as veh
+import pychrono.irrlicht as irr
 
 
-system = chrono.ChSystemNSC()
+chrono.SetChronoDataPath('../../data/')
+my_system = chrono.ChSystemNSC()
 
 
-ground = chrono.ChBodyEasyBox(10, 1, 10, 1000, True, True)
-ground.SetPos(chrono.ChVectorD(0, -5, 0))
-system.Add(ground)
+bmw_e90 = veh.BMW_E90(my_system)
+bmw_e90.SetChassisVisualizationType(veh.VisualizationType_MESH)
+bmw_e90.SetChassisCollisionType(veh.CollisionType_MESH)
+bmw_e90.SetTireType(veh.TireModelType_TMEASY)
 
 
-sphere = chrono.ChBodyEasySphere(1, 1000, True, True)
-sphere.SetPos(chrono.ChVectorD(0, 10, 0))
-system.Add(sphere)
+terrain = veh.RigidTerrain(my_system)
+terrain.Initialize(veh.GetDataFile('terrain/Racetrack.obj'), veh.GetDataFile('terrain/textures/racetrack.jpg'), 1, 1, 1, 0)
 
 
-application = chronoirr.ChIrrApp(system, 'Falling Sphere', chronoirr.dimension2du(1024, 768))
-application.AddTypicalLights()
-application.AddCamera(chronoirr.vector3df(0, 15, -20))
-application.AssetBindAll()
-application.AssetUpdateAll()
+driver = veh.ChDriver(bmw_e90)
+driver.SetSteeringControllerType(veh.SteeringControllerType_PID)
+driver.SetSpeedControllerType(veh.SpeedControllerType_PID)
+driver.SetSteeringLookAheadDistance(5)
+driver.SetMaxSpeed(10)
 
 
-while application.GetDevice().run():
-    application.BeginScene()
-    application.DrawAll()
-    application.DoStep()
-    application.EndScene()
+app = irr.ChIrrApp(bmw_e90.GetSystem(), 'BMW E90 on Racetrack', irr.dimension2du(1024, 768))
+app.AddTypicalLights()
+app.AddSkyBox()
+app.AddCamera(irr.vector3df(0, 3, -5), irr.vector3df(0, 0, 0))
+app.SetTimestep(0.01)
+
+
+bmw_e90.SetPos(chrono.ChVectorD(0, 0.2, 0))
+bmw_e90.SetChassisFixed(False)
+
+
+while app.GetDevice().run():
+    app.BeginScene()
+    app.DrawAll()
+    app.DoStep()
+    app.EndScene()

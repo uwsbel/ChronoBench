@@ -1,48 +1,52 @@
 import pychrono as chrono
-import pychrono.irrlicht as irr
+import pychrono.irrlicht as chronoirr
 
-
-chrono.SetChronoDataPath('PYCHRONO_DATA_DIR')
-my_system = chrono.ChSystemNSC()
-
-
-ground = chrono.ChBodyEasyBox(20, 1, 20, 1000, True, True)
-ground.SetPos(chrono.ChVectorD(0, -1, 0))
-ground.SetBodyFixed(True)
-my_system.Add(ground)
-
-
-pendulum = chrono.ChBodyEasySphere(0.5, 1000, True, True)
-pendulum.SetPos(chrono.ChVectorD(0, 5, 0))
-my_system.Add(pendulum)
-
-
-joint = chrono.ChLinkLockRevolute()
-joint.Initialize(ground, pendulum, chrono.ChCoordsysD(chrono.ChVectorD(0, 5, 0)))
-my_system.Add(joint)
-
-
-pendulum.SetWvel_par(chrono.ChVectorD(0, 0, 3))
-
-
-my_application = irr.ChIrrApp(my_system, 'Pendulum Simulation', irr.dimension2du(1024, 768))
-
-
-my_application.AddTypicalLights()
-my_application.AddCamera(irr.vector3df(0, 10, -20))
-my_application.AssetBindAll()
-my_application.AssetUpdateAll()
-
-
-while my_application.GetDevice().run():
-    my_application.BeginScene()
-    my_application.DrawAll()
-    my_application.DoStep()
-    my_application.EndScene()
+def create_scene():
+    
+    system = chrono.ChSystemNSC()
 
     
-    print("Position: ", pendulum.GetPos())
-    print("Velocity: ", pendulum.GetWvel_par())
+    ground = chrono.ChBodyEasyBox(10, 1, 1, 1000, True, True)
+    system.Add(ground)
 
     
-    chrono.ChTime.Sleep(0.01)
+    pendulum_mass = 1
+    pendulum_radius = 0.5
+    pendulum_inertia = 2/5 * pendulum_mass * pendulum_radius**2
+    pendulum = chrono.ChBodyEasyCylinder(pendulum_radius, pendulum_radius, pendulum_mass, True, True)
+    pendulum.SetInertiaXX(chrono.ChVectorD(pendulum_inertia, pendulum_inertia, pendulum_inertia))
+    pendulum.SetPos(chrono.ChVectorD(0, -1, 0))
+    pendulum.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
+
+    
+    joint = chrono.ChLinkLockRevolute()
+    joint.Initialize(ground, pendulum, chrono.ChCoordsysD(chrono.ChVectorD(0, -1, 0), chrono.ChQuaternionD(1, 0, 0, 0)))
+    system.Add(joint)
+
+    
+    system.Add(pendulum)
+
+    
+    vis = chronoirr.ChIrrApp(system, 'Simple Pendulum', chronoirr.dimension2du(800, 600))
+    vis.AddTypicalLogo()
+    vis.AddTypicalCamera(chronoirr.vector3df(0, 0, -1))
+    vis.AddTypicalLights()
+    vis.AddSkyBox()
+    vis.AddLightWithShadow(chronoirr.vector3df(3, 3, -3), chronoirr.vector3df(0, 0, 0), 9, 1, 7, 40, 512, chronoirr.SColorf(0.8, 0.8, 0.8))
+
+    
+    while vis.GetDevice().run():
+        vis.BeginScene()
+        vis.DrawAll()
+        vis.DoStep()
+
+        
+        pendulum_position = pendulum.GetPos()
+        pendulum_velocity = pendulum.GetPos_dt()
+        print(f"Position: {pendulum_position.x}, {pendulum_position.y}, {pendulum_position.z}")
+        print(f"Velocity: {pendulum_velocity.x}, {pendulum_velocity.y}, {pendulum_velocity.z}")
+
+        vis.EndScene()
+
+
+create_scene()

@@ -1,75 +1,71 @@
+
+
 ```python
 import pychrono as chrono
 import pychrono.vehicle as veh
 import pychrono.terrain as terrain
-import pychrono.irrlicht as irrlicht
+import pychrono.irrlicht as irr
 
-# Initialize the Chrono system
+# Initialize the PyChrono system
 system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))  # Set gravity
+system.SetGravitationalAcceleration(chrono.ChVectorD(0, -9.81, 0))
 
 # Create the HMMWV vehicle
 vehicle = veh.HMMWV_Full(system)
-vehicle.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 1.0), chrono.QUNIT))
-vehicle.SetTireType(veh.TireModelType_TMEASY)
-vehicle.SetTireStepSize(1e-3)
+vehicle.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 1.0, 0), chrono.ChQuaternionD(1, 0, 0, 0)))
 vehicle.Initialize()
 
-# Create the SCM deformable terrain
-terrain = terrain.SCMDeformableTerrain(system)
-terrain.SetSoilParameters(
-    2e6,    # Bekker K (normal stiffness)
-    0.0,    # Bekker n (normal damping)
-    0.0,    # Mohr-Coulomb cohesion
-    30.0,   # Mohr-Coulomb angle (degrees)
-    0.01,   # Janosi-Hanamoto shear coefficient
-    2000    # density (kg/m^3)
+# Set up SCM deformable terrain
+scm_terrain = terrain.SCMDeformableTerrain(system)
+scm_terrain.SetSoilParameters(
+    5000,    # Bekker Kphi (frictional modulus)
+    800,     # Bekker Kc (cohesion modulus)
+    1.1,     # Bekker n exponent
+    0.2e4,   # Mohr-Coulomb cohesion
+    30,      # Mohr-Coulomb friction angle (degrees)
+    1e-3,    # Janosi shear displacement limit
+    5e3      # Elastic stiffness (K)
 )
+# Initialize flat terrain with 20x20m size and 0.1m resolution
+scm_terrain.Initialize(chrono.ChVectorD(0, 0, 0), 20, 20, 0.1)
 
-# Load height map for terrain initialization
-height_map_file = "heightmap.png"
-# Assuming the terrain is initialized with a height map and dimensions
-terrain.SetHeightMap(chrono.GetChronoDataFile(height_map_file), 0, 10, 0, 10, 0.1)
-terrain.Initialize()
-
-# Create the driver system
-driver = veh.ChDriver(vehicle)
+# Create driver system
+driver = veh.ChDriver(vehicle.GetVehicle())
 driver.Initialize()
-# Set initial driver inputs (e.g., throttle, steering, braking)
-driver.SetThrottle(0.5)
-driver.SetSteering(0.0)
-driver.SetBraking(0.0)
 
 # Set up Irrlicht visualization
-vis = irrlicht.ChVisualSystemIrrlicht()
-vis.AttachSystem(system)
-vis.SetWindowSize(1024, 768)
-vis.SetWindowTitle("HMMWV on SCM Terrain")
-vis.Initialize()
-# Add camera and lighting
-vis.AddCamera(chrono.ChVectorD(0, -6, 2), chrono.ChVectorD(0, 0, 1))
-vis.AddLight(chrono.ChVectorD(5, -10, 10), chrono.ChColor(1, 1, 1), 800)
+application = irr.ChIrrApp(system, 'HMMWV Simulation', irr.dimension2du(1280, 720))
+application.AddTypicalLights()
+application.AddCamera(chrono.ChVectorD(0, 3, -6), chrono.ChVectorD(0, 1, 0))
+application.AssetBindAll()
+application.AssetUpdateAll()
 
-# Simulation loop with real-time execution
+# Simulation loop parameters
 step_size = 1e-3
-time = 0
-rt_timer = chrono.ChRealtimeStepTimer()
+realtime_timer = chrono.ChRealtimeStepTimer()
 
-while vis.Run():
-    # Synchronize components
-    driver.Synchronize(time)
-    vehicle.Synchronize(time)
-    terrain.Synchronize(time)
+# Simulation loop
+while application.GetDevice().run():
+    time = system.GetChTime()
     
-    # Advance simulation
+    # Synchronize components
+    driver_inputs = driver.GetInputs()
+    vehicle.Synchronize(time, driver_inputs, scm_terrain)
+    scm_terrain.Synchronize(time)
+    
+    # Advance components
+    driver.Advance(step_size)
+    vehicle.Advance(step_size)
+    scm_terrain.Advance(step_size)
+    
+    # Update dynamics
     system.DoStepDynamics(step_size)
-    time += step_size
     
     # Update visualization
-    vis.BeginScene()
-    vis.Render()
-    vis.EndScene()
+    application.BeginScene()
+    application.DrawAll()
+    application.EndScene()
     
-    # Enforce real-time execution
-    rt_timer.Spin(step_size)
+    # Maintain real-time execution
+    realtime_timer.Spin(step_size)
 ```

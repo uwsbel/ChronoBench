@@ -1,0 +1,104 @@
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
+import pychrono.vehicle as veh
+
+# =============================================================================
+# Initialize the simulation
+# =============================================================================
+
+# Set the path to the Chrono data directory
+chrono.SetChronoDataPath("PATH_TO_CHRONO_DATA")  # Update this path
+
+# Create the simulation system
+sys = chrono.ChSystemNSC()
+sys.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
+
+# =============================================================================
+# Create the terrain
+# =============================================================================
+
+# Terrain dimensions and properties
+terrain_length = 100.0
+terrain_width = 100.0
+terrain_height = 0.5
+
+# Create a rigid terrain body
+terrain = chrono.ChBodyEasyBox(terrain_length, terrain_height, terrain_width, 1000)
+terrain.SetPos(chrono.ChVectorD(0, -terrain_height/2, 0))
+terrain.SetBodyFixed(True)  # Make it static
+terrain.GetMaterialSurfaceNSC().SetFriction(0.8)
+terrain.GetMaterialSurfaceNSC().SetRestitution(0.1)
+sys.Add(terrain)
+
+# =============================================================================
+# Create the Kraz vehicle
+# =============================================================================
+
+# Vehicle system parameters
+vehicle_type = 'kraz'
+steering_type = 'rack_pinion'
+drive_type = '4WD'
+tire_type = 'Rigid'
+
+# Create the vehicle system
+vehicle = veh.WheeledVehicle.Create(sys, vehicle_type, steering_type, drive_type, tire_type)
+
+# Set initial position and orientation
+vehicle.Initialize(chrono.ChCoordinator(0, 0.5, 0), chrono.ChQuaternionD(1, 0, 0, 0))
+
+# =============================================================================
+# Create the driver system
+# =============================================================================
+
+# Create a simple driver system
+driver = veh.ChDriver()
+driver.SetSteeringDelta(0.0)  # Initial steering angle
+driver.SetThrottle(0.2)       # Initial throttle
+
+# =============================================================================
+# Visualization system
+# =============================================================================
+
+# Create the Irrlicht visualization system
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(sys)
+vis.SetWindowSize(1280, 720)
+vis.SetWindowTitle('Kraz Vehicle Simulation')
+vis.Initialize()
+vis.AddLogo()
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVectorD(5, 2, 0), chrono.ChVectorD(0, 0, 0))
+vis.AddTypicalLights()
+vis.SetCameraVertical(chrono.CameraVerticalDir_Z)
+
+# =============================================================================
+# Simulation loop
+# =============================================================================
+
+# Simulation parameters
+time_step = 0.01
+max_time = 10.0
+
+# Main simulation loop
+while vis.Run():
+    time = sys.GetChTime()
+
+    # Exit simulation when max time is reached
+    if time > max_time:
+        break
+
+    # Synchronize the vehicle and driver systems
+    vehicle.Synchronize(time)
+    driver.Synchronize(time)
+
+    # Update the driver inputs (example: simple steering pattern)
+    if time > 2.0:
+        driver.SetSteeringDelta(0.3 * chrono.Sin(0.5 * time))
+
+    # Advance the simulation for one timestep
+    sys.DoStepDynamics(time_step)
+
+    # Update the visualization
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()

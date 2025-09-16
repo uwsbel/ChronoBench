@@ -2,51 +2,59 @@ import pychrono as chrono
 import pychrono.irrlicht as irr
 import pychrono.fea as fea
 
-# Initialize PyChrono system
-chrono.SetChronoDataPath('PYCHRONO_DATA_DIR')
+# Create a Chrono engine
 my_system = chrono.ChSystemNSC()
 
-# Create a beam using IGA
-beam_material = fea.ChMaterialBeamIGA()
-beam_section = fea.ChBeamSectionCosserat(beam_material)
-beam_element = fea.ChElementBeamIGA()
-beam_element.SetBeamSection(beam_section)
-beam_mesh = fea.ChMesh()
-# Add nodes and elements to the mesh as needed
-beam = fea.ChModelBeamIGA()
-beam.AddElement(beam_element)
-beam.AddMesh(beam_mesh)
+# Create a beam
+beam = fea.ChBeamIGA()
+beam.SetBeamGeometry(chrono.ChVectorD(0.01, 0.01, 0.5), chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 1))
+beam.SetBeamMaterial(210e9, 0.3, 7850, 0.02)
+beam.SetBeamSection(0.005, 0.005)
+beam.SetFixed(True)
+beam.SetFixedEnd(0)
+beam.SetDensity(7850)
+beam.SetYoungModulus(210e9)
+beam.SetPoissonRatio(0.3)
+beam.SetBeamRaleyghDamping(0.005)
+beam.AddElementBeamIGA()
+beam.AddNodeCM(chrono.ChVectorD(0, 0, 0.25))
+beam.AddNodeFE(chrono.ChVectorD(0, 0, 0.25))
+beam.AddElementBeamIGA()
+beam.AddNodeCM(chrono.ChVectorD(0, 0, 0.5))
+beam.AddNodeFE(chrono.ChVectorD(0, 0, 0.5))
+beam.AddDocumentationNode(chrono.ChVectorD(0, 0, 0.25))
+beam.AddDocumentationNode(chrono.ChVectorD(0, 0, 0.5))
+beam.BuildKRMmatrices()
 my_system.Add(beam)
 
-# Create a flywheel and attach it to the center of the beam
-flywheel = chrono.ChBodyEasyCylinder(1, 0.5, 1000, True, True)
-flywheel.SetPos(chrono.ChVectorD(0, 0, 0))  # Set the position to the center of the beam
+# Create a flywheel and attach it to the beam
+flywheel = chrono.ChBodyEasyCylinder(0.1, 0.05, 10, True, True)
+flywheel.SetPos(chrono.ChVectorD(0, 0, 0.25))
 my_system.Add(flywheel)
 
-# Create a rotational motor and apply it to one end of the beam
+# Create a link between the beam and the flywheel
+link = chrono.ChLinkMateGeneric()
+link.Initialize(beam, flywheel, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0.25), chrono.ChQuaternionD(1, 0, 0, 0)))
+my_system.Add(link)
+
+# Create a rotational motor
 motor = chrono.ChLinkMotorRotationSpeed()
-motor.Initialize(beam, chrono.ChFrameD(chrono.ChVectorD(0, 0, -1)), flywheel, chrono.ChFrameD(chrono.ChVectorD(0, 0, 1)))
-motor.SetSpeedFunction(chrono.ChFunction_Const(5))  # Set the speed of the motor
+motor.Initialize(beam, None, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.ChQuaternionD(1, 0, 0, 0)))
+motor.SetSpeedFunction(chrono.ChFunction_Const(30))
 my_system.Add(motor)
 
-# Set up FEM visualization
-visualization = fea.ChVisualizationFEAmesh(beam)
-visualization.SetFEMdataType(fea.ChVisualizationFEAmesh.E_PLOT_NODE_SPEED_NORM)
-visualization.SetColorscaleMinMax(0, 5)
-visualization.SetSmoothFaces(True)
-visualization.SetWireframe(False)
-
-# Set up Irrlicht window
+# Create an Irrlicht application to visualize the system
 my_application = irr.ChIrrApp(my_system, 'Jeffcott Rotor Simulation', irr.dimension2du(1024, 768))
+
+# Set up visualization
 my_application.AddTypicalLogo()
 my_application.AddTypicalSky()
-my_application.AddTypicalCamera(irr.vector3df(0, 3, -6))
+my_application.AddTypicalCamera(irr.vector3df(0.0, 0.0, -1.0))
 my_application.AddTypicalLights()
-my_application.AddLightWithShadow(irr.vector3df(1.5, 5.5, -2.5), irr.vector3df(0, 0, 0), 3, 2.2, 7.2, 40, 512, irr.SColorf(0.8, 0.8, 1))
-my_application.AddLightWithShadow(irr.vector3df(-1.5, 5.5, -2.5), irr.vector3df(0, 0, 0), 3, 2.2, 7.2, 40, 512, irr.SColorf(1, 0.8, 0.5))
-my_application.SetTimestep(0.01)
+my_application.AddShadowAll()
+beam.SetFEmeshVisibility(True, True, True)
 
 # Run the simulation
-my_application.AssetBindAll()
-my_application.AssetUpdateAll()
+my_application.SetTimestep(0.01)
+my_application.SetTryRealtime(True)
 my_application.Run()

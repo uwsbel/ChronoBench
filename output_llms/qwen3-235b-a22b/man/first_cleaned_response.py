@@ -3,24 +3,14 @@ import pychrono.vehicle as veh
 import pychrono.irrlicht as irr
 
 
-
-
 system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))  
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
 
-
-
-terrain = veh.RigidTerrain(system)
-patch = terrain.AddPatch(chrono.ChCoordsysD(), chrono.ChVectorD(200, 100, 1), True, True)
-patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 100)  
-terrain.Initialize()
-
-
-
-
-truck = veh.MAN_10t(system)
-truck.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 1.5), chrono.QUNIT))  
+truck = veh.MAN10t(system)
+truck.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 1.2), chrono.QUNIT))
+truck.SetTireType(veh.TMEASY)  
+truck.Initialize()
 
 
 truck.SetChassisVisualizationType(veh.VisualizationType_MESH)
@@ -29,57 +19,56 @@ truck.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
 truck.SetWheelVisualizationType(veh.VisualizationType_MESH)
 
 
-for axle in truck.GetAxles():
-    for wheel in axle.GetWheels():
-        tire = veh.ChTMeasyTire("TMeasyTire")
-        tire.SetSize(0.3, 0.2)  
-        tire.SetRimRadius(0.3)
-        tire.SetTireWidth(0.2)
-        tire.SetContactMaterialSurface(chrono.ChMaterialSurfaceNSC())
-        tire.Initialize(wheel, veh.WheelID())  
+terrain = chrono.ChBody()
+terrain.SetBodyFixed(True)
+terrain.SetCollide(True)
+terrain.GetCollisionModel().AddPlane(chrono.ChCoordsysD(), 100, 100)
+system.Add(terrain)
 
 
+ground_mat = chrono.ChMaterialSurfaceNSC()
+ground_mat.SetFriction(0.9)
+ground_mat.SetRestitution(0.01)
+terrain.SetMaterialSurface(ground_mat)
 
 
-application = irr.ChIrrApp(system, 'MAN 10t Truck Simulation', irr.dimension2du(1024, 768))
-application.AddTypicalLogo()
-application.AddSkyBox()
-application.AddCamera(chrono.ChVectorD(0, -5, 2), chrono.ChVectorD(0, 0, 0))  
-application.AddLightWithShadow(chrono.ChVectorD(10, -25, 10), chrono.ChVectorD(0, 0, 0), 100, 10, 20, 60)
+application = irr.ChIrrApp(system, 'MAN 10t Truck Simulation', irr.dimension2d(1280, 720))
+application.AddTypicalSky()
+application.AddTypicalLights(irr.vector3df(30, 100, 30), irr.vector3df(-30, -100, -30))
 
 
-chase_camera = veh.ChChaseCamera(truck.GetChassisBody(), 4.0, 0.5)  
-application.SetChaseCamera(chase_camera)
+application.AddGround(chrono.GridPlane(20, 20, 1, 1), "textures/concrete.jpg")
 
 
+camera = irr.ChIrrChaseCamera(application.GetSceneManager(), truck.GetChassisBody(), 6.0, 0.5)
+application.GetSceneManager().setActiveCamera(camera)
 
 
-driver = veh.ChIrrGuiDriver(application.GetDevice())
+driver = veh.ChIrrGuiDriver(truck)
 driver.SetSteeringDelta(0.05)
 driver.SetThrottleDelta(0.05)
 driver.SetBrakingDelta(0.05)
 
 
+application.AssetBindAll()
+application.AssetUpdateAll()
 
-
-step_size = 1e-3  
-rt_timer = chrono.ChRealtimeStepTimer()
-
+step_timer = chrono.ChRealtimeStepTimer()
 while application.GetDevice().run():
     time = system.GetChTime()
+    
+    
     driver_inputs = driver.GetInputs()
-
+    
     
     truck.Synchronize(time, driver_inputs)
-    terrain.Synchronize(time)
-    application.Synchronize("MAN 10t Truck Simulation", driver_inputs)
-
     
-    system.DoStepDynamics(step_size)
-
+    
+    step_timer.Start()
+    system.DoStepDynamics(chrono.ChTimeStep(0.01))
+    step_timer.Spin()
+    
     
     application.BeginScene()
     application.DrawAll()
     application.EndScene()
-
-    rt_timer.Spin(step_size)

@@ -1,41 +1,53 @@
 import pychrono as chrono
-import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
+import pychrono.irrlicht as chronoirr
+import pychrono.sensor as sens
 
 
-chrono.SetChronoDataPath('path_to_your_data_folder')
-my_system = chrono.ChSystemNSC()
+chrono.SetChronoDataPath("path/to/chrono/data/folder")
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
 
 
-hmmwv = veh.HMMWV()
-hmmwv.Initialize(my_system)
+hmmwv = veh.HMMWV(system)
+hmmwv.Initialize()
 hmmwv.SetChassisFixed(False)
-hmmwv.SetChassisCollisionType(chrono.ChMaterialSurface.SURFACE_TYPE_ASPHALT)
-hmmwv.SetChassisVisualizationType(veh.VisualizationType_PRIMITIVES)
-hmmwv.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 1)))
+hmmwv.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 1), chrono.ChQuaternionD(1, 0, 0, 0)))
+hmmwv.SetPowertrainType(veh.HMMWV_POWERTRAIN_SIMPLE_MAP)
+hmmwv.SetTireType(veh.HMMWV_TIRE_TMEASY)
+hmmwv.SetDriveMode(veh.HMMWV_DRIVE_SIMPLE)
+hmmwv.SetTireStepSize(0.05)
+hmmwv.SetChassisVisualizationType(veh.HMMWV_VIS_PRIMITIVES)
 
 
-terrain = veh.SCMTerrain(hmmwv.GetSystem())
-terrain.Initialize(soil_parameters, height_map)
+terrain = veh.SCMTerrain(system)
+terrain.SetSoilParameters(1e6,  
+                          0.5,  
+                          1.0)  
+terrain.Initialize(100, 100, 0, 0, 0, 0.05, "path/to/heightmap.png")
 
 
-driver = veh.SimpleDriver(hmmwv)
+driver = veh.ChDriver(hmmwv)
+driver.Initialize()
+driver.SetSteeringControllerType(veh.ChDriver.STEERING_INPUT_TYPE_SINE)
+driver.SetSteeringControllerGain(0.5)
+driver.SetSpeedControllerType(veh.ChDriver.SPEED_INPUT_TYPE_SINE)
+driver.SetSpeedControllerGain(0.75)
 
 
-app = irr.ChIrrApp(hmmwv.GetSystem(), 'HMMWV on SCM Terrain', irr.dimension2du(1024, 768))
-app.AddTypicalLogo()
-app.AddTypicalSky()
-app.AddTypicalLights()
-app.AddTypicalCamera(chrono.ChVectorD(0, -10, 5))
-app.AssetBindAll()
-app.AssetUpdateAll()
+application = chronoirr.ChIrrApp(system, "HMMWV on SCM Terrain", chronoirr.dimension2du(1024, 768))
+application.AddTypicalLogo()
+application.AddTypicalCamera(chronoirr.vector3df(0, 3, -6))
+application.AddTypicalLights()
+application.AddSkyBox()
+application.AddLightWithShadow(chronoirr.vector3df(20, 40, -20), chronoirr.vector3df(0, 0, 0), 40, 2, 20, 40, 512)
+application.AssetBindAll()
+application.AssetUpdateAll()
 
 
-while app.GetDevice().run():
-    app.BeginScene()
-    app.DrawAll()
-    app.DoStep()
-    app.EndScene()
-    my_system.DoStepDynamics(0.01)
-    driver.Synchronize(0.01)
-    driver.Advance(0.01)
+while application.GetDevice().run():
+    application.BeginScene()
+    application.DrawAll()
+    application.DoStep()
+    application.EndScene()
+    system.DoStepDynamics(0.01)

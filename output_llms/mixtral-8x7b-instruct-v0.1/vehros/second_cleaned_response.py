@@ -22,11 +22,11 @@ def main():
     hmmwv.Initialize()  
 
     
-    hmmwv.SetChassisVisualizationType(veh.VisualizationType_PRIMITIVES)
-    hmmwv.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
-    hmmwv.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
-    hmmwv.SetWheelVisualizationType(veh.VisualizationType_PRIMITIVES)
-    hmmwv.SetTireVisualizationType(veh.VisualizationType_PRIMITIVES)
+    hmmwv.SetChassisVisualizationType(chronoirr.ChVisualizationType_BODY)
+    hmmwv.SetSuspensionVisualizationType(chronoirr.ChVisualizationType_LINE)
+    hmmwv.SetSteeringVisualizationType(chronoirr.ChVisualizationType_BODY)
+    hmmwv.SetWheelVisualizationType(chronoirr.ChVisualizationType_BODY)
+    hmmwv.SetTireVisualizationType(chronoirr.ChVisualizationType_BODY)
 
     
     terrain = veh.RigidTerrain(hmmwv.GetSystem())
@@ -34,7 +34,7 @@ def main():
     patch_mat.SetFriction(0.9)  
     patch_mat.SetRestitution(0.01)  
     patch = terrain.AddPatch(patch_mat, ch.CSYSNORM, 100.0, 100.0)  
-    patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 100, 100)
+    patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 100, 100)  
     terrain.Initialize()  
 
     
@@ -42,17 +42,18 @@ def main():
     driver.Initialize()  
 
     
-    device = chronoirr.ChVisualSystemIrrlicht()
-    device.SetWindowSize(1280, 720)
-    device.SetWindowTitle("HMMWV Simulation")
-    device.Initialize()
-    device.AddLogo(chronoirr.ChVisualSystemIrrlicht.logo_chrono)
-    device.AddTypicalLights()
-    device.AddCamera(ch.ChVectorD(5, 5, 5), ch.ChVectorD(0, 0, 0))
+    ros_manager = chros.ChROSPythonManager()
+    ros_manager.RegisterHandler(chros.ChROSClockHandler())  
+    ros_manager.RegisterHandler(chros.ChROSDriverInputsHandler(25, driver, "~/input/driver_inputs"))
+    ros_manager.RegisterHandler(chros.ChROSBodyHandler(25, hmmwv.GetChassisBody(), "~/output/hmmwv/state"))
+    ros_manager.Initialize()  
 
     
-    device.Add(hmmwv.GetChassisBody())
-    device.Add(terrain.GetTerrainBody())
+    device = chronoirr.ChVisualSystemIrrlicht()
+    device.Initialize()
+    device.AddLogo()
+    device.AddCamera(chronoirr.vector3df(0, 5, 5))
+    device.SetTimestep(hmmwv.GetSystem().GetTimestep())
 
     
     time = 0
@@ -60,7 +61,6 @@ def main():
     time_end = 30  
 
     hmmwv.GetVehicle().EnableRealtime(True)  
-
     while time < time_end:
         time = hmmwv.GetSystem().GetChTime()  
 
@@ -77,7 +77,9 @@ def main():
 
         
         device.BeginScene()
-        device.DrawAll()
+        device.Render(hmmwv.GetVehicle(), time)
+        device.Render(terrain, time)
+        device.Render(driver, time)
         device.EndScene()
 
         

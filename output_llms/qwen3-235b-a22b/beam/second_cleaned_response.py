@@ -16,25 +16,32 @@ msection = fea.ChBeamSectionEulerAdvanced()
 beam_wy = 0.012
 beam_wz = 0.025
 msection.SetAsRectangularSection(beam_wy, beam_wz)
+
+
 msection.SetYoungModulus(0.01e9)
 msection.SetShearModulus(0.01e9 * 0.3)
 msection.SetRayleighDamping(0.000)
 msection.SetCentroid(0, 0.02)
 msection.SetShearCenter(0, 0.1)
-msection.SetSectionRotation(45.0)  
+
+msection.SetSectionRotation(45)  
 
 
 
 builder = fea.ChBuilderBeamEuler()
-builder.BuildBeam(mesh, msection, 2, chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(0.2, 0, 0), chrono.ChVector3d(0, 1, 0))
+builder.BuildBeam(mesh, msection, 5, 
+                 chrono.ChVector3d(0, 0, -0.1), 
+                 chrono.ChVector3d(0.2, 0, -0.1), 
+                 chrono.ChVector3d(0, 1, 0))  
+
+
 nodes = builder.GetLastBeamNodes()
-hnode1 = nodes[0]
-hnode2 = nodes[1]
-hnode3 = nodes[2]
 
 
-hnode2.SetForce(chrono.ChVector3d(4, 2, 0))
-hnode3.SetTorque(chrono.ChVector3d(0, -0.04, 0))
+nodes[0].SetForce(chrono.ChVector3d(0, -1, 0))
+
+
+nodes[-1].SetFixed(True)
 
 
 mtruss = chrono.ChBody()
@@ -42,28 +49,15 @@ mtruss.SetFixed(True)
 sys.Add(mtruss)
 
 
-constr_bc = chrono.ChLinkMateGeneric()
-constr_bc.Initialize(hnode3, mtruss, False, hnode3.Frame, hnode3.Frame)
-sys.Add(constr_bc)
-constr_bc.SetConstrainedCoords(True, True, True, True, True, True)
-
-
 constr_d = chrono.ChLinkMateGeneric()
-constr_d.Initialize(hnode1, mtruss, False, hnode1.Frame, hnode1.Frame)
+constr_d.Initialize(nodes[0], mtruss, False, nodes[0].Frame(), nodes[0].Frame())
 sys.Add(constr_d)
 constr_d.SetConstrainedCoords(False, True, True, False, False, False)
 
 
-builder_new = fea.ChBuilderBeamEuler()
-builder_new.BuildBeam(mesh, msection, 5, chrono.ChVector3d(0, 0, -0.1), chrono.ChVector3d(0.2, 0, -0.1), chrono.ChVector3d(0, 1, 0))
-new_nodes = builder_new.GetLastBeamNodes()
-first_node_new = new_nodes[0]
-last_node_new = new_nodes[-1]
-last_node_new.SetFixed(True)  
-first_node_new.SetForce(chrono.ChVector3d(0, -1, 0))  
-
-
 mesh.SetAutomaticGravity(False)
+
+
 sys.Add(mesh)
 
 

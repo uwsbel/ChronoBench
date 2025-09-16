@@ -41,18 +41,11 @@ def main():
     ros_manager.Initialize()  
 
     
-    vis = chronoirr.ChVisualSystemIrrlicht()
-    vis.SetWindowSize(800, 600)
-    vis.SetWindowTitle('PyChrono HMMWV')
-    vis.SetRenderMode(chronoirr.ChRenderMode_SHADED)
-    vis.SetSkybox()
-    vis.AddCamera(ch.ChVectorD(0, 0, 10), ch.ChVectorD(0, 0, 0))
-    vis.AddTypicalLights(ch.ChVectorD(0, 0, 10), ch.ChVectorD(0, 0, 0), 400, 400, 400)
-    vis.AddLogo()
-    vis.AddAxis(1)
-    vis.AddHMMWV(hmmwv.GetVehicle(), 1, True, 1000, 1000, 1000, False)
-    vis.AddTerrain(terrain)
-    vis.Initialize()
+    hmmwv.SetChassisVisualizationType(veh.ChVisualizationType_PRIMITIVES)
+    hmmwv.SetSuspensionVisualizationType(veh.ChVisualizationType_PRIMITIVES)
+    hmmwv.SetSteeringVisualizationType(veh.ChVisualizationType_PRIMITIVES)
+    hmmwv.SetWheelVisualizationType(veh.ChVisualizationType_PRIMITIVES)
+    hmmwv.SetTireVisualizationType(veh.ChVisualizationType_PRIMITIVES)
 
     
     time = 0
@@ -78,15 +71,32 @@ def main():
         if not ros_manager.Update(time, time_step):
             break  
 
-        
-        vis.BeginScene()
-        vis.Render()
-        vis.EndScene()
+    
+    vis_system = chronoirr.ChVisualSystemIrrlicht()
+    vis_system.SetWindowSize(800, 600)
+    vis_system.SetWindowTitle('PyChrono Vehicle Simulation')
+    vis_system.SetRenderMode(chronoirr.ChIrrWireframeMode_SHADED)
+    vis_system.SetCameraVertical(ch.ChVectorD(0, 0, 1))
+    vis_system.SetCameraHorizontal(ch.ChVectorD(1, 0, 0))
+    vis_system.SetCameraPosition(ch.ChVectorD(0, -15, 5))
+    vis_system.SetCameraLookatPoint(ch.ChVectorD(0, 0, 0))
+    vis_system.SetSymbolsZbuffer(True)
+    vis_system.SetBackgroundColor(ch.ChColor(0.9, 0.9, 0.9))
+    vis_system.SetSkybox(ch.GetChronoDataPath() + 'skybox/skybox.jpg', 100, 100, 100)
+    vis_system.SetSymbolsZbuffer(True)
+    vis_system.SetRenderSymbols(True)
+    vis_system.SetRenderMode(chronoirr.ChIrrWireframeMode_SHADED)
+    vis_system.SetRenderMode(chronoirr.ChIrrWireframeMode_NONE)
+    vis_system.SetRenderMode(chronoirr.ChIrrWireframeMode_POINTS)
 
-        
-        vis.BeginScene(True, True, ch.ChColor(0.1, 0.1, 0.1))
-        vis.Render()
-        vis.EndScene()
+    
+    vis_system.SetRenderStep(1)
+    vis_system.SetRenderFrame(True)
+
+    
+    vis_system.BeginScene(True, True, ch.ChColor(0.15, 0.15, 0.15))
+    vis_system.Render()
+    vis_system.EndScene()
 
 if __name__ == "__main__":
     main()

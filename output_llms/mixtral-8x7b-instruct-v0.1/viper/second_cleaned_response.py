@@ -6,8 +6,6 @@ import pychrono.robot as viper
 import pychrono.sensor as sens
 from pychrono import irrlicht as chronoirr
 
-Create Chrono system
-====================
 
 system = chrono.ChSystemNSC()
 system.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
@@ -15,41 +13,33 @@ system.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, -9.81))
 chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.0025)
 chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
 
-Create ground body
-=================
 
-ground\_mat = chrono.ChContactMaterialNSC()
-ground = chrono.ChBodyEasyBox(20, 20, 1, 1000, True, True, ground\_mat)
+ground_mat = chrono.ChContactMaterialNSC()
+ground = chrono.ChBodyEasyBox(20, 20, 1, 1000, True, True, ground_mat)
 ground.SetPos(chrono.ChVector3d(0, 0, -1))  
 ground.SetFixed(True)  
 
 ground.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
 system.Add(ground)
 
-Create Viper rover
-==================
 
 rover = viper.Viper(system)  
 driver = viper.ViperDCMotorControl()  
 rover.SetDriver(driver)  
 
-Initialize rover position and orientation
-==========================================
 
-init\_pos = chrono.ChVector3d(0, 0.2, 0)
-init\_rot = chrono.ChQuaterniond(1, 0, 0, 0)
-rover.Initialize(chrono.ChFramed(init\_pos, init\_rot))
+init_pos = chrono.ChVector3d(0, 0.2, 0)
+init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
+rover.Initialize(chrono.ChFramed(init_pos, init_rot))
 
-Create run-time visualization
-============================
 
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
-vis.SetCameraVertical(chrono.CameraVerticalDir\_Z)
+vis.SetCameraVertical(chrono.CameraVerticalDir_Z)
 vis.SetWindowSize(1280, 720)
 vis.SetWindowTitle('Viper rover - Rigid terrain')
 vis.Initialize()
-vis.AddLogo(chrono.GetChronoDataFile('logo\_pychrono\_alpha.png'))
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()
 vis.AddCamera(chrono.ChVector3d(0, 2.5, 1.5), chrono.ChVector3d(0, 0, 1))
 vis.AddTypicalLights()
@@ -58,21 +48,19 @@ vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0
 
 
 
-Create sensor manager
-====================
 
 manager = sens.ChSensorManager(system)
+
+
 intensity = 1.0
 manager.scene.AddPointLight(chrono.ChVector3f(2, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
 
-Create a camera sensor
-======================
 
-offset\_pose = chrono.ChFramed(chrono.ChVector3d(1.0, 0, 1.45), chrono.QuatFromAngleAxis(.2, chrono.ChVector3d(0, 1, 0)))
+offset_pose = chrono.ChFramed(chrono.ChVector3d(1.0, 0, 1.45), chrono.QuatFromAngleAxis(.2, chrono.ChVector3d(0, 1, 0)))
 cam = sens.ChCameraSensor(
     rover.GetChassis().GetBody(),
     15,  
-    offset\_pose,
+    offset_pose,
     720,  
     480,  
     1.408  
@@ -81,48 +69,37 @@ cam.SetName("Third Person POV")
 cam.PushFilter(sens.ChFilterVisualize(720, 480, "Viper Front Camera"))
 manager.AddSensor(cam)
 
-Addition of variables for simulation step and render step size
-================================================================
 
-step\_number = 0
-render\_step\_size = 1.0 / 25  
-render\_steps = math.ceil(render\_step\_size / time\_step)
+step_number = 0
+render_step_size = 1.0 / 25  
+render_steps = math.ceil(render_step_size / time_step)
 
-Modification of the simulation loop
-===================================
 
 time = 0
 while vis.Run():
-time += time\_step  
-steering = 0
-max\_steering = math.pi / 6  
+    time += time_step  
+    steering = 0
+    max_steering = math.pi / 6  
+    
+    
+    if 2 < time < 7:
+        steering = max_steering * (time - 2) / 5  
+    elif 7 < time < 12:
+        steering = max_steering * (12 - time) / 5  
+    
+    driver.SetSteering(steering)  
 
-Define the steering behavior over time
-========================================
+    rover.Update()  
 
-if 2 < time < 7:
-steering = max\_steering \* (time - 2) / 5  
-elif 7 < time < 12:
-steering = max\_steering \* (12 - time) / 5  
+    
+    manager.Update()
 
-Set the steering for the rover
-=============================
+    
+    if (step_number % render_steps == 0):
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+    step_number += 1
 
-driver.SetSteering(steering)  
-
-rover.Update()  
-
-Update the sensor manager
-========================
-
-manager.Update()
-
-Render the scene at specific intervals
-=======================================
-
-if (step\_number % render\_steps == 0):
-vis.BeginScene()
-vis.Render()
-vis.EndScene()
-
-step\_number += 1
+    
+    system.DoStepDynamics(time_step)

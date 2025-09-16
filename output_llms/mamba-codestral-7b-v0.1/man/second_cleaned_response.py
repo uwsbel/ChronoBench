@@ -21,9 +21,10 @@ tire_model = veh.TireModelType_TMEASY
 
 
 terrain_model = veh.RigidTerrain.HEIGHT_MAP
-terrainHeight = 0      
-terrainLength = 100.0  
-terrainWidth = 100.0   
+terrainHeight = 0
+terrainLength = 100.0
+terrainWidth = 100.0
+terrainHeightMap = chrono.GetChronoDataFile("terrain/heightmaps/heightmap_20x20.bmp")
 
 
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
@@ -37,10 +38,10 @@ step_size = 1e-3
 tire_step_size = step_size
 
 
-render_step_size = 1.0 / 50  
+render_step_size = 1.0 / 50
 
 
-vehicle = veh.MAN_5t()  
+vehicle = veh.MAN_5t()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
@@ -60,9 +61,9 @@ vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-terrain.SetHeightMap(chrono.GetChronoDataFile("terrain/textures/heightmap.png"), 0, 0, terrainLength, terrainWidth)
-terrain.SetTexture(chrono.GetChronoDataFile("terrain/textures/grass.jpg"), 200, 200)
-terrain.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+terrain.LoadHeightMap(terrainHeightMap)
+terrain.SetContactMethod(contact_method)
+terrain.SetContactVis(contact_vis)
 terrain.Initialize()
 
 
@@ -80,9 +81,9 @@ vis.AttachVehicle(vehicle.GetVehicle())
 driver = veh.ChInteractiveDriverIRR(vis)
 
 
-steering_time = 1.0  
-throttle_time = 1.0  
-braking_time = 0.3   
+steering_time = 1.0
+throttle_time = 1.0
+braking_time = 0.3
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
@@ -102,12 +103,14 @@ render_frame = 0
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
+
     
-    if (step_number % render_steps == 0):
+    if step_number % render_steps == 0:
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
         render_frame += 1
+
     
     driver_inputs = driver.GetInputs()
 

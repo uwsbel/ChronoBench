@@ -1,58 +1,53 @@
-# Import necessary PyChrono modules
 import pychrono as chrono
 import pychrono.irrlicht as irr
 
-# Initialize the PyChrono environment
-chrono.SetChronoDataPath('PYCHRONO_DATA_DIR')
-
-# Create a system
+# Initialize PyChrono environment and core components
+chrono.SetChronoDataPath("path/to/chrono/data/folder/")
 my_system = chrono.ChSystemNSC()
 
-# Create a vehicle
-hmmwv = chrono.HMMWV()
-hmmwv.Initialize(my_system)
+# Add HMMWV vehicle
+hmmwv_file = "hmmwv/hmmwv.json"
+hmmwv_vehicle = chrono.vehicle.HMMWV()
+hmmwv_vehicle.Initialize(my_system, hmmwv_file)
 
-# Create a terrain
-terrain = chrono.ChTerrain()
-terrain.Initialize(my_system)
+# Add terrain
+terrain_file = "terrain/terrain.obj"
+terrain_texture = "terrain/textures/Rock_1.jpg"
+terrain = chrono.vehicle.RigidTerrain(my_system)
+terrain.AddBoxTexture(terrain_texture, 100, 100)
+terrain.LoadMesh(terrain_file, False, True)
 
-# Create a driver
-driver = chrono.ChDriver()
-driver.Initialize(hmmwv)
+# Add IMU sensor
+imu_sensor = chrono.sensor.ChSensorManager(my_system)
+imu_sensor.AddIMUSensor(hmmwv_vehicle.GetChassisBody(), chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT))
 
-# Create IMU and GPS sensors
-imu = chrono.ChIMU()
-gps = chrono.ChGPS()
+# Add GPS sensor
+gps_sensor = chrono.sensor.ChSensorManager(my_system)
+gps_sensor.AddGPSSensor(hmmwv_vehicle.GetChassisBody(), chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT))
 
-# Attach sensors to the vehicle's chassis
-hmmwv.chassis.AddSensor(imu)
-hmmwv.chassis.AddSensor(gps)
-
-# Create a visual system
-vis = irr.ChIrrApp(my_system, 'HMMWV Simulation', irr.dimension2du(1024,768))
-vis.AddTypicalLogo()
-vis.AddTypicalSky()
-vis.AddTypicalCamera(irr.vector3df(0,3,-6))
-vis.AddTypicalLights()
-
-# Set default parameters
-hmmwv.SetPos(chrono.ChVectorD(0, 0, 0))
+# Set up visual interface using Irrlicht
+visual_system = irr.ChIrrApp(my_system, "HMMWV Simulation", irr.dimension2du(1024, 768), False)
+visual_system.AddTypicalLogo()
+visual_system.AddTypicalSky()
+visual_system.AddTypicalLights()
+visual_system.AddTypicalCamera(chrono.ChVectorD(0, 2, -5))
+visual_system.AddLightWithShadow(chrono.ChVectorD(2, 4, -2), chrono.ChVectorD(0, 0, 0), 9, 2, 7, 40, 512, irr.ChColor(0.8, 0.8, 1))
 
 # Simulation loop
-while vis.GetDevice().run():
-    vis.BeginScene()
-    vis.AddShadowAll()
-
-    # Advance the simulation
-    my_system.DoStepDynamics(0.01)
+step_size = 0.01
+while visual_system.GetDevice().run():
+    visual_system.BeginScene()
+    visual_system.DrawAll()
+    visual_system.DoStep()
+    visual_system.EndScene()
 
     # Update sensor data
-    imu.Update()
-    gps.Update()
+    imu_sensor.Update()
+    gps_sensor.Update()
 
     # Output vehicle mass
-    print("Vehicle mass: ", hmmwv.GetMass())
+    vehicle_mass = hmmwv_vehicle.GetVehicleMass()
+    print("Vehicle Mass:", vehicle_mass)
 
-    # Render the scene
-    vis.Render()
-    vis.EndScene()
+    # Advance simulation
+    my_system.DoStepDynamics(step_size)

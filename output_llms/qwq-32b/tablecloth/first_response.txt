@@ -1,0 +1,691 @@
+Okay, I need to create a PyChrono simulation for a tablecloth folding using shell elements with an isotropic Kirchhoff material. Let me start by recalling the necessary steps.
+
+First, I'll initialize the environment. I'll import PyChrono modules and create a system. Then, set up the Irrlicht visualization. Oh right, the user mentioned using the PardisoMKL solver for efficiency, so I should set that as the solver for the system.
+
+Next, the tablecloth needs a mesh grid. Shell elements in PyChrono are part of the fem module. I should create a FEM mesh object. The mesh will have nodes arranged in a grid. Let me think about the parameters: maybe a 20x20 grid with spacing of 0.05 meters. That should give a reasonable resolution without being too heavy.
+
+For the material properties, Kirchhoff is a linear material. The isotropic material requires parameters like Young's modulus, Poisson's ratio, and density. Let's pick typical values: E=1e6 Pa, nu=0.3, density=800 kg/m³. Wait, maybe check standard values for fabrics? Hmm, but since it's an example, those values should work.
+
+Adding elements to the mesh: each element is a shell element. The mesh's AddElementShellQuadrilateral function can be used. Need to loop over the grid nodes to create elements.
+
+Then, create the FEM actor. Assign the mesh and material properties. Position the tablecloth above the table, maybe at z=0.5 meters. Also, add a table as a rigid body below it. The table can be a box shape, positioned at z=0, with some dimensions.
+
+For visualization, set colors and materials. The Irrlicht needs to be initialized, and the camera positioned to view the tablecloth.
+
+Wait, the solver setup: system.SetSolverType(ChSolver.Type.PARDISO_MKL). Need to make sure that the PardisoMKL is available. Also, time step and integrator: maybe use HHT for stability.
+
+Boundary conditions: the tablecloth's edges might need constraints. For example, fix the corners or edges to simulate folding. Alternatively, maybe just let gravity pull it down. Wait, the problem says folding, so perhaps initial conditions or some forces to induce folding? Or maybe just gravity will cause it to fall onto the table, creating folds naturally. Hmm, perhaps the user expects the tablecloth to be initially flat and then gravity makes it fold. Let me see.
+
+Wait, the user didn't mention specific initial conditions beyond the mesh, so maybe just setting the initial position and letting gravity act. The table is a rigid body, so the cloth will collide with it. Need to add collision shapes to the table and the cloth. The FEM actor's collision model might need to be set up. Oh right, the FEM body can have a collision model, but maybe for simplicity, the tablecloth's collision with the table can be handled via a rigid body collision.
+
+Alternatively, perhaps the tablecloth's shell elements don't need collision, but the table does. Let me structure that. The table is a rigid body with a box shape, and the cloth's FEM body can have its own collision shapes. Maybe the FEM actor's collision model is automatically handled, but I might need to set it up.
+
+Wait, in PyChrono, FEM bodies can have collision models. So perhaps the cloth's FEM actor's collision model should be set to the mesh's collision data. But maybe for simplicity, just let the cloth's elements be in collision with the table. Alternatively, maybe the table is a static body and the cloth's collision with it is handled via the system's collision detection.
+
+Hmm, perhaps the main steps are:
+
+- Create system, set solver.
+
+- Create the mesh grid for the cloth.
+
+- Assign material (Kirchhoff).
+
+- Create FEM actor with mesh and material.
+
+- Create table as a rigid body (box).
+
+- Add both bodies to the system.
+
+- Initialize visualization.
+
+Wait, also, the tablecloth's initial position should be above the table. Let's say the table is at z=0, and the cloth is placed at z=0.5, centered.
+
+Now, code structure:
+
+Import necessary modules: chrono, chrono.fem, chrono irrlicht.
+
+Create system, set solver.
+
+Create the Irrlicht window, set camera.
+
+Define mesh grid: nodes in a grid. For example, nx=20, ny=20, spacing 0.05 m. The origin at (0,0,0.5). So the nodes are (i*spacing, j*spacing, 0.5). Wait, but the table is at z=0, so the cloth is above.
+
+Wait, maybe the grid should be centered. Let's see: the cloth's grid is from (-1, -1, 0.5) to (1,1,0.5) with spacing 0.1 m? Or maybe adjust the parameters for better scaling.
+
+Alternatively, perhaps the cloth is 1m x 1m. So nx=20, spacing 0.05, so 20*0.05=1m. So starting from (0,0,0.5) to (1,1,0.5). The table would be a box from (0,0,0) to (1,1,0.1) or something.
+
+Wait, the tablecloth's nodes would be in a grid from (0 to 1) in x and y, at z=0.5. The table is a box from (0,0,0) to (1,1,0.1). So the cloth is above the table.
+
+Now, creating the nodes:
+
+for i in 0 to nx-1:
+
+   for j in 0 to ny-1:
+
+       x = i * spacing
+
+       y = j * spacing
+
+       z = 0.5
+
+       add node at (x,y,z)
+
+Then elements: each quadrilateral element connects four nodes. For each i and j (except the last row and column), the nodes are (i,j), (i+1,j), (i+1,j+1), (i,j+1). So loops from 0 to nx-2 and 0 to ny-2.
+
+Wait, the indices might need to be adjusted. Let me think of the node indices. If nodes are stored in a 2D array, then for each i and j in the nodes, the element is created with the four nodes around them.
+
+Once the mesh is built, assign the material. The Kirchhoff material is chrono.fem.ChMaterialShellKirchhoff.
+
+Set the material's parameters: Young's modulus, Poisson's ratio, density.
+
+Then create the FEM body (ChBodyFEMobject) with the mesh and material.
+
+Position it at (0,0,0.5) perhaps? Wait, the nodes are already placed, so maybe the body's position is the origin, but the nodes are offset. Or perhaps the nodes are positioned relative to the body's frame. Hmm, maybe better to set the body's position to (0,5,0.5) if the grid is centered?
+
+Alternatively, the body's frame can be set so that the nodes are placed correctly. Alternatively, maybe the nodes are placed in the body's local frame, so the body's position is (0,0,0.5), and nodes are at (x,y,0) in local coordinates. Wait, perhaps I need to think in terms of local vs global coordinates.
+
+Alternatively, maybe it's easier to set all nodes in global coordinates, so the body's position is (0,0,0), and nodes are at (x,y,0.5). But the FEM body's position is the origin, so nodes are placed relative to that. Hmm, perhaps I should set the body's position to (0.5,0.5,0.5) to center the cloth over the table?
+
+Wait, the table is from (0,0,0) to (1,1,0), so the cloth's center should be at (0.5,0.5,0.5). The nodes would be from (0,0,0.5) to (1,1,0.5). So the body's position is (0.5,0.5,0.5), and nodes are placed relative to that. But maybe it's easier to set the nodes in global coordinates. Alternatively, the nodes can be placed in local coordinates, and the body is positioned at (0.5,0.5,0.5). Hmm, perhaps I'll proceed with setting the nodes in global coordinates directly, so the body's position is (0,0,0.5), and nodes are offset from there. Wait, perhaps it's better to have the nodes in the body's local frame. Let me see.
+
+Alternatively, the FEM body's position is set to (0,0,0.5), and the nodes are placed in local coordinates. For example, if the grid is from (0,0,0) to (1,1,0) in local coordinates, then the body's position would place them at (0.5,0.5,0.5) globally. Hmm, perhaps that's manageable.
+
+Alternatively, maybe it's simpler to set the nodes in global coordinates. Let me proceed with that approach.
+
+Now, code for the mesh:
+
+nx = 20
+
+ny = 20
+
+spacing = 0.05
+
+mesh = chrono.fem.ChMesh()
+
+nodes = []
+
+for i in range(nx):
+
+    for j in range(ny):
+
+        x = i * spacing
+
+        y = j * spacing
+
+        z = 0.5
+
+        node = chrono.fem.ChNodeFEAxyzD()
+
+        node.SetPos(chrono.ChVectorD(x, y, z))
+
+        mesh.AddNode(node)
+
+Wait, but this would create nx*ny nodes in a grid. Then, for elements:
+
+for i in range(nx-1):
+
+    for j in range(ny-1):
+
+        n0 = i*ny + j
+
+        n1 = (i+1)*ny + j
+
+        n2 = (i+1)*ny + (j+1)
+
+        n3 = i*ny + (j+1)
+
+        elem = chrono.fem.ChElementShellQ4()
+
+        elem.SetNodes(mesh.GetNode(n0),
+
+                     mesh.GetNode(n1),
+
+                     mesh.GetNode(n2),
+
+                     mesh.GetNode(n3))
+
+        mesh.AddElement(elem)
+
+Wait, but the indices here may be correct. Each element is a quadrilateral.
+
+Then, the material:
+
+material = chrono.fem.ChMaterialShellKirchhoff()
+
+material.SetYoungModulus(1e6)
+
+material.SetPoissionsRatio(0.3)
+
+material.SetDensity(800)
+
+Then assign the material to each element? Or perhaps the material is assigned to the mesh, but I think each element needs to have its material set. Alternatively, maybe the mesh's material is set, but I need to check.
+
+Wait, looking at PyChrono's documentation, for shell elements, each element can have its own material. So perhaps for each element in the mesh, set the material:
+
+for elem in mesh.GetElements():
+
+    elem.SetMaterial(material)
+
+Hmm, but that might be tedious. Alternatively, perhaps when creating the element, you can assign the material at creation. Or maybe the elements are initialized with the material. Alternatively, maybe the mesh has a default material.
+
+Alternatively, perhaps the ChElementShellQ4 has a method to set material. Let me see: in the code above, after creating the element, I can do elem.SetMaterial(material). So inside the loop when adding elements:
+
+elem.SetMaterial(material)
+
+Yes, that should work.
+
+Then, create the FEM body:
+
+body_fem = chrono.ChBodyFEMobject()
+
+body_fem.SetMesh(mesh)
+
+body_fem.SetBodyFixed(False)  # Let it move
+
+body_fem.SetIdentifier(0)
+
+body_fem.SetCollide(True)  # Enable collision?
+
+Wait, but collision for the FEM body may require a collision model. Alternatively, maybe the table's collision is sufficient.
+
+The table is a rigid body. Let's create it as a box:
+
+table = chrono.ChBodyEasyBox(1, 1, 0.1, 1000)
+
+table.SetPos(chrono.ChVectorD(0.5, 0.5, 0))  # Centered under the cloth?
+
+Wait, if the cloth's nodes are from (0,0,0.5) to (1,1,0.5), then the table's position should be at (0.5,0.5,0) with dimensions 1x1x0.1. That way, the table is centered under the cloth.
+
+Set the table as a static body:
+
+table.SetBodyFixed(True)
+
+Add it to the system.
+
+Then, add the FEM body to the system.
+
+Now, visualization:
+
+Create an Irrlicht application:
+
+myapplication = chrono.ChIrrApp(system, 'Tablecloth Folding', chronoirr.dimension2du(1024,768))
+
+myapplication.AddTypicalLights()
+
+myapplication.AddTypicalCamera(chronocore.ChVectorD(2,2,2), chronocore.ChVectorD(0.5,0.5,0.5))
+
+Wait, need to include the bodies in the application:
+
+myapplication.AddBody(table)
+
+myapplication.AddBody(body_fem)
+
+Then, set the color and materials for visualization.
+
+body_fem.GetCollisionModel().BuildModel()  # Maybe needed for visualization?
+
+Alternatively, the FEM body's mesh is already there. The Irrlicht should display the mesh.
+
+Also, set the camera position to look at the scene.
+
+Finally, simulation loop:
+
+while myapplication.GetDevice().run():
+
+    myapplication.BeginScene()
+
+    myapplication.DrawAll()
+
+    myapplication.DoStep()
+
+    myapplication.EndScene()
+
+Wait, but the DoStep() function needs to handle the time step. Need to set the step size and the number of steps per frame.
+
+Wait, the standard loop is something like:
+
+while myapplication.GetDevice().run():
+
+    myapplication.BeginScene()
+
+    myapplication.DrawAll()
+
+    system.DoStepDynamics(0.001)
+
+    myapplication.EndScene()
+
+But the time step should be set appropriately. Let me see, perhaps the system's step size is set via system.SetTimestepperType and then the step is done via DoStepDynamics with the desired dt.
+
+Alternatively, maybe use a fixed time step. Let me think.
+
+Putting it all together, the code would look like this. Also, make sure to import all the necessary modules, like:
+
+import pychrono as chrono
+
+import pychrono.irrlicht as chronoirr
+
+Wait, but the actual import names might be:
+
+import chronopython as chrono ?
+
+Wait, the correct import statements are usually:
+
+import pychrono as chrono
+
+from pychrono import irrlicht as chronoirr
+
+Wait, I need to check the actual module names. Assuming the user has the correct imports.
+
+Also, the solver setup: system.SetSolverType(chrono.ChSolver.Type.PARDISO_MKL)
+
+But in PyChrono, the enum might be accessed as chrono.ChSolver.Type.PARDISO_MKL.
+
+Putting all these steps together into code.
+
+Wait, possible issues:
+
+- The nodes are placed in a grid, but the FEM body's position might affect their placement. Need to ensure that the nodes are correctly positioned.
+
+- The material parameters might need adjustment for proper simulation (like higher Young's modulus for stiffer cloth).
+
+- The time step and integrator: using HHT might be better for stability with large time steps. The default Euler might not be suitable here. So set the system's integrator to HHT:
+
+system.SetIntegrator(chrono.ChIntegratoHHT())
+
+Then set the parameters for HHT.
+
+Also, adding gravity to the system: system.SetGravity(chrono.ChVectorD(0,0,-9.81))
+
+Wait, that's essential. The cloth will fall under gravity.
+
+So adding that line after creating the system.
+
+Putting all together, here's the code outline:
+
+Initialize system, set gravity, solver, integrator.
+
+Create mesh, nodes, elements, assign material.
+
+Create FEM body and table.
+
+Add to system.
+
+Visualization setup.
+
+Simulation loop.
+
+Now, code:
+
+Wait, let me write the code step by step.
+
+First, imports:
+
+import pychrono as chrono
+
+import pychrono.irrlicht as chronoirr
+
+Then, create the system:
+
+system = chrono.ChSystem()
+
+system.SetSolverType(chrono.ChSolver.Type.PARDISO_MKL)
+
+system.SetSolverMaxIterations(100)
+
+system.SetTolerance(1e-6)
+
+# Set gravity
+
+system.SetGravity(chrono.ChVectorD(0, 0, -9.81))
+
+# Set integrator to HHT for stability
+
+my_integrator = chrono.ChIntegratoHHT(system)
+
+my_integrator.SetAlpha(-0.2)  # Implicitation factor
+
+my_integrator.SetMaxItSpeed(10)
+
+my_integrator.SetMaxItNewton(5)
+
+system.SetIntegrator(my_integrator)
+
+Wait, need to make sure the integrator is correctly initialized.
+
+Then create the mesh:
+
+# Parameters for the tablecloth mesh
+
+nx = 20
+
+ny = 20
+
+spacing = 0.05
+
+cloth_z = 0.5  # initial height
+
+mesh = chrono.ChMesh()
+
+# Create nodes in a grid
+
+for i in range(nx):
+
+    for j in range(ny):
+
+        x = i * spacing
+
+        y = j * spacing
+
+        z = cloth_z
+
+        node = chrono.ChNodeFEAxyzD()  # 3D nodes with displacement
+
+        node.SetPos(chrono.ChVectorD(x, y, z))
+
+        mesh.AddNode(node)
+
+# Create shell elements (quadrilaterals)
+
+for i in range(nx-1):
+
+    for j in range(ny-1):
+
+        # Node indices for the four corners of the element
+
+        n0 = i * ny + j
+
+        n1 = (i+1) * ny + j
+
+        n2 = (i+1) * ny + (j+1)
+
+        n3 = i * ny + (j+1)
+
+        # Create element and assign nodes and material
+
+        elem = chrono.ChElementShellQ4()
+
+        elem.SetNodes(mesh.GetNode(n0),
+
+                      mesh.GetNode(n1),
+
+                      mesh.GetNode(n2),
+
+                      mesh.GetNode(n3))
+
+        # Set material properties
+
+        material = chrono.ChMaterialShellKirchhoff()
+
+        material.SetYoungModulus(1e6)  # Young's modulus (Pa)
+
+        material.SetPoissionsRatio(0.3)  # Poisson's ratio
+
+        material.SetDensity(800)  # density (kg/m^3)
+
+        elem.SetMaterial(material)
+
+        mesh.AddElement(elem)
+
+Wait, but here, creating a new material for each element? That's inefficient. Better to create the material once and assign it to each element.
+
+Better approach:
+
+Create the material once:
+
+material = chrono.ChMaterialShellKirchhoff()
+
+material.SetYoungModulus(1e6)
+
+material.SetPoissionsRatio(0.3)
+
+material.SetDensity(800)
+
+Then, inside the loop for elements:
+
+elem.SetMaterial(material)
+
+Yes, that's better.
+
+So corrected code:
+
+material = chrono.ChMaterialShellKirchhoff()
+
+material.SetYoungModulus(1e6)
+
+material.SetPoissionsRatio(0.3)
+
+material.SetDensity(800)
+
+for i in range(nx-1):
+
+    for j in range(ny-1):
+
+        # ... create element
+
+        elem.SetMaterial(material)
+
+        mesh.AddElement(elem)
+
+Then, create the FEM body:
+
+body_fem = chrono.ChBodyFEMobject()
+
+body_fem.SetMesh(mesh)
+
+body_fem.SetBodyFixed(False)  # Allow movement
+
+body_fem.SetCollide(True)  # Enable collision detection
+
+# Position the FEM body (but nodes are already placed in global coordinates?)
+
+Wait, the nodes are placed in global coordinates, so the body's position can be (0,0,0), but the nodes are already set. Alternatively, perhaps the body's position is the origin, and the nodes are placed relative to that. Hmm, but in the code above, nodes are set in global coordinates, so the body's position doesn't affect them. Maybe the body's position is set to (0,0,0), but the nodes are already at their positions. So it's okay.
+
+Alternatively, perhaps the body's position should be the center of the cloth, but since nodes are placed in global coordinates, it's not necessary.
+
+Add the body to the system:
+
+system.Add(body_fem)
+
+Now, the table:
+
+table = chrono.ChBodyEasyBox(1.0, 1.0, 0.1, 1000)  # size 1x1x0.1, density 1000 kg/m^3
+
+table.SetPos(chrono.ChVectorD(0.5, 0.5, 0))  # centered under the cloth
+
+table.SetBodyFixed(True)
+
+system.Add(table)
+
+Visualization setup:
+
+myapplication = chronoirr.ChIrrApp(system, 'Tablecloth Folding', chronoirr.dimension2du(1024,768))
+
+myapplication.AddAllTypicalLights()
+
+myapplication.AddCamera(chronoirr.ChVectorD(2, 2, 2), chronoirr.ChVectorD(0.5, 0.5, 0.5))
+
+myapplication.AddTypicalCameraKeyboard()
+
+myapplication.AddBody(body_fem)
+
+myapplication.AddBody(table)
+
+myapplication.SetSymbolscale(0.002)
+
+myapplication.SetShadowAll(False)
+
+myapplication.AssetBind()
+
+myapplication.AssetUpdate()
+
+Then, the main loop:
+
+while myapplication.GetDevice().run():
+
+    myapplication.BeginScene()
+
+    myapplication.DrawAll()
+
+    system.DoStepDynamics(0.001)  # time step of 1ms
+
+    myapplication.EndScene()
+
+Wait, but the time step here is 0.001 seconds (1ms). For a cloth simulation, this might be too large, but with the HHT integrator, it might work. Alternatively, a smaller step like 0.0005.
+
+Also, need to make sure that the solver is set correctly.
+
+Putting all together, the code should look like this. Now, check for any possible mistakes.
+
+Wait, in the element creation loop, the indices:
+
+n0 = i*ny + j
+
+Yes, because for each row i, there are ny nodes. So for i=0, j ranges 0 to ny-1, giving nodes 0 to ny-1. For i=1, nodes ny to 2ny-1, etc.
+
+The elements loop over i from 0 to nx-2 and j from 0 to ny-2, since each element requires i+1 and j+1.
+
+Another possible mistake: the material is assigned to each element. That's correct.
+
+Also, the FEM body's collision: maybe the tablecloth's collision with the table is handled via the collision between the FEM body and the table. The table is a rigid body with a box shape, so it should collide with the FEM body's collision model.
+
+Wait, the FEM body's collision model might need to be built. So perhaps after setting up the FEM body, call:
+
+body_fem.GetCollisionModel().BuildModel()
+
+But I'm not sure if that's necessary. Alternatively, the FEM body's mesh might automatically generate collision shapes.
+
+Alternatively, maybe the FEM body's collision is not needed, and the table's collision is sufficient. The FEM body's nodes can collide with the table's surface via the system's collision detection.
+
+Hmm, perhaps it's better to enable collision between the FEM body and the table. To do that, set the collision flags:
+
+body_fem.SetCollide(True)
+
+table.SetCollide(True)
+
+Also, set the collision family to allow interaction. By default, they might not collide unless their collision masks allow it. But maybe in this case, it's okay.
+
+Alternatively, perhaps the FEM body's collision is not necessary, and the table's collision is enough.
+
+Testing in the code.
+
+Another possible issue: the initial position of the cloth nodes is at z=0.5, so they are above the table at z=0. The gravity will pull them down, causing them to fall onto the table and fold.
+
+This should work.
+
+Now, compiling all the code into a script with proper syntax.
+
+Wait, also, in the code, the material for each element must be set. Since I created the material once and assigned it to each element, that's okay.
+
+Now, the final code:
+
+I need to make sure all the imports are correct. Also, check for any typos like 'PoissionsRatio' (should be Poisson's ratio, so 'Set_PoissonsRatio'? Wait, checking the PyChrono documentation:
+
+Looking up ChMaterialShellKirchhoff, the method is Set_PoissonRatio.
+
+Ah, that's a common mistake. So the correct method is:
+
+material.Set_PoissonRatio(0.3)
+
+Instead of SetPoissionsRatio.
+
+Yes, that's a typo. So that's an important correction.
+
+So the material setup:
+
+material = chrono.ChMaterialShellKirchhoff()
+
+material.SetYoungModulus(1e6)
+
+material.Set_PoissonRatio(0.3)
+
+material.SetDensity(800)
+
+Another possible issue: the ChNodeFEAxyzD nodes are 3D with displacement. That's correct for a shell element.
+
+Also, the shell elements are ChElementShellQ4, which are quadrilaterals.
+
+Now, putting all corrections into the code.
+</think>
+
+```python
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
+
+# Initialize the system with PardisoMKL solver
+system = chrono.ChSystem()
+system.SetSolverType(chrono.ChSolver.Type.PARDISO_MKL)
+system.SetSolverMaxIterations(100)
+system.SetTolerance(1e-6)
+system.SetGravity(chrono.ChVectorD(0, 0, -9.81))
+
+# Use HHT integrator for stability
+integrator = chrono.ChIntegratoHHT(system)
+integrator.SetAlpha(-0.2)
+integrator.SetMaxItSpeed(10)
+integrator.SetMaxItNewton(5)
+system.SetIntegrator(integrator)
+
+# Create tablecloth mesh
+nx, ny = 20, 20
+spacing = 0.05
+cloth_z = 0.5
+mesh = chrono.ChMesh()
+
+# Add nodes in a grid
+for i in range(nx):
+    for j in range(ny):
+        x = i * spacing
+        y = j * spacing
+        z = cloth_z
+        node = chrono.ChNodeFEAxyzD()
+        node.SetPos(chrono.ChVectorD(x, y, z))
+        mesh.AddNode(node)
+
+# Create shell elements with Kirchhoff material
+material = chrono.ChMaterialShellKirchhoff()
+material.SetYoungModulus(1e6)
+material.Set_PoissonRatio(0.3)
+material.SetDensity(800)
+
+for i in range(nx - 1):
+    for j in range(ny - 1):
+        n0 = i * ny + j
+        n1 = (i + 1) * ny + j
+        n2 = (i + 1) * ny + (j + 1)
+        n3 = i * ny + (j + 1)
+        elem = chrono.ChElementShellQ4()
+        elem.SetNodes(mesh.GetNode(n0), mesh.GetNode(n1),
+                      mesh.GetNode(n2), mesh.GetNode(n3))
+        elem.SetMaterial(material)
+        mesh.AddElement(elem)
+
+# Create FEM body and add to system
+body_fem = chrono.ChBodyFEMobject()
+body_fem.SetMesh(mesh)
+body_fem.SetBodyFixed(False)
+body_fem.SetCollide(True)
+system.Add(body_fem)
+
+# Create table as a rigid body
+table = chrono.ChBodyEasyBox(1.0, 1.0, 0.1, 1000)
+table.SetPos(chrono.ChVectorD(0.5, 0.5, 0))
+table.SetBodyFixed(True)
+system.Add(table)
+
+# Visualization setup
+app = chronoirr.ChIrrApp(system, 'Tablecloth Folding', chronoirr.dimension2du(1024, 768))
+app.AddAllTypicalLights()
+app.AddCamera(chronoirr.ChVectorD(2, 2, 2), chronoirr.ChVectorD(0.5, 0.5, 0.5))
+app.AddTypicalCameraKeyboard()
+app.AddBody(body_fem)
+app.AddBody(table)
+app.AssetBind()
+app.AssetUpdate()
+
+# Simulation loop
+while app.GetDevice().run():
+    app.BeginScene()
+    app.DrawAll()
+    system.DoStepDynamics(0.001)
+    app.EndScene()
+```

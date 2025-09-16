@@ -1,61 +1,52 @@
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
-import math
 
-# Initialize the Chrono system
-sys = chrono.ChSystemNSC()
-sys.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity in the negative Y direction
+# Initialize the PyChrono system
+system = chrono.ChSystemNSC()
 
-# Create the ground body (fixed)
+# Create the ground body
 ground = chrono.ChBody()
 ground.SetBodyFixed(True)
-sys.Add(ground)
+system.Add(ground)
 
 # Create the pendulum body
-pendulum = chrono.ChBody()
-pendulum.SetMass(1.0)  # Mass of 1 kg
-pendulum.SetInertiaXX(chrono.ChVectorD(0.333, 0.333, 0.333))  # Moment of inertia for a rod (1/3)*m*L^2 for L=1m
+pendulum = chrono.ChBodyEasyBox(0.1, 1.0, 0.1, 1000)  # Width, Length, Height, Density
+pendulum.SetPos(chrono.ChVectorD(0, -0.5, 0))  # Position pendulum's center at (0, -0.5, 0)
+pendulum.SetRot(chrono.ChQuaternionD(chrono.ChAngleAxisD(chrono.CH_C_PI / 4, chrono.ChVectorD(0, 0, 1))))  # 45-degree initial rotation
+system.Add(pendulum)
 
-# Set initial position and rotation (45 degrees from vertical)
-theta = math.radians(45)
-pendulum.SetPos(chrono.ChVectorD(0, -0.5, 0))  # Center of mass at (0, -L/2, 0) assuming length L=1m
-pendulum.SetRot(chrono.ChQuaternionD(math.cos(theta/2), 0, 0, math.sin(theta/2)))  # Rotate about Z-axis
-
-sys.Add(pendulum)
-
-# Create a revolute joint to connect the ground and pendulum
-revolute_joint = chrono.ChLinkRevolute()
-revolute_joint.Initialize(
-    ground, 
-    pendulum, 
-    chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.ChQuaternionD(1, 0, 0, 0))  # Joint at origin, Z-axis rotation
+# Create revolute joint connecting ground and pendulum
+joint = chrono.ChRevoluteJoint(
+    ground, pendulum,
+    chrono.ChVectorD(0, 0, 0),  # Joint position in ground
+    chrono.ChVectorD(0, 0.5, 0)  # Joint position in pendulum (local coordinates)
 )
-sys.AddLink(revolute_joint)
+system.Add(joint)
 
 # Set up Irrlicht visualization
-app = chronoirr.ChIrrApp(sys, 'Pendulum Simulation', chronoirr.dimension2du(1024, 768))
-app.AddTypicalLights()
-app.AddTypicalCamera(chronoirr.vector3df(0, 0, 3), chronoirr.vector3df(0, -0.5, 0))  # Camera setup
-app.AssetBindAll()
-app.AssetUpdateAll()
+application = chronoirr.ChIrrApp(system, 'PyChrono Pendulum Simulation', chronoirr.dimension2du(1024, 768))
+application.AddTypicalSky()
+application.AddTypicalLights()
+application.AddCamera(chronoirr.vector3df(0, 0, 3), chronoirr.vector3df(0, 0, 0))
+application.AssetBindAll()
+application.AssetUpdateAll()
 
-# Logging configuration
-log_interval = 0.1
-next_log_time = 0.0
+# Simulation loop parameters
+step_size = 0.01
+log_interval = 0.5
+current_log_time = 0
 
-# Simulation loop
-while app.GetDevice().run():
-    app.BeginScene()
-    app.DrawAll()
-    app.EndScene()
+# Run simulation loop
+while application.GetDevice().run():
+    application.BeginScene()
+    application.DrawAll()
+    application.EndScene()
 
-    sys.DoStepDynamics(1e-3)  # Step simulation with 1ms timestep
+    system.DoStepDynamics(step_size)
 
-    # Log pendulum position and velocity periodically
-    current_time = sys.GetChTime()
-    if current_time >= next_log_time:
+    current_log_time += step_size
+    if current_log_time >= log_interval:
         pos = pendulum.GetPos()
-        vel = pendulum.GetPos_dt()
-        print(f"Time: {current_time:.3f}, Position: ({pos.x:.3f}, {pos.y:.3f}, {pos.z:.3f}), "
-              f"Velocity: ({vel.x:.3f}, {vel.y:.3f}, {vel.z:.3f})")
-        next_log_time += log_interval
+        ang_vel = pendulum.GetWvel_loc()
+        print(f"Time: {system.GetChTime():.2f}s | Position: ({pos.x:.3f}, {pos.y:.3f}, {pos.z:.3f}) | Angular Velocity: ({ang_vel.x:.3f}, {ang_vel.y:.3f}, {ang_vel.z:.3f})")
+        current_log_time = 0

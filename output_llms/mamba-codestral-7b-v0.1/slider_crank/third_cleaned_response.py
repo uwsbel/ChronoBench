@@ -21,6 +21,7 @@ mfloor.SetPos(chrono.ChVector3d(0, -0.5, 0))
 mfloor.SetFixed(True)
 sys.Add(mfloor)
 
+
 mcrank = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, crank_rad, crank_thick, 1000)
 mcrank.SetPos(crank_center + chrono.ChVector3d(0, 0, -0.1))
 
@@ -48,14 +49,14 @@ my_motor.SetMotorFunction(my_angularspeed)
 sys.Add(my_motor)
 
 
-mjointA = chrono.ChLinkLockSpherical()
+mjointA = chrono.ChLinkSpherical()
 mjointA.Initialize(mrod,
                    mcrank,
                    chrono.ChFramed(crank_center + chrono.ChVector3d(crank_rad, 0, 0)))
 sys.Add(mjointA)
 
 
-mjointB = chrono.ChLinkLockSpherical()
+mjointB = chrono.ChLinkSpherical()
 mjointB.Initialize(mpiston,
                    mrod,
                    chrono.ChFramed(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0)))

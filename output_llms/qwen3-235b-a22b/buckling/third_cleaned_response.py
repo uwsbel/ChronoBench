@@ -11,12 +11,12 @@ class ChFunctionMyFun(chrono.ChFunction):
         chrono.ChFunction.__init__(self)
     def GetVal(self, x):
         if x > 0.5:
-            return m.pi
+            return chrono.CH_PI
         else:
-            return -m.pi * (1.0 - m.cos(m.pi * x / 0.3)) / 2.0
+            return -chrono.CH_PI * (1.0 - m.cos(chrono.CH_PI * x / 0.3)) / 2.0
 
 
-out_dir = chrono.GetChronoOutputPath() + "BEAM_FAILED"
+out_dir = chrono.GetChronoOutputPath() + "BEAM_FIXED"
 
 
 sys = chrono.ChSystemSMC()
@@ -34,7 +34,7 @@ vd = chrono.ChVector3d(0, 0, 0.0001)
 
 body_trss = chrono.ChBody()
 body_trss.SetFixed(True)
-sys.Add(body_trss)
+sys.AddBody(body_trss)
 
 
 boxtruss = chrono.ChVisualShapeBox(0.03, 0.25, 0.15)
@@ -43,17 +43,17 @@ body_trss.AddVisualShape(boxtruss, chrono.ChFrameD(chrono.ChVector3d(-0.01, 0, 0
 
 body_crank = chrono.ChBody()
 body_crank.SetPos((vC + vG) * 0.5)
-sys.Add(body_crank)
+sys.AddBody(body_crank)
 
 
 boxcrank = chrono.ChVisualShapeBox(K, 0.05, 0.03)
 body_crank.AddVisualShape(boxcrank)
 
 
-motor = chrono.ChLinkMotorRotationTorque()
+motor = chrono.ChLinkMotorRotationSpeed()
 motor.Initialize(body_trss, body_crank, chrono.ChFrameD(vG))
 myfun = ChFunctionMyFun()
-motor.SetTorqueFunction(myfun)
+motor.SetSpeedFunction(myfun)  
 sys.Add(motor)
 
 
@@ -64,7 +64,7 @@ beam_wy = 0.12
 beam_wz = 0.15
 
 
-minertia = fea.ChIneritaCosseratSimple()
+minertia = fea.ChInertiaCosseratSimple()
 minertia.SetAsRectangularSection(beam_wy, beam_wz, 2700)
 melasticity = fea.ChElasticityCosseratSimple()
 melasticity.SetYoungModulus(72.0e9)
@@ -78,12 +78,12 @@ builder_iga = fea.ChBuilderBeamIGA()
 builder_iga.BuildBeam(mesh, msection1, 30, vA, vC, chrono.VECT_X, 3)
 
 
-builder_iga.GetLastBeamNodes()[0].SetFixed(True)
-node_tip = builder_iga.GetLastBeamNodes()[30]  
+builder_iga.GetLastBeamNodes()[0].SetFixed(True)  
+node_tip = builder_iga.GetLastBeamNodes()[-1]  
 node_mid = builder_iga.GetLastBeamNodes()[15]  
 
 
-section2 = fea.ChBeamSectionAdvancedEuler()
+section2 = fea.ChBeamSectionEulerAdvanced()
 hbeam_d = 0.05
 section2.SetDensity(2500)
 section2.SetYoungModulus(75.0e9)
@@ -93,15 +93,15 @@ section2.SetAsCircularSection(hbeam_d)
 
 
 builderA = fea.ChBuilderBeamEuler()
-builderA.BuildBeam(mesh, section2, 10, vC + vd, vB + vd, chrono.VECT_Y)  
+builderA.BuildBeam(mesh, section2, 10, vC + vd, vB + vd, chrono.ChVector3d(0, 1, 0))  
 
 
-node_top = builderA.GetLastBeamNodes()[0]
+node_top = builderA.GetLastBeamNodes()[0]  
 node_down = builderA.GetLastBeamNodes()[-1]
 
 
 constr_bb = chrono.ChLinkMateParallel()
-constr_bb.Initialize(node_top, node_tip, False, node_top.Frame(), node_tip.Frame())
+constr_bb.Initialize(node_top, node_tip, False, node_top.Frame(), node_tip.Frame())  
 sys.Add(constr_bb)
 constr_bb.SetConstrainedCoords(True, False, True, False, False, False)
 
@@ -120,7 +120,7 @@ section3.SetAsCircularSection(crankbeam_d)
 
 
 builderB = fea.ChBuilderBeamEuler()
-builderB.BuildBeam(mesh, section3, 4, vG + vd, vB + vd, chrono.VECT_Z)  
+builderB.BuildBeam(mesh, section3, 4, vG + vd, vB + vd, chrono.ChVector3d(1, 0, 0))  
 
 
 node_crnkG = builderB.GetLastBeamNodes()[0]
@@ -130,13 +130,18 @@ node_crankB = builderB.GetLastBeamNodes()[-1]
 constr_cbd = chrono.ChLinkMatePrismatic()
 constr_cbd.Initialize(node_crnkG, body_crank, False, node_crnkG.Frame(), node_crnkG.Frame())
 sys.Add(constr_cbd)
-constr_cbd.SetConstrainedCoords(False, True, True, True, True, True)  
+
+constr_cbd.SetConstrainedCoords(True, True, True, True, True, False)  
 
 
 constr_bc = chrono.ChLinkMateGeneric()
 constr_bc.Initialize(node_down, node_crankB, False, node_crankB.Frame(), node_crankB.Frame())
 sys.Add(constr_bc)
 constr_bc.SetConstrainedCoords(True, True, False, True, True, False)
+
+
+sphereconstr3 = chrono.ChVisualShapeSphere(0.01)
+constr_bc.AddVisualShape(sphereconstr3)
 
 
 mesh.SetAutomaticGravity(True)
@@ -162,7 +167,7 @@ mesh.AddVisualShapeFEA(mvisualizebeamC)
 vis = chronicls.ChVisualSystemIrrlicht()
 vis.AttachSystem(sys)
 vis.SetWindowSize(800, 600)
-vis.SetWindowTitle('Failed Beam Simulation')
+vis.SetWindowTitle('Fixed Beam Simulation')
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.jpg'))
 vis.AddSkyBox()
@@ -173,7 +178,8 @@ vis.AddTypicalLights()
 custom_solver = mklsolver.ChSolverPardisoMKL()
 sys.SetSolver(custom_solver)
 
-ts = chrono.ChTimestepperHHT(sys)
+
+ts = chrono.ChTimestepperHHT(sys)  
 ts.SetStepControl(True)
 sys.SetTimestepper(ts)
 
@@ -181,6 +187,6 @@ sys.SetTimestepper(ts)
 while vis.Run():
     vis.BeginScene()
     vis.Render()
-    chronicls.drawGrid(vis, 0.1, 0.01, 10, 10, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT))
+    chronicls.drawGrid(vis, 0.1, 0.01, 10, 10, chrono.ChCoordsysD(chrono.ChVector3d(0, 0, 0), chrono.QUNIT))
     vis.EndScene()
     sys.DoStepDynamics(0.002)

@@ -1,10 +1,10 @@
 import pychrono as ch
 import pychrono.vehicle as veh
 import pychrono.ros as chros
-from pychrono import irrlicht as chronoirr  # Added for visualization (Instruction 1)
+from pychrono import irrlicht as chronoirr
 
 def main():
-    # Set the Chrono data path for vehicle models (Instruction 2)
+    # Set the Chrono data path for vehicle data
     veh.SetDataPath(ch.GetChronoDataPath() + 'vehicle/')
 
     # Create the HMMWV vehicle and set its parameters.
@@ -20,10 +20,10 @@ def main():
     hmmwv.SetTireType(veh.TireModelType_TMEASY)  # Set tire model.
     hmmwv.SetTireStepSize(1e-3)  # Set the tire simulation step size.
 
-    # Enhanced visualization settings (Instruction 3)
+    # Enhanced visualization settings for HMMWV components
     hmmwv.SetChassisVisualizationType(veh.VisualizationType_MESH)
-    hmmwv.SetSuspensionVisualizationType(veh.VisualizationType_MESH)
-    hmmwv.SetSteeringVisualizationType(veh.VisualizationType_MESH)
+    hmmwv.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
+    hmmwv.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
     hmmwv.SetWheelVisualizationType(veh.VisualizationType_MESH)
     hmmwv.SetTireVisualizationType(veh.VisualizationType_MESH)
 
@@ -34,10 +34,10 @@ def main():
     patch_mat = ch.ChContactMaterialNSC()  # Create a contact material for the terrain.
     patch_mat.SetFriction(0.9)  # Set friction for the terrain.
     patch_mat.SetRestitution(0.01)  # Set restitution (bounciness) for the terrain.
-    
-    # Add a patch to the terrain and set its texture (Instruction 4)
+
+    # Add a patch to the terrain and set its texture
     patch = terrain.AddPatch(patch_mat, ch.CSYSNORM, 100.0, 100.0)
-    patch.SetTexture(ch.GetChronoDataFile("vehicle/terrain/textures/tile4.jpg"), 100, 100)  # Corrected path using ch.GetChronoDataFile
+    patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 100, 100)
 
     terrain.Initialize()  # Initialize the terrain.
 
@@ -54,15 +54,15 @@ def main():
     ros_manager.RegisterHandler(chros.ChROSBodyHandler(25, hmmwv.GetChassisBody(), "~/output/hmmwv/state"))
     ros_manager.Initialize()  # Initialize the ROS manager.
 
-    # Setup runtime visualization using Irrlicht (Instructions 5 & 6)
+    # Setup Irrlicht visualization
     vis = chronoirr.ChVisualSystemIrrlicht()
     vis.AttachSystem(hmmwv.GetSystem())
-    vis.SetWindowSize(1024, 768)
+    vis.SetWindowSize(1280, 720)
     vis.SetWindowTitle('HMMWV Simulation')
     vis.Initialize()
-    vis.AddLogo(ch.GetChronoDataFile('logo_pychrono_alpha.png'))
+    vis.AddLogo(chronoirr.GetChronoDataFile("logo_pychrono.png"))
     vis.AddSkyBox()
-    vis.AddCamera(ch.ChVector3d(0, 2.5, 6), ch.ChVector3d(0, 0, 0))
+    vis.AddCamera(ch.ChVector3d(0, 2.5, 5), ch.ChVector3d(0, 0, 0))
     vis.AddTypicalLights()
 
     # Start the simulation loop.
@@ -71,7 +71,7 @@ def main():
     time_end = 30  # Set the total duration of the simulation.
 
     hmmwv.GetVehicle().EnableRealtime(True)  # Enable real-time simulation for the vehicle.
-    while time < time_end and vis.Run():
+    while time < time_end:
         time = hmmwv.GetSystem().GetChTime()  # Update simulation time.
 
         # Get driver inputs and synchronize the vehicle, terrain, and driver systems.
@@ -89,10 +89,11 @@ def main():
         if not ros_manager.Update(time, time_step):
             break  # Exit loop if ROS manager update fails.
 
-        # Render the current state in the Irrlicht window
-        vis.BeginScene()
-        vis.Render()
-        vis.EndScene()
+        # Render the scene
+        if vis.Run():
+            vis.BeginScene()
+            vis.Render()
+            vis.EndScene()
 
 if __name__ == "__main__":
     main()

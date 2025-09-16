@@ -4,21 +4,35 @@ import pychrono
 system = pychrono.ChSystemSMC()
 
 
-ground = pychrono.ChBodyEasyBox(10, 0.1, 10, 1000, True, False)
-ground.SetPos(pychrono.ChVectorD(0, -0.1, 0))
-ground.SetBodyFixed(True)
-system.Add(ground)
+vehicle = pychrono.ChVehicle()
+vehicle.SetChassisCollisionType(pychrono.ChCollisionModel.ChCollisionModelSphere)
+system.Add(vehicle)
+
+terrain = pychrono.ChTerrain()
+terrain.SetContactMethod(pychrono.ChTerrain.ContactMethodTSDF)
+terrain.SetTessellated(True)
+terrain.SetTessellationGridSpacing(0.1)
+terrain.SetTexture(pychrono.ChTexture.FromFile("terrain_texture.png"))
+terrain.SetLogo(pychrono.ChTexture.FromFile("terrain_logo.png"))
+system.Add(terrain)
 
 
-box = pychrono.ChBodyEasyBox(1, 1, 1, 1000, True, False)
-box.SetPos(pychrono.ChVectorD(0, 1, 0))
-system.Add(box)
+vehicle.SetPosition(pychrono.ChVectorD(0, 0, 0))
+vehicle.SetForwardSpeed(30)
+vehicle.SetSteering(0.5)
+vehicle.SetThrottle(0.7)
+vehicle.SetBrake(0.3)
 
 
-system.Set_G_acc(pychrono.ChVectorD(0, -9.81, 0))
-system.SetTimestepType(pychrono.ChTimestepper.Type_EULER_IMPLICIT)
-system.SetTimestep(0.01)
+visualization = pychrono.ChIrrlichtVisualization()
+visualization.SetCameraPosition(pychrono.ChVectorD(0, 10, -20))
+visualization.SetCameraLookatPoint(pychrono.ChVectorD(0, 0, 0))
+visualization.SetSkyboxTexture(pychrono.ChTexture.FromFile("skybox.jpg"))
+visualization.SetTerrainTexture(pychrono.ChTexture.FromFile("terrain_texture.png"))
+visualization.SetTerrainLogo(pychrono.ChTexture.FromFile("terrain_logo.png"))
+visualization.Initialize()
 
 
-system.DoStaticLinear()
-system.DoDynamic()
+while system.GetTime() < 10:
+    system.DoStepDynamics(0.01)
+    visualization.Render()

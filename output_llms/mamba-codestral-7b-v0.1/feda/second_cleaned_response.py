@@ -72,7 +72,6 @@ patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 
-
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('FEDA vehicle')
 vis.SetWindowSize(1280, 1024)
@@ -84,13 +83,26 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 
+driver = veh.ChPathFollowerDriver(vis)
 
-path = veh.DoubleLaneChangePath(initLoc, 13.5, 4.0, 11.0, 50.0, True)
-target_speed = 10.0
-driver = veh.ChPathFollowerDriver(vehicle.GetVehicle(), path, "my_path", target_speed)
-driver.GetSteeringController().SetLookAheadDistance(5)
-driver.GetSteeringController().SetGains(0.8, 0, 0)
-driver.GetSpeedController().SetGains(0.4, 0, 0)
+
+path = chrono.ChPath()
+path.AddLineSegment(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(100, 0, 0))
+path.AddArc(chrono.ChVectorD(100, 0, 0), chrono.ChVectorD(0, 1, 0), math.pi/2)
+path.AddLineSegment(chrono.ChVectorD(0, 1, 0), chrono.ChVectorD(-100, 0, 0))
+path.AddArc(chrono.ChVectorD(-100, 0, 0), chrono.ChVectorD(0, -1, 0), math.pi/2)
+path.AddLineSegment(chrono.ChVectorD(-100, 0, 0), chrono.ChVectorD(0, 0, 0))
+
+
+driver.SetTargetSpeed(10.0)
+driver.SetSteeringLookAhead(5)
+driver.SetSteeringGains(5, 1)
+driver.SetSpeedGains(0.5, 0.01)
+
+
+driver.SetPath(path)
+
+
 driver.Initialize()
 
 

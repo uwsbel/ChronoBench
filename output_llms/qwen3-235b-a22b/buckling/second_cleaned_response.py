@@ -23,10 +23,9 @@ out_dir = chrono.GetChronoOutputPath() + "BEAM_BUCKLING"
 sys = chrono.ChSystemSMC()
 
 
-L = 1.2       
-H = 0.3       
-K = 0.07      
-
+L = 1.2  
+H = 0.3  
+K = 0.07  
 vA = chrono.ChVector3d(0, 0, 0)
 vC = chrono.ChVector3d(L, 0, 0)
 vB = chrono.ChVector3d(L, -H, 0)
@@ -62,8 +61,8 @@ sys.Add(motor)
 mesh = fea.ChMesh()
 
 
-beam_wy = 0.12    
-beam_wz = 0.012   
+beam_wy = 0.12  
+beam_wz = 0.012  
 
 
 minertia = fea.ChInertiaCosseratSimple()
@@ -88,7 +87,7 @@ node_mid = builder_iga.GetLastBeamNodes()[17]
 
 
 section2 = fea.ChBeamSectionEulerAdvanced()
-hbeam_d = 0.03    
+hbeam_d = 0.03  
 section2.SetDensity(2700)
 section2.SetYoungModulus(73.0e9)
 section2.SetShearModulusFromPoisson(0.3)
@@ -97,7 +96,8 @@ section2.SetAsCircularSection(hbeam_d)
 
 
 builderA = fea.ChBuilderBeamEuler()
-builderA.BuildBeam(mesh, section2, 6, vC + vd, vB + vd, chrono.ChVector3d(1, 0, 0))  
+builderA.BuildBeam(mesh, section2, 6, vC + vd, vB + vd, chrono.ChVector3d(1, 0, 0))
+
 
 node_top = builderA.GetLastBeamNodes()[0]
 node_down = builderA.GetLastBeamNodes()[-1]
@@ -123,7 +123,8 @@ section3.SetAsCircularSection(crankbeam_d)
 
 
 builderB = fea.ChBuilderBeamEuler()
-builderB.BuildBeam(mesh, section3, 5, vG + vd, vB + vd, chrono.ChVector3d(0, 1, 0))  
+builderB.BuildBeam(mesh, section3, 5, vG + vd, vB + vd, chrono.ChVector3d(0, 1, 0))
+
 
 node_crankG = builderB.GetLastBeamNodes()[0]
 node_crankB = builderB.GetLastBeamNodes()[-1]
@@ -146,6 +147,8 @@ constr_bc.AddVisualShape(sphereconstr3)
 
 
 mesh.SetAutomaticGravity(False)
+
+
 sys.Add(mesh)
 
 
@@ -188,7 +191,6 @@ sys.SetTimestepper(ts)
 while vis.Run():
     vis.BeginScene()
     vis.Render()
-    chronoirr.drawGrid(vis, 0.05, 0.05, 20, 20,
-                      chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT))
+    chronoirr.drawGrid(vis, 0.05, 0.05, 20, 20, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT))
     vis.EndScene()
     sys.DoStepDynamics(0.001)

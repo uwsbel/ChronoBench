@@ -39,46 +39,40 @@ vis.AddCamera(chrono.ChVector3d(0, 1.5, 0.2), chrono.ChVector3d(0, 0, 0.2))
 vis.AddTypicalLights()
 vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0, 0.5), 3, 4, 10, 40, 512)
 
-# Enable shadows
-vis.EnableShadows()
+# Define WheelID enum values for motor control
+LEFT_DRIVE_WHEEL = 0
+RIGHT_DRIVE_WHEEL = 1
 
-# Set the simulation time step
-time_step = 2e-3
+def move(mode):
+    if mode == 'straight':
+        robot.SetMotorSpeed(1, LEFT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(1, RIGHT_DRIVE_WHEEL)
+    elif mode == 'left':
+        robot.SetMotorSpeed(1, LEFT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(-1, RIGHT_DRIVE_WHEEL)
+    elif mode == 'right':
+        robot.SetMotorSpeed(-1, LEFT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(1, RIGHT_DRIVE_WHEEL)
+    else:
+        raise ValueError("Invalid mode. Choose 'straight', 'left', or 'right'.")
 
 # Simulation loop
 time = 0
-def move(mode):
-    if mode == "straight":
-        robot.SetMotorSpeed(1, 0)
-        robot.SetMotorSpeed(1, 1)
-    elif mode == "left":
-        robot.SetMotorSpeed(1, 0)
-        robot.SetMotorSpeed(-1, 1)
-    elif mode == "right":
-        robot.SetMotorSpeed(-1, 0)
-        robot.SetMotorSpeed(1, 1)
-    else:
-        raise ValueError("Invalid mode")
-
 while vis.Run():
-    # Define WheelID enum values for motor control
-    LEFT_DRIVE_WHEEL = 0
-    RIGHT_DRIVE_WHEEL = 1
-
     # At time = 5 s, start moving straight
     if abs(time - 5.0) < 1e-4:
-        move("straight")
-        print("Moving straight")
+        move('straight')
+        print("Robot is moving straight.")
 
     # At time = 10 s, start turning left
     if abs(time - 10.0) < 1e-4:
-        move("left")
-        print("Turning left")
+        move('left')
+        print("Robot is turning left.")
 
-    # At time = 15 s, start turning right
-    if abs(time - 15.0) < 1e-4:
-        move("right")
-        print("Turning right")
+    # After time = 10 s, turn right
+    if time > 10.0:
+        move('right')
+        print("Robot is turning right.")
 
     # Increment time counter
     time += time_step

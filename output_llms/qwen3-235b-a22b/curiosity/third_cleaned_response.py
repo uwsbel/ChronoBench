@@ -16,14 +16,14 @@ chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
 
 ground_mat = chrono.ChContactMaterialNSC()
 ground = chrono.ChBodyEasyBox(20, 20, 1, 1000, True, True, ground_mat)
-ground.SetPos(chrono.ChVector3d(0, 0, -0.5))  
-ground.SetFixed(True)  
+ground.SetPos(chrono.ChVector3d(0, 0, -0.5))
+ground.SetFixed(True)
 ground.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
 system.Add(ground)
 
 
 box = chrono.ChBodyEasyBox(0.25, 5, 0.25, 1000, True, True, ground_mat)
-box.SetPos(chrono.ChVector3d(0, 0, 0.0))
+box.SetPos(chrono.ChVector3d(0, 0, 0.125))  
 box.SetFixed(True)
 box.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/blue.png"))
 system.Add(box)
@@ -41,22 +41,34 @@ init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
 rover.Initialize(chrono.ChFramed(init_pos, init_rot))
 
 
-manager = sens.ChSensorManager(system)
+manager = sens.ChSensorManager(system)  
 
 
+chassis = rover.GetChassis().GetBody()
+
+
+offset = chrono.ChFramed(chrono.ChVector3d(0.5, 0, 0.2), chrono.ChQuaterniond(1, 0, 0, 0))
 lidar = sens.ChLidarSensor(
-    rover.GetChassisBody(),  
+    chassis,
     10,  
-    chrono.ChFrameOffset(chrono.ChVector3d(0, 0, 0.5), chrono.ChQuaterniond(1, 0, 0, 0)),  
+    offset,
     360,  
     1,    
-    chrono.CH_PI * 2,  
-    0.0,  
-    10    
+    chrono.CH_C_PI,  
+    chrono.CH_C_PI / 12,  
+    100,  
+    sens.LidarBeamShape_RECTANGULAR,
+    2,    
+    0.003,  
+    sens.LidarReturnMode_STRONGEST_RETURN
 )
 
-lidar.PushFilter(sens.ChFilterDepth())  
-lidar.PushFilter(sens.ChFilterVisualizeDepth(640, 480, "Lidar Depth"))  
+
+lidar.PushFilter(sens.ChFilterDIAccess())
+lidar.PushFilter(sens.ChFilterPCfromDepth())
+lidar.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, "Lidar Point Cloud"))
+
+
 manager.AddSensor(lidar)
 
 
@@ -87,15 +99,12 @@ while vis.Run():
     rover.Update()
 
     
+    manager.Update()  
+
+    
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
 
     
     system.DoStepDynamics(time_step)
-    
-    
-    manager.Update()  
-
-
-vis.Close()

@@ -82,5 +82,3 @@ def main():
     # Visualize the image before applying grayscale filter
     if vis:
         cam.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Before Grayscale Filter"))
-
-    # Provide host access to the RGBA8 buffer

@@ -20,6 +20,7 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_RIGID
 
 # Rigid terrain
+# terrain_model = veh.RigidTerrain.BOX
 terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
@@ -70,14 +71,11 @@ patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
-# Create the box obstacle
+# Add a box obstacle
 box_shape = chrono.ChBoxShape()
-box_shape.SetBox(chrono.ChVector(0.5, 5, 0.2))
-box_body = chrono.ChBody()
+box_shape.SetDimensions(chrono.ChVector(0.5, 5, 0.2))
+box_body = chrono.ChBodyEasyBox(1, True, True, box_shape)
 box_body.SetPos(chrono.ChVector(5, 0, 0.1))
-box_body.AddShape(box_shape)
-box_body.SetMass(0)
-box_body.SetFixed(True)
 vehicle.GetSystem().AddBody(box_body)
 
 # Create the vehicle Irrlicht interface
@@ -102,21 +100,21 @@ driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
 
+# Add logic to move the vehicle forward by setting a constant throttle value of 0.5
+driver.SetThrottle(0.5)
+
 driver.Initialize()
 
-# Output vehicle mass
-print("VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+# output vehicle mass
+print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
 
-# Initialize simulation frame counter
+# Initialize simulation frame counter s
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
-
-# Set a constant throttle value of 0.5
-vehicle.SetThrottle(0.5)
 
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()

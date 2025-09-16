@@ -3,6 +3,7 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
+
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
@@ -20,23 +21,22 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 
-terrainHeight = 0      
+terrainHeight = 0
 terrainLength = 100.0  
-terrainWidth = 100.0   
+terrainWidth = 100.0
 
 
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
 
 
 contact_method = chrono.ChContactMethod_NSC
-contact_vis = False
 
 
 step_size = 1e-3
 tire_step_size = step_size
 
 
-render_step_size = 1.0 / 50  
+render_step_size = 1.0 / 50
 
 
 vehicle = veh.Gator()
@@ -46,14 +46,15 @@ vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
-
 vehicle.Initialize()
+
 
 vehicle.SetChassisVisualizationType(vis_type)
 vehicle.SetSuspensionVisualizationType(vis_type)
 vehicle.SetSteeringVisualizationType(vis_type)
 vehicle.SetWheelVisualizationType(vis_type)
 vehicle.SetTireVisualizationType(vis_type)
+
 
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
@@ -64,47 +65,51 @@ patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 
 
-patch1 = terrain.AddPatch(patch_mat, 
-    chrono.ChCoordsysd(chrono.ChVector3d(-25, -25, 0), chrono.QUNIT), 
-    50, 50)
-patch1.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 100, 100)
-patch1.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+patch_heightmap = terrain.AddPatch(
+    patch_mat,
+    chrono.ChCoordsysd(chrono.ChVector3d(-25, -25, 0), chrono.QUNIT),
+    veh.GetDataFile("terrain/heightmaps/heightmap1.png"),
+    0.05,
+    5.0
+)
+patch_heightmap.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)
+patch_heightmap.SetColor(chrono.ChColor(0.6, 0.8, 0.6))
 
 
-patch2 = terrain.AddPatch(patch_mat, 
-    chrono.ChCoordsysd(chrono.ChVector3d(25, -25, 0), chrono.QUNIT), 
-    50, 50)
-patch2.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 100, 100)
-patch2.SetColor(chrono.ChColor(0.5, 0.3, 0.1))
+patch_bump = terrain.AddPatch(
+    patch_mat,
+    chrono.ChCoordsysd(chrono.ChVector3d(25, -25, 0), chrono.QUNIT),
+    1.0,  
+    5.0   
+)
+patch_bump.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 50, 50)
+patch_bump.SetColor(chrono.ChColor(0.6, 0.6, 0.6))
 
 
-patch3 = terrain.AddPatch(patch_mat, 
-    chrono.ChCoordsysd(chrono.ChVector3d(-25, 25, 0), chrono.Q_from_AngX(10 * chrono.CH_C_DEG_TO_RAD)), 
-    50, 50)
-patch3.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 100, 100)
-patch3.SetColor(chrono.ChColor(0.6, 0.6, 0.6))
+patch_tile1 = terrain.AddPatch(
+    patch_mat,
+    chrono.ChCoordsysd(chrono.ChVector3d(-25, 25, 0), chrono.QUNIT),
+    50.0,
+    50.0
+)
+patch_tile1.SetTexture(veh.GetDataFile("terrain/textures/tile1.jpg"), 100, 100)
+patch_tile1.SetColor(chrono.ChColor(0.8, 0.8, 0.8))
 
 
-patch4 = terrain.AddPatch(patch_mat, 
-    chrono.ChCoordsysd(chrono.ChVector3d(25, 25, 0), chrono.QUNIT), 
-    50, 50)
-patch4.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 100, 100)
-patch4.SetColor(chrono.ChColor(0.2, 0.8, 0.2))
-
-
-bump_body = chrono.ChBody()
-bump_body.SetPos(chrono.ChVector3d(25, 25, 0.5))  
-bump_body.SetFixed(True)
-bump_body.GetCollisionModel().ClearModel()
-bump_body.GetCollisionModel().AddBox(patch_mat, 2, 2, 0.5)  
-bump_body.GetCollisionModel().BuildModel()
-vehicle.GetSystem().Add(bump_body)
+patch_tile2 = terrain.AddPatch(
+    patch_mat,
+    chrono.ChCoordsysd(chrono.ChVector3d(25, 25, 0), chrono.QUNIT),
+    50.0,
+    50.0
+)
+patch_tile2.SetTexture(veh.GetDataFile("terrain/textures/tile2.jpg"), 100, 100)
+patch_tile2.SetColor(chrono.ChColor(0.7, 0.7, 0.7))
 
 terrain.Initialize()
 
 
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
-vis.SetWindowTitle('Gator vehicle')
+vis.SetWindowTitle('Gator Vehicle - Multi-Terrain')
 vis.SetWindowSize(1280, 1024)
 vis.SetChaseCamera(trackPoint, 6.0, 0.5)
 vis.Initialize()
@@ -115,56 +120,39 @@ vis.AttachVehicle(vehicle.GetVehicle())
 
 
 driver = veh.ChInteractiveDriverIRR(vis)
-
-
-steering_time = 1.0  
-throttle_time = 1.0  
-braking_time = 0.3   
+steering_time = 1.0
+throttle_time = 1.0
+braking_time = 0.3
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
-
 driver.Initialize()
 
 
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
-
-
 render_steps = math.ceil(render_step_size / step_size)
-
-
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
-render_frame = 0
-
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
-    
     if step_number % render_steps == 0:
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
-        render_frame += 1
 
-    
     driver_inputs = driver.GetInputs()
 
-    
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
 
-    
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
 
-    
     step_number += 1
-
-    
     realtime_timer.Spin(step_size)

@@ -1,5 +1,3 @@
-The given PyChrono script appears to be mostly correct, but there are a few errors that need to be addressed. Here is the corrected and modified script:
-
 ```python
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
@@ -98,27 +96,8 @@ patch.SetColor(chrono.ChColor(0.8, 0.8, 1.0))
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 50, 50)
 terrain.Initialize()
 
-# Create a box object
-box = chrono.ChBoxShape()
-box.SetDimensions(chrono.ChVector3d(1, 1, 1))
-box.SetPos(chrono.ChVector3d(0, 0, 0.5))
-box.SetColor(chrono.ChColor(0, 0, 1))
-box.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 50, 50)
-terrain.AddObject(box)
-
-# Create a cylinder object
-cylinder = chrono.ChCylinderShape()
-cylinder.SetRadius(0.5)
-cylinder.SetHeight(1)
-cylinder.SetPos(chrono.ChVector3d(0, 0, 1.5))
-cylinder.SetColor(chrono.ChColor(0, 0, 1))
-cylinder.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 50, 50)
-terrain.AddObject(cylinder)
-
 # Create the interactive driver system
 driver = veh.ChDriver(gator.GetVehicle())
-
-driver.Initialize()
 
 # -----------------------
 # Create a sensor manager
@@ -127,34 +106,40 @@ manager = sens.ChSensorManager(gator.GetSystem())
 intensity = 1.0
 manager.scene.AddPointLight(chrono.ChVector3f(2, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
 
-# Create a Lidar sensor
-lidar_offset_pose = chrono.ChFrameD(chrono.ChVector3d(0.0, 0, 2), chrono.ChQuaterniond())
+# Create a box object
+box_size = chrono.ChVector3d(1, 1, 1)
+box_pos = chrono.ChVector3d(0, 0, 0.5)
+box_color = chrono.ChColor(0, 0, 1)
+box_texture = veh.GetDataFile("terrain/textures/tile4.jpg")
+box = veh.ChBox(box_size, box_pos, box_color)
+box.SetTexture(box_texture, 50, 50)
+manager.AddSensor(box)
+
+# Create a cylinder object
+cylinder_radius = 0.5
+cylinder_height = 1
+cylinder_pos = chrono.ChVector3d(0, 0, 1.5)
+cylinder_color = chrono.ChColor(0, 0, 1)
+cylinder_texture = veh.GetDataFile("terrain/textures/tile4.jpg")
+cylinder = veh.ChCylinder(cylinder_radius, cylinder_height, cylinder_pos, cylinder_color)
+cylinder.SetTexture(cylinder_texture, 50, 50)
+manager.AddSensor(cylinder)
+
+# Create and add a Lidar sensor to the system
+lidar_offset_pose = chrono.ChFrameD(chrono.ChVector3d(0.0, 0, 2))
+lidar_samples_h = 800
+lidar_samples_v = 300
+lidar_fov_h = 2 * chrono.CH_PI
+lidar_fov_v_min = -chrono.CH_PI / 12
+lidar_fov_v_max = chrono.CH_PI / 12
+lidar_range_max = 100.0
+lidar_rectangular_beam_shape = True
+lidar_sample_radius = 2
+lidar_divergence_angle = 0.003
+lidar_strongest_return_mode = True
+lidar_filters = [sens.ChFilterDepth(image_width, image_height), sens.ChFilterIntensity(), sens.ChFilterXYZI(), sens.ChFilterVisualize(image_width, image_height, "Gator Lidar")]
 lidar = sens.ChLidarSensor(
     gator.GetChassisBody(),
     update_rate,
     lidar_offset_pose,
-    800,
-    300,
-    2 * chrono.CH_PI,
-    chrono.CH_PI / 12,
-    -chrono.CH_PI / 6,
-    100.0,
-    chrono.ChRectangularBeamShape(),
-    2,
-    0.003,
-    sens.ChLidarSensor.StrongestReturnMode,
-    [sens.ChFilterDepth(), sens.ChFilterIntensity(), sens.ChFilterXYZI(), sens.ChFilterVisualize()]
-)
-lidar.SetName("Lidar Sensor")
-manager.AddSensor(lidar)
-
-# ---------------
-# Simulation loop
-# ---------------
-
-realtime_timer = chrono.ChRealtimeStepTimer()
-time = 0
-end_time = 30
-while time < end_time:
-    time = gator.GetSystem().GetChTime()
-    # set driver inputs
+    lid

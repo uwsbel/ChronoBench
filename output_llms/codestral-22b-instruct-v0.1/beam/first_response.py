@@ -1,57 +1,50 @@
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
 
-# Create a Chrono system
+# Create a Chrono::Engine instance
 my_system = chrono.ChSystemNSC()
 
-# Create a mesh
+# Create a mesh composed of beams and nodes
 mesh = chrono.ChMesh()
 
-# Create nodes
+# Add nodes to the mesh
 node1 = mesh.AddNode(chrono.ChVectorD(0, 0, 0))
 node2 = mesh.AddNode(chrono.ChVectorD(1, 0, 0))
-node3 = mesh.AddNode(chrono.ChVectorD(0, 1, 0))
 
-# Create beams
-beam1 = mesh.AddBeamABC(node1, node2)
-beam2 = mesh.AddBeamABC(node2, node3)
-beam3 = mesh.AddBeamABC(node3, node1)
+# Set node mass
+node1.SetMass(1)
+node2.SetMass(1)
+
+# Add a beam element between the nodes
+beam = mesh.AddElementBeam(node1, node2)
 
 # Set beam properties
-beam1.SetBeamRaleyghDamping(0.01)
-beam2.SetBeamRaleyghDamping(0.01)
-beam3.SetBeamRaleyghDamping(0.01)
+beam.SetDiameter(0.01)
+beam.SetYoungModulus(2e5)
+beam.SetSectionCircular(0.005)
 
-beam1.SetBeamSectionEIyy(1e6)
-beam2.SetBeamSectionEIyy(1e6)
-beam3.SetBeamSectionEIyy(1e6)
+# Create a ChBeamEulerStatic object
+beam_body = chrono.ChBeamEulerStatic()
 
-beam1.SetBeamSectionGJ(1e5)
-beam2.SetBeamSectionGJ(1e5)
-beam3.SetBeamSectionGJ(1e5)
+# Link the mesh to the ChBeamEulerStatic object
+beam_body.Initialize(mesh)
 
-beam1.SetBeamSectionArea(0.1)
-beam2.SetBeamSectionArea(0.1)
-beam3.SetBeamSectionArea(0.1)
+# Add the ChBeamEulerStatic object to the system
+my_system.Add(beam_body)
 
-# Create a beam finite element
-beam_element = chrono.ChElementBeamEuler()
-beam_element.SetMesh(mesh)
+# Set the force on the second node
+node2.SetForce(chrono.ChVectorD(0, -10, 0))
 
-# Add the beam finite element to the system
-my_system.Add(beam_element)
-
-# Create a visualization system
-vis = chronoirr.ChIrrApp(my_system, 'Beam Finite Elements', chronoirr.dimension2du(1024, 768))
-vis.AddTypicalLights()
-vis.AddSkyBox()
-vis.AddCamera(chrono.ChVectorD(0, 0, -3))
-vis.AssetBindAll()
-vis.AssetUpdateAll()
+# Create an Irrlicht application for visualization
+application = chronoirr.ChIrrApp(my_system, 'Beam Finite Elements', chronoirr.dimension2du(1024, 768))
+application.AddTypicalLights()
+application.AddCamera(chronoirr.vector3df(0.5, 0.5, -1.0))
+application.AssetBindAll()
+application.AssetUpdateAll()
 
 # Run the simulation loop
-while vis.GetDevice().run():
-    vis.BeginScene()
-    vis.DrawAll()
-    vis.DoStep()
-    vis.EndScene()
+while application.GetDevice().run():
+    application.BeginScene()
+    application.DrawAll()
+    application.DoStep()
+    application.EndScene()

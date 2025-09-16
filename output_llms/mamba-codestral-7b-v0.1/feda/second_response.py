@@ -72,7 +72,6 @@ patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 # Create the vehicle Irrlicht interface
-
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('FEDA vehicle')
 vis.SetWindowSize(1280, 1024)
@@ -83,14 +82,27 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
-# Create the path-follower, cruise-control driver
-# Use a parameterized ISO double lane change (to left)
-path = veh.DoubleLaneChangePath(initLoc, 13.5, 4.0, 11.0, 50.0, True)
-target_speed = 10.0
-driver = veh.ChPathFollowerDriver(vehicle.GetVehicle(), path, "my_path", target_speed)
-driver.GetSteeringController().SetLookAheadDistance(5)
-driver.GetSteeringController().SetGains(0.8, 0, 0)
-driver.GetSpeedController().SetGains(0.4, 0, 0)
+# Create the path-follower driver system
+driver = veh.ChPathFollowerDriver(vis)
+
+# Create the path
+path = chrono.ChPath()
+path.AddLineSegment(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(100, 0, 0))
+path.AddArc(chrono.ChVectorD(100, 0, 0), chrono.ChVectorD(0, 1, 0), math.pi/2)
+path.AddLineSegment(chrono.ChVectorD(0, 1, 0), chrono.ChVectorD(-100, 0, 0))
+path.AddArc(chrono.ChVectorD(-100, 0, 0), chrono.ChVectorD(0, -1, 0), math.pi/2)
+path.AddLineSegment(chrono.ChVectorD(-100, 0, 0), chrono.ChVectorD(0, 0, 0))
+
+# Set the target speed and steering controller gains
+driver.SetTargetSpeed(10.0)
+driver.SetSteeringLookAhead(5)
+driver.SetSteeringGains(5, 1)
+driver.SetSpeedGains(0.5, 0.01)
+
+# Set the path for the driver
+driver.SetPath(path)
+
+# Initialize the driver system
 driver.Initialize()
 
 # output vehicle mass
@@ -99,7 +111,7 @@ print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
 
-# Initialize simulation frame counter s
+# Initialize simulation frame counter
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0

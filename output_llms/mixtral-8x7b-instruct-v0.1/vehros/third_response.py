@@ -12,7 +12,7 @@ def main():
     hmmwv.SetContactMethod(ch.ChContactMethod_NSC)  # Set the contact method for physics.
     hmmwv.SetChassisCollisionType(veh.CollisionType_NONE)  # Disable collision for the chassis.
     hmmwv.SetChassisFixed(False)  # Make the chassis movable.
-    hmmwv.SetInitPosition(ch.ChCoordsysd(ch.ChVector3d(-5, 0, 1.6), ch.ChQuaterniond(1, 0, 0, 0)))  # Initialize vehicle position and orientation.
+    hmmwv.SetInitPosition(ch.ChCoordsysd(ch.ChVector3d(0, 0, 1.6), ch.ChQuaterniond(1, 0, 0, 0)))  # Initialize vehicle position and orientation.
     hmmwv.SetEngineType(veh.EngineModelType_SHAFTS)  # Use shaft-based engine model.
     hmmwv.SetTransmissionType(veh.TransmissionModelType_AUTOMATIC_SHAFTS)  # Use automatic transmission with shafts.
     hmmwv.SetDriveType(veh.DrivelineTypeWV_AWD)  # Set all-wheel drive.
@@ -49,33 +49,35 @@ def main():
     vis.AddLightWithShadow(ch.ChVector3d(1.5, -2.5, 5.5), ch.ChVector3d(0, 0, 0.5), 3, 4, 10, 40, 512)
 
     # Create a visualization box
-    box = ch.ChBodyEasyBox(10, 0.1, 10, hmmwv.GetSystem(), 1000)
-    box.SetPos(ch.ChVectorD(0, -5, 0))
-    box.SetCollide(False)
-    box.SetBodyFixed(True)
+    box = ch.ChBodyEasyBox(1, 0.5, 0.5, hmmwv.GetSystem(), 1000)
+    box.SetPos(ch.ChVectorD(0, 0, 0))
+    box.SetColor(ch.ChColor(0.8, 0.2, 0.2))
+
+    # Create and initialize the sensor manager
+    sens_manager = sens.ChSensorManager()
+    sens_manager.Initialize(hmmwv.GetSystem())
+
+    # Create and configure a Lidar sensor
+    lidar = sens.ChLidarSensor()
+    lidar.SetRange(50)
+    lidar.SetResolution(0.1)
+    lidar.SetPosition(ch.ChVectorD(0, 0, 1.6))
+    lidar.SetOrientation(ch.ChQuaternionD(1, 0, 0, 0))
+    lidar.SetFrame(hmmwv.GetChassisBody().GetFrame_REF_to_abs())
+    lidar.AddFilter(sens.ChLidarFilterMedian())
+    lidar.AddFilter(sens.ChLidarFilterMean())
+    lidar.AddFilter(sens.ChLidarFilterGaussian())
+    lidar.Initialize(hmmwv.GetSystem())
+
+    # Register Lidar handler to publish lidar data to ROS
+    ros_manager = chros.ChROSPythonManager()
+    ros_manager.RegisterHandler(chros.ChROSClockHandler())  # Register the clock handler to synchronize ROS with the simulation.
+    ros_manager.RegisterHandler(chros.ChROSLidarHandler(25, lidar, "~/output/lidar_data"))
+    ros_manager.Initialize()  # Initialize the ROS manager.
 
     # Create and initialize the driver system.
     driver = veh.ChDriver(hmmwv.GetVehicle())
     driver.Initialize()  # Initialize the driver system.
-
-    # Create the sensor manager and add a LiDAR sensor
-    sens_manager = sens.ChSensorManager()
-    lidar = sens.ChLidarSensor()
-    lidar.SetRadius(1.5)
-    lidar.SetRange(10)
-    lidar.SetResolution(0.1)
-    lidar.SetPosition(ch.ChVectorD(0, 1.5, 0))
-    lidar.SetOrientation(ch.ChQuaternionD(0, 0, 0, 1))
-    lidar.SetFilter(sens.ChSensorFilter_MEAN)
-    lidar.SetFilterWindowSize(10)
-    sens_manager.Add(lidar)
-
-    # Register LiDAR data handler to publish LiDAR data to ROS
-    ros_manager = chros.ChROSPythonManager()
-    ros_manager.RegisterHandler(chros.ChROSClockHandler())  # Register the clock handler to synchronize ROS with the simulation.
-    ros_manager.RegisterHandler(chros.ChROSLidarHandler(25, lidar, "~/output/lidar"))
-
-    ros_manager.Initialize()  # Initialize the ROS manager.
 
     # Start the simulation loop.
     time = 0
@@ -85,7 +87,6 @@ def main():
     render_step_size = 1.0 / 25  # FPS = 25
     render_steps = math.ceil(render_step_size / time_step)
     hmmwv.GetVehicle().EnableRealtime(True)  # Enable real-time simulation for the vehicle.
-
     while vis.Run():  # Run the simulation loop.
         time = hmmwv.GetSystem().GetChTime()  # Update simulation time.
         # Render the scene
@@ -99,7 +100,7 @@ def main():
         terrain.Synchronize(time)  # Synchronize the terrain.
         hmmwv.Synchronize(time, driver_inputs, terrain)  # Synchronize the vehicle with inputs and terrain.
 
-        # Update the sensor manager
+        # Update sensor manager
         sens_manager.Update(time)
 
         # Advance the simulation for all modules by one timestep.

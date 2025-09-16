@@ -1,0 +1,117 @@
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
+import pychrono.sensor as sensors
+import numpy as np
+import os
+
+# 1. Initialize PyChrono environment and core components
+chrono.SetChronoDataPath("PATH_TO_CHRONO_DATA")  # Set path to Chrono data directory
+mesh_path = "PATH_TO_YOUR_MESH.obj"  # Replace with your .obj file path
+
+# Create the physical system
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, 0, 0))  # No gravity for this simulation
+
+# 2. Add physical systems and objects
+# Create the fixed mesh body
+mesh = chrono.ChTriangleMeshConnected()
+mesh.LoadWavefrontMesh(mesh_path, False, True)  # False=no smooth normals, True=compute normals
+
+mesh_body = chrono.ChBody()
+mesh_body.SetBodyFixed(True)
+mesh_body.GetCollisionModel().ClearModel()
+mesh_body.GetCollisionModel().AddTriangleMesh(mesh, False, False, chrono.ChVectorD(0, 0, 0), chrono.QUNIT)
+mesh_body.GetCollisionModel().BuildModel()
+mesh_body.GetVisualModel().ClearModel()
+mesh_body.GetVisualModel().AddTriangleMesh(mesh, False, False, chrono.ChVectorD(0, 0, 0), chrono.QUNIT)
+system.Add(mesh_body)
+
+# 3. Set up visualization
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle("Lidar Simulation")
+vis.Initialize()
+vis.AddLogo()
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVectorD(5, 5, 5), chrono.ChVectorD(0, 0, 0))
+vis.AddTypicalLights()
+vis.SetSymbolScale(1.0)
+
+# Set up sensor manager
+sensor_manager = sensors.ChSensorManager(system)
+system.Add(sensor_manager)
+
+# Create lidar sensor
+lidar = sensors.ChLidarSensor("lidar_sensor")
+lidar.SetNumSamples(100)  # Number of rays per scan
+lidar.SetScanRate(10)     # Hz
+lidar.SetMinRange(0.1)    # Minimum detection range
+lidar.SetMaxRange(10)     # Maximum detection range
+lidar.SetFov(360)         # Field of view in degrees
+lidar.SetBeamDivergence(0.1)  # Beam divergence angle in radians
+lidar.SetSampleRes(0.01)  # Sample resolution in meters
+
+# Add noise filters
+noise_filter = sensors.ChGaussianNoiseFilter()
+noise_filter.SetNoiseAmount(0.01)  # 1% noise
+lidar.AddFilter(noise_filter)
+
+# Add visualization
+lidar_visualization = sensors.ChLidarVisualization(sensor_manager)
+lidar_visualization.SetLidar(lidar)
+lidar_visualization.SetMaxPoints(10000)  # Maximum points to display
+lidar_visualization.SetPointSize(2)      # Point size in pixels
+
+# Add data saving
+data_saver = sensors.ChLidarDataSaver()
+data_saver.SetLidar(lidar)
+data_saver.SetSaveDirectory("lidar_data")  # Directory to save data
+data_saver.SetSaveFormat(sensors.ChLidarDataSaver.Format.CSV)  # Save format
+data_saver.SetSaveRate(1)  # Save every 1 scan
+
+# Attach sensor to a body (we'll create a dummy body for the sensor)
+sensor_body = chrono.ChBody()
+sensor_body.SetPos(chrono.ChVectorD(2, 0, 0))  # Initial position
+sensor_body.SetBodyFixed(False)
+system.Add(sensor_body)
+
+lidar.AttachBody(sensor_body)
+lidar.SetPose(chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT))  # Relative to body
+sensor_manager.AddSensor(lidar)
+
+# Simulation parameters
+time_step = 0.01
+end_time = 10.0
+output_step = 0.1
+
+# Simulation loop
+current_time = 0
+while current_time < end_time:
+    # Update lidar position in orbit around the mesh
+    angle = 2 * chrono.CH_PI * current_time / end_time
+    radius = 3.0
+    sensor_body.SetPos(chrono.ChVectorD(radius * np.cos(angle), radius * np.sin(angle), 1.0))
+
+    # Rotate sensor to face the center
+    sensor_body.SetRot(chrono.Q_from_AngAxis(-angle, chrono.ChVectorD(0, 0, 1)))
+
+    # Update sensor manager
+    sensor_manager.Update()
+
+    # Print lidar buffer data
+    if lidar.GetBuffer()->GetNumPoints() > 0:
+        print(f"Time: {current_time:.2f}s - Points detected: {lidar.GetBuffer()->GetNumPoints()}")
+        for i in range(lidar.GetBuffer()->GetNumPoints()):
+            point = lidar.GetBuffer()->GetPoint(i)
+            print(f"  Point {i}: Distance={point.dist:.3f}, Coords=({point.coords.x:.3f}, {point.coords.y:.3f}, {point.coords.z:.3f})")
+
+    # Advance simulation
+    system.DoStepDynamics(time_step)
+    current_time += time_step
+
+    # Visualization update
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    vis.Run()

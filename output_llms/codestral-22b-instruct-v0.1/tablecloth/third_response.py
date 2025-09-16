@@ -25,7 +25,6 @@ mesh = fea.ChMesh()  # Instantiate the mesh
 sys.Add(mesh)
 
 # Disable gravity for the system (options)
-# sys.SetGravitationalAcceleration(VNULL) or
 mesh.SetAutomaticGravity(False)
 
 # Define nodes to plot or load

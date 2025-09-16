@@ -21,9 +21,9 @@ tire_model = veh.TireModelType_TMEASY
 
 
 
-terrainHeight = 0  
+terrainHeight = 0      
 terrainLength = 100.0  
-terrainWidth = 100.0  
+terrainWidth = 100.0   
 
 
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
@@ -40,11 +40,37 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  
 
 
-lane_change_duration = 5.0  
-braking_duration = 5.0  
-lane_change_throttle = 0.5  
-braking_throttle = -0.5  
+lane_change_time = 10.0
+braking_time = 10.0
+throttle_adjustment = 0.1
+steering_adjustment = 0.2
 
+def apply_lane_change(time, driver_inputs):
+    if time < lane_change_time:
+        driver_inputs.steer = steering_adjustment * (time / lane_change_time)
+    elif time < 2 * lane_change_time:
+        driver_inputs.steer = steering_adjustment
+    elif time < 3 * lane_change_time:
+        driver_inputs.steer = -steering_adjustment * ((time - 2 * lane_change_time) / lane_change_time)
+    elif time < 4 * lane_change_time:
+        driver_inputs.steer = -steering_adjustment
+    elif time < 5 * lane_change_time:
+        driver_inputs.steer = steering_adjustment * ((time - 4 * lane_change_time) / lane_change_time)
+    elif time < 6 * lane_change_time:
+        driver_inputs.steer = steering_adjustment
+    else:
+        driver_inputs.steer = 0
+
+    if time < 2 * lane_change_time:
+        driver_inputs.throttle = throttle_adjustment
+    elif time < 3 * lane_change_time:
+        driver_inputs.throttle = 0
+    elif time < 4 * lane_change_time:
+        driver_inputs.throttle = -throttle_adjustment
+    elif time < 5 * lane_change_time:
+        driver_inputs.throttle = 0
+    else:
+        driver_inputs.throttle = -throttle_adjustment
 
 
 vehicle = veh.UAZBUS() 
@@ -95,7 +121,7 @@ driver = veh.ChInteractiveDriverIRR(vis)
 
 steering_time = 1.0  
 throttle_time = 1.0  
-braking_time = 0.3  
+braking_time = 0.3   
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
@@ -113,9 +139,6 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-lane_change_counter = 0
-braking_counter = 0
-
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
     
@@ -129,6 +152,9 @@ while vis.Run() :
     driver_inputs = driver.GetInputs()
 
     
+    apply_lane_change(time, driver_inputs)
+
+    
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
@@ -139,27 +165,6 @@ while vis.Run() :
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
-
-    
-    if lane_change_counter < lane_change_duration:
-        if lane_change_counter < lane_change_duration / 2:
-            driver_inputs.steer = 0.5
-        else:
-            driver_inputs.steer = -0.5
-
-        driver_inputs.throttle = lane_change_throttle
-
-        lane_change_counter += step_size
-    else:
-        
-        if braking_counter < braking_duration:
-            driver_inputs.throttle = braking_throttle
-
-            braking_counter += step_size
-        else:
-            
-            lane_change_counter = 0
-            braking_counter = 0
 
     
     step_number += 1

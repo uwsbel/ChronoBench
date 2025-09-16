@@ -17,18 +17,10 @@ def main():
     
     
     side = 1.0
-
-    
-    box_shape = chrono.ChVisualShapeBox(side, side, side)
-    box_shape.SetName("Box Shape")
-    box_shape.SetMutable(False)  
-
-    
     box_body = chrono.ChBodyEasyBox(side, side, side, 1000)
-    box_body.SetPos(chrono.ChVector3d(0, 0, 0))  
-    box_body.AddVisualShape(box_shape)  
-    box_body.SetFixed(True)  
-    mphysicalSystem.Add(box_body)  
+    box_body.SetPos(chrono.ChVector3d(0, 0, 0))
+    box_body.SetTexture(chrono.GetChronoDataFile("concrete.png"), True, 1)
+    mphysicalSystem.Add(box_body)
 
     
     
@@ -95,4 +87,10 @@ def main():
 
     
     if save:
-        cam.PushFilter(sens.ChFilterSave
+        cam.PushFilter(sens.ChFilterSave(out_dir + "gray/"))
+
+    
+    cam.PushFilter(sens.ChFilterImageResize(int(image_width / 2), int(image_height / 2)))
+
+    
+    cam.PushFilter(sens.ChFilterR8Access())

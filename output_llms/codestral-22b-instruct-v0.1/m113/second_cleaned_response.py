@@ -21,7 +21,7 @@ terrainLength = 100.0
 terrainWidth = 100.0   
 
 
-trackPoint = chrono.ChVector3d(0.0, 0.0, 0.1)
+trackPoint = chrono.ChVector3d(0.0, 0.0, 1.5)
 
 
 contact_method = chrono.ChContactMethod_SMC
@@ -57,17 +57,17 @@ vehicle.SetTrackShoeVisualizationType(vis_type)
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
-patch_mat = chrono.ChContactMaterialSMC()
-patch_mat.SetFriction(0.9)
-patch_mat.SetRestitution(0.01)
 terrain = veh.SCMTerrain(vehicle.GetSystem())
-terrain.SetSoilParameters(1e3,    
-                          0.3,    
-                          0.1)   
-terrain.SetPlane(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
-                 terrainLength, terrainWidth)
+terrain.SetSoilParameters(veh.SCMDeformableTerrain.SoilParameters(3000,  
+                                                                   0.3,   
+                                                                   0.1))  
+
+
+height_map_file = "path_to_height_map.txt"  
+terrain.Initialize(height_map_file, terrainLength, terrainWidth)
+
+
 terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 200, 200)
-terrain.Initialize(veh.GetDataFile("terrain/height_maps/test64.bmp"))
 
 
 vis = veh.ChTrackedVehicleVisualSystemIrrlicht()
@@ -92,7 +92,6 @@ driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
 
 driver.Initialize()
-
 
 
 vehicle.GetSystem().SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)

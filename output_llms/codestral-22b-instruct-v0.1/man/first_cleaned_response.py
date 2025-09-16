@@ -1,29 +1,49 @@
 import pychrono as chrono
+import pychrono.vehicle as veh
 import pychrono.irrlicht as chronoirr
 
 
-system = chrono.ChSystemNSC()
+chrono.SetChronoDataPath('PYCHRONO_DATA_DIR')
+my_system = chrono.ChSystemNSC()
 
 
-ground = chrono.ChBodyEasyBox(10, 1, 10, 1000, True, True)
-ground.SetPos(chrono.ChVectorD(0, -5, 0))
-system.Add(ground)
+man_truck = veh.WheeledVehicle(my_system)
+man_truck.SetChassisVisualizationType(veh.VisualizationType_MESH)
+man_truck.SetChassisCollisionType(veh.CollisionType_MESH)
+man_truck.Initialize('man_truck.json')
 
 
-sphere = chrono.ChBodyEasySphere(1, 1000, True, True)
-sphere.SetPos(chrono.ChVectorD(0, 10, 0))
-system.Add(sphere)
+for axle in man_truck.GetAxles():
+    for wheel in axle.GetWheels():
+        wheel.SetTireType(veh.TireModelType_TMEASY)
 
 
-application = chronoirr.ChIrrApp(system, 'Falling Sphere', chronoirr.dimension2du(1024, 768))
-application.AddTypicalLights()
-application.AddCamera(chronoirr.vector3df(0, 15, -20))
-application.AssetBindAll()
-application.AssetUpdateAll()
+man_truck.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 1)))
+man_truck.SetInitFwdVel(5)
+man_truck.SetTireStepSize(0.01)
+man_truck.SetChassisFixed(False)
 
 
-while application.GetDevice().run():
-    application.BeginScene()
-    application.DrawAll()
-    application.DoStep()
-    application.EndScene()
+steering_input = veh.ChVehicleInput()
+throttle_input = veh.ChVehicleInput()
+braking_input = veh.ChVehicleInput()
+man_truck.InitializeDriver(steering_input, throttle_input, braking_input)
+
+
+terrain = veh.RigidTerrain(my_system)
+terrain.Initialize(50, 50, 0, 0, 0, 0, 1, 'terrain_mesh.obj')
+
+
+app = chronoirr.ChIrrApp(man_truck, 'MAN 10t Truck Simulation', chronoirr.dimension2du(1024, 768))
+app.AddTypicalLogo()
+app.AddTypicalSky()
+app.AddTypicalCamera(chronoirr.vector3df(0, 3, -5))
+app.AddTypicalLights()
+app.SetTimestep(0.01)
+
+
+while app.GetDevice().run():
+    app.BeginScene()
+    app.DrawAll()
+    app.DoStep()
+    app.EndScene()

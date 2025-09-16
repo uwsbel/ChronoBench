@@ -32,18 +32,18 @@ vG = chrono.ChVectorD(L - K, -H, 0)
 vd = chrono.ChVectorD(0, 0, 0.0001)
 
 # Create a truss body, fixed in space:
-body_truss = chrono.ChBody()
-body_truss.SetBodyFixed(True)
-sys.AddBody(body_truss)
+body_trss = chrono.ChBody()
+body_trss.SetBodyFixed(True)
+sys.Add(body_trss)
 
 # Attach a visualization shape to the truss
 boxtruss = chrono.ChVisualShapeBox(0.03, 0.25, 0.15)
-body_truss.AddVisualShape(boxtruss, chrono.ChFrameD(chrono.ChVectorD(-0.01, 0, 0), chrono.QUNIT))
+body_trss.AddVisualShape(boxtruss, chrono.ChFrameD(chrono.ChVectorD(-0.01, 0, 0), chrono.QUNIT))
 
 # Create a crank body:
 body_crank = chrono.ChBody()
 body_crank.SetPos((vC + vG) * 0.5)
-sys.AddBody(body_crank)
+sys.Add(body_crank)
 
 # Attach a visualization shape to the crank
 boxcrank = chrono.ChVisualShapeBox(K, 0.05, 0.03)
@@ -51,10 +51,10 @@ body_crank.AddVisualShape(boxcrank)
 
 # Create a rotational motor
 motor = chrono.ChLinkMotorRotationSpeed()
-motor.Initialize(body_truss, body_crank, chrono.ChFrameD(vG))
+motor.Initialize(body_trss, body_crank, chrono.ChFrameD(vG))
 myfun = ChFunctionMyFun()
-motor.SetTorqueFunction(myfun)
-sys.AddLink(motor)
+motor.SetSpeedFunction(myfun)
+sys.Add(motor)
 
 # Create a FEM mesh container:
 mesh = fea.ChMesh()
@@ -102,7 +102,7 @@ node_down = builderA.GetLastBeamNodes()[-1]
 # Create a constraint between the horizontal and vertical beams
 constr_bb = chrono.ChLinkMateParallel()
 constr_bb.Initialize(node_top, node_tip, False, node_top.GetFrame(), node_top.GetFrame())
-sys.AddLink(constr_bb)
+sys.Add(constr_bb)
 constr_bb.SetConstrainedCoords(True, False, True, False, False, False)
 
 # Attach a visualization shape for the constraint
@@ -129,13 +129,13 @@ node_crankB = builderB.GetLastBeamNodes()[-1]
 # Create a constraint between the crank beam and the body crank
 constr_cbd = chrono.ChLinkMatePrismatic()
 constr_cbd.Initialize(node_crnkG, body_crank, False, node_crnkG.GetFrame(), node_crnkG.GetFrame())
-sys.AddLink(constr_cbd)
+sys.Add(constr_cbd)
 constr_cbd.SetConstrainedCoords(True, True, True, True, True, True)
 
 # Create a constraint between the vertical beam and the crank beam
 constr_bc = chrono.ChLinkMateGeneric()
 constr_bc.Initialize(node_down, node_crankB, False, node_crankB.GetFrame(), node_crankB.GetFrame())
-sys.AddLink(constr_bc)
+sys.Add(constr_bc)
 constr_bc.SetConstrainedCoords(True, True, False, True, True, False)
 
 # Attach a visualization shape for the constraint
@@ -185,6 +185,6 @@ sys.SetTimestepper(ts)
 while vis.Run():
     vis.BeginScene()
     vis.Render()
-    chronicls.drawGrid(vis, 0.1, 0.01, 10, 10, chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT))
+    chronicls.drawGrid(vis, 0.1, 0.01, 10, 10, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT))
     vis.EndScene()
     sys.DoStepDynamics(0.002)

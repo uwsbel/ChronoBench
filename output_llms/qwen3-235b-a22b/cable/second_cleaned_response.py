@@ -81,17 +81,15 @@ vis.AddTypicalLights()
 
 solver = chrono.ChSolverMINRES()  
 if solver.GetType() == chrono.ChSolver.Type_MINRES:
-    print("Using MINRES solver")  
-
-
-solver.SetMaxIterations(200)
-solver.SetTolerance(1e-10)
-solver.EnableDiagonalPreconditioner(True)
-solver.EnableWarmStart(True)
-solver.SetVerbose(False)  
-
-
+    print("Using MINRES solver")
 sys.SetSolver(solver)
+solver.UseSparsityPatternLearner(True)  
+solver.LockSparsityPattern(True)  
+solver.SetMaxIterations(200)  
+solver.SetTolerance(1e-10)  
+solver.EnableDiagonalPreconditioner(True)  
+solver.EnableWarmStart(True)  
+solver.SetVerbose(False)  
 
 
 ts = chrono.ChTimestepperEulerImplicitLinearized(sys)

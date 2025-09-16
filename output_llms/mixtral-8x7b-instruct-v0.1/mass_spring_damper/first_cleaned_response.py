@@ -1,44 +1,45 @@
-from pychrono.core import *
-from pychrono.irrlicht import *
-from pychrono.fea import *
+import chrono as chrono
+import irrrlicht as irrl
 
 
-my_application = ChronoEngine()
+chrono.ChSystemSMC::SetDefaultSolverType(chrono.ChSystemSOLVER_SRIS)
+chrono.ChSystemSMC::SetDefaultCollisionType(chrono.ChSystemSOLVER_CONTACT_CD)
+my_system = chrono.ChSystemSMC()
 
 
-my_visualization = IrrlichtVisualization(my_application, "Mass Spring Damper", 800, 600)
-my_visualization.addLight(ChVectorD(2, -3, 0), 0.6, 0.6, 0.6)
-my_visualization.addCamera(ChVectorD(3, 4, 5), ChVectorD(0, 0, 0))
+mass = my_system.AddBody(chrono.ChBodyEasyBox(1, 1, 1, 100, True))
+ground = my_system.AddBody(chrono.ChBodyEasyBox(10, 0.1, 10, 1000, False))
 
 
-mass_body = RigidBody(my_application, "mass", 1.0, ChVectorD(0, 0, 0))
-mass_body.setMass(1.0)
-mass_body.setInertiaXX(ChVectorD(0.08333333333333333, 0.08333333333333333, 0.08333333333333333))
-my_application.addBody(mass_box)
+mass.SetPos(chrono.ChVectorD(0, 5, 0))
+ground.SetPos(chrono.ChVectorD(0, 0, 0))
 
 
-mass_shape = SphericalShell(1.0, 16, 16)
-mass_body.addVisualShape(mass_shape, 1.0, ChColor(0.8, 0.8, 0.8))
+link = chrono.ChLinkTSDA()
+link.Initialize(mass, ground, chrono.ChVectorD(0, 5, 0))
+my_system.AddLink(link)
 
 
-ground_body = RigidBody(my_application, "ground", 0.0, ChVectorD(0, 0, 0))
-my_application.addBody(ground_body)
+my_vis = irrl.ChVisualSystemIrrlicht()
+my_vis.AttachSystem(my_system)
+my_vis.SetWindowSize(800, 600)
+my_vis.SetWindowTitle("PyChrono Mass-Spring-Damper Demo")
+my_vis.AddLogo()
+my_vis.AddSkyBox()
+my_vis.AddCamera(chrono.ChVectorD(0, 10, -15), chrono.ChVectorD(0, 0, 0))
+my_vis.EnableGUISkyDome(False)
 
 
-ground_shape = ChPlaneShape()
-ground_body.addVisualShape(ground_shape, 0.1, ChColor(0.2, 0.2, 0.2))
+mass_shape = my_system.AddVisualShape(mass, chrono.ChBoxShape())
+mass_shape.SetColor(chrono.ChColor(0.5, 0.5, 0.5))
+
+spring_shape = my_system.AddVisualShape(ground, chrono.ChCylinderShape())
+spring_shape.SetPos(chrono.ChVectorD(0, 5, 0))
+spring_shape.SetColor(chrono.ChColor(0.5, 0, 0.5))
 
 
-mass_spring_damper = ChLinkTSDA(mass_body, ground_body, ChVectorD(0, 0, 0), ChVectorD(0, 0, -1))
-my_application.addLink(mass_spring_damper)
-
-
-mass_spring_damper.set_spring_k(50.0)
-mass_spring_damper.set_damper_c(2.0)
-
-
-my_application.set_timestep(0.01)
-my_application.doSimulation(1000)
-
-
-my_visualization.run()
+for i in range(1000):
+    my_system.DoStepDynamics(1e-3)
+    my_vis.BeginScene()
+    my_vis.DrawAll()
+    my_vis.EndScene()

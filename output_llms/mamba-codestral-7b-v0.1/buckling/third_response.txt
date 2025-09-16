@@ -1,4 +1,6 @@
-Based on the given PyChrono script, I have identified and corrected the errors. Here is the modified script:
+The given PyChrono script appears to be correct and doesn't contain any syntax errors. However, there is a typo in the import statement for the `Chrono::Engine` module. It should be `import pychrono as chrono` instead of `import pychrono.chrono as chrono`.
+
+Here is the corrected version of the script:
 
 ```python
 import math as m  # Import the math library for trigonometric functions, constants, etc.
@@ -22,26 +24,26 @@ class ChFunctionMyFun(chrono.ChFunction):
 out_dir = chrono.GetChronoOutputPath() + "BEAM_FAILED"
 
 # Create a Chrono::Engine physical system
-sys = chrono.ChSystemSMC()
+sys = chrono.ChSytemSMC()
 
 # Define key geometrical parameters
 L = 1.2
 H = 0.4
 K = 0.07
-vA = chrono.ChVectorD(0, 0, 0)
-vC = chrono.ChVectorD(L, 0, 0)
-vB = chrono.ChVectorD(L, -H, 0)
-vG = chrono.ChVectorD(L - K, -H, 0)
-vd = chrono.ChVectorD(0, 0, 0.0001)
+vA = chrono.ChVector3d(0, 0, 0)
+vC = chrono.ChVector3d(L, 0, 0)
+vB = chrono.ChVector3d(L, -H, 0)
+vG = chrono.ChVector3d(L - K, -H, 0)
+vd = chrono.ChVector3d(0, 0, 0.0001)
 
 # Create a truss body, fixed in space:
-body_truss = chrono.ChBody()
-body_truss.SetFixed(True)
-sys.AddBody(body_truss)
+body_trss = chrono.ChBody()
+body_trss.SetFixed(True)
+sys.AddBody(body_trss)
 
 # Attach a visualization shape to the truss
 boxtruss = chrono.ChVisualShapeBox(0.03, 0.25, 0.15)
-body_truss.AddVisualShape(boxtruss, chrono.ChFrameD(chrono.ChVectorD(-0.01, 0, 0), chrono.QUNIT))
+body_trss.AddVisualShape(boxtruss, chrono.ChFramed(chrono.ChVector3d(-0.01, 0, 0), chrono.QUNIT))
 
 # Create a crank body:
 body_crank = chrono.ChBody()
@@ -54,7 +56,7 @@ body_crank.AddVisualShape(boxcrank)
 
 # Create a rotational motor
 motor = chrono.ChLinkMotorRotationSpeed()
-motor.Initialize(body_truss, body_crank, chrono.ChFrameD(vG))
+motor.Initialize(body_truss, body_crank, chrono.ChFramed(vG))
 myfun = ChFunctionMyFun()
 motor.SetTorqueFunction(myfun)
 sys.Add(motor)
@@ -67,7 +69,7 @@ beam_wy = 0.12
 beam_wz = 0.15
 
 # Create section properties for the IGA beam
-minertia = fea.ChInertiaCosseratSimple()
+minertia = fea.ChIneritaCosseratSimple()
 minertia.SetAsRectangularSection(beam_wy, beam_wz, 2700)
 melasticity = fea.ChElasticityCosseratSimple()
 melasticity.SetYoungModulus(72.0e9)
@@ -79,11 +81,3 @@ msection1.SetDrawThickness(beam_wy * 0.5, beam_wz)
 # Build the IGA beam
 builder_iga = fea.ChBuilderBeamIGA()
 builder_iga.BuildBeam(mesh, msection1, 30, vA, vC, chrono.VECT_X, 3)
-
-# Fix the first node of the horizontal beam
-builder_iga.GetLastBeamNodes().front().SetFixed(True)
-node_tip = builder_iga.GetLastBeamNodes()[65]
-node_mid = builder_iga.GetLastBeamNodes()[32]
-
-# Define vertical beam parameters using Euler beams
-section

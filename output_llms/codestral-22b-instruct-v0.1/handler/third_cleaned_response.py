@@ -1,6 +1,6 @@
 import pychrono as ch
-import pychrono.irrlicht as chirr
 import pychrono.ros as chros
+import pychrono.irrlicht as chronoirr
 
 import rclpy.publisher
 from std_msgs.msg import Int64
@@ -79,17 +79,16 @@ def main():
     ros_manager.Initialize()
 
     
-    app = chirr.ChIrrApp(sys, "PyChrono example", chirr.dimension2du(1024, 768))
-    app.AddTypicalLights()
-    app.AddCamera(ch.ChVector3d(0, 10, -10), ch.ChVector3d(0, 0, 0))
-    app.AddSkyBox()
-    app.AddLogo()
-    app.AddLightWithShadow(ch.ChVector3d(20, 20, 20), ch.ChVector3d(0, 0, 0), 20, 2, 10)
-    app.SetTimestep(1e-3)
+    my_application = chronoirr.ChIrrApp(sys, "PyChrono example", chronoirr.dimension2du(1024, 768))
+    my_application.AddTypicalLights()
+    my_application.AddCamera(chronoirr.vector3df(0, 10, -10))
+    my_application.AddTypicalLogo()
+    my_application.SetTimestep(1e-3)
 
     
     step_number = 0
-    render_step_size = 10
+    render_step_size = int(1 / (1e-3 * publish_rate))
+    render_steps = 0
 
     
     time = 0
@@ -97,22 +96,24 @@ def main():
     time_end = 30  
 
     realtime_timer = ch.ChRealtimeStepTimer()  
-    while app.GetDevice().run():
+    while time < time_end:
         sys.DoStepDynamics(time_step)  
         time = sys.GetChTime()  
 
         if not ros_manager.Update(time, time_step):  
             break  
 
+        realtime_timer.Spin(time_step)  
+
         
         if step_number % render_step_size == 0:
-            app.BeginScene()
-            app.DrawAll()
-            app.DoStep()
-            app.EndScene()
+            render_steps += 1
+            my_application.BeginScene(True, True, chronoirr.SColor(255, 140, 161, 192))
+            my_application.DrawAll()
+            my_application.DoStep()
+            my_application.EndScene()
 
         step_number += 1
-        realtime_timer.Spin(time_step)  
 
 
 if __name__ == "__main__":

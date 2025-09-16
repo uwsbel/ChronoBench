@@ -46,6 +46,12 @@ vis.AddTypicalLights()
 vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0, 0.5), 3, 4, 10, 40, 512)
 
 
+
+
+
+time_step = 1e-3
+
+
 manager = sens.ChSensorManager(system)
 intensity = 1.0
 manager.scene.AddPointLight(chrono.ChVector3f(2, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
@@ -63,9 +69,6 @@ cam = sens.ChCameraSensor(
 cam.SetName("Third Person POV")
 cam.PushFilter(sens.ChFilterVisualize(720, 480, "Viper Front Camera"))
 manager.AddSensor(cam)
-
-
-time_step = 1e-3
 
 
 step_number = 0

@@ -71,14 +71,9 @@ patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 
-box_body = chrono.ChBody()
-box_body.SetPos(chrono.ChVectorD(10, 0, 0.5))
-box_body.SetMass(1000)
-box_body.SetInertiaXX(chrono.ChVectorD(1, 1, 1))
-box_body.SetCollide(True)
-box_shape = chrono.ChBoxShape()
-box_shape.SetLengths(chrono.ChVectorD(20, 2, 1))
-box_body.AddAsset(box_shape)
+box_body = chrono.ChBodyEasyBox(10, 1, 1, 1000, False, True)
+box_body.SetPos(chrono.ChVectorD(20, 0, 0.5))
+box_body.SetBodyFixed(True)
 vehicle.GetSystem().Add(box_body)
 
 
@@ -104,7 +99,6 @@ driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
 
 driver.Initialize()
-
 
 
 vehicle.GetSystem().SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)

@@ -4,75 +4,52 @@ import pychrono.ros as chros
 import rospy
 
 
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
 
 
-step_size = 1e-3  
-end_time = 10.0   
-chrono.SetChronoDataPath("../../../data/")  
-
-
-
-
-system = chrono.ChSystemSMC()  
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  
-
-
-
-
-vehicle = veh.HMMWV_Full(system)  
-vehicle.SetContactMethod(chrono.ChContactMethod_SMC)  
-vehicle.SetEngineType(veh.HMMWV_EngineSimple())  
-vehicle.SetTireType(veh.HMMWV_TMeasyTire())  
-vehicle.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 1.5, 0), chrono.ChQuaternionD(1, 0, 0, 0)))  
-vehicle.Initialize()
-
-
+hmmwv = veh.HMMWV_Full(system)
+hmmwv.SetContactMethod(chrono.ChContactMethod_NSC)
+hmmwv.SetEngineType(veh.EngineModelType_SIMPLE)
+hmmwv.SetTireType(veh.TireModelType_TMEASY)
+hmmwv.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 1.2)))
+hmmwv.Initialize()
 
 
 terrain = veh.RigidTerrain(system)
-patch = terrain.AddPatch(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(200, 1, 200), 0.9, 0.01)  
-patch.SetTexture(chrono.GetChronoDataFile("terrain/textures/tile4.jpg"), 200, 200)  
+patch = terrain.AddPatch(chrono.ChCoordsysD(), chrono.ChVectorD(200, 200, 1))
+patch.SetMaterialSurface(chrono.ChMaterialSurfaceNSC())
+patch.GetMaterialSurface().SetFriction(0.9)
+patch.GetMaterialSurface().SetRestitution(0.1)
 terrain.Initialize()
 
 
+driver = veh.ChDriver(hmmwv.GetVehicle())
 
 
-driver = veh.ChROSInteractiveDriver(vehicle)  
-driver.Initialize()  
-
-
-
-
-ros_manager = chros.ChROSPublisher(system, step_size)
+ros_manager = chros.ChROSManager()
+ros_manager.RegisterHandler(chros.ChROSClockHandler())  
+ros_manager.RegisterHandler(chros.ChROSInputHandler(driver))  
+ros_manager.RegisterHandler(chros.ChROSBodyHandler(hmmwv.GetChassisBody(), "vehicle_state"))  
 ros_manager.Initialize()
 
 
-ros_manager.AddClockHandler()  
-ros_manager.AddInputHandler(driver)  
-ros_manager.AddVehicleStateHandler(vehicle)  
+time_step = 1e-3
+sim_time = 0.0
+total_sim_time = 10.0  
 
 
-
-
-time = 0.0
-while time < end_time:
-    time = system.GetChTime()
-
+while sim_time < total_sim_time:
+    current_time = system.GetChTime()
     
-    driver.Synchronize(time)
-    vehicle.Synchronize(time, driver.GetInputs(), terrain)
-    terrain.Synchronize(time)
-
     
-    system.DoStepDynamics(step_size)
-    driver.Advance(step_size)
-    vehicle.Advance(step_size)
-    terrain.Advance(step_size)
-
+    driver.Synchronize(current_time)
+    terrain.Synchronize(current_time)
+    hmmwv.Synchronize(current_time, driver.GetInputs(), terrain)
     
-    ros_manager.Update(time, step_size)
-
-
-
-
-ros_manager.Finalize()
+    
+    system.DoStepDynamics(time_step)
+    sim_time += time_step
+    
+    
+    ros_manager.Update(current_time, time_step)

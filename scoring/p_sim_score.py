@@ -45,43 +45,44 @@ output_statistic_path = r'/home/hongyu/Documents/andy_simbench/SimBench/statisti
 #  "qwen3-235b-a22b"]
 
 test_model_list = [
-    # DeepSeek Models
+    # DeepSeek Models (3)
     "deepseek-r1",
     "deepseek-r1-8b",
     "deepseek-r1-32b",
-    
-    # Meta/Llama Models
+
+    # Meta/Llama Models (6)
     "llama-3.1-405b-instruct",
     "llama-3.1-70b-instruct",
     "llama-3.1-8b-instruct",
     "llama-3.3-70b-instruct",
     "llama4_maverick",
     "llama4_scout",
-    
-    # NVIDIA Models
-    "nemotron-4-340b-instruct",
-    
-    # Microsoft Phi Models
+
+    # Microsoft Phi Models (4)
     "phi-3-mini-128k-instruct",
     "phi-3-medium-128k-instruct",
-    
-    # # Google Gemma Models
+    "phi-4-mini-instruct",
+
+    # Google Gemma Models (5)
     "gemma-2-9b-it",
     "gemma-2-27b-it",
     "gemma-2-2b-it",
     "gemma-3-1b-it",
     "gemma-3-27b-it",
-    
-    # Mistral Models
+
+    # Mistral Models (8)
     "mistral-nemo-12b-instruct",
     "mixtral-8x22b-instruct-v0.1",
     "mixtral-8x7b-instruct-v0.1",
     "codestral-22b-instruct-v0.1",
-    "mistral-large-latest",
     "mamba-codestral-7b-v0.1",
-    
-    # Qwen Model
-    "qwen3-235b-a22b"
+    "mistral-small-3.1-24b-instruct-2503",
+    "mistral-medium-3-instruct",
+
+    # Qwen Models (2)
+    "qwen3-235b-a22b",  # Temporarily disabled - returns invalid response structure
+    "qwq-32b",
+    "qwen3-7b-instuct",
 ]
 
 

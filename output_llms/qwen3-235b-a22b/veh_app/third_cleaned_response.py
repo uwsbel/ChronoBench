@@ -3,12 +3,9 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import pychrono.sensor as sens
 import math
-import os
 
 
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
-
-print(chrono.GetChronoDataPath() + 'vehicle/')
 
 
 initLoc = chrono.ChVector3d(0, -5, 0.4)
@@ -136,21 +133,18 @@ cam.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Gator Camera")
 manager.AddSensor(cam)
 
 
-offset_pose_depth = chrono.ChFramed(
-    chrono.ChVector3d(-5.0, 0, 2),
-    chrono.ChQuaterniond(1, 0, 0, 0)
-)
-depth_cam = sens.ChCameraSensor(
+depth_offset_pose = chrono.ChFramed(chrono.ChVector3d(-5.0, 0, 2), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0)))
+depth_cam = sens.ChDepthCameraSensor(
     gator.GetChassisBody(),
     update_rate,
-    offset_pose_depth,
+    depth_offset_pose,
     image_width,
     image_height,
-    fov
+    fov,
+    30  
 )
 depth_cam.SetName("Depth Camera")
-depth_cam.PushFilter(sens.ChFilterR16Depth(0.0, 30.0))  
-depth_cam.PushFilter(sens.ChFilterVisualizeDepth(image_width, image_height, "Depth Map"))
+depth_cam.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Depth Map"))
 manager.AddSensor(depth_cam)
 
 
@@ -191,28 +185,12 @@ manager.AddSensor(lidar)
 
 realtime_timer = chrono.ChRealtimeStepTimer()
 time = 0
-end_time = 30
+end_time = tend  
 while time < end_time:
     time = gator.GetSystem().GetChTime()
     
-    
-    chassis = gator.GetChassisBody()
-    pos = chassis.GetPos()
-    rot = chassis.GetRot()
-    
-    qw = rot.e0
-    qx = rot.e1
-    qy = rot.e2
-    qz = rot.e3
-    siny_cosp = 2.0 * (qw * qz + qx * qy)
-    cosy_cosp = 1.0 - 2.0 * (qy*qy + qz*qz)
-    yaw = math.atan2(siny_cosp, cosy_cosp)
-    print(f"Time: {time:.3f}, Position: ({pos.x:.3f}, {pos.y:.3f}, {pos.z:.3f}), Heading: {yaw:.3f} rad")
-
-    
     driver.SetSteering(0.5)
     driver.SetThrottle(0.2)
-    
     
     driver_inputs = driver.GetInputs()
 
@@ -230,3 +208,9 @@ while time < end_time:
 
     
     realtime_timer.Spin(step_size)
+
+    
+    current_time = gator.GetSystem().GetChTime()
+    pos = gator.GetChassisBody().GetPos()
+    heading = gator.GetVehicle().GetHeading()
+    print(f"Time: {current_time:.3f}, Position: ({pos.x:.3f}, {pos.y:.3f}, {pos.z:.3f}), Heading: {heading:.3f} rad")

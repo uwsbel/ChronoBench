@@ -26,7 +26,21 @@ init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
 robot = turtlebot.TurtleBot(system, init_pos, init_rot)
 robot.Initialize()
 
-# Define motor IDs
+# Create visualization
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetCameraVertical(chrono.CameraVerticalDir_Z)
+vis.SetWindowSize(1280, 720)
+vis.SetWindowTitle('Turtlebot Robot - Rigid terrain')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVector3d(0, 1.5, 0.2), chrono.ChVector3d(0, 0, 0.2))
+vis.AddTypicalLights()
+vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0, 0.5), 3, 4, 10, 40, 512)
+
+# Simulation parameters
+time_step = 2e-3
 LEFT_DRIVE_WHEEL = 0
 RIGHT_DRIVE_WHEEL = 1
 
@@ -44,55 +58,30 @@ def move(mode):
     else:
         raise ValueError(f"Invalid movement mode: {mode}")
 
-# Create visualization
-vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(system)
-vis.SetCameraVertical(chrono.CameraVerticalDir_Z)
-vis.SetWindowSize(1280, 720)
-vis.SetWindowTitle('Turtlebot Robot - Rigid terrain')
-vis.Initialize()
-vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
-vis.AddSkyBox()
-vis.AddCamera(chrono.ChVector3d(0, 1.5, 0.2), chrono.ChVector3d(0, 0, 0.2))
-vis.AddTypicalLights()
-vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0, 0.5), 3, 4, 10, 40, 512)
-
-# Simulation time step
-time_step = 2e-3
-
 # Simulation loop
 time = 0
-previous_mode = None
+prev_mode = None
 
 while vis.Run():
-    current_time = time
-
-    # Determine current movement mode
-    if current_time < 5.0:
+    # Determine current movement mode based on time
+    if time < 5:
         current_mode = 'straight'
-    elif 5.0 <= current_time < 10.0:
+    elif time < 10:
         current_mode = 'left'
     else:
         current_mode = 'right'
-
-    # Print action on mode change
-    if current_mode != previous_mode:
-        if current_mode == 'straight':
-            print("Moving straight")
-        elif current_mode == 'left':
-            print("Turning left")
-        else:
-            print("Turning right")
-        previous_mode = current_mode
-
+    
+    # Print action when mode changes
+    if current_mode != prev_mode:
+        print(f"Robot is now moving {current_mode}")
+        prev_mode = current_mode
+    
     # Apply movement
     move(current_mode)
-
-    # Increment time
-    time += time_step
-
+    
     # Render and step simulation
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
     system.DoStepDynamics(time_step)
+    time += time_step

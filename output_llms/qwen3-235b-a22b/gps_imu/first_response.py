@@ -1,76 +1,80 @@
 import pychrono as chrono
 import pychrono.vehicle as veh
+import pychrono.sensor as sens
 import pychrono.irrlicht as irr
-import pychrono.sensor as sensor
 
-# Initialize the Chrono system
+# Initialize Chrono system
 system = chrono.ChSystemNSC()
 system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
-# Create the HMMWV vehicle with full system setup
+# Create HMMWV vehicle
 vehicle = veh.HMMWV_Full()
 vehicle.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 1.5, 0), chrono.QUNIT))
 vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
 vehicle.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
 vehicle.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
 vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
-print("Vehicle mass: ", vehicle.GetMass())
 
-# Create a flat terrain
-terrain = chrono.ChPlaneTerrain()
-terrain.SetPos(chrono.ChVectorD(0, 0, 0))
-terrain.SetPlane(chrono.ChVectorD(0, 1, 0), chrono.ChVectorD(0, 0, 0))
-terrain.GetMaterialSurfaceNSC().SetFriction(0.9)
-terrain.GetMaterialSurfaceNSC().SetRestitution(0.01)
-system.Add(terrain)
+# Create terrain
+terrain = veh.RigidTerrain(system)
+patch = terrain.AddPatch(chrono.ChCoordsysD(), chrono.ChVectorD(200, 1, 200))
+patch.SetMaterial(chrono.ChMaterialSurfaceNSC())
+patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"))
+terrain.Initialize()
 
-# Initialize the driver system
-driver = veh.ChDriver(vehicle)
+# Create driver system (simple path follower)
+driver = veh.ChPathFollowerDriver(vehicle.GetVehicle(), None, "my_path", 5.0)
 driver.Initialize()
 
-# Set up Irrlicht visualization
+# Initialize Irrlicht visualization
 application = irr.ChIrrApp(system, 'HMMWV Simulation', irr.dimension2du(1024, 768))
 application.AddTypicalLights()
-application.AddCamera(chrono.ChVectorD(0, 5, -10), chrono.ChVectorD(0, 0, 0))
+application.AddCamera(chrono.ChVectorD(0, 3, -5), chrono.ChVectorD(0, 0, 0))
 application.AssetBindAll()
 application.AssetUpdateAll()
 
-# Attach IMU and GPS sensors to the chassis
-imu = sensor.ChIMU()
-imu.Attach(vehicle.GetChassisBody())
-system.Add(imu)
+# Sensor manager and IMU/GPS setup
+manager = sens.ChSensorManager(system)
+manager.scene.AddPointLight(chrono.ChVectorF(100, 100, 100), chrono.ChColor(1, 1, 1), 1000)
 
-gps = sensor.ChGPS()
-gps.Attach(vehicle.GetChassisBody())
-gps.SetReference(chrono.ChVectorD(0, 0, 0))  # Set reference position for GPS
-system.Add(gps)
+imu = sens.ChIMU(vehicle.GetChassisBody(), 100, chrono.ChFrameD())
+manager.AddSensor(imu)
+
+gps = sens.ChGPS(vehicle.GetChassisBody(), 10, chrono.ChFrameD(), chrono.ChVectorD(0, 0, 0))
+manager.AddSensor(gps)
 
 # Simulation loop parameters
 step_size = 1e-3
-time = 0
+render_step = 1.0 / 50
+next_render_time = 0
+print("Vehicle mass:", vehicle.GetTotalMass())
 
-# Simulation loop
+# Main simulation loop
 while application.GetDevice().run():
-    # Synchronize modules
-    driver_inputs = driver.GetInputs()
-    driver.Synchronize(time)
-    vehicle.Synchronize(time, driver_inputs)
-    terrain.Synchronize(time)
+    time = system.GetChTime()
     
-    # Advance modules
+    # Synchronize components
+    driver_inputs = driver.GetInputs()
+    vehicle.Synchronize(time, driver_inputs, terrain)
+    terrain.Synchronize(time)
+    application.Synchronize("HMMWV Simulation", driver_inputs)
+    manager.Synchronize(time)
+    
+    # Advance components
     driver.Advance(step_size)
     vehicle.Advance(step_size)
     terrain.Advance(step_size)
+    manager.Advance(step_size)
     
-    # Update sensor data
-    imu_data = imu.GetSensorData()
-    gps_data = gps.GetSensorData()
-    
-    # Update visualization
-    application.BeginScene()
-    application.DrawAll()
-    application.EndScene()
-    
-    # Advance the system dynamics
+    # Update Chrono system
     system.DoStepDynamics(step_size)
-    time += step_size
+    
+    # Update sensors
+    manager.Update()
+    
+    # Render scene
+    if time >= next_render_time:
+        application.BeginScene()
+        application.DrawAll()
+        application.EndScene()
+        next_render_time += render_step

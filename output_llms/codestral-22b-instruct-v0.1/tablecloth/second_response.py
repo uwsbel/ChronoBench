@@ -4,6 +4,7 @@ import pychrono.fea as fea
 import pychrono.pardisomkl as mkl
 import errno
 import os
+import math
 
 # Output directory setup
 out_dir = chrono.GetChronoOutputPath() + "FEA_SHELLS_BST"
@@ -44,8 +45,14 @@ for iz in range(nsections_z + 1):
         mesh.AddNode(mnode)
         mynodes.append(mnode)
 
-# Create elements
-nodesLoad = []
+# Define node variables for plotting and loading
+nodePlotA = mynodes[0]
+nodePlotB = mynodes[nsections_x]
+nodesLoad = mynodes[nsections_z * (nsections_x + 1):]
+
+# Create elements and add monitoring nodes and elements
+melementmonitor = None
+mnodemonitor = []
 for iz in range(nsections_z):
     for ix in range(nsections_x):
         melementA = fea.ChElementShellBST()
@@ -60,6 +67,9 @@ for iz in range(nsections_z):
 
         if iz == 0 and ix == 1:
             melementmonitor = melementA
+            mnodemonitor.append(mynodes[iz * (nsections_x + 1) + ix])
+            mnodemonitor.append(mynodes[iz * (nsections_x + 1) + ix + 1])
+            mnodemonitor.append(mynodes[(iz + 1) * (nsections_x + 1) + ix])
 
         melementB = fea.ChElementShellBST()
         boundary_1 = mynodes[iz * (nsections_x + 1) + ix]
@@ -70,9 +80,6 @@ for iz in range(nsections_z):
                            mynodes[iz * (nsections_x + 1) + ix + 1], boundary_1, boundary_2, boundary_3)
         melementB.AddLayer(thickness, 0, material)
         mesh.AddElement(melementB)
-
-        if iz == 0 and ix == 0:
-            nodesLoad.append(mynodes[iz * (nsections_x + 1) + ix])
 
 # Fix upper nodes
 for j in range(30):
@@ -112,34 +119,34 @@ sys.SetSolver(mkl_solver)
 # Define time step for simulation
 timestep = 0.005
 
+# Define reference tracking functions
+def ref_X(t):
+    return 0.1 * math.sin(t)
+
+def ref_Y(t):
+    return 0.1 * math.cos(t)
+
+# Define load force
+load_force = chrono.ChVector3d(0, -10, 0)
+
 # Final setup and system updates
 sys.Setup()
 sys.Update()
 
-# Node monitoring and loading setup
-nodePlotA = mynodes[0]
-nodePlotB = mynodes[nsections_x]
-
-def ref_X(t):
-    return 0.0
-
-def ref_Y(t):
-    return 0.0
-
-load_force = chrono.ChVector3d(0, -1, 0)
-
 # Simulation loop
+t = 0
 while vis.Run():
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
 
-    # Apply loads
+    # Apply loads to nodes
     for node in nodesLoad:
         node.SetForce(load_force)
 
-    # Monitor nodes and elements
-    mnodemonitor = nodePlotA.GetPos()
-    melementmonitor.GetStress(0)
+    # Track reference nodes
+    nodePlotA.SetPos(chrono.ChVector3d(ref_X(t), 0, ref_Y(t)))
+    nodePlotB.SetPos(chrono.ChVector3d(ref_X(t), 0, ref_Y(t)))
 
     sys.DoStepDynamics(timestep)
+    t += timestep

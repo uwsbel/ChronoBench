@@ -1,40 +1,30 @@
 import pychrono
 import pychrono.irrlicht
+import pychrono.vehicle
 
 
 system = pychrono.ChSystemSMC()
+irr = pychrono.irrlicht.ChIrrApp(system, "Beam Simulation", (1280, 720))
 
 
-beam = pychrono.ChBeam()
-beam.SetEndPoint(pychrono.ChVectorD(1, 0, 0))  
-beam.SetDirection(pychrono.ChVectorD(0, 0, 1))  
-beam.SetBeamRigid(True)  
+beam = pychrono.vehicle.ChBeam()
+beam.SetEndPoint(pychrono.ChVectorD(0, 0, 0))
+beam.SetFixedEnd(True)
+beam.SetGravityOn(True)
 system.Add(beam)
 
 
-gravity = pychrono.ChVectorD(0, 0, -9.81)  
-system.Set_G_acc(gravity)
+beam.SetPos(pychrono.ChVectorD(0, 0, 0))
+beam.SetForce(pychrono.ChVectorD(0, -9.81, 0))
 
 
-irrlicht_app = pychrono.irrlicht.ChIrrApp(system, 'Beam Simulation', pychrono.irrlicht.ChIrrWayland)
-irrlicht_app.SetWindowSize(800, 600)
-irrlicht_app.SetWindowTitle('Beam Simulation')
-irrlicht_app.SetShowInfos(True)
-irrlicht_app.SetShowFPS(True)
-irrlicht_app.SetShowContactForces(False)
-irrlicht_app.SetShowGlobalAxes(True)
-irrlicht_app.SetShowSkeleton(False)
-irrlicht_app.SetCameraVertical(pychrono.ChVectorD(0, 0, 1))
-irrlicht_app.SetCameraHorizontal(pychrono.ChVectorD(1, 0, 0))
-irrlicht_app.SetCameraPosition(pychrono.ChVectorD(0, 0, 5))
-irrlicht_app.SetCameraLookat(pychrono.ChVectorD(0, 0, 0))
-irrlicht_app.AddTypicalLogo()
-irrlicht_app.AddTypicalLights()
-irrlicht_app.AddBeam(beam)
-irrlicht_app.AssetBindAll()
-irrlicht_app.AssetUpdateAll()
+irr.AssetBindAll()
+irr.AssetLoadTexture("textures/mud.jpg")
 
+while system.GetChTime() < 10:
+    system.DoStepDynamics(0.01)
+    irr.BeginScene(True, True, pychrono.ChColor(0.4, 0.4, 0.4))
+    irr.DrawAll()
+    irr.EndScene()
 
-irrlicht_app.SetTimestep(0.01)
-irrlicht_app.SetTryRealtime(True)
-irrlicht_app.Run()
+irr.GetDevice().closeDevice()

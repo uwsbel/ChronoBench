@@ -41,7 +41,12 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  
 
 
-vehicle = veh.HMMWV_Full()
+log_step_size = 1e-2  
+log_steps = math.ceil(log_step_size / step_size)
+gps_data = []
+
+
+vehicle = veh.HMMWV_Full() 
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
@@ -113,12 +118,10 @@ imu.PushFilter(sens.ChFilterAccelAccess())
 manager.AddSensor(imu)
 
 
-
-gps_ref = chrono.ChVector3d(0, 0, 0)  
 gps = sens.ChGPSSensor(vehicle.GetChassisBody(),                     
                        10,        
                        offset_pose,          
-                       gps_ref,              
+                       chrono.ChVector3d(-89.400, 43.070, 260.0),  
                        sens.ChNoiseNone())   
 gps.SetName("GPS Sensor")
 gps.SetLag(0)
@@ -137,11 +140,6 @@ print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 
 render_steps = math.ceil(render_step_size / step_size)
-
-
-log_step_size = 0.1  
-log_steps = math.ceil(log_step_size / step_size)
-gps_data = []
 
 
 realtime_timer = chrono.ChRealtimeStepTimer()
@@ -163,16 +161,14 @@ while vis.Run():
     driver_inputs = driver.GetInputs()
 
     
-    if time < 5:
+    if time < 6:
         driver_inputs.m_throttle = 0.8
-        driver_inputs.m_steering = 0.0
-    elif time < 6:
-        driver_inputs.m_throttle = 0.5
         driver_inputs.m_steering = 0.5
+        driver_inputs.m_braking = 0.0
     else:
-        driver_inputs.m_braking = 1.0
         driver_inputs.m_throttle = 0.0
         driver_inputs.m_steering = 0.0
+        driver_inputs.m_braking = 1.0
 
     
     driver.Synchronize(time)
@@ -188,10 +184,13 @@ while vis.Run():
 
     
     manager.Update()
-
+    
     
     if step_number % log_steps == 0:
-        gps_data.append(gps.GetMostRecentGPSBuffer().GetGPSData())
+        gps_buffer = gps.GetMostRecentGPSBuffer()
+        if gps_buffer:
+            gps_info = gps_buffer.GetGPSData()
+            gps_data.append((time, gps_info.x(), gps_info.y(), gps_info.z()))
 
     
     step_number += 1

@@ -1,25 +1,32 @@
 import pychrono as chrono
-import pychrono.irrlicht as chronoirr
+import pychrono.irrlicht as irr
 
 
 system = chrono.ChSystemNSC()
 
 
 ground = chrono.ChBodyEasyBox(10, 1, 10, 1000, True, True)
-ground.SetPos(chrono.ChVectorD(0, -5, 0))
+ground.SetPos(chrono.ChVectorD(0, -1, 0))
+ground.SetBodyFixed(True)
 system.Add(ground)
 
 
-sphere = chrono.ChBodyEasySphere(1, 1000, True, True)
-sphere.SetPos(chrono.ChVectorD(0, 10, 0))
-system.Add(sphere)
+rover = chrono.ChBodyEasyBox(1, 1, 2, 100)
+rover.SetPos(chrono.ChVectorD(0, 1, 0))
+system.Add(rover)
 
 
-application = chronoirr.ChIrrApp(system, 'Falling Sphere', chronoirr.dimension2du(1024, 768))
+motor = chrono.ChLinkMotorRotationSpeed()
+motor.Initialize(rover, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)))
+system.Add(motor)
+
+
+application = irr.ChIrrApp(system, 'Curiosity Rover Simulation', irr.dimension2du(1024, 768))
+application.AddTypicalLogo()
+application.AddTypicalSky()
+application.AddTypicalCamera(irr.vector3df(0, 3, -6))
 application.AddTypicalLights()
-application.AddCamera(chronoirr.vector3df(0, 15, -20))
-application.AssetBindAll()
-application.AssetUpdateAll()
+application.SetTimestep(0.01)
 
 
 while application.GetDevice().run():
@@ -27,3 +34,6 @@ while application.GetDevice().run():
     application.DrawAll()
     application.DoStep()
     application.EndScene()
+
+
+application.GetSystem().Clear()

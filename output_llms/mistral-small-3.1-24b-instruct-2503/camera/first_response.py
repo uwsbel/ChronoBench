@@ -1,0 +1,100 @@
+import pychrono.core as chrono
+import pychrono.irrlicht as chronoirr
+import pychrono.sensor as sensors
+
+# Initialize the PyChrono environment
+chrono.SetChronoDataPath('path/to/chrono/data')  # Set the path to Chrono::Engine data directory
+chrono.ChSystemNSC my_system()  # Create a multi-body system
+
+# Create an Irrlicht visualization system
+my_application = chronoirr.ChIrrApp(my_system, 'Triangular Mesh Simulation', chronoirr.dimension2du(800, 600))
+my_application.AddTypicalSky()
+my_application.AddTypicalLogo()
+my_application.AddTypicalLights()
+my_application.AddTypicalCamera(chrono.ChVectorD(0.5, -1.5, 1.5))
+my_application.SetSymbolScale(0.02)
+
+# Load the triangular mesh from a .obj file
+mesh_body = chrono.ChBody()
+mesh_body.SetPos(chrono.ChVectorD(0, 0, 0))
+mesh_body.SetRot(chrono.Q_FROM_EULER(0, 0, 0))
+mesh_body.SetMass(1)  # Set mass to a non-zero value to avoid issues with the solver
+
+# Load the mesh
+mesh_shape = chrono.ChTriangleMeshShape()
+mesh_shape.LoadWavefrontMesh('path/to/your/mesh.obj')
+mesh_shape.SetName('TriangularMesh')
+mesh_body.AddAsset(mesh_shape)
+mesh_body.AddAsset(chrono.ChColorAsset(0.5, 0.5, 0.5))  # Set the color of the mesh
+
+# Add the mesh body to the system
+my_system.Add(mesh_body)
+
+# Create a camera sensor
+camera_sensor = sensors.ChCameraSensor()
+camera_sensor.SetName('CameraSensor')
+camera_sensor.SetCameraPosition(chrono.ChVectorD(1, 0, 0))
+camera_sensor.SetCameraLookAt(chrono.ChVectorD(0, 0, 0))
+camera_sensor.SetCameraUpVector(chrono.ChVectorD(0, 0, 1))
+camera_sensor.SetClippingPlanes(0.1, 100.0)
+camera_sensor.SetResolution(640, 480)
+camera_sensor.SetFieldOfView(60)
+
+# Add noise filters to the camera sensor
+noise_filter = sensors.ChNoiseFilter()
+noise_filter.SetName('NoiseFilter')
+camera_sensor.AddFilter(noise_filter)
+
+# Add visualization to the camera sensor
+visualization = sensors.ChVisualizationSensor()
+visualization.SetName('VisualizationSensor')
+camera_sensor.AddVisualization(visualization)
+
+# Attach the camera sensor to the mesh body
+camera_sensor.AttachToBody(mesh_body)
+
+# Add the camera sensor to the sensor manager
+sensor_manager = sensors.ChSensorManager()
+sensor_manager.AddSensor(camera_sensor)
+
+# Initialize the sensor manager
+sensor_manager.Initialize(my_system)
+
+# Simulation loop
+my_application.AssetBindAll()
+my_application.AssetUpdateAll()
+my_application.AddLog('Step: ')
+my_application.AddLog('Camera Buffer Data: ')
+
+# Define the orbit parameters
+orbit_radius = 2.0
+orbit_angle = 0.0
+orbit_speed = 0.02  # radians per step
+
+# Simulation step
+step_size = 0.01  # seconds
+total_simulation_time = 10.0  # seconds
+
+while my_application.GetDevice().run():
+    my_application.BeginScene()
+    my_application.DrawAll()
+
+    # Update the camera position in an orbit around the mesh
+    orbit_angle += orbit_speed
+    camera_position = chrono.ChVectorD(orbit_radius * chrono.ChCos(orbit_angle),
+                                        orbit_radius * chrono.ChSin(orbit_angle),
+                                        0)
+    camera_sensor.SetCameraPosition(camera_position)
+
+    # Step the simulation
+    my_system.DoStepDynamics(step_size)
+
+    # Get the camera buffer data
+    camera_buffer = camera_sensor.GetBuffer()
+    my_application.AddLog(f'Camera Buffer Data: {camera_buffer}')
+
+    my_application.EndScene()
+
+    # Exit if the total simulation time is reached
+    if my_system.GetChTime() >= total_simulation_time:
+        break

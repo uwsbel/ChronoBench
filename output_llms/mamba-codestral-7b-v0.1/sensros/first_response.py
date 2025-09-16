@@ -1,81 +1,98 @@
 import pychrono
-from pychrono.sensor import *
-from pychrono.ros import *
 
-# Initialize the PyChrono environment
-system = pychrono.ChSystemNSC()
+# Initialize PyChrono environment and core components
+pychrono.SetChronoDataPath("path_to_chrono_data")
+pychrono.SetChronoOutputLevel(pychrono.ChLogLevel.LOG_ERRORS)
 
-# Add a mesh object for visualization
+# Create the physical system and add it to the simulation
+system = pychrono.ChSystemSMC()
+
+# Create a mesh object for visualization
 mesh = pychrono.ChTriangleMeshConnected()
-mesh.LoadWavefrontMesh(pychrono.GetChronoDataFile("mesh/truck.obj"))
-mesh.SetScaling(1)
-mesh.SetTexture(pychrono.GetChronoDataFile("textures/truck.png"))
-mesh.SetColors(pychrono.ChColor(0.3f, 0.5f, 0.9f))
-mesh.SetStatic(True)
-system.Add(mesh)
+mesh.LoadWavefrontMesh("path_to_mesh_file")
+mesh.SetScaling(pychrono.ChVectorD(1, 1, 1))
+mesh.SetColors(pychrono.ChColor(1, 0, 0))
+mesh.SetTexture("path_to_texture_file")
 
-# Configure the ground body
+# Create the ground body and add it to the simulation
 ground_body = pychrono.ChBody()
+ground_body.SetIdentifier(-1)
+ground_body.SetBodyFixed(True)
 ground_body.SetPos(pychrono.ChVectorD(0, 0, 0))
 ground_body.SetRot(pychrono.ChQuaternionD(1, 0, 0, 0))
-ground_body.SetMass(1e10)
-ground_body.SetInertiaXX(pychrono.ChVectorD(1e10, 1e10, 1e10))
-system.Add(ground_body)
+ground_body.SetInertiaXX(pychrono.ChVectorD(0, 0, 0))
+ground_body.SetInertiaXY(pychrono.ChVectorD(0, 0, 0))
+ground_body.SetInertiaXX(pychrono.ChVectorD(0, 0, 0))
+ground_body.SetMass(0)
+system.AddBody(ground_body)
 
-# Integrate multiple sensors using a sensor manager
-sensor_manager = pychrono.ChSensorManager()
-
-# Add a camera sensor
+# Create sensors and add them to the ground body
 camera = pychrono.ChCameraSensor()
-camera.SetPosition(pychrono.ChVectorD(0, 1, 0))
+camera.SetResolution(pychrono.ChVector2D(640, 480))
+camera.SetHorizontalFov(60)
+camera.SetVerticalFov(45)
+camera.SetPosition(pychrono.ChVectorD(0, 0, 0))
 camera.SetRotation(pychrono.ChQuaternionD(1, 0, 0, 0))
-camera.SetResolution(640, 480)
-camera.SetFov(60)
-sensor_manager.AddSensor(camera)
+ground_body.AddSensor(camera)
 
-# Add a lidar sensor
 lidar = pychrono.ChLidarSensor()
-lidar.SetPosition(pychrono.ChVectorD(0, 1, 0))
+lidar.SetResolution(pychrono.ChVector2D(640, 480))
+lidar.SetHorizontalFov(60)
+lidar.SetVerticalFov(45)
+lidar.SetPosition(pychrono.ChVectorD(0, 0, 0))
 lidar.SetRotation(pychrono.ChQuaternionD(1, 0, 0, 0))
-lidar.SetResolution(360, 1)
-lidar.SetFov(360)
-sensor_manager.AddSensor(lidar)
+ground_body.AddSensor(lidar)
 
-# Add a GPS sensor
 gps = pychrono.ChGpsSensor()
-gps.SetPosition(pychrono.ChVectorD(0, 1, 0))
+gps.SetPosition(pychrono.ChVectorD(0, 0, 0))
 gps.SetRotation(pychrono.ChQuaternionD(1, 0, 0, 0))
-sensor_manager.AddSensor(gps)
+ground_body.AddSensor(gps)
 
-# Add an accelerometer sensor
 accelerometer = pychrono.ChAccelerometerSensor()
-accelerometer.SetPosition(pychrono.ChVectorD(0, 1, 0))
+accelerometer.SetPosition(pychrono.ChVectorD(0, 0, 0))
 accelerometer.SetRotation(pychrono.ChQuaternionD(1, 0, 0, 0))
-sensor_manager.AddSensor(accelerometer)
+ground_body.AddSensor(accelerometer)
 
-# Add a gyroscope sensor
 gyroscope = pychrono.ChGyroscopeSensor()
-gyroscope.SetPosition(pychrono.ChVectorD(0, 1, 0))
+gyroscope.SetPosition(pychrono.ChVectorD(0, 0, 0))
 gyroscope.SetRotation(pychrono.ChQuaternionD(1, 0, 0, 0))
-sensor_manager.AddSensor(gyroscope)
+ground_body.AddSensor(gyroscope)
 
-# Add a magnetometer sensor
 magnetometer = pychrono.ChMagnetometerSensor()
-magnetometer.SetPosition(pychrono.ChVectorD(0, 1, 0))
+magnetometer.SetPosition(pychrono.ChVectorD(0, 0, 0))
 magnetometer.SetRotation(pychrono.ChQuaternionD(1, 0, 0, 0))
-sensor_manager.AddSensor(magnetometer)
+ground_body.AddSensor(magnetometer)
 
-# Register sensors with a ROS manager
+# Create a sensor manager and register the sensors with it
+sensor_manager = pychrono.ChSensorManager()
+sensor_manager.RegisterSensor(camera)
+sensor_manager.RegisterSensor(lidar)
+sensor_manager.RegisterSensor(gps)
+sensor_manager.RegisterSensor(accelerometer)
+sensor_manager.RegisterSensor(gyroscope)
+sensor_manager.RegisterSensor(magnetometer)
+
+# Create a ROS manager and register the sensors with it
 ros_manager = pychrono.ChRosManager()
-ros_manager.RegisterSensor(camera, "/camera_data")
-ros_manager.RegisterSensor(lidar, "/lidar_data")
-ros_manager.RegisterSensor(gps, "/gps_data")
-ros_manager.RegisterSensor(accelerometer, "/accelerometer_data")
-ros_manager.RegisterSensor(gyroscope, "/gyroscope_data")
-ros_manager.RegisterSensor(magnetometer, "/magnetometer_data")
+ros_manager.RegisterSensor(camera, "camera_topic")
+ros_manager.RegisterSensor(lidar, "lidar_topic")
+ros_manager.RegisterSensor(gps, "gps_topic")
+ros_manager.RegisterSensor(accelerometer, "accelerometer_topic")
+ros_manager.RegisterSensor(gyroscope, "gyroscope_topic")
+ros_manager.RegisterSensor(magnetometer, "magnetometer_topic")
 
-# Simulation loop
-while system.GetChTime() < 10:
+# Set up the simulation loop
+system.SetTimestepperType(pychrono.ChTimestepper.Type.EULER_IMPLICIT_LINEARIZED)
+system.SetSolverType(pychrono.ChSolver.Type.BARZILAIBORWEIN)
+system.SetMaxItersSolverIterLCP(500)
+system.SetMaxItersSolverWarmStart(10)
+system.SetSolverMaxIterations(500)
+system.SetSolverTolerance(1e-3)
+system.SetSolverForceTolerance(1e-3)
+system.SetMaxPenetrationRecoverySpeed(1.0)
+
+# Run the simulation loop
+while system.GetChTime() < 10.0:
     system.DoStepDynamics(0.01)
     sensor_manager.Update()
     ros_manager.Publish()

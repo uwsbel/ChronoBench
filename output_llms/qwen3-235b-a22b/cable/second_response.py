@@ -3,7 +3,7 @@ import pychrono.fea as fea
 import pychrono.irrlicht as chronoirr
 
 # ----------------------------------------------------------------------------
-# Model1: A beam composed of 10 ANCF cable elements, with one end hinged to
+# Model1: A beam composed of 10 ANCF cable element, with one end hinged to
 # ground, moving under gravity alone.
 # This model demonstrates the use of the utility class ChBuilderCableANCF.
 # ----------------------------------------------------------------------------
@@ -14,7 +14,7 @@ class Model1:
         msection_cable2 = fea.ChBeamSectionCable()
         msection_cable2.SetDiameter(0.015)  # Set the diameter of the cable section to 15 mm
         msection_cable2.SetYoungModulus(0.01e9)  # Set the Young's modulus of the cable section (0.01 GPa)
-        msection_cable2.SetRayleighDamping(0.0001)  # Modified from 0.000 to 0.0001
+        msection_cable2.SetRayleighDamping(0.0001)  # Modified Rayleigh damping value
 
         # Create a ChBuilderCableANCF helper object to facilitate the creation of ANCF beams
         builder = fea.ChBuilderCableANCF()
@@ -30,7 +30,7 @@ class Model1:
 
         # Apply boundary conditions and loads:
         # Retrieve the end nodes of the beam and apply load/constraints
-        builder.GetLastBeamNodes().front().SetForce(chrono.ChVector3d(0, -0.7, 0))  # Modified from (0, -0.2, 0) to (0, -0.7, 0)
+        builder.GetLastBeamNodes().front().SetForce(chrono.ChVector3d(0, -0.7, 0))  # Modified applied force
 
         # Create a truss body (a fixed reference frame in the simulation)
         mtruss = chrono.ChBody()
@@ -79,19 +79,17 @@ vis.AddCamera(chrono.ChVector3d(0, 0.6, -1))  # Add a camera with specific posit
 vis.AddTypicalLights()  # Add typical lights for better illumination
 
 # Set solver type and settings
-solver = chrono.ChSolverMINRES()  # Replaced from ChSolverSparseQR to ChSolverMINRES
+solver = chrono.ChSolverMINRES()  # Changed to MINRES solver
 if solver.GetType() == chrono.ChSolver.Type_MINRES:
-    print("Using MINRES solver")  # Print message for MINRES
-
-# Set MINRES solver parameters
-solver.SetMaxIterations(200)
-solver.SetTolerance(1e-10)
-solver.EnableDiagonalPreconditioner(True)
-solver.EnableWarmStart(True)
-solver.SetVerbose(False)  # Disable verbose output
-
-# Apply the solver to the system
+    print("Using MINRES solver")
 sys.SetSolver(solver)
+solver.UseSparsityPatternLearner(True)  # Enable sparsity pattern learner
+solver.LockSparsityPattern(True)  # Lock sparsity pattern
+solver.SetMaxIterations(200)  # Set maximum iterations
+solver.SetTolerance(1e-10)  # Set solver tolerance
+solver.EnableDiagonalPreconditioner(True)  # Enable diagonal preconditioner
+solver.EnableWarmStart(True)  # Enable warm start
+solver.SetVerbose(False)  # Disable verbose output
 
 # Set the timestepper for the simulation
 ts = chrono.ChTimestepperEulerImplicitLinearized(sys)
